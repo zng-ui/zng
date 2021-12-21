@@ -12,7 +12,7 @@ use std::{
 use linear_map::LinearMap;
 use zero_ui_view_api::{webrender_api::HitTestResult, FrameUpdateRequest, IpcBytes};
 
-pub use crate::app::view_process::{CursorIcon, EventCause, MonitorInfo, VideoMode, WindowState, WindowTheme};
+pub use crate::app::view_process::{CursorIcon, EventCause, MonitorInfo, RenderMode, VideoMode, WindowState, WindowTheme};
 
 use crate::{
     app::{
@@ -241,6 +241,7 @@ pub struct Window {
     start_position: StartPosition,
     kiosk: bool,
     transparent: bool,
+    render_mode: Option<RenderMode>,
     headless_monitor: HeadlessMonitor,
     child: BoxedUiNode,
 }
@@ -252,7 +253,7 @@ impl Window {
     /// * `kiosk` - Only allow full-screen mode. Note this does not configure the operating system, only blocks the app itself
     ///             from accidentally exiting full-screen. Also causes subsequent open windows to be child of this window.
     /// * `transparent` - If the window should be created in a compositor mode that renders semi-transparent pixels as "see-through".
-    /// * `mode` - Custom window mode for this window only, set to default to use the app mode.
+    /// * `render_mode` - Render mode preference overwrite for this window, note that the actual render mode selected can be different.
     /// * `headless_monitor` - "Monitor" configuration used in [headless mode](WindowMode::is_headless).
     /// * `child` - The root widget outermost node, the window sets-up the root widget using this and the `root_id`.
     #[allow(clippy::too_many_arguments)]
@@ -261,6 +262,7 @@ impl Window {
         start_position: impl IntoValue<StartPosition>,
         kiosk: bool,
         transparent: bool,
+        render_mode: impl IntoValue<Option<RenderMode>>,
         headless_monitor: impl IntoValue<HeadlessMonitor>,
         child: impl UiNode,
     ) -> Self {
@@ -269,6 +271,7 @@ impl Window {
             id: root_id.into(),
             kiosk,
             transparent,
+            render_mode: render_mode.into(),
             start_position: start_position.into(),
             headless_monitor: headless_monitor.into(),
             child: child.boxed(),
@@ -1274,7 +1277,7 @@ impl AppExtension for WindowManager {
                 // AND there is no more open headed window OR request for opening a headed window.
                 if wns.shutdown_on_last_close
                     && !is_headless_app
-                    && !wns.windows.values().any(|w| matches!(w.mode, WindowMode::Headed))
+                    && !wns.windows.values().any(|w| matches!(w.window_mode, WindowMode::Headed))
                     && !wns
                         .open_requests
                         .iter()
@@ -1303,11 +1306,14 @@ impl AppExtension for WindowManager {
     }
 
     fn update_ui(&mut self, ctx: &mut AppContext) {
-        let (open, close) = ctx.services.windows().take_requests();
+        let (wm, (open, close)) = {
+            let wns = ctx.services.windows();
+            (wns.default_render_mode, wns.take_requests())
+        };
 
         // fulfill open requests.
         for r in open {
-            let (w, info) = AppWindow::new(ctx, r.new, r.force_headless);
+            let (w, info) = AppWindow::new(ctx, r.new, r.force_headless, wm);
             let args = WindowOpenArgs::now(w.id);
             {
                 let wns = ctx.services.windows();
@@ -1477,6 +1483,12 @@ pub struct Windows {
     /// are closed, headless windows are ignored.
     pub shutdown_on_last_close: bool,
 
+    /// Default render mode of windows opened by this service, the initial value is [`RenderMode::default`].
+    ///
+    /// Note that this setting only affects windows opened after it is changed, also the view-process may select
+    /// a different render mode if it cannot support the requested mode.
+    pub default_render_mode: RenderMode,
+
     windows: LinearMap<WindowId, AppWindow>,
     windows_info: LinearMap<WindowId, AppWindowInfo>,
 
@@ -1492,6 +1504,7 @@ impl Windows {
     fn new(update_sender: AppEventSender) -> Self {
         Windows {
             shutdown_on_last_close: true,
+            default_render_mode: RenderMode::default(),
             windows: LinearMap::with_capacity(1),
             windows_info: LinearMap::with_capacity(1),
             open_requests: Vec::with_capacity(1),
@@ -1814,7 +1827,7 @@ struct AppWindow {
     context: OwnedWindowContext,
 
     // copy of some `context` values.
-    mode: WindowMode,
+    window_mode: WindowMode,
     id: WindowId,
     root_id: WidgetId,
     kiosk: bool,
@@ -1844,9 +1857,10 @@ impl AppWindow {
         ctx: &mut AppContext,
         new_window: Box<dyn FnOnce(&mut WindowContext) -> Window>,
         force_headless: Option<WindowMode>,
+        default_render_mode: RenderMode,
     ) -> (Self, AppWindowInfo) {
         // get mode.
-        let mode = match (ctx.mode(), force_headless) {
+        let window_mode = match (ctx.window_mode(), force_headless) {
             (WindowMode::Headed | WindowMode::HeadlessWithRenderer, Some(mode)) => {
                 debug_assert!(!matches!(mode, WindowMode::Headed));
                 mode
@@ -1855,16 +1869,18 @@ impl AppWindow {
         };
 
         // init vars.
-        let vars = WindowVars::new();
+        let vars = WindowVars::new(default_render_mode);
         let mut wn_state = OwnedStateMap::default();
         wn_state.set(WindowVarsKey, vars.clone());
 
         // init root.
         let id = WindowId::new_unique();
-        let root = ctx.window_context(id, mode, &mut wn_state, new_window).0;
+        let root = ctx.window_context(id, window_mode, &mut wn_state, new_window).0;
+        let render_mode = root.render_mode.unwrap_or(default_render_mode);
+        vars.0.render_mode.set_ne(ctx, render_mode);
         let root_id = root.id;
 
-        let headless_monitor = if mode.is_headless() {
+        let headless_monitor = if window_mode.is_headless() {
             Some(root.headless_monitor.clone())
         } else {
             None
@@ -1875,7 +1891,7 @@ impl AppWindow {
         // init context.
         let context = OwnedWindowContext {
             window_id: id,
-            mode,
+            window_mode,
             root_transform_key: WidgetTransformKey::new_unique(),
             state: wn_state,
             root,
@@ -1903,7 +1919,7 @@ impl AppWindow {
             headless_monitor,
             headless_surface: None,
             context,
-            mode,
+            window_mode,
             id,
             root_id,
             kiosk,
@@ -1925,7 +1941,7 @@ impl AppWindow {
         };
         let info = AppWindowInfo {
             id,
-            mode,
+            mode: window_mode,
             renderer: None, // will be set on the first render
             vars,
             scale_factor: 1.0.fct(), // will be set on the first layout
@@ -2106,7 +2122,7 @@ impl AppWindow {
 
     /// (monitor_size, scale_factor, ppi)
     fn monitor_metrics(&mut self, ctx: &mut AppContext) -> (DipSize, Factor, f32) {
-        if let WindowMode::Headed = self.mode {
+        if let WindowMode::Headed = self.window_mode {
             // TODO only query monitors in the first layout and after `monitor` updates only.
 
             // try `actual_monitor`
@@ -2298,7 +2314,7 @@ impl AppWindow {
         // open the view window, it will remain invisible until the first frame is rendered
         // but we need it now to get the frame size.
         let vp = ctx.services.get::<ViewProcess>();
-        match self.mode {
+        match self.window_mode {
             WindowMode::Headed => {
                 // send window request to the view-process, in the view-process the window will start but
                 // still not visible, when the renderer has a frame ready to draw then the window becomes
@@ -2331,6 +2347,7 @@ impl AppWindow {
                     cursor: self.vars.cursor().copy(ctx.vars),
                     transparent: self.context.root.transparent,
                     capture_mode: matches!(self.vars.frame_capture_mode().copy(ctx.vars), FrameCaptureMode::All),
+                    render_mode: self.vars.0.render_mode.copy(ctx.vars),
                 };
 
                 // keep the ViewWindow connection and already create the weak-ref ViewRenderer too.
@@ -2368,6 +2385,8 @@ impl AppWindow {
                     RawWindowMovedEvent.notify(ctx, RawWindowMovedArgs::now(self.id, data.position, EventCause::App));
                 }
 
+                self.vars.0.render_mode.set_ne(ctx.vars, data.render_mode);
+
                 RawWindowScaleFactorChangedEvent.notify(ctx.events, RawWindowScaleFactorChangedArgs::now(self.id, data.scale_factor));
             }
             WindowMode::HeadlessWithRenderer => {
@@ -2377,9 +2396,10 @@ impl AppWindow {
                     size: self.size,
                     scale_factor: scale_factor.0,
                     text_aa: self.vars.text_aa().copy(ctx.vars),
+                    render_mode: self.vars.0.render_mode.copy(ctx.vars),
                 };
 
-                let surface = match vp.unwrap().open_headless(config) {
+                let (surface, data) = match vp.unwrap().open_headless(config) {
                     Ok(h) => h,
                     // we re-render and re-open the window on respawn event.
                     Err(Respawned) => return,
@@ -2387,6 +2407,8 @@ impl AppWindow {
                 self.renderer = Some(surface.renderer());
                 self.headless_surface = Some(surface);
                 ctx.services.windows().windows_info.get_mut(&self.id).unwrap().renderer = self.renderer.clone();
+
+                self.vars.0.render_mode.set_ne(ctx.vars, data.render_mode);
 
                 RawWindowScaleFactorChangedEvent.notify(ctx.events, RawWindowScaleFactorChangedArgs::now(self.id, scale_factor));
             }
@@ -2686,7 +2708,7 @@ impl Drop for AppWindow {
 
 struct OwnedWindowContext {
     window_id: WindowId,
-    mode: WindowMode,
+    window_mode: WindowMode,
     root_transform_key: WidgetTransformKey,
     state: OwnedStateMap,
     root: Window,
@@ -2724,7 +2746,7 @@ impl OwnedWindowContext {
 
         let root = &self.root;
         let root_bounds = self.root_bounds.clone();
-        let (builder, _) = ctx.window_context(self.window_id, self.mode, &mut self.state, |ctx| {
+        let (builder, _) = ctx.window_context(self.window_id, self.window_mode, &mut self.state, |ctx| {
             let child = &root.child;
             let mut builder = WidgetInfoBuilder::new(
                 *ctx.window_id,
@@ -2750,7 +2772,7 @@ impl OwnedWindowContext {
         self.update.subscriptions = false;
 
         let root = &self.root;
-        let (subscriptions, _) = ctx.window_context(self.window_id, self.mode, &mut self.state, |ctx| {
+        let (subscriptions, _) = ctx.window_context(self.window_id, self.window_mode, &mut self.state, |ctx| {
             let child = &root.child;
             let mut subscriptions = WidgetSubscriptions::new();
             ctx.info_context(root.id, &root.state, |ctx| {
@@ -2768,7 +2790,7 @@ impl OwnedWindowContext {
 
     fn widget_ctx(&mut self, ctx: &mut AppContext, f: impl FnOnce(&mut WidgetContext, &mut BoxedUiNode)) {
         let root = &mut self.root;
-        let ((), update) = ctx.window_context(self.window_id, self.mode, &mut self.state, |ctx| {
+        let ((), update) = ctx.window_context(self.window_id, self.window_mode, &mut self.state, |ctx| {
             let child = &mut root.child;
             ctx.widget_context(root.id, &mut root.state, |ctx| f(ctx, child))
         });
@@ -2807,7 +2829,7 @@ impl OwnedWindowContext {
         self.prev_metrics = Some((font_size, scale_factor, screen_ppi, available_size));
 
         let root = &mut self.root;
-        let (final_size, update) = ctx.window_context(self.window_id, self.mode, &mut self.state, |ctx| {
+        let (final_size, update) = ctx.window_context(self.window_id, self.window_mode, &mut self.state, |ctx| {
             let child = &mut root.child;
             ctx.layout_context(
                 font_size,
@@ -2843,7 +2865,7 @@ impl OwnedWindowContext {
         let root = &mut self.root;
         let root_transform_key = self.root_transform_key;
 
-        let (builder, _) = ctx.window_context(self.window_id, self.mode, &mut self.state, |ctx| {
+        let (builder, _) = ctx.window_context(self.window_id, self.window_mode, &mut self.state, |ctx| {
             let child = &root.child;
             let mut builder = FrameBuilder::new(
                 frame_id,
@@ -2875,7 +2897,7 @@ impl OwnedWindowContext {
         let root = &self.root;
         let root_transform_key = self.root_transform_key;
 
-        let (updates, _) = ctx.window_context(self.window_id, self.mode, &mut self.state, |ctx| {
+        let (updates, _) = ctx.window_context(self.window_id, self.window_mode, &mut self.state, |ctx| {
             let window_id = *ctx.window_id;
             ctx.render_context(root.id, &root.state, |ctx| {
                 let mut update = FrameUpdate::new(
@@ -2938,6 +2960,7 @@ struct WindowVarsData {
     is_open: RcVar<bool>,
 
     frame_capture_mode: RcVar<FrameCaptureMode>,
+    render_mode: RcVar<RenderMode>,
 }
 
 /// Controls properties of an open window using variables.
@@ -2951,7 +2974,7 @@ struct WindowVarsData {
 /// [`WidgetContext`]: crate::context::WidgetContext::window_state
 pub struct WindowVars(Rc<WindowVarsData>);
 impl WindowVars {
-    fn new() -> Self {
+    fn new(default_render_mode: RenderMode) -> Self {
         let vars = Rc::new(WindowVarsData {
             chrome: var(WindowChrome::Default),
             icon: var(WindowIcon::Default),
@@ -2991,6 +3014,7 @@ impl WindowVars {
             is_open: var(true),
 
             frame_capture_mode: var(FrameCaptureMode::Sporadic),
+            render_mode: var(default_render_mode),
         });
         Self(vars)
     }
@@ -3294,6 +3318,17 @@ impl WindowVars {
     pub fn frame_capture_mode(&self) -> &RcVar<FrameCaptureMode> {
         &self.0.frame_capture_mode
     }
+
+    /// Window actual render mode.
+    ///
+    /// The initial value is the [`default_render_mode`], it can update after the window is created, when the view-process
+    /// actually creates the backend window and after a view-process respawn.
+    ///
+    /// [`default_render_mode`]: Windows::default_render_mode
+    #[inline]
+    pub fn render_mode(&self) -> ReadOnlyRcVar<RenderMode> {
+        self.0.render_mode.clone().into_read_only()
+    }
 }
 state_key! {
     /// Key for the instance of [`WindowVars`] in the window state.
@@ -3307,3 +3342,13 @@ impl crate::var::IntoVar<Option<CursorIcon>> for CursorIcon {
         crate::var::OwnedVar(Some(self))
     }
 }
+impl crate::var::IntoValue<Option<CursorIcon>> for CursorIcon {}
+
+impl crate::var::IntoVar<Option<RenderMode>> for RenderMode {
+    type Var = crate::var::OwnedVar<Option<RenderMode>>;
+
+    fn into_var(self) -> Self::Var {
+        crate::var::OwnedVar(Some(self))
+    }
+}
+impl crate::var::IntoValue<Option<RenderMode>> for RenderMode {}

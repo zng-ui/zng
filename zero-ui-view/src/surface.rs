@@ -11,8 +11,8 @@ use webrender::{
     RenderApi, Renderer, RendererOptions, Transaction,
 };
 use zero_ui_view_api::{
-    units::*, FrameId, FrameRequest, FrameUpdateRequest, HeadlessOpenData, HeadlessRequest, ImageId, ImageLoadedData, TextAntiAliasing,
-    ViewProcessGen, WindowId,
+    units::*, FrameId, FrameRequest, FrameUpdateRequest, HeadlessOpenData, HeadlessRequest, ImageId, ImageLoadedData, RenderMode,
+    TextAntiAliasing, ViewProcessGen, WindowId,
 };
 
 use crate::{
@@ -30,6 +30,7 @@ pub(crate) struct Surface {
     api: RenderApi,
     size: DipSize,
     scale_factor: f32,
+    render_mode: RenderMode,
 
     context: GlHeadlessContext,
     renderer: Option<Renderer>,
@@ -142,6 +143,7 @@ impl Surface {
             api,
             size: cfg.size,
             scale_factor: cfg.scale_factor,
+            render_mode: RenderMode::Dedicated,
 
             context,
             renderer: Some(renderer),
@@ -162,6 +164,7 @@ impl Surface {
             id_namespace: self.id_namespace(),
             pipeline_id: self.pipeline_id,
             document_id,
+            render_mode: self.render_mode,
         }
     }
 
@@ -170,6 +173,10 @@ impl Surface {
             self.documents.swap_remove(i);
             self.api.delete_document(document_id);
         }
+    }
+
+    pub fn render_mode(&self) -> RenderMode {
+        self.render_mode
     }
 
     pub fn id(&self) -> WindowId {

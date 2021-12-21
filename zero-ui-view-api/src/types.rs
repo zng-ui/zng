@@ -1368,6 +1368,53 @@ pub struct WindowRequest {
     /// If `false` all resources for capturing frame images
     /// are discarded after each screenshot request.
     pub capture_mode: bool,
+
+    /// Render mode preference for this window.
+    pub render_mode: RenderMode,
+}
+
+/// Render backend preference.
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
+pub enum RenderMode {
+    /// Prefer the *best* dedicated GPU, probably the best performance but most power consumption.
+    ///
+    /// Falls-back to `Integrated`, then `Software`.
+    Dedicated,
+
+    /// Prefer the integrated *GPU*, probably the best power consumption.
+    ///
+    /// Falls-back to `Dedicated`, then `Software`.
+    Integrated,
+
+    /// Use a software render fallback, this has the best compatibility.
+    ///
+    /// If the view-process implementation has no software fallback it may use one of the GPUs.
+    Software,
+}
+impl Default for RenderMode {
+    /// [`RenderMode::Integrated`].
+    fn default() -> Self {
+        RenderMode::Integrated
+    }
+}
+impl RenderMode {
+    /// Returns fallbacks that view-process implementers will try if `self` is not available.
+    pub fn fallbacks(self) -> [RenderMode; 2] {
+        use RenderMode::*;
+        match self {
+            Dedicated => [Integrated, Software],
+            Integrated => [Dedicated, Software],
+            Software => [Integrated, Dedicated],
+        }
+    }
+
+    /// Returns `self` plus [`fallbacks`].
+    ///
+    /// [`fallbacks`]: Self::fallbacks
+    pub fn with_fallbacks(self) -> [RenderMode; 3] {
+        let [f0, f1] = self.fallbacks();
+        [self, f0, f1]
+    }
 }
 
 /// Configuration of a new headless surface.
@@ -1391,6 +1438,9 @@ pub struct HeadlessRequest {
 
     /// Text anti-aliasing.
     pub text_aa: TextAntiAliasing,
+
+    /// Render mode preference for this headless surface.
+    pub render_mode: RenderMode,
 }
 
 /// Configuration of a new virtual headless surface.
@@ -1602,6 +1652,9 @@ pub struct WindowOpenData {
     pub size: DipSize,
     /// Final scale factor.
     pub scale_factor: f32,
+
+    /// Actual render mode, can be different from the requested mode if it is not available.
+    pub render_mode: RenderMode,
 }
 
 /// Information about a successfully opened headless surface.
@@ -1616,6 +1669,9 @@ pub struct HeadlessOpenData {
     ///
     /// [`open_document`]: crate::Api::open_document
     pub document_id: webrender_api::DocumentId,
+
+    /// Actual render mode, can be different from the requested mode if it is not available.
+    pub render_mode: RenderMode,
 }
 impl HeadlessOpenData {
     /// Create an *invalid* result, for when the surface can not be opened.
@@ -1624,6 +1680,7 @@ impl HeadlessOpenData {
             id_namespace: webrender_api::IdNamespace(0),
             pipeline_id: webrender_api::PipelineId::dummy(),
             document_id: webrender_api::DocumentId::INVALID,
+            render_mode: RenderMode::Software,
         }
     }
 

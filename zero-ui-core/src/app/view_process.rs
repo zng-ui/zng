@@ -23,9 +23,9 @@ use zero_ui_view_api::webrender_api::{
     ImageKey, PipelineId,
 };
 pub use zero_ui_view_api::{
-    bytes_channel, CursorIcon, Event, EventCause, FrameRequest, FrameUpdateRequest, HeadlessRequest, ImageDataFormat, ImagePpi, IpcBytes,
-    IpcBytesReceiver, IpcBytesSender, MonitorInfo, Respawned, TextAntiAliasing, VideoMode, ViewProcessGen, WindowOpenData, WindowRequest,
-    WindowState, WindowTheme,
+    bytes_channel, CursorIcon, Event, EventCause, FrameRequest, FrameUpdateRequest, HeadlessOpenData, HeadlessRequest, ImageDataFormat,
+    ImagePpi, IpcBytes, IpcBytesReceiver, IpcBytesSender, MonitorInfo, RenderMode, Respawned, TextAntiAliasing, VideoMode, ViewProcessGen,
+    WindowOpenData, WindowRequest, WindowState, WindowTheme,
 };
 use zero_ui_view_api::{
     Controller, DeviceId as ApiDeviceId, DocumentRequest, ImageId, ImageLoadedData, MonitorId as ApiMonitorId, WindowId as ApiWindowId,
@@ -131,7 +131,7 @@ impl ViewProcess {
     ///
     /// Note that no actual window is created, only the renderer, the use of window-ids to identify
     /// this renderer is only for convenience.
-    pub fn open_headless(&self, config: HeadlessRequest) -> Result<ViewHeadless> {
+    pub fn open_headless(&self, config: HeadlessRequest) -> Result<(ViewHeadless, HeadlessOpenData)> {
         let _s = tracing::debug_span!("ViewProcess.open_headless").entered();
 
         let mut app = self.0.borrow_mut();
@@ -139,7 +139,7 @@ impl ViewProcess {
         let id = config.id;
         let data = app.process.open_headless(config)?;
 
-        Ok(ViewHeadless(
+        let surf = ViewHeadless(
             Rc::new(WindowConnection {
                 id,
                 app: self.0.clone(),
@@ -149,7 +149,9 @@ impl ViewProcess {
                 generation: app.data_generation,
             }),
             data.document_id,
-        ))
+        );
+
+        Ok((surf, data))
     }
 
     /// Read the system text anti-aliasing config.

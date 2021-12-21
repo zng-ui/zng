@@ -14,7 +14,7 @@ use glutin::{
     event_loop::EventLoopWindowTarget,
     monitor::VideoMode as GVideoMode,
     window::{Fullscreen, Icon, Window as GWindow, WindowBuilder},
-    ContextBuilder, CreationError, GlRequest,
+    ContextBuilder, GlRequest,
 };
 use tracing::span::EnteredSpan;
 use webrender::{
@@ -27,7 +27,7 @@ use webrender::{
 };
 use zero_ui_view_api::{
     units::*, CursorIcon, Event, FrameId, FrameRequest, FrameUpdateRequest, HeadlessOpenData, ImageId, ImageLoadedData, Key, KeyState,
-    ScanCode, TextAntiAliasing, VideoMode, ViewProcessGen, WindowId, WindowRequest, WindowState,
+    RenderMode, ScanCode, TextAntiAliasing, VideoMode, ViewProcessGen, WindowId, WindowRequest, WindowState,
 };
 
 use crate::{
@@ -103,6 +103,8 @@ pub(crate) struct Window {
 
     cursor_pos: PxPoint,
     hit_tester: HitTester,
+
+    render_mode: RenderMode,
 }
 impl fmt::Debug for Window {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -166,29 +168,72 @@ impl Window {
             WindowState::Fullscreen | WindowState::Exclusive => winit.with_fullscreen(Some(Fullscreen::Borderless(None))),
         };
 
-        let glutin = match ContextBuilder::new()
-            .with_hardware_acceleration(None)
-            .with_gl(GlRequest::GlThenGles {
-                opengl_version: (3, 2),
-                opengles_version: (3, 0),
-            })
-            .build_windowed(winit, window_target)
-        {
-            Ok(c) => c,
-            Err(
-                CreationError::NoAvailablePixelFormat | CreationError::NoBackendAvailable(_) | CreationError::OpenGlVersionNotSupported,
-            ) => {
-                panic!("software rendering is not implemented");
+        let mut render_mode = cfg.render_mode;
+        if !cfg!(software) && render_mode == RenderMode::Software {
+            tracing::warn!("ignoring `RenderMode::Software` because did not build with \"software\" feature");
+            render_mode = RenderMode::Integrated;
+        }
+
+        let mut glutin_errors = vec![];
+
+        let mut glutin = None;
+
+        for mode in render_mode.with_fallbacks() {
+            if !cfg!(software) && mode == RenderMode::Software {
+                continue;
             }
-            Err(e) => panic!("failed to create OpenGL context, {:?}", e),
+
+            match ContextBuilder::new()
+                .with_hardware_acceleration(match mode {
+                    RenderMode::Dedicated => Some(true),
+                    RenderMode::Integrated => Some(false),
+                    RenderMode::Software => None,
+                })
+                .with_gl(GlRequest::Latest)
+                .build_windowed(winit.clone(), window_target)
+            {
+                Ok(c) => {
+                    glutin = Some(c);
+                    render_mode = mode;
+                    break;
+                }
+                Err(e) => {
+                    tracing::error!("failed to create glutin context for `{:?}`, {:?}", mode, e);
+                    glutin_errors.push(e);
+                }
+            }
+        }
+
+        let glutin = if let Some(g) = glutin {
+            g
+        } else {
+            panic!("failed to create glutin contexts, including fallbacks {:?}", glutin_errors);
         };
+
         // SAFETY: we drop the context before the window (or panic if we don't).
         let (context, winit_window) = unsafe { glutin.split() };
 
         #[cfg(software)]
-        let context = gl_manager.manage_headed(id, context, None);
+        let context = if let RenderMode::Software = render_mode {
+            gl_manager.manage_headed(id, context, Some(swgl::Context::create()))
+        } else {
+            let mut ctx = gl_manager.manage_headed(id, context, None);
+            ctx.fallback_to_software();
+            if ctx.is_software() {
+                render_mode = RenderMode::Software;
+            }
+            ctx
+        };
+
         #[cfg(not(software))]
-        let context = gl_manager.manage_headed(id, context);
+        let context = {
+            let ctx = gl_manager.manage_headed(id, context);
+            assert!(
+                ctx.supports_wr(),
+                "glutin context does not meet minimal requirements of OpenGL 3.1 and zero-ui-view was not built with \"software\" fallback"
+            );
+            ctx
+        };
 
         // extend the winit Windows window to only block the Alt+F4 key press if we want it to.
         let allow_alt_f4 = Rc::new(Cell::new(cfg.allow_alt_f4));
@@ -230,6 +275,9 @@ impl Window {
             enable_aa: text_aa != TextAntiAliasing::Mono,
             enable_subpixel_aa: text_aa == TextAntiAliasing::Subpixel,
             renderer_id: Some((gen as u64) << 32 | id as u64),
+            allow_advanced_blend_equation: context.is_software(),
+            clear_caches_with_quads: !context.is_software(),
+            enable_gpu_markers: !context.is_software(),
             //panic_on_gl_error: true,
             // TODO expose more options to the user.
             ..Default::default()
@@ -288,6 +336,7 @@ impl Window {
             state: cfg.state,
             cursor_pos: PxPoint::zero(),
             hit_tester,
+            render_mode,
         };
 
         // Maximized/Fullscreen Flickering Workaround Part 2
@@ -312,6 +361,7 @@ impl Window {
             id_namespace: self.id_namespace(),
             pipeline_id: self.pipeline_id,
             document_id,
+            render_mode: self.render_mode,
         }
     }
 
@@ -948,6 +998,11 @@ impl Window {
         let _p = tracing::trace_span!("hit_test").entered();
         let point = point.to_px(self.scale_factor());
         (self.rendered_frame_id, self.hit_tester.hit_test(point))
+    }
+
+    /// Window actual render mode.
+    pub fn render_mode(&self) -> RenderMode {
+        self.render_mode
     }
 }
 impl Drop for Window {

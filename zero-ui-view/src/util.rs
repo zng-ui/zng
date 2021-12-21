@@ -160,6 +160,8 @@ impl Drop for GlHeadlessContext {
     }
 }
 
+pub(crate) const WR_GL_MIN: (u8, u8) = (3, 1);
+
 /// Managed headed Open-GL context.
 pub(crate) struct GlContext {
     id: WindowId,
@@ -198,6 +200,58 @@ impl GlContext {
         }
     }
 
+    /// Returns `true` if the context is current.
+    pub fn is_current(&self) -> bool {
+        self.current.get() == Some(self.id)
+    }
+
+    /// If the context is using the `swgl` fallback.
+    #[cfg(software)]
+    pub fn is_software(&self) -> bool {
+        self.software_ctx.is_some()
+    }
+
+    /// Returns `false`
+    #[cfg(not(software))]
+    pub fn is_software(&self) -> bool {
+        false
+    }
+
+    /// Check OpenGL version and init a `swgl` fallback if needed.
+    #[cfg(software)]
+    pub fn fallback_to_software(&mut self) {
+        assert!(self.is_current());
+        assert!(!self.is_software());
+
+        if !self.supports_wr() {
+            self.software_ctx = Some(swgl::Context::create());
+        }
+    }
+
+    /// Returns `true` if the current context is can be used by `webrender`.
+    pub fn supports_wr(&self) -> bool {
+        assert!(self.is_current());
+
+        #[cfg(software)]
+        if self.is_software() {
+            return true;
+        }
+
+        let ver: Vec<_> = self
+            .gl
+            .get_string(gl::VERSION)
+            .split('.')
+            .take(2)
+            .map(|n| n.parse::<u8>().unwrap())
+            .collect();
+
+        if ver[0] == WR_GL_MIN.0 {
+            ver.get(1).copied().unwrap_or(0) >= WR_GL_MIN.1
+        } else {
+            ver[0] > WR_GL_MIN.0
+        }
+    }
+
     /*
     /// Reference the OpenGL functions.
     pub fn gl(&self) -> &dyn Gl {
@@ -207,7 +261,7 @@ impl GlContext {
         }
         &*self.gl
     }
-    */
+     */
 
     /// Clone the OpenGL functions pointer.
     #[cfg(software)]
@@ -220,14 +274,14 @@ impl GlContext {
 
     /// Resize the surfaces.
     pub fn resize(&mut self, size: glutin::dpi::PhysicalSize<u32>) {
-        assert_eq!(self.current.get(), Some(self.id));
+        assert!(self.is_current());
 
         self.ctx.as_mut().unwrap().resize(size);
     }
 
     /// Upload software render and swap buffers.
     pub fn swap_buffers(&mut self) {
-        assert_eq!(self.current.get(), Some(self.id));
+        assert!(self.is_current());
 
         #[cfg(software)]
         if let Some(swgl) = &self.software_ctx {
@@ -269,6 +323,11 @@ fn upload_swgl_to_native(swgl: &swgl::Context, gl: &dyn Gl) {
     let tex = gl.gen_textures(1)[0];
     gl.bind_texture(gl::TEXTURE_2D, tex);
     let (data_ptr, w, h, stride) = swgl.get_color_buffer(0, true);
+    
+    if w == 0 || h == 0 {
+        return;
+    }
+
     assert!(stride == w * 4);
     let buffer = unsafe { std::slice::from_raw_parts(data_ptr as *const u8, w as usize * h as usize * 4) };
     gl.tex_image_2d(

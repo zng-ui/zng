@@ -572,7 +572,7 @@ impl<'a> AppContext<'a> {
     /// Returns a [`WindowMode`] value that indicates if the app is headless, headless with renderer or headed.
     ///
     /// Note that specific windows can be in headless modes even if the app is headed.
-    pub fn mode(&mut self) -> WindowMode {
+    pub fn window_mode(&mut self) -> WindowMode {
         self.services
             .get::<crate::app::view_process::ViewProcess>()
             .map(|p| {
@@ -592,7 +592,7 @@ impl<'a> AppContext<'a> {
     pub fn window_context<R>(
         &mut self,
         window_id: WindowId,
-        mode: WindowMode,
+        window_mode: WindowMode,
         window_state: &mut OwnedStateMap,
         f: impl FnOnce(&mut WindowContext) -> R,
     ) -> (R, WindowUpdates) {
@@ -602,7 +602,7 @@ impl<'a> AppContext<'a> {
 
         let r = f(&mut WindowContext {
             window_id: &window_id,
-            mode: &mode,
+            window_mode: &window_mode,
             app_state: self.app_state,
             window_state: &mut window_state.0,
             update_state: &mut update_state,
@@ -650,7 +650,7 @@ pub struct WindowContext<'a> {
     pub window_id: &'a WindowId,
 
     /// Window mode, headed or not, renderer or not.
-    pub mode: &'a WindowMode,
+    pub window_mode: &'a WindowMode,
 
     /// State that lives for the duration of the application.
     pub app_state: &'a mut StateMap,

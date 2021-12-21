@@ -1,5 +1,5 @@
 use crate::core::focus::*;
-use crate::core::window::{HeadlessMonitor, StartPosition, Window};
+use crate::core::window::{HeadlessMonitor, RenderMode, StartPosition, Window};
 use crate::prelude::new_widget::*;
 use crate::properties::events::window::*;
 
@@ -242,6 +242,31 @@ pub mod window {
         #[allowed_in_when = false]
         allow_transparency(bool) = true;
 
+        /// Render performance mode overwrite for this window, if set to `None` the [`Windows::default_render_mode`] is used.
+        ///
+        /// # Examples
+        ///
+        /// Prefer `Integrated` renderer backend for just this window:
+        ///
+        /// ```no_run
+        /// use zero_ui::core::window::RenderMode;
+        /// use zero_ui::prelude::*;
+        ///
+        /// fn example(ctx: &mut WindowContext) -> Window {
+        ///     let selected_mode = ctx.window_state.req(WindowVarsKey).render_mode();
+        ///     window! {
+        ///         title = "Render Mode";
+        ///         render_mode = RenderMode::Integrated;
+        ///         content = text(selected_mode.map(|m| formatx!("Preference: Integrated\nActual: {:?}", m)));
+        ///     }
+        /// }
+        /// ```
+        ///
+        /// The `view-process` will try to match the mode, if it is not available a fallback mode is selected,
+        /// see [`RenderMode`] for more details about each mode and fallbacks.
+        #[allowed_in_when = false]
+        render_mode(impl IntoValue<Option<RenderMode>>) = None;
+
         /// Event just after the window opens.
         ///
         /// This event notifies once per window, after the window content is inited and the first frame was send to the renderer.
@@ -388,9 +413,18 @@ pub mod window {
         start_position: impl IntoValue<StartPosition>,
         kiosk: bool,
         allow_transparency: bool,
+        render_mode: impl IntoValue<Option<RenderMode>>,
         headless_monitor: impl IntoValue<HeadlessMonitor>,
     ) -> Window {
-        Window::new(root_id, start_position, kiosk, allow_transparency, headless_monitor, child)
+        Window::new(
+            root_id,
+            start_position,
+            kiosk,
+            allow_transparency,
+            render_mode,
+            headless_monitor,
+            child,
+        )
     }
 
     /// Window stand-alone properties.

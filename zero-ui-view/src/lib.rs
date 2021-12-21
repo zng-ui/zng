@@ -1003,11 +1003,13 @@ impl<S: AppEventSender> Api for App<S> {
                 scale_factor: 1.0,
                 size: config.size,
                 text_aa: config.text_aa,
+                render_mode: config.render_mode,
             });
             WindowOpenData {
                 id_namespace: data.id_namespace,
                 pipeline_id: data.pipeline_id,
                 document_id: data.document_id,
+                render_mode: data.render_mode,
                 position: DipPoint::zero(),
                 size: config.size,
                 scale_factor: 1.0,
@@ -1031,6 +1033,7 @@ impl<S: AppEventSender> Api for App<S> {
                 position: win.outer_position(),
                 size: win.size(),
                 scale_factor: win.scale_factor(),
+                render_mode: win.render_mode(),
             };
 
             self.windows.push(win);
@@ -1053,6 +1056,7 @@ impl<S: AppEventSender> Api for App<S> {
         let id_namespace = surf.id_namespace();
         let pipeline_id = surf.pipeline_id();
         let document_id = surf.document_id();
+        let render_mode = surf.render_mode();
 
         self.surfaces.push(surf);
 
@@ -1060,6 +1064,7 @@ impl<S: AppEventSender> Api for App<S> {
             id_namespace,
             pipeline_id,
             document_id,
+            render_mode,
         }
     }
 
