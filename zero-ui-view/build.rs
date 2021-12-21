@@ -13,7 +13,7 @@ fn main() {
             }
             if !check_env("CC") || !check_env("CXX") {
                 println!(
-                    r#"cargo:warning=feature "software" disabled because `CC`, `CXX` are not set to `clang-cl`, \
+                    r#"cargo:warning=zero-ui-view feature "software" disabled because `CC`, `CXX` are not set to `clang-cl`, \
                             this is required to build on Windows MSVC, see crate docs"#
                 );
 
