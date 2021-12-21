@@ -75,11 +75,17 @@ use util::{GlContextManager, WinitToPx};
 
 // /*
 
-/// Doc-only `webrender` re-export.
+/// "do doc" only `webrender` re-export.
 ///
-#[cfg(doc)]
+#[cfg(do_doc)]
 #[doc(inline)]
 pub use webrender;
+
+/// "do doc" only `swgl` re-export.
+///
+#[cfg(any(do_doc, software))]
+#[doc(inline)]
+pub use swgl;
 
 // */
 mod config;

@@ -69,7 +69,7 @@ fn doc(mut args: Vec<&str>) {
         "cargo",
         &["+nightly", "doc", "--all-features", "--no-deps", "--package", "zero-ui*"],
         &args,
-        &[("RUSTDOCFLAGS", "--cfg doc_nightly")],
+        &[("RUSTDOCFLAGS", "--cfg doc_nightly --cfg do_doc")],
     );
 
     if custom_open {
