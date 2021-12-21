@@ -40,6 +40,24 @@
 //! again, this time configured to be a view-process, `init` detects this and highjacks the process
 //! **never returning**.
 //!
+//! # Software Backend
+//!
+//! The `webrender/swgl` software renderer can be used as fallback when no native OpenGL 3.2 driver is available, to build it
+//! the feature `"software"` must be enabled (it is by default) and on Windows MSVC the `clang-cl` dependency must be installed and
+//! associated with the `CC` and `CXX` environment variables, if requirements are not met a warning is emitted and the feature auto-deactivates.
+//!
+//! To install dependencies on Windows:
+//!
+//! * Install LLVM (<https://releases.llvm.org/>) and add it to the `PATH` variable:
+//! ```bat
+//! set PATH=%PATH%;C:\Program Files\LLVM\bin
+//! ```
+//! * Associate `CC` and `CXX` with `clang-cl`:
+//! ```bat
+//! set CC=clang-cl
+//! set CXX=clang-cl
+//! ```
+//!
 //! [`glutin`]: https://docs.rs/glutin/
 
 use std::{

@@ -128,7 +128,7 @@ macro_rules! unique_id_64 {
             ///
             /// The value must not be zero, panics in debug builds if it is, the value must have been provided by [`get`] otherwise
             /// the ID will not be unique, it may represent a random resource existing or future.
-            /// 
+            ///
             /// [`get`]: Self::get
             #[allow(dead_code)]
             pub unsafe fn from_raw(raw: u64) -> $Type {

@@ -1,7 +1,7 @@
-use std::{collections::VecDeque, fmt, rc::Rc};
+use std::{collections::VecDeque, fmt};
 
 use gleam::gl;
-use glutin::{dpi::PhysicalSize, event_loop::EventLoopWindowTarget, Api as GApi, ContextBuilder, GlRequest};
+use glutin::{dpi::PhysicalSize, event_loop::EventLoopWindowTarget, ContextBuilder, GlRequest};
 use webrender::{
     api::{
         BuiltDisplayList, DisplayListPayload, DocumentId, DynamicProperties, FontInstanceKey, FontInstanceOptions,
@@ -32,7 +32,6 @@ pub(crate) struct Surface {
     scale_factor: f32,
 
     context: GlHeadlessContext,
-    gl: Rc<dyn gl::Gl>,
     renderer: Option<Renderer>,
     image_use: ImageUseMap,
     rbos: [u32; 2],
@@ -92,24 +91,19 @@ impl Surface {
             .build_headless(window_target, size_one)
             .expect("failed to build headless context");
 
-        let mut context = gl_manager.manage_headless(id, context);
-        let gl_ctx = context.make_current();
+        #[cfg(software)]
+        let context = gl_manager.manage_headless(id, context, None);
+        #[cfg(not(software))]
+        let context = gl_manager.manage_headless(id, context);
 
-        let gl = match gl_ctx.get_api() {
-            GApi::OpenGl => unsafe { gl::GlFns::load_with(|symbol| gl_ctx.get_proc_address(symbol) as *const _) },
-            GApi::OpenGlEs => unsafe { gl::GlesFns::load_with(|symbol| gl_ctx.get_proc_address(symbol) as *const _) },
-            GApi::WebGl => panic!("WebGl is not supported"),
-        };
-
-        #[cfg(debug_assertions)]
-        let gl = gl::ErrorCheckingGl::wrap(gl.clone());
+        let gl = context.gl();
 
         // manually create a surface.
         let rbos = gl.gen_renderbuffers(2);
         let rbos = [rbos[0], rbos[1]];
         let fbo = gl.gen_framebuffers(1)[0];
 
-        resize(&gl, rbos, cfg.size, cfg.scale_factor);
+        resize(gl, rbos, cfg.size, cfg.scale_factor);
 
         gl.bind_framebuffer(gl::FRAMEBUFFER, fbo);
         gl.framebuffer_renderbuffer(gl::FRAMEBUFFER, gl::COLOR_ATTACHMENT0, gl::RENDERBUFFER, rbos[0]);
@@ -132,7 +126,7 @@ impl Surface {
         let device_size = cfg.size.to_px(cfg.scale_factor).to_wr_device();
 
         let (mut renderer, sender) =
-            webrender::Renderer::new(Rc::clone(&gl), Box::new(Notifier { id, sender: event_sender }), opts, None).unwrap();
+            webrender::Renderer::new(context.share_gl(), Box::new(Notifier { id, sender: event_sender }), opts, None).unwrap();
         renderer.set_external_image_handler(WrImageCache::new_boxed());
 
         let api = sender.create_api();
@@ -150,7 +144,6 @@ impl Surface {
             scale_factor: cfg.scale_factor,
 
             context,
-            gl,
             renderer: Some(renderer),
             image_use: ImageUseMap::default(),
             rbos,
@@ -213,7 +206,8 @@ impl Surface {
             if self.document_id == document_id {
                 self.size = size;
                 self.scale_factor = scale_factor;
-                resize(&self.gl, self.rbos, size, scale_factor);
+                self.context.make_current();
+                resize(self.context.gl(), self.rbos, size, scale_factor);
                 self.resized = true;
             } else {
                 todo!()
@@ -355,13 +349,15 @@ impl Surface {
         let mut captured_data = None;
 
         if msg.composite_needed || capture {
-            let _ctx = self.context.make_current();
+            self.context.make_current();
             let renderer = self.renderer.as_mut().unwrap();
 
             if msg.composite_needed {
                 renderer.update();
                 renderer.render((self.size.to_px(self.scale_factor)).to_wr_device(), 0).unwrap();
                 let _ = renderer.flush_pipeline_info();
+
+                self.context.upload_swgl();
             }
             if capture {
                 captured_data = Some(images.frame_image_data(
@@ -408,16 +404,17 @@ impl Surface {
 }
 impl Drop for Surface {
     fn drop(&mut self) {
-        let _ctx = self.context.make_current();
+        self.context.make_current();
 
         self.renderer.take().unwrap().deinit();
 
-        self.gl.delete_framebuffers(&[self.fbo]);
-        self.gl.delete_renderbuffers(&self.rbos);
+        let gl = self.context.gl();
+        gl.delete_framebuffers(&[self.fbo]);
+        gl.delete_renderbuffers(&self.rbos);
     }
 }
 
-fn resize(gl: &Rc<dyn gl::Gl>, rbos: [u32; 2], size: DipSize, scale_factor: f32) {
+fn resize(gl: &dyn gl::Gl, rbos: [u32; 2], size: DipSize, scale_factor: f32) {
     let size = size.to_px(scale_factor);
     let width = size.width.0;
     let height = size.height.0;

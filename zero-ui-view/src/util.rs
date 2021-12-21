@@ -1,5 +1,6 @@
 use std::{cell::Cell, rc::Rc};
 
+use gleam::gl::{self, Gl};
 use glutin::{event::ElementState, monitor::MonitorHandle};
 use zero_ui_view_api::{
     units::*, ButtonState, CursorIcon, Force, Key, KeyState, ModifiersState, MonitorInfo, MouseButton, MouseScrollDelta, TouchPhase,
@@ -15,19 +16,69 @@ pub(crate) struct GlContextManager {
 }
 impl GlContextManager {
     /// Start managing a "headed" glutin context.
-    pub fn manage_headed(&self, id: WindowId, ctx: glutin::RawContext<glutin::NotCurrent>) -> GlContext {
+    pub fn manage_headed(
+        &self,
+        id: WindowId,
+        ctx: glutin::RawContext<glutin::NotCurrent>,
+        #[cfg(software)] software_ctx: Option<swgl::Context>,
+    ) -> GlContext {
+        #[cfg(software)]
+        if let Some(swgl) = &software_ctx {
+            swgl.make_current();
+        }
+
+        let ctx = unsafe { ctx.make_current().unwrap() };
+        self.current.set(Some(id));
+
+        let gl = match ctx.get_api() {
+            glutin::Api::OpenGl => unsafe { gl::GlFns::load_with(|symbol| ctx.get_proc_address(symbol) as *const _) },
+            glutin::Api::OpenGlEs => unsafe { gl::GlesFns::load_with(|symbol| ctx.get_proc_address(symbol) as *const _) },
+            glutin::Api::WebGl => panic!("WebGl is not supported"),
+        };
+
+        #[cfg(debug_assertions)]
+        let gl = gl::ErrorCheckingGl::wrap(gl.clone());
+
         GlContext {
             id,
-            ctx: Some(unsafe { ctx.treat_as_current() }),
+            ctx: Some(ctx),
+            gl,
+            #[cfg(software)]
+            software_ctx,
             current: Rc::clone(&self.current),
         }
     }
 
     /// Start managing a headless glutin context.
-    pub fn manage_headless(&self, id: WindowId, ctx: glutin::Context<glutin::NotCurrent>) -> GlHeadlessContext {
+    pub fn manage_headless(
+        &self,
+        id: WindowId,
+        ctx: glutin::Context<glutin::NotCurrent>,
+        #[cfg(software)] software_ctx: Option<swgl::Context>,
+    ) -> GlHeadlessContext {
+        #[cfg(software)]
+        if let Some(swgl) = &software_ctx {
+            swgl.make_current();
+        }
+
+        let ctx = unsafe { ctx.make_current().unwrap() };
+        self.current.set(Some(id));
+
+        let gl = match ctx.get_api() {
+            glutin::Api::OpenGl => unsafe { gl::GlFns::load_with(|symbol| ctx.get_proc_address(symbol) as *const _) },
+            glutin::Api::OpenGlEs => unsafe { gl::GlesFns::load_with(|symbol| ctx.get_proc_address(symbol) as *const _) },
+            glutin::Api::WebGl => panic!("WebGl is not supported"),
+        };
+
+        #[cfg(debug_assertions)]
+        let gl = gl::ErrorCheckingGl::wrap(gl.clone());
+
         GlHeadlessContext {
             id,
-            ctx: Some(unsafe { ctx.treat_as_current() }),
+            ctx: Some(ctx),
+            gl,
+            #[cfg(software)]
+            software_ctx,
             current: Rc::clone(&self.current),
         }
     }
@@ -37,13 +88,14 @@ impl GlContextManager {
 pub(crate) struct GlHeadlessContext {
     id: WindowId,
     ctx: Option<glutin::Context<glutin::PossiblyCurrent>>,
+    gl: Rc<dyn Gl>,
+    #[cfg(software)]
+    software_ctx: Option<swgl::Context>,
     current: Rc<Cell<Option<WindowId>>>,
 }
 impl GlHeadlessContext {
-    /// Gets the context as current.
-    ///
-    /// It can already be current or it is made current.
-    pub fn make_current(&mut self) -> &mut glutin::Context<glutin::PossiblyCurrent> {
+    /// Ensure the context is current.
+    pub fn make_current(&mut self) {
         let id = Some(self.id);
         if self.current.get() != id {
             self.current.set(id);
@@ -57,12 +109,48 @@ impl GlHeadlessContext {
             // anymore, and just ignore the whole "current state tag" thing.
             let c = unsafe { c.treat_as_not_current().make_current() }.expect("failed to make current");
             self.ctx = Some(c);
+
+            #[cfg(software)]
+            if let Some(ctx) = &mut self.software_ctx {
+                ctx.make_current();
+            }
         }
-        self.ctx.as_mut().unwrap()
+    }
+
+    /// Reference the OpenGL functions.
+    pub fn gl(&self) -> &dyn Gl {
+        #[cfg(software)]
+        if let Some(ctx) = &self.software_ctx {
+            return ctx;
+        }
+        &*self.gl
+    }
+
+    /// Clone the OpenGl functions pointer.
+    pub fn share_gl(&self) -> Rc<dyn Gl> {
+        #[cfg(software)]
+        if let Some(ctx) = &self.software_ctx {
+            return Rc::new(*ctx);
+        }
+        self.gl.clone()
+    }
+
+    /// Finish software rendering and copy it to the minimal headless context.
+    pub fn upload_swgl(&self) {
+        assert_eq!(self.current.get(), Some(self.id));
+
+        #[cfg(software)]
+        if let Some(swgl) = &self.software_ctx {
+            upload_swgl_to_native(swgl, &*self.gl);
+        }
     }
 }
 impl Drop for GlHeadlessContext {
     fn drop(&mut self) {
+        #[cfg(software)]
+        if let Some(ctx) = self.software_ctx.take() {
+            ctx.destroy();
+        }
         if self.current.get() == Some(self.id) {
             let _ = unsafe { self.ctx.take().unwrap().make_not_current() };
             self.current.set(None);
@@ -75,14 +163,20 @@ impl Drop for GlHeadlessContext {
 /// Managed headed Open-GL context.
 pub(crate) struct GlContext {
     id: WindowId,
+
     ctx: Option<glutin::ContextWrapper<glutin::PossiblyCurrent, ()>>,
+    gl: Rc<dyn Gl>,
+
+    #[cfg(software)]
+    software_ctx: Option<swgl::Context>,
+
     current: Rc<Cell<Option<WindowId>>>,
 }
 impl GlContext {
     /// Gets the context as current.
     ///
     /// It can already be current or it is made current.
-    pub fn make_current(&mut self) -> &mut glutin::ContextWrapper<glutin::PossiblyCurrent, ()> {
+    pub fn make_current(&mut self) {
         let id = Some(self.id);
         if self.current.get() != id {
             self.current.set(id);
@@ -96,8 +190,51 @@ impl GlContext {
             // anymore, and just ignore the whole "current state tag" thing.
             let c = unsafe { c.treat_as_not_current().make_current() }.expect("failed to make current");
             self.ctx = Some(c);
+
+            #[cfg(software)]
+            if let Some(ctx) = &mut self.software_ctx {
+                ctx.make_current();
+            }
         }
-        self.ctx.as_mut().unwrap()
+    }
+
+    /*
+    /// Reference the OpenGL functions.
+    pub fn gl(&self) -> &dyn Gl {
+        #[cfg(software)]
+        if let Some(ctx) = &self.software_ctx {
+            return ctx
+        }
+        &*self.gl
+    }
+    */
+
+    /// Clone the OpenGL functions pointer.
+    #[cfg(software)]
+    pub fn share_gl(&self) -> Rc<dyn Gl> {
+        if let Some(ctx) = &self.software_ctx {
+            return Rc::new(*ctx);
+        }
+        self.gl.clone()
+    }
+
+    /// Resize the surfaces.
+    pub fn resize(&mut self, size: glutin::dpi::PhysicalSize<u32>) {
+        assert_eq!(self.current.get(), Some(self.id));
+
+        self.ctx.as_mut().unwrap().resize(size);
+    }
+
+    /// Upload software render and swap buffers.
+    pub fn swap_buffers(&mut self) {
+        assert_eq!(self.current.get(), Some(self.id));
+
+        #[cfg(software)]
+        if let Some(swgl) = &self.software_ctx {
+            upload_swgl_to_native(swgl, &*self.gl);
+        }
+
+        self.ctx.as_mut().unwrap().swap_buffers().unwrap();
     }
 
     /// Glutin requires that the context is [dropped before the window][1], calling this
@@ -105,6 +242,10 @@ impl GlContext {
     ///
     /// [1]: https://docs.rs/glutin/0.27.0/glutin/type.WindowedContext.html#method.split
     pub fn drop_before_winit(&mut self) {
+        #[cfg(software)]
+        if let Some(ctx) = self.software_ctx.take() {
+            ctx.destroy();
+        }
         if self.current.get() == Some(self.id) {
             let _ = unsafe { self.ctx.take().unwrap().make_not_current() };
             self.current.set(None);
@@ -119,6 +260,35 @@ impl Drop for GlContext {
             panic!("call `drop_before_winit` before dropping")
         }
     }
+}
+
+#[cfg(software)]
+fn upload_swgl_to_native(swgl: &swgl::Context, gl: &dyn Gl) {
+    swgl.finish();
+
+    let tex = gl.gen_textures(1)[0];
+    gl.bind_texture(gl::TEXTURE_2D, tex);
+    let (data_ptr, w, h, stride) = swgl.get_color_buffer(0, true);
+    assert!(stride == w * 4);
+    let buffer = unsafe { std::slice::from_raw_parts(data_ptr as *const u8, w as usize * h as usize * 4) };
+    gl.tex_image_2d(
+        gl::TEXTURE_2D,
+        0,
+        gl::RGBA8 as _,
+        w,
+        h,
+        0,
+        gl::BGRA,
+        gl::UNSIGNED_BYTE,
+        Some(buffer),
+    );
+    let fb = gl.gen_framebuffers(1)[0];
+    gl.bind_framebuffer(gl::READ_FRAMEBUFFER, fb);
+    gl.framebuffer_texture_2d(gl::READ_FRAMEBUFFER, gl::COLOR_ATTACHMENT0, gl::TEXTURE_2D, tex, 0);
+    gl.blit_framebuffer(0, 0, w, h, 0, 0, w, h, gl::COLOR_BUFFER_BIT, gl::NEAREST);
+    gl.delete_framebuffers(&[fb]);
+    gl.delete_textures(&[tex]);
+    gl.finish();
 }
 
 /// Sets a window subclass that calls a raw event handler.

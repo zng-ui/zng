@@ -10,7 +10,6 @@ use std::{
     time::Instant,
 };
 
-use gleam::gl;
 use glutin::{
     event_loop::EventLoopWindowTarget,
     monitor::VideoMode as GVideoMode,
@@ -185,7 +184,11 @@ impl Window {
         };
         // SAFETY: we drop the context before the window (or panic if we don't).
         let (context, winit_window) = unsafe { glutin.split() };
-        let mut context = gl_manager.manage_headed(id, context);
+
+        #[cfg(software)]
+        let context = gl_manager.manage_headed(id, context, None);
+        #[cfg(not(software))]
+        let context = gl_manager.manage_headed(id, context);
 
         // extend the winit Windows window to only block the Alt+F4 key press if we want it to.
         let allow_alt_f4 = Rc::new(Cell::new(cfg.allow_alt_f4));
@@ -215,13 +218,6 @@ impl Window {
         let wr_scope = tracing::trace_span!("open/webrender").entered();
 
         // create renderer and start the first frame.
-        let gl_ctx = context.make_current();
-
-        let gl = match gl_ctx.get_api() {
-            glutin::Api::OpenGl => unsafe { gl::GlFns::load_with(|symbol| gl_ctx.get_proc_address(symbol) as *const _) },
-            glutin::Api::OpenGlEs => unsafe { gl::GlesFns::load_with(|symbol| gl_ctx.get_proc_address(symbol) as *const _) },
-            glutin::Api::WebGl => panic!("WebGl is not supported"),
-        };
 
         let device_size = winit_window.inner_size().to_px().to_wr_device();
 
@@ -243,7 +239,7 @@ impl Window {
         let (rf_sender, redirect_frame_recv) = flume::unbounded();
 
         let (mut renderer, sender) = webrender::Renderer::new(
-            gl,
+            context.share_gl(),
             Box::new(Notifier {
                 window_id: id,
                 sender: event_sender,
@@ -417,8 +413,8 @@ impl Window {
 
     /// window.inner_size maybe new.
     pub fn on_resized(&mut self) {
-        let ctx = self.context.make_current();
-        ctx.resize(self.window.inner_size());
+        self.context.make_current();
+        self.context.resize(self.window.inner_size());
         self.resized = true;
     }
 
@@ -844,13 +840,15 @@ impl Window {
     pub fn redraw(&mut self) {
         let _s = tracing::trace_span!("Window.redraw").entered();
 
-        let ctx = self.context.make_current();
+        self.context.make_current();
+
         let renderer = self.renderer.as_mut().unwrap();
         renderer.update();
         let s = self.window.inner_size();
         renderer.render(s.to_px().to_wr_device(), 0).unwrap();
         let _ = renderer.flush_pipeline_info();
-        ctx.swap_buffers().unwrap();
+
+        self.context.swap_buffers();
     }
 
     pub fn is_rendering_frame(&self) -> bool {
@@ -958,7 +956,7 @@ impl Drop for Window {
         self.api.shut_down(true);
 
         // webrender deinit panics if the context is not current.
-        let _ctx = self.context.make_current();
+        self.context.make_current();
         self.renderer.take().unwrap().deinit();
 
         // context must be dropped before the winit window (glutin requirement).
