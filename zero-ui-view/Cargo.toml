@@ -6,7 +6,7 @@ edition = "2021"
 license = "Apache-2.0"
 
 [features]
-default = ["ipc"]
+default = ["ipc", "software"]
 
 # Enables pre-build and init as view-process.
 #
@@ -26,7 +26,7 @@ ipc = ["zero-ui-view-api/ipc"]
 # Then `set CC=clang-cl` and `set CXX=clang-cl`.
 #
 # Enabled by default.
-# software = ["swgl"]
+software = ["swgl"]
 
 [lib]
 crate-type = ["lib", "cdylib"]
@@ -34,7 +34,7 @@ crate-type = ["lib", "cdylib"]
 [dependencies]
 zero-ui-view-api = { path = "../zero-ui-view-api", default-features = false }
 webrender = { path = "../dependencies/webrender/webrender" }
-# swgl = { path = "../dependencies/webrender/swgl", optional = true }
+swgl = { path = "../dependencies/webrender/swgl", optional = true }
 tracing = "0.1"
 gleam = "0.13.1" # matches webrender
 glutin = "0.28.0"

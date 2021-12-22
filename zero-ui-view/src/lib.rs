@@ -1,8 +1,9 @@
 #![cfg_attr(doc_nightly, feature(doc_cfg))]
+#![allow(clippy::needless_doctest_main)]
 
 //! View-Process implementation using [`glutin`].
 //!
-//! This backend supports both headed and headless apps
+//! This backend supports headed and headless apps and all .
 //!
 //! # Usage
 //!
@@ -39,12 +40,12 @@
 //! internally starts the view-process, using the `init` setup. The current executable is started
 //! again, this time configured to be a view-process, `init` detects this and highjacks the process
 //! **never returning**.
-//!
+//! 
 //! # Software Backend
 //!
 //! The `webrender/swgl` software renderer can be used as fallback when no native OpenGL 3.2 driver is available, to build it
 //! the feature `"software"` must be enabled (it is by default) and on Windows MSVC the `clang-cl` dependency must be installed and
-//! associated with the `CC` and `CXX` environment variables, if requirements are not met a warning is emitted and the feature auto-deactivates.
+//! associated with the `CC` and `CXX` environment variables, if requirements are not met a warning is emitted and the build fails.
 //!
 //! To install dependencies on Windows:
 //!
@@ -57,8 +58,35 @@
 //! set CC=clang-cl
 //! set CXX=clang-cl
 //! ```
+//! 
+//! # Pre-built
+//! 
+//! There is a pre-built release of this crate, [`zero-ui-view-prebuilt`], it works as a drop-in replacement 
+// that dynamically links with a pre-built library, for Windows, Linux and MacOS.
+//! 
+//! In the `Cargo.toml` file:
+//! 
+//! ```toml
+//! zero-ui-view-prebuilt = "0.1"
+//! ```
+//! 
+//! Then in the `main.rs` file:
+//! 
+//! ```no_run
+//! use zero_ui_view_prebuilt as zero_ui_view;
+//! 
+//! fn main() {
+//!     zero_ui_view::init();
+//!     
+//!     // App::default().run ..
+//! }
+//! ```
 //!
+//! The pre-built crate includes the `"software"` and `"ipc"` features, in fact `ipc` is required, even for running on the same process,
+//! you can also configure where the pre-build library is installed, see the [`zero-ui-view-prebuilt`] documentation for details.
+//! 
 //! [`glutin`]: https://docs.rs/glutin/
+//! [`zero-ui-view-prebuilt`]: https://docs.rs/zero-ui-view-prebuilt/
 
 use std::{
     fmt, process, thread,
@@ -75,13 +103,13 @@ use util::{GlContextManager, WinitToPx};
 
 // /*
 
-/// "do doc" only `webrender` re-export.
+/// "do doc" only `webrender` re-export, for zero-ui developers.
 ///
 #[cfg(do_doc)]
 #[doc(inline)]
 pub use webrender;
 
-/// "do doc" only `swgl` re-export.
+/// "do doc" only `swgl` re-export, for zero-ui developers.
 ///
 #[cfg(any(do_doc, software))]
 #[doc(inline)]
