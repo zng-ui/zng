@@ -514,11 +514,10 @@ impl MouseManager {
 
         let frame_info = windows.widget_tree(window_id).unwrap();
 
-        let target = if let Some(t) = hits.target() {
-            frame_info.find(t.widget_id).unwrap().path()
-        } else {
-            frame_info.root().path()
-        };
+        let target = hits
+            .target()
+            .and_then(|t| frame_info.find(t.widget_id).map(|w| w.path()))
+            .unwrap_or_else(|| frame_info.root().path());
 
         if state == ButtonState::Pressed {
             self.capture_count += 1;
@@ -942,24 +941,25 @@ impl AppExtension for MouseManager {
     fn event<EV: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {
         if let Some(args) = MouseCaptureEvent.update(args) {
             if let Some(path) = &self.hovered {
-                let window_id = self.pos_window.unwrap();
-                let pos_px = self
-                    .pos
-                    .to_px(ctx.services.windows().scale_factor(window_id).unwrap_or_else(|_| 1.0.fct()).0);
-                let hover_args = MouseHoverArgs::now(
-                    window_id,
-                    self.pos_device.unwrap(),
-                    self.pos,
-                    FrameHitInfo::new(window_id, self.pos_hits.0, pos_px, &self.pos_hits.1),
-                    Some(path.clone()),
-                    Some(path.clone()),
-                    args.new_capture.as_ref().map(|(path, mode)| CaptureInfo {
-                        target: path.clone(),
-                        mode: *mode,
-                        position: DipPoint::zero(), //TODO
-                    }),
-                );
-                MouseHoveredEvent.notify(ctx.events, hover_args);
+                if let Some(window_id) = self.pos_window {
+                    let pos_px = self
+                        .pos
+                        .to_px(ctx.services.windows().scale_factor(window_id).unwrap_or_else(|_| 1.0.fct()).0);
+                    let hover_args = MouseHoverArgs::now(
+                        window_id,
+                        self.pos_device.unwrap(),
+                        self.pos,
+                        FrameHitInfo::new(window_id, self.pos_hits.0, pos_px, &self.pos_hits.1),
+                        Some(path.clone()),
+                        Some(path.clone()),
+                        args.new_capture.as_ref().map(|(path, mode)| CaptureInfo {
+                            target: path.clone(),
+                            mode: *mode,
+                            position: DipPoint::zero(), //TODO
+                        }),
+                    );
+                    MouseHoveredEvent.notify(ctx.events, hover_args);
+                }
             }
         }
     }

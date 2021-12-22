@@ -416,7 +416,7 @@ impl Window {
             self.cursor_device = device;
         }
 
-        moved
+        moved && self.cursor_over
     }
 
     /// Returns the last cursor moved data.
