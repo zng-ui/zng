@@ -73,10 +73,30 @@ impl GlContextManager {
         #[cfg(debug_assertions)]
         let gl = gl::ErrorCheckingGl::wrap(gl.clone());
 
+        // manually create a surface.
+        let rbos = gl.gen_renderbuffers(2);
+
+        let rbos = [rbos[0], rbos[1]];
+        let fbo = gl.gen_framebuffers(1)[0];
+
+        gl.bind_renderbuffer(gl::RENDERBUFFER, rbos[0]);
+        gl.renderbuffer_storage(gl::RENDERBUFFER, gl::RGBA8, 1, 1);
+
+        gl.bind_renderbuffer(gl::RENDERBUFFER, rbos[1]);
+        gl.renderbuffer_storage(gl::RENDERBUFFER, gl::DEPTH24_STENCIL8, 1, 1);
+
+        gl.viewport(0, 0, 1, 1);
+
+        gl.bind_framebuffer(gl::FRAMEBUFFER, fbo);
+        gl.framebuffer_renderbuffer(gl::FRAMEBUFFER, gl::COLOR_ATTACHMENT0, gl::RENDERBUFFER, rbos[0]);
+        gl.framebuffer_renderbuffer(gl::FRAMEBUFFER, gl::DEPTH_STENCIL_ATTACHMENT, gl::RENDERBUFFER, rbos[1]);
+
         GlHeadlessContext {
             id,
             ctx: Some(ctx),
             gl,
+            rbos,
+            fbo,
             #[cfg(software)]
             software_ctx,
             current: Rc::clone(&self.current),
@@ -89,6 +109,8 @@ pub(crate) struct GlHeadlessContext {
     id: WindowId,
     ctx: Option<glutin::Context<glutin::PossiblyCurrent>>,
     gl: Rc<dyn Gl>,
+    rbos: [u32; 2],
+    fbo: u32,
     #[cfg(software)]
     software_ctx: Option<swgl::Context>,
     current: Rc<Cell<Option<WindowId>>>,
@@ -117,6 +139,41 @@ impl GlHeadlessContext {
         }
     }
 
+    /// Returns `true` if the context is current.
+    pub fn is_current(&self) -> bool {
+        self.current.get() == Some(self.id)
+    }
+
+    /// If the context is using the `swgl` fallback.
+    #[cfg(software)]
+    pub fn is_software(&self) -> bool {
+        self.software_ctx.is_some()
+    }
+
+    /// Returns `true` if the current context is can be used by `webrender`.
+    pub fn supports_wr(&self) -> bool {
+        assert!(self.is_current());
+
+        #[cfg(software)]
+        if self.is_software() {
+            return true;
+        }
+
+        native_supports_wr(&*self.gl)
+    }
+
+    /// Check OpenGL version and init a `swgl` fallback if needed.
+    #[cfg(software)]
+    pub fn fallback_to_software(&mut self) {
+        assert!(self.is_current());
+        assert!(!self.is_software());
+
+        if !self.supports_wr() {
+            self.software_ctx = Some(swgl::Context::create());
+        }
+    }
+
+    /*
     /// Reference the OpenGL functions.
     pub fn gl(&self) -> &dyn Gl {
         #[cfg(software)]
@@ -125,6 +182,7 @@ impl GlHeadlessContext {
         }
         &*self.gl
     }
+    */
 
     /// Clone the OpenGl functions pointer.
     pub fn share_gl(&self) -> Rc<dyn Gl> {
@@ -137,12 +195,34 @@ impl GlHeadlessContext {
 
     /// Finish software rendering and copy it to the minimal headless context.
     pub fn upload_swgl(&self) {
-        assert_eq!(self.current.get(), Some(self.id));
+        assert!(self.is_current());
 
         #[cfg(software)]
         if let Some(swgl) = &self.software_ctx {
             upload_swgl_to_native(swgl, &*self.gl);
         }
+    }
+
+    /// Resize the surfaces.
+    pub fn resize(&mut self, size: glutin::dpi::PhysicalSize<u32>) {
+        assert!(self.is_current());
+
+        let width = size.width as i32;
+        let height = size.height as i32;
+
+        #[cfg(software)]
+        if let Some(ctx) = &self.software_ctx {
+            // NULL means SWGL manages the buffer, it also retains the buffer if the size did not change.
+            ctx.init_default_framebuffer(0, 0, width, height, 0, std::ptr::null_mut());
+        }
+
+        self.gl.bind_renderbuffer(gl::RENDERBUFFER, self.rbos[0]);
+        self.gl.renderbuffer_storage(gl::RENDERBUFFER, gl::RGBA8, width, height);
+
+        self.gl.bind_renderbuffer(gl::RENDERBUFFER, self.rbos[1]);
+        self.gl.renderbuffer_storage(gl::RENDERBUFFER, gl::DEPTH24_STENCIL8, width, height);
+
+        self.gl.viewport(0, 0, width, height);
     }
 }
 impl Drop for GlHeadlessContext {
@@ -151,12 +231,15 @@ impl Drop for GlHeadlessContext {
         if let Some(ctx) = self.software_ctx.take() {
             ctx.destroy();
         }
-        if self.current.get() == Some(self.id) {
-            let _ = unsafe { self.ctx.take().unwrap().make_not_current() };
-            self.current.set(None);
-        } else {
-            let _ = unsafe { self.ctx.take().unwrap().treat_as_not_current() };
-        }
+
+        self.make_current();
+
+        let gl = &self.gl;
+        gl.delete_framebuffers(&[self.fbo]);
+        gl.delete_renderbuffers(&self.rbos);
+
+        let _ = unsafe { self.ctx.take().unwrap().make_not_current() };
+        self.current.set(None);
     }
 }
 
@@ -237,19 +320,7 @@ impl GlContext {
             return true;
         }
 
-        let ver: Vec<_> = self
-            .gl
-            .get_string(gl::VERSION)
-            .split('.')
-            .take(2)
-            .map(|n| n.parse::<u8>().unwrap())
-            .collect();
-
-        if ver[0] == WR_GL_MIN.0 {
-            ver.get(1).copied().unwrap_or(0) >= WR_GL_MIN.1
-        } else {
-            ver[0] > WR_GL_MIN.0
-        }
+        native_supports_wr(&*self.gl)
     }
 
     /*
@@ -277,6 +348,12 @@ impl GlContext {
         assert!(self.is_current());
 
         self.ctx.as_mut().unwrap().resize(size);
+
+        #[cfg(software)]
+        if let Some(ctx) = &self.software_ctx {
+            // NULL means SWGL manages the buffer, it also retains the buffer if the size did not change.
+            ctx.init_default_framebuffer(0, 0, size.width as i32, size.height as i32, 0, std::ptr::null_mut());
+        }
     }
 
     /// Upload software render and swap buffers.
@@ -323,8 +400,9 @@ fn upload_swgl_to_native(swgl: &swgl::Context, gl: &dyn Gl) {
     let tex = gl.gen_textures(1)[0];
     gl.bind_texture(gl::TEXTURE_2D, tex);
     let (data_ptr, w, h, stride) = swgl.get_color_buffer(0, true);
-    
+
     if w == 0 || h == 0 {
+        tracing::error!("cannot upload SWGL, no color buffer, did resize not get called?");
         return;
     }
 
@@ -348,6 +426,21 @@ fn upload_swgl_to_native(swgl: &swgl::Context, gl: &dyn Gl) {
     gl.delete_framebuffers(&[fb]);
     gl.delete_textures(&[tex]);
     gl.finish();
+}
+
+fn native_supports_wr(gl: &dyn Gl) -> bool {
+    let ver: Vec<_> = gl
+        .get_string(gl::VERSION)
+        .split('.')
+        .take(2)
+        .map(|n| n.parse::<u8>().unwrap())
+        .collect();
+
+    if ver[0] == WR_GL_MIN.0 {
+        ver.get(1).copied().unwrap_or(0) >= WR_GL_MIN.1
+    } else {
+        ver[0] > WR_GL_MIN.0
+    }
 }
 
 /// Sets a window subclass that calls a raw event handler.

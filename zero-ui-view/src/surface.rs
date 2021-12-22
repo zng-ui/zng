@@ -1,6 +1,5 @@
 use std::{collections::VecDeque, fmt};
 
-use gleam::gl;
 use glutin::{dpi::PhysicalSize, event_loop::EventLoopWindowTarget, ContextBuilder, GlRequest};
 use webrender::{
     api::{
@@ -17,7 +16,7 @@ use zero_ui_view_api::{
 
 use crate::{
     image_cache::{Image, ImageCache, ImageUseMap, WrImageCache},
-    util::{GlContextManager, GlHeadlessContext},
+    util::{DipToWinit, GlContextManager, GlHeadlessContext},
     AppEvent, AppEventSender, FrameReadyMsg,
 };
 
@@ -35,8 +34,6 @@ pub(crate) struct Surface {
     context: GlHeadlessContext,
     renderer: Option<Renderer>,
     image_use: ImageUseMap,
-    rbos: [u32; 2],
-    fbo: u32,
 
     pending_frames: VecDeque<(FrameId, bool)>,
     rendered_frame_id: FrameId,
@@ -62,53 +59,85 @@ impl Surface {
         event_sender: impl AppEventSender,
     ) -> Self {
         let id = cfg.id;
-        let context = ContextBuilder::new()
-            .with_gl(GlRequest::GlThenGles {
-                opengl_version: (3, 2),
-                opengles_version: (3, 0),
-            })
-            .with_hardware_acceleration(None);
 
+        let mut render_mode = cfg.render_mode;
+        if !cfg!(software) && render_mode == RenderMode::Software {
+            tracing::warn!("ignoring `RenderMode::Software` because did not build with \"software\" feature");
+            render_mode = RenderMode::Integrated;
+        }
+
+        let mut glutin_errors = vec![];
+        let mut context = None;
         let size_one = PhysicalSize::new(1, 1);
-        #[cfg(target_os = "linux")]
-        let context = {
-            use glutin::platform::unix::HeadlessContextExt;
-            match context.clone().build_surfaceless(window_target) {
-                Ok(ctx) => ctx,
-                Err(suf_e) => match context.clone().build_headless(window_target, size_one) {
-                    Ok(ctx) => ctx,
-                    Err(hea_e) => match context.build_osmesa(size_one) {
-                        Ok(ctx) => ctx,
-                        Err(osm_e) => panic!(
-                            "failed all headless modes supported in linux\nsurfaceless: {:?}\n\nheadless: {:?}\n\n osmesa: {:?}",
-                            suf_e, hea_e, osm_e
-                        ),
-                    },
-                },
+        for mode in render_mode.with_fallbacks() {
+            if !cfg!(software) && mode == RenderMode::Software {
+                continue;
             }
+
+            let builder = ContextBuilder::new()
+                .with_hardware_acceleration(match mode {
+                    RenderMode::Dedicated => Some(true),
+                    RenderMode::Integrated => Some(false),
+                    RenderMode::Software => None,
+                })
+                .with_gl(GlRequest::Latest);
+
+            #[cfg(target_os = "linux")]
+            match builder.clone().build_surfaceless(window_target) {
+                Ok(c) => {
+                    glutin = Some(c);
+                    render_mode = mode;
+                    break;
+                }
+                Err(e) => {
+                    tracing::error!("failed to create glutin surfaceless context for `{:?}`, {:?}", mode, e);
+                    glutin_errors.push(e);
+                }
+            }
+
+            #[cfg(not(target_os = "linux"))]
+            match builder.build_headless(window_target, size_one) {
+                Ok(c) => {
+                    context = Some(c);
+                    render_mode = mode;
+                    break;
+                }
+                Err(e) => {
+                    tracing::error!("failed to create glutin context for `{:?}`, {:?}", mode, e);
+                    glutin_errors.push(e);
+                }
+            }
+        }
+
+        let context = if let Some(g) = context {
+            g
+        } else {
+            panic!("failed to create glutin headless contexts, including fallbacks {:?}", glutin_errors);
         };
-        #[cfg(not(target_os = "linux"))]
-        let context = context
-            .build_headless(window_target, size_one)
-            .expect("failed to build headless context");
 
         #[cfg(software)]
-        let context = gl_manager.manage_headless(id, context, None);
+        let mut context = if let RenderMode::Software = render_mode {
+            gl_manager.manage_headless(id, context, Some(swgl::Context::create()))
+        } else {
+            let mut ctx = gl_manager.manage_headless(id, context, None);
+            ctx.fallback_to_software();
+            if ctx.is_software() {
+                render_mode = RenderMode::Software;
+            }
+            ctx
+        };
+
         #[cfg(not(software))]
-        let context = gl_manager.manage_headless(id, context);
+        let context = {
+            let ctx = gl_manager.manage_headed(id, context);
+            assert!(
+                ctx.supports_wr(),
+                "glutin context does not meet minimal requirements of OpenGL 3.1 and zero-ui-view was not built with \"software\" fallback"
+            );
+            ctx
+        };
 
-        let gl = context.gl();
-
-        // manually create a surface.
-        let rbos = gl.gen_renderbuffers(2);
-        let rbos = [rbos[0], rbos[1]];
-        let fbo = gl.gen_framebuffers(1)[0];
-
-        resize(gl, rbos, cfg.size, cfg.scale_factor);
-
-        gl.bind_framebuffer(gl::FRAMEBUFFER, fbo);
-        gl.framebuffer_renderbuffer(gl::FRAMEBUFFER, gl::COLOR_ATTACHMENT0, gl::RENDERBUFFER, rbos[0]);
-        gl.framebuffer_renderbuffer(gl::FRAMEBUFFER, gl::DEPTH_STENCIL_ATTACHMENT, gl::RENDERBUFFER, rbos[1]);
+        context.resize(cfg.size.to_winit().to_physical(cfg.scale_factor as f64));
 
         let mut text_aa = cfg.text_aa;
         if let TextAntiAliasing::Default = cfg.text_aa {
@@ -119,8 +148,12 @@ impl Surface {
             enable_aa: text_aa != TextAntiAliasing::Mono,
             enable_subpixel_aa: text_aa == TextAntiAliasing::Subpixel,
             renderer_id: Some((gen as u64) << 32 | id as u64),
+
+            allow_advanced_blend_equation: context.is_software(),
+            clear_caches_with_quads: !context.is_software(),
+            enable_gpu_markers: !context.is_software(),
+
             //panic_on_gl_error: true,
-            // TODO expose more options to the user.
             ..Default::default()
         };
 
@@ -143,13 +176,11 @@ impl Surface {
             api,
             size: cfg.size,
             scale_factor: cfg.scale_factor,
-            render_mode: RenderMode::Dedicated,
+            render_mode,
 
             context,
             renderer: Some(renderer),
             image_use: ImageUseMap::default(),
-            rbos,
-            fbo,
 
             pending_frames: VecDeque::new(),
             rendered_frame_id: FrameId::INVALID,
@@ -214,7 +245,7 @@ impl Surface {
                 self.size = size;
                 self.scale_factor = scale_factor;
                 self.context.make_current();
-                resize(self.context.gl(), self.rbos, size, scale_factor);
+                self.context.resize(size.to_winit().to_physical(scale_factor as f64));
                 self.resized = true;
             } else {
                 todo!()
@@ -412,27 +443,8 @@ impl Surface {
 impl Drop for Surface {
     fn drop(&mut self) {
         self.context.make_current();
-
         self.renderer.take().unwrap().deinit();
-
-        let gl = self.context.gl();
-        gl.delete_framebuffers(&[self.fbo]);
-        gl.delete_renderbuffers(&self.rbos);
     }
-}
-
-fn resize(gl: &dyn gl::Gl, rbos: [u32; 2], size: DipSize, scale_factor: f32) {
-    let size = size.to_px(scale_factor);
-    let width = size.width.0;
-    let height = size.height.0;
-
-    gl.bind_renderbuffer(gl::RENDERBUFFER, rbos[0]);
-    gl.renderbuffer_storage(gl::RENDERBUFFER, gl::RGBA8, width, height);
-
-    gl.bind_renderbuffer(gl::RENDERBUFFER, rbos[1]);
-    gl.renderbuffer_storage(gl::RENDERBUFFER, gl::DEPTH24_STENCIL8, width, height);
-
-    gl.viewport(0, 0, width, height);
 }
 
 struct Notifier<S> {

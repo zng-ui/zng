@@ -175,9 +175,7 @@ impl Window {
         }
 
         let mut glutin_errors = vec![];
-
         let mut glutin = None;
-
         for mode in render_mode.with_fallbacks() {
             if !cfg!(software) && mode == RenderMode::Software {
                 continue;
@@ -214,7 +212,7 @@ impl Window {
         let (context, winit_window) = unsafe { glutin.split() };
 
         #[cfg(software)]
-        let context = if let RenderMode::Software = render_mode {
+        let mut context = if let RenderMode::Software = render_mode {
             gl_manager.manage_headed(id, context, Some(swgl::Context::create()))
         } else {
             let mut ctx = gl_manager.manage_headed(id, context, None);
@@ -234,6 +232,8 @@ impl Window {
             );
             ctx
         };
+
+        context.resize(winit_window.inner_size());
 
         // extend the winit Windows window to only block the Alt+F4 key press if we want it to.
         let allow_alt_f4 = Rc::new(Cell::new(cfg.allow_alt_f4));
@@ -275,11 +275,12 @@ impl Window {
             enable_aa: text_aa != TextAntiAliasing::Mono,
             enable_subpixel_aa: text_aa == TextAntiAliasing::Subpixel,
             renderer_id: Some((gen as u64) << 32 | id as u64),
+
             allow_advanced_blend_equation: context.is_software(),
             clear_caches_with_quads: !context.is_software(),
             enable_gpu_markers: !context.is_software(),
+
             //panic_on_gl_error: true,
-            // TODO expose more options to the user.
             ..Default::default()
         };
 

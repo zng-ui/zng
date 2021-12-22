@@ -1,9 +1,11 @@
 use examples_util::FilterArgs;
+use zero_ui::core::window::RenderMode;
 use zero_ui::core::{app::ShutdownRequestedEvent, context::WindowContext, window::Window};
 use zero_ui::prelude::*;
 
 const PROFILE: bool = true;
 const SAME_PROCESS: bool = true;
+const RENDER_MODE: RenderMode = RenderMode::Dedicated;
 
 static TESTS: &[(&str, TestFn, FilterFn)] = &[
     ("text_change_all", text_change_all, all_trace),
@@ -173,7 +175,7 @@ fn main() {
     if PROFILE {
         let rec = examples_util::record_profile(
             format!(
-                "profile-stress-{}{}{}{}{}{}{}.json.gz",
+                "profile-stress-{}{}{}{}{}{}{}{}.json.gz",
                 name,
                 if cfg!(debug_assertions) { "-dbg" } else { "" },
                 if SAME_PROCESS { "" } else { "-no_vp" },
@@ -181,6 +183,11 @@ fn main() {
                 if cfg!(feature = "dyn_widget") { "-dynw" } else { "" },
                 if cfg!(feature = "dyn_property") { "-dynp" } else { "" },
                 if cfg!(feature = "dyn_app_extension") { "-dyna" } else { "" },
+                match RENDER_MODE {
+                    RenderMode::Dedicated => "",
+                    RenderMode::Integrated => "-integrated",
+                    RenderMode::Software => "-software",
+                }
             ),
             &[
                 ("stress-test", name),
@@ -189,6 +196,7 @@ fn main() {
                 ("dyn_app_extension", &cfg!(feature = "dyn_app_extension")),
                 ("dyn_widget", &cfg!(feature = "dyn_widget")),
                 ("dyn_property", &cfg!(feature = "dyn_property")),
+                ("render_mode", &format!("{:?}", RENDER_MODE)),
             ],
             filter,
         );
@@ -205,11 +213,15 @@ fn main() {
                         )
                         .permanent();
 
+                    ctx.services.windows().default_render_mode = RENDER_MODE;
                     test(ctx)
                 });
             });
         } else {
-            App::default().run_window(test);
+            App::default().run_window(|ctx| {
+                ctx.services.windows().default_render_mode = RENDER_MODE;
+                test(ctx)
+            });
             rec.finish();
         }
     } else {
@@ -217,10 +229,16 @@ fn main() {
 
         if SAME_PROCESS {
             zero_ui_view::run_same_process(move || {
-                App::default().run_window(test);
+                App::default().run_window(|ctx| {
+                    ctx.services.windows().default_render_mode = RENDER_MODE;
+                    test(ctx)
+                });
             });
         } else {
-            App::default().run_window(test);
+            App::default().run_window(|ctx| {
+                ctx.services.windows().default_render_mode = RENDER_MODE;
+                test(ctx)
+            });
         }
     }
 }
