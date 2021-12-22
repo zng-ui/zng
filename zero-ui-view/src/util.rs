@@ -150,6 +150,12 @@ impl GlHeadlessContext {
         self.software_ctx.is_some()
     }
 
+    /// Returns `false`
+    #[cfg(not(software))]
+    pub fn is_software(&self) -> bool {
+        false
+    }
+
     /// Returns `true` if the current context is can be used by `webrender`.
     pub fn supports_wr(&self) -> bool {
         assert!(self.is_current());
@@ -335,8 +341,8 @@ impl GlContext {
      */
 
     /// Clone the OpenGL functions pointer.
-    #[cfg(software)]
     pub fn share_gl(&self) -> Rc<dyn Gl> {
+        #[cfg(software)]
         if let Some(ctx) = &self.software_ctx {
             return Rc::new(*ctx);
         }

@@ -128,8 +128,8 @@ impl Surface {
         };
 
         #[cfg(not(software))]
-        let context = {
-            let ctx = gl_manager.manage_headed(id, context);
+        let mut context = {
+            let ctx = gl_manager.manage_headless(id, context);
             assert!(
                 ctx.supports_wr(),
                 "glutin context does not meet minimal requirements of OpenGL 3.1 and zero-ui-view was not built with \"software\" fallback"

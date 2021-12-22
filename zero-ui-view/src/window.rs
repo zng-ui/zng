@@ -224,7 +224,7 @@ impl Window {
         };
 
         #[cfg(not(software))]
-        let context = {
+        let mut context = {
             let ctx = gl_manager.manage_headed(id, context);
             assert!(
                 ctx.supports_wr(),
