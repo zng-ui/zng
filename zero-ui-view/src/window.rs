@@ -26,8 +26,8 @@ use webrender::{
     RenderApi, Renderer, RendererOptions, Transaction,
 };
 use zero_ui_view_api::{
-    units::*, CursorIcon, Event, FrameId, FrameRequest, FrameUpdateRequest, HeadlessOpenData, ImageId, ImageLoadedData, Key, KeyState,
-    RenderMode, ScanCode, TextAntiAliasing, VideoMode, ViewProcessGen, WindowId, WindowRequest, WindowState,
+    units::*, CursorIcon, DeviceId, Event, FrameId, FrameRequest, FrameUpdateRequest, HeadlessOpenData, ImageId, ImageLoadedData, Key,
+    KeyState, RenderMode, ScanCode, TextAntiAliasing, VideoMode, ViewProcessGen, WindowId, WindowRequest, WindowState,
 };
 
 use crate::{
@@ -101,7 +101,9 @@ pub(crate) struct Window {
 
     movable: bool, // TODO
 
-    cursor_pos: PxPoint,
+    cursor_pos: DipPoint,
+    cursor_device: DeviceId,
+    cursor_over: bool,
     hit_tester: HitTester,
 
     render_mode: RenderMode,
@@ -335,7 +337,9 @@ impl Window {
             pending_frames: VecDeque::new(),
             rendered_frame_id: FrameId::INVALID,
             state: cfg.state,
-            cursor_pos: PxPoint::zero(),
+            cursor_pos: DipPoint::zero(),
+            cursor_device: 0,
+            cursor_over: false,
             hit_tester,
             render_mode,
         };
@@ -399,39 +403,39 @@ impl Window {
         self.rendered_frame_id
     }
 
-    /// Gets cursor position relative to this window from the operating system.
-    #[cfg(windows)]
-    pub fn raw_cursor_pos(&self) -> Option<DipPoint> {
-        use glutin::platform::windows::WindowExtWindows;
-
-        let mut point = winapi::shared::windef::POINT::default();
-        if unsafe { winapi::um::winuser::GetCursorPos(&mut point) } == 0 {
-            return None;
-        }
-
-        let hwnd = self.window.hwnd() as _;
-        if unsafe { winapi::um::winuser::ScreenToClient(hwnd, &mut point) } == 0 {
-            return None;
-        }
-
-        let pos = PxPoint::new(Px(point.x), Px(point.y)).to_dip(self.scale_factor());
-        let win_pos = self.window.inner_position().unwrap_or_default().to_px().to_dip(self.scale_factor());
-        let win_size = self.window.inner_size().to_px().to_dip(self.scale_factor());
-        let win_rect = DipRect::new(win_pos, win_size);
-
-        if win_rect.contains(pos) {
-            Some(pos)
-        } else {
-            None
-        }
-    }
-
     pub fn set_title(&self, title: String) {
         self.window.set_title(&title);
     }
 
-    pub fn set_cursor_pos(&mut self, pos: PxPoint) {
-        self.cursor_pos = pos;
+    /// Returns `true` if the cursor actually moved.
+    pub fn cursor_moved(&mut self, pos: DipPoint, device: DeviceId) -> bool {
+        let moved = self.cursor_pos != pos || self.cursor_device != device;
+
+        if moved {
+            self.cursor_pos = pos;
+            self.cursor_device = device;
+        }
+
+        moved
+    }
+
+    /// Returns the last cursor moved data.
+    pub fn last_cursor_pos(&self) -> (DipPoint, DeviceId) {
+        (self.cursor_pos, self.cursor_device)
+    }
+
+    /// Returns `true` if the cursor was not over the window.
+    pub fn cursor_entered(&mut self) -> bool {
+        let changed = !self.cursor_over;
+        self.cursor_over = true;
+        changed
+    }
+
+    /// Returns `true` if the cursor was over the window.
+    pub fn cursor_left(&mut self) -> bool {
+        let changed = self.cursor_over;
+        self.cursor_over = false;
+        changed
     }
 
     pub fn set_visible(&mut self, visible: bool) {
@@ -898,19 +902,24 @@ impl Window {
             self.window.request_redraw();
         }
 
+        let scale_factor = self.scale_factor();
+
         let data = if capture {
             let _s = tracing::trace_span!("capture_image").entered();
             if msg.composite_needed {
                 self.redraw();
             }
-            let scale_factor = self.scale_factor();
             let renderer = self.renderer.as_mut().unwrap();
             Some(images.frame_image_data(renderer, PxRect::from_size(self.window.inner_size().to_px()), true, scale_factor))
         } else {
             None
         };
 
-        let hits = self.hit_tester.hit_test(self.cursor_pos);
+        let hits = if self.cursor_over {
+            self.hit_tester.hit_test(self.cursor_pos.to_px(scale_factor))
+        } else {
+            HitTestResult::default()
+        };
 
         ((frame_id, data, hits), first_frame)
     }

@@ -277,6 +277,12 @@ pub(crate) struct App<S> {
     devices: Vec<(DeviceId, glutin::event::DeviceId)>,
 
     coalescing_event: Option<Event>,
+    // winit only sends a CursorMove after CursorEntered if the cursor is in a different position,
+    // but this makes refreshing hit-tests weird, do we hit-test the previous known point at each CursorEnter?
+    //
+    // This flag causes a MouseMove at the same previous position if no mouse move was send after CursorEnter and before
+    // MainEventsCleared.
+    cursor_entered_expect_move: Vec<WindowId>,
 
     exited: bool,
 }
@@ -432,7 +438,10 @@ impl App<()> {
                     },
                     GEvent::Suspended => {}
                     GEvent::Resumed => {}
-                    GEvent::MainEventsCleared => app.flush_coalesced(),
+                    GEvent::MainEventsCleared => {
+                        app.finish_cursor_entered_move();
+                        app.flush_coalesced()
+                    }
                     GEvent::RedrawRequested(w_id) => app.on_redraw(w_id),
                     GEvent::RedrawEventsCleared => {}
                     GEvent::LoopDestroyed => {}
@@ -466,6 +475,7 @@ impl<S: AppEventSender> App<S> {
             devices: vec![],
             device_id_gen: 0,
             coalescing_event: None,
+            cursor_entered_expect_move: Vec::with_capacity(1),
             exited: false,
         }
     }
@@ -611,13 +621,7 @@ impl<S: AppEventSender> App<S> {
             WindowEvent::HoveredFile(file) => self.notify(Event::HoveredFile { window: id, file }),
             WindowEvent::HoveredFileCancelled => self.notify(Event::HoveredFileCancelled(id)),
             WindowEvent::ReceivedCharacter(c) => self.notify(Event::ReceivedCharacter(id, c)),
-            WindowEvent::Focused(focused) => {
-                self.notify(Event::Focused { window: id, focused });
-                #[cfg(windows)]
-                if focused {
-                    todo!("get mouse position and emit entered and move events")
-                }
-            }
+            WindowEvent::Focused(focused) => self.notify(Event::Focused { window: id, focused }),
             WindowEvent::KeyboardInput { device_id, input, .. } => {
                 let d_id = self.device_id(device_id);
                 self.notify(Event::KeyboardInput {
@@ -640,22 +644,38 @@ impl<S: AppEventSender> App<S> {
                 let p = px_p.to_dip(scale_factor);
                 let d_id = self.device_id(device_id);
 
-                self.windows[i].set_cursor_pos(px_p);
+                let mut is_after_cursor_enter = false;
+                if let Some(i) = self.cursor_entered_expect_move.iter().position(|&w| w == id) {
+                    self.cursor_entered_expect_move.remove(i);
+                    is_after_cursor_enter = true;
+                }
 
-                self.notify(Event::CursorMoved {
-                    window: id,
-                    device: d_id,
-                    coalesced_pos: vec![],
-                    position: p,
-                });
+                if self.windows[i].cursor_moved(p, d_id) || is_after_cursor_enter {
+                    self.notify(Event::CursorMoved {
+                        window: id,
+                        device: d_id,
+                        coalesced_pos: vec![],
+                        position: p,
+                    });
+                }
             }
             WindowEvent::CursorEntered { device_id } => {
-                let d_id = self.device_id(device_id);
-                self.notify(Event::CursorEntered { window: id, device: d_id });
+                if self.windows[i].cursor_entered() {
+                    let d_id = self.device_id(device_id);
+                    self.notify(Event::CursorEntered { window: id, device: d_id });
+                    self.cursor_entered_expect_move.push(id);
+                }
             }
             WindowEvent::CursorLeft { device_id } => {
-                let d_id = self.device_id(device_id);
-                self.notify(Event::CursorLeft { window: id, device: d_id });
+                if self.windows[i].cursor_left() {
+                    let d_id = self.device_id(device_id);
+                    self.notify(Event::CursorLeft { window: id, device: d_id });
+
+                    // unlikely but possible?
+                    if let Some(i) = self.cursor_entered_expect_move.iter().position(|&w| w == id) {
+                        self.cursor_entered_expect_move.remove(i);
+                    }
+                }
             }
             WindowEvent::MouseWheel {
                 device_id, delta, phase, ..
@@ -818,6 +838,24 @@ impl<S: AppEventSender> App<S> {
 
         if self.headless {
             self.flush_coalesced();
+        }
+    }
+
+    pub(crate) fn finish_cursor_entered_move(&mut self) {
+        let mut moves = vec![];
+        for window_id in self.cursor_entered_expect_move.drain(..) {
+            if let Some(w) = self.windows.iter().find(|w| w.id() == window_id) {
+                let (position, device) = w.last_cursor_pos();
+                moves.push(Event::CursorMoved {
+                    window: w.id(),
+                    device,
+                    coalesced_pos: vec![],
+                    position,
+                });
+            }
+        }
+        for ev in moves {
+            self.notify(ev);
         }
     }
 
