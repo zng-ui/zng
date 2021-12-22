@@ -399,6 +399,33 @@ impl Window {
         self.rendered_frame_id
     }
 
+    /// Gets cursor position relative to this window from the operating system.
+    #[cfg(windows)]
+    pub fn raw_cursor_pos(&self) -> Option<DipPoint> {
+        use glutin::platform::windows::WindowExtWindows;
+
+        let mut point = winapi::shared::windef::POINT::default();
+        if unsafe { winapi::um::winuser::GetCursorPos(&mut point) } == 0 {
+            return None;
+        }
+
+        let hwnd = self.window.hwnd() as _;
+        if unsafe { winapi::um::winuser::ScreenToClient(hwnd, &mut point) } == 0 {
+            return None;
+        }
+
+        let pos = PxPoint::new(Px(point.x), Px(point.y)).to_dip(self.scale_factor());
+        let win_pos = self.window.inner_position().unwrap_or_default().to_px().to_dip(self.scale_factor());
+        let win_size = self.window.inner_size().to_px().to_dip(self.scale_factor());
+        let win_rect = DipRect::new(win_pos, win_size);
+
+        if win_rect.contains(pos) {
+            Some(pos)
+        } else {
+            None
+        }
+    }
+
     pub fn set_title(&self, title: String) {
         self.window.set_title(&title);
     }
@@ -978,7 +1005,6 @@ impl Window {
     pub fn outer_position(&self) -> DipPoint {
         self.window
             .outer_position()
-            .ok()
             .unwrap_or_default()
             .to_logical(self.window.scale_factor())
             .to_dip()

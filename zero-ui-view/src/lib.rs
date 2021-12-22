@@ -611,7 +611,13 @@ impl<S: AppEventSender> App<S> {
             WindowEvent::HoveredFile(file) => self.notify(Event::HoveredFile { window: id, file }),
             WindowEvent::HoveredFileCancelled => self.notify(Event::HoveredFileCancelled(id)),
             WindowEvent::ReceivedCharacter(c) => self.notify(Event::ReceivedCharacter(id, c)),
-            WindowEvent::Focused(focused) => self.notify(Event::Focused { window: id, focused }),
+            WindowEvent::Focused(focused) => {
+                self.notify(Event::Focused { window: id, focused });
+                #[cfg(windows)]
+                if focused {
+                    todo!("get mouse position and emit entered and move events")
+                }
+            }
             WindowEvent::KeyboardInput { device_id, input, .. } => {
                 let d_id = self.device_id(device_id);
                 self.notify(Event::KeyboardInput {
