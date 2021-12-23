@@ -26,9 +26,12 @@ use webrender::{
     RenderApi, Renderer, RendererOptions, Transaction,
 };
 use zero_ui_view_api::{
-    units::*, CursorIcon, DeviceId, Event, FrameId, FrameRequest, FrameUpdateRequest, HeadlessOpenData, ImageId, ImageLoadedData, Key,
-    KeyState, RenderMode, ScanCode, TextAntiAliasing, VideoMode, ViewProcessGen, WindowId, WindowRequest, WindowState,
+    units::*, CursorIcon, DeviceId, FrameId, FrameRequest, FrameUpdateRequest, HeadlessOpenData, ImageId, ImageLoadedData,
+    RenderMode, TextAntiAliasing, VideoMode, ViewProcessGen, WindowId, WindowRequest, WindowState,
 };
+
+#[cfg(windows)]
+use zero_ui_view_api::{Event, KeyState, ScanCode, Key};
 
 use crate::{
     config,
@@ -676,6 +679,15 @@ impl Window {
         }
     }
 
+    #[cfg(not(windows))]
+    pub fn set_taskbar_visible(&mut self, visible: bool) {
+        if visible != self.taskbar_visible {
+            return;
+        }
+        self.taskbar_visible = visible;
+        tracing::error!("`set_taskbar_visible` not implemented for this OS");
+    }
+
     #[cfg(windows)]
     pub fn set_taskbar_visible(&mut self, visible: bool) {
         if visible == self.taskbar_visible {
@@ -964,6 +976,7 @@ impl Window {
         }
     }
 
+    #[cfg(windows)]
     pub fn is_maximized(&self) -> bool {
         self.state == WindowState::Maximized
     }

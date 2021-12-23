@@ -1,6 +1,8 @@
 use std::{collections::VecDeque, fmt};
 
 use glutin::{dpi::PhysicalSize, event_loop::EventLoopWindowTarget, ContextBuilder, GlRequest};
+#[cfg(target_os = "linux")]
+use glutin::platform::unix::HeadlessContextExt;
 use webrender::{
     api::{
         BuiltDisplayList, DisplayListPayload, DocumentId, DynamicProperties, FontInstanceKey, FontInstanceOptions,
@@ -85,7 +87,7 @@ impl Surface {
             #[cfg(target_os = "linux")]
             match builder.clone().build_surfaceless(window_target) {
                 Ok(c) => {
-                    glutin = Some(c);
+                    context = Some(c);
                     render_mode = mode;
                     break;
                 }
@@ -95,7 +97,6 @@ impl Surface {
                 }
             }
 
-            #[cfg(not(target_os = "linux"))]
             match builder.build_headless(window_target, size_one) {
                 Ok(c) => {
                     context = Some(c);

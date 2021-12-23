@@ -1425,6 +1425,7 @@ pub(crate) enum AppEvent {
     /// A frame is ready for redraw.
     FrameReady(WindowId, FrameReadyMsg),
     /// Re-query available monitors and send update event.
+    #[cfg_attr(not(windows), allow(unused))]
     RefreshMonitors,
     /// Lost connection with app-process.
     ParentProcessExited,

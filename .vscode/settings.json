@@ -5,4 +5,14 @@
     "rust-analyzer.runnables.overrideCargo": "cargo do rust_analyzer_run",
     "rust-analyzer.checkOnSave.overrideCommand": ["cargo", "do", "rust_analyzer_check"],
     "files.eol": "\n",
+    "spellright.language": [
+        "en"
+    ],
+    "spellright.documentTypes": [
+        "markdown",
+        "latex",
+        "plaintext",
+        "toml",
+        "json"
+    ],
 }

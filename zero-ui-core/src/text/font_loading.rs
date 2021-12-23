@@ -106,6 +106,7 @@ impl AppExtension for FontManager {
     fn event_preview<EV: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {
         if RawFontChangedEvent.update(args).is_some() {
             FontChangedEvent.notify(ctx.events, FontChangedArgs::now(FontChange::SystemFonts));
+            #[cfg(windows)]
             ctx.services.fonts().on_system_fonts_changed();
         } else if let Some(args) = RawTextAaChangedEvent.update(args) {
             ctx.services.fonts().text_aa.set_ne(ctx.vars, args.aa);
@@ -131,6 +132,7 @@ impl AppExtension for FontManager {
         }
 
         if fonts.prune_requested {
+            #[cfg(windows)]
             fonts.on_prune();
         }
     }

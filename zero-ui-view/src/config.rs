@@ -1,5 +1,8 @@
-use crate::{AppEvent, MultiClickConfig, TextAntiAliasing};
+use crate::{MultiClickConfig, TextAntiAliasing};
 use std::time::Duration;
+
+#[cfg(windows)]
+use crate::AppEvent;
 
 /// Create a hidden window that listen to Windows config change events.
 #[cfg(windows)]
@@ -80,12 +83,12 @@ pub fn text_aa() -> TextAntiAliasing {
 }
 #[cfg(not(windows))]
 pub fn text_aa() -> TextAntiAliasing {
-    // TODO
+    tracing::error!("`text_aa` not implemented for this OS, will use default");
     TextAntiAliasing::Subpixel
 }
 
 /// Gets the "double-click" settings.
-#[cfg(target_os = "windows")]
+#[cfg(windows)]
 pub fn multi_click_config() -> MultiClickConfig {
     use winapi::um::winuser::*;
     use zero_ui_view_api::units::*;
@@ -101,11 +104,9 @@ pub fn multi_click_config() -> MultiClickConfig {
     }
 }
 
-#[cfg(not(target_os = "windows"))]
-pub fn multi_click_time() -> MultiClickConfig {
-    // TODO
-    // https://stackoverflow.com/questions/50868129/how-to-get-double-click-time-interval-value-programmatically-on-linux
-    // https://developer.apple.com/documentation/appkit/nsevent/1532495-mouseevent
+#[cfg(not(windows))]
+pub fn multi_click_config() -> MultiClickConfig {
+    tracing::error!("`multi_click_config` not implemented for this OS, will use default");
     MultiClickConfig::default()
 }
 
@@ -127,6 +128,7 @@ pub fn animation_enabled() -> bool {
 }
 #[cfg(not(windows))]
 pub fn animation_enabled() -> bool {
+    tracing::error!("`animation_enabled` not implemented for this OS, will use default");
     true
 }
 
@@ -161,5 +163,6 @@ pub fn key_repeat_delay() -> Duration {
 
 #[cfg(not(windows))]
 pub fn key_repeat_delay() -> Duration {
+    tracing::error!("`key_repeat_delay` not implemented for this OS, will use default");
     Duration::from_millis(600)
 }
