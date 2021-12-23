@@ -426,7 +426,9 @@ impl GlContextManager {
                         target_os = "openbsd",
                     ))]
                     let r = {
-                        let mut r = context_builder.clone().build_surfaceless(window_target, size.to_winit());
+                        use glutin::platform::unix::HeadlessContextExt;
+
+                        let mut r = context_builder.clone().build_surfaceless(window_target);
                         if let Err(e) = r {
                             log_error(&format!("surfaceless error: {:?}", e));
 
