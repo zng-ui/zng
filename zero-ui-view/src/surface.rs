@@ -1,8 +1,8 @@
 use std::{collections::VecDeque, fmt};
 
+use glutin::event_loop::EventLoopWindowTarget;
 #[cfg(target_os = "linux")]
 use glutin::platform::unix::HeadlessContextExt;
-use glutin::{dpi::PhysicalSize, event_loop::EventLoopWindowTarget, ContextBuilder, GlRequest};
 use webrender::{
     api::{
         BuiltDisplayList, DisplayListPayload, DocumentId, DynamicProperties, FontInstanceKey, FontInstanceOptions,
@@ -17,8 +17,8 @@ use zero_ui_view_api::{
 };
 
 use crate::{
+    gl::{GlContext, GlContextManager},
     image_cache::{Image, ImageCache, ImageUseMap, WrImageCache},
-    util::{DipToWinit, GlContextManager, GlHeadlessContext},
     AppEvent, AppEventSender, FrameReadyMsg,
 };
 
@@ -31,9 +31,8 @@ pub(crate) struct Surface {
     api: RenderApi,
     size: DipSize,
     scale_factor: f32,
-    render_mode: RenderMode,
 
-    context: GlHeadlessContext,
+    context: GlContext,
     renderer: Option<Renderer>,
     image_use: ImageUseMap,
 
@@ -62,83 +61,7 @@ impl Surface {
     ) -> Self {
         let id = cfg.id;
 
-        let mut render_mode = cfg.render_mode;
-        if !cfg!(software) && render_mode == RenderMode::Software {
-            tracing::warn!("ignoring `RenderMode::Software` because did not build with \"software\" feature");
-            render_mode = RenderMode::Integrated;
-        }
-
-        let mut glutin_errors = vec![];
-        let mut context = None;
-        let size_one = PhysicalSize::new(1, 1);
-        for mode in render_mode.with_fallbacks() {
-            if !cfg!(software) && mode == RenderMode::Software {
-                continue;
-            }
-
-            let builder = ContextBuilder::new()
-                .with_hardware_acceleration(match mode {
-                    RenderMode::Dedicated => Some(true),
-                    RenderMode::Integrated => Some(false),
-                    RenderMode::Software => None,
-                })
-                .with_gl(GlRequest::Latest);
-
-            #[cfg(target_os = "linux")]
-            match builder.clone().build_surfaceless(window_target) {
-                Ok(c) => {
-                    context = Some(c);
-                    render_mode = mode;
-                    break;
-                }
-                Err(e) => {
-                    tracing::error!("failed to create glutin surfaceless context for `{:?}`, {:?}", mode, e);
-                    glutin_errors.push(e);
-                }
-            }
-
-            match builder.build_headless(window_target, size_one) {
-                Ok(c) => {
-                    context = Some(c);
-                    render_mode = mode;
-                    break;
-                }
-                Err(e) => {
-                    tracing::error!("failed to create glutin context for `{:?}`, {:?}", mode, e);
-                    glutin_errors.push(e);
-                }
-            }
-        }
-
-        let context = if let Some(g) = context {
-            g
-        } else {
-            panic!("failed to create glutin headless contexts, including fallbacks {:?}", glutin_errors);
-        };
-
-        #[cfg(software)]
-        let mut context = if let RenderMode::Software = render_mode {
-            gl_manager.manage_headless(id, context, Some(swgl::Context::create()))
-        } else {
-            let mut ctx = gl_manager.manage_headless(id, context, None);
-            ctx.fallback_to_software();
-            if ctx.is_software() {
-                render_mode = RenderMode::Software;
-            }
-            ctx
-        };
-
-        #[cfg(not(software))]
-        let mut context = {
-            let ctx = gl_manager.manage_headless(id, context);
-            assert!(
-                ctx.supports_wr(),
-                "glutin context does not meet minimal requirements of OpenGL 3.1 and zero-ui-view was not built with \"software\" fallback"
-            );
-            ctx
-        };
-
-        context.resize(cfg.size.to_winit().to_physical(cfg.scale_factor as f64));
+        let context = gl_manager.create_headless(id, window_target, cfg.render_mode, cfg.size.to_px(cfg.scale_factor));
 
         let mut text_aa = cfg.text_aa;
         if let TextAntiAliasing::Default = cfg.text_aa {
@@ -161,7 +84,7 @@ impl Surface {
         let device_size = cfg.size.to_px(cfg.scale_factor).to_wr_device();
 
         let (mut renderer, sender) =
-            webrender::Renderer::new(context.share_gl(), Box::new(Notifier { id, sender: event_sender }), opts, None).unwrap();
+            webrender::Renderer::new(context.gl().clone(), Box::new(Notifier { id, sender: event_sender }), opts, None).unwrap();
         renderer.set_external_image_handler(WrImageCache::new_boxed());
 
         let api = sender.create_api();
@@ -177,7 +100,6 @@ impl Surface {
             api,
             size: cfg.size,
             scale_factor: cfg.scale_factor,
-            render_mode,
 
             context,
             renderer: Some(renderer),
@@ -196,7 +118,7 @@ impl Surface {
             id_namespace: self.id_namespace(),
             pipeline_id: self.pipeline_id,
             document_id,
-            render_mode: self.render_mode,
+            render_mode: self.render_mode(),
         }
     }
 
@@ -208,7 +130,7 @@ impl Surface {
     }
 
     pub fn render_mode(&self) -> RenderMode {
-        self.render_mode
+        self.context.render_mode()
     }
 
     pub fn id(&self) -> WindowId {
@@ -246,7 +168,8 @@ impl Surface {
                 self.size = size;
                 self.scale_factor = scale_factor;
                 self.context.make_current();
-                self.context.resize(size.to_winit().to_physical(scale_factor as f64));
+                let px_size = size.to_px(self.scale_factor);
+                self.context.resize(px_size.width.0, px_size.height.0);
                 self.resized = true;
             } else {
                 todo!()
@@ -395,8 +318,6 @@ impl Surface {
                 renderer.update();
                 renderer.render((self.size.to_px(self.scale_factor)).to_wr_device(), 0).unwrap();
                 let _ = renderer.flush_pipeline_info();
-
-                self.context.upload_swgl();
             }
             if capture {
                 captured_data = Some(images.frame_image_data(

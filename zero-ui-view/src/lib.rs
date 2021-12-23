@@ -93,13 +93,14 @@ use std::{
     time::{Duration, Instant},
 };
 
+use gl::GlContextManager;
 use glutin::{
     event::{DeviceEvent, WindowEvent},
     event_loop::{ControlFlow, EventLoop, EventLoopProxy, EventLoopWindowTarget},
     monitor::MonitorHandle,
 };
 use image_cache::ImageCache;
-use util::{GlContextManager, WinitToPx};
+use util::WinitToPx;
 
 // /*
 
@@ -117,6 +118,7 @@ pub use swgl;
 
 // */
 mod config;
+mod gl;
 mod image_cache;
 mod surface;
 mod util;

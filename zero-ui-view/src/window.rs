@@ -14,7 +14,6 @@ use glutin::{
     event_loop::EventLoopWindowTarget,
     monitor::VideoMode as GVideoMode,
     window::{Fullscreen, Icon, Window as GWindow, WindowBuilder},
-    ContextBuilder, GlRequest,
 };
 use tracing::span::EnteredSpan;
 use webrender::{
@@ -35,8 +34,9 @@ use zero_ui_view_api::{Event, Key, KeyState, ScanCode};
 
 use crate::{
     config,
+    gl::{GlContext, GlContextManager},
     image_cache::{Image, ImageCache, ImageUseMap, WrImageCache},
-    util::{self, CursorToWinit, DipToWinit, GlContext, GlContextManager, WinitToDip, WinitToPx},
+    util::{self, CursorToWinit, DipToWinit, WinitToDip, WinitToPx},
     AppEvent, AppEventSender, FrameReadyMsg,
 };
 
@@ -179,66 +179,7 @@ impl Window {
             render_mode = RenderMode::Integrated;
         }
 
-        let mut glutin_errors = vec![];
-        let mut glutin = None;
-        for mode in render_mode.with_fallbacks() {
-            if !cfg!(software) && mode == RenderMode::Software {
-                continue;
-            }
-
-            match ContextBuilder::new()
-                .with_hardware_acceleration(match mode {
-                    RenderMode::Dedicated => Some(true),
-                    RenderMode::Integrated => Some(false),
-                    RenderMode::Software => None,
-                })
-                .with_gl(GlRequest::Latest)
-                .build_windowed(winit.clone(), window_target)
-            {
-                Ok(c) => {
-                    glutin = Some(c);
-                    render_mode = mode;
-                    break;
-                }
-                Err(e) => {
-                    tracing::error!("failed to create glutin context for `{:?}`, {:?}", mode, e);
-                    glutin_errors.push(e);
-                }
-            }
-        }
-
-        let glutin = if let Some(g) = glutin {
-            g
-        } else {
-            panic!("failed to create glutin contexts, including fallbacks {:?}", glutin_errors);
-        };
-
-        // SAFETY: we drop the context before the window (or panic if we don't).
-        let (context, winit_window) = unsafe { glutin.split() };
-
-        #[cfg(software)]
-        let mut context = if let RenderMode::Software = render_mode {
-            gl_manager.manage_headed(id, context, Some(swgl::Context::create()))
-        } else {
-            let mut ctx = gl_manager.manage_headed(id, context, None);
-            ctx.fallback_to_software();
-            if ctx.is_software() {
-                render_mode = RenderMode::Software;
-            }
-            ctx
-        };
-
-        #[cfg(not(software))]
-        let mut context = {
-            let ctx = gl_manager.manage_headed(id, context);
-            assert!(
-                ctx.supports_wr(),
-                "glutin context does not meet minimal requirements of OpenGL 3.1 and zero-ui-view was not built with \"software\" fallback"
-            );
-            ctx
-        };
-
-        context.resize(winit_window.inner_size());
+        let (context, winit_window) = gl_manager.create_headed(id, winit, window_target, cfg.render_mode);
 
         // extend the winit Windows window to only block the Alt+F4 key press if we want it to.
         let allow_alt_f4 = Rc::new(Cell::new(cfg.allow_alt_f4));
@@ -293,7 +234,7 @@ impl Window {
         let (rf_sender, redirect_frame_recv) = flume::unbounded();
 
         let (mut renderer, sender) = webrender::Renderer::new(
-            context.share_gl(),
+            context.gl().clone(),
             Box::new(Notifier {
                 window_id: id,
                 sender: event_sender,
@@ -499,7 +440,8 @@ impl Window {
     /// window.inner_size maybe new.
     pub fn on_resized(&mut self) {
         self.context.make_current();
-        self.context.resize(self.window.inner_size());
+        let size = self.window.inner_size();
+        self.context.resize(size.width as _, size.height as _);
         self.resized = true;
     }
 
