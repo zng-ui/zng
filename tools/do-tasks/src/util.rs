@@ -269,29 +269,38 @@ pub fn build_test_cases() -> Vec<(String, String)> {
 }
 
 // Get "cdylib" crate output.
-pub fn cdylib_files(path: &str) -> Vec<String> {
-    let linux = format!("{}.so", path);
-    let windows = format!("{}.dll", path);
-    let macos = format!("{}.dylib", path);
+pub fn cdylib_files(path: impl Into<PathBuf>) -> Vec<PathBuf> {
+    let mut path = path.into();
+    let file_name = path.file_name().unwrap().to_string_lossy();
+
+    let linux = format!("lib{}.so", file_name);
+    let windows = format!("{}.dll", file_name);
+    let macos = format!("lib{}.dylib", file_name);
 
     let mut r = vec![];
-    if std::path::PathBuf::from(&linux).exists() {
-        r.push(linux);
+
+    path.set_file_name(linux);
+    if path.exists() {
+        r.push(path.clone());
     }
-    if std::path::PathBuf::from(&windows).exists() {
-        r.push(windows);
+    path.set_file_name(windows);
+    if path.exists() {
+        r.push(path.clone());
     }
-    if std::path::PathBuf::from(&macos).exists() {
-        r.push(macos);
+    path.set_file_name(macos);
+    if path.exists() {
+        r.push(path);
     }
 
     r
 }
 
+/*
 // Extracts the file name from path, or panics.
 pub fn file_name(path: &str) -> String {
     std::path::PathBuf::from(path).file_name().unwrap().to_str().unwrap().to_owned()
 }
+*/
 
 fn glob(pattern: &str) -> Vec<String> {
     match glob::glob(pattern) {

@@ -40,7 +40,7 @@
 //! internally starts the view-process, using the `init` setup. The current executable is started
 //! again, this time configured to be a view-process, `init` detects this and highjacks the process
 //! **never returning**.
-//! 
+//!
 //! # Software Backend
 //!
 //! The `webrender/swgl` software renderer can be used as fallback when no native OpenGL 3.2 driver is available, to build it
@@ -58,23 +58,23 @@
 //! set CC=clang-cl
 //! set CXX=clang-cl
 //! ```
-//! 
+//!
 //! # Pre-built
-//! 
-//! There is a pre-built release of this crate, [`zero-ui-view-prebuilt`], it works as a drop-in replacement 
+//!
+//! There is a pre-built release of this crate, [`zero-ui-view-prebuilt`], it works as a drop-in replacement
 // that dynamically links with a pre-built library, for Windows, Linux and MacOS.
-//! 
+//!
 //! In the `Cargo.toml` file:
-//! 
+//!
 //! ```toml
 //! zero-ui-view-prebuilt = "0.1"
 //! ```
-//! 
+//!
 //! Then in the `main.rs` file:
-//! 
+//!
 //! ```no_run
 //! use zero_ui_view_prebuilt as zero_ui_view;
-//! 
+//!
 //! fn main() {
 //!     zero_ui_view::init();
 //!     
@@ -84,7 +84,7 @@
 //!
 //! The pre-built crate includes the `"software"` and `"ipc"` features, in fact `ipc` is required, even for running on the same process,
 //! you can also configure where the pre-build library is installed, see the [`zero-ui-view-prebuilt`] documentation for details.
-//! 
+//!
 //! [`glutin`]: https://docs.rs/glutin/
 //! [`zero-ui-view-prebuilt`]: https://docs.rs/zero-ui-view-prebuilt/
 

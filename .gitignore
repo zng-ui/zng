@@ -12,3 +12,4 @@ cargo-timing*
 large-image.*
 examples/examples
 zero-ui-view-prebuilt/lib/zero_ui_view.*
+zero-ui-view-prebuilt/lib/libzero_ui_view.*

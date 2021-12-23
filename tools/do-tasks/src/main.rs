@@ -412,14 +412,14 @@ fn prebuild(args: Vec<&str>) {
     let files = cdylib_files("target/release/zero_ui_view");
 
     if files.is_empty() {
-        error("no `cdylib` output found");
+        error("no pre-build `cdylib` output found");
         return;
     }
 
     for file in files {
-        let target = format!("zero-ui-view-prebuilt/lib/{}", file_name(&file));
+        let target = format!("zero-ui-view-prebuilt/lib/{}", file.file_name().unwrap().to_string_lossy());
         if let Err(e) = std::fs::copy(&file, &target) {
-            error(f!("failed to copy pre-build lib `{}` to `{}`, {}", file, target, e))
+            error(f!("failed to copy pre-build lib `{}` to `{}`, {}", file.display(), target, e))
         }
     }
 

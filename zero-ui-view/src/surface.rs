@@ -1,8 +1,8 @@
 use std::{collections::VecDeque, fmt};
 
-use glutin::{dpi::PhysicalSize, event_loop::EventLoopWindowTarget, ContextBuilder, GlRequest};
 #[cfg(target_os = "linux")]
 use glutin::platform::unix::HeadlessContextExt;
+use glutin::{dpi::PhysicalSize, event_loop::EventLoopWindowTarget, ContextBuilder, GlRequest};
 use webrender::{
     api::{
         BuiltDisplayList, DisplayListPayload, DocumentId, DynamicProperties, FontInstanceKey, FontInstanceOptions,

@@ -26,12 +26,12 @@ use webrender::{
     RenderApi, Renderer, RendererOptions, Transaction,
 };
 use zero_ui_view_api::{
-    units::*, CursorIcon, DeviceId, FrameId, FrameRequest, FrameUpdateRequest, HeadlessOpenData, ImageId, ImageLoadedData,
-    RenderMode, TextAntiAliasing, VideoMode, ViewProcessGen, WindowId, WindowRequest, WindowState,
+    units::*, CursorIcon, DeviceId, FrameId, FrameRequest, FrameUpdateRequest, HeadlessOpenData, ImageId, ImageLoadedData, RenderMode,
+    TextAntiAliasing, VideoMode, ViewProcessGen, WindowId, WindowRequest, WindowState,
 };
 
 #[cfg(windows)]
-use zero_ui_view_api::{Event, KeyState, ScanCode, Key};
+use zero_ui_view_api::{Event, Key, KeyState, ScanCode};
 
 use crate::{
     config,

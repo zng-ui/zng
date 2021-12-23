@@ -15,10 +15,10 @@ fn main() {
     let file = "zero_ui_view.dll";
 
     #[cfg(target_os = "linux")]
-    let file = "zero_ui_view.so";
+    let file = "libzero_ui_view.so";
 
     #[cfg(target_os = "macos")]
-    let file = "zero_ui_view.dylib";
+    let file = "libzero_ui_view.dylib";
 
     if file.is_empty() {
         panic!("unsuported OS");
