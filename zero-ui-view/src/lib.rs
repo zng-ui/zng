@@ -51,13 +51,14 @@
 //!
 //! * Install LLVM (<https://releases.llvm.org/>) and add it to the `PATH` variable:
 //! ```bat
-//! set PATH=%PATH%;C:\Program Files\LLVM\bin
+//! setx PATH %PATH%;C:\Program Files\LLVM\bin
 //! ```
 //! * Associate `CC` and `CXX` with `clang-cl`:
 //! ```bat
-//! set CC=clang-cl
-//! set CXX=clang-cl
+//! setx CC clang-cl
+//! setx CXX clang-cl
 //! ```
+//! Note that you may need to reopen the terminal for the environment variables to be available (setx always requires this).
 //!
 //! # Pre-built
 //!

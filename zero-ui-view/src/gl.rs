@@ -639,7 +639,7 @@ mod blit {
 
             unsafe fn blit_unsafe(&mut self, width: i32, height: i32, frame: &super::Bgra8) {
                 // not BeginPaint because winit calls DefWindowProcW?
-                
+
                 let hdc = winuser::GetDC(self.hwnd);
 
                 let mem_dc = wingdi::CreateCompatibleDC(hdc);

@@ -161,7 +161,7 @@ fn img_window(title: impl IntoVar<Text>, content: impl UiNode) -> Window {
             cb_size = (16, 16);
         };
 
-        // content show by all images when loading.
+        // content shown by all images when loading.
         image_loading_view = view_generator!(|ctx, _| {
             let mut dots_count = 3;
             let msg = ctx.timers.interval(300.ms(), true).map(move |_| {
@@ -187,7 +187,7 @@ fn img_window(title: impl IntoVar<Text>, content: impl UiNode) -> Window {
             }
         });
 
-        // content show by all images that failed to load.
+        // content shown by all images that failed to load.
         image_error_view = view_generator!(|_, args: ImageErrorArgs| {
             text! {
                 text = args.error;
