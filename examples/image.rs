@@ -153,6 +153,8 @@ fn img_window(title: impl IntoVar<Text>, content: impl UiNode) -> Window {
         title;
         content;
 
+        // render_mode = zero_ui::core::window::RenderMode::Software;
+
         state = WindowState::Maximized;
         background = checkerboard! {
             colors = rgb(20, 20, 20), rgb(40, 40, 40);

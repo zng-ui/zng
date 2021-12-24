@@ -47,4 +47,4 @@ rustc-hash = "1"
 rayon = "1"
 
 [target.'cfg(windows)'.dependencies]
-winapi = { version = "0.3", features = ["winuser", "errhandlingapi", "windef", "minwindef", "commctrl", "basetsd", "winerror", "combaseapi", "shobjidl_core", "wtypesbase"] }
+winapi = { version = "0.3", features = ["winuser", "errhandlingapi", "windef", "minwindef", "commctrl", "basetsd", "winerror", "combaseapi", "shobjidl_core", "wtypesbase", "wingdi"] }

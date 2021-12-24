@@ -23,7 +23,7 @@ enum GlContextInner {
     Headed(glutin::ContextWrapper<PossiblyCurrent, ()>),
     Headless(HeadlessData),
     #[cfg(software)]
-    Software(swgl::Context),
+    Software(swgl::Context, Option<blit::Impl>),
 
     // glutin context takes ownership to make current..
     MakingCurrent,
@@ -96,7 +96,7 @@ impl GlContext {
 
     #[cfg(software)]
     pub fn is_software(&self) -> bool {
-        matches!(&self.inner, GlContextInner::Software(_))
+        matches!(&self.inner, GlContextInner::Software(_, _))
     }
 
     #[cfg(not(software))]
@@ -116,7 +116,7 @@ impl GlContext {
         self.current_id.set(Some(self.id));
 
         #[cfg(software)]
-        if let GlContextInner::Software(ctx) = &self.inner {
+        if let GlContextInner::Software(ctx, _) = &self.inner {
             ctx.make_current();
             return;
         }
@@ -149,7 +149,7 @@ impl GlContext {
             GlContextInner::Headed(ctx) => ctx.resize(glutin::dpi::PhysicalSize::new(width as _, height as _)),
             GlContextInner::Headless(ctx) => ctx.resize(width, height),
             #[cfg(software)]
-            GlContextInner::Software(ctx) => {
+            GlContextInner::Software(ctx, _) => {
                 // NULL means SWGL manages the buffer, it also retains the buffer if the size did not change.
                 ctx.init_default_framebuffer(0, 0, width, height, 0, std::ptr::null_mut());
             }
@@ -157,15 +157,30 @@ impl GlContext {
         }
     }
 
-    /// Blit software render or swap headed buffers.
-    pub fn swap_buffers(&self) {
+    /// Swap headed buffers or blit headed software.
+    pub fn swap_buffers(&mut self) {
         assert!(self.is_current());
 
-        match &self.inner {
+        match &mut self.inner {
             GlContextInner::Headed(ctx) => ctx.swap_buffers().unwrap(),
             GlContextInner::Headless(_) => {}
             #[cfg(software)]
-            GlContextInner::Software(_) => todo!(),
+            GlContextInner::Software(swgl, headed) => {
+                if let Some(headed) = headed {
+                    swgl.finish();
+                    let (data_ptr, w, h, stride) = swgl.get_color_buffer(0, true);
+
+                    if w == 0 || h == 0 {
+                        return;
+                    }
+
+                    // SAFETY: we trust SWGL
+                    assert!(stride == w * 4);
+                    let frame = unsafe { std::slice::from_raw_parts(data_ptr as *const u8, w as usize * h as usize * 4) };
+
+                    headed.blit(w, h, frame);
+                }
+            }
             s => panic!("unexpected context state, {:?}", s),
         }
     }
@@ -185,7 +200,7 @@ impl GlContext {
             }
             GlContextInner::Headless(ctx) => ctx.destroy(self.is_current()),
             #[cfg(software)]
-            GlContextInner::Software(ctx) => ctx.destroy(),
+            GlContextInner::Software(ctx, _) => ctx.destroy(),
             GlContextInner::Dropped => {}
             GlContextInner::MakingCurrent => {
                 tracing::error!("unexpected `MakingCurrent` on drop");
@@ -204,7 +219,7 @@ impl Drop for GlContext {
             GlContextInner::Headed(_) => panic!("call `drop_before_winit` before dropping a headed context"),
             GlContextInner::Headless(ctx) => ctx.destroy(self.is_current()),
             #[cfg(software)]
-            GlContextInner::Software(ctx) => ctx.destroy(),
+            GlContextInner::Software(ctx, _) => ctx.destroy(),
             GlContextInner::Dropped => {}
             GlContextInner::MakingCurrent => {
                 tracing::error!("unexpected `MakingCurrent` on drop");
@@ -293,11 +308,18 @@ impl GlContextManager {
             match config.mode {
                 #[cfg(software)]
                 RenderMode::Software => {
-                    // software mode does not use glutin.
+                    if !blit::Impl::supported() {
+                        error_log.push_str(
+                            "\n[Software]\nzero-ui-view does not fully implement headed \"software\" backend on target OS (missing blit)",
+                        );
+
+                        continue;
+                    }
 
                     let window = window.build(window_target).unwrap();
                     let size = window.inner_size();
-                    let ctx = self.create_software(id, size.width as _, size.height as _);
+                    let headed = blit::Impl::new(&window);
+                    let ctx = self.create_software(id, size.width as _, size.height as _, Some(headed));
 
                     return (ctx, window);
                 }
@@ -394,7 +416,7 @@ impl GlContextManager {
             match config.mode {
                 #[cfg(software)]
                 RenderMode::Software => {
-                    return self.create_software(id, size.width.0, size.height.0);
+                    return self.create_software(id, size.width.0, size.height.0, None);
                 }
                 #[cfg(not(software))]
                 RenderMode::Software => {
@@ -499,10 +521,10 @@ impl GlContextManager {
     }
 
     #[cfg(software)]
-    fn create_software(&self, id: WindowId, width: i32, height: i32) -> GlContext {
+    fn create_software(&self, id: WindowId, width: i32, height: i32, headed: Option<blit::Impl>) -> GlContext {
         let ctx = swgl::Context::create();
         let gl = Rc::new(ctx);
-        let ctx = GlContextInner::Software(ctx);
+        let ctx = GlContextInner::Software(ctx, headed);
         let mut ctx = GlContext {
             id,
             current_id: self.current_id.clone(),
@@ -538,45 +560,132 @@ impl fmt::Debug for GlContextInner {
             Self::Headed(_) => write!(f, "Headed"),
             Self::Headless(_) => write!(f, "Headless"),
             #[cfg(software)]
-            Self::Software(_) => write!(f, "Software"),
+            Self::Software(_, _) => write!(f, "Software"),
             Self::MakingCurrent => write!(f, "MakingCurrent"),
             Self::Dropped => write!(f, "Dropped"),
         }
     }
 }
 
-// TODO
 #[cfg(software)]
-fn upload_swgl_to_native(swgl: &swgl::Context, gl: &dyn Gl) {
-    swgl.finish();
+mod blit {
+    pub type Bgra8 = [u8];
 
-    let tex = gl.gen_textures(1)[0];
-    gl.bind_texture(gl::TEXTURE_2D, tex);
-    let (data_ptr, w, h, stride) = swgl.get_color_buffer(0, true);
+    #[cfg(not(any(
+        windows,
+        target_os = "linux",
+        target_os = "dragonfly",
+        target_os = "freebsd",
+        target_os = "netbsd",
+        target_os = "openbsd",
+    )))]
+    pub type Impl = NotImplementedBlit;
 
-    if w == 0 || h == 0 {
-        tracing::error!("cannot upload SWGL, no color buffer, did resize not get called?");
-        return;
+    #[cfg(windows)]
+    pub type Impl = windows_blit::GdiBlit;
+
+    #[cfg(any(
+        target_os = "linux",
+        target_os = "dragonfly",
+        target_os = "freebsd",
+        target_os = "netbsd",
+        target_os = "openbsd",
+    ))]
+    pub type Impl = NotImplementedBlit;
+
+    #[allow(unused)]
+    pub struct NotImplementedBlit {}
+    #[allow(unused)]
+    impl NotImplementedBlit {
+        pub fn new(_window: &glutin::window::Window) -> Self {
+            NotImplementedBlit {}
+        }
+
+        pub fn supported() -> bool {
+            false
+        }
+
+        pub fn blit(&mut self, _width: i32, _height: i32, _frame: &Bgra8) {
+            panic!("Software blit not implemented on this OS");
+        }
     }
 
-    assert!(stride == w * 4);
-    let buffer = unsafe { std::slice::from_raw_parts(data_ptr as *const u8, w as usize * h as usize * 4) };
-    gl.tex_image_2d(
-        gl::TEXTURE_2D,
-        0,
-        gl::RGBA8 as _,
-        w,
-        h,
-        0,
-        gl::BGRA,
-        gl::UNSIGNED_BYTE,
-        Some(buffer),
-    );
-    let fb = gl.gen_framebuffers(1)[0];
-    gl.bind_framebuffer(gl::READ_FRAMEBUFFER, fb);
-    gl.framebuffer_texture_2d(gl::READ_FRAMEBUFFER, gl::COLOR_ATTACHMENT0, gl::TEXTURE_2D, tex, 0);
-    gl.blit_framebuffer(0, 0, w, h, 0, 0, w, h, gl::COLOR_BUFFER_BIT, gl::NEAREST);
-    gl.delete_framebuffers(&[fb]);
-    gl.delete_textures(&[tex]);
-    gl.finish();
+    #[cfg(windows)]
+    mod windows_blit {
+
+        use glutin::platform::windows::WindowExtWindows;
+        use winapi::{
+            shared::windef::HWND,
+            um::{wingdi, winuser},
+        };
+
+        pub struct GdiBlit {
+            hwnd: HWND,
+        }
+
+        impl GdiBlit {
+            pub fn new(window: &glutin::window::Window) -> Self {
+                GdiBlit { hwnd: window.hwnd() as _ }
+            }
+
+            pub fn supported() -> bool {
+                true
+            }
+
+            pub fn blit(&mut self, width: i32, height: i32, frame: &super::Bgra8) {
+                // SAFETY: its a simple operation, and we try to cleanup before panic.
+                unsafe { self.blit_unsafe(width, height, frame) }
+            }
+
+            unsafe fn blit_unsafe(&mut self, width: i32, height: i32, frame: &super::Bgra8) {
+                // not BeginPaint because winit calls DefWindowProcW?
+                
+                let hdc = winuser::GetDC(self.hwnd);
+
+                let mem_dc = wingdi::CreateCompatibleDC(hdc);
+                let mem_bm = wingdi::CreateCompatibleBitmap(hdc, width, height);
+
+                let mut bmi = wingdi::BITMAPINFO::default();
+                {
+                    let mut info = &mut bmi.bmiHeader;
+                    info.biSize = std::mem::size_of::<wingdi::BITMAPINFO>() as u32;
+                    info.biWidth = width;
+                    info.biHeight = height;
+                    info.biPlanes = 1;
+                    info.biBitCount = 32;
+                }
+
+                let old_bm = wingdi::SelectObject(mem_dc, mem_bm as winapi::shared::minwindef::LPVOID);
+
+                wingdi::StretchDIBits(
+                    mem_dc,
+                    0,
+                    0,
+                    width,
+                    height,
+                    0,
+                    0,
+                    width,
+                    height,
+                    frame.as_ptr() as *const _,
+                    &bmi as *const _,
+                    0,
+                    wingdi::SRCCOPY,
+                );
+                wingdi::BitBlt(hdc, 0, 0, width, height, mem_dc, 0, 0, wingdi::SRCCOPY);
+
+                wingdi::SelectObject(mem_dc, old_bm);
+                winuser::ReleaseDC(self.hwnd, hdc);
+            }
+        }
+    }
+
+    #[cfg(any(
+        target_os = "linux",
+        target_os = "dragonfly",
+        target_os = "freebsd",
+        target_os = "netbsd",
+        target_os = "openbsd",
+    ))]
+    mod linux_blit {}
 }
