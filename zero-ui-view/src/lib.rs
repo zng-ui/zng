@@ -652,7 +652,11 @@ impl<S: AppEventSender> App<S> {
             WindowEvent::HoveredFile(file) => self.notify(Event::HoveredFile { window: id, file }),
             WindowEvent::HoveredFileCancelled => self.notify(Event::HoveredFileCancelled(id)),
             WindowEvent::ReceivedCharacter(c) => self.notify(Event::ReceivedCharacter(id, c)),
-            WindowEvent::Focused(focused) => self.notify(Event::Focused { window: id, focused }),
+            WindowEvent::Focused(focused) => {
+                if self.windows[i].focused_changed(focused) {
+                    self.notify(Event::Focused { window: id, focused });
+                }
+            }
             WindowEvent::KeyboardInput { device_id, input, .. } => {
                 let d_id = self.device_id(device_id);
                 self.notify(Event::KeyboardInput {
@@ -825,7 +829,7 @@ impl<S: AppEventSender> App<S> {
 
                 // Windows not notifying this one.
                 #[cfg(windows)]
-                if w.is_maximized() && w.is_active_window() {
+                if w.is_maximized() && w.is_active_window() && w.focused_changed(true) {
                     self.notify(Event::Focused {
                         window: window_id,
                         focused: true,

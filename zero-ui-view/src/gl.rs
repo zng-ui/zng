@@ -8,7 +8,10 @@ use std::{
 use crate::util::PxToWinit;
 use gleam::gl::{self, Gl};
 use glutin::{event_loop::EventLoopWindowTarget, window::WindowBuilder, PossiblyCurrent};
-use zero_ui_view_api::{units::PxSize, RenderMode, WindowId};
+use zero_ui_view_api::{
+    units::{Px, PxSize},
+    RenderMode, WindowId,
+};
 
 pub(crate) struct GlContext {
     id: WindowId,
@@ -317,9 +320,8 @@ impl GlContextManager {
                     }
 
                     let window = window.build(window_target).unwrap();
-                    let size = window.inner_size();
                     let headed = blit::Impl::new(&window);
-                    let ctx = self.create_software(id, size.width as _, size.height as _, Some(headed));
+                    let ctx = self.create_software(id, Some(headed));
 
                     return (ctx, window);
                 }
@@ -408,15 +410,16 @@ impl GlContextManager {
         id: WindowId,
         window_target: &EventLoopWindowTarget<crate::AppEvent>,
         mode_pref: RenderMode,
-        size: PxSize,
     ) -> GlContext {
         let mut error_log = String::new();
+
+        let size = PxSize::new(Px(2), Px(2));
 
         for config in TryConfig::iter(mode_pref) {
             match config.mode {
                 #[cfg(software)]
                 RenderMode::Software => {
-                    return self.create_software(id, size.width.0, size.height.0, None);
+                    return self.create_software(id, None);
                 }
                 #[cfg(not(software))]
                 RenderMode::Software => {
@@ -521,7 +524,7 @@ impl GlContextManager {
     }
 
     #[cfg(software)]
-    fn create_software(&self, id: WindowId, width: i32, height: i32, headed: Option<blit::Impl>) -> GlContext {
+    fn create_software(&self, id: WindowId, headed: Option<blit::Impl>) -> GlContext {
         let ctx = swgl::Context::create();
         let gl = Rc::new(ctx);
         let ctx = GlContextInner::Software(ctx, headed);
@@ -533,7 +536,6 @@ impl GlContextManager {
             gl,
         };
         ctx.make_current();
-        ctx.resize(width, height);
 
         ctx
     }

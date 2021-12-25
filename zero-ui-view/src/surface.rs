@@ -61,7 +61,9 @@ impl Surface {
     ) -> Self {
         let id = cfg.id;
 
-        let context = gl_manager.create_headless(id, window_target, cfg.render_mode, cfg.size.to_px(cfg.scale_factor));
+        let context = gl_manager.create_headless(id, window_target, cfg.render_mode);
+        let size = cfg.size.to_px(cfg.scale_factor);
+        context.resize(size.width.0, size.height.0);
 
         let mut text_aa = cfg.text_aa;
         if let TextAntiAliasing::Default = cfg.text_aa {

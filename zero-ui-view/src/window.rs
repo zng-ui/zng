@@ -109,6 +109,8 @@ pub(crate) struct Window {
     cursor_over: bool,
     hit_tester: HitTester,
 
+    focused: bool,
+
     render_mode: RenderMode,
 }
 impl fmt::Debug for Window {
@@ -284,6 +286,7 @@ impl Window {
             cursor_pos: DipPoint::zero(),
             cursor_device: 0,
             cursor_over: false,
+            focused: false,
             hit_tester,
             render_mode,
         };
@@ -361,6 +364,15 @@ impl Window {
         }
 
         moved && self.cursor_over
+    }
+
+    /// Returns `true` if the previous focused status is different from `focused`.
+    pub fn focused_changed(&mut self, focused: bool) -> bool {
+        let changed = self.focused != focused;
+        if changed {
+            self.focused = focused;
+        }
+        changed
     }
 
     /// Returns the last cursor moved data.
@@ -848,6 +860,8 @@ impl Window {
             debug_assert!(msg.composite_needed);
 
             self.waiting_first_frame = false;
+            let s = self.window.inner_size();
+            self.context.resize(s.width as i32, s.height as i32);
             self.redraw();
             if self.visible {
                 self.set_visible(true);
