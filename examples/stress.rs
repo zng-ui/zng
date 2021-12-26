@@ -1,6 +1,6 @@
 use examples_util::FilterArgs;
 use zero_ui::core::window::RenderMode;
-use zero_ui::core::{app::ShutdownRequestedEvent, context::WindowContext, window::Window};
+use zero_ui::core::{context::WindowContext, window::Window};
 use zero_ui::prelude::*;
 
 const PROFILE: bool = true;
@@ -172,7 +172,7 @@ fn main() {
         return;
     }
 
-    if PROFILE {
+    let rec = if PROFILE {
         let rec = examples_util::record_profile(
             format!(
                 "profile-stress-{}{}{}{}{}{}{}{}.json.gz",
@@ -201,45 +201,27 @@ fn main() {
             filter,
         );
 
-        if SAME_PROCESS {
-            zero_ui_view::run_same_process(move || {
-                App::default().run_window(move |ctx| {
-                    ctx.events
-                        .on_event(
-                            ShutdownRequestedEvent,
-                            app_hn_once!(|_, _| {
-                                rec.finish();
-                            }),
-                        )
-                        .permanent();
-
-                    ctx.services.windows().default_render_mode = RENDER_MODE;
-                    test(ctx)
-                });
-            });
-        } else {
-            App::default().run_window(|ctx| {
-                ctx.services.windows().default_render_mode = RENDER_MODE;
-                test(ctx)
-            });
-            rec.finish();
-        }
+        Some(rec)
     } else {
         examples_util::print_info();
 
-        if SAME_PROCESS {
-            zero_ui_view::run_same_process(move || {
-                App::default().run_window(|ctx| {
-                    ctx.services.windows().default_render_mode = RENDER_MODE;
-                    test(ctx)
-                });
-            });
-        } else {
-            App::default().run_window(|ctx| {
-                ctx.services.windows().default_render_mode = RENDER_MODE;
-                test(ctx)
-            });
-        }
+        None
+    };
+
+    let run_app = move || {
+        App::default().run_window(|ctx| {
+            ctx.services.windows().default_render_mode = RENDER_MODE;
+            test(ctx)
+        });
+    };
+    if SAME_PROCESS {
+        zero_ui_view::run_same_process(run_app);
+    } else {
+        run_app();
+    }
+
+    if let Some(rec) = rec {
+        rec.finish();
     }
 }
 

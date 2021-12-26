@@ -90,7 +90,7 @@
 //! [`zero-ui-view-prebuilt`]: https://docs.rs/zero-ui-view-prebuilt/
 
 use std::{
-    fmt, process, thread,
+    fmt, thread,
     time::{Duration, Instant},
 };
 
@@ -99,6 +99,7 @@ use glutin::{
     event::{DeviceEvent, WindowEvent},
     event_loop::{ControlFlow, EventLoop, EventLoopProxy, EventLoopWindowTarget},
     monitor::MonitorHandle,
+    platform::run_return::EventLoopExtRunReturn,
 };
 use image_cache::ImageCache;
 use util::WinitToPx;
@@ -229,7 +230,7 @@ pub extern "C" fn extern_init() {
 /// # Panics
 ///
 /// Panics if not called in the main thread, this is a requirement o OpenGL.
-pub fn run_same_process(run_app: impl FnOnce() + Send + 'static) -> ! {
+pub fn run_same_process(run_app: impl FnOnce() + Send + 'static) {
     if !is_main_thread::is_main_thread().unwrap_or(true) {
         panic!("only call `run_same_process` in the main thread, this is a requirement of OpenGL");
     }
@@ -250,7 +251,7 @@ pub fn run_same_process(run_app: impl FnOnce() + Send + 'static) -> ! {
 #[cfg(feature = "ipc")]
 #[doc(hidden)]
 #[no_mangle]
-pub extern "C" fn extern_run_same_process(run_app: extern "C" fn()) -> ! {
+pub extern "C" fn extern_run_same_process(run_app: extern "C" fn()) {
     std::panic::set_hook(Box::new(ffi_abort));
 
     #[allow(clippy::redundant_closure)]
@@ -329,7 +330,7 @@ impl<S> fmt::Debug for App<S> {
     }
 }
 impl App<()> {
-    pub fn run_headless(c: ViewChannels) -> ! {
+    pub fn run_headless(c: ViewChannels) {
         tracing::info!("running headless view-process");
 
         let (app_sender, app_receiver) = flume::unbounded();
@@ -392,14 +393,12 @@ impl App<()> {
                 }
             }
         }
-
-        process::exit(0)
     }
 
-    pub fn run_headed(c: ViewChannels) -> ! {
+    pub fn run_headed(c: ViewChannels) {
         tracing::info!("running headed view-process");
 
-        let event_loop = EventLoop::with_user_event();
+        let mut event_loop = EventLoop::with_user_event();
         let app_sender = event_loop.create_proxy();
 
         let (request_sender, request_receiver) = flume::unbounded();
@@ -421,7 +420,7 @@ impl App<()> {
         let mut idle = IdleTrace(None);
         idle.enter();
 
-        event_loop.run(move |event, target, flow| {
+        event_loop.run_return(move |event, target, flow| {
             idle.exit();
 
             app.window_target = target;

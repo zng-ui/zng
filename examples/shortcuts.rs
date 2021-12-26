@@ -4,13 +4,14 @@ use zero_ui::{prelude::*, widgets::text::properties::TextColorVar};
 use zero_ui_view_prebuilt as zero_ui_view;
 
 fn main() {
-    //examples_util::print_info();
-    // zero_ui_view::run_same_process(app_main);
-
+    examples_util::print_info();
     zero_ui_view::init();
 
     // let rec = examples_util::record_profile("profile-shortcuts.json.gz", &[("example", "shortcuts")], |_| true);
+
+    // zero_ui_view::run_same_process(app_main);
     app_main();
+
     // rec.finish();
 }
 

@@ -38,14 +38,14 @@ pub fn init() {
 /// this needs to happen because unwind across FFI in undefined behavior.
 ///
 /// [install]: ViewLib::install
-pub fn run_same_process(run_app: impl FnOnce() + Send + 'static) -> ! {
+pub fn run_same_process(run_app: impl FnOnce() + Send + 'static) {
     ViewLib::install().unwrap().run_same_process(run_app)
 }
 
 /// Dynamically linked pre-build view.
 pub struct ViewLib {
     init_fn: unsafe extern "C" fn(),
-    run_same_process_fn: unsafe extern "C" fn(extern "C" fn()) -> !,
+    run_same_process_fn: unsafe extern "C" fn(extern "C" fn()),
     _lib: Library,
 }
 impl ViewLib {
@@ -183,7 +183,7 @@ impl ViewLib {
     /// this needs to happen because unwind across FFI in undefined behavior.
     ///
     /// [`run_same_process`]: https://docs.rs/zero-ui-view/fn.run_same_process.html
-    pub fn run_same_process(self, run_app: impl FnOnce() + Send + 'static) -> ! {
+    pub fn run_same_process(self, run_app: impl FnOnce() + Send + 'static) {
         unsafe {
             use std::sync::atomic::{AtomicU8, Ordering};
 
