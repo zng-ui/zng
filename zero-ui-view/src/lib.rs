@@ -633,6 +633,14 @@ impl<S: AppEventSender> App<S> {
             WindowEvent::Moved(p) => {
                 let px_p = p.to_px();
 
+                if let Some(state) = self.windows[i].state_change() {
+                    self.notify(Event::WindowStateChanged {
+                        window: id,
+                        state,
+                        cause: EventCause::System,
+                    });
+                }
+
                 if !self.windows[i].moved(px_p) {
                     return;
                 }

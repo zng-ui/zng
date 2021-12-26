@@ -92,6 +92,11 @@ pub(crate) struct Window {
 
     video_mode: VideoMode,
 
+    min_size: DipSize,
+    max_size: DipSize,
+    restore_pos: DipPoint,
+    restore_size: DipSize,
+
     prev_pos: PxPoint,
     prev_size: PxSize,
     state: WindowState,
@@ -141,10 +146,32 @@ impl Window {
             .with_inner_size(cfg.size.to_winit())
             .with_resizable(cfg.resizable)
             .with_transparent(cfg.transparent)
-            .with_min_inner_size(cfg.min_size.to_winit())
-            .with_max_inner_size(cfg.max_size.to_winit())
             .with_always_on_top(cfg.always_on_top)
             .with_window_icon(icon);
+
+        let min_size = cfg.min_size;
+        let max_size = cfg.max_size;
+
+        let restore_size = cfg.size.max(min_size).min(max_size);
+        let mut restore_pos = cfg.pos.unwrap_or_default();
+
+        if let WindowState::Normal = cfg.state {
+            winit = winit
+                .with_min_inner_size(min_size.to_winit())
+                .with_max_inner_size(max_size.to_winit())
+                .with_inner_size(restore_size.to_winit());
+
+            if let Some(pos) = cfg.pos {
+                winit = winit.with_position(pos.to_winit());
+            }
+        } else if cfg.pos.is_none() {
+            if let Some(screen) = window_target.primary_monitor() {
+                // fallback to center.
+                let screen_size = screen.size().to_px().to_dip(screen.scale_factor() as f32);
+                restore_pos.x = (screen_size.width - restore_size.width) / 2.0;
+                restore_pos.y = (screen_size.height - restore_size.height) / 2.0;
+            }
+        }
 
         if let WindowState::Normal | WindowState::Minimized = cfg.state {
             winit = winit
@@ -263,6 +290,10 @@ impl Window {
             image_use: ImageUseMap::default(),
             prev_pos: winit_window.outer_position().unwrap_or_default().to_px(),
             prev_size: winit_window.inner_size().to_px(),
+            restore_pos,
+            restore_size,
+            min_size,
+            max_size,
             window: winit_window,
             context,
             capture_mode: cfg.capture_mode,
@@ -299,6 +330,11 @@ impl Window {
             // Prevents a false resize event that would have blocked
             // the process while waiting a second frame.
             win.prev_size = win.window.inner_size().to_px();
+        }
+
+        if cfg.state == WindowState::Normal && cfg.pos.is_none() {
+            // system position.
+            win.restore_pos = win.window.outer_position().unwrap_or_default().to_px().to_dip(win.scale_factor());
         }
 
         win.set_cursor(cfg.cursor);
@@ -435,6 +471,10 @@ impl Window {
         let moved = self.prev_pos != new_pos && self.window.outer_position().unwrap_or_default().to_px() == new_pos;
         if moved {
             self.prev_pos = new_pos;
+
+            if let WindowState::Normal = self.state {
+                self.restore_pos = new_pos.to_dip(self.scale_factor());
+            }
         }
         moved
     }
@@ -445,6 +485,10 @@ impl Window {
         let resized = self.prev_size != new_size && self.window.inner_size().to_px() == new_size;
         if resized {
             self.prev_size = new_size;
+
+            if let WindowState::Normal = self.state {
+                self.restore_size = new_size.to_dip(self.scale_factor());
+            }
         }
         resized
     }
@@ -460,28 +504,34 @@ impl Window {
     /// Move window, returns `true` if actually moved.
     #[must_use = "must send an event if the return is `true`"]
     pub fn set_outer_pos(&mut self, pos: DipPoint) -> bool {
-        let pos_px = pos.to_px(self.scale_factor());
-        if self.window.outer_position().unwrap_or_default().to_px() != pos_px {
-            self.window.set_outer_position(pos.to_winit());
-            self.moved(pos_px)
-        } else {
-            false
+        self.restore_pos = pos;
+
+        if let WindowState::Normal = self.state {
+            let pos_px = pos.to_px(self.scale_factor());
+            if self.window.outer_position().unwrap_or_default().to_px() != pos_px {
+                self.window.set_outer_position(pos.to_winit());
+                return self.moved(pos_px);
+            }
         }
+        false
     }
 
     /// Resize window, returns `true` if actually resized
     #[must_use = "must send a resized event if the return true"]
     pub fn set_inner_size(&mut self, size: DipSize) -> bool {
-        let size_px = size.to_px(self.scale_factor());
+        self.restore_size = size;
 
-        if self.window.inner_size().to_px() != size_px {
-            self.window.set_inner_size(size.to_winit());
-            let r = self.resized(size_px);
-            self.on_resized();
-            r
-        } else {
-            false
+        if let WindowState::Normal = self.state {
+            let size_px = size.to_px(self.scale_factor());
+
+            if self.window.inner_size().to_px() != size_px {
+                self.window.set_inner_size(size.to_winit());
+                let r = self.resized(size_px);
+                self.on_resized();
+                return r;
+            }
         }
+        false
     }
 
     pub fn set_document_size(&mut self, document_id: DocumentId, size: DipSize, scale_factor: f32) {
@@ -502,20 +552,52 @@ impl Window {
         }
     }
 
+    /// Gets the current Maximized status as early as possible.
+    pub fn is_maximized(&self) -> bool {
+        #[cfg(windows)]
+        {
+            let hwnd = glutin::platform::windows::WindowExtWindows::hwnd(&self.window);
+            // SAFETY: funtion does not fail.
+            return unsafe { winapi::um::winuser::IsZoomed(hwnd as _) } != 0;
+        }
+
+        #[allow(unreachable_code)]
+        {
+            // this changes only after the Resized event, we want state change detection before the Moved also.
+            self.window.is_maximized()
+        }
+    }
+
+    /// Gets the current Maximized status.
+    fn is_minimized(&self) -> bool {
+        #[cfg(windows)]
+        {
+            let hwnd = glutin::platform::windows::WindowExtWindows::hwnd(&self.window);
+            // SAFETY: funtion does not fail.
+            return unsafe { winapi::um::winuser::IsIconic(hwnd as _) } != 0;
+        }
+
+        #[allow(unreachable_code)]
+        {
+            // fallback, assume if content sized 0 is minimized.
+            self.window.inner_size().width == 0
+        }
+    }
+
     /// Probe state, returns `Some(new_state)`
     pub fn state_change(&mut self) -> Option<WindowState> {
         if !self.visible {
             return None;
         }
 
-        let state = if self.window.inner_size().width == 0 {
+        let state = if self.is_minimized() {
             WindowState::Minimized
         } else if let Some(h) = self.window.fullscreen() {
             match h {
                 Fullscreen::Exclusive(_) => WindowState::Exclusive,
                 Fullscreen::Borderless(_) => WindowState::Fullscreen,
             }
-        } else if self.window.is_maximized() {
+        } else if self.is_maximized() {
             WindowState::Maximized
         } else {
             WindowState::Normal
@@ -523,6 +605,17 @@ impl Window {
 
         if self.state != state {
             self.state = state;
+
+            if let WindowState::Normal = state {
+                let size = self.restore_size.min(self.max_size).max(self.min_size);
+
+                self.window.set_outer_position(self.restore_pos.to_winit());
+                self.window.set_inner_size(size.to_winit());
+
+                self.window.set_min_inner_size(Some(self.min_size.to_winit()));
+                self.window.set_max_inner_size(Some(self.max_size.to_winit()));
+            }
+
             Some(state)
         } else {
             None
@@ -597,7 +690,11 @@ impl Window {
             WindowState::Minimized => self.window.set_minimized(false),
             WindowState::Maximized => self.window.set_maximized(false),
             WindowState::Fullscreen | WindowState::Exclusive => self.window.set_fullscreen(None),
-            WindowState::Normal => {}
+            WindowState::Normal => {
+                let none = None::<glutin::dpi::PhysicalSize<u32>>;
+                self.window.set_min_inner_size(none);
+                self.window.set_max_inner_size(none);
+            }
         }
 
         // set new state.
@@ -701,11 +798,21 @@ impl Window {
     }
 
     pub fn set_min_inner_size(&mut self, min_size: DipSize) {
-        self.window.set_min_inner_size(Some(min_size.to_winit()))
+        if self.min_size != min_size {
+            if let WindowState::Normal = self.state {
+                self.window.set_min_inner_size(Some(min_size.to_winit()))
+            }
+            self.min_size = min_size;
+        }
     }
 
     pub fn set_max_inner_size(&mut self, max_size: DipSize) {
-        self.window.set_max_inner_size(Some(max_size.to_winit()))
+        if self.max_size != max_size {
+            if let WindowState::Normal = self.state {
+                self.window.set_max_inner_size(Some(max_size.to_winit()))
+            }
+            self.max_size = max_size;
+        }
     }
 
     pub fn use_image(&mut self, image: &Image) -> ImageKey {
@@ -930,11 +1037,6 @@ impl Window {
         } else {
             None
         }
-    }
-
-    #[cfg(windows)]
-    pub fn is_maximized(&self) -> bool {
-        self.state == WindowState::Maximized
     }
 
     #[cfg(windows)]

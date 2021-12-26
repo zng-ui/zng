@@ -336,10 +336,10 @@ declare_api! {
     /// Set if the window is "top-most".
     pub fn set_always_on_top(&mut self, id: WindowId, always_on_top: bool);
 
-    /// Set if the user can drag-move the window.
+    /// Set if the user can drag-move the window when it is in `Normal` mode.
     pub fn set_movable(&mut self, id: WindowId, movable: bool);
 
-    /// Set if the user can resize the window.
+    /// Set if the user can resize the window when it is in `Normal` mode.
     pub fn set_resizable(&mut self, id: WindowId, resizable: bool);
 
     /// Set the window taskbar icon visibility.
@@ -351,10 +351,16 @@ declare_api! {
     /// Set the window system border and title visibility.
     pub fn set_chrome_visible(&mut self, id: WindowId, visible: bool);
 
-    /// Set the window top-left offset, includes the window chrome (outer-position).
+    /// Set the window top-left offset, includes the window chrome (outer-position), when it is in `Normal` mode.
+    ///
+    /// Moves the window if it is in `Normal` mode, otherwise the position is recorded as the *restore* position that will
+    /// be used when the window state is set to `Normal`.
     pub fn set_position(&mut self, id: WindowId, pos: DipPoint);
 
-    /// Set the window content area size (inner-size).
+    /// Set the window content area size (inner-size) when it is in `Normal` mode.
+    ///
+    /// Resized the window if it is in `Normal` mode, otherwise the size is recorded as the *restore* size that will
+    /// be used when the window state is set to `Normal`.
     pub fn set_size(&mut self, id: WindowId, size: DipSize);
 
     /// Set the window state.
@@ -363,10 +369,14 @@ declare_api! {
     /// Set the headless surface or document area size (viewport size).
     pub fn set_headless_size(&mut self, id: WindowId, document_id: DocumentId, size: DipSize, scale_factor: f32);
 
-    /// Set the window minimum content area size.
+    /// Set the window minimum content area size when it is in `Normal` mode.
+    ///
+    /// The window size is clamped to this constrain and the user cannot resize out of it.
     pub fn set_min_size(&mut self, id: WindowId, size: DipSize);
 
-    /// Set the window maximum content area size.
+    /// Set the window maximum content area size when it is in `Normal` mode.
+    ///
+    /// The window size is clamped to this constrain and the user cannot resize out of it.
     pub fn set_max_size(&mut self, id: WindowId, size: DipSize);
 
     /// Set the window icon.
