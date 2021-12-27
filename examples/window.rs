@@ -1,8 +1,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
-use zero_ui::core::{
-    units::{DipPoint, DipSize},
-    window::WindowStateChangedArgs,
-};
+use zero_ui::core::units::{DipPoint, DipSize};
 use zero_ui::prelude::*;
 
 use zero_ui_view_prebuilt as zero_ui_view;
@@ -46,8 +43,8 @@ fn app_main() {
             state = state.clone();
             visible = visible.clone();
             title;
-            on_state_changed = hn!(|_, args: &WindowStateChangedArgs| {
-                println!("state: {:?}", args.new_state);
+            on_state_changed = hn!(|_, args: &WindowChangedArgs| {
+                println!("state: {:?}", args.new_state());
             });
             content = h_stack! {
                 spacing = 40;

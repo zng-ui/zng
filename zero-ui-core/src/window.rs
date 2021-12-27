@@ -779,23 +779,26 @@ event_args! {
         }
     }
 
-    /// [`WindowStateChangedEvent`] args.
-    pub struct WindowStateChangedArgs {
-        /// Is of the window that has its state changed.
+    /// [`WindowChangedEvent`] args.
+    pub struct WindowChangedArgs {
+        /// Window that was moved, resized or has a state change.
         pub window_id: WindowId,
 
-        /// The previous window state.
-        pub prev_state: WindowState,
+        /// Window state change, if it has changed the values are `(prev, new)` states.
+        pub state: Option<(WindowState, WindowState)>,
 
-        /// The new window state.
-        pub new_state: WindowState,
+        /// New window position if it was moved.
+        pub position: Option<DipPoint>,
 
-        /// Who changed the window state.
+        /// New window size if it was resized.
+        pub size: Option<DipSize>,
+
+        /// If the app or operating system caused the change.
         pub cause: EventCause,
 
         ..
 
-        /// If the widget is in the same window.
+        /// Returns `true` for all widgets in the [window](Self::window_id).
         fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
             ctx.path.window_id() == self.window_id
         }
@@ -811,40 +814,6 @@ event_args! {
 
         /// If the focused window was closed.
         pub closed: bool,
-
-        ..
-
-        /// If the widget is in the same window.
-        fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
-            ctx.path.window_id() == self.window_id
-        }
-    }
-
-    /// [`WindowResizeEvent`] args.
-    pub struct WindowResizeArgs {
-        /// Window ID.
-        pub window_id: WindowId,
-        /// New window size.
-        pub new_size: DipSize,
-        /// Who resized the window.
-        pub cause: EventCause,
-
-        ..
-
-        /// If the widget is in the same window.
-        fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
-            ctx.path.window_id() == self.window_id
-        }
-    }
-
-    /// [`WindowMoveEvent`] args.
-    pub struct WindowMoveArgs {
-        /// Window ID.
-        pub window_id: WindowId,
-        /// New window position.
-        pub new_position: DipPoint,
-        /// Who moved the window.
-        pub cause: EventCause,
 
         ..
 
@@ -934,13 +903,32 @@ event_args! {
         }
     }
 }
-impl WindowStateChangedArgs {
+impl WindowChangedArgs {
+    /// Returns `true` if this event represents a window state change.
+    pub fn is_state_changed(&self) -> bool {
+        self.state.is_some()
+    }
+
+    /// Returns the previous window state if it has changed.
+    pub fn prev_state(&self) -> Option<WindowState> {
+        self.state.map(|(p, _)| p)
+    }
+
+    /// Returns the new window state if it has changed.
+    pub fn new_state(&self) -> Option<WindowState> {
+        self.state.map(|(_, n)| n)
+    }
+
     /// Returns `true` if [`new_state`] is `state` and [`prev_state`] is not.
     ///
     /// [`new_state`]: Self::new_state
     /// [`prev_state`]: Self::prev_state
     pub fn entered_state(&self, state: WindowState) -> bool {
-        self.new_state == state && self.prev_state != state
+        if let Some((prev, new)) = self.state {
+            prev != state && new == state
+        } else {
+            false
+        }
     }
 
     /// Returns `true` if [`prev_state`] is `state` and [`new_state`] is not.
@@ -948,7 +936,11 @@ impl WindowStateChangedArgs {
     /// [`new_state`]: Self::new_state
     /// [`prev_state`]: Self::prev_state
     pub fn exited_state(&self, state: WindowState) -> bool {
-        self.prev_state == state && self.new_state != state
+        if let Some((prev, new)) = self.state {
+            prev == state && new != state
+        } else {
+            false
+        }
     }
 
     /// Returns `true` if [`new_state`] is one of the fullscreen states and [`prev_state`] is not.
@@ -956,7 +948,11 @@ impl WindowStateChangedArgs {
     /// [`new_state`]: Self::new_state
     /// [`prev_state`]: Self::prev_state
     pub fn entered_fullscreen(&self) -> bool {
-        self.new_state.is_fullscreen() && !self.prev_state.is_fullscreen()
+        if let Some((prev, new)) = self.state {
+            !prev.is_fullscreen() && new.is_fullscreen()
+        } else {
+            false
+        }
     }
 
     /// Returns `true` if [`prev_state`] is one of the fullscreen states and [`new_state`] is not.
@@ -964,7 +960,21 @@ impl WindowStateChangedArgs {
     /// [`new_state`]: Self::new_state
     /// [`prev_state`]: Self::prev_state
     pub fn exited_fullscreen(&self) -> bool {
-        self.prev_state.is_fullscreen() && !self.new_state.is_fullscreen()
+        if let Some((prev, new)) = self.state {
+            prev.is_fullscreen() && !new.is_fullscreen()
+        } else {
+            false
+        }
+    }
+
+    /// Returns `true` if this event represents a window move.
+    pub fn is_moved(&self) -> bool {
+        self.position.is_some()
+    }
+
+    /// Returns `true` if this event represents a window resize.
+    pub fn is_resized(&self) -> bool {
+        self.size.is_some()
     }
 }
 cancelable_event_args! {
@@ -985,17 +995,15 @@ cancelable_event_args! {
 }
 
 event! {
-    /// Window resized event.
-    pub WindowResizeEvent: WindowResizeArgs;
-
-    /// Window moved event.
-    pub WindowMoveEvent: WindowMoveArgs;
+    /// Window moved, resized or has a state change.
+    ///
+    /// This event coalesces events usually named `WindowMoved`, `WindowResized` and `WindowStateChanged` into a
+    /// single event to simplify tracking composite changes, for example, the window changes size and position
+    /// when maximized, this can be trivially observed with this event.
+    pub WindowChangedEvent: WindowChangedArgs;
 
     /// New window event.
     pub WindowOpenEvent: WindowOpenArgs;
-
-    /// Window state changed event.
-    pub WindowStateChangedEvent: WindowStateChangedArgs;
 
     /// Window focus/blur event.
     pub WindowFocusChangedEvent: WindowFocusArgs;
@@ -1030,10 +1038,8 @@ event! {
 /// Events this extension provides:
 ///
 /// * [WindowOpenEvent]
+/// * [WindowChangedEvent]
 /// * [WindowFocusChangedEvent]
-/// * [WindowStateChangedEvent]
-/// * [WindowResizeEvent]
-/// * [WindowMoveEvent]
 /// * [WindowScaleChangedEvent]
 /// * [WindowCloseRequestedEvent]
 /// * [WindowCloseEvent]
@@ -1089,6 +1095,81 @@ impl AppExtension for WindowManager {
                 let args = FrameImageReadyArgs::new(args.timestamp, args.window_id, args.frame_id, image);
                 FrameImageReadyEvent.notify(ctx.events, args);
             }
+        } else if let Some(args) = RawWindowChangedEvent.update(args) {
+            if let Some(mut window) = ctx.services.windows().windows.get_mut(&args.window_id) {
+                let mut state_change = None;
+                let mut pos_change = None;
+                let mut size_change = None;
+
+                // STATE CHANGED
+                if let Some(new_state) = args.state {
+                    let prev_state = window.vars.state().copy(ctx.vars);
+                    if let EventCause::System = args.cause {
+                        if window.vars.state().set_ne(ctx.vars, new_state) {
+                            state_change = Some((prev_state, new_state));
+                        }
+                    } else {
+                        state_change = Some((prev_state, new_state));
+                    }
+
+                    if let WindowState::Minimized = prev_state {
+                        // we skip layout&render when minimized, but leave the flags set.
+
+                        if window.context.update.layout {
+                            ctx.updates.layout();
+                        }
+                        match window.context.update.render {
+                            WindowRenderUpdate::None => {}
+                            WindowRenderUpdate::Render => ctx.updates.render(),
+                            WindowRenderUpdate::RenderUpdate => ctx.updates.render_update(),
+                        }
+                    }
+                }
+
+                let window_state = args.state.unwrap_or_else(|| window.vars.state().copy(ctx.vars));
+
+                // MOVED
+                if let Some(new_pos) = args.position {
+                    if window.vars.0.actual_position.set_ne(ctx.vars, new_pos) {
+                        window.position = Some(new_pos);
+
+                        pos_change = Some(new_pos);
+
+                        if let WindowState::Normal = window_state {
+                            window.vars.0.restore_position.set_ne(ctx.vars, new_pos);
+                        }
+                    }
+                }
+
+                // RESIZED
+                if let Some(new_size) = args.size {
+                    if window.vars.0.actual_size.set_ne(ctx.vars, new_size) {
+                        if args.cause == EventCause::System {
+                            window.vars.0.auto_size.set_ne(ctx.vars, AutoSize::DISABLED);
+                        }
+                        window.size = new_size;
+
+                        size_change = Some(new_size);
+
+                        if let WindowState::Normal = window_state {
+                            window.vars.0.restore_size.set_ne(ctx.vars, new_size);
+                        }
+                    }
+                }
+
+                if args.waiting_frame {
+                    // the view process is waiting a new frame or update, this will send one.
+                    window.context.update.layout = true;
+                    window.context.update.render = WindowRenderUpdate::Render;
+                    window.pending_render = None;
+                    ctx.updates.layout_and_render();
+                }
+
+                if state_change.is_some() || pos_change.is_some() || size_change.is_some() {
+                    let args = WindowChangedArgs::new(args.timestamp, args.window_id, state_change, pos_change, size_change, args.cause);
+                    WindowChangedEvent.notify(ctx.events, args);
+                }
+            }
         } else if let Some(args) = RawWindowFocusEvent.update(args) {
             let wns = ctx.services.windows();
             if let Some(window) = wns.windows_info.get_mut(&args.window_id) {
@@ -1100,67 +1181,6 @@ impl AppExtension for WindowManager {
 
                 let args = WindowFocusArgs::new(args.timestamp, args.window_id, window.is_focused, false);
                 WindowFocusChangedEvent.notify(ctx.events, args);
-            }
-        } else if let Some(args) = RawWindowResizedEvent.update(args) {
-            if let Some(mut window) = ctx.services.windows().windows.remove(&args.window_id) {
-                if window.vars.0.actual_size.set_ne(ctx.vars, args.size) {
-                    if args.cause == EventCause::System {
-                        window.vars.0.auto_size.set_ne(ctx.vars, AutoSize::DISABLED);
-                    }
-                    window.size = args.size;
-                    // raise window_resize
-                    WindowResizeEvent.notify(
-                        ctx.events,
-                        WindowResizeArgs::new(args.timestamp, args.window_id, args.size, args.cause),
-                    );
-
-                    if matches!(args.cause, EventCause::System) {
-                        // the view process is waiting a new frame or update, this will send one.
-                        window.context.update.layout = true;
-                        window.context.update.render = WindowRenderUpdate::Render;
-                        window.pending_render = None;
-                        ctx.updates.layout_and_render();
-                    }
-
-                    if let WindowState::Normal = window.vars.state().copy(ctx.vars) {
-                        window.vars.0.restore_size.set_ne(ctx.vars, args.size);
-                    }
-                } else if matches!(args.cause, EventCause::System) {
-                    tracing::warn!("received `RawWindowResizedEvent` with the same size, caused by system");
-                    // view process is waiting a frame.
-                    window.pending_render = None;
-                    window.render_empty_update();
-                }
-                ctx.services.windows().windows.insert(args.window_id, window);
-            }
-        } else if let Some(args) = RawWindowMovedEvent.update(args) {
-            if let Some(window) = ctx.services.windows().windows.get_mut(&args.window_id) {
-                if window.vars.0.actual_position.set_ne(ctx.vars, args.position) {
-                    window.position = Some(args.position);
-                    WindowMoveEvent.notify(
-                        ctx.events,
-                        WindowMoveArgs::new(args.timestamp, args.window_id, args.position, args.cause),
-                    );
-
-                    if let WindowState::Normal = window.vars.state().copy(ctx.vars) {
-                        window.vars.0.restore_position.set_ne(ctx.vars, args.position);
-                    }
-                } else if matches!(args.cause, EventCause::System) {
-                    tracing::warn!("received `RawWindowMovedEvent` with the same position, caused by system");
-                }
-            }
-        } else if let Some(args) = RawWindowStateChangedEvent.update(args) {
-            if let Some(window) = ctx.services.windows().windows_info.get_mut(&args.window_id) {
-                let prev_state = window.vars.state().copy(ctx.vars);
-                if let EventCause::System = args.cause {
-                    if !window.vars.state().set_ne(ctx.vars, args.state) {
-                        tracing::warn!("received `RawWindowStateChangedEvent` with the same state, caused by system");
-                    }
-                }
-                WindowStateChangedEvent.notify(
-                    ctx.events,
-                    WindowStateChangedArgs::new(args.timestamp, args.window_id, prev_state, args.state, args.cause),
-                )
             }
         } else if let Some(args) = RawWindowCloseRequestedEvent.update(args) {
             let _ = ctx.services.windows().close(args.window_id);
@@ -2025,7 +2045,10 @@ impl AppWindow {
                     if let Some(w) = &self.headed {
                         let _: Ignore = w.set_position(pos);
                     } else if !restore_only {
-                        RawWindowMovedEvent.notify(ctx.events, RawWindowMovedArgs::now(self.id, pos, EventCause::App));
+                        RawWindowChangedEvent.notify(
+                            ctx.events,
+                            RawWindowChangedArgs::now(self.id, None, Some(pos), None, EventCause::App, false),
+                        );
                     }
 
                     if restore_only {
@@ -2192,12 +2215,15 @@ impl AppWindow {
             // resize view
             self.size = size;
             if let Some(w) = &self.headed {
-                let _ = w.set_size(size);
+                let _ = w.set_size(dbg!(size));
             } else if let Some(s) = &self.headless_surface {
                 let _ = s.set_size(size, self.headless_monitor.as_ref().map(|m| m.scale_factor).unwrap_or(Factor(1.0)));
             } else {
                 // headless "resize"
-                RawWindowResizedEvent.notify(ctx.events, RawWindowResizedArgs::now(self.id, self.size, EventCause::App));
+                RawWindowChangedEvent.notify(
+                    ctx.events,
+                    RawWindowChangedArgs::now(self.id, None, None, Some(self.size), EventCause::App, false),
+                );
             }
 
             // the `restore_size` is set from the resize eventy, unless we are not `Normal`, then it is only recorded
@@ -2233,6 +2259,10 @@ impl AppWindow {
             return;
         }
 
+        if let WindowState::Minimized = self.vars.state().copy(ctx) {
+            return;
+        }
+
         if self.first_layout {
             self.on_init_layout(ctx);
             return;
@@ -2247,12 +2277,15 @@ impl AppWindow {
             let _s = tracing::trace_span!("resize/layout").entered();
             self.size = size;
             if let Some(w) = &self.headed {
-                let _ = w.set_size(size);
+                let _ = w.set_size(dbg!(size));
             } else if let Some(s) = &self.headless_surface {
                 let _ = s.set_size(size, self.headless_monitor.as_ref().map(|m| m.scale_factor).unwrap_or(Factor(1.0)));
             } else {
                 // headless "resize"
-                RawWindowResizedEvent.notify(ctx.events, RawWindowResizedArgs::now(self.id, self.size, EventCause::App));
+                RawWindowChangedEvent.notify(
+                    ctx.events,
+                    RawWindowChangedArgs::now(self.id, None, None, self.size, EventCause::App, false),
+                );
             }
             // the `actual_size` is set from the resize event only.
         }
@@ -2308,7 +2341,7 @@ impl AppWindow {
 
             if self.size != size {
                 self.size = size;
-                RawWindowResizedEvent.notify(ctx, RawWindowResizedArgs::now(self.id, size, EventCause::App));
+                RawWindowChangedEvent.notify(ctx, RawWindowChangedArgs::now(self.id, None, None, size, EventCause::App, false));
             }
 
             let (size, min_size, max_size) = self.layout_size(ctx, true);
@@ -2382,9 +2415,12 @@ impl AppWindow {
                 self.headed = Some(headed);
                 ctx.services.windows().windows_info.get_mut(&self.id).unwrap().renderer = self.renderer.clone();
 
+                let mut syn_args = RawWindowChangedArgs::now(self.id, None, None, None, EventCause::App, false);
+
                 if self.size != data.size || self.context.update.layout {
                     self.size = data.size;
-                    RawWindowResizedEvent.notify(ctx, RawWindowResizedArgs::now(self.id, self.size, EventCause::App));
+                    syn_args.size = Some(self.size);
+
                     self.context.update.render = WindowRenderUpdate::Render;
                     ctx.updates.render();
 
@@ -2403,11 +2439,13 @@ impl AppWindow {
 
                 if self.position != Some(data.position) {
                     self.position = Some(data.position);
-                    RawWindowMovedEvent.notify(ctx, RawWindowMovedArgs::now(self.id, data.position, EventCause::App));
+
+                    syn_args.position = self.position;
                 }
 
                 self.vars.0.render_mode.set_ne(ctx.vars, data.render_mode);
 
+                RawWindowChangedEvent.notify(ctx, syn_args);
                 RawWindowScaleFactorChangedEvent.notify(ctx.events, RawWindowScaleFactorChangedArgs::now(self.id, data.scale_factor));
             }
             WindowMode::HeadlessWithRenderer => {
@@ -2451,16 +2489,10 @@ impl AppWindow {
                     RawWindowFocusEvent.notify(ctx.events, args)
                 }
 
-                RawWindowMovedEvent.notify(
-                    ctx.events,
-                    RawWindowMovedArgs::new(timestamp, self.id, self.position.unwrap_or_default(), EventCause::App),
-                );
-                RawWindowResizedEvent.notify(
-                    ctx.events,
-                    RawWindowResizedArgs::new(timestamp, self.id, self.size, EventCause::App),
-                );
-                let scale_factor = self.headless_monitor.as_ref().unwrap().scale_factor;
+                let syn_args = RawWindowChangedArgs::new(timestamp, self.id, None, self.position, Some(self.size), EventCause::App, false);
+                RawWindowChangedEvent.notify(ctx.events, syn_args);
 
+                let scale_factor = self.headless_monitor.as_ref().unwrap().scale_factor;
                 RawWindowScaleFactorChangedEvent.notify(ctx.events, RawWindowScaleFactorChangedArgs::now(self.id, scale_factor));
             }
         }
@@ -2618,6 +2650,10 @@ impl AppWindow {
             return;
         }
 
+        if let WindowState::Minimized = self.vars.state().copy(ctx) {
+            return;
+        }
+
         if let Some(pending) = &mut self.pending_render {
             *pending = WindowRenderUpdate::Render;
             self.context.update.render = WindowRenderUpdate::None;
@@ -2640,6 +2676,10 @@ impl AppWindow {
     /// If there is a pending request we collect updates and send.
     fn on_render_update(&mut self, ctx: &mut AppContext) {
         if !self.context.update.render.is_render_update() {
+            return;
+        }
+
+        if let WindowState::Minimized = self.vars.state().copy(ctx) {
             return;
         }
 
@@ -2677,18 +2717,6 @@ impl AppWindow {
         if let Some(renderer) = &self.renderer {
             // send update if we have a renderer, ignore Respawned because we handle this using the respawned event.
             let _: Result<(), Respawned> = renderer.render_update(request);
-            self.pending_render = Some(WindowRenderUpdate::None);
-        }
-    }
-
-    /// Send an empty frame update.
-    ///
-    /// this is used when the view-process demands a frame but we don't need to generate one
-    /// (like a resize to same size).
-    fn render_empty_update(&mut self) {
-        if let Some(renderer) = &self.renderer {
-            // send update if we have a renderer, ignore Respawned because we handle this using the respawned event.
-            let _: Result<(), Respawned> = renderer.render_update(FrameUpdateRequest::empty(self.frame_id));
             self.pending_render = Some(WindowRenderUpdate::None);
         }
     }

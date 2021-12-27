@@ -535,22 +535,6 @@ impl<S: AppEventSender> App<S> {
 
         match event {
             WindowEvent::Resized(size) => {
-                let px_size = size.to_px();
-                let size = px_size.to_dip(scale_factor);
-
-                if let Some(state) = self.windows[i].state_change() {
-                    self.notify(Event::WindowStateChanged {
-                        window: id,
-                        state,
-                        cause: EventCause::System,
-                    });
-                }
-
-                if !self.windows[i].resized(px_size) {
-                    tracing::debug!("resize already handled or did not actually change size");
-                    return;
-                }
-
                 // give the app 300ms to send a new frame, this is the collaborative way to
                 // resize, it should reduce the changes of the user seeing the clear color.
 
@@ -573,12 +557,20 @@ impl<S: AppEventSender> App<S> {
                     }
                 }
 
+                let px_size = size.to_px();
+                let size = px_size.to_dip(scale_factor);
+
+                if let Some(state) = self.windows[i].state_change() {
+                    self.notify(Event::WindowChanged(WindowChanged::state_changed(id, state, EventCause::System)));
+                }
+
+                if !self.windows[i].resized(px_size) {
+                    tracing::debug!("resize already handled or did not actually change size");
+                    return;
+                }
+
                 // send event, the app code should send a frame in the new size as soon as possible.
-                self.notify(Event::WindowResized {
-                    window: id,
-                    size,
-                    cause: EventCause::System,
-                });
+                self.notify(Event::WindowChanged(WindowChanged::resized(id, size, EventCause::System, true)));
                 self.flush_coalesced();
 
                 // "modal" loop, breaks in 300ms or when a frame is received.
@@ -633,22 +625,18 @@ impl<S: AppEventSender> App<S> {
                 let px_p = p.to_px();
 
                 if let Some(state) = self.windows[i].state_change() {
-                    self.notify(Event::WindowStateChanged {
-                        window: id,
-                        state,
-                        cause: EventCause::System,
-                    });
+                    self.notify(Event::WindowChanged(WindowChanged::state_changed(id, state, EventCause::System)));
                 }
 
                 if !self.windows[i].moved(px_p) {
                     return;
                 }
 
-                self.notify(Event::WindowMoved {
-                    window: id,
-                    position: px_p.to_dip(scale_factor),
-                    cause: EventCause::System,
-                });
+                self.notify(Event::WindowChanged(WindowChanged::moved(
+                    id,
+                    px_p.to_dip(scale_factor),
+                    EventCause::System,
+                )));
             }
             WindowEvent::CloseRequested => self.notify(Event::WindowCloseRequested(id)),
             WindowEvent::Destroyed => {
@@ -843,11 +831,12 @@ impl<S: AppEventSender> App<S> {
                     });
                 }
 
-                self.notify(Event::WindowResized {
-                    window: window_id,
+                self.notify(Event::WindowChanged(WindowChanged::resized(
+                    window_id,
                     size,
-                    cause: EventCause::App,
-                });
+                    EventCause::App,
+                    false,
+                )));
             }
         } else if let Some(s) = self.surfaces.iter_mut().find(|w| w.id() == window_id) {
             let (frame_id, image) = s.on_frame_ready(msg, &mut self.image_cache);
@@ -1242,22 +1231,23 @@ impl<S: AppEventSender> Api for App<S> {
 
     fn set_position(&mut self, id: WindowId, pos: DipPoint) {
         if self.with_window(id, |w| w.set_outer_pos(pos), || false) {
-            let _ = self.app_sender.send(AppEvent::Notify(Event::WindowMoved {
-                window: id,
-                position: pos,
-                cause: EventCause::App,
-            }));
+            let _ = self.app_sender.send(AppEvent::Notify(Event::WindowChanged(WindowChanged::moved(
+                id,
+                pos,
+                EventCause::App,
+            ))));
         }
     }
 
     fn set_size(&mut self, id: WindowId, size: DipSize) {
         if let Some(w) = self.windows.iter_mut().find(|w| w.id() == id) {
             if w.set_inner_size(size) {
-                let _ = self.app_sender.send(AppEvent::Notify(Event::WindowResized {
-                    window: id,
+                let _ = self.app_sender.send(AppEvent::Notify(Event::WindowChanged(WindowChanged::resized(
+                    id,
                     size,
-                    cause: EventCause::App,
-                }));
+                    EventCause::App,
+                    false,
+                ))));
             }
         } else {
             tracing::error!("headed window `{}` not found, will return fallback result", id);
@@ -1266,11 +1256,13 @@ impl<S: AppEventSender> Api for App<S> {
 
     fn set_state(&mut self, id: WindowId, state: WindowState) {
         if self.with_window(id, |w| w.set_state(state), || false) {
-            let _ = self.app_sender.send(AppEvent::Notify(Event::WindowStateChanged {
-                window: id,
-                state,
-                cause: EventCause::App,
-            }));
+            let _ = self
+                .app_sender
+                .send(AppEvent::Notify(Event::WindowChanged(WindowChanged::state_changed(
+                    id,
+                    state,
+                    EventCause::App,
+                ))));
         }
     }
 

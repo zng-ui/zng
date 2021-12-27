@@ -931,8 +931,8 @@ pub mod prelude {
         widget_vec, widgets,
         window::{
             AppRunWindowExt, AutoSize, CursorIcon, HeadlessAppWindowExt, MonitorId, MonitorQuery, MonitorsExt, StartPosition, Window,
-            WindowChrome, WindowCloseRequestedArgs, WindowIcon, WindowId, WindowMoveArgs, WindowOpenArgs, WindowResizeArgs, WindowState,
-            WindowVarsKey, Windows, WindowsExt,
+            WindowChangedArgs, WindowChrome, WindowCloseRequestedArgs, WindowIcon, WindowId, WindowOpenArgs, WindowState, WindowVarsKey,
+            Windows, WindowsExt,
         },
         RcNode, UiNode, UiNodeList, Widget, WidgetId, WidgetList, WidgetPath, WidgetVec,
     };

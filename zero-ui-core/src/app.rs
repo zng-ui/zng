@@ -888,60 +888,6 @@ impl<E: AppExtension> RunningApp<E> {
         }
 
         match ev {
-            Event::WindowResized { window: w_id, size, cause } => {
-                let args = RawWindowResizedArgs::now(window_id(w_id), size, cause);
-                self.notify_event(RawWindowResizedEvent, args, observer);
-            }
-            Event::WindowMoved {
-                window: w_id,
-                position,
-                cause,
-            } => {
-                let args = RawWindowMovedArgs::now(window_id(w_id), position, cause);
-                self.notify_event(RawWindowMovedEvent, args, observer);
-            }
-            Event::WindowStateChanged {
-                window: w_id,
-                state,
-                cause,
-            } => {
-                let args = RawWindowStateChangedArgs::now(window_id(w_id), state, cause);
-                self.notify_event(RawWindowStateChangedEvent, args, observer);
-            }
-            Event::DroppedFile { window: w_id, file } => {
-                let args = RawDroppedFileArgs::now(window_id(w_id), file);
-                self.notify_event(RawDroppedFileEvent, args, observer);
-            }
-            Event::HoveredFile { window: w_id, file } => {
-                let args = RawHoveredFileArgs::now(window_id(w_id), file);
-                self.notify_event(RawHoveredFileEvent, args, observer);
-            }
-            Event::HoveredFileCancelled(w_id) => {
-                let args = RawHoveredFileCancelledArgs::now(window_id(w_id));
-                self.notify_event(RawHoveredFileCancelledEvent, args, observer);
-            }
-            Event::ReceivedCharacter(w_id, c) => {
-                let args = RawCharInputArgs::now(window_id(w_id), c);
-                self.notify_event(RawCharInputEvent, args, observer);
-            }
-            Event::Focused { window: w_id, focused } => {
-                let args = RawWindowFocusArgs::now(window_id(w_id), focused);
-                self.notify_event(RawWindowFocusEvent, args, observer);
-            }
-            Event::KeyboardInput {
-                window: w_id,
-                device: d_id,
-                scan_code,
-                state,
-                key,
-            } => {
-                let args = RawKeyInputArgs::now(window_id(w_id), self.device_id(d_id), scan_code, state, key);
-                self.notify_event(RawKeyInputEvent, args, observer);
-            }
-            Event::ModifiersChanged { window: w_id, state } => {
-                let args = RawModifiersChangedArgs::now(window_id(w_id), state);
-                self.notify_event(RawModifiersChangedEvent, args, observer);
-            }
             Event::CursorMoved {
                 window: w_id,
                 device: d_id,
@@ -978,6 +924,45 @@ impl<E: AppExtension> RunningApp<E> {
                 let args = RawCursorArgs::now(window_id(w_id), self.device_id(d_id));
                 self.notify_event(RawCursorLeftEvent, args, observer);
             }
+            Event::WindowChanged(c) => {
+                let args = RawWindowChangedArgs::now(window_id(c.window), c.state, c.position, c.size, c.cause, c.waiting_frame);
+                self.notify_event(RawWindowChangedEvent, args, observer);
+            }
+            Event::DroppedFile { window: w_id, file } => {
+                let args = RawDroppedFileArgs::now(window_id(w_id), file);
+                self.notify_event(RawDroppedFileEvent, args, observer);
+            }
+            Event::HoveredFile { window: w_id, file } => {
+                let args = RawHoveredFileArgs::now(window_id(w_id), file);
+                self.notify_event(RawHoveredFileEvent, args, observer);
+            }
+            Event::HoveredFileCancelled(w_id) => {
+                let args = RawHoveredFileCancelledArgs::now(window_id(w_id));
+                self.notify_event(RawHoveredFileCancelledEvent, args, observer);
+            }
+            Event::ReceivedCharacter(w_id, c) => {
+                let args = RawCharInputArgs::now(window_id(w_id), c);
+                self.notify_event(RawCharInputEvent, args, observer);
+            }
+            Event::Focused { window: w_id, focused } => {
+                let args = RawWindowFocusArgs::now(window_id(w_id), focused);
+                self.notify_event(RawWindowFocusEvent, args, observer);
+            }
+            Event::KeyboardInput {
+                window: w_id,
+                device: d_id,
+                scan_code,
+                state,
+                key,
+            } => {
+                let args = RawKeyInputArgs::now(window_id(w_id), self.device_id(d_id), scan_code, state, key);
+                self.notify_event(RawKeyInputEvent, args, observer);
+            }
+            Event::ModifiersChanged { window: w_id, state } => {
+                let args = RawModifiersChangedArgs::now(window_id(w_id), state);
+                self.notify_event(RawModifiersChangedEvent, args, observer);
+            }
+
             Event::MouseWheel {
                 window: w_id,
                 device: d_id,

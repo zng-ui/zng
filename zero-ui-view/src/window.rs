@@ -570,6 +570,11 @@ impl Window {
 
     /// Gets the current Maximized status.
     fn is_minimized(&self) -> bool {
+        let size = self.window.inner_size();
+        if size.width == 0 || size.height == 0 {
+            return true;
+        }
+
         #[cfg(windows)]
         {
             let hwnd = glutin::platform::windows::WindowExtWindows::hwnd(&self.window);
@@ -578,10 +583,7 @@ impl Window {
         }
 
         #[allow(unreachable_code)]
-        {
-            // fallback, assume if content sized 0 is minimized.
-            self.window.inner_size().width == 0
-        }
+        false
     }
 
     /// Probe state, returns `Some(new_state)`

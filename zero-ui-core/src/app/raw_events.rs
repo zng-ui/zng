@@ -105,44 +105,6 @@ event_args! {
         }
     }
 
-    /// Arguments for the [`RawWindowMovedEvent`].
-    pub struct RawWindowMovedArgs {
-        /// Window that was moved.
-        pub window_id: WindowId,
-
-        /// Window top-left offset, including the system chrome.
-        pub position: DipPoint,
-
-        /// Who moved the window.
-        pub cause: EventCause,
-
-        ..
-
-        /// Returns `true` for all widgets in the [window](Self::window_id).
-        fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
-            ctx.path.window_id() == self.window_id
-        }
-    }
-
-    /// Arguments for the [`RawWindowStateChangedEvent`].
-    pub struct RawWindowStateChangedArgs {
-        /// The window.
-        pub window_id: WindowId,
-
-        /// New window state.
-        pub state: WindowState,
-
-        /// Who changed the state.
-        pub cause: EventCause,
-
-        ..
-
-        /// Returns `true` for all widgets in the [window](Self::window_id).
-        fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
-            ctx.path.window_id() == self.window_id
-        }
-    }
-
     /// Arguments for the [`RawFrameRenderedEvent`].
     pub struct RawFrameRenderedArgs {
         /// Window that presents the rendered frame.
@@ -165,16 +127,32 @@ event_args! {
         }
     }
 
-    /// Arguments for the [`RawWindowResizedEvent`].
-    pub struct RawWindowResizedArgs {
-        /// Window that was resized.
+    /// Arguments for the [`RawWindowChangedEvent`].
+    pub struct RawWindowChangedArgs {
+        /// Window that was moved, resized or has a state change.
         pub window_id: WindowId,
 
-        /// Window new size.
-        pub size: DipSize,
+        /// New [`WindowState`] if it has changed.
+        pub state: Option<WindowState>,
 
-        /// Who resized the window.
+        /// New window position if it was moved.
+        pub position: Option<DipPoint>,
+
+        /// New window size if it was resized.
+        pub size: Option<DipSize>,
+
+        /// If the app or operating system caused the change.
         pub cause: EventCause,
+
+        /// If the view-process is blocking the event loop awaiting for a frame for the new `size`.
+        ///
+        /// Event loop implementations can do this to resize without visible artifacts
+        /// like the clear color flashing on the window corners, there is a timeout of this delay but it
+        /// can be a noticable stutter, a [`render`] or [`render_update`] request for the window unblocks the loop.
+        ///
+        /// [`render`]: crate::app::view_process::ViewRenderer::render
+        /// [`render_update`]: crate::app::view_process::ViewRenderer::render_update
+        pub waiting_frame: bool,
 
         ..
 
@@ -575,17 +553,15 @@ event! {
     /// A window received or lost focus.
     pub RawWindowFocusEvent: RawWindowFocusArgs;
 
-    /// A window was moved.
-    pub RawWindowMovedEvent: RawWindowMovedArgs;
-
-    /// A window was maximized/minimized/restored.
-    pub RawWindowStateChangedEvent: RawWindowStateChangedArgs;
+    /// A window was moved, resized or has a state change.
+    ///
+    /// This event coalesces events usually named `WindowMoved`, `WindowResized` and `WindowStateChanged` into a
+    /// single event to simplify tracking composite changes, for example, the window changes size and position
+    /// when maximized, this can be trivially observed with this event.
+    pub RawWindowChangedEvent: RawWindowChangedArgs;
 
     /// A frame finished rendering and was presented in a window.
     pub RawFrameRenderedEvent: RawFrameRenderedArgs;
-
-    /// A window was resized.
-    pub RawWindowResizedEvent: RawWindowResizedArgs;
 
     /// A window was requested to close.
     pub RawWindowCloseRequestedEvent: RawWindowCloseRequestedArgs;

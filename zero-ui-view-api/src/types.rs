@@ -620,6 +620,72 @@ pub struct EventFrameRendered {
     pub cursor_hits: HitTestResult,
 }
 
+/// [`Event::WindowChanged`] payload.
+#[derive(Debug, Serialize, Deserialize)]
+pub struct WindowChanged {
+    /// Window that has changed state.
+    pub window: WindowId,
+
+    /// Window new state, is `None` if the window state did not change.
+    pub state: Option<WindowState>,
+
+    /// Window new position, is `None` if the window position did not change.
+    pub position: Option<DipPoint>,
+
+    /// The window new size, is `None` if the window size did not change.
+    pub size: Option<DipSize>,
+
+    /// If the view-process is blocking the event loop for a time awaiting for a frame for the new `size`.
+    ///
+    /// Event loop implementations can do this to resize without visible artifacts
+    /// like the clear color flashing on the window corners, there is a timeout of this delay but it
+    /// can be a noticable stutter, a [`render`] or [`render_update`] request for the window unblocks the loop.
+    ///
+    /// [`render`]: crate::Api::render
+    /// [`render_update`]: crate::Api::render_update
+    pub waiting_frame: bool,
+
+    /// What caused the change, end-user/OS modifying the window or the app.
+    pub cause: EventCause,
+}
+impl WindowChanged {
+    /// Create an event that represents window move.
+    pub fn moved(window: WindowId, position: DipPoint, cause: EventCause) -> Self {
+        WindowChanged {
+            window,
+            state: None,
+            position: Some(position),
+            size: None,
+            waiting_frame: false,
+            cause,
+        }
+    }
+
+    /// Create an event that represents window resized.
+    pub fn resized(window: WindowId, size: DipSize, cause: EventCause, waiting_frame: bool) -> Self {
+        WindowChanged {
+            window,
+            state: None,
+            position: None,
+            size: Some(size),
+            waiting_frame,
+            cause,
+        }
+    }
+
+    /// Create an event that represents [`WindowState`] change.
+    pub fn state_changed(window: WindowId, state: WindowState, cause: EventCause) -> Self {
+        WindowChanged {
+            window,
+            state: Some(state),
+            position: None,
+            size: None,
+            waiting_frame: false,
+            cause,
+        }
+    }
+}
+
 /// System/User events sent from the View Process.
 #[derive(Debug, Serialize, Deserialize)]
 pub enum Event {
@@ -640,40 +706,15 @@ pub enum Event {
     /// `EventsCleared` is not send after this event.
     FrameRendered(EventFrameRendered),
 
-    /// Window maximized/minimized/restored.
+    /// Window or window moved, or window resized, or minimized/maximized etc.
+    ///
+    /// This event coalesces events usually named `WindowMoved`, `WindowResized` and `WindowStateChanged` into a
+    /// single event to simplify tracking composite changes, for example, the window changes size and position
+    /// when maximized, this can be trivially observed with this event.
     ///
     /// The [`EventCause`] can be used to identify a state change initiated by the app.
-    WindowStateChanged {
-        /// Window that has changed state.
-        window: WindowId,
-        /// The new state.
-        state: WindowState,
-        /// What caused the change, end-user/OS or the app.
-        cause: EventCause,
-    },
+    WindowChanged(WindowChanged),
 
-    /// The size of the window has changed. Contains the client area’s new dimensions and the window state.
-    ///
-    /// The [`EventCause`] can be used to identify a resize initiated by the app.
-    WindowResized {
-        /// Window that has resized.
-        window: WindowId,
-        /// New size in device independent pixels.
-        size: DipSize,
-        /// What cause the resize, end-user/OS or the app.
-        cause: EventCause,
-    },
-    /// The position of the window has changed. Contains the window’s new position.
-    ///
-    /// The [`EventCause`] can be used to identify a move initiated by the app.
-    WindowMoved {
-        /// Window that has moved.
-        window: WindowId,
-        /// New position in device independent pixels.
-        position: DipPoint,
-        /// What cause the move, end-user/OS or the app.
-        cause: EventCause,
-    },
     /// A file has been dropped into the window.
     ///
     /// When the user drops multiple files at once, this event will be emitted for each file separately.
@@ -1046,27 +1087,21 @@ impl Event {
                 *delta_y += n_delta_y;
             }
 
-            // window resize.
-            (
-                WindowResized { window, size, cause },
-                WindowResized {
-                    window: n_window,
-                    size: n_size,
-                    cause: n_cause,
-                },
-            ) if *window == n_window && *cause == n_cause => {
-                *size = n_size;
-            }
-            // window move.
-            (
-                WindowMoved { window, position, cause },
-                WindowMoved {
-                    window: n_window,
-                    position: n_position,
-                    cause: n_cause,
-                },
-            ) if *window == n_window && *cause == n_cause => {
-                *position = n_position;
+            // window changed.
+            (WindowChanged(change), WindowChanged(n_change)) if change.window == n_change.window && change.cause == n_change.cause => {
+                if n_change.state.is_some() {
+                    change.state = n_change.state;
+                }
+
+                if n_change.position.is_some() {
+                    change.position = n_change.position;
+                }
+
+                if n_change.size.is_some() {
+                    change.size = n_change.size;
+                }
+
+                change.waiting_frame |= n_change.waiting_frame;
             }
             // scale factor.
             (
