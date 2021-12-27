@@ -900,7 +900,7 @@ pub mod prelude {
             self, blur, brightness, colors, contrast, drop_shadow, grayscale, hex, hsl, hsla, hue_rotate, opacity, rgb, rgba, saturate,
             sepia, Rgba,
         },
-        command::{CommandInfoExt, CommandNameExt},
+        command::{Command, CommandArgs, CommandInfoExt, CommandNameExt, CommandScope},
         context::{AppContext, WidgetContext, WindowContext},
         event::Events,
         focus::{DirectionalNav, Focus, FocusChangedArgs, FocusExt, ReturnFocusChangedArgs, TabIndex, TabNav},

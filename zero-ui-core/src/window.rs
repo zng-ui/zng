@@ -1124,9 +1124,18 @@ impl AppExtension for WindowManager {
                             WindowRenderUpdate::RenderUpdate => ctx.updates.render_update(),
                         }
                     }
+
+                    let restore_state = if let WindowState::Minimized = new_state {
+                        prev_state
+                    } else {
+                        WindowState::Normal
+                    };
+                    window.vars.0.restore_state.set_ne(ctx.vars, restore_state);
                 }
 
                 let window_state = args.state.unwrap_or_else(|| window.vars.state().copy(ctx.vars));
+
+                let mut restore_rect = window.vars.0.restore_rect.copy(ctx.vars);
 
                 // MOVED
                 if let Some(new_pos) = args.position {
@@ -1136,7 +1145,7 @@ impl AppExtension for WindowManager {
                         pos_change = Some(new_pos);
 
                         if let WindowState::Normal = window_state {
-                            window.vars.0.restore_position.set_ne(ctx.vars, new_pos);
+                            restore_rect.origin = new_pos;
                         }
                     }
                 }
@@ -1152,10 +1161,12 @@ impl AppExtension for WindowManager {
                         size_change = Some(new_size);
 
                         if let WindowState::Normal = window_state {
-                            window.vars.0.restore_size.set_ne(ctx.vars, new_size);
+                            restore_rect.size = new_size;
                         }
                     }
                 }
+
+                window.vars.0.restore_rect.set_ne(ctx.vars, restore_rect);
 
                 if args.waiting_frame {
                     // the view process is waiting a new frame or update, this will send one.
@@ -2053,7 +2064,11 @@ impl AppWindow {
 
                     if restore_only {
                         // we don't get a window move in this case.
-                        self.vars.0.restore_position.set_ne(ctx, pos);
+                        self.vars.0.restore_rect.modify(ctx, move |r| {
+                            if r.origin != pos {
+                                r.origin = pos;
+                            }
+                        });
                     }
                 }
             }
@@ -2229,7 +2244,11 @@ impl AppWindow {
             // the `restore_size` is set from the resize eventy, unless we are not `Normal`, then it is only recorded
             // by the view-process, so we need to update here as well.
             if !matches!(self.vars.state().copy(ctx), WindowState::Normal) {
-                self.vars.0.restore_size.set_ne(ctx, size);
+                self.vars.0.restore_rect.modify(ctx, move |r| {
+                    if r.size != size {
+                        r.size = size;
+                    }
+                });
             }
 
             // the `actual_size` is set from the resize event only.
@@ -2991,8 +3010,8 @@ struct WindowVarsData {
     actual_monitor: RcVar<Option<MonitorId>>,
     actual_size: RcVar<DipSize>,
 
-    restore_position: RcVar<DipPoint>,
-    restore_size: RcVar<DipSize>,
+    restore_state: RcVar<WindowState>,
+    restore_rect: RcVar<DipRect>,
 
     resizable: RcVar<bool>,
     movable: RcVar<bool>,
@@ -3044,8 +3063,11 @@ impl WindowVars {
             actual_monitor: var(None),
             actual_size: var(DipSize::zero()),
 
-            restore_position: var(DipPoint::zero()),
-            restore_size: var(DipSize::zero()),
+            restore_state: var(WindowState::Normal),
+            restore_rect: var(DipRect::new(
+                DipPoint::new(Dip::new(30), Dip::new(30)),
+                DipSize::new(Dip::new(800), Dip::new(600)),
+            )),
 
             min_size: var(Size::new(192, 48)),
             max_size: var(Size::new(100.pct(), 100.pct())),
@@ -3179,23 +3201,48 @@ impl WindowVars {
         self.0.actual_position.clone().into_read_only()
     }
 
-    /// Window computed *restore* position.
+    /// Window *restore* state.
     ///
-    /// The *restore* position is the window position when its state is [`Normal`], when the state is not [`Normal`]
-    /// this variable tracks the last normal position, it will be the window [`actual_position`] again when the state
-    /// is set back to [`Normal`].
+    /// The *restore* state that the window must be set to be restored, if the [current state] is [`Maximized`], [`Fullscreen`] or [`Exclusive`]
+    /// the restore state is [`Normal`], if the [current state] is [`Minimized`] the restore state is the previous state.
+    ///
+    /// When the restore state is [`Normal`] the [`restore_rect`] defines the window position and size.
+    ///
+    /// [current state]: Self::state
+    /// [`Maximized`]: WindowState::Maximized
+    /// [`Fullscreen`]: WindowState::Fullscreen
+    /// [`Exclusive`]: WindowState::Exclusive
+    /// [`Normal`]: WindowState::Normal
+    /// [`Minimized`]: WindowState::Minimized
+    /// [`restore_rect`]: Self::restore_rect
+    #[inline]
+    pub fn restore_state(&self) -> ReadOnlyRcVar<WindowState> {
+        self.0.restore_state.clone().into_read_only()
+    }
+
+    /// Window *restore* position and size when restoring to [`Normal`].
+    ///
+    /// The *restore* rectangle is the window position and size when its state is [`Normal`], when the state is not [`Normal`]
+    /// this variable tracks the last normal position and size, it will be the window [`actual_position`] and [`actual_size`] again
+    /// when the state is set back to [`Normal`].
     ///
     /// This is a read-only variable, to programatically set it assign the [`position`] variable.
     ///
-    /// The initial value is `(0, 0)` but this is updated quickly to an actual value. The point
+    /// The initial value is `(30, 30).at(800, 600)` but this is updated quickly to an actual position. The point
     /// is relative to the origin of the virtual screen that envelops all monitors.
+    ///
+    /// Note that to restore the window you only need to set [`state`] to [`restore_state`], if the restore state is [`Normal`]
+    /// this position and size will be applied automatically.
     ///
     /// [`Normal`]: WindowState::Normal
     /// [`actual_position`]: Self::actual_position
+    /// [`actual_size`]: Self::actual_size
     /// [`position`]: Self::position
+    /// [`state`]: Self::state
+    /// [`restore_state`]: Self::restore_state
     #[inline]
-    pub fn restore_position(&self) -> ReadOnlyRcVar<DipPoint> {
-        self.0.restore_position.clone().into_read_only()
+    pub fn restore_rect(&self) -> ReadOnlyRcVar<DipRect> {
+        self.0.restore_rect.clone().into_read_only()
     }
 
     /// Window top-left offset on the [`monitor`] when the window is [`Normal`].
@@ -3205,15 +3252,15 @@ impl WindowVars {
     /// monitor variable updates, not every layout.
     ///
     /// When the user moves the window this value is considered stale, when it updates it overwrites the window position again,
-    /// note that the window is only moved if it is in the [`Normal`] state, otherwise only the [`restore_position`] updates.
+    /// note that the window is only moved if it is in the [`Normal`] state, otherwise only the [`restore_rect`] updates.
     ///
     /// When the the window is moved by the user this variable does **not** update back, to track the current position of the window
-    /// use [`actual_position`], to track the *restore* position use [`restore_position`].
+    /// use [`actual_position`], to track the *restore* position use [`restore_rect`].
     ///
     /// The default value causes the window or OS to select a value.
     ///
+    /// [`restore_rect`]: WindowVars::restore_rect
     /// [`actual_position`]: WindowVars::actual_position
-    /// [`restore_position`]: WindowVars::restore_position
     /// [`monitor`]: WindowVars::monitor
     /// [`Normal`]: WindowState::Normal
     #[inline]
@@ -3232,37 +3279,21 @@ impl WindowVars {
         self.0.actual_size.clone().into_read_only()
     }
 
-    /// Window computed *restore* size.
-    ///
-    /// The *restore* size is the window size when its state is [`Normal`], when the state is not [`Normal`]
-    /// this variable tracks the last normal size, it will be the window [`actual_size`] again when the state
-    /// is set back to [`Normal`].
-    ///
-    /// This is a read-only variable, to programatically set it assign the [`size`] variable.
-    ///
-    /// [`Normal`]: WindowState::Normal
-    /// [`actual_size`]: Self::actual_size
-    /// [`size`]: Self::size
-    #[inline]
-    pub fn restore_size(&self) -> ReadOnlyRcVar<DipSize> {
-        self.0.restore_size.clone().into_read_only()
-    }
-
     /// Window width and height on the screen when the window is [`Normal`].
     ///
     /// When a dimension is not a finite value it is computed from other variables.
     /// Relative values are computed in relation to the full-screen size.
     ///
     /// When the user resizes the window this value is considered stale, when it updates it overwrites the window size again,
-    /// not that the window is only resized if it is in the [`Normal`] state, otherwise only the [`restore_size`] updates.
+    /// not that the window is only resized if it is in the [`Normal`] state, otherwise only the [`restore_rect`] updates.
     ///
     /// When the window is resized this variable does **not** updated back, to track the current window size use [`actual_size`],
-    /// to track the *restore* size use [`restore_size`].
+    /// to track the *restore* size use [`restore_rect`].
     ///
     /// The default value is `(800, 600)`.
     ///
     /// [`actual_size`]: WindowVars::actual_size
-    /// [`restore_size`]: WindowVars::restore_size
+    /// [`restore_rect`]: WindowVars::restore_rect
     /// [`Normal`]: WindowState::Normal
     #[inline]
     pub fn size(&self) -> &RcVar<Size> {

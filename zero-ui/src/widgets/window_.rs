@@ -662,24 +662,77 @@ pub mod window {
                 .init_name("Maximize Window")
                 .init_info("Maximize the current window.");
 
-            /// Represents the window **restore** action.
-            ///
-            /// Restores the window to its normal position and size.
+            /// Represents the window **toggle fullscreen** action.
             ///
             /// # Metadata
             ///
             /// This command initializes with the following metadata:
             ///
-            /// | metadata     | value                                                  |
-            /// |--------------|--------------------------------------------------------|
-            /// | [`name`]     | "Restore Window"                                       |
-            /// | [`info`]     | "Restores the window to its normal position and size." |
+            /// | metadata     | value                                                 |
+            /// |--------------|-------------------------------------------------------|
+            /// | [`name`]     | "Full-Screen"                                         |
+            /// | [`info`]     | "Toggle full-screen mode on the current window."      |
+            /// | [`shortcut`] | `CMD+SHIFT+F` on MacOS, `F11` on other systems.       |
+            ///
+            /// # Behavior
+            ///
+            /// This command is about the *windowed* fullscreen state ([`WindowState::Fullscreen`]),
+            /// use the [`ExclusiveFullscreenCommand`] to toggle *exclusive* video mode fullscreen.
+            ///
+            /// [`name`]: CommandNameExt
+            /// [`info`]: CommandInfoExt
+            /// [`shortcut`]: CommandShortcutExt
+            pub FullscreenCommand
+                .init_name("Full-Screen")
+                .init_info("Toggle full-screen mode on the current window.")
+                .init_shortcut({
+                    if cfg!(target_os = "macos") {
+                        shortcut!(CTRL|SHIFT+F)
+                    } else {
+                        shortcut!(F11)
+                    }
+                });
+
+            /// Represents the window **toggle fullscreen** action.
+            ///
+            /// # Metadata
+            ///
+            /// This command initializes with the following metadata:
+            ///
+            /// | metadata     | value                                                 |
+            /// |--------------|-------------------------------------------------------|
+            /// | [`name`]     | "Minimize Window"                                     |
+            /// | [`info`]     | "Minimize the current window."                        |
+            ///
+            /// # Behavior
+            ///
+            /// This command is about the *exclusive* fullscreen state ([`WindowSTate::Exclusive`]),
+            /// use the [`FullscreenCommand`] to toggle *windowed* fullscreen.
+            ///
+            /// [`name`]: CommandNameExt
+            /// [`info`]: CommandInfoExt
+            pub ExclusiveFullscreenCommand
+                .init_name("Exclusive Full-Screen")
+                .init_info("Toggle exclusive full-screen mode on the current window.");
+
+            /// Represents the window **restore** action.
+            ///
+            /// Restores the window to its previous not-minimized state or normal state.
+            ///
+            /// # Metadata
+            ///
+            /// This command initializes with the following metadata:
+            ///
+            /// | metadata     | value                                                                      |
+            /// |--------------|----------------------------------------------------------------------------|
+            /// | [`name`]     | "Restore Window"                                                           |
+            /// | [`info`]     | "Restores the window to its previous not-minimized state or normal state." |
             ///
             /// [`name`]: CommandNameExt
             /// [`info`]: CommandInfoExt
             pub RestoreCommand
                 .init_name("Restore Window")
-                .init_info("Restores the window to its normal position and size.");
+                .init_info("Restores the window to its previous not-minimized state or normal state.");
 
             /// Represent the window **inspect** action.
             ///
@@ -709,6 +762,8 @@ pub mod window {
                 minimize_handle: CommandHandle,
                 restore_handle: CommandHandle,
                 close_handle: CommandHandle,
+                fullscreen_handle: CommandHandle,
+                exclusive_handle: CommandHandle,
 
                 allow_alt_f4_binding: VarBindingHandle,
             }
@@ -719,6 +774,8 @@ pub mod window {
                         .event(WindowFocusChangedEvent)
                         .event(MaximizeCommand)
                         .event(MinimizeCommand)
+                        .event(FullscreenCommand)
+                        .event(ExclusiveFullscreenCommand)
                         .event(RestoreCommand)
                         .event(CloseCommand);
 
@@ -732,6 +789,8 @@ pub mod window {
                     // state
                     self.maximize_handle = MaximizeCommand.new_handle(ctx, enabled);
                     self.minimize_handle = MinimizeCommand.new_handle(ctx, enabled);
+                    self.fullscreen_handle = FullscreenCommand.new_handle(ctx, enabled);
+                    self.exclusive_handle = ExclusiveFullscreenCommand.new_handle(ctx, enabled);
                     self.restore_handle = RestoreCommand.new_handle(ctx, enabled);
 
                     // close
@@ -780,13 +839,41 @@ pub mod window {
                         set_state(ctx, WindowState::Minimized);
                         self.child.event(ctx, args);
                     } else if let Some(args) = RestoreCommand.update(args) {
-                        set_state(ctx, WindowState::Normal);
+                        let window_id = ctx.path.window_id();
+                        if ctx.services.focus().is_window_focused(window_id).copy(ctx.vars) {
+                            let vars = ctx.services.windows().vars(window_id).unwrap();
+                            vars.state().set_ne(ctx.vars, vars.restore_state().copy(ctx.vars));
+                        }
                         self.child.event(ctx, args);
                     } else if let Some(args) = CloseCommand.update(args) {
                         // close requested, run it only if we are focused.
                         let window_id = ctx.path.window_id();
                         if ctx.services.focus().is_window_focused(window_id).copy(ctx.vars) {
                             let _ = ctx.services.windows().close(window_id);
+                        }
+                        self.child.event(ctx, args)
+                    } else if let Some(args) = FullscreenCommand.update(args) {
+                        // fullscreen or restore.
+                        let window_id = ctx.path.window_id();
+                        if ctx.services.focus().is_window_focused(window_id).copy(ctx.vars) {
+                            let vars = ctx.services.windows().vars(window_id).unwrap();
+                            if vars.state().copy(ctx.vars).is_fullscreen() {
+                                vars.state().set(ctx.vars, vars.restore_state().copy(ctx.vars));
+                            } else {
+                                vars.state().set(ctx.vars, WindowState::Fullscreen);
+                            }
+                        }
+                        self.child.event(ctx, args)
+                    } else if let Some(args) = ExclusiveFullscreenCommand.update(args) {
+                        // exclusive fullscreen or restore.
+                        let window_id = ctx.path.window_id();
+                        if ctx.services.focus().is_window_focused(window_id).copy(ctx.vars) {
+                            let vars = ctx.services.windows().vars(window_id).unwrap();
+                            if vars.state().copy(ctx.vars).is_fullscreen() {
+                                vars.state().set(ctx.vars, vars.restore_state().copy(ctx.vars));
+                            } else {
+                                vars.state().set(ctx.vars, WindowState::Exclusive);
+                            }
                         }
                         self.child.event(ctx, args)
                     } else {
@@ -799,6 +886,8 @@ pub mod window {
                 maximize_handle: CommandHandle::dummy(),
                 minimize_handle: CommandHandle::dummy(),
                 restore_handle: CommandHandle::dummy(),
+                fullscreen_handle: CommandHandle::dummy(),
+                exclusive_handle: CommandHandle::dummy(),
                 close_handle: CommandHandle::dummy(),
                 allow_alt_f4_binding: VarBindingHandle::dummy(),
             }
