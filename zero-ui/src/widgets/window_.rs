@@ -593,16 +593,17 @@ pub mod window {
     }
 
     /// Commands that control the window.
+    ///
+    /// The window widget implements all these commands scoped to the window ID.
     pub mod commands {
         use zero_ui::core::{
             command::*,
             context::{InfoContext, WidgetContext},
             event::EventUpdateArgs,
-            focus::FocusExt,
             gesture::*,
             var::*,
             widget_info::WidgetSubscriptions,
-            window::{WindowFocusChangedEvent, WindowsExt},
+            window::{WindowVarsKey, WindowsExt},
             *,
         };
         use zero_ui_core::window::WindowState;
@@ -624,7 +625,7 @@ pub mod window {
             /// [`info`]: CommandInfoExt
             /// [`shortcut`]: CommandShortcutExt
             pub CloseCommand
-                .init_name("Close Window")
+                .init_name("Close")
                 .init_info("Close the current window.")
                 .init_shortcut([shortcut!(ALT+F4), shortcut!(CTRL+W)]);
 
@@ -642,7 +643,7 @@ pub mod window {
             /// [`name`]: CommandNameExt
             /// [`info`]: CommandInfoExt
             pub MinimizeCommand
-                .init_name("Minimize Window")
+                .init_name("Minimize")
                 .init_info("Minimize the current window.");
 
             /// Represents the window **maximize** action.
@@ -659,7 +660,7 @@ pub mod window {
             /// [`name`]: CommandNameExt
             /// [`info`]: CommandInfoExt
             pub MaximizeCommand
-                .init_name("Maximize Window")
+                .init_name("Maximize")
                 .init_info("Maximize the current window.");
 
             /// Represents the window **toggle fullscreen** action.
@@ -731,7 +732,7 @@ pub mod window {
             /// [`name`]: CommandNameExt
             /// [`info`]: CommandInfoExt
             pub RestoreCommand
-                .init_name("Restore Window")
+                .init_name("Restore")
                 .init_info("Restores the window to its previous not-minimized state or normal state.");
 
             /// Represent the window **inspect** action.
@@ -756,45 +757,61 @@ pub mod window {
         }
 
         pub(super) fn window_control_node(child: impl UiNode) -> impl UiNode {
-            struct WindowControlNode<C: UiNode> {
+            struct WindowControlNode<C> {
                 child: C,
+
                 maximize_handle: CommandHandle,
                 minimize_handle: CommandHandle,
                 restore_handle: CommandHandle,
-                close_handle: CommandHandle,
+
                 fullscreen_handle: CommandHandle,
                 exclusive_handle: CommandHandle,
 
+                close_handle: CommandHandle,
+
+                state_var: Option<RcVar<WindowState>>,
+
                 allow_alt_f4_binding: VarBindingHandle,
+            }
+            impl<C> WindowControlNode<C> {
+                fn update_state(&mut self, state: WindowState) {
+                    self.restore_handle.set_enabled(state != WindowState::Normal);
+                    self.maximize_handle.set_enabled(state != WindowState::Maximized);
+                    self.minimize_handle.set_enabled(state != WindowState::Minimized);
+                }
             }
             #[impl_ui_node(child)]
             impl<C: UiNode> UiNode for WindowControlNode<C> {
                 fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
+                    let scope = ctx.path.window_id();
+
                     subscriptions
-                        .event(WindowFocusChangedEvent)
-                        .event(MaximizeCommand)
-                        .event(MinimizeCommand)
-                        .event(FullscreenCommand)
-                        .event(ExclusiveFullscreenCommand)
-                        .event(RestoreCommand)
-                        .event(CloseCommand);
+                        .event(MaximizeCommand.scoped(scope))
+                        .event(MinimizeCommand.scoped(scope))
+                        .event(FullscreenCommand.scoped(scope))
+                        .event(ExclusiveFullscreenCommand.scoped(scope))
+                        .event(RestoreCommand.scoped(scope))
+                        .event(CloseCommand.scoped(scope))
+                        .var(ctx, self.state_var.as_ref().unwrap());
 
                     self.child.subscriptions(ctx, subscriptions);
                 }
 
                 fn init(&mut self, ctx: &mut WidgetContext) {
                     let window_id = ctx.path.window_id();
-                    let enabled = ctx.services.focus().is_window_focused(window_id).copy(ctx.vars);
 
                     // state
-                    self.maximize_handle = MaximizeCommand.new_handle(ctx, enabled);
-                    self.minimize_handle = MinimizeCommand.new_handle(ctx, enabled);
-                    self.fullscreen_handle = FullscreenCommand.new_handle(ctx, enabled);
-                    self.exclusive_handle = ExclusiveFullscreenCommand.new_handle(ctx, enabled);
-                    self.restore_handle = RestoreCommand.new_handle(ctx, enabled);
+                    self.maximize_handle = MaximizeCommand.scoped(window_id).new_handle(ctx, false);
+                    self.minimize_handle = MinimizeCommand.scoped(window_id).new_handle(ctx, false);
+                    self.fullscreen_handle = FullscreenCommand.scoped(window_id).new_handle(ctx, true);
+                    self.exclusive_handle = ExclusiveFullscreenCommand.scoped(window_id).new_handle(ctx, true);
+                    self.restore_handle = RestoreCommand.scoped(window_id).new_handle(ctx, false);
+                    let state_var = ctx.window_state.req(WindowVarsKey).state().clone();
+                    self.update_state(state_var.copy(ctx));
+                    self.state_var = Some(state_var);
 
                     // close
-                    self.close_handle = CloseCommand.new_handle(ctx, enabled);
+                    self.close_handle = CloseCommand.scoped(window_id).new_handle(ctx, true);
 
                     if cfg!(windows) {
                         // hijacks allow_alt_f4 for the close command, if we don't do this
@@ -802,6 +819,7 @@ pub mod window {
                         // without the CloseCommand event ever firing.
                         let allow_alt_f4 = ctx.services.windows().vars(window_id).unwrap().allow_alt_f4();
                         self.allow_alt_f4_binding = CloseCommand
+                            .scoped(window_id)
                             .shortcut()
                             .bind_map(ctx.vars, allow_alt_f4, |_, s| s.contains(shortcut![ALT + F4]));
                     }
@@ -810,85 +828,115 @@ pub mod window {
                 }
 
                 fn deinit(&mut self, ctx: &mut WidgetContext) {
+                    self.maximize_handle = CommandHandle::dummy();
+                    self.minimize_handle = CommandHandle::dummy();
+                    self.restore_handle = CommandHandle::dummy();
+
+                    self.fullscreen_handle = CommandHandle::dummy();
+                    self.exclusive_handle = CommandHandle::dummy();
+
+                    self.close_handle = CommandHandle::dummy();
+                    self.state_var = None;
+
                     self.allow_alt_f4_binding = VarBindingHandle::dummy();
                     self.child.deinit(ctx);
                 }
 
                 fn event<A: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &A) {
-                    fn set_state(ctx: &mut WidgetContext, state: WindowState) {
-                        let window_id = ctx.path.window_id();
-                        if ctx.services.focus().is_window_focused(window_id).copy(ctx.vars) {
-                            let _ = ctx.services.windows().vars(window_id).unwrap().state().set_ne(ctx.vars, state);
+                    let scope = ctx.path.window_id();
+                    let state_var = self.state_var.as_ref().unwrap();
+                    let restore_state = || ctx.window_state.req(WindowVarsKey).restore_state().copy(ctx.vars);
+
+                    if let Some(args) = MaximizeCommand.scoped(scope).update(args) {
+                        if self.maximize_handle.is_enabled() {
+                            state_var.set_ne(ctx, WindowState::Maximized);
                         }
+
+                        self.child.event(ctx, args);
+                        return;
                     }
 
-                    if let Some(args) = WindowFocusChangedEvent.update(args) {
-                        // toggle enabled if our window activated/deactivated.
-                        if args.window_id == ctx.path.window_id() {
-                            // TODO should handle enabled just be a `var`?
-                            self.maximize_handle.set_enabled(args.focused);
-                            self.maximize_handle.set_enabled(args.focused);
-                            self.restore_handle.set_enabled(args.focused);
-                            self.close_handle.set_enabled(args.focused);
+                    if let Some(args) = MinimizeCommand.scoped(scope).update(args) {
+                        if self.minimize_handle.is_enabled() {
+                            state_var.set_ne(ctx, WindowState::Minimized);
                         }
+
                         self.child.event(ctx, args);
-                    } else if let Some(args) = MaximizeCommand.update(args) {
-                        set_state(ctx, WindowState::Maximized);
-                        self.child.event(ctx, args);
-                    } else if let Some(args) = MinimizeCommand.update(args) {
-                        set_state(ctx, WindowState::Minimized);
-                        self.child.event(ctx, args);
-                    } else if let Some(args) = RestoreCommand.update(args) {
-                        let window_id = ctx.path.window_id();
-                        if ctx.services.focus().is_window_focused(window_id).copy(ctx.vars) {
-                            let vars = ctx.services.windows().vars(window_id).unwrap();
-                            vars.state().set_ne(ctx.vars, vars.restore_state().copy(ctx.vars));
-                        }
-                        self.child.event(ctx, args);
-                    } else if let Some(args) = CloseCommand.update(args) {
-                        // close requested, run it only if we are focused.
-                        let window_id = ctx.path.window_id();
-                        if ctx.services.focus().is_window_focused(window_id).copy(ctx.vars) {
-                            let _ = ctx.services.windows().close(window_id);
-                        }
-                        self.child.event(ctx, args)
-                    } else if let Some(args) = FullscreenCommand.update(args) {
-                        // fullscreen or restore.
-                        let window_id = ctx.path.window_id();
-                        if ctx.services.focus().is_window_focused(window_id).copy(ctx.vars) {
-                            let vars = ctx.services.windows().vars(window_id).unwrap();
-                            if vars.state().copy(ctx.vars).is_fullscreen() {
-                                vars.state().set(ctx.vars, vars.restore_state().copy(ctx.vars));
-                            } else {
-                                vars.state().set(ctx.vars, WindowState::Fullscreen);
-                            }
-                        }
-                        self.child.event(ctx, args)
-                    } else if let Some(args) = ExclusiveFullscreenCommand.update(args) {
-                        // exclusive fullscreen or restore.
-                        let window_id = ctx.path.window_id();
-                        if ctx.services.focus().is_window_focused(window_id).copy(ctx.vars) {
-                            let vars = ctx.services.windows().vars(window_id).unwrap();
-                            if vars.state().copy(ctx.vars).is_fullscreen() {
-                                vars.state().set(ctx.vars, vars.restore_state().copy(ctx.vars));
-                            } else {
-                                vars.state().set(ctx.vars, WindowState::Exclusive);
-                            }
-                        }
-                        self.child.event(ctx, args)
-                    } else {
-                        self.child.event(ctx, args)
+                        return;
                     }
+
+                    if let Some(args) = RestoreCommand.scoped(scope).update(args) {
+                        if self.restore_handle.is_enabled() {
+                            //let restore_state = ctx.window_state.req(WindowVarsKey).restore_state().copy(ctx.vars);
+                            state_var.set_ne(ctx, restore_state());
+                        }
+
+                        self.child.event(ctx, args);
+                        return;
+                    }
+
+                    if let Some(args) = CloseCommand.scoped(scope).update(args) {
+                        if self.close_handle.is_enabled() {
+                            let _ = ctx.services.windows().close(scope);
+                        }
+
+                        self.child.event(ctx, args);
+                        return;
+                    }
+
+                    if let Some(args) = FullscreenCommand.scoped(scope).update(args) {
+                        if self.fullscreen_handle.is_enabled() {
+                            if let WindowState::Fullscreen = state_var.copy(ctx) {
+                                //let restore_state = ctx.window_state.req(WindowVarsKey).restore_state().copy(ctx.vars);
+                                state_var.set(ctx, restore_state());
+                            } else {
+                                state_var.set(ctx, WindowState::Fullscreen);
+                            }
+                        }
+
+                        self.child.event(ctx, args);
+                        return;
+                    }
+
+                    if let Some(args) = ExclusiveFullscreenCommand.scoped(scope).update(args) {
+                        if self.exclusive_handle.is_enabled() {
+                            if let WindowState::Exclusive = state_var.copy(ctx) {
+                                //let restore_state = ctx.window_state.req(WindowVarsKey).restore_state().copy(ctx.vars);
+                                state_var.set(ctx, restore_state());
+                            } else {
+                                state_var.set(ctx, WindowState::Exclusive);
+                            }
+                        }
+
+                        self.child.event(ctx, args);
+                        return;
+                    }
+
+                    self.child.event(ctx, args);
+                }
+
+                fn update(&mut self, ctx: &mut WidgetContext) {
+                    if let Some(state) = self.state_var.as_ref().unwrap().copy_new(ctx) {
+                        self.update_state(state);
+                    }
+
+                    self.child.update(ctx);
                 }
             }
             WindowControlNode {
                 child,
+
                 maximize_handle: CommandHandle::dummy(),
                 minimize_handle: CommandHandle::dummy(),
                 restore_handle: CommandHandle::dummy(),
+
                 fullscreen_handle: CommandHandle::dummy(),
                 exclusive_handle: CommandHandle::dummy(),
+
                 close_handle: CommandHandle::dummy(),
+
+                state_var: None,
+
                 allow_alt_f4_binding: VarBindingHandle::dummy(),
             }
         }
@@ -904,10 +952,7 @@ pub mod window {
             on_command(
                 child,
                 |ctx| InspectCommand.scoped(ctx.path.window_id()),
-                move |ctx| {
-                    let is_win_focused = ctx.services.focus().is_window_focused(ctx.path.window_id());
-                    expr_var! { *#{can_inspect.clone()} && *#{is_win_focused} }
-                },
+                move |_| can_inspect.clone(),
                 hn!(|ctx, args: &CommandArgs| {
                     args.stop_propagation();
 

@@ -11,7 +11,7 @@ use crate::{
     render::*,
     service::Service,
     units::DipPoint,
-    var::impl_from_and_into_var,
+    var::{impl_from_and_into_var, WithVarsRead},
     widget_info::WidgetPath,
     window::{WindowId, Windows},
     WidgetId,
@@ -826,7 +826,7 @@ impl AppExtension for GestureManager {
                     let command = ctx
                         .events
                         .commands()
-                        .find(|c| c.enabled_value() && c.shortcut().get(ctx.vars).contains(args.shortcut));
+                        .find(|c| c.shortcut_event_matches(ctx.vars, args));
                     if let Some(command) = command {
                         command.notify(ctx.events, None);
                         args.stop_propagation()
@@ -1224,13 +1224,25 @@ impl HeadlessAppGestureExt for HeadlessApp {
 /// Adds the [`shortcut`](Self::shortcut) metadata.
 ///
 /// If a command has a shortcut the [`GestureManager`] will invoke the command when the shortcut is pressed
-/// and the command is enabled.
+/// the command is enabled and the command scope is included in the event target or is the `App` scope, see
+/// [`shortcut_event_matches`] for more details.
+///
+/// [`shortcut_event_matches`]: Self::shortcut_event_matches
 pub trait CommandShortcutExt {
     /// Gets a read-write variable that is zero-or-more shortcuts that invoke the command.
     fn shortcut(self) -> CommandMetaVar<Shortcuts>;
 
     /// Sets the initial shortcuts.
     fn init_shortcut(self, shortcut: impl Into<Shortcuts>) -> Self;
+
+    /// Returns `true` if the command is enabled and the shortcut event `args` represents a command shortcut
+    /// and the event target includes the command scope or is [`App`].
+    ///
+    /// Always returns `false` for the [`Custom`] scope.
+    ///
+    /// [`App`]: use crate::command::CommandScope::App
+    /// [`Custom`]: use crate::command::CommandScope::Custom
+    fn shortcut_event_matches<Vr: WithVarsRead>(self, vars: &Vr, args: &ShortcutArgs) -> bool;
 }
 impl<C: Command> CommandShortcutExt for C {
     fn shortcut(self) -> CommandMetaVar<Shortcuts> {
@@ -1240,6 +1252,21 @@ impl<C: Command> CommandShortcutExt for C {
     fn init_shortcut(self, shortcut: impl Into<Shortcuts>) -> Self {
         self.with_meta(|m| m.init_var(CommandShortcutKey, shortcut.into()));
         self
+    }
+
+    fn shortcut_event_matches<Vr: WithVarsRead>(self, vars: &Vr, args: &ShortcutArgs) -> bool {
+        use crate::command::CommandScope::*;
+
+        self.enabled_value()
+            && vars.with_vars_read(|vars| {
+                self.shortcut().get(vars).contains(args.shortcut)
+                    && match self.scope() {
+                        App => true,
+                        Window(w) => args.target.window_id() == w,
+                        Widget(w) => args.target.contains(w),
+                        Custom(_, _) => false,
+                    }
+            })
     }
 }
 state_key! {

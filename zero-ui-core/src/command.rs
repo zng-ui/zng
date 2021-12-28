@@ -241,6 +241,10 @@ macro_rules! command {
             fn scoped<S: Into<$crate::command::CommandScope>>(self, scope: S) ->  $crate::command::ScopedCommand<Self> {
                 $crate::command::ScopedCommand{ command: self, scope: scope.into() }
             }
+
+            fn notify_cmd<Evs: $crate::event::WithEvents>(self, events: &mut Evs, parameter: Option<std::rc::Rc<dyn std::any::Any>>) -> bool {
+                self.notify(events, parameter)
+            }
         }
     )+};
 }
@@ -375,6 +379,13 @@ pub trait Command: Event<Args = CommandArgs> {
     /// Returns a new command that represents the command type in the `scope`.
     /// See [`ScopedCommand`] for details.
     fn scoped<S: Into<CommandScope>>(self, scope: S) -> ScopedCommand<Self::AppScopeCommand>;
+
+    /// Schedule an event update if the command is enabled.
+    ///
+    /// The `parameter` is an optional value for the command handler.
+    ///
+    /// Returns `true` if notified, only notifies if the command is enabled.
+    fn notify_cmd<Evs: WithEvents>(self, events: &mut Evs, parameter: Option<Rc<dyn Any>>) -> bool;
 }
 
 /// Represents the scope of a [`Command`].
@@ -689,6 +700,10 @@ impl<C: Command> Command for ScopedCommand<C> {
         }
     }
 
+    fn notify_cmd<Evs: WithEvents>(self, events: &mut Evs, parameter: Option<Rc<dyn Any>>) -> bool {
+        self.notify(events, parameter)
+    }
+
     fn as_any(self) -> AnyCommand {
         let mut any = self.command.as_any();
         any.1 = self.scope;
@@ -735,10 +750,22 @@ impl AnyCommand {
         self.command_type_id() == TypeId::of::<C>()
     }
 
-    /// Schedule an event update for the command represented by `self`.
+    /// Schedule an event update if the command is enabled.
+    ///
+    /// The event type notified is the inner command type, the scope is passed in the [`CommandArgs`].
+    ///
+    /// The `parameter` is an optional value for the command handler.
+    ///
+    /// Returns `true` if notified, only notifies if the command is enabled.
     #[inline]
-    pub fn notify(self, events: &mut Events, parameter: Option<Rc<dyn Any>>) {
-        Event::notify(self, events, CommandArgs::now(parameter, self.1))
+    pub fn notify<Evs: WithEvents>(self, events: &mut Evs, parameter: Option<Rc<dyn Any>>) -> bool {
+        let enabled = self.0.with(|c| c.enabled_value(self.1));
+
+        if enabled {
+            events.with_events(|events| Event::notify(self, events, CommandArgs::now(parameter, self.1)))
+        }
+
+        enabled
     }
 }
 impl fmt::Debug for AnyCommand {
@@ -814,6 +841,10 @@ impl Command for AnyCommand {
 
     fn scope(self) -> CommandScope {
         self.1
+    }
+
+    fn notify_cmd<Evs: WithEvents>(self, events: &mut Evs, parameter: Option<Rc<dyn Any>>) -> bool {
+        self.notify(events, parameter)
     }
 
     fn scoped<S: Into<CommandScope>>(self, scope: S) -> ScopedCommand<Self> {
@@ -1142,6 +1173,11 @@ impl CommandHandle {
                 data.enabled_count.fetch_sub(1, Ordering::Relaxed);
             };
         }
+    }
+
+    /// Returns if this handle has enabled the command.
+    pub fn is_enabled(&self) -> bool {
+        self.local_enabled.get()
     }
 
     /// Returns a dummy [`CommandHandle`] that is not connected to any command.

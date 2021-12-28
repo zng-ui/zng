@@ -18,55 +18,58 @@ fn main() {
 }
 
 fn app_main() {
-    App::default().run_window(|ctx| {
-        let window_vars = ctx.window_state.req(WindowVarsKey);
+    App::default().run_window(main_window);
+}
 
-        //ctx.services.windows().shutdown_on_last_close = false;
+fn main_window(ctx: &mut WindowContext) -> Window {
+    let window_vars = ctx.window_state.req(WindowVarsKey);
+    let window_id = *ctx.window_id;
 
-        let title = merge_var!(
-            window_vars.actual_position(),
-            window_vars.actual_size(),
-            |p: &DipPoint, s: &DipSize| { formatx!("Window Example - position: {:.0?}, size: {:.0?}", p, s) }
-        );
+    //ctx.services.windows().shutdown_on_last_close = false;
 
-        let background = var(rgb(0.1, 0.1, 0.1));
+    let title = merge_var!(
+        window_vars.actual_position(),
+        window_vars.actual_size(),
+        move |p: &DipPoint, s: &DipSize| { formatx!("Window Example {} - position: {:.0?}, size: {:.0?}", window_id.sequential(), p, s) }
+    );
 
-        window! {
-            background_color = background.clone();
-            title;
-            on_state_changed = hn!(|_, args: &WindowChangedArgs| {
-                println!("state: {:?}", args.new_state());
-            });
-            content = h_stack! {
-                spacing = 40;
-                items = widgets![
-                    state_commands(),
-                    v_stack! {
-                        spacing = 20;
-                        items = widgets![
-                            state(window_vars),
-                            visibility(window_vars),
-                            chrome(window_vars),
-                        ];
-                    },
-                    v_stack! {
-                        spacing = 20;
-                        items = widgets![
-                            icon(window_vars),                            
-                            background_color(background),
-                        ];
-                    },
-                    v_stack! {
-                        spacing = 20;
-                        items = widgets![
-                            screenshot(),
-                            misc(*ctx.window_id, window_vars),
-                        ];
-                    },
-                ];
-            };
-        }
-    });
+    let background = var(rgb(0.1, 0.1, 0.1));
+
+    window! {
+        background_color = background.clone();
+        title;
+        on_state_changed = hn!(|_, args: &WindowChangedArgs| {
+            println!("state: {:?}", args.new_state());
+        });
+        content = h_stack! {
+            spacing = 40;
+            items = widgets![
+                state_commands(window_id),
+                v_stack! {
+                    spacing = 20;
+                    items = widgets![
+                        state(window_vars),
+                        visibility(window_vars),
+                        chrome(window_vars),
+                    ];
+                },
+                v_stack! {
+                    spacing = 20;
+                    items = widgets![
+                        icon(window_vars),
+                        background_color(background),
+                    ];
+                },
+                v_stack! {
+                    spacing = 20;
+                    items = widgets![
+                        screenshot(),
+                        misc(window_id, window_vars),
+                    ];
+                },
+            ];
+        };
+    }
 }
 
 fn background_color(color: impl Var<Rgba>) -> impl Widget {
@@ -256,21 +259,21 @@ fn chrome(window_vars: &WindowVars) -> impl Widget {
     )
 }
 
-fn state_commands() -> impl Widget {
+fn state_commands(window_id: WindowId) -> impl Widget {
     use zero_ui::widgets::window::commands::*;
 
     section(
         "Commands",
         widgets![
-            cmd_btn(MinimizeCommand),
+            cmd_btn(MinimizeCommand.scoped(window_id)),
             separator(),
-            cmd_btn(RestoreCommand),
-            cmd_btn(MaximizeCommand),
+            cmd_btn(RestoreCommand.scoped(window_id)),
+            cmd_btn(MaximizeCommand.scoped(window_id)),
             separator(),
-            cmd_btn(FullscreenCommand),
-            cmd_btn(ExclusiveFullscreenCommand),
+            cmd_btn(FullscreenCommand.scoped(window_id)),
+            cmd_btn(ExclusiveFullscreenCommand.scoped(window_id)),
             separator(),
-            cmd_btn(CloseCommand),
+            cmd_btn(CloseCommand.scoped(window_id)),
         ],
     )
 }
@@ -369,19 +372,25 @@ fn misc(window_id: WindowId, window_vars: &WindowVars) -> impl Widget {
             flag_btn("Taskbar Visible", window_vars.taskbar_visible().clone()),
             flag_btn("Always on Top", window_vars.always_on_top().clone()),
             separator(),
-            cmd_btn(zero_ui::widgets::window::commands::InspectCommand.scoped(window_id))
+            cmd_btn(zero_ui::widgets::window::commands::InspectCommand.scoped(window_id)),
+            separator(),
+            button! {
+                content = text("Open Another Window");
+                on_click = hn!(|ctx, _| {
+                    ctx.services.windows().open(main_window);
+                })
+            }
         ],
     )
 }
 
 fn cmd_btn(cmd: impl Command) -> impl Widget {
     button! {
-        content = text(cmd.name());
+        content = text(cmd.name_with_shortcut());
         enabled = cmd.enabled();
         visibility = cmd.has_handlers().map_into();
         on_click = hn!(|ctx, _| {
-            // TODO is this right? the command already has a scope
-            cmd.notify(ctx, CommandArgs::now(None, cmd.scope()));
+            cmd.notify_cmd(ctx, None);
         })
     }
 }
@@ -408,4 +417,3 @@ fn separator() -> impl Widget {
 fn selected_bkg() -> Rgba {
     rgb(40, 40, 60)
 }
-
