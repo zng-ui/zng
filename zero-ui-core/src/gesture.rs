@@ -823,10 +823,7 @@ impl AppExtension for GestureManager {
                         ),
                     );
                 } else {
-                    let command = ctx
-                        .events
-                        .commands()
-                        .find(|c| c.shortcut_event_matches(ctx.vars, args));
+                    let command = ctx.events.commands().find(|c| c.shortcut_event_matches(ctx.vars, args));
                     if let Some(command) = command {
                         command.notify(ctx.events, None);
                         args.stop_propagation()

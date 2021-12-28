@@ -263,7 +263,7 @@ fn large_image() -> impl Widget {
                 "Wikimedia - Starry Night - 30,000 × 23,756 pixels, file size: 205.1 MB, decoded: 2.8 GB",
                 image! {
                     source = "https://upload.wikimedia.org/wikipedia/commons/e/ea/Van_Gogh_-_Starry_Night_-_Google_Art_Project.jpg";
-                    limits = Some(ImageLimits { max_encoded_size: 300.megabytes(), max_decoded_size: 3.gigabytes() });
+                    limits = Some(ImageLimits::none().with_max_encoded_size(300.megabytes()).with_max_decoded_size(3.gigabytes()));
 
                     on_error = hn!(|_, args: &ImageErrorArgs| {
                         tracing::error!(target: "unexpected", "{}", args.error);
@@ -285,7 +285,7 @@ fn panorama_image() -> impl Widget {
                     content = image! {
                         fit = ImageFit::Fill;
                         source = "https://upload.wikimedia.org/wikipedia/commons/2/2c/Along_the_River_During_the_Qingming_Festival_%28Qing_Court_Version%29.jpg";
-                        limits = Some(ImageLimits { max_encoded_size: 130.megabytes(), max_decoded_size: 1.gigabytes() });
+                        limits = Some(ImageLimits::none().with_max_encoded_size(130.megabytes()).with_max_decoded_size(1.gigabytes()));
                         on_error = hn!(|_, args: &ImageErrorArgs| {
                             tracing::error!(target: "unexpected", "{}", args.error);
                         });

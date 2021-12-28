@@ -367,7 +367,7 @@ impl Images {
     ///
     /// If `limits` is `None` the [`Images::limits`] is used.
     pub fn get(&mut self, source: impl Into<ImageSource>, cache_mode: impl Into<ImageCacheMode>, limits: Option<ImageLimits>) -> ImageVar {
-        self.proxy_then_get(source.into(), cache_mode.into(), limits.unwrap_or(self.limits))
+        self.proxy_then_get(source.into(), cache_mode.into(), limits.unwrap_or_else(|| self.limits.clone()))
     }
 
     /// Associate the `image` with the `key` in the cache.
@@ -381,6 +381,9 @@ impl Images {
                 .limits
                 .max_decoded_size
                 .max(image.bgra8().map(|b| b.len()).unwrap_or(0).bytes()),
+            allow_path: SourceFilter::BlockAll,
+            allow_url: SourceFilter::BlockAll,
+                
         };
         let entry = CacheEntry {
             error: Cell::new(image.is_error()),
@@ -497,6 +500,7 @@ impl Images {
     }
 
     fn proxy_then_get(&mut self, source: ImageSource, mode: ImageCacheMode, limits: ImageLimits) -> ImageVar {
+        todo!("Implement SourceFilter");
         match source {
             ImageSource::Image(r) => r,
             source => {
@@ -546,7 +550,7 @@ impl Images {
         }
 
         match source {
-            ImageSource::Read(path) => self.load_task(key, mode, limits, async move {
+            ImageSource::Read(path) => self.load_task(key, mode, limits.max_decoded_size, async move {
                 let mut r = ImageData {
                     format: path
                         .extension()
@@ -591,7 +595,7 @@ impl Images {
             }),
             ImageSource::Download(uri, accept) => {
                 let accept = accept.unwrap_or_else(|| self.download_accept());
-                self.load_task(key, mode, limits, async move {
+                self.load_task(key, mode, limits.max_decoded_size, async move {
                     let mut r = ImageData {
                         format: ImageDataFormat::Unknown,
                         r: Err(String::new()),
@@ -646,14 +650,14 @@ impl Images {
                     format: fmt,
                     r: Ok(IpcBytes::from_slice(bytes)),
                 };
-                self.load_task(key, mode, limits, async { r })
+                self.load_task(key, mode, limits.max_decoded_size, async { r })
             }
             ImageSource::Data(_, bytes, fmt) => {
                 let r = ImageData {
                     format: fmt,
                     r: Ok(IpcBytes::from_slice(&bytes)),
                 };
-                self.load_task(key, mode, limits, async { r })
+                self.load_task(key, mode, limits.max_decoded_size, async { r })
             }
             ImageSource::Image(_) => unreachable!(),
         }
@@ -691,7 +695,7 @@ impl Images {
         &mut self,
         key: Hash128,
         mode: ImageCacheMode,
-        limits: ImageLimits,
+        max_decoded_size: ByteLength,
         fetch_bytes: impl Future<Output = ImageData> + 'static,
     ) -> ImageVar {
         self.cleanup_not_cached(false);
@@ -702,13 +706,13 @@ impl Images {
                 .or_insert_with(|| CacheEntry {
                     img: var(Image::new_none(Some(key))),
                     error: Cell::new(false),
-                    max_decoded_size: limits.max_decoded_size,
+                    max_decoded_size,
                 })
                 .img
                 .clone()
         } else if let ImageCacheMode::Ignore = mode {
             let img = var(Image::new_none(None));
-            self.not_cached.push((img.downgrade(), limits.max_decoded_size));
+            self.not_cached.push((img.downgrade(), max_decoded_size));
             img
         } else {
             let img = var(Image::new_none(Some(key)));
@@ -717,7 +721,7 @@ impl Images {
                 CacheEntry {
                     img: img.clone(),
                     error: Cell::new(false),
-                    max_decoded_size: limits.max_decoded_size,
+                    max_decoded_size,
                 },
             );
             img
@@ -725,14 +729,30 @@ impl Images {
 
         let task = UiTask::new(&self.updates, fetch_bytes);
 
-        self.loading.push((task, img.clone(), limits.max_decoded_size));
+        self.loading.push((task, img.clone(), max_decoded_size));
 
         img.into_read_only()
     }
 }
 
+#[derive(Clone)]
+pub enum SourceFilter {
+    BlockAll,
+    AllowAll,
+    Custom(Rc<dyn Fn(&str) -> bool>),
+}
+impl fmt::Debug for SourceFilter {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::BlockAll => write!(f, "BlockAll"),
+            Self::AllowAll => write!(f, "AllowAll"),
+            Self::Custom(_) => write!(f, "Custom(_)"),
+        }
+    }
+}
+
 /// Limits for image loading and decoding.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Debug)]
 pub struct ImageLimits {
     /// Maximum encoded file size allowed.
     ///
@@ -746,13 +766,42 @@ pub struct ImageLimits {
     ///
     /// An error is returned if the decoded image memory would surpass the `width * height * 4`
     pub max_decoded_size: ByteLength,
+
+    pub allow_path: SourceFilter,
+
+    pub allow_url: SourceFilter,
 }
 impl ImageLimits {
     /// Disable limits.
-    pub const MAX: ImageLimits = ImageLimits {
-        max_encoded_size: ByteLength::MAX,
-        max_decoded_size: ByteLength::MAX,
-    };
+    pub fn none() -> Self {
+        ImageLimits {
+            max_encoded_size: ByteLength::MAX,
+            max_decoded_size: ByteLength::MAX,
+            allow_path: SourceFilter::AllowAll,
+            allow_url: SourceFilter::AllowAll,
+        }
+    }
+
+    pub fn with_max_encoded_size(mut self, max_encoded_size: impl Into<ByteLength>) -> Self {
+        self.max_encoded_size = max_encoded_size.into();
+        self
+    }
+
+    pub fn with_max_decoded_size(mut self, max_decoded_size: impl Into<ByteLength>) -> Self {
+        self.max_decoded_size = max_decoded_size.into();
+        self
+    }
+
+    pub fn with_allow_path(mut self, allow_path: impl Into<SourceFilter>) -> Self {
+        self.allow_path = allow_path.into();
+        self
+    }
+
+    pub fn with_allow_url(mut self, allow_url: impl Into<SourceFilter>) -> Self {
+        self.allow_url = allow_url.into();
+        self
+    }
+
 }
 impl Default for ImageLimits {
     // 100 megabytes encoded and 4096 megabytes decoded (BMP max).
@@ -760,6 +809,8 @@ impl Default for ImageLimits {
         Self {
             max_encoded_size: 100.megabytes(),
             max_decoded_size: 4096.megabytes(),
+            allow_path: SourceFilter::AllowAll,
+            allow_url: SourceFilter::BlockAll,
         }
     }
 }

@@ -703,7 +703,7 @@ pub mod image {
                     } else {
                         ImageCacheMode::Ignore
                     };
-                    let limits = *ImageLimitsVar::get(ctx);
+                    let limits = ImageLimitsVar::get_clone(ctx);
                     self.image = ContextImage::Some(ctx.services.images().get(self.source.get_clone(ctx.vars), mode, limits));
                     ctx.vars
                         .with_context_var(ContextImageVar, ContextVarData::map(ctx.vars, &self.source, &self.image), || {
@@ -734,7 +734,7 @@ pub mod image {
                         } else {
                             ImageCacheMode::Ignore
                         };
-                        let limits = *ImageLimitsVar::get(ctx);
+                        let limits = ImageLimitsVar::get_clone(ctx);
                         self.image = ContextImage::Some(ctx.services.images().get(s, mode, limits));
                     } else if let Some(enabled) = ImageCacheVar::clone_new(ctx) {
                         // cache-mode update:
@@ -742,14 +742,14 @@ pub mod image {
                         let is_cached = images.is_cached(self.image.as_ref().unwrap().get(ctx.vars));
                         if enabled != is_cached {
                             if is_cached {
-                                // must not cache but is cached, detach from cache.
+                                // must not cache, but is cached, detach from cache.
 
                                 self.image = ContextImage::Some(images.detach(self.image.take().unwrap(), ctx.vars));
                             } else {
                                 // must cache, but image is not cached, get source again.
 
                                 let source = self.source.get_clone(ctx);
-                                let limits = *ImageLimitsVar::get(ctx);
+                                let limits = ImageLimitsVar::get_clone(ctx);
                                 self.image = ContextImage::Some(ctx.services.images().get(source, ImageCacheMode::Cache, limits));
                             }
                         }
