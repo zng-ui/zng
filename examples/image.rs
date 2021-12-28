@@ -14,6 +14,10 @@ fn main() {
 
 fn app_main() {
     App::default().run_window(|ctx| {
+        // by default all "ImageSource::Download" requests are blocked, the limits can be set globally
+        // in here and overridden for each image with the "limits" property.
+        ctx.services.images().limits.allow_uri = zero_ui::core::image::UriFilter::AllowAll;
+
         img_window(
             "Image Example",
             h_stack! {

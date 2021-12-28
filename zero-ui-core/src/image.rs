@@ -4,9 +4,9 @@ use std::{
     cell::{Cell, RefCell},
     collections::HashMap,
     convert::TryFrom,
-    fmt,
+    env, fmt,
     future::Future,
-    mem,
+    mem, ops,
     path::{Path, PathBuf},
     rc::Rc,
     sync::Arc,
@@ -381,9 +381,8 @@ impl Images {
                 .limits
                 .max_decoded_size
                 .max(image.bgra8().map(|b| b.len()).unwrap_or(0).bytes()),
-            allow_path: SourceFilter::BlockAll,
-            allow_url: SourceFilter::BlockAll,
-                
+            allow_path: PathFilter::BlockAll,
+            allow_uri: UriFilter::BlockAll,
         };
         let entry = CacheEntry {
             error: Cell::new(image.is_error()),
@@ -500,22 +499,38 @@ impl Images {
     }
 
     fn proxy_then_get(&mut self, source: ImageSource, mode: ImageCacheMode, limits: ImageLimits) -> ImageVar {
-        todo!("Implement SourceFilter");
-        match source {
-            ImageSource::Image(r) => r,
-            source => {
-                let key = source.hash128().unwrap();
-                for proxy in &mut self.proxies {
-                    let r = proxy.get(&key, &source, mode);
-                    match r {
-                        ProxyGetResult::None => continue,
-                        ProxyGetResult::Cache(source, mode) => return self.proxied_get(key, source, mode, limits),
-                        ProxyGetResult::Image(img) => return img,
-                    }
+        let source = match source {
+            ImageSource::Read(path) => {
+                let path = crate::crate_util::absolute_path(&path, || env::current_dir().expect("could not access current dir"), true);
+                if !limits.allow_path.allows(&path) {
+                    let error = format!("limits filter blocked `{}`", path.display());
+                    tracing::error!("{}", error);
+                    return var(Image::dummy(Some(error))).into_read_only();
                 }
-                self.proxied_get(key, source, mode, limits)
+                ImageSource::Read(path)
+            }
+            ImageSource::Download(uri, accepts) => {
+                if !limits.allow_uri.allows(&uri) {
+                    let error = format!("limits filter blocked `{}`", uri);
+                    tracing::error!("{}", error);
+                    return var(Image::dummy(Some(error))).into_read_only();
+                }
+                ImageSource::Download(uri, accepts)
+            }
+            ImageSource::Image(r) => return r,
+            source => source,
+        };
+
+        let key = source.hash128().unwrap();
+        for proxy in &mut self.proxies {
+            let r = proxy.get(&key, &source, mode);
+            match r {
+                ProxyGetResult::None => continue,
+                ProxyGetResult::Cache(source, mode) => return self.proxied_get(key, source, mode, limits),
+                ProxyGetResult::Image(img) => return img,
             }
         }
+        self.proxied_get(key, source, mode, limits)
     }
     fn proxied_get(&mut self, key: Hash128, source: ImageSource, mode: ImageCacheMode, limits: ImageLimits) -> ImageVar {
         match mode {
@@ -735,19 +750,173 @@ impl Images {
     }
 }
 
+/// Represents a [`PathFilter`] and [`UriFilter`].
 #[derive(Clone)]
-pub enum SourceFilter {
+pub enum ImageSourceFilter<U> {
+    /// Block all requests of this type.
     BlockAll,
+    /// Allow all requests of this type.
     AllowAll,
-    Custom(Rc<dyn Fn(&str) -> bool>),
+    /// Custom filter, returns `true` to allow a request, `false` to block.
+    Custom(Rc<dyn Fn(&U) -> bool>),
 }
-impl fmt::Debug for SourceFilter {
+impl<U> ImageSourceFilter<U> {
+    /// New [`Custom`] filter.
+    ///
+    /// [`Custom`]: Self::Custom
+    pub fn custom(allow: impl Fn(&U) -> bool + 'static) -> Self {
+        Self::Custom(Rc::new(allow))
+    }
+
+    /// Combine `self` with `other`, if they both are [`Custom`], otherwise is [`BlockAll`] if any is [`BlockAll`], else
+    /// is [`AllowAll`] if any is [`AllowAll`].
+    ///
+    /// If both are [`Custom`] both filters must allow a request to pass the new filter.
+    ///
+    /// [`Custom`]: Self::Custom
+    /// [`BlockAll`]: Self::BlockAll
+    /// [`AllowAll`]: Self::AllowAll
+    pub fn and(self, other: Self) -> Self
+    where
+        U: 'static,
+    {
+        use ImageSourceFilter::*;
+        match (self, other) {
+            (BlockAll, _) | (_, BlockAll) => BlockAll,
+            (AllowAll, _) | (_, AllowAll) => AllowAll,
+            (Custom(c0), Custom(c1)) => Custom(Rc::new(move |u| c0(u) && c1(u))),
+        }
+    }
+
+    /// Combine `self` with `other`, if they both are [`Custom`], otherwise is [`AllowAll`] if any is [`AllowAll`], else
+    /// is [`BlockAll`] if any is [`BlockAll`].
+    ///
+    /// If both are [`Custom`] at least one of the filters must allow a request to pass the new filter.
+    ///
+    /// [`Custom`]: Self::Custom
+    /// [`BlockAll`]: Self::BlockAll
+    /// [`AllowAll`]: Self::AllowAll
+    pub fn or(self, other: Self) -> Self
+    where
+        U: 'static,
+    {
+        use ImageSourceFilter::*;
+        match (self, other) {
+            (AllowAll, _) | (_, AllowAll) => AllowAll,
+            (BlockAll, _) | (_, BlockAll) => BlockAll,
+            (Custom(c0), Custom(c1)) => Custom(Rc::new(move |u| c0(u) || c1(u))),
+        }
+    }
+
+    /// Returns `true` if the filter allows the request.
+    pub fn allows(&self, item: &U) -> bool {
+        match self {
+            ImageSourceFilter::BlockAll => false,
+            ImageSourceFilter::AllowAll => true,
+            ImageSourceFilter::Custom(f) => f(item),
+        }
+    }
+}
+impl<U> fmt::Debug for ImageSourceFilter<U> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::BlockAll => write!(f, "BlockAll"),
             Self::AllowAll => write!(f, "AllowAll"),
             Self::Custom(_) => write!(f, "Custom(_)"),
         }
+    }
+}
+impl<U: 'static> ops::BitAnd for ImageSourceFilter<U> {
+    type Output = Self;
+
+    fn bitand(self, rhs: Self) -> Self::Output {
+        self.and(rhs)
+    }
+}
+impl<U: 'static> ops::BitOr for ImageSourceFilter<U> {
+    type Output = Self;
+
+    fn bitor(self, rhs: Self) -> Self::Output {
+        self.or(rhs)
+    }
+}
+impl<U: 'static> ops::BitAndAssign for ImageSourceFilter<U> {
+    fn bitand_assign(&mut self, rhs: Self) {
+        *self = mem::replace(self, Self::BlockAll).and(rhs);
+    }
+}
+impl<U: 'static> ops::BitOrAssign for ImageSourceFilter<U> {
+    fn bitor_assign(&mut self, rhs: Self) {
+        *self = mem::replace(self, Self::BlockAll).or(rhs);
+    }
+}
+
+/// Represents a [`ImageSource::Read`] path request filter.
+///
+/// Only absolute, normalized paths are shared with the [`Custom`] filter, there is no relative paths or `..` components.
+///
+/// The paths are **not** canonicalized or checked if exists as a file, no system requests are made with unfiltered paths.
+///
+/// See [`ImageLimits::allow_path`] for more information.
+pub type PathFilter = ImageSourceFilter<PathBuf>;
+impl PathFilter {
+    /// Allow any file inside `dir` or sub-directories of `dir`.
+    pub fn allow_dir(dir: impl AsRef<Path>) -> Self {
+        let dir = crate::crate_util::absolute_path(dir.as_ref(), || env::current_dir().expect("could not access current dir"), true);
+        PathFilter::custom(move |r| r.starts_with(&dir))
+    }
+
+    /// Allow any path with the `ext` extension.
+    pub fn allow_ext(ext: impl Into<std::ffi::OsString>) -> Self {
+        let ext = ext.into();
+        PathFilter::custom(move |r| r.extension().map(|e| e == ext).unwrap_or(false))
+    }
+
+    /// Allow any file inside the [`env::current_dir`] or sub-directories.
+    ///
+    /// Note that the current directory can be changed and the filter always uses the
+    /// *fresh* current directory, use [`allow_dir`] to create a filter the always points
+    /// to the current directory at the filter creation time.
+    ///
+    /// [`allow_dir`]: Self::allow_dir
+    pub fn allow_current_dir() -> Self {
+        PathFilter::custom(|r| env::current_dir().map(|d| r.starts_with(&d)).unwrap_or(false))
+    }
+
+    /// Allow any file inside the current executable directory or sub-directories.
+    pub fn allow_exe_dir() -> Self {
+        if let Ok(mut p) = env::current_exe() {
+            if p.pop() {
+                return Self::allow_dir(p);
+            }
+        }
+
+        // not `BlockAll` so this can still be composed using `or`.
+        Self::custom(|_| false)
+    }
+}
+
+/// Represents a [`ImageSource::Download`] path request filter.
+///
+/// See [`ImageLimits::allow_uri`] for more information.
+pub type UriFilter = ImageSourceFilter<Uri>;
+impl UriFilter {
+    /// Allow any file from the `host` site.
+    pub fn allow_host(host: impl Into<Text>) -> Self {
+        let host = host.into();
+        UriFilter::custom(move |u| u.authority().map(|a| a.host() == host).unwrap_or(false))
+    }
+}
+
+impl<F: Fn(&PathBuf) -> bool + 'static> From<F> for PathFilter {
+    fn from(custom: F) -> Self {
+        PathFilter::custom(custom)
+    }
+}
+
+impl<F: Fn(&Uri) -> bool + 'static> From<F> for UriFilter {
+    fn from(custom: F) -> Self {
+        UriFilter::custom(custom)
     }
 }
 
@@ -767,50 +936,67 @@ pub struct ImageLimits {
     /// An error is returned if the decoded image memory would surpass the `width * height * 4`
     pub max_decoded_size: ByteLength,
 
-    pub allow_path: SourceFilter,
+    /// Filter for [`ImageSource::Read`] paths.
+    ///
+    /// Only paths allowed by this filter are loaded
+    pub allow_path: PathFilter,
 
-    pub allow_url: SourceFilter,
+    /// Filter for [`ImageSource::Download`] URIs.
+    pub allow_uri: UriFilter,
 }
 impl ImageLimits {
-    /// Disable limits.
+    /// No size limits, allow all paths and URIs.
     pub fn none() -> Self {
         ImageLimits {
             max_encoded_size: ByteLength::MAX,
             max_decoded_size: ByteLength::MAX,
-            allow_path: SourceFilter::AllowAll,
-            allow_url: SourceFilter::AllowAll,
+            allow_path: PathFilter::AllowAll,
+            allow_uri: UriFilter::AllowAll,
         }
     }
 
+    /// Set the [`max_encoded_size`].
+    ///
+    /// [`max_encoded_size`]: Self::max_encoded_size
     pub fn with_max_encoded_size(mut self, max_encoded_size: impl Into<ByteLength>) -> Self {
         self.max_encoded_size = max_encoded_size.into();
         self
     }
 
+    /// Set the [`max_decoded_size`].
+    ///
+    /// [`max_encoded_size`]: Self::max_encoded_size
     pub fn with_max_decoded_size(mut self, max_decoded_size: impl Into<ByteLength>) -> Self {
         self.max_decoded_size = max_decoded_size.into();
         self
     }
 
-    pub fn with_allow_path(mut self, allow_path: impl Into<SourceFilter>) -> Self {
+    /// Set the [`allow_path`].
+    ///
+    /// [`allow_path`]: Self::allow_path
+    pub fn with_allow_path(mut self, allow_path: impl Into<PathFilter>) -> Self {
         self.allow_path = allow_path.into();
         self
     }
 
-    pub fn with_allow_url(mut self, allow_url: impl Into<SourceFilter>) -> Self {
-        self.allow_url = allow_url.into();
+    /// Set the [`allow_uri`].
+    ///
+    /// [`allow_uri`]: Self::allow_uri
+    pub fn with_allow_uri(mut self, allow_url: impl Into<UriFilter>) -> Self {
+        self.allow_uri = allow_url.into();
         self
     }
-
 }
 impl Default for ImageLimits {
-    // 100 megabytes encoded and 4096 megabytes decoded (BMP max).
+    /// 100 megabytes encoded and 4096 megabytes decoded (BMP max).
+    ///
+    /// Allows all paths, blocks all URIs.
     fn default() -> Self {
         Self {
             max_encoded_size: 100.megabytes(),
             max_decoded_size: 4096.megabytes(),
-            allow_path: SourceFilter::AllowAll,
-            allow_url: SourceFilter::BlockAll,
+            allow_path: PathFilter::AllowAll,
+            allow_uri: UriFilter::BlockAll,
         }
     }
 }

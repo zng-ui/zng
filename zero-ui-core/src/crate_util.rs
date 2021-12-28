@@ -7,6 +7,7 @@ use std::{
     fmt,
     hash::{BuildHasher, BuildHasherDefault, Hasher},
     num::{NonZeroU32, NonZeroU64},
+    path::{Path, PathBuf},
     sync::{
         atomic::{AtomicU32, AtomicU64, AtomicU8, Ordering},
         Arc, Weak,
@@ -610,6 +611,58 @@ impl<I: Clone + Copy + fmt::Debug> fmt::Display for IdNameError<I> {
     }
 }
 impl<I: Clone + Copy + fmt::Debug> std::error::Error for IdNameError<I> {}
+
+/// Resolves `..` components, without any system request.
+///
+/// Source: https://github.com/rust-lang/cargo/blob/fede83ccf973457de319ba6fa0e36ead454d2e20/src/cargo/util/paths.rs#L61
+pub fn normalize_path(path: &Path) -> PathBuf {
+    use std::path::Component;
+
+    let mut components = path.components().peekable();
+    let mut ret = if let Some(c @ Component::Prefix(..)) = components.peek().cloned() {
+        components.next();
+        PathBuf::from(c.as_os_str())
+    } else {
+        PathBuf::new()
+    };
+
+    for component in components {
+        match component {
+            Component::Prefix(..) => unreachable!(),
+            Component::RootDir => {
+                ret.push(component.as_os_str());
+            }
+            Component::CurDir => {}
+            Component::ParentDir => {
+                ret.pop();
+            }
+            Component::Normal(c) => {
+                ret.push(c);
+            }
+        }
+    }
+    ret
+}
+
+/// Rresolves relative paths in the `root` and normalizes then.
+///
+/// The `base` is only evaluated if the `path` is relative.
+///
+/// If `allow_escape` is `false`, relative paths with `..` cannot reference outside of `base`.
+pub fn absolute_path(path: &Path, base: impl FnOnce() -> PathBuf, allow_escape: bool) -> PathBuf {
+    if path.is_absolute() {
+        normalize_path(path)
+    } else {
+        let mut dir = base();
+        if allow_escape {
+            dir.push(path);
+            normalize_path(&dir)
+        } else {
+            dir.push(normalize_path(path));
+            dir
+        }
+    }
+}
 
 #[cfg(test)]
 pub mod tests {
