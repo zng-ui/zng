@@ -39,7 +39,7 @@ fn main_window(ctx: &mut WindowContext) -> Window {
         background_color = background.clone();
         title;
         on_state_changed = hn!(|_, args: &WindowChangedArgs| {
-            println!("state: {:?}", args.new_state());
+            println!("state: {:?}", args.new_state().unwrap());
         });
         content = h_stack! {
             spacing = 40;

@@ -1240,8 +1240,8 @@ pub trait CommandShortcutExt {
     ///
     /// Always returns `false` for the [`Custom`] scope.
     ///
-    /// [`App`]: use crate::command::CommandScope::App
-    /// [`Custom`]: use crate::command::CommandScope::Custom
+    /// [`App`]: crate::command::CommandScope::App
+    /// [`Custom`]: crate::command::CommandScope::Custom
     fn shortcut_event_matches<Vr: WithVarsRead>(self, vars: &Vr, args: &ShortcutArgs) -> bool;
 }
 impl<C: Command> CommandShortcutExt for C {
