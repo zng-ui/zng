@@ -644,7 +644,7 @@ pub fn normalize_path(path: &Path) -> PathBuf {
     ret
 }
 
-/// Rresolves relative paths in the `root` and normalizes then.
+/// Resolves relative paths in the `root` and normalizes then.
 ///
 /// The `base` is only evaluated if the `path` is relative.
 ///

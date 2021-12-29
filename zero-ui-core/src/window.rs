@@ -2640,6 +2640,7 @@ impl AppWindow {
                     descriptor,
                 ),
                 capture_image,
+                window_size: self.size.to_px(scale_factor.0),
             })
         } else {
             RawFrameRenderedEvent.notify(

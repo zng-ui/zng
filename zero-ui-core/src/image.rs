@@ -858,6 +858,8 @@ impl<U: 'static> ops::BitOrAssign for ImageSourceFilter<U> {
 /// The paths are **not** canonicalized or checked if exists as a file, no system requests are made with unfiltered paths.
 ///
 /// See [`ImageLimits::allow_path`] for more information.
+///
+/// [`Custom`]: ImageSourceFilter::Custom
 pub type PathFilter = ImageSourceFilter<PathBuf>;
 impl PathFilter {
     /// Allow any file inside `dir` or sub-directories of `dir`.
@@ -965,7 +967,7 @@ impl ImageLimits {
 
     /// Set the [`max_decoded_size`].
     ///
-    /// [`max_encoded_size`]: Self::max_encoded_size
+    /// [`max_decoded_size`]: Self::max_encoded_size
     pub fn with_max_decoded_size(mut self, max_decoded_size: impl Into<ByteLength>) -> Self {
         self.max_decoded_size = max_decoded_size.into();
         self
