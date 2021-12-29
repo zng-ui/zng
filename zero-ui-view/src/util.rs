@@ -529,17 +529,3 @@ pub(crate) fn v_key_to_key(v_key: VKey) -> Key {
     // SAFETY: If the `match` above compiles then we have an exact copy of VKey.
     unsafe { std::mem::transmute(v_key) }
 }
-
-pub(crate) struct RunOnDrop<F: FnOnce()>(Option<F>);
-impl<F: FnOnce()> RunOnDrop<F> {
-    pub fn new(clean: F) -> Self {
-        RunOnDrop(Some(clean))
-    }
-}
-impl<F: FnOnce()> Drop for RunOnDrop<F> {
-    fn drop(&mut self) {
-        if let Some(clean) = self.0.take() {
-            clean();
-        }
-    }
-}

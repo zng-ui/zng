@@ -290,7 +290,7 @@ pub(crate) struct App<S> {
     gl_manager: GlContextManager,
     window_target: *const EventLoopWindowTarget<AppEvent>,
     app_sender: S,
-    request_recv: flume::Receiver<Request>,
+    request_recv: flume::Receiver<RequestEvent>,
 
     response_sender: ResponseSender,
     event_sender: EventSender,
@@ -348,26 +348,30 @@ impl App<()> {
                 Ok(app_ev) => match app_ev {
                     AppEvent::Request => {
                         while let Ok(request) = app.request_recv.try_recv() {
-                            let response = app.respond(request);
-                            if response.must_be_send() && app.response_sender.send(response).is_err() {
-                                app.exited = true;
-                                break 'app_loop;
+                            match request {
+                                RequestEvent::Request(request) => {
+                                    let response = app.respond(request);
+                                    if response.must_be_send() && app.response_sender.send(response).is_err() {
+                                        app.exited = true;
+                                        break 'app_loop;
+                                    }
+                                }
+                                RequestEvent::FrameReady(id, msg) => {
+                                    let r = if let Some(s) = app.surfaces.iter_mut().find(|s| s.id() == id) {
+                                        Some(s.on_frame_ready(msg, &mut app.image_cache))
+                                    } else {
+                                        None
+                                    };
+                                    if let Some((frame_id, image)) = r {
+                                        app.notify(Event::FrameRendered(EventFrameRendered {
+                                            window: id,
+                                            frame: frame_id,
+                                            frame_image: image,
+                                            cursor_hits: HitTestResult::default(),
+                                        }));
+                                    }
+                                }
                             }
-                        }
-                    }
-                    AppEvent::FrameReady(id, msg) => {
-                        let r = if let Some(s) = app.surfaces.iter_mut().find(|s| s.id() == id) {
-                            Some(s.on_frame_ready(msg, &mut app.image_cache))
-                        } else {
-                            None
-                        };
-                        if let Some((frame_id, image)) = r {
-                            app.notify(Event::FrameRendered(EventFrameRendered {
-                                window: id,
-                                frame: frame_id,
-                                frame_image: image,
-                                cursor_hits: HitTestResult::default(),
-                            }));
                         }
                     }
                     AppEvent::Notify(ev) => {
@@ -447,16 +451,20 @@ impl App<()> {
                     GEvent::UserEvent(ev) => match ev {
                         AppEvent::Request => {
                             while let Ok(req) = app.request_recv.try_recv() {
-                                let rsp = app.respond(req);
-                                if rsp.must_be_send() && app.response_sender.send(rsp).is_err() {
-                                    // lost connection to app-process
-                                    app.exited = true;
-                                    *flow = ControlFlow::Exit;
+                                match req {
+                                    RequestEvent::Request(req) => {
+                                        let rsp = app.respond(req);
+                                        if rsp.must_be_send() && app.response_sender.send(rsp).is_err() {
+                                            // lost connection to app-process
+                                            app.exited = true;
+                                            *flow = ControlFlow::Exit;
+                                        }
+                                    }
+                                    RequestEvent::FrameReady(wid, msg) => app.on_frame_ready(wid, msg),
                                 }
                             }
                         }
                         AppEvent::Notify(ev) => app.notify(ev),
-                        AppEvent::FrameReady(wid, msg) => app.on_frame_ready(wid, msg),
                         AppEvent::RefreshMonitors => app.refresh_monitors(),
                         AppEvent::ParentProcessExited => {
                             app.exited = true;
@@ -485,7 +493,7 @@ impl App<()> {
     }
 }
 impl<S: AppEventSender> App<S> {
-    fn new(app_sender: S, response_sender: ResponseSender, event_sender: EventSender, request_recv: flume::Receiver<Request>) -> Self {
+    fn new(app_sender: S, response_sender: ResponseSender, event_sender: EventSender, request_recv: flume::Receiver<RequestEvent>) -> Self {
         App {
             headless: false,
             started: false,
@@ -540,20 +548,26 @@ impl<S: AppEventSender> App<S> {
 
                 let deadline = Instant::now() + Duration::from_millis(300);
 
-                // flush already pending frames.
+                // await already pending frames.
                 if self.windows[i].is_rendering_frame() {
                     tracing::debug!("resize requested while still rendering");
 
-                    if let Some((frame_id, image, cursor_hits)) = self.windows[i].wait_frame_ready(deadline, &mut self.image_cache) {
-                        let id = self.windows[i].id();
-
-                        self.notify(Event::FrameRendered(EventFrameRendered {
-                            window: id,
-                            frame: frame_id,
-                            frame_image: image,
-                            cursor_hits,
-                        }));
-                        self.flush_coalesced();
+                    // forward requests until webrender finishes or timeout.
+                    while let Ok(req) = self.request_recv.recv_deadline(deadline) {
+                        match req {
+                            RequestEvent::Request(req) => {
+                                let rsp = self.respond(req);
+                                if rsp.must_be_send() {
+                                    let _ = self.response_sender.send(rsp);
+                                }
+                            }
+                            RequestEvent::FrameReady(id, msg) => {
+                                self.on_frame_ready(id, msg);
+                                if id == self.windows[i].id() {
+                                    break;
+                                }
+                            }
+                        }
                     }
                 }
 
@@ -578,21 +592,26 @@ impl<S: AppEventSender> App<S> {
                 loop {
                     match self.request_recv.recv_deadline(deadline) {
                         Ok(req) => {
-                            received_frame = req.is_frame(id);
-                            if received_frame || req.affects_window_rect(id) {
-                                // received new frame
-                                self.windows[i].on_resized();
-                                let rsp = self.respond(req);
-                                if rsp.must_be_send() {
-                                    let _ = self.response_sender.send(rsp);
+                            match req {
+                                RequestEvent::Request(req) => {
+                                    received_frame = req.is_frame(id);
+                                    if received_frame || req.affects_window_rect(id) {
+                                        // received new frame
+                                        self.windows[i].on_resized();
+                                        let rsp = self.respond(req);
+                                        if rsp.must_be_send() {
+                                            let _ = self.response_sender.send(rsp);
+                                        }
+                                        break;
+                                    } else {
+                                        // received some other request, forward it.
+                                        let rsp = self.respond(req);
+                                        if rsp.must_be_send() {
+                                            let _ = self.response_sender.send(rsp);
+                                        }
+                                    }
                                 }
-                                break;
-                            } else {
-                                // received some other request, forward it.
-                                let rsp = self.respond(req);
-                                if rsp.must_be_send() {
-                                    let _ = self.response_sender.send(rsp);
-                                }
+                                RequestEvent::FrameReady(id, msg) => self.on_frame_ready(id, msg),
                             }
                         }
 
@@ -607,17 +626,24 @@ impl<S: AppEventSender> App<S> {
                     }
                 }
 
-                // if we are still within 300ms, wait webrender, and if a frame was rendered here, notify.
+                // if we are still within 300ms, await webrender.
                 if received_frame && deadline > Instant::now() {
-                    if let Some((frame_id, image, cursor_hits)) = self.windows[i].wait_frame_ready(deadline, &mut self.image_cache) {
-                        let id = self.windows[i].id();
-
-                        self.notify(Event::FrameRendered(EventFrameRendered {
-                            window: id,
-                            frame: frame_id,
-                            frame_image: image,
-                            cursor_hits,
-                        }));
+                    // forward requests until webrender finishes or timeout.
+                    while let Ok(req) = self.request_recv.recv_deadline(deadline) {
+                        match req {
+                            RequestEvent::Request(req) => {
+                                let rsp = self.respond(req);
+                                if rsp.must_be_send() {
+                                    let _ = self.response_sender.send(rsp);
+                                }
+                            }
+                            RequestEvent::FrameReady(id, msg) => {
+                                self.on_frame_ready(id, msg);
+                                if id == self.windows[i].id() {
+                                    break;
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -1424,12 +1450,10 @@ impl<S: AppEventSender> Api for App<S> {
 /// Message inserted in the event loop from the view-process.
 #[derive(Debug)]
 pub(crate) enum AppEvent {
-    /// One or more requests are pending in the deserialized request channel.
+    /// One or more [`RequestEvent`] are pending in the request channel.
     Request,
     /// Notify an event.
     Notify(Event),
-    /// A frame is ready for redraw.
-    FrameReady(WindowId, FrameReadyMsg),
     /// Re-query available monitors and send update event.
     #[cfg_attr(not(windows), allow(unused))]
     RefreshMonitors,
@@ -1438,6 +1462,18 @@ pub(crate) enum AppEvent {
 
     /// Image finished decoding, must call [`ImageCache::loaded`].
     ImageLoaded(ImageLoadedData),
+}
+
+/// Message inserted in the request loop from the view-process.
+///
+/// These *events* are detached from [`AppEvent`] so that we can continue receiving while
+/// the main loop is blocked in a resize operation.
+#[derive(Debug)]
+enum RequestEvent {
+    /// A request from the [`Api`].
+    Request(Request),
+    /// Webrender finished rendering a frame, ready for redraw.
+    FrameReady(WindowId, FrameReadyMsg),
 }
 
 #[derive(Debug)]
@@ -1454,25 +1490,68 @@ pub(crate) trait AppEventSender: Clone + Send + 'static {
 
     /// Send a request.
     fn request(&self, req: Request) -> Result<(), Disconnected>;
+
+    /// Send a frame-ready.
+    fn frame_ready(&self, window_id: WindowId, msg: FrameReadyMsg) -> Result<(), Disconnected>;
 }
 /// headless
-impl AppEventSender for (flume::Sender<AppEvent>, flume::Sender<Request>) {
+impl AppEventSender for (flume::Sender<AppEvent>, flume::Sender<RequestEvent>) {
     fn send(&self, ev: AppEvent) -> Result<(), Disconnected> {
         self.0.send(ev).map_err(|_| Disconnected)
     }
     fn request(&self, req: Request) -> Result<(), Disconnected> {
-        self.1.send(req).map_err(|_| Disconnected)?;
+        self.1.send(RequestEvent::Request(req)).map_err(|_| Disconnected)?;
+        self.send(AppEvent::Request)
+    }
+
+    fn frame_ready(&self, window_id: WindowId, msg: FrameReadyMsg) -> Result<(), Disconnected> {
+        self.1.send(RequestEvent::FrameReady(window_id, msg)).map_err(|_| Disconnected)?;
         self.send(AppEvent::Request)
     }
 }
 /// headed
-impl AppEventSender for (EventLoopProxy<AppEvent>, flume::Sender<Request>) {
+impl AppEventSender for (EventLoopProxy<AppEvent>, flume::Sender<RequestEvent>) {
     fn send(&self, ev: AppEvent) -> Result<(), Disconnected> {
         self.0.send_event(ev).map_err(|_| Disconnected)
     }
 
     fn request(&self, req: Request) -> Result<(), Disconnected> {
-        self.1.send(req).map_err(|_| Disconnected)?;
+        self.1.send(RequestEvent::Request(req)).map_err(|_| Disconnected)?;
         self.send(AppEvent::Request)
+    }
+
+    fn frame_ready(&self, window_id: WindowId, msg: FrameReadyMsg) -> Result<(), Disconnected> {
+        self.1.send(RequestEvent::FrameReady(window_id, msg)).map_err(|_| Disconnected)?;
+        self.send(AppEvent::Request)
+    }
+}
+
+/// Webrender frame-ready notifier.
+pub(crate) struct WrNotifier<S> {
+    id: WindowId,
+    sender: S,
+}
+impl<S: AppEventSender> WrNotifier<S> {
+    pub fn create(id: WindowId, sender: S) -> Box<dyn RenderNotifier> {
+        Box::new(WrNotifier { id, sender })
+    }
+}
+impl<S: AppEventSender> RenderNotifier for WrNotifier<S> {
+    fn clone(&self) -> Box<dyn RenderNotifier> {
+        Box::new(Self {
+            id: self.id,
+            sender: self.sender.clone(),
+        })
+    }
+
+    fn wake_up(&self, _: bool) {}
+
+    fn new_frame_ready(&self, document_id: DocumentId, _scrolled: bool, composite_needed: bool, _render_time_ns: Option<u64>) {
+        let msg = FrameReadyMsg {
+            document_id,
+            composite_needed,
+            // scrolled,
+        };
+        let _ = self.sender.frame_ready(self.id, msg);
     }
 }

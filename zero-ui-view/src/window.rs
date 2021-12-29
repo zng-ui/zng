@@ -1,14 +1,4 @@
-use std::{
-    cell::Cell,
-    collections::VecDeque,
-    fmt, mem,
-    rc::Rc,
-    sync::{
-        atomic::{AtomicBool, Ordering},
-        Arc,
-    },
-    time::Instant,
-};
+use std::{cell::Cell, collections::VecDeque, fmt, mem, rc::Rc, sync::Arc};
 
 use glutin::{
     event_loop::EventLoopWindowTarget,
@@ -20,7 +10,7 @@ use webrender::{
     api::{
         ApiHitTester, BuiltDisplayList, DisplayListPayload, DocumentId, DynamicProperties, FontInstanceKey, FontInstanceOptions,
         FontInstancePlatformOptions, FontKey, FontVariation, HitTestResult, HitTesterRequest, IdNamespace, ImageKey, PipelineId,
-        RenderNotifier, ScrollClamping,
+        ScrollClamping,
     },
     RenderApi, Renderer, RendererOptions, Transaction,
 };
@@ -37,7 +27,7 @@ use crate::{
     gl::{GlContext, GlContextManager},
     image_cache::{Image, ImageCache, ImageUseMap, WrImageCache},
     util::{self, CursorToWinit, DipToWinit, WinitToDip, WinitToPx},
-    AppEvent, AppEventSender, FrameReadyMsg,
+    AppEvent, AppEventSender, FrameReadyMsg, WrNotifier,
 };
 
 enum HitTester {
@@ -81,9 +71,6 @@ pub(crate) struct Window {
     context: GlContext,
     renderer: Option<Renderer>,
     capture_mode: bool,
-
-    redirect_frame: Arc<AtomicBool>,
-    redirect_frame_recv: flume::Receiver<FrameReadyMsg>,
 
     pending_frames: VecDeque<(FrameId, bool, Option<EnteredSpan>)>,
     rendered_frame_id: FrameId,
@@ -259,21 +246,8 @@ impl Window {
             ..Default::default()
         };
 
-        let redirect_frame = Arc::new(AtomicBool::new(false));
-        let (rf_sender, redirect_frame_recv) = flume::unbounded();
-
-        let (mut renderer, sender) = webrender::Renderer::new(
-            context.gl().clone(),
-            Box::new(Notifier {
-                window_id: id,
-                sender: event_sender,
-                redirect: redirect_frame.clone(),
-                redirect_sender: rf_sender,
-            }),
-            opts,
-            None,
-        )
-        .unwrap();
+        let (mut renderer, sender) =
+            webrender::Renderer::new(context.gl().clone(), WrNotifier::create(id, event_sender), opts, None).unwrap();
         renderer.set_external_image_handler(WrImageCache::new_boxed());
 
         let api = sender.create_api();
@@ -298,8 +272,6 @@ impl Window {
             context,
             capture_mode: cfg.capture_mode,
             renderer: Some(renderer),
-            redirect_frame,
-            redirect_frame_recv,
             video_mode: cfg.video_mode,
             api,
             document_id,
@@ -1045,28 +1017,6 @@ impl Window {
         !self.pending_frames.is_empty()
     }
 
-    /// Capture the next frame-ready event.
-    ///
-    /// Returns `Some` if received before `deadline`, if `Some` already redraw too.
-    pub fn wait_frame_ready<S: AppEventSender>(
-        &mut self,
-        deadline: Instant,
-        images: &mut ImageCache<S>,
-    ) -> Option<(FrameId, Option<ImageLoadedData>, HitTestResult)> {
-        self.redirect_frame.store(true, Ordering::Relaxed);
-        let stop_redirect = util::RunOnDrop::new(|| self.redirect_frame.store(false, Ordering::Relaxed));
-
-        let received = self.redirect_frame_recv.recv_deadline(deadline);
-
-        drop(stop_redirect);
-
-        if let Ok(msg) = received {
-            Some(self.on_frame_ready(msg, images).0)
-        } else {
-            None
-        }
-    }
-
     #[cfg(windows)]
     pub fn is_active_window(&self) -> bool {
         let hwnd = glutin::platform::windows::WindowExtWindows::hwnd(&self.window);
@@ -1153,37 +1103,5 @@ impl Drop for Window {
         self.context.drop_before_winit();
 
         // the winit window will be dropped normally after this.
-    }
-}
-
-struct Notifier<S> {
-    window_id: WindowId,
-    sender: S,
-    redirect: Arc<AtomicBool>,
-    redirect_sender: flume::Sender<FrameReadyMsg>,
-}
-impl<S: AppEventSender> RenderNotifier for Notifier<S> {
-    fn clone(&self) -> Box<dyn RenderNotifier> {
-        Box::new(Notifier {
-            window_id: self.window_id,
-            sender: self.sender.clone(),
-            redirect: self.redirect.clone(),
-            redirect_sender: self.redirect_sender.clone(),
-        })
-    }
-
-    fn wake_up(&self, _: bool) {}
-
-    fn new_frame_ready(&self, document_id: DocumentId, _scrolled: bool, composite_needed: bool, _render_time_ns: Option<u64>) {
-        let msg = FrameReadyMsg {
-            document_id,
-            composite_needed,
-            // scrolled,
-        };
-        if self.redirect.load(Ordering::Relaxed) {
-            let _ = self.redirect_sender.send(msg);
-        } else {
-            let _ = self.sender.send(AppEvent::FrameReady(self.window_id, msg));
-        }
     }
 }

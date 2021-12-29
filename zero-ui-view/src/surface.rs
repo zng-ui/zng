@@ -6,8 +6,7 @@ use glutin::platform::unix::HeadlessContextExt;
 use webrender::{
     api::{
         BuiltDisplayList, DisplayListPayload, DocumentId, DynamicProperties, FontInstanceKey, FontInstanceOptions,
-        FontInstancePlatformOptions, FontKey, FontVariation, HitTestResult, IdNamespace, ImageKey, PipelineId, RenderNotifier,
-        ScrollClamping,
+        FontInstancePlatformOptions, FontKey, FontVariation, HitTestResult, IdNamespace, ImageKey, PipelineId, ScrollClamping,
     },
     RenderApi, Renderer, RendererOptions, Transaction,
 };
@@ -19,7 +18,7 @@ use zero_ui_view_api::{
 use crate::{
     gl::{GlContext, GlContextManager},
     image_cache::{Image, ImageCache, ImageUseMap, WrImageCache},
-    AppEvent, AppEventSender, FrameReadyMsg,
+    AppEvent, AppEventSender, FrameReadyMsg, WrNotifier,
 };
 
 /// A headless "window".
@@ -86,7 +85,7 @@ impl Surface {
         let device_size = cfg.size.to_px(cfg.scale_factor).to_wr_device();
 
         let (mut renderer, sender) =
-            webrender::Renderer::new(context.gl().clone(), Box::new(Notifier { id, sender: event_sender }), opts, None).unwrap();
+            webrender::Renderer::new(context.gl().clone(), WrNotifier::create(id, event_sender), opts, None).unwrap();
         renderer.set_external_image_handler(WrImageCache::new_boxed());
 
         let api = sender.create_api();
@@ -368,29 +367,5 @@ impl Drop for Surface {
     fn drop(&mut self) {
         self.context.make_current();
         self.renderer.take().unwrap().deinit();
-    }
-}
-
-struct Notifier<S> {
-    id: WindowId,
-    sender: S,
-}
-impl<S: AppEventSender> RenderNotifier for Notifier<S> {
-    fn clone(&self) -> Box<dyn RenderNotifier> {
-        Box::new(Self {
-            id: self.id,
-            sender: self.sender.clone(),
-        })
-    }
-
-    fn wake_up(&self, _: bool) {}
-
-    fn new_frame_ready(&self, document_id: DocumentId, _scrolled: bool, composite_needed: bool, _render_time_ns: Option<u64>) {
-        let msg = FrameReadyMsg {
-            document_id,
-            composite_needed,
-            // scrolled,
-        };
-        let _ = self.sender.send(AppEvent::FrameReady(self.id, msg));
     }
 }
