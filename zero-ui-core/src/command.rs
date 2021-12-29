@@ -161,7 +161,7 @@ macro_rules! command {
             /// Returns `true` if notified, only notifies if the command is enabled.
             #[inline]
             #[allow(unused)]
-            pub fn notify<Evs: $crate::event::WithEvents>(self, events: &mut Evs, parameter: Option<std::rc::Rc<dyn std::any::Any>>) -> bool {
+            pub fn notify<Evs: $crate::event::WithEvents>(self, events: &mut Evs, parameter: Option<$crate::command::CommandParam>) -> bool {
                 let scope = $crate::command::Command::scope(self);
                 let enabled = Self::COMMAND.with(move |c| c.enabled_value(scope));
                 if enabled {
@@ -242,7 +242,7 @@ macro_rules! command {
                 $crate::command::ScopedCommand{ command: self, scope: scope.into() }
             }
 
-            fn notify_cmd<Evs: $crate::event::WithEvents>(self, events: &mut Evs, parameter: Option<std::rc::Rc<dyn std::any::Any>>) -> bool {
+            fn notify_cmd<Evs: $crate::event::WithEvents>(self, events: &mut Evs, parameter: Option<$crate::command::CommandParam>) -> bool {
                 self.notify(events, parameter)
             }
         }
@@ -385,7 +385,7 @@ pub trait Command: Event<Args = CommandArgs> {
     /// The `parameter` is an optional value for the command handler.
     ///
     /// Returns `true` if notified, only notifies if the command is enabled.
-    fn notify_cmd<Evs: WithEvents>(self, events: &mut Evs, parameter: Option<Rc<dyn Any>>) -> bool;
+    fn notify_cmd<Evs: WithEvents>(self, events: &mut Evs, parameter: Option<CommandParam>) -> bool;
 }
 
 /// Represents the scope of a [`Command`].
@@ -607,7 +607,7 @@ impl<C: Command> ScopedCommand<C> {
     /// The `parameter` is an optional value for the command handler.
     ///
     /// Returns `true` if notified, only notifies if the command is enabled.
-    pub fn notify<Evs: WithEvents>(self, events: &mut Evs, parameter: Option<Rc<dyn Any>>) -> bool {
+    pub fn notify<Evs: WithEvents>(self, events: &mut Evs, parameter: Option<CommandParam>) -> bool {
         let scope = self.scope();
         let enabled = self.thread_local_value().with(move |c| c.enabled_value(scope));
         if enabled {
@@ -700,7 +700,7 @@ impl<C: Command> Command for ScopedCommand<C> {
         }
     }
 
-    fn notify_cmd<Evs: WithEvents>(self, events: &mut Evs, parameter: Option<Rc<dyn Any>>) -> bool {
+    fn notify_cmd<Evs: WithEvents>(self, events: &mut Evs, parameter: Option<CommandParam>) -> bool {
         self.notify(events, parameter)
     }
 
@@ -708,6 +708,39 @@ impl<C: Command> Command for ScopedCommand<C> {
         let mut any = self.command.as_any();
         any.1 = self.scope;
         any
+    }
+}
+
+/// Represents a reference counted `dyn Any` object.
+#[derive(Clone)]
+pub struct CommandParam(pub Rc<dyn Any>);
+impl CommandParam {
+    /// New param.
+    pub fn new(param: impl Any + 'static) -> Self {
+        CommandParam(Rc::new(param))
+    }
+
+    /// Gets the [`TypeId`] of the parameter.
+    #[inline]
+    pub fn type_id(&self) -> TypeId {
+        self.0.type_id()
+    }
+
+    /// Gets a typed reference to the parameter if it is of type `T`.
+    #[inline]
+    pub fn downcast_ref<T: Any>(&self) -> Option<&T> {
+        self.0.downcast_ref()
+    }
+
+    /// Returns `true` if the parameter type is `T`.
+    #[inline]
+    pub fn is<T: Any>(&self) -> bool {
+        self.0.is::<T>()
+    }
+}
+impl fmt::Debug for CommandParam {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_tuple("CommandParam").field(&self.0.type_id()).finish()
     }
 }
 
@@ -758,7 +791,7 @@ impl AnyCommand {
     ///
     /// Returns `true` if notified, only notifies if the command is enabled.
     #[inline]
-    pub fn notify<Evs: WithEvents>(self, events: &mut Evs, parameter: Option<Rc<dyn Any>>) -> bool {
+    pub fn notify<Evs: WithEvents>(self, events: &mut Evs, parameter: Option<CommandParam>) -> bool {
         let enabled = self.0.with(|c| c.enabled_value(self.1));
 
         if enabled {
@@ -843,7 +876,7 @@ impl Command for AnyCommand {
         self.1
     }
 
-    fn notify_cmd<Evs: WithEvents>(self, events: &mut Evs, parameter: Option<Rc<dyn Any>>) -> bool {
+    fn notify_cmd<Evs: WithEvents>(self, events: &mut Evs, parameter: Option<CommandParam>) -> bool {
         self.notify(events, parameter)
     }
 
@@ -1396,7 +1429,7 @@ crate::event_args! {
     /// Event args for command events.
     pub struct CommandArgs {
         /// Optional parameter for the command handler.
-        pub parameter: Option<Rc<dyn Any>>,
+        pub parameter: Option<CommandParam>,
 
         /// Scope of command that notified.
         pub scope: CommandScope,

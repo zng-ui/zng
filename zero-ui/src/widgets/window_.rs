@@ -592,7 +592,7 @@ pub mod window {
         // TODO read-only properties.
     }
 
-    /// Commands that control the window.
+    /// Commands that control the scoped window.
     ///
     /// The window widget implements all these commands scoped to the window ID.
     pub mod commands {

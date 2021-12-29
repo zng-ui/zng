@@ -32,7 +32,7 @@ pub mod scrollable {
             mode(impl IntoVar<ScrollMode>) = ScrollMode::ALL;
         }
 
-        /// Scrollbar generator for both orientations applicable to all scrollable widget descendants.
+        /// Scrollbar generator for both orientations.
         ///
         /// This property sets both [`v_scrollbar_view`] and [`h_scrollbar_view`] to the same `generator`.
         ///
@@ -40,11 +40,30 @@ pub mod scrollable {
         /// [`h_scrollbar_view`]: #wp-h_scrollbar_view
         scrollbar_view;
 
+        /// Horizontal scrollbar generator.
+        h_scrollbar_view;
         /// Vertical scrollbar generator.
         v_scrollbar_view;
 
-        /// Horizontal scrollbar generator.
-        h_scrollbar_view;
+        /// Horizontal and vertical offsets used when scrolling.
+        ///
+        /// This property sets the [`h_scroll_unit`] and [`v_scroll_unit`].
+        ///
+        /// [`h_scroll_unit`]: #wp-h_scroll_unit
+        /// [`v_scroll_unit`]: #wp-v_scroll_unit
+        scroll_units;
+        h_scroll_unit;
+        v_scroll_unit;
+
+        /// Horizontal and vertical offsets used when page-scrolling.
+        ///
+        /// This property sets the [`h_page_unit`] and [`v_page_unit`].
+        ///
+        /// [`h_page_unit`]: fn@h_page_unit
+        /// [`v_page_unit`]: fn@v_page_unit
+        page_units;
+        h_page_unit;
+        v_page_unit;
 
         /// Clip content to only be visible within the scrollable bounds, including under scrollbars.
         ///
@@ -158,7 +177,319 @@ pub mod scrollable {
     }
 
     fn new_context(child: impl UiNode) -> impl UiNode {
-        with_context_var(child, ScrollContextVar, Some(ScrollContext::new()))
+        let child = with_context_var(child, ScrollContextVar, Some(ScrollContext::new()));
+        let child = nodes::scroll_commands_node(child);
+        let child = nodes::page_commands_node(child);
+        nodes::scroll_to_command_node(child)
+    }
+
+    /// Commands that control the scoped scrollable widget.
+    ///
+    /// The scrollable widget implements all of this commands scoped to its widget ID.
+    pub mod commands {
+        use super::*;
+        use zero_ui::core::gesture::*;
+
+        command! {
+            /// Represents the scrollable **scroll up** by one [`v_scroll_unit`] action.
+            ///
+            /// # Metadata
+            ///
+            /// This command initializes with the following metadata:
+            ///
+            /// | metadata     | value                                                  |
+            /// |--------------|--------------------------------------------------------|
+            /// | [`name`]     | "Scroll Up"                                            |
+            /// | [`info`]     | "Scroll the focused scrollable UP by one scroll unit." |
+            /// | [`shortcut`] | `Up`                                                   |
+            ///
+            /// [`name`]: CommandNameExt
+            /// [`info`]: CommandInfoExt
+            /// [`shortcut`]: CommandShortcutExt
+            /// [`v_scroll_unit`]: fn@super::properties::v_scroll_unit
+            pub ScrollUpCommand
+                .init_name("Scroll Up")
+                .init_info("Scroll the focused scrollable UP by one scroll unit.")
+                .init_shortcut([shortcut!(Up)]);
+
+            /// Represents the scrollable **scroll down** by one [`v_scroll_unit`] action.
+            ///
+            /// # Metadata
+            ///
+            /// This command initializes with the following metadata:
+            ///
+            /// | metadata     | value                                                    |
+            /// |--------------|----------------------------------------------------------|
+            /// | [`name`]     | "Scroll Down"                                            |
+            /// | [`info`]     | "Scroll the focused scrollable DOWN by one scroll unit." |
+            /// | [`shortcut`] | `Down`                                                   |
+            ///
+            /// [`name`]: CommandNameExt
+            /// [`info`]: CommandInfoExt
+            /// [`shortcut`]: CommandShortcutExt
+            /// [`v_scroll_unit`]: fn@super::properties::v_scroll_unit
+            pub ScrollDownCommand
+                .init_name("Scroll Down")
+                .init_info("Scroll the focused scrollable DOWN by one scroll unit.")
+                .init_shortcut([shortcut!(Down)]);
+
+            /// Represents the scrollable **scroll left** by one [`h_scroll_unit`] action.
+            ///
+            /// # Metadata
+            ///
+            /// This command initializes with the following metadata:
+            ///
+            /// | metadata     | value                                                    |
+            /// |--------------|----------------------------------------------------------|
+            /// | [`name`]     | "Scroll Left"                                            |
+            /// | [`info`]     | "Scroll the focused scrollable LEFT by one scroll unit." |
+            /// | [`shortcut`] | `Left`                                                   |
+            ///
+            /// [`name`]: CommandNameExt
+            /// [`info`]: CommandInfoExt
+            /// [`shortcut`]: CommandShortcutExt
+            /// [`h_scroll_unit`]: fn@super::properties::h_scroll_unit
+            pub ScrollLeftCommand
+                .init_name("Scroll Left")
+                .init_info("Scroll the focused scrollable LEFT by one scroll unit.")
+                .init_shortcut([shortcut!(Left)]);
+
+            /// Represents the scrollable **scroll right** by one [`h_scroll_unit`] action.
+            ///
+            /// # Metadata
+            ///
+            /// This command initializes with the following metadata:
+            ///
+            /// | metadata     | value                                                     |
+            /// |--------------|-----------------------------------------------------------|
+            /// | [`name`]     | "Scroll Right"                                            |
+            /// | [`info`]     | "Scroll the focused scrollable RIGHT by one scroll unit." |
+            /// | [`shortcut`] | `Down`                                                    |
+            ///
+            /// [`name`]: CommandNameExt
+            /// [`info`]: CommandInfoExt
+            /// [`shortcut`]: CommandShortcutExt
+            /// [`h_scroll_unit`]: fn@super::properties::h_scroll_unit
+            pub ScrollRightCommand
+                .init_name("Scroll Right")
+                .init_info("Scroll the focused scrollable RIGHT by one scroll unit.")
+                .init_shortcut([shortcut!(Right)]);
+
+
+            /// Represents the scrollable **page up** by one [`v_page_unit`] action.
+            ///
+            /// # Metadata
+            ///
+            /// This command initializes with the following metadata:
+            ///
+            /// | metadata     | value                                                 |
+            /// |--------------|-------------------------------------------------------|
+            /// | [`name`]     | "Page Up"                                             |
+            /// | [`info`]     | "Scroll the focused scrollable UP by one page unit."  |
+            /// | [`shortcut`] | `PageUp`                                              |
+            ///
+            /// [`name`]: CommandNameExt
+            /// [`info`]: CommandInfoExt
+            /// [`shortcut`]: CommandShortcutExt
+            /// [`v_page_unit`]: fn@super::properties::v_page_unit
+            pub PageUpCommand
+                .init_name("Page Up")
+                .init_info("Scroll the focused scrollable UP by one page unit.")
+                .init_shortcut([shortcut!(PageUp)]);
+
+            /// Represents the scrollable **page down** by one [`v_page_unit`] action.
+            ///
+            /// # Metadata
+            ///
+            /// This command initializes with the following metadata:
+            ///
+            /// | metadata     | value                                                   |
+            /// |--------------|---------------------------------------------------------|
+            /// | [`name`]     | "Page Down"                                             |
+            /// | [`info`]     | "Scroll the focused scrollable DOWN by one page unit."  |
+            /// | [`shortcut`] | `PageDown`                                              |
+            ///
+            /// [`name`]: CommandNameExt
+            /// [`info`]: CommandInfoExt
+            /// [`shortcut`]: CommandShortcutExt
+            /// [`v_page_unit`]: fn@super::properties::v_page_unit
+            pub PageDownCommand
+                .init_name("Page Down")
+                .init_info("Scroll the focused scrollable DOWN by one page unit.")
+                .init_shortcut([shortcut!(PageDown)]);
+
+            /// Represents the scrollable **page left** by one [`h_page_unit`] action.
+            ///
+            /// # Metadata
+            ///
+            /// This command initializes with the following metadata:
+            ///
+            /// | metadata     | value                                                  |
+            /// |--------------|--------------------------------------------------------|
+            /// | [`name`]     | "Page Left"                                            |
+            /// | [`info`]     | "Scroll the focused scrollable LEFT by one page unit." |
+            /// | [`shortcut`] | `ALT+PageLeft`                                         |
+            ///
+            /// [`name`]: CommandNameExt
+            /// [`info`]: CommandInfoExt
+            /// [`shortcut`]: CommandShortcutExt
+            /// [`h_scroll_unit`]: fn@super::properties::h_scroll_unit
+            pub PageLeftCommand
+                .init_name("Page Left")
+                .init_info("Scroll the focused scrollable LEFT by one page unit.")
+                .init_shortcut([shortcut!(ALT+PageUp)]);
+
+            /// Represents the scrollable **page right** by one [`h_page_unit`] action.
+            ///
+            /// # Metadata
+            ///
+            /// This command initializes with the following metadata:
+            ///
+            /// | metadata     | value                                                   |
+            /// |--------------|---------------------------------------------------------|
+            /// | [`name`]     | "Page Right"                                            |
+            /// | [`info`]     | "Scroll the focused scrollable RIGHT by one page unit." |
+            /// | [`shortcut`] | `ALT+PageDown`                                          |
+            ///
+            /// [`name`]: CommandNameExt
+            /// [`info`]: CommandInfoExt
+            /// [`shortcut`]: CommandShortcutExt
+            /// [`h_page_unit`]: fn@super::properties::h_page_unit
+            pub PageRightCommand
+                .init_name("Page Right")
+                .init_info("Scroll the focused scrollable RIGHT by one page unit.")
+                .init_shortcut([shortcut!(ALT+PageDown)]);
+
+            /// Represents the action of scrolling until a child widget is fully visible.
+            ///
+            /// # Metadata
+            ///
+            /// This command initializes with no extra metadata.
+            ///
+            /// # Parameter
+            ///
+            /// This command requires a parameter to work, it can be the [`WidgetId`] of a child widget or
+            /// a [`ScrollToRequest`] instance.
+            ///
+            /// You can use the [`scroll_to`] function to invoke this command.
+            pub ScrollToCommand;
+        }
+
+        /// Parameters for the [`ScrollToCommand`].
+        #[derive(Debug, Clone)]
+        pub struct ScrollToRequest {
+            /// Widget that will ve scrolled into view.
+            pub widget_id: WidgetId,
+
+            /// How much the scroll position will change to showcase the target widget.
+            pub mode: ScrollToMode,
+        }
+        impl ScrollToRequest {
+            /// Pack the request into a command parameter.
+            pub fn to_parameter(self) -> CommandParam {
+                CommandParam::new(self)
+            }
+
+            /// Extract a clone of the request from the command parameter if it is of a compatible type.
+            pub fn from_parameter(p: &CommandParam) -> Option<Self> {
+                if let Some(req) = p.downcast_ref::<Self>() {
+                    Some(req.clone())
+                } else {
+                    p.downcast_ref::<WidgetId>().map(|id| ScrollToRequest {
+                        widget_id: *id,
+                        mode: ScrollToMode::default(),
+                    })
+                }
+            }
+
+            /// Extract a clone of the request from [`CommandArgs::parameter`] if it is set to a compatible type and
+            /// stop-propagation was not requested for the event.
+            pub fn from_args(args: &CommandArgs) -> Option<Self> {
+                if let Some(p) = &args.parameter {
+                    if args.stop_propagation_requested() {
+                        None
+                    } else {
+                        Self::from_parameter(p)
+                    }
+                } else {
+                    None
+                }
+            }
+        }
+        impl_from_and_into_var! {
+            fn from(widget_id: WidgetId) -> ScrollToRequest {
+                ScrollToRequest {
+                    widget_id,
+                    mode: ScrollToMode::default()
+                }
+            }
+        }
+
+        /// Defines how much the [`ScrollToCommand`] will scroll to showcase the target widget.
+        #[derive(Debug, Clone)]
+        pub enum ScrollToMode {
+            /// Scroll will change only just enogh so that the widget inner rect is fully visible with the optional
+            /// extra margin offsets.
+            Minimal {
+                /// Extra margin added so that the widget is touching the scrollable edge.
+                margin: SideOffsets,
+            },
+            /// Scroll so that the point relative to the widget inner rectangle is at the same screen point on
+            /// the scrollable viewport.
+            Center {
+                /// A point relative to the target widget inner size.
+                widget_point: Point,
+                /// A point relative to the scrollable viewport.
+                scrollable_point: Point,
+            },
+        }
+        impl ScrollToMode {
+            /// New [`Minimal`] mode.
+            ///
+            /// [`Minimal`]: Self::Minimal
+            pub fn minimal(margin: impl Into<SideOffsets>) -> Self {
+                ScrollToMode::Minimal { margin: margin.into() }
+            }
+
+            /// New [`Center`] mode.
+            ///
+            /// [`Center`]: Self::Center
+            pub fn center_points(widget_point: impl Into<Point>, scrollable_point: impl Into<Point>) -> Self {
+                ScrollToMode::Center {
+                    widget_point: widget_point.into(),
+                    scrollable_point: scrollable_point.into(),
+                }
+            }
+
+            /// New [`Center`] mode using the center points of widget and scrollable.
+            ///
+            /// [`Center`]: Self::Center
+            pub fn center() -> Self {
+                Self::center_points(Point::center(), Point::center())
+            }
+        }
+        impl Default for ScrollToMode {
+            /// Minimal with margin 10.
+            fn default() -> Self {
+                Self::minimal(10)
+            }
+        }
+
+        /// Scroll the scrollable widget so that the child widget is fully visible.
+        ///
+        /// This function is a helper for firing a [`ScrollToCommand`].
+        pub fn scroll_to<Evs: WithEvents>(events: &mut Evs, scrollable_id: WidgetId, child_id: WidgetId, mode: impl Into<ScrollToMode>) {
+            ScrollToCommand.scoped(scrollable_id).notify(
+                events,
+                Some(
+                    ScrollToRequest {
+                        widget_id: child_id,
+                        mode: mode.into(),
+                    }
+                    .to_parameter(),
+                ),
+            );
+        }
     }
 
     /// Properties that configure [`scrollable!`] widgets from parent widgets.
@@ -179,6 +510,38 @@ pub mod scrollable {
 
             /// View generator for the little square that joins the two scrollbars when both are visible.
             pub struct ScrollBarJoinerViewVar: ViewGenerator<()> = view_generator!(|_, _| fill_color(scrollbar::theme::BackgroundVar));
+
+            /// Vertical offset added when the [`ScrollDownCommand`] runs and removed when the [`ScrollUpCommand`] runs.
+            ///
+            /// Relative lengths are relative to the viewport height, default value is `1.dip()`.
+            ///
+            /// [`ScrollDownCommand`]: crate::widgets::scrollable::commands::ScrollDownCommand
+            /// [`ScrollUpCommand`]: crate::widgets::scrollable::commands::ScrollUpCommand
+            pub struct VerticalScrollUnitVar: Length = 1.dip();
+
+            /// Horizontal offset added when the [`ScrollRightCommand`] runs and removed when the [`ScrollLeftCommand`] runs.
+            ///
+            /// Relative lengths are relative to the viewport width, default value is `1.dip()`.
+            ///
+            /// [`ScrollLeftCommand`]: crate::widgets::scrollable::commands::ScrollLeftCommand
+            /// [`ScrollRightCommand`]: crate::widgets::scrollable::commands::ScrollRightCommand
+            pub struct HorizontalScrollUnitVar: Length = 1.dip();
+
+            /// Vertical offset added when the [`PageDownCommand`] runs and removed when the [`PageUpCommand`] runs.
+            ///
+            /// Relative lengths are relative to the viewport height, default value is `100.pct()`.
+            ///
+            /// [`ScrollDownCommand`]: crate::widgets::scrollable::commands::ScrollDownCommand
+            /// [`ScrollUpCommand`]: crate::widgets::scrollable::commands::ScrollUpCommand
+            pub struct VerticalPageUnitVar: Length = 100.pct().into();
+
+            /// Horizontal offset added when the [`PageRightCommand`] runs and removed when the [`PageLeftCommand`] runs.
+            ///
+            /// Relative lengths are relative to the viewport width, default value is `100.pct()`.
+            ///
+            /// [`PageLeftCommand`]: crate::widgets::scrollable::commands::PageLeftCommand
+            /// [`PageRightCommand`]: crate::widgets::scrollable::commands::PageRightCommand
+            pub struct HorizontalPageUnitVar: Length = 100.pct().into();
         }
 
         fn default_scrollbar() -> ViewGenerator<ScrollBarArgs> {
@@ -217,6 +580,74 @@ pub mod scrollable {
             let generator = generator.into_var();
             let child = v_scrollbar_view(child, generator.clone());
             h_scrollbar_view(child, generator)
+        }
+
+        /// Vertical offset added when the [`ScrollDownCommand`] runs and removed when the [`ScrollUpCommand`] runs.
+        ///
+        /// Relative lengths are relative to the viewport height.
+        ///
+        /// [`ScrollUpCommand`]: crate::widgets::scrollable::commands::ScrollUpCommand
+        /// [`ScrollDownCommand`]: crate::widgets::scrollable::commands::ScrollDownCommand
+        #[property(context, default(VerticalScrollUnitVar::default_value()))]
+        pub fn v_scroll_unit(child: impl UiNode, unit: impl IntoVar<Length>) -> impl UiNode {
+            with_context_var(child, VerticalScrollUnitVar, unit)
+        }
+
+        /// Horizontal offset added when the [`ScrollRightCommand`] runs and removed when the [`ScrollLeftCommand`] runs.
+        ///
+        /// Relative lengths are relative to the viewport width.
+        ///
+        /// [`ScrollLeftCommand`]: crate::widgets::scrollable::commands::ScrollLeftCommand
+        /// [`ScrollRightCommand`]: crate::widgets::scrollable::commands::ScrollRightCommand
+        #[property(context, default(HorizontalScrollUnitVar::default_value()))]
+        pub fn h_scroll_unit(child: impl UiNode, unit: impl IntoVar<Length>) -> impl UiNode {
+            with_context_var(child, HorizontalScrollUnitVar, unit)
+        }
+
+        /// Horizontal and vertical offsets used when scrolling.
+        ///
+        /// This property sets the [`h_scroll_unit`] and [`v_scroll_unit`].
+        ///
+        /// [`h_scroll_unit`]: fn@h_scroll_unit
+        /// [`v_scroll_unit`]: fn@v_scroll_unit
+        #[property(context, default(HorizontalScrollUnitVar::default_value(), VerticalScrollUnitVar::default_value()))]
+        pub fn scroll_units(child: impl UiNode, horizontal: impl IntoVar<Length>, vertical: impl IntoVar<Length>) -> impl UiNode {
+            let child = h_scroll_unit(child, horizontal);
+            v_scroll_unit(child, vertical)
+        }
+
+        /// Vertical offset added when the [`PageDownCommand`] runs and removed when the [`PageUpCommand`] runs.
+        ///
+        /// Relative lengths are relative to the viewport height.
+        ///
+        /// [`PageUpCommand`]: crate::widgets::scrollable::commands::PageUpCommand
+        /// [`PageDownCommand`]: crate::widgets::scrollable::commands::PageDownCommand
+        #[property(context, default(VerticalPageUnitVar::default_value()))]
+        pub fn v_page_unit(child: impl UiNode, unit: impl IntoVar<Length>) -> impl UiNode {
+            with_context_var(child, VerticalPageUnitVar, unit)
+        }
+
+        /// Horizontal offset added when the [`PageRightCommand`] runs and removed when the [`PageLeftCommand`] runs.
+        ///
+        /// Relative lengths are relative to the viewport width.
+        ///
+        /// [`PageLeftCommand`]: crate::widgets::scrollable::commands::PageLeftCommand
+        /// [`PageRightCommand`]: crate::widgets::scrollable::commands::PageRightCommand
+        #[property(context, default(HorizontalPageUnitVar::default_value()))]
+        pub fn h_page_unit(child: impl UiNode, unit: impl IntoVar<Length>) -> impl UiNode {
+            with_context_var(child, HorizontalPageUnitVar, unit)
+        }
+
+        /// Horizontal and vertical offsets used when page-scrolling.
+        ///
+        /// This property sets the [`h_page_unit`] and [`v_page_unit`].
+        ///
+        /// [`h_page_unit`]: fn@h_page_unit
+        /// [`v_page_unit`]: fn@v_page_unit
+        #[property(context, default(HorizontalPageUnitVar::default_value(), VerticalPageUnitVar::default_value()))]
+        pub fn page_units(child: impl UiNode, horizontal: impl IntoVar<Length>, vertical: impl IntoVar<Length>) -> impl UiNode {
+            let child = h_page_unit(child, horizontal);
+            v_page_unit(child, vertical)
         }
 
         /// Arguments for scrollbar view generators.
@@ -258,6 +689,7 @@ pub mod scrollable {
 
     /// UI nodes used for building the scrollable widget.
     pub mod nodes {
+        use super::commands::*;
         use super::*;
 
         /// The actual content presenter.
@@ -394,6 +826,227 @@ pub mod scrollable {
         /// [scrollbar joiner]: ScrollBarJoinerViewVar
         pub fn scrollbar_joiner_presenter() -> impl UiNode {
             ViewGenerator::presenter_default(ScrollBarJoinerViewVar)
+        }
+
+        /// Create a node that implements [`ScrollUpCommand`], [`ScrollDownCommand`],
+        /// [`ScrollLeftCommand`] and [`ScrollRightCommand`] scoped on the widget.
+        pub fn scroll_commands_node(child: impl UiNode) -> impl UiNode {
+            struct ScrollCommandsNode<C> {
+                child: C,
+
+                up: CommandHandle,
+                down: CommandHandle,
+                left: CommandHandle,
+                right: CommandHandle,
+            }
+            #[impl_ui_node(child)]
+            impl<C: UiNode> UiNode for ScrollCommandsNode<C> {
+                fn init(&mut self, ctx: &mut WidgetContext) {
+                    let scope = ctx.path.widget_id();
+
+                    self.up = ScrollUpCommand.scoped(scope).new_handle(ctx, false);
+                    self.down = ScrollDownCommand.scoped(scope).new_handle(ctx, false);
+                    self.left = ScrollDownCommand.scoped(scope).new_handle(ctx, false);
+                    self.right = ScrollDownCommand.scoped(scope).new_handle(ctx, false);
+
+                    self.child.init(ctx);
+                }
+
+                fn deinit(&mut self, ctx: &mut WidgetContext) {
+                    self.child.deinit(ctx);
+
+                    self.up = CommandHandle::dummy();
+                    self.down = CommandHandle::dummy();
+                    self.left = CommandHandle::dummy();
+                    self.right = CommandHandle::dummy();
+                }
+
+                fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
+                    let scope = ctx.path.widget_id();
+
+                    subscriptions
+                        .event(ScrollUpCommand.scoped(scope))
+                        .event(ScrollDownCommand.scoped(scope))
+                        .event(ScrollLeftCommand.scoped(scope))
+                        .event(ScrollRightCommand.scoped(scope));
+
+                    self.child.subscriptions(ctx, subscriptions);
+                }
+
+                fn event<A: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &A) {
+                    let scope = ctx.path.widget_id();
+
+                    if let Some(args) = ScrollUpCommand.scoped(scope).update(args) {                        
+                        self.child.event(ctx, args);
+
+                        if !args.stop_propagation_requested() {
+                            let _unit = VerticalScrollUnitVar::get(ctx);
+                            // TODO get viewport height 
+                        }
+                    } else if let Some(args) = ScrollDownCommand.scoped(scope).update(args) {
+                        self.child.event(ctx, args);
+
+                        if !args.stop_propagation_requested() {
+
+                        }
+                    } else if let Some(args) = ScrollLeftCommand.scoped(scope).update(args) {
+                        self.child.event(ctx, args);
+
+                        if !args.stop_propagation_requested() {
+
+                        }
+                    } else if let Some(args) = ScrollRightCommand.scoped(scope).update(args) {
+                        self.child.event(ctx, args);
+
+                        if !args.stop_propagation_requested() {
+
+                        }
+                    } else {
+                        self.child.event(ctx, args);
+                    }
+                }
+            }
+
+            ScrollCommandsNode {
+                child,
+
+                up: CommandHandle::dummy(),
+                down: CommandHandle::dummy(),
+                left: CommandHandle::dummy(),
+                right: CommandHandle::dummy(),
+            }
+        }
+
+        /// Create a node that implements [`PageUpCommand`], [`PageDownCommand`],
+        /// [`PageLeftCommand`] and [`PageRightCommand`] scoped on the widget.
+        pub fn page_commands_node(child: impl UiNode) -> impl UiNode {
+            struct PageCommandsNode<C> {
+                child: C,
+
+                up: CommandHandle,
+                down: CommandHandle,
+                left: CommandHandle,
+                right: CommandHandle,
+            }
+            #[impl_ui_node(child)]
+            impl<C: UiNode> UiNode for PageCommandsNode<C> {
+                fn init(&mut self, ctx: &mut WidgetContext) {
+                    let scope = ctx.path.widget_id();
+
+                    self.up = ScrollUpCommand.scoped(scope).new_handle(ctx, false);
+                    self.down = ScrollDownCommand.scoped(scope).new_handle(ctx, false);
+                    self.left = ScrollDownCommand.scoped(scope).new_handle(ctx, false);
+                    self.right = ScrollDownCommand.scoped(scope).new_handle(ctx, false);
+
+                    self.child.init(ctx);
+                }
+
+                fn deinit(&mut self, ctx: &mut WidgetContext) {
+                    self.child.deinit(ctx);
+
+                    self.up = CommandHandle::dummy();
+                    self.down = CommandHandle::dummy();
+                    self.left = CommandHandle::dummy();
+                    self.right = CommandHandle::dummy();
+                }
+
+                fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
+                    let scope = ctx.path.widget_id();
+
+                    subscriptions
+                        .event(PageUpCommand.scoped(scope))
+                        .event(PageDownCommand.scoped(scope))
+                        .event(PageLeftCommand.scoped(scope))
+                        .event(PageRightCommand.scoped(scope));
+
+                    self.child.subscriptions(ctx, subscriptions);
+                }
+
+                fn event<A: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &A) {
+                    let scope = ctx.path.widget_id();
+
+                    if let Some(args) = PageUpCommand.scoped(scope).update(args) {                        
+                        self.child.event(ctx, args);
+
+                        if !args.stop_propagation_requested() {
+                            let _unit = VerticalPageUnitVar::get(ctx);
+                            // TODO get viewport height 
+                        }
+                    } else if let Some(args) = PageDownCommand.scoped(scope).update(args) {
+                        self.child.event(ctx, args);
+
+                        if !args.stop_propagation_requested() {
+
+                        }
+                    } else if let Some(args) = PageLeftCommand.scoped(scope).update(args) {
+                        self.child.event(ctx, args);
+
+                        if !args.stop_propagation_requested() {
+
+                        }
+                    } else if let Some(args) = PageRightCommand.scoped(scope).update(args) {
+                        self.child.event(ctx, args);
+
+                        if !args.stop_propagation_requested() {
+
+                        }
+                    } else {
+                        self.child.event(ctx, args);
+                    }
+                }
+            }
+
+            PageCommandsNode {
+                child,
+
+                up: CommandHandle::dummy(),
+                down: CommandHandle::dummy(),
+                left: CommandHandle::dummy(),
+                right: CommandHandle::dummy(),
+            }
+        }
+
+        /// Create a node that implements [`ScrollToCommand`] scoped on the widget. 
+        pub fn scroll_to_command_node(child: impl UiNode) -> impl UiNode {
+            struct ScrollToCommandNode<C> {
+                child: C,
+
+                handle: CommandHandle,
+            }
+            #[impl_ui_node(child)]
+            impl<C: UiNode> UiNode for ScrollToCommandNode<C> {
+                fn init(&mut self, ctx: &mut WidgetContext) {
+                    self.handle = ScrollToCommand.scoped(ctx.path.widget_id()).new_handle(ctx, true);
+                    self.child.init(ctx);
+                }
+
+                fn deinit(&mut self, ctx: &mut WidgetContext) {
+                    self.handle = CommandHandle::dummy();
+                    self.child.deinit(ctx);
+                }
+
+                fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
+                    subscriptions.event(ScrollToCommand.scoped(ctx.path.widget_id()));
+                    self.child.subscriptions(ctx, subscriptions);
+                }
+
+                fn event<A: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &A) {
+                    if let Some(args) = ScrollToCommand.scoped(ctx.path.widget_id()).update(args) {
+                        if let Some(_request) = ScrollToRequest::from_args(args) {
+                            // TODO
+                        }
+                        self.child.event(ctx, args);
+                    } else {
+                        self.child.event(ctx, args);
+                    }
+                }
+            }
+
+            ScrollToCommandNode {
+                child,
+
+                handle: CommandHandle::dummy(),
+            }
         }
     }
 
