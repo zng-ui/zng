@@ -620,6 +620,9 @@ pub struct EventFrameRendered {
     pub cursor_hits: HitTestResult,
 }
 
+/// Identifies a frame request for colaborative resize in [`WindowChanged`].
+pub type FrameWaitId = u32;
+
 /// [`Event::WindowChanged`] payload.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct WindowChanged {
@@ -635,15 +638,17 @@ pub struct WindowChanged {
     /// The window new size, is `None` if the window size did not change.
     pub size: Option<DipSize>,
 
-    /// If the view-process is blocking the event loop for a time awaiting for a frame for the new `size`.
+    /// If the view-process is blocking the event loop for a time waiting for a frame for the new `size` this
+    /// ID must be send with the frame to signal that it is the frame for the new size.
     ///
-    /// Event loop implementations can do this to resize without visible artifacts
-    /// like the clear color flashing on the window corners, there is a timeout of this delay but it
-    /// can be a noticable stutter, a [`render`] or [`render_update`] request for the window unblocks the loop.
+    /// Event loop implementations can use this to resize without visible artifacts
+    /// like the clear color flashing on the window corners, there is a timeout to this delay but it
+    /// can be a noticable stutter, a [`render`] or [`render_update`] request for the window unblocks the loop early
+    /// to continue the resize operation.
     ///
     /// [`render`]: crate::Api::render
     /// [`render_update`]: crate::Api::render_update
-    pub waiting_frame: bool,
+    pub frame_wait_id: Option<FrameWaitId>,
 
     /// What caused the change, end-user/OS modifying the window or the app.
     pub cause: EventCause,
@@ -656,19 +661,19 @@ impl WindowChanged {
             state: None,
             position: Some(position),
             size: None,
-            waiting_frame: false,
+            frame_wait_id: None,
             cause,
         }
     }
 
     /// Create an event that represents window resized.
-    pub fn resized(window: WindowId, size: DipSize, cause: EventCause, waiting_frame: bool) -> Self {
+    pub fn resized(window: WindowId, size: DipSize, cause: EventCause, frame_wait_id: Option<FrameWaitId>) -> Self {
         WindowChanged {
             window,
             state: None,
             position: None,
             size: Some(size),
-            waiting_frame,
+            frame_wait_id,
             cause,
         }
     }
@@ -680,7 +685,7 @@ impl WindowChanged {
             state: Some(state),
             position: None,
             size: None,
-            waiting_frame: false,
+            frame_wait_id: None,
             cause,
         }
     }
@@ -1088,7 +1093,9 @@ impl Event {
             }
 
             // window changed.
-            (WindowChanged(change), WindowChanged(n_change)) if change.window == n_change.window && change.cause == n_change.cause => {
+            (WindowChanged(change), WindowChanged(n_change))
+                if change.window == n_change.window && change.cause == n_change.cause && change.frame_wait_id.is_none() =>
+            {
                 if n_change.state.is_some() {
                     change.state = n_change.state;
                 }
@@ -1101,7 +1108,7 @@ impl Event {
                     change.size = n_change.size;
                 }
 
-                change.waiting_frame |= n_change.waiting_frame;
+                change.frame_wait_id = n_change.frame_wait_id;
             }
             // scale factor.
             (
@@ -1252,6 +1259,9 @@ pub struct FrameRequest {
     ///
     /// The [`Event::FrameImageReady`] is sent with the image.
     pub capture_image: bool,
+
+    /// Identifies this frame as the response to the [`WindowChanged`] resized frame request.
+    pub wait_id: Option<FrameWaitId>,
 }
 impl fmt::Debug for FrameRequest {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -1260,6 +1270,7 @@ impl fmt::Debug for FrameRequest {
             .field("pipeline_id", &self.pipeline_id)
             .field("document_id", &self.document_id)
             .field("capture_image", &self.pipeline_id)
+            .field("wait_id", &self.wait_id)
             .finish_non_exhaustive()
     }
 }
@@ -1294,6 +1305,9 @@ pub struct FrameUpdateRequest {
     ///
     /// The [`Event::FrameImageReady`] is send with the image.
     pub capture_image: bool,
+
+    /// Identifies this frame as the response to the [`WindowChanged`] resized frame request.
+    pub wait_id: Option<FrameWaitId>,
 }
 impl FrameUpdateRequest {
     /// A request that does nothing, apart from re-rendering the frame.
@@ -1308,6 +1322,7 @@ impl FrameUpdateRequest {
             scroll_updates: vec![],
             clear_color: None,
             capture_image: false,
+            wait_id: None,
         }
     }
 

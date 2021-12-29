@@ -17,6 +17,8 @@
 
 use std::{path::PathBuf, time::Duration};
 
+use zero_ui_view_api::FrameWaitId;
+
 use super::{
     raw_device_events::AxisId,
     view_process::{MonitorInfo, TextAntiAliasing, ViewImage, WindowState},
@@ -144,15 +146,17 @@ event_args! {
         /// If the app or operating system caused the change.
         pub cause: EventCause,
 
-        /// If the view-process is blocking the event loop awaiting for a frame for the new `size`.
+        /// If the view-process is blocking the event loop for a time waiting for a frame for the new `size` this
+        /// ID must be send with the frame to signal that it is the frame for the new size.
         ///
-        /// Event loop implementations can do this to resize without visible artifacts
-        /// like the clear color flashing on the window corners, there is a timeout of this delay but it
-        /// can be a noticable stutter, a [`render`] or [`render_update`] request for the window unblocks the loop.
+        /// Event loop implementations can use this to resize without visible artifacts
+        /// like the clear color flashing on the window corners, there is a timeout to this delay but it
+        /// can be a noticable stutter, a [`render`] or [`render_update`] request for the window unblocks the loop early
+        /// to continue the resize operation.
         ///
         /// [`render`]: crate::app::view_process::ViewRenderer::render
         /// [`render_update`]: crate::app::view_process::ViewRenderer::render_update
-        pub waiting_frame: bool,
+        pub frame_wait_id: Option<FrameWaitId>,
 
         ..
 

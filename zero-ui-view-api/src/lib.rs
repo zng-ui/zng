@@ -56,9 +56,13 @@ use webrender_api::{DocumentId, FontInstanceKey, FontKey, HitTestResult, IdNames
 #[cfg_attr(feature = "ipc", derive(Serialize, Deserialize))]
 pub struct Request(RequestData);
 impl Request {
-    /// Returns `true` if the request represents a new frame or frame update for the window.
-    pub fn is_frame(&self, window_id: WindowId) -> bool {
-        matches!(&self.0, RequestData::render { id, .. } | RequestData::render_update { id, .. } if *id == window_id)
+    /// Returns `true` if the request represents a new frame or frame update for the window with the same wait ID.
+    pub fn is_frame(&self, window_id: WindowId, wait_id: Option<FrameWaitId>) -> bool {
+        match &self.0 { // TODO detect can skip frame.
+            RequestData::render { id, frame } if *id == window_id && frame.wait_id == wait_id => true,
+            RequestData::render_update { id, frame } if *id == window_id && frame.wait_id == wait_id => true,
+            _ => false,
+        }
     }
 
     /// Returns `true` if the request affects position or size of the window.

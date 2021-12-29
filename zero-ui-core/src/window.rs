@@ -10,7 +10,7 @@ use std::{
 };
 
 use linear_map::LinearMap;
-use zero_ui_view_api::{webrender_api::HitTestResult, FrameUpdateRequest, IpcBytes};
+use zero_ui_view_api::{webrender_api::HitTestResult, FrameUpdateRequest, FrameWaitId, IpcBytes};
 
 pub use crate::app::view_process::{CursorIcon, EventCause, MonitorInfo, RenderMode, VideoMode, WindowState, WindowTheme};
 
@@ -1168,11 +1168,12 @@ impl AppExtension for WindowManager {
 
                 window.vars.0.restore_rect.set_ne(ctx.vars, restore_rect);
 
-                if args.waiting_frame {
+                if args.frame_wait_id.is_some() {
                     // the view process is waiting a new frame or update, this will send one.
                     window.context.update.layout = true;
                     window.context.update.render = WindowRenderUpdate::Render;
                     window.pending_render = None;
+                    window.resized_frame_wait_id = args.frame_wait_id;
                     ctx.updates.layout_and_render();
                 }
 
@@ -1882,6 +1883,8 @@ struct AppWindow {
     // request for after the current frame finishes rendering in the view-process.
     pending_render: Option<WindowRenderUpdate>,
 
+    resized_frame_wait_id: Option<FrameWaitId>,
+
     position: Option<DipPoint>,
     size: DipSize,
     min_size: DipSize,
@@ -1976,6 +1979,8 @@ impl AppWindow {
             max_size: DipSize::zero(),
             clear_color: RenderColor::TRANSPARENT,
 
+            resized_frame_wait_id: None,
+
             deinited: false,
         };
         let info = AppWindowInfo {
@@ -2058,7 +2063,7 @@ impl AppWindow {
                     } else if !restore_only {
                         RawWindowChangedEvent.notify(
                             ctx.events,
-                            RawWindowChangedArgs::now(self.id, None, Some(pos), None, EventCause::App, false),
+                            RawWindowChangedArgs::now(self.id, None, Some(pos), None, EventCause::App, None),
                         );
                     }
 
@@ -2237,7 +2242,7 @@ impl AppWindow {
                 // headless "resize"
                 RawWindowChangedEvent.notify(
                     ctx.events,
-                    RawWindowChangedArgs::now(self.id, None, None, Some(self.size), EventCause::App, false),
+                    RawWindowChangedArgs::now(self.id, None, None, Some(self.size), EventCause::App, None),
                 );
             }
 
@@ -2303,7 +2308,7 @@ impl AppWindow {
                 // headless "resize"
                 RawWindowChangedEvent.notify(
                     ctx.events,
-                    RawWindowChangedArgs::now(self.id, None, None, self.size, EventCause::App, false),
+                    RawWindowChangedArgs::now(self.id, None, None, self.size, EventCause::App, None),
                 );
             }
             // the `actual_size` is set from the resize event only.
@@ -2360,7 +2365,7 @@ impl AppWindow {
 
             if self.size != size {
                 self.size = size;
-                RawWindowChangedEvent.notify(ctx, RawWindowChangedArgs::now(self.id, None, None, size, EventCause::App, false));
+                RawWindowChangedEvent.notify(ctx, RawWindowChangedArgs::now(self.id, None, None, size, EventCause::App, None));
             }
 
             let (size, min_size, max_size) = self.layout_size(ctx, true);
@@ -2434,7 +2439,7 @@ impl AppWindow {
                 self.headed = Some(headed);
                 ctx.services.windows().windows_info.get_mut(&self.id).unwrap().renderer = self.renderer.clone();
 
-                let mut syn_args = RawWindowChangedArgs::now(self.id, None, None, None, EventCause::App, false);
+                let mut syn_args = RawWindowChangedArgs::now(self.id, None, None, None, EventCause::App, None);
 
                 if self.size != data.size || self.context.update.layout {
                     self.size = data.size;
@@ -2508,7 +2513,7 @@ impl AppWindow {
                     RawWindowFocusEvent.notify(ctx.events, args)
                 }
 
-                let syn_args = RawWindowChangedArgs::new(timestamp, self.id, None, self.position, Some(self.size), EventCause::App, false);
+                let syn_args = RawWindowChangedArgs::new(timestamp, self.id, None, self.position, Some(self.size), EventCause::App, None);
                 RawWindowChangedEvent.notify(ctx.events, syn_args);
 
                 let scale_factor = self.headless_monitor.as_ref().unwrap().scale_factor;
@@ -2640,7 +2645,7 @@ impl AppWindow {
                     descriptor,
                 ),
                 capture_image,
-                window_size: self.size.to_px(scale_factor.0),
+                wait_id: self.resized_frame_wait_id.take(),
             })
         } else {
             RawFrameRenderedEvent.notify(
@@ -2727,6 +2732,7 @@ impl AppWindow {
             scroll_updates: updates.scrolls,
             clear_color: updates.clear_color,
             capture_image,
+            wait_id: self.resized_frame_wait_id.take(),
         };
         if request.is_empty() {
             return;

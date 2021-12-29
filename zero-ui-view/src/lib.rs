@@ -308,6 +308,8 @@ pub(crate) struct App<S> {
     device_id_gen: DeviceId,
     devices: Vec<(DeviceId, glutin::event::DeviceId)>,
 
+    resize_frame_wait_id_gen: FrameWaitId,
+
     coalescing_event: Option<Event>,
     // winit only sends a CursorMove after CursorEntered if the cursor is in a different position,
     // but this makes refreshing hit-tests weird, do we hit-test the previous known point at each CursorEnter?
@@ -512,6 +514,7 @@ impl<S: AppEventSender> App<S> {
             monitor_id_gen: 0,
             devices: vec![],
             device_id_gen: 0,
+            resize_frame_wait_id_gen: 0,
             coalescing_event: None,
             cursor_entered_expect_move: Vec::with_capacity(1),
             exited: false,
@@ -583,8 +586,15 @@ impl<S: AppEventSender> App<S> {
                     return;
                 }
 
+                let mut wait_id = self.resize_frame_wait_id_gen.wrapping_add(1);
+                if wait_id == 0 {
+                    wait_id = 1;
+                }
+                self.resize_frame_wait_id_gen = wait_id;
+                let wait_id = Some(wait_id);
+
                 // send event, the app code should send a frame in the new size as soon as possible.
-                self.notify(Event::WindowChanged(WindowChanged::resized(id, size, EventCause::System, true)));
+                self.notify(Event::WindowChanged(WindowChanged::resized(id, size, EventCause::System, wait_id)));
                 self.flush_coalesced();
 
                 // "modal" loop, breaks in 300ms or when a frame is received.
@@ -594,7 +604,7 @@ impl<S: AppEventSender> App<S> {
                         Ok(req) => {
                             match req {
                                 RequestEvent::Request(req) => {
-                                    received_frame = req.is_frame(id);
+                                    received_frame = req.is_frame(id, wait_id);
                                     if received_frame || req.affects_window_rect(id) {
                                         // received new frame
                                         self.windows[i].on_resized();
@@ -857,12 +867,7 @@ impl<S: AppEventSender> App<S> {
                     });
                 }
 
-                self.notify(Event::WindowChanged(WindowChanged::resized(
-                    window_id,
-                    size,
-                    EventCause::App,
-                    false,
-                )));
+                self.notify(Event::WindowChanged(WindowChanged::resized(window_id, size, EventCause::App, None)));
             }
         } else if let Some(s) = self.surfaces.iter_mut().find(|w| w.id() == window_id) {
             let (frame_id, image) = s.on_frame_ready(msg, &mut self.image_cache);
@@ -1272,7 +1277,7 @@ impl<S: AppEventSender> Api for App<S> {
                     id,
                     size,
                     EventCause::App,
-                    false,
+                    None,
                 ))));
             }
         } else {
@@ -1466,9 +1471,10 @@ pub(crate) enum AppEvent {
 
 /// Message inserted in the request loop from the view-process.
 ///
-/// These *events* are detached from [`AppEvent`] so that we can continue receiving while
+/// These *events* are detached from [`AppEvent`] so that we can continue receiving requests while
 /// the main loop is blocked in a resize operation.
 #[derive(Debug)]
+#[allow(clippy::large_enum_variant)]
 enum RequestEvent {
     /// A request from the [`Api`].
     Request(Request),

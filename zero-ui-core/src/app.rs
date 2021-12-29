@@ -925,7 +925,7 @@ impl<E: AppExtension> RunningApp<E> {
                 self.notify_event(RawCursorLeftEvent, args, observer);
             }
             Event::WindowChanged(c) => {
-                let args = RawWindowChangedArgs::now(window_id(c.window), c.state, c.position, c.size, c.cause, c.waiting_frame);
+                let args = RawWindowChangedArgs::now(window_id(c.window), c.state, c.position, c.size, c.cause, c.frame_wait_id);
                 self.notify_event(RawWindowChangedEvent, args, observer);
             }
             Event::DroppedFile { window: w_id, file } => {
