@@ -6,5 +6,4 @@
     - The panic message is: `thread 'main' panicked at 'assertion failed: !self.view_is_rendering()', C:\Users\Well\Desktop\New_folder\zero-ui\zero-ui-core\src\app.rs:1458:9`
 * When changing the dpi upwards (tested by going from 100% to 175%) the frame is heavily scrambled.
     - Tested with the image example.
-* Dragging to restore "image" example ends-up in an incorrect smaller size.
 * Test events when taskbar changes position.

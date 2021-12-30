@@ -244,6 +244,7 @@ pub(crate) struct GlContextManager {
 }
 
 /// Glutin, SWGL config to attempt.
+#[derive(Debug)]
 struct TryConfig {
     mode: RenderMode,
     hardware_acceleration: Option<bool>,
@@ -319,6 +320,8 @@ impl GlContextManager {
                         continue;
                     }
 
+                    let _span = tracing::trace_span!("create-software-ctx").entered();
+
                     let window = window.build(window_target).unwrap();
                     let headed = blit::Impl::new(&window);
                     let ctx = self.create_software(id, Some(headed));
@@ -341,6 +344,8 @@ impl GlContextManager {
                         }
                         let _ = write!(error_log, "\n{:?}", e);
                     };
+
+                    let _span = tracing::trace_span!("create-glutin-ctx", ?config).entered();
 
                     let r = glutin::ContextBuilder::new()
                         .with_gl(glutin::GlRequest::Latest)

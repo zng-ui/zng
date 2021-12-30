@@ -125,7 +125,7 @@ impl Window {
     ) -> Self {
         let id = cfg.id;
 
-        let glutin_scope = tracing::trace_span!("open/glutin").entered();
+        let window_scope = tracing::trace_span!("open/window").entered();
 
         // create window and OpenGL context
         let mut winit = WindowBuilder::new()
@@ -221,7 +221,7 @@ impl Window {
             });
         }
 
-        drop(glutin_scope);
+        drop(window_scope);
         let wr_scope = tracing::trace_span!("open/webrender").entered();
 
         // create renderer and start the first frame.
