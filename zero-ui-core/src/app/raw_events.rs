@@ -151,7 +151,7 @@ event_args! {
         ///
         /// Event loop implementations can use this to resize without visible artifacts
         /// like the clear color flashing on the window corners, there is a timeout to this delay but it
-        /// can be a noticable stutter, a [`render`] or [`render_update`] request for the window unblocks the loop early
+        /// can be a noticeable stutter, a [`render`] or [`render_update`] request for the window unblocks the loop early
         /// to continue the resize operation.
         ///
         /// [`render`]: crate::app::view_process::ViewRenderer::render

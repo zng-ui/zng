@@ -268,7 +268,7 @@ impl TryConfig {
                 }),
                 RenderMode::Software => {
                     if mem::take(&mut try_hardware_none) {
-                        // some dedicated harwarare endup classified as generic integrated for some reason,
+                        // some dedicated hardware end-up classified as generic integrated for some reason,
                         // so we try `None`, after `Some(false)`.
                         configs.push(TryConfig {
                             mode: RenderMode::Dedicated,

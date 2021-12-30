@@ -586,7 +586,7 @@ impl Window {
         #[cfg(windows)]
         {
             let hwnd = glutin::platform::windows::WindowExtWindows::hwnd(&self.window);
-            // SAFETY: funtion does not fail.
+            // SAFETY: function does not fail.
             return unsafe { winapi::um::winuser::IsZoomed(hwnd as _) } != 0;
         }
 
@@ -607,7 +607,7 @@ impl Window {
         #[cfg(windows)]
         {
             let hwnd = glutin::platform::windows::WindowExtWindows::hwnd(&self.window);
-            // SAFETY: funtion does not fail.
+            // SAFETY: function does not fail.
             return unsafe { winapi::um::winuser::IsIconic(hwnd as _) } != 0;
         }
 
