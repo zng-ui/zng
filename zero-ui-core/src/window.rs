@@ -2246,7 +2246,7 @@ impl AppWindow {
                 );
             }
 
-            // the `restore_size` is set from the resize eventy, unless we are not `Normal`, then it is only recorded
+            // the `restore_size` is set from the resize event, unless we are not `Normal`, then it is only recorded
             // by the view-process, so we need to update here as well.
             if !matches!(self.vars.state().copy(ctx), WindowState::Normal) {
                 self.vars.0.restore_rect.modify(ctx, move |r| {
@@ -2301,7 +2301,7 @@ impl AppWindow {
             let _s = tracing::trace_span!("resize/layout").entered();
             self.size = size;
             if let Some(w) = &self.headed {
-                let _ = w.set_size(dbg!(size));
+                let _ = w.set_size(size);
             } else if let Some(s) = &self.headless_surface {
                 let _ = s.set_size(size, self.headless_monitor.as_ref().map(|m| m.scale_factor).unwrap_or(Factor(1.0)));
             } else {
@@ -3233,7 +3233,7 @@ impl WindowVars {
     /// this variable tracks the last normal position and size, it will be the window [`actual_position`] and [`actual_size`] again
     /// when the state is set back to [`Normal`].
     ///
-    /// This is a read-only variable, to programatically set it assign the [`position`] variable.
+    /// This is a read-only variable, to programmatically set it assign the [`position`] variable.
     ///
     /// The initial value is `(30, 30).at(800, 600)` but this is updated quickly to an actual position. The point
     /// is relative to the origin of the virtual screen that envelops all monitors.

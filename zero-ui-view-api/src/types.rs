@@ -620,7 +620,7 @@ pub struct EventFrameRendered {
     pub cursor_hits: HitTestResult,
 }
 
-/// Identifies a frame request for colaborative resize in [`WindowChanged`].
+/// Identifies a frame request for collaborative resize in [`WindowChanged`].
 pub type FrameWaitId = u32;
 
 /// [`Event::WindowChanged`] payload.
@@ -643,7 +643,7 @@ pub struct WindowChanged {
     ///
     /// Event loop implementations can use this to resize without visible artifacts
     /// like the clear color flashing on the window corners, there is a timeout to this delay but it
-    /// can be a noticable stutter, a [`render`] or [`render_update`] request for the window unblocks the loop early
+    /// can be a noticeable stutter, a [`render`] or [`render_update`] request for the window unblocks the loop early
     /// to continue the resize operation.
     ///
     /// [`render`]: crate::Api::render

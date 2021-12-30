@@ -13,6 +13,7 @@
         "latex",
         "plaintext",
         "toml",
-        "json"
+        "json",
+        "rust"
     ],
 }
