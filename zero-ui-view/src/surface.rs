@@ -1,8 +1,7 @@
 use std::{collections::VecDeque, fmt};
 
 use glutin::event_loop::EventLoopWindowTarget;
-#[cfg(target_os = "linux")]
-use glutin::platform::unix::HeadlessContextExt;
+
 use webrender::{
     api::{
         BuiltDisplayList, DisplayListPayload, DocumentId, DynamicProperties, FontInstanceKey, FontInstanceOptions,

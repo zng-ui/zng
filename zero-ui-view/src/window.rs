@@ -26,7 +26,7 @@ use crate::{
     config,
     gl::{GlContext, GlContextManager},
     image_cache::{Image, ImageCache, ImageUseMap, WrImageCache},
-    util::{self, CursorToWinit, DipToWinit, WinitToDip, WinitToPx},
+    util::{CursorToWinit, DipToWinit, WinitToDip, WinitToPx},
     AppEvent, AppEventSender, FrameReadyMsg, WrNotifier,
 };
 
@@ -508,6 +508,7 @@ impl Window {
                 return r;
             }
         } else {
+            #[cfg(windows)]
             self.windows_set_restore();
         }
         false
