@@ -515,20 +515,45 @@ impl Window {
 
     #[cfg(windows)]
     fn windows_set_restore(&self) {
-        use glutin::platform::windows::WindowExtWindows;
-        let hwnd = self.window.hwnd() as _;
-        let mut placement = winapi::um::winuser::WINDOWPLACEMENT::default();
-        if unsafe { winapi::um::winuser::GetWindowPlacement(hwnd, &mut placement) } != 0 {
-            let scale_factor = self.scale_factor();
-            let left_top = self.restore_pos.to_px(scale_factor);
-            let bottom_right = left_top + self.restore_size.to_px(scale_factor);
+        use glutin::platform::windows::{MonitorHandleExtWindows, WindowExtWindows};
+        use winapi::um::winuser;
 
-            placement.rcNormalPosition.top = left_top.y.0;
-            placement.rcNormalPosition.left = left_top.x.0;
-            placement.rcNormalPosition.bottom = bottom_right.y.0;
-            placement.rcNormalPosition.right = bottom_right.x.0;
+        if let Some(monitor) = self.window.current_monitor() {
+            let hwnd = self.window.hwnd() as _;
+            let mut placement = winuser::WINDOWPLACEMENT {
+                length: mem::size_of::<winuser::WINDOWPLACEMENT>() as _,
+                ..Default::default()
+            };
+            if unsafe { winuser::GetWindowPlacement(hwnd, &mut placement) } != 0 {
+                let scale_factor = self.scale_factor();
+                let mut left_top = self.restore_pos.to_px(scale_factor);
 
-            let _ = unsafe { winapi::um::winuser::SetWindowPlacement(hwnd, &placement) };
+                // placement is in "workspace", window is in "virtual screen space".
+                let hmonitor = monitor.hmonitor() as _;
+                let mut monitor_info = winuser::MONITORINFOEXW {
+                    cbSize: mem::size_of::<winuser::MONITORINFOEXW>() as _,
+                    ..Default::default()
+                };
+                if unsafe {
+                    winuser::GetMonitorInfoW(
+                        hmonitor,
+                        &mut monitor_info as *mut winuser::MONITORINFOEXW as *mut winuser::MONITORINFO,
+                    )
+                } != 0
+                {
+                    left_top.x.0 -= monitor_info.rcWork.left;
+                    left_top.y.0 -= monitor_info.rcWork.top;
+                }
+
+                let bottom_right = left_top + self.restore_size.to_px(scale_factor);
+
+                placement.rcNormalPosition.top = left_top.y.0;
+                placement.rcNormalPosition.left = left_top.x.0;
+                placement.rcNormalPosition.bottom = bottom_right.y.0;
+                placement.rcNormalPosition.right = bottom_right.x.0;
+
+                let _ = unsafe { winuser::SetWindowPlacement(hwnd, &placement) };
+            }
         }
     }
 

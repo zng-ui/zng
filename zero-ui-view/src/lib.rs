@@ -549,6 +549,8 @@ impl<S: AppEventSender> App<S> {
                 // give the app 300ms to send a new frame, this is the collaborative way to
                 // resize, it should reduce the changes of the user seeing the clear color.
 
+                println!("WindowEvent::Resized({:?})", size);
+
                 let deadline = Instant::now() + Duration::from_millis(300);
 
                 // await already pending frames.

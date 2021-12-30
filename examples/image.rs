@@ -5,14 +5,14 @@ use zero_ui::widgets::image::properties::{image_error_view, image_loading_view, 
 // use zero_ui_view_prebuilt as zero_ui_view;
 
 fn main() {
-    //examples_util::print_info();
+    examples_util::print_info();
     //zero_ui_view::init();
 
-    let rec = examples_util::record_profile("profile-image.json.gz", &[("example", &"image")], |_| true);
+    // let rec = examples_util::record_profile("profile-image.json.gz", &[("example", &"image")], |_| true);
 
     zero_ui_view::run_same_process(app_main);
 
-    rec.finish();
+    // rec.finish();
     // app_main();
 }
 

@@ -876,31 +876,25 @@ pub mod scrollable {
                 fn event<A: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &A) {
                     let scope = ctx.path.widget_id();
 
-                    if let Some(args) = ScrollUpCommand.scoped(scope).update(args) {                        
+                    if let Some(args) = ScrollUpCommand.scoped(scope).update(args) {
                         self.child.event(ctx, args);
 
                         if !args.stop_propagation_requested() {
                             let _unit = VerticalScrollUnitVar::get(ctx);
-                            // TODO get viewport height 
+                            // TODO get viewport height
                         }
                     } else if let Some(args) = ScrollDownCommand.scoped(scope).update(args) {
                         self.child.event(ctx, args);
 
-                        if !args.stop_propagation_requested() {
-
-                        }
+                        if !args.stop_propagation_requested() {}
                     } else if let Some(args) = ScrollLeftCommand.scoped(scope).update(args) {
                         self.child.event(ctx, args);
 
-                        if !args.stop_propagation_requested() {
-
-                        }
+                        if !args.stop_propagation_requested() {}
                     } else if let Some(args) = ScrollRightCommand.scoped(scope).update(args) {
                         self.child.event(ctx, args);
 
-                        if !args.stop_propagation_requested() {
-
-                        }
+                        if !args.stop_propagation_requested() {}
                     } else {
                         self.child.event(ctx, args);
                     }
@@ -965,31 +959,25 @@ pub mod scrollable {
                 fn event<A: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &A) {
                     let scope = ctx.path.widget_id();
 
-                    if let Some(args) = PageUpCommand.scoped(scope).update(args) {                        
+                    if let Some(args) = PageUpCommand.scoped(scope).update(args) {
                         self.child.event(ctx, args);
 
                         if !args.stop_propagation_requested() {
                             let _unit = VerticalPageUnitVar::get(ctx);
-                            // TODO get viewport height 
+                            // TODO get viewport height
                         }
                     } else if let Some(args) = PageDownCommand.scoped(scope).update(args) {
                         self.child.event(ctx, args);
 
-                        if !args.stop_propagation_requested() {
-
-                        }
+                        if !args.stop_propagation_requested() {}
                     } else if let Some(args) = PageLeftCommand.scoped(scope).update(args) {
                         self.child.event(ctx, args);
 
-                        if !args.stop_propagation_requested() {
-
-                        }
+                        if !args.stop_propagation_requested() {}
                     } else if let Some(args) = PageRightCommand.scoped(scope).update(args) {
                         self.child.event(ctx, args);
 
-                        if !args.stop_propagation_requested() {
-
-                        }
+                        if !args.stop_propagation_requested() {}
                     } else {
                         self.child.event(ctx, args);
                     }
@@ -1006,7 +994,7 @@ pub mod scrollable {
             }
         }
 
-        /// Create a node that implements [`ScrollToCommand`] scoped on the widget. 
+        /// Create a node that implements [`ScrollToCommand`] scoped on the widget.
         pub fn scroll_to_command_node(child: impl UiNode) -> impl UiNode {
             struct ScrollToCommandNode<C> {
                 child: C,

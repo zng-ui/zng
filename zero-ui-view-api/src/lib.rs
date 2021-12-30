@@ -59,7 +59,6 @@ impl Request {
     /// Returns `true` if the request represents a new frame or frame update for the window with the same wait ID.
     pub fn is_frame(&self, window_id: WindowId, wait_id: Option<FrameWaitId>) -> bool {
         match &self.0 {
-            // TODO detect can skip frame.
             RequestData::render { id, frame } if *id == window_id && frame.wait_id == wait_id => true,
             RequestData::render_update { id, frame } if *id == window_id && frame.wait_id == wait_id => true,
             _ => false,
