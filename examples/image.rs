@@ -165,7 +165,7 @@ fn img_window(title: impl IntoVar<Text>, content: impl UiNode) -> Window {
         clear_color = colors::RED;
 
         state = WindowState::Maximized;
-        size = (1140, 780);// restore size
+        size = (1140, 770);// restore size
 
         background = checkerboard! {
             colors = rgb(20, 20, 20), rgb(40, 40, 40);
