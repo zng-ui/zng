@@ -549,8 +549,6 @@ impl<S: AppEventSender> App<S> {
                 // give the app 300ms to send a new frame, this is the collaborative way to
                 // resize, it should reduce the changes of the user seeing the clear color.
 
-                println!("WindowEvent::Resized({:?})", size);
-
                 let deadline = Instant::now() + Duration::from_millis(300);
 
                 // await already pending frames.
@@ -577,7 +575,6 @@ impl<S: AppEventSender> App<S> {
                 }
 
                 let px_size = size.to_px();
-                let size = px_size.to_dip(scale_factor);
 
                 if let Some(state) = self.windows[i].state_change() {
                     self.notify(Event::WindowChanged(WindowChanged::state_changed(id, state, EventCause::System)));
@@ -588,6 +585,8 @@ impl<S: AppEventSender> App<S> {
                     return;
                 }
 
+                let size = px_size.to_dip(scale_factor);
+
                 let mut wait_id = self.resize_frame_wait_id_gen.wrapping_add(1);
                 if wait_id == 0 {
                     wait_id = 1;
@@ -597,6 +596,7 @@ impl<S: AppEventSender> App<S> {
 
                 // send event, the app code should send a frame in the new size as soon as possible.
                 self.notify(Event::WindowChanged(WindowChanged::resized(id, size, EventCause::System, wait_id)));
+
                 self.flush_coalesced();
 
                 // "modal" loop, breaks in 300ms or when a frame is received.

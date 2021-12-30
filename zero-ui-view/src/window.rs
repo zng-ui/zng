@@ -632,13 +632,27 @@ impl Window {
             self.state = state;
 
             if let WindowState::Normal = state {
-                let size = self.restore_size.min(self.max_size).max(self.min_size);
+                let scale_factor = self.window.scale_factor();
 
-                self.window.set_outer_position(self.restore_pos.to_winit());
-                self.window.set_inner_size(size.to_winit());
+                let outer_pos = self.restore_pos.to_winit().to_physical::<i32>(scale_factor);
+                let inner_size = self
+                    .restore_size
+                    .min(self.max_size)
+                    .max(self.min_size)
+                    .to_winit()
+                    .to_physical::<u32>(scale_factor);
+                let min_inner_size = Some(self.min_size.to_winit().to_physical::<u32>(scale_factor));
+                let max_inner_size = Some(self.max_size.to_winit().to_physical::<u32>(scale_factor));
 
-                self.window.set_min_inner_size(Some(self.min_size.to_winit()));
-                self.window.set_max_inner_size(Some(self.max_size.to_winit()));
+                if self.window.outer_position().ok() != Some(outer_pos) {
+                    self.window.set_outer_position(outer_pos);
+                }
+                if self.window.inner_size() != inner_size {
+                    self.window.set_inner_size(inner_size);
+                }
+
+                self.window.set_min_inner_size(min_inner_size);
+                self.window.set_max_inner_size(max_inner_size);
             }
 
             Some(state)
