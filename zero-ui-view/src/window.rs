@@ -204,7 +204,7 @@ impl Window {
             let allow_alt_f4 = allow_alt_f4.clone();
             let event_sender = event_sender.clone();
 
-            util::set_raw_windows_event_handler(&winit_window, u32::from_ne_bytes(*b"alf4") as _, move |_, msg, wparam, _| {
+            crate::util::set_raw_windows_event_handler(&winit_window, u32::from_ne_bytes(*b"alf4") as _, move |_, msg, wparam, _| {
                 if msg == winapi::um::winuser::WM_SYSKEYDOWN && wparam as i32 == winapi::um::winuser::VK_F4 && allow_alt_f4.get() {
                     let device = 0; // TODO recover actual ID
 
