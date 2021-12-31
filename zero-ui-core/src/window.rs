@@ -418,7 +418,7 @@ impl MonitorQuery {
     #[inline]
     pub fn select<'a, 'b>(&'a self, monitors: &'b mut Monitors) -> Option<&'b MonitorFullInfo> {
         match self {
-            MonitorQuery::Primary => None,
+            MonitorQuery::Primary => monitors.primary_monitor(),
             MonitorQuery::Query(q) => q(monitors),
         }
     }
@@ -1096,7 +1096,8 @@ impl AppExtension for WindowManager {
                 FrameImageReadyEvent.notify(ctx.events, args);
             }
         } else if let Some(args) = RawWindowChangedEvent.update(args) {
-            if let Some(mut window) = ctx.services.windows().windows.get_mut(&args.window_id) {
+            let windows = ctx.services.windows();
+            if let Some(mut window) = windows.windows.get_mut(&args.window_id) {
                 let mut state_change = None;
                 let mut pos_change = None;
                 let mut size_change = None;
@@ -1104,33 +1105,33 @@ impl AppExtension for WindowManager {
                 // STATE CHANGED
                 if let Some(new_state) = args.state {
                     let prev_state = window.vars.state().copy(ctx.vars);
-                    if let EventCause::System = args.cause {
-                        if window.vars.state().set_ne(ctx.vars, new_state) {
-                            state_change = Some((prev_state, new_state));
+                    if prev_state != new_state {
+                        if let EventCause::System = args.cause {
+                            window.vars.state().set(ctx.vars, new_state);
                         }
-                    } else {
+
                         state_change = Some((prev_state, new_state));
-                    }
 
-                    if let WindowState::Minimized = prev_state {
-                        // we skip layout&render when minimized, but leave the flags set.
+                        if let WindowState::Minimized = prev_state {
+                            // we skip layout&render when minimized, but leave the flags set.
 
-                        if window.context.update.layout {
-                            ctx.updates.layout();
+                            if window.context.update.layout {
+                                ctx.updates.layout();
+                            }
+                            match window.context.update.render {
+                                WindowRenderUpdate::None => {}
+                                WindowRenderUpdate::Render => ctx.updates.render(),
+                                WindowRenderUpdate::RenderUpdate => ctx.updates.render_update(),
+                            }
                         }
-                        match window.context.update.render {
-                            WindowRenderUpdate::None => {}
-                            WindowRenderUpdate::Render => ctx.updates.render(),
-                            WindowRenderUpdate::RenderUpdate => ctx.updates.render_update(),
-                        }
-                    }
 
-                    let restore_state = if let WindowState::Minimized = new_state {
-                        prev_state
-                    } else {
-                        WindowState::Normal
-                    };
-                    window.vars.0.restore_state.set_ne(ctx.vars, restore_state);
+                        let restore_state = if let WindowState::Minimized = new_state {
+                            prev_state
+                        } else {
+                            WindowState::Normal
+                        };
+                        window.vars.0.restore_state.set_ne(ctx.vars, restore_state);
+                    }
                 }
 
                 let window_state = args.state.unwrap_or_else(|| window.vars.state().copy(ctx.vars));
@@ -1147,6 +1148,24 @@ impl AppExtension for WindowManager {
                         if let WindowState::Normal = window_state {
                             restore_rect.origin = new_pos;
                         }
+                    }
+                }
+
+                // MONITOR CHANGED
+                if let Some((new_monitor, scale_factor)) = args.monitor {
+                    if let Some(info) = windows.windows_info.get_mut(&args.window_id) {
+                        if info.scale_factor != scale_factor {
+                            info.scale_factor = scale_factor;
+
+                            let args = WindowScaleChangedArgs::new(args.timestamp, args.window_id, scale_factor);
+                            WindowScaleChangedEvent.notify(ctx.events, args);
+
+                            window.context.update.layout = true;
+                            window.context.update.render = WindowRenderUpdate::Render;
+                            ctx.updates.layout_and_render();
+                        }
+
+                        window.vars.0.actual_monitor.set_ne(ctx.vars, Some(new_monitor));
                     }
                 }
 
@@ -1196,11 +1215,28 @@ impl AppExtension for WindowManager {
             }
         } else if let Some(args) = RawWindowCloseRequestedEvent.update(args) {
             let _ = ctx.services.windows().close(args.window_id);
-        } else if let Some(args) = RawWindowScaleFactorChangedEvent.update(args) {
-            if let Some(info) = ctx.services.windows().windows_info.get_mut(&args.window_id) {
-                info.scale_factor = args.scale_factor;
-                let args = WindowScaleChangedArgs::new(args.timestamp, args.window_id, args.scale_factor);
-                WindowScaleChangedEvent.notify(ctx.events, args);
+        } else if let Some(args) = RawScaleFactorChangedEvent.update(args) {
+            // Update Monitors:
+            if let Some(m) = ctx.services.monitors().monitors.get_mut(&args.monitor_id) {
+                m.info.scale_factor = args.scale_factor.0;
+            }
+
+            // Update Windows:
+            let windows = ctx.services.windows();
+            for &window_id in &args.windows {
+                if let Some(info) = windows.windows_info.get_mut(&window_id) {
+                    if info.scale_factor != args.scale_factor {
+                        info.scale_factor = args.scale_factor;
+
+                        let args = WindowScaleChangedArgs::new(args.timestamp, window_id, args.scale_factor);
+                        WindowScaleChangedEvent.notify(ctx.events, args);
+
+                        let window = windows.windows.get_mut(&window_id).unwrap();
+                        window.context.update.layout = true;
+                        window.context.update.render = WindowRenderUpdate::Render;
+                        ctx.updates.layout_and_render();
+                    }
+                }
             }
         } else if let Some(args) = RawWindowCloseEvent.update(args) {
             if ctx.services.windows().windows.contains_key(&args.window_id) {
@@ -1445,8 +1481,8 @@ fn with_detached_windows(ctx: &mut AppContext, f: impl FnOnce(&mut AppContext, &
 ///
 /// Some apps, like image editors, may implement a feature where the user can preview the *real* dimensions of
 /// the content they are editing, to accurately implement this you must known the real dimensions of the monitor screen,
-/// unfortunately this information is not provided by monitor devices. You can ask the user to measure their screen and
-/// set the **pixel-per-inch** ratio for the screen using [`ppi`] variable, this value is then available in the [`LayoutMetrics`]
+/// unfortunately this information is not provided by display drivers. You can ask the user to measure their screen and
+/// set the **pixel-per-inch** ratio for the screen using the [`ppi`] variable, this value is then available in the [`LayoutMetrics`]
 /// for the next layout. If not set, the default is `96.0ppi`.
 ///
 /// # Provider
@@ -1502,7 +1538,8 @@ impl Monitors {
 
     /// Iterate over all available monitors.
     ///
-    /// Each item is `(ID, info, PPI)`.
+    /// The list entries change only when a [`MonitorsChangedEvent`] happens, the scale_factor
+    /// of a entry can change TODO.
     ///
     /// Is empty if no monitor was found or the app is running in headless mode without renderer.
     pub fn available_monitors(&mut self) -> impl Iterator<Item = &MonitorFullInfo> {
@@ -1853,14 +1890,15 @@ impl AppWindowInfo {
 
 /// An open window.
 struct AppWindow {
-    // Is some if the window is headed and the first frame was generated.
+    // Is `Some` if the window is headed and the first frame was generated.
     headed: Option<ViewWindow>,
-    // Is some if the window is headless, a fake screen for size calculations.
+
+    // Is `Some` if the window is headless, a fake screen for size calculations.
     headless_monitor: Option<HeadlessMonitor>,
-    // Is some if the window is headless with renderer and the first frame was generated.
+    // Is `Some` if the window is headless with renderer and the first frame was generated.
     headless_surface: Option<ViewHeadless>,
 
-    // Is some if the window is headed or headless with renderer.
+    // Is `Some` if the window is headed or headless with renderer.
     renderer: Option<ViewRenderer>,
 
     // Window context.
@@ -1884,6 +1922,9 @@ struct AppWindow {
     pending_render: Option<WindowRenderUpdate>,
 
     resized_frame_wait_id: Option<FrameWaitId>,
+
+    // latest computed monitor info, use self.monitor_info() to get.
+    monitor_info: Option<WindowMonitorInfo>,
 
     position: Option<DipPoint>,
     size: DipSize,
@@ -1970,6 +2011,8 @@ impl AppWindow {
 
             first_update: true,
             first_layout: true,
+
+            monitor_info: None,
 
             frame_id: FrameId::INVALID,
             pending_render: None,
@@ -2063,7 +2106,7 @@ impl AppWindow {
                     } else if !restore_only {
                         RawWindowChangedEvent.notify(
                             ctx.events,
-                            RawWindowChangedArgs::now(self.id, None, Some(pos), None, EventCause::App, None),
+                            RawWindowChangedArgs::now(self.id, None, Some(pos), None, None, EventCause::App, None),
                         );
                     }
 
@@ -2177,37 +2220,82 @@ impl AppWindow {
         }
     }
 
-    /// (monitor_size, scale_factor, ppi)
-    fn monitor_metrics(&mut self, ctx: &mut AppContext) -> (DipSize, Factor, f32) {
+    fn init_monitor_info(&self, ctx: &mut AppContext) -> WindowMonitorInfo {
         if let WindowMode::Headed = self.window_mode {
-            // TODO only query monitors in the first layout and after `monitor` updates only.
-
             // try `actual_monitor`
-            if let Some(id) = self.vars.actual_monitor().copy(ctx) {
+            let monitor = self.vars.actual_monitor().copy(ctx);
+            if let Some(id) = monitor {
                 if let Some(m) = ctx.services.monitors().monitor(id) {
-                    return (m.info.dip_size(), m.info.scale_factor.fct(), m.ppi.copy(ctx.vars));
+                    return WindowMonitorInfo {
+                        // id: Some(id),
+                        // position: m.info.position,
+                        size: m.info.dip_size(),
+                        scale_factor: m.info.scale_factor.fct(),
+                        ppi: m.ppi.copy(ctx.vars),
+                    };
                 }
             }
 
-            // try `monitor`, TODO set `actual_monitor` here?
-            {
-                let query = self.vars.monitor().get(ctx.vars);
-                if let Some(m) = query.select(ctx.services.monitors()) {
-                    return (m.info.dip_size(), m.info.scale_factor.fct(), m.ppi.copy(ctx.vars));
-                }
+            // no `actual_monitor`, run `monitor` query.
+            let query = self.vars.monitor().get(ctx.vars);
+            if let Some(m) = query.select(ctx.services.monitors()) {
+                self.vars.0.actual_monitor.set_ne(ctx.vars, Some(m.id));
+
+                return WindowMonitorInfo {
+                    // id: Some(m.id),
+                    // position: m.info.position,
+                    size: m.info.dip_size(),
+                    scale_factor: m.info.scale_factor.fct(),
+                    ppi: m.ppi.copy(ctx.vars),
+                };
             }
+
+            tracing::warn!("monitor query did not find a match, fallback to primary monitor");
 
             // fallback to primary monitor.
             if let Some(p) = ctx.services.monitors().primary_monitor() {
-                return (p.info.dip_size(), p.info.scale_factor.fct(), p.ppi.copy(ctx.vars));
+                self.vars.0.actual_monitor.set_ne(ctx.vars, Some(p.id));
+
+                return WindowMonitorInfo {
+                    // id: Some(p.id),
+                    // position: p.info.position,
+                    size: p.info.dip_size(),
+                    scale_factor: p.info.scale_factor.fct(),
+                    ppi: p.ppi.copy(ctx.vars),
+                };
             }
+
+            tracing::error!("no primary monitor found, fallback to `headless_monitor` values");
 
             // fallback to headless defaults.
             let h = self.headless_monitor.clone().unwrap_or_default();
-            (h.size, h.scale_factor, h.ppi)
+            WindowMonitorInfo {
+                // id: None,
+                // position: PxPoint::zero(),
+                size: h.size,
+                scale_factor: h.scale_factor,
+                ppi: h.ppi,
+            }
         } else {
-            let scr = self.headless_monitor.as_ref().unwrap();
-            (scr.size, scr.scale_factor, scr.ppi)
+            let h = self.headless_monitor.as_ref().unwrap();
+            WindowMonitorInfo {
+                // id: None,
+                // position: PxPoint::zero(),
+                size: h.size,
+                scale_factor: h.scale_factor,
+                ppi: h.ppi,
+            }
+        }
+    }
+
+    /// Gets or init the current monitor info.
+    fn monitor_info(&mut self, ctx: &mut AppContext) -> WindowMonitorInfo {
+        if let Some(info) = self.monitor_info {
+            info
+        } else {
+            let info = self.init_monitor_info(ctx);
+            self.monitor_info = Some(info);
+            info
         }
     }
 
@@ -2242,7 +2330,7 @@ impl AppWindow {
                 // headless "resize"
                 RawWindowChangedEvent.notify(
                     ctx.events,
-                    RawWindowChangedArgs::now(self.id, None, None, Some(self.size), EventCause::App, None),
+                    RawWindowChangedArgs::now(self.id, None, None, None, Some(self.size), EventCause::App, None),
                 );
             }
 
@@ -2308,7 +2396,7 @@ impl AppWindow {
                 // headless "resize"
                 RawWindowChangedEvent.notify(
                     ctx.events,
-                    RawWindowChangedArgs::now(self.id, None, None, self.size, EventCause::App, None),
+                    RawWindowChangedArgs::now(self.id, None, None, None, self.size, EventCause::App, None),
                 );
             }
             // the `actual_size` is set from the resize event only.
@@ -2346,7 +2434,7 @@ impl AppWindow {
                     self.position = self.layout_position(ctx);
                 }
                 StartPosition::CenterMonitor => {
-                    let (scr_size, _, _) = self.monitor_metrics(ctx);
+                    let scr_size = self.monitor_info(ctx).size;
                     self.position = Some(DipPoint::new(
                         (scr_size.width - self.size.width) / Dip::new(2),
                         (scr_size.height - self.size.height) / Dip::new(2),
@@ -2361,11 +2449,14 @@ impl AppWindow {
         } else if state.is_fullscreen() {
             // we already have the size, it is the monitor size (for Exclusive we are okay with a blink if the resolution does not match).
 
-            let (size, _, _) = self.monitor_metrics(ctx);
+            let size = self.monitor_info(ctx).size;
 
             if self.size != size {
                 self.size = size;
-                RawWindowChangedEvent.notify(ctx, RawWindowChangedArgs::now(self.id, None, None, size, EventCause::App, None));
+                RawWindowChangedEvent.notify(
+                    ctx,
+                    RawWindowChangedArgs::now(self.id, None, None, None, size, EventCause::App, None),
+                );
             }
 
             let (size, min_size, max_size) = self.layout_size(ctx, true);
@@ -2439,7 +2530,7 @@ impl AppWindow {
                 self.headed = Some(headed);
                 ctx.services.windows().windows_info.get_mut(&self.id).unwrap().renderer = self.renderer.clone();
 
-                let mut syn_args = RawWindowChangedArgs::now(self.id, None, None, None, EventCause::App, None);
+                let mut syn_args = RawWindowChangedArgs::now(self.id, None, None, None, None, EventCause::App, None);
 
                 if self.size != data.size || self.context.update.layout {
                     self.size = data.size;
@@ -2470,7 +2561,7 @@ impl AppWindow {
                 self.vars.0.render_mode.set_ne(ctx.vars, data.render_mode);
 
                 RawWindowChangedEvent.notify(ctx, syn_args);
-                RawWindowScaleFactorChangedEvent.notify(ctx.events, RawWindowScaleFactorChangedArgs::now(self.id, data.scale_factor));
+                WindowScaleChangedEvent.notify(ctx.events, WindowScaleChangedArgs::now(self.id, data.scale_factor));
             }
             WindowMode::HeadlessWithRenderer => {
                 let scale_factor = self.headless_monitor.as_ref().unwrap().scale_factor;
@@ -2493,7 +2584,7 @@ impl AppWindow {
 
                 self.vars.0.render_mode.set_ne(ctx.vars, data.render_mode);
 
-                RawWindowScaleFactorChangedEvent.notify(ctx.events, RawWindowScaleFactorChangedArgs::now(self.id, scale_factor));
+                WindowScaleChangedEvent.notify(ctx.events, WindowScaleChangedArgs::now(self.id, scale_factor));
             }
             WindowMode::Headless => {
                 // headless without renderer only provides the `FrameInfo` (notified in `render_frame`),
@@ -2513,18 +2604,27 @@ impl AppWindow {
                     RawWindowFocusEvent.notify(ctx.events, args)
                 }
 
-                let syn_args = RawWindowChangedArgs::new(timestamp, self.id, None, self.position, Some(self.size), EventCause::App, None);
+                let syn_args = RawWindowChangedArgs::new(
+                    timestamp,
+                    self.id,
+                    None,
+                    self.position,
+                    None,
+                    Some(self.size),
+                    EventCause::App,
+                    None,
+                );
                 RawWindowChangedEvent.notify(ctx.events, syn_args);
 
                 let scale_factor = self.headless_monitor.as_ref().unwrap().scale_factor;
-                RawWindowScaleFactorChangedEvent.notify(ctx.events, RawWindowScaleFactorChangedArgs::now(self.id, scale_factor));
+                WindowScaleChangedEvent.notify(ctx.events, WindowScaleChangedArgs::now(self.id, scale_factor));
             }
         }
     }
 
     /// Calculate the position var in the current monitor.
     fn layout_position(&mut self, ctx: &mut AppContext) -> Option<DipPoint> {
-        let (scr_size, scr_factor, scr_ppi) = self.monitor_metrics(ctx);
+        let monitor_info = self.monitor_info(ctx);
 
         let pos = self.vars.position().get(ctx.vars);
 
@@ -2532,15 +2632,15 @@ impl AppWindow {
             None
         } else {
             let pos = ctx.outer_layout_context(
-                scr_size.to_px(scr_factor.0),
-                scr_factor,
-                scr_ppi,
+                monitor_info.size.to_px(monitor_info.scale_factor.0),
+                monitor_info.scale_factor,
+                monitor_info.ppi,
                 LayoutMask::all(),
                 self.id,
                 self.root_id,
                 |ctx| pos.to_layout(ctx, AvailableSize::finite(ctx.viewport_size), PxPoint::zero()),
             );
-            Some(pos.to_dip(scr_factor.0))
+            Some(pos.to_dip(monitor_info.scale_factor.0))
         }
     }
 
@@ -2548,12 +2648,12 @@ impl AppWindow {
     ///
     /// If `use_system_size` is `true` the `size` variable is ignored.
     fn layout_size(&mut self, ctx: &mut AppContext, use_system_size: bool) -> (DipSize, DipSize, DipSize) {
-        let (scr_size, scr_factor, scr_ppi) = self.monitor_metrics(ctx);
+        let monitor_info = self.monitor_info(ctx);
 
         let (available_size, min_size, max_size, auto_size) = ctx.outer_layout_context(
-            scr_size.to_px(scr_factor.0),
-            scr_factor,
-            scr_ppi,
+            monitor_info.size.to_px(monitor_info.scale_factor.0),
+            monitor_info.scale_factor,
+            monitor_info.ppi,
             LayoutMask::all(),
             self.id,
             self.root_id,
@@ -2588,11 +2688,15 @@ impl AppWindow {
             },
         );
 
-        let root_font_size = Length::pt_to_px(14.0, scr_factor);
+        let root_font_size = Length::pt_to_px(14.0, monitor_info.scale_factor);
 
-        let final_size = self
-            .context
-            .layout(ctx, root_font_size, scr_factor, scr_ppi, available_size, |desired_size| {
+        let final_size = self.context.layout(
+            ctx,
+            root_font_size,
+            monitor_info.scale_factor,
+            monitor_info.ppi,
+            available_size,
+            |desired_size| {
                 let mut final_size = available_size;
                 if auto_size.contains(AutoSize::CONTENT_WIDTH) {
                     final_size.width = desired_size.width.max(min_size.width).min(available_size.width);
@@ -2601,11 +2705,16 @@ impl AppWindow {
                     final_size.height = desired_size.height.max(min_size.height).min(available_size.height);
                 }
                 final_size
-            });
+            },
+        );
 
-        self.context.root_bounds.set_size(final_size.to_px(scr_factor.0));
+        self.context.root_bounds.set_size(final_size.to_px(monitor_info.scale_factor.0));
 
-        (final_size, min_size.to_dip(scr_factor.0), max_size.to_dip(scr_factor.0))
+        (
+            final_size,
+            min_size.to_dip(monitor_info.scale_factor.0),
+            max_size.to_dip(monitor_info.scale_factor.0),
+        )
     }
 
     /// Render frame for sending.
@@ -2613,7 +2722,7 @@ impl AppWindow {
     /// The `frame_id` and `frame_info` are updated.
     #[must_use = "must send the frame"]
     fn render_frame(&mut self, ctx: &mut AppContext) -> Option<view_process::FrameRequest> {
-        let scale_factor = self.monitor_metrics(ctx).1;
+        let scale_factor = self.monitor_info(ctx).scale_factor;
         let next_frame_id = self.frame_id.next();
 
         // `UiNode::render`
@@ -2779,6 +2888,14 @@ impl Drop for AppWindow {
             tracing::error!("`AppWindow` dropped without calling `deinit`, no memory is leaked but shared state may be incorrect now");
         }
     }
+}
+#[derive(Clone, Copy)]
+struct WindowMonitorInfo {
+    // id: Option<MonitorId>,
+    // position: PxPoint,
+    size: DipSize,
+    scale_factor: Factor,
+    ppi: f32,
 }
 
 struct OwnedWindowContext {
@@ -3196,7 +3313,7 @@ impl WindowVars {
         self.0.actual_monitor.clone().into_read_only()
     }
 
-    /// Window actual position on the screen.
+    /// Window actual position on the virtual screen that envelops all monitors.
     ///
     /// This is a read-only variable that tracks the computed position of the window, it updates every
     /// time the window moves.
@@ -3233,7 +3350,8 @@ impl WindowVars {
     /// this variable tracks the last normal position and size, it will be the window [`actual_position`] and [`actual_size`] again
     /// when the state is set back to [`Normal`].
     ///
-    /// This is a read-only variable, to programmatically set it assign the [`position`] variable.
+    /// This is a read-only variable, to programmatically set it assign the [`position`] and [`size`] variables, note that
+    /// unlike this variable the [`position`] is relative to the [`monitor`] top-left.
     ///
     /// The initial value is `(30, 30).at(800, 600)` but this is updated quickly to an actual position. The point
     /// is relative to the origin of the virtual screen that envelops all monitors.
@@ -3245,6 +3363,8 @@ impl WindowVars {
     /// [`actual_position`]: Self::actual_position
     /// [`actual_size`]: Self::actual_size
     /// [`position`]: Self::position
+    /// [`size`]: Self::size
+    /// [`monitor`]: Self::monitor
     /// [`state`]: Self::state
     /// [`restore_state`]: Self::restore_state
     #[inline]
@@ -3255,14 +3375,14 @@ impl WindowVars {
     /// Window top-left offset on the [`monitor`] when the window is [`Normal`].
     ///
     /// When a dimension is not a finite value it is computed from other variables.
-    /// Relative values are computed in relation to the [`monitor`], updating every time the position or
-    /// monitor variable updates, not every layout.
+    /// Relative values are computed in relation to the [`monitor`] size, updating every time the 
+    /// position or monitor variable updates, not every layout.
     ///
     /// When the user moves the window this value is considered stale, when it updates it overwrites the window position again,
     /// note that the window is only moved if it is in the [`Normal`] state, otherwise only the [`restore_rect`] updates.
     ///
     /// When the the window is moved by the user this variable does **not** update back, to track the current position of the window
-    /// use [`actual_position`], to track the *restore* position use [`restore_rect`].
+    /// on the virtual screen that envelops all monitors use [`actual_position`], to track the *restore* position use [`restore_rect`].
     ///
     /// The default value causes the window or OS to select a value.
     ///

@@ -140,6 +140,15 @@ event_args! {
         /// New window position if it was moved.
         pub position: Option<DipPoint>,
 
+        /// New window monitor and its scale factor.
+        ///
+        /// The window's monitor change when it is moved enough so that most of the
+        /// client area is in the new monitor screen.
+        ///
+        /// Note that the window's scale factor can also change by system settings, that change
+        /// generates an [`ScaleFactorChangedEvent`] only.
+        pub monitor: Option<(MonitorId, Factor)>,
+
         /// New window size if it was resized.
         pub size: Option<DipSize>,
 
@@ -382,19 +391,23 @@ event_args! {
         }
     }
 
-    /// Arguments for the [`RawWindowScaleFactorChangedEvent`].
-    pub struct RawWindowScaleFactorChangedArgs {
-        /// Window for which the scale has changed.
-        pub window_id: WindowId,
+    /// Arguments for the [`RawScaleFactorChangedEvent`].
+    pub struct RawScaleFactorChangedArgs {
+        /// Monitor that has changed.
+        pub monitor_id: MonitorId,
+
+        /// Window in the monitor that has changed.
+        pub windows: Vec<WindowId>,
 
         /// New pixel scale factor.
         pub scale_factor: Factor,
 
         ..
 
-        /// Returns `true` for all widgets in the [window](Self::window_id).
+        /// Returns `true` for all widgets in any of the [`windows`](Self::windows).
         fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
-            ctx.path.window_id() == self.window_id
+            let window_id = ctx.path.window_id();
+            self.windows.iter().any(|&w| w == window_id)
         }
     }
 
@@ -610,11 +623,12 @@ event! {
     /// A window was touched.
     pub RawTouchEvent: RawTouchArgs;
 
-    /// Pixel scale factor for a window changed.
+    /// Pixel scale factor for a monitor screen and its windows has changed.
     ///
-    /// This can happen when the window is dragged to another monitor or if the user
-    /// change the screen scaling configuration.
-    pub RawWindowScaleFactorChangedEvent: RawWindowScaleFactorChangedArgs;
+    /// This can happen if the user change the screen settings. Note that a
+    /// window's scale factor can also change if it is moved to a different monitor,
+    /// this change can be monitored using [`RawWindowChangedEvent`].
+    pub RawScaleFactorChangedEvent: RawScaleFactorChangedArgs;
 
     /// Monitors added or removed.
     pub RawMonitorsChangedEvent: RawMonitorsChangedArgs;

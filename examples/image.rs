@@ -2,17 +2,17 @@
 use zero_ui::core::{image::ImageLimits, timer::Timers};
 use zero_ui::prelude::*;
 use zero_ui::widgets::image::properties::{image_error_view, image_loading_view, ImageErrorArgs};
-use zero_ui_view_prebuilt as zero_ui_view;
+// use zero_ui_view_prebuilt as zero_ui_view;
 
 fn main() {
     examples_util::print_info();
-    zero_ui_view::init();
+    //zero_ui_view::init();
 
     // let rec = examples_util::record_profile("profile-image.json.gz", &[("example", &"image")], |_| true);
 
-    // zero_ui_view::run_same_process(app_main);
+    zero_ui_view::run_same_process(app_main);
 
-    app_main();
+    // app_main();
     // rec.finish();
 }
 

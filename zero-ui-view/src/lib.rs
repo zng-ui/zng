@@ -589,6 +589,17 @@ impl<S: AppEventSender> App<S> {
                     return;
                 }
 
+                if let Some(handle) = self.windows[i].monitor_change() {
+                    let m_id = self.monitor_handle_to_id(&handle);
+
+                    self.notify(Event::WindowChanged(WindowChanged::monitor_changed(
+                        id,
+                        m_id,
+                        self.windows[i].scale_factor(),
+                        EventCause::System,
+                    )));
+                }
+
                 let size = px_size.to_dip(scale_factor);
 
                 let mut wait_id = self.resize_frame_wait_id_gen.wrapping_add(1);
@@ -679,6 +690,17 @@ impl<S: AppEventSender> App<S> {
                     px_p.to_dip(scale_factor),
                     EventCause::System,
                 )));
+
+                if let Some(handle) = self.windows[i].monitor_change() {
+                    let m_id = self.monitor_handle_to_id(&handle);
+
+                    self.notify(Event::WindowChanged(WindowChanged::monitor_changed(
+                        id,
+                        m_id,
+                        self.windows[i].scale_factor(),
+                        EventCause::System,
+                    )));
+                }
             }
             WindowEvent::CloseRequested => self.notify(Event::WindowCloseRequested(id)),
             WindowEvent::Destroyed => {
@@ -800,11 +822,52 @@ impl<S: AppEventSender> App<S> {
                     t.id,
                 ));
             }
-            WindowEvent::ScaleFactorChanged { scale_factor, .. } => self.notify(Event::ScaleFactorChanged {
-                window: id,
-                scale_factor: scale_factor as f32,
-            }),
+            WindowEvent::ScaleFactorChanged { scale_factor, .. } => {
+                let monitor;
+                let mut is_monitor_change = false;
+
+                if let Some(new_monitor) = self.windows[i].monitor_change() {
+                    monitor = Some(new_monitor);
+                    is_monitor_change = true;
+                } else {
+                    monitor = self.windows[i].monitor();
+                }
+
+                let monitor = if let Some(handle) = monitor {
+                    self.monitor_handle_to_id(&handle)
+                } else {
+                    0
+                };
+
+                if is_monitor_change {
+                    self.notify(Event::WindowChanged(WindowChanged::monitor_changed(
+                        id,
+                        monitor,
+                        scale_factor as f32,
+                        EventCause::System,
+                    )));
+                } else {
+                    self.notify(Event::ScaleFactorChanged {
+                        monitor,
+                        windows: vec![id],
+                        scale_factor: scale_factor as f32,
+                    });
+                }
+            }
             WindowEvent::ThemeChanged(t) => self.notify(Event::WindowThemeChanged(id, util::winit_theme_to_zui(t))),
+        }
+    }
+
+    fn monitor_handle_to_id(&mut self, handle: &MonitorHandle) -> MonitorId {
+        if let Some((id, _)) = self.monitors.iter().find(|(_, h)| h == handle) {
+            *id
+        } else {
+            self.refresh_monitors();
+            if let Some((id, _)) = self.monitors.iter().find(|(_, h)| h == handle) {
+                *id
+            } else {
+                0
+            }
         }
     }
 
@@ -1274,6 +1337,31 @@ impl<S: AppEventSender> Api for App<S> {
                 EventCause::App,
             ))));
         }
+
+        if let Some(w) = self.windows.iter_mut().find(|w| w.id() == id) {
+            if w.set_outer_pos(pos) {
+                let _ = self.app_sender.send(AppEvent::Notify(Event::WindowChanged(WindowChanged::moved(
+                    id,
+                    pos,
+                    EventCause::App,
+                ))));
+
+                if let Some(monitor) = w.monitor_change() {
+                    let scale_factor = w.scale_factor();
+                    let monitor = self.monitor_handle_to_id(&monitor);
+                    let _ = self
+                        .app_sender
+                        .send(AppEvent::Notify(Event::WindowChanged(WindowChanged::monitor_changed(
+                            id,
+                            monitor,
+                            scale_factor,
+                            EventCause::App,
+                        ))));
+                }
+            }
+        } else {
+            tracing::error!("headed window `{}` not found, will return fallback result", id);
+        }
     }
 
     fn set_size(&mut self, id: WindowId, size: DipSize) {
@@ -1285,6 +1373,19 @@ impl<S: AppEventSender> Api for App<S> {
                     EventCause::App,
                     None,
                 ))));
+
+                if let Some(monitor) = w.monitor_change() {
+                    let scale_factor = w.scale_factor();
+                    let monitor = self.monitor_handle_to_id(&monitor);
+                    let _ = self
+                        .app_sender
+                        .send(AppEvent::Notify(Event::WindowChanged(WindowChanged::monitor_changed(
+                            id,
+                            monitor,
+                            scale_factor,
+                            EventCause::App,
+                        ))));
+                }
             }
         } else {
             tracing::error!("headed window `{}` not found, will return fallback result", id);

@@ -635,6 +635,15 @@ pub struct WindowChanged {
     /// Window new position, is `None` if the window position did not change.
     pub position: Option<DipPoint>,
 
+    /// Window new monitor and its scale factor.
+    ///
+    /// The window's monitor change when it is moved enough so that most of the
+    /// client area is in the new monitor screen.
+    ///
+    /// Note that the window's scale factor can also change by system settings, that change
+    /// generates an [`Event::ScaleFactorChanged`] event only.
+    pub monitor: Option<(MonitorId, f32)>,
+
     /// The window new size, is `None` if the window size did not change.
     pub size: Option<DipSize>,
 
@@ -660,6 +669,20 @@ impl WindowChanged {
             window,
             state: None,
             position: Some(position),
+            monitor: None,
+            size: None,
+            frame_wait_id: None,
+            cause,
+        }
+    }
+
+    /// Create an event that represents window parent monitor change.
+    pub fn monitor_changed(window: WindowId, monitor: MonitorId, scale_factor: f32, cause: EventCause) -> Self {
+        WindowChanged {
+            window,
+            state: None,
+            position: None,
+            monitor: Some((monitor, scale_factor)),
             size: None,
             frame_wait_id: None,
             cause,
@@ -672,6 +695,7 @@ impl WindowChanged {
             window,
             state: None,
             position: None,
+            monitor: None,
             size: Some(size),
             frame_wait_id,
             cause,
@@ -684,6 +708,7 @@ impl WindowChanged {
             window,
             state: Some(state),
             position: None,
+            monitor: None,
             size: None,
             frame_wait_id: None,
             cause,
@@ -840,16 +865,21 @@ pub enum Event {
     AxisMotion(WindowId, DeviceId, AxisId, f64),
     /// Touch event has been received.
     Touch(WindowId, DeviceId, TouchPhase, DipPoint, Option<Force>, u64),
-    /// The window’s scale factor has changed.
+    /// The monitor’s scale factor has changed.
     ScaleFactorChanged {
-        /// Window that has changed.
-        window: WindowId,
+        /// Monitor that has changed.
+        monitor: MonitorId,
+        /// Windows affected by this change.
+        ///
+        /// Note that a window's scale factor can also change if it is moved to another monitor,
+        /// the [`Event::WindowChanged`] event notifies this using the [`WindowChanged::monitor`].
+        windows: Vec<WindowId>,
         /// The new scale factor.
         scale_factor: f32,
     },
 
     /// The available monitors have changed.
-    MonitorsChanged(Vec<(WindowId, MonitorInfo)>),
+    MonitorsChanged(Vec<(MonitorId, MonitorInfo)>),
 
     /// The system window theme has changed.
     WindowThemeChanged(WindowId, WindowTheme),
@@ -1112,12 +1142,22 @@ impl Event {
             }
             // scale factor.
             (
-                ScaleFactorChanged { window, scale_factor },
                 ScaleFactorChanged {
-                    window: n_window,
+                    monitor,
+                    windows,
+                    scale_factor,
+                },
+                ScaleFactorChanged {
+                    monitor: n_monitor,
+                    windows: n_windows,
                     scale_factor: n_scale_factor,
                 },
-            ) if *window == n_window => {
+            ) if *monitor == n_monitor => {
+                for w in n_windows {
+                    if !windows.contains(&w) {
+                        windows.push(w);
+                    }
+                }
                 *scale_factor = n_scale_factor;
             }
             // fonts changed.

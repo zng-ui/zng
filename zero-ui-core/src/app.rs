@@ -925,7 +925,19 @@ impl<E: AppExtension> RunningApp<E> {
                 self.notify_event(RawCursorLeftEvent, args, observer);
             }
             Event::WindowChanged(c) => {
-                let args = RawWindowChangedArgs::now(window_id(c.window), c.state, c.position, c.size, c.cause, c.frame_wait_id);
+                let monitor_id = c.monitor.map(|(id, f)| {
+                    let view = self.ctx().services.req::<ViewProcess>();
+                    (view.monitor_id(id), crate::units::Factor(f))
+                });
+                let args = RawWindowChangedArgs::now(
+                    window_id(c.window),
+                    c.state,
+                    c.position,
+                    monitor_id,
+                    c.size,
+                    c.cause,
+                    c.frame_wait_id,
+                );
                 self.notify_event(RawWindowChangedEvent, args, observer);
             }
             Event::DroppedFile { window: w_id, file } => {
@@ -1005,11 +1017,15 @@ impl<E: AppExtension> RunningApp<E> {
                 self.notify_event(RawTouchEvent, args, observer);
             }
             Event::ScaleFactorChanged {
-                window: w_id,
+                monitor: id,
+                windows,
                 scale_factor,
             } => {
-                let args = RawWindowScaleFactorChangedArgs::now(window_id(w_id), scale_factor);
-                self.notify_event(RawWindowScaleFactorChangedEvent, args, observer);
+                let view = self.ctx().services.req::<ViewProcess>();
+                let monitor_id = view.monitor_id(id);
+                let windows: Vec<_> = windows.into_iter().map(window_id).collect();
+                let args = RawScaleFactorChangedArgs::now(monitor_id, windows, scale_factor);
+                self.notify_event(RawScaleFactorChangedEvent, args, observer);
             }
             Event::MonitorsChanged(monitors) => {
                 let view = self.ctx().services.req::<ViewProcess>();

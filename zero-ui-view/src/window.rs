@@ -2,7 +2,7 @@ use std::{cell::Cell, collections::VecDeque, fmt, mem, rc::Rc, sync::Arc};
 
 use glutin::{
     event_loop::EventLoopWindowTarget,
-    monitor::VideoMode as GVideoMode,
+    monitor::{MonitorHandle, VideoMode as GVideoMode},
     window::{Fullscreen, Icon, Window as GWindow, WindowBuilder},
 };
 use tracing::span::EnteredSpan;
@@ -87,6 +87,8 @@ pub(crate) struct Window {
     prev_pos: PxPoint,
     prev_size: PxSize,
     state: WindowState,
+
+    prev_monitor: Option<MonitorHandle>,
 
     visible: bool,
     waiting_first_frame: bool,
@@ -264,6 +266,7 @@ impl Window {
             image_use: ImageUseMap::default(),
             prev_pos: winit_window.outer_position().unwrap_or_default().to_px(),
             prev_size: winit_window.inner_size().to_px(),
+            prev_monitor: winit_window.current_monitor(),
             restore_pos,
             restore_size,
             min_size,
@@ -339,6 +342,10 @@ impl Window {
 
     pub fn id(&self) -> WindowId {
         self.id
+    }
+
+    pub fn monitor(&self) -> Option<glutin::monitor::MonitorHandle> {
+        self.window.current_monitor()
     }
 
     pub fn window_id(&self) -> glutin::window::WindowId {
@@ -614,6 +621,17 @@ impl Window {
 
         #[allow(unreachable_code)]
         false
+    }
+
+    /// Prove current monitor, returns `Some(new_monitor)`.
+    pub fn monitor_change(&mut self) -> Option<MonitorHandle> {
+        let handle = self.window.current_monitor();
+        if self.prev_monitor != handle {
+            self.prev_monitor = handle.clone();
+            handle
+        } else {
+            None
+        }
     }
 
     /// Probe state, returns `Some(new_state)`
