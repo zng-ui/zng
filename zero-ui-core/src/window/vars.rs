@@ -1,0 +1,494 @@
+use std::rc::Rc;
+
+use super::{types::*, MonitorId, MonitorQuery};
+use crate::{
+    state_key,
+    text::{Text, TextAntiAliasing, ToText},
+    units::*,
+    var::*,
+};
+
+pub(super) struct WindowVarsData {
+    chrome: RcVar<WindowChrome>,
+    icon: RcVar<WindowIcon>,
+    cursor: RcVar<Option<CursorIcon>>,
+    title: RcVar<Text>,
+
+    state: RcVar<WindowState>,
+
+    position: RcVar<Point>,
+    monitor: RcVar<MonitorQuery>,
+    video_mode: RcVar<VideoMode>,
+
+    size: RcVar<Size>,
+    pub(super) auto_size: RcVar<AutoSize>,
+    min_size: RcVar<Size>,
+    max_size: RcVar<Size>,
+
+    pub(super) actual_position: RcVar<DipPoint>,
+    pub(super) actual_monitor: RcVar<Option<MonitorId>>,
+    pub(super) actual_size: RcVar<DipSize>,
+
+    pub(super) restore_state: RcVar<WindowState>,
+    pub(super) restore_rect: RcVar<DipRect>,
+
+    resizable: RcVar<bool>,
+    movable: RcVar<bool>,
+
+    always_on_top: RcVar<bool>,
+
+    visible: RcVar<bool>,
+    taskbar_visible: RcVar<bool>,
+
+    parent: RcVar<Option<WindowId>>,
+    modal: RcVar<bool>,
+
+    text_aa: RcVar<TextAntiAliasing>,
+
+    allow_alt_f4: RcVar<bool>,
+
+    pub(super) is_open: RcVar<bool>,
+
+    frame_capture_mode: RcVar<FrameCaptureMode>,
+    pub(super) render_mode: RcVar<RenderMode>,
+}
+
+/// Controls properties of an open window using variables.
+///
+/// You can get the controller for any window using [`Windows::vars`].
+///
+/// You can get the controller for the current context window by getting [`WindowVarsKey`] from the `window_state`
+/// in [`WindowContext`] and [`WidgetContext`].
+///
+/// [`WindowContext`]: crate::context::WindowContext::window_state
+/// [`WidgetContext`]: crate::context::WidgetContext::window_state
+pub struct WindowVars(pub(super) Rc<WindowVarsData>);
+impl WindowVars {
+    pub(super) fn new(default_render_mode: RenderMode) -> Self {
+        let vars = Rc::new(WindowVarsData {
+            chrome: var(WindowChrome::Default),
+            icon: var(WindowIcon::Default),
+            cursor: var(Some(CursorIcon::Default)),
+            title: var("".to_text()),
+
+            state: var(WindowState::Normal),
+
+            position: var(Point::default()),
+            monitor: var(MonitorQuery::Primary),
+            video_mode: var(VideoMode::default()),
+            size: var(Size::new(800, 600)),
+
+            actual_position: var(DipPoint::zero()),
+            actual_monitor: var(None),
+            actual_size: var(DipSize::zero()),
+
+            restore_state: var(WindowState::Normal),
+            restore_rect: var(DipRect::new(
+                DipPoint::new(Dip::new(30), Dip::new(30)),
+                DipSize::new(Dip::new(800), Dip::new(600)),
+            )),
+
+            min_size: var(Size::new(192, 48)),
+            max_size: var(Size::new(100.pct(), 100.pct())),
+            auto_size: var(AutoSize::empty()),
+
+            resizable: var(true),
+            movable: var(true),
+
+            always_on_top: var(false),
+
+            visible: var(true),
+            taskbar_visible: var(true),
+
+            parent: var(None),
+            modal: var(false),
+
+            text_aa: var(TextAntiAliasing::Default),
+
+            allow_alt_f4: var(!cfg!(windows)),
+
+            is_open: var(true),
+
+            frame_capture_mode: var(FrameCaptureMode::Sporadic),
+            render_mode: var(default_render_mode),
+        });
+        Self(vars)
+    }
+
+    pub(super) fn clone(&self) -> Self {
+        Self(Rc::clone(&self.0))
+    }
+
+    /// Window chrome, the non-client area of the window.
+    ///
+    /// See [`WindowChrome`] for details.
+    ///
+    /// The default value is [`WindowChrome::Default`].
+    #[inline]
+    pub fn chrome(&self) -> &RcVar<WindowChrome> {
+        &self.0.chrome
+    }
+
+    /// Window icon.
+    ///
+    /// See [`WindowIcon`] for details.
+    ///
+    /// The default value is [`WindowIcon::Default`].
+    #[inline]
+    pub fn icon(&self) -> &RcVar<WindowIcon> {
+        &self.0.icon
+    }
+
+    /// Window cursor icon and visibility.
+    ///
+    /// See [`CursorIcon`] for details.
+    ///
+    /// The default is [`CursorIcon::Default`], if set to `None` no cursor icon is shown.
+    #[inline]
+    pub fn cursor(&self) -> &RcVar<Option<CursorIcon>> {
+        &self.0.cursor
+    }
+
+    /// Window title text.
+    ///
+    /// The default value is `""`.
+    #[inline]
+    pub fn title(&self) -> &RcVar<Text> {
+        &self.0.title
+    }
+
+    /// Window screen state.
+    ///
+    /// Minimized, maximized or full-screen. See [`WindowState`] for details.
+    ///
+    /// The default value is [`WindowState::Normal`]
+    #[inline]
+    pub fn state(&self) -> &RcVar<WindowState> {
+        &self.0.state
+    }
+
+    /// Window monitor.
+    ///
+    /// The query selects the monitor to which the [`position`] and [`size`] is relative to.
+    ///
+    /// It evaluate once on startup and then once every time the variable updates. You can track
+    /// what the current monitor is by using [`actual_monitor`].
+    ///
+    /// # Behavior After Open
+    ///
+    /// If this variable is changed after the window has opened, and the new query produces a different
+    /// monitor from the [`actual_monitor`] and the window is visible; then the window is moved to
+    /// the new monitor:
+    ///
+    /// * **Maximized**: The window is maximized in the new monitor.
+    /// * **Normal**: The window is centered in the new monitor, keeping the same size, unless the
+    /// [`position`] and [`size`] where set in the same update, in that case these values are used.
+    /// * **Minimized/Hidden**: The window restore position and size are defined like **Normal**.
+    ///
+    /// [`position`]: WindowVars::position
+    /// [`actual_monitor`]: WindowVars::actual_monitor
+    /// [`size`]: WindowVars::size
+    #[inline]
+    pub fn monitor(&self) -> &RcVar<MonitorQuery> {
+        &self.0.monitor
+    }
+
+    /// Video mode for exclusive fullscreen.
+    #[inline]
+    pub fn video_mode(&self) -> &RcVar<VideoMode> {
+        &self.0.video_mode
+    }
+
+    /// Current monitor hosting the window.
+    ///
+    /// This is `None` only if the window has not opened yet (before first render) or if
+    /// no monitors where found in the operating system or if the window if headless without renderer.
+    #[inline]
+    pub fn actual_monitor(&self) -> ReadOnlyRcVar<Option<MonitorId>> {
+        self.0.actual_monitor.clone().into_read_only()
+    }
+
+    /// Window actual position on the virtual screen that envelops all monitors.
+    ///
+    /// This is a read-only variable that tracks the computed position of the window, it updates every
+    /// time the window moves.
+    ///
+    /// The initial value is `(0, 0)` but this is updated quickly to an actual value. The point
+    /// is relative to the origin of the virtual screen that envelops all monitors.
+    #[inline]
+    pub fn actual_position(&self) -> ReadOnlyRcVar<DipPoint> {
+        self.0.actual_position.clone().into_read_only()
+    }
+
+    /// Window *restore* state.
+    ///
+    /// The *restore* state that the window must be set to be restored, if the [current state] is [`Maximized`], [`Fullscreen`] or [`Exclusive`]
+    /// the restore state is [`Normal`], if the [current state] is [`Minimized`] the restore state is the previous state.
+    ///
+    /// When the restore state is [`Normal`] the [`restore_rect`] defines the window position and size.
+    ///
+    /// [current state]: Self::state
+    /// [`Maximized`]: WindowState::Maximized
+    /// [`Fullscreen`]: WindowState::Fullscreen
+    /// [`Exclusive`]: WindowState::Exclusive
+    /// [`Normal`]: WindowState::Normal
+    /// [`Minimized`]: WindowState::Minimized
+    /// [`restore_rect`]: Self::restore_rect
+    #[inline]
+    pub fn restore_state(&self) -> ReadOnlyRcVar<WindowState> {
+        self.0.restore_state.clone().into_read_only()
+    }
+
+    /// Window *restore* position and size when restoring to [`Normal`].
+    ///
+    /// The *restore* rectangle is the window position and size when its state is [`Normal`], when the state is not [`Normal`]
+    /// this variable tracks the last normal position and size, it will be the window [`actual_position`] and [`actual_size`] again
+    /// when the state is set back to [`Normal`].
+    ///
+    /// This is a read-only variable, to programmatically set it assign the [`position`] and [`size`] variables, note that
+    /// unlike this variable the [`position`] is relative to the [`monitor`] top-left.
+    ///
+    /// The initial value is `(30, 30).at(800, 600)` but this is updated quickly to an actual position. The point
+    /// is relative to the origin of the virtual screen that envelops all monitors.
+    ///
+    /// Note that to restore the window you only need to set [`state`] to [`restore_state`], if the restore state is [`Normal`]
+    /// this position and size will be applied automatically.
+    ///
+    /// [`Normal`]: WindowState::Normal
+    /// [`actual_position`]: Self::actual_position
+    /// [`actual_size`]: Self::actual_size
+    /// [`position`]: Self::position
+    /// [`size`]: Self::size
+    /// [`monitor`]: Self::monitor
+    /// [`state`]: Self::state
+    /// [`restore_state`]: Self::restore_state
+    #[inline]
+    pub fn restore_rect(&self) -> ReadOnlyRcVar<DipRect> {
+        self.0.restore_rect.clone().into_read_only()
+    }
+
+    /// Window top-left offset on the [`monitor`] when the window is [`Normal`].
+    ///
+    /// When a dimension is not a finite value it is computed from other variables.
+    /// Relative values are computed in relation to the [`monitor`] size, updating every time the
+    /// position or monitor variable updates, not every layout.
+    ///
+    /// When the user moves the window this value is considered stale, when it updates it overwrites the window position again,
+    /// note that the window is only moved if it is in the [`Normal`] state, otherwise only the [`restore_rect`] updates.
+    ///
+    /// When the the window is moved by the user this variable does **not** update back, to track the current position of the window
+    /// on the virtual screen that envelops all monitors use [`actual_position`], to track the *restore* position use [`restore_rect`].
+    ///
+    /// The default value causes the window or OS to select a value.
+    ///
+    /// [`restore_rect`]: WindowVars::restore_rect
+    /// [`actual_position`]: WindowVars::actual_position
+    /// [`monitor`]: WindowVars::monitor
+    /// [`Normal`]: WindowState::Normal
+    #[inline]
+    pub fn position(&self) -> &RcVar<Point> {
+        &self.0.position
+    }
+
+    /// Window actual size on the screen.
+    ///
+    /// This is a read-only variable that tracks the computed size of the window, it updates every time
+    /// the window resizes.
+    ///
+    /// The initial value is `(0, 0)` but this is updated quickly to an actual value.
+    #[inline]
+    pub fn actual_size(&self) -> ReadOnlyRcVar<DipSize> {
+        self.0.actual_size.clone().into_read_only()
+    }
+
+    /// Window width and height on the screen when the window is [`Normal`].
+    ///
+    /// When a dimension is not a finite value it is computed from other variables.
+    /// Relative values are computed in relation to the full-screen size.
+    ///
+    /// When the user resizes the window this value is considered stale, when it updates it overwrites the window size again,
+    /// not that the window is only resized if it is in the [`Normal`] state, otherwise only the [`restore_rect`] updates.
+    ///
+    /// When the window is resized this variable does **not** updated back, to track the current window size use [`actual_size`],
+    /// to track the *restore* size use [`restore_rect`].
+    ///
+    /// The default value is `(800, 600)`.
+    ///
+    /// [`actual_size`]: WindowVars::actual_size
+    /// [`restore_rect`]: WindowVars::restore_rect
+    /// [`Normal`]: WindowState::Normal
+    #[inline]
+    pub fn size(&self) -> &RcVar<Size> {
+        &self.0.size
+    }
+
+    /// Configure window size-to-content.
+    ///
+    /// When enabled overwrites [`size`](Self::size), but is still coerced by [`min_size`](Self::min_size)
+    /// and [`max_size`](Self::max_size). Auto-size is disabled if the user [manually resizes](Self::resizable).
+    ///
+    /// The default value is [`AutoSize::DISABLED`].
+    #[inline]
+    pub fn auto_size(&self) -> &RcVar<AutoSize> {
+        &self.0.auto_size
+    }
+
+    /// Minimal window width and height constrain on the [`size`].
+    ///
+    /// When a dimension is not a finite value it fallback to the previous valid value.
+    /// Relative values are computed in relation to the full-screen size.
+    ///
+    /// Note that the operation systems can have their own minimal size that supersedes this variable.
+    ///
+    /// The default value is `(192, 48)`.
+    ///
+    /// [`size`]: Self::size
+    #[inline]
+    pub fn min_size(&self) -> &RcVar<Size> {
+        &self.0.min_size
+    }
+
+    /// Maximal window width and height constrain on the [`size`].
+    ///
+    /// When a dimension is not a finite value it fallback to the previous valid value.
+    /// Relative values are computed in relation to the full-screen size.
+    ///
+    /// Note that the operation systems can have their own maximal size that supersedes this variable.
+    ///
+    /// The default value is `(100.pct(), 100.pct())`
+    ///
+    /// [`size`]: Self::size
+    #[inline]
+    pub fn max_size(&self) -> &RcVar<Size> {
+        &self.0.max_size
+    }
+
+    /// If the user can resize the window using the window frame.
+    ///
+    /// Note that even if disabled the window can still be resized from other sources.
+    ///
+    /// The default value is `true`.
+    #[inline]
+    pub fn resizable(&self) -> &RcVar<bool> {
+        &self.0.resizable
+    }
+
+    /// If the user can move the window using the window frame.
+    ///
+    /// Note that even if disabled the window can still be moved from other sources.
+    ///
+    /// The default value is `true`.
+    #[inline]
+    pub fn movable(&self) -> &RcVar<bool> {
+        &self.0.movable
+    }
+
+    /// Whether the window should always stay on top of other windows.
+    ///
+    /// Note this only applies to other windows that are not also "always-on-top".
+    ///
+    /// The default value is `false`.
+    #[inline]
+    pub fn always_on_top(&self) -> &RcVar<bool> {
+        &self.0.always_on_top
+    }
+
+    /// If the window is visible on the screen and in the task-bar.
+    ///
+    /// This variable is observed only after the first frame render, before that the window
+    /// is always not visible.
+    ///
+    /// The default value is `true`.
+    #[inline]
+    pub fn visible(&self) -> &RcVar<bool> {
+        &self.0.visible
+    }
+
+    /// If the window is visible in the task-bar.
+    ///
+    /// The default value is `true`.
+    #[inline]
+    pub fn taskbar_visible(&self) -> &RcVar<bool> {
+        &self.0.taskbar_visible
+    }
+
+    /// The window parent.
+    ///
+    /// If a parent is set this behavior applies:
+    ///
+    /// * If the parent is minimized, this window is also minimized.
+    /// * If the parent window is maximized, this window is restored.
+    /// * This window is always-on-top of the parent window.
+    /// * If the parent window is closed, this window is also closed.
+    /// * If [`modal`](Self::modal) is set, the parent window cannot be focused while this window is open.
+    ///
+    /// The default value is `None`.
+    #[inline]
+    pub fn parent(&self) -> &RcVar<Option<WindowId>> {
+        &self.0.parent
+    }
+
+    /// Configure the [`parent`](Self::parent) connection.
+    ///
+    /// Value is ignored is `parent` is not set.
+    ///
+    /// The default value is `false`.
+    #[inline]
+    pub fn modal(&self) -> &RcVar<bool> {
+        &self.0.modal
+    }
+
+    /// Text anti-aliasing config in the window.
+    ///
+    /// The default value is [`TextAntiAliasing::Default`] that is the OS default.
+    #[inline]
+    pub fn text_aa(&self) -> &RcVar<TextAntiAliasing> {
+        &self.0.text_aa
+    }
+
+    /// In Windows the `Alt+F4` shortcut is intercepted by the system and causes a window close request,
+    /// if this variable is set to `true` this default behavior is disabled and a key-press event is generated
+    /// instead.
+    #[inline]
+    pub fn allow_alt_f4(&self) -> &RcVar<bool> {
+        &self.0.allow_alt_f4
+    }
+
+    /// If the window is open.
+    ///
+    /// This is a read-only variable, it starts set to `true` and will update only once,
+    /// when the window finishes closing.
+    #[inline]
+    pub fn is_open(&self) -> ReadOnlyRcVar<bool> {
+        self.0.is_open.clone().into_read_only()
+    }
+
+    /// The window [`FrameCaptureMode`].
+    ///
+    /// If set to [`Next`] the value will change to [`Sporadic`] after the frame is rendered.
+    ///
+    /// Note that setting this to [`Next`] does not cause a frame request. Use [`Updates::render_update`] for that.
+    ///
+    /// [`Next`]: FrameCaptureMode::Next
+    /// [`Sporadic`]: FrameCaptureMode::Sporadic
+    /// [`Updates::render_update`]: crate::context::Updates::render_update
+    #[inline]
+    pub fn frame_capture_mode(&self) -> &RcVar<FrameCaptureMode> {
+        &self.0.frame_capture_mode
+    }
+
+    /// Window actual render mode.
+    ///
+    /// The initial value is the [`default_render_mode`], it can update after the window is created, when the view-process
+    /// actually creates the backend window and after a view-process respawn.
+    ///
+    /// [`default_render_mode`]: Windows::default_render_mode
+    #[inline]
+    pub fn render_mode(&self) -> ReadOnlyRcVar<RenderMode> {
+        self.0.render_mode.clone().into_read_only()
+    }
+}
+state_key! {
+    /// Key for the instance of [`WindowVars`] in the window state.
+    pub struct WindowVarsKey: WindowVars;
+}
