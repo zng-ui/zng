@@ -317,6 +317,7 @@ impl AppExtension for WindowManager {
                         }
 
                         window.vars.0.actual_monitor.set_ne(ctx.vars, Some(new_monitor));
+                        window.monitor_info = None;
                     }
                 }
 
@@ -386,6 +387,7 @@ impl AppExtension for WindowManager {
                         window.context.update.layout = true;
                         window.context.update.render = WindowRenderUpdate::Render;
                         ctx.updates.layout_and_render();
+                        windows.windows.get_mut(&window_id).unwrap().monitor_info = None;
                     }
                 }
             }
@@ -1575,8 +1577,11 @@ impl AppWindow {
 
                 self.vars.0.render_mode.set_ne(ctx.vars, data.render_mode);
 
+                //syn_args.monitor = Some((data.monitor, data.scale_factor)); // TODO, set scale-factor via event?
+                ctx.services.windows().windows_info.get_mut(&self.id).unwrap().scale_factor = data.scale_factor.fct();
+
                 RawWindowChangedEvent.notify(ctx, syn_args);
-                WindowScaleChangedEvent.notify(ctx.events, WindowScaleChangedArgs::now(self.id, data.scale_factor));
+
             }
             WindowMode::HeadlessWithRenderer => {
                 let scale_factor = self.headless_monitor.as_ref().unwrap().scale_factor;
@@ -1599,7 +1604,7 @@ impl AppWindow {
 
                 self.vars.0.render_mode.set_ne(ctx.vars, data.render_mode);
 
-                WindowScaleChangedEvent.notify(ctx.events, WindowScaleChangedArgs::now(self.id, scale_factor));
+                ctx.services.windows().windows_info.get_mut(&self.id).unwrap().scale_factor = scale_factor;
             }
             WindowMode::Headless => {
                 // headless without renderer only provides the `FrameInfo` (notified in `render_frame`),
@@ -1632,7 +1637,8 @@ impl AppWindow {
                 RawWindowChangedEvent.notify(ctx.events, syn_args);
 
                 let scale_factor = self.headless_monitor.as_ref().unwrap().scale_factor;
-                WindowScaleChangedEvent.notify(ctx.events, WindowScaleChangedArgs::now(self.id, scale_factor));
+
+                ctx.services.windows().windows_info.get_mut(&self.id).unwrap().scale_factor = scale_factor;
             }
         }
     }

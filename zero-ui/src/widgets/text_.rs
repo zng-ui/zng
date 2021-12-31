@@ -214,6 +214,7 @@ pub mod text {
                             .expect("font not inited in measure")
                             .sized(size, variations.finalize()),
                     );
+                    self.shaped_text = None;
 
                     ctx.updates.render();
                 }
