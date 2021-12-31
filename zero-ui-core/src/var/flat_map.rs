@@ -208,7 +208,7 @@ where
 
 #[cfg(test)]
 mod tests {
-    use crate::{var::*, context::TestWidgetContext};
+    use crate::{context::TestWidgetContext, var::*};
     use std::fmt;
 
     #[derive(Clone)]
@@ -224,10 +224,7 @@ mod tests {
 
     #[test]
     pub fn flat_map() {
-        let source = var(Foo {
-            bar: true,
-            var: var(32)
-        });
+        let source = var(Foo { bar: true, var: var(32) });
 
         let test = source.flat_map(|f| f.var.clone());
 
@@ -248,10 +245,7 @@ mod tests {
         assert!(!ctx_updates.update);
 
         let old_var = source.get(&ctx).var.clone();
-        source.set(&ctx, Foo {
-            bar: false,
-            var: var(192)
-        });
+        source.set(&ctx, Foo { bar: false, var: var(192) });
         let (_, ctx_updates) = ctx.apply_updates();
 
         assert!(ctx_updates.update);

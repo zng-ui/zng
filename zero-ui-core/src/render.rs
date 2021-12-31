@@ -14,7 +14,8 @@ use crate::{
     UiNode, WidgetId,
 };
 use derive_more as dm;
-use std::{marker::PhantomData, mem};
+use linear_map::LinearMap;
+use std::{collections::BTreeMap, marker::PhantomData, mem};
 
 pub use zero_ui_view_api::webrender_api;
 
@@ -117,11 +118,12 @@ pub struct FrameBuilder {
     window_id: WindowId,
     pipeline_id: PipelineId,
 
-    clear_color: Option<RenderColor>,
-
     renderer: Option<ViewRenderer>,
 
     scale_factor: Factor,
+
+    // selected layer.
+    layer_index: LayerIndex,
     display_list: DisplayListBuilder,
 
     widget_id: WidgetId,
@@ -134,7 +136,14 @@ pub struct FrameBuilder {
     clip_id: ClipId,
     spatial_id: SpatialId,
     parent_spatial_id: SpatialId,
+
+    clear_color_layer: LayerIndex,
+    clear_color: Option<RenderColor>,
+
+    layers: BTreeMap<LayerIndex, Option<DisplayListBuilder>>,
+    used_layers: LinearMap<LayerIndex, DisplayListBuilder>,
 }
+
 bitflags! {
     struct WidgetDisplayMode: u8 {
         const REFERENCE_FRAME = 1;
@@ -170,17 +179,17 @@ impl FrameBuilder {
             .and_then(|r| r.pipeline_id().ok())
             .unwrap_or_else(PipelineId::dummy);
 
-        let mut reuse = None;
+        let mut display_list;
+        let mut used_layers = LinearMap::new();
+
         if let Some(used) = used_data {
-            if used.display_list.pipeline_id == pipeline_id {
-                reuse = Some(used);
+            if used.pipeline_id() == pipeline_id {
+                used_layers = used.used_layers;
             }
         }
 
-        let mut display_list;
-
-        if let Some(reuse) = reuse {
-            display_list = reuse.display_list;
+        if let Some(reuse) = used_layers.remove(&LayerIndex::DEFAULT) {
+            display_list = reuse;
         } else {
             display_list = DisplayListBuilder::new(pipeline_id);
         }
@@ -195,16 +204,24 @@ impl FrameBuilder {
             renderer,
             scale_factor,
             display_list,
-            clear_color: None,
             widget_id: root_id,
             widget_rendered: false,
             widget_transform_key: root_transform_key,
             widget_stack_ctx_data: None,
             cancel_widget: false,
             widget_display_mode: WidgetDisplayMode::empty(),
+
             clip_id: ClipId::root(pipeline_id),
             spatial_id,
             parent_spatial_id: spatial_id,
+
+            layer_index: LayerIndex::DEFAULT,
+            layers: Some((LayerIndex::DEFAULT, None)).into_iter().collect(),
+
+            clear_color_layer: LayerIndex::DEFAULT,
+            clear_color: None,
+
+            used_layers,
         };
         new.push_widget_hit_area(root_id, root_size);
         new.widget_stack_ctx_data = Some((RenderTransform::identity(), Vec::default(), PrimitiveFlags::empty()));
@@ -233,6 +250,65 @@ impl FrameBuilder {
         )
     }
 
+    /// Returns the current layer index.
+    #[inline]
+    pub fn layer_index(&self) -> LayerIndex {
+        self.layer_index
+    }
+
+    /// Calls `action` with the builder set to the selected layer, creating it if it was not requested before.
+    ///
+    /// Every [`FrameBuilder`] is implicitly building a *layer* of display items, later added items
+    /// will render on top of early added items, to ensure that an early added item is rendered on top
+    /// of all later items you can request a layer that is a different [`FrameBuilder`] that will be composed
+    /// at the right Z-order when the overall render builder is finalized.
+    ///
+    /// Note that layers don't retain any of the stacked context transforms, clips and effects at the position they are
+    /// requested, the context must be recreated in the layer if you want to align display items with the parent
+    /// display items in the parent layer. Some helper methods are provided for this, see [`with_context_in_layer`]
+    /// for more details.
+    ///
+    /// [`with_context_in_layer`]: Self::with_context_in_layer
+    pub fn with_layer(&mut self, index: LayerIndex, action: impl FnOnce(&mut Self)) {
+        if self.layer_index == index {
+            action(self)
+        } else {
+            let layer = self.layers.entry(index).or_insert_with(|| {
+                Some({
+                    let mut layer = self
+                        .used_layers
+                        .remove(&index)
+                        .unwrap_or_else(|| DisplayListBuilder::new(self.pipeline_id));
+                    layer.begin();
+                    layer
+                })
+            });
+
+            let prev_index = mem::replace(&mut self.layer_index, index);
+            let prev_layer = mem::replace(&mut self.display_list, layer.take().unwrap());
+            *self.layers.get_mut(&prev_index).unwrap() = Some(prev_layer);
+
+            action(self);
+
+            self.layer_index = prev_index;
+            let layer = self.layers.get_mut(&prev_index).unwrap().take().unwrap();
+            let layer = mem::replace(&mut self.display_list, layer);
+
+            *self.layers.get_mut(&index).unwrap() = Some(layer);
+
+            todo!("TODO, review Builder has some context values here, like the widget_id")
+        }
+    }
+
+    /// Runs `action` in the selected layer with stacking contexts and widget metadata that recreate
+    /// the current context of `self` in the selected layer.
+    pub fn with_context_in_layer(&mut self, index: LayerIndex, action: impl FnOnce(&mut Self)) {
+        self.with_layer(index, |layer| {
+            action(layer);
+            todo!();
+        })
+    }
+
     /// Pixel scale factor used by the renderer.
     ///
     /// All layout values are scaled by this factor in the renderer.
@@ -241,7 +317,7 @@ impl FrameBuilder {
         self.scale_factor
     }
 
-    /// Direct access to the display list builder.
+    /// Direct access to the current layer display list builder.
     ///
     /// # Careful
     ///
@@ -302,9 +378,15 @@ impl FrameBuilder {
     ///
     /// Note the default clear color is white, and it is not retained, a property
     /// that sets the clear color must set it every render.
+    ///
+    /// Note that the clear color is always *rendered* first before all other layers, if more then
+    /// one layer sets the clear color only the value set on the top-most layer is used.
     #[inline]
     pub fn set_clear_color(&mut self, color: RenderColor) {
-        self.clear_color = Some(color);
+        if self.clear_color.is_none() || self.clear_color_layer <= self.layer_index {
+            self.clear_color = Some(color);
+            self.clear_color_layer = self.layer_index;
+        }
     }
 
     /// Connection to the renderer that will render this frame.
@@ -1087,13 +1169,24 @@ impl FrameBuilder {
 
         root_rendered.set(self.widget_rendered);
 
-        let (pipeline_id, display_list) = self.display_list.end();
+        *self.layers.get_mut(&self.layer_index).unwrap() = Some(self.display_list);
+        let mut used_layers = LinearMap::with_capacity(self.layers.len());
+
+        let mut layers = self.layers.into_iter();
+
+        let (bottom_index, final_list) = layers.next().unwrap();
+        let mut final_list = final_list.unwrap();
+        for (index, dl) in layers {
+            let mut dl = dl.unwrap();
+            todo!();
+        }
+
+        let (pipeline_id, display_list) = final_list.end();
         let (payload, descriptor) = display_list.into_data();
         let clear_color = self.clear_color.unwrap_or(RenderColor::WHITE);
 
-        let reuse = UsedFrameBuilder {
-            display_list: self.display_list,
-        };
+        used_layers.insert(bottom_index, final_list);
+        let reuse = UsedFrameBuilder { used_layers };
 
         let frame = BuiltFrame {
             id: self.frame_id,
@@ -1120,12 +1213,16 @@ pub struct BuiltFrame {
 
 /// Data from a previous [`FrameBuilder`], can be reuse in the next frame for a performance boost.
 pub struct UsedFrameBuilder {
-    display_list: DisplayListBuilder,
+    used_layers: LinearMap<LayerIndex, DisplayListBuilder>,
 }
 impl UsedFrameBuilder {
     /// Pipeline where this frame builder can be reused.
     pub fn pipeline_id(&self) -> PipelineId {
-        self.display_list.pipeline_id
+        self.used_layers
+            .values()
+            .next()
+            .map(|p| p.pipeline_id)
+            .unwrap_or_else(PipelineId::dummy)
     }
 }
 enum RenderLineCommand {
@@ -1649,4 +1746,45 @@ impl_from_and_into_var! {
     fn from(enabled: bool) -> FontSynthesis {
         if enabled { FontSynthesis::ENABLED } else { FontSynthesis::DISABLED }
     }
+}
+
+/// Represents a layer in and of a [`FrameBuilder`].
+///
+/// See the [`with_layer`] method for more information.
+///
+/// [`with_layer`]: FrameBuilder::with_layer
+#[derive(Default, Debug, PartialEq, Eq, Clone, Copy, PartialOrd, Ord)]
+pub struct LayerIndex(pub i32);
+impl LayerIndex {
+    /// The top-most layer inside a [`FrameBuilder`].
+    ///
+    /// Only widgets that are pretending to be a child window should use this layer, including menus,
+    /// drop-downs, pop-ups and tool-tips.
+    ///
+    /// This is the [`i32::MAX`] value.
+    pub const TOP_MOST: LayerIndex = LayerIndex(i32::MAX);
+
+    /// The layer for *adorner* display items.
+    ///
+    /// Adorner widgets are related to another widget but not as a visual part of it, examples of adorners
+    /// are resize handles in a widget visual editor, or an interactive help/guide feature.
+    ///
+    /// This is the [`TOP_MOST - i16::MAX`] value.
+    pub const ADORNERS: LayerIndex = LayerIndex(Self::TOP_MOST.0 - i16::MAX as i32);
+
+    /// The default layer of a window or headless surface contents.
+    ///
+    /// This is the `0` value.
+    pub const DEFAULT: LayerIndex = LayerIndex(0);
+
+    /// The top-most layer inside a [`FrameBuilder`].
+    ///
+    /// Note that if any of the other layers fills the frame the contents of this
+    /// layer are not visible, for example, in a window default layer with `background_color` set. This
+    /// does not apply to the clear color, see the [`clear_color`] method for more details.
+    ///
+    /// This is the [`i32::MAX`] value.
+    ///
+    /// [`clear_color`]: FrameBuilder::clear_color
+    pub const BOTTOM_MOST: LayerIndex = LayerIndex(i32::MIN);
 }
