@@ -1581,7 +1581,6 @@ impl AppWindow {
                 ctx.services.windows().windows_info.get_mut(&self.id).unwrap().scale_factor = data.scale_factor.fct();
 
                 RawWindowChangedEvent.notify(ctx, syn_args);
-
             }
             WindowMode::HeadlessWithRenderer => {
                 let scale_factor = self.headless_monitor.as_ref().unwrap().scale_factor;

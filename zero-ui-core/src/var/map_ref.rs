@@ -24,8 +24,7 @@ where
 {
     /// New reference mapping var.
     ///
-    /// Only use this directly if you are implementing [`Var`]. For existing variables use
-    /// the [`Var::map_ref`] method.
+    /// Prefer using the [`Var::map_ref`] method.
     pub fn new(source: S, map: M) -> Self {
         MapRefVar {
             _ab: PhantomData,
@@ -220,8 +219,7 @@ where
 {
     /// New bidirectional reference mapping variable.
     ///
-    /// Only use this directly if you are implementing [`Var`]. For existing variables use
-    /// the [`Var::map_ref_bidi`] method.
+    /// Prefer using the [`Var::map_ref_bidi`] method.
     pub fn new(source: S, map: M, map_mut: N) -> Self {
         MapBidiRefVar {
             _ab: PhantomData,

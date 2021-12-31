@@ -32,8 +32,7 @@ where
 {
     /// New mapping var.
     ///
-    /// Only use this directly if you are implementing [`Var`]. For existing variables use
-    /// the [`Var::map`] method.
+    /// Prefer using the [`Var::map`] method.
     #[inline]
     pub fn new(source: S, map: M) -> Self {
         RcMapVar(Rc::new(MapData {
@@ -259,8 +258,7 @@ where
 {
     /// New bidirectional mapping var.
     ///
-    /// Only use this directly if you are implementing [`Var`]. For existing variables use
-    /// the [`Var::map_bidi`] method.
+    /// Prefer using the [`Var::map_bidi`] method.
     #[inline]
     pub fn new(source: S, map: M, map_back: N) -> Self {
         RcMapBidiVar(Rc::new(MapBidiData {

@@ -19,8 +19,8 @@ thread_singleton!(SingletonVars);
 
 type SyncEntry = Box<dyn Fn(&Vars) -> Retain>;
 type Retain = bool;
-
 type VarBindingFn = Box<dyn FnMut(&Vars) -> Retain>;
+type UpdateLinkFn = Box<dyn Fn(&Vars, &mut UpdateMask) -> Retain>;
 
 /// Read-only access to variables.
 ///
@@ -103,6 +103,8 @@ pub struct VarsRead {
     app_event_sender: AppEventSender,
     senders: RefCell<Vec<SyncEntry>>,
     receivers: RefCell<Vec<SyncEntry>>,
+
+    update_links: RefCell<Vec<UpdateLinkFn>>,
 }
 impl fmt::Debug for VarsRead {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -113,6 +115,10 @@ impl VarsRead {
     /// Id of the current update cycle, can be used to determinate if a variable value is new.
     pub(super) fn update_id(&self) -> u32 {
         self.update_id
+    }
+
+    pub(super) fn link_updates(&self, check: impl Fn(&Vars, &mut UpdateMask) -> Retain + 'static) {
+        self.update_links.borrow_mut().push(Box::new(check))
     }
 
     /// Gets a var at the context level.
@@ -347,6 +353,7 @@ impl Vars {
                 widget_clear: Default::default(),
                 senders: RefCell::default(),
                 receivers: RefCell::default(),
+                update_links: RefCell::default(),
             },
             binding_update_id: 0u32.wrapping_sub(13),
             bindings: RefCell::default(),
@@ -393,6 +400,9 @@ impl Vars {
                         }
                     }
                 }
+
+                // add extra update flags
+                self.read.update_links.borrow_mut().retain(|f| f(self, &mut mask));
 
                 // send values.
                 self.senders.borrow_mut().retain(|f| f(self));

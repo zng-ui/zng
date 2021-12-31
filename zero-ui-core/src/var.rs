@@ -34,6 +34,9 @@ pub use map_ref::*;
 mod filter_map;
 pub use filter_map::*;
 
+mod flat_map;
+pub use flat_map::*;
+
 mod merge;
 pub use merge::*;
 
@@ -680,6 +683,20 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + crate::private::Sealed + 'stati
         N: Fn(&mut T) -> &mut O + Clone + 'static,
     {
         MapBidiRefVar::new(self.clone(), map, map_mut)
+    }
+
+    /// Map to a variable selected from the value of `self`. The result variable outputs the
+    /// value of the selected value but it updates when both `self` and the selected variable updates.
+    ///
+    /// If the selected variable can be modified setting the result variable sets the selected variable.
+    #[inline]
+    fn flat_map<O, M, V>(&self, map: M) -> RcFlatMapVar<T, O, V, M, Self>
+    where
+        O: VarValue,
+        V: Var<O>,
+        M: FnMut(&T) -> V + 'static,
+    {
+        RcFlatMapVar::new(self.clone(), map)
     }
 
     /// Create a read-only variable with a value that is mapped from this variable, but only if it passes a filter.

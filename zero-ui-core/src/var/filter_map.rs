@@ -61,8 +61,7 @@ where
 {
     /// New filter mapping var.
     ///
-    /// Only use this directly if you are implementing [`Var`]. For existing variables use
-    /// the [`Var::filter_map`] method.
+    /// Prefer using the [`Var::filter_map`] method.
     pub fn new(source: S, fallback_init: I, map: M) -> Self {
         RcFilterMapVar(Rc::new(FilterMapData {
             _a: PhantomData,
@@ -319,8 +318,7 @@ where
 {
     /// New bidirectional filtered mapping var.
     ///
-    /// Only use this directly if you are implementing [`Var`]. For existing variables use
-    /// the [`Var::filter_map_bidi`] method.
+    /// Prefer using the [`Var::filter_map_bidi`] method.
     pub fn new(source: S, fallback_init: I, map: M, map_back: N) -> Self {
         RcFilterMapBidiVar(Rc::new(FilterMapBidiData {
             _a: PhantomData,
