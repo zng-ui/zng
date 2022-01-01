@@ -1032,6 +1032,7 @@ impl Window {
 
             self.waiting_first_frame = false;
             let s = self.window.inner_size();
+            self.context.make_current();
             self.context.resize(s.width as i32, s.height as i32);
             self.redraw();
             if self.visible {
