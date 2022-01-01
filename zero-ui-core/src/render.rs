@@ -1781,10 +1781,10 @@ impl LayerIndex {
     ///
     /// Note that if any of the other layers fills the frame the contents of this
     /// layer are not visible, for example, in a window default layer with `background_color` set. This
-    /// does not apply to the clear color, see the [`clear_color`] method for more details.
+    /// does not apply to the clear color, see the [`set_clear_color`] method for more details.
     ///
     /// This is the [`i32::MAX`] value.
     ///
-    /// [`clear_color`]: FrameBuilder::clear_color
+    /// [`set_clear_color`]: FrameBuilder::set_clear_color
     pub const BOTTOM_MOST: LayerIndex = LayerIndex(i32::MIN);
 }

@@ -29,6 +29,9 @@ unique_id_32! {
     /// Unique identifier of an open window.
     ///
     /// Can be obtained from [`WindowContext::window_id`] or [`WidgetContext::path`].
+    ///
+    /// [`WindowContext::window_id`]: crate::context::WindowContext::window_id
+    /// [`WidgetContext::path`]: crate::context::WidgetContext::path
     pub struct WindowId;
 }
 impl fmt::Debug for WindowId {
@@ -52,6 +55,8 @@ impl fmt::Display for WindowId {
 /// Window startup configuration.
 ///
 /// More window configuration is accessible using the [`WindowVars`] type.
+///
+/// [`WindowVars`]: crate::window::WindowVars
 pub struct Window {
     pub(super) state: OwnedStateMap,
     pub(super) id: WidgetId,
@@ -413,10 +418,14 @@ impl PartialEq for WindowIcon {
 /// Frame image capture mode in a window.
 ///
 /// You can set the capture mode using [`WindowVars::frame_capture_mode`].
+///
+/// [`WindowVars::frame_capture_mode`]: crate::window::WindowVars::frame_capture_mode
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FrameCaptureMode {
     /// Frames are not automatically captured, but you can
     /// use [`Windows::frame_image`] to capture frames.
+    ///
+    /// [`Windows::frame_image`]: crate::window::Windows::frame_image
     Sporadic,
     /// The next rendered frame will be captured and available in [`FrameImageReadyArgs::frame_image`].
     ///
@@ -684,15 +693,23 @@ event! {
     /// A window widget tree was rebuild.
     ///
     /// You can request the widget info tree using [`Windows::widget_tree`].
+    ///
+    /// [`Windows::widget_tree`]: crate::window::Windows::widget_tree
     pub WidgetInfoChangedEvent: WidgetInfoChangedArgs;
 
     /// A window frame has finished rendering.
     ///
     /// You can request a copy of the pixels using [`Windows::frame_image`] or by setting the [`WindowVars::frame_capture_mode`].
+    ///
+    /// [`Windows::frame_image`]: crate::window::Windows::frame_image
+    /// [`WindowVars::frame_capture_mode`]: crate::window::WindowVars::frame_capture_mode
     pub FrameImageReadyEvent: FrameImageReadyArgs;
 }
 
-/// Response message of [`close`](Windows::close) and [`close_together`](Windows::close_together).
+/// Response message of [`close`] and [`close_together`].
+///
+/// [`close`]: crate::window::Windows::close
+/// [`close_together`]: crate::window::Windows::close_together
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum CloseWindowResult {
     /// Operation completed, all requested windows closed.
@@ -703,6 +720,8 @@ pub enum CloseWindowResult {
 }
 
 /// Error when a [`WindowId`] is not opened by the [`Windows`] service.
+///
+/// [`Windows`]: crate::window::Windows
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub struct WindowNotFound(pub WindowId);
 impl fmt::Display for WindowNotFound {

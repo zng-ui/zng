@@ -71,6 +71,7 @@ impl fmt::Display for MonitorId {
 /// [`ppi`]: MonitorFullInfo::ppi
 /// [`LayoutMetrics`]: crate::context::LayoutMetrics
 /// [The Virtual Screen]: https://docs.microsoft.com/en-us/windows/win32/gdi/the-virtual-screen
+/// [`WindowManager`]: crate::window::WindowManager
 #[derive(Service)]
 pub struct Monitors {
     monitors: LinearMap<MonitorId, MonitorFullInfo>,
@@ -155,7 +156,9 @@ impl Monitors {
     }
 }
 
-/// "Monitor" configuration used by windows in [headless mode](WindowMode::is_headless).
+/// "Monitor" configuration used by windows in [headless mode].
+///
+/// [headless mode]: crate::window::WindowMode::is_headless
 #[derive(Clone)]
 pub struct HeadlessMonitor {
     /// The scale factor used for the headless layout and rendering.

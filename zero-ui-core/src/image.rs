@@ -12,7 +12,6 @@ use std::{
     sync::Arc,
 };
 
-use hashers::jenkins::spooky_hash::SpookyHasher;
 use once_cell::unsync::OnceCell;
 use zero_ui_view_api::{webrender_api::ImageKey, IpcBytes};
 
@@ -274,7 +273,7 @@ pub struct Images {
 
     loading: Vec<(UiTask<ImageData>, RcVar<Image>, ByteLength)>,
     decoding: Vec<(ImageDataFormat, IpcBytes, RcVar<Image>)>,
-    cache: IdMap<Hash128, CacheEntry>,
+    cache: IdMap<ImageHash, CacheEntry>,
     not_cached: Vec<(WeakVar<Image>, ByteLength)>,
 }
 struct CacheEntry {
@@ -313,7 +312,7 @@ impl Images {
     /// Optionally define the HTTP ACCEPT header, if not set all image formats supported by the view-process
     /// backend are accepted.
     pub fn download(&mut self, uri: impl TryUri, accept: Option<Text>) -> ImageVar {
-        match uri.try_into() {
+        match uri.try_uri() {
             Ok(uri) => self.cache(ImageSource::Download(uri, accept)),
             Err(e) => self.dummy(Some(e.to_string())),
         }
@@ -323,7 +322,7 @@ impl Images {
     ///
     /// The data can be any of the formats described in [`ImageDataFormat`].
     ///
-    /// The image key is a [`Hash128`] of the image data.
+    /// The image key is a [`ImageHash`] of the image data.
     ///
     /// # Examples
     ///
@@ -341,7 +340,7 @@ impl Images {
 
     /// Get a cached image from shared data.
     ///
-    /// The image key is a [`Hash128`] of the image data. The data reference is held only until the image is decoded.
+    /// The image key is a [`ImageHash`] of the image data. The data reference is held only until the image is decoded.
     ///
     /// The data can be any of the formats described in [`ImageDataFormat`].
     pub fn from_data(&mut self, data: Arc<Vec<u8>>, format: impl Into<ImageDataFormat>) -> ImageVar {
@@ -374,7 +373,7 @@ impl Images {
     ///
     /// Returns `Some(previous)` if the `key` was already associated with an image.
     #[inline]
-    pub fn register(&mut self, key: Hash128, image: ViewImage) -> Option<ImageVar> {
+    pub fn register(&mut self, key: ImageHash, image: ViewImage) -> Option<ImageVar> {
         let limits = ImageLimits {
             max_encoded_size: self.limits.max_encoded_size,
             max_decoded_size: self
@@ -398,7 +397,7 @@ impl Images {
     /// for files or downloads.
     ///
     /// Returns `true` if the image was removed.
-    pub fn clean(&mut self, key: Hash128) -> bool {
+    pub fn clean(&mut self, key: ImageHash) -> bool {
         self.proxy_then_remove(&key, false)
     }
 
@@ -408,12 +407,12 @@ impl Images {
     /// for files or downloads.
     ///
     /// Returns `true` if the image was cached.
-    pub fn purge(&mut self, key: &Hash128) -> bool {
+    pub fn purge(&mut self, key: &ImageHash) -> bool {
         self.proxy_then_remove(key, true)
     }
 
     /// Gets the cache key of an image.
-    pub fn cache_key(&self, image: &Image) -> Option<Hash128> {
+    pub fn cache_key(&self, image: &Image) -> Option<ImageHash> {
         if let Some(key) = &image.cache_key {
             if self.cache.contains_key(key) {
                 return Some(*key);
@@ -457,7 +456,7 @@ impl Images {
         }
     }
 
-    fn proxy_then_remove(&mut self, key: &Hash128, purge: bool) -> bool {
+    fn proxy_then_remove(&mut self, key: &ImageHash, purge: bool) -> bool {
         for proxy in &mut self.proxies {
             let r = proxy.remove(key, purge);
             match r {
@@ -468,7 +467,7 @@ impl Images {
         }
         self.proxied_remove(key, purge)
     }
-    fn proxied_remove(&mut self, key: &Hash128, purge: bool) -> bool {
+    fn proxied_remove(&mut self, key: &ImageHash, purge: bool) -> bool {
         if purge || self.cache.get(key).map(|v| v.img.strong_count() > 1).unwrap_or(false) {
             self.cache.remove(key).is_some()
         } else {
@@ -532,7 +531,7 @@ impl Images {
         }
         self.proxied_get(key, source, mode, limits)
     }
-    fn proxied_get(&mut self, key: Hash128, source: ImageSource, mode: ImageCacheMode, limits: ImageLimits) -> ImageVar {
+    fn proxied_get(&mut self, key: ImageHash, source: ImageSource, mode: ImageCacheMode, limits: ImageLimits) -> ImageVar {
         match mode {
             ImageCacheMode::Cache => {
                 if let Some(v) = self.cache.get(&key) {
@@ -708,7 +707,7 @@ impl Images {
 
     fn load_task(
         &mut self,
-        key: Hash128,
+        key: ImageHash,
         mode: ImageCacheMode,
         max_decoded_size: ByteLength,
         fetch_bytes: impl Future<Output = ImageData> + 'static,
@@ -1013,13 +1012,13 @@ struct ImageData {
 /// Implementers can intercept cache requests and redirect to another cache request or returns an image directly.
 pub trait ImageCacheProxy {
     /// Intercept a get request.
-    fn get(&mut self, key: &Hash128, source: &ImageSource, mode: ImageCacheMode) -> ProxyGetResult {
+    fn get(&mut self, key: &ImageHash, source: &ImageSource, mode: ImageCacheMode) -> ProxyGetResult {
         let _ = (key, source, mode);
         ProxyGetResult::None
     }
 
     /// Intercept a remove request.
-    fn remove(&mut self, key: &Hash128, purge: bool) -> ProxyRemoveResult {
+    fn remove(&mut self, key: &ImageHash, purge: bool) -> ProxyRemoveResult {
         let _ = (key, purge);
         ProxyRemoveResult::None
     }
@@ -1049,7 +1048,7 @@ pub enum ProxyRemoveResult {
     /// Removes another cached entry.
     ///
     /// The `bool` indicates if the entry should be purged.
-    Remove(Hash128, bool),
+    Remove(ImageHash, bool),
     /// Consider the request fulfilled.
     Removed,
 }
@@ -1067,7 +1066,7 @@ pub struct Image {
     view: OnceCell<ViewImage>,
     render_keys: Rc<RefCell<Vec<RenderImage>>>,
     done_signal: SignalOnce,
-    cache_key: Option<Hash128>,
+    cache_key: Option<ImageHash>,
 }
 impl PartialEq for Image {
     fn eq(&self, other: &Self) -> bool {
@@ -1075,7 +1074,7 @@ impl PartialEq for Image {
     }
 }
 impl Image {
-    fn new_none(cache_key: Option<Hash128>) -> Self {
+    fn new_none(cache_key: Option<ImageHash>) -> Self {
         Image {
             view: OnceCell::new(),
             render_keys: Rc::default(),
@@ -1337,77 +1336,92 @@ impl fmt::Debug for RenderImage {
     }
 }
 
-/// Spooky Hash V2.
+/// A 256-bit hash for image entries.
 ///
 /// This hash is used to identify image files in the [`Images`] cache.
+///
+/// Use [`ImageHasher`] to compute.
 #[derive(Clone, Copy)]
-pub struct Hash128(u64, u64);
-impl Hash128 {
+pub struct ImageHash([u8; 32]);
+impl ImageHash {
     /// Compute the hash for `data`.
     pub fn compute(data: &[u8]) -> Self {
-        use std::hash::Hasher;
         let mut h = Self::hasher();
-        h.write(data);
-        h.finish128()
+        h.update(data);
+        h.finish()
     }
 
-    /// Start a new [`Hasher128`].
-    pub fn hasher() -> Hasher128 {
-        Hasher128::default()
+    /// Start a new [`ImageHasher`].
+    pub fn hasher() -> ImageHasher {
+        ImageHasher::default()
     }
 }
-impl fmt::Debug for Hash128 {
+impl fmt::Debug for ImageHash {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if f.alternate() {
-            f.debug_tuple("Hash128").field(&self.0).finish()
+            f.debug_tuple("ImageHash").field(&self.0).finish()
         } else {
-            let mut hash = [0; 16];
-            hash[..8].copy_from_slice(&self.0.to_le_bytes());
-            hash[8..].copy_from_slice(&self.1.to_le_bytes());
-            write!(f, "{}", base64::encode(&hash))
+            write!(f, "{}", base64::encode(&self.0))
         }
     }
 }
-impl fmt::Display for Hash128 {
+impl fmt::Display for ImageHash {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{:?}", self)
     }
 }
-impl std::hash::Hash for Hash128 {
+impl std::hash::Hash for ImageHash {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        // `SpookyHasher` returns this value on finish.
-        state.write_u64(self.0)
+        let h64 = [
+            self.0[0], self.0[1], self.0[2], self.0[3], self.0[4], self.0[5], self.0[6], self.0[7],
+        ];
+        state.write_u64(u64::from_ne_bytes(h64))
     }
 }
-impl PartialEq for Hash128 {
+impl PartialEq for ImageHash {
     fn eq(&self, other: &Self) -> bool {
         self.0 == other.0
     }
 }
-impl Eq for Hash128 {}
+impl Eq for ImageHash {}
 
-/// Hasher that computes a [`Hash128`].
-pub struct Hasher128(SpookyHasher);
-impl Default for Hasher128 {
+/// Hasher that computes a [`ImageHash`].
+pub struct ImageHasher(sha2::Sha512_256);
+impl Default for ImageHasher {
     fn default() -> Self {
-        let hasher = SpookyHasher::new(u64::from_le_bytes(*b"-Images-"), u64::from_le_bytes(*b"-Hash---"));
-        Self(hasher)
+        use sha2::Digest;
+        Self(sha2::Sha512_256::new())
     }
 }
-impl Hasher128 {
-    /// Finish computing the hash.
-    pub fn finish128(self) -> Hash128 {
-        let (s0, s1) = self.0.finish128();
-        Hash128(s0, s1)
-    }
-}
-impl std::hash::Hasher for Hasher128 {
-    fn write(&mut self, bytes: &[u8]) {
-        self.0.write(bytes)
+impl ImageHasher {
+    /// New default hasher.
+    pub fn new() -> Self {
+        Self::default()
     }
 
+    /// Process data, updating the internal state.
+    pub fn update(&mut self, data: impl AsRef<[u8]>) {
+        use sha2::Digest;
+        self.0.update(data);
+    }
+
+    /// Finish computing the hash.
+    pub fn finish(self) -> ImageHash {
+        use sha2::Digest;
+        ImageHash(self.0.finalize().as_slice().try_into().unwrap())
+    }
+}
+impl std::hash::Hasher for ImageHasher {
     fn finish(&self) -> u64 {
-        self.0.finish()
+        tracing::warn!("Hasher::finish called for ImageHasher");
+
+        use sha2::Digest;
+        let hash = self.0.clone().finalize();
+        u64::from_le_bytes(hash[..8].try_into().unwrap())
+    }
+
+    fn write(&mut self, bytes: &[u8]) {
+        self.update(bytes);
     }
 }
 
@@ -1427,13 +1441,13 @@ pub enum ImageSource {
     /// Static bytes for an encoded or decoded image.
     ///
     /// Image equality is defined by the hash, it is usually the hash of the bytes but it does not need to be.
-    Static(Hash128, &'static [u8], ImageDataFormat),
+    Static(ImageHash, &'static [u8], ImageDataFormat),
     /// Shared reference to bytes for an encoded or decoded image.
     ///
     /// Image equality is defined by the hash, it is usually the hash of the bytes but it does not need to be.
     ///
     /// Inside [`Images`] the reference to the bytes is held only until the image finishes decoding.
-    Data(Hash128, Arc<Vec<u8>>, ImageDataFormat),
+    Data(ImageHash, Arc<Vec<u8>>, ImageDataFormat),
     /// Already loaded image.
     ///
     /// The image is passed-through, not cached.
@@ -1443,7 +1457,7 @@ impl ImageSource {
     /// Returns the image hash, unless the source is [`Image`].
     ///
     /// [`Image`]: Self::Image
-    pub fn hash128(&self) -> Option<Hash128> {
+    pub fn hash128(&self) -> Option<ImageHash> {
         match self {
             ImageSource::Read(p) => Some(Self::hash128_read(p)),
             ImageSource::Download(u, a) => Some(Self::hash128_download(u, a)),
@@ -1456,24 +1470,24 @@ impl ImageSource {
     /// Compute hash for a borrowed [`Read`] path.
     ///
     /// [`Read`]: Self::Read
-    pub fn hash128_read(path: &Path) -> Hash128 {
+    pub fn hash128_read(path: &Path) -> ImageHash {
         use std::hash::Hash;
-        let mut h = Hash128::hasher();
+        let mut h = ImageHash::hasher();
         0u8.hash(&mut h);
         path.hash(&mut h);
-        h.finish128()
+        h.finish()
     }
 
     /// Compute hash for a borrowed [`Download`] URI and HTTP-ACCEPT.
     ///
     /// [`Download`]: Self::Download
-    pub fn hash128_download(uri: &Uri, accept: &Option<Text>) -> Hash128 {
+    pub fn hash128_download(uri: &Uri, accept: &Option<Text>) -> ImageHash {
         use std::hash::Hash;
-        let mut h = Hash128::hasher();
+        let mut h = ImageHash::hasher();
         1u8.hash(&mut h);
         uri.hash(&mut h);
         accept.hash(&mut h);
-        h.finish128()
+        h.finish()
     }
 }
 impl PartialEq for ImageSource {
@@ -1560,7 +1574,7 @@ impl_from_and_into_var! {
     ///
     /// [`Unknown`]: ImageDataFormat::Unknown
     fn from(data: &'static [u8]) -> ImageSource {
-        ImageSource::Static(Hash128::compute(data), data, ImageDataFormat::Unknown)
+        ImageSource::Static(ImageHash::compute(data), data, ImageDataFormat::Unknown)
     }
     /// From encoded data of [`Unknown`] format.
     ///
@@ -1572,7 +1586,7 @@ impl_from_and_into_var! {
     ///
     /// [`Unknown`]: ImageDataFormat::Unknown
     fn from(data: Arc<Vec<u8>>) -> ImageSource {
-        ImageSource::Data(Hash128::compute(&data[..]), data, ImageDataFormat::Unknown)
+        ImageSource::Data(ImageHash::compute(&data[..]), data, ImageDataFormat::Unknown)
     }
     /// From encoded data of [`Unknown`] format.
     ///
@@ -1582,7 +1596,7 @@ impl_from_and_into_var! {
     }
     /// From encoded data of known format.
     fn from<F: Into<ImageDataFormat> + Clone>((data, format): (&'static [u8], F)) -> ImageSource {
-        ImageSource::Static(Hash128::compute(data), data, format.into())
+        ImageSource::Static(ImageHash::compute(data), data, format.into())
     }
     /// From encoded data of known format.
     fn from<F: Into<ImageDataFormat> + Clone, const N: usize>((data, format): (&'static [u8; N], F)) -> ImageSource {
@@ -1594,7 +1608,7 @@ impl_from_and_into_var! {
     }
     /// From encoded data of known format.
     fn from<F: Into<ImageDataFormat> + Clone>((data, format): (Arc<Vec<u8>>, F)) -> ImageSource {
-        ImageSource::Data(Hash128::compute(&data[..]), data, format.into())
+        ImageSource::Data(ImageHash::compute(&data[..]), data, format.into())
     }
 }
 

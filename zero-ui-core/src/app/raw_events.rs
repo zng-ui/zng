@@ -146,7 +146,7 @@ event_args! {
         /// client area is in the new monitor screen.
         ///
         /// Note that the window's scale factor can also change by system settings, that change
-        /// generates an [`ScaleFactorChangedEvent`] only.
+        /// generates an [`RawScaleFactorChangedEvent`] only.
         pub monitor: Option<(MonitorId, Factor)>,
 
         /// New window size if it was resized.

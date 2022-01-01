@@ -62,6 +62,7 @@ pub(super) struct WindowVarsData {
 ///
 /// [`WindowContext`]: crate::context::WindowContext::window_state
 /// [`WidgetContext`]: crate::context::WidgetContext::window_state
+/// [`Windows::vars`]: crate::window::Windows::vars
 pub struct WindowVars(pub(super) Rc<WindowVarsData>);
 impl WindowVars {
     pub(super) fn new(default_render_mode: RenderMode) -> Self {
@@ -482,7 +483,7 @@ impl WindowVars {
     /// The initial value is the [`default_render_mode`], it can update after the window is created, when the view-process
     /// actually creates the backend window and after a view-process respawn.
     ///
-    /// [`default_render_mode`]: Windows::default_render_mode
+    /// [`default_render_mode`]: crate::window::Windows::default_render_mode
     #[inline]
     pub fn render_mode(&self) -> ReadOnlyRcVar<RenderMode> {
         self.0.render_mode.clone().into_read_only()

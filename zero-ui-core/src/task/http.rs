@@ -42,14 +42,14 @@ use crate::units::*;
 /// All types `T` that match `Uri: TryFrom<T>, <Uri as TryFrom<T>>::Error: Into<isahc::http::Error>` implement this trait.
 pub trait TryUri {
     /// Tries to convert `self` into [`Uri`].
-    fn try_into(self) -> Result<Uri, Error>;
+    fn try_uri(self) -> Result<Uri, Error>;
 }
 impl<U> TryUri for U
 where
     Uri: TryFrom<U>,
     <Uri as TryFrom<U>>::Error: Into<isahc::http::Error>,
 {
-    fn try_into(self) -> Result<Uri, Error> {
+    fn try_uri(self) -> Result<Uri, Error> {
         Uri::try_from(self).map_err(|e| e.into().into())
     }
 }
@@ -59,14 +59,14 @@ where
 /// All types `T` that match `Method: TryFrom<T>, <Method as TryFrom<T>>::Error: Into<isahc::http::Error>` implement this trait.
 pub trait TryMethod {
     /// Tries to convert `self` into [`Method`].
-    fn try_into(self) -> Result<Method, Error>;
+    fn try_method(self) -> Result<Method, Error>;
 }
 impl<U> TryMethod for U
 where
     Method: TryFrom<U>,
     <isahc::http::Method as TryFrom<U>>::Error: Into<isahc::http::Error>,
 {
-    fn try_into(self) -> Result<Method, Error> {
+    fn try_method(self) -> Result<Method, Error> {
         Method::try_from(self).map_err(|e| e.into().into())
     }
 }
@@ -77,14 +77,14 @@ where
 /// implement this trait.
 pub trait TryBody {
     /// Tries to convert `self` into [`Body`].
-    fn try_into(self) -> Result<Body, Error>;
+    fn try_body(self) -> Result<Body, Error>;
 }
 impl<U> TryBody for U
 where
     isahc::AsyncBody: TryFrom<U>,
     <isahc::AsyncBody as TryFrom<U>>::Error: Into<isahc::http::Error>,
 {
-    fn try_into(self) -> Result<Body, Error> {
+    fn try_body(self) -> Result<Body, Error> {
         match isahc::AsyncBody::try_from(self) {
             Ok(r) => Ok(Body(r)),
             Err(e) => Err(e.into().into()),
@@ -98,19 +98,19 @@ where
 /// implement this trait.
 pub trait TryHeaderName {
     /// Tries to convert `self` into [`Body`].
-    fn try_into(self) -> Result<header::HeaderName, Error>;
+    fn try_header_name(self) -> Result<header::HeaderName, Error>;
 }
 impl<U> TryHeaderName for U
 where
     header::HeaderName: TryFrom<U>,
     <header::HeaderName as TryFrom<U>>::Error: Into<isahc::http::Error>,
 {
-    fn try_into(self) -> Result<header::HeaderName, Error> {
+    fn try_header_name(self) -> Result<header::HeaderName, Error> {
         header::HeaderName::try_from(self).map_err(|e| e.into().into())
     }
 }
 impl TryHeaderName for Text {
-    fn try_into(self) -> Result<header::HeaderName, Error> {
+    fn try_header_name(self) -> Result<header::HeaderName, Error> {
         <header::HeaderName as TryFrom<&str>>::try_from(self.as_str()).map_err(|e| isahc::http::Error::from(e).into())
     }
 }
@@ -121,19 +121,19 @@ impl TryHeaderName for Text {
 /// implement this trait.
 pub trait TryHeaderValue {
     /// Tries to convert `self` into [`Body`].
-    fn try_into(self) -> Result<header::HeaderValue, Error>;
+    fn try_header_value(self) -> Result<header::HeaderValue, Error>;
 }
 impl<U> TryHeaderValue for U
 where
     header::HeaderValue: TryFrom<U>,
     <header::HeaderValue as TryFrom<U>>::Error: Into<isahc::http::Error>,
 {
-    fn try_into(self) -> Result<header::HeaderValue, Error> {
+    fn try_header_value(self) -> Result<header::HeaderValue, Error> {
         header::HeaderValue::try_from(self).map_err(|e| e.into().into())
     }
 }
 impl TryHeaderValue for Text {
-    fn try_into(self) -> Result<header::HeaderValue, Error> {
+    fn try_header_value(self) -> Result<header::HeaderValue, Error> {
         header::HeaderValue::from_str(self.as_str()).map_err(|e| isahc::http::Error::from(e).into())
     }
 }
@@ -177,7 +177,7 @@ impl Request {
     /// # Ok(()) }
     /// ```
     pub fn get(uri: impl TryUri) -> Result<RequestBuilder, Error> {
-        Ok(RequestBuilder(isahc::Request::get(uri.try_into()?)))
+        Ok(RequestBuilder(isahc::Request::get(uri.try_uri()?)))
     }
 
     /// Starts building a PUT request.
@@ -192,7 +192,7 @@ impl Request {
     /// # Ok(()) }
     /// ```
     pub fn put(uri: impl TryUri) -> Result<RequestBuilder, Error> {
-        Ok(RequestBuilder(isahc::Request::put(uri.try_into()?)))
+        Ok(RequestBuilder(isahc::Request::put(uri.try_uri()?)))
     }
 
     /// Starts building a POST request.
@@ -207,7 +207,7 @@ impl Request {
     /// # Ok(()) }
     /// ```
     pub fn post(uri: impl TryUri) -> Result<RequestBuilder, Error> {
-        Ok(RequestBuilder(isahc::Request::post(uri.try_into()?)))
+        Ok(RequestBuilder(isahc::Request::post(uri.try_uri()?)))
     }
 
     /// Starts building a DELETE request.
@@ -222,7 +222,7 @@ impl Request {
     /// # Ok(()) }
     /// ```
     pub fn delete(uri: impl TryUri) -> Result<RequestBuilder, Error> {
-        Ok(RequestBuilder(isahc::Request::delete(uri.try_into()?)))
+        Ok(RequestBuilder(isahc::Request::delete(uri.try_uri()?)))
     }
 
     /// Starts building a PATCH request.
@@ -237,7 +237,7 @@ impl Request {
     /// # Ok(()) }
     /// ```
     pub fn patch(uri: impl TryUri) -> Result<RequestBuilder, Error> {
-        Ok(RequestBuilder(isahc::Request::patch(uri.try_into()?)))
+        Ok(RequestBuilder(isahc::Request::patch(uri.try_uri()?)))
     }
 
     /// Starts building a HEAD request.
@@ -252,7 +252,7 @@ impl Request {
     /// # Ok(()) }
     /// ```
     pub fn head(uri: impl TryUri) -> Result<RequestBuilder, Error> {
-        Ok(RequestBuilder(isahc::Request::head(uri.try_into()?)))
+        Ok(RequestBuilder(isahc::Request::head(uri.try_uri()?)))
     }
 }
 
@@ -264,17 +264,17 @@ pub struct RequestBuilder(isahc::http::request::Builder);
 impl RequestBuilder {
     /// Set the HTTP method for this request.
     pub fn method(self, method: impl TryMethod) -> Result<Self, Error> {
-        Ok(Self(self.0.method(method.try_into()?)))
+        Ok(Self(self.0.method(method.try_method()?)))
     }
 
     /// Set the URI for this request.
     pub fn uri(self, uri: impl TryUri) -> Result<Self, Error> {
-        Ok(Self(self.0.uri(uri.try_into()?)))
+        Ok(Self(self.0.uri(uri.try_uri()?)))
     }
 
     /// Appends a header to this request.
     pub fn header(self, name: impl TryHeaderName, value: impl TryHeaderValue) -> Result<Self, Error> {
-        Ok(Self(self.0.header(name.try_into()?, value.try_into()?)))
+        Ok(Self(self.0.header(name.try_header_name()?, value.try_header_value()?)))
     }
 
     /// Set a cookie jar to use to accept, store, and supply cookies for incoming responses and outgoing requests.
@@ -362,7 +362,7 @@ impl RequestBuilder {
 
     /// Build the request with a body.
     pub fn body(self, body: impl TryBody) -> Result<Request, Error> {
-        Ok(Request(self.0.body(body.try_into()?).unwrap()))
+        Ok(Request(self.0.body(body.try_body()?).unwrap()))
     }
 
     /// Build the request with more custom build calls in the [inner builder].
@@ -913,7 +913,7 @@ impl Client {
     ///  Send a GET request to the `uri`.
     #[inline]
     pub async fn get(&self, uri: impl TryUri) -> Result<Response, Error> {
-        self.0.get_async(uri.try_into()?).await.map(Response)
+        self.0.get_async(uri.try_uri()?).await.map(Response)
     }
 
     /// Send a GET request to the `uri` and read the response as a string.
@@ -943,24 +943,24 @@ impl Client {
     /// Send a HEAD request to the `uri`.
     #[inline]
     pub async fn head(&self, uri: impl TryUri) -> Result<Response, Error> {
-        self.0.head_async(uri.try_into()?).await.map(Response)
+        self.0.head_async(uri.try_uri()?).await.map(Response)
     }
     /// Send a PUT request to the `uri` with a given request body.
     #[inline]
     pub async fn put(&self, uri: impl TryUri, body: impl TryBody) -> Result<Response, Error> {
-        self.0.put_async(uri.try_into()?, body.try_into()?.0).await.map(Response)
+        self.0.put_async(uri.try_uri()?, body.try_body()?.0).await.map(Response)
     }
 
     /// Send a POST request to the `uri` with a given request body.
     #[inline]
     pub async fn post(&self, uri: impl TryUri, body: impl TryBody) -> Result<Response, Error> {
-        self.0.post_async(uri.try_into()?, body.try_into()?.0).await.map(Response)
+        self.0.post_async(uri.try_uri()?, body.try_body()?.0).await.map(Response)
     }
 
     /// Send a DELETE request to the `uri`.
     #[inline]
     pub async fn delete(&self, uri: impl TryUri) -> Result<Response, Error> {
-        self.0.delete_async(uri.try_into()?).await.map(Response)
+        self.0.delete_async(uri.try_uri()?).await.map(Response)
     }
 
     /// Send a custom [`Request`].
@@ -1013,7 +1013,10 @@ impl ClientBuilder {
     /// Add a default header to be passed with every request.
     #[inline]
     pub fn default_header(self, key: impl TryHeaderName, value: impl TryHeaderValue) -> Result<Self, Error> {
-        Ok(Self(self.0.default_header(key.try_into()?, value.try_into()?), self.1))
+        Ok(Self(
+            self.0.default_header(key.try_header_name()?, value.try_header_value()?),
+            self.1,
+        ))
     }
 
     /// Enable persistent cookie handling for all requests using this client using a shared cookie jar.
@@ -1193,9 +1196,12 @@ mod file_cache {
         }
 
         fn entry_dir(&self, uri: &Uri) -> PathBuf {
-            let mut m = sha1::Sha1::new();
+            use sha2::Digest;
+
+            let mut m = sha2::Sha256::new();
             m.update(uri.to_string().as_bytes());
-            self.dir.join(m.digest().to_string())
+            let hash = m.finalize();
+            self.dir.join(base64::encode(&hash[..]))
         }
 
         fn entry(&self, uri: &Uri, write: bool) -> Option<Entry> {
