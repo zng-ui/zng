@@ -1,4 +1,5 @@
 * Adjust when respawn stops happening, it can enter an infinite loop in panics like the large image.
+* Panorama image not rendering.
 
 # Scale Factor
 

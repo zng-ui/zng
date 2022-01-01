@@ -1015,7 +1015,7 @@ impl Window {
     ) -> ((FrameId, Option<ImageLoadedData>, HitTestResult), bool) {
         debug_assert!(self.document_id == msg.document_id || self.documents.contains(&msg.document_id));
 
-        //println!("{:#?}", msg);
+        // println!("{:?}", msg);
 
         if self.document_id != msg.document_id {
             todo!("document rendering is not implemented in WR");
