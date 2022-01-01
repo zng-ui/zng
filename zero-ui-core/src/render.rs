@@ -15,7 +15,7 @@ use crate::{
 };
 use derive_more as dm;
 use linear_map::LinearMap;
-use std::{collections::BTreeMap, marker::PhantomData, mem};
+use std::{collections::BTreeMap, marker::PhantomData, mem, ops};
 
 pub use zero_ui_view_api::webrender_api;
 
@@ -1754,28 +1754,28 @@ impl_from_and_into_var! {
 ///
 /// [`with_layer`]: FrameBuilder::with_layer
 #[derive(Default, Debug, PartialEq, Eq, Clone, Copy, PartialOrd, Ord)]
-pub struct LayerIndex(pub i32);
+pub struct LayerIndex(pub u32);
 impl LayerIndex {
     /// The top-most layer inside a [`FrameBuilder`].
     ///
     /// Only widgets that are pretending to be a child window should use this layer, including menus,
     /// drop-downs, pop-ups and tool-tips.
     ///
-    /// This is the [`i32::MAX`] value.
-    pub const TOP_MOST: LayerIndex = LayerIndex(i32::MAX);
+    /// This is the [`u32::MAX`] value.
+    pub const TOP_MOST: LayerIndex = LayerIndex(u32::MAX);
 
     /// The layer for *adorner* display items.
     ///
     /// Adorner widgets are related to another widget but not as a visual part of it, examples of adorners
     /// are resize handles in a widget visual editor, or an interactive help/guide feature.
     ///
-    /// This is the [`TOP_MOST - i16::MAX`] value.
-    pub const ADORNERS: LayerIndex = LayerIndex(Self::TOP_MOST.0 - i16::MAX as i32);
+    /// This is the [`TOP_MOST - u16::MAX`] value.
+    pub const ADORNERS: LayerIndex = LayerIndex(Self::TOP_MOST.0 - u16::MAX as u32);
 
     /// The default layer of a window or headless surface contents.
     ///
-    /// This is the `0` value.
-    pub const DEFAULT: LayerIndex = LayerIndex(0);
+    /// This is the `1000` value.
+    pub const DEFAULT: LayerIndex = LayerIndex(1000);
 
     /// The top-most layer inside a [`FrameBuilder`].
     ///
@@ -1783,8 +1783,76 @@ impl LayerIndex {
     /// layer are not visible, for example, in a window default layer with `background_color` set. This
     /// does not apply to the clear color, see the [`set_clear_color`] method for more details.
     ///
-    /// This is the [`i32::MAX`] value.
+    /// This is the [`0`] value.
     ///
     /// [`set_clear_color`]: FrameBuilder::set_clear_color
-    pub const BOTTOM_MOST: LayerIndex = LayerIndex(i32::MIN);
+    pub const BOTTOM_MOST: LayerIndex = LayerIndex(0);
+
+    /// Compute `self + other` saturating at the [`TOP_MOST`] bound instead of overflowing.
+    /// 
+    /// [`TOP_MOST`]: Self::TOP_MOST
+    pub fn saturating_add(self, other: impl Into<LayerIndex>) -> Self {
+        Self(self.0.saturating_add(other.into().0))
+    }
+
+    /// Compute `self - other` saturating at the [`BOTTOM_MOST`] bound instead of overflowing.
+    /// 
+    /// [`BOTTOM_MOST`]: Self::BOTTOM_MOST
+    pub fn saturating_sub(self, other: impl Into<LayerIndex>) -> Self {
+        Self(self.0.saturating_sub(other.into().0))
+    }
+}
+impl_from_and_into_var! {
+    fn from(index: u32) -> LayerIndex {
+        LayerIndex(index)
+    }
+}
+/// Calls [`LayerIndex::saturating_add`].
+impl<T: Into<Self>> ops::Add<T> for LayerIndex {
+    type Output = Self;
+
+    fn add(self, rhs: T) -> Self::Output {
+        self.saturating_add(rhs)
+    }
+}
+/// Calls [`LayerIndex::saturating_sub`].
+impl<T: Into<Self>> ops::Sub<T> for LayerIndex {
+    type Output = Self;
+
+    fn sub(self, rhs: T) -> Self::Output {
+        self.saturating_sub(rhs)
+    }
+}
+/// Calls [`LayerIndex::saturating_add`].
+impl<T: Into<Self>> ops::AddAssign<T> for LayerIndex {
+    fn add_assign(&mut self, rhs: T) {
+        *self = *self + rhs;
+    }
+}
+/// Calls [`LayerIndex::saturating_sub`].
+impl<T: Into<Self>> ops::SubAssign<T> for LayerIndex {
+    fn sub_assign(&mut self, rhs: T) {
+        *self = *self - rhs;
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    pub fn layer_index_ops() {
+        let idx = LayerIndex::DEFAULT;
+
+        let p1 = idx + 1;
+        let m1 = idx - 1;
+
+        let mut idx = idx;
+
+        idx += 1;
+        assert_eq!(idx, p1);
+
+        idx -= 2;
+        assert_eq!(idx, m1);
+    }
 }
