@@ -1,3 +1,5 @@
+use std::{fs, path::PathBuf};
+
 use tracing::{Level, Subscriber};
 use tracing_subscriber::{layer::Layer, prelude::*};
 
@@ -57,4 +59,15 @@ fn filter(level: &Level, metadata: &tracing::Metadata) -> bool {
     }
 
     true
+}
+
+/// Gets the temp dir for the example.
+///
+/// Temp files can be cleared using `cargo do clean --temp`.
+pub fn temp_dir(example: &str) -> PathBuf {
+    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../../target/tmp/examples")
+        .join(example);
+    fs::create_dir_all(&path).unwrap();
+    path.canonicalize().unwrap()
 }

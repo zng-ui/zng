@@ -438,13 +438,25 @@ fn prebuild(args: Vec<&str>) {
 //       Remove only the doc files from the target directories.
 //    clean --release
 //       Remove only the release files from the target directories.
+//    clean --temp
+//       Remove the temp files from the target workspace target directory.
 fn clean(mut args: Vec<&str>) {
     let tools = take_flag(&mut args, &["--tools"]);
     let workspace = take_flag(&mut args, &["--workspace"]);
-    let all = !tools && !workspace;
+    let temp = take_flag(&mut args, &["--temp"]);
+    let all = !tools && !workspace && !temp;
 
     if all || workspace {
         cmd("cargo", &["clean"], &args);
+    } else if temp {
+        match std::fs::remove_dir_all("target/tmp") {
+            Ok(_) => match std::fs::create_dir("target/tmp") {
+                Ok(_) => println("removed `target/tmp` contents"),
+                Err(_) => println("removed `target/tmp`"),
+            },
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => println("did not find `target/tmp`"),
+            Err(e) => error(f!("failed to cleanup temp, {}", e)),
+        }
     }
     if all || tools {
         for tool_ in top_cargo_toml("test-crates") {
