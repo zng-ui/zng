@@ -1789,14 +1789,14 @@ impl LayerIndex {
     pub const BOTTOM_MOST: LayerIndex = LayerIndex(0);
 
     /// Compute `self + other` saturating at the [`TOP_MOST`] bound instead of overflowing.
-    /// 
+    ///
     /// [`TOP_MOST`]: Self::TOP_MOST
     pub fn saturating_add(self, other: impl Into<LayerIndex>) -> Self {
         Self(self.0.saturating_add(other.into().0))
     }
 
     /// Compute `self - other` saturating at the [`BOTTOM_MOST`] bound instead of overflowing.
-    /// 
+    ///
     /// [`BOTTOM_MOST`]: Self::BOTTOM_MOST
     pub fn saturating_sub(self, other: impl Into<LayerIndex>) -> Self {
         Self(self.0.saturating_sub(other.into().0))

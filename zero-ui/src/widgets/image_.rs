@@ -1073,10 +1073,12 @@ pub mod image {
                                 (AvailablePx::Infinite, AvailablePx::Finite(h)) if self.desired_size.height > Px(0) => {
                                     let scale = h.0 as f32 / self.desired_size.height.0 as f32;
                                     self.desired_size.width *= scale;
+                                    self.desired_size.height = h;
                                 }
                                 (AvailablePx::Finite(w), AvailablePx::Infinite) if self.desired_size.width > Px(0) => {
                                     let scale = w.0 as f32 / self.desired_size.width.0 as f32;
                                     self.desired_size.height *= scale;
+                                    self.desired_size.width = w;
                                 }
                                 _ => {}
                             }

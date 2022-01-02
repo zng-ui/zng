@@ -19,11 +19,13 @@
 
 use std::convert::TryFrom;
 use std::pin::Pin;
+use std::sync::Arc;
 use std::time::Duration;
 use std::{fmt, mem};
 
 use super::io::AsyncRead;
 
+use async_trait::async_trait;
 use isahc::config::Configurable;
 pub use isahc::config::RedirectPolicy;
 pub use isahc::cookies::{Cookie, CookieJar};
@@ -261,7 +263,17 @@ impl Request {
 /// You can use [`Request::builder`] to start an empty builder.
 #[derive(Debug)]
 pub struct RequestBuilder(isahc::http::request::Builder);
+impl Default for RequestBuilder {
+    fn default() -> Self {
+        Request::builder()
+    }
+}
 impl RequestBuilder {
+    /// New default request builder.
+    pub fn new() -> Self {
+        Request::builder()
+    }
+
     /// Set the HTTP method for this request.
     pub fn method(self, method: impl TryMethod) -> Result<Self, Error> {
         Ok(Self(self.0.method(method.try_method()?)))
@@ -476,6 +488,24 @@ impl Response {
     /// don't known that HTTP/2 or newer is being used.
     pub async fn consume(&mut self) -> std::io::Result<()> {
         self.0.consume().await
+    }
+
+    /// Create a response with the given status and text body message.
+    pub fn new_message(status: impl Into<StatusCode>, msg: impl Into<String>) -> Self {
+        let status = status.into();
+        let msg = msg.into().into_bytes();
+        let msg = futures_lite::io::Cursor::new(msg);
+        let mut r = isahc::Response::new(isahc::AsyncBody::from_reader(msg));
+        *r.status_mut() = status;
+        Self(r)
+    }
+
+    /// New response.
+    pub fn new(status: StatusCode, headers: header::HeaderMap<header::HeaderValue>, body: Body) -> Self {
+        let mut r = isahc::Response::new(body.0);
+        *r.status_mut() = status;
+        *r.headers_mut() = headers;
+        Self(r)
     }
 }
 impl From<Response> for isahc::Response<isahc::AsyncBody> {
@@ -714,18 +744,28 @@ enum ClientInit {
 /// Returns an error if the [`default_client`] was already initialized.
 ///
 /// [`isahc`]: https://docs.rs/isahc
-pub fn set_default_client_init<I>(init: I) -> Result<(), I>
+pub fn set_default_client_init<I>(init: I) -> Result<(), DefaultAlreadyInitedError>
 where
     I: FnOnce() -> Client + Send + 'static,
 {
     let mut ci = CLIENT_INIT.lock();
     if let ClientInit::Inited = &*ci {
-        Err(init)
+        Err(DefaultAlreadyInitedError)
     } else {
         *ci = ClientInit::Set(Box::new(init));
         Ok(())
     }
 }
+
+/// Error returned by [`set_default_client_init`] if the default was already initialized.
+#[derive(Debug, Clone, Copy)]
+pub struct DefaultAlreadyInitedError;
+impl fmt::Display for DefaultAlreadyInitedError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "default client already initialized, can only set before first use")
+    }
+}
+impl std::error::Error for DefaultAlreadyInitedError {}
 
 /// Information about the state of an HTTP request.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -870,7 +910,11 @@ impl fmt::Display for Metrics {
 /// HTTP client.
 ///
 /// An HTTP client acts as a session for executing one of more HTTP requests.
-pub struct Client(isahc::HttpClient, Option<Box<dyn CacheProxy>>);
+pub struct Client {
+    client: isahc::HttpClient,
+    cache: Option<Box<dyn CacheProxy>>,
+    cache_mode: Arc<dyn Fn(&Uri) -> CacheMode + Send + Sync>,
+}
 impl Default for Client {
     fn default() -> Self {
         Self::new()
@@ -878,7 +922,11 @@ impl Default for Client {
 }
 impl Clone for Client {
     fn clone(&self) -> Self {
-        Client(self.0.clone(), self.1.as_ref().map(|b| b.clone_boxed()))
+        Client {
+            client: self.client.clone(),
+            cache: self.cache.as_ref().map(|b| b.clone_boxed()),
+            cache_mode: self.cache_mode.clone(),
+        }
     }
 }
 impl fmt::Debug for Client {
@@ -901,19 +949,28 @@ impl Client {
     }
 
     /// Start a new [`ClientBuilder`] for creating a custom client.
+    #[inline]
     pub fn builder() -> ClientBuilder {
-        ClientBuilder(isahc::HttpClient::builder(), None)
+        ClientBuilder {
+            builder: isahc::HttpClient::builder(),
+            cache: None,
+            cache_mode: None,
+        }
     }
 
     /// Gets the configured cookie-jar for this client, if cookies are enabled.
     pub fn cookie_jar(&self) -> Option<&CookieJar> {
-        self.0.cookie_jar()
+        self.client.cookie_jar()
     }
 
     ///  Send a GET request to the `uri`.
     #[inline]
     pub async fn get(&self, uri: impl TryUri) -> Result<Response, Error> {
-        self.0.get_async(uri.try_uri()?).await.map(Response)
+        if self.cache.is_some() {
+            self.send_cached(Request::get(uri)?.build()).await
+        } else {
+            self.client.get_async(uri.try_uri()?).await.map(Response)
+        }
     }
 
     /// Send a GET request to the `uri` and read the response as a string.
@@ -943,40 +1000,179 @@ impl Client {
     /// Send a HEAD request to the `uri`.
     #[inline]
     pub async fn head(&self, uri: impl TryUri) -> Result<Response, Error> {
-        self.0.head_async(uri.try_uri()?).await.map(Response)
+        self.client.head_async(uri.try_uri()?).await.map(Response)
     }
     /// Send a PUT request to the `uri` with a given request body.
     #[inline]
     pub async fn put(&self, uri: impl TryUri, body: impl TryBody) -> Result<Response, Error> {
-        self.0.put_async(uri.try_uri()?, body.try_body()?.0).await.map(Response)
+        self.client.put_async(uri.try_uri()?, body.try_body()?.0).await.map(Response)
     }
 
     /// Send a POST request to the `uri` with a given request body.
     #[inline]
     pub async fn post(&self, uri: impl TryUri, body: impl TryBody) -> Result<Response, Error> {
-        self.0.post_async(uri.try_uri()?, body.try_body()?.0).await.map(Response)
+        self.client.post_async(uri.try_uri()?, body.try_body()?.0).await.map(Response)
     }
 
     /// Send a DELETE request to the `uri`.
     #[inline]
     pub async fn delete(&self, uri: impl TryUri) -> Result<Response, Error> {
-        self.0.delete_async(uri.try_uri()?).await.map(Response)
+        self.client.delete_async(uri.try_uri()?).await.map(Response)
+    }
+
+    /// Gets the cached response for the `uri` or `404` if there is no [`cache`]
+    #[inline]
+    pub async fn get_cached(&self, uri: impl TryUri) -> Result<Response, Error> {
+        let uri = uri.try_uri()?;
+
+        if let Some(cache) = &self.cache {
+            if let Some(rsp) = cache.get(&uri).await {
+                todo!()
+            }
+        }
+
+        Ok(Response::new_message(StatusCode::NOT_FOUND, "not found in cache"))
     }
 
     /// Send a custom [`Request`].
+    ///
+    /// # Cache
+    ///
+    /// If the client has a [`cache`] and the request uses the `GET` method the result will be cached
+    /// according with the [`cache_mode`] for the URI.
+    ///
+    /// If the `Cache-Control` header is set to `only-if-cached` the [`get_cached`] method is called instead.
+    ///
+    /// [`cache`]: Self::cache
+    /// [`cache_mode`]: Self::cache_mode
+    /// [`get_cached`]: Self::get_cached
     #[inline]
     pub async fn send(&self, request: Request) -> Result<Response, Error> {
-        self.0.send_async(request.0).await.map(Response)
+        if Method::GET == request.0.method() && self.cache.is_some() {
+            if let Some(ctrl) = request
+                .0
+                .headers()
+                .get(header::CACHE_CONTROL)
+                .and_then(|s| s.to_str().ok())
+                .and_then(cache_control::CacheControl::from_value)
+            {
+                if let Some(cache_control::Cachability::OnlyIfCached) = ctrl.cachability {
+                    return self.get_cached(request.0.uri().clone()).await;
+                }
+            }
+
+            self.send_cached(request).await
+        } else {
+            self.client.send_async(request.0).await.map(Response)
+        }
+    }
+
+    async fn send_cached(&self, mut request: Request) -> Result<Response, Error> {
+        let cache = self.cache.as_ref().unwrap();
+        let cache_mode = (&self.cache_mode)(request.0.uri());
+
+        match cache_mode {
+            CacheMode::NoCache => return self.client.send_async(request.0).await.map(Response),
+            CacheMode::ETag => {
+                if let Some(tag) = cache.etag(request.0.uri()).await {
+                    if !tag.is_empty() {
+                        request
+                            .0
+                            .headers_mut()
+                            .insert(header::IF_NONE_MATCH, tag.try_into().expect("invalid cache ETAG"));
+                    }
+                }
+            }
+            CacheMode::Permanent => {
+                if let Some(cached) = cache.get(request.0.uri()).await {
+                    return Ok(cached);
+                }
+            }
+            CacheMode::Error(e) => return Err(e),
+        }
+
+        let uri = request.0.uri().clone();
+
+        let response = self.client.send_async(request.0).await?;
+
+        if response.status() == StatusCode::NOT_MODIFIED {
+            if let Some(cached) = cache.get(&uri).await {
+                todo!("convert to response")
+            } else {
+                use std::io::*;
+                return Err(Error::new(ErrorKind::NotFound, "cache provided ETAG but did not provide response").into());
+            }
+        } else if response.status() != StatusCode::OK {
+            return Ok(Response(response));
+        }
+
+        let mut can_cache = true;
+        let mut expire = ExpireInstant(u64::MAX);
+        let mut etag = String::new();
+
+        if !matches!(cache_mode, CacheMode::Permanent) {
+            if let Some(ctrl) = response
+                .headers()
+                .get(header::CACHE_CONTROL)
+                .and_then(|c| c.to_str().ok())
+                .and_then(cache_control::CacheControl::from_value)
+            {
+                if ctrl.no_store {
+                    can_cache = false;
+                } else if let Some(d) = ctrl.max_stale {
+                    expire = ExpireInstant::now();
+                    expire.0 = expire.0.saturating_add(d.as_secs());
+                } else if let Some(d) = ctrl.max_age {
+                    expire = ExpireInstant::now();
+                    expire.0 = expire.0.saturating_add(d.as_secs());
+                }
+            }
+        }
+
+        if let Some(t) = response.headers().get(header::ETAG).and_then(|t| t.to_str().ok()) {
+            etag.push_str(t);
+        }
+
+        let response = Response(response);
+
+        if !can_cache {
+            cache.forget(&uri);
+            return Ok(response);
+        }
+
+        let r = cache.set(uri, etag, expire, response).await?;
+
+        Ok(r)
+    }
+
+    /// Reference the file cache if any was set during build.
+    #[inline]
+    pub fn cache(&self) -> Option<&dyn CacheProxy> {
+        self.cache.as_deref()
+    }
+
+    /// Returns the [`CacheMode`] configured for this client.
+    #[inline]
+    pub fn cache_mode(&self, uri: &Uri) -> CacheMode {
+        if self.cache.is_none() {
+            CacheMode::NoCache
+        } else {
+            (&self.cache_mode)(uri)
+        }
     }
 }
 impl From<Client> for isahc::HttpClient {
     fn from(c: Client) -> Self {
-        c.0
+        c.client
     }
 }
 impl From<isahc::HttpClient> for Client {
-    fn from(c: isahc::HttpClient) -> Self {
-        Self(c, None)
+    fn from(client: isahc::HttpClient) -> Self {
+        Self {
+            client,
+            cache: None,
+            cache_mode: Arc::new(|_| CacheMode::default()),
+        }
     }
 }
 
@@ -991,13 +1187,31 @@ impl From<isahc::HttpClient> for Client {
 ///
 /// let client = Client::builder().metrics(true).build();
 /// ```
-pub struct ClientBuilder(isahc::HttpClientBuilder, Option<Box<dyn CacheProxy>>);
+pub struct ClientBuilder {
+    builder: isahc::HttpClientBuilder,
+    cache: Option<Box<dyn CacheProxy>>,
+    cache_mode: Option<Arc<dyn Fn(&Uri) -> CacheMode + Send + Sync>>,
+}
+impl Default for ClientBuilder {
+    fn default() -> Self {
+        Client::builder()
+    }
+}
 impl ClientBuilder {
-    /// Build an HttpClient using the configured options.
+    /// New default builder.
+    #[inline]
+    pub fn new() -> Self {
+        Client::builder()
+    }
 
+    /// Build the [`Client`] using the configured options.
     #[inline]
     pub fn build(self) -> Client {
-        Client(self.0.build().unwrap(), None)
+        Client {
+            client: self.builder.build().unwrap(),
+            cache: self.cache,
+            cache_mode: self.cache_mode.unwrap_or_else(|| Arc::new(|_| CacheMode::default())),
+        }
     }
 
     /// Build the client with more custom build calls in the [inner builder].
@@ -1007,29 +1221,42 @@ impl ClientBuilder {
     where
         F: FnOnce(isahc::HttpClientBuilder) -> Result<isahc::HttpClient, Error>,
     {
-        custom(self.0).map(|c| Client(c, self.1))
+        custom(self.builder).map(|c| Client {
+            client: c,
+            cache: self.cache,
+            cache_mode: self.cache_mode.unwrap_or_else(|| Arc::new(|_| CacheMode::default())),
+        })
     }
 
     /// Add a default header to be passed with every request.
     #[inline]
     pub fn default_header(self, key: impl TryHeaderName, value: impl TryHeaderValue) -> Result<Self, Error> {
-        Ok(Self(
-            self.0.default_header(key.try_header_name()?, value.try_header_value()?),
-            self.1,
-        ))
+        Ok(Self {
+            builder: self.builder.default_header(key.try_header_name()?, value.try_header_value()?),
+            cache: self.cache,
+            cache_mode: self.cache_mode,
+        })
     }
 
     /// Enable persistent cookie handling for all requests using this client using a shared cookie jar.
     #[inline]
     pub fn cookies(self) -> Self {
-        Self(self.0.cookies(), self.1)
+        Self {
+            builder: self.builder.cookies(),
+            cache: self.cache,
+            cache_mode: self.cache_mode,
+        }
     }
 
     /// Set a cookie jar to use to accept, store, and supply cookies for incoming responses and outgoing requests.
     ///
     /// Note that the [`default_client`] already has a cookie jar.
     pub fn cookie_jar(self, cookie_jar: CookieJar) -> Self {
-        Self(self.0.cookie_jar(cookie_jar), self.1)
+        Self {
+            builder: self.builder.cookie_jar(cookie_jar),
+            cache: self.cache,
+            cache_mode: self.cache_mode,
+        }
     }
 
     /// Specify a maximum amount of time that a complete request/response cycle is allowed to
@@ -1043,21 +1270,33 @@ impl ClientBuilder {
     ///
     /// [`TimedOut`]: https://doc.rust-lang.org/nightly/std/io/enum.ErrorKind.html#variant.TimedOut
     pub fn timeout(self, timeout: Duration) -> Self {
-        Self(self.0.timeout(timeout), self.1)
+        Self {
+            builder: self.builder.timeout(timeout),
+            cache: self.cache,
+            cache_mode: self.cache_mode,
+        }
     }
 
     /// Set a timeout for establishing connections to a host.
     ///
     /// If not set, the [`default_client`] default of 90 seconds will be used.
     pub fn connect_timeout(self, timeout: Duration) -> Self {
-        Self(self.0.connect_timeout(timeout), self.1)
+        Self {
+            builder: self.builder.connect_timeout(timeout),
+            cache: self.cache,
+            cache_mode: self.cache_mode,
+        }
     }
 
     /// Specify a maximum amount of time where transfer rate can go below a minimum speed limit.
     ///
     /// The `low_speed` limit is in bytes/s. No low-speed limit is configured by default.
     pub fn low_speed_timeout(self, low_speed: u32, timeout: Duration) -> Self {
-        Self(self.0.low_speed_timeout(low_speed, timeout), self.1)
+        Self {
+            builder: self.builder.low_speed_timeout(low_speed, timeout),
+            cache: self.cache,
+            cache_mode: self.cache_mode,
+        }
     }
 
     /// Set a policy for automatically following server redirects.
@@ -1065,9 +1304,17 @@ impl ClientBuilder {
     /// If enabled the "Referer" header will be set automatically too.
     pub fn redirect_policy(self, policy: RedirectPolicy) -> Self {
         if !matches!(policy, RedirectPolicy::None) {
-            Self(self.0.redirect_policy(policy).auto_referer(), self.1)
+            Self {
+                builder: self.builder.redirect_policy(policy).auto_referer(),
+                cache: self.cache,
+                cache_mode: self.cache_mode,
+            }
         } else {
-            Self(self.0.redirect_policy(policy), self.1)
+            Self {
+                builder: self.builder.redirect_policy(policy),
+                cache: self.cache,
+                cache_mode: self.cache_mode,
+            }
         }
     }
 
@@ -1079,17 +1326,29 @@ impl ClientBuilder {
     ///
     /// [`default_header`]: Self::default_header
     pub fn auto_decompress(self, enabled: bool) -> Self {
-        Self(self.0.automatic_decompression(enabled), self.1)
+        Self {
+            builder: self.builder.automatic_decompression(enabled),
+            cache: self.cache,
+            cache_mode: self.cache_mode,
+        }
     }
 
     /// Set a maximum upload speed for the request body, in bytes per second.
     pub fn max_upload_speed(self, max: u64) -> Self {
-        Self(self.0.max_upload_speed(max), self.1)
+        Self {
+            builder: self.builder.max_upload_speed(max),
+            cache: self.cache,
+            cache_mode: self.cache_mode,
+        }
     }
 
     /// Set a maximum download speed for the response body, in bytes per second.
     pub fn max_download_speed(self, max: u64) -> Self {
-        Self(self.0.max_download_speed(max), self.1)
+        Self {
+            builder: self.builder.max_download_speed(max),
+            cache: self.cache,
+            cache_mode: self.cache_mode,
+        }
     }
 
     /// Enable or disable metrics collecting.
@@ -1098,30 +1357,90 @@ impl ClientBuilder {
     ///
     /// This is enabled by default.
     pub fn metrics(self, enable: bool) -> Self {
-        Self(self.0.metrics(enable), self.1)
+        Self {
+            builder: self.builder.metrics(enable),
+            cache: self.cache,
+            cache_mode: self.cache_mode,
+        }
     }
 
     /// Sets the [`CacheProxy`] to use.
     ///
     /// No caching is done by default.
     pub fn cache(self, cache: impl CacheProxy) -> Self {
-        Self(self.0, Some(Box::new(cache)))
+        Self {
+            builder: self.builder,
+            cache: Some(Box::new(cache)),
+            cache_mode: self.cache_mode,
+        }
+    }
+
+    /// Sets the [`CacheMode`] selector.
+    ///
+    /// The `selector` closure is called for every cacheable request before it is made, it
+    /// must return a [`CacheMode`] value that configures how the [`cache`] is used.
+    ///
+    /// Note that the closure is only called if a [`cache`] is set.
+    ///
+    /// [`cache`]: Self::cache
+    pub fn cache_mode(self, selector: impl Fn(&Uri) -> CacheMode + Send + Sync + 'static) -> Self {
+        Self {
+            builder: self.builder,
+            cache: self.cache,
+            cache_mode: Some(Arc::new(selector)),
+        }
     }
 }
 
 /// Represents a download cache in a [`Client`].
+#[async_trait]
 pub trait CacheProxy: Send + Sync + 'static {
     /// Dynamic clone.
     fn clone_boxed(&self) -> Box<dyn CacheProxy>;
 
     /// Gets the `ETAG` for the cached data for `uri`.
-    fn etag(&self, uri: &Uri) -> Option<String>;
+    ///
+    /// Only returns some if the entry has not expired.
+    async fn etag(&self, uri: &Uri) -> Option<String>;
 
     /// Read/clone the cached data for the `uri`.
-    fn get(&self, uri: &Uri) -> Option<Vec<u8>>;
+    async fn get(&self, uri: &Uri) -> Option<Response>;
 
-    /// Caches the `data`, in case of error the entry is purged.
-    fn set(&self, uri: &Uri, etag: String, expires: std::time::SystemTime, data: &[u8]) -> Result<(), CacheError>;
+    /// Caches the `data` with the given `ETAG` and expiration date.
+    ///
+    /// The `data` must be consumed as fast as possible writing to the cache, at the same time the returned
+    /// reader must be reading a copy of the data.
+    ///
+    /// In case of error the entry is purged.
+    async fn set(&self, uri: Uri, etag: String, expires: ExpireInstant, data: Response) -> Result<Response, CacheError>;
+
+    /// Remove `uri` from cache if it is cached.
+    async fn forget(&self, uri: &Uri);
+
+    /// Remove all cached entries that are not in use.
+    async fn purge(&self);
+
+    /// Remove all expired cache entries.
+    async fn prune(&self);
+}
+
+/// Represents the expire instant of a [`CacheProxy`] entry.
+///
+/// The value is the number of seconds since the Unix epoch.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub struct ExpireInstant(pub u64);
+impl ExpireInstant {
+    /// Returns the instant that just expired.
+    #[inline]
+    pub fn now() -> ExpireInstant {
+        Self(std::time::SystemTime::UNIX_EPOCH.elapsed().unwrap().as_secs())
+    }
+
+    /// Returns `true` if the cache entry must be removed.
+    #[inline]
+    pub fn expired(self) -> bool {
+        Self::now() > self
+    }
 }
 
 /// Error when setting an entry in a [`CacheProxy`].
@@ -1135,6 +1454,39 @@ impl fmt::Display for CacheError {
     }
 }
 impl std::error::Error for CacheError {}
+impl From<CacheError> for Error {
+    fn from(e: CacheError) -> Self {
+        std::io::Error::new(std::io::ErrorKind::Interrupted, e).into()
+    }
+}
+
+/// Cache mode selected for a [`Uri`].
+///
+/// See [`ClientBuilder::cache_mode`] for more information.
+#[derive(Debug, Clone)]
+pub enum CacheMode {
+    /// Always requests the server, never caches the response.
+    NoCache,
+
+    /// Validate the cached `ETag` against the server, returns the cached response if
+    /// the server responds with [`Status::NOT_MODIFIED`], otherwise caches the response.
+    ///
+    /// This is the default mode.
+    ETag,
+
+    /// Always caches the response, ignoring `Cache-Control` or `ETag`.
+    ///
+    /// If the response is cached returns it instead of requesting an update.
+    Permanent,
+
+    /// Returns the error.
+    Error(Error),
+}
+impl Default for CacheMode {
+    fn default() -> Self {
+        CacheMode::ETag
+    }
+}
 
 pub use file_cache::FileSystemCache;
 
@@ -1147,10 +1499,11 @@ mod file_cache {
         time::{Duration, SystemTime},
     };
 
+    use crate::task;
+    use async_trait::async_trait;
     use fs2::FileExt;
-    use isahc::http::Uri;
 
-    use super::{CacheError, CacheProxy};
+    use super::*;
 
     /// A simple [`CacheProxy`] implementation that uses a local directory.
     #[derive(Clone)]
@@ -1209,20 +1562,45 @@ mod file_cache {
             Entry::open(entry, write)
         }
     }
+    #[async_trait]
     impl CacheProxy for FileSystemCache {
         fn clone_boxed(&self) -> Box<dyn CacheProxy> {
             Box::new(self.clone())
         }
 
-        fn etag(&self, uri: &Uri) -> Option<String> {
-            self.entry(uri, false).map(|mut e| mem::take(&mut e.etag))
+        async fn etag(&self, uri: &Uri) -> Option<String> {
+            task::wait(|| self.entry(uri, false).map(|mut e| mem::take(&mut e.etag))).await
         }
 
-        fn get(&self, uri: &Uri) -> Option<Vec<u8>> {
-            let info = self.entry(uri, false)?;
+        async fn get(&self, uri: &Uri) -> Option<Response> {
+            let info = task::wait(|| self.entry(uri, false)).await?;
 
-            match fs::read(info.entry.join("d")) {
-                Ok(d) => Some(d),
+            let mut headers = header::HeaderMap::new();
+
+            match task::fs::read_to_string(info.entry.join("h")).await {
+                Ok(h) => {
+                    for line in h.lines() {
+                        if let Some((name, value)) = line.split_once(':') {
+                            if let Ok(value) = header::HeaderValue::from_str(value) {
+                                headers.insert(name, value);
+                            }
+                        }
+                    }
+                }
+                Err(e) => {
+                    tracing::error!("cache data read error, {:?}", e);
+                    Entry::try_delete_dir(&info.entry);
+                    return None;
+                }
+            }
+
+            match task::fs::File::open(info.entry.join("b")).await {
+                Ok(d) => {
+                    // TODO keep the lock active?
+                    let d = task::io::BufReader::new(d);
+                    let r = Response::new(StatusCode::OK, headers, Body::from_reader(d));
+                    Some(r)
+                }
                 Err(e) => {
                     tracing::error!("cache data read error, {:?}", e);
                     Entry::try_delete_dir(&info.entry);
@@ -1231,47 +1609,57 @@ mod file_cache {
             }
         }
 
-        fn set(&self, uri: &Uri, etag: String, expires: SystemTime, data: &[u8]) -> Result<(), CacheError> {
-            let expires = expires.duration_since(SystemTime::UNIX_EPOCH).unwrap();
-            let info_data = format!("{}\n{}", expires.as_secs(), etag);
+        async fn set(&self, uri: Uri, etag: String, expires: ExpireInstant, data: Response) -> Result<Response, CacheError> {
+            let info_data = format!("{}\n{}", expires.0, etag);
+            let mut headers = String::new();
 
-            match self.entry(uri, true) {
-                Some(mut info) => match fs::write(&info.entry, &data) {
-                    Ok(()) => match info.file.write_all(info_data.as_bytes()) {
-                        Ok(()) => Ok(()),
-                        Err(e) => {
-                            tracing::error!("cache data info write error, {:?}", e);
-                            let _ = info.file.unlock();
-                            Entry::try_delete_dir(&info.entry);
-                            Err(CacheError)
-                        }
-                    },
-                    Err(e) => {
-                        tracing::error!("cache data write error, {:?}", e);
-                        let _ = info.file.unlock();
-                        Entry::try_delete_dir(&info.entry);
-                        Err(CacheError)
-                    }
-                },
-                None => {
-                    let entry = self.entry_dir(uri);
-                    match fs::write(entry.join("d"), &data) {
-                        Ok(()) => match fs::write(entry.join("i"), info_data.as_bytes()) {
-                            Ok(()) => Ok(()),
-                            Err(e) => {
-                                tracing::error!("cache new data info write error, {:?}", e);
-                                Entry::try_delete_dir(&entry);
-                                Err(CacheError)
-                            }
-                        },
-                        Err(e) => {
-                            tracing::error!("cache new data write error, {:?}", e);
-                            Entry::try_delete_dir(&entry);
-                            Err(CacheError)
-                        }
-                    }
+            for (name, value) in data.headers() {
+                if let Ok(value) = value.to_str() {
+                    headers.push_str(name.as_str());
+                    headers.push(':');
+                    headers.push_str(value);
+                    headers.push('\n')
                 }
             }
+
+            if let Some(info) = task::wait(|| self.entry(&uri, true)).await {
+                let r = task::wait(|| {
+                    info.file.set_len(0)?;
+                    info.file.write_all(info_data.as_bytes())?;
+                    fs::write(info.entry.join("h"), headers)
+                })
+                .await;
+
+                if let Err(e) = r {
+                    tracing::error!("cache new data write error, {:?}", e);
+                    let entry = info.entry;
+                    drop(info);
+                    Entry::try_delete_dir(&info.entry);
+                    return Err(CacheError);
+                }
+
+                todo!("write to cache while returning a copy as the download happens")
+            } else {
+                Err(CacheError)
+            }
+        }
+
+        async fn forget(&self, uri: &Uri) {
+            task::wait(|| {
+                if let Some(info) = self.entry(uri, true) {
+                    let _ = info.file.unlock();
+                    Entry::try_delete_dir(&info.entry);
+                }
+            })
+            .await
+        }
+
+        async fn purge(&self) {
+            task::wait(|| self.purge()).await
+        }
+
+        async fn prune(&self) {
+            task::wait(|| self.prune()).await
         }
     }
 

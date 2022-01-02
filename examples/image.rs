@@ -1,18 +1,20 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+
+use zero_ui::core::task::http;
 use zero_ui::core::{image::ImageLimits, timer::Timers};
 use zero_ui::prelude::*;
 use zero_ui::widgets::image::properties::{image_error_view, image_loading_view, ImageErrorArgs};
-// use zero_ui_view_prebuilt as zero_ui_view;
+use zero_ui_view_prebuilt as zero_ui_view;
 
 fn main() {
     examples_util::print_info();
-    //zero_ui_view::init();
+    zero_ui_view::init();
 
     // let rec = examples_util::record_profile("profile-image.json.gz", &[("example", &"image")], |_| true);
 
-    zero_ui_view::run_same_process(app_main);
+    // zero_ui_view::run_same_process(app_main);
 
-    // app_main();
+    app_main();
     // rec.finish();
 }
 
@@ -21,6 +23,15 @@ fn app_main() {
         // by default all "ImageSource::Download" requests are blocked, the limits can be set globally
         // in here and overridden for each image with the "limits" property.
         ctx.services.images().limits.allow_uri = zero_ui::core::image::UriFilter::AllowAll;
+
+        // setup a file cache so we don't download the images every run.
+        http::set_default_client_init(move || {
+            http::Client::builder()
+                .cache(http::FileSystemCache::new(examples_util::temp_dir("image")).unwrap())
+                .cache_mode(img_cache_mode)
+                .build()
+        })
+        .unwrap();
 
         img_window(
             "Image Example",
@@ -337,4 +348,14 @@ fn sub_title(text: impl IntoVar<Text>) -> impl Widget {
         background_color = colors::BLACK;
         padding = (2, 5);
     }
+}
+
+fn img_cache_mode(uri: &Uri) -> http::CacheMode {
+    if let Some(a) = uri.authority() {
+        if a.host().contains("wikimedia.org") {
+            // Wikimedia server config causes a new download every request.
+            return http::CacheMode::Permanent;
+        }
+    }
+    http::CacheMode::default()
 }
