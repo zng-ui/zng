@@ -465,7 +465,7 @@ mod tests {
     use crate::task;
 
     #[test]
-    pub fn mc_buf_read_parallel() {
+    pub fn mc_buf_reader_parallel() {
         let data = Data::new(60.kilobytes().0);
 
         let mut expected = vec![0; data.len];
@@ -501,7 +501,7 @@ mod tests {
     }
 
     #[test]
-    pub fn mc_buf_read_single() {
+    pub fn mc_buf_reader_single() {
         let data = Data::new(60.kilobytes().0);
 
         let mut expected = vec![0; data.len];
@@ -523,7 +523,7 @@ mod tests {
     }
 
     #[test]
-    pub fn mc_buf_read_sequential() {
+    pub fn mc_buf_reader_sequential() {
         let data = Data::new(60.kilobytes().0);
 
         let mut expected = vec![0; data.len];
@@ -552,7 +552,7 @@ mod tests {
     }
 
     #[test]
-    pub fn mc_buf_read_completed() {
+    pub fn mc_buf_reader_completed() {
         let data = Data::new(60.kilobytes().0);
         let mut buf = Vec::with_capacity(data.len);
         let mut a = McBufReader::new(data);
@@ -571,7 +571,7 @@ mod tests {
     }
 
     #[test]
-    pub fn mc_buf_read_error() {
+    pub fn mc_buf_reader_error() {
         let mut data = Data::new(20.kilobytes().0);
         data.set_error();
 
@@ -599,7 +599,7 @@ mod tests {
     }
 
     #[test]
-    pub fn mc_buf_read_error_completed() {
+    pub fn mc_buf_reader_error_completed() {
         let mut data = Data::new(20.kilobytes().0);
         data.set_error();
 
