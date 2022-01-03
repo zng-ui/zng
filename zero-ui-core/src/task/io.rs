@@ -8,7 +8,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use crate::{task::AggegateWaker, units::*};
+use crate::{task::McWaker, units::*};
 
 #[doc(no_inline)]
 pub use futures_lite::io::*;
@@ -195,35 +195,34 @@ impl fmt::Display for Metrics {
     }
 }
 
-/// Cloneable buffered read.
+/// Multiple consumer buffered read.
 ///
-/// Already read bytes stay in the buffer until all clones have read it, clones created after reading started
-/// continue reading from the same offset as the reader they cloned but can also diverge on their own.
+/// Clone an instance to create a new consumer, already read bytes stay in the buffer until all clones have read it,
+/// clones continue reading from the same offset as the reader they cloned.
 ///
-/// A single instance of this reader behaves like the default [`BufReader`].
+/// A single instance of this reader behaves like a [`BufReader`] but uses slightly more memory.
 ///
 /// # Fused Result
 ///
 /// The result is *fused* when `EOF` or an [`Error`] occurs, unfortunately the IO error is not cloneable
-/// so an error of the same [`ErrorKind`] is generated for the other reader clones and subsequent poll attempts.
+/// so the error is recreated using [`CloneableError`] for subsequent poll attempts.
 ///
 /// The inner reader is dropped as soon as it finishes.
-pub struct SharedBufReader<S: AsyncRead> {
-    inner: Arc<Mutex<SharedBufReaderInner<S>>>,
+pub struct McBufReader<S: AsyncRead> {
+    inner: Arc<Mutex<McBufInner<S>>>,
     index: usize,
 }
-struct SharedBufReaderInner<S: AsyncRead> {
+struct McBufInner<S: AsyncRead> {
     source: Option<BufReader<S>>,
-    waker: AggegateWaker,
+    waker: McWaker,
 
     buf: Vec<u8>,
-    len: usize, // buf.len without pending zeros.
 
     clones: Vec<Option<usize>>,
 
     result: FusedReadResult,
 }
-impl<S: AsyncRead> SharedBufReader<S> {
+impl<S: AsyncRead> McBufReader<S> {
     /// Creates a buffered reader.
     pub fn new(source: S) -> Self {
         Self::from_reader(BufReader::new(source))
@@ -231,15 +230,16 @@ impl<S: AsyncRead> SharedBufReader<S> {
 
     /// Convert the `reader` to a shareable reader.
     pub fn from_reader(reader: BufReader<S>) -> Self {
-        SharedBufReader {
-            inner: Arc::new(Mutex::new(SharedBufReaderInner {
+        let mut clones = Vec::with_capacity(2);
+        clones.push(Some(0));
+        McBufReader {
+            inner: Arc::new(Mutex::new(McBufInner {
                 source: Some(reader),
-                waker: AggegateWaker::empty(),
+                waker: McWaker::empty(),
 
-                buf: vec![],
-                len: 0,
+                buf: Vec::with_capacity(8.kilobytes().0),
 
-                clones: vec![Some(0)],
+                clones,
 
                 result: FusedReadResult::Pending,
             })),
@@ -247,7 +247,7 @@ impl<S: AsyncRead> SharedBufReader<S> {
         }
     }
 }
-impl<S: AsyncRead> Clone for SharedBufReader<S> {
+impl<S: AsyncRead> Clone for McBufReader<S> {
     fn clone(&self) -> Self {
         let mut inner = self.inner.lock();
 
@@ -270,12 +270,12 @@ impl<S: AsyncRead> Clone for SharedBufReader<S> {
         }
     }
 }
-impl<S: AsyncRead> Drop for SharedBufReader<S> {
+impl<S: AsyncRead> Drop for McBufReader<S> {
     fn drop(&mut self) {
         self.inner.lock().clones[self.index] = None;
     }
 }
-impl<S: AsyncRead> AsyncRead for SharedBufReader<S> {
+impl<S: AsyncRead> AsyncRead for McBufReader<S> {
     fn poll_read(self: Pin<&mut Self>, cx: &mut task::Context<'_>, buf: &mut [u8]) -> Poll<Result<usize>> {
         let self_ = self.as_ref();
         let mut inner = self_.inner.lock();
@@ -289,7 +289,7 @@ impl<S: AsyncRead> AsyncRead for SharedBufReader<S> {
                 // inner reader has finished, but we may have pending data for `self`.
                 if let Some(i) = inner.clones[self_.index] {
                     // data already read
-                    let done = &inner.buf[i..inner.len];
+                    let done = &inner.buf[i..];
                     let min = done.len().min(buf.len());
 
                     buf[..min].copy_from_slice(&done[..min]);
@@ -313,7 +313,7 @@ impl<S: AsyncRead> AsyncRead for SharedBufReader<S> {
             }
         }
 
-        if inner.buf.len() > 8.kilobytes().0 {
+        if inner.buf.len() > 5.kilobytes().0 {
             // cleanup
             let used = inner.clones.iter().filter_map(|c| *c).min().unwrap();
             if used > 4.kilobytes().0 {
@@ -328,7 +328,7 @@ impl<S: AsyncRead> AsyncRead for SharedBufReader<S> {
 
         // data already read
         let i = inner.clones[self_.index].unwrap();
-        let done = &inner.buf[i..inner.len];
+        let done = &inner.buf[i..];
 
         // copy already read
         let min = done.len().min(buf.len());
@@ -338,19 +338,23 @@ impl<S: AsyncRead> AsyncRead for SharedBufReader<S> {
             // no pending request, read more data, even if we already fulfilled the request.
             let more = (buf.len() - min) + 1;
 
-            let new_start = inner.len;
-            let new_len = inner.len + more;
-            inner.buf.resize(new_len, 0);
-            inner.len = new_len;
+            let new_start = inner.buf.len();
+            inner.buf.resize(new_start + more, 0);
 
             let waker = inner.waker.waker().unwrap();
             let mut cx = task::Context::from_waker(&waker);
+            let waker_count = inner.waker.strong_count();
 
             let source = inner.source.as_mut().unwrap();
 
             // SAFETY: we never move `source`.
             match unsafe { Pin::new_unchecked(source) }.poll_read(&mut cx, &mut inner.buf[new_start..]) {
                 Poll::Ready(Ok(0)) => {
+                    inner.buf.truncate(new_start);
+                    if waker_count == inner.waker.strong_count() {
+                        inner.waker.cancel();
+                    }
+
                     // finished EOF, return `done`
                     inner.result = FusedReadResult::Eof;
                     inner.clones[self_.index] = None;
@@ -359,7 +363,10 @@ impl<S: AsyncRead> AsyncRead for SharedBufReader<S> {
                     return Poll::Ready(Ok(min));
                 }
                 Poll::Ready(Ok(l)) => {
-                    inner.len += l;
+                    inner.buf.truncate(new_start + l);
+                    if waker_count == inner.waker.strong_count() {
+                        inner.waker.cancel();
+                    }
 
                     // add more data if needed.
                     let rest = buf.len() - min;
@@ -367,16 +374,17 @@ impl<S: AsyncRead> AsyncRead for SharedBufReader<S> {
                     if rest_min > 0 {
                         buf[min..min + rest_min].copy_from_slice(&inner.buf[new_start..new_start + rest_min]);
                     }
+
                     inner.clones[self_.index] = Some(new_start + rest_min);
 
-                    return Poll::Ready(Ok(rest_min));
+                    return Poll::Ready(Ok(min + rest_min));
                 }
                 Poll::Ready(Err(e)) => {
                     // finished in error, fuse everything.
                     inner.result = FusedReadResult::Err(CloneableError::new(&e));
                     inner.buf = vec![];
-                    inner.len = 0;
                     inner.source = None;
+                    inner.waker.cancel();
 
                     return Poll::Ready(Err(e));
                 }
@@ -398,16 +406,6 @@ impl<S: AsyncRead> AsyncRead for SharedBufReader<S> {
             Poll::Ready(Ok(min))
         }
     }
-}
-
-/// Duplicate `source` into two async buffered readers, if a reader advances more
-/// then the other the difference is cached.
-///
-/// See [`SharedBufReader`] for more details.
-pub fn duplicate_read<S: AsyncRead>(source: S) -> (SharedBufReader<S>, SharedBufReader<S>) {
-    let a = SharedBufReader::new(source);
-    let b = a.clone();
-    (a, b)
 }
 
 /// Represents the cloneable parts of an [`Error`].
@@ -467,15 +465,17 @@ mod tests {
     use crate::task;
 
     #[test]
-    pub fn shared_buf_read() {
+    pub fn mc_buf_read_parallel() {
         let data = Data::new(60.kilobytes().0);
 
         let mut expected = vec![0; data.len];
-        data.clone().blocking_read(&mut expected[..]);
-    
-        let (mut a, mut b) = duplicate_read(data);
+        let _ = data.clone().blocking_read(&mut expected[..]);
 
-        let (a, b) = async_test(async move {
+        let mut a = McBufReader::new(data);
+        let mut b = a.clone();
+        let mut c = a.clone();
+
+        let (a, b, c) = async_test(async move {
             let a = task::run(async move {
                 let mut buf = vec![];
                 a.read_to_end(&mut buf).await.unwrap();
@@ -486,29 +486,35 @@ mod tests {
                 b.read_to_end(&mut buf).await.unwrap();
                 buf
             });
+            let c = task::run(async move {
+                let mut buf: Vec<u8> = vec![];
+                c.read_to_end(&mut buf).await.unwrap();
+                buf
+            });
 
-            task::all!(a, b).await
+            task::all!(a, b, c).await
         });
 
         crate::assert_vec_eq!(expected, a);
         crate::assert_vec_eq!(expected, b);
+        crate::assert_vec_eq!(expected, c);
     }
 
     #[test]
-    pub fn shared_buf_read_not_shared() {
+    pub fn mc_buf_read_single() {
         let data = Data::new(60.kilobytes().0);
 
         let mut expected = vec![0; data.len];
-        data.clone().blocking_read(&mut expected[..]);
-    
-        let mut a = SharedBufReader::new(data);
+        let _ = data.clone().blocking_read(&mut expected[..]);
+
+        let mut a = McBufReader::new(data);
 
         let a = async_test(async move {
             let a = task::run(async move {
                 let mut buf = vec![];
                 a.read_to_end(&mut buf).await.unwrap();
                 buf
-            });           
+            });
 
             a.await
         });
@@ -516,31 +522,140 @@ mod tests {
         crate::assert_vec_eq!(expected, a);
     }
 
+    #[test]
+    pub fn mc_buf_read_sequential() {
+        let data = Data::new(60.kilobytes().0);
+
+        let mut expected = vec![0; data.len];
+        let _ = data.clone().blocking_read(&mut expected[..]);
+
+        let mut clones = vec![McBufReader::new(data)];
+        for _ in 0..5 {
+            clones.push(clones[0].clone());
+        }
+
+        let r = async_test(async move {
+            let mut r = vec![];
+
+            for mut clone in clones {
+                let mut buf = vec![];
+                clone.read_to_end(&mut buf).await.unwrap();
+                r.push(buf);
+            }
+
+            r
+        });
+
+        for r in r {
+            crate::assert_vec_eq!(expected, r);
+        }
+    }
+
+    #[test]
+    pub fn mc_buf_read_completed() {
+        let data = Data::new(60.kilobytes().0);
+        let mut buf = Vec::with_capacity(data.len);
+        let mut a = McBufReader::new(data);
+        
+        let r = async_test(async move {
+            a.read_to_end(&mut buf).await.unwrap();
+
+            let mut b = a.clone();
+            buf.clear();
+
+            b.read_to_end(&mut buf).await.unwrap();
+            buf.len()
+        });
+
+        assert_eq!(0, r);
+    }
+
+    #[test]
+    pub fn mc_buf_read_error() {
+        let mut data = Data::new(20.kilobytes().0);
+        data.set_error();
+
+        let mut expected = vec![0; data.len];
+        let _ = data.clone().blocking_read(&mut expected[..]);
+
+        let mut a = McBufReader::new(data);
+        let mut b = a.clone();
+
+        let (a, b) = async_test(async move {
+            let a = task::run(async move {
+                let mut buf = vec![];
+                a.read_to_end(&mut buf).await.unwrap_err()
+            });
+            let b = task::run(async move {
+                let mut buf: Vec<u8> = vec![];
+                b.read_to_end(&mut buf).await.unwrap_err()
+            });
+
+            task::all!(a, b).await
+        });
+
+        assert_eq!(ErrorKind::InvalidData, a.kind());
+        assert_eq!(ErrorKind::InvalidData, b.kind());
+    }
+
+    #[test]
+    pub fn mc_buf_read_error_completed() {
+        let mut data = Data::new(20.kilobytes().0);
+        data.set_error();
+
+        let mut buf = Vec::with_capacity(data.len);
+        let mut a = McBufReader::new(data);
+        
+        let (a, b) = async_test(async move {
+            let a_err = a.read_to_end(&mut buf).await.unwrap_err();
+
+            let mut b = a.clone();
+            buf.clear();
+
+            let b_err = b.read_to_end(&mut buf).await.unwrap_err();
+            
+
+            (a_err, b_err)
+        });
+
+        assert_eq!(ErrorKind::InvalidData, a.kind());
+        assert_eq!(ErrorKind::InvalidData, b.kind());
+    }
+
     #[derive(Clone)]
     struct Data {
         b: u8,
         len: usize,
+        error: Option<CloneableError>,
     }
     impl Data {
         pub fn new(len: usize) -> Self {
-            Self { b: 0, len }
+            Self { b: 0, len, error: None }
         }
-        pub fn blocking_read(&mut self, buf: &mut [u8]) -> usize {
+        pub fn blocking_read(&mut self, buf: &mut [u8]) -> Result<usize> {
             let len = self.len;
             for b in buf.iter_mut().take(len) {
                 *b = self.b;
+                self.len -= 1;
                 self.b = self.b.wrapping_add(1);
             }
-            buf.len().min(len)
+
+            if len == 0 {
+                if let Some(e) = &self.error {
+                    return e.err();
+                }
+            }
+
+            Ok(buf.len().min(len))
+        }
+        pub fn set_error(&mut self) {
+            self.error = Some(CloneableError::new(&Error::new(ErrorKind::InvalidData, "test error")));
         }
     }
     impl AsyncRead for Data {
-        fn poll_read(mut self: Pin<&mut Self>, cx: &mut std::task::Context<'_>, buf: &mut [u8]) -> Poll<Result<usize>> {
-            let _ = cx;
-
-            let l = self.as_mut().blocking_read(buf);
-
-            Poll::Ready(Ok(l))
+        fn poll_read(mut self: Pin<&mut Self>, _cx: &mut std::task::Context<'_>, buf: &mut [u8]) -> Poll<Result<usize>> {
+            let r = self.as_mut().blocking_read(buf);
+            Poll::Ready(r)
         }
     }
 
@@ -571,15 +686,15 @@ mod tests {
 
                         let mut error = format!("`{}` != `{}`", stringify!($a), stringify!($b));
                         if len_not_eq {
-                            let _ = write!(&mut error, "\n  lengths not equal: {} != {}", a.len(), b.len());    
+                            let _ = write!(&mut error, "\n  lengths not equal: {} != {}", a.len(), b.len());
                         }
                         if let Some(i) = data_not_eq {
                             let _ = write!(&mut error, "\n  data not equal at index {}: {} != {:?}", i, a[i], b[i]);
                         }
                         panic!("{}", error)
-                    }                    
+                    }
                 }
             }
-        }
+        };
     }
 }

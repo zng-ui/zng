@@ -1647,7 +1647,8 @@ mod file_cache {
                     }
                 };
 
-                let (a, b) = duplicate_read(body);
+                let a = McBufReader::new(body);
+                let b = a.clone();
                 task::spawn(async move {
                     if let Err(e) = copy(a, cache).await {
                         tracing::error!("cache write failed mid-download, {:?}", e);

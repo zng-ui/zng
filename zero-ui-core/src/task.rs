@@ -1863,14 +1863,14 @@ struct SignalInner {
     listeners: Mutex<Vec<std::task::Waker>>,
 }
 
-/// A [`Waker`] factory that dispatches a wake call to multiple other wakers.
+/// A [`Waker`] that dispatches a wake call to multiple other wakers.
 ///
 /// This is useful for sharing one wake source with multiple [`Waker`] clients that may not be all
 /// known at the moment the first request is made.
 ///  
 /// [`Waker`]: std::task::Waker
 #[derive(Clone)]
-pub struct AggegateWaker(Arc<WakeVec>);
+pub struct McWaker(Arc<WakeVec>);
 
 #[derive(Default)]
 struct WakeVec(Mutex<Vec<std::task::Waker>>);
@@ -1900,26 +1900,29 @@ impl std::task::Wake for WakeVec {
         }
     }
 }
-impl AggegateWaker {
+impl McWaker {
     /// New empty waker.
+    #[inline]
     pub fn empty() -> Self {
         Self(Arc::new(WakeVec::default()))
     }
 
-    /// Returns `true` if no waker is registered with this aggregate.
+    /// Returns `true` if no waker is registered.
     ///
     /// Note that this can change before you register a new waker, to avoid race conditions
     /// use the return value of [`push`].
     ///
     /// [`push`]: Self::push
+    #[inline]
     pub fn is_empty(&self) -> bool {
         self.0.is_empty()
     }
 
-    /// Register a `waker` to wake once when the aggregate waker awakes.
+    /// Register a `waker` to wake once when `self` awakes.
     ///
     /// Returns the number of registered wakers after insert, if it is `1` then `self`
     /// was empty before the insert.
+    #[inline]
     pub fn push(&self, waker: std::task::Waker) -> usize {
         self.0.push(waker)
     }
@@ -1927,6 +1930,7 @@ impl AggegateWaker {
     /// Gets the waker if `self` is not empty.
     ///
     /// The waker will awake all registered wakers before its `wake` call then clear the aggregate waker.
+    #[inline]
     pub fn waker(&self) -> Option<std::task::Waker> {
         if self.is_empty() {
             None
@@ -1935,11 +1939,18 @@ impl AggegateWaker {
         }
     }
 
-    /// Clear current registered aggregate wakers.
+    /// Clear current registered wakers.
     ///
     /// Returns the number of wakers that where canceled.
+    #[inline]
     pub fn cancel(&self) -> usize {
         self.0.cancel()
+    }
+
+    /// Returns the number of clones of `self`.
+    #[inline]
+    pub fn strong_count(&self) -> usize {
+        Arc::strong_count(&self.0)
     }
 }
 
