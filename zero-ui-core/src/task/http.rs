@@ -389,6 +389,9 @@ impl RequestBuilder {
     }
 }
 
+/// Head parts from a split [`Response`].
+pub type ResponseParts = isahc::http::response::Parts;
+
 /// HTTP response.
 #[derive(Debug)]
 pub struct Response(isahc::Response<isahc::AsyncBody>);
@@ -506,6 +509,17 @@ impl Response {
         *r.status_mut() = status;
         *r.headers_mut() = headers;
         Self(r)
+    }
+
+    /// Consumes the response returning the head and body parts.
+    pub fn into_parts(self) -> (ResponseParts, Body) {
+        let (p, b) = self.0.into_parts();
+        (p, Body(b))
+    }
+
+    /// New response from given head and body.
+    pub fn from_parts(parts: ResponseParts, body: Body) -> Self {
+        Self(isahc::Response::from_parts(parts, body.0))
     }
 }
 impl From<Response> for isahc::Response<isahc::AsyncBody> {
@@ -1027,7 +1041,7 @@ impl Client {
 
         if let Some(cache) = &self.cache {
             if let Some(rsp) = cache.get(&uri).await {
-                todo!()
+                return Ok(rsp);
             }
         }
 
@@ -1097,7 +1111,7 @@ impl Client {
 
         if response.status() == StatusCode::NOT_MODIFIED {
             if let Some(cached) = cache.get(&uri).await {
-                todo!("convert to response")
+                return Ok(cached);
             } else {
                 use std::io::*;
                 return Err(Error::new(ErrorKind::NotFound, "cache provided ETAG but did not provide response").into());
@@ -1136,7 +1150,7 @@ impl Client {
         let response = Response(response);
 
         if !can_cache {
-            cache.forget(&uri);
+            cache.forget(&uri).await;
             return Ok(response);
         }
 
@@ -1519,47 +1533,19 @@ mod file_cache {
             Ok(FileSystemCache { dir })
         }
 
-        /// Remove all cache entries that are not locked.
-        pub fn purge(&self) {
-            if let Ok(entries) = std::fs::read_dir(&self.dir) {
-                for entry in entries.flatten() {
-                    let entry = entry.path();
-                    if entry.is_dir() {
-                        if let Ok(info) = File::open(entry.join("i")) {
-                            if info.try_lock_shared().is_ok() {
-                                let _ = info.unlock();
-                                Entry::try_delete_dir(&entry);
-                            }
-                        }
-                    }
-                }
-            }
-        }
+        async fn entry(&self, uri: Uri, write: bool) -> Option<Entry> {
+            let dir = self.dir.clone();
+            task::wait(move || {
+                use sha2::Digest;
 
-        /// Remove all expired cache entries that are not locked.
-        pub fn prune(&self) {
-            if let Ok(entries) = std::fs::read_dir(&self.dir) {
-                for entry in entries.flatten() {
-                    let entry = entry.path();
-                    if entry.is_dir() {
-                        let _ = Entry::open(entry, false);
-                    }
-                }
-            }
-        }
+                let mut m = sha2::Sha256::new();
+                m.update(uri.to_string().as_bytes());
+                let hash = m.finalize();
+                let dir = dir.join(base64::encode(&hash[..]));
 
-        fn entry_dir(&self, uri: &Uri) -> PathBuf {
-            use sha2::Digest;
-
-            let mut m = sha2::Sha256::new();
-            m.update(uri.to_string().as_bytes());
-            let hash = m.finalize();
-            self.dir.join(base64::encode(&hash[..]))
-        }
-
-        fn entry(&self, uri: &Uri, write: bool) -> Option<Entry> {
-            let entry = self.entry_dir(uri);
-            Entry::open(entry, write)
+                Entry::open(dir, write)
+            })
+            .await
         }
     }
     #[async_trait]
@@ -1569,11 +1555,11 @@ mod file_cache {
         }
 
         async fn etag(&self, uri: &Uri) -> Option<String> {
-            task::wait(|| self.entry(uri, false).map(|mut e| mem::take(&mut e.etag))).await
+            self.entry(uri.clone(), false).await.map(|mut e| mem::take(&mut e.etag))
         }
 
         async fn get(&self, uri: &Uri) -> Option<Response> {
-            let info = task::wait(|| self.entry(uri, false)).await?;
+            let info = self.entry(uri.clone(), false).await?;
 
             let mut headers = header::HeaderMap::new();
 
@@ -1581,7 +1567,10 @@ mod file_cache {
                 Ok(h) => {
                     for line in h.lines() {
                         if let Some((name, value)) = line.split_once(':') {
-                            if let Ok(value) = header::HeaderValue::from_str(value) {
+                            if let (Ok(name), Ok(value)) = (
+                                header::HeaderName::from_bytes(name.as_bytes()),
+                                header::HeaderValue::from_str(value),
+                            ) {
                                 headers.insert(name, value);
                             }
                         }
@@ -1610,6 +1599,8 @@ mod file_cache {
         }
 
         async fn set(&self, uri: Uri, etag: String, expires: ExpireInstant, data: Response) -> Result<Response, CacheError> {
+            assert_eq!(data.status(), StatusCode::OK);
+
             let info_data = format!("{}\n{}", expires.0, etag);
             let mut headers = String::new();
 
@@ -1622,44 +1613,96 @@ mod file_cache {
                 }
             }
 
-            if let Some(info) = task::wait(|| self.entry(&uri, true)).await {
-                let r = task::wait(|| {
+            if let Some(mut info) = self.entry(uri, true).await {
+                let entry = info.entry.clone();
+
+                let info = task::wait(move || {
                     info.file.set_len(0)?;
                     info.file.write_all(info_data.as_bytes())?;
-                    fs::write(info.entry.join("h"), headers)
+                    fs::write(info.entry.join("h"), headers)?;
+                    Ok::<Entry, io::Error>(info)
                 })
                 .await;
 
-                if let Err(e) = r {
-                    tracing::error!("cache new data write error, {:?}", e);
-                    let entry = info.entry;
-                    drop(info);
-                    Entry::try_delete_dir(&info.entry);
-                    return Err(CacheError);
-                }
+                let info = match info {
+                    Ok(i) => i,
+                    Err(e) => {
+                        tracing::error!("cache new data write error, {:?}", e);
+                        Entry::try_delete_dir(&entry);
+                        return Err(CacheError);
+                    }
+                };
 
-                todo!("write to cache while returning a copy as the download happens")
+                let (head, body) = data.into_parts();
+
+                use task::io::*;
+
+                let cache = match task::fs::File::create(entry.join("b")).await {
+                    Ok(c) => c,
+                    Err(e) => {
+                        tracing::error!("cache new body write error, {:?}", e);
+                        drop(info);
+                        Entry::try_delete_dir(&entry);
+                        return Err(CacheError);
+                    }
+                };
+
+                let (a, b) = duplicate_read(body);
+                task::spawn(async move {
+                    if let Err(e) = copy(a, cache).await {
+                        tracing::error!("cache write failed mid-download, {:?}", e);
+                        drop(info);
+                        Entry::try_delete_dir(&entry);
+                    }
+                });
+                let body = Body::from_reader(b);
+
+                Ok(Response::from_parts(head, body))
             } else {
                 Err(CacheError)
             }
         }
 
         async fn forget(&self, uri: &Uri) {
-            task::wait(|| {
-                if let Some(info) = self.entry(uri, true) {
-                    let _ = info.file.unlock();
-                    Entry::try_delete_dir(&info.entry);
+            if let Some(info) = self.entry(uri.clone(), true).await {
+                let _ = info.file.unlock();
+                task::wait(move || Entry::try_delete_dir(&info.entry)).await;
+            }
+        }
+
+        async fn purge(&self) {
+            let dir = self.dir.clone();
+            task::wait(move || {
+                if let Ok(entries) = std::fs::read_dir(dir) {
+                    for entry in entries.flatten() {
+                        let entry = entry.path();
+                        if entry.is_dir() {
+                            if let Ok(info) = File::open(entry.join("i")) {
+                                if info.try_lock_shared().is_ok() {
+                                    let _ = info.unlock();
+                                    Entry::try_delete_dir(&entry);
+                                }
+                            }
+                        }
+                    }
                 }
             })
             .await
         }
 
-        async fn purge(&self) {
-            task::wait(|| self.purge()).await
-        }
-
         async fn prune(&self) {
-            task::wait(|| self.prune()).await
+            let dir = self.dir.clone();
+            task::wait(move || {
+                if let Ok(entries) = std::fs::read_dir(dir) {
+                    for entry in entries.flatten() {
+                        let entry = entry.path();
+                        if entry.is_dir() {
+                            let _ = Entry::open(entry, false);
+                        }
+                    }
+                }
+            })
+            .await
         }
     }
 

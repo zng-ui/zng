@@ -1863,6 +1863,86 @@ struct SignalInner {
     listeners: Mutex<Vec<std::task::Waker>>,
 }
 
+/// A [`Waker`] factory that dispatches a wake call to multiple other wakers.
+///
+/// This is useful for sharing one wake source with multiple [`Waker`] clients that may not be all
+/// known at the moment the first request is made.
+///  
+/// [`Waker`]: std::task::Waker
+#[derive(Clone)]
+pub struct AggegateWaker(Arc<WakeVec>);
+
+#[derive(Default)]
+struct WakeVec(Mutex<Vec<std::task::Waker>>);
+impl WakeVec {
+    fn is_empty(&self) -> bool {
+        self.0.lock().is_empty()
+    }
+
+    fn push(&self, waker: std::task::Waker) -> usize {
+        let mut v = self.0.lock();
+        let len = v.len();
+        v.push(waker);
+        len + 1
+    }
+
+    fn cancel(&self) -> usize {
+        let mut v = self.0.lock();
+        let len = v.len();
+        v.clear();
+        len
+    }
+}
+impl std::task::Wake for WakeVec {
+    fn wake(self: Arc<Self>) {
+        for w in mem::take(&mut *self.0.lock()) {
+            w.wake();
+        }
+    }
+}
+impl AggegateWaker {
+    /// New empty waker.
+    pub fn empty() -> Self {
+        Self(Arc::new(WakeVec::default()))
+    }
+
+    /// Returns `true` if no waker is registered with this aggregate.
+    ///
+    /// Note that this can change before you register a new waker, to avoid race conditions
+    /// use the return value of [`push`].
+    ///
+    /// [`push`]: Self::push
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+
+    /// Register a `waker` to wake once when the aggregate waker awakes.
+    ///
+    /// Returns the number of registered wakers after insert, if it is `1` then `self`
+    /// was empty before the insert.
+    pub fn push(&self, waker: std::task::Waker) -> usize {
+        self.0.push(waker)
+    }
+
+    /// Gets the waker if `self` is not empty.
+    ///
+    /// The waker will awake all registered wakers before its `wake` call then clear the aggregate waker.
+    pub fn waker(&self) -> Option<std::task::Waker> {
+        if self.is_empty() {
+            None
+        } else {
+            Some(self.0.clone().into())
+        }
+    }
+
+    /// Clear current registered aggregate wakers.
+    ///
+    /// Returns the number of wakers that where canceled.
+    pub fn cancel(&self) -> usize {
+        self.0.cancel()
+    }
+}
+
 #[cfg(test)]
 pub mod tests {
     use rayon::prelude::*;
