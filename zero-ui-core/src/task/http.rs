@@ -1902,6 +1902,8 @@ mod file_cache {
 
 #[cfg(test)]
 mod tests {
+    use std::path::PathBuf;
+
     use crate::{
         crate_util::{test_log, TestTempDir},
         task,
@@ -2038,6 +2040,97 @@ mod tests {
         });
 
         assert_eq!(etag, "test-tag");
+    }
+
+    #[test]
+    pub fn file_cache_concurrent_get() {
+        test_log();
+        let tmp = TestTempDir::new("file_cache_concurrent_get");
+        let uri = Uri::try_from("https://file_cache_concurrent_get.invalid/content").unwrap();
+
+        let test = FileSystemCache::new(&tmp).unwrap();
+
+        let mut headers = header::HeaderMap::default();
+        headers.insert(header::CONTENT_LENGTH, header::HeaderValue::from("test content.".len()));
+        let body = Body::from_reader(task::io::Cursor::new("test content."));
+        let response = Response::new(StatusCode::OK, headers, body);
+
+        async_test(async_clone_move!(uri, {
+            let _ = test
+                .set(uri, "test-tag".to_owned(), ExpireInstant(u64::MAX), response)
+                .await
+                .unwrap();
+
+            drop(test);
+        }));
+
+        async_test(async move {
+            let a = concurrent_get(tmp.path().to_owned(), uri.clone());
+            let b = concurrent_get(tmp.path().to_owned(), uri.clone());
+            let c = concurrent_get(tmp.path().to_owned(), uri);
+
+            task::all!(a, b, c).await;
+        });
+    }
+    async fn concurrent_get(tmp: PathBuf, uri: Uri) {
+        task::run(async move {
+            let test = FileSystemCache::new(&tmp).unwrap();
+
+            let mut response = test.get(&uri).await.unwrap();
+
+            let body = response.text().await.unwrap();
+
+            let (headers, body) = (response.into_parts().0.headers, body);
+
+            assert_eq!(
+                headers.get(&header::CONTENT_LENGTH),
+                Some(&header::HeaderValue::from("test content.".len()))
+            );
+            assert_eq!(body, "test content.");
+        })
+        .await
+    }
+
+    #[test]
+    pub fn file_cache_concurrent_set() {
+        test_log();
+        let tmp = TestTempDir::new("file_cache_concurrent_set");
+        let uri = Uri::try_from("https://file_cache_concurrent_set.invalid/content").unwrap();
+
+        async_test(async move {
+            let a = concurrent_set(tmp.path().to_owned(), uri.clone());
+            let b = concurrent_set(tmp.path().to_owned(), uri.clone());
+            let c = concurrent_set(tmp.path().to_owned(), uri);
+
+            task::all!(a, b, c).await;
+        });
+    }
+    async fn concurrent_set(tmp: PathBuf, uri: Uri) {
+        task::run(async move {
+            let test = FileSystemCache::new(&tmp).unwrap();
+
+            let mut headers = header::HeaderMap::default();
+            headers.insert(header::CONTENT_LENGTH, header::HeaderValue::from("test content.".len()));
+            let body = Body::from_reader(task::io::Cursor::new("test content."));
+            let response = Response::new(StatusCode::OK, headers, body);
+    
+            let (headers, body) = async_test(async move {
+                let mut response = test
+                    .set(uri.clone(), "test-tag".to_owned(), ExpireInstant(u64::MAX), response)
+                    .await
+                    .unwrap();
+    
+                let body = response.text().await.unwrap();
+    
+                (response.into_parts().0.headers, body)
+            });
+    
+            assert_eq!(
+                headers.get(&header::CONTENT_LENGTH),
+                Some(&header::HeaderValue::from("test content.".len()))
+            );
+            assert_eq!(body, "test content.");
+        }).await
     }
 
     #[track_caller]
