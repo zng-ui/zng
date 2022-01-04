@@ -1510,12 +1510,12 @@ mod file_cache {
         io::{self, Read, Write},
         mem,
         path::{Path, PathBuf},
-        time::{Duration, SystemTime},
     };
 
-    use crate::task;
+    use crate::task::{self, io::McBufReader};
     use async_trait::async_trait;
     use fs2::FileExt;
+    use isahc::http::HeaderMap;
 
     use super::*;
 
@@ -1533,7 +1533,7 @@ mod file_cache {
             Ok(FileSystemCache { dir })
         }
 
-        async fn entry(&self, uri: Uri, write: bool) -> Option<Entry> {
+        async fn entry(&self, uri: Uri, write: bool) -> Option<CacheEntry> {
             let dir = self.dir.clone();
             task::wait(move || {
                 use sha2::Digest;
@@ -1543,7 +1543,7 @@ mod file_cache {
                 let hash = m.finalize();
                 let dir = dir.join(base64::encode(&hash[..]));
 
-                Entry::open(dir, write)
+                CacheEntry::open(dir, write)
             })
             .await
         }
@@ -1559,115 +1559,45 @@ mod file_cache {
         }
 
         async fn get(&self, uri: &Uri) -> Option<Response> {
-            let info = self.entry(uri.clone(), false).await?;
+            let entry = self.entry(uri.clone(), false).await?;
 
-            let mut headers = header::HeaderMap::new();
+            let (entry, headers) = task::wait(move || {
+                let headers = entry.read_headers();
+                (entry, headers)
+            })
+            .await;
+            let headers = headers?;
 
-            match task::fs::read_to_string(info.entry.join("h")).await {
-                Ok(h) => {
-                    for line in h.lines() {
-                        if let Some((name, value)) = line.split_once(':') {
-                            if let (Ok(name), Ok(value)) = (
-                                header::HeaderName::from_bytes(name.as_bytes()),
-                                header::HeaderValue::from_str(value),
-                            ) {
-                                headers.insert(name, value);
-                            }
-                        }
-                    }
-                }
-                Err(e) => {
-                    tracing::error!("cache data read error, {:?}", e);
-                    Entry::try_delete_dir(&info.entry);
-                    return None;
-                }
-            }
+            let body = entry.open_body().await?;
 
-            match task::fs::File::open(info.entry.join("b")).await {
-                Ok(d) => {
-                    // TODO keep the lock active?
-                    let d = task::io::BufReader::new(d);
-                    let r = Response::new(StatusCode::OK, headers, Body::from_reader(d));
-                    Some(r)
-                }
-                Err(e) => {
-                    tracing::error!("cache data read error, {:?}", e);
-                    Entry::try_delete_dir(&info.entry);
-                    None
-                }
-            }
+            Some(Response::new(StatusCode::OK, headers, body))
         }
 
         async fn set(&self, uri: Uri, etag: String, expires: ExpireInstant, data: Response) -> Result<Response, CacheError> {
             assert_eq!(data.status(), StatusCode::OK);
 
-            let info_data = format!("{}\n{}", expires.0, etag);
-            let mut headers = String::new();
-
-            for (name, value) in data.headers() {
-                if let Ok(value) = value.to_str() {
-                    headers.push_str(name.as_str());
-                    headers.push(':');
-                    headers.push_str(value);
-                    headers.push('\n')
-                }
+            let entry = self.entry(uri, true).await.ok_or(CacheError)?;
+            if !entry.write_info(expires, etag.as_str()) {
+                return Err(CacheError);
             }
 
-            if let Some(mut info) = self.entry(uri, true).await {
-                let entry = info.entry.clone();
+            let (parts, body) = data.into_parts();
 
-                let info = task::wait(move || {
-                    info.file.set_len(0)?;
-                    info.file.write_all(info_data.as_bytes())?;
-                    fs::write(info.entry.join("h"), headers)?;
-                    Ok::<Entry, io::Error>(info)
-                })
-                .await;
-
-                let info = match info {
-                    Ok(i) => i,
-                    Err(e) => {
-                        tracing::error!("cache new data write error, {:?}", e);
-                        Entry::try_delete_dir(&entry);
-                        return Err(CacheError);
-                    }
-                };
-
-                let (head, body) = data.into_parts();
-
-                use task::io::*;
-
-                let cache = match task::fs::File::create(entry.join("b")).await {
-                    Ok(c) => c,
-                    Err(e) => {
-                        tracing::error!("cache new body write error, {:?}", e);
-                        drop(info);
-                        Entry::try_delete_dir(&entry);
-                        return Err(CacheError);
-                    }
-                };
-
-                let a = McBufReader::new(body);
-                let b = a.clone();
-                task::spawn(async move {
-                    if let Err(e) = copy(a, cache).await {
-                        tracing::error!("cache write failed mid-download, {:?}", e);
-                        drop(info);
-                        Entry::try_delete_dir(&entry);
-                    }
-                });
-                let body = Body::from_reader(b);
-
-                Ok(Response::from_parts(head, body))
-            } else {
-                Err(CacheError)
+            if !entry.write_headers(&parts.headers) {
+                return Err(CacheError);
             }
+
+            let body = entry.write_body(body).await;
+
+            Ok(Response::from_parts(parts, body))
         }
 
         async fn forget(&self, uri: &Uri) {
-            if let Some(info) = self.entry(uri.clone(), true).await {
-                let _ = info.file.unlock();
-                task::wait(move || Entry::try_delete_dir(&info.entry)).await;
+            if let Some(entry) = self.entry(uri.clone(), true).await {
+                task::wait(move || {
+                    CacheEntry::try_delete_locked_dir(&entry.dir, &entry.lock);
+                })
+                .await
             }
         }
 
@@ -1678,10 +1608,9 @@ mod file_cache {
                     for entry in entries.flatten() {
                         let entry = entry.path();
                         if entry.is_dir() {
-                            if let Ok(info) = File::open(entry.join("i")) {
-                                if info.try_lock_shared().is_ok() {
-                                    let _ = info.unlock();
-                                    Entry::try_delete_dir(&entry);
+                            if let Ok(lock) = File::open(entry.join(".lock")) {
+                                if lock.try_lock_shared().is_ok() {
+                                    CacheEntry::try_delete_locked_dir(&entry, &lock);
                                 }
                             }
                         }
@@ -1698,7 +1627,7 @@ mod file_cache {
                     for entry in entries.flatten() {
                         let entry = entry.path();
                         if entry.is_dir() {
-                            let _ = Entry::open(entry, false);
+                            let _ = CacheEntry::open(entry, false);
                         }
                     }
                 }
@@ -1707,92 +1636,242 @@ mod file_cache {
         }
     }
 
-    struct Entry {
-        entry: PathBuf,
-        file: File,
+    struct CacheEntry {
+        dir: PathBuf,
+        lock: File,
+
+        expire: ExpireInstant,
         etag: String,
     }
-    impl Entry {
-        fn open(entry: PathBuf, write: bool) -> Option<Self> {
-            let info = entry.join("i");
+    impl CacheEntry {
+        /// Open or create an entry.
+        fn open(dir: PathBuf, write: bool) -> Option<Self> {
+            if write && !dir.exists() {
+                if let Err(e) = fs::create_dir(&dir) {
+                    tracing::error!("cache dir error, {:?}", e);
+                    return None;
+                }
+            }
+
+            let lock = dir.join(".lock");
             let mut opt = OpenOptions::new();
             if write {
-                opt.write(true);
+                opt.write(true).create(true);
             } else {
                 opt.read(true);
             }
-            let mut info = match opt.open(info) {
-                Ok(i) => i,
+
+            let mut lock = match opt.open(lock) {
+                Ok(l) => l,
                 Err(e) => {
-                    tracing::error!("cache info open error, {:?}", e);
-                    Self::try_delete_dir(&entry);
+                    tracing::error!("cache lock open error, {:?}", e);
+                    Self::try_delete_dir(&dir);
                     return None;
                 }
             };
 
-            let lock_r = if write { info.lock_exclusive() } else { info.lock_shared() };
+            let lock_r = if write { lock.lock_exclusive() } else { lock.lock_shared() };
             if let Err(e) = lock_r {
-                tracing::error!("cache info lock error, {:?}", e);
-                Self::try_delete_dir(&entry);
+                tracing::error!("cache lock error, {:?}", e);
+                Self::try_delete_dir(&dir);
                 return None;
             }
 
-            let mut s = String::new();
-            match info.read_to_string(&mut s) {
-                Ok(_) => {
-                    match s.split_once('\n') {
-                        Some((expire, et)) => {
-                            let expire = match expire.parse::<u64>() {
-                                Ok(u) => Duration::from_secs(u),
-                                Err(e) => {
-                                    tracing::error!("cache info expire corrupted, `{:?}`", e);
-                                    let _ = info.unlock();
-                                    drop(info);
-                                    Self::try_delete_dir(&entry);
-                                    return None;
-                                }
-                            };
+            let mut version = String::new();
+            if let Err(e) = lock.read_to_string(&mut version) {
+                tracing::error!("cache lock read error, {:?}", e);
+                Self::try_delete_locked_dir(&dir, &lock);
+                return None;
+            }
 
-                            let now = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap();
-                            if expire <= now {
-                                let _ = info.unlock();
-                                drop(info);
-                                Self::try_delete_dir(&entry);
-                                return None;
-                            }
+            let expected_version = "zero_ui::http::FileCache 1.0";
+            if version != expected_version {
+                if write && version.is_empty() {
+                    if let Err(e) = lock.set_len(0).and_then(|()| lock.write_all(expected_version.as_bytes())) {
+                        tracing::error!("cache lock write error, {:?}", e);
+                        Self::try_delete_locked_dir(&dir, &lock);
+                        return None;
+                    }
+                } else {
+                    tracing::error!("unknown cache version, {:?}", version);
+                    Self::try_delete_locked_dir(&dir, &lock);
+                    return None;
+                }
+            }
 
-                            // SUCESS
-                            let etag = et.to_owned();
-                            Some(Entry { entry, file: info, etag })
-                        }
-                        None => {
-                            tracing::error!("cache info corrupted, `{}`", s);
-                            let _ = info.unlock();
-                            drop(info);
-                            Self::try_delete_dir(&entry);
-                            None
-                        }
+            let mut expire = ExpireInstant(u64::MAX);
+            let mut etag = String::new();
+
+            let info = dir.join(".info");
+            if info.exists() {
+                let info = match fs::read_to_string(&dir) {
+                    Ok(i) => i,
+                    Err(e) => {
+                        tracing::error!("cache info read error, {:?}", e);
+                        Self::try_delete_locked_dir(&dir, &lock);
+                        return None;
+                    }
+                };
+
+                let mut info_ok = false;
+                if let Some((expire_secs, etag)) = info.split_once('\n') {
+                    if let Ok(expire_secs) = expire_secs.parse() {
+                        expire = ExpireInstant(expire_secs);
+                        info_ok = !etag.contains('\n');
                     }
                 }
+
+                if !info_ok {
+                    tracing::error!("invalid cache info `{}`", info);
+                    Self::try_delete_locked_dir(&dir, &lock);
+                    return None;
+                }
+
+                if expire.expired() {
+                    tracing::trace!("cache expired");
+
+                    if write {
+                        if let Err(e) = Self::clear(&dir) {
+                            tracing::error!("error clearing expired cache, {:?}", e);
+                            Self::try_delete_locked_dir(&dir, &lock);
+                            return None;
+                        }
+                    } else {
+                        Self::try_delete_locked_dir(&dir, &lock);
+                    }
+                }
+            } else if !write {
+                tracing::error!("cache info missing");
+                Self::try_delete_locked_dir(&dir, &lock);
+                return None;
+            }
+
+            Some(Self { dir, lock, expire, etag })
+        }
+
+        /// Replace the .info content, returns `true` if the entry still exists.
+        pub fn write_info(&self, expire: ExpireInstant, etag: &str) -> bool {
+            let info = self.dir.join(".info");
+
+            let content = format!("{}\n{}", expire.0, etag);
+            if let Err(e) = fs::write(info, content) {
+                tracing::error!("cache info write error, {:?}", e);
+                Self::try_delete_locked_dir(&self.dir, &self.lock);
+                return false;
+            }
+
+            true
+        }
+
+        /// Read and parse the cached .headers, returns `Some(_)` if the cache still exists.
+        pub fn read_headers(&self) -> Option<HeaderMap> {
+            let headers = self.dir.join(".headers");
+
+            let s = match fs::read_to_string(&self.dir) {
+                Ok(s) => s,
                 Err(e) => {
-                    tracing::error!("cache info read error, {:?}", e);
-                    let _ = info.unlock();
-                    drop(info);
-                    Self::try_delete_dir(&entry);
+                    tracing::error!("cache headers read error, {:?}", e);
+                    Self::try_delete_locked_dir(&self.dir, &self.lock);
+                    return None;
+                }
+            };
+
+            let mut headers = HeaderMap::new();
+            let mut content_ok = false;
+
+            for line in s.lines() {
+                if let Some((name, value)) = line.split_once(':') {
+                    if let (Ok(name), Ok(value)) = (
+                        header::HeaderName::from_bytes(name.as_bytes()),
+                        header::HeaderValue::from_str(value),
+                    ) {
+                        headers.insert(name, value);
+                    }
+                }
+            }
+
+            Some(headers)
+        }
+
+        /// Replace the .headers content, returns `true` if the entry still exists.
+        pub fn write_headers(&self, headers: &HeaderMap) -> bool {
+            let mut content = String::new();
+            for (name, value) in headers.iter() {
+                if let Ok(value) = value.to_str() {
+                    content.push_str(name.as_str());
+                    content.push(':');
+                    content.push_str(value);
+                    content.push('\n')
+                }
+            }
+
+            if let Err(e) = fs::write(self.dir.join(".headers"), content) {
+                tracing::error!("cache headers write error, {:?}", e);
+                Self::try_delete_locked_dir(&self.dir, &self.lock);
+                return false;
+            }
+
+            true
+        }
+
+        /// Start reading the body content, returns `Some(_)` if the entry still exists.
+        pub async fn open_body(&self) -> Option<Body> {
+            match task::fs::File::open(self.dir.join(".body")).await {
+                Ok(body) => Some(Body::from_reader(task::io::BufReader::new(body))),
+                Err(e) => {
+                    tracing::error!("cache open body error, {:?}", e);
+                    Self::try_delete_locked_dir(&self.dir, &self.lock);
                     None
                 }
             }
         }
 
+        /// Start downloading and writing a copy of the body to the cache entry.
+        pub async fn write_body(self, body: Body) -> Body {
+            match task::fs::File::create(self.dir.join(".body")).await {
+                Ok(cache_body) => {
+                    let cache_copy = McBufReader::new(body);
+                    let body_copy = cache_copy.clone();
+
+                    task::spawn(async move {
+                        if let Err(e) = task::io::copy(cache_copy, cache_body).await {
+                            tracing::error!("cache body write error, {:?}", e);
+                            Self::try_delete_locked_dir(&self.dir, &self.lock);
+                        }
+                    });
+
+                    Body::from_reader(body_copy)
+                }
+                Err(e) => {
+                    tracing::error!("cache body create error, {:?}", e);
+                    Self::try_delete_locked_dir(&self.dir, &self.lock);
+                    body
+                }
+            }
+        }
+
+        fn try_delete_locked_dir(dir: &Path, lock: &File) {
+            lock.unlock();
+            let _ = lock;
+            Self::try_delete_dir(dir);
+        }
+
         fn try_delete_dir(dir: &Path) {
             let _ = remove_dir_all::remove_dir_all(dir);
         }
+
+        fn clear(dir: &Path) -> std::io::Result<()> {
+            fs::remove_file(dir.join(".info"))?;
+            fs::remove_file(dir.join(".headers"))?;
+            fs::remove_file(dir.join(".body"))?;
+            Ok(())
+        }
     }
-    impl Drop for Entry {
+    impl Drop for CacheEntry {
         fn drop(&mut self) {
-            if let Err(e) = self.file.unlock() {
-                tracing::error!("cache info unlock error, {:?}", e);
-                Self::try_delete_dir(&self.entry);
+            if let Err(e) = self.lock.unlock() {
+                tracing::error!("cache unlock error, {:?}", e);
+                Self::try_delete_dir(&self.dir);
             }
         }
     }
