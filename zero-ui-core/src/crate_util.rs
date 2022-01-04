@@ -676,3 +676,142 @@ pub mod tests {
         assert!(id0.sequential() < id1.sequential());
     }
 }
+
+/// A temporary directory for unit tests.
+///
+/// Directory is "target/tmp/unit_tests/<name>" with fallback to system temporary if the target folder is not found.
+///
+/// Auto cleanup on drop.
+#[cfg(test)]
+pub struct TestTempDir {
+    path: Option<PathBuf>,
+}
+#[cfg(test)]
+impl Drop for TestTempDir {
+    fn drop(&mut self) {
+        if let Some(path) = self.path.take() {
+            let _ = remove_dir_all::remove_dir_all(path);
+        }
+    }
+}
+#[cfg(test)]
+impl TestTempDir {
+    /// Create temporary directory for the unique teste name.
+    pub fn new(name: &str) -> Self {
+        let path = Self::try_target().unwrap_or_else(Self::fallback).join(name);
+        std::fs::create_dir_all(&path).unwrap_or_else(|e| panic!("failed to create temp `{}`, {:?}", path.display(), e));
+        TestTempDir { path: Some(path) }
+    }
+    fn try_target() -> Option<PathBuf> {
+        let p = std::env::current_exe().ok()?;
+        // target/debug/deps/../../..
+        let target = p.parent()?.parent()?.parent()?;
+        if target.file_name()?.to_str()? != "target" {
+            return None;
+        }
+        Some(target.join("tmp/unit_tests"))
+    }
+    fn fallback() -> PathBuf {
+        tracing::warn!("using fallback temporary directory");
+        std::env::temp_dir().join("zero_ui/unit_tests")
+    }
+
+    /// Dereferences the temporary directory path.
+    pub fn path(&self) -> &Path {
+        self.path.as_deref().unwrap()
+    }
+
+    /// Drop `self` without removing the temporary files.
+    ///
+    /// Returns the path to the temporary directory.
+    pub fn keep(mut self) -> PathBuf {
+        self.path.take().unwrap()
+    }
+}
+#[cfg(test)]
+impl std::ops::Deref for TestTempDir {
+    type Target = Path;
+
+    fn deref(&self) -> &Self::Target {
+        self.path()
+    }
+}
+#[cfg(test)]
+impl std::convert::AsRef<Path> for TestTempDir {
+    fn as_ref(&self) -> &Path {
+        self.path()
+    }
+}
+#[cfg(test)]
+impl<'a> From<&'a TestTempDir> for std::path::PathBuf {
+    fn from(a: &'a TestTempDir) -> Self {
+        a.path.as_ref().unwrap().clone()
+    }
+}
+
+/// Sets a `tracing` subscriber that writes warnings to stderr and panics on errors.
+///
+/// Panics if another different subscriber is already set.
+#[cfg(test)]
+pub fn test_log() {
+    use std::sync::atomic::*;
+
+    use tracing::*;
+
+    struct TestSubscriber;
+    impl Subscriber for TestSubscriber {
+        fn enabled(&self, metadata: &Metadata<'_>) -> bool {
+            metadata.is_event() && metadata.level() < &Level::WARN
+        }
+
+        fn new_span(&self, _span: &span::Attributes<'_>) -> span::Id {
+            unimplemented!()
+        }
+
+        fn record(&self, _span: &span::Id, _values: &span::Record<'_>) {
+            unimplemented!()
+        }
+
+        fn record_follows_from(&self, _span: &span::Id, _follows: &span::Id) {
+            unimplemented!()
+        }
+
+        fn event(&self, event: &Event<'_>) {
+            struct MsgCollector<'a>(&'a mut String);
+            impl<'a> field::Visit for MsgCollector<'a> {
+                fn record_debug(&mut self, field: &field::Field, value: &dyn fmt::Debug) {
+                    use std::fmt::Write;
+                    write!(self.0, "\n  {} = {:?}", field.name(), value).unwrap();
+                }
+            }
+
+            let meta = event.metadata();
+            let file = meta.file().unwrap_or("");
+            let line = meta.line().unwrap_or(0);
+
+            let mut msg = format!("[{}:{}]", file, line);
+            event.record(&mut MsgCollector(&mut msg));
+
+            if meta.level() == &Level::ERROR {
+                panic!("[LOG-ERROR]{}", msg);
+            } else {
+                eprintln!("[LOG-WARN]{}", msg);
+            }
+        }
+
+        fn enter(&self, _span: &span::Id) {
+            unimplemented!()
+        }
+        fn exit(&self, _span: &span::Id) {
+            unimplemented!()
+        }
+    }
+
+    static IS_SET: AtomicBool = AtomicBool::new(false);
+
+    if !IS_SET.swap(true, Ordering::Relaxed) {
+        if let Err(e) = subscriber::set_global_default(TestSubscriber) {
+            panic!("failed to set test log subscriber, {:?}", e);
+        }
+    }
+}

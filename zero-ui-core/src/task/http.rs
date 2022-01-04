@@ -434,25 +434,12 @@ impl Response {
 
     /// Read the response body as raw bytes.
     pub async fn bytes(&mut self) -> std::io::Result<Vec<u8>> {
-        let cap = self.0.body_mut().len().unwrap_or(1024);
-        let mut bytes = Vec::with_capacity(cap as usize);
-        self.0.copy_to(&mut bytes).await?;
-        Ok(bytes)
+        Body::bytes_impl(self.0.body_mut()).await
     }
 
     /// Read at most `limit` bytes from the response body.
     pub async fn bytes_limited(&mut self, limit: ByteLength) -> std::io::Result<Vec<u8>> {
-        let body = self.0.body_mut();
-        if let Some(len) = body.len() {
-            let cap = len.min(limit.0 as u64);
-            let mut bytes = Vec::with_capacity(cap as usize);
-            self.0.copy_to(&mut bytes).await?;
-            Ok(bytes)
-        } else {
-            let mut bytes = vec![];
-            body.take(limit.0 as u64).read_to_end(&mut bytes).await?;
-            Ok(bytes)
-        }
+        Body::bytes_limited_impl(self.0.body_mut(), limit).await
     }
 
     /// Read some bytes from the body, returns how many bytes where read.
@@ -587,6 +574,45 @@ impl Body {
     #[inline]
     pub fn reset(&mut self) -> bool {
         self.0.reset()
+    }
+
+    /// Read the body as raw bytes.
+    pub async fn bytes(&mut self) -> std::io::Result<Vec<u8>> {
+        Self::bytes_impl(&mut self.0).await
+    }
+    async fn bytes_impl(body: &mut isahc::AsyncBody) -> std::io::Result<Vec<u8>> {
+        let cap = body.len().unwrap_or(1024);
+        let mut bytes = Vec::with_capacity(cap as usize);
+        super::io::copy(body, &mut bytes).await?;
+        Ok(bytes)
+    }
+
+    /// Read at most `limit` bytes from the body.
+    pub async fn bytes_limited(&mut self, limit: ByteLength) -> std::io::Result<Vec<u8>> {
+        Self::bytes_limited_impl(&mut self.0, limit).await
+    }
+
+    async fn bytes_limited_impl(body: &mut isahc::AsyncBody, limit: ByteLength) -> std::io::Result<Vec<u8>> {
+        if let Some(len) = body.len() {
+            let cap = len.min(limit.0 as u64);
+            let mut bytes = Vec::with_capacity(cap as usize);
+            super::io::copy(body, &mut bytes).await?;
+            Ok(bytes)
+        } else {
+            let mut bytes = vec![];
+            body.take(limit.0 as u64).read_to_end(&mut bytes).await?;
+            Ok(bytes)
+        }
+    }
+
+    /// Read some bytes from the body, returns how many bytes where read.
+    pub async fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+        BufReader::new(&mut self.0).read(buf).await
+    }
+
+    /// Read the from the body to exactly fill the buffer.
+    pub async fn read_exact(&mut self, buf: &mut [u8]) -> std::io::Result<()> {
+        BufReader::new(&mut self.0).read_exact(buf).await
     }
 }
 impl From<Body> for isahc::AsyncBody {
@@ -1640,7 +1666,6 @@ mod file_cache {
         dir: PathBuf,
         lock: File,
 
-        expire: ExpireInstant,
         etag: String,
     }
     impl CacheEntry {
@@ -1656,13 +1681,14 @@ mod file_cache {
             let lock = dir.join(".lock");
             let mut opt = OpenOptions::new();
             if write {
-                opt.write(true).create(true);
+                opt.read(true).write(true).create(true);
             } else {
                 opt.read(true);
             }
 
             let mut lock = match opt.open(lock) {
                 Ok(l) => l,
+                Err(e) if e.kind() == std::io::ErrorKind::NotFound && !dir.exists() => return None,
                 Err(e) => {
                     tracing::error!("cache lock open error, {:?}", e);
                     Self::try_delete_dir(&dir);
@@ -1704,7 +1730,7 @@ mod file_cache {
 
             let info = dir.join(".info");
             if info.exists() {
-                let info = match fs::read_to_string(&dir) {
+                let info = match fs::read_to_string(&info) {
                     Ok(i) => i,
                     Err(e) => {
                         tracing::error!("cache info read error, {:?}", e);
@@ -1714,10 +1740,11 @@ mod file_cache {
                 };
 
                 let mut info_ok = false;
-                if let Some((expire_secs, etag)) = info.split_once('\n') {
+                if let Some((expire_secs, et)) = info.split_once('\n') {
                     if let Ok(expire_secs) = expire_secs.parse() {
                         expire = ExpireInstant(expire_secs);
-                        info_ok = !etag.contains('\n');
+                        etag = et.to_owned();
+                        info_ok = !et.contains('\n');
                     }
                 }
 
@@ -1746,7 +1773,7 @@ mod file_cache {
                 return None;
             }
 
-            Some(Self { dir, lock, expire, etag })
+            Some(Self { dir, lock, etag })
         }
 
         /// Replace the .info content, returns `true` if the entry still exists.
@@ -1765,9 +1792,7 @@ mod file_cache {
 
         /// Read and parse the cached .headers, returns `Some(_)` if the cache still exists.
         pub fn read_headers(&self) -> Option<HeaderMap> {
-            let headers = self.dir.join(".headers");
-
-            let s = match fs::read_to_string(&self.dir) {
+            let s = match fs::read_to_string(self.dir.join(".headers")) {
                 Ok(s) => s,
                 Err(e) => {
                     tracing::error!("cache headers read error, {:?}", e);
@@ -1777,8 +1802,6 @@ mod file_cache {
             };
 
             let mut headers = HeaderMap::new();
-            let mut content_ok = false;
-
             for line in s.lines() {
                 if let Some((name, value)) = line.split_once(':') {
                     if let (Ok(name), Ok(value)) = (
@@ -1851,7 +1874,7 @@ mod file_cache {
         }
 
         fn try_delete_locked_dir(dir: &Path, lock: &File) {
-            lock.unlock();
+            let _ = lock.unlock();
             let _ = lock;
             Self::try_delete_dir(dir);
         }
@@ -1874,5 +1897,154 @@ mod file_cache {
                 Self::try_delete_dir(&self.dir);
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{
+        crate_util::{test_log, TestTempDir},
+        task,
+    };
+
+    use super::*;
+
+    #[test]
+    pub fn file_cache_miss() {
+        test_log();
+        let tmp = TestTempDir::new("file_cache_miss");
+
+        let test = FileSystemCache::new(&tmp).unwrap();
+        let uri = Uri::try_from("https://file_cache_miss.invalid/content").unwrap();
+
+        let r = async_test(async move { test.get(&uri).await });
+
+        assert!(r.is_none());
+    }
+
+    #[test]
+    pub fn file_cache_set_no_headers() {
+        test_log();
+        let tmp = TestTempDir::new("file_cache_set_no_headers");
+
+        let test = FileSystemCache::new(&tmp).unwrap();
+        let uri = Uri::try_from("https://file_cache_set_no_headers.invalid/content").unwrap();
+        let response = Response::new_message(StatusCode::OK, "test content.");
+
+        let (headers, body) = async_test(async move {
+            let mut response = test
+                .set(uri.clone(), "test-tag".to_owned(), ExpireInstant(u64::MAX), response)
+                .await
+                .unwrap();
+
+            let body = response.text().await.unwrap();
+
+            (response.into_parts().0.headers, body)
+        });
+
+        assert_eq!(body, "test content.");
+        assert!(headers.is_empty());
+    }
+
+    #[test]
+    pub fn file_cache_set() {
+        test_log();
+        let tmp = TestTempDir::new("file_cache_set");
+
+        let test = FileSystemCache::new(&tmp).unwrap();
+        let uri = Uri::try_from("https://file_cache_set.invalid/content").unwrap();
+
+        let mut headers = header::HeaderMap::default();
+        headers.insert(header::CONTENT_LENGTH, header::HeaderValue::from("test content.".len()));
+        let body = Body::from_reader(task::io::Cursor::new("test content."));
+        let response = Response::new(StatusCode::OK, headers, body);
+
+        let (headers, body) = async_test(async move {
+            let mut response = test
+                .set(uri.clone(), "test-tag".to_owned(), ExpireInstant(u64::MAX), response)
+                .await
+                .unwrap();
+
+            let body = response.text().await.unwrap();
+
+            (response.into_parts().0.headers, body)
+        });
+
+        assert_eq!(
+            headers.get(&header::CONTENT_LENGTH),
+            Some(&header::HeaderValue::from("test content.".len()))
+        );
+        assert_eq!(body, "test content.");
+    }
+
+    #[test]
+    pub fn file_cache_get_cached() {
+        test_log();
+        let tmp = TestTempDir::new("file_cache_get_cached");
+        let uri = Uri::try_from("https://file_cache_get_cached.invalid/content").unwrap();
+
+        let test = FileSystemCache::new(&tmp).unwrap();
+
+        let mut headers = header::HeaderMap::default();
+        headers.insert(header::CONTENT_LENGTH, header::HeaderValue::from("test content.".len()));
+        let body = Body::from_reader(task::io::Cursor::new("test content."));
+        let response = Response::new(StatusCode::OK, headers, body);
+
+        async_test(async_clone_move!(uri, {
+            let _ = test
+                .set(uri, "test-tag".to_owned(), ExpireInstant(u64::MAX), response)
+                .await
+                .unwrap();
+
+            drop(test);
+        }));
+
+        let test = FileSystemCache::new(&tmp).unwrap();
+
+        let (headers, body) = async_test(async move {
+            let mut response = test.get(&uri).await.unwrap();
+
+            let body = response.text().await.unwrap();
+
+            (response.into_parts().0.headers, body)
+        });
+
+        assert_eq!(
+            headers.get(&header::CONTENT_LENGTH),
+            Some(&header::HeaderValue::from("test content.".len()))
+        );
+        assert_eq!(body, "test content.");
+    }
+
+    #[test]
+    pub fn file_cache_get_etag() {
+        test_log();
+        let tmp = TestTempDir::new("get_etag");
+
+        let test = FileSystemCache::new(&tmp).unwrap();
+
+        let uri = Uri::try_from("https://get_etag.invalid/content").unwrap();
+        let response = Response::new_message(StatusCode::OK, "test content.");
+
+        let etag = async_test(async move {
+            let _ = test
+                .set(uri.clone(), "test-tag".to_owned(), ExpireInstant(u64::MAX), response)
+                .await
+                .unwrap();
+
+            let test = FileSystemCache::new(&tmp).unwrap();
+
+            test.etag(&uri).await.unwrap()
+        });
+
+        assert_eq!(etag, "test-tag");
+    }
+
+    #[track_caller]
+    fn async_test<F>(test: F) -> F::Output
+    where
+        F: std::future::Future,
+    {
+        task::block_on(task::with_timeout(test, 5.secs())).unwrap()
     }
 }

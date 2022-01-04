@@ -438,12 +438,12 @@ fn prebuild(args: Vec<&str>) {
 //       Remove only the doc files from the target directories.
 //    clean --release
 //       Remove only the release files from the target directories.
-//    clean --temp
+//    clean --temp, --tmp
 //       Remove the temp files from the target workspace target directory.
 fn clean(mut args: Vec<&str>) {
     let tools = take_flag(&mut args, &["--tools"]);
     let workspace = take_flag(&mut args, &["--workspace"]);
-    let temp = take_flag(&mut args, &["--temp"]);
+    let temp = take_flag(&mut args, &["--temp", "--tmp"]);
     let all = !tools && !workspace && !temp;
 
     if all || workspace {
