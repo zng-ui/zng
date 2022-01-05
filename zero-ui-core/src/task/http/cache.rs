@@ -3,20 +3,23 @@ use std::fmt;
 use async_trait::async_trait;
 use super::{Uri, Response, Error, StatusCode, Body, header::{ HeaderName, HeaderValue, HeaderMap}};
 
+pub use http_cache_semantics::CachePolicy;
 
 /// Represents a download cache in a [`Client`].
+/// 
+/// Cache implementers must store [`CachePolicy`] and [`Response`]
+/// 
+/// [`Client`]: crate::task::http::Client;
 #[async_trait]
 pub trait CacheProxy: Send + Sync + 'static {
     /// Dynamic clone.
     fn clone_boxed(&self) -> Box<dyn CacheProxy>;
 
-    /// Gets the `ETAG` for the cached data for `uri`.
-    ///
-    /// Only returns some if the entry has not expired.
-    async fn etag(&self, uri: &Uri) -> Option<String>;
+    /// Retrieves the cache-policy for the given key.
+    async fn policy(&self, key: &CacheKey) -> Option<CachePolicy>;
 
-    /// Read/clone the cached data for the `uri`.
-    async fn get(&self, uri: &Uri) -> Option<Response>;
+    /// Read/clone the cached data for the given key.
+    async fn response(&self, key: &CacheKey) -> Option<Response>;
 
     /// Caches the `data` with the given `ETAG` and expiration date.
     ///
@@ -24,16 +27,43 @@ pub trait CacheProxy: Send + Sync + 'static {
     /// reader must be reading a copy of the data.
     ///
     /// In case of error the entry is purged.
-    async fn set(&self, uri: Uri, etag: String, expires: ExpireInstant, data: Response) -> Result<Response, CacheError>;
+    async fn store(&self, key: &CacheKey, response: Response) -> Result<Response, CacheError>;
 
-    /// Remove `uri` from cache if it is cached.
-    async fn forget(&self, uri: &Uri);
+    /// Remove cached resource, return.
+    async fn remove(&self, key: &CacheKey);
 
-    /// Remove all cached entries that are not in use.
+    /// Remove all cached entries that locked by read.
     async fn purge(&self);
 
-    /// Remove all expired cache entries.
+    /// Remove cache entries to reduce pressure.
     async fn prune(&self);
+}
+
+/// Cache mode selected for a [`Uri`].
+///
+/// See [`ClientBuilder::cache_mode`] for more information.
+#[derive(Debug, Clone)]
+pub enum CacheMode {
+    /// Always requests the server, never caches the response.
+    NoCache,
+
+    /// Follow the standard cache policy as computed by [`http-cache-semantics`].
+    /// 
+    /// [`http-cache-semantics`]: https://docs.rs/http-cache-semantics
+    Default,
+
+    /// Always caches the response, ignoring cache control configs.
+    ///
+    /// If the response is cached returns it instead of requesting an update.
+    Permanent,
+
+    /// Returns the error.
+    Error(Error),
+}
+impl Default for CacheMode {
+    fn default() -> Self {
+        CacheMode::Default
+    }
 }
 
 /// Represents the expire instant of a [`CacheProxy`] entry.
@@ -55,6 +85,49 @@ impl ExpireInstant {
     }
 }
 
+/// Represents a normalized unique GET request.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct CacheKey {
+    /// Requested URI.
+    pub uri: Uri,
+    /// Headers, normalized.
+    pub headers: Vec<(HeaderName, HeaderValue)>,
+}
+impl CacheKey {
+    /// Create a normalized cache key from the header information.
+    pub fn new(uri: Uri, raw_headers: impl IntoIterator<Item=(HeaderName, HeaderValue)>) -> Self {
+        let mut headers: Vec<_> = raw_headers.into_iter().collect();
+
+        headers.sort_by_key(|(n, _)| n.as_str());
+
+        CacheKey {
+            uri,
+            headers,
+        }
+    }
+
+    /// Computes a SHA-512/256 from the key data.
+    pub fn sha(&self) -> [u8; 32] {
+        use sha2::Digest;
+
+        let mut m = sha2::Sha512_256::new();
+        m.update(self.uri.to_string().as_bytes());
+        for (name, value) in &self.headers {
+            m.update(name.as_str().as_bytes());
+            m.update(value.as_bytes());
+        }
+        let hash = m.finalize();
+
+        hash.try_into().unwrap()
+    }
+
+    /// Computes a base64 encoded SHA-512/256 from the key data.
+    pub fn sha_str(&self) -> String {
+        let hash = self.sha();
+        base64::encode(&hash[..])
+    }
+}
+
 /// Error when setting an entry in a [`CacheProxy`].
 ///
 /// The cache entry was purged.
@@ -69,34 +142,6 @@ impl std::error::Error for CacheError {}
 impl From<CacheError> for Error {
     fn from(e: CacheError) -> Self {
         std::io::Error::new(std::io::ErrorKind::Interrupted, e).into()
-    }
-}
-
-/// Cache mode selected for a [`Uri`].
-///
-/// See [`ClientBuilder::cache_mode`] for more information.
-#[derive(Debug, Clone)]
-pub enum CacheMode {
-    /// Always requests the server, never caches the response.
-    NoCache,
-
-    /// Validate the cached `ETag` against the server, returns the cached response if
-    /// the server responds with [`Status::NOT_MODIFIED`], otherwise caches the response.
-    ///
-    /// This is the default mode.
-    ETag,
-
-    /// Always caches the response, ignoring `Cache-Control` or `ETag`.
-    ///
-    /// If the response is cached returns it instead of requesting an update.
-    Permanent,
-
-    /// Returns the error.
-    Error(Error),
-}
-impl Default for CacheMode {
-    fn default() -> Self {
-        CacheMode::ETag
     }
 }
 
@@ -130,17 +175,10 @@ mod file_cache {
             Ok(FileSystemCache { dir })
         }
 
-        async fn entry(&self, uri: Uri, write: bool) -> Option<CacheEntry> {
+        async fn entry(&self, key: &CacheKey, write: bool) -> Option<CacheEntry> {
             let dir = self.dir.clone();
             task::wait(move || {
-                use sha2::Digest;
-
-                let mut m = sha2::Sha256::new();
-                m.update(uri.to_string().as_bytes());
-                let hash = m.finalize();
-                let dir = dir.join(base64::encode(&hash[..]));
-
-                CacheEntry::open(dir, write)
+                CacheEntry::open(dir.join(key.sha_str()), write)
             })
             .await
         }
@@ -151,8 +189,28 @@ mod file_cache {
             Box::new(self.clone())
         }
 
-        async fn etag(&self, uri: &Uri) -> Option<String> {
-            self.entry(uri.clone(), false).await.map(|mut e| mem::take(&mut e.etag))
+        async fn policy(&self, key: &CacheKey) -> Option<CachePolicy> {
+            todo!()
+        }
+
+        async fn response(&self, key: &CacheKey) -> Option<Response> {
+            todo!()
+        }
+
+        async fn store(&self, key: &CacheKey, response: Response) -> Result<Response, CacheError> {
+            todo!()
+        }
+
+        async fn remove(&self, key: &CacheKey) {
+            todo!()
+        }
+
+        async fn purge(&self) {
+            todo!()
+        }
+
+        async fn prune(&self) {
+            todo!()
         }
 
         async fn get(&self, uri: &Uri) -> Option<Response> {
