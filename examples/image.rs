@@ -350,10 +350,10 @@ fn sub_title(text: impl IntoVar<Text>) -> impl Widget {
     }
 }
 
-fn img_cache_mode(uri: &Uri) -> http::CacheMode {
-    if let Some(a) = uri.authority() {
+fn img_cache_mode(req: &task::http::Request) -> http::CacheMode {
+    if let Some(a) = req.uri().authority() {
         if a.host().contains("wikimedia.org") {
-            // Wikimedia server config causes a new download every request.
+            // Wikimedia not configured for caching.
             return http::CacheMode::Permanent;
         }
     }

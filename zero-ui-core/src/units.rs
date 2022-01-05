@@ -3637,6 +3637,8 @@ pub trait TimeUnits {
     fn secs(self) -> Duration;
     /// Minutes.
     fn minutes(self) -> Duration;
+    /// Hours.
+    fn hours(self) -> Duration;
 }
 impl TimeUnits for u64 {
     #[inline]
@@ -3651,7 +3653,12 @@ impl TimeUnits for u64 {
 
     #[inline]
     fn minutes(self) -> Duration {
-        Duration::from_secs(self / 60)
+        Duration::from_secs(self * 60)
+    }
+
+    #[inline]
+    fn hours(self) -> Duration {
+        Duration::from_secs(self * 60 * 60)
     }
 }
 impl TimeUnits for f32 {
@@ -3668,6 +3675,11 @@ impl TimeUnits for f32 {
     #[inline]
     fn minutes(self) -> Duration {
         Duration::from_secs_f32(self * 60.0)
+    }
+
+    #[inline]
+    fn hours(self) -> Duration {
+        Duration::from_secs_f32(self * 60.0 * 60.0)
     }
 }
 

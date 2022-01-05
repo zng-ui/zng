@@ -1,44 +1,109 @@
-use std::fmt;
-
-use super::{
-    header::{HeaderMap, HeaderName, HeaderValue},
-    Body, Error, Response, StatusCode, Uri,
+use std::{
+    fmt,
+    time::{Duration, SystemTime},
 };
-use async_trait::async_trait;
 
-pub use http_cache_semantics::CachePolicy;
+use super::{Body, Error};
+use async_trait::async_trait;
+use serde::*;
+
+use http_cache_semantics as hcs;
+
+pub(super) use hcs::{AfterResponse, BeforeRequest};
+
+/// Represents a serializable configuration for a cache entry in a [`CacheDb`].
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CachePolicy(pub(super) hcs::CachePolicy);
+
+impl CachePolicy {
+    pub(super) fn new(request: &isahc::Request<super::Body>, response: &isahc::Response<isahc::AsyncBody>) -> Self {
+        let p = hcs::CachePolicy::new_options(
+            request,
+            response,
+            SystemTime::now(),
+            hcs::CacheOptions {
+                shared: false,
+                ignore_cargo_cult: true,
+                ..Default::default()
+            },
+        );
+        Self(p)
+    }
+
+    pub(super) fn new_permanent(response: &isahc::Response<isahc::AsyncBody>) -> Self {
+        todo!()
+    }
+
+    pub(super) fn before_request(&self, request: &isahc::Request<super::Body>) -> BeforeRequest {
+        self.0.before_request(request, SystemTime::now())
+    }
+
+    pub(super) fn after_response(
+        &self,
+        request: &isahc::Request<super::Body>,
+        response: &isahc::Response<isahc::AsyncBody>,
+    ) -> AfterResponse {
+        self.0.after_response(request, response, SystemTime::now())
+    }
+
+    /// Returns how long the response has been sitting in cache.
+    #[inline]
+    pub fn age(&self, now: SystemTime) -> Duration {
+        self.0.age(now)
+    }
+
+    /// Returns approximate time in milliseconds until the response becomes stale.
+    #[inline]
+    pub fn time_to_live(&self, now: SystemTime) -> Duration {
+        self.0.time_to_live(now)
+    }
+
+    /// Returns `true` if the cache entry has expired.
+    #[inline]
+    pub fn is_stale(&self, now: SystemTime) -> bool {
+        self.0.is_stale(now)
+    }
+}
 
 /// Represents a download cache in a [`Client`].
 ///
-/// Cache implementers must store [`CachePolicy`] and [`Response`]
+/// Cache implementers must store a [`CachePolicy`] and [`Body`] for a given [`CacheKey`].
 ///
 /// [`Client`]: crate::task::http::Client;
 #[async_trait]
-pub trait CacheProxy: Send + Sync + 'static {
+pub trait CacheDb: Send + Sync + 'static {
     /// Dynamic clone.
-    fn clone_boxed(&self) -> Box<dyn CacheProxy>;
+    fn clone_boxed(&self) -> Box<dyn CacheDb>;
 
-    /// Retrieves the cache-policy for the given key.
+    /// Retrieves the cache-policy for the given `key`.
     async fn policy(&self, key: &CacheKey) -> Option<CachePolicy>;
 
-    /// Read/clone the cached data for the given key.
-    async fn response(&self, key: &CacheKey) -> Option<Response>;
-
-    /// Caches the `data` with the given `ETAG` and expiration date.
+    /// Replaces the cache-policy for the given `key`.
     ///
-    /// The `data` must be consumed as fast as possible writing to the cache, at the same time the returned
-    /// reader must be reading a copy of the data.
-    ///
-    /// In case of error the entry is purged.
-    async fn store(&self, key: &CacheKey, policy: CachePolicy, response: Response) -> Result<Response, CacheError>;
+    /// Returns `false` if the entry does not exist.
+    async fn set_policy(&self, key: &CacheKey, policy: CachePolicy) -> bool;
 
-    /// Remove cached resource, return.
+    /// Read/clone the cached body for the given `key`.
+    async fn body(&self, key: &CacheKey) -> Option<Body>;
+
+    /// Caches the `policy` and `body` for the given `key`.
+    ///
+    /// The `body` is fully downloaded and stored into the cache, this method can await for the full download
+    /// before returning or return immediately with a body that updates as data is cached.
+    ///
+    /// In case of error the cache entry is removed, the returned body may continue downloading data if possible.
+    /// In case of a cache entry creation error the input `body` may be returned if it was not lost in the error.
+    async fn set(&self, key: &CacheKey, policy: CachePolicy, body: Body) -> Option<Body>;
+
+    /// Remove cached policy and body for the given `key`.
     async fn remove(&self, key: &CacheKey);
 
-    /// Remove all cached entries that locked by read.
+    /// Remove all cached entries that are not locked in a `set*` operation.
     async fn purge(&self);
 
     /// Remove cache entries to reduce pressure.
+    ///
+    /// What entries are removed depends on the cache DB implementer.
     async fn prune(&self);
 }
 
@@ -55,7 +120,7 @@ pub enum CacheMode {
     /// [`http-cache-semantics`]: https://docs.rs/http-cache-semantics
     Default,
 
-    /// Always caches the response, ignoring cache control configs.
+    /// Always caches the response, overwriting cache control configs.
     ///
     /// If the response is cached returns it instead of requesting an update.
     Permanent,
@@ -69,37 +134,37 @@ impl Default for CacheMode {
     }
 }
 
-/// Represents a normalized unique GET request.
+/// Represents a SHA-512/256 hash computed from a normalized request.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct CacheKey {
-    /// Requested URI.
-    pub uri: Uri,
-    /// Headers, normalized.
-    pub headers: Vec<(HeaderName, HeaderValue)>,
-}
+pub struct CacheKey([u8; 32]);
 impl CacheKey {
-    /// Create a normalized cache key from the header information.
-    pub fn new(uri: Uri, raw_headers: &HeaderMap) -> Self {
-        let mut headers: Vec<_> = raw_headers.iter().map(|(n, v)| (n.clone(), v.clone())).collect();
-
-        headers.sort_by_key(|(n, _)| n.as_str());
-
-        CacheKey { uri, headers }
+    /// Compute key from request.
+    pub fn from_request(request: &super::Request) -> Self {
+        Self::new(&request.0)
     }
 
-    /// Computes a SHA-512/256 from the key data.
-    pub fn sha(&self) -> [u8; 32] {
+    pub(super) fn new(request: &isahc::Request<super::Body>) -> Self {
+        let mut headers: Vec<_> = request.headers().iter().map(|(n, v)| (n.clone(), v.clone())).collect();
+
+        headers.sort_by(|a, b| a.0.as_str().cmp(b.0.as_str()));
+
         use sha2::Digest;
 
         let mut m = sha2::Sha512_256::new();
-        m.update(self.uri.to_string().as_bytes());
-        for (name, value) in &self.headers {
+        m.update(request.uri().to_string().as_bytes());
+        m.update(request.method().as_str());
+        for (name, value) in headers {
             m.update(name.as_str().as_bytes());
             m.update(value.as_bytes());
         }
         let hash = m.finalize();
 
-        hash.try_into().unwrap()
+        CacheKey(hash.into())
+    }
+
+    /// Returns the SHA-512/256 hash.
+    pub fn sha(&self) -> [u8; 32] {
+        self.0
     }
 
     /// Computes a base64 encoded SHA-512/256 from the key data.
@@ -108,21 +173,9 @@ impl CacheKey {
         base64::encode(&hash[..])
     }
 }
-
-/// Error when setting an entry in a [`CacheProxy`].
-///
-/// The cache entry was purged.
-#[derive(Debug, Clone, Copy)]
-pub struct CacheError;
-impl fmt::Display for CacheError {
+impl fmt::Display for CacheKey {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "error setting cache entry, the entry has been purged")
-    }
-}
-impl std::error::Error for CacheError {}
-impl From<CacheError> for Error {
-    fn from(e: CacheError) -> Self {
-        std::io::Error::new(std::io::ErrorKind::Interrupted, e).into()
+        write!(f, "{}", self.sha_str())
     }
 }
 
@@ -132,17 +185,33 @@ mod file_cache {
     use std::{
         fs::{self, File, OpenOptions},
         io::{self, Read, Write},
-        mem,
         path::{Path, PathBuf},
     };
 
-    use crate::task::{self, io::McBufReader};
+    use crate::{
+        task::{self, io::McBufReader},
+        units::TimeUnits,
+    };
     use async_trait::async_trait;
     use fs2::FileExt;
 
     use super::*;
 
-    /// A simple [`CacheProxy`] implementation that uses a local directory.
+    /// A simple [`CacheDb`] implementation that uses a local directory.
+    ///
+    /// # Implementation Details
+    ///
+    /// A file lock is used to control data access, read operations use a shared lock so concurrent reads can happen,
+    /// the [`store`] operation uses a exclusive lock for the duration of the body download, so subsequent requests for
+    /// a caching resource will await until the cache is completed to return a body that will then read the cached data.
+    ///
+    /// The [`store`] operation returns a body as soon as the entry is created, the body will receive data as it is downloaded and cached,
+    /// in case of a cache error mid-download the cache entry is removed but the returned body will still download the rest of the data.
+    /// In case of an error creating the entry the original body is always returned so the [`Client`] can continue with a normal
+    /// download also.
+    ///
+    /// [`Client`]: crate::task::http::Client
+    /// [`store`]: crate::task::http::CacheDb::store
     #[derive(Clone)]
     pub struct FileSystemCache {
         dir: PathBuf,
@@ -163,47 +232,42 @@ mod file_cache {
         }
     }
     #[async_trait]
-    impl CacheProxy for FileSystemCache {
-        fn clone_boxed(&self) -> Box<dyn CacheProxy> {
+    impl CacheDb for FileSystemCache {
+        fn clone_boxed(&self) -> Box<dyn CacheDb> {
             Box::new(self.clone())
         }
 
         async fn policy(&self, key: &CacheKey) -> Option<CachePolicy> {
-            todo!()
+            self.entry(key, false).await.map(|mut e| e.policy.take().unwrap())
+        }
+        async fn set_policy(&self, key: &CacheKey, policy: CachePolicy) -> bool {
+            if let Some(entry) = self.entry(key, true).await {
+                task::wait(move || entry.write_policy(policy)).await
+            } else {
+                false
+            }
         }
 
-        async fn response(&self, key: &CacheKey) -> Option<Response> {
-            let entry = self.entry(key, false).await?;
-
-            let (entry, headers) = task::wait(move || {
-                let headers = entry.read_headers();
-                (entry, headers)
-            })
-            .await;
-            let headers = headers?;
-
-            let body = entry.open_body().await?;
-
-            Some(Response::new(StatusCode::OK, headers, body))
+        async fn body(&self, key: &CacheKey) -> Option<Body> {
+            self.entry(key, false).await?.open_body().await
         }
+        async fn set(&self, key: &CacheKey, policy: CachePolicy, body: Body) -> Option<Body> {
+            match self.entry(key, true).await {
+                Some(entry) => {
+                    let (entry, ok) = task::wait(move || {
+                        let ok = entry.write_policy(policy);
+                        (entry, ok)
+                    })
+                    .await;
 
-        async fn store(&self, key: &CacheKey, policy: CachePolicy, response: Response) -> Result<Response, CacheError> {
-            assert_eq!(response.status(), StatusCode::OK);
-
-            let entry = self.entry(key, true).await.ok_or(CacheError)?;
-            if !entry.write_policy(policy) {
-                return Err(CacheError);
+                    if ok {
+                        Some(entry.write_body(body).await)
+                    } else {
+                        Some(body)
+                    }
+                }
+                _ => Some(body),
             }
-
-            let (parts, body) = response.into_parts();
-
-            if !entry.write_headers(&parts.headers) {
-                return Err(CacheError);
-            }
-
-            let body = entry.write_body(body).await;
-
-            Ok(Response::from_parts(parts, body))
         }
 
         async fn remove(&self, key: &CacheKey) {
@@ -223,7 +287,7 @@ mod file_cache {
                     for entry in entries.flatten() {
                         let entry = entry.path();
                         if entry.is_dir() {
-                            if let Ok(lock) = File::open(entry.join(".lock")) {
+                            if let Ok(lock) = File::open(entry.join(CacheEntry::LOCK)) {
                                 if lock.try_lock_shared().is_ok() {
                                     CacheEntry::try_delete_locked_dir(&entry, &lock);
                                 }
@@ -239,10 +303,18 @@ mod file_cache {
             let dir = self.dir.clone();
             task::wait(move || {
                 if let Ok(entries) = std::fs::read_dir(dir) {
+                    let now = SystemTime::now();
+                    let old = (24 * 3).hours();
+
                     for entry in entries.flatten() {
                         let entry = entry.path();
                         if entry.is_dir() {
-                            let _ = CacheEntry::open(entry, false);
+                            if let Some(entry) = CacheEntry::open(entry, false) {
+                                let policy = entry.policy.as_ref().unwrap();
+                                if policy.is_stale(now) && policy.age(now) > old {
+                                    CacheEntry::try_delete_locked_dir(&entry.dir, &entry.lock);
+                                }
+                            }
                         }
                     }
                 }
@@ -255,19 +327,23 @@ mod file_cache {
         dir: PathBuf,
         lock: File,
 
-        policy: CachePolicy,
+        policy: Option<CachePolicy>,
     }
     impl CacheEntry {
+        const LOCK: &'static str = ".lock";
+        const POLICY: &'static str = ".policy";
+        const BODY: &'static str = ".body";
+
         /// Open or create an entry.
         fn open(dir: PathBuf, write: bool) -> Option<Self> {
             if write && !dir.exists() {
-                if let Err(e) = fs::create_dir(&dir) {
+                if let Err(e) = fs::create_dir_all(&dir) {
                     tracing::error!("cache dir error, {:?}", e);
                     return None;
                 }
             }
 
-            let lock = dir.join(".lock");
+            let lock = dir.join(Self::LOCK);
             let mut opt = OpenOptions::new();
             if write {
                 opt.read(true).write(true).create(true);
@@ -314,7 +390,7 @@ mod file_cache {
                 }
             }
 
-            let policy_file = dir.join(".policy");
+            let policy_file = dir.join(Self::POLICY);
             if policy_file.exists() {
                 let policy = match Self::read_policy(&policy_file) {
                     Ok(i) => i,
@@ -325,12 +401,16 @@ mod file_cache {
                     }
                 };
 
-                Some(Self { dir, lock, policy })
+                Some(Self {
+                    dir,
+                    lock,
+                    policy: Some(policy),
+                })
+            } else if write {
+                Some(Self { dir, lock, policy: None })
             } else {
-                if !write {
-                    tracing::error!("cache policy missing");
-                    Self::try_delete_locked_dir(&dir, &lock);
-                }
+                tracing::error!("cache policy missing");
+                Self::try_delete_locked_dir(&dir, &lock);
                 None
             }
         }
@@ -343,7 +423,6 @@ mod file_cache {
 
         /// Replace the .policy content, returns `true` if the entry still exists.
         pub fn write_policy(&self, policy: CachePolicy) -> bool {
-            let p = self.dir.join(".policy");
             if let Err(e) = self.write_policy_impl(policy) {
                 tracing::error!("cache policy serialize error, {:?}", e);
                 Self::try_delete_locked_dir(&self.dir, &self.lock);
@@ -352,58 +431,14 @@ mod file_cache {
             true
         }
         fn write_policy_impl(&self, policy: CachePolicy) -> Result<(), Box<dyn std::error::Error>> {
-            let file = std::fs::File::create(self.dir.join(".policy"))?;
+            let file = std::fs::File::create(self.dir.join(Self::POLICY))?;
             serde_json::to_writer(file, &policy)?;
             Ok(())
         }
 
-        /// Read and parse the cached .headers, returns `Some(_)` if the cache still exists.
-        pub fn read_headers(&self) -> Option<HeaderMap> {
-            let s = match fs::read_to_string(self.dir.join(".headers")) {
-                Ok(s) => s,
-                Err(e) => {
-                    tracing::error!("cache headers read error, {:?}", e);
-                    Self::try_delete_locked_dir(&self.dir, &self.lock);
-                    return None;
-                }
-            };
-
-            let mut headers = HeaderMap::new();
-            for line in s.lines() {
-                if let Some((name, value)) = line.split_once(':') {
-                    if let (Ok(name), Ok(value)) = (HeaderName::from_bytes(name.as_bytes()), HeaderValue::from_str(value)) {
-                        headers.insert(name, value);
-                    }
-                }
-            }
-
-            Some(headers)
-        }
-
-        /// Replace the .headers content, returns `true` if the entry still exists.
-        pub fn write_headers(&self, headers: &HeaderMap) -> bool {
-            let mut content = String::new();
-            for (name, value) in headers.iter() {
-                if let Ok(value) = value.to_str() {
-                    content.push_str(name.as_str());
-                    content.push(':');
-                    content.push_str(value);
-                    content.push('\n')
-                }
-            }
-
-            if let Err(e) = fs::write(self.dir.join(".headers"), content) {
-                tracing::error!("cache headers write error, {:?}", e);
-                Self::try_delete_locked_dir(&self.dir, &self.lock);
-                return false;
-            }
-
-            true
-        }
-
         /// Start reading the body content, returns `Some(_)` if the entry still exists.
         pub async fn open_body(&self) -> Option<Body> {
-            match task::fs::File::open(self.dir.join(".body")).await {
+            match task::fs::File::open(self.dir.join(Self::BODY)).await {
                 Ok(body) => Some(Body::from_reader(task::io::BufReader::new(body))),
                 Err(e) => {
                     tracing::error!("cache open body error, {:?}", e);
@@ -415,7 +450,7 @@ mod file_cache {
 
         /// Start downloading and writing a copy of the body to the cache entry.
         pub async fn write_body(self, body: Body) -> Body {
-            match task::fs::File::create(self.dir.join(".body")).await {
+            match task::fs::File::create(self.dir.join(Self::BODY)).await {
                 Ok(cache_body) => {
                     let cache_copy = McBufReader::new(body);
                     let body_copy = cache_copy.clone();
@@ -446,13 +481,6 @@ mod file_cache {
         fn try_delete_dir(dir: &Path) {
             let _ = remove_dir_all::remove_dir_all(dir);
         }
-
-        fn clear(dir: &Path) -> std::io::Result<()> {
-            fs::remove_file(dir.join(".info"))?;
-            fs::remove_file(dir.join(".headers"))?;
-            fs::remove_file(dir.join(".body"))?;
-            Ok(())
-        }
     }
     impl Drop for CacheEntry {
         fn drop(&mut self) {
@@ -463,18 +491,19 @@ mod file_cache {
         }
     }
 }
-/*
+
 #[cfg(test)]
 mod tests {
-    use std::path::PathBuf;
+    use std::{path::PathBuf, time::SystemTime};
 
     use crate::{
         crate_util::{test_log, TestTempDir},
-        task::{self, http::header},
+        task::{
+            self,
+            http::{header::*, *},
+        },
         units::*,
     };
-
-    use super::*;
 
     #[test]
     pub fn file_cache_miss() {
@@ -482,9 +511,10 @@ mod tests {
         let tmp = TestTempDir::new("file_cache_miss");
 
         let test = FileSystemCache::new(&tmp).unwrap();
-        let uri = Uri::try_from("https://file_cache_miss.invalid/content").unwrap();
+        let request = Request::get("https://file_cache_miss.invalid/content").unwrap().build();
+        let key = CacheKey::from_request(&request);
 
-        let r = async_test(async move { test.get(&uri).await });
+        let r = async_test(async move { test.policy(&key).await });
 
         assert!(r.is_none());
     }
@@ -495,14 +525,18 @@ mod tests {
         let tmp = TestTempDir::new("file_cache_set_no_headers");
 
         let test = FileSystemCache::new(&tmp).unwrap();
-        let uri = Uri::try_from("https://file_cache_set_no_headers.invalid/content").unwrap();
+        let request = Request::get("https://file_cache_set_no_headers.invalid/content").unwrap().build();
         let response = Response::new_message(StatusCode::OK, "test content.");
 
+        let key = CacheKey::from_request(&request);
+        let policy = CachePolicy::new(&request.0, &response.0);
+
         let (headers, body) = async_test(async move {
-            let mut response = test
-                .set(uri.clone(), "test-tag".to_owned(), ExpireInstant(u64::MAX), response)
-                .await
-                .unwrap();
+            let (parts, body) = response.into_parts();
+
+            let body = test.set(&key, policy, body).await.unwrap();
+
+            let mut response = Response::from_parts(parts, body);
 
             let body = response.text().await.unwrap();
 
@@ -519,18 +553,22 @@ mod tests {
         let tmp = TestTempDir::new("file_cache_set");
 
         let test = FileSystemCache::new(&tmp).unwrap();
-        let uri = Uri::try_from("https://file_cache_set.invalid/content").unwrap();
+        let request = Request::get("https://file_cache_set.invalid/content").unwrap().build();
+        let key = CacheKey::from_request(&request);
 
         let mut headers = HeaderMap::default();
         headers.insert(header::CONTENT_LENGTH, HeaderValue::from("test content.".len()));
         let body = Body::from_reader(task::io::Cursor::new("test content."));
         let response = Response::new(StatusCode::OK, headers, body);
 
+        let policy = CachePolicy::new(&request.0, &response.0);
+
         let (headers, body) = async_test(async move {
-            let mut response = test
-                .set(uri.clone(), "test-tag".to_owned(), ExpireInstant(u64::MAX), response)
-                .await
-                .unwrap();
+            let (parts, body) = response.into_parts();
+
+            let body = test.set(&key, policy, body).await.unwrap();
+
+            let mut response = Response::from_parts(parts, body);
 
             let body = response.text().await.unwrap();
 
@@ -548,7 +586,8 @@ mod tests {
     pub fn file_cache_get_cached() {
         test_log();
         let tmp = TestTempDir::new("file_cache_get_cached");
-        let uri = Uri::try_from("https://file_cache_get_cached.invalid/content").unwrap();
+        let request = Request::get("https://file_cache_get_cached.invalid/content").unwrap().build();
+        let key = CacheKey::from_request(&request);
 
         let test = FileSystemCache::new(&tmp).unwrap();
 
@@ -557,61 +596,62 @@ mod tests {
         let body = Body::from_reader(task::io::Cursor::new("test content."));
         let response = Response::new(StatusCode::OK, headers, body);
 
-        async_test(async_clone_move!(uri, {
-            let _ = test
-                .set(uri, "test-tag".to_owned(), ExpireInstant(u64::MAX), response)
-                .await
-                .unwrap();
+        let policy = CachePolicy::new(&request.0, &response.0);
+
+        async_test(async_clone_move!(key, {
+            let (_, body) = response.into_parts();
+
+            let _ = test.set(&key, policy, body).await.unwrap();
 
             drop(test);
         }));
 
         let test = FileSystemCache::new(&tmp).unwrap();
 
-        let (headers, body) = async_test(async move {
-            let mut response = test.get(&uri).await.unwrap();
+        let body = async_test(async move {
+            let mut body = test.body(&key).await.unwrap();
 
-            let body = response.text().await.unwrap();
+            let body = body.text_utf8().await.unwrap();
 
-            (response.into_parts().0.headers, body)
+            body
         });
 
-        assert_eq!(
-            headers.get(&header::CONTENT_LENGTH),
-            Some(&HeaderValue::from("test content.".len()))
-        );
         assert_eq!(body, "test content.");
     }
 
     #[test]
-    pub fn file_cache_get_etag() {
+    pub fn file_cache_get_policy() {
         test_log();
         let tmp = TestTempDir::new("get_etag");
 
         let test = FileSystemCache::new(&tmp).unwrap();
 
-        let uri = Uri::try_from("https://get_etag.invalid/content").unwrap();
-        let response = Response::new_message(StatusCode::OK, "test content.");
+        let request = Request::get("https://get_etag.invalid/content").unwrap().build();
+        let key = CacheKey::from_request(&request);
 
-        let etag = async_test(async move {
-            let _ = test
-                .set(uri.clone(), "test-tag".to_owned(), ExpireInstant(u64::MAX), response)
-                .await
-                .unwrap();
+        let mut headers = HeaderMap::default();
+        headers.insert(header::CONTENT_LENGTH, HeaderValue::from("test content.".len()));
+        let response = Response::new(StatusCode::OK, headers, Body::from_reader(task::io::Cursor::new("test content.")));
+        let policy = CachePolicy::new(&request.0, &response.0);
+
+        let r_policy = async_test(async_clone_move!(policy, {
+            let _ = test.set(&key, policy, response.into_parts().1).await.unwrap();
 
             let test = FileSystemCache::new(&tmp).unwrap();
 
-            test.etag(&uri).await.unwrap()
-        });
+            test.policy(&key).await.unwrap()
+        }));
 
-        assert_eq!(etag, "test-tag");
+        let now = SystemTime::now();
+        assert_eq!(policy.age(now), r_policy.age(now));
     }
 
     #[test]
     pub fn file_cache_concurrent_get() {
         test_log();
         let tmp = TestTempDir::new("file_cache_concurrent_get");
-        let uri = Uri::try_from("https://file_cache_concurrent_get.invalid/content").unwrap();
+        let request = Request::get("https://file_cache_concurrent_get.invalid/content").unwrap().build();
+        let key = CacheKey::from_request(&request);
 
         let test = FileSystemCache::new(&tmp).unwrap();
 
@@ -619,38 +659,30 @@ mod tests {
         headers.insert(header::CONTENT_LENGTH, HeaderValue::from("test content.".len()));
         let body = Body::from_reader(task::io::Cursor::new("test content."));
         let response = Response::new(StatusCode::OK, headers, body);
+        let policy = CachePolicy::new(&request.0, &response.0);
 
-        async_test(async_clone_move!(uri, {
-            let _ = test
-                .set(uri, "test-tag".to_owned(), ExpireInstant(u64::MAX), response)
-                .await
-                .unwrap();
+        async_test(async_clone_move!(key, {
+            let _ = test.set(&key, policy, response.into_parts().1).await.unwrap();
 
             drop(test);
         }));
 
         async_test(async move {
-            let a = concurrent_get(tmp.path().to_owned(), uri.clone());
-            let b = concurrent_get(tmp.path().to_owned(), uri.clone());
-            let c = concurrent_get(tmp.path().to_owned(), uri);
+            let a = concurrent_get(tmp.path().to_owned(), key.clone());
+            let b = concurrent_get(tmp.path().to_owned(), key.clone());
+            let c = concurrent_get(tmp.path().to_owned(), key);
 
             task::all!(a, b, c).await;
         });
     }
-    async fn concurrent_get(tmp: PathBuf, uri: Uri) {
+    async fn concurrent_get(tmp: PathBuf, body: CacheKey) {
         task::run(async move {
             let test = FileSystemCache::new(&tmp).unwrap();
 
-            let mut response = test.get(&uri).await.unwrap();
+            let mut body = test.body(&body).await.unwrap();
 
-            let body = response.text().await.unwrap();
+            let body = body.text_utf8().await.unwrap();
 
-            let (headers, body) = (response.into_parts().0.headers, body);
-
-            assert_eq!(
-                headers.get(&header::CONTENT_LENGTH),
-                Some(&HeaderValue::from("test content.".len()))
-            );
             assert_eq!(body, "test content.");
         })
         .await
@@ -674,16 +706,21 @@ mod tests {
         task::run(async move {
             let test = FileSystemCache::new(&tmp).unwrap();
 
+            let request = Request::get(uri).unwrap().build();
+            let key = CacheKey::from_request(&request);
+
             let mut headers = HeaderMap::default();
             headers.insert(header::CONTENT_LENGTH, HeaderValue::from("test content.".len()));
             let body = Body::from_reader(task::io::Cursor::new("test content."));
             let response = Response::new(StatusCode::OK, headers, body);
 
+            let policy = CachePolicy::new(&request.0, &response.0);
+
             let (headers, body) = async_test(async move {
-                let mut response = test
-                    .set(uri.clone(), "test-tag".to_owned(), ExpireInstant(u64::MAX), response)
-                    .await
-                    .unwrap();
+                let (parts, body) = response.into_parts();
+
+                let body = test.set(&key, policy, body).await.unwrap();
+                let mut response = Response::from_parts(parts, body);
 
                 let body = response.text().await.unwrap();
 
@@ -706,4 +743,4 @@ mod tests {
     {
         task::block_on(task::with_timeout(test, 5.secs())).unwrap()
     }
-}*/
+}

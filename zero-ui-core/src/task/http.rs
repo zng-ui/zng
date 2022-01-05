@@ -265,9 +265,30 @@ impl Request {
         self.0.uri()
     }
 
+    /// Returns a reference to the associated HTTP method.
+    pub fn method(&self) -> &Method {
+        self.0.method()
+    }
+
     /// Returns a reference to the associated header field map.
     pub fn headers(&self) -> &header::HeaderMap {
         self.0.headers()
+    }
+
+    /// Create a clone of the request method, URI, version and headers, with a new `body`.
+    pub fn clone_with(&self, body: impl TryBody) -> Result<Self, Error> {
+        let body = body.try_body()?;
+
+        let mut req = isahc::Request::new(body);
+        *req.method_mut() = self.0.method().clone();
+        *req.uri_mut() = self.0.uri().clone();
+        *req.version_mut() = self.0.version();
+        let headers = req.headers_mut();
+        for (name, value) in self.headers() {
+            headers.insert(name.clone(), value.clone());
+        }
+
+        Ok(Self(req))
     }
 }
 
@@ -598,6 +619,15 @@ impl Body {
         let mut bytes = Vec::with_capacity(cap as usize);
         super::io::copy(body, &mut bytes).await?;
         Ok(bytes)
+    }
+
+    /// Read the body and try to convert to UTF-8.
+    ///
+    /// Consider using [`Response::text`], it uses the header encoding information if available.
+    pub async fn text_utf8(&mut self) -> Result<String, Box<dyn std::error::Error>> {
+        let bytes = self.bytes().await?;
+        let r = String::from_utf8(bytes)?;
+        Ok(r)
     }
 
     /// Read at most `limit` bytes from the body.
@@ -965,8 +995,8 @@ impl fmt::Display for Metrics {
 /// An HTTP client acts as a session for executing one of more HTTP requests.
 pub struct Client {
     client: isahc::HttpClient,
-    cache: Option<Box<dyn CacheProxy>>,
-    cache_mode: Arc<dyn Fn(&Uri) -> CacheMode + Send + Sync>,
+    cache: Option<Box<dyn CacheDb>>,
+    cache_mode: Arc<dyn Fn(&Request) -> CacheMode + Send + Sync>,
 }
 impl Default for Client {
     fn default() -> Self {
@@ -1019,11 +1049,7 @@ impl Client {
     ///  Send a GET request to the `uri`.
     #[inline]
     pub async fn get(&self, uri: impl TryUri) -> Result<Response, Error> {
-        if self.cache.is_some() {
-            self.send_cached(Request::get(uri)?.build()).await
-        } else {
-            self.client.get_async(uri.try_uri()?).await.map(Response)
-        }
+        self.send(Request::get(uri)?.build()).await
     }
 
     /// Send a GET request to the `uri` and read the response as a string.
@@ -1053,32 +1079,24 @@ impl Client {
     /// Send a HEAD request to the `uri`.
     #[inline]
     pub async fn head(&self, uri: impl TryUri) -> Result<Response, Error> {
-        self.client.head_async(uri.try_uri()?).await.map(Response)
+        self.send(Request::head(uri)?.build()).await
     }
     /// Send a PUT request to the `uri` with a given request body.
     #[inline]
     pub async fn put(&self, uri: impl TryUri, body: impl TryBody) -> Result<Response, Error> {
-        self.client.put_async(uri.try_uri()?, body.try_body()?.0).await.map(Response)
+        self.send(Request::put(uri)?.body(body)?).await
     }
 
     /// Send a POST request to the `uri` with a given request body.
     #[inline]
     pub async fn post(&self, uri: impl TryUri, body: impl TryBody) -> Result<Response, Error> {
-        self.client.post_async(uri.try_uri()?, body.try_body()?.0).await.map(Response)
+        self.send(Request::post(uri)?.body(body)?).await
     }
 
     /// Send a DELETE request to the `uri`.
     #[inline]
     pub async fn delete(&self, uri: impl TryUri) -> Result<Response, Error> {
-        self.client.delete_async(uri.try_uri()?).await.map(Response)
-    }
-
-    /// Gets the cached response for the `uri` or `404` if there is no [`cache`]
-    #[inline]
-    pub async fn get_cached(&self, _uri: impl TryUri) -> Result<Response, Error> {
-        todo!();
-
-        //Ok(Response::new_message(StatusCode::NOT_FOUND, "not found in cache"))
+        self.send(Request::delete(uri)?.build()).await
     }
 
     /// Send a custom [`Request`].
@@ -1086,116 +1104,149 @@ impl Client {
     /// # Cache
     ///
     /// If the client has a [`cache`] and the request uses the `GET` method the result will be cached
-    /// according with the [`cache_mode`] for the URI.
-    ///
-    /// If the `Cache-Control` header is set to `only-if-cached` the [`get_cached`] method is called instead.
+    /// according with the [`cache_mode`] selected for the request.
     ///
     /// [`cache`]: Self::cache
     /// [`cache_mode`]: Self::cache_mode
     /// [`get_cached`]: Self::get_cached
     #[inline]
     pub async fn send(&self, request: Request) -> Result<Response, Error> {
-        if let Some(cache) = &self.cache {
-            let key = CacheKey::new(request.uri().clone(), request.headers().clone());
-            if let Some(policy) = cache.policy(&key) {
-                todo!();
+        if let Some(db) = &self.cache {
+            match self.cache_mode(&request) {
+                CacheMode::NoCache => self.client.send_async(request.0).await.map(Response),
+                CacheMode::Default => self.send_cache_default(&**db, request, 0).await,
+                CacheMode::Permanent => todo!(),
+                CacheMode::Error(e) => Err(e),
             }
         } else {
             self.client.send_async(request.0).await.map(Response)
         }
     }
 
-    async fn send_cached(&self, mut request: Request) -> Result<Response, Error> {
-        let cache = self.cache.as_ref().unwrap();
-        let cache_mode = (&self.cache_mode)(request.0.uri());
+    #[async_recursion::async_recursion]
+    async fn send_cache_default(&self, db: &dyn CacheDb, request: Request, retry_count: u8) -> Result<Response, Error> {
+        if retry_count == 3 {
+            tracing::error!("retried cache 3 times, skipping cache");
+            return self.client.send_async(request.0).await.map(Response);
+        }
 
-        match cache_mode {
-            CacheMode::NoCache => return self.client.send_async(request.0).await.map(Response),
-            CacheMode::ETag => {
-                if let Some(tag) = cache.etag(request.0.uri()).await {
-                    if !tag.is_empty() {
-                        request
-                            .0
-                            .headers_mut()
-                            .insert(header::IF_NONE_MATCH, tag.try_into().expect("invalid cache ETAG"));
+        let key = CacheKey::new(&request.0);
+        if let Some(policy) = db.policy(&key).await {
+            match policy.before_request(&request.0) {
+                BeforeRequest::Fresh(parts) => {
+                    if let Some(body) = db.body(&key).await {
+                        let response = isahc::Response::from_parts(parts, body.0);
+                        Ok(Response(response))
+                    } else {
+                        tracing::error!("cache returned policy but not body");
+                        db.remove(&key).await;
+                        self.send_cache_default(db, request, retry_count + 1).await
+                    }
+                }
+                BeforeRequest::Stale { request: parts, matches } => {
+                    if matches {
+                        let (_, body) = request.0.into_parts();
+                        let request = Request(isahc::Request::from_parts(parts, body));
+                        let policy_request = request.clone_with(()).unwrap().0;
+                        let no_req_body = request.0.body().len().map(|l| l == 0).unwrap_or(false);
+
+                        let response = self.client.send_async(request.0).await?;
+
+                        match policy.after_response(&policy_request, &response) {
+                            AfterResponse::NotModified(policy, parts) => {
+                                if let Some(body) = db.body(&key).await {
+                                    let response = isahc::Response::from_parts(parts, body.0);
+
+                                    db.set_policy(&key, CachePolicy(policy)).await;
+
+                                    Ok(Response(response))
+                                } else {
+                                    tracing::error!("cache returned policy but not body");
+                                    db.remove(&key).await;
+
+                                    if no_req_body {
+                                        self.send_cache_default(db, Request(policy_request), retry_count + 1).await
+                                    } else {
+                                        Err(std::io::Error::new(
+                                            std::io::ErrorKind::NotFound,
+                                            "cache returned policy but not body, cannot auto-retry",
+                                        )
+                                        .into())
+                                    }
+                                }
+                            }
+                            AfterResponse::Modified(policy, parts) => {
+                                let (_, body) = response.into_parts();
+
+                                if let Some(body) = db.set(&key, CachePolicy(policy), Body(body)).await {
+                                    let response = isahc::Response::from_parts(parts, body.0);
+                                    Ok(Response(response))
+                                } else {
+                                    tracing::error!("cache db failed to store body");
+                                    db.remove(&key).await;
+
+                                    if no_req_body {
+                                        self.send_cache_default(db, Request(policy_request), retry_count + 1).await
+                                    } else {
+                                        Err(std::io::Error::new(
+                                            std::io::ErrorKind::NotFound,
+                                            "cache db failed to store body, cannot auto-retry",
+                                        )
+                                        .into())
+                                    }
+                                }
+                            }
+                        }
+                    } else {
+                        tracing::error!("cache policy did not match request, {:?}", request);
+                        db.remove(&key).await;
+                        self.client.send_async(request.0).await.map(Response)
                     }
                 }
             }
-            CacheMode::Permanent => {
-                if let Some(cached) = cache.get(request.0.uri()).await {
-                    return Ok(cached);
+        } else {
+            let no_req_body = request.0.body().len().map(|l| l == 0).unwrap_or(false);
+            let policy_request = request.clone_with(()).unwrap().0;
+
+            let response = self.client.send_async(request.0).await?;
+
+            let policy = CachePolicy::new(&policy_request, &response).0;
+
+            if policy.is_storable() {
+                let (parts, body) = response.into_parts();
+
+                if let Some(body) = db.set(&key, CachePolicy(policy), Body(body)).await {
+                    let response = isahc::Response::from_parts(parts, body.0);
+
+                    Ok(Response(response))
+                } else {
+                    tracing::error!("cache db failed to store body");
+                    db.remove(&key).await;
+
+                    if no_req_body {
+                        self.send_cache_default(db, Request(policy_request), retry_count + 1).await
+                    } else {
+                        Err(std::io::Error::new(std::io::ErrorKind::NotFound, "cache db failed to store body, cannot auto-retry").into())
+                    }
                 }
-            }
-            CacheMode::Error(e) => return Err(e),
-        }
-
-        let uri = request.0.uri().clone();
-
-        let response = self.client.send_async(request.0).await?;
-
-        if response.status() == StatusCode::NOT_MODIFIED {
-            if let Some(cached) = cache.get(&uri).await {
-                return Ok(cached);
             } else {
-                use std::io::*;
-                return Err(Error::new(ErrorKind::NotFound, "cache provided ETAG but did not provide response").into());
-            }
-        } else if response.status() != StatusCode::OK {
-            return Ok(Response(response));
-        }
-
-        let mut can_cache = true;
-        let mut expire = ExpireInstant(u64::MAX);
-        let mut etag = String::new();
-
-        if !matches!(cache_mode, CacheMode::Permanent) {
-            if let Some(ctrl) = response
-                .headers()
-                .get(header::CACHE_CONTROL)
-                .and_then(|c| c.to_str().ok())
-                .and_then(cache_control::CacheControl::from_value)
-            {
-                if ctrl.no_store {
-                    can_cache = false;
-                } else if let Some(d) = ctrl.max_stale {
-                    expire = ExpireInstant::now();
-                    expire.0 = expire.0.saturating_add(d.as_secs());
-                } else if let Some(d) = ctrl.max_age {
-                    expire = ExpireInstant::now();
-                    expire.0 = expire.0.saturating_add(d.as_secs());
-                }
+                Ok(Response(response))
             }
         }
-
-        if let Some(t) = response.headers().get(header::ETAG).and_then(|t| t.to_str().ok()) {
-            etag.push_str(t);
-        }
-
-        let response = Response(response);
-
-        if !can_cache {
-            cache.forget(&uri).await;
-            return Ok(response);
-        }
-
-        let r = cache.set(uri, etag, expire, response).await?;
-
-        Ok(r)
     }
 
-    /// Reference the file cache if any was set during build.
+    /// Reference the cache used in this client.
     #[inline]
-    pub fn cache(&self) -> Option<&dyn CacheProxy> {
+    pub fn cache(&self) -> Option<&dyn CacheDb> {
         self.cache.as_deref()
     }
 
-    /// Returns the [`CacheMode`] configured for this client.
-    #[inline]
-    pub fn cache_mode(&self, uri: &Uri) -> CacheMode {
-        if self.cache.is_none() {
+    /// Returns the [`CacheMode`] that is used in this client if the request is made.
+    pub fn cache_mode(&self, request: &Request) -> CacheMode {
+        if self.cache.is_none() || request.method() != Method::GET {
             CacheMode::NoCache
         } else {
-            (&self.cache_mode)(uri)
+            (&self.cache_mode)(request)
         }
     }
 }
@@ -1227,8 +1278,8 @@ impl From<isahc::HttpClient> for Client {
 /// ```
 pub struct ClientBuilder {
     builder: isahc::HttpClientBuilder,
-    cache: Option<Box<dyn CacheProxy>>,
-    cache_mode: Option<Arc<dyn Fn(&Uri) -> CacheMode + Send + Sync>>,
+    cache: Option<Box<dyn CacheDb>>,
+    cache_mode: Option<Arc<dyn Fn(&Request) -> CacheMode + Send + Sync>>,
 }
 impl Default for ClientBuilder {
     fn default() -> Self {
@@ -1402,10 +1453,10 @@ impl ClientBuilder {
         }
     }
 
-    /// Sets the [`CacheProxy`] to use.
+    /// Sets the [`CacheDb`] to use.
     ///
-    /// No caching is done by default.
-    pub fn cache(self, cache: impl CacheProxy) -> Self {
+    /// Caching is only enabled if there is a DB, no caching is done by default.
+    pub fn cache(self, cache: impl CacheDb) -> Self {
         Self {
             builder: self.builder,
             cache: Some(Box::new(cache)),
@@ -1421,7 +1472,7 @@ impl ClientBuilder {
     /// Note that the closure is only called if a [`cache`] is set.
     ///
     /// [`cache`]: Self::cache
-    pub fn cache_mode(self, selector: impl Fn(&Uri) -> CacheMode + Send + Sync + 'static) -> Self {
+    pub fn cache_mode(self, selector: impl Fn(&Request) -> CacheMode + Send + Sync + 'static) -> Self {
         Self {
             builder: self.builder,
             cache: self.cache,

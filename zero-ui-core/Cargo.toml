@@ -108,6 +108,7 @@ sha2 = "0.10"
 fs2 = "0.4.3"
 remove_dir_all = "0.7"
 async-trait = "0.1"
+async-recursion = "1"
 
 # serde
 serde = "1"
