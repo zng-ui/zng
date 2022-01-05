@@ -1,14 +1,17 @@
 use std::fmt;
 
+use super::{
+    header::{HeaderMap, HeaderName, HeaderValue},
+    Body, Error, Response, StatusCode, Uri,
+};
 use async_trait::async_trait;
-use super::{Uri, Response, Error, StatusCode, Body, header::{ HeaderName, HeaderValue, HeaderMap}};
 
 pub use http_cache_semantics::CachePolicy;
 
 /// Represents a download cache in a [`Client`].
-/// 
+///
 /// Cache implementers must store [`CachePolicy`] and [`Response`]
-/// 
+///
 /// [`Client`]: crate::task::http::Client;
 #[async_trait]
 pub trait CacheProxy: Send + Sync + 'static {
@@ -27,7 +30,7 @@ pub trait CacheProxy: Send + Sync + 'static {
     /// reader must be reading a copy of the data.
     ///
     /// In case of error the entry is purged.
-    async fn store(&self, key: &CacheKey, response: Response) -> Result<Response, CacheError>;
+    async fn store(&self, key: &CacheKey, policy: CachePolicy, response: Response) -> Result<Response, CacheError>;
 
     /// Remove cached resource, return.
     async fn remove(&self, key: &CacheKey);
@@ -48,7 +51,7 @@ pub enum CacheMode {
     NoCache,
 
     /// Follow the standard cache policy as computed by [`http-cache-semantics`].
-    /// 
+    ///
     /// [`http-cache-semantics`]: https://docs.rs/http-cache-semantics
     Default,
 
@@ -66,25 +69,6 @@ impl Default for CacheMode {
     }
 }
 
-/// Represents the expire instant of a [`CacheProxy`] entry.
-///
-/// The value is the number of seconds since the Unix epoch.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
-pub struct ExpireInstant(pub u64);
-impl ExpireInstant {
-    /// Returns the instant that just expired.
-    #[inline]
-    pub fn now() -> ExpireInstant {
-        Self(std::time::SystemTime::UNIX_EPOCH.elapsed().unwrap().as_secs())
-    }
-
-    /// Returns `true` if the cache entry must be removed.
-    #[inline]
-    pub fn expired(self) -> bool {
-        Self::now() > self
-    }
-}
-
 /// Represents a normalized unique GET request.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct CacheKey {
@@ -95,15 +79,12 @@ pub struct CacheKey {
 }
 impl CacheKey {
     /// Create a normalized cache key from the header information.
-    pub fn new(uri: Uri, raw_headers: impl IntoIterator<Item=(HeaderName, HeaderValue)>) -> Self {
-        let mut headers: Vec<_> = raw_headers.into_iter().collect();
+    pub fn new(uri: Uri, raw_headers: &HeaderMap) -> Self {
+        let mut headers: Vec<_> = raw_headers.iter().map(|(n, v)| (n.clone(), v.clone())).collect();
 
         headers.sort_by_key(|(n, _)| n.as_str());
 
-        CacheKey {
-            uri,
-            headers,
-        }
+        CacheKey { uri, headers }
     }
 
     /// Computes a SHA-512/256 from the key data.
@@ -177,10 +158,8 @@ mod file_cache {
 
         async fn entry(&self, key: &CacheKey, write: bool) -> Option<CacheEntry> {
             let dir = self.dir.clone();
-            task::wait(move || {
-                CacheEntry::open(dir.join(key.sha_str()), write)
-            })
-            .await
+            let key = key.sha_str();
+            task::wait(move || CacheEntry::open(dir.join(key), write)).await
         }
     }
     #[async_trait]
@@ -194,27 +173,7 @@ mod file_cache {
         }
 
         async fn response(&self, key: &CacheKey) -> Option<Response> {
-            todo!()
-        }
-
-        async fn store(&self, key: &CacheKey, response: Response) -> Result<Response, CacheError> {
-            todo!()
-        }
-
-        async fn remove(&self, key: &CacheKey) {
-            todo!()
-        }
-
-        async fn purge(&self) {
-            todo!()
-        }
-
-        async fn prune(&self) {
-            todo!()
-        }
-
-        async fn get(&self, uri: &Uri) -> Option<Response> {
-            let entry = self.entry(uri.clone(), false).await?;
+            let entry = self.entry(key, false).await?;
 
             let (entry, headers) = task::wait(move || {
                 let headers = entry.read_headers();
@@ -228,15 +187,15 @@ mod file_cache {
             Some(Response::new(StatusCode::OK, headers, body))
         }
 
-        async fn set(&self, uri: Uri, etag: String, expires: ExpireInstant, data: Response) -> Result<Response, CacheError> {
-            assert_eq!(data.status(), StatusCode::OK);
+        async fn store(&self, key: &CacheKey, policy: CachePolicy, response: Response) -> Result<Response, CacheError> {
+            assert_eq!(response.status(), StatusCode::OK);
 
-            let entry = self.entry(uri, true).await.ok_or(CacheError)?;
-            if !entry.write_info(expires, etag.as_str()) {
+            let entry = self.entry(key, true).await.ok_or(CacheError)?;
+            if !entry.write_policy(policy) {
                 return Err(CacheError);
             }
 
-            let (parts, body) = data.into_parts();
+            let (parts, body) = response.into_parts();
 
             if !entry.write_headers(&parts.headers) {
                 return Err(CacheError);
@@ -247,13 +206,14 @@ mod file_cache {
             Ok(Response::from_parts(parts, body))
         }
 
-        async fn forget(&self, uri: &Uri) {
-            if let Some(entry) = self.entry(uri.clone(), true).await {
+        async fn remove(&self, key: &CacheKey) {
+            if let Some(entry) = self.entry(key, true).await {
                 task::wait(move || {
                     CacheEntry::try_delete_locked_dir(&entry.dir, &entry.lock);
                 })
                 .await
             }
+            todo!()
         }
 
         async fn purge(&self) {
@@ -295,7 +255,7 @@ mod file_cache {
         dir: PathBuf,
         lock: File,
 
-        etag: String,
+        policy: CachePolicy,
     }
     impl CacheEntry {
         /// Open or create an entry.
@@ -354,69 +314,47 @@ mod file_cache {
                 }
             }
 
-            let mut expire = ExpireInstant(u64::MAX);
-            let mut etag = String::new();
-
-            let info = dir.join(".info");
-            if info.exists() {
-                let info = match fs::read_to_string(&info) {
+            let policy_file = dir.join(".policy");
+            if policy_file.exists() {
+                let policy = match Self::read_policy(&policy_file) {
                     Ok(i) => i,
                     Err(e) => {
-                        tracing::error!("cache info read error, {:?}", e);
+                        tracing::error!("cache policy read error, {:?}", e);
                         Self::try_delete_locked_dir(&dir, &lock);
                         return None;
                     }
                 };
 
-                let mut info_ok = false;
-                if let Some((expire_secs, et)) = info.split_once('\n') {
-                    if let Ok(expire_secs) = expire_secs.parse() {
-                        expire = ExpireInstant(expire_secs);
-                        etag = et.to_owned();
-                        info_ok = !et.contains('\n');
-                    }
-                }
-
-                if !info_ok {
-                    tracing::error!("invalid cache info `{}`", info);
+                Some(Self { dir, lock, policy })
+            } else {
+                if !write {
+                    tracing::error!("cache policy missing");
                     Self::try_delete_locked_dir(&dir, &lock);
-                    return None;
                 }
-
-                if expire.expired() {
-                    tracing::trace!("cache expired");
-
-                    if write {
-                        if let Err(e) = Self::clear(&dir) {
-                            tracing::error!("error clearing expired cache, {:?}", e);
-                            Self::try_delete_locked_dir(&dir, &lock);
-                            return None;
-                        }
-                    } else {
-                        Self::try_delete_locked_dir(&dir, &lock);
-                    }
-                }
-            } else if !write {
-                tracing::error!("cache info missing");
-                Self::try_delete_locked_dir(&dir, &lock);
-                return None;
+                None
             }
-
-            Some(Self { dir, lock, etag })
+        }
+        fn read_policy(file: &Path) -> Result<CachePolicy, Box<dyn std::error::Error>> {
+            let file = std::fs::File::open(file)?;
+            let file = std::io::BufReader::new(file);
+            let policy = serde_json::from_reader(file)?;
+            Ok(policy)
         }
 
-        /// Replace the .info content, returns `true` if the entry still exists.
-        pub fn write_info(&self, expire: ExpireInstant, etag: &str) -> bool {
-            let info = self.dir.join(".info");
-
-            let content = format!("{}\n{}", expire.0, etag);
-            if let Err(e) = fs::write(info, content) {
-                tracing::error!("cache info write error, {:?}", e);
+        /// Replace the .policy content, returns `true` if the entry still exists.
+        pub fn write_policy(&self, policy: CachePolicy) -> bool {
+            let p = self.dir.join(".policy");
+            if let Err(e) = self.write_policy_impl(policy) {
+                tracing::error!("cache policy serialize error, {:?}", e);
                 Self::try_delete_locked_dir(&self.dir, &self.lock);
                 return false;
             }
-
             true
+        }
+        fn write_policy_impl(&self, policy: CachePolicy) -> Result<(), Box<dyn std::error::Error>> {
+            let file = std::fs::File::create(self.dir.join(".policy"))?;
+            serde_json::to_writer(file, &policy)?;
+            Ok(())
         }
 
         /// Read and parse the cached .headers, returns `Some(_)` if the cache still exists.
@@ -433,10 +371,7 @@ mod file_cache {
             let mut headers = HeaderMap::new();
             for line in s.lines() {
                 if let Some((name, value)) = line.split_once(':') {
-                    if let (Ok(name), Ok(value)) = (
-                        HeaderName::from_bytes(name.as_bytes()),
-                        HeaderValue::from_str(value),
-                    ) {
+                    if let (Ok(name), Ok(value)) = (HeaderName::from_bytes(name.as_bytes()), HeaderValue::from_str(value)) {
                         headers.insert(name, value);
                     }
                 }
@@ -528,7 +463,7 @@ mod file_cache {
         }
     }
 }
-
+/*
 #[cfg(test)]
 mod tests {
     use std::path::PathBuf;
@@ -743,24 +678,25 @@ mod tests {
             headers.insert(header::CONTENT_LENGTH, HeaderValue::from("test content.".len()));
             let body = Body::from_reader(task::io::Cursor::new("test content."));
             let response = Response::new(StatusCode::OK, headers, body);
-    
+
             let (headers, body) = async_test(async move {
                 let mut response = test
                     .set(uri.clone(), "test-tag".to_owned(), ExpireInstant(u64::MAX), response)
                     .await
                     .unwrap();
-    
+
                 let body = response.text().await.unwrap();
-    
+
                 (response.into_parts().0.headers, body)
             });
-    
+
             assert_eq!(
                 headers.get(&header::CONTENT_LENGTH),
                 Some(&HeaderValue::from("test content.".len()))
             );
             assert_eq!(body, "test content.");
-        }).await
+        })
+        .await
     }
 
     #[track_caller]
@@ -770,4 +706,4 @@ mod tests {
     {
         task::block_on(task::with_timeout(test, 5.secs())).unwrap()
     }
-}
+}*/

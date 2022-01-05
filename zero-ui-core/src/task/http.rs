@@ -259,6 +259,16 @@ impl Request {
     pub fn head(uri: impl TryUri) -> Result<RequestBuilder, Error> {
         Ok(RequestBuilder(isahc::Request::head(uri.try_uri()?)))
     }
+
+    /// Returns a reference to the associated URI.
+    pub fn uri(&self) -> &Uri {
+        self.0.uri()
+    }
+
+    /// Returns a reference to the associated header field map.
+    pub fn headers(&self) -> &header::HeaderMap {
+        self.0.headers()
+    }
 }
 
 /// A [`Request`] builder.
@@ -1065,16 +1075,10 @@ impl Client {
 
     /// Gets the cached response for the `uri` or `404` if there is no [`cache`]
     #[inline]
-    pub async fn get_cached(&self, uri: impl TryUri) -> Result<Response, Error> {
-        let uri = uri.try_uri()?;
+    pub async fn get_cached(&self, _uri: impl TryUri) -> Result<Response, Error> {
+        todo!();
 
-        if let Some(cache) = &self.cache {
-            if let Some(rsp) = cache.get(&uri).await {
-                return Ok(rsp);
-            }
-        }
-
-        Ok(Response::new_message(StatusCode::NOT_FOUND, "not found in cache"))
+        //Ok(Response::new_message(StatusCode::NOT_FOUND, "not found in cache"))
     }
 
     /// Send a custom [`Request`].
@@ -1091,20 +1095,11 @@ impl Client {
     /// [`get_cached`]: Self::get_cached
     #[inline]
     pub async fn send(&self, request: Request) -> Result<Response, Error> {
-        if Method::GET == request.0.method() && self.cache.is_some() {
-            if let Some(ctrl) = request
-                .0
-                .headers()
-                .get(header::CACHE_CONTROL)
-                .and_then(|s| s.to_str().ok())
-                .and_then(cache_control::CacheControl::from_value)
-            {
-                if let Some(cache_control::Cachability::OnlyIfCached) = ctrl.cachability {
-                    return self.get_cached(request.0.uri().clone()).await;
-                }
+        if let Some(cache) = &self.cache {
+            let key = CacheKey::new(request.uri().clone(), request.headers().clone());
+            if let Some(policy) = cache.policy(&key) {
+                todo!();
             }
-
-            self.send_cached(request).await
         } else {
             self.client.send_async(request.0).await.map(Response)
         }

@@ -85,6 +85,7 @@ futures-timer = "3"
 isahc = { version = "1", features = ["cookies", "json"] }
 futures-lite = "1"
 async-fs = "1.5"
+http-cache-semantics = "0.9"
 
 # util
 bitflags = "1"
@@ -106,7 +107,6 @@ hashbrown = "0.11"
 sha2 = "0.10"
 fs2 = "0.4.3"
 remove_dir_all = "0.7"
-http-cache-semantics = "0.9"
 async-trait = "0.1"
 
 # serde
