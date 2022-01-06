@@ -357,8 +357,14 @@ impl<S: AsyncRead> AsyncRead for McBufReader<S> {
 
                     // finished EOF, return `done`
                     inner.result = FusedReadResult::Eof;
-                    inner.clones[self_.index] = None;
                     inner.source = None;
+
+                    let i = i + min;
+                    if i < inner.buf.len() {
+                        inner.clones[self_.index] = Some(i);
+                    } else {
+                        inner.clones[self_.index] = None;
+                    }
 
                     return Poll::Ready(Ok(min));
                 }
