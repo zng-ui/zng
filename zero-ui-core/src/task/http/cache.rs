@@ -240,10 +240,10 @@ impl CacheKey {
         self.0
     }
 
-    /// Computes a base64 encoded SHA-512/256 from the key data.
+    /// Computes a URI safe base64 encoded SHA-512/256 from the key data.
     pub fn sha_str(&self) -> String {
         let hash = self.sha();
-        base64::encode(&hash[..])
+        base64::encode_config(&hash[..], base64::URL_SAFE_NO_PAD)
     }
 }
 impl fmt::Display for CacheKey {
@@ -301,6 +301,7 @@ mod file_cache {
         async fn entry(&self, key: &CacheKey, write: bool) -> Option<CacheEntry> {
             let dir = self.dir.clone();
             let key = key.sha_str();
+            println!("{:?}", key);
             task::wait(move || CacheEntry::open(dir.join(key), write)).await
         }
     }
