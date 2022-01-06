@@ -6,6 +6,7 @@ use std::{
 use super::{Body, Error};
 use async_trait::async_trait;
 use serde::*;
+use crate::units::*;
 
 use http_cache_semantics as hcs;
 
@@ -29,9 +30,9 @@ impl CachePolicy {
         Self(PolicyInner::Policy(p))
     }
 
-    pub(super) fn is_storable(&self) -> bool {
+    pub(super) fn should_store(&self) -> bool {
         match &self.0 {
-            PolicyInner::Policy(p) => p.is_storable(),
+            PolicyInner::Policy(p) => p.is_storable() && p.time_to_live(SystemTime::now()) > 5.secs(),
             PolicyInner::Permanent(_) => true,
         }
     }

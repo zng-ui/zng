@@ -1176,7 +1176,7 @@ impl Client {
                                 }
                             }
                             AfterResponse::Modified(policy, parts) => {
-                                if policy.is_storable() {
+                                if policy.should_store() {
                                     let (_, body) = response.into_parts();
                                     if let Some(body) = db.set(&key, policy, Body(body)).await {
                                         let response = isahc::Response::from_parts(parts, body.0);
@@ -1217,7 +1217,7 @@ impl Client {
 
             let policy = CachePolicy::new(&policy_request, &response);
 
-            if policy.is_storable() {
+            if policy.should_store() {
                 let (parts, body) = response.into_parts();
 
                 if let Some(body) = db.set(&key, policy, Body(body)).await {
