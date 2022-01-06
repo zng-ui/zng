@@ -1783,7 +1783,7 @@ impl LayerIndex {
     /// layer are not visible, for example, in a window default layer with `background_color` set. This
     /// does not apply to the clear color, see the [`set_clear_color`] method for more details.
     ///
-    /// This is the [`0`] value.
+    /// This is the `0` value.
     ///
     /// [`set_clear_color`]: FrameBuilder::set_clear_color
     pub const BOTTOM_MOST: LayerIndex = LayerIndex(0);

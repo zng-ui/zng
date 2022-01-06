@@ -142,7 +142,7 @@ impl From<hcs::AfterResponse> for AfterResponse {
 ///
 /// Cache implementers must store a [`CachePolicy`] and [`Body`] for a given [`CacheKey`].
 ///
-/// [`Client`]: crate::task::http::Client;
+/// [`Client`]: crate::task::http::Client
 #[async_trait]
 pub trait CacheDb: Send + Sync + 'static {
     /// Dynamic clone.
@@ -183,6 +183,10 @@ pub trait CacheDb: Send + Sync + 'static {
 /// Cache mode selected for a [`Uri`].
 ///
 /// See [`ClientBuilder::cache_mode`] for more information.
+/// 
+/// [`Uri`]: crate::task::http::Uri
+/// 
+/// [`ClientBuilder::cache_mode`]: crate::task::http::ClientBuilder::cache_mode
 #[derive(Debug, Clone)]
 pub enum CacheMode {
     /// Always requests the server, never caches the response.
@@ -275,16 +279,16 @@ mod file_cache {
     /// # Implementation Details
     ///
     /// A file lock is used to control data access, read operations use a shared lock so concurrent reads can happen,
-    /// the [`store`] operation uses a exclusive lock for the duration of the body download, so subsequent requests for
+    /// the [`set`] operation uses a exclusive lock for the duration of the body download, so subsequent requests for
     /// a caching resource will await until the cache is completed to return a body that will then read the cached data.
     ///
-    /// The [`store`] operation returns a body as soon as the entry is created, the body will receive data as it is downloaded and cached,
+    /// The [`set`] operation returns a body as soon as the entry is created, the body will receive data as it is downloaded and cached,
     /// in case of a cache error mid-download the cache entry is removed but the returned body will still download the rest of the data.
     /// In case of an error creating the entry the original body is always returned so the [`Client`] can continue with a normal
     /// download also.
     ///
     /// [`Client`]: crate::task::http::Client
-    /// [`store`]: crate::task::http::CacheDb::store
+    /// [`set`]: crate::task::http::CacheDb::set
     #[derive(Clone)]
     pub struct FileSystemCache {
         dir: PathBuf,
@@ -301,7 +305,6 @@ mod file_cache {
         async fn entry(&self, key: &CacheKey, write: bool) -> Option<CacheEntry> {
             let dir = self.dir.clone();
             let key = key.sha_str();
-            println!("{:?}", key);
             task::wait(move || CacheEntry::open(dir.join(key), write)).await
         }
     }
