@@ -1875,22 +1875,22 @@ pub struct McWaker(Arc<WakeVec>);
 #[derive(Default)]
 struct WakeVec(Mutex<Vec<std::task::Waker>>);
 impl WakeVec {
-    fn is_empty(&self) -> bool {
-        self.0.lock().is_empty()
-    }
-
-    fn push(&self, waker: std::task::Waker) -> usize {
+    fn push(&self, waker: std::task::Waker) -> bool {
         let mut v = self.0.lock();
-        let len = v.len();
+
+        let return_waker = v.is_empty();
+
         v.push(waker);
-        len + 1
+
+        return_waker
     }
 
-    fn cancel(&self) -> usize {
+    fn cancel(&self) {
         let mut v = self.0.lock();
-        let len = v.len();
+
+        debug_assert!(!v.is_empty(), "called cancel on an empty McWaker");
+
         v.clear();
-        len
     }
 }
 impl std::task::Wake for WakeVec {
@@ -1907,50 +1907,26 @@ impl McWaker {
         Self(Arc::new(WakeVec::default()))
     }
 
-    /// Returns `true` if no waker is registered.
-    ///
-    /// Note that this can change before you register a new waker, to avoid race conditions
-    /// use the return value of [`push`].
-    ///
-    /// [`push`]: Self::push
-    #[inline]
-    pub fn is_empty(&self) -> bool {
-        self.0.is_empty()
-    }
-
     /// Register a `waker` to wake once when `self` awakes.
     ///
-    /// Returns the number of registered wakers after insert, if it is `1` then `self`
-    /// was empty before the insert.
-    #[inline]
-    pub fn push(&self, waker: std::task::Waker) -> usize {
-        self.0.push(waker)
-    }
-
-    /// Gets the waker if `self` is not empty.
+    /// Returns `Some(self as waker)` if `self` was previously empty, if `None` is returned [`Poll::Pending`] must
+    /// be returned, if a waker is returned the shared resource must be polled using the waker, if the shared resource
+    /// is ready [`cancel`] must be called.
     ///
-    /// The waker will awake all registered wakers before its `wake` call then clear the aggregate waker.
+    /// [`cancel`]: Self::cancel
     #[inline]
-    pub fn waker(&self) -> Option<std::task::Waker> {
-        if self.is_empty() {
-            None
-        } else {
+    pub fn push(&self, waker: std::task::Waker) -> Option<std::task::Waker> {
+        if self.0.push(waker) {
             Some(self.0.clone().into())
+        } else {
+            None
         }
     }
 
     /// Clear current registered wakers.
-    ///
-    /// Returns the number of wakers that where canceled.
     #[inline]
-    pub fn cancel(&self) -> usize {
+    pub fn cancel(&self) {
         self.0.cancel()
-    }
-
-    /// Returns the number of clones of `self`.
-    #[inline]
-    pub fn strong_count(&self) -> usize {
-        Arc::strong_count(&self.0)
     }
 }
 

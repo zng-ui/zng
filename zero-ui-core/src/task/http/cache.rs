@@ -561,6 +561,7 @@ mod file_cache {
 
             match task::fs::File::create(self.dir.join(Self::BODY)).await {
                 Ok(cache_body) => {
+                    let cache_body = task::io::BufWriter::new(cache_body);
                     let cache_copy = McBufReader::new(body);
                     let body_copy = cache_copy.clone();
 

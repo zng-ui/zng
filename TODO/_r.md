@@ -1,7 +1,7 @@
 # Http Cache
 
-* McBufReader backed download and cache very slow, using a single CPU core to the MAX buf very low network poll.
-* Merge BufReader implementation with McBuf
+* McBufReader backed download and cache very slow, in debug.
+* What to do when download is cancelled?
 
 --
 

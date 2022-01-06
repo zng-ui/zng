@@ -213,35 +213,30 @@ pub struct McBufReader<S: AsyncRead> {
     index: usize,
 }
 struct McBufInner<S: AsyncRead> {
-    source: Option<BufReader<S>>,
+    source: Option<S>,
     waker: McWaker,
 
     buf: Vec<u8>,
 
-    clones: Vec<Option<usize>>,
+    clones: Vec<usize>,
 
-    result: FusedReadResult,
+    result: ReadState,
 }
 impl<S: AsyncRead> McBufReader<S> {
     /// Creates a buffered reader.
     pub fn new(source: S) -> Self {
-        Self::from_reader(BufReader::new(source))
-    }
-
-    /// Convert the `reader` to a shareable reader.
-    pub fn from_reader(reader: BufReader<S>) -> Self {
         let mut clones = Vec::with_capacity(2);
-        clones.push(Some(0));
+        clones.push(0);
         McBufReader {
             inner: Arc::new(Mutex::new(McBufInner {
-                source: Some(reader),
+                source: Some(source),
                 waker: McWaker::empty(),
 
-                buf: Vec::with_capacity(8.kilobytes().0),
+                buf: Vec::with_capacity(10.kilobytes().0),
 
                 clones,
 
-                result: FusedReadResult::Pending,
+                result: ReadState::Running,
             })),
             index: 0,
         }
@@ -251,28 +246,18 @@ impl<S: AsyncRead> Clone for McBufReader<S> {
     fn clone(&self) -> Self {
         let mut inner = self.inner.lock();
 
-        if matches!(&inner.result, FusedReadResult::Pending) {
-            let offset = inner.clones[self.index];
-            let index = inner.clones.len();
-            inner.clones.push(offset);
-            Self {
-                inner: self.inner.clone(),
-                index,
-            }
-        } else {
-            // already finished
-            let index = inner.clones.len();
-            inner.clones.push(None);
-            Self {
-                inner: self.inner.clone(),
-                index,
-            }
+        let offset = inner.clones[self.index];
+        let index = inner.clones.len();
+        inner.clones.push(offset);
+        Self {
+            inner: self.inner.clone(),
+            index,
         }
     }
 }
 impl<S: AsyncRead> Drop for McBufReader<S> {
     fn drop(&mut self) {
-        self.inner.lock().clones[self.index] = None;
+        self.inner.lock().clones[self.index] = usize::MAX;
     }
 }
 impl<S: AsyncRead> AsyncRead for McBufReader<S> {
@@ -281,137 +266,104 @@ impl<S: AsyncRead> AsyncRead for McBufReader<S> {
         let mut inner = self_.inner.lock();
         let inner = &mut *inner;
 
+        // ready data for this clone.
+        let mut i = inner.clones[self_.index];
+        let mut ready;
+
         match &inner.result {
-            FusedReadResult::Pending => {
-                // normal execution, continue bellow.
-            }
-            FusedReadResult::Eof => {
-                // inner reader has finished, but we may have pending data for `self`.
-                if let Some(i) = inner.clones[self_.index] {
-                    // data already read
-                    let done = &inner.buf[i..];
-                    let min = done.len().min(buf.len());
+            ReadState::Running => {
+                // source has not finished yet.
 
-                    buf[..min].copy_from_slice(&done[..min]);
+                ready = &inner.buf[i..];
 
-                    if done.len() <= buf.len() {
-                        // fuse clone.
-                        inner.clones[self_.index] = None;
-                    } else {
-                        // still did not request everything.
-                        inner.clones[self_.index] = Some(i + min);
+                if ready.is_empty() {
+                    // time to poll source.
+
+                    ready = &[];
+
+                    let waker = match inner.waker.push(cx.waker().clone()) {
+                        Some(w) => w,
+                        None => {
+                            // already polling from another clone.
+                            return Poll::Pending;
+                        }
+                    };
+
+                    let min_i = inner.clones.iter().copied().min().unwrap();
+                    if min_i > 0 {
+                        // reuse front.
+                        inner.buf.copy_within(min_i.., 0);
+                        inner.buf.truncate(inner.buf.len() - min_i);
+
+                        i -= min_i;
+                        for i in &mut inner.clones {
+                            *i -= min_i;
+                        }
                     }
-                    return Poll::Ready(Ok(min));
-                } else {
-                    // already finished this clone too.
-                    return Poll::Ready(Ok(0));
+
+                    let new_start = inner.buf.len();
+
+                    inner.buf.resize(inner.buf.len() + buf.len().max(10.kilobytes().0), 0);
+
+                    let mut inner_cx = task::Context::from_waker(&waker);
+
+                    // SAFETY: we don't move `source`.
+                    let source = unsafe { Pin::new_unchecked(inner.source.as_mut().unwrap()) };
+                    let result = source.poll_read(&mut inner_cx, &mut inner.buf[new_start..]);
+                    match result {
+                        Poll::Ready(Ok(0)) => {
+                            inner.waker.cancel();
+
+                            // EOF
+                            inner.buf.truncate(new_start);
+                            inner.result = ReadState::Eof;
+                            inner.source = None;
+
+                            // continue 'copy ready
+                        }
+                        Poll::Ready(Ok(read)) => {
+                            inner.waker.cancel();
+
+                            // Read > 0
+                            inner.buf.truncate(new_start + read);
+                            ready = &inner.buf[i..];
+
+                            // continue 'copy ready
+                        }
+                        Poll::Ready(Err(e)) => {
+                            inner.waker.cancel();
+
+                            // Error
+                            inner.result = ReadState::Err(CloneableError::new(&e));
+                            inner.buf = vec![];
+                            inner.source = None;
+
+                            return Poll::Ready(Err(e));
+                        }
+                        Poll::Pending => {
+                            inner.buf.truncate(new_start);
+                            return Poll::Pending;
+                        }
+                    }
                 }
             }
-            FusedReadResult::Err(e) => {
-                // inner reader error, just return an "error clone".
-                return Poll::Ready(e.err());
+            ReadState::Eof => {
+                ready = &inner.buf[i..];
+
+                // continue 'copy ready
             }
+            ReadState::Err(e) => return Poll::Ready(e.err()),
         }
 
-        if inner.buf.len() > 5.kilobytes().0 {
-            // cleanup
-            let used = inner.clones.iter().filter_map(|c| *c).min().unwrap();
-            if used > 4.kilobytes().0 {
-                inner.buf.copy_within(used.., 0);
-                inner.buf.truncate(inner.buf.len() - used);
+        // 'copy ready
 
-                for c in inner.clones.iter_mut().flatten() {
-                    *c -= used;
-                }
-            }
-        }
+        let max_ready = buf.len().min(ready.len());
+        buf[..max_ready].copy_from_slice(&ready[..max_ready]);
 
-        // data already read
-        let i = inner.clones[self_.index].unwrap();
-        let done = &inner.buf[i..];
+        i += max_ready;
+        inner.clones[self_.index] = i;
 
-        // copy already read
-        let min = done.len().min(buf.len());
-        buf[..min].copy_from_slice(&done[..min]);
-
-        if inner.waker.push(cx.waker().clone()) == 1 {
-            // no pending request, read more data, even if we already fulfilled the request.
-            let more = (buf.len() - min) + 64;
-
-            let new_start = inner.buf.len();
-            inner.buf.resize(new_start + more, 0);
-
-            let waker = inner.waker.waker().unwrap();
-            let mut cx = task::Context::from_waker(&waker);
-            let waker_count = inner.waker.strong_count();
-
-            let source = inner.source.as_mut().unwrap();
-
-            // SAFETY: we never move `source`.
-            match unsafe { Pin::new_unchecked(source) }.poll_read(&mut cx, &mut inner.buf[new_start..]) {
-                Poll::Ready(Ok(0)) => {
-                    inner.buf.truncate(new_start);
-                    if waker_count == inner.waker.strong_count() {
-                        inner.waker.cancel();
-                    }
-
-                    // finished EOF, return `done`
-                    inner.result = FusedReadResult::Eof;
-                    inner.source = None;
-
-                    let i = i + min;
-                    if i < inner.buf.len() {
-                        inner.clones[self_.index] = Some(i);
-                    } else {
-                        inner.clones[self_.index] = None;
-                    }
-
-                    return Poll::Ready(Ok(min));
-                }
-                Poll::Ready(Ok(l)) => {
-                    inner.buf.truncate(new_start + l);
-                    if waker_count == inner.waker.strong_count() {
-                        inner.waker.cancel();
-                    }
-
-                    // add more data if needed.
-                    let rest = buf.len() - min;
-                    let rest_min = rest.min(l);
-                    if rest_min > 0 {
-                        buf[min..min + rest_min].copy_from_slice(&inner.buf[new_start..new_start + rest_min]);
-                    }
-
-                    inner.clones[self_.index] = Some(i + min + rest_min);
-
-                    return Poll::Ready(Ok(min + rest_min));
-                }
-                Poll::Ready(Err(e)) => {
-                    // finished in error, fuse everything.
-                    inner.result = FusedReadResult::Err(CloneableError::new(&e));
-                    inner.buf = vec![];
-                    inner.source = None;
-                    inner.waker.cancel();
-
-                    return Poll::Ready(Err(e));
-                }
-                Poll::Pending => {
-                    // could not read anything else, but registered the waker.
-                    inner.buf.truncate(new_start);
-                    // continue bellow..
-                }
-            }
-        } else {
-            // another clone already requested more data.
-            // continue bellow..
-        }
-
-        // return what we have for now.
-        if min == 0 {
-            Poll::Pending
-        } else {
-            inner.clones[self_.index] = Some(i + min);
-            Poll::Ready(Ok(min))
-        }
+        Poll::Ready(Ok(max_ready))
     }
 }
 
@@ -460,8 +412,8 @@ impl From<CloneableError> for Error {
     }
 }
 
-enum FusedReadResult {
-    Pending,
+enum ReadState {
+    Running,
     Eof,
     Err(CloneableError),
 }
