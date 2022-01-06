@@ -1124,6 +1124,123 @@ impl Client {
     }
 
     #[async_recursion::async_recursion]
+    async fn send_cache_default(&self, db: &dyn CacheDb, request: Request, retry_count: u8) -> Result<Response, Error> {
+        if retry_count == 3 {
+            tracing::error!("retried cache 3 times, skipping cache");
+            return self.client.send_async(request.0).await.map(Response);
+        }
+
+        let key = CacheKey::new(&request.0);
+        if let Some(policy) = db.policy(&key).await {
+            match policy.before_request(&request.0) {
+                BeforeRequest::Fresh(parts) => {
+                    if let Some(body) = db.body(&key).await {
+                        let response = isahc::Response::from_parts(parts, body.0);
+                        Ok(Response(response))
+                    } else {
+                        tracing::error!("cache returned policy but not body");
+                        db.remove(&key).await;
+                        self.send_cache_default(db, request, retry_count + 1).await
+                    }
+                }
+                BeforeRequest::Stale { request: parts, matches } => {
+                    if matches {
+                        let (_, body) = request.0.into_parts();
+                        let request = Request(isahc::Request::from_parts(parts, body));
+                        let policy_request = request.clone_with(()).unwrap().0;
+                        let no_req_body = request.0.body().len().map(|l| l == 0).unwrap_or(false);
+
+                        let response = self.client.send_async(request.0).await?;
+
+                        match policy.after_response(&policy_request, &response) {
+                            AfterResponse::NotModified(policy, parts) => {
+                                if let Some(body) = db.body(&key).await {
+                                    let response = isahc::Response::from_parts(parts, body.0);
+
+                                    db.set_policy(&key, policy).await;
+
+                                    Ok(Response(response))
+                                } else {
+                                    tracing::error!("cache returned policy but not body");
+                                    db.remove(&key).await;
+
+                                    if no_req_body {
+                                        self.send_cache_default(db, Request(policy_request), retry_count + 1).await
+                                    } else {
+                                        Err(std::io::Error::new(
+                                            std::io::ErrorKind::NotFound,
+                                            "cache returned policy but not body, cannot auto-retry",
+                                        )
+                                        .into())
+                                    }
+                                }
+                            }
+                            AfterResponse::Modified(policy, parts) => {
+                                if policy.is_storable() {
+                                    let (_, body) = response.into_parts();
+                                    if let Some(body) = db.set(&key, policy, Body(body)).await {
+                                        let response = isahc::Response::from_parts(parts, body.0);
+                                        Ok(Response(response))
+                                    } else {
+                                        tracing::error!("cache db failed to store body");
+                                        db.remove(&key).await;
+
+                                        if no_req_body {
+                                            self.send_cache_default(db, Request(policy_request), retry_count + 1).await
+                                        } else {
+                                            Err(std::io::Error::new(
+                                                std::io::ErrorKind::NotFound,
+                                                "cache db failed to store body, cannot auto-retry",
+                                            )
+                                            .into())
+                                        }
+                                    }
+                                } else {
+                                    db.remove(&key).await;
+
+                                    Ok(Response(response))
+                                }
+                            }
+                        }
+                    } else {
+                        tracing::error!("cache policy did not match request, {:?}", request);
+                        db.remove(&key).await;
+                        self.client.send_async(request.0).await.map(Response)
+                    }
+                }
+            }
+        } else {
+            let no_req_body = request.0.body().len().map(|l| l == 0).unwrap_or(false);
+            let policy_request = request.clone_with(()).unwrap().0;
+
+            let response = self.client.send_async(request.0).await?;
+
+            let policy = CachePolicy::new(&policy_request, &response);
+
+            if policy.is_storable() {
+                let (parts, body) = response.into_parts();
+
+                if let Some(body) = db.set(&key, policy, Body(body)).await {
+                    let response = isahc::Response::from_parts(parts, body.0);
+
+                    Ok(Response(response))
+                } else {
+                    tracing::error!("cache db failed to store body");
+                    db.remove(&key).await;
+
+                    if no_req_body {
+                        self.send_cache_default(db, Request(policy_request), retry_count + 1).await
+                    } else {
+                        Err(std::io::Error::new(std::io::ErrorKind::NotFound, "cache db failed to store body, cannot auto-retry").into())
+                    }
+                }
+            } else {
+                Ok(Response(response))
+            }
+        }
+    }
+
+    #[async_recursion::async_recursion]
     async fn send_cache_permanent(&self, db: &dyn CacheDb, request: Request, retry_count: u8) -> Result<Response, Error> {
         if retry_count == 3 {
             tracing::error!("retried cache 3 times, skipping cache");
@@ -1193,118 +1310,6 @@ impl Client {
                     )
                     .into())
                 }
-            }
-        }
-    }
-
-    #[async_recursion::async_recursion]
-    async fn send_cache_default(&self, db: &dyn CacheDb, request: Request, retry_count: u8) -> Result<Response, Error> {
-        if retry_count == 3 {
-            tracing::error!("retried cache 3 times, skipping cache");
-            return self.client.send_async(request.0).await.map(Response);
-        }
-
-        let key = CacheKey::new(&request.0);
-        if let Some(policy) = db.policy(&key).await {
-            match policy.before_request(&request.0) {
-                BeforeRequest::Fresh(parts) => {
-                    if let Some(body) = db.body(&key).await {
-                        let response = isahc::Response::from_parts(parts, body.0);
-                        Ok(Response(response))
-                    } else {
-                        tracing::error!("cache returned policy but not body");
-                        db.remove(&key).await;
-                        self.send_cache_default(db, request, retry_count + 1).await
-                    }
-                }
-                BeforeRequest::Stale { request: parts, matches } => {
-                    if matches {
-                        let (_, body) = request.0.into_parts();
-                        let request = Request(isahc::Request::from_parts(parts, body));
-                        let policy_request = request.clone_with(()).unwrap().0;
-                        let no_req_body = request.0.body().len().map(|l| l == 0).unwrap_or(false);
-
-                        let response = self.client.send_async(request.0).await?;
-
-                        match policy.after_response(&policy_request, &response) {
-                            AfterResponse::NotModified(policy, parts) => {
-                                if let Some(body) = db.body(&key).await {
-                                    let response = isahc::Response::from_parts(parts, body.0);
-
-                                    db.set_policy(&key, policy).await;
-
-                                    Ok(Response(response))
-                                } else {
-                                    tracing::error!("cache returned policy but not body");
-                                    db.remove(&key).await;
-
-                                    if no_req_body {
-                                        self.send_cache_default(db, Request(policy_request), retry_count + 1).await
-                                    } else {
-                                        Err(std::io::Error::new(
-                                            std::io::ErrorKind::NotFound,
-                                            "cache returned policy but not body, cannot auto-retry",
-                                        )
-                                        .into())
-                                    }
-                                }
-                            }
-                            AfterResponse::Modified(policy, parts) => {
-                                let (_, body) = response.into_parts();
-
-                                if let Some(body) = db.set(&key, policy, Body(body)).await {
-                                    let response = isahc::Response::from_parts(parts, body.0);
-                                    Ok(Response(response))
-                                } else {
-                                    tracing::error!("cache db failed to store body");
-                                    db.remove(&key).await;
-
-                                    if no_req_body {
-                                        self.send_cache_default(db, Request(policy_request), retry_count + 1).await
-                                    } else {
-                                        Err(std::io::Error::new(
-                                            std::io::ErrorKind::NotFound,
-                                            "cache db failed to store body, cannot auto-retry",
-                                        )
-                                        .into())
-                                    }
-                                }
-                            }
-                        }
-                    } else {
-                        tracing::error!("cache policy did not match request, {:?}", request);
-                        db.remove(&key).await;
-                        self.client.send_async(request.0).await.map(Response)
-                    }
-                }
-            }
-        } else {
-            let no_req_body = request.0.body().len().map(|l| l == 0).unwrap_or(false);
-            let policy_request = request.clone_with(()).unwrap().0;
-
-            let response = self.client.send_async(request.0).await?;
-
-            let policy = CachePolicy::new(&policy_request, &response);
-
-            if policy.is_storable() {
-                let (parts, body) = response.into_parts();
-
-                if let Some(body) = db.set(&key, policy, Body(body)).await {
-                    let response = isahc::Response::from_parts(parts, body.0);
-
-                    Ok(Response(response))
-                } else {
-                    tracing::error!("cache db failed to store body");
-                    db.remove(&key).await;
-
-                    if no_req_body {
-                        self.send_cache_default(db, Request(policy_request), retry_count + 1).await
-                    } else {
-                        Err(std::io::Error::new(std::io::ErrorKind::NotFound, "cache db failed to store body, cannot auto-retry").into())
-                    }
-                }
-            } else {
-                Ok(Response(response))
             }
         }
     }
