@@ -9,12 +9,11 @@ use serde::*;
 
 use http_cache_semantics as hcs;
 
-pub(super) use hcs::{AfterResponse, BeforeRequest};
+pub(super) use hcs::BeforeRequest;
 
 /// Represents a serializable configuration for a cache entry in a [`CacheDb`].
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct CachePolicy(pub(super) hcs::CachePolicy);
-
+pub struct CachePolicy(PolicyInner);
 impl CachePolicy {
     pub(super) fn new(request: &isahc::Request<super::Body>, response: &isahc::Response<isahc::AsyncBody>) -> Self {
         let p = hcs::CachePolicy::new_options(
@@ -27,15 +26,33 @@ impl CachePolicy {
                 ..Default::default()
             },
         );
-        Self(p)
+        Self(PolicyInner::Policy(p))
+    }
+
+    pub(super) fn is_storable(&self) -> bool {
+        match &self.0 {
+            PolicyInner::Policy(p) => p.is_storable(),
+            PolicyInner::Permanent(_) => true,
+        }
     }
 
     pub(super) fn new_permanent(response: &isahc::Response<isahc::AsyncBody>) -> Self {
-        todo!()
+        let p = PermanentHeader {
+            res: response.headers().clone(),
+            status: response.status(),
+        };
+        Self(PolicyInner::Permanent(p))
+    }
+
+    pub(super) fn is_permanent(&self) -> bool {
+        matches!(self.0, PolicyInner::Permanent(_))
     }
 
     pub(super) fn before_request(&self, request: &isahc::Request<super::Body>) -> BeforeRequest {
-        self.0.before_request(request, SystemTime::now())
+        match &self.0 {
+            PolicyInner::Policy(p) => p.before_request(request, SystemTime::now()),
+            PolicyInner::Permanent(p) => BeforeRequest::Fresh(p.parts()),
+        }
     }
 
     pub(super) fn after_response(
@@ -43,25 +60,80 @@ impl CachePolicy {
         request: &isahc::Request<super::Body>,
         response: &isahc::Response<isahc::AsyncBody>,
     ) -> AfterResponse {
-        self.0.after_response(request, response, SystemTime::now())
+        match &self.0 {
+            PolicyInner::Policy(p) => p.after_response(request, response, SystemTime::now()).into(),
+            PolicyInner::Permanent(_) => unreachable!(), // don't call `after_response` for `Fresh` `before_request`
+        }
     }
 
     /// Returns how long the response has been sitting in cache.
     #[inline]
     pub fn age(&self, now: SystemTime) -> Duration {
-        self.0.age(now)
+        match &self.0 {
+            PolicyInner::Policy(p) => p.age(now),
+            PolicyInner::Permanent(_) => Duration::MAX,
+        }
     }
 
     /// Returns approximate time in milliseconds until the response becomes stale.
     #[inline]
     pub fn time_to_live(&self, now: SystemTime) -> Duration {
-        self.0.time_to_live(now)
+        match &self.0 {
+            PolicyInner::Policy(p) => p.time_to_live(now),
+            PolicyInner::Permanent(_) => Duration::MAX,
+        }
     }
 
     /// Returns `true` if the cache entry has expired.
     #[inline]
     pub fn is_stale(&self, now: SystemTime) -> bool {
-        self.0.is_stale(now)
+        match &self.0 {
+            PolicyInner::Policy(p) => p.is_stale(now),
+            PolicyInner::Permanent(_) => false,
+        }
+    }
+}
+impl From<hcs::CachePolicy> for CachePolicy {
+    fn from(p: hcs::CachePolicy) -> Self {
+        CachePolicy(PolicyInner::Policy(p))
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[allow(clippy::large_enum_variant)]
+enum PolicyInner {
+    Policy(hcs::CachePolicy),
+    Permanent(PermanentHeader),
+}
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct PermanentHeader {
+    #[serde(with = "http_serde::header_map")]
+    res: super::header::HeaderMap,
+    #[serde(with = "http_serde::status_code")]
+    status: super::StatusCode,
+}
+impl PermanentHeader {
+    pub fn parts(&self) -> isahc::http::response::Parts {
+        let mut r = isahc::Response::<()>::default().into_parts().0;
+        r.headers = self.res.clone();
+        r.status = self.status;
+        r
+    }
+}
+
+/// New policy and flags to act on `after_response()`
+pub(super) enum AfterResponse {
+    /// You can use the cached body! Make sure to use these updated headers
+    NotModified(CachePolicy, isahc::http::response::Parts),
+    /// You need to update the body in the cache
+    Modified(CachePolicy, isahc::http::response::Parts),
+}
+impl From<hcs::AfterResponse> for AfterResponse {
+    fn from(s: hcs::AfterResponse) -> Self {
+        match s {
+            hcs::AfterResponse::NotModified(po, pa) => AfterResponse::NotModified(po.into(), pa),
+            hcs::AfterResponse::Modified(po, pa) => AfterResponse::Modified(po.into(), pa),
+        }
     }
 }
 

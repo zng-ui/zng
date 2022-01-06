@@ -1115,11 +1115,85 @@ impl Client {
             match self.cache_mode(&request) {
                 CacheMode::NoCache => self.client.send_async(request.0).await.map(Response),
                 CacheMode::Default => self.send_cache_default(&**db, request, 0).await,
-                CacheMode::Permanent => todo!(),
+                CacheMode::Permanent => self.send_cache_permanent(&**db, request, 0).await,
                 CacheMode::Error(e) => Err(e),
             }
         } else {
             self.client.send_async(request.0).await.map(Response)
+        }
+    }
+
+    #[async_recursion::async_recursion]
+    async fn send_cache_permanent(&self, db: &dyn CacheDb, request: Request, retry_count: u8) -> Result<Response, Error> {
+        if retry_count == 3 {
+            tracing::error!("retried cache 3 times, skipping cache");
+            return self.client.send_async(request.0).await.map(Response);
+        }
+
+        let key = CacheKey::new(&request.0);
+        if let Some(policy) = db.policy(&key).await {
+            if let Some(body) = db.body(&key).await {
+                match policy.before_request(&request.0) {
+                    BeforeRequest::Fresh(p) => {
+                        let response = isahc::Response::from_parts(p, body.0);
+
+                        if !policy.is_permanent() {
+                            db.set_policy(&key, CachePolicy::new_permanent(&response)).await;
+                        }
+
+                        Ok(Response(response))
+                    }
+                    BeforeRequest::Stale { request: parts, .. } => {
+                        // policy was not permanent when cached
+
+                        let (_, req_body) = request.0.into_parts();
+                        let request = isahc::Request::from_parts(parts, req_body);
+
+                        let response = self.client.send_async(request).await?;
+
+                        let (parts, _) = response.into_parts();
+
+                        let response = isahc::Response::from_parts(parts, body.0);
+
+                        db.set_policy(&key, CachePolicy::new_permanent(&response)).await;
+
+                        Ok(Response(response))
+                    }
+                }
+            } else {
+                tracing::error!("cache returned policy but not body");
+                db.remove(&key).await;
+                self.send_cache_permanent(db, request, retry_count + 1).await
+            }
+        } else {
+            let backup_request = if request.0.body().len().map(|l| l == 0).unwrap_or(false) {
+                Some(request.clone_with(()).unwrap())
+            } else {
+                None
+            };
+
+            let response = self.client.send_async(request.0).await?;
+            let policy = CachePolicy::new_permanent(&response);
+
+            let (parts, body) = response.into_parts();
+
+            if let Some(body) = db.set(&key, policy, Body(body)).await {
+                let response = isahc::Response::from_parts(parts, body.0);
+                Ok(Response(response))
+            } else {
+                tracing::error!("cache db failed to store body");
+                db.remove(&key).await;
+
+                if let Some(request) = backup_request {
+                    self.send_cache_permanent(db, request, retry_count + 1).await
+                } else {
+                    Err(std::io::Error::new(
+                        std::io::ErrorKind::NotFound,
+                        "cache db failed to store permanent body, cannot auto-retry",
+                    )
+                    .into())
+                }
+            }
         }
     }
 
@@ -1157,7 +1231,7 @@ impl Client {
                                 if let Some(body) = db.body(&key).await {
                                     let response = isahc::Response::from_parts(parts, body.0);
 
-                                    db.set_policy(&key, CachePolicy(policy)).await;
+                                    db.set_policy(&key, policy).await;
 
                                     Ok(Response(response))
                                 } else {
@@ -1178,7 +1252,7 @@ impl Client {
                             AfterResponse::Modified(policy, parts) => {
                                 let (_, body) = response.into_parts();
 
-                                if let Some(body) = db.set(&key, CachePolicy(policy), Body(body)).await {
+                                if let Some(body) = db.set(&key, policy, Body(body)).await {
                                     let response = isahc::Response::from_parts(parts, body.0);
                                     Ok(Response(response))
                                 } else {
@@ -1210,12 +1284,12 @@ impl Client {
 
             let response = self.client.send_async(request.0).await?;
 
-            let policy = CachePolicy::new(&policy_request, &response).0;
+            let policy = CachePolicy::new(&policy_request, &response);
 
             if policy.is_storable() {
                 let (parts, body) = response.into_parts();
 
-                if let Some(body) = db.set(&key, CachePolicy(policy), Body(body)).await {
+                if let Some(body) = db.set(&key, policy, Body(body)).await {
                     let response = isahc::Response::from_parts(parts, body.0);
 
                     Ok(Response(response))

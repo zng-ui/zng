@@ -86,6 +86,7 @@ isahc = { version = "1", features = ["cookies", "json"] }
 futures-lite = "1"
 async-fs = "1.5"
 http-cache-semantics = "0.9"
+http-serde = "1"
 
 # util
 bitflags = "1"
