@@ -183,9 +183,9 @@ pub trait CacheDb: Send + Sync + 'static {
 /// Cache mode selected for a [`Uri`].
 ///
 /// See [`ClientBuilder::cache_mode`] for more information.
-/// 
+///
 /// [`Uri`]: crate::task::http::Uri
-/// 
+///
 /// [`ClientBuilder::cache_mode`]: crate::task::http::ClientBuilder::cache_mode
 #[derive(Debug, Clone)]
 pub enum CacheMode {
@@ -408,6 +408,7 @@ mod file_cache {
     }
     impl CacheEntry {
         const LOCK: &'static str = ".lock";
+        const WRITING: &'static str = ".w";
         const POLICY: &'static str = ".policy";
         const BODY: &'static str = ".body";
 
@@ -468,6 +469,22 @@ mod file_cache {
             }
 
             let policy_file = dir.join(Self::POLICY);
+
+            if dir.join(Self::WRITING).exists() {
+                tracing::error!("cache has partial files, removing");
+
+                if write {
+                    if let Err(e) = Self::remove_files(&dir) {
+                        tracing::error!("failed to clear partial files, {:?}", e);
+                        Self::try_delete_locked_dir(&dir, &lock);
+                        return None;
+                    }
+                } else {
+                    Self::try_delete_locked_dir(&dir, &lock);
+                    return None;
+                }
+            }
+
             if policy_file.exists() {
                 let policy = match Self::read_policy(&policy_file) {
                     Ok(i) => i,
@@ -500,11 +517,20 @@ mod file_cache {
 
         /// Replace the .policy content, returns `true` if the entry still exists.
         pub fn write_policy(&self, policy: CachePolicy) -> bool {
+            let w_tag = if let Some(t) = self.writing_tag() {
+                t
+            } else {
+                return false;
+            };
+
             if let Err(e) = self.write_policy_impl(policy) {
                 tracing::error!("cache policy serialize error, {:?}", e);
                 Self::try_delete_locked_dir(&self.dir, &self.lock);
                 return false;
             }
+
+            let _ = fs::remove_file(w_tag);
+
             true
         }
         fn write_policy_impl(&self, policy: CachePolicy) -> Result<(), Box<dyn std::error::Error>> {
@@ -527,6 +553,12 @@ mod file_cache {
 
         /// Start downloading and writing a copy of the body to the cache entry.
         pub async fn write_body(self, body: Body) -> Body {
+            let w_tag = if let Some(t) = self.writing_tag() {
+                t
+            } else {
+                return body;
+            };
+
             match task::fs::File::create(self.dir.join(Self::BODY)).await {
                 Ok(cache_body) => {
                     let cache_copy = McBufReader::new(body);
@@ -536,6 +568,8 @@ mod file_cache {
                         if let Err(e) = task::io::copy(cache_copy, cache_body).await {
                             tracing::error!("cache body write error, {:?}", e);
                             Self::try_delete_locked_dir(&self.dir, &self.lock);
+                        } else {
+                            let _ = fs::remove_file(w_tag);
                         }
                     });
 
@@ -557,6 +591,27 @@ mod file_cache {
 
         fn try_delete_dir(dir: &Path) {
             let _ = remove_dir_all::remove_dir_all(dir);
+        }
+
+        fn writing_tag(&self) -> Option<PathBuf> {
+            let tag = self.dir.join(Self::WRITING);
+
+            if let Err(e) = fs::write(&tag, "w") {
+                tracing::error!("cache write tag error, {:?}", e);
+                Self::try_delete_locked_dir(&self.dir, &self.lock);
+                None
+            } else {
+                Some(tag)
+            }
+        }
+
+        fn remove_files(dir: &Path) -> std::io::Result<()> {
+            for file in [Self::BODY, Self::POLICY, Self::WRITING] {
+                if let Err(e) = fs::remove_file(dir.join(file)) {
+                    return Err(e);
+                }
+            }
+            Ok(())
         }
     }
     impl Drop for CacheEntry {

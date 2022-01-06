@@ -1,6 +1,5 @@
 # Http Cache
 
-* Write to temp file and then rename after completion to avoid data corruption.
 * image.rs large image blocks UI render and a single CPU core.
 
 --
