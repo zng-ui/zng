@@ -1,6 +1,7 @@
 # Http Cache
 
-* image.rs large image blocks UI render and a single CPU core.
+* McBufReader backed download and cache very slow, using a single CPU core to the MAX buf very low network poll.
+* Merge BufReader implementation with McBuf
 
 --
 

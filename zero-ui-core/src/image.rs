@@ -563,101 +563,110 @@ impl Images {
             return dummy.into_read_only();
         }
 
+        let max_encoded_size = limits.max_encoded_size;
+
         match source {
-            ImageSource::Read(path) => self.load_task(key, mode, limits.max_decoded_size, async move {
-                let mut r = ImageData {
-                    format: path
-                        .extension()
-                        .and_then(|e| e.to_str())
-                        .map(|s| ImageDataFormat::FileExtension(s.to_owned()))
-                        .unwrap_or(ImageDataFormat::Unknown),
-                    r: Err(String::new()),
-                };
-
-                let mut file = match fs::File::open(path).await {
-                    Ok(f) => f,
-                    Err(e) => {
-                        r.r = Err(e.to_string());
-                        return r;
-                    }
-                };
-
-                let len = match file.metadata().await {
-                    Ok(m) => m.len() as usize,
-                    Err(e) => {
-                        r.r = Err(e.to_string());
-                        return r;
-                    }
-                };
-
-                if len > limits.max_encoded_size.0 {
-                    r.r = Err(format!(
-                        "file size `{}` exceeds the limit of `{}`",
-                        len.bytes(),
-                        limits.max_encoded_size
-                    ));
-                    return r;
-                }
-
-                let mut data = vec![0; len]; // TODO can we trust the metadata length?
-                r.r = match file.read_exact(&mut data).await {
-                    Ok(_) => Ok(IpcBytes::from_vec(data)),
-                    Err(e) => Err(e.to_string()),
-                };
-
-                r
-            }),
-            ImageSource::Download(uri, accept) => {
-                let accept = accept.unwrap_or_else(|| self.download_accept());
-                self.load_task(key, mode, limits.max_decoded_size, async move {
+            ImageSource::Read(path) => self.load_task(
+                key,
+                mode,
+                limits.max_decoded_size,
+                task::run(async move {
                     let mut r = ImageData {
-                        format: ImageDataFormat::Unknown,
+                        format: path
+                            .extension()
+                            .and_then(|e| e.to_str())
+                            .map(|s| ImageDataFormat::FileExtension(s.to_owned()))
+                            .unwrap_or(ImageDataFormat::Unknown),
                         r: Err(String::new()),
                     };
 
-                    // for image crate:
-                    // image/webp decoder is only grayscale: https://docs.rs/image/0.23.14/image/codecs/webp/struct.WebPDecoder.html
-                    // image/avif decoder does not build in Windows
-                    let request = Request::get(uri).unwrap().header(header::ACCEPT, accept).unwrap().build();
-
-                    match http::send(request).await {
-                        Ok(mut rsp) => {
-                            if let Some(m) = rsp.headers().get(&header::CONTENT_TYPE).and_then(|v| v.to_str().ok()) {
-                                let m = m.to_lowercase();
-                                if m.starts_with("image/") {
-                                    r.format = ImageDataFormat::MimeType(m);
-                                }
-                            }
-
-                            if let Some(len) = rsp.content_len() {
-                                if len > limits.max_encoded_size {
-                                    r.r = Err(format!("file size `{}` exceeds the limit of `{}`", len, limits.max_encoded_size));
-                                    return r;
-                                }
-                            }
-
-                            match rsp.bytes_limited(limits.max_encoded_size.saturating_add(1.bytes())).await {
-                                Ok(d) => {
-                                    if d.len().bytes() > limits.max_encoded_size {
-                                        r.r = Err(format!("download exceeded the limit of `{}`", limits.max_encoded_size));
-                                    } else {
-                                        r.r = Ok(IpcBytes::from_vec(d))
-                                    }
-                                }
-                                Err(e) => {
-                                    r.r = Err(format!("download error: {}", e));
-                                }
-                            }
-
-                            let _ = rsp.consume();
-                        }
+                    let mut file = match fs::File::open(path).await {
+                        Ok(f) => f,
                         Err(e) => {
-                            r.r = Err(format!("request error: {}", e));
+                            r.r = Err(e.to_string());
+                            return r;
                         }
+                    };
+
+                    let len = match file.metadata().await {
+                        Ok(m) => m.len() as usize,
+                        Err(e) => {
+                            r.r = Err(e.to_string());
+                            return r;
+                        }
+                    };
+
+                    if len > max_encoded_size.0 {
+                        r.r = Err(format!("file size `{}` exceeds the limit of `{}`", len.bytes(), max_encoded_size));
+                        return r;
                     }
 
+                    let mut data = vec![0; len]; // TODO can we trust the metadata length?
+                    r.r = match file.read_exact(&mut data).await {
+                        Ok(_) => Ok(IpcBytes::from_vec(data)),
+                        Err(e) => Err(e.to_string()),
+                    };
+
                     r
-                })
+                }),
+            ),
+            ImageSource::Download(uri, accept) => {
+                let accept = accept.unwrap_or_else(|| self.download_accept());
+
+                self.load_task(
+                    key,
+                    mode,
+                    limits.max_decoded_size,
+                    task::run(async move {
+                        let mut r = ImageData {
+                            format: ImageDataFormat::Unknown,
+                            r: Err(String::new()),
+                        };
+
+                        // for image crate:
+                        // image/webp decoder is only grayscale: https://docs.rs/image/0.23.14/image/codecs/webp/struct.WebPDecoder.html
+                        // image/avif decoder does not build in Windows
+                        let request = Request::get(uri).unwrap().header(header::ACCEPT, accept).unwrap().build();
+
+                        match http::send(request).await {
+                            Ok(mut rsp) => {
+                                if let Some(m) = rsp.headers().get(&header::CONTENT_TYPE).and_then(|v| v.to_str().ok()) {
+                                    let m = m.to_lowercase();
+                                    if m.starts_with("image/") {
+                                        r.format = ImageDataFormat::MimeType(m);
+                                    }
+                                }
+
+                                if let Some(len) = rsp.content_len() {
+                                    if len > max_encoded_size {
+                                        r.r = Err(format!("file size `{}` exceeds the limit of `{}`", len, max_encoded_size));
+                                        return r;
+                                    }
+                                }
+
+                                match rsp.bytes_limited(max_encoded_size.saturating_add(1.bytes())).await {
+                                    Ok(d) => {
+                                        if d.len().bytes() > max_encoded_size {
+                                            r.r = Err(format!("download exceeded the limit of `{}`", max_encoded_size));
+                                        } else {
+                                            r.r = Ok(IpcBytes::from_vec(d))
+                                        }
+                                    }
+                                    Err(e) => {
+                                        r.r = Err(format!("download error: {}", e));
+                                    }
+                                }
+
+                                let _ = rsp.consume();
+                            }
+                            Err(e) => {
+                                r.r = Err(format!("request error: {}", e));
+                            }
+                        }
+
+                        r
+                    }),
+                )
             }
             ImageSource::Static(_, bytes, fmt) => {
                 let r = ImageData {
@@ -705,6 +714,7 @@ impl Images {
         }
     }
 
+    /// The `fetch_bytes` future is polled in the UI thread, use `task::run` for futures that poll a lot.
     fn load_task(
         &mut self,
         key: ImageHash,
