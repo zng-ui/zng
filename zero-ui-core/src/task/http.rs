@@ -639,7 +639,7 @@ impl Body {
         if let Some(len) = body.len() {
             let cap = len.min(limit.0 as u64);
             let mut bytes = Vec::with_capacity(cap as usize);
-            super::io::copy(body, &mut bytes).await?;
+            super::io::copy(body.take(cap), &mut bytes).await?;
             Ok(bytes)
         } else {
             let mut bytes = vec![];

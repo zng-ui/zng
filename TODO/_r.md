@@ -1,6 +1,7 @@
 # Http Cache
 
 * What to do when a download is cancelled?
+  - For now the cache download just keeps going when requested with `bytes_limited`.
 
 --
 
