@@ -266,6 +266,7 @@ mod file_cache {
     };
 
     use crate::{
+        crate_util::unlock_ok,
         task::{self, io::McBufReader},
         units::TimeUnits,
     };
@@ -596,8 +597,7 @@ mod file_cache {
         }
 
         fn try_delete_locked_dir(dir: &Path, lock: &File) {
-            let _ = lock.unlock();
-            let _ = lock;
+            let _ = unlock_ok(lock);
             Self::try_delete_dir(dir);
         }
 
@@ -628,7 +628,7 @@ mod file_cache {
     }
     impl Drop for CacheEntry {
         fn drop(&mut self) {
-            if let Err(e) = self.lock.unlock() {
+            if let Err(e) = unlock_ok(&self.lock) {
                 tracing::error!("cache unlock error, {:?}", e);
                 Self::try_delete_dir(&self.dir);
             }

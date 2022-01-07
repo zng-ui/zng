@@ -664,19 +664,6 @@ pub fn absolute_path(path: &Path, base: impl FnOnce() -> PathBuf, allow_escape: 
     }
 }
 
-#[cfg(test)]
-pub mod tests {
-    use crate::WidgetId;
-
-    #[test]
-    pub fn sequential_id() {
-        let id0 = WidgetId::new_unique();
-        let id1 = WidgetId::new_unique();
-
-        assert!(id0.sequential() < id1.sequential());
-    }
-}
-
 /// A temporary directory for unit tests.
 ///
 /// Directory is "target/tmp/unit_tests/<name>" with fallback to system temporary if the target folder is not found.
@@ -813,5 +800,76 @@ pub fn test_log() {
         if let Err(e) = subscriber::set_global_default(TestSubscriber) {
             panic!("failed to set test log subscriber, {:?}", e);
         }
+    }
+}
+
+/// Calls [`fs2::FileExt::unlock`] and ignores "already unlocked" errors.
+pub fn unlock_ok(file: &impl fs2::FileExt) -> std::io::Result<()> {
+    if let Err(e) = file.unlock() {
+        if let Some(code) = e.raw_os_error() {
+            #[cfg(windows)]
+            if code == 158 {
+                // ERROR_NOT_LOCKED
+                return Ok(());
+            }
+
+            #[cfg(unix)]
+            if code = 22 {
+                // EINVAL
+                return Ok(());
+            }
+        }
+
+        Err(e)
+    } else {
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::WidgetId;
+    use fs2::FileExt;
+
+    #[test]
+    pub fn sequential_id() {
+        let id0 = WidgetId::new_unique();
+        let id1 = WidgetId::new_unique();
+
+        assert!(id0.sequential() < id1.sequential());
+    }
+
+    #[test]
+    fn unlock_ok_exclusive_already_unlocked() {
+        let dir = TestTempDir::new("unlock_ok_exclusive_already_unlocked");
+
+        let file = std::fs::File::create(dir.join(".lock")).unwrap();
+        file.lock_exclusive().unwrap();
+
+        file.unlock().unwrap();
+
+        unlock_ok(&file).unwrap();
+    }
+
+    #[test]
+    fn unlock_ok_shared_already_unlocked() {
+        let dir = TestTempDir::new("unlock_ok_shared_already_unlocked");
+
+        let file = std::fs::File::create(dir.join(".lock")).unwrap();
+        file.lock_shared().unwrap();
+
+        file.unlock().unwrap();
+
+        unlock_ok(&file).unwrap();
+    }
+
+    #[test]
+    fn unlock_ok_exclusive_never_locked() {
+        let dir = TestTempDir::new("unlock_ok_exclusive_never_locked");
+
+        let file = std::fs::File::create(dir.join(".lock")).unwrap();
+
+        unlock_ok(&file).unwrap();
     }
 }
