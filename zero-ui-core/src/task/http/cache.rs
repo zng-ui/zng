@@ -542,7 +542,13 @@ mod file_cache {
         /// Start reading the body content, returns `Some(_)` if the entry still exists.
         pub async fn open_body(&self) -> Option<Body> {
             match task::fs::File::open(self.dir.join(Self::BODY)).await {
-                Ok(body) => Some(Body::from_reader(task::io::BufReader::new(body))),
+                Ok(body) => {
+                    if let Ok(metadata) = body.metadata().await {
+                        Some(Body::from_reader_sized(task::io::BufReader::new(body), metadata.len()))
+                    } else {
+                        Some(Body::from_reader(task::io::BufReader::new(body)))
+                    }
+                }
                 Err(e) => {
                     tracing::error!("cache open body error, {:?}", e);
                     Self::try_delete_locked_dir(&self.dir, &self.lock);
@@ -562,6 +568,7 @@ mod file_cache {
             match task::fs::File::create(self.dir.join(Self::BODY)).await {
                 Ok(cache_body) => {
                     let cache_body = task::io::BufWriter::new(cache_body);
+                    let len = body.len();
                     let cache_copy = McBufReader::new(body);
                     let body_copy = cache_copy.clone();
 
@@ -574,7 +581,11 @@ mod file_cache {
                         }
                     });
 
-                    Body::from_reader(body_copy)
+                    if let Some(len) = len {
+                        Body::from_reader_sized(body_copy, len)
+                    } else {
+                        Body::from_reader(body_copy)
+                    }
                 }
                 Err(e) => {
                     tracing::error!("cache body create error, {:?}", e);
