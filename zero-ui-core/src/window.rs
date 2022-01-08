@@ -1340,7 +1340,7 @@ impl AppWindow {
             // resize view
             self.size = size;
             if let Some(w) = &self.headed {
-                let _ = w.set_size(dbg!(size));
+                let _ = w.set_size(size);
             } else if let Some(s) = &self.headless_surface {
                 let _ = s.set_size(size, self.headless_monitor.as_ref().map(|m| m.scale_factor).unwrap_or(Factor(1.0)));
             } else {
@@ -1406,7 +1406,10 @@ impl AppWindow {
             let _s = tracing::trace_span!("resize/layout").entered();
             self.size = size;
             if let Some(w) = &self.headed {
-                let _ = w.set_size(size);
+                // check normal because can change size while maximized when the system DPI changes.
+                if let WindowState::Normal = self.vars.state().copy(ctx) {
+                    let _ = w.set_size(size);
+                }
             } else if let Some(s) = &self.headless_surface {
                 let _ = s.set_size(size, self.headless_monitor.as_ref().map(|m| m.scale_factor).unwrap_or(Factor(1.0)));
             } else {
