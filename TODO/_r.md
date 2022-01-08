@@ -1,7 +1,9 @@
 # Http Cache
 
 * What to do when a download is cancelled?
-  - For now the cache download just keeps going when requested with `bytes_limited`.
+  - The problem in image is resolved with new `max_length` config on request.
+
+* task::http::Error display message writes "unknown error" for our custom IO errors.
 
 --
 

@@ -412,6 +412,62 @@ impl From<CloneableError> for Error {
     }
 }
 
+/// Represents a future that generates an error if an [`AsyncRead`] exceeds a limit.
+pub struct ReadLimited<S, L> {
+    source: S,
+    limit: usize,
+    on_limit: L,
+}
+impl<S, L> ReadLimited<S, L>
+where
+    S: AsyncRead,
+    L: Fn() -> std::io::Error,
+{
+    /// Construct a limited reader.
+    ///
+    /// The `on_limit` closure is called if the limit is reached.
+    pub fn new(source: S, limit: ByteLength, on_limit: L) -> Self {
+        Self {
+            source,
+            limit: limit.0,
+            on_limit,
+        }
+    }
+}
+impl<S, L> AsyncRead for ReadLimited<S, L>
+where
+    S: AsyncRead,
+    L: Fn() -> std::io::Error,
+{
+    fn poll_read(self: Pin<&mut Self>, cx: &mut task::Context<'_>, mut buf: &mut [u8]) -> Poll<Result<usize>> {
+        // SAFETY: we don't move anything.
+        let self_ = unsafe { self.get_unchecked_mut() };
+
+        if self_.limit == 0 {
+            let err = (self_.on_limit)();
+            return Poll::Ready(Err(err));
+        }
+
+        if buf.len() > self_.limit {
+            buf = &mut buf[..self_.limit];
+        }
+
+        // SAFETY: we never move `source`.
+        match unsafe { Pin::new_unchecked(&mut self_.source) }.poll_read(cx, buf) {
+            Poll::Ready(Ok(l)) => {
+                self_.limit = self_.limit.saturating_sub(l);
+                if self_.limit == 0 {
+                    let err = (self_.on_limit)();
+                    Poll::Ready(Err(err))
+                } else {
+                    Poll::Ready(Ok(l))
+                }
+            }
+            r => r,
+        }
+    }
+}
+
 enum ReadState {
     Running,
     Eof,

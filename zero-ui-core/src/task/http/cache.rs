@@ -217,7 +217,7 @@ pub struct CacheKey([u8; 32]);
 impl CacheKey {
     /// Compute key from request.
     pub fn from_request(request: &super::Request) -> Self {
-        Self::new(&request.0)
+        Self::new(&request.req)
     }
 
     pub(super) fn new(request: &isahc::Request<super::Body>) -> Self {
@@ -673,7 +673,7 @@ mod tests {
         let response = Response::new_message(StatusCode::OK, "test content.");
 
         let key = CacheKey::from_request(&request);
-        let policy = CachePolicy::new(&request.0, &response.0);
+        let policy = CachePolicy::new(&request.req, &response.0);
 
         let (headers, body) = async_test(async move {
             let (parts, body) = response.into_parts();
@@ -705,7 +705,7 @@ mod tests {
         let body = Body::from_reader(task::io::Cursor::new("test content."));
         let response = Response::new(StatusCode::OK, headers, body);
 
-        let policy = CachePolicy::new(&request.0, &response.0);
+        let policy = CachePolicy::new(&request.req, &response.0);
 
         let (headers, body) = async_test(async move {
             let (parts, body) = response.into_parts();
@@ -740,7 +740,7 @@ mod tests {
         let body = Body::from_reader(task::io::Cursor::new("test content."));
         let response = Response::new(StatusCode::OK, headers, body);
 
-        let policy = CachePolicy::new(&request.0, &response.0);
+        let policy = CachePolicy::new(&request.req, &response.0);
 
         async_test(async_clone_move!(key, {
             let (_, body) = response.into_parts();
@@ -776,7 +776,7 @@ mod tests {
         let mut headers = HeaderMap::default();
         headers.insert(header::CONTENT_LENGTH, HeaderValue::from("test content.".len()));
         let response = Response::new(StatusCode::OK, headers, Body::from_reader(task::io::Cursor::new("test content.")));
-        let policy = CachePolicy::new(&request.0, &response.0);
+        let policy = CachePolicy::new(&request.req, &response.0);
 
         let r_policy = async_test(async_clone_move!(policy, {
             let _ = test.set(&key, policy, response.into_parts().1).await.unwrap();
@@ -803,7 +803,7 @@ mod tests {
         headers.insert(header::CONTENT_LENGTH, HeaderValue::from("test content.".len()));
         let body = Body::from_reader(task::io::Cursor::new("test content."));
         let response = Response::new(StatusCode::OK, headers, body);
-        let policy = CachePolicy::new(&request.0, &response.0);
+        let policy = CachePolicy::new(&request.req, &response.0);
 
         async_test(async_clone_move!(key, {
             let _ = test.set(&key, policy, response.into_parts().1).await.unwrap();
@@ -858,7 +858,7 @@ mod tests {
             let body = Body::from_reader(task::io::Cursor::new("test content."));
             let response = Response::new(StatusCode::OK, headers, body);
 
-            let policy = CachePolicy::new(&request.0, &response.0);
+            let policy = CachePolicy::new(&request.req, &response.0);
 
             let (headers, body) = async_test(async move {
                 let (parts, body) = response.into_parts();

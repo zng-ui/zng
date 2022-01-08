@@ -626,7 +626,12 @@ impl Images {
                         // for image crate:
                         // image/webp decoder is only grayscale: https://docs.rs/image/0.23.14/image/codecs/webp/struct.WebPDecoder.html
                         // image/avif decoder does not build in Windows
-                        let request = Request::get(uri).unwrap().header(header::ACCEPT, accept).unwrap().build();
+                        let request = Request::get(uri)
+                            .unwrap()
+                            .header(header::ACCEPT, accept)
+                            .unwrap()
+                            .max_length(max_encoded_size)
+                            .build();
 
                         match http::send(request).await {
                             Ok(mut rsp) => {
@@ -637,21 +642,8 @@ impl Images {
                                     }
                                 }
 
-                                if let Some(len) = rsp.content_len() {
-                                    if len > max_encoded_size {
-                                        r.r = Err(format!("file size `{}` exceeds the limit of `{}`", len, max_encoded_size));
-                                        return r;
-                                    }
-                                }
-
-                                match rsp.bytes_limited(max_encoded_size.saturating_add(1.bytes())).await {
-                                    Ok(d) => {
-                                        if d.len().bytes() > max_encoded_size {
-                                            r.r = Err(format!("download exceeded the limit of `{}`", max_encoded_size));
-                                        } else {
-                                            r.r = Ok(IpcBytes::from_vec(d))
-                                        }
-                                    }
+                                match rsp.bytes().await {
+                                    Ok(d) => r.r = Ok(IpcBytes::from_vec(d)),
                                     Err(e) => {
                                         r.r = Err(format!("download error: {}", e));
                                     }

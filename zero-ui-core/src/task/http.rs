@@ -147,7 +147,10 @@ impl TryHeaderValue for Text {
 ///
 /// Use [`send`] to send a request.
 #[derive(Debug)]
-pub struct Request(isahc::Request<Body>);
+pub struct Request {
+    req: isahc::Request<Body>,
+    limits: ResponseLimits,
+}
 impl Request {
     /// Starts an empty builder.
     ///
@@ -167,7 +170,7 @@ impl Request {
     /// [`build`]: RequestBuilder::build
     /// [`body`]: RequestBuilder::body
     pub fn builder() -> RequestBuilder {
-        RequestBuilder(isahc::Request::builder())
+        RequestBuilder::start(isahc::Request::builder())
     }
 
     /// Starts building a GET request.
@@ -182,7 +185,7 @@ impl Request {
     /// # Ok(()) }
     /// ```
     pub fn get(uri: impl TryUri) -> Result<RequestBuilder, Error> {
-        Ok(RequestBuilder(isahc::Request::get(uri.try_uri()?)))
+        Ok(RequestBuilder::start(isahc::Request::get(uri.try_uri()?)))
     }
 
     /// Starts building a PUT request.
@@ -197,7 +200,7 @@ impl Request {
     /// # Ok(()) }
     /// ```
     pub fn put(uri: impl TryUri) -> Result<RequestBuilder, Error> {
-        Ok(RequestBuilder(isahc::Request::put(uri.try_uri()?)))
+        Ok(RequestBuilder::start(isahc::Request::put(uri.try_uri()?)))
     }
 
     /// Starts building a POST request.
@@ -212,7 +215,7 @@ impl Request {
     /// # Ok(()) }
     /// ```
     pub fn post(uri: impl TryUri) -> Result<RequestBuilder, Error> {
-        Ok(RequestBuilder(isahc::Request::post(uri.try_uri()?)))
+        Ok(RequestBuilder::start(isahc::Request::post(uri.try_uri()?)))
     }
 
     /// Starts building a DELETE request.
@@ -227,7 +230,7 @@ impl Request {
     /// # Ok(()) }
     /// ```
     pub fn delete(uri: impl TryUri) -> Result<RequestBuilder, Error> {
-        Ok(RequestBuilder(isahc::Request::delete(uri.try_uri()?)))
+        Ok(RequestBuilder::start(isahc::Request::delete(uri.try_uri()?)))
     }
 
     /// Starts building a PATCH request.
@@ -242,7 +245,7 @@ impl Request {
     /// # Ok(()) }
     /// ```
     pub fn patch(uri: impl TryUri) -> Result<RequestBuilder, Error> {
-        Ok(RequestBuilder(isahc::Request::patch(uri.try_uri()?)))
+        Ok(RequestBuilder::start(isahc::Request::patch(uri.try_uri()?)))
     }
 
     /// Starts building a HEAD request.
@@ -257,22 +260,22 @@ impl Request {
     /// # Ok(()) }
     /// ```
     pub fn head(uri: impl TryUri) -> Result<RequestBuilder, Error> {
-        Ok(RequestBuilder(isahc::Request::head(uri.try_uri()?)))
+        Ok(RequestBuilder::start(isahc::Request::head(uri.try_uri()?)))
     }
 
     /// Returns a reference to the associated URI.
     pub fn uri(&self) -> &Uri {
-        self.0.uri()
+        self.req.uri()
     }
 
     /// Returns a reference to the associated HTTP method.
     pub fn method(&self) -> &Method {
-        self.0.method()
+        self.req.method()
     }
 
     /// Returns a reference to the associated header field map.
     pub fn headers(&self) -> &header::HeaderMap {
-        self.0.headers()
+        self.req.headers()
     }
 
     /// Create a clone of the request method, URI, version and headers, with a new `body`.
@@ -280,15 +283,60 @@ impl Request {
         let body = body.try_body()?;
 
         let mut req = isahc::Request::new(body);
-        *req.method_mut() = self.0.method().clone();
-        *req.uri_mut() = self.0.uri().clone();
-        *req.version_mut() = self.0.version();
+        *req.method_mut() = self.req.method().clone();
+        *req.uri_mut() = self.req.uri().clone();
+        *req.version_mut() = self.req.version();
         let headers = req.headers_mut();
         for (name, value) in self.headers() {
             headers.insert(name.clone(), value.clone());
         }
 
-        Ok(Self(req))
+        Ok(Self {
+            req,
+            limits: self.limits.clone(),
+        })
+    }
+}
+
+#[derive(Debug, Default, Clone)]
+struct ResponseLimits {
+    max_length: Option<ByteLength>,
+    require_length: bool,
+}
+impl ResponseLimits {
+    fn check(&self, response: isahc::Response<isahc::AsyncBody>) -> Result<isahc::Response<isahc::AsyncBody>, Error> {
+        if self.require_length || self.max_length.is_some() {
+            let response = Response(response);
+            if let Some(len) = response.content_len() {
+                if let Some(max) = self.max_length {
+                    if max < len {
+                        return Err(std::io::Error::new(
+                            std::io::ErrorKind::InvalidData,
+                            format!("Content-length of {} exceeds limit of {}", len, max),
+                        )
+                        .into());
+                    }
+                }
+            } else if self.require_length {
+                return Err(std::io::Error::new(std::io::ErrorKind::InvalidData, "Content-Length is required").into());
+            }
+
+            if let Some(max) = self.max_length {
+                let (parts, body) = response.0.into_parts();
+                let response = isahc::Response::from_parts(
+                    parts,
+                    isahc::AsyncBody::from_reader(super::io::ReadLimited::new(body, max, move || {
+                        std::io::Error::new(std::io::ErrorKind::InvalidData, format!("Download reached limit of {}", max))
+                    })),
+                );
+
+                Ok(response)
+            } else {
+                Ok(response.0)
+            }
+        } else {
+            Ok(response)
+        }
     }
 }
 
@@ -296,7 +344,10 @@ impl Request {
 ///
 /// You can use [`Request::builder`] to start an empty builder.
 #[derive(Debug)]
-pub struct RequestBuilder(isahc::http::request::Builder);
+pub struct RequestBuilder {
+    builder: isahc::http::request::Builder,
+    limits: ResponseLimits,
+}
 impl Default for RequestBuilder {
     fn default() -> Self {
         Request::builder()
@@ -308,26 +359,45 @@ impl RequestBuilder {
         Request::builder()
     }
 
+    fn start(builder: isahc::http::request::Builder) -> Self {
+        Self {
+            builder,
+            limits: ResponseLimits::default(),
+        }
+    }
+
     /// Set the HTTP method for this request.
     pub fn method(self, method: impl TryMethod) -> Result<Self, Error> {
-        Ok(Self(self.0.method(method.try_method()?)))
+        Ok(Self {
+            builder: self.builder.method(method.try_method()?),
+            limits: self.limits,
+        })
     }
 
     /// Set the URI for this request.
     pub fn uri(self, uri: impl TryUri) -> Result<Self, Error> {
-        Ok(Self(self.0.uri(uri.try_uri()?)))
+        Ok(Self {
+            builder: self.builder.uri(uri.try_uri()?),
+            limits: self.limits,
+        })
     }
 
     /// Appends a header to this request.
     pub fn header(self, name: impl TryHeaderName, value: impl TryHeaderValue) -> Result<Self, Error> {
-        Ok(Self(self.0.header(name.try_header_name()?, value.try_header_value()?)))
+        Ok(Self {
+            builder: self.builder.header(name.try_header_name()?, value.try_header_value()?),
+            limits: self.limits,
+        })
     }
 
     /// Set a cookie jar to use to accept, store, and supply cookies for incoming responses and outgoing requests.
     ///
     /// Note that the [`default_client`] already has a cookie jar.
     pub fn cookie_jar(self, cookie_jar: CookieJar) -> Self {
-        Self(self.0.cookie_jar(cookie_jar))
+        Self {
+            builder: self.builder.cookie_jar(cookie_jar),
+            limits: self.limits,
+        }
     }
 
     /// Specify a maximum amount of time that a complete request/response cycle is allowed to
@@ -341,21 +411,30 @@ impl RequestBuilder {
     ///
     /// [`TimedOut`]: https://doc.rust-lang.org/nightly/std/io/enum.ErrorKind.html#variant.TimedOut
     pub fn timeout(self, timeout: Duration) -> Self {
-        Self(self.0.timeout(timeout))
+        Self {
+            builder: self.builder.timeout(timeout),
+            limits: self.limits,
+        }
     }
 
     /// Set a timeout for establishing connections to a host.
     ///
     /// If not set, the [`default_client`] default of 90 seconds will be used.
     pub fn connect_timeout(self, timeout: Duration) -> Self {
-        Self(self.0.connect_timeout(timeout))
+        Self {
+            builder: self.builder.connect_timeout(timeout),
+            limits: self.limits,
+        }
     }
 
     /// Specify a maximum amount of time where transfer rate can go below a minimum speed limit.
     ///
     /// The `low_speed` limit is in bytes/s. No low-speed limit is configured by default.
     pub fn low_speed_timeout(self, low_speed: u32, timeout: Duration) -> Self {
-        Self(self.0.low_speed_timeout(low_speed, timeout))
+        Self {
+            builder: self.builder.low_speed_timeout(low_speed, timeout),
+            limits: self.limits,
+        }
     }
 
     /// Set a policy for automatically following server redirects.
@@ -365,9 +444,15 @@ impl RequestBuilder {
     /// The [`default_client`] follows up-to 20 redirects.
     pub fn redirect_policy(self, policy: RedirectPolicy) -> Self {
         if !matches!(policy, RedirectPolicy::None) {
-            Self(self.0.redirect_policy(policy).auto_referer())
+            Self {
+                builder: self.builder.redirect_policy(policy).auto_referer(),
+                limits: self.limits,
+            }
         } else {
-            Self(self.0.redirect_policy(policy))
+            Self {
+                builder: self.builder.redirect_policy(policy),
+                limits: self.limits,
+            }
         }
     }
 
@@ -379,17 +464,46 @@ impl RequestBuilder {
     ///
     /// [`header`]: Self::header
     pub fn auto_decompress(self, enabled: bool) -> Self {
-        Self(self.0.automatic_decompression(enabled))
+        Self {
+            builder: self.builder.automatic_decompression(enabled),
+            limits: self.limits,
+        }
     }
 
     /// Set a maximum upload speed for the request body, in bytes per second.
     pub fn max_upload_speed(self, max: u64) -> Self {
-        Self(self.0.max_upload_speed(max))
+        Self {
+            builder: self.builder.max_upload_speed(max),
+            limits: self.limits,
+        }
     }
 
     /// Set a maximum download speed for the response body, in bytes per second.
     pub fn max_download_speed(self, max: u64) -> Self {
-        Self(self.0.max_download_speed(max))
+        Self {
+            builder: self.builder.max_download_speed(max),
+            limits: self.limits,
+        }
+    }
+
+    /// Set the maximum response content length allowed.
+    ///
+    /// If the `Content-Length` is present on the response and it exceeds this limit an error is
+    /// returned immediately, otherwise if [`require_length`] is not enabled an error will be returned
+    /// only when the downloaded body length exceeds the limit.
+    ///
+    /// No limit by default.
+    ///
+    /// [`require_length`]: Self::require_length
+    pub fn max_length(mut self, max: ByteLength) -> Self {
+        self.limits.max_length = Some(max);
+        self
+    }
+
+    /// Set if the `Content-Length` header must be present in the response.
+    pub fn require_length(mut self, require: bool) -> Self {
+        self.limits.require_length = require;
+        self
     }
 
     /// Enable or disable metrics collecting.
@@ -398,7 +512,10 @@ impl RequestBuilder {
     ///
     /// This is enabled by default.
     pub fn metrics(self, enable: bool) -> Self {
-        Self(self.0.metrics(enable))
+        Self {
+            builder: self.builder.metrics(enable),
+            limits: self.limits,
+        }
     }
 
     /// Build the request without a body.
@@ -408,7 +525,10 @@ impl RequestBuilder {
 
     /// Build the request with a body.
     pub fn body(self, body: impl TryBody) -> Result<Request, Error> {
-        Ok(Request(self.0.body(body.try_body()?).unwrap()))
+        Ok(Request {
+            req: self.builder.body(body.try_body()?).unwrap(),
+            limits: self.limits,
+        })
     }
 
     /// Build the request with more custom build calls in the [inner builder].
@@ -418,8 +538,11 @@ impl RequestBuilder {
     where
         F: FnOnce(isahc::http::request::Builder) -> isahc::http::Result<isahc::Request<isahc::AsyncBody>>,
     {
-        let req = custom(self.0)?;
-        Ok(Request(req.map(Body)))
+        let req = custom(self.builder)?;
+        Ok(Request {
+            req: req.map(Body),
+            limits: self.limits,
+        })
     }
 }
 
@@ -469,11 +592,6 @@ impl Response {
     /// Read the response body as raw bytes.
     pub async fn bytes(&mut self) -> std::io::Result<Vec<u8>> {
         Body::bytes_impl(self.0.body_mut()).await
-    }
-
-    /// Read at most `limit` bytes from the response body.
-    pub async fn bytes_limited(&mut self, limit: ByteLength) -> std::io::Result<Vec<u8>> {
-        Body::bytes_limited_impl(self.0.body_mut(), limit).await
     }
 
     /// Read some bytes from the body, returns how many bytes where read.
@@ -628,24 +746,6 @@ impl Body {
         let bytes = self.bytes().await?;
         let r = String::from_utf8(bytes)?;
         Ok(r)
-    }
-
-    /// Read at most `limit` bytes from the body.
-    pub async fn bytes_limited(&mut self, limit: ByteLength) -> std::io::Result<Vec<u8>> {
-        Self::bytes_limited_impl(&mut self.0, limit).await
-    }
-
-    async fn bytes_limited_impl(body: &mut isahc::AsyncBody, limit: ByteLength) -> std::io::Result<Vec<u8>> {
-        if let Some(len) = body.len() {
-            let cap = len.min(limit.0 as u64);
-            let mut bytes = Vec::with_capacity(cap as usize);
-            super::io::copy(body.take(cap), &mut bytes).await?;
-            Ok(bytes)
-        } else {
-            let mut bytes = vec![];
-            body.take(limit.0 as u64).read_to_end(&mut bytes).await?;
-            Ok(bytes)
-        }
     }
 
     /// Read some bytes from the body, returns how many bytes where read.
@@ -1113,13 +1213,19 @@ impl Client {
     pub async fn send(&self, request: Request) -> Result<Response, Error> {
         if let Some(db) = &self.cache {
             match self.cache_mode(&request) {
-                CacheMode::NoCache => self.client.send_async(request.0).await.map(Response),
+                CacheMode::NoCache => {
+                    let response = self.client.send_async(request.req).await?;
+                    let response = request.limits.check(response)?;
+                    Ok(Response(response))
+                }
                 CacheMode::Default => self.send_cache_default(&**db, request, 0).await,
                 CacheMode::Permanent => self.send_cache_permanent(&**db, request, 0).await,
                 CacheMode::Error(e) => Err(e),
             }
         } else {
-            self.client.send_async(request.0).await.map(Response)
+            let response = self.client.send_async(request.req).await?;
+            let response = request.limits.check(response)?;
+            Ok(Response(response))
         }
     }
 
@@ -1127,15 +1233,19 @@ impl Client {
     async fn send_cache_default(&self, db: &dyn CacheDb, request: Request, retry_count: u8) -> Result<Response, Error> {
         if retry_count == 3 {
             tracing::error!("retried cache 3 times, skipping cache");
-            return self.client.send_async(request.0).await.map(Response);
+            let response = self.client.send_async(request.req).await?;
+            let response = request.limits.check(response)?;
+            return Ok(Response(response));
         }
 
-        let key = CacheKey::new(&request.0);
+        let key = CacheKey::new(&request.req);
         if let Some(policy) = db.policy(&key).await {
-            match policy.before_request(&request.0) {
+            match policy.before_request(&request.req) {
                 BeforeRequest::Fresh(parts) => {
                     if let Some(body) = db.body(&key).await {
                         let response = isahc::Response::from_parts(parts, body.0);
+                        let response = request.limits.check(response)?;
+
                         Ok(Response(response))
                     } else {
                         tracing::error!("cache returned policy but not body");
@@ -1145,12 +1255,16 @@ impl Client {
                 }
                 BeforeRequest::Stale { request: parts, matches } => {
                     if matches {
-                        let (_, body) = request.0.into_parts();
-                        let request = Request(isahc::Request::from_parts(parts, body));
-                        let policy_request = request.clone_with(()).unwrap().0;
-                        let no_req_body = request.0.body().len().map(|l| l == 0).unwrap_or(false);
+                        let (_, body) = request.req.into_parts();
+                        let request = Request {
+                            req: isahc::Request::from_parts(parts, body),
+                            limits: request.limits,
+                        };
+                        let policy_request = request.clone_with(()).unwrap().req;
+                        let no_req_body = request.req.body().len().map(|l| l == 0).unwrap_or(false);
 
-                        let response = self.client.send_async(request.0).await?;
+                        let response = self.client.send_async(request.req).await?;
+                        let response = request.limits.check(response)?;
 
                         match policy.after_response(&policy_request, &response) {
                             AfterResponse::NotModified(policy, parts) => {
@@ -1165,7 +1279,15 @@ impl Client {
                                     db.remove(&key).await;
 
                                     if no_req_body {
-                                        self.send_cache_default(db, Request(policy_request), retry_count + 1).await
+                                        self.send_cache_default(
+                                            db,
+                                            Request {
+                                                req: policy_request,
+                                                limits: request.limits,
+                                            },
+                                            retry_count + 1,
+                                        )
+                                        .await
                                     } else {
                                         Err(std::io::Error::new(
                                             std::io::ErrorKind::NotFound,
@@ -1180,13 +1302,22 @@ impl Client {
                                     let (_, body) = response.into_parts();
                                     if let Some(body) = db.set(&key, policy, Body(body)).await {
                                         let response = isahc::Response::from_parts(parts, body.0);
+
                                         Ok(Response(response))
                                     } else {
                                         tracing::error!("cache db failed to store body");
                                         db.remove(&key).await;
 
                                         if no_req_body {
-                                            self.send_cache_default(db, Request(policy_request), retry_count + 1).await
+                                            self.send_cache_default(
+                                                db,
+                                                Request {
+                                                    req: policy_request,
+                                                    limits: request.limits,
+                                                },
+                                                retry_count + 1,
+                                            )
+                                            .await
                                         } else {
                                             Err(std::io::Error::new(
                                                 std::io::ErrorKind::NotFound,
@@ -1205,15 +1336,18 @@ impl Client {
                     } else {
                         tracing::error!("cache policy did not match request, {:?}", request);
                         db.remove(&key).await;
-                        self.client.send_async(request.0).await.map(Response)
+                        let response = self.client.send_async(request.req).await?;
+                        let response = request.limits.check(response)?;
+                        Ok(Response(response))
                     }
                 }
             }
         } else {
-            let no_req_body = request.0.body().len().map(|l| l == 0).unwrap_or(false);
-            let policy_request = request.clone_with(()).unwrap().0;
+            let no_req_body = request.req.body().len().map(|l| l == 0).unwrap_or(false);
+            let policy_request = request.clone_with(()).unwrap().req;
 
-            let response = self.client.send_async(request.0).await?;
+            let response = self.client.send_async(request.req).await?;
+            let response = request.limits.check(response)?;
 
             let policy = CachePolicy::new(&policy_request, &response);
 
@@ -1229,7 +1363,15 @@ impl Client {
                     db.remove(&key).await;
 
                     if no_req_body {
-                        self.send_cache_default(db, Request(policy_request), retry_count + 1).await
+                        self.send_cache_default(
+                            db,
+                            Request {
+                                req: policy_request,
+                                limits: request.limits,
+                            },
+                            retry_count + 1,
+                        )
+                        .await
                     } else {
                         Err(std::io::Error::new(std::io::ErrorKind::NotFound, "cache db failed to store body, cannot auto-retry").into())
                     }
@@ -1244,15 +1386,18 @@ impl Client {
     async fn send_cache_permanent(&self, db: &dyn CacheDb, request: Request, retry_count: u8) -> Result<Response, Error> {
         if retry_count == 3 {
             tracing::error!("retried cache 3 times, skipping cache");
-            return self.client.send_async(request.0).await.map(Response);
+            let response = self.client.send_async(request.req).await?;
+            let response = request.limits.check(response)?;
+            return Ok(Response(response));
         }
 
-        let key = CacheKey::new(&request.0);
+        let key = CacheKey::new(&request.req);
         if let Some(policy) = db.policy(&key).await {
             if let Some(body) = db.body(&key).await {
-                match policy.before_request(&request.0) {
+                match policy.before_request(&request.req) {
                     BeforeRequest::Fresh(p) => {
                         let response = isahc::Response::from_parts(p, body.0);
+                        let response = request.limits.check(response)?;
 
                         if !policy.is_permanent() {
                             db.set_policy(&key, CachePolicy::new_permanent(&response)).await;
@@ -1263,10 +1408,13 @@ impl Client {
                     BeforeRequest::Stale { request: parts, .. } => {
                         // policy was not permanent when cached
 
-                        let (_, req_body) = request.0.into_parts();
+                        let limits = request.limits.clone();
+
+                        let (_, req_body) = request.req.into_parts();
                         let request = isahc::Request::from_parts(parts, req_body);
 
                         let response = self.client.send_async(request).await?;
+                        let response = limits.check(response)?;
 
                         let (parts, _) = response.into_parts();
 
@@ -1283,13 +1431,14 @@ impl Client {
                 self.send_cache_permanent(db, request, retry_count + 1).await
             }
         } else {
-            let backup_request = if request.0.body().len().map(|l| l == 0).unwrap_or(false) {
+            let backup_request = if request.req.body().len().map(|l| l == 0).unwrap_or(false) {
                 Some(request.clone_with(()).unwrap())
             } else {
                 None
             };
 
-            let response = self.client.send_async(request.0).await?;
+            let response = self.client.send_async(request.req).await?;
+            let response = request.limits.check(response)?;
             let policy = CachePolicy::new_permanent(&response);
 
             let (parts, body) = response.into_parts();
