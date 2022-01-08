@@ -22,6 +22,7 @@ mod cache;
 pub use cache::*;
 
 use std::convert::TryFrom;
+use std::error::Error as StdError;
 use std::pin::Pin;
 use std::sync::Arc;
 use std::time::Duration;
@@ -32,7 +33,6 @@ use super::io::AsyncRead;
 use isahc::config::Configurable;
 pub use isahc::config::RedirectPolicy;
 pub use isahc::cookies::{Cookie, CookieJar};
-pub use isahc::error::{Error, ErrorKind};
 pub use isahc::http::{header, uri, Method, StatusCode, Uri};
 
 use futures_lite::io::{AsyncReadExt, BufReader};
@@ -310,15 +310,14 @@ impl ResponseLimits {
             if let Some(len) = response.content_len() {
                 if let Some(max) = self.max_length {
                     if max < len {
-                        return Err(std::io::Error::new(
-                            std::io::ErrorKind::InvalidData,
-                            format!("Content-length of {} exceeds limit of {}", len, max),
-                        )
-                        .into());
+                        return Err(Error::MaxLength {
+                            content_length: Some(len),
+                            max_length: max,
+                        });
                     }
                 }
             } else if self.require_length {
-                return Err(std::io::Error::new(std::io::ErrorKind::InvalidData, "Content-Length is required").into());
+                return Err(Error::RequireLength);
             }
 
             if let Some(max) = self.max_length {
@@ -326,7 +325,7 @@ impl ResponseLimits {
                 let response = isahc::Response::from_parts(
                     parts,
                     isahc::AsyncBody::from_reader(super::io::ReadLimited::new(body, max, move || {
-                        std::io::Error::new(std::io::ErrorKind::InvalidData, format!("Download reached limit of {}", max))
+                        std::io::Error::new(std::io::ErrorKind::InvalidData, MaxLengthError(None, max))
                     })),
                 );
 
@@ -1708,3 +1707,98 @@ impl ClientBuilder {
         }
     }
 }
+
+/// An error encountered while sending an HTTP request or receiving an HTTP response using a [`Client`].
+#[derive(Debug, Clone)]
+#[non_exhaustive]
+pub enum Error {
+    /// Error from the HTTP client.
+    Client(isahc::Error),
+    /// Error when [`max_length`] validation fails at the header or after streaming download.
+    ///
+    /// [`max_length`]: RequestBuilder::max_length
+    MaxLength {
+        /// The `Content-Length` header value, if it was set.
+        content_length: Option<ByteLength>,
+        /// The maximum allowed length.
+        max_length: ByteLength,
+    },
+    /// Error when [`require_length`] is set, but a response was sent without the `Content-Length` header.
+    ///
+    /// [`require_length`]: RequestBuilder::require_length
+    RequireLength,
+}
+impl StdError for Error {
+    fn source(&self) -> Option<&(dyn StdError + 'static)> {
+        match self {
+            Error::Client(e) => Some(e),
+            _ => None,
+        }
+    }
+}
+impl From<isahc::Error> for Error {
+    fn from(e: isahc::Error) -> Self {
+        if let Some(e) = e
+            .source()
+            .and_then(|e| e.downcast_ref::<std::io::Error>())
+            .and_then(|e| e.get_ref())
+        {
+            if let Some(e) = e.downcast_ref::<MaxLengthError>() {
+                return Error::MaxLength {
+                    content_length: e.0,
+                    max_length: e.1,
+                };
+            }
+            if e.downcast_ref::<RequireLengthError>().is_some() {
+                return Error::RequireLength;
+            }
+        }
+        Error::Client(e)
+    }
+}
+impl From<isahc::http::Error> for Error {
+    fn from(e: isahc::http::Error) -> Self {
+        isahc::Error::from(e).into()
+    }
+}
+impl From<std::io::Error> for Error {
+    fn from(e: std::io::Error) -> Self {
+        isahc::Error::from(e).into()
+    }
+}
+impl fmt::Display for Error {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Error::Client(e) => write!(f, "{}", e),
+            Error::MaxLength {
+                content_length,
+                max_length,
+            } => write!(f, "{}", MaxLengthError(*content_length, *max_length)),
+            Error::RequireLength => write!(f, "{}", RequireLengthError),
+        }
+    }
+}
+
+// Error types smuggled inside an io::Error inside the isahc::Error.
+
+#[derive(Debug)]
+struct MaxLengthError(Option<ByteLength>, ByteLength);
+impl fmt::Display for MaxLengthError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if let Some(l) = self.0 {
+            write!(f, "content-length of {} exceeds limit of {}", l, self.1)
+        } else {
+            write!(f, "download reached limit of {}", self.1)
+        }
+    }
+}
+impl StdError for MaxLengthError {}
+
+#[derive(Debug)]
+struct RequireLengthError;
+impl fmt::Display for RequireLengthError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "content-length is required")
+    }
+}
+impl StdError for RequireLengthError {}
