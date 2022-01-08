@@ -598,7 +598,7 @@ mod blit {
         target_os = "netbsd",
         target_os = "openbsd",
     ))]
-    pub type Impl = NotImplementedBlit;
+    pub type Impl = linux_blit::XLibOrWaylandBlit;
 
     #[allow(unused)]
     pub struct NotImplementedBlit {}
@@ -694,5 +694,48 @@ mod blit {
         target_os = "netbsd",
         target_os = "openbsd",
     ))]
-    mod linux_blit {}
+    mod linux_blit {
+        use glutin::platform::unix::{WindowExtUnix, x11::ffi::{Xlib, _XDisplay}};
+
+        pub enum XLibOrWaylandBlit {
+            XLib {
+                display: *mut _XDisplay,
+            },
+            Wayland {
+
+            },
+        }
+
+        impl XLibOrWaylandBlit {
+            pub fn new(window: &glutin::window::Window) -> Self {
+                if let Some(d) = window.xlib_display() {
+                    let xlib = Xlib::open().unwrap();                    
+                    todo!()
+                } else if let Some(_d) = window.wayland_display() {
+                    todo!("wayland software blit not implemented yet")
+                } else {
+                    panic!("window does not use XLib nor Wayland");
+                }
+            }
+
+            pub fn supported() -> bool {
+                true
+            }
+
+            pub fn blit(&mut self, width: i32, height: i32, frame: &super::Bgra8) {
+                match self {
+                    XLibOrWaylandBlit::XLib { display } => Self::xlib_blit(*display, width, height, frame),
+                    XLibOrWaylandBlit::Wayland {  } => Self::wayland_blit(width, height, frame),
+                }
+            }
+
+            fn xlib_blit(display: *mut _XDisplay, width: i32, height: i32, frame: &super::Bgra8) {
+                todo!()
+            }
+
+            fn wayland_blit(width: i32, height: i32, frame: &super::Bgra8) {
+                todo!()
+            }
+        }
+    }
 }
