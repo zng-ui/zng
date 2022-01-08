@@ -814,7 +814,7 @@ pub fn unlock_ok(file: &impl fs2::FileExt) -> std::io::Result<()> {
             }
 
             #[cfg(unix)]
-            if code = 22 {
+            if code == 22 {
                 // EINVAL
                 return Ok(());
             }
