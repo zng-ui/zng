@@ -695,10 +695,11 @@ mod blit {
         target_os = "openbsd",
     ))]
     mod linux_blit {
-        use glutin::platform::unix::{WindowExtUnix, x11::ffi::{Xlib, _XDisplay}};
+        use glutin::platform::unix::{WindowExtUnix, x11::ffi::*};
 
         pub enum XLibOrWaylandBlit {
             XLib {
+                xlib: Xlib,
                 display: *mut _XDisplay,
             },
             Wayland {
@@ -708,9 +709,11 @@ mod blit {
 
         impl XLibOrWaylandBlit {
             pub fn new(window: &glutin::window::Window) -> Self {
-                if let Some(d) = window.xlib_display() {
-                    let xlib = Xlib::open().unwrap();                    
-                    todo!()
+                if let Some(d) = window.xlib_display() {                
+                    Self::XLib {
+                        xlib: Xlib::open().unwrap(),
+                        display: d as _,
+                    }
                 } else if let Some(_d) = window.wayland_display() {
                     todo!("wayland software blit not implemented yet")
                 } else {
@@ -724,13 +727,24 @@ mod blit {
 
             pub fn blit(&mut self, width: i32, height: i32, frame: &super::Bgra8) {
                 match self {
-                    XLibOrWaylandBlit::XLib { display } => Self::xlib_blit(*display, width, height, frame),
+                    XLibOrWaylandBlit::XLib { xlib, display } => unsafe {
+                        Self::xlib_blit(xlib, *display, width as _, height as _, frame)
+                    },
                     XLibOrWaylandBlit::Wayland {  } => Self::wayland_blit(width, height, frame),
                 }
             }
 
-            fn xlib_blit(display: *mut _XDisplay, width: i32, height: i32, frame: &super::Bgra8) {
-                todo!()
+            unsafe fn xlib_blit(xlib: &Xlib, display: *mut _XDisplay, width: u32, height: u32, frame: &super::Bgra8) {
+                let screen = (xlib.XDefaultScreen)(display);
+
+                let mut info: XVisualInfo = std::mem::zeroed();
+                if (xlib.XMatchVisualInfo)(display, screen, 24, TrueColor, &mut info) != 0 {
+                    panic!("no compatible xlib visual")
+                }
+
+                let frame: *const [u8] = frame;
+                let mut img = (xlib.XCreateImage)(display, info.visual, 32, ZPixmap, 0, frame as _, width as _, height as _, 8, (width * 4) as i32);
+                // (xlib.XPutImage)(display, d, gc, &mut img, 0, 0, 0, 0, width, height);
             }
 
             fn wayland_blit(width: i32, height: i32, frame: &super::Bgra8) {
