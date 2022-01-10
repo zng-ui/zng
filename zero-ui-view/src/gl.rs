@@ -698,10 +698,12 @@ mod blit {
     ))]
     mod linux_blit {
         use glutin::platform::unix::{x11::ffi::*, WindowExtUnix};
+        use wayland_client::protocol::wl_surface::WlSurface;
 
+        #[allow(clippy::large_enum_variant)]
         pub enum XLibOrWaylandBlit {
             XLib { xlib: Xlib, display: *mut _XDisplay, window: u64 },
-            Wayland {},
+            Wayland { surface: *const WlSurface },
         }
 
         impl XLibOrWaylandBlit {
@@ -712,8 +714,8 @@ mod blit {
                         display: d as _,
                         window: window.xlib_window().unwrap(),
                     }
-                } else if let Some(_d) = window.wayland_surface() {
-                    todo!("wayland software blit not implemented yet")
+                } else if let Some(d) = window.wayland_surface() {
+                    Self::Wayland { surface: d as _ }
                 } else {
                     panic!("window does not use XLib nor Wayland");
                 }
@@ -728,7 +730,7 @@ mod blit {
                     XLibOrWaylandBlit::XLib { xlib, display, window } => unsafe {
                         Self::xlib_blit(xlib, *display, *window, width as _, height as _, frame)
                     },
-                    XLibOrWaylandBlit::Wayland {} => Self::wayland_blit(width, height, frame),
+                    XLibOrWaylandBlit::Wayland { surface } => unsafe { Self::wayland_blit(*surface, width, height, frame) },
                 }
             }
 
@@ -770,8 +772,8 @@ mod blit {
                 // (xlib.XDestroyImage)(img);
             }
 
-            fn wayland_blit(width: i32, height: i32, frame: &super::Bgra8) {
-                let _ = (width, height, frame);
+            unsafe fn wayland_blit(surface: *const WlSurface, width: i32, height: i32, frame: &super::Bgra8) {
+                let _ = (surface, width, height, frame);
                 todo!("wayland blit not implemented")
             }
         }

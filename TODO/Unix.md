@@ -2,9 +2,7 @@
 
 Things TODO or FIX for Ubuntu builds.
 
-* Implement software backend blit.
-   -X11
-   -Wayland
+* Implement Wayland backend blit.
 
 * Implement zero_ui_view::config functions if possible.
 * No fonts found, caused fallback code to run and fails too, start fixing from fallback.
