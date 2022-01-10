@@ -442,7 +442,7 @@ impl FontFace {
 
         let face = harfbuzz_rs::Face::new(bytes.clone(), face_index);
         if face.glyph_count() == 0 {
-            return Err(FontLoadingError::Parse);
+            return Err(FontLoadingError::Io(std::io::Error::new(std::io::ErrorKind::InvalidData, "glyph_count is zero")));
         }
 
         Ok(FontFace {
@@ -1121,7 +1121,7 @@ impl FontFaceLoader {
                     return Some(f); // new match
                 }
                 Err(e) => {
-                    tracing::error!(target: "font_loading", "failed to load system font, {}", e);
+                    tracing::error!(target: "font_loading", "failed to load system font, {}\nquery: {:?}", e, (font_name, style, weight, stretch));
                 }
             }
         } else {
@@ -1145,7 +1145,7 @@ impl FontFaceLoader {
         {
             Ok(handle) => Some(handle),
             Err(e) => {
-                tracing::error!(target: "font_loading", "failed to select system font, {}", e);
+                tracing::error!(target: "font_loading", "failed to select system font, {}\nquery: {:?}", e, (font_name, style, weight, stretch));
                 None
             }
         }
