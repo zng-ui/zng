@@ -22,6 +22,7 @@ pub(crate) struct GlContext {
     gl: Rc<dyn Gl>,
 }
 
+#[allow(clippy::large_enum_variant)]
 enum GlContextInner {
     Headed(glutin::ContextWrapper<PossiblyCurrent, ()>),
     Headless(HeadlessData),
@@ -576,6 +577,7 @@ impl fmt::Debug for GlContextInner {
 
 #[cfg(software)]
 mod blit {
+    /// Bottom-top BGRA8.
     pub type Bgra8 = [u8];
 
     #[cfg(not(any(
@@ -710,7 +712,7 @@ mod blit {
                         display: d as _,
                         window: window.xlib_window().unwrap(),
                     }
-                } else if let Some(_d) = window.wayland_display() {
+                } else if let Some(_d) = window.wayland_surface() {
                     todo!("wayland software blit not implemented yet")
                 } else {
                     panic!("window does not use XLib nor Wayland");
@@ -738,11 +740,17 @@ mod blit {
                     panic!("no compatible xlib visual")
                 }
 
+                let mut top_down_frame = Vec::with_capacity(frame.len());
+                let line_len = width as usize * 4;
+                for line in frame.chunks_exact(line_len).rev() {
+                    top_down_frame.extend_from_slice(line);
+                }
+                let frame = top_down_frame.as_ptr();
+
                 let mut opts: XGCValues = std::mem::zeroed();
                 opts.graphics_exposures = 0;
                 let ctx = (xlib.XCreateGC)(display, window, GCGraphicsExposures as _, &mut opts);
 
-                let frame: *const [u8] = frame;
                 let img = (xlib.XCreateImage)(
                     display,
                     info.visual,
@@ -753,16 +761,18 @@ mod blit {
                     width as _,
                     height as _,
                     8,
-                    (width * 4) as i32,
+                    line_len as i32,
                 );
 
                 (xlib.XPutImage)(display, window, ctx, img, 0, 0, 0, 0, width, height);
 
                 (xlib.XFreeGC)(display, ctx);
+                // (xlib.XDestroyImage)(img);
             }
 
             fn wayland_blit(width: i32, height: i32, frame: &super::Bgra8) {
-                todo!()
+                let _ = (width, height, frame);
+                todo!("wayland blit not implemented")
             }
         }
     }
