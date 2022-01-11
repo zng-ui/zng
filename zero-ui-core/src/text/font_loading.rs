@@ -1536,25 +1536,28 @@ impl CustomFont {
 impl From<font_kit::family_name::FamilyName> for FontName {
     #[inline]
     fn from(family_name: font_kit::family_name::FamilyName) -> Self {
+        use font_kit::family_name::FamilyName::*;
+
         match family_name {
-            font_kit::family_name::FamilyName::Title(title) => FontName::new(title),
-            font_kit::family_name::FamilyName::Serif => FontName::serif(),
-            font_kit::family_name::FamilyName::SansSerif => FontName::sans_serif(),
-            font_kit::family_name::FamilyName::Monospace => FontName::monospace(),
-            font_kit::family_name::FamilyName::Cursive => FontName::cursive(),
-            font_kit::family_name::FamilyName::Fantasy => FontName::fantasy(),
+            Title(title) => FontName::new(title),
+            Serif => FontName::serif(),
+            SansSerif => FontName::sans_serif(),
+            Monospace => FontName::monospace(),
+            Cursive => FontName::cursive(),
+            Fantasy => FontName::fantasy(),
         }
     }
 }
 impl From<FontName> for font_kit::family_name::FamilyName {
     fn from(font_name: FontName) -> Self {
+        use font_kit::family_name::FamilyName::*;
         match font_name.name() {
-            "serif" => font_kit::family_name::FamilyName::Serif,
-            "sans-serif" => font_kit::family_name::FamilyName::SansSerif,
-            "monospace" => font_kit::family_name::FamilyName::Monospace,
-            "cursive" => font_kit::family_name::FamilyName::Cursive,
-            "fantasy" => font_kit::family_name::FamilyName::Fantasy,
-            _ => font_kit::family_name::FamilyName::Title(font_name.text.into()),
+            "serif" => Serif,
+            "sans-serif" => SansSerif,
+            "monospace" => Monospace,
+            "cursive" => Cursive,
+            "fantasy" => Fantasy,
+            _ => Title(font_name.text.into()),
         }
     }
 }
