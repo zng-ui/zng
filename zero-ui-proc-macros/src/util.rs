@@ -32,14 +32,6 @@ macro_rules! ident {
     };
 }
 
-/// `quote_spanned!` + `parse_quote!` combo.
-macro_rules! parse_quote_spanned {
-    ( $span:expr => $($tt:tt)+ ) => {{
-        let quoted = quote_spanned!( $span => $($tt)+ );
-        parse_quote!( #quoted )
-    }};
-}
-
 /// Return `$crate::core` where `$crate` is the zero-ui
 /// crate name in the crate using our proc-macros. Or, returns `$crate` where `$crate`
 /// is the zero-ui-core crate if the crate using our proc-macros does not use the main zero-ui crate.

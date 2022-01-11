@@ -5,7 +5,7 @@ use quote::{quote, ToTokens};
 use syn::{
     braced,
     parse::{discouraged::Speculative, Parse, ParseStream},
-    parse_quote,
+    parse_quote, parse_quote_spanned,
     punctuated::Punctuated,
     spanned::Spanned,
     token, Attribute, Expr, FieldValue, Ident, LitBool, Path, Token,
