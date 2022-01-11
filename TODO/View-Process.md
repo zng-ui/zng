@@ -10,3 +10,6 @@
   - Test OpenGl 1.1, virtual machines.
 
 * Review screenshot, are we using webrender "async" screenshot correctly?
+
+* Review/detect view <==> app-process communication deadlock that happens in some rare cases (don't know how to trigger it). This is expressed as the layout not centering/adjusting when the window is resized, as well as the window not closing when the close button is clicked.
+  - This time it happened when in RenderMode::Software, once, and then didn't happen again.

@@ -41,7 +41,7 @@ pub struct Controller {
     headless: bool,
     same_process: bool,
     device_events: bool,
-    last_respawn: Instant,
+    last_respawn: Option<Instant>,
     fast_respawn_count: u8,
 }
 impl Controller {
@@ -96,7 +96,7 @@ impl Controller {
             headless,
             device_events,
             generation: 1,
-            last_respawn: Instant::now(),
+            last_respawn: None,
             fast_respawn_count: 0,
         };
 
@@ -247,8 +247,7 @@ impl Controller {
 
             #[cfg(feature = "ipc")]
             {
-                tracing::error!(target: "vp_respawn", "channel disconnect, will try respawn");
-                self.respawn_impl(false)
+                self.respawn_impl(true)
             }
         }
     }
@@ -266,10 +265,10 @@ impl Controller {
         }
 
         #[cfg(feature = "ipc")]
-        self.respawn_impl(true);
+        self.respawn_impl(false);
     }
     #[cfg(feature = "ipc")]
-    fn respawn_impl(&mut self, is_respawn: bool) {
+    fn respawn_impl(&mut self, is_crash: bool) {
         let process = if let Some(p) = self.process.take() {
             p
         } else {
@@ -278,21 +277,26 @@ impl Controller {
             }
             return;
         };
+        if is_crash {
+            tracing::error!(target: "vp_respawn", "channel disconnect, will try respawn");
+        }
 
         let t = Instant::now();
-        if t - self.last_respawn < Duration::from_secs(1) {
-            if self.fast_respawn_count == 5 {
-                panic!("disconnect respawn happened 5 times less than 1 second apart");
+        if let Some(last_respawn) = self.last_respawn { 
+            if t - last_respawn < Duration::from_secs(60) {
+                self.fast_respawn_count += 1;
+                if self.fast_respawn_count == 2 {
+                    panic!("disconnect respawn happened 2 times less than 1 minute apart");
+                }
+            } else {
+                self.fast_respawn_count = 0;
             }
-            self.fast_respawn_count += 1;
-        } else {
-            self.fast_respawn_count = 0;
         }
-        self.last_respawn = t;
+        self.last_respawn = Some(t);
 
         // try exit
         let mut killed_by_us = false;
-        if is_respawn {
+        if !is_crash {
             let _ = process.kill();
             killed_by_us = true;
         } else if !matches!(process.try_wait(), Ok(Some(_))) {
