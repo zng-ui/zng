@@ -58,6 +58,17 @@ fn filter(level: &Level, metadata: &tracing::Metadata) -> bool {
         }
     }
 
+    // suppress font-kit warnings:
+    //
+    if metadata.target() == "font_kit::loaders::freetype" {
+        // Suppress "get_type_1_or_sfnt_name(): found invalid platform ID $n"
+        // This does not look fully implemented and generates a lot of warns
+        // with the default Ubuntu font set all with valid plataform IDs.
+        if metadata.line() == Some(735) {
+            return false;
+        }
+    }
+
     true
 }
 

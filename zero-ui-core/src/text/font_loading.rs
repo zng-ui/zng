@@ -399,7 +399,7 @@ impl FontFace {
             // Harfbuzz returns the empty face if data is not a valid font,
             // font-kit already successfully parsed the font above so if must be
             // a format not supported by Harfbuzz.
-            return Err(FontLoadingError::UnknownFormat)
+            return Err(FontLoadingError::UnknownFormat);
         }
 
         Ok(FontFace {
@@ -1154,6 +1154,10 @@ impl FontFaceLoader {
             .select_best_match(&[family_name], &font_kit::properties::Properties { style, weight, stretch })
         {
             Ok(handle) => Some(handle),
+            Err(font_kit::error::SelectionError::NotFound) => {
+                tracing::warn!(target: "font_loading", "system font not found\nquery: {:?}", (font_name, style, weight, stretch));
+                None
+            }
             Err(e) => {
                 tracing::error!(target: "font_loading", "failed to select system font, {}\nquery: {:?}", e, (font_name, style, weight, stretch));
                 None
