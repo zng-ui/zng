@@ -228,33 +228,46 @@ impl Fonts {
 
     /// Gets a font list that best matches the query.
     #[inline]
-    pub fn get_list(&mut self, families: &[FontName], style: FontStyle, weight: FontWeight, stretch: FontStretch) -> FontFaceList {
-        self.loader
-            .get_list(families, style, weight, stretch, &self.generics.fallback[&Script::Unknown])
+    pub fn get_list(
+        &mut self,
+        families: &[FontName],
+        style: FontStyle,
+        weight: FontWeight,
+        stretch: FontStretch,
+        script: Script,
+    ) -> FontFaceList {
+        self.loader.get_list(families, style, weight, stretch, script, &self.generics)
     }
 
     /// Gets a single font face that best matches the query.
     #[inline]
-    pub fn get(&mut self, family: &FontName, style: FontStyle, weight: FontWeight, stretch: FontStretch) -> Option<FontFaceRef> {
-        self.loader.get(family, style, weight, stretch)
+    pub fn get(
+        &mut self,
+        family: &FontName,
+        style: FontStyle,
+        weight: FontWeight,
+        stretch: FontStretch,
+        script: Script,
+    ) -> Option<FontFaceRef> {
+        self.loader.get(family, style, weight, stretch, script, &self.generics)
     }
 
     /// Gets a single font face with all normal properties.
     #[inline]
-    pub fn get_normal(&mut self, family: &FontName) -> Option<FontFaceRef> {
-        self.get(family, FontStyle::Normal, FontWeight::NORMAL, FontStretch::NORMAL)
+    pub fn get_normal(&mut self, family: &FontName, script: Script) -> Option<FontFaceRef> {
+        self.get(family, FontStyle::Normal, FontWeight::NORMAL, FontStretch::NORMAL, script)
     }
 
     /// Gets a single font face with italic italic style and normal weight and stretch.
     #[inline]
-    pub fn get_italic(&mut self, family: &FontName) -> Option<FontFaceRef> {
-        self.get(family, FontStyle::Italic, FontWeight::NORMAL, FontStretch::NORMAL)
+    pub fn get_italic(&mut self, family: &FontName, script: Script) -> Option<FontFaceRef> {
+        self.get(family, FontStyle::Italic, FontWeight::NORMAL, FontStretch::NORMAL, script)
     }
 
     /// Gets a single font face with bold weight and normal style and stretch.
     #[inline]
-    pub fn get_bold(&mut self, family: &FontName) -> Option<FontFaceRef> {
-        self.get(family, FontStyle::Normal, FontWeight::BOLD, FontStretch::NORMAL)
+    pub fn get_bold(&mut self, family: &FontName, script: Script) -> Option<FontFaceRef> {
+        self.get(family, FontStyle::Normal, FontWeight::BOLD, FontStretch::NORMAL, script)
     }
 
     /// Gets all [registered](Self::register) font families.
@@ -369,7 +382,7 @@ impl FontFace {
             }
             FontSource::Alias(other_font) => {
                 let other_font = loader
-                    .get(&other_font, custom_font.style, custom_font.weight, custom_font.stretch)
+                    .get_resolved(&other_font, custom_font.style, custom_font.weight, custom_font.stretch)
                     .ok_or(FontLoadingError::NoSuchFontInCollection)?;
                 return Ok(FontFace {
                     data: other_font.data.clone(),
@@ -1069,12 +1082,19 @@ impl FontFaceLoader {
         style: FontStyle,
         weight: FontWeight,
         stretch: FontStretch,
-        fallback: &FontName,
+        script: Script,
+        generics: &GenericFonts,
     ) -> FontFaceList {
         let mut r = Vec::with_capacity(families.len() + 1);
-        r.extend(families.iter().filter_map(|name| self.get(name, style, weight, stretch)));
+        r.extend(
+            families
+                .iter()
+                .filter_map(|name| self.get(name, style, weight, stretch, script, generics)),
+        );
+        let (fallback, fscript) = generics.fallback(script);
+
         if !families.contains(fallback) {
-            if let Some(fallback) = self.get(fallback, style, weight, stretch) {
+            if let Some(fallback) = self.get(fallback, style, weight, stretch, fscript, generics) {
                 r.push(fallback);
             }
         }
@@ -1091,7 +1111,21 @@ impl FontFaceLoader {
         }
     }
 
-    fn get(&mut self, font_name: &FontName, style: FontStyle, weight: FontWeight, stretch: FontStretch) -> Option<FontFaceRef> {
+    fn get(
+        &mut self,
+        font_name: &FontName,
+        style: FontStyle,
+        weight: FontWeight,
+        stretch: FontStretch,
+        script: Script,
+        generics: &GenericFonts,
+    ) -> Option<FontFaceRef> {
+        let (font_name, _) = generics.resolve(font_name, script).unwrap_or((font_name, script));
+        self.get_resolved(font_name, style, weight, stretch)
+    }
+
+    /// Get a `font_name` that already resolved generic names.
+    fn get_resolved(&mut self, font_name: &FontName, style: FontStyle, weight: FontWeight, stretch: FontStretch) -> Option<FontFaceRef> {
         if let Some(custom_family) = self.custom_fonts.get(font_name) {
             return Some(Self::match_custom(custom_family, style, weight, stretch));
         }
@@ -1327,6 +1361,13 @@ type ScriptMap<V> = linear_map::LinearMap<Script, V>;
 /// Generic fonts configuration for the app.
 ///
 /// This type can be accessed from the [`Fonts`] service.
+///
+/// # Defaults
+///
+/// By default the `serif`, `sans_serif`, `monospace`, `cursive` and `fantasy` are set to their own generic name,
+/// this delegates the resolution to the operating system.
+///
+/// The default `fallback` font is "sans-serif".
 pub struct GenericFonts {
     serif: ScriptMap<FontName>,
     sans_serif: ScriptMap<FontName>,
@@ -1345,15 +1386,14 @@ impl GenericFonts {
             f
         }
         GenericFonts {
-            serif: default("Times New Roman"),
-            sans_serif: default("Arial"),
-            monospace: default("Courier New"),
-            cursive: default("Comic Sans MS"),
-            #[cfg(target_family = "windows")]
-            fantasy: default("Impact"),
-            #[cfg(not(target_family = "windows"))]
-            fantasy: default("Papyrus"),
-            fallback: default("Segoe UI Symbol"),
+            serif: default("serif"),
+            sans_serif: default("sans-serif"),
+            monospace: default("monospace"),
+            cursive: default("cursive"),
+            fantasy: default("fantasy"),
+
+            fallback: default("serif"),
+
             update_sender,
             updates: vec![],
         }
@@ -1365,6 +1405,8 @@ macro_rules! impl_fallback_accessors {
     ///
     /// Returns a font name and the [`Script`] it was registered with. The script
     /// can be the same as requested or [`Script::Unknown`].
+    ///
+    #[doc = "Note that the returned name can still be the generic `\""$name "\"`, this delegates the resolution to the operating system."]
     #[inline]
     pub fn $name(&self, script: Script) -> (&FontName, Script) {
         Self::get_fallback(&self.$name, script)
@@ -1411,6 +1453,27 @@ impl GenericFonts {
     pub fn set_fallback<F: Into<FontName>>(&mut self, script: Script, font_name: F) -> Option<FontName> {
         self.notify(FontChange::Fallback(script));
         self.fallback.insert(script, font_name.into())
+    }
+
+    /// Returns the font name registered for the generic `name`.
+    ///
+    /// The returned [`Script`] is either `script` if it matched exactly or [`Script::Unknown`].
+    ///
+    /// Returns `None` if `name` if not one of the generic font names.
+    pub fn resolve(&self, name: &FontName, script: Script) -> Option<(&FontName, Script)> {
+        if name == &FontName::serif() {
+            Some(self.serif(script))
+        } else if name == &FontName::sans_serif() {
+            Some(self.sans_serif(script))
+        } else if name == &FontName::monospace() {
+            Some(self.monospace(script))
+        } else if name == &FontName::cursive() {
+            Some(self.cursive(script))
+        } else if name == &FontName::fantasy() {
+            Some(self.fantasy(script))
+        } else {
+            None
+        }
     }
 
     fn notify(&mut self, change: FontChange) {
