@@ -24,6 +24,10 @@ fn app_main() {
             content = image();
             auto_size = true;
 
+            // use the CPU only backend if available, by default the
+            // same GPU used for headed windows is used.
+            render_mode = zero_ui::core::window::RenderMode::Software;
+
             // capture the first frame.
             frame_capture_mode = FrameCaptureMode::Next;
 
