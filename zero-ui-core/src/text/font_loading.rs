@@ -396,7 +396,10 @@ impl FontFace {
 
         let face = harfbuzz_rs::Face::new(bytes.clone(), face_index);
         if face.glyph_count() == 0 {
-            return Err(FontLoadingError::Parse);
+            // Harfbuzz returns the empty face if data is not a valid font,
+            // font-kit already successfully parsed the font above so if must be
+            // a format not supported by Harfbuzz.
+            return Err(FontLoadingError::UnknownFormat)
         }
 
         Ok(FontFace {
@@ -442,7 +445,10 @@ impl FontFace {
 
         let face = harfbuzz_rs::Face::new(bytes.clone(), face_index);
         if face.glyph_count() == 0 {
-            return Err(FontLoadingError::Io(std::io::Error::new(std::io::ErrorKind::InvalidData, "glyph_count is zero")));
+            // Harfbuzz returns the empty face if data is not a valid font,
+            // font-kit already successfully parsed the font above so if must be
+            // a format not supported by Harfbuzz.
+            return Err(FontLoadingError::UnknownFormat);
         }
 
         Ok(FontFace {
@@ -978,6 +984,7 @@ struct FontFaceLoader {
 enum SystemFontFace {
     /// Properties queried and face returned by system.
     Found(FontStyle, FontWeight, FontStretch, FontFaceRef),
+    /// Properties queried and not found or found a face of incompatible type.
     NotFound(FontStyle, FontWeight, FontStretch),
 }
 impl FontFaceLoader {
@@ -1119,6 +1126,9 @@ impl FontFaceLoader {
                     let f = Rc::new(f);
                     sys_family.push(SystemFontFace::Found(style, weight, stretch, Rc::clone(&f)));
                     return Some(f); // new match
+                }
+                Err(FontLoadingError::UnknownFormat) => {
+                    sys_family.push(SystemFontFace::NotFound(style, weight, stretch));
                 }
                 Err(e) => {
                     tracing::error!(target: "font_loading", "failed to load system font, {}\nquery: {:?}", e, (font_name, style, weight, stretch));
