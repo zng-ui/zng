@@ -282,7 +282,7 @@ impl Controller {
         }
 
         let t = Instant::now();
-        if let Some(last_respawn) = self.last_respawn { 
+        if let Some(last_respawn) = self.last_respawn {
             if t - last_respawn < Duration::from_secs(60) {
                 self.fast_respawn_count += 1;
                 if self.fast_respawn_count == 2 {
