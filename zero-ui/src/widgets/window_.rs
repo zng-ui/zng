@@ -867,7 +867,6 @@ pub mod window {
 
                     if let Some(args) = RestoreCommand.scoped(scope).update(args) {
                         if self.restore_handle.is_enabled() {
-                            //let restore_state = ctx.window_state.req(WindowVarsKey).restore_state().copy(ctx.vars);
                             state_var.set_ne(ctx, restore_state());
                         }
 
@@ -887,7 +886,6 @@ pub mod window {
                     if let Some(args) = FullscreenCommand.scoped(scope).update(args) {
                         if self.fullscreen_handle.is_enabled() {
                             if let WindowState::Fullscreen = state_var.copy(ctx) {
-                                //let restore_state = ctx.window_state.req(WindowVarsKey).restore_state().copy(ctx.vars);
                                 state_var.set(ctx, restore_state());
                             } else {
                                 state_var.set(ctx, WindowState::Fullscreen);
@@ -901,7 +899,6 @@ pub mod window {
                     if let Some(args) = ExclusiveFullscreenCommand.scoped(scope).update(args) {
                         if self.exclusive_handle.is_enabled() {
                             if let WindowState::Exclusive = state_var.copy(ctx) {
-                                //let restore_state = ctx.window_state.req(WindowVarsKey).restore_state().copy(ctx.vars);
                                 state_var.set(ctx, restore_state());
                             } else {
                                 state_var.set(ctx, WindowState::Exclusive);
