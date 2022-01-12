@@ -127,7 +127,6 @@ fn test_trace(node: impl UiNode) {
         window_id,
         wgt.id(),
         root_transform_key,
-        l_size.to_px(),
         1.0.fct(),
         None,
     );
@@ -253,7 +252,6 @@ pub fn default_no_child() {
         window_id,
         wgt.id(),
         root_transform_key,
-        desired_size,
         1.0.fct(),
         None,
     );

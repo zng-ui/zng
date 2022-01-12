@@ -260,7 +260,7 @@ pub mod implicit_base {
                 }
 
                 ctx.with_widget(self.id, &self.state, |ctx| {
-                    frame.push_widget(self.id, self.transform_key, self.outer_bounds.get().size, &self.rendered, |frame| {
+                    frame.push_widget(self.id, self.transform_key, &self.rendered, |frame| {
                         self.child.render(ctx, frame)
                     });
                 });

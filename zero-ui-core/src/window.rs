@@ -1755,7 +1755,6 @@ impl AppWindow {
         let frame = self.context.render(
             ctx,
             next_frame_id,
-            self.size.to_px(scale_factor.0),
             scale_factor,
             self.renderer.clone(),
         );
@@ -2073,7 +2072,6 @@ impl OwnedWindowContext {
         &mut self,
         ctx: &mut AppContext,
         frame_id: FrameId,
-        root_size: PxSize,
         scale_factor: Factor,
         renderer: Option<ViewRenderer>,
     ) -> BuiltFrame {
@@ -2091,7 +2089,6 @@ impl OwnedWindowContext {
                 renderer,
                 root.id,
                 root_transform_key,
-                root_size,
                 scale_factor,
                 self.used_frame_builder.take(),
             );
