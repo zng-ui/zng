@@ -1,4 +1,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+use zero_ui::core::text::{FontsExt, Script};
 use zero_ui::prelude::*;
 
 use zero_ui_view_prebuilt as zero_ui_view;
@@ -16,7 +17,7 @@ fn main() {
 }
 
 fn app_main() {
-    App::default().run_window(|_| {
+    App::default().run_window(|ctx| {
         let fs = var(Length::Pt(11.0));
         window! {
             title = fs.map(|s| formatx!("Text Example - font_size: {}", s));
@@ -24,9 +25,20 @@ fn app_main() {
             content = h_stack! {
                 spacing = 40;
                 items = widgets![
-                    basic(),
-                    line_height(),
-                    pre_line_break(),
+                    v_stack! {
+                        spacing = 20;
+                        items = widgets![
+                            basic(),
+                            defaults(ctx),
+                        ];
+                    },
+                    v_stack! {
+                        spacing = 20;
+                        items = widgets![
+                            line_height(),
+                            line_break(),
+                        ];
+                    },
                     font_size(fs),
                 ];
             };
@@ -93,13 +105,47 @@ fn line_height() -> impl Widget {
     )
 }
 
-fn pre_line_break() -> impl Widget {
+fn line_break() -> impl Widget {
     section(
         "line_break",
         widgets![text! {
             text = "Hello line 1!\n    Hello line 2!";
             background_color = rgba(1.0, 1.0, 1.0, 0.3);
         }],
+    )
+}
+
+fn defaults(ctx: &mut WindowContext) -> impl Widget {
+    fn default(ctx: &mut WindowContext, font_family: FontName) -> impl Widget {
+        let font = ctx
+            .services
+            .fonts()
+            .get(
+                &font_family,
+                FontStyle::Normal,
+                FontWeight::NORMAL,
+                FontStretch::NORMAL,
+                Script::Unknown,
+            )
+            .unwrap();
+
+        h_stack(widgets![
+            text(formatx!("{}: ", font_family)),
+            text! {
+                text = font.display_name().to_text();
+                font_family;
+            }
+        ])
+    }
+
+    section(
+        "defaults",
+        widgets![
+            default(ctx, FontName::serif()),
+            default(ctx, FontName::sans_serif()),
+            default(ctx, FontName::monospace()),
+            default(ctx, FontName::cursive()),
+        ],
     )
 }
 
