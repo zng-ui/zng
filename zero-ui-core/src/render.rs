@@ -233,15 +233,7 @@ impl FrameBuilder {
         scale_factor: Factor,
         hint: Option<UsedFrameBuilder>,
     ) -> Self {
-        Self::new(
-            frame_id,
-            window_id,
-            None,
-            root_id,
-            root_transform_key,
-            scale_factor,
-            hint,
-        )
+        Self::new(frame_id, window_id, None, root_id, root_transform_key, scale_factor, hint)
     }
 
     /// Returns the current layer index.
@@ -625,13 +617,7 @@ impl FrameBuilder {
     }
 
     /// Calls `f` inside a new widget context.
-    pub fn push_widget(
-        &mut self,
-        id: WidgetId,
-        transform_key: WidgetTransformKey,
-        rendered: &WidgetRendered,
-        f: impl FnOnce(&mut Self),
-    ) {
+    pub fn push_widget(&mut self, id: WidgetId, transform_key: WidgetTransformKey, rendered: &WidgetRendered, f: impl FnOnce(&mut Self)) {
         if self.cancel_widget {
             rendered.set(false);
             return;

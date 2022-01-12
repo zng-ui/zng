@@ -5,7 +5,7 @@ use glutin::event_loop::EventLoopWindowTarget;
 use webrender::{
     api::{
         BuiltDisplayList, DisplayListPayload, DocumentId, DynamicProperties, FontInstanceKey, FontInstanceOptions,
-        FontInstancePlatformOptions, FontKey, FontVariation, HitTestResult, IdNamespace, ImageKey, PipelineId, ScrollClamping,
+        FontInstancePlatformOptions, FontKey, FontVariation, HitTestResult, IdNamespace, ImageKey, PipelineId,
     },
     RenderApi, Renderer, RendererOptions, Transaction,
 };
@@ -285,7 +285,7 @@ impl Surface {
         txn.reset_dynamic_properties();
         txn.append_dynamic_properties(frame.updates);
         for (scroll_id, offset) in frame.scroll_updates {
-            txn.scroll_node_with_id(offset.to_point().to_wr(), scroll_id, ScrollClamping::NoClamping);
+            txn.set_scroll_offset(scroll_id, offset.to_wr());
         }
 
         self.push_resize(&mut txn);

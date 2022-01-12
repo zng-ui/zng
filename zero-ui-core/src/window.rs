@@ -1752,12 +1752,7 @@ impl AppWindow {
         let next_frame_id = self.frame_id.next();
 
         // `UiNode::render`
-        let frame = self.context.render(
-            ctx,
-            next_frame_id,
-            scale_factor,
-            self.renderer.clone(),
-        );
+        let frame = self.context.render(ctx, next_frame_id, scale_factor, self.renderer.clone());
 
         self.clear_color = frame.clear_color;
         self.frame_id = frame.id;
@@ -2068,13 +2063,7 @@ impl OwnedWindowContext {
         final_size.to_dip(scale_factor.0)
     }
 
-    fn render(
-        &mut self,
-        ctx: &mut AppContext,
-        frame_id: FrameId,
-        scale_factor: Factor,
-        renderer: Option<ViewRenderer>,
-    ) -> BuiltFrame {
+    fn render(&mut self, ctx: &mut AppContext, frame_id: FrameId, scale_factor: Factor, renderer: Option<ViewRenderer>) -> BuiltFrame {
         debug_assert!(self.update.render.is_render());
         self.update.render = WindowRenderUpdate::None;
 

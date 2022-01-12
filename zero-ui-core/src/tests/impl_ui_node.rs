@@ -122,14 +122,7 @@ fn test_trace(node: impl UiNode) {
     assert_only_traced!(wgt.state(), "arrange");
 
     let root_transform_key = WidgetTransformKey::new_unique();
-    let mut frame = FrameBuilder::new_renderless(
-        FrameId::INVALID,
-        window_id,
-        wgt.id(),
-        root_transform_key,
-        1.0.fct(),
-        None,
-    );
+    let mut frame = FrameBuilder::new_renderless(FrameId::INVALID, window_id, wgt.id(), root_transform_key, 1.0.fct(), None);
     wgt.test_render(&mut ctx, &mut frame);
     assert_only_traced!(wgt.state(), "render");
 
@@ -247,14 +240,7 @@ pub fn default_no_child() {
     assert!(subscriptions.event_mask().is_none());
 
     let root_transform_key = WidgetTransformKey::new_unique();
-    let mut frame = FrameBuilder::new_renderless(
-        FrameId::INVALID,
-        window_id,
-        wgt.id(),
-        root_transform_key,
-        1.0.fct(),
-        None,
-    );
+    let mut frame = FrameBuilder::new_renderless(FrameId::INVALID, window_id, wgt.id(), root_transform_key, 1.0.fct(), None);
 
     wgt.test_render(&mut ctx, &mut frame);
     let (_, _) = frame.finalize(&root_rendered);
