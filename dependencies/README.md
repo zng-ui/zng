@@ -22,4 +22,4 @@ The steps to update manually:
     milestone we are interested in.
 2 - Checkout this commit in the `./webrender` sub-module.
 
-The current commit is this one: [`https://github.com/servo/webrender/commit/95ca1671b55a4e8bea697a339652103705aeb328`]
+The current commit is this one: [`https://github.com/servo/webrender/commit/84798696846ad5811aaeb119b1ec54fe3910f3ae`]
