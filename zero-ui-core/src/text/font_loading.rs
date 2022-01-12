@@ -1368,6 +1368,11 @@ type ScriptMap<V> = linear_map::LinearMap<Script, V>;
 /// this delegates the resolution to the operating system.
 ///
 /// The default `fallback` font is "sans-serif".
+///
+/// ## Ubuntu
+///
+/// In the Ubuntu OS the "Ubuntu" font is used for "sans-serif" and "Ubuntu Mono" for "monospace",
+/// they are the official UI fonts but the OS selects "DejaVu" by default.
 pub struct GenericFonts {
     serif: ScriptMap<FontName>,
     sans_serif: ScriptMap<FontName>,
@@ -1379,20 +1384,38 @@ pub struct GenericFonts {
     updates: Vec<FontChangedArgs>,
 }
 impl GenericFonts {
+    #[allow(unused_mut)]
     fn new(update_sender: AppEventSender) -> Self {
         fn default(name: impl Into<FontName>) -> ScriptMap<FontName> {
             let mut f = ScriptMap::with_capacity(1);
             f.insert(Script::Unknown, name.into());
             f
         }
-        GenericFonts {
-            serif: default("serif"),
-            sans_serif: default("sans-serif"),
-            monospace: default("monospace"),
-            cursive: default("cursive"),
-            fantasy: default("fantasy"),
 
-            fallback: default("serif"),
+        let mut serif = "serif";
+        let mut sans_serif = "sans-serif";
+        let mut monospace = "monospace";
+        let mut cursive = "cursive";
+        let mut fantasy = "fantasy";
+        let mut fallback = "sans-serif";
+
+        #[cfg(target_os = "linux")]
+        {
+            let info = os_info::get();
+            if let os_info::Type::Ubuntu = info.os_type() {
+                sans_serif = "Ubuntu";
+                monospace = "Ubuntu Mono";
+            }
+        }
+
+        GenericFonts {
+            serif: default(serif),
+            sans_serif: default(sans_serif),
+            monospace: default(monospace),
+            cursive: default(cursive),
+            fantasy: default(fantasy),
+
+            fallback: default(fallback),
 
             update_sender,
             updates: vec![],
