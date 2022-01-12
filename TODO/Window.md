@@ -1,5 +1,6 @@
 # Windows TODO
 
+* Restore to Maximized from Fullscreen.
 * Finish window vars.
 * Drag regions.
 * Custom resize borders.

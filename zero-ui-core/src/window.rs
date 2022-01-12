@@ -255,8 +255,9 @@ impl AppExtension for WindowManager {
 
                 // STATE CHANGED
                 if let Some(new_state) = args.state {
-                    let prev_state = window.vars.state().copy(ctx.vars);
-                    if prev_state != new_state {
+                    if window.notified_state != new_state {
+                        let prev_state = mem::replace(&mut window.notified_state, new_state);
+
                         if let EventCause::System = args.cause {
                             window.vars.state().set(ctx.vars, new_state);
                         }
@@ -928,6 +929,7 @@ struct AppWindow {
     kiosk: bool,
 
     vars: WindowVars,
+    notified_state: WindowState,
     icon_img: Option<ImageVar>,
 
     first_update: bool,
@@ -1024,6 +1026,7 @@ impl AppWindow {
             root_id,
             kiosk,
             vars: vars.clone(),
+            notified_state: WindowState::Normal,
             icon_img: None,
 
             first_update: true,
