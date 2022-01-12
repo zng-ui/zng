@@ -586,8 +586,7 @@ impl AsRef<str> for FontName {
 ///
 /// # Default
 ///
-/// The default value is [`sans_serif`](FontName::sans_serif), [`serif`](FontName::serif),
-/// [`monospace`](FontName::sans_serif), [`cursive`](FontName::sans_serif) and [`fantasy`](FontName::sans_serif).
+/// The default value is the [`system_ui`](FontName::system_ui) for [`Script::Unknown`].
 #[derive(Eq, PartialEq, Hash, Clone)]
 pub struct FontNames(pub Vec<FontName>);
 impl FontNames {
@@ -597,6 +596,83 @@ impl FontNames {
         FontNames(vec![])
     }
 
+    /// Returns the default UI fonts for Windows.
+    pub fn windows_ui(script: Script) -> Self {
+        // source: VSCode
+        // https://github.com/microsoft/vscode/blob/6825c886700ac11d07f7646d8d8119c9cdd9d288/src/vs/code/electron-sandbox/processExplorer/media/processExplorer.css
+        match script {
+            // TODO Chinese
+
+            // Japanese
+            Script::Han | Script::Hiragana | Script::Katakana => ["Segoe WP", "Segoe UI", "Yu Gothic UI", "Meiryo UI", "sans-serif"].into(),
+            // Korean
+            Script::Hangul => ["Segoe WPC", "Segoe UI", "Malgun Gothic", "Dotom", "sans-serif"].into(),
+            // Other
+            _ => ["Segoe WP", "Segoe UI", "sans-serif", "sans-serif"].into(),
+        }
+    }
+
+    /// Returns the default UI fonts for MacOS/iOS.
+    pub fn mac_ui(script: Script) -> Self {
+        // source: VSCode
+        match script {
+            // TODO Chinese
+
+            // Japanese
+            Script::Han | Script::Hiragana | Script::Katakana => ["-apple-system", "Hiragino Kaku Gothic Pro", "sans-serif"].into(),
+            // Korean
+            Script::Hangul => ["-apple-system", "Nanum Gothic", "Apple SD Gothic Neo", "AppleGothic", "sans-serif"].into(),
+            _ => ["-apple-system", "sans-serif"].into(),
+        }
+    }
+
+    /// Returns the default UI fonts for Linux.
+    pub fn linux_ui(script: Script) -> Self {
+        // source: VSCode
+        match script {
+            // TODO Chinese
+
+            // Japanese
+            Script::Han | Script::Hiragana | Script::Katakana => [
+                "system-ui",
+                "Ubuntu",
+                "Droid Sans",
+                "Source Han Sans J",
+                "Source Han Sans JP",
+                "Source Han Sans",
+                "sans-serif",
+            ]
+            .into(),
+            // Korean
+            Script::Hangul => [
+                "system-ui",
+                "Ubuntu",
+                "Droid Sans",
+                "Source Han Sans K",
+                "Source Han Sans JR",
+                "Source Han Sans",
+                "UnDotum",
+                "FBaekmuk Gulim",
+                "sans-serif",
+            ]
+            .into(),
+            _ => ["system-ui", "Ubuntu", "Droid Sans", "sans-serif"].into(),
+        }
+    }
+
+    /// Returns the default UI fonts for the current operating system.
+    pub fn system_ui(script: Script) -> Self {
+        if cfg!(windows) {
+            Self::windows_ui(script)
+        } else if cfg!(target_os = "linux") {
+            Self::linux_ui(script)
+        } else if cfg!(target_os = "mac") {
+            Self::mac_ui(script)
+        } else {
+            [FontName::sans_serif()].into()
+        }
+    }
+
     /// Push a font name from any type that converts to [`FontName`].
     pub fn push(&mut self, font_name: impl Into<FontName>) {
         self.0.push(font_name.into())
@@ -604,13 +680,7 @@ impl FontNames {
 }
 impl Default for FontNames {
     fn default() -> Self {
-        FontNames(vec![
-            FontName::sans_serif(),
-            FontName::serif(),
-            FontName::monospace(),
-            FontName::cursive(),
-            FontName::fantasy(),
-        ])
+        Self::system_ui(Script::Unknown)
     }
 }
 impl fmt::Debug for FontNames {
@@ -628,6 +698,20 @@ impl fmt::Debug for FontNames {
             }
             write!(f, "]")
         }
+    }
+}
+impl fmt::Display for FontNames {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut iter = self.0.iter();
+
+        if let Some(name) = iter.next() {
+            write!(f, "{}", name)?;
+            for name in iter {
+                write!(f, ", {}", name)?;
+            }
+        }
+
+        Ok(())
     }
 }
 impl_from_and_into_var! {

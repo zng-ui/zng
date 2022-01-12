@@ -116,23 +116,25 @@ fn line_break() -> impl Widget {
 }
 
 fn defaults(ctx: &mut WindowContext) -> impl Widget {
-    fn default(ctx: &mut WindowContext, font_family: FontName) -> impl Widget {
-        let font = ctx
-            .services
-            .fonts()
-            .get(
-                &font_family,
-                FontStyle::Normal,
-                FontWeight::NORMAL,
-                FontStretch::NORMAL,
-                Script::Unknown,
-            )
-            .unwrap();
+    fn demo(ctx: &mut WindowContext, title: &str, font_family: impl Into<FontNames>) -> impl Widget {
+        let font_family = font_family.into();
+
+        let font = ctx.services.fonts().get_list(
+            &font_family,
+            FontStyle::Normal,
+            FontWeight::NORMAL,
+            FontStretch::NORMAL,
+            Script::Unknown,
+        );
 
         h_stack(widgets![
-            text(formatx!("{}: ", font_family)),
+            text(if title.is_empty() {
+                formatx!("{}: ", font_family)
+            } else {
+                formatx!("{}: ", title)
+            }),
             text! {
-                text = font.display_name().to_text();
+                text = font.best().display_name().to_text();
                 font_family;
             }
         ])
@@ -141,10 +143,14 @@ fn defaults(ctx: &mut WindowContext) -> impl Widget {
     section(
         "defaults",
         widgets![
-            default(ctx, FontName::serif()),
-            default(ctx, FontName::sans_serif()),
-            default(ctx, FontName::monospace()),
-            default(ctx, FontName::cursive()),
+            // Generic
+            demo(ctx, "", FontName::serif()),
+            demo(ctx, "", FontName::sans_serif()),
+            demo(ctx, "", FontName::monospace()),
+            demo(ctx, "", FontName::cursive()),
+            demo(ctx, "", FontName::fantasy()),
+            demo(ctx, "Fallback", "not-a-font-get-fallback"),
+            demo(ctx, "UI", FontNames::default())
         ],
     )
 }

@@ -1189,7 +1189,7 @@ impl FontFaceLoader {
         {
             Ok(handle) => Some(handle),
             Err(font_kit::error::SelectionError::NotFound) => {
-                tracing::warn!(target: "font_loading", "system font not found\nquery: {:?}", (font_name, style, weight, stretch));
+                tracing::debug!(target: "font_loading", "system font not found\nquery: {:?}", (font_name, style, weight, stretch));
                 None
             }
             Err(e) => {
@@ -1369,10 +1369,7 @@ type ScriptMap<V> = linear_map::LinearMap<Script, V>;
 ///
 /// The default `fallback` font is "sans-serif".
 ///
-/// ## Ubuntu
-///
-/// In the Ubuntu OS the "Ubuntu" font is used for "sans-serif" and "Ubuntu Mono" for "monospace",
-/// they are the official UI fonts but the OS selects "DejaVu" by default.
+/// See also [`FontNames::system_ui`] for the default font selection for UIs.
 pub struct GenericFonts {
     serif: ScriptMap<FontName>,
     sans_serif: ScriptMap<FontName>,
@@ -1398,15 +1395,6 @@ impl GenericFonts {
         let mut cursive = "cursive";
         let mut fantasy = "fantasy";
         let mut fallback = "sans-serif";
-
-        #[cfg(target_os = "linux")]
-        {
-            let info = os_info::get();
-            if let os_info::Type::Ubuntu = info.os_type() {
-                sans_serif = "Ubuntu";
-                monospace = "Ubuntu Mono";
-            }
-        }
 
         GenericFonts {
             serif: default(serif),
