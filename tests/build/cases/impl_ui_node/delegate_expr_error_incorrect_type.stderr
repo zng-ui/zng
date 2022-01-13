@@ -2,28 +2,148 @@ error[E0277]: the trait bound `NotANode: UiNode` is not satisfied
    --> cases/impl_ui_node/delegate_expr_error_incorrect_type.rs:9:27
     |
 9   | #[impl_ui_node(delegate = &self.inner, delegate_mut = &mut self.inner)]
-    | --------------------------^^^^^^^^^^^----------------------------------
+    | --------------------------^--------------------------------------------
     | |                         |
     | |                         the trait `UiNode` is not implemented for `NotANode`
     | required by a bound introduced by this call
     |
-note: required by a bound in `delegate`
+note: required by `zero_ui::prelude::UiNode::info`
    --> $WORKSPACE/zero-ui-core/src/ui_node.rs
     |
-    |     pub fn delegate(d: &impl UiNode) -> &impl UiNode {
-    |                              ^^^^^^ required by this bound in `delegate`
+    |     fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder);
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[E0277]: the trait bound `NotANode: UiNode` is not satisfied
+   --> cases/impl_ui_node/delegate_expr_error_incorrect_type.rs:9:27
+    |
+9   | #[impl_ui_node(delegate = &self.inner, delegate_mut = &mut self.inner)]
+    | --------------------------^--------------------------------------------
+    | |                         |
+    | |                         the trait `UiNode` is not implemented for `NotANode`
+    | required by a bound introduced by this call
+    |
+note: required by `subscriptions`
+   --> $WORKSPACE/zero-ui-core/src/ui_node.rs
+    |
+    |     fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions);
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 error[E0277]: the trait bound `NotANode: UiNode` is not satisfied
    --> cases/impl_ui_node/delegate_expr_error_incorrect_type.rs:9:55
     |
 9   | #[impl_ui_node(delegate = &self.inner, delegate_mut = &mut self.inner)]
-    | ------------------------------------------------------^^^^^^^^^^^^^^^--
+    | ------------------------------------------------------^----------------
     | |                                                     |
     | |                                                     the trait `UiNode` is not implemented for `NotANode`
     | required by a bound introduced by this call
     |
-note: required by a bound in `delegate_mut`
+note: required by `zero_ui::prelude::UiNode::init`
    --> $WORKSPACE/zero-ui-core/src/ui_node.rs
     |
-    |     pub fn delegate_mut(d: &mut impl UiNode) -> &mut impl UiNode {
-    |                                      ^^^^^^ required by this bound in `delegate_mut`
+    |     fn init(&mut self, ctx: &mut WidgetContext);
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[E0277]: the trait bound `NotANode: UiNode` is not satisfied
+   --> cases/impl_ui_node/delegate_expr_error_incorrect_type.rs:9:55
+    |
+9   | #[impl_ui_node(delegate = &self.inner, delegate_mut = &mut self.inner)]
+    | ------------------------------------------------------^----------------
+    | |                                                     |
+    | |                                                     the trait `UiNode` is not implemented for `NotANode`
+    | required by a bound introduced by this call
+    |
+note: required by `zero_ui::prelude::UiNode::deinit`
+   --> $WORKSPACE/zero-ui-core/src/ui_node.rs
+    |
+    |     fn deinit(&mut self, ctx: &mut WidgetContext);
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[E0277]: the trait bound `NotANode: UiNode` is not satisfied
+   --> cases/impl_ui_node/delegate_expr_error_incorrect_type.rs:9:55
+    |
+9   | #[impl_ui_node(delegate = &self.inner, delegate_mut = &mut self.inner)]
+    | ------------------------------------------------------^----------------
+    | |                                                     |
+    | |                                                     the trait `UiNode` is not implemented for `NotANode`
+    | required by a bound introduced by this call
+    |
+note: required by `zero_ui::prelude::UiNode::update`
+   --> $WORKSPACE/zero-ui-core/src/ui_node.rs
+    |
+    |     fn update(&mut self, ctx: &mut WidgetContext);
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[E0277]: the trait bound `NotANode: UiNode` is not satisfied
+   --> cases/impl_ui_node/delegate_expr_error_incorrect_type.rs:9:55
+    |
+9   | #[impl_ui_node(delegate = &self.inner, delegate_mut = &mut self.inner)]
+    | ------------------------------------------------------^----------------
+    | |                                                     |
+    | |                                                     the trait `UiNode` is not implemented for `NotANode`
+    | required by a bound introduced by this call
+    |
+note: required by a bound in `zero_ui::prelude::UiNode::event`
+   --> $WORKSPACE/zero-ui-core/src/ui_node.rs
+    |
+    |     fn event<A: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &A);
+    |                 ^^^^^^^^^^^^^^^ required by this bound in `zero_ui::prelude::UiNode::event`
+
+error[E0277]: the trait bound `NotANode: UiNode` is not satisfied
+   --> cases/impl_ui_node/delegate_expr_error_incorrect_type.rs:9:27
+    |
+9   | #[impl_ui_node(delegate = &self.inner, delegate_mut = &mut self.inner)]
+    | --------------------------^--------------------------------------------
+    | |                         |
+    | |                         the trait `UiNode` is not implemented for `NotANode`
+    | required by a bound introduced by this call
+    |
+note: required by `zero_ui::prelude::UiNode::render`
+   --> $WORKSPACE/zero-ui-core/src/ui_node.rs
+    |
+    |     fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder);
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[E0277]: the trait bound `NotANode: UiNode` is not satisfied
+   --> cases/impl_ui_node/delegate_expr_error_incorrect_type.rs:9:27
+    |
+9   | #[impl_ui_node(delegate = &self.inner, delegate_mut = &mut self.inner)]
+    | --------------------------^--------------------------------------------
+    | |                         |
+    | |                         the trait `UiNode` is not implemented for `NotANode`
+    | required by a bound introduced by this call
+    |
+note: required by `render_update`
+   --> $WORKSPACE/zero-ui-core/src/ui_node.rs
+    |
+    |     fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate);
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[E0277]: the trait bound `NotANode: UiNode` is not satisfied
+   --> cases/impl_ui_node/delegate_expr_error_incorrect_type.rs:9:55
+    |
+9   | #[impl_ui_node(delegate = &self.inner, delegate_mut = &mut self.inner)]
+    | ------------------------------------------------------^----------------
+    | |                                                     |
+    | |                                                     the trait `UiNode` is not implemented for `NotANode`
+    | required by a bound introduced by this call
+    |
+note: required by `arrange`
+   --> $WORKSPACE/zero-ui-core/src/ui_node.rs
+    |
+    |     fn arrange(&mut self, ctx: &mut LayoutContext, widget_offset: &mut WidgetOffset, final_size: PxSize);
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[E0277]: the trait bound `NotANode: UiNode` is not satisfied
+   --> cases/impl_ui_node/delegate_expr_error_incorrect_type.rs:9:55
+    |
+9   | #[impl_ui_node(delegate = &self.inner, delegate_mut = &mut self.inner)]
+    | ------------------------------------------------------^----------------
+    | |                                                     |
+    | |                                                     the trait `UiNode` is not implemented for `NotANode`
+    | required by a bound introduced by this call
+    |
+note: required by `measure`
+   --> $WORKSPACE/zero-ui-core/src/ui_node.rs
+    |
+    |     fn measure(&mut self, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize;
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

@@ -1370,6 +1370,8 @@ type ScriptMap<V> = linear_map::LinearMap<Script, V>;
 /// The default `fallback` font is "sans-serif".
 ///
 /// See also [`FontNames::system_ui`] for the default font selection for UIs.
+///
+/// [`FontNames::system_ui`]: crate::text::FontNames::system_ui
 pub struct GenericFonts {
     serif: ScriptMap<FontName>,
     sans_serif: ScriptMap<FontName>,

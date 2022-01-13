@@ -321,3 +321,126 @@ pub fn clip_to_bounds(child: impl UiNode, clip: impl IntoVar<bool>) -> impl UiNo
         bounds: PxSize::zero(),
     }
 }
+
+/// Renders the widget and its content in the specified layer.
+#[property(context, default(0, LayerMode::default()))]
+pub fn layer(child: impl UiNode, index: impl IntoVar<LayerIndex>, mode: impl IntoVar<LayerMode>) -> impl UiNode {
+    use std::cell::RefCell;
+    use std::rc::Rc;
+
+    struct LayerNode<C, I, M> {
+        child: Rc<RefCell<C>>,
+        index: I,
+        mode: M,
+    }
+    #[impl_ui_node(
+        delegate = self.child.borrow(),
+        delegate_mut = self.child.borrow_mut()
+    )]
+    impl<C: UiNode, I: Var<LayerIndex>, M: Var<LayerMode>> UiNode for LayerNode<C, I, M> {
+        fn update(&mut self, ctx: &mut WidgetContext) {
+            if self.index.is_new(ctx) || self.mode.is_new(ctx) {
+                ctx.updates.render();
+            }
+
+            self.child.borrow_mut().update(ctx);
+        }
+
+        fn measure(&mut self, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize {
+            if self.index.copy(ctx) == LayerIndex::DEFAULT {
+                self.child.borrow_mut().measure(ctx, available_size)
+            } else {
+                let mode = self.mode.copy(ctx);
+
+                if mode.contains(LayerMode::LAYOUT) {
+                    self.child.borrow_mut().measure(ctx, available_size)
+                } else {
+                    // .min(PxSize::new(Px(1), Px(1)))
+                    todo!()
+                }
+            }
+        }
+        fn arrange(&mut self, ctx: &mut LayoutContext, widget_offset: &mut WidgetOffset, final_size: PxSize) {
+            if self.index.copy(ctx) == LayerIndex::DEFAULT {
+                self.child.borrow_mut().arrange(ctx, widget_offset, final_size)
+            } else {
+                let mode = self.mode.copy(ctx);
+
+                if mode.contains(LayerMode::LAYOUT) {
+                    self.child.borrow_mut().arrange(ctx, widget_offset, final_size);
+                } else {
+                    todo!()
+                }
+            }
+        }
+
+        fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
+            let index = self.index.copy(ctx);
+            let mode = self.mode.copy(ctx);
+            let child = Rc::clone(&self.child);
+
+            if mode == LayerMode::DEFAULT {
+                frame.in_layer(ctx, index, move |ctx, frame| child.borrow().render(ctx, frame));
+            } else {
+                todo!()
+            }
+        }
+    }
+    LayerNode {
+        child: Rc::new(RefCell::new(child)),
+        index: index.into_var(),
+        mode: mode.into_var(),
+    }
+}
+
+bitflags::bitflags! {
+    /// Defines the render context of a [`layer`] modified widget.
+    ///
+    /// Widgets in different layers are inited, updated and layout when its parent is layout, but
+    /// it is rendered in a different *surface* so the parent transform and filters does not affect the widget.
+    /// The flags in this type instruct the [`layer`] property to recreate parts of the parent render context.
+    ///
+    /// # Visibility Pixel
+    ///
+    /// Even if the [`LAYOUT`] flag is not set the layered widget still reserves a 1x1 pixel point in its parent if it is visible, this is
+    /// done because zero pixel sized widgets are considered [`Collapsed`] and not rendered by most layout widgets.
+    ///
+    /// [`layer`]: fn@layer
+    /// [`z_stack`]: mod@crate::widgets::layout::z_stack
+    /// [`LAYOUT`]: LayerMode::LAYOUT
+    /// [`Collapsed`]: crate::core::Visibility::Collapsed
+    pub struct LayerMode: u16 {
+        /// The widget is layout as if it is the only content of the window, the available size is the window content area,
+        /// it only reserves a 1x1 pixel point in the parent layout.
+        const DEFAULT = 0b0;
+
+        /// The parent stacked transform is applied to the widget origin point, so it is not scaled and
+        /// rotated like the parent but it is positioned at the transform point.
+        const OFFSET = 0b1;
+
+        /// The parent stacked transform is applied the widget, this flag overrides [`OFFSET`].
+        ///
+        /// [`OFFSET`]: LayerMode::OFFSET
+        const TRANSFORM = 0b11;
+
+        /// The parent stacked pixel filters is copied to the widget, that is the opacity, grayscale, and other filters.
+        const FILTERS = 0b100;
+
+        /// The widget is layout normally in its parent, reserving the space.
+        const LAYOUT = 0b1000;
+
+        /// The widget reserves the [`LAYOUT`] and copied the [`TRANSFORM`] and [`FILTERS`], this causes
+        /// the visual result should look as if the widget is rendered normally but it is guaranteed to be
+        /// over all other widgets in the parent, the layer index behaving something like a ***Z*** *index*.
+        ///
+        /// [`LAYOUT`]: LayerMode::LAYOUT
+        /// [`TRANSFORM`]: LayerMode::TRANSFORM
+        /// [`FILTERS`]: LayerMode::FILTERS
+        const Z = Self::LAYOUT.bits | Self::TRANSFORM.bits | Self::FILTERS.bits;
+    }
+}
+impl Default for LayerMode {
+    fn default() -> Self {
+        LayerMode::DEFAULT
+    }
+}

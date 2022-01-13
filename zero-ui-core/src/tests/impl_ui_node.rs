@@ -243,7 +243,7 @@ pub fn default_no_child() {
     let mut frame = FrameBuilder::new_renderless(FrameId::INVALID, window_id, wgt.id(), root_transform_key, 1.0.fct(), None);
 
     wgt.test_render(&mut ctx, &mut frame);
-    let (_, _) = frame.finalize(&root_rendered);
+    let (_, _) = ctx.render_context(move |ctx| frame.finalize(ctx, &root_rendered));
 
     // and not update render.
     let mut update = FrameUpdate::new(window_id, wgt.id(), root_transform_key, FrameId::INVALID, RenderColor::BLACK, None);

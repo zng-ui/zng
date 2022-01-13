@@ -1,8 +1,8 @@
-error[E0308]: mismatched types
- --> $DIR/delegate_list_expr_error_incorrect_mut.rs:5:65
+error[E0596]: cannot borrow `*children` as mutable, as it is behind a `&` reference
+ --> cases/impl_ui_node/delegate_list_expr_error_incorrect_mut.rs:5:65
   |
 5 | #[impl_ui_node(delegate_list = &self.inner, delegate_list_mut = &self.inner)]
-  |                                                                 ^^^^^^^^^^^ types differ in mutability
-  |
-  = note: expected mutable reference `&mut _`
-                     found reference `&C`
+  |                                                                 ^----------
+  |                                                                 |
+  |                                                                 `children` is a `&` reference, so the data it refers to cannot be borrowed as mutable
+  |                                                                 help: consider changing this to be a mutable reference: `&mut self.inner`

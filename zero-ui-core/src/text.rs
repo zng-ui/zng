@@ -586,7 +586,7 @@ impl AsRef<str> for FontName {
 ///
 /// # Default
 ///
-/// The default value is the [`system_ui`](FontName::system_ui) for [`Script::Unknown`].
+/// The default value is the [`system_ui`](FontNames::system_ui) for [`Script::Unknown`].
 #[derive(Eq, PartialEq, Hash, Clone)]
 pub struct FontNames(pub Vec<FontName>);
 impl FontNames {

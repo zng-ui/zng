@@ -2070,25 +2070,26 @@ impl OwnedWindowContext {
         let root = &mut self.root;
         let root_transform_key = self.root_transform_key;
 
-        let (builder, _) = ctx.window_context(self.window_id, self.window_mode, &mut self.state, |ctx| {
+        let ((frame, used), _) = ctx.window_context(self.window_id, self.window_mode, &mut self.state, |ctx| {
             let child = &root.child;
-            let mut builder = FrameBuilder::new(
-                frame_id,
-                *ctx.window_id,
-                renderer,
-                root.id,
-                root_transform_key,
-                scale_factor,
-                self.used_frame_builder.take(),
-            );
+            let window_id = *ctx.window_id;
             ctx.render_context(root.id, &root.state, |ctx| {
-                child.render(ctx, &mut builder);
-            });
+                let mut builder = FrameBuilder::new(
+                    frame_id,
+                    window_id,
+                    renderer,
+                    root.id,
+                    root_transform_key,
+                    scale_factor,
+                    self.used_frame_builder.take(),
+                );
 
-            builder
+                child.render(ctx, &mut builder);
+
+                builder.finalize(ctx, &self.root_rendered)
+            })
         });
 
-        let (frame, used) = builder.finalize(&self.root_rendered);
         self.used_frame_builder = Some(used);
         frame
     }

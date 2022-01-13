@@ -665,7 +665,7 @@ pub struct FillUiNode;
 #[impl_ui_node(none)]
 impl UiNode for FillUiNode {}
 
-// Used by #[impl_ui_node] to validate custom delegation.
+// Used by #[impl_ui_node] to implement delegate_iter.
 #[doc(hidden)]
 pub mod impl_ui_node_util {
     use crate::{
@@ -674,26 +674,8 @@ pub mod impl_ui_node_util {
         render::{FrameBuilder, FrameUpdate},
         units::{AvailableSize, PxSize},
         widget_info::{WidgetInfoBuilder, WidgetOffset, WidgetSubscriptions},
-        UiNode, UiNodeList,
+        UiNode,
     };
-
-    #[inline]
-    pub fn delegate(d: &impl UiNode) -> &impl UiNode {
-        d
-    }
-    #[inline]
-    pub fn delegate_mut(d: &mut impl UiNode) -> &mut impl UiNode {
-        d
-    }
-
-    #[inline]
-    pub fn delegate_list(d: &impl UiNodeList) -> &impl UiNodeList {
-        d
-    }
-    #[inline]
-    pub fn delegate_list_mut(d: &mut impl UiNodeList) -> &mut impl UiNodeList {
-        d
-    }
 
     #[inline]
     pub fn delegate_iter<'a>(d: impl IntoIterator<Item = &'a impl UiNode>) -> impl IterImpl {
