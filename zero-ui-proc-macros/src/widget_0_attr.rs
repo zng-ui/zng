@@ -1084,6 +1084,7 @@ fn validate_new_fn(fn_: &ItemFn, errors: &mut Errors) {
     }
 }
 
+#[allow(clippy::enum_variant_names)]
 #[derive(PartialEq, Eq, Hash, Clone, Copy)]
 pub(crate) enum FnPriority {
     NewChild,

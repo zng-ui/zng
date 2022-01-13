@@ -68,6 +68,11 @@ impl WidgetOffset {
         self.inner_bounds = wgt_bounds;
     }
 
+    /// Returns the current offset.
+    pub fn offset(&self) -> PxPoint {
+        self.offset
+    }
+
     /// Calls `f` with an added offset, every property that offsets its child node must
     /// call [`UiNode::arrange`] on the child inside `f`.
     ///
@@ -76,6 +81,13 @@ impl WidgetOffset {
         self.offset += offset;
         f(self);
         self.offset -= offset;
+    }
+
+    /// Calls `f` with an offset overwrite, for layouts where the widget is relative to the window root.
+    pub fn with_root_offset(&mut self, offset: PxPoint, f: impl FnOnce(&mut Self)) {
+        let offset = mem::replace(&mut self.offset, offset);
+        f(self);
+        self.offset = offset;
     }
 
     /// Calls `f` within a [`RenderTransform`] that modifies all inner widgets.

@@ -4,6 +4,8 @@ use crate::core::gradient::{GradientStops, LinearGradientAxis};
 use crate::prelude::new_property::*;
 use crate::widgets::{fill_color, linear_gradient};
 
+pub use crate::core::render::LayerIndex;
+
 use super::margin;
 
 /// Custom background property. Allows using any other widget as a background.
@@ -332,6 +334,9 @@ pub fn layer(child: impl UiNode, index: impl IntoVar<LayerIndex>, mode: impl Int
         child: Rc<RefCell<C>>,
         index: I,
         mode: M,
+
+        // for mode OFFSET/TRANSFORM
+        desired_size: PxSize,
     }
     #[impl_ui_node(
         delegate = self.child.borrow(),
@@ -354,9 +359,14 @@ pub fn layer(child: impl UiNode, index: impl IntoVar<LayerIndex>, mode: impl Int
 
                 if mode.contains(LayerMode::LAYOUT) {
                     self.child.borrow_mut().measure(ctx, available_size)
+                } else if mode.contains(LayerMode::OFFSET) {
+                    // OFFSET/TRANSFORM
+                    self.desired_size = self.child.borrow_mut().measure(ctx, AvailableSize::inf());
+                    self.desired_size.min(PxSize::new(Px(1), Px(1)))
                 } else {
-                    // .min(PxSize::new(Px(1), Px(1)))
-                    todo!()
+                    let vp = ctx.metrics.viewport_size;
+                    self.desired_size = self.child.borrow_mut().measure(ctx, AvailableSize::from_size(vp));
+                    self.desired_size.min(PxSize::new(Px(1), Px(1)))
                 }
             }
         }
@@ -368,21 +378,31 @@ pub fn layer(child: impl UiNode, index: impl IntoVar<LayerIndex>, mode: impl Int
 
                 if mode.contains(LayerMode::LAYOUT) {
                     self.child.borrow_mut().arrange(ctx, widget_offset, final_size);
+                } else if mode.contains(LayerMode::OFFSET) {
+                    // OFFSET/TRANSFORM
+                    self.child.borrow_mut().arrange(ctx, widget_offset, self.desired_size);
                 } else {
-                    todo!()
+                    widget_offset.with_root_offset(PxPoint::zero(), |wo| {
+                        let final_size = ctx.metrics.viewport_size;
+                        self.child.borrow_mut().arrange(ctx, wo, final_size);
+                    });
                 }
             }
         }
 
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
             let index = self.index.copy(ctx);
-            let mode = self.mode.copy(ctx);
-            let child = Rc::clone(&self.child);
-
-            if mode == LayerMode::DEFAULT {
-                frame.in_layer(ctx, index, move |ctx, frame| child.borrow().render(ctx, frame));
+            if index == LayerIndex::DEFAULT {
+                self.child.borrow().render(ctx, frame);                
             } else {
-                todo!()
+                let mode = self.mode.copy(ctx);
+                let child = Rc::clone(&self.child);
+
+                if mode == LayerMode::DEFAULT {
+                    frame.in_layer(ctx, index, move |ctx, frame| child.borrow().render(ctx, frame));
+                } else {
+                    todo!()
+                }
             }
         }
     }
@@ -390,6 +410,7 @@ pub fn layer(child: impl UiNode, index: impl IntoVar<LayerIndex>, mode: impl Int
         child: Rc::new(RefCell::new(child)),
         index: index.into_var(),
         mode: mode.into_var(),
+        desired_size: PxSize::zero()
     }
 }
 
@@ -415,10 +436,10 @@ bitflags::bitflags! {
         const DEFAULT = 0b0;
 
         /// The parent stacked transform is applied to the widget origin point, so it is not scaled and
-        /// rotated like the parent but it is positioned at the transform point.
+        /// rotated like the parent but it is positioned at the transform point, the available size is *infinite*.
         const OFFSET = 0b1;
 
-        /// The parent stacked transform is applied the widget, this flag overrides [`OFFSET`].
+        /// The parent stacked transform is applied the widget, this flag overrides [`OFFSET`], the available size is *infinite*.
         ///
         /// [`OFFSET`]: LayerMode::OFFSET
         const TRANSFORM = 0b11;

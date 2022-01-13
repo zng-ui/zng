@@ -783,7 +783,7 @@ impl<const N: usize> IntoVar<FontNames> for [FontName; N] {
 }
 impl<const N: usize> From<[&'static str; N]> for FontNames {
     fn from(font_names: [&'static str; N]) -> Self {
-        FontNames(std::array::IntoIter::new(font_names).map(FontName::new).collect())
+        FontNames(font_names.into_iter().map(FontName::new).collect())
     }
 }
 impl<const N: usize> IntoVar<FontNames> for [&'static str; N] {
@@ -795,7 +795,7 @@ impl<const N: usize> IntoVar<FontNames> for [&'static str; N] {
 }
 impl<const N: usize> From<[String; N]> for FontNames {
     fn from(font_names: [String; N]) -> Self {
-        FontNames(std::array::IntoIter::new(font_names).map(FontName::new).collect())
+        FontNames(font_names.into_iter().map(FontName::new).collect())
     }
 }
 impl<const N: usize> IntoVar<FontNames> for [String; N] {
@@ -807,7 +807,7 @@ impl<const N: usize> IntoVar<FontNames> for [String; N] {
 }
 impl<const N: usize> From<[Text; N]> for FontNames {
     fn from(font_names: [Text; N]) -> Self {
-        FontNames(std::array::IntoIter::new(font_names).map(FontName::new).collect())
+        FontNames(font_names.into_iter().map(FontName::new).collect())
     }
 }
 impl<const N: usize> IntoVar<FontNames> for [Text; N] {

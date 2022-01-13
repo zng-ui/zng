@@ -272,10 +272,10 @@ fn delegate_absents(crate_: TokenStream, user_mtds: HashSet<Ident>, borrow: Expr
     let child = ident_spanned!(borrow.span()=> "child");
     let child_mut = ident_spanned!(borrow_mut.span()=> "child");
 
-    let deref = quote_spanned!{borrow.span()=> 
+    let deref = quote_spanned! {borrow.span()=>
         &*#child
     };
-    let deref_mut = quote_spanned!{borrow_mut.span()=> 
+    let deref_mut = quote_spanned! {borrow_mut.span()=>
         &mut *#child_mut
     };
 
@@ -335,10 +335,10 @@ fn delegate_absents(crate_: TokenStream, user_mtds: HashSet<Ident>, borrow: Expr
 fn delegate_list_absents(crate_: TokenStream, user_mtds: HashSet<Ident>, borrow: Expr, borrow_mut: Expr) -> Vec<ImplItem> {
     let children = ident_spanned!(borrow.span()=> "children");
     let children_mut = ident_spanned!(borrow_mut.span()=> "children");
-    let deref = quote_spanned!{borrow.span()=> 
+    let deref = quote_spanned! {borrow.span()=>
         &*#children
     };
-    let deref_mut = quote_spanned!{borrow_mut.span()=> 
+    let deref_mut = quote_spanned! {borrow_mut.span()=>
         &mut *#children_mut
     };
     make_absents! { user_mtds

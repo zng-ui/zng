@@ -46,6 +46,10 @@ name = "image"
 path = "image.rs"
 
 [[example]]
+name = "layer"
+path = "layer.rs"
+
+[[example]]
 name = "respawn"
 path = "respawn.rs"
 

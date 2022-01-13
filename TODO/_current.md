@@ -1,3 +1,3 @@
 * Text shaping needs "Language" and "Script".
-* Finish layers, will probably only support overlays by delegates.
+* Finish layer property.
 * Expand WidgetInfo to provide a RenderTransform.
