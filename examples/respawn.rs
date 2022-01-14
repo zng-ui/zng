@@ -7,14 +7,16 @@ use zero_ui_view_prebuilt as zero_ui_view;
 fn main() {
     examples_util::print_info();
     zero_ui_view::init();
-    App::default().run_window(|_| {
+    App::default().run_window(|ctx| {
         window! {
             title = "View-Process Respawn Example";
+            start_position = StartPosition::CenterMonitor;
             on_key_down = hn!(|ctx, args: &KeyInputArgs| {
                 if args.key == Some(Key::F5) {
                     ctx.services.view_process().respawn();
                 }
             });
+            foreground = window_status(ctx);
             content = v_stack! {
                 spacing = 5;
                 items_align = Alignment::TOP;
@@ -75,5 +77,30 @@ fn image() -> impl Widget {
             strong("Image:"),
             image! { source = "examples/res/window/icon-bytes.png"; size = (32, 32); },
         ];
+    }
+}
+
+fn window_status(ctx: &mut WindowContext) -> impl Widget {
+    let vars = ctx.window_state.req(WindowVarsKey);
+
+    macro_rules! status {
+        ($name:ident) => {
+            text(vars.$name().map(|v| formatx!("{}: {:?}", stringify!($name), v)))
+        };
+    }
+
+    v_stack! {
+        spacing = 5;
+        margin = 10;
+        align = Alignment::TOP_LEFT;
+        background_color = rgb(0.1, 0.1, 0.1);
+        font_family = "monospace";
+        opacity = 80.pct();
+        items = widgets![
+            status!(actual_position),
+            status!(actual_size),
+            status!(restore_state),
+            status!(restore_rect),
+        ]
     }
 }

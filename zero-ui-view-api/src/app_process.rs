@@ -281,18 +281,22 @@ impl Controller {
             tracing::error!(target: "vp_respawn", "channel disconnect, will try respawn");
         }
 
-        let t = Instant::now();
-        if let Some(last_respawn) = self.last_respawn {
-            if t - last_respawn < Duration::from_secs(60) {
-                self.fast_respawn_count += 1;
-                if self.fast_respawn_count == 2 {
-                    panic!("disconnect respawn happened 2 times less than 1 minute apart");
+        if is_crash {
+            let t = Instant::now();
+            if let Some(last_respawn) = self.last_respawn {
+                if t - last_respawn < Duration::from_secs(60) {
+                    self.fast_respawn_count += 1;
+                    if self.fast_respawn_count == 2 {
+                        panic!("disconnect respawn happened 2 times less than 1 minute apart");
+                    }
+                } else {
+                    self.fast_respawn_count = 0;
                 }
-            } else {
-                self.fast_respawn_count = 0;
             }
+            self.last_respawn = Some(t);
+        } else {
+            self.last_respawn = None;
         }
-        self.last_respawn = Some(t);
 
         // try exit
         let mut killed_by_us = false;

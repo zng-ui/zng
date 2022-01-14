@@ -934,6 +934,7 @@ struct AppWindow {
 
     first_update: bool,
     first_layout: bool,
+    respawn_layout: bool,
 
     // latest frame.
     frame_id: FrameId,
@@ -1031,6 +1032,7 @@ impl AppWindow {
 
             first_update: true,
             first_layout: true,
+            respawn_layout: false,
 
             monitor_info: None,
 
@@ -1440,7 +1442,10 @@ impl AppWindow {
             state = WindowState::Fullscreen;
         }
 
-        if let WindowState::Normal | WindowState::Minimized = state {
+        if self.respawn_layout {
+            // we did not change size.
+            self.respawn_layout = false;
+        } else if let WindowState::Normal | WindowState::Minimized = state {
             // we already have the size, and need to calculate the start-position.
 
             let (final_size, min_size, max_size) = self.layout_size(ctx, false);
@@ -1579,6 +1584,8 @@ impl AppWindow {
                     self.position = Some(data.position);
 
                     syn_args.position = self.position;
+                } else {
+                    self.vars.0.actual_position.set_ne(ctx, data.position);
                 }
 
                 self.vars.0.render_mode.set_ne(ctx.vars, data.render_mode);
@@ -1887,6 +1894,7 @@ impl AppWindow {
 
         self.pending_render = None;
         self.first_layout = true;
+        self.respawn_layout = true;
         self.headed = None;
         self.renderer = None;
         ctx.services.windows().windows_info.get_mut(&self.id).unwrap().renderer = None;
