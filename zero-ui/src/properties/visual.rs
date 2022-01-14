@@ -337,12 +337,19 @@ pub fn layer(child: impl UiNode, index: impl IntoVar<LayerIndex>, mode: impl Int
 
         // for mode OFFSET/TRANSFORM
         desired_size: PxSize,
+        spatial_id: SpatialFrameId,
     }
     #[impl_ui_node(
         delegate = self.child.borrow(),
         delegate_mut = self.child.borrow_mut()
     )]
     impl<C: UiNode, I: Var<LayerIndex>, M: Var<LayerMode>> UiNode for LayerNode<C, I, M> {
+        fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
+            subscriptions.vars(ctx).var(&self.index).var(&self.mode);
+
+            self.child.borrow().subscriptions(ctx, subscriptions);
+        }
+
         fn update(&mut self, ctx: &mut WidgetContext) {
             if self.index.is_new(ctx) || self.mode.is_new(ctx) {
                 ctx.updates.render();
@@ -393,7 +400,7 @@ pub fn layer(child: impl UiNode, index: impl IntoVar<LayerIndex>, mode: impl Int
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
             let index = self.index.copy(ctx);
             if index == LayerIndex::DEFAULT {
-                self.child.borrow().render(ctx, frame);                
+                self.child.borrow().render(ctx, frame);
             } else {
                 let mode = self.mode.copy(ctx);
                 let child = Rc::clone(&self.child);
@@ -401,7 +408,35 @@ pub fn layer(child: impl UiNode, index: impl IntoVar<LayerIndex>, mode: impl Int
                 if mode == LayerMode::DEFAULT {
                     frame.in_layer(ctx, index, move |ctx, frame| child.borrow().render(ctx, frame));
                 } else {
-                    todo!()
+                    // TODO support changes by FrameBinding.
+
+                    let spatial_id = self.spatial_id;
+                    let transform = if mode.contains(LayerMode::TRANSFORM) {
+                        *frame.stacked_transform()
+                    } else if mode.contains(LayerMode::OFFSET) {
+                        let offset = frame
+                            .stacked_transform()
+                            .transform_point2d(euclid::point2(0.0f32, 0.0f32))
+                            .unwrap_or_default();
+
+                        RenderTransform::translation(offset.x, offset.y, 0.0)
+                    } else {
+                        RenderTransform::identity()
+                    };
+
+                    let filter = if mode.contains(LayerMode::FILTER) {
+                        frame.stacked_filter().clone()
+                    } else {
+                        vec![]
+                    };
+
+                    frame.in_layer(ctx, index, move |ctx, frame| {
+                        frame.push_transform(spatial_id, FrameBinding::Value(transform), |frame| {
+                            frame.push_filter(&filter, |frame| {
+                                child.borrow().render(ctx, frame);
+                            })
+                        });
+                    });
                 }
             }
         }
@@ -410,7 +445,8 @@ pub fn layer(child: impl UiNode, index: impl IntoVar<LayerIndex>, mode: impl Int
         child: Rc::new(RefCell::new(child)),
         index: index.into_var(),
         mode: mode.into_var(),
-        desired_size: PxSize::zero()
+        desired_size: PxSize::zero(),
+        spatial_id: SpatialFrameId::new_unique(),
     }
 }
 
@@ -445,19 +481,20 @@ bitflags::bitflags! {
         const TRANSFORM = 0b11;
 
         /// The parent stacked pixel filters is copied to the widget, that is the opacity, grayscale, and other filters.
-        const FILTERS = 0b100;
+        const FILTER = 0b100;
 
         /// The widget is layout normally in its parent, reserving the space.
         const LAYOUT = 0b1000;
 
-        /// The widget reserves the [`LAYOUT`] and copied the [`TRANSFORM`] and [`FILTERS`], this causes
-        /// the visual result should look as if the widget is rendered normally but it is guaranteed to be
-        /// over all other widgets in the parent, the layer index behaving something like a ***Z*** *index*.
+        /// The widget reserves the [`LAYOUT`] and copies the [`TRANSFORM`] and [`FILTER`], this causes
+        /// the visual result to look as if the widget is placed in the parent but it is guaranteed to be
+        /// over all other widgets in the parent, note that other contexts are not recreated, for example, 
+        /// context variables will use the default value for the window during render.
         ///
         /// [`LAYOUT`]: LayerMode::LAYOUT
         /// [`TRANSFORM`]: LayerMode::TRANSFORM
-        /// [`FILTERS`]: LayerMode::FILTERS
-        const Z = Self::LAYOUT.bits | Self::TRANSFORM.bits | Self::FILTERS.bits;
+        /// [`FILTER`]: LayerMode::FILTER
+        const ALL = Self::LAYOUT.bits | Self::TRANSFORM.bits | Self::FILTER.bits;
     }
 }
 impl Default for LayerMode {
