@@ -1899,6 +1899,13 @@ impl AppWindow {
         self.renderer = None;
         ctx.services.windows().windows_info.get_mut(&self.id).unwrap().renderer = None;
 
+        // we respawn maximized/fullscreen if that was the previous state but
+        // the position/size is to the maximized size also, causing the view-process
+        // to think the restore rect is the maximized rect.
+        let restore = self.vars.0.restore_rect.copy(ctx);
+        self.position = Some(restore.origin);
+        self.size = restore.size;
+
         self.context.update = WindowUpdates::all();
         self.on_layout(ctx);
         self.on_render(ctx);
