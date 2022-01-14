@@ -35,7 +35,7 @@ fn app_main() {
                         background_color = colors::RED.darken(40.pct());
                         padding = 4;
                         content = text("Adorner!");
-                    }),                    
+                    }),
                     example("20, LayerMode::FILTER", container! {
                         layer = 20, LayerMode::FILTER;
                         background_color = colors::BLUE.darken(40.pct());
@@ -53,7 +53,7 @@ fn app_main() {
                         layer = 0, LayerMode::DEFAULT;
                         background_color = colors::BLUE.darken(40.pct());
                         padding = 4;
-                        content = text("Sad!");
+                        content = text("Normal placement.");
                     }),
                 ];
             };

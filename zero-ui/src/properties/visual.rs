@@ -488,7 +488,7 @@ bitflags::bitflags! {
 
         /// The widget reserves the [`LAYOUT`] and copies the [`TRANSFORM`] and [`FILTER`], this causes
         /// the visual result to look as if the widget is placed in the parent but it is guaranteed to be
-        /// over all other widgets in the parent, note that other contexts are not recreated, for example, 
+        /// over all other widgets in the parent, note that other contexts are not recreated, for example,
         /// context variables will use the default value for the window during render.
         ///
         /// [`LAYOUT`]: LayerMode::LAYOUT
