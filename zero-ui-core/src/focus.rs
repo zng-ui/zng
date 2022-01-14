@@ -1534,7 +1534,7 @@ pub enum FocusTarget {
 }
 
 /// A [`WidgetInfoTree`] wrapper for querying focus info out of the widget tree.
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 pub struct FocusInfoTree<'a> {
     /// Full widget info.
     pub tree: &'a WidgetInfoTree,
