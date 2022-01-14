@@ -5,8 +5,21 @@ error[E0283]: type annotations needed
     |             ^ cannot infer type for type parameter `T` declared on the trait `IntoVar`
     |
     = note: cannot satisfy `_: VarValue`
-note: required by `allowed_in_when_property_requires_IntoVar_members`
+note: required by a bound in `allowed_in_when_property_requires_IntoVar_members`
    --> $WORKSPACE/zero-ui-core/src/var.rs
     |
-    |     fn allowed_in_when_property_requires_IntoVar_members(&self) -> Self::Var {
-    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    | pub trait IntoVar<T: VarValue>: Clone {
+    |                      ^^^^^^^^ required by this bound in `allowed_in_when_property_requires_IntoVar_members`
+
+error[E0283]: type annotations needed
+ --> cases/widget/decl_allowed_in_when_validation.rs:9:13
+  |
+9 |         foo(&'static str) = "";
+  |             ^ cannot infer type for type parameter `T` declared on the trait `IntoVar`
+  |
+  = note: multiple `impl`s satisfying `&str: IntoVar<_>` found in the `zero_ui_core` crate:
+          - impl IntoVar<FontName> for &'static str;
+          - impl IntoVar<FontNames> for &'static str;
+          - impl IntoVar<WidgetId> for &'static str;
+          - impl IntoVar<zero_ui::prelude::Text> for &'static str;
+          and 3 more

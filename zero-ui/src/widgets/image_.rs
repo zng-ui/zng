@@ -1254,17 +1254,21 @@ mod tests {
 
     #[test]
     fn error_view_recursion() {
+        crate::core::test_log();
+
+        let img = var(crate::core::image::Image::dummy(Some("test error".to_string()))).into_read_only();
+
         let mut app = App::default().run_headless(false);
         app.ctx().services.images().load_in_headless = true;
         let ok = Rc::new(Cell::new(false));
-        app.open_window(clone_move!(ok, |_| {
+        let window_id = app.open_window(clone_move!(ok, |_| {
             window! {
                 content = image! {
-                    source = "";
+                    source = img.clone();
                     error_view = view_generator!(ok, |_, _| {
                         ok.set(true);
                         image! {
-                            source = "";
+                            source = img.clone();
                         }
                     });
                 }
@@ -1272,6 +1276,7 @@ mod tests {
         }));
 
         let _ = app.update(false);
+        app.close_window(window_id);
 
         assert!(ok.get());
     }

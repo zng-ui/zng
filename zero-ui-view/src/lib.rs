@@ -1,6 +1,6 @@
 #![cfg_attr(doc_nightly, feature(doc_cfg))]
 #![allow(clippy::needless_doctest_main)]
-
+#![doc(test(no_crate_inject))]
 //! View-Process implementation using [`glutin`].
 //!
 //! This backend supports headed and headless apps and all .
@@ -74,6 +74,7 @@
 //! Then in the `main.rs` file:
 //!
 //! ```no_run
+//! # mod zero_ui_view_prebuilt { pub fn init() { } }
 //! use zero_ui_view_prebuilt as zero_ui_view;
 //!
 //! fn main() {

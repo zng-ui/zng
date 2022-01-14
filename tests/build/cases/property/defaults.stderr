@@ -55,12 +55,12 @@ note: associated function defined here
    = note: this error originates in the attribute macro `property` (in Nightly builds, run with -Z macro-backtrace for more info)
 
 error[E0277]: the trait bound `{integer}: zero_ui::prelude::IntoVar<bool>` is not satisfied
-  --> cases/property/defaults.rs:39:35
+  --> cases/property/defaults.rs:39:29
    |
 39 | #[property(context, default(2555, true))]
-   |                            -------^^^^-
-   |                            |      |
-   |                            |      the trait `zero_ui::prelude::IntoVar<bool>` is not implemented for `{integer}`
+   |                            -^^^^-------
+   |                            ||
+   |                            |the trait `zero_ui::prelude::IntoVar<bool>` is not implemented for `{integer}`
    |                            required by a bound introduced by this call
    |
    = help: the following implementations were found:
@@ -69,12 +69,13 @@ error[E0277]: the trait bound `{integer}: zero_ui::prelude::IntoVar<bool>` is no
              <&'static [u8] as zero_ui::prelude::IntoVar<ImageSource>>
              <&'static [u8] as zero_ui::prelude::IntoVar<WindowIcon>>
            and 350 others
-note: required by `invalid_default_args_types_u_2_ArgsImpl::<T_a, T_b>::new`
-  --> cases/property/defaults.rs:39:1
+note: required by a bound in `invalid_default_args_types_u_2_ArgsImpl::<T_a, T_b>::new`
+  --> cases/property/defaults.rs:40:67
    |
 39 | #[property(context, default(2555, true))]
-   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-   = note: this error originates in the attribute macro `property` (in Nightly builds, run with -Z macro-backtrace for more info)
+   | ----------------------------------------- required by a bound in this
+40 | pub fn invalid_default_args_types_u_2(child: impl UiNode, a: impl IntoVar<bool>, b: impl IntoVar<u32>) -> impl UiNode {
+   |                                                                   ^^^^^^^^^^^^^ required by this bound in `invalid_default_args_types_u_2_ArgsImpl::<T_a, T_b>::new`
 
 error[E0277]: the trait bound `bool: zero_ui::prelude::IntoVar<u32>` is not satisfied
   --> cases/property/defaults.rs:39:35
@@ -82,27 +83,30 @@ error[E0277]: the trait bound `bool: zero_ui::prelude::IntoVar<u32>` is not sati
 39 | #[property(context, default(2555, true))]
    |                            -------^^^^-
    |                            |      |
-   |                            |      expected an implementor of trait `zero_ui::prelude::IntoVar<u32>`
+   |                            |      the trait `zero_ui::prelude::IntoVar<u32>` is not implemented for `bool`
    |                            required by a bound introduced by this call
    |
-note: required by `invalid_default_args_types_u_2_ArgsImpl::<T_a, T_b>::new`
-  --> cases/property/defaults.rs:39:1
+   = help: the following implementations were found:
+             <bool as zero_ui::prelude::IntoVar<AutoSize>>
+             <bool as zero_ui::prelude::IntoVar<CaptureMode>>
+             <bool as zero_ui::prelude::IntoVar<Factor>>
+             <bool as zero_ui::prelude::IntoVar<FontFeatureState>>
+           and 4 others
+note: required by a bound in `invalid_default_args_types_u_2_ArgsImpl::<T_a, T_b>::new`
+  --> cases/property/defaults.rs:40:90
    |
 39 | #[property(context, default(2555, true))]
-   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-   = note: this error originates in the attribute macro `property` (in Nightly builds, run with -Z macro-backtrace for more info)
-help: consider borrowing here
-   |
-39 | #[property(context, default(2555, &true))]
-   |                                   +
+   | ----------------------------------------- required by a bound in this
+40 | pub fn invalid_default_args_types_u_2(child: impl UiNode, a: impl IntoVar<bool>, b: impl IntoVar<u32>) -> impl UiNode {
+   |                                                                                          ^^^^^^^^^^^^ required by this bound in `invalid_default_args_types_u_2_ArgsImpl::<T_a, T_b>::new`
 
 error[E0277]: the trait bound `{integer}: zero_ui::prelude::IntoVar<bool>` is not satisfied
-  --> cases/property/defaults.rs:45:41
+  --> cases/property/defaults.rs:45:32
    |
 45 | #[property(context, default(a: 2555, b: true))]
-   |                            -------------^^^^-
-   |                            |            |
-   |                            |            the trait `zero_ui::prelude::IntoVar<bool>` is not implemented for `{integer}`
+   |                            ----^^^^----------
+   |                            |   |
+   |                            |   the trait `zero_ui::prelude::IntoVar<bool>` is not implemented for `{integer}`
    |                            required by a bound introduced by this call
    |
    = help: the following implementations were found:
@@ -111,12 +115,13 @@ error[E0277]: the trait bound `{integer}: zero_ui::prelude::IntoVar<bool>` is no
              <&'static [u8] as zero_ui::prelude::IntoVar<ImageSource>>
              <&'static [u8] as zero_ui::prelude::IntoVar<WindowIcon>>
            and 350 others
-note: required by `invalid_default_args_types_n_2_ArgsImpl::<T_a, T_b>::new`
-  --> cases/property/defaults.rs:45:1
+note: required by a bound in `invalid_default_args_types_n_2_ArgsImpl::<T_a, T_b>::new`
+  --> cases/property/defaults.rs:46:67
    |
 45 | #[property(context, default(a: 2555, b: true))]
-   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-   = note: this error originates in the attribute macro `property` (in Nightly builds, run with -Z macro-backtrace for more info)
+   | ----------------------------------------------- required by a bound in this
+46 | pub fn invalid_default_args_types_n_2(child: impl UiNode, a: impl IntoVar<bool>, b: impl IntoVar<u32>) -> impl UiNode {
+   |                                                                   ^^^^^^^^^^^^^ required by this bound in `invalid_default_args_types_n_2_ArgsImpl::<T_a, T_b>::new`
 
 error[E0277]: the trait bound `bool: zero_ui::prelude::IntoVar<u32>` is not satisfied
   --> cases/property/defaults.rs:45:41
@@ -124,16 +129,19 @@ error[E0277]: the trait bound `bool: zero_ui::prelude::IntoVar<u32>` is not sati
 45 | #[property(context, default(a: 2555, b: true))]
    |                            -------------^^^^-
    |                            |            |
-   |                            |            expected an implementor of trait `zero_ui::prelude::IntoVar<u32>`
+   |                            |            the trait `zero_ui::prelude::IntoVar<u32>` is not implemented for `bool`
    |                            required by a bound introduced by this call
    |
-note: required by `invalid_default_args_types_n_2_ArgsImpl::<T_a, T_b>::new`
-  --> cases/property/defaults.rs:45:1
+   = help: the following implementations were found:
+             <bool as zero_ui::prelude::IntoVar<AutoSize>>
+             <bool as zero_ui::prelude::IntoVar<CaptureMode>>
+             <bool as zero_ui::prelude::IntoVar<Factor>>
+             <bool as zero_ui::prelude::IntoVar<FontFeatureState>>
+           and 4 others
+note: required by a bound in `invalid_default_args_types_n_2_ArgsImpl::<T_a, T_b>::new`
+  --> cases/property/defaults.rs:46:90
    |
 45 | #[property(context, default(a: 2555, b: true))]
-   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-   = note: this error originates in the attribute macro `property` (in Nightly builds, run with -Z macro-backtrace for more info)
-help: consider borrowing here
-   |
-45 | #[property(context, default(a: 2555, b: &true))]
-   |                                         +
+   | ----------------------------------------------- required by a bound in this
+46 | pub fn invalid_default_args_types_n_2(child: impl UiNode, a: impl IntoVar<bool>, b: impl IntoVar<u32>) -> impl UiNode {
+   |                                                                                          ^^^^^^^^^^^^ required by this bound in `invalid_default_args_types_n_2_ArgsImpl::<T_a, T_b>::new`

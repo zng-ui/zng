@@ -4,16 +4,11 @@ error[E0277]: the trait bound `(): IntoVar<SideOffsets>` is not satisfied
 8  |         margin = { }
    |                  -^^
    |                  |
-   |                  expected an implementor of trait `IntoVar<SideOffsets>`
+   |                  the trait `IntoVar<SideOffsets>` is not implemented for `()`
    |                  required by a bound introduced by this call
    |
-note: required by `margin_ArgsImpl::<T_margin>::new`
+note: required by a bound in `margin_ArgsImpl::<T_margin>::new`
   --> $WORKSPACE/zero-ui/src/properties/layout.rs
    |
-   | #[property(outer, default(0))]
-   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-   = note: this error originates in the attribute macro `property` (in Nightly builds, run with -Z macro-backtrace for more info)
-help: consider borrowing here
-   |
-8  |         margin = &{ }
-   |                  +
+   | pub fn margin(child: impl UiNode, margin: impl IntoVar<SideOffsets>) -> impl UiNode {
+   |                                                ^^^^^^^^^^^^^^^^^^^^ required by this bound in `margin_ArgsImpl::<T_margin>::new`

@@ -1,6 +1,6 @@
 error: auto impl delegates call to `update` but this manual impl does not
- `#[deny_(zero_ui::missing_delegate)]` is on
-  --> $DIR/missing_matching_delegate_child.rs:14:51
+        `#[deny_(zero_ui::missing_delegate)]` is on
+  --> cases/impl_ui_node/missing_matching_delegate_child.rs:14:51
    |
 14 |       fn update(&mut self, ctx: &mut WidgetContext) {
    |  ___________________________________________________^

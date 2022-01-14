@@ -36,6 +36,9 @@ extern crate self as zero_ui_core;
 #[macro_use]
 mod crate_util;
 
+#[cfg(any(test, feature = "test_util"))]
+pub use crate_util::test_log;
+
 #[doc(hidden)]
 pub use paste::paste;
 

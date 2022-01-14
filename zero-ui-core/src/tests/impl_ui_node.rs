@@ -99,7 +99,7 @@ fn test_trace(node: impl UiNode) {
     let window_id = WindowId::new_unique();
     let mut info = WidgetInfoBuilder::new(
         window_id,
-        wgt.id(),
+        ctx.root_id,
         BoundsRect::from_size(l_size.to_px()),
         WidgetRendered::new(),
         None,
@@ -122,11 +122,18 @@ fn test_trace(node: impl UiNode) {
     assert_only_traced!(wgt.state(), "arrange");
 
     let root_transform_key = WidgetTransformKey::new_unique();
-    let mut frame = FrameBuilder::new_renderless(FrameId::INVALID, window_id, wgt.id(), root_transform_key, 1.0.fct(), None);
+    let mut frame = FrameBuilder::new_renderless(FrameId::INVALID, window_id, ctx.root_id, root_transform_key, 1.0.fct(), None);
     wgt.test_render(&mut ctx, &mut frame);
     assert_only_traced!(wgt.state(), "render");
 
-    let mut update = FrameUpdate::new(window_id, wgt.id(), root_transform_key, FrameId::INVALID, RenderColor::BLACK, None);
+    let mut update = FrameUpdate::new(
+        window_id,
+        ctx.root_id,
+        root_transform_key,
+        FrameId::INVALID,
+        RenderColor::BLACK,
+        None,
+    );
     wgt.test_render_update(&mut ctx, &mut update);
     assert_only_traced!(wgt.state(), "render_update");
 
@@ -178,6 +185,8 @@ pub fn allow_missing_delegate() {
 
 #[test]
 pub fn default_no_child() {
+    crate::test_log();
+
     struct Node;
     #[impl_ui_node(none)]
     impl UiNode for Node {}
@@ -223,7 +232,7 @@ pub fn default_no_child() {
 
     let mut info = WidgetInfoBuilder::new(
         window_id,
-        wgt.id(),
+        ctx.root_id,
         BoundsRect::from_size(desired_size),
         root_rendered.clone(),
         None,
@@ -240,13 +249,20 @@ pub fn default_no_child() {
     assert!(subscriptions.event_mask().is_none());
 
     let root_transform_key = WidgetTransformKey::new_unique();
-    let mut frame = FrameBuilder::new_renderless(FrameId::INVALID, window_id, wgt.id(), root_transform_key, 1.0.fct(), None);
+    let mut frame = FrameBuilder::new_renderless(FrameId::INVALID, window_id, ctx.root_id, root_transform_key, 1.0.fct(), None);
 
     wgt.test_render(&mut ctx, &mut frame);
     let (_, _) = ctx.render_context(move |ctx| frame.finalize(ctx, &root_rendered));
 
     // and not update render.
-    let mut update = FrameUpdate::new(window_id, wgt.id(), root_transform_key, FrameId::INVALID, RenderColor::BLACK, None);
+    let mut update = FrameUpdate::new(
+        window_id,
+        ctx.root_id,
+        root_transform_key,
+        FrameId::INVALID,
+        RenderColor::BLACK,
+        None,
+    );
     wgt.test_render_update(&mut ctx, &mut update);
     let (update, _) = update.finalize();
     assert!(update.bindings.transforms.is_empty());

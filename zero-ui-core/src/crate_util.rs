@@ -736,7 +736,8 @@ impl<'a> From<&'a TestTempDir> for std::path::PathBuf {
 /// Sets a `tracing` subscriber that writes warnings to stderr and panics on errors.
 ///
 /// Panics if another different subscriber is already set.
-#[cfg(test)]
+#[cfg(any(test, feature = "test_util"))]
+#[cfg_attr(doc_nightly, doc(cfg(feature = "test_util")))]
 pub fn test_log() {
     use std::sync::atomic::*;
 

@@ -672,7 +672,7 @@ impl FrameBuilder {
         rendered.set(self.widget_rendered);
 
         self.widget_id = parent_id;
-        self.widget_rendered = parent_rendered;
+        self.widget_rendered |= parent_rendered;
         self.widget_transform_key = parent_transform_key;
         self.widget_display_mode = parent_display_mode;
     }
@@ -852,9 +852,9 @@ impl FrameBuilder {
         self.display_list.pop_stacking_context();
     }
 
-    /// Push a border using [`common_item_ps`].
+    /// Push a border using [`common_hit_item_ps`].
     ///
-    /// [`common_item_ps`]: FrameBuilder::common_item_ps
+    /// [`common_hit_item_ps`]: FrameBuilder::common_hit_item_ps
     #[inline]
     pub fn push_border(&mut self, bounds: PxRect, widths: PxSideOffsets, sides: BorderSides, radius: PxCornerRadius) {
         if self.cancel_widget {
@@ -877,9 +877,9 @@ impl FrameBuilder {
         self.display_list.push_border(&info, bounds.to_wr(), widths.to_wr(), details);
     }
 
-    /// Push a text run using [`common_item_ps`].
+    /// Push a text run using [`common_hit_item_ps`].
     ///
-    /// [`common_item_ps`]: FrameBuilder::common_item_ps
+    /// [`common_hit_item_ps`]: FrameBuilder::common_hit_item_ps
     #[inline]
     pub fn push_text(&mut self, rect: PxRect, glyphs: &[GlyphInstance], font: &impl Font, color: ColorF, synthesis: FontSynthesis) {
         if self.cancel_widget {
@@ -898,9 +898,9 @@ impl FrameBuilder {
         }
     }
 
-    /// Push an image using [`common_item_ps`].
+    /// Push an image using [`common_hit_item_ps`].
     ///
-    /// [`common_item_ps`]: FrameBuilder::common_item_ps
+    /// [`common_hit_item_ps`]: FrameBuilder::common_hit_item_ps
     pub fn push_image(&mut self, clip_rect: PxRect, img_size: PxSize, image: &impl Image, rendering: ImageRendering) {
         if self.cancel_widget {
             return;
@@ -924,7 +924,9 @@ impl FrameBuilder {
         }
     }
 
-    /// Push a color rectangle using [`common_item_ps`](FrameBuilder::common_item_ps).
+    /// Push a color rectangle using [`common_hit_item_ps`].
+    ///
+    /// [`common_hit_item_ps`]: FrameBuilder::common_hit_item_ps
     #[inline]
     pub fn push_color(&mut self, rect: PxRect, color: FrameBinding<RenderColor>) {
         if self.cancel_widget {
@@ -937,7 +939,7 @@ impl FrameBuilder {
         self.display_list.push_rect_with_animation(&item, rect.to_wr(), color);
     }
 
-    /// Push a repeating linear gradient rectangle using [`common_item_ps`].
+    /// Push a repeating linear gradient rectangle using [`common_hit_item_ps`].
     ///
     /// The gradient fills the `tile_size`, the tile is repeated to fill the `rect`.
     /// The `extend_mode` controls how the gradient fills the tile after the last color stop is reached.
@@ -945,7 +947,7 @@ impl FrameBuilder {
     /// The gradient `stops` must be normalized, first stop at 0.0 and last stop at 1.0, this
     /// is asserted in debug builds.
     ///
-    /// [`common_item_ps`]: FrameBuilder::common_item_ps
+    /// [`common_hit_item_ps`]: FrameBuilder::common_hit_item_ps
     #[inline]
     #[allow(clippy::too_many_arguments)]
     pub fn push_linear_gradient(
@@ -982,7 +984,7 @@ impl FrameBuilder {
             .push_gradient(&item, rect.to_wr(), gradient, tile_size.to_wr(), tile_spacing.to_wr());
     }
 
-    /// Push a repeating radial gradient rectangle using [`common_item_ps`].
+    /// Push a repeating radial gradient rectangle using [`common_hit_item_ps`].
     ///
     /// The gradient fills the `tile_size`, the tile is repeated to fill the `rect`.
     /// The  `extend_mode` controls how the gradient fills the tile after the last color stop is reached.
@@ -993,7 +995,7 @@ impl FrameBuilder {
     /// The gradient `stops` must be normalized, first stop at 0.0 and last stop at 1.0, this
     /// is asserted in debug builds.
     ///
-    /// [`common_item_ps`]: FrameBuilder::common_item_ps
+    /// [`common_hit_item_ps`]: FrameBuilder::common_hit_item_ps
     #[inline]
     #[allow(clippy::too_many_arguments)]
     pub fn push_radial_gradient(
@@ -1033,7 +1035,7 @@ impl FrameBuilder {
             .push_radial_gradient(&item, rect.to_wr(), gradient, tile_size.to_wr(), tile_spacing.to_wr())
     }
 
-    /// Push a repeating conic gradient rectangle using [`common_item_ps`].
+    /// Push a repeating conic gradient rectangle using [`common_hit_item_ps`].
     ///
     /// The gradient fills the `tile_size`, the tile is repeated to fill the `rect`.
     /// The  `extend_mode` controls how the gradient fills the tile after the last color stop is reached.
@@ -1041,7 +1043,7 @@ impl FrameBuilder {
     /// The gradient `stops` must be normalized, first stop at 0.0 and last stop at 1.0, this
     /// is asserted in debug builds.
     ///
-    /// [`common_item_ps`]: FrameBuilder::common_item_ps
+    /// [`common_hit_item_ps`]: FrameBuilder::common_hit_item_ps
     #[inline]
     #[allow(clippy::too_many_arguments)]
     pub fn push_conic_gradient(
@@ -1131,9 +1133,11 @@ impl FrameBuilder {
         }
     }
 
-    /// Push a `color` dot to mark the `offset`.
+    /// Push a `color` dot to mark the `offset` using [`common_item_ps`].
     ///
     /// The *dot* is a circle of the `color` highlighted by an white outline and shadow.
+    ///
+    /// [`common_item_ps`]: Self::common_item_ps
     #[inline]
     pub fn push_debug_dot(&mut self, offset: PxPoint, color: impl Into<RenderColor>) {
         let scale = self.scale_factor();
