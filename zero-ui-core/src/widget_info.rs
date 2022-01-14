@@ -524,6 +524,62 @@ impl BoundsRect {
     }
 }
 
+#[derive(Default, Debug)]
+struct BoundsData {
+    transform: Cell<RenderTransform>,
+    size: Cell<PxSize>,
+}
+
+/// Shared reference to the transform and size of a [`WidgetInfo`] outer or inner bounds.
+#[derive(Default, Clone, Debug)]
+pub struct BoundsInfo(Rc<BoundsData>);
+impl BoundsInfo {
+    /// New default.
+    #[inline]
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Get a copy of the current transform.
+    ///
+    /// The origin is the window root top-left.
+    #[inline]
+    pub fn transform(&self) -> RenderTransform {
+        self.0.transform.get()
+    }
+
+    /// Set the current transform.
+    #[inline]
+    pub fn set_transform(&self, transform: RenderTransform) {
+        self.0.transform.set(transform)
+    }
+
+    /// Get a copy of the current raw size.
+    ///
+    /// Note that this is not transformed.
+    #[inline]
+    pub fn size(&self) -> PxSize {
+        self.0.size.get()
+    }
+
+    /// Set the current raw size.
+    #[inline]
+    pub fn set_size(&self, size: PxSize) {
+        self.0.size.set(size)
+    }
+
+    /// Calculate the bounding box.
+    pub fn bounds(&self) -> PxRect {
+        let transform = self.transform();
+        let size = self.size();
+
+        let rect = PxRect::from_size(size).to_wr();
+        let bounds = transform.outer_transformed_box2d(&rect).unwrap();
+
+        bounds.to_px()
+    }
+}
+
 /// Shared reference to the rendered status of a [`WidgetInfo`].
 ///
 /// This status is updated every [`render`] without causing a tree rebuild.

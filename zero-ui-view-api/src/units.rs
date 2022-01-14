@@ -817,6 +817,20 @@ impl PxToWr for PxRect {
         wr::LayoutRect::from_origin_and_size(self.origin.to_wr(), self.size.to_wr())
     }
 }
+impl WrToPx for wr::LayoutRect {
+    type AsPx = PxRect;
+
+    fn to_px(self) -> Self::AsPx {
+        self.to_rect().to_px()
+    }
+}
+impl WrToPx for euclid::Rect<f32, wr::LayoutPixel> {
+    type AsPx = PxRect;
+
+    fn to_px(self) -> Self::AsPx {
+        PxRect::new(self.origin.to_px(), self.size.to_px())
+    }
+}
 impl DipToPx for DipRect {
     type AsPx = PxRect;
 
