@@ -244,7 +244,7 @@ impl WidgetInfoBuilder {
 
         #[cfg(debug_assertions)]
         for (widget_id, repeats) in repeats {
-            panic!("widget id `{:?}` appears more then once in {:?}{}", widget_id, self.window_id, {
+            tracing::error!(target: "render", "widget id `{:?}` appears more then once in {:?}{}", widget_id, self.window_id, {
                 let mut places = String::new();
                 use std::fmt::Write;
                 for node in &repeats {
