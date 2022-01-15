@@ -346,9 +346,8 @@ impl Controller {
                 }
             }
 
-            let code = code.unwrap();
-
             if !killed_by_us {
+                let code = code.unwrap();
                 tracing::error!(target: "vp_respawn", "view-process exit_code: 0x{:x}", code);
             }
 
