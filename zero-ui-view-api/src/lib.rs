@@ -49,7 +49,7 @@ pub use app_process::*;
 mod view_process;
 pub use view_process::*;
 
-use webrender_api::{DocumentId, FontInstanceKey, FontKey, HitTestResult, IdNamespace, ImageKey, PipelineId};
+use webrender_api::{DocumentId, FontInstanceKey, FontKey, HitTestResult, ImageKey};
 
 /// Packaged API request.
 #[derive(Debug)]
@@ -69,11 +69,7 @@ impl Request {
     pub fn affects_window_rect(&self, window_id: WindowId) -> bool {
         matches!(
             &self.0,
-            RequestData::set_position { id, .. }
-            | RequestData::set_size { id, .. }
-            | RequestData::set_max_size { id, .. }
-            | RequestData::set_min_size { id, .. }
-            | RequestData::set_state { id, .. }
+            RequestData::set_state { id, .. }
             if *id == window_id
         )
     }
@@ -265,12 +261,6 @@ declare_api! {
     /// Called once after shutdown, if running in a managed external process it will be killed after this call.
     fn exit(&mut self);
 
-    /// Returns the primary monitor if there is any or the first available monitor or none if no monitor was found.
-    pub fn primary_monitor(&mut self) -> Option<(MonitorId, MonitorInfo)>;
-
-    /// Returns information about the specific monitor, if it exists.
-    pub fn monitor_info(&mut self, id: MonitorId) -> Option<MonitorInfo>;
-
     /// Returns all available monitors.
     pub fn available_monitors(&mut self) -> Vec<(MonitorId, MonitorInfo)>;
 
@@ -287,27 +277,10 @@ declare_api! {
     /// Returns the renderer ids.
     pub fn open_headless(&mut self, request: HeadlessRequest) -> HeadlessOpenData;
 
-    /// Opens a *virtual headless surface* in an existing renderer.
-    ///
-    /// Unlike [`open_headless`] the renderer is shared, all font instance keys and image keys created
-    /// in the parent renderer work in this one too.
-    ///
-    /// Returns the renderer ids.
-    ///
-    /// [`open_headless`]: Api::open_headless
-    pub fn open_document(&mut self, request: DocumentRequest) -> HeadlessOpenData;
-
     /// Close the window or headless surface.
     ///
     /// All documents associated with the window or surface are also closed.
     pub fn close_window(&mut self, id: WindowId);
-
-    /// Close a document in the existing renderer.
-    ///
-    /// Note only documents created using [`open_document`] are closed by this.
-    ///
-    /// [`open_document`]: Api::open_document
-    pub fn close_document(&mut self, renderer: WindowId, document_id: DocumentId);
 
     /// Reads the system default text anti-aliasing config.
     pub fn text_aa(&mut self) -> TextAntiAliasing;
@@ -352,48 +325,17 @@ declare_api! {
     /// Set the window parent and if `self` blocks the parent events while open (`modal`).
     pub fn set_parent(&mut self, id: WindowId, parent: Option<WindowId>, modal: bool);
 
-    /// Set the window system border and title visibility.
-    pub fn set_chrome_visible(&mut self, id: WindowId, visible: bool);
-
-    /// Set the window top-left offset, includes the window chrome (outer-position), when it is in `Normal` mode.
-    ///
-    /// Moves the window if it is in `Normal` mode, otherwise the position is recorded as the *restore* position that will
-    /// be used when the window state is set to `Normal`.
-    pub fn set_position(&mut self, id: WindowId, pos: DipPoint);
-
-    /// Set the window content area size (inner-size) when it is in `Normal` mode.
-    ///
-    /// Resized the window if it is in `Normal` mode, otherwise the size is recorded as the *restore* size that will
-    /// be used when the window state is set to `Normal`.
-    pub fn set_size(&mut self, id: WindowId, size: DipSize);
-
-    /// Set the window state.
-    pub fn set_state(&mut self, id: WindowId, state: WindowState);
+    /// Set the window state, position, size.
+    pub fn set_state(&mut self, id: WindowId, state: WindowStateAll);
 
     /// Set the headless surface or document area size (viewport size).
     pub fn set_headless_size(&mut self, id: WindowId, document_id: DocumentId, size: DipSize, scale_factor: f32);
-
-    /// Set the window minimum content area size when it is in `Normal` mode.
-    ///
-    /// The window size is clamped to this constrain and the user cannot resize out of it.
-    pub fn set_min_size(&mut self, id: WindowId, size: DipSize);
-
-    /// Set the window maximum content area size when it is in `Normal` mode.
-    ///
-    /// The window size is clamped to this constrain and the user cannot resize out of it.
-    pub fn set_max_size(&mut self, id: WindowId, size: DipSize);
 
     /// Set the window icon.
     pub fn set_icon(&mut self, id: WindowId, icon: Option<ImageId>);
 
     /// Set the window cursor icon and visibility.
     pub fn set_cursor(&mut self, id: WindowId, icon: Option<CursorIcon>);
-
-    /// Gets the root pipeline ID.
-    pub fn pipeline_id(&mut self, id: WindowId) -> PipelineId;
-
-    /// Gets the resources namespace.
-    pub fn id_namspace(&mut self, id: WindowId) -> IdNamespace;
 
     /// Cache an image resource.
     ///
@@ -491,12 +433,6 @@ declare_api! {
 
     /// Delete a font instance.
     pub fn delete_font_instance(&mut self, id: WindowId, instance_key: FontInstanceKey);
-
-    /// Gets the window content area size.
-    pub fn size(&mut self, id: WindowId) -> DipSize;
-
-    /// Gets the window scale factor.
-    pub fn scale_factor(&mut self, id: WindowId) -> f32;
 
     /// In Windows, set if the `Alt+F4` should not cause a window close request and instead generate a key-press event.
     pub fn set_allow_alt_f4(&mut self, id: WindowId, allow: bool);

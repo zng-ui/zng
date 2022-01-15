@@ -10,8 +10,8 @@ use webrender::{
     RenderApi, Renderer, RendererOptions, Transaction,
 };
 use zero_ui_view_api::{
-    units::*, FrameId, FrameRequest, FrameUpdateRequest, HeadlessOpenData, HeadlessRequest, ImageId, ImageLoadedData, RenderMode,
-    TextAntiAliasing, ViewProcessGen, WindowId,
+    units::*, FrameId, FrameRequest, FrameUpdateRequest, HeadlessRequest, ImageId, ImageLoadedData, RenderMode, TextAntiAliasing,
+    ViewProcessGen, WindowId,
 };
 
 use crate::{
@@ -25,7 +25,6 @@ pub(crate) struct Surface {
     id: WindowId,
     pipeline_id: PipelineId,
     document_id: DocumentId,
-    documents: Vec<DocumentId>,
     api: RenderApi,
     size: DipSize,
     scale_factor: f32,
@@ -43,7 +42,6 @@ impl fmt::Debug for Surface {
         f.debug_struct("Surface")
             .field("id", &self.id)
             .field("pipeline_id", &self.pipeline_id)
-            .field("document", &self.documents)
             .field("size", &self.size)
             .field("scale_factor", &self.scale_factor)
             .finish_non_exhaustive()
@@ -96,7 +94,6 @@ impl Surface {
             id,
             pipeline_id,
             document_id,
-            documents: vec![],
             api,
             size: cfg.size,
             scale_factor: cfg.scale_factor,
@@ -108,24 +105,6 @@ impl Surface {
             pending_frames: VecDeque::new(),
             rendered_frame_id: FrameId::INVALID,
             resized: true,
-        }
-    }
-
-    pub fn open_document(&mut self, scale_factor: f32, initial_size: DipSize) -> HeadlessOpenData {
-        let document_id = self.api.add_document(initial_size.to_px(scale_factor).to_wr_device());
-        self.documents.push(document_id);
-        HeadlessOpenData {
-            id_namespace: self.id_namespace(),
-            pipeline_id: self.pipeline_id,
-            document_id,
-            render_mode: self.render_mode(),
-        }
-    }
-
-    pub fn close_document(&mut self, document_id: DocumentId) {
-        if let Some(i) = self.documents.iter().position(|&d| d == document_id) {
-            self.documents.swap_remove(i);
-            self.api.delete_document(document_id);
         }
     }
 
@@ -150,16 +129,8 @@ impl Surface {
         self.document_id
     }
 
-    pub fn scale_factor(&self) -> f32 {
-        self.scale_factor
-    }
-
     pub fn frame_id(&self) -> FrameId {
         self.rendered_frame_id
-    }
-
-    pub fn size(&self) -> DipSize {
-        self.size
     }
 
     pub fn set_size(&mut self, document_id: DocumentId, size: DipSize, scale_factor: f32) {
@@ -299,7 +270,7 @@ impl Surface {
         msg: FrameReadyMsg,
         images: &mut ImageCache<S>,
     ) -> (FrameId, Option<ImageLoadedData>) {
-        debug_assert!(self.document_id == msg.document_id || self.documents.contains(&msg.document_id));
+        debug_assert_eq!(self.document_id, msg.document_id);
 
         if self.document_id != msg.document_id {
             todo!("document rendering is not implemented in WR");

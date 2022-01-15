@@ -630,7 +630,7 @@ pub struct WindowChanged {
     pub window: WindowId,
 
     /// Window new state, is `None` if the window state did not change.
-    pub state: Option<WindowState>,
+    pub state: Option<WindowStateAll>,
 
     /// Window new position, is `None` if the window position did not change.
     pub position: Option<DipPoint>,
@@ -702,8 +702,8 @@ impl WindowChanged {
         }
     }
 
-    /// Create an event that represents [`WindowState`] change.
-    pub fn state_changed(window: WindowId, state: WindowState, cause: EventCause) -> Self {
+    /// Create an event that represents [`WindowStateAll`] change.
+    pub fn state_changed(window: WindowId, state: WindowStateAll, cause: EventCause) -> Self {
         WindowChanged {
             window,
             state: Some(state),
@@ -1415,26 +1415,21 @@ pub struct WindowRequest {
     pub id: WindowId,
     /// Title text.
     pub title: String,
-    /// Top-left offset, including the chrome (outer-position).
-    pub pos: Option<DipPoint>,
-    /// Content size (inner-size).
-    pub size: DipSize,
-    ///Initial window state.
-    pub state: WindowState,
 
-    /// Minimal size allowed.
-    pub min_size: DipSize,
-    /// Maximum size allowed.
-    pub max_size: DipSize,
+    /// Window state, position, size and restore rectangle.
+    pub state: WindowStateAll,
+
+    /// If the initial position should be provided the operating system,
+    /// if this is not possible the `state.restore_rect.origin` is used.
+    pub default_position: bool,
 
     /// Video mode used when the window is in exclusive state.
     pub video_mode: VideoMode,
+
     /// Window visibility.
     pub visible: bool,
     /// Window taskbar icon visibility.
     pub taskbar_visible: bool,
-    /// Window chrome visibility (decoration-visibility).
-    pub chrome_visible: bool,
     /// In Windows, if `Alt+F4` does **not** causes a close request and instead causes a key-press event.
     pub allow_alt_f4: bool,
     /// If the window is "top-most".
@@ -1461,6 +1456,36 @@ pub struct WindowRequest {
 
     /// Render mode preference for this window.
     pub render_mode: RenderMode,
+}
+
+/// Represents the properties of a window that affect its position, size and state.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct WindowStateAll {
+    /// The window state.
+    pub state: WindowState,
+
+    /// Position and size of the window in the `Normal` state.
+    ///
+    /// The position is relative to the virtual screen that encompasses all monitors.
+    pub restore_rect: DipRect,
+    /// What state the window goes too when "restored".
+    pub restore_state: WindowState,
+
+    /// Minimal `Normal` size allowed.
+    pub min_size: DipSize,
+    /// Maximum `Normal` size allowed.
+    pub max_size: DipSize,
+
+    /// If the system provided outer-border and title-bar is visible.
+    ///
+    /// This is also called the "decoration" or "chrome" of the window.
+    pub chrome_visible: bool,
+}
+impl WindowStateAll {
+    /// Clamp the `restore_rect.size` to `min_size` and `max_size`.
+    pub fn clamp_size(&mut self) {
+        self.restore_rect.size = self.restore_rect.size.min(self.max_size).max(self.min_size)
+    }
 }
 
 /// Render backend preference.
@@ -1736,10 +1761,14 @@ pub struct WindowOpenData {
     /// Root document ID, usually `1`.
     pub document_id: webrender_api::DocumentId,
 
+    /// Window complete state.
+    pub state: WindowStateAll,
+
     /// Final top-left offset of the window (including outer chrome).
     pub position: DipPoint,
     /// Final dimensions of the client area of the window (excluding outer chrome).
     pub size: DipSize,
+
     /// Final scale factor.
     pub scale_factor: f32,
 

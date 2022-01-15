@@ -550,7 +550,13 @@ impl<S: AppEventSender> App<S> {
         let scale_factor = self.windows[i].scale_factor();
 
         match event {
-            WindowEvent::Resized(size) => {
+            WindowEvent::Resized(_) => {
+                let size = if let Some(size) = self.windows[i].resized() {
+                    size
+                } else {
+                    return;
+                };
+
                 // give the app 300ms to send a new frame, this is the collaborative way to
                 // resize, it should reduce the changes of the user seeing the clear color.
 
@@ -579,15 +585,8 @@ impl<S: AppEventSender> App<S> {
                     }
                 }
 
-                let px_size = size.to_px();
-
                 if let Some(state) = self.windows[i].state_change() {
                     self.notify(Event::WindowChanged(WindowChanged::state_changed(id, state, EventCause::System)));
-                }
-
-                if !self.windows[i].resized(px_size) {
-                    tracing::debug!("resize already handled or did not actually change size");
-                    return;
                 }
 
                 if let Some(handle) = self.windows[i].monitor_change() {
@@ -600,8 +599,6 @@ impl<S: AppEventSender> App<S> {
                         EventCause::System,
                     )));
                 }
-
-                let size = px_size.to_dip(scale_factor);
 
                 let mut wait_id = self.resize_frame_wait_id_gen.wrapping_add(1);
                 if wait_id == 0 {
@@ -625,7 +622,6 @@ impl<S: AppEventSender> App<S> {
                                     received_frame = req.is_frame(id, wait_id);
                                     if received_frame || req.affects_window_rect(id) {
                                         // received new frame
-                                        self.windows[i].on_resized();
                                         let rsp = self.respond(req);
                                         if rsp.must_be_send() {
                                             let _ = self.response_sender.send(rsp);
@@ -645,7 +641,6 @@ impl<S: AppEventSender> App<S> {
 
                         Err(flume::RecvTimeoutError::Timeout) => {
                             // did not receive a new frame in time.
-                            self.windows[i].on_resized();
                             break;
                         }
                         Err(flume::RecvTimeoutError::Disconnected) => {
@@ -675,22 +670,18 @@ impl<S: AppEventSender> App<S> {
                     }
                 }
             }
-            WindowEvent::Moved(p) => {
-                let px_p = p.to_px();
+            WindowEvent::Moved(_) => {
+                let p = if let Some(p) = self.windows[i].moved() {
+                    p
+                } else {
+                    return;
+                };
 
                 if let Some(state) = self.windows[i].state_change() {
                     self.notify(Event::WindowChanged(WindowChanged::state_changed(id, state, EventCause::System)));
                 }
 
-                if !self.windows[i].moved(px_p) {
-                    return;
-                }
-
-                self.notify(Event::WindowChanged(WindowChanged::moved(
-                    id,
-                    px_p.to_dip(scale_factor),
-                    EventCause::System,
-                )));
+                self.notify(Event::WindowChanged(WindowChanged::moved(id, p, EventCause::System)));
 
                 if let Some(handle) = self.windows[i].monitor_change() {
                     let m_id = self.monitor_handle_to_id(&handle);
@@ -927,16 +918,6 @@ impl<S: AppEventSender> App<S> {
 
             if first {
                 let size = w.size();
-
-                // Windows not notifying this one.
-                #[cfg(windows)]
-                if w.is_maximized() && w.is_active_window() && w.focused_changed(true) {
-                    self.notify(Event::Focused {
-                        window: window_id,
-                        focused: true,
-                    });
-                }
-
                 self.notify(Event::WindowChanged(WindowChanged::resized(window_id, size, EventCause::App, None)));
             }
         } else if let Some(s) = self.surfaces.iter_mut().find(|w| w.id() == window_id) {
@@ -1123,34 +1104,6 @@ impl<S: AppEventSender> Api for App<S> {
         self.exited = true;
     }
 
-    fn primary_monitor(&mut self) -> Option<(MonitorId, MonitorInfo)> {
-        self.assert_started();
-
-        let window_target = unsafe { &*self.window_target };
-
-        window_target
-            .primary_monitor()
-            .or_else(|| window_target.available_monitors().next())
-            .map(|m| {
-                let id = self.monitor_id(&m);
-                let mut info = util::monitor_handle_to_info(&m);
-                info.is_primary = true;
-                (id, info)
-            })
-    }
-
-    fn monitor_info(&mut self, id: MonitorId) -> Option<MonitorInfo> {
-        self.assert_started();
-
-        let window_target = unsafe { &*self.window_target };
-
-        self.monitors.iter().find(|(i, _)| *i == id).map(|(_, h)| {
-            let mut info = util::monitor_handle_to_info(h);
-            info.is_primary = window_target.primary_monitor().map(|p| &p == h).unwrap_or(false);
-            info
-        })
-    }
-
     fn available_monitors(&mut self) -> Vec<(MonitorId, MonitorInfo)> {
         self.assert_started();
 
@@ -1170,14 +1123,16 @@ impl<S: AppEventSender> Api for App<S> {
             .collect()
     }
 
-    fn open_window(&mut self, config: WindowRequest) -> WindowOpenData {
+    fn open_window(&mut self, mut config: WindowRequest) -> WindowOpenData {
         let _s = tracing::debug_span!("open_window", ?config).entered();
+
+        config.state.clamp_size();
 
         if self.headless {
             let data = self.open_headless(HeadlessRequest {
                 id: config.id,
                 scale_factor: 1.0,
-                size: config.size,
+                size: config.state.restore_rect.size,
                 text_aa: config.text_aa,
                 render_mode: config.render_mode,
             });
@@ -1187,8 +1142,16 @@ impl<S: AppEventSender> Api for App<S> {
                 document_id: data.document_id,
                 render_mode: data.render_mode,
                 position: DipPoint::zero(),
-                size: config.size,
+                size: config.state.restore_rect.size,
                 scale_factor: 1.0,
+                state: WindowStateAll {
+                    state: WindowState::Fullscreen,
+                    restore_rect: DipRect::from_size(config.state.restore_rect.size),
+                    restore_state: WindowState::Fullscreen,
+                    min_size: DipSize::zero(),
+                    max_size: DipSize::new(Dip::MAX, Dip::MAX),
+                    chrome_visible: false,
+                },
             }
         } else {
             self.assert_started();
@@ -1210,6 +1173,7 @@ impl<S: AppEventSender> Api for App<S> {
                 size: win.size(),
                 scale_factor: win.scale_factor(),
                 render_mode: win.render_mode(),
+                state: win.state(),
             };
 
             self.windows.push(win);
@@ -1244,17 +1208,6 @@ impl<S: AppEventSender> Api for App<S> {
         }
     }
 
-    fn open_document(&mut self, request: DocumentRequest) -> HeadlessOpenData {
-        self.assert_started();
-        if let Some(surf) = self.surfaces.iter_mut().find(|s| s.id() == request.renderer) {
-            surf.open_document(request.scale_factor, request.size)
-        } else if let Some(win) = self.windows.iter_mut().find(|s| s.id() == request.renderer) {
-            win.open_document(request.scale_factor, request.size)
-        } else {
-            HeadlessOpenData::invalid()
-        }
-    }
-
     fn close_window(&mut self, id: WindowId) {
         let _s = tracing::debug_span!("close_window", ?id);
 
@@ -1264,16 +1217,6 @@ impl<S: AppEventSender> Api for App<S> {
         }
         if let Some(i) = self.surfaces.iter().position(|w| w.id() == id) {
             let _ = self.surfaces.swap_remove(i);
-        }
-    }
-
-    fn close_document(&mut self, renderer: WindowId, document_id: DocumentId) {
-        self.assert_started();
-        if let Some(surf) = self.surfaces.iter_mut().find(|w| w.id() == renderer) {
-            surf.close_document(document_id);
-        }
-        if let Some(win) = self.windows.iter_mut().find(|w| w.id() == renderer) {
-            win.close_document(document_id);
         }
     }
 
@@ -1326,82 +1269,21 @@ impl<S: AppEventSender> Api for App<S> {
         self.with_window(id, |w| w.set_parent(parent, modal), || ())
     }
 
-    fn set_chrome_visible(&mut self, id: WindowId, visible: bool) {
-        self.with_window(id, |w| w.set_chrome_visible(visible), || ())
-    }
-
-    fn set_position(&mut self, id: WindowId, pos: DipPoint) {
-        if self.with_window(id, |w| w.set_outer_pos(pos), || false) {
-            let _ = self.app_sender.send(AppEvent::Notify(Event::WindowChanged(WindowChanged::moved(
-                id,
-                pos,
-                EventCause::App,
-            ))));
-        }
-
+    fn set_state(&mut self, id: WindowId, state: WindowStateAll) {
         if let Some(w) = self.windows.iter_mut().find(|w| w.id() == id) {
-            if w.set_outer_pos(pos) {
-                let _ = self.app_sender.send(AppEvent::Notify(Event::WindowChanged(WindowChanged::moved(
-                    id,
-                    pos,
-                    EventCause::App,
-                ))));
+            if w.set_state(state.clone()) {
+                let mut change = WindowChanged::state_changed(id, state, EventCause::App);
 
-                if let Some(monitor) = w.monitor_change() {
+                change.size = w.resized();
+                change.position = w.moved();
+                if let Some(handle) = w.monitor_change() {
                     let scale_factor = w.scale_factor();
-                    let monitor = self.monitor_handle_to_id(&monitor);
-                    let _ = self
-                        .app_sender
-                        .send(AppEvent::Notify(Event::WindowChanged(WindowChanged::monitor_changed(
-                            id,
-                            monitor,
-                            scale_factor,
-                            EventCause::App,
-                        ))));
+                    let monitor = self.monitor_handle_to_id(&handle);
+                    change.monitor = Some((monitor, scale_factor));
                 }
+
+                let _ = self.app_sender.send(AppEvent::Notify(Event::WindowChanged(change)));
             }
-        } else {
-            tracing::error!("headed window `{}` not found, will return fallback result", id);
-        }
-    }
-
-    fn set_size(&mut self, id: WindowId, size: DipSize) {
-        if let Some(w) = self.windows.iter_mut().find(|w| w.id() == id) {
-            if w.set_inner_size(size) {
-                let _ = self.app_sender.send(AppEvent::Notify(Event::WindowChanged(WindowChanged::resized(
-                    id,
-                    size,
-                    EventCause::App,
-                    None,
-                ))));
-
-                if let Some(monitor) = w.monitor_change() {
-                    let scale_factor = w.scale_factor();
-                    let monitor = self.monitor_handle_to_id(&monitor);
-                    let _ = self
-                        .app_sender
-                        .send(AppEvent::Notify(Event::WindowChanged(WindowChanged::monitor_changed(
-                            id,
-                            monitor,
-                            scale_factor,
-                            EventCause::App,
-                        ))));
-                }
-            }
-        } else {
-            tracing::error!("headed window `{}` not found, will return fallback result", id);
-        }
-    }
-
-    fn set_state(&mut self, id: WindowId, state: WindowState) {
-        if self.with_window(id, |w| w.set_state(state), || false) {
-            let _ = self
-                .app_sender
-                .send(AppEvent::Notify(Event::WindowChanged(WindowChanged::state_changed(
-                    id,
-                    state,
-                    EventCause::App,
-                ))));
         }
     }
 
@@ -1409,21 +1291,11 @@ impl<S: AppEventSender> Api for App<S> {
         self.assert_started();
         if let Some(surf) = self.surfaces.iter_mut().find(|s| s.id() == renderer) {
             surf.set_size(document_id, size, scale_factor)
-        } else if let Some(win) = self.windows.iter_mut().find(|s| s.id() == renderer) {
-            win.set_document_size(document_id, size, scale_factor)
         }
     }
 
     fn set_video_mode(&mut self, id: WindowId, mode: VideoMode) {
         self.with_window(id, |w| w.set_video_mode(mode), || ())
-    }
-
-    fn set_min_size(&mut self, id: WindowId, size: DipSize) {
-        self.with_window(id, |w| w.set_min_inner_size(size), || ())
-    }
-
-    fn set_max_size(&mut self, id: WindowId, size: DipSize) {
-        self.with_window(id, |w| w.set_max_inner_size(size), || ())
     }
 
     fn set_icon(&mut self, id: WindowId, icon: Option<ImageId>) {
@@ -1433,14 +1305,6 @@ impl<S: AppEventSender> Api for App<S> {
 
     fn set_cursor(&mut self, id: WindowId, icon: Option<CursorIcon>) {
         self.with_window(id, |w| w.set_cursor(icon), || ())
-    }
-
-    fn pipeline_id(&mut self, id: WindowId) -> PipelineId {
-        with_window_or_surface!(self, id, |w| w.pipeline_id(), || PipelineId::dummy())
-    }
-
-    fn id_namspace(&mut self, id: WindowId) -> IdNamespace {
-        with_window_or_surface!(self, id, |w| w.id_namespace(), || IdNamespace(0))
     }
 
     fn image_decoders(&mut self) -> Vec<String> {
@@ -1512,14 +1376,6 @@ impl<S: AppEventSender> Api for App<S> {
 
     fn delete_font_instance(&mut self, id: WindowId, instance_key: FontInstanceKey) {
         with_window_or_surface!(self, id, |w| w.delete_font_instance(instance_key), || ())
-    }
-
-    fn size(&mut self, id: WindowId) -> DipSize {
-        with_window_or_surface!(self, id, |w| w.size(), || DipSize::zero())
-    }
-
-    fn scale_factor(&mut self, id: WindowId) -> f32 {
-        with_window_or_surface!(self, id, |w| w.scale_factor(), || 1.0)
     }
 
     fn set_allow_alt_f4(&mut self, id: WindowId, allow: bool) {

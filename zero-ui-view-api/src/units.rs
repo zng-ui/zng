@@ -306,6 +306,11 @@ impl Dip {
     pub fn abs(self) -> Dip {
         Dip(self.0.saturating_abs())
     }
+
+    /// Maximum DIP value.
+    pub const MAX: Dip = Dip(i32::MAX / DIP_TO_PX);
+    /// Minimum DIP value.
+    pub const MIN: Dip = Dip(i32::MIN / DIP_TO_PX);
 }
 impl fmt::Debug for Dip {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
