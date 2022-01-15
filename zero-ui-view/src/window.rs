@@ -131,7 +131,6 @@ impl Window {
         // create window and OpenGL context
         let mut winit = WindowBuilder::new()
             .with_title(cfg.title)
-            .with_inner_size(cfg.size.to_winit())
             .with_resizable(cfg.resizable)
             .with_transparent(cfg.transparent)
             .with_always_on_top(cfg.always_on_top)

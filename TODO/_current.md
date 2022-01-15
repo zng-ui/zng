@@ -8,3 +8,4 @@ except the render, this causes problems with context variables, like enabled.
 
 * Linux does not open maximized example image some times.
 * Windows does not respawn fullscreen, ends the size of the normal window, borderless.
+* Return restore position selected by system when starting maximized with default position.

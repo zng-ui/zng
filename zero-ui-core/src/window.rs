@@ -1337,7 +1337,7 @@ impl AppWindow {
 
         // `size` var is only used on init or once after update AND if auto_size did not override it.
         let use_system_size = !self.vars.size().is_new(ctx.vars);
-        let (size, min_size, max_size) = self.layout_size(ctx, use_system_size);
+        let (size, min_size, max_size, _) = self.layout_size(ctx, use_system_size);
 
         if self.size != size {
             let _s = tracing::trace_span!("resize/render-vars").entered();
@@ -1405,7 +1405,7 @@ impl AppWindow {
         let _s = tracing::trace_span!("window.on_layout", window = %self.id.sequential()).entered();
 
         // layout using the "system" size, it can still be overwritten by auto_size.
-        let (size, _, _) = self.layout_size(ctx, true);
+        let (size, _, _, _) = self.layout_size(ctx, true);
 
         if self.size != size {
             let _s = tracing::trace_span!("resize/layout").entered();
@@ -1436,6 +1436,8 @@ impl AppWindow {
 
         self.first_layout = false;
 
+        let mut restore_rect = DipRect::default();
+
         let mut state = self.vars.state().copy(ctx);
         if self.kiosk && !state.is_fullscreen() {
             tracing::warn!("kiosk mode but not fullscreen, will force to fullscreen");
@@ -1448,28 +1450,12 @@ impl AppWindow {
         } else if let WindowState::Normal | WindowState::Minimized = state {
             // we already have the size, and need to calculate the start-position.
 
-            let (final_size, min_size, max_size) = self.layout_size(ctx, false);
+            let (final_size, min_size, max_size, restore_size) = self.layout_size(ctx, false);
 
+            restore_rect.size = restore_size;
             self.size = final_size;
             self.min_size = min_size;
             self.max_size = max_size;
-
-            // compute start position.
-            match self.context.root.start_position {
-                StartPosition::Default => {
-                    // `layout_position` can return `None` or a computed position.
-                    // We use `None` to signal the view-process to let the OS define the start position.
-                    self.position = self.layout_position(ctx);
-                }
-                StartPosition::CenterMonitor => {
-                    let scr_size = self.monitor_info(ctx).size;
-                    self.position = Some(DipPoint::new(
-                        (scr_size.width - self.size.width) / Dip::new(2),
-                        (scr_size.height - self.size.height) / Dip::new(2),
-                    ));
-                }
-                StartPosition::CenterParent => todo!(),
-            }
 
             // `on_render` will complete first_render.
             self.context.update.render = WindowRenderUpdate::Render;
@@ -1477,7 +1463,8 @@ impl AppWindow {
         } else if state.is_fullscreen() {
             // we already have the size, it is the monitor size (for Exclusive we are okay with a blink if the resolution does not match).
 
-            let size = self.monitor_info(ctx).size;
+            let monitor_info = self.monitor_info(ctx);
+            let size = monitor_info.size;
 
             if self.size != size {
                 self.size = size;
@@ -1487,17 +1474,19 @@ impl AppWindow {
                 );
             }
 
-            let (size, min_size, max_size) = self.layout_size(ctx, true);
+            let (size, min_size, max_size, restore_size) = self.layout_size(ctx, true);
             debug_assert_eq!(size, self.size);
             self.min_size = min_size;
             self.max_size = max_size;
+            restore_rect.size = restore_size;
 
             self.context.update.render = WindowRenderUpdate::Render;
             ctx.updates.render();
         } else {
             // we don't have the size, the maximized size needs to exclude window-chrome and non-client area.
             // but we do calculate the size as the "restore" size.
-            let (size, min_size, max_size) = self.layout_size(ctx, false);
+            let (size, min_size, max_size, restore_size) = self.layout_size(ctx, false);
+            restore_rect.size = restore_size;
             self.size = size;
             self.min_size = min_size;
             self.max_size = max_size;
@@ -1506,6 +1495,28 @@ impl AppWindow {
             self.context.update.layout = true;
             self.context.update.render = WindowRenderUpdate::Render;
             ctx.updates.layout();
+        }
+
+        // compute start position.
+        let mut position_default = false;
+        match self.context.root.start_position {
+            StartPosition::Default => {
+                // `layout_position` can return `None` or a computed position.
+                // We use `None` to signal the view-process to let the OS define the start position.
+                if let Some(p) = self.layout_position(ctx) {
+                    restore_rect.origin = p;
+                } else {
+                    position_default = true;
+                }
+            }
+            StartPosition::CenterMonitor => {
+                let scr_size = self.monitor_info(ctx).size;
+                restore_rect.origin = DipPoint::new(
+                    (scr_size.width - restore_rect.size.width) / Dip::new(2),
+                    (scr_size.height - restore_rect.size.height) / Dip::new(2),
+                );
+            }
+            StartPosition::CenterParent => todo!(),
         }
 
         // open the view window, it will remain invisible until the first frame is rendered
@@ -1519,8 +1530,8 @@ impl AppWindow {
                 let config = view_process::WindowRequest {
                     id: self.id.get(),
                     title: self.vars.title().get(ctx.vars).to_string(),
-                    pos: self.position,
-                    size: self.size,
+                    pos: if position_default { Some(restore_rect.origin) } else { None },
+                    size: restore_rect.size,
                     min_size: self.min_size,
                     max_size: self.max_size,
                     state,
@@ -1584,16 +1595,17 @@ impl AppWindow {
                     self.context.update.render = WindowRenderUpdate::Render;
                     ctx.updates.render();
 
-                    let (_, min_size, max_size) = self.layout_size(ctx, true);
+                    let (_, min_size, max_size, restore_size) = self.layout_size(ctx, true);
 
                     self.min_size = min_size;
                     self.max_size = max_size;
+                    restore_rect.size = restore_size;
                 }
 
                 if state == WindowState::Normal {
-                    let restore_rect = DipRect::new(data.position, data.size);
-                    self.vars.0.restore_rect.set_ne(ctx, restore_rect);
+                    restore_rect = DipRect::new(data.position, data.size);
                 }
+                self.vars.0.restore_rect.set_ne(ctx, restore_rect);
 
                 self.vars.0.render_mode.set_ne(ctx.vars, data.render_mode);
 
@@ -1681,13 +1693,13 @@ impl AppWindow {
         }
     }
 
-    /// Measure and arrange the content, returns the final, min and max sizes.
+    /// Measure and arrange the content, returns the final, min, max and restore sizes.
     ///
     /// If `use_system_size` is `true` the `size` variable is ignored.
-    fn layout_size(&mut self, ctx: &mut AppContext, use_system_size: bool) -> (DipSize, DipSize, DipSize) {
+    fn layout_size(&mut self, ctx: &mut AppContext, use_system_size: bool) -> (DipSize, DipSize, DipSize, DipSize) {
         let monitor_info = self.monitor_info(ctx);
 
-        let (available_size, min_size, max_size, auto_size) = ctx.outer_layout_context(
+        let (available_size, min_size, max_size, restore_size, auto_size) = ctx.outer_layout_context(
             monitor_info.size.to_px(monitor_info.scale_factor.0),
             monitor_info.scale_factor,
             monitor_info.ppi,
@@ -1701,10 +1713,12 @@ impl AppWindow {
                 let default_min_size = Size::new(192, 48).to_layout(ctx, scr_size, PxSize::zero());
                 let default_max_size = ctx.viewport_size; // (100%, 100%)
 
+                let restore_size = self.vars.size().get(ctx.vars).to_layout(ctx, scr_size, default_size);
+
                 let mut size = if use_system_size || self.kiosk {
                     self.size.to_px(ctx.scale_factor.0)
                 } else {
-                    self.vars.size().get(ctx.vars).to_layout(ctx, scr_size, default_size)
+                    restore_size
                 };
                 let min_size = self.vars.min_size().get(ctx.vars).to_layout(ctx, scr_size, default_min_size);
                 let max_size = self.vars.max_size().get(ctx.vars).to_layout(ctx, scr_size, default_max_size);
@@ -1721,7 +1735,7 @@ impl AppWindow {
                     size.height = size.height.max(min_size.height).min(max_size.height);
                 }
 
-                (size, min_size, max_size, auto_size)
+                (size, min_size, max_size, restore_size, auto_size)
             },
         );
 
@@ -1751,6 +1765,7 @@ impl AppWindow {
             final_size,
             min_size.to_dip(monitor_info.scale_factor.0),
             max_size.to_dip(monitor_info.scale_factor.0),
+            restore_size.to_dip(monitor_info.scale_factor.0),
         )
     }
 
