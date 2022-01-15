@@ -1560,38 +1560,42 @@ impl AppWindow {
 
                 let mut syn_args = RawWindowChangedArgs::now(self.id, None, None, None, None, EventCause::App, None);
 
-                if self.size != data.size || self.context.update.layout {
-                    self.size = data.size;
-                    syn_args.size = Some(self.size);
+                if self.vars.0.actual_position.set_ne(ctx, data.position) {
+                    syn_args.position = self.position;
+                }
+                self.position = Some(data.position);
 
+                if self.vars.0.actual_size.set_ne(ctx, data.size) {
+                    syn_args.size = Some(data.size);
+                }
+
+                let scale_factor_changed = {
+                    let factor = data.scale_factor.fct();
+                    let info = ctx.services.windows().windows_info.get_mut(&self.id).unwrap();
+                    let changed = info.scale_factor != factor;
+                    info.scale_factor = factor;
+                    changed
+                };
+
+                if self.size != data.size || self.context.update.layout || scale_factor_changed {
+                    self.size = data.size;
+
+                    self.context.update.layout = true;
                     self.context.update.render = WindowRenderUpdate::Render;
                     ctx.updates.render();
 
-                    let (size, min_size, max_size) = self.layout_size(ctx, true);
+                    let (_, min_size, max_size) = self.layout_size(ctx, true);
 
-                    if size != self.size {
-                        tracing::error!(
-                            "content size does not match window size, expected `{:?}`, but was `{:?}`",
-                            self.size,
-                            size
-                        );
-                    }
                     self.min_size = min_size;
                     self.max_size = max_size;
                 }
 
-                if self.position != Some(data.position) {
-                    self.position = Some(data.position);
-
-                    syn_args.position = self.position;
-                } else {
-                    self.vars.0.actual_position.set_ne(ctx, data.position);
+                if state == WindowState::Normal {
+                    let restore_rect = DipRect::new(data.position, data.size);
+                    self.vars.0.restore_rect.set_ne(ctx, restore_rect);
                 }
 
                 self.vars.0.render_mode.set_ne(ctx.vars, data.render_mode);
-
-                //syn_args.monitor = Some((data.monitor, data.scale_factor)); // TODO, set scale-factor via event?
-                ctx.services.windows().windows_info.get_mut(&self.id).unwrap().scale_factor = data.scale_factor.fct();
 
                 RawWindowChangedEvent.notify(ctx, syn_args);
             }
