@@ -38,22 +38,18 @@ fn filter(level: &Level, metadata: &tracing::Metadata) -> bool {
         return false;
     }
 
-    if metadata.target() == "webrender::device::gl" && metadata.line() == Some(2385) {
-        return false;
-    }
-
     // suppress webrender warnings:
     //
     if metadata.target() == "webrender::device::gl" {
         // suppress vertex debug-only warnings.
         // see: https://bugzilla.mozilla.org/show_bug.cgi?id=1615342
-        if metadata.line() == Some(2385) {
+        if metadata.line() == Some(2396) {
             return false;
         }
 
         // Suppress "Cropping texture upload Box2D((0, 0), (0, 1)) to None"
         // This happens when an empty frame is rendered.
-        if metadata.line() == Some(4549) {
+        if metadata.line() == Some(4560) {
             return false;
         }
     }
@@ -63,7 +59,7 @@ fn filter(level: &Level, metadata: &tracing::Metadata) -> bool {
     if metadata.target() == "font_kit::loaders::freetype" {
         // Suppress "get_type_1_or_sfnt_name(): found invalid platform ID $n"
         // This does not look fully implemented and generates a lot of warns
-        // with the default Ubuntu font set all with valid plataform IDs.
+        // with the default Ubuntu font set all with valid platform IDs.
         if metadata.line() == Some(735) {
             return false;
         }
