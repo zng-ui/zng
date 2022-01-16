@@ -1000,10 +1000,10 @@ impl Window {
     /// Does a hit-test on the current frame.
     ///
     /// Returns all hits from front-to-back.
-    pub fn hit_test(&mut self, point: DipPoint) -> (FrameId, HitTestResult) {
+    pub fn hit_test(&mut self, point: DipPoint) -> (FrameId, PxPoint, HitTestResult) {
         let _p = tracing::trace_span!("hit_test").entered();
         let point = point.to_px(self.scale_factor());
-        (self.rendered_frame_id, self.hit_tester.hit_test(point))
+        (self.rendered_frame_id, point, self.hit_tester.hit_test(point))
     }
 
     /// Window actual render mode.

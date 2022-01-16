@@ -15,7 +15,7 @@ use crate::mouse::MultiClickConfig;
 use crate::render::FrameId;
 use crate::service::Service;
 use crate::task::SignalOnce;
-use crate::units::{DipPoint, DipSize, Factor, Px, PxRect, PxSize};
+use crate::units::{DipPoint, PxPoint, DipSize, Factor, Px, PxRect, PxSize};
 use crate::window::{MonitorId, WindowId};
 use crate::{event, event_args};
 use zero_ui_view_api::webrender_api::{
@@ -1107,7 +1107,7 @@ impl ViewRenderer {
     /// Get display items of the last rendered frame that intercept the `point`.
     ///
     /// Returns all hits from front-to-back.
-    pub fn hit_test(&self, point: DipPoint) -> Result<(FrameId, HitTestResult)> {
+    pub fn hit_test(&self, point: DipPoint) -> Result<(FrameId, PxPoint, HitTestResult)> {
         self.call(|id, p| p.hit_test(id, point))
     }
 

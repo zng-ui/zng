@@ -1,5 +1,5 @@
 mod control;
-pub use control::*;
+use control::*;
 
 mod monitor;
 pub use monitor::*;
@@ -21,6 +21,7 @@ use crate::{
         AppExtended, AppExtension, ControlFlow, HeadlessApp,
     },
     context::{AppContext, WindowContext},
+    event::EventUpdateArgs,
     image::ImageVar,
 };
 
@@ -193,8 +194,32 @@ impl AppExtension for WindowManager {
         ctx.services.register(Windows::new(ctx.updates.sender()));
     }
 
-    fn event_preview<EV: crate::event::EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {
+    fn event_preview<EV: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {
         Monitors::on_pre_event(ctx, args);
         Windows::on_pre_event(ctx, args);
+    }
+
+    fn event_ui<EV: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {
+        Windows::on_ui_event(ctx, args);
+    }
+
+    fn event<EV: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {
+        Windows::on_event(ctx, args);
+    }
+
+    fn update_ui(&mut self, ctx: &mut AppContext) {
+        Windows::on_ui_update(ctx);
+    }
+
+    fn update(&mut self, ctx: &mut AppContext) {
+        Windows::on_update(ctx);
+    }
+
+    fn layout(&mut self, ctx: &mut AppContext) {
+        Windows::on_layout(ctx);
+    }
+
+    fn render(&mut self, ctx: &mut AppContext) {
+        Windows::on_render(ctx);
     }
 }

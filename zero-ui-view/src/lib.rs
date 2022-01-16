@@ -1394,8 +1394,12 @@ impl<S: AppEventSender> Api for App<S> {
         with_window_or_surface!(self, id, |w| w.frame_image_rect(&mut self.image_cache, rect), || 0)
     }
 
-    fn hit_test(&mut self, id: WindowId, point: DipPoint) -> (FrameId, HitTestResult) {
-        with_window_or_surface!(self, id, |w| w.hit_test(point), || (FrameId::INVALID, HitTestResult::default()))
+    fn hit_test(&mut self, id: WindowId, point: DipPoint) -> (FrameId, PxPoint, HitTestResult) {
+        with_window_or_surface!(self, id, |w| w.hit_test(point), || (
+            FrameId::INVALID,
+            PxPoint::new(Px(-1), Px(-1)),
+            HitTestResult::default()
+        ))
     }
 
     fn set_text_aa(&mut self, id: WindowId, aa: TextAntiAliasing) {

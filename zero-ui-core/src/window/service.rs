@@ -13,9 +13,9 @@ use crate::image::{Image, ImageVar};
 use crate::render::FrameHitInfo;
 use crate::service::Service;
 use crate::state::OwnedStateMap;
-use crate::units::*;
 use crate::var::*;
 use crate::widget_info::WidgetInfoTree;
+use crate::{units::*, WidgetId};
 
 /// Windows service.
 ///
@@ -272,14 +272,6 @@ impl Windows {
         self.windows_info.values().map(|w| &w.widget_tree)
     }
 
-    /// Gets the current window scale factor.
-    pub fn scale_factor(&self, window_id: WindowId) -> Result<Factor, WindowNotFound> {
-        self.windows_info
-            .get(&window_id)
-            .map(|w| w.scale_factor)
-            .ok_or(WindowNotFound(window_id))
-    }
-
     /// Gets the id of the window that is focused in the OS.
     pub fn focused_window_id(&self) -> Option<WindowId> {
         self.windows_info.values().find(|w| w.is_focused).map(|w| w.id)
@@ -311,8 +303,12 @@ impl Windows {
         todo!()
     }
 
-    pub(super) fn on_ui_event<Ev: EventUpdateArgs>(ctx: &mut AppContext, args: &EV) {
-        todo!()
+    pub(super) fn on_ui_event<EV: EventUpdateArgs>(ctx: &mut AppContext, args: &EV) {
+        Self::with_detached_windows(ctx, |ctx, windows| {
+            for (_, window) in windows {
+                window.event(ctx, args);
+            }
+        });
     }
 
     pub(super) fn on_event<EV: EventUpdateArgs>(ctx: &mut AppContext, args: &EV) {
@@ -320,15 +316,77 @@ impl Windows {
     }
 
     pub(super) fn on_ui_update(ctx: &mut AppContext) {
-        todo!()
+        Self::fullfill_requests(ctx);
+
+        Self::with_detached_windows(ctx, |ctx, windows| {
+            for (_, window) in windows {
+                window.update(ctx);
+            }
+        });
+    }
+
+    pub(super) fn on_update(ctx: &mut AppContext) {
+        Self::fullfill_requests(ctx);
+    }
+
+    fn fullfill_requests(ctx: &mut AppContext) {
+        let (open, close) = {
+            let wns = ctx.services.windows();
+            wns.take_requests()
+        };
+
+        let window_mode = ctx.window_mode();
+
+        // fulfill open requests.
+        for r in open {
+            let window_mode = match (window_mode, r.force_headless) {
+                (WindowMode::Headed | WindowMode::HeadlessWithRenderer, Some(mode)) => {
+                    debug_assert!(!matches!(mode, WindowMode::Headed));
+                    mode
+                }
+                (mode, _) => mode,
+            };
+
+            let (window, info) = AppWindow::new(ctx, window_mode, r.new);
+
+            let args = WindowOpenArgs::now(window.id);
+            {
+                let wns = ctx.services.windows();
+                wns.windows.insert(window.id, window);
+                wns.windows_info.insert(info.id, info);
+            }
+
+            r.responder.respond(ctx, args.clone());
+            WindowOpenEvent.notify(ctx, args);
+        }
     }
 
     pub(super) fn on_layout(ctx: &mut AppContext) {
-        todo!()
+        Self::with_detached_windows(ctx, |ctx, windows| {
+            for (_, window) in windows {
+                window.layout(ctx);
+            }
+        });
     }
 
     pub(super) fn on_render(ctx: &mut AppContext) {
-        todo!()
+        Self::with_detached_windows(ctx, |ctx, windows| {
+            for (_, window) in windows {
+                window.render(ctx);
+            }
+        });
+    }
+
+    /// Takes ownership of [`Windows::windows`] for the duration of the call to `f`.
+    ///
+    /// The windows map is empty for the duration of `f` and should not be used, this is for
+    /// mutating the window content while still allowing it to query the `Windows::windows_info`.
+    fn with_detached_windows(ctx: &mut AppContext, f: impl FnOnce(&mut AppContext, &mut LinearMap<WindowId, AppWindow>)) {
+        let mut windows = mem::take(&mut ctx.services.windows().windows);
+        f(ctx, &mut windows);
+        let mut wns = ctx.services.windows();
+        debug_assert!(wns.windows.is_empty());
+        wns.windows = windows;
     }
 }
 
@@ -338,20 +396,29 @@ struct AppWindowInfo {
     mode: WindowMode,
     renderer: Option<ViewRenderer>,
     vars: WindowVars,
-    scale_factor: Factor,
 
     widget_tree: WidgetInfoTree,
     // focus tracked by the raw focus events.
     is_focused: bool,
 }
 impl AppWindowInfo {
+    pub fn new(id: WindowId, root_id: WidgetId, mode: WindowMode, vars: WindowVars) -> Self {
+        Self {
+            id,
+            mode,
+            renderer: None,
+            vars,
+            widget_tree: WidgetInfoTree::blank(id, root_id),
+            is_focused: false,
+        }
+    }
+
     fn hit_test(&self, point: DipPoint) -> FrameHitInfo {
         let _scope = tracing::trace_span!("hit_test", window = %self.id.sequential(), ?point).entered();
 
         if let Some(r) = &self.renderer {
-            let px_pt = point.to_px(self.scale_factor.0);
             match r.hit_test(point) {
-                Ok((frame_id, hit_test)) => {
+                Ok((frame_id, px_pt, hit_test)) => {
                     return FrameHitInfo::new(self.id, frame_id, px_pt, &hit_test);
                 }
                 Err(Respawned) => tracing::debug!("respawned calling `hit_test`, will return `no_hits`"),
@@ -381,14 +448,18 @@ struct AppWindow {
     state: OwnedStateMap,
 }
 impl AppWindow {
-    pub fn new(ctx: &mut AppContext, mode: WindowMode, make: impl FnOnce(&mut WindowContext) -> Window) -> Self {
+    pub fn new(ctx: &mut AppContext, mode: WindowMode, new: Box<dyn FnOnce(&mut WindowContext) -> Window>) -> (Self, AppWindowInfo) {
         let id = WindowId::new_unique();
         let mut state = OwnedStateMap::new();
-        let (window, _) = ctx.window_context(id, mode, &mut state, make);
+        let (window, _) = ctx.window_context(id, mode, &mut state, new);
+        let root_id = window.id;
         let vars = WindowVars::new(ctx.services.windows().default_render_mode);
         let (ctrl, _) = ctx.window_context(id, mode, &mut state, move |ctx| WindowCtrl::new(ctx, &vars, mode, window));
 
-        Self { ctrl, id, mode, state }
+        let window = Self { ctrl, id, mode, state };
+        let info = AppWindowInfo::new(id, root_id, mode, vars);
+
+        (window, info)
     }
 
     fn ctrl_in_ctx(&mut self, ctx: &mut AppContext, action: impl FnOnce(&mut WindowContext, &mut WindowCtrl)) {

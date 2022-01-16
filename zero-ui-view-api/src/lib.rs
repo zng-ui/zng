@@ -24,7 +24,7 @@
 use std::fmt;
 use std::time::Duration;
 
-use units::{DipPoint, DipSize, Px, PxRect};
+use units::{DipPoint, DipSize, Px, PxPoint, PxRect};
 #[doc(inline)]
 pub use webrender_api;
 
@@ -457,8 +457,8 @@ declare_api! {
 
     /// Get display items of the last rendered frame that intercept the `point`.
     ///
-    /// Returns the frame ID and all hits from front-to-back.
-    pub fn hit_test(&mut self, id: WindowId, point: DipPoint) -> (FrameId, HitTestResult);
+    /// Returns the frame ID, the actual pixel point tested and all hits from front-to-back.
+    pub fn hit_test(&mut self, id: WindowId, point: DipPoint) -> (FrameId, PxPoint, HitTestResult);
 
     /// Set the text anti-aliasing used in the window renderer.
     pub fn set_text_aa(&mut self, id: WindowId, aa: TextAntiAliasing);
