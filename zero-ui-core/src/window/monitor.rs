@@ -4,12 +4,12 @@ use linear_map::LinearMap;
 pub use zero_ui_view_api::MonitorInfo;
 
 use crate::{
-    app::{raw_events::RawMonitorsChangedArgs, view_process::ViewProcess},
-    event::{event, Events},
+    app::{raw_events::{RawMonitorsChangedArgs, RawMonitorsChangedEvent}, view_process::ViewProcess},
+    event::{event, Events, EventUpdateArgs},
     event_args,
     service::Service,
     units::*,
-    var::*,
+    var::*, context::AppContext,
 };
 
 unique_id_32! {
@@ -130,7 +130,7 @@ impl Monitors {
         self.monitors.values()
     }
 
-    pub(super) fn on_monitors_changed(&mut self, events: &mut Events, args: &RawMonitorsChangedArgs) {
+    fn on_monitors_changed(&mut self, events: &mut Events, args: &RawMonitorsChangedArgs) {
         let ms: LinearMap<_, _> = args.available_monitors.iter().cloned().collect();
         let removed: Vec<_> = self.monitors.keys().filter(|k| !ms.contains_key(k)).copied().collect();
         let added: Vec<_> = ms.keys().filter(|k| !self.monitors.contains_key(k)).copied().collect();
@@ -152,6 +152,12 @@ impl Monitors {
         if !removed.is_empty() || !added.is_empty() {
             let args = MonitorsChangedArgs::new(args.timestamp, removed, added);
             MonitorsChangedEvent.notify(events, args);
+        }
+    }
+
+    pub(super) fn on_pre_event<EV: EventUpdateArgs>(ctx: &mut AppContext, args: &EV) {
+        if let Some(args) = RawMonitorsChangedEvent.update(args) {
+            ctx.services.monitors().on_monitors_changed(ctx.events, args);
         }
     }
 }

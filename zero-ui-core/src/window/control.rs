@@ -10,7 +10,7 @@ use crate::{
     BoxedUiNode, UiNode, WidgetId,
 };
 
-use super::{Window, WindowMode, WindowVars};
+use super::{Window, WindowMode, WindowVars, StartPosition, HeadlessMonitor};
 
 /// Implementer of `App <-> View` sync in a headed window.
 struct HeadedCtrl {
@@ -228,7 +228,6 @@ impl ContentCtrl {
             let (info, used) = info.finalize();
             self.used_info_builder = Some(used);
 
-
             todo!()
         }
 
@@ -248,9 +247,16 @@ impl ContentCtrl {
 
         let root_font_size = 13.pt().to_layout(ctx, available_size, default_value);
 
-        ctx.layout_context(font_size, scale_factor, screen_ppi, viewport_size, metrics_diff, self.root_id, &mut self.root_state, |ctx| {
-            todo!()
-        });
+        ctx.layout_context(
+            font_size,
+            scale_factor,
+            screen_ppi,
+            viewport_size,
+            metrics_diff,
+            self.root_id,
+            &mut self.root_state,
+            |ctx| todo!(),
+        );
     }
 
     pub fn on_render(&mut self, ctx: &mut WindowContext) {
@@ -277,7 +283,7 @@ impl WindowCtrl {
         match mode {
             WindowMode::Headed => WindowCtrl::Headed(HeadedCtrl::new(ctx, vars, content)),
             WindowMode::Headless => WindowCtrl::Headless(HeadlessCtrl::new(ctx, vars, content)),
-            WindowMode::HeadlessWithRenderer => WindowCtrl::HeadlessWithRenderer(ctx, vars, content),
+            WindowMode::HeadlessWithRenderer => WindowCtrl::HeadlessWithRenderer(HeadlessWithRendererCtrl::new(ctx, vars, content)),
         }
     }
 
