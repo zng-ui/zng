@@ -1558,19 +1558,6 @@ pub struct HeadlessRequest {
     pub render_mode: RenderMode,
 }
 
-/// Configuration of a new virtual headless surface.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct DocumentRequest {
-    /// ID of the window or headless surface where the document will be created.
-    pub renderer: WindowId,
-
-    /// Scale for the layout units in this config.
-    pub scale_factor: f32,
-
-    /// Surface area (viewport size).
-    pub size: DipSize,
-}
-
 /// Information about a monitor screen.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MonitorInfo {

@@ -25,11 +25,9 @@ use zero_ui_view_api::webrender_api::{
 pub use zero_ui_view_api::{
     bytes_channel, CursorIcon, Event, EventCause, FrameRequest, FrameUpdateRequest, HeadlessOpenData, HeadlessRequest, ImageDataFormat,
     ImagePpi, IpcBytes, IpcBytesReceiver, IpcBytesSender, MonitorInfo, RenderMode, Respawned, TextAntiAliasing, VideoMode, ViewProcessGen,
-    WindowOpenData, WindowRequest, WindowState, WindowTheme,
+    WindowOpenData, WindowRequest, WindowState, WindowStateAll, WindowTheme,
 };
-use zero_ui_view_api::{
-    Controller, DeviceId as ApiDeviceId, DocumentRequest, ImageId, ImageLoadedData, MonitorId as ApiMonitorId, WindowId as ApiWindowId,
-};
+use zero_ui_view_api::{Controller, DeviceId as ApiDeviceId, ImageId, ImageLoadedData, MonitorId as ApiMonitorId, WindowId as ApiWindowId};
 
 type Result<T> = std::result::Result<T, Respawned>;
 
@@ -172,28 +170,11 @@ impl ViewProcess {
         self.0.borrow_mut().process.key_repeat_delay()
     }
 
-    /// Returns the primary monitor if there is any or the first available monitor or none if no monitor was found.
-    #[inline]
-    pub fn primary_monitor(&self) -> Result<Option<(MonitorId, MonitorInfo)>> {
-        let m = self.0.borrow_mut().process.primary_monitor()?;
-        Ok(m.map(|(id, m)| (self.monitor_id(id), m)))
-    }
-
     /// Returns all available monitors.
     #[inline]
     pub fn available_monitors(&self) -> Result<Vec<(MonitorId, MonitorInfo)>> {
         let m = self.0.borrow_mut().process.available_monitors()?;
         Ok(m.into_iter().map(|(id, m)| (self.monitor_id(id), m)).collect())
-    }
-
-    /// Returns information about the specific monitor, if it exists.
-    #[inline]
-    pub fn monitor_info(&self, monitor_id: MonitorId) -> Result<Option<MonitorInfo>> {
-        if let Some(id) = self.monitor_id_back(monitor_id) {
-            self.0.borrow_mut().process.monitor_info(id)
-        } else {
-            Ok(None)
-        }
     }
 
     /// Translate `DevId` to `DeviceId`, generates a device id if it was unknown.
@@ -869,21 +850,9 @@ impl ViewWindow {
         self.0.call(|id, p| p.set_parent(id, parent.map(WindowId::get), modal))
     }
 
-    /// Set the window position.
-    #[inline]
-    pub fn set_position(&self, pos: DipPoint) -> Result<()> {
-        self.0.call(|id, p| p.set_position(id, pos))
-    }
-
-    /// Set the window size.
-    #[inline]
-    pub fn set_size(&self, size: DipSize) -> Result<()> {
-        self.0.call(|id, p| p.set_size(id, size))
-    }
-
     /// Set the window state.
     #[inline]
-    pub fn set_state(&self, state: WindowState) -> Result<()> {
+    pub fn set_state(&self, state: WindowStateAll) -> Result<()> {
         self.0.call(|id, p| p.set_state(id, state))
     }
 
@@ -891,24 +860,6 @@ impl ViewWindow {
     #[inline]
     pub fn set_video_mode(&self, mode: VideoMode) -> Result<()> {
         self.0.call(|id, p| p.set_video_mode(id, mode))
-    }
-
-    /// Set the window minimum size.
-    #[inline]
-    pub fn set_min_size(&self, size: DipSize) -> Result<()> {
-        self.0.call(|id, p| p.set_min_size(id, size))
-    }
-
-    /// Set the window maximum size.
-    #[inline]
-    pub fn set_max_size(&self, size: DipSize) -> Result<()> {
-        self.0.call(|id, p| p.set_max_size(id, size))
-    }
-
-    /// Set the visibility of the native window borders and title.
-    #[inline]
-    pub fn set_chrome_visible(&self, visible: bool) -> Result<()> {
-        self.0.call(|id, p| p.set_chrome_visible(id, visible))
     }
 
     /// Reference the window renderer.
@@ -967,18 +918,6 @@ impl ViewHeadless {
     #[inline]
     pub fn renderer(&self) -> ViewRenderer {
         ViewRenderer(Rc::downgrade(&self.0))
-    }
-
-    /// Open a virtual headless surface that shares the renderer used by `self`.
-    pub fn open_document(&self, size: DipSize, scale_factor: Factor) -> Result<ViewHeadless> {
-        let c = self.0.call(|id, p| {
-            p.open_document(DocumentRequest {
-                renderer: id,
-                scale_factor: scale_factor.0,
-                size,
-            })
-        })?;
-        Ok(Self(Rc::clone(&self.0), c.document_id))
     }
 }
 
@@ -1118,16 +1057,6 @@ impl ViewRenderer {
     /// Delete the font instance.
     pub fn delete_font_instance(&self, key: FontInstanceKey) -> Result<()> {
         self.call(|id, p| p.delete_font_instance(id, key))
-    }
-
-    /// Gets the viewport size (window inner size).
-    pub fn size(&self) -> Result<DipSize> {
-        self.call(|id, p| p.size(id))
-    }
-
-    /// Gets the window scale factor.
-    pub fn scale_factor(&self) -> Result<f32> {
-        self.call(|id, p| p.scale_factor(id))
     }
 
     /// Create a new image resource from the current rendered frame.

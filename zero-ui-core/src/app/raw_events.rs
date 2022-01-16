@@ -21,7 +21,7 @@ use zero_ui_view_api::FrameWaitId;
 
 use super::{
     raw_device_events::AxisId,
-    view_process::{MonitorInfo, TextAntiAliasing, ViewImage, WindowState},
+    view_process::{MonitorInfo, TextAntiAliasing, ViewImage, WindowStateAll},
     DeviceId,
 };
 use crate::{
@@ -134,8 +134,8 @@ event_args! {
         /// Window that was moved, resized or has a state change.
         pub window_id: WindowId,
 
-        /// New [`WindowState`] if it has changed.
-        pub state: Option<WindowState>,
+        /// New [`WindowStateAll`] if any part of it has changed.
+        pub state: Option<WindowStateAll>,
 
         /// New window position if it was moved.
         pub position: Option<DipPoint>,
