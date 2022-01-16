@@ -3,17 +3,18 @@ use std::mem;
 use linear_map::LinearMap;
 
 use super::*;
-use crate::app::{AppEventSender, view_process};
-use crate::event::EventUpdateArgs;
-use crate::image::{Image, ImageVar};
-use crate::render::FrameHitInfo;
-use crate::service::Service;
+use crate::app::{view_process, AppEventSender};
 use crate::app::{
     view_process::{ViewProcess, ViewRenderer},
     AppExtension,
 };
-use crate::var::*;
+use crate::event::EventUpdateArgs;
+use crate::image::{Image, ImageVar};
+use crate::render::FrameHitInfo;
+use crate::service::Service;
+use crate::state::OwnedStateMap;
 use crate::units::*;
+use crate::var::*;
 use crate::widget_info::WidgetInfoTree;
 
 /// Windows service.
@@ -35,7 +36,7 @@ pub struct Windows {
     /// a different render mode if it cannot support the requested mode.
     pub default_render_mode: RenderMode,
 
-    windows: LinearMap<WindowId, WindowCtrl>,
+    windows: LinearMap<WindowId, AppWindow>,
     windows_info: LinearMap<WindowId, AppWindowInfo>,
 
     open_requests: Vec<OpenWindowRequest>,
@@ -306,11 +307,27 @@ impl Windows {
         }
     }
 
-    pub(super) fn on_update(&mut self, ctx: &mut AppContext) {
+    pub(super) fn on_pre_event<EV: EventUpdateArgs>(ctx: &mut AppContext, args: &EV) {
         todo!()
     }
 
-    pub(super) fn on_pre_event<EV: EventUpdateArgs>(ctx: &mut AppContext, args: &EV) {
+    pub(super) fn on_ui_event<Ev: EventUpdateArgs>(ctx: &mut AppContext, args: &EV) {
+        todo!()
+    }
+
+    pub(super) fn on_event<EV: EventUpdateArgs>(ctx: &mut AppContext, args: &EV) {
+        todo!()
+    }
+
+    pub(super) fn on_ui_update(ctx: &mut AppContext) {
+        todo!()
+    }
+
+    pub(super) fn on_layout(ctx: &mut AppContext) {
+        todo!()
+    }
+
+    pub(super) fn on_render(ctx: &mut AppContext) {
         todo!()
     }
 }
@@ -353,4 +370,44 @@ struct OpenWindowRequest {
 struct CloseWindowRequest {
     responder: ResponderVar<CloseWindowResult>,
     group: CloseGroupId,
+}
+
+/// Window context owner.
+struct AppWindow {
+    ctrl: WindowCtrl,
+
+    id: WindowId,
+    mode: WindowMode,
+    state: OwnedStateMap,
+}
+impl AppWindow {
+    pub fn new(ctx: &mut AppContext, mode: WindowMode, make: impl FnOnce(&mut WindowContext) -> Window) -> Self {
+        let id = WindowId::new_unique();
+        let mut state = OwnedStateMap::new();
+        let (window, _) = ctx.window_context(id, mode, &mut state, make);
+        let vars = WindowVars::new(ctx.services.windows().default_render_mode);
+        let (ctrl, _) = ctx.window_context(id, mode, &mut state, move |ctx| WindowCtrl::new(ctx, &vars, mode, window));
+
+        Self { ctrl, id, mode, state }
+    }
+
+    fn ctrl_in_ctx(&mut self, ctx: &mut AppContext, action: impl FnOnce(&mut WindowContext, &mut WindowCtrl)) {
+        let (_, updates) = ctx.window_context(self.id, self.mode, &mut self.state, |ctx| action(ctx, &mut self.ctrl));
+        if updates.is_any() {
+            let (_, updates) = ctx.window_context(self.id, self.mode, &mut self.state, |ctx| self.ctrl.window_updates(ctx, updates));
+            debug_assert!(!updates.is_none());
+        }
+    }
+
+    pub fn update(&mut self, ctx: &mut AppContext) {
+        self.ctrl_in_ctx(ctx, |ctx, ctrl| ctrl.update(ctx));
+    }
+
+    pub fn layout(&mut self, ctx: &mut AppContext) {
+        self.ctrl_in_ctx(ctx, |ctx, ctrl| ctrl.layout(ctx));
+    }
+
+    pub fn render(&mut self, ctx: &mut AppContext) {
+        self.ctrl_in_ctx(ctx, |ctx, ctrl| ctrl.render(ctx));
+    }
 }

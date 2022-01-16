@@ -14,8 +14,14 @@ mod service;
 pub use service::*;
 
 use crate::{
-    app::{self, view_process::ViewProcess, AppExtended, AppExtension, ControlFlow, HeadlessApp, raw_events::{RawWindowFocusArgs, RawWindowFocusEvent}},
-    context::{AppContext, WindowContext}, image::ImageVar,
+    app::{
+        self,
+        raw_events::{RawWindowFocusArgs, RawWindowFocusEvent},
+        view_process::ViewProcess,
+        AppExtended, AppExtension, ControlFlow, HeadlessApp,
+    },
+    context::{AppContext, WindowContext},
+    image::ImageVar,
 };
 
 /// Extension trait, adds [`run_window`](AppRunWindowExt::run_window) to [`AppExtended`].

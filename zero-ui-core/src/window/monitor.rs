@@ -4,12 +4,16 @@ use linear_map::LinearMap;
 pub use zero_ui_view_api::MonitorInfo;
 
 use crate::{
-    app::{raw_events::{RawMonitorsChangedArgs, RawMonitorsChangedEvent}, view_process::ViewProcess},
-    event::{event, Events, EventUpdateArgs},
+    app::{
+        raw_events::{RawMonitorsChangedArgs, RawMonitorsChangedEvent},
+        view_process::ViewProcess,
+    },
+    context::AppContext,
+    event::{event, EventUpdateArgs, Events},
     event_args,
     service::Service,
     units::*,
-    var::*, context::AppContext,
+    var::*,
 };
 
 unique_id_32! {

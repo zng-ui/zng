@@ -1053,7 +1053,7 @@ impl std::ops::BitOr for ContextUpdates {
 ///
 /// Unlike the general updates, layout and render can be optimized to only apply if
 /// the window content requested it.
-#[derive(Debug, Default, Clone, Copy)]
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 pub struct WindowUpdates {
     /// Info tree rebuild requested.
     ///
@@ -1139,6 +1139,20 @@ impl WindowUpdates {
             render: WindowRenderUpdate::RenderUpdate,
         }
     }
+
+    /// Returns if `self` is not equal to [`none`].
+    ///
+    /// [`none`]: Self::none
+    pub fn is_any(self) -> bool {
+        self != Self::none()
+    }
+
+    /// Returns if `self` is equal to [`none`].
+    ///
+    /// [`none`]: Self::none
+    pub fn is_none(self) -> bool {
+        self == Self::none()
+    }
 }
 impl std::ops::BitOrAssign for WindowUpdates {
     #[inline]
@@ -1160,7 +1174,7 @@ impl std::ops::BitOr for WindowUpdates {
 }
 
 /// Kind of render updated requested by the content of a window.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum WindowRenderUpdate {
     /// No render update requested.
     None,
