@@ -25,7 +25,69 @@ use crate::{
     image::ImageVar,
 };
 
-/// Extension trait, adds [`run_window`](AppRunWindowExt::run_window) to [`AppExtended`].
+/// Application extension that manages windows.
+///
+/// # Events
+///
+/// Events this extension provides:
+///
+/// * [WindowOpenEvent]
+/// * [WindowChangedEvent]
+/// * [WindowFocusChangedEvent]
+/// * [WindowScaleChangedEvent]
+/// * [WindowCloseRequestedEvent]
+/// * [WindowCloseEvent]
+/// * [MonitorsChangedEvent]
+/// * [WidgetInfoChangedEvent]
+///
+/// # Services
+///
+/// Services this extension provides:
+///
+/// * [Windows]
+/// * [Monitors]
+#[derive(Default)]
+pub struct WindowManager {}
+impl AppExtension for WindowManager {
+    fn init(&mut self, ctx: &mut AppContext) {
+        let monitors = Monitors::new(ctx.services.get::<ViewProcess>());
+        ctx.services.register(monitors);
+        ctx.services.register(Windows::new(ctx.updates.sender()));
+    }
+
+    fn event_preview<EV: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {
+        Monitors::on_pre_event(ctx, args);
+        Windows::on_pre_event(ctx, args);
+    }
+
+    fn event_ui<EV: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {
+        Windows::on_ui_event(ctx, args);
+    }
+
+    fn event<EV: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {
+        Windows::on_event(ctx, args);
+    }
+
+    fn update_ui(&mut self, ctx: &mut AppContext) {
+        Windows::on_ui_update(ctx);
+    }
+
+    fn update(&mut self, ctx: &mut AppContext) {
+        Windows::on_update(ctx);
+    }
+
+    fn layout(&mut self, ctx: &mut AppContext) {
+        Windows::on_layout(ctx);
+    }
+
+    fn render(&mut self, ctx: &mut AppContext) {
+        Windows::on_render(ctx);
+    }
+}
+
+/// Extension trait, adds [`run_window`] to [`AppExtended`].
+///
+/// [`run_window`]: AppRunWindowExt::run_window
 pub trait AppRunWindowExt {
     /// Runs the application event loop and requests a new window.
     ///
@@ -73,7 +135,10 @@ impl<E: AppExtension> AppRunWindowExt for AppExtended<E> {
     }
 }
 
-/// Extension trait, adds [`open_window`](HeadlessAppWindowExt::open_window) to [`HeadlessApp`](app::HeadlessApp).
+/// Extension trait, adds window control methods to [`HeadlessApp`].
+///
+/// [`open_window`]: HeadlessAppWindowExt::open_window
+/// [`HeadlessApp`]: app::HeadlessApp
 pub trait HeadlessAppWindowExt {
     /// Open a new headless window and returns the new window ID.
     ///
@@ -162,64 +227,5 @@ impl HeadlessAppWindowExt for HeadlessApp {
                 return;
             }
         }
-    }
-}
-
-/// Application extension that manages windows.
-///
-/// # Events
-///
-/// Events this extension provides:
-///
-/// * [WindowOpenEvent]
-/// * [WindowChangedEvent]
-/// * [WindowFocusChangedEvent]
-/// * [WindowScaleChangedEvent]
-/// * [WindowCloseRequestedEvent]
-/// * [WindowCloseEvent]
-/// * [MonitorsChangedEvent]
-/// * [WidgetInfoChangedEvent]
-///
-/// # Services
-///
-/// Services this extension provides:
-///
-/// * [Windows]
-/// * [Monitors]
-pub struct WindowManager {}
-impl AppExtension for WindowManager {
-    fn init(&mut self, ctx: &mut AppContext) {
-        let monitors = Monitors::new(ctx.services.get::<ViewProcess>());
-        ctx.services.register(monitors);
-        ctx.services.register(Windows::new(ctx.updates.sender()));
-    }
-
-    fn event_preview<EV: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {
-        Monitors::on_pre_event(ctx, args);
-        Windows::on_pre_event(ctx, args);
-    }
-
-    fn event_ui<EV: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {
-        Windows::on_ui_event(ctx, args);
-    }
-
-    fn event<EV: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {
-        Windows::on_event(ctx, args);
-    }
-
-    fn update_ui(&mut self, ctx: &mut AppContext) {
-        Windows::on_ui_update(ctx);
-    }
-
-    fn update(&mut self, ctx: &mut AppContext) {
-        Windows::on_update(ctx);
-    }
-
-    fn layout(&mut self, ctx: &mut AppContext) {
-        Windows::on_layout(ctx);
-    }
-
-    fn render(&mut self, ctx: &mut AppContext) {
-        Windows::on_render(ctx);
     }
 }

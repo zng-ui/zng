@@ -5,7 +5,7 @@ pub use zero_ui_view_api::MonitorInfo;
 
 use crate::{
     app::{
-        raw_events::{RawMonitorsChangedArgs, RawMonitorsChangedEvent},
+        raw_events::{RawMonitorsChangedArgs, RawMonitorsChangedEvent, RawScaleFactorChangedEvent},
         view_process::ViewProcess,
     },
     context::AppContext,
@@ -160,6 +160,11 @@ impl Monitors {
     }
 
     pub(super) fn on_pre_event<EV: EventUpdateArgs>(ctx: &mut AppContext, args: &EV) {
+        if let Some(args) = RawScaleFactorChangedEvent.update(args) {
+            if let Some(m) = ctx.services.monitors().monitor_mut(args.monitor_id) {
+                m.info.scale_factor = args.scale_factor.0;
+            }
+        }
         if let Some(args) = RawMonitorsChangedEvent.update(args) {
             ctx.services.monitors().on_monitors_changed(ctx.events, args);
         }
@@ -219,7 +224,7 @@ impl HeadlessMonitor {
         }
     }
 
-    /// New default size `1920x1080` and custom scale.
+    /// New with default size `1920x1080` and custom scale.
     #[inline]
     pub fn new_scale(scale_factor: Factor) -> Self {
         HeadlessMonitor {

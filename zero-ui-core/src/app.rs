@@ -9,6 +9,7 @@ use crate::crate_util::PanicPayload;
 use crate::event::{cancelable_event_args, event, AnyEventUpdate, BoxedEventUpdate, EventUpdate, EventUpdateArgs, Events};
 use crate::image::ImageManager;
 use crate::timer::Timers;
+use crate::units::{Px, PxPoint};
 use crate::var::{response_var, ResponderVar, ResponseVar, Vars};
 use crate::widget_info::{UpdateMask, UpdateSlot};
 use crate::{
@@ -565,6 +566,8 @@ impl App {
 }
 
 /// Application with extensions.
+///
+/// See [`App`].
 pub struct AppExtended<E: AppExtension> {
     extensions: E,
     view_process_exe: Option<PathBuf>,
@@ -895,13 +898,17 @@ impl<E: AppExtension> RunningApp<E> {
                 position,
             } => {
                 let hits = match self.pending_view_frame_events.iter().rfind(|e| e.window == w_id) {
-                    Some(ev) => (ev.frame, ev.cursor_hits.clone()),
+                    Some(ev) => {
+                        let (p, r) = ev.cursor_hits.clone();
+                        (ev.frame, p, r)
+                    }
                     _ => {
                         let _trace = tracing::trace_span!("hit_test").entered();
                         let view = self.ctx().services.view_process();
                         view.hit_test(w_id, position).unwrap_or_else(|_| {
                             (
                                 zero_ui_view_api::FrameId::INVALID,
+                                PxPoint::new(Px(-1), Px(-1)),
                                 crate::render::webrender_api::HitTestResult::default(),
                             )
                         })

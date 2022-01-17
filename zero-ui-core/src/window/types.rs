@@ -6,7 +6,6 @@ use std::{
 };
 
 use crate::{
-    app::view_process::EventCause,
     cancelable_event_args,
     context::WindowContext,
     event, event_args,
@@ -21,9 +20,9 @@ use crate::{
     BoxedUiNode, UiNode, WidgetId,
 };
 
-use super::HeadlessMonitor;
+pub use crate::app::view_process::{CursorIcon, EventCause, MonitorInfo, RenderMode, VideoMode, WindowState, WindowTheme};
 
-pub use zero_ui_view_api::{CursorIcon, RenderMode, VideoMode, WindowState};
+use super::HeadlessMonitor;
 
 unique_id_32! {
     /// Unique identifier of an open window.
@@ -130,7 +129,7 @@ impl_from_and_into_var! {
 ///
 /// The startup position affects the window once, at the moment the window
 /// is open just after the first [`UiNode::render`] call.
-#[derive(Clone)]
+#[derive(Clone, Copy)]
 pub enum StartPosition {
     /// Resolves the `position` property.
     Default,

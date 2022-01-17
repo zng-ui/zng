@@ -463,7 +463,7 @@ pub struct MouseManager {
     pos_window: Option<WindowId>,
     pos_device: Option<DeviceId>,
     // last cursor move hit-test.
-    pos_hits: (FrameId, HitTestResult),
+    pos_hits: (FrameId, PxPoint, HitTestResult),
 
     /// last modifiers.
     modifiers: ModifiersState,
@@ -482,7 +482,7 @@ impl Default for MouseManager {
             pos: DipPoint::zero(),
             pos_window: None,
             pos_device: None,
-            pos_hits: (FrameId::INVALID, HitTestResult::default()),
+            pos_hits: (FrameId::INVALID, PxPoint::new(Px(-1), Px(-1)), HitTestResult::default()),
 
             modifiers: ModifiersState::default(),
 
@@ -506,11 +506,7 @@ impl MouseManager {
 
         let (windows, mouse) = ctx.services.req_multi::<(Windows, Mouse)>();
 
-        let hits = if let Ok(scale) = windows.scale_factor(window_id) {
-            FrameHitInfo::new(window_id, self.pos_hits.0, self.pos.to_px(scale.0), &self.pos_hits.1)
-        } else {
-            return; // NotFound
-        };
+        let hits = FrameHitInfo::new(window_id, self.pos_hits.0, self.pos_hits.1, &self.pos_hits.2);
 
         let frame_info = windows.widget_tree(window_id).unwrap();
 
@@ -602,8 +598,7 @@ impl MouseManager {
                             && start_tgt == &target
                             // within distance of first click
                             && {
-                                let scale_factor = ctx.services.windows().scale_factor(window_id).unwrap_or(Factor(1.0));
-                                let dist = (pos.to_px(scale_factor.0) - self.pos.to_px(scale_factor.0)).abs();
+                                let dist = (*pos - self.pos).abs();
                                 dist.x <= cfg.area.width && dist.y <= cfg.area.height
                             };
 
@@ -697,7 +692,7 @@ impl MouseManager {
         device_id: DeviceId,
         coalesced_pos: Vec<DipPoint>,
         position: DipPoint,
-        hits_res: (FrameId, HitTestResult),
+        hits_res: (FrameId, PxPoint, HitTestResult),
         ctx: &mut AppContext,
     ) {
         let mut moved = Some(window_id) != self.pos_window || Some(device_id) != self.pos_device;
@@ -739,12 +734,7 @@ impl MouseManager {
                 }
             };
 
-            let hits = FrameHitInfo::new(
-                window_id,
-                hits_res.0,
-                position.to_px(windows.scale_factor(window_id).unwrap().0),
-                &hits_res.1,
-            );
+            let hits = FrameHitInfo::new(window_id, hits_res.0, hits_res.1, &hits_res.2);
 
             let target = if let Some(t) = hits.target() {
                 frame_info.find(t.widget_id).map(|w| w.path()).unwrap_or_else(|| {
@@ -854,18 +844,13 @@ impl AppExtension for MouseManager {
             // update hovered
             if self.pos_window == Some(args.window_id) {
                 let (windows, mouse) = ctx.services.req_multi::<(Windows, Mouse)>();
-                let hits = FrameHitInfo::new(
-                    args.window_id,
-                    args.frame_id,
-                    self.pos.to_px(windows.scale_factor(args.window_id).unwrap().0),
-                    &args.cursor_hits,
-                );
+                let hits = FrameHitInfo::new(args.window_id, args.frame_id, args.cursor_hits.0, &args.cursor_hits.1);
                 let target = hits
                     .target()
                     .and_then(|t| windows.widget_tree(args.window_id).unwrap().find(t.widget_id))
                     .map(|w| w.path());
 
-                self.pos_hits = (args.frame_id, args.cursor_hits.clone());
+                self.pos_hits = (args.frame_id, args.cursor_hits.0, args.cursor_hits.1.clone());
 
                 if self.hovered != target {
                     let capture = self.capture_info(mouse);
@@ -942,14 +927,11 @@ impl AppExtension for MouseManager {
         if let Some(args) = MouseCaptureEvent.update(args) {
             if let Some(path) = &self.hovered {
                 if let Some(window_id) = self.pos_window {
-                    let pos_px = self
-                        .pos
-                        .to_px(ctx.services.windows().scale_factor(window_id).unwrap_or_else(|_| 1.0.fct()).0);
                     let hover_args = MouseHoverArgs::now(
                         window_id,
                         self.pos_device.unwrap(),
                         self.pos,
-                        FrameHitInfo::new(window_id, self.pos_hits.0, pos_px, &self.pos_hits.1),
+                        FrameHitInfo::new(window_id, self.pos_hits.0, self.pos_hits.1, &self.pos_hits.2),
                         Some(path.clone()),
                         Some(path.clone()),
                         args.new_capture.as_ref().map(|(path, mode)| CaptureInfo {

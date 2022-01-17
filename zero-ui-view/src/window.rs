@@ -872,11 +872,7 @@ impl Window {
 
     /// Returns info for `FrameRendered` and if this is the first frame.
     #[must_use = "events must be generated from the result"]
-    pub fn on_frame_ready<S: AppEventSender>(
-        &mut self,
-        msg: FrameReadyMsg,
-        images: &mut ImageCache<S>,
-    ) -> ((FrameId, Option<ImageLoadedData>, HitTestResult), bool) {
+    pub fn on_frame_ready<S: AppEventSender>(&mut self, msg: FrameReadyMsg, images: &mut ImageCache<S>) -> FrameReadyResult {
         debug_assert_eq!(self.document_id, msg.document_id);
 
         let (frame_id, capture, _) = self.pending_frames.pop_front().unwrap_or((self.rendered_frame_id, false, None));
@@ -902,7 +898,7 @@ impl Window {
 
         let scale_factor = self.scale_factor();
 
-        let data = if capture {
+        let image = if capture {
             let _s = tracing::trace_span!("capture_image").entered();
             if msg.composite_needed {
                 self.redraw();
@@ -913,13 +909,19 @@ impl Window {
             None
         };
 
-        let hits = if self.cursor_over {
-            self.hit_tester.hit_test(self.cursor_pos.to_px(scale_factor))
+        let cursor_hits = if self.cursor_over {
+            let pos = self.cursor_pos.to_px(scale_factor);
+            (pos, self.hit_tester.hit_test(pos))
         } else {
-            HitTestResult::default()
+            (PxPoint::new(Px(-1), Px(-1)), HitTestResult::default())
         };
 
-        ((frame_id, data, hits), first_frame)
+        FrameReadyResult {
+            frame_id,
+            image,
+            cursor_hits,
+            first_frame,
+        }
     }
 
     pub fn redraw(&mut self) {
@@ -1025,4 +1027,11 @@ impl Drop for Window {
 
         // the winit window will be dropped normally after this.
     }
+}
+
+pub(crate) struct FrameReadyResult {
+    pub frame_id: FrameId,
+    pub image: Option<ImageLoadedData>,
+    pub cursor_hits: (PxPoint, HitTestResult),
+    pub first_frame: bool,
 }

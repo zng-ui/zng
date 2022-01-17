@@ -15,7 +15,7 @@ use crate::mouse::MultiClickConfig;
 use crate::render::FrameId;
 use crate::service::Service;
 use crate::task::SignalOnce;
-use crate::units::{DipPoint, PxPoint, DipSize, Factor, Px, PxRect, PxSize};
+use crate::units::{DipPoint, DipSize, Factor, Px, PxPoint, PxRect, PxSize};
 use crate::window::{MonitorId, WindowId};
 use crate::{event, event_args};
 use zero_ui_view_api::webrender_api::{
@@ -23,9 +23,9 @@ use zero_ui_view_api::webrender_api::{
     ImageKey, PipelineId,
 };
 pub use zero_ui_view_api::{
-    bytes_channel, CursorIcon, Event, EventCause, FrameRequest, FrameUpdateRequest, HeadlessOpenData, HeadlessRequest, ImageDataFormat,
-    ImagePpi, IpcBytes, IpcBytesReceiver, IpcBytesSender, MonitorInfo, RenderMode, Respawned, TextAntiAliasing, VideoMode, ViewProcessGen,
-    WindowOpenData, WindowRequest, WindowState, WindowStateAll, WindowTheme,
+    bytes_channel, CursorIcon, Event, EventCause, FrameRequest, FrameUpdateRequest, FrameWaitId, HeadlessOpenData, HeadlessRequest,
+    ImageDataFormat, ImagePpi, IpcBytes, IpcBytesReceiver, IpcBytesSender, MonitorInfo, RenderMode, Respawned, TextAntiAliasing, VideoMode,
+    ViewProcessGen, WindowOpenData, WindowRequest, WindowState, WindowStateAll, WindowTheme,
 };
 use zero_ui_view_api::{Controller, DeviceId as ApiDeviceId, ImageId, ImageLoadedData, MonitorId as ApiMonitorId, WindowId as ApiWindowId};
 
@@ -291,7 +291,7 @@ impl ViewProcess {
     /// Get display items of the last rendered of window frame that intercept the `point`.
     ///
     /// Returns all hits from front-to-back.
-    pub fn hit_test(&self, window: u32, point: DipPoint) -> Result<(FrameId, HitTestResult)> {
+    pub fn hit_test(&self, window: u32, point: DipPoint) -> Result<(FrameId, PxPoint, HitTestResult)> {
         self.0.borrow_mut().process.hit_test(window, point)
     }
 
@@ -890,7 +890,7 @@ impl ViewWindow {
     /// Get display items of the last rendered frame that intercept the `point`.
     ///
     /// Returns all hits from front-to-back.
-    pub fn hit_test(&self, point: DipPoint) -> Result<(FrameId, HitTestResult)> {
+    pub fn hit_test(&self, point: DipPoint) -> Result<(FrameId, PxPoint, HitTestResult)> {
         self.0.call(|id, p| p.hit_test(id, point))
     }
 }

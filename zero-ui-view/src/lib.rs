@@ -372,7 +372,7 @@ impl App<()> {
                                             window: id,
                                             frame: frame_id,
                                             frame_image: image,
-                                            cursor_hits: HitTestResult::default(),
+                                            cursor_hits: (PxPoint::new(Px(-1), Px(-1)), HitTestResult::default()),
                                         }));
                                     }
                                 }
@@ -907,16 +907,16 @@ impl<S: AppEventSender> App<S> {
         let _s = tracing::trace_span!("on_frame_ready").entered();
 
         if let Some(w) = self.windows.iter_mut().find(|w| w.id() == window_id) {
-            let ((frame_id, image, cursor_hits), first) = w.on_frame_ready(msg, &mut self.image_cache);
+            let r = w.on_frame_ready(msg, &mut self.image_cache);
 
             let _ = self.event_sender.send(Event::FrameRendered(EventFrameRendered {
                 window: window_id,
-                frame: frame_id,
-                frame_image: image,
-                cursor_hits,
+                frame: r.frame_id,
+                frame_image: r.image,
+                cursor_hits: r.cursor_hits,
             }));
 
-            if first {
+            if r.first_frame {
                 let size = w.size();
                 self.notify(Event::WindowChanged(WindowChanged::resized(window_id, size, EventCause::App, None)));
             }
@@ -927,7 +927,7 @@ impl<S: AppEventSender> App<S> {
                 window: window_id,
                 frame: frame_id,
                 frame_image: image,
-                cursor_hits: HitTestResult::default(),
+                cursor_hits: (PxPoint::new(Px(-1), Px(-1)), HitTestResult::default()),
             }))
         }
     }

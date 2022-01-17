@@ -615,33 +615,6 @@ impl<'a> AppContext<'a> {
 
         (r, self.updates.take_win_updates())
     }
-
-    /// Run a function `f` in the layout context of the monitor that contains a window.
-    #[inline(always)]
-    #[allow(clippy::too_many_arguments)]
-    pub fn outer_layout_context<R>(
-        &mut self,
-        screen_size: PxSize,
-        scale_factor: Factor,
-        screen_ppi: f32,
-        metrics_diff: LayoutMask,
-        window_id: WindowId,
-        root_id: WidgetId,
-        f: impl FnOnce(&mut LayoutContext) -> R,
-    ) -> R {
-        f(&mut LayoutContext {
-            metrics: &LayoutMetrics::new(scale_factor, screen_size, Length::pt_to_px(14.0, scale_factor))
-                .with_screen_ppi(screen_ppi)
-                .with_diff(metrics_diff),
-            path: &mut WidgetContextPath::new(window_id, root_id),
-            app_state: self.app_state,
-            window_state: &mut StateMap::new(),
-            widget_state: &mut StateMap::new(),
-            update_state: &mut StateMap::new(),
-            vars: self.vars,
-            updates: self.updates,
-        })
-    }
 }
 
 /// A window context.

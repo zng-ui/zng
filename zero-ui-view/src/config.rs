@@ -96,9 +96,9 @@ pub fn multi_click_config() -> MultiClickConfig {
     unsafe {
         MultiClickConfig {
             time: Duration::from_millis(u64::from(GetDoubleClickTime())),
-            area: PxSize::new(
-                Px(GetSystemMetrics(SM_CXDOUBLECLK).abs() as i32),
-                Px(GetSystemMetrics(SM_CYDOUBLECLK).abs() as i32),
+            area: DipSize::new(
+                Dip::new(GetSystemMetrics(SM_CXDOUBLECLK).abs() as i32),
+                Dip::new(GetSystemMetrics(SM_CYDOUBLECLK).abs() as i32),
             ),
         }
     }

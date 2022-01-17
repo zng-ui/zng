@@ -29,7 +29,7 @@ use crate::{
     keyboard::{Key, KeyState, ModifiersState, ScanCode},
     mouse::{ButtonState, MouseButton, MultiClickConfig},
     render::FrameId,
-    units::{DipPoint, DipSize, Factor, PxRect},
+    units::{DipPoint, DipSize, Factor, PxPoint, PxRect},
     window::{EventCause, MonitorId, WindowId, WindowTheme},
 };
 
@@ -119,7 +119,7 @@ event_args! {
         pub frame_image: Option<ViewImage>,
 
         /// Hit-test at the cursor position.
-        pub cursor_hits: crate::render::webrender_api::HitTestResult,
+        pub cursor_hits: (PxPoint, crate::render::webrender_api::HitTestResult),
 
         ..
 
@@ -267,7 +267,7 @@ event_args! {
         pub position: DipPoint,
 
         /// Hit-test results for `position`.
-        pub hits: (FrameId, crate::render::webrender_api::HitTestResult),
+        pub hits: (FrameId, PxPoint, crate::render::webrender_api::HitTestResult),
 
         ..
 

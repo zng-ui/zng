@@ -3,10 +3,9 @@ use std::mem;
 use linear_map::LinearMap;
 
 use super::*;
-use crate::app::{view_process, AppEventSender};
 use crate::app::{
-    view_process::{ViewProcess, ViewRenderer},
-    AppExtension,
+    view_process::{self, ViewRenderer},
+    AppEventSender,
 };
 use crate::event::EventUpdateArgs;
 use crate::image::{Image, ImageVar};
@@ -468,6 +467,10 @@ impl AppWindow {
             let (_, updates) = ctx.window_context(self.id, self.mode, &mut self.state, |ctx| self.ctrl.window_updates(ctx, updates));
             debug_assert!(!updates.is_none());
         }
+    }
+
+    pub fn event<EV: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {
+        self.ctrl_in_ctx(ctx, |ctx, ctrl| ctrl.event(ctx, args))
     }
 
     pub fn update(&mut self, ctx: &mut AppContext) {

@@ -617,7 +617,7 @@ pub struct EventFrameRendered {
     /// Frame image, if one was requested with the frame request.
     pub frame_image: Option<ImageLoadedData>,
     /// Hit-test at the cursor position.
-    pub cursor_hits: HitTestResult,
+    pub cursor_hits: (PxPoint, HitTestResult),
 }
 
 /// Identifies a frame request for collaborative resize in [`WindowChanged`].
@@ -1620,14 +1620,14 @@ pub struct MultiClickConfig {
     /// Maximum (x, y) distance in pixels.
     ///
     /// Only repeated clicks that are within this distance of the first click can count as double-clicks.
-    pub area: PxSize,
+    pub area: DipSize,
 }
 impl Default for MultiClickConfig {
     /// `500ms` and `4, 4`.
     fn default() -> Self {
         Self {
             time: Duration::from_millis(500),
-            area: PxSize::new(Px(4), Px(4)),
+            area: DipSize::new(Dip::new(4), Dip::new(4)),
         }
     }
 }
