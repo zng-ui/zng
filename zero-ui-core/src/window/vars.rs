@@ -22,6 +22,7 @@ pub(super) struct WindowVarsData {
 
     size: RcVar<Size>,
     pub(super) auto_size: RcVar<AutoSize>,
+    auto_size_origin: RcVar<Point>,
     min_size: RcVar<Size>,
     max_size: RcVar<Size>,
 
@@ -91,7 +92,9 @@ impl WindowVars {
 
             min_size: var(Size::new(192, 48)),
             max_size: var(Size::new(100.pct(), 100.pct())),
+
             auto_size: var(AutoSize::empty()),
+            auto_size_origin: var(Point::top_left()),
 
             resizable: var(true),
             movable: var(true),
@@ -335,6 +338,22 @@ impl WindowVars {
     #[inline]
     pub fn auto_size(&self) -> &RcVar<AutoSize> {
         &self.0.auto_size
+    }
+
+    /// The point in the window content that does not move when the window is resized by [`auto_size`].
+    ///
+    /// When the window size increases it *grows* to the right-bottom, the top-left corner does not move because
+    /// the origin of windows it at the top-left and the position did not change, this variables overwrites this origin
+    /// for [`auto_size`] resized, the window position is adjusted so that it is the *center* of the resize.
+    ///
+    /// Note this only applies to auto-resizes, the initial auto-size when the window opens is positioned according to the [`StartPosition`] value.
+    ///
+    /// The default value is [`Point::top_left`].
+    ///
+    /// [`auto_size`]: Self::auto_size
+    #[inline]
+    pub fn auto_size_origin(&self) -> &RcVar<Point> {
+        &self.0.auto_size_origin
     }
 
     /// Minimal window width and height constrain on the [`size`].

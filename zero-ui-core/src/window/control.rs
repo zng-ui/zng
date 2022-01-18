@@ -22,7 +22,8 @@ use crate::{
 
 use super::{
     FrameCaptureMode, FrameImageReadyArgs, FrameImageReadyEvent, HeadlessMonitor, MonitorFullInfo, MonitorId, MonitorsExt, StartPosition,
-    Window, WindowChrome, WindowIcon, WindowMode, WindowScaleChangedArgs, WindowScaleChangedEvent, WindowVars, WindowsExt,
+    Window, WindowChangedArgs, WindowChangedEvent, WindowChrome, WindowIcon, WindowMode, WindowScaleChangedArgs, WindowScaleChangedEvent,
+    WindowVars, WindowsExt,
 };
 
 /// Implementer of `App <-> View` sync in a headed window.
@@ -201,7 +202,57 @@ impl HeadedCtrl {
 
     pub fn pre_event<EV: EventUpdateArgs>(&mut self, ctx: &mut WindowContext, args: &EV) {
         if let Some(args) = RawWindowChangedEvent.update(args) {
-            todo!("")
+            if args.window_id == *ctx.window_id {
+                let mut state_change = None;
+                let mut pos_change = None;
+                let mut size_change = None;
+
+                if let Some((monitor, _)) = args.monitor {
+                    if self.vars.0.actual_monitor.set_ne(ctx, Some(monitor)) {
+                        self.monitor = None;
+                        self.content.layout_requested = true;
+                        ctx.updates.layout();
+                    }
+                }
+
+                if let Some(state) = args.state.clone() {
+                    let prev_state = self.vars.state().copy(ctx);
+                    if self.vars.state().set_ne(ctx, state.state) {
+                        state_change = Some((prev_state, state.state));
+                    }
+
+                    self.vars.0.restore_rect.set_ne(ctx, state.restore_rect);
+                    self.state = Some(state);
+                }
+
+                if let Some(pos) = args.position {
+                    if self.vars.0.actual_position.set_ne(ctx, pos) {
+                        pos_change = Some(pos);
+                    }
+                }
+
+                if let Some(size) = args.size {
+                    if self.vars.0.actual_size.set_ne(ctx, size) {
+                        size_change = Some(size);
+
+                        self.content.layout_requested = true;
+                        ctx.updates.layout();
+                    }
+                }
+
+                if let Some(id) = args.frame_wait_id {
+                    self.resize_wait_id = Some(id);
+
+                    self.content.pending_render |= WindowRenderUpdate::RenderUpdate;
+                    self.content.render_requested = self.content.pending_render.take();
+                    ctx.updates.render_update();
+                }
+
+                if state_change.is_some() || pos_change.is_some() || size_change.is_some() {
+                    let args = WindowChangedArgs::new(args.timestamp, args.window_id, state_change, pos_change, size_change, args.cause);
+                    WindowChangedEvent.notify(ctx.events, args);
+                }
+            }
         } else if let Some(args) = RawScaleFactorChangedEvent.update(args) {
             if args.windows.contains(ctx.window_id) {
                 let args = WindowScaleChangedArgs::new(args.timestamp, *ctx.window_id, args.scale_factor);
@@ -354,7 +405,7 @@ impl HeadedCtrl {
         let scale_factor = m.info.scale_factor.fct();
         let screen_ppi = m.ppi.copy(ctx);
 
-        let state = self.state.clone().unwrap();
+        let mut state = self.state.clone().unwrap();
 
         let current_size = self.vars.0.actual_size.copy(ctx).to_px(scale_factor.0);
         let mut size = current_size;
@@ -379,7 +430,37 @@ impl HeadedCtrl {
             .layout(ctx, scale_factor, screen_ppi, min_size, max_size, size, skip_auto_size);
 
         if size != current_size {
-            todo!()
+            assert!(!skip_auto_size);
+
+            let auto_size_origin = self.vars.auto_size_origin().get(ctx.vars);
+            let base_font_size = base_font_size(scale_factor);
+            let mut auto_size_origin = |size| {
+                ctx.layout_context(
+                    base_font_size,
+                    scale_factor,
+                    screen_ppi,
+                    size,
+                    LayoutMask::LAYOUT_METRICS,
+                    self.content.root_id,
+                    &mut self.content.root_state,
+                    |ctx| {
+                        auto_size_origin
+                            .to_layout(ctx, AvailableSize::finite(size), PxPoint::zero())
+                            .to_dip(scale_factor.0)
+                    },
+                )
+            };
+            let prev_origin = auto_size_origin(current_size);
+            let new_origin = auto_size_origin(size);
+
+            let size = size.to_dip(scale_factor.0);
+
+            state.restore_rect.size = size;
+            state.restore_rect.origin -= prev_origin - new_origin;
+
+            if let Some(view) = &self.window {
+                let _: Ignore = view.set_state(state);
+            }
         }
     }
 
