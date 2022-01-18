@@ -11,7 +11,6 @@ use crate::{
     event, event_args,
     image::{Image, ImageDataFormat, ImageSource, ImageVar},
     render::FrameId,
-    state::OwnedStateMap,
     task::http::Uri,
     text::Text,
     units::*,
@@ -57,7 +56,6 @@ impl fmt::Display for WindowId {
 ///
 /// [`WindowVars`]: crate::window::WindowVars
 pub struct Window {
-    pub(super) state: OwnedStateMap,
     pub(super) id: WidgetId,
     pub(super) start_position: StartPosition,
     pub(super) kiosk: bool,
@@ -88,7 +86,6 @@ impl Window {
         child: impl UiNode,
     ) -> Self {
         Window {
-            state: OwnedStateMap::default(),
             id: root_id.into(),
             kiosk,
             transparent,

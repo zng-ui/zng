@@ -174,7 +174,7 @@ impl Monitors {
 /// "Monitor" configuration used by windows in [headless mode].
 ///
 /// [headless mode]: crate::window::WindowMode::is_headless
-#[derive(Clone)]
+#[derive(Clone, Copy)]
 pub struct HeadlessMonitor {
     /// The scale factor used for the headless layout and rendering.
     ///

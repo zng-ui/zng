@@ -7,17 +7,17 @@ use crate::{
     color::RenderColor,
     context::{LayoutContext, WindowContext, WindowRenderUpdate, WindowUpdates},
     event::EventUpdateArgs,
-    image::ImageVar,
+    image::{ImageVar, ImagesExt},
     render::{FrameBuilder, FrameId, FrameUpdate, UsedFrameBuilder, UsedFrameUpdate, WidgetTransformKey},
     state::OwnedStateMap,
     units::*,
-    var::Vars,
+    var::*,
     widget_info::{BoundsRect, UsedWidgetInfoBuilder, WidgetInfoBuilder, WidgetOffset, WidgetRendered, WidgetSubscriptions},
     window::AutoSize,
     BoxedUiNode, UiNode, WidgetId,
 };
 
-use super::{FrameCaptureMode, HeadlessMonitor, StartPosition, Window, WindowIcon, WindowMode, WindowVars, WindowsExt};
+use super::{FrameCaptureMode, HeadlessMonitor, MonitorsExt, StartPosition, Window, WindowIcon, WindowMode, WindowVars, WindowsExt};
 
 /// Implementer of `App <-> View` sync in a headed window.
 struct HeadedCtrl {
@@ -39,7 +39,7 @@ struct HeadedCtrl {
     icon: Option<ImageVar>,
 }
 impl HeadedCtrl {
-    pub fn new(ctx: &mut WindowContext, vars: &WindowVars, content: Window) -> Self {
+    pub fn new(vars: &WindowVars, content: Window) -> Self {
         Self {
             window: None,
 
@@ -75,52 +75,46 @@ impl HeadedCtrl {
                     }
                 }
             } else {
-                if let Some(current_state) = &self.state {
-                    // the state is updated in the layout if it is `None`, some parts of it can be
-                    // update without a layout pass.
-
-                    let mut refresh_state_in_layout = false;
-
-                    if let Some(state) = self.vars.state().copy_new(ctx) {
-                        refresh_state_in_layout = true;
-                    } else {
-                        debug_assert_eq!(current_state.state, self.vars.state().copy(ctx));
-                        match current_state.state {
-                            WindowState::Normal => {
-                                if self.vars.size().is_new(ctx)
-                                    || self.vars.min_size().is_new(ctx)
-                                    || self.vars.max_size().is_new(ctx)
-                                    || self.vars.auto_size().is_new(ctx)
-                                    || self.vars.position().is_new(ctx)
-                                    || self.vars.monitor().is_new(ctx)
-                                {
-                                    refresh_state_in_layout = true;
-                                }
-                            }
-                            _ => {
-                                todo!()
+                if let Some(query) = self.vars.monitor().get_new(ctx.vars) {
+                    if let Some(new) = query.select(ctx.services.monitors()).map(|m| m.id) {
+                        let current = self.vars.0.actual_monitor.copy(ctx.vars);
+                        if Some(new) != current {
+                            // TODO, see vars.monitor() docs
+                            match self.vars.state().copy(ctx) {
+                                WindowState::Normal => todo!(),
+                                WindowState::Minimized => todo!(),
+                                WindowState::Maximized => todo!(),
+                                WindowState::Fullscreen => todo!(),
+                                WindowState::Exclusive => todo!(),
                             }
                         }
                     }
-
-                    if refresh_state_in_layout {
-                        self.state = None;
-
-                        self.content.layout_requested = true;
-                        ctx.updates.layout();
-                    }
                 }
+
+                if self.vars.size().is_new(ctx)
+                    || self.vars.min_size().is_new(ctx)
+                    || self.vars.max_size().is_new(ctx)
+                    || self.vars.auto_size().is_new(ctx)
+                {
+                    todo!()
+                }
+
+                if self.vars.position().is_new(ctx) {
+                    todo!() // related to monitor too
+                }
+
+                
 
                 // icon:
                 let mut send_icon = false;
                 if self.vars.icon().is_new(ctx) {
-                    self.init_icon(ctx);
+                    Self::init_icon(&mut self.icon, &self.vars, ctx);
                     send_icon = true;
-                } else if self.icon.map(|ico| ico.is_new(ctx)).unwrap_or(false) {
+                } else if self.icon.as_ref().map(|ico| ico.is_new(ctx)).unwrap_or(false) {
                     send_icon = true;
                 }
                 if send_icon {
-                    let icon = self.icon.and_then(|ico| ico.get(ctx).view());
+                    let icon = self.icon.as_ref().and_then(|ico| ico.get(ctx).view());
                     let _: Ignore = view.set_icon(icon);
                 }
 
@@ -145,7 +139,7 @@ impl HeadedCtrl {
                 }
 
                 if let Some(aa) = self.vars.text_aa().copy_new(ctx) {
-                    let _: Ignore = view.set_text_aa(aa);
+                    let _: Ignore = view.renderer().set_text_aa(aa);
                 }
 
                 if let Some(top) = self.vars.always_on_top().copy_new(ctx) {
@@ -160,7 +154,7 @@ impl HeadedCtrl {
                     let _: Ignore = view.set_resizable(resizable);
                 }
 
-                if let Some(mode) = self.vars.frame_capture_mode().copy(ctx.vars) {
+                if let Some(mode) = self.vars.frame_capture_mode().copy_new(ctx.vars) {
                     let _: Ignore = view.set_capture_mode(matches!(mode, FrameCaptureMode::All));
                 }
 
@@ -216,15 +210,15 @@ impl HeadedCtrl {
         todo!()
     }
 
-    fn init_icon(&mut self, ctx: &mut WindowContext) {
-        match self.vars.icon().get(ctx.vars) {
-            WindowIcon::Default => self.icon = None,
+    fn init_icon(icon: &mut Option<ImageVar>, vars: &WindowVars, ctx: &mut WindowContext) {
+        *icon = match vars.icon().get(ctx.vars) {
+            WindowIcon::Default => None,
             WindowIcon::Image(source) => {
-                let ico = ctx.services.images().cache(r.clone());
-                self.icon = Some(ico);
+                let ico = ctx.services.images().cache(source.clone());
+                Some(ico.clone())
             }
             WindowIcon::Render(_) => todo!(),
-        }
+        };
     }
 }
 
@@ -242,7 +236,7 @@ struct HeadlessWithRendererCtrl {
     size: DipSize,
 }
 impl HeadlessWithRendererCtrl {
-    pub fn new(ctx: &mut WindowContext, vars: &WindowVars, content: Window) -> Self {
+    pub fn new(vars: &WindowVars, content: Window) -> Self {
         Self {
             surface: None,
             vars: vars.clone(),
@@ -370,7 +364,7 @@ struct HeadlessCtrl {
     headless_monitor: HeadlessMonitor,
 }
 impl HeadlessCtrl {
-    pub fn new(ctx: &mut WindowContext, vars: &WindowVars, content: Window) -> Self {
+    pub fn new(vars: &WindowVars, content: Window) -> Self {
         Self {
             vars: vars.clone(),
             headless_monitor: content.headless_monitor,
@@ -759,65 +753,66 @@ impl ContentCtrl {
 }
 
 /// Management of window content and synchronization of WindowVars and View-Process.
-pub(super) enum WindowCtrl {
+pub(super) struct WindowCtrl(WindowCtrlMode);
+enum WindowCtrlMode {
     Headed(HeadedCtrl),
     Headless(HeadlessCtrl),
     HeadlessWithRenderer(HeadlessWithRendererCtrl),
 }
 impl WindowCtrl {
-    pub fn new(ctx: &mut WindowContext, vars: &WindowVars, mode: WindowMode, content: Window) -> Self {
-        match mode {
-            WindowMode::Headed => WindowCtrl::Headed(HeadedCtrl::new(ctx, vars, content)),
-            WindowMode::Headless => WindowCtrl::Headless(HeadlessCtrl::new(ctx, vars, content)),
-            WindowMode::HeadlessWithRenderer => WindowCtrl::HeadlessWithRenderer(HeadlessWithRendererCtrl::new(ctx, vars, content)),
-        }
+    pub fn new(vars: &WindowVars, mode: WindowMode, content: Window) -> Self {
+        WindowCtrl(match mode {
+            WindowMode::Headed => WindowCtrlMode::Headed(HeadedCtrl::new(vars, content)),
+            WindowMode::Headless => WindowCtrlMode::Headless(HeadlessCtrl::new(vars, content)),
+            WindowMode::HeadlessWithRenderer => WindowCtrlMode::HeadlessWithRenderer(HeadlessWithRendererCtrl::new(vars, content)),
+        })
     }
 
     pub fn update(&mut self, ctx: &mut WindowContext) {
-        match self {
-            WindowCtrl::Headed(c) => c.update(ctx),
-            WindowCtrl::Headless(c) => c.update(ctx),
-            WindowCtrl::HeadlessWithRenderer(c) => c.update(ctx),
+        match &mut self.0 {
+            WindowCtrlMode::Headed(c) => c.update(ctx),
+            WindowCtrlMode::Headless(c) => c.update(ctx),
+            WindowCtrlMode::HeadlessWithRenderer(c) => c.update(ctx),
         }
     }
 
     pub fn window_updates(&mut self, ctx: &mut WindowContext, updates: WindowUpdates) {
-        match self {
-            WindowCtrl::Headed(c) => c.window_updates(ctx, updates),
-            WindowCtrl::Headless(c) => c.window_updates(ctx, updates),
-            WindowCtrl::HeadlessWithRenderer(c) => c.window_updates(ctx, updates),
+        match &mut self.0 {
+            WindowCtrlMode::Headed(c) => c.window_updates(ctx, updates),
+            WindowCtrlMode::Headless(c) => c.window_updates(ctx, updates),
+            WindowCtrlMode::HeadlessWithRenderer(c) => c.window_updates(ctx, updates),
         }
     }
 
     pub fn event<EV: EventUpdateArgs>(&mut self, ctx: &mut WindowContext, args: &EV) {
-        match self {
-            WindowCtrl::Headed(c) => c.event(ctx, args),
-            WindowCtrl::Headless(c) => c.event(ctx, args),
-            WindowCtrl::HeadlessWithRenderer(c) => c.event(ctx, args),
+        match &mut self.0 {
+            WindowCtrlMode::Headed(c) => c.event(ctx, args),
+            WindowCtrlMode::Headless(c) => c.event(ctx, args),
+            WindowCtrlMode::HeadlessWithRenderer(c) => c.event(ctx, args),
         }
     }
 
     pub fn layout(&mut self, ctx: &mut WindowContext) {
-        match self {
-            WindowCtrl::Headed(c) => c.layout(ctx),
-            WindowCtrl::Headless(c) => c.layout(ctx),
-            WindowCtrl::HeadlessWithRenderer(c) => c.layout(ctx),
+        match &mut self.0 {
+            WindowCtrlMode::Headed(c) => c.layout(ctx),
+            WindowCtrlMode::Headless(c) => c.layout(ctx),
+            WindowCtrlMode::HeadlessWithRenderer(c) => c.layout(ctx),
         }
     }
 
     pub fn render(&mut self, ctx: &mut WindowContext) {
-        match self {
-            WindowCtrl::Headed(c) => c.render(ctx),
-            WindowCtrl::Headless(c) => c.render(ctx),
-            WindowCtrl::HeadlessWithRenderer(c) => c.render(ctx),
+        match &mut self.0 {
+            WindowCtrlMode::Headed(c) => c.render(ctx),
+            WindowCtrlMode::Headless(c) => c.render(ctx),
+            WindowCtrlMode::HeadlessWithRenderer(c) => c.render(ctx),
         }
     }
 
     pub fn respawn(&mut self, ctx: &mut WindowContext) {
-        match self {
-            WindowCtrl::Headed(c) => c.respawn(ctx),
-            WindowCtrl::Headless(c) => c.respawn(ctx),
-            WindowCtrl::HeadlessWithRenderer(c) => c.respawn(ctx),
+        match &mut self.0 {
+            WindowCtrlMode::Headed(c) => c.respawn(ctx),
+            WindowCtrlMode::Headless(c) => c.respawn(ctx),
+            WindowCtrlMode::HeadlessWithRenderer(c) => c.respawn(ctx),
         }
     }
 }

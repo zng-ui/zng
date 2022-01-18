@@ -187,16 +187,6 @@ impl ViewProcess {
         *self.0.borrow_mut().monitor_ids.entry(id).or_insert_with(MonitorId::new_unique)
     }
 
-    /// Translate `MonitorId` to `MonId`.
-    pub(super) fn monitor_id_back(&self, monitor_id: MonitorId) -> Option<ApiMonitorId> {
-        self.0
-            .borrow()
-            .monitor_ids
-            .iter()
-            .find(|(_, app_id)| **app_id == monitor_id)
-            .map(|(id, _)| *id)
-    }
-
     /// Reopen the view-process, causing an [`Event::Respawned`].
     pub fn respawn(&self) {
         self.0.borrow_mut().process.respawn()

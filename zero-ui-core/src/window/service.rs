@@ -1,6 +1,7 @@
 use std::mem;
 
 use linear_map::LinearMap;
+use zero_ui_view_api::Respawned;
 
 use super::*;
 use crate::app::{
@@ -453,7 +454,7 @@ impl AppWindow {
         let (window, _) = ctx.window_context(id, mode, &mut state, new);
         let root_id = window.id;
         let vars = WindowVars::new(ctx.services.windows().default_render_mode);
-        let (ctrl, _) = ctx.window_context(id, mode, &mut state, move |ctx| WindowCtrl::new(ctx, &vars, mode, window));
+        let ctrl = WindowCtrl::new(&vars, mode, window);
 
         let window = Self { ctrl, id, mode, state };
         let info = AppWindowInfo::new(id, root_id, mode, vars);
