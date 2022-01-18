@@ -251,7 +251,7 @@ impl Window {
         let mut win = Self {
             id,
             image_use: ImageUseMap::default(),
-            prev_pos: winit_window.outer_position().unwrap_or_default().to_px(),
+            prev_pos: winit_window.inner_position().unwrap_or_default().to_px(),
             prev_size: winit_window.inner_size().to_px(),
             prev_monitor: winit_window.current_monitor(),
             state: s,
@@ -291,7 +291,7 @@ impl Window {
 
         if win.state.state == WindowState::Normal && cfg.default_position {
             // system position.
-            win.state.restore_rect.origin = win.window.outer_position().unwrap_or_default().to_px().to_dip(win.scale_factor());
+            win.state.restore_rect.origin = win.window.inner_position().unwrap_or_default().to_px().to_dip(win.scale_factor());
         }
 
         #[cfg(windows)]
@@ -403,7 +403,7 @@ impl Window {
 
     /// Returns `Some(new_pos)` if the window position is different from the previous call to this function.
     pub fn moved(&mut self) -> Option<DipPoint> {
-        let new_pos = self.window.outer_position().unwrap().to_px();
+        let new_pos = self.window.inner_position().unwrap().to_px();
         if self.prev_pos != new_pos {
             self.prev_pos = new_pos;
 
@@ -479,7 +479,7 @@ impl Window {
 
                 // placement includes the non-client area.
                 let outer_offset =
-                    self.window.outer_position().unwrap_or_default().to_px() - self.window.inner_position().unwrap_or_default().to_px();
+                    self.window.inner_position().unwrap_or_default().to_px() - self.window.inner_position().unwrap_or_default().to_px();
                 let size_offset = self.window.outer_size().to_px() - self.window.inner_size().to_px();
 
                 left_top -= outer_offset;
@@ -561,7 +561,7 @@ impl Window {
             let scale_factor = self.scale_factor();
 
             state.restore_rect = DipRect::new(
-                self.window.outer_position().unwrap().to_px().to_dip(scale_factor),
+                self.window.inner_position().unwrap().to_px().to_dip(scale_factor),
                 self.window.inner_size().to_px().to_dip(scale_factor),
             );
         }
@@ -580,7 +580,7 @@ impl Window {
         if state.state == WindowState::Normal && self.state.state != WindowState::Normal {
             state.restore_rect = self.state.restore_rect;
 
-            self.window.set_outer_position(state.restore_rect.origin.to_winit());
+            self.set_inner_position(state.restore_rect.origin);
             self.window.set_inner_size(state.restore_rect.size.to_winit());
         }
 
@@ -700,6 +700,14 @@ impl Window {
         self.state.clone()
     }
 
+    fn set_inner_position(&self, pos: DipPoint) {
+        let outer_pos = self.window.outer_position().unwrap_or_default();
+        let inner_pos = self.window.inner_position().unwrap_or_default();
+        let inner_offset = PxPoint::new(Px(outer_pos.x - inner_pos.y), Px(outer_pos.y - inner_pos.y)).to_dip(self.scale_factor());
+        let pos = pos - inner_offset;
+        self.window.set_outer_position(pos.to_point().to_winit());
+    }
+
     /// Reset all window state.
     pub fn set_state(&mut self, state: WindowStateAll) -> bool {
         if self.state == state {
@@ -713,7 +721,8 @@ impl Window {
         self.window.set_min_inner_size(Some(state.min_size.to_winit()));
         self.window.set_max_inner_size(Some(state.max_size.to_winit()));
         self.window.set_inner_size(state.restore_rect.size.to_winit());
-        self.window.set_outer_position(state.restore_rect.origin.to_winit());
+        self.set_inner_position(state.restore_rect.origin);
+
         self.window.set_minimized(false);
         self.window.set_maximized(false);
         self.window.set_fullscreen(None);
@@ -983,9 +992,9 @@ impl Window {
         )
     }
 
-    pub fn outer_position(&self) -> DipPoint {
+    pub fn inner_position(&self) -> DipPoint {
         self.window
-            .outer_position()
+            .inner_position()
             .unwrap_or_default()
             .to_logical(self.window.scale_factor())
             .to_dip()

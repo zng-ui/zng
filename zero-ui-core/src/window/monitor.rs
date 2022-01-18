@@ -55,9 +55,9 @@ impl MonitorId {
 ///
 /// ## Start Position
 ///
-/// Windows are positioned on a *virtual screen* that overlaps all monitors, but for the window start
-/// position the user may want to select a specific monitor, this service is used to provide information
-/// to implement this feature.
+/// Windows are positioned on a *virtual screen* that overlaps all monitors, but all position configuration is done relative to
+/// an specific *parent* monitor, it is important to track the parent monitor as it defines properties that affect the layout of the window,
+/// this service is used to provide information to implement this feature.
 ///
 /// See [The Virtual Screen] for more information about this in the Windows OS.
 ///
@@ -80,6 +80,7 @@ impl MonitorId {
 /// This service is provided by the [`WindowManager`].
 ///
 /// [`ppi`]: MonitorFullInfo::ppi
+/// [`scale_factor`]: MonitorFullInfo::ppi
 /// [`LayoutMetrics`]: crate::context::LayoutMetrics
 /// [The Virtual Screen]: https://docs.microsoft.com/en-us/windows/win32/gdi/the-virtual-screen
 /// [`WindowManager`]: crate::window::WindowManager

@@ -25,7 +25,7 @@ use zero_ui_view_api::webrender_api::{
 pub use zero_ui_view_api::{
     bytes_channel, CursorIcon, Event, EventCause, FrameRequest, FrameUpdateRequest, FrameWaitId, HeadlessOpenData, HeadlessRequest,
     ImageDataFormat, ImagePpi, IpcBytes, IpcBytesReceiver, IpcBytesSender, MonitorInfo, RenderMode, Respawned, TextAntiAliasing, VideoMode,
-    ViewProcessGen, WindowOpenData, WindowRequest, WindowState, WindowStateAll, WindowTheme,
+    ViewProcessGen, WindowRequest, WindowState, WindowStateAll, WindowTheme,
 };
 use zero_ui_view_api::{Controller, DeviceId as ApiDeviceId, ImageId, ImageLoadedData, MonitorId as ApiMonitorId, WindowId as ApiWindowId};
 
@@ -122,7 +122,7 @@ impl ViewProcess {
             document_id: data.document_id,
             generation: app.data_generation,
         }));
-        Ok((win, data))
+        Ok((win, WindowOpenData::new(data, |id| self.monitor_id(id))))
     }
 
     /// Open a headless renderer and associate it with the `window_id`.
@@ -1154,4 +1154,39 @@ event! {
     ///
     /// This event fires if the view-process crashed and was successfully
     pub ViewProcessRespawnedEvent: ViewProcessRespawnedArgs;
+}
+
+/// Information about a successfully opened window.
+#[derive(Debug)]
+pub struct WindowOpenData {
+    /// Window complete state.
+    pub state: WindowStateAll,
+
+    /// Monitor that contains the window.
+    pub monitor: Option<MonitorId>,
+
+    /// Final top-left offset of the window (excluding outer chrome).
+    ///
+    /// The position is relative to the monitor.
+    pub position: DipPoint,
+    /// Final dimensions of the client area of the window (excluding outer chrome).
+    pub size: DipSize,
+
+    /// Final scale factor.
+    pub scale_factor: f32,
+
+    /// Actual render mode, can be different from the requested mode if it is not available.
+    pub render_mode: RenderMode,
+}
+impl WindowOpenData {
+    fn new(data: zero_ui_view_api::WindowOpenData, map_monitor: impl FnOnce(zero_ui_view_api::MonitorId) -> MonitorId) -> Self {
+        WindowOpenData {
+            state: data.state,
+            monitor: data.monitor.map(map_monitor),
+            position: data.position,
+            size: data.size,
+            scale_factor: data.scale_factor,
+            render_mode: data.render_mode,
+        }
+    }
 }

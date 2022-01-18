@@ -1466,7 +1466,7 @@ pub struct WindowStateAll {
 
     /// Position and size of the window in the `Normal` state.
     ///
-    /// The position is relative to the virtual screen that encompasses all monitors.
+    /// The position is relative to the monitor.
     pub restore_rect: DipRect,
     /// What state the window goes too when "restored".
     pub restore_state: WindowState,
@@ -1751,7 +1751,12 @@ pub struct WindowOpenData {
     /// Window complete state.
     pub state: WindowStateAll,
 
-    /// Final top-left offset of the window (including outer chrome).
+    /// Monitor that contains the window, if any.
+    pub monitor: Option<MonitorId>,
+
+    /// Final top-left offset of the window (excluding outer chrome).
+    ///
+    /// The position is relative to the monitor.
     pub position: DipPoint,
     /// Final dimensions of the client area of the window (excluding outer chrome).
     pub size: DipSize,

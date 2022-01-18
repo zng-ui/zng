@@ -209,13 +209,15 @@ impl WindowVars {
         self.0.actual_monitor.clone().into_read_only()
     }
 
-    /// Window actual position on the virtual screen that envelops all monitors.
+    /// Window actual position on the [monitor].
     ///
     /// This is a read-only variable that tracks the computed position of the window, it updates every
     /// time the window moves.
     ///
     /// The initial value is `(0, 0)` but this is updated quickly to an actual value. The point
-    /// is relative to the origin of the virtual screen that envelops all monitors.
+    /// is relative to the origin of the [monitor].
+    ///
+    /// [monitor]: Self::actual_monitor
     #[inline]
     pub fn actual_position(&self) -> ReadOnlyRcVar<DipPoint> {
         self.0.actual_position.clone().into_read_only()
@@ -250,7 +252,7 @@ impl WindowVars {
     /// unlike this variable the [`position`] is relative to the [`monitor`] top-left.
     ///
     /// The initial value is `(30, 30).at(800, 600)` but this is updated quickly to an actual position. The point
-    /// is relative to the origin of the virtual screen that envelops all monitors.
+    /// is relative to the origin of the [`actual_monitor`].
     ///
     /// Note that to restore the window you only need to set [`state`] to [`restore_state`], if the restore state is [`Normal`]
     /// this position and size will be applied automatically.
@@ -261,6 +263,7 @@ impl WindowVars {
     /// [`position`]: Self::position
     /// [`size`]: Self::size
     /// [`monitor`]: Self::monitor
+    /// [`actual_monitor`]: Self::actual_monitor
     /// [`state`]: Self::state
     /// [`restore_state`]: Self::restore_state
     #[inline]
@@ -278,7 +281,7 @@ impl WindowVars {
     /// note that the window is only moved if it is in the [`Normal`] state, otherwise only the [`restore_rect`] updates.
     ///
     /// When the the window is moved by the user this variable does **not** update back, to track the current position of the window
-    /// on the virtual screen that envelops all monitors use [`actual_position`], to track the *restore* position use [`restore_rect`].
+    /// use [`actual_position`], to track the *restore* position use [`restore_rect`].
     ///
     /// The default value causes the window or OS to select a value.
     ///

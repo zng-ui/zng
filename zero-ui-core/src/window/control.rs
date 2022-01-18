@@ -337,7 +337,7 @@ impl HeadedCtrl {
             self.vars.0.restore_rect.set_ne(ctx, data.state.restore_rect);
             self.vars.0.actual_position.set_ne(ctx, data.position);
             self.vars.0.actual_size.set_ne(ctx, data.size);
-            // self.vars.0.actual_monitor.set_ne(ctx, todo!());
+            self.vars.0.actual_monitor.set_ne(ctx, data.monitor);
 
             self.state = Some(data.state);
         }
