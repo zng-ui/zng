@@ -1,3 +1,5 @@
+//! App window and monitors manager.
+
 mod control;
 use control::*;
 

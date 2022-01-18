@@ -1174,6 +1174,12 @@ impl WindowRenderUpdate {
     pub fn is_none(self) -> bool {
         matches!(self, Self::None)
     }
+
+    /// Returns a copy of `self` and replaces `self` with `None`
+    #[inline]
+    pub fn take(&mut self) -> Self {
+        mem::take(self)
+    }
 }
 impl Default for WindowRenderUpdate {
     fn default() -> Self {

@@ -5,8 +5,9 @@ use zero_ui_view_api::Respawned;
 
 use super::*;
 use crate::app::{
+    raw_events::{RawWindowCloseEvent, RawWindowCloseRequestedEvent},
     view_process::{self, ViewRenderer},
-    AppEventSender,
+    AppEventSender, AppProcessExt,
 };
 use crate::event::EventUpdateArgs;
 use crate::image::{Image, ImageVar};
@@ -44,6 +45,7 @@ pub struct Windows {
 
     close_group_id: CloseGroupId,
     close_requests: LinearMap<WindowId, CloseWindowRequest>,
+    pending_closes: LinearMap<CloseGroupId, PendingClose>,
 
     frame_images: Vec<RcVar<Image>>,
 }
@@ -59,6 +61,7 @@ impl Windows {
 
             close_group_id: 1,
             close_requests: LinearMap::new(),
+            pending_closes: LinearMap::new(),
 
             frame_images: vec![],
         }
@@ -300,19 +303,134 @@ impl Windows {
     }
 
     pub(super) fn on_pre_event<EV: EventUpdateArgs>(ctx: &mut AppContext, args: &EV) {
-        todo!()
+        if let Some(args) = RawWindowFocusEvent.update(args) {
+            let wns = ctx.services.windows();
+            if let Some(window) = wns.windows_info.get_mut(&args.window_id) {
+                if window.is_focused == args.focused {
+                    return;
+                }
+
+                window.is_focused = args.focused;
+
+                let args = WindowFocusArgs::new(args.timestamp, args.window_id, window.is_focused, false);
+                WindowFocusChangedEvent.notify(ctx.events, args);
+            }
+        } else if let Some(args) = RawWindowCloseRequestedEvent.update(args) {
+            let _ = ctx.services.windows().close(args.window_id);
+        } else if let Some(args) = RawWindowCloseEvent.update(args) {
+            if ctx.services.windows().windows.contains_key(&args.window_id) {
+                tracing::error!("view-process closed window without request");
+                let args = WindowCloseArgs::new(args.timestamp, args.window_id);
+                WindowCloseEvent.notify(ctx, args);
+            }
+        }
+
+        Self::with_detached_windows(ctx, |ctx, windows| {
+            for (_, window) in windows {
+                window.pre_event(ctx, args);
+            }
+        })
     }
 
     pub(super) fn on_ui_event<EV: EventUpdateArgs>(ctx: &mut AppContext, args: &EV) {
         Self::with_detached_windows(ctx, |ctx, windows| {
             for (_, window) in windows {
-                window.event(ctx, args);
+                window.ui_event(ctx, args);
             }
         });
     }
 
     pub(super) fn on_event<EV: EventUpdateArgs>(ctx: &mut AppContext, args: &EV) {
-        todo!()
+        if let Some(args) = WindowCloseRequestedEvent.update(args) {
+            let wns = ctx.services.windows();
+
+            // If we caused this event, fulfill the close request.
+            match wns.pending_closes.entry(args.close_group) {
+                linear_map::Entry::Occupied(mut e) => {
+                    let caused_by_us = if let Some(canceled) = e.get_mut().windows.get_mut(&args.window_id) {
+                        // caused by us, update the status for the window.
+                        *canceled = Some(args.cancel_requested());
+                        true
+                    } else {
+                        // not us, window not in group
+                        false
+                    };
+
+                    if caused_by_us {
+                        // check if this is the last window in the group
+                        let mut all_some = true;
+                        // and if any cancelled we cancel all, otherwise close all.
+                        let mut cancel = false;
+
+                        for cancel_flag in e.get().windows.values() {
+                            if let Some(c) = cancel_flag {
+                                cancel |= c;
+                            } else {
+                                all_some = false;
+                                break;
+                            }
+                        }
+
+                        if all_some {
+                            // if the last window in the group, no longer pending
+                            let e = e.remove();
+
+                            if cancel {
+                                // respond to all windows in the group.
+                                e.responder.respond(ctx.vars, CloseWindowResult::Cancel);
+                            } else {
+                                e.responder.respond(ctx.vars, CloseWindowResult::Closed);
+
+                                // notify close, but does not remove then yet, this
+                                // lets the window content handle the close event,
+                                // we deinit the window when we handle our own close event.
+                                for (w, _) in e.windows {
+                                    if wns.windows.contains_key(&w) {
+                                        WindowCloseEvent.notify(ctx.events, WindowCloseArgs::now(w));
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                linear_map::Entry::Vacant(_) => {
+                    // Not us, no pending entry.
+                }
+            }
+        } else if let Some(args) = WindowCloseEvent.update(args) {
+            // finish close, this notifies  `UiNode::deinit` and drops the window
+            // causing the ViewWindow to drop and close.
+
+            if let Some(w) = ctx.services.windows().windows.remove(&args.window_id) {
+                w.close(ctx);
+
+                let is_headless_app = ctx.window_mode().is_headless();
+
+                let wns = ctx.services.windows();
+                let info = wns.windows_info.remove(&args.window_id).unwrap();
+
+                info.vars.0.is_open.set(ctx.vars, false);
+
+                // if set to shutdown on last headed window close in a headed app,
+                // AND there is no more open headed window OR request for opening a headed window.
+                if wns.shutdown_on_last_close
+                    && !is_headless_app
+                    && !wns.windows.values().any(|w| matches!(w.mode, WindowMode::Headed))
+                    && !wns
+                        .open_requests
+                        .iter()
+                        .any(|w| matches!(w.force_headless, None | Some(WindowMode::Headed)))
+                {
+                    // fulfill `shutdown_on_last_close`
+                    ctx.services.app_process().shutdown();
+                }
+
+                if info.is_focused {
+                    let args = WindowFocusArgs::now(info.id, false, true);
+                    WindowFocusChangedEvent.notify(ctx.events, args)
+                }
+            }
+        }
     }
 
     pub(super) fn on_ui_update(ctx: &mut AppContext) {
@@ -358,6 +476,24 @@ impl Windows {
 
             r.responder.respond(ctx, args.clone());
             WindowOpenEvent.notify(ctx, args);
+        }
+
+        let wns = ctx.services.windows();
+
+        // notify close requests, the request is fulfilled or canceled
+        // in the `event` handler.
+        for (w_id, r) in close {
+            let args = WindowCloseRequestedArgs::now(w_id, r.group);
+            WindowCloseRequestedEvent.notify(ctx.events, args);
+
+            wns.pending_closes
+                .entry(r.group)
+                .or_insert_with(|| PendingClose {
+                    responder: r.responder,
+                    windows: LinearMap::with_capacity(1),
+                })
+                .windows
+                .insert(w_id, None);
         }
     }
 
@@ -433,10 +569,13 @@ struct OpenWindowRequest {
     force_headless: Option<WindowMode>,
     responder: ResponderVar<WindowOpenArgs>,
 }
-
 struct CloseWindowRequest {
     responder: ResponderVar<CloseWindowResult>,
     group: CloseGroupId,
+}
+struct PendingClose {
+    windows: LinearMap<WindowId, Option<bool>>,
+    responder: ResponderVar<CloseWindowResult>,
 }
 
 /// Window context owner.
@@ -444,7 +583,7 @@ struct AppWindow {
     ctrl: WindowCtrl,
 
     id: WindowId,
-    mode: WindowMode,
+    pub(super) mode: WindowMode,
     state: OwnedStateMap,
 }
 impl AppWindow {
@@ -470,8 +609,12 @@ impl AppWindow {
         }
     }
 
-    pub fn event<EV: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {
-        self.ctrl_in_ctx(ctx, |ctx, ctrl| ctrl.event(ctx, args))
+    pub fn pre_event<EV: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {
+        self.ctrl_in_ctx(ctx, |ctx, ctrl| ctrl.pre_event(ctx, args))
+    }
+
+    pub fn ui_event<EV: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {
+        self.ctrl_in_ctx(ctx, |ctx, ctrl| ctrl.ui_event(ctx, args))
     }
 
     pub fn update(&mut self, ctx: &mut AppContext) {
@@ -484,5 +627,9 @@ impl AppWindow {
 
     pub fn render(&mut self, ctx: &mut AppContext) {
         self.ctrl_in_ctx(ctx, |ctx, ctrl| ctrl.render(ctx));
+    }
+
+    pub fn close(mut self, ctx: &mut AppContext) {
+        let _ = ctx.window_context(self.id, self.mode, &mut self.state, |ctx| self.ctrl.close(ctx));
     }
 }

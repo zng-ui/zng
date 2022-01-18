@@ -164,8 +164,7 @@ impl Monitors {
             if let Some(m) = ctx.services.monitors().monitor_mut(args.monitor_id) {
                 m.info.scale_factor = args.scale_factor.0;
             }
-        }
-        if let Some(args) = RawMonitorsChangedEvent.update(args) {
+        } else if let Some(args) = RawMonitorsChangedEvent.update(args) {
             ctx.services.monitors().on_monitors_changed(ctx.events, args);
         }
     }

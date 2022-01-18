@@ -3,11 +3,14 @@
 use std::mem;
 
 use crate::{
-    app::view_process::*,
+    app::{
+        raw_events::{RawFrameRenderedEvent, RawMonitorsChangedEvent, RawScaleFactorChangedEvent, RawWindowChangedEvent},
+        view_process::*,
+    },
     color::RenderColor,
     context::{LayoutContext, WindowContext, WindowRenderUpdate, WindowUpdates},
     event::EventUpdateArgs,
-    image::{ImageVar, ImagesExt},
+    image::{Image, ImageVar, ImagesExt},
     render::{FrameBuilder, FrameId, FrameUpdate, UsedFrameBuilder, UsedFrameUpdate, WidgetTransformKey},
     state::OwnedStateMap,
     units::*,
@@ -17,7 +20,10 @@ use crate::{
     BoxedUiNode, UiNode, WidgetId,
 };
 
-use super::{FrameCaptureMode, HeadlessMonitor, MonitorsExt, StartPosition, Window, WindowIcon, WindowMode, WindowVars, WindowsExt};
+use super::{
+    FrameCaptureMode, FrameImageReadyArgs, FrameImageReadyEvent, HeadlessMonitor, MonitorsExt, StartPosition, Window, WindowIcon,
+    WindowMode, WindowScaleChangedArgs, WindowScaleChangedEvent, WindowVars, WindowsExt,
+};
 
 /// Implementer of `App <-> View` sync in a headed window.
 struct HeadedCtrl {
@@ -103,8 +109,6 @@ impl HeadedCtrl {
                     todo!() // related to monitor too
                 }
 
-                
-
                 // icon:
                 let mut send_icon = false;
                 if self.vars.icon().is_new(ctx) {
@@ -182,12 +186,85 @@ impl HeadedCtrl {
         self.content.window_updates(ctx, updates);
     }
 
-    pub fn event<EV: EventUpdateArgs>(&mut self, ctx: &mut WindowContext, args: &EV) {
-        self.content.event(ctx, args);
+    pub fn pre_event<EV: EventUpdateArgs>(&mut self, ctx: &mut WindowContext, args: &EV) {
+        if let Some(args) = RawWindowChangedEvent.update(args) {
+            todo!("")
+        } else if let Some(args) = RawScaleFactorChangedEvent.update(args) {
+            if args.windows.contains(ctx.window_id) {
+                let args = WindowScaleChangedArgs::new(args.timestamp, *ctx.window_id, args.scale_factor);
+                WindowScaleChangedEvent.notify(ctx.events, args);
+
+                self.content.layout_requested = true;
+                self.content.render_requested = WindowRenderUpdate::Render;
+
+                ctx.updates.layout_and_render();
+            }
+        } else if let Some(args) = ViewProcessRespawnedEvent.update(args) {
+            if let Some(view) = &self.window {
+                if view.renderer().generation() == Ok(args.generation) {
+                    self.content.layout_requested = true;
+                    self.content.render_requested = WindowRenderUpdate::Render;
+
+                    ctx.updates.layout_and_render();
+
+                    self.window = None;
+                }
+            }
+        } else if let Some(args) = RawMonitorsChangedEvent.update(args) {
+            todo!("revalidate window monitor for {args:?}");
+        }
+
+        self.content.pre_event(ctx, args);
+    }
+
+    pub fn ui_event<EV: EventUpdateArgs>(&mut self, ctx: &mut WindowContext, args: &EV) {
+        self.content.ui_event(ctx, args);
     }
 
     pub fn layout(&mut self, ctx: &mut WindowContext) {
-        todo!()
+        let state = self.vars.state().copy(ctx);
+        if matches!(state, WindowState::Minimized) && self.is_inited() {
+            return;
+        }
+
+        let skip_auto_size = matches!(state, WindowState::Normal);
+
+        let mut screen_ppi = 96.0;
+        let mut screen_size = PxSize::new(Px(800), Px(600));
+        self.scale_factor = 1.fct();
+        if let Some(id) = self.vars.0.actual_monitor.copy(ctx) {
+            if let Some(info) = ctx.services.monitors().monitor(id) {
+                screen_ppi = info.ppi.copy(ctx.vars);
+                screen_size = info.info.size;
+                self.scale_factor = info.info.scale_factor.fct();
+            }
+        }
+
+        let (min_size, max_size, size) = self.content.outer_layout(ctx, self.scale_factor, screen_ppi, screen_size, |ctx| {
+            let available_size = AvailableSize::finite(screen_size);
+
+            let default_min = DipSize::new(Dip::new(192), Dip::new(48)).to_px(self.scale_factor.0);
+            let min_size = self
+                .vars
+                .min_size()
+                .get(ctx.vars)
+                .to_layout(ctx.metrics, available_size, default_min);
+            let max_size = self
+                .vars
+                .max_size()
+                .get(ctx.vars)
+                .to_layout(ctx.metrics, available_size, screen_size);
+            let default_size = DipSize::new(Dip::new(800), Dip::new(600)).to_px(self.scale_factor.0);
+            let size = self.vars.size().get(ctx.vars).to_layout(ctx.metrics, available_size, default_size);
+
+            (min_size, max_size, size.min(min_size).max(max_size))
+        });
+
+        let size = self
+            .content
+            .layout(ctx, self.scale_factor, screen_ppi, min_size, max_size, size, skip_auto_size);
+
+        if let Some(size) = size {}
     }
 
     pub fn render(&mut self, ctx: &mut WindowContext) {
@@ -197,8 +274,9 @@ impl HeadedCtrl {
         }
     }
 
-    pub fn respawn(&mut self, ctx: &mut WindowContext) {
-        self.content.respawn(ctx);
+    pub fn close(&mut self, ctx: &mut WindowContext) {
+        self.content.close(ctx);
+        self.window = None;
     }
 
     fn is_inited(&self) -> bool {
@@ -213,10 +291,7 @@ impl HeadedCtrl {
     fn init_icon(icon: &mut Option<ImageVar>, vars: &WindowVars, ctx: &mut WindowContext) {
         *icon = match vars.icon().get(ctx.vars) {
             WindowIcon::Default => None,
-            WindowIcon::Image(source) => {
-                let ico = ctx.services.images().cache(source.clone());
-                Some(ico.clone())
-            }
+            WindowIcon::Image(source) => Some(ctx.services.images().cache(source.clone())),
             WindowIcon::Render(_) => todo!(),
         };
     }
@@ -272,8 +347,25 @@ impl HeadlessWithRendererCtrl {
         self.content.window_updates(ctx, updates);
     }
 
-    pub fn event<EV: EventUpdateArgs>(&mut self, ctx: &mut WindowContext, args: &EV) {
-        self.content.event(ctx, args);
+    pub fn pre_event<EV: EventUpdateArgs>(&mut self, ctx: &mut WindowContext, args: &EV) {
+        if let Some(args) = ViewProcessRespawnedEvent.update(args) {
+            if let Some(view) = &self.surface {
+                if view.renderer().generation() == Ok(args.generation) {
+                    self.content.layout_requested = true;
+                    self.content.render_requested = WindowRenderUpdate::Render;
+
+                    ctx.updates.layout_and_render();
+
+                    self.surface = None;
+                }
+            }
+        }
+
+        self.content.pre_event(ctx, args);
+    }
+
+    pub fn ui_event<EV: EventUpdateArgs>(&mut self, ctx: &mut WindowContext, args: &EV) {
+        self.content.ui_event(ctx, args);
     }
 
     pub fn layout(&mut self, ctx: &mut WindowContext) {
@@ -301,7 +393,7 @@ impl HeadlessWithRendererCtrl {
             (min_size, max_size, size.min(min_size).max(max_size))
         });
 
-        let size = self.content.layout(ctx, scale_factor, screen_ppi, min_size, max_size, size);
+        let size = self.content.layout(ctx, scale_factor, screen_ppi, min_size, max_size, size, false);
         if let Some(size) = size {
             // did layout:
 
@@ -333,7 +425,7 @@ impl HeadlessWithRendererCtrl {
                     self.surface = Some(surface);
                     self.vars.0.render_mode.set_ne(ctx.vars, data.render_mode);
                 }
-                // else `Respawn`, handled in `respawn`.
+                // else `Respawn`, handled in `pre_event`.
             }
         }
     }
@@ -344,11 +436,9 @@ impl HeadlessWithRendererCtrl {
                 .render(ctx, Some(view.renderer()), self.headless_monitor.scale_factor, None);
         }
     }
-
-    pub fn respawn(&mut self, ctx: &mut WindowContext) {
+    pub fn close(&mut self, ctx: &mut WindowContext) {
+        self.content.close(ctx);
         self.surface = None;
-
-        self.content.respawn(ctx);
     }
 
     fn is_inited(&self) -> bool {
@@ -389,8 +479,12 @@ impl HeadlessCtrl {
         self.content.window_updates(ctx, updates);
     }
 
-    pub fn event<EV: EventUpdateArgs>(&mut self, ctx: &mut WindowContext, args: &EV) {
-        self.content.event(ctx, args);
+    pub fn pre_event<EV: EventUpdateArgs>(&mut self, ctx: &mut WindowContext, args: &EV) {
+        self.content.pre_event(ctx, args);
+    }
+
+    pub fn ui_event<EV: EventUpdateArgs>(&mut self, ctx: &mut WindowContext, args: &EV) {
+        self.content.ui_event(ctx, args);
     }
 
     pub fn layout(&mut self, ctx: &mut WindowContext) {
@@ -418,15 +512,15 @@ impl HeadlessCtrl {
             (min_size, max_size, size.min(min_size).max(max_size))
         });
 
-        let _surface_size = self.content.layout(ctx, scale_factor, screen_ppi, min_size, max_size, size);
+        let _surface_size = self.content.layout(ctx, scale_factor, screen_ppi, min_size, max_size, size, false);
     }
 
     pub fn render(&mut self, ctx: &mut WindowContext) {
         self.content.render(ctx, None, self.headless_monitor.scale_factor, None);
     }
 
-    pub fn respawn(&mut self, ctx: &mut WindowContext) {
-        self.content.respawn(ctx);
+    pub fn close(&mut self, ctx: &mut WindowContext) {
+        self.content.close(ctx);
     }
 }
 
@@ -448,9 +542,13 @@ struct ContentCtrl {
     used_frame_update: Option<UsedFrameUpdate>,
 
     inited: bool,
+    deinited: bool,
     subscriptions: WidgetSubscriptions,
     frame_id: FrameId,
     clear_color: RenderColor,
+
+    is_rendering: bool,
+    pending_render: WindowRenderUpdate,
 
     layout_requested: bool,
     render_requested: WindowRenderUpdate,
@@ -474,9 +572,13 @@ impl ContentCtrl {
             used_frame_update: None,
 
             inited: false,
+            deinited: false,
             subscriptions: WidgetSubscriptions::new(),
             frame_id: FrameId::INVALID,
             clear_color: RenderColor::BLACK,
+
+            is_rendering: false,
+            pending_render: WindowRenderUpdate::None,
 
             layout_requested: false,
             render_requested: WindowRenderUpdate::None,
@@ -531,7 +633,30 @@ impl ContentCtrl {
         self.render_requested |= updates.render;
     }
 
-    pub fn event<EV: EventUpdateArgs>(&mut self, ctx: &mut WindowContext, args: &EV) {
+    pub fn pre_event<EV: EventUpdateArgs>(&mut self, ctx: &mut WindowContext, args: &EV) {
+        if let Some(args) = RawFrameRenderedEvent.update(args) {
+            if args.window_id == *ctx.window_id {
+                self.is_rendering = false;
+                match self.pending_render.take() {
+                    WindowRenderUpdate::None => {}
+                    WindowRenderUpdate::Render => {
+                        self.render_requested = WindowRenderUpdate::Render;
+                        ctx.updates.render();
+                    }
+                    WindowRenderUpdate::RenderUpdate => {
+                        self.render_requested |= WindowRenderUpdate::RenderUpdate;
+                        ctx.updates.render_update();
+                    }
+                }
+
+                let image = args.frame_image.as_ref().cloned().map(Image::new);
+                let args = FrameImageReadyArgs::new(args.timestamp, args.window_id, args.frame_id, image);
+                FrameImageReadyEvent.notify(ctx.events, args);
+            }
+        }
+    }
+
+    pub fn ui_event<EV: EventUpdateArgs>(&mut self, ctx: &mut WindowContext, args: &EV) {
         debug_assert!(self.inited);
 
         if self.subscriptions.event_contains(args) {
@@ -539,6 +664,14 @@ impl ContentCtrl {
                 self.root.event(ctx, args);
             });
         }
+    }
+
+    pub fn close(&mut self, ctx: &mut WindowContext) {
+        ctx.widget_context(self.root_id, &mut self.root_state, |ctx| {
+            self.root.deinit(ctx);
+        });
+
+        self.vars.0.is_open.set(ctx, false);
     }
 
     /// Run an `action` in the context of a monitor screen that is parent of this content.
@@ -571,6 +704,7 @@ impl ContentCtrl {
         min_size: PxSize,
         max_size: PxSize,
         size: PxSize,
+        skip_auto_size: bool,
     ) -> Option<PxSize> {
         debug_assert!(self.inited);
 
@@ -582,11 +716,13 @@ impl ContentCtrl {
             let auto_size = self.vars.auto_size().copy(ctx);
 
             let mut viewport_size = size;
-            if auto_size.contains(AutoSize::CONTENT_WIDTH) {
-                viewport_size.width = max_size.width;
-            }
-            if auto_size.contains(AutoSize::CONTENT_HEIGHT) {
-                viewport_size.height = max_size.height;
+            if !skip_auto_size {
+                if auto_size.contains(AutoSize::CONTENT_WIDTH) {
+                    viewport_size.width = max_size.width;
+                }
+                if auto_size.contains(AutoSize::CONTENT_HEIGHT) {
+                    viewport_size.height = max_size.height;
+                }
             }
 
             let mut changes = LayoutMask::NONE;
@@ -620,11 +756,13 @@ impl ContentCtrl {
                     let desired_size = self.root.measure(ctx, AvailableSize::finite(viewport_size));
 
                     let mut final_size = viewport_size;
-                    if auto_size.contains(AutoSize::CONTENT_WIDTH) {
-                        final_size.width = desired_size.width.max(min_size.width).min(max_size.width);
-                    }
-                    if auto_size.contains(AutoSize::CONTENT_HEIGHT) {
-                        final_size.height = desired_size.height.max(min_size.height).min(max_size.height);
+                    if !skip_auto_size {
+                        if auto_size.contains(AutoSize::CONTENT_WIDTH) {
+                            final_size.width = desired_size.width.max(min_size.width).min(max_size.width);
+                        }
+                        if auto_size.contains(AutoSize::CONTENT_HEIGHT) {
+                            final_size.height = desired_size.height.max(min_size.height).min(max_size.height);
+                        }
                     }
 
                     self.root.arrange(ctx, &mut WidgetOffset::new(), final_size);
@@ -643,6 +781,11 @@ impl ContentCtrl {
         match mem::take(&mut self.render_requested) {
             // RENDER FULL FRAME
             WindowRenderUpdate::Render => {
+                if self.is_rendering {
+                    self.pending_render = WindowRenderUpdate::Render;
+                    return;
+                }
+
                 let _s = tracing::trace_span!("window.on_render", window = %ctx.window_id.sequential()).entered();
 
                 self.frame_id = self.frame_id.next();
@@ -688,11 +831,18 @@ impl ContentCtrl {
                         capture_image,
                         wait_id,
                     });
+
+                    self.is_rendering = true;
                 }
             }
 
             // RENDER UPDATE
             WindowRenderUpdate::RenderUpdate => {
+                if self.is_rendering {
+                    self.pending_render |= WindowRenderUpdate::RenderUpdate;
+                    return;
+                }
+
                 let _s = tracing::trace_span!("window.on_render_update", window = %ctx.window_id.sequential()).entered();
 
                 self.frame_id = self.frame_id.next_update();
@@ -728,6 +878,8 @@ impl ContentCtrl {
                         capture_image,
                         wait_id,
                     });
+
+                    self.is_rendering = true;
                 }
             }
             WindowRenderUpdate::None => {}
@@ -742,13 +894,6 @@ impl ContentCtrl {
             }
             FrameCaptureMode::All => true,
         }
-    }
-
-    pub fn respawn(&mut self, ctx: &mut WindowContext) {
-        self.layout_requested = true;
-        self.render_requested = WindowRenderUpdate::Render;
-
-        ctx.updates.layout_and_render();
     }
 }
 
@@ -784,11 +929,19 @@ impl WindowCtrl {
         }
     }
 
-    pub fn event<EV: EventUpdateArgs>(&mut self, ctx: &mut WindowContext, args: &EV) {
+    pub fn pre_event<EV: EventUpdateArgs>(&mut self, ctx: &mut WindowContext, args: &EV) {
         match &mut self.0 {
-            WindowCtrlMode::Headed(c) => c.event(ctx, args),
-            WindowCtrlMode::Headless(c) => c.event(ctx, args),
-            WindowCtrlMode::HeadlessWithRenderer(c) => c.event(ctx, args),
+            WindowCtrlMode::Headed(c) => c.pre_event(ctx, args),
+            WindowCtrlMode::Headless(c) => c.pre_event(ctx, args),
+            WindowCtrlMode::HeadlessWithRenderer(c) => c.pre_event(ctx, args),
+        }
+    }
+
+    pub fn ui_event<EV: EventUpdateArgs>(&mut self, ctx: &mut WindowContext, args: &EV) {
+        match &mut self.0 {
+            WindowCtrlMode::Headed(c) => c.ui_event(ctx, args),
+            WindowCtrlMode::Headless(c) => c.ui_event(ctx, args),
+            WindowCtrlMode::HeadlessWithRenderer(c) => c.ui_event(ctx, args),
         }
     }
 
@@ -808,11 +961,11 @@ impl WindowCtrl {
         }
     }
 
-    pub fn respawn(&mut self, ctx: &mut WindowContext) {
+    pub fn close(&mut self, ctx: &mut WindowContext) {
         match &mut self.0 {
-            WindowCtrlMode::Headed(c) => c.respawn(ctx),
-            WindowCtrlMode::Headless(c) => c.respawn(ctx),
-            WindowCtrlMode::HeadlessWithRenderer(c) => c.respawn(ctx),
+            WindowCtrlMode::Headed(c) => c.close(ctx),
+            WindowCtrlMode::Headless(c) => c.close(ctx),
+            WindowCtrlMode::HeadlessWithRenderer(c) => c.close(ctx),
         }
     }
 }
