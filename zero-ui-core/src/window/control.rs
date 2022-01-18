@@ -21,8 +21,8 @@ use crate::{
 };
 
 use super::{
-    FrameCaptureMode, FrameImageReadyArgs, FrameImageReadyEvent, HeadlessMonitor, MonitorsExt, StartPosition, Window, WindowIcon,
-    WindowMode, WindowScaleChangedArgs, WindowScaleChangedEvent, WindowVars, WindowsExt,
+    FrameCaptureMode, FrameImageReadyArgs, FrameImageReadyEvent, HeadlessMonitor, MonitorFullInfo, MonitorId, MonitorsExt, StartPosition,
+    Window, WindowChrome, WindowIcon, WindowMode, WindowScaleChangedArgs, WindowScaleChangedEvent, WindowVars, WindowsExt,
 };
 
 /// Implementer of `App <-> View` sync in a headed window.
@@ -40,7 +40,7 @@ struct HeadedCtrl {
 
     // current state.
     state: Option<WindowStateAll>, // None means it must be recomputed and send.
-    scale_factor: Factor,
+    monitor: Option<MonitorFullInfo>,
     resize_wait_id: Option<FrameWaitId>,
     icon: Option<ImageVar>,
 }
@@ -58,7 +58,7 @@ impl HeadedCtrl {
             vars: vars.clone(),
 
             state: None,
-            scale_factor: 1.fct(),
+            monitor: None,
             resize_wait_id: None,
             icon: None,
         }
@@ -79,6 +79,12 @@ impl HeadedCtrl {
                     } else {
                         *enforced_fullscreen = state;
                     }
+                }
+
+                if let Some(false) = self.vars.visible().copy_new(ctx) {
+                    tracing::error!("window in `kiosk` mode can not be hidden");
+
+                    self.vars.visible().set(ctx, true);
                 }
             } else {
                 if let Some(query) = self.vars.monitor().get_new(ctx.vars) {
@@ -109,45 +115,8 @@ impl HeadedCtrl {
                     todo!() // related to monitor too
                 }
 
-                // icon:
-                let mut send_icon = false;
-                if self.vars.icon().is_new(ctx) {
-                    Self::init_icon(&mut self.icon, &self.vars, ctx);
-                    send_icon = true;
-                } else if self.icon.as_ref().map(|ico| ico.is_new(ctx)).unwrap_or(false) {
-                    send_icon = true;
-                }
-                if send_icon {
-                    let icon = self.icon.as_ref().and_then(|ico| ico.get(ctx).view());
-                    let _: Ignore = view.set_icon(icon);
-                }
-
-                if let Some(title) = self.vars.title().get_new(ctx) {
-                    let _: Ignore = view.set_title(title.to_string());
-                }
-
-                if let Some(mode) = self.vars.video_mode().copy_new(ctx) {
-                    let _: Ignore = view.set_video_mode(mode);
-                }
-
-                if let Some(cursor) = self.vars.cursor().copy_new(ctx) {
-                    let _: Ignore = view.set_cursor(cursor);
-                }
-
                 if let Some(visible) = self.vars.visible().copy_new(ctx) {
                     let _: Ignore = view.set_visible(visible);
-                }
-
-                if let Some(visible) = self.vars.taskbar_visible().copy_new(ctx) {
-                    let _: Ignore = view.set_taskbar_visible(visible);
-                }
-
-                if let Some(aa) = self.vars.text_aa().copy_new(ctx) {
-                    let _: Ignore = view.renderer().set_text_aa(aa);
-                }
-
-                if let Some(top) = self.vars.always_on_top().copy_new(ctx) {
-                    let _: Ignore = view.set_always_on_top(top);
                 }
 
                 if let Some(movable) = self.vars.movable().copy_new(ctx) {
@@ -157,13 +126,57 @@ impl HeadedCtrl {
                 if let Some(resizable) = self.vars.resizable().copy_new(ctx) {
                     let _: Ignore = view.set_resizable(resizable);
                 }
+            }
 
-                if let Some(mode) = self.vars.frame_capture_mode().copy_new(ctx.vars) {
-                    let _: Ignore = view.set_capture_mode(matches!(mode, FrameCaptureMode::All));
-                }
+            // icon:
+            let mut send_icon = false;
+            if self.vars.icon().is_new(ctx) {
+                Self::init_icon(&mut self.icon, &self.vars, ctx);
+                send_icon = true;
+            } else if self.icon.as_ref().map(|ico| ico.is_new(ctx)).unwrap_or(false) {
+                send_icon = true;
+            }
+            if send_icon {
+                let icon = self.icon.as_ref().and_then(|ico| ico.get(ctx).view());
+                let _: Ignore = view.set_icon(icon);
+            }
 
-                if let Some(allow) = self.vars.allow_alt_f4().copy_new(ctx) {
-                    let _: Ignore = view.set_allow_alt_f4(allow);
+            if let Some(title) = self.vars.title().get_new(ctx) {
+                let _: Ignore = view.set_title(title.to_string());
+            }
+
+            if let Some(mode) = self.vars.video_mode().copy_new(ctx) {
+                let _: Ignore = view.set_video_mode(mode);
+            }
+
+            if let Some(cursor) = self.vars.cursor().copy_new(ctx) {
+                let _: Ignore = view.set_cursor(cursor);
+            }
+
+            if let Some(visible) = self.vars.taskbar_visible().copy_new(ctx) {
+                let _: Ignore = view.set_taskbar_visible(visible);
+            }
+
+            if let Some(aa) = self.vars.text_aa().copy_new(ctx) {
+                let _: Ignore = view.renderer().set_text_aa(aa);
+            }
+
+            if let Some(top) = self.vars.always_on_top().copy_new(ctx) {
+                let _: Ignore = view.set_always_on_top(top);
+            }
+
+            if let Some(mode) = self.vars.frame_capture_mode().copy_new(ctx.vars) {
+                let _: Ignore = view.set_capture_mode(matches!(mode, FrameCaptureMode::All));
+            }
+
+            if let Some(allow) = self.vars.allow_alt_f4().copy_new(ctx) {
+                let _: Ignore = view.set_allow_alt_f4(allow);
+            }
+
+            if let Some(m) = &self.monitor {
+                if m.ppi.is_new(ctx) {
+                    self.content.layout_requested = true;
+                    ctx.updates.layout();
                 }
             }
         } else {
@@ -222,28 +235,35 @@ impl HeadedCtrl {
     }
 
     pub fn layout(&mut self, ctx: &mut WindowContext) {
-        let state = self.vars.state().copy(ctx);
-        if matches!(state, WindowState::Minimized) && self.is_inited() {
+        if !self.content.layout_requested {
             return;
         }
 
-        let skip_auto_size = matches!(state, WindowState::Normal);
-
-        let mut screen_ppi = 96.0;
-        let mut screen_size = PxSize::new(Px(800), Px(600));
-        self.scale_factor = 1.fct();
-        if let Some(id) = self.vars.0.actual_monitor.copy(ctx) {
-            if let Some(info) = ctx.services.monitors().monitor(id) {
-                screen_ppi = info.ppi.copy(ctx.vars);
-                screen_size = info.info.size;
-                self.scale_factor = info.info.scale_factor.fct();
+        if self.is_inited() {
+            if matches!(self.state.as_ref().map(|s| s.state), Some(WindowState::Minimized)) {
+                return;
             }
+            self.layout_update(ctx);
+        } else {
+            self.layout_init(ctx);
         }
+    }
 
-        let (min_size, max_size, size) = self.content.outer_layout(ctx, self.scale_factor, screen_ppi, screen_size, |ctx| {
+    /// First layout, opens the window.
+    fn layout_init(&mut self, ctx: &mut WindowContext) {
+        let skip_auto_size = !matches!(self.vars.state().copy(ctx), WindowState::Normal);
+
+        Self::init_monitor(&mut self.monitor, &self.vars, ctx);
+
+        let m = self.monitor.as_ref().unwrap();
+        let scale_factor = m.info.scale_factor.fct();
+        let screen_size = m.info.size;
+        let screen_ppi = m.ppi.copy(ctx);
+
+        let (min_size, max_size, size) = self.content.outer_layout(ctx, scale_factor, screen_ppi, screen_size, |ctx| {
             let available_size = AvailableSize::finite(screen_size);
 
-            let default_min = DipSize::new(Dip::new(192), Dip::new(48)).to_px(self.scale_factor.0);
+            let default_min = DipSize::new(Dip::new(192), Dip::new(48)).to_px(scale_factor.0);
             let min_size = self
                 .vars
                 .min_size()
@@ -254,7 +274,7 @@ impl HeadedCtrl {
                 .max_size()
                 .get(ctx.vars)
                 .to_layout(ctx.metrics, available_size, screen_size);
-            let default_size = DipSize::new(Dip::new(800), Dip::new(600)).to_px(self.scale_factor.0);
+            let default_size = DipSize::new(Dip::new(800), Dip::new(600)).to_px(scale_factor.0);
             let size = self.vars.size().get(ctx.vars).to_layout(ctx.metrics, available_size, default_size);
 
             (min_size, max_size, size.min(min_size).max(max_size))
@@ -262,15 +282,116 @@ impl HeadedCtrl {
 
         let size = self
             .content
-            .layout(ctx, self.scale_factor, screen_ppi, min_size, max_size, size, skip_auto_size);
+            .layout(ctx, scale_factor, screen_ppi, min_size, max_size, size, skip_auto_size);
 
-        if let Some(size) = size {}
+        let size = size.to_dip(scale_factor.0);
+        let screen_size = screen_size.to_dip(scale_factor.0);
+
+        let position = match self.start_position {
+            StartPosition::Default => DipPoint::zero(),
+            StartPosition::CenterMonitor => DipPoint::new(
+                (screen_size.width - size.width) / Dip::new(2),
+                (screen_size.height - size.height) / Dip::new(2),
+            ),
+            StartPosition::CenterParent => todo!(),
+        };
+        let state = WindowStateAll {
+            state: self.vars.state().copy(ctx),
+            restore_rect: DipRect::new(position, size),
+            restore_state: WindowState::Normal,
+            min_size: min_size.to_dip(scale_factor.0),
+            max_size: max_size.to_dip(scale_factor.0),
+            chrome_visible: matches!(self.vars.chrome().get(ctx), WindowChrome::Default),
+        };
+
+        Self::init_icon(&mut self.icon, &self.vars, ctx);
+
+        let request = WindowRequest {
+            id: ctx.window_id.get(),
+            title: self.vars.title().get(ctx).to_string(),
+            state,
+            default_position: matches!(self.start_position, StartPosition::Default),
+            video_mode: self.vars.video_mode().copy(ctx),
+            visible: self.vars.visible().copy(ctx),
+            taskbar_visible: self.vars.taskbar_visible().copy(ctx),
+            allow_alt_f4: self.vars.allow_alt_f4().copy(ctx),
+            always_on_top: self.vars.always_on_top().copy(ctx),
+            movable: self.vars.movable().copy(ctx),
+            resizable: self.vars.resizable().copy(ctx),
+            icon: self.icon.as_ref().and_then(|ico| ico.get(ctx).view()).map(|ico| ico.id()),
+            cursor: self.vars.cursor().copy(ctx),
+            transparent: self.transparent,
+            text_aa: self.vars.text_aa().copy(ctx),
+            capture_mode: matches!(self.vars.frame_capture_mode().get(ctx), FrameCaptureMode::All),
+            render_mode: self.render_mode.unwrap_or_else(|| ctx.services.windows().default_render_mode),
+        };
+        let r = ctx.services.view_process().open_window(request);
+
+        if let Ok((window, data)) = r {
+            ctx.services.windows().set_renderer(*ctx.window_id, window.renderer());
+
+            self.window = Some(window);
+            self.vars.0.render_mode.set_ne(ctx, data.render_mode);
+            self.vars.state().set_ne(ctx, data.state.state);
+            self.vars.0.restore_state.set_ne(ctx, data.state.restore_state);
+            self.vars.0.restore_rect.set_ne(ctx, data.state.restore_rect);
+            self.vars.0.actual_position.set_ne(ctx, data.position);
+            self.vars.0.actual_size.set_ne(ctx, data.size);
+            // self.vars.0.actual_monitor.set_ne(ctx, todo!());
+
+            self.state = Some(data.state);
+        }
+        // else `Respawn`
+    }
+
+    /// Layout for already open window.
+    fn layout_update(&mut self, ctx: &mut WindowContext) {
+        if self.monitor.is_none() {
+            Self::init_monitor(&mut self.monitor, &self.vars, ctx);
+        }
+
+        let m = self.monitor.as_ref().unwrap();
+        let scale_factor = m.info.scale_factor.fct();
+        let screen_ppi = m.ppi.copy(ctx);
+
+        let state = self.state.clone().unwrap();
+
+        let current_size = self.vars.0.actual_size.copy(ctx).to_px(scale_factor.0);
+        let mut size = current_size;
+        let min_size = state.min_size.to_px(scale_factor.0);
+        let max_size = state.max_size.to_px(scale_factor.0);
+
+        let skip_auto_size = !matches!(state.state, WindowState::Normal);
+
+        if !skip_auto_size {
+            let auto_size = self.vars.auto_size().copy(ctx);
+
+            if auto_size.contains(AutoSize::CONTENT_WIDTH) {
+                size.width = max_size.width;
+            }
+            if auto_size.contains(AutoSize::CONTENT_HEIGHT) {
+                size.height = max_size.height;
+            }
+        }
+
+        let size = self
+            .content
+            .layout(ctx, scale_factor, screen_ppi, min_size, max_size, size, skip_auto_size);
+
+        if size != current_size {
+            todo!()
+        }
     }
 
     pub fn render(&mut self, ctx: &mut WindowContext) {
+        if self.content.render_requested.is_none() {
+            return;
+        }
+
         if let Some(view) = &self.window {
+            let scale_factor = self.monitor.as_ref().unwrap().info.scale_factor.fct();
             self.content
-                .render(ctx, Some(view.renderer()), self.scale_factor, self.resize_wait_id.take());
+                .render(ctx, Some(view.renderer()), scale_factor, self.resize_wait_id.take());
         }
     }
 
@@ -280,12 +401,7 @@ impl HeadedCtrl {
     }
 
     fn is_inited(&self) -> bool {
-        self.window.is_none()
-    }
-
-    fn open(&mut self, ctx: &mut WindowContext) {
-        let view = ctx.services.view_process();
-        todo!()
+        self.window.is_some()
     }
 
     fn init_icon(icon: &mut Option<ImageVar>, vars: &WindowVars, ctx: &mut WindowContext) {
@@ -294,6 +410,36 @@ impl HeadedCtrl {
             WindowIcon::Image(source) => Some(ctx.services.images().cache(source.clone())),
             WindowIcon::Render(_) => todo!(),
         };
+    }
+
+    fn init_monitor(monitor: &mut Option<MonitorFullInfo>, vars: &WindowVars, ctx: &mut WindowContext) {
+        let monitors = ctx.services.monitors();
+
+        if let Some(id) = vars.0.actual_monitor.copy(ctx.vars) {
+            if let Some(info) = monitors.monitor(id) {
+                *monitor = Some(info.clone());
+                return;
+            }
+        }
+
+        if let Some(info) = monitors.primary_monitor() {
+            *monitor = Some(info.clone());
+        } else {
+            let defaults = HeadlessMonitor::default();
+
+            *monitor = Some(MonitorFullInfo {
+                id: MonitorId::fallback(),
+                info: MonitorInfo {
+                    name: "<fallback>".to_owned(),
+                    position: PxPoint::zero(),
+                    size: defaults.size.to_px(defaults.scale_factor.0),
+                    scale_factor: defaults.scale_factor.0,
+                    video_modes: vec![],
+                    is_primary: false,
+                },
+                ppi: var(96.0),
+            })
+        }
     }
 }
 
@@ -369,6 +515,10 @@ impl HeadlessWithRendererCtrl {
     }
 
     pub fn layout(&mut self, ctx: &mut WindowContext) {
+        if !self.content.layout_requested {
+            return;
+        }
+
         let scale_factor = self.headless_monitor.scale_factor;
         let screen_ppi = self.headless_monitor.ppi;
         let screen_size = self.headless_monitor.size.to_px(scale_factor.0);
@@ -394,43 +544,43 @@ impl HeadlessWithRendererCtrl {
         });
 
         let size = self.content.layout(ctx, scale_factor, screen_ppi, min_size, max_size, size, false);
-        if let Some(size) = size {
-            // did layout:
+        let size = size.to_dip(scale_factor.0);
 
-            let size = size.to_dip(scale_factor.0);
-
-            if let Some(view) = &self.surface {
-                // already has surface, maybe resize:
-                if self.size != size {
-                    self.size = size;
-                    let _: Ignore = view.set_size(size, scale_factor);
-                }
-            } else {
-                // (re)spawn the view surface:
-
-                let window_id = *ctx.window_id;
-                let render_mode = self.render_mode.unwrap_or_else(|| ctx.services.windows().default_render_mode);
-
-                let r = ctx.services.view_process().open_headless(HeadlessRequest {
-                    id: window_id.get(),
-                    scale_factor: scale_factor.0,
-                    size,
-                    text_aa: self.vars.text_aa().copy(ctx.vars),
-                    render_mode,
-                });
-
-                if let Ok((surface, data)) = r {
-                    ctx.services.windows().set_renderer(window_id, surface.renderer());
-
-                    self.surface = Some(surface);
-                    self.vars.0.render_mode.set_ne(ctx.vars, data.render_mode);
-                }
-                // else `Respawn`, handled in `pre_event`.
+        if let Some(view) = &self.surface {
+            // already has surface, maybe resize:
+            if self.size != size {
+                self.size = size;
+                let _: Ignore = view.set_size(size, scale_factor);
             }
+        } else {
+            // (re)spawn the view surface:
+
+            let window_id = *ctx.window_id;
+            let render_mode = self.render_mode.unwrap_or_else(|| ctx.services.windows().default_render_mode);
+
+            let r = ctx.services.view_process().open_headless(HeadlessRequest {
+                id: window_id.get(),
+                scale_factor: scale_factor.0,
+                size,
+                text_aa: self.vars.text_aa().copy(ctx.vars),
+                render_mode,
+            });
+
+            if let Ok((surface, data)) = r {
+                ctx.services.windows().set_renderer(window_id, surface.renderer());
+
+                self.surface = Some(surface);
+                self.vars.0.render_mode.set_ne(ctx.vars, data.render_mode);
+            }
+            // else `Respawn`, handled in `pre_event`.
         }
     }
 
     pub fn render(&mut self, ctx: &mut WindowContext) {
+        if self.content.render_requested.is_none() {
+            return;
+        }
+
         if let Some(view) = &self.surface {
             self.content
                 .render(ctx, Some(view.renderer()), self.headless_monitor.scale_factor, None);
@@ -488,6 +638,10 @@ impl HeadlessCtrl {
     }
 
     pub fn layout(&mut self, ctx: &mut WindowContext) {
+        if !self.content.layout_requested {
+            return;
+        }
+
         let scale_factor = self.headless_monitor.scale_factor;
         let screen_ppi = self.headless_monitor.ppi;
         let screen_size = self.headless_monitor.size.to_px(scale_factor.0);
@@ -516,6 +670,9 @@ impl HeadlessCtrl {
     }
 
     pub fn render(&mut self, ctx: &mut WindowContext) {
+        if self.content.render_requested.is_none() {
+            return;
+        }
         self.content.render(ctx, None, self.headless_monitor.scale_factor, None);
     }
 
@@ -542,7 +699,6 @@ struct ContentCtrl {
     used_frame_update: Option<UsedFrameUpdate>,
 
     inited: bool,
-    deinited: bool,
     subscriptions: WidgetSubscriptions,
     frame_id: FrameId,
     clear_color: RenderColor,
@@ -572,7 +728,6 @@ impl ContentCtrl {
             used_frame_update: None,
 
             inited: false,
-            deinited: false,
             subscriptions: WidgetSubscriptions::new(),
             frame_id: FrameId::INVALID,
             clear_color: RenderColor::BLACK,
@@ -613,16 +768,20 @@ impl ContentCtrl {
                 self.used_info_builder.take(),
             );
 
-            ctx.info_context(self.root_id, &mut self.root_state, |ctx| {
+            ctx.info_context(self.root_id, &self.root_state, |ctx| {
                 self.root.info(ctx, &mut info);
             });
 
             let (info, used) = info.finalize();
             self.used_info_builder = Some(used);
+
+            ctx.services
+                .windows()
+                .set_widget_tree(ctx.events, info, self.layout_requested, !self.render_requested.is_none());
         }
 
         if updates.subscriptions {
-            self.subscriptions = ctx.info_context(self.root_id, &mut self.root_state, |ctx| {
+            self.subscriptions = ctx.info_context(self.root_id, &self.root_state, |ctx| {
                 let mut subscriptions = WidgetSubscriptions::new();
                 self.root.subscriptions(ctx, &mut subscriptions);
                 subscriptions
@@ -696,6 +855,7 @@ impl ContentCtrl {
     }
 
     /// Layout content if there was a pending request, returns `Some(final_size)`.
+    #[allow(clippy::too_many_arguments)]
     pub fn layout(
         &mut self,
         ctx: &mut WindowContext,
@@ -705,76 +865,83 @@ impl ContentCtrl {
         max_size: PxSize,
         size: PxSize,
         skip_auto_size: bool,
-    ) -> Option<PxSize> {
+    ) -> PxSize {
         debug_assert!(self.inited);
+        debug_assert!(self.layout_requested);
 
-        if mem::take(&mut self.layout_requested) {
-            let _s = tracing::trace_span!("window.on_layout", window = %ctx.window_id.sequential()).entered();
+        let _s = tracing::trace_span!("window.on_layout", window = %ctx.window_id.sequential()).entered();
 
-            let base_font_size = base_font_size(scale_factor);
+        self.layout_requested = false;
 
-            let auto_size = self.vars.auto_size().copy(ctx);
+        let base_font_size = base_font_size(scale_factor);
 
-            let mut viewport_size = size;
-            if !skip_auto_size {
-                if auto_size.contains(AutoSize::CONTENT_WIDTH) {
-                    viewport_size.width = max_size.width;
-                }
-                if auto_size.contains(AutoSize::CONTENT_HEIGHT) {
-                    viewport_size.height = max_size.height;
-                }
+        let auto_size = self.vars.auto_size().copy(ctx);
+
+        let mut viewport_size = size;
+        if !skip_auto_size {
+            if auto_size.contains(AutoSize::CONTENT_WIDTH) {
+                viewport_size.width = max_size.width;
             }
-
-            let mut changes = LayoutMask::NONE;
-            if let Some((prev_font_size, prev_scale_factor, prev_screen_ppi, prev_viewport_size)) = self.prev_metrics {
-                if prev_font_size != base_font_size {
-                    changes |= LayoutMask::FONT_SIZE;
-                }
-                if prev_scale_factor != scale_factor {
-                    changes |= LayoutMask::SCALE_FACTOR;
-                }
-                if !about_eq(prev_screen_ppi, screen_ppi, 0.001) {
-                    changes |= LayoutMask::SCREEN_PPI;
-                }
-                if prev_viewport_size != viewport_size {
-                    changes |= LayoutMask::VIEWPORT_SIZE;
-                }
-            } else {
-                changes = LayoutMask::FONT_SIZE | LayoutMask::SCALE_FACTOR | LayoutMask::SCREEN_PPI;
+            if auto_size.contains(AutoSize::CONTENT_HEIGHT) {
+                viewport_size.height = max_size.height;
             }
-            self.prev_metrics = Some((base_font_size, scale_factor, screen_ppi, viewport_size));
-
-            let final_size = ctx.layout_context(
-                base_font_size,
-                scale_factor,
-                screen_ppi,
-                viewport_size,
-                changes,
-                self.root_id,
-                &mut self.root_state,
-                |ctx| {
-                    let desired_size = self.root.measure(ctx, AvailableSize::finite(viewport_size));
-
-                    let mut final_size = viewport_size;
-                    if !skip_auto_size {
-                        if auto_size.contains(AutoSize::CONTENT_WIDTH) {
-                            final_size.width = desired_size.width.max(min_size.width).min(max_size.width);
-                        }
-                        if auto_size.contains(AutoSize::CONTENT_HEIGHT) {
-                            final_size.height = desired_size.height.max(min_size.height).min(max_size.height);
-                        }
-                    }
-
-                    self.root.arrange(ctx, &mut WidgetOffset::new(), final_size);
-
-                    final_size
-                },
-            );
-
-            Some(final_size)
-        } else {
-            None
         }
+
+        let mut changes = LayoutMask::NONE;
+        if let Some((prev_font_size, prev_scale_factor, prev_screen_ppi, prev_viewport_size)) = self.prev_metrics {
+            if prev_font_size != base_font_size {
+                changes |= LayoutMask::FONT_SIZE;
+            }
+            if prev_scale_factor != scale_factor {
+                changes |= LayoutMask::SCALE_FACTOR;
+            }
+            if !about_eq(prev_screen_ppi, screen_ppi, 0.001) {
+                changes |= LayoutMask::SCREEN_PPI;
+            }
+            if prev_viewport_size != viewport_size {
+                changes |= LayoutMask::VIEWPORT_SIZE;
+            }
+        } else {
+            changes = LayoutMask::FONT_SIZE | LayoutMask::SCALE_FACTOR | LayoutMask::SCREEN_PPI;
+        }
+        self.prev_metrics = Some((base_font_size, scale_factor, screen_ppi, viewport_size));
+
+        ctx.layout_context(
+            base_font_size,
+            scale_factor,
+            screen_ppi,
+            viewport_size,
+            changes,
+            self.root_id,
+            &mut self.root_state,
+            |ctx| {
+                let mut available_size = AvailableSize::finite(viewport_size);
+                if !skip_auto_size {
+                    if auto_size.contains(AutoSize::CONTENT_WIDTH) {
+                        available_size.width = AvailablePx::Infinite;
+                    }
+                    if auto_size.contains(AutoSize::CONTENT_HEIGHT) {
+                        available_size.height = AvailablePx::Infinite;
+                    }
+                }
+
+                let desired_size = self.root.measure(ctx, available_size);
+
+                let mut final_size = viewport_size;
+                if !skip_auto_size {
+                    if auto_size.contains(AutoSize::CONTENT_WIDTH) {
+                        final_size.width = desired_size.width.max(min_size.width).min(max_size.width);
+                    }
+                    if auto_size.contains(AutoSize::CONTENT_HEIGHT) {
+                        final_size.height = desired_size.height.max(min_size.height).min(max_size.height);
+                    }
+                }
+
+                self.root.arrange(ctx, &mut WidgetOffset::new(), final_size);
+
+                final_size
+            },
+        )
     }
 
     pub fn render(&mut self, ctx: &mut WindowContext, renderer: Option<ViewRenderer>, scale_factor: Factor, wait_id: Option<FrameWaitId>) {
@@ -800,7 +967,7 @@ impl ContentCtrl {
                     self.used_frame_builder.take(),
                 );
 
-                let (frame, used) = ctx.render_context(self.root_id, &mut self.root_state, |ctx| {
+                let (frame, used) = ctx.render_context(self.root_id, &self.root_state, |ctx| {
                     self.root.render(ctx, &mut frame);
                     frame.finalize(ctx, &self.root_rendered)
                 });
@@ -856,7 +1023,7 @@ impl ContentCtrl {
                     self.used_frame_update.take(),
                 );
 
-                ctx.render_context(self.root_id, &mut self.root_state, |ctx| {
+                ctx.render_context(self.root_id, &self.root_state, |ctx| {
                     self.root.render_update(ctx, &mut update);
                 });
 
@@ -882,7 +1049,9 @@ impl ContentCtrl {
                     self.is_rendering = true;
                 }
             }
-            WindowRenderUpdate::None => {}
+            WindowRenderUpdate::None => {
+                debug_assert!(false, "self.render_requested != WindowRenderUpdate::None")
+            }
         }
     }
     fn take_capture_image(&self, vars: &Vars) -> bool {

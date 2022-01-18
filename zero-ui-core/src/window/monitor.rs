@@ -37,6 +37,13 @@ impl fmt::Display for MonitorId {
         write!(f, "MonitorId({})", self.sequential())
     }
 }
+impl MonitorId {
+    /// ID of a fake monitor for cases where no monitor is available.
+    pub fn fallback() -> MonitorId {
+        static FALLBACK: once_cell::sync::Lazy<MonitorId> = once_cell::sync::Lazy::new(MonitorId::new_unique);
+        *FALLBACK
+    }
+}
 
 /// Monitors service.
 ///
@@ -248,6 +255,7 @@ impl_from_and_into_var! {
 }
 
 /// All information about a monitor that [`Monitors`] can provide.
+#[derive(Clone)]
 pub struct MonitorFullInfo {
     /// Unique ID.
     pub id: MonitorId,

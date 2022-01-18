@@ -4,11 +4,6 @@ use linear_map::LinearMap;
 use zero_ui_view_api::Respawned;
 
 use super::*;
-use crate::app::{
-    raw_events::{RawWindowCloseEvent, RawWindowCloseRequestedEvent},
-    view_process::{self, ViewRenderer},
-    AppEventSender, AppProcessExt,
-};
 use crate::event::EventUpdateArgs;
 use crate::image::{Image, ImageVar};
 use crate::render::FrameHitInfo;
@@ -16,6 +11,14 @@ use crate::service::Service;
 use crate::state::OwnedStateMap;
 use crate::var::*;
 use crate::widget_info::WidgetInfoTree;
+use crate::{
+    app::{
+        raw_events::{RawWindowCloseEvent, RawWindowCloseRequestedEvent},
+        view_process::{self, ViewRenderer},
+        AppEventSender, AppProcessExt,
+    },
+    event::Events,
+};
 use crate::{units::*, WidgetId};
 
 /// Windows service.
@@ -299,6 +302,16 @@ impl Windows {
     pub(super) fn set_renderer(&mut self, id: WindowId, renderer: ViewRenderer) {
         if let Some(info) = self.windows_info.get_mut(&id) {
             info.renderer = Some(renderer);
+        }
+    }
+
+    /// Update widget info tree associated with the window.
+    pub(super) fn set_widget_tree(&mut self, events: &mut Events, info_tree: WidgetInfoTree, pending_layout: bool, pending_render: bool) {
+        if let Some(info) = self.windows_info.get_mut(&info_tree.window_id()) {
+            info.widget_tree = info_tree.clone();
+
+            let args = WidgetInfoChangedArgs::now(info_tree.window_id(), info_tree, pending_layout, pending_render);
+            WidgetInfoChangedEvent.notify(events, args);
         }
     }
 
