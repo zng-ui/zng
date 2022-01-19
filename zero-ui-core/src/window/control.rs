@@ -117,13 +117,13 @@ impl HeadedCtrl {
                         let (min_size, max_size) = self.content.outer_layout(ctx, scale_factor, screen_ppi, m.info.size, |ctx| {
                             let available_size = AvailableSize::finite(m.info.size);
 
-                            let min_size = self
-                                .vars
-                                .size()
-                                .get(ctx.vars)
-                                .to_layout(ctx, available_size, default_min_size(scale_factor));
+                            let min_size =
+                                self.vars
+                                    .min_size()
+                                    .get(ctx.vars)
+                                    .to_layout(ctx, available_size, default_min_size(scale_factor));
 
-                            let max_size = self.vars.size().get(ctx.vars).to_layout(ctx, available_size, m.info.size);
+                            let max_size = self.vars.max_size().get(ctx.vars).to_layout(ctx, available_size, m.info.size);
 
                             (min_size.to_dip(scale_factor.0), max_size.to_dip(scale_factor.0))
                         });
@@ -146,7 +146,29 @@ impl HeadedCtrl {
                 if self.vars.size().is_new(ctx) {
                     let auto_size = self.vars.auto_size().copy(ctx);
 
-                    todo!()
+                    if auto_size != AutoSize::CONTENT {
+                        if let Some(m) = &self.monitor {
+                            let scale_factor = m.info.scale_factor.fct();
+                            let screen_ppi = m.ppi.copy(ctx);
+                            let size = self.content.outer_layout(ctx, scale_factor, screen_ppi, m.info.size, |ctx| {
+                                let available_size = AvailableSize::finite(m.info.size);
+                                self.vars
+                                    .size()
+                                    .get(ctx.vars)
+                                    .to_layout(ctx, available_size, default_size(scale_factor))
+                                    .to_dip(scale_factor.0)
+                            });
+
+                            let size = size.min(new_state.max_size).max(new_state.min_size);
+
+                            if !auto_size.contains(AutoSize::CONTENT_WIDTH) {
+                                new_state.restore_rect.size.width = size.width;
+                            }
+                            if !auto_size.contains(AutoSize::CONTENT_HEIGHT) {
+                                new_state.restore_rect.size.height = size.height;
+                            }
+                        }
+                    }
                 }
 
                 if let Some(pos) = self.vars.position().get_new(ctx.vars) {
@@ -172,7 +194,7 @@ impl HeadedCtrl {
                     let _: Ignore = view.set_resizable(resizable);
                 }
 
-                if self.state.as_ref().unwrap() != &new_state  {
+                if self.state.as_ref().unwrap() != &new_state {
                     let _: Ignore = view.set_state(new_state);
                 }
             }
