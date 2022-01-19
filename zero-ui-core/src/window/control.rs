@@ -1106,7 +1106,7 @@ impl ContentCtrl {
         }
         self.prev_metrics = Some((base_font_size, scale_factor, screen_ppi, viewport_size));
 
-        ctx.layout_context(
+        let final_size = ctx.layout_context(
             base_font_size,
             scale_factor,
             screen_ppi,
@@ -1141,7 +1141,11 @@ impl ContentCtrl {
 
                 final_size
             },
-        )
+        );
+
+        self.root_bounds.set(PxRect::from_size(final_size));
+
+        final_size
     }
 
     pub fn render(&mut self, ctx: &mut WindowContext, renderer: Option<ViewRenderer>, scale_factor: Factor, wait_id: Option<FrameWaitId>) {
