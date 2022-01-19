@@ -21,7 +21,7 @@ use crate::{
 };
 
 use super::{
-    FrameCaptureMode, FrameImageReadyArgs, FrameImageReadyEvent, HeadlessMonitor, MonitorId, MonitorInfo, MonitorsExt, StartPosition,
+    FrameCaptureMode, FrameImageReadyArgs, FrameImageReadyEvent, HeadlessMonitor, MonitorInfo, MonitorsExt, StartPosition,
     Window, WindowChangedArgs, WindowChangedEvent, WindowChrome, WindowIcon, WindowMode, WindowScaleChangedArgs, WindowScaleChangedEvent,
     WindowVars, WindowsExt,
 };
@@ -91,7 +91,7 @@ impl HeadedCtrl {
                 let mut new_state = self.state.clone().unwrap();
 
                 if let Some(query) = self.vars.monitor().get_new(ctx.vars) {
-                    if let Some(new) = query.select(ctx.services.monitors()).map(|m| m.id) {
+                    if let Some(new) = query.select(ctx.services.monitors()).map(|m| m.id()) {
                         let current = self.vars.0.actual_monitor.copy(ctx.vars);
                         if Some(new) != current {
                             // see vars.monitor() docs
@@ -112,10 +112,11 @@ impl HeadedCtrl {
 
                 if self.vars.min_size().is_new(ctx) || self.vars.max_size().is_new(ctx) {
                     if let Some(m) = &self.monitor {
-                        let scale_factor = m.info.scale_factor.fct();
-                        let screen_ppi = m.ppi.copy(ctx);
-                        let (min_size, max_size) = self.content.outer_layout(ctx, scale_factor, screen_ppi, m.info.size, |ctx| {
-                            let available_size = AvailableSize::finite(m.info.size);
+                        let scale_factor = m.scale_factor().copy(ctx);
+                        let screen_ppi = m.ppi().copy(ctx);
+                        let screen_size = m.size().copy(ctx);
+                        let (min_size, max_size) = self.content.outer_layout(ctx, scale_factor, screen_ppi, screen_size, |ctx| {
+                            let available_size = AvailableSize::finite(screen_size);
 
                             let min_size =
                                 self.vars
@@ -123,7 +124,7 @@ impl HeadedCtrl {
                                     .get(ctx.vars)
                                     .to_layout(ctx, available_size, default_min_size(scale_factor));
 
-                            let max_size = self.vars.max_size().get(ctx.vars).to_layout(ctx, available_size, m.info.size);
+                            let max_size = self.vars.max_size().get(ctx.vars).to_layout(ctx, available_size, screen_size);
 
                             (min_size.to_dip(scale_factor.0), max_size.to_dip(scale_factor.0))
                         });
@@ -148,10 +149,11 @@ impl HeadedCtrl {
 
                     if auto_size != AutoSize::CONTENT {
                         if let Some(m) = &self.monitor {
-                            let scale_factor = m.info.scale_factor.fct();
-                            let screen_ppi = m.ppi.copy(ctx);
-                            let size = self.content.outer_layout(ctx, scale_factor, screen_ppi, m.info.size, |ctx| {
-                                let available_size = AvailableSize::finite(m.info.size);
+                            let scale_factor = m.scale_factor().copy(ctx);
+                            let screen_ppi = m.ppi().copy(ctx);
+                            let screen_size = m.size().copy(ctx);
+                            let size = self.content.outer_layout(ctx, scale_factor, screen_ppi, screen_size, |ctx| {
+                                let available_size = AvailableSize::finite(screen_size);
                                 self.vars
                                     .size()
                                     .get(ctx.vars)
@@ -173,10 +175,11 @@ impl HeadedCtrl {
 
                 if let Some(pos) = self.vars.position().get_new(ctx.vars) {
                     if let Some(m) = &self.monitor {
-                        let scale_factor = m.info.scale_factor.fct();
-                        let screen_ppi = m.ppi.copy(ctx);
-                        let pos = self.content.outer_layout(ctx, scale_factor, screen_ppi, m.info.size, |ctx| {
-                            pos.to_layout(ctx, AvailableSize::finite(m.info.size), PxPoint::new(Px(50), Px(50)))
+                        let scale_factor = m.scale_factor().copy(ctx);
+                        let screen_ppi = m.ppi().copy(ctx);
+                        let screen_size = m.size().copy(ctx);
+                        let pos = self.content.outer_layout(ctx, scale_factor, screen_ppi, screen_size, |ctx| {
+                            pos.to_layout(ctx, AvailableSize::finite(screen_size), PxPoint::new(Px(50), Px(50)))
                         });
                         new_state.restore_rect.origin = pos.to_dip(scale_factor.0);
                     }
@@ -245,7 +248,7 @@ impl HeadedCtrl {
             }
 
             if let Some(m) = &self.monitor {
-                if m.ppi.is_new(ctx) {
+                if m.ppi().is_new(ctx) {
                     self.content.layout_requested = true;
                     ctx.updates.layout();
                 }
@@ -377,9 +380,9 @@ impl HeadedCtrl {
         Self::init_monitor(&mut self.monitor, &self.vars, ctx);
 
         let m = self.monitor.as_ref().unwrap();
-        let scale_factor = m.info.scale_factor.fct();
-        let screen_size = m.info.size;
-        let screen_ppi = m.ppi.copy(ctx);
+        let scale_factor = m.scale_factor().copy(ctx);
+        let screen_ppi = m.ppi().copy(ctx);
+        let screen_size = m.size().copy(ctx);
 
         let (min_size, max_size, size) = self.content.outer_layout(ctx, scale_factor, screen_ppi, screen_size, |ctx| {
             let available_size = AvailableSize::finite(screen_size);
@@ -475,8 +478,8 @@ impl HeadedCtrl {
         }
 
         let m = self.monitor.as_ref().unwrap();
-        let scale_factor = m.info.scale_factor.fct();
-        let screen_ppi = m.ppi.copy(ctx);
+        let scale_factor = m.scale_factor().copy(ctx);
+        let screen_ppi = m.ppi().copy(ctx);
 
         let mut state = self.state.clone().unwrap();
 
@@ -543,7 +546,7 @@ impl HeadedCtrl {
         }
 
         if let Some(view) = &self.window {
-            let scale_factor = self.monitor.as_ref().unwrap().info.scale_factor.fct();
+            let scale_factor = self.monitor.as_ref().unwrap().scale_factor().copy(ctx);
             self.content
                 .render(ctx, Some(view.renderer()), scale_factor, self.resize_wait_id.take());
         }

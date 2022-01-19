@@ -86,7 +86,13 @@ fn multi_window(ctx: &mut WindowContext) -> Window {
         formatx!("loading{:.^1$}", "", dots_count)
     });
 
-    let monitor_size = ctx.services.monitors().primary_monitor().expect("expected one monitor").info.size;
+    let monitor_size = ctx
+        .services
+        .monitors()
+        .primary_monitor()
+        .expect("expected one monitor")
+        .size()
+        .copy(ctx.vars);
 
     let window_size = PxSize::new(monitor_size.width / Px(5), monitor_size.height / Px(2));
 

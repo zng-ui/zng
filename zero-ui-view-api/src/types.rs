@@ -1587,7 +1587,7 @@ impl MonitorInfo {
 ///
 /// You can get this values from [`MonitorInfo::video_modes`]. Note that when setting the
 /// video mode the actual system mode is selected by approximation, closest `size`, then `bit_depth` then `refresh_rate`.
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 pub struct VideoMode {
     /// Resolution of this video mode.
     pub size: PxSize,

@@ -12,7 +12,7 @@ use crate::{
     event::{event, EventUpdateArgs, Events},
     event_args,
     service::Service,
-    text::Text,
+    text::*,
     units::*,
     var::*,
 };
@@ -88,17 +88,29 @@ impl MonitorId {
 #[derive(Service)]
 pub struct Monitors {
     monitors: LinearMap<MonitorId, MonitorInfo>,
+    primary: Option<MonitorId>,
 }
 impl Monitors {
     /// Initial PPI of monitors, `96.0`.
     pub const DEFAULT_PPI: f32 = 96.0;
 
     pub(super) fn new(view: Option<&mut ViewProcess>) -> Self {
+        let mut primary = None;
         Monitors {
             monitors: view
                 .and_then(|v| v.available_monitors().ok())
-                .map(|ms| ms.into_iter().map(|(id, info)| (id, MonitorInfo::from(info))).collect())
+                .map(|ms| {
+                    ms.into_iter()
+                        .map(|(id, info)| {
+                            if info.is_primary {
+                                primary = Some(id);
+                            }
+                            (id, MonitorInfo::from_view(id, info))
+                        })
+                        .collect()
+                })
                 .unwrap_or_default(),
+            primary,
         }
     }
 
@@ -106,7 +118,7 @@ impl Monitors {
     ///
     /// Returns `None` if no monitor was identified as the primary.
     pub fn primary_monitor(&mut self) -> Option<&MonitorInfo> {
-        self.monitors.values().find(|m| m.info.is_primary)
+        self.primary.and_then(|id| self.monitor(id))
     }
 
     /// Reference the monitor info.
@@ -114,10 +126,6 @@ impl Monitors {
     /// Returns `None` if the monitor was not found or the app is running in headless mode without renderer.
     pub fn monitor(&mut self, monitor_id: MonitorId) -> Option<&MonitorInfo> {
         self.monitors.get(&monitor_id)
-    }
-
-    pub(super) fn monitor_mut(&mut self, monitor_id: MonitorId) -> Option<&mut MonitorInfo> {
-        self.monitors.get_mut(&monitor_id)
     }
 
     /// Iterate over all available monitors.
@@ -130,26 +138,27 @@ impl Monitors {
         self.monitors.values()
     }
 
-    fn on_monitors_changed(&mut self, events: &mut Events, args: &RawMonitorsChangedArgs) {
-        let ms: LinearMap<_, _> = args.available_monitors.iter().cloned().collect();
+    fn on_monitors_changed(&mut self, events: &mut Events, vars: &Vars, args: &RawMonitorsChangedArgs) {
+        let mut available_monitors: LinearMap<_, _> = args.available_monitors.iter().cloned().collect();
 
         let mut removed = vec![];
         let mut changed = vec![];
 
-        self.monitors.retain(|(key, value)| {
-            if let Some(new) = ms.remove(key) {
-                if value.update(new) {
+        self.monitors.retain(|key, value| {
+            if let Some(new) = available_monitors.remove(key) {
+                if value.update(vars, new) {
                     changed.push(*key);
                 }
+                true
             } else {
                 removed.push(*key);
                 false
             }
         });
 
-        let mut added = Vec::with_capacity(ms.len());
+        let mut added = Vec::with_capacity(available_monitors.len());
 
-        for (id, info) in ms {
+        for (id, info) in available_monitors {
             added.push(id);
 
             self.monitors.insert(id, MonitorInfo::from_view(id, info));
@@ -163,11 +172,11 @@ impl Monitors {
 
     pub(super) fn on_pre_event<EV: EventUpdateArgs>(ctx: &mut AppContext, args: &EV) {
         if let Some(args) = RawScaleFactorChangedEvent.update(args) {
-            if let Some(m) = ctx.services.monitors().monitor_mut(args.monitor_id) {
-                m.info.scale_factor = args.scale_factor.0;
+            if let Some(m) = ctx.services.monitors().monitor(args.monitor_id) {
+                m.scale_factor.set_ne(ctx.vars, args.scale_factor);
             }
         } else if let Some(args) = RawMonitorsChangedEvent.update(args) {
-            ctx.services.monitors().on_monitors_changed(ctx.events, args);
+            ctx.services.monitors().on_monitors_changed(ctx.events, ctx.vars, args);
         }
     }
 }
@@ -272,7 +281,7 @@ impl MonitorInfo {
         MonitorInfo {
             id,
             is_primary: var(info.is_primary),
-            name: var(info.name),
+            name: var(info.name.to_text()),
             position: var(info.position),
             size: var(info.size),
             scale_factor: var(info.scale_factor.fct()),
@@ -283,17 +292,13 @@ impl MonitorInfo {
 
     /// Update variables from fresh [`zero_ui_view_api::MonitorInfo`],
     /// returns if any value changed.
-    fn update(&self, info: zero_ui_view_api::MonitorInfo, vars: &Vars) -> bool {
-        let mut changed = false;
-
-        changed |= self.is_primary.set_ne(vars, info.is_primary);
-        changed |= self.name.set_ne(vars, info.name.to_text());
-        changed |= self.position.set_ne(vars, info.position.to_text());
-        changed |= self.size.set_ne(vars, info.size.to_text());
-        changed |= self.scale_factor.set_ne(vars, info.scale_factor.to_text());
-        changed |= self.video_modes.set_ne(vars, info.video_modes.to_text());
-
-        changed
+    fn update(&self, vars: &Vars, info: zero_ui_view_api::MonitorInfo) -> bool {
+        self.is_primary.set_ne(vars, info.is_primary)
+            | self.name.set_ne(vars, info.name.to_text())
+            | self.position.set_ne(vars, info.position)
+            | self.size.set_ne(vars, info.size)
+            | self.scale_factor.set_ne(vars, info.scale_factor.fct())
+            | self.video_modes.set_ne(vars, info.video_modes)
     }
 
     /// Unique ID.
