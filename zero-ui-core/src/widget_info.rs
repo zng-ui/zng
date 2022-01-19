@@ -244,7 +244,7 @@ impl WidgetInfoBuilder {
 
         #[cfg(debug_assertions)]
         for (widget_id, repeats) in repeats {
-            tracing::error!(target: "render", "widget id `{:?}` appears more then once in {:?}{}", widget_id, self.window_id, {
+            tracing::error!(target: "render", "widget id `{widget_id:?}` appears more then once in {:?}{}", self.window_id, {
                 let mut places = String::new();
                 use std::fmt::Write;
                 for node in &repeats {
@@ -376,7 +376,7 @@ impl fmt::Debug for WidgetPath {
                 .field("path", &self.path)
                 .finish_non_exhaustive()
         } else {
-            write!(f, "{}", self)
+            write!(f, "{self}")
         }
     }
 }
@@ -384,7 +384,7 @@ impl fmt::Display for WidgetPath {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}//", self.window_id)?;
         for w in self.ancestors() {
-            write!(f, "{}/", w)?;
+            write!(f, "{w}/")?;
         }
         write!(f, "{}", self.widget_id())
     }
@@ -1281,7 +1281,7 @@ macro_rules! update_mask {
                     writeln!(bmp)?;
                 }
 
-                write!(f, "{}}}", bmp)
+                write!(f, "{bmp}}}")
             }
         }
 

@@ -155,7 +155,7 @@ impl CmsIntent {
             2 => Ok(CmsIntent::Graphics),
             4 | 0 => Ok(CmsIntent::Images),
             8 => Ok(CmsIntent::AbsColorimetric),
-            n => Err(invalid_data(format!("unknown color management intent: {}", n))),
+            n => Err(invalid_data(format!("unknown color management intent: {n}"))),
         }
     }
 }
@@ -319,7 +319,7 @@ impl BmpHeaderFull {
                 self.read_info_header5(read).await?;
             }
 
-            unknown => return Err(invalid_data(format!("unknown header size `{}`", unknown))),
+            unknown => return Err(invalid_data(format!("unknown header size `{unknown}`"))),
         }
 
         match self.compression {
@@ -701,15 +701,15 @@ impl<R: AsyncRead + Unpin> Decoder<R> {
     }
 
     async fn read_rle_lines(&mut self, line_count: u32, rle8: bool) -> Result<Bgra8Buf> {
-        todo!("TODO read_rle_lines {} {}", line_count, rle8)
+        todo!("TODO read_rle_lines {line_count} {rle8}")
     }
 
     async fn read_bitfield_lines(&mut self, line_count: u32) -> Result<Bgra8Buf> {
-        todo!("TODO read_bitfield_lines{}", line_count)
+        todo!("TODO read_bitfield_lines{line_count}")
     }
 
     async fn read_palette1(&mut self, line_count: u32) -> Result<Bgra8Buf> {
-        todo!("TODO read_palette1 {}", line_count)
+        todo!("TODO read_palette1 {line_count}")
     }
 }
 
@@ -799,7 +799,7 @@ mod tests {
             let file_path = file.unwrap().path();
             let file_name = file_path.file_name().unwrap().to_string_lossy().to_string();
 
-            //println!("{}", file_name);
+            //println!("{file_name}");
             //if file_name != "badbitssize.bmp" {
             //    continue;
             //}
@@ -847,19 +847,19 @@ mod tests {
                 let r = Decoder::start(file, 1.mebi_bytes()).await;
                 match allow {
                     Do::Allow | Do::AllowHeader => {
-                        let mut d = r.unwrap_or_else(|e| panic!("error decoding allowed bad file `{}` header\nerror: {}", file_name, e));
+                        let mut d = r.unwrap_or_else(|e| panic!("error decoding allowed bad file `{file_name}` header\nerror: {e}"));
                         match d.read_end().await {
                             Ok((_, _)) => {
                                 if let Do::AllowHeader = allow {
                                     panic!(
-                                        "bad file `{}` did not cause an error in pixel decoding, header: {:#?}",
-                                        file_name, d.header
+                                        "bad file `{file_name}` did not cause an error in pixel decoding, header: {:#?}",
+                                        d.header
                                     );
                                 }
                             }
                             Err(e) => {
                                 if let Do::Allow = allow {
-                                    panic!("error decoding allowed bad file `{}` pixels\nerror: {}", file_name, e);
+                                    panic!("error decoding allowed bad file `{file_name}` pixels\nerror: {e}");
                                 }
                             }
                         }
@@ -867,8 +867,8 @@ mod tests {
                     Do::Expect => {
                         if let Ok(r) = r {
                             panic!(
-                                "bad file `{}` did not cause an error in header decoding, header: {:#?}",
-                                file_name, r.header
+                                "bad file `{file_name}` did not cause an error in header decoding, header: {:#?}",
+                                r.header
                             )
                         }
                     }
@@ -884,7 +884,7 @@ mod tests {
             let file_path = file.unwrap().path();
             let file_name = file_path.file_name().unwrap().to_string_lossy().to_string();
 
-            //println!("{}", file_name);
+            //println!("{file_name}");
             //if file_name != "pal8v5.bmp" {
             //    continue;
             //}
@@ -893,11 +893,11 @@ mod tests {
                 let file = afs::File::open(file_path).await.unwrap();
                 let mut d = Decoder::start(file, (127 * 64 * 4).bytes())
                     .await
-                    .unwrap_or_else(|e| panic!("error decoding good file `{}` header\n{}", file_name, e));
+                    .unwrap_or_else(|e| panic!("error decoding good file `{file_name}` header\n{e}"));
 
                 d.read_end()
                     .await
-                    .unwrap_or_else(|e| panic!("error decoding good file `{}` pixels\n{}", file_name, e));
+                    .unwrap_or_else(|e| panic!("error decoding good file `{file_name}` pixels\n{e}"));
             });
         }
     }

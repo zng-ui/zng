@@ -694,7 +694,7 @@ impl fmt::Debug for FontNames {
         } else {
             write!(f, "[{:?}, ", self.0[0])?;
             for name in &self.0[1..] {
-                write!(f, "{:?}, ", name)?;
+                write!(f, "{name:?}, ")?;
             }
             write!(f, "]")
         }
@@ -705,9 +705,9 @@ impl fmt::Display for FontNames {
         let mut iter = self.0.iter();
 
         if let Some(name) = iter.next() {
-            write!(f, "{}", name)?;
+            write!(f, "{name}")?;
             for name in iter {
-                write!(f, ", {}", name)?;
+                write!(f, ", {name}")?;
             }
         }
 
@@ -910,10 +910,10 @@ enum TextData {
 impl fmt::Debug for TextData {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::Static(s) => write!(f, "Static({:?})", s),
+            Self::Static(s) => write!(f, "Static({s:?})"),
             Self::Inline(d) => write!(f, "Inline({:?})", inline_to_str(d)),
             Self::Interned(s, _, _) => write!(f, "Interned({:?})", s.as_ref()),
-            Self::Owned(s) => write!(f, "Owned({:?})", s),
+            Self::Owned(s) => write!(f, "Owned({s:?})"),
         }
     }
 }
@@ -1462,7 +1462,7 @@ mod tests {
 
         assert_eq!(expected.len(), actual.len());
         for (expected, actual) in expected.into_iter().zip(actual) {
-            //println!("{:?}", actual);
+            //println!("{actual:?}");
             assert_eq!(expected, actual);
         }
     }
@@ -1477,7 +1477,7 @@ mod tests {
 
         assert_eq!(expected.len(), actual.len());
         for (expected, actual) in expected.into_iter().zip(actual) {
-            //println!("{:?}", actual);
+            //println!("{actual:?}");
             assert_eq!(expected, actual);
         }
     }

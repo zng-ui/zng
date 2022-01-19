@@ -308,7 +308,7 @@ impl fmt::Debug for WindowIcon {
         }
         match self {
             WindowIcon::Default => write!(f, "Default"),
-            WindowIcon::Image(r) => write!(f, "Image({:?})", r),
+            WindowIcon::Image(r) => write!(f, "Image({r:?})"),
             WindowIcon::Render(_) => write!(f, "Render(_)"),
         }
     }

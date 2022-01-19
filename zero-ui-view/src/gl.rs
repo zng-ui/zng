@@ -142,7 +142,7 @@ impl GlContext {
                 ctx.ctx = unsafe { ctx.ctx.treat_as_not_current().make_current() }.unwrap();
                 GlContextInner::Headless(ctx)
             }
-            s => panic!("unexpected context state, {:?}", s),
+            s => panic!("unexpected context state, {s:?}"),
         }
     }
 
@@ -157,7 +157,7 @@ impl GlContext {
                 // NULL means SWGL manages the buffer, it also retains the buffer if the size did not change.
                 ctx.init_default_framebuffer(0, 0, width, height, 0, std::ptr::null_mut());
             }
-            s => panic!("unexpected context state, {:?}", s),
+            s => panic!("unexpected context state, {s:?}"),
         }
     }
 
@@ -185,7 +185,7 @@ impl GlContext {
                     headed.blit(w, h, frame);
                 }
             }
-            s => panic!("unexpected context state, {:?}", s),
+            s => panic!("unexpected context state, {s:?}"),
         }
     }
 
@@ -343,7 +343,7 @@ impl GlContextManager {
                             let _ = write!(error_log, "\n[{}]", config.name());
                             logged = true;
                         }
-                        let _ = write!(error_log, "\n{:?}", e);
+                        let _ = write!(error_log, "\n{e:?}");
                     };
 
                     let _span = tracing::trace_span!("create-glutin-ctx", ?config).entered();
@@ -408,7 +408,7 @@ impl GlContextManager {
             }
         }
 
-        panic!("failed to created headed context:{}", error_log);
+        panic!("failed to created headed context:{error_log}");
     }
 
     pub fn create_headless(
@@ -441,7 +441,7 @@ impl GlContextManager {
                             let _ = write!(error_log, "\n[{}]", config.name());
                             logged = true;
                         }
-                        let _ = write!(error_log, "\n{:?}", e);
+                        let _ = write!(error_log, "\n{e:?}");
                     };
 
                     let context_builder = glutin::ContextBuilder::new()
@@ -461,7 +461,7 @@ impl GlContextManager {
 
                         let mut r = context_builder.clone().build_surfaceless(window_target);
                         if let Err(e) = r {
-                            log_error(&format!("surfaceless error: {:?}", e));
+                            log_error(&format!("surfaceless error: {e:?}"));
 
                             r = context_builder.build_headless(window_target, size.to_winit());
                         }
@@ -526,7 +526,7 @@ impl GlContextManager {
             }
         }
 
-        panic!("failed to created headeless context:{}", error_log);
+        panic!("failed to created headeless context:{error_log}");
     }
 
     #[cfg(software)]

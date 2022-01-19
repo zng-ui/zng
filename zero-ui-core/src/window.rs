@@ -178,7 +178,7 @@ impl HeadlessAppWindowExt for HeadlessApp {
             true,
         );
 
-        window_id.unwrap_or_else(|| panic!("window did not open, ControlFlow: {:?}", cf))
+        window_id.unwrap_or_else(|| panic!("window did not open, ControlFlow: {cf:?}"))
     }
 
     fn focus_window(&mut self, window_id: WindowId) {

@@ -104,7 +104,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             // if already (un)set by the user.
             if !user_properties.insert(&up.path) {
                 let p_name = util::display_path(&up.path);
-                errors.push(format_args!("property `{}` already set", p_name), util::path_span(&up.path));
+                errors.push(format_args!("property `{p_name}` already set"), util::path_span(&up.path));
                 return false;
             }
 
@@ -112,10 +112,10 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                 if sp == "unset" {
                     if let Some(maybe_inherited) = up.path.get_ident() {
                         if required_properties.contains(maybe_inherited) || captured_properties.contains(maybe_inherited) {
-                            errors.push(format_args!("cannot unset required property `{}`", maybe_inherited), sp.span());
+                            errors.push(format_args!("cannot unset required property `{maybe_inherited}`"), sp.span());
                         } else if !default_properties.contains(maybe_inherited) {
                             errors.push(
-                                format_args!("cannot unset `{}` because it is not set by the widget", maybe_inherited),
+                                format_args!("cannot unset `{maybe_inherited}` because it is not set by the widget"),
                                 sp.span(),
                             );
                         } else {
@@ -131,7 +131,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                         );
                     }
                 } else {
-                    errors.push(format_args!("unknown value `{}!`", sp), sp.span());
+                    errors.push(format_args!("unknown value `{sp}!`"), sp.span());
                 }
 
                 false
@@ -167,8 +167,8 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         .filter(|(ip, _)| ip.default && !overriden_properties.contains(&ip.ident))
     {
         let ident = &ip.ident;
-        let p_default_fn_ident = ident!("__d_{}", ident);
-        let p_var_ident = ident!("__{}", ident);
+        let p_default_fn_ident = ident!("__d_{ident}");
+        let p_var_ident = ident!("__{ident}");
         let cfg = &ip.cfg;
 
         wgt_properties.insert(parse_quote! { #ident }, (p_var_ident.clone(), cfg.clone()));
@@ -183,7 +183,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             continue; // we don't set captured properties.
         }
 
-        let p_mod_ident = ident!("__p_{}", ident);
+        let p_mod_ident = ident!("__p_{ident}");
         // register data for the set call generation.
         let prop_set_calls = if is_child { &mut child_prop_set_calls } else { &mut prop_set_calls };
 
@@ -208,7 +208,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
         let p_mod = match up.path.get_ident() {
             Some(maybe_inherited) if inherited_properties.contains(maybe_inherited) => {
-                let p_ident = ident!("__p_{}", maybe_inherited);
+                let p_ident = ident!("__p_{maybe_inherited}");
                 quote! { #module::#p_ident }
             }
             _ => up.path.to_token_stream(),
@@ -259,7 +259,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     for required in required_properties.into_iter().chain(captured_properties) {
         if !wgt_properties.contains_key(&parse_quote! { #required }) {
             missing_required.insert(required);
-            errors.push(format!("missing required property `{}`", required), call_site);
+            errors.push(format!("missing required property `{required}`"), call_site);
         }
     }
     let missing_required = missing_required;
@@ -309,7 +309,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             // one of the required properties was not set, an error for this is added elsewhere.
             continue;
         }
-        let c_ident = ident!("__c_{}", ident);
+        let c_ident = ident!("__c_{ident}");
 
         let condition_call = if cfg!(inspector) {
             quote! {
@@ -376,7 +376,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                 match property.get_ident() {
                     // if property was `unset!`.
                     Some(maybe_unset) if unset_properties.contains(maybe_unset) => {
-                        errors.push(format!("cannot use unset property `{}` in when", maybe_unset), maybe_unset.span());
+                        errors.push(format!("cannot use unset property `{maybe_unset}` in when"), maybe_unset.span());
                     }
                     // if property maybe has a default value.
                     _ => {
@@ -387,7 +387,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
                         let property_path = match property.get_ident() {
                             Some(maybe_inherited) if inherited_properties.contains(maybe_inherited) => {
-                                let p_ident = ident!("__p_{}", maybe_inherited);
+                                let p_ident = ident!("__p_{maybe_inherited}");
                                 quote! { #module::#p_ident }
                             }
                             _ => property.to_token_stream(),
@@ -449,7 +449,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                 // if is not in `wgt_properties` it must be in `user_when_properties`
                 // that will generate a __u_ variable before this binding in the final code.
                 let (_, i) = user_when_properties.get(&property).unwrap_or_else(|| non_user_error!(""));
-                ident!("__ud{}_{}", i, util::path_to_ident_str(&property))
+                ident!("__ud{i}_{}", util::path_to_ident_str(&property))
             });
 
             member_vars.extend(quote! {
@@ -528,7 +528,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                 if sp == "unset" {
                     errors.push("cannot `unset!` properties in when blocks", sp.span());
                 } else {
-                    errors.push(format_args!("unknown value `{}!`", sp), sp.span());
+                    errors.push(format_args!("unknown value `{sp}!`"), sp.span());
                 }
                 skip = true;
             }
@@ -543,13 +543,13 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                 }
             }
 
-            let assign_val_id = ident!("__uwv{}a{}_{}", i, ai, util::display_path(&assign.path).replace("::", "_"));
+            let assign_val_id = ident!("__uwv{i}a{ai}_{}", util::display_path(&assign.path).replace("::", "_"));
             let cfg = util::cfg_attr_and(attrs.cfg, cfg.clone());
             let a_lints = attrs.lints;
 
             let (property_path, property_span, value_span) = match assign.path.get_ident() {
                 Some(maybe_inherited) if inherited_properties.contains(maybe_inherited) => {
-                    let p_ident = ident!("__p_{}", maybe_inherited);
+                    let p_ident = ident!("__p_{maybe_inherited}");
                     let span = maybe_inherited.span();
                     (quote_spanned! {span=> #module::#p_ident }, span, span)
                 }
@@ -581,11 +581,11 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     }
     // properties that are only introduced in user when conditions.
     for (property, (cfg, i)) in user_when_properties {
-        let args_ident = ident!("__ud{}_{}", i, util::path_to_ident_str(&property));
+        let args_ident = ident!("__ud{i}_{}", util::path_to_ident_str(&property));
 
         let property_path = match property.get_ident() {
             Some(maybe_inherited) if inherited_properties.contains(maybe_inherited) => {
-                let p_ident = ident!("__p_{}", maybe_inherited);
+                let p_ident = ident!("__p_{maybe_inherited}");
                 parse_quote! { #module::#p_ident }
             }
             _ => property.clone(),
@@ -659,10 +659,8 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     for (set_calls, child_priority) in vec![(child_prop_set_calls, true), (prop_set_calls, false)] {
         // generate capture_only asserts.
         for (p_mod, _, p_name, _, cfg, _, p_span, _) in &set_calls {
-            let capture_only_error = format!(
-                "property `{}` cannot be set because it is capture-only, but is not captured by the widget",
-                p_name
-            );
+            let capture_only_error =
+                format!("property `{p_name}` cannot be set because it is capture-only, but is not captured by the widget",);
             property_set_calls.extend(quote_spanned! {*p_span=>
                 #cfg
                 #p_mod::code_gen!{
@@ -725,7 +723,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     for (property, assigns) in when_assigns {
         let property_path = match property.get_ident() {
             Some(maybe_inherited) if inherited_properties.contains(maybe_inherited) => {
-                let p_ident = ident!("__p_{}", maybe_inherited);
+                let p_ident = ident!("__p_{maybe_inherited}");
                 quote! { #module::#p_ident }
             }
             _ => property.to_token_stream(),
@@ -1362,7 +1360,7 @@ impl When {
 
     /// Returns an ident `__{prefix}{i}_{expr_to_str}`
     pub fn make_ident(&self, prefix: impl std::fmt::Display, i: usize, span: Span) -> Ident {
-        ident_spanned!(span=> "__{}{}_{}", prefix, i, tokens_to_ident_str(&self.condition_expr.to_token_stream()))
+        ident_spanned!(span=> "__{prefix}{i}_{}", tokens_to_ident_str(&self.condition_expr.to_token_stream()))
     }
 
     /// Analyzes the [`Self::condition_expr`], collects all property member accesses and replaces then with `expr_var!` placeholders.
@@ -1404,7 +1402,7 @@ impl WhenExprToVar {
                     input.parse::<Token![.]>().unwrap();
                     if input.peek(Ident) {
                         let member = input.parse::<Ident>().unwrap();
-                        ident_spanned!(member.span()=> "__{}", member)
+                        ident_spanned!(member.span()=> "__{member}")
                     } else {
                         let index = input.parse::<syn::Index>().map_err(|e| {
                             let span = if util::span_is_call_site(e.span()) { last_span } else { e.span() };

@@ -822,8 +822,8 @@ impl ValueInfo {
     /// New [`ValueInfo`] from a value type that is only known to implement [`Debug`](fmt::Debug).
     pub fn new<T: fmt::Debug>(value: &T) -> Self {
         Self {
-            debug: formatx!("{:?}", value),
-            debug_alt: formatx!("{:#?}", value),
+            debug: formatx!("{value:?}"),
+            debug_alt: formatx!("{value:#?}"),
             type_name: std::any::type_name::<T>().into(),
         }
     }
@@ -858,12 +858,12 @@ impl ValueInfo {
             "async_app_hn_once!({{closure}})".to_text()
         } else {
             // TODO short name
-            formatx!("<{}>", name)
+            formatx!("<{name}>")
         };
 
         Self {
             debug,
-            debug_alt: formatx!("<{}>", name),
+            debug_alt: formatx!("<{name}>"),
             type_name: name.into(),
         }
     }
@@ -1288,8 +1288,8 @@ fn write_impl<W: std::io::Write>(updates_from: &WriteTreeState, widget: WidgetIn
             {
                 let bounds = widget.inner_bounds();
                 &ValueInfo {
-                    debug: formatx!("{:?}", bounds),
-                    debug_alt: formatx!("{:#?}", bounds),
+                    debug: formatx!("{bounds:?}"),
+                    debug_alt: formatx!("{bounds:#?}"),
                     type_name: std::any::type_name::<PxRect>().into(),
                 }
             },
@@ -1303,8 +1303,8 @@ fn write_impl<W: std::io::Write>(updates_from: &WriteTreeState, widget: WidgetIn
             {
                 let bounds = widget.outer_bounds();
                 &ValueInfo {
-                    debug: formatx!("{:?}", bounds),
-                    debug_alt: formatx!("{:#?}", bounds),
+                    debug: formatx!("{bounds:?}"),
+                    debug_alt: formatx!("{bounds:#?}"),
                     type_name: std::any::type_name::<PxRect>().into(),
                 }
             },
@@ -1318,8 +1318,8 @@ fn write_impl<W: std::io::Write>(updates_from: &WriteTreeState, widget: WidgetIn
             {
                 let vis = widget.visibility();
                 &ValueInfo {
-                    debug: formatx!("{:?}", vis),
-                    debug_alt: formatx!("{:#?}", vis),
+                    debug: formatx!("{vis:?}"),
+                    debug_alt: formatx!("{vis:#?}"),
                     type_name: std::any::type_name::<Visibility>().into(),
                 }
             },
@@ -1397,7 +1397,7 @@ mod print_fmt {
         }
 
         fn write(&mut self, s: impl Display) {
-            let _ = write!(&mut self.output, "{}", s);
+            let _ = write!(&mut self.output, "{s}");
         }
 
         pub fn writeln(&mut self) {
@@ -1418,7 +1418,7 @@ mod print_fmt {
         pub fn open_widget(&mut self, name: &str, parent_name: &str, parent_property: &str) {
             if !parent_property.is_empty() {
                 self.writeln();
-                self.write_comment(format_args!("in {}::{}", parent_name, parent_property));
+                self.write_comment(format_args!("in {parent_name}::{parent_property}"));
             }
             self.write_tabs();
             self.write(name.yellow());
@@ -1512,7 +1512,7 @@ mod print_fmt {
                 }
                 self.write_property_value(
                     &ValueInfo {
-                        debug: formatx!("<{}>", arg),
+                        debug: formatx!("<{arg}>"),
                         debug_alt: "".into(),
                         type_name: "".into(),
                     },
@@ -1575,7 +1575,7 @@ mod print_fmt {
             self.property_group = ("", false);
             self.write_tabs();
             self.write("} ".bold());
-            self.write_comment_after(format_args!("{}!", name));
+            self.write_comment_after(format_args!("{name}!"));
         }
 
         pub fn write_legend(&mut self) {

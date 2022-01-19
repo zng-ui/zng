@@ -39,11 +39,11 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         match field.member {
             Member::Named(ident) => {
                 if !already_set.insert(ident.clone()) {
-                    errors.push(format!("field `{}` already set", ident), ident.span());
+                    errors.push(format!("field `{ident}` already set"), ident.span());
                 } else if let Some(i) = members.get(&ident) {
                     args[*i] = Some(field.expr);
                 } else {
-                    errors.push(format!("unknown field `{}`", ident), ident.span());
+                    errors.push(format!("unknown field `{ident}`"), ident.span());
                 }
             }
             Member::Unnamed(n) => {
@@ -67,9 +67,9 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         let missing_fields = missing_fields.trim_end_matches(", ");
         let span = user_input.brace_token.span;
         if missing_count == 1 {
-            errors.push(format_args!("missing field {} in property initializer", missing_fields), span);
+            errors.push(format_args!("missing field {missing_fields} in property initializer"), span);
         } else {
-            errors.push(format_args!("missing fields {} in property initializer", missing_fields), span);
+            errors.push(format_args!("missing fields {missing_fields} in property initializer"), span);
         }
     }
 

@@ -104,7 +104,7 @@ impl fmt::Debug for WidgetId {
                 .field("name", &name)
                 .finish()
         } else if !name.is_empty() {
-            write!(f, "WidgetId({:?})", name)
+            write!(f, "WidgetId({name:?})")
         } else {
             write!(f, "WidgetId({})", self.sequential())
         }
@@ -114,7 +114,7 @@ impl fmt::Display for WidgetId {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let name = self.name();
         if !name.is_empty() {
-            write!(f, "{}", name)
+            write!(f, "{name}")
         } else {
             write!(f, "WgtId({})", self.sequential())
         }

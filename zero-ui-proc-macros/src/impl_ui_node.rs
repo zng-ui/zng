@@ -134,8 +134,7 @@ pub(crate) fn gen_impl_ui_node(args: proc_macro::TokenStream, input: proc_macro:
                 let ident = validator.ident;
                 errors.push(
                     format_args!(
-                        "auto impl delegates call to `{}` but this manual impl does not\n `#[{}(zero_ui::missing_delegate)]` is on",
-                        ident, missing_delegate_level
+                        "auto impl delegates call to `{ident}` but this manual impl does not\n `#[{missing_delegate_level}(zero_ui::missing_delegate)]` is on",
                     ),
                     {
                         match manual_impl {
@@ -196,9 +195,9 @@ pub(crate) fn gen_impl_ui_node(args: proc_macro::TokenStream, input: proc_macro:
         }
     };
 
-    //let test = format!("{}", result);
+    //let test = format!("{result}");
     //if test.contains("FocusOnInit") {
-    //    println!("{}", test);
+    //    println!("{test}");
     //}
 
     result.into()
@@ -560,15 +559,15 @@ fn parse_delegate_pair(args: ParseStream, arg0: Ident, ident: Ident, ident_mut: 
     // delegate pair are separated by comma (,)
     let comma = args
         .parse::<Token![,]>()
-        .map_err(|_| Error::new(util::after_span(&expr0), format!("expected `, {} = <expr>`", expected_arg1)))?;
+        .map_err(|_| Error::new(util::after_span(&expr0), format!("expected `, {expected_arg1} = <expr>`")))?;
     // delegate idents require a pair.
     let arg1: Ident = args
         .parse()
-        .map_err(|_| Error::new(comma.span(), format!("expected `{} = <expr>`", expected_arg1)))?;
+        .map_err(|_| Error::new(comma.span(), format!("expected `{expected_arg1} = <expr>`")))?;
 
     // second ident is not the expected pair.
     if &arg1 != expected_arg1 {
-        return Err(Error::new(arg1.span(), format!("expected `{}`", ident_mut)));
+        return Err(Error::new(arg1.span(), format!("expected `{ident_mut}`")));
     }
 
     // parse arg1 " = <expr>"
@@ -589,10 +588,10 @@ fn parse_delegate_pair(args: ParseStream, arg0: Ident, ident: Ident, ident_mut: 
 fn parse_delegate_expr(args: ParseStream, ident: &Ident) -> Result<Expr> {
     let colon = args
         .parse::<Token![=]>()
-        .map_err(|_| Error::new(ident.span(), format!("expected `{} = <expr>`", ident)))?;
+        .map_err(|_| Error::new(ident.span(), format!("expected `{ident} = <expr>`")))?;
     let expr: Expr = args
         .parse()
-        .map_err(|_| Error::new(colon.span(), format!("expected `{} = <expr>`", ident)))?;
+        .map_err(|_| Error::new(colon.span(), format!("expected `{ident} = <expr>`")))?;
 
     Ok(expr)
 }

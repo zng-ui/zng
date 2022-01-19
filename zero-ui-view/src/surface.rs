@@ -196,7 +196,7 @@ impl Surface {
     }
 
     pub fn set_text_aa(&mut self, aa: TextAntiAliasing) {
-        todo!("need to rebuild the renderer? {:?}", aa)
+        todo!("need to rebuild the renderer? {aa:?}")
     }
 
     fn push_resize(&mut self, txn: &mut Transaction) {

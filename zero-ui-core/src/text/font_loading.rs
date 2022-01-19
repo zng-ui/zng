@@ -1165,7 +1165,7 @@ impl FontFaceLoader {
                     sys_family.push(SystemFontFace::NotFound(style, weight, stretch));
                 }
                 Err(e) => {
-                    tracing::error!(target: "font_loading", "failed to load system font, {}\nquery: {:?}", e, (font_name, style, weight, stretch));
+                    tracing::error!(target: "font_loading", "failed to load system font, {e}\nquery: {:?}", (font_name, style, weight, stretch));
                 }
             }
         } else {
@@ -1193,7 +1193,7 @@ impl FontFaceLoader {
                 None
             }
             Err(e) => {
-                tracing::error!(target: "font_loading", "failed to select system font, {}\nquery: {:?}", e, (font_name, style, weight, stretch));
+                tracing::error!(target: "font_loading", "failed to select system font, {e}\nquery: {:?}", (font_name, style, weight, stretch));
                 None
             }
         }

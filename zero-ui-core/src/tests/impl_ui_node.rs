@@ -301,10 +301,10 @@ mod util {
                 for (i, trace_ref) in db.iter().enumerate() {
                     let mut any = false;
                     for trace_entry in trace_ref.borrow_mut().drain(..) {
-                        assert_eq!(trace_entry, method, "tracer_0 traced `{}`, expected only `{}`", trace_entry, method);
+                        assert_eq!(trace_entry, method, "tracer_0 traced `{trace_entry}`, expected only `{method}`");
                         any = true;
                     }
-                    assert!(any, "tracer_{} did not trace anything", i);
+                    assert!(any, "tracer_{i} did not trace anything");
                 }
             } else {
                 panic!("no trace initialized");
@@ -322,7 +322,7 @@ mod util {
                 for (i, trace_ref) in db.iter().enumerate() {
                     let mut any = false;
                     for trace_entry in trace_ref.borrow().iter() {
-                        assert!(any, "tracer_{} traced `{}`, expected nothing", i, trace_entry);
+                        assert!(any, "tracer_{i} traced `{trace_entry}`, expected nothing");
                         any = true;
                     }
                 }

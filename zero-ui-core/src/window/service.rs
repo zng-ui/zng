@@ -245,7 +245,7 @@ impl Windows {
                     Err(_) => var(Image::dummy(Some(format!("{}", WindowNotFound(window_id))))).into_read_only(),
                 }
             } else {
-                var(Image::dummy(Some(format!("window `{}` is headless without renderer", window_id)))).into_read_only()
+                var(Image::dummy(Some(format!("window `{window_id}` is headless without renderer")))).into_read_only()
             }
         } else {
             var(Image::dummy(Some(format!("{}", WindowNotFound(window_id))))).into_read_only()

@@ -81,7 +81,7 @@ impl fmt::Debug for LinearGradientAxis {
         } else {
             match self {
                 LinearGradientAxis::Angle(a) => write!(f, "{}.deg()", AngleDegree::from(*a).0),
-                LinearGradientAxis::Line(l) => write!(f, "{:?}", l),
+                LinearGradientAxis::Line(l) => write!(f, "{l:?}"),
             }
         }
     }
@@ -330,8 +330,8 @@ impl fmt::Debug for GradientStop {
             }
         } else {
             match self {
-                GradientStop::Color(c) => write!(f, "{:?}", c),
-                GradientStop::ColorHint(l) => write!(f, "{:?}", l),
+                GradientStop::Color(c) => write!(f, "{c:?}"),
+                GradientStop::ColorHint(l) => write!(f, "{l:?}"),
             }
         }
     }
@@ -362,7 +362,7 @@ impl fmt::Debug for GradientStops {
         } else {
             write!(f, "stops![{:?}, ", self.start)?;
             for stop in &self.middle {
-                write!(f, "{:?}, ", stop)?;
+                write!(f, "{stop:?}, ")?;
             }
             write!(f, "{:?}]", self.end)
         }

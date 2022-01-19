@@ -275,10 +275,7 @@ fn ffi_abort(info: &std::panic::PanicInfo) {
         },
     };
 
-    eprintln!(
-        "thread '{}' panicked at '{}', {}\nnote: aborting to avoid unwind across FFI",
-        name, msg, location
-    );
+    eprintln!("thread '{name}' panicked at '{msg}', {location}\nnote: aborting to avoid unwind across FFI",);
     std::process::exit(101) // Rust panic exit code.
 }
 
@@ -1029,7 +1026,7 @@ impl<S: AppEventSender> App<S> {
     fn with_window<R>(&mut self, id: WindowId, action: impl FnOnce(&mut Window) -> R, not_found: impl FnOnce() -> R) -> R {
         self.assert_started();
         self.windows.iter_mut().find(|w| w.id() == id).map(action).unwrap_or_else(|| {
-            tracing::error!("headed window `{}` not found, will return fallback result", id);
+            tracing::error!("headed window `{id}` not found, will return fallback result");
             not_found()
         })
     }

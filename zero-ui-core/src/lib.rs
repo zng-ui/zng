@@ -629,7 +629,7 @@ pub use zero_ui_proc_macros::property;
 /// }
 ///
 /// fn new_child(foo: impl IntoVar<bool>) -> impl UiNode {
-///     let label = foo.into_var().map(|f|formatx!("foo: {:?}", f));
+///     let label = foo.into_var().map(|f|formatx!("foo: {f:?}"));
 ///     text(label)
 /// }
 /// # }

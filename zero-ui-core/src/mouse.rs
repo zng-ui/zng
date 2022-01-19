@@ -1099,7 +1099,7 @@ impl Mouse {
     pub fn lock_cursor(&mut self, window_id: WindowId, area: DipRect) {
         // https://docs.rs/winit/0.24.0/winit/window/struct.Window.html#method.set_cursor_grab
         // https://github.com/rust-windowing/winit/issues/1677
-        todo!("impl lockcursor({:?}, {:?})", window_id, area)
+        todo!("impl lockcursor({window_id:?}, {area:?})")
     }
 
     /// Locks the cursor to a `point` of the window if it is focused.
@@ -1125,7 +1125,7 @@ impl Mouse {
     ///
     /// **NOT IMPLEMENTED**
     pub fn lock_cursor_widget(&mut self, window_id: WindowId, area: WidgetId) {
-        todo!("impl lock_cursor_wgt({:?}, {:?})", window_id, area)
+        todo!("impl lock_cursor_wgt({window_id:?}, {area:?})")
     }
 
     /// Locks the cursor to the content area of the window if the window is focused.
@@ -1136,7 +1136,7 @@ impl Mouse {
     ///
     /// **NOT IMPLEMENTED**
     pub fn lock_cursor_window(&mut self, window_id: WindowId) {
-        todo!("impl lock_cursor_window({:?}", window_id)
+        todo!("impl lock_cursor_window({window_id:?}")
     }
 
     /// Release the cursor lock.

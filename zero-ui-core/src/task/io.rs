@@ -392,7 +392,7 @@ impl CloneableError {
         let info = if let Some(code) = e.raw_os_error() {
             ErrorInfo::OsError(code)
         } else {
-            ErrorInfo::Other(e.kind(), format!("{}", e))
+            ErrorInfo::Other(e.kind(), format!("{e}"))
         };
 
         Self { info }
@@ -805,7 +805,7 @@ mod tests {
                         if let Some(i) = data_not_eq {
                             let _ = write!(&mut error, "\n  data not equal at index {}: {} != {:?}", i, a[i], b[i]);
                         }
-                        panic!("{}", error)
+                        panic!("{error}")
                     }
                 }
             }

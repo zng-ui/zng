@@ -70,7 +70,7 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
     let mod_path_assert;
     match syn::parse::<ArgPath>(args) {
         Ok(a) => {
-            let assert_mod_path = ident!("__{}_assert_mod_path_{}", ident, util::uuid());
+            let assert_mod_path = ident!("__{ident}_assert_mod_path_{}", util::uuid());
             mod_path = a.path;
             mod_path_assert = quote! {
                 #wgt_cfg
@@ -162,7 +162,7 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
             for cap in &caps {
                 if let Some(other_fn) = captured_properties.insert(cap.clone(), *priority) {
                     captured_properties.insert(cap.clone(), other_fn);
-                    errors.push(format_args!("property `{}` already captured in `{}`", cap, other_fn), cap.span());
+                    errors.push(format_args!("property `{cap}` already captured in `{other_fn}`"), cap.span());
                 }
             }
 
@@ -189,13 +189,13 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
             let arg_ty_spans = &new_arg_ty_spans[i];
 
             // property modules re-exported by widget
-            let prop_idents: Vec<_> = caps.iter().map(|p| ident!("__p_{}", p)).collect();
+            let prop_idents: Vec<_> = caps.iter().map(|p| ident!("__p_{p}")).collect();
 
             // generic types for each captured property, contains a "type" error message.
             let generic_tys: Vec<_> = caps
                 .iter()
                 .enumerate()
-                .map(|(i, p)| ident!("{}_type_must_match_property_definition_{}", p, i))
+                .map(|(i, p)| ident!("{p}_type_must_match_property_definition_{i}"))
                 .collect();
 
             // input property idents with the span of input types.
@@ -203,7 +203,7 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
                 .iter()
                 .zip(arg_ty_spans.iter().skip(1))
                 .enumerate()
-                .map(|(i, (id, ty_span))| ident_spanned!(*ty_span=> "__{}_{}", i, id))
+                .map(|(i, (id, ty_span))| ident_spanned!(*ty_span=> "__{i}_{id}"))
                 .collect();
 
             // calls to property args unwrap with the span of input types.
@@ -252,8 +252,8 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
             };
 
             // declare `__new_*`
-            let new_id = ident!("{}", priority);
-            let new__ = ident!("__{}", priority);
+            let new_id = ident!("{priority}");
+            let new__ = ident!("__{priority}");
 
             let mut r = TokenStream::new();
 
@@ -293,14 +293,14 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
 
             // declare `__new_*_inspect`
             if cfg!(inspector) {
-                let new_inspect__ = ident!("__{}_inspect", priority);
+                let new_inspect__ = ident!("__{priority}_inspect");
                 let names = caps.iter().map(|id| id.to_string());
                 let locations = caps.iter().map(|id| {
                     quote_spanned! {id.span()=>
                         #crate_core::inspector::source_location!()
                     }
                 });
-                let assigned_flags: Vec<_> = caps.iter().enumerate().map(|(i, id)| ident!("__{}_{}_user_set", i, id)).collect();
+                let assigned_flags: Vec<_> = caps.iter().enumerate().map(|(i, id)| ident!("__{i}_{id}_user_set")).collect();
 
                 if *priority == FnPriority::New {
                     r.extend(quote! {
@@ -415,7 +415,7 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
     let mut visited_removes = HashSet::new();
     for ident in &removes {
         if !visited_removes.insert(ident) {
-            errors.push(format_args!("property `{}` already removed", ident), ident.span());
+            errors.push(format_args!("property `{ident}` already removed"), ident.span());
             continue;
         }
 
@@ -483,7 +483,7 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
         let p_value_span = property.value_span;
 
         if !declared_properties.insert(p_ident) {
-            errors.push(format_args!("property `{}` is already declared", p_ident), p_ident.span());
+            errors.push(format_args!("property `{p_ident}` is already declared"), p_ident.span());
             continue;
         }
 
@@ -506,14 +506,14 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
             } else if !captured_properties.contains_key(p_ident) {
                 // new capture properties must be captured by new *new* functions.
                 errors.push(
-                    format_args!("property `{}` is declared in widget, but is not captured by the widget", p_ident),
+                    format_args!("property `{p_ident}` is declared in widget, but is not captured by the widget"),
                     p_ident.span(),
                 );
                 skip = true;
             }
 
-            let p_mod_ident = ident!("__p_{}", p_ident);
-            let p_doc_ident = ident!("__pdoc_{}", p_ident);
+            let p_mod_ident = ident!("__p_{p_ident}");
+            let p_doc_ident = ident!("__pdoc_{p_ident}");
             let inputs = new_type.fn_input_tokens(p_ident);
 
             let docs = &attrs.docs;
@@ -536,14 +536,14 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
         // process default value or special value.
         if let Some((_, default_value)) = &property.value {
             if let PropertyValue::Special(sp, _) = default_value {
-                errors.push(format_args!("unexpected `{}!` as default value", sp), sp.span());
+                errors.push(format_args!("unexpected `{sp}!` as default value"), sp.span());
                 continue;
             } else {
                 default = true;
                 let cfg = &attrs.cfg;
                 let lints = attrs.lints;
-                let fn_ident = ident!("__d_{}", p_ident);
-                let p_mod_ident = ident!("__p_{}", p_ident);
+                let fn_ident = ident!("__d_{p_ident}");
+                let p_mod_ident = ident!("__p_{p_ident}");
                 let expr = default_value
                     .expr_tokens(&quote_spanned! {p_path_span=> self::#p_mod_ident }, p_path_span, p_value_span)
                     .unwrap_or_else(|e| non_user_error!(e));
@@ -558,7 +558,7 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
                 });
 
                 if cfg!(inspector) {
-                    let loc_ident = ident!("__loc_{}", p_ident);
+                    let loc_ident = ident!("__loc_{p_ident}");
                     property_defaults.extend(quote_spanned! {p_ident.span()=>
                         #[doc(hidden)]
                         pub fn #loc_ident() -> #crate_core::inspector::SourceLocation {
@@ -637,7 +637,7 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
                     skip = true;
                     let suggestion = &p_path.segments.last().unwrap().ident;
                     errors.push(
-                        format_args!("widget properties only have a single name, try `self.{}`", suggestion),
+                        format_args!("widget properties only have a single name, try `self.{suggestion}`"),
                         p_path.span(),
                     );
                     None
@@ -669,7 +669,7 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
                 // validate property only assigned once in the when block.
                 if !assigns.insert(property.clone()) {
                     errors.push(
-                        format_args!("property `{}` already set in this `when` block", property),
+                        format_args!("property `{property}` already set in this `when` block"),
                         property.span(),
                     );
                     skip = true;
@@ -678,7 +678,7 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
                 // TODO: change the error message, or revise this after `Special` becomes `Unset`.
                 if let PropertyValue::Special(sp, _) = &assign.value {
                     // unknown special.
-                    errors.push(format_args!("unexpected `{}!` in property value", sp), sp.span());
+                    errors.push(format_args!("unexpected `{sp}!` in property value"), sp.span());
 
                     skip = true;
                 }
@@ -691,9 +691,9 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
                 assign_names.push(property.to_string());
 
                 // ident of property module in the widget.
-                let prop_ident = ident!("__p_{}", property);
+                let prop_ident = ident!("__p_{property}");
                 // ident of the property value function.
-                let fn_ident = ident!("{}__{}", ident, property);
+                let fn_ident = ident!("{ident}__{property}");
 
                 let cfg = util::cfg_attr_and(attrs.cfg, cfg.clone());
 
@@ -725,7 +725,7 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
                 // assign.path.get_ident() == None
                 let suggestion = &assign.path.segments.last().unwrap().ident;
                 errors.push(
-                    format_args!("widget properties only have a single name, try `{}`", suggestion),
+                    format_args!("widget properties only have a single name, try `{suggestion}`"),
                     assign.path.span(),
                 );
             }
@@ -740,13 +740,13 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
             .collect();
 
         // name of property inputs Args reference in the condition function.
-        let input_idents: Vec<_> = inputs.iter().map(|p| ident!("__{}", p)).collect();
+        let input_idents: Vec<_> = inputs.iter().map(|p| ident!("__{p}")).collect();
         // name of property inputs in the widget module.
-        let prop_idents: Vec<_> = inputs.iter().map(|p| ident_spanned!(p.span()=> "__p_{}", p)).collect();
+        let prop_idents: Vec<_> = inputs.iter().map(|p| ident_spanned!(p.span()=> "__p_{p}")).collect();
 
         // name of the fields for each interpolated property.
         let field_idents = cond_properties.values();
-        let input_ident_per_field = cond_properties.keys().map(|(p, _)| ident!("__{}", p));
+        let input_ident_per_field = cond_properties.keys().map(|(p, _)| ident!("__{p}"));
         let members = cond_properties.keys().map(|(_, m)| m);
 
         let expr = condition.expr;
@@ -874,13 +874,13 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
         TokenStream::new()
     };
 
-    let errors_mod = ident!("__{}_stage0_errors_{}", ident, util::uuid());
+    let errors_mod = ident!("__{ident}_stage0_errors_{}", util::uuid());
 
-    let final_macro_ident = ident!("__{}_{}_final", ident, util::uuid());
+    let final_macro_ident = ident!("__{ident}_{}_final", util::uuid());
 
     let new_fns = new_fns.iter().map(|(_, v)| v);
 
-    let new_idents: Vec<_> = FnPriority::all().iter().map(|p| ident!("{}", p)).collect();
+    let new_idents: Vec<_> = FnPriority::all().iter().map(|p| ident!("{p}")).collect();
 
     let r = quote! {
         #wgt_cfg
@@ -1509,7 +1509,7 @@ impl PropertyType {
                 if unnamed.len() == 1 {
                     quote! { #property: #unnamed }
                 } else {
-                    let names = (0..unnamed.len()).map(|i| ident!("arg{}", i));
+                    let names = (0..unnamed.len()).map(|i| ident!("arg{i}"));
                     let unnamed = unnamed.iter();
                     quote! { #(#names: #unnamed),* }
                 }

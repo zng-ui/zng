@@ -188,7 +188,7 @@ impl std::fmt::Display for VarIsReadOnly {
 ///         fn update(&mut self, ctx: &mut WidgetContext) {
 ///             self.child.update(ctx);
 ///             if let Some(new) = self.bar.get_new(ctx) {
-///                 println!("update: {}", new);
+///                 println!("update: {new}");
 ///             }
 ///         }
 ///     }
@@ -626,7 +626,7 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + crate::private::Sealed + 'stati
     /// Create a [`map`](Var::map) that maps to a debug [`Text`](crate::text::ToText) using the `{:?}` format.
     #[inline]
     fn map_debug(&self) -> RcMapVar<T, crate::text::Text, fn(&T) -> crate::text::Text, Self> {
-        self.map(|t| crate::formatx!("{:?}", t))
+        self.map(|t| crate::formatx!("{t:?}"))
     }
 
     /// Create a read-only variable with a value that is dereferenced from this variable value.

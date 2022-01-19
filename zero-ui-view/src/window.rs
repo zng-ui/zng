@@ -676,9 +676,7 @@ impl Window {
                             let mtd_name = if visible { "AddTab" } else { "DeleteTab" };
                             tracing::error!(
                                 target: "window",
-                                "cannot set `taskbar_visible`, `ITaskbarList::{}` failed, error: {:X}",
-                                mtd_name,
-                                error
+                                "cannot set `taskbar_visible`, `ITaskbarList::{mtd_name}` failed, error: {error:X}",
                             )
                         }
                     }
@@ -687,8 +685,7 @@ impl Window {
                 error => {
                     tracing::error!(
                         target: "window",
-                        "cannot set `taskbar_visible`, failed to create instance of `ITaskbarList`, error: {:X}",
-                        error
+                        "cannot set `taskbar_visible`, failed to create instance of `ITaskbarList`, error: {error:X}",
                     )
                 }
             }
@@ -800,7 +797,7 @@ impl Window {
     }
 
     pub fn set_text_aa(&mut self, aa: TextAntiAliasing) {
-        todo!("need to rebuild the renderer? {:?}", aa)
+        todo!("need to rebuild the renderer? {aa:?}")
     }
 
     pub fn set_allow_alt_f4(&mut self, allow: bool) {

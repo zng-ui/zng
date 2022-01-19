@@ -17,9 +17,6 @@ use syn::{
 
 /// `Ident` with custom span.
 macro_rules! ident_spanned {
-    ($span:expr=> $name:expr) => {
-        proc_macro2::Ident::new($name, $span)
-    };
     ($span:expr=> $($format_name:tt)+) => {
         proc_macro2::Ident::new(&format!($($format_name)+), $span)
     };
@@ -270,7 +267,7 @@ macro_rules! non_user_group {
             let id: syn::Ident = $input.parse().unwrap_or_else(|e| non_user_error!(e));
             let ident = $ident;
             if id != ident {
-                non_user_error!(format!("expected `{}`", ident));
+                non_user_error!(format!("expected `{ident}`"));
             }
             non_user_group! { $group_kind, $input }
         }
@@ -321,7 +318,7 @@ pub fn uuid() -> String {
             id = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos() as u64;
             ID.store(id, Ordering::Relaxed);
         }
-        format!("sp_{:x}", id)
+        format!("sp_{id:x}")
     } else {
         call_site.split_once(' ').unwrap().0.replace('#', "u")
     }
@@ -435,7 +432,7 @@ pub fn is_doc_hidden_tt(docs: TokenStream) -> bool {
 /// parent module summary list page.
 pub fn docs_with_first_line_js(output: &mut TokenStream, docs: &[Attribute], js: &'static str) {
     if docs.is_empty() {
-        doc_extend!(output, "<script>{}</script>", js);
+        doc_extend!(output, "<script>{js}</script>");
     } else {
         let inner = docs[0].tokens.to_string();
         let mut skip = 0;
@@ -448,7 +445,7 @@ pub fn docs_with_first_line_js(output: &mut TokenStream, docs: &[Attribute], js:
                 let doc = &doc[..doc.len() - 1]; // remove \" end
 
                 // replace characters `rustdoc` incorrectly changes.
-                doc_extend!(output, "{}<script>{}</script>\n\n", doc, js.replace("'", "&#39;"));
+                doc_extend!(output, "{doc}<script>{}</script>\n\n", js.replace("'", "&#39;"));
                 skip = 1;
             }
         }
@@ -759,7 +756,7 @@ pub fn take_zero_ui_lints(
                             attr.path.span(),
                         ),
                         LintLevel::Allow if forbidden.contains(&lint_ident) => errors.push(
-                            format_args!("lint `zero_ui::{}` is `forbid` in this context", lint_ident),
+                            format_args!("lint `zero_ui::{lint_ident}` is `forbid` in this context"),
                             attr.span(),
                         ),
                         _ => {
@@ -796,7 +793,7 @@ pub fn span_is_call_site(a: proc_macro2::Span) -> bool {
 }
 
 pub fn span_eq(a: proc_macro2::Span, b: proc_macro2::Span) -> bool {
-    format!("{:?}", a) == format!("{:?}", b)
+    format!("{a:?}") == format!("{b:?}")
 }
 
 /// Parses all outer attributes and stores any parsing errors in `errors`.
@@ -927,7 +924,7 @@ pub mod debug_trace {
 
     pub fn display(msg: impl std::fmt::Display) {
         if ENABLED.load(Ordering::SeqCst) {
-            eprintln!("{}", msg);
+            eprintln!("{msg}");
         }
     }
 }

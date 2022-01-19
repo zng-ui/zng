@@ -1180,15 +1180,15 @@ impl fmt::Debug for Length {
                 Default => write!(f, "Default"),
                 Dip(e) => write!(f, "{}.dip()", e.to_f32()),
                 Px(e) => write!(f, "{}.px()", e.0),
-                Pt(e) => write!(f, "{}.pt()", e),
+                Pt(e) => write!(f, "{e}.pt()"),
                 Relative(e) => write!(f, "{}.pct()", e.0 * 100.0),
                 Em(e) => write!(f, "{}.em()", e.0),
                 RootEm(e) => write!(f, "{}.rem()", e.0),
-                ViewportWidth(e) => write!(f, "{}.vw()", e),
-                ViewportHeight(e) => write!(f, "{}.vh()", e),
-                ViewportMin(e) => write!(f, "{}.vmin()", e),
-                ViewportMax(e) => write!(f, "{}.vmax()", e),
-                Expr(e) => write!(f, "{}", e),
+                ViewportWidth(e) => write!(f, "{e}.vw()"),
+                ViewportHeight(e) => write!(f, "{e}.vh()"),
+                ViewportMin(e) => write!(f, "{e}.vmin()"),
+                ViewportMax(e) => write!(f, "{e}.vmax()"),
+                Expr(e) => write!(f, "{e}"),
             }
         }
     }
@@ -1198,17 +1198,17 @@ impl fmt::Display for Length {
         use Length::*;
         match self {
             Default => write!(f, "Default"),
-            Dip(l) => write!(f, "{}", l),
-            Px(l) => write!(f, "{}px", l),
-            Pt(l) => write!(f, "{}pt", l),
+            Dip(l) => write!(f, "{l}"),
+            Px(l) => write!(f, "{l}px"),
+            Pt(l) => write!(f, "{l}pt"),
             Relative(n) => write!(f, "{:.*}%", f.precision().unwrap_or(0), n.0 * 100.0),
-            Em(e) => write!(f, "{}em", e),
-            RootEm(re) => write!(f, "{}rem", re),
-            ViewportWidth(vw) => write!(f, "{}vw", vw),
-            ViewportHeight(vh) => write!(f, "{}vh", vh),
-            ViewportMin(vmin) => write!(f, "{}vmin", vmin),
-            ViewportMax(vmax) => write!(f, "{}vmax", vmax),
-            Expr(e) => write!(f, "{}", e),
+            Em(e) => write!(f, "{e}em"),
+            RootEm(re) => write!(f, "{re}rem"),
+            ViewportWidth(vw) => write!(f, "{vw}vw"),
+            ViewportHeight(vh) => write!(f, "{vh}vh"),
+            ViewportMin(vmin) => write!(f, "{vmin}vmin"),
+            ViewportMax(vmax) => write!(f, "{vmax}vmax"),
+            Expr(e) => write!(f, "{e}"),
         }
     }
 }
@@ -1529,13 +1529,13 @@ impl fmt::Debug for LengthExpr {
             }
         } else {
             match self {
-                Add(a, b) => write!(f, "({:?} + {:?})", a, b),
-                Sub(a, b) => write!(f, "({:?} - {:?})", a, b),
-                Mul(l, s) => write!(f, "({:?} * {:?}.pct())", l, s.0 * 100.0),
-                Div(l, s) => write!(f, "({:?} / {:?}.pct())", l, s.0 * 100.0),
-                Max(a, b) => write!(f, "max({:?}, {:?})", a, b),
-                Min(a, b) => write!(f, "min({:?}, {:?})", a, b),
-                Abs(e) => write!(f, "abs({:?})", e),
+                Add(a, b) => write!(f, "({a:?} + {b:?})"),
+                Sub(a, b) => write!(f, "({a:?} - {b:?})"),
+                Mul(l, s) => write!(f, "({l:?} * {:?}.pct())", s.0 * 100.0),
+                Div(l, s) => write!(f, "({l:?} / {:?}.pct())", s.0 * 100.0),
+                Max(a, b) => write!(f, "max({a:?}, {b:?})"),
+                Min(a, b) => write!(f, "min({a:?}, {b:?})"),
+                Abs(e) => write!(f, "abs({e:?})"),
                 AbsDefault => write!(f, "abs(Default)"),
             }
         }
@@ -1545,13 +1545,13 @@ impl fmt::Display for LengthExpr {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         use LengthExpr::*;
         match self {
-            Add(a, b) => write!(f, "({} + {})", a, b),
-            Sub(a, b) => write!(f, "({} - {})", a, b),
-            Mul(l, s) => write!(f, "({} * {}%)", l, s.0 * 100.0),
-            Div(l, s) => write!(f, "({} / {}%)", l, s.0 * 100.0),
-            Max(a, b) => write!(f, "max({}, {})", a, b),
-            Min(a, b) => write!(f, "min({}, {})", a, b),
-            Abs(e) => write!(f, "abs({})", e),
+            Add(a, b) => write!(f, "({a} + {b})"),
+            Sub(a, b) => write!(f, "({a} - {b})"),
+            Mul(l, s) => write!(f, "({l} * {}%)", s.0 * 100.0),
+            Div(l, s) => write!(f, "({l} / {}%)", s.0 * 100.0),
+            Max(a, b) => write!(f, "max({a}, {b})"),
+            Min(a, b) => write!(f, "min({a}, {b})"),
+            Abs(e) => write!(f, "abs({e})"),
             AbsDefault => write!(f, "abs(Default)"),
         }
     }
@@ -2934,7 +2934,7 @@ impl fmt::Debug for Alignment {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if let Some(name) = self.name() {
             if f.alternate() {
-                write!(f, "Alignment::{}", name)
+                write!(f, "Alignment::{name}")
             } else {
                 f.write_str(name)
             }
@@ -4010,7 +4010,7 @@ impl fmt::Debug for ByteLength {
         if f.alternate() {
             f.debug_tuple("ByteLength").field(&self.0).finish()
         } else {
-            write!(f, "ByteLength({})", self)
+            write!(f, "ByteLength({self})")
         }
     }
 }

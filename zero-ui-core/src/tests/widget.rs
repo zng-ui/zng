@@ -685,7 +685,7 @@ pub mod capture_properties_wgt {
         let msg = match new_child_trace {
             "new-child" => "custom new_child",
             "user-new-child" => "custom new_child (user)",
-            o => panic!("unexpected {:?}", o),
+            o => panic!("unexpected {o:?}"),
         };
         let node = crate::widget_base::implicit_base::new_child();
         trace(node, msg)
@@ -695,7 +695,7 @@ pub mod capture_properties_wgt {
         let msg = match new_trace {
             "new" => "custom new",
             "user-new" => "custom new (user)",
-            o => panic!("unexpected {:?}", o),
+            o => panic!("unexpected {o:?}"),
         };
         let node = trace(node, msg);
         crate::widget_base::implicit_base::new(node, id)
@@ -772,7 +772,7 @@ pub mod new_capture_property_wgt {
         let msg = match new_capture {
             ("new_capture-default", 42) => "captured new_capture (default)",
             ("new_capture-user", 24) => "captured new_capture (user)",
-            o => panic!("unexpected {:?}", o),
+            o => panic!("unexpected {o:?}"),
         };
         let node = crate::widget_base::implicit_base::new_child();
         trace(node, msg)
@@ -809,7 +809,7 @@ pub mod new_capture_property_named_wgt {
         let msg = match new_capture {
             ("name", 42) => "captured new_capture (default)",
             ("eman", 24) => "captured new_capture (user)",
-            o => panic!("unexpected {:?}", o),
+            o => panic!("unexpected {o:?}"),
         };
         let node = crate::widget_base::implicit_base::new_child();
         trace(node, msg)
@@ -851,7 +851,7 @@ pub mod captured_property_wgt {
         let msg = match capture_only_trace {
             "capture-default" => "captured capture (default)",
             "capture-user" => "captured capture (user)",
-            o => panic!("unexpected {:?}", o),
+            o => panic!("unexpected {o:?}"),
         };
         let node = crate::widget_base::implicit_base::new_child();
         trace(node, msg)

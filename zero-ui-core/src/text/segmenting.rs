@@ -155,7 +155,7 @@ impl SegmentedText {
     /// ```
     /// # use zero_ui_core::text::SegmentedText;
     /// for (sub_str, segment_kind) in SegmentedText::new("Foo bar!\nBaz.").iter() {
-    ///     println!("s: {:?} is a `{:?}`", sub_str, segment_kind);
+    ///     println!("s: {sub_str:?} is a `{segment_kind:?}`");
     /// }
     /// ```
     /// Prints

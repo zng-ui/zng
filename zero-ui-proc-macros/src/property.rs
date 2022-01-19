@@ -455,7 +455,7 @@ mod analysis {
 
         let mut invalid_n = 0;
         let mut invalid_idents = move || {
-            let next = ident!("_invalid{}", invalid_n);
+            let next = ident!("_invalid{invalid_n}");
             invalid_n += 1;
             next
         };
@@ -489,7 +489,7 @@ mod analysis {
                     // the user declares two or more inputs with the same name
                     let count: &mut u32 = unique_names.entry(arg_idents[last_i].clone()).or_default();
                     if *count > 0 {
-                        arg_idents[last_i] = ident_spanned! {arg_idents[last_i].span()=> "__{}{}", arg_idents[last_i], count};
+                        arg_idents[last_i] = ident_spanned! {arg_idents[last_i].span()=> "__{}{count}", arg_idents[last_i]};
                     }
                     *count += 1;
 
@@ -679,7 +679,7 @@ mod analysis {
             let vis = &fn_.vis;
             let mut alias_fn = fn_.clone();
             let id = alias_fn.sig.ident;
-            let alias_ident = ident_spanned!(id.span()=> "__wgt_{}", id);
+            let alias_ident = ident_spanned!(id.span()=> "__wgt_{id}");
 
             alias_fn.sig.ident = ident!("wgt_docs_export");
             alias_fn.block = parse_quote!({});
@@ -957,9 +957,9 @@ mod output {
                 default_value,
                 ..
             } = self;
-            let args_impl_ident = ident!("{}_ArgsImpl", ident);
-            let args_ident = ident!("{}_Args", ident);
-            let arg_locals: Vec<_> = arg_idents.iter().enumerate().map(|(i, id)| ident!("__{}_{}", i, id)).collect();
+            let args_impl_ident = ident!("{ident}_ArgsImpl");
+            let args_ident = ident!("{ident}_Args");
+            let arg_locals: Vec<_> = arg_idents.iter().enumerate().map(|(i, id)| ident!("__{i}_{id}")).collect();
             let crate_core = crate_core();
 
             let (phantom_decl, phantom_init) = if phantom.is_empty() {
@@ -1023,7 +1023,7 @@ mod output {
             let mut child_ty_span = proc_macro2::Span::call_site();
             let child_assert = if let Some((child_ty, ty_params)) = &self.child_assert {
                 child_ty_span = child_ty.span();
-                let assert_ident = ident!("__{}_arg0_assert", ident);
+                let assert_ident = ident!("__{ident}_arg0_assert");
                 quote_spanned! {child_ty.span()=>
                     fn #assert_ident<#(#ty_params),*>(child: #child_ty) -> impl #crate_core::UiNode {
                         child
@@ -1045,7 +1045,7 @@ mod output {
                     child
                 };
 
-                let set_ident = ident!("__{}_set", ident);
+                let set_ident = ident!("__{ident}_set");
                 if cfg!(dyn_property) {
                     set.extend(quote! {
                         #[doc(hidden)]
@@ -1075,7 +1075,7 @@ mod output {
                 }
 
                 if cfg!(inspector) {
-                    let set_inspect_ident = ident!("__{}_set_inspect", ident);
+                    let set_inspect_ident = ident!("__{ident}_set_inspect");
                     let ident_str = ident.to_string();
                     let arg_idents_str = arg_idents.iter().map(|i| i.to_string());
                     let priority = match self.priority {
@@ -1122,7 +1122,7 @@ mod output {
             };
 
             let cap_debug = if cfg!(inspector) {
-                let cap_ident = ident!("__{}_captured_inspect", ident);
+                let cap_ident = ident!("__{ident}_captured_inspect");
                 let arg_idents_str = arg_idents.iter().map(|i| i.to_string());
 
                 quote! {
@@ -1173,13 +1173,13 @@ mod output {
                 (quote! { ( #( &#arg_return_types ),* ) }, quote! { ( #( &self.#arg_idents ),* ) })
             };
 
-            let named_arg_mtds: Vec<_> = arg_idents.iter().map(|a| ident!("__{}", a)).collect();
-            let numbered_arg_mtds: Vec<_> = (0..arg_idents.len()).map(|a| ident!("__{}", a)).collect();
+            let named_arg_mtds: Vec<_> = arg_idents.iter().map(|a| ident!("__{a}")).collect();
+            let numbered_arg_mtds: Vec<_> = (0..arg_idents.len()).map(|a| ident!("__{a}")).collect();
 
             let default_fn = if default_value.is_empty() {
                 TokenStream::default()
             } else {
-                let default_fn_ident = ident!("__{}_default_args", ident);
+                let default_fn_ident = ident!("__{ident}_default_args");
                 quote! {
                     #[inline]
                     #[doc(hidden)]
@@ -1191,7 +1191,7 @@ mod output {
             };
 
             let allowed_in_when_assert = if self.allowed_in_when && self.args_are_valid {
-                let assert_ident = ident!("__{}_assert_allowed_in_when", ident);
+                let assert_ident = ident!("__{ident}_assert_allowed_in_when");
                 let var_idents: Vec<_> = arg_idents
                     .iter()
                     .zip(arg_types.iter())
@@ -1437,7 +1437,7 @@ mod output {
                 }
             };
 
-            let arg_locals: Vec<_> = arg_idents.iter().enumerate().map(|(i, id)| ident!("__{}_{}", i, id)).collect();
+            let arg_locals: Vec<_> = arg_idents.iter().enumerate().map(|(i, id)| ident!("__{i}_{id}")).collect();
 
             let whens = if arg_locals.len() == 1 {
                 let arg = &arg_locals[0];
@@ -1548,7 +1548,7 @@ mod output {
             let crate_core = crate_core();
 
             let default_export = if self.has_default_value {
-                let default_fn_ident = ident!("__{}_default_args", ident);
+                let default_fn_ident = ident!("__{ident}_default_args");
                 quote! {
                     #default_fn_ident as default_args,
                 }
@@ -1559,10 +1559,10 @@ mod output {
             let set_export = if self.is_capture_only {
                 TokenStream::new()
             } else {
-                let set_ident = ident!("__{}_set", ident);
+                let set_ident = ident!("__{ident}_set");
 
                 if cfg!(inspector) {
-                    let set_dbg_ident = ident!("__{}_set_inspect", ident);
+                    let set_dbg_ident = ident!("__{ident}_set_inspect");
                     quote! {
                         #set_ident as set,
                         #set_dbg_ident as set_inspect,
@@ -1575,7 +1575,7 @@ mod output {
             };
 
             let cap_export = if cfg!(inspector) {
-                let cap_ident = ident!("__{}_captured_inspect", ident);
+                let cap_ident = ident!("__{ident}_captured_inspect");
                 quote! {
                     #cap_ident as captured_inspect,
                 }
@@ -1584,7 +1584,7 @@ mod output {
             };
 
             let alias_reexport = if !alias_fn.is_empty() {
-                let ident = ident!("__wgt_{}", ident);
+                let ident = ident!("__wgt_{ident}");
                 quote! {
                     #[doc(inline)]
                     #vis use super::#ident::wgt_docs_export;

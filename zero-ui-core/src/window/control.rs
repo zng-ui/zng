@@ -21,8 +21,8 @@ use crate::{
 };
 
 use super::{
-    FrameCaptureMode, FrameImageReadyArgs, FrameImageReadyEvent, HeadlessMonitor, MonitorInfo, MonitorsExt, StartPosition,
-    Window, WindowChangedArgs, WindowChangedEvent, WindowChrome, WindowIcon, WindowMode, WindowScaleChangedArgs, WindowScaleChangedEvent,
+    FrameCaptureMode, FrameImageReadyArgs, FrameImageReadyEvent, HeadlessMonitor, MonitorInfo, MonitorsExt, StartPosition, Window,
+    WindowChangedArgs, WindowChangedEvent, WindowChrome, WindowIcon, WindowMode, WindowScaleChangedArgs, WindowScaleChangedEvent,
     WindowVars, WindowsExt,
 };
 

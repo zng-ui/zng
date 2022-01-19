@@ -38,8 +38,7 @@ impl<S: AppEventSender> ImageCache<S> {
                     let expected_len = size.width.0 as usize * size.height.0 as usize * 4;
                     if data.len() != expected_len {
                         Err(format!(
-                            "bgra8.len() is not width * height * 4, expected {}, found {}",
-                            expected_len,
+                            "bgra8.len() is not width * height * 4, expected {expected_len}, found {}",
                             data.len()
                         ))
                     } else {
@@ -52,8 +51,7 @@ impl<S: AppEventSender> ImageCache<S> {
                         let decoded_size = size.width.0 as u64 * size.height.0 as u64 * 4;
                         if decoded_size > max_decoded_size {
                             Err(format!(
-                                "image {:?} needs to allocate {} bytes, but max allowed size is {} bytes",
-                                size, decoded_size, max_decoded_size
+                                "image {size:?} needs to allocate {decoded_size} bytes, but max allowed size is {max_decoded_size} bytes",
                             ))
                         } else {
                             let _ = app_sender.send(AppEvent::Notify(Event::ImageMetadataLoaded {
@@ -130,8 +128,7 @@ impl<S: AppEventSender> ImageCache<S> {
                                     let decoded_size = s.width.0 as u64 * s.height.0 as u64 * 4;
                                     if decoded_size > max_decoded_size {
                                         let error = format!(
-                                            "image {:?} needs to allocate {} bytes, but max allowed size is {} bytes",
-                                            size, decoded_size, max_decoded_size
+                                            "image {size:?} needs to allocate {decoded_size} bytes, but max allowed size is {max_decoded_size} bytes",
                                         );
                                         let _ = app_sender.send(AppEvent::Notify(Event::ImageLoadError { image: id, error }));
                                         return;
@@ -387,7 +384,7 @@ impl<S: AppEventSender> ImageCache<S> {
 
     pub fn encode(&self, id: ImageId, format: String) {
         if !ENCODERS.contains(&format.as_str()) {
-            let error = format!("cannot encode `{}` to `{}`, unknown format", id, format);
+            let error = format!("cannot encode `{id}` to `{format}`, unknown format");
             let _ = self
                 .app_sender
                 .send(AppEvent::Notify(Event::ImageEncodeError { image: id, format, error }));
@@ -407,13 +404,13 @@ impl<S: AppEventSender> ImageCache<S> {
                         let _ = sender.send(AppEvent::Notify(Event::ImageEncoded { image: id, format, data }));
                     }
                     Err(e) => {
-                        let error = format!("failed to encode `{}` to `{}`, {}", id, format, e);
+                        let error = format!("failed to encode `{id}` to `{format}`, {e}");
                         let _ = sender.send(AppEvent::Notify(Event::ImageEncodeError { image: id, format, error }));
                     }
                 }
             })
         } else {
-            let error = format!("cannot encode `{}` to `{}`, image not found", id, format);
+            let error = format!("cannot encode `{id}` to `{format}`, image not found");
             let _ = self
                 .app_sender
                 .send(AppEvent::Notify(Event::ImageEncodeError { image: id, format, error }));
@@ -771,7 +768,7 @@ mod capture {
                 let id = self.generate_image_id();
                 let _ = self.app_sender.send(AppEvent::Notify(Event::ImageLoadError {
                     image: id,
-                    error: format!("no frame rendered in window `{}`", window_id),
+                    error: format!("no frame rendered in window `{window_id}`"),
                 }));
                 let _ = self.app_sender.send(AppEvent::Notify(Event::FrameImageReady {
                     window: window_id,

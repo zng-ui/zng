@@ -142,7 +142,7 @@ impl Timers {
     /// text = timer.map(|t| match t.count() {
     ///     0 => formatx!(""),
     ///     1 => formatx!("1 second elapsed"),
-    ///     c => formatx!("{} seconds elapsed", c)
+    ///     c => formatx!("{c} seconds elapsed")
     /// });
     /// # }
     /// ```
@@ -701,7 +701,7 @@ impl TimerHandle {
 ///         formatx!("Done!")
 ///     },
 ///     1 => formatx!("1 second left"),
-///     s => formatx!("{} seconds left", s)
+///     s => formatx!("{s} seconds left")
 /// });
 /// # }
 /// ```

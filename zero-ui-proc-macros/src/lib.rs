@@ -133,7 +133,7 @@ pub fn task_any_all(input: TokenStream) -> TokenStream {
 #[doc(hidden)]
 #[proc_macro]
 pub fn trace(input: TokenStream) -> TokenStream {
-    eprintln!("{}", input);
+    eprintln!("{input}");
     input
 }
 

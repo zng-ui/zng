@@ -592,8 +592,8 @@ impl Vars {
     /// fn trace_var<T: VarValue>(var: &impl Var<T>, vars: &Vars) {
     ///     let mut prev_value = format!("{:?}", var.get(vars));
     ///     vars.on_pre_var(var.clone(), app_hn!(|_ctx, new_value, _subscription| {
-    ///         let new_value = format!("{:?}", new_value);
-    ///         println!("{} -> {}", prev_value, new_value);
+    ///         let new_value = format!("{new_value:?}");
+    ///         println!("{prev_value} -> {new_value}");
     ///         prev_value = new_value;
     ///     })).permanent();
     /// }

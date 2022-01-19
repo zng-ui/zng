@@ -217,7 +217,7 @@ impl AppExtension for ImageManager {
                             }
                         }
                         Err(e) => {
-                            tracing::error!("load error: {:?}", e);
+                            tracing::error!("load error: {e:?}");
                             // load error.
                             let img = ViewImage::dummy(Some(e));
                             var.modify(vars, move |v| {
@@ -503,15 +503,15 @@ impl Images {
                 let path = crate::crate_util::absolute_path(&path, || env::current_dir().expect("could not access current dir"), true);
                 if !limits.allow_path.allows(&path) {
                     let error = format!("limits filter blocked `{}`", path.display());
-                    tracing::error!("{}", error);
+                    tracing::error!("{error}");
                     return var(Image::dummy(Some(error))).into_read_only();
                 }
                 ImageSource::Read(path)
             }
             ImageSource::Download(uri, accepts) => {
                 if !limits.allow_uri.allows(&uri) {
-                    let error = format!("limits filter blocked `{}`", uri);
-                    tracing::error!("{}", error);
+                    let error = format!("limits filter blocked `{uri}`");
+                    tracing::error!("{error}");
                     return var(Image::dummy(Some(error))).into_read_only();
                 }
                 ImageSource::Download(uri, accepts)
@@ -597,7 +597,7 @@ impl Images {
                     };
 
                     if len > max_encoded_size.0 {
-                        r.r = Err(format!("file size `{}` exceeds the limit of `{}`", len.bytes(), max_encoded_size));
+                        r.r = Err(format!("file size `{}` exceeds the limit of `{max_encoded_size}`", len.bytes()));
                         return r;
                     }
 
@@ -645,14 +645,14 @@ impl Images {
                                 match rsp.bytes().await {
                                     Ok(d) => r.r = Ok(IpcBytes::from_vec(d)),
                                     Err(e) => {
-                                        r.r = Err(format!("download error: {}", e));
+                                        r.r = Err(format!("download error: {e}"));
                                     }
                                 }
 
                                 let _ = rsp.consume();
                             }
                             Err(e) => {
-                                r.r = Err(format!("request error: {}", e));
+                                r.r = Err(format!("request error: {e}"));
                             }
                         }
 
@@ -1369,7 +1369,7 @@ impl fmt::Debug for ImageHash {
 }
 impl fmt::Display for ImageHash {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{:?}", self)
+        write!(f, "{self:?}")
     }
 }
 impl std::hash::Hash for ImageHash {

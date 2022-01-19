@@ -260,7 +260,7 @@ macro_rules! thread_singleton {
             /// Panics if [`Self::in_use`], otherwise creates the single instance of `Self` for the thread.
             pub fn assert_new(type_name: &str) -> Self {
                 if Self::in_use() {
-                    panic!("only a single instance of `{}` can exist per thread at a time", type_name)
+                    panic!("only a single instance of `{type_name}` can exist per thread at a time")
                 }
                 Self::set(true);
 
@@ -602,8 +602,8 @@ pub enum IdNameError<I: Clone + Copy + fmt::Debug> {
 impl<I: Clone + Copy + fmt::Debug> fmt::Display for IdNameError<I> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match *self {
-            IdNameError::AlreadyNamed(name) => write!(f, "cannot name the id, it is already called `{:?}`", name),
-            IdNameError::NameUsed(id) => write!(f, "cannot name the id, it is already the name of {:#?}", id),
+            IdNameError::AlreadyNamed(name) => write!(f, "cannot name the id, it is already called `{name:?}`"),
+            IdNameError::NameUsed(id) => write!(f, "cannot name the id, it is already the name of {id:#?}"),
         }
     }
 }
@@ -683,7 +683,7 @@ impl TestTempDir {
     /// Create temporary directory for the unique teste name.
     pub fn new(name: &str) -> Self {
         let path = Self::try_target().unwrap_or_else(Self::fallback).join(name);
-        std::fs::create_dir_all(&path).unwrap_or_else(|e| panic!("failed to create temp `{}`, {:?}", path.display(), e));
+        std::fs::create_dir_all(&path).unwrap_or_else(|e| panic!("failed to create temp `{}`, {e:?}", path.display()));
         TestTempDir { path: Some(path) }
     }
     fn try_target() -> Option<PathBuf> {
@@ -774,13 +774,13 @@ pub fn test_log() {
             let file = meta.file().unwrap_or("");
             let line = meta.line().unwrap_or(0);
 
-            let mut msg = format!("[{}:{}]", file, line);
+            let mut msg = format!("[{file}:{line}]");
             event.record(&mut MsgCollector(&mut msg));
 
             if meta.level() == &Level::ERROR {
-                panic!("[LOG-ERROR]{}", msg);
+                panic!("[LOG-ERROR]{msg}");
             } else {
-                eprintln!("[LOG-WARN]{}", msg);
+                eprintln!("[LOG-WARN]{msg}");
             }
         }
 
@@ -796,7 +796,7 @@ pub fn test_log() {
 
     if !IS_SET.swap(true, Ordering::Relaxed) {
         if let Err(e) = subscriber::set_global_default(TestSubscriber) {
-            panic!("failed to set test log subscriber, {:?}", e);
+            panic!("failed to set test log subscriber, {e:?}");
         }
     }
 }

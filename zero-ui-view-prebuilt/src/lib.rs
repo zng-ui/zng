@@ -116,11 +116,11 @@ impl ViewLib {
     #[cfg(zero_ui_lib_embedded)]
     fn install_path(dir: PathBuf) -> PathBuf {
         #[cfg(target_os = "windows")]
-        let file_name = format!("{}.dll", LIB_NAME);
+        let file_name = format!("{LIB_NAME}.dll");
         #[cfg(target_os = "linux")]
-        let file_name = format!("{}.so", LIB_NAME);
+        let file_name = format!("{LIB_NAME}.so");
         #[cfg(target_os = "macos")]
-        let file_name = format!("{}.dylib", LIB_NAME);
+        let file_name = format!("{LIB_NAME}.dylib");
 
         dir.join(file_name)
     }
@@ -240,8 +240,8 @@ impl From<libloading::Error> for Error {
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Error::Io(e) => write!(f, "{}", e),
-            Error::Lib(e) => write!(f, "{}", e),
+            Error::Io(e) => write!(f, "{e}"),
+            Error::Lib(e) => write!(f, "{e}"),
         }
     }
 }

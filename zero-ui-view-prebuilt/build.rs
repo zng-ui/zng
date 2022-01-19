@@ -45,6 +45,6 @@ fn main() {
             base64::encode_config(&hash, base64::URL_SAFE_NO_PAD)
         );
     } else {
-        println!("cargo:warning=missing `{}`, run `do prebuild`", file);
+        println!("cargo:warning=missing `{file}`, run `do prebuild`");
     }
 }

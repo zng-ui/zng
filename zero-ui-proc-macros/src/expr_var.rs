@@ -187,9 +187,7 @@ mod tests {
             let actual = $actual;
             assert!(
                 $crate::util::token_stream_eq(expected.clone(), actual.clone()),
-                "\n\nexpected: `{}`\n  actual: `{}`\n\n",
-                expected,
-                actual
+                "\n\nexpected: `{expected}`\n  actual: `{actual}`\n\n",
             );
         }};
     }

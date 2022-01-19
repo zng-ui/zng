@@ -74,7 +74,7 @@ impl ViewConfig {
         while Self::is_awaiting_same_process() {
             thread::sleep(skip);
             if time.elapsed() >= timeout {
-                panic!("timeout, `wait_same_process` waited for `{:?}`", timeout);
+                panic!("timeout, `wait_same_process` waited for `{timeout:?}`");
             }
         }
 

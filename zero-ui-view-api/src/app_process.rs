@@ -206,9 +206,7 @@ impl Controller {
                 if let Some(p) = process {
                     if let Err(ke) = p.kill() {
                         tracing::error!(
-                            "failed to kill new view-process after failing to connect to it\n connection error: {:?}\n kill error: {:?}",
-                            e,
-                            ke
+                            "failed to kill new view-process after failing to connect to it\n connection error: {e:?}\n kill error: {ke:?}",
                         );
                     }
                 }
@@ -317,7 +315,7 @@ impl Controller {
         let code_and_output = match process.into_output() {
             Ok(c) => Some(c),
             Err(e) => {
-                tracing::error!(target: "vp_respawn", "view-process could not be heaped, will abandon running, {:?}", e);
+                tracing::error!(target: "vp_respawn", "view-process could not be heaped, will abandon running, {e:?}");
                 None
             }
         };
@@ -348,25 +346,25 @@ impl Controller {
 
             if !killed_by_us {
                 let code = code.unwrap();
-                tracing::error!(target: "vp_respawn", "view-process exit_code: 0x{:x}", code);
+                tracing::error!(target: "vp_respawn", "view-process exit_code: 0x{code:x}");
             }
 
             match String::from_utf8(c.stderr) {
                 Ok(s) => {
                     if !s.is_empty() {
-                        tracing::error!(target: "vp_respawn", "view-process stderr:\n```stderr\n{}\n```", s)
+                        tracing::error!(target: "vp_respawn", "view-process stderr:\n```stderr\n{s}\n```")
                     }
                 }
-                Err(e) => tracing::error!(target: "vp_respawn", "failed to read view-process stderr: {}", e),
+                Err(e) => tracing::error!(target: "vp_respawn", "failed to read view-process stderr: {e}"),
             }
 
             match String::from_utf8(c.stdout) {
                 Ok(s) => {
                     if !s.is_empty() {
-                        tracing::info!(target: "vp_respawn", "view-process stdout:\n```stdout\n{}\n```", s)
+                        tracing::info!(target: "vp_respawn", "view-process stdout:\n```stdout\n{s}\n```")
                     }
                 }
-                Err(e) => tracing::error!(target: "vp_respawn", "failed to read view-process stdout: {}", e),
+                Err(e) => tracing::error!(target: "vp_respawn", "failed to read view-process stdout: {e}"),
             }
         } else {
             tracing::error!(target: "vp_respawn", "failed to reap view-process, will abandon it running and spawn a new one");
@@ -384,7 +382,7 @@ impl Controller {
             match Self::spawn_view_process(&self.view_process_exe, self.headless) {
                 Ok(r) => break r,
                 Err(e) => {
-                    tracing::error!(target: "vp_respawn",  "failed to respawn, {:?}", e);
+                    tracing::error!(target: "vp_respawn",  "failed to respawn, {e:?}");
                     retries -= 1;
                     if retries == 0 {
                         panic!("failed to respawn `view-process` after 3 retries");

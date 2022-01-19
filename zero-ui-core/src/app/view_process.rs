@@ -690,7 +690,7 @@ impl From<flume::RecvError> for EncodeError {
 impl fmt::Display for EncodeError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            EncodeError::Encode(e) => write!(f, "{}", e),
+            EncodeError::Encode(e) => write!(f, "{e}"),
             EncodeError::Dummy => write!(f, "cannot encode dummy image"),
             EncodeError::Respawned => write!(f, "{}", Respawned),
         }

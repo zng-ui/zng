@@ -10,7 +10,7 @@ use syn::{
 pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let Input { macro_path, futs, .. } = parse_macro_input!(input as Input);
 
-    let fut_idents = (0..futs.len()).map(|i| ident!("__fut{}", i));
+    let fut_idents = (0..futs.len()).map(|i| ident!("__fut{i}"));
     let futs = futs.iter();
 
     let r = quote! {

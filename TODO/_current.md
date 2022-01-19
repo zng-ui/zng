@@ -9,9 +9,3 @@ except the render, this causes problems with context variables, like enabled.
 * Linux does not open maximized example image some times.
 * Windows does not respawn fullscreen, ends the size of the normal window, borderless.
 * Return restore position selected by system when starting maximized with default position.
-
-# String format style
-* Simplify string formattings like `"{:?}", ident` to `"{ident:?}"`, now that the second style is stabilized for idents with Rust v1.58.0.
-* To that end use this regex: `"[^"]*\{[^"]*\}[^"]*"`
-* Since that regex still applies to the new style, update the files in the order the search functions lists them and take note of the next file that still needs to be updated here:
-  * stopped before `crate_util.rs in zero-ui-core\src`, 70 files to go.

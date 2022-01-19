@@ -417,7 +417,7 @@ mod file_cache {
         fn open(dir: PathBuf, write: bool) -> Option<Self> {
             if write && !dir.exists() {
                 if let Err(e) = fs::create_dir_all(&dir) {
-                    tracing::error!("cache dir error, {:?}", e);
+                    tracing::error!("cache dir error, {e:?}");
                     return None;
                 }
             }
@@ -434,7 +434,7 @@ mod file_cache {
                 Ok(l) => l,
                 Err(e) if e.kind() == std::io::ErrorKind::NotFound && !dir.exists() => return None,
                 Err(e) => {
-                    tracing::error!("cache lock open error, {:?}", e);
+                    tracing::error!("cache lock open error, {e:?}");
                     Self::try_delete_dir(&dir);
                     return None;
                 }
@@ -442,14 +442,14 @@ mod file_cache {
 
             let lock_r = if write { lock.lock_exclusive() } else { lock.lock_shared() };
             if let Err(e) = lock_r {
-                tracing::error!("cache lock error, {:?}", e);
+                tracing::error!("cache lock error, {e:?}");
                 Self::try_delete_dir(&dir);
                 return None;
             }
 
             let mut version = String::new();
             if let Err(e) = lock.read_to_string(&mut version) {
-                tracing::error!("cache lock read error, {:?}", e);
+                tracing::error!("cache lock read error, {e:?}");
                 Self::try_delete_locked_dir(&dir, &lock);
                 return None;
             }
@@ -458,12 +458,12 @@ mod file_cache {
             if version != expected_version {
                 if write && version.is_empty() {
                     if let Err(e) = lock.set_len(0).and_then(|()| lock.write_all(expected_version.as_bytes())) {
-                        tracing::error!("cache lock write error, {:?}", e);
+                        tracing::error!("cache lock write error, {e:?}");
                         Self::try_delete_locked_dir(&dir, &lock);
                         return None;
                     }
                 } else {
-                    tracing::error!("unknown cache version, {:?}", version);
+                    tracing::error!("unknown cache version, {version:?}");
                     Self::try_delete_locked_dir(&dir, &lock);
                     return None;
                 }
@@ -476,7 +476,7 @@ mod file_cache {
 
                 if write {
                     if let Err(e) = Self::remove_files(&dir) {
-                        tracing::error!("failed to clear partial files, {:?}", e);
+                        tracing::error!("failed to clear partial files, {e:?}");
                         Self::try_delete_locked_dir(&dir, &lock);
                         return None;
                     }
@@ -490,7 +490,7 @@ mod file_cache {
                 let policy = match Self::read_policy(&policy_file) {
                     Ok(i) => i,
                     Err(e) => {
-                        tracing::error!("cache policy read error, {:?}", e);
+                        tracing::error!("cache policy read error, {e:?}");
                         Self::try_delete_locked_dir(&dir, &lock);
                         return None;
                     }
@@ -525,7 +525,7 @@ mod file_cache {
             };
 
             if let Err(e) = self.write_policy_impl(policy) {
-                tracing::error!("cache policy serialize error, {:?}", e);
+                tracing::error!("cache policy serialize error, {e:?}");
                 Self::try_delete_locked_dir(&self.dir, &self.lock);
                 return false;
             }
@@ -551,7 +551,7 @@ mod file_cache {
                     }
                 }
                 Err(e) => {
-                    tracing::error!("cache open body error, {:?}", e);
+                    tracing::error!("cache open body error, {e:?}");
                     Self::try_delete_locked_dir(&self.dir, &self.lock);
                     None
                 }
@@ -575,7 +575,7 @@ mod file_cache {
 
                     task::spawn(async move {
                         if let Err(e) = task::io::copy(cache_copy, cache_body).await {
-                            tracing::error!("cache body write error, {:?}", e);
+                            tracing::error!("cache body write error, {e:?}");
                             Self::try_delete_locked_dir(&self.dir, &self.lock);
                         } else {
                             let _ = fs::remove_file(w_tag);
@@ -589,7 +589,7 @@ mod file_cache {
                     }
                 }
                 Err(e) => {
-                    tracing::error!("cache body create error, {:?}", e);
+                    tracing::error!("cache body create error, {e:?}");
                     Self::try_delete_locked_dir(&self.dir, &self.lock);
                     body
                 }
@@ -609,7 +609,7 @@ mod file_cache {
             let tag = self.dir.join(Self::WRITING);
 
             if let Err(e) = fs::write(&tag, "w") {
-                tracing::error!("cache write tag error, {:?}", e);
+                tracing::error!("cache write tag error, {e:?}");
                 Self::try_delete_locked_dir(&self.dir, &self.lock);
                 None
             } else {
@@ -629,7 +629,7 @@ mod file_cache {
     impl Drop for CacheEntry {
         fn drop(&mut self) {
             if let Err(e) = unlock_ok(&self.lock) {
-                tracing::error!("cache unlock error, {:?}", e);
+                tracing::error!("cache unlock error, {e:?}");
                 Self::try_delete_dir(&self.dir);
             }
         }

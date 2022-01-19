@@ -127,13 +127,13 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         for (i, priority) in FnPriority::all().iter().enumerate() {
             if new_declarations[i].is_empty() {
                 let source_mod = &parent.module;
-                let new_ident = ident!("__{}", priority);
+                let new_ident = ident!("__{priority}");
                 new_reexports.extend(quote! {
                     #[doc(hidden)]
                     pub use #source_mod::#new_ident;
                 });
                 if cfg!(inspector) {
-                    let new_ident = ident!("__{}_inspect", priority);
+                    let new_ident = ident!("__{priority}_inspect");
                     new_reexports.extend(quote! {
                         #[doc(hidden)]
                         pub use #source_mod::#new_ident;
@@ -156,7 +156,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                 for p in &new_captures[i] {
                     if let Some(other_fn) = inherited_caps.get(&p.ident) {
                         errors.push(
-                            format_args!("property `{}` is already captured in inherited fn `{}`", p.ident, other_fn),
+                            format_args!("property `{}` is already captured in inherited fn `{other_fn}`", p.ident),
                             p.ident.span(),
                         );
                     }
@@ -242,7 +242,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         };
         if let Some(reason) = cannot_remove_reason {
             // cannot remove
-            errors.push(format_args!("cannot remove, property `{}` is {}", ident, reason), ident.span());
+            errors.push(format_args!("cannot remove, property `{ident}` is {reason}"), ident.span());
         } else if inherited_properties.remove(ident).is_some() {
             // can remove
             if let Some(i) = inherited_props_child.iter().position(|p| &p.ident == ident) {
@@ -251,7 +251,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                 inherited_props.remove(i);
             }
         } else {
-            errors.push(format_args!("cannot remove, property `{}` is not inherited", ident), ident.span());
+            errors.push(format_args!("cannot remove, property `{ident}` is not inherited"), ident.span());
         }
     }
 
@@ -471,8 +471,8 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                 if let Some(inherited) = inherited_properties.get(&maybe_inherited) {
                     let inherited_source = &inherited.module;
                     // re-export inherited property as a new name.
-                    let inherited_ident = ident!("__p_{}", maybe_inherited);
-                    let inherited_doc_ident = ident!("__pdoc_{}", maybe_inherited);
+                    let inherited_ident = ident!("__p_{maybe_inherited}");
+                    let inherited_doc_ident = ident!("__pdoc_{maybe_inherited}");
                     property_reexports.extend(quote! {
                         #cfg
                         #[doc(hidden)]
@@ -533,9 +533,9 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
             let module = &inherited.module;
             let module_id_str = util::tokens_to_ident_str(module);
-            let new_ident = ident!("__{}{}", module_id_str, ident);
+            let new_ident = ident!("__{module_id_str}{ident}");
 
-            let new_dbg_ident = ident!("__{}{}", module_id_str, dbg_ident);
+            let new_dbg_ident = ident!("__{module_id_str}{dbg_ident}");
 
             let mut assigns_tt = TokenStream::default();
             let mut defaults_tt = TokenStream::default();
@@ -550,7 +550,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                     affects: assigns.iter().map(|a| (a.property.clone(), a.cfg.clone())).collect(),
                 });
 
-                let new_value_fn = ident!("__{}{}", module_id_str, value_fn);
+                let new_value_fn = ident!("__{module_id_str}{value_fn}");
 
                 assigns_tt.extend(quote! {
                     #property { cfg { #cfg } value_fn { #new_value_fn } }
@@ -754,9 +754,9 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             inherited_from_path: inherited_properties.get(w_prop).map(|i| i.inherit_use.clone()),
         });
 
-        let p_ident = ident!("__p_{}", w_prop);
-        let p_doc_ident = ident!("__pdoc_{}", w_prop);
-        let d_ident = ident!("__d_{}", w_prop);
+        let p_ident = ident!("__p_{w_prop}");
+        let p_doc_ident = ident!("__pdoc_{w_prop}");
+        let d_ident = ident!("__d_{w_prop}");
 
         // reexport property and default value.
         when_condition_default_props.extend(quote! {
@@ -777,7 +777,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         });
         if cfg!(inspector) {
             let crate_core = util::crate_core();
-            let loc_ident = ident!("__loc_{}", w_prop);
+            let loc_ident = ident!("__loc_{w_prop}");
             when_condition_default_props.extend(quote_spanned! {p_ident.span()=>
                 #w_prop::code_gen! {
                     if default=>
@@ -791,7 +791,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         }
 
         // OR compile error because the property has no default value.
-        let msg = format!("property `{}` is not declared in the widget and has no default value", w_prop);
+        let msg = format!("property `{w_prop}` is not declared in the widget and has no default value");
         when_condition_default_props.extend(quote_spanned! {w_prop.span()=>
             #w_prop::code_gen! {
                 if !default=>
@@ -810,7 +810,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         });
     }
 
-    let new_idents = FnPriority::all().iter().map(|p| ident!("{}", p));
+    let new_idents = FnPriority::all().iter().map(|p| ident!("{p}"));
 
     let new_captures_idents = new_captures.iter().map(|c| c.iter().map(|c| &c.ident).collect::<Vec<_>>());
     let new_captures_cfg = new_captures.iter().map(|c| c.iter().map(|c| &c.cfg).collect::<Vec<_>>());
@@ -902,7 +902,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
     let auto_docs = auto_docs(docs_required, docs_default, docs_state, docs_other, docs_whens, mixin);
 
-    let macro_ident = ident!("__{}_{}", ident, util::uuid());
+    let macro_ident = ident!("__{ident}_{}", util::uuid());
 
     let export_macro = if errors.is_empty() {
         quote! {
@@ -1027,16 +1027,14 @@ fn auto_docs(
 
                 let p = &expr[p_start..=p_end];
 
-                let replacement = format!("<span class='keyword'>self</span>.<a href='#wp-{0}' class='fnname'>{0}</a>", p);
+                let replacement = format!("<span class='keyword'>self</span>.<a href='#wp-{p}' class='fnname'>{p}</a>");
                 expr.replace_range(i..=p_end, &replacement);
             }
 
             doc_extend!(r, "\n\n");
             doc_extend!(
                 r,
-                r##"<details class="rustdoc-toggle method-toggle" open><summary><div id="ww-{0}" class="method in-band"><a class="anchor" href="#ww-{0}" style="margin-left:-4px"></a><code style="margin-left:8px">{1}</code></div></summary><div class="docblock">"##,
-                i,
-                expr,
+                r##"<details class="rustdoc-toggle method-toggle" open><summary><div id="ww-{i}" class="method in-band"><a class="anchor" href="#ww-{i}" style="margin-left:-4px"></a><code style="margin-left:8px">{expr}</code></div></summary><div class="docblock">"##,
             );
             doc_extend!(r, "\n\n");
             r.extend(when.docs);
@@ -1049,11 +1047,11 @@ fn auto_docs(
                 }
                 let mut cfg = util::html_title_cfg(cfg);
                 if !cfg.is_empty() {
-                    cfg = format!("title='{}'", cfg);
+                    cfg = format!("title='{cfg}'");
                 }
-                write!(&mut affected, "<a href='#wp-{0}' {1}><code>{0}</code></a>", assigned, cfg).unwrap();
+                write!(&mut affected, "<a href='#wp-{assigned}' {cfg}><code>{assigned}</code></a>").unwrap();
             }
-            doc_extend!(r, "\n\n*Affects {}.*", affected);
+            doc_extend!(r, "\n\n*Affects affected}.*");
             doc_extend!(r, "\n\n</div></details>\n\n");
         }
         docs_close_section(&mut r);
@@ -1093,9 +1091,7 @@ fn docs_section(docs: &mut TokenStream, properties: Vec<PropertyDocs>, title: &'
             };
             doc_extend!(
                 docs,
-                "\n\n*Inherited from [`{}`](mod@{}#wp-{}).*",
-                widget_name,
-                widget_path,
+                "\n\n*Inherited from [`{widget_name}`](mod@{widget_path}#wp-{}).*",
                 property.ident
             );
         }
@@ -1106,10 +1102,7 @@ fn docs_section(docs: &mut TokenStream, properties: Vec<PropertyDocs>, title: &'
 fn docs_section_header(docs: &mut TokenStream, title: &'static str, id: &'static str, tool_tip: &'static str) {
     doc_extend!(
         docs,
-        r##"<h2 id="{0}" class="small-section-header" title="{2}">{1}<a href="#{0}" class="anchor"></a></h2><div class="impl-items"">"##,
-        id,
-        title,
-        tool_tip,
+        r##"<h2 id="{id}" class="small-section-header" title="{tool_tip}">{title}<a href="#{id}" class="anchor"></a></h2><div class="impl-items"">"##,
     )
 }
 fn docs_close_section(docs: &mut TokenStream) {
@@ -1121,16 +1114,12 @@ fn docs_property_header(docs: &mut TokenStream, id: &str, property: &str, url: &
     if id.ends_with('*') {
         doc_extend!(
             docs,
-            r##"<details class="rustdoc-toggle method-toggle" open><summary><div id="{0}" class="method in-band"><a class="anchor" href="#{0}" style="margin-left:-4px"></a><code style="font-style:italic; margin-left:8px"><a href="#{0}" class="fnname">all-properties</a> = T</code></div></summary><div class="docblock">"##,
-            id,
+            r##"<details class="rustdoc-toggle method-toggle" open><summary><div id="{id}" class="method in-band"><a class="anchor" href="#{id}" style="margin-left:-4px"></a><code style="font-style:italic; margin-left:8px"><a href="#{0}" class="fnname">all-properties</a> = T</code></div></summary><div class="docblock">"##,
         );
     } else {
         doc_extend!(
             docs,
-            r##"<details class="rustdoc-toggle method-toggle" open><summary><div id="{0}" class="method in-band"><a class="anchor" href="#{0}" style="margin-left:-4px"></a><code style="margin-left:8px"><a href="{2}" class="fnname">{1}</a> = <span class='ptype-request' title='Loading property type…'>…<iframe src='{2}' style='position: absolute;width:0;height:0;border:0;'></iframe></span></code></div></summary><div class="docblock">"##,
-            id,
-            property,
-            url
+            r##"<details class="rustdoc-toggle method-toggle" open><summary><div id="{id}" class="method in-band"><a class="anchor" href="#{id}" style="margin-left:-4px"></a><code style="margin-left:8px"><a href="{url}" class="fnname">{property}</a> = <span class='ptype-request' title='Loading property type…'>…<iframe src='{url}' style='position: absolute;width:0;height:0;border:0;'></iframe></span></code></div></summary><div class="docblock">"##,
         );
     }
 

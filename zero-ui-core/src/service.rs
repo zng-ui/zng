@@ -134,7 +134,7 @@ impl Services {
     #[inline]
     #[track_caller]
     pub fn req_multi<'m, M: ServiceTuple<'m>>(&'m mut self) -> M::Borrowed {
-        M::get().unwrap_or_else(|e| panic!("service `{}` is required", e))
+        M::get().unwrap_or_else(|e| panic!("service `{e}` is required"))
     }
 }
 

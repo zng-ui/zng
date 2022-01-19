@@ -8,7 +8,7 @@ pub fn derive(item: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let ident = &service.ident;
     let crate_ = crate::util::crate_core();
 
-    let ext_ident = ident!("{}Ext", ident);
+    let ext_ident = ident!("{ident}Ext");
     let ext_mtd_ident = ident!("{}", snake_case(&ident.to_string()));
     let ext_help = format!(
         "Adds the [`{0}`]({2}::{0}) method to [`Services`]({1}::service::Services)",

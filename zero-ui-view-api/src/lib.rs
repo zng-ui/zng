@@ -211,7 +211,7 @@ macro_rules! declare_api {
                         if $($ResponseType)? {
                             match self.talk(req)?.0 {
                                 ResponseData::$method(r) => Ok(r),
-                                r => panic!("view-process did not respond correctly for `{}`, {:?}", stringify!($method), r)
+                                r => panic!("view-process did not respond correctly for `{}`, {r:?}", stringify!($method))
                             }
                         } else {
                             self.command(req)

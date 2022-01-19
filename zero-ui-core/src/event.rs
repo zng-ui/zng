@@ -704,7 +704,7 @@ impl Events {
             .iter()
             .any(|c| c.command_type_id() == command.command_type_id() && c.scope() == command.scope())
         {
-            panic!("command `{:?}` is already registered", command)
+            panic!("command `{command:?}` is already registered")
         }
         self.commands.push(command);
     }

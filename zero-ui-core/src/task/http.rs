@@ -11,7 +11,7 @@
 //! # use zero_ui_core::task;
 //! # async fn demo() -> Result<(), Box<dyn std::error::Error>> {
 //! let text = task::http::get_text("https://httpbin.org/base64/SGVsbG8gV29ybGQ=").await?;
-//! println!("{}!", text);
+//! println!("{text}!");
 //! # Ok(()) }
 //! ```
 //!
@@ -1333,7 +1333,7 @@ impl Client {
                             }
                         }
                     } else {
-                        tracing::error!("cache policy did not match request, {:?}", request);
+                        tracing::error!("cache policy did not match request, {request:?}");
                         db.remove(&key).await;
                         let response = self.client.send_async(request.req).await?;
                         let response = request.limits.check(response)?;
@@ -1769,7 +1769,7 @@ impl From<std::io::Error> for Error {
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Error::Client(e) => write!(f, "{}", e),
+            Error::Client(e) => write!(f, "{e}"),
             Error::MaxLength {
                 content_length,
                 max_length,
@@ -1786,7 +1786,7 @@ struct MaxLengthError(Option<ByteLength>, ByteLength);
 impl fmt::Display for MaxLengthError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if let Some(l) = self.0 {
-            write!(f, "content-length of {} exceeds limit of {}", l, self.1)
+            write!(f, "content-length of {l} exceeds limit of {}", self.1)
         } else {
             write!(f, "download reached limit of {}", self.1)
         }

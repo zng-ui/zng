@@ -1244,7 +1244,7 @@ impl fmt::Debug for FontStyleSet {
         if n == 0 {
             write!(f, "Auto")
         } else {
-            write!(f, "S{:0<2}", n)
+            write!(f, "S{n:0<2}")
         }
     }
 }

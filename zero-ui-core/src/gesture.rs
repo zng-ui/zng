@@ -257,7 +257,7 @@ impl fmt::Debug for KeyGesture {
                 .field("key", &self.key)
                 .finish()
         } else {
-            write!(f, "{}", self)
+            write!(f, "{self}")
         }
     }
 }
@@ -297,7 +297,7 @@ impl fmt::Debug for ModifierGesture {
         if f.alternate() {
             write!(f, "ModifierGesture::")?;
         }
-        write!(f, "{}", self)
+        write!(f, "{self}")
     }
 }
 impl Display for ModifierGesture {
@@ -358,7 +358,7 @@ impl fmt::Debug for KeyChord {
                 .field("complement", &self.complement)
                 .finish()
         } else {
-            write!(f, "{}", self)
+            write!(f, "{self}")
         }
     }
 }
@@ -387,7 +387,7 @@ impl fmt::Debug for Shortcut {
                 Shortcut::Modifier(m) => f.debug_tuple("Shortcut::Modifier").field(m).finish(),
             }
         } else {
-            write!(f, "{}", self)
+            write!(f, "{self}")
         }
     }
 }
@@ -533,15 +533,15 @@ impl fmt::Debug for Shortcuts {
             write!(f, "[")?;
             if !self.0.is_empty() {
                 if let Shortcut::Chord(c) = self.0[0] {
-                    write!(f, "({:?})", c)?;
+                    write!(f, "({c:?})")?;
                 } else {
                     write!(f, "{:?}", self.0[0])?;
                 }
                 for shortcut in &self.0[1..] {
                     if let Shortcut::Chord(c) = shortcut {
-                        write!(f, ", ({:?})", c)?;
+                        write!(f, ", ({c:?})")?;
                     } else {
-                        write!(f, ", {:?}", shortcut)?;
+                        write!(f, ", {shortcut:?}")?;
                     }
                 }
             }
@@ -554,7 +554,7 @@ impl fmt::Display for Shortcuts {
         if !self.0.is_empty() {
             write!(f, "{}", self.0[0])?;
             for shortcut in &self.0[1..] {
-                write!(f, " | {}", shortcut)?;
+                write!(f, " | {shortcut}")?;
             }
         }
         Ok(())
@@ -918,7 +918,7 @@ impl std::str::FromStr for ModifierGesture {
             "Shift" => Ok(ModifierGesture::Shift),
             "Alt" => Ok(ModifierGesture::Alt),
             "Logo" => Ok(ModifierGesture::Logo),
-            s => Err(ParseError::new(format!("`{}` is not a modifier", s))),
+            s => Err(ParseError::new(format!("`{s}` is not a modifier"))),
         }
     }
 }
@@ -939,16 +939,16 @@ impl std::str::FromStr for KeyGesture {
                 }
             } else if let Ok(key) = part.parse::<GestureKey>() {
                 if let Some(extra) = parts.next() {
-                    return Err(ParseError::new(format!("`{}` is not a key gesture, unexpected `+{}`", s, extra)));
+                    return Err(ParseError::new(format!("`{s}` is not a key gesture, unexpected `+{extra}`")));
                 }
 
                 return Ok(KeyGesture { modifiers, key });
             } else {
-                return Err(ParseError::new(format!("`{}` is not a key gesture, unexpected `{}`", s, part)));
+                return Err(ParseError::new(format!("`{s}` is not a key gesture, unexpected `{part}`")));
             }
         }
 
-        Err(ParseError::new(format!("`{}` is not a key gesture, missing key", s)))
+        Err(ParseError::new(format!("`{s}` is not a key gesture, missing key")))
     }
 }
 
@@ -966,11 +966,11 @@ impl std::str::FromStr for KeyChord {
         let complement = if let Some(complement) = parts.next() {
             complement.parse()?
         } else {
-            return Err(ParseError::new(format!("`{}` is not a key chord, expected `, <complement>`", s)));
+            return Err(ParseError::new(format!("`{s}` is not a key chord, expected `, <complement>`")));
         };
 
         if let Some(extra) = parts.next() {
-            return Err(ParseError::new(format!("`{}` is not a key chord, unexpected `,{}`", s, extra)));
+            return Err(ParseError::new(format!("`{s}` is not a key chord, unexpected `,{extra}`")));
         }
 
         Ok(KeyChord { starter, complement })
@@ -987,7 +987,7 @@ impl std::str::FromStr for Shortcut {
         } else {
             s.parse()
                 .map(Shortcut::Modifier)
-                .map_err(|_| ParseError::new(format!("`{}` is not a shortcut", s)))
+                .map_err(|_| ParseError::new(format!("`{s}` is not a shortcut")))
         }
     }
 }
@@ -1055,7 +1055,7 @@ macro_rules! gesture_keys {
             fn from_str(s: &str) -> Result<Self, Self::Err> {
                 match s.trim() {
                     $(stringify!($key) $(| $name)? => Ok(Self::$key),)+
-                    s => Err(ParseError::new(format!("`{}` is not a gesture key", s)))
+                    s => Err(ParseError::new(format!("`{s}` is not a gesture key")))
                 }
             }
         }

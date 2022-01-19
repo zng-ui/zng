@@ -116,7 +116,7 @@ pub(crate) fn unregister_raw_input() {
 
     if !ok {
         let e = unsafe { winapi::um::errhandlingapi::GetLastError() };
-        panic!("failed `unregister_raw_input`, 0x{:X}", e);
+        panic!("failed `unregister_raw_input`, 0x{e:X}");
     }
 }
 

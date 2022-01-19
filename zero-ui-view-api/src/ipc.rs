@@ -428,7 +428,7 @@ impl EventReceiver {
 fn handle_recv_error(e: ipc_channel::ipc::IpcError) -> Disconnected {
     match e {
         ipc_channel::ipc::IpcError::Disconnected => Disconnected,
-        e => panic!("IO or bincode error: {:?}", e),
+        e => panic!("IO or bincode error: {e:?}"),
     }
 }
 #[cfg(not(feature = "ipc"))]
@@ -443,8 +443,8 @@ fn handle_recv_error(e: flume::RecvError) -> Disconnected {
 fn handle_send_error(e: ipc_channel::Error) -> Disconnected {
     match *e {
         ipc_channel::ErrorKind::Io(e) if e.kind() == std::io::ErrorKind::BrokenPipe => Disconnected,
-        ipc_channel::ErrorKind::Io(e) => panic!("unexpected IO error: {:?}", e),
-        e => panic!("serialization error: {:?}", e),
+        ipc_channel::ErrorKind::Io(e) => panic!("unexpected IO error: {e:?}"),
+        e => panic!("serialization error: {e:?}"),
     }
 }
 
@@ -457,7 +457,7 @@ fn handle_send_error<T>(_: flume::SendError<T>) -> Disconnected {
 fn handle_io_error(e: std::io::Error) -> Disconnected {
     match e.kind() {
         std::io::ErrorKind::BrokenPipe => Disconnected,
-        e => panic!("unexpected IO error: {:?}", e),
+        e => panic!("unexpected IO error: {e:?}"),
     }
 }
 

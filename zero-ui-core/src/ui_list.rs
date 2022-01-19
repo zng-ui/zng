@@ -1286,7 +1286,7 @@ macro_rules! impl_tuples {
             fn widget_id(&self, index: usize) -> WidgetId {
                 match index {
                     $($n => self.items.$n.id(),)+
-                    _ => panic!("index {} out of range for length {}", index, self.len())
+                    _ => panic!("index {index} out of range for length {}", self.len())
                 }
             }
 
@@ -1294,7 +1294,7 @@ macro_rules! impl_tuples {
             fn widget_state(&self, index: usize) -> &StateMap {
                 match index {
                     $($n => self.items.$n.state(),)+
-                    _ => panic!("index {} out of range for length {}", index, self.len())
+                    _ => panic!("index {index} out of range for length {}", self.len())
                 }
             }
 
@@ -1302,7 +1302,7 @@ macro_rules! impl_tuples {
             fn widget_state_mut(&mut self, index: usize) -> &mut StateMap {
                 match index {
                     $($n => self.items.$n.state_mut(),)+
-                    _ => panic!("index {} out of range for length {}", index, self.len())
+                    _ => panic!("index {index} out of range for length {}", self.len())
                 }
             }
 
@@ -1310,7 +1310,7 @@ macro_rules! impl_tuples {
             fn widget_outer_bounds(&self, index: usize) -> PxRect {
                 match index {
                     $($n => self.items.$n.outer_bounds(),)+
-                    _ => panic!("index {} out of range for length {}", index, self.len())
+                    _ => panic!("index {index} out of range for length {}", self.len())
                 }
             }
 
@@ -1318,7 +1318,7 @@ macro_rules! impl_tuples {
             fn widget_inner_bounds(&self, index: usize) -> PxRect {
                 match index {
                     $($n => self.items.$n.inner_bounds(),)+
-                    _ => panic!("index {} out of range for length {}", index, self.len())
+                    _ => panic!("index {index} out of range for length {}", self.len())
                 }
             }
 
@@ -1326,7 +1326,7 @@ macro_rules! impl_tuples {
             fn widget_visibility(&self, index: usize) -> Visibility {
                 match index {
                     $($n => self.items.$n.visibility(),)+
-                    _ => panic!("index {} out of range for length {}", index, self.len())
+                    _ => panic!("index {index} out of range for length {}", self.len())
                 }
             }
         }
@@ -1409,7 +1409,7 @@ macro_rules! impl_tuples {
                     $(
                         $n => self.items.$n.measure(ctx, available_size),
                     )+
-                    _ => panic!("index {} out of range for length {}", index, self.len()),
+                    _ => panic!("index {index} out of range for length {}", self.len()),
                 }
             }
 
@@ -1433,7 +1433,7 @@ macro_rules! impl_tuples {
                     $(
                         $n => self.items.$n.arrange(ctx, widget_offset, final_size),
                     )+
-                    _ => panic!("index {} out of range for length {}", index, self.len()),
+                    _ => panic!("index {index} out of range for length {}", self.len()),
                 }
             }
 
@@ -1450,7 +1450,7 @@ macro_rules! impl_tuples {
                     $(
                         $n => self.items.$n.info(ctx, info),
                     )+
-                    _ => panic!("index {} out of range for length {}", index, self.len()),
+                    _ => panic!("index {index} out of range for length {}", self.len()),
                 }
             }
 
@@ -1467,7 +1467,7 @@ macro_rules! impl_tuples {
                     $(
                         $n => self.items.$n.subscriptions(ctx, subscriptions),
                     )+
-                    _ => panic!("index {} out of range for length {}", index, self.len()),
+                    _ => panic!("index {index} out of range for length {}", self.len()),
                 }
             }
 
@@ -1489,7 +1489,7 @@ macro_rules! impl_tuples {
                     $(
                         $n => self.items.$n.render(ctx, frame),
                     )+
-                    _ => panic!("index {} out of range for length {}", index, self.len()),
+                    _ => panic!("index {index} out of range for length {}", self.len()),
                 }
             }
 
@@ -1504,7 +1504,7 @@ macro_rules! impl_tuples {
                     $(
                         $n => self.items.$n.render_update(ctx, update),
                     )+
-                    _ => panic!("index {} out of range for length {}", index, self.len()),
+                    _ => panic!("index {index} out of range for length {}", self.len()),
                 }
             }
         }
@@ -1587,7 +1587,7 @@ macro_rules! empty_node_list {
 
             #[inline]
             fn widget_measure(&mut self, index: usize, _: &mut LayoutContext, _: AvailableSize) -> PxSize {
-                panic!("index {} out of range for length 0", index)
+                panic!("index {index} out of range for length 0")
             }
 
             #[inline]
@@ -1599,7 +1599,7 @@ macro_rules! empty_node_list {
 
             #[inline]
             fn widget_arrange(&mut self, index: usize, _: &mut LayoutContext, _: &mut WidgetOffset, _: PxSize) {
-                panic!("index {} out of range for length 0", index)
+                panic!("index {index} out of range for length 0")
             }
 
             fn info_all(&self, _: &mut InfoContext, _: &mut WidgetInfoBuilder) {
@@ -1607,14 +1607,14 @@ macro_rules! empty_node_list {
 
             #[inline]
             fn widget_info(&self, index: usize, _: &mut InfoContext, _: &mut WidgetInfoBuilder) {
-                panic!("index {} out of range for length 0", index)
+                panic!("index {index} out of range for length 0")
             }
 
             fn subscriptions_all(&self, _: &mut InfoContext, _: &mut WidgetSubscriptions) {}
 
             #[inline]
             fn widget_subscriptions(&self, index: usize, _: &mut InfoContext, _: &mut WidgetSubscriptions) {
-                panic!("index {} out of range for length 0", index)
+                panic!("index {index} out of range for length 0")
             }
 
             fn render_all<O>(&self, _: O, _: &mut RenderContext, _: &mut FrameBuilder)
@@ -1625,7 +1625,7 @@ macro_rules! empty_node_list {
 
             #[inline]
             fn widget_render(&self, index: usize, _: &mut RenderContext, _: &mut FrameBuilder) {
-                panic!("index {} out of range for length 0", index)
+                panic!("index {index} out of range for length 0")
             }
 
             #[inline]
@@ -1633,7 +1633,7 @@ macro_rules! empty_node_list {
 
             #[inline]
             fn widget_render_update(&self, index: usize, _: &mut RenderContext, _: &mut FrameUpdate) {
-                panic!("index {} out of range for length 0", index)
+                panic!("index {index} out of range for length 0")
             }
         }
     )+}
@@ -1655,27 +1655,27 @@ impl WidgetList for WidgetList0 {
     }
 
     fn widget_id(&self, index: usize) -> WidgetId {
-        panic!("index {} out of range for length 0", index)
+        panic!("index {index} out of range for length 0")
     }
 
     fn widget_state(&self, index: usize) -> &StateMap {
-        panic!("index {} out of range for length 0", index)
+        panic!("index {index} out of range for length 0")
     }
 
     fn widget_state_mut(&mut self, index: usize) -> &mut StateMap {
-        panic!("index {} out of range for length 0", index)
+        panic!("index {index} out of range for length 0")
     }
 
     fn widget_outer_bounds(&self, index: usize) -> PxRect {
-        panic!("index {} out of range for length 0", index)
+        panic!("index {index} out of range for length 0")
     }
 
     fn widget_inner_bounds(&self, index: usize) -> PxRect {
-        panic!("index {} out of range for length 0", index)
+        panic!("index {index} out of range for length 0")
     }
 
     fn widget_visibility(&self, index: usize) -> Visibility {
-        panic!("index {} out of range for length 0", index)
+        panic!("index {index} out of range for length 0")
     }
 }
 

@@ -168,7 +168,7 @@ where
 /// });
 ///
 /// // can still use after:
-/// let bar = foo.map(|c| formatx!("click_count: {}", c));
+/// let bar = foo.map(|c| formatx!("click_count: {c}"));
 ///
 /// # on_click }
 /// ```
@@ -230,7 +230,7 @@ where
 /// # let
 /// on_click = hn_once!(|_, _| {
 ///     for i in data {
-///         print!("{}, ", i);
+///         print!("{i}, ");
 ///     }
 /// });
 /// # on_click }
@@ -250,7 +250,7 @@ where
 ///     drop(data);
 /// });
 ///
-///  println!("{:?}", data);
+///  println!("{data:?}");
 /// # on_click }
 /// ```
 #[macro_export]
@@ -483,7 +483,7 @@ where
 /// on_open = async_hn_once!(|_, _| {
 ///     task::run(async move {
 ///          for i in data {
-///              print!("{}, ", i);
+///              print!("{i}, ");
 ///          }    
 ///     }).await;
 ///
@@ -505,13 +505,13 @@ where
 /// on_open = async_hn_once!(data, |_, _| {
 ///     task::run(async move {
 ///          for i in data {
-///              print!("{}, ", i);
+///              print!("{i}, ");
 ///          }    
 ///     }).await;
 ///
 ///     println!("Done!");
 /// });
-/// println!("{:?}", data);
+/// println!("{data:?}");
 /// # on_open }
 /// ```
 #[macro_export]
@@ -646,7 +646,7 @@ where
 /// }));
 ///
 /// // can still use after:
-/// let bar = foo.map(|c| formatx!("last click: {}", c));
+/// let bar = foo.map(|c| formatx!("last click: {c}"));
 ///
 /// # }
 /// ```
@@ -711,7 +711,7 @@ where
 ///
 /// ctx.events.on_event(ClickEvent, app_hn_once!(|_, _| {
 ///     for i in data {
-///         print!("{}, ", i);
+///         print!("{i}, ");
 ///     }
 /// }));
 /// # }
@@ -732,7 +732,7 @@ where
 ///     drop(data);
 /// }));
 ///
-///  println!("{:?}", data);
+///  println!("{data:?}");
 /// # }
 /// ```
 #[macro_export]
@@ -965,7 +965,7 @@ where
 /// on_open = async_hn_once!(|_, _| {
 ///     task::run(async move {
 ///          for i in data {
-///              print!("{}, ", i);
+///              print!("{i}, ");
 ///          }    
 ///     }).await;
 ///
@@ -987,13 +987,13 @@ where
 /// on_open = async_hn_once!(data, |_, _| {
 ///     task::run(async move {
 ///          for i in data {
-///              print!("{}, ", i);
+///              print!("{i}, ");
 ///          }    
 ///     }).await;
 ///
 ///     println!("Done!");
 /// });
-/// println!("{:?}", data);
+/// println!("{data:?}");
 /// # on_open }
 /// ```
 #[macro_export]
@@ -1022,10 +1022,10 @@ pub use crate::async_app_hn_once;
 ///
 /// let bar = "Cool!".to_owned();
 /// foo(clone_move!(bar, |p| {
-///     if p { println!("cloned: {}", bar) }
+///     if p { println!("cloned: {bar}") }
 /// }));
 ///
-/// println!("original: {}", bar);
+/// println!("original: {bar}");
 /// ```
 ///
 /// Expands to:
@@ -1039,10 +1039,10 @@ pub use crate::async_app_hn_once;
 /// foo({
 ///     let bar = bar.clone();
 ///     move |p| {
-///         if p { println!("cloned: {}", bar) }
+///         if p { println!("cloned: {bar}") }
 ///     }
 /// });
-/// # println!("original: {}", bar);
+/// # println!("original: {bar}");
 /// ```
 ///
 /// # Other Patterns
@@ -1060,10 +1060,10 @@ pub use crate::async_app_hn_once;
 /// let bar = Rc::new("Cool!".to_string());
 /// foo(clone_move!(mut *bar, |p| {
 ///     bar.push_str("!!");
-///     if p { println!("cloned String not Rc: {}", bar) }
+///     if p { println!("cloned String not Rc: {bar}") }
 /// }));
 ///
-/// println!("original: {}", bar);
+/// println!("original: {bar}");
 /// ```
 ///
 /// Expands to:
@@ -1079,10 +1079,10 @@ pub use crate::async_app_hn_once;
 ///     let mut bar = (*bar).clone();
 ///     move |p| {
 ///         bar.push_str("!!");
-///         if p { println!("cloned String not Rc: {}", bar) }
+///         if p { println!("cloned String not Rc: {bar}") }
 ///     }
 ///});
-/// # println!("original: {}", bar);
+/// # println!("original: {bar}");
 /// ```
 ///
 /// # Async
@@ -1221,10 +1221,10 @@ macro_rules! __async_clone_move {
 /// let bar = "Cool!".to_owned();
 /// foo(async_clone_move_fn!(bar, |p| {
 ///     std::future::ready(()).await;
-///     if p { println!("cloned: {}", bar) }
+///     if p { println!("cloned: {bar}") }
 /// }));
 ///
-/// println!("original: {}", bar);
+/// println!("original: {bar}");
 /// ```
 ///
 /// Expands to:
@@ -1242,11 +1242,11 @@ macro_rules! __async_clone_move {
 ///         let bar = bar.clone();
 ///         async move {
 ///             std::future::ready(()).await;
-///             if p { println!("cloned: {}", bar) }
+///             if p { println!("cloned: {bar}") }
 ///         }
 ///     }
 /// });
-/// # println!("original: {}", bar);
+/// # println!("original: {bar}");
 /// ```
 #[macro_export]
 macro_rules! async_clone_move_fn {
@@ -1399,10 +1399,10 @@ macro_rules! __async_clone_move_fn {
 /// let bar = "Cool!".to_owned();
 /// foo(async_clone_move_fn!(bar, |p| {
 ///     std::future::ready(()).await;
-///     if p { println!("cloned: {}", bar) }
+///     if p { println!("cloned: {bar}") }
 /// }));
 ///
-/// println!("original: {}", bar);
+/// println!("original: {bar}");
 /// ```
 ///
 /// Expands to:
@@ -1418,10 +1418,10 @@ macro_rules! __async_clone_move_fn {
 ///     let bar = bar.clone();
 ///     move |p| async move {
 ///         std::future::ready(()).await;
-///         if p { println!("cloned: {}", bar) }
+///         if p { println!("cloned: {bar}") }
 ///     }
 /// });
-/// # println!("original: {}", bar);
+/// # println!("original: {bar}");
 /// ```
 #[macro_export]
 macro_rules! async_clone_move_fn_once {
@@ -1566,8 +1566,7 @@ impl crate::context::TestWidgetContext {
             } {
                 if Instant::now().duration_since(start_time) >= timeout {
                     return Err(format!(
-                        "TestWidgetContext::block_on reached timeout of {:?} before the handler task could finish",
-                        timeout
+                        "TestWidgetContext::block_on reached timeout of {timeout:?} before the handler task could finish",
                     ));
                 }
 
@@ -1650,8 +1649,7 @@ impl HeadlessApp {
                 let flow = self.update(false);
                 if Instant::now().duration_since(start_time) >= timeout {
                     return Err(format!(
-                        "TestWidgetContext::block_on reached timeout of {:?} before the handler task could finish",
-                        timeout
+                        "TestWidgetContext::block_on reached timeout of {timeout:?} before the handler task could finish",
                     ));
                 }
 
@@ -1679,7 +1677,7 @@ impl HeadlessApp {
         crate::task::pin!(future);
         loop {
             if start_time.elapsed() >= timeout {
-                return Err(format!("reached timeout `{:?}`", timeout));
+                return Err(format!("reached timeout `{timeout:?}`"));
             }
             match future.as_mut().poll(&mut cx) {
                 std::task::Poll::Ready(r) => {

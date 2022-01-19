@@ -26,7 +26,7 @@
 //!             numbers.par_iter().map(|i| i * i).sum()
 //!         });
 //!         let sum: usize = sum_task.await;
-//!         println!("sum of squares: {}", sum);
+//!         println!("sum of squares: {sum}");
 //!
 //!         enabled.set(&ctx, true);
 //!     });
@@ -100,7 +100,7 @@
 //!
 //!         match task::http::get_text("https://httpbin.org/get").await {
 //!             Ok(r) => msg.set(&ctx, r),
-//!             Err(e) => msg.set(&ctx, formatx!("error: {}", e)),
+//!             Err(e) => msg.set(&ctx, formatx!("error: {e}")),
 //!         }
 //!
 //!         enabled.set(&ctx, true);
@@ -213,7 +213,7 @@ pub mod ui;
 ///
 /// fn on_update(&mut self, ctx: &mut WidgetContext) {
 ///     if let Some(result) = self.sum_response.rsp_new(ctx) {
-///         println!("sum of squares 0..1000: {}", result);   
+///         println!("sum of squares 0..1000: {result}");   
 ///     }
 /// }
 /// # }
@@ -435,7 +435,7 @@ where
 ///
 /// fn on_update(&mut self, ctx: &mut WidgetContext) {
 ///     if let Some(result) = self.sum_response.rsp_new(ctx) {
-///         println!("sum of squares: {}", result);   
+///         println!("sum of squares: {result}");   
 ///     }
 /// }
 /// # }
@@ -892,7 +892,7 @@ pub async fn with_deadline<O, F: Future<Output = O>>(fut: F, deadline: Instant) 
 ///         count += 1;
 ///         match fut.as_mut().poll(cx) {
 ///             Poll::Ready(r) => {
-///                 println!("polled {} times", count);
+///                 println!("polled {count} times");
 ///                 Poll::Ready(r)
 ///             },
 ///             p => p
