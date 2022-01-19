@@ -314,7 +314,7 @@ impl WindowVars {
     /// Relative values are computed in relation to the full-screen size.
     ///
     /// When the user resizes the window this value is considered stale, when it updates it overwrites the window size again,
-    /// not that the window is only resized if it is in the [`Normal`] state, otherwise only the [`restore_rect`] updates.
+    /// note that the window is only resized if it is in the [`Normal`] state, otherwise only the [`restore_rect`] updates.
     ///
     /// When the window is resized this variable does **not** updated back, to track the current window size use [`actual_size`],
     /// to track the *restore* size use [`restore_rect`].

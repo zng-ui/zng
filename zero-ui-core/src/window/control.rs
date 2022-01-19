@@ -88,11 +88,13 @@ impl HeadedCtrl {
                     self.vars.visible().set(ctx, true);
                 }
             } else {
+                let mut new_state = self.state.clone().unwrap();
+
                 if let Some(query) = self.vars.monitor().get_new(ctx.vars) {
                     if let Some(new) = query.select(ctx.services.monitors()).map(|m| m.id) {
                         let current = self.vars.0.actual_monitor.copy(ctx.vars);
                         if Some(new) != current {
-                            // TODO, see vars.monitor() docs
+                            // see vars.monitor() docs
                             match self.vars.state().copy(ctx) {
                                 WindowState::Normal => todo!(),
                                 WindowState::Minimized => todo!(),
@@ -104,16 +106,58 @@ impl HeadedCtrl {
                     }
                 }
 
-                if self.vars.size().is_new(ctx)
-                    || self.vars.min_size().is_new(ctx)
-                    || self.vars.max_size().is_new(ctx)
-                    || self.vars.auto_size().is_new(ctx)
-                {
+                if let Some(state) = self.vars.state().copy_new(ctx) {
+                    new_state.state = state;
+                }
+
+                if self.vars.min_size().is_new(ctx) || self.vars.max_size().is_new(ctx) {
+                    if let Some(m) = &self.monitor {
+                        let scale_factor = m.info.scale_factor.fct();
+                        let screen_ppi = m.ppi.copy(ctx);
+                        let (min_size, max_size) = self.content.outer_layout(ctx, scale_factor, screen_ppi, m.info.size, |ctx| {
+                            let available_size = AvailableSize::finite(m.info.size);
+
+                            let min_size = self
+                                .vars
+                                .size()
+                                .get(ctx.vars)
+                                .to_layout(ctx, available_size, default_min_size(scale_factor));
+
+                            let max_size = self.vars.size().get(ctx.vars).to_layout(ctx, available_size, m.info.size);
+
+                            (min_size.to_dip(scale_factor.0), max_size.to_dip(scale_factor.0))
+                        });
+
+                        let size = new_state.restore_rect.size;
+
+                        new_state.restore_rect.size = size.min(max_size).max(min_size);
+                        new_state.min_size = min_size;
+                        new_state.max_size = max_size;
+                    }
+                }
+
+                if let Some(auto) = self.vars.auto_size().copy_new(ctx) {
+                    if auto != AutoSize::DISABLED {
+                        self.content.layout_requested = true;
+                        ctx.updates.layout();
+                    }
+                }
+
+                if self.vars.size().is_new(ctx) {
+                    let auto_size = self.vars.auto_size().copy(ctx);
+
                     todo!()
                 }
 
-                if self.vars.position().is_new(ctx) {
-                    todo!() // related to monitor too
+                if let Some(pos) = self.vars.position().get_new(ctx.vars) {
+                    if let Some(m) = &self.monitor {
+                        let scale_factor = m.info.scale_factor.fct();
+                        let screen_ppi = m.ppi.copy(ctx);
+                        let pos = self.content.outer_layout(ctx, scale_factor, screen_ppi, m.info.size, |ctx| {
+                            pos.to_layout(ctx, AvailableSize::finite(m.info.size), PxPoint::new(Px(50), Px(50)))
+                        });
+                        new_state.restore_rect.origin = pos.to_dip(scale_factor.0);
+                    }
                 }
 
                 if let Some(visible) = self.vars.visible().copy_new(ctx) {
@@ -126,6 +170,10 @@ impl HeadedCtrl {
 
                 if let Some(resizable) = self.vars.resizable().copy_new(ctx) {
                     let _: Ignore = view.set_resizable(resizable);
+                }
+
+                if self.state.as_ref().unwrap() != &new_state  {
+                    let _: Ignore = view.set_state(new_state);
                 }
             }
 
@@ -314,19 +362,22 @@ impl HeadedCtrl {
         let (min_size, max_size, size) = self.content.outer_layout(ctx, scale_factor, screen_ppi, screen_size, |ctx| {
             let available_size = AvailableSize::finite(screen_size);
 
-            let default_min = DipSize::new(Dip::new(192), Dip::new(48)).to_px(scale_factor.0);
             let min_size = self
                 .vars
                 .min_size()
                 .get(ctx.vars)
-                .to_layout(ctx.metrics, available_size, default_min);
+                .to_layout(ctx.metrics, available_size, default_min_size(scale_factor));
             let max_size = self
                 .vars
                 .max_size()
                 .get(ctx.vars)
                 .to_layout(ctx.metrics, available_size, screen_size);
-            let default_size = DipSize::new(Dip::new(800), Dip::new(600)).to_px(scale_factor.0);
-            let size = self.vars.size().get(ctx.vars).to_layout(ctx.metrics, available_size, default_size);
+
+            let size = self
+                .vars
+                .size()
+                .get(ctx.vars)
+                .to_layout(ctx.metrics, available_size, default_size(scale_factor));
 
             (min_size, max_size, size.min(min_size).max(max_size))
         });
@@ -607,19 +658,23 @@ impl HeadlessWithRendererCtrl {
         let (min_size, max_size, size) = self.content.outer_layout(ctx, scale_factor, screen_ppi, screen_size, |ctx| {
             let available_size = AvailableSize::finite(screen_size);
 
-            let default_min = DipSize::new(Dip::new(192), Dip::new(48)).to_px(scale_factor.0);
             let min_size = self
                 .vars
                 .min_size()
                 .get(ctx.vars)
-                .to_layout(ctx.metrics, available_size, default_min);
+                .to_layout(ctx.metrics, available_size, default_min_size(scale_factor));
+
             let max_size = self
                 .vars
                 .max_size()
                 .get(ctx.vars)
                 .to_layout(ctx.metrics, available_size, screen_size);
-            let default_size = DipSize::new(Dip::new(800), Dip::new(600)).to_px(scale_factor.0);
-            let size = self.vars.size().get(ctx.vars).to_layout(ctx.metrics, available_size, default_size);
+
+            let size = self
+                .vars
+                .size()
+                .get(ctx.vars)
+                .to_layout(ctx.metrics, available_size, default_size(scale_factor));
 
             (min_size, max_size, size.min(min_size).max(max_size))
         });
@@ -730,19 +785,23 @@ impl HeadlessCtrl {
         let (min_size, max_size, size) = self.content.outer_layout(ctx, scale_factor, screen_ppi, screen_size, |ctx| {
             let available_size = AvailableSize::finite(screen_size);
 
-            let default_min = DipSize::new(Dip::new(192), Dip::new(48)).to_px(scale_factor.0);
             let min_size = self
                 .vars
                 .min_size()
                 .get(ctx.vars)
-                .to_layout(ctx.metrics, available_size, default_min);
+                .to_layout(ctx.metrics, available_size, default_min_size(scale_factor));
+
             let max_size = self
                 .vars
                 .max_size()
                 .get(ctx.vars)
                 .to_layout(ctx.metrics, available_size, screen_size);
-            let default_size = DipSize::new(Dip::new(800), Dip::new(600)).to_px(scale_factor.0);
-            let size = self.vars.size().get(ctx.vars).to_layout(ctx.metrics, available_size, default_size);
+
+            let size = self
+                .vars
+                .size()
+                .get(ctx.vars)
+                .to_layout(ctx.metrics, available_size, default_size(scale_factor));
 
             (min_size, max_size, size.min(min_size).max(max_size))
         });
@@ -1222,6 +1281,14 @@ impl WindowCtrl {
 
 fn base_font_size(scale_factor: Factor) -> Px {
     Length::pt_to_px(13.0, scale_factor)
+}
+
+fn default_min_size(scale_factor: Factor) -> PxSize {
+    DipSize::new(Dip::new(192), Dip::new(48)).to_px(scale_factor.0)
+}
+
+fn default_size(scale_factor: Factor) -> PxSize {
+    DipSize::new(Dip::new(800), Dip::new(600)).to_px(scale_factor.0)
 }
 
 /// Respawned error is ok here, because we recreate the window/surface on respawn.
