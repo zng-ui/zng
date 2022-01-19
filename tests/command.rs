@@ -34,7 +34,7 @@ fn notify_scoped() {
 
     let trace = app.ctx().app_state.req(TestTrace);
     assert_eq!(1, trace.len());
-    assert!(trace.contains(&format!("scoped-win / Window({:?})", window_id)))
+    assert!(trace.contains(&format!("scoped-win / Window({window_id:?})")))
 }
 
 #[test]
@@ -64,7 +64,7 @@ fn shortcut_scoped() {
     {
         let trace = app.ctx().app_state.req_mut(TestTrace);
         assert_eq!(1, trace.len());
-        assert!(trace.contains(&format!("scoped-win / Window({:?})", window_id)));
+        assert!(trace.contains(&format!("scoped-win / Window({window_id:?})")));
         trace.clear();
     }
 

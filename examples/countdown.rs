@@ -21,8 +21,8 @@ fn app_main() {
             count
         });
         let countdown = count.map(move |&n| {
-            let r = if n > 0 { formatx!("{}", n) } else { "Done!".to_text() };
-            println!("{}", r);
+            let r = if n > 0 { formatx!("{n}") } else { "Done!".to_text() };
+            println!("{r}");
             r
         });
         let background_color = count.map(|&n| {

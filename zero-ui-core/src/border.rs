@@ -77,7 +77,7 @@ impl fmt::Debug for LineStyle {
             LineStyle::Dashed => write!(f, "Dashed"),
             LineStyle::Groove => write!(f, "Groove"),
             LineStyle::Ridge => write!(f, "Ridge"),
-            LineStyle::Wavy(t) => write!(f, "Wavy({})", t),
+            LineStyle::Wavy(t) => write!(f, "Wavy({t})"),
             LineStyle::Hidden => write!(f, "Hidden"),
         }
     }

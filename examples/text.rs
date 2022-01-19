@@ -20,7 +20,7 @@ fn app_main() {
     App::default().run_window(|ctx| {
         let fs = var(Length::Pt(11.0));
         window! {
-            title = fs.map(|s| formatx!("Text Example - font_size: {}", s));
+            title = fs.map(|s| formatx!("Text Example - font_size: {s}"));
             font_size = fs.clone();
             content = h_stack! {
                 spacing = 40;
@@ -129,9 +129,9 @@ fn defaults(ctx: &mut WindowContext) -> impl Widget {
 
         h_stack(widgets![
             text(if title.is_empty() {
-                formatx!("{}: ", font_family)
+                formatx!("{font_family}: ")
             } else {
-                formatx!("{}: ", title)
+                formatx!("{title}: ")
             }),
             text! {
                 text = font.best().display_name().to_text();

@@ -214,10 +214,10 @@ impl fmt::Display for Rgba {
 
         let a = i(self.alpha);
         if a == 255 {
-            write!(f, "#{:0>6X}", rgb)
+            write!(f, "#{rgb:0>6X}")
         } else {
             let rgba = rgb << 8 | a;
-            write!(f, "#{:0>8X}", rgba)
+            write!(f, "#{rgba:0>8X}")
         }
     }
 }
@@ -351,12 +351,11 @@ impl fmt::Debug for Hsla {
             let a = p(self.alpha);
             let h = AngleDegree(self.hue).modulo().0.round();
             if (a - 100.0).abs() <= EPSILON {
-                write!(f, "hsl({}.deg(), {}.pct(), {}.pct())", h, p(self.saturation), p(self.lightness))
+                write!(f, "hsl({h}.deg(), {}.pct(), {}.pct())", p(self.saturation), p(self.lightness))
             } else {
                 write!(
                     f,
-                    "hsla({}.deg(), {}.pct(), {}.pct(), {}.pct())",
-                    h,
+                    "hsla({h}.deg(), {}.pct(), {}.pct(), {}.pct())",
                     p(self.saturation),
                     p(self.lightness),
                     a
@@ -373,9 +372,9 @@ impl fmt::Display for Hsla {
         let a = p(self.alpha);
         let h = AngleDegree(self.hue).modulo().0.round();
         if (a - 100.0).abs() <= EPSILON {
-            write!(f, "hsl({}º, {}%, {}%)", h, p(self.saturation), p(self.lightness))
+            write!(f, "hsl({h}º, {}%, {}%)", p(self.saturation), p(self.lightness))
         } else {
-            write!(f, "hsla({}º, {}%, {}%, {}%)", h, p(self.saturation), p(self.lightness), a)
+            write!(f, "hsla({h}º, {}%, {}%, {}%)", p(self.saturation), p(self.lightness), a)
         }
     }
 }
@@ -480,12 +479,11 @@ impl fmt::Debug for Hsva {
             let a = p(self.alpha);
             let h = AngleDegree(self.hue).modulo().0.round();
             if (a - 100.0).abs() <= EPSILON {
-                write!(f, "hsv({}.deg(), {}.pct(), {}.pct())", h, p(self.saturation), p(self.value))
+                write!(f, "hsv({h}.deg(), {}.pct(), {}.pct())", p(self.saturation), p(self.value))
             } else {
                 write!(
                     f,
-                    "hsva({}.deg(), {}.pct(), {}.pct(), {}.pct())",
-                    h,
+                    "hsva({h}.deg(), {}.pct(), {}.pct(), {}.pct())",
                     p(self.saturation),
                     p(self.value),
                     a
@@ -502,9 +500,9 @@ impl fmt::Display for Hsva {
         let a = p(self.alpha);
         let h = AngleDegree(self.hue).modulo().0.round();
         if (a - 100.0).abs() <= EPSILON {
-            write!(f, "hsv({}º, {}%, {}%)", h, p(self.saturation), p(self.value))
+            write!(f, "hsv({h}º, {}%, {}%)", p(self.saturation), p(self.value))
         } else {
-            write!(f, "hsva({}º, {}%, {}%, {}%)", h, p(self.saturation), p(self.value), a)
+            write!(f, "hsva({h}º, {}%, {}%, {}%)", p(self.saturation), p(self.value), a)
         }
     }
 }
@@ -890,7 +888,7 @@ mod tests {
     #[test]
     fn rgb_to_hsl() {
         let color = rgba(0, 100, 200, 0.2);
-        let a = format!("{:?}", color);
+        let a = format!("{color:?}");
         let b = format!("{:?}", color.to_hsla().to_rgba());
         assert_eq!(a, b)
     }
@@ -898,7 +896,7 @@ mod tests {
     #[test]
     fn rgb_to_hsv() {
         let color = rgba(0, 100, 200, 0.2);
-        let a = format!("{:?}", color);
+        let a = format!("{color:?}");
         let b = format!("{:?}", color.to_hsva().to_rgba());
         assert_eq!(a, b)
     }
@@ -946,7 +944,7 @@ mod tests {
     // #[test]
     // fn rgb_to_hsv_all() {
     //     for r in 0..=255 {
-    //         println!("{}", r);
+    //         println!("{r}");
     //         for g in 0..=255 {
     //             for b in 0..=255 {
     //                 let color = rgb(r, g, b);
@@ -1153,7 +1151,7 @@ impl fmt::Debug for Filter {
         } else {
             write!(f, "{:?}", self.filters[0])?;
             for filter in &self.filters[1..] {
-                write!(f, ".{:?}", filter)?;
+                write!(f, ".{filter:?}")?;
             }
             Ok(())
         }
@@ -1190,21 +1188,21 @@ impl fmt::Debug for FilterData {
         } else {
             fn bool_or_pct(func: &'static str, value: f32, f: &mut fmt::Formatter<'_>) -> fmt::Result {
                 if value.abs() < 0.0001 {
-                    write!(f, "{}(false)", func)
+                    write!(f, "{func}(false)")
                 } else if (value - 1.0).abs() < 0.0001 {
-                    write!(f, "{}(true)", func)
+                    write!(f, "{func}(true)")
                 } else {
-                    write!(f, "{}({}.pct())", func, value * 100.0)
+                    write!(f, "{func}({}.pct())", value * 100.0)
                 }
             }
             match self {
                 FilterData::Op(op) => match op {
                     FilterOp::Identity => todo!(),
-                    FilterOp::Blur(w, _) => write!(f, "blur({})", w),
+                    FilterOp::Blur(w, _) => write!(f, "blur({w})"),
                     FilterOp::Brightness(b) => write!(f, "brightness({}.pct())", b * 100.0),
                     FilterOp::Contrast(c) => write!(f, "brightness({}.pct())", c * 100.0),
                     FilterOp::Grayscale(c) => bool_or_pct("grayscale", *c, f),
-                    FilterOp::HueRotate(d) => write!(f, "hue_rotate({}.deg())", d),
+                    FilterOp::HueRotate(d) => write!(f, "hue_rotate({d}.deg())"),
                     FilterOp::Invert(i) => bool_or_pct("invert", *i, f),
                     FilterOp::Opacity(_, a) => write!(f, "opacity({}.pct())", a * 100.0),
                     FilterOp::Saturate(s) => write!(f, "saturate({}.pct())", s * 100.0),
@@ -1223,13 +1221,13 @@ impl fmt::Debug for FilterData {
                     FilterOp::ComponentTransfer => todo!(),
                     FilterOp::Flood(_) => todo!(),
                 },
-                FilterData::Blur(l) => write!(f, "blur({:?})", l),
+                FilterData::Blur(l) => write!(f, "blur({l:?})"),
                 FilterData::DropShadow {
                     offset,
                     blur_radius,
                     color,
                 } => {
-                    write!(f, "drop_shadow({:?}, {:?}, {:?})", offset, blur_radius, color)
+                    write!(f, "drop_shadow({offset:?}, {blur_radius:?}, {color:?})")
                 }
             }
         }

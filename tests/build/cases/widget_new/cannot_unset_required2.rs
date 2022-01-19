@@ -10,7 +10,7 @@ pub mod test_widget {
     }
 
     fn new_child(foo: bool) -> NilUiNode {
-        println!("{}", foo);
+        println!("{foo}");
         NilUiNode
     }
 }

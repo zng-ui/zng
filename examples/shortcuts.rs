@@ -46,7 +46,7 @@ fn app_main() {
                     if key.is_modifier() {
                         new_shortcut_text = "";
                     }
-                    keypress_text.set(ctx.vars, formatx!{"{:?}", key})
+                    keypress_text.set(ctx.vars, formatx!{"{key:?}"})
                 } else {
                     keypress_text.set(ctx.vars, formatx!{"Scan Code: {:?}", args.scan_code})
                 }

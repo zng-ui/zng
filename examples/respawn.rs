@@ -63,7 +63,7 @@ fn click_counter() -> impl Widget {
     button! {
         on_click = hn!(t, |ctx, _| {
             count += 1;
-            let new_txt = formatx!("Clicked {} time{}!", count, if count > 1 {"s"} else {""});
+            let new_txt = formatx!("Clicked {count} time{}!", if count > 1 {"s"} else {""});
             t.set(ctx, new_txt);
         });
         content = text(t);
@@ -85,7 +85,7 @@ fn window_status(ctx: &mut WindowContext) -> impl Widget {
 
     macro_rules! status {
         ($name:ident) => {
-            text(vars.$name().map(|v| formatx!("{}: {:?}", stringify!($name), v)))
+            text(vars.$name().map(|v| formatx!("{}: {v:?}", stringify!($name))))
         };
     }
 

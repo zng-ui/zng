@@ -45,7 +45,7 @@
 //!         enabled.set(&ctx, false);
 //!         let data = task::wait(|| std::fs::read_to_string("data.txt")).await;
 //!         if let Ok(data) = data {
-//!             println!("Data: {}", data);
+//!             println!("Data: {data}");
 //!         }
 //!         enabled.set(&ctx, true);
 //!     });

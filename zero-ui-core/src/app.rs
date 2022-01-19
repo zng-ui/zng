@@ -1207,7 +1207,7 @@ impl<E: AppExtension> RunningApp<E> {
             AppEvent::ViewEvent(ev) => match ev {
                 zero_ui_view_api::Event::FrameRendered(ev) => {
                     if ev.window == 0 {
-                        tracing::error!("ignored rendered event for invalid window id 0, {:?}", ev);
+                        tracing::error!("ignored rendered event for invalid window id 0, {ev:?}");
                         return;
                     }
 
@@ -1222,7 +1222,7 @@ impl<E: AppExtension> RunningApp<E> {
 
                     #[cfg(debug_assertions)]
                     if self.pending_view_frame_events.iter().any(|e| e.window == ev.window) {
-                        tracing::warn!("window `{:?}` probably sent a frame request without awaiting renderer idle", window);
+                        tracing::warn!("window `{window:?}` probably sent a frame request without awaiting renderer idle");
                     }
 
                     self.pending_view_frame_events.push(ev);

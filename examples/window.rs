@@ -30,7 +30,7 @@ fn main_window(ctx: &mut WindowContext) -> Window {
     let title = merge_var!(
         window_vars.actual_position(),
         window_vars.actual_size(),
-        move |p: &DipPoint, s: &DipSize| { formatx!("Window Example {} - position: {:.0?}, size: {:.0?}", window_id.sequential(), p, s) }
+        move |p: &DipPoint, s: &DipSize| { formatx!("Window Example {} - position: {p:.0?}, size: {s:.0?}", window_id.sequential()) }
     );
 
     let background = var(rgb(0.1, 0.1, 0.1));
@@ -138,7 +138,7 @@ fn screenshot() -> impl Widget {
                         println!("saved in {:?}", t.elapsed());
                     }
                     Err(e) => {
-                        eprintln!("error {}", e)
+                        eprintln!("error {e}")
                     }
                 }
 
@@ -177,7 +177,7 @@ fn screenshot() -> impl Widget {
                             println!("saving screenshot..");
                             match args.frame_image.unwrap().save("screenshot.png").await {
                                 Ok(_) => println!("saved"),
-                                Err(e) => eprintln!("{}", e)
+                                Err(e) => eprintln!("{e}")
                             }
 
                             let window_id = args.window_id;
@@ -238,7 +238,7 @@ fn chrome(window_vars: &WindowVars) -> impl Widget {
         let chrome = window_vars.chrome().clone();
 
         button! {
-            content = text(formatx!("{:?}", c));
+            content = text(formatx!("{c:?}"));
             on_click = hn!(chrome, c, |ctx, _| {
                 chrome.set_ne(ctx, c.clone());
             });
@@ -282,7 +282,7 @@ fn state(window_vars: &WindowVars) -> impl Widget {
     let state_btn = |s: WindowState| {
         let state = window_vars.state().clone();
         button! {
-            content = text(formatx!("{:?}", s));
+            content = text(formatx!("{s:?}"));
             on_click = hn!(state, |ctx, _| {
                 state.set_ne(ctx, s);
             });

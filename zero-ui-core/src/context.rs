@@ -1352,7 +1352,7 @@ impl fmt::Debug for WidgetContextPath {
                 .field("widget_ids", &self.widget_ids)
                 .finish()
         } else {
-            write!(f, "{}", self)
+            write!(f, "{self}")
         }
     }
 }
@@ -1361,7 +1361,7 @@ impl fmt::Display for WidgetContextPath {
         // "WinId(1)//Wgt(1)/Wgt(23)"
         write!(f, "{}/", self.window_id)?;
         for w in &self.widget_ids {
-            write!(f, "/{}", w)?;
+            write!(f, "/{w}")?;
         }
         Ok(())
     }

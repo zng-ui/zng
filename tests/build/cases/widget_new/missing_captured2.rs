@@ -10,7 +10,7 @@ pub mod test_widget {
     }
 
     fn new_outer(child: impl UiNode, foo: bool) -> impl UiNode {
-        println!("{}", foo);
+        println!("{foo}");
         child
     }
 }

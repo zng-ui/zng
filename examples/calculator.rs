@@ -212,15 +212,15 @@ impl Calculator {
                 Ok(new) => {
                     if new.is_finite() {
                         self.buffer.clear();
-                        let _ = write!(&mut self.buffer.to_mut(), "{}", new);
+                        let _ = write!(&mut self.buffer.to_mut(), "{new}");
                         self.error = false;
                     } else {
-                        eprintln!("Result not finite: {}", new);
+                        eprintln!("Result not finite: {new}");
                         self.error = true;
                     }
                 }
                 Err(e) => {
-                    eprintln!("{}", e);
+                    eprintln!("{e}");
                     self.error = true;
                 }
             }

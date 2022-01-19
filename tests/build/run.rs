@@ -8,7 +8,7 @@ pub fn do_request() {
 
         std::env::set_current_dir(env!("CARGO_MANIFEST_DIR")).unwrap();
 
-        trybuild::TestCases::new().compile_fail(format!("cases/{}.rs", test));
+        trybuild::TestCases::new().compile_fail(format!("cases/{test}.rs"));
     } else {
         eprintln!("run with `cargo do test --build *`");
     }

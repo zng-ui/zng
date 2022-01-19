@@ -55,7 +55,7 @@ fn cursor_demo(icon: Option<CursorIcon>) -> impl Widget {
 
         content = text! {
             text = match icon {
-                Some(ico) => formatx!("{:?}", ico),
+                Some(ico) => formatx!("{ico:?}"),
                 None => Text::from_static("<none>"),
             };
 

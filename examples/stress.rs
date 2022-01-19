@@ -26,7 +26,7 @@ fn text_change_all(ctx: &mut WindowContext) -> Window {
         if dots_count == 8 {
             dots_count = 0;
         }
-        formatx!("loading{:.^1$}", "", dots_count)
+        formatx!("loading{:.^dots_count$}", "")
     });
 
     let mut texts = widget_vec![];
@@ -83,7 +83,7 @@ fn multi_window(ctx: &mut WindowContext) -> Window {
         if dots_count == 8 {
             dots_count = 0;
         }
-        formatx!("loading{:.^1$}", "", dots_count)
+        formatx!("loading{:.^dots_count$}", "")
     });
 
     let monitor_size = ctx
@@ -112,7 +112,7 @@ fn multi_window(ctx: &mut WindowContext) -> Window {
         }
 
         wns.push(window! {
-            title = formatx!("stress - multi_window - {}", i);
+            title = formatx!("stress - multi_window - {i}");
             position = window_pos;
             size = window_size;
             on_close = hn!(|ctx, _| {
@@ -164,16 +164,16 @@ fn main() {
             test = t;
             filter = f;
         } else {
-            eprintln!("unknown stress test `{}`\nTESTS:", s);
+            eprintln!("unknown stress test `{s}`\nTESTS:");
             for (t, _, _) in TESTS {
-                eprintln!("   {}", t);
+                eprintln!("   {t}");
             }
             return;
         }
     } else {
         eprintln!("do run stress -- <stress-test>\nTESTS:");
         for (t, _, _) in TESTS {
-            eprintln!("   {}", t);
+            eprintln!("   {t}");
         }
         return;
     }
@@ -202,7 +202,7 @@ fn main() {
                 ("dyn_app_extension", &cfg!(feature = "dyn_app_extension")),
                 ("dyn_widget", &cfg!(feature = "dyn_widget")),
                 ("dyn_property", &cfg!(feature = "dyn_property")),
-                ("render_mode", &format!("{:?}", RENDER_MODE)),
+                ("render_mode", &format!("{RENDER_MODE:?}")),
             ],
             filter,
         );

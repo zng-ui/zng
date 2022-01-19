@@ -1148,7 +1148,7 @@ impl<C: Command> CommandNameExt for C {
             if shortcut.is_empty() {
                 name.clone()
             } else {
-                crate::formatx!("{} ({})", name, shortcut[0])
+                crate::formatx!("{name} ({})", shortcut[0])
             }
         })
         .boxed()

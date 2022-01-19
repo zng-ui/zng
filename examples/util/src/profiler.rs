@@ -121,7 +121,7 @@ fn record_profile_impl(
     .unwrap();
     let mut comma = "";
     for (key, value) in about {
-        write!(&mut file, r#"{}"{}":"{}""#, comma, escape(key), escape(&format!("{}", value))).unwrap();
+        write!(&mut file, r#"{comma}"{}":"{}""#, escape(key), escape(&format!("{value}"))).unwrap();
         comma = ",";
     }
     write!(&mut file, r#"}},"traceEvents":["#).unwrap();
@@ -174,21 +174,17 @@ fn record_profile_impl(
 
                         write!(
                             &mut file,
-                            r#"{}{{"pid":{},"tid":{},"ts":{},"ph":"i","name":"{}","cat":"{}","args":{{"target":"{}""#,
-                            comma,
-                            pid,
-                            tid,
-                            ts,
-                            NameDisplay(name, &["name", "message"], &args),
-                            level,
-                            escape(target)
+                            r#"{comma}{{"pid":{pid},"tid":{tid},"ts":{ts},"ph":"i","name":"{name}","cat":"{cat}","args":{{"target":"{target}""#,
+                            name = NameDisplay(name, &["name", "message"], &args),
+                            cat = level,
+                            target = escape(target)
                         )
                         .unwrap();
                         if let Some(f) = c_file {
                             write!(&mut file, r#","file":"{}""#, escape(f)).unwrap();
                         }
                         if let Some(l) = line {
-                            write!(&mut file, r#","line":{}"#, l).unwrap();
+                            write!(&mut file, r#","line":{l}"#).unwrap();
                         }
                         for (arg_name, arg_value) in &args {
                             write!(&mut file, r#","{}":{}"#, escape(arg_name), arg_value).unwrap();
@@ -220,22 +216,20 @@ fn record_profile_impl(
 
                         write!(
                             &mut file,
-                            r#"{}{{"pid":{},"tid":{},"name":"{}", "cat":"{}","ph":"X","ts":{},"dur":{},"args":{{"target":"{}""#,
-                            comma,
-                            pid,
-                            ThreadIdDisplay(tid, &span.args),
-                            NameDisplay(span.name, &["name"], &span.args),
-                            span.level,
-                            start_ts,
-                            ts - start_ts,
-                            escape(span.target)
+                            r#"{comma}{{"pid":{pid},"tid":{tid},"name":"{name}", "cat":"{cat}","ph":"X","ts":{ts},"dur":{dur},"args":{{"target":"{target}""#,
+                            tid = ThreadIdDisplay(tid, &span.args),
+                            name = NameDisplay(span.name, &["name"], &span.args),
+                            cat = span.level,
+                            ts = start_ts,
+                            dur = ts - start_ts,
+                            target = escape(span.target)
                         )
                         .unwrap();
                         if let Some(f) = span.file {
                             write!(&mut file, r#","file":"{}""#, escape(f)).unwrap();
                         }
                         if let Some(l) = span.line {
-                            write!(&mut file, r#","line":{}"#, l).unwrap();
+                            write!(&mut file, r#","line":{l}"#).unwrap();
                         }
                         for (arg_name, arg_value) in &span.args {
                             write!(&mut file, r#","{}":{}"#, escape(arg_name), arg_value).unwrap();
@@ -285,8 +279,7 @@ fn record_profile_impl(
                     Msg::ThreadInfo { id, name } => {
                         write!(
                             &mut file,
-                            r#"{}{{"name":"thread_name","ph":"M","pid":{},"tid":{},"args":{{"name":"{}"}}}}"#,
-                            comma, pid, id, name
+                            r#"{comma}{{"name":"thread_name","ph":"M","pid":{pid},"tid":{id},"args":{{"name":"{name}"}}}}"#,
                         )
                         .unwrap();
                         comma = ",";
@@ -396,7 +389,7 @@ impl Profiler {
                     name: thread::current()
                         .name()
                         .map(|n| escape(n).to_string())
-                        .unwrap_or_else(|| format!("<{:?}>", tid)),
+                        .unwrap_or_else(|| format!("<{tid:?}>")),
                 });
                 tid
             }
@@ -501,30 +494,30 @@ thread_local! {
 struct RecordVisitor<'a>(&'a mut FxHashMap<&'static str, String>);
 impl<'a> Visit for RecordVisitor<'a> {
     fn record_debug(&mut self, field: &Field, value: &dyn fmt::Debug) {
-        let value = format!("{:?}", value);
+        let value = format!("{value:?}");
         let value = escape(&value);
-        self.0.insert(field.name(), format!(r#""{}""#, value));
+        self.0.insert(field.name(), format!(r#""{value}""#));
     }
 
     fn record_f64(&mut self, field: &Field, value: f64) {
-        self.0.insert(field.name(), format!("{}", value));
+        self.0.insert(field.name(), format!("{value}"));
     }
 
     fn record_i64(&mut self, field: &Field, value: i64) {
-        self.0.insert(field.name(), format!("{}", value));
+        self.0.insert(field.name(), format!("{value}"));
     }
 
     fn record_u64(&mut self, field: &Field, value: u64) {
-        self.0.insert(field.name(), format!("{}", value));
+        self.0.insert(field.name(), format!("{value}"));
     }
 
     fn record_bool(&mut self, field: &Field, value: bool) {
-        self.0.insert(field.name(), format!("{}", value));
+        self.0.insert(field.name(), format!("{value}"));
     }
 
     fn record_str(&mut self, field: &Field, value: &str) {
         let value = escape(value);
-        self.0.insert(field.name(), format!(r#""{}""#, value));
+        self.0.insert(field.name(), format!(r#""{value}""#));
     }
 }
 
@@ -535,7 +528,7 @@ impl<'a> fmt::Display for NameDisplay<'a> {
             if let Some(dyn_name) = self.2.get(dyn_name_key) {
                 let dyn_name = &dyn_name[1..dyn_name.len() - 1]; // remove quotes
                 return if self.0.is_empty() || self.0.contains(".rs:") {
-                    write!(f, "{}", dyn_name)
+                    write!(f, "{dyn_name}")
                 } else {
                     write!(f, "{} ({})", escape(self.0), dyn_name)
                 };
@@ -554,9 +547,9 @@ struct ThreadIdDisplay<'a>(u64, &'a FxHashMap<&'static str, String>);
 impl<'a> fmt::Display for ThreadIdDisplay<'a> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if let Some(v_thread) = self.1.get("thread") {
-            write!(f, "{}", v_thread)
+            write!(f, "{v_thread}")
         } else if let Some(v_thread) = self.1.get("track") {
-            write!(f, "{}", v_thread)
+            write!(f, "{v_thread}")
         } else {
             write!(f, "{}", self.0)
         }

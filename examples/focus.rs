@@ -124,7 +124,7 @@ fn button(content: impl Into<Text>, tab_index: impl Into<TabIndex>) -> impl Widg
         content = text(content.clone());
         tab_index;
         on_click = hn!(|_, _| {
-            println!("Clicked {} {:?}", content, tab_index)
+            println!("Clicked {content} {tab_index:?}")
         });
     }
 }
@@ -162,12 +162,12 @@ mod inspect {
                 let frame = if let Ok(w) = services.windows().widget_tree(p.window_id()) {
                     w
                 } else {
-                    return format!("<{}>", p);
+                    return format!("<{p}>");
                 };
                 let widget = if let Some(w) = frame.get(p) {
                     w
                 } else {
-                    return format!("<{}>", p);
+                    return format!("<{p}>");
                 };
                 let info = widget.instance().expect("expected debug info").borrow();
 
@@ -193,7 +193,7 @@ mod inspect {
                         .find(|p| p.borrow().property_name == "title")
                         .map(|p| p.borrow().args[0].value.debug.clone())
                         .unwrap_or_default();
-                    format!("window({})", title)
+                    format!("window({title})")
                 } else {
                     let focus_info = widget.as_focus_info();
                     if focus_info.is_alt_scope() {

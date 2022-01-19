@@ -257,7 +257,7 @@ pub mod window {
         ///     window! {
         ///         title = "Render Mode";
         ///         render_mode = RenderMode::Integrated;
-        ///         content = text(selected_mode.map(|m| formatx!("Preference: Integrated\nActual: {:?}", m)));
+        ///         content = text(selected_mode.map(|m| formatx!("Preference: Integrated\nActual: {m:?}")));
         ///     }
         /// }
         /// ```
@@ -964,7 +964,7 @@ pub mod window {
                         use std::io::*;
                         stdout()
                             .write_all(&buffer)
-                            .unwrap_or_else(|e| tracing::error!("error printing frame {}", e));
+                            .unwrap_or_else(|e| tracing::error!("error printing frame {e}"));
                     });
                 }),
             )

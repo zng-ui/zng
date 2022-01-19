@@ -24,16 +24,16 @@ fn main() {
             let mut names = names.into_iter();
 
             let first_name = names.next().expect("`// do` task comment missing task name");
-            writeln!(out, "--{}--", first_name).unwrap();
-            write!(out, "\n    %c_wb%{}%c_w%", first_name).unwrap();
+            writeln!(out, "--{first_name}--").unwrap();
+            write!(out, "\n    %c_wb%{first_name}%c_w%").unwrap();
             details_arg_offset = 4 + first_name.len();
 
             for name in names {
-                write!(out, ", %c_wb%{}%c_w%", name).unwrap();
+                write!(out, ", %c_wb%{name}%c_w%").unwrap();
                 details_arg_offset += 2 + name.len();
             }
 
-            writeln!(out, "{}", options).unwrap();
+            writeln!(out, "{options}").unwrap();
         } else if expect_details {
             expect_details = line.starts_with("//");
             if expect_details {
@@ -41,9 +41,9 @@ fn main() {
 
                 let maybe_arg_line = line.trim();
                 if maybe_arg_line.starts_with('[') {
-                    writeln!(out, "{:width$}", line, width = details_arg_offset).unwrap();
+                    writeln!(out, "{line:details_arg_offset$}").unwrap();
                 } else {
-                    writeln!(out, "   {}", line).unwrap();
+                    writeln!(out, "   {line}").unwrap();
                 }
             }
         }

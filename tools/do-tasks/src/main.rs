@@ -22,7 +22,7 @@ fn main() {
         "rust_analyzer_run" => rust_analyzer_run(args),
         "install" => install(args),
         "help" | "--help" => help(args),
-        _ => fatal(f!("unknown task {:?}, `{} help` to list tasks", task, do_cmd())),
+        _ => fatal(f!("unknown task {task:?}, `{} help` to list tasks", do_cmd())),
     }
 }
 
@@ -79,12 +79,12 @@ fn doc(mut args: Vec<&str>) {
         match std::env::var_os("BROWSER") {
             Some(browser) => {
                 if let Err(e) = std::process::Command::new(&browser).arg(path).status() {
-                    error(f!("couldn't open docs with {}: {}", browser.to_string_lossy(), e));
+                    error(f!("couldn't open docs with {}: {e}", browser.to_string_lossy()));
                 }
             }
             None => {
                 if let Err(e) = opener::open(&path) {
-                    error(f!("couldn't open docs, {:?}", e));
+                    error(f!("couldn't open docs, {e:?}"));
                 }
             }
         };
@@ -419,7 +419,7 @@ fn prebuild(args: Vec<&str>) {
     for file in files {
         let target = format!("zero-ui-view-prebuilt/lib/{}", file.file_name().unwrap().to_string_lossy());
         if let Err(e) = std::fs::copy(&file, &target) {
-            error(f!("failed to copy pre-build lib `{}` to `{}`, {}", file.display(), target, e))
+            error(f!("failed to copy pre-build lib `{}` to `{target}`, {e}", file.display()))
         }
     }
 
@@ -455,7 +455,7 @@ fn clean(mut args: Vec<&str>) {
                 Err(_) => println("removed `target/tmp`"),
             },
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => println("did not find `target/tmp`"),
-            Err(e) => error(f!("failed to cleanup temp, {}", e)),
+            Err(e) => error(f!("failed to cleanup temp, {e}")),
         }
     }
     if all || tools {
@@ -568,7 +568,7 @@ fn ra_check(mut args: Vec<&str>) {
     if enable {
         if let Err(e) = std::fs::remove_file(path) {
             if e.kind() != std::io::ErrorKind::NotFound {
-                panic!("{:?}", e)
+                panic!("{e:?}")
             }
         }
         println("rust-analyzer check is enabled");
@@ -628,7 +628,7 @@ fn help(mut args: Vec<&str>) {
     if specific_task && !args.is_empty() {
         println("\n");
         for t in args {
-            error(f!("task `{}` not found in help", t));
+            error(f!("task `{t}` not found in help"));
         }
     }
 }

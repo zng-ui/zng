@@ -2,7 +2,7 @@ use zero_ui::core::{property, widget, UiNode};
 
 #[property(context, allowed_in_when = false)]
 pub fn foo(child: impl UiNode, value: bool) -> impl UiNode {
-    println!("{}", value);
+    println!("{value}");
     child
 }
 

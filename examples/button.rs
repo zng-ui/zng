@@ -39,7 +39,7 @@ fn example() -> impl Widget {
     button! {
         on_click = hn!(t, |ctx, _| {
             count += 1;
-            let new_txt = formatx!("Clicked {} time{}!", count, if count > 1 {"s"} else {""});
+            let new_txt = formatx!("Clicked {count} time{}!", if count > 1 {"s"} else {""});
             t.set(ctx, new_txt);
         });
         on_double_click = hn!(|_, _| println!("double click!"));

@@ -190,7 +190,7 @@ fn img_window(title: impl IntoVar<Text>, content: impl UiNode) -> Window {
                 if dots_count == 8 {
                     dots_count = 0;
                 }
-                formatx!("loading{:.^1$}", "", dots_count)
+                formatx!("loading{:.^dots_count$}", "")
             });
 
             text! {

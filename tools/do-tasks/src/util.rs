@@ -50,7 +50,7 @@ fn cmd_impl(cmd: &str, default_args: &[&str], user_args: &[&str], envs: &[(&str,
     match status {
         Ok(status) => {
             if !status.success() {
-                let msg = format!("task {:?} failed with {}", info.name, status);
+                let msg = format!("task {:?} failed with {status}", info.name);
                 if required {
                     fatal(msg);
                 } else {
@@ -59,7 +59,7 @@ fn cmd_impl(cmd: &str, default_args: &[&str], user_args: &[&str], envs: &[(&str,
             }
         }
         Err(e) => {
-            let msg = format!("task {:?} failed to run, {}", info.name, e);
+            let msg = format!("task {:?} failed to run, {e}", info.name);
             if required {
                 fatal(msg)
             } else {
@@ -119,7 +119,7 @@ pub fn take_option<'a>(args: &mut Vec<&'a str>, option: &[&str], value_name: &st
         if option.iter().any(|&o| args[i] == o) {
             let next_i = i + 1;
             if next_i == args.len() || args[next_i].starts_with('-') {
-                fatal(f!("expected value for option {} {}", args[i], value_name));
+                fatal(f!("expected value for option {} {value_name}", args[i]));
             }
 
             args.remove(i); // remove option
@@ -210,12 +210,12 @@ impl TaskInfo {
 
 // Get all paths to `dir/*/Cargo.toml`
 pub fn top_cargo_toml(dir: &str) -> Vec<String> {
-    glob(&format!("{}/*/Cargo.toml", dir))
+    glob(&format!("{dir}/*/Cargo.toml"))
 }
 
 // Get all `dir/**/*.rs` files.
 pub fn all_rs(dir: &str) -> Vec<String> {
-    glob(&format!("{}/**/*.rs", dir))
+    glob(&format!("{dir}/**/*.rs"))
 }
 
 // Get all `examples/*.rs` file names.
@@ -273,9 +273,9 @@ pub fn cdylib_files(path: impl Into<PathBuf>) -> Vec<PathBuf> {
     let mut path = path.into();
     let file_name = path.file_name().unwrap().to_string_lossy();
 
-    let linux = format!("lib{}.so", file_name);
-    let windows = format!("{}.dll", file_name);
-    let macos = format!("lib{}.dylib", file_name);
+    let linux = format!("lib{file_name}.so");
+    let windows = format!("{file_name}.dll");
+    let macos = format!("lib{file_name}.dylib");
 
     let mut r = vec![];
 
@@ -322,16 +322,16 @@ fn glob(pattern: &str) -> Vec<String> {
 
 pub fn println(msg: impl std::fmt::Display) {
     if let Some(mut dump) = TaskInfo::get().stdout_dump() {
-        writeln!(dump, "{}", msg).ok();
+        writeln!(dump, "{msg}").ok();
     } else {
-        println!("{}", msg);
+        println!("{msg}");
     }
 }
 pub fn print(msg: impl std::fmt::Display) {
     if let Some(mut dump) = TaskInfo::get().stdout_dump() {
-        write!(dump, "{}", msg).ok();
+        write!(dump, "{msg}").ok();
     } else {
-        print!("{}", msg);
+        print!("{msg}");
         std::io::stdout().lock().flush().ok();
     }
 }

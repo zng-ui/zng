@@ -40,7 +40,7 @@
 //!     App::default().run_window(|_| {
 //!         let size = var_from((800, 600));
 //!         window! {
-//!             title = size.map(|s: &Size| formatx!("Button Example - {}", s));
+//!             title = size.map(|s: &Size| formatx!("Button Example - {s}"));
 //!             size;
 //!             content = button! {
 //!                 on_click = hn!(|_,_| {
@@ -339,7 +339,7 @@
 //!         match c {
 //!             0 => "Click Me!".to_text(),
 //!             1 => "Clicked 1 Time!".to_text(),
-//!             n => formatx!("Clicked {} Times!", n)
+//!             n => formatx!("Clicked {n} Times!")
 //!         }
 //!     }));
 //!     on_click = hn!(|ctx, _| {
@@ -366,7 +366,7 @@
 //!     let handle = count.bind_map(ctx, &count_text, |_, c| {
 //!         match c {
 //!             1 => "Clicked 1 Time!".to_text(),
-//!             n => formatx!("Clicked {} Times!", n)
+//!             n => formatx!("Clicked {n} Times!")
 //!         }
 //!     });
 //!     handle.permanent();
@@ -461,7 +461,7 @@
 //! button! {
 //!     on_click = hn!(|_, _| {
 //!         count += 1;
-//!         println!("Clicked {} time{}", count, if count > 1 { "s" } else { "" });
+//!         println!("Clicked {count} time{}", if count > 1 { "s" } else { "" });
 //!     });
 //!     content = text("Click Me!");
 //! }

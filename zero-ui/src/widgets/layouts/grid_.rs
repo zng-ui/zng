@@ -207,19 +207,15 @@ pub mod grid {
 
                     if c + c_span > columns_len {
                         tracing::debug!(
-                            "grid child column `{}` and span `{}` overflows the a grid with `{}` columns, span corrected",
-                            c,
-                            c_span,
-                            self.columns.len()
+                            "grid child column `{c}` and span `{c_span}` overflows the a grid with `{columns_len}` columns, span corrected",
+                            columns_len = self.columns.len()
                         );
                         c_span = columns_len - c;
                     }
                     if r + r_span > rows_len {
                         tracing::debug!(
-                            "grid child row `{}` and span `{}` overflows the a grid with `{}` rows, span corrected",
-                            c,
-                            c_span,
-                            self.rows.len()
+                            "grid child row `{c}` and span `{c_span}` overflows the a grid with `{rows_len}` rows, span corrected",
+                            rows_len = self.rows.len()
                         );
                         r_span = rows_len - c;
                     }
