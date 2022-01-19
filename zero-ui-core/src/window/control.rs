@@ -958,6 +958,9 @@ impl ContentCtrl {
     }
 
     pub fn window_updates(&mut self, ctx: &mut WindowContext, updates: WindowUpdates) {
+        self.layout_requested |= updates.layout;
+        self.render_requested |= updates.render;
+
         if updates.info {
             let mut info = WidgetInfoBuilder::new(
                 *ctx.window_id,
@@ -986,9 +989,6 @@ impl ContentCtrl {
                 subscriptions
             });
         }
-
-        self.layout_requested |= updates.layout;
-        self.render_requested |= updates.render;
     }
 
     pub fn pre_event<EV: EventUpdateArgs>(&mut self, ctx: &mut WindowContext, args: &EV) {
