@@ -21,7 +21,7 @@ use crate::{
 };
 
 use super::{
-    FrameCaptureMode, FrameImageReadyArgs, FrameImageReadyEvent, HeadlessMonitor, MonitorFullInfo, MonitorId, MonitorsExt, StartPosition,
+    FrameCaptureMode, FrameImageReadyArgs, FrameImageReadyEvent, HeadlessMonitor, MonitorId, MonitorInfo, MonitorsExt, StartPosition,
     Window, WindowChangedArgs, WindowChangedEvent, WindowChrome, WindowIcon, WindowMode, WindowScaleChangedArgs, WindowScaleChangedEvent,
     WindowVars, WindowsExt,
 };
@@ -41,7 +41,7 @@ struct HeadedCtrl {
 
     // current state.
     state: Option<WindowStateAll>, // None means it must be recomputed and send.
-    monitor: Option<MonitorFullInfo>,
+    monitor: Option<MonitorInfo>,
     resize_wait_id: Option<FrameWaitId>,
     icon: Option<ImageVar>,
 }
@@ -566,7 +566,7 @@ impl HeadedCtrl {
         };
     }
 
-    fn init_monitor(monitor: &mut Option<MonitorFullInfo>, vars: &WindowVars, ctx: &mut WindowContext) {
+    fn init_monitor(monitor: &mut Option<MonitorInfo>, vars: &WindowVars, ctx: &mut WindowContext) {
         let monitors = ctx.services.monitors();
 
         if let Some(id) = vars.0.actual_monitor.copy(ctx.vars) {
@@ -579,20 +579,7 @@ impl HeadedCtrl {
         if let Some(info) = monitors.primary_monitor() {
             *monitor = Some(info.clone());
         } else {
-            let defaults = HeadlessMonitor::default();
-
-            *monitor = Some(MonitorFullInfo {
-                id: MonitorId::fallback(),
-                info: MonitorInfo {
-                    name: "<fallback>".to_owned(),
-                    position: PxPoint::zero(),
-                    size: defaults.size.to_px(defaults.scale_factor.0),
-                    scale_factor: defaults.scale_factor.0,
-                    video_modes: vec![],
-                    is_primary: false,
-                },
-                ppi: var(96.0),
-            })
+            *monitor = Some(MonitorInfo::fallback())
         }
     }
 }

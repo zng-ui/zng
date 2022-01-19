@@ -1,8 +1,8 @@
 use std::{fmt, rc::Rc};
 
 use linear_map::LinearMap;
-pub use zero_ui_view_api::MonitorInfo;
 
+use super::VideoMode;
 use crate::{
     app::{
         raw_events::{RawMonitorsChangedArgs, RawMonitorsChangedEvent, RawScaleFactorChangedEvent},
@@ -12,6 +12,7 @@ use crate::{
     event::{event, EventUpdateArgs, Events},
     event_args,
     service::Service,
+    text::Text,
     units::*,
     var::*,
 };
@@ -86,7 +87,7 @@ impl MonitorId {
 /// [`WindowManager`]: crate::window::WindowManager
 #[derive(Service)]
 pub struct Monitors {
-    monitors: LinearMap<MonitorId, MonitorFullInfo>,
+    monitors: LinearMap<MonitorId, MonitorInfo>,
 }
 impl Monitors {
     /// Initial PPI of monitors, `96.0`.
@@ -96,20 +97,7 @@ impl Monitors {
         Monitors {
             monitors: view
                 .and_then(|v| v.available_monitors().ok())
-                .map(|ms| {
-                    ms.into_iter()
-                        .map(|(id, info)| {
-                            (
-                                id,
-                                MonitorFullInfo {
-                                    id,
-                                    info,
-                                    ppi: var(Self::DEFAULT_PPI),
-                                },
-                            )
-                        })
-                        .collect()
-                })
+                .map(|ms| ms.into_iter().map(|(id, info)| (id, MonitorInfo::from(info))).collect())
                 .unwrap_or_default(),
         }
     }
@@ -117,18 +105,18 @@ impl Monitors {
     /// Reference the primary monitor.
     ///
     /// Returns `None` if no monitor was identified as the primary.
-    pub fn primary_monitor(&mut self) -> Option<&MonitorFullInfo> {
+    pub fn primary_monitor(&mut self) -> Option<&MonitorInfo> {
         self.monitors.values().find(|m| m.info.is_primary)
     }
 
     /// Reference the monitor info.
     ///
     /// Returns `None` if the monitor was not found or the app is running in headless mode without renderer.
-    pub fn monitor(&mut self, monitor_id: MonitorId) -> Option<&MonitorFullInfo> {
+    pub fn monitor(&mut self, monitor_id: MonitorId) -> Option<&MonitorInfo> {
         self.monitors.get(&monitor_id)
     }
 
-    pub(super) fn monitor_mut(&mut self, monitor_id: MonitorId) -> Option<&mut MonitorFullInfo> {
+    pub(super) fn monitor_mut(&mut self, monitor_id: MonitorId) -> Option<&mut MonitorInfo> {
         self.monitors.get_mut(&monitor_id)
     }
 
@@ -138,31 +126,37 @@ impl Monitors {
     /// of a entry can change TODO.
     ///
     /// Is empty if no monitor was found or the app is running in headless mode without renderer.
-    pub fn available_monitors(&mut self) -> impl Iterator<Item = &MonitorFullInfo> {
+    pub fn available_monitors(&mut self) -> impl Iterator<Item = &MonitorInfo> {
         self.monitors.values()
     }
 
     fn on_monitors_changed(&mut self, events: &mut Events, args: &RawMonitorsChangedArgs) {
         let ms: LinearMap<_, _> = args.available_monitors.iter().cloned().collect();
-        let removed: Vec<_> = self.monitors.keys().filter(|k| !ms.contains_key(k)).copied().collect();
-        let added: Vec<_> = ms.keys().filter(|k| !self.monitors.contains_key(k)).copied().collect();
 
-        for key in &removed {
-            self.monitors.remove(key);
-        }
-        for key in &added {
-            self.monitors.insert(
-                *key,
-                MonitorFullInfo {
-                    id: *key,
-                    info: ms.get(key).cloned().unwrap(),
-                    ppi: var(Monitors::DEFAULT_PPI),
-                },
-            );
+        let mut removed = vec![];
+        let mut changed = vec![];
+
+        self.monitors.retain(|(key, value)| {
+            if let Some(new) = ms.remove(key) {
+                if value.update(new) {
+                    changed.push(*key);
+                }
+            } else {
+                removed.push(*key);
+                false
+            }
+        });
+
+        let mut added = Vec::with_capacity(ms.len());
+
+        for (id, info) in ms {
+            added.push(id);
+
+            self.monitors.insert(id, MonitorInfo::from_view(id, info));
         }
 
-        if !removed.is_empty() || !added.is_empty() {
-            let args = MonitorsChangedArgs::new(args.timestamp, removed, added);
+        if !removed.is_empty() || !added.is_empty() || !changed.is_empty() {
+            let args = MonitorsChangedArgs::new(args.timestamp, removed, added, changed);
             MonitorsChangedEvent.notify(events, args);
         }
     }
@@ -257,20 +251,112 @@ impl_from_and_into_var! {
 
 /// All information about a monitor that [`Monitors`] can provide.
 #[derive(Clone)]
-pub struct MonitorFullInfo {
-    /// Unique ID.
-    pub id: MonitorId,
-    /// Metadata from the operating system.
-    pub info: MonitorInfo,
-    /// PPI config var.
-    pub ppi: RcVar<f32>,
+pub struct MonitorInfo {
+    id: MonitorId,
+    is_primary: RcVar<bool>,
+    name: RcVar<Text>,
+    position: RcVar<PxPoint>,
+    size: RcVar<PxSize>,
+    video_modes: RcVar<Vec<VideoMode>>,
+    scale_factor: RcVar<Factor>,
+    ppi: RcVar<f32>,
 }
-impl fmt::Debug for MonitorFullInfo {
+impl fmt::Debug for MonitorInfo {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("MonitorFullInfo")
-            .field("id", &self.id)
-            .field("info", &self.info)
-            .finish_non_exhaustive()
+        f.debug_struct("MonitorFullInfo").field("id", &self.id).finish_non_exhaustive()
+    }
+}
+impl MonitorInfo {
+    /// New from a [`zero_ui_view_api::MonitorInfo`].
+    fn from_view(id: MonitorId, info: zero_ui_view_api::MonitorInfo) -> Self {
+        MonitorInfo {
+            id,
+            is_primary: var(info.is_primary),
+            name: var(info.name),
+            position: var(info.position),
+            size: var(info.size),
+            scale_factor: var(info.scale_factor.fct()),
+            video_modes: var(info.video_modes),
+            ppi: var(Monitors::DEFAULT_PPI),
+        }
+    }
+
+    /// Update variables from fresh [`zero_ui_view_api::MonitorInfo`],
+    /// returns if any value changed.
+    fn update(&self, info: zero_ui_view_api::MonitorInfo, vars: &Vars) -> bool {
+        let mut changed = false;
+
+        changed |= self.is_primary.set_ne(vars, info.is_primary);
+        changed |= self.name.set_ne(vars, info.name.to_text());
+        changed |= self.position.set_ne(vars, info.position.to_text());
+        changed |= self.size.set_ne(vars, info.size.to_text());
+        changed |= self.scale_factor.set_ne(vars, info.scale_factor.to_text());
+        changed |= self.video_modes.set_ne(vars, info.video_modes.to_text());
+
+        changed
+    }
+
+    /// Unique ID.
+    #[inline]
+    pub fn id(&self) -> MonitorId {
+        self.id
+    }
+
+    /// If could determine this monitor is the primary.
+    #[inline]
+    pub fn is_primary(&self) -> ReadOnlyRcVar<bool> {
+        self.is_primary.clone().into_read_only()
+    }
+
+    /// Name of the monitor.
+    #[inline]
+    pub fn name(&self) -> ReadOnlyRcVar<Text> {
+        self.name.clone().into_read_only()
+    }
+    /// Top-left offset of the monitor region in the virtual screen, in pixels.
+    #[inline]
+    pub fn position(&self) -> ReadOnlyRcVar<PxPoint> {
+        self.position.clone().into_read_only()
+    }
+    /// Width/height of the monitor region in the virtual screen, in pixels.
+    #[inline]
+    pub fn size(&self) -> ReadOnlyRcVar<PxSize> {
+        self.size.clone().into_read_only()
+    }
+
+    /// Exclusive fullscreen video modes.
+    #[inline]
+    pub fn video_modes(&self) -> ReadOnlyRcVar<Vec<VideoMode>> {
+        self.video_modes.clone().into_read_only()
+    }
+
+    /// The monitor scale factor.
+    ///
+    /// Can update if the user changes system settings.
+    #[inline]
+    pub fn scale_factor(&self) -> ReadOnlyRcVar<Factor> {
+        self.scale_factor.clone().into_read_only()
+    }
+    /// PPI config var.
+    #[inline]
+    pub fn ppi(&self) -> RcVar<f32> {
+        self.ppi.clone()
+    }
+
+    /// Bogus metadata for the [`MonitorId::fallback()`].
+    pub fn fallback() -> Self {
+        let defaults = HeadlessMonitor::default();
+
+        Self {
+            id: MonitorId::fallback(),
+            is_primary: var(false),
+            name: var("<fallback>".into()),
+            position: var(PxPoint::zero()),
+            size: var(defaults.size.to_px(defaults.scale_factor.0)),
+            video_modes: var(vec![]),
+            scale_factor: var(defaults.scale_factor),
+            ppi: var(Monitors::DEFAULT_PPI),
+        }
     }
 }
 
@@ -282,18 +368,18 @@ pub enum MonitorQuery {
     /// Custom query closure.
     ///
     /// If the closure returns `None` the primary monitor is used, if there is any.
-    Query(Rc<dyn Fn(&mut Monitors) -> Option<&MonitorFullInfo>>),
+    Query(Rc<dyn Fn(&mut Monitors) -> Option<&MonitorInfo>>),
 }
 impl MonitorQuery {
     /// New query.
     #[inline]
-    pub fn new(query: impl Fn(&mut Monitors) -> Option<&MonitorFullInfo> + 'static) -> Self {
+    pub fn new(query: impl Fn(&mut Monitors) -> Option<&MonitorInfo> + 'static) -> Self {
         Self::Query(Rc::new(query))
     }
 
     /// Runs the query.
     #[inline]
-    pub fn select<'a, 'b>(&'a self, monitors: &'b mut Monitors) -> Option<&'b MonitorFullInfo> {
+    pub fn select<'a, 'b>(&'a self, monitors: &'b mut Monitors) -> Option<&'b MonitorInfo> {
         match self {
             MonitorQuery::Primary => monitors.primary_monitor(),
             MonitorQuery::Query(q) => q(monitors),
@@ -328,6 +414,11 @@ event_args! {
         ///
         /// Use the [`Monitors`] service to get metadata about the added monitors.
         pub added: Vec<MonitorId>,
+
+        /// Modified monitors.
+        ///
+        /// The monitor metadata is tracked using variables that are now flagged new.
+        pub changed: Vec<MonitorId>,
 
         ..
 

@@ -3,11 +3,11 @@
 mod control;
 use control::*;
 
-mod monitor;
-pub use monitor::*;
-
 mod types;
 pub use types::*;
+
+mod monitor;
+pub use monitor::*;
 
 mod vars;
 pub use vars::*;
