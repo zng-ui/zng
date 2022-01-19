@@ -508,21 +508,6 @@ event_args! {
         }
     }
 
-    /// [`WindowScaleChangedEvent`] args.
-    pub struct WindowScaleChangedArgs {
-        /// Window ID.
-        pub window_id: WindowId,
-        /// New scale factor.
-        pub new_scale_factor: Factor,
-
-        ..
-
-        /// If the widget is in the same window.
-        fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
-            ctx.path.window_id() == self.window_id
-        }
-    }
-
     /// [`WidgetInfoChangedEvent`] args.
     pub struct WidgetInfoChangedArgs {
         /// Window ID.
@@ -676,9 +661,6 @@ event! {
 
     /// Window focus/blur event.
     pub WindowFocusChangedEvent: WindowFocusArgs;
-
-    /// Window scale factor changed.
-    pub WindowScaleChangedEvent: WindowScaleChangedArgs;
 
     /// Closing window event.
     pub WindowCloseRequestedEvent: WindowCloseRequestedArgs;

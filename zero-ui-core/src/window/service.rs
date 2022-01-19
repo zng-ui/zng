@@ -417,7 +417,7 @@ impl Windows {
             if let Some(w) = ctx.services.windows().windows.remove(&args.window_id) {
                 w.close(ctx);
 
-                let is_headless_app = ctx.window_mode().is_headless();
+                let is_headless_app = app::App::window_mode(ctx.services).is_headless();
 
                 let wns = ctx.services.windows();
                 let info = wns.windows_info.remove(&args.window_id).unwrap();
@@ -466,7 +466,7 @@ impl Windows {
             wns.take_requests()
         };
 
-        let window_mode = ctx.window_mode();
+        let window_mode = app::App::window_mode(ctx.services);
 
         // fulfill open requests.
         for r in open {
@@ -602,10 +602,11 @@ struct AppWindow {
 impl AppWindow {
     pub fn new(ctx: &mut AppContext, mode: WindowMode, new: Box<dyn FnOnce(&mut WindowContext) -> Window>) -> (Self, AppWindowInfo) {
         let id = WindowId::new_unique();
+        let vars = WindowVars::new(ctx.services.windows().default_render_mode);
         let mut state = OwnedStateMap::new();
+        state.set(WindowVarsKey, vars.clone());
         let (window, _) = ctx.window_context(id, mode, &mut state, new);
         let root_id = window.id;
-        let vars = WindowVars::new(ctx.services.windows().default_render_mode);
         let ctrl = WindowCtrl::new(&vars, mode, window);
 
         let window = Self { ctrl, id, mode, state };
@@ -618,7 +619,7 @@ impl AppWindow {
         let (_, updates) = ctx.window_context(self.id, self.mode, &mut self.state, |ctx| action(ctx, &mut self.ctrl));
         if updates.is_any() {
             let (_, updates) = ctx.window_context(self.id, self.mode, &mut self.state, |ctx| self.ctrl.window_updates(ctx, updates));
-            debug_assert!(!updates.is_none());
+            debug_assert!(updates.is_none());
         }
     }
 

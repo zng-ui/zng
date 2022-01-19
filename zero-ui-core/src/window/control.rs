@@ -1,10 +1,10 @@
 //! This module implements Management of window content and synchronization of WindowVars and View-Process.
 
-use std::mem;
+use std::{mem, time::Instant};
 
 use crate::{
     app::{
-        raw_events::{RawFrameRenderedEvent, RawMonitorsChangedEvent, RawScaleFactorChangedEvent, RawWindowChangedEvent},
+        raw_events::{RawFrameRenderedEvent, RawWindowChangedEvent, RawWindowFocusArgs, RawWindowFocusEvent},
         view_process::*,
     },
     color::RenderColor,
@@ -21,9 +21,8 @@ use crate::{
 };
 
 use super::{
-    FrameCaptureMode, FrameImageReadyArgs, FrameImageReadyEvent, HeadlessMonitor, MonitorInfo, MonitorsExt, StartPosition, Window,
-    WindowChangedArgs, WindowChangedEvent, WindowChrome, WindowIcon, WindowMode, WindowScaleChangedArgs, WindowScaleChangedEvent,
-    WindowVars, WindowsExt,
+    FrameCaptureMode, FrameImageReadyArgs, FrameImageReadyEvent, HeadlessMonitor, MonitorInfo, MonitorsChangedEvent, MonitorsExt,
+    StartPosition, Window, WindowChangedArgs, WindowChangedEvent, WindowChrome, WindowIcon, WindowMode, WindowVars, WindowsExt,
 };
 
 /// Implementer of `App <-> View` sync in a headed window.
@@ -91,7 +90,7 @@ impl HeadedCtrl {
                 let mut new_state = self.state.clone().unwrap();
 
                 if let Some(query) = self.vars.monitor().get_new(ctx.vars) {
-                    if let Some(new) = query.select(ctx.services.monitors()).map(|m| m.id()) {
+                    if let Some(new) = query.select(ctx.vars, ctx.services.monitors()).map(|m| m.id()) {
                         let current = self.vars.0.actual_monitor.copy(ctx.vars);
                         if Some(new) != current {
                             // see vars.monitor() docs
@@ -248,7 +247,7 @@ impl HeadedCtrl {
             }
 
             if let Some(m) = &self.monitor {
-                if m.ppi().is_new(ctx) {
+                if m.scale_factor().is_new(ctx) || m.size().is_new(ctx) || m.ppi().is_new(ctx) {
                     self.content.layout_requested = true;
                     ctx.updates.layout();
                 }
@@ -326,16 +325,13 @@ impl HeadedCtrl {
                     WindowChangedEvent.notify(ctx.events, args);
                 }
             }
-        } else if let Some(args) = RawScaleFactorChangedEvent.update(args) {
-            if args.windows.contains(ctx.window_id) {
-                let args = WindowScaleChangedArgs::new(args.timestamp, *ctx.window_id, args.scale_factor);
-                WindowScaleChangedEvent.notify(ctx.events, args);
-
-                self.content.layout_requested = true;
-                self.content.render_requested = WindowRenderUpdate::Render;
-
-                ctx.updates.layout_and_render();
+        } else if let Some(args) = MonitorsChangedEvent.update(args) {
+            if let Some(m) = &self.monitor {
+                if args.removed.contains(&m.id()) {
+                    self.monitor = None;
+                }
             }
+            self.vars.monitor().touch(ctx);
         } else if let Some(args) = ViewProcessRespawnedEvent.update(args) {
             if let Some(view) = &self.window {
                 if view.renderer().generation() == Ok(args.generation) {
@@ -347,8 +343,6 @@ impl HeadedCtrl {
                     self.window = None;
                 }
             }
-        } else if let Some(args) = RawMonitorsChangedEvent.update(args) {
-            todo!("revalidate window monitor for {args:?}");
         }
 
         self.content.pre_event(ctx, args);
@@ -404,7 +398,7 @@ impl HeadedCtrl {
                 .get(ctx.vars)
                 .to_layout(ctx.metrics, available_size, default_size(scale_factor));
 
-            (min_size, max_size, size.min(min_size).max(max_size))
+            (min_size, max_size, size.min(max_size).max(min_size))
         });
 
         let size = self
@@ -596,6 +590,7 @@ struct HeadlessWithRendererCtrl {
     // init config.
     render_mode: Option<RenderMode>,
     headless_monitor: HeadlessMonitor,
+    headless_simulator: HeadlessSimulator,
 
     // current state.
     size: DipSize,
@@ -608,6 +603,7 @@ impl HeadlessWithRendererCtrl {
 
             render_mode: content.render_mode,
             headless_monitor: content.headless_monitor,
+            headless_simulator: HeadlessSimulator::new(),
 
             content: ContentCtrl::new(vars.clone(), content),
 
@@ -652,6 +648,8 @@ impl HeadlessWithRendererCtrl {
         }
 
         self.content.pre_event(ctx, args);
+
+        self.headless_simulator.pre_event(ctx, args);
     }
 
     pub fn ui_event<EV: EventUpdateArgs>(&mut self, ctx: &mut WindowContext, args: &EV) {
@@ -688,7 +686,7 @@ impl HeadlessWithRendererCtrl {
                 .get(ctx.vars)
                 .to_layout(ctx.metrics, available_size, default_size(scale_factor));
 
-            (min_size, max_size, size.min(min_size).max(max_size))
+            (min_size, max_size, size.min(max_size).max(min_size))
         });
 
         let size = self.content.layout(ctx, scale_factor, screen_ppi, min_size, max_size, size, false);
@@ -722,6 +720,8 @@ impl HeadlessWithRendererCtrl {
             }
             // else `Respawn`, handled in `pre_event`.
         }
+
+        self.headless_simulator.layout(ctx);
     }
 
     pub fn render(&mut self, ctx: &mut WindowContext) {
@@ -750,6 +750,7 @@ struct HeadlessCtrl {
     content: ContentCtrl,
 
     headless_monitor: HeadlessMonitor,
+    headless_simulator: HeadlessSimulator,
 }
 impl HeadlessCtrl {
     pub fn new(vars: &WindowVars, content: Window) -> Self {
@@ -757,6 +758,7 @@ impl HeadlessCtrl {
             vars: vars.clone(),
             headless_monitor: content.headless_monitor,
             content: ContentCtrl::new(vars.clone(), content),
+            headless_simulator: HeadlessSimulator::new(),
         }
     }
 
@@ -779,6 +781,7 @@ impl HeadlessCtrl {
 
     pub fn pre_event<EV: EventUpdateArgs>(&mut self, ctx: &mut WindowContext, args: &EV) {
         self.content.pre_event(ctx, args);
+        self.headless_simulator.pre_event(ctx, args);
     }
 
     pub fn ui_event<EV: EventUpdateArgs>(&mut self, ctx: &mut WindowContext, args: &EV) {
@@ -815,10 +818,12 @@ impl HeadlessCtrl {
                 .get(ctx.vars)
                 .to_layout(ctx.metrics, available_size, default_size(scale_factor));
 
-            (min_size, max_size, size.min(min_size).max(max_size))
+            (min_size, max_size, size.min(max_size).max(min_size))
         });
 
         let _surface_size = self.content.layout(ctx, scale_factor, screen_ppi, min_size, max_size, size, false);
+
+        self.headless_simulator.layout(ctx);
     }
 
     pub fn render(&mut self, ctx: &mut WindowContext) {
@@ -830,6 +835,48 @@ impl HeadlessCtrl {
 
     pub fn close(&mut self, ctx: &mut WindowContext) {
         self.content.close(ctx);
+    }
+}
+
+/// Implementer of headless apps simulation of headed events for tests.
+struct HeadlessSimulator {
+    is_enabled: Option<bool>,
+    is_open: bool,
+}
+impl HeadlessSimulator {
+    fn new() -> Self {
+        HeadlessSimulator {
+            is_enabled: None,
+            is_open: false,
+        }
+    }
+
+    fn is_enabled(&mut self, ctx: &mut WindowContext) -> bool {
+        *self
+            .is_enabled
+            .get_or_insert_with(|| crate::app::App::window_mode(ctx.services).is_headless())
+    }
+
+    pub fn pre_event<EV: EventUpdateArgs>(&mut self, ctx: &mut WindowContext, args: &EV) {
+        if self.is_enabled(ctx) && self.is_open && ViewProcessRespawnedEvent.update(args).is_some() {
+            self.is_open = false;
+        }
+    }
+
+    pub fn layout(&mut self, ctx: &mut WindowContext) {
+        if self.is_enabled(ctx) && !self.is_open {
+            self.is_open = true;
+
+            let timestamp = Instant::now();
+
+            // simulate focus:
+            if let Some(prev_focus_id) = ctx.services.windows().focused_window_id() {
+                let args = RawWindowFocusArgs::new(timestamp, prev_focus_id, false);
+                RawWindowFocusEvent.notify(ctx.events, args)
+            }
+            let args = RawWindowFocusArgs::new(timestamp, *ctx.window_id, true);
+            RawWindowFocusEvent.notify(ctx.events, args)
+        }
     }
 }
 
@@ -974,6 +1021,7 @@ impl ContentCtrl {
             ctx.widget_context(self.root_id, &mut self.root_state, |ctx| {
                 self.root.event(ctx, args);
             });
+        } else {
         }
     }
 

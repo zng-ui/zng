@@ -12,6 +12,7 @@ use crate::timer::Timers;
 use crate::units::{Px, PxPoint};
 use crate::var::{response_var, ResponderVar, ResponseVar, Vars};
 use crate::widget_info::{UpdateMask, UpdateSlot};
+use crate::window::WindowMode;
 use crate::{
     focus::FocusManager,
     gesture::GestureManager,
@@ -478,6 +479,22 @@ impl App {
     #[inline]
     pub fn is_running() -> bool {
         crate::var::Vars::instantiated() || crate::event::Events::instantiated()
+    }
+
+    /// Returns a [`WindowMode`] value that indicates if the app is headless, headless with renderer or headed.
+    ///
+    /// Note that specific windows can be in headless modes even if the app is headed.
+    pub fn window_mode(services: &mut crate::service::Services) -> WindowMode {
+        services
+            .get::<crate::app::view_process::ViewProcess>()
+            .map(|p| {
+                if p.headless() {
+                    WindowMode::HeadlessWithRenderer
+                } else {
+                    WindowMode::Headed
+                }
+            })
+            .unwrap_or(WindowMode::Headless)
     }
 }
 

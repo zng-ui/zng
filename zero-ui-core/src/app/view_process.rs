@@ -122,6 +122,9 @@ impl ViewProcess {
             document_id: data.document_id,
             generation: app.data_generation,
         }));
+
+        drop(app);
+
         Ok((win, WindowOpenData::new(data, |id| self.monitor_id(id))))
     }
 

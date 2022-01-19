@@ -80,8 +80,8 @@ impl MonitorId {
 ///
 /// This service is provided by the [`WindowManager`].
 ///
-/// [`ppi`]: MonitorFullInfo::ppi
-/// [`scale_factor`]: MonitorFullInfo::ppi
+/// [`ppi`]: MonitorInfo::ppi
+/// [`scale_factor`]: MonitorInfo::scale_factor
 /// [`LayoutMetrics`]: crate::context::LayoutMetrics
 /// [The Virtual Screen]: https://docs.microsoft.com/en-us/windows/win32/gdi/the-virtual-screen
 /// [`WindowManager`]: crate::window::WindowManager
@@ -348,7 +348,7 @@ impl MonitorInfo {
         self.ppi.clone()
     }
 
-    /// Bogus metadata for the [`MonitorId::fallback()`].
+    /// Bogus metadata for the [`MonitorId::fallback`].
     pub fn fallback() -> Self {
         let defaults = HeadlessMonitor::default();
 
@@ -365,7 +365,7 @@ impl MonitorInfo {
     }
 }
 
-/// A *selector* that returns a [`MonitorFullInfo`] from [`Monitors`].
+/// A *selector* that returns a [`MonitorInfo`] from [`Monitors`].
 #[derive(Clone)]
 pub enum MonitorQuery {
     /// The primary monitor, if there is any monitor.
@@ -373,21 +373,22 @@ pub enum MonitorQuery {
     /// Custom query closure.
     ///
     /// If the closure returns `None` the primary monitor is used, if there is any.
-    Query(Rc<dyn Fn(&mut Monitors) -> Option<&MonitorInfo>>),
+    #[allow(clippy::type_complexity)]
+    Query(Rc<dyn for<'v, 'm> Fn(&'v VarsRead, &'m mut Monitors) -> Option<&'m MonitorInfo>>),
 }
 impl MonitorQuery {
     /// New query.
     #[inline]
-    pub fn new(query: impl Fn(&mut Monitors) -> Option<&MonitorInfo> + 'static) -> Self {
+    pub fn new(query: impl for<'v, 'm> Fn(&'v VarsRead, &'m mut Monitors) -> Option<&'m MonitorInfo> + 'static) -> Self {
         Self::Query(Rc::new(query))
     }
 
     /// Runs the query.
     #[inline]
-    pub fn select<'a, 'b>(&'a self, monitors: &'b mut Monitors) -> Option<&'b MonitorInfo> {
+    pub fn select<'a, 'v, 'm>(&'a self, vars: &'v impl WithVarsRead, monitors: &'m mut Monitors) -> Option<&'m MonitorInfo> {
         match self {
             MonitorQuery::Primary => monitors.primary_monitor(),
-            MonitorQuery::Query(q) => q(monitors),
+            MonitorQuery::Query(q) => vars.with_vars_read(|vars| q(vars, monitors)),
         }
     }
 }

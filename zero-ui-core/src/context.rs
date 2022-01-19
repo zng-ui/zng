@@ -569,22 +569,6 @@ pub struct AppContext<'a> {
     pub updates: &'a mut Updates,
 }
 impl<'a> AppContext<'a> {
-    /// Returns a [`WindowMode`] value that indicates if the app is headless, headless with renderer or headed.
-    ///
-    /// Note that specific windows can be in headless modes even if the app is headed.
-    pub fn window_mode(&mut self) -> WindowMode {
-        self.services
-            .get::<crate::app::view_process::ViewProcess>()
-            .map(|p| {
-                if p.headless() {
-                    WindowMode::HeadlessWithRenderer
-                } else {
-                    WindowMode::Headed
-                }
-            })
-            .unwrap_or(WindowMode::Headless)
-    }
-
     /// Runs a function `f` in the context of a window.
     ///
     /// Returns the function result and
