@@ -471,10 +471,10 @@ impl Window {
 
                 // placement includes the non-client area.
                 let outer_offset =
-                    self.window.inner_position().unwrap_or_default().to_px() - self.window.inner_position().unwrap_or_default().to_px();
+                    self.window.outer_position().unwrap_or_default().to_px() - self.window.inner_position().unwrap_or_default().to_px();
                 let size_offset = self.window.outer_size().to_px() - self.window.inner_size().to_px();
 
-                left_top -= outer_offset;
+                left_top += outer_offset;
                 let bottom_right = left_top + self.state.restore_rect.size.to_px(scale_factor) + size_offset;
 
                 placement.rcNormalPosition.top = left_top.y.0;
