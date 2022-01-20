@@ -703,8 +703,8 @@ impl Window {
     /// Reset all window state.
     ///
     /// Returns `true` if the state changed.
-    pub fn set_state(&mut self, mut state: WindowStateAll) -> bool {
-        if self.state == state {
+    pub fn set_state(&mut self, mut new_state: WindowStateAll) -> bool {
+        if self.state == new_state {
             return false;
         }
 
@@ -712,15 +712,13 @@ impl Window {
             todo!()
         }
 
-        if self.state.chrome_visible != state.chrome_visible {
-            self.window.set_decorations(state.chrome_visible);
+        if self.state.chrome_visible != new_state.chrome_visible {
+            self.window.set_decorations(new_state.chrome_visible);
         }
 
-        let old_state = self.state.state;
-        let new_state = state.state;
-        if old_state != new_state {
-            match new_state {
-                WindowState::Normal => match old_state {
+        if self.state.state != new_state.state {
+            match new_state.state {
+                WindowState::Normal => match self.state.state {
                     WindowState::Minimized => self.window.set_minimized(false),
                     WindowState::Maximized => self.window.set_maximized(false),
                     WindowState::Fullscreen | WindowState::Exclusive => self.window.set_fullscreen(None),
@@ -733,27 +731,29 @@ impl Window {
                     if let Some(mode) = self.video_mode() {
                         self.window.set_fullscreen(Some(Fullscreen::Exclusive(mode)));
                     } else {
-                        self.window.set_fullscreen(Some(Fullscreen::Borderless(None)));
-                        state.state = WindowState::Fullscreen;
+                        new_state.state = WindowState::Fullscreen;
                     }
                 }
             }
         }
 
-        if new_state == WindowState::Normal {
-            self.set_inner_position(state.restore_rect.origin);
-            self.window.set_inner_size(state.restore_rect.size.to_winit());
+        if new_state.state == WindowState::Normal {
+            self.set_inner_position(new_state.restore_rect.origin);
+            self.window.set_inner_size(new_state.restore_rect.size.to_winit());
 
-            self.window.set_min_inner_size(Some(state.min_size.to_winit()));
-            self.window.set_max_inner_size(Some(state.max_size.to_winit()));
+            self.window.set_min_inner_size(Some(new_state.min_size.to_winit()));
+            self.window.set_max_inner_size(Some(new_state.max_size.to_winit()));
         }
 
-        self.state = state;
+        self.state = new_state;
 
+        // Update restore placement for Windows to avoid rendering incorrect frame when the OS restores the window.
+        //
+        // Windows changes the size if it considers the window "restored", that is the case for `Normal` and `Borderless` fullscreen.
         #[cfg(windows)]
-        self.windows_set_restore();
-
-        self.window.set_visible(true);
+        if !matches!(self.state.state, WindowState::Normal | WindowState::Fullscreen) {
+            self.windows_set_restore();
+        }
 
         true
     }
