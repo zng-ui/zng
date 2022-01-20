@@ -407,10 +407,6 @@ impl Window {
         if self.prev_pos != new_pos {
             self.prev_pos = new_pos;
 
-            if let WindowState::Normal = self.state.state {
-                self.state.restore_rect.origin = new_pos.to_dip(self.scale_factor());
-            }
-
             Some(new_pos.to_dip(self.scale_factor()))
         } else {
             None
@@ -423,10 +419,6 @@ impl Window {
         if self.prev_size != new_size {
             self.prev_size = new_size;
             self.resized = true;
-
-            if let WindowState::Normal = self.state.state {
-                self.state.restore_rect.size = new_size.to_dip(self.scale_factor());
-            }
 
             Some(new_size.to_dip(self.scale_factor()))
         } else {
@@ -582,6 +574,9 @@ impl Window {
 
             self.set_inner_position(state.restore_rect.origin);
             self.window.set_inner_size(state.restore_rect.size.to_winit());
+
+            self.window.set_min_inner_size(Some(state.min_size.to_winit()));
+            self.window.set_max_inner_size(Some(state.max_size.to_winit()));
         }
 
         if state != self.state {
@@ -700,43 +695,57 @@ impl Window {
     fn set_inner_position(&self, pos: DipPoint) {
         let outer_pos = self.window.outer_position().unwrap_or_default();
         let inner_pos = self.window.inner_position().unwrap_or_default();
-        let inner_offset = PxPoint::new(Px(outer_pos.x - inner_pos.y), Px(outer_pos.y - inner_pos.y)).to_dip(self.scale_factor());
-        let pos = pos - inner_offset;
-        self.window.set_outer_position(pos.to_point().to_winit());
+        let inner_offset = PxVector::new(Px(outer_pos.x - inner_pos.x), Px(outer_pos.y - inner_pos.y)).to_dip(self.scale_factor());
+        let pos = pos + inner_offset;
+        self.window.set_outer_position(pos.to_winit());
     }
 
     /// Reset all window state.
-    pub fn set_state(&mut self, state: WindowStateAll) -> bool {
+    ///
+    /// Returns `true` if the state changed.
+    pub fn set_state(&mut self, mut state: WindowStateAll) -> bool {
         if self.state == state {
             return false;
         }
 
-        self.window.set_visible(false);
+        if !self.visible {
+            todo!()
+        }
 
-        self.window.set_decorations(state.chrome_visible);
+        if self.state.chrome_visible != state.chrome_visible {
+            self.window.set_decorations(state.chrome_visible);
+        }
 
-        self.window.set_min_inner_size(Some(state.min_size.to_winit()));
-        self.window.set_max_inner_size(Some(state.max_size.to_winit()));
-        self.window.set_inner_size(state.restore_rect.size.to_winit());
-        self.set_inner_position(state.restore_rect.origin);
-
-        self.window.set_minimized(false);
-        self.window.set_maximized(false);
-        self.window.set_fullscreen(None);
-
-        match state.state {
-            WindowState::Normal => {}
-            WindowState::Minimized => self.window.set_minimized(true),
-            WindowState::Maximized => self.window.set_maximized(true),
-            WindowState::Fullscreen => self.window.set_fullscreen(Some(Fullscreen::Borderless(None))),
-            WindowState::Exclusive => {
-                if let Some(mode) = self.video_mode() {
-                    self.window.set_fullscreen(Some(Fullscreen::Exclusive(mode)));
-                } else {
-                    tracing::error!("failed to determinate exclusive video mode, will use windowed fullscreen");
-                    self.window.set_fullscreen(Some(Fullscreen::Borderless(None)));
+        let old_state = self.state.state;
+        let new_state = self.state.state;
+        if old_state != new_state {
+            match new_state {
+                WindowState::Normal => match old_state {
+                    WindowState::Minimized => self.window.set_minimized(false),
+                    WindowState::Maximized => self.window.set_maximized(false),
+                    WindowState::Fullscreen | WindowState::Exclusive => self.window.set_fullscreen(None),
+                    _ => unreachable!(),
+                },
+                WindowState::Minimized => self.window.set_minimized(true),
+                WindowState::Maximized => self.window.set_maximized(true),
+                WindowState::Fullscreen => self.window.set_fullscreen(Some(Fullscreen::Borderless(None))),
+                WindowState::Exclusive => {
+                    if let Some(mode) = self.video_mode() {
+                        self.window.set_fullscreen(Some(Fullscreen::Exclusive(mode)));
+                    } else {
+                        self.window.set_fullscreen(Some(Fullscreen::Borderless(None)));
+                        state.state = WindowState::Fullscreen;
+                    }
                 }
             }
+        }
+
+        if new_state == WindowState::Normal {
+            self.set_inner_position(state.restore_rect.origin);
+            self.window.set_inner_size(state.restore_rect.size.to_winit());
+
+            self.window.set_min_inner_size(Some(state.min_size.to_winit()));
+            self.window.set_max_inner_size(Some(state.max_size.to_winit()));
         }
 
         self.state = state;

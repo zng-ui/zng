@@ -36,7 +36,6 @@ use crate::{
 /// * [WindowOpenEvent]
 /// * [WindowChangedEvent]
 /// * [WindowFocusChangedEvent]
-/// * [WindowScaleChangedEvent]
 /// * [WindowCloseRequestedEvent]
 /// * [WindowCloseEvent]
 /// * [MonitorsChangedEvent]
