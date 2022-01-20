@@ -717,7 +717,7 @@ impl Window {
         }
 
         let old_state = self.state.state;
-        let new_state = self.state.state;
+        let new_state = state.state;
         if old_state != new_state {
             match new_state {
                 WindowState::Normal => match old_state {
