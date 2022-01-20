@@ -1124,6 +1124,7 @@ impl<S: AppEventSender> Api for App<S> {
         let _s = tracing::debug_span!("open_window", ?config).entered();
 
         config.state.clamp_size();
+        config.enforce_kiosk();
 
         if self.headless {
             let data = self.open_headless(HeadlessRequest {

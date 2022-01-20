@@ -73,6 +73,7 @@ pub(crate) struct Window {
 
     pending_frames: VecDeque<(FrameId, bool, Option<EnteredSpan>)>,
     rendered_frame_id: FrameId,
+    kiosk: bool,
 
     resized: bool,
 
@@ -255,6 +256,7 @@ impl Window {
             prev_size: winit_window.inner_size().to_px(),
             prev_monitor: winit_window.current_monitor(),
             state: s,
+            kiosk: cfg.kiosk,
             window: winit_window,
             context,
             capture_mode: cfg.capture_mode,
@@ -379,6 +381,10 @@ impl Window {
     }
 
     pub fn set_visible(&mut self, visible: bool) {
+        if self.kiosk && !self.visible {
+            tracing::error!("window in `kiosk` mode cannot be hidden");
+        }
+
         if !self.waiting_first_frame {
             self.visible = visible;
             self.window.set_visible(visible);
@@ -619,7 +625,13 @@ impl Window {
     pub fn set_video_mode(&mut self, mode: VideoMode) {
         self.video_mode = mode;
         if let WindowState::Exclusive = self.state.state {
-            self.set_state(self.state.clone());
+            self.window.set_fullscreen(None);
+
+            if let Some(mode) = self.video_mode() {
+                self.window.set_fullscreen(Some(Fullscreen::Exclusive(mode)));
+            } else {
+                self.window.set_fullscreen(Some(Fullscreen::Borderless(None)));
+            }
         }
     }
 
@@ -703,7 +715,7 @@ impl Window {
     /// Reset all window state.
     ///
     /// Returns `true` if the state changed.
-    pub fn set_state(&mut self, mut new_state: WindowStateAll) -> bool {
+    pub fn set_state(&mut self, new_state: WindowStateAll) -> bool {
         if self.state == new_state {
             return false;
         }
@@ -717,13 +729,17 @@ impl Window {
         }
 
         if self.state.state != new_state.state {
+            // unset previous state.
+            match self.state.state {
+                WindowState::Normal => {}
+                WindowState::Minimized => self.window.set_minimized(false),
+                WindowState::Maximized => self.window.set_maximized(false),
+                WindowState::Fullscreen | WindowState::Exclusive => self.window.set_fullscreen(None),
+            }
+
+            // set new state.
             match new_state.state {
-                WindowState::Normal => match self.state.state {
-                    WindowState::Minimized => self.window.set_minimized(false),
-                    WindowState::Maximized => self.window.set_maximized(false),
-                    WindowState::Fullscreen | WindowState::Exclusive => self.window.set_fullscreen(None),
-                    _ => unreachable!(),
-                },
+                WindowState::Normal => {}
                 WindowState::Minimized => self.window.set_minimized(true),
                 WindowState::Maximized => self.window.set_maximized(true),
                 WindowState::Fullscreen => self.window.set_fullscreen(Some(Fullscreen::Borderless(None))),
@@ -731,21 +747,21 @@ impl Window {
                     if let Some(mode) = self.video_mode() {
                         self.window.set_fullscreen(Some(Fullscreen::Exclusive(mode)));
                     } else {
-                        new_state.state = WindowState::Fullscreen;
+                        self.window.set_fullscreen(Some(Fullscreen::Borderless(None)));
                     }
                 }
             }
         }
 
-        if new_state.state == WindowState::Normal {
-            self.set_inner_position(new_state.restore_rect.origin);
-            self.window.set_inner_size(new_state.restore_rect.size.to_winit());
-
-            self.window.set_min_inner_size(Some(new_state.min_size.to_winit()));
-            self.window.set_max_inner_size(Some(new_state.max_size.to_winit()));
-        }
-
         self.state = new_state;
+
+        if self.state.state == WindowState::Normal {
+            self.set_inner_position(self.state.restore_rect.origin);
+            self.window.set_inner_size(self.state.restore_rect.size.to_winit());
+
+            self.window.set_min_inner_size(Some(self.state.min_size.to_winit()));
+            self.window.set_max_inner_size(Some(self.state.max_size.to_winit()));
+        }
 
         // Update restore placement for Windows to avoid rendering incorrect frame when the OS restores the window.
         //

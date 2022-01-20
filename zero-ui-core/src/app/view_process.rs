@@ -58,6 +58,11 @@ struct ViewApp {
 
     pending_frames: usize,
 }
+impl fmt::Debug for ViewApp {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("ViewApp").finish_non_exhaustive()
+    }
+}
 impl ViewApp {
     #[must_use = "if `true` all current WinId, DevId and MonId are invalid"]
     fn check_generation(&mut self) -> bool {
@@ -718,6 +723,7 @@ impl WeakViewImage {
     }
 }
 
+#[derive(Debug)]
 struct WindowConnection {
     id: ApiWindowId,
     id_namespace: IdNamespace,
@@ -752,7 +758,7 @@ impl Drop for WindowConnection {
 /// Connection to a window open in the View Process.
 ///
 /// This is a strong reference to the window connection. The window closes when all clones of this struct drops.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct ViewWindow(Rc<WindowConnection>);
 impl PartialEq for ViewWindow {
     fn eq(&self, other: &Self) -> bool {
@@ -891,7 +897,7 @@ impl ViewWindow {
 /// Connection to a headless surface/document open in the View Process.
 ///
 /// This is a strong reference to the window connection. The view is disposed when every reference drops.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct ViewHeadless(Rc<WindowConnection>, DocumentId);
 impl PartialEq for ViewHeadless {
     fn eq(&self, other: &Self) -> bool {
@@ -920,7 +926,7 @@ impl ViewHeadless {
 /// renderer has been dropped.
 ///
 /// [`Respawned`]: Respawned
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct ViewRenderer(rc::Weak<WindowConnection>);
 impl PartialEq for ViewRenderer {
     fn eq(&self, other: &Self) -> bool {

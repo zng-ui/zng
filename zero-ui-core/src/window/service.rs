@@ -606,6 +606,15 @@ impl AppWindow {
         let mut state = OwnedStateMap::new();
         state.set(WindowVarsKey, vars.clone());
         let (window, _) = ctx.window_context(id, mode, &mut state, new);
+
+        if window.kiosk {
+            vars.chrome().set_ne(ctx, WindowChrome::None);
+            vars.visible().set_ne(ctx, true);
+            if !vars.state().get(ctx).is_fullscreen() {
+                vars.state().set(ctx, WindowState::Exclusive);
+            }
+        }
+
         let root_id = window.id;
         let ctrl = WindowCtrl::new(&vars, mode, window);
 

@@ -9,3 +9,12 @@ except the render, this causes problems with context variables, like enabled.
 * Linux does not open maximized example image some times.
 * Windows does not respawn fullscreen, ends the size of the normal window, borderless.
 * Return restore position selected by system when starting maximized with default position.
+
+# Pre-Merge Review
+
+* calculator.rs number keys not working.
+* focus.rs shortcuts not working.
+* focus.rs ALT+F4 "New Window" focus he menu of the main window.
+* gradient.rs Cannot resize.
+* respawn.rs "Respawn" did not work.
+* stress.rs not run yet.

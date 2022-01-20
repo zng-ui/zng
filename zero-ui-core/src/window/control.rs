@@ -86,6 +86,13 @@ impl HeadedCtrl {
 
                     self.vars.visible().set(ctx, true);
                 }
+
+                if let Some(mode) = self.vars.chrome().get_new(ctx) {
+                    if !mode.is_none() {
+                        tracing::error!("window in `kiosk` mode can not show chrome");
+                        self.vars.chrome().set(ctx, WindowChrome::None);
+                    }
+                }
             } else {
                 let mut new_state = self.state.clone().unwrap();
 
@@ -103,6 +110,10 @@ impl HeadedCtrl {
                             }
                         }
                     }
+                }
+
+                if let Some(chrome) = self.vars.chrome().get_new(ctx.vars) {
+                    new_state.chrome_visible = chrome.is_default();
                 }
 
                 if let Some(state) = self.vars.state().copy_new(ctx) {
@@ -334,7 +345,7 @@ impl HeadedCtrl {
             self.vars.monitor().touch(ctx);
         } else if let Some(args) = ViewProcessRespawnedEvent.update(args) {
             if let Some(view) = &self.window {
-                if view.renderer().generation() == Ok(args.generation) {
+                if view.renderer().generation() != Ok(args.generation) {
                     self.content.layout_requested = true;
                     self.content.render_requested = WindowRenderUpdate::Render;
 
@@ -422,7 +433,7 @@ impl HeadedCtrl {
             restore_state: WindowState::Normal,
             min_size: min_size.to_dip(scale_factor.0),
             max_size: max_size.to_dip(scale_factor.0),
-            chrome_visible: matches!(self.vars.chrome().get(ctx), WindowChrome::Default),
+            chrome_visible: self.vars.chrome().get(ctx).is_default(),
         };
 
         Self::init_icon(&mut self.icon, &self.vars, ctx);
@@ -431,6 +442,7 @@ impl HeadedCtrl {
             id: ctx.window_id.get(),
             title: self.vars.title().get(ctx).to_string(),
             state,
+            kiosk: self.kiosk.is_some(),
             default_position: matches!(self.start_position, StartPosition::Default),
             video_mode: self.vars.video_mode().copy(ctx),
             visible: self.vars.visible().copy(ctx),

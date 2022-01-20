@@ -1419,6 +1419,16 @@ pub struct WindowRequest {
     /// Window state, position, size and restore rectangle.
     pub state: WindowStateAll,
 
+    /// Lock-in kiosk mode.
+    ///
+    /// If `true` the app-process will only set fullscreen states, never hide or minimize the window, never
+    /// make the window chrome visible and only request an opaque window. The view-process implementer is expected
+    /// to also never exit the fullscreen state, even temporally.
+    ///
+    /// The app-process does not expect the view-process to configure the operating system to run in kiosk mode, but
+    /// if possible to detect the view-process can assert that it is running in kiosk mode, logging an error if the assert fails.
+    pub kiosk: bool,
+
     /// If the initial position should be provided the operating system,
     /// if this is not possible the `state.restore_rect.origin` is used.
     pub default_position: bool,
@@ -1456,6 +1466,29 @@ pub struct WindowRequest {
 
     /// Render mode preference for this window.
     pub render_mode: RenderMode,
+}
+impl WindowRequest {
+    /// Corrects invalid values if [`kiosk`] is `true`.
+    ///
+    /// An error is logged for each invalid value.
+    ///
+    /// [`kiosk`]: Self::kiosk
+    pub fn enforce_kiosk(&mut self) {
+        if self.kiosk {
+            if !self.state.state.is_fullscreen() {
+                tracing::error!("window in `kiosk` mode did not request fullscreen");
+                self.state.state = WindowState::Exclusive;
+            }
+            if self.state.chrome_visible {
+                tracing::error!("window in `kiosk` mode request chrome");
+                self.state.chrome_visible = false;
+            }
+            if !self.visible {
+                tracing::error!("window in `kiosk` mode can only be visible");
+                self.visible = true;
+            }
+        }
+    }
 }
 
 /// Represents the properties of a window that affect its position, size and state.
