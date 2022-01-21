@@ -2,7 +2,7 @@
 use zero_ui::core::app::view_process::ViewProcessExt;
 use zero_ui::prelude::*;
 
-use zero_ui_view_prebuilt as zero_ui_view;
+// use zero_ui_view_prebuilt as zero_ui_view;
 
 fn main() {
     examples_util::print_info();

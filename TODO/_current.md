@@ -12,9 +12,10 @@ except the render, this causes problems with context variables, like enabled.
 
 # Pre-Merge Review
 
+* respawn.rs "Respawn" did not work when clicking the button.
+
 * calculator.rs number keys not working.
 * focus.rs shortcuts not working.
 * focus.rs ALT+F4 "New Window" focus he menu of the main window.
 * gradient.rs Cannot resize.
-* respawn.rs "Respawn" did not work.
 * stress.rs not run yet.

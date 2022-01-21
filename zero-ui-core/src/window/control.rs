@@ -346,12 +346,12 @@ impl HeadedCtrl {
         } else if let Some(args) = ViewProcessRespawnedEvent.update(args) {
             if let Some(view) = &self.window {
                 if view.renderer().generation() != Ok(args.generation) {
+                    self.window = None;
+
                     self.content.layout_requested = true;
                     self.content.render_requested = WindowRenderUpdate::Render;
 
                     ctx.updates.layout_and_render();
-
-                    self.window = None;
                 }
             }
         }
