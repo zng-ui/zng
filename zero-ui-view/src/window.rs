@@ -159,7 +159,9 @@ impl Window {
                 .with_decorations(s.chrome_visible)
                 // we wait for the first frame to show the window,
                 // so that there is no white frame when it's opening.
-                .with_visible(false);
+                //
+                // unless its "kiosk" mode.
+                .with_visible(cfg.kiosk);
         } else {
             // Maximized/Fullscreen Flickering Workaround Part 1
             //
@@ -920,7 +922,9 @@ impl Window {
             self.context.make_current();
             self.context.resize(s.width as i32, s.height as i32);
             self.redraw();
-            if self.visible {
+            if self.kiosk {
+                self.window.request_redraw();
+            } else if self.visible {
                 self.set_visible(true);
             }
         } else if msg.composite_needed {

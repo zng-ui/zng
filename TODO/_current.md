@@ -12,7 +12,7 @@ except the render, this causes problems with context variables, like enabled.
 
 # Pre-Merge Review
 
-* respawn.rs "Respawn" did not work when clicking the button.
+* respawn.rs Does not respawn on the previous state.
 
 * calculator.rs number keys not working.
 * focus.rs shortcuts not working.

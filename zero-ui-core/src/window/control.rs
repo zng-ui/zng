@@ -350,6 +350,7 @@ impl HeadedCtrl {
 
                     self.content.layout_requested = true;
                     self.content.render_requested = WindowRenderUpdate::Render;
+                    self.content.is_rendering = false;
 
                     ctx.updates.layout_and_render();
                 }
@@ -649,12 +650,13 @@ impl HeadlessWithRendererCtrl {
         if let Some(args) = ViewProcessRespawnedEvent.update(args) {
             if let Some(view) = &self.surface {
                 if view.renderer().generation() == Ok(args.generation) {
+                    self.surface = None;
+
+                    self.content.is_rendering = false;
                     self.content.layout_requested = true;
                     self.content.render_requested = WindowRenderUpdate::Render;
 
                     ctx.updates.layout_and_render();
-
-                    self.surface = None;
                 }
             }
         }
