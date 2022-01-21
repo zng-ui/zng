@@ -13,8 +13,6 @@ except the render, this causes problems with context variables, like enabled.
 
 # Pre-Merge Review
 
-* calculator.rs number keys not working.
-* focus.rs shortcuts not working.
-* focus.rs ALT+F4 "New Window" focus he menu of the main window.
+* focus.rs ALT+F4 "New Window" focus the menu of the main window.
 * gradient.rs Cannot resize.
 * stress.rs not run yet.

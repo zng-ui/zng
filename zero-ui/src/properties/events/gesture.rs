@@ -141,6 +141,11 @@ where
     C: UiNode,
     S: Var<Shortcuts>,
 {
+    fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
+        subscriptions.event(ShortcutEvent);
+        self.child.subscriptions(ctx, subscriptions);
+    }
+
     fn event<EU: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &EU)
     where
         Self: Sized,

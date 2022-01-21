@@ -247,6 +247,11 @@ pub fn focus_shortcut(child: impl UiNode, shortcuts: impl IntoVar<Shortcuts>) ->
     }
     #[impl_ui_node(child)]
     impl<C: UiNode, S: Var<Shortcuts>> UiNode for FocusShortcutNode<C, S> {
+        fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
+            subscriptions.event(ShortcutEvent);
+            self.child.subscriptions(ctx, subscriptions);
+        }
+
         fn event<EU: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &EU) {
             if let Some(args) = ShortcutEvent.update(args) {
                 self.child.event(ctx, args);
