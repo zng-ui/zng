@@ -6,7 +6,7 @@ use super::VideoMode;
 use crate::{
     app::{
         raw_events::{RawMonitorsChangedArgs, RawMonitorsChangedEvent, RawScaleFactorChangedEvent},
-        view_process::ViewProcess,
+        view_process::{ViewProcess, ViewProcessRespawnedEvent},
     },
     context::AppContext,
     event::{event, EventUpdateArgs, Events},
@@ -177,6 +177,14 @@ impl Monitors {
             }
         } else if let Some(args) = RawMonitorsChangedEvent.update(args) {
             ctx.services.monitors().on_monitors_changed(ctx.events, ctx.vars, args);
+        } else if let Some(args) = ViewProcessRespawnedEvent.update(args) {
+            let monitors = ctx
+                .services
+                .get::<ViewProcess>()
+                .and_then(|vp| vp.available_monitors().ok())
+                .unwrap_or_default();
+            let args = RawMonitorsChangedArgs::new(args.timestamp, monitors);
+            ctx.services.monitors().on_monitors_changed(ctx.events, ctx.vars, &args);
         }
     }
 }
