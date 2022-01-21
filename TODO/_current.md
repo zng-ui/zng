@@ -14,4 +14,6 @@ except the render, this causes problems with context variables, like enabled.
 # Pre-Merge Review
 
 * shortcuts.rs auto-size does not center correctly.
-* stress.rs not run yet.
+* stress.rs
+    - multi_window does not open in the right position.
+    - text_change_one/all does first frame at the restored size (not opening maximized?).
