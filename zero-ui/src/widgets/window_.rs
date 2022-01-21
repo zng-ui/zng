@@ -132,6 +132,21 @@ pub mod window {
         /// [`AutoSize::DISABLED`]: crate::prelude::AutoSize::DISABLED
         properties::auto_size;
 
+        /// The point in the window content that does not move when the window is resized by [`auto_size`].
+        ///
+        /// When the window size increases it *grows* to the right-bottom, the top-left corner does not move because
+        /// the origin of window position is at the top-left and the position did not change, this variables overwrites this origin
+        /// for [`auto_size`] resizes, the window position is adjusted so that it is the *center* of the resize.
+        ///
+        /// Note this only applies to auto-resizes, the initial auto-size when the window opens is positioned
+        /// according to the [`start_position`] value.
+        ///
+        /// The default value is [`Point::top_left`].
+        ///
+        /// [`auto_size`]: #wp-auto_size
+        /// [`start_position`]: #wp-start_position
+        properties::auto_size_origin;
+
         /// Window background color.
         background_color = rgb(0.1, 0.1, 0.1);
 
@@ -515,6 +530,7 @@ pub mod window {
             title: Text,
 
             auto_size: AutoSize,
+            auto_size_origin: Point,
 
             resizable: bool,
             movable: bool,

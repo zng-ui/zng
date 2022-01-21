@@ -319,6 +319,11 @@ impl HeadedCtrl {
 
                         self.content.layout_requested = true;
                         ctx.updates.layout();
+
+                        if args.cause == EventCause::System {
+                            // resize by system (user)
+                            self.vars.auto_size().set_ne(ctx, AutoSize::DISABLED);
+                        }
                     }
                 }
 

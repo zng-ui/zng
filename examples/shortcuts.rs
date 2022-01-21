@@ -28,6 +28,8 @@ fn app_main() {
         window! {
             title = "Shortcuts Example";
             auto_size = true;
+            resizable = false;
+            auto_size_origin = Point::center();
             padding = 50;
             start_position = StartPosition::CenterMonitor;
             on_shortcut = hn!(shortcut_text, shortcut_color, |ctx, args: &ShortcutArgs| {

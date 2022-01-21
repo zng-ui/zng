@@ -13,6 +13,5 @@ except the render, this causes problems with context variables, like enabled.
 
 # Pre-Merge Review
 
-* focus.rs ALT+F4 "New Window" focus the menu of the main window.
-* gradient.rs Cannot resize.
+* shortcuts.rs auto-size does not center correctly.
 * stress.rs not run yet.
