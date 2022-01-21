@@ -88,37 +88,18 @@ impl MonitorId {
 #[derive(Service)]
 pub struct Monitors {
     monitors: LinearMap<MonitorId, MonitorInfo>,
-    primary: Option<MonitorId>,
 }
 impl Monitors {
     /// Initial PPI of monitors, `96.0`.
     pub const DEFAULT_PPI: f32 = 96.0;
 
     pub(super) fn new(view: Option<&mut ViewProcess>) -> Self {
-        let mut primary = None;
         Monitors {
             monitors: view
                 .and_then(|v| v.available_monitors().ok())
-                .map(|ms| {
-                    ms.into_iter()
-                        .map(|(id, info)| {
-                            if info.is_primary {
-                                primary = Some(id);
-                            }
-                            (id, MonitorInfo::from_view(id, info))
-                        })
-                        .collect()
-                })
+                .map(|ms| ms.into_iter().map(|(id, info)| (id, MonitorInfo::from_view(id, info))).collect())
                 .unwrap_or_default(),
-            primary,
         }
-    }
-
-    /// Reference the primary monitor.
-    ///
-    /// Returns `None` if no monitor was identified as the primary.
-    pub fn primary_monitor(&mut self) -> Option<&MonitorInfo> {
-        self.primary.and_then(|id| self.monitor(id))
     }
 
     /// Reference the monitor info.
@@ -394,10 +375,23 @@ impl MonitorQuery {
     /// Runs the query.
     #[inline]
     pub fn select<'a, 'v, 'm>(&'a self, vars: &'v impl WithVarsRead, monitors: &'m mut Monitors) -> Option<&'m MonitorInfo> {
-        match self {
-            MonitorQuery::Primary => monitors.primary_monitor(),
-            MonitorQuery::Query(q) => vars.with_vars_read(|vars| q(vars, monitors)),
-        }
+        vars.with_vars_read(|vars| match self {
+            MonitorQuery::Primary => Self::primary_query(vars, monitors),
+            MonitorQuery::Query(q) => q(vars, monitors),
+        })
+    }
+
+    /// Runs the query, fallback to `Primary` and [`MonitorInfo::fallback`]
+    pub fn select_fallback(&self, vars: &impl WithVarsRead, monitors: &mut Monitors) -> MonitorInfo {
+        vars.with_vars_read(|vars| match self {
+            MonitorQuery::Primary => Self::primary_query(vars, monitors).cloned(),
+            MonitorQuery::Query(q) => q(vars, monitors).cloned().or_else(|| Self::primary_query(vars, monitors).cloned()),
+        })
+        .unwrap_or_else(MonitorInfo::fallback)
+    }
+
+    fn primary_query<'v, 'm>(vars: &'v VarsRead, m: &'m mut Monitors) -> Option<&'m MonitorInfo> {
+        m.available_monitors().find(|m| m.is_primary.copy(vars))
     }
 }
 impl PartialEq for MonitorQuery {

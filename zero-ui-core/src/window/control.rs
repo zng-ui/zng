@@ -29,6 +29,7 @@ use super::{
 struct HeadedCtrl {
     window: Option<ViewWindow>,
     vars: WindowVars,
+    respawned: bool,
 
     content: ContentCtrl,
 
@@ -56,6 +57,7 @@ impl HeadedCtrl {
 
             content: ContentCtrl::new(vars.clone(), content),
             vars: vars.clone(),
+            respawned: false,
 
             state: None,
             monitor: None,
@@ -97,17 +99,14 @@ impl HeadedCtrl {
                 let mut new_state = self.state.clone().unwrap();
 
                 if let Some(query) = self.vars.monitor().get_new(ctx.vars) {
-                    if let Some(new) = query.select(ctx.vars, ctx.services.monitors()).map(|m| m.id()) {
+                    let monitors = ctx.services.monitors();
+
+                    if self.monitor.is_none() {
+                        self.monitor = Some(query.select_fallback(ctx.vars, monitors));
+                    } else if let Some(new) = query.select(ctx.vars, monitors) {
                         let current = self.vars.0.actual_monitor.copy(ctx.vars);
-                        if Some(new) != current {
-                            // see vars.monitor() docs
-                            match self.vars.state().copy(ctx) {
-                                WindowState::Normal => todo!(),
-                                WindowState::Minimized => todo!(),
-                                WindowState::Maximized => todo!(),
-                                WindowState::Fullscreen => todo!(),
-                                WindowState::Exclusive => todo!(),
-                            }
+                        if Some(new.id()) != current {
+                            todo!()
                         }
                     }
                 }
@@ -340,6 +339,7 @@ impl HeadedCtrl {
             if let Some(m) = &self.monitor {
                 if args.removed.contains(&m.id()) {
                     self.monitor = None;
+                    self.vars.0.actual_monitor.set_ne(ctx, None);
                 }
             }
             self.vars.monitor().touch(ctx);
@@ -347,6 +347,7 @@ impl HeadedCtrl {
             if let Some(view) = &self.window {
                 if view.renderer().generation() != Ok(args.generation) {
                     self.window = None;
+                    self.respawned = true;
 
                     self.content.layout_requested = true;
                     self.content.render_requested = WindowRenderUpdate::Render;
@@ -374,6 +375,8 @@ impl HeadedCtrl {
                 return;
             }
             self.layout_update(ctx);
+        } else if self.respawned {
+            self.layout_respawn(ctx);
         } else {
             self.layout_init(ctx);
         }
@@ -383,7 +386,7 @@ impl HeadedCtrl {
     fn layout_init(&mut self, ctx: &mut WindowContext) {
         let skip_auto_size = !matches!(self.vars.state().copy(ctx), WindowState::Normal);
 
-        Self::init_monitor(&mut self.monitor, &self.vars, ctx);
+        self.monitor = Some(self.vars.monitor().get(ctx.vars).select_fallback(ctx.vars, ctx.services.monitors()));
 
         let m = self.monitor.as_ref().unwrap();
         let scale_factor = m.scale_factor().copy(ctx);
@@ -480,10 +483,6 @@ impl HeadedCtrl {
 
     /// Layout for already open window.
     fn layout_update(&mut self, ctx: &mut WindowContext) {
-        if self.monitor.is_none() {
-            Self::init_monitor(&mut self.monitor, &self.vars, ctx);
-        }
-
         let m = self.monitor.as_ref().unwrap();
         let scale_factor = m.scale_factor().copy(ctx);
         let screen_ppi = m.ppi().copy(ctx);
@@ -543,8 +542,60 @@ impl HeadedCtrl {
 
             if let Some(view) = &self.window {
                 let _: Ignore = view.set_state(state);
+            } else {
+                debug_assert!(self.respawned);
+                self.state = Some(state);
             }
         }
+    }
+
+    /// First layout after respawn, opens the window but used previous sizes.
+    fn layout_respawn(&mut self, ctx: &mut WindowContext) {
+        if self.monitor.is_none() {
+            self.monitor = Some(self.vars.monitor().get(ctx.vars).select_fallback(ctx.vars, ctx.services.monitors()));
+        }
+
+        self.layout_update(ctx);
+
+        Self::init_icon(&mut self.icon, &self.vars, ctx);
+
+        let request = WindowRequest {
+            id: ctx.window_id.get(),
+            title: self.vars.title().get(ctx).to_string(),
+            state: self.state.clone().unwrap(),
+            kiosk: self.kiosk.is_some(),
+            default_position: false,
+            video_mode: self.vars.video_mode().copy(ctx),
+            visible: self.vars.visible().copy(ctx),
+            taskbar_visible: self.vars.taskbar_visible().copy(ctx),
+            allow_alt_f4: self.vars.allow_alt_f4().copy(ctx),
+            always_on_top: self.vars.always_on_top().copy(ctx),
+            movable: self.vars.movable().copy(ctx),
+            resizable: self.vars.resizable().copy(ctx),
+            icon: self.icon.as_ref().and_then(|ico| ico.get(ctx).view()).map(|ico| ico.id()),
+            cursor: self.vars.cursor().copy(ctx),
+            transparent: self.transparent,
+            text_aa: self.vars.text_aa().copy(ctx),
+            capture_mode: matches!(self.vars.frame_capture_mode().get(ctx), FrameCaptureMode::All),
+            render_mode: self.render_mode.unwrap_or_else(|| ctx.services.windows().default_render_mode),
+        };
+        let r = ctx.services.view_process().open_window(request);
+
+        if let Ok((window, data)) = r {
+            ctx.services.windows().set_renderer(*ctx.window_id, window.renderer());
+
+            self.window = Some(window);
+            self.vars.0.render_mode.set_ne(ctx, data.render_mode);
+            self.vars.state().set_ne(ctx, data.state.state);
+            self.vars.0.restore_state.set_ne(ctx, data.state.restore_state);
+            self.vars.0.restore_rect.set_ne(ctx, data.state.restore_rect);
+            self.vars.0.actual_position.set_ne(ctx, data.position);
+            self.vars.0.actual_size.set_ne(ctx, data.size);
+            self.vars.0.actual_monitor.set_ne(ctx, data.monitor);
+
+            self.state = Some(data.state);
+        }
+        // else `Respawn`
     }
 
     pub fn render(&mut self, ctx: &mut WindowContext) {
@@ -574,23 +625,6 @@ impl HeadedCtrl {
             WindowIcon::Image(source) => Some(ctx.services.images().cache(source.clone())),
             WindowIcon::Render(_) => todo!(),
         };
-    }
-
-    fn init_monitor(monitor: &mut Option<MonitorInfo>, vars: &WindowVars, ctx: &mut WindowContext) {
-        let monitors = ctx.services.monitors();
-
-        if let Some(id) = vars.0.actual_monitor.copy(ctx.vars) {
-            if let Some(info) = monitors.monitor(id) {
-                *monitor = Some(info.clone());
-                return;
-            }
-        }
-
-        if let Some(info) = monitors.primary_monitor() {
-            *monitor = Some(info.clone());
-        } else {
-            *monitor = Some(MonitorInfo::fallback())
-        }
     }
 }
 
