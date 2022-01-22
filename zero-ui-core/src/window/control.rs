@@ -425,17 +425,32 @@ impl HeadedCtrl {
             size = self.content.layout(ctx, scale_factor, screen_ppi, min_size, max_size, size, false);
         }
 
-        let size = size.to_dip(scale_factor.0);
-        let screen_size = screen_size.to_dip(scale_factor.0);
-
+        let mut system_pos = false;
         let position = match self.start_position {
-            StartPosition::Default => DipPoint::zero(),
-            StartPosition::CenterMonitor => DipPoint::new(
-                (screen_size.width - size.width) / Dip::new(2),
-                (screen_size.height - size.height) / Dip::new(2),
-            ),
-            StartPosition::CenterParent => todo!(),
+            StartPosition::Default => {
+                let pos = self.vars.position().get(ctx.vars);
+                if pos.x.is_default() || pos.y.is_default() {
+                    system_pos = true;
+                    PxPoint::zero()
+                } else {
+                    self.content.outer_layout(ctx, scale_factor, screen_ppi, screen_size, |ctx| {
+                        let available_size = AvailableSize::finite(screen_size);
+                        pos.to_layout(ctx.metrics, available_size, PxPoint::zero())
+                    })
+                }
+            }
+            StartPosition::CenterMonitor => {
+                PxPoint::new((screen_size.width - size.width) / Px(2), (screen_size.height - size.height) / Px(2))
+            }
+            StartPosition::CenterParent => {
+                // center monitor if no parent
+                todo!()
+            }
         };
+
+        let position = position.to_dip(scale_factor.0);
+        let size = size.to_dip(scale_factor.0);
+
         let state = WindowStateAll {
             state,
             restore_rect: DipRect::new(position, size),
@@ -452,7 +467,7 @@ impl HeadedCtrl {
             title: self.vars.title().get(ctx).to_string(),
             state,
             kiosk: self.kiosk.is_some(),
-            default_position: matches!(self.start_position, StartPosition::Default),
+            default_position: system_pos,
             video_mode: self.vars.video_mode().copy(ctx),
             visible: self.vars.visible().copy(ctx),
             taskbar_visible: self.vars.taskbar_visible().copy(ctx),
