@@ -10,7 +10,3 @@ except the render, this causes problems with context variables, like enabled.
 * Windows does not respawn fullscreen, ends the size of the normal window, borderless.
 * Return restore position selected by system when starting maximized with default position.
 * Colors don't match other apps, clear_color and background_color also does not match.
-
-# Pre-Merge Review
-
-* shortcuts.rs auto-size does not center correctly.

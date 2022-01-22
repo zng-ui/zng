@@ -574,7 +574,7 @@ impl HeadedCtrl {
             let size = size.to_dip(scale_factor.0);
 
             state.restore_rect.size = size;
-            state.restore_rect.origin -= prev_origin - new_origin;
+            state.restore_rect.origin += prev_origin - new_origin;
 
             if let Some(view) = &self.window {
                 let _: Ignore = view.set_state(state);
