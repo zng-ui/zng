@@ -116,7 +116,20 @@ impl HeadedCtrl {
                 }
 
                 if let Some(state) = self.vars.state().copy_new(ctx) {
+                    if state == WindowState::Minimized {
+                        // restore to previous state from minimized.
+                        new_state.restore_state = new_state.state;
+                    } else if state.is_fullscreen() && !new_state.state.is_fullscreen() {
+                        // restore to maximized or normal from fullscreen.
+                        if new_state.state == WindowState::Maximized {
+                            new_state.restore_state = WindowState::Maximized;
+                        } else {
+                            new_state.restore_state = WindowState::Normal;
+                        }
+                    }
                     new_state.state = state;
+
+                    self.vars.0.restore_state.set_ne(ctx, new_state.restore_state);
                 }
 
                 if self.vars.min_size().is_new(ctx) || self.vars.max_size().is_new(ctx) {
@@ -304,6 +317,7 @@ impl HeadedCtrl {
                     }
 
                     self.vars.0.restore_rect.set_ne(ctx, state.restore_rect);
+                    self.vars.0.restore_state.set_ne(ctx, state.restore_state);
                     self.state = Some(state);
                 }
 

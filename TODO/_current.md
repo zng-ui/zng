@@ -8,5 +8,5 @@ except the render, this causes problems with context variables, like enabled.
 
 * Linux does not open maximized example image some times.
 * Windows does not respawn fullscreen, ends the size of the normal window, borderless.
-* Windows only restore to normal.
+* Window does not restore to fullscreen from minimized.
 * Colors don't match other apps, clear_color and background_color also does not match.
