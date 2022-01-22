@@ -1501,7 +1501,22 @@ pub struct WindowStateAll {
     ///
     /// The position is relative to the monitor.
     pub restore_rect: DipRect,
+
     /// What state the window goes too when "restored".
+    ///
+    /// The *restore* state that the window must be set to be restored, if the [current state] is [`Maximized`], [`Fullscreen`] or [`Exclusive`]
+    /// the restore state is [`Normal`], if the [current state] is [`Minimized`] the restore state is the previous state.
+    ///
+    /// When the restore state is [`Normal`] the [`restore_rect`] defines the window position and size.
+    ///
+    ///
+    /// [current state]: Self::state
+    /// [`Maximized`]: WindowState::Maximized
+    /// [`Fullscreen`]: WindowState::Fullscreen
+    /// [`Exclusive`]: WindowState::Exclusive
+    /// [`Normal`]: WindowState::Normal
+    /// [`Minimized`]: WindowState::Minimized
+    /// [`restore_rect`]: Self::restore_rect
     pub restore_state: WindowState,
 
     /// Minimal `Normal` size allowed.

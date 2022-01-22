@@ -36,8 +36,6 @@ fn main_window(ctx: &mut WindowContext) -> Window {
     let background = var(rgb(0.1, 0.1, 0.1));
 
     window! {
-        clear_color = colors::RED;
-
         background_color = background.clone();
         title;
         on_state_changed = hn!(|_, args: &WindowChangedArgs| {

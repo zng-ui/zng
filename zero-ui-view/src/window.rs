@@ -281,7 +281,7 @@ impl Window {
             hit_tester,
             render_mode,
         };
-        
+
         if !cfg.default_position && win.state.state == WindowState::Normal {
             win.set_inner_position(win.state.restore_rect.origin);
         }
@@ -738,7 +738,11 @@ impl Window {
             match self.state.state {
                 WindowState::Normal => {}
                 WindowState::Minimized => self.window.set_minimized(false),
-                WindowState::Maximized => self.window.set_maximized(false),
+                WindowState::Maximized => {
+                    if !new_state.state.is_fullscreen() {
+                        self.window.set_maximized(false);
+                    }
+                }
                 WindowState::Fullscreen | WindowState::Exclusive => self.window.set_fullscreen(None),
             }
 
@@ -747,7 +751,9 @@ impl Window {
                 WindowState::Normal => {}
                 WindowState::Minimized => self.window.set_minimized(true),
                 WindowState::Maximized => self.window.set_maximized(true),
-                WindowState::Fullscreen => self.window.set_fullscreen(Some(Fullscreen::Borderless(None))),
+                WindowState::Fullscreen => {
+                    self.window.set_fullscreen(Some(Fullscreen::Borderless(None)));
+                }
                 WindowState::Exclusive => {
                     if let Some(mode) = self.video_mode() {
                         self.window.set_fullscreen(Some(Fullscreen::Exclusive(mode)));
