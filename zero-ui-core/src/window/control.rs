@@ -486,7 +486,15 @@ impl HeadedCtrl {
             // if we did not layout yet or the view-process used a different size.
             self.content.layout_requested |= size != data.size;
             if self.content.layout_requested {
-                self.layout_update(ctx);
+                self.content.layout(
+                    ctx,
+                    scale_factor,
+                    screen_ppi,
+                    min_size,
+                    max_size,
+                    data.size.to_px(scale_factor.0),
+                    true,
+                );
             }
 
             ctx.updates.render();

@@ -16,6 +16,5 @@ except the render, this causes problems with context variables, like enabled.
 * shortcuts.rs auto-size does not center correctly.
 * stress.rs
     - multi_window does not open in the right position.
-    - text_change_one/all does first frame at the restored size (not opening maximized?).
 * Maximized->Restore for the first time causes a slight jump.
-* window.rs first frame does not render correctly.
+* Respawn example: When respawning the window after having just moved it, it respawns at the wrong height.
