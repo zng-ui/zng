@@ -14,5 +14,3 @@ except the render, this causes problems with context variables, like enabled.
 # Pre-Merge Review
 
 * shortcuts.rs auto-size does not center correctly.
-* Maximized->Restore for the first time causes a slight jump.
-* Respawn example: When respawning the window after having just moved it, it respawns at the wrong height.

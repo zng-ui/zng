@@ -141,10 +141,6 @@ impl Window {
                 .with_min_inner_size(s.min_size.to_winit())
                 .with_max_inner_size(s.max_size.to_winit())
                 .with_inner_size(s.restore_rect.size.to_winit());
-
-            if !cfg.default_position {
-                winit = winit.with_position(s.restore_rect.origin.to_winit());
-            }
         } else if cfg.default_position {
             if let Some(screen) = window_target.primary_monitor() {
                 // fallback to center.
@@ -285,6 +281,10 @@ impl Window {
             hit_tester,
             render_mode,
         };
+        
+        if !cfg.default_position && win.state.state == WindowState::Normal {
+            win.set_inner_position(win.state.restore_rect.origin);
+        }
 
         // Maximized/Fullscreen Flickering Workaround Part 2
         if win.state.state != WindowState::Normal && win.state.state != WindowState::Minimized {
