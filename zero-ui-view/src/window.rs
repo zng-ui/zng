@@ -11,7 +11,7 @@ use webrender::{
         ApiHitTester, BuiltDisplayList, DisplayListPayload, DocumentId, DynamicProperties, FontInstanceKey, FontInstanceOptions,
         FontInstancePlatformOptions, FontKey, FontVariation, HitTestResult, HitTesterRequest, IdNamespace, ImageKey, PipelineId,
     },
-    RenderApi, Renderer, RendererOptions, Transaction,
+    RenderApi, Renderer, RendererOptions, Transaction, UploadMethod, VertexUsageHint,
 };
 use zero_ui_view_api::{
     units::*, CursorIcon, DeviceId, FrameId, FrameRequest, FrameUpdateRequest, ImageId, ImageLoadedData, RenderMode, TextAntiAliasing,
@@ -233,6 +233,9 @@ impl Window {
             allow_advanced_blend_equation: context.is_software(),
             clear_caches_with_quads: !context.is_software(),
             enable_gpu_markers: !context.is_software(),
+
+            // best for GL
+            upload_method: UploadMethod::PixelBuffer(VertexUsageHint::Dynamic),
 
             //panic_on_gl_error: true,
             ..Default::default()
