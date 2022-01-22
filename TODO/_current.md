@@ -17,3 +17,4 @@ except the render, this causes problems with context variables, like enabled.
 * stress.rs
     - multi_window does not open in the right position.
     - text_change_one/all does first frame at the restored size (not opening maximized?).
+* Maximized->Restore for the first time causes a slight jump.

@@ -389,8 +389,6 @@ impl HeadedCtrl {
 
     /// First layout, opens the window.
     fn layout_init(&mut self, ctx: &mut WindowContext) {
-        let skip_auto_size = !matches!(self.vars.state().copy(ctx), WindowState::Normal);
-
         self.monitor = Some(self.vars.monitor().get(ctx.vars).select_fallback(ctx.vars, ctx.services.monitors()));
 
         let m = self.monitor.as_ref().unwrap();
@@ -398,7 +396,7 @@ impl HeadedCtrl {
         let screen_ppi = m.ppi().copy(ctx);
         let screen_size = m.size().copy(ctx);
 
-        let (min_size, max_size, size) = self.content.outer_layout(ctx, scale_factor, screen_ppi, screen_size, |ctx| {
+        let (min_size, max_size, mut size) = self.content.outer_layout(ctx, scale_factor, screen_ppi, screen_size, |ctx| {
             let available_size = AvailableSize::finite(screen_size);
 
             let min_size = self
@@ -421,9 +419,11 @@ impl HeadedCtrl {
             (min_size, max_size, size.min(max_size).max(min_size))
         });
 
-        let size = self
-            .content
-            .layout(ctx, scale_factor, screen_ppi, min_size, max_size, size, skip_auto_size);
+        let state = self.vars.state().copy(ctx);
+
+        if state == WindowState::Normal && self.vars.auto_size().copy(ctx) != AutoSize::DISABLED {
+            size = self.content.layout(ctx, scale_factor, screen_ppi, min_size, max_size, size, false);
+        }
 
         let size = size.to_dip(scale_factor.0);
         let screen_size = screen_size.to_dip(scale_factor.0);
@@ -437,7 +437,7 @@ impl HeadedCtrl {
             StartPosition::CenterParent => todo!(),
         };
         let state = WindowStateAll {
-            state: self.vars.state().copy(ctx),
+            state,
             restore_rect: DipRect::new(position, size),
             restore_state: WindowState::Normal,
             min_size: min_size.to_dip(scale_factor.0),
@@ -482,6 +482,14 @@ impl HeadedCtrl {
             self.vars.0.actual_monitor.set_ne(ctx, data.monitor);
 
             self.state = Some(data.state);
+
+            // if we did not layout yet or the view-process used a different size.
+            self.content.layout_requested |= size != data.size;
+            if self.content.layout_requested {
+                self.layout_update(ctx);
+            }
+
+            ctx.updates.render();
         }
         // else `Respawn`
     }
@@ -599,6 +607,8 @@ impl HeadedCtrl {
             self.vars.0.actual_monitor.set_ne(ctx, data.monitor);
 
             self.state = Some(data.state);
+
+            ctx.updates.render();
         }
         // else `Respawn`
     }
@@ -770,6 +780,8 @@ impl HeadlessWithRendererCtrl {
 
                 self.surface = Some(surface);
                 self.vars.0.render_mode.set_ne(ctx.vars, data.render_mode);
+
+                ctx.updates.render();
             }
             // else `Respawn`, handled in `pre_event`.
         }
@@ -823,6 +835,14 @@ impl HeadlessCtrl {
         {
             self.content.layout_requested = true;
             ctx.updates.layout();
+        }
+
+        if !self.content.inited {
+            self.content.layout_requested = true;
+            self.content.pending_render = WindowRenderUpdate::Render;
+
+            ctx.updates.layout();
+            ctx.updates.render();
         }
 
         self.content.update(ctx);
@@ -999,8 +1019,6 @@ impl ContentCtrl {
 
                 ctx.updates.info();
                 ctx.updates.subscriptions();
-                ctx.updates.layout();
-                ctx.updates.render();
             });
             self.inited = true;
         } else {
