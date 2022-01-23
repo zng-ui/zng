@@ -141,6 +141,12 @@ impl Window {
                 .with_min_inner_size(s.min_size.to_winit())
                 .with_max_inner_size(s.max_size.to_winit())
                 .with_inner_size(s.restore_rect.size.to_winit());
+
+            #[cfg(target_os = "linux")]
+            if cfg.default_position {
+                // default X11 position is outer zero.
+                winit = winit.with_position(DipPoint::new(Dip::new(120), Dip::new(80)).to_winit());
+            }
         } else if cfg.default_position {
             if let Some(screen) = window_target.primary_monitor() {
                 // fallback to center.

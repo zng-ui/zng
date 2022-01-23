@@ -6,5 +6,4 @@
 * Try implementing "layers" in the window widget instead, in the renderer we are getting the parent widget context for all methods
 except the render, this causes problems with context variables, like enabled.
 
-* Linux does not open maximized example image some times.
 * Colors don't match other apps, clear_color and background_color also does not match.
