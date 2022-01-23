@@ -1534,6 +1534,42 @@ impl WindowStateAll {
     pub fn clamp_size(&mut self) {
         self.restore_rect.size = self.restore_rect.size.min(self.max_size).max(self.min_size)
     }
+
+    /// Compute a value for [`restore_state`] given the previous [`state`] in `self` and the `new_state` and update the [`state`].
+    ///
+    /// [`restore_state`]: Self::restore_state
+    /// [`state`]: Self::state
+    pub fn set_state(&mut self, new_state: WindowState) {
+        self.restore_state = Self::compute_restore_state(self.restore_state, self.state, new_state);
+        self.state = new_state;
+    }
+
+    /// Compute a value for [`restore_state`] given the previous `prev_state` and the new [`state`] in `self`.
+    ///
+    /// [`restore_state`]: Self::restore_state
+    /// [`state`]: Self::state
+    pub fn set_restore_state_from(&mut self, prev_state: WindowState) {
+        self.restore_state = Self::compute_restore_state(self.restore_state, prev_state, self.state);
+    }
+
+    fn compute_restore_state(restore_state: WindowState, prev_state: WindowState, new_state: WindowState) -> WindowState {
+        if new_state == WindowState::Minimized {
+            // restore to previous state from minimized.
+            prev_state
+        } else if new_state.is_fullscreen() && !prev_state.is_fullscreen() {
+            // restore to maximized or normal from fullscreen.
+            if prev_state == WindowState::Maximized {
+                WindowState::Maximized
+            } else {
+                WindowState::Normal
+            }
+        } else if new_state == WindowState::Maximized {
+            WindowState::Normal
+        } else {
+            // Fullscreen to/from Exclusive keeps the previous restore_state.
+            restore_state
+        }
+    }
 }
 
 /// Render backend preference.

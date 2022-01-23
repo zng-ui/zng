@@ -602,21 +602,25 @@ impl Window {
             return None;
         }
 
-        let mut state = self.probe_state();
+        let mut new_state = self.probe_state();
 
-        if state.state == WindowState::Normal && self.state.state != WindowState::Normal {
-            state.restore_rect = self.state.restore_rect;
+        if self.state.state == WindowState::Minimized && self.state.restore_state == WindowState::Fullscreen {
+            self.window.set_fullscreen(Some(Fullscreen::Borderless(None)));
+        } else if new_state.state == WindowState::Normal && self.state.state != WindowState::Normal {
+            new_state.restore_rect = self.state.restore_rect;
 
-            self.set_inner_position(state.restore_rect.origin);
-            self.window.set_inner_size(state.restore_rect.size.to_winit());
+            self.set_inner_position(new_state.restore_rect.origin);
+            self.window.set_inner_size(new_state.restore_rect.size.to_winit());
 
-            self.window.set_min_inner_size(Some(state.min_size.to_winit()));
-            self.window.set_max_inner_size(Some(state.max_size.to_winit()));
+            self.window.set_min_inner_size(Some(new_state.min_size.to_winit()));
+            self.window.set_max_inner_size(Some(new_state.max_size.to_winit()));
         }
 
-        if state != self.state {
-            self.state = state.clone();
-            Some(state)
+        new_state.set_restore_state_from(self.state.state);
+
+        if new_state != self.state {
+            self.state = new_state.clone();
+            Some(new_state)
         } else {
             None
         }
