@@ -392,7 +392,23 @@ impl Window {
 
         if !self.waiting_first_frame {
             self.visible = visible;
-            self.window.set_visible(visible);
+
+            if visible {
+                if self.state.state != WindowState::Minimized {
+                    self.window.set_minimized(false);
+                }
+
+                self.window.set_visible(true);
+                self.apply_state(self.state.clone(), true);
+            } else {
+                if self.state.state != WindowState::Minimized {
+                    // if the state is maximized or fullscreen the window is not hidden, a white
+                    // "restored" window is shown instead.
+                    self.window.set_minimized(true);
+                }
+
+                self.window.set_visible(false);
+            }
         }
     }
 
@@ -414,6 +430,10 @@ impl Window {
 
     /// Returns `Some(new_pos)` if the window position is different from the previous call to this function.
     pub fn moved(&mut self) -> Option<DipPoint> {
+        if !self.visible {
+            return None;
+        }
+
         let new_pos = self.window.inner_position().unwrap().to_px();
         if self.prev_pos != new_pos {
             self.prev_pos = new_pos;
@@ -426,6 +446,10 @@ impl Window {
 
     /// Returns `Some(new_size)` if the window size is different from the previous call to this function.
     pub fn resized(&mut self) -> Option<DipSize> {
+        if !self.visible {
+            return None;
+        }
+
         let new_size = self.window.inner_size().to_px();
         if self.prev_size != new_size {
             self.prev_size = new_size;
@@ -726,14 +750,22 @@ impl Window {
         }
 
         if !self.visible {
-            todo!()
+            // will force apply when set to visible again.
+            self.state = new_state;
+            return true;
         }
 
+        self.apply_state(new_state, false);
+
+        true
+    }
+
+    fn apply_state(&mut self, new_state: WindowStateAll, force: bool) {
         if self.state.chrome_visible != new_state.chrome_visible {
             self.window.set_decorations(new_state.chrome_visible);
         }
 
-        if self.state.state != new_state.state {
+        if self.state.state != new_state.state || force {
             // unset previous state.
             match self.state.state {
                 WindowState::Normal => {}
@@ -781,8 +813,6 @@ impl Window {
         if !matches!(self.state.state, WindowState::Normal | WindowState::Fullscreen) {
             self.windows_set_restore();
         }
-
-        true
     }
 
     pub fn use_image(&mut self, image: &Image) -> ImageKey {
