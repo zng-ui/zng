@@ -40,10 +40,11 @@ struct HeadedCtrl {
     render_mode: Option<RenderMode>,
 
     // current state.
-    state: Option<WindowStateAll>, // None means it must be recomputed and send.
+    state: Option<WindowStateAll>, // None if not inited.
     monitor: Option<MonitorInfo>,
     resize_wait_id: Option<FrameWaitId>,
-    icon: Option<ImageVar>,
+    icon: Option<ImageVar>,    
+    actual_state: Option<WindowState>,// for WindowChangedEvent
 }
 impl HeadedCtrl {
     pub fn new(vars: &WindowVars, content: Window) -> Self {
@@ -63,6 +64,8 @@ impl HeadedCtrl {
             monitor: None,
             resize_wait_id: None,
             icon: None,
+
+            actual_state: None,
         }
     }
 
@@ -311,13 +314,17 @@ impl HeadedCtrl {
                 }
 
                 if let Some(state) = args.state.clone() {
-                    let prev_state = self.vars.state().copy(ctx);
-                    if self.vars.state().set_ne(ctx, state.state) {
-                        state_change = Some((prev_state, state.state));
-                    }
-
+                    self.vars.state().set_ne(ctx, state.state);
                     self.vars.0.restore_rect.set_ne(ctx, state.restore_rect);
                     self.vars.0.restore_state.set_ne(ctx, state.restore_state);
+
+                    let new_state = state.state;
+                    if self.actual_state != Some(new_state) {
+                        let prev_state = self.actual_state.unwrap_or(WindowState::Normal);
+                        state_change = Some((prev_state, new_state));
+                        self.actual_state = Some(new_state);
+                    }
+
                     self.state = Some(state);
                 }
 
