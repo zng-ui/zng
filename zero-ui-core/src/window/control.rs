@@ -43,8 +43,8 @@ struct HeadedCtrl {
     state: Option<WindowStateAll>, // None if not inited.
     monitor: Option<MonitorInfo>,
     resize_wait_id: Option<FrameWaitId>,
-    icon: Option<ImageVar>,    
-    actual_state: Option<WindowState>,// for WindowChangedEvent
+    icon: Option<ImageVar>,
+    actual_state: Option<WindowState>, // for WindowChangedEvent
 }
 impl HeadedCtrl {
     pub fn new(vars: &WindowVars, content: Window) -> Self {
@@ -99,7 +99,8 @@ impl HeadedCtrl {
                     }
                 }
             } else {
-                let mut new_state = self.state.clone().unwrap();
+                let prev_state = self.state.as_ref().unwrap();
+                let mut new_state = prev_state.clone();
 
                 if let Some(query) = self.vars.monitor().get_new(ctx.vars) {
                     let monitors = ctx.services.monitors();
@@ -118,19 +119,22 @@ impl HeadedCtrl {
                     new_state.chrome_visible = chrome.is_default();
                 }
 
-                if let Some(state) = self.vars.state().copy_new(ctx) {
-                    if state == WindowState::Minimized {
+                if let Some(req_state) = self.vars.state().copy_new(ctx) {
+                    if req_state == WindowState::Minimized {
                         // restore to previous state from minimized.
-                        new_state.restore_state = new_state.state;
-                    } else if state.is_fullscreen() && !new_state.state.is_fullscreen() {
+                        new_state.restore_state = prev_state.state;
+                    } else if req_state.is_fullscreen() && !prev_state.state.is_fullscreen() {
                         // restore to maximized or normal from fullscreen.
-                        if new_state.state == WindowState::Maximized {
+                        if prev_state.state == WindowState::Maximized {
                             new_state.restore_state = WindowState::Maximized;
                         } else {
                             new_state.restore_state = WindowState::Normal;
                         }
-                    }
-                    new_state.state = state;
+                    } else if req_state == WindowState::Maximized {
+                        new_state.restore_state = WindowState::Normal;
+                    } // else Fullscreen to/from Exclusive keeps the previous restore_state.
+
+                    new_state.state = req_state;
 
                     self.vars.0.restore_state.set_ne(ctx, new_state.restore_state);
                 }
@@ -222,7 +226,7 @@ impl HeadedCtrl {
                     let _: Ignore = view.set_resizable(resizable);
                 }
 
-                if self.state.as_ref().unwrap() != &new_state {
+                if prev_state != &new_state {
                     let _: Ignore = view.set_state(new_state);
                 }
             }
