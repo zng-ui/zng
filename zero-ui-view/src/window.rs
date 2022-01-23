@@ -779,7 +779,7 @@ impl Window {
                         self.window.set_maximized(false);
                     }
                 }
-                WindowState::Fullscreen | WindowState::Exclusive => self.window.set_fullscreen(None),
+                WindowState::Fullscreen | WindowState::Exclusive => self.window.set_fullscreen(dbg!(None)),
             }
 
             // set new state.
@@ -808,6 +808,23 @@ impl Window {
 
             self.window.set_min_inner_size(Some(self.state.min_size.to_winit()));
             self.window.set_max_inner_size(Some(self.state.max_size.to_winit()));
+
+            // this can happen if minimized from "Task Manager"
+            //
+            // - Set to Fullscreen.
+            // - Minimize from Windows Task Manager.
+            // - Restore from Taskbar.
+            // - Set the state to Normal.
+            //
+            // Without this hack the window stays minimized and then restores
+            // Normal but at the fullscreen size.
+            #[cfg(windows)]
+            if self.is_minimized() {
+                self.windows_set_restore();
+
+                self.window.set_minimized(true);
+                self.window.set_minimized(false);
+            }
         }
 
         // Update restore placement for Windows to avoid rendering incorrect frame when the OS restores the window.

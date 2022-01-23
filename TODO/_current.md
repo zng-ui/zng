@@ -8,5 +8,3 @@ except the render, this causes problems with context variables, like enabled.
 
 * Linux does not open maximized example image some times.
 * Colors don't match other apps, clear_color and background_color also does not match.
-
-* Fullscreen -> "Task Manager Minimize" -> "Taskbar Restore" -> Is FullScreen -> Restore Button -> Is Minimized -> "Taskbar Restore" -> Window Is Big.
