@@ -25,7 +25,8 @@ fn app_main() {
                     example(),
                     example(),
                     disabled(),
-                    image_button()
+                    image_button(),
+                    dyn_buttons(),
                 ];
             };
         }
@@ -69,5 +70,35 @@ fn image_button() -> impl Widget {
             ];
             spacing = 5;
         };
+    }
+}
+
+fn dyn_buttons() -> impl Widget {
+    let dyn_items = widget_vec![separator()];
+    let items_ref = dyn_items.reference();
+
+    v_stack! {
+        spacing = 5;
+        items = dyn_items.chain(widgets![
+            button! {
+                content = text("Add Button");
+                on_click = hn!(|ctx, _| {
+                    items_ref.push(ctx, button! {
+                        content = text("Remove Button");
+                        on_click = hn!(items_ref, |ctx, _| {
+                            items_ref.remove(ctx.updates, ctx.path.widget_id());
+                        })
+                    })
+                })
+            }
+        ])
+    }
+}
+
+fn separator() -> impl Widget {
+    line_w! {
+        color = rgba(1.0, 1.0, 1.0, 0.2);
+        margin = (0, 8);
+        style = LineStyle::Dashed;
     }
 }

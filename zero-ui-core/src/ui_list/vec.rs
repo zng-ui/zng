@@ -1,18 +1,20 @@
 use std::{
     cmp,
-    ops::{Deref, DerefMut},
+    ops::{Deref, DerefMut}, rc::Rc, cell::RefCell, mem,
 };
 
 use crate::{
-    context::{InfoContext, LayoutContext, RenderContext, WidgetContext},
+    context::{InfoContext, LayoutContext, RenderContext, WidgetContext, WithUpdates},
     event::EventUpdateArgs,
     render::{FrameBuilder, FrameUpdate},
     state::StateMap,
     units::{AvailableSize, PxPoint, PxRect, PxSize},
     widget_base::Visibility,
-    widget_info::{WidgetInfoBuilder, WidgetOffset, WidgetSubscriptions},
+    widget_info::{WidgetInfoBuilder, WidgetOffset, WidgetSubscriptions, UpdateSlot},
     BoxedUiNode, BoxedWidget, SortedWidgetVec, UiNode, UiNodeList, Widget, WidgetFilterArgs, WidgetId, WidgetList,
 };
+
+use super::SpatialIdGen;
 
 /// A vector of boxed [`Widget`] items.
 ///
@@ -38,6 +40,8 @@ use crate::{
 pub struct WidgetVec {
     pub(super) vec: Vec<BoxedWidget>,
     pub(super) id: SpatialIdGen,
+
+    pub(super) ctrl: WidgetVecRef,
 }
 impl WidgetVec {
     /// New empty (default).
@@ -46,6 +50,7 @@ impl WidgetVec {
         WidgetVec {
             vec: vec![],
             id: SpatialIdGen::default(),
+            ctrl: WidgetVecRef::new()
         }
     }
 
@@ -54,12 +59,24 @@ impl WidgetVec {
         WidgetVec {
             vec: Vec::with_capacity(capacity),
             id: SpatialIdGen::default(),
+            ctrl: WidgetVecRef::new()
         }
+    }
+
+    /// Returns a [`WidgetVecRef`] that can be used to insert, resort and remove widgets from this vector
+    /// after it is moved to a widget list property.
+    pub fn reference(&self) -> WidgetVecRef {
+        self.ctrl.clone()
     }
 
     /// Appends the widget, automatically calls [`Widget::boxed_widget`].
     pub fn push<W: Widget>(&mut self, widget: W) {
         self.vec.push(widget.boxed_widget());
+    }
+
+    /// Appends the widget, automatically calls [`Widget::boxed_widget`].
+    pub fn insert<W: Widget>(&mut self, index: usize, widget: W) {
+        self.vec.insert(index, widget.boxed_widget());
     }
 
     /// Returns a reference to the widget with the same `id`.
@@ -90,12 +107,40 @@ impl WidgetVec {
     pub fn sorting(self, sort: impl FnMut(&BoxedWidget, &BoxedWidget) -> cmp::Ordering + 'static) -> SortedWidgetVec {
         SortedWidgetVec::from_vec(self, sort)
     }
+
+    fn fullfill_requests(&mut self, ctx: &mut WidgetContext) {
+        if let Some(r) = self.ctrl.take_requests() {
+            for id in r.remove {
+                if let Some(mut wgt) = self.remove(id) {
+                    wgt.deinit(ctx);
+                    ctx.updates.info();
+                }
+            }
+
+            for (i, mut wgt) in r.insert {
+                wgt.init(ctx);
+                if i < self.len() {
+                    self.insert(i, wgt);
+                } else {
+                    self.push(wgt);
+                }
+                ctx.updates.info();
+            }
+
+            for mut wgt in r.push {
+                wgt.init(ctx);
+                self.push(wgt);
+                ctx.updates.info();
+            }
+        }
+    }
 }
 impl From<Vec<BoxedWidget>> for WidgetVec {
     fn from(vec: Vec<BoxedWidget>) -> Self {
         WidgetVec {
             vec,
             id: SpatialIdGen::default(),
+            ctrl: WidgetVecRef::new()
         }
     }
 }
@@ -182,6 +227,7 @@ impl UiNodeList for WidgetVec {
     }
 
     fn update_all(&mut self, ctx: &mut WidgetContext) {
+        self.fullfill_requests(ctx);
         for widget in &mut self.vec {
             widget.update(ctx);
         }
@@ -234,6 +280,7 @@ impl UiNodeList for WidgetVec {
     }
 
     fn subscriptions_all(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
+        subscriptions.update(self.ctrl.update_slot());
         for widget in &self.vec {
             widget.subscriptions(ctx, subscriptions);
         }
@@ -313,6 +360,97 @@ impl WidgetList for WidgetVec {
         }
     }
 }
+/// Represents a [`WidgetVec`] controller that can be used to insert, push or remove widgets
+/// after the vector is placed in a widget list property.
+#[derive(Clone)]
+pub struct WidgetVecRef(Rc<RefCell<WidgetVecRequests>>);
+struct WidgetVecRequests {
+    update_slot: UpdateSlot,
+    insert: Vec<(usize, BoxedWidget)>,
+    push: Vec<BoxedWidget>,
+    remove: Vec<WidgetId>,
+
+    alive: bool,
+}
+impl WidgetVecRef {
+    pub(super) fn new() -> Self {
+        Self(Rc::new(RefCell::new(WidgetVecRequests {
+            update_slot: UpdateSlot::next(),
+            insert: vec![],
+            push: vec![],
+            remove: vec![],
+            alive: true,
+        })))
+    }
+
+    /// Returns `true` if the [`SortedWidgetVec`] still exists.
+    pub fn alive(&self) -> bool {
+        self.0.borrow().alive
+    }
+
+    /// Request an update for the insertion of the `widget`.
+    /// 
+    /// The `index` is resolved after all [`remove`] requests, if it overflows the length the widget is pushed.
+    ///
+    /// The `widget` will be initialized, inserted and the info tree and subscriptions updated.
+    /// 
+    /// [`remove`]: Self::remove
+    pub fn insert(&self, updates: &mut impl WithUpdates, index: usize, widget: impl Widget) {
+        updates.with_updates(|u| {
+            let mut s = self.0.borrow_mut();
+            s.insert.push((index, widget.boxed_widget()));
+            u.update(s.update_slot.mask());
+        })
+    }
+
+    /// Request an update for the insertion of the `widget` at the end of the list.
+    /// 
+    /// The widget will be pushed after all [`insert`] requests.
+    ///
+    /// The `widget` will be initialized, inserted and the info tree and subscriptions updated.
+    /// 
+    /// [`insert`]: Self::insert
+    pub fn push(&self, updates: &mut impl WithUpdates, widget: impl Widget) {
+        updates.with_updates(|u| {
+            let mut s = self.0.borrow_mut();
+            s.push.push(widget.boxed_widget());
+            u.update(s.update_slot.mask());
+        })
+    }
+
+    /// Request an update for the removal of the widget identified by `id`.
+    ///
+    /// The widget will be deinitialized, dropped and the info tree and subscriptions will update.
+    pub fn remove(&self, updates: &mut impl WithUpdates, id: impl Into<WidgetId>) {
+        updates.with_updates(|u| {
+            let mut s = self.0.borrow_mut();
+            s.remove.push(id.into());
+            u.update(s.update_slot.mask());
+        })
+    }
+
+    fn update_slot(&self) -> UpdateSlot {
+        self.0.borrow().update_slot
+    }
+
+    fn take_requests(&self) -> Option<WidgetVecRequests> {
+        let mut s = self.0.borrow_mut();
+
+        if !s.insert.is_empty() || !s.remove.is_empty() {
+            let empty = WidgetVecRequests {
+                update_slot: s.update_slot,
+                alive: s.alive,
+
+                insert: vec![],
+                push: vec![],
+                remove: vec![],
+            };
+            Some(mem::replace(&mut *s, empty))
+        } else {
+            None
+        }
+    }
+}
 
 /// A vector of boxed [`UiNode`] items.
 ///
@@ -357,6 +495,11 @@ impl UiNodeVec {
     /// Appends the node, automatically calls [`UiNode::boxed`].
     pub fn push<N: UiNode>(&mut self, node: N) {
         self.vec.push(node.boxed());
+    }
+
+    /// Insert the node, automatically calls [`UiNode::boxed`].
+    pub fn insert<N: UiNode>(&mut self, index: usize, node: N) {
+        self.vec.insert(index, node.boxed())
     }
 }
 impl Default for UiNodeVec {
@@ -572,5 +715,3 @@ macro_rules! node_vec {
 }
 #[doc(inline)]
 pub use crate::node_vec;
-
-use super::SpatialIdGen;

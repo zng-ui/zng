@@ -8,7 +8,7 @@ use crate::{
     units::{AvailableSize, PxPoint, PxRect, PxSize},
     widget_base::Visibility,
     widget_info::{UpdateSlot, WidgetInfoBuilder, WidgetOffset, WidgetSubscriptions},
-    BoxedWidget, UiNode, UiNodeList, UiNodeVec, Widget, WidgetFilterArgs, WidgetId, WidgetList, WidgetVec,
+    BoxedWidget, UiNode, UiNodeList, UiNodeVec, Widget, WidgetFilterArgs, WidgetId, WidgetList, WidgetVec, WidgetVecRef,
 };
 
 use super::SpatialIdGen;
@@ -18,10 +18,13 @@ use super::SpatialIdGen;
 /// This type is a [`WidgetList`] that can be modified during runtime, and automatically remains sorted
 /// by a custom sorting function.
 ///
-/// The [widget_vec!] macro can be used to initialize a [`WidgetVec`] and then call [`WidgetVec::sorting`] to convert to
+/// The [`widget_vec!`] macro can be used to initialize a [`WidgetVec`] and then call [`WidgetVec::sorting`] to convert to
 /// a sorting vector.
 ///
-/// The sorting is done using [`[]::sort_by`].
+/// The sorting is done using the [`std::slice::sort_by`], insertion sorting is done using a binary search followed by a small linear search,
+/// in both cases the sorting is *stable*, widgets with equal keys retain order of insertion.
+/// 
+/// [`std::slice::sort_by`]: https://doc.rust-lang.org/std/primitive.slice.html#method.sort_by
 pub struct SortedWidgetVec {
     vec: Vec<BoxedWidget>,
     id: SpatialIdGen,
@@ -65,7 +68,7 @@ impl SortedWidgetVec {
 
     /// Returns a [`SortedWidgetVecRef`] that can be used to insert, resort and remove widgets from this vector
     /// after it is moved to a widget list property.
-    pub fn controller(&self) -> SortedWidgetVecRef {
+    pub fn reference(&self) -> SortedWidgetVecRef {
         self.ctrl.clone()
     }
 
@@ -349,6 +352,7 @@ impl WidgetList for SortedWidgetVec {
         WidgetVec {
             vec: mem::take(&mut self.vec),
             id: mem::take(&mut self.id),
+            ctrl: WidgetVecRef::new(),
         }
     }
 
