@@ -202,9 +202,9 @@ impl fmt::Display for Metrics {
 ///
 /// A single instance of this reader behaves like a [`BufReader`] but uses slightly more memory.
 ///
-/// # Fused Result
+/// # Result
 ///
-/// The result is *fused* when `EOF` or an [`Error`] occurs, unfortunately the IO error is not cloneable
+/// The result is *repeats* ready when `EOF` or an [`Error`] occurs, unfortunately the IO error is not cloneable
 /// so the error is recreated using [`CloneableError`] for subsequent poll attempts.
 ///
 /// The inner reader is dropped as soon as it finishes.
@@ -370,7 +370,7 @@ impl<S: AsyncRead> AsyncRead for McBufReader<S> {
 /// Represents the cloneable parts of an [`Error`].
 ///
 /// Unfortunately [`Error`] does not implement clone, this is needed to implemented
-/// *fused* IO futures, where an error may be returned more than one time. This type partially
+/// IO futures that repeat the ready result after subsequent polls. This type partially
 /// works around the issue by copying enough information to recreate an error that is still useful.
 ///
 /// The OS error code, [`ErrorKind`] and display message are preserved. Note that this not an error type,
