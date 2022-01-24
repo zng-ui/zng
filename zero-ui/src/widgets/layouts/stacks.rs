@@ -48,7 +48,7 @@ pub mod h_stack {
     #[inline]
     fn new_child(items: impl WidgetList, spacing: impl IntoVar<Length>, items_align: impl IntoVar<Alignment>) -> impl UiNode {
         HStackNode {
-            rectangles: vec![euclid::Rect::zero(); items.len()].into_boxed_slice(),
+            rectangles: vec![euclid::Rect::zero(); items.len()],
             items_width: Px(0),
             visible_count: 0,
             children: items,
@@ -59,7 +59,7 @@ pub mod h_stack {
 
     struct HStackNode<C, S, A> {
         children: C,
-        rectangles: Box<[PxRect]>,
+        rectangles: Vec<PxRect>,
         items_width: Px,
         visible_count: u32,
 
@@ -74,9 +74,14 @@ pub mod h_stack {
         }
 
         fn update(&mut self, ctx: &mut WidgetContext) {
-            self.children.update_all(ctx);
+            let mut changed = false;
+            self.children.update_all(ctx, &mut changed);
 
-            if self.spacing.is_new(ctx) || self.align.is_new(ctx) {
+            if changed {
+                self.rectangles.resize(self.children.len(), PxRect::zero());
+            }
+
+            if changed || self.spacing.is_new(ctx) || self.align.is_new(ctx) {
                 ctx.updates.layout_and_render();
             }
         }
@@ -212,7 +217,7 @@ pub mod v_stack {
     #[inline]
     fn new_child(items: impl WidgetList, spacing: impl IntoVar<Length>, items_align: impl IntoVar<Alignment>) -> impl UiNode {
         VStackNode {
-            rectangles: vec![euclid::Rect::zero(); items.len()].into_boxed_slice(),
+            rectangles: vec![euclid::Rect::zero(); items.len()],
             items_height: Px(0),
             visible_count: 0,
             children: items,
@@ -223,7 +228,7 @@ pub mod v_stack {
 
     struct VStackNode<C, S, A> {
         children: C,
-        rectangles: Box<[PxRect]>,
+        rectangles: Vec<PxRect>,
         items_height: Px,
         visible_count: usize,
 
@@ -238,9 +243,14 @@ pub mod v_stack {
         }
 
         fn update(&mut self, ctx: &mut WidgetContext) {
-            self.children.update_all(ctx);
+            let mut changed = false;
+            self.children.update_all(ctx, &mut changed);
 
-            if self.spacing.is_new(ctx) || self.align.is_new(ctx) {
+            if changed {
+                self.rectangles.resize(self.children.len(), PxRect::zero());
+            }
+
+            if changed || self.spacing.is_new(ctx) || self.align.is_new(ctx) {
                 ctx.updates.layout_and_render();
             }
         }
@@ -417,7 +427,7 @@ pub mod z_stack {
     #[inline]
     fn new_child(items: impl UiNodeList, items_align: impl IntoVar<Alignment>) -> impl UiNode {
         ZStackNode {
-            rectangles: vec![euclid::Rect::zero(); items.len()].into_boxed_slice(),
+            rectangles: vec![PxRect::zero(); items.len()],
             children: items,
             align: items_align.into_var(),
         }
@@ -425,7 +435,7 @@ pub mod z_stack {
 
     struct ZStackNode<C, A> {
         children: C,
-        rectangles: Box<[PxRect]>,
+        rectangles: Vec<PxRect>,
         align: A,
     }
     #[impl_ui_node(children)]
@@ -436,10 +446,16 @@ pub mod z_stack {
         }
 
         fn update(&mut self, ctx: &mut WidgetContext) {
-            if self.align.is_new(ctx) {
-                ctx.updates.layout_and_render()
+            let mut changed = false;
+            self.children.update_all(ctx, &mut changed);
+
+            if changed {
+                self.rectangles.resize(self.children.len(), PxRect::zero());
             }
-            self.children.update_all(ctx);
+
+            if changed || self.align.is_new(ctx) {
+                ctx.updates.layout_and_render();
+            }
         }
 
         fn measure(&mut self, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize {

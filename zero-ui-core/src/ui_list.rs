@@ -1,7 +1,5 @@
 use std::cell::Cell;
 
-#[allow(unused)] // used in docs.
-use crate::{UiNode, Widget};
 use crate::{
     context::{InfoContext, LayoutContext, RenderContext, StateMap, WidgetContext},
     event::EventUpdateArgs,
@@ -11,6 +9,8 @@ use crate::{
     widget_info::{WidgetInfoBuilder, WidgetOffset, WidgetSubscriptions},
     WidgetId,
 };
+#[allow(unused)] // used in docs.
+use crate::{UiNode, Widget};
 
 mod vec;
 pub use vec::*;
@@ -26,6 +26,9 @@ pub use tuples::*;
 
 /// A generic view over a list of [`UiNode`] items.
 pub trait UiNodeList: 'static {
+    /// Returns `true` if the list length and position of widgets does not change.
+    fn is_fixed(&self) -> bool;
+
     /// Number of items in the list.
     fn len(&self) -> usize;
 
@@ -63,7 +66,14 @@ pub trait UiNodeList: 'static {
     fn deinit_all(&mut self, ctx: &mut WidgetContext);
 
     /// Calls [`UiNode::update`] in all widgets in the list, sequentially.
-    fn update_all(&mut self, ctx: &mut WidgetContext);
+    ///
+    /// The `observer` can be used to monitor widget insertion/removal if this list is not [fixed]. Use `&mut ()` to ignore changes and
+    /// `&mut bool` to simply get a flag that indicates any change has happened, see [`UiListObserver`] for more details. Note that
+    /// an info and subscriptions rebuild is requested by the list implementer, the inserted/removed widgets are also (de)initialized by
+    /// the list implementer, the observer is for updating custom state and requesting layout when required.
+    ///
+    /// [fixed]: UiNodeList::is_fixed
+    fn update_all<O: UiListObserver>(&mut self, ctx: &mut WidgetContext, observer: &mut O);
 
     /// Calls [`UiNode::event`] in all widgets in the list, sequentially.
     fn event_all<EU: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &EU);
@@ -352,5 +362,74 @@ impl SpatialIdGen {
             self.0.set(Some(id));
             id
         }
+    }
+}
+
+/// Represents an [`UiNodeList::update_all`] observer that can be used to monitor widget insertion, removal and re-order.
+///
+/// All indexes are in the context of the previous changes, if you are maintaining a *mirror* vector simply using the
+/// [`Vec::insert`] and [`Vec::remove`] commands in the same order as they are received should keep the vector in sync.
+///
+/// This trait is implemented for `()`, to **not** observe simply pass on a `&mut ()`.
+///
+/// This trait is implemented for [`bool`], if any change happens the flag is set to `true`.
+pub trait UiListObserver {
+    /// Large changes made to the list.
+    fn reseted(&mut self);
+    /// Widget inserted at the `index`.
+    fn inserted(&mut self, index: usize);
+    /// Widget removed from the `index`.
+    fn removed(&mut self, index: usize);
+    /// Widget removed and re-inserted.
+    fn moved(&mut self, removed_index: usize, inserted_index: usize);
+}
+/// Does nothing.
+impl UiListObserver for () {
+    fn reseted(&mut self) {}
+
+    fn inserted(&mut self, _: usize) {}
+
+    fn removed(&mut self, _: usize) {}
+
+    fn moved(&mut self, _: usize, _: usize) {}
+}
+/// Sets to `true` for any change.
+impl UiListObserver for bool {
+    fn reseted(&mut self) {
+        *self = true;
+    }
+
+    fn inserted(&mut self, _: usize) {
+        *self = true;
+    }
+
+    fn removed(&mut self, _: usize) {
+        *self = true;
+    }
+
+    fn moved(&mut self, _: usize, _: usize) {
+        *self = true;
+    }
+}
+
+/// Represents an [`UiListObserver`] that applies an offset to all indexes.
+///
+/// This type is useful for implementing [`UiNodeList`] that are composed of other lists.
+pub struct OffsetUiListObserver<'o, O: UiListObserver>(pub usize, pub &'o mut O);
+impl<'o, O: UiListObserver> UiListObserver for OffsetUiListObserver<'o, O> {
+    fn reseted(&mut self) {
+        self.1.reseted()
+    }
+
+    fn inserted(&mut self, index: usize) {
+        self.1.inserted(index + self.0)
+    }
+
+    fn removed(&mut self, index: usize) {
+        self.1.removed(index + self.0)
+    }
+
+    fn moved(&mut self, removed_index: usize, inserted_index: usize) {
+        self.1.moved(removed_index + self.0, inserted_index + self.0)
     }
 }

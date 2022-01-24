@@ -1032,7 +1032,7 @@ pub mod prelude {
             impl_ui_node, node_vec, nodes, property,
             widget_base::Visibility,
             widget_info::{WidgetInfoBuilder, WidgetOffset, WidgetSubscriptions},
-            widget_vec, widgets, BoxedUiNode, FillUiNode, UiNode, UiNodeList, Widget, WidgetId, WidgetList, WidgetVec,
+            widget_vec, widgets, BoxedUiNode, FillUiNode, UiListObserver, UiNode, UiNodeList, Widget, WidgetId, WidgetList, WidgetVec,
         };
         #[doc(no_inline)]
         pub use crate::properties::set_widget_state;
@@ -1087,8 +1087,8 @@ pub mod prelude {
             impl_ui_node, node_vec, nodes, property, widget,
             widget_base::Visibility,
             widget_info::{WidgetInfoBuilder, WidgetOffset, WidgetSubscriptions},
-            widget_mixin, widget_vec, widgets, BoxedUiNode, BoxedWidget, FillUiNode, UiNode, UiNodeList, Widget, WidgetId, WidgetList,
-            WidgetVec,
+            widget_mixin, widget_vec, widgets, BoxedUiNode, BoxedWidget, FillUiNode, UiListObserver, UiNode, UiNodeList, Widget, WidgetId,
+            WidgetList, WidgetVec,
         };
         #[doc(no_inline)]
         pub use crate::properties::events::{self, gesture::*, keyboard::*};

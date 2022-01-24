@@ -6,7 +6,7 @@ use crate::{
     units::{AvailableSize, PxPoint, PxRect, PxSize},
     widget_base::Visibility,
     widget_info::{WidgetInfoBuilder, WidgetOffset, WidgetSubscriptions},
-    UiNodeList, UiNodeVec, WidgetFilterArgs, WidgetId, WidgetList, WidgetVec,
+    OffsetUiListObserver, UiListObserver, UiNodeList, UiNodeVec, WidgetFilterArgs, WidgetId, WidgetList, WidgetVec,
 };
 
 /// Two [`WidgetList`] lists chained.
@@ -15,6 +15,10 @@ use crate::{
 pub struct WidgetListChain<A: WidgetList, B: WidgetList>(pub(super) A, pub(super) B);
 
 impl<A: WidgetList, B: WidgetList> UiNodeList for WidgetListChain<A, B> {
+    fn is_fixed(&self) -> bool {
+        self.0.is_fixed() && self.0.is_fixed()
+    }
+
     #[inline]
     fn len(&self) -> usize {
         self.0.len() + self.1.len()
@@ -45,9 +49,9 @@ impl<A: WidgetList, B: WidgetList> UiNodeList for WidgetListChain<A, B> {
     }
 
     #[inline(always)]
-    fn update_all(&mut self, ctx: &mut WidgetContext) {
-        self.0.update_all(ctx);
-        self.1.update_all(ctx);
+    fn update_all<O: UiListObserver>(&mut self, ctx: &mut WidgetContext, observer: &mut O) {
+        self.0.update_all(ctx, observer);
+        self.1.update_all(ctx, &mut OffsetUiListObserver(self.0.len(), observer));
     }
 
     #[inline(always)]
@@ -249,6 +253,11 @@ pub struct UiNodeListChain<A: UiNodeList, B: UiNodeList>(pub(super) A, pub(super
 
 impl<A: UiNodeList, B: UiNodeList> UiNodeList for UiNodeListChain<A, B> {
     #[inline]
+    fn is_fixed(&self) -> bool {
+        false
+    }
+
+    #[inline]
     fn len(&self) -> usize {
         self.0.len() + self.1.len()
     }
@@ -278,9 +287,9 @@ impl<A: UiNodeList, B: UiNodeList> UiNodeList for UiNodeListChain<A, B> {
     }
 
     #[inline(always)]
-    fn update_all(&mut self, ctx: &mut WidgetContext) {
-        self.0.update_all(ctx);
-        self.1.update_all(ctx);
+    fn update_all<O: UiListObserver>(&mut self, ctx: &mut WidgetContext, observer: &mut O) {
+        self.0.update_all(ctx, observer);
+        self.1.update_all(ctx, &mut OffsetUiListObserver(self.0.len(), observer));
     }
 
     #[inline(always)]

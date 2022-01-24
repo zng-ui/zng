@@ -8,7 +8,7 @@ use crate::{
     units::{AvailableSize, PxPoint, PxRect, PxSize},
     widget_base::Visibility,
     widget_info::{UpdateSlot, WidgetInfoBuilder, WidgetOffset, WidgetSubscriptions},
-    BoxedWidget, UiNode, UiNodeList, UiNodeVec, Widget, WidgetFilterArgs, WidgetId, WidgetList, WidgetVec, WidgetVecRef,
+    BoxedWidget, UiListObserver, UiNode, UiNodeList, UiNodeVec, Widget, WidgetFilterArgs, WidgetId, WidgetList, WidgetVec, WidgetVecRef,
 };
 
 use super::SpatialIdGen;
@@ -23,7 +23,7 @@ use super::SpatialIdGen;
 ///
 /// The sorting is done using the [`std::slice::sort_by`], insertion sorting is done using a binary search followed by a small linear search,
 /// in both cases the sorting is *stable*, widgets with equal keys retain order of insertion.
-/// 
+///
 /// [`std::slice::sort_by`]: https://doc.rust-lang.org/std/primitive.slice.html#method.sort_by
 pub struct SortedWidgetVec {
     vec: Vec<BoxedWidget>,
@@ -55,10 +55,10 @@ impl SortedWidgetVec {
     }
 
     /// New from a [`WidgetVec`].
-    pub fn from_vec(widgets: WidgetVec, sort: impl FnMut(&BoxedWidget, &BoxedWidget) -> cmp::Ordering + 'static) -> Self {
+    pub fn from_vec(mut widgets: WidgetVec, sort: impl FnMut(&BoxedWidget, &BoxedWidget) -> cmp::Ordering + 'static) -> Self {
         let mut self_ = SortedWidgetVec {
-            vec: widgets.vec,
-            id: widgets.id,
+            vec: mem::take(&mut widgets.vec),
+            id: mem::take(&mut widgets.id),
             sort: Box::new(sort),
             ctrl: SortedWidgetVecRef::new(),
         };
@@ -78,19 +78,28 @@ impl SortedWidgetVec {
     ///
     /// Automatically calls [`Widget::boxed_widget`].
     pub fn insert<W: Widget>(&mut self, widget: W) {
-        let widget = widget.boxed_widget();
+        self.insert_impl(widget.boxed_widget());
+    }
+    fn insert_impl(&mut self, widget: BoxedWidget) -> usize {
         match self.vec.binary_search_by(|a| (self.sort)(a, &widget)) {
             Ok(i) => {
                 // last leg linear search.
                 for i in i + 1..self.vec.len() {
                     if (self.sort)(&self.vec[i], &widget) != cmp::Ordering::Equal {
                         self.vec.insert(i, widget);
-                        return;
+                        return i;
                     }
                 }
+
+                let i = self.vec.len();
                 self.vec.push(widget);
+
+                i
             }
-            Err(i) => self.vec.insert(i, widget),
+            Err(i) => {
+                self.vec.insert(i, widget);
+                i
+            }
         }
     }
 
@@ -140,15 +149,15 @@ impl SortedWidgetVec {
     }
 
     /// remove and reinsert the widget if its sorting is invalid.
-    fn sort_id(&mut self, id: WidgetId) -> bool {
+    fn sort_id(&mut self, id: WidgetId) -> Option<(usize, usize)> {
         if let Some(i) = self.vec.iter().position(|w| w.id() == id) {
             if i > 0 {
                 let a = &self.vec[i - 1];
                 let b = &self.vec[i];
 
                 if (self.sort)(a, b) == cmp::Ordering::Greater {
-                    self.sort_i(i);
-                    return true;
+                    let new_i = self.sort_i(i);
+                    return Some((i, new_i));
                 }
             }
 
@@ -157,41 +166,82 @@ impl SortedWidgetVec {
                 let b = &self.vec[i + 1];
 
                 if (self.sort)(a, b) == cmp::Ordering::Greater {
-                    self.sort_i(i);
-                    return true;
+                    let new_i = self.sort_i(i);
+                    return Some((i, new_i));
                 }
             }
         }
-        false
+        None
     }
-    fn sort_i(&mut self, i: usize) {
+    fn sort_i(&mut self, i: usize) -> usize {
         let widget = self.vec.remove(i);
-        self.insert(widget);
+        self.insert_impl(widget)
     }
 
-    fn fullfill_requests(&mut self, ctx: &mut WidgetContext) {
+    fn fullfill_requests<O: UiListObserver>(&mut self, ctx: &mut WidgetContext, observer: &mut O) {
         if let Some(r) = self.ctrl.take_requests() {
-            for id in r.remove {
-                if let Some(mut wgt) = self.remove(id) {
-                    wgt.deinit(ctx);
-                    ctx.updates.info();
+            if r.sort_all || r.clear {
+                // if large change
+                let mut any_change = false;
+
+                if r.clear {
+                    any_change |= !self.vec.is_empty();
+
+                    self.vec.clear();
                 }
-            }
 
-            for mut wgt in r.insert {
-                wgt.init(ctx);
-                self.insert(wgt);
-                ctx.updates.info();
-            }
+                for id in r.remove {
+                    if let Some(i) = self.vec.iter().position(|w| w.id() == id) {
+                        let mut wgt = self.vec.remove(i);
+                        wgt.deinit(ctx);
+                        ctx.updates.info();
+                        any_change = true;
+                    }
+                }
 
-            if r.sort_all {
-                if self.sort_check() {
+                for mut wgt in r.insert {
+                    wgt.init(ctx);
+                    self.insert_impl(wgt);
                     ctx.updates.info();
+                    any_change = true;
+                }
+
+                if r.sort_all {
+                    if self.sort_check() {
+                        any_change = true;
+                    }
+                } else {
+                    for id in r.sort {
+                        if self.sort_id(id).is_some() {
+                            ctx.updates.info();
+                        }
+                    }
+                }
+
+                if any_change {
+                    observer.reseted();
                 }
             } else {
-                for id in r.sort {
-                    if self.sort_id(id) {
+                for id in r.remove {
+                    if let Some(i) = self.vec.iter().position(|w| w.id() == id) {
+                        let mut wgt = self.vec.remove(i);
+                        wgt.deinit(ctx);
                         ctx.updates.info();
+                        observer.removed(i);
+                    }
+                }
+
+                for mut wgt in r.insert {
+                    wgt.init(ctx);
+                    let i = self.insert_impl(wgt);
+                    ctx.updates.info();
+                    observer.inserted(i);
+                }
+
+                for id in r.sort {
+                    if let Some((r, i)) = self.sort_id(id) {
+                        ctx.updates.info();
+                        observer.moved(r, i);
                     }
                 }
             }
@@ -229,6 +279,10 @@ impl IntoIterator for SortedWidgetVec {
     }
 }
 impl UiNodeList for SortedWidgetVec {
+    fn is_fixed(&self) -> bool {
+        false
+    }
+
     fn len(&self) -> usize {
         self.vec.len()
     }
@@ -256,8 +310,8 @@ impl UiNodeList for SortedWidgetVec {
         }
     }
 
-    fn update_all(&mut self, ctx: &mut WidgetContext) {
-        self.fullfill_requests(ctx);
+    fn update_all<O: UiListObserver>(&mut self, ctx: &mut WidgetContext, observer: &mut O) {
+        self.fullfill_requests(ctx, observer);
         for widget in &mut self.vec {
             widget.update(ctx);
         }
@@ -410,6 +464,7 @@ struct SortedWidgetVecRequests {
     remove: Vec<WidgetId>,
     sort: Vec<WidgetId>,
     sort_all: bool,
+    clear: bool,
 
     alive: bool,
 }
@@ -421,6 +476,7 @@ impl SortedWidgetVecRef {
             remove: vec![],
             sort: vec![],
             sort_all: false,
+            clear: false,
             alive: true,
         })))
     }
@@ -474,6 +530,17 @@ impl SortedWidgetVecRef {
         })
     }
 
+    /// Request a removal of all current widgets.
+    ///
+    /// All other requests will happen after the clear.
+    pub fn clear(&self, updates: &mut impl WithUpdates) {
+        updates.with_updates(|u| {
+            let mut s = self.0.borrow_mut();
+            s.clear = true;
+            u.update(s.update_slot.mask());
+        })
+    }
+
     fn update_slot(&self) -> UpdateSlot {
         self.0.borrow().update_slot
     }
@@ -481,11 +548,12 @@ impl SortedWidgetVecRef {
     fn take_requests(&self) -> Option<SortedWidgetVecRequests> {
         let mut s = self.0.borrow_mut();
 
-        if s.sort_all || !s.sort.is_empty() || !s.insert.is_empty() || !s.remove.is_empty() {
+        if s.clear || s.sort_all || !s.sort.is_empty() || !s.insert.is_empty() || !s.remove.is_empty() {
             let empty = SortedWidgetVecRequests {
                 update_slot: s.update_slot,
                 alive: s.alive,
                 sort_all: false,
+                clear: false,
 
                 insert: vec![],
                 remove: vec![],

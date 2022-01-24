@@ -363,7 +363,11 @@ fn delegate_list_absents(crate_: TokenStream, user_mtds: HashSet<Ident>, borrow:
 
         [fn update(&mut self, ctx: &mut #crate_::context::WidgetContext) {
             let #children_mut = {#borrow_mut};
-            #crate_::UiNodeList::update_all(#deref_mut, ctx)
+            let mut changed = false;
+            #crate_::UiNodeList::update_all(#deref_mut, ctx, &mut changed);
+            if changed {
+                ctx.updates.layout_and_render();
+            }
         }]
 
         [fn event<__EU: #crate_::event::EventUpdateArgs>(&mut self, ctx: &mut #crate_::context::WidgetContext, args: &__EU) {

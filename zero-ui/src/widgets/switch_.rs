@@ -26,9 +26,40 @@ pub mod switch {
     )]
     impl<I: Var<usize>, W: UiNodeList> UiNode for SwitchNode<I, W> {
         fn update(&mut self, ctx: &mut WidgetContext) {
-            self.options.update_all(ctx);
             if self.index.is_new(ctx) {
                 ctx.updates.info_layout_and_render();
+
+                self.options.update_all(ctx, &mut ());
+            } else if self.options.is_fixed() {
+                self.options.update_all(ctx, &mut ());
+            } else {
+                struct TouchedIndex {
+                    index: usize,
+                    touched: bool,
+                }
+                impl UiListObserver for TouchedIndex {
+                    fn reseted(&mut self) {
+                        self.touched = true;
+                    }
+                    fn inserted(&mut self, index: usize) {
+                        self.touched |= self.index == index;
+                    }
+                    fn removed(&mut self, index: usize) {
+                        self.touched |= self.index == index;
+                    }
+                    fn moved(&mut self, removed_index: usize, inserted_index: usize) {
+                        self.touched |= self.index == removed_index || self.index == inserted_index;
+                    }
+                }
+                let mut check = TouchedIndex {
+                    index: self.index.copy(ctx),
+                    touched: false,
+                };
+                self.options.update_all(ctx, &mut check);
+
+                if check.touched {
+                    ctx.updates.layout_and_render();
+                }
             }
         }
 

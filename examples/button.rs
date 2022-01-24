@@ -76,6 +76,7 @@ fn image_button() -> impl Widget {
 fn dyn_buttons() -> impl Widget {
     let dyn_items = widget_vec![separator()];
     let items_ref = dyn_items.reference();
+    let mut btn = 'A';
 
     v_stack! {
         spacing = 5;
@@ -84,11 +85,17 @@ fn dyn_buttons() -> impl Widget {
                 content = text("Add Button");
                 on_click = hn!(|ctx, _| {
                     items_ref.push(ctx, button! {
-                        content = text("Remove Button");
+                        content = text(formatx!("Remove {}", btn));
                         on_click = hn!(items_ref, |ctx, _| {
                             items_ref.remove(ctx.updates, ctx.path.widget_id());
                         })
-                    })
+                    });
+
+                    if btn == 'Z' {
+                        btn = 'A'
+                    } else {
+                        btn = std::char::from_u32(btn as u32 + 1).unwrap();
+                    }
                 })
             }
         ])

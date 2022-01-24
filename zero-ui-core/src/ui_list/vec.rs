@@ -1,6 +1,8 @@
 use std::{
-    cmp,
-    ops::{Deref, DerefMut}, rc::Rc, cell::RefCell, mem,
+    cell::RefCell,
+    cmp, mem,
+    ops::{Deref, DerefMut},
+    rc::Rc,
 };
 
 use crate::{
@@ -10,8 +12,8 @@ use crate::{
     state::StateMap,
     units::{AvailableSize, PxPoint, PxRect, PxSize},
     widget_base::Visibility,
-    widget_info::{WidgetInfoBuilder, WidgetOffset, WidgetSubscriptions, UpdateSlot},
-    BoxedUiNode, BoxedWidget, SortedWidgetVec, UiNode, UiNodeList, Widget, WidgetFilterArgs, WidgetId, WidgetList,
+    widget_info::{UpdateSlot, WidgetInfoBuilder, WidgetOffset, WidgetSubscriptions},
+    BoxedUiNode, BoxedWidget, SortedWidgetVec, UiListObserver, UiNode, UiNodeList, Widget, WidgetFilterArgs, WidgetId, WidgetList,
 };
 
 use super::SpatialIdGen;
@@ -50,7 +52,7 @@ impl WidgetVec {
         WidgetVec {
             vec: vec![],
             id: SpatialIdGen::default(),
-            ctrl: WidgetVecRef::new()
+            ctrl: WidgetVecRef::new(),
         }
     }
 
@@ -59,7 +61,7 @@ impl WidgetVec {
         WidgetVec {
             vec: Vec::with_capacity(capacity),
             id: SpatialIdGen::default(),
-            ctrl: WidgetVecRef::new()
+            ctrl: WidgetVecRef::new(),
         }
     }
 
@@ -108,29 +110,128 @@ impl WidgetVec {
         SortedWidgetVec::from_vec(self, sort)
     }
 
-    fn fullfill_requests(&mut self, ctx: &mut WidgetContext) {
+    fn fullfill_requests<O: UiListObserver>(&mut self, ctx: &mut WidgetContext, observer: &mut O) {
         if let Some(r) = self.ctrl.take_requests() {
-            for id in r.remove {
-                if let Some(mut wgt) = self.remove(id) {
-                    wgt.deinit(ctx);
-                    ctx.updates.info();
-                }
-            }
+            if r.clear {// if reset
+                self.clear();
+                observer.reseted();
 
-            for (i, mut wgt) in r.insert {
-                wgt.init(ctx);
-                if i < self.len() {
-                    self.insert(i, wgt);
-                } else {
+                for (i, mut wgt) in r.insert {
+                    wgt.init(ctx);
+                    ctx.updates.info();
+                    if i < self.len() {
+                        self.insert(i, wgt);
+                    } else {
+                        self.push(wgt);
+                    }
+                }
+                for mut wgt in r.push {
+                    wgt.init(ctx);
+                    ctx.updates.info();
                     self.push(wgt);
                 }
-                ctx.updates.info();
-            }
+                for (r, i) in r.move_index {
+                    if r < self.len() {
+                        let wgt = self.vec.remove(r);
 
-            for mut wgt in r.push {
-                wgt.init(ctx);
-                self.push(wgt);
-                ctx.updates.info();
+                        if i < self.len() {
+                            self.vec.insert(i, wgt);
+                        } else {
+                            self.vec.push(wgt);
+                        }
+
+                        ctx.updates.info();
+                    }
+                }
+                for (id, to) in r.move_id {
+                    if let Some(r) = self.vec.iter().position(|w| w.id() == id) {
+                        let i = to(r, self.len());
+
+                        if r != i {
+                            let wgt = self.vec.remove(r);
+
+                            if i < self.len() {
+                                self.vec.insert(i, wgt);
+                            } else {
+                                self.vec.push(wgt);
+                            }
+
+                            ctx.updates.info();
+                        }
+                    }
+                }
+            } else {
+                for id in r.remove {
+                    if let Some(i) = self.vec.iter().position(|w| w.id() == id) {
+                        let mut wgt = self.vec.remove(i);
+                        wgt.deinit(ctx);
+                        ctx.updates.info();
+
+                        observer.removed(i);
+                    }
+                }
+
+                for (i, mut wgt) in r.insert {
+                    wgt.init(ctx);
+                    ctx.updates.info();
+
+                    if i < self.len() {
+                        self.insert(i, wgt);
+                        observer.inserted(i);
+                    } else {
+                        observer.inserted(self.len());
+                        self.push(wgt);
+                    }
+                }
+
+                for mut wgt in r.push {
+                    wgt.init(ctx);
+                    ctx.updates.info();
+
+                    observer.inserted(self.len());
+                    self.push(wgt);
+                }
+
+                for (r, i) in r.move_index {
+                    if r < self.len() {
+                        let wgt = self.vec.remove(r);
+
+                        if i < self.len() {
+                            self.vec.insert(i, wgt);
+
+                            observer.moved(r, i);
+                        } else {
+                            let i = self.vec.len();
+
+                            self.vec.push(wgt);
+
+                            observer.moved(r, i);
+                        }
+
+                        ctx.updates.info();
+                    }
+                }
+
+                for (id, to) in r.move_id {
+                    if let Some(r) = self.vec.iter().position(|w| w.id() == id) {
+                        let i = to(r, self.len());
+
+                        if r != i {
+                            let wgt = self.vec.remove(r);
+
+                            if i < self.len() {
+                                self.vec.insert(i, wgt);
+                                observer.moved(r, i);
+                            } else {
+                                let i = self.vec.len();
+                                self.vec.push(wgt);
+                                observer.moved(r, i);
+                            }
+
+                            ctx.updates.info();
+                        }
+                    }
+                }
             }
         }
     }
@@ -140,13 +241,13 @@ impl From<Vec<BoxedWidget>> for WidgetVec {
         WidgetVec {
             vec,
             id: SpatialIdGen::default(),
-            ctrl: WidgetVecRef::new()
+            ctrl: WidgetVecRef::new(),
         }
     }
 }
 impl From<WidgetVec> for Vec<BoxedWidget> {
-    fn from(s: WidgetVec) -> Self {
-        s.vec
+    fn from(mut s: WidgetVec) -> Self {
+        mem::take(&mut s.vec)
     }
 }
 impl Default for WidgetVec {
@@ -189,8 +290,8 @@ impl IntoIterator for WidgetVec {
 
     type IntoIter = std::vec::IntoIter<BoxedWidget>;
 
-    fn into_iter(self) -> Self::IntoIter {
-        self.vec.into_iter()
+    fn into_iter(mut self) -> Self::IntoIter {
+        mem::take(&mut self.vec).into_iter()
     }
 }
 impl FromIterator<BoxedWidget> for WidgetVec {
@@ -199,6 +300,10 @@ impl FromIterator<BoxedWidget> for WidgetVec {
     }
 }
 impl UiNodeList for WidgetVec {
+    fn is_fixed(&self) -> bool {
+        false
+    }
+
     fn len(&self) -> usize {
         self.vec.len()
     }
@@ -207,10 +312,10 @@ impl UiNodeList for WidgetVec {
         self.vec.is_empty()
     }
 
-    fn boxed_all(self) -> UiNodeVec {
+    fn boxed_all(mut self) -> UiNodeVec {
         UiNodeVec {
-            vec: self.vec.into_iter().map(|w| w.boxed()).collect(),
-            id: self.id,
+            vec: mem::take(&mut self.vec).into_iter().map(|w| w.boxed()).collect(),
+            id: mem::take(&mut self.id),
         }
     }
 
@@ -226,8 +331,8 @@ impl UiNodeList for WidgetVec {
         }
     }
 
-    fn update_all(&mut self, ctx: &mut WidgetContext) {
-        self.fullfill_requests(ctx);
+    fn update_all<O: UiListObserver>(&mut self, ctx: &mut WidgetContext, observer: &mut O) {
+        self.fullfill_requests(ctx, observer);
         for widget in &mut self.vec {
             widget.update(ctx);
         }
@@ -360,6 +465,15 @@ impl WidgetList for WidgetVec {
         }
     }
 }
+impl Drop for WidgetVec {
+    fn drop(&mut self) {
+        self.ctrl.0.borrow_mut().alive = false;
+    }
+}
+
+/// See [`WidgetVecRef::move_to`] for more details
+type WidgetMoveToFn = fn(usize, usize) -> usize;
+
 /// Represents a [`WidgetVec`] controller that can be used to insert, push or remove widgets
 /// after the vector is placed in a widget list property.
 #[derive(Clone)]
@@ -369,6 +483,9 @@ struct WidgetVecRequests {
     insert: Vec<(usize, BoxedWidget)>,
     push: Vec<BoxedWidget>,
     remove: Vec<WidgetId>,
+    move_index: Vec<(usize, usize)>,
+    move_id: Vec<(WidgetId, WidgetMoveToFn)>,
+    clear: bool,
 
     alive: bool,
 }
@@ -379,21 +496,24 @@ impl WidgetVecRef {
             insert: vec![],
             push: vec![],
             remove: vec![],
+            move_index: vec![],
+            move_id: vec![],
+            clear: false,
             alive: true,
         })))
     }
 
-    /// Returns `true` if the [`SortedWidgetVec`] still exists.
+    /// Returns `true` if the [`WidgetVec`] still exists.
     pub fn alive(&self) -> bool {
         self.0.borrow().alive
     }
 
     /// Request an update for the insertion of the `widget`.
-    /// 
-    /// The `index` is resolved after all [`remove`] requests, if it overflows the length the widget is pushed.
+    ///
+    /// The `index` is resolved after all [`remove`] requests, if it is out-of-bounds the widget is pushed.
     ///
     /// The `widget` will be initialized, inserted and the info tree and subscriptions updated.
-    /// 
+    ///
     /// [`remove`]: Self::remove
     pub fn insert(&self, updates: &mut impl WithUpdates, index: usize, widget: impl Widget) {
         updates.with_updates(|u| {
@@ -404,11 +524,11 @@ impl WidgetVecRef {
     }
 
     /// Request an update for the insertion of the `widget` at the end of the list.
-    /// 
+    ///
     /// The widget will be pushed after all [`insert`] requests.
     ///
     /// The `widget` will be initialized, inserted and the info tree and subscriptions updated.
-    /// 
+    ///
     /// [`insert`]: Self::insert
     pub fn push(&self, updates: &mut impl WithUpdates, widget: impl Widget) {
         updates.with_updates(|u| {
@@ -420,11 +540,86 @@ impl WidgetVecRef {
 
     /// Request an update for the removal of the widget identified by `id`.
     ///
-    /// The widget will be deinitialized, dropped and the info tree and subscriptions will update.
+    /// The widget will be deinitialized, dropped and the info tree and subscriptions will update, nothing happens
+    /// if the widget is not found.
     pub fn remove(&self, updates: &mut impl WithUpdates, id: impl Into<WidgetId>) {
         updates.with_updates(|u| {
             let mut s = self.0.borrow_mut();
             s.remove.push(id.into());
+            u.update(s.update_slot.mask());
+        })
+    }
+
+    /// Request an widget remove and re-insert.
+    ///
+    /// If the `remove_index` is out of bounds nothing happens, if the `insert_index` is out-of-bounds
+    /// the widget is pushed to the end of the vector, if `remove_index` and `insert_index` are equal nothing happens.
+    ///
+    /// Move requests happen after all other requests.
+    pub fn move_index(&self, updates: &mut impl WithUpdates, remove_index: usize, insert_index: usize) {
+        if remove_index != insert_index {
+            updates.with_updates(|u| {
+                let mut s = self.0.borrow_mut();
+                s.move_index.push((remove_index, insert_index));
+                u.update(s.update_slot.mask());
+            })
+        }
+    }
+
+    /// Request an widget move, the widget is searched by `id`, if found `get_move_to` id called with the index of the widget and length
+    /// of the vector, it must return the index the widget is inserted after it is removed.
+    ///
+    /// If the widget is not found nothing happens, if the returned index is the same nothing happens, if the returned index
+    /// is out-of-bounds the widget if pushed to the end of the vector.
+    ///
+    /// Move requests happen after all other requests.
+    /// 
+    /// # Examples
+    /// 
+    /// If the widget vectors is layout as a vertical stack to move the widget *up* by one stopping at the top:
+    /// 
+    /// ```
+    /// # fn demo(ctx: &mut zero_ui_core::context::WidgetContext, items: zero_ui_core::WidgetVecRef) {
+    /// items.move_id(ctx.updates, "my-widget", |i, _len| i.saturating_sub(1));
+    /// # } 
+    /// ```
+    /// 
+    /// And to move *down* stopping at the bottom:
+    /// 
+    /// ```
+    /// # fn demo(ctx: &mut zero_ui_core::context::WidgetContext, items: zero_ui_core::WidgetVecRef) {
+    /// items.move_id(ctx.updates, "my-widget", |i, _len| i.saturating_add(1));
+    /// # } 
+    /// ```
+    /// 
+    /// Note that if the returned index overflows the length the widget is
+    /// pushed as the last item. 
+    /// 
+    /// The length can be used for implementing wrapping move *down*:
+    /// 
+    /// ```
+    /// # fn demo(ctx: &mut zero_ui_core::context::WidgetContext, items: zero_ui_core::WidgetVecRef) {
+    /// items.move_id(ctx.updates, "my-widget", |i, len| {
+    ///     let next = i.saturating_add(1);
+    ///     if next < len { next } else { 0 }
+    /// });
+    /// # } 
+    /// ```
+    pub fn move_id(&self, updates: &mut impl WithUpdates, id: impl Into<WidgetId>, get_move_to: WidgetMoveToFn) {
+        updates.with_updates(|u| {
+            let mut s = self.0.borrow_mut();
+            s.move_id.push((id.into(), get_move_to));
+            u.update(s.update_slot.mask());
+        })
+    }
+
+    /// Request a removal of all current widgets.
+    ///
+    /// All other requests will happen after the clear.
+    pub fn clear(&self, updates: &mut impl WithUpdates) {
+        updates.with_updates(|u| {
+            let mut s = self.0.borrow_mut();
+            s.clear = true;
             u.update(s.update_slot.mask());
         })
     }
@@ -436,7 +631,13 @@ impl WidgetVecRef {
     fn take_requests(&self) -> Option<WidgetVecRequests> {
         let mut s = self.0.borrow_mut();
 
-        if !s.insert.is_empty() || !s.remove.is_empty() {
+        if s.clear
+            || !s.insert.is_empty()
+            || !s.push.is_empty()
+            || !s.remove.is_empty()
+            || !s.move_index.is_empty()
+            || !s.move_id.is_empty()
+        {
             let empty = WidgetVecRequests {
                 update_slot: s.update_slot,
                 alive: s.alive,
@@ -444,6 +645,9 @@ impl WidgetVecRef {
                 insert: vec![],
                 push: vec![],
                 remove: vec![],
+                move_index: vec![],
+                move_id: vec![],
+                clear: false,
             };
             Some(mem::replace(&mut *s, empty))
         } else {
@@ -550,6 +754,9 @@ impl From<UiNodeVec> for Vec<BoxedUiNode> {
     }
 }
 impl UiNodeList for UiNodeVec {
+    fn is_fixed(&self) -> bool {
+        false
+    }
     fn len(&self) -> usize {
         self.vec.len()
     }
@@ -569,7 +776,7 @@ impl UiNodeList for UiNodeVec {
             node.deinit(ctx);
         }
     }
-    fn update_all(&mut self, ctx: &mut WidgetContext) {
+    fn update_all<O: UiListObserver>(&mut self, ctx: &mut WidgetContext, _: &mut O) {
         for node in self.iter_mut() {
             node.update(ctx);
         }

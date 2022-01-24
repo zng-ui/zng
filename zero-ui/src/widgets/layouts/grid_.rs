@@ -149,7 +149,14 @@ pub mod grid {
                 for row in &mut self.rows {
                     row.widget_mut().update(ctx);
                 }
-                self.items.update_all(ctx);
+
+                let mut changed = false;
+                self.items.update_all(ctx, &mut changed);
+
+                if changed {
+                    self.item_rects.resize(self.items.len(), PxRect::zero());
+                    ctx.updates.layout_and_render();
+                }
 
                 if self.spacing.is_new(ctx) {
                     ctx.updates.layout();

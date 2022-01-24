@@ -7,7 +7,7 @@ use crate::{
     units::{AvailableSize, PxPoint, PxRect, PxSize},
     widget_base::Visibility,
     widget_info::{WidgetInfoBuilder, WidgetOffset, WidgetSubscriptions},
-    widget_vec, UiNode, UiNodeList, UiNodeVec, Widget, WidgetId, WidgetList, WidgetVec,
+    widget_vec, UiListObserver, UiNode, UiNodeList, UiNodeVec, Widget, WidgetId, WidgetList, WidgetVec,
 };
 
 macro_rules! impl_tuples {
@@ -111,6 +111,11 @@ macro_rules! impl_tuples {
 
         impl<$($W: $Bound),+> UiNodeList for $NodeList<$($W,)+> {
             #[inline]
+            fn is_fixed(&self) -> bool {
+                true
+            }
+
+            #[inline]
             fn len(&self) -> usize {
                 $L
             }
@@ -138,7 +143,7 @@ macro_rules! impl_tuples {
             }
 
             #[inline(always)]
-            fn update_all(&mut self, ctx: &mut WidgetContext) {
+            fn update_all<O: UiListObserver>(&mut self, ctx: &mut WidgetContext, _: &mut O) {
                 $(self.items.$n.update(ctx);)+
             }
 
@@ -309,6 +314,11 @@ macro_rules! empty_node_list {
 
         impl UiNodeList for $ident {
             #[inline]
+            fn is_fixed(&self) -> bool {
+                true
+            }
+
+            #[inline]
             fn len(&self) -> usize {
                 0
             }
@@ -329,7 +339,7 @@ macro_rules! empty_node_list {
             fn deinit_all(&mut self, _: &mut WidgetContext) {}
 
             #[inline]
-            fn update_all(&mut self, _: &mut WidgetContext) {}
+            fn update_all<O: UiListObserver>(&mut self, _: &mut WidgetContext, _: &mut O) {}
 
             #[inline]
             fn event_all<EU: EventUpdateArgs>(&mut self, _: &mut WidgetContext, _: &EU) {}

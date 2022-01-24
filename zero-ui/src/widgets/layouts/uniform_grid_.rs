@@ -146,9 +146,14 @@ pub mod uniform_grid {
 
         #[UiNode]
         fn update(&mut self, ctx: &mut WidgetContext) {
-            self.children.update_all(ctx);
+            let mut changed = false;
+            self.children.update_all(ctx, &mut changed);
 
-            if self.columns.is_new(ctx) || self.rows.is_new(ctx) || self.first_column.is_new(ctx) || self.spacing.is_new(ctx) {
+            if changed {
+                self.children_origin.resize(self.children.len(), None);
+            }
+
+            if changed || self.columns.is_new(ctx) || self.rows.is_new(ctx) || self.first_column.is_new(ctx) || self.spacing.is_new(ctx) {
                 ctx.updates.layout_and_render();
             }
         }
