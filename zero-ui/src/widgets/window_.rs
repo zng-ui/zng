@@ -438,7 +438,7 @@ pub mod window {
             allow_transparency,
             render_mode,
             headless_monitor,
-            child,
+            nodes::layers(child),
         )
     }
 
@@ -988,7 +988,7 @@ pub mod window {
     }
 
     #[doc(inline)]
-    pub use nodes::{LayeredWidgetToken, WindowLayers, WindowLayersKey};
+    pub use nodes::{AnchorMode, LayerIndex, WindowLayers, WindowLayersKey};
 
     /// UI nodes used for building a window widget.
     pub mod nodes {
@@ -996,7 +996,7 @@ pub mod window {
 
         /// Windows layers.
         ///
-        ///
+        /// TODO describe (no window context except root_id and WindowVars, etc.).
         ///
         /// You can get the layers for a window in the [`WidgetContext::window_state`] using the [`WindowLayersKey`].
         ///
@@ -1009,14 +1009,7 @@ pub mod window {
             ///
             /// If the `layer` variable updates the widget is moved to the new layer, if multiple widgets
             /// are inserted in the same layer the later inserts are on top of the previous.
-            ///
-            /// Returns a [`LayeredWidgetToken`] that can be used to remove the widget.
-            pub fn insert(
-                &self,
-                updates: &mut impl WithUpdates,
-                layer: impl IntoVar<LayerIndex>,
-                widget: impl Widget,
-            ) -> LayeredWidgetToken {
+            pub fn insert(&self, updates: &mut impl WithUpdates, layer: impl IntoVar<LayerIndex>, widget: impl Widget) {
                 struct LayeredWidget<L, W> {
                     layer: L,
                     widget: W,
@@ -1065,11 +1058,6 @@ pub mod window {
                     }
                 }
 
-                let token = LayeredWidgetToken {
-                    items: self.items.clone(),
-                    widget_id: widget.id(),
-                };
-
                 self.items.insert(
                     updates,
                     LayeredWidget {
@@ -1077,16 +1065,14 @@ pub mod window {
                         widget,
                     },
                 );
-
-                token
             }
 
             /// Insert the `widget` in the layer and *anchor* it to the offset/transform of another widget.
-            /// 
+            ///
             /// The `anchor` is the ID of another widget, the inserted `widget` will be offset/transform so that it aligns
             /// with the `anchor` widget top-left. The `mode` is a value of [`AnchorMode`] that defines if the `widget` will
             /// receive the full transform or just the offset.
-            /// 
+            ///
             /// If the `anchor` widget is not found the `widget` is not rendered (visibility `Collapsed`).
             pub fn insert_anchored(
                 &self,
@@ -1095,7 +1081,7 @@ pub mod window {
                 anchor: impl IntoVar<WidgetId>,
                 mode: impl IntoVar<AnchorMode>,
                 widget: impl Widget,
-            ) -> LayeredWidgetToken {
+            ) {
                 struct AnchoredWidget<A, M, W> {
                     anchor: A,
                     mode: M,
@@ -1112,7 +1098,7 @@ pub mod window {
                         }
                         if self.mode.is_new(ctx) {
                             ctx.updates.layout_and_render();
-                        }                        
+                        }
                         self.widget.update(ctx);
                     }
 
@@ -1154,11 +1140,22 @@ pub mod window {
                     }
                 }
 
-                self.insert(updates, layer, AnchoredWidget {
-                    anchor: anchor.into_var(),
-                    mode: mode.into_var(),
-                    widget
-                })
+                self.insert(
+                    updates,
+                    layer,
+                    AnchoredWidget {
+                        anchor: anchor.into_var(),
+                        mode: mode.into_var(),
+                        widget,
+                    },
+                );
+            }
+
+            /// Remove the widget from the layers overlay in the next update.
+            ///
+            /// The `id` must the widget id of a previous inserted widget, nothing happens if the widget is not found.
+            pub fn remove(&self, updates: &mut impl WithUpdates, id: impl Into<WidgetId>) {
+                self.items.remove(updates, id)
             }
         }
 
@@ -1169,20 +1166,6 @@ pub mod window {
             pub struct WindowLayersKey: WindowLayers;
 
             struct LayerIndexKey: LayerIndex;
-        }
-
-        /// Represents an widget inserted in [`WindowLayers`].
-        ///
-        /// If you drop this token without calling [`remove`] the widget stays in the window until it is closed.
-        pub struct LayeredWidgetToken {
-            items: SortedWidgetVecRef,
-            widget_id: WidgetId,
-        }
-        impl LayeredWidgetToken {
-            /// Removes, deinits and drops the widget on the next update.
-            pub fn remove(self, updates: &mut impl WithUpdates) {
-                self.items.remove(updates, self.widget_id)
-            }
         }
 
         /// Wrap around the window outer-most context node to create the layers.

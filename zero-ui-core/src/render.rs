@@ -752,7 +752,7 @@ impl FrameBuilder {
             &[],
             &[],
         );
-        
+
         f(self);
 
         self.display_list.pop_stacking_context();
