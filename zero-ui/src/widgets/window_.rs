@@ -987,52 +987,255 @@ pub mod window {
         }
     }
 
+    #[doc(inline)]
+    pub use nodes::{LayeredWidgetToken, WindowLayers, WindowLayersKey};
+
     /// UI nodes used for building a window widget.
     pub mod nodes {
         use crate::prelude::new_property::*;
 
+        /// Windows layers.
+        ///
+        ///
+        ///
+        /// You can get the layers for a window in the [`WidgetContext::window_state`] using the [`WindowLayersKey`].
+        ///
+        /// [`WindowContext`]:crate::core::context::WindowContext
         pub struct WindowLayers {
             items: SortedWidgetVecRef,
         }
         impl WindowLayers {
-            pub fn insert(&self, updates: &mut impl WithUpdates, layer: impl Var<LayerIndex>, widget: impl Widget) -> LayeredWidgetToken {
-                let widget_id = widget.id();
-                LayeredWidgetToken {
-                    items: self.items.clone(),
-                    widget_id,
+            /// Insert the `widget` in the layer identified by a [`LayerIndex`].
+            ///
+            /// If the `layer` variable updates the widget is moved to the new layer, if multiple widgets
+            /// are inserted in the same layer the later inserts are on top of the previous.
+            ///
+            /// Returns a [`LayeredWidgetToken`] that can be used to remove the widget.
+            pub fn insert(
+                &self,
+                updates: &mut impl WithUpdates,
+                layer: impl IntoVar<LayerIndex>,
+                widget: impl Widget,
+            ) -> LayeredWidgetToken {
+                struct LayeredWidget<L, W> {
+                    layer: L,
+                    widget: W,
                 }
+                #[impl_ui_node(
+                    delegate = &self.widget,
+                    delegate_mut = &mut self.widget,
+                )]
+                impl<L: Var<LayerIndex>, W: Widget> UiNode for LayeredWidget<L, W> {
+                    fn init(&mut self, ctx: &mut WidgetContext) {
+                        ctx.widget_state.set(LayerIndexKey, self.layer.copy(ctx.vars));
+                        self.widget.init(ctx);
+                    }
+
+                    fn update(&mut self, ctx: &mut WidgetContext) {
+                        if let Some(index) = self.layer.copy_new(ctx) {
+                            ctx.widget_state.set(LayerIndexKey, index);
+                            ctx.window_state.req(WindowLayersKey).items.sort(ctx.updates, ctx.path.widget_id());
+                        }
+                        self.widget.update(ctx);
+                    }
+                }
+                impl<L: Var<LayerIndex>, W: Widget> Widget for LayeredWidget<L, W> {
+                    fn id(&self) -> WidgetId {
+                        self.widget.id()
+                    }
+
+                    fn state(&self) -> &StateMap {
+                        self.widget.state()
+                    }
+
+                    fn state_mut(&mut self) -> &mut StateMap {
+                        self.widget.state_mut()
+                    }
+
+                    fn outer_bounds(&self) -> PxRect {
+                        self.widget.outer_bounds()
+                    }
+
+                    fn inner_bounds(&self) -> PxRect {
+                        self.widget.inner_bounds()
+                    }
+
+                    fn visibility(&self) -> Visibility {
+                        self.widget.visibility()
+                    }
+                }
+
+                let token = LayeredWidgetToken {
+                    items: self.items.clone(),
+                    widget_id: widget.id(),
+                };
+
+                self.items.insert(
+                    updates,
+                    LayeredWidget {
+                        layer: layer.into_var(),
+                        widget,
+                    },
+                );
+
+                token
+            }
+
+            /// Insert the `widget` in the layer and *anchor* it to the offset/transform of another widget.
+            /// 
+            /// The `anchor` is the ID of another widget, the inserted `widget` will be offset/transform so that it aligns
+            /// with the `anchor` widget top-left. The `mode` is a value of [`AnchorMode`] that defines if the `widget` will
+            /// receive the full transform or just the offset.
+            /// 
+            /// If the `anchor` widget is not found the `widget` is not rendered (visibility `Collapsed`).
+            pub fn insert_anchored(
+                &self,
+                updates: &mut impl WithUpdates,
+                layer: impl IntoVar<LayerIndex>,
+                anchor: impl IntoVar<WidgetId>,
+                mode: impl IntoVar<AnchorMode>,
+                widget: impl Widget,
+            ) -> LayeredWidgetToken {
+                struct AnchoredWidget<A, M, W> {
+                    anchor: A,
+                    mode: M,
+                    widget: W,
+                }
+                #[impl_ui_node(
+                    delegate = &self.widget,
+                    delegate_mut = &mut self.widget,
+                )]
+                impl<A: Var<WidgetId>, M: Var<AnchorMode>, W: Widget> UiNode for AnchoredWidget<A, M, W> {
+                    fn update(&mut self, ctx: &mut WidgetContext) {
+                        if let Some(anchor) = self.anchor.copy_new(ctx) {
+                            ctx.updates.layout_and_render();
+                        }
+                        if self.mode.is_new(ctx) {
+                            ctx.updates.layout_and_render();
+                        }                        
+                        self.widget.update(ctx);
+                    }
+
+                    fn measure(&mut self, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize {
+                        self.widget.measure(ctx, available_size)
+                    }
+
+                    fn arrange(&mut self, ctx: &mut LayoutContext, widget_offset: &mut WidgetOffset, final_size: PxSize) {
+                        self.widget.arrange(ctx, widget_offset, final_size);
+                    }
+
+                    fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
+                        self.widget.render(ctx, frame);
+                    }
+                }
+                impl<A: Var<WidgetId>, M: Var<AnchorMode>, W: Widget> Widget for AnchoredWidget<A, M, W> {
+                    fn id(&self) -> WidgetId {
+                        self.widget.id()
+                    }
+
+                    fn state(&self) -> &StateMap {
+                        self.widget.state()
+                    }
+
+                    fn state_mut(&mut self) -> &mut StateMap {
+                        self.widget.state_mut()
+                    }
+
+                    fn outer_bounds(&self) -> PxRect {
+                        self.widget.outer_bounds()
+                    }
+
+                    fn inner_bounds(&self) -> PxRect {
+                        self.widget.inner_bounds()
+                    }
+
+                    fn visibility(&self) -> Visibility {
+                        self.widget.visibility()
+                    }
+                }
+
+                self.insert(updates, layer, AnchoredWidget {
+                    anchor: anchor.into_var(),
+                    mode: mode.into_var(),
+                    widget
+                })
             }
         }
 
+        state_key! {
+            /// Key to [`WindowLayers`].
+            ///
+            /// The key can be used in [`WidgetContext`] `window_state` for a widget inside the window.
+            pub struct WindowLayersKey: WindowLayers;
+
+            struct LayerIndexKey: LayerIndex;
+        }
+
+        /// Represents an widget inserted in [`WindowLayers`].
+        ///
+        /// If you drop this token without calling [`remove`] the widget stays in the window until it is closed.
         pub struct LayeredWidgetToken {
             items: SortedWidgetVecRef,
             widget_id: WidgetId,
         }
         impl LayeredWidgetToken {
+            /// Removes, deinits and drops the widget on the next update.
             pub fn remove(self, updates: &mut impl WithUpdates) {
                 self.items.remove(updates, self.widget_id)
             }
         }
 
+        /// Wrap around the window outer-most context node to create the layers.
         pub fn layers(child: impl UiNode) -> impl UiNode {
             struct LayersNode<C> {
-                child: C,
+                children: C,
+                layered: SortedWidgetVecRef,
             }
-            #[impl_ui_node(child)]
-            impl<C: UiNode> UiNode for LayersNode<C> {}
+            #[impl_ui_node(children)]
+            impl<C: UiNodeList> UiNode for LayersNode<C> {
+                fn init(&mut self, ctx: &mut WidgetContext) {
+                    ctx.window_state.set(
+                        WindowLayersKey,
+                        WindowLayers {
+                            items: self.layered.clone(),
+                        },
+                    );
 
-            LayersNode { child }
+                    self.children.init_all(ctx);
+                }
+
+                fn update(&mut self, ctx: &mut WidgetContext) {
+                    let mut changed = false;
+
+                    self.children.update_all(ctx, &mut changed);
+
+                    if changed {
+                        ctx.updates.layout_and_render();
+                    }
+                }
+            }
+
+            let layers_vec = SortedWidgetVec::new(|a, b| {
+                let a = a.state().req(LayerIndexKey);
+                let b = b.state().req(LayerIndexKey);
+
+                a.cmp(b)
+            });
+            let layered = layers_vec.reference();
+
+            LayersNode {
+                children: nodes![child].chain_nodes(layers_vec),
+                layered,
+            }
         }
 
-        /// Represents a layer in and of a [`FrameBuilder`].
+        /// Represents a layer in a window.
         ///
-        /// See the [`in_layer`] method for more information.
-        ///
-        /// [`in_layer`]: FrameBuilder::in_layer
+        /// See the [`WindowLayers`] struct for more information.
         #[derive(Default, Debug, PartialEq, Eq, Clone, Copy, PartialOrd, Ord)]
         pub struct LayerIndex(pub u32);
         impl LayerIndex {
-            /// The top-most layer inside a [`FrameBuilder`].
+            /// The top-most layer.
             ///
             /// Only widgets that are pretending to be a child window should use this layer, including menus,
             /// drop-downs, pop-ups and tool-tips.
@@ -1048,7 +1251,7 @@ pub mod window {
             /// This is the [`TOP_MOST - u16::MAX`] value.
             pub const ADORNER: LayerIndex = LayerIndex(Self::TOP_MOST.0 - u16::MAX as u32);
 
-            /// The default layer of a window or headless surface contents.
+            /// The default layer, just above the normal window content.
             ///
             /// This is the `0` value.
             pub const DEFAULT: LayerIndex = LayerIndex(0);
@@ -1102,55 +1305,24 @@ pub mod window {
         }
 
         bitflags::bitflags! {
-            /// Defines the render context of a [`layer`] modified widget.
-            ///
-            /// Widgets in different layers are inited, updated and layout when its parent is layout, but
-            /// it is rendered in a different *surface* so the parent transform and filters does not affect the widget.
-            /// The flags in this type instruct the [`layer`] property to recreate parts of the parent render context.
-            ///
-            /// # Visibility Pixel
-            ///
-            /// Even if the [`LAYOUT`] flag is not set the layered widget still reserves a 1x1 pixel point in its parent if it is visible, this is
-            /// done because zero pixel sized widgets are considered [`Collapsed`] and not rendered by most layout widgets.
-            ///
-            /// [`layer`]: fn@layer
-            /// [`z_stack`]: mod@crate::widgets::layout::z_stack
-            /// [`LAYOUT`]: LayerMode::LAYOUT
-            /// [`Collapsed`]: crate::core::Visibility::Collapsed
-            pub struct LayerMode: u16 {
-                /// The widget is layout as if it is the only content of the window, the available size is the window content area,
-                /// it only reserves a 1x1 pixel point in the parent layout.
+            /// Defines how the layered widget is anchored to another widget.
+            pub struct AnchorMode: u16 {
+                /// The widget is layout as if it is the only content of the window, the available size is the window content area.
                 const DEFAULT = 0b0;
 
-                /// The parent stacked transform is applied to the widget origin point, so it is not scaled and
-                /// rotated like the parent but it is positioned at the transform point, the available size is *infinite*.
+                /// The other widget stacked transform is applied to the widget origin point, so it is not scaled and
+                /// rotated like the other widget but it is positioned at the transform point, the available size is *infinite*.
                 const OFFSET = 0b1;
 
-                /// The parent stacked transform is applied the widget, this flag overrides [`OFFSET`], the available size is *infinite*.
+                /// The other widget stacked transform is applied the widget, this flag overrides [`OFFSET`], the available size is *infinite*.
                 ///
                 /// [`OFFSET`]: LayerMode::OFFSET
                 const TRANSFORM = 0b11;
-
-                /// The parent stacked pixel filters is copied to the widget, that is the opacity, grayscale, and other filters.
-                const FILTER = 0b100;
-
-                /// The widget is layout normally in its parent, reserving the space.
-                const LAYOUT = 0b1000;
-
-                /// The widget reserves the [`LAYOUT`] and copies the [`TRANSFORM`] and [`FILTER`], this causes
-                /// the visual result to look as if the widget is placed in the parent but it is guaranteed to be
-                /// over all other widgets in the parent, note that other contexts are not recreated, for example,
-                /// context variables will use the default value for the window during render.
-                ///
-                /// [`LAYOUT`]: LayerMode::LAYOUT
-                /// [`TRANSFORM`]: LayerMode::TRANSFORM
-                /// [`FILTER`]: LayerMode::FILTER
-                const ALL = Self::LAYOUT.bits | Self::TRANSFORM.bits | Self::FILTER.bits;
             }
         }
-        impl Default for LayerMode {
+        impl Default for AnchorMode {
             fn default() -> Self {
-                LayerMode::DEFAULT
+                AnchorMode::DEFAULT
             }
         }
 

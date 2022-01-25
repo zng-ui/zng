@@ -123,9 +123,6 @@ pub struct FrameBuilder {
 
     display_list: DisplayListBuilder,
 
-    stacked_transform: RenderTransform,
-    stacked_filter: RenderFilter,
-
     widget_id: WidgetId,
     widget_rendered: bool,
     widget_transform_key: WidgetTransformKey,
@@ -205,9 +202,6 @@ impl FrameBuilder {
             cancel_widget: false,
             widget_display_mode: WidgetDisplayMode::empty(),
 
-            stacked_transform: RenderTransform::identity(),
-            stacked_filter: Vec::default(),
-
             clip_id: ClipId::root(pipeline_id),
             spatial_id,
             parent_spatial_id: spatial_id,
@@ -258,10 +252,6 @@ impl FrameBuilder {
     ///
     /// Call [`widget_rendered`] if you push anything to the display list.
     ///
-    /// Call [`with_custom_stacked_transform`] if you push a transform.
-    ///
-    /// Call [`with_custom_stacked_filter`] if you push a filter.
-    ///
     /// # WebRender
     ///
     /// The [`webrender`] crate used in the renderer is re-exported in `zero_ui_core::render::webrender`, and the
@@ -271,8 +261,6 @@ impl FrameBuilder {
     /// [`clip_id`]: Self::clip_id
     /// [`spatial_id`]: Self::spatial_id
     /// [`is_cancelling_widget`]: Self::is_cancelling_widget
-    /// [`with_custom_stacked_transform`]: Self::with_custom_stacked_transform
-    /// [`with_custom_stacked_filter`]: Self::with_custom_stacked_filter
     /// [`widget_rendered`]: Self::widget_rendered
     /// [`webrender`]: https://docs.rs/webrender
     /// [`webrender_api`]: https://docs.rs/webrender_api
@@ -397,56 +385,6 @@ impl FrameBuilder {
         item
     }
 
-    /// Returns the current combined transform of all parents and current widget, including the transform that
-    /// will be applied when [`open_widget_display`] is called for the current widget.
-    ///
-    /// [`open_widget_display`]: Self::open_widget_display
-    pub fn stacked_transform(&self) -> &RenderTransform {
-        &self.stacked_transform
-    }
-
-    /// Calls `f` while the [`stacked_transform`] includes the `transform` that was added by direct
-    /// manipulation of the [`display_list`].
-    ///
-    /// You only need to call this for custom direct manipulation, pushing a transform using one of the other
-    /// methods automatically adds it to the stacked transform.
-    ///
-    /// [`stacked_transform`]: Self::stacked_transform
-    /// [`display_list`]: Self::display_list
-    pub fn with_custom_stacked_transform(&mut self, transform: &RenderTransform, f: impl FnOnce(&mut Self)) {
-        let prev = self.stacked_transform;
-        self.stacked_transform = prev.then(transform);
-
-        f(self);
-
-        self.stacked_transform = prev;
-    }
-
-    /// Returns the current combined filter of all parents and current widget, including the transform that
-    /// will be applied when [`open_widget_display`] is called for the current widget.
-    ///
-    /// [`open_widget_display`]: Self::open_widget_display
-    pub fn stacked_filter(&self) -> &RenderFilter {
-        &self.stacked_filter
-    }
-
-    /// Calls `f` while the [`stacked_filter`] includes the `filter` that was added by direct
-    /// manipulation of the [`display_list`].
-    ///
-    /// You only need to call this for custom direct manipulation, pushing a filter using one of the other
-    /// methods automatically adds it to the stacked transform.
-    ///
-    /// [`stacked_filter`]: Self::stacked_filter
-    /// [`display_list`]: Self::display_list
-    pub fn with_custom_stacked_filter(&mut self, filter: RenderFilter, f: impl FnOnce(&mut Self)) {
-        let prev_len = self.stacked_filter.len();
-        self.stacked_filter.extend(filter);
-
-        f(self);
-
-        self.stacked_filter.truncate(prev_len);
-    }
-
     /// Includes a widget transform and continues the render build.
     ///
     /// This is `Ok(_)` only when a widget started, but [`open_widget_display`](Self::open_widget_display) was not called.
@@ -462,7 +400,8 @@ impl FrameBuilder {
             // reverses filters, there is a detailed comment there.
             *t = transform.then(t);
 
-            self.with_custom_stacked_transform(transform, f);
+            f(self);
+
             Ok(())
         } else {
             f(self);
@@ -485,7 +424,8 @@ impl FrameBuilder {
             filter.reverse(); // see `Self::open_widget_display` for why it is reversed.
             fi.extend(filter.iter().copied());
 
-            self.with_custom_stacked_filter(filter, f);
+            f(self);
+
             Ok(())
         } else {
             f(self);
@@ -512,7 +452,8 @@ impl FrameBuilder {
             let filter = vec![FilterOp::Opacity(bind, value)];
             fi.push(filter[0]);
 
-            self.with_custom_stacked_filter(filter, f);
+            f(self);
+
             Ok(())
         } else {
             f(self);
@@ -757,7 +698,7 @@ impl FrameBuilder {
             key,
         );
 
-        self.with_custom_stacked_transform(&RenderTransform::translation(origin.x, origin.y, 0.0), f);
+        f(self);
 
         self.display_list.pop_reference_frame();
         self.spatial_id = parent_spatial_id;
@@ -777,11 +718,6 @@ impl FrameBuilder {
 
         self.open_widget_display();
 
-        let matrix = match transform {
-            PropertyBinding::Value(m) => m,
-            PropertyBinding::Binding(_, m) => m,
-        };
-
         let parent_spatial_id = self.spatial_id;
         self.spatial_id = self.display_list.push_reference_frame(
             PxPoint::zero().to_wr(),
@@ -795,7 +731,7 @@ impl FrameBuilder {
             id.to_wr(self.pipeline_id),
         );
 
-        self.with_custom_stacked_transform(&matrix, f);
+        f(self);
 
         self.display_list.pop_reference_frame();
         self.spatial_id = parent_spatial_id;
@@ -816,7 +752,9 @@ impl FrameBuilder {
             &[],
             &[],
         );
-        self.with_custom_stacked_filter(filter.clone(), f);
+        
+        f(self);
+
         self.display_list.pop_stacking_context();
     }
 
