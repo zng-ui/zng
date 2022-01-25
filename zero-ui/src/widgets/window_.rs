@@ -1020,13 +1020,13 @@ pub mod window {
                 )]
                 impl<L: Var<LayerIndex>, W: Widget> UiNode for LayeredWidget<L, W> {
                     fn init(&mut self, ctx: &mut WidgetContext) {
-                        ctx.widget_state.set(LayerIndexKey, self.layer.copy(ctx.vars));
+                        self.widget.state_mut().set(LayerIndexKey, self.layer.copy(ctx.vars));
                         self.widget.init(ctx);
                     }
 
                     fn update(&mut self, ctx: &mut WidgetContext) {
                         if let Some(index) = self.layer.copy_new(ctx) {
-                            ctx.widget_state.set(LayerIndexKey, index);
+                            self.widget.state_mut().set(LayerIndexKey, index);
                             ctx.window_state.req(WindowLayersKey).items.sort(ctx.updates, ctx.path.widget_id());
                         }
                         self.widget.update(ctx);
