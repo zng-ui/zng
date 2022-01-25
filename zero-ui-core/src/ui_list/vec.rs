@@ -112,7 +112,8 @@ impl WidgetVec {
 
     fn fullfill_requests<O: UiListObserver>(&mut self, ctx: &mut WidgetContext, observer: &mut O) {
         if let Some(r) = self.ctrl.take_requests() {
-            if r.clear {// if reset
+            if r.clear {
+                // if reset
                 self.clear();
                 observer.reseted();
 
@@ -573,37 +574,37 @@ impl WidgetVecRef {
     /// is out-of-bounds the widget if pushed to the end of the vector.
     ///
     /// Move requests happen after all other requests.
-    /// 
+    ///
     /// # Examples
-    /// 
+    ///
     /// If the widget vectors is layout as a vertical stack to move the widget *up* by one stopping at the top:
-    /// 
+    ///
     /// ```
     /// # fn demo(ctx: &mut zero_ui_core::context::WidgetContext, items: zero_ui_core::WidgetVecRef) {
     /// items.move_id(ctx.updates, "my-widget", |i, _len| i.saturating_sub(1));
-    /// # } 
+    /// # }
     /// ```
-    /// 
+    ///
     /// And to move *down* stopping at the bottom:
-    /// 
+    ///
     /// ```
     /// # fn demo(ctx: &mut zero_ui_core::context::WidgetContext, items: zero_ui_core::WidgetVecRef) {
     /// items.move_id(ctx.updates, "my-widget", |i, _len| i.saturating_add(1));
-    /// # } 
+    /// # }
     /// ```
-    /// 
+    ///
     /// Note that if the returned index overflows the length the widget is
-    /// pushed as the last item. 
-    /// 
+    /// pushed as the last item.
+    ///
     /// The length can be used for implementing wrapping move *down*:
-    /// 
+    ///
     /// ```
     /// # fn demo(ctx: &mut zero_ui_core::context::WidgetContext, items: zero_ui_core::WidgetVecRef) {
     /// items.move_id(ctx.updates, "my-widget", |i, len| {
     ///     let next = i.saturating_add(1);
     ///     if next < len { next } else { 0 }
     /// });
-    /// # } 
+    /// # }
     /// ```
     pub fn move_id(&self, updates: &mut impl WithUpdates, id: impl Into<WidgetId>, get_move_to: WidgetMoveToFn) {
         updates.with_updates(|u| {

@@ -986,4 +986,193 @@ pub mod window {
             )
         }
     }
+
+    /// UI nodes used for building a window widget.
+    pub mod nodes {
+        use crate::prelude::new_property::*;
+
+        pub struct WindowLayers {
+            items: SortedWidgetVecRef,
+        }
+        impl WindowLayers {
+            pub fn insert(&self, updates: &mut impl WithUpdates, layer: impl Var<LayerIndex>, widget: impl Widget) -> LayeredWidgetToken {
+                let widget_id = widget.id();
+                LayeredWidgetToken {
+                    items: self.items.clone(),
+                    widget_id,
+                }
+            }
+        }
+
+        pub struct LayeredWidgetToken {
+            items: SortedWidgetVecRef,
+            widget_id: WidgetId,
+        }
+        impl LayeredWidgetToken {
+            pub fn remove(self, updates: &mut impl WithUpdates) {
+                self.items.remove(updates, self.widget_id)
+            }
+        }
+
+        pub fn layers(child: impl UiNode) -> impl UiNode {
+            struct LayersNode<C> {
+                child: C,
+            }
+            #[impl_ui_node(child)]
+            impl<C: UiNode> UiNode for LayersNode<C> {}
+
+            LayersNode { child }
+        }
+
+        /// Represents a layer in and of a [`FrameBuilder`].
+        ///
+        /// See the [`in_layer`] method for more information.
+        ///
+        /// [`in_layer`]: FrameBuilder::in_layer
+        #[derive(Default, Debug, PartialEq, Eq, Clone, Copy, PartialOrd, Ord)]
+        pub struct LayerIndex(pub u32);
+        impl LayerIndex {
+            /// The top-most layer inside a [`FrameBuilder`].
+            ///
+            /// Only widgets that are pretending to be a child window should use this layer, including menus,
+            /// drop-downs, pop-ups and tool-tips.
+            ///
+            /// This is the [`u32::MAX`] value.
+            pub const TOP_MOST: LayerIndex = LayerIndex(u32::MAX);
+
+            /// The layer for *adorner* display items.
+            ///
+            /// Adorner widgets are related to another widget but not as a visual part of it, examples of adorners
+            /// are resize handles in a widget visual editor, or an interactive help/guide feature.
+            ///
+            /// This is the [`TOP_MOST - u16::MAX`] value.
+            pub const ADORNER: LayerIndex = LayerIndex(Self::TOP_MOST.0 - u16::MAX as u32);
+
+            /// The default layer of a window or headless surface contents.
+            ///
+            /// This is the `0` value.
+            pub const DEFAULT: LayerIndex = LayerIndex(0);
+
+            /// Compute `self + other` saturating at the [`TOP_MOST`] bound instead of overflowing.
+            ///
+            /// [`TOP_MOST`]: Self::TOP_MOST
+            pub fn saturating_add(self, other: impl Into<LayerIndex>) -> Self {
+                Self(self.0.saturating_add(other.into().0))
+            }
+
+            /// Compute `self - other` saturating at the [`DEFAULT`] bound instead of overflowing.
+            ///
+            /// [`DEFAULT`]: Self::DEFAULT
+            pub fn saturating_sub(self, other: impl Into<LayerIndex>) -> Self {
+                Self(self.0.saturating_sub(other.into().0))
+            }
+        }
+        impl_from_and_into_var! {
+            fn from(index: u32) -> LayerIndex {
+                LayerIndex(index)
+            }
+        }
+        /// Calls [`LayerIndex::saturating_add`].
+        impl<T: Into<Self>> std::ops::Add<T> for LayerIndex {
+            type Output = Self;
+
+            fn add(self, rhs: T) -> Self::Output {
+                self.saturating_add(rhs)
+            }
+        }
+        /// Calls [`LayerIndex::saturating_sub`].
+        impl<T: Into<Self>> std::ops::Sub<T> for LayerIndex {
+            type Output = Self;
+
+            fn sub(self, rhs: T) -> Self::Output {
+                self.saturating_sub(rhs)
+            }
+        }
+        /// Calls [`LayerIndex::saturating_add`].
+        impl<T: Into<Self>> std::ops::AddAssign<T> for LayerIndex {
+            fn add_assign(&mut self, rhs: T) {
+                *self = *self + rhs;
+            }
+        }
+        /// Calls [`LayerIndex::saturating_sub`].
+        impl<T: Into<Self>> std::ops::SubAssign<T> for LayerIndex {
+            fn sub_assign(&mut self, rhs: T) {
+                *self = *self - rhs;
+            }
+        }
+
+        bitflags::bitflags! {
+            /// Defines the render context of a [`layer`] modified widget.
+            ///
+            /// Widgets in different layers are inited, updated and layout when its parent is layout, but
+            /// it is rendered in a different *surface* so the parent transform and filters does not affect the widget.
+            /// The flags in this type instruct the [`layer`] property to recreate parts of the parent render context.
+            ///
+            /// # Visibility Pixel
+            ///
+            /// Even if the [`LAYOUT`] flag is not set the layered widget still reserves a 1x1 pixel point in its parent if it is visible, this is
+            /// done because zero pixel sized widgets are considered [`Collapsed`] and not rendered by most layout widgets.
+            ///
+            /// [`layer`]: fn@layer
+            /// [`z_stack`]: mod@crate::widgets::layout::z_stack
+            /// [`LAYOUT`]: LayerMode::LAYOUT
+            /// [`Collapsed`]: crate::core::Visibility::Collapsed
+            pub struct LayerMode: u16 {
+                /// The widget is layout as if it is the only content of the window, the available size is the window content area,
+                /// it only reserves a 1x1 pixel point in the parent layout.
+                const DEFAULT = 0b0;
+
+                /// The parent stacked transform is applied to the widget origin point, so it is not scaled and
+                /// rotated like the parent but it is positioned at the transform point, the available size is *infinite*.
+                const OFFSET = 0b1;
+
+                /// The parent stacked transform is applied the widget, this flag overrides [`OFFSET`], the available size is *infinite*.
+                ///
+                /// [`OFFSET`]: LayerMode::OFFSET
+                const TRANSFORM = 0b11;
+
+                /// The parent stacked pixel filters is copied to the widget, that is the opacity, grayscale, and other filters.
+                const FILTER = 0b100;
+
+                /// The widget is layout normally in its parent, reserving the space.
+                const LAYOUT = 0b1000;
+
+                /// The widget reserves the [`LAYOUT`] and copies the [`TRANSFORM`] and [`FILTER`], this causes
+                /// the visual result to look as if the widget is placed in the parent but it is guaranteed to be
+                /// over all other widgets in the parent, note that other contexts are not recreated, for example,
+                /// context variables will use the default value for the window during render.
+                ///
+                /// [`LAYOUT`]: LayerMode::LAYOUT
+                /// [`TRANSFORM`]: LayerMode::TRANSFORM
+                /// [`FILTER`]: LayerMode::FILTER
+                const ALL = Self::LAYOUT.bits | Self::TRANSFORM.bits | Self::FILTER.bits;
+            }
+        }
+        impl Default for LayerMode {
+            fn default() -> Self {
+                LayerMode::DEFAULT
+            }
+        }
+
+        #[cfg(test)]
+        mod tests {
+            use super::*;
+
+            #[test]
+            pub fn layer_index_ops() {
+                let idx = LayerIndex::DEFAULT;
+
+                let p1 = idx + 1;
+                let m1 = idx - 1;
+
+                let mut idx = idx;
+
+                idx += 1;
+                assert_eq!(idx, p1);
+
+                idx -= 2;
+                assert_eq!(idx, m1);
+            }
+        }
+    }
 }

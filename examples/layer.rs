@@ -23,7 +23,7 @@ fn app_main() {
                 spacing = 10;
                 items = widgets![
                     example("LayerIndex::TOP_MOST, LayerMode::DEFAULT", container! {
-                        layer = LayerIndex::TOP_MOST, LayerMode::DEFAULT;
+                        //layer = LayerIndex::TOP_MOST, LayerMode::DEFAULT;
                         background_color = colors::RED.with_alpha(40.pct());
                         content = text! {
                             text = "Overlay!";
@@ -31,26 +31,26 @@ fn app_main() {
                         };
                     }),
                     example("LayerIndex::ADORNER, LayerMode::OFFSET", container! {
-                        layer = LayerIndex::ADORNER, LayerMode::OFFSET;
+                        //layer = LayerIndex::ADORNER, LayerMode::OFFSET;
                         background_color = colors::RED.darken(40.pct());
                         padding = 4;
                         content = text("Adorner!");
                     }),
                     example("20, LayerMode::FILTER", container! {
-                        layer = 20, LayerMode::FILTER;
+                        //layer = 20, LayerMode::FILTER;
                         background_color = colors::BLUE.darken(40.pct());
                         padding = 4;
                         content = text("Same Filter!");
                         size = (100, 70);
                     }),
                     example("10, LayerMode::ALL", container! {
-                        layer = 10, LayerMode::ALL;
+                        //layer = 10, LayerMode::ALL;
                         background_color = colors::BLUE.darken(40.pct());
                         padding = 4;
                         content = text("Same transform and filter!");
                     }),
                     example("0, LayerMode::DEFAULT", container! {
-                        layer = 0, LayerMode::DEFAULT;
+                        //layer = 0, LayerMode::DEFAULT;
                         background_color = colors::BLUE.darken(40.pct());
                         padding = 4;
                         content = text("Normal placement.");

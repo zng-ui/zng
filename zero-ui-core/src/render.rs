@@ -14,7 +14,7 @@ use crate::{
 };
 use derive_more as dm;
 
-use std::{collections::BTreeMap, marker::PhantomData, mem, ops};
+use std::{marker::PhantomData, mem};
 
 pub use zero_ui_view_api::webrender_api;
 
@@ -138,12 +138,7 @@ pub struct FrameBuilder {
     parent_spatial_id: SpatialId,
 
     clear_color: Option<RenderColor>,
-    #[allow(clippy::type_complexity)]
-    layers: BTreeMap<LayerIndex, Vec<RenderAction>>,
-    layer_index: LayerIndex,
 }
-
-type RenderAction = Box<dyn FnOnce(&mut RenderContext, &mut FrameBuilder)>;
 
 bitflags! {
     struct WidgetDisplayMode: u8 {
@@ -217,9 +212,6 @@ impl FrameBuilder {
             spatial_id,
             parent_spatial_id: spatial_id,
 
-            layers: BTreeMap::default(),
-            layer_index: LayerIndex::DEFAULT,
-
             clear_color: None,
         };
         new.widget_stack_ctx_data = Some((RenderTransform::identity(), Vec::default(), PrimitiveFlags::empty()));
@@ -236,30 +228,6 @@ impl FrameBuilder {
         hint: Option<UsedFrameBuilder>,
     ) -> Self {
         Self::new(frame_id, window_id, None, root_id, root_transform_key, scale_factor, hint)
-    }
-
-    /// Returns the current layer index.
-    #[inline]
-    pub fn layer_index(&self) -> LayerIndex {
-        self.layer_index
-    }
-
-    /// Schedules `action` to run at a time addiction to the display list falls at the `index` Z-order.
-    ///
-    /// If `index` if less then or equal to [`layer_index`] the `action` is evaluated immediately, it is not possible
-    /// to push to a lower layer from a top one, the `action` context is the root widget.
-    ///
-    /// Note that layers don't retain any of the stacked context transforms, clips and effects at the position they are
-    /// requested, the context must be recreated in the layer if you want to align display items with the parent
-    /// display items in the parent layer.
-    ///
-    /// [`layer_index`]: Self::layer_index
-    pub fn in_layer(&mut self, ctx: &mut RenderContext, index: LayerIndex, action: impl FnOnce(&mut RenderContext, &mut Self) + 'static) {
-        if self.layer_index >= index {
-            action(ctx, self)
-        } else {
-            self.layers.entry(index).or_default().push(Box::new(action));
-        }
     }
 
     /// Pixel scale factor used by the renderer.
@@ -1184,18 +1152,8 @@ impl FrameBuilder {
         )
     }
 
-    /// Applies the pending layers and finalizes the build.
-    pub fn finalize(mut self, ctx: &mut RenderContext, root_rendered: &WidgetRendered) -> (BuiltFrame, UsedFrameBuilder) {
-        let indexes: Vec<_> = self.layers.keys().copied().collect();
-        for index in indexes {
-            if let Some(layer) = self.layers.remove(&index) {
-                self.layer_index = index;
-                for action in layer {
-                    action(ctx, &mut self);
-                }
-            }
-        }
-
+    /// Finalizes the build.
+    pub fn finalize(mut self, root_rendered: &WidgetRendered) -> (BuiltFrame, UsedFrameBuilder) {
         self.close_widget_display();
         root_rendered.set(self.widget_rendered);
 
@@ -1729,103 +1687,5 @@ impl_from_and_into_var! {
     /// Convert to full [`ENABLED`](FontSynthesis::ENABLED) or [`DISABLED`](FontSynthesis::DISABLED).
     fn from(enabled: bool) -> FontSynthesis {
         if enabled { FontSynthesis::ENABLED } else { FontSynthesis::DISABLED }
-    }
-}
-
-/// Represents a layer in and of a [`FrameBuilder`].
-///
-/// See the [`in_layer`] method for more information.
-///
-/// [`in_layer`]: FrameBuilder::in_layer
-#[derive(Default, Debug, PartialEq, Eq, Clone, Copy, PartialOrd, Ord)]
-pub struct LayerIndex(pub u32);
-impl LayerIndex {
-    /// The top-most layer inside a [`FrameBuilder`].
-    ///
-    /// Only widgets that are pretending to be a child window should use this layer, including menus,
-    /// drop-downs, pop-ups and tool-tips.
-    ///
-    /// This is the [`u32::MAX`] value.
-    pub const TOP_MOST: LayerIndex = LayerIndex(u32::MAX);
-
-    /// The layer for *adorner* display items.
-    ///
-    /// Adorner widgets are related to another widget but not as a visual part of it, examples of adorners
-    /// are resize handles in a widget visual editor, or an interactive help/guide feature.
-    ///
-    /// This is the [`TOP_MOST - u16::MAX`] value.
-    pub const ADORNER: LayerIndex = LayerIndex(Self::TOP_MOST.0 - u16::MAX as u32);
-
-    /// The default layer of a window or headless surface contents.
-    ///
-    /// This is the `0` value.
-    pub const DEFAULT: LayerIndex = LayerIndex(0);
-
-    /// Compute `self + other` saturating at the [`TOP_MOST`] bound instead of overflowing.
-    ///
-    /// [`TOP_MOST`]: Self::TOP_MOST
-    pub fn saturating_add(self, other: impl Into<LayerIndex>) -> Self {
-        Self(self.0.saturating_add(other.into().0))
-    }
-
-    /// Compute `self - other` saturating at the [`DEFAULT`] bound instead of overflowing.
-    ///
-    /// [`DEFAULT`]: Self::DEFAULT
-    pub fn saturating_sub(self, other: impl Into<LayerIndex>) -> Self {
-        Self(self.0.saturating_sub(other.into().0))
-    }
-}
-impl_from_and_into_var! {
-    fn from(index: u32) -> LayerIndex {
-        LayerIndex(index)
-    }
-}
-/// Calls [`LayerIndex::saturating_add`].
-impl<T: Into<Self>> ops::Add<T> for LayerIndex {
-    type Output = Self;
-
-    fn add(self, rhs: T) -> Self::Output {
-        self.saturating_add(rhs)
-    }
-}
-/// Calls [`LayerIndex::saturating_sub`].
-impl<T: Into<Self>> ops::Sub<T> for LayerIndex {
-    type Output = Self;
-
-    fn sub(self, rhs: T) -> Self::Output {
-        self.saturating_sub(rhs)
-    }
-}
-/// Calls [`LayerIndex::saturating_add`].
-impl<T: Into<Self>> ops::AddAssign<T> for LayerIndex {
-    fn add_assign(&mut self, rhs: T) {
-        *self = *self + rhs;
-    }
-}
-/// Calls [`LayerIndex::saturating_sub`].
-impl<T: Into<Self>> ops::SubAssign<T> for LayerIndex {
-    fn sub_assign(&mut self, rhs: T) {
-        *self = *self - rhs;
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    pub fn layer_index_ops() {
-        let idx = LayerIndex::DEFAULT;
-
-        let p1 = idx + 1;
-        let m1 = idx - 1;
-
-        let mut idx = idx;
-
-        idx += 1;
-        assert_eq!(idx, p1);
-
-        idx -= 2;
-        assert_eq!(idx, m1);
     }
 }
