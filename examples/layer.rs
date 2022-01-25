@@ -1,6 +1,9 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 use zero_ui::prelude::*;
-use zero_ui::widgets::window::{AnchorMode, LayerIndex, WindowLayersKey};
+use zero_ui::{
+    widgets::window::{AnchorMode, LayerIndex, WindowLayers},
+    properties::events::widget::on_pre_init
+};
 
 use zero_ui_view_prebuilt as zero_ui_view;
 
@@ -20,6 +23,19 @@ fn app_main() {
     App::default().run_window(|_| {
         window! {
             title = "Layer Example";
+
+            // you can use the pre-init to insert layered widgets 
+            // before the first render.
+            on_pre_init = hn!(|ctx, _| {
+                WindowLayers::insert(ctx, 10, text! {
+                    text = "LAYER 10";
+                    font_size = 200;
+                    opacity = 3.pct();
+                    // rotate = 45.deg();
+                    align = Alignment::CENTER;
+                })
+            });
+
             content = v_stack! {
                 spacing = 10;
                 items = widgets![
@@ -48,7 +64,7 @@ fn overlay_btn() -> impl Widget {
                         button! {
                             content = text("Ok");
                             on_click = hn!(|ctx, _| {
-                                ctx.window_state.req(WindowLayersKey).remove(ctx.updates, "overlay");
+                                WindowLayers::remove(ctx, "overlay");
                             })
                         }
                     ]
@@ -60,7 +76,7 @@ fn overlay_btn() -> impl Widget {
     button! {
         content = text("Open Overlay");
         on_click = hn!(|ctx, _| {
-            ctx.window_state.req(WindowLayersKey).insert(ctx.updates, LayerIndex::TOP_MOST, overlay());
+            WindowLayers::insert(ctx,  LayerIndex::TOP_MOST, overlay());
         });
     }
 }

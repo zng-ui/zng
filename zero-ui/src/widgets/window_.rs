@@ -988,7 +988,7 @@ pub mod window {
     }
 
     #[doc(inline)]
-    pub use nodes::{AnchorMode, LayerIndex, WindowLayers, WindowLayersKey};
+    pub use nodes::{AnchorMode, LayerIndex, WindowLayers};
 
     /// UI nodes used for building a window widget.
     pub mod nodes {
@@ -1009,7 +1009,7 @@ pub mod window {
             ///
             /// If the `layer` variable updates the widget is moved to the new layer, if multiple widgets
             /// are inserted in the same layer the later inserts are on top of the previous.
-            pub fn insert(&self, updates: &mut impl WithUpdates, layer: impl IntoVar<LayerIndex>, widget: impl Widget) {
+            pub fn insert(ctx: &mut WidgetContext, layer: impl IntoVar<LayerIndex>, widget: impl Widget) {
                 struct LayeredWidget<L, W> {
                     layer: L,
                     widget: W,
@@ -1058,8 +1058,8 @@ pub mod window {
                     }
                 }
 
-                self.items.insert(
-                    updates,
+                ctx.window_state.req(WindowLayersKey).items.insert(
+                    ctx.updates,
                     LayeredWidget {
                         layer: layer.into_var(),
                         widget,
@@ -1075,8 +1075,7 @@ pub mod window {
             ///
             /// If the `anchor` widget is not found the `widget` is not rendered (visibility `Collapsed`).
             pub fn insert_anchored(
-                &self,
-                updates: &mut impl WithUpdates,
+                ctx: &mut WidgetContext,
                 layer: impl IntoVar<LayerIndex>,
                 anchor: impl IntoVar<WidgetId>,
                 mode: impl IntoVar<AnchorMode>,
@@ -1140,8 +1139,8 @@ pub mod window {
                     }
                 }
 
-                self.insert(
-                    updates,
+                Self::insert(
+                    ctx,
                     layer,
                     AnchoredWidget {
                         anchor: anchor.into_var(),
@@ -1154,17 +1153,13 @@ pub mod window {
             /// Remove the widget from the layers overlay in the next update.
             ///
             /// The `id` must the widget id of a previous inserted widget, nothing happens if the widget is not found.
-            pub fn remove(&self, updates: &mut impl WithUpdates, id: impl Into<WidgetId>) {
-                self.items.remove(updates, id)
+            pub fn remove(ctx: &mut WidgetContext, id: impl Into<WidgetId>) {
+                ctx.window_state.req(WindowLayersKey).items.remove(ctx.updates, id);
             }
         }
 
         state_key! {
-            /// Key to [`WindowLayers`].
-            ///
-            /// The key can be used in [`WidgetContext`] `window_state` for a widget inside the window.
-            pub struct WindowLayersKey: WindowLayers;
-
+            struct WindowLayersKey: WindowLayers;
             struct LayerIndexKey: LayerIndex;
         }
 
