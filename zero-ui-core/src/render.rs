@@ -1253,6 +1253,7 @@ pub struct FrameUpdate {
     window_id: WindowId,
     widget_id: WidgetId,
     widget_transform: RenderTransform,
+    widget_origin: PxPoint,
     widget_transform_key: WidgetTransformKey,
     cancel_widget: bool,
 }
@@ -1290,6 +1291,7 @@ impl FrameUpdate {
             clear_color: None,
             widget_id: root_id,
             widget_transform: RenderTransform::identity(),
+            widget_origin: PxPoint::zero(),
             widget_transform_key: root_transform_key,
             frame_id,
             current_clear_color: clear_color,
@@ -1325,6 +1327,13 @@ impl FrameUpdate {
     #[inline]
     pub fn with_widget_transform(&mut self, transform: &RenderTransform, f: impl FnOnce(&mut Self)) {
         self.widget_transform = self.widget_transform.then(transform);
+        f(self);
+    }
+
+    /// Sets the widget origin.
+    #[inline]
+    pub fn with_widget_origin(&mut self, origin: PxPoint, f: impl FnOnce(&mut Self)) {
+        self.widget_origin = origin;
         f(self);
     }
 
@@ -1367,6 +1376,7 @@ impl FrameUpdate {
         let parent_id = mem::replace(&mut self.widget_id, id);
         let parent_transform_key = mem::replace(&mut self.widget_transform_key, transform_key);
         let parent_transform = mem::replace(&mut self.widget_transform, RenderTransform::identity());
+        let parent_origin = mem::take(&mut self.widget_origin);
         let transforms_len = self.bindings.transforms.len();
         let floats_len = self.bindings.floats.len();
         let colors_len = self.bindings.colors.len();
@@ -1379,12 +1389,24 @@ impl FrameUpdate {
         if self.cancel_widget {
             self.cancel_widget = false;
             self.widget_transform = parent_transform;
+            self.widget_origin = parent_origin;
             self.bindings.transforms.truncate(transforms_len);
             self.bindings.floats.truncate(floats_len);
             self.bindings.colors.truncate(colors_len);
         } else {
-            let widget_transform = mem::replace(&mut self.widget_transform, parent_transform);
+            let mut widget_transform = mem::replace(&mut self.widget_transform, parent_transform);
             if widget_transform != RenderTransform::identity() {
+                let origin = mem::replace(&mut self.widget_origin, parent_origin);
+
+                if origin != PxPoint::zero() {
+                    let x = origin.x.0 as f32;
+                    let y = origin.y.0 as f32;
+
+                    widget_transform = RenderTransform::translation(-x, -y, 0.0)
+                        .then(&widget_transform)
+                        .then_translate(euclid::vec3(x, y, 0.0));
+                }
+
                 self.update_transform(self.widget_transform_key.update(widget_transform));
             }
         }

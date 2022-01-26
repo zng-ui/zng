@@ -236,8 +236,15 @@ pub fn transform_origin(child: impl UiNode, origin: impl IntoVar<Point>) -> impl
 
         fn arrange(&mut self, ctx: &mut LayoutContext, widget_offset: &mut WidgetOffset, final_size: PxSize) {
             let available_size = AvailableSize::finite(final_size);
+            
             let default_origin = Point::center().to_layout(ctx, available_size, PxPoint::zero());
-            self.render_origin = self.origin.get(ctx).to_layout(ctx, available_size, default_origin);
+            let render_origin = self.origin.get(ctx).to_layout(ctx, available_size, default_origin);
+
+            if self.render_origin != render_origin {
+                self.render_origin = render_origin;
+                ctx.updates.render_update();
+            }
+
             self.child.arrange(ctx, widget_offset, final_size);
         }
 
@@ -249,8 +256,7 @@ pub fn transform_origin(child: impl UiNode, origin: impl IntoVar<Point>) -> impl
         }
 
         fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
-            self.child.render_update(ctx, update);
-            // TODO
+            update.with_widget_origin(self.render_origin, |update| self.child.render_update(ctx, update));
         }
     }
     TransformOriginNode {
