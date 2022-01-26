@@ -236,7 +236,7 @@ pub fn transform_origin(child: impl UiNode, origin: impl IntoVar<Point>) -> impl
 
         fn arrange(&mut self, ctx: &mut LayoutContext, widget_offset: &mut WidgetOffset, final_size: PxSize) {
             let available_size = AvailableSize::finite(final_size);
-            
+
             let default_origin = Point::center().to_layout(ctx, available_size, PxPoint::zero());
             let render_origin = self.origin.get(ctx).to_layout(ctx, available_size, default_origin);
 

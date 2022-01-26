@@ -8,6 +8,7 @@ use std::rc::Rc;
 
 use ego_tree::Tree;
 
+use crate::context::LayoutMetrics;
 use crate::context::Updates;
 use crate::crate_util::IdMap;
 use crate::event::EventUpdateArgs;
@@ -28,82 +29,114 @@ unique_id_64! {
     struct WidgetInfoTreeId;
 }
 
-/// Helper for computing widget bounds during [`UiNode::arrange`].
-///
-/// Widget bounds are kept up-to-date in [`WidgetInfo`], properties that offset their child nodes must
-/// use [`with_offset`] to note this offset, custom widget implementers use [`with_widget`] and [`with_inner`] to
-/// mark the widget bounds.
-///
-/// [`UiNode::arrange`]: crate::UiNode::arrange
-/// [`with_widget`]: WidgetOffset::with_widget
-/// [`with_offset`]: WidgetOffset::with_offset
-/// [`with_inner`]: WidgetOffset::with_inner
-pub struct WidgetOffset {
-    offset: PxPoint,
-    inner_bounds: PxRect,
+/// Represents the in-progress layout arrange pass for an widget.
+pub struct WidgetLayout {
+    global_transform: RenderTransform,
+
+    pre_translate: PxVector,
+    transform: RenderTransform,
+    transform_origin: Point,
+    inner_bounds: BoundsInfo,
 }
-impl WidgetOffset {
-    /// New root.
-    pub(crate) fn new() -> Self {
-        WidgetOffset {
-            offset: PxPoint::zero(),
-            inner_bounds: PxRect::zero(),
-        }
+impl WidgetLayout {
+    /// Start the layout arrange pass from the window root widget.
+    pub fn with_root_widget(outer_bounds: &BoundsInfo, inner_bounds: &BoundsInfo, final_size: PxSize, f: impl FnOnce(&mut Self)) { 
+        let mut self_ = Self {
+            global_transform: RenderTransform::identity(),
+            pre_translate: PxVector::zero(),
+            transform: RenderTransform::identity(),
+            transform_origin: Point::center(),
+            inner_bounds: inner_bounds.clone(),
+        };
+        self_.with_widget(outer_bounds, inner_bounds, final_size, f);
     }
 
-    /// Calls `f` within the scope of a new widget outer bounds, both widget bounds are updated,
-    /// the [`implicit_base::new`] function calls this method, custom implementation of `new` must
-    /// either wrap its result on the implicit implementation or call this method directly.
+    /// Mark the widget outer-boundaries.
+    ///
+    /// Must be called in the widget `new`, the [`implicit_base::new`] node does this.
     ///
     /// [`implicit_base::new`]: crate::widget_base::implicit_base::new
-    pub fn with_widget(&mut self, outer_bounds: &BoundsRect, inner_bounds: &BoundsRect, final_size: PxSize, f: impl FnOnce(&mut Self)) {
-        let wgt_bounds = PxRect::new(self.offset, final_size);
-        outer_bounds.set(wgt_bounds);
+    pub fn with_widget(&mut self, outer_bounds: &BoundsInfo, inner_bounds: &BoundsInfo, final_size: PxSize, f: impl FnOnce(&mut Self)) {
+        outer_bounds.set_size(final_size);
+        // includes offsets from properties line "content_align".
+        outer_bounds.set_transform(self.global_transform.then_translate(euclid::vec3(
+            self.pre_translate.x.0 as f32,
+            self.pre_translate.y.0 as f32,
+            0.0,
+        )));
+
+        let pre_inner_bounds = mem::replace(&mut self.inner_bounds, inner_bounds.clone());
 
         f(self);
 
-        inner_bounds.set(self.inner_bounds);
-
-        // we are the inner-bounds of parent too if it did not set one.
-        self.inner_bounds = wgt_bounds;
+        self.inner_bounds = pre_inner_bounds;
     }
 
-    /// Returns the current offset.
-    pub fn offset(&self) -> PxPoint {
-        self.offset
+    pub fn with_pre_translate(&mut self, offset: PxVector, f: impl FnOnce(&mut Self)) {
+        self.pre_translate += offset;
+        f(self);
+        self.pre_translate -= offset;
     }
 
-    /// Calls `f` with an added offset, every property that offsets its child node must
-    /// call [`UiNode::arrange`] on the child inside `f`.
+    /// Appends a transform that will be applied to the next inner bounds.
+    pub fn with_inner_transform(&mut self, transform: &RenderTransform, f: impl FnOnce(&mut Self)) {
+        let prev_transform = mem::replace(&mut self.transform, self.transform.then(transform));
+        f(self);
+        self.transform = prev_transform;
+    }
+
+    /// Sets the *center point* of the inner transform that will be applied to the next inner bounds.
+    /// 
+    /// The `origin` will be resolved in the layout context of the inner bounds final size.
+    pub fn with_inner_transform_origin(&mut self, origin: &Point, f: impl FnOnce(&mut Self)) {
+        let prev_origin = mem::replace(&mut self.transform_origin, origin.clone());
+        f(self);
+        self.transform_origin = prev_origin;
+    }
+
+    /// Mark the widget inner-boundaries.
     ///
-    /// [`UiNode::arrange`]: crate::UiNode::arrange
-    pub fn with_offset(&mut self, offset: PxVector, f: impl FnOnce(&mut Self)) {
-        self.offset += offset;
-        f(self);
-        self.offset -= offset;
-    }
-
-    /// Calls `f` with an offset overwrite, for layouts where the widget is relative to the window root.
-    pub fn with_root_offset(&mut self, offset: PxPoint, f: impl FnOnce(&mut Self)) {
-        let offset = mem::replace(&mut self.offset, offset);
-        f(self);
-        self.offset = offset;
-    }
-
-    /// Calls `f` within a [`RenderTransform`] that modifies all inner widgets.
-    pub fn with_transform(&mut self, transform: &RenderTransform, f: impl FnOnce(&mut Self)) {
-        // TODO incorporate all transforms to calculate child bounds.
-        let offset = transform.transform_vector2d(euclid::vec2(0.0, 0.0));
-        self.with_offset(PxVector::new(Px(offset.x as i32), Px(offset.y as i32)), f)
-    }
-
-    /// Marks the widget *size* bounds, the [`implicit_base::new_inner`] function calls this method, custom implementations
-    /// of `new_inner` must either wrap its result on the implicit implementation or call this method directly.
+    /// Must be called in the widget `new_inner`, the [`implicit_base::new_inner`] node does this.
+    /// 
+    /// Returns the inner transform in the space of the outer bounds, the `new_inner` node must pass this value to [`FrameBuilder::with_inner`]
+    /// and [`FrameUpdate::with_inner`].
     ///
     /// [`implicit_base::new_inner`]: crate::widget_base::implicit_base::new_inner
-    pub fn with_inner(&mut self, final_size: PxSize, f: impl FnOnce(&mut Self)) {
+    pub fn with_inner(&mut self, metrics: &LayoutMetrics, final_size: PxSize, f: impl FnOnce(&mut Self)) -> RenderTransform {
+        let transform_origin = self.transform_origin.to_layout(
+            metrics,
+            AvailableSize::finite(final_size),
+            PxPoint::new(final_size.width / 2, final_size.height / 2),
+        );
+        if transform_origin != PxPoint::zero() {
+            let x = transform_origin.x.0 as f32;
+            let y = transform_origin.y.0 as f32;
+            self.transform = RenderTransform::translation(-x, -y, 0.0)
+                .then(&self.transform)
+                .then_translate(euclid::vec3(x, y, 0.0));
+        }
+
+        if self.pre_translate != PxVector::zero() {
+            self.transform =
+                RenderTransform::translation(self.pre_translate.x.0 as f32, self.pre_translate.y.0 as f32, 0.0).then(&self.transform);
+        }
+
+        let prev_global_transform = mem::replace(&mut self.transform, self.global_transform.then(&self.transform));
+
+        self.inner_bounds.set_size(final_size);
+        self.inner_bounds.set_transform(self.global_transform);
+
+        let transform = self.transform;
+
+        self.pre_translate = PxVector::zero();
+        self.transform = RenderTransform::identity();
+        self.transform_origin = Point::center();
+
         f(self);
-        self.inner_bounds = PxRect::new(self.offset, final_size);
+
+        self.global_transform = prev_global_transform;
+
+        transform
     }
 }
 
@@ -119,16 +152,16 @@ pub struct WidgetInfoBuilder {
 }
 impl WidgetInfoBuilder {
     /// Starts building a info tree with the root information, the `root_bounds` must be a shared reference
-    /// to the size of the window content that is always kept up-to-date, the origin must be always zero.
+    /// to the size of the window content that is always kept up-to-date, the transform must be always identity.
     #[inline]
     pub fn new(
         window_id: WindowId,
         root_id: WidgetId,
-        root_bounds: BoundsRect,
+        root_bounds: BoundsInfo,
         rendered: WidgetRendered,
         used_data: Option<UsedWidgetInfoBuilder>,
     ) -> Self {
-        debug_assert_eq!(PxPoint::zero(), root_bounds.get().origin);
+        debug_assert_eq!(RenderTransform::identity(), root_bounds.transform());
 
         let tree = Tree::with_capacity(
             WidgetInfoInner {
@@ -175,8 +208,8 @@ impl WidgetInfoBuilder {
     pub fn push_widget(
         &mut self,
         id: WidgetId,
-        outer_bounds: BoundsRect,
-        inner_bounds: BoundsRect,
+        outer_bounds: BoundsInfo,
+        inner_bounds: BoundsInfo,
         rendered: WidgetRendered,
         f: impl FnOnce(&mut Self),
     ) {
@@ -280,7 +313,7 @@ impl WidgetInfoTree {
     /// Blank window that contains only the root widget taking no space.
     #[inline]
     pub fn blank(window_id: WindowId, root_id: WidgetId) -> Self {
-        WidgetInfoBuilder::new(window_id, root_id, BoundsRect::new(), WidgetRendered::new(), None)
+        WidgetInfoBuilder::new(window_id, root_id, BoundsInfo::new(), WidgetRendered::new(), None)
             .finalize()
             .0
     }
@@ -476,53 +509,6 @@ impl WidgetPath {
     }
 }
 
-/// Shared reference to the bounds of a [`WidgetInfo`].
-///
-/// Widget bounds are updated every layout without causing a tree rebuild.
-#[derive(Default, Clone, Debug)]
-pub struct BoundsRect(Rc<Cell<PxRect>>);
-impl BoundsRect {
-    /// New default.
-    #[inline]
-    pub fn new() -> Self {
-        Self::default()
-    }
-
-    /// New with `size` and origin zero.
-    #[inline]
-    pub fn from_size(size: PxSize) -> Self {
-        BoundsRect(Rc::new(Cell::new(PxRect::from_size(size))))
-    }
-
-    /// Get a copy of the current bounds.
-    #[inline]
-    pub fn get(&self) -> PxRect {
-        self.0.get()
-    }
-
-    /// Replace the current bounds.
-    #[inline]
-    pub fn set(&self, bounds: PxRect) {
-        self.0.set(bounds);
-    }
-
-    /// Replace the current origin.
-    #[inline]
-    pub fn set_origin(&self, origin: PxPoint) {
-        let mut rect = self.0.get();
-        rect.origin = origin;
-        self.0.set(rect);
-    }
-
-    /// Replace the current size.
-    #[inline]
-    pub fn set_size(&self, size: PxSize) {
-        let mut rect = self.0.get();
-        rect.size = size;
-        self.0.set(rect);
-    }
-}
-
 #[derive(Default, Debug)]
 struct BoundsData {
     transform: Cell<RenderTransform>,
@@ -549,7 +535,7 @@ impl BoundsInfo {
 
     /// Set the current transform.
     #[inline]
-    pub fn set_transform(&self, transform: RenderTransform) {
+    fn set_transform(&self, transform: RenderTransform) {
         self.0.transform.set(transform)
     }
 
@@ -563,18 +549,32 @@ impl BoundsInfo {
 
     /// Set the current raw size.
     #[inline]
-    pub fn set_size(&self, size: PxSize) {
+    fn set_size(&self, size: PxSize) {
         self.0.size.set(size)
     }
 
     /// Calculate the bounding box.
     pub fn bounds(&self) -> PxRect {
-        let transform = self.transform();
-        let size = self.size();
+        Self::bounds_impl(self.transform(), self.size())
+    }
 
+    /// Compute the transform in the context of a parent transform.
+    ///
+    /// Returns `None` if the `parent_transform` is not invertible.
+    pub fn local_transform(&self, parent_transform: &RenderTransform) -> Option<RenderTransform> {
+        parent_transform.inverse().map(|m| m.then(&self.transform()))
+    }
+
+    /// Compute the bounding box in the context of a parent transform.
+    ///
+    /// Returns `None` if the `parent_transform` is not invertible.
+    pub fn local_bounds(&self, parent_transform: &RenderTransform) -> Option<PxRect> {
+        self.local_transform(parent_transform).map(|m| Self::bounds_impl(m, self.size()))
+    }
+
+    fn bounds_impl(transform: RenderTransform, size: PxSize) -> PxRect {
         let rect = PxRect::from_size(size).to_wr();
         let bounds = transform.outer_transformed_box2d(&rect).unwrap();
-
         bounds.to_px()
     }
 }
@@ -608,8 +608,8 @@ impl WidgetRendered {
 
 struct WidgetInfoInner {
     widget_id: WidgetId,
-    outer_bounds: BoundsRect,
-    inner_bounds: BoundsRect,
+    outer_bounds: BoundsInfo,
+    inner_bounds: BoundsInfo,
     rendered: WidgetRendered,
     meta: OwnedStateMap,
 }
@@ -730,12 +730,84 @@ impl<'a> WidgetInfo<'a> {
         }
     }
 
+    /// Clone a reference to the widget outer bounds information.
+    ///
+    /// This information is up-to-date, it is updated every layout without causing a tree rebuild.
+    #[inline]
+    pub fn outer_info(self) -> BoundsInfo {
+        self.info().outer_bounds.clone()
+    }
+
+    /// Clone a reference to the widget inner bounds information.
+    ///
+    /// This information is up-to-date, it is updated every layout without causing a tree rebuild.
+    #[inline]
+    pub fn inner_info(self) -> BoundsInfo {
+        self.info().outer_bounds.clone()
+    }
+
+    /// Side of the widget outer area, not transformed.
+    ///
+    /// Returns an up-to-date size, the size is updated every layout without causing a tree rebuild.
+    #[inline]
+    pub fn outer_final_size(self) -> PxSize {
+        self.info().outer_bounds.size()
+    }
+
+    /// Side of the widget inner area, not transformed.
+    ///
+    /// Returns an up-to-date size, the size is updated every layout without causing a tree rebuild.
+    #[inline]
+    pub fn inner_final_size(self) -> PxSize {
+        self.info().inner_bounds.size()
+    }
+
+    /// Widget outer transform in the window space, before its own transforms are applied.
+    ///
+    /// Returns an up-to-date transform, the transform is updated every layout without causing a tree rebuild.
+    #[inline]
+    pub fn outer_transform(self) -> RenderTransform {
+        self.info().outer_bounds.transform()
+    }
+
+    /// Widget outer transform in the `parent` space.
+    ///
+    /// Returns `None` if `parent` is not invertible.
+    #[inline]
+    pub fn outer_transform_in(self, parent: &RenderTransform) -> Option<RenderTransform> {
+        self.info().outer_bounds.local_transform(parent)
+    }
+
+    /// Widget transform in the window space, including its own transforms.
+    ///
+    /// Returns an up-to-date transform, the transform is updated every layout without causing a tree rebuild.
+    #[inline]
+    pub fn inner_transform(self) -> RenderTransform {
+        self.info().inner_bounds.transform()
+    }
+
+    /// Widget inner transform in the `parent` space.
+    ///
+    /// Returns `None` if `parent` is not invertible.
+    #[inline]
+    pub fn inner_transform_in(self, parent: &RenderTransform) -> Option<RenderTransform> {
+        self.info().inner_bounds.local_transform(parent)
+    }
+
     /// Widget rectangle in the window space, including *outer* properties like margin.
     ///
     /// Returns an up-to-date rect, the bounds are updated every layout without causing a tree rebuild.
     #[inline]
     pub fn outer_bounds(self) -> PxRect {
-        self.info().outer_bounds.get()
+        self.info().outer_bounds.bounds()
+    }
+
+    /// Widget outer bounds in the `parent` space.
+    ///
+    /// Returns `None` if `parent` is not invertible.
+    #[inline]
+    pub fn outer_bounds_in(self, parent: &RenderTransform) -> Option<PxRect> {
+        self.info().outer_bounds.local_bounds(parent)
     }
 
     /// Widget rectangle in the window space, but only the visible *inner* properties.
@@ -743,14 +815,22 @@ impl<'a> WidgetInfo<'a> {
     /// Returns an up-to-date rect, the bounds are updated every layout without causing a tree rebuild.
     #[inline]
     pub fn inner_bounds(self) -> PxRect {
-        self.info().inner_bounds.get()
+        self.info().inner_bounds.bounds()
+    }
+
+    /// Widget inner bounds in the `parent` space.
+    ///
+    /// Returns `None` if `parent` is not invertible.
+    #[inline]
+    pub fn inner_bounds_in(self, parent: &RenderTransform) -> Option<PxRect> {
+        self.info().inner_bounds.local_bounds(parent)
     }
 
     /// Calculate the offsets from `outer_bounds` to `bounds`.
     pub fn outer_offsets(self) -> PxSideOffsets {
         let info = self.info();
-        let outer_bounds = info.outer_bounds.get();
-        let bounds = info.inner_bounds.get();
+        let outer_bounds = info.outer_bounds.bounds();
+        let bounds = info.inner_bounds.bounds();
 
         Self::calc_offsets(outer_bounds, bounds)
     }
@@ -772,10 +852,18 @@ impl<'a> WidgetInfo<'a> {
         PxSideOffsets::new(top, right, bottom, left)
     }
 
-    /// Widget inner bounds center.
+    /// Widget inner bounds center in the window space.
     #[inline]
     pub fn center(self) -> PxPoint {
         self.inner_bounds().center()
+    }
+
+    /// Widget inner bounds center in the `parent` space.
+    ///
+    /// Returns `None` if the `parent` is not invertible.
+    #[inline]
+    pub fn center_in(self, parent: &RenderTransform) -> Option<PxPoint> {
+        self.inner_bounds_in(parent).map(|r| r.center())
     }
 
     /// Metadata associated with the widget during render.

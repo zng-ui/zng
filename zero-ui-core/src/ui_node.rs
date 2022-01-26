@@ -673,7 +673,7 @@ pub mod impl_ui_node_util {
         event::EventUpdateArgs,
         render::{FrameBuilder, FrameUpdate},
         units::{AvailableSize, PxSize},
-        widget_info::{WidgetInfoBuilder, WidgetOffset, WidgetSubscriptions},
+        widget_info::{WidgetInfoBuilder, WidgetLayout, WidgetSubscriptions},
         UiNode,
     };
 
@@ -692,7 +692,7 @@ pub mod impl_ui_node_util {
         fn update_all(self, ctx: &mut WidgetContext);
         fn event_all<EU: EventUpdateArgs>(self, ctx: &mut WidgetContext, args: &EU);
         fn measure_all(self, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize;
-        fn arrange_all(self, ctx: &mut LayoutContext, widget_offset: &mut WidgetOffset, final_size: PxSize);
+        fn arrange_all(self, ctx: &mut LayoutContext, widget_offset: &mut WidgetLayout, final_size: PxSize);
     }
     pub trait IterImpl {
         fn info_all(self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder);
@@ -734,7 +734,7 @@ pub mod impl_ui_node_util {
             size
         }
 
-        fn arrange_all(self, ctx: &mut LayoutContext, widget_offset: &mut WidgetOffset, final_size: PxSize) {
+        fn arrange_all(self, ctx: &mut LayoutContext, widget_offset: &mut WidgetLayout, final_size: PxSize) {
             for child in self {
                 child.arrange(ctx, widget_offset, final_size);
             }
