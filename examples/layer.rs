@@ -27,14 +27,16 @@ fn app_main() {
         window! {
             title = "Layer Example";
 
+            // layered widgets only context is the root ID and `WindowVars`, the `overlay_btn`
+            // disables the window here but you can still click the layered widgets.
             enabled = window_enabled.clone();
 
             // you can use the pre-init to insert layered widgets
             // before the first render.
             on_pre_init = hn!(|ctx, _| {
-                WindowLayers::insert(ctx, LayerIndex::TOP_MOST, text! {
+                WindowLayers::insert(ctx, LayerIndex::TOP_MOST - 100, text! {
                     hit_testable = false;
-                    text = "LAYER 10";
+                    text = "INITED";
                     font_size = 150;
                     opacity = 3.pct();
                     // rotate = 45.deg();
@@ -43,9 +45,13 @@ fn app_main() {
             });
 
             content = v_stack! {
-                spacing = 10;
+                spacing = 5;
                 items = widgets![
                     overlay_btn(window_enabled),
+
+                    layer_n_btn(7, colors::DARK_GREEN),
+                    layer_n_btn(8, colors::DARK_BLUE),
+                    layer_n_btn(9, colors::DARK_RED),
                 ];
             };
         }
@@ -54,7 +60,7 @@ fn app_main() {
 
 fn overlay_btn(window_enabled: RcVar<bool>) -> impl Widget {
     button! {
-        content = text("Open Overlay");
+        content = text("TOP_MOST");
         on_click = hn!(|ctx, _| {
             window_enabled.set(ctx, false);
             WindowLayers::insert(ctx,  LayerIndex::TOP_MOST, overlay(window_enabled.clone()));
@@ -86,5 +92,35 @@ fn overlay(window_enabled: RcVar<bool>) -> impl Widget {
                 ]
             }
         }
+    }
+}
+
+fn layer_n_btn(n: u32, color: Rgba) -> impl Widget {
+    let label = formatx!("Layer {n}");
+    button! {
+        content = text(label.clone());
+        on_click = async_hn!(label, |ctx, _| {
+            let id = WidgetId::new_unique();                            
+            ctx.with(|ctx| WindowLayers::insert(ctx, n, container! {
+                id;
+                content = text! {
+                    text = label.clone();
+                    font_size = 16;
+                    font_weight = FontWeight::BOLD;
+                };
+                background_color = color.with_alpha(80.pct());
+                padding = 10;
+                margin = {
+                    let inc = n as i32 * 10;
+                    (60 + inc, 10, 0, inc - 40)
+                };
+                align = Alignment::TOP;
+                hit_testable = false;
+            }));
+
+            task::timeout(2.secs()).await;
+
+            ctx.with(|ctx| WindowLayers::remove(ctx, id));
+        });
     }
 }
