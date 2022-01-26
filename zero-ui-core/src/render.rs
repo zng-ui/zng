@@ -128,7 +128,7 @@ pub struct FrameBuilder {
     widget_id: WidgetId,
     widget_rendered: bool,
     widget_transform_key: WidgetTransformKey,
-    widget_stack_ctx_data: Option<(RenderTransform, RenderFilter, PrimitiveFlags)>,
+    widget_stack_ctx_data: Option<(PxPoint, RenderTransform, RenderFilter, PrimitiveFlags)>,
     cancel_widget: bool,
     widget_display_mode: WidgetDisplayMode,
 
@@ -211,7 +211,12 @@ impl FrameBuilder {
 
             clear_color: None,
         };
-        new.widget_stack_ctx_data = Some((RenderTransform::identity(), Vec::default(), PrimitiveFlags::empty()));
+        new.widget_stack_ctx_data = Some((
+            PxPoint::zero(),
+            RenderTransform::identity(),
+            Vec::default(),
+            PrimitiveFlags::empty(),
+        ));
         new
     }
 
@@ -396,7 +401,7 @@ impl FrameBuilder {
     /// Returns `true` if hit-testing is enabled in the widget context, methods that use [`common_hit_item_ps`] automatically
     /// observe this value, custom display item implementer must also respect it.
     ///
-    /// [`common_hit_item_ps`]
+    /// [`common_hit_item_ps`]: Self::common_hit_item_ps
     #[inline]
     pub fn is_hit_testable(&self) -> bool {
         self.hit_testable
@@ -414,15 +419,17 @@ impl FrameBuilder {
 
     /// Includes a widget transform and continues the render build.
     ///
-    /// This is `Ok(_)` only when a widget started, but [`open_widget_display`](Self::open_widget_display) was not called.
+    /// This is `Ok(_)` only when a widget started, but [`open_widget_display`] was not called.
     ///
     /// In case of error the `child` render is still called just without the transform.
+    ///
+    /// [`open_widget_display`]: Self::open_widget_display
     #[inline]
     pub fn with_widget_transform(&mut self, transform: &RenderTransform, f: impl FnOnce(&mut Self)) -> Result<(), WidgetStartedError> {
         if self.cancel_widget {
             return Ok(());
         }
-        if let Some((t, _, _)) = self.widget_stack_ctx_data.as_mut() {
+        if let Some((_, t, _, _)) = self.widget_stack_ctx_data.as_mut() {
             // we don't use post_transform here fore the same reason `Self::open_widget_display`
             // reverses filters, there is a detailed comment there.
             *t = transform.then(t);
@@ -436,17 +443,43 @@ impl FrameBuilder {
         }
     }
 
+    /// Set the widget transform origin and continues the render build.
+    ///
+    /// This is `Ok(_)` only when a widget started, but [`open_widget_display`] was not called.
+    ///
+    /// In case of error the `child` render is still called just without the transform.
+    ///
+    /// [`open_widget_display`]: Self::open_widget_display
+    pub fn with_widget_origin(&mut self, origin: PxPoint, f: impl FnOnce(&mut Self)) -> Result<(), WidgetStartedError> {
+        if self.cancel_widget {
+            return Ok(());
+        }
+
+        if let Some((o, _, _, _)) = self.widget_stack_ctx_data.as_mut() {
+            *o = origin;
+
+            f(self);
+
+            Ok(())
+        } else {
+            f(self);
+            Err(WidgetStartedError)
+        }
+    }
+
     /// Includes a widget filter and continues the render build.
     ///
-    /// This is `Ok(_)` only when a widget started, but [`open_widget_display`](Self::open_widget_display) was not called.
+    /// This is `Ok(_)` only when a widget started, but [`open_widget_display`] was not called.
     ///
     /// In case of error the `child` render is still called just without the filter.
+    ///
+    /// [`open_widget_display`]: Self::open_widget_display
     #[inline]
     pub fn with_widget_filter(&mut self, filter: RenderFilter, f: impl FnOnce(&mut Self)) -> Result<(), WidgetStartedError> {
         if self.cancel_widget {
             return Ok(());
         }
-        if let Some((_, fi, _)) = self.widget_stack_ctx_data.as_mut() {
+        if let Some((_, _, fi, _)) = self.widget_stack_ctx_data.as_mut() {
             let mut filter = filter;
             filter.reverse(); // see `Self::open_widget_display` for why it is reversed.
             fi.extend(filter.iter().copied());
@@ -470,7 +503,7 @@ impl FrameBuilder {
         if self.cancel_widget {
             return Ok(());
         }
-        if let Some((_, fi, _)) = self.widget_stack_ctx_data.as_mut() {
+        if let Some((_, _, fi, _)) = self.widget_stack_ctx_data.as_mut() {
             let value = match &bind {
                 PropertyBinding::Value(v) => *v,
                 PropertyBinding::Binding(_, v) => *v,
@@ -491,7 +524,7 @@ impl FrameBuilder {
     /// Include the `flags` on the widget stacking context flags.
     #[inline]
     pub fn width_widget_flags(&mut self, flags: PrimitiveFlags, f: impl FnOnce(&mut Self)) -> Result<(), WidgetStartedError> {
-        if let Some((_, _, fl)) = self.widget_stack_ctx_data.as_mut() {
+        if let Some((_, _, _, fl)) = self.widget_stack_ctx_data.as_mut() {
             *fl |= flags;
             f(self);
             Ok(())
@@ -507,9 +540,17 @@ impl FrameBuilder {
         if self.cancel_widget {
             return;
         }
-        if let Some((transform, mut filters, flags)) = self.widget_stack_ctx_data.take() {
+        if let Some((origin, mut transform, mut filters, flags)) = self.widget_stack_ctx_data.take() {
             if transform != RenderTransform::identity() {
                 self.widget_display_mode |= WidgetDisplayMode::REFERENCE_FRAME;
+
+                if origin != PxPoint::zero() {
+                    let x = origin.x.0 as f32;
+                    let y = origin.y.0 as f32;
+                    transform = RenderTransform::translation(-x, -y, 0.0)
+                        .then(&transform)
+                        .then_translate(euclid::vec3(x, y, 0.0));
+                }
 
                 self.parent_spatial_id = self.spatial_id;
                 self.spatial_id = self.display_list.push_reference_frame(
@@ -589,7 +630,12 @@ impl FrameBuilder {
         // NOTE: root widget is not processed by this method, if you add widget behavior here
         // similar behavior must be added in the `new` and `finalize` methods.
 
-        self.widget_stack_ctx_data = Some((RenderTransform::identity(), Vec::default(), PrimitiveFlags::empty()));
+        self.widget_stack_ctx_data = Some((
+            PxPoint::zero(),
+            RenderTransform::identity(),
+            Vec::default(),
+            PrimitiveFlags::empty(),
+        ));
 
         let parent_id = mem::replace(&mut self.widget_id, id);
         let parent_rendered = mem::take(&mut self.widget_rendered);

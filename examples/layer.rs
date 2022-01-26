@@ -100,7 +100,7 @@ fn layer_n_btn(n: u32, color: Rgba) -> impl Widget {
     button! {
         content = text(label.clone());
         on_click = async_hn!(label, |ctx, _| {
-            let id = WidgetId::new_unique();                            
+            let id = WidgetId::new_unique();
             ctx.with(|ctx| WindowLayers::insert(ctx, n, container! {
                 id;
                 content = text! {

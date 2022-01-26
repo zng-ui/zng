@@ -66,5 +66,9 @@ name = "text"
 path = "text.rs"
 
 [[example]]
+name = "transform"
+path = "transform.rs"
+
+[[example]]
 name = "window"
 path = "window.rs"

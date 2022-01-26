@@ -55,9 +55,11 @@ pub fn transform(child: impl UiNode, transform: impl IntoVar<Transform>) -> impl
         }
 
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-            frame
-                .with_widget_transform(self.render_transform.as_ref().unwrap(), |frame| self.child.render(ctx, frame))
-                .unwrap();
+            let r = frame.with_widget_transform(self.render_transform.as_ref().unwrap(), |frame| self.child.render(ctx, frame));
+
+            if let Err(e) = r {
+                tracing::error!("{e}");
+            }
         }
 
         fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
@@ -216,7 +218,7 @@ pub fn transform_origin(child: impl UiNode, origin: impl IntoVar<Point>) -> impl
     struct TransformOriginNode<C, O> {
         child: C,
         origin: O,
-        layout_origin: PxPoint,
+        render_origin: PxPoint,
     }
     #[impl_ui_node(child)]
     impl<C: UiNode, O: Var<Point>> UiNode for TransformOriginNode<C, O> {
@@ -235,14 +237,15 @@ pub fn transform_origin(child: impl UiNode, origin: impl IntoVar<Point>) -> impl
         fn arrange(&mut self, ctx: &mut LayoutContext, widget_offset: &mut WidgetOffset, final_size: PxSize) {
             let available_size = AvailableSize::finite(final_size);
             let default_origin = Point::center().to_layout(ctx, available_size, PxPoint::zero());
-            self.layout_origin = self.origin.get(ctx).to_layout(ctx, available_size, default_origin);
+            self.render_origin = self.origin.get(ctx).to_layout(ctx, available_size, default_origin);
             self.child.arrange(ctx, widget_offset, final_size);
         }
 
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-            self.child.render(ctx, frame);
-            //TODO
-            eprintln!("TODO TransformOriginNode::layout_origin {:?}", self.layout_origin);
+            let r = frame.with_widget_origin(self.render_origin, |frame| self.child.render(ctx, frame));
+            if let Err(e) = r {
+                tracing::error!("{e}");
+            }
         }
 
         fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
@@ -253,6 +256,6 @@ pub fn transform_origin(child: impl UiNode, origin: impl IntoVar<Point>) -> impl
     TransformOriginNode {
         child,
         origin: origin.into_var(),
-        layout_origin: PxPoint::zero(),
+        render_origin: PxPoint::zero(),
     }
 }

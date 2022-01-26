@@ -998,8 +998,6 @@ pub mod window {
         ///
         /// TODO describe (no window context except root_id and WindowVars, etc.).
         ///
-        /// You can get the layers for a window in the [`WidgetContext::window_state`] using the [`WindowLayersKey`].
-        ///
         /// [`WindowContext`]:crate::core::context::WindowContext
         pub struct WindowLayers {
             items: SortedWidgetVecRef,
