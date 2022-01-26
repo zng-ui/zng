@@ -123,6 +123,8 @@ pub struct FrameBuilder {
 
     display_list: DisplayListBuilder,
 
+    hit_testable: bool,
+
     widget_id: WidgetId,
     widget_rendered: bool,
     widget_transform_key: WidgetTransformKey,
@@ -195,6 +197,7 @@ impl FrameBuilder {
             renderer,
             scale_factor,
             display_list,
+            hit_testable: true,
             widget_id: root_id,
             widget_rendered: false,
             widget_transform_key: root_transform_key,
@@ -252,6 +255,8 @@ impl FrameBuilder {
     ///
     /// Call [`widget_rendered`] if you push anything to the display list.
     ///
+    /// Only push hit-tests if [`is_hit_testable`] is `true`
+    ///
     /// # WebRender
     ///
     /// The [`webrender`] crate used in the renderer is re-exported in `zero_ui_core::render::webrender`, and the
@@ -260,6 +265,7 @@ impl FrameBuilder {
     /// [`open_widget_display`]: Self::open_widget_display
     /// [`clip_id`]: Self::clip_id
     /// [`spatial_id`]: Self::spatial_id
+    /// [`is_hit_testable`]: Self::is_hit_testable
     /// [`is_cancelling_widget`]: Self::is_cancelling_widget
     /// [`widget_rendered`]: Self::widget_rendered
     /// [`webrender`]: https://docs.rs/webrender
@@ -373,16 +379,37 @@ impl FrameBuilder {
         }
     }
 
-    /// Generate a [`common_item_ps`] and pushes
-    /// a hit-test [`item_tag`].
+    /// Generate a [`common_item_ps`] and pushes a hit-test [`item_tag`] if hit-testing is enabled.
     ///
     /// [`common_item_ps`]: FrameBuilder::common_item_ps
     /// [`item_tag`]: FrameBuilder::item_tag
     #[inline]
     pub fn common_hit_item_ps(&mut self, clip_rect: PxRect) -> CommonItemProperties {
         let item = self.common_item_ps(clip_rect);
-        self.display_list.push_hit_test(&item, self.item_tag());
+
+        if self.is_hit_testable() {
+            self.display_list.push_hit_test(&item, self.item_tag());
+        }
         item
+    }
+
+    /// Returns `true` if hit-testing is enabled in the widget context, methods that use [`common_hit_item_ps`] automatically
+    /// observe this value, custom display item implementer must also respect it.
+    ///
+    /// [`common_hit_item_ps`]
+    #[inline]
+    pub fn is_hit_testable(&self) -> bool {
+        self.hit_testable
+    }
+
+    /// Runs `f` while hit-tests are disabled, inside `f` [`is_hit_testable`] is `false`, after
+    /// it is the current value.
+    ///
+    /// [`is_hit_testable`]: Self::is_hit_testable
+    pub fn with_hit_tests_disabled(&mut self, f: impl FnOnce(&mut Self)) {
+        let prev = mem::replace(&mut self.hit_testable, false);
+        f(self);
+        self.hit_testable = prev;
     }
 
     /// Includes a widget transform and continues the render build.
@@ -586,7 +613,7 @@ impl FrameBuilder {
         self.widget_display_mode = parent_display_mode;
     }
 
-    /// Push a hit-test `rect` using [`common_item_ps`].
+    /// Push a hit-test `rect` using [`common_item_ps`] if hit-testing is enable.
     ///
     /// [`common_item_ps`]: FrameBuilder::common_item_ps
     #[inline]
@@ -597,8 +624,10 @@ impl FrameBuilder {
 
         self.open_widget_display();
 
-        let common_item_ps = self.common_item_ps(rect);
-        self.display_list.push_hit_test(&common_item_ps, self.item_tag());
+        if self.hit_testable {
+            let common_item_ps = self.common_item_ps(rect);
+            self.display_list.push_hit_test(&common_item_ps, self.item_tag());
+        }
     }
 
     /// Calls `f` with a new [`clip_id`] that clips to `bounds`.
