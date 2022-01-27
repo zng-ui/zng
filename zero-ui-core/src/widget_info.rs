@@ -72,7 +72,25 @@ impl WidgetLayout {
         self.inner_bounds = pre_inner_bounds;
     }
 
+    /// Register a custom `transform` that is applied by the current UI node during render.
     ///
+    /// Nodes that declare [reference frames] during render must also use this method.
+    ///
+    /// [reference frames]: crate::render::FrameBuilder::push_reference_frame
+    pub fn with_custom_transform(&mut self, transform: &RenderTransform, f: impl FnOnce(&mut Self)) {
+        let transform = self.global_transform.then(transform);
+        let prev_transform = mem::replace(&mut self.global_transform, transform);
+        f(self);
+        self.global_transform = prev_transform;
+    }
+
+    /// Shortcut for declaring a custom translate transform.
+    pub fn with_custom_translate(&mut self, offset: PxVector, f: impl FnOnce(&mut Self)) {
+        let transform = RenderTransform::translation_px(offset);
+        self.with_custom_transform(&transform, f);
+    }
+
+    /// Appends a translate transform that will be applied to the next inner bounds before the other inner transforms.
     pub fn with_pre_translate(&mut self, offset: PxVector, f: impl FnOnce(&mut Self)) {
         self.pre_translate += offset;
         f(self);
@@ -119,8 +137,7 @@ impl WidgetLayout {
         }
 
         if self.pre_translate != PxVector::zero() {
-            self.transform =
-                RenderTransform::translation(self.pre_translate.x.0 as f32, self.pre_translate.y.0 as f32, 0.0).then(&self.transform);
+            self.transform = RenderTransform::translation_px(self.pre_translate).then(&self.transform);
         }
 
         let global_transform = self.global_transform.then(&self.transform);

@@ -111,7 +111,7 @@ pub fn border(
                 self.final_radius,
             );
             if self.child_rect.origin != PxPoint::zero() {
-                let transform = RenderTransform::translation(self.child_rect.origin.x.0 as f32, self.child_rect.origin.y.0 as f32, 0.0);
+                let transform = RenderTransform::translation_px(self.child_rect.origin.to_vector());
                 frame.push_reference_frame(self.spatial_id, FrameBinding::Value(transform), true, |frame| {
                     self.child.render(ctx, frame)
                 });

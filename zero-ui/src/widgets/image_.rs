@@ -971,7 +971,7 @@ pub mod image {
 
                 render_clip_rect: PxRect,
                 render_img_size: PxSize,
-                render_offset: PxPoint,
+                render_offset: PxVector,
 
                 spatial_id: SpatialFrameId,
             }
@@ -1157,17 +1157,17 @@ pub mod image {
                     f_clip_rect.size = crop_size;
 
                     // 3 - offset to align + user image_offset:
-                    let mut offset = PxPoint::zero();
+                    let mut offset = PxVector::zero();
                     offset += align_offset;
                     offset += ImageOffsetVar::get(ctx.vars).to_layout(ctx, AvailableSize::from_size(final_size), PxVector::zero());
 
                     // 4 - adjust clip_rect to clip content to container final_size:
-                    let top_left_clip = -offset.to_vector().min(PxVector::zero());
+                    let top_left_clip = -offset.min(PxVector::zero());
                     f_clip_rect.origin += top_left_clip;
                     f_clip_rect.size -= top_left_clip.to_size();
                     offset += top_left_clip;
                     // bottom-right clip
-                    f_clip_rect.size = f_clip_rect.size.min(final_size - offset.to_vector().to_size());
+                    f_clip_rect.size = f_clip_rect.size.min(final_size - offset.to_size());
 
                     // 5 - adjust offset so that clip_rect.origin is at widget (0, 0):
                     f_offset = offset;
@@ -1185,9 +1185,8 @@ pub mod image {
                     if let Some(var) = ContextImageVar::get(ctx.vars).as_ref() {
                         let img = var.get(ctx.vars);
                         if img.is_loaded() && !self.img_size.is_empty() && !self.render_clip_rect.is_empty() {
-                            if self.render_offset != PxPoint::zero() {
-                                let transform =
-                                    RenderTransform::translation(self.render_offset.x.0 as f32, self.render_offset.y.0 as f32, 0.0);
+                            if self.render_offset != PxVector::zero() {
+                                let transform = RenderTransform::translation_px(self.render_offset);
                                 frame.push_reference_frame(self.spatial_id, FrameBinding::Value(transform), true, |frame| {
                                     frame.push_image(self.render_clip_rect, self.render_img_size, img, *ImageRenderingVar::get(ctx.vars))
                                 });
@@ -1211,7 +1210,7 @@ pub mod image {
 
                 render_clip_rect: PxRect::zero(),
                 render_img_size: PxSize::zero(),
-                render_offset: PxPoint::zero(),
+                render_offset: PxVector::zero(),
 
                 spatial_id: SpatialFrameId::new_unique(),
             }

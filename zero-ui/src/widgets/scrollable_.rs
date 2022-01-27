@@ -129,35 +129,38 @@ pub mod scrollable {
                 self.children.widget_arrange(0, ctx, widget_layout, self.viewport);
 
                 let joiner_offset = self.viewport.to_vector();
-                widget_layout.with_pre_translate(PxVector::new(joiner_offset.x, Px(0)), |wo| {
+                widget_layout.with_custom_translate(PxVector::new(joiner_offset.x, Px(0)), |wo| {
                     self.children
                         .widget_arrange(1, ctx, wo, PxSize::new(self.joiner.width, self.viewport.height))
                 });
-                widget_layout.with_pre_translate(PxVector::new(Px(0), joiner_offset.y), |wo| {
+                widget_layout.with_custom_translate(PxVector::new(Px(0), joiner_offset.y), |wo| {
                     self.children
                         .widget_arrange(2, ctx, wo, PxSize::new(self.viewport.width, self.joiner.height))
                 });
 
-                widget_layout.with_pre_translate(joiner_offset, |wo| self.children.widget_arrange(3, ctx, wo, self.joiner));
+                widget_layout.with_custom_translate(joiner_offset, |wo| self.children.widget_arrange(3, ctx, wo, self.joiner));
             }
 
             fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
                 self.children.widget_render(0, ctx, frame);
 
                 if self.joiner.width > Px(0) {
-                    frame.push_reference_frame_item(self.spatial_id, 1, PxPoint::new(self.viewport.width, Px(0)), |frame| {
+                    let transform = RenderTransform::translation_px(PxVector::new(self.viewport.width, Px(0)));
+                    frame.push_reference_frame_item(self.spatial_id, 1, FrameBinding::Value(transform), true, |frame| {
                         self.children.widget_render(1, ctx, frame);
                     });
                 }
 
                 if self.joiner.height > Px(0) {
-                    frame.push_reference_frame_item(self.spatial_id, 2, PxPoint::new(Px(0), self.viewport.height), |frame| {
+                    let transform = RenderTransform::translation_px(PxVector::new(Px(0), self.viewport.height));
+                    frame.push_reference_frame_item(self.spatial_id, 2, FrameBinding::Value(transform), true, |frame| {
                         self.children.widget_render(2, ctx, frame);
                     });
                 }
 
                 if self.joiner.width > Px(0) && self.joiner.height > Px(0) {
-                    frame.push_reference_frame_item(self.spatial_id, 3, self.viewport.to_vector().to_point(), |frame| {
+                    let transform = RenderTransform::translation_px(self.viewport.to_vector());
+                    frame.push_reference_frame_item(self.spatial_id, 3, FrameBinding::Value(transform), true, |frame| {
                         self.children.widget_render(3, ctx, frame);
                     });
                 }

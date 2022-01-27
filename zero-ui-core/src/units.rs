@@ -3420,7 +3420,20 @@ pub type ParagraphSpacing = Length;
 pub type TabLength = Length;
 
 /// Computed [`Transform`].
+///
+/// See also [`webrender_api::units::LayoutTransform`] and [`RenderTransformExt`].
 pub type RenderTransform = webrender_api::units::LayoutTransform;
+
+/// Extension methods for [`RenderTransform`].
+pub trait RenderTransformExt {
+    /// New translation transform from a pixel vector.
+    fn translation_px(offset: PxVector) -> RenderTransform;
+}
+impl RenderTransformExt for RenderTransform {
+    fn translation_px(offset: PxVector) -> RenderTransform {
+        RenderTransform::translation(offset.x.0 as f32, offset.y.0 as f32, 0.0)
+    }
+}
 
 /// A transform builder type.
 ///

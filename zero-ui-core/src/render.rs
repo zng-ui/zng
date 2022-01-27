@@ -225,20 +225,16 @@ impl FrameBuilder {
     /// This provides direct access to the underlying WebRender display list builder, modifying it
     /// can interfere with the working of the [`FrameBuilder`].
     ///
-    /// Call [`open_widget_display`] before modifying the display list.
+    /// * Study the [`FrameBuilder`] source code before modifying the display list.
     ///
-    /// Check the [`FrameBuilder`] source code before modifying the display list.
+    /// * Don't try to render using the [`FrameBuilder`] methods inside a custom clip or space, the methods will still
+    /// use the [`clip_id`] and [`spatial_id`]. Custom items added to the display list should be self-contained and completely custom.
     ///
-    /// Don't try to render using the [`FrameBuilder`] methods inside a custom clip or space, the methods will still
-    /// use the [`clip_id`] and [`spatial_id`]. Custom items added to the display list
-    /// should be self-contained and completely custom.
+    /// * Call [`widget_rendered`] if you push anything to the display list.
     ///
-    /// If [`is_cancelling_widget`] don't modify the display list and try to
-    /// early return pretending the operation worked.
+    /// * Only push hit-tests if [`is_hit_testable`] is `true`.
     ///
-    /// Call [`widget_rendered`] if you push anything to the display list.
-    ///
-    /// Only push hit-tests if [`is_hit_testable`] is `true`
+    /// * If you push custom transforms update the [`WidgetLayout`] to match.
     ///
     /// # WebRender
     ///
@@ -251,6 +247,7 @@ impl FrameBuilder {
     /// [`is_hit_testable`]: Self::is_hit_testable
     /// [`is_cancelling_widget`]: Self::is_cancelling_widget
     /// [`widget_rendered`]: Self::widget_rendered
+    /// [`WidgetLayout`]: crate::widget_info::WidgetLayout
     /// [`webrender`]: https://docs.rs/webrender
     /// [`webrender_api`]: https://docs.rs/webrender_api
     #[inline]
@@ -617,19 +614,41 @@ impl FrameBuilder {
 
     /// Calls `f` inside a new reference frame transformed by `transform`.
     ///
-    /// Note that this introduces a new reference frame, you can use the [`push_inner`] method to
-    /// add to the widget reference frame, properties that use this method should be careful to update the
-    /// [`WidgetLayout`] during arrange to match.
-    /// 
-    /// The `is_2d_scale_translation` Optionally marks the `transform` as only ever having a simple 2D scale or translation,
+    /// Note that properties that use this method must also call [`WidgetLayout::with_custom_transform`] during arrange.
+    /// Outer properties that only do layout should **not** use this method, just update the [`WidgetLayout`] inner transform
+    /// that gets combined into a single reference frame per widget.
+    ///
+    /// The `is_2d_scale_translation` flag optionally marks the `transform` as only ever having a simple 2D scale or translation,
     /// allowing for webrender optimizations.
     ///
     /// [`push_inner`]: Self::push_inner
-    /// [`WidgetLayout`]: crate::widget_info::WidgetLayout
     #[inline]
+    /// [`WidgetLayout`]: crate::widget_info::WidgetLayout
     pub fn push_reference_frame(
         &mut self,
         id: SpatialFrameId,
+        transform: FrameBinding<RenderTransform>,
+        is_2d_scale_translation: bool,
+        f: impl FnOnce(&mut Self),
+    ) {
+        self.push_reference_frame_impl(id.to_wr(self.pipeline_id), transform, is_2d_scale_translation, f)
+    }
+
+    /// Pushes a custom `push_reference_frame` with an item [`SpatialFrameId`].
+    #[inline]
+    pub fn push_reference_frame_item(
+        &mut self,
+        id: SpatialFrameId,
+        item: usize,
+        transform: FrameBinding<RenderTransform>,
+        is_2d_scale_translation: bool,
+        f: impl FnOnce(&mut Self),
+    ) {
+        self.push_reference_frame_impl(id.item_to_wr(item, self.pipeline_id), transform, is_2d_scale_translation, f)
+    }
+    fn push_reference_frame_impl(
+        &mut self,
+        id: SpatialTreeItemKey,
         transform: FrameBinding<RenderTransform>,
         is_2d_scale_translation: bool,
         f: impl FnOnce(&mut Self),
@@ -644,7 +663,7 @@ impl FrameBuilder {
                 is_2d_scale_translation,
                 should_snap: false,
             },
-            id.to_wr(self.pipeline_id),
+            id,
         );
 
         f(self);
