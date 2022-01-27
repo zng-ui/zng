@@ -612,7 +612,7 @@ impl WidgetRendered {
 
     /// Set if the widget or child widgets rendered.
     #[inline]
-    pub fn set(&self, rendered: bool) {
+    pub(super) fn set(&self, rendered: bool) {
         self.0.set(rendered);
     }
 }

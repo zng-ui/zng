@@ -13,7 +13,7 @@ use crate::{
 };
 use crate::{
     context::{InfoContext, RenderContext},
-    render::{FrameBuilder, FrameUpdate, WidgetTransformKey},
+    render::{FrameBuilder, FrameUpdate},
 };
 use crate::{impl_ui_node, property, NilUiNode, UiNode, Widget, WidgetId};
 
@@ -25,7 +25,7 @@ pub mod implicit_base {
 
     use crate::{
         context::{OwnedStateMap, RenderContext},
-        widget_info::{BoundsInfo, WidgetLayout, WidgetRendered, WidgetSubscriptions},
+        widget_info::{BoundsInfo, WidgetLayout, WidgetRendered, WidgetSubscriptions}, render::FrameBindingKey, units::RenderTransform,
     };
 
     use super::*;
@@ -90,22 +90,25 @@ pub mod implicit_base {
     pub fn new_inner(child: impl UiNode) -> impl UiNode {
         struct WidgetInnerBoundsNode<T> {
             child: T,
+            transform_key: FrameBindingKey<RenderTransform>,
+            transform: RenderTransform,
         }
         #[impl_ui_node(child)]
         impl<T: UiNode> UiNode for WidgetInnerBoundsNode<T> {
             fn arrange(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, final_size: PxSize) {
-                let transform = widget_layout.with_inner(ctx.metrics, final_size, |wl| self.child.arrange(ctx, wl, final_size));
+                self.transform = widget_layout.with_inner(ctx.metrics, final_size, |wl| self.child.arrange(ctx, wl, final_size));
             }
             fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-                todo!("with_inner marker");
-                self.child.render(ctx, frame);
+                frame.push_inner(self.transform_key.bind(self.transform), |frame| {
+                    self.child.render(ctx, frame);
+                });
             }
             fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
-                todo!("with_inner marker");
+                update.update_transform(self.transform_key.update(self.transform));
                 self.child.render_update(ctx, update);
             }
         }
-        WidgetInnerBoundsNode { child }
+        WidgetInnerBoundsNode { child, transform_key: FrameBindingKey::new_unique(), transform: RenderTransform::identity() }
     }
 
     /// No-op, returns `child`.
@@ -140,7 +143,6 @@ pub mod implicit_base {
     pub fn new(child: impl UiNode, id: impl IntoValue<WidgetId>) -> impl Widget {
         struct WidgetNode<T> {
             id: WidgetId,
-            transform_key: WidgetTransformKey,
             state: OwnedStateMap,
             child: T,
             outer_bounds: BoundsInfo,
@@ -266,7 +268,7 @@ pub mod implicit_base {
                 }
 
                 ctx.with_widget(self.id, &self.state, |ctx| {
-                    frame.push_widget(self.id, self.transform_key, &self.rendered, |frame| self.child.render(ctx, frame));
+                    frame.push_widget(self.id, &self.rendered, |frame| self.child.render(ctx, frame));
                 });
             }
             #[inline(always)]
@@ -276,9 +278,7 @@ pub mod implicit_base {
                     tracing::error!(target: "widget_base", "`UiNode::render_update` called in not inited widget {:?}", self.id);
                 }
 
-                ctx.with_widget(self.id, &self.state, |ctx| {
-                    update.update_widget(self.id, self.transform_key, &self.child, ctx);
-                });
+                self.child.render_update(ctx, update);
             }
         }
         impl<T: UiNode> Widget for WidgetNode<T> {
@@ -316,7 +316,6 @@ pub mod implicit_base {
 
         WidgetNode {
             id: id.into(),
-            transform_key: WidgetTransformKey::new_unique(),
             state: OwnedStateMap::default(),
             child,
             outer_bounds: BoundsInfo::new(),
@@ -649,18 +648,12 @@ pub fn visibility(child: impl UiNode, visibility: impl IntoVar<Visibility>) -> i
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
             if let Visibility::Visible = self.visibility.get(ctx) {
                 self.child.render(ctx, frame);
-            } else {
-                frame
-                    .cancel_widget()
-                    .expect("visibility not set before `FrameBuilder::open_widget_display`");
-            }
+            } 
         }
 
         fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
             if let Visibility::Visible = self.visibility.get(ctx) {
                 self.child.render_update(ctx, update);
-            } else {
-                update.cancel_widget();
             }
         }
     }

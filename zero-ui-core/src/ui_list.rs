@@ -4,7 +4,7 @@ use crate::{
     context::{InfoContext, LayoutContext, RenderContext, StateMap, WidgetContext},
     event::EventUpdateArgs,
     render::{FrameBuilder, FrameUpdate, SpatialFrameId},
-    units::{AvailableSize, PxPoint, PxRect, PxSize},
+    units::{AvailableSize, PxRect, PxSize},
     widget_base::Visibility,
     widget_info::{BoundsInfo, WidgetInfoBuilder, WidgetLayout, WidgetSubscriptions},
     WidgetId,
@@ -113,16 +113,8 @@ pub trait UiNodeList: 'static {
     /// Calls [`UiNode::arrange`] in only the `index` widget.
     fn widget_arrange(&mut self, index: usize, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, final_size: PxSize);
 
-    /// Calls [`UiNode::render`] in all widgets in the list, sequentially. Uses a reference frame
-    /// to offset each widget.
-    ///
-    /// # `origin`
-    ///
-    /// The `origin` parameter is a function that takes a widget index and returns the offset that must
-    /// be used to render it.
-    fn render_all<O>(&self, origin: O, ctx: &mut RenderContext, frame: &mut FrameBuilder)
-    where
-        O: FnMut(usize) -> PxPoint;
+    /// Calls [`UiNode::render`] in all widgets in the list, sequentially.
+    fn render_all(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder);
 
     /// Calls [`UiNode::render`] in only the `index` widget.
     fn widget_render(&self, index: usize, ctx: &mut RenderContext, frame: &mut FrameBuilder);
@@ -213,16 +205,10 @@ pub trait WidgetList: UiNodeList {
     /// See [`Widget::visibility`] for more details.
     fn widget_visibility(&self, index: usize) -> Visibility;
 
-    /// Calls [`UiNode::render`] in all widgets in the list that have an origin, sequentially. Uses a reference frame
-    /// to offset each widget.
-    ///
-    /// # `origin`
-    ///
-    /// The `origin` parameter is a function that takes a widget index, size and state and returns the offset that must
-    /// be used to render it, if it must be rendered.
-    fn render_filtered<O>(&self, origin: O, ctx: &mut RenderContext, frame: &mut FrameBuilder)
+    /// Calls [`UiNode::render`] in all widgets allowed by a `filter`, skips rendering the rest.
+    fn render_filtered<F>(&self, filter: F, ctx: &mut RenderContext, frame: &mut FrameBuilder)
     where
-        O: FnMut(usize, WidgetFilterArgs) -> Option<PxPoint>;
+        F: FnMut(usize, WidgetFilterArgs) -> bool;
 }
 
 /// Initialize an optimized [`WidgetList`].

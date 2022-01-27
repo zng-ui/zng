@@ -374,16 +374,15 @@ impl UiNodeList for SortedWidgetVec {
         self.vec[index].subscriptions(ctx, subscriptions);
     }
 
-    fn render_all<O>(&self, mut origin: O, ctx: &mut RenderContext, frame: &mut FrameBuilder)
+    fn render_all<F>(&self, mut filter: F, ctx: &mut RenderContext, frame: &mut FrameBuilder)
     where
-        O: FnMut(usize) -> PxPoint,
+        F: FnMut(usize) -> bool,
     {
         let id = self.id.get();
         for (i, w) in self.iter().enumerate() {
-            let origin = origin(i);
-            frame.push_reference_frame_item(id, i, origin, |frame| {
+            if filter(i) {
                 w.render(ctx, frame);
-            });
+            }
         }
     }
 
@@ -434,16 +433,14 @@ impl WidgetList for SortedWidgetVec {
         self.vec[index].visibility()
     }
 
-    fn render_filtered<O>(&self, mut origin: O, ctx: &mut RenderContext, frame: &mut FrameBuilder)
+    fn render_filtered<O>(&self, mut filter: O, ctx: &mut RenderContext, frame: &mut FrameBuilder)
     where
-        O: FnMut(usize, WidgetFilterArgs) -> Option<PxPoint>,
+        O: FnMut(usize, WidgetFilterArgs) -> bool,
     {
         let id = self.id.get();
         for (i, w) in self.iter().enumerate() {
-            if let Some(origin) = origin(i, WidgetFilterArgs::get(self, i)) {
-                frame.push_reference_frame_item(id, i, origin, |frame| {
-                    w.render(ctx, frame);
-                });
+            if filter(i, WidgetFilterArgs::get(self, i)) {
+                w.render(ctx, frame);
             }
         }
     }

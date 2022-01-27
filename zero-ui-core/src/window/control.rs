@@ -11,7 +11,7 @@ use crate::{
     context::{LayoutContext, WindowContext, WindowRenderUpdate, WindowUpdates},
     event::EventUpdateArgs,
     image::{Image, ImageVar, ImagesExt},
-    render::{FrameBuilder, FrameId, FrameUpdate, UsedFrameBuilder, UsedFrameUpdate, WidgetTransformKey},
+    render::{FrameBuilder, FrameId, FrameUpdate, UsedFrameBuilder, UsedFrameUpdate},
     state::OwnedStateMap,
     units::*,
     var::*,
@@ -992,7 +992,6 @@ struct ContentCtrl {
 
     root_id: WidgetId,
     root_state: OwnedStateMap,
-    root_transform_key: WidgetTransformKey,
     root: BoxedUiNode,
     // info
     root_outer_bounds: BoundsInfo,
@@ -1022,7 +1021,6 @@ impl ContentCtrl {
 
             root_id: window.id,
             root_state: OwnedStateMap::new(),
-            root_transform_key: WidgetTransformKey::new_unique(),
             root: window.child,
 
             root_outer_bounds: BoundsInfo::new(),
@@ -1267,10 +1265,8 @@ impl ContentCtrl {
 
                 let mut frame = FrameBuilder::new(
                     self.frame_id,
-                    *ctx.window_id,
-                    renderer.clone(),
                     self.root_id,
-                    self.root_transform_key,
+                    renderer.clone(),
                     scale_factor,
                     self.used_frame_builder.take(),
                 );
@@ -1323,9 +1319,6 @@ impl ContentCtrl {
                 self.frame_id = self.frame_id.next_update();
 
                 let mut update = FrameUpdate::new(
-                    *ctx.window_id,
-                    self.root_id,
-                    self.root_transform_key,
                     self.frame_id,
                     self.clear_color,
                     self.used_frame_update.take(),
