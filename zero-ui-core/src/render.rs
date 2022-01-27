@@ -620,6 +620,9 @@ impl FrameBuilder {
     /// Note that this introduces a new reference frame, you can use the [`push_inner`] method to
     /// add to the widget reference frame, properties that use this method should be careful to update the
     /// [`WidgetLayout`] during arrange to match.
+    /// 
+    /// The `is_2d_scale_translation` Optionally marks the `transform` as only ever having a simple 2D scale or translation,
+    /// allowing for webrender optimizations.
     ///
     /// [`push_inner`]: Self::push_inner
     /// [`WidgetLayout`]: crate::widget_info::WidgetLayout

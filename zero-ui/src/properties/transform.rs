@@ -53,20 +53,6 @@ pub fn transform(child: impl UiNode, transform: impl IntoVar<Transform>) -> impl
                 self.child.arrange(ctx, wo, final_size)
             });
         }
-
-        fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-            let r = frame.with_widget_transform(self.render_transform.as_ref().unwrap(), |frame| self.child.render(ctx, frame));
-
-            if let Err(e) = r {
-                tracing::error!("{e}");
-            }
-        }
-
-        fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
-            update.with_widget_transform(self.render_transform.as_ref().unwrap(), |update| {
-                self.child.render_update(ctx, update)
-            });
-        }
     }
     TransformNode {
         child,
@@ -210,15 +196,14 @@ pub fn translate_y(child: impl UiNode, y: impl IntoVar<Length>) -> impl UiNode {
     transform(child, y.into_var().map(|y| units::translate_y(y.clone())))
 }
 
-/// Point relative to the widget bounds around which the widget transform is applied.
+/// Point relative to the widget inner bounds around which the widget transform is applied.
 ///
 /// When unset the default origin is the center (50%, 50%).
-#[property(context, default((50.pct(), 50.pct())))]
+#[property(context, default(Point::center()))]
 pub fn transform_origin(child: impl UiNode, origin: impl IntoVar<Point>) -> impl UiNode {
     struct TransformOriginNode<C, O> {
         child: C,
         origin: O,
-        render_origin: PxPoint,
     }
     #[impl_ui_node(child)]
     impl<C: UiNode, O: Var<Point>> UiNode for TransformOriginNode<C, O> {
@@ -235,33 +220,11 @@ pub fn transform_origin(child: impl UiNode, origin: impl IntoVar<Point>) -> impl
         }
 
         fn arrange(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, final_size: PxSize) {
-            let available_size = AvailableSize::finite(final_size);
-
-            let default_origin = Point::center().to_layout(ctx, available_size, PxPoint::zero());
-            let render_origin = self.origin.get(ctx).to_layout(ctx, available_size, default_origin);
-
-            if self.render_origin != render_origin {
-                self.render_origin = render_origin;
-                ctx.updates.render_update();
-            }
-
-            self.child.arrange(ctx, widget_layout, final_size);
-        }
-
-        fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-            let r = frame.with_widget_origin(self.render_origin, |frame| self.child.render(ctx, frame));
-            if let Err(e) = r {
-                tracing::error!("{e}");
-            }
-        }
-
-        fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
-            update.with_widget_origin(self.render_origin, |update| self.child.render_update(ctx, update));
+            widget_layout.with_inner_transform_origin(self.origin.get(ctx.vars), |wl| self.child.arrange(ctx, wl, final_size));
         }
     }
     TransformOriginNode {
         child,
         origin: origin.into_var(),
-        render_origin: PxPoint::zero(),
     }
 }

@@ -110,7 +110,14 @@ pub fn border(
                 self.final_sides,
                 self.final_radius,
             );
-            frame.push_reference_frame(self.spatial_id, self.child_rect.origin, |frame| self.child.render(ctx, frame));
+            if self.child_rect.origin != PxPoint::zero() {
+                let transform = RenderTransform::translation(self.child_rect.origin.x.0 as f32, self.child_rect.origin.y.0 as f32, 0.0);
+                frame.push_reference_frame(self.spatial_id, FrameBinding::Value(transform), true, |frame| {
+                    self.child.render(ctx, frame)
+                });
+            } else {
+                self.child.render(ctx, frame);
+            }
         }
     }
 

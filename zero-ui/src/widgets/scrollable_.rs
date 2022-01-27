@@ -1323,7 +1323,8 @@ pub mod thumb {
 
             fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
                 if self.final_offset != PxVector::zero() {
-                    frame.push_reference_frame(self.spatial_id, self.final_offset.to_point(), |f| self.child.render(ctx, f));
+                    let transform = RenderTransform::translation(self.final_offset.x.0 as f32, self.final_offset.y.0 as f32, 0.0);
+                    frame.push_reference_frame(self.spatial_id, FrameBinding::Value(transform), true, |f| self.child.render(ctx, f));
                 } else {
                     self.child.render(ctx, frame);
                 }

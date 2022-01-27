@@ -122,9 +122,7 @@ pub fn primitive_flags(child: impl UiNode, flags: impl IntoVar<PrimitiveFlags>) 
         }
 
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-            frame
-                .width_widget_flags(self.flags.copy(ctx), |frame| self.child.render(ctx, frame))
-                .unwrap();
+            frame.push_inner_flags(self.flags.copy(ctx), |frame| self.child.render(ctx, frame));
         }
     }
     PrimitiveFlagsNode {

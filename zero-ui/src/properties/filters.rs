@@ -55,9 +55,7 @@ pub fn filter(child: impl UiNode, filter: impl IntoVar<Filter>) -> impl UiNode {
         }
 
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-            frame
-                .with_widget_filter(self.render_filter.clone().unwrap(), |frame| self.child.render(ctx, frame))
-                .unwrap();
+            frame.push_inner_filter(self.render_filter.clone().unwrap(), |frame| self.child.render(ctx, frame));
         }
     }
     FilterNode {
@@ -216,7 +214,7 @@ pub fn opacity(child: impl UiNode, alpha: impl IntoVar<Factor>) -> impl UiNode {
             } else {
                 FrameBinding::Value(opacity)
             };
-            frame.with_widget_opacity(opacity, |frame| self.child.render(ctx, frame)).unwrap();
+            frame.push_inner_opacity(opacity, |frame| self.child.render(ctx, frame));
         }
 
         fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {

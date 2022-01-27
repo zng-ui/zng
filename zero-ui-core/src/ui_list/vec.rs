@@ -678,9 +678,7 @@ impl UiNodeVec {
     /// New empty (default).
     #[inline]
     pub fn new() -> Self {
-        UiNodeVec {
-            vec: vec![],
-        }
+        UiNodeVec { vec: vec![] }
     }
 
     /// New empty with pre-allocated capacity.
@@ -738,16 +736,12 @@ impl<'a> IntoIterator for &'a UiNodeVec {
 }
 impl FromIterator<BoxedUiNode> for UiNodeVec {
     fn from_iter<T: IntoIterator<Item = BoxedUiNode>>(iter: T) -> Self {
-        UiNodeVec {
-            vec: Vec::from_iter(iter),
-        }
+        UiNodeVec { vec: Vec::from_iter(iter) }
     }
 }
 impl From<Vec<BoxedUiNode>> for UiNodeVec {
     fn from(vec: Vec<BoxedUiNode>) -> Self {
-        UiNodeVec {
-            vec,
-        }
+        UiNodeVec { vec }
     }
 }
 impl From<UiNodeVec> for Vec<BoxedUiNode> {

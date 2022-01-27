@@ -1186,7 +1186,9 @@ pub mod image {
                         let img = var.get(ctx.vars);
                         if img.is_loaded() && !self.img_size.is_empty() && !self.render_clip_rect.is_empty() {
                             if self.render_offset != PxPoint::zero() {
-                                frame.push_reference_frame(self.spatial_id, self.render_offset, |frame| {
+                                let transform =
+                                    RenderTransform::translation(self.render_offset.x.0 as f32, self.render_offset.y.0 as f32, 0.0);
+                                frame.push_reference_frame(self.spatial_id, FrameBinding::Value(transform), true, |frame| {
                                     frame.push_image(self.render_clip_rect, self.render_img_size, img, *ImageRenderingVar::get(ctx.vars))
                                 });
                             } else {
