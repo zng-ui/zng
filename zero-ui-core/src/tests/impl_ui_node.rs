@@ -8,7 +8,7 @@ use crate::{
     color::RenderColor,
     context::{TestWidgetContext, WidgetContext},
     impl_ui_node, node_vec, nodes,
-    render::{FrameBuilder, FrameId, FrameUpdate, WidgetTransformKey},
+    render::{FrameBuilder, FrameId, FrameUpdate},
     units::*,
     widget_base::implicit_base,
     widget_info::{BoundsInfo, UpdateMask, WidgetInfoBuilder, WidgetRendered, WidgetSubscriptions},
@@ -121,15 +121,11 @@ fn test_trace(node: impl UiNode) {
     wgt.test_arrange(&mut ctx, l_size.to_px());
     assert_only_traced!(wgt.state(), "arrange");
 
-    let root_transform_key = WidgetTransformKey::new_unique();
-    let mut frame = FrameBuilder::new_renderless(FrameId::INVALID, window_id, ctx.root_id, root_transform_key, 1.0.fct(), None);
+    let mut frame = FrameBuilder::new_renderless(FrameId::INVALID, ctx.root_id, 1.0.fct(), None);
     wgt.test_render(&mut ctx, &mut frame);
     assert_only_traced!(wgt.state(), "render");
 
     let mut update = FrameUpdate::new(
-        window_id,
-        ctx.root_id,
-        root_transform_key,
         FrameId::INVALID,
         RenderColor::BLACK,
         None,
@@ -248,17 +244,13 @@ pub fn default_no_child() {
     assert!(subscriptions.update_mask().is_none());
     assert!(subscriptions.event_mask().is_none());
 
-    let root_transform_key = WidgetTransformKey::new_unique();
-    let mut frame = FrameBuilder::new_renderless(FrameId::INVALID, window_id, ctx.root_id, root_transform_key, 1.0.fct(), None);
+    let mut frame = FrameBuilder::new_renderless(FrameId::INVALID, ctx.root_id, 1.0.fct(), None);
 
     wgt.test_render(&mut ctx, &mut frame);
     let (_, _) = frame.finalize(&root_rendered);
 
     // and not update render.
     let mut update = FrameUpdate::new(
-        window_id,
-        ctx.root_id,
-        root_transform_key,
         FrameId::INVALID,
         RenderColor::BLACK,
         None,

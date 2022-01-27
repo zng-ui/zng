@@ -10,13 +10,11 @@ use crate::{
     event::EventUpdateArgs,
     render::{FrameBuilder, FrameUpdate},
     state::StateMap,
-    units::{AvailableSize, PxPoint, PxRect, PxSize},
+    units::{AvailableSize, PxRect, PxSize},
     widget_base::Visibility,
     widget_info::{BoundsInfo, UpdateSlot, WidgetInfoBuilder, WidgetLayout, WidgetSubscriptions},
     BoxedUiNode, BoxedWidget, SortedWidgetVec, UiListObserver, UiNode, UiNodeList, Widget, WidgetFilterArgs, WidgetId, WidgetList,
 };
-
-use super::SpatialIdGen;
 
 /// A vector of boxed [`Widget`] items.
 ///
@@ -41,8 +39,6 @@ use super::SpatialIdGen;
 /// ```
 pub struct WidgetVec {
     pub(super) vec: Vec<BoxedWidget>,
-    pub(super) id: SpatialIdGen,
-
     pub(super) ctrl: WidgetVecRef,
 }
 impl WidgetVec {
@@ -51,7 +47,6 @@ impl WidgetVec {
     pub fn new() -> Self {
         WidgetVec {
             vec: vec![],
-            id: SpatialIdGen::default(),
             ctrl: WidgetVecRef::new(),
         }
     }
@@ -60,7 +55,6 @@ impl WidgetVec {
     pub fn with_capacity(capacity: usize) -> Self {
         WidgetVec {
             vec: Vec::with_capacity(capacity),
-            id: SpatialIdGen::default(),
             ctrl: WidgetVecRef::new(),
         }
     }
@@ -241,7 +235,6 @@ impl From<Vec<BoxedWidget>> for WidgetVec {
     fn from(vec: Vec<BoxedWidget>) -> Self {
         WidgetVec {
             vec,
-            id: SpatialIdGen::default(),
             ctrl: WidgetVecRef::new(),
         }
     }
@@ -316,7 +309,6 @@ impl UiNodeList for WidgetVec {
     fn boxed_all(mut self) -> UiNodeVec {
         UiNodeVec {
             vec: mem::take(&mut self.vec).into_iter().map(|w| w.boxed()).collect(),
-            id: mem::take(&mut self.id),
         }
     }
 
@@ -396,16 +388,9 @@ impl UiNodeList for WidgetVec {
         self.vec[index].subscriptions(ctx, subscriptions);
     }
 
-    fn render_all<O>(&self, mut origin: O, ctx: &mut RenderContext, frame: &mut FrameBuilder)
-    where
-        O: FnMut(usize) -> PxPoint,
-    {
-        let id = self.id.get();
-        for (i, w) in self.iter().enumerate() {
-            let origin = origin(i);
-            frame.push_reference_frame_item(id, i, origin, |frame| {
-                w.render(ctx, frame);
-            });
+    fn render_all(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
+        for w in self {
+            w.render(ctx, frame);
         }
     }
 
@@ -414,7 +399,7 @@ impl UiNodeList for WidgetVec {
     }
 
     fn render_update_all(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
-        for w in self.iter() {
+        for w in self {
             w.render_update(ctx, update);
         }
     }
@@ -452,18 +437,30 @@ impl WidgetList for WidgetVec {
         self.vec[index].visibility()
     }
 
-    fn render_filtered<O>(&self, mut origin: O, ctx: &mut RenderContext, frame: &mut FrameBuilder)
+    fn render_filtered<F>(&self, mut filter: F, ctx: &mut RenderContext, frame: &mut FrameBuilder)
     where
-        O: FnMut(usize, WidgetFilterArgs) -> Option<PxPoint>,
+        F: FnMut(WidgetFilterArgs) -> bool,
     {
-        let id = self.id.get();
         for (i, w) in self.iter().enumerate() {
-            if let Some(origin) = origin(i, WidgetFilterArgs::get(self, i)) {
-                frame.push_reference_frame_item(id, i, origin, |frame| {
-                    w.render(ctx, frame);
-                });
+            if filter(WidgetFilterArgs::new(i, w)) {
+                w.render(ctx, frame);
             }
         }
+    }
+
+    // default implementation uses indexing, this is faster.
+    fn count<F>(&self, mut filter: F) -> usize
+    where
+        F: FnMut(WidgetFilterArgs) -> bool,
+        Self: Sized,
+    {
+        let mut count = 0;
+        for (i, w) in self.iter().enumerate() {
+            if filter(WidgetFilterArgs::new(i, w)) {
+                count += 1;
+            }
+        }
+        count
     }
 }
 impl Drop for WidgetVec {
@@ -676,7 +673,6 @@ impl WidgetVecRef {
 /// ```
 pub struct UiNodeVec {
     pub(super) vec: Vec<BoxedUiNode>,
-    pub(super) id: SpatialIdGen,
 }
 impl UiNodeVec {
     /// New empty (default).
@@ -684,7 +680,6 @@ impl UiNodeVec {
     pub fn new() -> Self {
         UiNodeVec {
             vec: vec![],
-            id: SpatialIdGen::default(),
         }
     }
 
@@ -693,7 +688,6 @@ impl UiNodeVec {
     pub fn with_capacity(capacity: usize) -> Self {
         UiNodeVec {
             vec: Vec::with_capacity(capacity),
-            id: SpatialIdGen::default(),
         }
     }
 
@@ -733,11 +727,19 @@ impl IntoIterator for UiNodeVec {
         self.vec.into_iter()
     }
 }
+impl<'a> IntoIterator for &'a UiNodeVec {
+    type Item = &'a BoxedUiNode;
+
+    type IntoIter = std::slice::Iter<'a, BoxedUiNode>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.vec.iter()
+    }
+}
 impl FromIterator<BoxedUiNode> for UiNodeVec {
     fn from_iter<T: IntoIterator<Item = BoxedUiNode>>(iter: T) -> Self {
         UiNodeVec {
             vec: Vec::from_iter(iter),
-            id: SpatialIdGen::default(),
         }
     }
 }
@@ -745,7 +747,6 @@ impl From<Vec<BoxedUiNode>> for UiNodeVec {
     fn from(vec: Vec<BoxedUiNode>) -> Self {
         UiNodeVec {
             vec,
-            id: SpatialIdGen::default(),
         }
     }
 }
@@ -838,16 +839,9 @@ impl UiNodeList for UiNodeVec {
         self.vec[index].subscriptions(ctx, subscriptions);
     }
 
-    fn render_all<O>(&self, mut origin: O, ctx: &mut RenderContext, frame: &mut FrameBuilder)
-    where
-        O: FnMut(usize) -> PxPoint,
-    {
-        let id = self.id.get();
-        for (i, w) in self.iter().enumerate() {
-            let origin = origin(i);
-            frame.push_reference_frame_item(id, i, origin, |frame| {
-                w.render(ctx, frame);
-            });
+    fn render_all(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
+        for w in self {
+            w.render(ctx, frame);
         }
     }
 

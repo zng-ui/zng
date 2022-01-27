@@ -1,10 +1,10 @@
-use super::{SpatialIdGen, WidgetFilterArgs};
+use super::WidgetFilterArgs;
 use crate::{
     context::{InfoContext, LayoutContext, RenderContext, StateMap, WidgetContext},
     event::EventUpdateArgs,
     node_vec,
     render::{FrameBuilder, FrameUpdate},
-    units::{AvailableSize, PxPoint, PxRect, PxSize},
+    units::{AvailableSize, PxRect, PxSize},
     widget_base::Visibility,
     widget_info::{BoundsInfo, WidgetInfoBuilder, WidgetLayout, WidgetSubscriptions},
     widget_vec, UiListObserver, UiNode, UiNodeList, UiNodeVec, Widget, WidgetId, WidgetList, WidgetVec,
@@ -27,14 +27,27 @@ macro_rules! impl_tuples {
             }
 
             #[inline(always)]
-            fn render_filtered<O>(&self, mut origin: O, ctx: &mut RenderContext, frame: &mut FrameBuilder)
+            fn count<F>(&self, mut filter: F) -> usize
             where
-                O: FnMut(usize, WidgetFilterArgs) -> Option<PxPoint>,
+                F: FnMut(WidgetFilterArgs) -> bool,
             {
-                let id = self.id.get();
+                let mut count = 0;
                 $(
-                if let Some(o) = origin($n, WidgetFilterArgs::get(self, $n)) {
-                    frame.push_reference_frame_item(id, $n, o, |frame| self.items.$n.render(ctx, frame));
+                if filter(WidgetFilterArgs::new($n, &self.items.$n)) {
+                    count += 1;
+                }
+                )+
+                count
+            }
+
+            #[inline(always)]
+            fn render_filtered<F>(&self, mut filter: F, ctx: &mut RenderContext, frame: &mut FrameBuilder)
+            where
+                F: FnMut(WidgetFilterArgs) -> bool,
+            {
+                $(
+                if filter(WidgetFilterArgs::new($n, &self.items.$n)) {
+                    self.items.$n.render(ctx, frame);
                 }
                 )+
             }
@@ -93,7 +106,6 @@ macro_rules! impl_tuples {
         #[doc(hidden)]
         pub struct $NodeList<$($W: $Bound),+> {
             items: ($($W,)+),
-            id: SpatialIdGen,
         }
 
         impl<$($W: $Bound),+> $NodeList<$($W,)+> {
@@ -104,7 +116,6 @@ macro_rules! impl_tuples {
                         $(self.items.$n,)+
                         item
                     ),
-                    id: SpatialIdGen::default()
                 }
             }
         }
@@ -234,14 +245,9 @@ macro_rules! impl_tuples {
             }
 
             #[inline(always)]
-            fn render_all<O>(&self, mut origin: O, ctx: &mut RenderContext, frame: &mut FrameBuilder)
-            where
-                O: FnMut(usize) -> PxPoint,
-            {
-                let id = self.id.get();
+            fn render_all(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
                 $(
-                let o = origin($n);
-                frame.push_reference_frame_item(id, $n, o, |frame| self.items.$n.render(ctx, frame));
+                    self.items.$n.render(ctx, frame);
                 )+
             }
 
@@ -288,13 +294,11 @@ impl_tuples! {
 #[allow(dead_code)]
 pub struct UiNodeList9<T0, T1, T2, T3, T4, T5, T6, T7, T8> {
     items: (T0, T1, T2, T3, T4, T5, T6, T7, T8),
-    id: SpatialIdGen,
 }
 #[doc(hidden)]
 #[allow(dead_code)]
 pub struct WidgetList9<T0, T1, T2, T3, T4, T5, T6, T7, T8> {
     items: (T0, T1, T2, T3, T4, T5, T6, T7, T8),
-    id: SpatialIdGen,
 }
 
 macro_rules! empty_node_list {
@@ -307,7 +311,6 @@ macro_rules! empty_node_list {
             pub fn push<N: $bounds>(self, node: N) -> $ident_one<N> {
                 $ident_one {
                     items: (node,),
-                    id: SpatialIdGen::default()
                 }
             }
         }
@@ -384,10 +387,7 @@ macro_rules! empty_node_list {
                 panic!("index {index} out of range for length 0")
             }
 
-            fn render_all<O>(&self, _: O, _: &mut RenderContext, _: &mut FrameBuilder)
-            where
-                O: FnMut(usize) -> PxPoint,
-            {
+            fn render_all(&self, _: &mut RenderContext, _: &mut FrameBuilder) {
             }
 
             #[inline]
@@ -410,14 +410,21 @@ empty_node_list! {
     WidgetList0 -> WidgetList1<Widget>
 }
 impl WidgetList for WidgetList0 {
+    fn count<F>(&self, _: F) -> usize
+    where
+        F: FnMut(WidgetFilterArgs) -> bool,
+    {
+        0
+    }
+
     #[inline]
     fn boxed_widget_all(self) -> WidgetVec {
         widget_vec![]
     }
 
-    fn render_filtered<O>(&self, _: O, _: &mut RenderContext, _: &mut FrameBuilder)
+    fn render_filtered<F>(&self, _: F, _: &mut RenderContext, _: &mut FrameBuilder)
     where
-        O: FnMut(usize, WidgetFilterArgs) -> Option<PxPoint>,
+        F: FnMut(WidgetFilterArgs) -> bool,
     {
     }
 

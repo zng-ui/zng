@@ -3,7 +3,7 @@ use crate::{
     event::EventUpdateArgs,
     render::{FrameBuilder, FrameUpdate},
     state::StateMap,
-    units::{AvailableSize, PxPoint, PxRect, PxSize},
+    units::{AvailableSize, PxRect, PxSize},
     widget_base::Visibility,
     widget_info::{BoundsInfo, WidgetInfoBuilder, WidgetLayout, WidgetSubscriptions},
     OffsetUiListObserver, UiListObserver, UiNodeList, UiNodeVec, WidgetFilterArgs, WidgetId, WidgetList, WidgetVec,
@@ -134,13 +134,9 @@ impl<A: WidgetList, B: WidgetList> UiNodeList for WidgetListChain<A, B> {
     }
 
     #[inline(always)]
-    fn render_all<O>(&self, mut origin: O, ctx: &mut RenderContext, frame: &mut FrameBuilder)
-    where
-        O: FnMut(usize) -> PxPoint,
-    {
-        self.0.render_all(&mut origin, ctx, frame);
-        let offset = self.0.len();
-        self.1.render_all(|i| origin(i + offset), ctx, frame);
+    fn render_all(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
+        self.0.render_all(ctx, frame);
+        self.1.render_all(ctx, frame);
     }
 
     #[inline]
@@ -171,6 +167,22 @@ impl<A: WidgetList, B: WidgetList> UiNodeList for WidgetListChain<A, B> {
 }
 
 impl<A: WidgetList, B: WidgetList> WidgetList for WidgetListChain<A, B> {
+    fn count<F>(&self, mut filter: F) -> usize
+    where
+        F: FnMut(WidgetFilterArgs) -> bool,
+        Self: Sized,
+    {
+        let a_count = self.0.count(&mut filter);
+
+        let offset = self.0.len();
+        let b_count = self.1.count(|mut args| {
+            args.index += offset;
+            filter(args)
+        });
+
+        a_count + b_count
+    }
+
     #[inline]
     fn boxed_widget_all(self) -> WidgetVec {
         let mut a = self.0.boxed_widget_all();
@@ -179,13 +191,20 @@ impl<A: WidgetList, B: WidgetList> WidgetList for WidgetListChain<A, B> {
     }
 
     #[inline(always)]
-    fn render_filtered<O>(&self, mut origin: O, ctx: &mut RenderContext, frame: &mut FrameBuilder)
+    fn render_filtered<F>(&self, mut filter: F, ctx: &mut RenderContext, frame: &mut FrameBuilder)
     where
-        O: FnMut(usize, WidgetFilterArgs) -> Option<PxPoint>,
+        F: FnMut(WidgetFilterArgs) -> bool,
     {
-        self.0.render_filtered(|i, a| origin(i, a), ctx, frame);
+        self.0.render_filtered(&mut filter, ctx, frame);
         let offset = self.0.len();
-        self.1.render_filtered(|i, a| origin(i + offset, a), ctx, frame);
+        self.1.render_filtered(
+            |mut a| {
+                a.index += offset;
+                filter(a)
+            },
+            ctx,
+            frame,
+        );
     }
 
     #[inline]
@@ -372,13 +391,9 @@ impl<A: UiNodeList, B: UiNodeList> UiNodeList for UiNodeListChain<A, B> {
     }
 
     #[inline(always)]
-    fn render_all<O>(&self, mut origin: O, ctx: &mut RenderContext, frame: &mut FrameBuilder)
-    where
-        O: FnMut(usize) -> PxPoint,
-    {
-        self.0.render_all(&mut origin, ctx, frame);
-        let offset = self.0.len();
-        self.1.render_all(|i| origin(i + offset), ctx, frame);
+    fn render_all(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
+        self.0.render_all(ctx, frame);
+        self.1.render_all(ctx, frame);
     }
 
     #[inline]

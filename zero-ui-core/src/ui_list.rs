@@ -1,9 +1,7 @@
-use std::cell::Cell;
-
 use crate::{
     context::{InfoContext, LayoutContext, RenderContext, StateMap, WidgetContext},
     event::EventUpdateArgs,
-    render::{FrameBuilder, FrameUpdate, SpatialFrameId},
+    render::{FrameBuilder, FrameUpdate},
     units::{AvailableSize, PxRect, PxSize},
     widget_base::Visibility,
     widget_info::{BoundsInfo, WidgetInfoBuilder, WidgetLayout, WidgetSubscriptions},
@@ -128,6 +126,9 @@ pub trait UiNodeList: 'static {
 
 /// All [`Widget`] accessible *info*.
 pub struct WidgetFilterArgs<'a> {
+    /// The widget index in the list.
+    pub index: usize,
+
     /// The [`Widget::outer_bounds`].
     pub outer_bounds: &'a BoundsInfo,
     /// The [`Widget::inner_bounds`].
@@ -138,13 +139,25 @@ pub struct WidgetFilterArgs<'a> {
     pub state: &'a StateMap,
 }
 impl<'a> WidgetFilterArgs<'a> {
-    /// Copy or borrow all info.
+    /// Copy or borrow all info from a widget list and index.
     pub fn get(list: &'a impl WidgetList, index: usize) -> Self {
         WidgetFilterArgs {
+            index,
             outer_bounds: list.widget_outer_bounds(index),
             inner_bounds: list.widget_inner_bounds(index),
             visibility: list.widget_visibility(index),
             state: list.widget_state(index),
+        }
+    }
+
+    /// Copy or borrow all info from a widget reference.
+    pub fn new(index: usize, widget: &'a impl Widget) -> Self {
+        WidgetFilterArgs {
+            index,
+            outer_bounds: widget.outer_bounds(),
+            inner_bounds: widget.inner_bounds(),
+            visibility: widget.visibility(),
+            state: widget.state(),
         }
     }
 }
@@ -154,19 +167,9 @@ impl<'a> WidgetFilterArgs<'a> {
 /// Layout widgets should use this to abstract the children list type if possible.
 pub trait WidgetList: UiNodeList {
     /// Count widgets that pass filter using the widget state.
-    fn count<F>(&self, mut filter: F) -> usize
+    fn count<F>(&self, filter: F) -> usize
     where
-        F: FnMut(usize, WidgetFilterArgs) -> bool,
-        Self: Sized,
-    {
-        let mut count = 0;
-        for i in 0..self.len() {
-            if filter(i, WidgetFilterArgs::get(self, i)) {
-                count += 1;
-            }
-        }
-        count
-    }
+        F: FnMut(WidgetFilterArgs) -> bool;
 
     /// Boxes all widgets and moved then to a [`WidgetVec`].
     fn boxed_widget_all(self) -> WidgetVec;
@@ -208,7 +211,7 @@ pub trait WidgetList: UiNodeList {
     /// Calls [`UiNode::render`] in all widgets allowed by a `filter`, skips rendering the rest.
     fn render_filtered<F>(&self, filter: F, ctx: &mut RenderContext, frame: &mut FrameBuilder)
     where
-        F: FnMut(usize, WidgetFilterArgs) -> bool;
+        F: FnMut(WidgetFilterArgs) -> bool;
 }
 
 /// Initialize an optimized [`WidgetList`].
@@ -335,20 +338,6 @@ pub fn opaque_widgets(widgets: impl WidgetList) -> impl WidgetList {
 #[doc(hidden)]
 pub fn opaque_nodes(nodes: impl UiNodeList) -> impl UiNodeList {
     nodes
-}
-
-#[derive(Default)]
-struct SpatialIdGen(Cell<Option<SpatialFrameId>>);
-impl SpatialIdGen {
-    pub fn get(&self) -> SpatialFrameId {
-        if let Some(id) = self.0.get() {
-            id
-        } else {
-            let id = SpatialFrameId::new_unique();
-            self.0.set(Some(id));
-            id
-        }
-    }
 }
 
 /// Represents an [`UiNodeList::update_all`] observer that can be used to monitor widget insertion, removal and re-order.

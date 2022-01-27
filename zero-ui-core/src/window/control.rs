@@ -1318,11 +1318,7 @@ impl ContentCtrl {
 
                 self.frame_id = self.frame_id.next_update();
 
-                let mut update = FrameUpdate::new(
-                    self.frame_id,
-                    self.clear_color,
-                    self.used_frame_update.take(),
-                );
+                let mut update = FrameUpdate::new(self.frame_id, self.clear_color, self.used_frame_update.take());
 
                 ctx.render_context(self.root_id, &self.root_state, |ctx| {
                     self.root.render_update(ctx, &mut update);

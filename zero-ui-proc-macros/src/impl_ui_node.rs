@@ -377,7 +377,7 @@ fn delegate_list_absents(crate_: TokenStream, user_mtds: HashSet<Ident>, borrow:
 
         [fn render(&self, ctx: &mut #crate_::context::RenderContext, frame: &mut #crate_::render::FrameBuilder) {
             let #children = {#borrow};
-            #crate_::UiNodeList::render_all(#deref, |_|#crate_::units::PxPoint::zero(), ctx, frame)
+            #crate_::UiNodeList::render_all(#deref, ctx, frame)
         }]
 
         [fn render_update(&self, ctx: &mut #crate_::context::RenderContext, update: &mut #crate_::render::FrameUpdate) {

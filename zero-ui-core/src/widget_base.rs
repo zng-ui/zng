@@ -25,7 +25,9 @@ pub mod implicit_base {
 
     use crate::{
         context::{OwnedStateMap, RenderContext},
-        widget_info::{BoundsInfo, WidgetLayout, WidgetRendered, WidgetSubscriptions}, render::FrameBindingKey, units::RenderTransform,
+        render::FrameBindingKey,
+        units::RenderTransform,
+        widget_info::{BoundsInfo, WidgetLayout, WidgetRendered, WidgetSubscriptions},
     };
 
     use super::*;
@@ -108,7 +110,11 @@ pub mod implicit_base {
                 self.child.render_update(ctx, update);
             }
         }
-        WidgetInnerBoundsNode { child, transform_key: FrameBindingKey::new_unique(), transform: RenderTransform::identity() }
+        WidgetInnerBoundsNode {
+            child,
+            transform_key: FrameBindingKey::new_unique(),
+            transform: RenderTransform::identity(),
+        }
     }
 
     /// No-op, returns `child`.
@@ -648,7 +654,7 @@ pub fn visibility(child: impl UiNode, visibility: impl IntoVar<Visibility>) -> i
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
             if let Visibility::Visible = self.visibility.get(ctx) {
                 self.child.render(ctx, frame);
-            } 
+            }
         }
 
         fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {

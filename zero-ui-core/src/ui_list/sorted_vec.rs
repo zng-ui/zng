@@ -5,13 +5,11 @@ use crate::{
     event::EventUpdateArgs,
     render::{FrameBuilder, FrameUpdate},
     state::StateMap,
-    units::{AvailableSize, PxPoint, PxRect, PxSize},
+    units::{AvailableSize, PxRect, PxSize},
     widget_base::Visibility,
     widget_info::{BoundsInfo, UpdateSlot, WidgetInfoBuilder, WidgetLayout, WidgetSubscriptions},
     BoxedWidget, UiListObserver, UiNode, UiNodeList, UiNodeVec, Widget, WidgetFilterArgs, WidgetId, WidgetList, WidgetVec, WidgetVecRef,
 };
-
-use super::SpatialIdGen;
 
 /// A vector of boxed [`Widget`] items that remains sorted.
 ///
@@ -27,7 +25,6 @@ use super::SpatialIdGen;
 /// [`std::slice::sort_by`]: https://doc.rust-lang.org/std/primitive.slice.html#method.sort_by
 pub struct SortedWidgetVec {
     vec: Vec<BoxedWidget>,
-    id: SpatialIdGen,
 
     sort: Box<dyn FnMut(&BoxedWidget, &BoxedWidget) -> cmp::Ordering>,
     ctrl: SortedWidgetVecRef,
@@ -38,7 +35,6 @@ impl SortedWidgetVec {
     pub fn new(sort: impl FnMut(&BoxedWidget, &BoxedWidget) -> cmp::Ordering + 'static) -> Self {
         SortedWidgetVec {
             vec: vec![],
-            id: SpatialIdGen::default(),
             sort: Box::new(sort),
             ctrl: SortedWidgetVecRef::new(),
         }
@@ -48,7 +44,6 @@ impl SortedWidgetVec {
     pub fn with_capacity(capacity: usize, sort: impl FnMut(&BoxedWidget, &BoxedWidget) -> cmp::Ordering + 'static) -> Self {
         SortedWidgetVec {
             vec: Vec::with_capacity(capacity),
-            id: SpatialIdGen::default(),
             sort: Box::new(sort),
             ctrl: SortedWidgetVecRef::new(),
         }
@@ -58,7 +53,6 @@ impl SortedWidgetVec {
     pub fn from_vec(mut widgets: WidgetVec, sort: impl FnMut(&BoxedWidget, &BoxedWidget) -> cmp::Ordering + 'static) -> Self {
         let mut self_ = SortedWidgetVec {
             vec: mem::take(&mut widgets.vec),
-            id: mem::take(&mut widgets.id),
             sort: Box::new(sort),
             ctrl: SortedWidgetVecRef::new(),
         };
@@ -294,7 +288,6 @@ impl UiNodeList for SortedWidgetVec {
     fn boxed_all(mut self) -> UiNodeVec {
         UiNodeVec {
             vec: mem::take(&mut self.vec).into_iter().map(|w| w.boxed()).collect(),
-            id: mem::take(&mut self.id),
         }
     }
 
@@ -374,15 +367,9 @@ impl UiNodeList for SortedWidgetVec {
         self.vec[index].subscriptions(ctx, subscriptions);
     }
 
-    fn render_all<F>(&self, mut filter: F, ctx: &mut RenderContext, frame: &mut FrameBuilder)
-    where
-        F: FnMut(usize) -> bool,
-    {
-        let id = self.id.get();
-        for (i, w) in self.iter().enumerate() {
-            if filter(i) {
-                w.render(ctx, frame);
-            }
+    fn render_all(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
+        for w in self {
+            w.render(ctx, frame);
         }
     }
 
@@ -404,7 +391,6 @@ impl WidgetList for SortedWidgetVec {
     fn boxed_widget_all(mut self) -> WidgetVec {
         WidgetVec {
             vec: mem::take(&mut self.vec),
-            id: mem::take(&mut self.id),
             ctrl: WidgetVecRef::new(),
         }
     }
@@ -433,16 +419,30 @@ impl WidgetList for SortedWidgetVec {
         self.vec[index].visibility()
     }
 
-    fn render_filtered<O>(&self, mut filter: O, ctx: &mut RenderContext, frame: &mut FrameBuilder)
+    fn render_filtered<F>(&self, mut filter: F, ctx: &mut RenderContext, frame: &mut FrameBuilder)
     where
-        O: FnMut(usize, WidgetFilterArgs) -> bool,
+        F: FnMut(WidgetFilterArgs) -> bool,
     {
-        let id = self.id.get();
         for (i, w) in self.iter().enumerate() {
-            if filter(i, WidgetFilterArgs::get(self, i)) {
+            if filter(WidgetFilterArgs::new(i, w)) {
                 w.render(ctx, frame);
             }
         }
+    }
+
+    // default implementation uses indexing, this is faster.
+    fn count<F>(&self, mut filter: F) -> usize
+    where
+        F: FnMut(WidgetFilterArgs) -> bool,
+        Self: Sized,
+    {
+        let mut count = 0;
+        for (i, w) in self.iter().enumerate() {
+            if filter(WidgetFilterArgs::new(i, w)) {
+                count += 1;
+            }
+        }
+        count
     }
 }
 impl Drop for SortedWidgetVec {
