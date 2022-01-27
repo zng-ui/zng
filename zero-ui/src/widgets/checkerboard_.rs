@@ -138,7 +138,7 @@ pub mod checkerboard {
                 }
             }
 
-            fn arrange(&mut self, ctx: &mut LayoutContext, _: &mut WidgetOffset, final_size: PxSize) {
+            fn arrange(&mut self, ctx: &mut LayoutContext, _: &mut WidgetLayout, final_size: PxSize) {
                 self.final_size = final_size;
                 let available_size = AvailableSize::from_size(final_size);
 

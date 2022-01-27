@@ -259,7 +259,7 @@ fn no_delegate_absents(crate_: TokenStream, user_mtds: HashSet<Ident>) -> Vec<Im
 
         [fn render_update(&self, ctx: &mut #crate_::context::RenderContext, update: &mut #crate_::render::FrameUpdate) { }]
 
-        [fn arrange(&mut self, ctx: &mut #crate_::context::LayoutContext, widget_offset: &mut #crate_::widget_info::WidgetOffset, final_size: #crate_::units::PxSize) { }]
+        [fn arrange(&mut self, ctx: &mut #crate_::context::LayoutContext, widget_layout: &mut #crate_::widget_info::WidgetLayout, final_size: #crate_::units::PxSize) { }]
 
         [fn measure(&mut self, ctx: &mut #crate_::context::LayoutContext, available_size: #crate_::units::AvailableSize) -> #crate_::units::PxSize {
             #crate_::units::PxSize::new(available_size.width.to_px(), available_size.height.to_px())
@@ -319,9 +319,9 @@ fn delegate_absents(crate_: TokenStream, user_mtds: HashSet<Ident>, borrow: Expr
             #crate_::UiNode::render_update(#deref, ctx, update);
         }]
 
-        [fn arrange(&mut self, ctx: &mut #crate_::context::LayoutContext, widget_offset: &mut #crate_::widget_info::WidgetOffset, final_size: #crate_::units::PxSize) {
+        [fn arrange(&mut self, ctx: &mut #crate_::context::LayoutContext, widget_layout: &mut #crate_::widget_info::WidgetLayout, final_size: #crate_::units::PxSize) {
             let mut #child_mut = {#borrow_mut};
-            #crate_::UiNode::arrange(#deref_mut, ctx, widget_offset, final_size);
+            #crate_::UiNode::arrange(#deref_mut, ctx, widget_layout, final_size);
         }]
 
         [fn measure(&mut self, ctx: &mut #crate_::context::LayoutContext, available_size: #crate_::units::AvailableSize) -> #crate_::units::PxSize {
@@ -385,9 +385,9 @@ fn delegate_list_absents(crate_: TokenStream, user_mtds: HashSet<Ident>, borrow:
             #crate_::UiNodeList::render_update_all(#deref, ctx, update)
         }]
 
-        [fn arrange(&mut self, ctx: &mut #crate_::context::LayoutContext, widget_offset: &mut #crate_::widget_info::WidgetOffset, final_size: #crate_::units::PxSize) {
+        [fn arrange(&mut self, ctx: &mut #crate_::context::LayoutContext, widget_layout: &mut #crate_::widget_info::WidgetLayout, final_size: #crate_::units::PxSize) {
             let #children_mut = {#borrow_mut};
-            #crate_::UiNodeList::arrange_all(#deref_mut, ctx, widget_offset, |_, _|#crate_::units::PxRect::from_size(final_size))
+            #crate_::UiNodeList::arrange_all(#deref_mut, ctx, widget_layout, |_, _|#crate_::units::PxRect::from_size(final_size))
         }]
 
         [fn measure(&mut self, ctx: &mut #crate_::context::LayoutContext, available_size: #crate_::units::AvailableSize) -> #crate_::units::PxSize {
@@ -454,9 +454,9 @@ fn delegate_iter_absents(crate_: TokenStream, user_mtds: HashSet<Ident>, iter: E
             #crate_::impl_ui_node_util::IterImpl::render_update_all(#children, ctx, update);
         }]
 
-        [fn arrange(&mut self, ctx: &mut #crate_::context::LayoutContext, widget_offset: &mut #crate_::widget_info::WidgetOffset, final_size: #crate_::units::PxSize) {
+        [fn arrange(&mut self, ctx: &mut #crate_::context::LayoutContext, widget_layout: &mut #crate_::widget_info::WidgetLayout, final_size: #crate_::units::PxSize) {
             let #children_mut = {#iter_mut};
-            #crate_::impl_ui_node_util::IterMutImpl::arrange_all(#children_mut, ctx, widget_offset, final_size);
+            #crate_::impl_ui_node_util::IterMutImpl::arrange_all(#children_mut, ctx, widget_layout, final_size);
         }]
 
         [fn measure(&mut self, ctx: &mut #crate_::context::LayoutContext, available_size: #crate_::units::AvailableSize) -> #crate_::units::PxSize {

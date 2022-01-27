@@ -6,7 +6,7 @@ use crate::{
     render::{FrameBuilder, FrameUpdate, SpatialFrameId},
     units::{AvailableSize, PxPoint, PxRect, PxSize},
     widget_base::Visibility,
-    widget_info::{WidgetInfoBuilder, WidgetOffset, WidgetSubscriptions},
+    widget_info::{BoundsInfo, WidgetInfoBuilder, WidgetLayout, WidgetSubscriptions},
     WidgetId,
 };
 #[allow(unused)] // used in docs.
@@ -106,12 +106,12 @@ pub trait UiNodeList: 'static {
     ///
     /// The `final_rect` parameter is a function that takes a widget index and the `ctx` and returns the
     /// final size and widget offset for the indexed widget.
-    fn arrange_all<F>(&mut self, ctx: &mut LayoutContext, widget_offset: &mut WidgetOffset, final_rect: F)
+    fn arrange_all<F>(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, final_rect: F)
     where
         F: FnMut(usize, &mut LayoutContext) -> PxRect;
 
     /// Calls [`UiNode::arrange`] in only the `index` widget.
-    fn widget_arrange(&mut self, index: usize, ctx: &mut LayoutContext, widget_offset: &mut WidgetOffset, final_size: PxSize);
+    fn widget_arrange(&mut self, index: usize, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, final_size: PxSize);
 
     /// Calls [`UiNode::render`] in all widgets in the list, sequentially. Uses a reference frame
     /// to offset each widget.
@@ -137,9 +137,9 @@ pub trait UiNodeList: 'static {
 /// All [`Widget`] accessible *info*.
 pub struct WidgetFilterArgs<'a> {
     /// The [`Widget::outer_bounds`].
-    pub outer_bounds: PxRect,
+    pub outer_bounds: &'a BoundsInfo,
     /// The [`Widget::inner_bounds`].
-    pub inner_bounds: PxRect,
+    pub inner_bounds: &'a BoundsInfo,
     /// The [`Widget::visibility`].
     pub visibility: Visibility,
     /// The [`Widget::state`].
@@ -202,11 +202,11 @@ pub trait WidgetList: UiNodeList {
     /// Gets the last arranged outer bounds of the widget at the `index`.
     ///
     /// See [`Widget::outer_bounds`] for more details.
-    fn widget_outer_bounds(&self, index: usize) -> PxRect;
+    fn widget_outer_bounds(&self, index: usize) -> &BoundsInfo;
     /// Gets the last arranged inner bounds of the widget at the `index`.
     ///
     /// See [`Widget::inner_bounds`] for more details.
-    fn widget_inner_bounds(&self, index: usize) -> PxRect;
+    fn widget_inner_bounds(&self, index: usize) -> &BoundsInfo;
 
     /// Gets the last rendered visibility of the widget at the `index`.
     ///

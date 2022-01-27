@@ -803,7 +803,7 @@ impl Default for TestWidgetContext {
     }
 }
 #[cfg(any(test, doc, feature = "test_util"))]
-use crate::widget_info::{BoundsRect, WidgetInfoBuilder, WidgetInfoTree, WidgetRendered, WidgetSubscriptions};
+use crate::widget_info::{BoundsInfo, WidgetInfoBuilder, WidgetInfoTree, WidgetRendered, WidgetSubscriptions};
 #[cfg(any(test, doc, feature = "test_util"))]
 impl TestWidgetContext {
     /// Gets a new [`TestWidgetContext`] instance. Panics is another instance is alive in the current thread
@@ -864,7 +864,7 @@ impl TestWidgetContext {
     /// Builds a info tree.
     pub fn info_tree<R>(
         &mut self,
-        root_bounds: BoundsRect,
+        root_bounds: BoundsInfo,
         rendered: WidgetRendered,
         action: impl FnOnce(&mut InfoContext, &mut WidgetInfoBuilder) -> R,
     ) -> (WidgetInfoTree, R) {

@@ -109,7 +109,7 @@ pub mod scrollable {
                 available_size.clip(viewport + self.joiner)
             }
 
-            fn arrange(&mut self, ctx: &mut LayoutContext, widget_offset: &mut WidgetOffset, final_size: PxSize) {
+            fn arrange(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, final_size: PxSize) {
                 let mut viewport = final_size - self.joiner;
 
                 if viewport.width < self.joiner.width * 3.0.fct() {
@@ -126,19 +126,19 @@ pub mod scrollable {
                     ctx.updates.render();
                 }
 
-                self.children.widget_arrange(0, ctx, widget_offset, self.viewport);
+                self.children.widget_arrange(0, ctx, widget_layout, self.viewport);
 
                 let joiner_offset = self.viewport.to_vector();
-                widget_offset.with_offset(PxVector::new(joiner_offset.x, Px(0)), |wo| {
+                widget_layout.with_pre_translate(PxVector::new(joiner_offset.x, Px(0)), |wo| {
                     self.children
                         .widget_arrange(1, ctx, wo, PxSize::new(self.joiner.width, self.viewport.height))
                 });
-                widget_offset.with_offset(PxVector::new(Px(0), joiner_offset.y), |wo| {
+                widget_layout.with_pre_translate(PxVector::new(Px(0), joiner_offset.y), |wo| {
                     self.children
                         .widget_arrange(2, ctx, wo, PxSize::new(self.viewport.width, self.joiner.height))
                 });
 
-                widget_offset.with_offset(joiner_offset, |wo| self.children.widget_arrange(3, ctx, wo, self.joiner));
+                widget_layout.with_pre_translate(joiner_offset, |wo| self.children.widget_arrange(3, ctx, wo, self.joiner));
             }
 
             fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
@@ -378,7 +378,7 @@ pub mod scrollable {
         /// Parameters for the [`ScrollToCommand`].
         #[derive(Debug, Clone)]
         pub struct ScrollToRequest {
-            /// Widget that will ve scrolled into view.
+            /// Widget that will be scrolled into view.
             pub widget_id: WidgetId,
 
             /// How much the scroll position will change to showcase the target widget.
@@ -428,7 +428,7 @@ pub mod scrollable {
         /// Defines how much the [`ScrollToCommand`] will scroll to showcase the target widget.
         #[derive(Debug, Clone)]
         pub enum ScrollToMode {
-            /// Scroll will change only just enogh so that the widget inner rect is fully visible with the optional
+            /// Scroll will change only just enough so that the widget inner rect is fully visible with the optional
             /// extra margin offsets.
             Minimal {
                 /// Extra margin added so that the widget is touching the scrollable edge.
@@ -742,7 +742,7 @@ pub mod scrollable {
                     ct_size
                 }
 
-                fn arrange(&mut self, ctx: &mut LayoutContext, widget_offset: &mut WidgetOffset, final_size: PxSize) {
+                fn arrange(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, final_size: PxSize) {
                     if self.viewport_size != final_size {
                         self.viewport_size = final_size;
                         ctx.updates.render();
@@ -756,7 +756,7 @@ pub mod scrollable {
                         self.content_size.width = final_size.width;
                     }
 
-                    self.child.arrange(ctx, widget_offset, self.content_size);
+                    self.child.arrange(ctx, widget_layout, self.content_size);
 
                     let cell_ctx = ScrollContextVar::get(ctx.vars).as_ref().unwrap();
                     let v_ratio = self.viewport_size.height.0 as f32 / self.content_size.height.0 as f32;
@@ -1303,7 +1303,7 @@ pub mod thumb {
                 }
             }
 
-            fn arrange(&mut self, ctx: &mut LayoutContext, widget_offset: &mut WidgetOffset, final_size: PxSize) {
+            fn arrange(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, final_size: PxSize) {
                 self.final_offset = self.offset.to_px(ctx.metrics.scale_factor.0);
 
                 let ratio = *ThumbViewportRatioVar::get(ctx);
@@ -1318,7 +1318,7 @@ pub mod thumb {
                     }
                 }
 
-                widget_offset.with_offset(self.final_offset, |wo| self.child.arrange(ctx, wo, final_size));
+                widget_layout.with_pre_translate(self.final_offset, |wo| self.child.arrange(ctx, wo, final_size));
             }
 
             fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {

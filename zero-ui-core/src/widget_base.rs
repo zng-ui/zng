@@ -6,7 +6,7 @@ use crate::event::EventUpdateArgs;
 use crate::var::{
     context_var, impl_from_and_into_var, ContextVarData, IntoValue, IntoVar, StateVar, Var, Vars, VarsRead, WithVars, WithVarsRead,
 };
-use crate::widget_info::{UpdateMask, WidgetInfo, WidgetInfoBuilder, WidgetOffset, WidgetSubscriptions};
+use crate::widget_info::{UpdateMask, WidgetInfo, WidgetInfoBuilder, WidgetLayout, WidgetSubscriptions};
 use crate::{
     context::{state_key, LayoutContext, StateMap, WidgetContext},
     units::{AvailableSize, PxSize},
@@ -23,11 +23,9 @@ use crate::{impl_ui_node, property, NilUiNode, UiNode, Widget, WidgetId};
 pub mod implicit_base {
     use std::cell::RefCell;
 
-    use zero_ui_view_api::units::PxRect;
-
     use crate::{
         context::{OwnedStateMap, RenderContext},
-        widget_info::{BoundsRect, WidgetOffset, WidgetRendered, WidgetSubscriptions},
+        widget_info::{BoundsInfo, WidgetLayout, WidgetRendered, WidgetSubscriptions},
     };
 
     use super::*;
@@ -88,15 +86,23 @@ pub mod implicit_base {
         child
     }
 
-    /// Returns a node that wraps `child` and marks the [`WidgetOffset::with_inner`].
+    /// Returns a node that wraps `child` and marks the [`WidgetLayout::with_inner`].
     pub fn new_inner(child: impl UiNode) -> impl UiNode {
         struct WidgetInnerBoundsNode<T> {
             child: T,
         }
         #[impl_ui_node(child)]
         impl<T: UiNode> UiNode for WidgetInnerBoundsNode<T> {
-            fn arrange(&mut self, ctx: &mut LayoutContext, widget_offset: &mut WidgetOffset, final_size: PxSize) {
-                widget_offset.with_inner(final_size, |wo| self.child.arrange(ctx, wo, final_size))
+            fn arrange(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, final_size: PxSize) {
+                let transform = widget_layout.with_inner(ctx.metrics, final_size, |wl| self.child.arrange(ctx, wl, final_size));
+            }
+            fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
+                todo!("with_inner marker");
+                self.child.render(ctx, frame);
+            }
+            fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
+                todo!("with_inner marker");
+                self.child.render_update(ctx, update);
             }
         }
         WidgetInnerBoundsNode { child }
@@ -137,8 +143,8 @@ pub mod implicit_base {
             transform_key: WidgetTransformKey,
             state: OwnedStateMap,
             child: T,
-            outer_bounds: BoundsRect,
-            inner_bounds: BoundsRect,
+            outer_bounds: BoundsInfo,
+            inner_bounds: BoundsInfo,
             rendered: WidgetRendered,
             subscriptions: RefCell<WidgetSubscriptions>,
             #[cfg(debug_assertions)]
@@ -238,7 +244,7 @@ pub mod implicit_base {
                 child_size
             }
             #[inline(always)]
-            fn arrange(&mut self, ctx: &mut LayoutContext, widget_offset: &mut WidgetOffset, final_size: PxSize) {
+            fn arrange(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, final_size: PxSize) {
                 #[cfg(debug_assertions)]
                 {
                     if !self.inited {
@@ -247,7 +253,7 @@ pub mod implicit_base {
                 }
 
                 ctx.with_widget(self.id, &mut self.state, |ctx| {
-                    widget_offset.with_widget(&self.outer_bounds, &self.inner_bounds, final_size, |wo| {
+                    widget_layout.with_widget(&self.outer_bounds, &self.inner_bounds, final_size, |wo| {
                         self.child.arrange(ctx, wo, final_size);
                     });
                 });
@@ -289,18 +295,18 @@ pub mod implicit_base {
                 &mut self.state.0
             }
             #[inline]
-            fn outer_bounds(&self) -> PxRect {
-                self.outer_bounds.get()
+            fn outer_bounds(&self) -> &BoundsInfo {
+                &self.outer_bounds
             }
             #[inline]
-            fn inner_bounds(&self) -> PxRect {
-                self.inner_bounds.get()
+            fn inner_bounds(&self) -> &BoundsInfo {
+                &self.inner_bounds
             }
             #[inline]
             fn visibility(&self) -> Visibility {
                 if self.rendered.get() {
                     Visibility::Visible
-                } else if self.outer_bounds.get().size == PxSize::zero() {
+                } else if self.outer_bounds.size() == PxSize::zero() {
                     Visibility::Collapsed
                 } else {
                     Visibility::Hidden
@@ -313,8 +319,8 @@ pub mod implicit_base {
             transform_key: WidgetTransformKey::new_unique(),
             state: OwnedStateMap::default(),
             child,
-            outer_bounds: BoundsRect::new(),
-            inner_bounds: BoundsRect::new(),
+            outer_bounds: BoundsInfo::new(),
+            inner_bounds: BoundsInfo::new(),
             rendered: WidgetRendered::new(),
             subscriptions: RefCell::default(),
             #[cfg(debug_assertions)]
@@ -490,8 +496,8 @@ pub fn enabled(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
             self.with_context(ctx.vars, |c| c.measure(ctx, available_size))
         }
 
-        fn arrange(&mut self, ctx: &mut LayoutContext, widget_offset: &mut WidgetOffset, final_size: PxSize) {
-            self.with_context(ctx.vars, |c| c.arrange(ctx, widget_offset, final_size));
+        fn arrange(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, final_size: PxSize) {
+            self.with_context(ctx.vars, |c| c.arrange(ctx, widget_layout, final_size));
         }
 
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
@@ -634,9 +640,9 @@ pub fn visibility(child: impl UiNode, visibility: impl IntoVar<Visibility>) -> i
             }
         }
 
-        fn arrange(&mut self, ctx: &mut LayoutContext, widget_offset: &mut WidgetOffset, final_size: PxSize) {
+        fn arrange(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, final_size: PxSize) {
             if Visibility::Collapsed != self.visibility.copy(ctx) {
-                self.child.arrange(ctx, widget_offset, final_size)
+                self.child.arrange(ctx, widget_layout, final_size)
             }
         }
 
@@ -895,8 +901,8 @@ pub fn hit_testable(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiN
             self.with_context(ctx.vars, |c| c.measure(ctx, available_size))
         }
 
-        fn arrange(&mut self, ctx: &mut LayoutContext, widget_offset: &mut WidgetOffset, final_size: PxSize) {
-            self.with_context(ctx.vars, |c| c.arrange(ctx, widget_offset, final_size));
+        fn arrange(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, final_size: PxSize) {
+            self.with_context(ctx.vars, |c| c.arrange(ctx, widget_layout, final_size));
         }
 
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {

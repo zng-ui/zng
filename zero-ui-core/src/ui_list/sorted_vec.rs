@@ -7,7 +7,7 @@ use crate::{
     state::StateMap,
     units::{AvailableSize, PxPoint, PxRect, PxSize},
     widget_base::Visibility,
-    widget_info::{UpdateSlot, WidgetInfoBuilder, WidgetOffset, WidgetSubscriptions},
+    widget_info::{BoundsInfo, UpdateSlot, WidgetInfoBuilder, WidgetLayout, WidgetSubscriptions},
     BoxedWidget, UiListObserver, UiNode, UiNodeList, UiNodeVec, Widget, WidgetFilterArgs, WidgetId, WidgetList, WidgetVec, WidgetVecRef,
 };
 
@@ -339,18 +339,18 @@ impl UiNodeList for SortedWidgetVec {
         self.vec[index].measure(ctx, available_size)
     }
 
-    fn arrange_all<F>(&mut self, ctx: &mut LayoutContext, widget_offset: &mut WidgetOffset, mut final_rect: F)
+    fn arrange_all<F>(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, mut final_rect: F)
     where
         F: FnMut(usize, &mut LayoutContext) -> PxRect,
     {
         for (i, w) in self.vec.iter_mut().enumerate() {
             let r = final_rect(i, ctx);
-            widget_offset.with_offset(r.origin.to_vector(), |wo| w.arrange(ctx, wo, r.size))
+            widget_layout.with_pre_translate(r.origin.to_vector(), |wl| w.arrange(ctx, wl, r.size))
         }
     }
 
-    fn widget_arrange(&mut self, index: usize, ctx: &mut LayoutContext, widget_offset: &mut WidgetOffset, final_size: PxSize) {
-        self.vec[index].arrange(ctx, widget_offset, final_size)
+    fn widget_arrange(&mut self, index: usize, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, final_size: PxSize) {
+        self.vec[index].arrange(ctx, widget_layout, final_size)
     }
 
     fn info_all(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
@@ -422,11 +422,11 @@ impl WidgetList for SortedWidgetVec {
         self.vec[index].state_mut()
     }
 
-    fn widget_outer_bounds(&self, index: usize) -> PxRect {
+    fn widget_outer_bounds(&self, index: usize) -> &BoundsInfo {
         self.vec[index].outer_bounds()
     }
 
-    fn widget_inner_bounds(&self, index: usize) -> PxRect {
+    fn widget_inner_bounds(&self, index: usize) -> &BoundsInfo {
         self.vec[index].inner_bounds()
     }
 

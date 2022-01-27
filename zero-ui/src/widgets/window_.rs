@@ -1043,11 +1043,11 @@ pub mod window {
                         self.widget.state_mut()
                     }
 
-                    fn outer_bounds(&self) -> PxRect {
+                    fn outer_bounds(&self) -> &BoundsInfo {
                         self.widget.outer_bounds()
                     }
 
-                    fn inner_bounds(&self) -> PxRect {
+                    fn inner_bounds(&self) -> &BoundsInfo {
                         self.widget.inner_bounds()
                     }
 
@@ -1103,8 +1103,8 @@ pub mod window {
                         self.widget.measure(ctx, available_size)
                     }
 
-                    fn arrange(&mut self, ctx: &mut LayoutContext, widget_offset: &mut WidgetOffset, final_size: PxSize) {
-                        self.widget.arrange(ctx, widget_offset, final_size);
+                    fn arrange(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, final_size: PxSize) {
+                        self.widget.arrange(ctx, widget_layout, final_size);
                     }
 
                     fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
@@ -1124,11 +1124,11 @@ pub mod window {
                         self.widget.state_mut()
                     }
 
-                    fn outer_bounds(&self) -> PxRect {
+                    fn outer_bounds(&self) -> &BoundsInfo {
                         self.widget.outer_bounds()
                     }
 
-                    fn inner_bounds(&self) -> PxRect {
+                    fn inner_bounds(&self) -> &BoundsInfo {
                         self.widget.inner_bounds()
                     }
 

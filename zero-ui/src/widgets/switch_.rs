@@ -87,10 +87,10 @@ pub mod switch {
             }
         }
 
-        fn arrange(&mut self, ctx: &mut LayoutContext, widget_offset: &mut WidgetOffset, final_size: PxSize) {
+        fn arrange(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, final_size: PxSize) {
             let index = self.index.copy(ctx);
             if index < self.options.len() {
-                self.options.widget_arrange(index, ctx, widget_offset, final_size)
+                self.options.widget_arrange(index, ctx, widget_layout, final_size)
             }
         }
 

@@ -241,7 +241,7 @@ pub mod text {
                 self.size
             }
 
-            fn arrange(&mut self, _ctx: &mut LayoutContext, _: &mut WidgetOffset, _final_size: PxSize) {
+            fn arrange(&mut self, _ctx: &mut LayoutContext, _: &mut WidgetLayout, _final_size: PxSize) {
                 // TODO use final size for wrapping?
                 // http://www.unicode.org/reports/tr14/tr14-45.html
             }
@@ -415,7 +415,7 @@ pub mod text {
                         })
                 }
 
-                fn arrange(&mut self, ctx: &mut LayoutContext, widget_offset: &mut WidgetOffset, final_size: PxSize) {
+                fn arrange(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, final_size: PxSize) {
                     let font_size =
                         self.size
                             .get(ctx.vars)
@@ -423,7 +423,7 @@ pub mod text {
 
                     ctx.vars
                         .with_context_var(FontSizeVar, ContextVarData::var(ctx.vars, &self.size), || {
-                            ctx.with_font_size(font_size, self.size_new, |ctx| self.child.arrange(ctx, widget_offset, final_size))
+                            ctx.with_font_size(font_size, self.size_new, |ctx| self.child.arrange(ctx, widget_layout, final_size))
                         });
                     self.size_new = false;
                 }

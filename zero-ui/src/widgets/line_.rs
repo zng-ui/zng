@@ -95,7 +95,7 @@ pub mod line_w {
             }
         }
 
-        fn arrange(&mut self, ctx: &mut LayoutContext, _: &mut WidgetOffset, final_size: PxSize) {
+        fn arrange(&mut self, ctx: &mut LayoutContext, _: &mut WidgetLayout, final_size: PxSize) {
             let bounds = if self.length.get(ctx).is_default() {
                 final_size
             } else {

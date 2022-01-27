@@ -6,7 +6,7 @@
 use crate::core::handler::*;
 use crate::core::render::FrameBuilder;
 use crate::core::units::*;
-use crate::core::widget_info::{WidgetOffset, WidgetSubscriptions};
+use crate::core::widget_info::{WidgetLayout, WidgetSubscriptions};
 use crate::core::*;
 use crate::core::{
     context::{InfoContext, LayoutContext, RenderContext, WidgetContext},
@@ -386,8 +386,8 @@ pub fn on_arrange(child: impl UiNode, handler: impl FnMut(&mut LayoutContext, Px
     }
     #[impl_ui_node(child)]
     impl<C: UiNode, F: FnMut(&mut LayoutContext, PxSize) + 'static> UiNode for OnArrangeNode<C, F> {
-        fn arrange(&mut self, ctx: &mut LayoutContext, widget_offset: &mut WidgetOffset, final_size: PxSize) {
-            self.child.arrange(ctx, widget_offset, final_size);
+        fn arrange(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, final_size: PxSize) {
+            self.child.arrange(ctx, widget_layout, final_size);
             (self.handler)(ctx, final_size);
         }
     }
@@ -407,9 +407,9 @@ pub fn on_pre_arrange(child: impl UiNode, handler: impl FnMut(&mut LayoutContext
     }
     #[impl_ui_node(child)]
     impl<C: UiNode, F: FnMut(&mut LayoutContext, PxSize) + 'static> UiNode for OnPreviewArrangeNode<C, F> {
-        fn arrange(&mut self, ctx: &mut LayoutContext, widget_offset: &mut WidgetOffset, final_size: PxSize) {
+        fn arrange(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, final_size: PxSize) {
             (self.handler)(ctx, final_size);
-            self.child.arrange(ctx, widget_offset, final_size);
+            self.child.arrange(ctx, widget_layout, final_size);
         }
     }
     OnPreviewArrangeNode { child, handler }

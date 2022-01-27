@@ -5,7 +5,7 @@ use crate::{
     state::StateMap,
     units::{AvailableSize, PxPoint, PxRect, PxSize},
     widget_base::Visibility,
-    widget_info::{WidgetInfoBuilder, WidgetOffset, WidgetSubscriptions},
+    widget_info::{BoundsInfo, WidgetInfoBuilder, WidgetLayout, WidgetSubscriptions},
     OffsetUiListObserver, UiListObserver, UiNodeList, UiNodeVec, WidgetFilterArgs, WidgetId, WidgetList, WidgetVec,
 };
 
@@ -84,22 +84,22 @@ impl<A: WidgetList, B: WidgetList> UiNodeList for WidgetListChain<A, B> {
     }
 
     #[inline(always)]
-    fn arrange_all<F>(&mut self, ctx: &mut LayoutContext, widget_offset: &mut WidgetOffset, mut final_rect: F)
+    fn arrange_all<F>(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, mut final_rect: F)
     where
         F: FnMut(usize, &mut LayoutContext) -> PxRect,
     {
-        self.0.arrange_all(ctx, widget_offset, |i, c| final_rect(i, c));
+        self.0.arrange_all(ctx, widget_layout, |i, c| final_rect(i, c));
         let offset = self.0.len();
-        self.1.arrange_all(ctx, widget_offset, |i, c| final_rect(i + offset, c));
+        self.1.arrange_all(ctx, widget_layout, |i, c| final_rect(i + offset, c));
     }
 
     #[inline]
-    fn widget_arrange(&mut self, index: usize, ctx: &mut LayoutContext, widget_offset: &mut WidgetOffset, final_size: PxSize) {
+    fn widget_arrange(&mut self, index: usize, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, final_size: PxSize) {
         let a_len = self.0.len();
         if index < a_len {
-            self.0.widget_arrange(index, ctx, widget_offset, final_size)
+            self.0.widget_arrange(index, ctx, widget_layout, final_size)
         } else {
-            self.1.widget_arrange(index - a_len, ctx, widget_offset, final_size)
+            self.1.widget_arrange(index - a_len, ctx, widget_layout, final_size)
         }
     }
 
@@ -218,7 +218,7 @@ impl<A: WidgetList, B: WidgetList> WidgetList for WidgetListChain<A, B> {
         }
     }
 
-    fn widget_outer_bounds(&self, index: usize) -> PxRect {
+    fn widget_outer_bounds(&self, index: usize) -> &BoundsInfo {
         let a_len = self.0.len();
         if index < a_len {
             self.0.widget_outer_bounds(index)
@@ -227,7 +227,7 @@ impl<A: WidgetList, B: WidgetList> WidgetList for WidgetListChain<A, B> {
         }
     }
 
-    fn widget_inner_bounds(&self, index: usize) -> PxRect {
+    fn widget_inner_bounds(&self, index: usize) -> &BoundsInfo {
         let a_len = self.0.len();
         if index < a_len {
             self.0.widget_inner_bounds(index)
@@ -322,22 +322,22 @@ impl<A: UiNodeList, B: UiNodeList> UiNodeList for UiNodeListChain<A, B> {
     }
 
     #[inline(always)]
-    fn arrange_all<F>(&mut self, ctx: &mut LayoutContext, widget_offset: &mut WidgetOffset, mut final_rect: F)
+    fn arrange_all<F>(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, mut final_rect: F)
     where
         F: FnMut(usize, &mut LayoutContext) -> PxRect,
     {
-        self.0.arrange_all(ctx, widget_offset, |i, c| final_rect(i, c));
+        self.0.arrange_all(ctx, widget_layout, |i, c| final_rect(i, c));
         let offset = self.0.len();
-        self.1.arrange_all(ctx, widget_offset, |i, c| final_rect(i + offset, c));
+        self.1.arrange_all(ctx, widget_layout, |i, c| final_rect(i + offset, c));
     }
 
     #[inline]
-    fn widget_arrange(&mut self, index: usize, ctx: &mut LayoutContext, widget_offset: &mut WidgetOffset, final_size: PxSize) {
+    fn widget_arrange(&mut self, index: usize, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, final_size: PxSize) {
         let a_len = self.0.len();
         if index < a_len {
-            self.0.widget_arrange(index, ctx, widget_offset, final_size)
+            self.0.widget_arrange(index, ctx, widget_layout, final_size)
         } else {
-            self.1.widget_arrange(index - a_len, ctx, widget_offset, final_size)
+            self.1.widget_arrange(index - a_len, ctx, widget_layout, final_size)
         }
     }
 

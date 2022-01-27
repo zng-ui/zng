@@ -40,7 +40,7 @@ pub struct WidgetLayout {
 }
 impl WidgetLayout {
     /// Start the layout arrange pass from the window root widget.
-    pub fn with_root_widget(outer_bounds: &BoundsInfo, inner_bounds: &BoundsInfo, final_size: PxSize, f: impl FnOnce(&mut Self)) { 
+    pub fn with_root_widget(outer_bounds: &BoundsInfo, inner_bounds: &BoundsInfo, final_size: PxSize, f: impl FnOnce(&mut Self)) {
         let mut self_ = Self {
             global_transform: RenderTransform::identity(),
             pre_translate: PxVector::zero(),
@@ -72,6 +72,7 @@ impl WidgetLayout {
         self.inner_bounds = pre_inner_bounds;
     }
 
+    ///
     pub fn with_pre_translate(&mut self, offset: PxVector, f: impl FnOnce(&mut Self)) {
         self.pre_translate += offset;
         f(self);
@@ -80,13 +81,14 @@ impl WidgetLayout {
 
     /// Appends a transform that will be applied to the next inner bounds.
     pub fn with_inner_transform(&mut self, transform: &RenderTransform, f: impl FnOnce(&mut Self)) {
-        let prev_transform = mem::replace(&mut self.transform, self.transform.then(transform));
+        let transform = self.transform.then(transform);
+        let prev_transform = mem::replace(&mut self.transform, transform);
         f(self);
         self.transform = prev_transform;
     }
 
     /// Sets the *center point* of the inner transform that will be applied to the next inner bounds.
-    /// 
+    ///
     /// The `origin` will be resolved in the layout context of the inner bounds final size.
     pub fn with_inner_transform_origin(&mut self, origin: &Point, f: impl FnOnce(&mut Self)) {
         let prev_origin = mem::replace(&mut self.transform_origin, origin.clone());
@@ -97,7 +99,7 @@ impl WidgetLayout {
     /// Mark the widget inner-boundaries.
     ///
     /// Must be called in the widget `new_inner`, the [`implicit_base::new_inner`] node does this.
-    /// 
+    ///
     /// Returns the inner transform in the space of the outer bounds, the `new_inner` node must pass this value to [`FrameBuilder::with_inner`]
     /// and [`FrameUpdate::with_inner`].
     ///
@@ -121,7 +123,8 @@ impl WidgetLayout {
                 RenderTransform::translation(self.pre_translate.x.0 as f32, self.pre_translate.y.0 as f32, 0.0).then(&self.transform);
         }
 
-        let prev_global_transform = mem::replace(&mut self.transform, self.global_transform.then(&self.transform));
+        let global_transform = self.global_transform.then(&self.transform);
+        let prev_global_transform = mem::replace(&mut self.transform, global_transform);
 
         self.inner_bounds.set_size(final_size);
         self.inner_bounds.set_transform(self.global_transform);
@@ -523,6 +526,14 @@ impl BoundsInfo {
     #[inline]
     pub fn new() -> Self {
         Self::default()
+    }
+
+    /// New with a size.
+    #[inline]
+    pub fn from_size(final_size: PxSize) -> Self {
+        let self_ = BoundsInfo::new();
+        self_.set_size(final_size);
+        self_
     }
 
     /// Get a copy of the current transform.

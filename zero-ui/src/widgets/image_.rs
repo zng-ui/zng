@@ -768,10 +768,10 @@ pub mod image {
                         })
                 }
 
-                fn arrange(&mut self, ctx: &mut LayoutContext, widget_offset: &mut WidgetOffset, final_size: PxSize) {
+                fn arrange(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, final_size: PxSize) {
                     ctx.vars
                         .with_context_var(ContextImageVar, ContextVarData::map(ctx.vars, &self.source, &self.image), || {
-                            self.child.arrange(ctx, widget_offset, final_size);
+                            self.child.arrange(ctx, widget_layout, final_size);
                         });
                 }
 
@@ -1090,7 +1090,7 @@ pub mod image {
                     }
                 }
 
-                fn arrange(&mut self, ctx: &mut LayoutContext, _: &mut WidgetOffset, final_size: PxSize) {
+                fn arrange(&mut self, ctx: &mut LayoutContext, _: &mut WidgetLayout, final_size: PxSize) {
                     self.requested_layout |= final_size != self.final_size;
 
                     if !self.requested_layout {

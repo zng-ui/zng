@@ -15,7 +15,7 @@ use crate::{
     state::OwnedStateMap,
     units::*,
     var::*,
-    widget_info::{BoundsRect, UsedWidgetInfoBuilder, WidgetInfoBuilder, WidgetOffset, WidgetRendered, WidgetSubscriptions},
+    widget_info::{BoundsInfo, UsedWidgetInfoBuilder, WidgetInfoBuilder, WidgetLayout, WidgetRendered, WidgetSubscriptions},
     window::AutoSize,
     BoxedUiNode, UiNode, WidgetId,
 };
@@ -995,7 +995,8 @@ struct ContentCtrl {
     root_transform_key: WidgetTransformKey,
     root: BoxedUiNode,
     // info
-    root_bounds: BoundsRect,
+    root_outer_bounds: BoundsInfo,
+    root_inner_bounds: BoundsInfo,
     root_rendered: WidgetRendered,
     used_info_builder: Option<UsedWidgetInfoBuilder>,
 
@@ -1024,7 +1025,8 @@ impl ContentCtrl {
             root_transform_key: WidgetTransformKey::new_unique(),
             root: window.child,
 
-            root_bounds: BoundsRect::new(),
+            root_outer_bounds: BoundsInfo::new(),
+            root_inner_bounds: BoundsInfo::new(),
             root_rendered: WidgetRendered::new(),
             used_info_builder: None,
 
@@ -1069,7 +1071,7 @@ impl ContentCtrl {
             let mut info = WidgetInfoBuilder::new(
                 *ctx.window_id,
                 self.root_id,
-                self.root_bounds.clone(),
+                self.root_outer_bounds.clone(),
                 self.root_rendered.clone(),
                 self.used_info_builder.take(),
             );
@@ -1210,7 +1212,7 @@ impl ContentCtrl {
         }
         self.prev_metrics = Some((base_font_size, scale_factor, screen_ppi, viewport_size));
 
-        let final_size = ctx.layout_context(
+        ctx.layout_context(
             base_font_size,
             scale_factor,
             screen_ppi,
@@ -1241,15 +1243,13 @@ impl ContentCtrl {
                     }
                 }
 
-                self.root.arrange(ctx, &mut WidgetOffset::new(), final_size);
+                WidgetLayout::with_root_widget(&self.root_outer_bounds, &self.root_inner_bounds, final_size, |wl| {
+                    self.root.arrange(ctx, wl, final_size);
+                });
 
                 final_size
             },
-        );
-
-        self.root_bounds.set(PxRect::from_size(final_size));
-
-        final_size
+        )
     }
 
     pub fn render(&mut self, ctx: &mut WindowContext, renderer: Option<ViewRenderer>, scale_factor: Factor, wait_id: Option<FrameWaitId>) {

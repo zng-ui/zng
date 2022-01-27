@@ -13,7 +13,7 @@ use crate::{
     units::*,
     var::{context_var, BoxedVar, ContextVarData, Var},
     widget_base::Visibility,
-    widget_info::{WidgetInfo, WidgetInfoTree, WidgetOffset, WidgetSubscriptions},
+    widget_info::{WidgetInfo, WidgetInfoTree, WidgetLayout, WidgetSubscriptions},
     UiNode,
 };
 use crate::{
@@ -579,9 +579,9 @@ impl UiNode for WidgetInstanceInfoNode {
         self.child.measure(ctx, available_size)
     }
 
-    fn arrange(&mut self, ctx: &mut LayoutContext, widget_offset: &mut WidgetOffset, final_size: PxSize) {
+    fn arrange(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, final_size: PxSize) {
         let _scope = tracing::trace_span!("widget.arrange", name = self.info.borrow().widget_name).entered();
-        self.child.arrange(ctx, widget_offset, final_size)
+        self.child.arrange(ctx, widget_layout, final_size)
     }
 
     fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
@@ -756,11 +756,11 @@ impl UiNode for PropertyInfoNode {
         info.count.measure += 1;
         r
     }
-    fn arrange(&mut self, ctx: &mut LayoutContext, widget_offset: &mut WidgetOffset, final_size: PxSize) {
+    fn arrange(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, final_size: PxSize) {
         let _scope = tracing::trace_span!("property.arrange", name = self.info.borrow().property_name).entered();
 
         let t = Instant::now();
-        self.child.arrange(ctx, widget_offset, final_size);
+        self.child.arrange(ctx, widget_layout, final_size);
         let d = t.elapsed();
         let mut info = self.info.borrow_mut();
         info.duration.arrange = d;

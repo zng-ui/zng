@@ -11,7 +11,7 @@ use crate::{
     render::{FrameBuilder, FrameId, FrameUpdate, WidgetTransformKey},
     units::*,
     widget_base::implicit_base,
-    widget_info::{BoundsRect, UpdateMask, WidgetInfoBuilder, WidgetOffset, WidgetRendered, WidgetSubscriptions},
+    widget_info::{BoundsInfo, UpdateMask, WidgetInfoBuilder, WidgetRendered, WidgetSubscriptions},
     window::WindowId,
     UiNode, UiNodeList, UiNodeVec, Widget, WidgetId,
 };
@@ -100,7 +100,7 @@ fn test_trace(node: impl UiNode) {
     let mut info = WidgetInfoBuilder::new(
         window_id,
         ctx.root_id,
-        BoundsRect::from_size(l_size.to_px()),
+        BoundsInfo::from_size(l_size.to_px()),
         WidgetRendered::new(),
         None,
     );
@@ -118,7 +118,7 @@ fn test_trace(node: impl UiNode) {
     wgt.test_measure(&mut ctx, l_size);
     assert_only_traced!(wgt.state(), "measure");
 
-    wgt.test_arrange(&mut ctx, &mut WidgetOffset::new(), l_size.to_px());
+    wgt.test_arrange(&mut ctx, l_size.to_px());
     assert_only_traced!(wgt.state(), "arrange");
 
     let root_transform_key = WidgetTransformKey::new_unique();
@@ -224,7 +224,7 @@ pub fn default_no_child() {
     assert_eq!(desired_size, PxSize::zero());
 
     // arrange does nothing, not really anything to test.
-    wgt.test_arrange(&mut ctx, &mut WidgetOffset::new(), desired_size);
+    wgt.test_arrange(&mut ctx, desired_size);
 
     // we expect default to not render anything (except a hit-rect for the window).
     let window_id = WindowId::new_unique();
@@ -233,7 +233,7 @@ pub fn default_no_child() {
     let mut info = WidgetInfoBuilder::new(
         window_id,
         ctx.root_id,
-        BoundsRect::from_size(desired_size),
+        BoundsInfo::from_size(desired_size),
         root_rendered.clone(),
         None,
     );
@@ -281,7 +281,7 @@ mod util {
         render::{FrameBuilder, FrameUpdate},
         state_key,
         units::*,
-        widget_info::{EventMask, UpdateMask, WidgetInfoBuilder, WidgetOffset, WidgetSubscriptions},
+        widget_info::{EventMask, UpdateMask, WidgetInfoBuilder, WidgetLayout, WidgetSubscriptions},
         UiNode,
     };
 
@@ -377,7 +377,7 @@ mod util {
             PxSize::zero()
         }
 
-        fn arrange(&mut self, _: &mut LayoutContext, _: &mut WidgetOffset, _: PxSize) {
+        fn arrange(&mut self, _: &mut LayoutContext, _: &mut WidgetLayout, _: PxSize) {
             self.trace("arrange");
         }
 

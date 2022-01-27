@@ -45,13 +45,13 @@ pub fn filter(child: impl UiNode, filter: impl IntoVar<Filter>) -> impl UiNode {
             self.child.update(ctx)
         }
 
-        fn arrange(&mut self, ctx: &mut LayoutContext, widget_offset: &mut WidgetOffset, final_size: PxSize) {
+        fn arrange(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, final_size: PxSize) {
             if self.render_filter.is_none() {
                 self.render_filter = Some(self.filter.get(ctx).to_render(ctx, AvailableSize::finite(final_size)));
                 ctx.updates.render();
             }
 
-            self.child.arrange(ctx, widget_offset, final_size);
+            self.child.arrange(ctx, widget_layout, final_size);
         }
 
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {

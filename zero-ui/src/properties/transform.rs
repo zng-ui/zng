@@ -43,13 +43,13 @@ pub fn transform(child: impl UiNode, transform: impl IntoVar<Transform>) -> impl
             }
         }
 
-        fn arrange(&mut self, ctx: &mut LayoutContext, widget_offset: &mut WidgetOffset, final_size: PxSize) {
+        fn arrange(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, final_size: PxSize) {
             if self.render_transform.is_none() {
                 let t = self.transform.get(ctx).to_render(ctx, AvailableSize::finite(final_size));
                 self.render_transform = Some(t);
                 ctx.updates.render_update();
             }
-            widget_offset.with_transform(self.render_transform.as_ref().unwrap(), |wo| {
+            widget_layout.with_inner_transform(self.render_transform.as_ref().unwrap(), |wo| {
                 self.child.arrange(ctx, wo, final_size)
             });
         }
@@ -234,7 +234,7 @@ pub fn transform_origin(child: impl UiNode, origin: impl IntoVar<Point>) -> impl
             self.child.update(ctx);
         }
 
-        fn arrange(&mut self, ctx: &mut LayoutContext, widget_offset: &mut WidgetOffset, final_size: PxSize) {
+        fn arrange(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, final_size: PxSize) {
             let available_size = AvailableSize::finite(final_size);
 
             let default_origin = Point::center().to_layout(ctx, available_size, PxPoint::zero());
@@ -245,7 +245,7 @@ pub fn transform_origin(child: impl UiNode, origin: impl IntoVar<Point>) -> impl
                 ctx.updates.render_update();
             }
 
-            self.child.arrange(ctx, widget_offset, final_size);
+            self.child.arrange(ctx, widget_layout, final_size);
         }
 
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {

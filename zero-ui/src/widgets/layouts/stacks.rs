@@ -117,7 +117,7 @@ pub mod h_stack {
             }
         }
 
-        fn arrange(&mut self, ctx: &mut LayoutContext, widget_offset: &mut WidgetOffset, final_size: PxSize) {
+        fn arrange(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, final_size: PxSize) {
             let spacing = self
                 .spacing
                 .get(ctx.vars)
@@ -145,7 +145,7 @@ pub mod h_stack {
             let rectangles = &mut self.rectangles;
             let fill_height = align.fill_height();
 
-            self.children.arrange_all(ctx, widget_offset, |i, _| {
+            self.children.arrange_all(ctx, widget_layout, |i, _| {
                 let r = &mut rectangles[i];
 
                 let spacing = if r.size.width > Px(0) { spacing } else { Px(0) };
@@ -286,7 +286,7 @@ pub mod v_stack {
             }
         }
 
-        fn arrange(&mut self, ctx: &mut LayoutContext, widget_offset: &mut WidgetOffset, final_size: PxSize) {
+        fn arrange(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, final_size: PxSize) {
             let spacing = self
                 .spacing
                 .get(ctx.vars)
@@ -314,7 +314,7 @@ pub mod v_stack {
             let rectangles = &mut self.rectangles;
             let fill_width = align.fill_width();
 
-            self.children.arrange_all(ctx, widget_offset, |i, _| {
+            self.children.arrange_all(ctx, widget_layout, |i, _| {
                 let r = &mut rectangles[i];
 
                 let spacing = if r.size.height > Px(0) { spacing } else { Px(0) };
@@ -472,11 +472,11 @@ pub mod z_stack {
             ds
         }
 
-        fn arrange(&mut self, ctx: &mut LayoutContext, widget_offset: &mut WidgetOffset, final_size: PxSize) {
+        fn arrange(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, final_size: PxSize) {
             let align = self.align.copy(ctx);
 
             let rectangles = &mut self.rectangles;
-            self.children.arrange_all(ctx, widget_offset, |i, _| {
+            self.children.arrange_all(ctx, widget_layout, |i, _| {
                 rectangles[i] = align.solve(rectangles[i].size, final_size);
                 rectangles[i]
             });

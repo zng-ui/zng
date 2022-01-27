@@ -601,9 +601,9 @@ mod properties {
                 })
             }
             #[inline(always)]
-            fn arrange(&mut self, ctx: &mut LayoutContext, widget_offset: &mut WidgetOffset, final_size: PxSize) {
+            fn arrange(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, final_size: PxSize) {
                 ctx.vars.with_context_var(self.var, ContextVarData::var(ctx.vars, &self.value), || {
-                    self.child.arrange(ctx, widget_offset, final_size)
+                    self.child.arrange(ctx, widget_layout, final_size)
                 });
             }
             #[inline(always)]
@@ -707,10 +707,10 @@ mod properties {
                     })
             }
             #[inline(always)]
-            fn arrange(&mut self, ctx: &mut LayoutContext, widget_offset: &mut WidgetOffset, final_size: PxSize) {
+            fn arrange(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, final_size: PxSize) {
                 ctx.vars
                     .with_context_var_wgt_only(self.var, ContextVarData::var(ctx.vars, &self.value), || {
-                        self.child.arrange(ctx, widget_offset, final_size)
+                        self.child.arrange(ctx, widget_layout, final_size)
                     })
             }
             #[inline(always)]
@@ -886,7 +886,7 @@ mod properties {
                 )
             }
             #[inline(always)]
-            fn arrange(&mut self, ctx: &mut LayoutContext, widget_offset: &mut WidgetOffset, final_size: PxSize) {
+            fn arrange(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, final_size: PxSize) {
                 ctx.vars.with_context_var(
                     self.var,
                     ContextVarData {
@@ -895,7 +895,7 @@ mod properties {
                         version: self.version,
                         update_mask: self.update_mask.get(),
                     },
-                    || self.child.arrange(ctx, widget_offset, final_size),
+                    || self.child.arrange(ctx, widget_layout, final_size),
                 );
             }
 

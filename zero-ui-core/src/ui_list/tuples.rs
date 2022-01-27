@@ -6,7 +6,7 @@ use crate::{
     render::{FrameBuilder, FrameUpdate},
     units::{AvailableSize, PxPoint, PxRect, PxSize},
     widget_base::Visibility,
-    widget_info::{WidgetInfoBuilder, WidgetOffset, WidgetSubscriptions},
+    widget_info::{BoundsInfo, WidgetInfoBuilder, WidgetLayout, WidgetSubscriptions},
     widget_vec, UiListObserver, UiNode, UiNodeList, UiNodeVec, Widget, WidgetId, WidgetList, WidgetVec,
 };
 
@@ -64,7 +64,7 @@ macro_rules! impl_tuples {
             }
 
             #[inline]
-            fn widget_outer_bounds(&self, index: usize) -> PxRect {
+            fn widget_outer_bounds(&self, index: usize) -> &BoundsInfo {
                 match index {
                     $($n => self.items.$n.outer_bounds(),)+
                     _ => panic!("index {index} out of range for length {}", self.len())
@@ -72,7 +72,7 @@ macro_rules! impl_tuples {
             }
 
             #[inline]
-            fn widget_inner_bounds(&self, index: usize) -> PxRect {
+            fn widget_inner_bounds(&self, index: usize) -> &BoundsInfo {
                 match index {
                     $($n => self.items.$n.inner_bounds(),)+
                     _ => panic!("index {index} out of range for length {}", self.len())
@@ -176,13 +176,13 @@ macro_rules! impl_tuples {
             }
 
             #[inline(always)]
-            fn arrange_all<F>(&mut self, ctx: &mut LayoutContext, widget_offset: &mut WidgetOffset, mut final_rect: F)
+            fn arrange_all<F>(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, mut final_rect: F)
             where
                 F: FnMut(usize, &mut LayoutContext) -> PxRect,
             {
                 $(
                 let r = final_rect($n, ctx);
-                widget_offset.with_offset(r.origin.to_vector(), |wo| {
+                widget_layout.with_pre_translate(r.origin.to_vector(), |wo| {
                     self.items.$n.arrange(ctx, wo, r.size);
                 });
 
@@ -190,10 +190,10 @@ macro_rules! impl_tuples {
             }
 
             #[inline]
-            fn widget_arrange(&mut self, index: usize, ctx: &mut LayoutContext, widget_offset: &mut WidgetOffset, final_size: PxSize) {
+            fn widget_arrange(&mut self, index: usize, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, final_size: PxSize) {
                 match index {
                     $(
-                        $n => self.items.$n.arrange(ctx, widget_offset, final_size),
+                        $n => self.items.$n.arrange(ctx, widget_layout, final_size),
                     )+
                     _ => panic!("index {index} out of range for length {}", self.len()),
                 }
@@ -358,14 +358,14 @@ macro_rules! empty_node_list {
             }
 
             #[inline]
-            fn arrange_all<F>(&mut self, _: &mut LayoutContext, _: &mut WidgetOffset, _: F)
+            fn arrange_all<F>(&mut self, _: &mut LayoutContext, _: &mut WidgetLayout, _: F)
             where
                 F: FnMut(usize, &mut LayoutContext) -> PxRect,
             {
             }
 
             #[inline]
-            fn widget_arrange(&mut self, index: usize, _: &mut LayoutContext, _: &mut WidgetOffset, _: PxSize) {
+            fn widget_arrange(&mut self, index: usize, _: &mut LayoutContext, _: &mut WidgetLayout, _: PxSize) {
                 panic!("index {index} out of range for length 0")
             }
 
@@ -433,11 +433,11 @@ impl WidgetList for WidgetList0 {
         panic!("index {index} out of range for length 0")
     }
 
-    fn widget_outer_bounds(&self, index: usize) -> PxRect {
+    fn widget_outer_bounds(&self, index: usize) -> &BoundsInfo {
         panic!("index {index} out of range for length 0")
     }
 
-    fn widget_inner_bounds(&self, index: usize) -> PxRect {
+    fn widget_inner_bounds(&self, index: usize) -> &BoundsInfo {
         panic!("index {index} out of range for length 0")
     }
 

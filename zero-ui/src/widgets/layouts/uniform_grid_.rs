@@ -187,7 +187,7 @@ pub mod uniform_grid {
             )
         }
         #[UiNode]
-        fn arrange(&mut self, ctx: &mut LayoutContext, widget_offset: &mut WidgetOffset, final_size: PxSize) {
+        fn arrange(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, final_size: PxSize) {
             let cell_count = self.children_origin.iter().filter(|o| o.is_some()).count();
 
             let (columns, rows) = self.grid_len(ctx.vars, cell_count);
@@ -210,7 +210,7 @@ pub mod uniform_grid {
             let mut cells = CellsIter::new(cell_size, columns, first_column as i32, layout_spacing);
 
             let origins = &mut self.children_origin;
-            self.children.arrange_all(ctx, widget_offset, |i, _| {
+            self.children.arrange_all(ctx, widget_layout, |i, _| {
                 let origin = if let Some(o) = &mut origins[i] {
                     *o = cells.next().unwrap();
                     *o

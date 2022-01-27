@@ -89,7 +89,7 @@ where
         }
     }
     #[UiNode]
-    fn arrange(&mut self, ctx: &mut LayoutContext, _: &mut WidgetOffset, final_size: PxSize) {
+    fn arrange(&mut self, ctx: &mut LayoutContext, _: &mut WidgetLayout, final_size: PxSize) {
         if self.do_layout || self.final_size != final_size {
             self.do_layout = false;
 
@@ -154,7 +154,7 @@ where
         }
     }
 
-    fn arrange(&mut self, ctx: &mut LayoutContext, widget_offset: &mut WidgetOffset, final_size: PxSize) {
+    fn arrange(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, final_size: PxSize) {
         if self.g.final_size != final_size {
             ctx.updates.render();
         }
@@ -162,7 +162,7 @@ where
         let available_size = AvailableSize::finite(final_size);
         self.render_tile_size = self.tile_size.get(ctx).to_layout(ctx, available_size, final_size);
         self.render_tile_spacing = self.tile_spacing.get(ctx).to_layout(ctx, available_size, final_size);
-        self.g.arrange(ctx, widget_offset, self.render_tile_size);
+        self.g.arrange(ctx, widget_layout, self.render_tile_size);
 
         self.g.final_size = final_size;
     }
