@@ -24,7 +24,7 @@ fn app_main() {
                 items_align = Alignment::TOP;
                 items = widgets![
                     transformed("Translate -10", translate(-10, -10)),
-                    transformed_origin("Rotate 10º (0, 0)", rotate(10.deg()), (0, 0)),
+                    transformed_at("Rotate 10º (0, 0)", rotate(10.deg()), (0, 0)),
                     transformed("Rotate 10º", rotate(10.deg())),
                     transformed("Skew-X 15º", skew_x(15.deg())),
                     transformed("Scale 130%", scale(130.pct())),
@@ -36,13 +36,21 @@ fn app_main() {
 }
 
 fn transformed(label: impl Into<Text>, transform: Transform) -> impl Widget {
-    transformed_origin(label, transform, Point::center())
-}
-fn transformed_origin(label: impl Into<Text>, transform: Transform, transform_origin: impl Into<Point>) -> impl Widget {
     container! {
         content = container! {
             transform;
-            transform_origin = transform_origin.into();
+            content = text(label.into());
+            background_color = colors::BROWN.with_alpha(80.pct());
+            padding = 10;
+        };
+        border = 2, (colors::GRAY, BorderStyle::Dashed), 0;
+    }
+}
+fn transformed_at(label: impl Into<Text>, transform: Transform, origin: impl Into<Point>) -> impl Widget {
+    container! {
+        content = container! {
+            transform;
+            transform_origin = origin.into();
             content = text(label.into());
             background_color = colors::BROWN.with_alpha(80.pct());
             padding = 10;
