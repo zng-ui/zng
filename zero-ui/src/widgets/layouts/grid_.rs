@@ -78,255 +78,235 @@ pub mod grid {
         items: impl WidgetList,
         spacing: impl IntoVar<GridSpacing>,
     ) -> impl UiNode {
-        struct GridNode<I, S> {
-            items: I,
-            columns: Vec<column::Definition>,
-            columns_spatial_id: SpatialFrameId,
-            rows: Vec<row::Definition>,
-            rows_spatial_id: SpatialFrameId,
-            spacing: S,
-            column_origins: Vec<PxPoint>,
-            row_origins: Vec<PxPoint>,
-            item_rects: Vec<PxRect>,
-        }
-        impl<I: WidgetList, S: Var<GridSpacing>> UiNode for GridNode<I, S> {
-            fn init(&mut self, ctx: &mut WidgetContext) {
-                for column in &mut self.columns {
-                    column.widget_mut().init(ctx);
-                }
-                for row in &mut self.rows {
-                    row.widget_mut().init(ctx);
-                }
-                self.items.init_all(ctx);
-            }
-
-            fn deinit(&mut self, ctx: &mut WidgetContext) {
-                for column in &mut self.columns {
-                    column.widget_mut().deinit(ctx);
-                }
-                for row in &mut self.rows {
-                    row.widget_mut().deinit(ctx);
-                }
-                self.items.deinit_all(ctx);
-            }
-
-            fn event<A: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &A) {
-                for column in &mut self.columns {
-                    column.widget_mut().event(ctx, args);
-                }
-                for row in &mut self.rows {
-                    row.widget_mut().event(ctx, args);
-                }
-                self.items.event_all(ctx, args);
-            }
-
-            fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
-                for column in self.columns.iter() {
-                    column.widget().info(ctx, info);
-                }
-                for row in self.rows.iter() {
-                    row.widget().info(ctx, info);
-                }
-                self.items.info_all(ctx, info);
-            }
-
-            fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
-                subscriptions.var(ctx, &self.spacing);
-
-                for column in self.columns.iter() {
-                    column.widget().subscriptions(ctx, subscriptions);
-                }
-                for row in self.rows.iter() {
-                    row.widget().subscriptions(ctx, subscriptions);
-                }
-                self.items.subscriptions_all(ctx, subscriptions);
-            }
-
-            fn update(&mut self, ctx: &mut WidgetContext) {
-                for column in &mut self.columns {
-                    column.widget_mut().update(ctx);
-                }
-                for row in &mut self.rows {
-                    row.widget_mut().update(ctx);
-                }
-
-                let mut changed = false;
-                self.items.update_all(ctx, &mut changed);
-
-                if changed {
-                    self.item_rects.resize(self.items.len(), PxRect::zero());
-                    ctx.updates.layout_and_render();
-                }
-
-                if self.spacing.is_new(ctx) {
-                    ctx.updates.layout();
-                }
-            }
-
-            fn measure(&mut self, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize {
-                // # Measure Steps
-                //
-                // ? - Find column/rows with fixed sized the divide the rest?
-                // 1 - Measure columns and rows without any content size.
-                // 2 - Measure items using the column/row sizes.
-                // 3 - Measure columns again, now with max single-span size.
-                //
-                // The grid's desired_size is the sum of visible columns with spacing in between then.
-
-                // ## 1 - Measure Columns & Rows
-                //
-                // The available space is divided equally for each column.
-                let mut c_available_size = available_size;
-                c_available_size.width *= (self.columns.len() as f32 / 1.0).fct();
-
-                let mut r_available_size = available_size;
-                r_available_size.height *= (self.rows.len() as f32 / 1.0).fct();
-
-                let spacing = self.spacing.get(ctx.vars).to_layout(ctx, available_size, PxGridSpacing::zero());
-
-                // these are [(Px, AvailablePx)] of the (outer, inner) sizes.
-                let column_widths: Vec<_> = self.columns.iter_mut().map(|c| c.measure(ctx, c_available_size)).collect();
-                let row_heights: Vec<_> = self.rows.iter_mut().map(|r| r.measure(ctx, r_available_size)).collect();
-
-                let desired_size = PxSize::zero();
-                let mut c_desired_widths = vec![Px(0); column_widths.len()];
-                let mut r_desired_heights = vec![Px(0); row_heights.len()];
-
-                let columns_len = self.columns.len() as u32;
-                let rows_len = self.rows.len() as u32;
-
-                for i in 0..self.items.len() {
-                    let state = self.items.widget_state(i);
-                    let (c, r) = state.get(IndexKey).copied().unwrap_or((0, 0));
-                    let (mut c_span, mut r_span) = state.get(SpanKey).copied().unwrap_or((1, 1));
-
-                    if c >= columns_len || r >= rows_len || c_span == 0 || r_span == 0 {
-                        tracing::debug!(
-                            "grid child index `({:?})`, span `({:?})` is not placeable in a {}x{} grid and will not be rendered",
-                            (c, r),
-                            (c_span, r_span),
-                            self.columns.len(),
-                            self.rows.len()
-                        );
-                        self.item_rects[i].size = PxSize::zero();
-                        continue;
-                    }
-
-                    if c + c_span > columns_len {
-                        tracing::debug!(
-                            "grid child column `{c}` and span `{c_span}` overflows the a grid with `{columns_len}` columns, span corrected",
-                            columns_len = self.columns.len()
-                        );
-                        c_span = columns_len - c;
-                    }
-                    if r + r_span > rows_len {
-                        tracing::debug!(
-                            "grid child row `{c}` and span `{c_span}` overflows the a grid with `{rows_len}` rows, span corrected",
-                            rows_len = self.rows.len()
-                        );
-                        r_span = rows_len - c;
-                    }
-
-                    let (outer_width, inner_width) = column_widths[c as usize];
-                    let (outer_height, inner_height) = row_heights[r as usize];
-
-                    if outer_width == Px(0) || outer_height == Px(0) {
-                        // column or row collapsed
-                        self.item_rects[i].size = PxSize::zero();
-                        continue;
-                    }
-
-                    let cell_available_size = AvailableSize::new(
-                        if c_span == 1 {
-                            inner_width
-                        } else {
-                            let mut w = outer_width;
-                            let mut visible_columns = 0;
-                            for (ow, _) in &column_widths[(c + 1) as usize..(c + c_span) as usize] {
-                                w += *ow;
-                                if *ow > Px(0) {
-                                    visible_columns += 1;
-                                }
-                            }
-                            w += spacing.column * Px((visible_columns - 1).max(0) as i32);
-                            AvailablePx::Finite(w)
-                        },
-                        if r_span == 1 {
-                            inner_height
-                        } else {
-                            let mut h = outer_height;
-                            for (rh, _) in &row_heights[(r + 1) as usize..(r + r_span) as usize] {
-                                h += *rh;
-                            }
-                            h += spacing.row * Px((r_span - 1) as i32);
-                            AvailablePx::Finite(h)
-                        },
-                    );
-
-                    let cell_desired_size = self.items.widget_measure(i, ctx, cell_available_size);
-
-                    if c_span == 1 {
-                        c_desired_widths[i] = c_desired_widths[i].max(cell_desired_size.width);
-                    }
-
-                    if r_span == 1 {
-                        r_desired_heights[i] = r_desired_heights[i].max(cell_desired_size.height);
-                    }
-                }
-
-                desired_size
-            }
-
-            fn arrange(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, final_size: PxSize) {
-                let _ = (ctx, widget_layout, final_size);
-                todo!()
-            }
-
-            fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-                for (i, (column, origin)) in self.columns.iter().zip(&self.column_origins).enumerate() {
-                    frame.push_reference_frame_item(self.columns_spatial_id, i, *origin, |frame| column.widget().render(ctx, frame));
-                }
-                for (i, (row, origin)) in self.rows.iter().zip(&self.row_origins).enumerate() {
-                    frame.push_reference_frame_item(self.rows_spatial_id, i, *origin, |frame| row.widget().render(ctx, frame));
-                }
-                self.items.render_filtered(
-                    |i, _| {
-                        let rect = self.item_rects[i];
-                        if rect.size.width > Px(0) && rect.size.height > Px(0) {
-                            Some(rect.origin)
-                        } else {
-                            None
-                        }
-                    },
-                    ctx,
-                    frame,
-                );
-            }
-
-            fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
-                for column in &self.columns {
-                    column.widget().render_update(ctx, update);
-                }
-                for row in &self.rows {
-                    row.widget().render_update(ctx, update);
-                }
-                self.items.render_update_all(ctx, update);
-            }
-        }
-
         assert!(!columns.is_empty());
         assert!(!rows.is_empty());
 
         GridNode {
-            column_origins: vec![PxPoint::zero(); columns.len()],
             columns,
-            columns_spatial_id: SpatialFrameId::new_unique(),
-            row_origins: vec![PxPoint::zero(); rows.len()],
             rows,
-            rows_spatial_id: SpatialFrameId::new_unique(),
             item_rects: vec![PxRect::zero(); items.len()],
             items,
             spacing: spacing.into_var(),
+        }
+    }
+    struct GridNode<I, S> {
+        items: I,
+        columns: Vec<column::Definition>,
+        rows: Vec<row::Definition>,
+        spacing: S,
+        item_rects: Vec<PxRect>,
+    }
+    impl<I: WidgetList, S: Var<GridSpacing>> UiNode for GridNode<I, S> {
+        fn init(&mut self, ctx: &mut WidgetContext) {
+            for column in &mut self.columns {
+                column.widget_mut().init(ctx);
+            }
+            for row in &mut self.rows {
+                row.widget_mut().init(ctx);
+            }
+            self.items.init_all(ctx);
+        }
+
+        fn deinit(&mut self, ctx: &mut WidgetContext) {
+            for column in &mut self.columns {
+                column.widget_mut().deinit(ctx);
+            }
+            for row in &mut self.rows {
+                row.widget_mut().deinit(ctx);
+            }
+            self.items.deinit_all(ctx);
+        }
+
+        fn event<A: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &A) {
+            for column in &mut self.columns {
+                column.widget_mut().event(ctx, args);
+            }
+            for row in &mut self.rows {
+                row.widget_mut().event(ctx, args);
+            }
+            self.items.event_all(ctx, args);
+        }
+
+        fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
+            for column in self.columns.iter() {
+                column.widget().info(ctx, info);
+            }
+            for row in self.rows.iter() {
+                row.widget().info(ctx, info);
+            }
+            self.items.info_all(ctx, info);
+        }
+
+        fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
+            subscriptions.var(ctx, &self.spacing);
+
+            for column in self.columns.iter() {
+                column.widget().subscriptions(ctx, subscriptions);
+            }
+            for row in self.rows.iter() {
+                row.widget().subscriptions(ctx, subscriptions);
+            }
+            self.items.subscriptions_all(ctx, subscriptions);
+        }
+
+        fn update(&mut self, ctx: &mut WidgetContext) {
+            for column in &mut self.columns {
+                column.widget_mut().update(ctx);
+            }
+            for row in &mut self.rows {
+                row.widget_mut().update(ctx);
+            }
+
+            let mut changed = false;
+            self.items.update_all(ctx, &mut changed);
+
+            if changed {
+                self.item_rects.resize(self.items.len(), PxRect::zero());
+                ctx.updates.layout_and_render();
+            }
+
+            if self.spacing.is_new(ctx) {
+                ctx.updates.layout();
+            }
+        }
+
+        fn measure(&mut self, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize {
+            // # Measure Steps
+            //
+            // ? - Find column/rows with fixed sized the divide the rest?
+            // 1 - Measure columns and rows without any content size.
+            // 2 - Measure items using the column/row sizes.
+            // 3 - Measure columns again, now with max single-span size.
+            //
+            // The grid's desired_size is the sum of visible columns with spacing in between then.
+
+            // ## 1 - Measure Columns & Rows
+            //
+            // The available space is divided equally for each column.
+            let mut c_available_size = available_size;
+            c_available_size.width *= (self.columns.len() as f32 / 1.0).fct();
+
+            let mut r_available_size = available_size;
+            r_available_size.height *= (self.rows.len() as f32 / 1.0).fct();
+
+            let spacing = self.spacing.get(ctx.vars).to_layout(ctx, available_size, PxGridSpacing::zero());
+
+            // these are [(Px, AvailablePx)] of the (outer, inner) sizes.
+            let column_widths: Vec<_> = self.columns.iter_mut().map(|c| c.measure(ctx, c_available_size)).collect();
+            let row_heights: Vec<_> = self.rows.iter_mut().map(|r| r.measure(ctx, r_available_size)).collect();
+
+            let desired_size = PxSize::zero();
+            let mut c_desired_widths = vec![Px(0); column_widths.len()];
+            let mut r_desired_heights = vec![Px(0); row_heights.len()];
+
+            let columns_len = self.columns.len() as u32;
+            let rows_len = self.rows.len() as u32;
+
+            for i in 0..self.items.len() {
+                let state = self.items.widget_state(i);
+                let (c, r) = state.get(IndexKey).copied().unwrap_or((0, 0));
+                let (mut c_span, mut r_span) = state.get(SpanKey).copied().unwrap_or((1, 1));
+
+                if c >= columns_len || r >= rows_len || c_span == 0 || r_span == 0 {
+                    tracing::debug!(
+                        "grid child index `({:?})`, span `({:?})` is not placeable in a {}x{} grid and will not be rendered",
+                        (c, r),
+                        (c_span, r_span),
+                        self.columns.len(),
+                        self.rows.len()
+                    );
+                    self.item_rects[i].size = PxSize::zero();
+                    continue;
+                }
+
+                if c + c_span > columns_len {
+                    tracing::debug!(
+                        "grid child column `{c}` and span `{c_span}` overflows the a grid with `{columns_len}` columns, span corrected",
+                        columns_len = self.columns.len()
+                    );
+                    c_span = columns_len - c;
+                }
+                if r + r_span > rows_len {
+                    tracing::debug!(
+                        "grid child row `{c}` and span `{c_span}` overflows the a grid with `{rows_len}` rows, span corrected",
+                        rows_len = self.rows.len()
+                    );
+                    r_span = rows_len - c;
+                }
+
+                let (outer_width, inner_width) = column_widths[c as usize];
+                let (outer_height, inner_height) = row_heights[r as usize];
+
+                if outer_width == Px(0) || outer_height == Px(0) {
+                    // column or row collapsed
+                    self.item_rects[i].size = PxSize::zero();
+                    continue;
+                }
+
+                let cell_available_size = AvailableSize::new(
+                    if c_span == 1 {
+                        inner_width
+                    } else {
+                        let mut w = outer_width;
+                        let mut visible_columns = 0;
+                        for (ow, _) in &column_widths[(c + 1) as usize..(c + c_span) as usize] {
+                            w += *ow;
+                            if *ow > Px(0) {
+                                visible_columns += 1;
+                            }
+                        }
+                        w += spacing.column * Px((visible_columns - 1).max(0) as i32);
+                        AvailablePx::Finite(w)
+                    },
+                    if r_span == 1 {
+                        inner_height
+                    } else {
+                        let mut h = outer_height;
+                        for (rh, _) in &row_heights[(r + 1) as usize..(r + r_span) as usize] {
+                            h += *rh;
+                        }
+                        h += spacing.row * Px((r_span - 1) as i32);
+                        AvailablePx::Finite(h)
+                    },
+                );
+
+                let cell_desired_size = self.items.widget_measure(i, ctx, cell_available_size);
+
+                if c_span == 1 {
+                    c_desired_widths[i] = c_desired_widths[i].max(cell_desired_size.width);
+                }
+
+                if r_span == 1 {
+                    r_desired_heights[i] = r_desired_heights[i].max(cell_desired_size.height);
+                }
+            }
+
+            desired_size
+        }
+
+        fn arrange(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, final_size: PxSize) {
+            let _ = (ctx, widget_layout, final_size);
+            todo!()
+        }
+
+        fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
+            for column in &self.columns {
+                column.widget().render(ctx, frame);
+            }
+            for row in &self.rows {
+                row.widget().render(ctx, frame);
+            }
+            self.items.render_all(ctx, frame);
+        }
+
+        fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
+            for column in &self.columns {
+                column.widget().render_update(ctx, update);
+            }
+            for row in &self.rows {
+                row.widget().render_update(ctx, update);
+            }
+            self.items.render_update_all(ctx, update);
         }
     }
 

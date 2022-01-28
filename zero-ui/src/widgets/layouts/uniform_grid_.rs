@@ -83,7 +83,7 @@ pub mod uniform_grid {
         spacing: impl IntoVar<GridSpacing>,
     ) -> impl UiNode {
         UniformGridNode {
-            children_origin: vec![None; items.len()],
+            children_info: vec![ChildInfo::default(); items.len()],
             children: items,
 
             columns: columns.into_var(),
@@ -93,9 +93,15 @@ pub mod uniform_grid {
         }
     }
 
+    #[derive(Default, Clone, Copy)]
+    struct ChildInfo {
+        /// If last desired size was not zero.
+        visible: bool,
+    }
+
     struct UniformGridNode<U, C, R, FC, S> {
+        children_info: Vec<ChildInfo>,
         children: U,
-        children_origin: Vec<Option<PxPoint>>,
         columns: C,
         rows: R,
         first_column: FC,
@@ -150,7 +156,7 @@ pub mod uniform_grid {
             self.children.update_all(ctx, &mut changed);
 
             if changed {
-                self.children_origin.resize(self.children.len(), None);
+                self.children_info.resize(self.children.len(), ChildInfo::default());
             }
 
             if changed || self.columns.is_new(ctx) || self.rows.is_new(ctx) || self.first_column.is_new(ctx) || self.spacing.is_new(ctx) {
@@ -175,9 +181,9 @@ pub mod uniform_grid {
             self.children.measure_all(
                 ctx,
                 |_, _| available_size,
-                |i, s, _| {
-                    cell_size = cell_size.max(s);
-                    self.children_origin[i] = if s != PxSize::zero() { Some(PxPoint::zero()) } else { None };
+                |_, args| {
+                    cell_size = cell_size.max(args.desired_size);
+                    self.children_info[args.index].visible = args.desired_size != PxSize::zero();
                 },
             );
 
@@ -188,7 +194,7 @@ pub mod uniform_grid {
         }
         #[UiNode]
         fn arrange(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, final_size: PxSize) {
-            let cell_count = self.children_origin.iter().filter(|o| o.is_some()).count();
+            let cell_count = self.children_info.iter().filter(|o| o.visible).count();
 
             let (columns, rows) = self.grid_len(ctx.vars, cell_count);
 
@@ -209,42 +215,38 @@ pub mod uniform_grid {
 
             let mut cells = CellsIter::new(cell_size, columns, first_column as i32, layout_spacing);
 
-            let origins = &mut self.children_origin;
-            self.children.arrange_all(ctx, widget_layout, |i, _| {
-                let origin = if let Some(o) = &mut origins[i] {
-                    *o = cells.next().unwrap();
-                    *o
-                } else {
-                    PxPoint::zero()
-                };
-                PxRect::new(origin, cell_size)
+            self.children.arrange_all(ctx, widget_layout, |_, args| {
+                if self.children_info[args.index].visible {
+                    args.pre_translate = cells.next();
+                }
+                cell_size
             });
         }
         #[UiNode]
-        #[allow_(zero_ui::missing_delegate)] // false positive, TODO
+        #[allow_(zero_ui::missing_delegate)] // false positive
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-            let origins = &self.children_origin;
-            self.children.render_filtered(move |i, _| origins[i], ctx, frame);
+            self.children
+                .render_filtered(move |args| self.children_info[args.index].visible, ctx, frame);
         }
     }
     #[derive(Clone, Default)]
     struct CellsIter {
-        r: PxPoint,
-        advance: PxPoint,
+        r: PxVector,
+        advance: PxVector,
         max_width: Px,
     }
     impl CellsIter {
         pub fn new(cell_size: PxSize, columns: i32, first_column: i32, spacing: PxGridSpacing) -> Self {
-            let advance = PxPoint::new(cell_size.width + spacing.column, cell_size.height + spacing.row);
+            let advance = PxVector::new(cell_size.width + spacing.column, cell_size.height + spacing.row);
             CellsIter {
-                r: PxPoint::new(advance.x * (Px(first_column - 1)), Px(0)),
+                r: PxVector::new(advance.x * (Px(first_column - 1)), Px(0)),
                 max_width: advance.x * Px(columns),
                 advance,
             }
         }
     }
     impl Iterator for CellsIter {
-        type Item = PxPoint;
+        type Item = PxVector;
 
         fn next(&mut self) -> Option<Self::Item> {
             self.r.x += self.advance.x;

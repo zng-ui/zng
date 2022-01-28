@@ -48,7 +48,7 @@ pub mod h_stack {
     #[inline]
     fn new_child(items: impl WidgetList, spacing: impl IntoVar<Length>, items_align: impl IntoVar<Alignment>) -> impl UiNode {
         HStackNode {
-            rectangles: vec![euclid::Rect::zero(); items.len()],
+            children_info: vec![ChildInfo::default(); items.len()],
             items_width: Px(0),
             visible_count: 0,
             children: items,
@@ -59,7 +59,7 @@ pub mod h_stack {
 
     struct HStackNode<C, S, A> {
         children: C,
-        rectangles: Vec<PxRect>,
+        children_info: Vec<ChildInfo>,
         items_width: Px,
         visible_count: u32,
 
@@ -78,7 +78,7 @@ pub mod h_stack {
             self.children.update_all(ctx, &mut changed);
 
             if changed {
-                self.rectangles.resize(self.children.len(), PxRect::zero());
+                self.children_info.resize(self.children.len(), ChildInfo::default());
             }
 
             if changed || self.spacing.is_new(ctx) || self.align.is_new(ctx) {
@@ -90,17 +90,15 @@ pub mod h_stack {
             let mut ds = PxSize::zero();
             self.visible_count = 0;
 
-            let rectangles = &mut self.rectangles;
-            let visible_count = &mut self.visible_count;
             self.children.measure_all(
                 ctx,
                 |_, _| available_size,
-                |i, s, _| {
-                    rectangles[i].size = s;
-                    ds.height = ds.height.max(s.height);
-                    if s.width > Px(0) {
-                        ds.width += s.width;
-                        *visible_count += 1;
+                |_, args| {
+                    self.children_info[args.index].desired_size = args.desired_size;
+                    ds.height = ds.height.max(args.desired_size.height);
+                    if args.desired_size.width > Px(0) {
+                        ds.width += args.desired_size.width;
+                        self.visible_count += 1;
                     }
                 },
             );
@@ -142,33 +140,35 @@ pub mod h_stack {
                 diff * align.x.0
             };
 
-            let rectangles = &mut self.rectangles;
             let fill_height = align.fill_height();
 
-            self.children.arrange_all(ctx, widget_layout, |i, _| {
-                let r = &mut rectangles[i];
+            self.children.arrange_all(ctx, widget_layout, |_, args| {
+                let mut size = self.children_info[args.index].desired_size;
 
-                let spacing = if r.size.width > Px(0) { spacing } else { Px(0) };
+                let spacing = if size.width > Px(0) { spacing } else { Px(0) };
 
-                r.size.width += extra_width;
-                r.origin.x = x_offset;
+                size.width += extra_width;
 
-                x_offset += r.size.width + spacing;
+                let x = x_offset;
+                let y;
+
+                x_offset += size.width + spacing;
 
                 if fill_height {
-                    r.size.height = final_size.height;
-                    r.origin.y = Px(0);
+                    size.height = final_size.height;
+                    y = Px(0);
                 } else {
-                    r.size.height = r.size.height.min(final_size.height);
-                    r.origin.y = (final_size.height - r.size.height) * align.y.0;
+                    size.height = size.height.min(final_size.height);
+                    y = (final_size.height - size.height) * align.y.0;
                 };
 
-                *r
-            });
-        }
+                let offset = PxVector::new(x, y);
+                if offset != PxVector::zero() {
+                    args.pre_translate = Some(offset);
+                }
 
-        fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-            self.children.render_all(|i| self.rectangles[i].origin, ctx, frame);
+                size
+            });
         }
     }
 }
@@ -217,7 +217,7 @@ pub mod v_stack {
     #[inline]
     fn new_child(items: impl WidgetList, spacing: impl IntoVar<Length>, items_align: impl IntoVar<Alignment>) -> impl UiNode {
         VStackNode {
-            rectangles: vec![euclid::Rect::zero(); items.len()],
+            children_info: vec![ChildInfo::default(); items.len()],
             items_height: Px(0),
             visible_count: 0,
             children: items,
@@ -228,7 +228,7 @@ pub mod v_stack {
 
     struct VStackNode<C, S, A> {
         children: C,
-        rectangles: Vec<PxRect>,
+        children_info: Vec<ChildInfo>,
         items_height: Px,
         visible_count: usize,
 
@@ -247,7 +247,7 @@ pub mod v_stack {
             self.children.update_all(ctx, &mut changed);
 
             if changed {
-                self.rectangles.resize(self.children.len(), PxRect::zero());
+                self.children_info.resize(self.children.len(), ChildInfo::default());
             }
 
             if changed || self.spacing.is_new(ctx) || self.align.is_new(ctx) {
@@ -259,17 +259,15 @@ pub mod v_stack {
             let mut ds = PxSize::zero();
             self.visible_count = 0;
 
-            let rectangles = &mut self.rectangles;
-            let visible_count = &mut self.visible_count;
             self.children.measure_all(
                 ctx,
                 |_, _| available_size,
-                |i, s, _| {
-                    rectangles[i].size = s;
-                    ds.width = ds.width.max(s.width);
-                    if s.height > Px(0) {
-                        ds.height += s.height;
-                        *visible_count += 1;
+                |_, args| {
+                    self.children_info[args.index].desired_size = args.desired_size;
+                    ds.width = ds.width.max(args.desired_size.width);
+                    if args.desired_size.height > Px(0) {
+                        ds.height += args.desired_size.height;
+                        self.visible_count += 1;
                     }
                 },
             );
@@ -311,32 +309,34 @@ pub mod v_stack {
                 diff * align.y.0
             };
 
-            let rectangles = &mut self.rectangles;
             let fill_width = align.fill_width();
 
-            self.children.arrange_all(ctx, widget_layout, |i, _| {
-                let r = &mut rectangles[i];
+            self.children.arrange_all(ctx, widget_layout, |_, args| {
+                let mut size = self.children_info[args.index].desired_size;
 
-                let spacing = if r.size.height > Px(0) { spacing } else { Px(0) };
-                r.size.height += extra_height;
-                r.origin.y = y_offset;
+                let spacing = if size.height > Px(0) { spacing } else { Px(0) };
+                size.height += extra_height;
 
-                y_offset += r.size.height + spacing;
+                let x;
+                let y = y_offset;
+
+                y_offset += size.height + spacing;
 
                 if fill_width {
-                    r.size.width = final_size.width;
-                    r.origin.x = Px(0);
+                    size.width = final_size.width;
+                    x = Px(0);
                 } else {
-                    r.size.width = r.size.width.min(final_size.width);
-                    r.origin.x = (final_size.width - r.size.width) * align.x.0;
+                    size.width = size.width.min(final_size.width);
+                    x = (final_size.width - size.width) * align.x.0;
                 };
 
-                *r
-            });
-        }
+                let offset = PxVector::new(x, y);
+                if offset != PxVector::zero() {
+                    args.pre_translate = Some(offset);
+                }
 
-        fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-            self.children.render_all(|i| self.rectangles[i].origin, ctx, frame);
+                size
+            });
         }
     }
 }
@@ -427,15 +427,14 @@ pub mod z_stack {
     #[inline]
     fn new_child(items: impl UiNodeList, items_align: impl IntoVar<Alignment>) -> impl UiNode {
         ZStackNode {
-            rectangles: vec![PxRect::zero(); items.len()],
+            children_info: vec![ChildInfo::default(); items.len()],
             children: items,
             align: items_align.into_var(),
         }
     }
-
     struct ZStackNode<C, A> {
         children: C,
-        rectangles: Vec<PxRect>,
+        children_info: Vec<ChildInfo>,
         align: A,
     }
     #[impl_ui_node(children)]
@@ -450,7 +449,7 @@ pub mod z_stack {
             self.children.update_all(ctx, &mut changed);
 
             if changed {
-                self.rectangles.resize(self.children.len(), PxRect::zero());
+                self.children_info.resize(self.children.len(), ChildInfo::default());
             }
 
             if changed || self.align.is_new(ctx) {
@@ -459,14 +458,13 @@ pub mod z_stack {
         }
 
         fn measure(&mut self, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize {
-            let rectangles = &mut self.rectangles;
             let mut ds = PxSize::zero();
             self.children.measure_all(
                 ctx,
                 |_, _| available_size,
-                |i, s, _| {
-                    ds = ds.max(s);
-                    rectangles[i].size = s;
+                |_, args| {
+                    ds = ds.max(args.desired_size);
+                    self.children_info[args.index].desired_size = args.desired_size;
                 },
             );
             ds
@@ -474,16 +472,13 @@ pub mod z_stack {
 
         fn arrange(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, final_size: PxSize) {
             let align = self.align.copy(ctx);
-
-            let rectangles = &mut self.rectangles;
-            self.children.arrange_all(ctx, widget_layout, |i, _| {
-                rectangles[i] = align.solve(rectangles[i].size, final_size);
-                rectangles[i]
+            self.children.arrange_all(ctx, widget_layout, |_, args| {
+                let bounds = align.solve(self.children_info[args.index].desired_size.min(final_size), final_size);
+                if bounds.origin != PxPoint::zero() {
+                    args.pre_translate = Some(bounds.origin.to_vector());
+                }
+                bounds.size
             });
-        }
-
-        fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-            self.children.render_all(|i| self.rectangles[i].origin, ctx, frame);
         }
     }
 }
@@ -506,4 +501,9 @@ pub mod z_stack {
 /// to better configure the layering stack widget.
 pub fn z_stack(items: impl UiNodeList) -> impl Widget {
     z_stack! { items; }
+}
+
+#[derive(Default, Clone, Copy)]
+struct ChildInfo {
+    desired_size: PxSize,
 }
