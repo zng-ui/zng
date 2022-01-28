@@ -776,6 +776,14 @@ pub fn hit_testable(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiN
             }
             self.child.update(ctx);
         }
+
+        fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
+            if !IsHitTestable::get(ctx) {
+                frame.with_hit_tests_disabled(|frame| self.child.render(ctx, frame));
+            } else {
+                self.child.render(ctx, frame);
+            }
+        }
     }
 
     with_context_var(
