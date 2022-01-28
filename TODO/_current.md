@@ -13,3 +13,5 @@
     - Disable window.
     - Show overlay with own focus scope.
     Ideal Behavior: focus on the overlay as if the window opened with it.
+
+* `with_context_var_fold` can be implemented with a `merge_var` like new `enabled`?
