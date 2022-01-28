@@ -894,7 +894,7 @@ impl UiNodeList for UiNodeVec {
 /// ```
 ///
 /// `widget_vec!` automatically calls [`Widget::boxed_widget`] for each item.
-/// 
+///
 /// [`WidgetVec`]: crate::ui_list::WidgetVec
 #[macro_export]
 macro_rules! widget_vec {
@@ -925,7 +925,7 @@ pub use crate::widget_vec;
 /// ```
 ///
 /// `node_vec!` automatically calls [`UiNode::boxed`] for each item.
-/// 
+///
 /// [`UiNodeVec`]: crate::ui_list::UiNodeVec
 #[macro_export]
 macro_rules! node_vec {

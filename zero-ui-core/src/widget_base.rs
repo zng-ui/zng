@@ -3,9 +3,7 @@
 use std::{fmt, ops};
 
 use crate::event::EventUpdateArgs;
-use crate::var::{
-    context_var, impl_from_and_into_var, ContextVarData, IntoValue, IntoVar, StateVar, Var, Vars, VarsRead, WithVars, WithVarsRead,
-};
+use crate::var::*;
 use crate::widget_info::{UpdateMask, WidgetInfo, WidgetInfoBuilder, WidgetLayout, WidgetSubscriptions};
 use crate::{
     context::{state_key, LayoutContext, StateMap, WidgetContext},
@@ -423,100 +421,39 @@ impl IsEnabled {
 /// [`MouseDownEvent`]: crate::core::mouse::MouseDownEvent
 #[property(context, default(true))]
 pub fn enabled(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
-    struct EnabledNode<C, E> {
+    struct EnabledNode<C> {
         child: C,
-        enabled: E,
     }
-    impl<C: UiNode, E: Var<bool>> EnabledNode<C, E> {
-        fn with_context<R>(&mut self, vars: &Vars, f: impl FnOnce(&mut C) -> R) -> R {
-            if IsEnabled::get(vars) {
-                if *self.enabled.get(vars) {
-                    // context already enabled
-                    f(&mut self.child)
-                } else {
-                    // we are disabling
-                    vars.with_context_var(IsEnabledVar, ContextVarData::var(vars, &self.enabled), || f(&mut self.child))
-                }
-            } else {
-                // context already disabled
-                f(&mut self.child)
-            }
-        }
-
-        fn with_context_read(&self, vars: &VarsRead, f: impl FnOnce(&C)) {
-            if IsEnabled::get(vars) {
-                if *self.enabled.get(vars) {
-                    // context already enabled
-                    f(&self.child);
-                } else {
-                    // we are disabling
-                    vars.with_context_var(IsEnabledVar, ContextVarData::var_read(vars, &self.enabled), || f(&self.child));
-                }
-            } else {
-                // context already disabled
-                f(&self.child);
-            }
-        }
-    }
-    impl<C: UiNode, E: Var<bool>> UiNode for EnabledNode<C, E> {
+    #[impl_ui_node(child)]
+    impl<C: UiNode> UiNode for EnabledNode<C> {
         fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
-            if !self.enabled.copy(ctx) {
+            if !IsEnabled::get(ctx) {
                 info.meta().set(EnabledState, false);
             }
-            self.with_context_read(ctx.vars, |c| c.info(ctx, info));
-        }
-
-        fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
-            subscriptions.var(ctx, &self.enabled);
-            self.with_context_read(ctx.vars, |c| c.subscriptions(ctx, subscriptions));
+            self.child.info(ctx, info);
         }
 
         fn init(&mut self, ctx: &mut WidgetContext) {
-            if !self.enabled.copy(ctx) {
+            if !IsEnabled::get(ctx) {
                 ctx.widget_state.set(EnabledState, false);
             }
-            self.with_context(ctx.vars, |c| c.init(ctx));
-        }
-
-        fn deinit(&mut self, ctx: &mut WidgetContext) {
-            self.with_context(ctx.vars, |c| c.deinit(ctx));
+            self.child.init(ctx);
         }
 
         fn update(&mut self, ctx: &mut WidgetContext) {
-            if let Some(&state) = self.enabled.get_new(ctx) {
+            if let Some(state) = IsEnabled::get_new(ctx) {
                 ctx.widget_state.set(EnabledState, state);
                 ctx.updates.info();
             }
-            self.with_context(ctx.vars, |c| c.update(ctx));
-        }
-
-        fn event<U: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &U)
-        where
-            Self: Sized,
-        {
-            self.with_context(ctx.vars, |c| c.event(ctx, args));
-        }
-
-        fn measure(&mut self, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize {
-            self.with_context(ctx.vars, |c| c.measure(ctx, available_size))
-        }
-
-        fn arrange(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, final_size: PxSize) {
-            self.with_context(ctx.vars, |c| c.arrange(ctx, widget_layout, final_size));
-        }
-
-        fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-            self.with_context_read(ctx.vars, |c| c.render(ctx, frame));
-        }
-
-        fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
-            self.with_context_read(ctx.vars, |c| c.render_update(ctx, update));
+            self.child.update(ctx);
         }
     }
-    EnabledNode {
-        child,
-        enabled: enabled.into_var(),
-    }
+
+    with_context_var(
+        EnabledNode { child },
+        IsEnabledVar,
+        merge_var!(IsEnabledVar::new(), enabled.into_var(), |&a, &b| a && b),
+    )
 }
 
 struct IsEnabledNode<C: UiNode> {
@@ -820,108 +757,32 @@ pub fn is_collapsed(child: impl UiNode, state: StateVar) -> impl UiNode {
 /// [`is_hit_testable`]: fn@is_hit_testable
 #[property(context, default(true))]
 pub fn hit_testable(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
-    struct HitTestableNode<C, E> {
+    struct HitTestableNode<C> {
         child: C,
-        enabled: E,
     }
-    impl<C: UiNode, E: Var<bool>> HitTestableNode<C, E> {
-        fn with_context<R>(&mut self, vars: &Vars, f: impl FnOnce(&mut C) -> R) -> R {
-            if IsEnabled::get(vars) {
-                if *self.enabled.get(vars) {
-                    // context already enabled
-                    f(&mut self.child)
-                } else {
-                    // we are disabling
-                    vars.with_context_var(IsHitTestableVar, ContextVarData::var(vars, &self.enabled), || f(&mut self.child))
-                }
-            } else {
-                // context already disabled
-                f(&mut self.child)
-            }
-        }
-
-        fn with_context_read(&self, vars: &VarsRead, f: impl FnOnce(&C)) {
-            if IsEnabled::get(vars) {
-                if *self.enabled.get(vars) {
-                    // context already enabled
-                    f(&self.child);
-                } else {
-                    // we are disabling
-                    vars.with_context_var(IsHitTestableVar, ContextVarData::var_read(vars, &self.enabled), || f(&self.child));
-                }
-            } else {
-                // context already disabled
-                f(&self.child);
-            }
-        }
-    }
-    impl<C: UiNode, E: Var<bool>> UiNode for HitTestableNode<C, E> {
-        fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
-            self.with_context_read(ctx.vars, |c| c.info(ctx, info));
-        }
-
-        fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
-            subscriptions.var(ctx, &self.enabled);
-            self.with_context_read(ctx.vars, |c| c.subscriptions(ctx, subscriptions));
-        }
-
+    #[impl_ui_node(child)]
+    impl<C: UiNode> UiNode for HitTestableNode<C> {
         fn init(&mut self, ctx: &mut WidgetContext) {
-            if !self.enabled.copy(ctx) {
+            if !IsHitTestable::get(ctx) {
                 ctx.widget_state.set(HitTestEnabledState, false);
             }
-            self.with_context(ctx.vars, |c| c.init(ctx));
-        }
-
-        fn deinit(&mut self, ctx: &mut WidgetContext) {
-            self.with_context(ctx.vars, |c| c.deinit(ctx));
+            self.child.init(ctx);
         }
 
         fn update(&mut self, ctx: &mut WidgetContext) {
-            if let Some(state) = self.enabled.copy_new(ctx) {
+            if let Some(state) = IsHitTestable::get_new(ctx) {
                 ctx.widget_state.set(HitTestEnabledState, state);
-
-                if IsHitTestable::get(ctx) {
-                    // parent is enabled/default so we may be affecting render now.
-                    ctx.updates.render();
-                }
+                ctx.updates.info();
             }
-
-            self.with_context(ctx.vars, |c| c.update(ctx));
-        }
-
-        fn event<U: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &U)
-        where
-            Self: Sized,
-        {
-            self.with_context(ctx.vars, |c| c.event(ctx, args));
-        }
-
-        fn measure(&mut self, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize {
-            self.with_context(ctx.vars, |c| c.measure(ctx, available_size))
-        }
-
-        fn arrange(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, final_size: PxSize) {
-            self.with_context(ctx.vars, |c| c.arrange(ctx, widget_layout, final_size));
-        }
-
-        fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-            self.with_context_read(ctx.vars, |c| {
-                if IsHitTestable::get(ctx) || !self.enabled.copy(ctx) {
-                    frame.with_hit_tests_disabled(|frame| c.render(ctx, frame));
-                } else {
-                    c.render(ctx, frame);
-                }
-            });
-        }
-
-        fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
-            self.with_context_read(ctx.vars, |c| c.render_update(ctx, update));
+            self.child.update(ctx);
         }
     }
-    HitTestableNode {
-        child,
-        enabled: enabled.into_var(),
-    }
+
+    with_context_var(
+        HitTestableNode { child },
+        IsHitTestableVar,
+        merge_var!(IsHitTestableVar::new(), enabled.into_var(), |&a, &b| a && b),
+    )
 }
 
 /// Probes an widget for its hit-test visibility.
@@ -980,11 +841,7 @@ pub fn is_hit_testable(child: impl UiNode, state: StateVar) -> impl UiNode {
             self.child.init(ctx);
             self.update_state(ctx);
         }
-
-        fn info(&self, ctx: &mut InfoContext, widget: &mut WidgetInfoBuilder) {
-            self.child.info(ctx, widget);
-        }
-
+       
         fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
             subscriptions.updates(&IsHitTestable::update_mask(ctx));
             self.child.subscriptions(ctx, subscriptions);
