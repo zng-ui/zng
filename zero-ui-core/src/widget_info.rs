@@ -78,10 +78,10 @@ impl WidgetLayout {
     ///
     /// [reference frames]: crate::render::FrameBuilder::push_reference_frame
     pub fn with_custom_transform(&mut self, transform: &RenderTransform, f: impl FnOnce(&mut Self)) {
-        let transform = self.global_transform.then(transform);
-        let prev_transform = mem::replace(&mut self.global_transform, transform);
+        let global_transform = self.global_transform.then(transform);
+        let prev_global_transform = mem::replace(&mut self.global_transform, global_transform);
         f(self);
-        self.global_transform = prev_transform;
+        self.global_transform = prev_global_transform;
     }
 
     /// Shortcut for declaring a custom translate transform.
@@ -123,6 +123,7 @@ impl WidgetLayout {
     ///
     /// [`implicit_base::new_inner`]: crate::widget_base::implicit_base::new_inner
     pub fn with_inner(&mut self, metrics: &LayoutMetrics, final_size: PxSize, f: impl FnOnce(&mut Self)) -> RenderTransform {
+        let mut transform = self.transform;
         let transform_origin = self.transform_origin.to_layout(
             metrics,
             AvailableSize::finite(final_size),
@@ -131,28 +132,30 @@ impl WidgetLayout {
         if transform_origin != PxPoint::zero() {
             let x = transform_origin.x.0 as f32;
             let y = transform_origin.y.0 as f32;
-            self.transform = RenderTransform::translation(-x, -y, 0.0)
-                .then(&self.transform)
+            transform = RenderTransform::translation(-x, -y, 0.0)
+                .then(&transform)
                 .then_translate(euclid::vec3(x, y, 0.0));
         }
 
         if self.pre_translate != PxVector::zero() {
-            self.transform = RenderTransform::translation_px(self.pre_translate).then(&self.transform);
+            transform = RenderTransform::translation_px(self.pre_translate).then(&transform);
         }
 
-        let global_transform = self.global_transform.then(&self.transform);
-        let prev_global_transform = mem::replace(&mut self.transform, global_transform);
+        let global_transform = self.global_transform.then(&transform);
+        let prev_global_transform = mem::replace(&mut self.global_transform, global_transform);
 
         self.inner_bounds.set_size(final_size);
         self.inner_bounds.set_transform(self.global_transform);
 
-        let transform = self.transform;
-
-        self.pre_translate = PxVector::zero();
-        self.transform = RenderTransform::identity();
-        self.transform_origin = Point::center();
+        let prev_pre_translate = mem::take(&mut self.pre_translate);
+        let prev_transform = mem::take(&mut self.transform);
+        let prev_transform_origin = mem::replace(&mut self.transform_origin, Point::center());
 
         f(self);
+
+        self.pre_translate = prev_pre_translate;
+        self.transform = prev_transform;
+        self.transform_origin = prev_transform_origin;
 
         self.global_transform = prev_global_transform;
 
@@ -602,6 +605,7 @@ impl BoundsInfo {
 
     fn bounds_impl(transform: RenderTransform, size: PxSize) -> PxRect {
         let rect = PxRect::from_size(size).to_wr();
+        // TODO: Verify that this unwrap will never panic.
         let bounds = transform.outer_transformed_box2d(&rect).unwrap();
         bounds.to_px()
     }

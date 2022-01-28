@@ -1321,7 +1321,7 @@ pub mod thumb {
                     }
                 }
 
-                widget_layout.with_pre_translate(self.final_offset, |wo| self.child.arrange(ctx, wo, final_size));
+                widget_layout.with_custom_translate(self.final_offset, |wo| self.child.arrange(ctx, wo, final_size));
             }
 
             fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
