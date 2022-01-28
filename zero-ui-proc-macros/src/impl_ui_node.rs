@@ -385,18 +385,18 @@ fn delegate_list_absents(crate_: TokenStream, user_mtds: HashSet<Ident>, borrow:
             #crate_::UiNodeList::render_update_all(#deref, ctx, update)
         }]
 
-        [fn arrange(&mut self, ctx: &mut #crate_::context::LayoutContext, widget_layout: &mut #crate_::widget_info::WidgetLayout, final_size: #crate_::units::PxSize) {
-            let #children_mut = {#borrow_mut};
-            #crate_::UiNodeList::arrange_all(#deref_mut, ctx, widget_layout, |_, _|#crate_::units::PxRect::from_size(final_size))
-        }]
-
         [fn measure(&mut self, ctx: &mut #crate_::context::LayoutContext, available_size: #crate_::units::AvailableSize) -> #crate_::units::PxSize {
             let #children_mut = {#borrow_mut};
             let mut size = #crate_::units::PxSize::zero();
-            #crate_::UiNodeList::measure_all(#deref_mut, ctx, |_, _|available_size, |_, desired_size, _| {
-                size = size.max(desired_size);
+            #crate_::UiNodeList::measure_all(#deref_mut, ctx, |_, _|available_size, |_, args| {
+                size = size.max(args.desired_size);
             });
             size
+        }]
+
+        [fn arrange(&mut self, ctx: &mut #crate_::context::LayoutContext, widget_layout: &mut #crate_::widget_info::WidgetLayout, final_size: #crate_::units::PxSize) {
+            let #children_mut = {#borrow_mut};
+            #crate_::UiNodeList::arrange_all(#deref_mut, ctx, widget_layout, |_, _| final_size)
         }]
     }
 }

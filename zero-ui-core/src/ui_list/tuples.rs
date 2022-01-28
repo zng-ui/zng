@@ -4,10 +4,11 @@ use crate::{
     event::EventUpdateArgs,
     node_vec,
     render::{FrameBuilder, FrameUpdate},
-    units::{AvailableSize, PxRect, PxSize},
+    ui_list::{AvailableSizeArgs, DesiredSizeArgs, FinalSizeArgs, UiListObserver, UiNodeList, UiNodeVec, WidgetList, WidgetVec},
+    units::{AvailableSize, PxSize},
     widget_base::Visibility,
     widget_info::{BoundsInfo, WidgetInfoBuilder, WidgetLayout, WidgetSubscriptions},
-    widget_vec, UiListObserver, UiNode, UiNodeList, UiNodeVec, Widget, WidgetId, WidgetList, WidgetVec,
+    widget_vec, UiNode, Widget, WidgetId,
 };
 
 macro_rules! impl_tuples {
@@ -17,8 +18,92 @@ macro_rules! impl_tuples {
 
     })+};
     ($NodeList:ident -> $NodeListNext:ident, $WidgetList:ident -> $WidgetListNext:ident => $L:tt => $($n:tt = $W:ident),+) => {
-        impl_tuples! { impl_node => $NodeList<UiNode> -> $NodeListNext => $L => $($n = $W),+ }
-        impl_tuples! { impl_node => $WidgetList<Widget> -> $WidgetListNext => $L => $($n = $W),+ }
+        impl_tuples! { impl_node {
+            list: $NodeList,
+            bound: UiNode,
+            next_list: $NodeListNext,
+            len: $L,
+            items { $($n = $W),+ }
+
+            measure {
+                #[inline(always)]
+                fn measure_all<A, D>(&mut self, ctx: &mut LayoutContext, mut available_size: A, mut desired_size: D)
+                where
+                    A: FnMut(&mut LayoutContext, AvailableSizeArgs) -> AvailableSize,
+                    D: FnMut(&mut LayoutContext, DesiredSizeArgs),
+                {
+                    $(
+                    let av_sz = available_size(ctx, AvailableSizeArgs {
+                        index: $n,
+                        state: None,
+                    });
+
+                    let r = self.items.$n.measure(ctx, av_sz);
+
+                    desired_size(ctx, DesiredSizeArgs {
+                        index: $n,
+                        state: None,
+                        desired_size: r,
+                    });
+                    )+
+                }
+            }
+
+            arrange {
+                #[inline(always)]
+                fn arrange_all<F>(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, mut final_size: F)
+                where
+                    F: FnMut(&mut LayoutContext, &mut FinalSizeArgs) -> PxSize,
+                {
+                    $(
+                        FinalSizeArgs::impl_node(ctx, widget_layout, $n, &mut self.items.$n, &mut final_size);
+                    )+
+                }
+            }
+        } }
+        impl_tuples! { impl_node {
+            list: $WidgetList,
+            bound: Widget,
+            next_list: $WidgetListNext,
+            len: $L,
+            items { $($n = $W),+ }
+
+            measure {
+                #[inline(always)]
+                fn measure_all<A, D>(&mut self, ctx: &mut LayoutContext, mut available_size: A, mut desired_size: D)
+                where
+                    A: FnMut(&mut LayoutContext, AvailableSizeArgs) -> AvailableSize,
+                    D: FnMut(&mut LayoutContext, DesiredSizeArgs),
+                {
+                    $(
+                    let av_sz = available_size(ctx, AvailableSizeArgs {
+                        index: $n,
+                        state: Some(self.items.$n.state_mut())
+                    });
+
+                    let r = self.items.$n.measure(ctx, av_sz);
+
+                    desired_size(ctx, DesiredSizeArgs {
+                        index: $n,
+                        state: Some(self.items.$n.state_mut()),
+                        desired_size: r,
+                    });
+                    )+
+                }
+            }
+
+            arrange {
+                #[inline(always)]
+                fn arrange_all<F>(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, mut final_size: F)
+                where
+                    F: FnMut(&mut LayoutContext, &mut FinalSizeArgs) -> PxSize,
+                {
+                    $(
+                        FinalSizeArgs::impl_widget(ctx, widget_layout, $n, &mut self.items.$n, &mut final_size);
+                    )+
+                }
+            }
+        } }
 
         impl<$($W: Widget),+> WidgetList for $WidgetList<$($W,)+> {
             #[inline]
@@ -102,7 +187,19 @@ macro_rules! impl_tuples {
         }
     };
 
-    (impl_node => $NodeList:ident <$Bound:ident> -> $NodeListNext:ident => $L:tt => $($n:tt = $W:ident),+) => {
+    (impl_node {
+        list: $NodeList:ident,
+        bound: $Bound:ident,
+        next_list: $NodeListNext:ident,
+        len: $L:tt,
+        items { $($n:tt = $W:ident),+ }
+        measure {
+            $($measure_all:tt)+
+        }
+        arrange {
+            $($arrange_all:tt)+
+        }
+    }) => {
         #[doc(hidden)]
         pub struct $NodeList<$($W: $Bound),+> {
             items: ($($W,)+),
@@ -163,18 +260,7 @@ macro_rules! impl_tuples {
                 $(self.items.$n.event(ctx, args);)+
             }
 
-            #[inline(always)]
-            fn measure_all<A, D>(&mut self, ctx: &mut LayoutContext, mut available_size: A, mut desired_size: D)
-            where
-                A: FnMut(usize, &mut LayoutContext) -> AvailableSize,
-                D: FnMut(usize, PxSize, &mut LayoutContext),
-            {
-                $(
-                let av_sz = available_size($n, ctx);
-                let r = self.items.$n.measure(ctx, av_sz);
-                desired_size($n, r, ctx);
-                )+
-            }
+            $($measure_all)+
 
             #[inline]
             fn widget_measure(&mut self, index: usize, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize {
@@ -186,19 +272,7 @@ macro_rules! impl_tuples {
                 }
             }
 
-            #[inline(always)]
-            fn arrange_all<F>(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, mut final_rect: F)
-            where
-                F: FnMut(usize, &mut LayoutContext) -> PxRect,
-            {
-                $(
-                let r = final_rect($n, ctx);
-                widget_layout.with_pre_translate(r.origin.to_vector(), |wo| {
-                    self.items.$n.arrange(ctx, wo, r.size);
-                });
-
-                )+
-            }
+            $($arrange_all)+
 
             #[inline]
             fn widget_arrange(&mut self, index: usize, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, final_size: PxSize) {
@@ -350,8 +424,8 @@ macro_rules! empty_node_list {
             #[inline]
             fn measure_all<A, D>(&mut self, _: &mut LayoutContext, _: A, _: D)
             where
-                A: FnMut(usize, &mut LayoutContext) -> AvailableSize,
-                D: FnMut(usize, PxSize, &mut LayoutContext),
+                A: FnMut(&mut LayoutContext, AvailableSizeArgs) -> AvailableSize,
+                D: FnMut(&mut LayoutContext, DesiredSizeArgs),
             {
             }
 
@@ -363,7 +437,7 @@ macro_rules! empty_node_list {
             #[inline]
             fn arrange_all<F>(&mut self, _: &mut LayoutContext, _: &mut WidgetLayout, _: F)
             where
-                F: FnMut(usize, &mut LayoutContext) -> PxRect,
+                F: FnMut(&mut LayoutContext, &mut FinalSizeArgs) -> PxSize,
             {
             }
 

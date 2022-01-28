@@ -3,10 +3,14 @@ use crate::{
     event::EventUpdateArgs,
     render::{FrameBuilder, FrameUpdate},
     state::StateMap,
-    units::{AvailableSize, PxRect, PxSize},
+    ui_list::{
+        AvailableSizeArgs, DesiredSizeArgs, FinalSizeArgs, OffsetUiListObserver, UiListObserver, UiNodeList, UiNodeVec, WidgetFilterArgs,
+        WidgetList, WidgetVec,
+    },
+    units::{AvailableSize, PxSize},
     widget_base::Visibility,
     widget_info::{BoundsInfo, WidgetInfoBuilder, WidgetLayout, WidgetSubscriptions},
-    OffsetUiListObserver, UiListObserver, UiNodeList, UiNodeVec, WidgetFilterArgs, WidgetId, WidgetList, WidgetVec,
+    WidgetId,
 };
 
 /// Two [`WidgetList`] lists chained.
@@ -63,14 +67,22 @@ impl<A: WidgetList, B: WidgetList> UiNodeList for WidgetListChain<A, B> {
     #[inline(always)]
     fn measure_all<AS, D>(&mut self, ctx: &mut LayoutContext, mut available_size: AS, mut desired_size: D)
     where
-        AS: FnMut(usize, &mut LayoutContext) -> AvailableSize,
-        D: FnMut(usize, PxSize, &mut LayoutContext),
+        AS: FnMut(&mut LayoutContext, AvailableSizeArgs) -> AvailableSize,
+        D: FnMut(&mut LayoutContext, DesiredSizeArgs),
     {
-        self.0
-            .measure_all(ctx, |i, c| available_size(i, c), |i, l, c| desired_size(i, l, c));
+        self.0.measure_all(ctx, &mut available_size, &mut desired_size);
         let offset = self.0.len();
-        self.1
-            .measure_all(ctx, |i, c| available_size(i + offset, c), |i, l, c| desired_size(i + offset, l, c));
+        self.1.measure_all(
+            ctx,
+            |ctx, mut args| {
+                args.index += offset;
+                available_size(ctx, args)
+            },
+            |ctx, mut args| {
+                args.index += offset;
+                desired_size(ctx, args)
+            },
+        );
     }
 
     #[inline]
@@ -84,13 +96,16 @@ impl<A: WidgetList, B: WidgetList> UiNodeList for WidgetListChain<A, B> {
     }
 
     #[inline(always)]
-    fn arrange_all<F>(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, mut final_rect: F)
+    fn arrange_all<F>(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, mut final_size: F)
     where
-        F: FnMut(usize, &mut LayoutContext) -> PxRect,
+        F: FnMut(&mut LayoutContext, &mut FinalSizeArgs) -> PxSize,
     {
-        self.0.arrange_all(ctx, widget_layout, |i, c| final_rect(i, c));
+        self.0.arrange_all(ctx, widget_layout, &mut final_size);
         let offset = self.0.len();
-        self.1.arrange_all(ctx, widget_layout, |i, c| final_rect(i + offset, c));
+        self.1.arrange_all(ctx, widget_layout, |ctx, args| {
+            args.index += offset;
+            final_size(ctx, args)
+        });
     }
 
     #[inline]
@@ -320,14 +335,22 @@ impl<A: UiNodeList, B: UiNodeList> UiNodeList for UiNodeListChain<A, B> {
     #[inline(always)]
     fn measure_all<AS, D>(&mut self, ctx: &mut LayoutContext, mut available_size: AS, mut desired_size: D)
     where
-        AS: FnMut(usize, &mut LayoutContext) -> AvailableSize,
-        D: FnMut(usize, PxSize, &mut LayoutContext),
+        AS: FnMut(&mut LayoutContext, AvailableSizeArgs) -> AvailableSize,
+        D: FnMut(&mut LayoutContext, DesiredSizeArgs),
     {
-        self.0
-            .measure_all(ctx, |i, c| available_size(i, c), |i, l, c| desired_size(i, l, c));
+        self.0.measure_all(ctx, &mut available_size, &mut desired_size);
         let offset = self.0.len();
-        self.1
-            .measure_all(ctx, |i, c| available_size(i + offset, c), |i, l, c| desired_size(i + offset, l, c));
+        self.1.measure_all(
+            ctx,
+            |ctx, mut args| {
+                args.index += offset;
+                available_size(ctx, args)
+            },
+            |ctx, mut args| {
+                args.index += offset;
+                desired_size(ctx, args)
+            },
+        );
     }
 
     #[inline]
@@ -341,13 +364,16 @@ impl<A: UiNodeList, B: UiNodeList> UiNodeList for UiNodeListChain<A, B> {
     }
 
     #[inline(always)]
-    fn arrange_all<F>(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, mut final_rect: F)
+    fn arrange_all<F>(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, mut final_size: F)
     where
-        F: FnMut(usize, &mut LayoutContext) -> PxRect,
+        F: FnMut(&mut LayoutContext, &mut FinalSizeArgs) -> PxSize,
     {
-        self.0.arrange_all(ctx, widget_layout, |i, c| final_rect(i, c));
+        self.0.arrange_all(ctx, widget_layout, &mut final_size);
         let offset = self.0.len();
-        self.1.arrange_all(ctx, widget_layout, |i, c| final_rect(i + offset, c));
+        self.1.arrange_all(ctx, widget_layout, |ctx, args| {
+            args.index += offset;
+            final_size(ctx, args)
+        });
     }
 
     #[inline]

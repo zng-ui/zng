@@ -10,10 +10,11 @@ use crate::{
     event::EventUpdateArgs,
     render::{FrameBuilder, FrameUpdate},
     state::StateMap,
-    units::{AvailableSize, PxRect, PxSize},
+    ui_list::{AvailableSizeArgs, DesiredSizeArgs, FinalSizeArgs, SortedWidgetVec, UiListObserver, WidgetFilterArgs, WidgetList},
+    units::{AvailableSize, PxSize},
     widget_base::Visibility,
     widget_info::{BoundsInfo, UpdateSlot, WidgetInfoBuilder, WidgetLayout, WidgetSubscriptions},
-    BoxedUiNode, BoxedWidget, SortedWidgetVec, UiListObserver, UiNode, UiNodeList, Widget, WidgetFilterArgs, WidgetId, WidgetList,
+    BoxedUiNode, BoxedWidget, UiNode, UiNodeList, Widget, WidgetId,
 };
 
 /// A vector of boxed [`Widget`] items.
@@ -339,13 +340,28 @@ impl UiNodeList for WidgetVec {
 
     fn measure_all<A, D>(&mut self, ctx: &mut LayoutContext, mut available_size: A, mut desired_size: D)
     where
-        A: FnMut(usize, &mut LayoutContext) -> AvailableSize,
-        D: FnMut(usize, PxSize, &mut LayoutContext),
+        A: FnMut(&mut LayoutContext, AvailableSizeArgs) -> AvailableSize,
+        D: FnMut(&mut LayoutContext, DesiredSizeArgs),
     {
         for (i, w) in self.iter_mut().enumerate() {
-            let available_size = available_size(i, ctx);
-            let r = w.measure(ctx, available_size);
-            desired_size(i, r, ctx);
+            let available_size = available_size(
+                ctx,
+                AvailableSizeArgs {
+                    index: i,
+                    state: Some(w.state_mut()),
+                },
+            );
+
+            let ds = w.measure(ctx, available_size);
+
+            desired_size(
+                ctx,
+                DesiredSizeArgs {
+                    index: i,
+                    state: Some(w.state_mut()),
+                    desired_size: ds,
+                },
+            );
         }
     }
 
@@ -353,13 +369,12 @@ impl UiNodeList for WidgetVec {
         self.vec[index].measure(ctx, available_size)
     }
 
-    fn arrange_all<F>(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, mut final_rect: F)
+    fn arrange_all<F>(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, mut final_size: F)
     where
-        F: FnMut(usize, &mut LayoutContext) -> PxRect,
+        F: FnMut(&mut LayoutContext, &mut FinalSizeArgs) -> PxSize,
     {
         for (i, w) in self.iter_mut().enumerate() {
-            let r = final_rect(i, ctx);
-            widget_layout.with_pre_translate(r.origin.to_vector(), |wo| w.arrange(ctx, wo, r.size))
+            FinalSizeArgs::impl_widget(ctx, widget_layout, i, w, &mut final_size);
         }
     }
 
@@ -785,13 +800,22 @@ impl UiNodeList for UiNodeVec {
 
     fn measure_all<A, D>(&mut self, ctx: &mut LayoutContext, mut available_size: A, mut desired_size: D)
     where
-        A: FnMut(usize, &mut LayoutContext) -> AvailableSize,
-        D: FnMut(usize, PxSize, &mut LayoutContext),
+        A: FnMut(&mut LayoutContext, AvailableSizeArgs) -> AvailableSize,
+        D: FnMut(&mut LayoutContext, DesiredSizeArgs),
     {
         for (i, node) in self.iter_mut().enumerate() {
-            let av = available_size(i, ctx);
+            let av = available_size(ctx, AvailableSizeArgs { index: i, state: None });
+
             let d = node.measure(ctx, av);
-            desired_size(i, d, ctx);
+
+            desired_size(
+                ctx,
+                DesiredSizeArgs {
+                    index: i,
+                    state: None,
+                    desired_size: d,
+                },
+            );
         }
     }
 
@@ -799,13 +823,12 @@ impl UiNodeList for UiNodeVec {
         self.vec[index].measure(ctx, available_size)
     }
 
-    fn arrange_all<F>(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, mut final_rect: F)
+    fn arrange_all<F>(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, mut final_size: F)
     where
-        F: FnMut(usize, &mut LayoutContext) -> PxRect,
+        F: FnMut(&mut LayoutContext, &mut FinalSizeArgs) -> PxSize,
     {
         for (i, node) in self.iter_mut().enumerate() {
-            let r = final_rect(i, ctx);
-            widget_layout.with_pre_translate(r.origin.to_vector(), |wo| node.arrange(ctx, wo, r.size));
+            FinalSizeArgs::impl_node(ctx, widget_layout, i, node, &mut final_size);
         }
     }
 
@@ -873,9 +896,9 @@ impl UiNodeList for UiNodeVec {
 /// `widget_vec!` automatically calls [`Widget::boxed_widget`] for each item.
 #[macro_export]
 macro_rules! widget_vec {
-    () => { $crate::WidgetVec::new() };
+    () => { $crate::ui_list::WidgetVec::new() };
     ($($widget:expr),+ $(,)?) => {
-        $crate::WidgetVec::from(vec![
+        $crate::ui_list::WidgetVec::from(vec![
             $($crate::Widget::boxed_widget($widget)),*
         ])
     };
@@ -902,9 +925,9 @@ pub use crate::widget_vec;
 /// `node_vec!` automatically calls [`UiNode::boxed`] for each item.
 #[macro_export]
 macro_rules! node_vec {
-    () => { $crate::UiNodeVec::new() };
+    () => { $crate::ui_list::UiNodeVec::new() };
     ($($node:expr),+ $(,)?) => {
-        $crate::UiNodeVec::from(vec![
+        $crate::ui_list::UiNodeVec::from(vec![
             $($crate::UiNode::boxed($node)),*
         ])
     };

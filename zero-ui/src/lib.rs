@@ -922,6 +922,7 @@ pub mod prelude {
             formatx, FontFeatures, FontName, FontNames, FontStretch, FontStyle, FontWeight, Fonts, Hyphens, LineBreak, Text, TextAlign,
             TextTransformFn, ToText, WhiteSpace, WordBreak,
         },
+        ui_list::{SortedWidgetVec, SortedWidgetVecRef, WidgetVec, WidgetVecRef},
         units::{
             rotate, scale, scale_x, scale_xy, scale_y, skew, skew_x, skew_y, translate, translate_x, translate_y, Alignment, AngleUnits,
             ByteUnits, FactorUnits, Length, LengthUnits, Line, LineFromTuplesBuilder, LineHeight, Point, Px, PxPoint, PxSize, Rect,
@@ -935,7 +936,7 @@ pub mod prelude {
             WindowChangedArgs, WindowChrome, WindowCloseRequestedArgs, WindowIcon, WindowId, WindowOpenArgs, WindowState, WindowVarsKey,
             Windows, WindowsExt,
         },
-        RcNode, UiNode, UiNodeList, Widget, WidgetId, WidgetList, WidgetPath, WidgetVec,
+        RcNode, UiNode, UiNodeList, Widget, WidgetId, WidgetList, WidgetPath,
     };
 
     #[doc(no_inline)]
@@ -1031,10 +1032,11 @@ pub mod prelude {
         #[doc(no_inline)]
         pub use crate::core::{
             impl_ui_node, node_vec, nodes, property,
+            ui_list::{SortedWidgetVec, SortedWidgetVecRef, UiListObserver, UiNodeList, WidgetList, WidgetVec, WidgetVecRef},
+            widget,
             widget_base::Visibility,
             widget_info::{BoundsInfo, WidgetInfoBuilder, WidgetLayout, WidgetSubscriptions},
-            widget_vec, widgets, BoxedUiNode, FillUiNode, SortedWidgetVec, SortedWidgetVecRef, UiListObserver, UiNode, UiNodeList, Widget,
-            WidgetId, WidgetList, WidgetVec, WidgetVecRef,
+            widget_mixin, widget_vec, widgets, BoxedUiNode, BoxedWidget, FillUiNode, UiNode, Widget, WidgetId,
         };
         #[doc(no_inline)]
         pub use crate::properties::set_widget_state;
@@ -1086,11 +1088,12 @@ pub mod prelude {
         pub use crate::core::var::*;
         #[doc(no_inline)]
         pub use crate::core::{
-            impl_ui_node, node_vec, nodes, property, widget,
+            impl_ui_node, node_vec, nodes, property,
+            ui_list::{SortedWidgetVec, SortedWidgetVecRef, UiListObserver, UiNodeList, WidgetList, WidgetVec, WidgetVecRef},
+            widget,
             widget_base::Visibility,
             widget_info::{BoundsInfo, WidgetInfoBuilder, WidgetLayout, WidgetSubscriptions},
-            widget_mixin, widget_vec, widgets, BoxedUiNode, BoxedWidget, FillUiNode, SortedWidgetVec, SortedWidgetVecRef, UiListObserver,
-            UiNode, UiNodeList, Widget, WidgetId, WidgetList, WidgetVec, WidgetVecRef,
+            widget_mixin, widget_vec, widgets, BoxedUiNode, BoxedWidget, FillUiNode, UiNode, Widget, WidgetId,
         };
         #[doc(no_inline)]
         pub use crate::properties::events::{self, gesture::*, keyboard::*};

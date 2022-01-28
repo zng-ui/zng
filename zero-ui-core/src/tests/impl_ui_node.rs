@@ -9,11 +9,12 @@ use crate::{
     context::{TestWidgetContext, WidgetContext},
     impl_ui_node, node_vec, nodes,
     render::{FrameBuilder, FrameId, FrameUpdate},
+    ui_list::UiNodeVec,
     units::*,
     widget_base::implicit_base,
     widget_info::{BoundsInfo, UpdateMask, WidgetInfoBuilder, WidgetRendered, WidgetSubscriptions},
     window::WindowId,
-    UiNode, UiNodeList, UiNodeVec, Widget, WidgetId,
+    UiNode, UiNodeList, Widget, WidgetId,
 };
 
 #[test]

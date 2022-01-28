@@ -1,8 +1,10 @@
+//! UI node and widget lists abstraction.
+
 use crate::{
     context::{InfoContext, LayoutContext, RenderContext, StateMap, WidgetContext},
     event::EventUpdateArgs,
     render::{FrameBuilder, FrameUpdate},
-    units::{AvailableSize, PxRect, PxSize},
+    units::{AvailableSize, PxSize, PxVector, RenderTransform},
     widget_base::Visibility,
     widget_info::{BoundsInfo, WidgetInfoBuilder, WidgetLayout, WidgetSubscriptions},
     WidgetId,
@@ -80,33 +82,28 @@ pub trait UiNodeList: 'static {
     ///
     /// # `available_size`
     ///
-    /// The `available_size` parameter is a function that takes a widget index and the `ctx` and returns
-    /// the available size for the widget.
-    ///
-    /// The index is zero-based, `0` is the first widget, `len() - 1` is the last.
+    /// The `available_size` parameter is a function that must return the available size for the widget.
     ///
     /// # `desired_size`
     ///
-    /// The `desired_size` parameter is a function is called with the widget index, the widget measured size and the `ctx`.
-    ///
-    /// This is how you get the widget desired size.
+    /// The `desired_size` parameter is a function is called with the widget measured size.
     fn measure_all<A, D>(&mut self, ctx: &mut LayoutContext, available_size: A, desired_size: D)
     where
-        A: FnMut(usize, &mut LayoutContext) -> AvailableSize,
-        D: FnMut(usize, PxSize, &mut LayoutContext);
+        A: FnMut(&mut LayoutContext, AvailableSizeArgs) -> AvailableSize,
+        D: FnMut(&mut LayoutContext, DesiredSizeArgs);
 
     /// Calls [`UiNode::measure`] in only the `index` widget.
     fn widget_measure(&mut self, index: usize, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize;
 
     /// Calls [`UiNode::arrange`] in all widgets in the list, sequentially.
     ///
-    /// # `final_rect`
+    /// # `final_size`
     ///
-    /// The `final_rect` parameter is a function that takes a widget index and the `ctx` and returns the
-    /// final size and widget offset for the indexed widget.
-    fn arrange_all<F>(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, final_rect: F)
+    /// The `final_size` parameter is a function that must return the widget final size, the [`FinalSizeArgs`]
+    /// can also be used to configure the [`WidgetLayout`] transform.
+    fn arrange_all<F>(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, final_size: F)
     where
-        F: FnMut(usize, &mut LayoutContext) -> PxRect;
+        F: FnMut(&mut LayoutContext, &mut FinalSizeArgs) -> PxSize;
 
     /// Calls [`UiNode::arrange`] in only the `index` widget.
     fn widget_arrange(&mut self, index: usize, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, final_size: PxSize);
@@ -122,6 +119,134 @@ pub trait UiNodeList: 'static {
 
     /// Calls [`UiNode::render_update`] in only the `index` widget.
     fn widget_render_update(&self, index: usize, ctx: &mut RenderContext, update: &mut FrameUpdate);
+}
+
+/// Arguments for the closure in [`UiNodeList::widget_measure`] that provides the available size for an widget.
+pub struct AvailableSizeArgs<'a> {
+    /// The widget/node index in the list.
+    pub index: usize,
+
+    /// Mutable reference to the widget state.
+    ///
+    /// Is `None` for arrange in UI node lists.
+    pub state: Option<&'a mut StateMap>,
+}
+
+/// Arguments for the closure in [`UiNodeList::widget_measure`] that received the widget desired size.
+pub struct DesiredSizeArgs<'a> {
+    /// The widget/node index in the list.
+    pub index: usize,
+
+    /// Mutable reference to the widget state.
+    ///
+    /// Is `None` for arrange in UI node lists.
+    pub state: Option<&'a mut StateMap>,
+
+    /// The widget measured size.
+    pub desired_size: PxSize,
+}
+
+/// Arguments for the closure in [`UiNodeList::widget_measure`] that provides the widget final size.
+pub struct FinalSizeArgs<'a> {
+    /// The widget/node index in the list.
+    pub index: usize,
+
+    /// Mutable reference to the widget state.
+    ///
+    /// Is `None` for arrange in UI node lists.
+    pub state: Option<&'a mut StateMap>,
+
+    /// Optional pre-translation to register for the widget.
+    ///
+    /// If set the widget list calls [`WidgetLayout::with_pre_translate`].
+    pub pre_translate: Option<PxVector>,
+
+    /// Optional custom transform to register for the widget.
+    ///
+    /// If set the widget list calls [`WidgetLayout::with_custom_transform`].
+    pub custom_transform: Option<RenderTransform>,
+}
+impl<'a> FinalSizeArgs<'a> {
+    /// New arguments for an item in a full widget list.
+    pub fn from_widget(index: usize, widget: &mut impl Widget) -> FinalSizeArgs {
+        FinalSizeArgs {
+            index,
+            state: Some(widget.state_mut()),
+            pre_translate: None,
+            custom_transform: None,
+        }
+    }
+
+    /// New arguments for an item in a UI node only list.
+    pub fn from_node(index: usize) -> Self {
+        Self {
+            index,
+            state: None,
+            pre_translate: None,
+            custom_transform: None,
+        }
+    }
+
+    /// Full widget list implementers can use this method to implement the arrange for an widget.
+    pub fn impl_widget(
+        ctx: &mut LayoutContext,
+        widget_layout: &mut WidgetLayout,
+        index: usize,
+        widget: &mut impl Widget,
+        mut final_size: impl FnMut(&mut LayoutContext, &mut FinalSizeArgs) -> PxSize,
+    ) {
+        let mut args = Self::from_widget(index, widget);
+        let final_size = final_size(ctx, &mut args);
+        let FinalSizeArgs {
+            pre_translate,
+            custom_transform,
+            ..
+        } = args;
+        Self::impl_(ctx, widget_layout, widget, custom_transform, pre_translate, final_size);
+    }
+
+    /// Ui node only list implementer can use this method to implement the arrange for a node.
+    pub fn impl_node(
+        ctx: &mut LayoutContext,
+        widget_layout: &mut WidgetLayout,
+        index: usize,
+        node: &mut impl UiNode,
+        mut final_size: impl FnMut(&mut LayoutContext, &mut FinalSizeArgs) -> PxSize,
+    ) {
+        let mut args = Self::from_node(index);
+        let final_size = final_size(ctx, &mut args);
+        let Self {
+            pre_translate,
+            custom_transform,
+            ..
+        } = args;
+        Self::impl_(ctx, widget_layout, node, custom_transform, pre_translate, final_size);
+    }
+
+    fn impl_(
+        ctx: &mut LayoutContext,
+        widget_layout: &mut WidgetLayout,
+        node: &mut impl UiNode,
+        custom_transform: Option<RenderTransform>,
+        pre_translate: Option<PxVector>,
+        final_size: PxSize,
+    ) {
+        if let Some(t) = custom_transform {
+            widget_layout.with_custom_transform(&t, |wl| {
+                if let Some(t) = pre_translate {
+                    wl.with_pre_translate(t, |wl| {
+                        node.arrange(ctx, wl, final_size);
+                    })
+                }
+            })
+        } else if let Some(t) = pre_translate {
+            widget_layout.with_pre_translate(t, |wl| {
+                node.arrange(ctx, wl, final_size);
+            })
+        } else {
+            node.arrange(ctx, widget_layout, final_size);
+        }
+    }
 }
 
 /// All [`Widget`] accessible *info*.
@@ -237,7 +362,7 @@ pub trait WidgetList: UiNodeList {
 #[macro_export]
 macro_rules! widgets {
     () => {
-        $crate::opaque_widgets($crate::WidgetList0)
+        $crate::ui_list::opaque_widgets($crate::ui_list::WidgetList0)
     };
     ($($widget:expr),+ $(,)?) => {
         $crate::__widgets!{ $($widget),+ }
@@ -269,7 +394,7 @@ pub use crate::widgets;
 #[macro_export]
 macro_rules! nodes {
     () => {
-        $crate::opaque_nodes($crate::UiNodeList0)
+        $crate::ui_list::opaque_nodes($crate::ui_list::UiNodeList0)
     };
     ($($node:expr),+ $(,)?) => {
         $crate::__nodes!{ $($node),+ }
@@ -283,7 +408,7 @@ pub use crate::nodes;
 #[macro_export]
 macro_rules! __nodes {
     ($($node:expr),+ $(,)?) => {
-        $crate::opaque_nodes($crate::node_vec![
+        $crate::ui_list::opaque_nodes($crate::node_vec![
             $($node),+
         ])
     };
@@ -294,7 +419,7 @@ macro_rules! __nodes {
 #[macro_export]
 macro_rules! __widgets {
     ($($widget:expr),+ $(,)?) => {
-        $crate::opaque_widgets($crate::widget_vec![
+        $crate::ui_list::opaque_widgets($crate::widget_vec![
             $($widget),+
         ])
     };
@@ -305,13 +430,13 @@ macro_rules! __widgets {
 #[macro_export]
 macro_rules! __nodes {
     ($w0:expr, $w1:expr, $w2:expr, $w3:expr, $w4:expr, $w5:expr, $w6:expr, $w7:expr, $($w_rest:expr),+ $(,)?) => {
-        $crate::opaque_nodes({
+        $crate::ui_list::opaque_nodes({
             let w8 = $crate::__nodes!($w0, $w1, $w2, $w3, $w4, $w5, $w6, $w7);
             $crate::UiNodeList::chain_nodes(w8, $crate::__nodes!($($w_rest),+))
         })
     };
     ($($tt:tt)*) => {
-        $crate::opaque_nodes($crate::static_list!($crate::UiNodeList0; $($tt)*))
+        $crate::ui_list::opaque_nodes($crate::static_list!($crate::ui_list::UiNodeList0; $($tt)*))
     };
 }
 
@@ -320,13 +445,13 @@ macro_rules! __nodes {
 #[macro_export]
 macro_rules! __widgets {
     ($w0:expr, $w1:expr, $w2:expr, $w3:expr, $w4:expr, $w5:expr, $w6:expr, $w7:expr, $($w_rest:expr),+ $(,)?) => {
-        $crate::opaque_widgets({
+        $crate::ui_list::opaque_widgets({
             let w8 = $crate::__widgets!($w0, $w1, $w2, $w3, $w4, $w5, $w6, $w7);
             $crate::WidgetList::chain(w8, $crate::__widgets!($($w_rest),+))
         })
     };
     ($($tt:tt)*) => {
-        $crate::opaque_widgets($crate::static_list!($crate::WidgetList0; $($tt)*))
+        $crate::ui_list::opaque_widgets($crate::static_list!($crate::ui_list::WidgetList0; $($tt)*))
     };
 }
 

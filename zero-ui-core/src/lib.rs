@@ -73,8 +73,8 @@ mod state;
 mod ui_node;
 pub use ui_node::*;
 
-mod ui_list;
-pub use ui_list::*;
+pub mod ui_list;
+pub use ui_list::{UiNodeList, WidgetList};
 
 pub mod widget_info;
 #[doc(inline)]

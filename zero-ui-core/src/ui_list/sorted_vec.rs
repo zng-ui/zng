@@ -5,10 +5,14 @@ use crate::{
     event::EventUpdateArgs,
     render::{FrameBuilder, FrameUpdate},
     state::StateMap,
-    units::{AvailableSize, PxRect, PxSize},
+    ui_list::{
+        AvailableSizeArgs, DesiredSizeArgs, FinalSizeArgs, UiListObserver, UiNodeList, UiNodeVec, WidgetFilterArgs, WidgetList, WidgetVec,
+        WidgetVecRef,
+    },
+    units::{AvailableSize, PxSize},
     widget_base::Visibility,
     widget_info::{BoundsInfo, UpdateSlot, WidgetInfoBuilder, WidgetLayout, WidgetSubscriptions},
-    BoxedWidget, UiListObserver, UiNode, UiNodeList, UiNodeVec, Widget, WidgetFilterArgs, WidgetId, WidgetList, WidgetVec, WidgetVecRef,
+    BoxedWidget, UiNode, Widget, WidgetId,
 };
 
 /// A vector of boxed [`Widget`] items that remains sorted.
@@ -318,13 +322,28 @@ impl UiNodeList for SortedWidgetVec {
 
     fn measure_all<A, D>(&mut self, ctx: &mut LayoutContext, mut available_size: A, mut desired_size: D)
     where
-        A: FnMut(usize, &mut LayoutContext) -> AvailableSize,
-        D: FnMut(usize, PxSize, &mut LayoutContext),
+        A: FnMut(&mut LayoutContext, AvailableSizeArgs) -> AvailableSize,
+        D: FnMut(&mut LayoutContext, DesiredSizeArgs),
     {
         for (i, w) in self.vec.iter_mut().enumerate() {
-            let available_size = available_size(i, ctx);
+            let available_size = available_size(
+                ctx,
+                AvailableSizeArgs {
+                    index: i,
+                    state: Some(w.state_mut()),
+                },
+            );
+
             let r = w.measure(ctx, available_size);
-            desired_size(i, r, ctx);
+
+            desired_size(
+                ctx,
+                DesiredSizeArgs {
+                    index: i,
+                    state: Some(w.state_mut()),
+                    desired_size: r,
+                },
+            );
         }
     }
 
@@ -332,13 +351,12 @@ impl UiNodeList for SortedWidgetVec {
         self.vec[index].measure(ctx, available_size)
     }
 
-    fn arrange_all<F>(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, mut final_rect: F)
+    fn arrange_all<F>(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, mut final_size: F)
     where
-        F: FnMut(usize, &mut LayoutContext) -> PxRect,
+        F: FnMut(&mut LayoutContext, &mut FinalSizeArgs) -> PxSize,
     {
         for (i, w) in self.vec.iter_mut().enumerate() {
-            let r = final_rect(i, ctx);
-            widget_layout.with_pre_translate(r.origin.to_vector(), |wl| w.arrange(ctx, wl, r.size))
+            FinalSizeArgs::impl_widget(ctx, widget_layout, i, w, &mut final_size);
         }
     }
 
