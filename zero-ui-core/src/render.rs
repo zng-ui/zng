@@ -405,9 +405,11 @@ impl FrameBuilder {
             filter: vec![],
             flags: PrimitiveFlags::empty(),
         });
+        let parent_widget = mem::replace(&mut self.widget_id, widget_id);
 
         f(self);
 
+        self.widget_id = parent_widget;
         self.widget_data = None;
         rendered.set(self.widget_rendered);
         self.widget_rendered |= parent_rendered;
