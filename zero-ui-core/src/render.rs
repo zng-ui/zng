@@ -624,6 +624,7 @@ impl FrameBuilder {
     /// allowing for webrender optimizations.
     ///
     /// [`push_inner`]: Self::push_inner
+    /// [`WidgetLayout::with_custom_transform`]: crate::widget_info::WidgetLayout::with_custom_transform
     #[inline]
     /// [`WidgetLayout`]: crate::widget_info::WidgetLayout
     pub fn push_reference_frame(
@@ -676,10 +677,10 @@ impl FrameBuilder {
 
     /// Calls `f` with added `filter` stacking context.
     ///
-    /// Note that this introduces a new stacking context, you can use the [`push_widget_filter`] method to
+    /// Note that this introduces a new stacking context, you can use the [`push_inner_filter`] method to
     /// add to the widget stacking context.
     ///
-    /// [`push_widget_filter`]: Self::push_widget_filter
+    /// [`push_inner_filter`]: Self::push_inner_filter
     pub fn push_filter(&mut self, filter: &RenderFilter, f: impl FnOnce(&mut Self)) {
         expect_inner!(self.push_filter);
 

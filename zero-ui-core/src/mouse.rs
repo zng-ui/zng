@@ -167,10 +167,12 @@ event_args! {
         /// Previous top-most hit before the mouse moved.
         pub prev_target: Option<WidgetPath>,
 
-        /// Full path to the top-most hit in [`hits`](MouseInputArgs::hits).
+        /// Full path to the top-most hit in [`hits`].
         ///
         /// Is `None` when the mouse moves out of a window or the window closes under the mouse
         /// and there was a previous hovered widget.
+        ///
+        /// [`hits`]: MouseInputArgs::hits
         pub target: Option<WidgetPath>,
 
         /// Current mouse capture.
@@ -1287,8 +1289,8 @@ impl CaptureInfo {
     /// | Mode           | Allows                                             |
     /// |----------------|----------------------------------------------------|
     /// | `Window`       | All widgets in the same window.                    |
-    /// | `Subtree`      | All widgets that have the `target` in their path. |
-    /// | `Widget`       | Only the `target` widget.                         |
+    /// | `Subtree`      | All widgets that have the `target` in their path.  |
+    /// | `Widget`       | Only the `target` widget.                          |
     #[inline]
     pub fn allows(&self, path: &WidgetContextPath) -> bool {
         match self.mode {

@@ -877,7 +877,7 @@ impl UiNodeList for UiNodeVec {
     }
 }
 
-/// Creates a [`WidgetVec`](crate::WidgetVec) containing the arguments.
+/// Creates a [`WidgetVec`] containing the arguments.
 ///
 /// # Example
 ///
@@ -894,6 +894,8 @@ impl UiNodeList for UiNodeVec {
 /// ```
 ///
 /// `widget_vec!` automatically calls [`Widget::boxed_widget`] for each item.
+/// 
+/// [`WidgetVec`]: crate::ui_list::WidgetVec
 #[macro_export]
 macro_rules! widget_vec {
     () => { $crate::ui_list::WidgetVec::new() };
@@ -906,7 +908,7 @@ macro_rules! widget_vec {
 #[doc(inline)]
 pub use crate::widget_vec;
 
-/// Creates a [`UiNodeVec`](crate::UiNodeVec) containing the arguments.
+/// Creates a [`UiNodeVec`] containing the arguments.
 ///
 /// # Example
 ///
@@ -923,6 +925,8 @@ pub use crate::widget_vec;
 /// ```
 ///
 /// `node_vec!` automatically calls [`UiNode::boxed`] for each item.
+/// 
+/// [`UiNodeVec`]: crate::ui_list::UiNodeVec
 #[macro_export]
 macro_rules! node_vec {
     () => { $crate::ui_list::UiNodeVec::new() };

@@ -118,10 +118,10 @@ impl WidgetLayout {
     ///
     /// Must be called in the widget `new_inner`, the [`implicit_base::new_inner`] node does this.
     ///
-    /// Returns the inner transform in the space of the outer bounds, the `new_inner` node must pass this value to [`FrameBuilder::with_inner`]
-    /// and [`FrameUpdate::with_inner`].
+    /// Returns the inner transform in the space of the outer bounds, the `new_inner` node must pass this value to [`FrameBuilder::push_inner`].
     ///
     /// [`implicit_base::new_inner`]: crate::widget_base::implicit_base::new_inner
+    /// [`FrameBuilder::push_inner`]: crate::render::FrameBuilder::push_inner
     pub fn with_inner(&mut self, metrics: &LayoutMetrics, final_size: PxSize, f: impl FnOnce(&mut Self)) -> RenderTransform {
         let mut transform = self.transform;
         let transform_origin = self.transform_origin.to_layout(
