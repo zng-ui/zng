@@ -1035,12 +1035,12 @@ impl WithEvents for crate::app::HeadlessApp {
 
 type Retain = bool;
 
-///<span data-inline></span> Declares new [`EventArgs`](crate::event::EventArgs) types.
+///<span data-inline></span> Declares new [`EventArgs`] types.
 ///
-/// # Example
+/// # Examples
 ///
 /// ```
-/// # use zero_ui_core::{event::event_args, WidgetPath};
+/// # use zero_ui_core::{event::event_args, WidgetPath, text::{Text, formatx}};
 ///
 /// event_args! {
 ///     /// My event arguments.
@@ -1056,12 +1056,24 @@ type Retain = bool;
 ///         fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
 ///             self.target.contains(ctx.path.widget_id())
 ///         }
+///
+///         /// Optional validation, if defined the generated `new` and `now` functions call it and unwrap the result.
+///         ///
+///         /// The error type can be any type that implement `Debug`.
+///         fn validate(&self) -> Result<(), Text> {
+///             if self.arg.contains("error") {
+///                 Err(formatx!("invalid arg `{}`", self.arg))
+///             }
+///             Ok(())
+///         }
 ///     }
 ///
 ///     // multiple structs can be declared in the same call.
 ///     // pub struct MyOtherEventArgs { /**/ }
 /// }
 /// ```
+///
+/// [`EventArgs`]: crate::event::EventArgs
 #[macro_export]
 macro_rules! event_args {
     ($(
@@ -1070,19 +1082,149 @@ macro_rules! event_args {
             $($(#[$arg_outer:meta])* $arg_vis:vis $arg:ident : $arg_ty:ty,)*
             ..
             $(#[$concerns_widget_outer:meta])*
-            fn concerns_widget(&$self:ident, $ctx:ident: &mut WidgetContext) -> bool { $($concerns_widget:tt)+ }
+            fn concerns_widget(&$self:ident, $ctx:tt: &mut WidgetContext) -> bool { $($concerns_widget:tt)+ }
+
+            $(
+                $(#[$validate_outer:meta])*
+                fn validate(&$self_v:ident) -> Result<(), $ValidationError:path> { $($validate:tt)+ }
+            )?
         }
     )+) => {$(
-        $(#[$outer])*
-        #[derive(Debug, Clone)]
-        $vis struct $Args {
-            /// When the event happened.
-            pub timestamp: std::time::Instant,
-            $($(#[$arg_outer])* $arg_vis $arg : $arg_ty,)*
+        $crate::__event_args! {
+            $(#[$outer])*
+            $vis struct $Args {
+                $($(#[$arg_outer])* $arg_vis $arg: $arg_ty,)*
 
-            // Arc<AtomicBool> so we don't cause the $Args:!Send and block the user from creating event channels.
-            stop_propagation: std::sync::Arc<std::sync::atomic::AtomicBool>,
+                ..
+
+                $(#[$concerns_widget_outer])*
+                fn concerns_widget(&$self, $ctx: &mut WidgetContext) -> bool { $($concerns_widget)+ }
+
+                $(
+                    $(#[$validate_outer])*
+                    fn validate(&$self_v) -> Result<(), $ValidationError> { $($validate)+ }
+                )?
+            }
         }
+    )+};
+}
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __event_args {
+    // match validate
+    (
+        $(#[$outer:meta])*
+        $vis:vis struct $Args:ident {
+            $($(#[$arg_outer:meta])* $arg_vis:vis $arg:ident : $arg_ty:ty,)*
+            ..
+            $(#[$concerns_widget_outer:meta])*
+            fn concerns_widget(&$self:ident, $ctx:tt: &mut WidgetContext) -> bool { $($concerns_widget:tt)+ }
+
+            $(#[$validate_outer:meta])*
+            fn validate(&$self_v:ident) -> Result<(), $ValidationError:path> { $($validate:tt)+ }
+        }
+    ) => {
+        $crate::__event_args! {common=>
+
+            $(#[$outer])*
+            $vis struct $Args {
+                $($(#[$arg_outer])* $arg_vis $arg: $arg_ty,)*
+                ..
+                $(#[$concerns_widget_outer])*
+                fn concerns_widget(&$self, $ctx: &mut WidgetContext) -> bool { $($concerns_widget)+ }
+            }
+        }
+        impl $Args {
+            /// New args from values that convert [into](Into) the argument types.
+            ///
+            /// # Panics
+            ///
+            /// Panics if the arguments are invalid.
+            #[inline]
+            #[track_caller]
+            #[allow(clippy::too_many_arguments)]
+            pub fn new(timestamp: impl Into<std::time::Instant>, $($arg : impl Into<$arg_ty>),*) -> Self {
+                let args = $Args {
+                    timestamp: timestamp.into(),
+                    $($arg: $arg.into(),)*
+                    stop_propagation: std::sync::Arc::default(),
+                };
+                args.assert_valid();
+                args
+            }
+
+            /// New args from values that convert [into](Into) the argument types.
+            ///
+            /// Returns an error if the constructed arguments are invalid.
+            #[inline]
+            #[allow(clippy::too_many_arguments)]
+            pub fn try_new(timestamp: impl Into<std::time::Instant>, $($arg : impl Into<$arg_ty>),*) -> Result<Self, $ValidationError> {
+                let args = $Args {
+                    timestamp: timestamp.into(),
+                    $($arg: $arg.into(),)*
+                    stop_propagation: std::sync::Arc::default(),
+                };
+                args.validate()?;
+                Ok(args)
+            }
+
+            /// Arguments for event that happened now (`Instant::now`).
+            ///
+            /// # Panics
+            ///
+            /// Panics if the arguments are invalid.
+            #[inline]
+            #[track_caller]
+            #[allow(clippy::too_many_arguments)]
+            pub fn now($($arg : impl Into<$arg_ty>),*) -> Self {
+                Self::new(std::time::Instant::now(), $($arg),*)
+            }
+
+            /// Arguments for event that happened now (`Instant::now`).
+            ///
+            /// Returns an error if the constructed arguments are invalid.
+            #[inline]
+            #[allow(clippy::too_many_arguments)]
+            pub fn try_now($($arg : impl Into<$arg_ty>),*) -> Result<Self, $ValidationError> {
+                Self::try_new(std::time::Instant::now(), $($arg),*)
+            }
+
+            $(#[$validate_outer])*
+            pub fn validate(&$self_v) -> Result<(), $ValidationError> {
+                $($validate)+
+            }
+
+            /// Panics if the arguments are invalid.
+            #[track_caller]
+            pub fn assert_valid(&self) {
+                if let Err(e) = self.validate() {
+                    panic!("invalid `{}`, {e:?}", stringify!($Args));
+                }
+            }
+        }
+    };
+
+    // match no validate
+    (
+        $(#[$outer:meta])*
+        $vis:vis struct $Args:ident {
+            $($(#[$arg_outer:meta])* $arg_vis:vis $arg:ident : $arg_ty:ty,)*
+            ..
+            $(#[$concerns_widget_outer:meta])*
+            fn concerns_widget(&$self:ident, $ctx:tt: &mut WidgetContext) -> bool { $($concerns_widget:tt)+ }
+        }
+    ) => {
+        $crate::__event_args! {common=>
+
+            $(#[$outer])*
+            $vis struct $Args {
+                $($(#[$arg_outer])* $arg_vis $arg: $arg_ty,)*
+                ..
+                $(#[$concerns_widget_outer])*
+                fn concerns_widget(&$self, $ctx: &mut WidgetContext) -> bool { $($concerns_widget)+ }
+            }
+        }
+
         impl $Args {
             /// New args from values that convert [into](Into) the argument types.
             #[inline]
@@ -1096,12 +1238,40 @@ macro_rules! event_args {
             }
 
             /// Arguments for event that happened now (`Instant::now`).
+            ///
+            /// # Panics
+            ///
+            /// Panics if the arguments are invalid.
             #[inline]
             #[allow(clippy::too_many_arguments)]
             pub fn now($($arg : impl Into<$arg_ty>),*) -> Self {
                 Self::new(std::time::Instant::now(), $($arg),*)
             }
+        }
+    };
 
+    // common code between validating and not.
+    (common=>
+
+        $(#[$outer:meta])*
+        $vis:vis struct $Args:ident {
+            $($(#[$arg_outer:meta])* $arg_vis:vis $arg:ident : $arg_ty:ty,)*
+            ..
+            $(#[$concerns_widget_outer:meta])*
+            fn concerns_widget(&$self:ident, $ctx:tt: &mut WidgetContext) -> bool { $($concerns_widget:tt)+ }
+        }
+    ) => {
+        $(#[$outer])*
+        #[derive(Debug, Clone)]
+        $vis struct $Args {
+            /// When the event happened.
+            pub timestamp: std::time::Instant,
+            $($(#[$arg_outer])* $arg_vis $arg : $arg_ty,)*
+
+            // Arc<AtomicBool> so we don't cause the $Args:!Send and block the user from creating event channels.
+            stop_propagation: std::sync::Arc<std::sync::atomic::AtomicBool>,
+        }
+        impl $Args {
             /// Requests that subsequent handlers skip this event.
             ///
             /// Cloned arguments signal stop for all clones.
@@ -1148,40 +1318,16 @@ macro_rules! event_args {
                 self.stop_propagation.load(std::sync::atomic::Ordering::Relaxed)
             }
         }
-    )+};
-
-    // match discard WidgetContext in concerns_widget.
-    ($(
-        $(#[$outer:meta])*
-        $vis:vis struct $Args:ident {
-            $($(#[$arg_outer:meta])* $arg_vis:vis $arg:ident : $arg_ty:ty,)*
-            ..
-            $(#[$concerns_widget_outer:meta])*
-            fn concerns_widget(&$self:ident, _: &mut WidgetContext) -> bool { $($concerns_widget:tt)+ }
-        }
-    )+) => {
-        $crate::event_args! { $(
-
-            $(#[$outer])*
-            $vis struct $Args {
-                $($(#[$arg_outer])* $arg_vis $arg: $arg_ty,)*
-                ..
-                $(#[$concerns_widget_outer])*
-                fn concerns_widget(&$self, _ctx: &mut WidgetContext) -> bool { $($concerns_widget)+ }
-            }
-
-        )+ }
     };
 }
-
 #[doc(inline)]
 pub use crate::event_args;
 
-///<span data-inline></span> Declares new [`CancelableEventArgs`](crate::event::CancelableEventArgs) types.
+///<span data-inline></span> Declares new [`CancelableEventArgs`] types.
 ///
 /// Same syntax as [`event_args!`](macro.event_args.html) but the generated args is also cancelable.
 ///
-/// # Example
+/// # Examples
 ///
 /// ```
 /// # use zero_ui_core::{event::cancelable_event_args, WidgetPath};
@@ -1199,34 +1345,176 @@ pub use crate::event_args;
 ///         fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
 ///             self.target.contains(ctx.path.widget_id())
 ///         }
+///
+///         /// Optional validation, if defined the generated `new` and `now` functions call it and unwrap the result.
+///         ///
+///         /// The error type can be any type that implement `Debug`.
+///         fn validate(&self) -> Result<(), Text> {
+///             if self.arg.contains("error") {
+///                 Err(formatx!("invalid arg `{}`", self.arg))
+///             }
+///             Ok(())
+///         }
 ///     }
 ///
 ///     // multiple structs can be declared in the same call.
 ///     // pub struct MyOtherEventArgs { /**/ }
 /// }
 /// ```
+///
+/// [`CancelableEventArgs`]: crate::event::CancelableEventArgs
 #[macro_export]
 macro_rules! cancelable_event_args {
-
     ($(
         $(#[$outer:meta])*
         $vis:vis struct $Args:ident {
             $($(#[$arg_outer:meta])* $arg_vis:vis $arg:ident : $arg_ty:ty,)*
             ..
             $(#[$concerns_widget_outer:meta])*
-            fn concerns_widget(&$self:ident, $ctx:ident: &mut WidgetContext) -> bool { $($concerns_widget:tt)+ }
+            fn concerns_widget(&$self:ident, $ctx:tt: &mut WidgetContext) -> bool { $($concerns_widget:tt)+ }
+            $(
+                $(#[$validate_outer:meta])*
+                fn validate(&$self_v:ident) -> Result<(), $ValidationError:path> { $($validate:tt)+ }
+            )?
         }
     )+) => {$(
-        $(#[$outer])*
-        #[derive(Debug, Clone)]
-        $vis struct $Args {
-            /// When the event happened.
-            pub timestamp: std::time::Instant,
-            $($(#[$arg_outer])* $arg_vis $arg : $arg_ty,)*
-            // Arc<AtomicBool> so we don't cause the $Args:!Send and block the user from creating event channels.
-            stop_propagation: std::sync::Arc<std::sync::atomic::AtomicBool>,
-            cancel: std::sync::Arc<std::sync::atomic::AtomicBool>,
+        $crate::__cancelable_event_args! {
+            $(#[$outer])*
+            $vis struct $Args {
+                $($(#[$arg_outer])* $arg_vis $arg: $arg_ty,)*
+
+                ..
+
+                $(#[$concerns_widget_outer])*
+                fn concerns_widget(&$self, $ctx: &mut WidgetContext) -> bool { $($concerns_widget)+ }
+
+                $(
+                    $(#[$validate_outer:meta])*
+                    fn validate(&$self_v) -> Result<(), $ValidationError> { $($validate)+ }
+                )?
+            }
         }
+    )+};
+}
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __cancelable_event_args {
+    // match validate
+    (
+        $(#[$outer:meta])*
+        $vis:vis struct $Args:ident {
+            $($(#[$arg_outer:meta])* $arg_vis:vis $arg:ident : $arg_ty:ty,)*
+            ..
+            $(#[$concerns_widget_outer:meta])*
+            fn concerns_widget(&$self:ident, $ctx:tt: &mut WidgetContext) -> bool { $($concerns_widget:tt)+ }
+
+            $(#[$validate_outer:meta])*
+            fn validate(&$self_v:ident) -> Result<(), $ValidationError:path> { $($validate:tt)+ }
+        }
+    ) => {
+        $crate::__cancelable_event_args! {common=>
+
+            $(#[$outer])*
+            $vis struct $Args {
+                $($(#[$arg_outer])* $arg_vis $arg: $arg_ty,)*
+                ..
+                $(#[$concerns_widget_outer])*
+                fn concerns_widget(&$self, $ctx: &mut WidgetContext) -> bool { $($concerns_widget)+ }
+            }
+        }
+        impl $Args {
+            /// New args from values that convert [into](Into) the argument types.
+            ///
+            /// # Panics
+            ///
+            /// Panics if the arguments are invalid.
+            #[inline]
+            #[track_caller]
+            #[allow(clippy::too_many_arguments)]
+            pub fn new(timestamp: impl Into<std::time::Instant>, $($arg : impl Into<$arg_ty>),*) -> Self {
+                let args = $Args {
+                    timestamp: timestamp.into(),
+                    $($arg: $arg.into(),)*
+                    stop_propagation: std::sync::Arc::default(),
+                    cancel: std::sync::Arc::default()
+                };
+                args.assert_valid();
+                args
+            }
+
+            /// New args from values that convert [into](Into) the argument types.
+            ///
+            /// Returns an error if the constructed arguments are invalid.
+            #[inline]
+            #[allow(clippy::too_many_arguments)]
+            pub fn try_new(timestamp: impl Into<std::time::Instant>, $($arg : impl Into<$arg_ty>),*) -> Result<Self, $ValidationError> {
+                let args = $Args {
+                    timestamp: timestamp.into(),
+                    $($arg: $arg.into(),)*
+                    stop_propagation: std::sync::Arc::default(),
+                    cancel: std::sync::Arc::default()
+                };
+                args.validate()?;
+                Ok(args)
+            }
+
+            /// Arguments for event that happened now (`Instant::now`).
+            ///
+            /// # Panics
+            ///
+            /// Panics if the arguments are invalid.
+            #[inline]
+            #[track_caller]
+            #[allow(clippy::too_many_arguments)]
+            pub fn now($($arg : impl Into<$arg_ty>),*) -> Self {
+                Self::new(std::time::Instant::now(), $($arg),*)
+            }
+
+            /// Arguments for event that happened now (`Instant::now`).
+            ///
+            /// Returns an error if the constructed arguments are invalid.
+            #[inline]
+            #[allow(clippy::too_many_arguments)]
+            pub fn try_now($($arg : impl Into<$arg_ty>),*) -> Result<Self, $ValidationError> {
+                Self::try_new(std::time::Instant::now(), $($arg),*)
+            }
+
+            $(#[$validate_outer])*
+            pub fn validate(&$self_v) -> Result<(), $ValidationError> {
+                $($validate)+
+            }
+
+            /// Panics if the arguments are invalid.
+            #[track_caller]
+            pub fn assert_valid(&self) {
+                if let Err(e) = self.validate() {
+                    panic!("invalid `{}`, {e:?}", stringify!($Args));
+                }
+            }
+        }
+    };
+
+    // match no validate
+    (
+        $(#[$outer:meta])*
+        $vis:vis struct $Args:ident {
+            $($(#[$arg_outer:meta])* $arg_vis:vis $arg:ident : $arg_ty:ty,)*
+            ..
+            $(#[$concerns_widget_outer:meta])*
+            fn concerns_widget(&$self:ident, $ctx:tt: &mut WidgetContext) -> bool { $($concerns_widget:tt)+ }
+        }
+    ) => {
+        $crate::__cancelable_event_args! {common=>
+
+            $(#[$outer])*
+            $vis struct $Args {
+                $($(#[$arg_outer])* $arg_vis $arg: $arg_ty,)*
+                ..
+                $(#[$concerns_widget_outer])*
+                fn concerns_widget(&$self, $ctx: &mut WidgetContext) -> bool { $($concerns_widget)+ }
+            }
+        }
+
         impl $Args {
             /// New args from values that convert [into](Into) the argument types.
             #[inline]
@@ -1236,17 +1524,46 @@ macro_rules! cancelable_event_args {
                     timestamp: timestamp.into(),
                     $($arg: $arg.into(),)*
                     stop_propagation: std::sync::Arc::default(),
-                    cancel: std::sync::Arc::default(),
+                    cancel: std::sync::Arc::default()
                 }
             }
 
             /// Arguments for event that happened now (`Instant::now`).
+            ///
+            /// # Panics
+            ///
+            /// Panics if the arguments are invalid.
             #[inline]
             #[allow(clippy::too_many_arguments)]
             pub fn now($($arg : impl Into<$arg_ty>),*) -> Self {
                 Self::new(std::time::Instant::now(), $($arg),*)
             }
+        }
+    };
 
+    // common code between validating and not.
+    (common=>
+
+        $(#[$outer:meta])*
+        $vis:vis struct $Args:ident {
+            $($(#[$arg_outer:meta])* $arg_vis:vis $arg:ident : $arg_ty:ty,)*
+            ..
+            $(#[$concerns_widget_outer:meta])*
+            fn concerns_widget(&$self:ident, $ctx:tt: &mut WidgetContext) -> bool { $($concerns_widget:tt)+ }
+        }
+    ) => {
+        $(#[$outer])*
+        #[derive(Debug, Clone)]
+        $vis struct $Args {
+            /// When the event happened.
+            pub timestamp: std::time::Instant,
+            $($(#[$arg_outer])* $arg_vis $arg : $arg_ty,)*
+
+            // Arc<AtomicBool> so we don't cause the $Args:!Send and block the user from creating event channels.
+            stop_propagation: std::sync::Arc<std::sync::atomic::AtomicBool>,
+            cancel: std::sync::Arc<std::sync::atomic::AtomicBool>,
+        }
+        impl $Args {
             /// Requests that subsequent handlers skip this event.
             ///
             /// Cloned arguments signal stop for all clones.
@@ -1277,6 +1594,12 @@ macro_rules! cancelable_event_args {
             #[inline]
             pub fn cancel_requested(&self) -> bool {
                 <Self as $crate::event::CancelableEventArgs>::cancel_requested(self)
+            }
+
+            /// If the event described by these arguments is relevant in the given widget context.
+            #[inline]
+            pub fn concerns_widget(&self, ctx: &mut $crate::context::WidgetContext) -> bool {
+                <Self as $crate::event::EventArgs>::concerns_widget(self, ctx)
             }
         }
         impl $crate::event::EventArgs for $Args {
@@ -1312,29 +1635,6 @@ macro_rules! cancelable_event_args {
                 self.cancel.store(true, std::sync::atomic::Ordering::Relaxed);
             }
         }
-    )+};
-
-    // match discard WidgetContext in concerns_widget.
-    ($(
-        $(#[$outer:meta])*
-        $vis:vis struct $Args:ident {
-            $($(#[$arg_outer:meta])* $arg_vis:vis $arg:ident : $arg_ty:ty,)*
-            ..
-            $(#[$concerns_widget_outer:meta])*
-            fn concerns_widget(&$self:ident, _: &mut WidgetContext) -> bool { $($concerns_widget:tt)+ }
-        }
-    )+) => {
-        $crate::cancelable_event_args! { $(
-
-            $(#[$outer])*
-            $vis struct $Args {
-                $($(#[$arg_outer])* $arg_vis $arg: $arg_ty,)*
-                ..
-                $(#[$concerns_widget_outer])*
-                fn concerns_widget(&$self, _ctx: &mut WidgetContext) -> bool { $($concerns_widget)+ }
-            }
-
-        )+ }
     };
 }
 
