@@ -1,6 +1,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 use zero_ui::core::focus::FocusChangedEvent;
 use zero_ui::prelude::*;
+use zero_ui::widgets::window::{WindowLayers, LayerIndex};
 
 use zero_ui_view_prebuilt as zero_ui_view;
 
@@ -15,8 +16,10 @@ fn main() {
 fn app_main() {
     App::default().run_window(|ctx| {
         trace_focus(ctx.events);
+        let window_enabled = var(true);
         window! {
             title = "Focus Example";
+            enabled = window_enabled.clone();
             content_align = unset!;
             content = v_stack! {
                 items = widgets![
@@ -27,7 +30,7 @@ fn app_main() {
                         spacing = 10;
                         items = widgets![
                             tab_index(),
-                            functions()
+                            functions(window_enabled)
                         ]
                     }
                 ];
@@ -65,12 +68,13 @@ fn tab_index() -> impl Widget {
     }
 }
 
-fn functions() -> impl Widget {
+fn functions(window_enabled: RcVar<bool>) -> impl Widget {
     v_stack! {
         spacing = 5;
         focus_shortcut = shortcut!(F);
         items = widgets![
             title("Functions (F)"),
+            // New Window
             button! {
                 content = text("New Window");
                 on_click = hn!(|ctx, _| {
@@ -91,6 +95,7 @@ fn functions() -> impl Widget {
                     });
                 });
             },
+            // Detach Button
             {
                 let detach_focused = RcNode::new_cyclic(|wk| {
                     let btn = button! {
@@ -108,8 +113,53 @@ fn functions() -> impl Widget {
                     btn.boxed()
                 });
                 slot(detach_focused, take_on_init())
+            },
+            // Disable Scope
+            button! { 
+                content = text(window_enabled.map(|&e| if e { "Disable Scope" } else { "Enabling in 1s..." }.into()));
+                width = 140;
+                on_click = async_hn!(window_enabled, |ctx, _| {
+                    window_enabled.set(&ctx, false);
+                    task::timeout(1.secs()).await;
+                    window_enabled.set(&ctx, true);
+                });
+            },
+            // Replace Scope
+            button! {
+                content = text("Replace Scope");
+                on_click = hn!(|ctx, _| {
+                    window_enabled.set(ctx, false);
+                    WindowLayers::insert(ctx,  LayerIndex::TOP_MOST, overlay(window_enabled.clone()));
+                });
             }
         ]
+    }
+}
+fn overlay(window_enabled: RcVar<bool>) -> impl Widget {
+    container! {
+        id = "overlay";
+        background_color = colors::GRAY.with_alpha(40.pct());
+        content = container! {
+            focus_scope = true;
+            background_color = colors::GRAY.darken(50.pct());
+            padding = 2;
+            content = v_stack! {
+                items_align = Alignment::RIGHT;
+                items = widgets![
+                    text! {
+                        text = "Window scope is disabled so the overlay scope is the root scope.";
+                        margin = 15;
+                    },
+                    button! {
+                        content = text("Ok");
+                        on_click = hn!(|ctx, _| {
+                            window_enabled.set(ctx, true);
+                            WindowLayers::remove(ctx, "overlay");
+                        })
+                    }
+                ]
+            }
+        }
     }
 }
 
