@@ -526,10 +526,15 @@ pub mod text {
         /// The variation `name` is set for the [`FontVariationsVar`] in this context, variations already set in the parent
         /// context that are not the same `name` are also included.
         pub fn with_font_variation(child: impl UiNode, name: FontVariationName, value: impl IntoVar<f32>) -> impl UiNode {
-            with_context_var_fold(child, FontVariationsVar, value, move |mut variations, value| {
-                variations.insert(name, *value);
-                variations
-            })
+            with_context_var(
+                child,
+                FontVariationsVar,
+                merge_var!(FontVariationsVar::new(), value.into_var(), move |variations, value| {
+                    let mut variations = variations.clone();
+                    variations.insert(name, *value);
+                    variations
+                }),
+            )
         }
 
         /// Include the font feature config in the widget context.
@@ -541,12 +546,18 @@ pub mod text {
             C: UiNode,
             S: VarValue,
             V: IntoVar<S>,
-            D: Fn(&mut FontFeatures, S) -> S + 'static,
+            D: FnMut(&mut FontFeatures, S) -> S + 'static,
         {
-            with_context_var_fold(child, FontFeaturesVar, state, move |mut features, state| {
-                set_feature(&mut features, state.clone());
-                features
-            })
+            let mut set_feature = set_feature;
+            with_context_var(
+                child,
+                FontFeaturesVar,
+                merge_var!(FontFeaturesVar::new(), state.into_var(), move |features, state| {
+                    let mut features = features.clone();
+                    set_feature(&mut features, state.clone());
+                    features
+                }),
+            )
         }
 
         /// Sets font variations.

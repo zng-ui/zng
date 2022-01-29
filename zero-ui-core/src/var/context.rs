@@ -509,8 +509,6 @@ macro_rules! context_var {
 pub use crate::context_var;
 
 mod properties {
-    use std::{cell::Cell, marker::PhantomData};
-
     use crate::{context::*, event::*, render::*, units::*, var::*, widget_info::*, *};
 
     /// Helper for declaring properties that sets a context var.
@@ -543,6 +541,47 @@ mod properties {
     ///
     /// Also note that the property [`default`] is set to the same `FooVar`, this causes the property to *pass-through* the outer context
     /// value, as if it was not set.
+    ///
+    /// **Tip:** You can use a [`merge_var!`] to merge a new value to the previous context value:
+    ///
+    /// ```
+    /// # fn main() -> () { }
+    /// # use zero_ui_core::{*, var::*};
+    ///
+    /// #[derive(Debug, Clone, Default)]
+    /// pub struct Config {
+    ///     pub foo: bool,
+    ///     pub bar: bool,
+    /// }
+    ///
+    /// context_var! {
+    ///     pub struct ConfigVar: Config = Config::default();
+    /// }
+    ///
+    /// /// Sets the *foo* config.
+    /// #[property(context, default(false))]
+    /// pub fn foo(child: impl UiNode, value: impl IntoVar<bool>) -> impl UiNode {
+    ///     with_context_var(child, FooVar, merge_var!(ConfigVar::new(), value.into_var(), |c, &v| {
+    ///         let mut c = c.clone();
+    ///         c.foo = v;
+    ///         c
+    ///     }))
+    /// }
+    ///
+    /// /// Sets the *bar* config.
+    /// #[property(context, default(false))]
+    /// pub fn bar(child: impl UiNode, value: impl IntoVar<bool>) -> impl UiNode {
+    ///     with_context_var(child, FooVar, merge_var!(ConfigVar::new(), value.into_var(), |c, &v| {
+    ///         let mut c = c.clone();
+    ///         c.bar = v;
+    ///         c
+    ///     }))
+    /// }
+    /// ```
+    ///
+    /// When set in a widget, the [`merge_var!`] will read the context value of the parent properties, modify a clone of the value and
+    /// the result will be accessible to the inner properties, the widget user can then set with the composed value in steps and
+    /// the final consumer of the composed value only need to monitor to a single context variable.
     ///
     /// [`version`]: Var::version
     /// [`is_new`]: Var::is_new
@@ -732,216 +771,6 @@ mod properties {
             child,
             var,
             value: value.into_var(),
-        }
-    }
-
-    /// Helper for declaring properties that affects a context var value but does not fully replace it.
-    pub fn with_context_var_fold<C: ContextVar, I: VarValue>(
-        child: impl UiNode,
-        var: C,
-        item: impl IntoVar<I>,
-        fold: impl Fn(C::Type, &I) -> C::Type + 'static,
-    ) -> impl UiNode {
-        struct WithContextVarFoldNode<U, C: ContextVar, T, V, F> {
-            child: U,
-
-            var: C,
-            var_ver: u32,
-            item: V,
-            item_ver: u32,
-
-            fold: F,
-
-            value: C::Type,
-            version: u32,
-            update_mask: Cell<UpdateMask>,
-
-            _t: PhantomData<T>,
-        }
-        impl<U, C: ContextVar, T, V, F> WithContextVarFoldNode<U, C, T, V, F>
-        where
-            U: UiNode,
-            T: VarValue,
-            C: ContextVar,
-            V: Var<T>,
-            F: Fn(C::Type, &T) -> C::Type + 'static,
-        {
-        }
-        impl<U, T, C, V, F> UiNode for WithContextVarFoldNode<U, C, T, V, F>
-        where
-            U: UiNode,
-            T: VarValue,
-            C: ContextVar,
-            V: Var<T>,
-            F: Fn(C::Type, &T) -> C::Type + 'static,
-        {
-            #[inline(always)]
-            fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
-                ctx.vars.with_context_var(
-                    self.var,
-                    ContextVarData {
-                        value: &self.value,
-                        is_new: false,
-                        version: self.version,
-                        update_mask: self.update_mask.get(),
-                    },
-                    || self.child.info(ctx, info),
-                );
-            }
-            #[inline(always)]
-            fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
-                self.update_mask.set(C::new().update_mask(ctx) | self.item.update_mask(ctx));
-                ctx.vars.with_context_var(
-                    self.var,
-                    ContextVarData {
-                        value: &self.value,
-                        is_new: false,
-                        version: self.version,
-                        update_mask: self.update_mask.get(),
-                    },
-                    || self.child.subscriptions(ctx, subscriptions),
-                );
-            }
-            #[inline(always)]
-            fn init(&mut self, ctx: &mut WidgetContext) {
-                let var = C::new();
-                self.value = (self.fold)(var.get_clone(ctx), self.item.get(ctx));
-                self.version = 0;
-                self.item_ver = self.item.version(ctx);
-                self.var_ver = var.version(ctx);
-
-                ctx.vars.with_context_var(
-                    self.var,
-                    ContextVarData {
-                        value: &self.value,
-                        is_new: false,
-                        version: self.version,
-                        update_mask: self.update_mask.get(),
-                    },
-                    || self.child.init(ctx),
-                );
-            }
-            #[inline(always)]
-            fn deinit(&mut self, ctx: &mut WidgetContext) {
-                ctx.vars.with_context_var(
-                    self.var,
-                    ContextVarData {
-                        value: &self.value,
-                        is_new: false,
-                        version: self.version,
-                        update_mask: self.update_mask.get(),
-                    },
-                    || self.child.deinit(ctx),
-                );
-            }
-            #[inline(always)]
-            fn update(&mut self, ctx: &mut WidgetContext) {
-                let var = C::new();
-                let var_ver = var.version(ctx);
-                let item_ver = self.item.version(ctx);
-                let is_new = var.is_new(ctx) || self.item.is_new(ctx);
-
-                if is_new || self.var_ver != var_ver || self.item_ver != item_ver {
-                    self.var_ver = var_ver;
-                    self.item_ver = item_ver;
-                    self.value = (self.fold)(var.get_clone(ctx), self.item.get(ctx));
-                    self.version = self.version.wrapping_add(1);
-                }
-
-                ctx.vars.with_context_var(
-                    self.var,
-                    ContextVarData {
-                        value: &self.value,
-                        is_new,
-                        version: self.version,
-                        update_mask: self.update_mask.get(),
-                    },
-                    || self.child.update(ctx),
-                );
-            }
-            #[inline(always)]
-            fn event<EU: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &EU) {
-                ctx.vars.with_context_var(
-                    self.var,
-                    ContextVarData {
-                        value: &self.value,
-                        is_new: false,
-                        version: self.version,
-                        update_mask: self.update_mask.get(),
-                    },
-                    || self.child.event(ctx, args),
-                );
-            }
-            #[inline(always)]
-            fn measure(&mut self, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize {
-                ctx.vars.with_context_var(
-                    self.var,
-                    ContextVarData {
-                        value: &self.value,
-                        is_new: false,
-                        version: self.version,
-                        update_mask: self.update_mask.get(),
-                    },
-                    || self.child.measure(ctx, available_size),
-                )
-            }
-            #[inline(always)]
-            fn arrange(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, final_size: PxSize) {
-                ctx.vars.with_context_var(
-                    self.var,
-                    ContextVarData {
-                        value: &self.value,
-                        is_new: false,
-                        version: self.version,
-                        update_mask: self.update_mask.get(),
-                    },
-                    || self.child.arrange(ctx, widget_layout, final_size),
-                );
-            }
-
-            #[inline(always)]
-            fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-                ctx.vars.with_context_var(
-                    self.var,
-                    ContextVarData {
-                        value: &self.value,
-                        is_new: false,
-                        version: self.version,
-                        update_mask: self.update_mask.get(),
-                    },
-                    || self.child.render(ctx, frame),
-                );
-            }
-            #[inline(always)]
-            fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
-                ctx.vars.with_context_var(
-                    self.var,
-                    ContextVarData {
-                        value: &self.value,
-                        is_new: false,
-                        version: self.version,
-                        update_mask: self.update_mask.get(),
-                    },
-                    || self.child.render_update(ctx, update),
-                );
-            }
-        }
-        WithContextVarFoldNode {
-            child,
-
-            var,
-            var_ver: 0,
-
-            item: item.into_var(),
-            item_ver: 0,
-
-            fold,
-
-            value: C::default_value(),
-            version: 0,
-            update_mask: Cell::new(UpdateMask::none()),
-
-            _t: PhantomData,
         }
     }
 }

@@ -849,7 +849,7 @@ pub fn is_hit_testable(child: impl UiNode, state: StateVar) -> impl UiNode {
             self.child.init(ctx);
             self.update_state(ctx);
         }
-       
+
         fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
             subscriptions.updates(&IsHitTestable::update_mask(ctx));
             self.child.subscriptions(ctx, subscriptions);
