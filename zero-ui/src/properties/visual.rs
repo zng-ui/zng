@@ -4,7 +4,7 @@ use crate::core::gradient::{GradientStops, LinearGradientAxis};
 use crate::prelude::new_property::*;
 use crate::widgets::{fill_color, linear_gradient};
 
-use super::margin;
+use super::side_offsets;
 
 /// Custom background property. Allows using any other widget as a background.
 ///
@@ -191,7 +191,7 @@ pub fn foreground_highlight(
     radius: impl IntoVar<BorderRadius>,
 ) -> impl UiNode {
     let border = crate::properties::border(crate::core::FillUiNode, widths, sides, radius);
-    foreground(child, margin(border, offsets))
+    foreground(child, side_offsets(border, offsets))
 }
 
 /// Fill color overlay property.

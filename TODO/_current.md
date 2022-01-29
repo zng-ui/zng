@@ -5,10 +5,6 @@
 
 # Layer
 
-* Expand WidgetInfo to provide a RenderTransform.
-* Use the `WidgetInnerBoundsNode` to control all inner transforms.
-    - Use it to enforce no render outside?
-
 * Focus does not recover to new root scope.
     - Disable window.
     - Show overlay with own focus scope.

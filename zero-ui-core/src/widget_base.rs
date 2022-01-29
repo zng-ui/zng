@@ -446,7 +446,7 @@ pub fn enabled(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
         }
 
         fn update(&mut self, ctx: &mut WidgetContext) {
-            if let Some(state) = dbg!(IsEnabled::get_new(ctx)) {
+            if let Some(state) = IsEnabled::get_new(ctx) {
                 ctx.widget_state.set(EnabledState, state);
                 ctx.updates.info();
             }

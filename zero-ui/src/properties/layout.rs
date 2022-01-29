@@ -4,7 +4,10 @@ use zero_ui::prelude::new_property::*;
 
 /// Margin space around the widget.
 ///
-/// # Example
+/// This property adds side offsets to the widget inner visual, it will be combined with the other
+/// layout properties of the widget to define the inner visual position and widget size.
+///
+/// # Examples
 ///
 /// ```
 /// use zero_ui::prelude::*;
@@ -33,6 +36,10 @@ use zero_ui::prelude::new_property::*;
 ///
 /// In the example the button has `10` pixels of space above and bellow and `5%` of the container width to the left and right.
 /// The container itself has margin of `1` to the top, `2` to the right, `3` to the bottom and `4` to the left.
+///
+/// See also [`side_offsets`] to apply side offsets inside the inner visual.
+///
+/// [`side_offsets`]: fn@side_offsets
 #[property(outer, default(0))]
 pub fn margin(child: impl UiNode, margin: impl IntoVar<SideOffsets>) -> impl UiNode {
     struct MarginNode<T, M> {
@@ -79,6 +86,74 @@ pub fn margin(child: impl UiNode, margin: impl IntoVar<SideOffsets>) -> impl UiN
         margin: margin.into_var(),
         size_increment: PxSize::zero(),
         child_origin: PxPoint::zero(),
+    }
+}
+
+/// A custom *margin* or *padding* offsets applied on the visual part of the widget.
+///
+/// This property does not add to the layout of the widget like [`margin`], but renders the extra offsets directly.
+/// It can be useful for implementing custom properties or for adding spacing in between multiple visual properties.
+///
+/// [`margin`]: fn@margin
+#[property(inner, default(0))]
+pub fn side_offsets(child: impl UiNode, offsets: impl IntoVar<SideOffsets>) -> impl UiNode {
+    struct SideOffsetsNode<T, M> {
+        child: T,
+        spatial_id: SpatialFrameId,
+        offsets: M,
+        size_increment: PxSize,
+        child_offset: PxVector,
+    }
+    #[impl_ui_node(child)]
+    impl<T: UiNode, M: Var<SideOffsets>> UiNode for SideOffsetsNode<T, M> {
+        fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
+            subscriptions.var(ctx, &self.offsets);
+            self.child.subscriptions(ctx, subscriptions);
+        }
+
+        fn update(&mut self, ctx: &mut WidgetContext) {
+            if self.offsets.is_new(ctx) {
+                ctx.updates.layout();
+            }
+            self.child.update(ctx);
+        }
+
+        fn measure(&mut self, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize {
+            let offsets = self.offsets.get(ctx).to_layout(ctx, available_size, PxSideOffsets::zero());
+
+            self.size_increment = PxSize::new(offsets.left + offsets.right, offsets.top + offsets.bottom);
+
+            let offset = PxVector::new(offsets.left, offsets.top);
+            if offset != self.child_offset {
+                self.child_offset = offset;
+                ctx.updates.render();
+            }
+
+            self.child.measure(ctx, available_size.sub_px(self.size_increment)) + self.size_increment
+        }
+
+        fn arrange(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, mut final_size: PxSize) {
+            final_size -= self.size_increment;
+            widget_layout.with_custom_translate(self.child_offset, |wo| self.child.arrange(ctx, wo, final_size));
+        }
+
+        fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
+            frame.push_reference_frame(
+                self.spatial_id,
+                FrameBinding::Value(RenderTransform::translation_px(self.child_offset)),
+                true,
+                |frame| {
+                    self.child.render(ctx, frame);
+                },
+            )
+        }
+    }
+    SideOffsetsNode {
+        child,
+        offsets: offsets.into_var(),
+        spatial_id: SpatialFrameId::new_unique(),
+        size_increment: PxSize::zero(),
+        child_offset: PxVector::zero(),
     }
 }
 
