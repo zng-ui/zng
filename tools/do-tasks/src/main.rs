@@ -91,29 +91,29 @@ fn doc(mut args: Vec<&str>) {
     }
 }
 
-/// do test, t [-u, --unit <function-path>]
-///            [-t, --test <integration-test-name>]
-///            [-b, --build <file-path-pattern> [--OVERWRITE]]
-///            <cargo-test-args>
-///
-///    Run all tests in root workspace and build tests.
-/// USAGE:
-///     test -u test::path::function
-///        Run tests that partially match the Rust item path.
-///     test -u *
-///        Run all unit tests.
-///     test -t focus
-///        Run all integration tests in the named test.
-///     test -t *
-///        Run all integration tests.
-///     test -b property/*
-///        Run build tests that match the file pattern in `tests/build/cases/`.
-///     test -b *
-///        Run all build tests.
-///     test --doc
-///        Run doc tests.
-///     test
-///        Run all unit, doc, integration and build tests.
+// do test, t [-u, --unit <function-path>]
+//            [-t, --test <integration-test-name>]
+//            [-b, --build <file-path-pattern> [--OVERWRITE]]
+//            <cargo-test-args>
+//
+//    Run all tests in root workspace and build tests.
+// USAGE:
+//     test -u test::path::function
+//        Run tests that partially match the Rust item path.
+//     test -u *
+//        Run all unit tests.
+//     test -t focus
+//        Run all integration tests in the named test.
+//     test -t *
+//        Run all integration tests.
+//     test -b property/*
+//        Run build tests that match the file pattern in `tests/build/cases/`.
+//     test -b *
+//        Run all build tests.
+//     test --doc
+//        Run doc tests.
+//     test
+//        Run all unit, doc, integration and build tests.
 fn test(mut args: Vec<&str>) {
     let nightly = if take_flag(&mut args, &["+nightly"]) { "+nightly" } else { "" };
     let env = &[("RUST_BACKTRACE", "1")];
