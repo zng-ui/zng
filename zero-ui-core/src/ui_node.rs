@@ -535,10 +535,22 @@ pub trait Widget: UiNode {
     }
 
     /// Run [`UiNode::render`] using the [`TestWidgetContext`].
+    ///
+    /// If the `frame` [`is_outer`] pushes inner, before calling render.
+    ///
+    /// [`is_outer`]: FrameBuilder::is_outer
     #[cfg(any(test, doc, feature = "test_util"))]
     #[cfg_attr(doc_nightly, doc(cfg(feature = "test_util")))]
     fn test_render(&self, ctx: &mut TestWidgetContext, frame: &mut FrameBuilder) {
-        ctx.render_context(|ctx| self.render(ctx, frame));
+        ctx.render_context(|ctx| {
+            if frame.is_outer() {
+                frame.push_inner(crate::render::FrameBinding::Value(RenderTransform::identity()), |frame| {
+                    self.render(ctx, frame)
+                })
+            } else {
+                self.render(ctx, frame)
+            }
+        });
     }
 
     /// Run [`UiNode::render_update`] using the [`TestWidgetContext`].

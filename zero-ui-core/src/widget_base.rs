@@ -433,6 +433,11 @@ pub fn enabled(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
             self.child.info(ctx, info);
         }
 
+        fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
+            subscriptions.updates(&IsEnabled::update_mask(ctx));
+            self.child.subscriptions(ctx, subscriptions);
+        }
+
         fn init(&mut self, ctx: &mut WidgetContext) {
             if !IsEnabled::get(ctx) {
                 ctx.widget_state.set(EnabledState, false);
@@ -441,7 +446,7 @@ pub fn enabled(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
         }
 
         fn update(&mut self, ctx: &mut WidgetContext) {
-            if let Some(state) = IsEnabled::get_new(ctx) {
+            if let Some(state) = dbg!(IsEnabled::get_new(ctx)) {
                 ctx.widget_state.set(EnabledState, state);
                 ctx.updates.info();
             }
@@ -767,6 +772,11 @@ pub fn hit_testable(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiN
                 ctx.widget_state.set(HitTestEnabledState, false);
             }
             self.child.init(ctx);
+        }
+
+        fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
+            subscriptions.updates(&IsHitTestable::update_mask(ctx));
+            self.child.subscriptions(ctx, subscriptions);
         }
 
         fn update(&mut self, ctx: &mut WidgetContext) {

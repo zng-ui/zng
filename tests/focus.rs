@@ -1177,8 +1177,8 @@ pub fn focus_moves_to_new_window() {
 
 #[test]
 pub fn focus_goes_to_parent_after_remove() {
-    let parent_id = WidgetId::new_unique();
-    let child_id = WidgetId::new_unique();
+    let parent_id = WidgetId::named("parent");
+    let child_id = WidgetId::named("child");
 
     let enabled = var(true);
 
@@ -1197,7 +1197,7 @@ pub fn focus_goes_to_parent_after_remove() {
     app.take_focus_changed();
 
     app.set_vars(|vars| {
-        enabled.set(vars, false);
+        enabled.set(vars, dbg!(false));
     });
     assert_eq!(Some(parent_id), app.focused());
     let evs = app.take_focus_changed();
