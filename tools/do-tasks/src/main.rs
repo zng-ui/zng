@@ -192,7 +192,7 @@ fn test(mut args: Vec<&str>) {
 
         let all = args.is_empty();
 
-        if !all && take_flag(&mut args, &["--doc"]) {
+        if !all && args.contains(&"--doc") {
             tests::version_in_sync();
         }
 

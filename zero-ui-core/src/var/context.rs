@@ -561,7 +561,7 @@ mod properties {
     /// /// Sets the *foo* config.
     /// #[property(context, default(false))]
     /// pub fn foo(child: impl UiNode, value: impl IntoVar<bool>) -> impl UiNode {
-    ///     with_context_var(child, FooVar, merge_var!(ConfigVar::new(), value.into_var(), |c, &v| {
+    ///     with_context_var(child, ConfigVar, merge_var!(ConfigVar::new(), value.into_var(), |c, &v| {
     ///         let mut c = c.clone();
     ///         c.foo = v;
     ///         c
@@ -571,7 +571,7 @@ mod properties {
     /// /// Sets the *bar* config.
     /// #[property(context, default(false))]
     /// pub fn bar(child: impl UiNode, value: impl IntoVar<bool>) -> impl UiNode {
-    ///     with_context_var(child, FooVar, merge_var!(ConfigVar::new(), value.into_var(), |c, &v| {
+    ///     with_context_var(child, ConfigVar, merge_var!(ConfigVar::new(), value.into_var(), |c, &v| {
     ///         let mut c = c.clone();
     ///         c.bar = v;
     ///         c

@@ -1062,7 +1062,7 @@ type Retain = bool;
 ///         /// The error type can be any type that implement `Debug`.
 ///         fn validate(&self) -> Result<(), Text> {
 ///             if self.arg.contains("error") {
-///                 Err(formatx!("invalid arg `{}`", self.arg))
+///                 return Err(formatx!("invalid arg `{}`", self.arg));
 ///             }
 ///             Ok(())
 ///         }
@@ -1330,7 +1330,7 @@ pub use crate::event_args;
 /// # Examples
 ///
 /// ```
-/// # use zero_ui_core::{event::cancelable_event_args, WidgetPath};
+/// # use zero_ui_core::{event::cancelable_event_args, WidgetPath, text::*};
 /// cancelable_event_args! {
 ///     /// My event arguments.
 ///     pub struct MyEventArgs {
@@ -1351,7 +1351,7 @@ pub use crate::event_args;
 ///         /// The error type can be any type that implement `Debug`.
 ///         fn validate(&self) -> Result<(), Text> {
 ///             if self.arg.contains("error") {
-///                 Err(formatx!("invalid arg `{}`", self.arg))
+///                 return Err(formatx!("invalid arg `{}`", self.arg));
 ///             }
 ///             Ok(())
 ///         }
@@ -1389,7 +1389,7 @@ macro_rules! cancelable_event_args {
                 fn concerns_widget(&$self, $ctx: &mut WidgetContext) -> bool { $($concerns_widget)+ }
 
                 $(
-                    $(#[$validate_outer:meta])*
+                    $(#[$validate_outer])*
                     fn validate(&$self_v) -> Result<(), $ValidationError> { $($validate)+ }
                 )?
             }

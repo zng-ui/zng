@@ -592,7 +592,7 @@ impl WidgetVecRef {
     /// If the widget vectors is layout as a vertical stack to move the widget *up* by one stopping at the top:
     ///
     /// ```
-    /// # fn demo(ctx: &mut zero_ui_core::context::WidgetContext, items: zero_ui_core::WidgetVecRef) {
+    /// # fn demo(ctx: &mut zero_ui_core::context::WidgetContext, items: zero_ui_core::ui_list::WidgetVecRef) {
     /// items.move_id(ctx.updates, "my-widget", |i, _len| i.saturating_sub(1));
     /// # }
     /// ```
@@ -600,7 +600,7 @@ impl WidgetVecRef {
     /// And to move *down* stopping at the bottom:
     ///
     /// ```
-    /// # fn demo(ctx: &mut zero_ui_core::context::WidgetContext, items: zero_ui_core::WidgetVecRef) {
+    /// # fn demo(ctx: &mut zero_ui_core::context::WidgetContext, items: zero_ui_core::ui_list::WidgetVecRef) {
     /// items.move_id(ctx.updates, "my-widget", |i, _len| i.saturating_add(1));
     /// # }
     /// ```
@@ -611,7 +611,7 @@ impl WidgetVecRef {
     /// The length can be used for implementing wrapping move *down*:
     ///
     /// ```
-    /// # fn demo(ctx: &mut zero_ui_core::context::WidgetContext, items: zero_ui_core::WidgetVecRef) {
+    /// # fn demo(ctx: &mut zero_ui_core::context::WidgetContext, items: zero_ui_core::ui_list::WidgetVecRef) {
     /// items.move_id(ctx.updates, "my-widget", |i, len| {
     ///     let next = i.saturating_add(1);
     ///     if next < len { next } else { 0 }
