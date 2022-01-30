@@ -126,16 +126,15 @@ fn functions(window_enabled: RcVar<bool>) -> impl Widget {
             },
             // Replace Scope
             button! {
-                content = text("Replace Scope");
+                content = text("Overlay Scope");
                 on_click = hn!(|ctx, _| {
-                    window_enabled.set(ctx, false);
-                    WindowLayers::insert(ctx,  LayerIndex::TOP_MOST, overlay(window_enabled.clone()));
+                    WindowLayers::insert(ctx,  LayerIndex::TOP_MOST, overlay());
                 });
             }
         ]
     }
 }
-fn overlay(window_enabled: RcVar<bool>) -> impl Widget {
+fn overlay() -> impl Widget {
     container! {
         id = "overlay";
         background_color = colors::GRAY.with_alpha(40.pct());
@@ -153,7 +152,6 @@ fn overlay(window_enabled: RcVar<bool>) -> impl Widget {
                     button! {
                         content = text("Ok");
                         on_click = hn!(|ctx, _| {
-                            window_enabled.set(ctx, true);
                             WindowLayers::remove(ctx, "overlay");
                         })
                     }

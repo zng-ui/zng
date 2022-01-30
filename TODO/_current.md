@@ -5,10 +5,7 @@
 
 # Layer
 
-* Focus does not recover to new root scope.
-    - Disable window.
-    - Show overlay with own focus scope.
-    Ideal Behavior: focus on the overlay as if the window opened with it.
+* Continue refactoring layers inside root.
 
 # Split `inner`
 

@@ -438,8 +438,12 @@ pub mod window {
             allow_transparency,
             render_mode,
             headless_monitor,
-            nodes::layers(child),
+            child,
         )
+    }
+
+    pub fn new_outer(child: impl UiNode) -> impl UiNode {
+        nodes::layers(child)
     }
 
     /// Window stand-alone properties.
