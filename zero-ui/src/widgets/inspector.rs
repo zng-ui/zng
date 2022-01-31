@@ -1,9 +1,6 @@
 //! Inspector widgets.
 
-use crate::core::{
-    widget_info::*,
-    window::WidgetInfoChangedEvent,
-};
+use crate::core::{widget_info::*, window::WidgetInfoChangedEvent};
 use crate::prelude::new_property::*;
 
 /// Draws a debug dot in every widget [center point] in the window.

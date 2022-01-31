@@ -399,8 +399,6 @@ impl IsEnabled {
 /// still be *enabled*, meaning that it behaves like a *disabled* widget but looks like an idle enabled widget, this can happen,
 /// for example, when a *modal overlay* is open.
 ///
-/// Note that most widgets don't need to do anything to block interaction, the app extensions that send interactive events take care of it.
-///
 /// # Disabled Visual
 ///
 /// Widgets that are expected to be interactive should visually indicate when they are not interactive, but **only** if interaction

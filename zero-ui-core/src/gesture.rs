@@ -87,9 +87,10 @@ event_args! {
 
         ..
 
-        /// If the widget is in [`target`](Self::target).
+        /// If the widget is in [`target`] and allows interaction.
         fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
             self.target.contains(ctx.path.widget_id())
+            && ctx.info_tree.find(ctx.path.widget_id()).map(|w|w.allow_interaction()).unwrap_or(false)
         }
     }
 

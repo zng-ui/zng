@@ -9,7 +9,6 @@ use crate::context::{AppContext, InfoContext, WidgetContext};
 use crate::crate_util::{Handle, HandleOwner};
 use crate::handler::{AppHandler, AppHandlerArgs, AppWeakHandle, WidgetHandler};
 use crate::var::Vars;
-use crate::widget_base::IsEnabled;
 use crate::widget_info::{EventSlot, WidgetInfoBuilder, WidgetSubscriptions};
 use crate::{impl_ui_node, UiNode};
 use std::cell::RefCell;
@@ -36,8 +35,11 @@ pub trait EventArgs: Debug + Clone + 'static {
     /// If the handler must skip this event.
     ///
     /// Note that property level handlers don't need to check this, as those handlers are
-    /// already not called when this is `true`. [`UiNode`](crate::UiNode) and
-    /// [`AppExtension`](crate::app::AppExtension) implementers must check if this is `true`.
+    /// already not called when this is `true`. Direct event listeners in [`UiNode`] and [`AppExtension`] 
+    /// must check if this is `true`.
+    /// 
+    /// [`UiNode`]: crate::UiNode
+    /// [`AppExtension`]: crate::app::AppExtension
     fn stop_propagation_requested(&self) -> bool;
 }
 
@@ -1836,9 +1838,9 @@ pub use crate::event_property;
 ///
 /// # Filter
 ///
-/// The `filter` predicate is called if [`stop_propagation`](EventArgs::stop_propagation) is not requested and the
-/// widget is [enabled](IsEnabled). It must return `true` if the event arguments are relevant in the context of the
-/// widget. If it returns `true` the `handler` closure is called.
+/// The `filter` predicate is called if [`stop_propagation`] is not requested. It must return `true` if the event arguments are
+/// relevant in the context of the widget. If it returns `true` the `handler` closure is called. Note that events that represent
+/// an *interaction* with the widget must check that the widget [`allow_interaction`].
 ///
 /// # Route
 ///
@@ -1848,8 +1850,12 @@ pub use crate::event_property;
 /// # Async
 ///
 /// Async event handlers are called like normal, but code after the first `.await` only runs in subsequent event updates. This means
-/// that [`stop_propagation`](EventArgs::stop_propagation) must be called before the first `.await`, otherwise you are only signaling
-/// other async tasks handling the same event, if they are monitoring the [`stop_propagation_requested`](EventArgs::stop_propagation_requested).
+/// that [`stop_propagation`] must be called before the first `.await`, otherwise you are only signaling
+/// other async tasks handling the same event, if they are monitoring the [`stop_propagation_requested`].
+///
+/// [`allow_interaction`]: crate::widget_info::WidgetInfo::allow_interaction
+/// [`stop_propagation`]: EventArgs::stop_propagation
+/// [`stop_propagation_requested`]: EventArgs::stop_propagation_requested
 #[inline]
 pub fn on_event<C, E, F, H>(child: C, event: E, filter: F, handler: H) -> impl UiNode
 where
@@ -1885,7 +1891,7 @@ where
             if let Some(args) = self.event.update(args) {
                 self.child.event(ctx, args);
 
-                if IsEnabled::get(ctx) && !args.stop_propagation_requested() && (self.filter)(ctx, args) {
+                if !args.stop_propagation_requested() && (self.filter)(ctx, args) {
                     self.handler.event(ctx, args);
                 }
             } else {
@@ -1912,9 +1918,9 @@ where
 ///
 /// # Filter
 ///
-/// The `filter` predicate is called if [`stop_propagation`](EventArgs::stop_propagation) is not requested and the
-/// widget is [enabled](IsEnabled). It must return `true` if the event arguments are relevant in the context of the
-/// widget. If it returns `true` the `handler` closure is called.
+/// The `filter` predicate is called if [`stop_propagation`] is not requested. It must return `true` if the event arguments are
+/// relevant in the context of the widget. If it returns `true` the `handler` closure is called. Note that events that represent
+/// an *interaction* with the widget must check that the widget [`allow_interaction`].
 ///
 /// # Route
 ///
@@ -1924,8 +1930,12 @@ where
 /// # Async
 ///
 /// Async event handlers are called like normal, but code after the first `.await` only runs in subsequent event updates. This means
-/// that [`stop_propagation`](EventArgs::stop_propagation) must be called before the first `.await`, otherwise you are only signaling
-/// other async tasks handling the same event, if they are monitoring the [`stop_propagation_requested`](EventArgs::stop_propagation_requested).
+/// that [`stop_propagation`] must be called before the first `.await`, otherwise you are only signaling
+/// other async tasks handling the same event, if they are monitoring the [`stop_propagation_requested`].
+///
+/// [`allow_interaction`]: crate::widget_info::WidgetInfo::allow_interaction
+/// [`stop_propagation`]: EventArgs::stop_propagation
+/// [`stop_propagation_requested`]: EventArgs::stop_propagation_requested
 pub fn on_pre_event<C, E, F, H>(child: C, event: E, filter: F, handler: H) -> impl UiNode
 where
     C: UiNode,
@@ -1958,7 +1968,7 @@ where
 
         fn event<EU: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &EU) {
             if let Some(args) = self.event.update(args) {
-                if IsEnabled::get(ctx) && !args.stop_propagation_requested() && (self.filter)(ctx, args) {
+                if !args.stop_propagation_requested() && (self.filter)(ctx, args) {
                     self.handler.event(ctx, args);
                 }
                 self.child.event(ctx, args);

@@ -54,8 +54,11 @@ event_args! {
 
         ..
 
-        /// If the widget is in [`target`](Self::target)
-        /// and is [allowed](CaptureInfo::allows) by the [`capture`](Self::capture).
+        /// If the widget is in [`target`] and is [allowed] by the [`capture`].
+        ///
+        /// [`target`]: Self::target
+        /// [allowed]: CaptureInfo::allows
+        /// [`capture`]: Self::capture
         fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
             self.target.contains(ctx.path.widget_id())
             && self.capture.as_ref().map(|c| c.allows(ctx.path)).unwrap_or(true)
@@ -101,6 +104,7 @@ event_args! {
         fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
             self.target.contains(ctx.path.widget_id())
             && self.capture.as_ref().map(|c|c.allows(ctx.path)).unwrap_or(true)
+            && ctx.info_tree.find(ctx.path.widget_id()).map(|w|w.allow_interaction()).unwrap_or(false)
         }
     }
 
@@ -147,9 +151,12 @@ event_args! {
 
         ..
 
-        /// If the widget is in [`target`](MouseClickArgs::target).
+        /// If the widget is in [`target`] and is interactive.
+        ///
+        /// [`target`]: MouseClickArgs::target
         fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
             self.target.contains(ctx.path.widget_id())
+            && ctx.info_tree.find(ctx.path.widget_id()).map(|w|w.allow_interaction()).unwrap_or(false)
         }
     }
 
@@ -183,7 +190,7 @@ event_args! {
 
         ..
 
-        /// If the widget is in [`target`] or [`prev_target`], or
+        /// If the widget is in [`target`] or [`prev_target`] and
         /// if it is [allowed] by the [`capture`].
         ///
         /// [`target`]: Self::target
@@ -208,6 +215,10 @@ event_args! {
 
         ..
 
+        /// If the [`prev_capture`] or [`new_capture`] contains the widget.
+        ///
+        /// [`prev_capture`]: Self::prev_capture
+        /// [`new_capture`]: Self::new_capture
         fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
             if let Some(prev) = &self.prev_capture {
                 if prev.0.contains(ctx.path.widget_id()) {
@@ -313,10 +324,18 @@ impl MouseMoveArgs {
 }
 
 impl MouseInputArgs {
-    /// If the widget is in [`target`](Self::target) or is the [`capture`](Self::capture) holder.
+    /// If the widget is in [`target`] and allows interaction or is the [`capture`] holder.
+    ///
+    /// [`target`]: Self::target
+    /// [`capture`]: Self::capture
     #[inline]
     pub fn concerns_capture(&self, ctx: &mut WidgetContext) -> bool {
-        self.target.contains(ctx.path.widget_id())
+        (self.target.contains(ctx.path.widget_id())
+            && ctx
+                .info_tree
+                .find(ctx.path.widget_id())
+                .map(|w| w.allow_interaction())
+                .unwrap_or(false))
             || self
                 .capture
                 .as_ref()

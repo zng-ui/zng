@@ -34,17 +34,14 @@ pub fn capture_mouse(child: impl UiNode, mode: impl IntoVar<CaptureMode>) -> imp
     #[impl_ui_node(child)]
     impl<C: UiNode, M: Var<CaptureMode>> UiNode for CaptureMouseNode<C, M> {
         fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
-            subscriptions
-                .var(ctx, &self.mode)
-                .event(MouseInputEvent)
-                .updates(&IsEnabled::update_mask(ctx));
+            subscriptions.var(ctx, &self.mode).event(MouseInputEvent);
 
             self.child.subscriptions(ctx, subscriptions);
         }
 
         fn event<EU: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &EU) {
             if let Some(args) = MouseInputEvent.update(args) {
-                if IsEnabled::get(ctx) && args.is_mouse_down() && args.concerns_widget(ctx) {
+                if args.is_mouse_down() && args.concerns_widget(ctx) {
                     let mouse = ctx.services.mouse();
                     let widget_id = ctx.path.widget_id();
 
@@ -66,8 +63,13 @@ pub fn capture_mouse(child: impl UiNode, mode: impl IntoVar<CaptureMode>) -> imp
         }
 
         fn update(&mut self, ctx: &mut WidgetContext) {
-            if let Some(new_mode) = self.mode.copy_new(ctx) {
-                if IsEnabled::get(ctx) {
+            if let Some(new_mode) = self.mode.copy_new(ctx.vars) {
+                if ctx
+                    .info_tree
+                    .find(ctx.path.widget_id())
+                    .map(|w| w.allow_interaction())
+                    .unwrap_or(false)
+                {
                     let mouse = ctx.services.mouse();
                     let widget_id = ctx.path.widget_id();
                     if let Some((current, _)) = mouse.current_capture() {
