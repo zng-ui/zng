@@ -15,14 +15,16 @@ use crate::{
     state::OwnedStateMap,
     units::*,
     var::*,
-    widget_info::{BoundsInfo, UsedWidgetInfoBuilder, WidgetInfoBuilder, WidgetLayout, WidgetRendered, WidgetSubscriptions},
+    widget_info::{
+        BoundsInfo, UsedWidgetInfoBuilder, WidgetInfoBuilder, WidgetInfoTree, WidgetLayout, WidgetRendered, WidgetSubscriptions,
+    },
     window::AutoSize,
     BoxedUiNode, UiNode, WidgetId,
 };
 
 use super::{
     FrameCaptureMode, FrameImageReadyArgs, FrameImageReadyEvent, HeadlessMonitor, MonitorInfo, MonitorsChangedEvent, MonitorsExt,
-    StartPosition, Window, WindowChangedArgs, WindowChangedEvent, WindowChrome, WindowIcon, WindowMode, WindowVars, WindowsExt,
+    StartPosition, Window, WindowChangedArgs, WindowChangedEvent, WindowChrome, WindowIcon, WindowId, WindowMode, WindowVars, WindowsExt,
 };
 
 /// Implementer of `App <-> View` sync in a headed window.
@@ -47,7 +49,7 @@ struct HeadedCtrl {
     actual_state: Option<WindowState>, // for WindowChangedEvent
 }
 impl HeadedCtrl {
-    pub fn new(vars: &WindowVars, content: Window) -> Self {
+    pub fn new(window_id: WindowId, vars: &WindowVars, content: Window) -> Self {
         Self {
             window: None,
 
@@ -56,7 +58,7 @@ impl HeadedCtrl {
             transparent: content.transparent,
             render_mode: content.render_mode,
 
-            content: ContentCtrl::new(vars.clone(), content),
+            content: ContentCtrl::new(window_id, vars.clone(), content),
             vars: vars.clone(),
             respawned: false,
 
@@ -569,7 +571,7 @@ impl HeadedCtrl {
                     screen_ppi,
                     size,
                     LayoutMask::LAYOUT_METRICS,
-                    self.content.root_id,
+                    &self.content.info_tree,
                     &mut self.content.root_state,
                     |ctx| {
                         auto_size_origin
@@ -691,7 +693,7 @@ struct HeadlessWithRendererCtrl {
     size: DipSize,
 }
 impl HeadlessWithRendererCtrl {
-    pub fn new(vars: &WindowVars, content: Window) -> Self {
+    pub fn new(window_id: WindowId, vars: &WindowVars, content: Window) -> Self {
         Self {
             surface: None,
             vars: vars.clone(),
@@ -700,7 +702,7 @@ impl HeadlessWithRendererCtrl {
             headless_monitor: content.headless_monitor,
             headless_simulator: HeadlessSimulator::new(),
 
-            content: ContentCtrl::new(vars.clone(), content),
+            content: ContentCtrl::new(window_id, vars.clone(), content),
 
             size: DipSize::zero(),
         }
@@ -851,11 +853,11 @@ struct HeadlessCtrl {
     headless_simulator: HeadlessSimulator,
 }
 impl HeadlessCtrl {
-    pub fn new(vars: &WindowVars, content: Window) -> Self {
+    pub fn new(window_id: WindowId, vars: &WindowVars, content: Window) -> Self {
         Self {
             vars: vars.clone(),
             headless_monitor: content.headless_monitor,
-            content: ContentCtrl::new(vars.clone(), content),
+            content: ContentCtrl::new(window_id, vars.clone(), content),
             headless_simulator: HeadlessSimulator::new(),
         }
     }
@@ -994,6 +996,7 @@ struct ContentCtrl {
     root_state: OwnedStateMap,
     root: BoxedUiNode,
     // info
+    info_tree: WidgetInfoTree,
     root_outer_bounds: BoundsInfo,
     root_inner_bounds: BoundsInfo,
     root_rendered: WidgetRendered,
@@ -1015,7 +1018,7 @@ struct ContentCtrl {
     render_requested: WindowRenderUpdate,
 }
 impl ContentCtrl {
-    pub fn new(vars: WindowVars, window: Window) -> Self {
+    pub fn new(window_id: WindowId, vars: WindowVars, window: Window) -> Self {
         Self {
             vars,
 
@@ -1023,6 +1026,7 @@ impl ContentCtrl {
             root_state: OwnedStateMap::new(),
             root: window.child,
 
+            info_tree: WidgetInfoTree::blank(window_id, window.id),
             root_outer_bounds: BoundsInfo::new(),
             root_inner_bounds: BoundsInfo::new(),
             root_rendered: WidgetRendered::new(),
@@ -1047,7 +1051,7 @@ impl ContentCtrl {
 
     pub fn update(&mut self, ctx: &mut WindowContext) {
         if !self.inited {
-            ctx.widget_context(self.root_id, &mut self.root_state, |ctx| {
+            ctx.widget_context(&self.info_tree, &mut self.root_state, |ctx| {
                 self.root.init(ctx);
 
                 ctx.updates.info();
@@ -1055,7 +1059,7 @@ impl ContentCtrl {
             });
             self.inited = true;
         } else {
-            ctx.widget_context(self.root_id, &mut self.root_state, |ctx| {
+            ctx.widget_context(&self.info_tree, &mut self.root_state, |ctx| {
                 self.root.update(ctx);
             })
         }
@@ -1074,11 +1078,12 @@ impl ContentCtrl {
                 self.used_info_builder.take(),
             );
 
-            ctx.info_context(self.root_id, &self.root_state, |ctx| {
+            ctx.info_context(&self.info_tree, &self.root_state, |ctx| {
                 self.root.info(ctx, &mut info);
             });
 
             let (info, used) = info.finalize();
+            self.info_tree = info.clone();
             self.used_info_builder = Some(used);
 
             ctx.services
@@ -1087,7 +1092,7 @@ impl ContentCtrl {
         }
 
         if updates.subscriptions {
-            self.subscriptions = ctx.info_context(self.root_id, &self.root_state, |ctx| {
+            self.subscriptions = ctx.info_context(&self.info_tree, &self.root_state, |ctx| {
                 let mut subscriptions = WidgetSubscriptions::new();
                 self.root.subscriptions(ctx, &mut subscriptions);
                 subscriptions
@@ -1122,7 +1127,7 @@ impl ContentCtrl {
         debug_assert!(self.inited);
 
         if self.subscriptions.event_contains(args) {
-            ctx.widget_context(self.root_id, &mut self.root_state, |ctx| {
+            ctx.widget_context(&self.info_tree, &mut self.root_state, |ctx| {
                 self.root.event(ctx, args);
             });
         } else {
@@ -1130,7 +1135,7 @@ impl ContentCtrl {
     }
 
     pub fn close(&mut self, ctx: &mut WindowContext) {
-        ctx.widget_context(self.root_id, &mut self.root_state, |ctx| {
+        ctx.widget_context(&self.info_tree, &mut self.root_state, |ctx| {
             self.root.deinit(ctx);
         });
 
@@ -1152,7 +1157,7 @@ impl ContentCtrl {
             screen_ppi,
             screen_size,
             LayoutMask::LAYOUT_METRICS,
-            self.root_id,
+            &self.info_tree,
             &mut self.root_state,
             action,
         )
@@ -1216,7 +1221,7 @@ impl ContentCtrl {
             screen_ppi,
             viewport_size,
             changes,
-            self.root_id,
+            &self.info_tree,
             &mut self.root_state,
             |ctx| {
                 let mut available_size = AvailableSize::finite(viewport_size);
@@ -1371,11 +1376,13 @@ enum WindowCtrlMode {
     HeadlessWithRenderer(HeadlessWithRendererCtrl),
 }
 impl WindowCtrl {
-    pub fn new(vars: &WindowVars, mode: WindowMode, content: Window) -> Self {
+    pub fn new(window_id: WindowId, vars: &WindowVars, mode: WindowMode, content: Window) -> Self {
         WindowCtrl(match mode {
-            WindowMode::Headed => WindowCtrlMode::Headed(HeadedCtrl::new(vars, content)),
-            WindowMode::Headless => WindowCtrlMode::Headless(HeadlessCtrl::new(vars, content)),
-            WindowMode::HeadlessWithRenderer => WindowCtrlMode::HeadlessWithRenderer(HeadlessWithRendererCtrl::new(vars, content)),
+            WindowMode::Headed => WindowCtrlMode::Headed(HeadedCtrl::new(window_id, vars, content)),
+            WindowMode::Headless => WindowCtrlMode::Headless(HeadlessCtrl::new(window_id, vars, content)),
+            WindowMode::HeadlessWithRenderer => {
+                WindowCtrlMode::HeadlessWithRenderer(HeadlessWithRendererCtrl::new(window_id, vars, content))
+            }
         })
     }
 

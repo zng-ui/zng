@@ -172,6 +172,7 @@ pub struct WidgetInfoBuilder {
     meta: OwnedStateMap,
 
     tree: Tree<WidgetInfoInner>,
+    interactive_filter: Vec<Box<dyn Fn(&InteractiveFilterArgs) -> bool>>,
 }
 impl WidgetInfoBuilder {
     /// Starts building a info tree with the root information, the `root_bounds` must be a shared reference
@@ -186,6 +187,7 @@ impl WidgetInfoBuilder {
     ) -> Self {
         debug_assert_eq!(RenderTransform::identity(), root_bounds.transform());
 
+        let (tree_capacity, interactive_capacity) = used_data.map(|d| (d.tree_capacity, d.interactive_capacity)).unwrap_or((100, 30));
         let tree = Tree::with_capacity(
             WidgetInfoInner {
                 widget_id: root_id,
@@ -194,7 +196,7 @@ impl WidgetInfoBuilder {
                 rendered,
                 meta: OwnedStateMap::new(),
             },
-            used_data.map(|d| d.capacity).unwrap_or(100),
+            tree_capacity,
         );
 
         let root_node = tree.root().id();
@@ -202,6 +204,7 @@ impl WidgetInfoBuilder {
             window_id,
             node: root_node,
             tree,
+            interactive_filter: Vec::with_capacity(interactive_capacity),
             meta: OwnedStateMap::new(),
             widget_id: root_id,
         }
@@ -259,6 +262,15 @@ impl WidgetInfoBuilder {
         self.widget_id = parent_widget_id;
     }
 
+    /// Register a closure that returns `true` if the widget is interactive or `false` if it is not.
+    ///
+    /// Widgets [`allow_interaction`] if all registered closures allow it.
+    ///
+    /// [`allow_interaction`]: WidgetInfo::allow_interaction
+    pub fn push_interactive_filter(&mut self, filter: impl Fn(&InteractiveFilterArgs) -> bool + 'static) {
+        self.interactive_filter.push(Box::new(filter))
+    }
+
     /// Build the info tree.
     #[inline]
     pub fn finalize(mut self) -> (WidgetInfoTree, UsedWidgetInfoBuilder) {
@@ -296,6 +308,7 @@ impl WidgetInfoBuilder {
             window_id: self.window_id,
             lookup,
             tree: self.tree,
+            interactive_filter: self.interactive_filter,
         }));
 
         #[cfg(debug_assertions)]
@@ -312,7 +325,8 @@ impl WidgetInfoBuilder {
         }
 
         let cap = UsedWidgetInfoBuilder {
-            capacity: r.0.lookup.capacity(),
+            tree_capacity: r.0.lookup.capacity(),
+            interactive_capacity: r.0.interactive_filter.len(),
         };
 
         (r, cap)
@@ -331,6 +345,7 @@ struct WidgetInfoTreeInner {
     window_id: WindowId,
     tree: Tree<WidgetInfoInner>,
     lookup: IdMap<WidgetId, ego_tree::NodeId>,
+    interactive_filter: Vec<Box<dyn Fn(&InteractiveFilterArgs) -> bool>>,
 }
 impl WidgetInfoTree {
     /// Blank window that contains only the root widget taking no space.
@@ -760,6 +775,25 @@ impl<'a> WidgetInfo<'a> {
         } else {
             Visibility::Hidden
         }
+    }
+
+    /// Returns `true` if interaction with this widget is allowed by all interactive filters.
+    ///
+    /// If `false` interaction behavior implementers must consider this widget *disabled*, disabled widgets do not receive keyboard
+    /// or pointer events but can block hit-test if rendered above others.
+    ///
+    /// Note that not only [disabled] widgets can return `false` here, but only [disabled] widgets visually indicate that they are disabled.
+    /// An example of a widget that is [enabled] but not interactive is one outside of a *modal overlay*.
+    ///
+    /// [disabled]: fn@crate::widget_base::enabled
+    /// [enabled]: fn@crate::widget_base::enabled
+    pub fn allow_interaction(self) -> bool {
+        for filter in &self.tree.0.interactive_filter {
+            if !filter(&InteractiveFilterArgs { info: self }) {
+                return false;
+            }
+        }
+        true
     }
 
     /// Clone a reference to the widget outer bounds information.
@@ -1227,7 +1261,8 @@ pub enum WidgetOrientation {
 
 /// Data from a previous [`WidgetInfoBuilder`], can be reused in the next rebuild for a performance boost.
 pub struct UsedWidgetInfoBuilder {
-    capacity: usize,
+    tree_capacity: usize,
+    interactive_capacity: usize,
 }
 
 macro_rules! update_slot {
@@ -1565,5 +1600,20 @@ impl<'v, 's> WidgetVarSubscriptions<'v, 's> {
             subscriptions: self.subscriptions.var(self.vars, var),
             vars: self.vars,
         }
+    }
+}
+
+/// Argument for a interactive filter function.
+///
+/// See [WidgetInfoBuilder::push_interactive_filter].
+#[derive(Debug)]
+pub struct InteractiveFilterArgs<'a> {
+    /// Widget being filtered.
+    pub info: WidgetInfo<'a>,
+}
+impl<'a> InteractiveFilterArgs<'a> {
+    /// New from `info`.
+    pub fn new(info: WidgetInfo<'a>) -> Self {
+        Self { info }
     }
 }

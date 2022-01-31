@@ -616,7 +616,7 @@ impl AppWindow {
         }
 
         let root_id = window.id;
-        let ctrl = WindowCtrl::new(&vars, mode, window);
+        let ctrl = WindowCtrl::new(id, &vars, mode, window);
 
         let window = Self { ctrl, id, mode, state };
         let info = AppWindowInfo::new(id, root_id, mode, vars);

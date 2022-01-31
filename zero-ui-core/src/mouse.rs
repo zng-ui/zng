@@ -93,8 +93,11 @@ event_args! {
 
         ..
 
-        /// If the widget is in [`target`](MouseInputArgs::target)
-        /// and is [allowed](CaptureInfo::allows) by the [`capture`](Self::capture).
+        /// If the widget is in [`target`], is interactive and is [allowed] by the [`capture`].
+        ///
+        /// [`target`]: Self::target
+        /// [allowed]: CaptureInfo::allows
+        /// [`capture`]: Self::capture
         fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
             self.target.contains(ctx.path.widget_id())
             && self.capture.as_ref().map(|c|c.allows(ctx.path)).unwrap_or(true)

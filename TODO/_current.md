@@ -3,6 +3,11 @@
 * WindowChangedEvent fired on first resize.
 * Review `open_widget_display`, needs to be called with widget inner size to calculate default origin (center).
 
+# Interactive Filter
+
+* Integrate `enabled` with new interactive filter.
+* Integrate *mouse capture* with new interactive filter.
+
 # Layer
 
 * Continue refactoring layers inside root.

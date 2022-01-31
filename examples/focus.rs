@@ -1,7 +1,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 use zero_ui::core::focus::FocusChangedEvent;
 use zero_ui::prelude::*;
-use zero_ui::widgets::window::{WindowLayers, LayerIndex};
+use zero_ui::widgets::window::{LayerIndex, WindowLayers};
 
 use zero_ui_view_prebuilt as zero_ui_view;
 
@@ -115,7 +115,7 @@ fn functions(window_enabled: RcVar<bool>) -> impl Widget {
                 slot(detach_focused, take_on_init())
             },
             // Disable Scope
-            button! { 
+            button! {
                 content = text(window_enabled.map(|&e| if e { "Disable Scope" } else { "Enabling in 1s..." }.into()));
                 width = 140;
                 on_click = async_hn!(window_enabled, |ctx, _| {

@@ -641,16 +641,17 @@ impl<'a> WindowContext<'a> {
     #[inline(always)]
     pub fn widget_context<R>(
         &mut self,
-        widget_id: WidgetId,
-        widget_state: &mut OwnedStateMap,
+        info_tree: &WidgetInfoTree,
+        root_widget_state: &mut OwnedStateMap,
         f: impl FnOnce(&mut WidgetContext) -> R,
     ) -> R {
         f(&mut WidgetContext {
-            path: &mut WidgetContextPath::new(*self.window_id, widget_id),
+            path: &mut WidgetContextPath::new(*self.window_id, info_tree.root().widget_id()),
 
+            info_tree,
             app_state: self.app_state,
             window_state: self.window_state,
-            widget_state: &mut widget_state.0,
+            widget_state: &mut root_widget_state.0,
             update_state: self.update_state,
 
             vars: self.vars,
@@ -665,12 +666,18 @@ impl<'a> WindowContext<'a> {
 
     /// Run a function `f` in the info context of a widget.
     #[inline(always)]
-    pub fn info_context<R>(&mut self, widget_id: WidgetId, widget_state: &OwnedStateMap, f: impl FnOnce(&mut InfoContext) -> R) -> R {
+    pub fn info_context<R>(
+        &mut self,
+        info_tree: &WidgetInfoTree,
+        root_widget_state: &OwnedStateMap,
+        f: impl FnOnce(&mut InfoContext) -> R,
+    ) -> R {
         f(&mut InfoContext {
-            path: &mut WidgetContextPath::new(*self.window_id, widget_id),
+            path: &mut WidgetContextPath::new(*self.window_id, info_tree.root().widget_id()),
+            info_tree,
             app_state: self.app_state,
             window_state: self.window_state,
-            widget_state: &widget_state.0,
+            widget_state: &root_widget_state.0,
             update_state: self.update_state,
             vars: self.vars,
         })
@@ -686,8 +693,8 @@ impl<'a> WindowContext<'a> {
         screen_ppi: f32,
         viewport_size: PxSize,
         metrics_diff: LayoutMask,
-        widget_id: WidgetId,
-        widget_state: &mut OwnedStateMap,
+        info_tree: &WidgetInfoTree,
+        root_widget_state: &mut OwnedStateMap,
         f: impl FnOnce(&mut LayoutContext) -> R,
     ) -> R {
         f(&mut LayoutContext {
@@ -695,11 +702,12 @@ impl<'a> WindowContext<'a> {
                 .with_screen_ppi(screen_ppi)
                 .with_diff(metrics_diff),
 
-            path: &mut WidgetContextPath::new(*self.window_id, widget_id),
+            path: &mut WidgetContextPath::new(*self.window_id, info_tree.root().widget_id()),
 
+            info_tree,
             app_state: self.app_state,
             window_state: self.window_state,
-            widget_state: &mut widget_state.0,
+            widget_state: &mut root_widget_state.0,
             update_state: self.update_state,
 
             vars: self.vars,
@@ -710,12 +718,17 @@ impl<'a> WindowContext<'a> {
 
     /// Runs a function `f` in the render context of a widget.
     #[inline(always)]
-    pub fn render_context<R>(&mut self, widget_id: WidgetId, widget_state: &OwnedStateMap, f: impl FnOnce(&mut RenderContext) -> R) -> R {
+    pub fn render_context<R>(
+        &mut self,
+        root_widget_id: WidgetId,
+        root_widget_state: &OwnedStateMap,
+        f: impl FnOnce(&mut RenderContext) -> R,
+    ) -> R {
         f(&mut RenderContext {
-            path: &mut WidgetContextPath::new(*self.window_id, widget_id),
+            path: &mut WidgetContextPath::new(*self.window_id, root_widget_id),
             app_state: self.app_state,
             window_state: self.window_state,
-            widget_state: &widget_state.0,
+            widget_state: &root_widget_state.0,
             update_state: self.update_state,
             vars: self.vars,
         })
@@ -740,6 +753,11 @@ pub struct TestWidgetContext {
     pub window_id: WindowId,
     /// Id of the pretend root widget that is the context widget.
     pub root_id: WidgetId,
+
+    /// The [`info_tree`] value. Blank by default.
+    ///
+    /// [`info_tree`]: WidgetContext::info_tree
+    pub info_tree: WidgetInfoTree,
 
     /// The [`app_state`] value. Empty by default.
     ///
@@ -819,6 +837,7 @@ impl TestWidgetContext {
         Self {
             window_id,
             root_id,
+            info_tree: WidgetInfoTree::blank(window_id, root_id),
             app_state: OwnedStateMap::new(),
             window_state: OwnedStateMap::new(),
             widget_state: OwnedStateMap::new(),
@@ -837,6 +856,7 @@ impl TestWidgetContext {
     pub fn widget_context<R>(&mut self, action: impl FnOnce(&mut WidgetContext) -> R) -> R {
         action(&mut WidgetContext {
             path: &mut WidgetContextPath::new(self.window_id, self.root_id),
+            info_tree: &self.info_tree,
             app_state: &mut self.app_state.0,
             window_state: &mut self.window_state.0,
             widget_state: &mut self.widget_state.0,
@@ -853,6 +873,7 @@ impl TestWidgetContext {
     pub fn info_context<R>(&mut self, action: impl FnOnce(&mut InfoContext) -> R) -> R {
         action(&mut InfoContext {
             path: &mut WidgetContextPath::new(self.window_id, self.root_id),
+            info_tree: &self.info_tree,
             app_state: &self.app_state.0,
             window_state: &self.window_state.0,
             widget_state: &self.widget_state.0,
@@ -900,6 +921,7 @@ impl TestWidgetContext {
                 .with_diff(metrics_diff),
 
             path: &mut WidgetContextPath::new(self.window_id, self.root_id),
+            info_tree: &self.info_tree,
             app_state: &mut self.app_state.0,
             window_state: &mut self.window_state.0,
             widget_state: &mut self.widget_state.0,
@@ -1196,6 +1218,9 @@ pub struct WidgetContext<'a> {
     /// Current widget path.
     pub path: &'a mut WidgetContextPath,
 
+    /// Last build widget info tree of the parent window.
+    pub info_tree: &'a WidgetInfoTree,
+
     /// State that lives for the duration of the application.
     pub app_state: &'a mut StateMap,
 
@@ -1242,6 +1267,7 @@ impl<'a> WidgetContext<'a> {
             f(&mut WidgetContext {
                 path: self.path,
 
+                info_tree: self.info_tree,
                 app_state: self.app_state,
                 window_state: self.window_state,
                 widget_state: &mut widget_state.0,
@@ -1510,6 +1536,9 @@ pub struct LayoutContext<'a> {
     /// Current widget path.
     pub path: &'a mut WidgetContextPath,
 
+    /// Last build widget info tree of the parent window.
+    pub info_tree: &'a WidgetInfoTree,
+
     /// State that lives for the duration of the application.
     pub app_state: &'a mut StateMap,
 
@@ -1557,6 +1586,7 @@ impl<'a> LayoutContext<'a> {
 
             path: self.path,
 
+            info_tree: self.info_tree,
             app_state: self.app_state,
             window_state: self.window_state,
             widget_state: self.widget_state,
@@ -1578,6 +1608,7 @@ impl<'a> LayoutContext<'a> {
 
                 path: self.path,
 
+                info_tree: self.info_tree,
                 app_state: self.app_state,
                 window_state: self.window_state,
                 widget_state: &mut widget_state.0,
@@ -1641,6 +1672,9 @@ pub struct InfoContext<'a> {
     /// Current widget path.
     pub path: &'a mut WidgetContextPath,
 
+    /// Last build widget info tree of the parent window.
+    pub info_tree: &'a WidgetInfoTree,
+
     /// Read-only access to the state that lives for the duration of the application.
     pub app_state: &'a StateMap,
 
@@ -1667,6 +1701,7 @@ impl<'a> InfoContext<'a> {
         self.path.push(widget_id);
         let r = f(&mut InfoContext {
             path: self.path,
+            info_tree: self.info_tree,
             app_state: self.app_state,
             window_state: self.window_state,
             widget_state: &widget_state.0,

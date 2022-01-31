@@ -2,7 +2,7 @@
 
 use crate::core::{
     widget_info::*,
-    window::{WidgetInfoChangedEvent, WindowsExt},
+    window::WidgetInfoChangedEvent,
 };
 use crate::prelude::new_property::*;
 
@@ -93,7 +93,7 @@ pub fn render_widget_tree(
             }
 
             if self.valid && self.enabled.copy(ctx) {
-                self.tree = ctx.services.windows().widget_tree(ctx.path.window_id()).ok().cloned();
+                self.tree = Some(ctx.info_tree.clone());
             }
             self.child.init(ctx);
         }
@@ -119,7 +119,7 @@ pub fn render_widget_tree(
             if self.valid {
                 if let Some(enabled) = self.enabled.copy_new(ctx) {
                     if enabled {
-                        self.tree = Some(ctx.services.windows().widget_tree(ctx.path.window_id()).unwrap().clone());
+                        self.tree = Some(ctx.info_tree.clone());
                     } else {
                         self.tree = None;
                     }

@@ -442,6 +442,7 @@ pub mod window {
         )
     }
 
+    /// Setup layers.
     pub fn new_outer(child: impl UiNode) -> impl UiNode {
         nodes::layers(child)
     }
@@ -973,12 +974,10 @@ pub mod window {
                 hn!(|ctx, args: &CommandArgs| {
                     args.stop_propagation();
 
-                    let frame = ctx.services.windows().widget_tree(ctx.path.window_id()).unwrap();
-
                     let mut buffer = vec![];
-                    write_tree(frame, &state, &mut buffer);
+                    write_tree(ctx.info_tree, &state, &mut buffer);
 
-                    state = WriteTreeState::new(frame);
+                    state = WriteTreeState::new(ctx.info_tree);
 
                     task::spawn_wait(move || {
                         use std::io::*;
