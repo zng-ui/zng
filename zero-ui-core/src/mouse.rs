@@ -185,6 +185,9 @@ event_args! {
         /// [`hits`]: MouseInputArgs::hits
         pub target: Option<WidgetPath>,
 
+        /// Previous mouse capture.
+        pub prev_capture: Option<CaptureInfo>,
+
         /// Current mouse capture.
         pub capture: Option<CaptureInfo>,
 
@@ -248,50 +251,60 @@ impl MouseHoverArgs {
         self.device_id.is_none()
     }
 
-    /// Returns `true` if the widget is in the [`target`] but is not in the [`prev_target`] and is allowed by the
-    /// current [`capture`].
-    ///
-    /// [`prev_target`]: Self::prev_target
-    /// [`target`]: Self::target
-    /// [`capture`]: Self::capture
+    /// Event caused by a mouse capture change.
     #[inline]
-    pub fn is_mouse_enter(&self, path: &WidgetContextPath) -> bool {
-        if let Some(cap) = &self.capture {
-            if !cap.allows(path) {
-                return false;
-            }
-        }
-
-        let widget_id = path.widget_id();
-
-        match (&self.prev_target, &self.target) {
-            (Some(prev), Some(new)) => new.contains(widget_id) && !prev.contains(widget_id),
-            (None, Some(new)) => new.contains(widget_id),
-            _ => false,
-        }
+    pub fn is_capture_change(&self) -> bool {
+        self.prev_capture != self.capture
     }
 
-    /// Returns `true` if the widget was in the [`prev_target`] but is not in the [`target`] and is allowed by the
-    /// current [`capture`].
+    /// Returns `true` if the widget was not hovered, but now is.
+    #[inline]
+    pub fn is_mouse_enter(&self, path: &WidgetContextPath) -> bool {
+        !self.was_over(path) && self.is_over(path)
+    }
+
+    /// Returns `true` if the widget was hovered, but now isn't.
+    #[inline]
+    pub fn is_mouse_leave(&self, path: &WidgetContextPath) -> bool {
+        self.was_over(path) && !self.is_over(path)
+    }
+
+    /// Returns `true` if the widget is in [`prev_target`] and is allowed by the [`prev_capture`].
     ///
     /// [`prev_target`]: Self::prev_target
+    /// [`prev_capture`]: Self::prev_capture
+    #[inline]
+    pub fn was_over(&self, path: &WidgetContextPath) -> bool {
+        if let Some(cap) = &self.prev_capture {
+            if !cap.allows(path) {
+                return false;
+            }
+        }
+
+        if let Some(t) = &self.prev_target {
+            return t.contains(path.widget_id());
+        }
+
+        false
+    }
+
+    /// Returns `true` if the widget is in [`target`] and is allowed by the current [`capture`].
+    ///
     /// [`target`]: Self::target
     /// [`capture`]: Self::capture
     #[inline]
-    pub fn is_mouse_leave(&self, path: &WidgetContextPath) -> bool {
+    pub fn is_over(&self, path: &WidgetContextPath) -> bool {
         if let Some(cap) = &self.capture {
             if !cap.allows(path) {
                 return false;
             }
         }
 
-        let widget_id = path.widget_id();
-
-        match (&self.prev_target, &self.target) {
-            (Some(prev), Some(new)) => prev.contains(widget_id) && !new.contains(widget_id),
-            (Some(prev), None) => prev.contains(widget_id),
-            _ => false,
+        if let Some(t) = &self.target {
+            return t.contains(path.widget_id());
         }
+
+        false
     }
 
     /// If the widget is in [`target`], [`prev_target`] or is the [`capture`] holder.
@@ -567,7 +580,6 @@ impl MouseManager {
             Some(CaptureInfo {
                 target: capture.clone(),
                 mode,
-                position, // TODO
             })
         } else {
             None
@@ -750,6 +762,7 @@ impl MouseManager {
                             FrameHitInfo::no_hits(window_id),
                             Some(hovered),
                             None,
+                            capture.clone(),
                             capture,
                         );
                         MouseHoveredEvent.notify(ctx, args);
@@ -782,6 +795,7 @@ impl MouseManager {
                     prev_target,
                     target.clone(),
                     capture.clone(),
+                    capture.clone(),
                 );
                 Some(args)
             } else {
@@ -805,7 +819,6 @@ impl MouseManager {
     fn capture_info(&self, mouse: &mut Mouse) -> Option<CaptureInfo> {
         if let Some((path, mode)) = mouse.current_capture() {
             Some(CaptureInfo {
-                position: self.pos, // TODO must be related to capture.
                 target: path.clone(),
                 mode,
             })
@@ -820,7 +833,6 @@ impl MouseManager {
                 let capture = ctx.services.mouse().current_capture().map(|(path, mode)| CaptureInfo {
                     target: path.clone(),
                     mode,
-                    position: self.pos,
                 });
                 let args = MouseHoverArgs::now(
                     window_id,
@@ -829,6 +841,7 @@ impl MouseManager {
                     FrameHitInfo::no_hits(window_id),
                     Some(path),
                     None,
+                    capture.clone(),
                     capture,
                 );
                 MouseHoveredEvent.notify(ctx.events, args);
@@ -879,7 +892,7 @@ impl AppExtension for MouseManager {
                 if self.hovered != target {
                     let capture = self.capture_info(mouse);
                     let prev = mem::replace(&mut self.hovered, target.clone());
-                    let args = MouseHoverArgs::now(args.window_id, None, self.pos, hits, prev, target, capture);
+                    let args = MouseHoverArgs::now(args.window_id, None, self.pos, hits, prev, target, capture.clone(), capture);
                     MouseHoveredEvent.notify(ctx.events, args);
                 }
             }
@@ -936,6 +949,7 @@ impl AppExtension for MouseManager {
                         Some(path),
                         None,
                         None,
+                        None,
                     );
                     MouseHoveredEvent.notify(ctx.events, args);
                 }
@@ -958,10 +972,13 @@ impl AppExtension for MouseManager {
                         FrameHitInfo::new(window_id, self.pos_hits.0, self.pos_hits.1, &self.pos_hits.2),
                         Some(path.clone()),
                         Some(path.clone()),
+                        args.prev_capture.as_ref().map(|(path, mode)| CaptureInfo {
+                            target: path.clone(),
+                            mode: *mode,
+                        }),
                         args.new_capture.as_ref().map(|(path, mode)| CaptureInfo {
                             target: path.clone(),
                             mode: *mode,
-                            position: DipPoint::zero(), //TODO
                         }),
                     );
                     MouseHoveredEvent.notify(ctx.events, hover_args);
@@ -1302,8 +1319,6 @@ pub struct CaptureInfo {
     pub target: WidgetPath,
     /// Capture mode, see [`allows`](Self::allows) for more details.
     pub mode: CaptureMode,
-    /// Position of the pointer related to the window.
-    pub position: DipPoint,
 }
 impl CaptureInfo {
     /// If the widget is allowed by the current capture.

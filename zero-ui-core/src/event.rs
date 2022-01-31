@@ -35,9 +35,9 @@ pub trait EventArgs: Debug + Clone + 'static {
     /// If the handler must skip this event.
     ///
     /// Note that property level handlers don't need to check this, as those handlers are
-    /// already not called when this is `true`. Direct event listeners in [`UiNode`] and [`AppExtension`] 
+    /// already not called when this is `true`. Direct event listeners in [`UiNode`] and [`AppExtension`]
     /// must check if this is `true`.
-    /// 
+    ///
     /// [`UiNode`]: crate::UiNode
     /// [`AppExtension`]: crate::app::AppExtension
     fn stop_propagation_requested(&self) -> bool;
