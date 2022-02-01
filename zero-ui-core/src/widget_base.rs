@@ -338,27 +338,22 @@ state_key! {
 }
 
 context_var! {
-    /// Don't use this directly unless you read all the enabled related
-    /// source code here and in core/window.rs
-    #[doc(hidden)]
-    pub struct IsEnabledVar: bool = true;
+    struct IsEnabledVar: bool = true;
 }
 
-/// Extension method for accessing the [`enabled`](fn@enabled) state of widgets.
+/// Extension method for accessing the [`enabled`](fn@enabled) state in [`WidgetInfo`].
 pub trait WidgetEnabledExt {
+    /// Returns if the widget was enabled when the info tree was build.
+    ///
     /// If `false` the widget does not [`allow_interaction`] and visually indicates this.
     ///
     /// [`allow_interaction`]: crate::widget_info::WidgetInfo::allow_interaction
     fn is_enabled(&self) -> bool;
 }
-impl<W: Widget> WidgetEnabledExt for W {
-    fn is_enabled(&self) -> bool {
-        self.state().get(EnabledState).copied().unwrap_or(true)
-    }
-}
 impl<'a> WidgetEnabledExt for WidgetInfo<'a> {
     fn is_enabled(&self) -> bool {
-        self.meta().get(EnabledState).copied().unwrap_or(true)
+        self.self_and_ancestors()
+            .all(|w| w.meta().get(EnabledState).copied().unwrap_or(true))
     }
 }
 
@@ -423,7 +418,7 @@ pub fn enabled(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
     impl<C: UiNode> UiNode for EnabledNode<C> {
         fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
             if !IsEnabled::get(ctx) {
-                info.meta().set(EnabledState, false);
+                info.meta().set(EnabledState, dbg!(false));
 
                 if !ctx.update_state.flag(RegisteredDisabledFilter) {
                     info.push_interactive_filter(move |args| args.info.is_enabled())
@@ -767,7 +762,7 @@ pub fn hit_testable(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiN
     impl<C: UiNode> UiNode for HitTestableNode<C> {
         fn init(&mut self, ctx: &mut WidgetContext) {
             if !IsHitTestable::get(ctx) {
-                ctx.widget_state.set(HitTestEnabledState, false);
+                ctx.widget_state.set(HitTestableState, false);
             }
             self.child.init(ctx);
         }
@@ -779,7 +774,7 @@ pub fn hit_testable(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiN
 
         fn update(&mut self, ctx: &mut WidgetContext) {
             if let Some(state) = IsHitTestable::get_new(ctx) {
-                ctx.widget_state.set(HitTestEnabledState, state);
+                ctx.widget_state.set(HitTestableState, state);
                 ctx.updates.info();
             }
             self.child.update(ctx);
@@ -825,8 +820,7 @@ impl IsHitTestable {
 }
 
 state_key! {
-    /// Set on a widget that disables hit-testing as a signal for `is_hit_testable`
-    struct HitTestEnabledState: bool;
+    struct HitTestableState: bool;
 }
 
 context_var! {
@@ -847,7 +841,7 @@ pub fn is_hit_testable(child: impl UiNode, state: StateVar) -> impl UiNode {
     }
     impl<C: UiNode> IsHitTestableNode<C> {
         fn update_state(&self, ctx: &mut WidgetContext) {
-            let enabled = IsHitTestable::get(ctx) && ctx.widget_state.get(HitTestEnabledState).copied().unwrap_or(true);
+            let enabled = IsHitTestable::get(ctx) && ctx.widget_state.get(HitTestableState).copied().unwrap_or(true);
             self.state.set_ne(ctx.vars, enabled);
         }
     }

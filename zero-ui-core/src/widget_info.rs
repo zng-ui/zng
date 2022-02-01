@@ -1013,6 +1013,12 @@ impl<'a> WidgetInfo<'a> {
         self.node().descendants().skip(1).map(move |n| WidgetInfo::new(self.tree, n.id()))
     }
 
+    /// iterator over the widget and all widgets contained by it.
+    #[inline]
+    pub fn self_and_descendants(self) -> impl Iterator<Item = WidgetInfo<'a>> {
+        self.node().descendants().map(move |n| WidgetInfo::new(self.tree, n.id()))
+    }
+
     /// Iterator over all widgets contained by this widget filtered by the `filter` closure.
     #[inline]
     pub fn filter_descendants<F: FnMut(WidgetInfo<'a>) -> DescendantFilter>(self, filter: F) -> FilterDescendants<'a, F> {
@@ -1029,6 +1035,12 @@ impl<'a> WidgetInfo<'a> {
     #[inline]
     pub fn ancestors(self) -> impl Iterator<Item = WidgetInfo<'a>> {
         self.node().ancestors().map(move |n| WidgetInfo::new(self.tree, n.id()))
+    }
+
+    /// Iterator over self -> parent -> grandparent -> .. -> root.
+    #[inline]
+    pub fn self_and_ancestors(self) -> impl Iterator<Item = WidgetInfo<'a>> {
+        [self].into_iter().chain(self.ancestors())
     }
 
     /// Iterator over all previous widgets within the same parent.
