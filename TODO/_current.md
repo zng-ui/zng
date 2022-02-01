@@ -6,6 +6,7 @@
 
 * Continue refactoring layers inside root.
 * Opening two modals blocks all interaction.
+* Check disabling window, disables layer?
 
 # Split `inner`
 
