@@ -30,8 +30,9 @@ fn app_main() {
             on_pre_init = hn!(|ctx, _| {
                 WindowLayers::insert(ctx, LayerIndex::TOP_MOST - 100, text! {
                     hit_testable = false;
-                    text = "INITED";
-                    font_size = 150;
+                    text = "on_pre_init";
+                    font_size = 72;
+                    font_family = "monospace";
                     opacity = 3.pct();
                     // rotate = 45.deg();
                     align = Alignment::CENTER;
@@ -43,9 +44,14 @@ fn app_main() {
                 items = widgets![
                     overlay_btn(),
 
-                    layer_n_btn(7, colors::DARK_GREEN),
-                    layer_n_btn(8, colors::DARK_BLUE),
-                    layer_n_btn(9, colors::DARK_RED),
+                    h_stack! {
+                        spacing = 5;
+                        items = widgets![
+                            layer_n_btn(7, colors::DARK_GREEN),
+                            layer_n_btn(8, colors::DARK_BLUE),
+                            layer_n_btn(9, colors::DARK_RED),
+                        ]
+                    },                
                 ];
             };
         }
@@ -56,18 +62,20 @@ fn overlay_btn() -> impl Widget {
     button! {
         content = text("TOP_MOST");
         on_click = hn!(|ctx, _| {
-            WindowLayers::insert(ctx, LayerIndex::TOP_MOST, overlay());
+            WindowLayers::insert(ctx, LayerIndex::TOP_MOST, overlay("overlay", 0));
         });
     }
 }
-fn overlay() -> impl Widget {
+fn overlay(id: impl Into<WidgetId>, offset: i32) -> impl Widget {
+    let id = id.into();
     container! {
-        id = "overlay";
+        id;
         modal = true;
-        background_color = colors::GRAY.with_alpha(40.pct());
+        background_color = colors::GRAY.with_alpha(10.pct());
         content = container! {
+            position = (offset, offset);
             focus_scope = true;
-            background_color = colors::GRAY.darken(50.pct());
+            background_color = colors::BLACK;
             padding = 2;
             content = v_stack! {
                 items_align = Alignment::RIGHT;
@@ -76,11 +84,23 @@ fn overlay() -> impl Widget {
                         text = "Overlay inserted in the TOP_MOST layer.";
                         margin = 15;
                     },
-                    button! {
-                        content = text("Ok");
-                        on_click = hn!(|ctx, _| {
-                            WindowLayers::remove(ctx, "overlay");
-                        })
+                    h_stack! {
+                        spacing = 2;
+                        items = widgets![
+                            button! {
+                                visibility = offset < 50;
+                                content = text("Open Another");
+                                on_click = hn!(|ctx, _| {
+                                    WindowLayers::insert(ctx, LayerIndex::TOP_MOST, overlay(WidgetId::new_unique(), offset + 10));
+                                })
+                            },
+                            button! {
+                                content = text("Remove");
+                                on_click = hn!(|ctx, _| {
+                                    WindowLayers::remove(ctx, id);
+                                })
+                            },
+                        ]
                     }
                 ]
             }
