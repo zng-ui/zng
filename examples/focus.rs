@@ -137,6 +137,7 @@ fn functions(window_enabled: RcVar<bool>) -> impl Widget {
 fn overlay() -> impl Widget {
     container! {
         id = "overlay";
+        modal = true;
         background_color = colors::GRAY.with_alpha(40.pct());
         content = container! {
             focus_scope = true;

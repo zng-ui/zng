@@ -20,7 +20,7 @@ pub mod focus;
 pub mod states;
 pub mod transform;
 
-mod capture_mouse_;
-pub use capture_mouse_::*;
+mod capture;
+pub use capture::*;
 mod cursor_;
 pub use cursor_::*;

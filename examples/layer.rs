@@ -22,14 +22,8 @@ fn main() {
 
 fn app_main() {
     App::default().run_window(|_| {
-        let window_enabled = var(true);
-
         window! {
             title = "Layer Example";
-
-            // layered widgets only context is the root ID and `WindowVars`, the `overlay_btn`
-            // disables the window here but you can still click the layered widgets.
-            enabled = window_enabled.clone();
 
             // you can use the pre-init to insert layered widgets
             // before the first render.
@@ -47,7 +41,7 @@ fn app_main() {
             content = v_stack! {
                 spacing = 5;
                 items = widgets![
-                    overlay_btn(window_enabled),
+                    overlay_btn(),
 
                     layer_n_btn(7, colors::DARK_GREEN),
                     layer_n_btn(8, colors::DARK_BLUE),
@@ -58,18 +52,18 @@ fn app_main() {
     })
 }
 
-fn overlay_btn(window_enabled: RcVar<bool>) -> impl Widget {
+fn overlay_btn() -> impl Widget {
     button! {
         content = text("TOP_MOST");
         on_click = hn!(|ctx, _| {
-            window_enabled.set(ctx, false);
-            WindowLayers::insert(ctx,  LayerIndex::TOP_MOST, overlay(window_enabled.clone()));
+            WindowLayers::insert(ctx, LayerIndex::TOP_MOST, overlay());
         });
     }
 }
-fn overlay(window_enabled: RcVar<bool>) -> impl Widget {
+fn overlay() -> impl Widget {
     container! {
         id = "overlay";
+        modal = true;
         background_color = colors::GRAY.with_alpha(40.pct());
         content = container! {
             focus_scope = true;
@@ -85,7 +79,6 @@ fn overlay(window_enabled: RcVar<bool>) -> impl Widget {
                     button! {
                         content = text("Ok");
                         on_click = hn!(|ctx, _| {
-                            window_enabled.set(ctx, true);
                             WindowLayers::remove(ctx, "overlay");
                         })
                     }

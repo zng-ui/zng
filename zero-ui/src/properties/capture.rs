@@ -3,13 +3,11 @@ use crate::prelude::new_property::*;
 
 /// Capture mouse for the widget on mouse down.
 ///
-/// The mouse is captured when the widget gets the first mouse down and the `mode` is
-/// [`Widget`](CaptureMode::Widget) or [`Subtree`](CaptureMode::Subtree).
+/// The mouse is captured when the widget gets the first mouse down and the `mode` is [`Widget`] or [`Subtree`].
 ///
-/// The capture is released back to window if the `mode` changes to [`Window`](CaptureMode::Window) when
-/// the mouse is captured for the widget.
+/// The capture is released back to window if the `mode` changes to [`Window`] when the mouse is captured for the widget.
 ///
-/// # Example
+/// # Examples
 ///
 /// ```
 /// # fn main() { }
@@ -25,6 +23,10 @@ use crate::prelude::new_property::*;
 ///     }
 /// }
 /// ```
+///
+/// [`Widget`]: CaptureMode::Widget
+/// [`Subtree`]: CaptureMode::Subtree
+/// [`Window`]: CaptureMode::Window
 #[property(context, default(false))]
 pub fn capture_mouse(child: impl UiNode, mode: impl IntoVar<CaptureMode>) -> impl UiNode {
     struct CaptureMouseNode<C: UiNode, M: Var<CaptureMode>> {
@@ -90,5 +92,43 @@ pub fn capture_mouse(child: impl UiNode, mode: impl IntoVar<CaptureMode>) -> imp
     CaptureMouseNode {
         child,
         mode: mode.into_var(),
+    }
+}
+
+/// Only allow interaction inside the widget and descendants.
+///
+/// When modal mode is enabled in a widget only it and widget descendants [`allow_interaction`], all other widgets behave as if disabled, but
+/// without the visual indication of disabled. This property is a building block for modal overlay widgets.
+///
+/// This is `false` by default.
+///
+/// [`allow_interaction`]: crate::core::widget_info::WidgetInfo::allow_interaction
+#[property(context, default(false))]
+pub fn modal(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
+    struct ModalNode<C, E> {
+        child: C,
+        enabled: E,
+    }
+    #[impl_ui_node(child)]
+    impl<C: UiNode, E: Var<bool>> UiNode for ModalNode<C, E> {
+        fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
+            if self.enabled.copy(ctx) {
+                let widget_id = ctx.path.widget_id();
+                info.push_interactive_filter(move |a| a.info.self_and_ancestors().any(|w| w.widget_id() == widget_id));
+            }
+            self.child.info(ctx, info);
+        }
+
+        fn update(&mut self, ctx: &mut WidgetContext) {
+            if self.enabled.is_new(ctx) {
+                ctx.updates.info();
+            }
+
+            self.child.update(ctx);
+        }
+    }
+    ModalNode {
+        child,
+        enabled: enabled.into_var(),
     }
 }
