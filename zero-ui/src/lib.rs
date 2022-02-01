@@ -932,9 +932,9 @@ pub mod prelude {
         widget_base::Visibility,
         widget_vec, widgets,
         window::{
-            AppRunWindowExt, AutoSize, CursorIcon, HeadlessAppWindowExt, MonitorId, MonitorQuery, MonitorsExt, StartPosition, Window,
-            WindowChangedArgs, WindowChrome, WindowCloseRequestedArgs, WindowIcon, WindowId, WindowOpenArgs, WindowState, WindowVarsKey,
-            Windows, WindowsExt,
+            AppRunWindowExt, AutoSize, CursorIcon, HeadlessAppWindowExt, MonitorId, MonitorQuery, MonitorsExt, StartPosition,
+            WidgetInfoChangedEvent, Window, WindowChangedArgs, WindowChrome, WindowCloseRequestedArgs, WindowIcon, WindowId,
+            WindowOpenArgs, WindowState, WindowVarsKey, Windows, WindowsExt,
         },
         RcNode, UiNode, UiNodeList, Widget, WidgetId, WidgetList, WidgetPath,
     };
@@ -1030,6 +1030,8 @@ pub mod prelude {
         #[doc(no_inline)]
         pub use crate::core::widget_base::{IsEnabled, WidgetEnabledExt};
         #[doc(no_inline)]
+        pub use crate::core::window::{WidgetInfoChangedEvent, WindowId};
+        #[doc(no_inline)]
         pub use crate::core::{
             impl_ui_node, node_vec, nodes, property,
             ui_list::{SortedWidgetVec, SortedWidgetVecRef, UiListObserver, UiNodeList, WidgetList, WidgetVec, WidgetVecRef},
@@ -1086,6 +1088,8 @@ pub mod prelude {
         pub use crate::core::units::*;
         #[doc(no_inline)]
         pub use crate::core::var::*;
+        #[doc(no_inline)]
+        pub use crate::core::window::{WidgetInfoChangedEvent, WindowId};
         #[doc(no_inline)]
         pub use crate::core::{
             impl_ui_node, node_vec, nodes, property,

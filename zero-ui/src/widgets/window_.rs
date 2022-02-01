@@ -417,7 +417,8 @@ pub mod window {
         let child = commands::window_control_node(child);
         #[cfg(debug_assertions)]
         let child = commands::inspect_node(child, can_inspect);
-        child
+
+        nodes::layers(child)
     }
 
     #[inline]
@@ -438,7 +439,7 @@ pub mod window {
             allow_transparency,
             render_mode,
             headless_monitor,
-            nodes::layers(child),
+            child,
         )
     }
 
@@ -994,7 +995,20 @@ pub mod window {
 
         /// Windows layers.
         ///
-        /// TODO describe (no window context except root_id and WindowVars, etc.).
+        /// The window layers is z-order stacking panel that fills the window content area, widgets can be inserted
+        /// with a *z-index* that is the [`LayerIndex`]. The inserted widgets parent is the window root widget and
+        /// it is affected by the context properties set on the window only.
+        ///
+        /// # Layout
+        ///
+        /// Layered widgets are measured and arranged using the same constrains as the window root widget, the desired
+        /// size is discarded, only the root widget desired size can affect the window size. Layered widgets are all layout
+        /// after the window content and from the bottom layer up to the top-most, this means that [`BoundsInfo`] of
+        /// normal widgets are always up-to-date when the layered widget is arranged.
+        ///
+        /// # Render
+        ///
+        /// Layered widgets are always renderer after the window root and content, from the bottom layer to the top-most.
         ///
         /// [`WindowContext`]:crate::core::context::WindowContext
         pub struct WindowLayers {
@@ -1075,20 +1089,59 @@ pub mod window {
                 layer: impl IntoVar<LayerIndex>,
                 anchor: impl IntoVar<WidgetId>,
                 mode: impl IntoVar<AnchorMode>,
+
                 widget: impl Widget,
             ) {
                 struct AnchoredWidget<A, M, W> {
                     anchor: A,
                     mode: M,
                     widget: W,
+
+                    anchor_bounds: Option<BoundsInfo>,
                 }
                 #[impl_ui_node(
                     delegate = &self.widget,
                     delegate_mut = &mut self.widget,
                 )]
-                impl<A: Var<WidgetId>, M: Var<AnchorMode>, W: Widget> UiNode for AnchoredWidget<A, M, W> {
+                impl<A, M, W> UiNode for AnchoredWidget<A, M, W>
+                where
+                    A: Var<WidgetId>,
+                    M: Var<AnchorMode>,
+                    W: Widget,
+                {
+                    fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
+                        subscriptions.event(WidgetInfoChangedEvent);
+
+                        self.widget.subscriptions(ctx, subscriptions)
+                    }
+
+                    fn init(&mut self, ctx: &mut WidgetContext) {
+                        if let Some(w) = ctx.info_tree.find(self.anchor.copy(ctx.vars)) {
+                            self.anchor_bounds = Some(w.inner_info().clone());
+                        }
+
+                        self.widget.init(ctx);
+                    }
+
+                    fn deinit(&mut self, ctx: &mut WidgetContext) {
+                        self.anchor_bounds = None;
+                        self.widget.deinit(ctx);
+                    }
+
+                    fn event<Args: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &Args) {
+                        if let Some(args) = WidgetInfoChangedEvent.update(args) {
+                            if args.window_id == ctx.path.window_id() {
+                                self.anchor_bounds = ctx.info_tree.find(self.anchor.copy(ctx.vars)).map(|w| w.inner_info().clone());
+                            }
+                            self.widget.event(ctx, args);
+                        } else {
+                            self.widget.event(ctx, args);
+                        }
+                    }
+
                     fn update(&mut self, ctx: &mut WidgetContext) {
                         if let Some(anchor) = self.anchor.copy_new(ctx) {
+                            self.anchor_bounds = ctx.info_tree.find(anchor).map(|w| w.inner_info().clone());
                             ctx.updates.layout_and_render();
                         }
                         if self.mode.is_new(ctx) {
@@ -1098,15 +1151,31 @@ pub mod window {
                     }
 
                     fn measure(&mut self, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize {
-                        self.widget.measure(ctx, available_size)
+                        if let Some(anchor) = &self.anchor_bounds {
+                            let mode = self.mode.copy(ctx);
+
+                            self.widget.measure(ctx, available_size)
+                        } else {
+                            PxSize::zero()
+                        }
                     }
 
                     fn arrange(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, final_size: PxSize) {
-                        self.widget.arrange(ctx, widget_layout, final_size);
+                        if let Some(anchor) = &self.anchor_bounds {
+                            self.widget.arrange(ctx, widget_layout, final_size);
+                        }
                     }
 
                     fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-                        self.widget.render(ctx, frame);
+                        if self.anchor_bounds.is_some() {
+                            self.widget.render(ctx, frame);
+                        }
+                    }
+
+                    fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
+                        if self.anchor_bounds.is_some() {
+                            self.widget.render_update(ctx, update);
+                        }
                     }
                 }
                 impl<A: Var<WidgetId>, M: Var<AnchorMode>, W: Widget> Widget for AnchoredWidget<A, M, W> {
@@ -1142,6 +1211,8 @@ pub mod window {
                         anchor: anchor.into_var(),
                         mode: mode.into_var(),
                         widget,
+
+                        anchor_bounds: None,
                     },
                 );
             }
@@ -1159,7 +1230,9 @@ pub mod window {
             struct LayerIndexKey: LayerIndex;
         }
 
-        /// Wrap around the window outer-most context node to create the layers.
+        /// Wrap around the window outer-most event node to create the layers.
+        ///
+        /// This node is automatically included in the `window::new_event` constructor.
         pub fn layers(child: impl UiNode) -> impl UiNode {
             struct LayersNode<C> {
                 children: C,
@@ -1186,6 +1259,20 @@ pub mod window {
                     if changed {
                         ctx.updates.layout_and_render();
                     }
+                }
+
+                fn measure(&mut self, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize {
+                    let mut desired_size = PxSize::zero();
+                    self.children.measure_all(
+                        ctx,
+                        |_, _| available_size,
+                        |_, args| {
+                            if args.index == 0 {
+                                desired_size = args.desired_size;
+                            }
+                        },
+                    );
+                    desired_size
                 }
             }
 

@@ -51,7 +51,7 @@ fn app_main() {
                             layer_n_btn(8, colors::DARK_BLUE),
                             layer_n_btn(9, colors::DARK_RED),
                         ]
-                    },                
+                    },
                 ];
             };
         }

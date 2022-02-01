@@ -114,27 +114,30 @@ fn functions(window_enabled: RcVar<bool>) -> impl Widget {
                 });
                 slot(detach_focused, take_on_init())
             },
-            // Disable Scope
-            button! {
-                content = text(window_enabled.map(|&e| if e { "Disable Scope" } else { "Enabling in 1s..." }.into()));
-                width = 140;
-                on_click = async_hn!(window_enabled, |ctx, _| {
-                    window_enabled.set(&ctx, false);
-                    task::timeout(1.secs()).await;
-                    window_enabled.set(&ctx, true);
-                });
-            },
+            // Disable Window
+            disable_window(window_enabled.clone()),
             // Overlay Scope
             button! {
                 content = text("Overlay Scope");
                 on_click = hn!(|ctx, _| {
-                    WindowLayers::insert(ctx, LayerIndex::TOP_MOST, overlay());
+                    WindowLayers::insert(ctx, LayerIndex::TOP_MOST, overlay(window_enabled.clone()));
                 });
             }
         ]
     }
 }
-fn overlay() -> impl Widget {
+fn disable_window(window_enabled: RcVar<bool>) -> impl Widget {
+    button! {
+        content = text(window_enabled.map(|&e| if e { "Disable Window" } else { "Enabling in 1s..." }.into()));
+        width = 140;
+        on_click = async_hn!(window_enabled, |ctx, _| {
+            window_enabled.set(&ctx, false);
+            task::timeout(1.secs()).await;
+            window_enabled.set(&ctx, true);
+        });
+    }
+}
+fn overlay(window_enabled: RcVar<bool>) -> impl Widget {
     container! {
         id = "overlay";
         modal = true;
@@ -150,11 +153,17 @@ fn overlay() -> impl Widget {
                         text = "Window scope is disabled so the overlay scope is the root scope.";
                         margin = 15;
                     },
-                    button! {
-                        content = text("Ok");
-                        on_click = hn!(|ctx, _| {
-                            WindowLayers::remove(ctx, "overlay");
-                        })
+                    h_stack! {
+                        spacing = 2;
+                        items = widgets![
+                        disable_window(window_enabled),
+                        button! {
+                                content = text("Close");
+                                on_click = hn!(|ctx, _| {
+                                    WindowLayers::remove(ctx, "overlay");
+                                })
+                            }
+                        ]
                     }
                 ]
             }
