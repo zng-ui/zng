@@ -9,8 +9,7 @@ use parking_lot::Mutex;
 use crate::{
     context::*,
     event::{AnyEventUpdate, Event},
-    widget_base::Visibility,
-    widget_info::{BoundsInfo, UpdateSlot, WidgetInfoBuilder, WidgetLayout, WidgetSubscriptions},
+    widget_info::{UpdateSlot, WidgetInfoBuilder, WidgetLayout, WidgetLayoutInfo, WidgetRenderInfo, WidgetSubscriptions},
     IdNameError,
 };
 use crate::{crate_util::NameIdMap, units::*};
@@ -451,22 +450,20 @@ pub trait Widget: UiNode {
     /// Exclusive borrow the widget lazy state.
     fn state_mut(&mut self) -> &mut StateMap;
 
-    /// Last arranged outer-bounds.
+    /// Outer-bounds layout information.
     ///
-    /// The origin is relative to the top-left corner of the window content area, the size if the arrange size
-    /// of the *outer* properties.
-    fn outer_bounds(&self) -> &BoundsInfo;
+    /// The information is kept up-to-date, updating every arrange.
+    fn outer_info(&self) -> &WidgetLayoutInfo;
 
-    /// Last arranged inner-bounds.
+    /// Inner-bounds layout information.
     ///
-    /// The origin is relative to the top-left corner of the window content area, the size if the arrange size
-    /// of the *inner* properties.
-    fn inner_bounds(&self) -> &BoundsInfo;
+    /// The information is kept up-to-date, updating every arrange.
+    fn inner_info(&self) -> &WidgetLayoutInfo;
 
-    /// Last rendered visibility.
+    /// Render information.
     ///
-    /// If anything was rendered it is `Visible`, else if the outer-size is zero it is `Collapsed` else it is `Hidden`.
-    fn visibility(&self) -> Visibility;
+    /// The information is kept up-to-date, updating every render
+    fn render_info(&self) -> &WidgetRenderInfo;
 
     /// Box this widget node, unless it is already `BoxedWidget`.
     fn boxed_widget(self) -> BoxedWidget
@@ -488,7 +485,7 @@ pub trait Widget: UiNode {
         ctx.layout_context(
             font_size,
             font_size,
-            self.outer_bounds().size(),
+            self.outer_info().size(),
             1.0.fct(),
             96.0,
             LayoutMask::all(),
@@ -504,14 +501,15 @@ pub trait Widget: UiNode {
         ctx.layout_context(
             font_size,
             font_size,
-            self.outer_bounds().size(),
+            self.outer_info().size(),
             1.0.fct(),
             96.0,
             LayoutMask::all(),
             |ctx| {
-                let outer = self.outer_bounds().clone();
-                let inner = self.inner_bounds().clone();
-                WidgetLayout::with_root_widget(&outer, &inner, final_size, |wl| {
+                let outer = self.outer_info().clone();
+                let inner = self.inner_info().clone();
+                let id = self.id();
+                WidgetLayout::with_root_widget(id, &outer, &inner, final_size, |wl| {
                     self.arrange(ctx, wl, final_size);
                 });
             },
@@ -566,9 +564,9 @@ pub trait WidgetBoxed: UiNodeBoxed {
     fn id_boxed(&self) -> WidgetId;
     fn state_boxed(&self) -> &StateMap;
     fn state_mut_boxed(&mut self) -> &mut StateMap;
-    fn outer_bounds_boxed(&self) -> &BoundsInfo;
-    fn inner_bounds_boxed(&self) -> &BoundsInfo;
-    fn visibility_boxed(&self) -> Visibility;
+    fn outer_info_boxed(&self) -> &WidgetLayoutInfo;
+    fn inner_info_boxed(&self) -> &WidgetLayoutInfo;
+    fn render_info_boxed(&self) -> &WidgetRenderInfo;
 }
 impl<W: Widget> WidgetBoxed for W {
     fn id_boxed(&self) -> WidgetId {
@@ -583,16 +581,16 @@ impl<W: Widget> WidgetBoxed for W {
         self.state_mut()
     }
 
-    fn outer_bounds_boxed(&self) -> &BoundsInfo {
-        self.outer_bounds()
+    fn outer_info_boxed(&self) -> &WidgetLayoutInfo {
+        self.outer_info()
     }
 
-    fn inner_bounds_boxed(&self) -> &BoundsInfo {
-        self.inner_bounds()
+    fn inner_info_boxed(&self) -> &WidgetLayoutInfo {
+        self.inner_info()
     }
 
-    fn visibility_boxed(&self) -> Visibility {
-        self.visibility()
+    fn render_info_boxed(&self) -> &WidgetRenderInfo {
+        self.render_info()
     }
 }
 
@@ -657,16 +655,16 @@ impl Widget for BoxedWidget {
         self.as_mut().state_mut_boxed()
     }
 
-    fn outer_bounds(&self) -> &BoundsInfo {
-        self.as_ref().outer_bounds_boxed()
+    fn outer_info(&self) -> &WidgetLayoutInfo {
+        self.as_ref().outer_info_boxed()
     }
 
-    fn inner_bounds(&self) -> &BoundsInfo {
-        self.as_ref().inner_bounds_boxed()
+    fn inner_info(&self) -> &WidgetLayoutInfo {
+        self.as_ref().inner_info_boxed()
     }
 
-    fn visibility(&self) -> Visibility {
-        self.as_ref().visibility_boxed()
+    fn render_info(&self) -> &WidgetRenderInfo {
+        self.as_ref().render_info_boxed()
     }
 }
 

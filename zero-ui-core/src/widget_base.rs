@@ -25,7 +25,7 @@ pub mod implicit_base {
         context::{OwnedStateMap, RenderContext},
         render::FrameBindingKey,
         units::RenderTransform,
-        widget_info::{BoundsInfo, WidgetLayout, WidgetRendered, WidgetSubscriptions},
+        widget_info::{WidgetLayout, WidgetLayoutInfo, WidgetRenderInfo, WidgetSubscriptions},
     };
 
     use super::*;
@@ -149,9 +149,9 @@ pub mod implicit_base {
             id: WidgetId,
             state: OwnedStateMap,
             child: T,
-            outer_bounds: BoundsInfo,
-            inner_bounds: BoundsInfo,
-            rendered: WidgetRendered,
+            outer_info: WidgetLayoutInfo,
+            inner_info: WidgetLayoutInfo,
+            render_info: WidgetRenderInfo,
             subscriptions: RefCell<WidgetSubscriptions>,
             #[cfg(debug_assertions)]
             inited: bool,
@@ -167,9 +167,9 @@ pub mod implicit_base {
                 ctx.with_widget(self.id, &self.state, |ctx| {
                     info.push_widget(
                         self.id,
-                        self.outer_bounds.clone(),
-                        self.inner_bounds.clone(),
-                        self.rendered.clone(),
+                        self.outer_info.clone(),
+                        self.inner_info.clone(),
+                        self.render_info.clone(),
                         |info| self.child.info(ctx, info),
                     );
                 });
@@ -259,7 +259,7 @@ pub mod implicit_base {
                 }
 
                 ctx.with_widget(self.id, &mut self.state, |ctx| {
-                    widget_layout.with_widget(&self.outer_bounds, &self.inner_bounds, final_size, |wo| {
+                    widget_layout.with_widget(self.id, &self.outer_info, &self.inner_info, final_size, |wo| {
                         self.child.arrange(ctx, wo, final_size);
                     });
                 });
@@ -272,7 +272,7 @@ pub mod implicit_base {
                 }
 
                 ctx.with_widget(self.id, &self.state, |ctx| {
-                    frame.push_widget(self.id, &self.rendered, |frame| self.child.render(ctx, frame));
+                    frame.push_widget(self.id, &self.render_info, |frame| self.child.render(ctx, frame));
                 });
             }
             #[inline(always)]
@@ -299,32 +299,25 @@ pub mod implicit_base {
                 &mut self.state.0
             }
             #[inline]
-            fn outer_bounds(&self) -> &BoundsInfo {
-                &self.outer_bounds
+            fn outer_info(&self) -> &WidgetLayoutInfo {
+                &self.outer_info
             }
             #[inline]
-            fn inner_bounds(&self) -> &BoundsInfo {
-                &self.inner_bounds
+            fn inner_info(&self) -> &WidgetLayoutInfo {
+                &self.inner_info
             }
             #[inline]
-            fn visibility(&self) -> Visibility {
-                if self.rendered.get() {
-                    Visibility::Visible
-                } else if self.outer_bounds.size() == PxSize::zero() {
-                    Visibility::Collapsed
-                } else {
-                    Visibility::Hidden
-                }
+            fn render_info(&self) -> &WidgetRenderInfo {
+                &self.render_info
             }
         }
-
         WidgetNode {
             id: id.into(),
             state: OwnedStateMap::default(),
             child,
-            outer_bounds: BoundsInfo::new(),
-            inner_bounds: BoundsInfo::new(),
-            rendered: WidgetRendered::new(),
+            outer_info: WidgetLayoutInfo::new(),
+            inner_info: WidgetLayoutInfo::new(),
+            render_info: WidgetRenderInfo::new(),
             subscriptions: RefCell::default(),
             #[cfg(debug_assertions)]
             inited: false,
@@ -585,12 +578,16 @@ pub fn visibility(child: impl UiNode, visibility: impl IntoVar<Visibility>) -> i
         fn arrange(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, final_size: PxSize) {
             if Visibility::Collapsed != self.visibility.copy(ctx) {
                 self.child.arrange(ctx, widget_layout, final_size)
+            } else {
+                widget_layout.collapse(ctx.info_tree);
             }
         }
 
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
             if let Visibility::Visible = self.visibility.get(ctx) {
                 self.child.render(ctx, frame);
+            } else {
+                frame.skip_render(ctx.info_tree);
             }
         }
 

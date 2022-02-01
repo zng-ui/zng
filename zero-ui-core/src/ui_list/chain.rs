@@ -8,8 +8,7 @@ use crate::{
         WidgetList, WidgetVec,
     },
     units::{AvailableSize, PxSize},
-    widget_base::Visibility,
-    widget_info::{BoundsInfo, WidgetInfoBuilder, WidgetLayout, WidgetSubscriptions},
+    widget_info::{WidgetInfoBuilder, WidgetLayout, WidgetLayoutInfo, WidgetRenderInfo, WidgetSubscriptions},
     WidgetId,
 };
 
@@ -252,30 +251,30 @@ impl<A: WidgetList, B: WidgetList> WidgetList for WidgetListChain<A, B> {
         }
     }
 
-    fn widget_outer_bounds(&self, index: usize) -> &BoundsInfo {
+    fn widget_outer_info(&self, index: usize) -> &WidgetLayoutInfo {
         let a_len = self.0.len();
         if index < a_len {
-            self.0.widget_outer_bounds(index)
+            self.0.widget_outer_info(index)
         } else {
-            self.1.widget_outer_bounds(index - a_len)
+            self.1.widget_outer_info(index - a_len)
         }
     }
 
-    fn widget_inner_bounds(&self, index: usize) -> &BoundsInfo {
+    fn widget_inner_info(&self, index: usize) -> &WidgetLayoutInfo {
         let a_len = self.0.len();
         if index < a_len {
-            self.0.widget_inner_bounds(index)
+            self.0.widget_inner_info(index)
         } else {
-            self.1.widget_inner_bounds(index - a_len)
+            self.1.widget_inner_info(index - a_len)
         }
     }
 
-    fn widget_visibility(&self, index: usize) -> Visibility {
+    fn widget_render_info(&self, index: usize) -> &WidgetRenderInfo {
         let a_len = self.0.len();
         if index < a_len {
-            self.0.widget_visibility(index)
+            self.0.widget_render_info(index)
         } else {
-            self.1.widget_visibility(index - a_len)
+            self.1.widget_render_info(index - a_len)
         }
     }
 }

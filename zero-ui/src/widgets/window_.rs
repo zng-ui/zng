@@ -1055,16 +1055,16 @@ pub mod window {
                         self.widget.state_mut()
                     }
 
-                    fn outer_bounds(&self) -> &BoundsInfo {
-                        self.widget.outer_bounds()
+                    fn outer_info(&self) -> &WidgetLayoutInfo {
+                        self.widget.outer_info()
                     }
 
-                    fn inner_bounds(&self) -> &BoundsInfo {
-                        self.widget.inner_bounds()
+                    fn inner_info(&self) -> &WidgetLayoutInfo {
+                        self.widget.inner_info()
                     }
 
-                    fn visibility(&self) -> Visibility {
-                        self.widget.visibility()
+                    fn render_info(&self) -> &WidgetRenderInfo {
+                        self.widget.render_info()
                     }
                 }
 
@@ -1097,7 +1097,7 @@ pub mod window {
                     mode: M,
                     widget: W,
 
-                    anchor_bounds: Option<BoundsInfo>,
+                    anchor_info: Option<(WidgetLayoutInfo, WidgetRenderInfo)>,
                 }
                 #[impl_ui_node(
                     delegate = &self.widget,
@@ -1117,21 +1117,21 @@ pub mod window {
 
                     fn init(&mut self, ctx: &mut WidgetContext) {
                         if let Some(w) = ctx.info_tree.find(self.anchor.copy(ctx.vars)) {
-                            self.anchor_bounds = Some(w.inner_info().clone());
+                            self.anchor_info = Some((w.inner_info(), w.render_info()));
                         }
 
                         self.widget.init(ctx);
                     }
 
                     fn deinit(&mut self, ctx: &mut WidgetContext) {
-                        self.anchor_bounds = None;
+                        self.anchor_info = None;
                         self.widget.deinit(ctx);
                     }
 
                     fn event<Args: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &Args) {
                         if let Some(args) = WidgetInfoChangedEvent.update(args) {
                             if args.window_id == ctx.path.window_id() {
-                                self.anchor_bounds = ctx.info_tree.find(self.anchor.copy(ctx.vars)).map(|w| w.inner_info().clone());
+                                self.anchor_info = ctx.info_tree.find(self.anchor.copy(ctx.vars)).map(|w| (w.inner_info(), w.render_info()));
                             }
                             self.widget.event(ctx, args);
                         } else {
@@ -1141,7 +1141,7 @@ pub mod window {
 
                     fn update(&mut self, ctx: &mut WidgetContext) {
                         if let Some(anchor) = self.anchor.copy_new(ctx) {
-                            self.anchor_bounds = ctx.info_tree.find(anchor).map(|w| w.inner_info().clone());
+                            self.anchor_info = ctx.info_tree.find(anchor).map(|w| (w.inner_info(), w.render_info()));
                             ctx.updates.layout_and_render();
                         }
                         if self.mode.is_new(ctx) {
@@ -1151,30 +1151,40 @@ pub mod window {
                     }
 
                     fn measure(&mut self, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize {
-                        if let Some(anchor) = &self.anchor_bounds {
+                        if let Some((layout, _)) = &self.anchor_info {
                             let mode = self.mode.copy(ctx);
 
-                            self.widget.measure(ctx, available_size)
-                        } else {
-                            PxSize::zero()
+                            return self.widget.measure(ctx, available_size);
                         }
+                        
+                        PxSize::zero()
                     }
 
                     fn arrange(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, final_size: PxSize) {
-                        if let Some(anchor) = &self.anchor_bounds {
+                        if let Some((layout, _)) = &self.anchor_info {
                             self.widget.arrange(ctx, widget_layout, final_size);
+                            return;
                         }
+
+                        widget_layout.collapse(ctx.info_tree);
                     }
 
                     fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-                        if self.anchor_bounds.is_some() {
-                            self.widget.render(ctx, frame);
+                        if let Some((_, render_info)) = &self.anchor_info {
+                            if !self.mode.copy(ctx).contains(AnchorMode::VISIBILITY) || render_info.rendered() {
+                                self.widget.render(ctx, frame);
+                                return;
+                            }
                         }
+
+                        frame.skip_render(ctx.info_tree);
                     }
 
                     fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
-                        if self.anchor_bounds.is_some() {
-                            self.widget.render_update(ctx, update);
+                        if let Some((_, render_info)) = &self.anchor_info {
+                            if !self.mode.copy(ctx).contains(AnchorMode::VISIBILITY) || render_info.rendered() {
+                                self.widget.render_update(ctx, update);
+                            }
                         }
                     }
                 }
@@ -1191,16 +1201,16 @@ pub mod window {
                         self.widget.state_mut()
                     }
 
-                    fn outer_bounds(&self) -> &BoundsInfo {
-                        self.widget.outer_bounds()
+                    fn outer_info(&self) -> &WidgetLayoutInfo {
+                        self.widget.outer_info()
                     }
 
-                    fn inner_bounds(&self) -> &BoundsInfo {
-                        self.widget.inner_bounds()
+                    fn inner_info(&self) -> &WidgetLayoutInfo {
+                        self.widget.inner_info()
                     }
 
-                    fn visibility(&self) -> Visibility {
-                        self.widget.visibility()
+                    fn render_info(&self) -> &WidgetRenderInfo {
+                        self.widget.render_info()
                     }
                 }
 
@@ -1212,7 +1222,7 @@ pub mod window {
                         mode: mode.into_var(),
                         widget,
 
-                        anchor_bounds: None,
+                        anchor_info: None,
                     },
                 );
             }
@@ -1368,17 +1378,37 @@ pub mod window {
         bitflags::bitflags! {
             /// Defines how the layered widget is anchored to another widget.
             pub struct AnchorMode: u16 {
-                /// The widget is layout as if it is the only content of the window, the available size is the window content area.
-                const DEFAULT = 0b0;
+                /// The widget is layout like a normal unanchored layered widget, the available size is the window content
+                /// size and the origin is the window content top-left.
+                const NONE = 0b0;
 
-                /// The other widget stacked transform is applied to the widget origin point, so it is not scaled and
+                /// The other widget inner transform is applied to the widget origin point, so it is not scaled and
                 /// rotated like the other widget but it is positioned at the transform point, the available size is *infinite*.
                 const OFFSET = 0b1;
 
-                /// The other widget stacked transform is applied the widget, this flag overrides [`OFFSET`], the available size is *infinite*.
+                /// The other widget inner transform is applied the widget, this flag overrides [`OFFSET`], the available size is *infinite*.
                 ///
-                /// [`OFFSET`]: LayerMode::OFFSET
+                /// [`OFFSET`]: AnchorMode::OFFSET
                 const TRANSFORM = 0b11;
+
+                /// The widget is only rendered if the other widget is rendered.
+                const VISIBILITY = 0b100;
+
+                /// The widget only allows interaction if the other widget [`allow_interaction`].
+                ///
+                /// [`allow_interaction`]: crate::core::widget_info::WidgetInfo::allow_interaction
+                const INTERACTION = 0b1000;
+
+                /// The widget is only [`enabled`] if the other widget is enabled, this flag includes the [`INTERACTION`].
+                ///
+                /// [`enabled`]: crate::core::widget_base::enabled
+                /// [`INTERACTION`]: AnchorMode::INTERACTION
+                const ENABLED = 0b11000;
+
+                /// Is [`OFFSET`].
+                ///
+                /// [`OFFSET`]: AnchorMode::OFFSET
+                const DEFAULT = Self::OFFSET.bits;
             }
         }
         impl Default for AnchorMode {

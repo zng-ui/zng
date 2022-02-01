@@ -6,8 +6,7 @@ use crate::{
     render::{FrameBuilder, FrameUpdate},
     ui_list::{AvailableSizeArgs, DesiredSizeArgs, FinalSizeArgs, UiListObserver, UiNodeList, UiNodeVec, WidgetList, WidgetVec},
     units::{AvailableSize, PxSize},
-    widget_base::Visibility,
-    widget_info::{BoundsInfo, WidgetInfoBuilder, WidgetLayout, WidgetSubscriptions},
+    widget_info::{WidgetInfoBuilder, WidgetLayout, WidgetLayoutInfo, WidgetRenderInfo, WidgetSubscriptions},
     widget_vec, UiNode, Widget, WidgetId,
 };
 
@@ -162,25 +161,25 @@ macro_rules! impl_tuples {
             }
 
             #[inline]
-            fn widget_outer_bounds(&self, index: usize) -> &BoundsInfo {
+            fn widget_outer_info(&self, index: usize) -> &WidgetLayoutInfo {
                 match index {
-                    $($n => self.items.$n.outer_bounds(),)+
+                    $($n => self.items.$n.outer_info(),)+
                     _ => panic!("index {index} out of range for length {}", self.len())
                 }
             }
 
             #[inline]
-            fn widget_inner_bounds(&self, index: usize) -> &BoundsInfo {
+            fn widget_inner_info(&self, index: usize) -> &WidgetLayoutInfo {
                 match index {
-                    $($n => self.items.$n.inner_bounds(),)+
+                    $($n => self.items.$n.inner_info(),)+
                     _ => panic!("index {index} out of range for length {}", self.len())
                 }
             }
 
             #[inline]
-            fn widget_visibility(&self, index: usize) -> Visibility {
+            fn widget_render_info(&self, index: usize) -> &WidgetRenderInfo {
                 match index {
-                    $($n => self.items.$n.visibility(),)+
+                    $($n => self.items.$n.render_info(),)+
                     _ => panic!("index {index} out of range for length {}", self.len())
                 }
             }
@@ -514,15 +513,15 @@ impl WidgetList for WidgetList0 {
         panic!("index {index} out of range for length 0")
     }
 
-    fn widget_outer_bounds(&self, index: usize) -> &BoundsInfo {
+    fn widget_outer_info(&self, index: usize) -> &WidgetLayoutInfo {
         panic!("index {index} out of range for length 0")
     }
 
-    fn widget_inner_bounds(&self, index: usize) -> &BoundsInfo {
+    fn widget_inner_info(&self, index: usize) -> &WidgetLayoutInfo {
         panic!("index {index} out of range for length 0")
     }
 
-    fn widget_visibility(&self, index: usize) -> Visibility {
+    fn widget_render_info(&self, index: usize) -> &WidgetRenderInfo {
         panic!("index {index} out of range for length 0")
     }
 }

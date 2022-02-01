@@ -12,8 +12,7 @@ use crate::{
     state::StateMap,
     ui_list::{AvailableSizeArgs, DesiredSizeArgs, FinalSizeArgs, SortedWidgetVec, UiListObserver, WidgetFilterArgs, WidgetList},
     units::{AvailableSize, PxSize},
-    widget_base::Visibility,
-    widget_info::{BoundsInfo, UpdateSlot, WidgetInfoBuilder, WidgetLayout, WidgetSubscriptions},
+    widget_info::{UpdateSlot, WidgetInfoBuilder, WidgetLayout, WidgetLayoutInfo, WidgetRenderInfo, WidgetSubscriptions},
     BoxedUiNode, BoxedWidget, UiNode, UiNodeList, Widget, WidgetId,
 };
 
@@ -440,16 +439,16 @@ impl WidgetList for WidgetVec {
         self.vec[index].state_mut()
     }
 
-    fn widget_outer_bounds(&self, index: usize) -> &BoundsInfo {
-        self.vec[index].outer_bounds()
+    fn widget_outer_info(&self, index: usize) -> &WidgetLayoutInfo {
+        self.vec[index].outer_info()
     }
 
-    fn widget_inner_bounds(&self, index: usize) -> &BoundsInfo {
-        self.vec[index].inner_bounds()
+    fn widget_inner_info(&self, index: usize) -> &WidgetLayoutInfo {
+        self.vec[index].inner_info()
     }
 
-    fn widget_visibility(&self, index: usize) -> Visibility {
-        self.vec[index].visibility()
+    fn widget_render_info(&self, index: usize) -> &WidgetRenderInfo {
+        self.vec[index].render_info()
     }
 
     fn render_filtered<F>(&self, mut filter: F, ctx: &mut RenderContext, frame: &mut FrameBuilder)

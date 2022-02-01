@@ -16,7 +16,7 @@ use crate::{
     units::*,
     var::*,
     widget_info::{
-        BoundsInfo, UsedWidgetInfoBuilder, WidgetInfoBuilder, WidgetInfoTree, WidgetLayout, WidgetRendered, WidgetSubscriptions,
+        UsedWidgetInfoBuilder, WidgetInfoBuilder, WidgetInfoTree, WidgetLayout, WidgetLayoutInfo, WidgetRenderInfo, WidgetSubscriptions,
     },
     window::AutoSize,
     BoxedUiNode, UiNode, WidgetId,
@@ -997,9 +997,9 @@ struct ContentCtrl {
     root: BoxedUiNode,
     // info
     info_tree: WidgetInfoTree,
-    root_outer_bounds: BoundsInfo,
-    root_inner_bounds: BoundsInfo,
-    root_rendered: WidgetRendered,
+    root_outer_bounds: WidgetLayoutInfo,
+    root_inner_bounds: WidgetLayoutInfo,
+    root_rendered: WidgetRenderInfo,
     used_info_builder: Option<UsedWidgetInfoBuilder>,
 
     prev_metrics: Option<(Px, Factor, f32, PxSize)>,
@@ -1027,9 +1027,9 @@ impl ContentCtrl {
             root: window.child,
 
             info_tree: WidgetInfoTree::blank(window_id, window.id),
-            root_outer_bounds: BoundsInfo::new(),
-            root_inner_bounds: BoundsInfo::new(),
-            root_rendered: WidgetRendered::new(),
+            root_outer_bounds: WidgetLayoutInfo::new(),
+            root_inner_bounds: WidgetLayoutInfo::new(),
+            root_rendered: WidgetRenderInfo::new(),
             used_info_builder: None,
 
             prev_metrics: None,
@@ -1246,7 +1246,7 @@ impl ContentCtrl {
                     }
                 }
 
-                WidgetLayout::with_root_widget(&self.root_outer_bounds, &self.root_inner_bounds, final_size, |wl| {
+                WidgetLayout::with_root_widget(self.root_id, &self.root_outer_bounds, &self.root_inner_bounds, final_size, |wl| {
                     self.root.arrange(ctx, wl, final_size);
                 });
 
@@ -1276,7 +1276,7 @@ impl ContentCtrl {
                     self.used_frame_builder.take(),
                 );
 
-                let (frame, used) = ctx.render_context(self.root_id, &self.root_state, |ctx| {
+                let (frame, used) = ctx.render_context(self.root_id, &self.root_state, &self.info_tree, |ctx| {
                     self.root.render(ctx, &mut frame);
                     frame.finalize(&self.root_rendered)
                 });
@@ -1325,7 +1325,7 @@ impl ContentCtrl {
 
                 let mut update = FrameUpdate::new(self.frame_id, self.clear_color, self.used_frame_update.take());
 
-                ctx.render_context(self.root_id, &self.root_state, |ctx| {
+                ctx.render_context(self.root_id, &self.root_state, &self.info_tree, |ctx| {
                     self.root.render_update(ctx, &mut update);
                 });
 

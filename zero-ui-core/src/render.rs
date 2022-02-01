@@ -7,7 +7,7 @@ use crate::{
     gradient::{RenderExtendMode, RenderGradientStop},
     units::*,
     var::impl_from_and_into_var,
-    widget_info::WidgetRendered,
+    widget_info::{WidgetInfoTree, WidgetRenderInfo},
     window::WindowId,
     WidgetId,
 };
@@ -392,7 +392,7 @@ impl FrameBuilder {
     ///
     /// [`is_outer`]: Self::is_outer
     /// [`push_inner`]: Self::push_inner
-    pub fn push_widget(&mut self, widget_id: WidgetId, rendered: &WidgetRendered, f: impl FnOnce(&mut Self)) {
+    pub fn push_widget(&mut self, widget_id: WidgetId, rendered: &WidgetRenderInfo, f: impl FnOnce(&mut Self)) {
         if self.widget_data.is_some() {
             tracing::error!(
                 "called `push_widget` for `{widget_id}` without calling `push_inner` for the parent `{}`",
@@ -411,8 +411,26 @@ impl FrameBuilder {
 
         self.widget_id = parent_widget;
         self.widget_data = None;
-        rendered.set(self.widget_rendered);
+        rendered.set_rendered(self.widget_rendered);
         self.widget_rendered |= parent_rendered;
+    }
+
+    /// Register that all the current widget descendants are not rendered in this frame.
+    ///
+    /// Nodes the set the visibility to the equivalent of [`Hidden`] or [`Collapsed`] must not call `render` and `render_update`
+    /// for the descendant nodes and must call this method to update the rendered status of all descendant nodes.
+    ///
+    /// [`Hidden`]: crate::widget_base::Visibility::Hidden
+    /// [`Collapsed`]: crate::widget_base::Visibility::Collapsed
+    pub fn skip_render(&self, info_tree: &WidgetInfoTree) {
+        if let Some(w) = info_tree.find(self.widget_id) {
+            w.render_info().set_rendered(self.widget_rendered);
+            for w in w.descendants() {
+                w.render_info().set_rendered(false);
+            }
+        } else {
+            tracing::error!("skip_render did not find widget `{}` in info tree", self.widget_id)
+        }
     }
 
     /// Returns `true`  if the widget stacking context is still being build.
@@ -1002,8 +1020,8 @@ impl FrameBuilder {
     }
 
     /// Finalizes the build.
-    pub fn finalize(mut self, root_rendered: &WidgetRendered) -> (BuiltFrame, UsedFrameBuilder) {
-        root_rendered.set(self.widget_rendered);
+    pub fn finalize(mut self, root_rendered: &WidgetRenderInfo) -> (BuiltFrame, UsedFrameBuilder) {
+        root_rendered.set_rendered(self.widget_rendered);
 
         let (pipeline_id, display_list) = self.display_list.end();
         let (payload, descriptor) = display_list.into_data();

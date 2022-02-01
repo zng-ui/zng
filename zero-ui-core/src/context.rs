@@ -722,10 +722,12 @@ impl<'a> WindowContext<'a> {
         &mut self,
         root_widget_id: WidgetId,
         root_widget_state: &OwnedStateMap,
+        info_tree: &WidgetInfoTree,
         f: impl FnOnce(&mut RenderContext) -> R,
     ) -> R {
         f(&mut RenderContext {
             path: &mut WidgetContextPath::new(*self.window_id, root_widget_id),
+            info_tree,
             app_state: self.app_state,
             window_state: self.window_state,
             widget_state: &root_widget_state.0,
@@ -821,7 +823,7 @@ impl Default for TestWidgetContext {
     }
 }
 #[cfg(any(test, doc, feature = "test_util"))]
-use crate::widget_info::{BoundsInfo, WidgetInfoBuilder, WidgetRendered, WidgetSubscriptions};
+use crate::widget_info::{WidgetInfoBuilder, WidgetLayoutInfo, WidgetRenderInfo, WidgetSubscriptions};
 #[cfg(any(test, doc, feature = "test_util"))]
 impl TestWidgetContext {
     /// Gets a new [`TestWidgetContext`] instance. Panics is another instance is alive in the current thread
@@ -885,8 +887,8 @@ impl TestWidgetContext {
     /// Builds a info tree.
     pub fn info_tree<R>(
         &mut self,
-        root_bounds: BoundsInfo,
-        rendered: WidgetRendered,
+        root_bounds: WidgetLayoutInfo,
+        rendered: WidgetRenderInfo,
         action: impl FnOnce(&mut InfoContext, &mut WidgetInfoBuilder) -> R,
     ) -> (WidgetInfoTree, R) {
         let mut builder = WidgetInfoBuilder::new(self.window_id, self.root_id, root_bounds, rendered, None);
@@ -935,6 +937,7 @@ impl TestWidgetContext {
     pub fn render_context<R>(&mut self, action: impl FnOnce(&mut RenderContext) -> R) -> R {
         action(&mut RenderContext {
             path: &mut WidgetContextPath::new(self.window_id, self.root_id),
+            info_tree: &self.info_tree,
             app_state: &self.app_state.0,
             window_state: &self.window_state.0,
             widget_state: &self.widget_state.0,
@@ -1630,6 +1633,9 @@ pub struct RenderContext<'a> {
     /// Current widget path.
     pub path: &'a mut WidgetContextPath,
 
+    /// Last build widget info tree of the parent window.
+    pub info_tree: &'a WidgetInfoTree,
+
     /// Read-only access to the state that lives for the duration of the application.
     pub app_state: &'a StateMap,
 
@@ -1656,6 +1662,7 @@ impl<'a> RenderContext<'a> {
         self.path.push(widget_id);
         let r = f(&mut RenderContext {
             path: self.path,
+            info_tree: self.info_tree,
             app_state: self.app_state,
             window_state: self.window_state,
             widget_state: &widget_state.0,
