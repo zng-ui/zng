@@ -1555,7 +1555,7 @@ impl<'a> FocusInfoTree<'a> {
     }
 
     /// Reference the focusable widget closest to the window root.
-    /// 
+    ///
     /// When the window root is not focusable, but a descendant widget is, this method returns
     /// the focusable closest to the root counting previous siblings then parents.
     pub fn focusable_root(&self) -> Option<WidgetFocusInfo> {
@@ -1571,6 +1571,7 @@ impl<'a> FocusInfoTree<'a> {
             let weight = w.info.prev_siblings().count() + w.info.ancestors().count();
             if weight < candidate_weight {
                 candidate = Some(w);
+                candidate_weight = weight;
             }
         }
 

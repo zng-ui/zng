@@ -16,7 +16,7 @@ use crate::handler::{self, AppHandler, AppHandlerArgs, AppWeakHandle};
 pub use crate::state_key;
 use crate::task;
 use crate::timer::Timers;
-use crate::widget_info::UpdateMask;
+use crate::widget_info::{UpdateMask, WidgetInfoTree};
 use crate::{var::VarsRead, window::WindowMode};
 
 /// Represents an [`on_pre_update`](Updates::on_pre_update) or [`on_update`](Updates::on_update) handler.
@@ -821,7 +821,7 @@ impl Default for TestWidgetContext {
     }
 }
 #[cfg(any(test, doc, feature = "test_util"))]
-use crate::widget_info::{BoundsInfo, WidgetInfoBuilder, WidgetInfoTree, WidgetRendered, WidgetSubscriptions};
+use crate::widget_info::{BoundsInfo, WidgetInfoBuilder, WidgetRendered, WidgetSubscriptions};
 #[cfg(any(test, doc, feature = "test_util"))]
 impl TestWidgetContext {
     /// Gets a new [`TestWidgetContext`] instance. Panics is another instance is alive in the current thread

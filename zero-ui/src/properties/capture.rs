@@ -1,5 +1,9 @@
+use crate::core::context::StateMapEntry;
 use crate::core::mouse::{CaptureMode, MouseExt, MouseInputEvent};
 use crate::prelude::new_property::*;
+
+use std::cell::Cell;
+use std::rc::Rc;
 
 /// Capture mouse for the widget on mouse down.
 ///
@@ -100,7 +104,8 @@ pub fn capture_mouse(child: impl UiNode, mode: impl IntoVar<CaptureMode>) -> imp
 /// When modal mode is enabled in a widget only it and widget descendants [`allow_interaction`], all other widgets behave as if disabled, but
 /// without the visual indication of disabled. This property is a building block for modal overlay widgets.
 ///
-/// This is `false` by default.
+/// Only one widget can be the modal at a time, if multiple widgets set `modal = true` only the last one by traversal order is modal, this
+/// is by design to support dialog overlays that open another dialog overlay.
 ///
 /// [`allow_interaction`]: crate::core::widget_info::WidgetInfo::allow_interaction
 #[property(context, default(false))]
@@ -109,12 +114,26 @@ pub fn modal(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
         child: C,
         enabled: E,
     }
+
+    state_key! {
+        struct ModalWidget: Rc<Cell<WidgetId>>;
+    }
     #[impl_ui_node(child)]
     impl<C: UiNode, E: Var<bool>> UiNode for ModalNode<C, E> {
         fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
             if self.enabled.copy(ctx) {
                 let widget_id = ctx.path.widget_id();
-                info.push_interactive_filter(move |a| a.info.self_and_ancestors().any(|w| w.widget_id() == widget_id));
+
+                match ctx.update_state.entry(ModalWidget) {
+                    StateMapEntry::Vacant(e) => {
+                        let widget = Rc::new(Cell::new(widget_id));
+                        e.insert(widget.clone());
+                        info.push_interactive_filter(move |a| a.info.self_and_ancestors().any(|w| w.widget_id() == widget.get()));
+                    }
+                    StateMapEntry::Occupied(e) => {
+                        e.get().set(widget_id);
+                    }
+                }
             }
             self.child.info(ctx, info);
         }

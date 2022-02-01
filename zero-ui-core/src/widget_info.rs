@@ -1021,7 +1021,10 @@ impl<'a> WidgetInfo<'a> {
 
     /// Iterator over all widgets contained by this widget filtered by the `filter` closure.
     #[inline]
-    pub fn filter_descendants<F>(self, filter: F) -> FilterDescendants<'a, F> where F: FnMut(WidgetInfo<'a>) -> DescendantFilter {
+    pub fn filter_descendants<F>(self, filter: F) -> FilterDescendants<'a, F>
+    where
+        F: FnMut(WidgetInfo<'a>) -> DescendantFilter,
+    {
         let mut traverse = self.node().traverse();
         traverse.next(); // skip self.
         FilterDescendants {
