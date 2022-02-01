@@ -53,7 +53,7 @@
 //!
 //! ### Return Focus
 //!
-//! Focus scopes can be configured to remember the last focused widget inside then, the focus then **returns** to
+//! Focus scopes can be configured to remember the last focused widget inside then, the focus than **returns** to
 //! this widget when the scope receives focus. Alt scopes also remember the widget from which the *alt* focus happened
 //! and can also return focus back to that widget.
 //!
