@@ -1,16 +1,11 @@
 * Text shaping needs "Language" and "Script".
 * Colors don't match other apps, clear_color and background_color also does not match.
 * WindowChangedEvent fired on first resize.
-* Review `open_widget_display`, needs to be called with widget inner size to calculate default origin (center).
-
-# Interactive Filter
-
-* Integrate `enabled` with new interactive filter.
-* Integrate *mouse capture* with new interactive filter.
 
 # Layer
 
 * Continue refactoring layers inside root.
+* Opening two modals blocks all interaction.
 
 # Split `inner`
 

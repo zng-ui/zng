@@ -1009,8 +1009,8 @@ impl Focus {
                             // move to focusable parent
                             return self.move_focus(vars, Some(parent.info.path()), self.is_highlighting, FocusChangedCause::Recovery);
                         } else {
-                            // no focusable parent, is this an error?
-                            return self.move_focus(vars, None, false, FocusChangedCause::Recovery);
+                            // no focusable parent or root
+                            return self.focus_focused_window(vars, windows, self.is_highlighting);
                         }
                     }
                 } else {
@@ -1100,12 +1100,11 @@ impl Focus {
     fn focus_focused_window(&mut self, vars: &Vars, windows: &Windows, highlight: bool) -> Option<FocusChangedArgs> {
         if let Some(info) = windows.focused_info() {
             let info = FocusInfoTree::new(info);
-            let root = info.root();
-            if root.is_focusable() {
+            if let Some(root) = info.focusable_root() {
                 // found focused window and it is focusable.
                 self.move_focus(vars, Some(root.info.path()), highlight, FocusChangedCause::Recovery)
             } else {
-                // has focused window but it is not focusable
+                // has focused window but it is not focusable.
                 self.move_focus(vars, None, false, FocusChangedCause::Recovery)
             }
         } else {
@@ -1553,6 +1552,29 @@ impl<'a> FocusInfoTree<'a> {
     #[inline]
     pub fn root(&self) -> WidgetFocusInfo {
         WidgetFocusInfo::new(self.tree.root())
+    }
+
+    /// Reference the focusable widget closest to the window root.
+    /// 
+    /// When the window root is not focusable, but a descendant widget is, this method returns
+    /// the focusable closest to the root counting previous siblings then parents.
+    pub fn focusable_root(&self) -> Option<WidgetFocusInfo> {
+        let root = self.root();
+        if root.is_focusable() {
+            return Some(root);
+        }
+
+        let mut candidate = None;
+        let mut candidate_weight = usize::MAX;
+
+        for w in root.filter_descendants(|_| DescendantFilter::SkipDescendants) {
+            let weight = w.info.prev_siblings().count() + w.info.ancestors().count();
+            if weight < candidate_weight {
+                candidate = Some(w);
+            }
+        }
+
+        candidate
     }
 
     /// Reference to the widget in the tree, if it is present and is focusable.

@@ -124,11 +124,11 @@ fn functions(window_enabled: RcVar<bool>) -> impl Widget {
                     window_enabled.set(&ctx, true);
                 });
             },
-            // Replace Scope
+            // Overlay Scope
             button! {
                 content = text("Overlay Scope");
                 on_click = hn!(|ctx, _| {
-                    WindowLayers::insert(ctx,  LayerIndex::TOP_MOST, overlay());
+                    WindowLayers::insert(ctx, LayerIndex::TOP_MOST, overlay());
                 });
             }
         ]
@@ -138,10 +138,10 @@ fn overlay() -> impl Widget {
     container! {
         id = "overlay";
         modal = true;
-        background_color = colors::GRAY.with_alpha(40.pct());
         content = container! {
             focus_scope = true;
             background_color = colors::GRAY.darken(50.pct());
+            drop_shadow = (0, 0), 4, colors::BLACK;
             padding = 2;
             content = v_stack! {
                 items_align = Alignment::RIGHT;

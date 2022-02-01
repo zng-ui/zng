@@ -418,7 +418,7 @@ pub fn enabled(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
     impl<C: UiNode> UiNode for EnabledNode<C> {
         fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
             if !IsEnabled::get(ctx) {
-                info.meta().set(EnabledState, dbg!(false));
+                info.meta().set(EnabledState, false);
 
                 if !ctx.update_state.flag(RegisteredDisabledFilter) {
                     info.push_interactive_filter(move |args| args.info.is_enabled())

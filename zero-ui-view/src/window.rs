@@ -785,7 +785,7 @@ impl Window {
                         self.window.set_maximized(false);
                     }
                 }
-                WindowState::Fullscreen | WindowState::Exclusive => self.window.set_fullscreen(dbg!(None)),
+                WindowState::Fullscreen | WindowState::Exclusive => self.window.set_fullscreen(None),
             }
 
             // set new state.

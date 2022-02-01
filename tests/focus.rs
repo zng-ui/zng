@@ -1197,7 +1197,7 @@ pub fn focus_goes_to_parent_after_remove() {
     app.take_focus_changed();
 
     app.set_vars(|vars| {
-        enabled.set(vars, dbg!(false));
+        enabled.set(vars, false);
     });
     assert_eq!(Some(parent_id), app.focused());
     let evs = app.take_focus_changed();
