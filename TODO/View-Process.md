@@ -3,7 +3,6 @@
   - actual_monitor: Computed by intersection between window and monitors? (the monitor area that contains more than half of the window?)
 
 * Test window respawn for NVIDIA actual driver version change (two blinks).
-  - Worked but the scale factor was 1.
 
 * Review screenshot, are we using webrender "async" screenshot correctly?
 
