@@ -414,7 +414,7 @@ pub fn enabled(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
                 info.meta().set(EnabledState, false);
 
                 if !ctx.update_state.flag(RegisteredDisabledFilter) {
-                    info.push_interactive_filter(move |args| args.info.is_enabled())
+                    info.push_interaction_filter(move |args| args.info.is_enabled())
                 }
             }
             self.child.info(ctx, info);

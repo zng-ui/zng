@@ -1097,7 +1097,9 @@ pub mod window {
                     mode: M,
                     widget: W,
 
-                    anchor_info: Option<(WidgetLayoutInfo, WidgetRenderInfo)>,
+                    anchor_info: Option<(WidgetLayoutInfo, WidgetLayoutInfo, WidgetRenderInfo)>,
+
+                    desired_size: PxSize,
                 }
                 #[impl_ui_node(
                     delegate = &self.widget,
@@ -1115,9 +1117,24 @@ pub mod window {
                         self.widget.subscriptions(ctx, subscriptions)
                     }
 
+                    fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
+                        if self.mode.get(ctx).interaction {
+                            let anchor = self.anchor.copy(ctx);
+                            let widget = ctx.path.widget_id();
+                            info.push_interaction_filter(move |args| {
+                                if args.info.self_and_ancestors().any(|w| w.widget_id() == widget) {
+                                    args.info.tree().find(anchor).map(|a| a.allow_interaction()).unwrap_or(false)
+                                } else {
+                                    true
+                                }
+                            });
+                        }
+                        self.widget.info(ctx, info)
+                    }
+
                     fn init(&mut self, ctx: &mut WidgetContext) {
                         if let Some(w) = ctx.info_tree.find(self.anchor.copy(ctx.vars)) {
-                            self.anchor_info = Some((w.inner_info(), w.render_info()));
+                            self.anchor_info = Some((w.inner_info(), w.outer_info(), w.render_info()));
                         }
 
                         self.widget.init(ctx);
@@ -1134,7 +1151,7 @@ pub mod window {
                                 self.anchor_info = ctx
                                     .info_tree
                                     .find(self.anchor.copy(ctx.vars))
-                                    .map(|w| (w.inner_info(), w.render_info()));
+                                    .map(|w| (w.inner_info(), w.outer_info(), w.render_info()));
                             }
                             self.widget.event(ctx, args);
                         } else {
@@ -1144,21 +1161,37 @@ pub mod window {
 
                     fn update(&mut self, ctx: &mut WidgetContext) {
                         if let Some(anchor) = self.anchor.copy_new(ctx) {
-                            self.anchor_info = ctx.info_tree.find(anchor).map(|w| (w.inner_info(), w.render_info()));
+                            self.anchor_info = ctx
+                                .info_tree
+                                .find(anchor)
+                                .map(|w| (w.inner_info(), w.outer_info(), w.render_info()));
+                            if self.mode.get(ctx).interaction {
+                                ctx.updates.info();
+                            }
                             ctx.updates.layout_and_render();
                         }
                         if self.mode.is_new(ctx) {
-                            ctx.updates.layout_and_render();
+                            ctx.updates.info_layout_and_render();
                         }
                         self.widget.update(ctx);
                     }
 
                     fn measure(&mut self, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize {
-                        if let Some((layout, _)) = &self.anchor_info {
+                        if let Some((inner, outer, _)) = &self.anchor_info {
                             let mode = self.mode.get(ctx.vars);
 
-                            if !mode.visibility || layout.size() != PxSize::zero() {
-                                return self.widget.measure(ctx, available_size);
+                            if !mode.visibility || inner.size() != PxSize::zero() {
+                                let available_size = match mode.size {
+                                    AnchorSize::Infinite => AvailableSize::inf(),
+                                    AnchorSize::Window => available_size,
+                                    AnchorSize::InnerSize => AvailableSize::finite(inner.size()),
+                                    AnchorSize::OuterSize => AvailableSize::finite(outer.size()),
+                                };
+                                let desired_size = self.widget.measure(ctx, available_size);
+                                if mode.size == AnchorSize::Infinite {
+                                    self.desired_size = desired_size;
+                                }
+                                return desired_size;
                             }
                         }
 
@@ -1166,10 +1199,16 @@ pub mod window {
                     }
 
                     fn arrange(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, final_size: PxSize) {
-                        if let Some((layout, _)) = &self.anchor_info {
+                        if let Some((inner, outer, _)) = &self.anchor_info {
                             let mode = self.mode.get(ctx.vars);
 
-                            if !mode.visibility || layout.size() != PxSize::zero() {
+                            if !mode.visibility || inner.size() != PxSize::zero() {
+                                let final_size = match mode.size {
+                                    AnchorSize::Infinite => self.desired_size,
+                                    AnchorSize::Window => final_size,
+                                    AnchorSize::InnerSize => inner.size(),
+                                    AnchorSize::OuterSize => outer.size(),
+                                };
                                 self.widget.arrange(ctx, widget_layout, final_size);
                                 return;
                             }
@@ -1179,7 +1218,7 @@ pub mod window {
                     }
 
                     fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-                        if let Some((_, render_info)) = &self.anchor_info {
+                        if let Some((_, _, render_info)) = &self.anchor_info {
                             if !self.mode.get(ctx).visibility || render_info.rendered() {
                                 self.widget.render(ctx, frame);
                                 return;
@@ -1190,7 +1229,7 @@ pub mod window {
                     }
 
                     fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
-                        if let Some((_, render_info)) = &self.anchor_info {
+                        if let Some((_, _, render_info)) = &self.anchor_info {
                             if !self.mode.get(ctx).visibility || render_info.rendered() {
                                 self.widget.render_update(ctx, update);
                             }
@@ -1232,6 +1271,8 @@ pub mod window {
                         widget,
 
                         anchor_info: None,
+
+                        desired_size: PxSize::zero(),
                     },
                 );
             }
@@ -1385,7 +1426,7 @@ pub mod window {
         }
 
         /// Options for [`AnchorMode::transform`].
-        #[derive(Debug, Clone)]
+        #[derive(Debug, Clone, PartialEq)]
         pub enum AnchorTransform {
             /// Widget does not copy any position from the anchor widget.
             None,
@@ -1409,7 +1450,7 @@ pub mod window {
         }
 
         /// Options for [`AnchorMode::size`].
-        #[derive(Debug, Clone, Copy)]
+        #[derive(Debug, Clone, Copy, PartialEq, Eq)]
         pub enum AnchorSize {
             /// Widget does not copy any size from the anchor widget, the available size is infinite, the
             /// final size is the desired size.
@@ -1427,7 +1468,7 @@ pub mod window {
         }
 
         /// Defines what properties the layered widget takes from the anchor widget.
-        #[derive(Debug, Clone)]
+        #[derive(Debug, Clone, PartialEq)]
         pub struct AnchorMode {
             /// What transforms are copied from the anchor widget.
             pub transform: AnchorTransform,

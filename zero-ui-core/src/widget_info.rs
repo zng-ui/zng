@@ -207,7 +207,7 @@ pub struct WidgetInfoBuilder {
     meta: OwnedStateMap,
 
     tree: Tree<WidgetInfoInner>,
-    interactive_filter: Vec<Box<dyn Fn(&InteractiveFilterArgs) -> bool>>,
+    interaction_filter: Vec<Box<dyn Fn(&InteractiveFilterArgs) -> bool>>,
 }
 impl WidgetInfoBuilder {
     /// Starts building a info tree with the root information, the `root_bounds` must be a shared reference
@@ -239,7 +239,7 @@ impl WidgetInfoBuilder {
             window_id,
             node: root_node,
             tree,
-            interactive_filter: Vec::with_capacity(interactive_capacity),
+            interaction_filter: Vec::with_capacity(interactive_capacity),
             meta: OwnedStateMap::new(),
             widget_id: root_id,
         }
@@ -300,8 +300,8 @@ impl WidgetInfoBuilder {
     /// Widgets [`allow_interaction`] if all registered closures allow it.
     ///
     /// [`allow_interaction`]: WidgetInfo::allow_interaction
-    pub fn push_interactive_filter(&mut self, filter: impl Fn(&InteractiveFilterArgs) -> bool + 'static) {
-        self.interactive_filter.push(Box::new(filter))
+    pub fn push_interaction_filter(&mut self, filter: impl Fn(&InteractiveFilterArgs) -> bool + 'static) {
+        self.interaction_filter.push(Box::new(filter))
     }
 
     /// Build the info tree.
@@ -341,7 +341,7 @@ impl WidgetInfoBuilder {
             window_id: self.window_id,
             lookup,
             tree: self.tree,
-            interactive_filter: self.interactive_filter,
+            interaction_filter: self.interaction_filter,
         }));
 
         #[cfg(debug_assertions)]
@@ -359,7 +359,7 @@ impl WidgetInfoBuilder {
 
         let cap = UsedWidgetInfoBuilder {
             tree_capacity: r.0.lookup.capacity(),
-            interactive_capacity: r.0.interactive_filter.len(),
+            interactive_capacity: r.0.interaction_filter.len(),
         };
 
         (r, cap)
@@ -378,7 +378,7 @@ struct WidgetInfoTreeInner {
     window_id: WindowId,
     tree: Tree<WidgetInfoInner>,
     lookup: IdMap<WidgetId, ego_tree::NodeId>,
-    interactive_filter: Vec<Box<dyn Fn(&InteractiveFilterArgs) -> bool>>,
+    interaction_filter: Vec<Box<dyn Fn(&InteractiveFilterArgs) -> bool>>,
 }
 impl WidgetInfoTree {
     /// Blank window that contains only the root widget taking no space.
@@ -832,7 +832,7 @@ impl<'a> WidgetInfo<'a> {
     /// [disabled]: fn@crate::widget_base::enabled
     /// [enabled]: fn@crate::widget_base::enabled
     pub fn allow_interaction(self) -> bool {
-        for filter in &self.tree.0.interactive_filter {
+        for filter in &self.tree.0.interaction_filter {
             if !filter(&InteractiveFilterArgs { info: self }) {
                 return false;
             }
@@ -1664,7 +1664,7 @@ impl<'v, 's> WidgetVarSubscriptions<'v, 's> {
 
 /// Argument for a interactive filter function.
 ///
-/// See [WidgetInfoBuilder::push_interactive_filter].
+/// See [WidgetInfoBuilder::push_interaction_filter].
 #[derive(Debug)]
 pub struct InteractiveFilterArgs<'a> {
     /// Widget being filtered.

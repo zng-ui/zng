@@ -128,7 +128,7 @@ pub fn modal(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
                     StateMapEntry::Vacant(e) => {
                         let widget = Rc::new(Cell::new(widget_id));
                         e.insert(widget.clone());
-                        info.push_interactive_filter(move |a| a.info.self_and_ancestors().any(|w| w.widget_id() == widget.get()));
+                        info.push_interaction_filter(move |a| a.info.self_and_ancestors().any(|w| w.widget_id() == widget.get()));
                     }
                     StateMapEntry::Occupied(e) => {
                         e.get().set(widget_id);
