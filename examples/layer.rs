@@ -75,6 +75,8 @@ fn overlay(id: impl Into<WidgetId>, offset: i32) -> impl Widget {
         content = container! {
             position = (offset, offset);
             focus_scope = true;
+            tab_nav = TabNav::Cycle;
+            directional_nav = DirectionalNav::Cycle;
             background_color = colors::BLACK;
             padding = 2;
             content = v_stack! {

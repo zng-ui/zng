@@ -5,7 +5,7 @@ use crate::core::focus::*;
 use crate::prelude::new_property::*;
 
 /// Enables a widget to receive focus.
-#[property(context)]
+#[property(context, default(false))]
 pub fn focusable(child: impl UiNode, focusable: impl IntoVar<bool>) -> impl UiNode {
     struct FocusableNode<C, E> {
         child: C,
@@ -37,7 +37,7 @@ pub fn focusable(child: impl UiNode, focusable: impl IntoVar<bool>) -> impl UiNo
 }
 
 /// Customizes the widget order during TAB navigation.
-#[property(context)]
+#[property(context, default(TabIndex::default()))]
 pub fn tab_index(child: impl UiNode, tab_index: impl IntoVar<TabIndex>) -> impl UiNode {
     struct TabIndexNode<C: UiNode, T: Var<TabIndex>> {
         child: C,
@@ -73,7 +73,7 @@ pub fn tab_index(child: impl UiNode, tab_index: impl IntoVar<TabIndex>) -> impl 
 }
 
 /// Widget is a focus scope.
-#[property(context)]
+#[property(context, default(false))]
 pub fn focus_scope(child: impl UiNode, is_scope: impl IntoVar<bool>) -> impl UiNode {
     FocusScopeNode {
         child,
@@ -81,10 +81,10 @@ pub fn focus_scope(child: impl UiNode, is_scope: impl IntoVar<bool>) -> impl UiN
         is_alt: false,
     }
 }
-// Widget is the ALT focus scope.
+/// Widget is the ALT focus scope.
 ///
 /// ALT focus scopes are also, `TabIndex::SKIP`, `skip_directional_nav`, `TabNav::Cycle` and `DirectionalNav::Cycle` by default.
-#[property(context)]
+#[property(context, default(false))]
 pub fn alt_focus_scope(child: impl UiNode, is_scope: impl IntoVar<bool>) -> impl UiNode {
     FocusScopeNode {
         child,
@@ -136,7 +136,7 @@ impl<C: UiNode, E: Var<bool>> UiNode for FocusScopeNode<C, E> {
 }
 
 /// Behavior of a focus scope when it receives direct focus.
-#[property(context)]
+#[property(context, default(FocusScopeOnFocus::default()))]
 pub fn focus_scope_behavior(child: impl UiNode, behavior: impl IntoVar<FocusScopeOnFocus>) -> impl UiNode {
     struct FocusScopeBehaviorNode<C: UiNode, B: Var<FocusScopeOnFocus>> {
         child: C,
@@ -172,7 +172,7 @@ pub fn focus_scope_behavior(child: impl UiNode, behavior: impl IntoVar<FocusScop
 }
 
 /// Tab navigation within this focus scope.
-#[property(context)]
+#[property(context, default(TabNav::Continue))]
 pub fn tab_nav(child: impl UiNode, tab_nav: impl IntoVar<TabNav>) -> impl UiNode {
     struct TabNavNode<C, E> {
         child: C,
@@ -204,7 +204,7 @@ pub fn tab_nav(child: impl UiNode, tab_nav: impl IntoVar<TabNav>) -> impl UiNode
 }
 
 /// Arrows navigation within this focus scope.
-#[property(context)]
+#[property(context, default(DirectionalNav::Continue))]
 pub fn directional_nav(child: impl UiNode, directional_nav: impl IntoVar<DirectionalNav>) -> impl UiNode {
     struct DirectionalNavNode<C, E> {
         child: C,
@@ -239,7 +239,7 @@ pub fn directional_nav(child: impl UiNode, directional_nav: impl IntoVar<Directi
 ///
 /// When any of the `shortcuts` is pressed, does a [`focus_widget_or_related`](Focus::focus_widget_or_related)
 /// request using the current widget ID and with highlight.
-#[property(context)]
+#[property(context, default(Shortcuts::default()))]
 pub fn focus_shortcut(child: impl UiNode, shortcuts: impl IntoVar<Shortcuts>) -> impl UiNode {
     struct FocusShortcutNode<C, S> {
         child: C,
@@ -274,7 +274,7 @@ pub fn focus_shortcut(child: impl UiNode, shortcuts: impl IntoVar<Shortcuts>) ->
 /// If directional navigation from outside this widget skips over it and its descendants.
 ///
 /// Setting this to `true` is the directional navigation equivalent of setting `tab_index` to `SKIP`.
-#[property(context)]
+#[property(context, default(false))]
 pub fn skip_directional(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
     struct SkipDirectionalNode<C: UiNode, E: Var<bool>> {
         child: C,
