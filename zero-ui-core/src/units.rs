@@ -1128,6 +1128,26 @@ impl<F: Into<Factor>> ops::DivAssign<F> for Length {
         *self = lhs / rhs.into();
     }
 }
+impl ops::Neg for Length {
+    type Output = Self;
+
+    fn neg(self) -> Self::Output {
+        match self {
+            Length::Default => Length::Expr(Box::new(LengthExpr::Neg(Length::Default))),
+            Length::Dip(e) => Length::Dip(-e),
+            Length::Px(e) => Length::Px(-e),
+            Length::Pt(e) => Length::Pt(-e),
+            Length::Relative(e) => Length::Relative(-e),
+            Length::Em(e) => Length::Em(-e),
+            Length::RootEm(e) => Length::RootEm(-e),
+            Length::ViewportWidth(e) => Length::ViewportWidth(-e),
+            Length::ViewportHeight(e) => Length::ViewportHeight(-e),
+            Length::ViewportMin(e) => Length::ViewportMin(-e),
+            Length::ViewportMax(e) => Length::ViewportMax(-e),
+            Length::Expr(e) => Length::Expr(Box::new(LengthExpr::Neg(Length::Expr(e)))),
+        }
+    }
+}
 impl Default for Length {
     /// `Length::Default`
     fn default() -> Self {
@@ -1310,7 +1330,7 @@ impl Length {
     pub fn abs(&self) -> Length {
         use Length::*;
         match self {
-            Default => Expr(Box::new(LengthExpr::AbsDefault)),
+            Default => Expr(Box::new(LengthExpr::Abs(Length::Default))),
             Dip(e) => Dip(e.abs()),
             Px(e) => Px(e.abs()),
             Pt(e) => Pt(e.abs()),
@@ -1321,7 +1341,7 @@ impl Length {
             ViewportHeight(h) => ViewportHeight(h.abs()),
             ViewportMin(m) => ViewportMin(m.abs()),
             ViewportMax(m) => ViewportMax(m.abs()),
-            Expr(e) => Expr(Box::new(LengthExpr::Abs(e.clone()))),
+            Expr(e) => Expr(Box::new(LengthExpr::Abs(Length::Expr(e.clone())))),
         }
     }
 
@@ -1467,9 +1487,9 @@ pub enum LengthExpr {
     /// Minimum layout length.
     Min(Length, Length),
     /// Computes the absolute layout length.
-    Abs(Box<LengthExpr>),
-    /// Computes the absolute default length.
-    AbsDefault,
+    Abs(Length),
+    /// Negate the layout length.
+    Neg(Length),
 }
 impl LengthExpr {
     /// Evaluate the expression at a layout context.
@@ -1491,7 +1511,7 @@ impl LengthExpr {
                 a.min(b)
             }
             Abs(e) => e.to_layout(ctx, available_size, default_value).abs(),
-            AbsDefault => default_value.abs(),
+            Neg(e) => -e.to_layout(ctx, available_size, default_value),
         }
     }
 
@@ -1509,7 +1529,7 @@ impl LengthExpr {
             Max(a, b) => a.affect_mask() | b.affect_mask(),
             Min(a, b) => a.affect_mask() | b.affect_mask(),
             Abs(a) => a.affect_mask(),
-            AbsDefault => LayoutMask::DEFAULT_VALUE,
+            Neg(a) => a.affect_mask(),
         }
     }
 }
@@ -1525,7 +1545,7 @@ impl fmt::Debug for LengthExpr {
                 Max(a, b) => f.debug_tuple("LengthExpr::Max").field(a).field(b).finish(),
                 Min(a, b) => f.debug_tuple("LengthExpr::Min").field(a).field(b).finish(),
                 Abs(e) => f.debug_tuple("LengthExpr::Abs").field(e).finish(),
-                AbsDefault => write!(f, "LengthExpr::AbsDefault"),
+                Neg(e) => f.debug_tuple("LengthExpr::Neg").field(e).finish(),
             }
         } else {
             match self {
@@ -1536,7 +1556,7 @@ impl fmt::Debug for LengthExpr {
                 Max(a, b) => write!(f, "max({a:?}, {b:?})"),
                 Min(a, b) => write!(f, "min({a:?}, {b:?})"),
                 Abs(e) => write!(f, "abs({e:?})"),
-                AbsDefault => write!(f, "abs(Default)"),
+                Neg(e) => write!(f, "-({e:?})"),
             }
         }
     }
@@ -1552,7 +1572,7 @@ impl fmt::Display for LengthExpr {
             Max(a, b) => write!(f, "max({a}, {b})"),
             Min(a, b) => write!(f, "min({a}, {b})"),
             Abs(e) => write!(f, "abs({e})"),
-            AbsDefault => write!(f, "abs(Default)"),
+            Neg(e) => write!(f, "-({e})"),
         }
     }
 }
@@ -1764,6 +1784,12 @@ impl Vector {
         Vector { x: x.into(), y: y.into() }
     }
 
+    /// New x, y from single value of any [`Length`] unit.
+    pub fn splat(xy: impl Into<Length>) -> Self {
+        let xy = xy.into();
+        Vector { x: xy.clone(), y: xy }
+    }
+
     /// ***x:*** [`Length::zero`], ***y:*** [`Length::zero`].
     #[inline]
     pub fn zero() -> Self {
@@ -1790,8 +1816,22 @@ impl Vector {
 
     /// Returns `(x, y)`.
     #[inline]
-    pub fn into_tuple(self) -> (Length, Length) {
+    pub fn as_tuple(self) -> (Length, Length) {
         (self.x, self.y)
+    }
+
+    /// Returns `[x, y]`.
+    #[inline]
+    pub fn as_array(self) -> [Length; 2] {
+        [self.x, self.y]
+    }
+
+    /// Returns a vector that computes the absolute layout vector of `self`.
+    pub fn abs(&self) -> Vector {
+        Vector {
+            x: self.x.abs(),
+            y: self.y.abs(),
+        }
     }
 
     /// Compute the vector in a layout context.
@@ -1823,8 +1863,13 @@ impl Vector {
     }
 
     /// Cast to [`Point`].
-    pub fn to_point(self) -> Point {
+    pub fn as_point(self) -> Point {
         Point { x: self.x, y: self.y }
+    }
+
+    /// Create a translate transform from `self`.
+    pub fn into_transform(self) -> Transform {
+        translate(self.x, self.y)
     }
 }
 impl_length_comp_conversions! {
@@ -1838,6 +1883,95 @@ impl_from_and_into_var! {
     }
     fn from(p: DipVector) -> Vector {
         Vector::new(p.x, p.y)
+    }
+}
+impl ops::Add for Vector {
+    type Output = Self;
+
+    fn add(self, rhs: Self) -> Self {
+        Vector {
+            x: self.x + rhs.x,
+            y: self.y + rhs.y,
+        }
+    }
+}
+impl ops::AddAssign for Vector {
+    fn add_assign(&mut self, rhs: Self) {
+        let x = mem::take(&mut self.x);
+        let y = mem::take(&mut self.y);
+
+        self.x = x + rhs.x;
+        self.y = y + rhs.y;
+    }
+}
+impl ops::Sub for Vector {
+    type Output = Self;
+
+    fn sub(self, rhs: Self) -> Self {
+        Vector {
+            x: self.x - rhs.x,
+            y: self.y - rhs.y,
+        }
+    }
+}
+impl ops::SubAssign for Vector {
+    fn sub_assign(&mut self, rhs: Self) {
+        let x = mem::take(&mut self.x);
+        let y = mem::take(&mut self.y);
+
+        self.x = x - rhs.x;
+        self.y = y - rhs.y;
+    }
+}
+impl<S: Into<Scale2d>> ops::Mul<S> for Vector {
+    type Output = Self;
+
+    fn mul(self, rhs: S) -> Self {
+        let fct = rhs.into();
+
+        Vector {
+            x: self.x * fct.x,
+            y: self.y * fct.y,
+        }
+    }
+}
+impl<S: Into<Scale2d>> ops::MulAssign<S> for Vector {
+    fn mul_assign(&mut self, rhs: S) {
+        let x = mem::take(&mut self.x);
+        let y = mem::take(&mut self.y);
+        let fct = rhs.into();
+
+        self.x = x * fct.x;
+        self.y = y * fct.y;
+    }
+}
+impl<S: Into<Scale2d>> ops::Div<S> for Vector {
+    type Output = Self;
+
+    fn div(self, rhs: S) -> Self {
+        let fct = rhs.into();
+
+        Vector {
+            x: self.x / fct.x,
+            y: self.y / fct.y,
+        }
+    }
+}
+impl<S: Into<Scale2d>> ops::DivAssign<S> for Vector {
+    fn div_assign(&mut self, rhs: S) {
+        let x = mem::take(&mut self.x);
+        let y = mem::take(&mut self.y);
+        let fct = rhs.into();
+
+        self.x = x / fct.x;
+        self.y = y / fct.y;
+    }
+}
+impl ops::Neg for Vector {
+    type Output = Self;
+
+    fn neg(self) -> Self {
+        Vector { x: -self.x, y: -self.y }
     }
 }
 
@@ -1871,6 +2005,12 @@ impl Point {
     /// New x, y from any [`Length`] unit.
     pub fn new<X: Into<Length>, Y: Into<Length>>(x: X, y: Y) -> Self {
         Point { x: x.into(), y: y.into() }
+    }
+
+    /// New x, y from single value of any [`Length`] unit.
+    pub fn splat(xy: impl Into<Length>) -> Self {
+        let xy = xy.into();
+        Point { x: xy.clone(), y: xy }
     }
 
     /// ***x:*** [`Length::zero`], ***y:*** [`Length::zero`].
@@ -1959,8 +2099,14 @@ impl Point {
 
     /// Returns `(x, y)`.
     #[inline]
-    pub fn into_tuple(self) -> (Length, Length) {
+    pub fn as_tuple(self) -> (Length, Length) {
         (self.x, self.y)
+    }
+
+    /// Returns `[x, y]`.
+    #[inline]
+    pub fn as_array(self) -> [Length; 2] {
+        [self.x, self.y]
     }
 
     /// Compute the point in a layout context.
@@ -1992,7 +2138,7 @@ impl Point {
     }
 
     /// Cast to [`Vector`].
-    pub fn to_vector(self) -> Vector {
+    pub fn as_vector(self) -> Vector {
         Vector { x: self.x, y: self.y }
     }
 }
@@ -2007,6 +2153,133 @@ impl_from_and_into_var! {
     }
     fn from(p: DipPoint) -> Point {
         Point::new(p.x, p.y)
+    }
+}
+impl ops::Add<Vector> for Point {
+    type Output = Self;
+
+    fn add(self, rhs: Vector) -> Self {
+        Point {
+            x: self.x + rhs.x,
+            y: self.y + rhs.y,
+        }
+    }
+}
+impl ops::Add<Size> for Point {
+    type Output = Self;
+
+    fn add(self, rhs: Size) -> Self {
+        Point {
+            x: self.x + rhs.width,
+            y: self.y + rhs.height,
+        }
+    }
+}
+impl ops::AddAssign<Vector> for Point {
+    fn add_assign(&mut self, rhs: Vector) {
+        let x = mem::take(&mut self.x);
+        let y = mem::take(&mut self.y);
+
+        self.x = x + rhs.x;
+        self.y = y + rhs.y;
+    }
+}
+impl ops::AddAssign<Size> for Point {
+    fn add_assign(&mut self, rhs: Size) {
+        let x = mem::take(&mut self.x);
+        let y = mem::take(&mut self.y);
+
+        self.x = x + rhs.width;
+        self.y = y + rhs.height;
+    }
+}
+impl ops::Sub<Vector> for Point {
+    type Output = Self;
+
+    fn sub(self, rhs: Vector) -> Self {
+        Point {
+            x: self.x - rhs.x,
+            y: self.y - rhs.y,
+        }
+    }
+}
+impl ops::Sub<Size> for Point {
+    type Output = Self;
+
+    fn sub(self, rhs: Size) -> Self {
+        Point {
+            x: self.x - rhs.width,
+            y: self.y - rhs.height,
+        }
+    }
+}
+impl ops::SubAssign<Vector> for Point {
+    fn sub_assign(&mut self, rhs: Vector) {
+        let x = mem::take(&mut self.x);
+        let y = mem::take(&mut self.y);
+
+        self.x = x - rhs.x;
+        self.y = y - rhs.y;
+    }
+}
+impl ops::SubAssign<Size> for Point {
+    fn sub_assign(&mut self, rhs: Size) {
+        let x = mem::take(&mut self.x);
+        let y = mem::take(&mut self.y);
+
+        self.x = x - rhs.width;
+        self.y = y - rhs.height;
+    }
+}
+impl<S: Into<Scale2d>> ops::Mul<S> for Point {
+    type Output = Self;
+
+    fn mul(self, rhs: S) -> Self {
+        let fct = rhs.into();
+
+        Point {
+            x: self.x * fct.x,
+            y: self.y * fct.y,
+        }
+    }
+}
+impl<S: Into<Scale2d>> ops::MulAssign<S> for Point {
+    fn mul_assign(&mut self, rhs: S) {
+        let x = mem::take(&mut self.x);
+        let y = mem::take(&mut self.y);
+        let fct = rhs.into();
+
+        self.x = x * fct.x;
+        self.y = y * fct.y;
+    }
+}
+impl<S: Into<Scale2d>> ops::Div<S> for Point {
+    type Output = Self;
+
+    fn div(self, rhs: S) -> Self {
+        let fct = rhs.into();
+
+        Point {
+            x: self.x / fct.x,
+            y: self.y / fct.y,
+        }
+    }
+}
+impl<S: Into<Scale2d>> ops::DivAssign<S> for Point {
+    fn div_assign(&mut self, rhs: S) {
+        let x = mem::take(&mut self.x);
+        let y = mem::take(&mut self.y);
+        let fct = rhs.into();
+
+        self.x = x / fct.x;
+        self.y = y / fct.y;
+    }
+}
+impl ops::Neg for Point {
+    type Output = Self;
+
+    fn neg(self) -> Self {
+        Point { x: -self.x, y: -self.y }
     }
 }
 
@@ -2048,6 +2321,15 @@ impl Size {
         }
     }
 
+    /// New width, height from single value of any [`Length`] unit.
+    pub fn splat(wh: impl Into<Length>) -> Self {
+        let wh = wh.into();
+        Size {
+            width: wh.clone(),
+            height: wh,
+        }
+    }
+
     /// ***width:*** [`Length::zero`], ***height:*** [`Length::zero`]
     #[inline]
     pub fn zero() -> Self {
@@ -2064,8 +2346,14 @@ impl Size {
 
     /// Returns `(width, height)`.
     #[inline]
-    pub fn into_tuple(self) -> (Length, Length) {
+    pub fn as_tuple(self) -> (Length, Length) {
         (self.width, self.height)
+    }
+
+    /// Returns `[width, height]`.
+    #[inline]
+    pub fn as_array(self) -> [Length; 2] {
+        [self.width, self.height]
     }
 
     /// Compute the size in a layout context.
@@ -2095,6 +2383,14 @@ impl Size {
         self.width.replace_default(&overwrite.width);
         self.height.replace_default(&overwrite.height);
     }
+
+    /// Returns a vector of x: width and y: height.
+    pub fn as_vector(self) -> Vector {
+        Vector {
+            x: self.width,
+            y: self.height,
+        }
+    }
 }
 impl_length_comp_conversions! {
     fn from(width: W, height: H) -> Size {
@@ -2102,6 +2398,28 @@ impl_length_comp_conversions! {
     }
 }
 impl_from_and_into_var! {
+    /// Splat.
+    fn from(all: Length) -> Size {
+        Size::splat(all)
+    }
+
+    /// Splat relative length.
+    fn from(percent: FactorPercent) -> Size {
+        Size::splat(percent)
+    }
+    /// Splat relative length.
+    fn from(norm: Factor) -> Size {
+        Size::splat(norm)
+    }
+
+    /// Splat exact length.
+    fn from(f: f32) -> Size {
+        Size::splat(f)
+    }
+    /// Splat exact length.
+    fn from(i: i32) -> Size {
+        Size::splat(i)
+    }
     fn from(size: PxSize) -> Size {
         Size::new(size.width, size.height)
     }
@@ -2109,148 +2427,50 @@ impl_from_and_into_var! {
         Size::new(size.width, size.height)
     }
 }
+impl<S: Into<Scale2d>> ops::Mul<S> for Size {
+    type Output = Self;
 
-/// Ellipse in [`Length`] units.
-///
-/// This is very similar to [`Size`] but allows initializing from a single [`Length`].
-#[derive(Clone, Default, PartialEq)]
-pub struct Ellipse {
-    /// *width* in length units.
-    pub width: Length,
-    /// *height* in length units.
-    pub height: Length,
-}
-impl fmt::Debug for Ellipse {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        if f.alternate() {
-            f.debug_struct("Ellipse")
-                .field("width", &self.width)
-                .field("height", &self.height)
-                .finish()
-        } else if self.maybe_circle() {
-            write!(f, "{:?}", self.width)
-        } else {
-            write!(f, "({:?}, {:?})", self.width, self.height)
+    fn mul(self, rhs: S) -> Self {
+        let fct = rhs.into();
+
+        Size {
+            width: self.width * fct.x,
+            height: self.height * fct.y,
         }
     }
 }
-impl fmt::Display for Ellipse {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        if self.maybe_circle() {
-            if let Some(p) = f.precision() {
-                write!(f, "{:.p$}", self.width, p = p)
-            } else {
-                write!(f, "{}", self.width)
-            }
-        } else if let Some(p) = f.precision() {
-            write!(f, "{:.p$} × {:.p$}", self.width, self.height, p = p)
-        } else {
-            write!(f, "{} × {}", self.width, self.height)
+impl<S: Into<Scale2d>> ops::MulAssign<S> for Size {
+    fn mul_assign(&mut self, rhs: S) {
+        let width = mem::take(&mut self.width);
+        let height = mem::take(&mut self.height);
+        let fct = rhs.into();
+
+        self.width = width * fct.x;
+        self.height = height * fct.y;
+    }
+}
+impl<S: Into<Scale2d>> ops::Div<S> for Size {
+    type Output = Self;
+
+    fn div(self, rhs: S) -> Self {
+        let fct = rhs.into();
+
+        Size {
+            width: self.width / fct.x,
+            height: self.height / fct.y,
         }
     }
 }
-impl Ellipse {
-    /// New width, height from any [`Length`] unit.
-    pub fn new<W: Into<Length>, H: Into<Length>>(width: W, height: H) -> Self {
-        Ellipse {
-            width: width.into(),
-            height: height.into(),
-        }
-    }
+impl<S: Into<Scale2d>> ops::DivAssign<S> for Size {
+    fn div_assign(&mut self, rhs: S) {
+        let width = mem::take(&mut self.width);
+        let height = mem::take(&mut self.height);
+        let fct = rhs.into();
 
-    /// New width and height from the same [`Length`].
-    pub fn new_all<L: Into<Length>>(width_and_height: L) -> Self {
-        let l = width_and_height.into();
-        Ellipse {
-            width: l.clone(),
-            height: l,
-        }
-    }
-
-    /// ***width:*** [`Length::zero`], ***height:*** [`Length::zero`]
-    #[inline]
-    pub fn zero() -> Self {
-        Self::new_all(Length::zero())
-    }
-
-    /// Size that fills the available space.
-    ///
-    /// ***width:*** [`Length::fill`], ***height:*** [`Length::fill`]
-    #[inline]
-    pub fn fill() -> Self {
-        Self::new_all(Length::fill())
-    }
-
-    /// Returns `(width, height)`.
-    #[inline]
-    pub fn into_tuple(self) -> (Length, Length) {
-        (self.width, self.height)
-    }
-
-    /// Compute the size in a layout context.
-    #[inline]
-    pub fn to_layout(&self, ctx: &LayoutMetrics, available_size: AvailableSize, default_value: PxEllipse) -> PxEllipse {
-        PxEllipse::new(
-            self.width.to_layout(ctx, available_size.width, default_value.height),
-            self.height.to_layout(ctx, available_size.height, default_value.height),
-        )
-    }
-
-    /// Compute a [`LayoutMask`] that flags all contextual values that affect the result of [`to_layout`].
-    ///
-    /// [`to_layout`]: Self::to_layout
-    #[inline]
-    pub fn affect_mask(&self) -> LayoutMask {
-        self.width.affect_mask() | self.height.affect_mask()
-    }
-
-    /// If the [`width`](Self::width) and [`height`](Self::height) are equal.
-    ///
-    /// Note that if the values are relative may still not be a perfect circle.
-    #[inline]
-    pub fn maybe_circle(&self) -> bool {
-        self.width == self.height
+        self.width = width / fct.x;
+        self.height = height / fct.y;
     }
 }
-impl_from_and_into_var! {
-    /// New circular.
-    fn from(all: Length) -> Ellipse {
-        Ellipse::new_all(all)
-    }
-
-    /// New circular relative length.
-    fn from(percent: FactorPercent) -> Ellipse {
-        Ellipse::new_all(percent)
-    }
-    /// New circular relative length.
-    fn from(norm: Factor) -> Ellipse {
-        Ellipse::new_all(norm)
-    }
-
-    /// New circular exact length.
-    fn from(f: f32) -> Ellipse {
-        Ellipse::new_all(f)
-    }
-    /// New circular exact length.
-    fn from(i: i32) -> Ellipse {
-        Ellipse::new_all(i)
-    }
-
-    /// New from [`PxEllipse`].
-    fn from(ellipse: PxEllipse) -> Ellipse {
-        Ellipse::new(ellipse.width, ellipse.height)
-    }
-
-    /// New from [`DipEllipse`].
-    fn from(ellipse: DipEllipse) -> Ellipse {
-        Ellipse::new(ellipse.width, ellipse.height)
-    }
-}
-
-/// Computed [`Ellipse`].
-pub type PxEllipse = PxSize;
-/// [`Ellipse`] in device independent pixels.
-pub type DipEllipse = DipSize;
 
 /// Spacing in-between grid cells in [`Length`] units.
 #[derive(Clone, Default, PartialEq)]
@@ -2343,6 +2563,50 @@ impl fmt::Debug for GridSpacing {
         }
     }
 }
+impl<S: Into<Scale2d>> ops::Mul<S> for GridSpacing {
+    type Output = Self;
+
+    fn mul(self, rhs: S) -> Self {
+        let fct = rhs.into();
+
+        GridSpacing {
+            column: self.column * fct.x,
+            row: self.row * fct.y,
+        }
+    }
+}
+impl<S: Into<Scale2d>> ops::MulAssign<S> for GridSpacing {
+    fn mul_assign(&mut self, rhs: S) {
+        let column = mem::take(&mut self.column);
+        let row = mem::take(&mut self.row);
+        let fct = rhs.into();
+
+        self.column = column * fct.x;
+        self.row = row * fct.y;
+    }
+}
+impl<S: Into<Scale2d>> ops::Div<S> for GridSpacing {
+    type Output = Self;
+
+    fn div(self, rhs: S) -> Self {
+        let fct = rhs.into();
+
+        GridSpacing {
+            column: self.column / fct.x,
+            row: self.row / fct.y,
+        }
+    }
+}
+impl<S: Into<Scale2d>> ops::DivAssign<S> for GridSpacing {
+    fn div_assign(&mut self, rhs: S) {
+        let column = mem::take(&mut self.column);
+        let row = mem::take(&mut self.row);
+        let fct = rhs.into();
+
+        self.column = column / fct.x;
+        self.row = row / fct.y;
+    }
+}
 
 /// Computed [`GridSpacing`].
 #[derive(Clone, Default, Copy, Debug)]
@@ -2400,12 +2664,12 @@ impl Rect {
         }
     }
 
-    /// New rectangle at origin [zero](Point::zero). The size is in any [`Length`] unit.
+    /// New rectangle at [`Point::zero`]. The size is in any [`Length`] unit.
     pub fn from_size<S: Into<Size>>(size: S) -> Self {
         Self::new(Point::zero(), size)
     }
 
-    /// New rectangle at origin [zero](Point::zero) and size [zero](Size::zero).
+    /// New rectangle at [`Point::zero`] and [`Size::zero`].
     #[inline]
     pub fn zero() -> Self {
         Self::new(Point::zero(), Size::zero())
@@ -2415,6 +2679,52 @@ impl Rect {
     #[inline]
     pub fn fill() -> Self {
         Self::from_size(Size::fill())
+    }
+
+    /// Min x and y, this is the [`origin`].
+    ///
+    /// [`origin`]: Self::origin
+    #[inline]
+    pub fn min(&self) -> Point {
+        self.origin.clone()
+    }
+
+    /// Max x and y, this is the sum of [`origin`] and [`size`].
+    ///
+    /// [`size`]: Self::size
+    #[inline]
+    pub fn max(&self) -> Point {
+        self.origin.clone() + self.size.clone()
+    }
+
+    /// Min x, this is the `origin.x`.
+    #[inline]
+    pub fn min_x(&self) -> Length {
+        self.origin.x.clone()
+    }
+    /// Min y, this is the `origin.y`.
+    #[inline]
+    pub fn min_y(&self) -> Length {
+        self.origin.y.clone()
+    }
+
+    /// Max x, this is the `origin.x + width`.
+    #[inline]
+    pub fn max_x(&self) -> Length {
+        self.origin.x.clone() + self.size.width.clone()
+    }
+    /// Max y, this is the `origin.y + height`.
+    #[inline]
+    pub fn max_y(&self) -> Length {
+        self.origin.y.clone() + self.size.height.clone()
+    }
+
+    /// Returns a rectangle of same size that adds the vector to the origin.
+    #[inline]
+    pub fn translate(&self, by: impl Into<Vector>) -> Self {
+        let mut r = self.clone();
+        r.origin += by.into();
+        r
     }
 
     /// Compute the rectangle in a layout context.
@@ -2487,6 +2797,50 @@ impl_from_and_into_var! {
     /// New in exact length.
     fn from(rect: DipRect) -> Rect {
         Rect::new(rect.origin, rect.size)
+    }
+}
+impl<S: Into<Scale2d>> ops::Mul<S> for Rect {
+    type Output = Self;
+
+    fn mul(self, rhs: S) -> Self {
+        let fct = rhs.into();
+
+        Rect {
+            origin: self.origin * fct,
+            size: self.size * fct,
+        }
+    }
+}
+impl<S: Into<Scale2d>> ops::MulAssign<S> for Rect {
+    fn mul_assign(&mut self, rhs: S) {
+        let origin = mem::take(&mut self.origin);
+        let size = mem::take(&mut self.size);
+        let fct = rhs.into();
+
+        self.origin = origin * fct;
+        self.size = size * fct;
+    }
+}
+impl<S: Into<Scale2d>> ops::Div<S> for Rect {
+    type Output = Self;
+
+    fn div(self, rhs: S) -> Self {
+        let fct = rhs.into();
+
+        Rect {
+            origin: self.origin / fct,
+            size: self.size / fct,
+        }
+    }
+}
+impl<S: Into<Scale2d>> ops::DivAssign<S> for Rect {
+    fn div_assign(&mut self, rhs: S) {
+        let origin = mem::take(&mut self.origin);
+        let size = mem::take(&mut self.size);
+        let fct = rhs.into();
+
+        self.origin = origin / fct;
+        self.size = size / fct;
     }
 }
 
@@ -3050,12 +3404,12 @@ impl Alignment {
     }
 }
 
-/// Scale applied to ***x*** and ***y*** dimensions.
+/// Scale factor applied to ***x*** and ***y*** dimensions.
 #[derive(Clone, Copy, Debug)]
 pub struct Scale2d {
-    /// Scale applied in the ***x*** dimension.
+    /// Scale factor applied in the ***x*** dimension.
     pub x: Factor,
-    /// Scale applied in the ***y*** dimension.
+    /// Scale factor applied in the ***y*** dimension.
     pub y: Factor,
 }
 impl_from_and_into_var! {

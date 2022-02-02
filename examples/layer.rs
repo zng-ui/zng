@@ -2,8 +2,11 @@
 use zero_ui::prelude::*;
 use zero_ui::{
     core::widget_base::hit_testable,
-    properties::events::{widget::on_pre_init, mouse::{on_mouse_enter, on_mouse_leave}},
-    widgets::window::{AnchorMode, AnchorTransform, AnchorSize, LayerIndex, WindowLayers},
+    properties::events::{
+        mouse::{on_mouse_enter, on_mouse_leave},
+        widget::on_pre_init,
+    },
+    widgets::window::{AnchorMode, AnchorSize, AnchorTransform, LayerIndex, WindowLayers},
 };
 
 use zero_ui_view_prebuilt as zero_ui_view;
@@ -158,17 +161,18 @@ fn anchor_example() -> impl Widget {
         Point::left(),
     ];
     let points_len = points.len();
-    let point = var(0);
+    let point_index = var(0);
+    let point = point_index.map(move |&i| points[i].clone());
 
-    let anchor_mode = point.map(move |&i|AnchorMode {
-        transform: AnchorTransform::InnerOffset(points[i].clone()),
+    let anchor_mode = point.map(move |p| AnchorMode {
+        transform: AnchorTransform::InnerOffset(p.clone()),
         size: AnchorSize::Infinite,
         visibility: true,
         interaction: false,
     });
 
     let next_point = hn!(|ctx, _| {
-        point.modify(ctx, move |i| {
+        point_index.modify(ctx, move |i| {
             let next = **i + 1;
             **i = if next == points_len { 0 } else { next };
         })
@@ -188,6 +192,8 @@ fn anchor_example() -> impl Widget {
                 padding = 4;
                 background_color = colors::BLACK.lighten(1.pct());
                 border = 1, colors::BLACK, 0;
+                position = point.map(|p|p.clone() - Point::bottom_right().as_vector());
+                margin = 2;
                 hit_testable = false;
             })
         });

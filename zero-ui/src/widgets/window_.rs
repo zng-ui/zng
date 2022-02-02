@@ -987,7 +987,7 @@ pub mod window {
     }
 
     #[doc(inline)]
-    pub use nodes::{AnchorMode, AnchorTransform, AnchorSize, LayerIndex, WindowLayers};
+    pub use nodes::{AnchorMode, AnchorSize, AnchorTransform, LayerIndex, WindowLayers};
 
     /// UI nodes used for building a window widget.
     pub mod nodes {
@@ -1557,7 +1557,7 @@ pub mod window {
                 }
             }
         }
-        impl_from_and_into_var! { 
+        impl_from_and_into_var! {
             /// Custom transform, all else default.
             fn from(transform: AnchorTransform) -> AnchorMode {
                 AnchorMode {

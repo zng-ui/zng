@@ -237,17 +237,17 @@ impl Default for BorderSide {
     }
 }
 
-/// Radius of each corner of a border defined from [`Ellipse`] values.
+/// Radius of each corner of a border defined from [`Size`] values.
 #[derive(Clone, Default, PartialEq)]
 pub struct BorderRadius {
     /// Top-left corner.
-    pub top_left: Ellipse,
+    pub top_left: Size,
     /// Top-right corner.
-    pub top_right: Ellipse,
+    pub top_right: Size,
     /// Bottom-right corner.
-    pub bottom_right: Ellipse,
+    pub bottom_right: Size,
     /// Bottom-left corner.
-    pub bottom_left: Ellipse,
+    pub bottom_left: Size,
 }
 impl fmt::Debug for BorderRadius {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -271,7 +271,7 @@ impl fmt::Debug for BorderRadius {
 }
 impl BorderRadius {
     /// New every corner unique.
-    pub fn new<TL: Into<Ellipse>, TR: Into<Ellipse>, BR: Into<Ellipse>, BL: Into<Ellipse>>(
+    pub fn new<TL: Into<Size>, TR: Into<Size>, BR: Into<Size>, BL: Into<Size>>(
         top_left: TL,
         top_right: TR,
         bottom_right: BR,
@@ -286,7 +286,7 @@ impl BorderRadius {
     }
 
     /// New all corners the same.
-    pub fn new_all<E: Into<Ellipse>>(ellipse: E) -> Self {
+    pub fn new_all<E: Into<Size>>(ellipse: E) -> Self {
         let e = ellipse.into();
         BorderRadius {
             top_left: e.clone(),
@@ -299,7 +299,7 @@ impl BorderRadius {
     /// No corner radius.
     #[inline]
     pub fn zero() -> Self {
-        Self::new_all(Ellipse::zero())
+        Self::new_all(Size::zero())
     }
 
     /// If all corners are the same value.
@@ -321,7 +321,7 @@ impl BorderRadius {
 }
 impl_from_and_into_var! {
     /// All corners same.
-    fn from(all: Ellipse) -> BorderRadius {
+    fn from(all: Size) -> BorderRadius {
         BorderRadius::new_all(all)
     }
     /// All corners same length.
@@ -348,7 +348,7 @@ impl_from_and_into_var! {
     }
 
     /// (top-left, top-right, bottom-left, bottom-right) corners.
-    fn from<TL: Into<Ellipse> + Clone, TR: Into<Ellipse> + Clone, BR: Into<Ellipse> + Clone, BL: Into<Ellipse> + Clone>(
+    fn from<TL: Into<Size> + Clone, TR: Into<Size> + Clone, BR: Into<Size> + Clone, BL: Into<Size> + Clone>(
         (top_left, top_right, bottom_right, bottom_left): (TL, TR, BR, BL)
     ) -> BorderRadius {
         BorderRadius::new(top_left, top_right, bottom_right, bottom_left)
