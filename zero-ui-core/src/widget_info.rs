@@ -136,6 +136,8 @@ impl WidgetLayout {
     /// Nodes that set the visibility to the equivalent of [`Collapsed`] must skip measuring descendants and return [`PxSize::zero`] as
     /// the desired size, and they must skip arranging descendants an instead call this method, it updates all the descendant
     /// bounds information to be a zero-sized point at the current transform.
+    ///
+    /// [`Collapsed`]: Visibility::Collapsed
     pub fn collapse(&mut self, info_tree: &WidgetInfoTree) {
         if let Some(w) = info_tree.find(self.widget_id) {
             for w in w.self_and_descendants() {
@@ -606,15 +608,29 @@ impl WidgetLayoutInfo {
 
     /// Get a copy of the current transform.
     ///
-    /// The origin is the window root top-left.
+    /// The transform converts from the widget bounds space to the bounds space.
     #[inline]
     pub fn transform(&self) -> RenderTransform {
         self.0.transform.get()
     }
 
+    /// Gets [`transform`] inverted.
+    ///
+    /// The transform converts from the window space to the widget bounds space.
+    ///
+    /// [`transform`]: Self::transform
+    #[inline]
+    pub fn inverse_transform(&self) -> RenderTransform {
+        self.transform().inverse().unwrap()
+    }
+
     /// Set the current transform.
+    ///
+    /// The `transform` must be invertible and *make sense*, if constructed only by the associated
+    /// functions and methods it is valid.
     #[inline]
     fn set_transform(&self, transform: RenderTransform) {
+        // TODO validate so that all `unwrap` calls in other methods pass.
         self.0.transform.set(transform)
     }
 
@@ -651,9 +667,28 @@ impl WidgetLayoutInfo {
         self.local_transform(parent_transform).map(|m| Self::bounds_impl(m, self.size()))
     }
 
+    /// Transform a point from the window's space to the widget's space.
+    pub fn point_in_widget(&self, point_in_window: PxPoint) -> PxPoint {
+        self.inverse_transform().transform_px_point(point_in_window).unwrap()
+    }
+
+    /// Transform a vector from the window's space to the widget's space.
+    pub fn vector_in_widget(&self, vector_in_window: PxVector) -> PxVector {
+        self.inverse_transform().transform_px_vector(vector_in_window)
+    }
+
+    /// Transform a point from the widget's space to the window's space.
+    pub fn point_in_window(&self, point_in_widget: PxPoint) -> PxPoint {
+        self.transform().transform_px_point(point_in_widget).unwrap()
+    }
+
+    ///Transform a vector from the widget's space to the window's space.
+    pub fn vector_in_window(&self, vector_in_widget: PxVector) -> PxVector {
+        self.transform().transform_px_vector(vector_in_widget)
+    }
+
     fn bounds_impl(transform: RenderTransform, size: PxSize) -> PxRect {
         let rect = PxRect::from_size(size).to_wr();
-        // TODO: Verify that this unwrap will never panic.
         let bounds = transform.outer_transformed_box2d(&rect).unwrap();
         bounds.to_px()
     }
@@ -853,7 +888,7 @@ impl<'a> WidgetInfo<'a> {
     /// This information is up-to-date, it is updated every layout without causing a tree rebuild.
     #[inline]
     pub fn inner_info(self) -> WidgetLayoutInfo {
-        self.info().outer_info.clone()
+        self.info().inner_info.clone()
     }
 
     /// Side of the widget outer area, not transformed.

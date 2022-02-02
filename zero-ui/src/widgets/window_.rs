@@ -987,7 +987,7 @@ pub mod window {
     }
 
     #[doc(inline)]
-    pub use nodes::{AnchorMode, LayerIndex, WindowLayers};
+    pub use nodes::{AnchorMode, AnchorTransform, AnchorSize, LayerIndex, WindowLayers};
 
     /// UI nodes used for building a window widget.
     pub mod nodes {
@@ -999,18 +999,17 @@ pub mod window {
         /// with a *z-index* that is the [`LayerIndex`]. The inserted widgets parent is the window root widget and
         /// it is affected by the context properties set on the window only.
         ///
-        /// # Layout
+        /// # Layout & Render
         ///
         /// Layered widgets are measured and arranged using the same constrains as the window root widget, the desired
         /// size is discarded, only the root widget desired size can affect the window size. Layered widgets are all layout
-        /// after the window content and from the bottom layer up to the top-most, this means that [`BoundsInfo`] of
-        /// normal widgets are always up-to-date when the layered widget is arranged.
+        /// and rendered after the window content and from the bottom layer up to the top-most, this means that the [`WidgetLayoutInfo`]
+        /// and [`WidgetRenderInfo`] of normal widgets are always up-to-date when the layered widget is arranged and rendered, so if you
+        /// implement custom layouts that align the layered widget with a normal widget using the info values it will always be in sync with
+        /// a single layout pass, see [`insert_anchored`] for more details.
         ///
-        /// # Render
-        ///
-        /// Layered widgets are always renderer after the window root and content, from the bottom layer to the top-most.
-        ///
-        /// [`WindowContext`]:crate::core::context::WindowContext
+        /// [`WindowContext`]: crate::core::context::WindowContext
+        /// [`insert_anchored`]: Self::insert_anchored
         pub struct WindowLayers {
             items: SortedWidgetVecRef,
         }
@@ -1100,6 +1099,11 @@ pub mod window {
                     anchor_info: Option<(WidgetLayoutInfo, WidgetLayoutInfo, WidgetRenderInfo)>,
 
                     desired_size: PxSize,
+                    interaction: bool,
+
+                    spatial_id: SpatialFrameId,
+                    transform_key: FrameBindingKey<RenderTransform>,
+                    transform: RenderTransform,
                 }
                 #[impl_ui_node(
                     delegate = &self.widget,
@@ -1118,7 +1122,7 @@ pub mod window {
                     }
 
                     fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
-                        if self.mode.get(ctx).interaction {
+                        if self.interaction {
                             let anchor = self.anchor.copy(ctx);
                             let widget = ctx.path.widget_id();
                             info.push_interaction_filter(move |args| {
@@ -1136,6 +1140,8 @@ pub mod window {
                         if let Some(w) = ctx.info_tree.find(self.anchor.copy(ctx.vars)) {
                             self.anchor_info = Some((w.inner_info(), w.outer_info(), w.render_info()));
                         }
+
+                        self.interaction = self.mode.get(ctx).interaction;
 
                         self.widget.init(ctx);
                     }
@@ -1170,8 +1176,12 @@ pub mod window {
                             }
                             ctx.updates.layout_and_render();
                         }
-                        if self.mode.is_new(ctx) {
-                            ctx.updates.info_layout_and_render();
+                        if let Some(mode) = self.mode.get_new(ctx) {
+                            if mode.interaction != self.interaction {
+                                self.interaction = mode.interaction;
+                                ctx.updates.info();
+                            }
+                            ctx.updates.layout_and_render();
                         }
                         self.widget.update(ctx);
                     }
@@ -1209,7 +1219,26 @@ pub mod window {
                                     AnchorSize::InnerSize => inner.size(),
                                     AnchorSize::OuterSize => outer.size(),
                                 };
-                                self.widget.arrange(ctx, widget_layout, final_size);
+                                self.transform = match &mode.transform {
+                                    AnchorTransform::None => RenderTransform::identity(),
+                                    AnchorTransform::InnerOffset(p) => {
+                                        let p = p.to_layout(ctx, AvailableSize::finite(inner.size()), PxPoint::zero());
+                                        let offset = inner.point_in_window(p);
+                                        RenderTransform::translation_px(offset.to_vector())
+                                    }
+                                    AnchorTransform::OuterOffset(p) => {
+                                        let p = p.to_layout(ctx, AvailableSize::finite(outer.size()), PxPoint::zero());
+                                        let offset = outer.point_in_window(p);
+                                        RenderTransform::translation_px(offset.to_vector())
+                                    }
+                                    AnchorTransform::InnerTransform => inner.transform(),
+                                    AnchorTransform::OuterTransform => outer.transform(),
+                                };
+
+                                widget_layout.with_custom_transform(&self.transform, |wl| {
+                                    self.widget.arrange(ctx, wl, final_size);
+                                });
+
                                 return;
                             }
                         }
@@ -1220,7 +1249,9 @@ pub mod window {
                     fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
                         if let Some((_, _, render_info)) = &self.anchor_info {
                             if !self.mode.get(ctx).visibility || render_info.rendered() {
-                                self.widget.render(ctx, frame);
+                                frame.push_reference_frame(self.spatial_id, self.transform_key.bind(self.transform), false, |frame| {
+                                    self.widget.render(ctx, frame);
+                                });
                                 return;
                             }
                         }
@@ -1231,6 +1262,7 @@ pub mod window {
                     fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
                         if let Some((_, _, render_info)) = &self.anchor_info {
                             if !self.mode.get(ctx).visibility || render_info.rendered() {
+                                update.update_transform(self.transform_key.update(self.transform));
                                 self.widget.render_update(ctx, update);
                             }
                         }
@@ -1273,6 +1305,10 @@ pub mod window {
                         anchor_info: None,
 
                         desired_size: PxSize::zero(),
+                        interaction: false,
+                        transform: RenderTransform::identity(),
+                        transform_key: FrameBindingKey::new_unique(),
+                        spatial_id: SpatialFrameId::new_unique(),
                     },
                 );
             }
@@ -1430,16 +1466,12 @@ pub mod window {
         pub enum AnchorTransform {
             /// Widget does not copy any position from the anchor widget.
             None,
-            /// The point is resolved in the inner space of the anchor widget and then applied as the
-            /// [`position`] of the widget.
-            ///
-            /// [`position`]: crate::properties::position
+            /// The point is resolved in the inner space of the anchor widget, transformed to the window space
+            /// and then applied as a translate offset.
             InnerOffset(Point),
 
-            /// The point is resolved in the outer space of the anchor widget and then applied as the
-            /// [`position`] of the widget.
-            ///
-            /// [`position`]: crate::properties::position
+            /// The point is resolved in the outer space of the anchor widget, transformed to the window space
+            /// and then applied as a translate offset.
             OuterOffset(Point),
 
             /// The full inner transform of the anchor object is applied to the widget.
@@ -1447,6 +1479,24 @@ pub mod window {
 
             /// The full outer transform of the anchor object is applied to the widget.
             OuterTransform,
+        }
+        impl_from_and_into_var! {
+            /// `InnerOffset`.
+            fn from(inner_offset: Point) -> AnchorTransform {
+                AnchorTransform::InnerOffset(inner_offset)
+            }
+            /// `InnerOffset`.
+            fn from<X: Into<Length> + Clone, Y: Into<Length> + Clone>(inner_offset: (X, Y)) -> AnchorTransform {
+                Point::from(inner_offset).into()
+            }
+            /// `InnerOffset`.
+            fn from(inner_offset: PxPoint) -> AnchorTransform {
+                Point::from(inner_offset).into()
+            }
+            /// `InnerOffset`.
+            fn from(inner_offset: DipPoint) -> AnchorTransform {
+                Point::from(inner_offset).into()
+            }
         }
 
         /// Options for [`AnchorMode::size`].
@@ -1470,9 +1520,9 @@ pub mod window {
         /// Defines what properties the layered widget takes from the anchor widget.
         #[derive(Debug, Clone, PartialEq)]
         pub struct AnchorMode {
-            /// What transforms are copied from the anchor widget.
+            /// What transforms are copied from the anchor widget and applied as a *parent* transform of the widget.
             pub transform: AnchorTransform,
-            /// What size is copied from the anchor widget.
+            /// What size is copied from the anchor widget and used as the available size and final size of the widget.
             pub size: AnchorSize,
             /// If the widget is only layout if the anchor widget is not [`Collapsed`] and is only rendered
             /// if the anchor widget is rendered.
@@ -1497,13 +1547,43 @@ pub mod window {
             }
         }
         impl Default for AnchorMode {
-            /// Transform inner offset top-left, size infinite and copy visibility.
+            /// Transform `InnerOffset` top-left, size infinite and copy visibility.
             fn default() -> Self {
                 AnchorMode {
                     transform: AnchorTransform::InnerOffset(Point::top_left()),
                     size: AnchorSize::Infinite,
                     visibility: true,
                     interaction: false,
+                }
+            }
+        }
+        impl_from_and_into_var! { 
+            /// Custom transform, all else default.
+            fn from(transform: AnchorTransform) -> AnchorMode {
+                AnchorMode {
+                    transform,
+                    ..AnchorMode::default()
+                }
+            }
+            /// Transform `InnerOffset`, all else default.
+            fn from(inner_offset: Point) -> AnchorMode {
+                AnchorTransform::from(inner_offset).into()
+            }
+            /// Transform `InnerOffset`, all else default.
+            fn from(inner_offset: PxPoint) -> AnchorMode {
+                AnchorTransform::from(inner_offset).into()
+            }
+            /// Transform `InnerOffset`, all else default.
+            fn from(inner_offset: DipPoint) -> AnchorMode {
+                AnchorTransform::from(inner_offset).into()
+            }
+
+            /// Custom transform and size, all else default.
+            fn from<T: Into<AnchorTransform> + Clone, S: Into<AnchorSize> + Clone>((transform, size): (T, S)) -> AnchorMode {
+                AnchorMode {
+                    transform: transform.into(),
+                    size: size.into(),
+                    ..AnchorMode::default()
                 }
             }
         }

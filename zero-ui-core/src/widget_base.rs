@@ -607,8 +607,8 @@ pub fn visibility(child: impl UiNode, visibility: impl IntoVar<Visibility>) -> i
 /// Widget visibility.
 ///
 /// The visibility status of a widget is computed from its outer-bounds in the last layout and if it rendered anything,
-/// the visibility of a parent widget affects all descendant widgets, you can inspect the visibility using [`WidgetInfo::visibility`]
-/// or the [`Widget::visibility`] methods.
+/// the visibility of a parent widget affects all descendant widgets, you can inspect the visibility using the
+/// [`WidgetInfo::visibility`] method.
 ///
 /// You can use  the [`visibility`] property to explicitly set the visibility of a widget, this property causes the widget to
 /// layout and render according to specified visibility.

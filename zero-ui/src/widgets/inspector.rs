@@ -132,7 +132,9 @@ pub fn render_widget_tree(
 
             if self.valid {
                 if let Some(tree) = &self.tree {
-                    (self.render)(tree, frame);
+                    frame.with_hit_tests_disabled(|frame| {
+                        (self.render)(tree, frame);
+                    });
                 }
             }
         }

@@ -2,8 +2,8 @@
 use zero_ui::prelude::*;
 use zero_ui::{
     core::widget_base::hit_testable,
-    properties::events::widget::on_pre_init,
-    widgets::window::{AnchorMode, LayerIndex, WindowLayers},
+    properties::events::{widget::on_pre_init, mouse::{on_mouse_enter, on_mouse_leave}},
+    widgets::window::{AnchorMode, AnchorTransform, AnchorSize, LayerIndex, WindowLayers},
 };
 
 use zero_ui_view_prebuilt as zero_ui_view;
@@ -25,6 +25,8 @@ fn app_main() {
         window! {
             title = "Layer Example";
 
+            // zero_ui::widgets::inspector::show_bounds = true;
+
             // you can use the pre-init to insert layered widgets
             // before the first render.
             on_pre_init = hn!(|ctx, _| {
@@ -42,23 +44,16 @@ fn app_main() {
             content = v_stack! {
                 spacing = 5;
                 items = widgets![
-                    overlay_btn(),
-
-                    h_stack! {
-                        spacing = 5;
-                        items = widgets![
-                            layer_n_btn(7, colors::DARK_GREEN),
-                            layer_n_btn(8, colors::DARK_BLUE),
-                            layer_n_btn(9, colors::DARK_RED),
-                        ]
-                    },
+                    overlay_example(),
+                    layer_index_example(),
+                    anchor_example(),
                 ];
             };
         }
     })
 }
 
-fn overlay_btn() -> impl Widget {
+fn overlay_example() -> impl Widget {
     button! {
         content = text("TOP_MOST");
         on_click = hn!(|ctx, _| {
@@ -110,6 +105,17 @@ fn overlay(id: impl Into<WidgetId>, offset: i32) -> impl Widget {
     }
 }
 
+fn layer_index_example() -> impl Widget {
+    // demonstrates that the z-order is not affected by the order of insertion.
+    h_stack! {
+        spacing = 5;
+        items = widgets![
+            layer_n_btn(7, colors::DARK_GREEN),
+            layer_n_btn(8, colors::DARK_BLUE),
+            layer_n_btn(9, colors::DARK_RED),
+        ]
+    }
+}
 fn layer_n_btn(n: u32, color: Rgba) -> impl Widget {
     let label = formatx!("Layer {n}");
     button! {
@@ -137,5 +143,58 @@ fn layer_n_btn(n: u32, color: Rgba) -> impl Widget {
 
             ctx.with(|ctx| WindowLayers::remove(ctx, id));
         });
+    }
+}
+
+fn anchor_example() -> impl Widget {
+    let points = [
+        Point::top_left(),
+        Point::top(),
+        Point::top_right(),
+        Point::right(),
+        Point::bottom_right(),
+        Point::bottom(),
+        Point::bottom_left(),
+        Point::left(),
+    ];
+    let points_len = points.len();
+    let point = var(0);
+
+    let anchor_mode = point.map(move |&i|AnchorMode {
+        transform: AnchorTransform::InnerOffset(points[i].clone()),
+        size: AnchorSize::Infinite,
+        visibility: true,
+        interaction: false,
+    });
+
+    let next_point = hn!(|ctx, _| {
+        point.modify(ctx, move |i| {
+            let next = **i + 1;
+            **i = if next == points_len { 0 } else { next };
+        })
+    });
+
+    button! {
+        id = "anchor";
+        content = text("Anchored");
+
+        margin = (60, 0, 0, 0);
+        align = Alignment::CENTER;
+
+        on_mouse_enter = hn!(|ctx, _| {
+            WindowLayers::insert_anchored(ctx, LayerIndex::ADORNER, "anchor", anchor_mode.clone(), text! {
+                id = "anchored";
+                text = "Example";
+                padding = 4;
+                background_color = colors::BLACK.lighten(1.pct());
+                border = 1, colors::BLACK, 0;
+                hit_testable = false;
+            })
+        });
+        on_mouse_leave = hn!(|ctx, _| {
+            WindowLayers::remove(ctx, "anchored");
+        });
+
+        on_click = next_point;
     }
 }

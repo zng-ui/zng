@@ -3428,10 +3428,29 @@ pub type RenderTransform = webrender_api::units::LayoutTransform;
 pub trait RenderTransformExt {
     /// New translation transform from a pixel vector.
     fn translation_px(offset: PxVector) -> RenderTransform;
+
+    /// Returns the given [`PxPoint`] transformed by this transform, if the transform makes sense,
+    /// or `None` otherwise.
+    fn transform_px_point(&self, point: PxPoint) -> Option<PxPoint>;
+
+    /// Returns the given [`PxVector`] transformed by this matrix.
+    fn transform_px_vector(&self, vector: PxVector) -> PxVector;
 }
 impl RenderTransformExt for RenderTransform {
     fn translation_px(offset: PxVector) -> RenderTransform {
         RenderTransform::translation(offset.x.0 as f32, offset.y.0 as f32, 0.0)
+    }
+
+    fn transform_px_point(&self, point: PxPoint) -> Option<PxPoint> {
+        let point = euclid::point2(point.x.0 as f32, point.y.0 as f32);
+        let point = self.transform_point2d(point)?;
+        Some(PxPoint::new(Px(point.x as i32), Px(point.y as i32)))
+    }
+
+    fn transform_px_vector(&self, vector: PxVector) -> PxVector {
+        let vector = euclid::vec2(vector.x.0 as f32, vector.y.0 as f32);
+        let vector = self.transform_vector2d(vector);
+        PxVector::new(Px(vector.x as i32), Px(vector.y as i32))
     }
 }
 
