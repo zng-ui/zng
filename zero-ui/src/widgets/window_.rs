@@ -1131,7 +1131,10 @@ pub mod window {
                     fn event<Args: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &Args) {
                         if let Some(args) = WidgetInfoChangedEvent.update(args) {
                             if args.window_id == ctx.path.window_id() {
-                                self.anchor_info = ctx.info_tree.find(self.anchor.copy(ctx.vars)).map(|w| (w.inner_info(), w.render_info()));
+                                self.anchor_info = ctx
+                                    .info_tree
+                                    .find(self.anchor.copy(ctx.vars))
+                                    .map(|w| (w.inner_info(), w.render_info()));
                             }
                             self.widget.event(ctx, args);
                         } else {
@@ -1152,18 +1155,24 @@ pub mod window {
 
                     fn measure(&mut self, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize {
                         if let Some((layout, _)) = &self.anchor_info {
-                            let mode = self.mode.copy(ctx);
+                            let mode = self.mode.get(ctx.vars);
 
-                            return self.widget.measure(ctx, available_size);
+                            if !mode.visibility || layout.size() != PxSize::zero() {
+                                return self.widget.measure(ctx, available_size);
+                            }
                         }
-                        
+
                         PxSize::zero()
                     }
 
                     fn arrange(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, final_size: PxSize) {
                         if let Some((layout, _)) = &self.anchor_info {
-                            self.widget.arrange(ctx, widget_layout, final_size);
-                            return;
+                            let mode = self.mode.get(ctx.vars);
+
+                            if !mode.visibility || layout.size() != PxSize::zero() {
+                                self.widget.arrange(ctx, widget_layout, final_size);
+                                return;
+                            }
                         }
 
                         widget_layout.collapse(ctx.info_tree);
@@ -1171,7 +1180,7 @@ pub mod window {
 
                     fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
                         if let Some((_, render_info)) = &self.anchor_info {
-                            if !self.mode.copy(ctx).contains(AnchorMode::VISIBILITY) || render_info.rendered() {
+                            if !self.mode.get(ctx).visibility || render_info.rendered() {
                                 self.widget.render(ctx, frame);
                                 return;
                             }
@@ -1182,7 +1191,7 @@ pub mod window {
 
                     fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
                         if let Some((_, render_info)) = &self.anchor_info {
-                            if !self.mode.copy(ctx).contains(AnchorMode::VISIBILITY) || render_info.rendered() {
+                            if !self.mode.get(ctx).visibility || render_info.rendered() {
                                 self.widget.render_update(ctx, update);
                             }
                         }
@@ -1375,45 +1384,86 @@ pub mod window {
             }
         }
 
-        bitflags::bitflags! {
-            /// Defines how the layered widget is anchored to another widget.
-            pub struct AnchorMode: u16 {
-                /// The widget is layout like a normal unanchored layered widget, the available size is the window content
-                /// size and the origin is the window content top-left.
-                const NONE = 0b0;
+        /// Options for [`AnchorMode::transform`].
+        #[derive(Debug, Clone)]
+        pub enum AnchorTransform {
+            /// Widget does not copy any position from the anchor widget.
+            None,
+            /// The point is resolved in the inner space of the anchor widget and then applied as the
+            /// [`position`] of the widget.
+            ///
+            /// [`position`]: crate::properties::position
+            InnerOffset(Point),
 
-                /// The other widget inner transform is applied to the widget origin point, so it is not scaled and
-                /// rotated like the other widget but it is positioned at the transform point, the available size is *infinite*.
-                const OFFSET = 0b1;
+            /// The point is resolved in the outer space of the anchor widget and then applied as the
+            /// [`position`] of the widget.
+            ///
+            /// [`position`]: crate::properties::position
+            OuterOffset(Point),
 
-                /// The other widget inner transform is applied the widget, this flag overrides [`OFFSET`], the available size is *infinite*.
-                ///
-                /// [`OFFSET`]: AnchorMode::OFFSET
-                const TRANSFORM = 0b11;
+            /// The full inner transform of the anchor object is applied to the widget.
+            InnerTransform,
 
-                /// The widget is only rendered if the other widget is rendered.
-                const VISIBILITY = 0b100;
+            /// The full outer transform of the anchor object is applied to the widget.
+            OuterTransform,
+        }
 
-                /// The widget only allows interaction if the other widget [`allow_interaction`].
-                ///
-                /// [`allow_interaction`]: crate::core::widget_info::WidgetInfo::allow_interaction
-                const INTERACTION = 0b1000;
+        /// Options for [`AnchorMode::size`].
+        #[derive(Debug, Clone, Copy)]
+        pub enum AnchorSize {
+            /// Widget does not copy any size from the anchor widget, the available size is infinite, the
+            /// final size is the desired size.
+            ///
+            /// Note that layered widgets do not affect the window size and a widget that overflows the content
+            /// boundaries is clipped.
+            Infinite,
+            /// Widget does not copy any size from the anchor widget, the available size and final size
+            /// are the window's root size.
+            Window,
+            /// The available size and final size is the anchor widget's inner size.
+            InnerSize,
+            /// The available size and final size is the anchor widget's outer size.
+            OuterSize,
+        }
 
-                /// The widget is only [`enabled`] if the other widget is enabled, this flag includes the [`INTERACTION`].
-                ///
-                /// [`enabled`]: crate::core::widget_base::enabled
-                /// [`INTERACTION`]: AnchorMode::INTERACTION
-                const ENABLED = 0b11000;
-
-                /// Is [`OFFSET`].
-                ///
-                /// [`OFFSET`]: AnchorMode::OFFSET
-                const DEFAULT = Self::OFFSET.bits;
+        /// Defines what properties the layered widget takes from the anchor widget.
+        #[derive(Debug, Clone)]
+        pub struct AnchorMode {
+            /// What transforms are copied from the anchor widget.
+            pub transform: AnchorTransform,
+            /// What size is copied from the anchor widget.
+            pub size: AnchorSize,
+            /// If the widget is only layout if the anchor widget is not [`Collapsed`] and is only rendered
+            /// if the anchor widget is rendered.
+            ///
+            /// [`Collapsed`]: Visibility::Collapsed
+            pub visibility: bool,
+            /// The widget only allows interaction if the anchor widget [`allow_interaction`].
+            ///
+            /// [`allow_interaction`]: crate::core::widget_info::WidgetInfo::allow_interaction
+            pub interaction: bool,
+        }
+        impl AnchorMode {
+            /// Mode where widget behaves like an unanchored widget, except that it is still only
+            /// layout an rendered if the anchor widget exists in the same window.
+            pub fn none() -> Self {
+                AnchorMode {
+                    transform: AnchorTransform::None,
+                    size: AnchorSize::Window,
+                    visibility: false,
+                    interaction: false,
+                }
             }
         }
         impl Default for AnchorMode {
+            /// Transform inner offset top-left, size infinite and copy visibility.
             fn default() -> Self {
-                AnchorMode::DEFAULT
+                AnchorMode {
+                    transform: AnchorTransform::InnerOffset(Point::top_left()),
+                    size: AnchorSize::Infinite,
+                    visibility: true,
+                    interaction: false,
+                }
             }
         }
 
