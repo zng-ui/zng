@@ -2,7 +2,7 @@ use std::{fmt, mem, ops};
 
 use crate::{context::LayoutMetrics, impl_from_and_into_var};
 
-use super::{impl_length_comp_conversions, AvailableSize, DipPoint, LayoutMask, Length, PxPoint, Scale2d, Size, Vector};
+use super::{impl_length_comp_conversions, AvailableSize, DipPoint, Factor2d, LayoutMask, Length, PxPoint, Size, Vector};
 
 /// 2D point in [`Length`] units.
 #[derive(Clone, Default, PartialEq)]
@@ -194,6 +194,13 @@ impl ops::Add<Vector> for Point {
         }
     }
 }
+impl<'a, 'b> ops::Add<&'a Vector> for &'b Point {
+    type Output = Point;
+
+    fn add(self, rhs: &'a Vector) -> Self::Output {
+        self.clone() + rhs.clone()
+    }
+}
 impl ops::Add<Size> for Point {
     type Output = Self;
 
@@ -202,6 +209,13 @@ impl ops::Add<Size> for Point {
             x: self.x + rhs.width,
             y: self.y + rhs.height,
         }
+    }
+}
+impl<'a, 'b> ops::Add<&'a Size> for &'b Point {
+    type Output = Point;
+
+    fn add(self, rhs: &'a Size) -> Self::Output {
+        self.clone() + rhs.clone()
     }
 }
 impl ops::AddAssign<Vector> for Point {
@@ -213,6 +227,11 @@ impl ops::AddAssign<Vector> for Point {
         self.y = y + rhs.y;
     }
 }
+impl<'a> ops::AddAssign<&'a Vector> for Point {
+    fn add_assign(&mut self, rhs: &'a Vector) {
+        *self += rhs.clone();
+    }
+}
 impl ops::AddAssign<Size> for Point {
     fn add_assign(&mut self, rhs: Size) {
         let x = mem::take(&mut self.x);
@@ -220,6 +239,11 @@ impl ops::AddAssign<Size> for Point {
 
         self.x = x + rhs.width;
         self.y = y + rhs.height;
+    }
+}
+impl<'a> ops::AddAssign<&'a Size> for Point {
+    fn add_assign(&mut self, rhs: &'a Size) {
+        *self += rhs.clone();
     }
 }
 impl ops::Sub<Vector> for Point {
@@ -232,6 +256,13 @@ impl ops::Sub<Vector> for Point {
         }
     }
 }
+impl<'a, 'b> ops::Sub<&'a Vector> for &'b Point {
+    type Output = Point;
+
+    fn sub(self, rhs: &'a Vector) -> Self::Output {
+        self.clone() - rhs.clone()
+    }
+}
 impl ops::Sub<Size> for Point {
     type Output = Self;
 
@@ -240,6 +271,13 @@ impl ops::Sub<Size> for Point {
             x: self.x - rhs.width,
             y: self.y - rhs.height,
         }
+    }
+}
+impl<'a, 'b> ops::Sub<&'a Size> for &'b Point {
+    type Output = Point;
+
+    fn sub(self, rhs: &'a Size) -> Self::Output {
+        self.clone() - rhs.clone()
     }
 }
 impl ops::SubAssign<Vector> for Point {
@@ -251,6 +289,11 @@ impl ops::SubAssign<Vector> for Point {
         self.y = y - rhs.y;
     }
 }
+impl<'a> ops::SubAssign<&'a Vector> for Point {
+    fn sub_assign(&mut self, rhs: &'a Vector) {
+        *self -= rhs.clone();
+    }
+}
 impl ops::SubAssign<Size> for Point {
     fn sub_assign(&mut self, rhs: Size) {
         let x = mem::take(&mut self.x);
@@ -260,7 +303,12 @@ impl ops::SubAssign<Size> for Point {
         self.y = y - rhs.height;
     }
 }
-impl<S: Into<Scale2d>> ops::Mul<S> for Point {
+impl<'a> ops::SubAssign<&'a Size> for Point {
+    fn sub_assign(&mut self, rhs: &'a Size) {
+        *self -= rhs.clone();
+    }
+}
+impl<S: Into<Factor2d>> ops::Mul<S> for Point {
     type Output = Self;
 
     fn mul(self, rhs: S) -> Self {
@@ -272,7 +320,14 @@ impl<S: Into<Scale2d>> ops::Mul<S> for Point {
         }
     }
 }
-impl<S: Into<Scale2d>> ops::MulAssign<S> for Point {
+impl<'a, S: Into<Factor2d>> ops::Mul<S> for &'a Point {
+    type Output = Point;
+
+    fn mul(self, rhs: S) -> Self::Output {
+        self.clone() * rhs
+    }
+}
+impl<S: Into<Factor2d>> ops::MulAssign<S> for Point {
     fn mul_assign(&mut self, rhs: S) {
         let x = mem::take(&mut self.x);
         let y = mem::take(&mut self.y);
@@ -282,7 +337,7 @@ impl<S: Into<Scale2d>> ops::MulAssign<S> for Point {
         self.y = y * fct.y;
     }
 }
-impl<S: Into<Scale2d>> ops::Div<S> for Point {
+impl<S: Into<Factor2d>> ops::Div<S> for Point {
     type Output = Self;
 
     fn div(self, rhs: S) -> Self {
@@ -294,7 +349,14 @@ impl<S: Into<Scale2d>> ops::Div<S> for Point {
         }
     }
 }
-impl<S: Into<Scale2d>> ops::DivAssign<S> for Point {
+impl<'a, S: Into<Factor2d>> ops::Div<S> for &'a Point {
+    type Output = Point;
+
+    fn div(self, rhs: S) -> Self::Output {
+        self.clone() / rhs
+    }
+}
+impl<S: Into<Factor2d>> ops::DivAssign<S> for Point {
     fn div_assign(&mut self, rhs: S) {
         let x = mem::take(&mut self.x);
         let y = mem::take(&mut self.y);
@@ -309,5 +371,13 @@ impl ops::Neg for Point {
 
     fn neg(self) -> Self {
         Point { x: -self.x, y: -self.y }
+    }
+}
+
+impl<'a> ops::Neg for &'a Point {
+    type Output = Point;
+
+    fn neg(self) -> Self::Output {
+        -self.clone()
     }
 }

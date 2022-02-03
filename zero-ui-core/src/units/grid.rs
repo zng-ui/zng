@@ -2,7 +2,7 @@ use std::{fmt, mem, ops};
 
 use crate::{context::LayoutMetrics, impl_from_and_into_var};
 
-use super::{impl_length_comp_conversions, AvailableSize, Factor, FactorPercent, LayoutMask, Length, Px, Scale2d};
+use super::{impl_length_comp_conversions, AvailableSize, Factor, Factor2d, FactorPercent, LayoutMask, Length, Px};
 
 /// Spacing in-between grid cells in [`Length`] units.
 #[derive(Clone, Default, PartialEq)]
@@ -95,7 +95,7 @@ impl fmt::Debug for GridSpacing {
         }
     }
 }
-impl<S: Into<Scale2d>> ops::Mul<S> for GridSpacing {
+impl<S: Into<Factor2d>> ops::Mul<S> for GridSpacing {
     type Output = Self;
 
     fn mul(self, rhs: S) -> Self {
@@ -107,7 +107,14 @@ impl<S: Into<Scale2d>> ops::Mul<S> for GridSpacing {
         }
     }
 }
-impl<S: Into<Scale2d>> ops::MulAssign<S> for GridSpacing {
+impl<'a, S: Into<Factor2d>> ops::Mul<S> for &'a GridSpacing {
+    type Output = GridSpacing;
+
+    fn mul(self, rhs: S) -> Self::Output {
+        self.clone() * rhs
+    }
+}
+impl<S: Into<Factor2d>> ops::MulAssign<S> for GridSpacing {
     fn mul_assign(&mut self, rhs: S) {
         let column = mem::take(&mut self.column);
         let row = mem::take(&mut self.row);
@@ -117,7 +124,7 @@ impl<S: Into<Scale2d>> ops::MulAssign<S> for GridSpacing {
         self.row = row * fct.y;
     }
 }
-impl<S: Into<Scale2d>> ops::Div<S> for GridSpacing {
+impl<S: Into<Factor2d>> ops::Div<S> for GridSpacing {
     type Output = Self;
 
     fn div(self, rhs: S) -> Self {
@@ -129,7 +136,14 @@ impl<S: Into<Scale2d>> ops::Div<S> for GridSpacing {
         }
     }
 }
-impl<S: Into<Scale2d>> ops::DivAssign<S> for GridSpacing {
+impl<'a, S: Into<Factor2d>> ops::Div<S> for &'a GridSpacing {
+    type Output = GridSpacing;
+
+    fn div(self, rhs: S) -> Self::Output {
+        self.clone() / rhs
+    }
+}
+impl<S: Into<Factor2d>> ops::DivAssign<S> for GridSpacing {
     fn div_assign(&mut self, rhs: S) {
         let column = mem::take(&mut self.column);
         let row = mem::take(&mut self.row);

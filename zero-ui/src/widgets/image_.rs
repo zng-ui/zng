@@ -237,7 +237,7 @@ pub mod image {
             /// Scaling applied to the image desired size.
             ///
             /// Does not scale by default, `1.0`.
-            pub struct ImageScaleVar: Scale2d = Scale2d::identity();
+            pub struct ImageScaleVar: Factor2d = Factor2d::identity();
 
             /// If the image desired size is scaled by the screen scale factor.
             ///
@@ -278,8 +278,8 @@ pub mod image {
         /// See the [`scale`] property in the widget for more details.
         ///
         /// [`fit`]: crate::widgets::image#wp-fit
-        #[property(context, default(Scale2d::identity()))]
-        pub fn image_scale(child: impl UiNode, scale: impl IntoVar<Scale2d>) -> impl UiNode {
+        #[property(context, default(Factor2d::identity()))]
+        pub fn image_scale(child: impl UiNode, scale: impl IntoVar<Factor2d>) -> impl UiNode {
             with_context_var(child, ImageScaleVar, scale)
         }
 
@@ -1056,7 +1056,7 @@ pub mod image {
                             let img = var.get(ctx.vars);
                             let sppi = ctx.metrics.screen_ppi;
                             let (ippi_x, ippi_y) = img.ppi().unwrap_or((sppi, sppi));
-                            scale *= Scale2d::new(ippi_x / sppi, ippi_y / sppi);
+                            scale *= Factor2d::new(ippi_x / sppi, ippi_y / sppi);
                         }
 
                         if *ImageScaleFactorVar::get(ctx) {
@@ -1150,7 +1150,7 @@ pub mod image {
                     // 2 - scale image to new crop size:
                     let scale_x = crop_size.width.0 as f32 / f_clip_rect.size.width.0 as f32;
                     let scale_y = crop_size.height.0 as f32 / f_clip_rect.size.height.0 as f32;
-                    let scale = Scale2d::new(scale_x, scale_y);
+                    let scale = Factor2d::new(scale_x, scale_y);
 
                     f_img_size *= scale;
                     f_clip_rect.origin *= scale;

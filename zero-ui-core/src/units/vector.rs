@@ -3,7 +3,8 @@ use std::{fmt, mem, ops};
 use crate::{context::LayoutMetrics, impl_from_and_into_var};
 
 use super::{
-    impl_length_comp_conversions, translate, AvailableSize, DipVector, LayoutMask, Length, LengthUnits, Point, PxVector, Scale2d, Transform,
+    impl_length_comp_conversions, translate, AvailableSize, DipVector, Factor2d, LayoutMask, Length, LengthUnits, Point, PxVector,
+    Transform,
 };
 
 /// 2D vector in [`Length`] units.
@@ -149,6 +150,13 @@ impl ops::Add for Vector {
         }
     }
 }
+impl<'a, 'b> ops::Add<&'a Vector> for &'b Vector {
+    type Output = Vector;
+
+    fn add(self, rhs: &'a Vector) -> Self::Output {
+        self.clone() + rhs.clone()
+    }
+}
 impl ops::AddAssign for Vector {
     fn add_assign(&mut self, rhs: Self) {
         let x = mem::take(&mut self.x);
@@ -168,6 +176,13 @@ impl ops::Sub for Vector {
         }
     }
 }
+impl<'a, 'b> ops::Sub<&'a Vector> for &'b Vector {
+    type Output = Vector;
+
+    fn sub(self, rhs: &'a Vector) -> Self::Output {
+        self.clone() - rhs.clone()
+    }
+}
 impl ops::SubAssign for Vector {
     fn sub_assign(&mut self, rhs: Self) {
         let x = mem::take(&mut self.x);
@@ -177,7 +192,7 @@ impl ops::SubAssign for Vector {
         self.y = y - rhs.y;
     }
 }
-impl<S: Into<Scale2d>> ops::Mul<S> for Vector {
+impl<S: Into<Factor2d>> ops::Mul<S> for Vector {
     type Output = Self;
 
     fn mul(self, rhs: S) -> Self {
@@ -189,7 +204,14 @@ impl<S: Into<Scale2d>> ops::Mul<S> for Vector {
         }
     }
 }
-impl<S: Into<Scale2d>> ops::MulAssign<S> for Vector {
+impl<'a, S: Into<Factor2d>> ops::Mul<S> for &'a Vector {
+    type Output = Vector;
+
+    fn mul(self, rhs: S) -> Self::Output {
+        self.clone() * rhs
+    }
+}
+impl<S: Into<Factor2d>> ops::MulAssign<S> for Vector {
     fn mul_assign(&mut self, rhs: S) {
         let x = mem::take(&mut self.x);
         let y = mem::take(&mut self.y);
@@ -199,7 +221,7 @@ impl<S: Into<Scale2d>> ops::MulAssign<S> for Vector {
         self.y = y * fct.y;
     }
 }
-impl<S: Into<Scale2d>> ops::Div<S> for Vector {
+impl<S: Into<Factor2d>> ops::Div<S> for Vector {
     type Output = Self;
 
     fn div(self, rhs: S) -> Self {
@@ -211,7 +233,14 @@ impl<S: Into<Scale2d>> ops::Div<S> for Vector {
         }
     }
 }
-impl<S: Into<Scale2d>> ops::DivAssign<S> for Vector {
+impl<'a, S: Into<Factor2d>> ops::Div<S> for &'a Vector {
+    type Output = Vector;
+
+    fn div(self, rhs: S) -> Self::Output {
+        self.clone() / rhs
+    }
+}
+impl<S: Into<Factor2d>> ops::DivAssign<S> for Vector {
     fn div_assign(&mut self, rhs: S) {
         let x = mem::take(&mut self.x);
         let y = mem::take(&mut self.y);
@@ -226,5 +255,12 @@ impl ops::Neg for Vector {
 
     fn neg(self) -> Self {
         Vector { x: -self.x, y: -self.y }
+    }
+}
+impl<'a> ops::Neg for &'a Vector {
+    type Output = Vector;
+
+    fn neg(self) -> Self::Output {
+        -self.clone()
     }
 }

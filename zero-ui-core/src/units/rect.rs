@@ -6,7 +6,7 @@ use crate::{
     var::{IntoVar, OwnedVar},
 };
 
-use super::{impl_length_comp_conversions, AvailableSize, DipRect, LayoutMask, Length, Point, PxRect, Scale2d, Size, Vector};
+use super::{impl_length_comp_conversions, AvailableSize, DipRect, Factor2d, LayoutMask, Length, Point, PxRect, Size, Vector};
 
 /// 2D rect in [`Length`] units.
 #[derive(Clone, Default, PartialEq)]
@@ -185,7 +185,7 @@ impl_from_and_into_var! {
         Rect::new(rect.origin, rect.size)
     }
 }
-impl<S: Into<Scale2d>> ops::Mul<S> for Rect {
+impl<S: Into<Factor2d>> ops::Mul<S> for Rect {
     type Output = Self;
 
     fn mul(self, rhs: S) -> Self {
@@ -197,7 +197,14 @@ impl<S: Into<Scale2d>> ops::Mul<S> for Rect {
         }
     }
 }
-impl<S: Into<Scale2d>> ops::MulAssign<S> for Rect {
+impl<'a, S: Into<Factor2d>> ops::Mul<S> for &'a Rect {
+    type Output = Rect;
+
+    fn mul(self, rhs: S) -> Self::Output {
+        self.clone() * rhs
+    }
+}
+impl<S: Into<Factor2d>> ops::MulAssign<S> for Rect {
     fn mul_assign(&mut self, rhs: S) {
         let origin = mem::take(&mut self.origin);
         let size = mem::take(&mut self.size);
@@ -207,7 +214,7 @@ impl<S: Into<Scale2d>> ops::MulAssign<S> for Rect {
         self.size = size * fct;
     }
 }
-impl<S: Into<Scale2d>> ops::Div<S> for Rect {
+impl<S: Into<Factor2d>> ops::Div<S> for Rect {
     type Output = Self;
 
     fn div(self, rhs: S) -> Self {
@@ -219,7 +226,14 @@ impl<S: Into<Scale2d>> ops::Div<S> for Rect {
         }
     }
 }
-impl<S: Into<Scale2d>> ops::DivAssign<S> for Rect {
+impl<'a, S: Into<Factor2d>> ops::Div<S> for &'a Rect {
+    type Output = Rect;
+
+    fn div(self, rhs: S) -> Self::Output {
+        self.clone() / rhs
+    }
+}
+impl<S: Into<Factor2d>> ops::DivAssign<S> for Rect {
     fn div_assign(&mut self, rhs: S) {
         let origin = mem::take(&mut self.origin);
         let size = mem::take(&mut self.size);

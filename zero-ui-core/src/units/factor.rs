@@ -165,14 +165,14 @@ impl ops::Mul<Factor> for PxPoint {
     type Output = PxPoint;
 
     fn mul(self, rhs: Factor) -> PxPoint {
-        self * Scale2d::uniform(rhs)
+        self * Factor2d::uniform(rhs)
     }
 }
 impl ops::Div<Factor> for PxPoint {
     type Output = PxPoint;
 
     fn div(self, rhs: Factor) -> PxPoint {
-        self / Scale2d::uniform(rhs)
+        self / Factor2d::uniform(rhs)
     }
 }
 impl ops::MulAssign<Factor> for PxPoint {
@@ -189,14 +189,14 @@ impl ops::Mul<Factor> for PxVector {
     type Output = PxVector;
 
     fn mul(self, rhs: Factor) -> PxVector {
-        self * Scale2d::uniform(rhs)
+        self * Factor2d::uniform(rhs)
     }
 }
 impl ops::Div<Factor> for PxVector {
     type Output = PxVector;
 
     fn div(self, rhs: Factor) -> PxVector {
-        self / Scale2d::uniform(rhs)
+        self / Factor2d::uniform(rhs)
     }
 }
 impl ops::MulAssign<Factor> for PxVector {
@@ -213,14 +213,14 @@ impl ops::Mul<Factor> for PxSize {
     type Output = PxSize;
 
     fn mul(self, rhs: Factor) -> PxSize {
-        self * Scale2d::uniform(rhs)
+        self * Factor2d::uniform(rhs)
     }
 }
 impl ops::Div<Factor> for PxSize {
     type Output = PxSize;
 
     fn div(self, rhs: Factor) -> PxSize {
-        self / Scale2d::uniform(rhs)
+        self / Factor2d::uniform(rhs)
     }
 }
 impl ops::MulAssign<Factor> for PxSize {
@@ -233,26 +233,26 @@ impl ops::DivAssign<Factor> for PxSize {
         *self = *self / rhs;
     }
 }
-impl ops::Mul<Factor> for Scale2d {
-    type Output = Scale2d;
+impl ops::Mul<Factor> for Factor2d {
+    type Output = Factor2d;
 
-    fn mul(self, rhs: Factor) -> Scale2d {
-        Scale2d::new(self.x * rhs, self.y * rhs)
+    fn mul(self, rhs: Factor) -> Factor2d {
+        Factor2d::new(self.x * rhs, self.y * rhs)
     }
 }
-impl ops::Div<Factor> for Scale2d {
-    type Output = Scale2d;
+impl ops::Div<Factor> for Factor2d {
+    type Output = Factor2d;
 
-    fn div(self, rhs: Factor) -> Scale2d {
-        Scale2d::new(self.x / rhs, self.y / rhs)
+    fn div(self, rhs: Factor) -> Factor2d {
+        Factor2d::new(self.x / rhs, self.y / rhs)
     }
 }
-impl ops::MulAssign<Factor> for Scale2d {
+impl ops::MulAssign<Factor> for Factor2d {
     fn mul_assign(&mut self, rhs: Factor) {
         *self = *self * rhs;
     }
 }
-impl ops::DivAssign<Factor> for Scale2d {
+impl ops::DivAssign<Factor> for Factor2d {
     fn div_assign(&mut self, rhs: Factor) {
         *self = *self / rhs;
     }
@@ -261,14 +261,14 @@ impl ops::Mul<Factor> for PxRect {
     type Output = PxRect;
 
     fn mul(self, rhs: Factor) -> PxRect {
-        self * Scale2d::uniform(rhs)
+        self * Factor2d::uniform(rhs)
     }
 }
 impl ops::Div<Factor> for PxRect {
     type Output = PxRect;
 
     fn div(self, rhs: Factor) -> PxRect {
-        self / Scale2d::uniform(rhs)
+        self / Factor2d::uniform(rhs)
     }
 }
 impl ops::MulAssign<Factor> for PxRect {
@@ -371,37 +371,37 @@ impl FactorUnits for i32 {
 
 /// Scale factor applied to ***x*** and ***y*** dimensions.
 #[derive(Clone, Copy, Debug)]
-pub struct Scale2d {
+pub struct Factor2d {
     /// Scale factor applied in the ***x*** dimension.
     pub x: Factor,
     /// Scale factor applied in the ***y*** dimension.
     pub y: Factor,
 }
 impl_from_and_into_var! {
-    fn from<X: Into<Factor> + Clone, Y: Into<Factor> + Clone>((x, y): (X, Y)) -> Scale2d {
-        Scale2d { x: x.into(), y: y.into() }
+    fn from<X: Into<Factor> + Clone, Y: Into<Factor> + Clone>((x, y): (X, Y)) -> Factor2d {
+        Factor2d { x: x.into(), y: y.into() }
     }
 
-    fn from(xy: Factor) -> Scale2d {
-        Scale2d { x: xy, y: xy }
+    fn from(xy: Factor) -> Factor2d {
+        Factor2d { x: xy, y: xy }
     }
 
-    fn from(xy: FactorPercent) -> Scale2d {
+    fn from(xy: FactorPercent) -> Factor2d {
         xy.as_normal().into()
     }
 
     /// To relative width and height.
-    fn from(scale: Scale2d) -> Size {
+    fn from(scale: Factor2d) -> Size {
         Size {
             width: scale.x.into(),
             height: scale.y.into(),
         }
     }
 }
-impl Scale2d {
+impl Factor2d {
     /// New scale with different scales for each dimension.
     pub fn new(x: impl Into<Factor>, y: impl Into<Factor>) -> Self {
-        Scale2d { x: x.into(), y: y.into() }
+        Factor2d { x: x.into(), y: y.into() }
     }
 
     /// Uniform scale applied to both ***x*** and ***y***.
@@ -420,7 +420,7 @@ impl Scale2d {
         self.x == self.y
     }
 }
-impl fmt::Display for Scale2d {
+impl fmt::Display for Factor2d {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if self.is_uniform() {
             write!(f, "{}", self.x.as_percent())
@@ -429,123 +429,123 @@ impl fmt::Display for Scale2d {
         }
     }
 }
-impl ops::Mul<Scale2d> for PxSize {
+impl ops::Mul<Factor2d> for PxSize {
     type Output = PxSize;
 
-    fn mul(self, rhs: Scale2d) -> PxSize {
+    fn mul(self, rhs: Factor2d) -> PxSize {
         PxSize::new(self.width * rhs.x, self.height * rhs.y)
     }
 }
-impl ops::Div<Scale2d> for PxSize {
+impl ops::Div<Factor2d> for PxSize {
     type Output = PxSize;
 
-    fn div(self, rhs: Scale2d) -> PxSize {
+    fn div(self, rhs: Factor2d) -> PxSize {
         PxSize::new(self.width / rhs.x, self.height / rhs.y)
     }
 }
-impl ops::MulAssign<Scale2d> for PxSize {
-    fn mul_assign(&mut self, rhs: Scale2d) {
+impl ops::MulAssign<Factor2d> for PxSize {
+    fn mul_assign(&mut self, rhs: Factor2d) {
         *self = *self * rhs;
     }
 }
-impl ops::DivAssign<Scale2d> for PxSize {
-    fn div_assign(&mut self, rhs: Scale2d) {
+impl ops::DivAssign<Factor2d> for PxSize {
+    fn div_assign(&mut self, rhs: Factor2d) {
         *self = *self / rhs;
     }
 }
-impl ops::Mul<Scale2d> for PxPoint {
+impl ops::Mul<Factor2d> for PxPoint {
     type Output = PxPoint;
 
-    fn mul(self, rhs: Scale2d) -> PxPoint {
+    fn mul(self, rhs: Factor2d) -> PxPoint {
         PxPoint::new(self.x * rhs.x, self.y * rhs.y)
     }
 }
-impl ops::Div<Scale2d> for PxPoint {
+impl ops::Div<Factor2d> for PxPoint {
     type Output = PxPoint;
 
-    fn div(self, rhs: Scale2d) -> PxPoint {
+    fn div(self, rhs: Factor2d) -> PxPoint {
         PxPoint::new(self.x / rhs.x, self.y / rhs.y)
     }
 }
-impl ops::MulAssign<Scale2d> for PxPoint {
-    fn mul_assign(&mut self, rhs: Scale2d) {
+impl ops::MulAssign<Factor2d> for PxPoint {
+    fn mul_assign(&mut self, rhs: Factor2d) {
         *self = *self * rhs;
     }
 }
-impl ops::DivAssign<Scale2d> for PxPoint {
-    fn div_assign(&mut self, rhs: Scale2d) {
+impl ops::DivAssign<Factor2d> for PxPoint {
+    fn div_assign(&mut self, rhs: Factor2d) {
         *self = *self / rhs;
     }
 }
-impl ops::Mul<Scale2d> for PxVector {
+impl ops::Mul<Factor2d> for PxVector {
     type Output = PxVector;
 
-    fn mul(self, rhs: Scale2d) -> PxVector {
+    fn mul(self, rhs: Factor2d) -> PxVector {
         PxVector::new(self.x * rhs.x, self.y * rhs.y)
     }
 }
-impl ops::Div<Scale2d> for PxVector {
+impl ops::Div<Factor2d> for PxVector {
     type Output = PxVector;
 
-    fn div(self, rhs: Scale2d) -> PxVector {
+    fn div(self, rhs: Factor2d) -> PxVector {
         PxVector::new(self.x / rhs.x, self.y / rhs.y)
     }
 }
-impl ops::MulAssign<Scale2d> for PxVector {
-    fn mul_assign(&mut self, rhs: Scale2d) {
+impl ops::MulAssign<Factor2d> for PxVector {
+    fn mul_assign(&mut self, rhs: Factor2d) {
         *self = *self * rhs;
     }
 }
-impl ops::DivAssign<Scale2d> for PxVector {
-    fn div_assign(&mut self, rhs: Scale2d) {
+impl ops::DivAssign<Factor2d> for PxVector {
+    fn div_assign(&mut self, rhs: Factor2d) {
         *self = *self / rhs;
     }
 }
-impl ops::Mul<Scale2d> for Scale2d {
-    type Output = Scale2d;
+impl ops::Mul<Factor2d> for Factor2d {
+    type Output = Factor2d;
 
-    fn mul(self, rhs: Scale2d) -> Scale2d {
-        Scale2d::new(self.x * rhs.x, self.y * rhs.y)
+    fn mul(self, rhs: Factor2d) -> Factor2d {
+        Factor2d::new(self.x * rhs.x, self.y * rhs.y)
     }
 }
-impl ops::Div<Scale2d> for Scale2d {
-    type Output = Scale2d;
+impl ops::Div<Factor2d> for Factor2d {
+    type Output = Factor2d;
 
-    fn div(self, rhs: Scale2d) -> Scale2d {
-        Scale2d::new(self.x / rhs.x, self.y / rhs.y)
+    fn div(self, rhs: Factor2d) -> Factor2d {
+        Factor2d::new(self.x / rhs.x, self.y / rhs.y)
     }
 }
-impl ops::MulAssign<Scale2d> for Scale2d {
-    fn mul_assign(&mut self, rhs: Scale2d) {
+impl ops::MulAssign<Factor2d> for Factor2d {
+    fn mul_assign(&mut self, rhs: Factor2d) {
         *self = *self * rhs;
     }
 }
-impl ops::DivAssign<Scale2d> for Scale2d {
-    fn div_assign(&mut self, rhs: Scale2d) {
+impl ops::DivAssign<Factor2d> for Factor2d {
+    fn div_assign(&mut self, rhs: Factor2d) {
         *self = *self / rhs;
     }
 }
-impl ops::Mul<Scale2d> for PxRect {
+impl ops::Mul<Factor2d> for PxRect {
     type Output = PxRect;
 
-    fn mul(self, rhs: Scale2d) -> PxRect {
+    fn mul(self, rhs: Factor2d) -> PxRect {
         PxRect::new(self.origin * rhs, self.size * rhs)
     }
 }
-impl ops::Div<Scale2d> for PxRect {
+impl ops::Div<Factor2d> for PxRect {
     type Output = PxRect;
 
-    fn div(self, rhs: Scale2d) -> PxRect {
+    fn div(self, rhs: Factor2d) -> PxRect {
         PxRect::new(self.origin / rhs, self.size / rhs)
     }
 }
-impl ops::MulAssign<Scale2d> for PxRect {
-    fn mul_assign(&mut self, rhs: Scale2d) {
+impl ops::MulAssign<Factor2d> for PxRect {
+    fn mul_assign(&mut self, rhs: Factor2d) {
         *self = *self * rhs;
     }
 }
-impl ops::DivAssign<Scale2d> for PxRect {
-    fn div_assign(&mut self, rhs: Scale2d) {
+impl ops::DivAssign<Factor2d> for PxRect {
+    fn div_assign(&mut self, rhs: Factor2d) {
         *self = *self / rhs;
     }
 }

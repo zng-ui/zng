@@ -2,7 +2,7 @@ use std::{fmt, mem, ops};
 
 use crate::{context::LayoutMetrics, impl_from_and_into_var};
 
-use super::{impl_length_comp_conversions, AvailableSize, DipSize, Factor, FactorPercent, LayoutMask, Length, PxSize, Scale2d, Vector};
+use super::{impl_length_comp_conversions, AvailableSize, DipSize, Factor, Factor2d, FactorPercent, LayoutMask, Length, PxSize, Vector};
 
 /// 2D size in [`Length`] units.
 #[derive(Clone, Default, PartialEq)]
@@ -148,7 +148,7 @@ impl_from_and_into_var! {
         Size::new(size.width, size.height)
     }
 }
-impl<S: Into<Scale2d>> ops::Mul<S> for Size {
+impl<S: Into<Factor2d>> ops::Mul<S> for Size {
     type Output = Self;
 
     fn mul(self, rhs: S) -> Self {
@@ -160,7 +160,14 @@ impl<S: Into<Scale2d>> ops::Mul<S> for Size {
         }
     }
 }
-impl<S: Into<Scale2d>> ops::MulAssign<S> for Size {
+impl<'a, S: Into<Factor2d>> ops::Mul<S> for &'a Size {
+    type Output = Size;
+
+    fn mul(self, rhs: S) -> Self::Output {
+        self.clone() * rhs
+    }
+}
+impl<S: Into<Factor2d>> ops::MulAssign<S> for Size {
     fn mul_assign(&mut self, rhs: S) {
         let width = mem::take(&mut self.width);
         let height = mem::take(&mut self.height);
@@ -170,7 +177,7 @@ impl<S: Into<Scale2d>> ops::MulAssign<S> for Size {
         self.height = height * fct.y;
     }
 }
-impl<S: Into<Scale2d>> ops::Div<S> for Size {
+impl<S: Into<Factor2d>> ops::Div<S> for Size {
     type Output = Self;
 
     fn div(self, rhs: S) -> Self {
@@ -182,7 +189,14 @@ impl<S: Into<Scale2d>> ops::Div<S> for Size {
         }
     }
 }
-impl<S: Into<Scale2d>> ops::DivAssign<S> for Size {
+impl<'a, S: Into<Factor2d>> ops::Div<S> for &'a Size {
+    type Output = Size;
+
+    fn div(self, rhs: S) -> Self::Output {
+        self.clone() / rhs
+    }
+}
+impl<S: Into<Factor2d>> ops::DivAssign<S> for Size {
     fn div_assign(&mut self, rhs: S) {
         let width = mem::take(&mut self.width);
         let height = mem::take(&mut self.height);

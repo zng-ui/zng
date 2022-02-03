@@ -192,7 +192,7 @@ fn anchor_example() -> impl Widget {
                 padding = 4;
                 background_color = colors::BLACK.lighten(1.pct());
                 border = 1, colors::BLACK, 0;
-                position = point.map(|p|p.clone() - Point::bottom_right().as_vector());
+                position = point.map(|p|p - &Vector::splat(100.pct()));
                 margin = 2;
                 hit_testable = false;
             })
