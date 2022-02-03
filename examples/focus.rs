@@ -145,7 +145,7 @@ fn overlay(window_enabled: RcVar<bool>) -> impl Widget {
             focus_scope = true;
             tab_nav = TabNav::Cycle;
             directional_nav = DirectionalNav::Cycle;
-            background_color = colors::GRAY.darken(50.pct());
+            background_color = rgb(0.05, 0.05, 0.05);
             drop_shadow = (0, 0), 4, colors::BLACK;
             padding = 2;
             content = v_stack! {

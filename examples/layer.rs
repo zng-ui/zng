@@ -50,6 +50,7 @@ fn app_main() {
                     overlay_example(),
                     layer_index_example(),
                     anchor_example(),
+                    transform_anchor_example(),
                 ];
             };
         }
@@ -75,7 +76,7 @@ fn overlay(id: impl Into<WidgetId>, offset: i32) -> impl Widget {
             focus_scope = true;
             tab_nav = TabNav::Cycle;
             directional_nav = DirectionalNav::Cycle;
-            background_color = colors::BLACK;
+            background_color = colors::GREEN.darken(80.pct());
             padding = 2;
             content = v_stack! {
                 items_align = Alignment::RIGHT;
@@ -136,7 +137,7 @@ fn layer_n_btn(n: u32, color: Rgba) -> impl Widget {
                 padding = 10;
                 margin = {
                     let inc = n as i32 * 10;
-                    (60 + inc, 10, 0, inc - 40)
+                    (20 + inc, 10, 0, inc - 40)
                 };
                 align = Alignment::TOP;
                 hit_testable = false;
@@ -182,7 +183,7 @@ fn anchor_example() -> impl Widget {
         id = "anchor";
         content = text("Anchored");
 
-        margin = (60, 0, 0, 0);
+        margin = (60, 0);
         align = Alignment::CENTER;
 
         on_mouse_enter = hn!(|ctx, _| {
@@ -190,8 +191,9 @@ fn anchor_example() -> impl Widget {
                 id = "anchored";
                 text = "Example";
                 padding = 4;
-                background_color = colors::BLACK.lighten(1.pct());
-                border = 1, colors::BLACK, 0;
+                font_weight = FontWeight::BOLD;
+                background_color = colors::GREEN.darken(40.pct());
+                border = 1, colors::GREEN.darken(20.pct()), 0;
                 position = point.map(|p|p - &Vector::splat(100.pct()));
                 margin = 2;
                 hit_testable = false;
@@ -202,5 +204,42 @@ fn anchor_example() -> impl Widget {
         });
 
         on_click = next_point;
+    }
+}
+
+fn transform_anchor_example() -> impl Widget {
+    let mut insert = true;
+    let anchor_mode = AnchorMode {
+        transform: AnchorTransform::InnerTransform,
+        size: AnchorSize::InnerSize,
+        visibility: true,
+        interaction: false,
+    };
+    button! {
+        id = "t-anchor";
+        content = text("Transform Anchored");
+
+        rotate = 10.deg();
+        //skew_x = -(10.deg());
+        //scale = 110.pct();
+        //translate = 10, 10;
+
+        on_click = hn!(|ctx, _| {
+            if insert {
+                WindowLayers::insert_anchored(ctx, LayerIndex::ADORNER, "t-anchor", anchor_mode.clone(), container! {
+                    id = "t-anchored";
+                    content_align = Alignment::TOP_LEFT;
+                    border = 1, colors::GREEN.lighten(30.pct()), 4;
+                    content = text! {
+                        y = -(2.dip() + 100.pct());
+                        text = "example";
+                        font_weight = FontWeight::BOLD;
+                    }
+                })
+            } else {
+                WindowLayers::remove(ctx, "t-anchored");
+            }
+            insert = !insert;
+        })
     }
 }

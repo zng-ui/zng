@@ -4,7 +4,7 @@
 
 # Layer
 
-* Implement anchor.
+* Fix full transform anchor.
 
 # Split `inner`
 

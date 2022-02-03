@@ -230,11 +230,11 @@ fn img_window(title: impl IntoVar<Text>, content: impl UiNode) -> Window {
             radius: 0,
         };
 
-        button::theme::hovered::background_color = button_color.lighten(10.pct());
-        button::theme::hovered::border_sides = button_color.lighten(6.pct());
+        button::theme::hovered::background_color = button_color.lighten(2.fct());
+        button::theme::hovered::border_sides = button_color.lighten(1.fct());
 
-        button::theme::pressed::background_color = button_color.lighten(15.pct());
-        button::theme::pressed::border_sides = button_color.lighten(8.pct());
+        button::theme::pressed::background_color = button_color.lighten(3.fct());
+        button::theme::pressed::border_sides = button_color.lighten(2.fct());
     }
 }
 

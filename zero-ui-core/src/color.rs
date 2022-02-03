@@ -148,7 +148,7 @@ impl Rgba {
     ///
     /// # Examples
     ///
-    /// Add `10%` more light to the `DARK_RED` color:
+    /// Add `10%` of the current lightness to the `DARK_RED` color:
     ///
     /// ```
     /// # use zero_ui_core::color::*;
@@ -163,9 +163,26 @@ impl Rgba {
     /// Subtracts the `amount` from the color *lightness*.
     ///
     /// This method converts to [`Hsla`] to darken and then converts back to `Rgba`.
+    ///
+    /// # Examples
+    ///
+    /// Removes `10%` of the current lightness from the `DARK_RED` color:
+    ///
+    /// ```
+    /// # use zero_ui_core::color::*;
+    /// # use zero_ui_core::units::*;
+    /// colors::DARK_RED.darken(10.pct())
+    /// # ;
     #[inline]
     pub fn darken<A: Into<Factor>>(self, amount: A) -> Self {
         self.to_hsla().darken(amount).to_rgba()
+    }
+
+    /// Returns a copy of this color with a new `lightness`.
+    /// 
+    /// This method converts to [`Hsla`] to change the lightness and then converts back to `Rgba`.
+    pub fn with_lightness<L: Into<Factor>>(self, lightness: L) -> Self {
+        self.to_hsla().with_lightness(lightness).to_rgba()
     }
 
     /// Convert a copy to [R, G, B, A] bytes.
@@ -252,28 +269,39 @@ impl Hsla {
     ///
     /// The `lightness` is clamped to the `[0.0..=1.0]` range.
     ///
-    /// # Example
+    /// # Examples
     ///
     /// ```
     /// # use zero_ui_core::color::*;
     /// # use zero_ui_core::units::*;
-    /// colors::DARK_RED.to_hsla().lighten(10.pct()).to_rgba()
+    /// colors::DARK_RED.to_hsla().lighten(10.pct())
     /// # ;
     /// ```
     ///
-    /// Adds `10%` more light to the `DARK_RED` color.
+    /// Adds `10%` of the current lightness to the `DARK_RED` color.
     pub fn lighten<A: Into<Factor>>(self, amount: A) -> Self {
         let mut lighter = self;
-        lighter.lightness = clamp_normal(lighter.lightness + amount.into().0);
+        lighter.lightness = clamp_normal(lighter.lightness + (lighter.lightness * amount.into().0));
         lighter
     }
 
     /// Subtracts the `amount` from the [`lightness`](Self::lightness).
     ///
     /// The `lightness` is clamped to the `[0.0..=1.0]` range.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use zero_ui_core::color::*;
+    /// # use zero_ui_core::units::*;
+    /// colors::RED.to_hsla().darken(10.pct())
+    /// # ;
+    /// ```
+    ///
+    /// Removes `10%` of the current lightness of the `DARK_RED` color.
     pub fn darken<A: Into<Factor>>(self, amount: A) -> Self {
         let mut darker = self;
-        darker.lightness = clamp_normal(darker.lightness - amount.into().0);
+        darker.lightness = clamp_normal(darker.lightness - (darker.lightness * amount.into().0));
         darker
     }
 
