@@ -220,9 +220,8 @@ fn transform_anchor_example() -> impl Widget {
         content = text("Transform Anchored");
 
         rotate = 10.deg();
-        //skew_x = -(10.deg());
-        //scale = 110.pct();
-        //translate = 10, 10;
+        skew_x = -(10.deg());
+        scale = 110.pct();
 
         on_click = hn!(|ctx, _| {
             if insert {
@@ -230,6 +229,7 @@ fn transform_anchor_example() -> impl Widget {
                     id = "t-anchored";
                     content_align = Alignment::TOP_LEFT;
                     border = 1, colors::GREEN.lighten(30.pct()), 4;
+                    hit_testable = false;
                     content = text! {
                         y = -(2.dip() + 100.pct());
                         text = "example";

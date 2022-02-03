@@ -179,7 +179,7 @@ impl Rgba {
     }
 
     /// Returns a copy of this color with a new `lightness`.
-    /// 
+    ///
     /// This method converts to [`Hsla`] to change the lightness and then converts back to `Rgba`.
     pub fn with_lightness<L: Into<Factor>>(self, lightness: L) -> Self {
         self.to_hsla().with_lightness(lightness).to_rgba()
