@@ -1,10 +1,10 @@
-use std::{fmt, mem, ops};
+use std::{fmt, ops};
 
 use crate::{context::LayoutMetrics, impl_from_and_into_var};
 
 use super::{
-    impl_length_comp_conversions, translate, AvailableSize, DipVector, Factor2d, LayoutMask, Length, LengthUnits, Point, PxVector,
-    Transform,
+    impl_length_comp_conversions, translate, AvailableSize, Dip, DipVector, Factor, Factor2d, FactorPercent, LayoutMask, Length,
+    LengthUnits, Point, Px, PxVector, Size, Transform,
 };
 
 /// 2D vector in [`Length`] units.
@@ -122,6 +122,14 @@ impl Vector {
         Point { x: self.x, y: self.y }
     }
 
+    /// Cast to [`Size`].
+    pub fn as_size(self) -> Size {
+        Size {
+            width: self.x,
+            height: self.y,
+        }
+    }
+
     /// Create a translate transform from `self`.
     pub fn into_transform(self) -> Transform {
         translate(self.x, self.y)
@@ -139,15 +147,54 @@ impl_from_and_into_var! {
     fn from(p: DipVector) -> Vector {
         Vector::new(p.x, p.y)
     }
+    fn from(p: Point) -> Vector {
+        p.as_vector()
+    }
+    fn from(s: Size) -> Vector {
+        s.as_vector()
+    }
+
+    /// Use the length for x and y.
+    fn from(length: Length) -> Vector {
+        Vector::splat(length)
+    }
+
+    /// Conversion to [`Length::Relative`] then to vector.
+    fn from(percent: FactorPercent) -> Vector {
+        Length::from(percent).into()
+    }
+
+    /// Conversion to [`Length::Relative`] then to vector.
+    fn from(norm: Factor) -> Vector {
+        Length::from(norm).into()
+    }
+
+    /// Conversion to [`Length::Dip`] then to vector.
+    fn from(f: f32) -> Vector {
+        Length::from(f).into()
+    }
+
+    /// Conversion to [`Length::Dip`] then to vector.
+    fn from(i: i32) -> Vector {
+        Length::from(i).into()
+    }
+
+    /// Conversion to [`Length::Px`] then to vector.
+    fn from(l: Px) -> Vector {
+        Length::from(l).into()
+    }
+
+    /// Conversion to [`Length::Dip`] then to vector.
+    fn from(l: Dip) -> Vector {
+        Length::from(l).into()
+    }
 }
 impl ops::Add for Vector {
     type Output = Self;
 
-    fn add(self, rhs: Self) -> Self {
-        Vector {
-            x: self.x + rhs.x,
-            y: self.y + rhs.y,
-        }
+    fn add(mut self, rhs: Self) -> Self {
+        self += rhs;
+        self
     }
 }
 impl<'a, 'b> ops::Add<&'a Vector> for &'b Vector {
@@ -159,21 +206,16 @@ impl<'a, 'b> ops::Add<&'a Vector> for &'b Vector {
 }
 impl ops::AddAssign for Vector {
     fn add_assign(&mut self, rhs: Self) {
-        let x = mem::take(&mut self.x);
-        let y = mem::take(&mut self.y);
-
-        self.x = x + rhs.x;
-        self.y = y + rhs.y;
+        self.x += rhs.x;
+        self.y += rhs.y;
     }
 }
 impl ops::Sub for Vector {
     type Output = Self;
 
-    fn sub(self, rhs: Self) -> Self {
-        Vector {
-            x: self.x - rhs.x,
-            y: self.y - rhs.y,
-        }
+    fn sub(mut self, rhs: Self) -> Self {
+        self -= rhs;
+        self
     }
 }
 impl<'a, 'b> ops::Sub<&'a Vector> for &'b Vector {
@@ -185,23 +227,16 @@ impl<'a, 'b> ops::Sub<&'a Vector> for &'b Vector {
 }
 impl ops::SubAssign for Vector {
     fn sub_assign(&mut self, rhs: Self) {
-        let x = mem::take(&mut self.x);
-        let y = mem::take(&mut self.y);
-
-        self.x = x - rhs.x;
-        self.y = y - rhs.y;
+        self.x -= rhs.x;
+        self.y -= rhs.y;
     }
 }
 impl<S: Into<Factor2d>> ops::Mul<S> for Vector {
     type Output = Self;
 
-    fn mul(self, rhs: S) -> Self {
-        let fct = rhs.into();
-
-        Vector {
-            x: self.x * fct.x,
-            y: self.y * fct.y,
-        }
+    fn mul(mut self, rhs: S) -> Self {
+        self *= rhs;
+        self
     }
 }
 impl<'a, S: Into<Factor2d>> ops::Mul<S> for &'a Vector {
@@ -213,24 +248,18 @@ impl<'a, S: Into<Factor2d>> ops::Mul<S> for &'a Vector {
 }
 impl<S: Into<Factor2d>> ops::MulAssign<S> for Vector {
     fn mul_assign(&mut self, rhs: S) {
-        let x = mem::take(&mut self.x);
-        let y = mem::take(&mut self.y);
-        let fct = rhs.into();
+        let rhs = rhs.into();
 
-        self.x = x * fct.x;
-        self.y = y * fct.y;
+        self.x *= rhs.x;
+        self.y *= rhs.y;
     }
 }
 impl<S: Into<Factor2d>> ops::Div<S> for Vector {
     type Output = Self;
 
-    fn div(self, rhs: S) -> Self {
-        let fct = rhs.into();
-
-        Vector {
-            x: self.x / fct.x,
-            y: self.y / fct.y,
-        }
+    fn div(mut self, rhs: S) -> Self {
+        self /= rhs;
+        self
     }
 }
 impl<'a, S: Into<Factor2d>> ops::Div<S> for &'a Vector {
@@ -242,12 +271,9 @@ impl<'a, S: Into<Factor2d>> ops::Div<S> for &'a Vector {
 }
 impl<S: Into<Factor2d>> ops::DivAssign<S> for Vector {
     fn div_assign(&mut self, rhs: S) {
-        let x = mem::take(&mut self.x);
-        let y = mem::take(&mut self.y);
-        let fct = rhs.into();
-
-        self.x = x / fct.x;
-        self.y = y / fct.y;
+        let rhs = rhs.into();
+        self.x /= rhs.x;
+        self.y /= rhs.y;
     }
 }
 impl ops::Neg for Vector {

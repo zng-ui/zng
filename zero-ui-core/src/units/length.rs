@@ -66,7 +66,7 @@ impl<L: Into<Length>> ops::Add<L> for Length {
 }
 impl<L: Into<Length>> ops::AddAssign<L> for Length {
     fn add_assign(&mut self, rhs: L) {
-        let lhs = mem::replace(self, Length::Px(Px(0)));
+        let lhs = mem::take(self);
         *self = lhs + rhs.into();
     }
 }
@@ -93,7 +93,7 @@ impl<L: Into<Length>> ops::Sub<L> for Length {
 }
 impl<L: Into<Length>> ops::SubAssign<L> for Length {
     fn sub_assign(&mut self, rhs: L) {
-        let lhs = mem::replace(self, Length::Px(Px(0)));
+        let lhs = mem::take(self);
         *self = lhs - rhs.into();
     }
 }
@@ -120,7 +120,7 @@ impl<F: Into<Factor>> ops::Mul<F> for Length {
 }
 impl<F: Into<Factor>> ops::MulAssign<F> for Length {
     fn mul_assign(&mut self, rhs: F) {
-        let lhs = mem::replace(self, Length::Px(Px(0)));
+        let lhs = mem::take(self);
         *self = lhs * rhs.into();
     }
 }
@@ -149,7 +149,7 @@ impl<F: Into<Factor>> ops::Div<F> for Length {
 }
 impl<F: Into<Factor>> ops::DivAssign<F> for Length {
     fn div_assign(&mut self, rhs: F) {
-        let lhs = mem::replace(self, Length::Px(Px(0)));
+        let lhs = mem::take(self);
         *self = lhs / rhs.into();
     }
 }

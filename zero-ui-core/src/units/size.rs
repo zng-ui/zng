@@ -1,8 +1,10 @@
-use std::{fmt, mem, ops};
+use std::{fmt, ops};
 
 use crate::{context::LayoutMetrics, impl_from_and_into_var};
 
-use super::{impl_length_comp_conversions, AvailableSize, DipSize, Factor, Factor2d, FactorPercent, LayoutMask, Length, PxSize, Vector};
+use super::{
+    impl_length_comp_conversions, AvailableSize, DipSize, Factor, Factor2d, FactorPercent, LayoutMask, Length, PxSize, Rect, Vector,
+};
 
 /// 2D size in [`Length`] units.
 #[derive(Clone, Default, PartialEq)]
@@ -147,17 +149,57 @@ impl_from_and_into_var! {
     fn from(size: DipSize) -> Size {
         Size::new(size.width, size.height)
     }
+    fn from(v: Vector) -> Size {
+        v.as_size()
+    }
+    fn from(r: Rect) -> Size {
+        r.size
+    }
+}
+impl<S: Into<Size>> ops::Add<S> for Size {
+    type Output = Size;
+
+    fn add(self, rhs: S) -> Self::Output {
+        let rhs = rhs.into();
+
+        Size {
+            width: self.width + rhs.width,
+            height: self.height + rhs.height,
+        }
+    }
+}
+impl<S: Into<Size>> ops::AddAssign<S> for Size {
+    fn add_assign(&mut self, rhs: S) {
+        let rhs = rhs.into();
+        self.width += rhs.width;
+        self.height += rhs.height;
+    }
+}
+impl<S: Into<Size>> ops::Sub<S> for Size {
+    type Output = Size;
+
+    fn sub(self, rhs: S) -> Self::Output {
+        let rhs = rhs.into();
+
+        Size {
+            width: self.width - rhs.width,
+            height: self.height - rhs.height,
+        }
+    }
+}
+impl<S: Into<Size>> ops::SubAssign<S> for Size {
+    fn sub_assign(&mut self, rhs: S) {
+        let rhs = rhs.into();
+        self.width -= rhs.width;
+        self.height -= rhs.height;
+    }
 }
 impl<S: Into<Factor2d>> ops::Mul<S> for Size {
     type Output = Self;
 
-    fn mul(self, rhs: S) -> Self {
-        let fct = rhs.into();
-
-        Size {
-            width: self.width * fct.x,
-            height: self.height * fct.y,
-        }
+    fn mul(mut self, rhs: S) -> Self {
+        self *= rhs;
+        self
     }
 }
 impl<'a, S: Into<Factor2d>> ops::Mul<S> for &'a Size {
@@ -169,24 +211,17 @@ impl<'a, S: Into<Factor2d>> ops::Mul<S> for &'a Size {
 }
 impl<S: Into<Factor2d>> ops::MulAssign<S> for Size {
     fn mul_assign(&mut self, rhs: S) {
-        let width = mem::take(&mut self.width);
-        let height = mem::take(&mut self.height);
-        let fct = rhs.into();
-
-        self.width = width * fct.x;
-        self.height = height * fct.y;
+        let rhs = rhs.into();
+        self.width *= rhs.x;
+        self.height *= rhs.y;
     }
 }
 impl<S: Into<Factor2d>> ops::Div<S> for Size {
     type Output = Self;
 
-    fn div(self, rhs: S) -> Self {
-        let fct = rhs.into();
-
-        Size {
-            width: self.width / fct.x,
-            height: self.height / fct.y,
-        }
+    fn div(mut self, rhs: S) -> Self {
+        self /= rhs;
+        self
     }
 }
 impl<'a, S: Into<Factor2d>> ops::Div<S> for &'a Size {
@@ -198,11 +233,8 @@ impl<'a, S: Into<Factor2d>> ops::Div<S> for &'a Size {
 }
 impl<S: Into<Factor2d>> ops::DivAssign<S> for Size {
     fn div_assign(&mut self, rhs: S) {
-        let width = mem::take(&mut self.width);
-        let height = mem::take(&mut self.height);
-        let fct = rhs.into();
-
-        self.width = width / fct.x;
-        self.height = height / fct.y;
+        let rhs = rhs.into();
+        self.width /= rhs.x;
+        self.height /= rhs.y;
     }
 }

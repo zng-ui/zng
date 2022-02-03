@@ -1,10 +1,6 @@
-use std::{fmt, mem, ops};
+use std::{fmt, ops};
 
-use crate::{
-    context::LayoutMetrics,
-    impl_from_and_into_var,
-    var::{IntoVar, OwnedVar},
-};
+use crate::{context::LayoutMetrics, impl_from_and_into_var};
 
 use super::{impl_length_comp_conversions, AvailableSize, DipRect, Factor2d, LayoutMask, Length, Point, PxRect, Size, Vector};
 
@@ -141,34 +137,6 @@ impl Rect {
         self.size.replace_default(&overwrite.size);
     }
 }
-impl From<Size> for Rect {
-    fn from(size: Size) -> Self {
-        Self::from_size(size)
-    }
-}
-impl From<Rect> for Size {
-    fn from(rect: Rect) -> Self {
-        rect.size
-    }
-}
-impl From<Rect> for Point {
-    fn from(rect: Rect) -> Self {
-        rect.origin
-    }
-}
-impl<O: Into<Point>, S: Into<Size>> From<(O, S)> for Rect {
-    fn from(t: (O, S)) -> Self {
-        Rect::new(t.0, t.1)
-    }
-}
-impl<O: Into<Point> + Clone, S: Into<Size> + Clone> IntoVar<Rect> for (O, S) {
-    type Var = OwnedVar<Rect>;
-
-    fn into_var(self) -> Self::Var {
-        OwnedVar(self.into())
-    }
-}
-
 impl_length_comp_conversions! {
     fn from(x: X, y: Y, width: W, height: H) -> Rect {
         Rect::new((x, y), (width, height))
@@ -184,17 +152,22 @@ impl_from_and_into_var! {
     fn from(rect: DipRect) -> Rect {
         Rect::new(rect.origin, rect.size)
     }
+
+    fn from(size: Size) -> Rect {
+        Rect::from_size(size)
+    }
+
+    /// New from origin and size.
+    fn from<O: Into<Point> + Clone, S: Into<Size> + Clone>((origin, size): (O, S)) -> Rect {
+        Rect::new(origin, size)
+    }
 }
 impl<S: Into<Factor2d>> ops::Mul<S> for Rect {
     type Output = Self;
 
-    fn mul(self, rhs: S) -> Self {
-        let fct = rhs.into();
-
-        Rect {
-            origin: self.origin * fct,
-            size: self.size * fct,
-        }
+    fn mul(mut self, rhs: S) -> Self {
+        self *= rhs;
+        self
     }
 }
 impl<'a, S: Into<Factor2d>> ops::Mul<S> for &'a Rect {
@@ -206,24 +179,17 @@ impl<'a, S: Into<Factor2d>> ops::Mul<S> for &'a Rect {
 }
 impl<S: Into<Factor2d>> ops::MulAssign<S> for Rect {
     fn mul_assign(&mut self, rhs: S) {
-        let origin = mem::take(&mut self.origin);
-        let size = mem::take(&mut self.size);
-        let fct = rhs.into();
-
-        self.origin = origin * fct;
-        self.size = size * fct;
+        let rhs = rhs.into();
+        self.origin *= rhs;
+        self.size *= rhs;
     }
 }
 impl<S: Into<Factor2d>> ops::Div<S> for Rect {
     type Output = Self;
 
-    fn div(self, rhs: S) -> Self {
-        let fct = rhs.into();
-
-        Rect {
-            origin: self.origin / fct,
-            size: self.size / fct,
-        }
+    fn div(mut self, rhs: S) -> Self {
+        self /= rhs;
+        self
     }
 }
 impl<'a, S: Into<Factor2d>> ops::Div<S> for &'a Rect {
@@ -235,12 +201,9 @@ impl<'a, S: Into<Factor2d>> ops::Div<S> for &'a Rect {
 }
 impl<S: Into<Factor2d>> ops::DivAssign<S> for Rect {
     fn div_assign(&mut self, rhs: S) {
-        let origin = mem::take(&mut self.origin);
-        let size = mem::take(&mut self.size);
-        let fct = rhs.into();
-
-        self.origin = origin / fct;
-        self.size = size / fct;
+        let rhs = rhs.into();
+        self.origin /= rhs;
+        self.size /= rhs;
     }
 }
 
