@@ -4,6 +4,7 @@
 
 # Layer
 
+* Fixed pre_translate transform.
 * Fix full transform anchor.
 
 # Split `inner`

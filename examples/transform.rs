@@ -29,6 +29,7 @@ fn app_main() {
                     transformed("Skew-X 15º", skew_x(15.deg())),
                     transformed("Scale 130%", scale(130.pct())),
                     transformed("Identity", Transform::identity()),
+                    transform_stack(),
                 ];
             };
         }
@@ -56,5 +57,33 @@ fn transformed_at(label: impl Into<Text>, transform: Transform, origin: impl Int
             padding = 10;
         };
         border = 2, (colors::GRAY, BorderStyle::Dashed), 0;
+    }
+}
+
+fn transform_stack() -> impl Widget {
+    v_stack! {
+        spacing = 5;
+        items = widgets![
+            container! {
+                content = text("normal");
+                background_color = colors::GREEN.with_alpha(80.pct());
+                padding = 10;
+            },
+            container! {
+                id = "in-stack";
+                transform = rotate(90.deg());
+                content = text("rotated");
+                background_color = colors::BROWN.with_alpha(80.pct());
+                padding = 10;
+            },
+            container! {
+                content = container! {
+                    transform = rotate(90.deg());
+                    content = text("rotated");
+                    background_color = colors::BROWN.with_alpha(80.pct());
+                    padding = 10;
+                }
+            }
+        ];
     }
 }

@@ -219,7 +219,7 @@ fn transform_anchor_example() -> impl Widget {
         id = "t-anchor";
         content = text("Transform Anchored");
 
-        rotate = 10.deg();
+        rotate = 90.deg();
         skew_x = -(10.deg());
         scale = 110.pct();
 

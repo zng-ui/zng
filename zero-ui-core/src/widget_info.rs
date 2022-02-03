@@ -1,28 +1,21 @@
 //! Widget info tree.
 
-use std::cell::Cell;
-use std::fmt;
-use std::mem;
-use std::ops;
-use std::rc::Rc;
+use std::{cell::Cell, fmt, mem, ops, rc::Rc};
 
 use ego_tree::Tree;
 
-use crate::context::LayoutMetrics;
-use crate::context::Updates;
-use crate::crate_util::IdMap;
-use crate::event::EventUpdateArgs;
-use crate::handler::WidgetHandler;
-use crate::state::OwnedStateMap;
-use crate::state::StateMap;
-use crate::units::*;
-use crate::var::Var;
-use crate::var::VarValue;
-use crate::var::VarsRead;
-use crate::var::WithVarsRead;
-use crate::widget_base::Visibility;
-use crate::window::WindowId;
-use crate::WidgetId;
+use crate::{
+    context::{LayoutMetrics, Updates},
+    crate_util::{IdMap, IdSet},
+    event::EventUpdateArgs,
+    handler::WidgetHandler,
+    state::{OwnedStateMap, StateMap},
+    units::*,
+    var::{Var, VarValue, VarsRead, WithVarsRead},
+    widget_base::Visibility,
+    window::WindowId,
+    WidgetId,
+};
 
 unique_id_64! {
     /// Identifies a [`WidgetInfoTree`] snapshot, can be use for more speedy [`WidgetPath`] resolution.
@@ -166,6 +159,7 @@ impl WidgetLayout {
             AvailableSize::finite(final_size),
             PxPoint::new(final_size.width / 2, final_size.height / 2),
         );
+
         if transform_origin != PxPoint::zero() {
             let x = transform_origin.x.0 as f32;
             let y = transform_origin.y.0 as f32;
@@ -322,21 +316,15 @@ impl WidgetInfoBuilder {
             .filter(|n| n.parent().is_some() || n.id() == root_id)
             .map(|n| (n.value().widget_id, n.id()));
 
-        #[cfg(debug_assertions)]
-        let (repeats, lookup) = {
-            let mut repeats = IdMap::default();
-            let mut lookup = IdMap::default();
+        let mut lookup = IdMap::default();
+        let mut repeats = IdSet::default();
 
-            for (widget_id, node_id) in valid_nodes {
-                if let Some(prev) = lookup.insert(widget_id, node_id) {
-                    repeats.entry(widget_id).or_insert_with(|| vec![prev]).push(node_id);
-                }
+        lookup.reserve(self.tree.nodes().len());
+        for (w, n) in valid_nodes.clone() {
+            if lookup.insert(w, n).is_some() {
+                repeats.insert(w);
             }
-
-            (repeats, lookup)
-        };
-        #[cfg(not(debug_assertions))]
-        let lookup = valid_nodes.collect();
+        }
 
         let r = WidgetInfoTree(Rc::new(WidgetInfoTreeInner {
             id: WidgetInfoTreeId::new_unique(),
@@ -346,17 +334,23 @@ impl WidgetInfoBuilder {
             interaction_filter: self.interaction_filter,
         }));
 
-        #[cfg(debug_assertions)]
-        for (widget_id, repeats) in repeats {
-            tracing::error!(target: "render", "widget id `{widget_id:?}` appears more then once in {:?}{}", self.window_id, {
-                let mut places = String::new();
+        if !repeats.is_empty() {
+            // Panic if widget ID is seen in more than one place. If we don't panic here we will
+            // probably panic in the view-process due to spatial IDs generated from widget IDs.
+
+            let mut places = String::new();
+            for repeated in repeats {
                 use std::fmt::Write;
-                for node in &repeats {
-                    let info = WidgetInfo::new(&r, *node);
-                    write!(places, "\n    {}", info.path()).unwrap();
+
+                let _ = writeln!(&mut places);
+                for w in r.all_widgets() {
+                    if w.widget_id() == repeated {
+                        let _ = writeln!(&mut places, "    {}", w.path());
+                    }
                 }
-                places
-            });
+            }
+
+            panic!("repeated widget ID in `{:?}`:\n{places}\n", self.window_id);
         }
 
         let cap = UsedWidgetInfoBuilder {
