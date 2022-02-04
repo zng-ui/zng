@@ -1,9 +1,9 @@
 use crate::prelude::new_widget::*;
 
 /// Horizontal stack layout.
-/// 
+///
 /// # Z-Index
-/// 
+///
 /// By default the widgets are layout without overlap, but you can use properties like [`transform`] to cause
 /// an widget overlap, in this case the widget will be rendered above its previous sibling and below its next sibling,
 /// you can change this by setting the [`z_index`] property in the item widget.
@@ -24,7 +24,7 @@ use crate::prelude::new_widget::*;
 /// # `h_stack()`
 ///
 /// If you only want to set the `items` property you can use the [`h_stack`] shortcut function.
-/// 
+///
 /// [`transform`]: fn@transform
 /// [`z_index`]: fn@z_index
 /// [`h_stack`]: fn@h_stack
@@ -183,9 +183,9 @@ pub mod h_stack {
 }
 
 /// Vertical stack layout.
-/// 
+///
 /// # Z-Index
-/// 
+///
 /// By default the widgets are layout without overlap, but you can use properties like [`transform`] to cause
 /// an widget overlap, in this case the widget will be rendered above its previous sibling and below its next sibling,
 /// you can change this by setting the [`z_index`] property in the item widget.
@@ -205,7 +205,7 @@ pub mod h_stack {
 /// ## `v_stack()`
 ///
 /// If you only want to set the `items` property you can use the [`v_stack`] shortcut function.
-/// 
+///
 /// [`transform`]: fn@transform
 /// [`z_index`]: fn@z_index
 /// [`v_stack`]: fn@v_stack

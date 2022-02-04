@@ -535,3 +535,25 @@ impl<'o, O: UiListObserver> UiListObserver for OffsetUiListObserver<'o, O> {
         self.1.moved(removed_index + self.0, inserted_index + self.0)
     }
 }
+
+impl<'o, 't, O: UiListObserver, T: UiListObserver> UiListObserver for (&mut O, &mut T) {
+    fn reseted(&mut self) {
+        self.0.reseted();
+        self.1.reseted();
+    }
+
+    fn inserted(&mut self, index: usize) {
+        self.0.inserted(index);
+        self.1.inserted(index);
+    }
+
+    fn removed(&mut self, index: usize) {
+        self.0.removed(index);
+        self.1.removed(index);
+    }
+
+    fn moved(&mut self, removed_index: usize, inserted_index: usize) {
+        self.0.moved(removed_index, inserted_index);
+        self.1.moved(removed_index, inserted_index);
+    }
+}

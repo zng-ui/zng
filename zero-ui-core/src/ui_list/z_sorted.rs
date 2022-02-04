@@ -1,8 +1,8 @@
-use std::{fmt, ops};
+use std::{cell::Cell, fmt, ops};
 
 use crate::{
     impl_from_and_into_var, impl_ui_node, property, state_key,
-    var::{IntoVar, Var},
+    var::{context_var, ContextVarData, IntoVar, Var, Vars},
 };
 
 use super::*;
@@ -13,28 +13,35 @@ use super::*;
 /// order they are rendered, the widgets are still updated and layout in their logical order.
 ///
 /// Layout panel widget implementers should wrap their input in this type to enable support for the [`z_index`]
-/// property, it is very fast and will work almost seamless, the only caveat is that the [`render_filtered`] closure
-/// is called in the z-order and not the logical order. Note that [`z_index`] can also be implemented manually using
-/// the [`WidgetListZIndexExt`] extension methods.
+/// property, the sorting is very fast and only runs if one of the children sets the z-index.
+///
+/// Note that [`z_index`] can also be implemented manually using the [`WidgetListZIndexExt`] extension methods.
 ///
 /// [`z_index`]: fn@z_index
 /// [`render_filtered`]: WidgetList::render_filtered
 pub struct ZSortedWidgetList<W: WidgetList> {
     list: W,
+
     lookup: Vec<u64>,
+    has_non_default_zs: bool,
 }
 impl<W: WidgetList> ZSortedWidgetList<W> {
     /// Wrap the `list` adding support for the [`z_index`] property.
     ///
     /// Note that by convention only layout panel widget implementers should call this method.
-    /// 
+    ///
     /// [`z_index`]: fn@z_index
     pub fn new(list: W) -> Self {
-        ZSortedWidgetList { list, lookup: vec![] }
+        ZSortedWidgetList {
+            list,
+            lookup: vec![],
+            has_non_default_zs: false,
+        }
     }
 
     fn sort(&mut self) {
-        // We pack Z and I as u32s in one u64 then sort if observed `[I].Z < [I-1].Z`:
+        // We pack *z* and *i* as u32s in one u64 then create the sorted lookup table if
+        // observed `[I].Z < [I-1].Z`, also records if any `Z != DEFAULT`:
         //
         // Advantages:
         //
@@ -52,12 +59,14 @@ impl<W: WidgetList> ZSortedWidgetList<W> {
         let mut prev_z = ZIndex::BACK;
         let mut need_lookup = false;
         let mut z_and_i = Vec::with_capacity(len);
+        self.has_non_default_zs = false;
 
         for i in 0..len {
             let z = self.widget_z_index(i);
             z_and_i.push(((z.0 as u64) << 32) | i as u64);
 
             need_lookup |= z < prev_z;
+            self.has_non_default_zs |= z != ZIndex::DEFAULT;
             prev_z = z;
         }
 
@@ -115,7 +124,6 @@ impl<W: WidgetList> UiNodeList for ZSortedWidgetList<W> {
     fn init_all(&mut self, ctx: &mut WidgetContext) {
         let mut sort = false;
         self.list.init_all_z(ctx, &mut sort);
-
         if sort {
             self.sort();
         }
@@ -127,9 +135,12 @@ impl<W: WidgetList> UiNodeList for ZSortedWidgetList<W> {
 
     fn update_all<O: UiListObserver>(&mut self, ctx: &mut WidgetContext, observer: &mut O) {
         let mut resort = false;
-        self.list.update_all_z(ctx, observer, &mut resort);
+        let mut items_changed = false;
+        self.list.update_all_z(ctx, &mut (observer, &mut items_changed), &mut resort);
 
-        if resort {
+        if resort || (items_changed && self.has_non_default_zs) {
+            // z_index changed or inserted
+
             self.sort();
             ctx.updates.render();
         }
@@ -244,11 +255,6 @@ impl<W: WidgetList> WidgetList for ZSortedWidgetList<W> {
     }
 }
 
-state_key! {
-    struct SortKey: bool;
-    struct ZIndexKey: ZIndex;
-}
-
 /// Defines the render order of an widget in a layout panel.
 ///
 /// When set the widget will still update and layout according to their *logical* position in the list but
@@ -261,19 +267,40 @@ pub fn z_index(child: impl UiNode, index: impl IntoVar<ZIndex>) -> impl UiNode {
     struct ZIndexNode<C, I> {
         child: C,
         index: I,
+        valid: bool,
     }
     #[impl_ui_node(child)]
     impl<C: UiNode, I: Var<ZIndex>> UiNode for ZIndexNode<C, I> {
         fn init(&mut self, ctx: &mut WidgetContext) {
-            ctx.widget_state.set(ZIndexKey, self.index.copy(ctx));
-            ctx.update_state.set(SortKey, true);
+            let z_ctx = ZIndexContextVar::get(ctx.vars);
+            if z_ctx.panel_id != ctx.path.ancestors().next() || z_ctx.panel_id.is_none() {
+                tracing::error!(
+                    "property `z_index` set for `{}` but it is not the direct child of a Z-sorting panel",
+                    ctx.path.widget_id()
+                );
+                self.valid = false;
+            } else {
+                self.valid = true;
+
+                let index = self.index.copy(ctx);
+                if index != ZIndex::DEFAULT {
+                    z_ctx.resort.set(true);
+                    ctx.widget_state.set(ZIndexKey, self.index.copy(ctx));
+                }
+            }
             self.child.init(ctx);
         }
 
         fn update(&mut self, ctx: &mut WidgetContext) {
-            if let Some(i) = self.index.copy_new(ctx) {
-                ctx.widget_state.set(ZIndexKey, i);
-                ctx.update_state.set(SortKey, true);
+            if self.valid {
+                if let Some(i) = self.index.copy_new(ctx) {
+                    let z_ctx = ZIndexContextVar::get(ctx.vars);
+
+                    debug_assert_eq!(z_ctx.panel_id, ctx.path.ancestors().next());
+
+                    z_ctx.resort.set(true);
+                    ctx.widget_state.set(ZIndexKey, i);
+                }
             }
 
             self.child.update(ctx);
@@ -282,6 +309,7 @@ pub fn z_index(child: impl UiNode, index: impl IntoVar<ZIndex>) -> impl UiNode {
     ZIndexNode {
         child,
         index: index.into_var(),
+        valid: false,
     }
 }
 
@@ -414,12 +442,16 @@ pub trait WidgetListZIndexExt {
     /// Returns the widget Z-Index.
     fn widget_z_index(&self, index: usize) -> ZIndex;
 
-    /// Does an [`init_all`], sets a flag if the list needs to z-sort.
+    /// Does an [`init_all`], sets `sort_z` if any of the widgets sets a non-default z-index.
     ///
     /// [`init_all`]: UiNodeList::init_all
     fn init_all_z(&mut self, ctx: &mut WidgetContext, sort_z: &mut bool);
 
-    /// Does an [`update_all`], sets a flag if a Z-resort is needed.
+    /// Does an [`update_all`], sets `resort_z` if the z-index changed for any widget or an widget was inited (inserted) with
+    /// a non-default index.
+    ///
+    /// Note that if the list is already sorting or has observed a non-default index it must also resort for any change
+    /// reported to the `observer`.
     ///
     /// [`update_all`]: UiNodeList::update_all
     fn update_all_z<O: UiListObserver>(&mut self, ctx: &mut WidgetContext, observer: &mut O, resort_z: &mut bool);
@@ -430,58 +462,35 @@ impl<L: WidgetList> WidgetListZIndexExt for L {
     }
 
     fn init_all_z(&mut self, ctx: &mut WidgetContext, sort_z: &mut bool) {
-        self.init_all(ctx);
-
-        if ctx.update_state.copy(SortKey).unwrap_or(false) {
-            *sort_z = true;
-        }
+        *sort_z = ZIndexContext::with(ctx.vars, ctx.path.widget_id(), || self.init_all(ctx));
     }
 
     fn update_all_z<O: UiListObserver>(&mut self, ctx: &mut WidgetContext, observer: &mut O, resort_z: &mut bool) {
-        struct Observer<'o, O: UiListObserver> {
-            outer: &'o mut O,
-            changed: bool,
-        }
-        impl<'o, O: UiListObserver> UiListObserver for Observer<'o, O> {
-            fn reseted(&mut self) {
-                self.outer.reseted();
-                self.changed = true;
-            }
-
-            fn inserted(&mut self, index: usize) {
-                self.outer.inserted(index);
-                self.changed = true;
-            }
-
-            fn removed(&mut self, index: usize) {
-                self.outer.removed(index);
-                self.changed = true;
-            }
-
-            fn moved(&mut self, removed_index: usize, inserted_index: usize) {
-                self.outer.moved(removed_index, inserted_index);
-                self.changed = true;
-            }
-        }
-
-        let mut observer = Observer {
-            outer: observer,
-            changed: false,
-        };
-
-        let before = ctx.update_state.copy(SortKey);
-        if let Some(true) = before {
-            ctx.update_state.set(SortKey, false);
-        }
-
-        self.update_all(ctx, &mut observer);
-
-        if observer.changed || ctx.update_state.copy(SortKey).unwrap_or(false) {
-            *resort_z = true;
-        }
-
-        if let Some(s) = before {
-            ctx.update_state.set(SortKey, s);
-        }
+        *resort_z = ZIndexContext::with(ctx.vars, ctx.path.widget_id(), || self.update_all(ctx, observer));
     }
+}
+
+state_key! {
+    struct ZIndexKey: ZIndex;
+}
+
+#[derive(Default, Clone, Debug)]
+struct ZIndexContext {
+    // used in `z_index` to validate that it will have an effect.
+    panel_id: Option<WidgetId>,
+    // set by `z_index` to signal a z-resort is needed.
+    resort: Cell<bool>,
+}
+impl ZIndexContext {
+    fn with(vars: &Vars, panel_id: WidgetId, action: impl FnOnce()) -> bool {
+        let ctx = ZIndexContext {
+            panel_id: Some(panel_id),
+            resort: Cell::new(false),
+        };
+        vars.with_context_var(ZIndexContextVar, ContextVarData::fixed(&ctx), action);
+        ctx.resort.get()
+    }
+}
+context_var! {
+    struct ZIndexContextVar: ZIndexContext = ZIndexContext::default();
 }

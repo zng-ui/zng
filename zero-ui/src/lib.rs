@@ -922,7 +922,7 @@ pub mod prelude {
             formatx, FontFeatures, FontName, FontNames, FontStretch, FontStyle, FontWeight, Fonts, Hyphens, LineBreak, Text, TextAlign,
             TextTransformFn, ToText, WhiteSpace, WordBreak,
         },
-        ui_list::{SortedWidgetVec, SortedWidgetVecRef, WidgetVec, WidgetVecRef, z_index, ZIndex},
+        ui_list::{z_index, SortedWidgetVec, SortedWidgetVecRef, WidgetVec, WidgetVecRef, ZIndex},
         units::{
             rotate, scale, scale_x, scale_xy, scale_y, skew, skew_x, skew_y, translate, translate_x, translate_y, Alignment, AngleUnits,
             ByteUnits, FactorUnits, Length, LengthUnits, Line, LineFromTuplesBuilder, LineHeight, Point, Px, PxPoint, PxSize, Rect,
@@ -1094,8 +1094,8 @@ pub mod prelude {
         pub use crate::core::{
             impl_ui_node, node_vec, nodes, property,
             ui_list::{
-                SortedWidgetVec, SortedWidgetVecRef, UiListObserver, UiNodeList, WidgetList, WidgetVec, WidgetVecRef, ZSortedWidgetList,
-                z_index, ZIndex,
+                z_index, SortedWidgetVec, SortedWidgetVecRef, UiListObserver, UiNodeList, WidgetList, WidgetVec, WidgetVecRef, ZIndex,
+                ZSortedWidgetList,
             },
             widget,
             widget_base::Visibility,
