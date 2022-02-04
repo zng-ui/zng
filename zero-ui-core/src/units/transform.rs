@@ -48,14 +48,14 @@ impl RenderTransformExt for RenderTransform {
 ///
 /// # Examples
 ///
-/// Create a transform that 
-/// 
+/// Create a transform that
+///
 /// ```
 /// # use zero_ui_core::units::*;
 /// let rotate_then_move = rotate(10.deg()).translate(50, 30);
 /// ```
-/// 
-/// 
+///
+///
 #[derive(Clone, Default, Debug)]
 pub struct Transform {
     parts: Vec<TransformPart>,
@@ -76,7 +76,7 @@ impl Transform {
     /// Change `self` to apply `other` after its tranformation.
     ///
     /// # Examples
-    /// 
+    ///
     /// ```
     /// # use zero_ui_core::units::*;
     /// rotate(10.deg()).then(translate(50, 30));

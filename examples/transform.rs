@@ -88,6 +88,7 @@ fn transform_stack() -> impl Widget {
                 content = text("Rotated 45º");
                 background_color = colors::BROWN.with_alpha(80.pct());
                 padding = 10;
+                // z_index = ZIndex::DEFAULT + 1;
             },
             container! {
                 content = text("Identity");
@@ -100,12 +101,12 @@ fn transform_stack() -> impl Widget {
 
 fn transform_order() -> impl Widget {
     z_stack(widgets![
-        blank!{
+        blank! {
             size = (60, 60);
             transform = rotate(10.deg()).translate(50, 30);
             background_color = colors::RED.with_alpha(50.pct());
         },
-        blank!{
+        blank! {
             size = (60, 60);
             rotate = 10.deg();
             translate = 50, 30;
