@@ -78,7 +78,7 @@ pub fn margin(child: impl UiNode, margin: impl IntoVar<SideOffsets>) -> impl UiN
 
         fn arrange(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, mut final_size: PxSize) {
             final_size -= self.size_increment;
-            widget_layout.with_pre_translate(self.child_origin.to_vector(), |wo| self.child.arrange(ctx, wo, final_size));
+            widget_layout.with_parent_translate(self.child_origin.to_vector(), |wo| self.child.arrange(ctx, wo, final_size));
         }
     }
     MarginNode {
@@ -134,7 +134,9 @@ pub fn side_offsets(child: impl UiNode, offsets: impl IntoVar<SideOffsets>) -> i
 
         fn arrange(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, mut final_size: PxSize) {
             final_size -= self.size_increment;
-            widget_layout.with_custom_translate(self.child_offset, |wo| self.child.arrange(ctx, wo, final_size));
+            widget_layout.with_custom_transform(&RenderTransform::translation_px(self.child_offset), |wo| {
+                self.child.arrange(ctx, wo, final_size)
+            });
         }
 
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
@@ -212,7 +214,7 @@ pub fn align(child: impl UiNode, alignment: impl IntoVar<Alignment>) -> impl UiN
 
             self.child_rect = child_rect;
 
-            widget_layout.with_pre_translate(child_rect.origin.to_vector(), |wo| self.child.arrange(ctx, wo, child_rect.size));
+            widget_layout.with_parent_translate(child_rect.origin.to_vector(), |wo| self.child.arrange(ctx, wo, child_rect.size));
         }
     }
 
@@ -277,7 +279,7 @@ pub fn position(child: impl UiNode, position: impl IntoVar<Point>) -> impl UiNod
                 ctx.updates.render();
             }
 
-            widget_layout.with_pre_translate(self.final_position.to_vector(), |wo| self.child.arrange(ctx, wo, final_size));
+            widget_layout.with_parent_translate(self.final_position.to_vector(), |wo| self.child.arrange(ctx, wo, final_size));
         }
     }
     PositionNode {
@@ -336,7 +338,7 @@ pub fn x(child: impl UiNode, x: impl IntoVar<Length>) -> impl UiNode {
                 ctx.updates.render();
             }
 
-            widget_layout.with_pre_translate(PxVector::new(self.final_x, Px(0)), |wo| self.child.arrange(ctx, wo, final_size));
+            widget_layout.with_parent_translate(PxVector::new(self.final_x, Px(0)), |wo| self.child.arrange(ctx, wo, final_size));
         }
     }
     XNode {
@@ -396,7 +398,7 @@ pub fn y(child: impl UiNode, y: impl IntoVar<Length>) -> impl UiNode {
                 ctx.updates.render();
             }
 
-            widget_layout.with_pre_translate(PxVector::new(Px(0), self.final_y), |wo| self.child.arrange(ctx, wo, final_size));
+            widget_layout.with_parent_translate(PxVector::new(Px(0), self.final_y), |wo| self.child.arrange(ctx, wo, final_size));
         }
     }
     YNode {

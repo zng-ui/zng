@@ -19,18 +19,28 @@ fn app_main() {
     App::default().run_window(|_| {
         window! {
             title = "Transform Example";
-            content = v_stack! {
-                spacing = 25;
-                items_align = Alignment::TOP;
+            content = h_stack! {
+                spacing = 40;
                 items = widgets![
-                    transformed("Translate -10", translate(-10, -10)),
-                    transformed_at("Rotate 10º (0, 0)", rotate(10.deg()), (0, 0)),
-                    transformed("Rotate 10º", rotate(10.deg())),
-                    transformed("Skew-X 15º", skew_x(15.deg())),
-                    transformed("Scale 130%", scale(130.pct())),
-                    transformed("Identity", Transform::identity()),
-                    transform_stack(),
-                ];
+                    v_stack! {
+                        spacing = 25;
+                        items_align = Alignment::TOP;
+                        items = widgets![
+                            transformed("Translate -10", translate(-10, -10)),
+                            transformed_at("Rotate 10º (0, 0)", rotate(10.deg()), (0, 0)),
+                            transformed("Rotate 10º", rotate(10.deg())),
+                            transformed("Skew-X 15º", skew_x(15.deg())),
+                            transformed("Scale 130%", scale(130.pct())),
+                            transformed("Identity", Transform::identity()),
+                        ];
+                    },
+                    v_stack! {
+                        spacing = 40;
+                        items = widgets![
+                            transform_stack(),
+                        ]
+                    }
+                ]
             };
         }
     })
@@ -61,29 +71,28 @@ fn transformed_at(label: impl Into<Text>, transform: Transform, origin: impl Int
 }
 
 fn transform_stack() -> impl Widget {
+    // the panel widget uses its child transform to position the widget for performance reasons,
+    // the widget transform does not affect.
     v_stack! {
         spacing = 5;
         items = widgets![
             container! {
-                content = text("normal");
-                background_color = colors::GREEN.with_alpha(80.pct());
+                content = text("Identity");
+                background_color = colors::DARK_GRAY.with_alpha(80.pct());
                 padding = 10;
             },
             container! {
                 id = "in-stack";
-                transform = rotate(90.deg());
-                content = text("rotated");
+                transform = rotate(45.deg());
+                content = text("Rotated 45º");
                 background_color = colors::BROWN.with_alpha(80.pct());
                 padding = 10;
             },
             container! {
-                content = container! {
-                    transform = rotate(90.deg());
-                    content = text("rotated");
-                    background_color = colors::BROWN.with_alpha(80.pct());
-                    padding = 10;
-                }
-            }
+                content = text("Identity");
+                background_color = colors::DARK_GRAY.with_alpha(80.pct());
+                padding = 10;
+            },
         ];
     }
 }

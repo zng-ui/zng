@@ -129,16 +129,18 @@ pub mod scrollable {
                 self.children.widget_arrange(0, ctx, widget_layout, self.viewport);
 
                 let joiner_offset = self.viewport.to_vector();
-                widget_layout.with_custom_translate(PxVector::new(joiner_offset.x, Px(0)), |wo| {
+                widget_layout.with_custom_transform(&RenderTransform::translation_px(PxVector::new(joiner_offset.x, Px(0))), |wo| {
                     self.children
                         .widget_arrange(1, ctx, wo, PxSize::new(self.joiner.width, self.viewport.height))
                 });
-                widget_layout.with_custom_translate(PxVector::new(Px(0), joiner_offset.y), |wo| {
+                widget_layout.with_custom_transform(&RenderTransform::translation_px(PxVector::new(Px(0), joiner_offset.y)), |wo| {
                     self.children
                         .widget_arrange(2, ctx, wo, PxSize::new(self.viewport.width, self.joiner.height))
                 });
 
-                widget_layout.with_custom_translate(joiner_offset, |wo| self.children.widget_arrange(3, ctx, wo, self.joiner));
+                widget_layout.with_custom_transform(&RenderTransform::translation_px(joiner_offset), |wo| {
+                    self.children.widget_arrange(3, ctx, wo, self.joiner)
+                });
             }
 
             fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
@@ -1321,7 +1323,9 @@ pub mod thumb {
                     }
                 }
 
-                widget_layout.with_custom_translate(self.final_offset, |wo| self.child.arrange(ctx, wo, final_size));
+                widget_layout.with_custom_transform(&RenderTransform::translation_px(self.final_offset), |wo| {
+                    self.child.arrange(ctx, wo, final_size)
+                });
             }
 
             fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {

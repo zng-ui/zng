@@ -157,7 +157,7 @@ pub struct FinalSizeArgs<'a> {
 
     /// Optional pre-translation to register for the widget.
     ///
-    /// If set the widget list calls [`WidgetLayout::with_pre_translate`].
+    /// If set the widget list calls [`WidgetLayout::with_parent_translate`].
     pub pre_translate: Option<PxVector>,
 
     /// Optional custom transform to register for the widget.
@@ -233,13 +233,13 @@ impl<'a> FinalSizeArgs<'a> {
         if let Some(t) = custom_transform {
             widget_layout.with_custom_transform(&t, |wl| {
                 if let Some(t) = pre_translate {
-                    wl.with_pre_translate(t, |wl| {
+                    wl.with_parent_translate(t, |wl| {
                         node.arrange(ctx, wl, final_size);
                     })
                 }
             })
         } else if let Some(t) = pre_translate {
-            widget_layout.with_pre_translate(t, |wl| {
+            widget_layout.with_parent_translate(t, |wl| {
                 node.arrange(ctx, wl, final_size);
             })
         } else {

@@ -27,7 +27,7 @@ pub struct WidgetLayout {
     global_transform: RenderTransform,
 
     widget_id: WidgetId,
-    pre_translate: PxVector,
+    parent_translate: PxVector,
     transform: RenderTransform,
     transform_origin: Point,
     inner_info: WidgetLayoutInfo,
@@ -44,7 +44,7 @@ impl WidgetLayout {
         let mut self_ = Self {
             global_transform: RenderTransform::identity(),
             widget_id: root_id,
-            pre_translate: PxVector::zero(),
+            parent_translate: PxVector::zero(),
             transform: RenderTransform::identity(),
             transform_origin: Point::center(),
             inner_info: inner_info.clone(),
@@ -68,8 +68,8 @@ impl WidgetLayout {
         outer_info.set_size(final_size);
         // includes offsets from properties line "content_align".
         outer_info.set_transform(self.global_transform.then_translate(euclid::vec3(
-            self.pre_translate.x.0 as f32,
-            self.pre_translate.y.0 as f32,
+            self.parent_translate.x.0 as f32,
+            self.parent_translate.y.0 as f32,
             0.0,
         )));
 
@@ -82,32 +82,31 @@ impl WidgetLayout {
         self.widget_id = pre_widget_id;
     }
 
-    /// Register a custom `transform` that is applied by the current UI node during render.
+    /// Set the frame of reference as the `transform` inside the previous transform, all inner bounds and widgets are
+    /// resolved in the new transform space.
     ///
     /// Nodes that declare [reference frames] during render must also use this method.
     ///
     /// [reference frames]: crate::render::FrameBuilder::push_reference_frame
     pub fn with_custom_transform(&mut self, transform: &RenderTransform, f: impl FnOnce(&mut Self)) {
-        let global_transform = self.global_transform.then(transform);
+        let global_transform = transform.then(&self.global_transform);
         let prev_global_transform = mem::replace(&mut self.global_transform, global_transform);
         f(self);
         self.global_transform = prev_global_transform;
     }
 
-    /// Shortcut for declaring a custom translate transform.
-    pub fn with_custom_translate(&mut self, offset: PxVector, f: impl FnOnce(&mut Self)) {
-        let transform = RenderTransform::translation_px(offset);
-        self.with_custom_transform(&transform, f);
-    }
-
-    /// Appends a translate transform that will be applied to the next inner bounds before the other inner transforms.
-    pub fn with_pre_translate(&mut self, offset: PxVector, f: impl FnOnce(&mut Self)) {
-        self.pre_translate += offset;
+    /// Adds to a translate transform that will be applied to the next inner bounds such that
+    /// it moves the widget in the space of the parent widget and not in the transformed space of the widget.
+    ///
+    /// Panel widgets should use this method to position their children widgets, it saves on the need to declare a custom
+    /// transform for each child as it uses the child's own layout transform without being affected by it.
+    pub fn with_parent_translate(&mut self, offset: PxVector, f: impl FnOnce(&mut Self)) {
+        self.parent_translate += offset;
         f(self);
-        self.pre_translate -= offset;
+        self.parent_translate -= offset;
     }
 
-    /// Appends a transform that will be applied to the next inner bounds.
+    /// Multiply the transform that will be applied to the next inner bounds by `transform`.
     pub fn with_inner_transform(&mut self, transform: &RenderTransform, f: impl FnOnce(&mut Self)) {
         let transform = self.transform.then(transform);
         let prev_transform = mem::replace(&mut self.transform, transform);
@@ -117,7 +116,7 @@ impl WidgetLayout {
 
     /// Sets the *center point* of the inner transform that will be applied to the next inner bounds.
     ///
-    /// The `origin` will be resolved in the layout context of the inner bounds final size.
+    /// The `origin` will be resolved in the layout context of the un-transformed inner size.
     pub fn with_inner_transform_origin(&mut self, origin: &Point, f: impl FnOnce(&mut Self)) {
         let prev_origin = mem::replace(&mut self.transform_origin, origin.clone());
         f(self);
@@ -168,23 +167,23 @@ impl WidgetLayout {
                 .then_translate(euclid::vec3(x, y, 0.0));
         }
 
-        if self.pre_translate != PxVector::zero() {
-            transform = RenderTransform::translation_px(self.pre_translate).then(&transform);
+        if self.parent_translate != PxVector::zero() {
+            transform = transform.then(&RenderTransform::translation_px(self.parent_translate));
         }
 
-        let global_transform = self.global_transform.then(&transform);
+        let global_transform = transform.then(&self.global_transform);
         let prev_global_transform = mem::replace(&mut self.global_transform, global_transform);
 
         self.inner_info.set_size(final_size);
         self.inner_info.set_transform(self.global_transform);
 
-        let prev_pre_translate = mem::take(&mut self.pre_translate);
+        let prev_pre_translate = mem::take(&mut self.parent_translate);
         let prev_transform = mem::take(&mut self.transform);
         let prev_transform_origin = mem::replace(&mut self.transform_origin, Point::center());
 
         f(self);
 
-        self.pre_translate = prev_pre_translate;
+        self.parent_translate = prev_pre_translate;
         self.transform = prev_transform;
         self.transform_origin = prev_transform_origin;
 

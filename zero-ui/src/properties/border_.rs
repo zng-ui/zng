@@ -94,7 +94,9 @@ pub fn border(
                 ctx.updates.render();
             }
 
-            widget_layout.with_custom_translate(origin.to_vector(), |wo| self.child.arrange(ctx, wo, child_size));
+            widget_layout.with_custom_transform(&RenderTransform::translation_px(origin.to_vector()), |wo| {
+                self.child.arrange(ctx, wo, child_size)
+            });
         }
 
         fn size_increment(&self) -> PxSize {
