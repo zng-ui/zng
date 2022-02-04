@@ -2,10 +2,9 @@
 * Colors don't match other apps, clear_color and background_color also does not match.
 * WindowChangedEvent fired on first resize.
 
-# Layer
+# Transform
 
-* Fixed pre_translate transform.
-* Fix full transform anchor.
+Review if order of transforms is correct for `witn_inner_transform` and the `Transform` builder.
 
 # Split `inner`
 

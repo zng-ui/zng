@@ -46,12 +46,16 @@ impl RenderTransformExt for RenderTransform {
 /// The transform can be started by one of this functions, [`rotate`], [`translate`], [`scale`] and [`skew`]. More
 /// transforms can be chained by calling the methods of this type.
 ///
-/// # Example
+/// # Examples
 ///
+/// Create a transform that 
+/// 
 /// ```
 /// # use zero_ui_core::units::*;
-/// let rotate_then_move = rotate(10.deg()).translate(50.0, 30.0);
+/// let rotate_then_move = rotate(10.deg()).translate(50, 30);
 /// ```
+/// 
+/// 
 #[derive(Clone, Default, Debug)]
 pub struct Transform {
     steps: Vec<TransformStep>,
