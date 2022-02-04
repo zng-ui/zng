@@ -2,10 +2,6 @@
 * Colors don't match other apps, clear_color and background_color also does not match.
 * WindowChangedEvent fired on first resize.
 
-# Transform
-
-Review if order of transforms is correct for `witn_inner_transform` and the `Transform` builder.
-
 # Split `inner`
 
 All the visual layers are in `inner`, this causes problems with order or `border` and `background`, the button `focus_highlight` changes

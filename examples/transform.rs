@@ -38,6 +38,7 @@ fn app_main() {
                         spacing = 40;
                         items = widgets![
                             transform_stack(),
+                            transform_order(),
                         ]
                     }
                 ]
@@ -95,4 +96,20 @@ fn transform_stack() -> impl Widget {
             },
         ];
     }
+}
+
+fn transform_order() -> impl Widget {
+    z_stack(widgets![
+        blank!{
+            size = (60, 60);
+            transform = rotate(10.deg()).translate(50, 30);
+            background_color = colors::RED.with_alpha(50.pct());
+        },
+        blank!{
+            size = (60, 60);
+            rotate = 10.deg();
+            translate = 50, 30;
+            background_color = colors::GREEN.with_alpha(50.pct());
+        },
+    ])
 }

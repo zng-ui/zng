@@ -58,11 +58,11 @@ impl RenderTransformExt for RenderTransform {
 /// 
 #[derive(Clone, Default, Debug)]
 pub struct Transform {
-    steps: Vec<TransformStep>,
+    parts: Vec<TransformPart>,
     needs_layout: bool,
 }
 #[derive(Clone, Debug)]
-enum TransformStep {
+enum TransformPart {
     Computed(RenderTransform),
     Translate(Length, Length),
 }
@@ -73,80 +73,94 @@ impl Transform {
         Self::default()
     }
 
-    /// Appends the `other` transform.
-    pub fn and(mut self, other: Transform) -> Self {
-        let mut other_steps = other.steps.into_iter();
+    /// Change `self` to apply `other` after its tranformation.
+    ///
+    /// # Examples
+    /// 
+    /// ```
+    /// # use zero_ui_core::units::*;
+    /// rotate(10.deg()).then(translate(50, 30));
+    /// ```
+    ///
+    /// Is the equivalent of:
+    ///
+    /// ```
+    /// # use zero_ui_core::units::*;
+    /// rotate(10.deg()).translate(50, 30);
+    /// ```
+    pub fn then(mut self, other: Transform) -> Self {
+        let mut other_parts = other.parts.into_iter();
         self.needs_layout |= other.needs_layout;
-        if let Some(first) = other_steps.next() {
+        if let Some(first) = other_parts.next() {
             match first {
-                TransformStep::Computed(first) => self.push_transform(first),
-                first => self.steps.push(first),
+                TransformPart::Computed(first) => self.then_transform(first),
+                first => self.parts.push(first),
             }
-            self.steps.extend(other_steps);
+            self.parts.extend(other_parts);
         }
         self
     }
 
-    fn push_transform(&mut self, transform: RenderTransform) {
-        if let Some(TransformStep::Computed(last)) = self.steps.last_mut() {
+    fn then_transform(&mut self, transform: RenderTransform) {
+        if let Some(TransformPart::Computed(last)) = self.parts.last_mut() {
             *last = last.then(&transform);
         } else {
-            self.steps.push(TransformStep::Computed(transform));
+            self.parts.push(TransformPart::Computed(transform));
         }
     }
 
-    /// Append a 2d rotation transform.
+    /// Change `self` to apply a 2d rotation after its tranformation.
     pub fn rotate<A: Into<AngleRadian>>(mut self, angle: A) -> Self {
-        self.push_transform(RenderTransform::rotation(0.0, 0.0, -1.0, angle.into().to_layout()));
+        self.then_transform(RenderTransform::rotation(0.0, 0.0, -1.0, angle.into().to_layout()));
         self
     }
 
-    /// Append a 2d translation transform.
+    /// Change `self` to apply a 2d translation after its tranformation.
     #[inline]
     pub fn translate<X: Into<Length>, Y: Into<Length>>(mut self, x: X, y: Y) -> Self {
-        self.steps.push(TransformStep::Translate(x.into(), y.into()));
+        self.parts.push(TransformPart::Translate(x.into(), y.into()));
         self.needs_layout = true;
         self
     }
-    /// Append a 2d translation transform in the X dimension.
+    /// Change `self` to apply a ***x*** translation after its tranformation.
     #[inline]
     pub fn translate_x<X: Into<Length>>(self, x: X) -> Self {
         self.translate(x, 0.0)
     }
-    /// Append a 2d translation transform in the Y dimension.
+    /// Change `self` to apply a ***y*** translation after its tranformation.
     #[inline]
     pub fn translate_y<Y: Into<Length>>(self, y: Y) -> Self {
         self.translate(0.0, y)
     }
 
-    /// Append a 2d skew transform.
+    /// Change `self` to apply a 2d skew after its tranformation.
     pub fn skew<X: Into<AngleRadian>, Y: Into<AngleRadian>>(mut self, x: X, y: Y) -> Self {
-        self.push_transform(RenderTransform::skew(x.into().to_layout(), y.into().to_layout()));
+        self.then_transform(RenderTransform::skew(x.into().to_layout(), y.into().to_layout()));
         self
     }
-    /// Append a 2d skew transform in the X dimension.
+    /// Change `self` to apply a ***x*** skew after its tranformation.
     pub fn skew_x<X: Into<AngleRadian>>(self, x: X) -> Self {
         self.skew(x, 0.rad())
     }
-    /// Append a 2d skew transform in the Y dimension.
+    /// Change `self` to apply a ***y*** skew after its tranformation.
     pub fn skew_y<Y: Into<AngleRadian>>(self, y: Y) -> Self {
         self.skew(0.rad(), y)
     }
 
-    /// Append a 2d scale transform.
+    /// Change `self` to apply a 2d scale after its tranformation.
     pub fn scale_xy<X: Into<Factor>, Y: Into<Factor>>(mut self, x: X, y: Y) -> Self {
-        self.push_transform(RenderTransform::scale(x.into().0, y.into().0, 1.0));
+        self.then_transform(RenderTransform::scale(x.into().0, y.into().0, 1.0));
         self
     }
-    /// Append a 2d scale transform in the X dimension.
+    /// Change `self` to apply a ***x*** scale after its tranformation.
     pub fn scale_x<X: Into<Factor>>(self, x: X) -> Self {
         self.scale_xy(x, 1.0)
     }
-    /// Append a 2d scale transform in the Y dimension.
+    /// Change `self` to apply a ***y*** scale after its tranformation.
     pub fn scale_y<Y: Into<Factor>>(self, y: Y) -> Self {
         self.scale_xy(1.0, y)
     }
-    /// Append a 2d uniform scale transform.
+    /// Change `self` to apply a uniform 2d scale after its tranformation.
     pub fn scale<S: Into<Factor>>(self, scale: S) -> Self {
         let s = scale.into();
         self.scale_xy(s, s)
@@ -156,10 +170,10 @@ impl Transform {
     #[inline]
     pub fn to_render(&self, ctx: &LayoutMetrics, available_size: AvailableSize) -> RenderTransform {
         let mut r = RenderTransform::identity();
-        for step in &self.steps {
+        for step in &self.parts {
             r = match step {
-                TransformStep::Computed(m) => r.then(m),
-                TransformStep::Translate(x, y) => r.then(&RenderTransform::translation(
+                TransformPart::Computed(m) => r.then(m),
+                TransformPart::Translate(x, y) => r.then(&RenderTransform::translation(
                     x.to_layout(ctx, available_size.width, Px(0)).to_wr().get(),
                     y.to_layout(ctx, available_size.height, Px(0)).to_wr().get(),
                     0.0,
@@ -176,10 +190,10 @@ impl Transform {
         }
 
         let mut r = RenderTransform::identity();
-        for step in &self.steps {
+        for step in &self.parts {
             r = match step {
-                TransformStep::Computed(m) => r.then(m),
-                TransformStep::Translate(_, _) => unreachable!(),
+                TransformPart::Computed(m) => r.then(m),
+                TransformPart::Translate(_, _) => unreachable!(),
             }
         }
         Some(r)
