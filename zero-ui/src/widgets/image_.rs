@@ -883,7 +883,7 @@ pub mod image {
                 |view| with_context_var(view, InErrorViewVar, true),
             );
 
-            z_stack(nodes![view, child])
+            stack_nodes(nodes![view, child])
         }
 
         /// Presents the contextual [`ImageLoadingViewVar`] if the [`ContextImageVar`] is loading.
@@ -938,7 +938,7 @@ pub mod image {
                 |view| with_context_var(view, InLoadingViewVar, true),
             );
 
-            z_stack(nodes![view, child])
+            stack_nodes(nodes![view, child])
         }
 
         /// Renders the [`ContextImageVar`] if set.

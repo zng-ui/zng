@@ -99,14 +99,14 @@ fn stack_linear() -> impl Widget {
     sample_line(widgets![
         sample(
             "background",
-            z_stack(nodes![
+            stack_nodes(nodes![
                 linear_gradient(45.deg(), [colors::RED, colors::GREEN]),
                 linear_gradient(135.deg(), [rgba(0, 0, 255, 0.5), rgba(1.0, 1.0, 1.0, 0.5)]),
             ]),
         ),
         sample(
             "over color",
-            z_stack(nodes![
+            stack_nodes(nodes![
                 fill_color(colors::WHITE),
                 linear_gradient(0.deg(), stops![colors::RED, (colors::RED.transparent(), 50.pct())]),
                 linear_gradient(120.deg(), stops![colors::GREEN, (colors::GREEN.transparent(), 50.pct())]),
@@ -115,7 +115,7 @@ fn stack_linear() -> impl Widget {
         ),
         sample(
             "rainbow",
-            z_stack({
+            stack_nodes({
                 let rainbow = GradientStops::from_stripes(
                     &[
                         colors::RED,
@@ -138,7 +138,7 @@ fn stack_linear() -> impl Widget {
         ),
         sample(
             "angles",
-            z_stack({
+            stack_nodes({
                 fn gradient(angle: i32, mut color: Rgba) -> impl UiNode {
                     color.alpha = 0.3;
                     let stops = GradientStops::from_stripes(&[color, color.transparent()], 0.0);

@@ -25,9 +25,14 @@ use crate::prelude::new_widget::*;
 ///
 /// If you only want to set the `items` property you can use the [`h_stack`] shortcut function.
 ///
+/// # `stack_nodes`
+///
+/// If you only want to create an overlaying effect composed of multiple nodes you can use the [`stack_nodes`] function.
+///
 /// [`transform`]: fn@transform
 /// [`z_index`]: fn@z_index
 /// [`h_stack`]: fn@h_stack
+/// [`stack_nodes`]: fn@stack_nodes
 #[widget($crate::widgets::layouts::h_stack)]
 pub mod h_stack {
     use super::*;
@@ -406,15 +411,21 @@ pub fn v_stack(items: impl WidgetList) -> impl Widget {
 
 /// Layering stack layout.
 ///
-/// # Example
+/// # Z-Index
+///
+/// By default the widgets are rendered in their logical order, the last widget renders in front of the others,
+/// you can change this by setting the [`z_index`] property in the item widget.
+///
+/// # Examples
 ///
 /// ```
 /// # use zero_ui::prelude::*;
 /// let text = z_stack! {
 ///     padding = 5.0;
-///     items = nodes![
-///         text("under"),
-///         text("over"),
+///     items = widgets![
+///         text("one"),
+///         text! { text = "three"; z_index = ZIndex::DEFAULT + 1; },
+///         text("two"),
 ///     ];
 /// };
 /// ```
@@ -422,15 +433,17 @@ pub fn v_stack(items: impl WidgetList) -> impl Widget {
 /// ## `z_stack()`
 ///
 /// If you only want to set the `items` property you can use the [`z_stack`](function@z_stack) shortcut function.
+///
+/// [`z_index`]: fn@z_index
 #[widget($crate::widgets::layouts::z_stack)]
 pub mod z_stack {
     use super::*;
 
     properties! {
         child {
-            /// UiNode items.
+            /// Widget items.
             #[allowed_in_when = false]
-            items(impl UiNodeList) = nodes![];
+            items(impl WidgetList) = widgets![];
             /// Items margin.
             margin as padding;
 
@@ -444,10 +457,10 @@ pub mod z_stack {
     }
 
     #[inline]
-    fn new_child(items: impl UiNodeList, items_align: impl IntoVar<Alignment>) -> impl UiNode {
+    fn new_child(items: impl WidgetList, items_align: impl IntoVar<Alignment>) -> impl UiNode {
         ZStackNode {
             children_info: vec![ChildInfo::default(); items.len()],
-            children: items,
+            children: ZSortedWidgetList::new(items),
             align: items_align.into_var(),
         }
     }
@@ -504,13 +517,13 @@ pub mod z_stack {
 
 /// Basic layering stack layout.
 ///
-/// # Example
+/// # Examples
 ///
 /// ```
 /// # use zero_ui::prelude::*;
-/// let text = z_stack(nodes![
-///     text("under"),
-///     text("over"),
+/// let text = z_stack(widgets![
+///     text("back"),
+///     text("front"),
 /// ]);
 /// ```
 ///
@@ -518,7 +531,7 @@ pub mod z_stack {
 ///
 /// This function is just a shortcut for [`z_stack!`](module@z_stack). Use the full widget
 /// to better configure the layering stack widget.
-pub fn z_stack(items: impl UiNodeList) -> impl Widget {
+pub fn z_stack(items: impl WidgetList) -> impl Widget {
     z_stack! { items; }
 }
 

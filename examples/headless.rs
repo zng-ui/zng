@@ -56,7 +56,7 @@ fn image() -> impl Widget {
     container! {
         size = (800, 600);
 
-        background = z_stack({
+        background = stack_nodes({
             fn gradient(angle: i32, mut color: Rgba) -> impl UiNode {
                 color.alpha = 0.3;
                 let stops = GradientStops::from_stripes(&[color, color.transparent()], 0.0);

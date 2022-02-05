@@ -2,7 +2,14 @@ use crate::prelude::new_widget::*;
 
 /// Grid layout where all cells are the same size.
 ///
-/// # Example
+/// # Z-Index
+///
+/// By default the widgets are layout without overlap, but you can use properties like [`transform`] to cause
+/// an widget overlap, in this case the widget will be rendered above its previous sibling and below its next sibling,
+/// you can change this by setting the [`z_index`] property in the item widget.
+///
+///
+/// # Examples
 ///
 /// ```
 /// # use zero_ui::prelude::*;
@@ -22,6 +29,9 @@ use crate::prelude::new_widget::*;
 /// ----|-----|----
 /// 0,1 | 1,1 |
 /// ```
+///
+/// [`transform`]: fn@transform
+/// [`z_index`]: fn@z_index
 #[widget($crate::widgets::layouts::uniform_grid)]
 pub mod uniform_grid {
     use super::*;
@@ -84,7 +94,7 @@ pub mod uniform_grid {
     ) -> impl UiNode {
         UniformGridNode {
             children_info: vec![ChildInfo::default(); items.len()],
-            children: items,
+            children: ZSortedWidgetList::new(items),
 
             columns: columns.into_var(),
             rows: rows.into_var(),

@@ -2,12 +2,6 @@
 * Colors don't match other apps, clear_color and background_color also does not match.
 * WindowChangedEvent fired on first resize.
 
-# UiNodeList -> WidgetList
-
-Move `UiNodeList` methods to `WidgetList` and delete it, the added cost and confusion of supporting
-both is not worth it, the only usage for the pure `UiNodeList` so far was stacking gradient effects, we
-can still do that by using a full widget for each *layer*.
-
 # Split `inner`
 
 All the visual layers are in `inner`, this causes problems with order or `border` and `background`, the button `focus_highlight` changes
