@@ -57,7 +57,7 @@ pub fn is_hovered(child: impl UiNode, state: StateVar) -> impl UiNode {
                     update = true;
                 } else if args.is_mouse_leave(ctx.path) {
                     self.is_hovered = false;
-                    update = false;
+                    update = true;
                 }
                 self.child.event(ctx, args);
             } else if let Some(args) = WidgetInfoChangedEvent.update(args) {
@@ -304,7 +304,7 @@ pub fn is_pressed(child: impl UiNode, state: StateVar) -> impl UiNode {
             else if let Some(args) = WindowFocusChangedEvent.update(args) {
                 if !args.focused && args.concerns_widget(ctx) {
                     self.is_down = false;
-                    update = false;
+                    update = true;
                 }
                 self.child.event(ctx, args);
             }
