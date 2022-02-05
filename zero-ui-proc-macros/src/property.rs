@@ -307,8 +307,8 @@ mod analysis {
                 }
             }
         }
-        if args.priority.is_event() && prefix != Prefix::Event {
-            errors.push("property marked `event` does not have prefix `on_`", fn_.sig.ident.span());
+        if args.priority.is_event() && prefix != Prefix::Event && prefix != Prefix::State {
+            errors.push("property marked `event` does not have prefix `on_` or `is_`", fn_.sig.ident.span());
         }
 
         // validate return type.

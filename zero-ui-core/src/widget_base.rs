@@ -425,16 +425,8 @@ pub fn enabled(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
             self.child.subscriptions(ctx, subscriptions);
         }
 
-        fn init(&mut self, ctx: &mut WidgetContext) {
-            if !IsEnabled::get(ctx) {
-                ctx.widget_state.set(EnabledState, false);
-            }
-            self.child.init(ctx);
-        }
-
         fn update(&mut self, ctx: &mut WidgetContext) {
-            if let Some(state) = IsEnabled::get_new(ctx) {
-                ctx.widget_state.set(EnabledState, state);
+            if IsEnabled::get_new(ctx).is_some() {
                 ctx.updates.info();
             }
             self.child.update(ctx);
@@ -455,8 +447,7 @@ struct IsEnabledNode<C: UiNode> {
 }
 impl<C: UiNode> IsEnabledNode<C> {
     fn update_state(&self, ctx: &mut WidgetContext) {
-        let enabled = IsEnabled::get(ctx) && ctx.widget_state.get(EnabledState).copied().unwrap_or(true);
-        let is_state = enabled == self.expected;
+        let is_state = IsEnabled::get(ctx) == self.expected;
         self.state.set_ne(ctx.vars, is_state);
     }
 }
@@ -489,7 +480,7 @@ impl<C: UiNode> UiNode for IsEnabledNode<C> {
 ///
 /// [`enabled`]: fn@enabled
 /// [`WidgetInfo::allow_interaction`]: crate::widget_info::WidgetInfo::allow_interaction
-#[property(context)]
+#[property(event)]
 pub fn is_enabled(child: impl UiNode, state: StateVar) -> impl UiNode {
     IsEnabledNode {
         child,
@@ -505,7 +496,7 @@ pub fn is_enabled(child: impl UiNode, state: StateVar) -> impl UiNode {
 /// This is the same as `!self.is_enabled`.
 ///
 /// [`enabled`]: fn@enabled
-#[property(context)]
+#[property(event)]
 pub fn is_disabled(child: impl UiNode, state: StateVar) -> impl UiNode {
     IsEnabledNode {
         child,

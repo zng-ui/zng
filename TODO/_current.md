@@ -1,4 +1,5 @@
 * Text shaping needs "Language" and "Script".
+    - After impl localization? will need to use the same tag type.
 
 # Split `inner`
 
@@ -13,7 +14,7 @@ Need to:
 ## Our Model
 
 0 - `context`
-1 - `event` (allow `is_` prefix here, removes need for widget state to make `is_enabled` work).
+1 - `event` 
 2 - `layout`
 3 - `size`
 ? - *background* = CSS by default extends the background *under* the borders.
