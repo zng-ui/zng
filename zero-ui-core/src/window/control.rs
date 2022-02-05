@@ -502,6 +502,7 @@ impl HeadedCtrl {
             self.window = Some(window);
             self.vars.0.render_mode.set_ne(ctx, data.render_mode);
             self.vars.state().set_ne(ctx, data.state.state);
+            self.actual_state = Some(data.state.state);
             self.vars.0.restore_state.set_ne(ctx, data.state.restore_state);
             self.vars.0.restore_rect.set_ne(ctx, data.state.restore_rect);
             self.vars.0.actual_position.set_ne(ctx, data.position);

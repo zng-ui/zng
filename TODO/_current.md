@@ -1,6 +1,4 @@
 * Text shaping needs "Language" and "Script".
-* Colors don't match other apps, clear_color and background_color also does not match.
-* WindowChangedEvent fired on first resize.
 
 # Split `inner`
 

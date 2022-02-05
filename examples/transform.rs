@@ -103,17 +103,31 @@ fn transform_stack() -> impl Widget {
 }
 
 fn transform_order() -> impl Widget {
+    // transform created using a single property or two properties generate the same transform because
+    // are in the same order.
     z_stack(widgets![
         blank! {
-            size = (60, 60);
+            // single property
             transform = rotate(10.deg()).translate(50, 30);
-            background_color = colors::RED.with_alpha(50.pct());
+
+            size = (60, 60);
+            background_color = colors::BLUE.lighten(50.pct());
+
+            when self.is_hovered {
+                z_index = ZIndex::DEFAULT + 1;
+            }
         },
         blank! {
-            size = (60, 60);
+            // two properties
             rotate = 10.deg();
             translate = 50, 30;
-            background_color = colors::GREEN.with_alpha(50.pct());
+
+            size = (60, 60);
+            background_color = colors::GREEN;
+
+            when self.is_hovered {
+                z_index = ZIndex::DEFAULT - 1;
+            }
         },
     ])
 }
