@@ -2,8 +2,6 @@
 * Colors don't match other apps, clear_color and background_color also does not match.
 * WindowChangedEvent fired on first resize.
 
-* container! does not hit-test with background_color and self.is_hovered.
-
 # UiNodeList -> WidgetList
 
 Move `UiNodeList` methods to `WidgetList` and delete it, the added cost and confusion of supporting

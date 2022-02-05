@@ -271,6 +271,12 @@ pub fn z_index(child: impl UiNode, index: impl IntoVar<ZIndex>) -> impl UiNode {
     }
     #[impl_ui_node(child)]
     impl<C: UiNode, I: Var<ZIndex>> UiNode for ZIndexNode<C, I> {
+        fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
+            subscriptions.var(ctx, &self.index);
+
+            self.child.subscriptions(ctx, subscriptions);
+        }
+
         fn init(&mut self, ctx: &mut WidgetContext) {
             let z_ctx = ZIndexContextVar::get(ctx.vars);
             if z_ctx.panel_id != ctx.path.ancestors().next() || z_ctx.panel_id.is_none() {

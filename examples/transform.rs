@@ -89,7 +89,7 @@ fn transform_stack() -> impl Widget {
                 background_color = colors::BROWN.with_alpha(80.pct());
                 padding = 10;
 
-                when dbg!(self.is_hovered) {
+                when self.is_hovered {
                     z_index = ZIndex::DEFAULT + 1;
                 }
             },
