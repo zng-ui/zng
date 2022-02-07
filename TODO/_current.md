@@ -4,17 +4,24 @@
         - Their macros panic for errors, maybe re-implement it on our own?
     - Don't implement IntoVar for str? Encourage macro usage, validation at compile time.
 
-# Split `inner`
+# Border/Background Problem
 
 All the visual layers are in `inner`, this causes problems with order or `border` and `background`, the button `focus_highlight` changes
 size depending on when you set for example.
 
 Need to:
 
-* Review box model of other frameworks.
-* Rename `outer` to `layout` and split `inner` into `border`, `fill`.
+* Split `inner` into `border` and `fill`?
+    - CSS backgrounds extend under the border, the border can clip the background but the content is offset to be inside the border.
+        in our model both background and content would be inside the borders. 
+        - Could optionally reverse offset just for background?
+* Widget inner clip?
+    - Aggregated clip  that is applied on inner.
+* Widget rounded corners?
+    - ContextVar that defines the `corner_radius`of the outer-most border so that inner borders can calculate their
+        own to fit automatically (also integrates with clip)?
 
-## Our Model
+### Our Model
 
 0 - `context`
 1 - `event` 
@@ -48,6 +55,5 @@ clip from there.
 
 ## Reference
 
-CSS: https://www.w3schools.com/css/css_boxmodel.asp (has background-clip to sort-of place the border)
-Flutter: Like CSS?
-WPF: Size like ours, no border placement, border is outset, stroke is half-way inset.
+CSS: https://www.w3schools.com/css/css_boxmodel.asp (has background-clip)
+Illustrator *stroke* can be aligned Inner, Centered, Outer.
