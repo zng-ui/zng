@@ -1,5 +1,5 @@
-error: expected one of: `context`, `event`, `outer`, `size`, `inner`, `capture_only`
- --> $DIR/invalid_priority.rs:3:12
+error: expected one of: `context`, `event`, `layout`, `size`, `inner`, `capture_only`
+ --> cases/property/invalid_priority.rs:3:12
   |
 3 | #[property(invalid)]
   |            ^^^^^^^

@@ -1,6 +1,8 @@
 * Text shaping needs "Language" and "Script".
-    - After impl localization? will need to use the same tag type.
-    - Will probably use `fluent`, it uses `unic-langid`.
+    - Replace `unicode-script` with `unic-langid`.
+    - Enable macros for `unic-langid`, re-export it?
+        - Their macros panic for errors, maybe re-implement it on our own?
+    - Don't implement IntoVar for str? Encourage macro usage, validation at compile time.
 
 # Split `inner`
 
