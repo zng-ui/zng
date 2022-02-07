@@ -1,5 +1,6 @@
 * Text shaping needs "Language" and "Script".
     - After impl localization? will need to use the same tag type.
+    - Will probably use `fluent`, it uses `unic-langid`.
 
 # Split `inner`
 
