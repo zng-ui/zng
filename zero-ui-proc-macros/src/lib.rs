@@ -29,6 +29,8 @@ mod widget_new;
 
 mod any_all;
 
+mod lang;
+
 /// Expands an impl into a `UiNode` impl.
 ///
 /// # Full Documentation
@@ -141,4 +143,10 @@ pub fn trace(input: TokenStream) -> TokenStream {
 #[proc_macro]
 pub fn static_list(input: TokenStream) -> TokenStream {
     static_list::expand(input)
+}
+
+#[doc(hidden)]
+#[proc_macro]
+pub fn lang(input: TokenStream) -> TokenStream {
+    lang::expand(input)
 }

@@ -120,7 +120,7 @@ pub mod text {
                 let font_face = ctx
                     .services
                     .fonts()
-                    .get_list(family, style, weight, stretch, Script::Unknown)
+                    .get_list(family, style, weight, stretch, &lang!(und))
                     .best()
                     .clone();
                 self.synthesis_used = *FontSynthesisVar::get(ctx) & font_face.synthesis_for(style, weight);
@@ -168,7 +168,7 @@ pub mod text {
                     let face = ctx
                         .services
                         .fonts()
-                        .get_list(font_family, font_style, font_weight, font_stretch, Script::Unknown)
+                        .get_list(font_family, font_style, font_weight, font_stretch, &lang!(und))
                         .best()
                         .clone();
 

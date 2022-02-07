@@ -71,7 +71,7 @@ zero-ui-view-api = { path = "../zero-ui-view-api", default-features = false }
 
 # text
 font-kit = "0.10"
-unicode-script = "0.5"
+unic-langid = "0.9"
 unicase = "2"
 harfbuzz_rs = "2"
 xi-unicode = "0.3"

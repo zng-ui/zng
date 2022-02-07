@@ -1937,6 +1937,7 @@ impl AppEventSender {
         Arc::new(AppWaker(self.0.clone(), update_slot)).into()
     }
 }
+
 struct AppWaker(flume::Sender<AppEvent>, UpdateSlot);
 impl std::task::Wake for AppWaker {
     fn wake(self: std::sync::Arc<Self>) {

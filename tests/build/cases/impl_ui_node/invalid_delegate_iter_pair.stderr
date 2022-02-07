@@ -11,9 +11,9 @@ error: expected `, delegate_iter = <expr>`
    |                                                       ^^
 
 warning: unused import: `UiNode`
- --> cases/impl_ui_node/invalid_delegate_iter_pair.rs:1:35
+ --> cases/impl_ui_node/invalid_delegate_iter_pair.rs:1:55
   |
-1 | use zero_ui::core::{impl_ui_node, UiNode, ui_list::WidgetVec};
-  |                                   ^^^^^^
+1 | use zero_ui::core::{impl_ui_node, ui_list::WidgetVec, UiNode};
+  |                                                       ^^^^^^
   |
   = note: `#[warn(unused_imports)]` on by default

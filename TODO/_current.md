@@ -1,8 +1,6 @@
-* Text shaping needs "Language" and "Script".
-    - Replace `unicode-script` with `unic-langid`.
-    - Enable macros for `unic-langid`, re-export it?
-        - Their macros panic for errors, maybe re-implement it on our own?
-    - Don't implement IntoVar for str? Encourage macro usage, validation at compile time.
+* Add more tests for LangMap.
+* Implement `lang` property and use it in `TextNode`.
+* Refactor `font_size` using same style as `enabled`.
 
 # Border/Background Problem
 

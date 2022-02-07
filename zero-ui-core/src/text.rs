@@ -15,8 +15,189 @@ use std::{
     sync::Arc,
 };
 
-pub use unicode_script::{self, Script};
+/// Identifies the language, region and script of text.
+///
+/// Use the [`lang!`] macro to construct one, it does compile-time validation.
+///
+/// Use the [`unic_langid`] crate for more advanced operations such as runtime parsing and editing identifiers, this
+/// type is just an alias for the core struct of that crate.
+///
+/// [`unic_langid`]: https://docs.rs/unic-langid
+pub type Lang = unic_langid::LanguageIdentifier;
 
+/// Represents a map of [`Lang`] keys that can be partially matched.
+#[derive(Debug, Clone)]
+pub struct LangMap<V> {
+    inner: Vec<(Lang, V)>,
+}
+impl<V> Default for LangMap<V> {
+    fn default() -> Self {
+        Self { inner: Default::default() }
+    }
+}
+impl<V> LangMap<V> {
+    /// New empty default.
+    pub fn new() -> Self {
+        LangMap::default()
+    }
+
+    /// New empty with pre-allocated capacity.
+    pub fn with_capacity(capacity: usize) -> Self {
+        LangMap {
+            inner: Vec::with_capacity(capacity),
+        }
+    }
+
+    fn exact_i(&self, lang: &Lang) -> Option<usize> {
+        for (i, (key, _)) in self.inner.iter().enumerate() {
+            if key == lang {
+                return Some(i);
+            }
+        }
+        None
+    }
+
+    fn best_i(&self, lang: &Lang) -> Option<usize> {
+        let mut best = None;
+        let mut best_weight = u8::MAX;
+
+        for (i, (key, _)) in self.inner.iter().enumerate() {
+            if lang.matches(key, true, true) {
+                let mut weight = 0;
+                let mut all_eq = false;
+
+                if key.language == lang.language {
+                    weight = 128;
+                    all_eq = true;
+                }
+                if key.region == lang.region {
+                    weight += 40;
+                    all_eq = true;
+                }
+                if key.script == lang.script {
+                    weight += 20;
+                    all_eq = true;
+                }
+
+                if all_eq && lang.variants().zip(key.variants()).all(|(a, b)| a == b) {
+                    return Some(i);
+                }
+
+                if best_weight < weight {
+                    best_weight = weight;
+                    best = Some(i);
+                }
+            }
+        }
+
+        best
+    }
+
+    /// Returns the best match to `lang` currently in the map.
+    pub fn best_match(&self, lang: &Lang) -> Option<&Lang> {
+        if let Some(i) = self.best_i(lang) {
+            Some(&self.inner[i].0)
+        } else {
+            None
+        }
+    }
+
+    /// Returns the best match for `lang`.
+    pub fn get(&self, lang: &Lang) -> Option<&V> {
+        if let Some(i) = self.best_i(lang) {
+            Some(&self.inner[i].1)
+        } else {
+            None
+        }
+    }
+
+    /// Returns the exact match for `lang`.
+    pub fn get_exact(&self, lang: &Lang) -> Option<&V> {
+        if let Some(i) = self.exact_i(lang) {
+            Some(&self.inner[i].1)
+        } else {
+            None
+        }
+    }
+
+    /// Returns the best match for `lang`.
+    pub fn get_mut(&mut self, lang: &Lang) -> Option<&V> {
+        if let Some(i) = self.best_i(lang) {
+            Some(&self.inner[i].1)
+        } else {
+            None
+        }
+    }
+
+    /// Returns the exact match for `lang`.
+    pub fn get_exact_mut(&mut self, lang: &Lang) -> Option<&V> {
+        if let Some(i) = self.exact_i(lang) {
+            Some(&self.inner[i].1)
+        } else {
+            None
+        }
+    }
+
+    /// Insert the value with the exact match of `lang`.
+    ///
+    /// Returns the previous exact match.
+    pub fn insert(&mut self, lang: Lang, value: V) -> Option<V> {
+        if let Some(i) = self.exact_i(&lang) {
+            Some(mem::replace(&mut self.inner[i].1, value))
+        } else {
+            self.inner.push((lang, value));
+            None
+        }
+    }
+
+    /// Remove the exact match of `lang`.
+    pub fn remove(&mut self, lang: &Lang) -> Option<V> {
+        if let Some(i) = self.exact_i(lang) {
+            Some(self.inner.swap_remove(i).1)
+        } else {
+            None
+        }
+    }
+
+    /// Remove all exact and partial matches of `lang`.
+    ///
+    /// Returns a count of items removed.
+    pub fn remove_all(&mut self, lang: &Lang) -> usize {
+        let mut count = 0;
+        self.inner.retain(|(key, _)| {
+            let rmv = lang.matches(key, true, false);
+            if rmv {
+                count += 1
+            }
+            !rmv
+        });
+        count
+    }
+}
+
+/// <span data-inline></span> Compile-time validated [`Lang`] value.
+///
+/// The language is parsed during compile and any errors are emitted as compile time errors.
+///
+/// # Syntax
+///
+/// The input can be a single a single string literal with `-` separators, or a single ident with `_` as the separators.
+///
+/// # Examples
+///
+/// ```
+/// # use zero_ui_core::text::lang;
+/// let en_us = lang!(en_US);
+/// let en = lang!(en);
+///
+/// assert!(en.matches(&en_us, true, false));
+/// assert_eq!(en_us, lang!("en-US"));
+/// ```
+pub use zero_ui_proc_macros::lang;
+
+#[doc(hidden)]
+pub use unic_langid;
+#[doc(hidden)]
 pub mod font_features;
 pub use font_features::FontFeatures;
 
@@ -597,43 +778,66 @@ impl FontNames {
     }
 
     /// Returns the default UI fonts for Windows.
-    pub fn windows_ui(script: Script) -> Self {
+    pub fn windows_ui(lang: &Lang) -> Self {
         // source: VSCode
         // https://github.com/microsoft/vscode/blob/6825c886700ac11d07f7646d8d8119c9cdd9d288/src/vs/code/electron-sandbox/processExplorer/media/processExplorer.css
-        match script {
-            // TODO Chinese
 
-            // Japanese
-            Script::Han | Script::Hiragana | Script::Katakana => ["Segoe WP", "Segoe UI", "Yu Gothic UI", "Meiryo UI", "sans-serif"].into(),
-            // Korean
-            Script::Hangul => ["Segoe WPC", "Segoe UI", "Malgun Gothic", "Dotom", "sans-serif"].into(),
-            // Other
-            _ => ["Segoe WP", "Segoe UI", "sans-serif", "sans-serif"].into(),
+        if lang!("zh-Hans").matches(&lang, true, false) {
+            ["Segoe WPC", "Segoe UI", "Microsoft YaHei", "sans-serif"].into()
+        } else if lang!("zh-Hant").matches(&lang, true, false) {
+            ["Segoe WPC", "Segoe UI", "Microsoft Jhenghei", "sans-serif"].into()
+        } else if lang!(ja).matches(&lang, true, false) {
+            ["Segoe WP", "Segoe UI", "Yu Gothic UI", "Meiryo UI", "sans-serif"].into()
+        } else if lang!(ko).matches(&lang, true, false) {
+            ["Segoe WPC", "Segoe UI", "Malgun Gothic", "Dotom", "sans-serif"].into()
+        } else {
+            ["Segoe WP", "Segoe UI", "sans-serif", "sans-serif"].into()
         }
     }
 
     /// Returns the default UI fonts for MacOS/iOS.
-    pub fn mac_ui(script: Script) -> Self {
+    pub fn mac_ui(lang: &Lang) -> Self {
         // source: VSCode
-        match script {
-            // TODO Chinese
 
-            // Japanese
-            Script::Han | Script::Hiragana | Script::Katakana => ["-apple-system", "Hiragino Kaku Gothic Pro", "sans-serif"].into(),
-            // Korean
-            Script::Hangul => ["-apple-system", "Nanum Gothic", "Apple SD Gothic Neo", "AppleGothic", "sans-serif"].into(),
-            _ => ["-apple-system", "sans-serif"].into(),
+        if lang!("zh-Hans").matches(&lang, true, false) {
+            ["-apple-system", "PingFang SC", "Hiragino Sans GB", "sans-serif"].into()
+        } else if lang!("zh-Hant").matches(&lang, true, false) {
+            ["-apple-system", "PingFang TC", "sans-serif"].into()
+        } else if lang!(ja).matches(&lang, true, false) {
+            ["-apple-system", "Hiragino Kaku Gothic Pro", "sans-serif"].into()
+        } else if lang!(ko).matches(&lang, true, false) {
+            ["-apple-system", "Nanum Gothic", "Apple SD Gothic Neo", "AppleGothic", "sans-serif"].into()
+        } else {
+            ["-apple-system", "sans-serif"].into()
         }
     }
 
     /// Returns the default UI fonts for Linux.
-    pub fn linux_ui(script: Script) -> Self {
+    pub fn linux_ui(lang: &Lang) -> Self {
         // source: VSCode
-        match script {
-            // TODO Chinese
 
-            // Japanese
-            Script::Han | Script::Hiragana | Script::Katakana => [
+        if lang!("zh-Hans").matches(&lang, true, false) {
+            [
+                "Ubuntu",
+                "Droid Sans",
+                "Source Han Sans SC",
+                "Source Han Sans CN",
+                "Source Han Sans",
+                "sans-serif",
+            ]
+            .into()
+        } else if lang!("zh-Hant").matches(&lang, true, false) {
+            [
+                "Ubuntu",
+                "Droid Sans",
+                "Source Han Sans TC",
+                "Source Han Sans TW",
+                "Source Han Sans",
+                "sans-serif",
+            ]
+            .into()
+        } else if lang!(ja).matches(&lang, true, false) {
+            [
                 "system-ui",
                 "Ubuntu",
                 "Droid Sans",
@@ -642,9 +846,9 @@ impl FontNames {
                 "Source Han Sans",
                 "sans-serif",
             ]
-            .into(),
-            // Korean
-            Script::Hangul => [
+            .into()
+        } else if lang!(ko).matches(&lang, true, false) {
+            [
                 "system-ui",
                 "Ubuntu",
                 "Droid Sans",
@@ -655,19 +859,20 @@ impl FontNames {
                 "FBaekmuk Gulim",
                 "sans-serif",
             ]
-            .into(),
-            _ => ["system-ui", "Ubuntu", "Droid Sans", "sans-serif"].into(),
+            .into()
+        } else {
+            ["system-ui", "Ubuntu", "Droid Sans", "sans-serif"].into()
         }
     }
 
     /// Returns the default UI fonts for the current operating system.
-    pub fn system_ui(script: Script) -> Self {
+    pub fn system_ui(lang: &Lang) -> Self {
         if cfg!(windows) {
-            Self::windows_ui(script)
+            Self::windows_ui(lang)
         } else if cfg!(target_os = "linux") {
-            Self::linux_ui(script)
+            Self::linux_ui(lang)
         } else if cfg!(target_os = "mac") {
-            Self::mac_ui(script)
+            Self::mac_ui(lang)
         } else {
             [FontName::sans_serif()].into()
         }
@@ -680,7 +885,7 @@ impl FontNames {
 }
 impl Default for FontNames {
     fn default() -> Self {
-        Self::system_ui(Script::Unknown)
+        Self::system_ui(&Lang::default())
     }
 }
 impl fmt::Debug for FontNames {

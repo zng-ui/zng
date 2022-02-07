@@ -4,7 +4,7 @@ use std::{
 };
 
 use super::{
-    font_features::RFontFeatures, Font, FontList, FontMetrics, GlyphInstance, InternedStr, Script, SegmentedText, TextSegment,
+    font_features::RFontFeatures, lang, Font, FontList, FontMetrics, GlyphInstance, InternedStr, Lang, SegmentedText, TextSegment,
     TextSegmentKind,
 };
 use crate::units::*;
@@ -23,17 +23,14 @@ pub struct TextShapingArgs {
     /// Use [`line_height(..)`](function@Self::line_height) to compute the value.
     pub line_height: Option<Px>,
 
-    /// Unicode script of the text.
-    pub script: Script,
+    /// Language of the text, also identifies if RTL.
+    pub lang: Lang,
 
     /// Don't use font ligatures.
     pub ignore_ligatures: bool,
 
     /// Don't use font letter spacing.
     pub disable_kerning: bool,
-
-    /// Text is right-to-left.
-    pub right_to_left: bool,
 
     /// Width of the TAB character.
     ///
@@ -52,10 +49,9 @@ impl Default for TextShapingArgs {
             letter_spacing: 0.0,
             word_spacing: 0.0,
             line_height: None,
-            script: Script::Unknown,
+            lang: lang!(und),
             ignore_ligatures: false,
             disable_kerning: false,
-            right_to_left: false,
             tab_size: TextShapingUnit::Relative(3.0),
             text_indent: 0.0,
             font_features: RFontFeatures::default(),
@@ -158,8 +154,7 @@ struct WordCacheKeyRef<'a, S> {
 
 #[derive(Hash, PartialEq, Eq, Clone)]
 pub(super) struct WordContextKey {
-    right_to_left: bool,
-    script: Script,
+    lang: Lang,
     font_features: Option<Box<[usize]>>,
 }
 impl WordContextKey {
@@ -188,8 +183,7 @@ impl WordContextKey {
         }
 
         WordContextKey {
-            right_to_left: config.right_to_left,
-            script: config.script,
+            lang: config.lang.clone(),
             font_features,
         }
     }
@@ -208,24 +202,29 @@ struct ShapedGlyph {
 }
 
 impl Font {
-    fn buffer_segment(&self, segment: &str, right_to_left: bool, script: Script) -> harfbuzz_rs::UnicodeBuffer {
-        let buffer = harfbuzz_rs::UnicodeBuffer::new().set_direction(if right_to_left {
-            harfbuzz_rs::Direction::Rtl
-        } else {
-            harfbuzz_rs::Direction::Ltr
-        });
-        if script != Script::Unknown {
-            buffer.set_script(to_buzz_script(script)).add_str(segment)
-        } else {
-            buffer.add_str(segment).guess_segment_properties()
+    fn buffer_segment(&self, segment: &str, lang: &Lang) -> harfbuzz_rs::UnicodeBuffer {
+        let mut buffer =
+            harfbuzz_rs::UnicodeBuffer::new().set_direction(if lang.character_direction() == unic_langid::CharacterDirection::RTL {
+                harfbuzz_rs::Direction::Rtl
+            } else {
+                harfbuzz_rs::Direction::Ltr
+            });
+
+        if let Some(lang) = to_buzz_lang(lang.language) {
+            buffer = buffer.set_language(lang);
         }
+        if let Some(script) = lang.script {
+            buffer = buffer.set_script(to_buzz_script(script)).add_str(segment)
+        }
+
+        buffer
     }
 
-    fn shape_segment_no_cache(&self, seg: &str, right_to_left: bool, script: Script, features: &[harfbuzz_rs::Feature]) -> ShapedSegment {
+    fn shape_segment_no_cache(&self, seg: &str, lang: &Lang, features: &[harfbuzz_rs::Feature]) -> ShapedSegment {
         let size_scale = self.metrics().size_scale;
         let to_layout = |p: i32| p as f32 * size_scale;
 
-        let buffer = self.buffer_segment(seg, right_to_left, script);
+        let buffer = self.buffer_segment(seg, lang);
         let buffer = harfbuzz_rs::shape(self.harfbuzz_font(), buffer, features);
 
         let mut w_x_advance = 0.0;
@@ -263,13 +262,12 @@ impl Font {
         &self,
         seg: &str,
         word_ctx_key: &WordContextKey,
-        right_to_left: bool,
-        script: Script,
+        lang: &Lang,
         features: &[harfbuzz_rs::Feature],
         out: impl FnOnce(&ShapedSegment),
     ) {
         if !(1..=WORD_CACHE_MAX_LEN).contains(&seg.len()) {
-            let seg = self.shape_segment_no_cache(seg, right_to_left, script, features);
+            let seg = self.shape_segment_no_cache(seg, lang, features);
             out(&seg);
         } else if let Some(small) = Self::to_small_word(seg) {
             let mut cache = self.small_word_cache.borrow_mut();
@@ -294,7 +292,7 @@ impl Font {
                         string: small,
                         ctx_key: word_ctx_key.clone(),
                     };
-                    let value = self.shape_segment_no_cache(seg, right_to_left, script, features);
+                    let value = self.shape_segment_no_cache(seg, lang, features);
                     (key, value)
                 })
                 .1;
@@ -323,7 +321,7 @@ impl Font {
                         string: InternedStr::get_or_insert(seg),
                         ctx_key: word_ctx_key.clone(),
                     };
-                    let value = self.shape_segment_no_cache(seg, right_to_left, script, features);
+                    let value = self.shape_segment_no_cache(seg, lang, features);
                     (key, value)
                 })
                 .1;
@@ -349,61 +347,40 @@ impl Font {
         for (seg, kind) in text.iter() {
             match kind {
                 TextSegmentKind::Word => {
-                    self.shape_segment(
-                        seg,
-                        &word_ctx_key,
-                        config.right_to_left,
-                        config.script,
-                        &config.font_features,
-                        |shaped_seg| {
-                            out.glyphs.extend(shaped_seg.glyphs.iter().map(|gi| {
-                                let r = GlyphInstance {
-                                    index: gi.index,
-                                    point: euclid::point2(gi.point.0 + origin.x, gi.point.1 + origin.y),
-                                };
-                                origin.x += config.letter_spacing;
-                                r
-                            }));
-                            origin.x += shaped_seg.x_advance;
-                            origin.y += shaped_seg.y_advance;
-                        },
-                    );
+                    self.shape_segment(seg, &word_ctx_key, &config.lang, &config.font_features, |shaped_seg| {
+                        out.glyphs.extend(shaped_seg.glyphs.iter().map(|gi| {
+                            let r = GlyphInstance {
+                                index: gi.index,
+                                point: euclid::point2(gi.point.0 + origin.x, gi.point.1 + origin.y),
+                            };
+                            origin.x += config.letter_spacing;
+                            r
+                        }));
+                        origin.x += shaped_seg.x_advance;
+                        origin.y += shaped_seg.y_advance;
+                    });
                 }
                 TextSegmentKind::Space => {
-                    self.shape_segment(
-                        seg,
-                        &word_ctx_key,
-                        config.right_to_left,
-                        config.script,
-                        &config.font_features,
-                        |shaped_seg| {
-                            out.glyphs.extend(shaped_seg.glyphs.iter().map(|gi| {
-                                let r = GlyphInstance {
-                                    index: gi.index,
-                                    point: euclid::point2(gi.point.0 + origin.x, gi.point.1 + origin.y),
-                                };
-                                origin.x += config.word_spacing;
-                                r
-                            }));
-                            origin.x += shaped_seg.x_advance;
-                            origin.y += shaped_seg.y_advance;
-                        },
-                    );
+                    self.shape_segment(seg, &word_ctx_key, &config.lang, &config.font_features, |shaped_seg| {
+                        out.glyphs.extend(shaped_seg.glyphs.iter().map(|gi| {
+                            let r = GlyphInstance {
+                                index: gi.index,
+                                point: euclid::point2(gi.point.0 + origin.x, gi.point.1 + origin.y),
+                            };
+                            origin.x += config.word_spacing;
+                            r
+                        }));
+                        origin.x += shaped_seg.x_advance;
+                        origin.y += shaped_seg.y_advance;
+                    });
                 }
                 TextSegmentKind::Tab => {
-                    self.shape_segment(
-                        " ",
-                        &word_ctx_key,
-                        config.right_to_left,
-                        config.script,
-                        &config.font_features,
-                        |s| {
-                            let space = s.glyphs[0];
-                            let point = euclid::point2(origin.x, origin.y);
-                            origin.x += config.tab_size(s.x_advance);
-                            out.glyphs.push(GlyphInstance { index: space.index, point });
-                        },
-                    );
+                    self.shape_segment(" ", &word_ctx_key, &config.lang, &config.font_features, |s| {
+                        let space = s.glyphs[0];
+                        let point = euclid::point2(origin.x, origin.y);
+                        origin.x += config.tab_size(s.x_advance);
+                        out.glyphs.push(GlyphInstance { index: space.index, point });
+                    });
                 }
                 TextSegmentKind::LineBreak => {
                     max_line_x = origin.x.max(max_line_x);
@@ -441,7 +418,15 @@ impl FontList {
     }
 }
 
-fn to_buzz_script(script: Script) -> harfbuzz_rs::Tag {
-    let t: Vec<_> = script.short_name().bytes().collect();
+fn to_buzz_lang(lang: unic_langid::subtags::Language) -> Option<harfbuzz_rs::Language> {
+    lang.as_str().parse().ok()
+}
+
+fn to_buzz_script(script: unic_langid::subtags::Script) -> harfbuzz_rs::Tag {
+    let t: u32 = script.into();
+    let t = t.to_le_bytes(); // Script is a TinyStr4 that uses LE
     harfbuzz_rs::Tag::from(&[t[0], t[1], t[2], t[3]])
 }
+
+#[cfg(test)]
+mod tests {}

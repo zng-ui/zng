@@ -10,8 +10,8 @@ use std::{
 use font_kit::properties::Weight;
 
 use super::{
-    font_features::RFontVariations, FontFaceMetrics, FontMetrics, FontName, FontStretch, FontStyle, FontSynthesis, FontWeight, InternedStr,
-    Script, ShapedSegment, WordCacheKey,
+    font_features::RFontVariations, lang, FontFaceMetrics, FontMetrics, FontName, FontStretch, FontStyle, FontSynthesis, FontWeight,
+    InternedStr, Lang, LangMap, ShapedSegment, WordCacheKey,
 };
 use crate::{
     app::{
@@ -72,13 +72,13 @@ pub enum FontChange {
     /// Custom request caused by call to [`Fonts::refresh`].
     Refesh,
 
-    /// One of the [`GenericFonts`] was set for the script.
+    /// One of the [`GenericFonts`] was set for the language.
     ///
     /// The font name is one of [`FontName`] generic names.
-    GenericFont(FontName, Script),
+    GenericFont(FontName, Lang),
 
-    /// A new [fallback](GenericFonts::fallback) font was set for the script.
-    Fallback(Script),
+    /// A new [fallback](GenericFonts::fallback) font was set for the language.
+    Fallback(Lang),
 }
 
 /// Application extension that manages text fonts.
@@ -234,9 +234,9 @@ impl Fonts {
         style: FontStyle,
         weight: FontWeight,
         stretch: FontStretch,
-        script: Script,
+        lang: &Lang,
     ) -> FontFaceList {
-        self.loader.get_list(families, style, weight, stretch, script, &self.generics)
+        self.loader.get_list(families, style, weight, stretch, lang, &self.generics)
     }
 
     /// Gets a single font face that best matches the query.
@@ -247,27 +247,27 @@ impl Fonts {
         style: FontStyle,
         weight: FontWeight,
         stretch: FontStretch,
-        script: Script,
+        lang: &Lang,
     ) -> Option<FontFaceRef> {
-        self.loader.get(family, style, weight, stretch, script, &self.generics)
+        self.loader.get(family, style, weight, stretch, lang, &self.generics)
     }
 
     /// Gets a single font face with all normal properties.
     #[inline]
-    pub fn get_normal(&mut self, family: &FontName, script: Script) -> Option<FontFaceRef> {
-        self.get(family, FontStyle::Normal, FontWeight::NORMAL, FontStretch::NORMAL, script)
+    pub fn get_normal(&mut self, family: &FontName, lang: &Lang) -> Option<FontFaceRef> {
+        self.get(family, FontStyle::Normal, FontWeight::NORMAL, FontStretch::NORMAL, lang)
     }
 
     /// Gets a single font face with italic italic style and normal weight and stretch.
     #[inline]
-    pub fn get_italic(&mut self, family: &FontName, script: Script) -> Option<FontFaceRef> {
-        self.get(family, FontStyle::Italic, FontWeight::NORMAL, FontStretch::NORMAL, script)
+    pub fn get_italic(&mut self, family: &FontName, lang: &Lang) -> Option<FontFaceRef> {
+        self.get(family, FontStyle::Italic, FontWeight::NORMAL, FontStretch::NORMAL, lang)
     }
 
     /// Gets a single font face with bold weight and normal style and stretch.
     #[inline]
-    pub fn get_bold(&mut self, family: &FontName, script: Script) -> Option<FontFaceRef> {
-        self.get(family, FontStyle::Normal, FontWeight::BOLD, FontStretch::NORMAL, script)
+    pub fn get_bold(&mut self, family: &FontName, lang: &Lang) -> Option<FontFaceRef> {
+        self.get(family, FontStyle::Normal, FontWeight::BOLD, FontStretch::NORMAL, lang)
     }
 
     /// Gets all [registered](Self::register) font families.
@@ -1082,19 +1082,19 @@ impl FontFaceLoader {
         style: FontStyle,
         weight: FontWeight,
         stretch: FontStretch,
-        script: Script,
+        lang: &Lang,
         generics: &GenericFonts,
     ) -> FontFaceList {
         let mut r = Vec::with_capacity(families.len() + 1);
         r.extend(
             families
                 .iter()
-                .filter_map(|name| self.get(name, style, weight, stretch, script, generics)),
+                .filter_map(|name| self.get(name, style, weight, stretch, lang, generics)),
         );
-        let (fallback, fscript) = generics.fallback(script);
+        let fallback = generics.fallback(lang);
 
         if !families.contains(fallback) {
-            if let Some(fallback) = self.get(fallback, style, weight, stretch, fscript, generics) {
+            if let Some(fallback) = self.get(fallback, style, weight, stretch, lang, generics) {
                 r.push(fallback);
             }
         }
@@ -1117,10 +1117,10 @@ impl FontFaceLoader {
         style: FontStyle,
         weight: FontWeight,
         stretch: FontStretch,
-        script: Script,
+        lang: &Lang,
         generics: &GenericFonts,
     ) -> Option<FontFaceRef> {
-        let (font_name, _) = generics.resolve(font_name, script).unwrap_or((font_name, script));
+        let font_name = generics.resolve(font_name, lang).unwrap_or(font_name);
         self.get_resolved(font_name, style, weight, stretch)
     }
 
@@ -1355,9 +1355,6 @@ impl Drop for RenderFont {
     }
 }
 
-//type ScriptMap<V> = fnv::FnvHashMap<Script, V>;
-type ScriptMap<V> = linear_map::LinearMap<Script, V>;
-
 /// Generic fonts configuration for the app.
 ///
 /// This type can be accessed from the [`Fonts`] service.
@@ -1373,21 +1370,21 @@ type ScriptMap<V> = linear_map::LinearMap<Script, V>;
 ///
 /// [`FontNames::system_ui`]: crate::text::FontNames::system_ui
 pub struct GenericFonts {
-    serif: ScriptMap<FontName>,
-    sans_serif: ScriptMap<FontName>,
-    monospace: ScriptMap<FontName>,
-    cursive: ScriptMap<FontName>,
-    fantasy: ScriptMap<FontName>,
-    fallback: ScriptMap<FontName>,
+    serif: LangMap<FontName>,
+    sans_serif: LangMap<FontName>,
+    monospace: LangMap<FontName>,
+    cursive: LangMap<FontName>,
+    fantasy: LangMap<FontName>,
+    fallback: LangMap<FontName>,
     update_sender: AppEventSender,
     updates: Vec<FontChangedArgs>,
 }
 impl GenericFonts {
     #[allow(unused_mut)]
     fn new(update_sender: AppEventSender) -> Self {
-        fn default(name: impl Into<FontName>) -> ScriptMap<FontName> {
-            let mut f = ScriptMap::with_capacity(1);
-            f.insert(Script::Unknown, name.into());
+        fn default(name: impl Into<FontName>) -> LangMap<FontName> {
+            let mut f = LangMap::with_capacity(1);
+            f.insert(lang!(und), name.into());
             f
         }
 
@@ -1413,77 +1410,67 @@ impl GenericFonts {
     }
 }
 macro_rules! impl_fallback_accessors {
-    ($($name:ident),+ $(,)?) => {$($crate::paste! {
-    #[doc = "Gets the fallback *"$name "* font for the given script."]
+    ($($name:ident=$name_str:tt),+ $(,)?) => {$($crate::paste! {
+    #[doc = "Gets the fallback *"$name_str "* font for the given language."]
     ///
-    /// Returns a font name and the [`Script`] it was registered with. The script
-    /// can be the same as requested or [`Script::Unknown`].
+    /// Returns a font name for the best `lang` match.
     ///
-    #[doc = "Note that the returned name can still be the generic `\""$name "\"`, this delegates the resolution to the operating system."]
+    #[doc = "Note that the returned name can still be the generic `\""$name_str "\"`, this delegates the resolution to the operating system."]
     #[inline]
-    pub fn $name(&self, script: Script) -> (&FontName, Script) {
-        Self::get_fallback(&self.$name, script)
+    pub fn $name(&self, lang: &Lang) -> &FontName {
+        self.$name.get(lang).unwrap()
     }
 
-    #[doc = "Sets the fallback *"$name "* font for the given script."]
+    #[doc = "Sets the fallback *"$name_str "* font for the given language."]
     ///
-    /// Returns the previous registered font for the script.
+    /// Returns the previous registered font for the language.
     ///
-    /// Set [`Script::Unknown`] for all scripts that don't have a specific font association.
-    pub fn [<set_ $name>]<F: Into<FontName>>(&mut self, script: Script, font_name: F) -> Option<FontName> {
-        self.notify(FontChange::GenericFont(FontName::$name(), script));
-        self.$name.insert(script, font_name.into())
+    /// Use `lang!(und)` to set name used when no language matches.
+    pub fn [<set_ $name>]<F: Into<FontName>>(&mut self, lang: Lang, font_name: F) -> Option<FontName> {
+        self.notify(FontChange::GenericFont(FontName::$name(), lang.clone()));
+        self.$name.insert(lang, font_name.into())
     }
     })+};
 }
 impl GenericFonts {
-    fn get_fallback(map: &ScriptMap<FontName>, script: Script) -> (&FontName, Script) {
-        map.get(&script)
-            .map(|f| (f, script))
-            .unwrap_or_else(|| (&map[&Script::Unknown], Script::Unknown))
-    }
-
     impl_fallback_accessors! {
-        serif, sans_serif, monospace, cursive, fantasy
+        serif="serif", sans_serif="sans-serif", monospace="monospace", cursive="cursive", fantasy="fantasy"
     }
 
     /// Gets the ultimate fallback font used when none of the other fonts support a glyph.
     ///
-    /// Returns a font name and the [`Script`] it was registered with. The script
-    /// can be the same as requested or [`Script::Unknown`].
+    /// Returns a font name.
     #[inline]
-    pub fn fallback(&self, script: Script) -> (&FontName, Script) {
-        Self::get_fallback(&self.fallback, script)
+    pub fn fallback(&self, lang: &Lang) -> &FontName {
+        self.fallback.get(lang).unwrap()
     }
 
     /// Sets the ultimate fallback font used when none of other fonts support a glyph.
     ///
     /// This should be a font that cover as many glyphs as possible.
     ///
-    /// Returns the previous registered font for the script.
+    /// Returns the previous registered font for the language.
     ///
-    /// Set [`Script::Unknown`] for all scripts that don't have a specific font association.
-    pub fn set_fallback<F: Into<FontName>>(&mut self, script: Script, font_name: F) -> Option<FontName> {
-        self.notify(FontChange::Fallback(script));
-        self.fallback.insert(script, font_name.into())
+    /// Use `lang!(und)` to set name used when no language matches.
+    pub fn set_fallback<F: Into<FontName>>(&mut self, lang: Lang, font_name: F) -> Option<FontName> {
+        self.notify(FontChange::Fallback(lang.clone()));
+        self.fallback.insert(lang, font_name.into())
     }
 
-    /// Returns the font name registered for the generic `name`.
-    ///
-    /// The returned [`Script`] is either `script` if it matched exactly or [`Script::Unknown`].
+    /// Returns the font name registered for the generic `name` and `lang`.
     ///
     /// Returns `None` if `name` if not one of the generic font names.
-    pub fn resolve(&self, name: &FontName, script: Script) -> Option<(&FontName, Script)> {
+    pub fn resolve(&self, name: &FontName, lang: &Lang) -> Option<&FontName> {
         if name == &FontName::serif() {
-            Some(self.serif(script))
+            Some(self.serif(lang))
         } else if name == &FontName::sans_serif() {
-            Some(self.sans_serif(script))
+            Some(self.sans_serif(lang))
         } else if name == &FontName::monospace() {
-            Some(self.monospace(script))
+            Some(self.monospace(lang))
         } else if name == &FontName::cursive() {
-            Some(self.cursive(script))
+            Some(self.cursive(lang))
         } else if name == &FontName::fantasy() {
-            Some(self.fantasy(script))
+            Some(self.fantasy(lang))
         } else {
             None
         }
@@ -1635,5 +1622,29 @@ impl From<FontName> for font_kit::family_name::FamilyName {
             "fantasy" => Fantasy,
             _ => Title(font_name.text.into()),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::app::App;
+
+    use super::*;
+
+    #[test]
+    fn generic_fonts_default() {
+        let mut app = App::blank().run_headless(false);
+        let gen = GenericFonts::new(app.ctx().updates.sender());
+
+        assert_eq!(&FontName::sans_serif(), gen.sans_serif(&lang!(und)))
+    }
+
+    #[test]
+    fn generic_fonts_fallback() {
+        let mut app = App::blank().run_headless(false);
+        let gen = GenericFonts::new(app.ctx().updates.sender());
+
+        assert_eq!(&FontName::sans_serif(), gen.sans_serif(&lang!(en_US)));
+        assert_eq!(&FontName::sans_serif(), gen.sans_serif(&lang!(es)));
     }
 }

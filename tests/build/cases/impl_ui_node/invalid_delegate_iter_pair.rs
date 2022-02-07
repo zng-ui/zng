@@ -1,4 +1,4 @@
-use zero_ui::core::{impl_ui_node, UiNode, ui_list::WidgetVec};
+use zero_ui::core::{impl_ui_node, ui_list::WidgetVec, UiNode};
 
 struct Node1 {
     inner: WidgetVec,

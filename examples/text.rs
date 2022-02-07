@@ -1,5 +1,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
-use zero_ui::core::text::{FontsExt, Script};
+use zero_ui::core::text::FontsExt;
 use zero_ui::prelude::*;
 
 use zero_ui_view_prebuilt as zero_ui_view;
@@ -124,7 +124,7 @@ fn defaults(ctx: &mut WindowContext) -> impl Widget {
             FontStyle::Normal,
             FontWeight::NORMAL,
             FontStretch::NORMAL,
-            Script::Unknown,
+            &lang!(und),
         );
 
         h_stack(widgets![
