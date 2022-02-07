@@ -143,8 +143,8 @@ pub enum PropertyPriority {
     Context,
     /// [Event](crate::property#event) property.
     Event,
-    /// [Outer](crate::property#outer) property.
-    Outer,
+    /// [Layout](crate::property#layout) property.
+    Layout,
     /// [Size](crate::property#size) property.
     Size,
     /// [Inner](crate::property#inner) property.
@@ -158,7 +158,7 @@ impl PropertyPriority {
         match self {
             PropertyPriority::Context => "context",
             PropertyPriority::Event => "event",
-            PropertyPriority::Outer => "outer",
+            PropertyPriority::Layout => "layout",
             PropertyPriority::Size => "size",
             PropertyPriority::Inner => "inner",
             PropertyPriority::CaptureOnly => "capture_only",
@@ -226,8 +226,8 @@ pub enum WidgetNewFn {
     NewChildInner,
     /// `new_child_size`
     NewChildSize,
-    /// `new_child_outer`
-    NewChildOuter,
+    /// `new_child_layout`
+    NewChildLayout,
     /// `new_child_event`
     NewChildEvent,
     /// `new_child_context`
@@ -237,8 +237,8 @@ pub enum WidgetNewFn {
     NewInner,
     /// `new_size`
     NewSize,
-    /// `new_outer`
-    NewOuter,
+    /// `new_layout`
+    NewLayout,
     /// `new_event`
     NewEvent,
     /// `new_context`
@@ -254,12 +254,12 @@ impl WidgetNewFn {
             Self::NewChild,
             Self::NewChildInner,
             Self::NewChildSize,
-            Self::NewChildOuter,
+            Self::NewChildLayout,
             Self::NewChildEvent,
             Self::NewChildContext,
             Self::NewInner,
             Self::NewSize,
-            Self::NewOuter,
+            Self::NewLayout,
             Self::NewEvent,
             Self::NewContext,
             Self::New,
@@ -272,12 +272,12 @@ impl fmt::Display for WidgetNewFn {
             Self::NewChild => write!(f, "new_child"),
             Self::NewChildInner => write!(f, "new_child_inner"),
             Self::NewChildSize => write!(f, "new_child_size"),
-            Self::NewChildOuter => write!(f, "new_child_outer"),
+            Self::NewChildLayout => write!(f, "new_child_layout"),
             Self::NewChildEvent => write!(f, "new_child_event"),
             Self::NewChildContext => write!(f, "new_child_context"),
             Self::NewInner => write!(f, "new_inner"),
             Self::NewSize => write!(f, "new_size"),
-            Self::NewOuter => write!(f, "new_outer"),
+            Self::NewLayout => write!(f, "new_layout"),
             Self::NewEvent => write!(f, "new_event"),
             Self::NewContext => write!(f, "new_context"),
             Self::New => write!(f, "new"),

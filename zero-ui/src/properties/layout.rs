@@ -40,7 +40,7 @@ use zero_ui::prelude::new_property::*;
 /// See also [`side_offsets`] to apply side offsets inside the inner visual.
 ///
 /// [`side_offsets`]: fn@side_offsets
-#[property(outer, default(0))]
+#[property(layout, default(0))]
 pub fn margin(child: impl UiNode, margin: impl IntoVar<SideOffsets>) -> impl UiNode {
     struct MarginNode<T, M> {
         child: T,
@@ -177,7 +177,7 @@ pub fn side_offsets(child: impl UiNode, offsets: impl IntoVar<SideOffsets>) -> i
 ///
 /// In the example the button is positioned at the top-center of the container. See [`Alignment`] for
 /// more details.
-#[property(outer, default(Alignment::FILL))]
+#[property(layout, default(Alignment::FILL))]
 pub fn align(child: impl UiNode, alignment: impl IntoVar<Alignment>) -> impl UiNode {
     struct AlignNode<T, A> {
         child: T,
@@ -247,7 +247,7 @@ pub fn align(child: impl UiNode, alignment: impl IntoVar<Alignment>) -> impl UiN
 /// # `x` and `y`
 ///
 /// You can use the [`x`](fn@x) and [`y`](fn@y) properties to only set the position in one dimension.
-#[property(outer, default((0, 0)))]
+#[property(layout, default((0, 0)))]
 pub fn position(child: impl UiNode, position: impl IntoVar<Point>) -> impl UiNode {
     struct PositionNode<T: UiNode, P: Var<Point>> {
         child: T,
@@ -310,7 +310,7 @@ pub fn position(child: impl UiNode, position: impl IntoVar<Point>) -> impl UiNod
 /// # `position`
 ///
 /// You can set both `x` and `y` at the same time using the [`position`](fn@position) property.
-#[property(outer, default(0))]
+#[property(layout, default(0))]
 pub fn x(child: impl UiNode, x: impl IntoVar<Length>) -> impl UiNode {
     struct XNode<T: UiNode, X: Var<Length>> {
         child: T,
@@ -369,7 +369,7 @@ pub fn x(child: impl UiNode, x: impl IntoVar<Length>) -> impl UiNode {
 /// # `position`
 ///
 /// You can set both `x` and `y` at the same time using the [`position`](fn@position) property.
-#[property(outer, default(0))]
+#[property(layout, default(0))]
 pub fn y(child: impl UiNode, y: impl IntoVar<Length>) -> impl UiNode {
     struct YNode<T: UiNode, Y: Var<Length>> {
         child: T,

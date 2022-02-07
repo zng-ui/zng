@@ -1170,7 +1170,7 @@ pub mod scrollbar {
         thumb
     }
 
-    fn new_outer(child: impl UiNode, orientation: impl IntoVar<Orientation>) -> impl UiNode {
+    fn new_layout(child: impl UiNode, orientation: impl IntoVar<Orientation>) -> impl UiNode {
         let orientation = orientation.into_var();
         align(
             child,
@@ -1260,7 +1260,7 @@ pub mod thumb {
         )
     }
 
-    fn new_outer(child: impl UiNode) -> impl UiNode {
+    fn new_layout(child: impl UiNode) -> impl UiNode {
         struct DragNode<C> {
             child: C,
             start: Option<DipPoint>,

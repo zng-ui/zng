@@ -72,7 +72,7 @@ pub mod implicit_base {
     }
 
     /// No-op, returns `child`.
-    pub fn new_child_outer(child: impl UiNode) -> impl UiNode {
+    pub fn new_child_layout(child: impl UiNode) -> impl UiNode {
         child
     }
 
@@ -121,7 +121,7 @@ pub mod implicit_base {
     }
 
     /// No-op, returns `child`.
-    pub fn new_outer(child: impl UiNode) -> impl UiNode {
+    pub fn new_layout(child: impl UiNode) -> impl UiNode {
         child
     }
 

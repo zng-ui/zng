@@ -82,7 +82,7 @@ mod all_priorities {
         child
     }
 
-    #[property(outer)]
+    #[property(layout)]
     pub fn outer_property(child: impl UiNode, input: impl IntoVar<bool>) -> impl UiNode {
         let _ = input;
         child

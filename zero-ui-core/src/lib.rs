@@ -352,16 +352,20 @@ pub use zero_ui_proc_macros::impl_ui_node;
 /// Event properties are the next priority, they are set after all others except `context`, this way events can be configured by the
 /// widget context properties but also have access to the widget visual they contain.
 ///
-/// It is strongly encouraged that the event handler signature matches the one from [`on_event`].
+/// It is strongly encouraged that the event handler signature matches the one from [`on_event`]. Only event handler and state properties
+///  are also allowed in this priority, if the prefix is not `on_` or `is_` a compile error is generated.
 ///
-/// ## `outer`
+/// ## `layout`
 ///
-/// Properties that shape the visual outside of the widget, a `margin` property is an example.
+/// Properties that configure the widget position and transform, these properties **do not** render directly, they use the [`WidgetLayout`]
+/// during arrange to contribute to the widget's position and transform, the widget transform will only be rendered in an inner priority as
+/// a single "reference frame". Some layout properties can also affect the measure desired size, like a `margin` property, others will simply
+/// affect the rendered transform, like a `position` or `rotate` property.
 ///
 /// ## `size`
 ///
 /// Properties that set the widget visual size. Most widgets are sized automatically by their content, if the size is configured
-/// by a user value the property has this priority.
+/// by a user value the property has this priority and the configured size is the desired size during arrange.
 ///
 /// ## `inner`
 ///
@@ -390,6 +394,7 @@ pub use zero_ui_proc_macros::impl_ui_node;
 /// [`set_widget_state`]: crate::properties::set_widget_state
 /// [`on_event`]: crate::event::on_event
 /// [`impl IntoVar<T>`]: crate::var::IntoVar
+/// [`WidgetLayout`]: crate::widget_info::WidgetLayout
 ///
 /// <div style='display:none'>
 #[doc(inline)]
@@ -431,7 +436,7 @@ pub use zero_ui_proc_macros::property;
 /// # use zero_ui_core::{*, var::*};
 /// # pub mod zero_ui{ pub mod properties {
 /// #   use zero_ui_core::{*, var::*};
-/// #   #[property(outer)]
+/// #   #[property(layout)]
 /// #   pub fn margin(child: impl UiNode, m: impl IntoVar<u32>) -> impl UiNode { child }
 /// # } }
 /// #[widget($crate::foo)]
@@ -473,7 +478,7 @@ pub use zero_ui_proc_macros::property;
 /// # use zero_ui_core::widget;
 /// # pub mod zero_ui { pub mod properties {
 /// #   use zero_ui_core::{*, var::*};
-/// #   #[property(outer)]
+/// #   #[property(layout)]
 /// #   pub fn margin(child: impl UiNode, m: impl IntoVar<u32>) -> impl UiNode { child }
 /// # } }
 /// # #[widget($crate::foo)]
@@ -493,7 +498,7 @@ pub use zero_ui_proc_macros::property;
 /// # use zero_ui_core::widget;
 /// # pub mod zero_ui { pub mod properties {
 /// #   use zero_ui_core::{*, var::*};
-/// #   #[property(outer)]
+/// #   #[property(layout)]
 /// #   pub fn margin(child: impl UiNode, m: impl IntoVar<u32>) -> impl UiNode { child }
 /// # } }
 /// # #[widget($crate::foo)]
@@ -516,7 +521,7 @@ pub use zero_ui_proc_macros::property;
 /// ```
 /// # fn main() { }
 /// # use zero_ui_core::{*, var::*};
-/// # #[property(outer)]
+/// # #[property(layout)]
 /// # pub fn foo(child: impl UiNode, m: impl IntoVar<u32>) -> impl UiNode { child }
 /// # #[widget($crate::bar)]
 /// # pub mod bar {
@@ -538,7 +543,7 @@ pub use zero_ui_proc_macros::property;
 /// ```
 /// # fn main() { }
 /// # use zero_ui_core::{*, var::*};
-/// # #[property(outer)]
+/// # #[property(layout)]
 /// # pub fn bar(child: impl UiNode, m: impl IntoVar<u32>) -> impl UiNode { child }
 /// # #[widget($crate::foo)]
 /// # pub mod foo {
@@ -558,7 +563,7 @@ pub use zero_ui_proc_macros::property;
 /// ```
 /// # fn main() { }
 /// # use zero_ui_core::{*, var::*};
-/// # #[property(outer)]
+/// # #[property(layout)]
 /// # pub fn bar(child: impl UiNode, m: impl IntoVar<u32>) -> impl UiNode { child }
 /// # #[widget($crate::foo)]
 /// # pub mod foo {
@@ -581,7 +586,7 @@ pub use zero_ui_proc_macros::property;
 /// ```
 /// # fn main() { }
 /// # use zero_ui_core::{*, var::*, units::Alignment};
-/// # #[property(outer)]
+/// # #[property(layout)]
 /// # pub fn content_align(child: impl UiNode, align: impl IntoVar<Alignment>) -> impl UiNode {
 /// #   child
 /// # }
@@ -664,7 +669,7 @@ pub use zero_ui_proc_macros::property;
 /// ```
 /// # fn main() { }
 /// # use zero_ui_core::{*, var::*};
-/// # #[property(outer)]
+/// # #[property(layout)]
 /// # pub fn margin(child: impl UiNode, m: impl IntoVar<u32>) -> impl UiNode { child }
 /// # #[widget($crate::foo)]
 /// # pub mod foo {
@@ -871,7 +876,7 @@ pub use zero_ui_proc_macros::property;
 /// ```
 /// # fn main() { }
 /// # use zero_ui_core::{*, var::*, units::SideOffsets};
-/// # #[property(outer)]
+/// # #[property(layout)]
 /// # pub fn margin(child: impl UiNode, m: impl IntoVar<SideOffsets>) -> impl UiNode { child }
 /// # pub mod zero_ui { pub mod core {
 /// #    pub use zero_ui_core::{NilUiNode, units, var}; }

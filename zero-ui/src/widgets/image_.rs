@@ -358,7 +358,7 @@ pub mod image {
         }
 
         /// If the [`ContextImageVar`] is an error.
-        #[property(outer)]
+        #[property(layout)]
         pub fn is_error(child: impl UiNode, state: StateVar) -> impl UiNode {
             struct IsErrorNode<C> {
                 child: C,
@@ -402,7 +402,7 @@ pub mod image {
         }
 
         /// If the [`ContextImageVar`] is a successfully loaded image.
-        #[property(outer)]
+        #[property(layout)]
         pub fn is_loaded(child: impl UiNode, state: StateVar) -> impl UiNode {
             struct IsLoadedNode<C> {
                 child: C,

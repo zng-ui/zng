@@ -20,7 +20,7 @@ Need to:
 3 - `size`
 ? - *background* = CSS by default extends the background *under* the borders.
 4 - `border`
-5 - `fill`
+5 - `fill` = CSS by default offsets the content to be inside the borders (different from background).
 --- Repeat Above for the `child` wrapper in a widget, so *padding* is in `child_layout`.
 
 Main details, size defines the actual visual size, CSS grows out of the size ending in a computed final size,

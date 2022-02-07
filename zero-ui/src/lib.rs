@@ -205,7 +205,7 @@
 //! # fn main() { }
 //! use zero_ui::prelude::new_property::*;
 //!
-//! #[property(outer)]
+//! #[property(layout)]
 //! pub fn margin(child: impl UiNode, margin: impl IntoVar<SideOffsets>) -> impl UiNode {
 //!     // ..
 //!#    child

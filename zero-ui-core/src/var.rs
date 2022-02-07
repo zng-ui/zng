@@ -172,7 +172,7 @@ impl std::fmt::Display for VarIsReadOnly {
 /// # use zero_ui_core::text::*;
 /// # use zero_ui_core::context::*;
 /// # use zero_ui_core::*;
-/// #[property(outer)]
+/// #[property(layout)]
 /// pub fn foo(child: impl UiNode, bar: impl IntoVar<u32>) -> impl UiNode {
 ///     struct FooNode<C, V> {
 ///         child: C,

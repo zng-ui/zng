@@ -41,7 +41,7 @@ mod input {
     pub mod keyword {
         syn::custom_keyword!(context);
         syn::custom_keyword!(event);
-        syn::custom_keyword!(outer);
+        syn::custom_keyword!(layout);
         syn::custom_keyword!(size);
         syn::custom_keyword!(inner);
         syn::custom_keyword!(capture_only);
@@ -130,7 +130,7 @@ mod input {
     pub enum Priority {
         Context(keyword::context),
         Event(keyword::event),
-        Outer(keyword::outer),
+        Layout(keyword::layout),
         Size(keyword::size),
         Inner(keyword::inner),
         CaptureOnly(keyword::capture_only),
@@ -147,7 +147,7 @@ mod input {
             [
                 Priority::Inner(inner::default()),
                 Priority::Size(size::default()),
-                Priority::Outer(outer::default()),
+                Priority::Layout(layout::default()),
                 Priority::Event(event::default()),
                 Priority::Context(context::default()),
             ]
@@ -161,8 +161,8 @@ mod input {
                 input.parse().map(Priority::Context)
             } else if lookahead.peek(keyword::event) {
                 input.parse().map(Priority::Event)
-            } else if lookahead.peek(keyword::outer) {
-                input.parse().map(Priority::Outer)
+            } else if lookahead.peek(keyword::layout) {
+                input.parse().map(Priority::Layout)
             } else if lookahead.peek(keyword::size) {
                 input.parse().map(Priority::Size)
             } else if lookahead.peek(keyword::inner) {
@@ -180,7 +180,7 @@ mod input {
                 match self {
                     Priority::Context(_) => write!(f, "Context"),
                     Priority::Event(_) => write!(f, "Event"),
-                    Priority::Outer(_) => write!(f, "Outer"),
+                    Priority::Layout(_) => write!(f, "Layout"),
                     Priority::Size(_) => write!(f, "Size"),
                     Priority::Inner(_) => write!(f, "Inner"),
                     Priority::CaptureOnly(_) => write!(f, "CaptureOnly"),
@@ -189,7 +189,7 @@ mod input {
                 match self {
                     Priority::Context(_) => write!(f, "context"),
                     Priority::Event(_) => write!(f, "event"),
-                    Priority::Outer(_) => write!(f, "outer"),
+                    Priority::Layout(_) => write!(f, "layout"),
                     Priority::Size(_) => write!(f, "size"),
                     Priority::Inner(_) => write!(f, "inner"),
                     Priority::CaptureOnly(_) => write!(f, "capture_only"),
@@ -1081,7 +1081,7 @@ mod output {
                     let priority = match self.priority {
                         Priority::Context(_) => quote!(Context),
                         Priority::Event(_) => quote!(Event),
-                        Priority::Outer(_) => quote!(Outer),
+                        Priority::Layout(_) => quote!(Layout),
                         Priority::Size(_) => quote!(Size),
                         Priority::Inner(_) => quote!(Inner),
                         Priority::CaptureOnly(_) => quote!(CaptureOnly),
@@ -1311,7 +1311,7 @@ mod output {
             match self {
                 Priority::Context(kw) => kw.to_tokens(tokens),
                 Priority::Event(kw) => kw.to_tokens(tokens),
-                Priority::Outer(kw) => kw.to_tokens(tokens),
+                Priority::Layout(kw) => kw.to_tokens(tokens),
                 Priority::Size(kw) => kw.to_tokens(tokens),
                 Priority::Inner(kw) => kw.to_tokens(tokens),
                 Priority::CaptureOnly(kw) => kw.to_tokens(tokens),

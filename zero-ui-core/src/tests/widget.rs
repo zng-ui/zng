@@ -743,7 +743,7 @@ pub mod cfg_capture_wgt {
         trace as non_never_trace = "non-never";
     }
 
-    fn new_outer(node: impl UiNode, #[cfg(never)] never_trace: NeverTraceNotRemoved, non_never_trace: &'static str) -> impl UiNode {
+    fn new_layout(node: impl UiNode, #[cfg(never)] never_trace: NeverTraceNotRemoved, non_never_trace: &'static str) -> impl UiNode {
         trace(node, non_never_trace)
     }
 }
@@ -1550,7 +1550,7 @@ mod util {
     }
 
     /// Same as [`count`] but with `outer` priority.
-    #[property(outer, allowed_in_when = false)]
+    #[property(layout, allowed_in_when = false)]
     pub fn count_outer(child: impl UiNode, count: Position) -> impl UiNode {
         CountNode { child, value_pos: count }
     }
