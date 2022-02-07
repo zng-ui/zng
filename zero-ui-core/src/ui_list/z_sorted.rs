@@ -328,7 +328,7 @@ pub fn z_index(child: impl UiNode, index: impl IntoVar<ZIndex>) -> impl UiNode {
 /// Create a Z-index that causes the widget to render in front of all siblings that don't set Z-index.
 ///
 /// ```
-/// # use crate::ui_list::ZIndex;
+/// # use zero_ui_core::ui_list::ZIndex;
 ///
 /// let highlight_z = ZIndex::DEFAULT + 1;
 /// ```

@@ -964,7 +964,7 @@ pub use zero_ui_proc_macros::property;
 /// # fn main() { }
 /// # use zero_ui_core::{widget, UiNode, widget_mixin, property};
 /// # pub mod zero_ui { pub mod properties {
-/// # #[zero_ui_core::property(outer)]
+/// # #[zero_ui_core::property(layout)]
 /// # pub fn margin(child: impl zero_ui_core::UiNode, margin: impl zero_ui_core::var::IntoVar<u32>) -> impl zero_ui_core::UiNode { child }
 /// # } }
 /// #[widget_mixin($crate::foo)]
