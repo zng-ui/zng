@@ -690,7 +690,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                     });
                 }
             }
-            let cap_i = i + if child_priority { 1 } else { 6 };
+            let cap_i = i + if child_priority { 1 } else { 7 };
             let caps = &caps[cap_i];
             let cap_idents = caps.iter().map(|(i, _)| i);
             let cap_cfgs: Vec<_> = caps.iter().map(|(_, c)| c).collect();
