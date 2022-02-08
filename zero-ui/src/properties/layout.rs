@@ -92,10 +92,10 @@ pub fn margin(child: impl UiNode, margin: impl IntoVar<SideOffsets>) -> impl UiN
 /// A custom *margin* or *padding* offsets applied on the visual part of the widget.
 ///
 /// This property does not add to the layout of the widget like [`margin`], but renders the extra offsets directly.
-/// It can be useful for implementing custom properties or for adding spacing in between multiple visual properties.
+/// It can be useful for implementing custom properties or for adding spacing in between multiple border properties.
 ///
 /// [`margin`]: fn@margin
-#[property(inner, default(0))]
+#[property(border, default(0))]
 pub fn side_offsets(child: impl UiNode, offsets: impl IntoVar<SideOffsets>) -> impl UiNode {
     struct SideOffsetsNode<T, M> {
         child: T,

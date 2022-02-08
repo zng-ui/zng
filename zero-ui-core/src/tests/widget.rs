@@ -1543,8 +1543,8 @@ mod util {
 
     pub use count as count_context;
 
-    /// Same as [`count`] but with `inner` priority.
-    #[property(inner, allowed_in_when = false)]
+    /// Same as [`count`] but with `border` priority.
+    #[property(border, allowed_in_when = false)]
     pub fn count_inner(child: impl UiNode, count: Position) -> impl UiNode {
         CountNode { child, value_pos: count }
     }

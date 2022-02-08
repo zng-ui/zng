@@ -125,3 +125,6 @@ can have the border offsets apply to the content transform, leaving only the con
   `border_offsets` they are affected by.
 * Review all `fill` properties, they must not affect the positioning of the content.
 * Add the `border_offsets` top-left to the outer transform of the content.
+* Review child priority integration with `WidgetLayout`, what happens when we add a border in child { }?
+* Review `side_offsets`, needs to work like an invisible border? 
+* Review `clip_to_bounds`.

@@ -94,8 +94,14 @@ mod all_priorities {
         child
     }
 
-    #[property(inner)]
-    pub fn inner_property(child: impl UiNode, input: impl IntoVar<bool>) -> impl UiNode {
+    #[property(border)]
+    pub fn border_property(child: impl UiNode, input: impl IntoVar<bool>) -> impl UiNode {
+        let _ = input;
+        child
+    }
+
+    #[property(fill)]
+    pub fn fill_property(child: impl UiNode, input: impl IntoVar<bool>) -> impl UiNode {
         let _ = input;
         child
     }
@@ -123,9 +129,13 @@ fn all_priorities() {
     let args = size_property::ArgsImpl::new(true);
     let _ = size_property::set(args, NilUiNode);
 
-    let _ = inner_property(NilUiNode, true);
-    let args = inner_property::ArgsImpl::new(true);
-    let _ = inner_property::set(args, NilUiNode);
+    let _ = border_property(NilUiNode, true);
+    let args = border_property::ArgsImpl::new(true);
+    let _ = border_property::set(args, NilUiNode);
+
+    let _ = fill_property(NilUiNode, true);
+    let args = fill_property::ArgsImpl::new(true);
+    let _ = fill_property::set(args, NilUiNode);
 }
 
 mod attr_args {

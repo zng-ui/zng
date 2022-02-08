@@ -185,7 +185,7 @@ mod tests {
         with_context_var_wgt_only(child, TestVar, value)
     }
 
-    #[property(inner)]
+    #[property(fill)]
     fn test_var_probe(child: impl UiNode, value: impl Var<u8>) -> impl UiNode {
         struct TestVarProbeNode<C, V> {
             child: C,

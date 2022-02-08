@@ -147,8 +147,10 @@ pub enum PropertyPriority {
     Layout,
     /// [Size](crate::property#size) property.
     Size,
-    /// [Inner](crate::property#inner) property.
-    Inner,
+    /// [Border](crate::property#border) property.
+    Border,
+    /// [Fill](crate::property#fill) property.
+    Fill,
     /// [Capture-only](crate::property#capture_only) property.
     CaptureOnly,
 }
@@ -160,7 +162,8 @@ impl PropertyPriority {
             PropertyPriority::Event => "event",
             PropertyPriority::Layout => "layout",
             PropertyPriority::Size => "size",
-            PropertyPriority::Inner => "inner",
+            PropertyPriority::Border => "border",
+            PropertyPriority::Fill => "fill",
             PropertyPriority::CaptureOnly => "capture_only",
         }
     }
@@ -222,8 +225,10 @@ pub enum WidgetNewFn {
     /// `new_child`
     NewChild,
 
-    /// `new_child_inner`
-    NewChildInner,
+    /// `new_child_fill`
+    NewChildFill,
+    /// `new_child_border`
+    NewChildBorder,
     /// `new_child_size`
     NewChildSize,
     /// `new_child_layout`
@@ -233,8 +238,10 @@ pub enum WidgetNewFn {
     /// `new_child_context`
     NewChildContext,
 
-    /// `new_inner`
-    NewInner,
+    /// `new_fill`
+    NewFill,
+    /// `new_border`
+    NewBorder,
     /// `new_size`
     NewSize,
     /// `new_layout`
@@ -252,12 +259,14 @@ impl WidgetNewFn {
     pub fn all() -> &'static [WidgetNewFn] {
         &[
             Self::NewChild,
-            Self::NewChildInner,
+            Self::NewChildFill,
+            Self::NewChildBorder,
             Self::NewChildSize,
             Self::NewChildLayout,
             Self::NewChildEvent,
             Self::NewChildContext,
-            Self::NewInner,
+            Self::NewFill,
+            Self::NewBorder,
             Self::NewSize,
             Self::NewLayout,
             Self::NewEvent,
@@ -270,12 +279,14 @@ impl fmt::Display for WidgetNewFn {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match *self {
             Self::NewChild => write!(f, "new_child"),
-            Self::NewChildInner => write!(f, "new_child_inner"),
+            Self::NewChildFill => write!(f, "new_child_fill"),
+            Self::NewChildBorder => write!(f, "new_child_border"),
             Self::NewChildSize => write!(f, "new_child_size"),
             Self::NewChildLayout => write!(f, "new_child_layout"),
             Self::NewChildEvent => write!(f, "new_child_event"),
             Self::NewChildContext => write!(f, "new_child_context"),
-            Self::NewInner => write!(f, "new_inner"),
+            Self::NewFill => write!(f, "new_fill"),
+            Self::NewBorder => write!(f, "new_border"),
             Self::NewSize => write!(f, "new_size"),
             Self::NewLayout => write!(f, "new_layout"),
             Self::NewEvent => write!(f, "new_event"),

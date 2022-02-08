@@ -1089,13 +1089,15 @@ fn validate_new_fn(fn_: &ItemFn, errors: &mut Errors) {
 pub(crate) enum FnPriority {
     NewChild,
 
-    NewChildInner,
+    NewChildFill,
+    NewChildBorder,
     NewChildSize,
     NewChildLayout,
     NewChildEvent,
     NewChildContext,
 
-    NewInner,
+    NewFill,
+    NewBorder,
     NewSize,
     NewLayout,
     NewEvent,
@@ -1107,12 +1109,14 @@ impl FnPriority {
     pub fn from_ident(ident: &Ident) -> Option<Self> {
         match ident.to_string().as_str() {
             "new_child" => Some(Self::NewChild),
-            "new_child_inner" => Some(Self::NewChildInner),
+            "new_child_fill" => Some(Self::NewChildFill),
+            "new_child_border" => Some(Self::NewChildBorder),
             "new_child_size" => Some(Self::NewChildSize),
             "new_child_layout" => Some(Self::NewChildLayout),
             "new_child_event" => Some(Self::NewChildEvent),
             "new_child_context" => Some(Self::NewChildContext),
-            "new_inner" => Some(Self::NewInner),
+            "new_fill" => Some(Self::NewFill),
+            "new_border" => Some(Self::NewBorder),
             "new_size" => Some(Self::NewSize),
             "new_layout" => Some(Self::NewLayout),
             "new_event" => Some(Self::NewEvent),
@@ -1125,12 +1129,14 @@ impl FnPriority {
     pub fn all() -> &'static [FnPriority] {
         &[
             Self::NewChild,
-            Self::NewChildInner,
+            Self::NewChildFill,
+            Self::NewChildBorder,
             Self::NewChildSize,
             Self::NewChildLayout,
             Self::NewChildEvent,
             Self::NewChildContext,
-            Self::NewInner,
+            Self::NewFill,
+            Self::NewBorder,
             Self::NewSize,
             Self::NewLayout,
             Self::NewEvent,
@@ -1143,12 +1149,14 @@ impl fmt::Display for FnPriority {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match *self {
             FnPriority::NewChild => write!(f, "new_child"),
-            FnPriority::NewChildInner => write!(f, "new_child_inner"),
+            FnPriority::NewChildFill => write!(f, "new_child_fill"),
+            FnPriority::NewChildBorder => write!(f, "new_child_border"),
             FnPriority::NewChildSize => write!(f, "new_child_size"),
             FnPriority::NewChildLayout => write!(f, "new_child_layout"),
             FnPriority::NewChildEvent => write!(f, "new_child_event"),
             FnPriority::NewChildContext => write!(f, "new_child_context"),
-            FnPriority::NewInner => write!(f, "new_inner"),
+            FnPriority::NewFill => write!(f, "new_fill"),
+            FnPriority::NewBorder => write!(f, "new_border"),
             FnPriority::NewSize => write!(f, "new_size"),
             FnPriority::NewLayout => write!(f, "new_layout"),
             FnPriority::NewEvent => write!(f, "new_event"),

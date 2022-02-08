@@ -6,7 +6,7 @@ use crate::prelude::new_property::*;
 //
 // https://github.com/servo/servo/blob/0d0cfd030347ab0711b3c0607a9ee07ffe7124cf/components/layout/display_list/border.rs
 // https://github.com/servo/servo/blob/0d0cfd030347ab0711b3c0607a9ee07ffe7124cf/components/layout/display_list/background.rs
-#[property(inner, default(0, BorderStyle::Hidden, 0))]
+#[property(border, default(0, BorderStyle::Hidden, 0))]
 pub fn border(
     child: impl UiNode,
     widths: impl IntoVar<SideOffsets>,

@@ -62,7 +62,12 @@ pub mod implicit_base {
     }
 
     /// No-op, returns `child`.
-    pub fn new_child_inner(child: impl UiNode) -> impl UiNode {
+    pub fn new_child_fill(child: impl UiNode) -> impl UiNode {
+        child
+    }
+
+    /// No-op, returns `child`.
+    pub fn new_child_border(child: impl UiNode) -> impl UiNode {
         child
     }
 
@@ -86,8 +91,13 @@ pub mod implicit_base {
         child
     }
 
+    /// No-op, returns `child`.
+    pub fn new_fill(child: impl UiNode) -> impl UiNode {
+        child
+    }
+
     /// Returns a node that wraps `child` and marks the [`WidgetLayout::with_inner`].
-    pub fn new_inner(child: impl UiNode) -> impl UiNode {
+    pub fn new_border(child: impl UiNode) -> impl UiNode {
         struct WidgetInnerBoundsNode<T> {
             child: T,
             transform_key: FrameBindingKey<RenderTransform>,

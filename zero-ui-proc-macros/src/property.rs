@@ -43,7 +43,8 @@ mod input {
         syn::custom_keyword!(event);
         syn::custom_keyword!(layout);
         syn::custom_keyword!(size);
-        syn::custom_keyword!(inner);
+        syn::custom_keyword!(border);
+        syn::custom_keyword!(fill);
         syn::custom_keyword!(capture_only);
         syn::custom_keyword!(allowed_in_when);
     }
@@ -132,7 +133,8 @@ mod input {
         Event(keyword::event),
         Layout(keyword::layout),
         Size(keyword::size),
-        Inner(keyword::inner),
+        Border(keyword::border),
+        Fill(keyword::fill),
         CaptureOnly(keyword::capture_only),
     }
     impl Priority {
@@ -142,10 +144,11 @@ mod input {
         pub fn is_capture_only(self) -> bool {
             matches!(self, Priority::CaptureOnly(_))
         }
-        pub fn all_settable() -> [Self; 5] {
+        pub fn all_settable() -> [Self; 6] {
             use crate::property::keyword::*;
             [
-                Priority::Inner(inner::default()),
+                Priority::Border(border::default()),
+                Priority::Fill(fill::default()),
                 Priority::Size(size::default()),
                 Priority::Layout(layout::default()),
                 Priority::Event(event::default()),
@@ -165,8 +168,10 @@ mod input {
                 input.parse().map(Priority::Layout)
             } else if lookahead.peek(keyword::size) {
                 input.parse().map(Priority::Size)
-            } else if lookahead.peek(keyword::inner) {
-                input.parse().map(Priority::Inner)
+            } else if lookahead.peek(keyword::border) {
+                input.parse().map(Priority::Border)
+            } else if lookahead.peek(keyword::fill) {
+                input.parse().map(Priority::Fill)
             } else if lookahead.peek(keyword::capture_only) {
                 input.parse().map(Priority::CaptureOnly)
             } else {
@@ -182,7 +187,8 @@ mod input {
                     Priority::Event(_) => write!(f, "Event"),
                     Priority::Layout(_) => write!(f, "Layout"),
                     Priority::Size(_) => write!(f, "Size"),
-                    Priority::Inner(_) => write!(f, "Inner"),
+                    Priority::Border(_) => write!(f, "Border"),
+                    Priority::Fill(_) => write!(f, "Fill"),
                     Priority::CaptureOnly(_) => write!(f, "CaptureOnly"),
                 }
             } else {
@@ -191,7 +197,8 @@ mod input {
                     Priority::Event(_) => write!(f, "event"),
                     Priority::Layout(_) => write!(f, "layout"),
                     Priority::Size(_) => write!(f, "size"),
-                    Priority::Inner(_) => write!(f, "inner"),
+                    Priority::Border(_) => write!(f, "border"),
+                    Priority::Fill(_) => write!(f, "fill"),
                     Priority::CaptureOnly(_) => write!(f, "capture_only"),
                 }
             }
@@ -1083,7 +1090,8 @@ mod output {
                         Priority::Event(_) => quote!(Event),
                         Priority::Layout(_) => quote!(Layout),
                         Priority::Size(_) => quote!(Size),
-                        Priority::Inner(_) => quote!(Inner),
+                        Priority::Border(_) => quote!(Border),
+                        Priority::Fill(_) => quote!(Fill),
                         Priority::CaptureOnly(_) => quote!(CaptureOnly),
                     };
                     set.extend(quote! {
@@ -1313,7 +1321,8 @@ mod output {
                 Priority::Event(kw) => kw.to_tokens(tokens),
                 Priority::Layout(kw) => kw.to_tokens(tokens),
                 Priority::Size(kw) => kw.to_tokens(tokens),
-                Priority::Inner(kw) => kw.to_tokens(tokens),
+                Priority::Border(kw) => kw.to_tokens(tokens),
+                Priority::Fill(kw) => kw.to_tokens(tokens),
                 Priority::CaptureOnly(kw) => kw.to_tokens(tokens),
             }
         }
