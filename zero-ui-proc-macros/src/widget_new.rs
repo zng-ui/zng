@@ -669,7 +669,8 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             })
         }
 
-        for (i, priority) in crate::property::Priority::all_settable().iter().enumerate() {
+        let settable_priorities = crate::property::Priority::all_settable();
+        for (i, priority) in settable_priorities.iter().enumerate() {
             for (p_mod, p_var_ident, p_name, source_loc, cfg, user_assigned, p_span, val_span) in set_calls.iter().rev() {
                 // __set @ value span
 
@@ -690,7 +691,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                     });
                 }
             }
-            let cap_i = i + if child_priority { 1 } else { 7 };
+            let cap_i = i + if child_priority { 1 } else { settable_priorities.len() + 1 };
             let caps = &caps[cap_i];
             let cap_idents = caps.iter().map(|(i, _)| i);
             let cap_cfgs: Vec<_> = caps.iter().map(|(_, c)| c).collect();

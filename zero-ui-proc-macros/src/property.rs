@@ -147,8 +147,8 @@ mod input {
         pub fn all_settable() -> [Self; 6] {
             use crate::property::keyword::*;
             [
-                Priority::Border(border::default()),
                 Priority::Fill(fill::default()),
+                Priority::Border(border::default()),
                 Priority::Size(size::default()),
                 Priority::Layout(layout::default()),
                 Priority::Event(event::default()),
