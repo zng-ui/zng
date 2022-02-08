@@ -1,6 +1,4 @@
 * Add more tests for LangMap.
-* Implement `lang` property and use it in `TextNode`.
-* Refactor `font_size` using same style as `enabled`.
 
 # Border/Background Problem
 

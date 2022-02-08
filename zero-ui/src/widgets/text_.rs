@@ -114,15 +114,10 @@ pub mod text {
             }
 
             fn init(&mut self, ctx: &mut WidgetContext) {
-                let (family, style, weight, stretch) = TextContext::font_face(ctx.vars);
+                let (lang, family, style, weight, stretch) = TextContext::font_face(ctx.vars);
 
                 // TODO use the full list.
-                let font_face = ctx
-                    .services
-                    .fonts()
-                    .get_list(family, style, weight, stretch, &lang!(und))
-                    .best()
-                    .clone();
+                let font_face = ctx.services.fonts().get_list(family, style, weight, stretch, lang).best().clone();
                 self.synthesis_used = *FontSynthesisVar::get(ctx) & font_face.synthesis_for(style, weight);
                 self.font_face = Some(font_face);
 
@@ -164,11 +159,11 @@ pub mod text {
                 }
 
                 // update `self.font_face`, affects shaping and layout
-                if let Some((font_family, font_style, font_weight, font_stretch)) = TextContext::font_face_update(ctx.vars) {
+                if let Some((lang, font_family, font_style, font_weight, font_stretch)) = TextContext::font_face_update(ctx.vars) {
                     let face = ctx
                         .services
                         .fonts()
-                        .get_list(font_family, font_style, font_weight, font_stretch, &lang!(und))
+                        .get_list(font_family, font_style, font_weight, font_stretch, lang)
                         .best()
                         .clone();
 
@@ -325,6 +320,9 @@ pub mod text {
 
             /// Font variations of [`text`](crate::widgets::text) spans.
             pub struct FontVariationsVar: FontVariations = FontVariations::new();
+
+            /// Language of [`text`](crate::widgets::text) spans.
+            pub struct LangVar: Lang = Lang::default();
         }
 
         /// Sets the [`FontFamilyVar`] context var.
@@ -360,93 +358,45 @@ pub mod text {
         /// Sets the [`FontSizeVar`] context var and the [`LayoutMetrics::font_size`].
         #[property(context, default(FontSizeVar))]
         pub fn font_size(child: impl UiNode, size: impl IntoVar<Length>) -> impl UiNode {
-            struct FontSizeNode<C, S> {
+            struct FontSizeNode<C> {
                 child: C,
-                size: S,
                 size_new: bool,
             }
-            impl<C: UiNode, S: Var<Length>> UiNode for FontSizeNode<C, S> {
-                fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
-                    ctx.vars
-                        .with_context_var(FontSizeVar, ContextVarData::var_read(ctx.vars, &self.size), || {
-                            self.child.info(ctx, info)
-                        });
+            #[impl_ui_node(child)]
+            impl<C: UiNode> UiNode for FontSizeNode<C> {
+                fn init(&mut self, ctx: &mut WidgetContext) {
+                    self.size_new = true;
+                    self.child.init(ctx);
                 }
 
                 fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
-                    ctx.vars
-                        .with_context_var(FontSizeVar, ContextVarData::var_read(ctx.vars, &self.size), || {
-                            self.child.subscriptions(ctx, subscriptions)
-                        });
-                }
-
-                fn init(&mut self, ctx: &mut WidgetContext) {
-                    ctx.vars
-                        .with_context_var(FontSizeVar, ContextVarData::var(ctx.vars, &self.size), || self.child.init(ctx));
-                }
-
-                fn deinit(&mut self, ctx: &mut WidgetContext) {
-                    ctx.vars
-                        .with_context_var(FontSizeVar, ContextVarData::var(ctx.vars, &self.size), || self.child.deinit(ctx));
-                }
-
-                fn event<A: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &A) {
-                    ctx.vars
-                        .with_context_var(FontSizeVar, ContextVarData::var(ctx.vars, &self.size), || {
-                            self.child.event(ctx, args)
-                        });
+                    subscriptions.var(ctx, &FontSizeVar::new());
+                    self.child.subscriptions(ctx, subscriptions);
                 }
 
                 fn update(&mut self, ctx: &mut WidgetContext) {
-                    self.size_new |= self.size.is_new(ctx);
-                    ctx.vars
-                        .with_context_var(FontSizeVar, ContextVarData::var(ctx.vars, &self.size), || self.child.update(ctx));
+                    if FontSizeVar::is_new(ctx) {
+                        self.size_new = true;
+                        ctx.updates.layout();
+                    }
+                    self.child.update(ctx);
                 }
 
                 fn measure(&mut self, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize {
-                    let font_size = self
-                        .size
-                        .get(ctx.vars)
-                        .to_layout(ctx, available_size.height, ctx.metrics.root_font_size);
-
-                    ctx.vars
-                        .with_context_var(FontSizeVar, ContextVarData::var(ctx.vars, &self.size), || {
-                            ctx.with_font_size(font_size, self.size_new, |ctx| self.child.measure(ctx, available_size))
-                        })
+                    let font_size = FontSizeVar::get(ctx.vars).to_layout(ctx, available_size.height, ctx.metrics.root_font_size);
+                    ctx.with_font_size(font_size, self.size_new, |ctx| self.child.measure(ctx, available_size))
                 }
 
                 fn arrange(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, final_size: PxSize) {
                     let font_size =
-                        self.size
-                            .get(ctx.vars)
-                            .to_layout(ctx, AvailablePx::Finite(final_size.height), ctx.metrics.root_font_size);
+                        FontSizeVar::get(ctx.vars).to_layout(ctx, AvailablePx::Finite(final_size.height), ctx.metrics.root_font_size);
 
-                    ctx.vars
-                        .with_context_var(FontSizeVar, ContextVarData::var(ctx.vars, &self.size), || {
-                            ctx.with_font_size(font_size, self.size_new, |ctx| self.child.arrange(ctx, widget_layout, final_size))
-                        });
+                    ctx.with_font_size(font_size, self.size_new, |ctx| self.child.arrange(ctx, widget_layout, final_size));
                     self.size_new = false;
                 }
-
-                fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-                    ctx.vars
-                        .with_context_var(FontSizeVar, ContextVarData::var_read(ctx.vars, &self.size), || {
-                            self.child.render(ctx, frame)
-                        });
-                }
-
-                fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
-                    ctx.vars
-                        .with_context_var(FontSizeVar, ContextVarData::var_read(ctx.vars, &self.size), || {
-                            self.child.render_update(ctx, update)
-                        });
-                }
             }
-            FontSizeNode {
-                child,
-                size: size.into_var(),
-                size_new: true,
-            }
+            let child = FontSizeNode { child, size_new: true };
+            with_context_var(child, FontSizeVar, size)
         }
 
         /// Sets the [`TextColorVar`] context var.
@@ -698,10 +648,18 @@ pub mod text {
             with_font_feature(child, state, |f, s| f.ea_width().set(s))
         }
 
+        /// Sets the [`LangVar`] context var.
+        #[property(context, default(LangVar))]
+        pub fn lang(child: impl UiNode, lang: impl IntoVar<Lang>) -> impl UiNode {
+            with_context_var(child, LangVar, lang)
+        }
+
         /// All the text contextual values.
         #[derive(Debug)]
         pub struct TextContext<'a> {
             /* Affects font */
+            /// The [`lang`](fn@lang) value.
+            pub lang: &'a Lang,
             /// The [`font_family`](fn@font_family) value.
             pub font_family: &'a [FontName],
             /// The [`font_style`](fn@font_style) value.
@@ -758,6 +716,7 @@ pub mod text {
             pub fn subscribe(vars: &VarsRead, widget: &mut WidgetSubscriptions) {
                 widget
                     .vars(vars)
+                    .var(&LangVar::new())
                     .var(&FontFamilyVar::new())
                     .var(&FontStyleVar::new())
                     .var(&FontWeightVar::new())
@@ -784,6 +743,7 @@ pub mod text {
                 let vars = vars.as_ref();
 
                 TextContext {
+                    lang: LangVar::get(vars),
                     font_family: FontFamilyVar::get(vars),
                     font_style: *FontStyleVar::get(vars),
                     font_weight: *FontWeightVar::get(vars),
@@ -813,9 +773,10 @@ pub mod text {
             }
 
             /// Gets the properties that affect the font face.
-            pub fn font_face<Vr: AsRef<VarsRead>>(vars: &'a Vr) -> (&'a [FontName], FontStyle, FontWeight, FontStretch) {
+            pub fn font_face<Vr: AsRef<VarsRead>>(vars: &'a Vr) -> (&'a Lang, &'a [FontName], FontStyle, FontWeight, FontStretch) {
                 let vars = vars.as_ref();
                 (
+                    LangVar::get(vars),
                     FontFamilyVar::get(vars),
                     *FontStyleVar::get(vars),
                     *FontWeightVar::get(vars),
@@ -823,9 +784,15 @@ pub mod text {
                 )
             }
             /// Gets [`font_face`](Self::font_face) if any of the properties updated.
-            pub fn font_face_update<Vw: AsRef<Vars>>(vars: &'a Vw) -> Option<(&'a [FontName], FontStyle, FontWeight, FontStretch)> {
+            pub fn font_face_update<Vw: AsRef<Vars>>(
+                vars: &'a Vw,
+            ) -> Option<(&'a Lang, &'a [FontName], FontStyle, FontWeight, FontStretch)> {
                 let vars = vars.as_ref();
-                if FontFamilyVar::is_new(vars) || FontStyleVar::is_new(vars) || FontWeightVar::is_new(vars) || FontStretchVar::is_new(vars)
+                if LangVar::is_new(vars)
+                    || FontFamilyVar::is_new(vars)
+                    || FontStyleVar::is_new(vars)
+                    || FontWeightVar::is_new(vars)
+                    || FontStretchVar::is_new(vars)
                 {
                     Some(Self::font_face(vars))
                 } else {
@@ -900,6 +867,7 @@ pub mod text {
                 TextContext {
                     font_features: self.font_features,
                     text_transform: self.text_transform.clone(),
+                    lang: self.lang,
                     font_family: self.font_family,
                     font_size: self.font_size,
                     font_weight: self.font_weight,

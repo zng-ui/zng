@@ -1647,4 +1647,24 @@ mod tests {
         assert_eq!(&FontName::sans_serif(), gen.sans_serif(&lang!(en_US)));
         assert_eq!(&FontName::sans_serif(), gen.sans_serif(&lang!(es)));
     }
+
+    #[test]
+    fn generic_fonts_get1() {
+        let mut app = App::blank().run_headless(false);
+        let mut gen = GenericFonts::new(app.ctx().updates.sender());
+        gen.set_sans_serif(lang!(en_US), "Test Value");
+
+        assert_eq!(gen.sans_serif(&lang!("en-US")), "Test Value");
+        assert_eq!(gen.sans_serif(&lang!("en")), "Test Value");
+    }
+
+    #[test]
+    fn generic_fonts_get2() {
+        let mut app = App::blank().run_headless(false);
+        let mut gen = GenericFonts::new(app.ctx().updates.sender());
+        gen.set_sans_serif(lang!(en), "Test Value");
+
+        assert_eq!(gen.sans_serif(&lang!("en-US")), "Test Value");
+        assert_eq!(gen.sans_serif(&lang!("en")), "Test Value");
+    }
 }

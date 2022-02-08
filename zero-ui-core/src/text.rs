@@ -59,27 +59,27 @@ impl<V> LangMap<V> {
 
     fn best_i(&self, lang: &Lang) -> Option<usize> {
         let mut best = None;
-        let mut best_weight = u8::MAX;
+        let mut best_weight = 0;
 
         for (i, (key, _)) in self.inner.iter().enumerate() {
             if lang.matches(key, true, true) {
-                let mut weight = 0;
-                let mut all_eq = false;
+                let mut weight = 1;
+                let mut eq = 0;
 
                 if key.language == lang.language {
-                    weight = 128;
-                    all_eq = true;
+                    weight += 128;
+                    eq += 1;
                 }
                 if key.region == lang.region {
                     weight += 40;
-                    all_eq = true;
+                    eq += 1;
                 }
                 if key.script == lang.script {
                     weight += 20;
-                    all_eq = true;
+                    eq += 1;
                 }
 
-                if all_eq && lang.variants().zip(key.variants()).all(|(a, b)| a == b) {
+                if eq == 3 && lang.variants().zip(key.variants()).all(|(a, b)| a == b) {
                     return Some(i);
                 }
 
@@ -628,6 +628,11 @@ impl PartialEq for FontName {
     }
 }
 impl Eq for FontName {}
+impl PartialEq<str> for FontName {
+    fn eq(&self, other: &str) -> bool {
+        self.unicase() == unicase::UniCase::<&str>::from(other)
+    }
+}
 impl Hash for FontName {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         Hash::hash(&self.unicase(), state)

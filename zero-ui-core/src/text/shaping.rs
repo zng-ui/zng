@@ -189,12 +189,13 @@ impl WordContextKey {
     }
 }
 
+#[derive(Debug)]
 pub(super) struct ShapedSegment {
     glyphs: Vec<ShapedGlyph>,
     x_advance: f32,
     y_advance: f32,
 }
-#[derive(Clone, Copy)]
+#[derive(Debug, Clone, Copy)]
 struct ShapedGlyph {
     index: u32,
     //cluster: u32,
@@ -214,10 +215,10 @@ impl Font {
             buffer = buffer.set_language(lang);
         }
         if let Some(script) = lang.script {
-            buffer = buffer.set_script(to_buzz_script(script)).add_str(segment)
+            buffer = buffer.set_script(to_buzz_script(script))
         }
 
-        buffer
+        buffer.add_str(segment)
     }
 
     fn shape_segment_no_cache(&self, seg: &str, lang: &Lang, features: &[harfbuzz_rs::Feature]) -> ShapedSegment {
