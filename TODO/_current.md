@@ -1,5 +1,3 @@
-* Add more tests for LangMap.
-
 # Border/Background Problem
 
 All the visual layers are in `inner`, this causes problems with order or `border` and `background`, the button `focus_highlight` changes
