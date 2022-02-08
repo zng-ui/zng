@@ -88,3 +88,40 @@ impl WidgetLayout {
     }
 }
 ```
+
+Does not need to be in WidgetLayout, can be done with a ContextVar, but we do need a `border` priority.
+
+What if borders don't draw their child inside a reference frame?
+
+```rust
+impl WidgetLayout {
+    /// Current accumulated border offsets.
+    pub fn border_offsets(&self) -> PxSideOffsets {
+        self.border_offsets
+    }
+}
+```
+
+Inner borders can use the `border_offsets` to transform themselves, background property the *border-align* then can generate
+a clip and reference frame for the content.
+
+# Fill
+
+This new priority renders background, foreground, child, clips content, do we want to support different *border-align* for 
+foreground and content? 
+
+If each background/foreground is responsible for its own border offset and clipping and does not render the child inside we
+can have the border offsets apply to the content transform, leaving only the content clip?
+
+-------------------------------------
+
+# Final Changes
+
+* Split `inner` into `border` and `fill`.
+* Change `push_inner`, `with_inner` to `new_border`.
+* Add border offsets and corner radius to `WidgetLayout`.
+* Reimplement border to not offset child and use `border_offsets` to place itself.
+* Reimplement background/foreground to have their own corners clip and *border-align* that defines what amount of the 
+  `border_offsets` they are affected by.
+* Review all `fill` properties, they must not affect the positioning of the content.
+* Add the `border_offsets` top-left to the outer transform of the content.
