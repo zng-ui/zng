@@ -564,6 +564,82 @@ impl<T: Copy + num_traits::Zero, U> CornerRadius<T, U> {
     pub fn zero() -> Self {
         Self::new_all(euclid::Size2D::zero())
     }
+
+    /// Calculate the corner radius of an outer border around `self` to perfectly fit.
+    pub fn inflate(self, offsets: euclid::SideOffsets2D<T, U>) -> Self
+    where
+        T: ops::AddAssign,
+    {
+        let mut r = self;
+
+        r.top_left.width += offsets.left;
+        r.top_left.height += offsets.top;
+
+        r.top_right.width += offsets.right;
+        r.top_right.height += offsets.top;
+
+        r.bottom_right.width += offsets.right;
+        r.bottom_right.height += offsets.bottom;
+
+        r.bottom_left.width += offsets.left;
+        r.bottom_left.height += offsets.bottom;
+
+        r
+    }
+
+    /// Calculate the corner radius of an inner border inside `self` to perfectly fit.
+    pub fn deflate(self, offsets: euclid::SideOffsets2D<T, U>) -> Self
+    where
+        T: ops::SubAssign + cmp::PartialOrd,
+    {
+        let mut r = self;
+
+        if r.top_left.width >= offsets.left {
+            r.top_left.width -= offsets.left;
+        } else {
+            r.top_left.width = T::zero();
+        }
+        if r.top_left.height >= offsets.top {
+            r.top_left.height -= offsets.top;
+        } else {
+            r.top_left.height = T::zero();
+        }
+
+        if r.top_right.width >= offsets.right {
+            r.top_right.width -= offsets.right;
+        } else {
+            r.top_right.width = T::zero();
+        }
+        if r.top_right.height >= offsets.top {
+            r.top_right.height -= offsets.top;
+        } else {
+            r.top_right.height = T::zero();
+        }
+
+        if r.bottom_right.width >= offsets.right {
+            r.bottom_right.width -= offsets.right;
+        } else {
+            r.bottom_right.width = T::zero();
+        }
+        if r.bottom_right.height >= offsets.bottom {
+            r.bottom_right.height -= offsets.bottom;
+        } else {
+            r.bottom_right.height = T::zero();
+        }
+
+        if r.bottom_left.width >= offsets.left {
+            r.bottom_left.width -= offsets.left;
+        } else {
+            r.bottom_left.width = T::zero();
+        }
+        if r.bottom_left.height >= offsets.bottom {
+            r.bottom_left.height -= offsets.bottom;
+        } else {
+            r.bottom_left.height = T::zero();
+        }
+
+        r
+    }
 }
 impl<T: fmt::Debug, U> fmt::Debug for CornerRadius<T, U> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
