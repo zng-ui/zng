@@ -549,3 +549,86 @@ impl ops::DivAssign<Factor2d> for PxRect {
         *self = *self / rhs;
     }
 }
+
+/// Scale factor applied to margins.
+#[derive(Clone, Copy, Debug)]
+pub struct FactorSideOffsets {
+    /// Factor of top offset.
+    pub top: Factor,
+    /// Factor of right offset.
+    pub right: Factor,
+    /// Factor of bottom offset.
+    pub bottom: Factor,
+    /// Factor of left offset.
+    pub left: Factor,
+}
+impl FactorSideOffsets {
+    /// Factors applied to each offset.
+    pub fn new(top: impl Into<Factor>, right: impl Into<Factor>, bottom: impl Into<Factor>, left: impl Into<Factor>) -> Self {
+        Self {
+            top: top.into(),
+            right: right.into(),
+            bottom: bottom.into(),
+            left: left.into(),
+        }
+    }
+
+    /// Same scale applied to parallel offsets.
+    pub fn new_dimension(top_bottom: impl Into<Factor>, left_right: impl Into<Factor>) -> Self {
+        let tb = top_bottom.into();
+        let lr = left_right.into();
+
+        Self::new(tb, lr, tb, lr)
+    }
+
+    /// Uniform scale applied to all offsets.
+    pub fn new_all(uniform: impl Into<Factor>) -> Self {
+        let u = uniform.into();
+        Self::new(u, u, u, u)
+    }
+
+    /// Uniform 0%
+    pub fn zero() -> Self {
+        Self::new_all(0.fct())
+    }
+
+    /// Uniform 100%
+    pub fn one() -> Self {
+        Self::new_all(1.fct())
+    }
+}
+impl_from_and_into_var! {
+    /// All sides equal.
+    fn from(all: Factor) -> FactorSideOffsets {
+        FactorSideOffsets::new_all(all)
+    }
+
+    /// All sides equal.
+    fn from(percent: FactorPercent) -> FactorSideOffsets {
+        FactorSideOffsets::new_all(percent)
+    }
+
+    /// New dimension, top-bottom, left-right.
+    fn from<
+        TB: Into<Factor> + Clone,
+        LR: Into<Factor> + Clone
+        >(
+            (top_bottom, left_right): (TB, LR)
+        )
+        -> FactorSideOffsets {
+        FactorSideOffsets::new_dimension(top_bottom, left_right)
+    }
+
+    /// New top, right, bottom, left.
+    fn from<
+        T: Into<Factor> + Clone,
+        R: Into<Factor> + Clone,
+        B: Into<Factor> + Clone,
+        L: Into<Factor> + Clone
+        >(
+            (top, right, bottom, left): (T, R, B, L)
+        )
+        -> FactorSideOffsets {
+        FactorSideOffsets::new(top, right, bottom, left)
+    }
+}

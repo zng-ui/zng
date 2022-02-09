@@ -89,7 +89,7 @@ can have the border offsets apply to the content transform, leaving only the con
 * Move `push_inner`, `with_inner` to `new_border`. ✔
 * Add border offsets and corner radius to `WidgetLayout`. ✔
 * Reimplement border to not offset child and use `border_offsets` to place itself. ✔
-* Add the `border_offsets` top-left to the outer transform of the content.
+* Add the `border_offsets` top-left to the outer transform of the content. ✔
     - How to do the desired size here?
         - Borders always affect layout size and next outer transform, but no render reference frame!
         - Child will naturally be inside border only.

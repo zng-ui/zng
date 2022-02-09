@@ -255,7 +255,10 @@ impl WidgetLayout {
         self.border_offsets = o;
         self.corner_radius = c;
 
-        (PxRect::new(PxPoint::new(self.border_offsets.left, self.border_offsets.top), final_size), c)
+        (
+            PxRect::new(PxPoint::new(self.border_offsets.left, self.border_offsets.top), final_size),
+            c,
+        )
     }
 }
 
