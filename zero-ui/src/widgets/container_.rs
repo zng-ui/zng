@@ -9,14 +9,19 @@ pub mod container {
         child {
             /// Content UI.
             ///
-            /// Can be any type that implements [`UiNode`](zero_ui::core::UiNode), any widget.
+            /// Can be any type that implements [`UiNode`], any widget.
+            /// 
+            /// [`UiNode`]: zero_ui::core::UiNode
             #[allowed_in_when = false]
             #[required]
             content(impl UiNode);
+
             /// Content margin.
             margin as padding;
+
             /// Content alignment.
             align as content_align = Alignment::CENTER;
+
             /// Content overflow clipping.
             clip_to_bounds;
         }

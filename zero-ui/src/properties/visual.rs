@@ -36,6 +36,7 @@ pub fn background(child: impl UiNode, background: impl UiNode) -> impl UiNode {
         /// [background, child]
         children: C,
         background_offset: PxVector,
+        background_clip: (PxSize, PxCornerRadius),
         spatial_id: SpatialFrameId,
     }
     #[impl_ui_node(children)]
@@ -54,25 +55,41 @@ pub fn background(child: impl UiNode, background: impl UiNode) -> impl UiNode {
             //);
 
             self.background_offset = PxVector::new(border_offsets.left, border_offsets.top);
+            self.background_clip = (final_size, widget_layout.corner_radius());
 
             widget_layout.with_custom_transform(&RenderTransform::translation_px(self.background_offset), |wl| {
                 self.children.widget_arrange(0, ctx, wl, final_size)
             });
         }
-        
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-            frame.push_reference_frame(
-                self.spatial_id,
-                FrameBinding::Value(RenderTransform::translation_px(self.background_offset)),
-                true,
-                |f| self.children.widget_render(0, ctx, f),
-            );
+            let mut render_background = |frame: &mut FrameBuilder| {
+                let (clip_bounds, clip_corners) = self.background_clip;
+                let clip_bounds = PxRect::from_size(clip_bounds);
+
+                if clip_corners != PxCornerRadius::zero() {
+                    frame.push_clip_rounded_rect(clip_bounds, clip_corners, false, |f| self.children.widget_render(0, ctx, f))
+                } else {
+                    frame.push_clip_rect(clip_bounds, |f| self.children.widget_render(0, ctx, f))
+                }
+            };
+            if self.background_offset != PxVector::zero() {
+                frame.push_reference_frame(
+                    self.spatial_id,
+                    FrameBinding::Value(RenderTransform::translation_px(self.background_offset)),
+                    true,
+                    render_background,
+                );
+            } else {
+                render_background(frame);
+            }
+
             self.children.widget_render(1, ctx, frame);
         }
     }
     BackgroundNode {
         children: nodes![background, child],
         background_offset: PxVector::zero(),
+        background_clip: (PxSize::zero(), PxCornerRadius::zero()),
         spatial_id: SpatialFrameId::new_unique(),
     }
 }
@@ -280,15 +297,17 @@ pub fn foreground_gradient(child: impl UiNode, axis: impl IntoVar<LinearGradient
 /// Clips the widget child to the area of the widget when set to `true`.
 ///
 /// Any content rendered outside the widget *inner size* bounds is clipped. The clip is
-/// rectangular and can have rounded corners if TODO.
+/// rectangular and can have rounded corners if [`corner_radius`] is set.
 ///
-/// # Example
+/// # Examples
+///
 /// ```
 /// use zero_ui::prelude::*;
 ///
 /// container! {
 ///     background_color = rgb(255, 0, 0);
 ///     size = (200, 300);
+///     corner_radius = 5;
 ///     clip_to_bounds = true;
 ///     content = container! {
 ///         background_color = rgb(0, 255, 0);
@@ -305,6 +324,7 @@ pub fn clip_to_bounds(child: impl UiNode, clip: impl IntoVar<bool>) -> impl UiNo
         child: T,
         clip: S,
         bounds: PxSize,
+        corners: PxCornerRadius,
     }
 
     #[impl_ui_node(child)]
@@ -323,19 +343,35 @@ pub fn clip_to_bounds(child: impl UiNode, clip: impl IntoVar<bool>) -> impl UiNo
         }
 
         fn arrange(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, final_size: PxSize) {
+            let mut changed = false;
+
             if self.bounds != final_size {
                 self.bounds = final_size;
-
-                if self.clip.copy(ctx) {
-                    ctx.updates.render();
-                }
+                changed = true;
             }
+
+            let corners = widget_layout.corner_radius();
+            if self.corners != corners {
+                self.corners = corners;
+                changed = true;
+            }
+
+            if changed && self.clip.copy(ctx) {
+                ctx.updates.render();
+            }
+
             self.child.arrange(ctx, widget_layout, final_size)
         }
 
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
             if self.clip.copy(ctx) {
-                frame.push_simple_clip(self.bounds, |frame| self.child.render(ctx, frame));
+                let bounds = PxRect::from_size(self.bounds);
+
+                if self.corners != PxCornerRadius::zero() {
+                    frame.push_clip_rounded_rect(bounds, self.corners, false, |f| self.child.render(ctx, f));
+                } else {
+                    frame.push_clip_rect(bounds, |f| self.child.render(ctx, f));
+                }
             } else {
                 self.child.render(ctx, frame);
             }
@@ -345,5 +381,6 @@ pub fn clip_to_bounds(child: impl UiNode, clip: impl IntoVar<bool>) -> impl UiNo
         child,
         clip: clip.into_var(),
         bounds: PxSize::zero(),
+        corners: PxCornerRadius::zero(),
     }
 }

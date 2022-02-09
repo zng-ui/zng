@@ -1000,7 +1000,7 @@ impl PxToDip for PxCornerRadius {
 }
 impl PxCornerRadius {
     /// Convert to `webrender` border radius.
-    pub fn to_border_radius(self) -> webrender_api::BorderRadius {
+    pub fn to_wr(self) -> webrender_api::BorderRadius {
         webrender_api::BorderRadius {
             top_left: self.top_left.to_wr(),
             top_right: self.top_right.to_wr(),

@@ -44,8 +44,8 @@ fn app_main() {
 fn alt_scope() -> impl Widget {
     h_stack! {
         alt_focus_scope = true;
-        spacing = 5;
-        margin = 5;
+        button::theme::border = 0, BorderStyle::Solid;
+        button::theme::corner_radius = 0;
         items = widgets![
             button("alt", TabIndex::AUTO),
             button("scope", TabIndex::AUTO),

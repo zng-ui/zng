@@ -113,7 +113,7 @@ pub mod button {
             /// Use the [`button::theme::corner_radius`] property to set.
             ///
             /// [`button::theme::corner_radius`]: fn@corner_radius
-            pub struct CornerRadiusVar: CornerRadius = CornerRadius::default();
+            pub struct CornerRadiusVar: CornerRadius = CornerRadius::new_all(4);
 
             /// Button padding.
             ///

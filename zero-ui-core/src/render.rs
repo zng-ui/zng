@@ -584,12 +584,12 @@ impl FrameBuilder {
         }
     }
 
-    /// Calls `f` with a new [`clip_id`] that clips to `bounds`.
+    /// Calls `f` with a new [`clip_id`] that clips to `rect`.
     ///
     /// [`clip_id`]: FrameBuilder::clip_id
     #[inline]
-    pub fn push_simple_clip(&mut self, bounds: PxSize, f: impl FnOnce(&mut FrameBuilder)) {
-        expect_inner!(self.push_hit_test);
+    pub fn push_clip_rect(&mut self, rect: PxRect, f: impl FnOnce(&mut FrameBuilder)) {
+        expect_inner!(self.push_simple_clip);
 
         let parent_clip_id = self.clip_id;
 
@@ -598,7 +598,35 @@ impl FrameBuilder {
                 spatial_id: self.spatial_id,
                 clip_id: self.clip_id,
             },
-            PxRect::from_size(bounds).to_wr(),
+            rect.to_wr(),
+        );
+
+        f(self);
+
+        self.clip_id = parent_clip_id;
+    }
+
+    /// Calls `f` with a new [`clip_id`] that clips to `rect` and `corners`.
+    ///
+    /// If `clip_out` is `true` only pixels outside the rounded rect are visible.
+    ///
+    /// [`clip_id`]: FrameBuilder::clip_id
+    #[inline]
+    pub fn push_clip_rounded_rect(&mut self, rect: PxRect, corners: PxCornerRadius, clip_out: bool, f: impl FnOnce(&mut FrameBuilder)) {
+        expect_inner!(self.push_clip);
+
+        let parent_clip_id = self.clip_id;
+
+        self.clip_id = self.display_list.define_clip_rounded_rect(
+            &SpaceAndClipInfo {
+                spatial_id: self.spatial_id,
+                clip_id: self.clip_id,
+            },
+            ComplexClipRegion {
+                rect: rect.to_wr(),
+                radii: corners.to_wr(),
+                mode: if clip_out { ClipMode::ClipOut } else { ClipMode::Clip },
+            },
         );
 
         f(self);
@@ -607,6 +635,7 @@ impl FrameBuilder {
     }
 
     /// Calls `f` inside a scroll viewport space.
+    #[inline]
     pub fn push_scroll_frame(
         &mut self,
         scroll_id: ScrollId,
@@ -614,7 +643,7 @@ impl FrameBuilder {
         content_rect: PxRect,
         f: impl FnOnce(&mut FrameBuilder),
     ) {
-        expect_inner!(self.push_hit_test);
+        expect_inner!(self.push_scroll_frame);
 
         let parent_spatial_id = self.spatial_id;
 
@@ -728,7 +757,7 @@ impl FrameBuilder {
             right: sides.right.into(),
             top: sides.top.into(),
             bottom: sides.bottom.into(),
-            radius: radius.to_border_radius(),
+            radius: radius.to_wr(),
             do_aa: true,
         });
 
