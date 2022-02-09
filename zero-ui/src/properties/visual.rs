@@ -172,7 +172,6 @@ pub fn foreground(child: impl UiNode, foreground: impl UiNode) -> impl UiNode {
 ///         offsets: 3,
 ///         widths: 1,
 ///         sides: colors::BLUE,
-///         radius: 0
 ///     }
 /// }
 /// # ;
@@ -182,15 +181,14 @@ pub fn foreground(child: impl UiNode, foreground: impl UiNode) -> impl UiNode {
 ///
 /// [`foreground`]: fn@foreground
 /// [`border`]: fn@crate::properties::border
-#[property(fill, default(0, 0, BorderStyle::Hidden, 0))]
+#[property(fill, default(0, 0, BorderStyle::Hidden))]
 pub fn foreground_highlight(
     child: impl UiNode,
     offsets: impl IntoVar<SideOffsets>,
     widths: impl IntoVar<SideOffsets>,
     sides: impl IntoVar<BorderSides>,
-    radius: impl IntoVar<BorderRadius>,
 ) -> impl UiNode {
-    let border = crate::properties::border(crate::core::FillUiNode, widths, sides, radius);
+    let border = crate::properties::border(crate::core::FillUiNode, widths, sides);
     foreground(child, side_offsets(border, offsets))
 }
 

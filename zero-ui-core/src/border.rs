@@ -1,10 +1,20 @@
-//! Line and border types.
+//! Border and line types.
 
 use std::fmt;
 
 use crate::render::webrender_api as w_api;
 
-use crate::{color::*, context::LayoutMetrics, units::*, var::impl_from_and_into_var};
+use crate::{
+    color::*,
+    context::LayoutMetrics,
+    context::{InfoContext, LayoutContext, WidgetContext},
+    impl_ui_node, property,
+    units::*,
+    var::impl_from_and_into_var,
+    var::*,
+    widget_info::{WidgetLayout, WidgetSubscriptions},
+    UiNode,
+};
 
 /// Orientation of a straight line.
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -239,7 +249,7 @@ impl Default for BorderSide {
 
 /// Radius of each corner of a border defined from [`Size`] values.
 #[derive(Clone, Default, PartialEq)]
-pub struct BorderRadius {
+pub struct CornerRadius {
     /// Top-left corner.
     pub top_left: Size,
     /// Top-right corner.
@@ -249,7 +259,7 @@ pub struct BorderRadius {
     /// Bottom-left corner.
     pub bottom_left: Size,
 }
-impl fmt::Debug for BorderRadius {
+impl fmt::Debug for CornerRadius {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if f.alternate() {
             f.debug_struct("BorderRadius")
@@ -269,7 +279,7 @@ impl fmt::Debug for BorderRadius {
         }
     }
 }
-impl BorderRadius {
+impl CornerRadius {
     /// New every corner unique.
     pub fn new<TL: Into<Size>, TR: Into<Size>, BR: Into<Size>, BL: Into<Size>>(
         top_left: TL,
@@ -277,7 +287,7 @@ impl BorderRadius {
         bottom_right: BR,
         bottom_left: BL,
     ) -> Self {
-        BorderRadius {
+        CornerRadius {
             top_left: top_left.into(),
             top_right: top_right.into(),
             bottom_right: bottom_right.into(),
@@ -288,7 +298,7 @@ impl BorderRadius {
     /// New all corners the same.
     pub fn new_all<E: Into<Size>>(ellipse: E) -> Self {
         let e = ellipse.into();
-        BorderRadius {
+        CornerRadius {
             top_left: e.clone(),
             top_right: e.clone(),
             bottom_left: e.clone(),
@@ -321,37 +331,37 @@ impl BorderRadius {
 }
 impl_from_and_into_var! {
     /// All corners same.
-    fn from(all: Size) -> BorderRadius {
-        BorderRadius::new_all(all)
+    fn from(all: Size) -> CornerRadius {
+        CornerRadius::new_all(all)
     }
     /// All corners same length.
-    fn from(all: Length) -> BorderRadius {
-        BorderRadius::new_all(all)
+    fn from(all: Length) -> CornerRadius {
+        CornerRadius::new_all(all)
     }
 
     /// All corners same relative length.
-    fn from(percent: FactorPercent) -> BorderRadius {
-        BorderRadius::new_all(percent)
+    fn from(percent: FactorPercent) -> CornerRadius {
+        CornerRadius::new_all(percent)
     }
    /// All corners same relative length.
-    fn from(norm: Factor) -> BorderRadius {
-        BorderRadius::new_all(norm)
+    fn from(norm: Factor) -> CornerRadius {
+        CornerRadius::new_all(norm)
     }
 
     /// All corners same exact length.
-    fn from(f: f32) -> BorderRadius {
-        BorderRadius::new_all(f)
+    fn from(f: f32) -> CornerRadius {
+        CornerRadius::new_all(f)
     }
     /// All corners same exact length.
-    fn from(i: i32) -> BorderRadius {
-        BorderRadius::new_all(i)
+    fn from(i: i32) -> CornerRadius {
+        CornerRadius::new_all(i)
     }
 
     /// (top-left, top-right, bottom-left, bottom-right) corners.
     fn from<TL: Into<Size> + Clone, TR: Into<Size> + Clone, BR: Into<Size> + Clone, BL: Into<Size> + Clone>(
         (top_left, top_right, bottom_right, bottom_left): (TL, TR, BR, BL)
-    ) -> BorderRadius {
-        BorderRadius::new(top_left, top_right, bottom_right, bottom_left)
+    ) -> CornerRadius {
+        CornerRadius::new(top_left, top_right, bottom_right, bottom_left)
     }
 }
 
@@ -558,5 +568,45 @@ impl_from_and_into_var! {
             (bottom, style),
             (left, style),
         )
+    }
+}
+
+/// Corner radius of widget and inner widgets.
+///
+/// The [`Default`] value is calculated to fit inside the parent widget corner curve.
+#[property(context, default(CornerRadius::default()))]
+pub fn corner_radius(child: impl UiNode, radius: impl IntoVar<CornerRadius>) -> impl UiNode {
+    struct CornerRadiusNode<C, R> {
+        child: C,
+        radius: R,
+    }
+    #[impl_ui_node(child)]
+    impl<C: UiNode, R: Var<CornerRadius>> UiNode for CornerRadiusNode<C, R> {
+        fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
+            subscriptions.var(ctx, &self.radius);
+            self.child.subscriptions(ctx, subscriptions);
+        }
+
+        fn update(&mut self, ctx: &mut WidgetContext) {
+            if self.radius.is_new(ctx) {
+                ctx.updates.layout();
+            }
+            self.child.update(ctx);
+        }
+
+        fn arrange(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, final_size: PxSize) {
+            let radius = self
+                .radius
+                .get(ctx.vars)
+                .to_layout(ctx.metrics, AvailableSize::finite(final_size), widget_layout.corner_radius());
+
+            widget_layout.with_corner_radius(radius, |wl| {
+                self.child.arrange(ctx, wl, final_size);
+            });
+        }
+    }
+    CornerRadiusNode {
+        child,
+        radius: radius.into_var(),
     }
 }

@@ -514,4 +514,5 @@ pub fn is_cap_pressed(child: impl UiNode, state: StateVar) -> impl UiNode {
     }
 }
 
+#[doc(no_inline)]
 pub use crate::core::widget_base::{is_collapsed, is_disabled, is_enabled, is_hidden, is_hit_testable, is_visible};

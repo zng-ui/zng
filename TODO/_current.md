@@ -56,36 +56,7 @@ Illustrator *stroke* can be aligned Inner, Centered, Outer.
 
 ```rust
 impl WidgetLayout {
-    /// Current corner radius set by [`with_corner_radius`] and deflated by [`with_border`].
-    ///
-    /// [`with_corner_radius`]: Self::with_corner_radius
-    /// [`with_border`]: Self::with_border
-    pub fn corner_radius(&self) -> PxCornerRadius {
-        self.corner_radius
-    }
 
-    /// Sets the corner radius that will affect the next inner borders.
-    ///
-    /// After each [`with_border`] the `corners` value will be deflated to fit inside the *outer* border.
-    ///
-    /// [`with_border`]: Self::with_border
-    pub fn with_corner_radius(&mut self, corners: PxCornerRadius, f: impl FnOnce(&mut Self)) {
-        let c = mem::replace(&mut self.corner_radius, corners);
-
-        f(self);
-
-        self.corner_radius = c;
-    }
-
-    /// Deflates the corner radius for the next inner border or content clip.
-    pub fn with_border(&mut self, offsets: PxSideOffsets, f: impl FnOnce(&mut Self)) {
-        let c = self.corner_radius;
-        self.corner_radius = c.deflate(offsets);
-
-        f(self);
-
-        self.corner_radius = c;
-    }
 }
 ```
 
@@ -95,10 +66,7 @@ What if borders don't draw their child inside a reference frame?
 
 ```rust
 impl WidgetLayout {
-    /// Current accumulated border offsets.
-    pub fn border_offsets(&self) -> PxSideOffsets {
-        self.border_offsets
-    }
+
 }
 ```
 
@@ -117,9 +85,9 @@ can have the border offsets apply to the content transform, leaving only the con
 
 # Final Changes
 
-* Split `inner` into `border` and `fill`.
-* Change `push_inner`, `with_inner` to `new_border`.
-* Add border offsets and corner radius to `WidgetLayout`.
+* Split `inner` into `border` and `fill`. ✔
+* Move `push_inner`, `with_inner` to `new_border`. ✔
+* Add border offsets and corner radius to `WidgetLayout`. ✔
 * Reimplement border to not offset child and use `border_offsets` to place itself.
 * Reimplement background/foreground to have their own corners clip and *border-align* that defines what amount of the 
   `border_offsets` they are affected by.
@@ -128,3 +96,4 @@ can have the border offsets apply to the content transform, leaving only the con
 * Review child priority integration with `WidgetLayout`, what happens when we add a border in child { }?
 * Review `side_offsets`, needs to work like an invisible border? 
 * Review `clip_to_bounds`.
+* Review docs of property and functions that use the term "inner".

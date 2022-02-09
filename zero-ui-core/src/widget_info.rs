@@ -31,6 +31,9 @@ pub struct WidgetLayout {
     transform: RenderTransform,
     transform_origin: Point,
     inner_info: WidgetLayoutInfo,
+
+    border_offsets: PxSideOffsets,
+    corner_radius: PxCornerRadius,
 }
 impl WidgetLayout {
     /// Start the layout arrange pass from the window root widget.
@@ -48,6 +51,9 @@ impl WidgetLayout {
             transform: RenderTransform::identity(),
             transform_origin: Point::center(),
             inner_info: inner_info.clone(),
+
+            border_offsets: PxSideOffsets::zero(),
+            corner_radius: PxCornerRadius::zero(),
         };
         self_.with_widget(root_id, outer_info, inner_info, final_size, f);
     }
@@ -190,6 +196,42 @@ impl WidgetLayout {
         self.global_transform = prev_global_transform;
 
         transform
+    }
+
+    /// Current accumulated border offsets.
+    pub fn border_offsets(&self) -> PxSideOffsets {
+        self.border_offsets
+    }
+
+    /// Current corner radius set by [`with_corner_radius`] and deflated by [`with_border`].
+    ///
+    /// [`with_corner_radius`]: Self::with_corner_radius
+    /// [`with_border`]: Self::with_border
+    pub fn corner_radius(&self) -> PxCornerRadius {
+        self.corner_radius
+    }
+
+    /// Sets the corner radius that will affect the next inner borders.
+    ///
+    /// After each [`with_border`] the `corners` value will be deflated to fit inside the *outer* border.
+    ///
+    /// [`with_border`]: Self::with_border
+    pub fn with_corner_radius(&mut self, corners: PxCornerRadius, f: impl FnOnce(&mut Self)) {
+        let c = mem::replace(&mut self.corner_radius, corners);
+
+        f(self);
+
+        self.corner_radius = c;
+    }
+
+    /// Deflates the corner radius for the next inner border or content clip.
+    pub fn with_border(&mut self, offsets: PxSideOffsets, f: impl FnOnce(&mut Self)) {
+        let c = self.corner_radius;
+        self.corner_radius = c.deflate(offsets);
+
+        f(self);
+
+        self.corner_radius = c;
     }
 }
 

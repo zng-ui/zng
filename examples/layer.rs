@@ -193,7 +193,7 @@ fn anchor_example() -> impl Widget {
                 padding = 4;
                 font_weight = FontWeight::BOLD;
                 background_color = colors::GREEN.darken(40.pct());
-                border = 1, colors::GREEN.darken(20.pct()), 0;
+                border = 1, colors::GREEN.darken(20.pct());
                 position = point.map(|p|p - &Vector::splat(100.pct()));
                 margin = 2;
                 hit_testable = false;
@@ -227,7 +227,8 @@ fn transform_anchor_example() -> impl Widget {
                 WindowLayers::insert_anchored(ctx, LayerIndex::ADORNER, "t-anchor", anchor_mode.clone(), container! {
                     id = "t-anchored";
                     content_align = Alignment::TOP_LEFT;
-                    border = 1, colors::GREEN.lighten(30.pct()), 4;
+                    border = 1, colors::GREEN.lighten(30.pct());
+                    corner_radius = 4;
                     hit_testable = false;
                     content = text! {
                         y = -(2.dip() + 100.pct());

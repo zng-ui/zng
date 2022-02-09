@@ -24,3 +24,6 @@ mod capture;
 pub use capture::*;
 mod cursor_;
 pub use cursor_::*;
+
+#[doc(no_inline)]
+pub use crate::core::{border::corner_radius, widget_base::hit_testable};

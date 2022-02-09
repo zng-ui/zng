@@ -350,7 +350,6 @@ fn misc(window_id: WindowId, window_vars: &WindowVars) -> impl Widget {
                 border = {
                     sides: c_true_border,
                     widths: button::theme::BorderWidthsVar,
-                    radius: button::theme::BorderRadiusVar,
                 };
             }
 
@@ -360,7 +359,6 @@ fn misc(window_id: WindowId, window_vars: &WindowVars) -> impl Widget {
                 border = {
                     sides: c_false_border,
                     widths: button::theme::BorderWidthsVar,
-                    radius: button::theme::BorderRadiusVar,
                 };
             }
         }

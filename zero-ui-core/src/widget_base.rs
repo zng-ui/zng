@@ -2,18 +2,16 @@
 
 use std::{fmt, ops};
 
-use crate::event::EventUpdateArgs;
-use crate::var::*;
-use crate::widget_info::{UpdateMask, WidgetInfo, WidgetInfoBuilder, WidgetLayout, WidgetSubscriptions};
 use crate::{
-    context::{state_key, LayoutContext, StateMap, WidgetContext},
-    units::{AvailableSize, PxSize},
-};
-use crate::{
-    context::{InfoContext, RenderContext},
+    context::{state_key, InfoContext, LayoutContext, RenderContext, StateMap, WidgetContext},
+    event::EventUpdateArgs,
+    impl_ui_node, property,
     render::{FrameBuilder, FrameUpdate},
+    units::{AvailableSize, PxSize},
+    var::*,
+    widget_info::{UpdateMask, WidgetInfo, WidgetInfoBuilder, WidgetLayout, WidgetSubscriptions},
+    NilUiNode, UiNode, Widget, WidgetId,
 };
-use crate::{impl_ui_node, property, NilUiNode, UiNode, Widget, WidgetId};
 
 /// Base widget inherited implicitly by all [widgets](widget!) that don't inherit from
 /// any other widget.

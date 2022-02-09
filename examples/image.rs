@@ -227,7 +227,6 @@ fn img_window(title: impl IntoVar<Text>, content: impl UiNode) -> Window {
         button::theme::border = {
             widths: 1,
             sides: button_color.lighten(4.pct()),
-            radius: 0,
         };
 
         button::theme::hovered::background_color = button_color.lighten(2.fct());
@@ -262,8 +261,8 @@ fn sprite(timers: &mut Timers) -> impl Widget {
                 border = {
                     widths: 1,
                     sides: BorderSides::dashed(colors::GRAY),
-                    radius: 4,
                 };
+                corner_radius = 4;
                 crop = timer.map(|n| {
                     if n.count() == 10 {
                         n.set_count(0);

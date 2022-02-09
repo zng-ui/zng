@@ -55,7 +55,7 @@ fn transformed(label: impl Into<Text>, transform: Transform) -> impl Widget {
             background_color = colors::BROWN.with_alpha(80.pct());
             padding = 10;
         };
-        border = 2, (colors::GRAY, BorderStyle::Dashed), 0;
+        border = 2, (colors::GRAY, BorderStyle::Dashed);
     }
 }
 fn transformed_at(label: impl Into<Text>, transform: Transform, origin: impl Into<Point>) -> impl Widget {
@@ -67,7 +67,7 @@ fn transformed_at(label: impl Into<Text>, transform: Transform, origin: impl Int
             background_color = colors::BROWN.with_alpha(80.pct());
             padding = 10;
         };
-        border = 2, (colors::GRAY, BorderStyle::Dashed), 0;
+        border = 2, (colors::GRAY, BorderStyle::Dashed);
     }
 }
 

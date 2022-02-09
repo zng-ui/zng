@@ -35,8 +35,10 @@ pub mod button {
         border = {
             widths: theme::BorderWidthsVar,
             sides: theme::BorderSidesVar,
-            radius: theme::BorderRadiusVar,
         };
+
+        /// Button corner radius.
+        corner_radius = theme::CornerRadiusVar;
 
         /// Color of text inside the button [`content`](#wp-content).
         text_color = theme::TextColorVar;
@@ -57,7 +59,6 @@ pub mod button {
             border = {
                 widths: theme::BorderWidthsVar,
                 sides: theme::hovered::BorderSidesVar,
-                radius: theme::BorderRadiusVar,
             };
             text_color = theme::hovered::TextColorVar;
         }
@@ -68,7 +69,6 @@ pub mod button {
             border = {
                 widths: theme::BorderWidthsVar,
                 sides: theme::pressed::BorderSidesVar,
-                radius: theme::BorderRadiusVar,
             };
             text_color = theme::pressed::TextColorVar;
         }
@@ -79,7 +79,6 @@ pub mod button {
             border = {
                 widths: theme::BorderWidthsVar,
                 sides: theme::disabled::BorderSidesVar,
-                radius: theme::BorderRadiusVar,
             };
             text_color = theme::disabled::TextColorVar;
         }
@@ -109,12 +108,12 @@ pub mod button {
             ///
             /// [`button::theme::border`]: fn@border
             pub struct BorderSidesVar: BorderSides = BorderSides::solid(rgb(0.2, 0.2, 0.2));
-            /// Button border radius.
+            /// Button corner radius.
             ///
-            /// Use the [`button::theme::border`] property to set.
+            /// Use the [`button::theme::corner_radius`] property to set.
             ///
-            /// [`button::theme::border`]: fn@border
-            pub struct BorderRadiusVar: BorderRadius = BorderRadius::new_all(0.0);
+            /// [`button::theme::corner_radius`]: fn@corner_radius
+            pub struct CornerRadiusVar: CornerRadius = CornerRadius::default();
 
             /// Button padding.
             ///
@@ -137,17 +136,17 @@ pub mod button {
             with_context_var(child, BackgroundColorVar, color)
         }
 
-        /// Sets the [`BorderWidthsVar`], [`BorderSidesVar`] and [`BorderRadiusVar`] that affects all buttons inside the widget.
-        #[property(context, default(BorderWidthsVar, BorderSidesVar, BorderRadiusVar))]
-        pub fn border(
-            child: impl UiNode,
-            widths: impl IntoVar<SideOffsets>,
-            sides: impl IntoVar<BorderSides>,
-            radius: impl IntoVar<BorderRadius>,
-        ) -> impl UiNode {
+        /// Sets the [`BorderWidthsVar`], [`BorderSidesVar`] that affects all buttons inside the widget.
+        #[property(context, default(BorderWidthsVar, BorderSidesVar))]
+        pub fn border(child: impl UiNode, widths: impl IntoVar<SideOffsets>, sides: impl IntoVar<BorderSides>) -> impl UiNode {
             let child = with_context_var(child, BorderWidthsVar, widths);
-            let child = with_context_var(child, BorderSidesVar, sides);
-            with_context_var(child, BorderRadiusVar, radius)
+            with_context_var(child, BorderSidesVar, sides)
+        }
+
+        /// Sets the [`CornerRadiusVar`] that affects all buttons inside the widget.
+        #[property(context, default(CornerRadiusVar))]
+        pub fn corner_radius(child: impl UiNode, radius: impl IntoVar<CornerRadius>) -> impl UiNode {
+            with_context_var(child, CornerRadiusVar, radius)
         }
 
         /// Sets the [`PaddingVar`] that affects all buttons inside the widget.

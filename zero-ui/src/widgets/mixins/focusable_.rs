@@ -4,7 +4,7 @@ use crate::core::widget_mixin;
 /// highlight border.
 #[widget_mixin($crate::widgets::mixins::focusable_mixin)]
 pub mod focusable_mixin {
-    use crate::core::border::{BorderRadius, BorderSides, BorderStyle};
+    use crate::core::border::{BorderSides, BorderStyle};
     use crate::core::color::rgba;
     use crate::core::units::SideOffsets;
     use crate::core::var::context_var;
@@ -22,7 +22,6 @@ pub mod focusable_mixin {
             offsets: 0,
             widths: 0,
             sides: BorderStyle::Hidden,
-            radius: 0
         };
 
         /// When widget has keyboard focus and highlight is requested.
@@ -31,7 +30,6 @@ pub mod focusable_mixin {
                 offsets: theme::FocusHighlightOffsetsVar,
                 widths: theme::FocusHighlightWidthsVar,
                 sides: theme::FocusHighlightSidesVar,
-                radius: theme::FocusHighlightRadiusVar
             };
         }
     }
@@ -44,7 +42,7 @@ pub mod focusable_mixin {
             pub struct FocusHighlightWidthsVar: SideOffsets = SideOffsets::new_all(0.5);
             pub struct FocusHighlightOffsetsVar: SideOffsets = SideOffsets::new_all(1.0);
             pub struct FocusHighlightSidesVar: BorderSides = BorderSides::dashed(rgba(200, 200, 200, 1.0));
-            pub struct FocusHighlightRadiusVar: BorderRadius = BorderRadius::new_all(2.0);
+
         }
     }
 }
