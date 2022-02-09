@@ -1,5 +1,8 @@
 use crate::prelude::new_property::*;
 
+#[doc(no_inline)]
+pub use crate::core::border::{border_align, corner_radius};
+
 /// Draws a border around the widget.
 #[property(border, default(0, BorderStyle::Hidden))]
 pub fn border(child: impl UiNode, widths: impl IntoVar<SideOffsets>, sides: impl IntoVar<BorderSides>) -> impl UiNode {
