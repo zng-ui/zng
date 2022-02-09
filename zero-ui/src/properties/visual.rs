@@ -35,6 +35,8 @@ pub fn background(child: impl UiNode, background: impl UiNode) -> impl UiNode {
     struct BackgroundNode<C> {
         /// [background, child]
         children: C,
+        background_offset: PxVector,
+        spatial_id: SpatialFrameId,
     }
     #[impl_ui_node(children)]
     impl<C: UiNodeList> UiNode for BackgroundNode<C> {
@@ -43,9 +45,35 @@ pub fn background(child: impl UiNode, background: impl UiNode) -> impl UiNode {
             self.children.widget_measure(0, ctx, AvailableSize::finite(available_size));
             available_size
         }
+        fn arrange(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, final_size: PxSize) {
+            self.children.widget_arrange(1, ctx, widget_layout, final_size);
+            let border_offsets = widget_layout.border_offsets();
+            //let border_diff = PxSize::new(
+            //    border_offsets.left + border_offsets.right,
+            //    border_offsets.top + border_offsets.bottom,
+            //);
+
+            self.background_offset = PxVector::new(border_offsets.left, border_offsets.top);
+
+            widget_layout.with_custom_transform(&RenderTransform::translation_px(self.background_offset), |wl| {
+                self.children.widget_arrange(0, ctx, wl, final_size)
+            });
+        }
+        
+        fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
+            frame.push_reference_frame(
+                self.spatial_id,
+                FrameBinding::Value(RenderTransform::translation_px(self.background_offset)),
+                true,
+                |f| self.children.widget_render(0, ctx, f),
+            );
+            self.children.widget_render(1, ctx, frame);
+        }
     }
     BackgroundNode {
         children: nodes![background, child],
+        background_offset: PxVector::zero(),
+        spatial_id: SpatialFrameId::new_unique(),
     }
 }
 

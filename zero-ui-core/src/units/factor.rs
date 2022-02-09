@@ -1,6 +1,6 @@
 use derive_more as dm;
 
-use super::{about_eq, Px, PxPoint, PxRect, PxSize, PxVector, Size, EPSILON, EPSILON_100};
+use super::{about_eq, Px, PxPoint, PxRect, PxSideOffsets, PxSize, PxVector, Size, EPSILON, EPSILON_100};
 use crate::impl_from_and_into_var;
 use std::{fmt, ops};
 
@@ -595,6 +595,74 @@ impl FactorSideOffsets {
     /// Uniform 100%
     pub fn one() -> Self {
         Self::new_all(1.fct())
+    }
+}
+impl ops::Mul<FactorSideOffsets> for FactorSideOffsets {
+    type Output = FactorSideOffsets;
+
+    fn mul(self, rhs: FactorSideOffsets) -> FactorSideOffsets {
+        FactorSideOffsets::new(
+            self.top * rhs.top,
+            self.right * rhs.right,
+            self.bottom * rhs.bottom,
+            self.left * rhs.left,
+        )
+    }
+}
+impl ops::Div<FactorSideOffsets> for FactorSideOffsets {
+    type Output = FactorSideOffsets;
+
+    fn div(self, rhs: FactorSideOffsets) -> FactorSideOffsets {
+        FactorSideOffsets::new(
+            self.top / rhs.top,
+            self.right / rhs.right,
+            self.bottom / rhs.bottom,
+            self.left / rhs.left,
+        )
+    }
+}
+impl ops::MulAssign<FactorSideOffsets> for FactorSideOffsets {
+    fn mul_assign(&mut self, rhs: FactorSideOffsets) {
+        *self = *self * rhs;
+    }
+}
+impl ops::DivAssign<FactorSideOffsets> for FactorSideOffsets {
+    fn div_assign(&mut self, rhs: FactorSideOffsets) {
+        *self = *self / rhs;
+    }
+}
+impl ops::Mul<FactorSideOffsets> for PxSideOffsets {
+    type Output = PxSideOffsets;
+
+    fn mul(self, rhs: FactorSideOffsets) -> PxSideOffsets {
+        PxSideOffsets::new(
+            self.top * rhs.top,
+            self.right * rhs.right,
+            self.bottom * rhs.bottom,
+            self.left * rhs.left,
+        )
+    }
+}
+impl ops::Div<FactorSideOffsets> for PxSideOffsets {
+    type Output = PxSideOffsets;
+
+    fn div(self, rhs: FactorSideOffsets) -> PxSideOffsets {
+        PxSideOffsets::new(
+            self.top / rhs.top,
+            self.right / rhs.right,
+            self.bottom / rhs.bottom,
+            self.left / rhs.left,
+        )
+    }
+}
+impl ops::MulAssign<FactorSideOffsets> for PxSideOffsets {
+    fn mul_assign(&mut self, rhs: FactorSideOffsets) {
+        *self = *self * rhs;
+    }
+}
+impl ops::DivAssign<FactorSideOffsets> for PxSideOffsets {
+    fn div_assign(&mut self, rhs: FactorSideOffsets) {
+        *self = *self / rhs;
     }
 }
 impl_from_and_into_var! {

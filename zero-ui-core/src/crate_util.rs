@@ -35,10 +35,6 @@ macro_rules! unique_id_32 {
 
         impl $Type {
             /// Generates a new unique ID.
-            ///
-            /// # Panics
-            ///
-            /// Panics if called more then `u32::MAX` times.
             pub fn new_unique() -> Self {
                 use std::sync::atomic::AtomicU32;
                 static NEXT: AtomicU32 = AtomicU32::new(1);
@@ -98,10 +94,6 @@ macro_rules! unique_id_64 {
 
         impl $Type {
             /// Generates a new unique ID.
-            ///
-            /// # Panics
-            ///
-            /// Panics if called more then `u64::MAX` times.
             pub fn new_unique() -> Self {
                 use std::sync::atomic::AtomicU64;
                 static NEXT: AtomicU64 = AtomicU64::new(1);
@@ -145,7 +137,7 @@ pub fn next_id32(next: &'static AtomicU32) -> NonZeroU32 {
         let id = next.fetch_add(1, Ordering::Relaxed);
 
         if id == 0 {
-            tracing::error!("id generator reached `u64::MAX`, will start reusing");
+            tracing::error!("id generator reached `u32::MAX`, will start reusing");
         } else {
             let id = hash32(id);
             if let Some(id) = NonZeroU32::new(id) {
