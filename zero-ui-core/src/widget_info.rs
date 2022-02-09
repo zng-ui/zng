@@ -224,14 +224,38 @@ impl WidgetLayout {
         self.corner_radius = c;
     }
 
-    /// Deflates the corner radius for the next inner border or content clip.
-    pub fn with_border(&mut self, offsets: PxSideOffsets, f: impl FnOnce(&mut Self)) {
+    /// Adds to the accumulated border offsets, deflates the corner radius for the next inner border or content clip,
+    /// applies the top-left offsets as [`with_parent_translate`] and calculate the final size to pass to the node child.
+    ///
+    /// Returns the border final rectangle and corner radius, values that can be used in [`push_border`] to render the border
+    /// in the correct position.
+    ///
+    /// [`with_parent_translate`]: Self::with_parent_translate
+    /// [`push_border`]: crate::render::FrameBuilder::push_border
+    pub fn with_border(
+        &mut self,
+        offsets: PxSideOffsets,
+        final_size: PxSize,
+        f: impl FnOnce(&mut Self, PxSize),
+    ) -> (PxRect, PxCornerRadius) {
+        let o = self.border_offsets;
         let c = self.corner_radius;
+        self.border_offsets.left += offsets.left;
+        self.border_offsets.right += offsets.right;
+        self.border_offsets.top += offsets.top;
+        self.border_offsets.right += offsets.right;
         self.corner_radius = c.deflate(offsets);
 
-        f(self);
+        let diff = PxSize::new(offsets.left + offsets.right, offsets.top + offsets.bottom);
 
+        self.with_parent_translate(PxVector::new(offsets.left, offsets.top), |wl| {
+            f(wl, final_size - diff);
+        });
+
+        self.border_offsets = o;
         self.corner_radius = c;
+
+        (PxRect::new(PxPoint::new(self.border_offsets.left, self.border_offsets.top), final_size), c)
     }
 }
 

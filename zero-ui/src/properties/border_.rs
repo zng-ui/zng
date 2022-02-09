@@ -38,25 +38,27 @@ pub fn border(child: impl UiNode, widths: impl IntoVar<SideOffsets>, sides: impl
             }
         }
 
+        fn measure(&mut self, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize {
+            self.final_widths = self
+                .widths
+                .get(ctx.vars)
+                .to_layout(ctx.metrics, available_size, PxSideOffsets::zero());
+
+            let diff = PxSize::new(
+                self.final_widths.left + self.final_widths.right,
+                self.final_widths.top + self.final_widths.bottom,
+            );
+
+            self.child.measure(ctx, available_size.sub_px(diff)) + diff
+        }
+
         fn arrange(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, final_size: PxSize) {
-            let parent_widths = widget_layout.border_offsets();
-            self.final_rect.origin = PxPoint::new(parent_widths.left, parent_widths.top);
-            self.final_rect.size = final_size;
-
-            self.final_rect.size.width -= parent_widths.left + parent_widths.right;
-            self.final_rect.size.height -= parent_widths.top + parent_widths.bottom;
-
-            self.final_radius = widget_layout.corner_radius();
-
-            self.final_widths =
-                self.widths
-                    .get(ctx.vars)
-                    .to_layout(ctx.metrics, AvailableSize::finite(self.final_rect.size), PxSideOffsets::zero());
-
-            widget_layout.with_border(self.final_widths, |wl| {
-                // border padding is up to the widget.
-                self.child.arrange(ctx, wl, final_size);
+            let (final_rect, final_radius) = widget_layout.with_border(self.final_widths, final_size, |wl, fs| {
+                self.child.arrange(ctx, wl, fs);
             });
+
+            self.final_rect = final_rect;
+            self.final_radius = final_radius;
         }
 
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
