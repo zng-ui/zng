@@ -35,9 +35,6 @@ pub fn background(child: impl UiNode, background: impl UiNode) -> impl UiNode {
     struct BackgroundNode<C> {
         /// [background, child]
         children: C,
-        background_offset: PxVector,
-        background_clip: (PxSize, PxCornerRadius),
-        spatial_id: SpatialFrameId,
     }
     #[impl_ui_node(children)]
     impl<C: UiNodeList> UiNode for BackgroundNode<C> {
@@ -46,51 +43,9 @@ pub fn background(child: impl UiNode, background: impl UiNode) -> impl UiNode {
             self.children.widget_measure(0, ctx, AvailableSize::finite(available_size));
             available_size
         }
-        fn arrange(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, final_size: PxSize) {
-            self.children.widget_arrange(1, ctx, widget_layout, final_size);
-            let border_offsets = widget_layout.border_offsets();
-            //let border_diff = PxSize::new(
-            //    border_offsets.left + border_offsets.right,
-            //    border_offsets.top + border_offsets.bottom,
-            //);
-
-            self.background_offset = PxVector::new(border_offsets.left, border_offsets.top);
-            self.background_clip = (final_size, widget_layout.corner_radius());
-
-            widget_layout.with_custom_transform(&RenderTransform::translation_px(self.background_offset), |wl| {
-                self.children.widget_arrange(0, ctx, wl, final_size)
-            });
-        }
-        fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-            let mut render_background = |frame: &mut FrameBuilder| {
-                let (clip_bounds, clip_corners) = self.background_clip;
-                let clip_bounds = PxRect::from_size(clip_bounds);
-
-                if clip_corners != PxCornerRadius::zero() {
-                    frame.push_clip_rounded_rect(clip_bounds, clip_corners, false, |f| self.children.widget_render(0, ctx, f))
-                } else {
-                    frame.push_clip_rect(clip_bounds, |f| self.children.widget_render(0, ctx, f))
-                }
-            };
-            if self.background_offset != PxVector::zero() {
-                frame.push_reference_frame(
-                    self.spatial_id,
-                    FrameBinding::Value(RenderTransform::translation_px(self.background_offset)),
-                    true,
-                    render_background,
-                );
-            } else {
-                render_background(frame);
-            }
-
-            self.children.widget_render(1, ctx, frame);
-        }
     }
     BackgroundNode {
-        children: nodes![background, child],
-        background_offset: PxVector::zero(),
-        background_clip: (PxSize::zero(), PxCornerRadius::zero()),
-        spatial_id: SpatialFrameId::new_unique(),
+        children: nodes![fill_node(background), child],
     }
 }
 
@@ -197,7 +152,7 @@ pub fn foreground(child: impl UiNode, foreground: impl UiNode) -> impl UiNode {
         }
     }
     ForegroundNode {
-        children: nodes![child, foreground],
+        children: nodes![child, fill_node(foreground)],
     }
 }
 

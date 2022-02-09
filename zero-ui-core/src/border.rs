@@ -2,7 +2,8 @@
 
 use std::fmt;
 
-use crate::render::webrender_api as w_api;
+use crate::context::RenderContext;
+use crate::render::{webrender_api as w_api, FrameBinding, FrameBuilder, SpatialFrameId};
 
 use crate::{
     color::*,
@@ -608,5 +609,110 @@ pub fn corner_radius(child: impl UiNode, radius: impl IntoVar<CornerRadius>) -> 
     CornerRadiusNode {
         child,
         radius: radius.into_var(),
+    }
+}
+
+/// Position of an widget borders in relation to the widget fill.
+///
+/// This property defines how much the widget's border offsets affect the layout of the fill content, by default
+/// (0%) the fill content stretchers *under* the borders and is clipped by the [`corner_radius`], in the other end
+/// of the scale (100%), the fill content is positioned *inside* the borders and clipped by the adjusted corner_radius
+/// that fits the insider of the inner most border.
+///
+/// Note that widget's content is always *inside* the borders, this property only affects the *fill* properties content, such as a
+/// the image in a background image.
+///
+/// Fill property implementers, see [`fill_node`], a helper function for quickly implementing support for `border_align`.
+#[property(context, default(BorderAlignVar))]
+pub fn border_align(child: impl UiNode, align: impl IntoVar<FactorSideOffsets>) -> impl UiNode {
+    with_context_var(child, BorderAlignVar, align)
+}
+
+context_var! {
+    /// How much an widget's border offsets affects the widget's fill content.
+    ///
+    /// See [`border_align`](fn@border_align) for more details.
+    pub struct BorderAlignVar: FactorSideOffsets = FactorSideOffsets::zero();
+}
+
+/// Transforms and clips the `content` node according with the default widget border behavior.
+///
+/// Properties that *fill* the widget can wrap their fill content in this node to automatically implement
+/// the expected behavior of interaction with the widget borders, the content will positioned, sized and clipped according to the
+/// widget borders, [`corner_radius`] and [`border_align`].
+///
+/// Note that this node should **not** be used for the widgets main content (the property first parameter), only other
+/// content in that fills the widget, for examples, a *background* property would wrap its background node with this
+/// but just pass thought layout and render for its child node.
+///
+/// [`corner_radius`]: fn@corner_radius
+/// [`border_align`]: fn@border_align
+pub fn fill_node(content: impl UiNode) -> impl UiNode {
+    struct FillNodeNode<C> {
+        child: C,
+        offset: PxVector,
+        clip: (PxSize, PxCornerRadius),
+        spatial_id: SpatialFrameId,
+    }
+    #[impl_ui_node(child)]
+    impl<C: UiNode> UiNode for FillNodeNode<C> {
+        fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
+            subscriptions.var(ctx, &BorderAlignVar::new());
+            self.child.subscriptions(ctx, subscriptions);
+        }
+
+        fn update(&mut self, ctx: &mut WidgetContext) {
+            if BorderAlignVar::is_new(ctx) {
+                ctx.updates.layout();
+            }
+            self.child.update(ctx);
+        }
+
+        fn arrange(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, final_size: PxSize) {
+            let border_offsets = widget_layout.border_offsets();
+
+            let border_align = *BorderAlignVar::get(ctx);
+
+            let offset = PxVector::new(border_offsets.left, border_offsets.top);
+            let clip = (final_size, widget_layout.corner_radius());
+
+            if offset != self.offset || clip != self.clip {
+                self.offset = offset;
+                self.clip = clip;
+                ctx.updates.render();
+            }
+
+            widget_layout.with_custom_transform(&RenderTransform::translation_px(self.offset), |wl| {
+                self.child.arrange(ctx, wl, final_size);
+            });
+        }
+        fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
+            let mut clip_render = |frame: &mut FrameBuilder| {
+                let (bounds, corners) = self.clip;
+                let bounds = PxRect::from_size(bounds);
+
+                if corners != PxCornerRadius::zero() {
+                    frame.push_clip_rounded_rect(bounds, corners, false, |f| self.child.render(ctx, f))
+                } else {
+                    frame.push_clip_rect(bounds, |f| self.child.render(ctx, f))
+                }
+            };
+            if self.offset != PxVector::zero() {
+                frame.push_reference_frame(
+                    self.spatial_id,
+                    FrameBinding::Value(RenderTransform::translation_px(self.offset)),
+                    true,
+                    clip_render,
+                );
+            } else {
+                clip_render(frame);
+            }
+        }
+    }
+    FillNodeNode {
+        child: content,
+        offset: PxVector::zero(),
+        clip: (PxSize::zero(), PxCornerRadius::zero()),
+        spatial_id: SpatialFrameId::new_unique(),
     }
 }

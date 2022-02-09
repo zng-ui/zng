@@ -587,12 +587,12 @@ impl FactorSideOffsets {
         Self::new(u, u, u, u)
     }
 
-    /// Uniform 0%
+    /// Uniform 0%.
     pub fn zero() -> Self {
         Self::new_all(0.fct())
     }
 
-    /// Uniform 100%
+    /// Uniform 100%.
     pub fn one() -> Self {
         Self::new_all(1.fct())
     }

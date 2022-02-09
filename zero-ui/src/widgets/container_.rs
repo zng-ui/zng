@@ -10,7 +10,7 @@ pub mod container {
             /// Content UI.
             ///
             /// Can be any type that implements [`UiNode`], any widget.
-            /// 
+            ///
             /// [`UiNode`]: zero_ui::core::UiNode
             #[allowed_in_when = false]
             #[required]
