@@ -20,6 +20,8 @@ fn app_main() {
         window! {
             title = "Border Example";
 
+            height = 800;
+
             background_color = colors::BLUE.darken(70.pct());
 
             content = v_stack! {
@@ -28,6 +30,14 @@ fn app_main() {
                     widgets::mr_borders! {
                         border_align = 0.pct();
                         content = text("border_align = 0.pct();");
+                    },
+                    widgets::mr_borders! {
+                        border_align = (1.0 / 3.0).fct();
+                        content = text("border_align = (1.0 / 3.0).fct();");
+                    },
+                    widgets::mr_borders! {
+                        border_align = 50.pct();
+                        content = text("border_align = 50.pct();");
                     },
                     widgets::mr_borders! {
                         border_align = 100.pct();

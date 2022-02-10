@@ -65,7 +65,7 @@ pub fn margin(child: impl UiNode, margin: impl IntoVar<SideOffsets>) -> impl UiN
         fn measure(&mut self, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize {
             let margin = self.margin.get(ctx).to_layout(ctx, available_size, PxSideOffsets::zero());
 
-            self.size_increment = PxSize::new(margin.left + margin.right, margin.top + margin.bottom);
+            self.size_increment = PxSize::new(margin.horizontal(), margin.vertical());
 
             let origin = PxPoint::new(margin.left, margin.top);
             if origin != self.child_origin {
@@ -121,7 +121,7 @@ pub fn side_offsets(child: impl UiNode, offsets: impl IntoVar<SideOffsets>) -> i
         fn measure(&mut self, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize {
             let offsets = self.offsets.get(ctx).to_layout(ctx, available_size, PxSideOffsets::zero());
 
-            self.size_increment = PxSize::new(offsets.left + offsets.right, offsets.top + offsets.bottom);
+            self.size_increment = PxSize::new(offsets.horizontal(), offsets.vertical());
 
             let offset = PxVector::new(offsets.left, offsets.top);
             if offset != self.child_offset {

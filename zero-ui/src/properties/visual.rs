@@ -239,7 +239,7 @@ pub fn foreground_highlight(
                 .get(ctx.vars)
                 .to_layout(ctx.metrics, available_size, PxSideOffsets::zero());
 
-            let diff = PxSize::new(final_offsets.left + final_offsets.right, final_offsets.top + final_offsets.bottom);
+            let diff = PxSize::new(final_offsets.horizontal(), final_offsets.vertical());
 
             let border_offsets = widget_layout.border_offsets();
 

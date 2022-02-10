@@ -672,9 +672,13 @@ pub fn fill_node(content: impl UiNode) -> impl UiNode {
             let border_offsets = widget_layout.border_offsets();
 
             let border_align = *BorderAlignVar::get(ctx);
+            let used_offsets = border_offsets * border_align;
 
-            let offset = PxVector::new(border_offsets.left, border_offsets.top);
-            let clip = (final_size, widget_layout.corner_radius());
+            let offset = PxVector::new(border_offsets.left - used_offsets.left, border_offsets.top - used_offsets.top);
+
+            let final_size = final_size + PxSize::new(used_offsets.horizontal(), used_offsets.vertical());
+
+            let clip = (final_size, widget_layout.corner_radius().inflate(used_offsets));
 
             if offset != self.offset || clip != self.clip {
                 self.offset = offset;

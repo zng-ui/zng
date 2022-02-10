@@ -33,6 +33,7 @@ pub struct WidgetLayout {
     inner_info: WidgetLayoutInfo,
 
     border_offsets: PxSideOffsets,
+    outer_corner_radius: PxCornerRadius,
     corner_radius: PxCornerRadius,
 }
 impl WidgetLayout {
@@ -53,6 +54,7 @@ impl WidgetLayout {
             inner_info: inner_info.clone(),
 
             border_offsets: PxSideOffsets::zero(),
+            outer_corner_radius: PxCornerRadius::zero(),
             corner_radius: PxCornerRadius::zero(),
         };
         self_.with_widget(root_id, outer_info, inner_info, final_size, f);
@@ -206,6 +208,13 @@ impl WidgetLayout {
         self.border_offsets
     }
 
+    /// Current corner radius set by [`with_corner_radius`].
+    ///
+    /// [`with_corner_radius`]: Self::with_corner_radius
+    pub fn outer_corner_radius(&self) -> PxCornerRadius {
+        self.outer_corner_radius
+    }
+
     /// Current corner radius set by [`with_corner_radius`] and deflated by [`with_border`].
     ///
     /// [`with_corner_radius`]: Self::with_corner_radius
@@ -220,11 +229,13 @@ impl WidgetLayout {
     ///
     /// [`with_border`]: Self::with_border
     pub fn with_corner_radius(&mut self, corners: PxCornerRadius, f: impl FnOnce(&mut Self)) {
-        let c = mem::replace(&mut self.corner_radius, corners);
+        let prev_outer_corner_radius = mem::replace(&mut self.outer_corner_radius, corners);
+        let prev_corner_radius = mem::replace(&mut self.corner_radius, corners);
 
         f(self);
 
-        self.corner_radius = c;
+        self.corner_radius = prev_corner_radius;
+        self.outer_corner_radius = prev_outer_corner_radius;
     }
 
     /// Adds to the accumulated border offsets, deflates the corner radius for the next inner border or content clip,
@@ -243,13 +254,13 @@ impl WidgetLayout {
     ) -> (PxRect, PxCornerRadius) {
         let o = self.border_offsets;
         let c = self.corner_radius;
-        self.border_offsets.left += offsets.left;
-        self.border_offsets.right += offsets.right;
         self.border_offsets.top += offsets.top;
         self.border_offsets.right += offsets.right;
+        self.border_offsets.bottom += offsets.bottom;
+        self.border_offsets.left += offsets.left;
         self.corner_radius = c.deflate(offsets);
 
-        let diff = PxSize::new(offsets.left + offsets.right, offsets.top + offsets.bottom);
+        let diff = PxSize::new(offsets.horizontal(), offsets.vertical());
 
         self.with_parent_translate(PxVector::new(offsets.left, offsets.top), |wl| {
             f(wl, final_size - diff);

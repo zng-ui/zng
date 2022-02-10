@@ -50,10 +50,7 @@ pub fn border(child: impl UiNode, widths: impl IntoVar<SideOffsets>, sides: impl
                 .get(ctx.vars)
                 .to_layout(ctx.metrics, available_size, PxSideOffsets::zero());
 
-            let diff = PxSize::new(
-                self.final_widths.left + self.final_widths.right,
-                self.final_widths.top + self.final_widths.bottom,
-            );
+            let diff = PxSize::new(self.final_widths.horizontal(), self.final_widths.vertical());
 
             self.child.measure(ctx, available_size.sub_px(diff)) + diff
         }

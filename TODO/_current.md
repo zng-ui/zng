@@ -1,3 +1,5 @@
+* Keep a window open for some minutes then try close, border example did not close after a time.
+
 # Final Changes
 
 
