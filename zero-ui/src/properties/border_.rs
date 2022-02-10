@@ -3,7 +3,10 @@ use crate::prelude::new_property::*;
 #[doc(no_inline)]
 pub use crate::core::border::{border_align, corner_radius};
 
-/// Draws a border around the widget.
+/// Widget border.
+///
+/// Defines a widget border, it coordinates with any other border in the widget, meaning this property can be safely set
+/// more the nonce for a single widget, it also works with the [`corner_radius`] property drawing round corners if configured.
 #[property(border, default(0, BorderStyle::Hidden))]
 pub fn border(child: impl UiNode, widths: impl IntoVar<SideOffsets>, sides: impl IntoVar<BorderSides>) -> impl UiNode {
     struct BorderNode<T, O, S> {

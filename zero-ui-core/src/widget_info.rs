@@ -149,13 +149,13 @@ impl WidgetLayout {
         }
     }
 
-    /// Mark the widget inner-boundaries.
+    /// Mark the widget inner-boundaries and reset the border offsets.
     ///
-    /// Must be called in the widget `new_inner`, the [`implicit_base::new_inner`] node does this.
+    /// Must be called in the widget `new_border`, the [`implicit_base::new_border`] node does this.
     ///
     /// Returns the inner transform in the space of the outer bounds, the `new_inner` node must pass this value to [`FrameBuilder::push_inner`].
     ///
-    /// [`implicit_base::new_inner`]: crate::widget_base::implicit_base::new_inner
+    /// [`implicit_base::new_border`]: crate::widget_base::implicit_base::new_border
     /// [`FrameBuilder::push_inner`]: crate::render::FrameBuilder::push_inner
     pub fn with_inner(&mut self, metrics: &LayoutMetrics, final_size: PxSize, f: impl FnOnce(&mut Self)) -> RenderTransform {
         let mut transform = self.transform;
@@ -187,8 +187,11 @@ impl WidgetLayout {
         let prev_transform = mem::take(&mut self.transform);
         let prev_transform_origin = mem::replace(&mut self.transform_origin, Point::center());
 
+        let prev_border_offsets = mem::take(&mut self.border_offsets);
+
         f(self);
 
+        self.border_offsets = prev_border_offsets;
         self.parent_translate = prev_pre_translate;
         self.transform = prev_transform;
         self.transform_origin = prev_transform_origin;

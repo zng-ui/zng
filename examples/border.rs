@@ -20,7 +20,7 @@ fn app_main() {
         window! {
             title = "Border Example";
 
-            background_color = colors::RED.darken(70.pct());
+            background_color = colors::BLUE.darken(70.pct());
 
             content = v_stack! {
                 spacing = 20;
@@ -32,7 +32,17 @@ fn app_main() {
                     widgets::mr_borders! {
                         border_align = 100.pct();
                         content = text("border_align = 100.pct();");
-                    }
+                    },
+                    widgets::mr_borders! {
+                        border_align = 100.pct();
+                        content = widgets::mr_borders! {
+                            border_align = 100.pct();
+                            content = widgets::mr_borders! {
+                                border_align = 100.pct();
+                                content = text("Nested");
+                            },
+                        },
+                    },
                 ]
             };
         }
@@ -56,6 +66,8 @@ mod widgets {
             border as border0 = 4, colors::WHITE.with_alpha(20.pct());
             border as border1 = 4, colors::BLACK.with_alpha(20.pct());
             border as border2 = 4, colors::WHITE.with_alpha(20.pct());
+
+            foreground_highlight = 3, 1, colors::BLUE.lighten(30.pct());
 
             corner_radius = 20;
         }

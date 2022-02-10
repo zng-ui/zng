@@ -37,12 +37,28 @@ pub mod focusable_mixin {
     /// Theme variables.
     pub mod theme {
         use super::*;
+        use crate::prelude::new_property::*;
 
         context_var! {
+            /// Padding offsets of the `focus_highlight` when the widget is focused.
+            pub struct FocusHighlightOffsetsVar: SideOffsets = SideOffsets::new_all(1);
+            /// Border widths of the `focus_highlight` when the widget is focused.
             pub struct FocusHighlightWidthsVar: SideOffsets = SideOffsets::new_all(0.5);
-            pub struct FocusHighlightOffsetsVar: SideOffsets = SideOffsets::new_all(1.0);
+            /// Border sides of the `focus_highlight` when the widget is focused.
             pub struct FocusHighlightSidesVar: BorderSides = BorderSides::dashed(rgba(200, 200, 200, 1.0));
+        }
 
+        /// Sets the `focus_highlight` values used when the widget is focused and highlighted.
+        #[property(context, default(FocusHighlightOffsetsVar, FocusHighlightWidthsVar, FocusHighlightSidesVar))]
+        pub fn focus_highlight(
+            child: impl UiNode,
+            offsets: impl IntoVar<SideOffsets>,
+            widths: impl IntoVar<SideOffsets>,
+            sides: impl IntoVar<BorderSides>,
+        ) -> impl UiNode {
+            let child = with_context_var(child, FocusHighlightWidthsVar, offsets);
+            let child = with_context_var(child, FocusHighlightOffsetsVar, widths);
+            with_context_var(child, FocusHighlightSidesVar, sides)
         }
     }
 }

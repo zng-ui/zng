@@ -367,9 +367,16 @@ pub use zero_ui_proc_macros::impl_ui_node;
 /// Properties that set the widget visual size. Most widgets are sized automatically by their content, if the size is configured
 /// by a user value the property has this priority and the configured size is the desired size during arrange.
 ///
-/// ## `inner`
+/// ## `border`
 ///
-/// Properties that are set first, so they end-up inside of all other widget properties. Most of the properties that render use this priority.
+/// Properties that render borders, they are the first properties to render defining the widget inner bounds, they use the
+/// [`WidgetLayout`] to coordinate with other border properties allowing widgets to have multiple borders.
+///
+/// ## `fill`
+///
+/// Properties that render inside the borders, they are the last properties to render in a widget before the widget child outer
+/// bounds, they use the [`WidgetLayout`] and [`BorderAlignVar`] to coordinate with the borders when positioning and clipping the
+/// fill content, usually with the help of the [`fill_node`] function.
 ///
 /// # `when` Integration
 ///
@@ -395,6 +402,8 @@ pub use zero_ui_proc_macros::impl_ui_node;
 /// [`on_event`]: crate::event::on_event
 /// [`impl IntoVar<T>`]: crate::var::IntoVar
 /// [`WidgetLayout`]: crate::widget_info::WidgetLayout
+/// [`BorderAlignVar`]: crate::border::BorderAlignVar
+/// [`fill_node`]: crate::border::fill_node
 ///
 /// <div style='display:none'>
 #[doc(inline)]
