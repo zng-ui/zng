@@ -1,4 +1,5 @@
 * Keep a window open for some minutes then try close, border example did not close after a time.
+* Border hit-test area is full bounds rect, check in Firefox if borders are clipped for hit-test.
 
 # Final Changes
 
