@@ -67,7 +67,7 @@ mod widgets {
             border as border1 = 4, colors::BLACK.with_alpha(20.pct());
             border as border2 = 4, colors::WHITE.with_alpha(20.pct());
 
-            foreground_highlight = 3, 1, colors::BLUE.lighten(30.pct());
+            foreground_highlight = 3, 1, colors::ORANGE;
 
             corner_radius = 20;
         }

@@ -448,6 +448,46 @@ pub fn enabled(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
     )
 }
 
+/// If interaction is allowed in the widget and its descendants.
+///
+/// This property *enables* and *disables* interaction with the widget and its descendants without causing
+/// a visual change like [`enabled`].
+///
+/// [`enabled`]: fn@enabled
+#[property(context, default(true))]
+pub fn interactive(child: impl UiNode, interactive: impl IntoVar<bool>) -> impl UiNode {
+    struct InteractiveNode<C, I> {
+        child: C,
+        interactive: I,
+    }
+    #[impl_ui_node(child)]
+    impl<C: UiNode, I: Var<bool>> UiNode for InteractiveNode<C, I> {
+        fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
+            if self.interactive.copy(ctx) {
+                let id = ctx.path.widget_id();
+                info.push_interaction_filter(move |args| args.info.self_and_ancestors().all(|w| w.widget_id() != id));
+            }
+            self.child.info(ctx, info);
+        }
+
+        fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
+            subscriptions.var(ctx, &self.interactive);
+            self.child.subscriptions(ctx, subscriptions);
+        }
+
+        fn update(&mut self, ctx: &mut WidgetContext) {
+            if self.interactive.is_new(ctx) {
+                ctx.updates.info();
+            }
+            self.child.update(ctx);
+        }
+    }
+    InteractiveNode {
+        child,
+        interactive: interactive.into_var(),
+    }
+}
+
 struct IsEnabledNode<C: UiNode> {
     child: C,
     state: StateVar,

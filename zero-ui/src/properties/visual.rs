@@ -4,11 +4,11 @@ use crate::core::gradient::{GradientStops, LinearGradientAxis};
 use crate::prelude::new_property::*;
 use crate::widgets::{fill_color, linear_gradient};
 
-use super::side_offsets;
+use super::{hit_testable, interactive};
 
 /// Custom background property. Allows using any other widget as a background.
 ///
-/// Backgrounds don't influence the widget layout.
+/// Backgrounds are not interactive and don't influence the widget layout but they are hit-testable.
 ///
 /// # Example
 ///
@@ -44,8 +44,12 @@ pub fn background(child: impl UiNode, background: impl UiNode) -> impl UiNode {
             available_size
         }
     }
+
+    let background = fill_node(background);
+    let background = interactive(background, false);
+
     BackgroundNode {
-        children: nodes![fill_node(background), child],
+        children: nodes![background, child],
     }
 }
 
@@ -113,11 +117,13 @@ pub fn background_gradient(child: impl UiNode, axis: impl IntoVar<LinearGradient
     background(child, linear_gradient(axis, stops))
 }
 
-/// Custom foreground property. Allows using any other widget as a foreground overlay.
+/// Custom foreground fill property. Allows using any other widget as a foreground overlay.
 ///
-/// Foregrounds are not focusable, not hit-testable and don't influence the widget layout.
+/// The foreground is rendered over the widget content and background and under the widget borders.
 ///
-/// # Example
+/// Foregrounds are not interactive, not hit-testable and don't influence the widget layout.
+///
+/// # Examples
 ///
 /// ```
 /// use zero_ui::prelude::*;
@@ -151,17 +157,21 @@ pub fn foreground(child: impl UiNode, foreground: impl UiNode) -> impl UiNode {
             available_size
         }
     }
+
+    let foreground = fill_node(foreground);
+    let foreground = hit_testable(foreground, false);
+    let foreground = interactive(foreground, false);
+
     ForegroundNode {
-        children: nodes![child, fill_node(foreground)],
+        children: nodes![child, foreground],
     }
 }
 
 /// Foreground highlight border overlay.
 ///
-/// This property draws a [`border`] with extra `offsets` control
-/// as a [`foreground`] overlay. The border has no content.
+/// This property draws a border contour with extra `offsets` padding as a fill overlay.
 ///
-/// # Example
+/// # Examples
 ///
 /// ```
 /// use zero_ui::prelude::*;
@@ -177,10 +187,7 @@ pub fn foreground(child: impl UiNode, foreground: impl UiNode) -> impl UiNode {
 /// # ;
 /// ```
 ///
-/// The example renders a solid blue 1 pixel border overlay, the border lines are inset 3 pixels in the container.
-///
-/// [`foreground`]: fn@foreground
-/// [`border`]: fn@crate::properties::border
+/// The example renders a solid blue 1 pixel border overlay, the border lines are offset 3 pixels into the container.
 #[property(fill, default(0, 0, BorderStyle::Hidden))]
 pub fn foreground_highlight(
     child: impl UiNode,
@@ -188,8 +195,75 @@ pub fn foreground_highlight(
     widths: impl IntoVar<SideOffsets>,
     sides: impl IntoVar<BorderSides>,
 ) -> impl UiNode {
-    let border = crate::properties::border(crate::core::FillUiNode, widths, sides);
-    foreground(child, side_offsets(border, offsets))
+    struct ForegroundHighlightNode<C, O, W, S> {
+        child: C,
+        offsets: O,
+        widths: W,
+        sides: S,
+
+        final_widths: PxSideOffsets,
+        final_rect: PxRect,
+        final_radius: PxCornerRadius,
+    }
+    #[impl_ui_node(child)]
+    impl<C: UiNode, O: Var<SideOffsets>, W: Var<SideOffsets>, S: Var<BorderSides>> UiNode for ForegroundHighlightNode<C, O, W, S> {
+        fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
+            subscriptions.vars(ctx).var(&self.offsets).var(&self.widths).var(&self.sides);
+
+            self.child.subscriptions(ctx, subscriptions);
+        }
+        fn update(&mut self, ctx: &mut WidgetContext) {
+            self.child.update(ctx);
+
+            if self.offsets.is_new(ctx) {
+                ctx.updates.layout()
+            }
+            if self.widths.is_new(ctx) {
+                ctx.updates.layout()
+            }
+            if self.sides.is_new(ctx) {
+                ctx.updates.render();
+            }
+        }
+        fn arrange(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, final_size: PxSize) {
+            self.child.arrange(ctx, widget_layout, final_size);
+
+            let available_size = AvailableSize::finite(final_size);
+            let final_offsets = self
+                .offsets
+                .get(ctx.vars)
+                .to_layout(ctx.metrics, available_size, PxSideOffsets::zero());
+
+            self.final_widths = self
+                .widths
+                .get(ctx.vars)
+                .to_layout(ctx.metrics, available_size, PxSideOffsets::zero());
+
+            let diff = PxSize::new(final_offsets.left + final_offsets.right, final_offsets.top + final_offsets.bottom);
+
+            let border_offsets = widget_layout.border_offsets();
+
+            self.final_rect.origin = PxPoint::new(final_offsets.left + border_offsets.left, final_offsets.top + border_offsets.top);
+            self.final_rect.size = final_size - diff;
+            self.final_radius = widget_layout.corner_radius();
+        }
+        fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
+            self.child.render(ctx, frame);
+            frame.with_hit_tests_disabled(|f| {
+                f.push_border(self.final_rect, self.final_widths, self.sides.copy(ctx), self.final_radius);
+            })
+        }
+    }
+    ForegroundHighlightNode {
+        child,
+        offsets: offsets.into_var(),
+        widths: widths.into_var(),
+        sides: sides.into_var(),
+
+        final_widths: PxSideOffsets::zero(),
+        final_rect: PxRect::zero(),
+        final_radius: PxCornerRadius::zero(),
+    }
 }
 
 /// Fill color overlay property.
