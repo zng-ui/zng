@@ -761,7 +761,34 @@ impl FrameBuilder {
             do_aa: true,
         });
 
-        let info = self.common_hit_item_ps(bounds);
+        let mut info = self.common_hit_item_ps(bounds);
+
+        let outer_clip = self.display_list.define_clip_rounded_rect(
+            &SpaceAndClipInfo {
+                spatial_id: self.spatial_id,
+                clip_id: self.clip_id,
+            },
+            ComplexClipRegion {
+                rect: bounds.to_wr(),
+                radii: radius.to_wr(),
+                mode: ClipMode::Clip,
+            },
+        );
+        
+        let inner_clip = self.display_list.define_clip_rounded_rect(
+            &SpaceAndClipInfo {
+                spatial_id: self.spatial_id,
+                clip_id: self.clip_id,
+            },
+            ComplexClipRegion {
+                rect: todo!(),
+                radii: todo!(),
+                mode: ClipMode::ClipOut,
+            },
+        );
+
+        let clip_chain_id = self.display_list.define_clip_chain(None, vec![outer_clip, inner_clip]);
+        info.clip_id = ClipId::ClipChain(clip_chain_id);
 
         self.display_list.push_border(&info, bounds.to_wr(), widths.to_wr(), details);
     }
