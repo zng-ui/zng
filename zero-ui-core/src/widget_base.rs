@@ -780,44 +780,103 @@ pub fn is_collapsed(child: impl UiNode, state: StateVar) -> impl UiNode {
     }
 }
 
-/// If the widget can be hit-test.
+/// Defines if and how an widget is hit-tested.
 ///
-/// Hit-testing is used to determinate what widgets are under the mouse pointer or any other custom point based interaction,
-/// if an widget is not hit-testable it does not show in the hit-test result.
+/// See [`hit_test_mode`](fn@hit_test_mode) for more details.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum HitTestMode {
+    /// Widget is never hit.
+    ///
+    /// This mode is *sticky*, if set it disables hit-testing for the widget all its descendants.
+    Disabled,
+    /// Simplest mode, the widget is hit by any point that intersects the transformed inner bounds rectangle.
+    Bounds,
+    /// Default mode, the widget is hit by any point that intersects the transformed inner bounds rectangle except on the outside
+    /// of rounded corners.
+    RoundedBounds,
+    /// Complex mode, every render primitive used for rendering the widget is hit-testable, the widget is hit only by
+    /// points that intersect visible parts of the render primitives.
+    Visual,
+}
+impl HitTestMode {
+    /// Returns `true` if is any mode other then [`Disabled`].
+    ///
+    /// [`Disabled`]: Self::Disabled
+    pub fn is_hit_testable(&self) -> bool {
+        !matches!(self, Self::Disabled)
+    }
+
+    /// Gets the hit-test mode of the current widget context.
+    pub fn get<Vr: AsRef<VarsRead>>(vars: &Vr) -> &HitTestMode {
+        HitTestModeVar::get(vars)
+    }
+
+    /// Gets the new hit-test mode of the current widget context.
+    #[inline]
+    pub fn get_new<Vw: AsRef<Vars>>(vars: &Vw) -> Option<&HitTestMode> {
+        HitTestModeVar::get_new(vars)
+    }
+
+    /// Gets the update mask for [`WidgetSubscriptions`].
+    ///
+    /// [`WidgetSubscriptions`]: crate::widget_info::WidgetSubscriptions
+    #[inline]
+    pub fn update_mask<Vr: WithVarsRead>(vars: &Vr) -> UpdateMask {
+        vars.with_vars_read(|vars| HitTestModeVar::new().update_mask(vars))
+    }
+}
+impl Default for HitTestMode {
+    fn default() -> Self {
+        HitTestMode::RoundedBounds
+    }
+}
+impl_from_and_into_var! {
+    fn from(default_or_disabled: bool) -> HitTestMode {
+        if default_or_disabled {
+            HitTestMode::default()
+        } else {
+            HitTestMode::Disabled
+        }
+    }
+}
+
+context_var! {
+    struct HitTestModeVar: HitTestMode = HitTestMode::default();
+}
+
+/// Defines how the widget is hit-tested.
 ///
-/// All widgets are hit-testable by default, this can be changed by setting this to `false`. Setting this to `false`
-/// disable hit-tests for all child nodes, you can check if hit-tests are enabled for a widget using [`is_hit_testable`].
+/// Hit-testing determines if a point intersects with the widget, the most common hit-test point is the mouse pointer.
+/// By default widgets are hit by any point inside the widget area, excluding the outer corners if [`corner_radius`] is set,
+/// this is very efficient, but assumes that the widget is *filled*, if the widget has visual *holes* the user may be able
+/// to see another widget underneath but be unable to click on it.
 ///
-/// [`is_hit_testable`]: fn@is_hit_testable
-#[property(context, default(true))]
-pub fn hit_testable(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
-    struct HitTestableNode<C> {
+/// If you have a widget with a complex shape or with *holes*, set this property to [`HitTestMode::Visual`] to enable the full
+/// hit-testing power where all render primitives and clips used to render the widget are considered during hit-testing.
+///
+/// [`hit_testable`]: fn@hit_testable
+/// [`corner_radius`]: fn@crate::border::corner_radius
+#[property(context, default(HitTestModeVar))]
+pub fn hit_test_mode(child: impl UiNode, mode: impl IntoVar<HitTestMode>) -> impl UiNode {
+    struct HitTestModeNode<C> {
         child: C,
     }
     #[impl_ui_node(child)]
-    impl<C: UiNode> UiNode for HitTestableNode<C> {
-        fn init(&mut self, ctx: &mut WidgetContext) {
-            if !IsHitTestable::get(ctx) {
-                ctx.widget_state.set(HitTestableState, false);
-            }
-            self.child.init(ctx);
-        }
-
+    impl<C: UiNode> UiNode for HitTestModeNode<C> {
         fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
-            subscriptions.updates(&IsHitTestable::update_mask(ctx));
+            subscriptions.updates(&HitTestMode::update_mask(ctx));
             self.child.subscriptions(ctx, subscriptions);
         }
 
         fn update(&mut self, ctx: &mut WidgetContext) {
-            if let Some(state) = IsHitTestable::get_new(ctx) {
-                ctx.widget_state.set(HitTestableState, state);
-                ctx.updates.info();
+            if HitTestMode::get_new(ctx).is_some() {
+                ctx.updates.render();
             }
             self.child.update(ctx);
         }
 
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-            if !IsHitTestable::get(ctx) {
+            if !HitTestMode::get(ctx).is_hit_testable() {
                 frame.with_hit_tests_disabled(|frame| self.child.render(ctx, frame));
             } else {
                 self.child.render(ctx, frame);
@@ -826,50 +885,22 @@ pub fn hit_testable(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiN
     }
 
     with_context_var(
-        HitTestableNode { child },
-        IsHitTestableVar,
-        merge_var!(IsHitTestableVar::new(), enabled.into_var(), |&a, &b| a && b),
+        HitTestModeNode { child },
+        HitTestModeVar,
+        merge_var!(HitTestModeVar::new(), mode.into_var(), |a, b| match (a, b) {
+            (HitTestMode::Disabled, _) | (_, HitTestMode::Disabled) => HitTestMode::Disabled,
+            (_, b) => b.clone(),
+        }),
     )
-}
-
-/// Probes an widget for its hit-test visibility.
-pub struct IsHitTestable {}
-impl IsHitTestable {
-    /// Returns `true` if the parent widget is hit-testable.
-    pub fn get(vars: &impl WithVarsRead) -> bool {
-        vars.with_vars_read(|vars| *IsHitTestableVar::get(vars))
-    }
-
-    /// Gets the new hit-testable state.
-    #[inline]
-    pub fn get_new<Vw: WithVars>(vars: &Vw) -> Option<bool> {
-        vars.with_vars(|vars| IsHitTestableVar::get_new(vars).copied())
-    }
-
-    /// Gets the update mask for [`WidgetSubscriptions`].
-    ///
-    /// [`WidgetSubscriptions`]: crate::widget_info::WidgetSubscriptions
-    #[inline]
-    pub fn update_mask<Vr: WithVarsRead>(vars: &Vr) -> UpdateMask {
-        vars.with_vars_read(|vars| IsHitTestableVar::new().update_mask(vars))
-    }
-}
-
-state_key! {
-    struct HitTestableState: bool;
-}
-
-context_var! {
-    struct IsHitTestableVar: bool = true;
 }
 
 /// If the widget is visible for hit-tests.
 ///
 /// This property is used only for probing the state. You can set the state using
-/// the [`hit_testable`] property.
+/// the [`hit_test_mode`] property.
 ///
 /// [`hit_testable`]: fn@hit_testable
-#[property(context)]
+#[property(event)]
 pub fn is_hit_testable(child: impl UiNode, state: StateVar) -> impl UiNode {
     struct IsHitTestableNode<C: UiNode> {
         child: C,
@@ -877,7 +908,7 @@ pub fn is_hit_testable(child: impl UiNode, state: StateVar) -> impl UiNode {
     }
     impl<C: UiNode> IsHitTestableNode<C> {
         fn update_state(&self, ctx: &mut WidgetContext) {
-            let enabled = IsHitTestable::get(ctx) && ctx.widget_state.get(HitTestableState).copied().unwrap_or(true);
+            let enabled = HitTestMode::get(ctx).is_hit_testable();
             self.state.set_ne(ctx.vars, enabled);
         }
     }
@@ -889,7 +920,7 @@ pub fn is_hit_testable(child: impl UiNode, state: StateVar) -> impl UiNode {
         }
 
         fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
-            subscriptions.updates(&IsHitTestable::update_mask(ctx));
+            subscriptions.updates(&HitTestMode::update_mask(ctx));
             self.child.subscriptions(ctx, subscriptions);
         }
 

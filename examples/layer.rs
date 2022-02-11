@@ -1,7 +1,6 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 use zero_ui::prelude::*;
 use zero_ui::{
-    core::widget_base::hit_testable,
     properties::events::{
         mouse::{on_mouse_enter, on_mouse_leave},
         widget::on_pre_init,
@@ -34,7 +33,7 @@ fn app_main() {
             // before the first render.
             on_pre_init = hn!(|ctx, _| {
                 WindowLayers::insert(ctx, LayerIndex::TOP_MOST - 100, text! {
-                    hit_testable = false;
+                    hit_test_mode = HitTestMode::Disabled;
                     text = "on_pre_init";
                     font_size = 72;
                     font_family = "monospace";
@@ -140,7 +139,7 @@ fn layer_n_btn(n: u32, color: Rgba) -> impl Widget {
                     (20 + inc, 10, 0, inc - 40)
                 };
                 align = Alignment::TOP;
-                hit_testable = false;
+                hit_test_mode = HitTestMode::Disabled;
             }));
 
             task::timeout(2.secs()).await;
@@ -196,7 +195,7 @@ fn anchor_example() -> impl Widget {
                 border = 1, colors::GREEN.darken(20.pct());
                 position = point.map(|p|p - &Vector::splat(100.pct()));
                 margin = 2;
-                hit_testable = false;
+                hit_test_mode = HitTestMode::Disabled;
             })
         });
         on_mouse_leave = hn!(|ctx, _| {
@@ -229,7 +228,7 @@ fn transform_anchor_example() -> impl Widget {
                     content_align = Alignment::TOP_LEFT;
                     border = 1, colors::GREEN.lighten(30.pct());
                     corner_radius = 4;
-                    hit_testable = false;
+                    hit_test_mode = HitTestMode::Disabled;
                     content = text! {
                         y = -(2.dip() + 100.pct());
                         text = "example";

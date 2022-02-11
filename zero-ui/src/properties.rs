@@ -26,4 +26,4 @@ mod cursor_;
 pub use cursor_::*;
 
 #[doc(no_inline)]
-pub use crate::core::widget_base::{hit_testable, interactive};
+pub use crate::core::widget_base::{hit_test_mode, interactive};

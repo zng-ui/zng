@@ -745,9 +745,10 @@ impl FrameBuilder {
         self.display_list.pop_stacking_context();
     }
 
-    /// Push a border using [`common_hit_item_ps`].
+    /// Push a border using [`common_item_ps`] and [`push_border_hit_test`].
     ///
-    /// [`common_hit_item_ps`]: FrameBuilder::common_hit_item_ps
+    /// [`common_item_ps`]: FrameBuilder::common_item_ps
+    /// [`push_border_hit_test`]: Self::push_border_hit_test
     #[inline]
     pub fn push_border(&mut self, bounds: PxRect, widths: PxSideOffsets, sides: BorderSides, radius: PxCornerRadius) {
         expect_inner!(self.push_border);
@@ -761,36 +762,71 @@ impl FrameBuilder {
             do_aa: true,
         });
 
-        let mut info = self.common_hit_item_ps(bounds);
+        let info = self.common_item_ps(bounds);
+        self.display_list.push_border(&info, bounds.to_wr(), widths.to_wr(), details);
 
-        let outer_clip = self.display_list.define_clip_rounded_rect(
-            &SpaceAndClipInfo {
-                spatial_id: self.spatial_id,
-                clip_id: self.clip_id,
-            },
-            ComplexClipRegion {
-                rect: bounds.to_wr(),
-                radii: radius.to_wr(),
-                mode: ClipMode::Clip,
-            },
-        );
-        
-        let inner_clip = self.display_list.define_clip_rounded_rect(
-            &SpaceAndClipInfo {
-                spatial_id: self.spatial_id,
-                clip_id: self.clip_id,
-            },
-            ComplexClipRegion {
-                rect: todo!(),
-                radii: todo!(),
-                mode: ClipMode::ClipOut,
-            },
-        );
+        self.push_border_hit_test(bounds, widths, radius);
+    }
 
+    /// Pushes a composite hit-test for a border.
+    pub fn push_border_hit_test(&mut self, bounds: PxRect, widths: PxSideOffsets, radius: PxCornerRadius) {
+        expect_inner!(self.push_border);
+
+        if !self.is_hit_testable() {
+            return;
+        }
+
+        let parent_space_and_clip = SpaceAndClipInfo {
+            spatial_id: self.spatial_id,
+            clip_id: self.clip_id,
+        };
+
+        let mut inner_bounds = bounds;
+        inner_bounds.origin.x += widths.left;
+        inner_bounds.origin.y += widths.top;
+        inner_bounds.size.width -= widths.horizontal();
+        inner_bounds.size.height -= widths.vertical();
+
+        let outer_clip;
+        let inner_clip;
+
+        if radius == PxCornerRadius::zero() {
+            outer_clip = self.display_list.define_clip_rect(&parent_space_and_clip, bounds.to_wr());
+            inner_clip = self.display_list.define_clip_rounded_rect(
+                &parent_space_and_clip,
+                ComplexClipRegion {
+                    rect: inner_bounds.to_wr(),
+                    radii: BorderRadius::zero(),
+                    mode: ClipMode::ClipOut,
+                },
+            );
+        } else {
+            outer_clip = self.display_list.define_clip_rounded_rect(
+                &parent_space_and_clip,
+                ComplexClipRegion {
+                    rect: bounds.to_wr(),
+                    radii: radius.to_wr(),
+                    mode: ClipMode::Clip,
+                },
+            );
+
+            let inner_radius = radius.deflate(widths);
+
+            inner_clip = self.display_list.define_clip_rounded_rect(
+                &parent_space_and_clip,
+                ComplexClipRegion {
+                    rect: inner_bounds.to_wr(),
+                    radii: inner_radius.to_wr(),
+                    mode: ClipMode::ClipOut,
+                },
+            );
+        }
+
+        let mut info = self.common_item_ps(bounds);
         let clip_chain_id = self.display_list.define_clip_chain(None, vec![outer_clip, inner_clip]);
         info.clip_id = ClipId::ClipChain(clip_chain_id);
 
-        self.display_list.push_border(&info, bounds.to_wr(), widths.to_wr(), details);
+        self.display_list.push_hit_test(&info, self.item_tag());
     }
 
     /// Push a text run using [`common_hit_item_ps`].

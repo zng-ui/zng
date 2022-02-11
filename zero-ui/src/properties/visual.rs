@@ -4,7 +4,7 @@ use crate::core::gradient::{GradientStops, LinearGradientAxis};
 use crate::prelude::new_property::*;
 use crate::widgets::{fill_color, linear_gradient};
 
-use super::{hit_testable, interactive};
+use super::{hit_test_mode, interactive};
 
 /// Custom background property. Allows using any other widget as a background.
 ///
@@ -159,7 +159,7 @@ pub fn foreground(child: impl UiNode, foreground: impl UiNode) -> impl UiNode {
     }
 
     let foreground = fill_node(foreground);
-    let foreground = hit_testable(foreground, false);
+    let foreground = hit_test_mode(foreground, HitTestMode::Disabled);
     let foreground = interactive(foreground, false);
 
     ForegroundNode {

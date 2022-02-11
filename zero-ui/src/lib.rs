@@ -929,7 +929,7 @@ pub mod prelude {
             RectFromTuplesBuilder, SideOffsets, Size, TimeUnits, Transform, Vector,
         },
         var::{merge_var, state_var, switch_var, var, var_default, var_from, IntoVar, RcVar, Var, VarReceiver, VarSender, Vars},
-        widget_base::Visibility,
+        widget_base::{HitTestMode, Visibility},
         widget_vec, widgets,
         window::{
             AppRunWindowExt, AutoSize, CursorIcon, HeadlessAppWindowExt, MonitorId, MonitorQuery, MonitorsExt, StartPosition,
@@ -1028,7 +1028,7 @@ pub mod prelude {
         #[doc(no_inline)]
         pub use crate::core::var::*;
         #[doc(no_inline)]
-        pub use crate::core::widget_base::{IsEnabled, WidgetEnabledExt};
+        pub use crate::core::widget_base::{HitTestMode, IsEnabled, WidgetEnabledExt};
         #[doc(no_inline)]
         pub use crate::core::window::{WidgetInfoChangedEvent, WindowId};
         #[doc(no_inline)]
@@ -1098,7 +1098,7 @@ pub mod prelude {
                 ZSortedWidgetList,
             },
             widget,
-            widget_base::Visibility,
+            widget_base::{HitTestMode, Visibility},
             widget_info::{WidgetInfoBuilder, WidgetLayout, WidgetLayoutInfo, WidgetRenderInfo, WidgetSubscriptions},
             widget_mixin, widget_vec, widgets, BoxedUiNode, BoxedWidget, FillUiNode, UiNode, Widget, WidgetId,
         };
