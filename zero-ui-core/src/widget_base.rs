@@ -7,7 +7,7 @@ use crate::{
     event::EventUpdateArgs,
     impl_ui_node, property,
     render::{FrameBuilder, FrameUpdate},
-    units::{AvailableSize, PxSize},
+    units::{AvailableSize, PxCornerRadius, PxRect, PxSize},
     var::*,
     widget_info::{UpdateMask, WidgetInfo, WidgetInfoBuilder, WidgetLayout, WidgetSubscriptions},
     NilUiNode, UiNode, Widget, WidgetId,
@@ -100,14 +100,26 @@ pub mod implicit_base {
             child: T,
             transform_key: FrameBindingKey<RenderTransform>,
             transform: RenderTransform,
+            clip: (PxSize, PxCornerRadius),
         }
         #[impl_ui_node(child)]
         impl<T: UiNode> UiNode for WidgetInnerBoundsNode<T> {
             fn arrange(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, final_size: PxSize) {
                 self.transform = widget_layout.with_inner(ctx.metrics, final_size, |wl| self.child.arrange(ctx, wl, final_size));
+                self.clip = (final_size, widget_layout.corner_radius());
             }
             fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
                 frame.push_inner(self.transform_key.bind(self.transform), |frame| {
+                    match HitTestMode::get(ctx.vars) {
+                        HitTestMode::RoundedBounds => {
+                            let rect = PxRect::from_size(self.clip.0);
+                            frame.push_clip_rounded_rect(rect, self.clip.1, false, |f| f.push_hit_test(rect));
+                        }
+                        HitTestMode::Bounds => {
+                            frame.push_hit_test(PxRect::from_size(self.clip.0));
+                        }
+                        _ => {}
+                    }
                     self.child.render(ctx, frame);
                 });
             }
@@ -120,6 +132,7 @@ pub mod implicit_base {
             child,
             transform_key: FrameBindingKey::new_unique(),
             transform: RenderTransform::identity(),
+            clip: (PxSize::zero(), PxCornerRadius::zero()),
         }
     }
 
@@ -783,7 +796,7 @@ pub fn is_collapsed(child: impl UiNode, state: StateVar) -> impl UiNode {
 /// Defines if and how an widget is hit-tested.
 ///
 /// See [`hit_test_mode`](fn@hit_test_mode) for more details.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Copy, Clone, PartialEq, Eq)]
 pub enum HitTestMode {
     /// Widget is never hit.
     ///
@@ -823,6 +836,19 @@ impl HitTestMode {
     #[inline]
     pub fn update_mask<Vr: WithVarsRead>(vars: &Vr) -> UpdateMask {
         vars.with_vars_read(|vars| HitTestModeVar::new().update_mask(vars))
+    }
+}
+impl fmt::Debug for HitTestMode {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if f.alternate() {
+            write!(f, "HitTestMode::")?;
+        }        
+        match self {
+            Self::Disabled => write!(f, "Disabled"),
+            Self::Bounds => write!(f, "Bounds"),
+            Self::RoundedBounds => write!(f, "RoundedBounds"),
+            Self::Visual => write!(f, "Visual"),
+        }
     }
 }
 impl Default for HitTestMode {
@@ -876,10 +902,12 @@ pub fn hit_test_mode(child: impl UiNode, mode: impl IntoVar<HitTestMode>) -> imp
         }
 
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-            if !HitTestMode::get(ctx).is_hit_testable() {
-                frame.with_hit_tests_disabled(|frame| self.child.render(ctx, frame));
-            } else {
-                self.child.render(ctx, frame);
+            match HitTestMode::get(ctx.vars) {
+                HitTestMode::Disabled => {
+                    frame.with_hit_tests_disabled(|frame| self.child.render(ctx, frame));
+                }
+                HitTestMode::Visual => frame.with_auto_hit_test(true, |frame| self.child.render(ctx, frame)),
+                _ => frame.with_auto_hit_test(false, |frame| self.child.render(ctx, frame)),
             }
         }
     }
@@ -887,9 +915,9 @@ pub fn hit_test_mode(child: impl UiNode, mode: impl IntoVar<HitTestMode>) -> imp
     with_context_var(
         HitTestModeNode { child },
         HitTestModeVar,
-        merge_var!(HitTestModeVar::new(), mode.into_var(), |a, b| match (a, b) {
+        merge_var!(HitTestModeVar::new(), mode.into_var(), |&a, &b| match (a, b) {
             (HitTestMode::Disabled, _) | (_, HitTestMode::Disabled) => HitTestMode::Disabled,
-            (_, b) => b.clone(),
+            (_, b) => b,
         }),
     )
 }

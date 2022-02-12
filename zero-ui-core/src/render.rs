@@ -134,7 +134,8 @@ pub struct FrameBuilder {
 
     display_list: DisplayListBuilder,
 
-    hit_testable: bool,
+    is_hit_testable: bool,
+    auto_hit_test: bool,
 
     widget_data: Option<WidgetData>,
     widget_rendered: bool,
@@ -191,7 +192,8 @@ impl FrameBuilder {
             renderer,
             scale_factor,
             display_list,
-            hit_testable: true,
+            is_hit_testable: true,
+            auto_hit_test: false,
             widget_data: Some(WidgetData {
                 filter: vec![],
                 flags: PrimitiveFlags::empty(),
@@ -353,27 +355,25 @@ impl FrameBuilder {
         }
     }
 
-    /// Generate a [`common_item_ps`] and pushes a hit-test [`item_tag`] if hit-testing is enabled.
+    /// Returns `true` if hit-testing is enabled in the widget context, if `false` methods that push
+    /// a hit-test silently skip.
     ///
-    /// [`common_item_ps`]: FrameBuilder::common_item_ps
-    /// [`item_tag`]: FrameBuilder::item_tag
-    #[inline]
-    pub fn common_hit_item_ps(&mut self, clip_rect: PxRect) -> CommonItemProperties {
-        let item = self.common_item_ps(clip_rect);
-
-        if self.is_hit_testable() {
-            self.display_list.push_hit_test(&item, self.item_tag());
-        }
-        item
-    }
-
-    /// Returns `true` if hit-testing is enabled in the widget context, methods that use [`common_hit_item_ps`] automatically
-    /// observe this value, custom display item implementer must also respect it.
+    /// This can be set to `false` in a context using [`with_hit_tests_disabled`].
     ///
-    /// [`common_hit_item_ps`]: Self::common_hit_item_ps
+    /// [`with_hit_tests_disabled`]: Self::with_hit_tests_disabled
     #[inline]
     pub fn is_hit_testable(&self) -> bool {
-        self.hit_testable
+        self.is_hit_testable
+    }
+
+    /// Returns `true` if hit-tests are automatically pushed by `push_*` methods.
+    ///
+    /// Note that hit-tests are only added if [`is_hit_testable`] is `true`.
+    ///
+    /// [`is_hit_testable`]: Self::is_hit_testable
+    #[inline]
+    pub fn auto_hit_test(&self) -> bool {
+        self.auto_hit_test
     }
 
     /// Runs `f` while hit-tests are disabled, inside `f` [`is_hit_testable`] is `false`, after
@@ -381,9 +381,18 @@ impl FrameBuilder {
     ///
     /// [`is_hit_testable`]: Self::is_hit_testable
     pub fn with_hit_tests_disabled(&mut self, f: impl FnOnce(&mut Self)) {
-        let prev = mem::replace(&mut self.hit_testable, false);
+        let prev = mem::replace(&mut self.is_hit_testable, false);
         f(self);
-        self.hit_testable = prev;
+        self.is_hit_testable = prev;
+    }
+
+    /// Runs `f` while [`auto_hit_test`] is set to a value.
+    ///
+    /// [`auto_hit_test`]: Self::auto_hit_test
+    pub fn with_auto_hit_test(&mut self, auto_hit_test: bool, f: impl FnOnce(&mut Self)) {
+        let prev = mem::replace(&mut self.auto_hit_test, auto_hit_test);
+        f(self);
+        self.auto_hit_test = prev;
     }
 
     /// Start a new widget outer context, this sets [`is_outer`] to `true` until an inner call to [`push_inner`],
@@ -578,7 +587,7 @@ impl FrameBuilder {
     pub fn push_hit_test(&mut self, rect: PxRect) {
         expect_inner!(self.push_hit_test);
 
-        if self.hit_testable {
+        if self.is_hit_testable {
             let common_item_ps = self.common_item_ps(rect);
             self.display_list.push_hit_test(&common_item_ps, self.item_tag());
         }
@@ -745,10 +754,9 @@ impl FrameBuilder {
         self.display_list.pop_stacking_context();
     }
 
-    /// Push a border using [`common_item_ps`] and [`push_border_hit_test`].
+    /// Push a border using [`common_item_ps`].
     ///
     /// [`common_item_ps`]: FrameBuilder::common_item_ps
-    /// [`push_border_hit_test`]: Self::push_border_hit_test
     #[inline]
     pub fn push_border(&mut self, bounds: PxRect, widths: PxSideOffsets, sides: BorderSides, radius: PxCornerRadius) {
         expect_inner!(self.push_border);
@@ -765,7 +773,9 @@ impl FrameBuilder {
         let info = self.common_item_ps(bounds);
         self.display_list.push_border(&info, bounds.to_wr(), widths.to_wr(), details);
 
-        self.push_border_hit_test(bounds, widths, radius);
+        if self.auto_hit_test {
+            self.push_border_hit_test(bounds, widths, radius);
+        }
     }
 
     /// Pushes a composite hit-test for a border.
@@ -829,9 +839,9 @@ impl FrameBuilder {
         self.display_list.push_hit_test(&info, self.item_tag());
     }
 
-    /// Push a text run using [`common_hit_item_ps`].
+    /// Push a text run using [`common_item_ps`].
     ///
-    /// [`common_hit_item_ps`]: FrameBuilder::common_hit_item_ps
+    /// [`common_item_ps`]: FrameBuilder::common_item_ps
     #[inline]
     pub fn push_text(&mut self, rect: PxRect, glyphs: &[GlyphInstance], font: &impl Font, color: ColorF, synthesis: FontSynthesis) {
         expect_inner!(self.push_text);
@@ -839,22 +849,26 @@ impl FrameBuilder {
         if let Some(r) = &self.renderer {
             let instance_key = font.instance_key(r, synthesis);
 
-            let item = self.common_hit_item_ps(rect);
+            let item = self.common_item_ps(rect);
             self.display_list.push_text(&item, rect.to_wr(), glyphs, instance_key, color, None);
+
+            if self.auto_hit_test {
+                self.push_hit_test(rect);
+            }
         } else {
             self.widget_rendered();
         }
     }
 
-    /// Push an image using [`common_hit_item_ps`].
+    /// Push an image using [`common_item_ps`].
     ///
-    /// [`common_hit_item_ps`]: FrameBuilder::common_hit_item_ps
+    /// [`common_item_ps`]: FrameBuilder::common_item_ps
     pub fn push_image(&mut self, clip_rect: PxRect, img_size: PxSize, image: &impl Image, rendering: ImageRendering) {
         expect_inner!(self.push_image);
 
         if let Some(r) = &self.renderer {
             let image_key = image.image_key(r);
-            let item = self.common_hit_item_ps(clip_rect);
+            let item = self.common_item_ps(clip_rect);
             self.display_list.push_image(
                 &item,
                 PxRect::from_size(img_size).to_wr(),
@@ -862,24 +876,32 @@ impl FrameBuilder {
                 image.alpha_type(),
                 image_key,
                 RenderColor::WHITE,
-            )
+            );
+
+            if self.auto_hit_test {
+                self.push_hit_test(clip_rect);
+            }
         } else {
             self.widget_rendered();
         }
     }
 
-    /// Push a color rectangle using [`common_hit_item_ps`].
+    /// Push a color rectangle using [`common_item_ps`].
     ///
-    /// [`common_hit_item_ps`]: FrameBuilder::common_hit_item_ps
+    /// [`common_item_ps`]: FrameBuilder::common_item_ps
     #[inline]
     pub fn push_color(&mut self, rect: PxRect, color: FrameBinding<RenderColor>) {
         expect_inner!(self.push_color);
 
-        let item = self.common_hit_item_ps(rect);
+        let item = self.common_item_ps(rect);
         self.display_list.push_rect_with_animation(&item, rect.to_wr(), color);
+
+        if self.auto_hit_test {
+            self.push_hit_test(rect);
+        }
     }
 
-    /// Push a repeating linear gradient rectangle using [`common_hit_item_ps`].
+    /// Push a repeating linear gradient rectangle using [`common_item_ps`].
     ///
     /// The gradient fills the `tile_size`, the tile is repeated to fill the `rect`.
     /// The `extend_mode` controls how the gradient fills the tile after the last color stop is reached.
@@ -887,7 +909,7 @@ impl FrameBuilder {
     /// The gradient `stops` must be normalized, first stop at 0.0 and last stop at 1.0, this
     /// is asserted in debug builds.
     ///
-    /// [`common_hit_item_ps`]: FrameBuilder::common_hit_item_ps
+    /// [`common_item_ps`]: FrameBuilder::common_item_ps
     #[inline]
     #[allow(clippy::too_many_arguments)]
     pub fn push_linear_gradient(
@@ -908,7 +930,7 @@ impl FrameBuilder {
 
         expect_inner!(self.push_linear_gradient);
 
-        let item = self.common_hit_item_ps(rect);
+        let item = self.common_item_ps(rect);
 
         self.display_list.push_stops(stops);
 
@@ -919,9 +941,13 @@ impl FrameBuilder {
         };
         self.display_list
             .push_gradient(&item, rect.to_wr(), gradient, tile_size.to_wr(), tile_spacing.to_wr());
+
+        if self.auto_hit_test {
+            self.push_hit_test(rect);
+        }
     }
 
-    /// Push a repeating radial gradient rectangle using [`common_hit_item_ps`].
+    /// Push a repeating radial gradient rectangle using [`common_item_ps`].
     ///
     /// The gradient fills the `tile_size`, the tile is repeated to fill the `rect`.
     /// The  `extend_mode` controls how the gradient fills the tile after the last color stop is reached.
@@ -932,7 +958,7 @@ impl FrameBuilder {
     /// The gradient `stops` must be normalized, first stop at 0.0 and last stop at 1.0, this
     /// is asserted in debug builds.
     ///
-    /// [`common_hit_item_ps`]: FrameBuilder::common_hit_item_ps
+    /// [`common_item_ps`]: FrameBuilder::common_item_ps
     #[inline]
     #[allow(clippy::too_many_arguments)]
     pub fn push_radial_gradient(
@@ -954,7 +980,7 @@ impl FrameBuilder {
 
         expect_inner!(self.push_radial_gradient);
 
-        let item = self.common_hit_item_ps(rect);
+        let item = self.common_item_ps(rect);
 
         self.display_list.push_stops(stops);
 
@@ -966,10 +992,14 @@ impl FrameBuilder {
             extend_mode,
         };
         self.display_list
-            .push_radial_gradient(&item, rect.to_wr(), gradient, tile_size.to_wr(), tile_spacing.to_wr())
+            .push_radial_gradient(&item, rect.to_wr(), gradient, tile_size.to_wr(), tile_spacing.to_wr());
+
+        if self.auto_hit_test {
+            self.push_hit_test(rect);
+        }
     }
 
-    /// Push a repeating conic gradient rectangle using [`common_hit_item_ps`].
+    /// Push a repeating conic gradient rectangle using [`common_item_ps`].
     ///
     /// The gradient fills the `tile_size`, the tile is repeated to fill the `rect`.
     /// The  `extend_mode` controls how the gradient fills the tile after the last color stop is reached.
@@ -977,7 +1007,7 @@ impl FrameBuilder {
     /// The gradient `stops` must be normalized, first stop at 0.0 and last stop at 1.0, this
     /// is asserted in debug builds.
     ///
-    /// [`common_hit_item_ps`]: FrameBuilder::common_hit_item_ps
+    /// [`common_item_ps`]: FrameBuilder::common_item_ps
     #[inline]
     #[allow(clippy::too_many_arguments)]
     pub fn push_conic_gradient(
@@ -999,7 +1029,7 @@ impl FrameBuilder {
 
         expect_inner!(self.push_conic_gradient);
 
-        let item = self.common_hit_item_ps(rect);
+        let item = self.common_item_ps(rect);
 
         self.display_list.push_stops(stops);
 
@@ -1013,7 +1043,11 @@ impl FrameBuilder {
             extend_mode,
         };
         self.display_list
-            .push_conic_gradient(&item, rect.to_wr(), gradient, tile_size.to_wr(), tile_spacing.to_wr())
+            .push_conic_gradient(&item, rect.to_wr(), gradient, tile_size.to_wr(), tile_spacing.to_wr());
+
+        if self.auto_hit_test {
+            self.push_hit_test(rect);
+        }
     }
 
     /// Push a styled vertical or horizontal line.
@@ -1027,12 +1061,12 @@ impl FrameBuilder {
     ) {
         expect_inner!(self.push_line);
 
-        let item = self.common_hit_item_ps(bounds);
+        let item = self.common_item_ps(bounds);
 
         match style.render_command() {
-            RenderLineCommand::Line(style, thickness) => {
+            RenderLineCommand::Line(style, wavy_thickness) => {
                 self.display_list
-                    .push_line(&item, &bounds.to_wr(), thickness, orientation.into(), &color, style)
+                    .push_line(&item, &bounds.to_wr(), wavy_thickness, orientation.into(), &color, style)
             }
             RenderLineCommand::Border(style) => {
                 use crate::border::LineOrientation as LO;
@@ -1057,6 +1091,10 @@ impl FrameBuilder {
 
                 self.display_list.push_border(&item, bounds.to_wr(), widths.to_wr(), details);
             }
+        }
+
+        if self.auto_hit_test {
+            self.push_hit_test(bounds);
         }
     }
 

@@ -46,6 +46,10 @@ name = "headless"
 path = "headless.rs"
 
 [[example]]
+name = "hit_test"
+path = "hit_test.rs"
+
+[[example]]
 name = "image"
 path = "image.rs"
 
