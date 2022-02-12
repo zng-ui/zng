@@ -1,5 +1,4 @@
-* Implement the full `HitTestMode`.
-* Hit-test is done exclusively for `push_hit_test` items and their clip, review all hit-tests.
+* Implement `AnchorMode::corner_radius`. 
 
 * Keep a window open for some minutes then try close, border example did not close after a time.
 
