@@ -1062,6 +1062,10 @@ pub mod window {
                         self.widget.inner_info()
                     }
 
+                    fn border_info(&self) -> &WidgetBorderInfo {
+                        self.widget.border_info()
+                    }
+
                     fn render_info(&self) -> &WidgetRenderInfo {
                         self.widget.render_info()
                     }
@@ -1287,6 +1291,10 @@ pub mod window {
 
                     fn inner_info(&self) -> &WidgetLayoutInfo {
                         self.widget.inner_info()
+                    }
+
+                    fn border_info(&self) -> &WidgetBorderInfo {
+                        self.widget.border_info()
                     }
 
                     fn render_info(&self) -> &WidgetRenderInfo {

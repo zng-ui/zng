@@ -1,6 +1,5 @@
 * Update webrender!
 
-* Implement widget border info, to complement inner bounds.
 * Implement baseline in widget layout (see CSS vertical-align).
     - How to do sub/super script alignment?
 * Implement `AnchorMode::corner_radius`.
@@ -10,10 +9,7 @@
 
 # Final Changes
 
-
-* Review relative values in corner radius.
 * Review child priority integration with `WidgetLayout`, what happens when we add a border in child { }?
 * Review `side_offsets`, needs to work like an invisible border? 
-* Review `clip_to_bounds`.
 * Review docs of property and functions that use the term "inner".
 * Review container, padding and align only works with widget child but it accepts UiNode child.

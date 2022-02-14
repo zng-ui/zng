@@ -575,6 +575,8 @@ impl_from_and_into_var! {
 /// Corner radius of widget and inner widgets.
 ///
 /// The [`Default`] value is calculated to fit inside the parent widget corner curve.
+///
+/// [`Default`]: crate::units::Length::Default
 #[property(context, default(CornerRadius::default()))]
 pub fn corner_radius(child: impl UiNode, radius: impl IntoVar<CornerRadius>) -> impl UiNode {
     struct CornerRadiusNode<C, R> {
@@ -596,12 +598,7 @@ pub fn corner_radius(child: impl UiNode, radius: impl IntoVar<CornerRadius>) -> 
         }
 
         fn arrange(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, final_size: PxSize) {
-            let radius = self
-                .radius
-                .get(ctx.vars)
-                .to_layout(ctx.metrics, AvailableSize::finite(final_size), widget_layout.corner_radius());
-
-            widget_layout.with_corner_radius(radius, |wl| {
+            widget_layout.with_corner_radius(self.radius.get(ctx.vars), |wl| {
                 self.child.arrange(ctx, wl, final_size);
             });
         }

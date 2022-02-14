@@ -16,7 +16,8 @@ use crate::{
     units::*,
     var::*,
     widget_info::{
-        UsedWidgetInfoBuilder, WidgetInfoBuilder, WidgetInfoTree, WidgetLayout, WidgetLayoutInfo, WidgetRenderInfo, WidgetSubscriptions,
+        UsedWidgetInfoBuilder, WidgetBorderInfo, WidgetInfoBuilder, WidgetInfoTree, WidgetLayout, WidgetLayoutInfo, WidgetRenderInfo,
+        WidgetSubscriptions,
     },
     window::AutoSize,
     BoxedUiNode, UiNode, WidgetId,
@@ -1000,6 +1001,7 @@ struct ContentCtrl {
     info_tree: WidgetInfoTree,
     root_outer_bounds: WidgetLayoutInfo,
     root_inner_bounds: WidgetLayoutInfo,
+    root_borders: WidgetBorderInfo,
     root_rendered: WidgetRenderInfo,
     used_info_builder: Option<UsedWidgetInfoBuilder>,
 
@@ -1030,6 +1032,7 @@ impl ContentCtrl {
             info_tree: WidgetInfoTree::blank(window_id, window.id),
             root_outer_bounds: WidgetLayoutInfo::new(),
             root_inner_bounds: WidgetLayoutInfo::new(),
+            root_borders: WidgetBorderInfo::new(),
             root_rendered: WidgetRenderInfo::new(),
             used_info_builder: None,
 
@@ -1247,9 +1250,16 @@ impl ContentCtrl {
                     }
                 }
 
-                WidgetLayout::with_root_widget(self.root_id, &self.root_outer_bounds, &self.root_inner_bounds, final_size, |wl| {
-                    self.root.arrange(ctx, wl, final_size);
-                });
+                WidgetLayout::with_root_widget(
+                    self.root_id,
+                    &self.root_outer_bounds,
+                    &self.root_inner_bounds,
+                    &self.root_borders,
+                    final_size,
+                    |wl| {
+                        self.root.arrange(ctx, wl, final_size);
+                    },
+                );
 
                 final_size
             },

@@ -518,7 +518,7 @@ pub type DipSideOffsets = euclid::SideOffsets2D<Dip, ()>;
 /// Ellipses that define the radius of the four corners of a 2D box.
 #[derive(Serialize, Deserialize)]
 #[serde(bound(serialize = "T: Serialize", deserialize = "T: Deserialize<'de>"))]
-pub struct CornerRadius<T, U> {
+pub struct CornerRadius2D<T, U> {
     /// Top-left corner radius.
     pub top_left: euclid::Size2D<T, U>,
     /// Top-right corner radius.
@@ -528,7 +528,7 @@ pub struct CornerRadius<T, U> {
     /// Bottom-right corner radius.
     pub bottom_right: euclid::Size2D<T, U>,
 }
-impl<T: Default, U> Default for CornerRadius<T, U> {
+impl<T: Default, U> Default for CornerRadius2D<T, U> {
     fn default() -> Self {
         Self {
             top_left: Default::default(),
@@ -538,7 +538,7 @@ impl<T: Default, U> Default for CornerRadius<T, U> {
         }
     }
 }
-impl<T: Clone, U> Clone for CornerRadius<T, U> {
+impl<T: Clone, U> Clone for CornerRadius2D<T, U> {
     fn clone(&self) -> Self {
         Self {
             top_left: self.top_left.clone(),
@@ -548,8 +548,8 @@ impl<T: Clone, U> Clone for CornerRadius<T, U> {
         }
     }
 }
-impl<T: Copy, U> Copy for CornerRadius<T, U> {}
-impl<T: Copy + num_traits::Zero, U> CornerRadius<T, U> {
+impl<T: Copy, U> Copy for CornerRadius2D<T, U> {}
+impl<T: Copy + num_traits::Zero, U> CornerRadius2D<T, U> {
     /// New with distinct values.
     pub fn new(
         top_left: euclid::Size2D<T, U>,
@@ -651,9 +651,9 @@ impl<T: Copy + num_traits::Zero, U> CornerRadius<T, U> {
         r
     }
 }
-impl<T: fmt::Debug, U> fmt::Debug for CornerRadius<T, U> {
+impl<T: fmt::Debug, U> fmt::Debug for CornerRadius2D<T, U> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("CornerRadius")
+        f.debug_struct("CornerRadius2D")
             .field("top_left", &self.top_left)
             .field("top_right", &self.top_right)
             .field("bottom_left", &self.bottom_left)
@@ -661,7 +661,7 @@ impl<T: fmt::Debug, U> fmt::Debug for CornerRadius<T, U> {
             .finish()
     }
 }
-impl<T: PartialEq, U> PartialEq for CornerRadius<T, U> {
+impl<T: PartialEq, U> PartialEq for CornerRadius2D<T, U> {
     fn eq(&self, other: &Self) -> bool {
         self.top_left == other.top_left
             && self.top_right == other.top_right
@@ -669,13 +669,13 @@ impl<T: PartialEq, U> PartialEq for CornerRadius<T, U> {
             && self.bottom_right == other.bottom_right
     }
 }
-impl<T: Eq, U> Eq for CornerRadius<T, U> {}
+impl<T: Eq, U> Eq for CornerRadius2D<T, U> {}
 
 /// Corner-radius in device pixels.
-pub type PxCornerRadius = CornerRadius<Px, ()>;
+pub type PxCornerRadius = CornerRadius2D<Px, ()>;
 
 /// Corner-radius in device independent pixels.
-pub type DipCornerRadius = CornerRadius<Dip, ()>;
+pub type DipCornerRadius = CornerRadius2D<Dip, ()>;
 
 /// Conversion from [`Px`] to [`Dip`] units.
 pub trait PxToDip {

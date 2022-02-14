@@ -9,7 +9,7 @@ use parking_lot::Mutex;
 use crate::{
     context::*,
     event::{AnyEventUpdate, Event},
-    widget_info::{UpdateSlot, WidgetInfoBuilder, WidgetLayout, WidgetLayoutInfo, WidgetRenderInfo, WidgetSubscriptions},
+    widget_info::{UpdateSlot, WidgetBorderInfo, WidgetInfoBuilder, WidgetLayout, WidgetLayoutInfo, WidgetRenderInfo, WidgetSubscriptions},
     IdNameError,
 };
 use crate::{crate_util::NameIdMap, units::*};
@@ -460,6 +460,11 @@ pub trait Widget: UiNode {
     /// The information is kept up-to-date, updating every arrange.
     fn inner_info(&self) -> &WidgetLayoutInfo;
 
+    /// Border and corner radius information.
+    ///
+    /// The information is kept up-to-date, updating every arrange.
+    fn border_info(&self) -> &WidgetBorderInfo;
+
     /// Render information.
     ///
     /// The information is kept up-to-date, updating every render
@@ -508,8 +513,9 @@ pub trait Widget: UiNode {
             |ctx| {
                 let outer = self.outer_info().clone();
                 let inner = self.inner_info().clone();
+                let border = self.border_info().clone();
                 let id = self.id();
-                WidgetLayout::with_root_widget(id, &outer, &inner, final_size, |wl| {
+                WidgetLayout::with_root_widget(id, &outer, &inner, &border, final_size, |wl| {
                     self.arrange(ctx, wl, final_size);
                 });
             },
@@ -566,6 +572,7 @@ pub trait WidgetBoxed: UiNodeBoxed {
     fn state_mut_boxed(&mut self) -> &mut StateMap;
     fn outer_info_boxed(&self) -> &WidgetLayoutInfo;
     fn inner_info_boxed(&self) -> &WidgetLayoutInfo;
+    fn border_info_boxed(&self) -> &WidgetBorderInfo;
     fn render_info_boxed(&self) -> &WidgetRenderInfo;
 }
 impl<W: Widget> WidgetBoxed for W {
@@ -587,6 +594,10 @@ impl<W: Widget> WidgetBoxed for W {
 
     fn inner_info_boxed(&self) -> &WidgetLayoutInfo {
         self.inner_info()
+    }
+
+    fn border_info_boxed(&self) -> &WidgetBorderInfo {
+        self.border_info()
     }
 
     fn render_info_boxed(&self) -> &WidgetRenderInfo {
@@ -661,6 +672,10 @@ impl Widget for BoxedWidget {
 
     fn inner_info(&self) -> &WidgetLayoutInfo {
         self.as_ref().inner_info_boxed()
+    }
+
+    fn border_info(&self) -> &WidgetBorderInfo {
+        self.as_ref().border_info_boxed()
     }
 
     fn render_info(&self) -> &WidgetRenderInfo {

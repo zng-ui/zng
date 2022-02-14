@@ -23,7 +23,7 @@ pub mod implicit_base {
         context::{OwnedStateMap, RenderContext},
         render::FrameBindingKey,
         units::RenderTransform,
-        widget_info::{WidgetLayout, WidgetLayoutInfo, WidgetRenderInfo, WidgetSubscriptions},
+        widget_info::{WidgetBorderInfo, WidgetLayout, WidgetLayoutInfo, WidgetRenderInfo, WidgetSubscriptions},
     };
 
     use super::*;
@@ -172,6 +172,7 @@ pub mod implicit_base {
             child: T,
             outer_info: WidgetLayoutInfo,
             inner_info: WidgetLayoutInfo,
+            border_info: WidgetBorderInfo,
             render_info: WidgetRenderInfo,
             subscriptions: RefCell<WidgetSubscriptions>,
             #[cfg(debug_assertions)]
@@ -280,7 +281,7 @@ pub mod implicit_base {
                 }
 
                 ctx.with_widget(self.id, &mut self.state, |ctx| {
-                    widget_layout.with_widget(self.id, &self.outer_info, &self.inner_info, final_size, |wo| {
+                    widget_layout.with_widget(self.id, &self.outer_info, &self.inner_info, &self.border_info, final_size, |wo| {
                         self.child.arrange(ctx, wo, final_size);
                     });
                 });
@@ -328,6 +329,10 @@ pub mod implicit_base {
                 &self.inner_info
             }
             #[inline]
+            fn border_info(&self) -> &WidgetBorderInfo {
+                &self.border_info
+            }
+            #[inline]
             fn render_info(&self) -> &WidgetRenderInfo {
                 &self.render_info
             }
@@ -338,6 +343,7 @@ pub mod implicit_base {
             child,
             outer_info: WidgetLayoutInfo::new(),
             inner_info: WidgetLayoutInfo::new(),
+            border_info: WidgetBorderInfo::new(),
             render_info: WidgetRenderInfo::new(),
             subscriptions: RefCell::default(),
             #[cfg(debug_assertions)]

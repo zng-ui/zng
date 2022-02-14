@@ -325,8 +325,11 @@ pub fn foreground_gradient(child: impl UiNode, axis: impl IntoVar<LinearGradient
 
 /// Clips the widget child to the area of the widget when set to `true`.
 ///
-/// Any content rendered outside the widget *inner size* bounds is clipped. The clip is
+/// Any content rendered outside the widget inner bounds is clipped. The clip is
 /// rectangular and can have rounded corners if [`corner_radius`] is set.
+///
+/// Note that this property has `fill` priority, but it is usually marked as a *child* property in
+/// container widgets so it applies only to the inner widgets.
 ///
 /// # Examples
 ///

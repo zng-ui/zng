@@ -5,6 +5,7 @@ use std::{cell::Cell, fmt, mem, ops, rc::Rc};
 use ego_tree::Tree;
 
 use crate::{
+    border::CornerRadius,
     context::{LayoutMetrics, Updates},
     crate_util::{IdMap, IdSet},
     event::EventUpdateArgs,
@@ -31,10 +32,11 @@ pub struct WidgetLayout {
     transform: RenderTransform,
     transform_origin: Point,
     inner_info: WidgetLayoutInfo,
+    border_info: WidgetBorderInfo,
 
     border_offsets: PxSideOffsets,
-    outer_corner_radius: PxCornerRadius,
     corner_radius: PxCornerRadius,
+    ctx_corner_radius: CornerRadius,
 }
 impl WidgetLayout {
     /// Start the layout arrange pass from the window root widget.
@@ -42,6 +44,7 @@ impl WidgetLayout {
         root_id: WidgetId,
         outer_info: &WidgetLayoutInfo,
         inner_info: &WidgetLayoutInfo,
+        border_info: &WidgetBorderInfo,
         final_size: PxSize,
         f: impl FnOnce(&mut Self),
     ) {
@@ -52,12 +55,13 @@ impl WidgetLayout {
             transform: RenderTransform::identity(),
             transform_origin: Point::center(),
             inner_info: inner_info.clone(),
+            border_info: border_info.clone(),
 
             border_offsets: PxSideOffsets::zero(),
-            outer_corner_radius: PxCornerRadius::zero(),
             corner_radius: PxCornerRadius::zero(),
+            ctx_corner_radius: CornerRadius::zero(),
         };
-        self_.with_widget(root_id, outer_info, inner_info, final_size, f);
+        self_.with_widget(root_id, outer_info, inner_info, border_info, final_size, f);
     }
 
     /// Mark the widget outer-boundaries.
@@ -70,6 +74,7 @@ impl WidgetLayout {
         widget_id: WidgetId,
         outer_info: &WidgetLayoutInfo,
         inner_info: &WidgetLayoutInfo,
+        border_info: &WidgetBorderInfo,
         final_size: PxSize,
         f: impl FnOnce(&mut Self),
     ) {
@@ -82,11 +87,13 @@ impl WidgetLayout {
         )));
 
         let pre_widget_id = mem::replace(&mut self.widget_id, widget_id);
-        let pre_inner_bounds = mem::replace(&mut self.inner_info, inner_info.clone());
+        let pre_inner_info = mem::replace(&mut self.inner_info, inner_info.clone());
+        let pre_border_info = mem::replace(&mut self.border_info, border_info.clone());
 
         f(self);
 
-        self.inner_info = pre_inner_bounds;
+        self.inner_info = pre_inner_info;
+        self.border_info = pre_border_info;
         self.widget_id = pre_widget_id;
     }
 
@@ -191,9 +198,17 @@ impl WidgetLayout {
 
         let prev_border_offsets = mem::take(&mut self.border_offsets);
 
+        let new_corner_radius = self
+            .ctx_corner_radius
+            .to_layout(metrics, AvailableSize::finite(final_size), self.corner_radius);
+        let prev_corner_radius = mem::replace(&mut self.corner_radius, new_corner_radius);
+        self.border_info.set_corner_radius(new_corner_radius);
+
         f(self);
 
+        self.border_info.set_offsets(self.border_offsets);
         self.border_offsets = prev_border_offsets;
+        self.corner_radius = prev_corner_radius;
         self.parent_translate = prev_pre_translate;
         self.transform = prev_transform;
         self.transform_origin = prev_transform_origin;
@@ -211,8 +226,8 @@ impl WidgetLayout {
     /// Current corner radius set by [`with_corner_radius`].
     ///
     /// [`with_corner_radius`]: Self::with_corner_radius
-    pub fn outer_corner_radius(&self) -> PxCornerRadius {
-        self.outer_corner_radius
+    pub fn ctx_corner_radius(&self) -> &CornerRadius {
+        &self.ctx_corner_radius
     }
 
     /// Current corner radius set by [`with_corner_radius`] and deflated by [`with_border`].
@@ -225,17 +240,19 @@ impl WidgetLayout {
 
     /// Sets the corner radius that will affect the next inner borders.
     ///
-    /// After each [`with_border`] the `corners` value will be deflated to fit inside the *outer* border.
+    /// In the first [`with_inner`] call inside `f` the `corners` will be evaluated and become the new
+    /// base corner radius, after each [`with_border`] the `corners` value will be deflated to fit inside the *outer* border.
+    /// The [`Default`] value in `corners` means the parent corner radius.
     ///
+    /// [`with_inner`]: Self::with_inner
     /// [`with_border`]: Self::with_border
-    pub fn with_corner_radius(&mut self, corners: PxCornerRadius, f: impl FnOnce(&mut Self)) {
-        let prev_outer_corner_radius = mem::replace(&mut self.outer_corner_radius, corners);
-        let prev_corner_radius = mem::replace(&mut self.corner_radius, corners);
+    /// [`Default`]: crate::units::Length::Default
+    pub fn with_corner_radius(&mut self, corners: &CornerRadius, f: impl FnOnce(&mut Self)) {
+        let prev_ctx_corner_radius = mem::replace(&mut self.ctx_corner_radius, corners.clone());
 
         f(self);
 
-        self.corner_radius = prev_corner_radius;
-        self.outer_corner_radius = prev_outer_corner_radius;
+        self.ctx_corner_radius = prev_ctx_corner_radius;
     }
 
     /// Adds to the accumulated border offsets, deflates the corner radius for the next inner border or content clip,
@@ -772,7 +789,7 @@ impl WidgetLayoutInfo {
 
 #[derive(Default, Debug)]
 struct WidgetBorderData {
-    widths: Cell<PxSideOffsets>,
+    offsets: Cell<PxSideOffsets>,
     corner_radius: Cell<PxCornerRadius>,
 }
 
@@ -788,8 +805,8 @@ impl WidgetBorderInfo {
 
     /// Sum of the widths of all borders set on the widget.
     #[inline]
-    pub fn widths(&self) -> PxSideOffsets {
-        self.0.widths.get()
+    pub fn border_offsets(&self) -> PxSideOffsets {
+        self.0.offsets.get()
     }
 
     /// Corner radius set on the widget, this is the *outer* curve of border corners.
@@ -803,11 +820,11 @@ impl WidgetBorderInfo {
     /// [`corner_radius`]: Self::corner_radius
     /// [`widths`]: Self::widths
     pub fn inner_corner_radius(&self) -> PxCornerRadius {
-        self.corner_radius().deflate(self.widths())
+        self.corner_radius().deflate(self.border_offsets())
     }
 
-    fn set_widths(&self, widths: PxSideOffsets) {
-        self.0.widths.set(widths);
+    fn set_offsets(&self, widths: PxSideOffsets) {
+        self.0.offsets.set(widths);
     }
 
     fn set_corner_radius(&self, radius: PxCornerRadius) {
