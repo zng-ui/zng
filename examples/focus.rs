@@ -26,7 +26,7 @@ fn app_main() {
                     alt_scope(),
                     h_stack! {
                         margin = (50, 0, 0, 0);
-                        align = Alignment::CENTER;
+                        align = Align::CENTER;
                         spacing = 10;
                         items = widgets![
                             tab_index(),
@@ -149,7 +149,7 @@ fn overlay(window_enabled: RcVar<bool>) -> impl Widget {
             drop_shadow = (0, 0), 4, colors::BLACK;
             padding = 2;
             content = v_stack! {
-                items_align = Alignment::RIGHT;
+                items_align = Align::RIGHT;
                 items = widgets![
                     text! {
                         text = "Window scope is disabled so the overlay scope is the root scope.";
@@ -174,7 +174,7 @@ fn overlay(window_enabled: RcVar<bool>) -> impl Widget {
 }
 
 fn title(text: impl IntoVar<Text>) -> impl Widget {
-    text! { text; font_weight = FontWeight::BOLD; align = Alignment::CENTER; }
+    text! { text; font_weight = FontWeight::BOLD; align = Align::CENTER; }
 }
 
 fn button(content: impl Into<Text>, tab_index: impl Into<TabIndex>) -> impl Widget {

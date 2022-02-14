@@ -50,7 +50,7 @@ fn cursor_demo(icon: Option<CursorIcon>) -> impl Widget {
             text_color = colors::WHITE;
         }
 
-        content_align = Alignment::TOP_LEFT;
+        content_align = Align::TOP_LEFT;
         padding = (2, 5);
 
         content = text! {

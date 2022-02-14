@@ -54,13 +54,13 @@ pub mod h_stack {
             /// Horizontal alignment applies to all items together, vertical alignment applies to each
             /// item individually. The default is [`FILL_LEFT`].
             ///
-            /// [`FILL_LEFT`]: Alignment::FILL_LEFT
-            items_align(impl IntoVar<Alignment>) = Alignment::FILL_LEFT;
+            /// [`FILL_LEFT`]: Align::FILL_LEFT
+            items_align(impl IntoVar<Align>) = Align::FILL_LEFT;
         }
     }
 
     #[inline]
-    fn new_child(items: impl WidgetList, spacing: impl IntoVar<Length>, items_align: impl IntoVar<Alignment>) -> impl UiNode {
+    fn new_child(items: impl WidgetList, spacing: impl IntoVar<Length>, items_align: impl IntoVar<Align>) -> impl UiNode {
         HStackNode {
             children_info: vec![ChildInfo::default(); items.len()],
             items_width: Px(0),
@@ -81,7 +81,7 @@ pub mod h_stack {
         align: A,
     }
     #[impl_ui_node(children)]
-    impl<C: WidgetList, S: Var<Length>, A: Var<Alignment>> UiNode for HStackNode<C, S, A> {
+    impl<C: WidgetList, S: Var<Length>, A: Var<Align>> UiNode for HStackNode<C, S, A> {
         fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
             self.children.subscriptions_all(ctx, subscriptions);
             subscriptions.vars(ctx).var(&self.spacing).var(&self.align);
@@ -233,13 +233,13 @@ pub mod v_stack {
             /// Vertical alignment applies to all items together, horizontal alignment applies to each
             /// item individually. The default is [`FILL_TOP`].
             ///
-            /// [`FILL_TOP`]: Alignment::FILL_TOP
-            items_align(impl IntoVar<Alignment>) = Alignment::FILL_TOP;
+            /// [`FILL_TOP`]: Align::FILL_TOP
+            items_align(impl IntoVar<Align>) = Align::FILL_TOP;
         }
     }
 
     #[inline]
-    fn new_child(items: impl WidgetList, spacing: impl IntoVar<Length>, items_align: impl IntoVar<Alignment>) -> impl UiNode {
+    fn new_child(items: impl WidgetList, spacing: impl IntoVar<Length>, items_align: impl IntoVar<Align>) -> impl UiNode {
         VStackNode {
             children_info: vec![ChildInfo::default(); items.len()],
             items_height: Px(0),
@@ -260,7 +260,7 @@ pub mod v_stack {
         align: A,
     }
     #[impl_ui_node(children)]
-    impl<C: WidgetList, S: Var<Length>, A: Var<Alignment>> UiNode for VStackNode<C, S, A> {
+    impl<C: WidgetList, S: Var<Length>, A: Var<Align>> UiNode for VStackNode<C, S, A> {
         fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
             subscriptions.vars(ctx).var(&self.spacing).var(&self.align);
             self.children.subscriptions_all(ctx, subscriptions);
@@ -449,15 +449,15 @@ pub mod z_stack {
 
             /// Items alignment.
             ///
-            /// Alignment applies to each item individually. The default is [`FILL`].
+            /// Align applies to each item individually. The default is [`FILL`].
             ///
-            /// [`FILL`]: Alignment::FILL
-            items_align(impl IntoVar<Alignment>) = Alignment::FILL;
+            /// [`FILL`]: Align::FILL
+            items_align(impl IntoVar<Align>) = Align::FILL;
         }
     }
 
     #[inline]
-    fn new_child(items: impl WidgetList, items_align: impl IntoVar<Alignment>) -> impl UiNode {
+    fn new_child(items: impl WidgetList, items_align: impl IntoVar<Align>) -> impl UiNode {
         ZStackNode {
             children_info: vec![ChildInfo::default(); items.len()],
             children: ZSortedWidgetList::new(items),
@@ -470,7 +470,7 @@ pub mod z_stack {
         align: A,
     }
     #[impl_ui_node(children)]
-    impl<I: UiNodeList, A: Var<Alignment>> UiNode for ZStackNode<I, A> {
+    impl<I: UiNodeList, A: Var<Align>> UiNode for ZStackNode<I, A> {
         fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
             subscriptions.var(ctx, &self.align);
             self.children.subscriptions_all(ctx, subscriptions);

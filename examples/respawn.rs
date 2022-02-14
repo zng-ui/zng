@@ -19,7 +19,7 @@ fn main() {
             foreground = window_status(ctx);
             content = v_stack! {
                 spacing = 5;
-                items_align = Alignment::TOP;
+                items_align = Align::TOP;
                 items = widgets![
                     text(
                         "The renderer and OS windows are created in another process, the `view-process`,\n\
@@ -92,7 +92,7 @@ fn window_status(ctx: &mut WindowContext) -> impl Widget {
     v_stack! {
         spacing = 5;
         margin = 10;
-        align = Alignment::TOP_LEFT;
+        align = Align::TOP_LEFT;
         background_color = rgb(0.1, 0.1, 0.1);
         font_family = "monospace";
         opacity = 80.pct();

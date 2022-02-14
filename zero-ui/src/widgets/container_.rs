@@ -20,7 +20,7 @@ pub mod container {
             margin as padding;
 
             /// Content alignment.
-            align as content_align = Alignment::CENTER;
+            align as content_align = Align::CENTER;
 
             /// Content overflow clipping.
             clip_to_bounds;

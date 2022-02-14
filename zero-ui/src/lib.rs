@@ -48,7 +48,7 @@
 //!                 });
 //!                 margin = 10;
 //!                 size = (300, 200);
-//!                 align = Alignment::CENTER;
+//!                 align = Align::CENTER;
 //!                 font_size = 28;
 //!                 content = text("Click Me!");
 //!             }
@@ -924,7 +924,7 @@ pub mod prelude {
         },
         ui_list::{z_index, SortedWidgetVec, SortedWidgetVecRef, WidgetVec, WidgetVecRef, ZIndex},
         units::{
-            rotate, scale, scale_x, scale_xy, scale_y, skew, skew_x, skew_y, translate, translate_x, translate_y, Alignment, AngleUnits,
+            rotate, scale, scale_x, scale_xy, scale_y, skew, skew_x, skew_y, translate, translate_x, translate_y, Align, AngleUnits,
             ByteUnits, FactorUnits, Length, LengthUnits, Line, LineFromTuplesBuilder, LineHeight, Point, Px, PxPoint, PxSize, Rect,
             RectFromTuplesBuilder, SideOffsets, Size, TimeUnits, Transform, Vector,
         },

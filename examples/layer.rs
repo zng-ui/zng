@@ -39,7 +39,7 @@ fn app_main() {
                     font_family = "monospace";
                     opacity = 3.pct();
                     // rotate = 45.deg();
-                    align = Alignment::CENTER;
+                    align = Align::CENTER;
                 })
             });
 
@@ -78,7 +78,7 @@ fn overlay(id: impl Into<WidgetId>, offset: i32) -> impl Widget {
             background_color = colors::GREEN.darken(80.pct());
             padding = 2;
             content = v_stack! {
-                items_align = Alignment::RIGHT;
+                items_align = Align::RIGHT;
                 items = widgets![
                     text! {
                         text = "Overlay inserted in the TOP_MOST layer.";
@@ -138,7 +138,7 @@ fn layer_n_btn(n: u32, color: Rgba) -> impl Widget {
                     let inc = n as i32 * 10;
                     (20 + inc, 10, 0, inc - 40)
                 };
-                align = Alignment::TOP;
+                align = Align::TOP;
                 hit_test_mode = HitTestMode::Disabled;
             }));
 
@@ -183,7 +183,7 @@ fn anchor_example() -> impl Widget {
         content = text("Anchored");
 
         margin = (60, 0);
-        align = Alignment::CENTER;
+        align = Align::CENTER;
 
         on_mouse_enter = hn!(|ctx, _| {
             WindowLayers::insert_anchored(ctx, LayerIndex::ADORNER, "anchor", anchor_mode.clone(), text! {
@@ -225,7 +225,7 @@ fn transform_anchor_example() -> impl Widget {
             if insert {
                 WindowLayers::insert_anchored(ctx, LayerIndex::ADORNER, "t-anchor", anchor_mode.clone(), container! {
                     id = "t-anchored";
-                    content_align = Alignment::TOP_LEFT;
+                    content_align = Align::TOP_LEFT;
                     border = 1, colors::GREEN.lighten(30.pct());
                     corner_radius = 4;
                     hit_test_mode = HitTestMode::Disabled;

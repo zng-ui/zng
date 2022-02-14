@@ -45,7 +45,7 @@ fn app_main() {
                             uniform_grid! {
                                 columns = 4;
                                 spacing = 2;
-                                align = Alignment::CENTER;
+                                align = Align::CENTER;
                                 items = widgets![
                                     image("examples/res/image/Luma8.png"),
                                     image("examples/res/image/Luma16.png"),
@@ -131,7 +131,7 @@ fn img_fit(fit: impl IntoVar<ImageFit>) -> impl Widget {
     let fit = fit.into_var();
 
     v_stack! {
-        items_align = Alignment::TOP_LEFT;
+        items_align = Align::TOP_LEFT;
         spacing = 5;
 
         items = widgets![
@@ -149,7 +149,7 @@ fn img_filter(filter: impl IntoVar<color::Filter>) -> impl Widget {
     let filter = filter.into_var();
 
     v_stack! {
-        items_align = Alignment::TOP_LEFT;
+        items_align = Align::TOP_LEFT;
         spacing = 2;
 
         items = widgets![
@@ -197,7 +197,7 @@ fn img_window(title: impl IntoVar<Text>, content: impl UiNode) -> Window {
                 text = msg;
                 color = loading_color;
                 margin = 8;
-                align = Alignment::CENTER;
+                align = Align::CENTER;
                 width = 80;
                 font_style = FontStyle::Italic;
                 drop_shadow = {
@@ -213,7 +213,7 @@ fn img_window(title: impl IntoVar<Text>, content: impl UiNode) -> Window {
             text! {
                 text = args.error;
                 margin = 8;
-                align = Alignment::CENTER;
+                align = Align::CENTER;
                 color = error_color;
                 drop_shadow = {
                     offset: (0, 0),
@@ -242,11 +242,11 @@ fn sprite(timers: &mut Timers) -> impl Widget {
     let label = var_from("play");
 
     v_stack! {
-        align = Alignment::CENTER;
+        align = Align::CENTER;
         items = widgets![
             button! {
                 content = text(label.clone());
-                align = Alignment::CENTER;
+                align = Align::CENTER;
                 padding = (2, 3);
                 on_click = hn!(timer, |ctx, _| {
                     let t = timer.get(ctx);
@@ -319,7 +319,7 @@ fn panorama_image() -> impl Widget {
 fn section(title: impl IntoVar<Text>, items: impl WidgetList) -> impl Widget {
     v_stack! {
         spacing = 5;
-        items_align = Alignment::TOP_LEFT;
+        items_align = Align::TOP_LEFT;
 
         items = widgets![
             text! {
@@ -330,7 +330,7 @@ fn section(title: impl IntoVar<Text>, items: impl WidgetList) -> impl Widget {
             },
             v_stack! {
                 spacing = 5;
-                items_align = Alignment::TOP_LEFT;
+                items_align = Align::TOP_LEFT;
 
                 items;
             }

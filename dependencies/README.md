@@ -9,6 +9,8 @@ crates not even published.
 
 If the submodule is a Cargo workspace remember to exclude it in the root `Cargo.toml` workspace.
 
+Use `git pull --recurse-submodules` to update.
+
 # Webrender
 
 From the `./webrender` submodule we use the `webrender`, `webrender_api` and `swgl` crates.

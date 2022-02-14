@@ -594,15 +594,15 @@ pub use zero_ui_proc_macros::property;
 ///
 /// ```
 /// # fn main() { }
-/// # use zero_ui_core::{*, var::*, units::Alignment};
+/// # use zero_ui_core::{*, var::*, units::Align};
 /// # #[property(layout)]
-/// # pub fn content_align(child: impl UiNode, align: impl IntoVar<Alignment>) -> impl UiNode {
+/// # pub fn content_align(child: impl UiNode, align: impl IntoVar<Align>) -> impl UiNode {
 /// #   child
 /// # }
 /// # pub mod zero_ui { pub mod widgets {
 /// # #[zero_ui_core::widget($crate::zero_ui::widgets::container)]
 /// # pub mod container {
-/// #   properties! { crate::content_align = crate::Alignment::CENTER; }
+/// #   properties! { crate::content_align = crate::Align::CENTER; }
 /// # }
 /// # } }
 /// # #[widget($crate::foo)]

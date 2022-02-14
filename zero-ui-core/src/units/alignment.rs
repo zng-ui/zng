@@ -17,42 +17,42 @@ use super::{Factor, FactorPercent, Point, PxRect, PxSize, PxVector};
 /// Values outside of the `[0.0..=1.0]` range places the content outside of the container bounds. A **non-finite
 /// value** means the content stretches to fill the container bounds.
 #[derive(Clone, Copy)]
-pub struct Alignment {
+pub struct Align {
     /// *x* alignment in a `[0.0..=1.0]` range.
     pub x: Factor,
     /// *y* alignment in a `[0.0..=1.0]` range.
     pub y: Factor,
 }
-impl PartialEq for Alignment {
+impl PartialEq for Align {
     fn eq(&self, other: &Self) -> bool {
         self.fill_width() == other.fill_width() && self.fill_height() == other.fill_height() && self.x == other.x && self.y == other.y
     }
 }
-impl Alignment {
+impl Align {
     /// Returns `true` if [`x`] is a special value that indicates the content width must be the container width.
     ///
-    /// [`x`]: Alignment::x
+    /// [`x`]: Align::x
     pub fn fill_width(self) -> bool {
         !self.x.0.is_finite()
     }
 
     /// Returns `true` if [`y`] is a special value that indicates the content height must be the container height.
     ///
-    /// [`y`]: Alignment::y
+    /// [`y`]: Align::y
     pub fn fill_height(self) -> bool {
         !self.y.0.is_finite()
     }
 }
 impl_from_and_into_var! {
-    fn from<X: Into<Factor> + Clone, Y: Into<Factor> + Clone>((x, y): (X, Y)) -> Alignment {
-        Alignment { x: x.into(), y: y.into() }
+    fn from<X: Into<Factor> + Clone, Y: Into<Factor> + Clone>((x, y): (X, Y)) -> Align {
+        Align { x: x.into(), y: y.into() }
     }
 
-    fn from(xy: Factor) -> Alignment {
-        Alignment { x: xy, y: xy }
+    fn from(xy: Factor) -> Align {
+        Align { x: xy, y: xy }
     }
 
-    fn from(xy: FactorPercent) -> Alignment {
+    fn from(xy: FactorPercent) -> Align {
         xy.as_normal().into()
     }
 }
@@ -64,7 +64,7 @@ macro_rules! named_aligns {
     ( $([$doc:expr] $NAME:ident = ($x:expr, $y:expr);)+ ) => {
         $(
         #[doc=$doc]
-        pub const $NAME: Alignment = Alignment { x: Factor($x), y: Factor($y) };
+        pub const $NAME: Align = Align { x: Factor($x), y: Factor($y) };
         )+
 
         /// Returns the alignment `const` name if `self` is equal to one of then.
@@ -80,20 +80,20 @@ macro_rules! named_aligns {
         }
     };
 }
-impl fmt::Debug for Alignment {
+impl fmt::Debug for Align {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if let Some(name) = self.name() {
             if f.alternate() {
-                write!(f, "Alignment::{name}")
+                write!(f, "Align::{name}")
             } else {
                 f.write_str(name)
             }
         } else {
-            f.debug_struct("Alignment").field("x", &self.x).field("y", &self.y).finish()
+            f.debug_struct("Align").field("x", &self.x).field("y", &self.y).finish()
         }
     }
 }
-impl fmt::Display for Alignment {
+impl fmt::Display for Align {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if let Some(name) = self.name() {
             f.write_str(name)
@@ -114,7 +114,7 @@ impl fmt::Display for Alignment {
         }
     }
 }
-impl Alignment {
+impl Align {
     named_aligns! {
         TOP_LEFT = (0.0, 0.0);
         BOTTOM_LEFT = (0.0, 1.0);
@@ -139,14 +139,14 @@ impl Alignment {
 }
 impl_from_and_into_var! {
      /// To relative length x and y.
-    fn from(alignment: Alignment) -> Point {
+    fn from(alignment: Align) -> Point {
         Point {
             x: alignment.x.into(),
             y: alignment.y.into(),
         }
     }
 }
-impl Alignment {
+impl Align {
     /// Compute a content rectangle given this alignment, the content size and the available size.
     ///
     /// To implement alignment, the `content_size` should be measured and recorded in [`UiNode::measure`]
@@ -182,9 +182,9 @@ impl Alignment {
     ///
     /// Unlike [`solve`] the content does not change size, it must be clipped if larger than the container.
     ///
-    /// [`FILL`]: Alignment::FILL
-    /// [`TOP_LEFT`]: Alignment::TOP_LEFT
-    /// [`solve`]: Alignment::solve
+    /// [`FILL`]: Align::FILL
+    /// [`TOP_LEFT`]: Align::TOP_LEFT
+    /// [`solve`]: Align::solve
     pub fn solve_offset(self, content_size: PxSize, container_size: PxSize) -> PxVector {
         let mut r = PxVector::zero();
 

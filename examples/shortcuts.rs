@@ -59,19 +59,19 @@ fn app_main() {
             content = v_stack! {
                 items = widgets![
                     text!{
-                        align = Alignment::CENTER;
+                        align = Align::CENTER;
                         font_size = 18.pt();
                         text = "Press a shortcut:";
                     },
                     text! {
-                        align = Alignment::CENTER;
+                        align = Align::CENTER;
                         margin = (10, 0);
                         font_size = 28.pt();
                         color = shortcut_color;
                         text = shortcut_text;
                     },
                     text! {
-                        align = Alignment::CENTER;
+                        align = Align::CENTER;
                         font_size = 22.pt();
                         font_family = FontName::monospace();
                         color = colors::LIGHT_SLATE_GRAY;

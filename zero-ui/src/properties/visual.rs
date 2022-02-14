@@ -23,7 +23,7 @@ use super::{hit_test_mode, interactive};
 ///         font_size = 72;
 ///         color = colors::LIGHT_GRAY;
 ///         transform = rotate(45.deg());
-///         align = Alignment::CENTER;
+///         align = Align::CENTER;
 ///     }
 /// }
 /// # ;
@@ -137,7 +137,7 @@ pub fn background_gradient(child: impl UiNode, axis: impl IntoVar<LinearGradient
 ///         color = colors::BLACK;
 ///         opacity = 10.pct();
 ///         transform = rotate(45.deg());
-///         align = Alignment::CENTER;
+///         align = Align::CENTER;
 ///     }
 /// }
 /// # ;

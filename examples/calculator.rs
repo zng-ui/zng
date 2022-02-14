@@ -30,7 +30,7 @@ fn app_main() {
                 items = widgets![
                     text! {
                         text = calc.map_ref(|c| c.text());
-                        align = Alignment::RIGHT;
+                        align = Align::RIGHT;
                         font_size = 32.pt();
                         color = calc.map_ref(|c| c.color());
                     },

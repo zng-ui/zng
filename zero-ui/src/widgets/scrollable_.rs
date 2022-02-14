@@ -24,7 +24,7 @@ pub mod scrollable {
             margin as padding;
 
             /// Content alignment when it is smaller then the viewport.
-            align as content_align = Alignment::CENTER;
+            align as content_align = Align::CENTER;
 
             /// Scroll mode.
             ///
@@ -1175,8 +1175,8 @@ pub mod scrollbar {
         align(
             child,
             orientation.map(|o| match o {
-                Orientation::Vertical => Alignment::FILL_RIGHT,
-                Orientation::Horizontal => Alignment::FILL_BOTTOM,
+                Orientation::Vertical => Align::FILL_RIGHT,
+                Orientation::Horizontal => Align::FILL_BOTTOM,
             }),
         )
     }

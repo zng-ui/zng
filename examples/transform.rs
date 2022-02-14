@@ -24,7 +24,7 @@ fn app_main() {
                 items = widgets![
                     v_stack! {
                         spacing = 25;
-                        items_align = Alignment::TOP;
+                        items_align = Align::TOP;
                         items = widgets![
                             transformed("Translate -10", translate(-10, -10)),
                             transformed_at("Rotate 10º (0, 0)", rotate(10.deg()), (0, 0)),

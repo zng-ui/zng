@@ -92,10 +92,10 @@ pub fn margin(child: impl UiNode, margin: impl IntoVar<SideOffsets>) -> impl UiN
 /// A custom *margin* or *padding* offsets applied on the visual part of the widget.
 ///
 /// This property does not add to the layout of the widget like [`margin`], but renders the extra offsets directly.
-/// It can be useful for implementing custom properties or for adding spacing in between multiple border properties.
+/// It can be useful for implementing custom properties.
 ///
 /// [`margin`]: fn@margin
-#[property(border, default(0))]
+#[property(layout, default(0))]
 pub fn side_offsets(child: impl UiNode, offsets: impl IntoVar<SideOffsets>) -> impl UiNode {
     struct SideOffsetsNode<T, M> {
         child: T,
@@ -168,24 +168,24 @@ pub fn side_offsets(child: impl UiNode, offsets: impl IntoVar<SideOffsets>) -> i
 ///
 /// container! {
 ///     content = button! {
-///         align = Alignment::TOP;
+///         align = Align::TOP;
 ///         content = text("Click Me!")
 ///     };
 /// }
 /// # ;
 /// ```
 ///
-/// In the example the button is positioned at the top-center of the container. See [`Alignment`] for
+/// In the example the button is positioned at the top-center of the container. See [`Align`] for
 /// more details.
-#[property(layout, default(Alignment::FILL))]
-pub fn align(child: impl UiNode, alignment: impl IntoVar<Alignment>) -> impl UiNode {
+#[property(layout, default(Align::FILL))]
+pub fn align(child: impl UiNode, alignment: impl IntoVar<Align>) -> impl UiNode {
     struct AlignNode<T, A> {
         child: T,
         alignment: A,
         child_rect: PxRect,
     }
     #[impl_ui_node(child)]
-    impl<T: UiNode, A: Var<Alignment>> UiNode for AlignNode<T, A> {
+    impl<T: UiNode, A: Var<Align>> UiNode for AlignNode<T, A> {
         fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
             subscriptions.var(ctx, &self.alignment);
             self.child.subscriptions(ctx, subscriptions);

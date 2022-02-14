@@ -25,7 +25,7 @@ pub mod image {
         /// [`Contain`]: ImageFit::Contain
         properties::image_fit as fit;
 
-        /// Alignment of the image after the final size is calculated.
+        /// Align of the image after the final size is calculated.
         ///
         /// If the image is smaller then the widget area it is aligned like normal, if it is larger the "viewport" is aligned,
         /// so for examples, alignment [`BOTTOM_RIGHT`] makes a smaller image sit at the bottom-right of the widget and makes
@@ -33,8 +33,8 @@ pub mod image {
         ///
         /// By default the alignment is [`CENTER`].
         ///
-        /// [`BOTTOM_RIGHT`]: Alignment::BOTTOM_RIGHT
-        /// [`CENTER`]: Alignment::CENTER
+        /// [`BOTTOM_RIGHT`]: Align::BOTTOM_RIGHT
+        /// [`CENTER`]: Align::CENTER
         properties::image_align;
 
         /// Offset applied to the image after the final size and alignment.
@@ -249,10 +249,10 @@ pub mod image {
             /// Is `false` by default.
             pub struct ImageScalePpiVar: bool = false;
 
-            /// Alignment of the image in relation to the image widget final size.
+            /// Align of the image in relation to the image widget final size.
             ///
-            /// Is [`Alignment::CENTER`] by default.
-            pub struct ImageAlignVar: Alignment = Alignment::CENTER;
+            /// Is [`Align::CENTER`] by default.
+            pub struct ImageAlignVar: Align = Align::CENTER;
 
             /// Offset applied to the image after all measure and arrange.
             pub struct ImageOffsetVar: Vector = Vector::default();
@@ -299,13 +299,13 @@ pub mod image {
             with_context_var(child, ImageScalePpiVar, enabled)
         }
 
-        /// Sets the [`Alignment`] of all inner images within each image widget area.
+        /// Sets the [`Align`] of all inner images within each image widget area.
         ///
         /// See the [`image_align`] property in the widget for more details.
         ///
         /// [`image_align`]: crate::widgets::image#wp-image_align
-        #[property(context, default(Alignment::CENTER))]
-        pub fn image_align(child: impl UiNode, fit: impl IntoVar<Alignment>) -> impl UiNode {
+        #[property(context, default(Align::CENTER))]
+        pub fn image_align(child: impl UiNode, fit: impl IntoVar<Align>) -> impl UiNode {
             with_context_var(child, ImageAlignVar, fit)
         }
 
