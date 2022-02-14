@@ -169,6 +169,7 @@ fn anchor_example() -> impl Widget {
         size: AnchorSize::Infinite,
         visibility: true,
         interaction: false,
+        corner_radius: true,
     });
 
     let next_point = hn!(|ctx, _| {
@@ -213,6 +214,7 @@ fn transform_anchor_example() -> impl Widget {
         size: AnchorSize::InnerSize,
         visibility: true,
         interaction: false,
+        corner_radius: true,
     };
     button! {
         id = "t-anchor";

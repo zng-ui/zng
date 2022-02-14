@@ -999,9 +999,9 @@ struct ContentCtrl {
     root: BoxedUiNode,
     // info
     info_tree: WidgetInfoTree,
-    root_outer_bounds: WidgetLayoutInfo,
-    root_inner_bounds: WidgetLayoutInfo,
-    root_borders: WidgetBorderInfo,
+    root_outer_info: WidgetLayoutInfo,
+    root_inner_info: WidgetLayoutInfo,
+    root_border_info: WidgetBorderInfo,
     root_rendered: WidgetRenderInfo,
     used_info_builder: Option<UsedWidgetInfoBuilder>,
 
@@ -1030,9 +1030,9 @@ impl ContentCtrl {
             root: window.child,
 
             info_tree: WidgetInfoTree::blank(window_id, window.id),
-            root_outer_bounds: WidgetLayoutInfo::new(),
-            root_inner_bounds: WidgetLayoutInfo::new(),
-            root_borders: WidgetBorderInfo::new(),
+            root_outer_info: WidgetLayoutInfo::new(),
+            root_inner_info: WidgetLayoutInfo::new(),
+            root_border_info: WidgetBorderInfo::new(),
             root_rendered: WidgetRenderInfo::new(),
             used_info_builder: None,
 
@@ -1077,7 +1077,9 @@ impl ContentCtrl {
             let mut info = WidgetInfoBuilder::new(
                 *ctx.window_id,
                 self.root_id,
-                self.root_outer_bounds.clone(),
+                self.root_outer_info.clone(),
+                self.root_inner_info.clone(),
+                self.root_border_info.clone(),
                 self.root_rendered.clone(),
                 self.used_info_builder.take(),
             );
@@ -1252,9 +1254,9 @@ impl ContentCtrl {
 
                 WidgetLayout::with_root_widget(
                     self.root_id,
-                    &self.root_outer_bounds,
-                    &self.root_inner_bounds,
-                    &self.root_borders,
+                    &self.root_outer_info,
+                    &self.root_inner_info,
+                    &self.root_border_info,
                     final_size,
                     |wl| {
                         self.root.arrange(ctx, wl, final_size);

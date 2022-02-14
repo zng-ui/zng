@@ -305,24 +305,26 @@ pub struct WidgetInfoBuilder {
     interaction_filter: Vec<Box<dyn Fn(&InteractiveFilterArgs) -> bool>>,
 }
 impl WidgetInfoBuilder {
-    /// Starts building a info tree with the root information, the `root_bounds` must be a shared reference
-    /// to the size of the window content that is always kept up-to-date, the transform must be always identity.
+    /// Starts building a info tree with the root information.
     #[inline]
     pub fn new(
         window_id: WindowId,
         root_id: WidgetId,
-        root_layout_info: WidgetLayoutInfo,
+        root_outer_info: WidgetLayoutInfo,
+        root_inner_info: WidgetLayoutInfo,
+        root_border_info: WidgetBorderInfo,
         render_info: WidgetRenderInfo,
         used_data: Option<UsedWidgetInfoBuilder>,
     ) -> Self {
-        debug_assert_eq!(RenderTransform::identity(), root_layout_info.transform());
+        debug_assert_eq!(RenderTransform::identity(), root_outer_info.transform());
 
         let (tree_capacity, interactive_capacity) = used_data.map(|d| (d.tree_capacity, d.interactive_capacity)).unwrap_or((100, 30));
         let tree = Tree::with_capacity(
             WidgetInfoInner {
                 widget_id: root_id,
-                inner_info: root_layout_info.clone(),
-                outer_info: root_layout_info,
+                outer_info: root_outer_info,
+                inner_info: root_inner_info,
+                border_info: root_border_info,
                 render_info,
                 meta: OwnedStateMap::new(),
             },
@@ -364,6 +366,7 @@ impl WidgetInfoBuilder {
         id: WidgetId,
         outer_info: WidgetLayoutInfo,
         inner_info: WidgetLayoutInfo,
+        border_info: WidgetBorderInfo,
         render_info: WidgetRenderInfo,
         f: impl FnOnce(&mut Self),
     ) {
@@ -378,6 +381,7 @@ impl WidgetInfoBuilder {
                 widget_id: id,
                 inner_info,
                 outer_info,
+                border_info,
                 render_info,
                 meta: OwnedStateMap::new(),
             })
@@ -479,9 +483,17 @@ impl WidgetInfoTree {
     /// Blank window that contains only the root widget taking no space.
     #[inline]
     pub fn blank(window_id: WindowId, root_id: WidgetId) -> Self {
-        WidgetInfoBuilder::new(window_id, root_id, WidgetLayoutInfo::new(), WidgetRenderInfo::new(), None)
-            .finalize()
-            .0
+        WidgetInfoBuilder::new(
+            window_id,
+            root_id,
+            WidgetLayoutInfo::new(),
+            WidgetLayoutInfo::new(),
+            WidgetBorderInfo::new(),
+            WidgetRenderInfo::new(),
+            None,
+        )
+        .finalize()
+        .0
     }
 
     /// Reference to the root widget in the tree.
@@ -815,10 +827,10 @@ impl WidgetBorderInfo {
         self.0.corner_radius.get()
     }
 
-    /// Computes the [`corner_radius`] deflated by [`widths`], this is the *inner* curve of border corners.
+    /// Computes the [`corner_radius`] deflated by [`border_offsets`], this is the *inner* curve of border corners.
     ///
     /// [`corner_radius`]: Self::corner_radius
-    /// [`widths`]: Self::widths
+    /// [`border_offsets`]: Self::border_offsets
     pub fn inner_corner_radius(&self) -> PxCornerRadius {
         self.corner_radius().deflate(self.border_offsets())
     }
@@ -868,6 +880,7 @@ struct WidgetInfoInner {
     widget_id: WidgetId,
     outer_info: WidgetLayoutInfo,
     inner_info: WidgetLayoutInfo,
+    border_info: WidgetBorderInfo,
     render_info: WidgetRenderInfo,
     meta: OwnedStateMap,
 }
@@ -1027,6 +1040,14 @@ impl<'a> WidgetInfo<'a> {
     #[inline]
     pub fn inner_info(self) -> WidgetLayoutInfo {
         self.info().inner_info.clone()
+    }
+
+    /// Clone a reference to the widget border and corner radius information.
+    ///
+    /// This information is up-to-date, it is updated every layout without causing a tree rebuild.
+    #[inline]
+    pub fn border_info(self) -> WidgetBorderInfo {
+        self.info().border_info.clone()
     }
 
     /// Side of the widget outer area, not transformed.

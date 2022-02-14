@@ -191,6 +191,7 @@ pub mod implicit_base {
                         self.id,
                         self.outer_info.clone(),
                         self.inner_info.clone(),
+                        self.border_info.clone(),
                         self.render_info.clone(),
                         |info| self.child.info(ctx, info),
                     );

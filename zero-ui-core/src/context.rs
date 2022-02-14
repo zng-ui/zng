@@ -16,7 +16,7 @@ use crate::handler::{self, AppHandler, AppHandlerArgs, AppWeakHandle};
 pub use crate::state_key;
 use crate::task;
 use crate::timer::Timers;
-use crate::widget_info::{UpdateMask, WidgetInfoTree};
+use crate::widget_info::{UpdateMask, WidgetBorderInfo, WidgetInfoTree};
 use crate::{var::VarsRead, window::WindowMode};
 
 /// Represents an [`on_pre_update`](Updates::on_pre_update) or [`on_update`](Updates::on_update) handler.
@@ -887,11 +887,21 @@ impl TestWidgetContext {
     /// Builds a info tree.
     pub fn info_tree<R>(
         &mut self,
-        root_bounds: WidgetLayoutInfo,
+        root_outer_info: WidgetLayoutInfo,
+        root_inner_info: WidgetLayoutInfo,
+        root_border_info: WidgetBorderInfo,
         rendered: WidgetRenderInfo,
         action: impl FnOnce(&mut InfoContext, &mut WidgetInfoBuilder) -> R,
     ) -> (WidgetInfoTree, R) {
-        let mut builder = WidgetInfoBuilder::new(self.window_id, self.root_id, root_bounds, rendered, None);
+        let mut builder = WidgetInfoBuilder::new(
+            self.window_id,
+            self.root_id,
+            root_outer_info,
+            root_inner_info,
+            root_border_info,
+            rendered,
+            None,
+        );
         let r = self.info_context(|ctx| action(ctx, &mut builder));
         let (t, _) = builder.finalize();
         (t, r)

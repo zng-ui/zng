@@ -1100,7 +1100,7 @@ pub mod window {
                     mode: M,
                     widget: W,
 
-                    anchor_info: Option<(WidgetLayoutInfo, WidgetLayoutInfo, WidgetRenderInfo)>,
+                    anchor_info: Option<(WidgetLayoutInfo, WidgetLayoutInfo, WidgetBorderInfo, WidgetRenderInfo)>,
 
                     desired_size: PxSize,
                     interaction: bool,
@@ -1142,7 +1142,7 @@ pub mod window {
 
                     fn init(&mut self, ctx: &mut WidgetContext) {
                         if let Some(w) = ctx.info_tree.find(self.anchor.copy(ctx.vars)) {
-                            self.anchor_info = Some((w.inner_info(), w.outer_info(), w.render_info()));
+                            self.anchor_info = Some((w.inner_info(), w.outer_info(), w.border_info(), w.render_info()));
                         }
 
                         self.interaction = self.mode.get(ctx).interaction;
@@ -1161,7 +1161,7 @@ pub mod window {
                                 self.anchor_info = ctx
                                     .info_tree
                                     .find(self.anchor.copy(ctx.vars))
-                                    .map(|w| (w.inner_info(), w.outer_info(), w.render_info()));
+                                    .map(|w| (w.inner_info(), w.outer_info(), w.border_info(), w.render_info()));
                             }
                             self.widget.event(ctx, args);
                         } else {
@@ -1174,7 +1174,7 @@ pub mod window {
                             self.anchor_info = ctx
                                 .info_tree
                                 .find(anchor)
-                                .map(|w| (w.inner_info(), w.outer_info(), w.render_info()));
+                                .map(|w| (w.inner_info(), w.outer_info(), w.border_info(), w.render_info()));
                             if self.mode.get(ctx).interaction {
                                 ctx.updates.info();
                             }
@@ -1191,7 +1191,7 @@ pub mod window {
                     }
 
                     fn measure(&mut self, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize {
-                        if let Some((inner, outer, _)) = &self.anchor_info {
+                        if let Some((inner, outer, border, _)) = &self.anchor_info {
                             let mode = self.mode.get(ctx.vars);
 
                             if !mode.visibility || inner.size() != PxSize::zero() {
@@ -1199,6 +1199,7 @@ pub mod window {
                                     AnchorSize::Infinite => AvailableSize::inf(),
                                     AnchorSize::Window => available_size,
                                     AnchorSize::InnerSize => AvailableSize::finite(inner.size()),
+                                    AnchorSize::InnerBorder => todo!(),
                                     AnchorSize::OuterSize => AvailableSize::finite(outer.size()),
                                 };
                                 let desired_size = self.widget.measure(ctx, available_size);
@@ -1213,7 +1214,7 @@ pub mod window {
                     }
 
                     fn arrange(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, final_size: PxSize) {
-                        if let Some((inner, outer, _)) = &self.anchor_info {
+                        if let Some((inner, outer, border, _)) = &self.anchor_info {
                             let mode = self.mode.get(ctx.vars);
 
                             if !mode.visibility || inner.size() != PxSize::zero() {
@@ -1221,11 +1222,18 @@ pub mod window {
                                     AnchorSize::Infinite => self.desired_size,
                                     AnchorSize::Window => final_size,
                                     AnchorSize::InnerSize => inner.size(),
+                                    AnchorSize::InnerBorder => inner.size(),
                                     AnchorSize::OuterSize => outer.size(),
                                 };
                                 self.transform = match &mode.transform {
                                     AnchorTransform::None => RenderTransform::identity(),
                                     AnchorTransform::InnerOffset(p) => {
+                                        let p = p.to_layout(ctx, AvailableSize::finite(inner.size()), PxPoint::zero());
+                                        let offset = inner.point_in_window(p);
+                                        RenderTransform::translation_px(offset.to_vector())
+                                    }
+                                    AnchorTransform::InnerBorderOffset(p) => {
+                                        todo!();
                                         let p = p.to_layout(ctx, AvailableSize::finite(inner.size()), PxPoint::zero());
                                         let offset = inner.point_in_window(p);
                                         RenderTransform::translation_px(offset.to_vector())
@@ -1236,6 +1244,7 @@ pub mod window {
                                         RenderTransform::translation_px(offset.to_vector())
                                     }
                                     AnchorTransform::InnerTransform => inner.transform(),
+                                    AnchorTransform::InnerBorderTransform => inner.transform(), // TODO
                                     AnchorTransform::OuterTransform => outer.transform(),
                                 };
 
@@ -1251,7 +1260,7 @@ pub mod window {
                     }
 
                     fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-                        if let Some((_, _, render_info)) = &self.anchor_info {
+                        if let Some((_, _, _, render_info)) = &self.anchor_info {
                             if !self.mode.get(ctx).visibility || render_info.rendered() {
                                 frame.push_reference_frame(self.spatial_id, self.transform_key.bind(self.transform), false, |frame| {
                                     self.widget.render(ctx, frame);
@@ -1264,7 +1273,7 @@ pub mod window {
                     }
 
                     fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
-                        if let Some((_, _, render_info)) = &self.anchor_info {
+                        if let Some((_, _, _, render_info)) = &self.anchor_info {
                             if !self.mode.get(ctx).visibility || render_info.rendered() {
                                 update.update_transform(self.transform_key.update(self.transform));
                                 self.widget.render_update(ctx, update);
@@ -1477,6 +1486,9 @@ pub mod window {
             /// The point is resolved in the inner space of the anchor widget, transformed to the window space
             /// and then applied as a translate offset.
             InnerOffset(Point),
+            /// The point is resolved in the inner space of the anchor widget offset by the anchor border widths, transformed
+            /// to the window space and t hen applied as a translate offset.
+            InnerBorderOffset(Point),
 
             /// The point is resolved in the outer space of the anchor widget, transformed to the window space
             /// and then applied as a translate offset.
@@ -1484,6 +1496,9 @@ pub mod window {
 
             /// The full inner transform of the anchor object is applied to the widget.
             InnerTransform,
+
+            /// The full inner transform of the anchor object is applied to the widget plus the border widths offset.
+            InnerBorderTransform,
 
             /// The full outer transform of the anchor object is applied to the widget.
             OuterTransform,
@@ -1519,10 +1534,12 @@ pub mod window {
             /// Widget does not copy any size from the anchor widget, the available size and final size
             /// are the window's root size.
             Window,
-            /// The available size and final size is the anchor widget's inner size.
-            InnerSize,
             /// The available size and final size is the anchor widget's outer size.
             OuterSize,
+            /// The available size and final size is the anchor widget's inner size.
+            InnerSize,
+            /// The available size and final size is the anchor widget's inner size offset by the border widths.
+            InnerBorder,
         }
 
         /// Defines what properties the layered widget takes from the anchor widget.
@@ -1541,6 +1558,9 @@ pub mod window {
             ///
             /// [`allow_interaction`]: crate::core::widget_info::WidgetInfo::allow_interaction
             pub interaction: bool,
+
+            /// The widget's *outer* corner radius is set for the layer.
+            pub corner_radius: bool,
         }
         impl AnchorMode {
             /// Mode where widget behaves like an unanchored widget, except that it is still only
@@ -1551,17 +1571,19 @@ pub mod window {
                     size: AnchorSize::Window,
                     visibility: false,
                     interaction: false,
+                    corner_radius: false,
                 }
             }
         }
         impl Default for AnchorMode {
-            /// Transform `InnerOffset` top-left, size infinite and copy visibility.
+            /// Transform `InnerOffset` top-left, size infinite, copy visibility and corner-radius.
             fn default() -> Self {
                 AnchorMode {
                     transform: AnchorTransform::InnerOffset(Point::top_left()),
                     size: AnchorSize::Infinite,
                     visibility: true,
                     interaction: false,
+                    corner_radius: true,
                 }
             }
         }
