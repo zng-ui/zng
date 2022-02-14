@@ -842,7 +842,7 @@ impl fmt::Debug for HitTestMode {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if f.alternate() {
             write!(f, "HitTestMode::")?;
-        }        
+        }
         match self {
             Self::Disabled => write!(f, "Disabled"),
             Self::Bounds => write!(f, "Bounds"),

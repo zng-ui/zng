@@ -771,6 +771,51 @@ impl WidgetLayoutInfo {
 }
 
 #[derive(Default, Debug)]
+struct WidgetBorderData {
+    widths: Cell<PxSideOffsets>,
+    corner_radius: Cell<PxCornerRadius>,
+}
+
+/// Shared reference to the combined *border* and corner radius of a [`WidgetInfo`].
+#[derive(Default, Clone, Debug)]
+pub struct WidgetBorderInfo(Rc<WidgetBorderData>);
+impl WidgetBorderInfo {
+    /// New default.
+    #[inline]
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Sum of the widths of all borders set on the widget.
+    #[inline]
+    pub fn widths(&self) -> PxSideOffsets {
+        self.0.widths.get()
+    }
+
+    /// Corner radius set on the widget, this is the *outer* curve of border corners.
+    #[inline]
+    pub fn corner_radius(&self) -> PxCornerRadius {
+        self.0.corner_radius.get()
+    }
+
+    /// Computes the [`corner_radius`] deflated by [`widths`], this is the *inner* curve of border corners.
+    ///
+    /// [`corner_radius`]: Self::corner_radius
+    /// [`widths`]: Self::widths
+    pub fn inner_corner_radius(&self) -> PxCornerRadius {
+        self.corner_radius().deflate(self.widths())
+    }
+
+    fn set_widths(&self, widths: PxSideOffsets) {
+        self.0.widths.set(widths);
+    }
+
+    fn set_corner_radius(&self, radius: PxCornerRadius) {
+        self.0.corner_radius.set(radius)
+    }
+}
+
+#[derive(Default, Debug)]
 struct WidgetRenderData {
     rendered: Cell<bool>,
 }

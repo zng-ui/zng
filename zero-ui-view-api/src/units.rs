@@ -528,6 +528,16 @@ pub struct CornerRadius<T, U> {
     /// Bottom-right corner radius.
     pub bottom_right: euclid::Size2D<T, U>,
 }
+impl<T: Default, U> Default for CornerRadius<T, U> {
+    fn default() -> Self {
+        Self {
+            top_left: Default::default(),
+            top_right: Default::default(),
+            bottom_left: Default::default(),
+            bottom_right: Default::default(),
+        }
+    }
+}
 impl<T: Clone, U> Clone for CornerRadius<T, U> {
     fn clone(&self) -> Self {
         Self {
