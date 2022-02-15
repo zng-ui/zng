@@ -1,4 +1,4 @@
-error: expected one of: `context`, `event`, `layout`, `size`, `inner`, `capture_only`
+error: expected one of: `context`, `event`, `layout`, `size`, `border`, `fill`, `capture_only`
  --> cases/property/invalid_priority.rs:3:12
   |
 3 | #[property(invalid)]

@@ -22,7 +22,7 @@ error[E0283]: type annotations needed
           - impl zero_ui::prelude::IntoVar<CaptureMode> for bool;
           - impl zero_ui::prelude::IntoVar<Factor> for bool;
           - impl zero_ui::prelude::IntoVar<FontFeatureState> for bool;
-          and 5 more
+          and 6 more
 
 error[E0277]: the trait bound `<impl invalid2_Args as invalid2_Args>::T_value: Clone` is not satisfied
    --> cases/property/allowed_in_when_validation.rs:12:44
