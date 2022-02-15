@@ -28,6 +28,7 @@ pub struct WidgetLayout {
     global_transform: RenderTransform,
 
     widget_id: WidgetId,
+    is_leaf: bool,
     parent_translate: PxVector,
     transform: RenderTransform,
     transform_origin: Point,
@@ -51,6 +52,7 @@ impl WidgetLayout {
         let mut self_ = Self {
             global_transform: RenderTransform::identity(),
             widget_id: root_id,
+            is_leaf: false,
             parent_translate: PxVector::zero(),
             transform: RenderTransform::identity(),
             transform_origin: Point::center(),
@@ -78,6 +80,8 @@ impl WidgetLayout {
         final_size: PxSize,
         f: impl FnOnce(&mut Self),
     ) {
+        self.is_leaf = false;
+
         outer_info.set_size(final_size);
         // includes offsets from properties line "content_align".
         outer_info.set_transform(self.global_transform.then_translate(euclid::vec3(
@@ -171,24 +175,7 @@ impl WidgetLayout {
     /// [`implicit_base::new_border`]: crate::widget_base::implicit_base::new_border
     /// [`FrameBuilder::push_inner`]: crate::render::FrameBuilder::push_inner
     pub fn with_inner(&mut self, metrics: &LayoutMetrics, final_size: PxSize, f: impl FnOnce(&mut Self)) -> RenderTransform {
-        let mut transform = self.transform;
-        let transform_origin = self.transform_origin.to_layout(
-            metrics,
-            AvailableSize::finite(final_size),
-            PxPoint::new(final_size.width / 2, final_size.height / 2),
-        );
-
-        if transform_origin != PxPoint::zero() {
-            let x = transform_origin.x.0 as f32;
-            let y = transform_origin.y.0 as f32;
-            transform = RenderTransform::translation(-x, -y, 0.0)
-                .then(&transform)
-                .then_translate(euclid::vec3(x, y, 0.0));
-        }
-
-        if self.parent_translate != PxVector::zero() {
-            transform = transform.then(&RenderTransform::translation_px(self.parent_translate));
-        }
+        let transform = self.compute_inner(metrics, final_size);
 
         let global_transform = transform.then(&self.global_transform);
         let prev_global_transform = mem::replace(&mut self.global_transform, global_transform);
@@ -219,6 +206,29 @@ impl WidgetLayout {
         self.transform_origin = prev_transform_origin;
 
         self.global_transform = prev_global_transform;
+
+        transform
+    }
+
+    fn compute_inner(&self, metrics: &LayoutMetrics, final_size: PxSize) -> RenderTransform {
+        let mut transform = self.transform;
+        let transform_origin = self.transform_origin.to_layout(
+            metrics,
+            AvailableSize::finite(final_size),
+            PxPoint::new(final_size.width / 2, final_size.height / 2),
+        );
+
+        if transform_origin != PxPoint::zero() {
+            let x = transform_origin.x.0 as f32;
+            let y = transform_origin.y.0 as f32;
+            transform = RenderTransform::translation(-x, -y, 0.0)
+                .then(&transform)
+                .then_translate(euclid::vec3(x, y, 0.0));
+        }
+
+        if self.parent_translate != PxVector::zero() {
+            transform = transform.then(&RenderTransform::translation_px(self.parent_translate));
+        }
 
         transform
     }
@@ -314,6 +324,26 @@ impl WidgetLayout {
             PxRect::new(PxPoint::new(self.border_offsets.left, self.border_offsets.top), final_size),
             c,
         )
+    }
+
+    /// Calls a closure that delegates measure to a child node, if no inner widget consumes the pending transforms converts
+    /// then to a custom transform that is returned and must be rendered.
+    ///
+    /// This method is useful for implementing container widgets that want to host both any `UiNode` and a full `Widget` as content.
+    #[inline]
+    pub fn leaf_transform(&mut self, metrics: &LayoutMetrics, final_size: PxSize, f: impl FnOnce(&mut Self)) -> Option<RenderTransform> {
+        let prev_is_leaf = mem::replace(&mut self.is_leaf, true);
+
+        f(self);
+
+        if mem::replace(&mut self.is_leaf, prev_is_leaf)
+            && (self.parent_translate != PxVector::zero() || self.transform != RenderTransform::identity())
+        {
+            // is leaf and has pending transforms.
+            Some(self.compute_inner(metrics, final_size))
+        } else {
+            None
+        }
     }
 }
 
