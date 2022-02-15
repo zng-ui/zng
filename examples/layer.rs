@@ -169,7 +169,7 @@ fn anchor_example() -> impl Widget {
         size: AnchorSize::Infinite,
         visibility: true,
         interaction: false,
-        corner_radius: true,
+        corner_radius: false,
     });
 
     let next_point = hn!(|ctx, _| {

@@ -59,7 +59,7 @@ impl WidgetLayout {
 
             border_offsets: PxSideOffsets::zero(),
             corner_radius: PxCornerRadius::zero(),
-            ctx_corner_radius: CornerRadius::zero(),
+            ctx_corner_radius: CornerRadius::default(),
         };
         self_.with_widget(root_id, outer_info, inner_info, border_info, final_size, f);
     }
@@ -103,6 +103,7 @@ impl WidgetLayout {
     /// Nodes that declare [reference frames] during render must also use this method.
     ///
     /// [reference frames]: crate::render::FrameBuilder::push_reference_frame
+    #[inline]
     pub fn with_custom_transform(&mut self, transform: &RenderTransform, f: impl FnOnce(&mut Self)) {
         let global_transform = transform.then(&self.global_transform);
         let prev_global_transform = mem::replace(&mut self.global_transform, global_transform);
@@ -115,6 +116,7 @@ impl WidgetLayout {
     ///
     /// Panel widgets should use this method to position their children widgets, it saves on the need to declare a custom
     /// transform for each child as it uses the child's own layout transform without being affected by it.
+    #[inline]
     pub fn with_parent_translate(&mut self, offset: PxVector, f: impl FnOnce(&mut Self)) {
         self.parent_translate += offset;
         f(self);
@@ -122,6 +124,7 @@ impl WidgetLayout {
     }
 
     /// Multiply the transform that will be applied to the next inner bounds by `transform`.
+    #[inline]
     pub fn with_inner_transform(&mut self, transform: &RenderTransform, f: impl FnOnce(&mut Self)) {
         let transform = self.transform.then(transform);
         let prev_transform = mem::replace(&mut self.transform, transform);
@@ -132,6 +135,7 @@ impl WidgetLayout {
     /// Sets the *center point* of the inner transform that will be applied to the next inner bounds.
     ///
     /// The `origin` will be resolved in the layout context of the un-transformed inner size.
+    #[inline]
     pub fn with_inner_transform_origin(&mut self, origin: &Point, f: impl FnOnce(&mut Self)) {
         let prev_origin = mem::replace(&mut self.transform_origin, origin.clone());
         f(self);
@@ -220,6 +224,7 @@ impl WidgetLayout {
     }
 
     /// Current accumulated border offsets.
+    #[inline]
     pub fn border_offsets(&self) -> PxSideOffsets {
         self.border_offsets
     }
@@ -227,6 +232,7 @@ impl WidgetLayout {
     /// Current corner radius set by [`with_corner_radius`].
     ///
     /// [`with_corner_radius`]: Self::with_corner_radius
+    #[inline]
     pub fn ctx_corner_radius(&self) -> &CornerRadius {
         &self.ctx_corner_radius
     }
@@ -235,6 +241,7 @@ impl WidgetLayout {
     ///
     /// [`with_corner_radius`]: Self::with_corner_radius
     /// [`with_border`]: Self::with_border
+    #[inline]
     pub fn corner_radius(&self) -> PxCornerRadius {
         self.corner_radius
     }
@@ -248,6 +255,7 @@ impl WidgetLayout {
     /// [`with_inner`]: Self::with_inner
     /// [`with_border`]: Self::with_border
     /// [`Default`]: crate::units::Length::Default
+    #[inline]
     pub fn with_corner_radius(&mut self, corners: &CornerRadius, f: impl FnOnce(&mut Self)) {
         let prev_ctx_corner_radius = mem::replace(&mut self.ctx_corner_radius, corners.clone());
 
@@ -261,6 +269,7 @@ impl WidgetLayout {
     /// Inside `f` corner radius [`Default`] will evaluate to `corners` instead of the parent value.
     ///
     /// [`Default`]: crate::units::Length::Default
+    #[inline]
     pub fn with_base_corner_radius(&mut self, corners: PxCornerRadius, f: impl FnOnce(&mut Self)) {
         let prev_corner_radius = mem::replace(&mut self.corner_radius, corners);
 
@@ -277,6 +286,7 @@ impl WidgetLayout {
     ///
     /// [`with_parent_translate`]: Self::with_parent_translate
     /// [`push_border`]: crate::render::FrameBuilder::push_border
+    #[inline]
     pub fn with_border(
         &mut self,
         offsets: PxSideOffsets,
