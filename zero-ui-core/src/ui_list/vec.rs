@@ -12,7 +12,7 @@ use crate::{
     state::StateMap,
     ui_list::{AvailableSizeArgs, DesiredSizeArgs, FinalSizeArgs, SortedWidgetVec, UiListObserver, WidgetFilterArgs, WidgetList},
     units::{AvailableSize, PxSize},
-    widget_info::{UpdateSlot, WidgetInfoBuilder, WidgetLayout, WidgetLayoutInfo, WidgetRenderInfo, WidgetSubscriptions},
+    widget_info::{UpdateSlot, WidgetBorderInfo, WidgetInfoBuilder, WidgetLayout, WidgetLayoutInfo, WidgetRenderInfo, WidgetSubscriptions},
     BoxedUiNode, BoxedWidget, UiNode, UiNodeList, Widget, WidgetId,
 };
 
@@ -445,6 +445,10 @@ impl WidgetList for WidgetVec {
 
     fn widget_inner_info(&self, index: usize) -> &WidgetLayoutInfo {
         self.vec[index].inner_info()
+    }
+
+    fn widget_border_info(&self, index: usize) -> &WidgetBorderInfo {
+        self.vec[index].border_info()
     }
 
     fn widget_render_info(&self, index: usize) -> &WidgetRenderInfo {

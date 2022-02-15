@@ -5,7 +5,7 @@ use crate::{
     event::EventUpdateArgs,
     render::{FrameBuilder, FrameUpdate},
     units::{AvailableSize, PxSize, PxVector, RenderTransform},
-    widget_info::{WidgetInfoBuilder, WidgetLayout, WidgetLayoutInfo, WidgetRenderInfo, WidgetSubscriptions},
+    widget_info::{WidgetBorderInfo, WidgetInfoBuilder, WidgetLayout, WidgetLayoutInfo, WidgetRenderInfo, WidgetSubscriptions},
     WidgetId,
 };
 #[allow(unused)] // used in docs.
@@ -260,6 +260,8 @@ pub struct WidgetFilterArgs<'a> {
     pub outer_info: &'a WidgetLayoutInfo,
     /// The [`Widget::inner_info`].
     pub inner_info: &'a WidgetLayoutInfo,
+    /// The [`Widget::border_info`].
+    pub border_info: &'a WidgetBorderInfo,
     /// The [`Widget::render_info`].
     pub render_info: &'a WidgetRenderInfo,
     /// The [`Widget::state`].
@@ -272,6 +274,7 @@ impl<'a> WidgetFilterArgs<'a> {
             index,
             outer_info: list.widget_outer_info(index),
             inner_info: list.widget_inner_info(index),
+            border_info: list.widget_border_info(index),
             render_info: list.widget_render_info(index),
             state: list.widget_state(index),
         }
@@ -283,6 +286,7 @@ impl<'a> WidgetFilterArgs<'a> {
             index,
             outer_info: widget.outer_info(),
             inner_info: widget.inner_info(),
+            border_info: widget.border_info(),
             render_info: widget.render_info(),
             state: widget.state(),
         }
@@ -329,6 +333,11 @@ pub trait WidgetList: UiNodeList {
     ///
     /// See [`Widget::inner_info`] for more details.
     fn widget_inner_info(&self, index: usize) -> &WidgetLayoutInfo;
+
+    /// Gets the border and corners info of the widget at the `index`.
+    ///
+    /// See [`Widget::border_info`] for more details.
+    fn widget_border_info(&self, index: usize) -> &WidgetBorderInfo;
 
     /// Gets the render info the widget at the `index`.
     ///

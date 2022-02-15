@@ -6,7 +6,7 @@ use crate::{
     render::{FrameBuilder, FrameUpdate},
     ui_list::{AvailableSizeArgs, DesiredSizeArgs, FinalSizeArgs, UiListObserver, UiNodeList, UiNodeVec, WidgetList, WidgetVec},
     units::{AvailableSize, PxSize},
-    widget_info::{WidgetInfoBuilder, WidgetLayout, WidgetLayoutInfo, WidgetRenderInfo, WidgetSubscriptions},
+    widget_info::{WidgetBorderInfo, WidgetInfoBuilder, WidgetLayout, WidgetLayoutInfo, WidgetRenderInfo, WidgetSubscriptions},
     widget_vec, UiNode, Widget, WidgetId,
 };
 
@@ -172,6 +172,14 @@ macro_rules! impl_tuples {
             fn widget_inner_info(&self, index: usize) -> &WidgetLayoutInfo {
                 match index {
                     $($n => self.items.$n.inner_info(),)+
+                    _ => panic!("index {index} out of range for length {}", self.len())
+                }
+            }
+
+            #[inline]
+            fn widget_border_info(&self, index: usize) -> &WidgetBorderInfo {
+                match index {
+                    $($n => self.items.$n.border_info(),)+
                     _ => panic!("index {index} out of range for length {}", self.len())
                 }
             }
@@ -518,6 +526,10 @@ impl WidgetList for WidgetList0 {
     }
 
     fn widget_inner_info(&self, index: usize) -> &WidgetLayoutInfo {
+        panic!("index {index} out of range for length 0")
+    }
+
+    fn widget_border_info(&self, index: usize) -> &WidgetBorderInfo {
         panic!("index {index} out of range for length 0")
     }
 

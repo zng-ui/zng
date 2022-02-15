@@ -8,7 +8,7 @@ use crate::{
         WidgetList, WidgetVec,
     },
     units::{AvailableSize, PxSize},
-    widget_info::{WidgetInfoBuilder, WidgetLayout, WidgetLayoutInfo, WidgetRenderInfo, WidgetSubscriptions},
+    widget_info::{WidgetBorderInfo, WidgetInfoBuilder, WidgetLayout, WidgetLayoutInfo, WidgetRenderInfo, WidgetSubscriptions},
     WidgetId,
 };
 
@@ -266,6 +266,15 @@ impl<A: WidgetList, B: WidgetList> WidgetList for WidgetListChain<A, B> {
             self.0.widget_inner_info(index)
         } else {
             self.1.widget_inner_info(index - a_len)
+        }
+    }
+
+    fn widget_border_info(&self, index: usize) -> &WidgetBorderInfo {
+        let a_len = self.0.len();
+        if index < a_len {
+            self.0.widget_border_info(index)
+        } else {
+            self.1.widget_border_info(index - a_len)
         }
     }
 

@@ -10,7 +10,7 @@ use crate::{
         WidgetVecRef,
     },
     units::{AvailableSize, PxSize},
-    widget_info::{UpdateSlot, WidgetInfoBuilder, WidgetLayout, WidgetLayoutInfo, WidgetRenderInfo, WidgetSubscriptions},
+    widget_info::{UpdateSlot, WidgetBorderInfo, WidgetInfoBuilder, WidgetLayout, WidgetLayoutInfo, WidgetRenderInfo, WidgetSubscriptions},
     BoxedWidget, UiNode, Widget, WidgetId,
 };
 
@@ -430,6 +430,10 @@ impl WidgetList for SortedWidgetVec {
 
     fn widget_inner_info(&self, index: usize) -> &WidgetLayoutInfo {
         self.vec[index].inner_info()
+    }
+
+    fn widget_border_info(&self, index: usize) -> &WidgetBorderInfo {
+        self.vec[index].border_info()
     }
 
     fn widget_render_info(&self, index: usize) -> &WidgetRenderInfo {

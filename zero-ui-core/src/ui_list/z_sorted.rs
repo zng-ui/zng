@@ -227,6 +227,10 @@ impl<W: WidgetList> WidgetList for ZSortedWidgetList<W> {
         self.list.widget_inner_info(index)
     }
 
+    fn widget_border_info(&self, index: usize) -> &WidgetBorderInfo {
+        self.list.widget_border_info(index)
+    }
+
     fn widget_render_info(&self, index: usize) -> &WidgetRenderInfo {
         self.list.widget_render_info(index)
     }
@@ -244,6 +248,7 @@ impl<W: WidgetList> WidgetList for ZSortedWidgetList<W> {
                     index: i,
                     outer_info: self.widget_outer_info(i),
                     inner_info: self.widget_inner_info(i),
+                    border_info: self.widget_border_info(i),
                     render_info: self.widget_render_info(i),
                     state: self.widget_state(i),
                 };
