@@ -42,7 +42,7 @@ pub mod container {
         pub fn leaf_transform(content: impl UiNode) -> impl UiNode {
             struct LeafTransformNode<C> {
                 child: C,
-                leaf_transform: Option<Box<(SpatialFrameId, RenderTransform)>>
+                leaf_transform: Option<Box<(SpatialFrameId, RenderTransform)>>,
             }
             #[impl_ui_node(child)]
             impl<C: UiNode> UiNode for LeafTransformNode<C> {
@@ -56,7 +56,7 @@ pub mod container {
                         } else {
                             self.leaf_transform = Some(Box::new((SpatialFrameId::new_unique(), t)));
                             ctx.updates.render();
-                        }                        
+                        }
                     }
                 }
 
