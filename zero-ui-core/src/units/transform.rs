@@ -14,6 +14,9 @@ pub trait RenderTransformExt {
     /// New translation transform from a pixel vector.
     fn translation_px(offset: PxVector) -> RenderTransform;
 
+    ///  Returns a transform with a translation applied after `self`, the translation is defined from a pixel vector.
+    fn then_translate_px(&self, offset: PxVector) -> RenderTransform;
+
     /// Returns the given [`PxPoint`] transformed by this transform, if the transform makes sense,
     /// or `None` otherwise.
     fn transform_px_point(&self, point: PxPoint) -> Option<PxPoint>;
@@ -24,6 +27,10 @@ pub trait RenderTransformExt {
 impl RenderTransformExt for RenderTransform {
     fn translation_px(offset: PxVector) -> RenderTransform {
         RenderTransform::translation(offset.x.0 as f32, offset.y.0 as f32, 0.0)
+    }
+
+    fn then_translate_px(&self, offset: PxVector) -> RenderTransform {
+        self.then_translate(euclid::vec3(offset.x.0 as f32, offset.y.0 as f32, 0.0))
     }
 
     fn transform_px_point(&self, point: PxPoint) -> Option<PxPoint> {
@@ -73,7 +80,7 @@ impl Transform {
         Self::default()
     }
 
-    /// Change `self` to apply `other` after its tranformation.
+    /// Change `self` to apply `other` after its transformation.
     ///
     /// # Examples
     ///
@@ -109,58 +116,58 @@ impl Transform {
         }
     }
 
-    /// Change `self` to apply a 2d rotation after its tranformation.
+    /// Change `self` to apply a 2d rotation after its transformation.
     pub fn rotate<A: Into<AngleRadian>>(mut self, angle: A) -> Self {
         self.then_transform(RenderTransform::rotation(0.0, 0.0, -1.0, angle.into().to_layout()));
         self
     }
 
-    /// Change `self` to apply a 2d translation after its tranformation.
+    /// Change `self` to apply a 2d translation after its transformation.
     #[inline]
     pub fn translate<X: Into<Length>, Y: Into<Length>>(mut self, x: X, y: Y) -> Self {
         self.parts.push(TransformPart::Translate(x.into(), y.into()));
         self.needs_layout = true;
         self
     }
-    /// Change `self` to apply a ***x*** translation after its tranformation.
+    /// Change `self` to apply a ***x*** translation after its transformation.
     #[inline]
     pub fn translate_x<X: Into<Length>>(self, x: X) -> Self {
         self.translate(x, 0.0)
     }
-    /// Change `self` to apply a ***y*** translation after its tranformation.
+    /// Change `self` to apply a ***y*** translation after its transformation.
     #[inline]
     pub fn translate_y<Y: Into<Length>>(self, y: Y) -> Self {
         self.translate(0.0, y)
     }
 
-    /// Change `self` to apply a 2d skew after its tranformation.
+    /// Change `self` to apply a 2d skew after its transformation.
     pub fn skew<X: Into<AngleRadian>, Y: Into<AngleRadian>>(mut self, x: X, y: Y) -> Self {
         self.then_transform(RenderTransform::skew(x.into().to_layout(), y.into().to_layout()));
         self
     }
-    /// Change `self` to apply a ***x*** skew after its tranformation.
+    /// Change `self` to apply a ***x*** skew after its transformation.
     pub fn skew_x<X: Into<AngleRadian>>(self, x: X) -> Self {
         self.skew(x, 0.rad())
     }
-    /// Change `self` to apply a ***y*** skew after its tranformation.
+    /// Change `self` to apply a ***y*** skew after its transformation.
     pub fn skew_y<Y: Into<AngleRadian>>(self, y: Y) -> Self {
         self.skew(0.rad(), y)
     }
 
-    /// Change `self` to apply a 2d scale after its tranformation.
+    /// Change `self` to apply a 2d scale after its transformation.
     pub fn scale_xy<X: Into<Factor>, Y: Into<Factor>>(mut self, x: X, y: Y) -> Self {
         self.then_transform(RenderTransform::scale(x.into().0, y.into().0, 1.0));
         self
     }
-    /// Change `self` to apply a ***x*** scale after its tranformation.
+    /// Change `self` to apply a ***x*** scale after its transformation.
     pub fn scale_x<X: Into<Factor>>(self, x: X) -> Self {
         self.scale_xy(x, 1.0)
     }
-    /// Change `self` to apply a ***y*** scale after its tranformation.
+    /// Change `self` to apply a ***y*** scale after its transformation.
     pub fn scale_y<Y: Into<Factor>>(self, y: Y) -> Self {
         self.scale_xy(1.0, y)
     }
-    /// Change `self` to apply a uniform 2d scale after its tranformation.
+    /// Change `self` to apply a uniform 2d scale after its transformation.
     pub fn scale<S: Into<Factor>>(self, scale: S) -> Self {
         let s = scale.into();
         self.scale_xy(s, s)

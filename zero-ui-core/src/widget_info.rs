@@ -201,6 +201,7 @@ impl WidgetLayout {
         let new_corner_radius = self
             .ctx_corner_radius
             .to_layout(metrics, AvailableSize::finite(final_size), self.corner_radius);
+
         let prev_corner_radius = mem::replace(&mut self.corner_radius, new_corner_radius);
         self.border_info.set_corner_radius(new_corner_radius);
 
@@ -253,6 +254,19 @@ impl WidgetLayout {
         f(self);
 
         self.ctx_corner_radius = prev_ctx_corner_radius;
+    }
+
+    /// Overrides the parent corner radius that will affect the next inner borders.
+    ///
+    /// Inside `f` corner radius [`Default`] will evaluate to `corners` instead of the parent value.
+    ///
+    /// [`Default`]: crate::units::Length::Default
+    pub fn with_base_corner_radius(&mut self, corners: PxCornerRadius, f: impl FnOnce(&mut Self)) {
+        let prev_corner_radius = mem::replace(&mut self.corner_radius, corners);
+
+        f(self);
+
+        self.corner_radius = prev_corner_radius;
     }
 
     /// Adds to the accumulated border offsets, deflates the corner radius for the next inner border or content clip,
@@ -817,7 +831,7 @@ impl WidgetBorderInfo {
 
     /// Sum of the widths of all borders set on the widget.
     #[inline]
-    pub fn border_offsets(&self) -> PxSideOffsets {
+    pub fn offsets(&self) -> PxSideOffsets {
         self.0.offsets.get()
     }
 
@@ -827,12 +841,56 @@ impl WidgetBorderInfo {
         self.0.corner_radius.get()
     }
 
-    /// Computes the [`corner_radius`] deflated by [`border_offsets`], this is the *inner* curve of border corners.
+    /// Computes the [`corner_radius`] deflated by [`offsets`], this is the *inner* curve of border corners.
     ///
     /// [`corner_radius`]: Self::corner_radius
-    /// [`border_offsets`]: Self::border_offsets
+    /// [`offsets`]: Self::offsets
     pub fn inner_corner_radius(&self) -> PxCornerRadius {
-        self.corner_radius().deflate(self.border_offsets())
+        self.corner_radius().deflate(self.offsets())
+    }
+
+    /// Compute the inner transform offset by the [`offsets`].
+    ///
+    /// [`offsets`]: Self::offsets
+    pub fn inner_transform(&self, inner_info: &WidgetLayoutInfo) -> RenderTransform {
+        let o = self.offsets();
+        let o = PxVector::new(o.left, o.top);
+        inner_info.transform().then_translate_px(o)
+    }
+
+    /// Compute the inner size offset by [`offsets`].
+    ///
+    /// [`offsets`]: Self::offsets
+    pub fn inner_border_size(&self, inner_info: &WidgetLayoutInfo) -> PxSize {
+        let o = self.offsets();
+        inner_info.size() - PxSize::new(o.horizontal(), o.vertical())
+    }
+
+    /// Transform a point from the window's space to the widget's space.
+    pub fn inner_point_in_widget(&self, inner_info: &WidgetLayoutInfo, point_in_window: PxPoint) -> PxPoint {
+        self.inner_transform(inner_info)
+            .inverse()
+            .unwrap()
+            .transform_px_point(point_in_window)
+            .unwrap()
+    }
+
+    /// Transform a vector from the window's space to the widget's space.
+    pub fn inner_vector_in_widget(&self, inner_info: &WidgetLayoutInfo, vector_in_window: PxVector) -> PxVector {
+        self.inner_transform(inner_info)
+            .inverse()
+            .unwrap()
+            .transform_px_vector(vector_in_window)
+    }
+
+    /// Transform a point from the widget's space to the window's space.
+    pub fn inner_point_in_window(&self, inner_info: &WidgetLayoutInfo, point_in_widget: PxPoint) -> PxPoint {
+        self.inner_transform(inner_info).transform_px_point(point_in_widget).unwrap()
+    }
+
+    ///Transform a vector from the widget's space to the window's space.
+    pub fn inner_vector_in_window(&self, inner_info: &WidgetLayoutInfo, vector_in_widget: PxVector) -> PxVector {
+        self.inner_transform(inner_info).transform_px_vector(vector_in_widget)
     }
 
     fn set_offsets(&self, widths: PxSideOffsets) {

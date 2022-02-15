@@ -229,7 +229,6 @@ fn transform_anchor_example() -> impl Widget {
                     id = "t-anchored";
                     content_align = Align::TOP_LEFT;
                     border = 1, colors::GREEN.lighten(30.pct());
-                    corner_radius = 4;
                     hit_test_mode = HitTestMode::Disabled;
                     content = text! {
                         y = -(2.dip() + 100.pct());

@@ -1199,7 +1199,7 @@ pub mod window {
                                     AnchorSize::Infinite => AvailableSize::inf(),
                                     AnchorSize::Window => available_size,
                                     AnchorSize::InnerSize => AvailableSize::finite(inner.size()),
-                                    AnchorSize::InnerBorder => todo!(),
+                                    AnchorSize::InnerBorder => AvailableSize::finite(border.inner_border_size(inner)),
                                     AnchorSize::OuterSize => AvailableSize::finite(outer.size()),
                                 };
                                 let desired_size = self.widget.measure(ctx, available_size);
@@ -1218,11 +1218,13 @@ pub mod window {
                             let mode = self.mode.get(ctx.vars);
 
                             if !mode.visibility || inner.size() != PxSize::zero() {
+                                // if we don't link visibility or anchor is not collapsed.
+
                                 let final_size = match mode.size {
                                     AnchorSize::Infinite => self.desired_size,
                                     AnchorSize::Window => final_size,
                                     AnchorSize::InnerSize => inner.size(),
-                                    AnchorSize::InnerBorder => inner.size(),
+                                    AnchorSize::InnerBorder => border.inner_border_size(inner),
                                     AnchorSize::OuterSize => outer.size(),
                                 };
                                 self.transform = match &mode.transform {
@@ -1233,9 +1235,8 @@ pub mod window {
                                         RenderTransform::translation_px(offset.to_vector())
                                     }
                                     AnchorTransform::InnerBorderOffset(p) => {
-                                        todo!();
                                         let p = p.to_layout(ctx, AvailableSize::finite(inner.size()), PxPoint::zero());
-                                        let offset = inner.point_in_window(p);
+                                        let offset = border.inner_point_in_window(inner, p);
                                         RenderTransform::translation_px(offset.to_vector())
                                     }
                                     AnchorTransform::OuterOffset(p) => {
@@ -1244,13 +1245,25 @@ pub mod window {
                                         RenderTransform::translation_px(offset.to_vector())
                                     }
                                     AnchorTransform::InnerTransform => inner.transform(),
-                                    AnchorTransform::InnerBorderTransform => inner.transform(), // TODO
+                                    AnchorTransform::InnerBorderTransform => border.inner_transform(inner),
                                     AnchorTransform::OuterTransform => outer.transform(),
                                 };
 
-                                widget_layout.with_custom_transform(&self.transform, |wl| {
-                                    self.widget.arrange(ctx, wl, final_size);
-                                });
+                                if mode.corner_radius {
+                                    let mut cr = border.corner_radius();
+                                    if let AnchorSize::InnerBorder = mode.size {
+                                        cr = cr.deflate(border.offsets());
+                                    }
+                                    widget_layout.with_base_corner_radius(cr, |wl| {
+                                        wl.with_custom_transform(&self.transform, |wl| {
+                                            self.widget.arrange(ctx, wl, final_size);
+                                        });
+                                    })
+                                } else {
+                                    widget_layout.with_custom_transform(&self.transform, |wl| {
+                                        self.widget.arrange(ctx, wl, final_size);
+                                    });
+                                }
 
                                 return;
                             }
@@ -1559,7 +1572,11 @@ pub mod window {
             /// [`allow_interaction`]: crate::core::widget_info::WidgetInfo::allow_interaction
             pub interaction: bool,
 
-            /// The widget's *outer* corner radius is set for the layer.
+            /// The widget's corner radius is set for the layer.
+            ///
+            /// If `size` is [`InnerBorder`] the corner radius are deflated to fit the *inner* curve of the borders.
+            ///
+            /// [`InnerBorder`]: AnchorSize::InnerBorder
             pub corner_radius: bool,
         }
         impl AnchorMode {
