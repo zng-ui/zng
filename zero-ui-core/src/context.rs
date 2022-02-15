@@ -16,7 +16,7 @@ use crate::handler::{self, AppHandler, AppHandlerArgs, AppWeakHandle};
 pub use crate::state_key;
 use crate::task;
 use crate::timer::Timers;
-use crate::widget_info::{UpdateMask, WidgetBorderInfo, WidgetInfoTree};
+use crate::widget_info::{UpdateMask, WidgetInfoTree};
 use crate::{var::VarsRead, window::WindowMode};
 
 /// Represents an [`on_pre_update`](Updates::on_pre_update) or [`on_update`](Updates::on_update) handler.
@@ -889,7 +889,7 @@ impl TestWidgetContext {
         &mut self,
         root_outer_info: WidgetLayoutInfo,
         root_inner_info: WidgetLayoutInfo,
-        root_border_info: WidgetBorderInfo,
+        root_border_info: crate::widget_info::WidgetBorderInfo,
         rendered: WidgetRenderInfo,
         action: impl FnOnce(&mut InfoContext, &mut WidgetInfoBuilder) -> R,
     ) -> (WidgetInfoTree, R) {

@@ -676,14 +676,14 @@ mod properties {
     ///
     /// ```
     /// # fn main() -> () { }
-    /// # use zero_ui_core::{*, var::*, border::BorderRadius};
+    /// # use zero_ui_core::{*, var::*, border::CornerRadius};
     /// context_var! {
-    ///     pub struct CornersClipVar: BorderRadius = BorderRadius::zero();
+    ///     pub struct CornersClipVar: CornerRadius = CornerRadius::zero();
     /// }
     ///
     /// /// Sets widget content clip corner radius.
     /// #[property(context, default(CornersClipVar))]
-    /// pub fn corners_clip(child: impl UiNode, radius: impl IntoVar<BorderRadius>) -> impl UiNode {
+    /// pub fn corners_clip(child: impl UiNode, radius: impl IntoVar<CornerRadius>) -> impl UiNode {
     ///     with_context_var_wgt_only(child, CornersClipVar, radius)
     /// }
     /// ```

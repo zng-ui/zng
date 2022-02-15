@@ -41,7 +41,7 @@ fn run() {
                 });
                 margin = 10;
                 size = (300, 200);
-                align = Alignment::CENTER;
+                align = Align::CENTER;
                 font_size = 28;
                 content = text("Click Me!");
             }

@@ -700,7 +700,7 @@ pub use zero_ui_proc_macros::property;
 /// ```
 /// # fn main() { }
 /// # use zero_ui_core::{*, color::*, var::*};
-/// # #[property(inner)]
+/// # #[property(fill)]
 /// # pub fn background_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode { child }
 /// # #[property(context)]
 /// # pub fn is_hovered(child: impl UiNode, state: StateVar) -> impl UiNode { child }
@@ -745,7 +745,7 @@ pub use zero_ui_proc_macros::property;
 /// # use zero_ui_core::{property, widget, UiNode, color::*, var::*};
 /// # pub mod zero_ui { pub mod prelude { pub mod new_widget {
 /// #   use crate::*;
-/// #   #[property(inner)]
+/// #   #[property(fill)]
 /// #   pub fn background_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode { child }
 /// #   #[property(context)]
 /// #   pub fn is_pressed(child: impl UiNode, state: StateVar) -> impl UiNode { child }
@@ -828,7 +828,7 @@ pub use zero_ui_proc_macros::property;
 /// ```
 /// # fn main() { }
 /// # use zero_ui_core::{property, widget, UiNode, var::{IntoVar, context_var}, color::{Rgba, colors}};
-/// # #[property(inner)]
+/// # #[property(fill)]
 /// # pub fn background_color(child: impl UiNode, c: impl IntoVar<Rgba>) -> impl UiNode { child }
 /// # #[widget($crate::bar)]
 /// # pub mod bar {
