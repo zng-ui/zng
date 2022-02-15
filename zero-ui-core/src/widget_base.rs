@@ -105,8 +105,11 @@ pub mod implicit_base {
         #[impl_ui_node(child)]
         impl<T: UiNode> UiNode for WidgetInnerBoundsNode<T> {
             fn arrange(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, final_size: PxSize) {
-                self.transform = widget_layout.with_inner(ctx.metrics, final_size, |wl| self.child.arrange(ctx, wl, final_size));
-                self.clip = (final_size, widget_layout.corner_radius());
+                self.clip.0 = final_size;
+                self.transform = widget_layout.with_inner(ctx.metrics, final_size, |wl| {
+                    self.clip.1 = wl.corner_radius();
+                    self.child.arrange(ctx, wl, final_size)
+                });
             }
             fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
                 frame.push_inner(self.transform_key.bind(self.transform), |frame| {
