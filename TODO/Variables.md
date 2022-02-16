@@ -52,11 +52,20 @@ trait Var<T> {
         E: Fn(EasingTime) -> EasingStep,
         T: TransitionValue;
 
+    // ease_ne
+
     /// Set the value imediatly to `new_value` then animate to `then`.
     fn set_ease<Vw, N, M, D, E>(&self, vars: &Vw, new_value: N, then: M, duration: D, easing_fn: E) -> Result<(), VarIsReadOnly>
         where
         Vw: WithVars,
         N: Into<T>
+        E: Fn(EasingTime) -> EasingStep
+        T: TransitionValue;
+
+    /// Animate throught multiple *key-frames* offset (can have a macro like gradient `stops!` here)
+    fn ease_keys<Vw, N, D, E>(&self, vars: &Vw, values: Vec<(Factor, T)>, duration: D, easing_fn: E) -> Result<(), VarIsReadOnly>
+        where
+        Vw: WithVars,
         E: Fn(EasingTime) -> EasingStep
         T: TransitionValue;
 }
