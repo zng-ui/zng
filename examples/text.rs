@@ -36,7 +36,9 @@ fn app_main() {
                         spacing = 20;
                         items = widgets![
                             line_height(),
-                            line_break(),
+                            line_spacing(),
+                            word_spacing(),
+                            letter_spacing(),
                         ];
                     },
                     font_size(fs),
@@ -55,18 +57,29 @@ fn font_size(font_size: RcVar<Length>) -> impl Widget {
     section(
         "font_size",
         widgets![
-            button! {
-                content = text("Increase Size");
-                on_click = hn!(font_size, |ctx, _| {
-                    change_size(&font_size, 1.0, ctx)
-                });
-            },
-            button! {
-                content = text("Decrease Size");
-                on_click = hn!(font_size, |ctx, _| {
-                    change_size(&font_size, -1.0, ctx)
-                });
-            },
+            h_stack! {
+                button::theme::padding = (0, 5);
+                spacing = 5;
+                items = widgets![
+                    button! {
+                        content = text("-");
+                        click_shortcut = [shortcut!(Minus), shortcut!(NumpadSubtract)];
+                        on_click = hn!(font_size, |ctx, _| {
+                            change_size(&font_size, -1.0, ctx)
+                        });
+                    },                    
+                    text! {
+                        text = font_size.map(|s| formatx!("{s}"));                        
+                    },
+                    button! {
+                        content = text("+");
+                        click_shortcut = [shortcut!(Plus), shortcut!(NumpadAdd)];
+                        on_click = hn!(font_size, |ctx, _| {
+                            change_size(&font_size, 1.0, ctx)
+                        });
+                    },
+                ]
+            }            
         ],
     )
 }
@@ -105,14 +118,40 @@ fn line_height() -> impl Widget {
     )
 }
 
-fn line_break() -> impl Widget {
+fn line_spacing() -> impl Widget {
     section(
-        "line_break",
+        "line_spacing",
         widgets![text! {
-            text = "Hello line 1!\n    Hello line 2!";
-            background_color = rgba(1.0, 1.0, 1.0, 0.3);
+            text = "Hello line 1!\nHello line 2!\nHover to change `line_spacing`";
+            background_color = rgba(0.5, 0.5, 0.5, 0.3);
+
+            when self.is_hovered {
+                line_spacing = 30.pct();
+            }
         }],
     )
+}
+
+fn word_spacing() -> impl Widget {
+    section("word_spacing", widgets![text! {
+        text = "Word spacing\nhover to change";
+        background_color = rgba(0.5, 0.5, 0.5, 0.3);
+
+        when self.is_hovered {
+            word_spacing = 100.pct();
+        }
+    }])
+}
+
+fn letter_spacing() -> impl Widget {
+    section("letter_spacing", widgets![text! {
+        text = "Letter spacing\nhover to change";
+        background_color = rgba(0.5, 0.5, 0.5, 0.3);
+
+        when self.is_hovered {
+            letter_spacing = 30.pct();
+        }
+    }])
 }
 
 fn defaults(ctx: &mut WindowContext) -> impl Widget {

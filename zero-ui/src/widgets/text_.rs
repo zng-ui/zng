@@ -43,8 +43,56 @@ pub mod text {
         properties::font_size;
         /// The text color. If not set inherits the `text_color` from the parent widget.
         properties::text_color as color;
+
+        /// Extra spacing added in between text letters. If not set inherits the `letter_spacing` from the parent widget.
+        ///
+        /// Letter spacing is computed using the font data, this unit represents
+        /// extra space added to the computed spacing.
+        ///
+        /// A "letter" is a character glyph cluster, e.g.: `a`, `â`, `1`, `-`, `漢`.
+        ///
+        /// The [`Default`] value signals that letter spacing can be tweaked when text *justification* is enabled, all other
+        /// values disable automatic adjustments for justification inside words.
+        ///  
+        /// Relative values are computed from the length of the space `' '` character.
+        ///
+        /// [`Default`]: Length::Default
+        properties::letter_spacing;
+
+        /// Extra spacing added to the Unicode `U+0020 SPACE` character. If not set inherits the `letter_spacing` from the parent widget.
+        ///
+        /// Word spacing is done using the space character "advance" as defined in the font,
+        /// this unit represents extra spacing added to that default spacing.
+        ///
+        /// A "word" is the sequence of characters in-between space characters. This extra
+        /// spacing is applied per space character not per word, if there are three spaces between words
+        /// the extra spacing is applied thrice. Usually the number of spaces between words is collapsed to one,
+        /// see [`WhiteSpace`](crate::text::WhiteSpace).
+        ///
+        /// The [`Default`] value signals that word spacing can be tweaked when text *justification* is enabled, all other
+        /// values disable automatic adjustments for justification. Relative values are computed from the length of the space `' '` character,
+        /// so a word spacing of `100.pct()` visually adds *another* space in between words.
+        ///
+        /// [`Default`]: Length::Default
+        properties::word_spacing;
+
         /// Height of each text line. If not set inherits the `line_height` from the parent widget.
+        /// 
+        /// The [`Default`] value is computed from the font metrics, `ascent - descent + line_gap`, this is
+        /// usually similar to `1.2.em()`. Relative values are computed from the default value, so `200.pct()` is double
+        /// the default line height.
+        /// 
+        /// The text is vertically centralized inside the height.
+        ///
+        /// [`Default`]: Length::Default
         properties::line_height;
+        /// Extra spacing in-between text lines. If not set inherits the `line_spacing` from the parent widget.
+        ///
+        /// The [`Default`] value is zero. Relative values are calculated from the [`LineHeight`], so `50.pct()` is half
+        /// the computed line height. If the text only has one line this property is not used.
+        ///
+        /// [`Default`]: Length::Default
+        properties::line_spacing;
     }
 
     #[inline]
