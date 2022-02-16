@@ -71,17 +71,20 @@ Need to integrate with multiple animations stuff.
 ```rust
 /// Represents a timed sequence of operations.
 #[derive(Clone)]
-pub struct Storyboard { }
-impl Storyboard {
+pub struct Sequence { }
+impl Sequence {
     pub fn new() -> Self { }
     
     pub fn wait(self, duration: impl Into<Duration>) -> Self { }
 
     pub fn ease<T: TransitionValue>(self, var: impl Var<T>, new_value: impl Into<T>) -> Self { }
+
+    /// Calls handler
+    pub fn handler<H>(self, handler) -> Self { }
 }
 ```
 
-Not great.
+Not great, limited to methods we provide, but easy to implement time scale.
 
 ### Async Style
 
@@ -108,3 +111,20 @@ animation!(var1, var2, |ctx, args| {
 ```
 
 Better, but maybe too powerful, need to optionally replay, change time scale, can we do this and still take real time in the var and timers?
+
+
+### Async Loop
+
+Can code repeats too:
+
+```rust
+animation!(var1, var2, |ctx, args| {
+    let mut next = 10;
+    loop {
+        var2.ease(&ctx, next, 500.ms(), easing::cubic).await;
+        next = if next == 10 { 0 } else { 10 };
+    }
+})
+```
+
+Leaves only the time scale, maybe something in `args` to get the time?
