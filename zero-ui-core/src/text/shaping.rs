@@ -21,6 +21,8 @@ pub struct TextShapingArgs {
     /// Height of each line.
     ///
     /// Default can be computed using [`FontMetrics::line_height`].
+    /// 
+    /// [`FontMetrics::line_height`]: crate::text::FontMetrics::line_height
     pub line_height: Px,
 
     /// Extra spacing added in between lines.
