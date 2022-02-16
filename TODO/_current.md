@@ -1,7 +1,6 @@
 * Implement baseline in widget layout (see CSS vertical-align).
 * Finish `text!`
   - review `text!`
-  - verify if the `line_height` property is doing what it should
 
 * Review child priority integration with `WidgetLayout`, what happens when we add a border in child { }?
    - It does not work:

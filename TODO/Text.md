@@ -1,4 +1,4 @@
 # Text TODO
 
-* Implement layout caching (Firefox does this at word level).
+* Implement wrapping, text align and justify.
 * Review TODOs in code.
