@@ -43,19 +43,7 @@ fn app_main() {
                         border_align = 100.pct();
                         content = text("border_align = 100.pct();");
                     },
-                    container! {
-                        content_align = Align::FILL;
-                        corner_radius = 10;
-                        border = 0.5, colors::RED.darken(20.pct());
-                        clip_to_bounds = true;
-                        content = text! {
-                            corner_radius = 0;
-                            background_color = colors::GREEN.darken(40.pct());
-                            padding = 3;
-                            rotate = -(5.deg());
-                            text = "clip_to_bounds = true";
-                        };
-                    },
+                    clip_to_bounds_demo(),
                     widgets::mr_borders! {
                         border_align = 100.pct();
                         content = widgets::mr_borders! {
@@ -70,6 +58,26 @@ fn app_main() {
             };
         }
     })
+}
+
+fn clip_to_bounds_demo() -> impl Widget {
+    let clip = var(true);
+    container! {
+        content_align = Align::FILL;
+        corner_radius = 10;
+        border = 0.5, colors::RED.darken(20.pct());
+        clip_to_bounds = clip.clone();
+        on_click = hn!(clip, |ctx, _| {
+            clip.modify(ctx, |c| **c = !**c)
+        });
+        content = text! {
+            corner_radius = 0;
+            background_color = colors::GREEN.darken(40.pct());
+            padding = 3;
+            rotate = -(5.deg());
+            text = clip.map(|c| formatx!("clip_to_bounds = {c}"));
+        };
+    }
 }
 
 mod widgets {

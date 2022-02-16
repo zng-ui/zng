@@ -377,12 +377,14 @@ pub fn clip_to_bounds(child: impl UiNode, clip: impl IntoVar<bool>) -> impl UiNo
         fn arrange(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, final_size: PxSize) {
             let mut changed = false;
 
-            if self.bounds != final_size {
-                self.bounds = final_size;
+            let border_offsets = widget_layout.border_offsets();
+            let new_bounds = final_size + PxSize::new(border_offsets.horizontal(), border_offsets.vertical());
+            if self.bounds != new_bounds {
+                self.bounds = new_bounds;
                 changed = true;
             }
 
-            let corners = widget_layout.corner_radius();
+            let corners = widget_layout.corner_radius().inflate(border_offsets);
             if self.corners != corners {
                 self.corners = corners;
                 changed = true;

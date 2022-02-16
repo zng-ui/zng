@@ -1,5 +1,7 @@
 # Var TODO
 
+* Review if var.modify() really needs to require double deref.
+
 # ContextVar Binding
 
 Test binding, expecting it to only use the default value, can we make it work at a context level?
