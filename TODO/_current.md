@@ -1,6 +1,4 @@
 * Implement baseline in widget layout (see CSS vertical-align).
-* Finish `text!`
-  - review `text!`
 
 * Review child priority integration with `WidgetLayout`, what happens when we add a border in child { }?
    - It does not work:

@@ -53,7 +53,7 @@ pub mod text {
         ///
         /// The [`Default`] value signals that letter spacing can be tweaked when text *justification* is enabled, all other
         /// values disable automatic adjustments for justification inside words.
-        ///  
+        ///
         /// Relative values are computed from the length of the space `' '` character.
         ///
         /// [`Default`]: Length::Default
@@ -77,11 +77,11 @@ pub mod text {
         properties::word_spacing;
 
         /// Height of each text line. If not set inherits the `line_height` from the parent widget.
-        /// 
+        ///
         /// The [`Default`] value is computed from the font metrics, `ascent - descent + line_gap`, this is
         /// usually similar to `1.2.em()`. Relative values are computed from the default value, so `200.pct()` is double
         /// the default line height.
-        /// 
+        ///
         /// The text is vertically centralized inside the height.
         ///
         /// [`Default`]: Length::Default

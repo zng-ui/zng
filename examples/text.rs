@@ -22,28 +22,36 @@ fn app_main() {
         window! {
             title = fs.map(|s| formatx!("Text Example - font_size: {s}"));
             font_size = fs.clone();
-            content = h_stack! {
-                spacing = 40;
-                items = widgets![
-                    v_stack! {
-                        spacing = 20;
-                        items = widgets![
-                            basic(),
-                            defaults(ctx),
-                        ];
-                    },
-                    v_stack! {
-                        spacing = 20;
-                        items = widgets![
-                            line_height(),
-                            line_spacing(),
-                            word_spacing(),
-                            letter_spacing(),
-                        ];
-                    },
-                    font_size(fs),
-                ];
-            };
+            content_align = unset!;
+            content = z_stack(widgets![
+                h_stack! {
+                    align = Align::CENTER;
+                    spacing = 40;
+                    items = widgets![
+                        v_stack! {
+                            spacing = 20;
+                            items = widgets![
+                                basic(),
+                                defaults(ctx),
+                            ];
+                        },
+                        v_stack! {
+                            spacing = 20;
+                            items = widgets![
+                                line_height(),
+                                line_spacing(),
+                                word_spacing(),
+                                letter_spacing(),
+                            ];
+                        },
+                    ];
+                },
+                container! {
+                    align = Align::TOP;
+                    margin = 10;
+                    content = font_size(fs);
+                },
+            ])
         }
     })
 }
@@ -54,34 +62,32 @@ fn font_size(font_size: RcVar<Length>) -> impl Widget {
             **s += Length::Pt(change);
         });
     }
-    section(
-        "font_size",
-        widgets![
-            h_stack! {
-                button::theme::padding = (0, 5);
-                spacing = 5;
-                items = widgets![
-                    button! {
-                        content = text("-");
-                        click_shortcut = [shortcut!(Minus), shortcut!(NumpadSubtract)];
-                        on_click = hn!(font_size, |ctx, _| {
-                            change_size(&font_size, -1.0, ctx)
-                        });
-                    },                    
-                    text! {
-                        text = font_size.map(|s| formatx!("{s}"));                        
-                    },
-                    button! {
-                        content = text("+");
-                        click_shortcut = [shortcut!(Plus), shortcut!(NumpadAdd)];
-                        on_click = hn!(font_size, |ctx, _| {
-                            change_size(&font_size, 1.0, ctx)
-                        });
-                    },
-                ]
-            }            
-        ],
-    )
+    h_stack! {
+        button::theme::padding = (0, 5);
+        spacing = 5;
+        corner_radius = 4;
+        background_color = rgba(0, 0, 0, 20.pct());
+        padding = 4;
+        items = widgets![
+            button! {
+                content = text("-");
+                click_shortcut = [shortcut!(Minus), shortcut!(NumpadSubtract)];
+                on_click = hn!(font_size, |ctx, _| {
+                    change_size(&font_size, -1.0, ctx)
+                });
+            },
+            text! {
+                text = font_size.map(|s| formatx!("{s}"));
+            },
+            button! {
+                content = text("+");
+                click_shortcut = [shortcut!(Plus), shortcut!(NumpadAdd)];
+                on_click = hn!(font_size, |ctx, _| {
+                    change_size(&font_size, 1.0, ctx)
+                });
+            },
+        ]
+    }
 }
 
 fn basic() -> impl Widget {
@@ -133,25 +139,31 @@ fn line_spacing() -> impl Widget {
 }
 
 fn word_spacing() -> impl Widget {
-    section("word_spacing", widgets![text! {
-        text = "Word spacing\n\thover to change";
-        background_color = rgba(0.5, 0.5, 0.5, 0.3);
+    section(
+        "word_spacing",
+        widgets![text! {
+            text = "Word spacing\n\thover to change";
+            background_color = rgba(0.5, 0.5, 0.5, 0.3);
 
-        when self.is_hovered {
-            word_spacing = 100.pct();
-        }
-    }])
+            when self.is_hovered {
+                word_spacing = 100.pct();
+            }
+        }],
+    )
 }
 
 fn letter_spacing() -> impl Widget {
-    section("letter_spacing", widgets![text! {
-        text = "Letter spacing\n\thover to change";
-        background_color = rgba(0.5, 0.5, 0.5, 0.3);
+    section(
+        "letter_spacing",
+        widgets![text! {
+            text = "Letter spacing\n\thover to change";
+            background_color = rgba(0.5, 0.5, 0.5, 0.3);
 
-        when self.is_hovered {
-            letter_spacing = 30.pct();
-        }
-    }])
+            when self.is_hovered {
+                letter_spacing = 30.pct();
+            }
+        }],
+    )
 }
 
 fn defaults(ctx: &mut WindowContext) -> impl Widget {
