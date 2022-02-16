@@ -127,13 +127,17 @@ fn line_height() -> impl Widget {
 fn line_spacing() -> impl Widget {
     section(
         "line_spacing",
-        widgets![text! {
-            text = "Hello line 1!\nHello line 2!\nHover to change `line_spacing`";
-            background_color = rgba(0.5, 0.5, 0.5, 0.3);
+        widgets![container! {
+            content = text! {
+                text = "Hello line 1!\nHello line 2!\nHover to change `line_spacing`";
+                background_color = rgba(0.5, 0.5, 0.5, 0.3);
 
-            when self.is_hovered {
-                line_spacing = 30.pct();
-            }
+                when self.is_hovered {
+                    line_spacing = 30.pct();
+                }
+            };
+            content_align = Align::TOP;
+            height = 80;
         }],
     )
 }
