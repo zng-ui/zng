@@ -277,7 +277,7 @@ pub mod text {
             pub struct FontSynthesisVar: FontSynthesis = FontSynthesis::ENABLED;
 
             /// Font size of [`text`](crate::widgets::text) spans.
-            pub struct FontSizeVar: Length = Length::Pt(11.0);
+            pub struct FontSizeVar: FontSize = FontSize::Pt(11.0);
 
             /// Text color of [`text`](crate::widgets::text) spans.
             pub struct TextColorVar: Rgba = colors::WHITE;
@@ -286,16 +286,16 @@ pub mod text {
             pub struct TextTransformVar: TextTransformFn = TextTransformFn::None;
 
             /// Text line height of [`text`](crate::widgets::text) spans.
-            pub struct LineHeightVar: LineHeight = LineHeight::Font;
+            pub struct LineHeightVar: LineHeight = LineHeight::Default;
 
             /// Extra spacing in between lines of [`text`](crate::widgets::text) spans.
             pub struct LineSpacingVar: Length = Length::Px(Px(0));
 
             /// Extra letter spacing of [`text`](crate::widgets::text) spans.
-            pub struct LetterSpacingVar: LetterSpacing = LetterSpacing::Auto;
+            pub struct LetterSpacingVar: LetterSpacing = LetterSpacing::Default;
 
             /// Extra word spacing of [`text`](crate::widgets::text) spans.
-            pub struct WordSpacingVar: WordSpacing = WordSpacing::Auto;
+            pub struct WordSpacingVar: WordSpacing = WordSpacing::Default;
 
             /// Extra paragraph spacing of text blocks.
             pub struct ParagraphSpacingVar: ParagraphSpacing = Length::Px(Px(0));
@@ -357,7 +357,7 @@ pub mod text {
 
         /// Sets the [`FontSizeVar`] context var and the [`LayoutMetrics::font_size`].
         #[property(context, default(FontSizeVar))]
-        pub fn font_size(child: impl UiNode, size: impl IntoVar<Length>) -> impl UiNode {
+        pub fn font_size(child: impl UiNode, size: impl IntoVar<FontSize>) -> impl UiNode {
             struct FontSizeNode<C> {
                 child: C,
                 size_new: bool,
@@ -425,7 +425,7 @@ pub mod text {
 
         /// Sets the [`LineSpacingVar`] context var.
         #[property(context, default(LineSpacingVar))]
-        pub fn line_spacing(child: impl UiNode, extra: impl IntoVar<Length>) -> impl UiNode {
+        pub fn line_spacing(child: impl UiNode, extra: impl IntoVar<LineSpacing>) -> impl UiNode {
             with_context_var(child, LineSpacingVar, extra)
         }
 
@@ -677,7 +677,7 @@ pub mod text {
 
             /* Affects font instance */
             /// The [`font_size`](fn@font_size) value.
-            pub font_size: &'a Length,
+            pub font_size: &'a FontSize,
             /// The [`font_variations`](fn@font_variations) value.    
             pub font_variations: &'a FontVariations,
 
@@ -689,7 +689,7 @@ pub mod text {
             /// The [`word_spacing`](fn@word_spacing) value.
             pub word_spacing: &'a WordSpacing,
             /// The [`line_spacing`](fn@line_spacing) value.
-            pub line_spacing: &'a Length,
+            pub line_spacing: &'a LineSpacing,
             /// The [`word_break`](fn@word_break) value.
             pub word_break: WordBreak,
             /// The [`line_break`](fn@line_break) value.
@@ -816,18 +816,71 @@ pub mod text {
                 })
             }
 
-            /// Gets the properties that affect the sized font. The [`Length`] is `font_size`.
+            /// Gets the properties that affect the sized font.
             #[inline]
-            pub fn font<Vr: AsRef<VarsRead>>(vars: &'a Vr) -> (&'a Length, &'a FontVariations) {
+            pub fn font<Vr: AsRef<VarsRead>>(vars: &'a Vr) -> (&'a FontSize, &'a FontVariations) {
                 let vars = vars.as_ref();
                 (FontSizeVar::get(vars), FontVariationsVar::get(vars))
             }
             /// Gets [`font`](Self::font) if any of the properties updated.
             #[inline]
-            pub fn font_update<Vw: AsRef<Vars>>(vars: &'a Vw) -> Option<(&'a Length, &'a FontVariations)> {
+            pub fn font_update<Vw: AsRef<Vars>>(vars: &'a Vw) -> Option<(&'a FontSize, &'a FontVariations)> {
                 let vars = vars.as_ref();
                 if FontSizeVar::is_new(vars) || FontVariationsVar::is_new(vars) {
                     Some(Self::font(vars))
+                } else {
+                    None
+                }
+            }
+
+            /// Gets the properties that affect the measure.
+            #[inline]
+            pub fn measure<Vr: AsRef<VarsRead>>(
+                vars: &'a Vr,
+            ) -> (
+                &'a LineHeight,
+                &'a LetterSpacing,
+                &'a WordSpacing,
+                &'a LineSpacing,
+                WordBreak,
+                LineBreak,
+                &'a TabLength,
+            ) {
+                let vars = vars.as_ref();
+                (
+                    LineHeightVar::get(vars),
+                    LetterSpacingVar::get(vars),
+                    WordSpacingVar::get(vars),
+                    LineSpacingVar::get(vars),
+                    *WordBreakVar::get(vars),
+                    *LineBreakVar::get(vars),
+                    TabLengthVar::get(vars),
+                )
+            }
+
+            /// Gets [`measure`](Self::measure) if any of the properties updated.
+            #[inline]
+            pub fn measure_update<Vw: AsRef<Vars>>(
+                vars: &'a Vw,
+            ) -> Option<(
+                &'a LineHeight,
+                &'a LetterSpacing,
+                &'a WordSpacing,
+                &'a LineSpacing,
+                WordBreak,
+                LineBreak,
+                &'a TabLength,
+            )> {
+                let vars = vars.as_ref();
+                if LineHeightVar::is_new(vars)
+                    || LetterSpacingVar::is_new(vars)
+                    || WordSpacingVar::is_new(vars)
+                    || LineSpacingVar::is_new(vars)
+                    || WordBreakVar::is_new(vars)
+                    || LineBreakVar::is_new(vars)
+                    || TabLengthVar::is_new(vars)
+                {
+                    Some(Self::measure(vars))
                 } else {
                     None
                 }
