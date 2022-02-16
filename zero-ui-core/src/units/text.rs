@@ -10,7 +10,8 @@ pub type FontSize = Length;
 /// Text line height.
 ///
 /// The [`Default`] value is computed from the font metrics, `ascent - descent + line_gap`, this is
-/// usually similar to `1.2.em()`.
+/// usually similar to `1.2.em()`. Relative values are computed from the default value, so `200.pct()` is double
+/// the default line height.
 ///
 /// [`Default`]: Length::Default
 pub type LineHeight = Length;
@@ -23,7 +24,7 @@ pub type LineHeight = Length;
 /// A "letter" is a character glyph cluster, e.g.: `a`, `â`, `1`, `-`, `漢`.
 ///
 /// The [`Default`] value signals that letter spacing can be tweaked when text *justification* is enabled, all other
-/// values disable automatic adjustments for justification.
+/// values disable automatic adjustments for justification. Relative values are computed from the length of the space `' '` character.
 ///
 /// [`Default`]: Length::Default
 pub type LetterSpacing = Length;
@@ -39,14 +40,16 @@ pub type LetterSpacing = Length;
 /// see [`WhiteSpace`](crate::text::WhiteSpace).
 ///
 /// The [`Default`] value signals that word spacing can be tweaked when text *justification* is enabled, all other
-/// values disable automatic adjustments for justification.
+/// values disable automatic adjustments for justification. Relative values are computed from the length of the space `' '` character,
+/// so a word spacing of `100.pct()` visually adds *another* space in between words.
 ///
 /// [`Default`]: Length::Default
 pub type WordSpacing = Length;
 
 /// Extra spacing in-between text lines.
 ///
-/// The [`Default`] value is zero.
+/// The [`Default`] value is zero. Relative values are calculated from the [`LineHeight`], so `50.pct()` is half
+/// the computed line height.
 ///
 /// [`Default`]: Length::Default
 pub type LineSpacing = Length;

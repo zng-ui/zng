@@ -73,7 +73,7 @@ pub mod text {
 
             /* measure, arrange data */
             //
-            line_shaping_args: TextShapingArgs,
+            shaping_args: TextShapingArgs,
 
             #[allow(unused)] // TODO
             layout_line_spacing: f32,
@@ -98,7 +98,7 @@ pub mod text {
 
                     synthesis_used: FontSynthesis::DISABLED,
 
-                    line_shaping_args: TextShapingArgs::default(),
+                    shaping_args: TextShapingArgs::default(),
                     layout_line_spacing: 0.0,
                     font: None,
                     shaped_text: None,
@@ -184,7 +184,13 @@ pub mod text {
                     ctx.updates.layout();
                 }
 
-                // TODO features, spacing, breaking.
+                // TODO features, wrapping.
+
+                if let Some((_, _, _, _, _, lang)) = TextContext::shaping_update(ctx) {
+                    self.shaping_args.lang = lang.clone();
+                    self.shaped_text = None;
+                    ctx.updates.layout();
+                }
 
                 // update `self.color`
                 if TextContext::color_update(ctx).is_some() {
@@ -204,25 +210,51 @@ pub mod text {
             }
 
             fn measure(&mut self, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize {
-                let (size, variations) = TextContext::font(ctx);
-                let size = size.to_layout(ctx, available_size.width, ctx.metrics.root_font_size);
+                let (font_size, variations) = TextContext::font(ctx);
+                let font_size = font_size.to_layout(ctx, available_size.width, ctx.metrics.root_font_size);
 
-                if self.font.as_ref().map(|f| f.size() != size).unwrap_or(true) {
+                if self.font.as_ref().map(|f| f.size() != font_size).unwrap_or(true) {
                     self.font = Some(
                         self.font_face
                             .as_ref()
                             .expect("font not inited in measure")
-                            .sized(size, variations.finalize()),
+                            .sized(font_size, variations.finalize()),
                     );
                     self.shaped_text = None;
 
                     ctx.updates.render();
                 }
 
+                let font = self.font.as_ref().unwrap();
+
+                let (letter_spacing, word_spacing, line_spacing, line_height, tab_length, _lang) = TextContext::shaping(ctx.vars);
+                let space_len = font.space_x_advance();
+                let dft_tab_len = space_len * 3;
+                let space_len = AvailablePx::Finite(space_len);
+                let letter_spacing = letter_spacing.to_layout(ctx, space_len, Px(0));
+                let word_spacing = word_spacing.to_layout(ctx, space_len, Px(0));
+                let tab_length = tab_length.to_layout(ctx, space_len, dft_tab_len);
+
+                let dft_line_height = font.metrics().line_height();
+                let line_height = line_height.to_layout(ctx, AvailablePx::Finite(dft_line_height), dft_line_height);
+                let line_spacing = line_spacing.to_layout(ctx, AvailablePx::Finite(line_height), Px(0));
+
+                if self.shaped_text.is_some() && letter_spacing != self.shaping_args.letter_spacing
+                    || word_spacing != self.shaping_args.word_spacing
+                    || tab_length != self.shaping_args.tab_x_advance
+                    || line_spacing != self.shaping_args.line_spacing
+                    || line_height != self.shaping_args.line_height
+                {
+                    self.shaped_text = None;
+                }
+                self.shaping_args.letter_spacing = letter_spacing;
+                self.shaping_args.word_spacing = word_spacing;
+                self.shaping_args.tab_x_advance = tab_length;
+                self.shaping_args.line_height = line_height;
+                self.shaping_args.line_spacing = line_spacing;
+
                 if self.shaped_text.is_none() {
-                    // TODO
-                    let font = self.font.as_ref().unwrap();
-                    let shaped_text = font.shape_text(&self.text, &self.line_shaping_args);
+                    let shaped_text = font.shape_text(&self.text, &self.shaping_args);
                     self.size = shaped_text.size();
                     self.shaped_text = Some(shaped_text);
 
@@ -690,14 +722,16 @@ pub mod text {
             pub word_spacing: &'a WordSpacing,
             /// The [`line_spacing`](fn@line_spacing) value.
             pub line_spacing: &'a LineSpacing,
+            /// The [`tab_length`](fn@tab_length) value.
+            pub tab_length: &'a TabLength,
+
+            /// The [`font_features`](fn@font_features) value.
+            pub font_features: &'a FontFeatures,
+
             /// The [`word_break`](fn@word_break) value.
             pub word_break: WordBreak,
             /// The [`line_break`](fn@line_break) value.
             pub line_break: LineBreak,
-            /// The [`tab_length`](fn@tab_length) value.
-            pub tab_length: &'a TabLength,
-            /// The [`font_features`](fn@font_features) value.
-            pub font_features: &'a FontFeatures,
 
             /* Affects arrange */
             /// The [`text_align`](fn@text_align) value.
@@ -833,57 +867,71 @@ pub mod text {
                 }
             }
 
-            /// Gets the properties that affect the measure.
+            /// Gets the properties that affect text shaping.
             #[inline]
-            pub fn measure<Vr: AsRef<VarsRead>>(
+            pub fn shaping<Vr: AsRef<VarsRead>>(
                 vars: &'a Vr,
             ) -> (
-                &'a LineHeight,
                 &'a LetterSpacing,
                 &'a WordSpacing,
                 &'a LineSpacing,
-                WordBreak,
-                LineBreak,
+                &'a LineHeight,
                 &'a TabLength,
+                &'a Lang,
             ) {
                 let vars = vars.as_ref();
                 (
-                    LineHeightVar::get(vars),
                     LetterSpacingVar::get(vars),
                     WordSpacingVar::get(vars),
                     LineSpacingVar::get(vars),
-                    *WordBreakVar::get(vars),
-                    *LineBreakVar::get(vars),
+                    LineHeightVar::get(vars),
                     TabLengthVar::get(vars),
+                    LangVar::get(vars),
                 )
             }
 
-            /// Gets [`measure`](Self::measure) if any of the properties updated.
+            /// Gets [`shaping`](Self::shaping) if any of the properties is new.
             #[inline]
-            pub fn measure_update<Vw: AsRef<Vars>>(
+            pub fn shaping_update<Vw: AsRef<Vars>>(
                 vars: &'a Vw,
             ) -> Option<(
-                &'a LineHeight,
                 &'a LetterSpacing,
                 &'a WordSpacing,
                 &'a LineSpacing,
-                WordBreak,
-                LineBreak,
+                &'a LineHeight,
                 &'a TabLength,
+                &'a Lang,
             )> {
                 let vars = vars.as_ref();
-                if LineHeightVar::is_new(vars)
-                    || LetterSpacingVar::is_new(vars)
+                if LetterSpacingVar::is_new(vars)
                     || WordSpacingVar::is_new(vars)
                     || LineSpacingVar::is_new(vars)
-                    || WordBreakVar::is_new(vars)
-                    || LineBreakVar::is_new(vars)
+                    || LineHeightVar::is_new(vars)
                     || TabLengthVar::is_new(vars)
+                    || LangVar::is_new(vars)
                 {
-                    Some(Self::measure(vars))
+                    Some(Self::shaping(vars))
                 } else {
                     None
                 }
+            }
+
+            /// Gets the properties that affect text wrapping only.
+            #[inline]
+            pub fn wrapping<Vr: AsRef<VarsRead>>(vars: &'a Vr) -> (WordBreak, LineBreak) {
+                (*WordBreakVar::get(vars), *LineBreakVar::get(vars))
+            }
+
+            /// Gets [`wrapping`](Self::wrapping) if any of the properties updated.
+            #[inline]
+            pub fn wrapping_update<Vw: WithVars>(vars: &'a Vw) -> Option<(WordBreak, LineBreak)> {
+                vars.with_vars(|vars| {
+                    if WordBreakVar::is_new(vars) || LineBreakVar::is_new(vars) {
+                        Some((*WordBreakVar::get(vars), *LineBreakVar::get(vars)))
+                    } else {
+                        None
+                    }
+                })
             }
 
             /// Gets the property that affect color.

@@ -1,6 +1,6 @@
 //! Font resolving and text shaping.
 
-pub use crate::render::webrender_api::GlyphInstance;
+pub use crate::render::webrender_api::{GlyphIndex, GlyphInstance};
 use crate::units::*;
 use crate::var::impl_from_and_into_var;
 use derive_more as dm;

@@ -96,10 +96,10 @@ fn line_height() -> impl Widget {
                 color = colors::BLACK;
             },
             text! {
-                text = "1.3em: 'Émp Giga Ç'";
+                text = "150%: 'Émp Giga Ç'";
                 background_color = colors::LIGHT_BLUE;
                 color = colors::BLACK;
-                line_height = 1.3.em();
+                line_height = 150.pct();
             },
         ],
     )

@@ -4,7 +4,7 @@ use std::{
 };
 
 use super::{
-    font_features::RFontFeatures, lang, Font, FontList, FontMetrics, GlyphInstance, InternedStr, Lang, SegmentedText, TextSegment,
+    font_features::RFontFeatures, lang, Font, FontList, GlyphIndex, GlyphInstance, InternedStr, Lang, SegmentedText, TextSegment,
     TextSegmentKind,
 };
 use crate::units::*;
@@ -13,15 +13,18 @@ use crate::units::*;
 #[derive(Debug, Clone)]
 pub struct TextShapingArgs {
     /// Extra spacing to add after each character.
-    pub letter_spacing: f32,
+    pub letter_spacing: Px,
 
     /// Extra spacing to add after each space (U+0020 SPACE).
-    pub word_spacing: f32,
+    pub word_spacing: Px,
 
     /// Height of each line.
     ///
-    /// Use [`line_height(..)`](function@Self::line_height) to compute the value.
-    pub line_height: Option<Px>,
+    /// Default can be computed using [`FontMetrics::line_height`].
+    pub line_height: Px,
+
+    /// Extra spacing added in between lines.
+    pub line_spacing: Px,
 
     /// Language of the text, also identifies if RTL.
     pub lang: Lang,
@@ -33,12 +36,10 @@ pub struct TextShapingArgs {
     pub disable_kerning: bool,
 
     /// Width of the TAB character.
-    ///
-    /// By default 3 x space.
-    pub tab_size: TextShapingUnit,
+    pub tab_x_advance: Px,
 
     /// Extra space before the start of the first line.
-    pub text_indent: f32,
+    pub text_indent: Px,
 
     /// Finalized font features.
     pub font_features: RFontFeatures,
@@ -46,62 +47,17 @@ pub struct TextShapingArgs {
 impl Default for TextShapingArgs {
     fn default() -> Self {
         TextShapingArgs {
-            letter_spacing: 0.0,
-            word_spacing: 0.0,
-            line_height: None,
+            letter_spacing: Px(0),
+            word_spacing: Px(0),
+            line_height: Px(0),
+            line_spacing: Px(0),
             lang: lang!(und),
             ignore_ligatures: false,
             disable_kerning: false,
-            tab_size: TextShapingUnit::Relative(3.0),
-            text_indent: 0.0,
+            tab_x_advance: Px(0),
+            text_indent: Px(0),
             font_features: RFontFeatures::default(),
         }
-    }
-}
-impl TextShapingArgs {
-    /// Gets the custom line height or the font line height.
-    #[inline]
-    pub fn line_height(&self, metrics: &FontMetrics) -> Px {
-        // servo uses the line-gap as default I think.
-        self.line_height.unwrap_or_else(|| metrics.line_height())
-    }
-
-    /// Gets the custom tab advance.
-    #[inline]
-    pub fn tab_size(&self, space_advance: f32) -> f32 {
-        match self.tab_size {
-            TextShapingUnit::Exact(l) => l,
-            TextShapingUnit::Relative(r) => space_advance * r,
-        }
-    }
-}
-
-/// Unit of a text shaping size like [`tab_size`](TextShapingArgs::tab_size).
-#[derive(Debug, Clone)]
-pub enum TextShapingUnit {
-    /// The exact size in layout pixels.
-    Exact(f32),
-    /// A multiplicator for the base size.
-    ///
-    /// For `tab_size` the base size is the `space` advance, so setting
-    /// it to `Relative(3.0)` gives the tab a size of three spaces.
-    Relative(f32),
-}
-impl Default for TextShapingUnit {
-    fn default() -> Self {
-        TextShapingUnit::Exact(0.0)
-    }
-}
-/// Initializes the factor as a [`Relative`](TextShapingUnit::Relative) value.
-impl From<Factor> for TextShapingUnit {
-    fn from(f: Factor) -> Self {
-        TextShapingUnit::Relative(f.0)
-    }
-}
-/// Initializes the factor as a [`Relative`](TextShapingUnit::Relative) value, dividing by `100`.
-impl From<FactorPercent> for TextShapingUnit {
-    fn from(p: FactorPercent) -> Self {
-        TextShapingUnit::Relative(p.0 / 100.0)
     }
 }
 
@@ -331,6 +287,28 @@ impl Font {
         }
     }
 
+    /// Glyph index for the space `' ' ` character.
+    pub fn space_index(&self) -> GlyphIndex {
+        self.font.get_nominal_glyph(' ').unwrap_or(0)
+    }
+
+    /// Returns the horizontal advance of the space `' '` character.
+    pub fn space_x_advance(&self) -> Px {
+        let mut adv = 0.0;
+        self.shape_segment(
+            " ",
+            &WordContextKey {
+                lang: Lang::default(),
+                font_features: None,
+            },
+            &Lang::default(),
+            &[],
+            |r| adv = r.x_advance,
+        );
+
+        Px(adv as i32)
+    }
+
     /// Calculates a [`ShapedText`].
     // see https://raphlinus.github.io/text/2020/10/26/text-layout.html
     pub fn shape_text(&self, text: &SegmentedText, config: &TextShapingArgs) -> ShapedText {
@@ -338,12 +316,23 @@ impl Font {
 
         let mut out = ShapedText::default();
         let metrics = self.metrics();
-        let line_height = config.line_height(metrics).0 as f32;
+        let line_height = config.line_height.0 as f32;
+        let line_spacing = config.line_spacing.0 as f32;
         let baseline = metrics.ascent + metrics.line_gap / 2.0;
-        let mut origin = euclid::point2::<_, ()>(0.0, baseline.0 as f32);
+
+        let dft_line_height = self.metrics().line_height().0 as f32;
+        let center_height = (line_height - dft_line_height) / 2.0;
+
+        let mut origin = euclid::point2::<_, ()>(0.0, baseline.0 as f32 + center_height);
         let mut max_line_x = 0.0;
 
         let word_ctx_key = WordContextKey::new(config);
+
+        let letter_spacing = config.letter_spacing.0 as f32;
+        let word_spacing = config.word_spacing.0 as f32;
+        let tab_x_advance = config.tab_x_advance.0 as f32;
+        let tab_index = self.space_index();
+        let mut line_count = 1.0;
 
         for (seg, kind) in text.iter() {
             match kind {
@@ -354,7 +343,7 @@ impl Font {
                                 index: gi.index,
                                 point: euclid::point2(gi.point.0 + origin.x, gi.point.1 + origin.y),
                             };
-                            origin.x += config.letter_spacing;
+                            origin.x += letter_spacing;
                             r
                         }));
                         origin.x += shaped_seg.x_advance;
@@ -368,7 +357,7 @@ impl Font {
                                 index: gi.index,
                                 point: euclid::point2(gi.point.0 + origin.x, gi.point.1 + origin.y),
                             };
-                            origin.x += config.word_spacing;
+                            origin.x += word_spacing;
                             r
                         }));
                         origin.x += shaped_seg.x_advance;
@@ -376,17 +365,15 @@ impl Font {
                     });
                 }
                 TextSegmentKind::Tab => {
-                    self.shape_segment(" ", &word_ctx_key, &config.lang, &config.font_features, |s| {
-                        let space = s.glyphs[0];
-                        let point = euclid::point2(origin.x, origin.y);
-                        origin.x += config.tab_size(s.x_advance);
-                        out.glyphs.push(GlyphInstance { index: space.index, point });
-                    });
+                    let point = euclid::point2(origin.x, origin.y);
+                    origin.x += tab_x_advance;
+                    out.glyphs.push(GlyphInstance { index: tab_index, point });
                 }
                 TextSegmentKind::LineBreak => {
+                    line_count += 1.0;
                     max_line_x = origin.x.max(max_line_x);
                     origin.x = 0.0;
-                    origin.y += line_height;
+                    origin.y += line_height + line_spacing;
                 }
             }
 
@@ -397,7 +384,10 @@ impl Font {
         }
 
         // longest line width X line heights.
-        out.size = PxSize::new(Px(origin.x.max(max_line_x) as i32), Px(origin.y as i32) - metrics.descent); // TODO, add descend?
+        out.size = PxSize::new(
+            Px(origin.x.max(max_line_x) as i32),
+            Px((((line_height + line_spacing) * line_count) - line_spacing) as i32),
+        );
 
         out
     }

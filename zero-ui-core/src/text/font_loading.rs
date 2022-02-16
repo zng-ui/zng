@@ -635,7 +635,7 @@ pub type FontFaceRef = Rc<FontFace>;
 /// A sized font can be requested from a [`FontFace`].
 pub struct Font {
     face: FontFaceRef,
-    font: harfbuzz_rs::Shared<harfbuzz_rs::Font<'static>>,
+    pub(super) font: harfbuzz_rs::Shared<harfbuzz_rs::Font<'static>>,
     size: Px,
     variations: RFontVariations,
     metrics: FontMetrics,
