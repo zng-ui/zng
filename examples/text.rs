@@ -134,7 +134,7 @@ fn line_spacing() -> impl Widget {
 
 fn word_spacing() -> impl Widget {
     section("word_spacing", widgets![text! {
-        text = "Word spacing\nhover to change";
+        text = "Word spacing\n\thover to change";
         background_color = rgba(0.5, 0.5, 0.5, 0.3);
 
         when self.is_hovered {
@@ -145,7 +145,7 @@ fn word_spacing() -> impl Widget {
 
 fn letter_spacing() -> impl Widget {
     section("letter_spacing", widgets![text! {
-        text = "Letter spacing\nhover to change";
+        text = "Letter spacing\n\thover to change";
         background_color = rgba(0.5, 0.5, 0.5, 0.3);
 
         when self.is_hovered {
