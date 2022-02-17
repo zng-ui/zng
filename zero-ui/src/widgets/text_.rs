@@ -409,7 +409,7 @@ pub mod text {
             /// Underline style.
             pub struct UnderlineStyleVar: LineStyle = LineStyle::Hidden;
             /// Underline color.
-            pub struct UnderlineColorVar: TextLineColor = TextLineColor::TextColor;
+            pub struct UnderlineColorVar: TextLineColor = TextLineColor::Text;
             /// Parts of text skipped by underline.
             pub struct UnderlineSkipVar: UnderlineSkip = UnderlineSkip::DEFAULT;
 
@@ -418,14 +418,14 @@ pub mod text {
             /// Overline style.
             pub struct OverlineStyleVar: LineStyle = LineStyle::Hidden;
             /// Overline color.
-            pub struct OverlineColorVar: TextLineColor = TextLineColor::TextColor;
+            pub struct OverlineColorVar: TextLineColor = TextLineColor::Text;
 
             /// Strikethrough thickness.
             pub struct StrikethroughThicknessVar: TextLineThickness = Length::Default;
             /// Strikethrough style.
             pub struct  StrikethroughStyleVar: LineStyle = LineStyle::Hidden;
             /// Strikethrough color.
-            pub struct StrikethroughColorVar: TextLineColor = TextLineColor::TextColor;
+            pub struct StrikethroughColorVar: TextLineColor = TextLineColor::Text;
         }
 
         /// Sets the [`FontFamilyVar`] context var.
@@ -757,42 +757,49 @@ pub mod text {
             with_context_var(child, LangVar, lang)
         }
 
+        /// Sets the [`UnderlineThicknessVar`] and [`UnderlineStyleVar`].
         #[property(context, default(UnderlineThicknessVar, UnderlineStyleVar))]
         pub fn underline(child: impl UiNode, thickness: impl IntoVar<UnderlineThickness>, style: impl IntoVar<LineStyle>) -> impl UiNode {
-            let child = with_context_var(UnderlineThicknessVar, thickness);
+            let child = with_context_var(child, UnderlineThicknessVar, thickness);
             with_context_var(child, UnderlineStyleVar, style)
         }
+        /// Sets the [`UnderlineSkipVar`].
         #[property(context, default(UnderlineSkipVar))]
         pub fn underline_skip(child: impl UiNode, skip: impl IntoVar<UnderlineSkip>) -> impl UiNode {
-            ith_context_var(UnderlineSkipVar, skip)
+            with_context_var(child, UnderlineSkipVar, skip)
         }
+        /// Sets the [`UnderlineColorVar`].
         #[property(context, default(UnderlineColorVar))]
         pub fn underline_color(child: impl UiNode, color: impl IntoVar<TextLineColor>) -> impl UiNode {
-            with_context_var(UnderlineColorVar, color)
+            with_context_var(child, UnderlineColorVar, color)
         }
 
+        /// Sets the [`OverlineThicknessVar`] and [`OverlineStyleVar`].
         #[property(context, default(OverlineThicknessVar, OverlineStyleVar))]
         pub fn overline(child: impl UiNode, thickness: impl IntoVar<TextLineThickness>, style: impl IntoVar<LineStyle>) -> impl UiNode {
-            let child = with_context_var(OverlineThicknessVar, thickness);
+            let child = with_context_var(child, OverlineThicknessVar, thickness);
             with_context_var(child, OverlineStyleVar, style)
         }
+        /// Sets the [`OverlineColorVar`].
         #[property(context, default(OverlineColorVar))]
         pub fn overline_color(child: impl UiNode, color: impl IntoVar<TextLineColor>) -> impl UiNode {
-            with_context_var(OverlineColorVar, color)
+            with_context_var(child, OverlineColorVar, color)
         }
 
+        /// Sets the [`StrikethroughThicknessVar`] and [`StrikethroughStyleVar`].
         #[property(context, default(StrikethroughThicknessVar, StrikethroughStyleVar))]
         pub fn strikethrough(
             child: impl UiNode,
             thickness: impl IntoVar<TextLineThickness>,
             style: impl IntoVar<LineStyle>,
         ) -> impl UiNode {
-            let child = with_context_var(StrikethroughThicknessVar, thickness);
+            let child = with_context_var(child, StrikethroughThicknessVar, thickness);
             with_context_var(child, StrikethroughStyleVar, style)
         }
+        /// Sets the [`StrikethroughColorVar`].
         #[property(context, default(StrikethroughColorVar))]
         pub fn strikethrough_color(child: impl UiNode, color: impl IntoVar<TextLineColor>) -> impl UiNode {
-            with_context_var(StrikethroughColorVar, color)
+            with_context_var(child, StrikethroughColorVar, color)
         }
 
         /// All the text contextual values.
@@ -853,6 +860,23 @@ pub mod text {
             /* Maybe affects render only */
             /// The [`font_synthesis`](fn@font_synthesis) value.
             pub font_synthesis: FontSynthesis,
+
+            /// The [`overline`](fn@overline) values.
+            pub overline: (&'a Length, LineStyle),
+            /// The [`overline_color`](fn@overline_color) value.
+            pub overline_color: TextLineColor,
+
+            /// The [`strikethrough`](fn@strikethrough) values.
+            pub strikethrough: (&'a Length, LineStyle),
+            /// The [`strikethrough_color`](fn@strikethrough_color) value.
+            pub strikethrough_color: TextLineColor,
+
+            /// The [`underline`](fn@underline) values.
+            pub underline: (&'a Length, LineStyle),
+            /// The [`underline_color`](fn@underline_color) value.
+            pub underline_color: TextLineColor,
+            /// The [`underline_skip`](fn@underline_skip) value.
+            pub underline_skip: UnderlineSkip,
         }
         impl<'a> TextContext<'a> {
             /// Register all text context variables in the widget.
@@ -878,7 +902,16 @@ pub mod text {
                     .var(&FontFeaturesVar::new())
                     .var(&TextAlignVar::new())
                     .var(&TextColorVar::new())
-                    .var(&FontSynthesisVar::new());
+                    .var(&FontSynthesisVar::new())
+                    .var(&OverlineThicknessVar::new())
+                    .var(&OverlineStyleVar::new())
+                    .var(&OverlineColorVar::new())
+                    .var(&StrikethroughThicknessVar::new())
+                    .var(&StrikethroughStyleVar::new())
+                    .var(&StrikethroughColorVar::new())
+                    .var(&UnderlineThicknessVar::new())
+                    .var(&UnderlineColorVar::new())
+                    .var(&UnderlineSkipVar::new());
             }
 
             /// Borrow or copy all the text contextual values.
@@ -912,6 +945,16 @@ pub mod text {
                     text_color: *TextColorVar::get(vars),
 
                     font_synthesis: *FontSynthesisVar::get(vars),
+
+                    overline: (OverlineThicknessVar::get(vars), *OverlineStyleVar::get(vars)),
+                    overline_color: *OverlineColorVar::get(vars),
+                
+                    strikethrough: (StrikethroughThicknessVar::get(vars), *StrikethroughStyleVar::get(vars)),
+                    strikethrough_color: *StrikethroughColorVar::get(vars),
+
+                    underline: (UnderlineThicknessVar::get(vars), *UnderlineStyleVar::get(vars)),
+                    underline_color: *UnderlineColorVar::get(vars),
+                    underline_skip: *UnderlineSkipVar::get(vars),
                 }
             }
 
@@ -1075,8 +1118,8 @@ pub mod text {
         impl<'a> Clone for TextContext<'a> {
             fn clone(&self) -> Self {
                 TextContext {
-                    font_features: self.font_features,
                     text_transform: self.text_transform.clone(),
+                    font_features: self.font_features,
                     lang: self.lang,
                     font_family: self.font_family,
                     font_size: self.font_size,
@@ -1095,6 +1138,13 @@ pub mod text {
                     text_align: self.text_align,
                     tab_length: self.tab_length,
                     white_space: self.white_space,
+                    overline: self.overline,
+                    overline_color: self.overline_color,
+                    strikethrough: self.strikethrough,
+                    strikethrough_color: self.strikethrough_color,
+                    underline: self.underline,
+                    underline_color: self.underline_color,
+                    underline_skip: self.underline_skip,
                 }
             }
         }

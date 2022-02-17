@@ -1640,7 +1640,7 @@ impl Default for UnderlineSkip {
 }
 
 /// Represents the color of a text underline, overline or strikethrough.
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, PartialEq)]
 pub enum TextLineColor {
     /// Use the text color.
     Text,
