@@ -2,6 +2,7 @@
 
 * Implement wrapping, text align and justify.
 * Implement font-features.
+* Implement underline, strikethrough.
 * Review TODOs in code.
 
 # Mixed Content

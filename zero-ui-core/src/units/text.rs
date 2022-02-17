@@ -75,3 +75,19 @@ pub type ParagraphSpacing = Length;
 ///
 /// [`Default`]: Length::Default
 pub type TabLength = Length;
+
+/// Height of the text underline decoration.
+///
+/// Relative lengths are computed from `1.em()`, with a minimum of one pixel.
+///
+/// The [`Default`] value is defined by the font.
+///
+/// [`Default`]: Length::Default
+pub type UnderlineThickness = Length;
+
+/// Height of the text overline or strikethrough decoration.
+///
+/// Relative lengths are computed from `1.em()`, with a minimum of one pixel.
+///
+/// The [`Default`] value is `10.pct()`.
+pub type TextLineThickness = Length;

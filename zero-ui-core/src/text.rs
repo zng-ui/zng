@@ -1,5 +1,6 @@
 //! Font resolving and text shaping.
 
+use crate::color::{Hsla, Hsva, RenderColor, Rgba};
 pub use crate::render::webrender_api::{GlyphIndex, GlyphInstance};
 use crate::units::*;
 use crate::var::impl_from_and_into_var;
@@ -1613,6 +1614,70 @@ impl TextPointDisplay {
 impl fmt::Display for TextPointDisplay {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "Ln {}, Col {}", self.line, self.column)
+    }
+}
+
+bitflags! {
+    /// Represents what parts of a text the underline must skip over.
+    pub struct UnderlineSkip: u8 {
+        /// Underline spans the entire text length.
+        const NONE = 0;
+
+        /// Skip white space.
+        const SPACES = 0b0001;
+
+        /// Skip over glyph descenders that intersect with the underline.
+        const GLYPHS = 0b0010;
+
+        /// Default value, skip glyphs.
+        const DEFAULT = Self::GLYPHS.bits;
+    }
+}
+impl Default for UnderlineSkip {
+    fn default() -> Self {
+        Self::DEFAULT
+    }
+}
+
+/// Represents the color of a text underline, overline or strikethrough.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum TextLineColor {
+    /// Use the text color.
+    Text,
+    /// Use the color.
+    Rgba(Rgba),
+}
+impl Default for TextLineColor {
+    fn default() -> Self {
+        TextLineColor::Text
+    }
+}
+impl fmt::Debug for TextLineColor {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if f.alternate() {
+            write!(f, "TextLineColor::")?;
+        }
+        match self {
+            Self::Text => write!(f, "Text"),
+            Self::Rgba(arg0) => f.debug_tuple("Rgba").field(arg0).finish(),
+        }
+    }
+}
+impl_from_and_into_var! {
+    fn from(rgba: Rgba) -> TextLineColor {
+        TextLineColor::Rgba(rgba)
+    }
+
+    fn from(hsla: Hsla) -> TextLineColor {
+        TextLineColor::Rgba(hsla.into())
+    }
+
+    fn from(hsva: Hsva) -> TextLineColor {
+        TextLineColor::Rgba(hsva.into())
+    }
+
+    fn from(color: RenderColor) -> TextLineColor {
+        TextLineColor::Rgba(color.into())
     }
 }
 

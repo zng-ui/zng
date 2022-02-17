@@ -403,6 +403,29 @@ pub mod text {
 
             /// Language of [`text`](crate::widgets::text) spans.
             pub struct LangVar: Lang = Lang::default();
+
+            /// Underline thickness.
+            pub struct UnderlineThicknessVar: UnderlineThickness = Length::Default;
+            /// Underline style.
+            pub struct UnderlineStyleVar: LineStyle = LineStyle::Hidden;
+            /// Underline color.
+            pub struct UnderlineColorVar: TextLineColor = TextLineColor::TextColor;
+            /// Parts of text skipped by underline.
+            pub struct UnderlineSkipVar: UnderlineSkip = UnderlineSkip::DEFAULT;
+
+            /// Overline thickness.
+            pub struct OverlineThicknessVar: TextLineThickness = Length::Default;
+            /// Overline style.
+            pub struct OverlineStyleVar: LineStyle = LineStyle::Hidden;
+            /// Overline color.
+            pub struct OverlineColorVar: TextLineColor = TextLineColor::TextColor;
+
+            /// Strikethrough thickness.
+            pub struct StrikethroughThicknessVar: TextLineThickness = Length::Default;
+            /// Strikethrough style.
+            pub struct  StrikethroughStyleVar: LineStyle = LineStyle::Hidden;
+            /// Strikethrough color.
+            pub struct StrikethroughColorVar: TextLineColor = TextLineColor::TextColor;
         }
 
         /// Sets the [`FontFamilyVar`] context var.
@@ -732,6 +755,44 @@ pub mod text {
         #[property(context, default(LangVar))]
         pub fn lang(child: impl UiNode, lang: impl IntoVar<Lang>) -> impl UiNode {
             with_context_var(child, LangVar, lang)
+        }
+
+        #[property(context, default(UnderlineThicknessVar, UnderlineStyleVar))]
+        pub fn underline(child: impl UiNode, thickness: impl IntoVar<UnderlineThickness>, style: impl IntoVar<LineStyle>) -> impl UiNode {
+            let child = with_context_var(UnderlineThicknessVar, thickness);
+            with_context_var(child, UnderlineStyleVar, style)
+        }
+        #[property(context, default(UnderlineSkipVar))]
+        pub fn underline_skip(child: impl UiNode, skip: impl IntoVar<UnderlineSkip>) -> impl UiNode {
+            ith_context_var(UnderlineSkipVar, skip)
+        }
+        #[property(context, default(UnderlineColorVar))]
+        pub fn underline_color(child: impl UiNode, color: impl IntoVar<TextLineColor>) -> impl UiNode {
+            with_context_var(UnderlineColorVar, color)
+        }
+
+        #[property(context, default(OverlineThicknessVar, OverlineStyleVar))]
+        pub fn overline(child: impl UiNode, thickness: impl IntoVar<TextLineThickness>, style: impl IntoVar<LineStyle>) -> impl UiNode {
+            let child = with_context_var(OverlineThicknessVar, thickness);
+            with_context_var(child, OverlineStyleVar, style)
+        }
+        #[property(context, default(OverlineColorVar))]
+        pub fn overline_color(child: impl UiNode, color: impl IntoVar<TextLineColor>) -> impl UiNode {
+            with_context_var(OverlineColorVar, color)
+        }
+
+        #[property(context, default(StrikethroughThicknessVar, StrikethroughStyleVar))]
+        pub fn strikethrough(
+            child: impl UiNode,
+            thickness: impl IntoVar<TextLineThickness>,
+            style: impl IntoVar<LineStyle>,
+        ) -> impl UiNode {
+            let child = with_context_var(StrikethroughThicknessVar, thickness);
+            with_context_var(child, StrikethroughStyleVar, style)
+        }
+        #[property(context, default(StrikethroughColorVar))]
+        pub fn strikethrough_color(child: impl UiNode, color: impl IntoVar<TextLineColor>) -> impl UiNode {
+            with_context_var(StrikethroughColorVar, color)
         }
 
         /// All the text contextual values.
