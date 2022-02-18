@@ -87,6 +87,7 @@ pub struct ShapedText {
     overline: Px,
     strikethrough: Px,
     underline: Px,
+    underline_descent: Px,
 }
 impl ShapedText {
     /// Glyphs for the renderer.
@@ -114,6 +115,8 @@ impl ShapedText {
     }
 
     /// Iterate over [`ShapedLine`] selections split by [`LineBreak`].
+    ///
+    /// [`LineBreak`]: TextSegment::LineBreak
     #[inline]
     pub fn lines(&self) -> impl Iterator<Item = ShapedLine> {
         let mut start = 0;
@@ -170,10 +173,22 @@ impl<'a> ShapedLine<'a> {
 
     /// Full underline, not skipping.
     ///
+    /// The *y* is defined by the font metrics.
+    ///
     /// Returns start point + width.
     #[inline]
     pub fn underline(&self) -> (PxPoint, Px) {
         self.decoration_line(self.text.underline)
+    }
+
+    /// Full underline, not skipping.
+    ///
+    /// The *y* is the baseline + descent + 1px.
+    ///
+    /// Returns start point + width.
+    #[inline]
+    pub fn underline_descent(&self) -> (PxPoint, Px) {
+        self.decoration_line(self.text.underline_descent)
     }
 
     #[inline]
@@ -497,6 +512,7 @@ impl Font {
 
         out.baseline = out.line_height - baseline;
         out.underline = out.baseline + metrics.underline_position;
+        out.underline_descent = out.baseline + metrics.descent + Px(1);
         out.strikethrough = out.baseline + metrics.ascent / 3.0;
         out.overline = out.baseline + metrics.ascent;
 

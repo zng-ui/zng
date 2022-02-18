@@ -1,5 +1,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
-use zero_ui::core::text::{FontsExt, UnderlineSkip};
+use zero_ui::core::text::{FontsExt, UnderlinePosition, UnderlineSkip};
 use zero_ui::prelude::*;
 
 use zero_ui_view_prebuilt as zero_ui_view;
@@ -205,6 +205,14 @@ fn decoration_lines() -> impl Widget {
             text! {
                 text = "Underline, 1, Solid,\ndefault color";
                 underline = 1, LineStyle::Solid;
+
+                background_color = rgba(0.5, 0.5, 0.5, 0.3);
+                margin = (0, 0, 4, 0);
+            },
+            text! {
+                text = "Underline, 1, Solid,\ndefault color, descent";
+                underline = 1, LineStyle::Solid;
+                underline_position = UnderlinePosition::Descent;
 
                 background_color = rgba(0.5, 0.5, 0.5, 0.3);
                 margin = (0, 0, 4, 0);

@@ -1681,6 +1681,20 @@ impl_from_and_into_var! {
     }
 }
 
+/// Defines what line gets traced by the text underline decoration.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum UnderlinePosition {
+    /// Underline is positioned using the offset defined in the font file.
+    Font,
+    /// Underline is positioned after the text *descent*, avoiding crossover with all glyph descenders.
+    Descent,
+}
+impl Default for UnderlinePosition {
+    fn default() -> Self {
+        UnderlinePosition::Font
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

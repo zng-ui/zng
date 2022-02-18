@@ -115,6 +115,11 @@ pub mod text {
         ///
         /// By default skips glyphs that intercept the underline.
         properties::underline_skip;
+        /// Defines what font line gets traced by the underline.
+        ///
+        /// By default uses the font configuration, but it usually crosses over glyph *descents* causing skips on
+        /// the line, you can set this [`UnderlinePosition::Descent`] to fully clear all glyph *descents*.
+        properties::underline_position;
     }
 
     #[inline]
@@ -293,6 +298,7 @@ pub mod text {
                     || OverlineColorVar::is_new(ctx)
                     || StrikethroughColorVar::is_new(ctx)
                     || UnderlineColorVar::is_new(ctx)
+                    || UnderlinePositionVar::is_new(ctx)
                 {
                     ctx.updates.render()
                 }
@@ -382,7 +388,7 @@ pub mod text {
                 let text_color = RenderColor::from(*TextColorVar::get(ctx));
 
                 let style = *OverlineStyleVar::get(ctx);
-                if self.overline != Px(0) && style != LineStyle::Hidden {
+                if style != LineStyle::Hidden && self.overline != Px(0) {
                     let color = match *OverlineColorVar::get(ctx) {
                         TextLineColor::Text => text_color,
                         TextLineColor::Rgba(c) => RenderColor::from(c),
@@ -395,21 +401,41 @@ pub mod text {
                     }
                 }
                 let style = *UnderlineStyleVar::get(ctx);
-                if self.underline != Px(0) && style != LineStyle::Hidden {
+                if style != LineStyle::Hidden && self.underline != Px(0) {
                     let color = match *UnderlineColorVar::get(ctx) {
                         TextLineColor::Text => text_color,
                         TextLineColor::Rgba(c) => RenderColor::from(c),
                     };
                     let thickness = self.underline;
-
+                    let position = *UnderlinePositionVar::get(ctx);
                     let skip = *UnderlineSkipVar::get(ctx);
-                    if skip == UnderlineSkip::NONE {
-                        for (origin, width) in text.lines().map(|l| l.underline()) {
-                            let c = PxRect::new(origin, PxSize::new(width, thickness));
-                            frame.push_line(c, LineOrientation::Horizontal, color, style);
+
+                    match position {
+                        UnderlinePosition::Font => {
+                            if skip == UnderlineSkip::GLYPHS | UnderlineSkip::SPACES {
+                                tracing::error!("TODO UnderlineSkip")
+                            } else if skip.contains(UnderlineSkip::GLYPHS) {
+                                tracing::error!("TODO UnderlineSkip::GLYPHS")
+                            } else if skip.contains(UnderlineSkip::SPACES) {
+                                tracing::error!("TODO UnderlineSkip::SPACES")
+                            } else {
+                                for (origin, width) in text.lines().map(|l| l.underline()) {
+                                    let c = PxRect::new(origin, PxSize::new(width, thickness));
+                                    frame.push_line(c, LineOrientation::Horizontal, color, style);
+                                }
+                            }
                         }
-                    } else {
-                        tracing::error!("TODO UnderlineSkip")
+                        UnderlinePosition::Descent => {
+                            // descent clears all glyphs, so we only need to care about spaces
+                            if skip.contains(UnderlineSkip::SPACES) {
+                                tracing::error!("TODO UnderlineSkip")
+                            } else {
+                                for (origin, width) in text.lines().map(|l| l.underline_descent()) {
+                                    let c = PxRect::new(origin, PxSize::new(width, thickness));
+                                    frame.push_line(c, LineOrientation::Horizontal, color, style);
+                                }
+                            }
+                        }
                     }
                 }
 
@@ -422,7 +448,7 @@ pub mod text {
                 );
 
                 let style = *StrikethroughStyleVar::get(ctx);
-                if self.strikethrough != Px(0) && style != LineStyle::Hidden {
+                if style != LineStyle::Hidden && self.strikethrough != Px(0) {
                     let color = match *StrikethroughColorVar::get(ctx) {
                         TextLineColor::Text => text_color,
                         TextLineColor::Rgba(c) => RenderColor::from(c),
@@ -520,6 +546,8 @@ pub mod text {
             pub struct UnderlineColorVar: TextLineColor = TextLineColor::Text;
             /// Parts of text skipped by underline.
             pub struct UnderlineSkipVar: UnderlineSkip = UnderlineSkip::DEFAULT;
+            /// Position of the underline.
+            pub struct UnderlinePositionVar: UnderlinePosition = UnderlinePosition::Font;
 
             /// Overline thickness.
             pub struct OverlineThicknessVar: TextLineThickness = Length::Default;
@@ -871,15 +899,20 @@ pub mod text {
             let child = with_context_var(child, UnderlineThicknessVar, thickness);
             with_context_var(child, UnderlineStyleVar, style)
         }
+        /// Sets the [`UnderlineColorVar`].
+        #[property(context, default(UnderlineColorVar))]
+        pub fn underline_color(child: impl UiNode, color: impl IntoVar<TextLineColor>) -> impl UiNode {
+            with_context_var(child, UnderlineColorVar, color)
+        }
         /// Sets the [`UnderlineSkipVar`].
         #[property(context, default(UnderlineSkipVar))]
         pub fn underline_skip(child: impl UiNode, skip: impl IntoVar<UnderlineSkip>) -> impl UiNode {
             with_context_var(child, UnderlineSkipVar, skip)
         }
-        /// Sets the [`UnderlineColorVar`].
-        #[property(context, default(UnderlineColorVar))]
-        pub fn underline_color(child: impl UiNode, color: impl IntoVar<TextLineColor>) -> impl UiNode {
-            with_context_var(child, UnderlineColorVar, color)
+        /// Sets the [`UnderlinePosition`].
+        #[property(context, default(UnderlinePositionVar))]
+        pub fn underline_position(child: impl UiNode, position: impl IntoVar<UnderlinePosition>) -> impl UiNode {
+            with_context_var(child, UnderlinePositionVar, position)
         }
 
         /// Sets the [`OverlineThicknessVar`] and [`OverlineStyleVar`].
@@ -985,6 +1018,8 @@ pub mod text {
             pub underline_color: TextLineColor,
             /// The [`underline_skip`](fn@underline_skip) value.
             pub underline_skip: UnderlineSkip,
+            /// The [`underline_position`](fn@underline_position) value.
+            pub underline_position: UnderlinePosition,
         }
         impl<'a> TextContext<'a> {
             /// Register all text context variables in the widget.
@@ -1019,7 +1054,8 @@ pub mod text {
                     .var(&StrikethroughColorVar::new())
                     .var(&UnderlineThicknessVar::new())
                     .var(&UnderlineColorVar::new())
-                    .var(&UnderlineSkipVar::new());
+                    .var(&UnderlineSkipVar::new())
+                    .var(&UnderlinePositionVar::new());
             }
 
             /// Borrow or copy all the text contextual values.
@@ -1063,6 +1099,7 @@ pub mod text {
                     underline: (UnderlineThicknessVar::get(vars), *UnderlineStyleVar::get(vars)),
                     underline_color: *UnderlineColorVar::get(vars),
                     underline_skip: *UnderlineSkipVar::get(vars),
+                    underline_position: *UnderlinePositionVar::get(vars),
                 }
             }
 
@@ -1253,6 +1290,7 @@ pub mod text {
                     underline: self.underline,
                     underline_color: self.underline_color,
                     underline_skip: self.underline_skip,
+                    underline_position: self.underline_position,
                 }
             }
         }
