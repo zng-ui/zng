@@ -137,7 +137,7 @@ fn line_spacing() -> impl Widget {
                 }
             };
             content_align = Align::TOP;
-            height = 80;
+            min_height = 1.7.em() * 3.fct();
         }],
     )
 }

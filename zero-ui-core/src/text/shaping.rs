@@ -75,6 +75,8 @@ pub struct ShapedText {
     glyphs: Vec<GlyphInstance>,
     glyph_segs: Vec<TextSegment>,
     size: PxSize,
+    line_height: Px,
+    line_spacing: Px,
 }
 impl ShapedText {
     /// Glyphs for the renderer.
@@ -144,9 +146,10 @@ impl ShapedText {
             done: false,
         };
 
-        lines.map(|r| ShapedLine {
+        lines.enumerate().map(|(i, r)| ShapedLine {
             text: self,
-            seg_range: r
+            seg_range: r,
+            index: i,
         })
     }
 }
@@ -156,9 +159,13 @@ impl ShapedText {
 pub struct ShapedLine<'a> {
     text: &'a ShapedText,
     seg_range: (usize, usize),
+    index: usize,
 }
 impl<'a> ShapedLine<'a> {
     pub fn rect(&self) -> PxRect {
+        let height = self.text.line_height;
+        let y = height * Px(self.index as i32);
+        //let width = self.glyphs().map(|g| );
         todo!()
     }
 
@@ -179,7 +186,7 @@ impl<'a> ShapedLine<'a> {
     /// the line break that starts the next line.
     #[inline]
     pub fn segments(&self) -> &'a [TextSegment] {
-        &self.text.glyph_segs[self.seg_range.0..self.seg_range.1]
+        &self.text.glyph_segs[self.seg_range.0..=self.seg_range.1]
     }
 
     /// Glyphs in the line.
@@ -222,10 +229,7 @@ impl<'a> ShapedLine<'a> {
             done: false,
         };
 
-        words.map(|r| ShapedWord {
-            text: self.text,
-            range: r
-        })
+        words.map(|r| ShapedWord { text: self.text, range: r })
     }
 }
 
@@ -481,6 +485,8 @@ impl Font {
         // let _scope = tracing::trace_span!("shape_text").entered();
 
         let mut out = ShapedText::default();
+        out.line_height = config.line_height;
+        out.line_spacing = config.line_spacing;
         let metrics = self.metrics();
         let line_height = config.line_height.0 as f32;
         let line_spacing = config.line_spacing.0 as f32;
