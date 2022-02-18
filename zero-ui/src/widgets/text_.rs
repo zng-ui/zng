@@ -93,6 +93,28 @@ pub mod text {
         ///
         /// [`Default`]: Length::Default
         properties::line_spacing;
+
+        /// Draw lines *above* each text line.
+        properties::overline;
+        /// Custom [`overline`](#wp-overline) color, if not set
+        /// the [`color`](#wp-color) is used.
+        properties::overline_color;
+
+        /// Draw lines across each text line.
+        properties::strikethrough;
+        /// Custom [`strikethrough`](#wp-strikethrough) color, if not set
+        /// the [`color`](#wp-color) is used.
+        properties::strikethrough_color;
+
+        /// Draw lines *under* each text line.
+        properties::underline;
+        /// Custom [`underline`](#wp-underline) color, if not set
+        /// the [`color`](#wp-color) is used.
+        properties::underline_color;
+        /// Defines what segments of each text line are skipped when tracing the [`underline`](#wp-underline).
+        ///
+        /// By default skips glyphs that intercept the underline.
+        properties::underline_skip;
     }
 
     #[inline]
@@ -131,6 +153,10 @@ pub mod text {
             shaped_text: Option<ShapedText>,
             // Box size of the text block.
             size: PxSize,
+
+            overline: Px,
+            strikethrough: Px,
+            underline: Px,
         }
 
         impl<T: Var<Text>> TextNode<T> {
@@ -151,6 +177,10 @@ pub mod text {
                     font: None,
                     shaped_text: None,
                     size: PxSize::zero(),
+
+                    overline: Px(0),
+                    strikethrough: Px(0),
+                    underline: Px(0),
                 }
             }
         }
@@ -241,11 +271,7 @@ pub mod text {
                 }
 
                 // update `self.color`
-                if TextContext::color_update(ctx).is_some()
-                    || OverlineColorVar::is_new(ctx)
-                    || StrikethroughColorVar::is_new(ctx)
-                    || UnderlineColorVar::is_new(ctx)
-                {
+                if TextContext::color_update(ctx).is_some() {
                     ctx.updates.render();
                 }
 
@@ -258,6 +284,20 @@ pub mod text {
                             ctx.updates.render();
                         }
                     }
+                }
+
+                // update decoration lines
+                if OverlineStyleVar::is_new(ctx)
+                    || StrikethroughStyleVar::is_new(ctx)
+                    || UnderlineStyleVar::is_new(ctx)
+                    || OverlineColorVar::is_new(ctx)
+                    || StrikethroughColorVar::is_new(ctx)
+                    || UnderlineColorVar::is_new(ctx)
+                {
+                    ctx.updates.render()
+                }
+                if OverlineThicknessVar::is_new(ctx) || StrikethroughThicknessVar::is_new(ctx) || UnderlineThicknessVar::is_new(ctx) {
+                    ctx.updates.layout();
                 }
             }
 
@@ -313,6 +353,18 @@ pub mod text {
                     ctx.updates.render();
                 }
 
+                let dft_thickness = font.metrics().underline_thickness;
+                let av_height = AvailablePx::Finite(line_height);
+                let overline = OverlineThicknessVar::get(ctx.vars).to_layout(ctx, av_height, dft_thickness);
+                let strikethrough = StrikethroughThicknessVar::get(ctx.vars).to_layout(ctx, av_height, dft_thickness);
+                let underline = UnderlineThicknessVar::get(ctx.vars).to_layout(ctx, av_height, dft_thickness);
+
+                if self.overline != overline || self.strikethrough != strikethrough || self.underline != underline {
+                    self.overline = overline;
+                    self.strikethrough = strikethrough;
+                    self.underline = underline;
+                }
+
                 if available_size.width < self.size.width {
                     //TODO wrap here? or estimate the height pos wrap?
                 }
@@ -326,13 +378,65 @@ pub mod text {
             }
 
             fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
+                let text = self.shaped_text.as_ref().expect("shaped text not inited in render");
+                let text_color = RenderColor::from(*TextColorVar::get(ctx));
+
+                let style = *OverlineStyleVar::get(ctx);
+                if self.overline != Px(0) && style != LineStyle::Hidden {
+                    let color = match *OverlineColorVar::get(ctx) {
+                        TextLineColor::Text => text_color,
+                        TextLineColor::Rgba(c) => RenderColor::from(c),
+                    };
+                    let thickness = self.overline;
+
+                    for (origin, width) in text.lines().map(|l| l.overline()) {
+                        let c = PxRect::new(origin, PxSize::new(width, thickness));
+                        frame.push_line(c, LineOrientation::Horizontal, color, style);
+                    }
+                }
+                let style = *UnderlineStyleVar::get(ctx);
+                if self.underline != Px(0) && style != LineStyle::Hidden {
+                    let color = match *UnderlineColorVar::get(ctx) {
+                        TextLineColor::Text => text_color,
+                        TextLineColor::Rgba(c) => RenderColor::from(c),
+                    };
+                    let thickness = self.underline;
+
+                    let skip = *UnderlineSkipVar::get(ctx);
+                    if skip == UnderlineSkip::NONE {
+                        for (origin, width) in text.lines().map(|l| l.underline()) {
+                            let c = PxRect::new(origin, PxSize::new(width, thickness));
+                            frame.push_line(c, LineOrientation::Horizontal, color, style);
+                        }
+                    } else {
+                        tracing::error!("TODO UnderlineSkip")
+                    }
+                }
+
                 frame.push_text(
                     PxRect::from_size(self.size),
-                    self.shaped_text.as_ref().expect("shaped text not inited in render").glyphs(),
+                    text.glyphs(),
                     self.font.as_ref().expect("font not initied in render"),
-                    RenderColor::from(*TextColorVar::get(ctx)),
+                    text_color,
                     self.synthesis_used,
                 );
+
+                let style = *StrikethroughStyleVar::get(ctx);
+                if self.strikethrough != Px(0) && style != LineStyle::Hidden {
+                    let color = match *StrikethroughColorVar::get(ctx) {
+                        TextLineColor::Text => text_color,
+                        TextLineColor::Rgba(c) => RenderColor::from(c),
+                    };
+                    let thickness = self.strikethrough;
+
+                    let y_offset = thickness / 3.0;
+
+                    for (mut origin, width) in text.lines().map(|l| l.strikethrough()) {
+                        origin.y -= y_offset;
+                        let c = PxRect::new(origin, PxSize::new(width, thickness));
+                        frame.push_line(c, LineOrientation::Horizontal, color, style);
+                    }
+                }
             }
         }
     }

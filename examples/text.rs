@@ -1,5 +1,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
-use zero_ui::core::text::FontsExt;
+use zero_ui::core::text::{FontsExt, UnderlineSkip};
 use zero_ui::prelude::*;
 
 use zero_ui_view_prebuilt as zero_ui_view;
@@ -44,6 +44,12 @@ fn app_main() {
                                 letter_spacing(),
                             ];
                         },
+                        v_stack! {
+                            spacing = 20;
+                            items = widgets![
+                                decoration_lines(),
+                            ]
+                        }
                     ];
                 },
                 container! {
@@ -167,6 +173,51 @@ fn letter_spacing() -> impl Widget {
                 letter_spacing = 30.pct();
             }
         }],
+    )
+}
+
+fn decoration_lines() -> impl Widget {
+    section(
+        "Decorations",
+        widgets![
+            text! {
+                text = "Overline, 1, Dotted,\ndefault color";
+                overline = 1, LineStyle::Dotted;
+
+                background_color = rgba(0.5, 0.5, 0.5, 0.3);
+                margin = (0, 0, 4, 0);
+            },
+            text! {
+                text = "Strikethrough, 1, Solid,\ndefault color";
+                strikethrough = 1, LineStyle::Solid;
+
+                background_color = rgba(0.5, 0.5, 0.5, 0.3);
+                margin = (0, 0, 4, 0);
+            },
+            text! {
+                text = "Strikethrough, 4, Double,\ndifferent color";
+                strikethrough = 4, LineStyle::Double;
+                strikethrough_color = colors::RED;
+
+                background_color = rgba(0.5, 0.5, 0.5, 0.3);
+                margin = (0, 0, 4, 0);
+            },
+            text! {
+                text = "Underline, 1, Solid,\ndefault color";
+                underline = 1, LineStyle::Solid;
+
+                background_color = rgba(0.5, 0.5, 0.5, 0.3);
+                margin = (0, 0, 4, 0);
+            },
+            text! {
+                text = "Underline, 3, wavy,\ndifferent color, no skip";
+                underline = 3, LineStyle::Wavy(1.0);
+                underline_color = colors::GREEN;
+                underline_skip = UnderlineSkip::NONE;
+
+                background_color = rgba(0.5, 0.5, 0.5, 0.3);
+            }
+        ],
     )
 }
 

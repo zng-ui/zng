@@ -73,10 +73,20 @@ impl Default for TextShapingArgs {
 #[derive(Clone, Debug, Default)]
 pub struct ShapedText {
     glyphs: Vec<GlyphInstance>,
-    glyph_segs: Vec<TextSegment>,
+    // segments of `glyphs`
+    segments: Vec<TextSegment>,
+    // index of `LineBreak` segments , line x-advance and width, is `segments.len()` for the last line.
+    lines: Vec<(usize, Px, Px)>,
+
     size: PxSize,
     line_height: Px,
     line_spacing: Px,
+
+    // offsets from the line_height bottom
+    baseline: Px,
+    overline: Px,
+    strikethrough: Px,
+    underline: Px,
 }
 impl ShapedText {
     /// Glyphs for the renderer.
@@ -88,7 +98,7 @@ impl ShapedText {
     /// Glyphs segments.
     #[inline]
     pub fn segments(&self) -> &[TextSegment] {
-        &self.glyph_segs
+        &self.segments
     }
 
     /// Bounding box size.
@@ -106,50 +116,18 @@ impl ShapedText {
     /// Iterate over [`ShapedLine`] selections split by [`LineBreak`].
     #[inline]
     pub fn lines(&self) -> impl Iterator<Item = ShapedLine> {
-        struct Lines<'a> {
-            segs: std::slice::Iter<'a, TextSegment>,
-            start: usize,
-            next: usize,
-            done: bool,
-        }
+        let mut start = 0;
+        self.lines.iter().copied().enumerate().map(move |(i, (s, x, w))| {
+            let range = (start, s);
+            start = s;
 
-        impl<'a> Iterator for Lines<'a> {
-            type Item = (usize, usize);
-
-            fn next(&mut self) -> Option<Self::Item> {
-                if self.done {
-                    return None;
-                }
-                loop {
-                    match self.segs.next() {
-                        Some(s) => {
-                            self.next += 1;
-                            if let TextSegmentKind::LineBreak = s.kind {
-                                let r = Some((self.start, self.next));
-                                self.start = self.next;
-                                return r;
-                            }
-                        }
-                        None => {
-                            self.done = true;
-                            return Some((self.start, self.next));
-                        }
-                    }
-                }
+            ShapedLine {
+                text: self,
+                seg_range: range,
+                index: i,
+                x,
+                width: w,
             }
-        }
-
-        let lines = Lines {
-            segs: self.glyph_segs.iter(),
-            start: 0,
-            next: 0,
-            done: false,
-        };
-
-        lines.enumerate().map(|(i, r)| ShapedLine {
-            text: self,
-            seg_range: r,
-            index: i,
         })
     }
 }
@@ -158,35 +136,57 @@ impl ShapedText {
 #[derive(Clone, Copy)]
 pub struct ShapedLine<'a> {
     text: &'a ShapedText,
+    // range of segments of this line (exclusive).
     seg_range: (usize, usize),
     index: usize,
+    x: Px,
+    width: Px,
 }
 impl<'a> ShapedLine<'a> {
+    /// Bounds of the line.
     pub fn rect(&self) -> PxRect {
-        let height = self.text.line_height;
-        let y = height * Px(self.index as i32);
-        //let width = self.glyphs().map(|g| );
-        todo!()
+        let size = PxSize::new(self.width, self.text.line_height);
+        let origin = PxPoint::new(self.x, self.text.line_height * Px(self.index as i32));
+        PxRect::new(origin, size)
     }
 
-    // line over full line, exclude trailing space?
+    /// Horizontal alignment advance applied to the entire line.
+    #[inline]
+    pub fn x_advance(&self) -> Px {
+        self.x
+    }
+
+    /// Full overline, start point + width.
+    #[inline]
     pub fn overline(&self) -> (PxPoint, Px) {
-        todo!()
+        self.decoration_line(self.text.overline)
     }
 
+    /// Full strikethrough line, start point + width.
+    #[inline]
     pub fn strikethrough(&self) -> (PxPoint, Px) {
-        todo!()
+        self.decoration_line(self.text.strikethrough)
     }
 
+    /// Full underline, not skipping.
+    ///
+    /// Returns start point + width.
+    #[inline]
     pub fn underline(&self) -> (PxPoint, Px) {
-        todo!()
+        self.decoration_line(self.text.underline)
+    }
+
+    #[inline]
+    fn decoration_line(&self, bottom_up_offset: Px) -> (PxPoint, Px) {
+        let y = (self.text.line_height * Px((self.index as i32) + 1)) - bottom_up_offset;
+        (PxPoint::new(self.x, y), self.width)
     }
 
     /// Text segments of the line, does not include the line-break that started the line, can include
     /// the line break that starts the next line.
     #[inline]
     pub fn segments(&self) -> &'a [TextSegment] {
-        &self.text.glyph_segs[self.seg_range.0..=self.seg_range.1]
+        &self.text.segments[self.seg_range.0..=self.seg_range.1]
     }
 
     /// Glyphs in the line.
@@ -195,9 +195,9 @@ impl<'a> ShapedLine<'a> {
         let start = if self.seg_range.0 == 0 {
             0
         } else {
-            self.text.glyph_segs[self.seg_range.0 - 1].end
+            self.text.segments[self.seg_range.0 - 1].end
         };
-        let end = self.text.glyph_segs[self.seg_range.1].end;
+        let end = self.text.segments[self.seg_range.1].end;
 
         &self.text.glyphs[start..=end]
     }
@@ -485,12 +485,20 @@ impl Font {
         // let _scope = tracing::trace_span!("shape_text").entered();
 
         let mut out = ShapedText::default();
+
+        let metrics = self.metrics();
+
         out.line_height = config.line_height;
         out.line_spacing = config.line_spacing;
-        let metrics = self.metrics();
+
         let line_height = config.line_height.0 as f32;
         let line_spacing = config.line_spacing.0 as f32;
         let baseline = metrics.ascent + metrics.line_gap / 2.0;
+
+        out.baseline = out.line_height - baseline;
+        out.underline = out.baseline + metrics.underline_position;
+        out.strikethrough = out.baseline + metrics.ascent / 3.0;
+        out.overline = out.baseline + metrics.ascent;
 
         let dft_line_height = self.metrics().line_height().0 as f32;
         let center_height = (line_height - dft_line_height) / 2.0;
@@ -504,7 +512,6 @@ impl Font {
         let word_spacing = config.word_spacing.0 as f32;
         let tab_x_advance = config.tab_x_advance.0 as f32;
         let tab_index = self.space_index();
-        let mut line_count = 1.0;
 
         for (seg, kind) in text.iter() {
             match kind {
@@ -542,23 +549,26 @@ impl Font {
                     out.glyphs.push(GlyphInstance { index: tab_index, point });
                 }
                 TextSegmentKind::LineBreak => {
-                    line_count += 1.0;
+                    out.lines.push((out.segments.len(), Px(0), Px(origin.x as i32)));
+
                     max_line_x = origin.x.max(max_line_x);
                     origin.x = 0.0;
                     origin.y += line_height + line_spacing;
                 }
             }
 
-            out.glyph_segs.push(TextSegment {
+            out.segments.push(TextSegment {
                 kind,
                 end: out.glyphs.len(),
             });
         }
 
+        out.lines.push((out.segments.len(), Px(0), Px(origin.x as i32)));
+
         // longest line width X line heights.
         out.size = PxSize::new(
             Px(origin.x.max(max_line_x) as i32),
-            Px((((line_height + line_spacing) * line_count) - line_spacing) as i32),
+            Px((((line_height + line_spacing) * out.lines.len() as f32) - line_spacing) as i32),
         );
 
         out
