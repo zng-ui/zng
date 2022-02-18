@@ -83,6 +83,12 @@ impl ShapedText {
         &self.glyphs
     }
 
+    /// Glyphs segments.
+    #[inline]
+    pub fn segments(&self) -> &[TextSegment] {
+        &self.glyph_segs
+    }
+
     /// Bounding box size.
     #[inline]
     pub fn size(&self) -> PxSize {
@@ -93,6 +99,164 @@ impl ShapedText {
     #[inline]
     pub fn is_empty(&self) -> bool {
         self.glyphs.is_empty()
+    }
+
+    /// Iterate over [`ShapedLine`] selections split by [`LineBreak`].
+    #[inline]
+    pub fn lines(&self) -> impl Iterator<Item = ShapedLine> {
+        struct Lines<'a> {
+            segs: std::slice::Iter<'a, TextSegment>,
+            start: usize,
+            next: usize,
+            done: bool,
+        }
+
+        impl<'a> Iterator for Lines<'a> {
+            type Item = (usize, usize);
+
+            fn next(&mut self) -> Option<Self::Item> {
+                if self.done {
+                    return None;
+                }
+                loop {
+                    match self.segs.next() {
+                        Some(s) => {
+                            self.next += 1;
+                            if let TextSegmentKind::LineBreak = s.kind {
+                                let r = Some((self.start, self.next));
+                                self.start = self.next;
+                                return r;
+                            }
+                        }
+                        None => {
+                            self.done = true;
+                            return Some((self.start, self.next));
+                        }
+                    }
+                }
+            }
+        }
+
+        let lines = Lines {
+            segs: self.glyph_segs.iter(),
+            start: 0,
+            next: 0,
+            done: false,
+        };
+
+        lines.map(|r| ShapedLine {
+            text: self,
+            seg_range: r
+        })
+    }
+}
+
+/// Represents a line selection of a [`ShapedText`].
+#[derive(Clone, Copy)]
+pub struct ShapedLine<'a> {
+    text: &'a ShapedText,
+    seg_range: (usize, usize),
+}
+impl<'a> ShapedLine<'a> {
+    pub fn rect(&self) -> PxRect {
+        todo!()
+    }
+
+    // line over full line, exclude trailing space?
+    pub fn overline(&self) -> (PxPoint, Px) {
+        todo!()
+    }
+
+    pub fn strikethrough(&self) -> (PxPoint, Px) {
+        todo!()
+    }
+
+    pub fn underline(&self) -> (PxPoint, Px) {
+        todo!()
+    }
+
+    /// Text segments of the line, does not include the line-break that started the line, can include
+    /// the line break that starts the next line.
+    #[inline]
+    pub fn segments(&self) -> &'a [TextSegment] {
+        &self.text.glyph_segs[self.seg_range.0..self.seg_range.1]
+    }
+
+    /// Glyphs in the line.
+    #[inline]
+    pub fn glyphs(&self) -> &'a [GlyphInstance] {
+        let start = if self.seg_range.0 == 0 {
+            0
+        } else {
+            self.text.glyph_segs[self.seg_range.0 - 1].end
+        };
+        let end = self.text.glyph_segs[self.seg_range.1].end;
+
+        &self.text.glyphs[start..=end]
+    }
+
+    /// Iterate over word segments.
+    #[inline]
+    pub fn words(&self) -> impl Iterator<Item = ShapedWord> {
+        struct Words<'a> {
+            segs: std::slice::Iter<'a, TextSegment>,
+            start: usize,
+            next: usize,
+            done: bool,
+        }
+        impl<'a> Iterator for Words<'a> {
+            type Item = (usize, usize);
+
+            fn next(&mut self) -> Option<Self::Item> {
+                if self.done {
+                    return None;
+                }
+                todo!("review what seg-kinds are in a ShapedText");
+            }
+        }
+
+        let words = Words {
+            segs: self.segments().iter(),
+            start: 0,
+            next: 0,
+            done: false,
+        };
+
+        words.map(|r| ShapedWord {
+            text: self.text,
+            range: r
+        })
+    }
+}
+
+/// Represents a word selection of a [`ShapedText`].
+#[derive(Clone, Copy)]
+pub struct ShapedWord<'a> {
+    text: &'a ShapedText,
+    range: (usize, usize),
+}
+impl<'a> ShapedWord<'a> {
+    /// Glyphs in the word.
+    #[inline]
+    pub fn glyphs(&self) -> &'a [GlyphInstance] {
+        &self.text.glyphs[self.range.0..=self.range.1]
+    }
+
+    pub fn rect(&self) -> PxRect {
+        todo!()
+    }
+
+    // line over word only, excluding space.
+    pub fn overline(&self) -> (PxPoint, Px) {
+        todo!()
+    }
+
+    pub fn strikethrough(&self) -> (PxPoint, Px) {
+        todo!()
+    }
+
+    pub fn underline(&self) -> (PxPoint, Px) {
+        todo!()
     }
 }
 

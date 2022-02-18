@@ -241,7 +241,11 @@ pub mod text {
                 }
 
                 // update `self.color`
-                if TextContext::color_update(ctx).is_some() {
+                if TextContext::color_update(ctx).is_some()
+                    || OverlineColorVar::is_new(ctx)
+                    || StrikethroughColorVar::is_new(ctx)
+                    || UnderlineColorVar::is_new(ctx)
+                {
                     ctx.updates.render();
                 }
 
@@ -948,7 +952,7 @@ pub mod text {
 
                     overline: (OverlineThicknessVar::get(vars), *OverlineStyleVar::get(vars)),
                     overline_color: *OverlineColorVar::get(vars),
-                
+
                     strikethrough: (StrikethroughThicknessVar::get(vars), *StrikethroughStyleVar::get(vars)),
                     strikethrough_color: *StrikethroughColorVar::get(vars),
 
