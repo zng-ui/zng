@@ -72,11 +72,13 @@ fn font_size(font_size: RcVar<Length>) -> impl Widget {
         button::theme::padding = (0, 5);
         spacing = 5;
         corner_radius = 4;
-        background_color = rgba(0, 0, 0, 20.pct());
+        background_color = rgba(0, 0, 0, 40.pct());
         padding = 4;
         items = widgets![
             button! {
                 content = text("-");
+                font_family = FontName::monospace();
+                font_weight = FontWeight::BOLD;
                 click_shortcut = [shortcut!(Minus), shortcut!(NumpadSubtract)];
                 on_click = hn!(font_size, |ctx, _| {
                     change_size(&font_size, -1.0, ctx)
@@ -87,6 +89,8 @@ fn font_size(font_size: RcVar<Length>) -> impl Widget {
             },
             button! {
                 content = text("+");
+                font_family = FontName::monospace();
+                font_weight = FontWeight::BOLD;
                 click_shortcut = [shortcut!(Plus), shortcut!(NumpadAdd)];
                 on_click = hn!(font_size, |ctx, _| {
                     change_size(&font_size, 1.0, ctx)

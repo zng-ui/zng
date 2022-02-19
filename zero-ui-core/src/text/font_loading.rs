@@ -11,7 +11,7 @@ use font_kit::properties::Weight;
 
 use super::{
     font_features::RFontVariations, lang, FontFaceMetrics, FontMetrics, FontName, FontStretch, FontStyle, FontSynthesis, FontWeight,
-    InternedStr, Lang, LangMap, ShapedSegment, WordCacheKey,
+    InternedStr, Lang, LangMap, ShapedSegmentData, WordCacheKey,
 };
 use crate::{
     app::{
@@ -641,8 +641,8 @@ pub struct Font {
     metrics: FontMetrics,
     render_keys: RefCell<Vec<RenderFont>>,
 
-    pub(super) small_word_cache: RefCell<FxHashMap<WordCacheKey<[u8; Self::SMALL_WORD_LEN]>, ShapedSegment>>,
-    pub(super) word_cache: RefCell<hashbrown::HashMap<WordCacheKey<InternedStr>, ShapedSegment>>,
+    pub(super) small_word_cache: RefCell<FxHashMap<WordCacheKey<[u8; Self::SMALL_WORD_LEN]>, ShapedSegmentData>>,
+    pub(super) word_cache: RefCell<hashbrown::HashMap<WordCacheKey<InternedStr>, ShapedSegmentData>>,
 }
 impl fmt::Debug for Font {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {

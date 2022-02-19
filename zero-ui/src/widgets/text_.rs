@@ -410,30 +410,32 @@ pub mod text {
                     let position = *UnderlinePositionVar::get(ctx);
                     let skip = *UnderlineSkipVar::get(ctx);
 
+                    macro_rules! push_line {
+                        ($iter:expr) => {
+                            for (origin, width) in $iter {
+                                let c = PxRect::new(origin, PxSize::new(width, thickness));
+                                frame.push_line(c, LineOrientation::Horizontal, color, style);
+                            }
+                        };
+                    }
                     match position {
                         UnderlinePosition::Font => {
                             if skip == UnderlineSkip::GLYPHS | UnderlineSkip::SPACES {
-                                tracing::error!("TODO UnderlineSkip")
+                                push_line!(text.lines().flat_map(|l| l.underline_skip_spaces_and_glyphs()));
                             } else if skip.contains(UnderlineSkip::GLYPHS) {
-                                tracing::error!("TODO UnderlineSkip::GLYPHS")
+                                push_line!(text.lines().flat_map(|l| l.underline_skip_glyphs()));
                             } else if skip.contains(UnderlineSkip::SPACES) {
-                                tracing::error!("TODO UnderlineSkip::SPACES")
+                                push_line!(text.lines().flat_map(|l| l.underline_skip_spaces()));
                             } else {
-                                for (origin, width) in text.lines().map(|l| l.underline()) {
-                                    let c = PxRect::new(origin, PxSize::new(width, thickness));
-                                    frame.push_line(c, LineOrientation::Horizontal, color, style);
-                                }
+                                push_line!(text.lines().map(|l| l.underline()));
                             }
                         }
                         UnderlinePosition::Descent => {
                             // descent clears all glyphs, so we only need to care about spaces
                             if skip.contains(UnderlineSkip::SPACES) {
-                                tracing::error!("TODO UnderlineSkip")
+                                push_line!(text.lines().flat_map(|l| l.underline_descent_skip_spaces()));
                             } else {
-                                for (origin, width) in text.lines().map(|l| l.underline_descent()) {
-                                    let c = PxRect::new(origin, PxSize::new(width, thickness));
-                                    frame.push_line(c, LineOrientation::Horizontal, color, style);
-                                }
+                                push_line!(text.lines().map(|l| l.underline_descent()));
                             }
                         }
                     }

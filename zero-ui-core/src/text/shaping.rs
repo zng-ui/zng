@@ -116,7 +116,7 @@ impl ShapedText {
 
     /// Iterate over [`ShapedLine`] selections split by [`LineBreak`].
     ///
-    /// [`LineBreak`]: TextSegment::LineBreak
+    /// [`LineBreak`]: TextSegmentKind::LineBreak
     #[inline]
     pub fn lines(&self) -> impl Iterator<Item = ShapedLine> {
         let mut start = 0;
@@ -191,6 +191,45 @@ impl<'a> ShapedLine<'a> {
         self.decoration_line(self.text.underline_descent)
     }
 
+    /// Underline, skipping spaces.
+    ///
+    /// The *y* is defined by the font metrics.
+    ///
+    /// Returns and iterator of start point + width for each word.
+    #[inline]
+    pub fn underline_skip_spaces(&self) -> impl Iterator<Item = (PxPoint, Px)> + 'a {
+        MergingLineIter::new(self.parts().filter(|s| s.is_word()).map(|s| s.underline()))
+    }
+
+    /// Underline, skipping spaces.
+    ///
+    /// The *y* is the baseline + descent + 1px.
+    ///
+    /// Returns and iterator of start point + width for each word.
+    #[inline]
+    pub fn underline_descent_skip_spaces(&self) -> impl Iterator<Item = (PxPoint, Px)> + 'a {
+        MergingLineIter::new(self.parts().filter(|s| s.is_word()).map(|s| s.underline_descent()))
+    }
+
+    /// Underline, skipping glyph descents that intersect with the underline.
+    ///
+    /// The *y* is defined by the font metrics.
+    ///
+    /// Returns and iterator of start point + width for continuous underline part.
+    #[inline]
+    pub fn underline_skip_glyphs(&self) -> impl Iterator<Item = (PxPoint, Px)> + 'a {
+        MergingLineIter::new(self.parts().flat_map(|s| s.underline_skip_glyphs()))
+    }
+
+    /// Combination of [`underline_skip_space`] and [`underline_skip_glyphs`].
+    ///
+    /// [`underline_skip_space`]: Self::underline_skip_space
+    /// [`underline_skip_glyphs`]: Self::underline_skip_glyphs
+    #[inline]
+    pub fn underline_skip_spaces_and_glyphs(&self) -> impl Iterator<Item = (PxPoint, Px)> + 'a {
+        MergingLineIter::new(self.parts().filter(|s| s.is_word()).flat_map(|s| s.underline_skip_glyphs()))
+    }
+
     #[inline]
     fn decoration_line(&self, bottom_up_offset: Px) -> (PxPoint, Px) {
         let y = (self.text.line_height * Px((self.index as i32) + 1)) - bottom_up_offset;
@@ -217,65 +256,179 @@ impl<'a> ShapedLine<'a> {
         &self.text.glyphs[start..=end]
     }
 
-    /// Iterate over word segments.
+    /// Iterate over word and space segments in this line.
     #[inline]
-    pub fn words(&self) -> impl Iterator<Item = ShapedWord> {
-        struct Words<'a> {
-            segs: std::slice::Iter<'a, TextSegment>,
-            start: usize,
-            next: usize,
-            done: bool,
-        }
-        impl<'a> Iterator for Words<'a> {
-            type Item = (usize, usize);
+    pub fn parts(&self) -> impl Iterator<Item = ShapedSegment<'a>> {
+        let text = self.text;
+        let line_index = self.index;
+        (self.seg_range.0..self.seg_range.1).map(move |i| ShapedSegment {
+            text,
+            line_index,
+            index: i,
+        })
+    }
+}
 
-            fn next(&mut self) -> Option<Self::Item> {
-                if self.done {
-                    return None;
+/// Merges lines defined by `(PxPoint, Px)`, assuming the `y` is equal.
+struct MergingLineIter<I> {
+    iter: I,
+    line: Option<(PxPoint, Px)>,
+}
+impl<I> MergingLineIter<I> {
+    pub fn new(iter: I) -> Self {
+        MergingLineIter { iter, line: None }
+    }
+}
+impl<I: Iterator<Item = (PxPoint, Px)>> Iterator for MergingLineIter<I> {
+    type Item = I::Item;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        loop {
+            match self.iter.next() {
+                Some((p, w)) => {
+                    if let Some((lp, lw)) = &mut self.line {
+                        if lp.x + *lw == p.x {
+                            *lw += w;
+                            continue;
+                        } else {
+                            *lp = p;
+                            *lw = w;
+                            return Some((p, w));
+                        }
+                    } else {
+                        self.line = Some((p, w));
+                        continue;
+                    }
                 }
-                todo!("review what seg-kinds are in a ShapedText");
+                None => return self.line.take(),
             }
         }
-
-        let words = Words {
-            segs: self.segments().iter(),
-            start: 0,
-            next: 0,
-            done: false,
-        };
-
-        words.map(|r| ShapedWord { text: self.text, range: r })
     }
 }
 
-/// Represents a word selection of a [`ShapedText`].
+/// Represents a word or space selection of a [`ShapedText`].
 #[derive(Clone, Copy)]
-pub struct ShapedWord<'a> {
+pub struct ShapedSegment<'a> {
     text: &'a ShapedText,
-    range: (usize, usize),
+    line_index: usize,
+    index: usize,
 }
-impl<'a> ShapedWord<'a> {
-    /// Glyphs in the word.
+impl<'a> ShapedSegment<'a> {
+    /// Segment kind.
+    #[inline]
+    pub fn kind(&self) -> TextSegmentKind {
+        self.text.segments[self.index].kind
+    }
+
+    /// If the segment kind is [`Word`].
+    ///
+    /// [`Word`]: TextSegmentKind::Word
+    #[inline]
+    pub fn is_word(&self) -> bool {
+        matches!(self.kind(), TextSegmentKind::Word)
+    }
+
+    /// If the segment kind is [`Space`] or [`Tab`].
+    ///
+    /// [`Space`]: TextSegmentKind::Space
+    /// [`Tab`]: TextSegmentKind::Tab
+    #[inline]
+    pub fn is_space(&self) -> bool {
+        matches!(self.kind(), TextSegmentKind::Space | TextSegmentKind::Tab)
+    }
+
+    fn glyph_range(&self) -> (usize, usize) {
+        let start = if self.index == 0 {
+            0
+        } else {
+            self.text.segments[self.index - 1].end + 1
+        };
+        let end = self.text.segments[self.index].end;
+
+        (start, end)
+    }
+
+    /// Glyphs in the word or space.
     #[inline]
     pub fn glyphs(&self) -> &'a [GlyphInstance] {
-        &self.text.glyphs[self.range.0..=self.range.1]
+        let (start, end) = self.glyph_range();
+        &self.text.glyphs[start..=end]
     }
 
+    fn x_width(&self) -> (Px, Px) {
+        let (start, end) = self.glyph_range();
+
+        let start_x = self.text.glyphs[start].point.x;
+        let end_x = if end == self.text.glyphs.len() {
+            self.text.lines[self.line_index].2 .0 as f32
+        } else {
+            self.text.glyphs[end].point.x
+        };
+
+        (Px(start_x as i32), Px((end_x - start_x) as i32))
+    }
+
+    /// Bounds of the word or spaces.
     pub fn rect(&self) -> PxRect {
-        todo!()
+        let (x, width) = self.x_width();
+        let size = PxSize::new(width, self.text.line_height);
+        let origin = PxPoint::new(x, self.text.line_height * Px(self.line_index as i32));
+        PxRect::new(origin, size)
     }
 
-    // line over word only, excluding space.
+    #[inline]
+    fn decoration_line(&self, bottom_up_offset: Px) -> (PxPoint, Px) {
+        let (x, width) = self.x_width();
+        let y = (self.text.line_height * Px((self.index as i32) + 1)) - bottom_up_offset;
+        (PxPoint::new(x, y), width)
+    }
+
+    /// Overline spanning the word or spaces, start point + width.
+    #[inline]
     pub fn overline(&self) -> (PxPoint, Px) {
-        todo!()
+        self.decoration_line(self.text.overline)
     }
 
+    /// Strikethrough spanning the word or spaces, start point + width.
+    #[inline]
     pub fn strikethrough(&self) -> (PxPoint, Px) {
-        todo!()
+        self.decoration_line(self.text.strikethrough)
     }
 
+    /// Underline spanning the word or spaces, not skipping.
+    ///
+    /// The *y* is defined by the font metrics.
+    ///
+    /// Returns start point + width.
+    #[inline]
     pub fn underline(&self) -> (PxPoint, Px) {
-        todo!()
+        self.decoration_line(self.text.underline)
+    }
+
+    /// Underline spanning the word or spaces, skipping glyph descends that intersect with the underline.
+    ///
+    /// The *y* is defined by the font metrics.
+    ///
+    /// Returns start point + width.
+    #[inline]
+    pub fn underline_skip_glyphs(&self) -> impl Iterator<Item = (PxPoint, Px)> + 'a {
+        if self.is_word() {
+            // TODO, see https://github.com/google/skia/blob/1f193df9b393d50da39570dab77a0bb5d28ec8ef/src/core/SkTextBlob.cpp
+            tracing::error!("underline_skip_glyphs not implemented");
+            [self.underline()].into_iter()
+        } else {
+            [self.underline()].into_iter()
+        }
+    }
+
+    /// Underline spanning the word or spaces, not skipping.
+    ///
+    /// The *y* is the baseline + descent + 1px.
+    ///
+    /// Returns start point + width.
+    #[inline]
+    pub fn underline_descent(&self) -> (PxPoint, Px) {
+        self.decoration_line(self.text.underline_descent)
     }
 }
 
@@ -331,7 +484,7 @@ impl WordContextKey {
 }
 
 #[derive(Debug)]
-pub(super) struct ShapedSegment {
+pub(super) struct ShapedSegmentData {
     glyphs: Vec<ShapedGlyph>,
     x_advance: f32,
     y_advance: f32,
@@ -362,7 +515,7 @@ impl Font {
         buffer.add_str(segment)
     }
 
-    fn shape_segment_no_cache(&self, seg: &str, lang: &Lang, features: &[harfbuzz_rs::Feature]) -> ShapedSegment {
+    fn shape_segment_no_cache(&self, seg: &str, lang: &Lang, features: &[harfbuzz_rs::Feature]) -> ShapedSegmentData {
         let size_scale = self.metrics().size_scale;
         let to_layout = |p: i32| p as f32 * size_scale;
 
@@ -393,7 +546,7 @@ impl Font {
             })
             .collect();
 
-        ShapedSegment {
+        ShapedSegmentData {
             glyphs,
             x_advance: w_x_advance,
             y_advance: w_y_advance,
@@ -406,7 +559,7 @@ impl Font {
         word_ctx_key: &WordContextKey,
         lang: &Lang,
         features: &[harfbuzz_rs::Feature],
-        out: impl FnOnce(&ShapedSegment),
+        out: impl FnOnce(&ShapedSegmentData),
     ) {
         if !(1..=WORD_CACHE_MAX_LEN).contains(&seg.len()) {
             let seg = self.shape_segment_no_cache(seg, lang, features);
