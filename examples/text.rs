@@ -214,6 +214,14 @@ fn decoration_lines() -> impl Widget {
                 margin = (0, 0, 4, 0);
             },
             text! {
+                text = "Underline, 1, Solid,\ndefault color, skip spaces";
+                underline = 1, LineStyle::Solid;
+                underline_skip = UnderlineSkip::SPACES;
+
+                background_color = rgba(0.5, 0.5, 0.5, 0.3);
+                margin = (0, 0, 4, 0);
+            },
+            text! {
                 text = "Underline, 1, Solid,\ndefault color, descent";
                 underline = 1, LineStyle::Solid;
                 underline_position = UnderlinePosition::Descent;

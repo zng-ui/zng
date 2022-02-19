@@ -169,7 +169,7 @@ impl PxLine {
 
     /// Line length in rounded pixels.
     #[inline]
-    pub fn length(&self) -> Px {
+    pub fn length(self) -> Px {
         let s = self.start.to_wr();
         let e = self.end.to_wr();
         Px(s.distance_to(e).round() as i32)
@@ -177,8 +177,27 @@ impl PxLine {
 
     /// Bounding box that fits the line points, in layout units.
     #[inline]
-    pub fn bounds(&self) -> PxRect {
+    pub fn bounds(self) -> PxRect {
         PxRect::from_points(&[self.start, self.end])
+    }
+
+    /// Compute the intersection point between `self` and `other`.
+    pub fn intersect(self, other: Self) -> Option<PxPoint> {
+        let a1 = self.end.y - self.start.y;
+        let b1 = self.start.x - self.end.x;
+        let c1 = a1 * self.start.x + b1 * self.start.y;
+
+        let a2 = other.end.y - other.start.y;
+        let b2 = other.start.x - other.end.x;
+        let c2 = a2 * other.start.x + b2 * other.start.y;
+
+        let delta = a1 * b2 - a2 * b1;
+
+        if delta == Px(0) {
+            return None;
+        }
+
+        Some(PxPoint::new((b2 * c1 - b1 * c2) / delta, (a1 * c2 - a2 * c1) / delta))
     }
 }
 

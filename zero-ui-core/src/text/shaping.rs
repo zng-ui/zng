@@ -379,7 +379,7 @@ impl<'a> ShapedSegment<'a> {
     #[inline]
     fn decoration_line(&self, bottom_up_offset: Px) -> (PxPoint, Px) {
         let (x, width) = self.x_width();
-        let y = (self.text.line_height * Px((self.index as i32) + 1)) - bottom_up_offset;
+        let y = (self.text.line_height * Px((self.line_index as i32) + 1)) - bottom_up_offset;
         (PxPoint::new(x, y), width)
     }
 
@@ -414,7 +414,7 @@ impl<'a> ShapedSegment<'a> {
     pub fn underline_skip_glyphs(&self) -> impl Iterator<Item = (PxPoint, Px)> + 'a {
         if self.is_word() {
             // TODO, see https://github.com/google/skia/blob/1f193df9b393d50da39570dab77a0bb5d28ec8ef/src/core/SkTextBlob.cpp
-            tracing::error!("underline_skip_glyphs not implemented");
+            tracing::debug!("underline_skip_glyphs not implemented");
             [self.underline()].into_iter()
         } else {
             [self.underline()].into_iter()
