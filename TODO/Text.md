@@ -5,6 +5,11 @@
 * Implement underline, strikethrough.
 * Review TODOs in code.
 
+# Outline
+
+* See `core::text::shaping::outline`.
+* Implement `UnderlineSkip::GLYPHS` using a filled, stroked outline for clipping.
+
 # Mixed Content
 
 * Implement text runs composed of multiple styles (can use h_stack!?)

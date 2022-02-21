@@ -421,9 +421,11 @@ pub mod text {
                     match position {
                         UnderlinePosition::Font => {
                             if skip == UnderlineSkip::GLYPHS | UnderlineSkip::SPACES {
-                                push_line!(text.lines().flat_map(|l| l.underline_skip_spaces_and_glyphs()));
+                                // TODO clip glyphs, need outline, see core::text::shaping::outline
+                                push_line!(text.lines().flat_map(|l| l.underline_skip_spaces()));
                             } else if skip.contains(UnderlineSkip::GLYPHS) {
-                                push_line!(text.lines().flat_map(|l| l.underline_skip_glyphs()));
+                                // TODO clip glyphs
+                                push_line!(text.lines().map(|l| l.underline()));
                             } else if skip.contains(UnderlineSkip::SPACES) {
                                 push_line!(text.lines().flat_map(|l| l.underline_skip_spaces()));
                             } else {

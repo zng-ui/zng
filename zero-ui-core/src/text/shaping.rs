@@ -211,25 +211,6 @@ impl<'a> ShapedLine<'a> {
         MergingLineIter::new(self.parts().filter(|s| s.is_word()).map(|s| s.underline_descent()))
     }
 
-    /// Underline, skipping glyph descents that intersect with the underline.
-    ///
-    /// The *y* is defined by the font metrics.
-    ///
-    /// Returns and iterator of start point + width for continuous underline part.
-    #[inline]
-    pub fn underline_skip_glyphs(&self) -> impl Iterator<Item = (PxPoint, Px)> + 'a {
-        MergingLineIter::new(self.parts().flat_map(|s| s.underline_skip_glyphs()))
-    }
-
-    /// Combination of [`underline_skip_space`] and [`underline_skip_glyphs`].
-    ///
-    /// [`underline_skip_space`]: Self::underline_skip_space
-    /// [`underline_skip_glyphs`]: Self::underline_skip_glyphs
-    #[inline]
-    pub fn underline_skip_spaces_and_glyphs(&self) -> impl Iterator<Item = (PxPoint, Px)> + 'a {
-        MergingLineIter::new(self.parts().filter(|s| s.is_word()).flat_map(|s| s.underline_skip_glyphs()))
-    }
-
     #[inline]
     fn decoration_line(&self, bottom_up_offset: Px) -> (PxPoint, Px) {
         let y = (self.text.line_height * Px((self.index as i32) + 1)) - bottom_up_offset;
@@ -405,22 +386,6 @@ impl<'a> ShapedSegment<'a> {
         self.decoration_line(self.text.underline)
     }
 
-    /// Underline spanning the word or spaces, skipping glyph descends that intersect with the underline.
-    ///
-    /// The *y* is defined by the font metrics.
-    ///
-    /// Returns start point + width.
-    #[inline]
-    pub fn underline_skip_glyphs(&self) -> impl Iterator<Item = (PxPoint, Px)> + 'a {
-        if self.is_word() {
-            // TODO, see https://github.com/google/skia/blob/1f193df9b393d50da39570dab77a0bb5d28ec8ef/src/core/SkTextBlob.cpp
-            tracing::debug!("underline_skip_glyphs not implemented");
-            [self.underline()].into_iter()
-        } else {
-            [self.underline()].into_iter()
-        }
-    }
-
     /// Underline spanning the word or spaces, not skipping.
     ///
     /// The *y* is the baseline + descent + 1px.
@@ -430,6 +395,13 @@ impl<'a> ShapedSegment<'a> {
     pub fn underline_descent(&self) -> (PxPoint, Px) {
         self.decoration_line(self.text.underline_descent)
     }
+}
+
+mod outline {
+    // TODO use `pathfinder_content` and `pathfinder_geometry` integrated with `font_kit`
+    //
+    // need filled outline *stroked* clip for "underline skip glyphs".
+    // need outline for text outline effects.
 }
 
 const WORD_CACHE_MAX_LEN: usize = 32;
