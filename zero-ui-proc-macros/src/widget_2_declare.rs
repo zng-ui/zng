@@ -1114,7 +1114,7 @@ fn docs_property_header(docs: &mut TokenStream, id: &str, property: &str, url: &
     if id.ends_with('*') {
         doc_extend!(
             docs,
-            r##"<details class="rustdoc-toggle method-toggle" open><summary><div id="{id}" class="method in-band"><a class="anchor" href="#{id}" style="margin-left:-4px"></a><code style="font-style:italic; margin-left:8px"><a href="#{0}" class="fnname">all-properties</a> = T</code></div></summary><div class="docblock">"##,
+            r##"<details class="rustdoc-toggle method-toggle" open><summary><div id="{id}" class="method in-band"><a class="anchor" href="#{id}" style="margin-left:-4px"></a><code style="font-style:italic; margin-left:8px"><a href="#{id}" class="fnname">all-properties</a> = T</code></div></summary><div class="docblock">"##,
         );
     } else {
         doc_extend!(
@@ -1151,7 +1151,7 @@ impl Parse for Items {
                 non_user_error!("expected `inherited { .. }` or `widget { .. }`")
             }
         }
-        unreachable!("expected last item to be `new { .. }`")
+        unreachable!("expected last item to be `new {{ .. }}`")
     }
 }
 
