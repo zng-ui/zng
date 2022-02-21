@@ -1,4 +1,5 @@
 use std::{
+    fmt,
     hash::{BuildHasher, Hash, Hasher},
     mem,
 };
@@ -145,6 +146,16 @@ pub struct ShapedLine<'a> {
     x: Px,
     width: Px,
 }
+impl<'a> fmt::Debug for ShapedLine<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("ShapedLine")
+            .field("seg_range", &self.seg_range)
+            .field("index", &self.index)
+            .field("x", &self.x)
+            .field("width", &self.width)
+            .finish_non_exhaustive()
+    }
+}
 impl<'a> ShapedLine<'a> {
     /// Bounds of the line.
     pub fn rect(&self) -> PxRect {
@@ -221,7 +232,7 @@ impl<'a> ShapedLine<'a> {
     /// the line break that starts the next line.
     #[inline]
     pub fn segments(&self) -> &'a [TextSegment] {
-        &self.text.segments[self.seg_range.0..=self.seg_range.1]
+        &self.text.segments[self.seg_range.0..self.seg_range.1]
     }
 
     /// Glyphs in the line.
@@ -242,10 +253,12 @@ impl<'a> ShapedLine<'a> {
     pub fn parts(&self) -> impl Iterator<Item = ShapedSegment<'a>> {
         let text = self.text;
         let line_index = self.index;
+        let last_i = self.seg_range.1.saturating_sub(1);
         (self.seg_range.0..self.seg_range.1).map(move |i| ShapedSegment {
             text,
             line_index,
             index: i,
+            is_last: i == last_i
         })
     }
 }
@@ -272,9 +285,12 @@ impl<I: Iterator<Item = (PxPoint, Px)>> Iterator for MergingLineIter<I> {
                             *lw += w;
                             continue;
                         } else {
+                            let r = (*lp, *lw);
+
                             *lp = p;
                             *lw = w;
-                            return Some((p, w));
+
+                            return Some(r);
                         }
                     } else {
                         self.line = Some((p, w));
@@ -293,6 +309,16 @@ pub struct ShapedSegment<'a> {
     text: &'a ShapedText,
     line_index: usize,
     index: usize,
+    is_last: bool,
+}
+impl<'a> fmt::Debug for ShapedSegment<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("ShapedSegment")
+            .field("line_index", &self.line_index)
+            .field("index", &self.index)
+            .field("is_last", &self.is_last)
+            .finish_non_exhaustive()
+    }
 }
 impl<'a> ShapedSegment<'a> {
     /// Segment kind.
@@ -318,11 +344,17 @@ impl<'a> ShapedSegment<'a> {
         matches!(self.kind(), TextSegmentKind::Space | TextSegmentKind::Tab)
     }
 
+    /// If this is the last segment of the line.
+    #[inline]
+    pub fn is_last(&self) -> bool {
+        self.is_last
+    }
+
     fn glyph_range(&self) -> (usize, usize) {
         let start = if self.index == 0 {
             0
         } else {
-            self.text.segments[self.index - 1].end + 1
+            self.text.segments[self.index - 1].end
         };
         let end = self.text.segments[self.index].end;
 
@@ -333,14 +365,14 @@ impl<'a> ShapedSegment<'a> {
     #[inline]
     pub fn glyphs(&self) -> &'a [GlyphInstance] {
         let (start, end) = self.glyph_range();
-        &self.text.glyphs[start..=end]
+        &self.text.glyphs[start..end]
     }
 
     fn x_width(&self) -> (Px, Px) {
         let (start, end) = self.glyph_range();
 
         let start_x = self.text.glyphs[start].point.x;
-        let end_x = if end == self.text.glyphs.len() {
+        let end_x = if self.is_last {
             self.text.lines[self.line_index].2 .0 as f32
         } else {
             self.text.glyphs[end].point.x

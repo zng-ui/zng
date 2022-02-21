@@ -920,7 +920,7 @@ pub mod prelude {
                 NumVariant,
             },
             formatx, lang, FontFeatures, FontName, FontNames, FontStretch, FontStyle, FontWeight, Fonts, Hyphens, LineBreak, Text,
-            TextAlign, TextTransformFn, ToText, WhiteSpace, WordBreak,
+            TextAlign, TextTransformFn, ToText, UnderlinePosition, UnderlineSkip, WhiteSpace, WordBreak,
         },
         ui_list::{z_index, SortedWidgetVec, SortedWidgetVecRef, WidgetVec, WidgetVecRef, ZIndex},
         units::{
