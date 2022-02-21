@@ -337,6 +337,7 @@ impl FontInstanceKey {
 pub struct FontFace {
     data: FontDataRef,
     face: harfbuzz_rs::Shared<harfbuzz_rs::Face<'static>>,
+    kit_font: font_kit::font::Font,
     face_index: u32,
     display_name: FontName,
     family_name: FontName,
@@ -386,6 +387,7 @@ impl FontFace {
                     .ok_or(FontLoadingError::NoSuchFontInCollection)?;
                 return Ok(FontFace {
                     data: other_font.data.clone(),
+                    kit_font: other_font.kit_font.clone(),
                     face: harfbuzz_rs::Face::new(other_font.data.clone(), other_font.face_index).to_shared(),
                     face_index: other_font.face_index,
                     display_name: custom_font.name.clone(),
@@ -432,6 +434,7 @@ impl FontFace {
             instances: Default::default(),
             render_keys: Default::default(),
             unregistered: Cell::new(false),
+            kit_font,
         })
     }
 
@@ -475,6 +478,7 @@ impl FontFace {
             is_monospace: kit_font.is_monospace(),
             metrics: kit_font.metrics().into(),
             instances: Default::default(),
+            kit_font,
             render_keys: Default::default(),
             unregistered: Cell::new(false),
         })
@@ -519,6 +523,12 @@ impl FontFace {
     #[inline]
     pub fn harfbuzz_face(&self) -> &harfbuzz_rs::Shared<harfbuzz_rs::Face<'static>> {
         &self.face
+    }
+
+    /// Reference the `font_kit` face.
+    #[inline]
+    pub fn font_kit(&self) -> &font_kit::font::Font {
+        &self.kit_font
     }
 
     /// Reference the font file bytes.
