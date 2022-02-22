@@ -814,7 +814,10 @@ impl Font {
                 to: pathfinder_geometry::vector::Vector2F,
             ) {
                 self.sink.cubic_curve_to(
-                    (euclid::point2(ctrl.from_x(), ctrl.from_y()), euclid::point2(ctrl.to_x(), ctrl.to_y())),
+                    (
+                        euclid::point2(ctrl.from_x(), ctrl.from_y()),
+                        euclid::point2(ctrl.to_x(), ctrl.to_y()),
+                    ),
                     euclid::point2(to.x(), to.y()),
                 )
             }
