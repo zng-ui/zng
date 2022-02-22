@@ -608,7 +608,7 @@ impl FontFace {
                 .or_insert_with(|| Rc::new(Font::new(Rc::clone(self), font_size, variations)));
             Rc::clone(f)
         } else {
-            tracing::warn!(target: "font_loading", "creating font from unregistered `{}`, will not cache", self.display_name);
+            tracing::debug!(target: "font_loading", "creating font from unregistered `{}`, will not cache", self.display_name);
             Rc::new(Font::new(Rc::clone(self), font_size, variations))
         }
     }
@@ -634,6 +634,14 @@ impl FontFace {
     #[inline]
     pub fn ptr_eq(self: &Rc<Self>, other: &Rc<Self>) -> bool {
         Rc::ptr_eq(self, other)
+    }
+
+    /// If this font face is cached. All font faces are cached by default, a font face can be detached from
+    /// cache when a [`FontChangedEvent`] event happens, in this case the font can still be used normally, but
+    /// a request for the same font name will return a different reference.
+    #[inline]
+    pub fn is_cached(&self) -> bool {
+        !self.unregistered.get()
     }
 }
 

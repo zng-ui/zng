@@ -194,6 +194,7 @@ pub mod text {
         impl<T: Var<Text>> UiNode for TextNode<T> {
             fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
                 TextContext::subscribe(ctx.vars, subscriptions.var(ctx.vars, &self.text_var));
+                subscriptions.event(FontChangedEvent);
             }
 
             fn init(&mut self, ctx: &mut WidgetContext) {
@@ -215,6 +216,29 @@ pub mod text {
                 self.font_face = None;
                 self.shaped_text = None;
                 self.text = SegmentedText::default();
+            }
+
+            fn event<A: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &A) {
+                if let Some(_args) = FontChangedEvent.update(args) {
+                    // font query may return a different result.
+
+                    let (lang, font_family, font_style, font_weight, font_stretch) = TextContext::font_face(ctx.vars);
+                    let fresh_face = ctx
+                        .services
+                        .fonts()
+                        .get_list(font_family, font_style, font_weight, font_stretch, lang)
+                        .best()
+                        .clone();
+
+                    if !self.font_face.as_ref().map(|f| f.ptr_eq(&fresh_face)).unwrap_or_default() {
+                        self.synthesis_used = *FontSynthesisVar::get(ctx) & fresh_face.synthesis_for(font_style, font_weight);
+                        self.font_face = Some(fresh_face);
+                        self.font = None;
+                        self.shaped_text = None;
+
+                        ctx.updates.layout();
+                    }
+                }
             }
 
             fn update(&mut self, ctx: &mut WidgetContext) {
