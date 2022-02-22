@@ -258,7 +258,7 @@ impl<'a> ShapedLine<'a> {
             text,
             line_index,
             index: i,
-            is_last: i == last_i
+            is_last: i == last_i,
         })
     }
 }

@@ -337,7 +337,7 @@ impl FontInstanceKey {
 pub struct FontFace {
     data: FontDataRef,
     face: harfbuzz_rs::Shared<harfbuzz_rs::Face<'static>>,
-    kit_font: font_kit::font::Font,
+    font_kit: font_kit::font::Font,
     face_index: u32,
     display_name: FontName,
     family_name: FontName,
@@ -387,7 +387,7 @@ impl FontFace {
                     .ok_or(FontLoadingError::NoSuchFontInCollection)?;
                 return Ok(FontFace {
                     data: other_font.data.clone(),
-                    kit_font: other_font.kit_font.clone(),
+                    font_kit: other_font.font_kit.clone(),
                     face: harfbuzz_rs::Face::new(other_font.data.clone(), other_font.face_index).to_shared(),
                     face_index: other_font.face_index,
                     display_name: custom_font.name.clone(),
@@ -403,7 +403,7 @@ impl FontFace {
             }
         }
 
-        let kit_font = font_kit::handle::Handle::Memory {
+        let font = font_kit::handle::Handle::Memory {
             bytes: Arc::clone(&bytes.0),
             font_index: face_index,
         }
@@ -429,12 +429,12 @@ impl FontFace {
                 weight: custom_font.weight,
                 stretch: custom_font.stretch,
             },
-            is_monospace: kit_font.is_monospace(),
-            metrics: kit_font.metrics().into(),
+            is_monospace: font.is_monospace(),
+            metrics: font.metrics().into(),
             instances: Default::default(),
             render_keys: Default::default(),
             unregistered: Cell::new(false),
-            kit_font,
+            font_kit: font,
         })
     }
 
@@ -453,7 +453,7 @@ impl FontFace {
             }
         };
 
-        let kit_font = font_kit::handle::Handle::Memory {
+        let font = font_kit::handle::Handle::Memory {
             bytes: Arc::clone(&bytes.0),
             font_index: face_index,
         }
@@ -471,14 +471,14 @@ impl FontFace {
             data: bytes,
             face: face.to_shared(),
             face_index,
-            display_name: kit_font.full_name().into(),
-            family_name: kit_font.family_name().into(),
-            postscript_name: kit_font.postscript_name(),
-            properties: kit_font.properties(),
-            is_monospace: kit_font.is_monospace(),
-            metrics: kit_font.metrics().into(),
+            display_name: font.full_name().into(),
+            family_name: font.family_name().into(),
+            postscript_name: font.postscript_name(),
+            properties: font.properties(),
+            is_monospace: font.is_monospace(),
+            metrics: font.metrics().into(),
             instances: Default::default(),
-            kit_font,
+            font_kit: font,
             render_keys: Default::default(),
             unregistered: Cell::new(false),
         })
@@ -528,7 +528,7 @@ impl FontFace {
     /// Reference the `font_kit` face.
     #[inline]
     pub fn font_kit(&self) -> &font_kit::font::Font {
-        &self.kit_font
+        &self.font_kit
     }
 
     /// Reference the font file bytes.
