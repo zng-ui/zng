@@ -781,12 +781,76 @@ impl Font {
     pub fn ptr_eq(self: &Rc<Self>, other: &Rc<Self>) -> bool {
         Rc::ptr_eq(self, other)
     }
+
+    /// Sends the sized vector path for a glyph to `sink`.
+    pub fn outline(
+        &self,
+        glyph_id: super::GlyphIndex,
+        hinting_options: OutlineHintingOptions,
+        sink: &mut impl OutlineSink,
+    ) -> Result<(), font_kit::error::GlyphLoadingError> {
+        // TODO scale values by font size.
+
+        struct AdapterSink<'a, S> {
+            sink: &'a mut S,
+        }
+        impl<'a, S: OutlineSink> font_kit::outline::OutlineSink for AdapterSink<'a, S> {
+            fn move_to(&mut self, to: pathfinder_geometry::vector::Vector2F) {
+                self.sink.move_to(euclid::point2(to.x(), to.y()))
+            }
+
+            fn line_to(&mut self, to: pathfinder_geometry::vector::Vector2F) {
+                self.sink.line_to(euclid::point2(to.x(), to.y()))
+            }
+
+            fn quadratic_curve_to(&mut self, ctrl: pathfinder_geometry::vector::Vector2F, to: pathfinder_geometry::vector::Vector2F) {
+                self.sink
+                    .quadratic_curve_to(euclid::point2(ctrl.x(), ctrl.y()), euclid::point2(to.x(), to.y()))
+            }
+
+            fn cubic_curve_to(
+                &mut self,
+                ctrl: pathfinder_geometry::line_segment::LineSegment2F,
+                to: pathfinder_geometry::vector::Vector2F,
+            ) {
+                self.sink.cubic_curve_to(
+                    (euclid::point2(ctrl.from_x(), ctrl.from_y()), euclid::point2(ctrl.to_x(), ctrl.to_y())),
+                    euclid::point2(to.x(), to.y()),
+                )
+            }
+
+            fn close(&mut self) {
+                self.sink.close()
+            }
+        }
+
+        self.face.font_kit.outline(glyph_id, hinting_options, &mut AdapterSink { sink })
+    }
 }
 impl crate::render::Font for Font {
     fn instance_key(&self, renderer: &ViewRenderer, synthesis: FontSynthesis) -> wr::FontInstanceKey {
         // how does cache clear works with this?
         self.render_font(renderer, synthesis)
     }
+}
+
+/// Hinting options for [`Font::outline`].
+pub type OutlineHintingOptions = font_kit::hinting::HintingOptions;
+
+/// Receives Bézier path rendering commands from [`Font::outline`].
+pub trait OutlineSink {
+    /// Moves the pen to a point.
+    fn move_to(&mut self, to: euclid::Point2D<f32, Px>);
+    /// Draws a line to a point.
+    fn line_to(&mut self, to: euclid::Point2D<f32, Px>);
+    /// Draws a quadratic Bézier curve to a point.
+    fn quadratic_curve_to(&mut self, ctrl: euclid::Point2D<f32, Px>, to: euclid::Point2D<f32, Px>);
+    /// Draws a cubic Bézier curve to a point.
+    ///
+    /// The `ctrl` is a line (from, to).
+    fn cubic_curve_to(&mut self, ctrl: (euclid::Point2D<f32, Px>, euclid::Point2D<f32, Px>), to: euclid::Point2D<f32, Px>);
+    /// Closes the path, returning to the first point in it.
+    fn close(&mut self);
 }
 
 /// A shared [`Font`].

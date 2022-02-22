@@ -75,6 +75,7 @@ unic-langid = "0.9"
 unicase = "2"
 harfbuzz_rs = "2"
 xi-unicode = "0.3"
+pathfinder_geometry = "0.5"
 
 # task
 flume = { version = "0.10", default-features  = false, features = ["async"] }
