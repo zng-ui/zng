@@ -1029,7 +1029,28 @@ impl<const N: usize> IntoVar<FontNames> for [Text; N] {
     }
 }
 
-static INTERN_POOL: Mutex<Option<HashSet<InternedStr>>> = parking_lot::const_mutex(None);
+static INTERN_POOL: Mutex<Option<HashSet<InternedStrEntry>>> = parking_lot::const_mutex(None);
+
+// `InternedStr` in `INTERN_POOL`
+// * Can use `InternedStr` to avoid deadlock in `drop` impl.
+// * Need a type that implements `Borrow<str>` so can't use `Arc<String>`.
+struct InternedStrEntry(Arc<String>);
+impl Hash for InternedStrEntry {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.0.as_str().hash(state);
+    }
+}
+impl PartialEq for InternedStrEntry {
+    fn eq(&self, other: &Self) -> bool {
+        Arc::ptr_eq(&self.0, &other.0)
+    }
+}
+impl Eq for InternedStrEntry {}
+impl std::borrow::Borrow<str> for InternedStrEntry {
+    fn borrow(&self) -> &str {
+        &self.0
+    }
+}
 
 /// A reference-counted shared string.
 ///
@@ -1045,12 +1066,11 @@ impl InternedStr {
         let mut map = INTERN_POOL.lock();
         let map = map.get_or_insert_with(HashSet::default);
         if let Some(r) = map.get(s.as_ref()) {
-            r.clone()
+            InternedStr(r.0.clone())
         } else {
-            let s = InternedStr(Arc::new(s.into()));
-            let r = s.clone();
-            map.insert(s);
-            r
+            let s = Arc::new(s.into());
+            map.insert(InternedStrEntry(Arc::clone(&s)));
+            InternedStr(s)
         }
     }
 
@@ -1090,7 +1110,7 @@ impl std::borrow::Borrow<str> for InternedStr {
 impl Drop for InternedStr {
     fn drop(&mut self) {
         if Arc::strong_count(&self.0) == 2 {
-            INTERN_POOL.lock().as_mut().unwrap().remove(self);
+            INTERN_POOL.lock().as_mut().unwrap().remove(self.as_str());
         }
     }
 }
