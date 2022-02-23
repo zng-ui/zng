@@ -106,10 +106,10 @@ impl AppExtension for FontManager {
     fn event_preview<EV: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {
         if RawFontChangedEvent.update(args).is_some() {
             FontChangedEvent.notify(ctx.events, FontChangedArgs::now(FontChange::SystemFonts));
-            #[cfg(windows)]
-            ctx.services.fonts().on_system_fonts_changed();
         } else if let Some(args) = RawTextAaChangedEvent.update(args) {
             ctx.services.fonts().text_aa.set_ne(ctx.vars, args.aa);
+        } else if FontChangedEvent.update(args).is_some() {
+            ctx.services.fonts().on_fonts_changed();
         } else if ViewProcessRespawnedEvent.update(args).is_some() {
             let text_aa = ctx
                 .services
@@ -132,7 +132,6 @@ impl AppExtension for FontManager {
         }
 
         if fonts.prune_requested {
-            #[cfg(windows)]
             fonts.on_prune();
         }
     }
@@ -156,13 +155,11 @@ impl Fonts {
         }
     }
 
-    #[cfg(windows)]
-    fn on_system_fonts_changed(&mut self) {
-        self.loader.on_system_fonts_changed();
+    fn on_fonts_changed(&mut self) {
+        self.loader.on_refresh();
         self.prune_requested = false;
     }
 
-    #[cfg(windows)]
     fn on_prune(&mut self) {
         self.loader.on_prune();
         self.prune_requested = false;
@@ -484,7 +481,7 @@ impl FontFace {
         })
     }
 
-    fn on_unregistered(&self) {
+    fn on_refresh(&self) {
         self.instances.borrow_mut().clear();
         self.unregistered.set(true);
     }
@@ -1110,18 +1107,16 @@ impl FontFaceLoader {
         }
     }
 
-    #[cfg(windows)]
-    fn on_system_fonts_changed(&mut self) {
+    fn on_refresh(&mut self) {
         self.system_fonts = font_kit::source::SystemSource::new();
         for (_, sys_family) in self.system_fonts_cache.drain() {
             for sys_font in sys_family {
                 if let SystemFontFace::Found(_, _, _, ref_) = sys_font {
-                    ref_.on_unregistered();
+                    ref_.on_refresh();
                 }
             }
         }
     }
-    #[cfg(windows)]
     fn on_prune(&mut self) {
         self.system_fonts_cache.retain(|_, v| {
             v.retain(|sff| match sff {
@@ -1153,7 +1148,7 @@ impl FontFaceLoader {
             // this font face also gets dropped. Also tag the font as unregistered
             // so it does not create further circular references.
             for removed in removed {
-                removed.on_unregistered();
+                removed.on_refresh();
             }
             true
         } else {
