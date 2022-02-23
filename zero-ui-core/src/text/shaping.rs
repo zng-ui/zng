@@ -429,13 +429,6 @@ impl<'a> ShapedSegment<'a> {
     }
 }
 
-mod outline {
-    // TODO use `pathfinder_content` and `pathfinder_geometry` integrated with `font_kit`
-    //
-    // need filled outline *stroked* clip for "underline skip glyphs".
-    // need outline for text outline effects.
-}
-
 const WORD_CACHE_MAX_LEN: usize = 32;
 const WORD_CACHE_MAX_ENTRIES: usize = 10_000;
 
@@ -747,13 +740,73 @@ impl Font {
         out
     }
 
-    /// Gets vector paths that outline the shaped text.
-    pub fn glyph_outline(&self, _text: &ShapedText) {
-        todo!("Implement this after full text shaping")
-        // https://docs.rs/font-kit/0.10.0/font_kit/loaders/freetype/struct.Font.html#method.outline
-        // Frame of reference: https://searchfox.org/mozilla-central/source/gfx/2d/ScaledFontDWrite.cpp#148
-        // Text shaping: https://crates.io/crates/harfbuzz_rs
+    /// Sends the sized vector path for a glyph to `sink`.
+    pub fn outline(
+        &self,
+        glyph_id: super::GlyphIndex,
+        hinting_options: OutlineHintingOptions,
+        sink: &mut impl OutlineSink,
+    ) -> Result<(), font_kit::error::GlyphLoadingError> {
+        // TODO scale values by font size.
+        // https://searchfox.org/mozilla-central/source/gfx/2d/ScaledFontDWrite.cpp#148
+
+        struct AdapterSink<'a, S> {
+            sink: &'a mut S,
+        }
+        impl<'a, S: OutlineSink> font_kit::outline::OutlineSink for AdapterSink<'a, S> {
+            fn move_to(&mut self, to: pathfinder_geometry::vector::Vector2F) {
+                self.sink.move_to(euclid::point2(to.x(), to.y()))
+            }
+
+            fn line_to(&mut self, to: pathfinder_geometry::vector::Vector2F) {
+                self.sink.line_to(euclid::point2(to.x(), to.y()))
+            }
+
+            fn quadratic_curve_to(&mut self, ctrl: pathfinder_geometry::vector::Vector2F, to: pathfinder_geometry::vector::Vector2F) {
+                self.sink
+                    .quadratic_curve_to(euclid::point2(ctrl.x(), ctrl.y()), euclid::point2(to.x(), to.y()))
+            }
+
+            fn cubic_curve_to(
+                &mut self,
+                ctrl: pathfinder_geometry::line_segment::LineSegment2F,
+                to: pathfinder_geometry::vector::Vector2F,
+            ) {
+                self.sink.cubic_curve_to(
+                    (
+                        euclid::point2(ctrl.from_x(), ctrl.from_y()),
+                        euclid::point2(ctrl.to_x(), ctrl.to_y()),
+                    ),
+                    euclid::point2(to.x(), to.y()),
+                )
+            }
+
+            fn close(&mut self) {
+                self.sink.close()
+            }
+        }
+
+        self.face().font_kit().outline(glyph_id, hinting_options, &mut AdapterSink { sink })
     }
+}
+
+/// Hinting options for [`Font::outline`].
+pub type OutlineHintingOptions = font_kit::hinting::HintingOptions;
+
+/// Receives Bézier path rendering commands from [`Font::outline`].
+pub trait OutlineSink {
+    /// Moves the pen to a point.
+    fn move_to(&mut self, to: euclid::Point2D<f32, Px>);
+    /// Draws a line to a point.
+    fn line_to(&mut self, to: euclid::Point2D<f32, Px>);
+    /// Draws a quadratic Bézier curve to a point.
+    fn quadratic_curve_to(&mut self, ctrl: euclid::Point2D<f32, Px>, to: euclid::Point2D<f32, Px>);
+    /// Draws a cubic Bézier curve to a point.
+    ///
+    /// The `ctrl` is a line (from, to).
+    fn cubic_curve_to(&mut self, ctrl: (euclid::Point2D<f32, Px>, euclid::Point2D<f32, Px>), to: euclid::Point2D<f32, Px>);
+    /// Closes the path, returning to the first point in it.
+    fn close(&mut self);
 }
 
 impl FontList {
@@ -773,6 +826,3 @@ fn to_buzz_script(script: unic_langid::subtags::Script) -> harfbuzz_rs::Tag {
     let t = t.to_le_bytes(); // Script is a TinyStr4 that uses LE
     harfbuzz_rs::Tag::from(&[t[0], t[1], t[2], t[3]])
 }
-
-#[cfg(test)]
-mod tests {}
