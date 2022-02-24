@@ -167,7 +167,6 @@ impl FrameBuilder {
             .and_then(|r| r.pipeline_id().ok())
             .unwrap_or_else(PipelineId::dummy);
 
-        let mut display_list;
         let mut used = None;
 
         if let Some(u) = used_data {
@@ -176,11 +175,11 @@ impl FrameBuilder {
             }
         }
 
-        if let Some(reuse) = used {
-            display_list = reuse;
+        let mut display_list = if let Some(reuse) = used {
+            reuse
         } else {
-            display_list = DisplayListBuilder::new(pipeline_id);
-        }
+            DisplayListBuilder::new(pipeline_id)
+        };
 
         display_list.begin();
 

@@ -324,6 +324,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         when_inits.extend(quote! {
             #cfg
             #[allow(non_snake_case)]
+            #[allow(clippy::needless_late_init)]
             let #c_ident;
             #cfg { #c_ident = #condition_call; }
         });
@@ -454,6 +455,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
             member_vars.extend(quote! {
                 #[allow(non_snake_case)]
+                #[allow(clippy::needless_late_init)]
                 let #var_ident;
                 #property_path::code_gen!{ if !allowed_in_when=>
                     #[allow(unreachable_code)] {
@@ -605,6 +607,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                 if !default=>
 
                 #cfg
+                #[allow(clippy::needless_late_init)]
                 let #args_ident;
 
                 // a compile error was already added for this case.

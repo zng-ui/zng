@@ -534,7 +534,9 @@ pub mod cfg_property_wgt {
 
         // suppress warning.
         #[allow(non_snake_case)]
+        #[allow(clippy::needless_late_init)]
         trace as always_trace = {
+            #[allow(clippy::needless_late_init)]
             let weird___name;
             weird___name = "always-trace";
             weird___name
@@ -562,6 +564,7 @@ pub fn user_cfg_property() {
         // suppress warning.
         #[allow(non_snake_case)]
         always_trace = {
+            #[allow(clippy::needless_late_init)]
             let weird___name;
             weird___name = "always-trace";
             weird___name
@@ -588,6 +591,7 @@ pub mod cfg_when_wgt {
         #[allow(non_snake_case)]
         when self.is_state {
             live_trace = {
+                #[allow(clippy::needless_late_init)]
                 let weird___name;
                 weird___name = "is_state";
                 weird___name
@@ -634,6 +638,7 @@ pub fn user_cfg_when() {
         when self.util::is_state {
             util::live_trace = {
                 #[allow(non_snake_case)]
+                #[allow(clippy::needless_late_init)]
                 let weird___name;
                 weird___name = "is_state";
                 weird___name

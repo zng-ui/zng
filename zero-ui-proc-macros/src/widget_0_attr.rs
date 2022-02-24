@@ -760,6 +760,7 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
             ) -> impl #crate_core::var::Var<bool> {
                 #(
                     #[allow(non_snake_case)]
+                    #[allow(clippy::needless_late_init)]
                     let #field_idents;
                     #field_idents = #crate_core::var::IntoVar::into_var(
                     std::clone::Clone::clone(#input_ident_per_field.#members()));

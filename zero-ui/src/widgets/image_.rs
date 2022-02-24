@@ -1102,7 +1102,7 @@ pub mod image {
 
                     let mut f_img_size = self.measure_img_size;
                     let mut f_clip_rect = self.measure_clip_rect;
-                    let f_offset;
+                    // let f_offset;
 
                     // 1 - fit crop-rect:
 
@@ -1170,7 +1170,7 @@ pub mod image {
                     f_clip_rect.size = f_clip_rect.size.min(final_size - offset.to_size());
 
                     // 5 - adjust offset so that clip_rect.origin is at widget (0, 0):
-                    f_offset = offset;
+                    let f_offset = offset;
                     offset -= f_clip_rect.origin.to_vector();
 
                     if f_img_size != self.render_img_size || f_clip_rect != self.render_clip_rect || f_offset != self.render_offset {
