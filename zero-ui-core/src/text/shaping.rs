@@ -103,10 +103,58 @@ impl ShapedText {
         &self.segments
     }
 
-    /// Bounding box size.
+    /// Bounding box size, the width is the longest line, the height is the sum of line heights + spacing in between,
+    /// no spacing is added before the first line and after the last line.
     #[inline]
     pub fn size(&self) -> PxSize {
         self.size
+    }
+
+    /// Height of a single line.
+    #[inline]
+    pub fn line_height(&self) -> Px {
+        self.line_height
+    }
+
+    /// Vertical spacing in between lines.
+    #[inline]
+    pub fn line_spacing(&self) -> Px {
+        self.line_spacing
+    }
+
+    /// Vertical offset from the line bottom up that is the text baseline.
+    /// 
+    /// The *line bottom* is the [`line_height`], this also works as the baseline of the entire text.
+    /// 
+    /// [`line_height`]: Self::line_height
+    #[inline]
+    pub fn baseline(&self) -> Px {
+        self.baseline
+    }
+
+    /// Vertical offset from the line bottom up that is the overline placement.
+    #[inline]
+    pub fn overline(&self) -> Px {
+        self.overline
+    }
+
+    /// Vertical offset from the line bottom up that is the strikethrough placement.
+    #[inline]
+    pub fn strikethrough(&self) -> Px {
+        self.strikethrough
+    }
+
+    /// Vertical offset from the line bottom up that is the font defined underline placement.
+    #[inline]
+    pub fn underline(&self) -> Px {
+        self.underline
+    }
+
+    /// Vertical offset from the line bottom up that is the underline placement when the option for
+    /// clearing all glyph descents is selected.
+    #[inline]
+    pub fn underline_descent(&self) -> Px {
+        self.underline_descent
     }
 
     /// No glyphs.

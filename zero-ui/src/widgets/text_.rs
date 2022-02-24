@@ -585,7 +585,13 @@ pub mod text {
                 fn arrange(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, final_size: PxSize) {
                     // TODO, text wrapping
 
-                    self.with_mut(ctx.vars, |c| c.arrange(ctx, widget_layout, final_size))
+                    let baseline = self.layout.as_ref().unwrap().shaped_text.baseline();
+
+                    self.with_mut(ctx.vars, |c| {
+                        widget_layout.with_baseline(baseline, |wl| {
+                            c.arrange(ctx, wl, final_size)
+                        })
+                    })
                 }
 
                 fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
