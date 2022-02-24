@@ -163,6 +163,11 @@ pub struct FinalSizeArgs<'a> {
     /// If set the widget list calls [`WidgetLayout::with_parent_translate`].
     pub pre_translate: Option<PxVector>,
 
+    /// Optional pre-translate down by the widget baseline when it is set.
+    ///
+    /// If set the widget list calls [`WidgetLayout::with_baseline_translate`].
+    pub translate_baseline: Option<bool>,
+
     /// Optional custom transform to register for the widget.
     ///
     /// If set the widget list calls [`WidgetLayout::with_custom_transform`].
@@ -175,6 +180,7 @@ impl<'a> FinalSizeArgs<'a> {
             index,
             state: Some(widget.state_mut()),
             pre_translate: None,
+            translate_baseline: None,
             custom_transform: None,
         }
     }
@@ -185,6 +191,7 @@ impl<'a> FinalSizeArgs<'a> {
             index,
             state: None,
             pre_translate: None,
+            translate_baseline: None,
             custom_transform: None,
         }
     }
@@ -202,9 +209,18 @@ impl<'a> FinalSizeArgs<'a> {
         let FinalSizeArgs {
             pre_translate,
             custom_transform,
+            translate_baseline,
             ..
         } = args;
-        Self::impl_(ctx, widget_layout, widget, custom_transform, pre_translate, final_size);
+        Self::impl_(
+            ctx,
+            widget_layout,
+            widget,
+            custom_transform,
+            pre_translate,
+            translate_baseline,
+            final_size,
+        );
     }
 
     /// Ui node only list implementer can use this method to implement the arrange for a node.
@@ -220,33 +236,65 @@ impl<'a> FinalSizeArgs<'a> {
         let Self {
             pre_translate,
             custom_transform,
+            translate_baseline,
             ..
         } = args;
-        Self::impl_(ctx, widget_layout, node, custom_transform, pre_translate, final_size);
+        Self::impl_(
+            ctx,
+            widget_layout,
+            node,
+            custom_transform,
+            pre_translate,
+            translate_baseline,
+            final_size,
+        );
     }
 
     fn impl_(
         ctx: &mut LayoutContext,
-        widget_layout: &mut WidgetLayout,
+        wl: &mut WidgetLayout,
         node: &mut impl UiNode,
         custom_transform: Option<RenderTransform>,
         pre_translate: Option<PxVector>,
+        translate_baseline: Option<bool>,
         final_size: PxSize,
     ) {
         if let Some(t) = custom_transform {
-            widget_layout.with_custom_transform(&t, |wl| {
+            wl.with_custom_transform(&t, |wl| {
                 if let Some(t) = pre_translate {
                     wl.with_parent_translate(t, |wl| {
+                        if let Some(b) = translate_baseline {
+                            wl.with_baseline_translate(b, |wl| {
+                                node.arrange(ctx, wl, final_size);
+                            })
+                        } else {
+                            node.arrange(ctx, wl, final_size);
+                        }
+                    })
+                } else if let Some(b) = translate_baseline {
+                    wl.with_baseline_translate(b, |wl| {
                         node.arrange(ctx, wl, final_size);
                     })
+                } else {
+                    node.arrange(ctx, wl, final_size);
                 }
             })
         } else if let Some(t) = pre_translate {
-            widget_layout.with_parent_translate(t, |wl| {
+            wl.with_parent_translate(t, |wl| {
+                if let Some(b) = translate_baseline {
+                    wl.with_baseline_translate(b, |wl| {
+                        node.arrange(ctx, wl, final_size);
+                    })
+                } else {
+                    node.arrange(ctx, wl, final_size);
+                }
+            })
+        } else if let Some(b) = translate_baseline {
+            wl.with_baseline_translate(b, |wl| {
                 node.arrange(ctx, wl, final_size);
             })
         } else {
-            node.arrange(ctx, widget_layout, final_size);
+            node.arrange(ctx, wl, final_size);
         }
     }
 }
