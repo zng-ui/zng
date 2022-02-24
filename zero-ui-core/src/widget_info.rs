@@ -211,7 +211,7 @@ impl WidgetLayout {
         transform
     }
 
-    /// Mark the widget baseline as an offset from the top of the inner-boundaries.
+    /// Mark the widget baseline as an offset up from the bottom of the inner-boundaries.
     pub fn with_baseline(&mut self, baseline: Px, f: impl FnOnce(&mut Self)) {
         self.inner_info.set_baseline(baseline);
         f(self);
@@ -820,7 +820,7 @@ impl WidgetLayoutInfo {
     /// This is a vertical offset up from the bottom of the [`size`] bounds, it defines the *base* of the widget
     /// in the inner bounds. Usually this is `0` meaning the widget bottom is the baseline.
     ///
-    /// [`size`]: Self::Size
+    /// [`size`]: Self::size
     #[inline]
     pub fn baseline(&self) -> Px {
         self.0.baseline.get()
