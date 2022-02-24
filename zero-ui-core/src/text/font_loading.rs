@@ -927,6 +927,12 @@ impl FontList {
         &self.fonts[0]
     }
 
+    /// Font size requested in the query that generated  this font list.
+    #[inline]
+    pub fn requested_size(&self) -> Px {
+        self.fonts[0].size()
+    }
+
     /// Style requested in the query that generated this font list.
     #[inline]
     pub fn requested_style(&self) -> FontStyle {
@@ -967,6 +973,21 @@ impl FontList {
     #[inline]
     pub fn len(&self) -> usize {
         self.fonts.len()
+    }
+
+    /// Returns `true` is `self` is sized from the `faces` list.
+    pub fn is_sized_from(&self, faces: &FontFaceList) -> bool {
+        if self.len() != faces.len() {
+            return false;
+        }
+
+        for (font, face) in self.iter().zip(faces.iter()) {
+            if !font.face().ptr_eq(face) {
+                return false;
+            }
+        }
+
+        true
     }
 }
 impl PartialEq for FontList {

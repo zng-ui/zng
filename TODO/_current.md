@@ -1,3 +1,10 @@
+# Baseline
+
+* Implement widget baseline.
+   - How to implement alignment, we need a baseline before the inner arrange.
+
+# Other
+
 * Implement `Font::outline`.
 * implement underline_skip GLYPHS, see `core::text::shaping::outline`.
 

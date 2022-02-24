@@ -2,7 +2,7 @@ use std::fmt::{self, Write};
 
 use crate::impl_from_and_into_var;
 
-use super::{Factor, FactorPercent, Point, PxRect, PxSize, PxVector};
+use super::{Factor, FactorPercent, Point, Px, PxRect, PxSize, PxVector};
 
 /// `x` and `y` alignment.
 ///
@@ -14,8 +14,21 @@ use super::{Factor, FactorPercent, Point, PxRect, PxSize, PxVector};
 /// There is a constant for each of the usual alignment values, the alignment is defined as two factors like this
 /// primarily for animating transition between alignments.
 ///
-/// Values outside of the `[0.0..=1.0]` range places the content outside of the container bounds. A **non-finite
-/// value** means the content stretches to fill the container bounds.
+/// Values outside of the `[0.0..=1.0]` range places the content outside of the container bounds.
+///
+/// ## Special Values
+///
+/// The [`f32::INFINITY`] value can be used in ***x*** or ***y*** to indicate that the content should *fill* the available space.
+///
+/// The [`f32::NEG_INFINITY`] value can be used in ***y*** to indicate that a panel widget should align its items by each *baseline*,
+/// for most widgets this is the same as `BOTTOM`, but for texts this aligns to the baseline of the texts.
+///
+/// You can use the [`is_fill_width`], [`is_fill_height`] and [`is_baseline`] methods to probe for this special values.
+///
+/// [`is_fill_width`]: Align::is_fill_width
+/// [`is_fill_height`]: Align::is_fill_height
+/// [`is_baseline`]: Align::is_baseline
+/// [`as_self_align`]: Align::as_self_align
 #[derive(Clone, Copy)]
 pub struct Align {
     /// *x* alignment in a `[0.0..=1.0]` range.
@@ -25,22 +38,32 @@ pub struct Align {
 }
 impl PartialEq for Align {
     fn eq(&self, other: &Self) -> bool {
-        self.fill_width() == other.fill_width() && self.fill_height() == other.fill_height() && self.x == other.x && self.y == other.y
+        self.is_fill_width() == other.is_fill_width()
+            && self.is_fill_height() == other.is_fill_height()
+            && self.x == other.x
+            && self.y == other.y
     }
 }
 impl Align {
     /// Returns `true` if [`x`] is a special value that indicates the content width must be the container width.
     ///
     /// [`x`]: Align::x
-    pub fn fill_width(self) -> bool {
-        !self.x.0.is_finite()
+    pub fn is_fill_width(self) -> bool {
+        self.x.0.is_infinite() && self.x.0.is_sign_positive()
     }
 
     /// Returns `true` if [`y`] is a special value that indicates the content height must be the container height.
     ///
     /// [`y`]: Align::y
-    pub fn fill_height(self) -> bool {
-        !self.y.0.is_finite()
+    pub fn is_fill_height(self) -> bool {
+        self.y.0.is_infinite() && self.x.0.is_sign_positive()
+    }
+
+    /// Returns `true` if [`y`] is a special value that indicates the contents must be aligned by their baseline.
+    ///
+    /// [`y`]: Align::y
+    pub fn is_baseline(self) -> bool {
+        self.y.0.is_infinite() && self.y.0.is_sign_negative()
     }
 }
 impl_from_and_into_var! {
@@ -99,14 +122,16 @@ impl fmt::Display for Align {
             f.write_str(name)
         } else {
             f.write_char('(')?;
-            if self.fill_width() {
+            if self.is_fill_width() {
                 f.write_str("<fill>")?;
             } else {
                 write!(f, "{}", FactorPercent::from(self.x))?;
             }
             f.write_str(", ")?;
-            if self.fill_height() {
+            if self.is_fill_height() {
                 f.write_str("<fill>")?;
+            } else if self.is_baseline() {
+                f.write_str("<baseline>")?;
             } else {
                 write!(f, "{}", FactorPercent::from(self.x))?;
             }
@@ -129,12 +154,18 @@ impl Align {
 
         CENTER = (0.5, 0.5);
 
-        FILL_TOP = (f32::NAN, 0.0);
-        FILL_BOTTOM = (f32::NAN, 1.0);
-        FILL_RIGHT = (1.0, f32::NAN);
-        FILL_LEFT = (0.0, f32::NAN);
+        FILL_TOP = (f32::INFINITY, 0.0);
+        FILL_BOTTOM = (f32::INFINITY, 1.0);
+        FILL_RIGHT = (1.0, f32::INFINITY);
+        FILL_LEFT = (0.0, f32::INFINITY);
 
-        FILL = (f32::NAN, f32::NAN);
+        FILL = (f32::INFINITY, f32::INFINITY);
+
+        BASELINE_LEFT = (0.0, f32::NEG_INFINITY);
+        BASELINE_CENTER = (0.5, f32::NEG_INFINITY);
+        BASELINE_RIGHT = (1.0, f32::NEG_INFINITY);
+
+        BASELINE = (f32::INFINITY, f32::NEG_INFINITY);
     }
 }
 impl_from_and_into_var! {
@@ -154,20 +185,25 @@ impl Align {
     /// content rectangle that must be recorded and used in [`UiNode::render`] to size and position the content
     /// in the space of the container.
     ///
+    /// The `baseline` is a vertical offset up from the `content_size` bottom, usually it `0` meaning the bottom is the baseline.
+    ///
     /// [`UiNode::measure`]: crate::UiNode::measure
     /// [`UiNode::arrange`]: crate::UiNode::arrange
     /// [`UiNode::render`]: crate::UiNode::render
-    pub fn solve(self, content_size: PxSize, container_size: PxSize) -> PxRect {
+    pub fn solve(self, content_size: PxSize, baseline: Px, container_size: PxSize) -> PxRect {
         let mut r = PxRect::zero();
 
-        if self.fill_width() {
+        if self.is_fill_width() {
             r.size.width = container_size.width;
         } else {
             r.size.width = container_size.width.min(content_size.width);
             r.origin.x = (container_size.width - r.size.width) * self.x.0;
         }
-        if self.fill_height() {
+        if self.is_fill_height() {
             r.size.height = container_size.height;
+        } else if self.is_baseline() {
+            r.size.height = container_size.height.min(content_size.height);
+            r.origin.y = container_size.height - r.size.height - baseline;
         } else {
             r.size.height = container_size.height.min(content_size.height);
             r.origin.y = (container_size.height - r.size.height) * self.y.0;
@@ -188,11 +224,11 @@ impl Align {
     pub fn solve_offset(self, content_size: PxSize, container_size: PxSize) -> PxVector {
         let mut r = PxVector::zero();
 
-        if !self.fill_width() {
+        if !self.is_fill_width() {
             r.x = (container_size.width - content_size.width) * self.x.0;
         }
 
-        if !self.fill_height() {
+        if !self.is_fill_height() {
             r.y = (container_size.height - content_size.height) * self.y.0;
         }
 

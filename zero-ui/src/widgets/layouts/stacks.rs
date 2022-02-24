@@ -122,7 +122,7 @@ pub mod h_stack {
             ds.width += Px(self.visible_count.saturating_sub(1) as i32) * spacing;
             self.items_width = ds.width;
 
-            if self.align.get(ctx).fill_width() {
+            if self.align.get(ctx).is_fill_width() {
                 ds.max(available_size.to_px())
             } else {
                 ds
@@ -135,7 +135,7 @@ pub mod h_stack {
                 .get(ctx.vars)
                 .to_layout(ctx, AvailablePx::Finite(final_size.width), Px(0));
             let align = self.align.copy(ctx);
-            let fill_width = align.fill_width();
+            let fill_width = align.is_fill_width();
 
             // if `fill_width` and there is space to fill we give the extra width divided equally
             // for each visible item. The fill alignment is usually only set for the height so this is a corner case.
@@ -154,7 +154,8 @@ pub mod h_stack {
                 diff * align.x.0
             };
 
-            let fill_height = align.fill_height();
+            let fill_height = align.is_fill_height();
+            let baseline = align.is_baseline();
 
             self.children.arrange_all(ctx, widget_layout, |_, args| {
                 let mut size = self.children_info[args.index].desired_size;
@@ -171,6 +172,8 @@ pub mod h_stack {
                 if fill_height {
                     size.height = final_size.height;
                     y = Px(0);
+                } else if baseline {
+                    y = final_size.height - size.height;
                 } else {
                     size.height = size.height.min(final_size.height);
                     y = (final_size.height - size.height) * align.y.0;
@@ -301,7 +304,7 @@ pub mod v_stack {
             ds.height += Px(self.visible_count.saturating_sub(1) as i32) * spacing;
             self.items_height = ds.height;
 
-            if self.align.get(ctx).fill_height() {
+            if self.align.get(ctx).is_fill_height() {
                 ds.max(available_size.to_px())
             } else {
                 ds
@@ -314,7 +317,8 @@ pub mod v_stack {
                 .get(ctx.vars)
                 .to_layout(ctx, AvailablePx::Finite(final_size.height), Px(0));
             let align = self.align.copy(ctx);
-            let fill_height = align.fill_height();
+            let fill_height = align.is_fill_height();
+            let baseline = align.is_baseline();
 
             // if `fill_height` and there is space to fill we give the extra height divided equally
             // for each visible item. The fill alignment is usually only set for the width so this is a corner case.
@@ -333,7 +337,7 @@ pub mod v_stack {
                 diff * align.y.0
             };
 
-            let fill_width = align.fill_width();
+            let fill_width = align.is_fill_width();
 
             self.children.arrange_all(ctx, widget_layout, |_, args| {
                 let mut size = self.children_info[args.index].desired_size;
@@ -343,6 +347,10 @@ pub mod v_stack {
 
                 let x;
                 let y = y_offset;
+
+                if baseline {
+                    tracing::info!("TODO Align::BASELINE");
+                }
 
                 y_offset += size.height + spacing;
 
@@ -505,7 +513,9 @@ pub mod z_stack {
         fn arrange(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, final_size: PxSize) {
             let align = self.align.copy(ctx);
             self.children.arrange_all(ctx, widget_layout, |_, args| {
-                let bounds = align.solve(self.children_info[args.index].desired_size.min(final_size), final_size);
+                let size = self.children_info[args.index].desired_size.min(final_size);
+                // TODO baseline
+                let bounds = align.solve(size, size.height, final_size);
                 if bounds.origin != PxPoint::zero() {
                     args.pre_translate = Some(bounds.origin.to_vector());
                 }

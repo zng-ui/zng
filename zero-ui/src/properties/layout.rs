@@ -206,7 +206,11 @@ pub fn align(child: impl UiNode, alignment: impl IntoVar<Align>) -> impl UiNode 
         }
 
         fn arrange(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, final_size: PxSize) {
-            let child_rect = self.alignment.get(ctx.vars).solve(self.child_rect.size, final_size);
+            // TODO actual baseline.
+            let child_rect = self
+                .alignment
+                .get(ctx.vars)
+                .solve(self.child_rect.size, self.child_rect.size.height, final_size);
 
             if self.child_rect.origin != child_rect.origin {
                 ctx.updates.render();

@@ -21,15 +21,15 @@ pub mod text {
     use super::*;
 
     properties! {
-        child {
-            /// The [`Text`](crate::core::types::Text) value.
-            ///
-            /// Set to an empty string (`""`).
-            text(impl IntoVar<Text>) = "";
+        /// The [`Text`](crate::core::types::Text) value.
+        ///
+        /// Set to an empty string (`""`) by default.
+        text(impl IntoVar<Text>) = "";
 
-            /// Spacing in between the text and background edges or border.
-            side_offsets as padding;
-        }
+        /// Spacing in between the text and background edges or border.
+        ///
+        /// Set to `0` by default.
+        side_offsets as padding = 0;
 
         /// The text font. If not set inherits the `font_family` from the parent widget.
         properties::font_family;
@@ -122,9 +122,20 @@ pub mod text {
         properties::underline_position;
     }
 
-    #[inline]
-    fn new_child(text: impl IntoVar<Text>) -> impl UiNode {
-        nodes::TextNode::new(text.into_var())
+    fn new_child() -> impl UiNode {
+        let child = nodes::render_text();
+        let child = nodes::render_overlines(child);
+        let child = nodes::render_strikethroughs(child);
+        nodes::render_underlines(child)
+    }
+
+    fn new_fill(child: impl UiNode, padding: impl IntoVar<SideOffsets>) -> impl UiNode {
+        let child = nodes::layout_text(child);
+        side_offsets(child, padding)
+    }
+
+    fn new_event(child: impl UiNode, text: impl IntoVar<Text>) -> impl UiNode {
+        nodes::resolve_text(child, text)
     }
 
     /// UI nodes used for building a text widget.
@@ -133,365 +144,630 @@ pub mod text {
         use crate::core::text::*;
         use crate::prelude::new_widget::*;
 
-        /// An UI node that renders a text using the [contextual text theme](TextContext).
-        pub struct TextNode<T: Var<Text>> {
-            text_var: T,
+        /// Represents the resolved fonts and the transformed, white space corrected and segmented text.
+        #[derive(Debug, Clone)]
+        pub struct ResolvedText {
+            /// Text transformed, white space corrected and segmented.
+            pub text: SegmentedText,
+            /// Queried font faces.
+            pub faces: FontFaceList,
+            /// Font synthesis allowed by the text context and required to render the best font match.
+            pub synthesis: FontSynthesis,
+            /// Final overline color.
+            pub overline_color: Rgba,
+            /// Final strikethrough color.
+            pub strikethrough_color: Rgba,
+            /// Final underline color.
+            pub underline_color: Rgba,
 
-            /* init, update data */
-            // Transformed and white space corrected, or empty before init.
-            text: SegmentedText,
-
-            // Loaded from [font query](Fonts::get_or_default) during init.
-            font_face: Option<FontFaceRef>,
-
-            synthesis_used: FontSynthesis,
-
-            /* measure, arrange data */
-            //
-            shaping_args: TextShapingArgs,
-
-            #[allow(unused)] // TODO
-            layout_line_spacing: f32,
-            // Font instance using the actual font_size.
-            font: Option<FontRef>,
-            // Shaped and wrapped text.
-            shaped_text: Option<ShapedText>,
-            // Box size of the text block.
-            size: PxSize,
-
-            overline: Px,
-            strikethrough: Px,
-            underline: Px,
+            /// If the `text` or `faces` has updated, this value is `true` in the update the value changed and stays `true`
+            /// until after layout.
+            pub update_layout: bool,
+        }
+        impl ResolvedText {
+            /// Gets the contextual [`ResolvedText`], returns `Some(_)` for any property with priority `event` or up
+            /// set directly on a `text!` widget or any widget that uses the [`resolve_text`] node.
+            pub fn get<Vr: AsRef<VarsRead>>(vars: &Vr) -> Option<&ResolvedText> {
+                ResolvedTextVar::get(vars).as_ref()
+            }
         }
 
-        impl<T: Var<Text>> TextNode<T> {
-            /// New text node from a [`Text`] variable.
+        /// Represents the layout text.
+        #[derive(Debug, Clone)]
+        pub struct LayoutText {
+            /// Sized [`faces`].
             ///
-            /// All other text configuration is taken from context variables.
-            pub fn new(text: T) -> TextNode<T> {
-                TextNode {
-                    text_var: text,
+            /// [`faces`]: ResolvedText::faces
+            pub fonts: FontList,
 
-                    text: SegmentedText::default(),
-                    font_face: None,
+            /// Layout text.
+            pub shaped_text: ShapedText,
 
-                    synthesis_used: FontSynthesis::DISABLED,
+            /// List of overline segments, defining origin and width of each line.
+            ///
+            /// Note that overlines are only computed if the `overline_thickness` is more than `0`.
+            ///
+            /// Default overlines are rendered by [`render_overlines`].
+            pub overlines: Vec<(PxPoint, Px)>,
 
-                    shaping_args: TextShapingArgs::default(),
-                    layout_line_spacing: 0.0,
-                    font: None,
-                    shaped_text: None,
-                    size: PxSize::zero(),
+            /// Computed [`OverlineThicknessVar`].
+            pub overline_thickness: Px,
 
-                    overline: Px(0),
-                    strikethrough: Px(0),
-                    underline: Px(0),
-                }
+            /// List of strikethrough segments, defining origin and width of each line.
+            ///
+            /// Note that strikethroughs are only computed if the `strikethrough_thickness` is more than `0`.
+            ///
+            /// Default overlines are rendered by [`render_strikethroughs`].
+            pub strikethroughs: Vec<(PxPoint, Px)>,
+            /// Computed [`StrikethroughThicknessVar`].
+            pub strikethrough_thickness: Px,
+
+            /// List of underline segments, defining origin and width of each line.
+            ///
+            /// Note that underlines are only computed if the `underline_thickness` is more than `0`.
+            ///
+            /// Default overlines are rendered by [`render_underlines`].
+            ///
+            /// Note that underlines trop down from these lines.
+            pub underlines: Vec<(PxPoint, Px)>,
+            /// Computed [`UnderlineThicknessVar`].
+            pub underline_thickness: Px,
+        }
+        impl LayoutText {
+            /// Gets t he contextual [`LayoutText`], returns `Some(_)` in the node layout and render methods for any property
+            /// with priority `border` or `fill` set directly on a `text!` widget or any widget that uses the [`layout_text`] node.
+            pub fn get<Vr: AsRef<VarsRead>>(vars: &Vr) -> Option<&LayoutText> {
+                LayoutTextVar::get(vars).as_ref()
             }
         }
 
-        #[impl_ui_node(none)]
-        impl<T: Var<Text>> UiNode for TextNode<T> {
-            fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
-                TextContext::subscribe(ctx.vars, subscriptions.var(ctx.vars, &self.text_var));
-                subscriptions.event(FontChangedEvent);
+        context_var! {
+            /// Represents the contextual [`ResolvedText`] setup by the [`resolve_text`] node.
+            struct ResolvedTextVar: Option<ResolvedText> = None;
+            /// Represents the contextual [`LayoutText`] setup by the [`layout_text`] node.
+            struct LayoutTextVar: Option<LayoutText> = None;
+        }
+
+        /// An UI node that resolves the [`TextContext`], applies the text transform and white space correction and segments the `text`.
+        ///
+        /// This node setups the [`ResolvedText`] for all inner nodes, the `text!` widget introduces this node at the `new_event` constructor,
+        /// so all properties except priority *context* have access using the [`ResolvedText::get`] function.
+        ///
+        /// This node also subscribes to the entire [`TextContext`] so other `text!` properties don't need to.
+        pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Text>) -> impl UiNode {
+            struct ResolveTextNode<C, T> {
+                child: C,
+                text: T,
+                resolved: Option<ResolvedText>,
             }
-
-            fn init(&mut self, ctx: &mut WidgetContext) {
-                let (lang, family, style, weight, stretch) = TextContext::font_face(ctx.vars);
-
-                // TODO use the full list.
-                let font_face = ctx.services.fonts().get_list(family, style, weight, stretch, lang).best().clone();
-                self.synthesis_used = *FontSynthesisVar::get(ctx) & font_face.synthesis_for(style, weight);
-                self.font_face = Some(font_face);
-
-                let text = self.text_var.get_clone(ctx);
-                let text = TextTransformVar::get(ctx).transform(text);
-                let text = WhiteSpaceVar::get(ctx).transform(text);
-                self.text = SegmentedText::new(text);
-            }
-
-            fn deinit(&mut self, _: &mut WidgetContext) {
-                self.font = None;
-                self.font_face = None;
-                self.shaped_text = None;
-                self.text = SegmentedText::default();
-            }
-
-            fn event<A: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &A) {
-                if let Some(_args) = FontChangedEvent.update(args) {
-                    // font query may return a different result.
-
-                    let (lang, font_family, font_style, font_weight, font_stretch) = TextContext::font_face(ctx.vars);
-                    let fresh_face = ctx
-                        .services
-                        .fonts()
-                        .get_list(font_family, font_style, font_weight, font_stretch, lang)
-                        .best()
-                        .clone();
-
-                    if !self.font_face.as_ref().map(|f| f.ptr_eq(&fresh_face)).unwrap_or_default() {
-                        self.synthesis_used = *FontSynthesisVar::get(ctx) & fresh_face.synthesis_for(font_style, font_weight);
-                        self.font_face = Some(fresh_face);
-                        self.font = None;
-                        self.shaped_text = None;
-
-                        ctx.updates.layout();
-                    }
+            impl<C: UiNode, T> ResolveTextNode<C, T> {
+                fn with_mut<R>(&mut self, vars: &Vars, f: impl FnOnce(&mut C) -> R) -> R {
+                    vars.with_context_var(ResolvedTextVar, ContextVarData::fixed(&self.resolved), || f(&mut self.child))
+                }
+                fn with(&self, vars: &VarsRead, f: impl FnOnce(&C)) {
+                    vars.with_context_var(ResolvedTextVar, ContextVarData::fixed(&self.resolved), || f(&self.child))
                 }
             }
+            impl<C: UiNode, T: Var<Text>> UiNode for ResolveTextNode<C, T> {
+                fn init(&mut self, ctx: &mut WidgetContext) {
+                    let (lang, family, style, weight, stretch) = TextContext::font_face(ctx.vars);
 
-            fn update(&mut self, ctx: &mut WidgetContext) {
-                // update `self.text`, affects shaping and layout
-                if let Some(text) = self.text_var.get_new(ctx) {
-                    let (text_transform, white_space) = TextContext::text(ctx);
-                    let text = text_transform.transform(text.clone());
-                    let text = white_space.transform(text);
-                    if self.text.text() != text {
-                        self.text = SegmentedText::new(text);
-                        self.shaped_text = None;
+                    let faces = ctx.services.fonts().get_list(family, style, weight, stretch, lang);
 
-                        ctx.updates.layout();
+                    let text = self.text.get_clone(ctx);
+                    let text = TextTransformVar::get(ctx).transform(text);
+                    let text = WhiteSpaceVar::get(ctx).transform(text);
+
+                    let text_color = *TextColorVar::get(ctx);
+
+                    self.resolved = Some(ResolvedText {
+                        synthesis: *FontSynthesisVar::get(ctx) & faces.best().synthesis_for(style, weight),
+                        faces,
+                        text: SegmentedText::new(text),
+                        overline_color: OverlineColorVar::get(ctx).unwrap_or(text_color),
+                        strikethrough_color: StrikethroughColorVar::get(ctx).unwrap_or(text_color),
+                        underline_color: UnderlineColorVar::get(ctx).unwrap_or(text_color),
+                        update_layout: false,
+                    });
+
+                    self.with_mut(ctx.vars, |c| c.init(ctx))
+                }
+
+                fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
+                    self.with(ctx.vars, |c| c.info(ctx, info))
+                }
+
+                fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
+                    TextContext::subscribe(ctx.vars, subscriptions.var(ctx.vars, &self.text));
+                    self.with(ctx.vars, |c| c.subscriptions(ctx, subscriptions))
+                }
+
+                fn deinit(&mut self, ctx: &mut WidgetContext) {
+                    self.with_mut(ctx.vars, |c| c.deinit(ctx));
+                    self.resolved = None;
+                }
+
+                fn event<A: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &A) {
+                    if let Some(_args) = FontChangedEvent.update(args) {
+                        // font query may return a different result.
+
+                        let (lang, font_family, font_style, font_weight, font_stretch) = TextContext::font_face(ctx.vars);
+                        let faces = ctx
+                            .services
+                            .fonts()
+                            .get_list(font_family, font_style, font_weight, font_stretch, lang);
+
+                        let r = self.resolved.as_mut().unwrap();
+
+                        if r.faces != faces {
+                            r.synthesis = *FontSynthesisVar::get(ctx) & faces.best().synthesis_for(font_style, font_weight);
+                            r.faces = faces;
+
+                            r.update_layout = true;
+                            ctx.updates.layout();
+                        }
+
+                        self.with_mut(ctx.vars, |c| c.event(ctx, args))
+                    } else {
+                        self.with_mut(ctx.vars, |c| c.event(ctx, args))
                     }
-                } else if let Some((text_transform, white_space)) = TextContext::text_update(ctx) {
-                    let text = self.text_var.get_clone(ctx);
-                    let text = text_transform.transform(text);
-                    let text = white_space.transform(text);
-                    if self.text.text() != text {
-                        self.text = SegmentedText::new(text);
-                        self.shaped_text = None;
+                }
 
-                        ctx.updates.layout();
+                fn update(&mut self, ctx: &mut WidgetContext) {
+                    let r = self.resolved.as_mut().unwrap();
+
+                    // update `r.text`, affects layout.
+                    if let Some(text) = self.text.get_new(ctx) {
+                        let (text_transform, white_space) = TextContext::text(ctx);
+                        let text = text_transform.transform(text.clone());
+                        let text = white_space.transform(text);
+                        if r.text.text() != text {
+                            r.text = SegmentedText::new(text);
+
+                            r.update_layout = true;
+                            ctx.updates.layout();
+                        }
+                    } else if let Some((text_transform, white_space)) = TextContext::text_update(ctx) {
+                        let text = self.text.get_clone(ctx);
+                        let text = text_transform.transform(text);
+                        let text = white_space.transform(text);
+                        if r.text.text() != text {
+                            r.text = SegmentedText::new(text);
+
+                            r.update_layout = true;
+                            ctx.updates.layout();
+                        }
                     }
-                }
 
-                // update `self.font_face`, affects shaping and layout
-                if let Some((lang, font_family, font_style, font_weight, font_stretch)) = TextContext::font_face_update(ctx.vars) {
-                    let face = ctx
-                        .services
-                        .fonts()
-                        .get_list(font_family, font_style, font_weight, font_stretch, lang)
-                        .best()
-                        .clone();
+                    // update `r.font_face`, affects layout
+                    if let Some((lang, font_family, font_style, font_weight, font_stretch)) = TextContext::font_face_update(ctx.vars) {
+                        let faces = ctx
+                            .services
+                            .fonts()
+                            .get_list(font_family, font_style, font_weight, font_stretch, lang);
 
-                    if !self.font_face.as_ref().map(|f| f.ptr_eq(&face)).unwrap_or_default() {
-                        self.synthesis_used = *FontSynthesisVar::get(ctx) & face.synthesis_for(font_style, font_weight);
-                        self.font_face = Some(face);
-                        self.font = None;
-                        self.shaped_text = None;
+                        if r.faces != faces {
+                            r.synthesis = *FontSynthesisVar::get(ctx) & faces.best().synthesis_for(font_style, font_weight);
+                            r.faces = faces;
 
-                        ctx.updates.layout();
+                            r.update_layout = true;
+                            ctx.updates.layout();
+                        }
                     }
-                }
 
-                // update `self.font_instance`, affects shaping and layout
-                if TextContext::font_update(ctx).is_some() {
-                    self.font = None;
-                    self.shaped_text = None;
-                    ctx.updates.layout();
-                }
-
-                // TODO features, wrapping.
-
-                if let Some((_, _, _, _, _, lang)) = TextContext::shaping_update(ctx) {
-                    self.shaping_args.lang = lang.clone();
-                    self.shaped_text = None;
-                    ctx.updates.layout();
-                }
-
-                // update `self.color`
-                if TextContext::color_update(ctx).is_some() {
-                    ctx.updates.render();
-                }
-
-                // update `self.font_synthesis`
-                if let Some((synthesis_allowed, style, weight)) = TextContext::font_synthesis_update(ctx) {
-                    if let Some(face) = &self.font_face {
-                        let synthesis_used = synthesis_allowed & face.synthesis_for(style, weight);
-                        if synthesis_used != self.synthesis_used {
-                            self.synthesis_used = synthesis_used;
+                    // update `r.synthesis`, affects render
+                    if let Some((synthesis_allowed, style, weight)) = TextContext::font_synthesis_update(ctx) {
+                        let synthesis = synthesis_allowed & r.faces.best().synthesis_for(style, weight);
+                        if r.synthesis != synthesis {
+                            r.synthesis = synthesis;
                             ctx.updates.render();
                         }
                     }
+
+                    // update decoration line colors, affects render
+                    if let Some(c) = OverlineColorVar::get_new(ctx) {
+                        let c = c.unwrap_or(*TextColorVar::get(ctx));
+                        if c != r.overline_color {
+                            r.overline_color = c;
+                            ctx.updates.render();
+                        }
+                    }
+                    if let Some(c) = StrikethroughColorVar::get_new(ctx) {
+                        let c = c.unwrap_or(*TextColorVar::get(ctx));
+                        if c != r.strikethrough_color {
+                            r.strikethrough_color = c;
+                            ctx.updates.render();
+                        }
+                    }
+                    if let Some(c) = UnderlineColorVar::get_new(ctx) {
+                        let c = c.unwrap_or(*TextColorVar::get(ctx));
+                        if c != r.underline_color {
+                            r.underline_color = c;
+                            ctx.updates.render();
+                        }
+                    }
+
+                    self.with_mut(ctx.vars, |c| c.update(ctx))
                 }
 
-                // update decoration lines
-                if OverlineStyleVar::is_new(ctx)
-                    || StrikethroughStyleVar::is_new(ctx)
-                    || UnderlineStyleVar::is_new(ctx)
-                    || OverlineColorVar::is_new(ctx)
-                    || StrikethroughColorVar::is_new(ctx)
-                    || UnderlineColorVar::is_new(ctx)
-                    || UnderlinePositionVar::is_new(ctx)
-                {
-                    ctx.updates.render()
+                fn measure(&mut self, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize {
+                    self.with_mut(ctx.vars, |c| c.measure(ctx, available_size))
                 }
-                if OverlineThicknessVar::is_new(ctx) || StrikethroughThicknessVar::is_new(ctx) || UnderlineThicknessVar::is_new(ctx) {
-                    ctx.updates.layout();
+
+                fn arrange(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, final_size: PxSize) {
+                    self.with_mut(ctx.vars, |c| c.arrange(ctx, widget_layout, final_size));
+                    self.resolved.as_mut().unwrap().update_layout = false;
+                }
+
+                fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
+                    self.with(ctx.vars, |c| c.render(ctx, frame))
+                }
+
+                fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
+                    self.with(ctx.vars, |c| c.render_update(ctx, update))
                 }
             }
+            ResolveTextNode {
+                child,
+                text: text.into_var(),
+                resolved: None,
+            }
+        }
 
-            fn measure(&mut self, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize {
-                let (font_size, variations) = TextContext::font(ctx);
-                let font_size = font_size.to_layout(ctx, available_size.width, ctx.metrics.root_font_size);
+        /// An UI node that layouts the parent [`ResolvedText`] according with the [`TextContext`].
+        ///
+        /// This node setups the [`LayoutText`] for all inner nodes in the layout and render methods, the `text!` widget introduces this
+        /// node at the `new_fill` constructor, so all properties with priority `fill` have access to the [`LayoutText::get`] function.
+        pub fn layout_text(child: impl UiNode) -> impl UiNode {
+            struct LayoutTextNode<C> {
+                child: C,
+                layout: Option<LayoutText>,
+                shaping_args: TextShapingArgs,
+                reshape: bool,
+            }
+            impl<C: UiNode> LayoutTextNode<C> {
+                fn with_mut<R>(&mut self, vars: &Vars, f: impl FnOnce(&mut C) -> R) -> R {
+                    vars.with_context_var(LayoutTextVar, ContextVarData::fixed(&self.layout), || f(&mut self.child))
+                }
+                fn with(&self, vars: &VarsRead, f: impl FnOnce(&C)) {
+                    vars.with_context_var(LayoutTextVar, ContextVarData::fixed(&self.layout), || f(&self.child))
+                }
+            }
+            #[impl_ui_node(child)]
+            impl<C: UiNode> UiNode for LayoutTextNode<C> {
+                // subscriptions are handled by the `resolve_text` node.
 
-                if self.font.as_ref().map(|f| f.size() != font_size).unwrap_or(true) {
-                    self.font = Some(
-                        self.font_face
-                            .as_ref()
-                            .expect("font not inited in measure")
-                            .sized(font_size, variations.finalize()),
+                fn deinit(&mut self, ctx: &mut WidgetContext) {
+                    self.child.deinit(ctx);
+                    self.layout = None;
+                }
+
+                fn update(&mut self, ctx: &mut WidgetContext) {
+                    if TextContext::font_update(ctx).is_some() {
+                        self.reshape = true;
+                        ctx.updates.layout();
+                    }
+
+                    if let Some((_, _, _, _, _, lang)) = TextContext::shaping_update(ctx.vars) {
+                        self.shaping_args.lang = lang.clone();
+                        self.reshape = true;
+                        ctx.updates.layout();
+                    }
+
+                    if OverlineThicknessVar::is_new(ctx) || StrikethroughThicknessVar::is_new(ctx) || UnderlineThicknessVar::is_new(ctx) {
+                        ctx.updates.layout();
+                    }
+
+                    if UnderlinePositionVar::is_new(ctx) || UnderlineSkipVar::is_new(ctx) {
+                        self.reshape = true;
+                        ctx.updates.layout();
+                    }
+
+                    self.child.update(ctx);
+                }
+
+                fn measure(&mut self, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize {
+                    let t = ResolvedText::get(ctx).expect("expected `ResolvedText` in `layout_text`");
+
+                    let (font_size, variations) = TextContext::font(ctx);
+                    let font_size = font_size.to_layout(ctx, available_size.width, ctx.metrics.root_font_size);
+
+                    if self.layout.is_none() {
+                        self.layout = Some(LayoutText {
+                            fonts: t.faces.sized(font_size, variations.finalize()),
+                            shaped_text: ShapedText::default(),
+                            overlines: vec![],
+                            overline_thickness: Px(0),
+                            strikethroughs: vec![],
+                            strikethrough_thickness: Px(0),
+                            underlines: vec![],
+                            underline_thickness: Px(0),
+                        });
+
+                        self.reshape = true;
+                    }
+
+                    let r = self.layout.as_mut().unwrap();
+
+                    if font_size != r.fonts.requested_size() {
+                        r.fonts = t.faces.sized(font_size, variations.finalize());
+
+                        self.reshape = true;
+                    }
+
+                    let font = r.fonts.best();
+
+                    let (letter_spacing, word_spacing, line_spacing, line_height, tab_length, _) = TextContext::shaping(ctx.vars);
+                    let space_len = font.space_x_advance();
+                    let dft_tab_len = space_len * 3;
+                    let space_len = AvailablePx::Finite(space_len);
+                    let letter_spacing = letter_spacing.to_layout(ctx, space_len, Px(0));
+                    let word_spacing = word_spacing.to_layout(ctx, space_len, Px(0));
+                    let tab_length = tab_length.to_layout(ctx, space_len, dft_tab_len);
+                    let dft_line_height = font.metrics().line_height();
+                    let line_height = line_height.to_layout(ctx, AvailablePx::Finite(dft_line_height), dft_line_height);
+                    let line_spacing = line_spacing.to_layout(ctx, AvailablePx::Finite(line_height), Px(0));
+
+                    self.reshape |= letter_spacing != self.shaping_args.letter_spacing
+                        || word_spacing != self.shaping_args.word_spacing
+                        || tab_length != self.shaping_args.tab_x_advance
+                        || line_spacing != self.shaping_args.line_spacing
+                        || line_height != self.shaping_args.line_height;
+
+                    self.shaping_args.letter_spacing = letter_spacing;
+                    self.shaping_args.word_spacing = word_spacing;
+                    self.shaping_args.tab_x_advance = tab_length;
+                    self.shaping_args.line_height = line_height;
+                    self.shaping_args.line_spacing = line_spacing;
+
+                    let dft_thickness = font.metrics().underline_thickness;
+                    let av_height = AvailablePx::Finite(line_height);
+                    let overline = OverlineThicknessVar::get(ctx.vars).to_layout(ctx, av_height, dft_thickness);
+                    let strikethrough = StrikethroughThicknessVar::get(ctx.vars).to_layout(ctx, av_height, dft_thickness);
+                    let underline = UnderlineThicknessVar::get(ctx.vars).to_layout(ctx, av_height, dft_thickness);
+
+                    self.reshape |= (r.overline_thickness == Px(0) && overline > Px(0))
+                        || (r.strikethrough_thickness == Px(0) && strikethrough > Px(0))
+                        || (r.underline_thickness == Px(0) && underline > Px(0));
+
+                    r.overline_thickness = overline;
+                    r.strikethrough_thickness = strikethrough;
+                    r.underline_thickness = underline;
+
+                    if self.reshape {
+                        r.shaped_text = font.shape_text(&t.text, &self.shaping_args);
+
+                        if r.overline_thickness > Px(0) {
+                            r.overlines = r.shaped_text.lines().map(|l| l.overline()).collect();
+                        }
+
+                        if r.strikethrough_thickness > Px(0) {
+                            r.strikethroughs = r.shaped_text.lines().map(|l| l.strikethrough()).collect();
+                        }
+
+                        if r.underline_thickness > Px(0) {
+                            let skip = *UnderlineSkipVar::get(ctx);
+                            match *UnderlinePositionVar::get(ctx) {
+                                UnderlinePosition::Font => {
+                                    if skip == UnderlineSkip::GLYPHS | UnderlineSkip::SPACES {
+                                        // TODO clip glyphs, need outline, see core::text::shaping::outline
+                                        r.underlines = r.shaped_text.lines().flat_map(|l| l.underline_skip_spaces()).collect();
+                                    } else if skip.contains(UnderlineSkip::GLYPHS) {
+                                        // TODO clip glyphs
+                                        r.underlines = r.shaped_text.lines().map(|l| l.underline()).collect();
+                                    } else if skip.contains(UnderlineSkip::SPACES) {
+                                        r.underlines = r.shaped_text.lines().flat_map(|l| l.underline_skip_spaces()).collect();
+                                    } else {
+                                        r.underlines = r.shaped_text.lines().map(|l| l.underline()).collect();
+                                    }
+                                }
+                                UnderlinePosition::Descent => {
+                                    // descent clears all glyphs, so we only need to care about spaces
+                                    if skip.contains(UnderlineSkip::SPACES) {
+                                        r.underlines = r.shaped_text.lines().flat_map(|l| l.underline_descent_skip_spaces()).collect();
+                                    } else {
+                                        r.underlines = r.shaped_text.lines().map(|l| l.underline_descent()).collect();
+                                    }
+                                }
+                            }
+                        }
+
+                        ctx.updates.render();
+                        self.reshape = false;
+                    }
+
+                    let desired_size = r.shaped_text.size();
+
+                    self.with_mut(ctx.vars, |c| c.measure(ctx, AvailableSize::finite(desired_size)));
+
+                    desired_size
+                }
+                fn arrange(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, final_size: PxSize) {
+                    // TODO, text wrapping
+
+                    self.with_mut(ctx.vars, |c| c.arrange(ctx, widget_layout, final_size))
+                }
+
+                fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
+                    self.with(ctx.vars, |c| c.render(ctx, frame))
+                }
+                fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
+                    self.with(ctx.vars, |c| c.render_update(ctx, update))
+                }
+            }
+            LayoutTextNode {
+                child,
+                layout: None,
+                shaping_args: TextShapingArgs::default(),
+                reshape: false,
+            }
+        }
+
+        /// An Ui node that renders the default underline visual using the parent [`LayoutText`].
+        ///
+        /// The lines are rendered before `child`, under it.
+        ///
+        /// The `text!` widgets introduces this node in `new_child`, around the [`render_strikethroughs`] node.
+        pub fn render_underlines(child: impl UiNode) -> impl UiNode {
+            struct RenderUnderlineNode<C> {
+                child: C,
+            }
+            #[impl_ui_node(child)]
+            impl<C: UiNode> UiNode for RenderUnderlineNode<C> {
+                // subscriptions are handled by the `resolve_text` node.
+                fn update(&mut self, ctx: &mut WidgetContext) {
+                    if UnderlineStyleVar::is_new(ctx) {
+                        ctx.updates.render();
+                    }
+
+                    self.child.update(ctx);
+                }
+
+                fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
+                    let t = LayoutText::get(ctx.vars).expect("expected `LayoutText` in `render_underlines`");
+                    if !t.overlines.is_empty() {
+                        let r = ResolvedText::get(ctx.vars).expect("expected `ResolvedText` in `render_underlines`");
+
+                        let style = *UnderlineStyleVar::get(ctx);
+                        if style != LineStyle::Hidden {
+                            let color = r.underline_color.into();
+                            for &(origin, width) in &t.underlines {
+                                frame.push_line(
+                                    PxRect::new(origin, PxSize::new(width, t.underline_thickness)),
+                                    LineOrientation::Horizontal,
+                                    color,
+                                    style,
+                                );
+                            }
+                        }
+                    }
+
+                    self.child.render(ctx, frame);
+                }
+            }
+            RenderUnderlineNode { child }
+        }
+
+        /// An Ui node that renders the default strikethrough visual using the parent [`LayoutText`].
+        ///
+        /// The lines are rendered after `child`, over it.
+        ///
+        /// The `text!` widgets introduces this node in `new_child`, around the [`render_overlines`] node.
+        pub fn render_strikethroughs(child: impl UiNode) -> impl UiNode {
+            struct RenderStrikethroughsNode<C> {
+                child: C,
+            }
+            #[impl_ui_node(child)]
+            impl<C: UiNode> UiNode for RenderStrikethroughsNode<C> {
+                // subscriptions are handled by the `resolve_text` node.
+                fn update(&mut self, ctx: &mut WidgetContext) {
+                    if StrikethroughStyleVar::is_new(ctx) {
+                        ctx.updates.render();
+                    }
+
+                    self.child.update(ctx);
+                }
+
+                fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
+                    let t = LayoutText::get(ctx.vars).expect("expected `LayoutText` in `render_strikethroughs`");
+                    if !t.overlines.is_empty() {
+                        let r = ResolvedText::get(ctx.vars).expect("expected `ResolvedText` in `render_strikethroughs`");
+
+                        let style = *StrikethroughStyleVar::get(ctx);
+                        if style != LineStyle::Hidden {
+                            let color = r.strikethrough_color.into();
+                            for &(origin, width) in &t.strikethroughs {
+                                frame.push_line(
+                                    PxRect::new(origin, PxSize::new(width, t.strikethrough_thickness)),
+                                    LineOrientation::Horizontal,
+                                    color,
+                                    style,
+                                );
+                            }
+                        }
+                    }
+
+                    self.child.render(ctx, frame);
+                }
+            }
+            RenderStrikethroughsNode { child }
+        }
+
+        /// An Ui node that renders the default overline visual using the parent [`LayoutText`].
+        ///
+        /// The lines are rendered before `child`, under it.
+        ///
+        /// The `text!` widgets introduces this node in `new_child`, around the [`render_text`] node.
+        pub fn render_overlines(child: impl UiNode) -> impl UiNode {
+            struct RenderOverlineNode<C> {
+                child: C,
+            }
+            #[impl_ui_node(child)]
+            impl<C: UiNode> UiNode for RenderOverlineNode<C> {
+                // subscriptions are handled by the `resolve_text` node.
+                fn update(&mut self, ctx: &mut WidgetContext) {
+                    if OverlineStyleVar::is_new(ctx) {
+                        ctx.updates.render();
+                    }
+
+                    self.child.update(ctx);
+                }
+
+                fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
+                    let t = LayoutText::get(ctx.vars).expect("expected `LayoutText` in `render_overlines`");
+                    if !t.overlines.is_empty() {
+                        let r = ResolvedText::get(ctx.vars).expect("expected `ResolvedText` in `render_overlines`");
+
+                        let style = *OverlineStyleVar::get(ctx);
+                        if style != LineStyle::Hidden {
+                            let color = r.overline_color.into();
+                            for &(origin, width) in &t.overlines {
+                                frame.push_line(
+                                    PxRect::new(origin, PxSize::new(width, t.overline_thickness)),
+                                    LineOrientation::Horizontal,
+                                    color,
+                                    style,
+                                );
+                            }
+                        }
+                    }
+
+                    self.child.render(ctx, frame);
+                }
+            }
+            RenderOverlineNode { child }
+        }
+
+        /// An UI node that renders the parent [`LayoutText`].
+        ///
+        /// This node renders the text only, decorators are rendered by other nodes.
+        ///
+        /// This is the `text!` widget inner most leaf node, introduced in the `new_child` constructor.
+        pub fn render_text() -> impl UiNode {
+            struct RenderTextNode;
+            #[impl_ui_node(none)]
+            impl UiNode for RenderTextNode {
+                // subscriptions are handled by the `resolve_text` node.
+                fn update(&mut self, ctx: &mut WidgetContext) {
+                    if TextColorVar::is_new(ctx) {
+                        ctx.updates.render();
+                    }
+                }
+
+                fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
+                    let r = ResolvedText::get(ctx.vars).expect("expected `ResolvedText` in `render_text`");
+                    let t = LayoutText::get(ctx.vars).expect("expected `LayoutText` in `render_text`");
+
+                    frame.push_text(
+                        PxRect::from_size(t.shaped_text.size()),
+                        t.shaped_text.glyphs(),
+                        t.fonts.best(), // TODO use fallbacks
+                        (*TextColorVar::get(ctx.vars)).into(),
+                        r.synthesis,
                     );
-                    self.shaped_text = None;
-
-                    ctx.updates.render();
-                }
-
-                let font = self.font.as_ref().unwrap();
-
-                let (letter_spacing, word_spacing, line_spacing, line_height, tab_length, _lang) = TextContext::shaping(ctx.vars);
-                let space_len = font.space_x_advance();
-                let dft_tab_len = space_len * 3;
-                let space_len = AvailablePx::Finite(space_len);
-                let letter_spacing = letter_spacing.to_layout(ctx, space_len, Px(0));
-                let word_spacing = word_spacing.to_layout(ctx, space_len, Px(0));
-                let tab_length = tab_length.to_layout(ctx, space_len, dft_tab_len);
-
-                let dft_line_height = font.metrics().line_height();
-                let line_height = line_height.to_layout(ctx, AvailablePx::Finite(dft_line_height), dft_line_height);
-                let line_spacing = line_spacing.to_layout(ctx, AvailablePx::Finite(line_height), Px(0));
-
-                if self.shaped_text.is_some() && letter_spacing != self.shaping_args.letter_spacing
-                    || word_spacing != self.shaping_args.word_spacing
-                    || tab_length != self.shaping_args.tab_x_advance
-                    || line_spacing != self.shaping_args.line_spacing
-                    || line_height != self.shaping_args.line_height
-                {
-                    self.shaped_text = None;
-                }
-                self.shaping_args.letter_spacing = letter_spacing;
-                self.shaping_args.word_spacing = word_spacing;
-                self.shaping_args.tab_x_advance = tab_length;
-                self.shaping_args.line_height = line_height;
-                self.shaping_args.line_spacing = line_spacing;
-
-                if self.shaped_text.is_none() {
-                    let shaped_text = font.shape_text(&self.text, &self.shaping_args);
-                    self.size = shaped_text.size();
-                    self.shaped_text = Some(shaped_text);
-
-                    ctx.updates.render();
-                }
-
-                let dft_thickness = font.metrics().underline_thickness;
-                let av_height = AvailablePx::Finite(line_height);
-                let overline = OverlineThicknessVar::get(ctx.vars).to_layout(ctx, av_height, dft_thickness);
-                let strikethrough = StrikethroughThicknessVar::get(ctx.vars).to_layout(ctx, av_height, dft_thickness);
-                let underline = UnderlineThicknessVar::get(ctx.vars).to_layout(ctx, av_height, dft_thickness);
-
-                if self.overline != overline || self.strikethrough != strikethrough || self.underline != underline {
-                    self.overline = overline;
-                    self.strikethrough = strikethrough;
-                    self.underline = underline;
-                }
-
-                if available_size.width < self.size.width {
-                    //TODO wrap here? or estimate the height pos wrap?
-                }
-
-                self.size
-            }
-
-            fn arrange(&mut self, _ctx: &mut LayoutContext, _: &mut WidgetLayout, _final_size: PxSize) {
-                // TODO use final size for wrapping?
-                // http://www.unicode.org/reports/tr14/tr14-45.html
-            }
-
-            fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-                let text = self.shaped_text.as_ref().expect("shaped text not inited in render");
-                let text_color = RenderColor::from(*TextColorVar::get(ctx));
-
-                let style = *OverlineStyleVar::get(ctx);
-                if style != LineStyle::Hidden && self.overline != Px(0) {
-                    let color = match *OverlineColorVar::get(ctx) {
-                        TextLineColor::Text => text_color,
-                        TextLineColor::Rgba(c) => RenderColor::from(c),
-                    };
-                    let thickness = self.overline;
-
-                    for (origin, width) in text.lines().map(|l| l.overline()) {
-                        let c = PxRect::new(origin, PxSize::new(width, thickness));
-                        frame.push_line(c, LineOrientation::Horizontal, color, style);
-                    }
-                }
-                let style = *UnderlineStyleVar::get(ctx);
-                if style != LineStyle::Hidden && self.underline != Px(0) {
-                    let color = match *UnderlineColorVar::get(ctx) {
-                        TextLineColor::Text => text_color,
-                        TextLineColor::Rgba(c) => RenderColor::from(c),
-                    };
-                    let thickness = self.underline;
-                    let position = *UnderlinePositionVar::get(ctx);
-                    let skip = *UnderlineSkipVar::get(ctx);
-
-                    macro_rules! push_line {
-                        ($iter:expr) => {
-                            for (origin, width) in $iter {
-                                let c = PxRect::new(origin, PxSize::new(width, thickness));
-                                frame.push_line(c, LineOrientation::Horizontal, color, style);
-                            }
-                        };
-                    }
-                    match position {
-                        UnderlinePosition::Font => {
-                            if skip == UnderlineSkip::GLYPHS | UnderlineSkip::SPACES {
-                                // TODO clip glyphs, need outline, see core::text::shaping::outline
-                                push_line!(text.lines().flat_map(|l| l.underline_skip_spaces()));
-                            } else if skip.contains(UnderlineSkip::GLYPHS) {
-                                // TODO clip glyphs
-                                push_line!(text.lines().map(|l| l.underline()));
-                            } else if skip.contains(UnderlineSkip::SPACES) {
-                                push_line!(text.lines().flat_map(|l| l.underline_skip_spaces()));
-                            } else {
-                                push_line!(text.lines().map(|l| l.underline()));
-                            }
-                        }
-                        UnderlinePosition::Descent => {
-                            // descent clears all glyphs, so we only need to care about spaces
-                            if skip.contains(UnderlineSkip::SPACES) {
-                                push_line!(text.lines().flat_map(|l| l.underline_descent_skip_spaces()));
-                            } else {
-                                push_line!(text.lines().map(|l| l.underline_descent()));
-                            }
-                        }
-                    }
-                }
-
-                frame.push_text(
-                    PxRect::from_size(self.size),
-                    text.glyphs(),
-                    self.font.as_ref().expect("font not initied in render"),
-                    text_color,
-                    self.synthesis_used,
-                );
-
-                let style = *StrikethroughStyleVar::get(ctx);
-                if style != LineStyle::Hidden && self.strikethrough != Px(0) {
-                    let color = match *StrikethroughColorVar::get(ctx) {
-                        TextLineColor::Text => text_color,
-                        TextLineColor::Rgba(c) => RenderColor::from(c),
-                    };
-                    let thickness = self.strikethrough;
-
-                    let y_offset = thickness / 3.0;
-
-                    for (mut origin, width) in text.lines().map(|l| l.strikethrough()) {
-                        origin.y -= y_offset;
-                        let c = PxRect::new(origin, PxSize::new(width, thickness));
-                        frame.push_line(c, LineOrientation::Horizontal, color, style);
-                    }
                 }
             }
+            RenderTextNode
         }
     }
 
@@ -1354,9 +1630,7 @@ pub mod text {
 /// [`text!`]: mod@text
 pub fn text(text: impl IntoVar<Text> + 'static) -> impl Widget {
     // TODO remove 'static when rust issue #42940 is fixed.
-    text! {
-        text;
-    }
+    text! { text; }
 }
 
 #[widget($crate::widgets::text_::strong)]
@@ -1369,10 +1643,11 @@ mod strong {
         }
     }
 
-    #[inline]
     fn new_child(text: impl IntoVar<Text>) -> impl UiNode {
-        let text = text::nodes::TextNode::new(text.into_var());
-        font_weight(text, FontWeight::BOLD)
+        let child = text::nodes::render_text();
+        let child = text::nodes::layout_text(child);
+        let child = text::nodes::resolve_text(child, text);
+        font_weight(child, FontWeight::BOLD)
     }
 }
 
@@ -1397,8 +1672,10 @@ mod em {
 
     #[inline]
     fn new_child(text: impl IntoVar<Text>) -> impl UiNode {
-        let text = text::nodes::TextNode::new(text.into_var());
-        font_style(text, FontStyle::Italic)
+        let child = text::nodes::render_text();
+        let child = text::nodes::layout_text(child);
+        let child = text::nodes::resolve_text(child, text);
+        font_style(child, FontStyle::Italic)
     }
 }
 

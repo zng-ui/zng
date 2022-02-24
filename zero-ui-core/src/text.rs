@@ -1667,6 +1667,16 @@ pub enum TextLineColor {
     /// Use the color.
     Rgba(Rgba),
 }
+impl TextLineColor {
+    /// Returns the color or the `text_color`.
+    #[inline]
+    pub fn unwrap_or(self, text_color: Rgba) -> Rgba {
+        match self {
+            TextLineColor::Text => text_color,
+            TextLineColor::Rgba(c) => c,
+        }
+    }
+}
 impl Default for TextLineColor {
     fn default() -> Self {
         TextLineColor::Text

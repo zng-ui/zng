@@ -33,7 +33,7 @@ pub struct TextSegment {
 ///
 /// Line-break segments must be applied and a line-break can be inserted in between the other segment kinds
 /// for wrapping the text.
-#[derive(Default)]
+#[derive(Default, Debug, Clone)]
 pub struct SegmentedText {
     text: Text,
     segs: Vec<TextSegment>,

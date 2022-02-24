@@ -181,6 +181,7 @@ impl WidgetLayout {
         let prev_global_transform = mem::replace(&mut self.global_transform, global_transform);
 
         self.inner_info.set_size(final_size);
+        self.inner_info.set_baseline(Px(0));
         self.inner_info.set_transform(self.global_transform);
 
         let prev_pre_translate = mem::take(&mut self.parent_translate);
@@ -208,6 +209,12 @@ impl WidgetLayout {
         self.global_transform = prev_global_transform;
 
         transform
+    }
+
+    /// Mark the widget baseline as an offset from the top of the inner-boundaries.
+    pub fn with_baseline(&mut self, baseline: Px, f: impl FnOnce(&mut Self)) {
+        self.inner_info.set_baseline(baseline);
+        f(self);
     }
 
     fn compute_inner(&self, metrics: &LayoutMetrics, final_size: PxSize) -> RenderTransform {
@@ -745,6 +752,7 @@ impl WidgetPath {
 struct WidgetLayoutData {
     transform: Cell<RenderTransform>,
     size: Cell<PxSize>,
+    baseline: Cell<Px>,
 }
 
 /// Shared reference to the transform and size of a [`WidgetInfo`] outer or inner bounds.
@@ -793,7 +801,7 @@ impl WidgetLayoutInfo {
         self.0.transform.set(transform)
     }
 
-    /// Get a copy of the current raw size.
+    /// Copy the current raw size.
     ///
     /// Note that this is not transformed.
     #[inline]
@@ -805,6 +813,23 @@ impl WidgetLayoutInfo {
     #[inline]
     fn set_size(&self, size: PxSize) {
         self.0.size.set(size)
+    }
+
+    /// Copy the current raw baseline.
+    ///
+    /// This is a vertical offset up from the bottom of the [`size`] bounds, it defines the *base* of the widget
+    /// in the inner bounds. Usually this is `0` meaning the widget bottom is the baseline.
+    ///
+    /// [`size`]: Self::Size
+    #[inline]
+    pub fn baseline(&self) -> Px {
+        self.0.baseline.get()
+    }
+
+    /// Set the current raw baseline.
+    #[inline]
+    fn set_baseline(&self, baseline: Px) {
+        self.0.baseline.set(baseline)
     }
 
     /// Calculate the bounding box.

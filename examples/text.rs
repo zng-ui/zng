@@ -253,17 +253,20 @@ fn defaults(ctx: &mut WindowContext) -> impl Widget {
             &lang!(und),
         );
 
-        h_stack(widgets![
-            text(if title.is_empty() {
-                formatx!("{font_family}: ")
-            } else {
-                formatx!("{title}: ")
-            }),
-            text! {
-                text = font.best().display_name().to_text();
-                font_family;
-            }
-        ])
+        h_stack! {
+            items_align = Align::BASELINE_LEFT;
+            items = widgets![
+                text(if title.is_empty() {
+                    formatx!("{font_family}: ")
+                } else {
+                    formatx!("{title}: ")
+                }),
+                text! {
+                    text = font.best().display_name().to_text();
+                    font_family;
+                }
+            ];
+        }
     }
 
     section(
