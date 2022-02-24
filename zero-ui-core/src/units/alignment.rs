@@ -185,11 +185,13 @@ impl Align {
     /// content rectangle that must be recorded and used in [`UiNode::render`] to size and position the content
     /// in the space of the container.
     ///
-    /// The `baseline` is a vertical offset up from the `content_size` bottom, usually it `0` meaning the bottom is the baseline.
+    /// The `baseline` is a vertical offset up from the `content_size` bottom, usually it `0` meaning the bottom is the baseline,
+    /// see also [`WidgetLayout::with_baseline_translate`].
     ///
     /// [`UiNode::measure`]: crate::UiNode::measure
     /// [`UiNode::arrange`]: crate::UiNode::arrange
     /// [`UiNode::render`]: crate::UiNode::render
+    /// [`WidgetLayout::with_baseline_translate`]: crate::widget_info::WidgetLayout::with_baseline_translate
     pub fn solve(self, content_size: PxSize, baseline: Px, container_size: PxSize) -> PxRect {
         let mut r = PxRect::zero();
 

@@ -30,6 +30,7 @@ pub struct WidgetLayout {
     widget_id: WidgetId,
     is_leaf: bool,
     parent_translate: PxVector,
+    translate_baseline: bool,
     transform: RenderTransform,
     transform_origin: Point,
     inner_info: WidgetLayoutInfo,
@@ -54,6 +55,7 @@ impl WidgetLayout {
             widget_id: root_id,
             is_leaf: false,
             parent_translate: PxVector::zero(),
+            translate_baseline: false,
             transform: RenderTransform::identity(),
             transform_origin: Point::center(),
             inner_info: inner_info.clone(),
@@ -166,22 +168,38 @@ impl WidgetLayout {
         }
     }
 
+    /// Signal the first [`with_inner`] call inside `f` to apply the baseline offset as a translation *down*.
+    ///
+    /// Alignment properties must align bottom and call this method to implement [`Align::BASELINE`] as they are *layout*
+    /// properties and baselines are defined after *size*.
+    ///
+    /// [`with_inner`]: Self::with_inner
+    #[inline]
+    pub fn with_baseline_translate(&mut self, translate_baseline: bool, f: impl FnOnce(&mut Self)) {
+        let prev_translate_baseline = mem::replace(&mut self.translate_baseline, translate_baseline);
+        f(self);
+        self.translate_baseline = prev_translate_baseline;
+    }
+
     /// Mark the widget inner-boundaries and reset the border offsets.
     ///
     /// Must be called in the widget `new_border`, the [`implicit_base::new_border`] node does this.
+    ///
+    /// The `baseline` is an offset up from the `final_size` bottom, most widgets can pass `0` here, making their baseline
+    /// the bottom line.
     ///
     /// Returns the inner transform in the space of the outer bounds, the `new_inner` node must pass this value to [`FrameBuilder::push_inner`].
     ///
     /// [`implicit_base::new_border`]: crate::widget_base::implicit_base::new_border
     /// [`FrameBuilder::push_inner`]: crate::render::FrameBuilder::push_inner
-    pub fn with_inner(&mut self, metrics: &LayoutMetrics, final_size: PxSize, f: impl FnOnce(&mut Self)) -> RenderTransform {
+    pub fn with_inner(&mut self, metrics: &LayoutMetrics, final_size: PxSize, baseline: Px, f: impl FnOnce(&mut Self)) -> RenderTransform {
         let transform = self.compute_inner(metrics, final_size);
 
         let global_transform = transform.then(&self.global_transform);
         let prev_global_transform = mem::replace(&mut self.global_transform, global_transform);
 
         self.inner_info.set_size(final_size);
-        self.inner_info.set_baseline(Px(0));
+        self.inner_info.set_baseline(baseline);
         self.inner_info.set_transform(self.global_transform);
 
         let prev_pre_translate = mem::take(&mut self.parent_translate);
@@ -197,9 +215,12 @@ impl WidgetLayout {
         let prev_corner_radius = mem::replace(&mut self.corner_radius, new_corner_radius);
         self.border_info.set_corner_radius(new_corner_radius);
 
+        let prev_translate_baseline = mem::take(&mut self.translate_baseline);
+
         f(self);
 
         self.border_info.set_offsets(self.border_offsets);
+        self.translate_baseline = prev_translate_baseline;
         self.border_offsets = prev_border_offsets;
         self.corner_radius = prev_corner_radius;
         self.parent_translate = prev_pre_translate;
@@ -211,14 +232,16 @@ impl WidgetLayout {
         transform
     }
 
-    /// Mark the widget baseline as an offset up from the bottom of the inner-boundaries.
-    pub fn with_baseline(&mut self, baseline: Px, f: impl FnOnce(&mut Self)) {
-        self.inner_info.set_baseline(baseline);
-        f(self);
-    }
-
     fn compute_inner(&self, metrics: &LayoutMetrics, final_size: PxSize) -> RenderTransform {
         let mut transform = self.transform;
+
+        if self.translate_baseline {
+            let baseline = self.inner_info.baseline();
+            if baseline != Px(0) {
+                transform = transform.pre_translate_px(PxVector::new(Px(0), baseline));
+            }
+        }
+
         let transform_origin = self.transform_origin.to_layout(
             metrics,
             AvailableSize::finite(final_size),
@@ -819,6 +842,8 @@ impl WidgetLayoutInfo {
     ///
     /// This is a vertical offset up from the bottom of the [`size`] bounds, it defines the *base* of the widget
     /// in the inner bounds. Usually this is `0` meaning the widget bottom is the baseline.
+    ///
+    /// For outer bounds this is always `0`.
     ///
     /// [`size`]: Self::size
     #[inline]

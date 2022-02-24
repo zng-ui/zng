@@ -14,6 +14,9 @@ pub trait RenderTransformExt {
     /// New translation transform from a pixel vector.
     fn translation_px(offset: PxVector) -> RenderTransform;
 
+    /// Returns a transform with a translation applied before `self`, the translation is defined from a pixel vector.
+    fn pre_translate_px(&self, offset: PxVector) -> RenderTransform;
+
     ///  Returns a transform with a translation applied after `self`, the translation is defined from a pixel vector.
     fn then_translate_px(&self, offset: PxVector) -> RenderTransform;
 
@@ -27,6 +30,10 @@ pub trait RenderTransformExt {
 impl RenderTransformExt for RenderTransform {
     fn translation_px(offset: PxVector) -> RenderTransform {
         RenderTransform::translation(offset.x.0 as f32, offset.y.0 as f32, 0.0)
+    }
+
+    fn pre_translate_px(&self, offset: PxVector) -> RenderTransform {
+        self.pre_translate(euclid::vec3(offset.x.0 as f32, offset.y.0 as f32, 0.0))
     }
 
     fn then_translate_px(&self, offset: PxVector) -> RenderTransform {

@@ -123,9 +123,9 @@ impl ShapedText {
     }
 
     /// Vertical offset from the line bottom up that is the text baseline.
-    /// 
+    ///
     /// The *line bottom* is the [`line_height`], this also works as the baseline of the entire text.
-    /// 
+    ///
     /// [`line_height`]: Self::line_height
     #[inline]
     pub fn baseline(&self) -> Px {

@@ -134,12 +134,18 @@ pub mod text {
         side_offsets(child, padding)
     }
 
+    fn new_border(child: impl UiNode) -> impl UiNode {
+        nodes::inner(child)
+    }
+
     fn new_event(child: impl UiNode, text: impl IntoVar<Text>) -> impl UiNode {
         nodes::resolve_text(child, text)
     }
 
     /// UI nodes used for building a text widget.
     pub mod nodes {
+        use std::cell::Cell;
+
         use super::properties::*;
         use crate::core::text::*;
         use crate::prelude::new_widget::*;
@@ -163,6 +169,9 @@ pub mod text {
             /// If the `text` or `faces` has updated, this value is `true` in the update the value changed and stays `true`
             /// until after layout.
             pub update_layout: bool,
+
+            /// Baseline set by `layout_text` during measure and used by `new_border` during arrange.
+            baseline: Cell<Px>,
         }
         impl ResolvedText {
             /// Gets the contextual [`ResolvedText`], returns `Some(_)` for any property with priority `event` or up
@@ -268,6 +277,7 @@ pub mod text {
                         strikethrough_color: StrikethroughColorVar::get(ctx).unwrap_or(text_color),
                         underline_color: UnderlineColorVar::get(ctx).unwrap_or(text_color),
                         update_layout: false,
+                        baseline: Cell::new(Px(0)),
                     });
 
                     self.with_mut(ctx.vars, |c| c.init(ctx))
@@ -412,6 +422,17 @@ pub mod text {
                 text: text.into_var(),
                 resolved: None,
             }
+        }
+
+        /// Custom [`implicit_base::nodes::inner`] that setups the text baseline.
+        ///
+        /// The `text!` widget overrides the `new_border` constructor with this node.
+        ///
+        /// [``]
+        pub fn inner(child: impl UiNode) -> impl UiNode {
+            implicit_base::nodes::inner(child, |ctx, _| {
+                ResolvedText::get(ctx).expect("expected `ResolvedText` in `inner`").baseline.get()
+            })
         }
 
         /// An UI node that layouts the parent [`ResolvedText`] according with the [`TextContext`].
@@ -585,13 +606,7 @@ pub mod text {
                 fn arrange(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, final_size: PxSize) {
                     // TODO, text wrapping
 
-                    let baseline = self.layout.as_ref().unwrap().shaped_text.baseline();
-
-                    self.with_mut(ctx.vars, |c| {
-                        widget_layout.with_baseline(baseline, |wl| {
-                            c.arrange(ctx, wl, final_size)
-                        })
-                    })
+                    self.with_mut(ctx.vars, |c| c.arrange(ctx, widget_layout, final_size))
                 }
 
                 fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
