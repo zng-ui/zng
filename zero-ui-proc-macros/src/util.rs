@@ -445,7 +445,7 @@ pub fn docs_with_first_line_js(output: &mut TokenStream, docs: &[Attribute], js:
                 let doc = &doc[..doc.len() - 1]; // remove \" end
 
                 // replace characters `rustdoc` incorrectly changes.
-                doc_extend!(output, "{doc}<script>{}</script>\n\n", js.replace("'", "&#39;"));
+                doc_extend!(output, "{doc}<script>{}</script>\n\n", js.replace('\'', "&#39;"));
                 skip = 1;
             }
         }
@@ -458,7 +458,7 @@ pub fn docs_with_first_line_js(output: &mut TokenStream, docs: &[Attribute], js:
 
 /// Convert a [`Path`] to a formatted [`String`].
 pub fn display_path(path: &syn::Path) -> String {
-    path.to_token_stream().to_string().replace(" ", "")
+    path.to_token_stream().to_string().replace(' ', "")
 }
 
 /// Generate a [`String`] that is a valid [`Ident`] from an arbitrary [`TokenStream`].
@@ -467,11 +467,11 @@ pub fn tokens_to_ident_str(tokens: &TokenStream) -> String {
     let max = tokens.len().min(40);
     let mut tokens = tokens[(tokens.len() - max)..]
         .replace(&['.', ':', ' '][..], "_")
-        .replace("!", "not")
+        .replace('!', "not")
         .replace("&&", "and")
         .replace("||", "or")
-        .replace("(", "p")
-        .replace(")", "b")
+        .replace('(', "p")
+        .replace(')', "b")
         .replace("==", "eq");
 
     tokens.retain(|c| c == '_' || c.is_alphanumeric());
@@ -640,7 +640,7 @@ impl syn::parse::Parse for OuterAttrs {
 
 /// Convert a #[cfg(..)] attribute token stream to a string that can be displayed in a HTML element title attribute.
 pub fn html_title_cfg(cfg: TokenStream) -> String {
-    cfg.to_string().replace(" ", "").replace(",", ", ").replace("\"", "&quot;")
+    cfg.to_string().replace(' ', "").replace(',', ", ").replace('\"', "&quot;")
 }
 
 /// Runs `rustfmt` in the `expr`.

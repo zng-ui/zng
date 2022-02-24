@@ -13,7 +13,7 @@ pub fn derive(item: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let ext_help = format!(
         "Adds the [`{0}`]({2}::{0}) method to [`Services`]({1}::service::Services)",
         ext_mtd_ident,
-        crate_.to_string().replace(" ", ""),
+        crate_.to_string().replace(' ', ""),
         ext_ident
     );
     let ext_mtd_help = format!(
