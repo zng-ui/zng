@@ -2,6 +2,8 @@
 
 * Implement widget baseline.
    - How to implement alignment, we need a baseline before the inner arrange.
+   - Flag that baseline should be applied as offset in the push_inner?
+   - Can baseline be a part of the `WidgetLayoutInfo`?, does it make cense in the outer info?
 
 # Other
 
