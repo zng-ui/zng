@@ -1,3 +1,4 @@
+* Text padding is not working.
 * Baseline does not propagate to parent, should it?
 
 * Implement `Font::outline`.

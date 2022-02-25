@@ -620,14 +620,16 @@ pub mod text {
                         self.reshape = false;
                     }
 
-                    let desired_size = r.shaped_text.size();
+                    let desired_size = r.shaped_text.size() + diff;
 
                     self.with_mut(ctx.vars, |c| c.measure(ctx, AvailableSize::finite(desired_size)));
 
                     desired_size
                 }
-                fn arrange(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, final_size: PxSize) {
+                fn arrange(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, _final_size: PxSize) {
                     // TODO, text wrapping
+
+                    let final_size = self.layout.as_ref().unwrap().shaped_text.size();
 
                     self.with_mut(ctx.vars, |c| c.arrange(ctx, widget_layout, final_size))
                 }
@@ -806,7 +808,7 @@ pub mod text {
                     let origin = PxPoint::new(t.padding.left, t.padding.top);
 
                     frame.push_text(
-                        PxRect::new(origin, t.shaped_text.size()),
+                        PxRect::new(PxPoint::zero(), t.shaped_text.size()),
                         t.shaped_text.glyphs(),
                         t.fonts.best(), // TODO use fallbacks
                         (*TextColorVar::get(ctx.vars)).into(),
