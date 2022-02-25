@@ -167,7 +167,7 @@ pub mod text {
 
             /// If the `text` or `faces` has updated, this value is `true` in the update the value changed and stays `true`
             /// until after layout.
-            pub update_layout: bool,
+            pub reshape: bool,
 
             /// Baseline set by `layout_text` during measure and used by `new_border` during arrange.
             baseline: Cell<Px>,
@@ -190,9 +190,6 @@ pub mod text {
 
             /// Layout text.
             pub shaped_text: ShapedText,
-
-            /// Space around the shaped text.
-            pub padding: PxSideOffsets,
 
             /// List of overline segments, defining origin and width of each line.
             ///
@@ -278,7 +275,7 @@ pub mod text {
                         overline_color: OverlineColorVar::get(ctx).unwrap_or(text_color),
                         strikethrough_color: StrikethroughColorVar::get(ctx).unwrap_or(text_color),
                         underline_color: UnderlineColorVar::get(ctx).unwrap_or(text_color),
-                        update_layout: false,
+                        reshape: false,
                         baseline: Cell::new(Px(0)),
                     });
 
@@ -315,7 +312,7 @@ pub mod text {
                             r.synthesis = *FontSynthesisVar::get(ctx) & faces.best().synthesis_for(font_style, font_weight);
                             r.faces = faces;
 
-                            r.update_layout = true;
+                            r.reshape = true;
                             ctx.updates.layout();
                         }
 
@@ -336,7 +333,7 @@ pub mod text {
                         if r.text.text() != text {
                             r.text = SegmentedText::new(text);
 
-                            r.update_layout = true;
+                            r.reshape = true;
                             ctx.updates.layout();
                         }
                     } else if let Some((text_transform, white_space)) = TextContext::text_update(ctx) {
@@ -346,7 +343,7 @@ pub mod text {
                         if r.text.text() != text {
                             r.text = SegmentedText::new(text);
 
-                            r.update_layout = true;
+                            r.reshape = true;
                             ctx.updates.layout();
                         }
                     }
@@ -362,7 +359,7 @@ pub mod text {
                             r.synthesis = *FontSynthesisVar::get(ctx) & faces.best().synthesis_for(font_style, font_weight);
                             r.faces = faces;
 
-                            r.update_layout = true;
+                            r.reshape = true;
                             ctx.updates.layout();
                         }
                     }
@@ -408,7 +405,7 @@ pub mod text {
 
                 fn arrange(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, final_size: PxSize) {
                     self.with_mut(ctx.vars, |c| c.arrange(ctx, widget_layout, final_size));
-                    self.resolved.as_mut().unwrap().update_layout = false;
+                    self.resolved.as_mut().unwrap().reshape = false;
                 }
 
                 fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
@@ -442,12 +439,21 @@ pub mod text {
         /// This node setups the [`LayoutText`] for all inner nodes in the layout and render methods, the `text!` widget introduces this
         /// node at the `new_fill` constructor, so all properties with priority `fill` have access to the [`LayoutText::get`] function.
         pub fn layout_text(child: impl UiNode, padding: impl IntoVar<SideOffsets>) -> impl UiNode {
+            bitflags::bitflags! {
+                struct Layout: u8 {
+                    const UNDERLINE     = 0b0000_0001;
+                    const STRIKETHROUGH = 0b0000_0010;
+                    const OVERLINE      = 0b0000_0100;
+                    const PADDING       = 0b0000_1111;
+                    const RESHAPE       = 0b0001_1111;
+                }
+            }
             struct LayoutTextNode<C, P> {
                 child: C,
                 padding: P,
                 layout: Option<LayoutText>,
                 shaping_args: TextShapingArgs,
-                reshape: bool,
+                pending: Layout,
             }
             impl<C: UiNode, P> LayoutTextNode<C, P> {
                 fn with_mut<R>(&mut self, vars: &Vars, f: impl FnOnce(&mut C) -> R) -> R {
@@ -473,27 +479,26 @@ pub mod text {
 
                 fn update(&mut self, ctx: &mut WidgetContext) {
                     if TextContext::font_update(ctx).is_some() {
-                        self.reshape = true;
+                        self.pending.insert(Layout::RESHAPE);
                         ctx.updates.layout();
                     }
 
                     if let Some((_, _, _, _, _, lang)) = TextContext::shaping_update(ctx.vars) {
                         self.shaping_args.lang = lang.clone();
-                        self.reshape = true;
-                        ctx.updates.layout();
-                    }
-
-                    if OverlineThicknessVar::is_new(ctx) || StrikethroughThicknessVar::is_new(ctx) || UnderlineThicknessVar::is_new(ctx) {
+                        self.pending.insert(Layout::RESHAPE);
                         ctx.updates.layout();
                     }
 
                     if UnderlinePositionVar::is_new(ctx) || UnderlineSkipVar::is_new(ctx) {
-                        self.reshape = true;
+                        self.pending.insert(Layout::UNDERLINE);
                         ctx.updates.layout();
                     }
 
-                    if self.padding.is_new(ctx) {
-                        self.reshape = true;
+                    if OverlineThicknessVar::is_new(ctx)
+                        || StrikethroughThicknessVar::is_new(ctx)
+                        || UnderlineThicknessVar::is_new(ctx)
+                        || self.padding.is_new(ctx)
+                    {
                         ctx.updates.layout();
                     }
 
@@ -502,6 +507,10 @@ pub mod text {
 
                 fn measure(&mut self, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize {
                     let t = ResolvedText::get(ctx.vars).expect("expected `ResolvedText` in `layout_text`");
+
+                    if t.reshape {
+                        self.pending.insert(Layout::RESHAPE);
+                    }
 
                     let padding = self.padding.get(ctx.vars).to_layout(ctx, available_size, PxSideOffsets::zero());
                     let diff = PxSize::new(padding.horizontal(), padding.vertical());
@@ -514,7 +523,6 @@ pub mod text {
                         self.layout = Some(LayoutText {
                             fonts: t.faces.sized(font_size, variations.finalize()),
                             shaped_text: ShapedText::default(),
-                            padding,
                             overlines: vec![],
                             overline_thickness: Px(0),
                             strikethroughs: vec![],
@@ -523,7 +531,7 @@ pub mod text {
                             underline_thickness: Px(0),
                         });
 
-                        self.reshape = true;
+                        self.pending.insert(Layout::RESHAPE);
                     }
 
                     let r = self.layout.as_mut().unwrap();
@@ -531,10 +539,12 @@ pub mod text {
                     if font_size != r.fonts.requested_size() {
                         r.fonts = t.faces.sized(font_size, variations.finalize());
 
-                        self.reshape = true;
+                        self.pending.insert(Layout::RESHAPE);
                     }
-                    self.reshape |= r.padding != padding;
-                    r.padding = padding;
+
+                    if !self.pending.contains(Layout::PADDING) && r.shaped_text.padding() != padding {
+                        self.pending.insert(Layout::PADDING);
+                    }
 
                     let font = r.fonts.best();
 
@@ -549,11 +559,15 @@ pub mod text {
                     let line_height = line_height.to_layout(ctx, AvailablePx::Finite(dft_line_height), dft_line_height);
                     let line_spacing = line_spacing.to_layout(ctx, AvailablePx::Finite(line_height), Px(0));
 
-                    self.reshape |= letter_spacing != self.shaping_args.letter_spacing
-                        || word_spacing != self.shaping_args.word_spacing
-                        || tab_length != self.shaping_args.tab_x_advance
-                        || line_spacing != self.shaping_args.line_spacing
-                        || line_height != self.shaping_args.line_height;
+                    if !self.pending.contains(Layout::RESHAPE)
+                        && (letter_spacing != self.shaping_args.letter_spacing
+                            || word_spacing != self.shaping_args.word_spacing
+                            || tab_length != self.shaping_args.tab_x_advance
+                            || line_spacing != self.shaping_args.line_spacing
+                            || line_height != self.shaping_args.line_height)
+                    {
+                        self.pending.insert(Layout::RESHAPE);
+                    }
 
                     self.shaping_args.letter_spacing = letter_spacing;
                     self.shaping_args.word_spacing = word_spacing;
@@ -567,28 +581,46 @@ pub mod text {
                     let strikethrough = StrikethroughThicknessVar::get(ctx.vars).to_layout(ctx, av_height, dft_thickness);
                     let underline = UnderlineThicknessVar::get(ctx.vars).to_layout(ctx, av_height, dft_thickness);
 
-                    self.reshape |= (r.overline_thickness == Px(0) && overline > Px(0))
-                        || (r.strikethrough_thickness == Px(0) && strikethrough > Px(0))
-                        || (r.underline_thickness == Px(0) && underline > Px(0));
-
+                    if !self.pending.contains(Layout::OVERLINE) && (r.overline_thickness == Px(0) && overline > Px(0)) {
+                        self.pending.insert(Layout::OVERLINE);
+                    }
+                    if !self.pending.contains(Layout::STRIKETHROUGH) && (r.strikethrough_thickness == Px(0) && strikethrough > Px(0)) {
+                        self.pending.insert(Layout::STRIKETHROUGH);
+                    }
+                    if !self.pending.contains(Layout::UNDERLINE) && (r.underline_thickness == Px(0) && underline > Px(0)) {
+                        self.pending.insert(Layout::UNDERLINE);
+                    }
                     r.overline_thickness = overline;
                     r.strikethrough_thickness = strikethrough;
                     r.underline_thickness = underline;
 
-                    if self.reshape {
+                    /*
+                        APPLY
+                    */
+                    if self.pending.contains(Layout::RESHAPE) {
                         r.shaped_text = font.shape_text(&t.text, &self.shaping_args);
+                    }
+                    if self.pending.contains(Layout::PADDING) {
+                        r.shaped_text.set_padding(padding);
 
-                        let baseline = r.shaped_text.baseline() + padding.bottom;
+                        let baseline = r.shaped_text.box_baseline() + padding.bottom;
                         t.baseline.set(baseline);
-
+                    }
+                    if self.pending.contains(Layout::OVERLINE) {
                         if r.overline_thickness > Px(0) {
                             r.overlines = r.shaped_text.lines().map(|l| l.overline()).collect();
+                        } else {
+                            r.overlines = vec![];
                         }
-
+                    }
+                    if self.pending.contains(Layout::STRIKETHROUGH) {
                         if r.strikethrough_thickness > Px(0) {
                             r.strikethroughs = r.shaped_text.lines().map(|l| l.strikethrough()).collect();
+                        } else {
+                            r.strikethroughs = vec![];
                         }
-
+                    }
+                    if self.pending.contains(Layout::UNDERLINE) {
                         if r.underline_thickness > Px(0) {
                             let skip = *UnderlineSkipVar::get(ctx);
                             match *UnderlinePositionVar::get(ctx) {
@@ -614,22 +646,25 @@ pub mod text {
                                     }
                                 }
                             }
+                        } else {
+                            r.underlines = vec![];
                         }
-
-                        ctx.updates.render();
-                        self.reshape = false;
                     }
 
-                    let desired_size = r.shaped_text.size() + diff;
+                    if self.pending != Layout::empty() {
+                        ctx.updates.render();
+                        self.pending = Layout::empty();
+                    }
 
+                    let desired_size = r.shaped_text.size();
                     self.with_mut(ctx.vars, |c| c.measure(ctx, AvailableSize::finite(desired_size)));
-
                     desired_size
                 }
                 fn arrange(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, _final_size: PxSize) {
                     // TODO, text wrapping
 
-                    let final_size = self.layout.as_ref().unwrap().shaped_text.size();
+                    let layout = self.layout.as_ref().unwrap();
+                    let final_size = layout.shaped_text.size();
 
                     self.with_mut(ctx.vars, |c| c.arrange(ctx, widget_layout, final_size))
                 }
@@ -646,7 +681,7 @@ pub mod text {
                 padding: padding.into_var(),
                 layout: None,
                 shaping_args: TextShapingArgs::default(),
-                reshape: false,
+                pending: Layout::empty(),
             }
         }
 
@@ -805,10 +840,8 @@ pub mod text {
                     let r = ResolvedText::get(ctx.vars).expect("expected `ResolvedText` in `render_text`");
                     let t = LayoutText::get(ctx.vars).expect("expected `LayoutText` in `render_text`");
 
-                    let origin = PxPoint::new(t.padding.left, t.padding.top);
-
                     frame.push_text(
-                        PxRect::new(PxPoint::zero(), t.shaped_text.size()),
+                        PxRect::from_size(t.shaped_text.size()),
                         t.shaped_text.glyphs(),
                         t.fonts.best(), // TODO use fallbacks
                         (*TextColorVar::get(ctx.vars)).into(),

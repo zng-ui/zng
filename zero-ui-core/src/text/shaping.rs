@@ -79,6 +79,7 @@ pub struct ShapedText {
     // index of `LineBreak` segments , line x-advance and width, is `segments.len()` for the last line.
     lines: Vec<(usize, Px, Px)>,
 
+    padding: PxSideOffsets,
     size: PxSize,
     line_height: Px,
     line_spacing: Px,
@@ -110,6 +111,38 @@ impl ShapedText {
         self.size
     }
 
+    /// Current applied offsets around the text block.
+    ///
+    /// Note this padding is already computed in all other values.
+    #[inline]
+    pub fn padding(&self) -> PxSideOffsets {
+        self.padding
+    }
+
+    /// Reshape text to have the new `padding`.
+    ///
+    /// The padding
+    pub fn set_padding(&mut self, padding: PxSideOffsets) {
+        if self.padding == padding {
+            return;
+        }
+
+        let p = padding + self.padding * Px(-1); // no Sub impl
+
+        let offset = PxVector::new(p.left, p.top);
+        let offset_f32 = euclid::vec2(offset.x.0 as f32, offset.y.0 as f32);
+        for g in &mut self.glyphs {
+            g.point += offset_f32;
+        }
+        for (_, x, _) in &mut self.lines {
+            *x = p.left;
+        }
+
+        self.size.width += p.horizontal();
+        self.size.height += p.vertical();
+        self.padding = padding;
+    }
+
     /// Height of a single line.
     #[inline]
     pub fn line_height(&self) -> Px {
@@ -124,12 +157,22 @@ impl ShapedText {
 
     /// Vertical offset from the line bottom up that is the text baseline.
     ///
-    /// The *line bottom* is the [`line_height`], this also works as the baseline of the entire text.
+    /// The *line bottom* is the [`line_height`].
     ///
     /// [`line_height`]: Self::line_height
     #[inline]
     pub fn baseline(&self) -> Px {
         self.baseline
+    }
+
+    /// Vertical offset from the bottom up that is the baseline of the last line considering the padding.
+    ///
+    /// The *bottom* is the [`size`] height.
+    ///
+    /// [`size`]: Self::size
+    #[inline]
+    pub fn box_baseline(&self) -> Px {
+        self.baseline + self.padding.bottom
     }
 
     /// Vertical offset from the line bottom up that is the overline placement.
@@ -273,7 +316,7 @@ impl<'a> ShapedLine<'a> {
     #[inline]
     fn decoration_line(&self, bottom_up_offset: Px) -> (PxPoint, Px) {
         let y = (self.text.line_height * Px((self.index as i32) + 1)) - bottom_up_offset;
-        (PxPoint::new(self.x, y), self.width)
+        (PxPoint::new(self.x, y + self.text.padding.top), self.width)
     }
 
     /// Text segments of the line, does not include the line-break that started the line, can include
@@ -441,7 +484,7 @@ impl<'a> ShapedSegment<'a> {
     fn decoration_line(&self, bottom_up_offset: Px) -> (PxPoint, Px) {
         let (x, width) = self.x_width();
         let y = (self.text.line_height * Px((self.line_index as i32) + 1)) - bottom_up_offset;
-        (PxPoint::new(x, y), width)
+        (PxPoint::new(x, y + self.text.padding.top), width)
     }
 
     /// Overline spanning the word or spaces, start point + width.

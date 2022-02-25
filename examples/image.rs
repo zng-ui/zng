@@ -322,12 +322,7 @@ fn section(title: impl IntoVar<Text>, items: impl WidgetList) -> impl Widget {
         items_align = Align::TOP_LEFT;
 
         items = widgets![
-            text! {
-                text = title;
-                font_size = 20;
-                background_color = colors::BLACK;
-                padding = (5, 10);
-            },
+            self::title(title),
             v_stack! {
                 spacing = 5;
                 items_align = Align::TOP_LEFT;
@@ -335,6 +330,15 @@ fn section(title: impl IntoVar<Text>, items: impl WidgetList) -> impl Widget {
                 items;
             }
         ]
+    }
+}
+
+fn title(text: impl IntoVar<Text>) -> impl Widget {
+    text! {
+        text;
+        font_size = 20;
+        background_color = colors::BLACK;
+        padding = (5, 10);
     }
 }
 

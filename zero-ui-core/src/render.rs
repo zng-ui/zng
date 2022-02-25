@@ -842,17 +842,18 @@ impl FrameBuilder {
     ///
     /// [`common_item_ps`]: FrameBuilder::common_item_ps
     #[inline]
-    pub fn push_text(&mut self, rect: PxRect, glyphs: &[GlyphInstance], font: &impl Font, color: ColorF, synthesis: FontSynthesis) {
+    pub fn push_text(&mut self, clip_rect: PxRect, glyphs: &[GlyphInstance], font: &impl Font, color: ColorF, synthesis: FontSynthesis) {
         expect_inner!(self.push_text);
 
         if let Some(r) = &self.renderer {
             let instance_key = font.instance_key(r, synthesis);
 
-            let item = self.common_item_ps(rect);
-            self.display_list.push_text(&item, rect.to_wr(), glyphs, instance_key, color, None);
+            let item = self.common_item_ps(clip_rect);
+            self.display_list
+                .push_text(&item, clip_rect.to_wr(), glyphs, instance_key, color, None);
 
             if self.auto_hit_test {
-                self.push_hit_test(rect);
+                self.push_hit_test(clip_rect);
             }
         } else {
             self.widget_rendered();
