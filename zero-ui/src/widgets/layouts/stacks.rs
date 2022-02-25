@@ -174,6 +174,7 @@ pub mod h_stack {
                     y = Px(0);
                 } else if baseline {
                     y = final_size.height - size.height;
+                    args.translate_baseline = Some(true);
                 } else {
                     size.height = size.height.min(final_size.height);
                     y = (final_size.height - size.height) * align.y.0;
@@ -349,7 +350,7 @@ pub mod v_stack {
                 let y = y_offset;
 
                 if baseline {
-                    tracing::info!("TODO Align::BASELINE");
+                    args.translate_baseline = Some(true);
                 }
 
                 y_offset += size.height + spacing;
@@ -512,9 +513,12 @@ pub mod z_stack {
 
         fn arrange(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, final_size: PxSize) {
             let align = self.align.copy(ctx);
+            let baseline = align.is_baseline();
             self.children.arrange_all(ctx, widget_layout, |_, args| {
                 let size = self.children_info[args.index].desired_size.min(final_size);
-                // TODO baseline
+                if baseline {
+                    args.translate_baseline = Some(true);
+                }
                 let bounds = align.solve(size, size.height, final_size);
                 if bounds.origin != PxPoint::zero() {
                     args.pre_translate = Some(bounds.origin.to_vector());

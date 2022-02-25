@@ -56,7 +56,7 @@ impl Align {
     ///
     /// [`y`]: Align::y
     pub fn is_fill_height(self) -> bool {
-        self.y.0.is_infinite() && self.x.0.is_sign_positive()
+        self.y.0.is_infinite() && self.y.0.is_sign_positive()
     }
 
     /// Returns `true` if [`y`] is a special value that indicates the contents must be aligned by their baseline.
