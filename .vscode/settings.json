@@ -1,11 +1,4 @@
 {
-    "rust-analyzer.runnableEnv": {
-        "RUSTC_FORCE_INCREMENTAL": "1"
-    },
-    "rust-analyzer.server.extraEnv": {
-        "RUSTC_FORCE_INCREMENTAL": "1"
-    },
-
     "rust-analyzer.files.excludeDirs": [
         "tests/build",
     ],
