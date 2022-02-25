@@ -1,5 +1,23 @@
+error[E0782]: trait objects must include the `dyn` keyword
+  --> cases/widget_new/unknown_member_in_when_expr2.rs:5:13
+   |
+5  |       let _ = blank! {
+   |  _____________^
+6  | |         margin = 0;
+7  | |         when self.is_pressed.unknown { // only .0 or .state allowed.
+8  | |             margin = 1;
+9  | |         }
+10 | |     };
+   | |_____^
+   |
+   = note: this error originates in the macro `blank` (in Nightly builds, run with -Z macro-backtrace for more info)
+help: add `dyn` keyword before this trait
+   |
+41 | <dyn #[crate::core::widget($crate::widgets::blank)]>
+   | ++++                                               +
+
 error[E0599]: no associated item named `__unknown` found for trait object `dyn is_pressed_Args` in the current scope
- --> $DIR/unknown_member_in_when_expr2.rs:7:30
+ --> cases/widget_new/unknown_member_in_when_expr2.rs:7:30
   |
 7 |         when self.is_pressed.unknown { // only .0 or .state allowed.
   |                              ^^^^^^^ associated item not found in `dyn is_pressed_Args`

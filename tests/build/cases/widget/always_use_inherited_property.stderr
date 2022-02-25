@@ -1,13 +1,19 @@
 error: expected warning @ line 15
-  --> $DIR/always_use_inherited_property.rs:28:5
+  --> cases/widget/always_use_inherited_property.rs:28:5
    |
 28 |     compile_error!("expected warning @ line 15")
    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 warning: unused import: `zero_ui::properties::margin`
-  --> $DIR/always_use_inherited_property.rs:15:9
+  --> cases/widget/always_use_inherited_property.rs:15:9
    |
 15 |     use zero_ui::properties::margin;
    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^
    |
    = note: `#[warn(unused_imports)]` on by default
+help: consider adding a `#[cfg(test)]` to the containing module
+  --> cases/widget/always_use_inherited_property.rs:12:1
+   |
+12 | #[widget($crate::test_widget)]
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   = note: this warning originates in the attribute macro `widget` (in Nightly builds, run with -Z macro-backtrace for more info)
