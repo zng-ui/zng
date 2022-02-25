@@ -2,12 +2,12 @@
 
 * Implement wrapping, text align and justify.
 * Implement font-features.
-* Implement underline, strikethrough.
+* Implement font fallback, need to segment by font?
 * Review TODOs in code.
 
 # Mixed Content
 
-* Implement text runs composed of multiple styles (can use h_stack!?)
+* Implement text runs composed of multiple styles, same problem as font fallback?
 * Implement widgets that derive text runs and styles from the text.
     - Markdown.
     - ANSI coloring (to show basic Inspector in a window).

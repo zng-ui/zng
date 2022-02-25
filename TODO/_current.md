@@ -1,7 +1,5 @@
-* Baseline does not propagate to parent, should it?
-
 * Implement `Font::outline`.
-* implement underline_skip GLYPHS, see `core::text::shaping::outline`.
+* Implement underline_skip GLYPHS, see `core::text::shaping::outline`.
 
 * Review child priority integration with `WidgetLayout`, what happens when we add a border in child { }?
    - It does not work:
