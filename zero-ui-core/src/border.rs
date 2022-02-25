@@ -638,8 +638,8 @@ context_var! {
 /// the expected behavior of interaction with the widget borders, the content will positioned, sized and clipped according to the
 /// widget borders, [`corner_radius`] and [`border_align`].
 ///
-/// Note that this node should **not** be used for the widgets main content (the property first parameter), only other
-/// content in that fills the widget, for examples, a *background* property would wrap its background node with this
+/// Note that this node should **not** be used for the a properties child node (first argument), only other
+/// content that fills the widget, for examples, a *background* property would wrap its background node with this
 /// but just pass thought layout and render for its child node.
 ///
 /// [`corner_radius`]: fn@corner_radius

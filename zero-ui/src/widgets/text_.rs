@@ -126,7 +126,8 @@ pub mod text {
         let child = nodes::render_text();
         let child = nodes::render_overlines(child);
         let child = nodes::render_strikethroughs(child);
-        nodes::render_underlines(child)
+        let child = nodes::render_underlines(child);
+        crate::widgets::container::nodes::leaf_transform(child)
     }
 
     fn new_fill(child: impl UiNode, padding: impl IntoVar<SideOffsets>) -> impl UiNode {
@@ -660,11 +661,8 @@ pub mod text {
                     self.with_mut(ctx.vars, |c| c.measure(ctx, AvailableSize::finite(desired_size)));
                     desired_size
                 }
-                fn arrange(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, _final_size: PxSize) {
+                fn arrange(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, final_size: PxSize) {
                     // TODO, text wrapping
-
-                    let layout = self.layout.as_ref().unwrap();
-                    let final_size = layout.shaped_text.size();
 
                     self.with_mut(ctx.vars, |c| c.arrange(ctx, widget_layout, final_size))
                 }
