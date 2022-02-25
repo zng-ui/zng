@@ -193,13 +193,14 @@ impl WidgetLayout {
     /// [`implicit_base::new_border`]: crate::widget_base::implicit_base::new_border
     /// [`FrameBuilder::push_inner`]: crate::render::FrameBuilder::push_inner
     pub fn with_inner(&mut self, metrics: &LayoutMetrics, final_size: PxSize, baseline: Px, f: impl FnOnce(&mut Self)) -> RenderTransform {
+        self.inner_info.set_baseline(baseline);
+
         let transform = self.compute_inner(metrics, final_size);
 
         let global_transform = transform.then(&self.global_transform);
         let prev_global_transform = mem::replace(&mut self.global_transform, global_transform);
 
         self.inner_info.set_size(final_size);
-        self.inner_info.set_baseline(baseline);
         self.inner_info.set_transform(self.global_transform);
 
         let prev_pre_translate = mem::take(&mut self.parent_translate);

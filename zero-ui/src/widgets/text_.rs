@@ -130,8 +130,7 @@ pub mod text {
     }
 
     fn new_fill(child: impl UiNode, padding: impl IntoVar<SideOffsets>) -> impl UiNode {
-        let child = nodes::layout_text(child);
-        side_offsets(child, padding)
+        nodes::layout_text(child, padding)
     }
 
     fn new_border(child: impl UiNode) -> impl UiNode {
@@ -191,6 +190,9 @@ pub mod text {
 
             /// Layout text.
             pub shaped_text: ShapedText,
+
+            /// Space around the shaped text.
+            pub padding: PxSideOffsets,
 
             /// List of overline segments, defining origin and width of each line.
             ///
@@ -439,14 +441,15 @@ pub mod text {
         ///
         /// This node setups the [`LayoutText`] for all inner nodes in the layout and render methods, the `text!` widget introduces this
         /// node at the `new_fill` constructor, so all properties with priority `fill` have access to the [`LayoutText::get`] function.
-        pub fn layout_text(child: impl UiNode) -> impl UiNode {
-            struct LayoutTextNode<C> {
+        pub fn layout_text(child: impl UiNode, padding: impl IntoVar<SideOffsets>) -> impl UiNode {
+            struct LayoutTextNode<C, P> {
                 child: C,
+                padding: P,
                 layout: Option<LayoutText>,
                 shaping_args: TextShapingArgs,
                 reshape: bool,
             }
-            impl<C: UiNode> LayoutTextNode<C> {
+            impl<C: UiNode, P> LayoutTextNode<C, P> {
                 fn with_mut<R>(&mut self, vars: &Vars, f: impl FnOnce(&mut C) -> R) -> R {
                     vars.with_context_var(LayoutTextVar, ContextVarData::fixed(&self.layout), || f(&mut self.child))
                 }
@@ -455,8 +458,13 @@ pub mod text {
                 }
             }
             #[impl_ui_node(child)]
-            impl<C: UiNode> UiNode for LayoutTextNode<C> {
-                // subscriptions are handled by the `resolve_text` node.
+            impl<C: UiNode, P: Var<SideOffsets>> UiNode for LayoutTextNode<C, P> {
+                fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
+                    subscriptions.var(ctx, &self.padding);
+                    // other subscriptions are handled by the `resolve_text` node.
+
+                    self.child.subscriptions(ctx, subscriptions)
+                }
 
                 fn deinit(&mut self, ctx: &mut WidgetContext) {
                     self.child.deinit(ctx);
@@ -484,11 +492,20 @@ pub mod text {
                         ctx.updates.layout();
                     }
 
+                    if self.padding.is_new(ctx) {
+                        self.reshape = true;
+                        ctx.updates.layout();
+                    }
+
                     self.child.update(ctx);
                 }
 
                 fn measure(&mut self, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize {
-                    let t = ResolvedText::get(ctx).expect("expected `ResolvedText` in `layout_text`");
+                    let t = ResolvedText::get(ctx.vars).expect("expected `ResolvedText` in `layout_text`");
+
+                    let padding = self.padding.get(ctx.vars).to_layout(ctx, available_size, PxSideOffsets::zero());
+                    let diff = PxSize::new(padding.horizontal(), padding.vertical());
+                    let available_size = available_size.sub_px(diff);
 
                     let (font_size, variations) = TextContext::font(ctx);
                     let font_size = font_size.to_layout(ctx, available_size.width, ctx.metrics.root_font_size);
@@ -497,6 +514,7 @@ pub mod text {
                         self.layout = Some(LayoutText {
                             fonts: t.faces.sized(font_size, variations.finalize()),
                             shaped_text: ShapedText::default(),
+                            padding,
                             overlines: vec![],
                             overline_thickness: Px(0),
                             strikethroughs: vec![],
@@ -515,6 +533,8 @@ pub mod text {
 
                         self.reshape = true;
                     }
+                    self.reshape |= r.padding != padding;
+                    r.padding = padding;
 
                     let font = r.fonts.best();
 
@@ -557,6 +577,9 @@ pub mod text {
 
                     if self.reshape {
                         r.shaped_text = font.shape_text(&t.text, &self.shaping_args);
+
+                        let baseline = r.shaped_text.baseline() + padding.bottom;
+                        t.baseline.set(baseline);
 
                         if r.overline_thickness > Px(0) {
                             r.overlines = r.shaped_text.lines().map(|l| l.overline()).collect();
@@ -618,6 +641,7 @@ pub mod text {
             }
             LayoutTextNode {
                 child,
+                padding: padding.into_var(),
                 layout: None,
                 shaping_args: TextShapingArgs::default(),
                 reshape: false,
@@ -779,8 +803,10 @@ pub mod text {
                     let r = ResolvedText::get(ctx.vars).expect("expected `ResolvedText` in `render_text`");
                     let t = LayoutText::get(ctx.vars).expect("expected `LayoutText` in `render_text`");
 
+                    let origin = PxPoint::new(t.padding.left, t.padding.top);
+
                     frame.push_text(
-                        PxRect::from_size(t.shaped_text.size()),
+                        PxRect::new(origin, t.shaped_text.size()),
                         t.shaped_text.glyphs(),
                         t.fonts.best(), // TODO use fallbacks
                         (*TextColorVar::get(ctx.vars)).into(),
@@ -1666,7 +1692,7 @@ mod strong {
 
     fn new_child(text: impl IntoVar<Text>) -> impl UiNode {
         let child = text::nodes::render_text();
-        let child = text::nodes::layout_text(child);
+        let child = text::nodes::layout_text(child, 0);
         let child = text::nodes::resolve_text(child, text);
         font_weight(child, FontWeight::BOLD)
     }
@@ -1694,7 +1720,7 @@ mod em {
     #[inline]
     fn new_child(text: impl IntoVar<Text>) -> impl UiNode {
         let child = text::nodes::render_text();
-        let child = text::nodes::layout_text(child);
+        let child = text::nodes::layout_text(child, 0);
         let child = text::nodes::resolve_text(child, text);
         font_style(child, FontStyle::Italic)
     }
