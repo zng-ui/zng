@@ -214,7 +214,7 @@ fn trace_focus(events: &mut Events) {
 mod inspect {
     use super::*;
     use zero_ui::core::focus::WidgetInfoFocusExt;
-    use zero_ui::core::inspector::{WidgetInspectorInfo, WidgetNewFn};
+    use zero_ui::core::inspector::WidgetInspectorInfo;
 
     pub fn focus(path: &Option<WidgetPath>, services: &mut Services) -> String {
         path.as_ref()
@@ -237,11 +237,10 @@ mod inspect {
                     format!(
                         "button({})",
                         info.captures
-                            .get(&WidgetNewFn::NewChild)
-                            .unwrap()
                             .iter()
+                            .flat_map(|(_, c)| c.iter())
                             .find(|p| p.property_name == "text")
-                            .expect("expected text in capture_new")
+                            .expect("expected text in captures")
                             .args[0]
                             .value
                             .debug

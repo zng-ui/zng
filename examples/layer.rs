@@ -76,6 +76,7 @@ fn overlay(id: impl Into<WidgetId>, offset: i32) -> impl Widget {
             tab_nav = TabNav::Cycle;
             directional_nav = DirectionalNav::Cycle;
             background_color = colors::GREEN.darken(80.pct());
+            button::theme::corner_radius = 0;
             padding = 2;
             content = v_stack! {
                 items_align = Align::RIGHT;
