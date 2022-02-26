@@ -10,6 +10,8 @@ use super::{
 };
 use crate::units::*;
 
+pub use font_kit::error::GlyphLoadingError;
+
 /// Extra configuration for [`shape_text`](Font::shape_text).
 #[derive(Debug, Clone)]
 pub struct TextShapingArgs {
@@ -67,7 +69,7 @@ impl Default for TextShapingArgs {
 /// Output of [text layout].
 ///
 /// [text layout]: Font::shape_text
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Default)]
 pub struct ShapedText {
     glyphs: Vec<GlyphInstance>,
     // segments of `glyphs`
@@ -88,6 +90,34 @@ pub struct ShapedText {
     strikethrough: Px,
     underline: Px,
     underline_descent: Px,
+}
+impl fmt::Debug for ShapedText {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        struct DebugFonts<'a>(&'a Vec<(FontRef, usize)>);
+        impl<'a> fmt::Debug for DebugFonts<'a> {
+            fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+                f.debug_list()
+                    .entries(self.0.iter().map(|(f, i)| (f.face().display_name().name(), i)))
+                    .finish()
+            }
+        }
+
+        f.debug_struct("ShapedText")
+            .field("segments", &self.segments)
+            .field("glyphs", &self.glyphs)
+            .field("lines", &self.lines)
+            .field("fonts", &DebugFonts(&self.fonts))
+            .field("padding", &self.padding)
+            .field("size", &self.size)
+            .field("line_height", &self.line_height)
+            .field("line_spacing", &self.line_spacing)
+            .field("baseline", &self.baseline)
+            .field("overline", &self.overline)
+            .field("strikethrough", &self.strikethrough)
+            .field("underline", &self.underline)
+            .field("underline_descent", &self.underline_descent)
+            .finish()
+    }
 }
 impl ShapedText {
     /// Glyphs by font.
@@ -557,7 +587,7 @@ impl<'a> ShapedSegment<'a> {
 
     /// Underline spanning the word or spaces, skipping glyph descends that intercept the line.
     #[inline]
-    pub fn underline_skip_glyphs(&self, _thickness: Px) -> impl Iterator<Item = (PxPoint, Px)> + 'a {
+    pub fn underline_skip_glyphs(&self, thickness: Px) -> impl Iterator<Item = (PxPoint, Px)> + 'a {
         // TODO
         [self.underline()].into_iter()
     }
@@ -888,10 +918,10 @@ impl Font {
     /// Sends the sized vector path for a glyph to `sink`.
     pub fn outline(
         &self,
-        glyph_id: super::GlyphIndex,
+        glyph_id: GlyphIndex,
         hinting_options: OutlineHintingOptions,
         sink: &mut impl OutlineSink,
-    ) -> Result<(), font_kit::error::GlyphLoadingError> {
+    ) -> Result<(), GlyphLoadingError> {
         // TODO scale values by font size.
         // https://searchfox.org/mozilla-central/source/gfx/2d/ScaledFontDWrite.cpp#148
 
@@ -932,6 +962,17 @@ impl Font {
         }
 
         self.face().font_kit().outline(glyph_id, hinting_options, &mut AdapterSink { sink })
+    }
+
+    /// Ray cast an horizontal line across the glyph and returns the hits.
+    ///
+    /// The `line` are two vertical offsets from the baseline that define the start and inclusive end of the horizontal line, that is,
+    /// `(underline, underline + thickness)`.
+    ///
+    /// Returns `Ok(Some(x_enter, x_exit))` where the two values are x-advances, returns `None` if there is not hit, returns
+    /// an error if the glyph is not found.
+    pub fn underline_intersepts(&self, glyph: GlyphIndex, line: (Px, Px)) -> Result<Option<(Px, Px)>, GlyphLoadingError> {
+        Ok(None)
     }
 }
 

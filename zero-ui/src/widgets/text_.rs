@@ -599,7 +599,7 @@ pub mod text {
                         APPLY
                     */
                     if self.pending.contains(Layout::RESHAPE) {
-                        r.shaped_text = font.shape_text(&t.text, &self.shaping_args);
+                        r.shaped_text = r.fonts.shape_text(&t.text, &self.shaping_args);
                     }
                     if self.pending.contains(Layout::PADDING) {
                         r.shaped_text.set_padding(padding);
