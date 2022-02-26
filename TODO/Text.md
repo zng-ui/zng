@@ -2,7 +2,6 @@
 
 * Implement wrapping, text align and justify.
 * Implement font-features.
-* Implement font fallback, need to segment by font?
 * Review TODOs in code.
 
 # Mixed Content

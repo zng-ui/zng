@@ -5,7 +5,7 @@ use std::{
 };
 
 use super::{
-    font_features::RFontFeatures, lang, Font, FontList, GlyphIndex, GlyphInstance, InternedStr, Lang, SegmentedText, TextSegment,
+    font_features::RFontFeatures, lang, Font, FontList, FontRef, GlyphIndex, GlyphInstance, InternedStr, Lang, SegmentedText, TextSegment,
     TextSegmentKind,
 };
 use crate::units::*;
@@ -65,10 +65,6 @@ impl Default for TextShapingArgs {
 }
 
 /// Output of [text layout].
-
-/// Contains a sequence of glyphs positioned in straight [segments](TextSegment).
-/// This means that further text wrapping layout can be calculated from this `ShapedText`
-/// without needing font information.
 ///
 /// [text layout]: Font::shape_text
 #[derive(Clone, Debug, Default)]
@@ -78,6 +74,8 @@ pub struct ShapedText {
     segments: Vec<TextSegment>,
     // index of `LineBreak` segments , line x-advance and width, is `segments.len()` for the last line.
     lines: Vec<(usize, Px, Px)>,
+    // fonts and index after last glyph that uses the font.
+    fonts: Vec<(FontRef, usize)>,
 
     padding: PxSideOffsets,
     size: PxSize,
@@ -92,10 +90,33 @@ pub struct ShapedText {
     underline_descent: Px,
 }
 impl ShapedText {
-    /// Glyphs for the renderer.
-    #[inline]
-    pub fn glyphs(&self) -> &[GlyphInstance] {
-        &self.glyphs
+    /// Glyphs by font.
+    pub fn glyphs(&self) -> impl Iterator<Item = (&FontRef, &[GlyphInstance])> {
+        let mut start = 0;
+        self.fonts.iter().map(move |(font, i)| {
+            let i = *i;
+            let glyphs = &self.glyphs[start..i];
+            start = i;
+            (font, glyphs)
+        })
+    }
+
+    /// Glyphs by font in the inclusive range.
+    fn glyphs_range(&self, mut start: usize, end: usize) -> impl Iterator<Item = (&FontRef, &[GlyphInstance])> {
+        let first_font = self.fonts.iter().position(|(_, i)| *i > start).unwrap() - 1;
+
+        self.fonts[first_font..].iter().map_while(move |(font, i)| {
+            let i = *i;
+            let i = i.min(end);
+
+            if i > start {
+                let glyphs = &self.glyphs[start..i];
+                start = i;
+                Some((font, glyphs))
+            } else {
+                None
+            }
+        })
     }
 
     /// Glyphs segments.
@@ -313,6 +334,30 @@ impl<'a> ShapedLine<'a> {
         MergingLineIter::new(self.parts().filter(|s| s.is_word()).map(|s| s.underline_descent()))
     }
 
+    /// Underline, skipping glyph descends that intersect the underline.
+    ///
+    /// The *y* is defined by the font metrics.
+    ///
+    /// Returns an iterator of start point + width for continuous underline.
+    #[inline]
+    pub fn underline_skip_glyphs(&self, thickness: Px) -> impl Iterator<Item = (PxPoint, Px)> + 'a {
+        MergingLineIter::new(self.parts().flat_map(move |s| s.underline_skip_glyphs(thickness)))
+    }
+
+    /// Underline, skipping spaces and glyph descends that intersect the underline
+    ///
+    /// The *y* is defined by font metrics.
+    ///
+    /// Returns an iterator of start point + width for continuous underline.
+    #[inline]
+    pub fn underline_skip_glyphs_and_spaces(&self, thickness: Px) -> impl Iterator<Item = (PxPoint, Px)> + 'a {
+        MergingLineIter::new(
+            self.parts()
+                .filter(|s| s.is_word())
+                .flat_map(move |s| s.underline_skip_glyphs(thickness)),
+        )
+    }
+
     #[inline]
     fn decoration_line(&self, bottom_up_offset: Px) -> (PxPoint, Px) {
         let y = (self.text.line_height * Px((self.index as i32) + 1)) - bottom_up_offset;
@@ -327,16 +372,17 @@ impl<'a> ShapedLine<'a> {
     }
 
     /// Glyphs in the line.
-    #[inline]
-    pub fn glyphs(&self) -> &'a [GlyphInstance] {
+    pub fn glyphs(&self) -> impl Iterator<Item = (&'a FontRef, &'a [GlyphInstance])> + 'a {
+        let text = self.text;
+
         let start = if self.seg_range.0 == 0 {
             0
         } else {
-            self.text.segments[self.seg_range.0 - 1].end
+            text.segments[self.seg_range.0 - 1].end
         };
-        let end = self.text.segments[self.seg_range.1].end;
+        let end = text.segments[self.seg_range.1].end;
 
-        &self.text.glyphs[start..=end]
+        self.text.glyphs_range(start, end)
     }
 
     /// Iterate over word and space segments in this line.
@@ -454,9 +500,9 @@ impl<'a> ShapedSegment<'a> {
 
     /// Glyphs in the word or space.
     #[inline]
-    pub fn glyphs(&self) -> &'a [GlyphInstance] {
+    pub fn glyphs(&self) -> impl Iterator<Item = (&'a FontRef, &'a [GlyphInstance])> {
         let (start, end) = self.glyph_range();
-        &self.text.glyphs[start..end]
+        self.text.glyphs_range(start, end)
     }
 
     fn x_width(&self) -> (Px, Px) {
@@ -507,6 +553,13 @@ impl<'a> ShapedSegment<'a> {
     #[inline]
     pub fn underline(&self) -> (PxPoint, Px) {
         self.decoration_line(self.text.underline)
+    }
+
+    /// Underline spanning the word or spaces, skipping glyph descends that intercept the line.
+    #[inline]
+    pub fn underline_skip_glyphs(&self, _thickness: Px) -> impl Iterator<Item = (PxPoint, Px)> + 'a {
+        // TODO
+        [self.underline()].into_iter()
     }
 
     /// Underline spanning the word or spaces, not skipping.
@@ -736,8 +789,7 @@ impl Font {
     }
 
     /// Calculates a [`ShapedText`].
-    // see https://raphlinus.github.io/text/2020/10/26/text-layout.html
-    pub fn shape_text(&self, text: &SegmentedText, config: &TextShapingArgs) -> ShapedText {
+    pub fn shape_text(self: &FontRef, text: &SegmentedText, config: &TextShapingArgs) -> ShapedText {
         // let _scope = tracing::trace_span!("shape_text").entered();
 
         let mut out = ShapedText::default();
@@ -827,6 +879,8 @@ impl Font {
             Px(origin.x.max(max_line_x) as i32),
             Px((((line_height + line_spacing) * out.lines.len() as f32) - line_spacing) as i32),
         );
+
+        out.fonts.push((self.clone(), out.glyphs.len()));
 
         out
     }

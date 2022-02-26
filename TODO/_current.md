@@ -1,5 +1,6 @@
 * Implement `Font::outline`.
 * Implement underline_skip GLYPHS, see `core::text::shaping::outline`.
+* Finish `FontList::shape_text`, font fallback.
 
 * Review child priority integration with `WidgetLayout`, what happens when we add a border in child { }?
    - It does not work:

@@ -627,11 +627,17 @@ pub mod text {
                             match *UnderlinePositionVar::get(ctx) {
                                 UnderlinePosition::Font => {
                                     if skip == UnderlineSkip::GLYPHS | UnderlineSkip::SPACES {
-                                        // TODO clip glyphs, need outline, see core::text::shaping::outline
-                                        r.underlines = r.shaped_text.lines().flat_map(|l| l.underline_skip_spaces()).collect();
+                                        r.underlines = r
+                                            .shaped_text
+                                            .lines()
+                                            .flat_map(|l| l.underline_skip_glyphs_and_spaces(r.underline_thickness))
+                                            .collect();
                                     } else if skip.contains(UnderlineSkip::GLYPHS) {
-                                        // TODO clip glyphs
-                                        r.underlines = r.shaped_text.lines().map(|l| l.underline()).collect();
+                                        r.underlines = r
+                                            .shaped_text
+                                            .lines()
+                                            .flat_map(|l| l.underline_skip_glyphs(r.underline_thickness))
+                                            .collect();
                                     } else if skip.contains(UnderlineSkip::SPACES) {
                                         r.underlines = r.shaped_text.lines().flat_map(|l| l.underline_skip_spaces()).collect();
                                     } else {
@@ -838,13 +844,12 @@ pub mod text {
                     let r = ResolvedText::get(ctx.vars).expect("expected `ResolvedText` in `render_text`");
                     let t = LayoutText::get(ctx.vars).expect("expected `LayoutText` in `render_text`");
 
-                    frame.push_text(
-                        PxRect::from_size(t.shaped_text.size()),
-                        t.shaped_text.glyphs(),
-                        t.fonts.best(), // TODO use fallbacks
-                        (*TextColorVar::get(ctx.vars)).into(),
-                        r.synthesis,
-                    );
+                    let clip = PxRect::from_size(t.shaped_text.size());
+                    let color = (*TextColorVar::get(ctx.vars)).into();
+
+                    for (font, glyphs) in t.shaped_text.glyphs() {
+                        frame.push_text(clip, glyphs, font, color, r.synthesis);
+                    }
                 }
             }
             RenderTextNode
