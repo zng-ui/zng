@@ -29,7 +29,7 @@ pub mod text {
         /// Spacing in between the text and background edges or border.
         ///
         /// Set to `0` by default.
-        side_offsets as padding = 0;
+        margin as padding = 0;
 
         /// The text font. If not set inherits the `font_family` from the parent widget.
         properties::font_family;
@@ -126,8 +126,7 @@ pub mod text {
         let child = nodes::render_text();
         let child = nodes::render_overlines(child);
         let child = nodes::render_strikethroughs(child);
-        let child = nodes::render_underlines(child);
-        crate::widgets::container::nodes::leaf_transform(child)
+        nodes::render_underlines(child)
     }
 
     fn new_fill(child: impl UiNode, padding: impl IntoVar<SideOffsets>) -> impl UiNode {

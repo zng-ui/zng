@@ -59,9 +59,9 @@ pub mod implicit_base {
         NilUiNode
     }
 
-    /// No-op, returns `child`.
+    /// Implicit `new_child_fill`, returns [`nodes::leaf_transform`]
     pub fn new_child_fill(child: impl UiNode) -> impl UiNode {
-        child
+        nodes::leaf_transform(child)
     }
 
     /// No-op, returns `child`.
@@ -129,6 +129,8 @@ pub mod implicit_base {
 
     /// UI nodes used for implementing all widgets.
     pub mod nodes {
+        use crate::render::{FrameBinding, SpatialFrameId};
+
         use super::*;
 
         /// Arguments for the baseline request closure of [`inner`].
@@ -136,6 +138,44 @@ pub mod implicit_base {
         pub struct BaselineArgs {
             /// Inner arrange final size.
             pub final_size: PxSize,
+        }
+
+        /// Returns a node that applies widget transforms if `child` does not contain an widget.
+        ///
+        /// This node makes properties like *padding* work for content that does not implement [`Widget`].
+        pub fn leaf_transform(content: impl UiNode) -> impl UiNode {
+            struct LeafTransformNode<C> {
+                child: C,
+                leaf_transform: Option<Box<(SpatialFrameId, RenderTransform)>>,
+            }
+            #[impl_ui_node(child)]
+            impl<C: UiNode> UiNode for LeafTransformNode<C> {
+                fn arrange(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, final_size: PxSize) {
+                    if let Some(t) = widget_layout.leaf_transform(ctx.metrics, final_size, |wl| self.child.arrange(ctx, wl, final_size)) {
+                        if let Some(lt) = &mut self.leaf_transform {
+                            if t != lt.1 {
+                                lt.1 = t;
+                                ctx.updates.render();
+                            }
+                        } else {
+                            self.leaf_transform = Some(Box::new((SpatialFrameId::new_unique(), t)));
+                            ctx.updates.render();
+                        }
+                    }
+                }
+
+                fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
+                    if let Some(lt) = &self.leaf_transform {
+                        frame.push_reference_frame(lt.0, FrameBinding::Value(lt.1), false, |f| self.child.render(ctx, f));
+                    } else {
+                        self.child.render(ctx, frame);
+                    }
+                }
+            }
+            LeafTransformNode {
+                child: content,
+                leaf_transform: None,
+            }
         }
 
         /// Returns a node that wraps `child` and marks the [`WidgetLayout::with_inner`] and [`FrameBuilder::push_inner`].
