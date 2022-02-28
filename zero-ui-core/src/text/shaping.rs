@@ -8,7 +8,7 @@ use super::{
     font_features::RFontFeatures, lang, Font, FontList, FontRef, GlyphIndex, GlyphInstance, InternedStr, Lang, SegmentedText, TextSegment,
     TextSegmentKind,
 };
-use crate::units::*;
+use crate::{crate_util::IndexRange, units::*};
 
 pub use font_kit::error::GlyphLoadingError;
 
@@ -131,9 +131,11 @@ impl ShapedText {
         })
     }
 
-    /// Glyphs by font in the inclusive range.
-    fn glyphs_range(&self, mut start: usize, end: usize) -> impl Iterator<Item = (&FontRef, &[GlyphInstance])> {
-        let first_font = self.fonts.iter().position(|(_, i)| *i > start).unwrap() - 1;
+    /// Glyphs by font in the range.
+    fn glyphs_range(&self, range: IndexRange) -> impl Iterator<Item = (&FontRef, &[GlyphInstance])> {
+        let mut start = range.start();
+        let end = range.inclusive_end();
+        let first_font = self.fonts.iter().position(|(_, i)| *i > start).unwrap().saturating_sub(1);
 
         self.fonts[first_font..].iter().map_while(move |(font, i)| {
             let i = *i;
@@ -141,6 +143,47 @@ impl ShapedText {
 
             if i > start {
                 let glyphs = &self.glyphs[start..i];
+                start = i;
+                Some((font, glyphs))
+            } else {
+                None
+            }
+        })
+    }
+
+    /// Glyphs by font in the range, each glyph instance is paired with the *x-advance* to the next glyph or line end.
+    fn glyphs_with_x_advance_range(
+        &self,
+        line_index: usize,
+        glyph_range: IndexRange,
+    ) -> impl Iterator<Item = (&FontRef, impl Iterator<Item = (GlyphInstance, f32)> + '_)> + '_ {
+        let mut start = glyph_range.start();
+        let end = glyph_range.inclusive_end();
+
+        let (line_end, x, line_width) = self.lines[line_index];
+        let mut x = x.0 as f32;
+        let line_advance = x + line_width.0 as f32;
+
+        let first_font = self.fonts.iter().position(|(_, i)| *i > start).unwrap().saturating_sub(1);
+
+        self.fonts[first_font..].iter().map_while(move |(font, i)| {
+            let i = *i;
+            let i = i.min(end);
+
+            if i > start {
+                let glyphs = self.glyphs[start..i].iter().enumerate().map(move |(gi, g)| {
+                    let next_glyph = start + gi + 1;
+
+                    let x_advance = if next_glyph == line_end {
+                        line_advance - x
+                    } else {
+                        self.glyphs[next_glyph].point.x - x
+                    };
+
+                    x += x_advance;
+
+                    (*g, x_advance)
+                });
                 start = i;
                 Some((font, glyphs))
             } else {
@@ -264,7 +307,7 @@ impl ShapedText {
     pub fn lines(&self) -> impl Iterator<Item = ShapedLine> {
         let mut start = 0;
         self.lines.iter().copied().enumerate().map(move |(i, (s, x, w))| {
-            let range = (start, s);
+            let range = IndexRange(start, s);
             start = s;
 
             ShapedLine {
@@ -282,8 +325,8 @@ impl ShapedText {
 #[derive(Clone, Copy)]
 pub struct ShapedLine<'a> {
     text: &'a ShapedText,
-    // range of segments of this line (exclusive).
-    seg_range: (usize, usize),
+    // range of segments of this line.
+    seg_range: IndexRange,
     index: usize,
     x: Px,
     width: Px,
@@ -308,7 +351,7 @@ impl<'a> ShapedLine<'a> {
 
     /// Horizontal alignment advance applied to the entire line.
     #[inline]
-    pub fn x_advance(&self) -> Px {
+    pub fn x(&self) -> Px {
         self.x
     }
 
@@ -398,21 +441,32 @@ impl<'a> ShapedLine<'a> {
     /// the line break that starts the next line.
     #[inline]
     pub fn segments(&self) -> &'a [TextSegment] {
-        &self.text.segments[self.seg_range.0..self.seg_range.1]
+        &self.text.segments[self.seg_range.iter()]
     }
 
     /// Glyphs in the line.
+    #[inline]
     pub fn glyphs(&self) -> impl Iterator<Item = (&'a FontRef, &'a [GlyphInstance])> + 'a {
-        let text = self.text;
+        let r = self.glyphs_range();
+        self.text.glyphs_range(r)
+    }
 
-        let start = if self.seg_range.0 == 0 {
+    /// Glyphs in the line paired with the *x-advance* to the next glyph or the end of the line.
+    #[inline]
+    pub fn glyphs_with_x_advance(&self) -> impl Iterator<Item = (&'a FontRef, impl Iterator<Item = (GlyphInstance, f32)> + 'a)> + 'a {
+        let r = self.glyphs_range();
+        self.text.glyphs_with_x_advance_range(self.index, r)
+    }
+
+    fn glyphs_range(&self) -> IndexRange {
+        let start = if self.seg_range.start() == 0 {
             0
         } else {
-            text.segments[self.seg_range.0 - 1].end
+            self.text.segments[self.seg_range.inclusive_end()].end
         };
-        let end = text.segments[self.seg_range.1].end;
+        let end = self.text.segments[self.seg_range.inclusive_end()].end;
 
-        self.text.glyphs_range(start, end)
+        IndexRange(start, end)
     }
 
     /// Iterate over word and space segments in this line.
@@ -420,8 +474,8 @@ impl<'a> ShapedLine<'a> {
     pub fn parts(&self) -> impl Iterator<Item = ShapedSegment<'a>> {
         let text = self.text;
         let line_index = self.index;
-        let last_i = self.seg_range.1.saturating_sub(1);
-        (self.seg_range.0..self.seg_range.1).map(move |i| ShapedSegment {
+        let last_i = self.seg_range.inclusive_end();
+        self.seg_range.iter().map(move |i| ShapedSegment {
             text,
             line_index,
             index: i,
@@ -517,7 +571,7 @@ impl<'a> ShapedSegment<'a> {
         self.is_last
     }
 
-    fn glyph_range(&self) -> (usize, usize) {
+    fn glyph_range(&self) -> IndexRange {
         let start = if self.index == 0 {
             0
         } else {
@@ -525,18 +579,25 @@ impl<'a> ShapedSegment<'a> {
         };
         let end = self.text.segments[self.index].end;
 
-        (start, end)
+        IndexRange(start, end)
     }
 
     /// Glyphs in the word or space.
     #[inline]
     pub fn glyphs(&self) -> impl Iterator<Item = (&'a FontRef, &'a [GlyphInstance])> {
-        let (start, end) = self.glyph_range();
-        self.text.glyphs_range(start, end)
+        let r = self.glyph_range();
+        self.text.glyphs_range(r)
+    }
+
+    /// Glyphs in the word or space, paired with the *x-advance* to then next glyph or line end.
+    #[inline]
+    pub fn glyphs_with_x_advance(&self) -> impl Iterator<Item = (&'a FontRef, impl Iterator<Item = (GlyphInstance, f32)> + 'a)> + 'a {
+        let r = self.glyph_range();
+        self.text.glyphs_with_x_advance_range(self.line_index, r)
     }
 
     fn x_width(&self) -> (Px, Px) {
-        let (start, end) = self.glyph_range();
+        let IndexRange(start, end) = self.glyph_range();
 
         let start_x = self.text.glyphs[start].point.x;
         let end_x = if self.is_last {
@@ -586,10 +647,36 @@ impl<'a> ShapedSegment<'a> {
     }
 
     /// Underline spanning the word or spaces, skipping glyph descends that intercept the line.
+    ///
+    /// Returns an iterator of start point + width for underline segments.
     #[inline]
     pub fn underline_skip_glyphs(&self, thickness: Px) -> impl Iterator<Item = (PxPoint, Px)> + 'a {
-        // TODO
-        [self.underline()].into_iter()
+        let (o, _) = self.underline();
+        let line = (o.y, o.y + thickness);
+
+        let mut o = euclid::vec2::<_, Px>(o.x.0 as f32, o.y.0 as f32);
+        let mut w = 0.0;
+
+        MergingLineIter::new(self.glyphs_with_x_advance().flat_map(move |(font, glyphs)| {
+            glyphs.map(move |(g, x_advance)| {
+                let (p, w) = if let Ok(Some((a, b))) = font.underline_intersepts(g.index, line) {
+                    o.x += a;
+                    w += a;
+                    let r = (euclid::vec2(o.x, o.y), w);
+                    o.x += b;
+                    w = x_advance - b;
+                    r
+                } else {
+                    w += x_advance;
+                    let r = (o, w);
+                    o.x += x_advance;
+                    w = 0.0;
+                    r
+                };
+
+                (PxPoint::new(Px(p.x as i32), Px(p.y as i32)), Px(w as i32))
+            })
+        }))
     }
 
     /// Underline spanning the word or spaces, not skipping.
@@ -971,7 +1058,7 @@ impl Font {
     ///
     /// Returns `Ok(Some(x_enter, x_exit))` where the two values are x-advances, returns `None` if there is not hit, returns
     /// an error if the glyph is not found.
-    pub fn underline_intersepts(&self, glyph: GlyphIndex, line: (Px, Px)) -> Result<Option<(Px, Px)>, GlyphLoadingError> {
+    pub fn underline_intersepts(&self, glyph: GlyphIndex, line: (Px, Px)) -> Result<Option<(f32, f32)>, GlyphLoadingError> {
         Ok(None)
     }
 }

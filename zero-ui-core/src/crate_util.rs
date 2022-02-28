@@ -818,6 +818,59 @@ pub fn unlock_ok(file: &impl fs2::FileExt) -> std::io::Result<()> {
     }
 }
 
+/// Like [`std::ops::Range<usize>`], but implements [`Copy`].
+#[derive(Clone, Copy)]
+pub struct IndexRange(pub usize, pub usize);
+impl fmt::Debug for IndexRange {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}..{}", self.0, self.1)
+    }
+}
+impl IntoIterator for IndexRange {
+    type Item = usize;
+
+    type IntoIter = std::ops::Range<usize>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter()
+    }
+}
+impl From<IndexRange> for std::ops::Range<usize> {
+    fn from(c: IndexRange) -> Self {
+        c.iter()
+    }
+}
+impl From<std::ops::Range<usize>> for IndexRange {
+    fn from(r: std::ops::Range<usize>) -> Self {
+        IndexRange(r.start, r.end)
+    }
+}
+impl IndexRange {
+    /// Into `Range<usize>`.
+    #[inline]
+    pub fn iter(self) -> std::ops::Range<usize> {
+        self.0..self.1
+    }
+
+    /// `self.0`
+    #[inline]
+    pub fn start(self) -> usize {
+        self.0
+    }
+
+    /// `self.1`
+    #[inline]
+    pub fn end(self) -> usize {
+        self.1
+    }
+
+    /// `self.1.saturating_sub(1)`
+    #[inline]
+    pub fn inclusive_end(self) -> usize {
+        self.1.saturating_sub(1)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

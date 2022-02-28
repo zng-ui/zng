@@ -710,7 +710,7 @@ pub mod text {
 
                 fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
                     let t = LayoutText::get(ctx.vars).expect("expected `LayoutText` in `render_underlines`");
-                    if !t.overlines.is_empty() {
+                    if !t.underlines.is_empty() {
                         let r = ResolvedText::get(ctx.vars).expect("expected `ResolvedText` in `render_underlines`");
 
                         let style = *UnderlineStyleVar::get(ctx);
@@ -755,7 +755,7 @@ pub mod text {
 
                 fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
                     let t = LayoutText::get(ctx.vars).expect("expected `LayoutText` in `render_strikethroughs`");
-                    if !t.overlines.is_empty() {
+                    if !t.strikethroughs.is_empty() {
                         let r = ResolvedText::get(ctx.vars).expect("expected `ResolvedText` in `render_strikethroughs`");
 
                         let style = *StrikethroughStyleVar::get(ctx);
@@ -927,7 +927,7 @@ pub mod text {
             pub struct LangVar: Lang = Lang::default();
 
             /// Underline thickness.
-            pub struct UnderlineThicknessVar: UnderlineThickness = Length::Default;
+            pub struct UnderlineThicknessVar: UnderlineThickness = 0.into();
             /// Underline style.
             pub struct UnderlineStyleVar: LineStyle = LineStyle::Hidden;
             /// Underline color.
@@ -938,14 +938,14 @@ pub mod text {
             pub struct UnderlinePositionVar: UnderlinePosition = UnderlinePosition::Font;
 
             /// Overline thickness.
-            pub struct OverlineThicknessVar: TextLineThickness = Length::Default;
+            pub struct OverlineThicknessVar: TextLineThickness = 0.into();
             /// Overline style.
             pub struct OverlineStyleVar: LineStyle = LineStyle::Hidden;
             /// Overline color.
             pub struct OverlineColorVar: TextLineColor = TextLineColor::Text;
 
             /// Strikethrough thickness.
-            pub struct StrikethroughThicknessVar: TextLineThickness = Length::Default;
+            pub struct StrikethroughThicknessVar: TextLineThickness = 0.into();
             /// Strikethrough style.
             pub struct  StrikethroughStyleVar: LineStyle = LineStyle::Hidden;
             /// Strikethrough color.
