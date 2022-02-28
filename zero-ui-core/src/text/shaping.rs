@@ -134,7 +134,7 @@ impl ShapedText {
     /// Glyphs by font in the range.
     fn glyphs_range(&self, range: IndexRange) -> impl Iterator<Item = (&FontRef, &[GlyphInstance])> {
         let mut start = range.start();
-        let end = range.inclusive_end();
+        let end = range.end();
         let first_font = self.fonts.iter().position(|(_, i)| *i > start).unwrap().saturating_sub(1);
 
         self.fonts[first_font..].iter().map_while(move |(font, i)| {
@@ -159,25 +159,29 @@ impl ShapedText {
     ) -> impl Iterator<Item = (&FontRef, impl Iterator<Item = (GlyphInstance, f32)> + '_)> + '_ {
         let mut start = glyph_range.start();
         let (line_end, line_x, line_width) = self.lines[line_index];
-        self.glyphs_range(glyph_range)
-            .map(move |(font, glyphs)| {
-                let glyphs_with_adv = glyphs.iter().enumerate().map(move |(i, g)| {
-                    let gi = start + i;
-                    
-                    let adv = if gi == line_end {
-                        let line_adv = (line_x + line_width).0 as f32;
-                        line_adv - g.point.x
-                    } else {
-                        self.glyphs[gi + 1].point.x - g.point.x
-                    };
+        let line_end = if line_end == self.segments.len() {
+            self.glyphs.len()
+        } else {
+            self.segments[line_end].end
+        };
+        self.glyphs_range(glyph_range).map(move |(font, glyphs)| {
+            let glyphs_with_adv = glyphs.iter().enumerate().map(move |(i, g)| {
+                let gi = start + i + 1;
 
-                    (*g, adv)
-                });
-                
-                start += glyphs.len();
+                let adv = if gi == line_end {
+                    let line_adv = (line_x + line_width).0 as f32;
+                    line_adv - g.point.x
+                } else {
+                    self.glyphs[gi].point.x - g.point.x
+                };
 
-                (font, glyphs_with_adv)
-            })
+                (*g, adv)
+            });
+
+            start += glyphs.len();
+
+            (font, glyphs_with_adv)
+        })
     }
 
     /// Glyphs segments.
