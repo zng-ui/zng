@@ -158,38 +158,26 @@ impl ShapedText {
         glyph_range: IndexRange,
     ) -> impl Iterator<Item = (&FontRef, impl Iterator<Item = (GlyphInstance, f32)> + '_)> + '_ {
         let mut start = glyph_range.start();
-        let end = glyph_range.inclusive_end();
-
-        let (line_end, x, line_width) = self.lines[line_index];
-        let mut x = x.0 as f32;
-        let line_advance = x + line_width.0 as f32;
-
-        let first_font = self.fonts.iter().position(|(_, i)| *i > start).unwrap().saturating_sub(1);
-
-        self.fonts[first_font..].iter().map_while(move |(font, i)| {
-            let i = *i;
-            let i = i.min(end);
-
-            if i > start {
-                let glyphs = self.glyphs[start..i].iter().enumerate().map(move |(gi, g)| {
-                    let next_glyph = start + gi + 1;
-
-                    let x_advance = if next_glyph == line_end {
-                        line_advance - x
+        let (line_end, line_x, line_width) = self.lines[line_index];
+        self.glyphs_range(glyph_range)
+            .map(move |(font, glyphs)| {
+                let glyphs_with_adv = glyphs.iter().enumerate().map(move |(i, g)| {
+                    let gi = start + i;
+                    
+                    let adv = if gi == line_end {
+                        let line_adv = (line_x + line_width).0 as f32;
+                        line_adv - g.point.x
                     } else {
-                        self.glyphs[next_glyph].point.x - x
+                        self.glyphs[gi + 1].point.x - g.point.x
                     };
 
-                    x += x_advance;
-
-                    (*g, x_advance)
+                    (*g, adv)
                 });
-                start = i;
-                Some((font, glyphs))
-            } else {
-                None
-            }
-        })
+                
+                start += glyphs.len();
+
+                (font, glyphs_with_adv)
+            })
     }
 
     /// Glyphs segments.
