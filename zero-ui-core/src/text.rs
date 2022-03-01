@@ -405,6 +405,10 @@ impl fmt::Debug for Justify {
 /// Various metrics that apply to the entire [`FontFace`].
 ///
 /// For OpenType fonts, these mostly come from the `OS/2` table.
+///
+/// See the [`FreeType Glyph Metrics`] documentation for an explanation of the various metrics.
+///
+/// [`FreeType Glyph Metrics`]: https://freetype.org/freetype2/docs/glyphs/glyphs-3.html
 #[derive(Clone, Debug)]
 pub struct FontFaceMetrics {
     /// The number of font units per em.

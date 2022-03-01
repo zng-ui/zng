@@ -643,17 +643,23 @@ impl<'a> ShapedSegment<'a> {
     /// Returns an iterator of start point + width for underline segments.
     #[inline]
     pub fn underline_skip_glyphs(&self, thickness: Px) -> impl Iterator<Item = (PxPoint, Px)> + 'a {
-        let (o, _) = self.underline();
-        let line_y = o.y.0 as f32;
-        let line_y_range = (line_y, line_y + thickness.0 as f32);
+        let y = (self.text.line_height * Px((self.line_index as i32) + 1)) - self.text.underline;
+        let (x, _) = self.x_width();
+
+        let line_y = -(self.text.baseline - self.text.underline).0 as f32;
+        let line_y_range = (line_y, line_y - thickness.0 as f32);
+
+        // space around glyph descends, thickness clamped to a minimum of 1px and a maximum of 0.2em (same as Firefox).
+        let padding = (thickness.0 as f32).min(self.text.fonts[0].0.size().0 as f32 * 0.2).max(1.0);
 
         // no yield, only sadness
         struct UnderlineSkipGlyphs<'a, I, J> {
             line_y_range: (f32, f32),
+            y: Px,
+            padding: f32,
 
             iter: I,
             resume: Option<(&'a FontRef, J)>,
-            y: Px,
             x: f32,
             adv: f32,
         }
@@ -668,17 +674,25 @@ impl<'a> ShapedSegment<'a> {
                 fn f32_to_px(px: f32) -> Px {
                     Px(px.ceil() as i32)
                 }
-                loop {
+                'next: loop {
                     let continuation = self.resume.take().or_else(|| self.iter.next());
                     if let Some((font, mut glyphs_with_adv)) = continuation {
                         for (g, a) in &mut glyphs_with_adv {
-                            if let Ok(Some((exclude_start, exclude_end))) = font.underline_intersepts(g, self.line_y_range) {
-                                self.adv += exclude_start;
-                                let r = Some((PxPoint::new(Px(self.x as i32), self.y), Px(self.adv as i32)));
-                                self.x += exclude_start + exclude_end;
+                            if let Ok(Some((ex_start, ex_end))) = font.underline_intersepts(g.index, self.line_y_range) {
+                                let ex_start = ex_start - self.padding;
+                                let ex_end = ex_end + self.padding;
+
+                                self.adv += ex_start;
+                                let r = (PxPoint::new(Px(self.x as i32), self.y), Px(self.adv as i32));
+                                self.x += ex_start + ex_end;
                                 self.adv = 0.0;
                                 self.resume = Some((font, glyphs_with_adv));
-                                return r;
+
+                                if r.1 > Px(0) {
+                                    return Some(r);
+                                } else {
+                                    continue 'next;
+                                }
                             } else {
                                 self.adv += a;
                                 // continue
@@ -696,11 +710,12 @@ impl<'a> ShapedSegment<'a> {
         }
         UnderlineSkipGlyphs {
             line_y_range,
+            y,
+            padding,
 
             iter: self.glyphs_with_x_advance(),
             resume: None,
-            y: o.y,
-            x: o.x.0 as f32,
+            x: x.0 as f32,
             adv: 0.0,
         }
     }
@@ -1084,14 +1099,33 @@ impl Font {
             .outline(glyph_id, hinting_options, &mut AdapterSink { sink, scale })
     }
 
+    /// Returns the boundaries of a glyph in pixel units.
+    ///
+    /// The rectangle origin is the bottom-left of the bounds relative to the baseline.
+    pub fn typographic_bounds(&self, glyph_id: GlyphIndex) -> Result<euclid::Rect<f32, Px>, GlyphLoadingError> {
+        let rect = self.face().font_kit().typographic_bounds(glyph_id)?;
+
+        let scale = self.metrics().size_scale;
+        let bounds = euclid::rect::<f32, Px>(
+            rect.origin_x() * scale,
+            rect.origin_y() * scale,
+            rect.width() * scale,
+            rect.height() * scale,
+        );
+
+        Ok(bounds)
+    }
+
     /// Ray cast an horizontal line across the glyph and returns the hits.
     ///
-    /// The `line` are two vertical offsets in the same space as the glyph, the offsets define 
+    /// The `y_offset` is the offset of the glyph inside the line height.
+    ///
+    /// The `line` are two vertical offsets relative to the baseline, the offsets define
     /// the start and inclusive end of the horizontal line, that is, `(underline, underline + thickness)`.
     ///
     /// Returns `Ok(Some(x_enter, x_exit))` where the two values are x-advances, returns `None` if there is not hit, returns
     /// an error if the glyph is not found.
-    pub fn underline_intersepts(&self, glyph: GlyphInstance, line: (f32, f32)) -> Result<Option<(f32, f32)>, GlyphLoadingError> {
+    pub fn underline_intersepts(&self, glyph_id: GlyphIndex, line: (f32, f32)) -> Result<Option<(f32, f32)>, GlyphLoadingError> {
         // Algorithm:
         //
         //  - Ignore curves, everything is direct line.
@@ -1099,24 +1133,22 @@ impl Font {
         struct InterseptsSink {
             curr: euclid::Point2D<f32, Px>,
             under: (bool, bool),
-            offset: euclid::Vector2D<f32, Px>,
 
             line: (f32, f32),
             hit: Option<(f32, f32)>,
         }
         impl OutlineSink for InterseptsSink {
             fn move_to(&mut self, to: euclid::Point2D<f32, Px>) {
-                let to = to + self.offset;
                 self.curr = to;
-                self.under = (to.y < self.line.0, to.y < self.line.1);
+                self.under = (to.y > self.line.0, to.y > self.line.1);
             }
 
             fn line_to(&mut self, to: euclid::Point2D<f32, Px>) {
-                let to = to + self.offset;
-
-                let under = (to.y < self.line.0, to.y < self.line.1);
+                let under = (to.y > self.line.0, to.y > self.line.1);
 
                 if self.under != under {
+                    self.under = under;
+
                     let (x0, x1) = if self.curr.x < to.x {
                         (self.curr.x, to.x)
                     } else {
@@ -1129,6 +1161,7 @@ impl Font {
                         self.hit = Some((x0, x1));
                     }
                 }
+
                 self.curr = to;
                 self.under = under;
             }
@@ -1146,12 +1179,11 @@ impl Font {
         let mut sink = InterseptsSink {
             curr: euclid::point2(0.0, 0.0),
             under: (false, false),
-            offset: glyph.point.to_vector().cast_unit(),
 
             line,
             hit: None,
         };
-        self.outline(glyph.index, OutlineHintingOptions::None, &mut sink)?;
+        self.outline(glyph_id, OutlineHintingOptions::None, &mut sink)?;
 
         Ok(sink.hit)
     }
@@ -1161,6 +1193,8 @@ impl Font {
 pub type OutlineHintingOptions = font_kit::hinting::HintingOptions;
 
 /// Receives Bézier path rendering commands from [`Font::outline`].
+///
+/// The points are relative to the baseline, negative values under, positive over.
 pub trait OutlineSink {
     /// Moves the pen to a point.
     fn move_to(&mut self, to: euclid::Point2D<f32, Px>);

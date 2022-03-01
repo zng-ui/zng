@@ -1,6 +1,4 @@
-* Implement underline_skip GLYPHS.
-   - Glyph position is required?
-   - Spacing around skips.
+* Review underline in image example title, not rendering right.
 * Finish `FontList::shape_text`, font fallback.
 
 * Review child priority integration with `WidgetLayout`, what happens when we add a border in child { }?
