@@ -1035,24 +1035,30 @@ impl Font {
         hinting_options: OutlineHintingOptions,
         sink: &mut impl OutlineSink,
     ) -> Result<(), GlyphLoadingError> {
-        // TODO scale values by font size.
-        // https://searchfox.org/mozilla-central/source/gfx/2d/ScaledFontDWrite.cpp#148
-
         struct AdapterSink<'a, S> {
             sink: &'a mut S,
+            scale: f32,
+        }
+        impl<'a, S> AdapterSink<'a, S> {
+            fn scale(&self, p: pathfinder_geometry::vector::Vector2F) -> euclid::Point2D<f32, Px> {
+                euclid::point2(p.x() * self.scale, p.y() * self.scale)
+            }
         }
         impl<'a, S: OutlineSink> font_kit::outline::OutlineSink for AdapterSink<'a, S> {
             fn move_to(&mut self, to: pathfinder_geometry::vector::Vector2F) {
-                self.sink.move_to(euclid::point2(to.x(), to.y()))
+                let to = self.scale(to);
+                self.sink.move_to(to)
             }
 
             fn line_to(&mut self, to: pathfinder_geometry::vector::Vector2F) {
-                self.sink.line_to(euclid::point2(to.x(), to.y()))
+                let to = self.scale(to);
+                self.sink.line_to(to)
             }
 
             fn quadratic_curve_to(&mut self, ctrl: pathfinder_geometry::vector::Vector2F, to: pathfinder_geometry::vector::Vector2F) {
-                self.sink
-                    .quadratic_curve_to(euclid::point2(ctrl.x(), ctrl.y()), euclid::point2(to.x(), to.y()))
+                let ctrl = self.scale(ctrl);
+                let to = self.scale(to);
+                self.sink.quadratic_curve_to(ctrl, to)
             }
 
             fn cubic_curve_to(
@@ -1060,13 +1066,10 @@ impl Font {
                 ctrl: pathfinder_geometry::line_segment::LineSegment2F,
                 to: pathfinder_geometry::vector::Vector2F,
             ) {
-                self.sink.cubic_curve_to(
-                    (
-                        euclid::point2(ctrl.from_x(), ctrl.from_y()),
-                        euclid::point2(ctrl.to_x(), ctrl.to_y()),
-                    ),
-                    euclid::point2(to.x(), to.y()),
-                )
+                let l_from = self.scale(ctrl.from());
+                let l_to = self.scale(ctrl.to());
+                let to = self.scale(to);
+                self.sink.cubic_curve_to((l_from, l_to), to)
             }
 
             fn close(&mut self) {
@@ -1074,7 +1077,11 @@ impl Font {
             }
         }
 
-        self.face().font_kit().outline(glyph_id, hinting_options, &mut AdapterSink { sink })
+        let scale = self.metrics().size_scale;
+
+        self.face()
+            .font_kit()
+            .outline(glyph_id, hinting_options, &mut AdapterSink { sink, scale })
     }
 
     /// Ray cast an horizontal line across the glyph and returns the hits.
@@ -1084,8 +1091,64 @@ impl Font {
     ///
     /// Returns `Ok(Some(x_enter, x_exit))` where the two values are x-advances, returns `None` if there is not hit, returns
     /// an error if the glyph is not found.
-    pub fn underline_intersepts(&self, glyph: GlyphIndex, line: (f32, f32)) -> Result<Option<(f32, f32)>, GlyphLoadingError> {
-        Ok(None)
+    pub fn underline_intersepts(&self, glyph_id: GlyphIndex, line: (f32, f32)) -> Result<Option<(f32, f32)>, GlyphLoadingError> {
+        // Algorithm:
+        //
+        //  - Ignore curves, everything is direct line.
+        //  - If a line-y crosses `line` register the min-x and max-x from the two points.
+        struct InterseptsSink {
+            curr: euclid::Point2D<f32, Px>,
+            under: (bool, bool),
+
+            line: (f32, f32),
+            hit: Option<(f32, f32)>,
+        }
+        impl OutlineSink for InterseptsSink {
+            fn move_to(&mut self, to: euclid::Point2D<f32, Px>) {
+                self.curr = to;
+                self.under = (to.y < self.line.0, to.y < self.line.1);
+            }
+
+            fn line_to(&mut self, to: euclid::Point2D<f32, Px>) {
+                let under = (to.y < self.line.0, to.y < self.line.1);
+
+                if self.under != under {
+                    let (x0, x1) = if self.curr.x < to.x {
+                        (self.curr.x, to.x)
+                    } else {
+                        (to.x, self.curr.x)
+                    };
+                    if let Some((min, max)) = &mut self.hit {
+                        *min = min.min(x0);
+                        *max = max.max(x1);
+                    } else {
+                        self.hit = Some((x0, x1));
+                    }
+                }
+                self.curr = to;
+                self.under = under;
+            }
+
+            fn quadratic_curve_to(&mut self, _: euclid::Point2D<f32, Px>, to: euclid::Point2D<f32, Px>) {
+                self.line_to(to);
+            }
+
+            fn cubic_curve_to(&mut self, _: (euclid::Point2D<f32, Px>, euclid::Point2D<f32, Px>), to: euclid::Point2D<f32, Px>) {
+                self.line_to(to);
+            }
+
+            fn close(&mut self) {}
+        }
+        let mut sink = InterseptsSink {
+            curr: euclid::point2(0.0, 0.0),
+            under: (false, false),
+
+            line,
+            hit: None,
+        };
+        self.outline(glyph_id, OutlineHintingOptions::None, &mut sink)?;
+
+        Ok(sink.hit)
     }
 }
 
