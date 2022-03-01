@@ -494,7 +494,7 @@ impl<I: Iterator<Item = (PxPoint, Px)>> Iterator for MergingLineIter<I> {
             match self.iter.next() {
                 Some((p, w)) => {
                     if let Some((lp, lw)) = &mut self.line {
-                        if lp.x + *lw == p.x {
+                        if lp.x + *lw >= p.x {
                             *lw += w;
                             continue;
                         } else {
@@ -665,6 +665,9 @@ impl<'a> ShapedSegment<'a> {
             type Item = (PxPoint, Px);
 
             fn next(&mut self) -> Option<Self::Item> {
+                fn f32_to_px(px: f32) -> Px {
+                    Px(px.ceil() as i32)
+                }
                 loop {
                     let continuation = self.resume.take().or_else(|| self.iter.next());
                     if let Some((font, mut glyphs_with_adv)) = continuation {
@@ -682,7 +685,7 @@ impl<'a> ShapedSegment<'a> {
                             }
                         }
                     } else if self.adv > 0.0 {
-                        let r = Some((PxPoint::new(Px(self.x as i32), self.y), Px(self.adv as i32)));
+                        let r = Some((PxPoint::new(f32_to_px(self.x), self.y), f32_to_px(self.adv)));
                         self.adv = 0.0;
                         return r;
                     } else {
@@ -700,37 +703,6 @@ impl<'a> ShapedSegment<'a> {
             x: o.x.0 as f32,
             adv: 0.0,
         }
-
-        /*
-
-        let (o, _) = self.underline();
-        let line = (o.y, o.y + thickness);
-
-        let mut o = euclid::vec2::<_, Px>(o.x.0 as f32, o.y.0 as f32);
-        let mut w = 0.0;
-
-        MergingLineIter::new(self.glyphs_with_x_advance().flat_map(move |(font, glyphs)| {
-            glyphs.map(move |(g, x_advance)| {
-                let (p, w) = if let Ok(Some((a, b))) = font.underline_intersepts(g.index, line) {
-                    o.x += a;
-                    w += a;
-                    let r = (euclid::vec2(o.x, o.y), w);
-                    o.x += b;
-                    w = x_advance - b;
-                    r
-                } else {
-                    w += x_advance;
-                    let r = (o, w);
-                    o.x += x_advance;
-                    w = 0.0;
-                    r
-                };
-
-                (PxPoint::new(Px(p.x as i32), Px(p.y as i32)), Px(w as i32))
-            })
-        }))
-
-        */
     }
 
     /// Underline spanning the word or spaces, not skipping.
