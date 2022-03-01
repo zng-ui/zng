@@ -644,6 +644,7 @@ impl<'a> ShapedSegment<'a> {
     #[inline]
     pub fn underline_skip_glyphs(&self, thickness: Px) -> impl Iterator<Item = (PxPoint, Px)> + 'a {
         let y = (self.text.line_height * Px((self.line_index as i32) + 1)) - self.text.underline;
+        let y = y + self.text.padding.top;
         let (x, _) = self.x_width();
 
         let line_y = -(self.text.baseline - self.text.underline).0 as f32;
