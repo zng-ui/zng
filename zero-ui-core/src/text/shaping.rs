@@ -644,6 +644,66 @@ impl<'a> ShapedSegment<'a> {
     #[inline]
     pub fn underline_skip_glyphs(&self, thickness: Px) -> impl Iterator<Item = (PxPoint, Px)> + 'a {
         let (o, _) = self.underline();
+        let line_y = o.y.0 as f32;
+        let line_y_range = (line_y, line_y + thickness.0 as f32);
+
+        // no yield, only sadness
+        struct UnderlineSkipGlyphs<'a, I, J> {
+            line_y_range: (f32, f32),
+
+            iter: I,
+            resume: Option<(&'a FontRef, J)>,
+            y: Px,
+            x: f32,
+            adv: f32,
+        }
+        impl<'a, I, J> Iterator for UnderlineSkipGlyphs<'a, I, J>
+        where
+            I: Iterator<Item = (&'a FontRef, J)>,
+            J: Iterator<Item = (GlyphInstance, f32)>,
+        {
+            type Item = (PxPoint, Px);
+
+            fn next(&mut self) -> Option<Self::Item> {
+                loop {
+                    let continuation = self.resume.take().or_else(|| self.iter.next());
+                    if let Some((font, mut glyphs_with_adv)) = continuation {
+                        for (g, a) in &mut glyphs_with_adv {
+                            if let Ok(Some((exclude_start, exclude_end))) = font.underline_intersepts(g.index, self.line_y_range) {
+                                self.adv += exclude_start;
+                                let r = Some((PxPoint::new(Px(self.x as i32), self.y), Px(self.adv as i32)));
+                                self.x += exclude_start + exclude_end;
+                                self.adv = 0.0;
+                                self.resume = Some((font, glyphs_with_adv));
+                                return r;
+                            } else {
+                                self.adv += a;
+                                // continue
+                            }
+                        }
+                    } else if self.adv > 0.0 {
+                        let r = Some((PxPoint::new(Px(self.x as i32), self.y), Px(self.adv as i32)));
+                        self.adv = 0.0;
+                        return r;
+                    } else {
+                        return None;
+                    }
+                }
+            }
+        }
+        UnderlineSkipGlyphs {
+            line_y_range,
+
+            iter: self.glyphs_with_x_advance(),
+            resume: None,
+            y: o.y,
+            x: o.x.0 as f32,
+            adv: 0.0,
+        }
+
+        /*
+
+        let (o, _) = self.underline();
         let line = (o.y, o.y + thickness);
 
         let mut o = euclid::vec2::<_, Px>(o.x.0 as f32, o.y.0 as f32);
@@ -669,6 +729,8 @@ impl<'a> ShapedSegment<'a> {
                 (PxPoint::new(Px(p.x as i32), Px(p.y as i32)), Px(w as i32))
             })
         }))
+
+        */
     }
 
     /// Underline spanning the word or spaces, not skipping.
@@ -1050,7 +1112,7 @@ impl Font {
     ///
     /// Returns `Ok(Some(x_enter, x_exit))` where the two values are x-advances, returns `None` if there is not hit, returns
     /// an error if the glyph is not found.
-    pub fn underline_intersepts(&self, glyph: GlyphIndex, line: (Px, Px)) -> Result<Option<(f32, f32)>, GlyphLoadingError> {
+    pub fn underline_intersepts(&self, glyph: GlyphIndex, line: (f32, f32)) -> Result<Option<(f32, f32)>, GlyphLoadingError> {
         Ok(None)
     }
 }
