@@ -163,6 +163,13 @@ use zero_ui_view_api::{units::*, *};
 /// Panics if not called in the main thread, this is a requirement of OpenGL.
 ///
 /// If there was an error connecting with the app-process.
+///
+/// # Aborts
+///
+/// If called in a view-process a custom panic hook is set that logs panics to `stderr` and exits the process with the
+/// default panic exit code `101`. This is done because `webrender` can freeze due to panics in worker threads without propagating
+/// the panics to the main thread, this causes the app to stop responding while still receiving
+/// event signals, causing the operating system to not detect that the app is frozen.
 #[cfg(feature = "ipc")]
 #[cfg_attr(doc_nightly, doc(cfg(feature = "ipc")))]
 pub fn init() {
@@ -171,6 +178,8 @@ pub fn init() {
     }
 
     if let Some(config) = ViewConfig::from_env() {
+        std::panic::set_hook(Box::new(init_abort));
+
         let c = connect_view_process(config.server_name).expect("failed to connect to app-process");
 
         if config.headless {
@@ -231,6 +240,13 @@ pub extern "C" fn extern_init() {
 /// # Panics
 ///
 /// Panics if not called in the main thread, this is a requirement o OpenGL.
+///
+/// ## Background Panics Warning
+///
+/// Note that `webrender` can freeze due to panics in worker threads without propagating
+/// the panics to the main thread, this causes the app to stop responding while still receiving
+/// event signals, causing the operating system to not detect that the app is frozen. It is **strongly recommended**
+/// that you build with `panic=abort` or use [`std::panic::set_hook`] to detect these background panics.
 pub fn run_same_process(run_app: impl FnOnce() + Send + 'static) {
     if !is_main_thread::is_main_thread().unwrap_or(true) {
         panic!("only call `run_same_process` in the main thread, this is a requirement of OpenGL");
@@ -259,13 +275,23 @@ pub extern "C" fn extern_run_same_process(run_app: extern "C" fn()) {
     run_same_process(move || run_app())
 }
 
+fn init_abort(info: &std::panic::PanicInfo) {
+    panic_hook(info, "note: aborting to respawn");
+}
 fn ffi_abort(info: &std::panic::PanicInfo) {
+    panic_hook(info, "note: aborting to avoid unwind across FFI");
+}
+fn panic_hook(info: &std::panic::PanicInfo, details: &str) {
     // see `default_hook` in https://doc.rust-lang.org/src/std/panicking.rs.html#182
 
     let current_thread = std::thread::current();
     let name = current_thread.name().unwrap_or("<unnamed>");
 
-    let location = info.location().unwrap();
+    let (file, line, column) = if let Some(l) = info.location() {
+        (l.file(), l.line(), l.column())
+    } else {
+        ("<unknown>", 0, 0)
+    };
 
     let msg = match info.payload().downcast_ref::<&'static str>() {
         Some(s) => *s,
@@ -275,7 +301,7 @@ fn ffi_abort(info: &std::panic::PanicInfo) {
         },
     };
 
-    eprintln!("thread '{name}' panicked at '{msg}', {location}\nnote: aborting to avoid unwind across FFI",);
+    eprintln!("thread '{name}' panicked at '{msg}', {file}:{line}:{column}\n{details}",);
     std::process::exit(101) // Rust panic exit code.
 }
 
