@@ -690,7 +690,7 @@ impl<'a> ShapedSegment<'a> {
                     let continuation = self.resume.take().or_else(|| self.iter.next());
                     if let Some((font, mut glyphs_with_adv)) = continuation {
                         for (g, a) in &mut glyphs_with_adv {
-                            if let Ok(Some((ex_start, ex_end))) = font.underline_hits(g.index, self.line_y_range) {
+                            if let Ok(Some((ex_start, ex_end))) = font.h_line_hits(g.index, self.line_y_range) {
                                 self.width += ex_start - self.padding;
                                 let r = self.line();
                                 self.x += self.width + self.padding + ex_end + self.padding;
@@ -1127,16 +1127,16 @@ impl Font {
         Ok(bounds)
     }
 
-    /// Ray cast an horizontal line across the glyph and returns the hits.
-    ///
-    /// The `y_offset` is the offset of the glyph inside the line height.
+    /// Ray cast an horizontal line across the glyph and returns the entry and exit hits.
     ///
     /// The `line_y_range` are two vertical offsets relative to the baseline, the offsets define
-    /// the start and inclusive end of the horizontal line, that is, `(underline, underline + thickness)`.
+    /// the start and inclusive end of the horizontal line, that is, `(underline, underline + thickness)`, note
+    /// that positions under the baseline are negative so a 2px underline set 1px under the baseline becomes `(-1.0, -3.0)`.
     ///
     /// Returns `Ok(Some(x_enter, x_exit))` where the two values are x-advances, returns `None` if there is not hit, returns
-    /// an error if the glyph is not found.
-    pub fn underline_hits(&self, glyph_id: GlyphIndex, line_y_range: (f32, f32)) -> Result<Option<(f32, f32)>, GlyphLoadingError> {
+    /// an error if the glyph is not found. The first x-advance is from the left typographic border to the first hit on the outline,
+    /// the second x-advance is from the first across the outline to the exit hit.
+    pub fn h_line_hits(&self, glyph_id: GlyphIndex, line_y_range: (f32, f32)) -> Result<Option<(f32, f32)>, GlyphLoadingError> {
         // Algorithm:
         //
         //  - Ignore curves, everything is direct line.
@@ -1154,13 +1154,14 @@ impl Font {
             fn move_to(&mut self, to: euclid::Point2D<f32, Px>) {
                 self.start = Some(to);
                 self.curr = to;
-                self.under = (to.y > self.line_y_range.0, to.y > self.line_y_range.1);
+                self.under = (to.y < self.line_y_range.0, to.y < self.line_y_range.1);
             }
 
             fn line_to(&mut self, to: euclid::Point2D<f32, Px>) {
-                let under = (to.y > self.line_y_range.0, to.y > self.line_y_range.1);
+                let under = (to.y < self.line_y_range.0, to.y < self.line_y_range.1);
 
-                if self.under != under {
+                if self.under != under || under == (true, false) {
+                    // crossed one or two y-range boundaries or both points are inside
                     self.under = under;
 
                     let (x0, x1) = if self.curr.x < to.x {
@@ -1175,7 +1176,6 @@ impl Font {
                         self.hit = Some((x0, x1));
                     }
                 }
-                // TODO identify line inside line-range
 
                 self.curr = to;
                 self.under = under;
