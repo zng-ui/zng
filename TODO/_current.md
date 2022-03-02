@@ -1,4 +1,4 @@
-* Review underline in image example title, not rendering right.
+* Some underline segments don't merge.
 * Finish `FontList::shape_text`, font fallback.
 
 * Review child priority integration with `WidgetLayout`, what happens when we add a border in child { }?

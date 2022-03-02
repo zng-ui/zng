@@ -4,6 +4,10 @@
 * Implement font-features.
 * Review TODOs in code.
 
+# Underline Skip Glyphs
+
+* Underline padding does not look right for some curved glyphs (parenthesis shows this), consider improving the `h_line_hits`.
+
 # Mixed Content
 
 * Implement text runs composed of multiple styles, same problem as font fallback?

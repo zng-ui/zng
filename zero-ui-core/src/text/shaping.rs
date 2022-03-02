@@ -694,7 +694,7 @@ impl<'a> ShapedSegment<'a> {
                                 self.width += ex_start - self.padding;
                                 let r = self.line();
                                 self.x += self.width + self.padding + ex_end + self.padding;
-                                self.width = 0.0;
+                                self.width = a - (ex_start + ex_end) - self.padding;
 
                                 if r.is_some() {
                                     self.resume = Some((font, glyphs_with_adv));
@@ -705,15 +705,10 @@ impl<'a> ShapedSegment<'a> {
                                 // continue
                             }
                         }
-                    } else if self.width > 0.0 {
+                    } else {
                         let r = self.line();
                         self.width = 0.0;
-
-                        if r.is_some() {
-                            return r;
-                        }
-                    } else {
-                        return None;
+                        return r;
                     }
                 }
             }
