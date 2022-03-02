@@ -492,21 +492,24 @@ impl<I: Iterator<Item = (PxPoint, Px)>> Iterator for MergingLineIter<I> {
     fn next(&mut self) -> Option<Self::Item> {
         loop {
             match self.iter.next() {
-                Some((p, w)) => {
+                Some((point, width)) => {
                     if let Some((lp, lw)) = &mut self.line {
-                        if lp.x + *lw >= p.x {
-                            *lw += w;
+                        // merge line if touching or only skipping 1px, the lines are rounded to snap-to-pixels
+                        // this can cause 1px errors.
+                        let diff = point.x - (lp.x + *lw);
+                        if diff <= Px(1) {
+                            *lw += width + diff;
                             continue;
                         } else {
                             let r = (*lp, *lw);
 
-                            *lp = p;
-                            *lw = w;
+                            *lp = point;
+                            *lw = width;
 
                             return Some(r);
                         }
                     } else {
-                        self.line = Some((p, w));
+                        self.line = Some((point, width));
                         continue;
                     }
                 }
