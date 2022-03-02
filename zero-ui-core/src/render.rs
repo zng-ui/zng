@@ -1086,7 +1086,7 @@ impl FrameBuilder {
                         style: BorderStyle::Hidden,
                     },
                     radius: BorderRadius::uniform(0.0),
-                    do_aa: false,
+                    do_aa: true, // needed to avoid a `debug_assert!` in webrender.
                 });
 
                 self.display_list.push_border(&item, bounds.to_wr(), widths.to_wr(), details);
