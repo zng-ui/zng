@@ -16,7 +16,7 @@ pub enum TextSegmentKind {
 }
 
 /// Represents a single text segment in a [`SegmentedText`].
-#[derive(Clone, Debug)]
+#[derive(Clone, Copy, Debug)]
 pub struct TextSegment {
     /// Segment kind.
     pub kind: TextSegmentKind,
@@ -36,7 +36,7 @@ pub struct TextSegment {
 #[derive(Default, Debug, Clone)]
 pub struct SegmentedText {
     text: Text,
-    segs: Vec<TextSegment>,
+    segments: Vec<TextSegment>,
 }
 impl SegmentedText {
     /// New segmented text from any text type.
@@ -81,7 +81,7 @@ impl SegmentedText {
                 Self::push_seg(text_str, &mut segs, offset);
             }
         }
-        SegmentedText { text, segs }
+        SegmentedText { text, segments: segs }
     }
     fn push_seg(text: &str, segs: &mut Vec<TextSegment>, end: usize) {
         let start = segs.last().map(|s| s.end).unwrap_or(0);
@@ -114,20 +114,41 @@ impl SegmentedText {
 
     /// The raw segment data.
     #[inline]
-    pub fn segs(&self) -> &[TextSegment] {
-        &self.segs
+    pub fn segments(&self) -> &[TextSegment] {
+        &self.segments
     }
 
-    /// Returns `true` if text is empty.
+    /// Returns the text segment and kind if `index` is in bounds.
+    pub fn get(&self, index: usize) -> Option<(&str, TextSegmentKind)> {
+        if let Some(seg) = self.segments.get(index) {
+            let text = if index == 0 {
+                &self.text[..seg.end]
+            } else {
+                &self.text[self.segments[index - 1].end..seg.end]
+            };
+
+            Some((text, seg.kind))
+        } else {
+            None
+        }
+    }
+
+    /// Returns the number of segments.
+    #[inline]
+    pub fn len(&self) -> usize {
+        self.segments.len()
+    }
+
+    /// Returns `true` if text and segments are empty.
     #[inline]
     pub fn is_empty(&self) -> bool {
-        self.segs.is_empty()
+        self.segments.is_empty()
     }
 
     /// Destructs `self` into the text and segments.
     #[inline]
     pub fn into_parts(self) -> (Text, Vec<TextSegment>) {
-        (self.text, self.segs)
+        (self.text, self.segments)
     }
 
     /// New segmented text from [parts](Self::into_parts).
@@ -145,7 +166,7 @@ impl SegmentedText {
             assert!(segments.last().unwrap().end < text.len());
         }
 
-        SegmentedText { text, segs: segments }
+        SegmentedText { text, segments }
     }
 
     /// Segments iterator.
@@ -171,7 +192,7 @@ impl SegmentedText {
         SegmentedTextIter {
             text: &self.text,
             start: 0,
-            segs_iter: self.segs.iter(),
+            segs_iter: self.segments.iter(),
         }
     }
 }

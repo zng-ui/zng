@@ -1233,8 +1233,100 @@ pub trait OutlineSink {
 impl FontList {
     /// Calculates a [`ShapedText`] using the [best](FontList::best) font in this list.
     pub fn shape_text(&self, text: &SegmentedText, config: &TextShapingArgs) -> ShapedText {
-        // TODO inspect result of best for unknown glyphs, try unknown segments in fallback fonts.
-        self.best().shape_text(text, config)
+        let mut r = self.best().shape_text(text, config);
+
+        if self.len() == 1 {
+            return r;
+        }
+
+        // collect segments that contain unresolved glyphs (`0`):
+        let mut tofu_segs = vec![];
+        let mut start = 0;
+        for (i, seg) in r.segments.iter().enumerate() {
+            let glyphs = &r.glyphs[start..seg.end];
+            if glyphs.iter().any(|g| g.index == 0) {
+                tofu_segs.push(i);
+            }
+            start = seg.end;
+        }
+
+        // if found unresolved glyphs try fallback fonts:
+        if !tofu_segs.is_empty() {
+            println!(
+                "!!: attempting fallback with {:?}",
+                self.iter().map(|f| f.face().display_name().name()).collect::<Vec<_>>()
+            );
+
+            let mut glyphs = Vec::with_capacity(r.glyphs.len());
+            let mut g_i = 0;
+            let mut fonts = Vec::with_capacity(3);
+            let word_ctx_key = WordContextKey::new(config);
+            let letter_spacing = config.letter_spacing.0 as f32;
+
+            'tofu: for i in tofu_segs {
+                let g_start = if i == 0 { 0 } else { r.segments[i - 1].end };
+                let g_end = r.segments[i].end;
+                let text = text.get(i).unwrap().0;
+
+                // copy ok glyphs before `i`:
+                let ok_prev = &r.glyphs[g_i..g_start];
+                if !ok_prev.is_empty() {
+                    glyphs.extend_from_slice(ok_prev);
+                    fonts.push((self[0].clone(), glyphs.len()));
+                }
+
+                let origin = if g_start == 0 {
+                    euclid::point2(0.0, 0.0)
+                } else {
+                    r.glyphs[g_start - 1].point
+                };
+
+                // try fallbacks:
+                for font in &self[1..] {
+                    let mut ok = false;
+                    let mut origin = origin;
+                    font.shape_segment(text, &word_ctx_key, &config.lang, &config.font_features, |shaped_seg| {
+                        ok = shaped_seg.glyphs.iter().all(|s| s.index != 0);
+                        if ok {
+                            glyphs.extend(shaped_seg.glyphs.iter().map(|gi| {
+                                let r = GlyphInstance {
+                                    index: gi.index,
+                                    point: euclid::point2(gi.point.0 + origin.x, gi.point.1 + origin.y),
+                                };
+                                origin.x += letter_spacing; // TODO review this, we are assuming only words fail
+                                r
+                            }));
+
+                            // TODO adjust advance of subsequent ok glyphs
+                            // origin.x += shaped_seg.x_advance;
+                            // origin.y += shaped_seg.y_advance;
+                        }
+                    });
+
+                    if ok {
+                        g_i = g_end;
+                        continue 'tofu;
+                    } else {
+                        println!("!!: fallback to {} did not work", font.face().display_name().name());
+                    }
+                }
+
+                // failed all fallbacks, will copy tofu seg as OK next
+                g_i = g_start;
+            }
+
+            // copy ok glyphs after the last tofu segment.
+            let ok_rest = &r.glyphs[g_i..];
+            if !ok_rest.is_empty() {
+                glyphs.extend_from_slice(ok_rest);
+                fonts.push((self[0].clone(), glyphs.len()));
+            }
+
+            r.glyphs = glyphs;
+            r.fonts = fonts;
+        }
+
+        r
     }
 }
 

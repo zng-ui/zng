@@ -1,4 +1,6 @@
+* Default font list has repeated entry.
 * Finish `FontList::shape_text`, font fallback.
+   - Need to adjust advance of Ok glyphs after inserting fallback.
 
 * Review child priority integration with `WidgetLayout`, what happens when we add a border in child { }?
    - It does not work:

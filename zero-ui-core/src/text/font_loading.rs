@@ -4,6 +4,7 @@ use std::{
     fmt,
     path::PathBuf,
     rc::Rc,
+    slice::SliceIndex,
     sync::Arc,
 };
 
@@ -1017,10 +1018,10 @@ impl<'a> std::iter::IntoIterator for &'a FontList {
         self.iter()
     }
 }
-impl std::ops::Index<usize> for FontList {
-    type Output = FontRef;
+impl<I: SliceIndex<[FontRef]>> std::ops::Index<I> for FontList {
+    type Output = I::Output;
 
-    fn index(&self, index: usize) -> &Self::Output {
+    fn index(&self, index: I) -> &I::Output {
         &self.fonts[index]
     }
 }
