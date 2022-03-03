@@ -1307,8 +1307,11 @@ impl FontList {
                     });
 
                     if ok {
+                        println!("!!: fallback to \"{}\"", font.face().display_name().name());
                         g_i = g_end;
                         continue 'tofu;
+                    } else {
+                        println!("!!: tried fallback to \"{}\"", font.face().display_name().name());
                     }
                 }
 

@@ -12,7 +12,7 @@ use font_kit::properties::Weight;
 
 use super::{
     font_features::RFontVariations, lang, FontFaceMetrics, FontMetrics, FontName, FontStretch, FontStyle, FontSynthesis, FontWeight,
-    InternedStr, Lang, LangMap, ShapedSegmentData, WordCacheKey,
+    InternedStr, Lang, LangMap, ShapedSegmentData, WordCacheKey, GlyphIndex
 };
 use crate::{
     app::{
@@ -640,6 +640,25 @@ impl FontFace {
     #[inline]
     pub fn is_cached(&self) -> bool {
         !self.unregistered.get()
+    }
+
+    /// Returns the number of glyphs in the font.
+    /// 
+    /// The [`GlyphIndex`] range for this font is from 0 inclusive to this value exclusive.
+    #[inline]
+    pub fn glyph_count(&self) -> u32 {
+        self.font_kit.glyph_count()
+    }
+
+    /// Returns the usual [`GlyphIndex`] for a Unicode character.
+    ///
+    /// Be careful with this function; typographically correct character-to-glyph mapping must be done using the [`shape_text`] method. 
+    /// This function is only useful for best-effort simple use cases like “what does character X look like on its own”.
+    /// 
+    /// [`shape_text`]: Font::shape_text
+    #[inline]
+    pub fn glyph_for_char(&self, character: char) -> Option<GlyphIndex> {
+        self.font_kit.glyph_for_char(character)
     }
 }
 
@@ -1533,6 +1552,12 @@ impl GenericFonts {
 #[derive(Clone)]
 #[allow(clippy::rc_buffer)]
 pub struct FontDataRef(pub Arc<Vec<u8>>);
+impl FontDataRef {
+    /// Copy bytes from embedded font.
+    pub fn from_static(data: &'static [u8]) -> Self {
+        FontDataRef(Arc::new(data.to_vec()))
+    }
+}
 impl fmt::Debug for FontDataRef {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "FontDataRef(Arc<{} bytes>>)", self.0.len())
