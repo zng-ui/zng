@@ -1402,7 +1402,7 @@ impl Drop for RenderFont {
 /// By default the `serif`, `sans_serif`, `monospace`, `cursive` and `fantasy` are set to their own generic name,
 /// this delegates the resolution to the operating system.
 ///
-/// The default `fallback` font is "sans-serif".
+/// The default `fallback` font is "Segoe UI Symbol" for Windows, "Standard Symbols PS" for Linux and "sans-serif" for others.
 ///
 /// See also [`FontNames::system_ui`] for the default font selection for UIs.
 ///
@@ -1431,7 +1431,14 @@ impl GenericFonts {
         let mut monospace = "monospace";
         let mut cursive = "cursive";
         let mut fantasy = "fantasy";
-        let mut fallback = "sans-serif";
+        let mut fallback = if cfg!(windows) {
+            "Segoe UI Symbol"
+        } else if cfg!(target_os = "linux") {
+            "Standard Symbols PS"
+        } else {
+            // if cfg!(target_os = "mac") {
+            "sans-serif" // TODO
+        };
 
         GenericFonts {
             serif: default(serif),

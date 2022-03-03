@@ -1252,16 +1252,12 @@ impl FontList {
 
         // if found unresolved glyphs try fallback fonts:
         if !tofu_segs.is_empty() {
-            println!(
-                "!!: attempting fallback with {:?}",
-                self.iter().map(|f| f.face().display_name().name()).collect::<Vec<_>>()
-            );
-
             let mut glyphs = Vec::with_capacity(r.glyphs.len());
             let mut g_i = 0;
             let mut fonts = Vec::with_capacity(3);
             let word_ctx_key = WordContextKey::new(config);
             let letter_spacing = config.letter_spacing.0 as f32;
+            let line_height = r.line_height.0 as f32;
 
             'tofu: for i in tofu_segs {
                 let g_start = if i == 0 { 0 } else { r.segments[i - 1].end };
@@ -1286,8 +1282,14 @@ impl FontList {
                     let mut ok = false;
                     let mut origin = origin;
                     font.shape_segment(text, &word_ctx_key, &config.lang, &config.font_features, |shaped_seg| {
-                        ok = shaped_seg.glyphs.iter().all(|s| s.index != 0);
+                        ok = shaped_seg.glyphs.iter().all(|s| s.index != 0) && !shaped_seg.glyphs.is_empty();
                         if ok {
+                            let metrics = font.metrics();
+                            let baseline = metrics.ascent + metrics.line_gap / 2.0;
+                            let dft_line_height = metrics.line_height().0 as f32;
+                            let center_height = (line_height - dft_line_height) / 2.0;
+                            origin.y = baseline.0 as f32 + center_height; // TODO support multi-lines.
+
                             glyphs.extend(shaped_seg.glyphs.iter().map(|gi| {
                                 let r = GlyphInstance {
                                     index: gi.index,
@@ -1296,8 +1298,9 @@ impl FontList {
                                 origin.x += letter_spacing; // TODO review this, we are assuming only words fail
                                 r
                             }));
+                            fonts.push((font.clone(), glyphs.len()));
 
-                            // TODO adjust advance of subsequent ok glyphs
+                            // TODO adjust advance of subsequent ok glyphs, adjust line and total size,
                             // origin.x += shaped_seg.x_advance;
                             // origin.y += shaped_seg.y_advance;
                         }
@@ -1306,8 +1309,6 @@ impl FontList {
                     if ok {
                         g_i = g_end;
                         continue 'tofu;
-                    } else {
-                        println!("!!: fallback to {} did not work", font.face().display_name().name());
                     }
                 }
 
