@@ -120,6 +120,46 @@ impl fmt::Debug for ShapedText {
     }
 }
 impl ShapedText {
+    /// Split the shaped text in two. The `segment` and all segments after is included in the second text, all segments before
+    /// are included in the first text.
+    ///
+    /// Any padding set is removed before split.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `segment` is out of the range.
+    pub fn split(mut self, segment: usize) -> (ShapedText, ShapedText) {
+        self.set_padding(self.padding * -Px(1));
+        todo!()
+    }
+
+    /// Like [`split`] but the segment is not included in the result.
+    ///
+    /// [`split`]: Self::split
+    pub fn split_remove(mut self, segment: usize) -> (ShapedText, ShapedText) {
+        self.set_padding(self.padding * -Px(1));
+        todo!()
+    }
+
+    /// Appends the `text` to the end of `self`.
+    ///
+    /// If `text` has padding it is removed before pushing, if `self` has padding it is used.
+    pub fn push(&mut self, mut text: ShapedText) {
+        if text.is_empty() {
+            return;
+        }
+        text.set_padding(text.padding * -Px(1));
+
+        if self.is_empty() {
+            let padding = self.padding;
+            *self = text;
+            self.set_padding(padding);
+            return;
+        }
+
+        todo!()
+    }
+
     /// Glyphs by font.
     pub fn glyphs(&self) -> impl Iterator<Item = (&FontRef, &[GlyphInstance])> {
         let mut start = 0;
@@ -1235,102 +1275,54 @@ impl FontList {
     pub fn shape_text(&self, text: &SegmentedText, config: &TextShapingArgs) -> ShapedText {
         let mut r = self.best().shape_text(text, config);
 
-        if self.len() == 1 {
+        if self.len() == 1 || r.is_empty() {
             return r;
         }
 
-        // collect segments that contain unresolved glyphs (`0`):
-        let mut tofu_segs = vec![];
+        // find segments that contain unresolved glyphs (`0`) and collect replacements:
+        let mut replacement_segs = vec![];
         let mut start = 0;
         for (i, seg) in r.segments.iter().enumerate() {
             let glyphs = &r.glyphs[start..seg.end];
             if glyphs.iter().any(|g| g.index == 0) {
-                tofu_segs.push(i);
+                // try fallbacks:
+                for font in &self[1..] {
+                    let text = text.get_clone(i).unwrap();
+                    let replacement = font.shape_text(&text, config);
+
+                    if replacement.glyphs.iter().all(|g| g.index != 0) {
+                        replacement_segs.push((i, replacement));
+                        break;
+                    }
+                }
             }
             start = seg.end;
         }
 
-        // if found unresolved glyphs try fallback fonts:
-        if !tofu_segs.is_empty() {
-            let mut glyphs = Vec::with_capacity(r.glyphs.len());
-            let mut g_i = 0;
-            let mut fonts = Vec::with_capacity(3);
-            let word_ctx_key = WordContextKey::new(config);
-            let letter_spacing = config.letter_spacing.0 as f32;
-            let line_height = r.line_height.0 as f32;
-
-            'tofu: for i in tofu_segs {
-                let g_start = if i == 0 { 0 } else { r.segments[i - 1].end };
-                let g_end = r.segments[i].end;
-                let text = text.get(i).unwrap().0;
-
-                // copy ok glyphs before `i`:
-                let ok_prev = &r.glyphs[g_i..g_start];
-                if !ok_prev.is_empty() {
-                    glyphs.extend_from_slice(ok_prev);
-                    fonts.push((self[0].clone(), glyphs.len()));
-                }
-
-                let origin = if g_start == 0 {
-                    euclid::point2(0.0, 0.0)
-                } else {
-                    r.glyphs[g_start - 1].point
-                };
-
-                // try fallbacks:
-                for font in &self[1..] {
-                    let mut ok = false;
-                    let mut origin = origin;
-                    font.shape_segment(text, &word_ctx_key, &config.lang, &config.font_features, |shaped_seg| {
-                        ok = shaped_seg.glyphs.iter().all(|s| s.index != 0) && !shaped_seg.glyphs.is_empty();
-                        if ok {
-                            let metrics = font.metrics();
-                            let baseline = metrics.ascent + metrics.line_gap / 2.0;
-                            let dft_line_height = metrics.line_height().0 as f32;
-                            let center_height = (line_height - dft_line_height) / 2.0;
-                            origin.y = baseline.0 as f32 + center_height; // TODO support multi-lines.
-
-                            glyphs.extend(shaped_seg.glyphs.iter().map(|gi| {
-                                let r = GlyphInstance {
-                                    index: gi.index,
-                                    point: euclid::point2(gi.point.0 + origin.x, gi.point.1 + origin.y),
-                                };
-                                origin.x += letter_spacing; // TODO review this, we are assuming only words fail
-                                r
-                            }));
-                            fonts.push((font.clone(), glyphs.len()));
-
-                            // TODO adjust advance of subsequent ok glyphs, adjust line and total size,
-                            // origin.x += shaped_seg.x_advance;
-                            // origin.y += shaped_seg.y_advance;
-                        }
-                    });
-
-                    if ok {
-                        println!("!!: fallback to \"{}\"", font.face().display_name().name());
-                        g_i = g_end;
-                        continue 'tofu;
-                    } else {
-                        println!("!!: tried fallback to \"{}\"", font.face().display_name().name());
-                    }
-                }
-
-                // failed all fallbacks, will copy tofu seg as OK next
-                g_i = g_start;
+        if replacement_segs.is_empty() {
+            r
+        } else if r.segments.len() == replacement_segs.len() {
+            // all segments replacement, concat replacements:
+            let mut iter = replacement_segs.into_iter();
+            let (_, mut r) = iter.next().unwrap();
+            for (_, repl) in iter {
+                r.push(repl);
             }
+            r
+        } else {
+            let mut i_correction = 0isize;
+            for (i, repl) in replacement_segs {
+                let i = (i as isize + i_correction) as usize;
+                i_correction += (repl.segments.len() as isize) - 1;
 
-            // copy ok glyphs after the last tofu segment.
-            let ok_rest = &r.glyphs[g_i..];
-            if !ok_rest.is_empty() {
-                glyphs.extend_from_slice(ok_rest);
-                fonts.push((self[0].clone(), glyphs.len()));
+                let (mut head, tail) = r.split_remove(i);
+                head.push(repl);
+                head.push(tail);
+
+                r = head;
             }
-
-            r.glyphs = glyphs;
-            r.fonts = fonts;
+            r
         }
-
-        r
     }
 }
 

@@ -133,6 +133,14 @@ impl SegmentedText {
         }
     }
 
+    /// Returns a clone of the text segment if `index` is in bounds.
+    pub fn get_clone(&self, index: usize) -> Option<SegmentedText> {
+        self.get(index).map(|(s, k)| SegmentedText {
+            text: s.to_owned().into(),
+            segments: vec![TextSegment { kind: k, end: s.len() }],
+        })
+    }
+
     /// Returns the number of segments.
     #[inline]
     pub fn len(&self) -> usize {
