@@ -24,6 +24,7 @@ fn app_main() {
         let calc = var(Calculator::default());
         window! {
             title = "Calculator";
+            // zero_ui::widgets::inspector::show_bounds = true;
             resizable = false;
             auto_size = true;
             padding = 5;
@@ -234,10 +235,25 @@ impl Calculator {
 fn set_fallback_font(ctx: &mut WindowContext) {
     use zero_ui::core::text::*;
 
-    static FALLBACK: &[u8] = include_bytes!("res/calculator/notosanssymbols2-regular-subset.ttf");
-    let fallback = zero_ui::core::text::CustomFont::from_bytes("fallback", FontDataRef::from_static(FALLBACK), 0);
-
     let fonts = ctx.services.fonts();
-    fonts.register(fallback).unwrap();
-    fonts.generics_mut().set_fallback(lang!(und), "fallback");
+    let und = lang!(und);
+    if fonts
+        .get_list(
+            &FontNames::system_ui(&und),
+            FontStyle::Normal,
+            FontWeight::NORMAL,
+            FontStretch::NORMAL,
+            &und,
+        )
+        .iter()
+        .all(|f| f.glyph_for_char('⌫').is_none())
+    {
+        // OS UI and fallback fonts do not support `⌫`, load custom font that does.
+
+        static FALLBACK: &[u8] = include_bytes!("res/calculator/notosanssymbols2-regular-subset.ttf");
+        let fallback = zero_ui::core::text::CustomFont::from_bytes("fallback", FontDataRef::from_static(FALLBACK), 0);
+
+        fonts.register(fallback).unwrap();
+        fonts.generics_mut().set_fallback(und, "fallback");
+    }
 }
