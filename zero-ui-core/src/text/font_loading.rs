@@ -1,6 +1,6 @@
 use std::{
     cell::{Cell, RefCell},
-    collections::HashMap,
+    collections::{HashMap, HashSet},
     fmt,
     path::PathBuf,
     rc::Rc,
@@ -1120,15 +1120,18 @@ impl FontFaceLoader {
         lang: &Lang,
         generics: &GenericFonts,
     ) -> FontFaceList {
+        let mut used = HashSet::with_capacity(families.len());
         let mut r = Vec::with_capacity(families.len() + 1);
-        r.extend(
-            families
-                .iter()
-                .filter_map(|name| self.get(name, style, weight, stretch, lang, generics)),
-        );
+        r.extend(families.iter().filter_map(|name| {
+            if used.insert(name) {
+                self.get(name, style, weight, stretch, lang, generics)
+            } else {
+                None
+            }
+        }));
         let fallback = generics.fallback(lang);
 
-        if !families.contains(fallback) {
+        if !used.contains(fallback) {
             if let Some(fallback) = self.get(fallback, style, weight, stretch, lang, generics) {
                 r.push(fallback);
             }

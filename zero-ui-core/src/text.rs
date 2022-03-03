@@ -801,7 +801,7 @@ impl FontNames {
         } else if lang!(ko).matches(&lang, true, false) {
             ["Segoe WPC", "Segoe UI", "Malgun Gothic", "Dotom", "sans-serif"].into()
         } else {
-            ["Segoe WP", "Segoe UI", "sans-serif", "sans-serif"].into()
+            ["Segoe WP", "Segoe UI", "sans-serif"].into()
         }
     }
 
