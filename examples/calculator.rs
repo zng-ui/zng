@@ -234,23 +234,10 @@ impl Calculator {
 fn set_fallback_font(ctx: &mut WindowContext) {
     use zero_ui::core::text::*;
 
-    static FALLBACK: &[u8] = include_bytes!("res/calculator/overpass-light-subset.otf");
+    static FALLBACK: &[u8] = include_bytes!("res/calculator/notosanssymbols2-regular-subset.ttf");
     let fallback = zero_ui::core::text::CustomFont::from_bytes("fallback", FontDataRef::from_static(FALLBACK), 0);
 
     let fonts = ctx.services.fonts();
     fonts.register(fallback).unwrap();
     fonts.generics_mut().set_fallback(lang!(und), "fallback");
-
-    let font = fonts
-        .get(
-            &FontName::from("fallback"),
-            FontStyle::Normal,
-            FontWeight::BOLD,
-            FontStretch::NORMAL,
-            &lang!(und),
-        )
-        .unwrap();
-    println!("!!: {font:#?}");
-    println!("!!: name: {}", font.display_name());
-    println!("!!: for-char: {:?}", font.glyph_for_char('⌫'));
 }
