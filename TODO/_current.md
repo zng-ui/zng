@@ -1,6 +1,7 @@
-* Default font list has repeated entry.
 * Finish `FontList::shape_text`, font fallback.
-   - Need to adjust advance of Ok glyphs after inserting fallback.
+   - Implement `ShapedText::split`, `split_remove` and `extend`.
+   - Implement multiple `line_height`/`line_spacing` in shaped text.
+* Implement split/join segments.
 
 * Review child priority integration with `WidgetLayout`, what happens when we add a border in child { }?
    - It does not work:

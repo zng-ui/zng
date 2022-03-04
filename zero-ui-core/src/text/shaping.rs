@@ -72,11 +72,11 @@ impl Default for TextShapingArgs {
 #[derive(Clone, Default)]
 pub struct ShapedText {
     glyphs: Vec<GlyphInstance>,
-    // segments of `glyphs`
+    /// segments of `glyphs`
     segments: Vec<TextSegment>,
-    // index of `LineBreak` segments , line x-advance and width, is `segments.len()` for the last line.
+    /// index of `LineBreak` segments , line x-advance and width, is `segments.len()` for the last line.
     lines: Vec<(usize, Px, Px)>,
-    // fonts and index after last glyph that uses the font.
+    /// fonts and index after last glyph that uses the font.
     fonts: Vec<(FontRef, usize)>,
 
     padding: PxSideOffsets,
@@ -120,8 +120,8 @@ impl fmt::Debug for ShapedText {
     }
 }
 impl ShapedText {
-    /// Split the shaped text in two. The `segment` and all segments after is included in the second text, all segments before
-    /// are included in the first text.
+    /// Split the shaped text in two. All segments before `segment` are the first text, the `segment` and
+    /// all other segments are the second text.
     ///
     /// Any padding set is removed before split.
     ///
@@ -130,34 +130,186 @@ impl ShapedText {
     /// Panics if `segment` is out of the range.
     pub fn split(mut self, segment: usize) -> (ShapedText, ShapedText) {
         self.set_padding(self.padding * -Px(1));
-        todo!()
+
+        if segment == 0 {
+            let a = ShapedText {
+                glyphs: vec![],
+                segments: vec![],
+                lines: vec![(0, Px(0), Px(0))],
+                fonts: vec![self.fonts[0].clone()],
+                padding: PxSideOffsets::zero(),
+                size: PxSize::zero(),
+                line_height: self.line_height,
+                line_spacing: self.line_spacing,
+                baseline: self.baseline,
+                overline: self.overline,
+                strikethrough: self.strikethrough,
+                underline: self.underline,
+                underline_descent: self.underline_descent,
+            };
+            (a, self)
+        } else {
+            let g_end = self.segments[segment - 1].end;
+            let l_end = self.lines.iter().position(|(s, _, _)| *s >= segment).unwrap();
+            let f_end = self.fonts.iter().position(|(_, g)| *g >= g_end).unwrap();
+
+            let mut b = ShapedText {
+                glyphs: self.glyphs.drain(g_end..).collect(),
+                segments: self.segments.drain(segment..).collect(),
+                lines: self.lines.drain(l_end..).collect(),
+                fonts: self.fonts.drain(f_end..).collect(),
+                padding: PxSideOffsets::zero(),
+                size: PxSize::zero(),
+                line_height: self.line_height,
+                line_spacing: self.line_spacing,
+                baseline: self.baseline,
+                overline: self.overline,
+                strikethrough: self.strikethrough,
+                underline: self.underline,
+                underline_descent: self.underline_descent,
+            };
+
+            if b.segments[0].kind != TextSegmentKind::LineBreak {
+                let mut a_last_line = b.lines[0];
+                let l_width = a_last_line.2;
+                let x_offset = b.glyphs[0].point.x;
+                let a_width = l_width - Px(x_offset as i32);
+                let b_width = l_width - a_width;
+                a_last_line.2 = a_width;
+                b.lines[0].2 = b_width;
+                self.lines.push(a_last_line);
+
+                for g in &mut b.glyphs[..(a_last_line.0 as usize - segment)] {
+                    g.point.x -= x_offset;
+                }
+            }
+
+            if self.fonts.is_empty() {
+                self.fonts.push((b.fonts[0].0.clone(), self.glyphs.len()))
+            }
+
+            self.size.width = self.lines.iter().map(|(_, _, w)| *w).max().unwrap();
+
+            let a_lines = Px(self.lines.len() as i32);
+            let a_height = self.line_height * a_lines + self.line_spacing * (a_lines - Px(1));
+            self.size.height = a_height;
+
+            b.size.width = b.lines.iter().map(|(_, _, w)| *w).max().unwrap();
+
+            let b_lines = Px(self.lines.len() as i32);
+            b.size.height = b.line_height * b_lines + b.line_spacing * (b_lines - Px(1));
+
+            let b_y_offset = a_height.0 as f32;
+            for g in &mut b.glyphs {
+                g.point.y -= b_y_offset;
+            }
+
+            for s in &mut b.segments {
+                s.end -= g_end;
+            }
+
+            for (_, g) in &mut b.fonts {
+                *g -= g_end;
+            }
+
+            for (s, _, _) in &mut b.lines {
+                *s -= segment;
+            }
+
+            (self, b)
+        }
     }
 
     /// Like [`split`] but the segment is not included in the result.
     ///
     /// [`split`]: Self::split
-    pub fn split_remove(mut self, segment: usize) -> (ShapedText, ShapedText) {
-        self.set_padding(self.padding * -Px(1));
-        todo!()
+    pub fn split_remove(self, segment: usize) -> (ShapedText, ShapedText) {
+        let (mut a, b) = self.split(segment + 1);
+
+        let remove_seg = a.segments.pop().unwrap();
+        a.glyphs.drain(remove_seg.end..);
+
+        if a.lines[a.lines.len() - 1].0 == a.segments.len() {
+            let (_, _, last_line_width) = a.lines.pop().unwrap();
+            a.size.height -= a.line_height;
+
+            if a.size.width == last_line_width {
+                a.size.width = a.lines.iter().map(|(_, _, w)| *w).max().unwrap();
+            }
+        }
+
+        if let Some(i) = a.fonts.iter().rposition(|(_, g)| *g < a.glyphs.len()) {
+            let maybe_remove = i + 1;
+            if maybe_remove < a.fonts.len() {
+                if a.fonts[i].1 == a.glyphs.len() {
+                    a.fonts.truncate(maybe_remove);
+                } else {
+                    a.fonts.truncate(maybe_remove + 1);
+                    a.fonts[maybe_remove].1 = a.glyphs.len();
+                }
+            }
+        } else {
+            a.fonts[0].1 = a.glyphs.len();
+        }
+
+        (a, b)
     }
 
     /// Appends the `text` to the end of `self`.
     ///
     /// If `text` has padding it is removed before pushing, if `self` has padding it is used.
-    pub fn push(&mut self, mut text: ShapedText) {
+    pub fn extend(&mut self, mut text: ShapedText) {
         if text.is_empty() {
             return;
         }
         text.set_padding(text.padding * -Px(1));
 
         if self.is_empty() {
-            let padding = self.padding;
+            text.set_padding(self.padding);
             *self = text;
-            self.set_padding(padding);
             return;
         }
 
-        todo!()
+        let (fl_x_offset, y_offset) = if self.segments[self.segments.len() - 1].kind == TextSegmentKind::LineBreak {
+            (0.0, (self.size.height + self.line_spacing).0 as f32)
+        } else {
+            let (_, ll_x, ll_width) = self.lines[self.lines.len() - 1];
+            ((ll_x + ll_width).0 as f32, (self.size.height - self.line_height).0 as f32)
+        };
+
+        let g_offset = self.glyphs.len();
+        let s_offset = self.segments.len();
+
+        if fl_x_offset > 0.0 {
+            let fl_end = text.lines[0].0;
+            for g in &mut text.glyphs[..fl_end] {
+                g.point.x += fl_x_offset;
+            }
+        }
+        for g in &mut text.glyphs {
+            g.point.y += y_offset;
+        }
+        self.glyphs.extend(text.glyphs);
+
+        for s in &mut text.segments {
+            s.end += s_offset;
+        }
+        self.segments.extend(text.segments);
+
+        for (s, _, _) in &mut text.lines {
+            *s += s_offset;
+        }
+        self.lines.extend(text.lines);
+
+        for (_, g) in &mut text.fonts {
+            *g += g_offset;
+        }
+        self.fonts.extend(text.fonts);
+
+        self.size.width = self.size.width.max(text.size.width);
+        self.size.height += text.size.height;
+
+        // TODO combine line heights.
     }
 
     /// Glyphs by font.
@@ -1306,7 +1458,7 @@ impl FontList {
             let mut iter = replacement_segs.into_iter();
             let (_, mut r) = iter.next().unwrap();
             for (_, repl) in iter {
-                r.push(repl);
+                r.extend(repl);
             }
             r
         } else {
@@ -1316,8 +1468,8 @@ impl FontList {
                 i_correction += (repl.segments.len() as isize) - 1;
 
                 let (mut head, tail) = r.split_remove(i);
-                head.push(repl);
-                head.push(tail);
+                head.extend(repl);
+                head.extend(tail);
 
                 r = head;
             }
