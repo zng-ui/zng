@@ -168,58 +168,54 @@ impl ShapedText {
                 underline_descent: self.underline_descent,
             };
 
+            if self.lines.is_empty() || self.lines[self.lines.len() - 1].0 < self.glyphs.len() {
+                self.lines.push((self.glyphs.len(), Px(0), Px(0)));
+            }
+            let b_lines = b.lines.len();
+            let (_, b_fl_x, b_fl_width) = &mut b.lines[0];
+            let (_, a_ll_x, a_ll_width) = &mut self.lines[b_lines - 1];
+            *a_ll_x = mem::take(b_fl_x);
+
+            let x_offset = b.glyphs[0].point.x;
+            *b_fl_width -= Px(x_offset as i32);
+            *a_ll_width -= *b_fl_width;
+
             for (s, _, _) in &mut b.lines {
                 *s -= segment;
             }
 
-            todo!("reimplement from here");
-
-            if b.segments[0].kind != TextSegmentKind::LineBreak {
-                let mut a_last_line = b.lines[0];
-                let l_width = a_last_line.2;
-                let x_offset = b.glyphs[0].point.x;
-                let a_width = l_width - Px(x_offset as i32);
-                let b_width = l_width - a_width;
-                a_last_line.0 = self.glyphs.len();
-                a_last_line.2 = a_width;
-                b.lines[0].2 = b_width;
-                self.lines.push(a_last_line);
-
-                for g in &mut b.glyphs[..] {
-                    g.point.x -= x_offset;
-                }
+            for s in &mut b.segments {
+                s.end -= self.glyphs.len();
             }
 
             if self.fonts.is_empty() {
                 self.fonts.push((b.fonts[0].0.clone(), self.glyphs.len()))
             }
+            for (_, g) in &mut b.fonts {
+                *g -= self.glyphs.len();
+            }
+
+            let b_fl_end = if b.lines[0].0 == b.segments.len() {
+                b.glyphs.len()
+            } else {
+                b.segments[b.lines[0].0].end
+            };
+            for g in &mut b.glyphs[..b_fl_end] {
+                g.point.x -= x_offset;
+            }
 
             self.size.width = self.lines.iter().map(|(_, _, w)| *w).max().unwrap();
-
             let a_lines = Px(self.lines.len() as i32);
             let a_height = self.line_height * a_lines + self.line_spacing * (a_lines - Px(1));
             self.size.height = a_height;
 
             b.size.width = b.lines.iter().map(|(_, _, w)| *w).max().unwrap();
-
             let b_lines = Px(self.lines.len() as i32);
             b.size.height = b.line_height * b_lines + b.line_spacing * (b_lines - Px(1));
 
             let b_y_offset = a_height.0 as f32;
             for g in &mut b.glyphs {
                 g.point.y -= b_y_offset;
-            }
-
-            for s in &mut b.segments {
-                s.end -= g_end;
-            }
-
-            for (_, g) in &mut b.fonts {
-                *g -= g_end;
-            }
-
-            for (s, _, _) in &mut b.lines {
-                *s -= segment;
             }
 
             (self, b)
@@ -271,7 +267,7 @@ impl ShapedText {
     /// Appends the `text` to the end of `self`.
     ///
     /// Line height and spacing of `self` is applied to `text`, aligning by baseline.
-    /// 
+    ///
     /// If `text` has padding it is removed before pushing, if `self` has padding it is used.
     pub fn extend(&mut self, mut text: ShapedText) {
         if text.is_empty() {
