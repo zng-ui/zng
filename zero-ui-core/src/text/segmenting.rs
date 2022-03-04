@@ -40,6 +40,7 @@ pub struct SegmentedText {
 }
 impl SegmentedText {
     /// New segmented text from any text type.
+    #[inline]
     pub fn new(text: impl Into<Text>) -> Self {
         Self::new_text(text.into())
     }
