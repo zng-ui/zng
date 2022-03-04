@@ -120,10 +120,9 @@ impl fmt::Debug for ShapedText {
     }
 }
 impl ShapedText {
-    /// Split the shaped text in two. All segments before `segment` are the first text, the `segment` and
-    /// all other segments are the second text.
+    /// Split the shaped text in two. The text is split at a `segment` that becomes the first segment of the second text.
     ///
-    /// Any padding set is removed before split.
+    /// Any padding set is removed.
     ///
     /// # Panics
     ///
@@ -169,17 +168,24 @@ impl ShapedText {
                 underline_descent: self.underline_descent,
             };
 
+            for (s, _, _) in &mut b.lines {
+                *s -= segment;
+            }
+
+            todo!("reimplement from here");
+
             if b.segments[0].kind != TextSegmentKind::LineBreak {
                 let mut a_last_line = b.lines[0];
                 let l_width = a_last_line.2;
                 let x_offset = b.glyphs[0].point.x;
                 let a_width = l_width - Px(x_offset as i32);
                 let b_width = l_width - a_width;
+                a_last_line.0 = self.glyphs.len();
                 a_last_line.2 = a_width;
                 b.lines[0].2 = b_width;
                 self.lines.push(a_last_line);
 
-                for g in &mut b.glyphs[..(a_last_line.0 as usize - segment)] {
+                for g in &mut b.glyphs[..] {
                     g.point.x -= x_offset;
                 }
             }
@@ -226,8 +232,15 @@ impl ShapedText {
     pub fn split_remove(self, segment: usize) -> (ShapedText, ShapedText) {
         let (mut a, b) = self.split(segment + 1);
 
-        let remove_seg = a.segments.pop().unwrap();
-        a.glyphs.drain(remove_seg.end..);
+        println!("!!: {a:#?}");
+        println!("!!: {b:#?}");
+
+        a.segments.pop();
+        if a.segments.is_empty() {
+            todo!()
+        }
+
+        a.glyphs.drain(a.segments[a.segments.len() - 1].end..);
 
         if a.lines[a.lines.len() - 1].0 == a.segments.len() {
             let (_, _, last_line_width) = a.lines.pop().unwrap();
@@ -257,6 +270,8 @@ impl ShapedText {
 
     /// Appends the `text` to the end of `self`.
     ///
+    /// Line height and spacing of `self` is applied to `text`, aligning by baseline.
+    /// 
     /// If `text` has padding it is removed before pushing, if `self` has padding it is used.
     pub fn extend(&mut self, mut text: ShapedText) {
         if text.is_empty() {
