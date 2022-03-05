@@ -520,9 +520,10 @@ pub mod text {
                     let font_size = font_size.to_layout(ctx, available_size.width, ctx.metrics.root_font_size);
 
                     if self.layout.is_none() {
+                        let fonts = t.faces.sized(font_size, variations.finalize());
                         self.layout = Some(LayoutText {
-                            fonts: t.faces.sized(font_size, variations.finalize()),
-                            shaped_text: ShapedText::default(),
+                            shaped_text: ShapedText::new(fonts.best()),
+                            fonts,
                             overlines: vec![],
                             overline_thickness: Px(0),
                             strikethroughs: vec![],

@@ -16,7 +16,7 @@ pub enum TextSegmentKind {
 }
 
 /// Represents a single text segment in a [`SegmentedText`].
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct TextSegment {
     /// Segment kind.
     pub kind: TextSegmentKind,
@@ -33,7 +33,7 @@ pub struct TextSegment {
 ///
 /// Line-break segments must be applied and a line-break can be inserted in between the other segment kinds
 /// for wrapping the text.
-#[derive(Default, Debug, Clone)]
+#[derive(Default, Debug, Clone, PartialEq, Eq)]
 pub struct SegmentedText {
     text: Text,
     segments: Vec<TextSegment>,
