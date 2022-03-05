@@ -238,9 +238,33 @@ impl ShapedText {
             return;
         }
 
-        todo!();
+        if !self.is_empty() {
+            let line_diff = diff.0 as f32;
+            let mut diff = 0.0;
+            let center = line_diff / 2.0;
+
+            let mut start = 0;
+            for (s_end, _) in &self.lines {
+                let s_end = *s_end;
+                let end = if s_end == self.segments.len() {
+                    self.glyphs.len()
+                } else {
+                    self.segments[s_end].end
+                };
+
+                for g in &mut self.glyphs[start..end] {
+                    g.point.y += diff + center;
+                }
+
+                diff += line_diff;
+                start = end;
+            }
+        }
 
         self.line_height = line_height;
+
+        let lines = Px(self.lines.len() as i32);
+        self.size.height = self.line_height * lines + self.line_spacing * (lines - Px(1));
     }
 
     /// Vertical spacing in between lines.
@@ -258,17 +282,31 @@ impl ShapedText {
 
         if self.lines.len() > 1 {
             let mut diff = diff.0 as f32;
+            let line_diff = diff;
 
             let s_start = self.lines[0].0;
-            let start = if s_start == 0 { 0 } else { self.segments[s_start - 1].end };
+            let mut start = if s_start == 0 { 0 } else { self.segments[s_start].end };
+            for (s_end, _) in &self.lines[1..] {
+                let s_end = *s_end;
+                let end = if s_end == self.segments.len() {
+                    self.glyphs.len()
+                } else {
+                    self.segments[s_end].end
+                };
 
-            for g in &mut self.glyphs[start..] {
-                g.point.y += diff;
-                diff += diff;
+                for g in &mut self.glyphs[start..end] {
+                    g.point.y += diff;
+                }
+
+                diff += line_diff;
+                start = end;
             }
         }
 
         self.line_spacing = line_spacing;
+
+        let lines = Px(self.lines.len() as i32);
+        self.size.height = self.line_height * lines + self.line_spacing * (lines - Px(1));
     }
 
     /// Vertical offset from the line bottom up that is the text baseline.
@@ -1569,12 +1607,16 @@ mod tests {
 
     #[test]
     fn set_line_spacing() {
-        test_line_spacing(Px(20), Px(0));
-        test_line_spacing(Px(0), Px(20));
-        test_line_spacing(Px(4), Px(6));
-        test_line_spacing(Px(4), Px(4));
+        let text = "0\n1\n2\n3\n4";
+        test_line_spacing(text, Px(20), Px(0));
+        test_line_spacing(text, Px(0), Px(20));
+        test_line_spacing(text, Px(4), Px(6));
+        test_line_spacing(text, Px(4), Px(4));
+        test_line_spacing("a line\nanother\nand another", Px(20), Px(0));
+        test_line_spacing("", Px(20), Px(0));
+        test_line_spacing("a line", Px(20), Px(0));
     }
-    fn test_line_spacing(from: Px, to: Px) {
+    fn test_line_spacing(text: &'static str, from: Px, to: Px) {
         let font = test_font();
         let mut config = TextShapingArgs {
             line_height: Px(40),
@@ -1582,18 +1624,55 @@ mod tests {
             ..Default::default()
         };
 
-        let text = SegmentedText::new("0\n1\n2\n3");
+        let text = SegmentedText::new(text);
         let mut test = font.shape_text(&text, &config);
 
         config.line_spacing = to;
-        let actual = font.shape_text(&text, &config);
+        let expected = font.shape_text(&text, &config);
 
         assert_eq!(from, test.line_spacing());
         test.set_line_spacing(to);
         assert_eq!(to, test.line_spacing());
 
-        for (i, (g0, g1)) in test.glyphs.iter().zip(actual.glyphs.iter()).enumerate() {
+        for (i, (g0, g1)) in test.glyphs.iter().zip(expected.glyphs.iter()).enumerate() {
             assert_eq!(g0, g1, "testing {from} to {to}, glyph {i} is not equal");
         }
+
+        assert_eq!(test.size(), expected.size());
+    }
+
+    #[test]
+    fn set_line_height() {
+        let text = "0\n1\n2\n3\n4";
+        test_line_height(text, Px(20), Px(10));
+        test_line_height(text, Px(10), Px(20));
+        test_line_height(text, Px(20), Px(20));
+        test_line_height("a line\nanother\nand another", Px(20), Px(10));
+        test_line_height("", Px(20), Px(10));
+        test_line_height("a line", Px(20), Px(10));
+    }
+    fn test_line_height(text: &'static str, from: Px, to: Px) {
+        let font = test_font();
+        let mut config = TextShapingArgs {
+            line_height: from,
+            line_spacing: Px(20),
+            ..Default::default()
+        };
+
+        let text = SegmentedText::new(text);
+        let mut test = font.shape_text(&text, &config);
+
+        config.line_height = to;
+        let expected = font.shape_text(&text, &config);
+
+        assert_eq!(from, test.line_height());
+        test.set_line_height(to);
+        assert_eq!(to, test.line_height());
+
+        for (i, (g0, g1)) in test.glyphs.iter().zip(expected.glyphs.iter()).enumerate() {
+            assert_eq!(g0, g1, "testing {from} to {to}, glyph {i} is not equal");
+        }
+
+        assert_eq!(test.size(), expected.size());
     }
 }
