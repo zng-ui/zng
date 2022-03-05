@@ -1723,8 +1723,8 @@ mod tests {
 
     #[test]
     fn split() {
-        test_split("a b", 1, "a", "b");
-        test_split("one another", 1, "one", "another");
+        test_split("a b", 1, "a", " b");
+        test_split("one another", 1, "one", " another");
     }
     fn test_split(full_text: &'static str, segment: usize, a: &'static str, b: &'static str) {
         let font = test_font();
@@ -1740,7 +1740,7 @@ mod tests {
 
         let (actual_a, actual_b) = full_text.split(segment);
 
-        assert_eq!(expected_a, actual_a);
-        assert_eq!(expected_b, actual_b);
+        pretty_assertions::assert_eq!(expected_a, actual_a);
+        pretty_assertions::assert_eq!(expected_b, actual_b);
     }
 }

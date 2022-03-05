@@ -81,12 +81,12 @@ pathfinder_geometry = "0.5"
 flume = { version = "0.10", default-features  = false, features = ["async"] }
 rayon = "1"
 blocking = "1"
-parking_lot = "0.11"
+parking_lot = "0.11" # updates to official winAPI crate, wait glutin/winit
 futures-timer = "3"
 isahc = { version = "1", features = ["cookies", "json"] }
 futures-lite = "1"
 async-fs = "1.5"
-http-cache-semantics = "0.9"
+http-cache-semantics = "1"
 http-serde = "1"
 
 # util
@@ -105,7 +105,7 @@ unsafe-any = "0.4"
 linear-map = "1"
 rand = "0.8"
 base64 = "0.13"
-hashbrown = "0.11"
+hashbrown = "0.12.0"
 sha2 = "0.10"
 fs2 = "0.4.3"
 remove_dir_all = "0.7"
@@ -115,6 +115,9 @@ async-recursion = "1"
 # serde
 serde = "1"
 serde_json = "1"
+
+[dev-dependencies]
+pretty_assertions = "1"
 
 [package.metadata.docs.rs]
 all-features = true
