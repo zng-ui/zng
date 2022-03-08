@@ -187,6 +187,10 @@ impl LineRangeVec {
         self.0[0]
     }
 
+    fn first_mut(&mut self) -> &mut LineRange {
+        &mut self.0[0]
+    }
+
     fn last(&self) -> LineRange {
         self.0[self.0.len() - 1]
     }
@@ -571,9 +575,9 @@ impl ShapedText {
                     width: 0.0,
                 });
             }
-            let LineRange { width: a_ll_width, .. } = &mut self.lines.last();
-            let LineRange { width: b_fl_width, .. } = &mut b.lines.first();
-
+            let LineRange { width: a_ll_width, .. } = self.lines.last_mut();
+            let LineRange { width: b_fl_width, .. } = b.lines.first_mut();
+            
             let x_offset = b.glyphs[0].point.x;
             *a_ll_width = x_offset;
             *b_fl_width -= *a_ll_width;
@@ -1793,7 +1797,7 @@ mod tests {
     }
 
     #[test]
-    fn split() {
+    fn split_single_line() {
         test_split("a b", 1, "a", " b");
         test_split("one another", 1, "one", " another");
         test_split("one another then rest", 3, "one another", " then rest");
