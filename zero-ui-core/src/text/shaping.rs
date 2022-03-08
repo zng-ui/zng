@@ -184,6 +184,7 @@ impl ShapedText {
     ) -> impl Iterator<Item = (&FontRef, impl Iterator<Item = (GlyphInstance, f32)> + '_)> + '_ {
         let mut start = glyph_range.start();
         let line = self.lines[line_index];
+        let line_x = self.padding.left;
         let line_end = if line.end == self.segments.len() {
             self.glyphs.len()
         } else {
@@ -194,7 +195,7 @@ impl ShapedText {
                 let gi = start + i + 1;
 
                 let adv = if gi == line_end {
-                    line.width - g.point.x
+                    line_x.0 as f32 + line.width - g.point.x
                 } else {
                     self.glyphs[gi].point.x - g.point.x
                 };
