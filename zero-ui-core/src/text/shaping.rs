@@ -410,7 +410,10 @@ impl ShapedText {
             glyphs: vec![],
             segments: vec![],
             lines: vec![LineRange { end: 0, width: 0.0 }],
-            fonts: vec![self.fonts[0].clone()],
+            fonts: vec![FontRange {
+                font: self.fonts[0].font.clone(),
+                end: 0,
+            }],
             padding: PxSideOffsets::zero(),
             size: PxSize::zero(),
             line_height: self.line_height,
@@ -436,6 +439,8 @@ impl ShapedText {
         if segment == 0 {
             let a = self.empty();
             (a, self)
+        } else if segment >= self.segments.len() {
+            panic!("segment out of bounds, the len is {} but the segment is {}", self.segments.len(), segment)
         } else {
             let g_end = self.segments[segment - 1].end;
             let l_end = self.lines.iter().position(|l| l.end >= segment).unwrap();
@@ -484,6 +489,9 @@ impl ShapedText {
                     font: b.fonts[0].font.clone(),
                     end: self.glyphs.len(),
                 });
+            } else {
+                let last_font = self.fonts.len() - 1;
+                self.fonts[last_font].end = self.fonts[last_font].end.min(self.glyphs.len());
             }
             for f in &mut b.fonts {
                 f.end -= self.glyphs.len();
@@ -1715,6 +1723,8 @@ mod tests {
         test_split("a b", 1, "a", " b");
         test_split("one another", 1, "one", " another");
         test_split("one another then rest", 3, "one another", " then rest");
+        test_split("at start", 0, "", "at start");
+        test_split("at end", 2, "at ", "end");
     }
     fn test_split(full_text: &'static str, segment: usize, a: &'static str, b: &'static str) {
         let font = test_font();
@@ -1732,5 +1742,18 @@ mod tests {
 
         pretty_assertions::assert_eq!(expected_a, actual_a, "failed \"{full_text}\"");
         pretty_assertions::assert_eq!(expected_b, actual_b, "failed \"{full_text}\"");
+    }
+
+    #[test]
+    #[should_panic(expected = "segment out of bounds, the len is 3 but the segment is 3")]
+    fn split_out_of_range() {
+        test_split("at len", 3, "at len", "");
+    }
+
+    #[test]
+    fn split_multi_line() {
+        test_split("a\nb", 1, "a", "\nb");
+        test_split("a b\nc", 1, "a", " b\nc");
+        test_split("a\nb c", 3, "a\nb", " c");
     }
 }
