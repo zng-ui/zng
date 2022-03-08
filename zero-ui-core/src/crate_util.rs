@@ -871,6 +871,11 @@ impl IndexRange {
     }
 }
 
+/// `f32` comparison, panics for `NaN`.
+pub fn f32_cmp(a: &f32, b: &f32) -> std::cmp::Ordering {
+    a.partial_cmp(b).unwrap()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

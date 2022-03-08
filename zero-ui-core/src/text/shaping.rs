@@ -8,7 +8,10 @@ use super::{
     font_features::RFontFeatures, lang, Font, FontList, FontRef, GlyphIndex, GlyphInstance, InternedStr, Lang, SegmentedText, TextSegment,
     TextSegmentKind,
 };
-use crate::{crate_util::IndexRange, units::*};
+use crate::{
+    crate_util::{f32_cmp, IndexRange},
+    units::*,
+};
 
 pub use font_kit::error::GlyphLoadingError;
 
@@ -67,12 +70,12 @@ impl Default for TextShapingArgs {
 }
 
 /// Defines a range of segments in a [`ShapedText`] that form a line.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 struct LineRange {
     /// Index of `LineBreak` segment or `segments.len()` for the last line.
     end: usize,
     /// Pixel width of the line.
-    width: Px,
+    width: f32,
 }
 
 /// Defines the font of a range of glyphs in a [`ShapedText`].
@@ -191,7 +194,7 @@ impl ShapedText {
                 let gi = start + i + 1;
 
                 let adv = if gi == line_end {
-                    line.width.0 as f32 - g.point.x
+                    line.width - g.point.x
                 } else {
                     self.glyphs[gi].point.x - g.point.x
                 };
@@ -396,7 +399,7 @@ impl ShapedText {
                 text: self,
                 seg_range: range,
                 index: i,
-                width: l.width,
+                width: Px(l.width.round() as i32),
             }
         })
     }
@@ -406,7 +409,7 @@ impl ShapedText {
         ShapedText {
             glyphs: vec![],
             segments: vec![],
-            lines: vec![LineRange { end: 0, width: Px(0) }],
+            lines: vec![LineRange { end: 0, width: 0.0 }],
             fonts: vec![self.fonts[0].clone()],
             padding: PxSideOffsets::zero(),
             size: PxSize::zero(),
@@ -456,20 +459,20 @@ impl ShapedText {
 
             if self.lines.is_empty() || self.lines[self.lines.len() - 1].end < self.glyphs.len() {
                 self.lines.push(LineRange {
-                    end: self.glyphs.len(),
-                    width: Px(0),
+                    end: self.segments.len(),
+                    width: 0.0,
                 });
             }
-            let b_lines = b.lines.len();
             let LineRange { width: b_fl_width, .. } = &mut b.lines[0];
-            let LineRange { width: a_ll_width, .. } = &mut self.lines[b_lines - 1];
+            let last_a_line = self.lines.len() - 1;
+            let LineRange { width: a_ll_width, .. } = &mut self.lines[last_a_line];
 
             let x_offset = b.glyphs[0].point.x;
-            *a_ll_width = Px(x_offset as i32);
+            *a_ll_width = x_offset;
             *b_fl_width -= *a_ll_width;
 
             for l in &mut b.lines {
-                l.end -= segment;
+                l.end -= self.segments.len();
             }
 
             for s in &mut b.segments {
@@ -495,12 +498,12 @@ impl ShapedText {
                 g.point.x -= x_offset;
             }
 
-            self.size.width = self.lines.iter().map(|l| l.width).max().unwrap();
+            self.size.width = Px(self.lines.iter().map(|l| l.width).max_by(f32_cmp).unwrap().round() as i32);
             let a_lines = Px(self.lines.len() as i32);
             let a_height = self.line_height * a_lines + self.line_spacing * (a_lines - Px(1));
             self.size.height = a_height;
 
-            b.size.width = b.lines.iter().map(|l| l.width).max().unwrap();
+            b.size.width = Px(b.lines.iter().map(|l| l.width).max_by(f32_cmp).unwrap().round() as i32);
             let b_lines = Px(self.lines.len() as i32);
             b.size.height = b.line_height * b_lines + b.line_spacing * (b_lines - Px(1));
 
@@ -533,26 +536,12 @@ impl ShapedText {
         // removed line if last seg was line break
         let last_line = a.lines.len() - 1;
         if a.lines[last_line].end == a.segments.len() {
-            let LineRange {
-                width: last_line_width, ..
-            } = a.lines.pop().unwrap();
+            a.size.width = Px(a.lines.iter().map(|l| l.width).max_by(f32_cmp).unwrap().round() as i32);
             a.size.height -= a.line_height;
-
-            if a.size.width == last_line_width {
-                a.size.width = a.lines.iter().map(|l| l.width).max().unwrap();
-            }
         } else {
             // adjust width
-
-            let rmv_y = Px(rmv_start_y as i32);
-
-            let update_width = a.lines[last_line].width == a.size.width;
-
-            a.lines[last_line].width -= rmv_y;
-
-            if update_width {
-                a.size.width = a.lines.iter().map(|l| l.width).max().unwrap();
-            }
+            a.lines[last_line].width -= rmv_start_y;
+            a.size.width = Px(a.lines.iter().map(|l| l.width).max_by(f32_cmp).unwrap().round() as i32);
         }
 
         // remove unused fonts.
@@ -609,7 +598,7 @@ impl ShapedText {
                 width: b_fl_width,
             } = text.lines[0];
 
-            let x_offset = a_ll_width.0 as f32;
+            let x_offset = *a_ll_width;
             for g in &mut text.glyphs[..b_fl_seg] {
                 g.point.x += x_offset;
             }
@@ -645,7 +634,7 @@ impl ShapedText {
                 self.fonts.extend(text.fonts);
             }
 
-            self.size.width = self.lines.iter().map(|l| l.width).max().unwrap() + self.padding.horizontal();
+            self.size.width = Px(self.lines.iter().map(|l| l.width).max_by(f32_cmp).unwrap().round() as i32) + self.padding.horizontal();
             let lines = Px(self.lines.len() as i32);
             self.size.height = self.padding.vertical() + self.line_height * lines + self.line_spacing * (lines - Px(1));
         }
@@ -927,7 +916,7 @@ impl<'a> ShapedSegment<'a> {
 
         let start_x = self.text.glyphs[start].point.x;
         let end_x = if self.is_last {
-            self.text.lines[self.line_index].width.0 as f32
+            self.text.lines[self.line_index].width
         } else {
             self.text.glyphs[end].point.x
         };
@@ -1358,7 +1347,7 @@ impl Font {
                 TextSegmentKind::LineBreak => {
                     out.lines.push(LineRange {
                         end: out.segments.len(),
-                        width: Px(origin.x as i32),
+                        width: origin.x,
                     });
 
                     max_line_x = origin.x.max(max_line_x);
@@ -1375,13 +1364,13 @@ impl Font {
 
         out.lines.push(LineRange {
             end: out.segments.len(),
-            width: Px(origin.x as i32),
+            width: origin.x,
         });
 
         // longest line width X line heights.
         out.size = PxSize::new(
-            Px(origin.x.max(max_line_x) as i32),
-            Px((((line_height + line_spacing) * out.lines.len() as f32) - line_spacing) as i32),
+            Px(origin.x.max(max_line_x).round() as i32),
+            Px((((line_height + line_spacing) * out.lines.len() as f32) - line_spacing).round() as i32),
         );
 
         out.fonts.push(FontRange {
@@ -1725,22 +1714,23 @@ mod tests {
     fn split() {
         test_split("a b", 1, "a", " b");
         test_split("one another", 1, "one", " another");
+        test_split("one another then rest", 3, "one another", " then rest");
     }
     fn test_split(full_text: &'static str, segment: usize, a: &'static str, b: &'static str) {
         let font = test_font();
         let config = TextShapingArgs::default();
 
-        let full_text = SegmentedText::new(full_text);
+        let seg_text = SegmentedText::new(full_text);
         let a = SegmentedText::new(a);
         let b = SegmentedText::new(b);
 
-        let full_text = font.shape_text(&full_text, &config);
+        let shaped_text = font.shape_text(&seg_text, &config);
         let expected_a = font.shape_text(&a, &config);
         let expected_b = font.shape_text(&b, &config);
 
-        let (actual_a, actual_b) = full_text.split(segment);
+        let (actual_a, actual_b) = shaped_text.split(segment);
 
-        pretty_assertions::assert_eq!(expected_a, actual_a);
-        pretty_assertions::assert_eq!(expected_b, actual_b);
+        pretty_assertions::assert_eq!(expected_a, actual_a, "failed \"{full_text}\"");
+        pretty_assertions::assert_eq!(expected_b, actual_b, "failed \"{full_text}\"");
     }
 }
