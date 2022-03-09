@@ -549,7 +549,7 @@ impl ShapedText {
         } else {
             self.segments.assert_contains(segment);
 
-            let g_end = self.segments.glyphs(segment - 1).end();
+            let g_end = self.segments.glyphs(segment).start();
             let l_end = self.lines.0.iter().position(|l| l.end > segment).unwrap();
             let f_end = self.fonts.0.iter().position(|f| f.end > g_end).unwrap();
 
@@ -574,12 +574,20 @@ impl ShapedText {
                     end: self.segments.0.len(),
                     width: 0.0,
                 });
-            }
+            }            
+
             let LineRange { width: a_ll_width, .. } = self.lines.last_mut();
             let LineRange { width: b_fl_width, .. } = b.lines.first_mut();
+
+            let mut x_offset = 0.0;
+
+            if self.segments.last().kind == TextSegmentKind::LineBreak || b.segments.first().kind == TextSegmentKind::LineBreak {
+                *a_ll_width = *b_fl_width;
+            } else {
+                x_offset = b.glyphs[0].point.x;
+                *a_ll_width = x_offset;
+            }
             
-            let x_offset = b.glyphs[0].point.x;
-            *a_ll_width = x_offset;
             *b_fl_width -= *a_ll_width;
 
             for l in &mut b.lines.0 {
