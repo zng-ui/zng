@@ -140,6 +140,10 @@ impl TextSegmentVec {
         self.0[l]
     }
 
+    fn last_glyphs(&self) -> IndexRange {
+        self.glyphs(self.0.len() - 1)
+    }
+
     fn assert_contains(&self, index: usize) {
         if self.0.len() <= index {
             panic!("segment out of bounds, the len is {} but the segment is {}", self.0.len(), index)
@@ -574,7 +578,7 @@ impl ShapedText {
                     end: self.segments.0.len(),
                     width: 0.0,
                 });
-            }            
+            }
 
             let LineRange { width: a_ll_width, .. } = self.lines.last_mut();
             let LineRange { width: b_fl_width, .. } = b.lines.first_mut();
@@ -589,7 +593,7 @@ impl ShapedText {
                 x_offset = b.glyphs[0].point.x;
                 *a_ll_width = x_offset;
             }
-            
+
             *b_fl_width -= *a_ll_width;
 
             for l in &mut b.lines.0 {
@@ -639,24 +643,34 @@ impl ShapedText {
     ///
     /// [`split`]: Self::split
     pub fn split_remove(self, segment: usize) -> (ShapedText, ShapedText) {
-        let (mut a, b) = self.split(segment + 1);
+        // split to include the segment to remove in the first text, then pop the segment.
 
-        a.segments.0.pop();
+        self.segments.assert_contains(segment);
+
+        let aft_rmv = segment + 1;
+        let (mut a, b) = if aft_rmv == self.segments.0.len() {
+            let b = self.empty();
+            (self, b)
+        } else {
+            self.split(aft_rmv)
+        };
+
+        let rmv_seg = a.segments.0.pop();
         if a.segments.0.is_empty() {
             return (a.empty(), b);
         }
+        let rmv_seg = rmv_seg.unwrap();
 
-        let rmv_start = a.segments.last().end;
-        let rmv_start_y = a.glyphs[rmv_start].point.y;
+        let rmv_start = a.segments.last_glyphs().end(); // after pop
+        let rmv_start_pt = a.glyphs[rmv_start].point;
         a.glyphs.truncate(rmv_start);
 
-        // removed line if last seg was line break
-        if a.lines.last().end == a.segments.0.len() {
-            a.size.width = Px(a.lines.max_width().round() as i32);
-            a.size.height -= a.line_height;
-        } else {
-            // adjust width
-            a.lines.last_mut().width -= rmv_start_y;
+        if rmv_seg.kind == TextSegmentKind::LineBreak {
+            a.lines.0.pop();
+        } else if a.lines.last().end > a.segments.0.len() {
+            let last_line = a.lines.last_mut();
+            last_line.end = a.segments.0.len();
+            last_line.width = rmv_start_pt.x;
             a.size.width = Px(a.lines.max_width().round() as i32);
         }
 
@@ -1848,5 +1862,31 @@ mod tests {
 
         test_split("one\nanother", 1, "one", "\nanother");
         test_split("one\nanother", 2, "one\n", "another");
+    }
+
+    #[test]
+    fn split_remove_single_line() {
+        test_split_remove("a b", 1, "a", "b");
+        test_split_remove("one another", 1, "one", "another");
+        test_split_remove("one another then rest", 3, "one another", "then rest");
+        test_split_remove("at start", 0, "", " start");
+        test_split_remove("at end", 2, "at ", "");
+    }
+    fn test_split_remove(full_text: &'static str, segment: usize, a: &'static str, b: &'static str) {
+        let font = test_font();
+        let config = TextShapingArgs::default();
+
+        let seg_text = SegmentedText::new(full_text);
+        let a = SegmentedText::new(a);
+        let b = SegmentedText::new(b);
+
+        let shaped_text = font.shape_text(&seg_text, &config);
+        let expected_a = font.shape_text(&a, &config);
+        let expected_b = font.shape_text(&b, &config);
+
+        let (actual_a, actual_b) = shaped_text.split_remove(segment);
+
+        pretty_assertions::assert_eq!(expected_a, actual_a, "failed \"{full_text}\"");
+        pretty_assertions::assert_eq!(expected_b, actual_b, "failed \"{full_text}\"");
     }
 }
