@@ -569,7 +569,7 @@ impl ShapedText {
                 underline_descent: self.underline_descent,
             };
 
-            if self.lines.0.is_empty() || self.lines.last().end < self.segments.0.len() {
+            if self.lines.0.is_empty() || self.lines.last().end <= self.segments.0.len() {
                 self.lines.0.push(LineRange {
                     end: self.segments.0.len(),
                     width: 0.0,
@@ -581,7 +581,9 @@ impl ShapedText {
 
             let mut x_offset = 0.0;
 
-            if self.segments.last().kind == TextSegmentKind::LineBreak || b.segments.first().kind == TextSegmentKind::LineBreak {
+            if self.segments.last().kind == TextSegmentKind::LineBreak {
+                *a_ll_width = 0.0;
+            } else if b.segments.first().kind == TextSegmentKind::LineBreak {
                 *a_ll_width = *b_fl_width;
             } else {
                 x_offset = b.glyphs[0].point.x;
@@ -1839,7 +1841,12 @@ mod tests {
     #[test]
     fn split_multi_line() {
         test_split("a\nb", 1, "a", "\nb");
+        test_split("a\nb", 2, "a\n", "b");
+
         test_split("a b\nc", 1, "a", " b\nc");
         test_split("a\nb c", 3, "a\nb", " c");
+
+        test_split("one\nanother", 1, "one", "\nanother");
+        test_split("one\nanother", 2, "one\n", "another");
     }
 }
