@@ -213,6 +213,13 @@ impl LineRangeVec {
 #[derive(Debug, Default, Clone, PartialEq)]
 struct FontRangeVec(Vec<FontRange>);
 impl FontRangeVec {
+    /// Exclusive glyphs range of the segment.
+    fn glyphs(&self, index: usize) -> IndexRange {
+        let start = if index == 0 { 0 } else { self.0[index - 1].end };
+        let end = self.0[index].end;
+        IndexRange(start, end)
+    }
+
     /// Iter glyph ranges.
     fn iter_glyphs(&self) -> impl Iterator<Item = (&FontRef, IndexRange)> + '_ {
         let mut start = 0;
@@ -245,6 +252,11 @@ impl FontRangeVec {
     /// Returns a reference to the font.
     fn font(&self, index: usize) -> &FontRef {
         &self.0[index].font
+    }
+
+    fn last_glyphs(&self) -> IndexRange {
+        let last = self.0.len() - 1;
+        self.glyphs(last)
     }
 
     fn last_mut(&mut self) -> &mut FontRange {
@@ -496,10 +508,10 @@ impl ShapedText {
         self.underline_descent
     }
 
-    /// No glyphs.
+    /// No segments.
     #[inline]
     pub fn is_empty(&self) -> bool {
-        self.glyphs.is_empty()
+        self.segments.0.is_empty()
     }
 
     /// Iterate over [`ShapedLine`] selections split by [`LineBreak`].
@@ -655,41 +667,42 @@ impl ShapedText {
             self.split(aft_rmv)
         };
 
-        let rmv_seg = a.segments.0.pop();
-        if a.segments.0.is_empty() {
-            return (a.empty(), b);
-        }
-        let rmv_seg = rmv_seg.unwrap();
-
-        let rmv_start = a.segments.last_glyphs().end(); // after pop
-        let rmv_start_pt = a.glyphs[rmv_start].point;
-        a.glyphs.truncate(rmv_start);
-
-        if rmv_seg.kind == TextSegmentKind::LineBreak {
-            a.lines.0.pop();
-        } else if a.lines.last().end > a.segments.0.len() {
-            let last_line = a.lines.last_mut();
-            last_line.end = a.segments.0.len();
-            last_line.width = rmv_start_pt.x;
-            a.size.width = Px(a.lines.max_width().round() as i32);
-        }
-
-        // remove unused fonts.
-        if let Some(i) = a.fonts.0.iter().rposition(|f| f.end < a.glyphs.len()) {
-            let maybe_remove = i + 1;
-            if maybe_remove < a.fonts.0.len() {
-                if a.fonts.0[i].end == a.glyphs.len() {
-                    a.fonts.0.truncate(maybe_remove);
-                } else {
-                    a.fonts.0.truncate(maybe_remove + 1);
-                    a.fonts.0[maybe_remove].end = a.glyphs.len();
-                }
-            }
-        } else {
-            a.fonts.0[0].end = a.glyphs.len();
-        }
+        a.pop_seg();
 
         (a, b)
+    }
+    fn pop_seg(&mut self) {
+        if self.is_empty() {
+            return;
+        }
+
+        if self.segments.0.len() == 1 {
+            let padding = self.padding();
+            *self = self.empty();
+            self.set_padding(padding);
+        } else {
+            if self.segments.last().kind == TextSegmentKind::LineBreak {
+                self.lines.0.pop();
+            }
+
+            let r = self.segments.last_glyphs();
+            self.segments.0.pop();
+
+            while self.fonts.last_glyphs().start() >= r.start() {
+                self.fonts.0.pop();
+            }
+            self.fonts.last_mut().end = r.start();
+
+            let last_line = self.lines.last_mut();
+            last_line.end = self.segments.0.len();
+            if r.start() < self.glyphs.len() {
+                last_line.width = self.glyphs[r.start()].point.x;
+                last_line.end = self.segments.0.len();
+                self.glyphs.truncate(r.start());
+            }
+
+            self.size.width = Px(self.lines.max_width().round() as i32);
+        }
     }
 
     /// Appends the `text` to the end of `self`.
@@ -1888,5 +1901,15 @@ mod tests {
 
         pretty_assertions::assert_eq!(expected_a, actual_a, "failed \"{full_text}\"");
         pretty_assertions::assert_eq!(expected_b, actual_b, "failed \"{full_text}\"");
+    }
+
+    #[test]
+    fn split_remove_multi_line() {
+        test_split_remove("a\nb", 1, "a", "b");
+        test_split_remove("a\nb", 2, "a\n", "");
+        test_split_remove("a b\nc", 1, "a", "b\nc");
+        test_split_remove("a\nb c", 3, "a\nb", "c");
+        test_split_remove("one\nanother", 1, "one", "another");
+        test_split_remove("one\nanother", 2, "one\n", "");
     }
 }
