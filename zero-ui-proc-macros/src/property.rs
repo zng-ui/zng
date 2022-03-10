@@ -45,6 +45,8 @@ mod input {
         syn::custom_keyword!(size);
         syn::custom_keyword!(border);
         syn::custom_keyword!(fill);
+        syn::custom_keyword!(child_context);
+        syn::custom_keyword!(child_layout);
         syn::custom_keyword!(capture_only);
         syn::custom_keyword!(allowed_in_when);
     }
@@ -135,6 +137,8 @@ mod input {
         Size(keyword::size),
         Border(keyword::border),
         Fill(keyword::fill),
+        ChildContext(keyword::child_context),
+        ChildLayout(keyword::child_layout),
         CaptureOnly(keyword::capture_only),
     }
     impl Priority {
@@ -144,9 +148,11 @@ mod input {
         pub fn is_capture_only(self) -> bool {
             matches!(self, Priority::CaptureOnly(_))
         }
-        pub fn all_settable() -> [Self; 6] {
+        pub fn all_settable() -> [Self; 8] {
             use crate::property::keyword::*;
             [
+                Priority::ChildLayout(child_layout::default()),
+                Priority::ChildContext(child_context::default()),
                 Priority::Fill(fill::default()),
                 Priority::Border(border::default()),
                 Priority::Size(size::default()),
@@ -172,6 +178,10 @@ mod input {
                 input.parse().map(Priority::Border)
             } else if lookahead.peek(keyword::fill) {
                 input.parse().map(Priority::Fill)
+            } else if lookahead.peek(keyword::child_context) {
+                input.parse().map(Priority::ChildContext)
+            } else if lookahead.peek(keyword::child_layout) {
+                input.parse().map(Priority::ChildLayout)
             } else if lookahead.peek(keyword::capture_only) {
                 input.parse().map(Priority::CaptureOnly)
             } else {
@@ -189,6 +199,8 @@ mod input {
                     Priority::Size(_) => write!(f, "Size"),
                     Priority::Border(_) => write!(f, "Border"),
                     Priority::Fill(_) => write!(f, "Fill"),
+                    Priority::ChildContext(_) => write!(f, "ChildContext"),
+                    Priority::ChildLayout(_) => write!(f, "ChildLayout"),
                     Priority::CaptureOnly(_) => write!(f, "CaptureOnly"),
                 }
             } else {
@@ -199,6 +211,8 @@ mod input {
                     Priority::Size(_) => write!(f, "size"),
                     Priority::Border(_) => write!(f, "border"),
                     Priority::Fill(_) => write!(f, "fill"),
+                    Priority::ChildContext(_) => write!(f, "child_context"),
+                    Priority::ChildLayout(_) => write!(f, "child_layout"),
                     Priority::CaptureOnly(_) => write!(f, "capture_only"),
                 }
             }
@@ -1092,6 +1106,8 @@ mod output {
                         Priority::Size(_) => quote!(Size),
                         Priority::Border(_) => quote!(Border),
                         Priority::Fill(_) => quote!(Fill),
+                        Priority::ChildContext(_) => quote!(ChildContext),
+                        Priority::ChildLayout(_) => quote!(ChildLayout),
                         Priority::CaptureOnly(_) => quote!(CaptureOnly),
                     };
                     set.extend(quote! {
@@ -1323,6 +1339,8 @@ mod output {
                 Priority::Size(kw) => kw.to_tokens(tokens),
                 Priority::Border(kw) => kw.to_tokens(tokens),
                 Priority::Fill(kw) => kw.to_tokens(tokens),
+                Priority::ChildContext(kw) => kw.to_tokens(tokens),
+                Priority::ChildLayout(kw) => kw.to_tokens(tokens),
                 Priority::CaptureOnly(kw) => kw.to_tokens(tokens),
             }
         }

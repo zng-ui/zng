@@ -59,29 +59,9 @@ pub mod implicit_base {
         NilUiNode
     }
 
-    /// Implicit `new_child_fill`, returns [`nodes::leaf_transform`]
-    pub fn new_child_fill(child: impl UiNode) -> impl UiNode {
-        nodes::leaf_transform(child)
-    }
-
-    /// No-op, returns `child`.
-    pub fn new_child_border(child: impl UiNode) -> impl UiNode {
-        child
-    }
-
-    /// No-op, returns `child`.
-    pub fn new_child_size(child: impl UiNode) -> impl UiNode {
-        child
-    }
-
-    /// No-op, returns `child`.
+   /// Implicit `new_child_layout`, returns [`nodes::leaf_transform`]
     pub fn new_child_layout(child: impl UiNode) -> impl UiNode {
-        child
-    }
-
-    /// No-op, returns `child`.
-    pub fn new_child_event(child: impl UiNode) -> impl UiNode {
-        child
+        nodes::leaf_transform(child) // TODO, this priority works?
     }
 
     /// No-op, returns `child`.

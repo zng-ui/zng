@@ -38,7 +38,6 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         is_base,
         properties_remove,
         properties_declared,
-        properties_child,
         properties,
         whens,
         mut new_declarations,
@@ -169,15 +168,8 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     // collect inherited properties. Late inherits of the same ident override early inherits.
     // [property_ident => inherit]
     let mut inherited_properties = HashMap::new();
-    let mut inherited_props_child = vec![];
     let mut inherited_props = vec![];
     for inherited in inherits.iter().rev() {
-        for p_child in inherited.properties_child.iter().rev() {
-            inherited_properties.entry(&p_child.ident).or_insert_with(|| {
-                inherited_props_child.push(p_child);
-                inherited
-            });
-        }
         for p in inherited.properties.iter().rev() {
             inherited_properties.entry(&p.ident).or_insert_with(|| {
                 inherited_props.push(p);
@@ -185,7 +177,6 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             });
         }
     }
-    inherited_props_child.reverse();
     inherited_props.reverse();
 
     for (i, new_source) in inherited_new_sources.iter().enumerate() {
@@ -216,9 +207,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     }
 
     // inherited properties that are required.
-    let inherited_required: HashSet<_> = inherited_props_child
-        .iter()
-        .chain(inherited_props.iter())
+    let inherited_required: HashSet<_> = inherited_props.iter()
         .filter(|p| p.required)
         .map(|p| &p.ident)
         .collect();
@@ -245,9 +234,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             errors.push(format_args!("cannot remove, property `{ident}` is {reason}"), ident.span());
         } else if inherited_properties.remove(ident).is_some() {
             // can remove
-            if let Some(i) = inherited_props_child.iter().position(|p| &p.ident == ident) {
-                inherited_props_child.remove(i);
-            } else if let Some(i) = inherited_props.iter().position(|p| &p.ident == ident) {
+            if let Some(i) = inherited_props.iter().position(|p| &p.ident == ident) {
                 inherited_props.remove(i);
             }
         } else {
@@ -273,9 +260,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                     );
                 } else if inherited_properties.remove(&cap.ident).is_some() {
                     // remove property
-                    if let Some(i) = inherited_props_child.iter().position(|p| p.ident == cap.ident) {
-                        inherited_props_child.remove(i);
-                    } else if let Some(i) = inherited_props.iter().position(|p| p.ident == cap.ident) {
+                    if let Some(i) = inherited_props.iter().position(|p| p.ident == cap.ident) {
                         inherited_props.remove(i);
                     }
                 }
@@ -284,7 +269,6 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     }
 
     let inherited_properties = inherited_properties;
-    let inherited_props_child = inherited_props_child;
     let inherited_props = inherited_props;
 
     // property docs info for inherited properties.
@@ -301,19 +285,14 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let mut docs_other = vec![];
 
     // properties that are assigned (not in when blocks) or declared in the new widget.
-    let wgt_used_properties: HashSet<_> = properties_child.iter().chain(properties.iter()).map(|p| &p.ident).collect();
+    let wgt_used_properties: HashSet<_> = properties.iter().map(|p| &p.ident).collect();
     // properties data for widget macros.
-    let mut wgt_properties_child = TokenStream::default();
     let mut wgt_properties = TokenStream::default();
     // property pub uses.
     let mut property_reexports = TokenStream::default();
 
     // collect inherited re-exports and property data for macros.
-    for (ip, is_child) in inherited_props_child
-        .iter()
-        .map(|ip| (ip, true))
-        .chain(inherited_props.iter().map(|ip| (ip, false)))
-    {
+    for ip in &inherited_props {
         if wgt_used_properties.contains(&ip.ident) {
             // property was re-assigned in the widget, we will deal with then later.
             continue;
@@ -350,8 +329,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         });
 
         // collect property data for macros.
-        let wgt_props = if is_child { &mut wgt_properties_child } else { &mut wgt_properties };
-        wgt_props.extend(quote! {
+        wgt_properties.extend(quote! {
             #ident {
                 docs { #docs }
                 cfg { #cfg }
@@ -396,11 +374,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         }
     }
     // collect property re-exports and data for macros.
-    for (p, is_child) in properties_child
-        .iter()
-        .map(|p| (p, true))
-        .chain(properties.iter().map(|p| (p, false)))
-    {
+    for p in &properties {
         let PropertyItem {
             ident,
             docs,
@@ -430,8 +404,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         });
 
         // collect property data for macros.
-        let wgt_props = if is_child { &mut wgt_properties_child } else { &mut wgt_properties };
-        wgt_props.extend(quote! {
+        wgt_properties.extend(quote! {
             #ident {
                 docs { #docs }
                 cfg { #cfg }
@@ -499,7 +472,6 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         });
     }
     let property_reexports = property_reexports;
-    let wgt_properties_child = wgt_properties_child;
     let wgt_properties = wgt_properties;
 
     docs_required.extend(docs_required_inherited);
@@ -597,11 +569,10 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     }
 
     // all widget properties with and without values (excluding new when properties).
-    let wgt_all_properties: HashSet<_> = inherited_props_child
+    let wgt_all_properties: HashSet<_> = inherited_props
         .iter()
-        .chain(inherited_props.iter())
         .map(|p| &p.ident)
-        .chain(properties_child.iter().chain(properties.iter()).map(|p| &p.ident))
+        .chain(properties.iter().map(|p| &p.ident))
         .collect();
 
     // validate captures exist.
@@ -627,7 +598,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     // assert that properties not captured are not capture-only.
     let mut assert_not_captures = TokenStream::new();
     if mixin {
-        for p in properties_child.iter().chain(properties.iter()) {
+        for p in &properties {
             let msg = format!(
                 "property `{}` is capture-only, only normal properties are allowed in mix-ins",
                 p.ident
@@ -642,7 +613,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             ));
         }
     } else {
-        for p in properties_child.iter().chain(properties.iter()) {
+        for p in &properties {
             if captured_properties.contains(&p.ident) {
                 continue;
             }
@@ -817,9 +788,6 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
     let built_data = quote! {
         module { #module }
-        properties_child {
-            #wgt_properties_child
-        }
         properties {
             #wgt_properties
         }
@@ -1160,7 +1128,6 @@ struct InheritedItem {
     inherit_use: syn::Path,
     mixin: bool,
     module: TokenStream,
-    properties_child: Vec<BuiltProperty>,
     properties: Vec<BuiltProperty>,
     whens: Vec<BuiltWhen>,
     new_captures: Vec<Vec<PropertyCapture>>,
@@ -1176,7 +1143,6 @@ impl Parse for InheritedItem {
                 .unwrap_or_else(|e| non_user_error!(e))
                 .value,
             module: non_user_braced!(input, "module").parse().unwrap(),
-            properties_child: parse_all(&non_user_braced!(input, "properties_child")).unwrap_or_else(|e| non_user_error!(e)),
             properties: parse_all(&non_user_braced!(input, "properties")).unwrap_or_else(|e| non_user_error!(e)),
             whens: parse_all(&non_user_braced!(input, "whens")).unwrap_or_else(|e| non_user_error!(e)),
             new_captures: {
@@ -1201,7 +1167,6 @@ struct WidgetItem {
     properties_remove: Vec<Ident>,
     properties_declared: Vec<Ident>,
 
-    properties_child: Vec<PropertyItem>,
     properties: Vec<PropertyItem>,
     whens: Vec<BuiltWhen>,
 
@@ -1231,7 +1196,6 @@ impl Parse for WidgetItem {
             properties_remove: parse_all(&named_braces!("properties_remove")).unwrap_or_else(|e| non_user_error!(e)),
             properties_declared: parse_all(&named_braces!("properties_declared")).unwrap_or_else(|e| non_user_error!(e)),
 
-            properties_child: parse_all(&named_braces!("properties_child")).unwrap_or_else(|e| non_user_error!(e)),
             properties: parse_all(&named_braces!("properties")).unwrap_or_else(|e| non_user_error!(e)),
             whens: parse_all(&named_braces!("whens")).unwrap_or_else(|e| non_user_error!(e)),
 

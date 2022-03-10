@@ -151,6 +151,10 @@ pub enum PropertyPriority {
     Border,
     /// [Fill](crate::property#fill) property.
     Fill,
+    /// [Child Context](crate::property#child-context) property.
+    ChildContext,
+    /// [Child Layout](crate::property#child-layout) property.
+    ChildLayout,
     /// [Capture-only](crate::property#capture_only) property.
     CaptureOnly,
 }
@@ -164,6 +168,8 @@ impl PropertyPriority {
             PropertyPriority::Size => "size",
             PropertyPriority::Border => "border",
             PropertyPriority::Fill => "fill",
+            PropertyPriority::ChildContext => "child_context",
+            PropertyPriority::ChildLayout => "child_layout",
             PropertyPriority::CaptureOnly => "capture_only",
         }
     }
@@ -225,16 +231,8 @@ pub enum WidgetNewFn {
     /// `new_child`
     NewChild,
 
-    /// `new_child_fill`
-    NewChildFill,
-    /// `new_child_border`
-    NewChildBorder,
-    /// `new_child_size`
-    NewChildSize,
     /// `new_child_layout`
     NewChildLayout,
-    /// `new_child_event`
-    NewChildEvent,
     /// `new_child_context`
     NewChildContext,
 
@@ -259,11 +257,7 @@ impl WidgetNewFn {
     pub fn all() -> &'static [WidgetNewFn] {
         &[
             Self::NewChild,
-            Self::NewChildFill,
-            Self::NewChildBorder,
-            Self::NewChildSize,
             Self::NewChildLayout,
-            Self::NewChildEvent,
             Self::NewChildContext,
             Self::NewFill,
             Self::NewBorder,
@@ -279,11 +273,7 @@ impl fmt::Display for WidgetNewFn {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match *self {
             Self::NewChild => write!(f, "new_child"),
-            Self::NewChildFill => write!(f, "new_child_fill"),
-            Self::NewChildBorder => write!(f, "new_child_border"),
-            Self::NewChildSize => write!(f, "new_child_size"),
             Self::NewChildLayout => write!(f, "new_child_layout"),
-            Self::NewChildEvent => write!(f, "new_child_event"),
             Self::NewChildContext => write!(f, "new_child_context"),
             Self::NewFill => write!(f, "new_fill"),
             Self::NewBorder => write!(f, "new_border"),

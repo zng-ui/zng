@@ -103,7 +103,6 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
     #[allow(clippy::needless_collect)] // false positive, see https://github.com/rust-lang/rust-clippy/issues/7512
     let whens: Vec<_> = properties.iter_mut().flat_map(|p| mem::take(&mut p.whens)).collect();
     let removes: Vec<_> = properties.iter_mut().flat_map(|p| mem::take(&mut p.removes)).collect();
-    let mut child_properties: Vec<_> = properties.iter_mut().flat_map(|p| mem::take(&mut p.child_properties)).collect();
     let mut properties: Vec<_> = properties.iter_mut().flat_map(|p| mem::take(&mut p.properties)).collect();
 
     if mixin {
@@ -404,7 +403,6 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
 
     // process properties
     let mut declared_properties = HashSet::new();
-    let mut built_properties_child = TokenStream::default();
     let mut built_properties = TokenStream::default();
     let mut property_defaults = TokenStream::default();
     let mut property_declarations = TokenStream::default();
@@ -425,11 +423,7 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
     drop(removes);
 
     // process declarations
-    for (property, is_child_property) in child_properties
-        .iter_mut()
-        .map(|p| (p, true))
-        .chain(properties.iter_mut().map(|p| (p, false)))
-    {
+    for property in &mut properties {
         let mut attrs = Attributes::new(mem::take(&mut property.attrs));
 
         // #[allowed_in_when = <bool>]
@@ -577,11 +571,6 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
         let cfg = attrs.cfg;
         let path = &property.path;
 
-        let built_properties = if is_child_property {
-            &mut built_properties_child
-        } else {
-            &mut built_properties
-        };
         built_properties.extend(quote! {
             #p_ident {
                 docs { #(#docs)* }
@@ -936,9 +925,6 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
                         #property_declared_idents
                     }
 
-                    properties_child {
-                        #built_properties_child
-                    }
                     properties {
                         #built_properties
                     }
@@ -1090,11 +1076,7 @@ fn validate_new_fn(fn_: &ItemFn, errors: &mut Errors) {
 pub(crate) enum FnPriority {
     NewChild,
 
-    NewChildFill,
-    NewChildBorder,
-    NewChildSize,
     NewChildLayout,
-    NewChildEvent,
     NewChildContext,
 
     NewFill,
@@ -1110,11 +1092,7 @@ impl FnPriority {
     pub fn from_ident(ident: &Ident) -> Option<Self> {
         match ident.to_string().as_str() {
             "new_child" => Some(Self::NewChild),
-            "new_child_fill" => Some(Self::NewChildFill),
-            "new_child_border" => Some(Self::NewChildBorder),
-            "new_child_size" => Some(Self::NewChildSize),
             "new_child_layout" => Some(Self::NewChildLayout),
-            "new_child_event" => Some(Self::NewChildEvent),
             "new_child_context" => Some(Self::NewChildContext),
             "new_fill" => Some(Self::NewFill),
             "new_border" => Some(Self::NewBorder),
@@ -1130,11 +1108,7 @@ impl FnPriority {
     pub fn all() -> &'static [FnPriority] {
         &[
             Self::NewChild,
-            Self::NewChildFill,
-            Self::NewChildBorder,
-            Self::NewChildSize,
             Self::NewChildLayout,
-            Self::NewChildEvent,
             Self::NewChildContext,
             Self::NewFill,
             Self::NewBorder,
@@ -1150,11 +1124,7 @@ impl fmt::Display for FnPriority {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match *self {
             FnPriority::NewChild => write!(f, "new_child"),
-            FnPriority::NewChildFill => write!(f, "new_child_fill"),
-            FnPriority::NewChildBorder => write!(f, "new_child_border"),
-            FnPriority::NewChildSize => write!(f, "new_child_size"),
             FnPriority::NewChildLayout => write!(f, "new_child_layout"),
-            FnPriority::NewChildEvent => write!(f, "new_child_event"),
             FnPriority::NewChildContext => write!(f, "new_child_context"),
             FnPriority::NewFill => write!(f, "new_fill"),
             FnPriority::NewBorder => write!(f, "new_border"),
@@ -1267,7 +1237,6 @@ impl Parse for Inherit {
 
 struct Properties {
     errors: Errors,
-    child_properties: Vec<ItemProperty>,
     properties: Vec<ItemProperty>,
     removes: Vec<Ident>,
     whens: Vec<When>,
@@ -1275,7 +1244,6 @@ struct Properties {
 impl Parse for Properties {
     fn parse(input: ParseStream) -> syn::Result<Self> {
         let mut errors = Errors::default();
-        let mut child_properties = vec![];
         let mut properties = vec![];
         let mut removes = vec![];
         let mut whens = vec![];
@@ -1287,38 +1255,6 @@ impl Parse for Properties {
                 if let Some(mut when) = When::parse(input, &mut errors) {
                     when.attrs = attrs;
                     whens.push(when);
-                }
-            } else if input.peek(keyword::child) && input.peek2(syn::token::Brace) {
-                let input = non_user_braced!(input, "child");
-                while !input.is_empty() {
-                    let attrs = parse_outer_attrs(&input, &mut errors);
-                    match input.parse::<ItemProperty>() {
-                        Ok(mut p) => {
-                            p.attrs = attrs;
-                            if !input.is_empty() && p.semi.is_none() {
-                                errors.push("expected `;`", input.span());
-                                while !(input.is_empty()
-                                    || input.peek(Ident)
-                                    || input.peek(Token![crate])
-                                    || input.peek(Token![super])
-                                    || input.peek(Token![self])
-                                    || input.peek(Token![#]) && input.peek(token::Bracket))
-                                {
-                                    // skip to next property start.
-                                    let _ = input.parse::<TokenTree>();
-                                }
-                            }
-                            child_properties.push(p);
-                        }
-                        Err(e) => {
-                            let (recoverable, e) = e.recoverable();
-                            if recoverable {
-                                errors.push_syn(e);
-                            } else {
-                                return Err(e);
-                            }
-                        }
-                    }
                 }
             } else if input.peek(keyword::remove) && input.peek2(syn::token::Brace) {
                 let input = non_user_braced!(input, "remove");
@@ -1397,7 +1333,6 @@ impl Parse for Properties {
 
         Ok(Properties {
             errors,
-            child_properties,
             properties,
             removes,
             whens,
@@ -1599,7 +1534,6 @@ impl ToTokens for NamedField {
 
 mod keyword {
     pub use crate::widget_new::keyword::when;
-    syn::custom_keyword!(child);
     syn::custom_keyword!(remove);
 }
 

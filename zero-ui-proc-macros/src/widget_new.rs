@@ -62,28 +62,17 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
     let mut errors = user_input.errors;
 
-    let child_properties: HashSet<_> = widget_data.properties_child.iter().map(|p| &p.ident).collect();
-
-    let inherited_properties: HashSet<_> = widget_data
-        .properties_child
-        .iter()
-        .chain(widget_data.properties.iter())
+    let inherited_properties: HashSet<_> = widget_data.properties.iter()
         .map(|p| &p.ident)
         .collect();
 
     // properties that must be assigned by the user.
-    let required_properties: HashSet<_> = widget_data
-        .properties_child
-        .iter()
-        .chain(widget_data.properties.iter())
+    let required_properties: HashSet<_> = widget_data.properties.iter()
         .filter(|p| p.required)
         .map(|p| &p.ident)
         .collect();
     // properties that have a default value.
-    let default_properties: HashSet<_> = widget_data
-        .properties_child
-        .iter()
-        .chain(widget_data.properties.iter())
+    let default_properties: HashSet<_> = widget_data.properties.iter()
         .filter(|p| p.default)
         .map(|p| &p.ident)
         .collect();
@@ -155,16 +144,12 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let mut wgt_properties = HashMap::<syn::Path, (Ident, TokenStream)>::new();
 
     let mut property_inits = TokenStream::default();
-    let mut child_prop_set_calls = vec![];
     let mut prop_set_calls = vec![];
 
     // for each inherited property that has a default value and is not overridden by the user:
-    for (ip, is_child) in widget_data
-        .properties_child
-        .iter()
-        .map(|ip| (ip, true))
-        .chain(widget_data.properties.iter().map(|ip| (ip, false)))
-        .filter(|(ip, _)| ip.default && !overriden_properties.contains(&ip.ident))
+    for ip in widget_data
+        .properties
+        .iter().filter(|ip| ip.default && !overriden_properties.contains(&ip.ident))
     {
         let ident = &ip.ident;
         let p_default_fn_ident = ident!("__d_{ident}");
@@ -185,8 +170,6 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
         let p_mod_ident = ident!("__p_{ident}");
         // register data for the set call generation.
-        let prop_set_calls = if is_child { &mut child_prop_set_calls } else { &mut prop_set_calls };
-
         prop_set_calls.push((
             quote! { #module::#p_mod_ident },
             p_var_ident,
@@ -235,10 +218,6 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                 continue;
             }
         }
-        let prop_set_calls = match up.path.get_ident() {
-            Some(maybe_child) if child_properties.contains(maybe_child) => &mut child_prop_set_calls,
-            _ => &mut prop_set_calls,
-        };
         // register data for the set call generation.
         prop_set_calls.push((
             p_mod.to_token_stream(),
@@ -659,66 +638,64 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         })
         .collect();
 
-    for (set_calls, child_priority) in vec![(child_prop_set_calls, true), (prop_set_calls, false)] {
-        // generate capture_only asserts.
-        for (p_mod, _, p_name, _, cfg, _, p_span, _) in &set_calls {
-            let capture_only_error =
-                format!("property `{p_name}` cannot be set because it is capture-only, but is not captured by the widget",);
-            property_set_calls.extend(quote_spanned! {*p_span=>
-                #cfg
-                #p_mod::code_gen!{
-                    if capture_only =>  std::compile_error!{#capture_only_error}
-                }
-            })
-        }
-
-        let settable_priorities = crate::property::Priority::all_settable();
-        for (i, priority) in settable_priorities.iter().enumerate() {
-            for (p_mod, p_var_ident, p_name, source_loc, cfg, user_assigned, p_span, val_span) in set_calls.iter().rev() {
-                // __set @ value span
-
-                let set = ident_spanned!(*val_span=> "__set");
-                if cfg!(inspector) {
-                    property_set_calls.extend(quote_spanned! {*p_span=>
-                        #cfg
-                        #p_mod::code_gen! {
-                            set #priority, #node__, #p_mod, #p_var_ident, #p_name, #source_loc, #child_priority, #user_assigned, #set
-                        }
-                    });
-                } else {
-                    property_set_calls.extend(quote_spanned! {*p_span=>
-                        #cfg
-                        #p_mod::code_gen! {
-                            set #priority, #node__, #p_mod, #p_var_ident, #set
-                        }
-                    });
-                }
+    // generate capture_only asserts.
+    for (p_mod, _, p_name, _, cfg, _, p_span, _) in &prop_set_calls {
+        let capture_only_error =
+            format!("property `{p_name}` cannot be set because it is capture-only, but is not captured by the widget",);
+        property_set_calls.extend(quote_spanned! {*p_span=>
+            #cfg
+            #p_mod::code_gen!{
+                if capture_only =>  std::compile_error!{#capture_only_error}
             }
-            let cap_i = i + if child_priority { 1 } else { settable_priorities.len() + 1 };
-            let caps = &caps[cap_i];
-            let cap_idents = caps.iter().map(|(i, _)| i);
-            let cap_cfgs: Vec<_> = caps.iter().map(|(_, c)| c).collect();
+        })
+    }
 
+    let settable_priorities = crate::property::Priority::all_settable();
+    for priority in settable_priorities {
+        for (p_mod, p_var_ident, p_name, source_loc, cfg, user_assigned, p_span, val_span) in prop_set_calls.iter().rev() {
+            // __set @ value span
+
+            let set = ident_spanned!(*val_span=> "__set");
             if cfg!(inspector) {
-                let new_fn_ident = ident!("__new_{}{}_inspect", if child_priority { "child_" } else { "" }, priority);
-                let new_variant_ident = ident!("New{}{:#}", if child_priority { "Child" } else { "" }, priority);
-                let cap_user_set = widget_data.new_captures[cap_i]
-                    .iter()
-                    .map(|c| overriden_properties.contains(&c.ident));
-                property_set_calls.extend(quote! {
-                    #[allow(unused_mut)]
-                    let mut capture_infos__ = std::vec![];
-                    #[allow(unreachable_code)]
-                    let #node__ = #module::#new_fn_ident(#node__, #(#cap_cfgs #cap_idents,)* #(#cap_cfgs #cap_user_set,)* &mut capture_infos__);
-                    captures__.push((#module::__core::WidgetNewFnV1::#new_variant_ident, capture_infos__));
-                })
+                property_set_calls.extend(quote_spanned! {*p_span=>
+                    #cfg
+                    #p_mod::code_gen! {
+                        set #priority, #node__, #p_mod, #p_var_ident, #p_name, #source_loc, #user_assigned, #set
+                    }
+                });
             } else {
-                let new_fn_ident = ident!("__new_{}{}", if child_priority { "child_" } else { "" }, priority);
-                property_set_calls.extend(quote! {
-                    #[allow(unreachable_code)]
-                    let #node__ = #module::#new_fn_ident(#node__, #(#cap_cfgs #cap_idents),*);
-                })
+                property_set_calls.extend(quote_spanned! {*p_span=>
+                    #cfg
+                    #p_mod::code_gen! {
+                        set #priority, #node__, #p_mod, #p_var_ident, #set
+                    }
+                });
             }
+        }
+        let cap_i = settable_priorities.len() + 1;
+        let caps = &caps[cap_i];
+        let cap_idents = caps.iter().map(|(i, _)| i);
+        let cap_cfgs: Vec<_> = caps.iter().map(|(_, c)| c).collect();
+
+        if cfg!(inspector) {
+            let new_fn_ident = ident!("__new_{}_inspect", priority);
+            let new_variant_ident = ident!("New{:#}", priority);
+            let cap_user_set = widget_data.new_captures[cap_i]
+                .iter()
+                .map(|c| overriden_properties.contains(&c.ident));
+            property_set_calls.extend(quote! {
+                #[allow(unused_mut)]
+                let mut capture_infos__ = std::vec![];
+                #[allow(unreachable_code)]
+                let #node__ = #module::#new_fn_ident(#node__, #(#cap_cfgs #cap_idents,)* #(#cap_cfgs #cap_user_set,)* &mut capture_infos__);
+                captures__.push((#module::__core::WidgetNewFnV1::#new_variant_ident, capture_infos__));
+            })
+        } else {
+            let new_fn_ident = ident!("__new_{}", priority);
+            property_set_calls.extend(quote! {
+                #[allow(unreachable_code)]
+                let #node__ = #module::#new_fn_ident(#node__, #(#cap_cfgs #cap_idents),*);
+            })
         }
     }
     let property_set_calls = property_set_calls;
@@ -869,7 +846,6 @@ impl Parse for Input {
 
 struct WidgetData {
     module: TokenStream,
-    properties_child: Vec<BuiltProperty>,
     properties: Vec<BuiltProperty>,
     whens: Vec<BuiltWhen>,
     new_captures: Vec<Vec<PropertyCapture>>,
@@ -879,7 +855,6 @@ impl Parse for WidgetData {
         let input = non_user_braced!(input, "widget");
         let r = Ok(Self {
             module: non_user_braced!(&input, "module").parse().unwrap(),
-            properties_child: parse_all(&non_user_braced!(&input, "properties_child")).unwrap_or_else(|e| non_user_error!(e)),
             properties: parse_all(&non_user_braced!(&input, "properties")).unwrap_or_else(|e| non_user_error!(e)),
             whens: parse_all(&non_user_braced!(&input, "whens")).unwrap_or_else(|e| non_user_error!(e)),
             new_captures: {
