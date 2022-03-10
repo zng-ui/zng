@@ -226,3 +226,34 @@ impl<'a> Iterator for SegmentedTextIter<'a> {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::text::*;
+
+    #[test]
+    fn segments() {
+        let actual = SegmentedText::new("a\nb\r\nc\td ");
+
+        fn seg(kind: TextSegmentKind, end: usize) -> TextSegment {
+            TextSegment { kind, end }
+        }
+        use TextSegmentKind::*;
+
+        let expected = SegmentedText {
+            text: "a\nb\r\nc".to_text(),
+            segments: vec![
+                seg(Word, 1),
+                seg(LineBreak, 2),
+                seg(Word, 3),
+                seg(LineBreak, 5),
+                seg(Word, 6),
+                seg(Tab, 7),
+                seg(Word, 8),
+                seg(Space, 9),
+            ],
+        };
+
+        pretty_assertions::assert_eq!(expected, actual);
+    }
+}
