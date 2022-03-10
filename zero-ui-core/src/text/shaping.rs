@@ -259,6 +259,14 @@ impl FontRangeVec {
         self.glyphs(last)
     }
 
+    fn first(&self) -> &FontRange {
+        &self.0[0]
+    }
+
+    fn last(&self) -> &FontRange {
+        &self.0[self.0.len() - 1]
+    }
+
     fn last_mut(&mut self) -> &mut FontRange {
         let last = self.0.len() - 1;
         &mut self.0[last]
@@ -725,59 +733,63 @@ impl ShapedText {
             return;
         }
 
-        if self.segments.last().kind == TextSegmentKind::LineBreak || text.segments.first().kind == TextSegmentKind::LineBreak {
-            todo!()
+        // if `self` last line will extend to include the `text` first line.
+        let merge_line = text.segments.first().kind != TextSegmentKind::LineBreak;
+
+        // y-offset of glyphs in `text`.
+        let mut y_offset = self.size.height - self.padding.bottom;
+        if merge_line {
+            y_offset -= self.line_height;
         } else {
-            // extend the last line of `self` to include the first of `text`.
+            y_offset += self.line_spacing;
+        }
+        let y_offset = y_offset.0 as f32;
+        for g in &mut text.glyphs {
+            g.point.y += y_offset;
+        }
 
-            let LineRange {
-                end: a_ll_seg,
-                width: a_ll_width,
-            } = self.lines.last_mut();
-            let LineRange {
-                end: b_fl_seg,
-                width: b_fl_width,
-            } = text.lines.first();
+        // x-offset of the glyphs in the first line of `text` if they are merged into the last line.
+        if merge_line {
+            let x_offset = self.lines.first().width;
+            let r = text.segments.glyphs_range(text.lines.segs(0));
 
-            let x_offset = *a_ll_width;
-            for g in &mut text.glyphs[..b_fl_seg] {
+            for g in &mut text.glyphs[r.iter()] {
                 g.point.x += x_offset;
             }
-
-            *a_ll_width += b_fl_width;
-            *a_ll_seg += b_fl_seg;
-
-            if b_fl_seg < text.segments.0.len() {
-                let y_offset_start = text.segments.0[b_fl_seg].end;
-                let added_lines = Px((self.lines.0.len() - 1) as i32);
-                let y_offset = (self.padding.top + self.line_height * added_lines + self.line_spacing * (added_lines - Px(1))).0 as f32;
-
-                for g in &mut text.glyphs[y_offset_start..] {
-                    g.point.y += y_offset;
-                }
-            }
-
-            for s in &mut text.segments.0 {
-                s.end += self.glyphs.len();
-            }
-            for f in &mut text.fonts.0 {
-                f.end += self.glyphs.len();
-            }
-
-            self.glyphs.extend(text.glyphs);
-            self.segments.0.extend(text.segments.0.into_iter().skip(1));
-
-            let a_last_font = self.fonts.0.len() - 1;
-            if self.fonts.0[a_last_font].font.ptr_eq(&text.fonts.0[0].font) {
-                self.fonts.0[a_last_font].end = text.fonts.0[0].end;
-                self.fonts.0.extend(text.fonts.0.into_iter().skip(1));
-            } else {
-                self.fonts.0.extend(text.fonts.0);
-            }
-
-            self.size.width = Px(self.lines.max_width().round() as i32) + self.padding.horizontal();
-            self.update_height();
         }
+
+        for line in &mut text.lines.0 {
+            line.end += self.segments.0.len();
+        }
+
+        let mut lines = text.lines.0.into_iter();
+        if merge_line {
+            let last_line = self.lines.last_mut();
+            let first_line = lines.next().unwrap();
+            last_line.end = first_line.end;
+            last_line.width += first_line.width;
+        }
+        self.lines.0.extend(lines);
+
+        for seg in &mut text.segments.0 {
+            seg.end += self.glyphs.len();
+        }
+        self.segments.0.extend(text.segments.0);
+
+        for font in &mut text.fonts.0 {
+            font.end += self.glyphs.len();
+        }
+        let merge_font = self.fonts.last().font.ptr_eq(&text.fonts.first().font);
+        let mut fonts = text.fonts.0.into_iter();
+        if merge_font {
+            self.fonts.last_mut().end = fonts.next().unwrap().end;
+        }
+        self.fonts.0.extend(fonts);
+
+        self.glyphs.extend(text.glyphs);
+
+        self.size.width = Px(self.lines.max_width().round() as i32);
+        self.update_height();
     }
 }
 
@@ -1911,5 +1923,29 @@ mod tests {
         test_split_remove("a\nb c", 3, "a\nb", "c");
         test_split_remove("one\nanother", 1, "one", "another");
         test_split_remove("one\nanother", 2, "one\n", "");
+    }
+
+    #[test]
+    fn extend_single_line() {
+        test_extend("a", " b", "a b");
+        test_extend("first", " second", "first second");
+        test_extend("", "empty", "empty");
+        test_extend("empty", "", "empty");
+    }
+    fn test_extend(a: &'static str, b: &'static str, expected: &'static str) {
+        let font = test_font();
+        let config = TextShapingArgs::default();
+
+        let s_a = SegmentedText::new(a);
+        let s_b = SegmentedText::new(b);
+        let s_expected = SegmentedText::new(expected);
+
+        let mut sh_a = font.shape_text(&s_a, &config);
+        let sh_b = font.shape_text(&s_b, &config);
+        let sh_expected = font.shape_text(&s_expected, &config);
+
+        sh_a.extend(sh_b);
+
+        pretty_assertions::assert_eq!(sh_expected, sh_a, "failed \"{expected}\"");
     }
 }
