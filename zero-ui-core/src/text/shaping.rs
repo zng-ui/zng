@@ -187,10 +187,6 @@ impl LineRangeVec {
         self.0.len() > 1
     }
 
-    fn first(&self) -> LineRange {
-        self.0[0]
-    }
-
     fn first_mut(&mut self) -> &mut LineRange {
         &mut self.0[0]
     }
@@ -733,29 +729,17 @@ impl ShapedText {
             return;
         }
 
-        // if `self` last line will extend to include the `text` first line.
-        let merge_line = text.segments.first().kind != TextSegmentKind::LineBreak;
-
         // y-offset of glyphs in `text`.
-        let mut y_offset = self.size.height - self.padding.bottom;
-        if merge_line {
-            y_offset -= self.line_height;
-        } else {
-            y_offset += self.line_spacing;
-        }
-        let y_offset = y_offset.0 as f32;
+        let y_offset = (self.size.height - self.padding.bottom - self.line_height).0 as f32;
         for g in &mut text.glyphs {
             g.point.y += y_offset;
         }
 
-        // x-offset of the glyphs in the first line of `text` if they are merged into the last line.
-        if merge_line {
-            let x_offset = self.lines.first().width;
-            let r = text.segments.glyphs_range(text.lines.segs(0));
-
-            for g in &mut text.glyphs[r.iter()] {
-                g.point.x += x_offset;
-            }
+        // x-offset of the glyphs in the first line of `text`.
+        let x_offset = self.lines.last().width;
+        let r = text.segments.glyphs_range(text.lines.segs(0));
+        for g in &mut text.glyphs[r.iter()] {
+            g.point.x += x_offset;
         }
 
         for line in &mut text.lines.0 {
@@ -763,12 +747,12 @@ impl ShapedText {
         }
 
         let mut lines = text.lines.0.into_iter();
-        if merge_line {
-            let last_line = self.lines.last_mut();
-            let first_line = lines.next().unwrap();
-            last_line.end = first_line.end;
-            last_line.width += first_line.width;
-        }
+
+        let last_line = self.lines.last_mut();
+        let first_line = lines.next().unwrap();
+        last_line.end = first_line.end;
+        last_line.width += first_line.width;
+
         self.lines.0.extend(lines);
 
         for seg in &mut text.segments.0 {
@@ -1867,6 +1851,7 @@ mod tests {
 
         let (actual_a, actual_b) = shaped_text.split(segment);
 
+        let full_text = escape(full_text);
         pretty_assertions::assert_eq!(expected_a, actual_a, "failed \"{full_text}\"");
         pretty_assertions::assert_eq!(expected_b, actual_b, "failed \"{full_text}\"");
     }
@@ -1911,6 +1896,7 @@ mod tests {
 
         let (actual_a, actual_b) = shaped_text.split_remove(segment);
 
+        let full_text = escape(full_text);
         pretty_assertions::assert_eq!(expected_a, actual_a, "failed \"{full_text}\"");
         pretty_assertions::assert_eq!(expected_b, actual_b, "failed \"{full_text}\"");
     }
@@ -1927,18 +1913,18 @@ mod tests {
 
     #[test]
     fn extend_single_line() {
-        test_extend("a", " b", "a b");
-        test_extend("first", " second", "first second");
-        test_extend("", "empty", "empty");
-        test_extend("empty", "", "empty");
+        test_extend("a", " b");
+        test_extend("first", " second");
+        test_extend("", "empty");
+        test_extend("empty", "");
     }
-    fn test_extend(a: &'static str, b: &'static str, expected: &'static str) {
+    fn test_extend(a: &'static str, b: &'static str) {
         let font = test_font();
         let config = TextShapingArgs::default();
 
         let s_a = SegmentedText::new(a);
         let s_b = SegmentedText::new(b);
-        let s_expected = SegmentedText::new(expected);
+        let s_expected = SegmentedText::new(a.to_owned() + b);
 
         let mut sh_a = font.shape_text(&s_a, &config);
         let sh_b = font.shape_text(&s_b, &config);
@@ -1946,6 +1932,22 @@ mod tests {
 
         sh_a.extend(sh_b);
 
-        pretty_assertions::assert_eq!(sh_expected, sh_a, "failed \"{expected}\"");
+        pretty_assertions::assert_eq!(sh_expected, sh_a, "failed \"{}\" + \"{}\"", escape(a), escape(b));
+    }
+
+    #[test]
+    fn extend_multi_line() {
+        test_extend("a\n", "b");
+        test_extend("a", "\nb");
+
+        test_extend("first\n", "second");
+        test_extend("first", "\nsecond");
+
+        test_extend("\n", "\n");
+        test_extend("a ", "b\nc");
+    }
+
+    fn escape(s: &str) -> String {
+        s.replace('\n', "\\n")
     }
 }
