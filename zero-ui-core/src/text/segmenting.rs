@@ -233,7 +233,8 @@ mod tests {
 
     #[test]
     fn segments() {
-        let actual = SegmentedText::new("a\nb\r\nc\td ");
+        let test = "a\nb\r\nc\td ";
+        let actual = SegmentedText::new(test);
 
         fn seg(kind: TextSegmentKind, end: usize) -> TextSegment {
             TextSegment { kind, end }
@@ -241,7 +242,7 @@ mod tests {
         use TextSegmentKind::*;
 
         let expected = SegmentedText {
-            text: "a\nb\r\nc".to_text(),
+            text: test.to_text(),
             segments: vec![
                 seg(Word, 1),
                 seg(LineBreak, 2),

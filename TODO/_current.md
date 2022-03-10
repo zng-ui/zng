@@ -1,7 +1,5 @@
 * Finish `FontList::shape_text`, font fallback.
-   - Implement `ShapedText::split`, `split_remove` and `extend`.
-   - Implement multiple `line_height`/`line_spacing` in shaped text? No, use left hand line metrics, align right hand by baseline.
-* Implement split/join segments.
+   - Optimize `split_remove` calls?
 
 * Review child priority integration with `WidgetLayout`, what happens when we add a border in child { }?
    - It does not work:

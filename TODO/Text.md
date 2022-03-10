@@ -1,5 +1,6 @@
 # Text TODO
 
+* Implement split/join segments.
 * Implement wrapping, text align and justify.
 * Implement font-features.
 * Review TODOs in code.
