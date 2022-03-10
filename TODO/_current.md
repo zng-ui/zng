@@ -1,6 +1,3 @@
-* Finish `FontList::shape_text`, font fallback.
-   - Optimize `split_remove` calls?
-
 * Review child priority integration with `WidgetLayout`, what happens when we add a border in child { }?
    - It does not work:
     - What do we lose if we remove `child_border` and `child_fill`?

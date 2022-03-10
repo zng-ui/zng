@@ -1710,7 +1710,7 @@ impl FontList {
         if replacement_segs.is_empty() {
             r
         } else if r.segments.0.len() == replacement_segs.len() {
-            // all segments replacement, concat replacements:
+            // all segments replaced, concat replacements:
             let mut iter = replacement_segs.into_iter();
             let (_, mut r) = iter.next().unwrap();
             for (_, repl) in iter {
@@ -1718,16 +1718,15 @@ impl FontList {
             }
             r
         } else {
-            let mut i_correction = 0isize;
-            for (i, repl) in replacement_segs {
-                let i = (i as isize + i_correction) as usize;
-                i_correction += (repl.segments.0.len() as isize) - 1;
-
-                let (mut head, tail) = r.split_remove(i);
-                head.extend(repl);
-                head.extend(tail);
-
-                r = head;
+            let mut parts = Vec::with_capacity(replacement_segs.len() * 2);
+            for (i, repl) in replacement_segs.into_iter().rev() {
+                let (new_r, tail) = r.split_remove(i);
+                parts.push(tail);
+                parts.push(repl);
+                r = new_r;
+            }
+            for part in parts.into_iter().rev() {
+                r.extend(part);
             }
             r
         }
