@@ -13,7 +13,7 @@ pub(crate) fn config_listener(
     tracing::trace!("config_listener");
 
     use glutin::window::WindowBuilder;
-    use winapi::um::winuser::*;
+    use windows::Win32::{Foundation::LRESULT, UI::WindowsAndMessaging::*};
     use zero_ui_view_api::Event;
 
     use crate::util;
@@ -27,11 +27,11 @@ pub(crate) fn config_listener(
     util::set_raw_windows_event_handler(&w, u32::from_ne_bytes(*b"cevl") as _, move |_, msg, wparam, _| {
         let notify = |ev| {
             let _ = event_loop.send(AppEvent::Notify(ev));
-            Some(0)
+            Some(LRESULT(0))
         };
         match msg {
             WM_FONTCHANGE => notify(Event::FontsChanged),
-            WM_SETTINGCHANGE => match wparam as u32 {
+            WM_SETTINGCHANGE => match SYSTEM_PARAMETERS_INFO_ACTION(wparam.0 as _) {
                 SPI_SETFONTSMOOTHING | SPI_SETFONTSMOOTHINGTYPE => notify(Event::TextAaChanged(text_aa())),
                 SPI_SETDOUBLECLICKTIME | SPI_SETDOUBLECLKWIDTH | SPI_SETDOUBLECLKHEIGHT => {
                     notify(Event::MultiClickConfigChanged(multi_click_config()))
@@ -42,7 +42,7 @@ pub(crate) fn config_listener(
             },
             WM_DISPLAYCHANGE => {
                 let _ = event_loop.send(AppEvent::RefreshMonitors);
-                Some(0)
+                Some(LRESULT(0))
             }
             _ => None,
         }
@@ -54,23 +54,35 @@ pub(crate) fn config_listener(
 /// Gets the system text anti-aliasing config.
 #[cfg(windows)]
 pub fn text_aa() -> TextAntiAliasing {
-    use winapi::um::errhandlingapi::GetLastError;
-    use winapi::um::winuser::*;
+    use windows::Win32::Foundation::{GetLastError, BOOL};
+    use windows::Win32::UI::WindowsAndMessaging::*;
 
     unsafe {
         let mut enabled = 0;
         let mut smoothing_type: u32 = 0;
 
-        if SystemParametersInfoW(SPI_GETFONTSMOOTHING, 0, &mut enabled as *mut _ as *mut _, 0) == 0 {
-            tracing::error!("SPI_GETFONTSMOOTHING error: {:X}", GetLastError());
+        if SystemParametersInfoW(
+            SPI_GETFONTSMOOTHING,
+            0,
+            &mut enabled as *mut _ as *mut _,
+            SYSTEM_PARAMETERS_INFO_UPDATE_FLAGS(0),
+        ) == BOOL(0)
+        {
+            tracing::error!("SPI_GETFONTSMOOTHING error: {:?}", GetLastError());
             return TextAntiAliasing::Mono;
         }
         if enabled == 0 {
             return TextAntiAliasing::Mono;
         }
 
-        if SystemParametersInfoW(SPI_GETFONTSMOOTHINGTYPE, 0, &mut smoothing_type as *mut _ as *mut _, 0) == 0 {
-            tracing::error!("SPI_GETFONTSMOOTHINGTYPE error: {:X}", GetLastError());
+        if SystemParametersInfoW(
+            SPI_GETFONTSMOOTHINGTYPE,
+            0,
+            &mut smoothing_type as *mut _ as *mut _,
+            SYSTEM_PARAMETERS_INFO_UPDATE_FLAGS(0),
+        ) == BOOL(0)
+        {
+            tracing::error!("SPI_GETFONTSMOOTHINGTYPE error: {:?}", GetLastError());
             return TextAntiAliasing::Mono;
         }
 
@@ -90,7 +102,8 @@ pub fn text_aa() -> TextAntiAliasing {
 /// Gets the "double-click" settings.
 #[cfg(windows)]
 pub fn multi_click_config() -> MultiClickConfig {
-    use winapi::um::winuser::*;
+    use windows::Win32::UI::Input::KeyboardAndMouse::*;
+    use windows::Win32::UI::WindowsAndMessaging::*;
     use zero_ui_view_api::units::*;
 
     unsafe {
@@ -112,14 +125,20 @@ pub fn multi_click_config() -> MultiClickConfig {
 
 #[cfg(windows)]
 pub fn animation_enabled() -> bool {
-    use winapi::um::errhandlingapi::GetLastError;
-    use winapi::um::winuser::*;
+    use windows::Win32::Foundation::{GetLastError, BOOL};
+    use windows::Win32::UI::WindowsAndMessaging::*;
 
     unsafe {
         let mut enabled = true;
 
-        if SystemParametersInfoW(SPI_GETCLIENTAREAANIMATION, 0, &mut enabled as *mut _ as *mut _, 0) == 0 {
-            tracing::error!("SPI_GETCLIENTAREAANIMATION error: {:X}", GetLastError());
+        if SystemParametersInfoW(
+            SPI_GETCLIENTAREAANIMATION,
+            0,
+            &mut enabled as *mut _ as *mut _,
+            SYSTEM_PARAMETERS_INFO_UPDATE_FLAGS(0),
+        ) == BOOL(0)
+        {
+            tracing::error!("SPI_GETCLIENTAREAANIMATION error: {:?}", GetLastError());
             return true;
         }
 
@@ -134,14 +153,20 @@ pub fn animation_enabled() -> bool {
 
 #[cfg(windows)]
 pub fn key_repeat_delay() -> Duration {
-    use winapi::um::errhandlingapi::GetLastError;
-    use winapi::um::winuser::*;
+    use windows::Win32::Foundation::{GetLastError, BOOL};
+    use windows::Win32::UI::WindowsAndMessaging::*;
 
     unsafe {
         let mut index = 0;
 
-        if SystemParametersInfoW(SPI_GETCLIENTAREAANIMATION, 0, &mut index as *mut _ as *mut _, 0) == 0 {
-            tracing::error!("SPI_GETCLIENTAREAANIMATION error: {:X}", GetLastError());
+        if SystemParametersInfoW(
+            SPI_GETCLIENTAREAANIMATION,
+            0,
+            &mut index as *mut _ as *mut _,
+            SYSTEM_PARAMETERS_INFO_UPDATE_FLAGS(0),
+        ) == BOOL(0)
+        {
+            tracing::error!("SPI_GETCLIENTAREAANIMATION error: {:?}", GetLastError());
             return Duration::from_millis(600);
         }
 

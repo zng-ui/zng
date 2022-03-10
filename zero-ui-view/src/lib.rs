@@ -1563,15 +1563,12 @@ fn warmup_open_gl() {
     // idea copied from here:
     // https://hero.handmade.network/forums/code-discussion/t/2503-day_235_opengl%2527s_pixel_format_takes_a_long_time#13029
 
-    use winapi::{
-        shared::ntdef::NULL,
-        um::{wingdi, winuser},
-    };
+    use windows::Win32::{Foundation::HWND, Graphics::Gdi::*};
 
     let _ = thread::Builder::new().stack_size(3 * 64 * 1024).spawn(|| unsafe {
-        let hdc = winuser::GetDC(NULL as _);
-        let _ = wingdi::DescribePixelFormat(hdc, 0, 0, NULL as _);
-        winuser::ReleaseDC(NULL as _, hdc);
+        let hdc = GetDC(HWND(0));
+        let _ = windows::Win32::Graphics::OpenGL::DescribePixelFormat(hdc, 0, 0, std::ptr::null_mut());
+        ReleaseDC(HWND(0), hdc);
     });
 }
 

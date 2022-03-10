@@ -623,10 +623,8 @@ mod blit {
     mod windows_blit {
 
         use glutin::platform::windows::WindowExtWindows;
-        use winapi::{
-            shared::windef::HWND,
-            um::{wingdi, winuser},
-        };
+        use windows::Win32::Foundation::HWND;
+        use windows::Win32::Graphics::Gdi::*;
 
         pub struct GdiBlit {
             hwnd: HWND,
@@ -634,7 +632,9 @@ mod blit {
 
         impl GdiBlit {
             pub fn new(window: &glutin::window::Window) -> Self {
-                GdiBlit { hwnd: window.hwnd() as _ }
+                GdiBlit {
+                    hwnd: HWND(window.hwnd() as _),
+                }
             }
 
             pub fn supported() -> bool {
@@ -649,24 +649,35 @@ mod blit {
             unsafe fn blit_unsafe(&mut self, width: i32, height: i32, frame: &super::Bgra8) {
                 // not BeginPaint because winit calls DefWindowProcW?
 
-                let hdc = winuser::GetDC(self.hwnd);
+                let hdc = GetDC(self.hwnd);
 
-                let mem_dc = wingdi::CreateCompatibleDC(hdc);
-                let mem_bm = wingdi::CreateCompatibleBitmap(hdc, width, height);
+                let mem_dc = CreateCompatibleDC(hdc);
+                let mem_bm = CreateCompatibleBitmap(hdc, width, height);
 
-                let mut bmi = wingdi::BITMAPINFO::default();
-                {
-                    let mut info = &mut bmi.bmiHeader;
-                    info.biSize = std::mem::size_of::<wingdi::BITMAPINFO>() as u32;
-                    info.biWidth = width;
-                    info.biHeight = height;
-                    info.biPlanes = 1;
-                    info.biBitCount = 32;
-                }
+                let bmi = BITMAPINFO {
+                    bmiHeader: BITMAPINFOHEADER {
+                        biSize: std::mem::size_of::<BITMAPINFO>() as u32,
+                        biWidth: width,
+                        biHeight: height,
+                        biPlanes: 1,
+                        biBitCount: 32,
+                        biCompression: 0,
+                        biSizeImage: 0,
+                        biXPelsPerMeter: 0,
+                        biYPelsPerMeter: 0,
+                        biClrUsed: 0,
+                        biClrImportant: 0,
+                    },
+                    bmiColors: [RGBQUAD {
+                        rgbBlue: 0,
+                        rgbGreen: 0,
+                        rgbRed: 0,
+                        rgbReserved: 0,
+                    }],
+                };
+                let old_bm = SelectObject(mem_dc, mem_bm);
 
-                let old_bm = wingdi::SelectObject(mem_dc, mem_bm as winapi::shared::minwindef::LPVOID);
-
-                wingdi::StretchDIBits(
+                StretchDIBits(
                     mem_dc,
                     0,
                     0,
@@ -678,13 +689,13 @@ mod blit {
                     height,
                     frame.as_ptr() as *const _,
                     &bmi as *const _,
-                    0,
-                    wingdi::SRCCOPY,
+                    DIB_USAGE(0),
+                    SRCCOPY,
                 );
-                wingdi::BitBlt(hdc, 0, 0, width, height, mem_dc, 0, 0, wingdi::SRCCOPY);
+                BitBlt(hdc, 0, 0, width, height, mem_dc, 0, 0, SRCCOPY);
 
-                wingdi::SelectObject(mem_dc, old_bm);
-                winuser::ReleaseDC(self.hwnd, hdc);
+                SelectObject(mem_dc, old_bm);
+                ReleaseDC(self.hwnd, hdc);
             }
         }
     }

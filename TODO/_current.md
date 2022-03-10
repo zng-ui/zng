@@ -2,5 +2,5 @@
    - It does not work:
     - What do we lose if we remove `child_border` and `child_fill`?
     - Or do we make it work like an *anonymous* container widget, `WidgetLayout::with_widget_child` in `new_child_context`? 
-
-* Use `windows-sys`, crates (`parking_lot`, `winit`) are updating to use the official WinAPI crate, after `winit` update we should as well.
+    - Can we fully remove child { }? Widgets then only have new_fill(new_child()) and in new_child they can do "child" properties.
+      - Can't `unset!` padding if we do this.

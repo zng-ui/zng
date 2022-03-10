@@ -199,17 +199,21 @@ impl Window {
             let event_sender = event_sender.clone();
 
             crate::util::set_raw_windows_event_handler(&winit_window, u32::from_ne_bytes(*b"alf4") as _, move |_, msg, wparam, _| {
-                if msg == winapi::um::winuser::WM_SYSKEYDOWN && wparam as i32 == winapi::um::winuser::VK_F4 && allow_alt_f4.get() {
+                if msg == windows::Win32::UI::WindowsAndMessaging::WM_SYSKEYDOWN
+                    && windows::Win32::UI::Input::KeyboardAndMouse::VIRTUAL_KEY(wparam.0 as u16)
+                        == windows::Win32::UI::Input::KeyboardAndMouse::VK_F4
+                    && allow_alt_f4.get()
+                {
                     let device = 0; // TODO recover actual ID
 
                     let _ = event_sender.send(AppEvent::Notify(Event::KeyboardInput {
                         window: id,
                         device,
-                        scan_code: wparam as ScanCode,
+                        scan_code: wparam.0 as ScanCode,
                         state: KeyState::Pressed,
                         key: Some(Key::F4),
                     }));
-                    return Some(0);
+                    return Some(windows::Win32::Foundation::LRESULT(0));
                 }
                 None
             });
@@ -481,33 +485,56 @@ impl Window {
     #[cfg(windows)]
     fn windows_set_restore(&self) {
         use glutin::platform::windows::{MonitorHandleExtWindows, WindowExtWindows};
-        use winapi::um::winuser;
+        use windows::Win32::Foundation::{BOOL, HWND};
+        use windows::Win32::Graphics::Gdi::{GetMonitorInfoW, HMONITOR, MONITORINFO, MONITORINFOEXW};
+        use windows::Win32::{
+            Foundation::{POINT, RECT},
+            UI::WindowsAndMessaging::*,
+        };
 
         if let Some(monitor) = self.window.current_monitor() {
-            let hwnd = self.window.hwnd() as _;
-            let mut placement = winuser::WINDOWPLACEMENT {
-                length: mem::size_of::<winuser::WINDOWPLACEMENT>() as _,
-                ..Default::default()
+            let hwnd = HWND(self.window.hwnd() as _);
+            let mut placement = WINDOWPLACEMENT {
+                length: mem::size_of::<WINDOWPLACEMENT>() as _,
+                flags: WINDOWPLACEMENT_FLAGS(0),
+                showCmd: SHOW_WINDOW_CMD(0),
+                ptMinPosition: POINT { x: 0, y: 0 },
+                ptMaxPosition: POINT { x: 0, y: 0 },
+                rcNormalPosition: RECT {
+                    left: 0,
+                    top: 0,
+                    right: 0,
+                    bottom: 0,
+                },
             };
-            if unsafe { winuser::GetWindowPlacement(hwnd, &mut placement) } != 0 {
+            if unsafe { GetWindowPlacement(hwnd, &mut placement) } != BOOL(0) {
                 let scale_factor = self.scale_factor();
                 let mut left_top = self.state.restore_rect.origin.to_px(scale_factor);
 
                 // placement is in "workspace", window is in "virtual screen space".
-                let hmonitor = monitor.hmonitor() as _;
-                let mut monitor_info = winuser::MONITORINFOEXW {
-                    cbSize: mem::size_of::<winuser::MONITORINFOEXW>() as _,
-                    ..Default::default()
+                let hmonitor = HMONITOR(monitor.hmonitor() as _);
+                let mut monitor_info = MONITORINFOEXW {
+                    monitorInfo: MONITORINFO {
+                        cbSize: mem::size_of::<MONITORINFOEXW>() as _,
+                        rcMonitor: RECT {
+                            left: 0,
+                            top: 0,
+                            right: 0,
+                            bottom: 0,
+                        },
+                        rcWork: RECT {
+                            left: 0,
+                            top: 0,
+                            right: 0,
+                            bottom: 0,
+                        },
+                        dwFlags: 0,
+                    },
+                    szDevice: [0; 32],
                 };
-                if unsafe {
-                    winuser::GetMonitorInfoW(
-                        hmonitor,
-                        &mut monitor_info as *mut winuser::MONITORINFOEXW as *mut winuser::MONITORINFO,
-                    )
-                } != 0
-                {
-                    left_top.x.0 -= monitor_info.rcWork.left;
-                    left_top.y.0 -= monitor_info.rcWork.top;
+                if unsafe { GetMonitorInfoW(hmonitor, &mut monitor_info as *mut MONITORINFOEXW as *mut MONITORINFO) } != BOOL(0) {
+                    left_top.x.0 -= monitor_info.monitorInfo.rcWork.left;
+                    left_top.y.0 -= monitor_info.monitorInfo.rcWork.top;
                 }
 
                 // placement includes the non-client area.
@@ -523,7 +550,7 @@ impl Window {
                 placement.rcNormalPosition.bottom = bottom_right.y.0;
                 placement.rcNormalPosition.right = bottom_right.x.0;
 
-                let _ = unsafe { winuser::SetWindowPlacement(hwnd, &placement) };
+                let _ = unsafe { SetWindowPlacement(hwnd, &placement) };
             }
         }
     }
@@ -548,7 +575,8 @@ impl Window {
         {
             let hwnd = glutin::platform::windows::WindowExtWindows::hwnd(&self.window);
             // SAFETY: function does not fail.
-            return unsafe { winapi::um::winuser::IsZoomed(hwnd as _) } != 0;
+            return unsafe { windows::Win32::UI::WindowsAndMessaging::IsZoomed(windows::Win32::Foundation::HWND(hwnd as _)) }
+                != windows::Win32::Foundation::BOOL(0);
         }
 
         #[allow(unreachable_code)]
@@ -569,7 +597,8 @@ impl Window {
         {
             let hwnd = glutin::platform::windows::WindowExtWindows::hwnd(&self.window);
             // SAFETY: function does not fail.
-            return unsafe { winapi::um::winuser::IsIconic(hwnd as _) } != 0;
+            return unsafe { windows::Win32::UI::WindowsAndMessaging::IsIconic(windows::Win32::Foundation::HWND(hwnd as _)) }
+                != windows::Win32::Foundation::BOOL(0);
         }
 
         #[allow(unreachable_code)]
@@ -691,47 +720,36 @@ impl Window {
         self.taskbar_visible = visible;
 
         use glutin::platform::windows::WindowExtWindows;
-        use std::ptr;
-        use winapi::shared::winerror;
-        use winapi::um::combaseapi;
-        use winapi::um::shobjidl_core::ITaskbarList;
-        use winapi::Interface;
+        use windows::Win32::Foundation::*;
+        use windows::Win32::System::Com::*;
+        use windows::Win32::UI::Shell::*;
 
         // winit already initializes COM
 
         unsafe {
-            let mut tb_ptr: *mut ITaskbarList = ptr::null_mut();
-            let result = combaseapi::CoCreateInstance(
-                &winapi::um::shobjidl_core::CLSID_TaskbarList,
-                ptr::null_mut(),
-                winapi::shared::wtypesbase::CLSCTX_INPROC_SERVER,
-                &ITaskbarList::uuidof(),
-                &mut tb_ptr as *mut _ as *mut _,
-            );
+            let result: Result<ITaskbarList, _> = CoCreateInstance(&TaskbarList, None, CLSCTX_INPROC_SERVER);
             match result {
-                winerror::S_OK => {
-                    let tb = tb_ptr.as_ref().unwrap();
+                Ok(tb) => {
                     let result = if visible {
-                        tb.AddTab(self.window.hwnd() as winapi::shared::windef::HWND)
+                        tb.AddTab(HWND(self.window.hwnd() as _))
                     } else {
-                        tb.DeleteTab(self.window.hwnd() as winapi::shared::windef::HWND)
+                        tb.DeleteTab(HWND(self.window.hwnd() as _))
                     };
                     match result {
-                        winerror::S_OK => {}
-                        error => {
+                        Ok(_) => {}
+                        Err(error) => {
                             let mtd_name = if visible { "AddTab" } else { "DeleteTab" };
                             tracing::error!(
                                 target: "window",
-                                "cannot set `taskbar_visible`, `ITaskbarList::{mtd_name}` failed, error: {error:X}",
+                                "cannot set `taskbar_visible`, `ITaskbarList::{mtd_name}` failed, error: {error}",
                             )
                         }
                     }
-                    tb.Release();
                 }
-                error => {
+                Err(e) => {
                     tracing::error!(
                         target: "window",
-                        "cannot set `taskbar_visible`, failed to create instance of `ITaskbarList`, error: {error:X}",
+                        "cannot set `taskbar_visible`, failed to create instance of `ITaskbarList`, error: {e}",
                     )
                 }
             }

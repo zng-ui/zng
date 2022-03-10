@@ -28,48 +28,45 @@ use zero_ui_view_api::{
 #[cfg(windows)]
 pub fn set_raw_windows_event_handler<
     H: FnMut(
-            winapi::shared::windef::HWND,
-            winapi::shared::minwindef::UINT,
-            winapi::shared::minwindef::WPARAM,
-            winapi::shared::minwindef::LPARAM,
-        ) -> Option<winapi::shared::minwindef::LRESULT>
+            windows::Win32::Foundation::HWND,
+            u32,
+            windows::Win32::Foundation::WPARAM,
+            windows::Win32::Foundation::LPARAM,
+        ) -> Option<windows::Win32::Foundation::LRESULT>
         + 'static,
 >(
     window: &glutin::window::Window,
-    subclass_id: winapi::shared::basetsd::UINT_PTR,
+    subclass_id: usize,
     handler: H,
 ) -> bool {
     use glutin::platform::windows::WindowExtWindows;
+    use windows::Win32::Foundation::{BOOL, HWND};
 
-    let hwnd = window.hwnd() as winapi::shared::windef::HWND;
+    let hwnd = HWND(window.hwnd() as _);
     let data = Box::new(handler);
     unsafe {
-        winapi::um::commctrl::SetWindowSubclass(
-            hwnd,
-            Some(subclass_raw_event_proc::<H>),
-            subclass_id,
-            Box::into_raw(data) as winapi::shared::basetsd::DWORD_PTR,
-        ) != 0
+        windows::Win32::UI::Shell::SetWindowSubclass(hwnd, Some(subclass_raw_event_proc::<H>), subclass_id, Box::into_raw(data) as _)
+            != BOOL(0)
     }
 }
 #[cfg(windows)]
 unsafe extern "system" fn subclass_raw_event_proc<
     H: FnMut(
-            winapi::shared::windef::HWND,
-            winapi::shared::minwindef::UINT,
-            winapi::shared::minwindef::WPARAM,
-            winapi::shared::minwindef::LPARAM,
-        ) -> Option<winapi::shared::minwindef::LRESULT>
+            windows::Win32::Foundation::HWND,
+            u32,
+            windows::Win32::Foundation::WPARAM,
+            windows::Win32::Foundation::LPARAM,
+        ) -> Option<windows::Win32::Foundation::LRESULT>
         + 'static,
 >(
-    hwnd: winapi::shared::windef::HWND,
-    msg: winapi::shared::minwindef::UINT,
-    wparam: winapi::shared::minwindef::WPARAM,
-    lparam: winapi::shared::minwindef::LPARAM,
-    _id: winapi::shared::basetsd::UINT_PTR,
-    data: winapi::shared::basetsd::DWORD_PTR,
-) -> winapi::shared::minwindef::LRESULT {
-    use winapi::um::winuser::WM_DESTROY;
+    hwnd: windows::Win32::Foundation::HWND,
+    msg: u32,
+    wparam: windows::Win32::Foundation::WPARAM,
+    lparam: windows::Win32::Foundation::LPARAM,
+    _id: usize,
+    data: usize,
+) -> windows::Win32::Foundation::LRESULT {
+    use windows::Win32::UI::WindowsAndMessaging::WM_DESTROY;
     match msg {
         WM_DESTROY => {
             // last call and cleanup.
@@ -82,7 +79,7 @@ unsafe extern "system" fn subclass_raw_event_proc<
             if let Some(r) = handler(hwnd, msg, wparam, lparam) {
                 r
             } else {
-                winapi::um::commctrl::DefSubclassProc(hwnd, msg, wparam, lparam)
+                windows::Win32::UI::Shell::DefSubclassProc(hwnd, msg, wparam, lparam)
             }
         }
     }
@@ -90,8 +87,9 @@ unsafe extern "system" fn subclass_raw_event_proc<
 
 #[cfg(windows)]
 pub(crate) fn unregister_raw_input() {
-    use winapi::shared::hidusage::{HID_USAGE_GENERIC_KEYBOARD, HID_USAGE_GENERIC_MOUSE, HID_USAGE_PAGE_GENERIC};
-    use winapi::um::winuser::{RAWINPUTDEVICE, RIDEV_REMOVE};
+    use windows::Win32::Devices::HumanInterfaceDevice::{HID_USAGE_GENERIC_KEYBOARD, HID_USAGE_GENERIC_MOUSE, HID_USAGE_PAGE_GENERIC};
+    use windows::Win32::Foundation::{BOOL, HWND};
+    use windows::Win32::UI::Input::{RAWINPUTDEVICE, RIDEV_REMOVE};
 
     let flags = RIDEV_REMOVE;
 
@@ -100,23 +98,23 @@ pub(crate) fn unregister_raw_input() {
             usUsagePage: HID_USAGE_PAGE_GENERIC,
             usUsage: HID_USAGE_GENERIC_MOUSE,
             dwFlags: flags,
-            hwndTarget: std::ptr::null_mut() as _,
+            hwndTarget: HWND::default(),
         },
         RAWINPUTDEVICE {
             usUsagePage: HID_USAGE_PAGE_GENERIC,
             usUsage: HID_USAGE_GENERIC_KEYBOARD,
             dwFlags: flags,
-            hwndTarget: std::ptr::null_mut() as _,
+            hwndTarget: HWND::default(),
         },
     ];
 
     let device_size = std::mem::size_of::<RAWINPUTDEVICE>() as _;
 
-    let ok = unsafe { winapi::um::winuser::RegisterRawInputDevices((&devices).as_ptr(), devices.len() as _, device_size) != 0 };
+    let ok = unsafe { windows::Win32::UI::Input::RegisterRawInputDevices((&devices).as_ptr(), devices.len() as _, device_size) != BOOL(0) };
 
     if !ok {
-        let e = unsafe { winapi::um::errhandlingapi::GetLastError() };
-        panic!("failed `unregister_raw_input`, 0x{e:X}");
+        let e = unsafe { windows::Win32::Foundation::GetLastError() };
+        panic!("failed `unregister_raw_input`, {e:?}");
     }
 }
 
