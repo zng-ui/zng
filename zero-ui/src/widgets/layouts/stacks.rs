@@ -38,25 +38,23 @@ pub mod h_stack {
     use super::*;
 
     properties! {
-        child {
-            /// Widget items.
-            #[allowed_in_when = false]
-            items(impl WidgetList) = widgets![];
+        /// Widget items.
+        #[allowed_in_when = false]
+        items(impl WidgetList) = widgets![];
 
-            /// Space in-between items.
-            spacing(impl IntoVar<Length>) = 0.0;
+        /// Space in-between items.
+        spacing(impl IntoVar<Length>) = 0.0;
 
-            /// Margin around all items together.
-            margin as padding;
+        /// Margin around all items together.
+        padding;
 
-            /// Items alignment.
-            ///
-            /// Horizontal alignment applies to all items together, vertical alignment applies to each
-            /// item individually. The default is [`FILL_LEFT`].
-            ///
-            /// [`FILL_LEFT`]: Align::FILL_LEFT
-            items_align(impl IntoVar<Align>) = Align::FILL_LEFT;
-        }
+        /// Items alignment.
+        ///
+        /// Horizontal alignment applies to all items together, vertical alignment applies to each
+        /// item individually. The default is [`FILL_LEFT`].
+        ///
+        /// [`FILL_LEFT`]: Align::FILL_LEFT
+        items_align(impl IntoVar<Align>) = Align::FILL_LEFT;
     }
 
     #[inline]
@@ -223,23 +221,23 @@ pub mod v_stack {
     use super::*;
 
     properties! {
-        child {
-            /// Space in-between items.
-            spacing(impl IntoVar<Length>) = 0.0;
-            /// Widget items.
-            #[allowed_in_when = false]
-            items(impl WidgetList) = widgets![];
-            /// Items margin.
-            margin as padding;
+        /// Space in-between items.
+        spacing(impl IntoVar<Length>) = 0.0;
 
-            /// Items alignment.
-            ///
-            /// Vertical alignment applies to all items together, horizontal alignment applies to each
-            /// item individually. The default is [`FILL_TOP`].
-            ///
-            /// [`FILL_TOP`]: Align::FILL_TOP
-            items_align(impl IntoVar<Align>) = Align::FILL_TOP;
-        }
+        /// Widget items.
+        #[allowed_in_when = false]
+        items(impl WidgetList) = widgets![];
+
+        /// Items margin.
+        padding;
+
+        /// Items alignment.
+        ///
+        /// Vertical alignment applies to all items together, horizontal alignment applies to each
+        /// item individually. The default is [`FILL_TOP`].
+        ///
+        /// [`FILL_TOP`]: Align::FILL_TOP
+        items_align(impl IntoVar<Align>) = Align::FILL_TOP;
     }
 
     #[inline]
@@ -449,20 +447,19 @@ pub mod z_stack {
     use super::*;
 
     properties! {
-        child {
-            /// Widget items.
-            #[allowed_in_when = false]
-            items(impl WidgetList) = widgets![];
-            /// Items margin.
-            margin as padding;
+        /// Widget items.
+        #[allowed_in_when = false]
+        items(impl WidgetList) = widgets![];
 
-            /// Items alignment.
-            ///
-            /// Align applies to each item individually. The default is [`FILL`].
-            ///
-            /// [`FILL`]: Align::FILL
-            items_align(impl IntoVar<Align>) = Align::FILL;
-        }
+        /// Items margin.
+        padding;
+
+        /// Items alignment.
+        ///
+        /// Align applies to each item individually. The default is [`FILL`].
+        ///
+        /// [`FILL`]: Align::FILL
+        items_align(impl IntoVar<Align>) = Align::FILL;
     }
 
     #[inline]

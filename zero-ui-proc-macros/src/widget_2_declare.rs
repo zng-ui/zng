@@ -207,10 +207,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     }
 
     // inherited properties that are required.
-    let inherited_required: HashSet<_> = inherited_props.iter()
-        .filter(|p| p.required)
-        .map(|p| &p.ident)
-        .collect();
+    let inherited_required: HashSet<_> = inherited_props.iter().filter(|p| p.required).map(|p| &p.ident).collect();
 
     // apply removes.
     for ident in &properties_remove {

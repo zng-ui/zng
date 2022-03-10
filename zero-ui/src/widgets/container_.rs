@@ -6,25 +6,23 @@ pub mod container {
     use super::*;
 
     properties! {
-        child {
-            /// Content UI.
-            ///
-            /// Can be any type that implements [`UiNode`], any widget.
-            ///
-            /// [`UiNode`]: zero_ui::core::UiNode
-            #[allowed_in_when = false]
-            #[required]
-            content(impl UiNode);
+        /// Content UI.
+        ///
+        /// Can be any type that implements [`UiNode`], any widget.
+        ///
+        /// [`UiNode`]: zero_ui::core::UiNode
+        #[allowed_in_when = false]
+        #[required]
+        content(impl UiNode);
 
-            /// Content margin.
-            margin as padding;
+        /// Content margin.
+        padding;
 
-            /// Content alignment.
-            align as content_align = Align::CENTER;
+        /// Content alignment.
+        child_align as content_align = Align::CENTER;
 
-            /// Content overflow clipping.
-            clip_to_bounds;
-        }
+        /// Content overflow clipping.
+        clip_to_bounds;
     }
 
     #[inline]

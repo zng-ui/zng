@@ -59,7 +59,7 @@ pub mod implicit_base {
         NilUiNode
     }
 
-   /// Implicit `new_child_layout`, returns [`nodes::leaf_transform`]
+    /// Implicit `new_child_layout`, returns [`nodes::leaf_transform`]
     pub fn new_child_layout(child: impl UiNode) -> impl UiNode {
         nodes::leaf_transform(child) // TODO, this priority works?
     }

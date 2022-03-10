@@ -90,7 +90,7 @@ mod widgets {
         inherit!(container);
 
         properties! {
-            child { padding = 20; }
+            padding = 20;
 
             background_color = colors::GREEN.darken(40.pct());
 

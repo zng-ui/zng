@@ -48,10 +48,8 @@ pub mod button {
         /// Blocks pointer interaction with other widgets while the button is pressed.
         capture_mouse = true;
 
-        child {
-            /// Content padding.
-            padding = theme::PaddingVar;
-        }
+        /// Content padding.
+        padding = theme::PaddingVar;
 
         /// When the pointer device is over this button.
         when self.is_cap_hovered {

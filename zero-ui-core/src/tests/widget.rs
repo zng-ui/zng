@@ -330,44 +330,39 @@ pub fn wgt_required_inherited_default_required() {
 pub fn value_init_order() {
     Position::reset();
     let mut wgt = empty_wgt! {
-        util::count_inner = Position::next("count_inner");
+        util::count_border = Position::next("count_border");
         util::count_context = Position::next("count_context");
     };
     wgt.test_init(&mut TestWidgetContext::new());
 
     // values evaluated in typed order.
-    assert_eq!(util::sorted_value_init(&wgt), ["count_inner", "count_context"]);
+    assert_eq!(util::sorted_value_init(&wgt), ["count_border", "count_context"]);
 
     // but properties init in the priority order.
-    assert_eq!(util::sorted_node_init(&wgt), ["count_context", "count_inner"]);
+    assert_eq!(util::sorted_node_init(&wgt), ["count_context", "count_border"]);
 }
 
-/*
- * Tests value initialization order with child property.
- */
-#[widget($crate::tests::widget::child_property_wgt)]
-pub mod child_property_wgt {
-    properties! {
-        child {
-            super::util::count_inner as count_child_inner;
-        }
-    }
-}
 #[test]
 pub fn wgt_child_property_init_order() {
     Position::reset();
-    let mut wgt = child_property_wgt! {
-        util::count_inner = Position::next("count_inner");
-        count_child_inner = Position::next("count_child_inner");
+    let mut wgt = empty_wgt! {
+        util::count_border = Position::next("count_border");
+        util::count_child_layout = Position::next("count_child_layout");
         util::count_context = Position::next("count_context");
     };
     wgt.test_init(&mut TestWidgetContext::new());
 
     // values evaluated in typed order.
-    assert_eq!(util::sorted_value_init(&wgt), ["count_inner", "count_child_inner", "count_context"]);
+    assert_eq!(
+        util::sorted_value_init(&wgt),
+        ["count_border", "count_child_layout", "count_context"]
+    );
 
     // but properties init in the priority order (child first).
-    assert_eq!(util::sorted_node_init(&wgt), ["count_context", "count_inner", "count_child_inner"]);
+    assert_eq!(
+        util::sorted_node_init(&wgt),
+        ["count_context", "count_border", "count_child_layout"]
+    );
 }
 
 /*
@@ -376,39 +371,39 @@ pub fn wgt_child_property_init_order() {
 #[widget($crate::tests::widget::same_priority_order_wgt)]
 pub mod same_priority_order_wgt {
     properties! {
-        super::util::count_inner as inner_a;
-        super::util::count_inner as inner_b;
+        super::util::count_border as border_a;
+        super::util::count_border as border_b;
     }
 }
 #[test]
 pub fn wgt_same_priority_order() {
     Position::reset();
     let mut wgt = same_priority_order_wgt! {
-        inner_a = Position::next("inner_a");
-        inner_b = Position::next("inner_b");
+        border_a = Position::next("border_a");
+        border_b = Position::next("border_b");
     };
     wgt.test_init(&mut TestWidgetContext::new());
 
     // values evaluated in typed order.
-    assert_eq!(util::sorted_value_init(&wgt), ["inner_a", "inner_b"]);
+    assert_eq!(util::sorted_value_init(&wgt), ["border_a", "border_b"]);
 
     // properties with the same priority are set in reversed typed order.
     // inner_a is set after inner_b so it will contain inner_b:
-    // let node = inner_b(child, ..);
-    // let node = inner_a(node, ..);
-    assert_eq!(util::sorted_node_init(&wgt), ["inner_a", "inner_b"]);
+    // let node = border_b(child, ..);
+    // let node = border_a(node, ..);
+    assert_eq!(util::sorted_node_init(&wgt), ["border_a", "border_b"]);
 
     Position::reset();
     // order of declaration(in the widget) doesn't impact the order of evaluation,
     // only the order of use does (in here).
     let mut wgt = same_priority_order_wgt! {
-        inner_b = Position::next("inner_b");
-        inner_a = Position::next("inner_a");
+        border_b = Position::next("border_b");
+        border_a = Position::next("border_a");
     };
     wgt.test_init(&mut TestWidgetContext::new());
 
-    assert_eq!(util::sorted_value_init(&wgt), ["inner_b", "inner_a"]);
-    assert_eq!(util::sorted_node_init(&wgt), ["inner_b", "inner_a"]);
+    assert_eq!(util::sorted_value_init(&wgt), ["border_b", "border_a"]);
+    assert_eq!(util::sorted_node_init(&wgt), ["border_b", "border_a"]);
 }
 
 /*
@@ -885,59 +880,44 @@ pub fn wgt_captured_property_reassign() {
 
 #[widget($crate::tests::widget::property_priority_sorting_wgt)]
 pub mod property_priority_sorting_wgt {
-    use super::util::{count_context, count_inner, count_outer, count_size, on_count};
+    use super::util::{count_border, count_child_context, count_child_layout, count_context, count_layout, count_size, on_count};
 
     properties! {
-        count_inner as count_inner2;
+        count_border as count_border2;
         count_size as count_size2;
-        count_outer as count_outer2;
+        count_layout as count_layout2;
         on_count as count_event2;
         count_context as count_context2;
 
-        count_inner as count_inner1;
+        count_border as count_border1;
         count_size as count_size1;
-        count_outer as count_outer1;
+        count_layout as count_layout1;
         on_count as count_event1;
         count_context as count_context1;
 
-        child {
-            count_inner as child_count_inner2;
-            count_size as child_count_size2;
-            count_outer as child_count_outer2;
-            on_count as child_count_event2;
-            count_context as child_count_context2;
-
-            count_inner as child_count_inner1;
-            count_size as child_count_size1;
-            count_outer as child_count_outer1;
-            on_count as child_count_event1;
-            count_context as child_count_context1;
-        }
+        count_child_layout as count_child_layout2;
+        count_child_context as count_child_context2;
+        count_child_layout as count_child_layout1;
+        count_child_context as count_child_context1;
     }
 }
 fn property_priority_sorting_init1() -> impl Widget {
     property_priority_sorting_wgt! {
-        count_inner1 = Position::next("count_inner1");
-        count_inner2 = Position::next("count_inner2");
+        count_border1 = Position::next("count_border1");
+        count_border2 = Position::next("count_border2");
         count_size1 = Position::next("count_size1");
         count_size2 = Position::next("count_size2");
-        count_outer1 = Position::next("count_outer1");
-        count_outer2 = Position::next("count_outer2");
+        count_layout1 = Position::next("count_layout1");
+        count_layout2 = Position::next("count_layout2");
         count_event1 = Position::next("count_event1");
         count_event2 = Position::next("count_event2");
         count_context1 = Position::next("count_context1");
         count_context2 = Position::next("count_context2");
 
-        child_count_inner1 = Position::next("child_count_inner1");
-        child_count_inner2 = Position::next("child_count_inner2");
-        child_count_size1 = Position::next("child_count_size1");
-        child_count_size2 = Position::next("child_count_size2");
-        child_count_outer1 = Position::next("child_count_outer1");
-        child_count_outer2 = Position::next("child_count_outer2");
-        child_count_event1 = Position::next("child_count_event1");
-        child_count_event2 = Position::next("child_count_event2");
-        child_count_context1 = Position::next("child_count_context1");
-        child_count_context2 = Position::next("child_count_context2");
+        count_child_layout1 = Position::next("count_child_layout1");
+        count_child_layout2 = Position::next("count_child_layout2");
+        count_child_context1 = Position::next("count_child_context1");
+        count_child_context2 = Position::next("count_child_context2");
     }
 }
 #[test]
@@ -951,52 +931,40 @@ pub fn property_priority_sorting_value_init1() {
     assert_eq!(
         util::sorted_value_init(&wgt),
         [
-            "count_inner1",
-            "count_inner2",
+            "count_border1",
+            "count_border2",
             "count_size1",
             "count_size2",
-            "count_outer1",
-            "count_outer2",
+            "count_layout1",
+            "count_layout2",
             "count_event1",
             "count_event2",
             "count_context1",
             "count_context2",
-            "child_count_inner1",
-            "child_count_inner2",
-            "child_count_size1",
-            "child_count_size2",
-            "child_count_outer1",
-            "child_count_outer2",
-            "child_count_event1",
-            "child_count_event2",
-            "child_count_context1",
-            "child_count_context2",
+            "count_child_layout1",
+            "count_child_layout2",
+            "count_child_context1",
+            "count_child_context2",
         ]
     );
 }
 fn property_priority_sorting_init2() -> impl Widget {
     property_priority_sorting_wgt! {
-        child_count_context1 = Position::next("child_count_context1");
-        child_count_context2 = Position::next("child_count_context2");
-        child_count_event1 = Position::next("child_count_event1");
-        child_count_event2 = Position::next("child_count_event2");
-        child_count_outer1 = Position::next("child_count_outer1");
-        child_count_outer2 = Position::next("child_count_outer2");
-        child_count_size1 = Position::next("child_count_size1");
-        child_count_size2 = Position::next("child_count_size2");
-        child_count_inner1 = Position::next("child_count_inner1");
-        child_count_inner2 = Position::next("child_count_inner2");
+        count_child_context1 = Position::next("count_child_context1");
+        count_child_context2 = Position::next("count_child_context2");
+        count_child_layout1 = Position::next("count_child_layout1");
+        count_child_layout2 = Position::next("count_child_layout2");
 
         count_context1 = Position::next("count_context1");
         count_context2 = Position::next("count_context2");
         count_event1 = Position::next("count_event1");
         count_event2 = Position::next("count_event2");
-        count_outer1 = Position::next("count_outer1");
-        count_outer2 = Position::next("count_outer2");
+        count_layout1 = Position::next("count_layout1");
+        count_layout2 = Position::next("count_layout2");
         count_size1 = Position::next("count_size1");
         count_size2 = Position::next("count_size2");
-        count_inner1 = Position::next("count_inner1");
-        count_inner2 = Position::next("count_inner2");
+        count_border1 = Position::next("count_border1");
+        count_border2 = Position::next("count_border2");
     }
 }
 #[test]
@@ -1010,16 +978,10 @@ pub fn property_priority_sorting_value_init2() {
     assert_eq!(
         util::sorted_value_init(&wgt),
         [
-            "child_count_context1",
-            "child_count_context2",
-            "child_count_event1",
-            "child_count_event2",
-            "child_count_outer1",
-            "child_count_outer2",
-            "child_count_size1",
-            "child_count_size2",
-            "child_count_inner1",
-            "child_count_inner2",
+            "count_child_context1",
+            "count_child_context2",
+            "count_child_layout1",
+            "count_child_layout2",
             "count_context1",
             "count_context2",
             "count_event1",
@@ -1028,8 +990,8 @@ pub fn property_priority_sorting_value_init2() {
             "count_outer2",
             "count_size1",
             "count_size2",
-            "count_inner1",
-            "count_inner2",
+            "count_border1",
+            "count_border2",
         ]
     );
 }
@@ -1049,18 +1011,12 @@ fn assert_node_order(wgt: &impl Widget) {
             "count_outer2",
             "count_size1",
             "count_size2",
-            "count_inner1",
-            "count_inner2",
-            "child_count_context1",
-            "child_count_context2",
-            "child_count_event1",
-            "child_count_event2",
-            "child_count_outer1",
-            "child_count_outer2",
-            "child_count_size1",
-            "child_count_size2",
-            "child_count_inner1",
-            "child_count_inner2",
+            "count_border1",
+            "count_border2",
+            "count_child_context1",
+            "count_child_context2",
+            "count_child_layout1",
+            "count_child_layout2",
         ]
     );
 }
@@ -1091,27 +1047,21 @@ pub fn property_priority_sorting_node_inherited_init() {
     Position::reset();
 
     let mut wgt = property_priority_sorting_inherited_wgt! {
-        child_count_context1 = Position::next("child_count_context1");
-        child_count_context2 = Position::next("child_count_context2");
-        child_count_event1 = Position::next("child_count_event1");
-        child_count_event2 = Position::next("child_count_event2");
-        child_count_outer1 = Position::next("child_count_outer1");
-        child_count_outer2 = Position::next("child_count_outer2");
-        child_count_size1 = Position::next("child_count_size1");
-        child_count_size2 = Position::next("child_count_size2");
-        child_count_inner1 = Position::next("child_count_inner1");
-        child_count_inner2 = Position::next("child_count_inner2");
+        count_child_context1 = Position::next("count_child_context1");
+        count_child_context2 = Position::next("count_child_context2");
+        count_child_layout1 = Position::next("count_child_layout1");
+        count_child_layout2 = Position::next("count_child_layout2");
 
         count_context1 = Position::next("count_context1");
         count_context2 = Position::next("count_context2");
         count_event1 = Position::next("count_event1");
         count_event2 = Position::next("count_event2");
-        count_outer1 = Position::next("count_outer1");
-        count_outer2 = Position::next("count_outer2");
+        count_layout1 = Position::next("count_layout1");
+        count_layout2 = Position::next("count_layout2");
         count_size1 = Position::next("count_size1");
         count_size2 = Position::next("count_size2");
-        count_inner1 = Position::next("count_inner1");
-        count_inner2 = Position::next("count_inner2");
+        count_border1 = Position::next("count_border1");
+        count_border2 = Position::next("count_border2");
     };
     wgt.test_init(&mut TestWidgetContext::new());
 
@@ -1128,25 +1078,17 @@ pub mod property_priority_sorting_defaults_wgt {
         count_context2 = Position::next("count_context2");
         count_event1 = Position::next("count_event1");
         count_event2 = Position::next("count_event2");
-        count_outer1 = Position::next("count_outer1");
-        count_outer2 = Position::next("count_outer2");
+        count_layout1 = Position::next("count_layout1");
+        count_layout2 = Position::next("count_layout2");
         count_size1 = Position::next("count_size1");
         count_size2 = Position::next("count_size2");
-        count_inner1 = Position::next("count_inner1");
-        count_inner2 = Position::next("count_inner2");
+        count_border1 = Position::next("count_border1");
+        count_border2 = Position::next("count_border2");
 
-        child {
-            child_count_context1 = Position::next("child_count_context1");
-            child_count_context2 = Position::next("child_count_context2");
-            child_count_event1 = Position::next("child_count_event1");
-            child_count_event2 = Position::next("child_count_event2");
-            child_count_outer1 = Position::next("child_count_outer1");
-            child_count_outer2 = Position::next("child_count_outer2");
-            child_count_size1 = Position::next("child_count_size1");
-            child_count_size2 = Position::next("child_count_size2");
-            child_count_inner1 = Position::next("child_count_inner1");
-            child_count_inner2 = Position::next("child_count_inner2");
-        }
+        count_child_context1 = Position::next("count_child_context1");
+        count_child_context2 = Position::next("count_child_context2");
+        count_child_layout1 = Position::next("count_child_layout1");
+        count_child_layout2 = Position::next("count_child_layout2");
     }
 }
 #[test]
@@ -1548,15 +1490,27 @@ mod util {
 
     pub use count as count_context;
 
-    /// Same as [`count`] but with `border` priority.
-    #[property(border, allowed_in_when = false)]
-    pub fn count_inner(child: impl UiNode, count: Position) -> impl UiNode {
+    /// Same as [`count`] but with `child_context` priority.
+    #[property(child_context, allowed_in_when = false)]
+    pub fn count_child_context(child: impl UiNode, count: Position) -> impl UiNode {
         CountNode { child, value_pos: count }
     }
 
-    /// Same as [`count`] but with `outer` priority.
+    /// Same as [`count`] but with `child_layout` priority.
+    #[property(child_layout, allowed_in_when = false)]
+    pub fn count_child_layout(child: impl UiNode, count: Position) -> impl UiNode {
+        CountNode { child, value_pos: count }
+    }
+
+    /// Same as [`count`] but with `border` priority.
+    #[property(border, allowed_in_when = false)]
+    pub fn count_border(child: impl UiNode, count: Position) -> impl UiNode {
+        CountNode { child, value_pos: count }
+    }
+
+    /// Same as [`count`] but with `layout` priority.
     #[property(layout, allowed_in_when = false)]
-    pub fn count_outer(child: impl UiNode, count: Position) -> impl UiNode {
+    pub fn count_layout(child: impl UiNode, count: Position) -> impl UiNode {
         CountNode { child, value_pos: count }
     }
 

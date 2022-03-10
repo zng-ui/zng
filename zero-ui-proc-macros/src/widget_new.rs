@@ -62,20 +62,12 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
     let mut errors = user_input.errors;
 
-    let inherited_properties: HashSet<_> = widget_data.properties.iter()
-        .map(|p| &p.ident)
-        .collect();
+    let inherited_properties: HashSet<_> = widget_data.properties.iter().map(|p| &p.ident).collect();
 
     // properties that must be assigned by the user.
-    let required_properties: HashSet<_> = widget_data.properties.iter()
-        .filter(|p| p.required)
-        .map(|p| &p.ident)
-        .collect();
+    let required_properties: HashSet<_> = widget_data.properties.iter().filter(|p| p.required).map(|p| &p.ident).collect();
     // properties that have a default value.
-    let default_properties: HashSet<_> = widget_data.properties.iter()
-        .filter(|p| p.default)
-        .map(|p| &p.ident)
-        .collect();
+    let default_properties: HashSet<_> = widget_data.properties.iter().filter(|p| p.default).map(|p| &p.ident).collect();
     // properties that are captured.
     let captured_properties: HashSet<_> = widget_data.new_captures.iter().flat_map(|c| c.iter().map(|c| &c.ident)).collect();
 
@@ -149,7 +141,8 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     // for each inherited property that has a default value and is not overridden by the user:
     for ip in widget_data
         .properties
-        .iter().filter(|ip| ip.default && !overriden_properties.contains(&ip.ident))
+        .iter()
+        .filter(|ip| ip.default && !overriden_properties.contains(&ip.ident))
     {
         let ident = &ip.ident;
         let p_default_fn_ident = ident!("__d_{ident}");
@@ -651,7 +644,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     }
 
     let settable_priorities = crate::property::Priority::all_settable();
-    for priority in settable_priorities {
+    for (i, priority) in settable_priorities.iter().enumerate() {
         for (p_mod, p_var_ident, p_name, source_loc, cfg, user_assigned, p_span, val_span) in prop_set_calls.iter().rev() {
             // __set @ value span
 
@@ -672,15 +665,16 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                 });
             }
         }
-        let cap_i = settable_priorities.len() + 1;
-        let caps = &caps[cap_i];
+
+        let caps_i = i + 1;
+        let caps = &caps[caps_i];
         let cap_idents = caps.iter().map(|(i, _)| i);
         let cap_cfgs: Vec<_> = caps.iter().map(|(_, c)| c).collect();
 
         if cfg!(inspector) {
             let new_fn_ident = ident!("__new_{}_inspect", priority);
             let new_variant_ident = ident!("New{:#}", priority);
-            let cap_user_set = widget_data.new_captures[cap_i]
+            let cap_user_set = widget_data.new_captures[caps_i]
                 .iter()
                 .map(|c| overriden_properties.contains(&c.ident));
             property_set_calls.extend(quote! {

@@ -5,10 +5,8 @@ mod center {
     use super::*;
 
     properties! {
-        child {
-            #[allowed_in_when = false]
-            content(impl Widget);
-        }
+        #[allowed_in_when = false]
+        content(impl Widget);
     }
 
     #[inline]

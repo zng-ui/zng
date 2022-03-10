@@ -1723,9 +1723,7 @@ mod strong {
     use super::*;
 
     properties! {
-        child {
-            text(impl IntoVar<Text>);
-        }
+        text(impl IntoVar<Text>);
     }
 
     fn new_child(text: impl IntoVar<Text>) -> impl UiNode {
@@ -1750,9 +1748,7 @@ mod em {
     use super::*;
 
     properties! {
-        child {
-            text(impl IntoVar<Text>);
-        }
+        text(impl IntoVar<Text>);
     }
 
     #[inline]

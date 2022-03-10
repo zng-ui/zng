@@ -12,25 +12,23 @@ pub mod scrollable {
     pub use super::scrollbar;
 
     properties! {
-        child {
-            /// Content UI.
-            ///
-            /// Can be any type that implements [`UiNode`](zero_ui::core::UiNode), any widget.
-            #[allowed_in_when = false]
-            #[required]
-            content(impl UiNode);
+        /// Content UI.
+        ///
+        /// Can be any type that implements [`UiNode`](zero_ui::core::UiNode), any widget.
+        #[allowed_in_when = false]
+        #[required]
+        content(impl UiNode);
 
-            /// Content margin.
-            margin as padding;
+        /// Content margin.
+        padding;
 
-            /// Content alignment when it is smaller then the viewport.
-            align as content_align = Align::CENTER;
+        /// Content alignment when it is smaller then the viewport.
+        align as content_align = Align::CENTER;
 
-            /// Scroll mode.
-            ///
-            /// By default scrolls in both dimensions.
-            mode(impl IntoVar<ScrollMode>) = ScrollMode::ALL;
-        }
+        /// Scroll mode.
+        ///
+        /// By default scrolls in both dimensions.
+        mode(impl IntoVar<ScrollMode>) = ScrollMode::ALL;
 
         /// Scrollbar generator for both orientations.
         ///

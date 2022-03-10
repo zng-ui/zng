@@ -36,10 +36,6 @@ use zero_ui::prelude::new_property::*;
 ///
 /// In the example the button has `10` pixels of space above and bellow and `5%` of the container width to the left and right.
 /// The container itself has margin of `1` to the top, `2` to the right, `3` to the bottom and `4` to the left.
-///
-/// See also [`side_offsets`] to apply side offsets inside the inner visual.
-///
-/// [`side_offsets`]: fn@side_offsets
 #[property(layout, default(0))]
 pub fn margin(child: impl UiNode, margin: impl IntoVar<SideOffsets>) -> impl UiNode {
     struct MarginNode<T, M> {
@@ -87,6 +83,14 @@ pub fn margin(child: impl UiNode, margin: impl IntoVar<SideOffsets>) -> impl UiN
         size_increment: PxSize::zero(),
         child_origin: PxPoint::zero(),
     }
+}
+
+/// Margin space around the *content* of an widget.
+///
+/// This property is [`margin`](fn@margin) with priority `child_layout`.
+#[property(child_layout, default(0))]
+pub fn padding(child: impl UiNode, padding: impl IntoVar<SideOffsets>) -> impl UiNode {
+    margin(child, padding)
 }
 
 /// Aligns the widget within the available space.
@@ -160,6 +164,14 @@ pub fn align(child: impl UiNode, alignment: impl IntoVar<Align>) -> impl UiNode 
         alignment: alignment.into_var(),
         child_rect: PxRect::zero(),
     }
+}
+
+/// Aligns the widget *content* within the available space.
+///
+/// This property is [`align`](fn@align) with priority `child_layout`.
+#[property(child_layout, default(Align::FILL))]
+pub fn child_align(child: impl UiNode, alignment: impl IntoVar<Align>) -> impl UiNode {
+    align(child, alignment)
 }
 
 /// Widget left-top offset.

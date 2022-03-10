@@ -37,50 +37,48 @@ pub mod uniform_grid {
     use super::*;
 
     properties! {
-        child {
-            /// Widget items.
-            #[allowed_in_when = false]
-            items(impl WidgetList) = widgets![];
+        /// Widget items.
+        #[allowed_in_when = false]
+        items(impl WidgetList) = widgets![];
 
-            /// Number of columns.
-            ///
-            /// Set to zero (`0`) for auto TODO.
-            columns(impl IntoVar<u32>) = 0;
-            /// Number of rows.
-            rows(impl IntoVar<u32>) = 0;
-            /// Number of empty cells in the first row.
-            ///
-            /// Value is ignored if is `>= columns`.
-            ///
-            /// # Example
-            ///
-            /// ```
-            /// # use zero_ui::prelude::*;
-            /// let grid = uniform_grid!{
-            ///     columns = 3;
-            ///     rows = 2;
-            ///     first_column = 1;
-            ///     items = widgets![
-            ///                      text("1,0"), text("2,0"),
-            ///         text("0,1"), text("1,1"), text("2,1")
-            ///     ];
-            /// };
-            /// ```
-            /// Produces a 3x2 grid with an empty first cell:
-            ///
-            /// ```text
-            ///     | 1,0 | 2,0
-            /// ----|-----|----
-            /// 0,1 | 1,1 | 2,1
-            /// ```
-            first_column(impl IntoVar<u32>) = 0;
+        /// Number of columns.
+        ///
+        /// Set to zero (`0`) for auto TODO.
+        columns(impl IntoVar<u32>) = 0;
+        /// Number of rows.
+        rows(impl IntoVar<u32>) = 0;
+        /// Number of empty cells in the first row.
+        ///
+        /// Value is ignored if is `>= columns`.
+        ///
+        /// # Example
+        ///
+        /// ```
+        /// # use zero_ui::prelude::*;
+        /// let grid = uniform_grid!{
+        ///     columns = 3;
+        ///     rows = 2;
+        ///     first_column = 1;
+        ///     items = widgets![
+        ///                      text("1,0"), text("2,0"),
+        ///         text("0,1"), text("1,1"), text("2,1")
+        ///     ];
+        /// };
+        /// ```
+        /// Produces a 3x2 grid with an empty first cell:
+        ///
+        /// ```text
+        ///     | 1,0 | 2,0
+        /// ----|-----|----
+        /// 0,1 | 1,1 | 2,1
+        /// ```
+        first_column(impl IntoVar<u32>) = 0;
 
-            /// Space in-between items.
-            spacing(impl IntoVar<GridSpacing>) = 0.0;
+        /// Space in-between items.
+        spacing(impl IntoVar<GridSpacing>) = 0.0;
 
-            /// Margin around all items.
-            margin as padding;
-        }
+        /// Margin around all items.
+        margin as padding;
     }
 
     /// New uniform grid layout.
