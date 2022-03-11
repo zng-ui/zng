@@ -1,23 +1,17 @@
 error: expected `when`, `child`, `remove` or a property declaration
- --> $DIR/error_first_token.rs:8:9
+ --> cases/widget/error_first_token.rs:8:9
   |
 8 |         =
   |         ^
 
 error: expected property path
-  --> $DIR/error_first_token.rs:13:13
+  --> cases/widget/error_first_token.rs:13:13
    |
 13 |             =
    |             ^
 
-error: expected identifier
-  --> $DIR/error_first_token.rs:19:13
+error: expected inherited property ident
+  --> cases/widget/error_first_token.rs:19:13
    |
 19 |             =
-   |             ^
-
-error: expected inherited property ident
-  --> $DIR/error_first_token.rs:25:13
-   |
-25 |             =
    |             ^

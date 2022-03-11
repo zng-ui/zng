@@ -928,7 +928,7 @@ pub fn property_priority_sorting_value_init1() {
     wgt.test_init(&mut TestWidgetContext::new());
 
     // assert that value init is the same as typed.
-    assert_eq!(
+    pretty_assertions::assert_eq!(
         util::sorted_value_init(&wgt),
         [
             "count_border1",
@@ -975,7 +975,7 @@ pub fn property_priority_sorting_value_init2() {
     wgt.test_init(&mut TestWidgetContext::new());
 
     // assert that value init is the same as typed.
-    assert_eq!(
+    pretty_assertions::assert_eq!(
         util::sorted_value_init(&wgt),
         [
             "count_child_context1",
@@ -986,8 +986,8 @@ pub fn property_priority_sorting_value_init2() {
             "count_context2",
             "count_event1",
             "count_event2",
-            "count_outer1",
-            "count_outer2",
+            "count_layout1",
+            "count_layout2",
             "count_size1",
             "count_size2",
             "count_border1",
@@ -998,7 +998,7 @@ pub fn property_priority_sorting_value_init2() {
 fn assert_node_order(wgt: &impl Widget) {
     // assert that `UiNode::init` position is sorted by `child` and
     // property priorities, followed by the typed position.
-    assert_eq!(
+    pretty_assertions::assert_eq!(
         util::sorted_node_init(wgt),
         [
             // each property wraps the next one and takes a position number before
@@ -1007,8 +1007,8 @@ fn assert_node_order(wgt: &impl Widget) {
             "count_context2",
             "count_event1",
             "count_event2",
-            "count_outer1",
-            "count_outer2",
+            "count_layout1",
+            "count_layout2",
             "count_size1",
             "count_size2",
             "count_border1",
