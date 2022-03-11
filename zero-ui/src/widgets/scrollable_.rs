@@ -1314,11 +1314,11 @@ pub mod thumb {
                 match *ThumbOrientationVar::get(ctx) {
                     scrollbar::Orientation::Vertical => {
                         let thumb_height = final_size.height * ratio;
-                        final_offset.y = self.final_offset.y.max(Px(0)).min(final_size.height - thumb_height);
+                        final_offset.y = final_offset.y.max(Px(0)).min(final_size.height - thumb_height);
                     }
                     scrollbar::Orientation::Horizontal => {
                         let thumb_width = final_size.width * ratio;
-                        final_offset.x = self.final_offset.x.max(Px(0)).min(final_size.width - thumb_width);
+                        final_offset.x = final_offset.x.max(Px(0)).min(final_size.width - thumb_width);
                     }
                 }
 
