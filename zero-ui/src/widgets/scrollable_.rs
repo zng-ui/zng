@@ -19,7 +19,7 @@ pub mod scrollable {
         #[required]
         content(impl UiNode);
 
-        /// Content margin.
+        /// Spacing around content, inside the scroll area.
         padding;
 
         /// Content alignment when it is smaller then the viewport.

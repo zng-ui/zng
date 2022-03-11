@@ -1,5 +1,5 @@
-use crate::prelude::new_widget::*;
 use crate::core::{RcNode, RcNodeTakeSignal};
+use crate::prelude::new_widget::*;
 
 /// An [`RcNode`] slot widget.
 ///

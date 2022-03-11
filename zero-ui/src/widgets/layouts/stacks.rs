@@ -25,14 +25,9 @@ use crate::prelude::new_widget::*;
 ///
 /// If you only want to set the `items` property you can use the [`h_stack`] shortcut function.
 ///
-/// # `stack_nodes`
-///
-/// If you only want to create an overlaying effect composed of multiple nodes you can use the [`stack_nodes`] function.
-///
 /// [`transform`]: fn@transform
 /// [`z_index`]: fn@z_index
 /// [`h_stack`]: fn@h_stack
-/// [`stack_nodes`]: fn@stack_nodes
 #[widget($crate::widgets::layouts::h_stack)]
 pub mod h_stack {
     use super::*;
@@ -45,7 +40,7 @@ pub mod h_stack {
         /// Space in-between items.
         spacing(impl IntoVar<Length>) = 0.0;
 
-        /// Margin around all items together.
+        /// Spacing around the items stack, inside the border.
         padding;
 
         /// Items alignment.
@@ -228,7 +223,7 @@ pub mod v_stack {
         #[allowed_in_when = false]
         items(impl WidgetList) = widgets![];
 
-        /// Items margin.
+        /// Spacing around the items stack, inside the border.
         padding;
 
         /// Items alignment.
@@ -442,6 +437,12 @@ pub fn v_stack(items: impl WidgetList) -> impl Widget {
 /// If you only want to set the `items` property you can use the [`z_stack`](function@z_stack) shortcut function.
 ///
 /// [`z_index`]: fn@z_index
+///
+/// # `stack_nodes`
+///
+/// If you only want to create an overlaying effect composed of multiple nodes you can use the [`stack_nodes`] function.
+///
+/// [`stack_nodes`]: fn@stack_nodes
 #[widget($crate::widgets::layouts::z_stack)]
 pub mod z_stack {
     use super::*;
@@ -451,7 +452,7 @@ pub mod z_stack {
         #[allowed_in_when = false]
         items(impl WidgetList) = widgets![];
 
-        /// Items margin.
+        /// Spacing around the items stack, inside the border.
         padding;
 
         /// Items alignment.

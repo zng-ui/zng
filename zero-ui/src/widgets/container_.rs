@@ -15,7 +15,7 @@ pub mod container {
         #[required]
         content(impl UiNode);
 
-        /// Content margin.
+        /// Spacing around content, inside the border.
         padding;
 
         /// Content alignment.

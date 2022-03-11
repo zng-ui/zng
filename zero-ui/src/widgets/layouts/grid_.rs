@@ -81,7 +81,6 @@ pub mod grid {
         assert!(!columns.is_empty());
         assert!(!rows.is_empty());
 
-        // TODO child_layout properties?
         GridNode {
             columns,
             rows,

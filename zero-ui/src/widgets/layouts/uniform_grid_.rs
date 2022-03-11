@@ -77,8 +77,8 @@ pub mod uniform_grid {
         /// Space in-between items.
         spacing(impl IntoVar<GridSpacing>) = 0.0;
 
-        /// Margin around all items.
-        margin as padding;
+        /// Spacing around the items grid, inside the border.
+        padding;
     }
 
     /// New uniform grid layout.

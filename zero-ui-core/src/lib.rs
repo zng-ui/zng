@@ -263,7 +263,7 @@ pub use zero_ui_proc_macros::impl_ui_node;
 /// **Required**
 ///
 /// The first argument is required and indicates when the property is set in relation to the other properties in a widget.
-/// The valid values are: [`context`](#context), [`event`](#event), [`layout`](#layout), [`size`](#size), [`border`](#border), 
+/// The valid values are: [`context`](#context), [`event`](#event), [`layout`](#layout), [`size`](#size), [`border`](#border),
 /// [`fill`](#fill), [`child_context`](#child_context), [`child_layout`](#child_layout) or [`capture_only`](#capture_only).
 ///
 /// **Optional**
@@ -318,14 +318,14 @@ pub use zero_ui_proc_macros::impl_ui_node;
 /// #[property(capture_only)]
 /// pub fn my_property(value: impl IntoVar<Text>) -> ! { }
 /// ```
-/// 
+///
 /// ## Limitations
 ///
 /// There are some limitations to what kind of function can be used:
 ///
 /// * Only standalone safe functions are supported, type methods, `extern` functions and `unsafe` are not supported.
 /// * Only sized 'static types are supported.
-/// * All generics that can be inferred by the input are supported, generic bounds, impl trait and where clauses, 
+/// * All generics that can be inferred by the input are supported, generic bounds, impl trait and where clauses,
 /// const generics are not supported.
 /// * Const functions are not supported.
 /// * Async functions are not supported.
@@ -381,15 +381,15 @@ pub use zero_ui_proc_macros::impl_ui_node;
 /// fill content, usually with the help of the [`fill_node`] function.
 ///
 /// ## `child_context`
-/// 
+///
 /// Properties that setup information associated with the child widget that the child widget's properties can use.
-/// 
-/// 
+///
+///
 /// ## `child_layout`
 ///
 /// Properties that configure the position and transform of the child widget, they are applied before the child widget's properties, but
 /// still contribute to the child widget's transform.
-/// 
+///
 /// # `when` Integration
 ///
 /// Most properties are expected to work in widget `when` blocks, this is controlled by the optional argument `allowed_in_when`. By default all
@@ -407,8 +407,8 @@ pub use zero_ui_proc_macros::impl_ui_node;
 ///
 /// Properties can define default values to be used when the property is only set in a widget `when` block. State properties with
 /// `is_` prefix automatically get a default value, other properties can define the defaults using the `default(<value, ..>)` argument.
-/// 
-/// ``` 
+///
+/// ```
 /// # use zero_ui_core::{*, var::*, text::*};
 /// # struct MyNode<C, V> { child: C, value: V }
 /// # #[impl_ui_node(child)]
@@ -419,9 +419,9 @@ pub use zero_ui_proc_macros::impl_ui_node;
 /// }
 /// # fn main() { }
 /// ```
-/// 
+///
 /// The `my_property` has a default value so it can be set in a `when` block only without error:
-/// 
+///
 /// ```
 /// # use zero_ui_core::{*, var::*, text::*};
 /// # struct MyNode<C, V> { child: C, value: V }
@@ -437,7 +437,7 @@ pub use zero_ui_proc_macros::impl_ui_node;
 /// # }
 /// # #[widget($crate::foo_wgt)]
 /// # pub mod foo_wgt { }
-/// # fn main() { 
+/// # fn main() {
 /// # let _ =
 /// foo_wgt! {
 ///     when self.is_focused {
@@ -446,11 +446,11 @@ pub use zero_ui_proc_macros::impl_ui_node;
 /// }
 /// # ; }
 /// ```
-/// 
+///
 /// The widget will initialize with `my_property` set to `"default!"` and when it gets focus the value changes to `"focused!"`.
-/// 
+///
 /// The default value can also be used in the `when` expressions:
-/// 
+///
 /// ```
 /// # use zero_ui_core::{*, var::*, text::*, color::*};
 /// # struct MyNode<C, V> { child: C, value: V }
@@ -473,12 +473,12 @@ pub use zero_ui_proc_macros::impl_ui_node;
 ///     when self.my_property == "default!" {
 ///         background_color = colors::RED;
 ///     }
-/// 
+///
 ///     // my_property = "not default!";
 /// }
 /// # ; }
 /// ```
-/// 
+///
 /// In this case the default value is used if the property is not setted.
 ///
 /// [`UiNode`]: crate::UiNode
