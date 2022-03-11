@@ -405,7 +405,81 @@ pub use zero_ui_proc_macros::impl_ui_node;
 ///
 /// # Default
 ///
-/// TODO
+/// Properties can define default values to be used when the property is only set in a widget `when` block. State properties with
+/// `is_` prefix automatically get a default value, other properties can define the defaults using the `default(<value, ..>)` argument.
+/// 
+/// ``` 
+/// # use zero_ui_core::{*, var::*, text::*};
+/// # struct MyNode<C, V> { child: C, value: V }
+/// # #[impl_ui_node(child)]
+/// # impl<C: UiNode, V: Var<Text>> UiNode for MyNode<C, V> {}
+/// #[property(fill, default("default!"))]
+/// pub fn my_property(child: impl UiNode, value: impl IntoVar<Text>) -> impl UiNode {
+///     MyNode { child, value: value.into_var() }
+/// }
+/// # fn main() { }
+/// ```
+/// 
+/// The `my_property` has a default value so it can be set in a `when` block only without error:
+/// 
+/// ```
+/// # use zero_ui_core::{*, var::*, text::*};
+/// # struct MyNode<C, V> { child: C, value: V }
+/// # #[impl_ui_node(child)]
+/// # impl<C: UiNode, V: Var<Text>> UiNode for MyNode<C, V> {}
+/// # #[property(fill, default("default!"))]
+/// # pub fn my_property(child: impl UiNode, value: impl IntoVar<Text>) -> impl UiNode {
+/// #     MyNode { child, value: value.into_var() }
+/// # }
+/// # #[property(event)]
+/// # pub fn is_focused(child: impl UiNode, value: StateVar) -> impl UiNode {
+/// #     let _ = value; child
+/// # }
+/// # #[widget($crate::foo_wgt)]
+/// # pub mod foo_wgt { }
+/// # fn main() { 
+/// # let _ =
+/// foo_wgt! {
+///     when self.is_focused {
+///         my_property = "focused!";
+///     }
+/// }
+/// # ; }
+/// ```
+/// 
+/// The widget will initialize with `my_property` set to `"default!"` and when it gets focus the value changes to `"focused!"`.
+/// 
+/// The default value can also be used in the `when` expressions:
+/// 
+/// ```
+/// # use zero_ui_core::{*, var::*, text::*, color::*};
+/// # struct MyNode<C, V> { child: C, value: V }
+/// # #[impl_ui_node(child)]
+/// # impl<C: UiNode, V: Var<Text>> UiNode for MyNode<C, V> {}
+/// # #[property(fill, default("default!"))]
+/// # pub fn my_property(child: impl UiNode, value: impl IntoVar<Text>) -> impl UiNode {
+/// #     MyNode { child, value: value.into_var() }
+/// # }
+/// # #[property(fill, default(colors::GREEN))]
+/// # pub fn background_color(child: impl UiNode, value: impl IntoVar<Rgba>) -> impl UiNode {
+/// #     let _ = value; child
+/// # }
+/// # #[widget($crate::foo_wgt)]
+/// # pub mod foo_wgt { }
+/// #
+/// # fn main() {
+/// # let _ =
+/// foo_wgt! {
+///     when self.my_property == "default!" {
+///         background_color = colors::RED;
+///     }
+/// 
+///     // my_property = "not default!";
+/// }
+/// # ; }
+/// ```
+/// 
+/// In this case the default value is used if the property is not setted.
 ///
 /// [`UiNode`]: crate::UiNode
 /// [`StateVar`]: crate::var::StateVar
@@ -854,16 +928,6 @@ pub use zero_ui_proc_macros::property;
 /// Properties added automatically show in the widget documentation like manual properties, the widget user can see and set
 /// then manually.
 ///
-/// ### Auto-Disabling
-///
-/// It is not an error to use a property without default value (manual or auto) in a widget `when` block. If such a property is used
-/// in the condition expression the `when` block is only used during initialization if the user sets the property.
-///
-/// If such a property is assigned in a `when` block it is also only used if it is set during initialization. In this case other
-/// properties set in the same `when` block still use it.
-///
-/// You can use this to setup custom widget effects that are only activated if the widget instance actually uses a property.
-///
 /// # Initialization Functions
 ///
 /// Widgets are a *tree-rope* of [Ui nodes](zero_ui_core::UiNode), the two initialization functions define the
@@ -1035,7 +1099,7 @@ pub use zero_ui_proc_macros::widget;
 ///
 /// See the [`#[widget(..)]`][#widget] documentation for how to declare, the only difference
 /// from a full widget is that you can only inherit other mix-ins and cannot declare
-/// the `new_child` and `new` functions.
+/// the initialization functions.
 ///
 /// [#widget]: macro@widget
 ///
