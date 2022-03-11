@@ -553,6 +553,7 @@ pub mod scrollable {
                     thumb = scrollbar::thumb! {
                         orientation = args.orientation;
                         viewport_ratio = args.viewport_ratio.clone();
+                        offset = args.offset.clone();
                     };
                     orientation = args.orientation;
                     visibility = args.viewport_ratio.map(|&r| if r < 1.0.fct() { Visibility::Visible } else { Visibility::Collapsed })
@@ -761,7 +762,7 @@ pub mod scrollable {
 
                     self.child.arrange(ctx, widget_layout, self.content_size);
 
-                    let cell_ctx = ScrollContextVar::get(ctx.vars).as_ref().unwrap();
+                    let cell_ctx = ScrollContext::get(ctx.vars).unwrap();
                     let v_ratio = self.viewport_size.height.0 as f32 / self.content_size.height.0 as f32;
                     let h_ratio = self.viewport_size.width.0 as f32 / self.content_size.width.0 as f32;
 
@@ -1219,6 +1220,10 @@ pub mod thumb {
         #[required]
         viewport_ratio(impl IntoVar<Factor>);
 
+        /// Content offset.
+        #[required]
+        offset(RcVar<Factor>);
+
         /// Width if orientation is vertical, otherwise height if orientation is horizontal.
         cross_length(impl IntoVar<Length>) = 16;
 
@@ -1324,7 +1329,7 @@ pub mod thumb {
 
                 if self.final_offset != final_offset {
                     ctx.updates.render_update();
-                    self.final_offset = final_offset;
+                    self.final_offset = final_offset;                    
                 }
 
                 widget_layout.with_custom_transform(&RenderTransform::translation_px(self.final_offset), |wo| {
@@ -1361,15 +1366,18 @@ pub mod thumb {
         child: impl UiNode,
         orientation: impl IntoVar<scrollbar::Orientation>,
         viewport_ratio: impl IntoVar<Factor>,
+        offset: RcVar<Factor>,
     ) -> impl UiNode {
         let child = with_context_var(child, ThumbOrientationVar, orientation);
         let child = with_context_var(child, ThumbViewportRatioVar, viewport_ratio);
+        let child = with_context_var(child, ThumbOffsetVar, offset); // TODO how to write?
         primitive_flags(child, PrimitiveFlags::IS_SCROLLBAR_THUMB)
     }
 
     context_var! {
         struct ThumbOrientationVar: scrollbar::Orientation = scrollbar::Orientation::Vertical;
         struct ThumbViewportRatioVar: Factor = 1.fct();
+        struct ThumbOffsetVar: Factor = 0.fct();
     }
 
     /// Theme variables.
