@@ -1118,7 +1118,6 @@ mod output {
                             #child_arg,
                             property_name: &'static str,
                             instance_location: #crate_core::inspector::SourceLocation,
-                            child_priority: bool,
                             user_assigned: bool,
                         ) -> #crate_core::inspector::PropertyInfoNode {
                             #arg_debug_vars
@@ -1131,7 +1130,6 @@ mod output {
                             #crate_core::inspector::PropertyInfoNode::new_v1(
                                 node,
                                 #crate_core::inspector::PropertyPriority::#priority,
-                                child_priority,
                                 #ident_str,
                                 #crate_core::inspector::source_location!(),
                                 property_name,
@@ -1381,10 +1379,10 @@ mod output {
                 if cfg!(inspector) {
                     quote! {
                         (set #priority, $node:ident, $property_path: path, $args:ident,
-                            $property_name:expr, $source_location:expr, $child_priority:tt, $user_assigned:tt, $__set:ident) => {
+                            $property_name:expr, $source_location:expr, $user_assigned:tt, $__set:ident) => {
                                 let $node = {
                                     use $property_path::{set_inspect as $__set};
-                                    $__set($args, $node, $property_name, $source_location, $child_priority, $user_assigned)
+                                    $__set($args, $node, $property_name, $source_location, $user_assigned)
                                 };
                         };
                         (set #priority, $node:ident, $property_path: path, $args:ident, $__set:ident) => {

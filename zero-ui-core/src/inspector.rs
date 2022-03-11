@@ -74,11 +74,6 @@ pub struct PropertyInstanceInfo {
     /// See [the property doc](crate::property#priority) for more details.
     pub priority: PropertyPriority,
 
-    /// Property is in the early priority group that is applied to the widget child.
-    ///
-    /// Se [the property doc](crate::property#child) for more details.
-    pub child: bool,
-
     /// Original name of the property.
     pub original_name: &'static str,
     /// Source-code location of the property declaration.
@@ -615,7 +610,6 @@ impl PropertyInfoNode {
         node: BoxedUiNode,
 
         priority: PropertyPriority,
-        child: bool,
         original_name: &'static str,
         decl_location: SourceLocation,
 
@@ -634,7 +628,6 @@ impl PropertyInfoNode {
             arg_debug_vars,
             info: Rc::new(RefCell::new(PropertyInstanceInfo {
                 priority,
-                child,
                 original_name,
                 decl_location,
                 property_name,
@@ -1264,27 +1257,25 @@ fn write_impl<W: std::io::Write>(updates_from: &WriteTreeState, widget: WidgetIn
 
         if let Some(p) = wgt.captures.get(&WidgetNewFn::NewChild) {
             for p in p.iter() {
-                let group = ("new_child", true);
-                write_property!(p, group);
+                write_property!(p, "new_child");
             }
         }
         for prop in widget.properties() {
             // TODO other capture functions
             let p = prop.borrow();
-            let group = (p.priority.token_str(), p.child);
+            let group = p.priority.token_str();
             write_property!(p, group);
         }
         if let Some(p) = wgt.captures.get(&WidgetNewFn::New) {
             for p in p.iter() {
-                let group = ("new", false);
-                write_property!(p, group);
+                write_property!(p, "new");
             }
         }
 
         fmt.writeln();
 
         fmt.write_property(
-            (".layout", false),
+            ".layout",
             ".inner_bounds",
             {
                 let bounds = widget.inner_bounds();
@@ -1299,7 +1290,7 @@ fn write_impl<W: std::io::Write>(updates_from: &WriteTreeState, widget: WidgetIn
             updates_from.inner_bounds_diff(wgt.instance_id, widget.inner_bounds()),
         );
         fmt.write_property(
-            (".layout", false),
+            ".layout",
             ".outer_bounds",
             {
                 let bounds = widget.outer_bounds();
@@ -1314,7 +1305,7 @@ fn write_impl<W: std::io::Write>(updates_from: &WriteTreeState, widget: WidgetIn
             updates_from.outer_bounds_diff(wgt.instance_id, widget.outer_bounds()),
         );
         fmt.write_property(
-            (".render", false),
+            ".render",
             ".visibility",
             {
                 let vis = widget.visibility();
@@ -1338,7 +1329,7 @@ fn write_impl<W: std::io::Write>(updates_from: &WriteTreeState, widget: WidgetIn
         fmt.open_widget("<unknown>", "", "");
 
         fmt.write_property(
-            (".layout", false),
+            ".layout",
             ".bounds",
             {
                 let bounds = widget.inner_bounds();
@@ -1382,14 +1373,14 @@ mod print_fmt {
     pub struct Fmt<'w, W: Write> {
         depth: u32,
         output: &'w mut W,
-        property_group: (&'static str, bool),
+        property_group: &'static str,
     }
     impl<'w, W: Write> Fmt<'w, W> {
         pub fn new(output: &'w mut W) -> Self {
             Fmt {
                 depth: 0,
                 output,
-                property_group: ("", false),
+                property_group: "",
             }
         }
 
@@ -1429,13 +1420,9 @@ mod print_fmt {
             self.depth += 1;
         }
 
-        fn write_property_header(&mut self, group: (&'static str, bool), name: &str, user_assigned: bool) {
+        fn write_property_header(&mut self, group: &'static str, name: &str, user_assigned: bool) {
             if self.property_group != group {
-                if group.1 && group.0 != "new_child" {
-                    self.write_comment(format_args!("{} (child)", group.0));
-                } else {
-                    self.write_comment(group.0);
-                }
+                self.write_comment(group);
                 self.property_group = group;
             }
 
@@ -1482,7 +1469,7 @@ mod print_fmt {
 
         pub fn write_property(
             &mut self,
-            group: (&'static str, bool),
+            group: &'static str,
             name: &str,
             value: &ValueInfo,
             user_assigned: bool,
@@ -1496,7 +1483,7 @@ mod print_fmt {
 
         pub fn write_property_no_dbg(
             &mut self,
-            group: (&'static str, bool),
+            group: &'static str,
             name: &str,
             arg_names: impl Iterator<Item = &'static str>,
             user_assigned: bool,
@@ -1524,7 +1511,7 @@ mod print_fmt {
             self.write_property_end(user_assigned);
         }
 
-        pub fn open_property(&mut self, group: (&'static str, bool), name: &str, user_assigned: bool) {
+        pub fn open_property(&mut self, group: &'static str, name: &str, user_assigned: bool) {
             self.write_property_header(group, name, user_assigned);
             if user_assigned {
                 self.write("{".blue().bold());
@@ -1573,7 +1560,7 @@ mod print_fmt {
 
         pub fn close_widget(&mut self, name: &str) {
             self.depth -= 1;
-            self.property_group = ("", false);
+            self.property_group = "";
             self.write_tabs();
             self.write("} ".bold());
             self.write_comment_after(format_args!("{name}!"));
