@@ -1334,7 +1334,9 @@ pub mod thumb {
 
             fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
                 let transform = RenderTransform::translation_px(self.final_offset);
-                frame.push_reference_frame(self.spatial_id, self.offset_key.bind(transform), true, |f| self.child.render(ctx, f));
+                frame.push_reference_frame(self.spatial_id, self.offset_key.bind(transform), true, |f| {
+                    self.child.render(ctx, f)
+                });
             }
 
             fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
