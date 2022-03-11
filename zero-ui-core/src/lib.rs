@@ -263,13 +263,13 @@ pub use zero_ui_proc_macros::impl_ui_node;
 /// **Required**
 ///
 /// The first argument is required and indicates when the property is set in relation to the other properties in a widget.
-/// The valid values are: [`context`](#context), [`event`](#event), [`outer`](#outer), [`size`](#size), [`inner`](#inner) or
-/// [`capture_only`](#capture_only).
+/// The valid values are: [`context`](#context), [`event`](#event), [`layout`](#layout), [`size`](#size), [`border`](#border), 
+/// [`fill`](#fill), [`child_context`](#child_context), [`child_layout`](#child_layout) or [`capture_only`](#capture_only).
 ///
 /// **Optional**
 ///
-/// Optional arguments can be set after the required, they use the `name = value` syntax. Currently there is only one
-/// [`allowed_in_when`](#when-conditions).
+/// Optional arguments can be set after the required. Currently there is only two:
+/// [`allowed_in_when = <bool>`](#when-conditions) and [`default(<value, ..>)`](#default).
 ///
 /// # Function
 ///
@@ -277,11 +277,11 @@ pub use zero_ui_proc_macros::impl_ui_node;
 ///
 /// ## Arguments and Output
 ///
-/// The function argument and return type requirements are the same for normal properties (not `capture_only`).
+/// The function argument and return type requirements are the same for normal priorities (not `capture_only`).
 ///
-/// ### Normal Properties
+/// ### Normal Priorities
 ///
-/// Normal properties must take at least two arguments, the first argument is the child [`UiNode`], the other argument(s)
+/// Normal priorities must take at least two arguments, the first argument is the child [`UiNode`], the other argument(s)
 /// are the property values. The function must return a type that implements [`UiNode`]. The first argument must support any
 /// type that implements [`UiNode`], the other arguments also have type requirements depending on the [priority](#priority) or
 /// [allowed-in-when](#when-integration). All of these requirements are validated at compile time.
@@ -318,16 +318,18 @@ pub use zero_ui_proc_macros::impl_ui_node;
 /// #[property(capture_only)]
 /// pub fn my_property(value: impl IntoVar<Text>) -> ! { }
 /// ```
+/// 
 /// ## Limitations
 ///
 /// There are some limitations to what kind of function can be used:
 ///
 /// * Only standalone safe functions are supported, type methods, `extern` functions and `unsafe` are not supported.
 /// * Only sized 'static types are supported.
-/// * All stable generics are supported, generic bounds, impl trait and where clauses, const generics are not supported.
-/// * Const functions are not supported. You need generics to support any type of UI node but generic const functions are unstable.
+/// * All generics that can be inferred by the input are supported, generic bounds, impl trait and where clauses, 
+/// const generics are not supported.
+/// * Const functions are not supported.
 /// * Async functions are not supported.
-/// * Only the simple argument pattern `name: T` are supported. Destructuring arguments or discard (_) are not supported.
+/// * Only the simple argument pattern `name: T` is supported. Destructuring arguments or discard (_) are not supported.
 ///
 /// ## Name
 ///
@@ -338,22 +340,22 @@ pub use zero_ui_proc_macros::impl_ui_node;
 ///
 /// # Priority
 ///
-/// Except for `capture_only` the other configurations indicate the priority that the property must be applied to form a widget.
+/// The property priority indicates the order in which the properties are applied in a widget.
 ///
 /// ## `context`
 ///
 /// The property is applied after all other so that they can setup information associated with the widget that the other properties
 /// can use. Context variables and widget state use this priority.
 ///
-/// You can easily implement this properties using [`with_context_var`] and [`set_widget_state`].
+/// You can easily implement these properties using [`with_context_var`] and [`set_widget_state`].
 ///
 /// ## `event`
 ///
 /// Event properties are the next priority, they are set after all others except `context`, this way events can be configured by the
-/// widget context properties but also have access to the widget visual they contain.
+/// widget context properties and also have access to the widget visual they contain.
 ///
 /// It is strongly encouraged that the event handler signature matches the one from [`on_event`]. Only event handler and state properties
-///  are also allowed in this priority, if the prefix is not `on_` or `is_` a compile error is generated.
+/// are allowed in this priority, if the prefix is not `on_` or `is_` a compile error is generated.
 ///
 /// ## `layout`
 ///
@@ -378,6 +380,16 @@ pub use zero_ui_proc_macros::impl_ui_node;
 /// bounds, they use the [`WidgetLayout`] and [`BorderAlignVar`] to coordinate with the borders when positioning and clipping the
 /// fill content, usually with the help of the [`fill_node`] function.
 ///
+/// ## `child_context`
+/// 
+/// Properties that setup information associated with the child widget that the child widget's properties can use.
+/// 
+/// 
+/// ## `child_layout`
+///
+/// Properties that configure the position and transform of the child widget, they are applied before the child widget's properties, but
+/// still contribute to the child widget's transform.
+/// 
 /// # `when` Integration
 ///
 /// Most properties are expected to work in widget `when` blocks, this is controlled by the optional argument `allowed_in_when`. By default all
@@ -389,7 +401,7 @@ pub use zero_ui_proc_macros::impl_ui_node;
 /// ## State Probing
 ///
 /// Properties with the `is_` prefix are special, they output information about the widget instead of shaping it. They are automatically set
-/// to a new probing variable when used in an widget when condition expression.
+/// to a new [`StateVar`] when used in an widget when condition expression.
 ///
 /// # Default
 ///
@@ -413,7 +425,7 @@ pub use zero_ui_proc_macros::property;
 ///
 /// You can add any valid module item to a widget module, the widget attribute adds two pseudo-macros
 /// [`inherit!`](#inherit) and [`properties!`](#properties), it also constrains functions named [`new_child`](#fn-new_child)
-/// and [`new`](#fn-new).
+/// , [`new`](#fn-new) and ***new_<property-priority>***.
 ///
 /// After expansion the only visible change to the module is in the documentation appended, the module is still usable
 /// as a namespace for any item you wish to add.
@@ -436,7 +448,7 @@ pub use zero_ui_proc_macros::property;
 ///
 /// # Properties
 ///
-/// Widgets are a *tree-rope* of [Ui nodes](zero_ui_core::UiNode), most of the nodes are defined and configured using
+/// Widgets are a *tree* of [Ui nodes](zero_ui_core::UiNode), most of the nodes are defined and configured using
 /// properties. Properties are defined using the `properties! { .. }` pseudo-macro. Multiple `properties!` items can be
 /// used, they are merged during the widget compilation.
 ///
@@ -565,7 +577,7 @@ pub use zero_ui_proc_macros::property;
 /// ```
 ///
 /// In the example above the required property must be set during the widget instantiation or a compile error is generated.
-/// If another widget inherits from this one is also cannot remove the required property.
+/// If another widget inherits from this one it also cannot remove the required property.
 ///
 /// You can also give the required property a default value:
 ///
@@ -618,7 +630,7 @@ pub use zero_ui_proc_macros::property;
 ///
 /// ## Property Capture
 ///
-/// The two [initialization functions](#initialization-functions) can *capture* a property.
+/// The [initialization functions](#initialization-functions) can *capture* a property.
 /// When a property is captured it is not set by the property implementation, the property value is redirected to
 /// the function and can be used in any way inside, some properties are [capture-only](zero_ui_core::property#capture_only),
 /// meaning they don't have an implementation and must be captured.
@@ -656,8 +668,8 @@ pub use zero_ui_proc_macros::property;
 ///
 /// ### Captures Are Required
 ///
-/// Captured properties are marked as [required](#required) in the widgets that declare then, there is no need to explicitly
-/// annotate then with `#[required]`, for widget instance users it behaves exactly like a required property.
+/// Captured properties are marked as [required](#required) in the widgets that declare them, there is no need to explicitly
+/// annotate them with `#[required]`, during widget instantiation it behaves exactly like a required property.
 ///
 /// If the property is not explicitly marked however, widget inheritors can *remove* the property by declaring new
 /// initialization functions that no longer capture the property. If it **is** marked explicitly then in must be captured
@@ -668,7 +680,8 @@ pub use zero_ui_proc_macros::property;
 /// When a widget is initialized properties are set according with their [priority](zero_ui_core::property#priority) followed
 /// by their declaration position.
 ///
-/// The property value is initialized by the order the properties are declared, all [`child`](#child) property values are initialized first.
+/// The property values are initialized in the order they are typed, but the property function call happens according to the
+/// [priority](zero_ui_core::property#priority).
 ///
 /// ## When
 ///
@@ -710,7 +723,7 @@ pub use zero_ui_proc_macros::property;
 ///
 /// ### When Expression
 ///
-/// The when expression is a boolean similar to the `if` expression, the difference in that it can reference [variables]
+/// The when expression is a boolean similar to the `if` expression, the difference is that it can reference [variables]
 /// from properties or other sources, and when these variables updates the expression result updates.
 ///
 /// #### Reference Property
@@ -762,7 +775,7 @@ pub use zero_ui_proc_macros::property;
 /// ```
 ///
 /// In the example above `self.foo` is referencing the `member_a` variable value, note that `foo` was
-/// defined in the widget first. [State variables] have a default value so
+/// defined in the widget first. [State properties] have a default value so
 /// `is_pressed` can be used without defining it first in the widget.
 ///
 /// #### Reference Property Member
@@ -840,8 +853,6 @@ pub use zero_ui_proc_macros::property;
 ///
 /// Properties added automatically show in the widget documentation like manual properties, the widget user can see and set
 /// then manually.
-///
-/// Currently only state properties have a default value, this will probably change in the future.
 ///
 /// ### Auto-Disabling
 ///
@@ -1009,7 +1020,7 @@ pub use zero_ui_proc_macros::property;
 /// [`NilUiNode`]: crate::NilUiNode
 /// [default new function]: crate::widget_base::implicit_base::new
 /// [default `new_child` function]: crate::widget_base::implicit_base::new_child
-/// [State variables]: crate::property#state-probing
+/// [State properties]: crate::property#state-probing
 /// [variables]: crate::var::Var
 /// [mapping]: crate::var::Var::map
 /// [merging]: crate::var::merge_var

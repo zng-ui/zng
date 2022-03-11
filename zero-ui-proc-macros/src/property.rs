@@ -287,7 +287,6 @@ mod analysis {
                 }
                 Prefix::Event => {
                     if args_len != 1 {
-                        // TODO: validate that the parameter type actually is FnMut
                         errors.push("on_* capture_only properties must have 1 parameter, `FnMut`", args_span);
                     }
                 }
