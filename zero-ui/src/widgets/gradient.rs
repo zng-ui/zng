@@ -159,6 +159,8 @@ where
             ctx.updates.render();
         }
 
+        self.g.final_size = self.render_tile_size;
+
         let available_size = AvailableSize::finite(final_size);
         self.render_tile_size = self.tile_size.get(ctx).to_layout(ctx, available_size, final_size);
         self.render_tile_spacing = self.tile_spacing.get(ctx).to_layout(ctx, available_size, final_size);
