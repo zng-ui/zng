@@ -1226,8 +1226,8 @@ impl Parse for PropertyValue {
             }
             if lookahead.peek(Ident) && lookahead.peek(token::Brace) {
                 let ident = lookahead.parse::<Ident>().unwrap();
-                if ident == "child" || ident == "remove" {
-                    break; // child { }, remove { }
+                if ident == "remove" {
+                    break; // remove { }
                 }
             }
             if !has_attr && is_path {

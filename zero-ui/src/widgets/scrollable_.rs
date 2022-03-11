@@ -75,7 +75,7 @@ pub mod scrollable {
     }
 
     fn new_child(content: impl UiNode) -> impl UiNode {
-        content
+        implicit_base::nodes::leaf_transform(content)
     }
 
     fn new_child_context(child: impl UiNode, mode: impl IntoVar<ScrollMode>, clip_to_viewport: impl IntoVar<bool>) -> impl UiNode {
@@ -1165,7 +1165,7 @@ pub mod scrollbar {
     }
 
     fn new_child(thumb: impl UiNode) -> impl UiNode {
-        thumb
+        implicit_base::nodes::leaf_transform(thumb)
     }
 
     fn new_layout(child: impl UiNode, orientation: impl IntoVar<Orientation>) -> impl UiNode {

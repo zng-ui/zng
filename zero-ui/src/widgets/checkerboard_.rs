@@ -29,7 +29,7 @@ pub mod checkerboard {
     }
 
     fn new_child() -> impl UiNode {
-        self::node()
+        implicit_base::nodes::leaf_transform(self::node())
     }
 
     /// Contextual properties that affect checkerboards.

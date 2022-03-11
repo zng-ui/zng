@@ -15,12 +15,6 @@ pub mod test {
     }
 
     properties! {
-        child {
-            =
-        }
-    }
-
-    properties! {
         remove {
             =
         }

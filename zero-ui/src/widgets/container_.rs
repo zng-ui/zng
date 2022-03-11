@@ -27,6 +27,6 @@ pub mod container {
 
     #[inline]
     fn new_child(content: impl UiNode) -> impl UiNode {
-        content
+        implicit_base::nodes::leaf_transform(content)
     }
 }

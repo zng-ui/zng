@@ -126,6 +126,7 @@ pub mod switch {
     }
 
     fn new_child(index: impl Var<usize>, options: impl UiNodeList) -> impl UiNode {
-        self::new_node(index, options)
+        let child = self::new_node(index, options);
+        implicit_base::nodes::leaf_transform(child)
     }
 }

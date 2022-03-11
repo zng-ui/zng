@@ -666,31 +666,9 @@ pub use zero_ui_proc_macros::property;
 /// ## Property Order
 ///
 /// When a widget is initialized properties are set according with their [priority](zero_ui_core::property#priority) followed
-/// by their declaration position. You can place a property in a [`child`](#child) block to have if be set before other properties.
+/// by their declaration position.
 ///
 /// The property value is initialized by the order the properties are declared, all [`child`](#child) property values are initialized first.
-///
-/// ### `child`
-///
-/// Widgets have two *groups* of properties, one is understood as applying to the widget, the other as applying to the [*child*](#fn-new_child).
-/// To define a property in the second group, you can use a `child { .. }` block inside `properties! { }`.
-///
-/// ```
-/// # fn main() { }
-/// # use zero_ui_core::{*, var::*};
-/// # #[property(layout)]
-/// # pub fn margin(child: impl UiNode, m: impl IntoVar<u32>) -> impl UiNode { child }
-/// # #[widget($crate::foo)]
-/// # pub mod foo {
-/// # use super::margin;
-/// properties! {
-///     child {
-///         /// Spacing around the content.
-///         margin as padding = 10;
-///     }
-/// }
-/// # }
-/// ```
 ///
 /// ## When
 ///

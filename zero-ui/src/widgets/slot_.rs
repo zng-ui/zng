@@ -1,4 +1,5 @@
-use crate::core::*;
+use crate::prelude::new_widget::*;
+use crate::core::{RcNode, RcNodeTakeSignal};
 
 /// An [`RcNode`] slot widget.
 ///
@@ -7,6 +8,7 @@ use crate::core::*;
 /// If you only want to create a slot as an widget there is a [`slot`](fn@slot) shortcut function.
 #[widget($crate::widgets::slot)]
 pub mod slot {
+
     use super::*;
 
     properties! {
@@ -26,7 +28,8 @@ pub mod slot {
     }
 
     fn new_child(node: RcNode<impl UiNode>, take_signal: impl RcNodeTakeSignal) -> impl UiNode {
-        node.slot(take_signal)
+        let node = node.slot(take_signal);
+        implicit_base::nodes::leaf_transform(node)
     }
 }
 
