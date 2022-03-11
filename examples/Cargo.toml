@@ -7,6 +7,7 @@ edition = "2021"
 [dev-dependencies]
 meval = "0.2"
 tracing = "0.1"
+lipsum = "0.8.0"
 
 zero-ui = { path = "../zero-ui", features = ["test_util"] }
 zero-ui-view = { path = "../zero-ui-view" }

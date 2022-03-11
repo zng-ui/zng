@@ -923,3 +923,12 @@ mod tests {
         unlock_ok(&file).unwrap();
     }
 }
+
+/*
+macro_rules! print_backtrace {
+    () => {{
+        let bt = backtrace::Backtrace::new();
+        println!("[{}:{}] BACKTRACE\n{bt:?}\n=====\n", file!(), line!())
+    }}
+}
+*/

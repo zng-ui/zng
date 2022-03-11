@@ -23,7 +23,7 @@ pub mod scrollable {
         padding;
 
         /// Content alignment when it is smaller then the viewport.
-        align as content_align = Align::CENTER;
+        child_align as content_align = Align::CENTER;
 
         /// Scroll mode.
         ///
@@ -802,7 +802,7 @@ pub mod scrollable {
             ViewGenerator::presenter(
                 var,
                 |_vars, _widget| {
-                    // TODO
+                    // TODO subscriptions
                 },
                 move |ctx, is_new| {
                     if is_new {
@@ -1265,6 +1265,7 @@ pub mod thumb {
             offset: DipVector,
             final_offset: PxVector,
             spatial_id: SpatialFrameId,
+            offset_key: FrameBindingKey<RenderTransform>,
         }
         #[impl_ui_node(child)]
         impl<C: UiNode> UiNode for DragNode<C> {
@@ -1307,18 +1308,23 @@ pub mod thumb {
             }
 
             fn arrange(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, final_size: PxSize) {
-                self.final_offset = self.offset.to_px(ctx.metrics.scale_factor.0);
+                let mut final_offset = self.offset.to_px(ctx.metrics.scale_factor.0);
 
                 let ratio = *ThumbViewportRatioVar::get(ctx);
                 match *ThumbOrientationVar::get(ctx) {
                     scrollbar::Orientation::Vertical => {
                         let thumb_height = final_size.height * ratio;
-                        self.final_offset.y = self.final_offset.y.max(Px(0)).min(final_size.height - thumb_height);
+                        final_offset.y = self.final_offset.y.max(Px(0)).min(final_size.height - thumb_height);
                     }
                     scrollbar::Orientation::Horizontal => {
                         let thumb_width = final_size.width * ratio;
-                        self.final_offset.x = self.final_offset.x.max(Px(0)).min(final_size.width - thumb_width);
+                        final_offset.x = self.final_offset.x.max(Px(0)).min(final_size.width - thumb_width);
                     }
+                }
+
+                if self.final_offset != final_offset {
+                    ctx.updates.render_update();
+                    self.final_offset = final_offset;
                 }
 
                 widget_layout.with_custom_transform(&RenderTransform::translation_px(self.final_offset), |wo| {
@@ -1327,12 +1333,15 @@ pub mod thumb {
             }
 
             fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-                if self.final_offset != PxVector::zero() {
-                    let transform = RenderTransform::translation(self.final_offset.x.0 as f32, self.final_offset.y.0 as f32, 0.0);
-                    frame.push_reference_frame(self.spatial_id, FrameBinding::Value(transform), true, |f| self.child.render(ctx, f));
-                } else {
-                    self.child.render(ctx, frame);
-                }
+                let transform = RenderTransform::translation_px(self.final_offset);
+                frame.push_reference_frame(self.spatial_id, self.offset_key.bind(transform), true, |f| self.child.render(ctx, f));
+            }
+
+            fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
+                let transform = RenderTransform::translation_px(self.final_offset);
+                update.update_transform(self.offset_key.update(transform));
+
+                self.child.render_update(ctx, update);
             }
         }
 
@@ -1342,6 +1351,7 @@ pub mod thumb {
             offset: DipVector::zero(),
             final_offset: PxVector::zero(),
             spatial_id: SpatialFrameId::new_unique(),
+            offset_key: FrameBindingKey::new_unique(),
         }
     }
 
