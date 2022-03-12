@@ -23,6 +23,7 @@ struct MapData<A, B, V, M, S> {
     source: S,
     map: RefCell<M>,
     var: UnsafeCell<Option<V>>,
+    var_is_contextual: Cell<bool>,
 
     source_version: Cell<u32>,
     var_version: Cell<u32>,
@@ -71,6 +72,7 @@ where
             source,
             map: RefCell::new(map),
             var: UnsafeCell::new(None),
+            var_is_contextual: Cell::new(true),
             source_version: Cell::new(0),
             var_version: Cell::new(0),
             version: Cell::new(0),
@@ -91,6 +93,7 @@ where
             self.0.source_version.set(version);
             self.0.var_version.set(v.version(vars));
 
+            self.0.var_is_contextual.set(v.is_contextual());
             *var = Some(v);
         }
 
@@ -153,6 +156,11 @@ where
 
     fn always_read_only(&self) -> bool {
         false
+    }
+
+    /// Returns `true` if the source is contextual, or it can update, or it maps to a contextual variable.
+    fn is_contextual(&self) -> bool {
+        self.0.source.is_contextual() || self.0.source.can_update() || self.0.var_is_contextual.get()
     }
 
     fn can_update(&self) -> bool {

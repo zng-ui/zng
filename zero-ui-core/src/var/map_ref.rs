@@ -62,6 +62,13 @@ where
     pub fn can_update(&self) -> bool {
         self.source.can_update()
     }
+
+    /// Gets if the source is contextual, if `true` the value and version can change depending on what
+    /// context the variable is read at.
+    #[inline]
+    pub fn is_contextual(&self) -> bool {
+        self.source.is_contextual()
+    }
 }
 
 impl<A, B, M, S> Clone for MapRefVar<A, B, M, S>
@@ -128,6 +135,10 @@ where
     #[inline]
     fn always_read_only(&self) -> bool {
         true
+    }
+
+    fn is_contextual(&self) -> bool {
+        self.is_contextual()
     }
 
     #[inline]
@@ -272,6 +283,13 @@ where
         self.source.always_read_only()
     }
 
+    /// Gets if the source is contextual, if `true` the value and version can change depending on what
+    /// context the variable is read at.
+    #[inline]
+    pub fn is_contextual(&self) -> bool {
+        self.source.is_contextual()
+    }
+
     /// Schedules a modification using the mapped mutable reference.
     pub fn modify<Vw, Mo>(&self, vars: &Vw, modify: Mo) -> Result<(), VarIsReadOnly>
     where
@@ -404,6 +422,11 @@ where
     #[inline]
     fn can_update(&self) -> bool {
         self.can_update()
+    }
+
+    #[inline]
+    fn is_contextual(&self) -> bool {
+        self.is_contextual()
     }
 
     #[inline]

@@ -143,6 +143,12 @@ where
         })
     }
 
+    /// If the source variable is contextual. If `true` this variable deep-clones instead of only cloning references.
+    #[inline]
+    pub fn is_contextual(&self) -> bool {
+        self.0.source.is_contextual()
+    }
+
     /// Gets the number of [`RcFilterMapVar`] that point to this same variable.
     #[inline]
     pub fn strong_count(&self) -> usize {
@@ -223,6 +229,11 @@ where
     #[inline]
     fn can_update(&self) -> bool {
         self.0.source.can_update()
+    }
+
+    #[inline]
+    fn is_contextual(&self) -> bool {
+        self.is_contextual()
     }
 
     #[inline]
@@ -414,6 +425,12 @@ where
         self.0.source.always_read_only()
     }
 
+    /// If the source variable is contextual. If `true` this variable deep-clones instead of only cloning references.
+    #[inline]
+    pub fn is_contextual(&self) -> bool {
+        self.0.source.is_contextual()
+    }
+
     /// If the source variable value can change.
     #[inline]
     pub fn can_update(&self) -> bool {
@@ -584,6 +601,11 @@ where
     #[inline]
     fn always_read_only(&self) -> bool {
         self.always_read_only()
+    }
+
+    #[inline]
+    fn is_contextual(&self) -> bool {
+        self.is_contextual()
     }
 
     #[inline]

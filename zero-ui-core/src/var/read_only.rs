@@ -80,6 +80,11 @@ where
     }
 
     #[inline]
+    fn is_contextual(&self) -> bool {
+        self.0.is_contextual()
+    }
+
+    #[inline]
     fn strong_count(&self) -> usize {
         self.0.strong_count()
     }

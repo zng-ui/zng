@@ -490,8 +490,17 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + crate::private::Sealed + 'stati
 
     /// If the variable can never be set or modified.
     ///
-    /// **Note** the value still be new by an internal change if [`can_update`](Self::can_update) is `true`.
+    /// **Note** the value can still be new by an internal change if [`can_update`](Self::can_update) is `true`.
     fn always_read_only(&self) -> bool;
+
+    /// If the variable is a [`ContextVar`] or depends on one right now.
+    ///
+    /// If `true` the value and version can change depending on what context the variable is read at. Contextual
+    /// map variables can also deep clone instead of only cloning a reference.
+    ///
+    /// **Note** this can change only from `true` to `false` and only once because of the [`RcCowVar<T>`]. Variables
+    /// like [`switch_var!`] always return `true` if any of the dependencies is contextual.
+    fn is_contextual(&self) -> bool;
 
     /// If the variable value can change.
     ///

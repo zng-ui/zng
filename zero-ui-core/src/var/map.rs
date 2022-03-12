@@ -101,6 +101,14 @@ where
     pub fn ptr_eq(&self, other: &Self) -> bool {
         Rc::ptr_eq(&self.0, &other.0)
     }
+
+    /// Returns if the source variable is contextual.
+    ///
+    /// If `true` TODO deep-clone?
+    #[inline]
+    pub fn is_contextual(&self) -> bool {
+        self.0.source.is_contextual()
+    }
 }
 
 impl<A, B, M, S> Clone for RcMapVar<A, B, M, S>
@@ -169,6 +177,11 @@ where
     #[inline]
     fn can_update(&self) -> bool {
         self.0.source.can_update()
+    }
+
+    #[inline]
+    fn is_contextual(&self) -> bool {
+        self.is_contextual()
     }
 
     #[inline]
@@ -336,6 +349,14 @@ where
         self.0.source.can_update()
     }
 
+    /// Returns if the source variable is contextual.
+    ///
+    /// If `true` TODO deep-clone?
+    #[inline]
+    pub fn is_contextual(&self) -> bool {
+        self.0.source.is_contextual()
+    }
+
     /// Schedules a `map -> modify -> map_back -> set` chain.
     fn modify<Vw, Mo>(&self, vars: &Vw, modify: Mo) -> Result<(), VarIsReadOnly>
     where
@@ -486,6 +507,11 @@ where
     #[inline]
     fn can_update(&self) -> bool {
         self.can_update()
+    }
+
+    #[inline]
+    fn is_contextual(&self) -> bool {
+        self.is_contextual()
     }
 
     #[inline]

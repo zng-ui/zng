@@ -338,6 +338,11 @@ impl<T: VarValue> Var<T> for RcVar<T> {
     }
 
     #[inline]
+    fn is_contextual(&self) -> bool {
+        false
+    }
+
+    #[inline]
     fn strong_count(&self) -> usize {
         self.strong_count()
     }

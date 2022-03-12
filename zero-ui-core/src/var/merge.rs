@@ -492,6 +492,10 @@ macro_rules! impl_rc_merge_var {
                 $(self.0.vars.$n.can_update())||+
             }
 
+            fn is_contextual(&self) -> bool {
+                $(self.0.vars.$n.is_contextual())||+
+            }
+
             #[inline]
             fn set<Vw: WithVars, N>(&self, _: &Vw, _: N) -> Result<(), VarIsReadOnly> where N: Into<O> {
                 Err(VarIsReadOnly)

@@ -77,6 +77,11 @@ impl<C: ContextVar> Var<C::Type> for ContextVarProxy<C> {
     }
 
     #[inline]
+    fn is_contextual(&self) -> bool {
+        true
+    }
+
+    #[inline]
     fn can_update(&self) -> bool {
         true
     }
@@ -779,7 +784,7 @@ pub use properties::*;
 
 #[cfg(test)]
 mod tests {
-    use crate::{app::*, text::*, var::*, context::*, *};
+    use crate::{app::*, context::*, text::*, var::*, *};
 
     context_var! {
         struct TestVar: Text = "".into();
@@ -798,7 +803,7 @@ mod tests {
     fn probe(child: impl UiNode, var: impl IntoVar<Text>) -> impl UiNode {
         struct ProbeNode<C, V> {
             child: C,
-            var: V
+            var: V,
         }
         #[impl_ui_node(child)]
         impl<C: UiNode, V: Var<Text>> UiNode for ProbeNode<C, V> {
@@ -809,7 +814,7 @@ mod tests {
         }
         ProbeNode {
             child,
-            var: var.into_var()
+            var: var.into_var(),
         }
     }
 
@@ -871,7 +876,7 @@ mod tests {
 
         let mut test = test_app(test_wgt! {
             test_prop_a = "A!";
-            
+
             child = test_wgt! {
                 probe = mapped.clone();
                 test_prop_b = "B!";
@@ -894,7 +899,7 @@ mod tests {
 
         let mut test = test_app(test_wgt! {
             test_prop_a = "A!";
-            
+
             child = test_wgt! {
                 probe = TestVar::new().map(|t| formatx!("map {t}"));
                 test_prop_b = "B!";

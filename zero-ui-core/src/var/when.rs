@@ -255,6 +255,9 @@ macro_rules! impl_rc_when_var {
             fn always_read_only(&self) -> bool {
                 $(self.0.values.$n.always_read_only())&&+ && self.0.default_value.always_read_only()
             }
+            fn is_contextual(&self) -> bool {
+                self.0.default_value.is_contextual() || $(self.0.values.$n.is_contextual())||+
+            }
             #[inline]
             fn can_update(&self) -> bool {
                 true
@@ -506,6 +509,11 @@ impl<O: VarValue> Var<O> for RcWhenVar<O> {
     /// If all value variables (including default) are always read-only.
     fn always_read_only(&self) -> bool {
         self.0.whens.iter().all(|(_, v)| v.always_read_only()) && self.0.default_.always_read_only()
+    }
+
+    /// If any value variables (including default)
+    fn is_contextual(&self) -> bool {
+        self.0.default_.is_contextual() || self.0.whens.iter().any(|(_, v)| v.is_contextual())
     }
 
     /// Always `true`.

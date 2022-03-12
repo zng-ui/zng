@@ -15,6 +15,7 @@ pub trait VarBoxed<T: VarValue> {
     fn is_read_only_boxed(&self, vars: &Vars) -> bool;
     fn into_value_boxed(self: Box<Self>, vars: &VarsRead) -> T;
     fn always_read_only_boxed(&self) -> bool;
+    fn is_contextual_boxed(&self) -> bool;
     fn can_update_boxed(&self) -> bool;
     fn modify_boxed(&self, vars: &Vars, modify: Box<dyn FnOnce(&mut VarModify<T>)>) -> Result<(), VarIsReadOnly>;
     fn set_boxed(&self, vars: &Vars, new_value: T) -> Result<(), VarIsReadOnly>;
@@ -56,6 +57,11 @@ impl<T: VarValue, V: Var<T>> VarBoxed<T> for V {
     #[inline]
     fn always_read_only_boxed(&self) -> bool {
         self.always_read_only()
+    }
+
+    #[inline]
+    fn is_contextual_boxed(&self) -> bool {
+        self.is_contextual()
     }
 
     #[inline]
@@ -138,6 +144,11 @@ impl<T: VarValue> Var<T> for BoxedVar<T> {
     #[inline]
     fn always_read_only(&self) -> bool {
         self.as_ref().always_read_only_boxed()
+    }
+
+    #[inline]
+    fn is_contextual(&self) -> bool {
+        self.as_ref().is_contextual_boxed()
     }
 
     #[inline]

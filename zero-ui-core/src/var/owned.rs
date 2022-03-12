@@ -53,6 +53,11 @@ impl<T: VarValue> Var<T> for OwnedVar<T> {
     }
 
     #[inline]
+    fn is_contextual(&self) -> bool {
+        false
+    }
+
+    #[inline]
     fn modify<Vw, M>(&self, _: &Vw, _: M) -> Result<(), VarIsReadOnly>
     where
         Vw: WithVars,

@@ -207,16 +207,18 @@ macro_rules! impl_rc_switch_var {
                })
             }
 
+            fn is_contextual(&self) -> bool {
+                self.0.index.is_contextual() || $(self.0.vars.$n.is_contextual())||+
+            }
+
             fn always_read_only(&self) -> bool {
                 $(self.0.vars.$n.always_read_only())&&+
             }
 
             #[inline]
             fn can_update(&self) -> bool {
-                // you could make one that doesn't but we don't care.
-                true
+                self.0.index.can_update() || $(self.0.vars.$n.can_update())||+
             }
-
 
             #[inline]
             fn strong_count(&self) -> usize {
@@ -451,7 +453,12 @@ impl<O: VarValue, VI: Var<usize>> Var<O> for RcSwitchVar<O, VI> {
 
     #[inline]
     fn can_update(&self) -> bool {
-        true
+        self.0.index.can_update() || self.0.vars.iter().any(|v| v.can_update())
+    }
+
+    #[inline]
+    fn is_contextual(&self) -> bool {
+        self.0.index.is_contextual() || self.0.vars.iter().any(|v| v.is_contextual())
     }
 
     fn set<Vw, N>(&self, vars: &Vw, new_value: N) -> Result<(), VarIsReadOnly>

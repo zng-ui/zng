@@ -56,11 +56,18 @@ use super::*;
 /// # );
 /// ```
 pub struct RcCowVar<T, V>(Rc<CowData<T, V>>);
+bitflags! {
+    struct Flags: u8 {
+        const SOURCE_ALWAYS_READ_ONLY = 0b0001;
+        const SOURCE_CAN_UPDATE =       0b0010;
+        const SOURCE_IS_CONTEXTUAL =    0b0100;
+        const IS_PASS_THROUGH =         0b1000;
+    }
+}
 struct CowData<T, V> {
     source: UnsafeCell<Option<V>>,
-    source_always_read_only: bool,
-    source_can_update: bool,
-    is_pass_through: bool,
+    flags: Flags,
+    is_contextual: Cell<bool>,
     update_mask: OnceCell<UpdateMask>,
 
     value: UnsafeCell<Option<T>>,
@@ -90,12 +97,25 @@ impl<T: VarValue, V: Var<T>> RcCowVar<T, V> {
     }
 
     fn new_(source: V, is_pass_through: bool) -> Self {
+        let mut flags = Flags::empty();
+        if source.always_read_only() {
+            flags.insert(Flags::SOURCE_ALWAYS_READ_ONLY);
+        }
+        if source.can_update() {
+            flags.insert(Flags::SOURCE_CAN_UPDATE);
+        }
+        if source.is_contextual() {
+            flags.insert(Flags::SOURCE_IS_CONTEXTUAL);
+        }
+        if is_pass_through {
+            flags.insert(Flags::IS_PASS_THROUGH);
+        }
+
         RcCowVar(Rc::new(CowData {
             update_mask: OnceCell::default(),
-            source_always_read_only: source.always_read_only(),
-            source_can_update: source.can_update(),
+            flags,
+            is_contextual: Cell::new(source.is_contextual()),
             source: UnsafeCell::new(Some(source)),
-            is_pass_through,
             value: UnsafeCell::new(None),
             version: Cell::new(0),
             last_update_id: Cell::new(0),
@@ -122,7 +142,7 @@ impl<T: VarValue, V: Var<T>> RcCowVar<T, V> {
     /// [`pass_through`]: Self::pass_through
     #[inline]
     pub fn is_pass_through(&self) -> bool {
-        self.0.is_pass_through
+        self.0.flags.contains(Flags::IS_PASS_THROUGH)
     }
 
     /// Reference the current value.
@@ -237,6 +257,7 @@ impl<T: VarValue, V: Var<T>> RcCowVar<T, V> {
                 unsafe {
                     *self_.0.source.get() = None;
                 }
+                self_.0.is_contextual.set(false);
                 let mut guard = VarModify::new(unsafe { &mut *self_.0.value.get() }.as_mut().unwrap());
                 modify(&mut guard);
                 if guard.touched() {
@@ -360,14 +381,20 @@ impl<T: VarValue, V: Var<T>> Var<T> for RcCowVar<T, V> {
     ///
     /// [`is_pass_through`]: Self::is_pass_through
     fn always_read_only(&self) -> bool {
-        self.is_pass_through() && self.0.source_always_read_only
+        self.is_pass_through() && self.0.flags.contains(Flags::SOURCE_ALWAYS_READ_ONLY)
+    }
+
+    /// Returns `true` if is still reading from the source variable and it is contextual, otherwise returns `false`.
+    #[inline]
+    fn is_contextual(&self) -> bool {
+        self.0.is_contextual.get()
     }
 
     /// Returns `true` unless [`is_pass_through`] and the source variable cannot update.
     ///
     /// [`is_pass_through`]: Self::is_pass_through
     fn can_update(&self) -> bool {
-        !self.is_pass_through() || self.0.source_can_update
+        !self.is_pass_through() || self.0.flags.contains(Flags::SOURCE_CAN_UPDATE)
     }
 
     fn into_value<Vr: WithVarsRead>(self, vars: &Vr) -> T {
