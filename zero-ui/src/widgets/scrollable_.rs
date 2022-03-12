@@ -1329,7 +1329,7 @@ pub mod thumb {
 
                 if self.final_offset != final_offset {
                     ctx.updates.render_update();
-                    self.final_offset = final_offset;                    
+                    self.final_offset = final_offset;
                 }
 
                 widget_layout.with_custom_transform(&RenderTransform::translation_px(self.final_offset), |wo| {

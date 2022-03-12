@@ -776,3 +776,135 @@ mod properties {
 }
 #[doc(inline)]
 pub use properties::*;
+
+#[cfg(test)]
+mod tests {
+    use crate::{app::*, text::*, var::*, context::*, *};
+
+    context_var! {
+        struct TestVar: Text = "".into();
+    }
+
+    state_key! {
+        pub struct ProbeKey: Text;
+    }
+
+    #[property(context, default(TestVar))]
+    fn test_prop(child: impl UiNode, value: impl IntoVar<Text>) -> impl UiNode {
+        with_context_var(child, TestVar, value)
+    }
+
+    #[property(context)]
+    fn probe(child: impl UiNode, var: impl IntoVar<Text>) -> impl UiNode {
+        struct ProbeNode<C, V> {
+            child: C,
+            var: V
+        }
+        #[impl_ui_node(child)]
+        impl<C: UiNode, V: Var<Text>> UiNode for ProbeNode<C, V> {
+            fn init(&mut self, ctx: &mut WidgetContext) {
+                ctx.app_state.set(ProbeKey, self.var.get_clone(ctx.vars));
+                self.child.init(ctx);
+            }
+        }
+        ProbeNode {
+            child,
+            var: var.into_var()
+        }
+    }
+
+    #[widget($crate::var::context::tests::test_wgt)]
+    mod test_wgt {
+        use super::*;
+
+        properties! {
+            #[allowed_in_when = false]
+            child(impl UiNode) = NilUiNode;
+        }
+
+        fn new_child(child: impl UiNode) -> impl UiNode {
+            child
+        }
+    }
+
+    fn test_app(root: impl UiNode) -> HeadlessApp {
+        use crate::window::*;
+        let mut app = App::default().run_headless(false);
+        app.ctx().services.windows().open(move |_| crate::window::Window::test(root));
+        let _ = app.update(false);
+        app
+    }
+
+    #[test]
+    fn context_var_basic() {
+        let mut test = test_app(test_wgt! {
+            test_prop = "test!";
+
+            child = test_wgt! {
+                probe = TestVar;
+            }
+        });
+
+        assert_eq!(test.ctx().app_state.get(ProbeKey), Some(&Text::from("test!")));
+    }
+
+    #[test]
+    fn context_var_map() {
+        let mut test = test_app(test_wgt! {
+            test_prop = "test!";
+
+            child = test_wgt! {
+                probe = TestVar::new().map(|t| formatx!("map {t}"));
+            }
+        });
+
+        assert_eq!(test.ctx().app_state.get(ProbeKey), Some(&Text::from("map test!")));
+    }
+
+    #[test]
+    fn context_var_map_cloned() {
+        // mapped context var should depend on the context.
+
+        let mapped = TestVar::new().map(|t| formatx!("map {t}"));
+        use self::test_prop as test_prop_a;
+        use self::test_prop as test_prop_b;
+
+        let mut test = test_app(test_wgt! {
+            test_prop_a = "A!";
+            
+            child = test_wgt! {
+                probe = mapped.clone();
+                test_prop_b = "B!";
+
+                child = test_wgt! {
+                    probe = mapped;
+                }
+            }
+        });
+
+        assert_eq!(test.ctx().app_state.get(ProbeKey), Some(&Text::from("map B!")));
+    }
+
+    #[test]
+    fn context_var_map_not_cloned() {
+        // sanity check for `context_var_map_cloned`
+
+        use self::test_prop as test_prop_a;
+        use self::test_prop as test_prop_b;
+
+        let mut test = test_app(test_wgt! {
+            test_prop_a = "A!";
+            
+            child = test_wgt! {
+                probe = TestVar::new().map(|t| formatx!("map {t}"));
+                test_prop_b = "B!";
+
+                child = test_wgt! {
+                    probe = TestVar::new().map(|t| formatx!("map {t}"));
+                }
+            }
+        });
+
+        assert_eq!(test.ctx().app_state.get(ProbeKey), Some(&Text::from("map B!")));
+    }
+}

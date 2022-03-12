@@ -95,6 +95,20 @@ impl Window {
             child: child.boxed(),
         }
     }
+
+    /// New test window.
+    #[cfg(any(test, doc, feature = "test_util"))]
+    pub fn test(child: impl UiNode) -> Self {
+        Window::new(
+            WidgetId::named("test-window-root"),
+            StartPosition::Default,
+            false,
+            false,
+            None,
+            HeadlessMonitor::default(),
+            child,
+        )
+    }
 }
 
 bitflags! {
