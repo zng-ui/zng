@@ -510,9 +510,9 @@ macro_rules! context_var {
         }
     )+};
 }
-use crate::WidgetId;
 #[doc(inline)]
 pub use crate::context_var;
+use crate::WidgetId;
 
 mod properties {
     use crate::{context::*, event::*, render::*, units::*, var::*, widget_info::*, *};
@@ -792,7 +792,6 @@ impl<T> ContextualValue<T> {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use crate::{app::*, context::*, text::*, var::*, *};
@@ -933,12 +932,12 @@ mod tests {
         let mut app = test_app(NilUiNode);
         let ctx = app.ctx();
 
-        let a = ctx.vars.with_context_var(TestVar, ContextVarData::fixed(&"A".into()), || {
-            mapped.get_clone(ctx.vars)
-        });
-        let b = ctx.vars.with_context_var(TestVar, ContextVarData::fixed(&"B".into()), || {
-            mapped.get_clone(ctx.vars)
-        });
+        let a = ctx
+            .vars
+            .with_context_var(TestVar, ContextVarData::fixed(&"A".into()), || mapped.get_clone(ctx.vars));
+        let b = ctx
+            .vars
+            .with_context_var(TestVar, ContextVarData::fixed(&"B".into()), || mapped.get_clone(ctx.vars));
 
         assert_ne!(a, b);
     }

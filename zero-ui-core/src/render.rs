@@ -531,6 +531,7 @@ impl FrameBuilder {
                 ReferenceFrameKind::Transform {
                     is_2d_scale_translation: false, // TODO track this
                     should_snap: false,
+                    paired_with_perspective: false,
                 },
                 SpatialFrameId::widget_id_to_wr(self.widget_id, self.pipeline_id),
             );
@@ -661,6 +662,8 @@ impl FrameBuilder {
             content_rect.to_wr(),
             PxRect::from_size(viewport_size).to_wr(),
             content_rect.origin.to_vector().to_wr(),
+            0,
+            HasScrollLinkedEffect::No,
             SpatialFrameId::scroll_id_to_wr(scroll_id, self.pipeline_id),
         );
 
@@ -720,6 +723,7 @@ impl FrameBuilder {
             ReferenceFrameKind::Transform {
                 is_2d_scale_translation,
                 should_snap: false,
+                paired_with_perspective: false,
             },
             id,
         );
