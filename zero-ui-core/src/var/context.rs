@@ -512,7 +512,6 @@ macro_rules! context_var {
 }
 #[doc(inline)]
 pub use crate::context_var;
-use crate::WidgetId;
 
 mod properties {
     use crate::{context::*, event::*, render::*, units::*, var::*, widget_info::*, *};
@@ -782,15 +781,6 @@ mod properties {
 }
 #[doc(inline)]
 pub use properties::*;
-
-/// Extended map for implementing [`Var::is_contextual`] support in computing variables.
-pub(crate) struct ContextualValue<T>(Option<ContextualMap<T>>);
-type ContextualMap<T> = Box<crate::crate_util::IdMap<WidgetId, T>>;
-impl<T> ContextualValue<T> {
-    pub fn get<'a>(&'a self, vars: &'a VarsRead) -> Option<&'a T> {
-        todo!();
-    }
-}
 
 #[cfg(test)]
 mod tests {
