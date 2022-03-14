@@ -510,6 +510,7 @@ macro_rules! context_var {
         }
     )+};
 }
+use crate::WidgetId;
 #[doc(inline)]
 pub use crate::context_var;
 
@@ -782,6 +783,16 @@ mod properties {
 #[doc(inline)]
 pub use properties::*;
 
+/// Extended map for implementing [`Var::is_contextual`] support in computing variables.
+pub(crate) struct ContextualValue<T>(Option<ContextualMap<T>>);
+type ContextualMap<T> = Box<crate::crate_util::IdMap<WidgetId, T>>;
+impl<T> ContextualValue<T> {
+    pub fn get<'a>(&'a self, vars: &'a VarsRead) -> Option<&'a T> {
+        todo!();
+    }
+}
+
+
 #[cfg(test)]
 mod tests {
     use crate::{app::*, context::*, text::*, var::*, *};
@@ -911,5 +922,24 @@ mod tests {
         });
 
         assert_eq!(test.ctx().app_state.get(ProbeKey), Some(&Text::from("map B!")));
+    }
+
+    #[test]
+    fn context_var_map_moved() {
+        // need to support different value using the same variable instance too.
+
+        let mapped = TestVar::new().map(|t| formatx!("map {t}"));
+
+        let mut app = test_app(NilUiNode);
+        let ctx = app.ctx();
+
+        let a = ctx.vars.with_context_var(TestVar, ContextVarData::fixed(&"A".into()), || {
+            mapped.get_clone(ctx.vars)
+        });
+        let b = ctx.vars.with_context_var(TestVar, ContextVarData::fixed(&"B".into()), || {
+            mapped.get_clone(ctx.vars)
+        });
+
+        assert_ne!(a, b);
     }
 }
