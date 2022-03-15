@@ -28,8 +28,8 @@ impl<T: VarValue> Var<T> for OwnedVar<T> {
     }
 
     #[inline]
-    fn version<Vr: WithVarsRead>(&self, _: &Vr) -> u32 {
-        0
+    fn version<Vr: WithVarsRead>(&self, _: &Vr) -> VarVersion {
+        VarVersion::normal(0)
     }
 
     #[inline]

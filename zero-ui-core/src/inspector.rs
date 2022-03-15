@@ -11,7 +11,7 @@ use crate::{
     impl_ui_node,
     render::{FrameBuilder, FrameUpdate},
     units::*,
-    var::{context_var, BoxedVar, ContextVarData, Var},
+    var::{context_var, BoxedVar, ContextVarData, Var, VarVersion},
     widget_base::Visibility,
     widget_info::{WidgetInfo, WidgetInfoTree, WidgetLayout, WidgetSubscriptions},
     UiNode,
@@ -124,7 +124,7 @@ pub struct PropertyArgInfo {
     /// Value printed in various formats.
     pub value: ValueInfo,
     /// Value version from the source variable.
-    pub value_version: u32,
+    pub value_version: VarVersion,
     /// If the arg is a [`can_update` var](crate::var::Var::can_update).
     pub can_update: bool,
 }
@@ -342,7 +342,7 @@ pub struct WhenInfo {
     /// Current when condition result.
     pub condition: bool,
     /// Condition value version.
-    pub condition_version: u32,
+    pub condition_version: VarVersion,
     /// Properties affected by this when block.
     pub properties: HashSet<&'static str>,
 
@@ -437,7 +437,7 @@ impl WidgetInstanceInfoNode {
                                 debug_alt: "".into(),
                                 type_name: "".into(),
                             },
-                            value_version: 0,
+                            value_version: VarVersion::normal(0),
                             can_update: false,
                         })
                         .collect(),
@@ -463,7 +463,7 @@ impl WidgetInstanceInfoNode {
             .map(|w| WhenInfo {
                 condition_expr: w.condition_expr,
                 condition: false,
-                condition_version: 0,
+                condition_version: VarVersion::normal(0),
                 properties: w.properties.into_iter().collect(),
                 decl_location: w.decl_location,
                 user_declared: w.user_declared,
@@ -641,7 +641,7 @@ impl PropertyInfoNode {
                             debug_alt: "".into(),
                             type_name: "".into(),
                         },
-                        value_version: 0,
+                        value_version: VarVersion::normal(0),
                         can_update: false,
                     })
                     .collect::<Vec<_>>()
@@ -1095,7 +1095,7 @@ struct WriteWidgetState {
     inner_bounds: PxRect,
     visibility: Visibility,
     /// [(property_name, arg_name) => (value_version, value)]
-    properties: HashMap<(&'static str, &'static str), (u32, ValueInfo)>,
+    properties: HashMap<(&'static str, &'static str), (VarVersion, ValueInfo)>,
 }
 impl WriteTreeState {
     /// No property update.

@@ -62,7 +62,8 @@ impl<C: ContextVar> Var<C::Type> for ContextVarProxy<C> {
     }
 
     #[inline]
-    fn version<Vr: WithVarsRead>(&self, vars: &Vr) -> u32 {
+    fn version<Vr: WithVarsRead>(&self, vars: &Vr) -> VarVersion {
+        todo!("add our context");
         vars.with_vars_read(|v| v.context_var::<C>().version)
     }
 
@@ -177,7 +178,7 @@ pub struct ContextVarData<'a, T: VarValue> {
     /// Value for [`Var::is_new`].
     pub is_new: bool,
     /// Value for [`Var::version`].
-    pub version: u32,
+    pub version: VarVersion,
     /// Value for [`Var::update_mask`].
     ///
     /// Note that the node that owns `self` must not subscribe to this update mask, only
@@ -192,7 +193,7 @@ impl<'a, T: VarValue> ContextVarData<'a, T> {
         Self {
             value,
             is_new: false,
-            version: 0,
+            version: VarVersion::normal(0),
             update_mask: UpdateMask::none(),
         }
     }
@@ -316,12 +317,11 @@ impl<'a, T: VarValue> Clone for ContextVarData<'a, T> {
         }
     }
 }
-impl<'a, T: VarValue> Copy for ContextVarData<'a, T> {}
 
 pub(crate) struct ContextVarDataRaw<T: VarValue> {
     value: *const T,
     is_new: bool,
-    version: u32,
+    version: VarVersion,
     update_mask: UpdateMask,
 }
 impl<T: VarValue> Clone for ContextVarDataRaw<T> {
@@ -334,7 +334,6 @@ impl<T: VarValue> Clone for ContextVarDataRaw<T> {
         }
     }
 }
-impl<T: VarValue> Copy for ContextVarDataRaw<T> {}
 
 /// See `ContextVar::thread_local_value`.
 #[doc(hidden)]
@@ -482,7 +481,7 @@ macro_rules! context_var {
             /// Gets the version of the value in the current `vars` context.
             #[inline]
             #[allow(unused)]
-            pub fn version<Vr: $crate::var::WithVarsRead>(vars: &Vr) -> u32 {
+            pub fn version<Vr: $crate::var::WithVarsRead>(vars: &Vr) -> $crate::var::VarVersion {
                 $crate::var::Var::version($crate::var::ContextVarProxy::<Self>::static_ref(), vars)
             }
         }

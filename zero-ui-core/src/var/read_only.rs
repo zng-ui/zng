@@ -60,7 +60,7 @@ where
     }
 
     #[inline]
-    fn version<Vr: WithVarsRead>(&self, vars: &Vr) -> u32 {
+    fn version<Vr: WithVarsRead>(&self, vars: &Vr) -> VarVersion {
         self.0.version(vars)
     }
 

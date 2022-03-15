@@ -53,7 +53,7 @@ where
 
     /// Gets the version of the source variable value.
     #[inline]
-    pub fn version<Vr: WithVarsRead>(&self, vars: &Vr) -> u32 {
+    pub fn version<Vr: WithVarsRead>(&self, vars: &Vr) -> VarVersion {
         self.source.version(vars)
     }
 
@@ -123,7 +123,7 @@ where
     }
 
     #[inline]
-    fn version<Vr: WithVarsRead>(&self, vars: &Vr) -> u32 {
+    fn version<Vr: WithVarsRead>(&self, vars: &Vr) -> VarVersion {
         self.version(vars)
     }
 
@@ -260,7 +260,7 @@ where
 
     /// Gets the version of the source variable value.
     #[inline]
-    pub fn version<Vr: WithVarsRead>(&self, vars: &Vr) -> u32 {
+    pub fn version<Vr: WithVarsRead>(&self, vars: &Vr) -> VarVersion {
         self.source.version(vars)
     }
 
@@ -405,7 +405,7 @@ where
     }
 
     #[inline]
-    fn version<Vr: WithVarsRead>(&self, vars: &Vr) -> u32 {
+    fn version<Vr: WithVarsRead>(&self, vars: &Vr) -> VarVersion {
         self.version(vars)
     }
 

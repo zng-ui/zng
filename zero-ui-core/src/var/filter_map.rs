@@ -24,8 +24,8 @@ struct FilterMapData<A, B, I, M, S> {
     map: RefCell<M>,
 
     value: UnsafeCell<FilterMapValue<I, B>>,
-    version_checked: Cell<u32>,
-    version: Cell<u32>,
+    version_checked: VarVersionCell,
+    version: VarVersionCell,
     last_update_id: Cell<u32>,
 }
 
@@ -68,8 +68,8 @@ where
             source,
             map: RefCell::new(map),
             value: UnsafeCell::new(FilterMapValue::Uninited(fallback_init)),
-            version_checked: Cell::new(0),
-            version: Cell::new(0),
+            version_checked: VarVersionCell::new(VarVersion::normal(0)),
+            version: VarVersionCell::new(VarVersion::normal(0)),
             last_update_id: Cell::new(0),
         }))
     }
@@ -83,7 +83,7 @@ where
 
         let source_version = self.0.source.version(vars);
 
-        if self.0.version.get() == 0 {
+        if self.0.version.get() == VarVersion::normal(0) {
             let source_value = self.0.source.get(vars);
             let new_value = self.0.map.borrow_mut()(source_value).unwrap_or_else(|| {
                 let init = unsafe { &mut *self.0.value.get() }.unwrap_init();
@@ -136,7 +136,7 @@ where
 
     /// Gets the up-to-date value version.
     #[inline]
-    pub fn version<Vr: WithVarsRead>(&self, vars: &Vr) -> u32 {
+    pub fn version<Vr: WithVarsRead>(&self, vars: &Vr) -> VarVersion {
         vars.with_vars_read(|vars| {
             let _ = self.get(vars);
             self.0.source.version(vars)
@@ -212,7 +212,7 @@ where
     }
 
     #[inline]
-    fn version<Vr: WithVarsRead>(&self, vars: &Vr) -> u32 {
+    fn version<Vr: WithVarsRead>(&self, vars: &Vr) -> VarVersion {
         self.version(vars)
     }
 
@@ -589,7 +589,7 @@ where
     }
 
     #[inline]
-    fn version<Vr: WithVarsRead>(&self, vars: &Vr) -> u32 {
+    fn version<Vr: WithVarsRead>(&self, vars: &Vr) -> VarVersion {
         self.version(vars)
     }
 

@@ -71,7 +71,7 @@ struct CowData<T, V> {
     update_mask: OnceCell<UpdateMask>,
 
     value: UnsafeCell<Option<T>>,
-    version: Cell<u32>,
+    version: VarVersionCell,
     last_update_id: Cell<u32>,
 }
 impl<T: VarValue, V: Var<T>> Clone for RcCowVar<T, V> {
@@ -203,7 +203,7 @@ impl<T: VarValue, V: Var<T>> RcCowVar<T, V> {
     ///
     /// [`is_cloned`]: Self::is_cloned
     #[inline]
-    pub fn version<Vr: WithVarsRead>(&self, vars: &Vr) -> u32 {
+    pub fn version<Vr: WithVarsRead>(&self, vars: &Vr) -> VarVersion {
         vars.with_vars_read(|vars| {
             if let Some(source) = self.source(vars) {
                 source.version(vars)
@@ -365,7 +365,7 @@ impl<T: VarValue, V: Var<T>> Var<T> for RcCowVar<T, V> {
         self.is_new(vars)
     }
 
-    fn version<Vr: WithVarsRead>(&self, vars: &Vr) -> u32 {
+    fn version<Vr: WithVarsRead>(&self, vars: &Vr) -> VarVersion {
         self.version(vars)
     }
 

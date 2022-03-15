@@ -145,9 +145,10 @@ where
         vars.with_vars(|vars| self.0.source.is_new(vars) || self.var(vars).is_new(vars))
     }
 
-    fn version<Vr: WithVarsRead>(&self, vars: &Vr) -> u32 {
+    fn version<Vr: WithVarsRead>(&self, vars: &Vr) -> VarVersion {
         let _ = vars.with_vars_read(|vars| self.var(vars));
-        self.0.version.get()
+        todo!("contextual");
+        VarVersion::normal(self.0.version.get())
     }
 
     fn is_read_only<Vw: WithVars>(&self, vars: &Vw) -> bool {

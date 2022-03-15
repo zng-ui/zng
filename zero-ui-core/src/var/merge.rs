@@ -471,10 +471,10 @@ macro_rules! impl_rc_merge_var {
                 Rc::strong_count(&self.0)
             }
 
-            fn version<Vr: WithVarsRead>(&self, vars: &Vr) -> u32 {
+            fn version<Vr: WithVarsRead>(&self, vars: &Vr) -> VarVersion {
                vars.with_vars_read(|vars| {
                     self.update_output(vars);
-                    self.0.output_version.get()
+                    VarVersion::normal(self.0.output_version.get())
                })
             }
 

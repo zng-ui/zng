@@ -203,7 +203,7 @@ macro_rules! impl_rc_when_var {
                     condition_is_new || self.0.default_value.is_new(vars)
                 })
             }
-            fn version<Vr: WithVarsRead>(&self, vars: &Vr) -> u32 {
+            fn version<Vr: WithVarsRead>(&self, vars: &Vr) -> VarVersion {
                 vars.with_vars_read(|vars| {
                     let mut changed = false;
 
@@ -463,7 +463,7 @@ impl<O: VarValue> Var<O> for RcWhenVar<O> {
     /// Gets the version.
     ///
     /// The version is new when any of the condition and value variables version is new.
-    fn version<Vr: WithVarsRead>(&self, vars: &Vr) -> u32 {
+    fn version<Vr: WithVarsRead>(&self, vars: &Vr) -> VarVersion {
         vars.with_vars_read(|vars| {
             let mut changed = false;
 

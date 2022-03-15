@@ -183,7 +183,7 @@ macro_rules! impl_rc_switch_var {
                 })
             }
 
-            fn version<Vr: WithVarsRead>(&self, vars: &Vr) -> u32 {
+            fn version<Vr: WithVarsRead>(&self, vars: &Vr) -> VarVersion {
                 vars.with_vars_read(|vars| {
                     let i_ver = self.0.index.version(vars);
                 let var_vers = ($(self.0.vars.$n.version(vars)),+);
@@ -418,7 +418,7 @@ impl<O: VarValue, VI: Var<usize>> Var<O> for RcSwitchVar<O, VI> {
         Rc::strong_count(&self.0)
     }
 
-    fn version<Vr: WithVarsRead>(&self, vars: &Vr) -> u32 {
+    fn version<Vr: WithVarsRead>(&self, vars: &Vr) -> VarVersion {
         vars.with_vars_read(|vars| {
             let mut changed = false;
 

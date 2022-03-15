@@ -105,8 +105,8 @@ impl<T: VarValue> RcVar<T> {
 
     /// Gets the current value version.
     #[inline]
-    pub fn version<Vr: WithVarsRead>(&self, vars: &Vr) -> u32 {
-        vars.with_vars_read(|_| self.0.version.get())
+    pub fn version<Vr: WithVarsRead>(&self, vars: &Vr) -> VarVersion {
+        vars.with_vars_read(|_| VarVersion::normal(self.0.version.get()))
     }
 
     /// Schedule a value modification for this variable.
@@ -318,7 +318,7 @@ impl<T: VarValue> Var<T> for RcVar<T> {
     }
 
     #[inline]
-    fn version<Vr: WithVarsRead>(&self, vars: &Vr) -> u32 {
+    fn version<Vr: WithVarsRead>(&self, vars: &Vr) -> VarVersion {
         self.version(vars)
     }
 

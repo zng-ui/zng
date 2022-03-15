@@ -4,7 +4,7 @@ use std::{
     convert::{TryFrom, TryInto},
     fmt,
     ops::{Deref, DerefMut},
-    str::FromStr,
+    str::FromStr, cell::UnsafeCell,
 };
 
 mod vars;
@@ -479,9 +479,11 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + crate::private::Sealed + 'stati
 
     /// Gets the variable value version.
     ///
-    /// The version is a different number every time the value is modified, you can use this to monitor
+    /// The version is different every time the value is modified, you can use this to monitor
     /// variable change outside of the window of opportunity of [`is_new`](Self::is_new).
-    fn version<Vr: WithVarsRead>(&self, vars: &Vr) -> u32;
+    /// 
+    /// If the variable [`is_contextual`](Self::is_contextual) the version is also different for each context.
+    fn version<Vr: WithVarsRead>(&self, vars: &Vr) -> VarVersion;
 
     /// If the variable cannot be set or modified right now.
     ///
@@ -1865,8 +1867,8 @@ impl VarVersion {
         VarVersion(VarVersionData::new_contextual(VarContextualVersion { context, count: version }))
     }
 
-    /// Version for a variable that has the same value in any read context.
-    pub fn non_contextual(version: u32) -> Self {
+    /// Version for a variable that has a value not affected by context.
+    pub fn normal(version: u32) -> Self {
         VarVersion(VarVersionData::new_count(version))
     }
 }
@@ -1876,6 +1878,23 @@ impl fmt::Debug for VarVersion {
             Ok(c) => write!(f, "VarVersion({c})"),
             Err(d) => write!(f, "VarVersion {{ context: {:?}, version: {} }}", d.context, d.count),
         }
+    }
+}
+
+pub(crate) struct VarVersionCell(UnsafeCell<VarVersion>);
+impl VarVersionCell {
+    pub fn new(version: VarVersion) -> Self {
+        VarVersionCell(UnsafeCell::new(version))
+    }    
+
+    pub fn get(&self) -> VarVersion {
+        // SAFETY: this is safe because VarVersion has not cyclical references.
+        unsafe { &*self.0.get() }.clone()
+    }
+
+    pub fn set(&self, version: VarVersion) {
+        // SAFETY: this is safe because the only borrow is in `get` and VarVersion has not cyclical references.
+        unsafe { *self.0.get() = version;  }
     }
 }
 

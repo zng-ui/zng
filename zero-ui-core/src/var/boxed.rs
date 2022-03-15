@@ -11,7 +11,7 @@ pub trait VarBoxed<T: VarValue> {
     fn get_boxed<'a>(&'a self, vars: &'a VarsRead) -> &'a T;
     fn get_new_boxed<'a>(&'a self, vars: &'a Vars) -> Option<&'a T>;
     fn is_new_boxed(&self, vars: &Vars) -> bool;
-    fn version_boxed<'a>(&'a self, vars: &'a VarsRead) -> u32;
+    fn version_boxed<'a>(&'a self, vars: &'a VarsRead) -> VarVersion;
     fn is_read_only_boxed(&self, vars: &Vars) -> bool;
     fn into_value_boxed(self: Box<Self>, vars: &VarsRead) -> T;
     fn always_read_only_boxed(&self) -> bool;
@@ -45,7 +45,7 @@ impl<T: VarValue, V: Var<T>> VarBoxed<T> for V {
     }
 
     #[inline]
-    fn version_boxed<'a>(&'a self, vars: &'a VarsRead) -> u32 {
+    fn version_boxed<'a>(&'a self, vars: &'a VarsRead) -> VarVersion {
         self.version(vars)
     }
 
@@ -132,7 +132,7 @@ impl<T: VarValue> Var<T> for BoxedVar<T> {
     }
 
     #[inline]
-    fn version<Vr: WithVarsRead>(&self, vars: &Vr) -> u32 {
+    fn version<Vr: WithVarsRead>(&self, vars: &Vr) -> VarVersion {
         vars.with_vars_read(|vars| self.as_ref().version_boxed(vars))
     }
 
