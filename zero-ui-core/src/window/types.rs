@@ -106,7 +106,7 @@ impl Window {
             false,
             None,
             HeadlessMonitor::default(),
-            child,
+            crate::widget_base::implicit_base::new_border(child),
         )
     }
 }

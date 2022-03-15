@@ -853,6 +853,8 @@ mod tests {
     }
 
     fn test_app(root: impl UiNode) -> HeadlessApp {
+        test_log();
+
         use crate::window::*;
         let mut app = App::default().run_headless(false);
         app.ctx().services.windows().open(move |_| crate::window::Window::test(root));
