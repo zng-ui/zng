@@ -99,13 +99,13 @@ macro_rules! impl_rc_when_var {
             _o: PhantomData<O>,
 
             default_value: D,
-            default_version: Cell<u32>,
+            default_version: VarVersionCell,
 
             conditions: ( $($C,)+ ),
-            condition_versions: [Cell<u32>; $len],
+            condition_versions: [VarVersionCell; $len],
 
             values: ( $($V,)+ ),
-            value_versions: [Cell<u32>; $len],
+            value_versions: [VarVersionCell; $len],
 
             self_version: Cell<u32>,
         }
@@ -117,13 +117,13 @@ macro_rules! impl_rc_when_var {
                         _o: PhantomData,
 
                         default_value,
-                        default_version: Cell::new(0),
+                        default_version: VarVersionCell::new(0),
 
                         conditions,
-                        condition_versions: array_init::array_init(|_|Cell::new(0)),
+                        condition_versions: array_init::array_init(|_|VarVersionCell::new(0)),
 
                         values: ($(values.$n,)+),
-                        value_versions: array_init::array_init(|_|Cell::new(0)),
+                        value_versions: array_init::array_init(|_|VarVersionCell::new(0)),
 
                         self_version: Cell::new(0),
                     })
@@ -233,7 +233,7 @@ macro_rules! impl_rc_when_var {
                         self.0.self_version.set(self.0.self_version.get().wrapping_add(1));
                     }
 
-                    self.0.self_version.get()
+                    VarVersion::normal(self.0.self_version.get())
                 })
             }
             fn is_read_only<Vw: WithVars>(&self, vars: &Vw) -> bool {

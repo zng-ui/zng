@@ -1,10 +1,11 @@
 //! Variables.
 
 use std::{
+    cell::UnsafeCell,
     convert::{TryFrom, TryInto},
     fmt,
     ops::{Deref, DerefMut},
-    str::FromStr, cell::UnsafeCell,
+    str::FromStr,
 };
 
 mod vars;
@@ -481,7 +482,7 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + crate::private::Sealed + 'stati
     ///
     /// The version is different every time the value is modified, you can use this to monitor
     /// variable change outside of the window of opportunity of [`is_new`](Self::is_new).
-    /// 
+    ///
     /// If the variable [`is_contextual`](Self::is_contextual) the version is also different for each context.
     fn version<Vr: WithVarsRead>(&self, vars: &Vr) -> VarVersion;
 
@@ -1826,6 +1827,19 @@ impl VarVersionData {
             Err(unsafe { &*self.contextual })
         }
     }
+
+    fn wrapping_add(self, add: u32) -> Self {
+        let count = unsafe { self.count };
+        if count & Self::COUNT_MASK == Self::COUNT_MASK {
+            Self::new_count((count as u32).wrapping_add(add))
+        } else {
+            let mut data = unsafe { Box::from_raw(self.contextual) };
+            data.count = data.count.wrapping_add(add);
+            Self {
+                contextual: Box::into_raw(data),
+            }
+        }
+    }
 }
 impl Drop for VarVersionData {
     fn drop(&mut self) {
@@ -1871,6 +1885,11 @@ impl VarVersion {
     pub fn normal(version: u32) -> Self {
         VarVersion(VarVersionData::new_count(version))
     }
+
+    /// Add to the version count.
+    pub fn wrapping_add(self, add: u32) -> Self {
+        Self(self.0.wrapping_add(add))
+    }
 }
 impl fmt::Debug for VarVersion {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -1883,18 +1902,20 @@ impl fmt::Debug for VarVersion {
 
 pub(crate) struct VarVersionCell(UnsafeCell<VarVersion>);
 impl VarVersionCell {
-    pub fn new(version: VarVersion) -> Self {
-        VarVersionCell(UnsafeCell::new(version))
-    }    
+    pub fn new(version: u32) -> Self {
+        VarVersionCell(UnsafeCell::new(VarVersion::normal(version)))
+    }
 
     pub fn get(&self) -> VarVersion {
-        // SAFETY: this is safe because VarVersion has not cyclical references.
+        // SAFETY: this is safe because VarVersion has no cyclical references.
         unsafe { &*self.0.get() }.clone()
     }
 
     pub fn set(&self, version: VarVersion) {
-        // SAFETY: this is safe because the only borrow is in `get` and VarVersion has not cyclical references.
-        unsafe { *self.0.get() = version;  }
+        // SAFETY: this is safe because `Self` is not Sync and we do not share references, so this deref is unique.
+        unsafe {
+            *self.0.get() = version;
+        }
     }
 }
 

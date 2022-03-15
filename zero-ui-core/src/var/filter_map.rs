@@ -68,8 +68,8 @@ where
             source,
             map: RefCell::new(map),
             value: UnsafeCell::new(FilterMapValue::Uninited(fallback_init)),
-            version_checked: VarVersionCell::new(VarVersion::normal(0)),
-            version: VarVersionCell::new(VarVersion::normal(0)),
+            version_checked: VarVersionCell::new(0),
+            version: VarVersionCell::new(0),
             last_update_id: Cell::new(0),
         }))
     }
@@ -94,7 +94,7 @@ where
                 *self.0.value.get() = FilterMapValue::Value(new_value);
             }
 
-            self.0.version.set(1);
+            self.0.version.set(VarVersion::normal(1));
             self.0.version_checked.set(source_version);
             self.0.last_update_id.set(vars.update_id());
         } else if source_version != self.0.version_checked.get() {

@@ -20,7 +20,7 @@ struct MapData<A, B, M, S> {
     map: RefCell<M>,
 
     value: UnsafeCell<Option<B>>,
-    version: Cell<u32>,
+    version: VarVersionCell,
 }
 
 impl<A, B, M, S> RcMapVar<A, B, M, S>
@@ -40,7 +40,7 @@ where
             source,
             map: RefCell::new(map),
             value: UnsafeCell::new(None),
-            version: Cell::new(0),
+            version: VarVersionCell::new(0),
         }))
     }
 
@@ -86,7 +86,7 @@ where
 
     /// Gets the source var value version.
     #[inline]
-    pub fn version<Vr: WithVarsRead>(&self, vars: &Vr) -> u32 {
+    pub fn version<Vr: WithVarsRead>(&self, vars: &Vr) -> VarVersion {
         self.0.source.version(vars)
     }
 
@@ -258,7 +258,7 @@ struct MapBidiData<A, B, M, N, S> {
     map_back: RefCell<N>,
 
     value: UnsafeCell<Option<B>>,
-    version: Cell<u32>,
+    version: VarVersionCell,
 }
 
 impl<A, B, M, N, S> RcMapBidiVar<A, B, M, N, S>
@@ -280,7 +280,7 @@ where
             map: RefCell::new(map),
             map_back: RefCell::new(map_back),
             value: UnsafeCell::new(None),
-            version: Cell::new(0),
+            version: VarVersionCell::new(0),
         }))
     }
 

@@ -317,7 +317,29 @@ impl<'a, T: VarValue> Clone for ContextVarData<'a, T> {
         }
     }
 }
+struct ContextVarDataCell<T: VarValue>(UnsafeCell<ContextVarDataRaw<T>>);
+impl<T: VarValue> ContextVarDataCell<T> {
+    pub fn new(data: ContextVarDataRaw<T>) -> Self {
+        ContextVarDataCell(UnsafeCell::new(data))
+    }
 
+    pub fn get(&self) -> ContextVarDataRaw<T> {
+        // SAFETY: this is safe because VarVersion has no cyclical references.
+        unsafe { &*self.0.get() }.clone()
+    }
+
+    pub fn set(&self, data: ContextVarDataRaw<T>) {
+        // SAFETY: this is safe because `Self` is not Sync and we do not share references, so this deref is unique.
+        unsafe {
+            *self.0.get() = data;
+        }
+    }
+
+    pub fn replace(&self, data: ContextVarDataRaw<T>) -> ContextVarDataRaw<T> {
+        // SAFETY: this is safe because `Self` is not Sync and we do not share references, so this borrow is unique.
+        std::mem::replace(unsafe { &mut *self.0.get() }, data)
+    }
+}
 pub(crate) struct ContextVarDataRaw<T: VarValue> {
     value: *const T,
     is_new: bool,
@@ -340,7 +362,7 @@ impl<T: VarValue> Clone for ContextVarDataRaw<T> {
 pub struct ContextVarValue<V: ContextVar> {
     _var: PhantomData<V>,
     _default_value: Box<V::Type>,
-    value: Cell<ContextVarDataRaw<V::Type>>,
+    value: ContextVarDataCell<V::Type>,
 }
 
 #[allow(missing_docs)]
@@ -350,7 +372,7 @@ impl<V: ContextVar> ContextVarValue<V> {
         let default_value = Box::new(V::default_value());
         ContextVarValue {
             _var: PhantomData,
-            value: Cell::new(ContextVarData::fixed(&*default_value).to_raw()),
+            value: ContextVarDataCell::new(ContextVarData::fixed(&*default_value).to_raw()),
             _default_value: default_value,
         }
     }
