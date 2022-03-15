@@ -25,8 +25,8 @@ struct MapData<A, B, V, M, S> {
     var: UnsafeCell<Option<V>>,
     var_is_contextual: Cell<bool>,
 
-    source_version: Cell<u32>,
-    var_version: Cell<u32>,
+    source_version: VarVersionCell,
+    var_version: VarVersionCell,
 
     version: Cell<u32>,
     update_slot: UpdateSlot,
@@ -73,8 +73,8 @@ where
             map: RefCell::new(map),
             var: UnsafeCell::new(None),
             var_is_contextual: Cell::new(true),
-            source_version: Cell::new(0),
-            var_version: Cell::new(0),
+            source_version: VarVersionCell::new(0),
+            var_version: VarVersionCell::new(0),
             version: Cell::new(0),
             update_slot: UpdateSlot::next(),
         }))

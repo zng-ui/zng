@@ -117,7 +117,7 @@ impl<T: VarValue, V: Var<T>> RcCowVar<T, V> {
             is_contextual: Cell::new(source.is_contextual()),
             source: UnsafeCell::new(Some(source)),
             value: UnsafeCell::new(None),
-            version: Cell::new(0),
+            version: VarVersionCell::new(0),
             last_update_id: Cell::new(0),
         }))
     }

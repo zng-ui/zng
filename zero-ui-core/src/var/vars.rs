@@ -187,15 +187,15 @@ impl VarsRead {
         let _ = context_var;
 
         let new = data.to_raw();
-        let prev = C::thread_local_value().replace(new);
+        let prev = C::thread_local_value().replace(new.clone());
 
-        self.widget_clear.borrow_mut().push(Box::new(move |undo| {
+        self.widget_clear.borrow_mut().push(Box::new(clone_move!(prev, |undo| {
             if undo {
-                C::thread_local_value().set(prev);
+                C::thread_local_value().set(prev.clone());
             } else {
-                C::thread_local_value().set(new);
+                C::thread_local_value().set(new.clone());
             }
-        }));
+        })));
 
         let _restore = RunOnDrop::new(move || {
             C::thread_local_value().set(prev);

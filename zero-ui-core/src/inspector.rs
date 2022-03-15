@@ -1120,13 +1120,13 @@ impl WriteTreeState {
                 let mut properties = HashMap::new();
                 for p in info.captures.values().flat_map(|c| c.iter()) {
                     for arg in p.args.iter() {
-                        properties.insert((p.property_name, arg.name), (arg.value_version, arg.value.clone()));
+                        properties.insert((p.property_name, arg.name), (arg.value_version.clone(), arg.value.clone()));
                     }
                 }
                 for p in w.properties() {
                     let p = p.borrow();
                     for arg in p.args.iter() {
-                        properties.insert((p.property_name, arg.name), (arg.value_version, arg.value.clone()));
+                        properties.insert((p.property_name, arg.name), (arg.value_version.clone(), arg.value.clone()));
                     }
                 }
                 widgets.insert(

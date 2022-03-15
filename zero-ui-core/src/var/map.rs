@@ -1,5 +1,5 @@
 use std::{
-    cell::{Cell, RefCell, UnsafeCell},
+    cell::{RefCell, UnsafeCell},
     marker::PhantomData,
     rc::Rc,
 };

@@ -101,9 +101,9 @@ macro_rules! impl_rc_switch_var {
         struct $RcSwitchVarData<O: VarValue, $($V: Var<O>,)+ VI: Var<usize>> {
             _o: PhantomData<O>,
             vars: ($($V),+),
-            versions: [Cell<u32>; $len],
+            versions: [VarVersionCell; $len],
             index: VI,
-            index_version: Cell<u32>,
+            index_version: VarVersionCell,
             self_version: Cell<u32>,
         }
 
@@ -120,9 +120,9 @@ macro_rules! impl_rc_switch_var {
                 Self(Rc::new($RcSwitchVarData {
                     _o: PhantomData,
                     vars,
-                    versions: array_init::array_init(|_|Cell::new(0)),
+                    versions: array_init::array_init(|_|VarVersionCell::new(0)),
                     index,
-                    index_version: Cell::new(0),
+                    index_version: VarVersionCell::new(0),
                     self_version: Cell::new(0),
                 }))
             }
@@ -186,15 +186,15 @@ macro_rules! impl_rc_switch_var {
             fn version<Vr: WithVarsRead>(&self, vars: &Vr) -> VarVersion {
                 vars.with_vars_read(|vars| {
                     let i_ver = self.0.index.version(vars);
-                let var_vers = ($(self.0.vars.$n.version(vars)),+);
+                    let var_vers = ($(self.0.vars.$n.version(vars)),+);
 
-                if i_ver != self.0.index_version.get() || $(var_vers.$n != self.0.versions[$n].get())||+ {
-                    self.0.self_version.set(self.0.self_version.get().wrapping_add(1));
-                    self.0.index_version.set(i_ver);
-                    $(self.0.versions[$n].set(var_vers.$n);)+
-                }
+                    if i_ver != self.0.index_version.get() || $(var_vers.$n != self.0.versions[$n].get())||+ {
+                        self.0.self_version.set(self.0.self_version.get().wrapping_add(1));
+                        self.0.index_version.set(i_ver);
+                        $(self.0.versions[$n].set(var_vers.$n);)+
+                    }
 
-                self.0.self_version.get()
+                    VarVersion::normal(self.0.self_version.get())
                 })
             }
 
@@ -310,10 +310,10 @@ impl_rc_switch_var! {
 pub struct RcSwitchVar<O: VarValue, VI: Var<usize>>(Rc<RcSwitchVarData<O, VI>>);
 struct RcSwitchVarData<O: VarValue, VI: Var<usize>> {
     vars: Box<[BoxedVar<O>]>,
-    var_versions: Box<[Cell<u32>]>,
+    var_versions: Box<[VarVersionCell]>,
 
     index: VI,
-    index_version: Cell<u32>,
+    index_version: VarVersionCell,
 
     self_version: Cell<u32>,
 }
@@ -322,10 +322,10 @@ impl<O: VarValue, VI: Var<usize>> RcSwitchVar<O, VI> {
     pub fn from_vars(index: VI, vars: Box<[BoxedVar<O>]>) -> Self {
         assert!(vars.len() >= 2);
         Self(Rc::new(RcSwitchVarData {
-            var_versions: vars.iter().map(|_| Cell::new(0)).collect(),
+            var_versions: vars.iter().map(|_| VarVersionCell::new(0)).collect(),
             vars,
             index,
-            index_version: Cell::new(0),
+            index_version: VarVersionCell::new(0),
             self_version: Cell::new(0),
         }))
     }
@@ -344,7 +344,7 @@ impl<O: VarValue, VI: Var<usize>> RcSwitchVar<O, VI> {
     ///
     /// The version is new when the index variable changes
     /// or when the indexed variable changes.
-    pub fn version(&self, vars: &Vars) -> u32 {
+    pub fn version(&self, vars: &Vars) -> VarVersion {
         <Self as Var<O>>::version(self, vars)
     }
 
@@ -439,7 +439,7 @@ impl<O: VarValue, VI: Var<usize>> Var<O> for RcSwitchVar<O, VI> {
                 self.0.self_version.set(self.0.self_version.get().wrapping_add(1));
             }
 
-            self.0.self_version.get()
+            VarVersion::normal(self.0.self_version.get())
         })
     }
 

@@ -354,10 +354,10 @@ impl_rc_when_var! {
 pub struct RcWhenVar<O: VarValue>(Rc<RcWhenVarData<O>>);
 struct RcWhenVarData<O: VarValue> {
     default_: BoxedVar<O>,
-    default_version: Cell<u32>,
+    default_version: VarVersionCell,
 
     whens: Box<[(BoxedVar<bool>, BoxedVar<O>)]>,
-    when_versions: Box<[(Cell<u32>, Cell<u32>)]>,
+    when_versions: Box<[(VarVersionCell, VarVersionCell)]>,
 
     self_version: Cell<u32>,
 }
@@ -366,9 +366,9 @@ impl<O: VarValue> RcWhenVar<O> {
     pub fn new(default_: BoxedVar<O>, whens: Box<[(BoxedVar<bool>, BoxedVar<O>)]>) -> Self {
         RcWhenVar(Rc::new(RcWhenVarData {
             default_,
-            default_version: Cell::new(0),
+            default_version: VarVersionCell::new(0),
 
-            when_versions: whens.iter().map(|_| (Cell::new(0), Cell::new(0))).collect(),
+            when_versions: whens.iter().map(|_| (VarVersionCell::new(0), VarVersionCell::new(0))).collect(),
             whens,
 
             self_version: Cell::new(0),
@@ -490,7 +490,7 @@ impl<O: VarValue> Var<O> for RcWhenVar<O> {
                 self.0.self_version.set(self.0.self_version.get().wrapping_add(1));
             }
 
-            self.0.self_version.get()
+            VarVersion::normal(self.0.self_version.get())
         })
     }
 

@@ -1,4 +1,4 @@
-use std::{cell::Cell, marker::PhantomData, thread::LocalKey};
+use std::{marker::PhantomData, thread::LocalKey};
 
 use super::*;
 
@@ -312,7 +312,7 @@ impl<'a, T: VarValue> Clone for ContextVarData<'a, T> {
         Self {
             value: self.value,
             is_new: self.is_new,
-            version: self.version,
+            version: self.version.clone(),
             update_mask: self.update_mask,
         }
     }
@@ -351,7 +351,7 @@ impl<T: VarValue> Clone for ContextVarDataRaw<T> {
         Self {
             value: self.value,
             is_new: self.is_new,
-            version: self.version,
+            version: self.version.clone(),
             update_mask: self.update_mask,
         }
     }
