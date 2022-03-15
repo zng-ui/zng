@@ -147,7 +147,6 @@ where
 
     fn version<Vr: WithVarsRead>(&self, vars: &Vr) -> VarVersion {
         let _ = vars.with_vars_read(|vars| self.var(vars));
-        todo!("contextual");
         VarVersion::normal(self.0.version.get())
     }
 

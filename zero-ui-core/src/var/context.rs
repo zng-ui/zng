@@ -63,7 +63,6 @@ impl<C: ContextVar> Var<C::Type> for ContextVarProxy<C> {
 
     #[inline]
     fn version<Vr: WithVarsRead>(&self, vars: &Vr) -> VarVersion {
-        todo!("add our context");
         vars.with_vars_read(|v| v.context_var::<C>().version)
     }
 
@@ -287,7 +286,7 @@ impl<'a, T: VarValue> ContextVarData<'a, T> {
         }
     }
 
-    pub(crate) fn to_raw(self) -> ContextVarDataRaw<T> {
+    pub(crate) fn into_raw(self) -> ContextVarDataRaw<T> {
         ContextVarDataRaw {
             value: self.value,
             is_new: self.is_new,
@@ -298,7 +297,7 @@ impl<'a, T: VarValue> ContextVarData<'a, T> {
 }
 impl<T: VarValue> ContextVarDataRaw<T> {
     /// SAFETY: Only [`VarsRead`] can call this safely.
-    pub(crate) unsafe fn to_safe(self, _vars: &VarsRead) -> ContextVarData<T> {
+    pub(crate) unsafe fn into_safe(self, _vars: &VarsRead) -> ContextVarData<T> {
         ContextVarData {
             value: &*self.value,
             is_new: self.is_new,
@@ -372,7 +371,7 @@ impl<V: ContextVar> ContextVarValue<V> {
         let default_value = Box::new(V::default_value());
         ContextVarValue {
             _var: PhantomData,
-            value: ContextVarDataCell::new(ContextVarData::fixed(&*default_value).to_raw()),
+            value: ContextVarDataCell::new(ContextVarData::fixed(&*default_value).into_raw()),
             _default_value: default_value,
         }
     }

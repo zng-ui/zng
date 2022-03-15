@@ -133,7 +133,7 @@ impl VarsRead {
         // * The initial reference is actually the `static` default value.
         // * Other references are held by `Self::with_context_var` for the duration
         //   they can appear here.
-        unsafe { source.to_safe(self) }
+        unsafe { source.into_safe(self) }
     }
 
     /// Calls `f` with the context var set to `source`.
@@ -156,7 +156,7 @@ impl VarsRead {
 
         let _ = context_var;
 
-        let prev = C::thread_local_value().replace(data.to_raw());
+        let prev = C::thread_local_value().replace(data.into_raw());
         let _restore = RunOnDrop::new(move || {
             C::thread_local_value().set(prev);
         });
@@ -186,7 +186,7 @@ impl VarsRead {
 
         let _ = context_var;
 
-        let new = data.to_raw();
+        let new = data.into_raw();
         let prev = C::thread_local_value().replace(new.clone());
 
         self.widget_clear.borrow_mut().push(Box::new(clone_move!(prev, |undo| {
