@@ -1790,7 +1790,7 @@ union VarVersionData {
     count: u64,
     contextual: *mut VarContextualVersion,
 }
-#[derive(Clone, PartialEq)]
+#[derive(Clone, PartialEq, Hash)]
 struct VarContextualVersion {
     context: Option<WidgetId>,
     count: u32,
@@ -1827,7 +1827,7 @@ impl VarVersionData {
 }
 impl Drop for VarVersionData {
     fn drop(&mut self) {
-        if unsafe { self.count } & Self::COUNT_MASK == 0 {
+        if unsafe { self.count } & Self::COUNT_MASK != Self::COUNT_MASK {
             let _ = unsafe { Box::from_raw(self.contextual) };
         }
     }
@@ -1840,7 +1840,7 @@ impl PartialEq for VarVersionData {
 impl Eq for VarVersionData {}
 impl std::hash::Hash for VarVersionData {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        std::hash::Hash::hash(&unsafe { self.count }, state)
+        std::hash::Hash::hash(&self.count(), state)
     }
 }
 impl Clone for VarVersionData {
