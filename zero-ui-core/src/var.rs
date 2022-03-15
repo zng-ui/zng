@@ -1803,7 +1803,7 @@ impl VarVersionData {
 
     fn new_count(count: u32) -> Self {
         VarVersionData {
-            count: (count as u64) & Self::COUNT_MASK,
+            count: (count as u64) | Self::COUNT_MASK,
         }
     }
 
