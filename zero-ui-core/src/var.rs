@@ -1528,6 +1528,7 @@ use crate::{
     handler::AppHandler,
     text::{Text, ToText},
     widget_info::UpdateMask,
+    WidgetId,
 };
 
 #[doc(hidden)]
@@ -1780,6 +1781,102 @@ macro_rules! __impl_from_and_into_var {
     () => {
         // END
     };
+}
+
+/// SAFETY: this is a tagged 64-bits box, if the higher 4-bits are set the value is a u32,
+/// otherwise it is a pointer to the heap. In 32-bit machines this is always safe, in 64-bit machines
+/// this is safe by convention (processors don't use full 64-bits) and we panic if this changes in the future.
+union VarVersionData {
+    count: u64,
+    contextual: *mut VarContextualVersion,
+}
+#[derive(Clone, PartialEq)]
+struct VarContextualVersion {
+    context: Option<WidgetId>,
+    count: u32,
+}
+impl VarVersionData {
+    const COUNT_MASK: u64 = 255 << 60;
+
+    fn new_count(count: u32) -> Self {
+        VarVersionData {
+            count: (count as u64) & Self::COUNT_MASK,
+        }
+    }
+
+    fn new_contextual(data: VarContextualVersion) -> Self {
+        let data = Box::new(data);
+        let r = VarVersionData {
+            contextual: Box::into_raw(data),
+        };
+        if unsafe { r.count } & Self::COUNT_MASK == Self::COUNT_MASK {
+            panic!("pointer > 60-bits");
+        }
+        r
+    }
+
+    /// Gets count or contextual data.
+    fn count(&self) -> Result<u32, &VarContextualVersion> {
+        let count = unsafe { self.count };
+        if count & Self::COUNT_MASK == Self::COUNT_MASK {
+            Ok(count as u32)
+        } else {
+            Err(unsafe { &*self.contextual })
+        }
+    }
+}
+impl Drop for VarVersionData {
+    fn drop(&mut self) {
+        if unsafe { self.count } & Self::COUNT_MASK == 0 {
+            let _ = unsafe { Box::from_raw(self.contextual) };
+        }
+    }
+}
+impl PartialEq for VarVersionData {
+    fn eq(&self, other: &Self) -> bool {
+        self.count() == other.count()
+    }
+}
+impl Eq for VarVersionData {}
+impl std::hash::Hash for VarVersionData {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        std::hash::Hash::hash(&unsafe { self.count }, state)
+    }
+}
+impl Clone for VarVersionData {
+    fn clone(&self) -> Self {
+        let count = unsafe { self.count };
+        if count & Self::COUNT_MASK == Self::COUNT_MASK {
+            VarVersionData { count }
+        } else {
+            VarVersionData::new_contextual(unsafe { &*self.contextual }.clone())
+        }
+    }
+}
+
+/// Identifies a variable value version.
+///
+/// Comparing
+#[derive(PartialEq, Eq, Hash, Clone)]
+pub struct VarVersion(VarVersionData);
+impl VarVersion {
+    /// Version for a variable that has a different value depending on the read context.
+    pub fn contextual(context: Option<WidgetId>, version: u32) -> Self {
+        VarVersion(VarVersionData::new_contextual(VarContextualVersion { context, count: version }))
+    }
+
+    /// Version for a variable that has the same value in any read context.
+    pub fn non_contextual(version: u32) -> Self {
+        VarVersion(VarVersionData::new_count(version))
+    }
+}
+impl fmt::Debug for VarVersion {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self.0.count() {
+            Ok(c) => write!(f, "VarVersion({c})"),
+            Err(d) => write!(f, "VarVersion {{ context: {:?}, version: {} }}", d.context, d.count),
+        }
+    }
 }
 
 #[cfg(test)]

@@ -11,6 +11,10 @@
     - Pros: Only need to modify ContextVar.
     - Cons: No caching of mapping functions in this case.
 
+- Version is only 32-bits, change to 64?
+- Even then we need to encode the 64bits WidgetId and value version.
+- How to ensure uniqueness?
+
 # Finish scroll
 
 * Implement ContextVar modify.
