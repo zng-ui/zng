@@ -922,6 +922,33 @@ mod tests {
     }
 
     #[test]
+    fn context_var_map_cloned3() {
+        // mapped context var should depend on the context.
+
+        let mapped = TestVar::new().map(|t| formatx!("map {t}"));
+        let mut test = test_app(test_wgt! {
+            test_prop = "A!";
+
+            child = test_wgt! {
+                probe = mapped.clone();
+                test_prop = "B!";
+
+                child = test_wgt! {
+                    probe = mapped.clone();
+                    test_prop = "C!";
+
+                    child = test_wgt! {
+                        probe = mapped;
+                        test_prop = "D!";
+                    }
+                }
+            }
+        });
+
+        assert_eq!(test.ctx().app_state.get(ProbeKey), Some(&Text::from("map C!")));
+    }
+
+    #[test]
     fn context_var_map_not_cloned() {
         // sanity check for `context_var_map_cloned`
 

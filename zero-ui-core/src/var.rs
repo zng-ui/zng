@@ -1842,12 +1842,12 @@ impl VarVersionData {
         }
     }
 
-    fn set_context(&mut self, prev: &Self, widget_id: Option<WidgetId>) {
+    fn set_context(&mut self, prev: &Self, widget_id: Option<WidgetId>, app_count: u32) {
         let count = unsafe { self.count };
         if count & Self::COUNT_MASK == Self::COUNT_MASK {
             *self = Self::new_contextual(VarContextualVersion {
                 context: widget_id,
-                depth: 0,
+                depth: app_count,
                 count: count as u32,
             });
         } else {
@@ -1860,7 +1860,7 @@ impl VarVersionData {
             let data = unsafe { &mut *self.contextual };
 
             if prev_data.context == data.context {
-                data.depth += 1;
+                data.depth = data.depth.wrapping_add(1);
             } else {
                 data.depth = 0;
             }
@@ -1914,8 +1914,8 @@ impl VarVersion {
     }
 
     /// Set the contextual widget parent and *depth* of uses in  the same context.
-    pub(crate) fn set_context(&mut self, prev: &Self, widget_id: Option<WidgetId>) {
-        self.0.set_context(&prev.0, widget_id)
+    pub(crate) fn set_context(&mut self, prev: &Self, widget_id: Option<WidgetId>, app_count: u32) {
+        self.0.set_context(&prev.0, widget_id, app_count)
     }
 }
 impl fmt::Debug for VarVersion {

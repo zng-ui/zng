@@ -97,6 +97,7 @@ type UpdateLinkFn = Box<dyn Fn(&Vars, &mut UpdateMask) -> Retain>;
 pub struct VarsRead {
     _singleton: SingletonVars,
     context_id: Cell<Option<WidgetId>>,
+    contextless_count: Cell<u32>,
     update_id: u32,
     #[allow(clippy::type_complexity)]
     widget_clear: RefCell<Vec<Box<dyn Fn(bool)>>>,
@@ -158,7 +159,14 @@ impl VarsRead {
         let _ = context_var;
 
         let prev_version = C::thread_local_value().version();
-        data.version.set_context(&prev_version, self.context_id.get());
+        let context_id = self.context_id.get();
+        if context_id.is_none() {
+            let count = self.contextless_count.get().wrapping_add(1);
+            self.contextless_count.set(count);
+            data.version.set_context(&prev_version, context_id, count);
+        } else {
+            data.version.set_context(&prev_version, context_id, 0);
+        }
 
         let prev = C::thread_local_value().replace(data.into_raw());
         let _restore = RunOnDrop::new(move || {
@@ -191,7 +199,7 @@ impl VarsRead {
         let _ = context_var;
 
         let prev_version = C::thread_local_value().version();
-        data.version.set_context(&prev_version, self.context_id.get());
+        data.version.set_context(&prev_version, self.context_id.get(), 0);
 
         let new = data.into_raw();
         let prev = C::thread_local_value().replace(new.clone());
@@ -359,6 +367,7 @@ impl Vars {
             read: VarsRead {
                 _singleton: SingletonVars::assert_new("Vars"),
                 context_id: Cell::new(None),
+                contextless_count: Cell::new(0),
                 update_id: 1u32,
                 app_event_sender,
                 widget_clear: Default::default(),

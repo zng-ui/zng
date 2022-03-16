@@ -1,6 +1,6 @@
 # Fix context var map
 
-* Implement unique version for each call of app level `with_context_var`.
+* Review if all mapping variables re-compute inside the same update cycle, some variables may check the update ID?
 
 # Finish scroll
 
