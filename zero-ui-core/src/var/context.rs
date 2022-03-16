@@ -311,7 +311,7 @@ impl<'a, T: VarValue> Clone for ContextVarData<'a, T> {
         Self {
             value: self.value,
             is_new: self.is_new,
-            version: self.version.clone(),
+            version: self.version,
             update_mask: self.update_mask,
         }
     }
@@ -329,7 +329,7 @@ impl<T: VarValue> ContextVarDataCell<T> {
 
     pub fn get_version(&self) -> VarVersion {
         // SAFETY: this is safe because VarVersion has no cyclical references.
-        unsafe { &*self.0.get() }.version.clone()
+        unsafe { &*self.0.get() }.version
     }
 
     pub fn set(&self, data: ContextVarDataRaw<T>) {
@@ -355,7 +355,7 @@ impl<T: VarValue> Clone for ContextVarDataRaw<T> {
         Self {
             value: self.value,
             is_new: self.is_new,
-            version: self.version.clone(),
+            version: self.version,
             update_mask: self.update_mask,
         }
     }

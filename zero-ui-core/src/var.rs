@@ -1,7 +1,7 @@
 //! Variables.
 
 use std::{
-    cell::UnsafeCell,
+    cell::{UnsafeCell, Cell},
     convert::{TryFrom, TryInto},
     fmt,
     ops::{Deref, DerefMut},
@@ -1786,163 +1786,61 @@ macro_rules! __impl_from_and_into_var {
     };
 }
 
-/// SAFETY: this is a tagged 64-bits box, if the higher 4-bits are set the value is a u32,
-/// otherwise it is a pointer to the heap. In 32-bit machines this is always safe, in 64-bit machines
-/// this is safe by convention (processors don't use full 64-bits) and we panic if this changes in the future.
-union VarVersionData {
-    count: u64,
-    contextual: *mut VarContextualVersion,
-}
-#[derive(Clone, PartialEq, Hash)]
-struct VarContextualVersion {
-    context: Option<WidgetId>,
-    depth: u32,
-    count: u32,
-}
-impl VarVersionData {
-    const COUNT_MASK: u64 = 255 << 60;
-
-    fn new_count(count: u32) -> Self {
-        VarVersionData {
-            count: (count as u64) | Self::COUNT_MASK,
-        }
-    }
-
-    fn new_contextual(data: VarContextualVersion) -> Self {
-        let data = Box::new(data);
-        let r = VarVersionData {
-            contextual: Box::into_raw(data),
-        };
-        if unsafe { r.count } & Self::COUNT_MASK == Self::COUNT_MASK {
-            panic!("pointer > 60-bits");
-        }
-        r
-    }
-
-    /// Gets count or contextual data.
-    fn count(&self) -> Result<u32, &VarContextualVersion> {
-        let count = unsafe { self.count };
-        if count & Self::COUNT_MASK == Self::COUNT_MASK {
-            Ok(count as u32)
-        } else {
-            Err(unsafe { &*self.contextual })
-        }
-    }
-
-    fn wrapping_add(self, add: u32) -> Self {
-        let count = unsafe { self.count };
-        if count & Self::COUNT_MASK == Self::COUNT_MASK {
-            Self::new_count((count as u32).wrapping_add(add))
-        } else {
-            let mut data = unsafe { Box::from_raw(self.contextual) };
-            data.count = data.count.wrapping_add(add);
-            Self {
-                contextual: Box::into_raw(data),
-            }
-        }
-    }
-
-    fn set_context(&mut self, prev: &Self, widget_id: Option<WidgetId>, app_count: u32) {
-        let count = unsafe { self.count };
-        if count & Self::COUNT_MASK == Self::COUNT_MASK {
-            *self = Self::new_contextual(VarContextualVersion {
-                context: widget_id,
-                depth: app_count,
-                count: count as u32,
-            });
-        } else {
-            let data = unsafe { &mut *self.contextual };
-            data.context = widget_id;
-        }
-
-        if unsafe { prev.count } & Self::COUNT_MASK != Self::COUNT_MASK {
-            let prev_data = unsafe { &mut *prev.contextual };
-            let data = unsafe { &mut *self.contextual };
-
-            if prev_data.context == data.context {
-                data.depth = data.depth.wrapping_add(1);
-            } else {
-                data.depth = 0;
-            }
-        }
-    }
-}
-
-impl Drop for VarVersionData {
-    fn drop(&mut self) {
-        if unsafe { self.count } & Self::COUNT_MASK != Self::COUNT_MASK {
-            let _ = unsafe { Box::from_raw(self.contextual) };
-        }
-    }
-}
-impl PartialEq for VarVersionData {
-    fn eq(&self, other: &Self) -> bool {
-        self.count() == other.count()
-    }
-}
-impl Eq for VarVersionData {}
-impl std::hash::Hash for VarVersionData {
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        std::hash::Hash::hash(&self.count(), state)
-    }
-}
-impl Clone for VarVersionData {
-    fn clone(&self) -> Self {
-        let count = unsafe { self.count };
-        if count & Self::COUNT_MASK == Self::COUNT_MASK {
-            VarVersionData { count }
-        } else {
-            VarVersionData::new_contextual(unsafe { &*self.contextual }.clone())
-        }
-    }
-}
-
 /// Identifies a variable value version.
 ///
 /// Comparing
-#[derive(PartialEq, Eq, Hash, Clone)]
-pub struct VarVersion(VarVersionData);
+#[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
+pub struct VarVersion {
+    context: Option<WidgetId>,
+    depth: u32,
+    version: u32,
+}
 impl VarVersion {
     /// Version for a variable that has a value not affected by context.
     pub(crate) fn normal(version: u32) -> Self {
-        VarVersion(VarVersionData::new_count(version))
+        VarVersion {
+            context: None,
+            depth: 0,
+            version,
+        }
     }
 
     /// Add to the version count.
-    pub(crate) fn wrapping_add(self, add: u32) -> Self {
-        Self(self.0.wrapping_add(add))
+    pub(crate) fn wrapping_add(mut self, add: u32) -> Self {
+        self.depth = self.depth.wrapping_add(add);
+        self
     }
 
-    /// Set the contextual widget parent and *depth* of uses in  the same context.
-    pub(crate) fn set_context(&mut self, prev: &Self, widget_id: Option<WidgetId>, app_count: u32) {
-        self.0.set_context(&prev.0, widget_id, app_count)
-    }
-}
-impl fmt::Debug for VarVersion {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self.0.count() {
-            Ok(c) => write!(f, "VarVersion({c})"),
-            Err(d) => write!(f, "VarVersion {{ context: {:?}, version: {} }}", d.context, d.count),
+    /// Set the context of `self` from a transition of `prev` to new.
+    pub(crate) fn set_widget_context(&mut self, prev: &Self, new: WidgetId) {
+        let new = Some(new);
+        if prev.context == new {
+            self.depth = self.depth.wrapping_add(1);
+        } else {
+            self.depth = 0;
         }
+        self.context = new;
+    }
+
+    /// Set the context of `self` to a direct `with_context_var` usage at the `AppExtension` level.
+    pub(crate) fn set_app_context(&mut self, count: u32) {
+        self.context = None;
+        self.depth = count;
     }
 }
 
-pub(crate) struct VarVersionCell(UnsafeCell<VarVersion>);
+pub(crate) struct VarVersionCell(Cell<VarVersion>);
 impl VarVersionCell {
     pub fn new(version: u32) -> Self {
-        VarVersionCell(UnsafeCell::new(VarVersion::normal(version)))
+        VarVersionCell(Cell::new(VarVersion::normal(version)))
     }
 
     pub fn get(&self) -> VarVersion {
-        // SAFETY: this is safe because VarVersion has no cyclical references.
-        unsafe { &*self.0.get() }.clone()
+        self.0.get()
     }
 
     pub fn set(&self, version: VarVersion) {
-        // SAFETY: this is safe because `Self` is not Sync and we do not share references, so this deref is unique.
-        unsafe {
-            *self.0.get() = version;
-        }
+        self.0.set(version)
     }
 }
 

@@ -158,14 +158,13 @@ impl VarsRead {
 
         let _ = context_var;
 
-        let prev_version = C::thread_local_value().version();
-        let context_id = self.context_id.get();
-        if context_id.is_none() {
+        if let Some(context_id) = self.context_id.get() {
+            let prev_version = C::thread_local_value().version();
+            data.version.set_widget_context(&prev_version, context_id);
+        } else {
             let count = self.contextless_count.get().wrapping_add(1);
             self.contextless_count.set(count);
-            data.version.set_context(&prev_version, context_id, count);
-        } else {
-            data.version.set_context(&prev_version, context_id, 0);
+            data.version.set_app_context(count);
         }
 
         let prev = C::thread_local_value().replace(data.into_raw());
@@ -198,8 +197,14 @@ impl VarsRead {
 
         let _ = context_var;
 
-        let prev_version = C::thread_local_value().version();
-        data.version.set_context(&prev_version, self.context_id.get(), 0);
+        if let Some(context_id) = self.context_id.get() {
+            let prev_version = C::thread_local_value().version();
+            data.version.set_widget_context(&prev_version, context_id);
+        } else {
+            let count = self.contextless_count.get().wrapping_add(1);
+            self.contextless_count.set(count);
+            data.version.set_app_context(count);
+        }
 
         let new = data.into_raw();
         let prev = C::thread_local_value().replace(new.clone());
