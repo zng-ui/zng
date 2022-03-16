@@ -1276,7 +1276,7 @@ impl<'a> WidgetContext<'a> {
     ) -> R {
         self.path.push(widget_id);
 
-        let r = self.vars.with_widget_clear(|| {
+        let r = self.vars.with_widget(widget_id, || {
             f(&mut WidgetContext {
                 path: self.path,
 
@@ -1615,7 +1615,7 @@ impl<'a> LayoutContext<'a> {
     pub fn with_widget<R>(&mut self, widget_id: WidgetId, widget_state: &mut OwnedStateMap, f: impl FnOnce(&mut LayoutContext) -> R) -> R {
         self.path.push(widget_id);
 
-        let r = self.vars.with_widget_clear(|| {
+        let r = self.vars.with_widget(widget_id, || {
             f(&mut LayoutContext {
                 metrics: self.metrics,
 

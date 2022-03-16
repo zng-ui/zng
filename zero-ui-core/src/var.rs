@@ -1840,6 +1840,19 @@ impl VarVersionData {
             }
         }
     }
+
+    fn include_context(&mut self, widget_id: Option<WidgetId>) {
+        let count = unsafe { self.count };
+        if count & Self::COUNT_MASK == Self::COUNT_MASK {
+            *self = Self::new_contextual(VarContextualVersion {
+                context: widget_id,
+                count: count as u32,
+            });
+        } else {
+            let data = unsafe { &mut *self.contextual };
+            data.context = widget_id;
+        }
+    }
 }
 impl Drop for VarVersionData {
     fn drop(&mut self) {
@@ -1887,8 +1900,12 @@ impl VarVersion {
     }
 
     /// Add to the version count.
-    pub fn wrapping_add(self, add: u32) -> Self {
+    pub(crate) fn wrapping_add(self, add: u32) -> Self {
         Self(self.0.wrapping_add(add))
+    }
+
+    pub(crate) fn include_context(&mut self, widget_id: Option<WidgetId>) {
+        self.0.include_context(widget_id);
     }
 }
 impl fmt::Debug for VarVersion {

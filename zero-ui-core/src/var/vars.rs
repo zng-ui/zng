@@ -96,6 +96,7 @@ type UpdateLinkFn = Box<dyn Fn(&Vars, &mut UpdateMask) -> Retain>;
 /// [`RenderContext`]: crate::context::RenderContext
 pub struct VarsRead {
     _singleton: SingletonVars,
+    context_id: Cell<Option<WidgetId>>,
     update_id: u32,
     #[allow(clippy::type_complexity)]
     widget_clear: RefCell<Vec<Box<dyn Fn(bool)>>>,
@@ -133,7 +134,11 @@ impl VarsRead {
         // * The initial reference is actually the `static` default value.
         // * Other references are held by `Self::with_context_var` for the duration
         //   they can appear here.
-        unsafe { source.into_safe(self) }
+        let mut data = unsafe { source.into_safe(self) };
+
+        data.version.include_context(self.context_id.get());
+
+        data
     }
 
     /// Calls `f` with the context var set to `source`.
@@ -208,7 +213,9 @@ impl VarsRead {
     ///
     /// This is called by the layout and render contexts.
     #[inline(always)]
-    pub(crate) fn with_widget_clear<R, F: FnOnce() -> R>(&self, f: F) -> R {
+    pub(crate) fn with_widget<R, F: FnOnce() -> R>(&self, widget_id: WidgetId, f: F) -> R {
+        let parent_wgt = self.context_id.get();
+        self.context_id.set(Some(widget_id));
         let wgt_clear = std::mem::take(&mut *self.widget_clear.borrow_mut());
         for clear in &wgt_clear {
             clear(true);
@@ -219,6 +226,7 @@ impl VarsRead {
                 clear(false);
             }
             *self.widget_clear.borrow_mut() = wgt_clear;
+            self.context_id.set(parent_wgt);
         });
 
         f()
@@ -348,6 +356,7 @@ impl Vars {
         Vars {
             read: VarsRead {
                 _singleton: SingletonVars::assert_new("Vars"),
+                context_id: Cell::new(None),
                 update_id: 1u32,
                 app_event_sender,
                 widget_clear: Default::default(),
