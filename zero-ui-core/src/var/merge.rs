@@ -374,7 +374,6 @@ macro_rules! impl_rc_merge_var {
             versions: [VarVersionCell; $len],
             output_version: Cell<u32>,
             output: UnsafeCell<Option<O>>,
-            last_update_id: Cell<u32>,
         }
 
         #[allow(missing_docs)]// this is all hidden.
@@ -387,7 +386,6 @@ macro_rules! impl_rc_merge_var {
                     versions: array_init::array_init(|_|VarVersionCell::new(0)),
                     output_version: Cell::new(0),
                     output: UnsafeCell::new(None),
-                    last_update_id: Cell::new(0),
                 }))
             }
 
@@ -396,24 +394,20 @@ macro_rules! impl_rc_merge_var {
                 // of this update, and borrows cannot exist across updates because source
                 // vars require a &mut Vars for changing version.
 
-                let update_id = vars.update_id();
-                let mut update_output = unsafe { &*self.0.output.get() }.is_none();
-                if update_output || self.0.last_update_id.get() != update_id {
-                    self.0.last_update_id.set(update_id);
+                let versions = ($(self.0.vars.$n.version(vars)),+);
 
-                    let versions = ($(self.0.vars.$n.version(vars)),+);
-                    update_output |= $(self.0.versions[$n].get() != versions.$n)||+;
+                let update_output = unsafe { &*self.0.output.get() }.is_none() || {
+                    $(self.0.versions[$n].get() != versions.$n)||+
+                };
+                if update_output {
+                    let new_value = (&mut *self.0.f.borrow_mut())($(self.0.vars.$n.get(vars)),+);
 
-                    if update_output {
-                        let new_value = (&mut *self.0.f.borrow_mut())($(self.0.vars.$n.get(vars)),+);
-
-                        unsafe {
-                            *self.0.output.get() = Some(new_value);
-                        }
-
-                        self.0.output_version.set(self.0.output_version.get().wrapping_add(1));
-                        $(self.0.versions[$n].set(versions.$n);)+
+                    unsafe {
+                        *self.0.output.get() = Some(new_value);
                     }
+
+                    self.0.output_version.set(self.0.output_version.get().wrapping_add(1));
+                    $(self.0.versions[$n].set(versions.$n);)+
                 }
             }
         }

@@ -25,7 +25,7 @@ struct FilterMapData<A, B, I, M, S> {
 
     value: UnsafeCell<FilterMapValue<I, B>>,
     version_checked: VarVersionCell,
-    version: VarVersionCell,
+    version: Cell<u32>,
     last_update_id: Cell<u32>,
 }
 
@@ -69,7 +69,7 @@ where
             map: RefCell::new(map),
             value: UnsafeCell::new(FilterMapValue::Uninited(fallback_init)),
             version_checked: VarVersionCell::new(0),
-            version: VarVersionCell::new(0),
+            version: Cell::new(0),
             last_update_id: Cell::new(0),
         }))
     }
@@ -83,7 +83,7 @@ where
 
         let source_version = self.0.source.version(vars);
 
-        if self.0.version.get() == VarVersion::normal(0) {
+        if self.0.version.get() == 0 {
             let source_value = self.0.source.get(vars);
             let new_value = self.0.map.borrow_mut()(source_value).unwrap_or_else(|| {
                 let init = unsafe { &mut *self.0.value.get() }.unwrap_init();
@@ -94,7 +94,7 @@ where
                 *self.0.value.get() = FilterMapValue::Value(new_value);
             }
 
-            self.0.version.set(VarVersion::normal(1));
+            self.0.version.set(1);
             self.0.version_checked.set(source_version);
             self.0.last_update_id.set(vars.update_id());
         } else if source_version != self.0.version_checked.get() {
@@ -139,7 +139,7 @@ where
     pub fn version<Vr: WithVarsRead>(&self, vars: &Vr) -> VarVersion {
         vars.with_vars_read(|vars| {
             let _ = self.get(vars);
-            self.0.source.version(vars)
+            VarVersion::normal(self.0.version.get())
         })
     }
 
@@ -315,7 +315,7 @@ struct FilterMapBidiData<A, B, I, M, N, S> {
 
     value: UnsafeCell<FilterMapValue<I, B>>,
     version_checked: VarVersionCell,
-    version: VarVersionCell,
+    version: Cell<u32>,
     last_update_id: Cell<u32>,
 }
 impl<A, B, I, M, N, S> RcFilterMapBidiVar<A, B, I, M, N, S>
@@ -339,7 +339,7 @@ where
 
             value: UnsafeCell::new(FilterMapValue::Uninited(fallback_init)),
             version_checked: VarVersionCell::new(0),
-            version: VarVersionCell::new(0),
+            version: Cell::new(0),
             last_update_id: Cell::new(0),
         }))
     }
@@ -352,7 +352,7 @@ where
 
         let source_version = self.0.source.version(vars);
 
-        if self.0.version.get() == VarVersion::normal(0) {
+        if self.0.version.get() == 0 {
             let source_value = self.0.source.get(vars);
             let new_value = self.0.map.borrow_mut()(source_value).unwrap_or_else(|| {
                 let init = unsafe { &mut *self.0.value.get() }.unwrap_init();
@@ -363,7 +363,7 @@ where
                 *self.0.value.get() = FilterMapValue::Value(new_value);
             }
 
-            self.0.version.set(VarVersion::normal(1));
+            self.0.version.set(1);
             self.0.version_checked.set(source_version);
             self.0.last_update_id.set(vars.update_id());
         } else if source_version != self.0.version_checked.get() {
@@ -408,7 +408,7 @@ where
     pub fn version<Vr: WithVarsRead>(&self, vars: &Vr) -> VarVersion {
         vars.with_vars_read(|vars| {
             let _ = self.get(vars);
-            self.0.source.version(vars)
+            VarVersion::normal(self.0.version.get())
         })
     }
 
