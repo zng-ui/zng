@@ -327,6 +327,11 @@ impl<T: VarValue> ContextVarDataCell<T> {
         unsafe { &*self.0.get() }.clone()
     }
 
+    pub fn get_version(&self) -> VarVersion {
+        // SAFETY: this is safe because VarVersion has no cyclical references.
+        unsafe { &*self.0.get() }.version.clone()
+    }
+
     pub fn set(&self, data: ContextVarDataRaw<T>) {
         // SAFETY: this is safe because `Self` is not Sync and we do not share references, so this deref is unique.
         unsafe {
@@ -391,6 +396,10 @@ impl<V: ContextVar> ContextVarLocalKey<V> {
 
     pub(super) fn get(&self) -> ContextVarDataRaw<V::Type> {
         self.local.with(|l| l.value.get())
+    }
+
+    pub(super) fn version(&self) -> VarVersion {
+        self.local.with(|l| l.value.get_version())
     }
 
     pub(super) fn set(&self, value: ContextVarDataRaw<V::Type>) {
@@ -936,7 +945,7 @@ mod tests {
     }
 
     #[test]
-    fn context_var_map_moved() {
+    fn context_var_map_moved_app_ctx() {
         // need to support different value using the same variable instance too.
 
         let mapped = TestVar::new().map(|t| formatx!("map {t}"));
@@ -952,5 +961,23 @@ mod tests {
             .with_context_var(TestVar, ContextVarData::fixed(&"B".into()), || mapped.get_clone(ctx.vars));
 
         assert_ne!(a, b);
+    }
+
+    #[test]
+    fn context_var_cloned_same_widget() {
+        let mapped = TestVar::new().map(|t| formatx!("map {t}"));
+        use self::probe as probe_a;
+        use self::probe as probe_b;
+        use self::test_prop as test_prop_a;
+        use self::test_prop as test_prop_b;
+
+        let mut test = test_app(test_wgt! {
+            test_prop_a = "A!";
+            probe_a = mapped.clone();
+            test_prop_b = "B!";
+            probe_b = mapped;
+        });
+
+        assert_eq!(test.ctx().app_state.get(ProbeKey), Some(&Text::from("map B!")));
     }
 }

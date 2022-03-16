@@ -134,11 +134,7 @@ impl VarsRead {
         // * The initial reference is actually the `static` default value.
         // * Other references are held by `Self::with_context_var` for the duration
         //   they can appear here.
-        let mut data = unsafe { source.into_safe(self) };
-
-        data.version.include_context(self.context_id.get());
-
-        data
+        unsafe { source.into_safe(self) }
     }
 
     /// Calls `f` with the context var set to `source`.
@@ -151,7 +147,7 @@ impl VarsRead {
     /// [`update_mask`]: ContextVarData::update_mask
     /// [`info`]: crate::context::Updates::info
     #[inline(always)]
-    pub fn with_context_var<C, R, F>(&self, context_var: C, data: ContextVarData<C::Type>, f: F) -> R
+    pub fn with_context_var<C, R, F>(&self, context_var: C, mut data: ContextVarData<C::Type>, f: F) -> R
     where
         C: ContextVar,
         F: FnOnce() -> R,
@@ -160,6 +156,9 @@ impl VarsRead {
         // don't change before studying it.
 
         let _ = context_var;
+
+        let prev_version = C::thread_local_value().version();
+        data.version.set_context(&prev_version, self.context_id.get());
 
         let prev = C::thread_local_value().replace(data.into_raw());
         let _restore = RunOnDrop::new(move || {
@@ -181,7 +180,7 @@ impl VarsRead {
     /// [`update_mask`]: ContextVarData::update_mask
     /// [`info`]: crate::context::Updates::info
     #[inline(always)]
-    pub fn with_context_var_wgt_only<C, R, F>(&self, context_var: C, data: ContextVarData<C::Type>, f: F) -> R
+    pub fn with_context_var_wgt_only<C, R, F>(&self, context_var: C, mut data: ContextVarData<C::Type>, f: F) -> R
     where
         C: ContextVar,
         F: FnOnce() -> R,
@@ -190,6 +189,9 @@ impl VarsRead {
         // don't change before studying it.
 
         let _ = context_var;
+
+        let prev_version = C::thread_local_value().version();
+        data.version.set_context(&prev_version, self.context_id.get());
 
         let new = data.into_raw();
         let prev = C::thread_local_value().replace(new.clone());

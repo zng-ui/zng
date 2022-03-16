@@ -1796,6 +1796,7 @@ union VarVersionData {
 #[derive(Clone, PartialEq, Hash)]
 struct VarContextualVersion {
     context: Option<WidgetId>,
+    depth: u32,
     count: u32,
 }
 impl VarVersionData {
@@ -1841,19 +1842,32 @@ impl VarVersionData {
         }
     }
 
-    fn include_context(&mut self, widget_id: Option<WidgetId>) {
+    fn set_context(&mut self, prev: &Self, widget_id: Option<WidgetId>) {
         let count = unsafe { self.count };
         if count & Self::COUNT_MASK == Self::COUNT_MASK {
             *self = Self::new_contextual(VarContextualVersion {
                 context: widget_id,
+                depth: 0,
                 count: count as u32,
             });
         } else {
             let data = unsafe { &mut *self.contextual };
             data.context = widget_id;
         }
+
+        if unsafe { prev.count } & Self::COUNT_MASK != Self::COUNT_MASK {
+            let prev_data = unsafe { &mut *prev.contextual };
+            let data = unsafe { &mut *self.contextual };
+
+            if prev_data.context == data.context {
+                data.depth += 1;
+            } else {
+                data.depth = 0;
+            }
+        }
     }
 }
+
 impl Drop for VarVersionData {
     fn drop(&mut self) {
         if unsafe { self.count } & Self::COUNT_MASK != Self::COUNT_MASK {
@@ -1889,13 +1903,8 @@ impl Clone for VarVersionData {
 #[derive(PartialEq, Eq, Hash, Clone)]
 pub struct VarVersion(VarVersionData);
 impl VarVersion {
-    /// Version for a variable that has a different value depending on the read context.
-    pub fn contextual(context: Option<WidgetId>, version: u32) -> Self {
-        VarVersion(VarVersionData::new_contextual(VarContextualVersion { context, count: version }))
-    }
-
     /// Version for a variable that has a value not affected by context.
-    pub fn normal(version: u32) -> Self {
+    pub(crate) fn normal(version: u32) -> Self {
         VarVersion(VarVersionData::new_count(version))
     }
 
@@ -1904,8 +1913,9 @@ impl VarVersion {
         Self(self.0.wrapping_add(add))
     }
 
-    pub(crate) fn include_context(&mut self, widget_id: Option<WidgetId>) {
-        self.0.include_context(widget_id);
+    /// Set the contextual widget parent and *depth* of uses in  the same context.
+    pub(crate) fn set_context(&mut self, prev: &Self, widget_id: Option<WidgetId>) {
+        self.0.set_context(&prev.0, widget_id)
     }
 }
 impl fmt::Debug for VarVersion {
