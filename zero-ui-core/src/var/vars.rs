@@ -123,19 +123,8 @@ impl VarsRead {
         self.update_links.borrow_mut().push(Box::new(check))
     }
 
-    /// Gets a var at the context level.
-    pub(super) fn context_var<C: ContextVar>(&self) -> ContextVarData<C::Type> {
-        let source = C::thread_local_value().get();
-
-        // SAFETY: this is safe as long we are the only one to call `C::thread_local_value().get()` in
-        // `Self::with_context_var`.
-        //
-        // The reference is held for as long as it is accessible in here, at least:
-        //
-        // * The initial reference is actually the `static` default value.
-        // * Other references are held by `Self::with_context_var` for the duration
-        //   they can appear here.
-        unsafe { source.into_safe(self) }
+    pub(super) fn context_var_version<C: ContextVar>(&self) -> VarVersion {
+        C::thread_local_value().version()
     }
 
     /// Calls `f` with the context var set to `source`.

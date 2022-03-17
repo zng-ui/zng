@@ -36,16 +36,19 @@ impl<C: ContextVar> Var<C::Type> for ContextVarProxy<C> {
 
     #[inline]
     fn get<'a, Vr: AsRef<VarsRead>>(&'a self, vars: &'a Vr) -> &'a C::Type {
-        let vars = vars.as_ref();
-        vars.context_var::<C>().value
+        let _vars = vars.as_ref();
+        let ptr = C::thread_local_value().value();
+        // SAFETY: this is safe because the pointer is either 'static or a reference held by
+        // Vars::with_context_var.
+        unsafe { &*ptr }
     }
 
     #[inline]
     fn get_new<'a, Vw: AsRef<Vars>>(&'a self, vars: &'a Vw) -> Option<&'a C::Type> {
         let vars = vars.as_ref();
-        let info = vars.context_var::<C>();
-        if info.is_new {
-            Some(info.value)
+        let key = C::thread_local_value();
+        if key.is_new() {
+            Some(self.get(vars))
         } else {
             None
         }
@@ -53,7 +56,7 @@ impl<C: ContextVar> Var<C::Type> for ContextVarProxy<C> {
 
     #[inline]
     fn is_new<Vw: WithVars>(&self, vars: &Vw) -> bool {
-        vars.with_vars(|v| v.context_var::<C>().is_new)
+        vars.with_vars(|_v| C::thread_local_value().is_new())
     }
 
     #[inline]
@@ -63,12 +66,12 @@ impl<C: ContextVar> Var<C::Type> for ContextVarProxy<C> {
 
     #[inline]
     fn version<Vr: WithVarsRead>(&self, vars: &Vr) -> VarVersion {
-        vars.with_vars_read(|v| v.context_var::<C>().version)
+        vars.with_vars_read(|_v| C::thread_local_value().version())
     }
 
     #[inline]
-    fn is_read_only<Vr: WithVars>(&self, _: &Vr) -> bool {
-        true
+    fn is_read_only<Vr: WithVars>(&self, vars: &Vr) -> bool {
+        vars.with_vars(|_v| C::thread_local_value().is_read_only())
     }
 
     #[inline]
@@ -126,7 +129,7 @@ impl<C: ContextVar> Var<C::Type> for ContextVarProxy<C> {
 
     #[inline]
     fn update_mask<Vr: WithVarsRead>(&self, vars: &Vr) -> UpdateMask {
-        vars.with_vars_read(|v| v.context_var::<C>().update_mask)
+        vars.with_vars_read(|_v| C::thread_local_value().update_mask())
     }
 }
 
@@ -316,18 +319,6 @@ impl<'a, T: VarValue> ContextVarData<'a, T> {
         }
     }
 }
-impl<T: VarValue> ContextVarDataRaw<T> {
-    /// SAFETY: Only [`VarsRead`] can call this safely.
-    pub(crate) unsafe fn into_safe(self, _vars: &VarsRead) -> ContextVarData<T> {
-        ContextVarData {
-            value: &*self.value,
-            is_new: self.is_new,
-            version: self.version,
-            update_mask: self.update_mask,
-            modify: self.modify,
-        }
-    }
-}
 impl<'a, T: VarValue> Clone for ContextVarData<'a, T> {
     fn clone(&self) -> Self {
         Self {
@@ -339,34 +330,7 @@ impl<'a, T: VarValue> Clone for ContextVarData<'a, T> {
         }
     }
 }
-struct ContextVarDataCell<T: VarValue>(UnsafeCell<ContextVarDataRaw<T>>);
-impl<T: VarValue> ContextVarDataCell<T> {
-    pub fn new(data: ContextVarDataRaw<T>) -> Self {
-        ContextVarDataCell(UnsafeCell::new(data))
-    }
 
-    pub fn get(&self) -> ContextVarDataRaw<T> {
-        // SAFETY: this is safe because VarVersion has no cyclical references.
-        unsafe { &*self.0.get() }.clone()
-    }
-
-    pub fn get_version(&self) -> VarVersion {
-        // SAFETY: this is safe because VarVersion has no cyclical references.
-        unsafe { &*self.0.get() }.version
-    }
-
-    pub fn set(&self, data: ContextVarDataRaw<T>) {
-        // SAFETY: this is safe because `Self` is not Sync and we do not share references, so this deref is unique.
-        unsafe {
-            *self.0.get() = data;
-        }
-    }
-
-    pub fn replace(&self, data: ContextVarDataRaw<T>) -> ContextVarDataRaw<T> {
-        // SAFETY: this is safe because `Self` is not Sync and we do not share references, so this borrow is unique.
-        std::mem::replace(unsafe { &mut *self.0.get() }, data)
-    }
-}
 pub(crate) struct ContextVarDataRaw<T: VarValue> {
     value: *const T,
     is_new: bool,
@@ -391,7 +355,11 @@ impl<T: VarValue> Clone for ContextVarDataRaw<T> {
 pub struct ContextVarValue<V: ContextVar> {
     _var: PhantomData<V>,
     _default_value: Box<V::Type>,
-    value: ContextVarDataCell<V::Type>,
+    value: Cell<*const V::Type>,
+    is_new: Cell<bool>,
+    version: Cell<VarVersion>,
+    update_mask: Cell<UpdateMask>,
+    modify: Cell<Option<()>>
 }
 
 #[allow(missing_docs)]
@@ -401,8 +369,13 @@ impl<V: ContextVar> ContextVarValue<V> {
         let default_value = Box::new(V::default_value());
         ContextVarValue {
             _var: PhantomData,
-            value: ContextVarDataCell::new(ContextVarData::fixed(&*default_value).into_raw()),
+            value: Cell::new(default_value.as_ref()),
             _default_value: default_value,
+
+            is_new: Cell::new(false),
+            version: Cell::new(VarVersion::normal(0)),
+            update_mask: Cell::new(UpdateMask::none()),
+            modify: Cell::new(None)
         }
     }
 }
@@ -419,20 +392,48 @@ impl<V: ContextVar> ContextVarLocalKey<V> {
         ContextVarLocalKey { local }
     }
 
-    pub(super) fn get(&self) -> ContextVarDataRaw<V::Type> {
+    pub(super) fn value(&self) -> *const V::Type {
         self.local.with(|l| l.value.get())
     }
 
+    pub(super) fn is_new(&self) -> bool {
+        self.local.with(|l| l.is_new.get())
+    }
+
     pub(super) fn version(&self) -> VarVersion {
-        self.local.with(|l| l.value.get_version())
+        self.local.with(|l| l.version.get())
     }
 
-    pub(super) fn set(&self, value: ContextVarDataRaw<V::Type>) {
-        self.local.with(|l| l.value.set(value))
+    pub(super) fn update_mask(&self) -> UpdateMask {
+        self.local.with(|l| l.update_mask.get())
     }
 
-    pub(super) fn replace(&self, value: ContextVarDataRaw<V::Type>) -> ContextVarDataRaw<V::Type> {
-        self.local.with(|l| l.value.replace(value))
+    pub(super) fn is_read_only(&self) -> bool {
+        self.local.with(|l|l.modify.get().is_none())
+    }
+
+    pub(super) fn set(&self, d: ContextVarDataRaw<V::Type>) {
+        self.local.with(|l| {
+            l.value.set(d.value);
+            l.is_new.set(d.is_new);
+            l.version.set(d.version);
+            l.update_mask.set(d.update_mask);
+            l.modify.set(todo!())
+        })
+    }
+
+    pub(super) fn replace(&self, d: ContextVarDataRaw<V::Type>) -> ContextVarDataRaw<V::Type> {
+        let prev = self.local.with(|l| {
+            ContextVarDataRaw {
+                value: l.value.get(),
+                is_new: l.is_new.get(),
+                version: l.version.get(),
+                update_mask: l.update_mask.get(),
+                modify: todo!(),
+            }
+        });
+        self.set(d);
+        prev
     }
 }
 
