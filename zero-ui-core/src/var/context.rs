@@ -602,7 +602,7 @@ macro_rules! context_var {
             /// [`is_read_only`]: Self::is_read_only
             #[inline]
             #[allow(unused)]
-            pub fn set<Vw, N>(&self, vars: &Vw, new_value: N) -> std::result::Result<(), $crate::var::VarIsReadOnly>
+            pub fn set<Vw, N>(vars: &Vw, new_value: N) -> std::result::Result<(), $crate::var::VarIsReadOnly>
             where
                 Vw: $crate::var::WithVars,
                 N: std::convert::Into<$type>,
