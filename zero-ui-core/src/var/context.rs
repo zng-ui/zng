@@ -6,7 +6,7 @@ use super::*;
 ///
 /// Context var types don't implement [`Var`] directly, to avoid problems with overlapping generics
 /// this *proxy* zero-sized type is used.
-/// 
+///
 /// The context var can have different values when read in different contexts, also the [`VarVersion`] is always different
 /// in different contexts. Context vars are mostly read-only but can be settable if bound to a read/write variable.
 #[derive(Clone)]
@@ -566,6 +566,49 @@ macro_rules! context_var {
             pub fn version<Vr: $crate::var::WithVarsRead>(vars: &Vr) -> $crate::var::VarVersion {
                 $crate::var::Var::version($crate::var::ContextVarProxy::<Self>::static_ref(), vars)
             }
+
+            /// If the value in the current `vars` context cannot be set or modified right now.
+            ///
+            /// If this is `false` the context var can [`set`] or [`modify`], the value is change
+            /// is applied in the backing source of the current value.
+            /// 
+            /// [`set`]: Self::set
+            /// [`modify`]: Self::modify
+            #[inline]
+            #[allow(unused)]
+            pub fn is_read_only<Vw: $crate::var::WithVars>(vars: &Vw) -> bool {
+                $crate::var::Var::is_read_only($crate::var::ContextVarProxy::<Self>::static_ref(), vars)
+            }
+
+            /// Schedule a modification of the variable value source in the current `vars` context.
+            ///
+            /// If the backing source [`is_read_only`] returns an error.
+            ///
+            /// [`is_read_only`]: Self::is_read_only
+            #[inline]
+            #[allow(unused)]
+            pub fn modify<Vw, M>(vars: &Vw, modify: M) -> std::result::Result<(), $crate::var::VarIsReadOnly>
+            where
+                Vw: $crate::var::WithVars,
+                M: std::ops::FnOnce(&mut $crate::var::VarModify<$type>) + 'static
+            {
+                $crate::var::Var::modify($crate::var::ContextVarProxy::<Self>::static_ref(), vars, modify)
+            }
+
+            /// Schedule a new value for the variable value source in the current `vars` context.
+            ///
+            /// If the backing source [`is_read_only`] returns an error.
+            ///
+            /// [`is_read_only`]: Self::is_read_only
+            #[inline]
+            #[allow(unused)]
+            pub fn set<Vw, N>(&self, vars: &Vw, new_value: N) -> std::result::Result<(), $crate::var::VarIsReadOnly>
+            where
+                Vw: $crate::var::WithVars,
+                N: std::convert::Into<$type>,
+            {
+                $crate::var::Var::set($crate::var::ContextVarProxy::<Self>::static_ref(), vars, new_value)
+            }
         }
 
         impl $crate::var::ContextVar for $ident {
@@ -600,7 +643,7 @@ mod properties {
     /// Helper for declaring properties that sets a context var.
     ///
     /// The method presents the `value` as the [`ContextVar<Type=T>`] in the widget and widget descendants.
-    /// The context var [`version`] and [`is_new`] status are always equal to the `value` var status.
+    /// The context var [`is_new`] and [`is_read_only`] status are always equal to the `value` var status.
     ///
     /// The generated [`UiNode`] delegates each method to `child` inside a call to [`VarsRead::with_context_var`].
     ///
@@ -622,8 +665,9 @@ mod properties {
     /// }
     /// ```
     ///
-    /// When set in a widget, the `value` is accessible in all inner nodes of the widget, using `FooVar.get`, and if `value` is set to a
-    /// variable the `FooVar` will also reflect its [`is_new`] and [`version`].
+    /// When set in a widget, the `value` is accessible in all inner nodes of the widget, using `FooVar::get`, and if `value` is set to a
+    /// variable the `FooVar` will also reflect its [`is_new`] and [`is_read_only`]. If the `value` var is not read-only inner nodes
+    /// can modify it using `FooVar::set` or `FooVar::modify`.
     ///
     /// Also note that the property [`default`] is set to the same `FooVar`, this causes the property to *pass-through* the outer context
     /// value, as if it was not set.
@@ -669,8 +713,8 @@ mod properties {
     /// the result will be accessible to the inner properties, the widget user can then set with the composed value in steps and
     /// the final consumer of the composed value only need to monitor to a single context variable.
     ///
-    /// [`version`]: Var::version
     /// [`is_new`]: Var::is_new
+    /// [`is_read_only`]: Var::is_read_only
     /// [`default`]: crate::property#default
     pub fn with_context_var<T: VarValue>(child: impl UiNode, var: impl ContextVar<Type = T>, value: impl IntoVar<T>) -> impl UiNode {
         struct WithContextVarNode<U, C, V> {

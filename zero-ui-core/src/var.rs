@@ -68,7 +68,7 @@ impl<T: fmt::Debug + Clone + 'static> VarValue for T {}
 /// usually a parent widget.
 ///
 /// Use [`context_var!`] to declare.
-/// 
+///
 /// See [`ContextVarProxy<C>`] for details about context var behavior as a var.
 #[cfg_attr(doc_nightly, doc(notable_trait))]
 pub trait ContextVar: Clone + Copy + 'static {
@@ -529,8 +529,7 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + crate::private::Sealed + 'stati
     /// Causes the variable to notify update without changing the value.
     ///
     /// The variable will get a new [`version`] and report that it [`is_new`] but the value
-    /// will not actually change. Note that an app update is only automatically requested if
-    /// the variable is shared ([`strong_count`] > 1).
+    /// will not actually change.
     ///
     /// [`version`]: Var::version
     /// [`is_new`]: Var::is_new
@@ -543,8 +542,7 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + crate::private::Sealed + 'stati
     /// Schedule a new value for the variable.
     ///
     /// After the current app update finishes the `new_value` will be set, the variable will have
-    /// a new [`version`] and [`is_new`] will be `true` for the next app update. If the variable
-    /// is shared ([`strong_count`] > 1) then an app update is also automatically generated.
+    /// a new [`version`] and [`is_new`] will be `true` for the next app update.
     ///
     /// [`version`]: Var::version
     /// [`is_new`]: Var::is_new
