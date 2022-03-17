@@ -1,4 +1,4 @@
-use std::{marker::PhantomData, thread::LocalKey};
+use std::{marker::PhantomData, thread::LocalKey, rc::Rc};
 
 use super::*;
 
@@ -183,7 +183,18 @@ pub struct ContextVarData<'a, T: VarValue> {
     /// Note that the node that owns `self` must not subscribe to this update mask, only
     /// inner nodes that subscribe to the context var mapped to `self` subscribe to this mask.
     pub update_mask: UpdateMask,
+
+    /// Delegate for [`Var::modify`].
+    /// 
+    /// The context var [`Var::is_read_only`] if this is `None`, otherwise this closure is called when any of the
+    /// assign, touch or modify methods are called for the context var.
+    /// 
+    /// Note that this closure is called immediately, but it should only affect the value for the next update cycle,
+    /// like any other variable. The best way to implement this properly is using the [`ContextVarData::var`] constructor.
+    pub modify: ContextVarModify<T>,
 }
+type BoxedVarModify<T> = Box<dyn FnOnce(&mut VarModify<T>)>;
+type ContextVarModify<T> = Option<Rc<dyn Fn(&Vars, BoxedVarModify<T>)>>;
 impl<'a, T: VarValue> ContextVarData<'a, T> {
     /// Value that does not change or update.
     ///
@@ -194,6 +205,7 @@ impl<'a, T: VarValue> ContextVarData<'a, T> {
             is_new: false,
             version: VarVersion::normal(0),
             update_mask: UpdateMask::none(),
+            modify: None,
         }
     }
 
@@ -204,6 +216,11 @@ impl<'a, T: VarValue> ContextVarData<'a, T> {
             is_new: var.is_new(vars),
             version: var.version(vars),
             update_mask: var.update_mask(vars),
+            modify: if var.is_read_only(vars) {
+                None
+            } else {
+                Some(Rc::new(clone_move!(var, |vars, m| var.modify(vars, m).unwrap())))
+            },
         }
     }
 
@@ -214,6 +231,7 @@ impl<'a, T: VarValue> ContextVarData<'a, T> {
             is_new: false,
             version: var.version(vars),
             update_mask: var.update_mask(vars),
+            modify: None,
         }
     }
 
@@ -273,6 +291,7 @@ impl<'a, T: VarValue> ContextVarData<'a, T> {
             is_new: var.is_new(vars),
             version: var.version(vars),
             update_mask: var.update_mask(vars),
+            modify: None,
         }
     }
 
@@ -283,6 +302,7 @@ impl<'a, T: VarValue> ContextVarData<'a, T> {
             is_new: false,
             version: var.version(vars),
             update_mask: var.update_mask(vars),
+            modify: None,
         }
     }
 
@@ -292,6 +312,7 @@ impl<'a, T: VarValue> ContextVarData<'a, T> {
             is_new: self.is_new,
             version: self.version,
             update_mask: self.update_mask,
+            modify: self.modify,
         }
     }
 }
@@ -303,6 +324,7 @@ impl<T: VarValue> ContextVarDataRaw<T> {
             is_new: self.is_new,
             version: self.version,
             update_mask: self.update_mask,
+            modify: self.modify,
         }
     }
 }
@@ -313,6 +335,7 @@ impl<'a, T: VarValue> Clone for ContextVarData<'a, T> {
             is_new: self.is_new,
             version: self.version,
             update_mask: self.update_mask,
+            modify: self.modify.clone(),
         }
     }
 }
@@ -349,6 +372,7 @@ pub(crate) struct ContextVarDataRaw<T: VarValue> {
     is_new: bool,
     version: VarVersion,
     update_mask: UpdateMask,
+    modify: ContextVarModify<T>,
 }
 impl<T: VarValue> Clone for ContextVarDataRaw<T> {
     fn clone(&self) -> Self {
@@ -357,6 +381,7 @@ impl<T: VarValue> Clone for ContextVarDataRaw<T> {
             is_new: self.is_new,
             version: self.version,
             update_mask: self.update_mask,
+            modify: self.modify.clone(),
         }
     }
 }
@@ -1006,5 +1031,23 @@ mod tests {
         });
 
         assert_eq!(test.ctx().app_state.get(ProbeKey), Some(&Text::from("map B!")));
+    }
+
+    #[test]
+    fn context_var_set() {
+        let mut app = test_app(NilUiNode);
+
+        let backing_var = var(Text::from(""));
+
+        let ctx = app.ctx();
+        ctx.vars.with_context_var(TestVar, ContextVarData::var(ctx.vars, &backing_var), || {
+            let t = TestVar::new();
+            assert!(!t.is_read_only(ctx.vars));
+            t.set(ctx.vars, "set!").unwrap();
+        });
+
+        let _ = app.update(false);
+        let ctx = app.ctx();
+        assert_eq!(backing_var.get(ctx.vars), "set!");
     }
 }
