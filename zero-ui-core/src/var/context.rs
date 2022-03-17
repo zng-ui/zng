@@ -1,4 +1,4 @@
-use std::{marker::PhantomData, thread::LocalKey, rc::Rc};
+use std::{marker::PhantomData, thread::LocalKey};
 
 use super::*;
 
@@ -6,6 +6,9 @@ use super::*;
 ///
 /// Context var types don't implement [`Var`] directly, to avoid problems with overlapping generics
 /// this *proxy* zero-sized type is used.
+/// 
+/// The context var can have different values when read in different contexts, also the [`VarVersion`] is always different
+/// in different contexts. Context vars are mostly read-only but can be settable if bound to a read/write variable.
 #[derive(Clone)]
 pub struct ContextVarProxy<C: ContextVar>(PhantomData<C>);
 impl<C: ContextVar> ContextVarProxy<C> {
@@ -76,7 +79,7 @@ impl<C: ContextVar> Var<C::Type> for ContextVarProxy<C> {
 
     #[inline]
     fn always_read_only(&self) -> bool {
-        true
+        false
     }
 
     #[inline]
@@ -95,31 +98,20 @@ impl<C: ContextVar> Var<C::Type> for ContextVarProxy<C> {
     }
 
     #[inline]
-    fn modify<Vw, M>(&self, _: &Vw, _: M) -> Result<(), VarIsReadOnly>
+    fn modify<Vw, M>(&self, vars: &Vw, modify: M) -> Result<(), VarIsReadOnly>
     where
         Vw: WithVars,
         M: FnOnce(&mut VarModify<C::Type>) + 'static,
     {
-        Err(VarIsReadOnly)
-    }
-
-    #[inline]
-    fn set<Vw, N>(&self, _: &Vw, _: N) -> Result<(), VarIsReadOnly>
-    where
-        Vw: WithVars,
-        N: Into<C::Type>,
-    {
-        Err(VarIsReadOnly)
-    }
-
-    #[inline]
-    fn set_ne<Vw, N>(&self, _: &Vw, _: N) -> Result<bool, VarIsReadOnly>
-    where
-        Vw: WithVars,
-        N: Into<C::Type>,
-        C::Type: PartialEq,
-    {
-        Err(VarIsReadOnly)
+        vars.with_vars(|v| {
+            if let Some(m) = C::thread_local_value().modify() {
+                let m = unsafe { &*m };
+                m(v, Box::new(modify));
+                Ok(())
+            } else {
+                Err(VarIsReadOnly)
+            }
+        })
     }
 
     #[inline]
@@ -170,7 +162,7 @@ impl<C: ContextVar> IntoVar<C::Type> for ContextVarProxy<C> {
 /// ```
 ///
 /// Note that this is the lowest level of [`ContextVar`] manipulation, usually you can just use the [`with_context_var`]
-/// or [`with_context_var_wgt_only`] helper functions to bind another variable to a context variable, internally these
+/// helper function to bind another variable to a context variable, internally these
 /// functions use the [`ContextVarData::var`] and [`ContextVarData::var_read`] in all [`UiNode`] methods.
 ///
 /// [`UiNode`]: crate::UiNode
@@ -188,16 +180,15 @@ pub struct ContextVarData<'a, T: VarValue> {
     pub update_mask: UpdateMask,
 
     /// Delegate for [`Var::modify`].
-    /// 
+    ///
     /// The context var [`Var::is_read_only`] if this is `None`, otherwise this closure is called when any of the
     /// assign, touch or modify methods are called for the context var.
-    /// 
+    ///
     /// Note that this closure is called immediately, but it should only affect the value for the next update cycle,
     /// like any other variable. The best way to implement this properly is using the [`ContextVarData::var`] constructor.
-    pub modify: ContextVarModify<T>,
+    pub modify: Option<Box<ContextModify<T>>>,
 }
-type BoxedVarModify<T> = Box<dyn FnOnce(&mut VarModify<T>)>;
-type ContextVarModify<T> = Option<Rc<dyn Fn(&Vars, BoxedVarModify<T>)>>;
+type ContextModify<T> = dyn Fn(&Vars, Box<dyn FnOnce(&mut VarModify<T>)>);
 impl<'a, T: VarValue> ContextVarData<'a, T> {
     /// Value that does not change or update.
     ///
@@ -212,7 +203,9 @@ impl<'a, T: VarValue> ContextVarData<'a, T> {
         }
     }
 
-    /// Binds the context var to another `var`.
+    /// Binds the context var to another `var` in a read-write context.
+    ///
+    /// If the `var` is not read-only the context var will pipe
     pub fn var(vars: &'a Vars, var: &'a impl Var<T>) -> Self {
         Self {
             value: var.get(vars),
@@ -222,8 +215,24 @@ impl<'a, T: VarValue> ContextVarData<'a, T> {
             modify: if var.is_read_only(vars) {
                 None
             } else {
-                Some(Rc::new(clone_move!(var, |vars, m| var.modify(vars, m).unwrap())))
+                Some(Box::new(clone_move!(var, |vars, m| var.modify(vars, m).unwrap())))
             },
+        }
+    }
+
+    /// Binds the context var to another `var` in a read-write context, but forces it to be read-only.
+    ///
+    /// This is different from [`var_read`] in that the value can still be flagged as new, but it ensures that
+    /// the context var does not modify the `var`.
+    ///
+    /// [`var_read`]: Self::var_read
+    pub fn var_read_only(vars: &'a Vars, var: &'a impl Var<T>) -> Self {
+        Self {
+            value: var.get(vars),
+            is_new: var.is_new(vars),
+            version: var.version(vars),
+            update_mask: var.update_mask(vars),
+            modify: None,
         }
     }
 
@@ -286,8 +295,11 @@ impl<'a, T: VarValue> ContextVarData<'a, T> {
     /// The example only demonstrates one [`UiNode`] method but usually all methods must do the same, and you must
     /// use [`map_read`] in the methods that only expose the [`VarsRead`] accessor.
     ///
+    /// The context var is read-only, use [`map_bidi`] to support write.
+    ///
     /// [`UiNode`]: crate::UiNode
     /// [`map_read`]: Self::map_read
+    /// [`map_bidi`]: Self::map_bidi
     pub fn map<'b, S: VarValue>(vars: &'b Vars, var: &'b impl Var<S>, value: &'a T) -> Self {
         Self {
             value,
@@ -295,6 +307,38 @@ impl<'a, T: VarValue> ContextVarData<'a, T> {
             version: var.version(vars),
             update_mask: var.update_mask(vars),
             modify: None,
+        }
+    }
+
+    /// Binds the context var to a `value` that is always derived from another `var` such that
+    /// they update at the same time. The context var is read/write, if modified the `map_back` closure is called
+    /// to generate the value that is assigned back to `var`.
+    pub fn map_bidi<'b, S: VarValue>(vars: &'b Vars, var: &'b impl Var<S>, value: &'a T, map_back: impl FnMut(&T) -> S + 'static) -> Self {
+        Self {
+            is_new: var.is_new(vars),
+            version: var.version(vars),
+            update_mask: var.update_mask(vars),
+            modify: if var.is_read_only(vars) {
+                None
+            } else {
+                use std::{cell::RefCell, rc::Rc};
+
+                let value = Rc::new(RefCell::new(value.clone()));
+                let map_back = Rc::new(RefCell::new(map_back));
+                Some(Box::new(clone_move!(var, |vars, modify| {
+                    var.modify(
+                        vars,
+                        clone_move!(value, map_back, |m| {
+                            let mut value = value.borrow_mut();
+                            modify(&mut VarModify::new(&mut value));
+                            let value = (map_back.borrow_mut())(&value);
+                            **m = value;
+                        }),
+                    )
+                    .unwrap();
+                })))
+            },
+            value,
         }
     }
 
@@ -315,18 +359,7 @@ impl<'a, T: VarValue> ContextVarData<'a, T> {
             is_new: self.is_new,
             version: self.version,
             update_mask: self.update_mask,
-            modify: self.modify,
-        }
-    }
-}
-impl<'a, T: VarValue> Clone for ContextVarData<'a, T> {
-    fn clone(&self) -> Self {
-        Self {
-            value: self.value,
-            is_new: self.is_new,
-            version: self.version,
-            update_mask: self.update_mask,
-            modify: self.modify.clone(),
+            modify: self.modify.map(Box::into_raw),
         }
     }
 }
@@ -336,18 +369,7 @@ pub(crate) struct ContextVarDataRaw<T: VarValue> {
     is_new: bool,
     version: VarVersion,
     update_mask: UpdateMask,
-    modify: ContextVarModify<T>,
-}
-impl<T: VarValue> Clone for ContextVarDataRaw<T> {
-    fn clone(&self) -> Self {
-        Self {
-            value: self.value,
-            is_new: self.is_new,
-            version: self.version,
-            update_mask: self.update_mask,
-            modify: self.modify.clone(),
-        }
-    }
+    modify: Option<*mut ContextModify<T>>,
 }
 
 /// See `ContextVar::thread_local_value`.
@@ -359,7 +381,7 @@ pub struct ContextVarValue<V: ContextVar> {
     is_new: Cell<bool>,
     version: Cell<VarVersion>,
     update_mask: Cell<UpdateMask>,
-    modify: Cell<Option<()>>
+    modify: Cell<Option<*mut ContextModify<V::Type>>>,
 }
 
 #[allow(missing_docs)]
@@ -375,7 +397,7 @@ impl<V: ContextVar> ContextVarValue<V> {
             is_new: Cell::new(false),
             version: Cell::new(VarVersion::normal(0)),
             update_mask: Cell::new(UpdateMask::none()),
-            modify: Cell::new(None)
+            modify: Cell::new(None),
         }
     }
 }
@@ -409,7 +431,11 @@ impl<V: ContextVar> ContextVarLocalKey<V> {
     }
 
     pub(super) fn is_read_only(&self) -> bool {
-        self.local.with(|l|l.modify.get().is_none())
+        self.local.with(|l| l.modify.get().is_none())
+    }
+
+    pub(super) fn modify(&self) -> Option<*mut ContextModify<V::Type>> {
+        self.local.with(|l| l.modify.get())
     }
 
     pub(super) fn set(&self, d: ContextVarDataRaw<V::Type>) {
@@ -418,19 +444,19 @@ impl<V: ContextVar> ContextVarLocalKey<V> {
             l.is_new.set(d.is_new);
             l.version.set(d.version);
             l.update_mask.set(d.update_mask);
-            l.modify.set(todo!())
+            if let Some(m) = l.modify.replace(d.modify) {
+                let _ = unsafe { Box::from_raw(m) };
+            }
         })
     }
 
     pub(super) fn replace(&self, d: ContextVarDataRaw<V::Type>) -> ContextVarDataRaw<V::Type> {
-        let prev = self.local.with(|l| {
-            ContextVarDataRaw {
-                value: l.value.get(),
-                is_new: l.is_new.get(),
-                version: l.version.get(),
-                update_mask: l.update_mask.get(),
-                modify: todo!(),
-            }
+        let prev = self.local.with(|l| ContextVarDataRaw {
+            value: l.value.get(),
+            is_new: l.is_new.get(),
+            version: l.version.get(),
+            update_mask: l.update_mask.get(),
+            modify: l.modify.get(),
         });
         self.set(d);
         prev
@@ -721,113 +747,6 @@ mod properties {
             }
         }
         WithContextVarNode {
-            child,
-            var,
-            value: value.into_var(),
-        }
-    }
-
-    /// Helper for declaring properties that sets a context var for the widget only.
-    ///
-    /// This is similar to [`with_context_var`] except the context var value is visible only inside
-    /// the `child` nodes that are part of the same widget that is the parent of the return node.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// # fn main() -> () { }
-    /// # use zero_ui_core::{*, var::*, border::CornerRadius};
-    /// context_var! {
-    ///     pub struct CornersClipVar: CornerRadius = CornerRadius::zero();
-    /// }
-    ///
-    /// /// Sets widget content clip corner radius.
-    /// #[property(context, default(CornersClipVar))]
-    /// pub fn corners_clip(child: impl UiNode, radius: impl IntoVar<CornerRadius>) -> impl UiNode {
-    ///     with_context_var_wgt_only(child, CornersClipVar, radius)
-    /// }
-    /// ```
-    pub fn with_context_var_wgt_only<T: VarValue>(
-        child: impl UiNode,
-        var: impl ContextVar<Type = T>,
-        value: impl IntoVar<T>,
-    ) -> impl UiNode {
-        struct WithContextVarWidgetOnlyNode<U, C, V> {
-            child: U,
-            var: C,
-            value: V,
-        }
-        impl<U, T, C, V> UiNode for WithContextVarWidgetOnlyNode<U, C, V>
-        where
-            U: UiNode,
-            T: VarValue,
-            C: ContextVar<Type = T>,
-            V: Var<T>,
-        {
-            #[inline(always)]
-            fn info(&self, ctx: &mut InfoContext, widget: &mut WidgetInfoBuilder) {
-                ctx.vars
-                    .with_context_var_wgt_only(self.var, ContextVarData::var_read(ctx.vars, &self.value), || {
-                        self.child.info(ctx, widget)
-                    });
-            }
-            #[inline(always)]
-            fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
-                ctx.vars
-                    .with_context_var_wgt_only(self.var, ContextVarData::var_read(ctx.vars, &self.value), || {
-                        self.child.subscriptions(ctx, subscriptions)
-                    });
-            }
-            #[inline(always)]
-            fn init(&mut self, ctx: &mut WidgetContext) {
-                ctx.vars
-                    .with_context_var_wgt_only(self.var, ContextVarData::var(ctx.vars, &self.value), || self.child.init(ctx));
-            }
-            #[inline(always)]
-            fn deinit(&mut self, ctx: &mut WidgetContext) {
-                ctx.vars
-                    .with_context_var_wgt_only(self.var, ContextVarData::var(ctx.vars, &self.value), || self.child.deinit(ctx));
-            }
-            #[inline(always)]
-            fn update(&mut self, ctx: &mut WidgetContext) {
-                ctx.vars
-                    .with_context_var_wgt_only(self.var, ContextVarData::var(ctx.vars, &self.value), || self.child.update(ctx));
-            }
-            #[inline(always)]
-            fn event<A: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &A) {
-                ctx.vars
-                    .with_context_var_wgt_only(self.var, ContextVarData::var(ctx.vars, &self.value), || self.child.event(ctx, args));
-            }
-            #[inline(always)]
-            fn measure(&mut self, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize {
-                ctx.vars
-                    .with_context_var_wgt_only(self.var, ContextVarData::var(ctx.vars, &self.value), || {
-                        self.child.measure(ctx, available_size)
-                    })
-            }
-            #[inline(always)]
-            fn arrange(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, final_size: PxSize) {
-                ctx.vars
-                    .with_context_var_wgt_only(self.var, ContextVarData::var(ctx.vars, &self.value), || {
-                        self.child.arrange(ctx, widget_layout, final_size)
-                    })
-            }
-            #[inline(always)]
-            fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-                ctx.vars
-                    .with_context_var_wgt_only(self.var, ContextVarData::var_read(ctx.vars, &self.value), || {
-                        self.child.render(ctx, frame)
-                    });
-            }
-            #[inline(always)]
-            fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
-                ctx.vars
-                    .with_context_var_wgt_only(self.var, ContextVarData::var_read(ctx.vars, &self.value), || {
-                        self.child.render_update(ctx, update)
-                    });
-            }
-        }
-        WithContextVarWidgetOnlyNode {
             child,
             var,
             value: value.into_var(),

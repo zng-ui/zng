@@ -1,7 +1,7 @@
 //! Variables.
 
 use std::{
-    cell::{Cell, UnsafeCell},
+    cell::Cell,
     convert::{TryFrom, TryInto},
     fmt,
     ops::{Deref, DerefMut},
@@ -68,6 +68,8 @@ impl<T: fmt::Debug + Clone + 'static> VarValue for T {}
 /// usually a parent widget.
 ///
 /// Use [`context_var!`] to declare.
+/// 
+/// See [`ContextVarProxy<C>`] for details about context var behavior as a var.
 #[cfg_attr(doc_nightly, doc(notable_trait))]
 pub trait ContextVar: Clone + Copy + 'static {
     /// The variable type.

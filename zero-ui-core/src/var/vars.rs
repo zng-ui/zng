@@ -99,8 +99,6 @@ pub struct VarsRead {
     context_id: Cell<Option<WidgetId>>,
     contextless_count: Cell<u32>,
     update_id: u32,
-    #[allow(clippy::type_complexity)]
-    widget_clear: RefCell<Vec<Box<dyn Fn(bool)>>>,
 
     app_event_sender: AppEventSender,
     senders: RefCell<Vec<SyncEntry>>,
@@ -121,10 +119,6 @@ impl VarsRead {
 
     pub(super) fn link_updates(&self, check: impl Fn(&Vars, &mut UpdateMask) -> Retain + 'static) {
         self.update_links.borrow_mut().push(Box::new(check))
-    }
-
-    pub(super) fn context_var_version<C: ContextVar>(&self) -> VarVersion {
-        C::thread_local_value().version()
     }
 
     /// Calls `f` with the context var set to `source`.
@@ -166,53 +160,6 @@ impl VarsRead {
         // _prev restores the parent reference here on drop
     }
 
-    /// Calls `f` with the context var set to `value`, but only for the current widget not its descendants.
-    ///
-    /// # Source Update
-    ///
-    /// Nodes within `f` expect the same source [`update_mask`] from the previous call, if you are swapping the
-    /// entire `source` value for a new one you must request an [`info`] update.
-    ///
-    /// [`update_mask`]: ContextVarData::update_mask
-    /// [`info`]: crate::context::Updates::info
-    #[inline(always)]
-    pub fn with_context_var_wgt_only<C, R, F>(&self, context_var: C, mut data: ContextVarData<C::Type>, f: F) -> R
-    where
-        C: ContextVar,
-        F: FnOnce() -> R,
-    {
-        // SAFETY: `Self::context_var` makes safety assumptions about this code
-        // don't change before studying it.
-
-        let _ = context_var;
-
-        if let Some(context_id) = self.context_id.get() {
-            let prev_version = C::thread_local_value().version();
-            data.version.set_widget_context(&prev_version, context_id);
-        } else {
-            let count = self.contextless_count.get().wrapping_add(1);
-            self.contextless_count.set(count);
-            data.version.set_app_context(count);
-        }
-
-        let new = data.into_raw();
-        let prev = C::thread_local_value().replace(new.clone());
-
-        self.widget_clear.borrow_mut().push(Box::new(clone_move!(prev, |undo| {
-            if undo {
-                C::thread_local_value().set(prev.clone());
-            } else {
-                C::thread_local_value().set(new.clone());
-            }
-        })));
-
-        let _restore = RunOnDrop::new(move || {
-            C::thread_local_value().set(prev);
-        });
-
-        f()
-    }
-
     /// Clears widget only context var values, calls `f` and restores widget only context var values.
     ///
     /// This is called by the layout and render contexts.
@@ -220,16 +167,8 @@ impl VarsRead {
     pub(crate) fn with_widget<R, F: FnOnce() -> R>(&self, widget_id: WidgetId, f: F) -> R {
         let parent_wgt = self.context_id.get();
         self.context_id.set(Some(widget_id));
-        let wgt_clear = std::mem::take(&mut *self.widget_clear.borrow_mut());
-        for clear in &wgt_clear {
-            clear(true);
-        }
 
         let _restore = RunOnDrop::new(move || {
-            for clear in &wgt_clear {
-                clear(false);
-            }
-            *self.widget_clear.borrow_mut() = wgt_clear;
             self.context_id.set(parent_wgt);
         });
 
@@ -364,7 +303,6 @@ impl Vars {
                 contextless_count: Cell::new(0),
                 update_id: 1u32,
                 app_event_sender,
-                widget_clear: Default::default(),
                 senders: RefCell::default(),
                 receivers: RefCell::default(),
                 update_links: RefCell::default(),

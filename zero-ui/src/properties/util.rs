@@ -180,11 +180,6 @@ mod tests {
         with_context_var(child, TestVar, value)
     }
 
-    #[property(context)]
-    fn with_var_wgt_only_test(child: impl UiNode, value: impl IntoVar<u8>) -> impl UiNode {
-        with_context_var_wgt_only(child, TestVar, value)
-    }
-
     #[property(fill)]
     fn test_var_probe(child: impl UiNode, value: impl Var<u8>) -> impl UiNode {
         struct TestVarProbeNode<C, V> {
@@ -280,59 +275,6 @@ mod tests {
                 }
             ];
         };
-        let mut ctx = TestWidgetContext::new();
-
-        wgt.test_init(&mut ctx);
-        ctx.subscriptions(|ctx, subs| wgt.subscriptions(ctx, subs));
-        ctx.apply_updates();
-
-        // `1` is the default value.
-        assert_eq!(&1, probe.get(&ctx.vars));
-
-        value.set(&ctx.vars, 3);
-        ctx.apply_updates();
-        wgt.test_update(&mut ctx);
-        ctx.apply_updates();
-
-        assert_eq!(&1, probe.get(&ctx.vars));
-    }
-
-    #[test]
-    fn with_context_var_wgt_only_same_widget() {
-        let value = var(2);
-        let probe = var(0);
-        let mut wgt = blank! {
-            with_var_wgt_only_test = value.clone();
-            test_var_probe = probe.clone();
-        };
-        let mut ctx = TestWidgetContext::new();
-
-        wgt.test_init(&mut ctx);
-        ctx.subscriptions(|ctx, subs| wgt.subscriptions(ctx, subs));
-        ctx.apply_updates();
-
-        assert_eq!(&2, probe.get(&ctx.vars));
-
-        value.set(&ctx.vars, 3);
-        ctx.apply_updates();
-        wgt.test_update(&mut ctx);
-        ctx.apply_updates();
-
-        assert_eq!(&3, probe.get(&ctx.vars));
-    }
-
-    #[test]
-    fn with_context_var_wgt_only_inner_widget_not_affected() {
-        let value = var(2);
-        let probe = var(0);
-
-        let mut wgt = container! {
-            content = blank! {
-                test_var_probe = probe.clone();
-            };
-            with_var_wgt_only_test = value.clone();
-        };
-
         let mut ctx = TestWidgetContext::new();
 
         wgt.test_init(&mut ctx);
