@@ -389,7 +389,7 @@ impl<O: VarValue> Var<O> for RcWhenVar<O> {
         let vars = vars.as_ref();
 
         for (c, v) in self.0.whens.iter() {
-            if *c.get(vars) {
+            if c.copy(vars) {
                 return v.get(vars);
             }
         }
@@ -409,7 +409,7 @@ impl<O: VarValue> Var<O> for RcWhenVar<O> {
         let mut condition_is_new = false;
         for (c, v) in self.0.whens.iter() {
             condition_is_new |= c.is_new(vars);
-            if *c.get(vars) {
+            if c.copy(vars) {
                 return if condition_is_new {
                     // a higher priority condition is new `false` of the current condition is new `true`.
                     Some(v.get(vars))
@@ -434,7 +434,7 @@ impl<O: VarValue> Var<O> for RcWhenVar<O> {
             let mut condition_is_new = false;
             for (c, v) in self.0.whens.iter() {
                 condition_is_new |= c.is_new(vars);
-                if *c.get(vars) {
+                if c.copy(vars) {
                     return condition_is_new || v.is_new(vars);
                 }
             }
@@ -449,7 +449,7 @@ impl<O: VarValue> Var<O> for RcWhenVar<O> {
         match Rc::try_unwrap(self.0) {
             Ok(r) => vars.with_vars_read(move |vars| {
                 for (c, v) in Vec::from(r.whens) {
-                    if *c.get(vars) {
+                    if c.copy(vars) {
                         return v.into_value(vars);
                     }
                 }
@@ -498,7 +498,7 @@ impl<O: VarValue> Var<O> for RcWhenVar<O> {
     fn is_read_only<Vw: WithVars>(&self, vars: &Vw) -> bool {
         vars.with_vars(|vars| {
             for (c, v) in self.0.whens.iter() {
-                if *c.get(vars) {
+                if c.copy(vars) {
                     return v.is_read_only(vars);
                 }
             }
@@ -530,7 +530,7 @@ impl<O: VarValue> Var<O> for RcWhenVar<O> {
     {
         vars.with_vars(|vars| {
             for (c, v) in self.0.whens.iter() {
-                if *c.get(vars) {
+                if c.copy(vars) {
                     return v.set(vars, new_value);
                 }
             }
@@ -551,7 +551,7 @@ impl<O: VarValue> Var<O> for RcWhenVar<O> {
     {
         vars.with_vars(|vars| {
             for (c, v) in self.0.whens.iter() {
-                if *c.get(vars) {
+                if c.copy(vars) {
                     return v.set_ne(vars, new_value);
                 }
             }
@@ -563,7 +563,7 @@ impl<O: VarValue> Var<O> for RcWhenVar<O> {
     fn modify<Vw: WithVars, F: FnOnce(&mut VarModify<O>) + 'static>(&self, vars: &Vw, change: F) -> Result<(), VarIsReadOnly> {
         vars.with_vars(|vars| {
             for (c, v) in self.0.whens.iter() {
-                if *c.get(vars) {
+                if c.copy(vars) {
                     return v.modify(vars, change);
                 }
             }

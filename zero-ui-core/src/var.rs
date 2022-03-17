@@ -1,7 +1,7 @@
 //! Variables.
 
 use std::{
-    cell::{UnsafeCell, Cell},
+    cell::{Cell, UnsafeCell},
     convert::{TryFrom, TryInto},
     fmt,
     ops::{Deref, DerefMut},
