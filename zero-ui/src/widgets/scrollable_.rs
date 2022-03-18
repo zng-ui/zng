@@ -1296,7 +1296,7 @@ pub mod thumb {
                         let offset = offset - start_offset;
                         let offset = (max_length.to_f32() / offset.to_f32()).max(0.0).min(1.0);
 
-                        ThumbOffsetVar::set_ne(ctx.vars, Factor(offset)).expect("ThumbOffsetVar is read-only");
+                        ThumbOffsetVar::new().set_ne(ctx.vars, Factor(offset)).expect("ThumbOffsetVar is read-only");
 
                         ctx.updates.layout();
                         self.child.event(ctx, args);

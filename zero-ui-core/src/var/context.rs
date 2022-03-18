@@ -551,7 +551,7 @@ macro_rules! context_var {
                 $crate::var::Var::clone_new($crate::var::ContextVarProxy::<Self>::static_ref(), vars)
             }
 
-            // TODO generate copy fns when https://github.com/rust-lang/rust/issues/48214 is stable
+            // TODO generate copy and set_ne fns when https://github.com/rust-lang/rust/issues/48214 is stable
 
             /// If the value in the current `vars` context is marked as new.
             #[inline]
