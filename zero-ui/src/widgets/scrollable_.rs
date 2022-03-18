@@ -1263,7 +1263,7 @@ pub mod thumb {
         )
     }
 
-    fn temp() {
+    fn new_layout(child: impl UiNode) -> impl UiNode {
         struct DragNode<C> {
             child: C,
             viewport_length: Dip,
@@ -1291,7 +1291,12 @@ pub mod thumb {
                         } - mouse_down;
 
                         let max_length = self.viewport_length - self.thumb_length;
+                        let start_offset = max_length * start_offset.0;
 
+                        let offset = offset - start_offset;
+                        let offset = (max_length.to_f32() / offset.to_f32()).max(0.0).min(1.0);
+
+                        ThumbOffsetVar::set_ne(ctx.vars, Factor(offset)).expect("ThumbOffsetVar is read-only");
 
                         ctx.updates.layout();
                         self.child.event(ctx, args);
@@ -1336,98 +1341,6 @@ pub mod thumb {
                     self.final_offset = final_offset;
                     ctx.updates.render_update();
                 }
-            
-                widget_layout.with_custom_transform(&RenderTransform::translation_px(self.final_offset), |wo| {
-                    self.child.arrange(ctx, wo, final_size)
-                });
-            }
-
-            fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-                let transform = RenderTransform::translation_px(self.final_offset);
-                frame.push_reference_frame(self.spatial_id, self.offset_key.bind(transform), true, |f| {
-                    self.child.render(ctx, f)
-                });
-            }
-
-            fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
-                let transform = RenderTransform::translation_px(self.final_offset);
-                update.update_transform(self.offset_key.update(transform));
-
-                self.child.render_update(ctx, update);
-            }
-        }
-    }
-
-    fn new_layout(child: impl UiNode) -> impl UiNode {
-        struct DragNode<C> {
-            child: C,
-            start: Option<DipPoint>,
-            offset: DipVector,
-            final_offset: PxVector,
-            spatial_id: SpatialFrameId,
-            offset_key: FrameBindingKey<RenderTransform>,
-        }
-        #[impl_ui_node(child)]
-        impl<C: UiNode> UiNode for DragNode<C> {
-            fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
-                subscriptions.event(MouseMoveEvent).event(MouseInputEvent);
-                self.child.subscriptions(ctx, subscriptions);
-            }
-
-            fn event<A: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &A) {
-                if let Some(start) = self.start {
-                    if let Some(args) = MouseMoveEvent.update(args) {
-                        match *ThumbOrientationVar::get(ctx) {
-                            scrollbar::Orientation::Vertical => {
-                                self.offset.y = args.position.y - start.y;
-                            }
-                            scrollbar::Orientation::Horizontal => {
-                                self.offset.x = args.position.x - start.x;
-                            }
-                        }
-                        ctx.updates.layout();
-                        self.child.event(ctx, args);
-                    } else if let Some(args) = MouseInputEvent.update(args) {
-                        if args.is_primary() && args.is_mouse_up() {
-                            self.start = None;
-                            self.offset = DipVector::zero();
-                            ctx.updates.layout();
-                        }
-                        self.child.event(ctx, args);
-                    } else {
-                        self.child.event(ctx, args);
-                    }
-                } else if let Some(args) = MouseInputEvent.update(args) {
-                    if args.is_primary() && args.is_mouse_down() && args.concerns_widget(ctx) {
-                        self.start = Some(args.position);
-                    }
-                    self.child.event(ctx, args);
-                } else {
-                    self.child.event(ctx, args);
-                }
-            }
-
-            fn arrange(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, final_size: PxSize) {
-                let x = *ThumbOffsetVar::get(ctx.vars);
-
-                let mut final_offset = self.offset.to_px(ctx.metrics.scale_factor.0);
-
-                let ratio = *ThumbViewportRatioVar::get(ctx);
-                match *ThumbOrientationVar::get(ctx) {
-                    scrollbar::Orientation::Vertical => {
-                        let thumb_height = final_size.height * ratio;
-                        final_offset.y = final_offset.y.max(Px(0)).min(final_size.height - thumb_height);
-                    }
-                    scrollbar::Orientation::Horizontal => {
-                        let thumb_width = final_size.width * ratio;
-                        final_offset.x = final_offset.x.max(Px(0)).min(final_size.width - thumb_width);
-                    }
-                }
-
-                if self.final_offset != final_offset {
-                    ctx.updates.render_update();
-                    self.final_offset = final_offset;
-                }
 
                 widget_layout.with_custom_transform(&RenderTransform::translation_px(self.final_offset), |wo| {
                     self.child.arrange(ctx, wo, final_size)
@@ -1448,11 +1361,13 @@ pub mod thumb {
                 self.child.render_update(ctx, update);
             }
         }
-
         DragNode {
             child,
-            start: None,
-            offset: DipVector::zero(),
+            viewport_length: Dip::new(0),
+            thumb_length: Dip::new(0),
+
+            mouse_down: None,
+
             final_offset: PxVector::zero(),
             spatial_id: SpatialFrameId::new_unique(),
             offset_key: FrameBindingKey::new_unique(),

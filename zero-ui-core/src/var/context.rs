@@ -571,7 +571,7 @@ macro_rules! context_var {
             ///
             /// If this is `false` the context var can [`set`] or [`modify`], the value is change
             /// is applied in the backing source of the current value.
-            /// 
+            ///
             /// [`set`]: Self::set
             /// [`modify`]: Self::modify
             #[inline]
