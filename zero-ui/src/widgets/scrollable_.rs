@@ -1246,12 +1246,12 @@ pub mod thumb {
         capture_mouse = true;
 
         /// When the pointer device is over this thumb.
-        when self.is_cap_hovered {
+        when self.is_hovered {
             background_color = theme::hovered::BackgroundVar;
         }
 
         /// When the thumb is pressed.
-        when self.is_pressed  {
+        when self.is_cap_pressed  {
             background_color = theme::pressed::BackgroundVar;
         }
     }
