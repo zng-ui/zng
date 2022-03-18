@@ -30,7 +30,7 @@ pub mod scrollable {
         /// By default scrolls in both dimensions.
         mode(impl IntoVar<ScrollMode>) = ScrollMode::ALL;
 
-        /// Scrollbar generator for both orientations.
+        /// Scrollbar widget generator for both orientations.
         ///
         /// This property sets both [`v_scrollbar_view`] and [`h_scrollbar_view`] to the same `generator`.
         ///
@@ -38,9 +38,9 @@ pub mod scrollable {
         /// [`h_scrollbar_view`]: #wp-h_scrollbar_view
         scrollbar_view;
 
-        /// Horizontal scrollbar generator.
+        /// Horizontal scrollbar widget generator.
         h_scrollbar_view;
-        /// Vertical scrollbar generator.
+        /// Vertical scrollbar widget generator.
         v_scrollbar_view;
 
         /// Horizontal and vertical offsets used when scrolling.
@@ -68,7 +68,7 @@ pub mod scrollable {
         /// Enabled by default.
         clip_to_bounds = true;
 
-        /// Clip content to only be visible within the viewport.
+        /// Clip content to only be visible within the viewport, not under scrollbars.
         ///
         /// Disabled by default.
         clip_to_viewport(impl IntoVar<bool>) = false;
