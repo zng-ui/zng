@@ -1263,6 +1263,101 @@ pub mod thumb {
         )
     }
 
+    fn temp() {
+        struct DragNode<C> {
+            child: C,
+            viewport_length: Dip,
+            thumb_length: Dip,
+
+            mouse_down: Option<(Dip, Factor)>,
+
+            final_offset: PxVector,
+            spatial_id: SpatialFrameId,
+            offset_key: FrameBindingKey<RenderTransform>,
+        }
+        #[impl_ui_node(child)]
+        impl<C: UiNode> UiNode for DragNode<C> {
+            fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
+                subscriptions.event(MouseMoveEvent).event(MouseInputEvent);
+                self.child.subscriptions(ctx, subscriptions);
+            }
+
+            fn event<A: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &A) {
+                if let Some((mouse_down, start_offset)) = self.mouse_down {
+                    if let Some(args) = MouseMoveEvent.update(args) {
+                        let offset = match *ThumbOrientationVar::get(ctx) {
+                            scrollbar::Orientation::Vertical => args.position.y,
+                            scrollbar::Orientation::Horizontal => args.position.x,
+                        } - mouse_down;
+
+                        let max_length = self.viewport_length - self.thumb_length;
+
+
+                        ctx.updates.layout();
+                        self.child.event(ctx, args);
+                    } else if let Some(args) = MouseInputEvent.update(args) {
+                        if args.is_primary() && args.is_mouse_up() {
+                            self.mouse_down = None;
+                        }
+                        self.child.event(ctx, args);
+                    } else {
+                        self.child.event(ctx, args);
+                    }
+                } else if let Some(args) = MouseInputEvent.update(args) {
+                    if args.is_primary() && args.is_mouse_down() && args.concerns_widget(ctx) {
+                        let a = match *ThumbOrientationVar::get(ctx) {
+                            scrollbar::Orientation::Vertical => args.position.y,
+                            scrollbar::Orientation::Horizontal => args.position.x,
+                        };
+                        self.mouse_down = Some((a, *ThumbOffsetVar::get(ctx.vars)));
+                    }
+                    self.child.event(ctx, args);
+                } else {
+                    self.child.event(ctx, args);
+                }
+            }
+
+            fn arrange(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, final_size: PxSize) {
+                let mut final_offset = self.final_offset;
+                let (px_vp_length, final_offset_d) = match *ThumbOrientationVar::get(ctx) {
+                    scrollbar::Orientation::Vertical => (final_size.height, &mut final_offset.y),
+                    scrollbar::Orientation::Horizontal => (final_size.width, &mut final_offset.x),
+                };
+
+                let ratio = *ThumbViewportRatioVar::get(ctx);
+                let px_tb_length = px_vp_length * ratio;
+                *final_offset_d = (px_vp_length * ThumbOffsetVar::get_clone(ctx.vars)).min(px_vp_length - px_tb_length);
+
+                let fct = ctx.metrics.scale_factor.0;
+                self.viewport_length = px_vp_length.to_dip(fct);
+                self.thumb_length = px_tb_length.to_dip(fct);
+
+                if self.final_offset != final_offset {
+                    self.final_offset = final_offset;
+                    ctx.updates.render_update();
+                }
+            
+                widget_layout.with_custom_transform(&RenderTransform::translation_px(self.final_offset), |wo| {
+                    self.child.arrange(ctx, wo, final_size)
+                });
+            }
+
+            fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
+                let transform = RenderTransform::translation_px(self.final_offset);
+                frame.push_reference_frame(self.spatial_id, self.offset_key.bind(transform), true, |f| {
+                    self.child.render(ctx, f)
+                });
+            }
+
+            fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
+                let transform = RenderTransform::translation_px(self.final_offset);
+                update.update_transform(self.offset_key.update(transform));
+
+                self.child.render_update(ctx, update);
+            }
+        }
+    }
+
     fn new_layout(child: impl UiNode) -> impl UiNode {
         struct DragNode<C> {
             child: C,
@@ -1313,6 +1408,8 @@ pub mod thumb {
             }
 
             fn arrange(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, final_size: PxSize) {
+                let x = *ThumbOffsetVar::get(ctx.vars);
+
                 let mut final_offset = self.offset.to_px(ctx.metrics.scale_factor.0);
 
                 let ratio = *ThumbViewportRatioVar::get(ctx);
@@ -1370,7 +1467,7 @@ pub mod thumb {
     ) -> impl UiNode {
         let child = with_context_var(child, ThumbOrientationVar, orientation);
         let child = with_context_var(child, ThumbViewportRatioVar, viewport_ratio);
-        let child = with_context_var(child, ThumbOffsetVar, offset); // TODO how to write?
+        let child = with_context_var(child, ThumbOffsetVar, offset);
         primitive_flags(child, PrimitiveFlags::IS_SCROLLBAR_THUMB)
     }
 
