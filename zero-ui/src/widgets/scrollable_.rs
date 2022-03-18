@@ -707,6 +707,7 @@ pub mod scrollable {
 
                 viewport_size: PxSize,
                 content_size: PxSize,
+                content_offset: PxPoint,
             }
             #[impl_ui_node(child)]
             impl<C: UiNode, M: Var<ScrollMode>> UiNode for ViewportNode<C, M> {
@@ -763,15 +764,23 @@ pub mod scrollable {
                     self.child.arrange(ctx, widget_layout, self.content_size);
 
                     let cell_ctx = ScrollContext::get(ctx.vars).unwrap();
+
+                    let v_offset = cell_ctx.v_offset.copy(ctx.vars);
+                    self.content_offset.y = (self.viewport_size.height - self.content_size.height) * v_offset;
+                    let h_offset = cell_ctx.h_offset.copy(ctx.vars);
+                    self.content_offset.x = (self.viewport_size.width - self.content_size.width) * h_offset;
+
                     let v_ratio = self.viewport_size.height.0 as f32 / self.content_size.height.0 as f32;
                     let h_ratio = self.viewport_size.width.0 as f32 / self.content_size.width.0 as f32;
 
                     cell_ctx.v_ratio_var.set_ne(ctx, v_ratio.fct());
                     cell_ctx.h_ratio_var.set_ne(ctx, h_ratio.fct());
+
+                    ctx.updates.render();
                 }
 
                 fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-                    frame.push_scroll_frame(self.scroll_id, self.viewport_size, PxRect::from_size(self.content_size), |frame| {
+                    frame.push_scroll_frame(self.scroll_id, self.viewport_size, PxRect::new(self.content_offset, self.content_size), |frame| {
                         self.child.render(ctx, frame);
                     })
                 }
@@ -782,6 +791,7 @@ pub mod scrollable {
                 mode: mode.into_var(),
                 viewport_size: PxSize::zero(),
                 content_size: PxSize::zero(),
+                content_offset: PxPoint::zero(),
             }
         }
 
