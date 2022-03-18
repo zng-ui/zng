@@ -1317,6 +1317,7 @@ impl ContentCtrl {
                                 descriptor,
                             )
                         },
+                        scrolls: frame.scrolls,
                         capture_image,
                         wait_id,
                     });

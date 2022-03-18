@@ -780,9 +780,14 @@ pub mod scrollable {
                 }
 
                 fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-                    frame.push_scroll_frame(self.scroll_id, self.viewport_size, PxRect::new(self.content_offset, self.content_size), |frame| {
-                        self.child.render(ctx, frame);
-                    })
+                    frame.push_scroll_frame(
+                        self.scroll_id,
+                        self.viewport_size,
+                        PxRect::new(self.content_offset, self.content_size),
+                        |frame| {
+                            self.child.render(ctx, frame);
+                        },
+                    )
                 }
             }
             ViewportNode {
@@ -1304,9 +1309,11 @@ pub mod thumb {
                         let start_offset = max_length * start_offset.0;
 
                         let offset = offset + start_offset;
-                        let offset = (offset.to_f32()/ max_length.to_f32()).max(0.0).min(1.0);
+                        let offset = (offset.to_f32() / max_length.to_f32()).max(0.0).min(1.0);
 
-                        ThumbOffsetVar::new().set_ne(ctx.vars, Factor(offset)).expect("ThumbOffsetVar is read-only");
+                        ThumbOffsetVar::new()
+                            .set_ne(ctx.vars, Factor(offset))
+                            .expect("ThumbOffsetVar is read-only");
 
                         ctx.updates.layout();
                         self.child.event(ctx, args);

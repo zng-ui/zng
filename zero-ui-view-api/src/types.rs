@@ -1295,6 +1295,9 @@ pub struct FrameRequest {
     /// Display list, split in serializable parts.
     pub display_list: (IpcBytes, IpcBytes, IpcBytes, BuiltDisplayListDescriptor),
 
+    /// Scroll offsets.
+    pub scrolls: Vec<(ExternalScrollId, PxVector)>,
+
     /// Automatically create an image from this rendered frame.
     ///
     /// The [`Event::FrameImageReady`] is sent with the image.

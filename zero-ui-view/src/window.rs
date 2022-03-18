@@ -956,6 +956,16 @@ impl Window {
             (frame.pipeline_id, display_list),
         );
 
+        for (scroll_id, offset) in frame.scrolls {
+            txn.set_scroll_offsets(
+                scroll_id,
+                vec![SampledScrollOffset {
+                    offset: offset.to_wr(),
+                    generation: 0,
+                }],
+            );
+        }
+
         let frame_scope =
             tracing::trace_span!("<frame>", ?frame.id, capture_image = ?frame.capture_image, thread = "<webrender>").entered();
 

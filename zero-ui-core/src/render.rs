@@ -133,6 +133,7 @@ pub struct FrameBuilder {
     scale_factor: Factor,
 
     display_list: DisplayListBuilder,
+    scrolls: Vec<(ExternalScrollId, PxVector)>,
 
     is_hit_testable: bool,
     auto_hit_test: bool,
@@ -168,10 +169,12 @@ impl FrameBuilder {
             .unwrap_or_else(PipelineId::dummy);
 
         let mut used = None;
+        let mut scrolls_capacity = 10;
 
         if let Some(u) = used_data {
             if u.pipeline_id() == pipeline_id {
                 used = Some(u.display_list);
+                scrolls_capacity = u.scrolls_capacity;
             }
         }
 
@@ -191,6 +194,7 @@ impl FrameBuilder {
             renderer,
             scale_factor,
             display_list,
+            scrolls: Vec::with_capacity(scrolls_capacity),
             is_hit_testable: true,
             auto_hit_test: false,
             widget_data: Some(WidgetData {
@@ -655,17 +659,21 @@ impl FrameBuilder {
         expect_inner!(self.push_scroll_frame);
 
         let parent_spatial_id = self.spatial_id;
+        let scroll_id_wr = scroll_id.to_wr(self.pipeline_id);
 
         self.spatial_id = self.display_list.define_scroll_frame(
             parent_spatial_id,
-            scroll_id.to_wr(self.pipeline_id),
-            content_rect.to_wr(),
+            scroll_id_wr,
+            PxRect::from_size(content_rect.size).to_wr(),
             PxRect::from_size(viewport_size).to_wr(),
-            content_rect.origin.to_vector().to_wr(),
+            PxVector::zero().to_wr(),
             0,
             HasScrollLinkedEffect::No,
             SpatialFrameId::scroll_id_to_wr(scroll_id, self.pipeline_id),
         );
+
+        // offset can only be set using transaction `set_scroll_offsets` ?
+        self.scrolls.push((scroll_id_wr, content_rect.origin.to_vector()));
 
         f(self);
 
@@ -1163,12 +1171,14 @@ impl FrameBuilder {
 
         let reuse = UsedFrameBuilder {
             display_list: self.display_list,
+            scrolls_capacity: self.scrolls.len(),
         };
 
         let frame = BuiltFrame {
             id: self.frame_id,
             pipeline_id,
             display_list: (payload, descriptor),
+            scrolls: self.scrolls,
             clear_color,
         };
 
@@ -1184,6 +1194,8 @@ pub struct BuiltFrame {
     pub pipeline_id: PipelineId,
     /// Built display list.
     pub display_list: (DisplayListPayload, BuiltDisplayListDescriptor),
+    /// Scroll offsets.
+    pub scrolls: Vec<(ExternalScrollId, PxVector)>,
     /// Clear color selected for the frame.
     pub clear_color: RenderColor,
 }
@@ -1191,6 +1203,7 @@ pub struct BuiltFrame {
 /// Data from a previous [`FrameBuilder`], can be reuse in the next frame for a performance boost.
 pub struct UsedFrameBuilder {
     display_list: DisplayListBuilder,
+    scrolls_capacity: usize,
 }
 impl UsedFrameBuilder {
     /// Pipeline where this frame builder can be reused.
