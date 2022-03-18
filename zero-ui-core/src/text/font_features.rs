@@ -1792,7 +1792,7 @@ impl fmt::Debug for FontVariations {
     }
 }
 
-///<span data-inline></span> Initialize a [`FontVariations`] map.
+///<span data-del-macro-root></span> Initialize a [`FontVariations`] map.
 ///
 /// # Examples
 ///

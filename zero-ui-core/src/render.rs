@@ -1264,7 +1264,7 @@ impl FrameUpdate {
             if h.pipeline_id == pipeline_id {
                 hint = Some(h);
             }
-        }        
+        }
         let hint = hint.unwrap_or(UsedFrameUpdate {
             pipeline_id,
             scrolls_capacity: 10,
@@ -1355,7 +1355,7 @@ pub struct BuiltFrameUpdate {
     /// Webrender frame properties updates.
     pub bindings: DynamicProperties,
     /// Scroll updates.
-    /// 
+    ///
     /// Note that scroll offsets are negated here, this is a requirement of `webrender`.
     pub scrolls: Vec<(ExternalScrollId, PxVector)>,
     /// New clear color.
@@ -1364,7 +1364,7 @@ pub struct BuiltFrameUpdate {
 
 /// Data from a previous [`FrameUpdate`], can be reuse in the next frame for a performance boost.
 #[derive(Clone, Copy)]
-pub struct UsedFrameUpdate {    
+pub struct UsedFrameUpdate {
     pipeline_id: PipelineId,
     scrolls_capacity: usize,
     transforms_capacity: usize,
@@ -1375,7 +1375,7 @@ impl UsedFrameUpdate {
     /// Pipeline where this frame builder can be reused.
     pub fn pipeline_id(&self) -> PipelineId {
         self.pipeline_id
-    }    
+    }
 }
 
 /// A frame value that can be updated without regenerating the full frame.

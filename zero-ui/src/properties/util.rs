@@ -1,12 +1,12 @@
 use zero_ui::prelude::new_property::*;
-use zero_ui_core::render::webrender_api::PrimitiveFlags;
+pub use zero_ui_core::render::webrender_api::PrimitiveFlags;
 
 /// Helper for declaring properties that set the widget state.
 ///
 /// The state key is set in [`widget_state`](WidgetContext::widget_state) on init and is kept updated.
 ///
 /// # Examples
-/// 
+///
 /// ```
 /// # fn main() -> () { }
 /// use zero_ui::core::{property, context::{state_key, WidgetContext}, var::IntoVar, UiNode, Widget};

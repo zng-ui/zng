@@ -925,7 +925,7 @@ macro_rules! __stops {
         }
     };
 }
-///<span data-inline></span> Creates a [`GradientStops`] containing the arguments.
+///<span data-del-macro-root></span> Creates a [`GradientStops`] containing the arguments.
 ///
 /// A minimum of two arguments are required, the first and last argument must be expressions that convert to [`ColorStop`],
 /// the middle arguments mut be expressions that convert to [`GradientStop`].
@@ -950,7 +950,7 @@ macro_rules! __stops {
 /// must implement `Into<Length>`.
 ///
 /// ## Examples
-/// 
+///
 /// ```
 /// # use zero_ui_core::gradient::stops;
 /// # use zero_ui_core::color::colors;

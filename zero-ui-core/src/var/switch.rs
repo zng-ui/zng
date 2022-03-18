@@ -4,7 +4,7 @@ use std::cell::Cell;
 use std::marker::PhantomData;
 use std::rc::Rc;
 
-///<span data-inline></span> Initializes a new switch var.
+///<span data-del-macro-root></span> Initializes a new switch var.
 ///
 /// A switch var updates when the *index* var updates or when the *indexed* var updates.  
 ///

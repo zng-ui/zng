@@ -4,7 +4,7 @@ use std::cell::{Cell, RefCell, UnsafeCell};
 use std::marker::PhantomData;
 use std::rc::Rc;
 
-///<span data-inline></span> Initializes a new [`Var`](crate::var::Var) with value made
+///<span data-del-macro-root></span> Initializes a new [`Var`](crate::var::Var) with value made
 /// by merging multiple other variables.
 ///
 /// # Arguments
@@ -15,7 +15,7 @@ use std::rc::Rc;
 /// * `merge`: A function that produces a new value from references to all variable values. `FnMut(&var0_T, ..) -> merge_T`
 ///
 /// # Examples
-/// 
+///
 /// ```
 /// # use zero_ui_core::var::*;
 /// # use zero_ui_core::text::*;

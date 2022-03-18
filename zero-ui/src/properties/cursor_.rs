@@ -7,7 +7,7 @@ use crate::prelude::new_property::*;
 /// Widget property that sets the [`CursorIcon`] displayed when hovering the widget.
 ///
 /// # Examples
-/// 
+///
 /// ```
 /// # use zero_ui::prelude::*;
 /// container! {

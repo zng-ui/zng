@@ -350,7 +350,7 @@ pub fn foreground_gradient(child: impl UiNode, axis: impl IntoVar<LinearGradient
 /// }
 /// # ;
 /// ```
-/// 
+///
 /// [`corner_radius`]: fn@corner_radius
 #[property(fill, default(false))]
 pub fn clip_to_bounds(child: impl UiNode, clip: impl IntoVar<bool>) -> impl UiNode {

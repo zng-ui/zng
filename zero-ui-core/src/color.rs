@@ -4,7 +4,7 @@ use crate::render::webrender_api::{self as wr, FilterOp};
 use crate::{context::LayoutMetrics, render::FrameBinding, units::*, var::impl_from_and_into_var};
 use std::fmt;
 
-///<span data-inline></span> Hexadecimal color literal.
+///<span data-del-macro-root></span> Hexadecimal color literal.
 ///
 /// # Syntax
 ///
@@ -763,7 +763,7 @@ fn clamp_normal(i: f32) -> f32 {
 /// [`u8`] in the `0..=255` range or a [percentage](FactorPercent).
 ///
 /// # Examples
-/// 
+///
 /// ```
 /// use zero_ui_core::color::rgb;
 ///
@@ -784,7 +784,7 @@ pub fn rgb<C: Into<RgbaComponent>>(red: C, green: C, blue: C) -> Rgba {
 /// The rgb arguments must be of the same type, the alpha argument can be of a different type.
 ///
 /// # Examples
-/// 
+///
 /// ```
 /// use zero_ui_core::color::rgba;
 ///

@@ -20,7 +20,7 @@ pub trait StateKey: Copy + 'static {
     type Type: 'static;
 }
 
-///<span data-inline></span> Declares new [`StateKey`](crate::context::StateKey) types.
+///<span data-del-macro-root></span> Declares new [`StateKey`](crate::context::StateKey) types.
 ///
 /// # Examples
 ///

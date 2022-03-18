@@ -626,7 +626,7 @@ macro_rules! __shortcut {
     };
 }
 
-///<span data-inline></span> Creates a [`Shortcut`](crate::gesture::Shortcut).
+///<span data-del-macro-root></span> Creates a [`Shortcut`](crate::gesture::Shortcut).
 ///
 /// # Examples
 ///

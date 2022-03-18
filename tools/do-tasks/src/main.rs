@@ -69,7 +69,10 @@ fn doc(mut args: Vec<&str>) {
         "cargo",
         &["+nightly", "doc", "--all-features", "--no-deps", "--package", "zero-ui*"],
         &args,
-        &[("RUSTDOCFLAGS", "--cfg doc_nightly --cfg do_doc")],
+        &[(
+            "RUSTDOCFLAGS",
+            "--cfg doc_nightly --cfg do_doc --html-in-header target/doc/zero-ui-extensions.html",
+        )],
     );
 
     if custom_open {

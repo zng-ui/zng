@@ -4,7 +4,7 @@ use std::cell::Cell;
 use std::marker::PhantomData;
 use std::rc::Rc;
 
-///<span data-inline></span> Initializes a new conditional var.
+///<span data-del-macro-root></span> Initializes a new conditional var.
 ///
 /// A condition var updates when the first `true` condition changes or the mapped var for the current condition changes.
 ///

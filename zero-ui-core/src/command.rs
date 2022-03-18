@@ -41,7 +41,7 @@ use crate::{
     UiNode, WidgetId,
 };
 
-/// <span data-inline></span> Declares new [`Command`] types.
+/// <span data-del-macro-root></span> Declares new [`Command`] types.
 ///
 /// The macro generates a unit `struct` that implements [`Event`] with arguments type [`CommandArgs`] and implements [`Command`].
 /// The most used methods of [`Event`] and [`Command`] are also *re-exported* as associated methods.

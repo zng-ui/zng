@@ -9,6 +9,8 @@ members = [
     "zero-ui-proc-macros", 
     "zero-ui-core", 
     "zero-ui",
+    # util:
+    "zero-ui-docs",
 
     # examples:
     "examples",

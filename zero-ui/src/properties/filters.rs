@@ -186,7 +186,7 @@ pub fn hue_rotate(child: impl UiNode, angle: impl IntoVar<AngleDegree>) -> impl 
 ///
 /// This property provides the same visual result as setting [`filter`] to [`color::opacity(opacity)`](color::opacity),
 /// **but** updating the opacity is faster in this property.
-/// 
+///
 /// [`filter`]: fn@filter
 #[property(context, default(1.0))]
 pub fn opacity(child: impl UiNode, alpha: impl IntoVar<Factor>) -> impl UiNode {

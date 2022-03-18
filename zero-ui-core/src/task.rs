@@ -872,7 +872,7 @@ pub async fn with_deadline<O, F: Future<Output = O>>(fut: F, deadline: Instant) 
     }
 }
 
-/// <span data-inline></span> Pins variables on the stack.
+/// <span data-del-macro-root></span> Pins variables on the stack.
 ///
 /// # Examples
 ///
@@ -917,7 +917,7 @@ macro_rules! pin {
 #[doc(inline)]
 pub use crate::pin;
 
-/// <span data-inline></span> A future that *zips* other futures.
+/// <span data-del-macro-root></span> A future that *zips* other futures.
 ///
 /// The macro input is a comma separated list of future expressions. The macro output is a future
 /// that when ".awaited" produces a tuple of results in the same order as the inputs.
@@ -1048,7 +1048,7 @@ macro_rules! __all {
     }
 }
 
-/// <span data-inline></span> A future that awaits for the first future that is ready.
+/// <span data-del-macro-root></span> A future that awaits for the first future that is ready.
 ///
 /// The macro input is comma separated list of future expressions, the futures must
 /// all have the same output type. The macro output is a future that when ".awaited" produces
@@ -1176,7 +1176,7 @@ macro_rules! __any {
 #[doc(hidden)]
 pub use zero_ui_proc_macros::task_any_all as __proc_any_all;
 
-/// <span data-inline></span> A future that waits for the first future that is ready with an `Ok(T)` result.
+/// <span data-del-macro-root></span> A future that waits for the first future that is ready with an `Ok(T)` result.
 ///
 /// The macro input is comma separated list of future expressions, the futures must
 /// all have the same output `Result<T, E>` type, but each can have a different `E`. The macro output is a future
@@ -1323,7 +1323,7 @@ macro_rules! __any_ok {
     }
 }
 
-/// <span data-inline></span> A future that is ready when any of the futures is ready and `Some(T)`.
+/// <span data-del-macro-root></span> A future that is ready when any of the futures is ready and `Some(T)`.
 ///
 /// The macro input is comma separated list of future expressions, the futures must
 /// all have the same output `Option<T>` type. The macro output is a future that when ".awaited" produces
@@ -1463,7 +1463,7 @@ macro_rules! __any_some {
     }
 }
 
-/// <span data-inline></span> A future that is ready when all futures are ready with an `Ok(T)` result or
+/// <span data-del-macro-root></span> A future that is ready when all futures are ready with an `Ok(T)` result or
 /// any is ready with an `Err(E)` result.
 ///
 /// The output type is `Result<(T0, T1, ..), E>`, the `Ok` type is a tuple with all the `Ok` values, the error
@@ -1627,7 +1627,7 @@ macro_rules! __all_ok {
     }
 }
 
-/// <span data-inline></span> A future that is ready when all futures are ready with `Some(T)` or when any
+/// <span data-del-macro-root></span> A future that is ready when all futures are ready with `Some(T)` or when any
 /// is ready with `None`
 ///
 /// The macro input is comma separated list of future expressions, the futures must

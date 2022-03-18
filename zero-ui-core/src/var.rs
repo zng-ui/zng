@@ -1464,7 +1464,7 @@ impl<'a, T: VarValue> DerefMut for VarModify<'a, T> {
     }
 }
 
-///<span data-inline></span> New [`impl Var<T>`](Var) from an expression with interpolated *vars*.
+///<span data-del-macro-root></span> New [`impl Var<T>`](Var) from an expression with interpolated *vars*.
 ///
 /// # Interpolation
 ///
@@ -1537,7 +1537,7 @@ use crate::{
 #[doc(hidden)]
 pub use zero_ui_proc_macros::expr_var as __expr_var;
 
-///<span data-inline></span> Implements `U: From<T>`, `T: IntoVar<U>` and `T: IntoValue<U>` without boilerplate.
+///<span data-del-macro-root></span> Implements `U: From<T>`, `T: IntoVar<U>` and `T: IntoValue<U>` without boilerplate.
 ///
 /// Unfortunately we cannot provide a blanket impl of `IntoVar` and `IntoValue` for all `From` in Rust stable, because
 /// that would block all manual implementations of the trait, so you need to implement then manually to

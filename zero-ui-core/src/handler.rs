@@ -115,7 +115,7 @@ where
     FnMutWidgetHandler { handler }
 }
 
-///<span data-inline></span> Declare a mutable *clone-move* event handler.
+///<span data-del-macro-root></span> Declare a mutable *clone-move* event handler.
 ///
 /// The macro input is a closure with optional *clone-move* variables, internally it uses [`clone_move!`] so
 /// the input is the same syntax.
@@ -211,7 +211,7 @@ where
     FnOnceWidgetHandler { handler: Some(handler) }
 }
 
-///<span data-inline></span> Declare a *clone-move* event handler that is only called once.
+///<span data-del-macro-root></span> Declare a *clone-move* event handler that is only called once.
 ///
 /// The macro input is a closure with optional *clone-move* variables, internally it uses [`clone_move!`] so
 /// the input is the same syntax.
@@ -306,7 +306,7 @@ where
     AsyncFnMutWidgetHandler { handler, tasks: vec![] }
 }
 
-///<span data-inline></span> Declare an async *clone-move* event handler.
+///<span data-del-macro-root></span> Declare an async *clone-move* event handler.
 ///
 /// The macro input is a closure with optional *clone-move* variables, internally it uses [`async_clone_move_fn!`] so
 /// the input is the same syntax.
@@ -462,7 +462,7 @@ where
     }
 }
 
-///<span data-inline></span> Declare an async *clone-move* event handler that is only called once.
+///<span data-del-macro-root></span> Declare an async *clone-move* event handler that is only called once.
 ///
 /// The macro input is a closure with optional *clone-move* variables, internally it uses [`async_clone_move_fn_once!`] so
 /// the input is the same syntax.
@@ -591,7 +591,7 @@ where
     FnMutAppHandler { handler }
 }
 
-///<span data-inline></span> Declare a mutable *clone-move* app event handler.
+///<span data-del-macro-root></span> Declare a mutable *clone-move* app event handler.
 ///
 /// The macro input is a closure with optional *clone-move* variables, internally it uses [`clone_move!`] so
 /// the input is the same syntax.
@@ -691,7 +691,7 @@ where
     FnOnceAppHandler { handler: Some(handler) }
 }
 
-///<span data-inline></span> Declare a *clone-move* app event handler that is only called once.
+///<span data-del-macro-root></span> Declare a *clone-move* app event handler that is only called once.
 ///
 /// The macro input is a closure with optional *clone-move* variables, internally it uses [`clone_move!`] so
 /// the input is the same syntax.
@@ -789,7 +789,7 @@ where
     AsyncFnMutAppHandler { handler }
 }
 
-///<span data-inline></span> Declare an async *clone-move* app event handler.
+///<span data-del-macro-root></span> Declare an async *clone-move* app event handler.
 ///
 /// The macro input is a closure with optional *clone-move* variables, internally it uses [`async_clone_move_fn!`] so
 /// the input is the same syntax.
@@ -944,7 +944,7 @@ where
     AsyncFnOnceAppHandler { handler: Some(handler) }
 }
 
-///<span data-inline></span> Declare an async *clone-move* app event handler that is only called once.
+///<span data-del-macro-root></span> Declare an async *clone-move* app event handler that is only called once.
 ///
 /// The macro input is a closure with optional *clone-move* variables, internally it uses [`async_clone_move_fn_once!`] so
 /// the input is the same syntax.
@@ -1005,7 +1005,7 @@ macro_rules! async_app_hn_once {
 #[doc(inline)]
 pub use crate::async_app_hn_once;
 
-///<span data-inline></span> Cloning closure.
+///<span data-del-macro-root></span> Cloning closure.
 ///
 /// A common pattern when creating `'static` closures is to capture clones by `move`, this way the closure is `'static`
 /// and the cloned values are still available after creating the closure. This macro facilitates this pattern.
@@ -1147,7 +1147,7 @@ macro_rules! __clone_move {
     };
 }
 
-/// <span data-inline></span> Cloning async move block.
+/// <span data-del-macro-root></span> Cloning async move block.
 #[macro_export]
 macro_rules! async_clone_move {
     ($($tt:tt)+) => {
@@ -1202,7 +1202,7 @@ macro_rules! __async_clone_move {
     };
 }
 
-///<span data-inline></span> Cloning async closure.
+///<span data-del-macro-root></span> Cloning async closure.
 ///
 /// This macro syntax is exactly the same as [`clone_move!`](macro@crate::clone_move), but it expands to an *async closure* that
 /// captures a clone of zero or more variables and moves another clone of these variables into the returned future for each call.
@@ -1379,7 +1379,7 @@ macro_rules! __async_clone_move_fn {
     };
 }
 
-///<span data-inline></span> Cloning async closure that can only be called once.
+///<span data-del-macro-root></span> Cloning async closure that can only be called once.
 ///
 /// This macro syntax is exactly the same as [`async_clone_move_fn!`](macro@crate::async_clone_move_fn), but it does not clone variables
 /// again inside the call to move to the returned future. Because if moves the captured variables to the closure returned `Future`

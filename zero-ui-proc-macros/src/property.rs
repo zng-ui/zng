@@ -918,7 +918,7 @@ mod output {
                     ///
                     /// [`UiNode`]: zero_ui::core::UiNode
                 });
-            }            
+            }
 
             self.cfg.to_tokens(tokens);
 

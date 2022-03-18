@@ -463,7 +463,7 @@ impl<V: ContextVar> ContextVarLocalKey<V> {
     }
 }
 
-///<span data-inline></span> Declares new [`ContextVar`](crate::var::ContextVar) types.
+///<span data-del-macro-root></span> Declares new [`ContextVar`](crate::var::ContextVar) types.
 ///
 /// # Examples
 /// ```

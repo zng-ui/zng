@@ -1694,7 +1694,7 @@ pub mod text {
 /// Text spans can be configured by setting [`font_family`], [`font_size`] and other properties in parent widgets.
 ///
 /// # Examples
-/// 
+///
 /// ```
 /// # fn main() -> () {
 /// use zero_ui::widgets::{container, text, text::properties::{font_family, font_size}};

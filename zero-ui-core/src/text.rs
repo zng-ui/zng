@@ -176,7 +176,7 @@ impl<V> LangMap<V> {
     }
 }
 
-/// <span data-inline></span> Compile-time validated [`Lang`] value.
+/// <span data-del-macro-root></span> Compile-time validated [`Lang`] value.
 ///
 /// The language is parsed during compile and any errors are emitted as compile time errors.
 ///
@@ -1806,11 +1806,11 @@ mod tests {
     }
 }
 
-///<span data-inline></span> Creates a [`Text`](crate::text::Text) by calling the `format!` macro and
+///<span data-del-macro-root></span> Creates a [`Text`](crate::text::Text) by calling the `format!` macro and
 /// wrapping the result in a `Cow::Owned`.
 ///
 /// # Examples
-/// 
+///
 /// ```
 /// # use zero_ui_core::text::formatx;
 /// let text = formatx!("Hello {}", "World!");

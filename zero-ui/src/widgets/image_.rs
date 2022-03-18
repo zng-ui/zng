@@ -353,7 +353,7 @@ pub mod image {
         /// Sets custom image load and decode limits.
         ///
         /// If not set or set to `None` the [`Images::limits`] is used.
-        /// 
+        ///
         /// [`Images::limits`]: crate::core::image::Images::limits
         #[property(context, default(None))]
         pub fn image_limits(child: impl UiNode, limits: impl IntoVar<Option<ImageLimits>>) -> impl UiNode {

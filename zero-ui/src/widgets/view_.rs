@@ -37,7 +37,7 @@ impl<U: UiNode> View<U> {
 /// [`UiNode::boxed`](crate::core::UiNode::boxed) to unify the types.
 ///
 /// # Examples
-/// 
+///
 /// ```
 /// use zero_ui::{
 ///     core::{color::{rgb, rgba}, text::ToText, var::Var, UiNode},
@@ -383,7 +383,7 @@ pub enum DataUpdate<D> {
     None,
 }
 
-/// <span data-inline></span> Declares a view generator closure.
+/// <span data-del-macro-root></span> Declares a view generator closure.
 ///
 /// The output type is a [`ViewGenerator`], the closure is [`clone_move!`].
 ///

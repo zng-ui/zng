@@ -72,7 +72,10 @@ retain_mut = "0.1"
 tracing = "0.1"
 bitflags = "1"
 
+[build-dependencies]
+zero-ui-docs =  { path = "../zero-ui-docs" }
+
 [package.metadata.docs.rs]
 all-features = true
 targets = ["x86_64-pc-windows-msvc", "x86_64-unknown-linux-gnu"]
-rustdoc-args = ["--cfg", "doc_nightly"]
+rustdoc-args = ["--cfg", "doc_nightly", "--html-in-header", "target/doc/zero-ui-extensions.html"]
