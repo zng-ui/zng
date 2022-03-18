@@ -765,18 +765,22 @@ pub mod scrollable {
 
                     let cell_ctx = ScrollContext::get(ctx.vars).unwrap();
 
+                    let mut content_offset = self.content_offset;
                     let v_offset = cell_ctx.v_offset.copy(ctx.vars);
-                    self.content_offset.y = (self.viewport_size.height - self.content_size.height) * v_offset;
+                    content_offset.y = (self.viewport_size.height - self.content_size.height) * v_offset;
                     let h_offset = cell_ctx.h_offset.copy(ctx.vars);
-                    self.content_offset.x = (self.viewport_size.width - self.content_size.width) * h_offset;
+                    content_offset.x = (self.viewport_size.width - self.content_size.width) * h_offset;
+
+                    if self.content_offset != content_offset {
+                        self.content_offset = content_offset;
+                        ctx.updates.render_update();
+                    }
 
                     let v_ratio = self.viewport_size.height.0 as f32 / self.content_size.height.0 as f32;
                     let h_ratio = self.viewport_size.width.0 as f32 / self.content_size.width.0 as f32;
 
                     cell_ctx.v_ratio_var.set_ne(ctx, v_ratio.fct());
                     cell_ctx.h_ratio_var.set_ne(ctx, h_ratio.fct());
-
-                    ctx.updates.render();
                 }
 
                 fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
@@ -788,6 +792,11 @@ pub mod scrollable {
                             self.child.render(ctx, frame);
                         },
                     )
+                }
+
+                fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
+                    update.update_scroll(self.scroll_id, self.content_offset.to_vector());
+                    self.child.render_update(ctx, update);
                 }
             }
             ViewportNode {
