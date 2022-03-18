@@ -1293,8 +1293,8 @@ pub mod thumb {
                         let max_length = self.viewport_length - self.thumb_length;
                         let start_offset = max_length * start_offset.0;
 
-                        let offset = offset - start_offset;
-                        let offset = (max_length.to_f32() / offset.to_f32()).max(0.0).min(1.0);
+                        let offset = offset + start_offset;
+                        let offset = (offset.to_f32()/ max_length.to_f32()).max(0.0).min(1.0);
 
                         ThumbOffsetVar::new().set_ne(ctx.vars, Factor(offset)).expect("ThumbOffsetVar is read-only");
 
@@ -1331,7 +1331,7 @@ pub mod thumb {
 
                 let ratio = *ThumbViewportRatioVar::get(ctx);
                 let px_tb_length = px_vp_length * ratio;
-                *final_offset_d = (px_vp_length * ThumbOffsetVar::get_clone(ctx.vars)).min(px_vp_length - px_tb_length);
+                *final_offset_d = (px_vp_length - px_tb_length) * ThumbOffsetVar::get_clone(ctx.vars);
 
                 let fct = ctx.metrics.scale_factor.0;
                 self.viewport_length = px_vp_length.to_dip(fct);
