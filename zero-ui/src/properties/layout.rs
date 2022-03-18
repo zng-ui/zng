@@ -95,7 +95,7 @@ pub fn padding(child: impl UiNode, padding: impl IntoVar<SideOffsets>) -> impl U
 
 /// Aligns the widget within the available space.
 ///
-/// # Example
+/// # Examples
 ///
 /// ```
 /// use zero_ui::prelude::*;
@@ -176,7 +176,7 @@ pub fn child_align(child: impl UiNode, alignment: impl IntoVar<Align>) -> impl U
 
 /// Widget left-top offset.
 ///
-/// # Example
+/// # Examples
 ///
 /// ```
 /// use zero_ui::prelude::*;
@@ -240,7 +240,7 @@ pub fn position(child: impl UiNode, position: impl IntoVar<Point>) -> impl UiNod
 
 /// Left offset.
 ///
-/// # Example
+/// # Examples
 ///
 /// ```
 /// use zero_ui::prelude::*;
@@ -299,7 +299,7 @@ pub fn x(child: impl UiNode, x: impl IntoVar<Length>) -> impl UiNode {
 
 /// Top offset.
 ///
-/// # Example
+/// # Examples
 ///
 /// ```
 /// use zero_ui::prelude::*;
@@ -361,7 +361,7 @@ pub fn y(child: impl UiNode, y: impl IntoVar<Length>) -> impl UiNode {
 ///
 /// The widget size can be larger then this but not smaller.
 ///
-/// # Example
+/// # Examples
 ///
 /// ```
 /// use zero_ui::prelude::*;
@@ -430,7 +430,7 @@ pub fn min_size(child: impl UiNode, min_size: impl IntoVar<Size>) -> impl UiNode
 ///
 /// The widget width can be larger then this but not smaller.
 ///
-/// # Example
+/// # Examples
 ///
 /// ```
 /// use zero_ui::prelude::*;
@@ -497,7 +497,7 @@ pub fn min_width(child: impl UiNode, min_width: impl IntoVar<Length>) -> impl Ui
 ///
 /// The widget height can be larger then this but not smaller.
 ///
-/// # Example
+/// # Examples
 ///
 /// ```
 /// use zero_ui::prelude::*;
@@ -567,7 +567,7 @@ pub fn min_height(child: impl UiNode, min_height: impl IntoVar<Length>) -> impl 
 ///
 /// The widget size can be smaller then this but not larger.
 ///
-/// # Example
+/// # Examples
 ///
 /// ```
 /// use zero_ui::prelude::*;
@@ -633,7 +633,7 @@ pub fn max_size(child: impl UiNode, max_size: impl IntoVar<Size>) -> impl UiNode
 ///
 /// The widget width can be smaller then this but not larger.
 ///
-/// # Example
+/// # Examples
 ///
 /// ```
 /// use zero_ui::prelude::*;
@@ -706,7 +706,7 @@ pub fn max_width(child: impl UiNode, max_width: impl IntoVar<Length>) -> impl Ui
 ///
 /// The widget height can be smaller then this but not larger.
 ///
-/// # Example
+/// # Examples
 ///
 /// ```
 /// use zero_ui::prelude::*;
@@ -779,9 +779,7 @@ pub fn max_height(child: impl UiNode, max_height: impl IntoVar<Length>) -> impl 
 ///
 /// When set the widget is sized with the given value, independent of the parent available size.
 ///
-/// If the width or height is set to [positive infinity](is_layout_any_size) then the normal layout measuring happens.
-///
-/// # Example
+/// # Examples
 ///
 /// ```
 /// use zero_ui::prelude::*;
@@ -838,7 +836,7 @@ pub fn size(child: impl UiNode, size: impl IntoVar<Size>) -> impl UiNode {
 
 /// Exact width of the widget.
 ///
-/// # Example
+/// # Examples
 ///
 /// ```
 /// use zero_ui::prelude::*;
@@ -907,7 +905,7 @@ pub fn width(child: impl UiNode, width: impl IntoVar<Length>) -> impl UiNode {
 
 /// Exact height of the widget.
 ///
-/// # Example
+/// # Examples
 ///
 /// ```
 /// use zero_ui::prelude::*;

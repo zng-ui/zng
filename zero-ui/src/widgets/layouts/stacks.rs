@@ -369,7 +369,7 @@ pub mod v_stack {
 
 /// Basic horizontal stack layout.
 ///
-/// # Example
+/// # Examples
 ///
 /// ```
 /// # use zero_ui::prelude::*;
@@ -391,7 +391,7 @@ pub fn h_stack(items: impl WidgetList) -> impl Widget {
 
 /// Basic vertical stack layout.
 ///
-/// # Example
+/// # Examples
 ///
 /// ```
 /// # use zero_ui::prelude::*;

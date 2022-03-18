@@ -19,7 +19,7 @@ use std::rc::Rc;
 ///
 /// All arguments are [`IntoVar`](crate::var::RcSwitchVar).
 ///
-/// # Example
+/// # Examples
 ///
 /// ```
 /// # use zero_ui_core::var::*;

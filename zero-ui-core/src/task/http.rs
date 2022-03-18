@@ -1496,7 +1496,7 @@ impl From<isahc::HttpClient> for Client {
 ///
 /// Use [`Client::builder`] to start building.
 ///
-/// # Example
+/// # Examples
 ///
 /// ```
 /// use zero_ui_core::task::http::*;

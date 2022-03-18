@@ -882,7 +882,7 @@ impl UiNodeList for UiNodeVec {
 
 /// Creates a [`WidgetVec`] containing the arguments.
 ///
-/// # Example
+/// # Examples
 ///
 /// ```
 /// # use zero_ui_core::{widget_vec, UiNode, Widget, WidgetId, NilUiNode};
@@ -913,7 +913,7 @@ pub use crate::widget_vec;
 
 /// Creates a [`UiNodeVec`] containing the arguments.
 ///
-/// # Example
+/// # Examples
 ///
 /// ```
 /// # use zero_ui_core::{node_vec, UiNode, Widget, WidgetId, NilUiNode};

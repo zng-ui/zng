@@ -7,6 +7,8 @@ pub use crate::core::border::{border_align, corner_radius};
 ///
 /// Defines a widget border, it coordinates with any other border in the widget, meaning this property can be safely set
 /// more the nonce for a single widget, it also works with the [`corner_radius`] property drawing round corners if configured.
+/// 
+/// [`corner_radius`]: fn@corner_radius
 #[property(border, default(0, BorderStyle::Hidden))]
 pub fn border(child: impl UiNode, widths: impl IntoVar<SideOffsets>, sides: impl IntoVar<BorderSides>) -> impl UiNode {
     struct BorderNode<T, O, S> {

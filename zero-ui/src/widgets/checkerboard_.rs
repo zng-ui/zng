@@ -66,7 +66,7 @@ pub mod checkerboard {
         /// This property sets [`CheckerboardColor0Var`] and [`CheckerboardColor1Var`] for all inner checkerboard
         /// widgets. In a checkerboard widget it is called [`colors`].
         ///
-        /// [`colors`]: crate::widgets::checkerboard#wp-colors
+        /// [`colors`]: mod@crate::widgets::checkerboard#wp-colors
         #[property(context, default(colors::BLACK, colors::WHITE))]
         pub fn checkerboard_colors(child: impl UiNode, color0: impl IntoVar<Rgba>, color1: impl IntoVar<Rgba>) -> impl UiNode {
             let node = with_context_var(child, CheckerboardColor0Var, color0);
@@ -78,7 +78,7 @@ pub mod checkerboard {
         /// This property sets the [`CheckerboardSizeVar`] for all inner checkerboard widgets. In a checkerboard widget
         /// it is called [`cb_size`].
         ///
-        /// [`cb_size`]: crate::widgets::checkerboard#wp-cb_size
+        /// [`cb_size`]: mod@crate::widgets::checkerboard#wp-cb_size
         #[property(context, default((20, 20)))]
         pub fn checkerboard_size(child: impl UiNode, size: impl IntoVar<Size>) -> impl UiNode {
             with_context_var(child, CheckerboardSizeVar, size)
@@ -89,7 +89,7 @@ pub mod checkerboard {
         /// This property sets the [`CheckerboardOffsetVar`] for all inner checkerboard widgets. In a checkerboard widget
         /// it is called [`cb_offset`].
         ///
-        /// [`cb_offset`]: crate::widgets::checkerboard#wp-cb_offset
+        /// [`cb_offset`]: mod@crate::widgets::checkerboard#wp-cb_offset
         #[property(context, default(Vector::zero()))]
         pub fn checkerboard_offset(child: impl UiNode, offset: impl IntoVar<Vector>) -> impl UiNode {
             with_context_var(child, CheckerboardOffsetVar, offset)

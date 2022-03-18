@@ -36,7 +36,8 @@ impl<U: UiNode> View<U> {
 /// The the view container must be able to hold all the possible child UIs, you can use
 /// [`UiNode::boxed`](crate::core::UiNode::boxed) to unify the types.
 ///
-/// # Example
+/// # Examples
+/// 
 /// ```
 /// use zero_ui::{
 ///     core::{color::{rgb, rgba}, text::ToText, var::Var, UiNode},

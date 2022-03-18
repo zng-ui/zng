@@ -14,7 +14,8 @@ use std::rc::Rc;
 /// * `var0..N`: A list of [vars](crate::var::Var), minimal 2.
 /// * `merge`: A function that produces a new value from references to all variable values. `FnMut(&var0_T, ..) -> merge_T`
 ///
-/// # Example
+/// # Examples
+/// 
 /// ```
 /// # use zero_ui_core::var::*;
 /// # use zero_ui_core::text::*;

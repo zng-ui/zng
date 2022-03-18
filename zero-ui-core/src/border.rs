@@ -620,6 +620,8 @@ pub fn corner_radius(child: impl UiNode, radius: impl IntoVar<CornerRadius>) -> 
 /// the image in a background image.
 ///
 /// Fill property implementers, see [`fill_node`], a helper function for quickly implementing support for `border_align`.
+/// 
+/// [`corner_radius`]: fn@corner_radius
 #[property(context, default(BorderAlignVar))]
 pub fn border_align(child: impl UiNode, align: impl IntoVar<FactorSideOffsets>) -> impl UiNode {
     with_context_var(child, BorderAlignVar, align)

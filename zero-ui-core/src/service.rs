@@ -144,7 +144,7 @@ impl Services {
 ///
 /// Implement this trait using `#[derive(Service)]`. It also generates an extension method for [`Services`] using the service name.
 ///
-/// # Example
+/// # Examples
 ///
 /// ```
 /// # fn main() { }

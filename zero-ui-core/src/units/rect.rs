@@ -209,7 +209,7 @@ impl<S: Into<Factor2d>> ops::DivAssign<S> for Rect {
 
 /// Build a [`Rect`] using the syntax `(width, height).at(x, y)`.
 ///
-/// # Example
+/// # Examples
 ///
 /// ```
 /// # use zero_ui_core::units::*;

@@ -13,7 +13,7 @@ use std::{fmt, marker::PhantomData, mem, num::NonZeroU32};
 
 /// Name of a font feature.
 ///
-/// # Example
+/// # Examples
 ///
 /// ```
 /// # use zero_ui_core::text::font_features::FontFeatureName;
@@ -148,7 +148,7 @@ fn name_to_str(name: &[u8; 4]) -> &str {
 
 /// A builder for [`FontFeatures`].
 ///
-/// # Example
+/// # Examples
 ///
 /// ```
 /// # use zero_ui_core::text::FontFeatures;
@@ -1674,7 +1674,7 @@ impl FontFeatureExclusiveSetState for EastAsianWidth {
 
 /// Name of a font variation axis.
 ///
-/// # Example
+/// # Examples
 ///
 /// ```
 /// # use zero_ui_core::text::font_features::FontVariationName;
@@ -1794,7 +1794,7 @@ impl fmt::Debug for FontVariations {
 
 ///<span data-inline></span> Initialize a [`FontVariations`] map.
 ///
-/// # Example
+/// # Examples
 ///
 /// ```
 /// # use zero_ui_core::text::font_features::{FontVariations, font_variations};

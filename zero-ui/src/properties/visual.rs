@@ -10,7 +10,7 @@ use super::{hit_test_mode, interactive};
 ///
 /// Backgrounds are not interactive and don't influence the widget layout but they are hit-testable.
 ///
-/// # Example
+/// # Examples
 ///
 /// ```
 /// use zero_ui::prelude::*;
@@ -69,7 +69,7 @@ pub fn background_gen(child: impl UiNode, generator: impl IntoVar<ViewGenerator<
 ///
 /// This property applies a [`fill_color`] as [`background`].
 ///
-/// # Example
+/// # Examples
 ///
 /// ```
 /// use zero_ui::prelude::*;
@@ -92,7 +92,7 @@ pub fn background_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl U
 ///
 /// This property applies a [`linear_gradient`] as [`background`].
 ///
-/// # Example
+/// # Examples
 ///
 /// ```
 /// use zero_ui::prelude::*;
@@ -270,7 +270,7 @@ pub fn foreground_highlight(
 ///
 /// This property applies a [`fill_color`] as [`foreground`].
 ///
-/// # Example
+/// # Examples
 ///
 /// ```
 /// use zero_ui::prelude::*;
@@ -295,7 +295,7 @@ pub fn foreground_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl U
 ///
 /// This property applies a [`linear_gradient`] as [`foreground`] using the [`Clamp`] extend mode.
 ///
-/// # Example
+/// # Examples
 ///
 /// ```
 /// use zero_ui::prelude::*;
@@ -314,7 +314,7 @@ pub fn foreground_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl U
 /// The example adds a *shadow* gradient to a 10px strip in the top part of the container content.
 ///
 /// [`foreground`]: fn@foreground
-/// [`Clamp`]: ExtendMode::Clamp
+/// [`Clamp`]: crate::core::gradient::ExtendMode::Clamp
 #[property(fill, default(0.deg(), {
     let c = colors::BLACK.transparent();
     crate::core::gradient::stops![c, c]
@@ -350,6 +350,8 @@ pub fn foreground_gradient(child: impl UiNode, axis: impl IntoVar<LinearGradient
 /// }
 /// # ;
 /// ```
+/// 
+/// [`corner_radius`]: fn@corner_radius
 #[property(fill, default(false))]
 pub fn clip_to_bounds(child: impl UiNode, clip: impl IntoVar<bool>) -> impl UiNode {
     struct ClipToBoundsNode<T, S> {

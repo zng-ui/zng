@@ -87,6 +87,8 @@ pub fn on_init(child: impl UiNode, handler: impl WidgetHandler<OnInitArgs>) -> i
 ///
 /// The async handlers spawn a task that is associated with the widget, it will only update when the widget updates,
 /// so the task *pauses* when the widget is deinited, and is *canceled* when the widget is dropped.
+/// 
+/// [`on_init`]: fn@on_init
 #[property(event,  default( hn!(|_, _|{}) ))]
 pub fn on_pre_init(child: impl UiNode, handler: impl WidgetHandler<OnInitArgs>) -> impl UiNode {
     struct OnPreviewInitNode<C, H> {
@@ -181,6 +183,9 @@ pub fn on_update(child: impl UiNode, handler: impl WidgetHandler<OnUpdateArgs> +
 ///
 /// The async handlers are not permitted here because of the high volume of calls and because async tasks cause an
 /// UI update every time they awake, so it is very easy to lock the app in a constant sequence of updates.
+/// 
+/// [`on_update`]: fn@on_update
+/// [`on_init`]: fn@on_init
 #[property(event,  default( hn!(|_, _|{}) ))]
 pub fn on_pre_update(child: impl UiNode, handler: impl WidgetHandler<OnUpdateArgs> + marker::NotAsyncHn) -> impl UiNode {
     struct OnPreviewUpdateNode<C, H> {
@@ -232,7 +237,7 @@ pub struct OnDeinitArgs {
 ///
 /// The async handlers are not permitted here because widget bound async tasks only advance past the first `.await`
 /// during widget updates, but we are deiniting the widget, probably about to drop it. You can start an UI bound
-/// async task in the app context using [`Updates::run`] or you can use [`task::spawn`] to start a parallel async task
+/// async task in the app context using [`WidgetContext::async_task`] or you can use [`task::spawn`] to start a parallel async task
 /// in a worker thread.
 #[property(event,  default( hn!(|_, _|{}) ))]
 pub fn on_deinit(child: impl UiNode, handler: impl WidgetHandler<OnDeinitArgs> + marker::NotAsyncHn) -> impl UiNode {
@@ -279,8 +284,11 @@ pub fn on_deinit(child: impl UiNode, handler: impl WidgetHandler<OnDeinitArgs> +
 ///
 /// The async handlers are not permitted here because widget bound async tasks only advance past the first `.await`
 /// during widget updates, but we are deiniting the widget, probably about to drop it. You can start an UI bound
-/// async task in the app context using [`Updates::run`] or you can use [`task::spawn`] to start a parallel async task
+/// async task in the app context using [`WidgetContext::async_task`] or you can use [`task::spawn`] to start a parallel async task
 /// in a worker thread.
+/// 
+/// [`on_update`]: fn@on_update
+/// [`on_init`]: fn@on_init
 #[property(event,  default( hn!(|_, _|{}) ))]
 pub fn on_pre_deinit(child: impl UiNode, handler: impl WidgetHandler<OnDeinitArgs> + marker::NotAsyncHn) -> impl UiNode {
     struct OnPreviewDeinitNode<C, H> {
@@ -324,10 +332,12 @@ pub struct OnMeasureArgs {
 
 /// Event fired during the widget [`measure`](UiNode::measure) layout.
 ///
-/// The `handler` is called after the [preview event](on_pre_arrange) and after the widget children.
+/// The `handler` is called after the [preview event](fn@on_pre_arrange) and after the widget children.
 /// The inputs are layout context and the [`OnMeasureArgs`].
 ///
-/// The `handler` is called even when the widget is [disabled](IsEnabled).
+/// The `handler` is called even when the widget is [disabled].
+/// 
+/// [disabled]: crate::core::widget_base::IsEnabled
 #[property(event, default(|_, _|{}))]
 pub fn on_measure(child: impl UiNode, handler: impl FnMut(&mut LayoutContext, OnMeasureArgs) + 'static) -> impl UiNode {
     struct OnMeasureNode<C, F> {
@@ -356,7 +366,10 @@ pub fn on_measure(child: impl UiNode, handler: impl FnMut(&mut LayoutContext, On
 /// The `handler` is called before the main event and before the widget children. The inputs are the layout context
 /// and the available size.
 ///
-/// The `handler` is called even when the widget is [disabled](IsEnabled).
+/// The `handler` is called even when the widget is [disabled].
+/// 
+/// [disabled]: crate::core::widget_base::IsEnabled
+/// [`on_measure`]: fn@on_measure
 #[property(event, default(|_, _|{}))]
 pub fn on_pre_measure(child: impl UiNode, handler: impl FnMut(&mut LayoutContext, AvailableSize) + 'static) -> impl UiNode {
     struct OnPreviewMeasureNode<C, F> {
@@ -375,9 +388,11 @@ pub fn on_pre_measure(child: impl UiNode, handler: impl FnMut(&mut LayoutContext
 
 /// Event fired during the widget [`arrange`](UiNode::arrange) layout.
 ///
-/// The `handler` is called after the [preview event](on_pre_arrange) and after the widget children.
+/// The `handler` is called after the [preview event](fn@on_pre_arrange) and after the widget children.
 ///
-/// The `handler` is called even when the widget is [disabled](IsEnabled).
+/// The `handler` is called even when the widget is [disabled].
+/// 
+/// [disabled]: crate::core::widget_base::IsEnabled
 #[property(event, default(|_, _|{}))]
 pub fn on_arrange(child: impl UiNode, handler: impl FnMut(&mut LayoutContext, PxSize) + 'static) -> impl UiNode {
     struct OnArrangeNode<C, F> {
@@ -398,7 +413,10 @@ pub fn on_arrange(child: impl UiNode, handler: impl FnMut(&mut LayoutContext, Px
 ///
 /// The `handler` is called before the main event and before the widget children.
 ///
-/// The `handler` is called even when the widget is [disabled](IsEnabled).
+/// The `handler` is called even when the widget is [disabled].
+/// 
+/// [disabled]: crate::core::widget_base::IsEnabled
+/// [`on_arrange`]: fn@on_arrange
 #[property(event, default(|_, _|{}))]
 pub fn on_pre_arrange(child: impl UiNode, handler: impl FnMut(&mut LayoutContext, PxSize) + 'static) -> impl UiNode {
     struct OnPreviewArrangeNode<C, F> {
@@ -417,10 +435,12 @@ pub fn on_pre_arrange(child: impl UiNode, handler: impl FnMut(&mut LayoutContext
 
 /// Event fired during the widget [`render`](UiNode::render).
 ///
-/// The `handler` is called after the [preview event](on_pre_render) and after the widget children. That means that
+/// The `handler` is called after the [preview event](fn@on_pre_render) and after the widget children. That means that
 /// display items added by the `handler` are rendered on top of the widget visual.
 ///
-/// The `handler` is called even when the widget is [disabled](IsEnabled).
+/// The `handler` is called even when the widget is [disabled].
+/// 
+/// [disabled]: crate::core::widget_base::IsEnabled
 #[property(event, default(|_, _|{}))]
 pub fn on_render(child: impl UiNode, handler: impl Fn(&mut RenderContext, &mut FrameBuilder) + 'static) -> impl UiNode {
     struct OnRenderNode<C, F> {
@@ -441,7 +461,10 @@ pub fn on_render(child: impl UiNode, handler: impl Fn(&mut RenderContext, &mut F
 /// The `handler` is called before the main event and before the widget children. That means that
 /// display items added by the `handler` are rendered as background of the widget visual.
 ///
-/// The `handler` is called even when the widget is [disabled](IsEnabled).
+/// The `handler` is called even when the widget is [disabled].
+/// 
+/// [disabled]: crate::core::widget_base::IsEnabled
+/// [`on_render`]: fn@on_render
 #[property(event, default(|_, _|{}))]
 pub fn on_pre_render(child: impl UiNode, handler: impl Fn(&mut RenderContext, &mut FrameBuilder) + 'static) -> impl UiNode {
     struct OnPreviewRenderNode<C: UiNode, F: Fn(&mut RenderContext, &mut FrameBuilder)> {
@@ -460,9 +483,11 @@ pub fn on_pre_render(child: impl UiNode, handler: impl Fn(&mut RenderContext, &m
 
 /// Event fired during the widget [`render_update`](UiNode::render_update).
 ///
-/// The `handler` is called after the [preview event](on_pre_render_update) and after the widget children.
+/// The `handler` is called after the [preview event](fn@on_pre_render_update) and after the widget children.
 ///
-/// The `handler` is called even when the widget is [disabled](IsEnabled).
+/// The `handler` is called even when the widget is [disabled].
+/// 
+/// [disabled]: crate::core::widget_base::IsEnabled
 #[property(event, default(|_, _|{}))]
 pub fn on_render_update(child: impl UiNode, handler: impl Fn(&mut RenderContext, &mut FrameUpdate) + 'static) -> impl UiNode {
     struct OnRenderUpdateNode<C, F> {
@@ -482,7 +507,10 @@ pub fn on_render_update(child: impl UiNode, handler: impl Fn(&mut RenderContext,
 ///
 /// The `handler` is called before the main event and before the widget children.
 ///
-/// The `handler` is called event when widget is [disabled](IsEnabled).
+/// The `handler` is called event when widget is [disabled].
+/// 
+/// [disabled]: crate::core::widget_base::IsEnabled
+/// [`on_render_update`]: fn@on_render_update
 #[property(event, default(|_, _|{}))]
 pub fn on_pre_render_update(child: impl UiNode, handler: impl Fn(&mut RenderContext, &mut FrameUpdate) + 'static) -> impl UiNode {
     struct OnPreviewRenderUpdateNode<C, F> {

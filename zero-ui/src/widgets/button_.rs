@@ -12,7 +12,7 @@ pub mod button {
     properties! {
         /// Button click event.
         ///
-        /// # Example
+        /// # Examples
         ///
         /// ```
         /// use zero_ui::prelude::*;
@@ -276,7 +276,7 @@ pub mod button {
                 pub struct TextColorVar: Rgba = colors::WHITE.darken(40.pct());
             }
 
-            /// Sets the disabled [`BackgroundVar`] that affects all buttons inside the widget.
+            /// Sets the disabled [`BackgroundColorVar`] that affects all buttons inside the widget.
             #[property(context, default(BackgroundColorVar))]
             pub fn background_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode {
                 with_context_var(child, BackgroundColorVar, color)

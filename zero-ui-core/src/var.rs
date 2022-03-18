@@ -1472,7 +1472,7 @@ impl<'a, T: VarValue> DerefMut for VarModify<'a, T> {
 /// an expression contains other interpolated vars the expression var updates when
 /// any of the interpolated vars update.
 ///
-/// # Example
+/// # Examples
 ///
 /// ```
 /// # use zero_ui_core::var::*;

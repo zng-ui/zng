@@ -96,7 +96,7 @@ pub trait AppRunWindowExt {
     ///
     /// This method only returns when the app has shutdown.
     ///
-    /// # Example
+    /// # Examples
     ///
     /// ```no_run
     /// # use zero_ui_core::app::App;

@@ -180,7 +180,7 @@ impl SegmentedText {
 
     /// Segments iterator.
     ///
-    /// # Example
+    /// # Examples
     ///
     /// ```
     /// # use zero_ui_core::text::SegmentedText;

@@ -341,6 +341,8 @@ pub mod grid {
     ///
     /// This property can also be set in the column and row *widgets*, by default rows are rendered on top o columns,
     /// but this property can override that. Note that item widgets are always rendered on-top columns and rows, this cannot be changed.
+    /// 
+    /// [`items`]: #wp-items
     #[property(context, default(0))]
     pub fn z_index(child: impl UiNode, z_index: impl IntoVar<i32>) -> impl UiNode {
         set_widget_state_update(child, ZIndexKey, z_index, |ctx, _| ctx.updates.render())

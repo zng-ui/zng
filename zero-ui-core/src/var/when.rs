@@ -16,7 +16,7 @@ use std::rc::Rc;
 /// The `condition-var` must be an expression that evaluates to an `impl Var<bool>` type. The `condition-value-var` must
 /// by any type that implements `IntoVar`. All condition values must be of the same [`VarValue`] type.
 ///
-/// # Example
+/// # Examples
 ///
 /// ```
 /// # use zero_ui_core::var::*;

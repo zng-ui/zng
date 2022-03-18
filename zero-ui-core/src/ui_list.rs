@@ -405,7 +405,7 @@ pub trait WidgetList: UiNodeList {
 ///
 /// This is the recommended way to declare the contents of layout panel.
 ///
-/// # Example
+/// # Examples
 ///
 /// ```todo
 /// # use zero_ui_core::{widgets, UiNode, Widget, WidgetId, NilUiNode};
@@ -437,7 +437,7 @@ pub use crate::widgets;
 ///
 /// This is the recommended way to declare the contents of a property that takes multiple [`UiNode`](crate::UiNode) implementers.
 ///
-/// # Example
+/// # Examples
 ///
 /// ```todo
 /// # use zero_ui_core::{nodes, UiNode, Widget, WidgetId, NilUiNode};

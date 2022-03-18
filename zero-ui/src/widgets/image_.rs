@@ -173,7 +173,7 @@ pub mod image {
         ///
         /// The image desired size is its original size, either in pixels or DIPs after cropping and scaling.
         ///
-        /// [`fit`]: crate::widgets::image#wp-fit
+        /// [`fit`]: mod@crate::widgets::image#wp-fit
         /// [`image_fit`]: fn@image_fit
         /// [`image_presenter`]: crate::widgets::image::nodes::image_presenter
         #[derive(Clone, Copy, PartialEq, Eq)]
@@ -268,7 +268,7 @@ pub mod image {
         ///
         /// See the [`fit`] property in the widget for more details.
         ///
-        /// [`fit`]: crate::widgets::image#wp-fit
+        /// [`fit`]: mod@crate::widgets::image#wp-fit
         #[property(context, default(ImageFit::Contain))]
         pub fn image_fit(child: impl UiNode, fit: impl IntoVar<ImageFit>) -> impl UiNode {
             with_context_var(child, ImageFitVar, fit)
@@ -278,7 +278,7 @@ pub mod image {
         ///
         /// See the [`scale`] property in the widget for more details.
         ///
-        /// [`fit`]: crate::widgets::image#wp-fit
+        /// [`scale`]: mod@crate::widgets::image#wp-scale
         #[property(context, default(Factor2d::identity()))]
         pub fn image_scale(child: impl UiNode, scale: impl IntoVar<Factor2d>) -> impl UiNode {
             with_context_var(child, ImageScaleVar, scale)
@@ -294,7 +294,7 @@ pub mod image {
         ///
         /// See the [`scape_ppi`] property in the widget for more details.
         ///
-        /// [`scape_ppi`]: crate::widgets::image#wp-scape_ppi
+        /// [`scape_ppi`]: mod@crate::widgets::image#wp-scape_ppi
         #[property(context, default(false))]
         pub fn image_scale_ppi(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
             with_context_var(child, ImageScalePpiVar, enabled)
@@ -304,7 +304,7 @@ pub mod image {
         ///
         /// See the [`image_align`] property in the widget for more details.
         ///
-        /// [`image_align`]: crate::widgets::image#wp-image_align
+        /// [`image_align`]: mod@crate::widgets::image#wp-image_align
         #[property(context, default(Align::CENTER))]
         pub fn image_align(child: impl UiNode, fit: impl IntoVar<Align>) -> impl UiNode {
             with_context_var(child, ImageAlignVar, fit)
@@ -314,7 +314,7 @@ pub mod image {
         ///
         /// See the [`image_offset`] property in the widget for more details.
         ///
-        /// [`image_offset`]: crate::widgets::image#wp-image_offset
+        /// [`image_offset`]: mod@crate::widgets::image#wp-image_offset
         #[property(context, default(Vector::default()))]
         pub fn image_offset(child: impl UiNode, offset: impl IntoVar<Vector>) -> impl UiNode {
             with_context_var(child, ImageOffsetVar, offset)
@@ -324,7 +324,7 @@ pub mod image {
         ///
         /// See the [`crop`] property in the widget for more details.
         ///
-        /// [`crop`]: crate::widgets::image#wp-crop
+        /// [`crop`]: mod@crate::widgets::image#wp-crop
         #[property(context, default(Rect::default()))]
         pub fn image_crop(child: impl UiNode, crop: impl IntoVar<Rect>) -> impl UiNode {
             with_context_var(child, ImageCropVar, crop)
@@ -334,7 +334,7 @@ pub mod image {
         ///
         /// See the [`rendering`] property in the widget for more details.
         ///
-        /// [`rendering`]: crate::widgets::image#wp-rendering
+        /// [`rendering`]: mod@crate::widgets::image#wp-rendering
         #[property(context, default(ImageRendering::Auto))]
         pub fn image_rendering(child: impl UiNode, rendering: impl IntoVar<ImageRendering>) -> impl UiNode {
             with_context_var(child, ImageRenderingVar, rendering)
@@ -344,7 +344,7 @@ pub mod image {
         ///
         /// See the [`cache`] property in the widget for more details.
         ///
-        /// [`cache`]: crate::widgets::image#wp-cache
+        /// [`cache`]: mod@crate::widgets::image#wp-cache
         #[property(context, default(true))]
         pub fn image_cache(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
             with_context_var(child, ImageCacheVar, enabled)
@@ -353,6 +353,8 @@ pub mod image {
         /// Sets custom image load and decode limits.
         ///
         /// If not set or set to `None` the [`Images::limits`] is used.
+        /// 
+        /// [`Images::limits`]: crate::core::image::Images::limits
         #[property(context, default(None))]
         pub fn image_limits(child: impl UiNode, limits: impl IntoVar<Option<ImageLimits>>) -> impl UiNode {
             with_context_var(child, ImageLimitsVar, limits)
@@ -690,7 +692,7 @@ pub mod image {
         /// In an widget this should be placed inside context properties and before event properties.
         ///
         /// [`Images`]: crate::core::image::Images
-        /// [`image_cache`]: fn@crate::widgets::image::properties::image_cache
+        /// [`image_cache`]: mod@crate::widgets::image::properties::image_cache
         pub fn image_source(child: impl UiNode, source: impl IntoVar<ImageSource>) -> impl UiNode {
             struct ImageSourceNode<C, S: Var<ImageSource>> {
                 child: C,

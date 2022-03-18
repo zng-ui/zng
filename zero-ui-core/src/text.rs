@@ -752,7 +752,7 @@ impl AsRef<str> for FontName {
 
 /// A list of [font names](FontName) in priority order.
 ///
-/// # Example
+/// # Examples
 ///
 /// This type is usually initialized using conversion:
 ///
@@ -1566,7 +1566,7 @@ impl PartialEq<Text> for String {
 pub trait ToText {
     /// Converts the given value to an owned [`Text`].
     ///
-    /// # Example
+    /// # Examples
     ///
     /// Basic usage:
     ///
@@ -1809,7 +1809,8 @@ mod tests {
 ///<span data-inline></span> Creates a [`Text`](crate::text::Text) by calling the `format!` macro and
 /// wrapping the result in a `Cow::Owned`.
 ///
-/// # Example
+/// # Examples
+/// 
 /// ```
 /// # use zero_ui_core::text::formatx;
 /// let text = formatx!("Hello {}", "World!");

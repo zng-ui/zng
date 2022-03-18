@@ -762,7 +762,8 @@ fn clamp_normal(i: f32) -> f32 {
 /// The arguments can either be [`f32`] in the `0.0..=1.0` range or
 /// [`u8`] in the `0..=255` range or a [percentage](FactorPercent).
 ///
-/// # Example
+/// # Examples
+/// 
 /// ```
 /// use zero_ui_core::color::rgb;
 ///
@@ -782,7 +783,8 @@ pub fn rgb<C: Into<RgbaComponent>>(red: C, green: C, blue: C) -> Rgba {
 ///
 /// The rgb arguments must be of the same type, the alpha argument can be of a different type.
 ///
-/// # Example
+/// # Examples
+/// 
 /// ```
 /// use zero_ui_core::color::rgba;
 ///
@@ -808,7 +810,7 @@ pub fn rgba<C: Into<RgbaComponent>, A: Into<RgbaComponent>>(red: C, green: C, bl
 ///
 /// The `saturation` and `lightness` arguments must be of the same type.
 ///
-/// # Example
+/// # Examples
 ///
 /// ```
 /// use zero_ui_core::color::hsl;
@@ -830,7 +832,7 @@ pub fn hsl<H: Into<AngleDegree>, N: Into<Factor>>(hue: H, saturation: N, lightne
 ///
 /// The `saturation` and `lightness` arguments must be of the same type.
 ///
-/// # Example
+/// # Examples
 ///
 /// ```
 /// use zero_ui_core::color::hsla;
@@ -858,7 +860,7 @@ pub fn hsla<H: Into<AngleDegree>, N: Into<Factor>, A: Into<Factor>>(hue: H, satu
 ///
 /// The `saturation` and `value` arguments must be of the same type.
 ///
-/// # Example
+/// # Examples
 ///
 /// ```
 /// use zero_ui_core::color::hsv;
@@ -880,7 +882,7 @@ pub fn hsv<H: Into<AngleDegree>, N: Into<Factor>>(hue: H, saturation: N, value: 
 ///
 /// The `saturation` and `value` arguments must be of the same type.
 ///
-/// # Example
+/// # Examples
 ///
 /// ```
 /// use zero_ui_core::color::hsva;
@@ -1034,7 +1036,7 @@ impl From<Factor> for RgbaComponent {
 /// The standalone filter functions are all in the [`color`](crate::color) module and have the same name
 /// as methods of this type.
 ///
-/// # Example
+/// # Examples
 ///
 /// ```
 /// use zero_ui_core::color::opacity;

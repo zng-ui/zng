@@ -5,7 +5,8 @@ use zero_ui_core::render::webrender_api::PrimitiveFlags;
 ///
 /// The state key is set in [`widget_state`](WidgetContext::widget_state) on init and is kept updated.
 ///
-/// # Example
+/// # Examples
+/// 
 /// ```
 /// # fn main() -> () { }
 /// use zero_ui::core::{property, context::{state_key, WidgetContext}, var::IntoVar, UiNode, Widget};

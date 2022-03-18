@@ -2,7 +2,7 @@ use crate::prelude::new_widget::*;
 
 /// A configured [`text`](../fn.text.html).
 ///
-/// # Example
+/// # Examples
 ///
 /// ```
 /// use zero_ui::prelude::text;
@@ -1693,7 +1693,8 @@ pub mod text {
 ///
 /// Text spans can be configured by setting [`font_family`], [`font_size`] and other properties in parent widgets.
 ///
-/// # Example
+/// # Examples
+/// 
 /// ```
 /// # fn main() -> () {
 /// use zero_ui::widgets::{container, text, text::properties::{font_family, font_size}};

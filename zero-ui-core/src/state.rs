@@ -22,7 +22,7 @@ pub trait StateKey: Copy + 'static {
 
 ///<span data-inline></span> Declares new [`StateKey`](crate::context::StateKey) types.
 ///
-/// # Example
+/// # Examples
 ///
 /// ```
 /// # use zero_ui_core::context::state_key;

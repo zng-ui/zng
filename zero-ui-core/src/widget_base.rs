@@ -465,7 +465,7 @@ impl IsEnabled {
 ///
 /// # Interaction
 ///
-/// A widget allows interaction only if [`WidgetInfo::allows_interaction`] returns `true`, this property pushes an interaction
+/// A widget allows interaction only if [`WidgetInfo::allow_interaction`] returns `true`, this property pushes an interaction
 /// filter that blocks interaction for the widget and all its descendants. Note that widgets can block interaction and
 /// still be *enabled*, meaning that it behaves like a *disabled* widget but looks like an idle enabled widget, this can happen,
 /// for example, when a *modal overlay* is open.
@@ -473,7 +473,7 @@ impl IsEnabled {
 /// # Disabled Visual
 ///
 /// Widgets that are expected to be interactive should visually indicate when they are not interactive, but **only** if interaction
-/// was disabled by this property, widgets visual should not try to use [`WidgetInfo::allows_interaction`] directly.
+/// was disabled by this property, widgets visual should not try to use [`WidgetInfo::allow_interaction`] directly.
 ///
 /// The visual cue for the disabled state is usually a reduced contrast from content and background by *graying-out* the text and applying a
 /// grayscale filter for image content.
@@ -484,7 +484,9 @@ impl IsEnabled {
 ///
 /// [`Event`]: crate:core::event::Event
 /// [`MouseDownEvent`]: crate::core::mouse::MouseDownEvent
-/// [`WidgetInfo::allows_interaction`]: crate::widget_info::WidgetInfo::allows_interaction
+/// [`WidgetInfo::allow_interaction`]: crate::widget_info::WidgetInfo::allow_interaction
+/// [`is_enabled`]: fn@is_enabled
+/// [`is_disabled`]: fn@is_disabled
 #[property(context, default(true))]
 pub fn enabled(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
     struct EnabledNode<C> {
@@ -635,7 +637,7 @@ pub fn is_disabled(child: impl UiNode, state: StateVar) -> impl UiNode {
 /// only forces the widget to layout and render according to the specified visibility.
 ///
 /// To probe the visibility state of an widget in `when` clauses use [`is_visible`], [`is_hidden`] or [`is_collapsed`] in `when` clauses,
-/// to probe a widget state use [`Widget::visibility`] or [`WidgetInfo::visibility`].
+/// to probe a widget state use [`Widget::render_info`] or [`WidgetInfo::visibility`].
 ///
 /// # Implicit
 ///
@@ -990,6 +992,7 @@ pub fn hit_test_mode(child: impl UiNode, mode: impl IntoVar<HitTestMode>) -> imp
 /// the [`hit_test_mode`] property.
 ///
 /// [`hit_testable`]: fn@hit_testable
+/// [`hit_test_mode`]: fn@hit_test_mode
 #[property(event)]
 pub fn is_hit_testable(child: impl UiNode, state: StateVar) -> impl UiNode {
     struct IsHitTestableNode<C: UiNode> {

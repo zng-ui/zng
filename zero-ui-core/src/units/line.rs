@@ -192,7 +192,7 @@ impl PxLine {
 
 /// Build a [`Line`] using the syntax `(x1, y1).to(x2, y2)`.
 ///
-/// # Example
+/// # Examples
 ///
 /// ```
 /// # use zero_ui_core::units::*;

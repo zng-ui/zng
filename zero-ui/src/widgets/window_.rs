@@ -8,7 +8,7 @@ use crate::properties::events::window::*;
 /// The instance type is [`Window`], that can be given to the [`Windows`](crate::core::window::Windows) service
 /// to open a system window that is kept in sync with the window properties set in the widget.
 ///
-/// # Example
+/// # Examples
 ///
 /// ```no_run
 /// use zero_ui::prelude::*;

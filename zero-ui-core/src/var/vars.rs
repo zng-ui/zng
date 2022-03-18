@@ -732,7 +732,7 @@ impl OnVarHandle {
 ///
 /// This is used to make vars assign less cumbersome to use, it is implemented to all sync and async context types and [`Vars`] it-self.
 ///
-/// # Example
+/// # Examples
 ///
 /// The example demonstrate how this `trait` simplifies calls to [`Var::set`]. The same applies to [`Var::modify`] and [`Var::set_ne`].
 ///

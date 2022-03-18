@@ -329,7 +329,7 @@ impl fmt::Display for Factor {
 ///
 /// This trait is implemented for [`f32`] and [`u32`] allowing initialization of factor unit types using the `<number>.<unit>()` syntax.
 ///
-/// # Example
+/// # Examples
 ///
 /// ```
 /// # use zero_ui_core::units::*;

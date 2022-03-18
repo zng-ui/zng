@@ -854,7 +854,7 @@ impl Events {
     /// Returns a [`OnEventHandle`] that can be used to unsubscribe, you can also unsubscribe from inside the handler by calling
     /// [`unsubscribe`](crate::handler::AppWeakHandle::unsubscribe) in the third parameter of [`app_hn!`] or [`async_app_hn!`].
     ///
-    /// # Example
+    /// # Examples
     ///
     /// ```
     /// # use zero_ui_core::event::*;
@@ -967,7 +967,7 @@ impl Events {
 /// This is used to make event notification less cumbersome to use, it is implemented to all sync and async context types
 /// and [`Events`] it-self.
 ///
-/// # Example
+/// # Examples
 ///
 /// The example demonstrate how this `trait` simplifies calls to [`Event::notify`].
 ///
@@ -1645,7 +1645,7 @@ pub use crate::cancelable_event_args;
 
 ///<span data-inline></span> Declares new [`Event`](crate::event::Event) types.
 ///
-/// # Example
+/// # Examples
 ///
 /// ```
 /// # use zero_ui_core::event::event;
@@ -1768,7 +1768,7 @@ macro_rules! __event_property {
 /// Each declaration expands to two properties `on_$event`, `on_pre_$event`.
 /// The preview properties call [`on_pre_event`], the main event properties call [`on_event`].
 ///
-/// # Example
+/// # Examples
 ///
 /// ```
 /// # fn main() { }

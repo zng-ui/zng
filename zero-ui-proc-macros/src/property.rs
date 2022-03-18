@@ -840,7 +840,7 @@ mod output {
     use quote::ToTokens;
     use syn::{spanned::Spanned, Attribute, ItemFn, TraitItemType, Type, TypeParam, Visibility};
 
-    use crate::util::{crate_core, docs_with_first_line_js, Errors};
+    use crate::util::{crate_core, Errors};
 
     use super::input::Priority;
 
@@ -895,7 +895,10 @@ mod output {
             } else if self.is_wgt_capture_only {
                 tokens.extend(quote! { #[doc(hidden)] });
             } else {
-                docs_with_first_line_js(tokens, &self.docs, js!("property_header.js"));
+                doc_extend!(tokens, "**`property`** ");
+                for attr in &self.docs {
+                    attr.to_tokens(tokens);
+                }
             }
             if self.is_capture_only {
                 tokens.extend(quote! {
@@ -905,10 +908,7 @@ mod output {
                 });
             } else if !wgt {
                 tokens.extend(quote! {
-                    /// </div>
-                    /// <h2 id='function' class='small-section-header'>Function<a href='#function' class='anchor'></a></h2>
-                    /// <pre id='ffn' class='rust fn'></pre>
-                    /// <div class='docblock'>
+                    /// # As Function
                     ///
                     /// Properties are functions that can be called directly.
                     ///
@@ -918,18 +918,7 @@ mod output {
                     ///
                     /// [`UiNode`]: zero_ui::core::UiNode
                 });
-            }
-
-            doc_extend!(
-                tokens,
-                "<script>{}property({})</script>",
-                if wgt {
-                    js!("property_wgt_export.js")
-                } else {
-                    js!("property_full.js")
-                },
-                self.is_capture_only
-            );
+            }            
 
             self.cfg.to_tokens(tokens);
 

@@ -51,7 +51,7 @@ pub mod uniform_grid {
         ///
         /// Value is ignored if is `>= columns`.
         ///
-        /// # Example
+        /// # Examples
         ///
         /// ```
         /// # use zero_ui::prelude::*;
@@ -269,7 +269,7 @@ pub mod uniform_grid {
 
 /// Grid layout where all cells are the same size.
 ///
-/// # Example
+/// # Examples
 ///
 /// ```
 /// # use zero_ui::prelude::*;

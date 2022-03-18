@@ -49,7 +49,7 @@ pub type RenderExtendMode = crate::render::webrender_api::ExtendMode;
 
 /// The [angle](AngleUnits) or [line](crate::units::Line) that defines a linear gradient.
 ///
-/// # Example
+/// # Examples
 ///
 /// ```
 /// # use zero_ui_core::units::*;
@@ -930,7 +930,7 @@ macro_rules! __stops {
 /// A minimum of two arguments are required, the first and last argument must be expressions that convert to [`ColorStop`],
 /// the middle arguments mut be expressions that convert to [`GradientStop`].
 ///
-/// # Example
+/// # Examples
 ///
 /// ```
 /// # use zero_ui_core::gradient::stops;
@@ -949,7 +949,8 @@ macro_rules! __stops {
 /// expands to two color stops of the same color. The color type must implement `Into<Rgba> + Copy`. The offset types
 /// must implement `Into<Length>`.
 ///
-/// ## Example
+/// ## Examples
+/// 
 /// ```
 /// # use zero_ui_core::gradient::stops;
 /// # use zero_ui_core::color::colors;
