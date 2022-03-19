@@ -596,11 +596,6 @@ impl syn::parse::Parse for OuterAttrs {
     }
 }
 
-/// Convert a #[cfg(..)] attribute token stream to a string that can be displayed in a HTML element title attribute.
-pub fn html_title_cfg(cfg: TokenStream) -> String {
-    cfg.to_string().replace(' ', "").replace(',', ", ").replace('\"', "&quot;")
-}
-
 /// Runs `rustfmt` in the `expr`.
 pub fn format_rust_expr(value: String) -> String {
     // credits: https://github.com/rust-lang/rustfmt/issues/3257#issuecomment-523573838

@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
-use proc_macro2::{Span, TokenStream};
+use proc_macro2::TokenStream;
 use quote::ToTokens;
 use syn::{parse::Parse, Ident, LitBool};
 
@@ -338,15 +338,10 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         // generate re-export.
         let path = &inherited_properties[&ip.ident].module;
         let p_ident = ident!("__p_{}", ip.ident);
-        let p_doc_ident = ident!("__pdoc_{}", ip.ident);
         property_reexports.extend(quote! {
             #cfg
             #[doc(hidden)]
             pub use #path::#p_ident;
-
-            #cfg
-            #[doc(inline)]
-            pub use #path::#p_doc_ident;
         });
 
         // generate values re-export.
@@ -418,7 +413,6 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         // re-export property
         let path = &p.path;
         let p_ident = ident!("__p_{}", p.ident);
-        let p_doc_ident = ident!("__pdoc_{}", p.ident);
 
         match p.kind() {
             PropertyItemKind::Ident => {
@@ -429,10 +423,6 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                         #cfg
                         #[doc(hidden)]
                         pub use #inherited_source::#p_ident;
-
-                        #cfg
-                        #[doc(inline)]
-                        pub use #inherited_source::#p_doc_ident;
                     });
                     continue;
                 }
@@ -442,15 +432,10 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                     let inherited_source = &inherited.module;
                     // re-export inherited property as a new name.
                     let inherited_ident = ident!("__p_{maybe_inherited}");
-                    let inherited_doc_ident = ident!("__pdoc_{maybe_inherited}");
                     property_reexports.extend(quote! {
                         #cfg
                         #[doc(hidden)]
                         pub use #inherited_source::#inherited_ident as #p_ident;
-
-                        #cfg
-                        #[doc(inline)]
-                        pub use #inherited_source::#inherited_doc_ident as #p_doc_ident;
                     });
                     continue;
                 }
@@ -462,10 +447,6 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             #cfg
             #[doc(hidden)]
             pub use #path::export as #p_ident;
-
-            #cfg
-            #[doc(inline)]
-            pub use #path::wgt_docs_export as #p_doc_ident;
         });
     }
     let property_reexports = property_reexports;
@@ -723,7 +704,6 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         });
 
         let p_ident = ident!("__p_{w_prop}");
-        let p_doc_ident = ident!("__pdoc_{w_prop}");
         let d_ident = ident!("__d_{w_prop}");
 
         // reexport property and default value.
@@ -733,9 +713,6 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
                 #[doc(hidden)]
                 pub use #w_prop::export as #p_ident;
-
-                #[doc(inline)]
-                pub use #w_prop::wgt_docs_export as #p_doc_ident;
 
                 #[doc(hidden)]
                 pub fn #d_ident() -> impl self::#p_ident::Args {
@@ -900,6 +877,13 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             #new_macro
         }
         #export_macro
+
+        /// Documentation of properties used or declared in the widget.
+        ///
+        /// This *const* is only visible if `zero-ui-docs` was not used to generate the docs.
+        ///
+        #auto_docs
+        pub const __DOCS: () = ();
     };
 
     r.into()
@@ -919,9 +903,9 @@ struct WhenDocs {
 }
 fn auto_docs(
     required: Vec<PropertyDocs>,
-    default: Vec<PropertyDocs>,
+    mut default: Vec<PropertyDocs>,
     state: Vec<PropertyDocs>,
-    mut other: Vec<PropertyDocs>,
+    other: Vec<PropertyDocs>,
     whens: Vec<WhenDocs>,
     mixin: bool,
 ) -> TokenStream {
@@ -929,164 +913,32 @@ fn auto_docs(
     use util::is_doc_hidden;
     let mut r = TokenStream::default();
 
-    docs_section(
-        &mut r,
-        required,
-        "Required Properties",
-        "required-properties",
-        "Properties that must be set.",
-    );
-    docs_section(
-        &mut r,
-        default,
-        "Default Properties",
-        "default-properties",
-        "Properties that have a default value.",
-    );
-    docs_section(
-        &mut r,
-        state,
-        "State Properties",
-        "state-properties",
-        "Properties that probe the widget state.",
-    );
-
-    if !mixin {
-        other.push(PropertyDocs {
-            ident: "*".to_owned(),
-            docs: quote_spanned! {Span::call_site()=>
-                /// Widgets are open ended, all property functions can be used in any widget.
-            },
-            doc_hidden: false,
-            inherited_from_path: None,
-        });
-    }
-    docs_section(
-        &mut r,
-        other,
-        "Other Properties",
-        "other-properties",
-        "Other properties declared in the widget.",
-    );
-
-    if !whens.is_empty() {
-        docs_section_header(&mut r, "When Conditions", "whens", "When conditions and what properties they set.");
-        for (i, when) in whens.into_iter().enumerate() {
-            //let pattern = Regex::new(r#"self\.(\w+)"#).unwrap();
-            let mut expr = when.expr;
-            while let Some(i) = expr.find("self.") {
-                let p_start = i + "self.".len();
-                let mut p_end = p_start;
-                for (i, c) in expr[p_start..].char_indices() {
-                    if c == '_' || c.is_alphanumeric() {
-                        p_end = i + p_start;
-                    } else {
-                        break;
-                    }
-                }
-
-                let p = &expr[p_start..=p_end];
-
-                let replacement = format!("<span class='keyword'>self</span>.<a href='#wp-{p}' class='fnname'>{p}</a>");
-                expr.replace_range(i..=p_end, &replacement);
-            }
-
-            doc_extend!(r, "\n\n");
-            doc_extend!(
-                r,
-                r##"<details class="rustdoc-toggle method-toggle" open><summary><div id="ww-{i}" class="method in-band"><a class="anchor" href="#ww-{i}" style="margin-left:-4px"></a><code style="margin-left:8px">{expr}</code></div></summary><div class="docblock">"##,
-            );
-            doc_extend!(r, "\n\n");
-            r.extend(when.docs);
-
-            let mut affected = String::new();
-            for (assigned, cfg) in when.affects {
-                use std::fmt::Write;
-                if !affected.is_empty() {
-                    affected.push_str(", ");
-                }
-                let mut cfg = util::html_title_cfg(cfg);
-                if !cfg.is_empty() {
-                    cfg = format!("title='{cfg}'");
-                }
-                write!(&mut affected, "<a href='#wp-{assigned}' {cfg}><code>{assigned}</code></a>").unwrap();
-            }
-            doc_extend!(r, "\n\n*Affects affected}.*");
-            doc_extend!(r, "\n\n</div></details>\n\n");
-        }
-        docs_close_section(&mut r);
-    }
+    docs_section(&mut r, required, "Required Properties");
+    default.extend(other);
+    docs_section(&mut r, default, "Properties");
+    docs_section(&mut r, state, "State Properties");
 
     r
 }
-fn docs_section(docs: &mut TokenStream, properties: Vec<PropertyDocs>, title: &'static str, id: &'static str, tool_tip: &'static str) {
+fn docs_section(r: &mut TokenStream, properties: Vec<PropertyDocs>, name: &str) {
+    let mut properties: Vec<_> = properties.into_iter().filter(|p| !p.doc_hidden).collect();
     if properties.is_empty() {
         return;
     }
-    docs_section_header(docs, title, id, tool_tip);
-    for property in properties {
-        if property.doc_hidden {
-            // TODO handle doc generation that includes doc_hidden items
-            continue;
-        }
-        docs_property_header(
-            docs,
-            &format!("wp-{}", property.ident),
-            &property.ident.to_string(),
-            &format!("fn.__pdoc_{}.html", property.ident),
-        );
 
-        if property.docs.is_empty() {
-            doc_extend!(docs, "<div class='default-help' data-ident='{}'></div>", property.ident);
+    properties.sort_by(|a, b| a.ident.cmp(&b.ident));
+
+    doc_extend!(r, "# {}\n\n", name);
+    for p in properties {
+        if let Some(parent) = p.inherited_from_path {
+            doc_extend!(r, "* **[`{0}`](mod@{1}#{0})**\n\n", p.ident, util::display_path(&parent));
         } else {
-            docs.extend(property.docs);
+            doc_extend!(r, "* **[`{0}`](fn@{0})**\n\n", p.ident);
         }
 
-        if let Some(widget_path) = property.inherited_from_path {
-            let widget_path = util::display_path(&widget_path);
-            let widget_name = if let Some(i) = widget_path.rfind(':') {
-                &widget_path[i + 1..]
-            } else {
-                &widget_path
-            };
-            doc_extend!(
-                docs,
-                "\n\n*Inherited from [`{widget_name}`](mod@{widget_path}#wp-{}).*",
-                property.ident
-            );
-        }
-        docs_close_property(docs);
+        r.extend(p.docs);
+        doc_extend!(r, "\n\n");
     }
-    docs_close_section(docs);
-}
-fn docs_section_header(docs: &mut TokenStream, title: &'static str, id: &'static str, tool_tip: &'static str) {
-    doc_extend!(
-        docs,
-        r##"<h2 id="{id}" class="small-section-header" title="{tool_tip}">{title}<a href="#{id}" class="anchor"></a></h2><div class="impl-items"">"##,
-    )
-}
-fn docs_close_section(docs: &mut TokenStream) {
-    doc_extend!(docs, "</div>");
-}
-fn docs_property_header(docs: &mut TokenStream, id: &str, property: &str, url: &str) {
-    doc_extend!(docs, "\n\n");
-
-    if id.ends_with('*') {
-        doc_extend!(
-            docs,
-            r##"<details class="rustdoc-toggle method-toggle" open><summary><div id="{id}" class="method in-band"><a class="anchor" href="#{id}" style="margin-left:-4px"></a><code style="font-style:italic; margin-left:8px"><a href="#{id}" class="fnname">all-properties</a> = T</code></div></summary><div class="docblock">"##,
-        );
-    } else {
-        doc_extend!(
-            docs,
-            r##"<details class="rustdoc-toggle method-toggle" open><summary><div id="{id}" class="method in-band"><a class="anchor" href="#{id}" style="margin-left:-4px"></a><code style="margin-left:8px"><a href="{url}" class="fnname">{property}</a> = <span class='ptype-request' title='Loading property type…'>…<iframe src='{url}' style='position: absolute;width:0;height:0;border:0;'></iframe></span></code></div></summary><div class="docblock">"##,
-        );
-    }
-
-    doc_extend!(docs, "\n\n");
-}
-fn docs_close_property(docs: &mut TokenStream) {
-    doc_extend!(docs, "\n\n</div></details>\n\n");
 }
 
 struct Items {
