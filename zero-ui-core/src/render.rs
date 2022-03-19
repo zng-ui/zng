@@ -673,7 +673,7 @@ impl FrameBuilder {
         );
 
         // offset can only be set using transaction `set_scroll_offsets` ?
-        self.scrolls.push((scroll_id_wr, content_rect.origin.to_vector()));
+        self.scrolls.push((scroll_id_wr, -content_rect.origin.to_vector()));
 
         f(self);
 
