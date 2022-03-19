@@ -8,6 +8,37 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // edit the widget mod item page, changes title and removes the widget tag.
 function editWgtPage() {
+    let is_mod_pg = false;
+    let h1 = null;
+    document.querySelectorAll('h1').forEach(function(h) {
+        if (h.innerText.trimStart().startsWith("Module ")) {
+            h1 = h;
+            is_mod_pg = true;
+        }
+    });
+
+    let is_wgt_pg = false;
+    let code = null;
+    if (is_mod_pg) {
+        document.querySelectorAll('code').forEach(function(c) {
+            if (c.innerText == "widget") {
+                code = c;
+                is_wgt_pg = true;
+            }
+        })
+    }
+
+    if(is_wgt_pg) {
+        // edit page.
+
+        code.remove();
+        let txt = h1.childNodes[0].childNodes[0];
+        h1.childNodes[0].replaceChild(document.createTextNode("Widget "), txt);
+
+        document.querySelectorAll('h2.location a').forEach(function(a) {
+            a.innerText = a.innerText.replace("Module ", "Widget ");
+        });
+    }
 }
 
 // edit the Modules list of a module, creates a Widgets section, removes widget tag.
