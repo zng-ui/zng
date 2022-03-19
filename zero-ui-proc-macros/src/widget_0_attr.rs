@@ -54,14 +54,15 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
     wgt_attrs.extend(quote! { #(#others)* });
     wgt_attrs.extend(quote! { #(#lints)* });
 
-    util::docs_with_first_line_js(&mut wgt_attrs, &docs, js!("widget_header.js"));
     wgt_attrs.extend(quote! {
-        ///
-        ///
+        #[doc="**`widget`** "]
     });
-    doc_extend!(wgt_attrs, js_tag!("widget_full.js"));
+    for doc in &docs {
+        doc.to_tokens(&mut wgt_attrs);
+    }
     wgt_attrs.extend(quote! {
-        /// <iframe id='inner-docs-frame' src='__inner_docs/index.html' style='position: absolute;width:0;height:0;border:0;'></iframe>
+        ///
+        ///
     });
     let wgt_attrs = wgt_attrs;
 

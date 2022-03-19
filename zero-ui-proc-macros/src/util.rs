@@ -236,20 +236,6 @@ macro_rules! non_user_error {
     }
 }
 
-/// Include minified JS string from the "src/js" dir.
-macro_rules! js {
-    ($file_name:tt) => {
-        include_str!(concat!(env!("OUT_DIR"), "/js_min/", $file_name))
-    };
-}
-
-/// Like [`js!`] but quoted with `<script>..</script>` tag.
-macro_rules! js_tag {
-    ($file_name:tt) => {
-        concat!("<script>", js!($file_name), "</script>")
-    };
-}
-
 macro_rules! non_user_group {
     ($group_kind:ident, $input:expr) => {
         {
@@ -426,34 +412,6 @@ pub fn is_doc_hidden(docs: &[Attribute]) -> bool {
 pub fn is_doc_hidden_tt(docs: TokenStream) -> bool {
     let attrs = syn::parse2::<OuterAttrs>(docs).unwrap().attrs;
     is_doc_hidden(&attrs)
-}
-
-/// Insert `<script>{js}</script>` ad the end of the first `docs` line escaped to activate in the item
-/// parent module summary list page.
-pub fn docs_with_first_line_js(output: &mut TokenStream, docs: &[Attribute], js: &'static str) {
-    if docs.is_empty() {
-        doc_extend!(output, "<script>{js}</script>");
-    } else {
-        let inner = docs[0].tokens.to_string();
-        let mut skip = 0;
-        if let Some(doc) = inner.strip_prefix('=') {
-            let doc = doc.trim_start().trim_start_matches('r').trim_start_matches('#');
-            if let Some(doc) = doc.strip_prefix('"') {
-                // is #[doc=".."] like attribute.
-                // inject JS without breaking line so that it is included in the item summary.
-
-                let doc = &doc[..doc.len() - 1]; // remove \" end
-
-                // replace characters `rustdoc` incorrectly changes.
-                doc_extend!(output, "{doc}<script>{}</script>\n\n", js.replace('\'', "&#39;"));
-                skip = 1;
-            }
-        }
-
-        for attr in docs.iter().skip(skip) {
-            attr.to_tokens(output);
-        }
-    }
 }
 
 /// Convert a [`Path`] to a formatted [`String`].

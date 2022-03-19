@@ -1,13 +1,13 @@
 // Customizes property function pages and properties in function lists.
 
 document.addEventListener('DOMContentLoaded', function() {
-    editPage();
-    editList();
-    editSideBar();
+    editPropPage();
+    editPropList();
+    editPropSideBar();
 });
 
 // edit the property function item page, changes title, declaration code and removes the property tag.
-function editPage() {
+function editPropPage() {
     let is_fn_pg = false;
     let h1 = null;
     document.querySelectorAll('h1').forEach(function(h) {
@@ -85,7 +85,7 @@ function editPropDecl(capture_only, fn, ffn) {
 }
 
 // edit the Functions list of a module, creates a Properties section, removes property tag.
-function editList() {
+function editPropList() {
     let functions = document.getElementById("functions");
     if (functions == null) {
         return;
@@ -140,7 +140,7 @@ function editList() {
 }
 
 // edit the sidebar property function items, identified by their tooltip.
-function editSideBar() {
+function editPropSideBar() {
     let functions = document.querySelector("div.sidebar-elems div.block.fn");
     if (functions == null) {
         return;
@@ -153,7 +153,6 @@ function editSideBar() {
         }
     });
 
-    console.log(prop_anchors);
     if (prop_anchors.length == 0) {
         return;
     }
@@ -177,4 +176,8 @@ function editSideBar() {
     properties.appendChild(properties_list);
 
     functions.parentElement.insertBefore(properties, functions);
+
+    if(functions.querySelector("ul").querySelector("a") == null) {
+        functions.remove();
+    }
 }

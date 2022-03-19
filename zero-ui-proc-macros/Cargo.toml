@@ -37,6 +37,3 @@ quote = "1"
 once_cell = "1"
 
 unic-langid = "0.9"
-
-[build-dependencies]
-minifier = "0.0.42"

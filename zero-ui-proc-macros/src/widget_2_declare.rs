@@ -932,8 +932,6 @@ fn auto_docs(
     use util::is_doc_hidden;
     let mut r = TokenStream::default();
 
-    doc_extend!(r, ".\n\n</div>{}<div id='inner-docs'>", js_tag!("widget_inner_docs.js"));
-
     docs_section(
         &mut r,
         required,
