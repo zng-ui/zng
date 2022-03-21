@@ -918,6 +918,43 @@ fn auto_docs(
     docs_section(&mut r, default, "Properties");
     docs_section(&mut r, state, "State Properties");
 
+    if !mixin {
+        doc_extend!(
+            r,
+            "# Other Properties\n\nWidgets are open ended, standalone property functions can be used in any widget."
+        );
+    }
+
+    if !whens.is_empty() {
+        doc_extend!(
+            r,
+            "# Whens\n\nWhen expressions set by default, more expressions can be set during instantiation."
+        );
+        for w in whens {
+            doc_extend!(r, "```text\n{}\n```\n\n", w.expr);
+            r.extend(w.docs);
+
+            let mut comma = "";
+            let mut affects = String::new();
+            for (p, cfg) in w.affects {
+                use std::fmt::Write;
+
+                if cfg.is_empty() {
+                    let _ = write!(&mut affects, "{comma}[`{0}`](#{0})", p);
+                } else {
+                    let _ = write!(
+                        &mut affects,
+                        "{comma}[`{0}`](#{0} \"{1}\")",
+                        p,
+                        cfg.to_string().replace(' ', "").replace(',', ", ").replace('"', "&quote;")
+                    );
+                }
+                comma = ", ";
+            }
+            doc_extend!(r, "\n\n**Affects:** {affects}.");
+        }
+    }
+
     r
 }
 fn docs_section(r: &mut TokenStream, properties: Vec<PropertyDocs>, name: &str) {

@@ -136,6 +136,9 @@ function editPropList() {
     if (functions_table.querySelector("a") == null) {
         functions_table.remove();
         functions.remove();
+
+        let sidebarFns = document.querySelector("li a[href='#functions']").parentElement;
+        sidebarFns.remove();
     }
 }
 

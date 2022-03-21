@@ -689,37 +689,6 @@ mod analysis {
             is_wgt_capture_only: is_capture_only && fn_.sig.ident.to_string().starts_with("__p_"),
         };
 
-        // create a *real-alias* with docs that are inlined in widgets
-        // we need to do this because of https://github.com/rust-lang/rust/issues/83976
-        let mut alias_tokens = TokenStream::new();
-        if export && !fn_and_errors_only {
-            let mut docs_copy = TokenStream::new();
-            fn_attrs.to_tokens(&mut docs_copy, true);
-
-            let vis = &fn_.vis;
-            let mut alias_fn = fn_.clone();
-            let id = alias_fn.sig.ident;
-            let alias_ident = ident_spanned!(id.span()=> "__wgt_{id}");
-
-            alias_fn.sig.ident = ident!("wgt_docs_export");
-            alias_fn.block = parse_quote!({});
-            alias_fn.sig.output = syn::ReturnType::Default;
-
-            let cfg = &attrs.cfg;
-
-            alias_tokens.extend(quote! {
-                #cfg
-                #[doc(hidden)]
-                #[allow(unused)]
-                #vis mod #alias_ident {
-                    use super::*;
-
-                    #docs_copy
-                    #alias_fn
-                }
-            });
-        }
-
         output::Output {
             errors,
             fn_and_errors_only,
@@ -749,7 +718,6 @@ mod analysis {
                 args_ident: ident!("{}_Args", fn_.sig.ident),
                 args_impl_ident: ident!("{}_ArgsImpl", fn_.sig.ident),
                 has_default_value,
-                alias_fn: alias_tokens,
             },
             macro_: output::OutputMacro {
                 cfg: attrs.cfg,
@@ -1543,7 +1511,6 @@ mod output {
         pub macro_ident: Ident,
         pub args_ident: Ident,
         pub args_impl_ident: Ident,
-        pub alias_fn: TokenStream,
     }
     impl ToTokens for OutputMod {
         fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
@@ -1554,7 +1521,6 @@ mod output {
                 macro_ident,
                 args_ident,
                 args_impl_ident,
-                alias_fn,
                 ..
             } = self;
 
@@ -1596,22 +1562,7 @@ mod output {
                 TokenStream::new()
             };
 
-            let alias_reexport = if !alias_fn.is_empty() {
-                let ident = ident!("__wgt_{ident}");
-                quote! {
-                    #[doc(inline)]
-                    #vis use super::#ident::wgt_docs_export;
-                }
-            } else {
-                quote! {
-                    #[doc(hidden)]
-                    #vis fn wgt_docs_export() {}
-                }
-            };
-
             tokens.extend(quote! {
-                #alias_fn
-
                 #cfg
                 #[doc(hidden)]
                 #vis mod #ident {
@@ -1629,8 +1580,6 @@ mod output {
                     pub use #crate_core::var::{when_var, switch_var};
                     #[doc(hidden)]
                     pub use #crate_core::property_new as __property_new;
-
-                    #alias_reexport
                 }
             })
         }

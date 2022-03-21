@@ -208,14 +208,6 @@ macro_rules! abort_call_site {
 
 /// Extend a TokenStream with a `#[doc]` attribute.
 macro_rules! doc_extend {
-    ($tokens:ident, $str:expr) => {
-        {
-            let doc_comment = $str;
-            for line in doc_comment.lines() {
-                $tokens.extend(quote_spanned!(proc_macro2::Span::call_site()=> #[doc=#line]));
-            }
-        }
-    };
     ($tokens:ident, $($tt:tt)*) => {
         {
             let doc_comment = format!($($tt)*);
