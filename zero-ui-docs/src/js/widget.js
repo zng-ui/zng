@@ -193,6 +193,7 @@ function editWgtPageSideBar() {
     let widget_items_ul = document.createElement('ul');
     appendSidebarAnchor(widget_items_ul, "required-properties");
     appendSidebarAnchor(widget_items_ul, "normal-properties");
+    appendSidebarAnchor(widget_items_ul, "event-properties");
     appendSidebarAnchor(widget_items_ul, "state-properties");
     appendSidebarAnchor(widget_items_ul, "when-conditions");
 

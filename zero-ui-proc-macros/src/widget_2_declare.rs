@@ -270,16 +270,16 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
     // property docs info for inherited properties.
     let mut docs_required_inherited = vec![];
-    let mut docs_default_inherited = vec![];
+    let mut docs_normal_inherited = vec![];
+    let mut docs_event_inherited = vec![];
     let mut docs_state_inherited = vec![];
-    let mut docs_other_inherited = vec![];
     // final property docs info for properties, will be extended with
     // inherited after collecting newly declared properties, so that
     // the new properties show-up first in the docs page.
     let mut docs_required = vec![];
-    let mut docs_default = vec![];
+    let mut docs_normal = vec![];
+    let mut docs_event = vec![];
     let mut docs_state = vec![];
-    let mut docs_other = vec![];
 
     // properties that are assigned (not in when blocks) or declared in the new widget.
     let wgt_used_properties: HashSet<_> = properties.iter().map(|p| &p.ident).collect();
@@ -310,10 +310,10 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             &mut docs_required_inherited
         } else if ident.to_string().starts_with("is_") {
             &mut docs_state_inherited
-        } else if *default {
-            &mut docs_default_inherited
+        } else if ident.to_string().starts_with("on_") {
+            &mut docs_event_inherited
         } else {
-            &mut docs_other_inherited
+            &mut docs_normal_inherited
         };
         docs_info.push(PropertyDocs {
             ident: ident.to_string(),
@@ -324,6 +324,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                 i.inherit_use.to_token_stream()
             }),
             aliased_ident: None,
+            assigned_by_wgt: *default,
         });
 
         // collect property data for macros.
@@ -384,37 +385,27 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             &mut docs_required
         } else if ident_str.starts_with("is_") {
             &mut docs_state
-        } else if *default {
-            &mut docs_default
+        } else if ident_str.starts_with("on_") {
+            &mut docs_event
         } else {
-            &mut docs_other
+            &mut docs_normal
         };
         docs_info.push(PropertyDocs {
             ident: ident_str,
             docs: docs.clone(),
             doc_hidden: util::is_doc_hidden_tt(docs.clone()),
-            inherited_from_path: match p.kind() {
-                PropertyItemKind::Ident => {
-                    if let Some(inherited) = inherited_properties.get(&p.ident) {
-                        Some(inherited.module.clone())
-                    } else {
-                        None
-                    }
+            inherited_from_path: match (&p.ident, &p.kind()) {
+                (id, PropertyItemKind::Ident) | (_, PropertyItemKind::AliasedIdent(id)) => {
+                    inherited_properties.get(id).map(|i| i.module.clone())
                 }
-                PropertyItemKind::AliasedIdent(aliased) => {
-                    if let Some(inherited) = inherited_properties.get(&aliased) {
-                        Some(inherited.module.clone())
-                    } else {
-                        None
-                    }
-                }
-                PropertyItemKind::Path => None,
+                (_, PropertyItemKind::Path) => None,
             },
             aliased_ident: if let PropertyItemKind::AliasedIdent(aliased) = p.kind() {
                 Some(aliased.to_string())
             } else {
                 None
             },
+            assigned_by_wgt: *default,
         });
 
         // collect property data for macros.
@@ -475,11 +466,9 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let wgt_properties = wgt_properties;
 
     docs_required.extend(docs_required_inherited);
-    docs_default.extend(docs_default_inherited);
+    docs_normal.extend(docs_normal_inherited);
+    docs_event.extend(docs_event_inherited);
     docs_state.extend(docs_state_inherited);
-    docs_other.extend(docs_other_inherited);
-    let docs_required = docs_required;
-    let docs_other = docs_other;
 
     // when data for macros.
     let mut wgt_whens = TokenStream::default();
@@ -715,8 +704,10 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         let w_prop_str = w_prop.to_string();
         let docs = if w_prop_str.starts_with("is_") {
             &mut docs_state
+        } else if w_prop_str.starts_with("on_") {
+            &mut docs_event
         } else {
-            &mut docs_default
+            &mut docs_normal
         };
         docs.push(PropertyDocs {
             ident: w_prop_str,
@@ -724,6 +715,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             doc_hidden: false,
             inherited_from_path: inherited_properties.get(w_prop).map(|i| i.inherit_use.to_token_stream()),
             aliased_ident: None,
+            assigned_by_wgt: true,
         });
 
         let p_ident = ident!("__p_{w_prop}");
@@ -865,7 +857,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         }
     };
 
-    let auto_docs = auto_docs(docs_required, docs_default, docs_state, docs_other, docs_whens, mixin);
+    let auto_docs = auto_docs(docs_required, docs_normal, docs_event, docs_state, docs_whens, mixin);
 
     let macro_ident = ident!("__{ident}_{}", util::uuid());
 
@@ -923,11 +915,14 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 }
 
 struct PropertyDocs {
-    ident: String,
-    docs: TokenStream,
     doc_hidden: bool,
-    inherited_from_path: Option<TokenStream>,
+    docs: TokenStream,
+
+    ident: String,
     aliased_ident: Option<String>,
+    inherited_from_path: Option<TokenStream>,
+
+    assigned_by_wgt: bool,
 }
 struct WhenDocs {
     docs: TokenStream,
@@ -937,9 +932,9 @@ struct WhenDocs {
 }
 fn auto_docs(
     required: Vec<PropertyDocs>,
-    mut default: Vec<PropertyDocs>,
+    normal: Vec<PropertyDocs>,
+    event: Vec<PropertyDocs>,
     state: Vec<PropertyDocs>,
-    other: Vec<PropertyDocs>,
     whens: Vec<WhenDocs>,
     mixin: bool,
 ) -> TokenStream {
@@ -952,11 +947,11 @@ fn auto_docs(
         required,
         "Required Properties\n\nProperties that must be set for the widget to compile.",
     );
-    default.extend(other);
+    docs_section(&mut r, normal, "Normal Properties\n\nProperties that can be set without importing.");
     docs_section(
         &mut r,
-        default,
-        "Normal Properties\n\nProperties that can be set without importing.",
+        event,
+        "Event Properties\n\nEvent properties that can set without importing.",
     );
     docs_section(
         &mut r,
@@ -977,7 +972,7 @@ fn auto_docs(
             "# When Conditions\n\nWhen conditions set by default, more expressions can be set during instantiation."
         );
         for w in whens {
-            doc_extend!(r, "```text\n{}\n```\n\n", w.expr);
+            doc_extend!(r, "* **`when {}`**\n\n", w.expr);
             r.extend(w.docs);
 
             let mut comma = "";
@@ -986,11 +981,11 @@ fn auto_docs(
                 use std::fmt::Write;
 
                 if cfg.is_empty() {
-                    let _ = write!(&mut affects, "{comma}[`{0}`](#{0})", p);
+                    let _ = write!(&mut affects, "{comma}[`{0}`](#wt-{0})", p);
                 } else {
                     let _ = write!(
                         &mut affects,
-                        "{comma}[`{0}`](#{0} \"{1}\")",
+                        "{comma}[`{0}`](#wt-{0} \"{1}\")",
                         p,
                         cfg.to_string().replace(' ', "").replace(',', ", ").replace('"', "&quote;")
                     );
@@ -1026,6 +1021,11 @@ fn docs_section(r: &mut TokenStream, properties: Vec<PropertyDocs>, name: &str) 
         }
 
         r.extend(p.docs);
+
+        if p.assigned_by_wgt {
+            doc_extend!(r, "\n*Set by default.*");
+        }
+
         doc_extend!(r, "\n\n");
     }
 }
