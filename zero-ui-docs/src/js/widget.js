@@ -191,6 +191,29 @@ function onDocsIframeLoaded(docs) {
         title.replaceWith(s);
     });
 
+    let known_titles = [
+        "required-properties",
+        "normal-properties",
+        "event-properties",
+        "state-properties",
+        "when-conditions",
+    ];
+    inner_docs.querySelectorAll('h2,h3,h4').forEach(function (ho) {
+        if(!known_titles.includes(ho.id)) {
+            let hn = document.createElement('h5');
+            hn.innerHTML = ho.innerHTML;
+
+            let id = ho.id;
+            if (document.getElementById(id) != null) {
+                id += "-inner-docs";
+                hn.querySelector("a").href = "#" + id;
+            }
+            
+            hn.id = id;
+            ho.replaceWith(hn);
+        }
+    });
+
     let frame = document.getElementById('wgt-docs-iframe');
     let doc_block = frame.parentElement;
     frame.replaceWith(inner_docs);

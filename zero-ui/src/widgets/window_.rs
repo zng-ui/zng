@@ -35,14 +35,14 @@ pub mod window {
         /// Window icon.
         ///
         /// See [`WindowIcon`] for details.
-        /// 
+        ///
         /// [`WindowIcon`]: crate::core::window::WindowIcon
         properties::icon;
 
         /// Window chrome, the non-client area of the window.
         ///
         /// See [`WindowChrome`] for details.
-        /// 
+        ///
         /// [`WindowChrome`]: crate::core::window::WindowChrome
         properties::chrome;
 
@@ -222,6 +222,7 @@ pub mod window {
         /// [`position`]: #wp-position
         /// [`size`]: #wp-size
         /// [`WindowVars::monitor`]: crate::core::window::WindowVars::monitor
+        /// [`MonitorQuery::Primary`]: crate::core::window::MonitorQuery::Primary
         properties::monitor;
 
         /// Frame image capture mode.
@@ -283,6 +284,8 @@ pub mod window {
         ///
         /// The `view-process` will try to match the mode, if it is not available a fallback mode is selected,
         /// see [`RenderMode`] for more details about each mode and fallbacks.
+        /// 
+        /// [`Windows::default_render_mode`]: crate::core::window::Windows::default_render_mode
         #[allowed_in_when = false]
         render_mode(impl IntoValue<Option<RenderMode>>) = None;
 
@@ -292,7 +295,7 @@ pub mod window {
         /// Note that the first frame metadata is available in [`Windows::widget_tree`], but it probably has not finished rendering.
         ///
         /// This property is the [`on_pre_window_open`](fn@on_pre_window_open) so window handlers see it first.
-        /// 
+        ///
         /// [`Windows::widget_tree`]: crate::core::window::Windows::widget_tree
         on_pre_window_open as on_open;
 
