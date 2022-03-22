@@ -10,6 +10,7 @@ pub mod button {
     inherit!(container);
 
     properties! {
+        content_align as content_align2;
         /// Button click event.
         ///
         /// # Examples

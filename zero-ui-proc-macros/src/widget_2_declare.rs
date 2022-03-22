@@ -321,8 +321,9 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             doc_hidden: util::is_doc_hidden_tt(docs.clone()),
             inherited_from_path: Some({
                 let i = &inherited_properties[ident];
-                i.inherit_use.clone()
+                i.inherit_use.to_token_stream()
             }),
+            aliased_ident: None,
         });
 
         // collect property data for macros.
@@ -392,7 +393,28 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             ident: ident_str,
             docs: docs.clone(),
             doc_hidden: util::is_doc_hidden_tt(docs.clone()),
-            inherited_from_path: None,
+            inherited_from_path: match p.kind() {
+                PropertyItemKind::Ident => {
+                    if let Some(inherited) = inherited_properties.get(&p.ident) {
+                        Some(inherited.module.clone())
+                    } else {
+                        None
+                    }
+                }
+                PropertyItemKind::AliasedIdent(aliased) => {
+                    if let Some(inherited) = inherited_properties.get(&aliased) {
+                        Some(inherited.module.clone())
+                    } else {
+                        None
+                    }
+                }
+                PropertyItemKind::Path => None,
+            },
+            aliased_ident: if let PropertyItemKind::AliasedIdent(aliased) = p.kind() {
+                Some(aliased.to_string())
+            } else {
+                None
+            },
         });
 
         // collect property data for macros.
@@ -700,7 +722,8 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             ident: w_prop_str,
             docs: TokenStream::default(),
             doc_hidden: false,
-            inherited_from_path: inherited_properties.get(w_prop).map(|i| i.inherit_use.clone()),
+            inherited_from_path: inherited_properties.get(w_prop).map(|i| i.inherit_use.to_token_stream()),
+            aliased_ident: None,
         });
 
         let p_ident = ident!("__p_{w_prop}");
@@ -903,7 +926,8 @@ struct PropertyDocs {
     ident: String,
     docs: TokenStream,
     doc_hidden: bool,
-    inherited_from_path: Option<syn::Path>,
+    inherited_from_path: Option<TokenStream>,
+    aliased_ident: Option<String>,
 }
 struct WhenDocs {
     docs: TokenStream,
@@ -923,10 +947,22 @@ fn auto_docs(
     use util::is_doc_hidden;
     let mut r = TokenStream::default();
 
-    docs_section(&mut r, required, "Required Properties\n\nProperties that must be set for the widget to compile.");
+    docs_section(
+        &mut r,
+        required,
+        "Required Properties\n\nProperties that must be set for the widget to compile.",
+    );
     default.extend(other);
-    docs_section(&mut r, default, "Normal Properties\n\nProperties that can be set without importing.");
-    docs_section(&mut r, state, "State Properties\n\nProperties that can be used in when conditions without importing.");
+    docs_section(
+        &mut r,
+        default,
+        "Normal Properties\n\nProperties that can be set without importing.",
+    );
+    docs_section(
+        &mut r,
+        state,
+        "State Properties\n\nProperties that can be used in when conditions without importing.",
+    );
 
     if !mixin {
         doc_extend!(
@@ -977,10 +1013,16 @@ fn docs_section(r: &mut TokenStream, properties: Vec<PropertyDocs>, name: &str) 
 
     doc_extend!(r, "# {}\n\n", name);
     for p in properties {
+        let link_ident = p.aliased_ident.as_ref().unwrap_or(&p.ident);
         if let Some(parent) = p.inherited_from_path {
-            doc_extend!(r, "* **[`{0}`](mod@{1}#{0})**\n\n", p.ident, util::display_path(&parent));
+            doc_extend!(
+                r,
+                "* <span id='wp-{0}'>**[`{0}`](mod@{1}#wp-{link_ident})**</span>\n\n",
+                p.ident,
+                parent.to_string().replace(' ', "").replace('$', "")
+            );
         } else {
-            doc_extend!(r, "* **[`{0}`](fn@{0})**\n\n", p.ident);
+            doc_extend!(r, "* <span id='wp-{0}'>**[`{0}`](fn@{link_ident})**</span>\n\n", p.ident);
         }
 
         r.extend(p.docs);
@@ -1164,7 +1206,7 @@ pub enum PropertyItemKind {
     Ident,
     /// Single property ident as another ident, maybe inherited.
     AliasedIdent(Ident),
-    /// Cannot ne inherited, maybe aliased.
+    /// Cannot be inherited, maybe aliased.
     Path,
 }
 

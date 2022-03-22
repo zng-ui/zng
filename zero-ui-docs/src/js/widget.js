@@ -166,6 +166,10 @@ function onDocsIframeLoaded(docs) {
     frame.remove();
 
     editWgtPageSideBar();
+    if (window.location.hash.length > 0) {
+        // scroll to anchor
+        window.location.href = window.location.href;
+    }
 }
 
 // customize sidebar of widget module page.
@@ -180,7 +184,7 @@ function editWgtPageSideBar() {
         let a = first_mod_item.cloneNode(true);
         a.innerText = "Module Items";
         title.appendChild(a);
-        mod_items.insertBefore(title, mod_items.querySelector('ui'));
+        mod_items.insertBefore(title, mod_items.querySelector('ul'));
     } else {
         mod_items.remove();
         mod_items = null;
