@@ -1,11 +1,11 @@
-error[E0277]: the trait bound `<foo_type_must_match_property_definition_0 as __p_foo_Args>::T_foo: zero_ui::prelude::IntoVar<NotFoo>` is not satisfied
+error[E0277]: the trait bound `<foo_type_must_match_property_definition_0 as __p_foo_Args>::T_foo: IntoVar<NotFoo>` is not satisfied
   --> cases/widget/new_fn_mismatched_capture_type1.rs:17:23
    |
 3  | #[widget($crate::test_widget)]
    | ------------------------------ required by a bound introduced by this call
 ...
 17 |     fn new_child(foo: impl IntoVar<NotFoo>) -> NilUiNode {
-   |                       ^^^^ the trait `zero_ui::prelude::IntoVar<NotFoo>` is not implemented for `<foo_type_must_match_property_definition_0 as __p_foo_Args>::T_foo`
+   |                       ^^^^ the trait `IntoVar<NotFoo>` is not implemented for `<foo_type_must_match_property_definition_0 as __p_foo_Args>::T_foo`
    |
 note: required by a bound in `test_widget::new_child`
   --> cases/widget/new_fn_mismatched_capture_type1.rs:17:28
@@ -14,5 +14,5 @@ note: required by a bound in `test_widget::new_child`
    |                            ^^^^^^^^^^^^^^^ required by this bound in `test_widget::new_child`
 help: consider further restricting the associated type
    |
-17 |     fn new_child(foo: impl IntoVar<NotFoo>) -> NilUiNode where <foo_type_must_match_property_definition_0 as __p_foo_Args>::T_foo: zero_ui::prelude::IntoVar<NotFoo> {
-   |                                                          +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+17 |     fn new_child(foo: impl IntoVar<NotFoo>) -> NilUiNode where <foo_type_must_match_property_definition_0 as __p_foo_Args>::T_foo: IntoVar<NotFoo> {
+   |                                                          +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++

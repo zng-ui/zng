@@ -1,5 +1,5 @@
-error[E0277]: the trait bound `NotUiNode: zero_ui::prelude::UiNode` is not satisfied
- --> $DIR/return_type_is_not_ui_node.rs:6:59
+error[E0277]: the trait bound `NotUiNode: UiNode` is not satisfied
+ --> cases/property/return_type_is_not_ui_node.rs:6:59
   |
 6 | pub fn invalid_output(child: impl UiNode, input: bool) -> NotUiNode {
-  |                                                           ^^^^^^^^^ the trait `zero_ui::prelude::UiNode` is not implemented for `NotUiNode`
+  |                                                           ^^^^^^^^^ the trait `UiNode` is not implemented for `NotUiNode`

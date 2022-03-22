@@ -17,11 +17,11 @@ error[E0283]: type annotations needed
 5 | pub fn invalid1(child: impl UiNode, value: bool) -> impl UiNode {
   |                                            ^^^^ cannot infer type for type parameter `T` declared on the trait `IntoVar`
   |
-  = note: multiple `impl`s satisfying `bool: zero_ui::prelude::IntoVar<_>` found in the following crates: `zero_ui_core`, `zero_ui`:
-          - impl zero_ui::prelude::IntoVar<AutoSize> for bool;
-          - impl zero_ui::prelude::IntoVar<CaptureMode> for bool;
-          - impl zero_ui::prelude::IntoVar<Factor> for bool;
-          - impl zero_ui::prelude::IntoVar<FontFeatureState> for bool;
+  = note: multiple `impl`s satisfying `bool: IntoVar<_>` found in the following crates: `zero_ui_core`, `zero_ui`:
+          - impl IntoVar<AutoSize> for bool;
+          - impl IntoVar<CaptureMode> for bool;
+          - impl IntoVar<Factor> for bool;
+          - impl IntoVar<FontFeatureState> for bool;
           and 6 more
 
 error[E0277]: the trait bound `<impl invalid2_Args as invalid2_Args>::T_value: Clone` is not satisfied
@@ -44,15 +44,15 @@ error[E0277]: `<impl invalid2_Args as invalid2_Args>::T_value` doesn't implement
    |
    = help: the trait `Debug` is not implemented for `<impl invalid2_Args as invalid2_Args>::T_value`
    = note: required because of the requirements on the impl of `VarValue` for `<impl invalid2_Args as invalid2_Args>::T_value`
-   = note: required because of the requirements on the impl of `zero_ui::prelude::IntoVar<<impl invalid2_Args as invalid2_Args>::T_value>` for `<impl invalid2_Args as invalid2_Args>::T_value`
+   = note: required because of the requirements on the impl of `IntoVar<<impl invalid2_Args as invalid2_Args>::T_value>` for `<impl invalid2_Args as invalid2_Args>::T_value`
 
-error[E0277]: the trait bound `OwnedVar<<impl invalid2_Args as invalid2_Args>::T_value>: zero_ui::prelude::UiNode` is not satisfied
+error[E0277]: the trait bound `OwnedVar<<impl invalid2_Args as invalid2_Args>::T_value>: UiNode` is not satisfied
   --> cases/property/allowed_in_when_validation.rs:12:44
    |
 11 | #[property(context)] // error because no allowed_in_when = false
    | -------------------- required by a bound introduced by this call
 12 | pub fn invalid2(child: impl UiNode, value: impl UiNode) -> impl UiNode {
-   |                                            ^^^^ the trait `zero_ui::prelude::UiNode` is not implemented for `OwnedVar<<impl invalid2_Args as invalid2_Args>::T_value>`
+   |                                            ^^^^ the trait `UiNode` is not implemented for `OwnedVar<<impl invalid2_Args as invalid2_Args>::T_value>`
    |
 note: required by a bound in `invalid2_ArgsImpl::<T_value>::new`
   --> cases/property/allowed_in_when_validation.rs:12:49
