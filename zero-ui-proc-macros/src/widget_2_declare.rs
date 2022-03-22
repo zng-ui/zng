@@ -923,7 +923,7 @@ fn auto_docs(
     use util::is_doc_hidden;
     let mut r = TokenStream::default();
 
-    docs_section(&mut r, required, "Required Properties\n\nProperties that must be set.");
+    docs_section(&mut r, required, "Required Properties\n\nProperties that must be set for the widget to compile.");
     default.extend(other);
     docs_section(&mut r, default, "Normal Properties\n\nProperties that can be set without importing.");
     docs_section(&mut r, state, "State Properties\n\nProperties that can be used in when conditions without importing.");

@@ -179,6 +179,7 @@ function editWgtPageSideBar() {
         title.classList.add("sidebar-title");
         let a = first_mod_item.cloneNode(true);
         a.innerText = "Module Items";
+        title.appendChild(a);
         mod_items.insertBefore(title, mod_items.querySelector('ui'));
     } else {
         mod_items.remove();
@@ -189,7 +190,7 @@ function editWgtPageSideBar() {
     appendSidebarAnchor(widget_items_ul, "required-properties");
     appendSidebarAnchor(widget_items_ul, "normal-properties");
     appendSidebarAnchor(widget_items_ul, "state-properties");
-    appendSidebarAnchor(widget_items_ul, "whens-conditions");
+    appendSidebarAnchor(widget_items_ul, "when-conditions");
 
     let first_widget_item = widget_items_ul.querySelector('a');
     if (first_widget_item != null) {
@@ -201,6 +202,7 @@ function editWgtPageSideBar() {
 
         let a = first_widget_item.cloneNode(true);
         a.innerText = "Widget Items";
+        title.append(a);
 
         widget_items.appendChild(title);
         widget_items.appendChild(widget_items_ul);
