@@ -35,11 +35,15 @@ pub mod window {
         /// Window icon.
         ///
         /// See [`WindowIcon`] for details.
+        /// 
+        /// [`WindowIcon`]: crate::core::window::WindowIcon
         properties::icon;
 
         /// Window chrome, the non-client area of the window.
         ///
         /// See [`WindowChrome`] for details.
+        /// 
+        /// [`WindowChrome`]: crate::core::window::WindowChrome
         properties::chrome;
 
         /// Window position when it opens.
@@ -285,9 +289,11 @@ pub mod window {
         /// Event just after the window opens.
         ///
         /// This event notifies once per window, after the window content is inited and the first frame was send to the renderer.
-        /// Note that the first frame metadata is available in [`Windows::frame_info`], but it probably has not finished rendering.
+        /// Note that the first frame metadata is available in [`Windows::widget_tree`], but it probably has not finished rendering.
         ///
         /// This property is the [`on_pre_window_open`](fn@on_pre_window_open) so window handlers see it first.
+        /// 
+        /// [`Windows::widget_tree`]: crate::core::window::Windows::widget_tree
         on_pre_window_open as on_open;
 
         /// On window close requested.
@@ -349,7 +355,7 @@ pub mod window {
         ///
         /// This property is the [`on_pre_window_unmaximized`] so window handlers see it first.
         ///
-        /// [`on_pre_window_maximized`]: fn@on_pre_window_maximized
+        /// [`on_pre_window_unmaximized`]: fn@on_pre_window_unmaximized
         on_pre_window_unmaximized as on_unmaximized;
 
         /// On window minimized.

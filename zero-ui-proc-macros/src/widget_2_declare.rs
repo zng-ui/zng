@@ -319,11 +319,11 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             ident: ident.to_string(),
             docs: docs.clone(),
             doc_hidden: util::is_doc_hidden_tt(docs.clone()),
-            inherited_from_path: Some({
+            inherited: true,
+            path: {
                 let i = &inherited_properties[ident];
                 i.inherit_use.to_token_stream()
-            }),
-            aliased_ident: None,
+            },
             assigned_by_wgt: *default,
         });
 
@@ -390,21 +390,19 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         } else {
             &mut docs_normal
         };
+
+        let inherited_p = match (&p.ident, &p.kind()) {
+            (id, PropertyItemKind::Ident) | (_, PropertyItemKind::AliasedIdent(id)) => {
+                inherited_properties.get(id).map(|i| i.module.clone())
+            }
+            (_, PropertyItemKind::Path) => None,
+        };
         docs_info.push(PropertyDocs {
             ident: ident_str,
             docs: docs.clone(),
             doc_hidden: util::is_doc_hidden_tt(docs.clone()),
-            inherited_from_path: match (&p.ident, &p.kind()) {
-                (id, PropertyItemKind::Ident) | (_, PropertyItemKind::AliasedIdent(id)) => {
-                    inherited_properties.get(id).map(|i| i.module.clone())
-                }
-                (_, PropertyItemKind::Path) => None,
-            },
-            aliased_ident: if let PropertyItemKind::AliasedIdent(aliased) = p.kind() {
-                Some(aliased.to_string())
-            } else {
-                None
-            },
+            inherited: inherited_p.is_some(),
+            path: inherited_p.unwrap_or_else(|| p.path.clone()),
             assigned_by_wgt: *default,
         });
 
@@ -709,12 +707,15 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         } else {
             &mut docs_normal
         };
+
+        let inherited = inherited_properties.get(w_prop).map(|i| i.inherit_use.to_token_stream());
+
         docs.push(PropertyDocs {
             ident: w_prop_str,
             docs: TokenStream::default(),
             doc_hidden: false,
-            inherited_from_path: inherited_properties.get(w_prop).map(|i| i.inherit_use.to_token_stream()),
-            aliased_ident: None,
+            inherited: inherited.is_some(),
+            path: inherited.unwrap_or_else(|| w_prop.to_token_stream()),
             assigned_by_wgt: true,
         });
 
@@ -919,8 +920,9 @@ struct PropertyDocs {
     docs: TokenStream,
 
     ident: String,
-    aliased_ident: Option<String>,
-    inherited_from_path: Option<TokenStream>,
+    /// Path to property or parent widget if `inherited`.
+    path: TokenStream,
+    inherited: bool,
 
     assigned_by_wgt: bool,
 }
@@ -1008,16 +1010,15 @@ fn docs_section(r: &mut TokenStream, properties: Vec<PropertyDocs>, name: &str) 
 
     doc_extend!(r, "# {}\n\n", name);
     for p in properties {
-        let link_ident = p.aliased_ident.as_ref().unwrap_or(&p.ident);
-        if let Some(parent) = p.inherited_from_path {
+        let path = p.path.to_string().replace(' ', "").replace('$', "");
+        if p.inherited {
             doc_extend!(
                 r,
-                "* <span id='wp-{0}'>**[`{0}`](mod@{1}#wp-{link_ident})**</span>\n\n",
+                "* <span id='wp-{0}'>**[`{0}`](mod@{path}#wp-{0})**</span>\n\n",
                 p.ident,
-                parent.to_string().replace(' ', "").replace('$', "")
             );
         } else {
-            doc_extend!(r, "* <span id='wp-{0}'>**[`{0}`](fn@{link_ident})**</span>\n\n", p.ident);
+            doc_extend!(r, "* <span id='wp-{0}'>**[`{0}`](fn@{path})**</span>\n\n", p.ident);
         }
 
         r.extend(p.docs);
