@@ -1,5 +1,6 @@
 # Re-implement widget item page docs
-    - Edit properties to be like method sections.
+    - Bump property header levels.
+    - Edit properties to be like field sections.
     - Generate type signature for capture-only declared inline.
     - Fetch property signature.
     - Run all tests.

@@ -1014,11 +1014,11 @@ fn docs_section(r: &mut TokenStream, properties: Vec<PropertyDocs>, name: &str) 
         if p.inherited {
             doc_extend!(
                 r,
-                "* <span id='wp-{0}'>**[`{0}`](mod@{path}#wp-{0})**</span>\n\n",
+                "* <span id='wp-{0}' class='wp-title'>**[`{0}`](mod@{path}#wp-{0})**</span>\n\n",
                 p.ident,
             );
         } else {
-            doc_extend!(r, "* <span id='wp-{0}'>**[`{0}`](fn@{path})**</span>\n\n", p.ident);
+            doc_extend!(r, "* <span id='wp-{0}' class='wp-title'>**[`{0}`](fn@{path})**</span>\n\n", p.ident);
         }
 
         r.extend(p.docs);

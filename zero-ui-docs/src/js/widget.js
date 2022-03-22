@@ -1,12 +1,12 @@
 // Customizes widget module pages and widgets in mod lists.
 
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function () {
     editWgtList();
     editWgtSideBar();
     editWgtPage();
 });
 
-window.addEventListener('message', function(a) {
+window.addEventListener('message', function (a) {
     if (a.data.inner_docs !== undefined) {
         onDocsIframeLoaded(a.data.inner_docs);
     }
@@ -16,7 +16,7 @@ window.addEventListener('message', function(a) {
 function editWgtPage() {
     let is_mod_pg = false;
     let h1 = null;
-    document.querySelectorAll('h1').forEach(function(h) {
+    document.querySelectorAll('h1').forEach(function (h) {
         if (h.innerText.trimStart().startsWith("Module ")) {
             h1 = h;
             is_mod_pg = true;
@@ -26,7 +26,7 @@ function editWgtPage() {
     let is_wgt_pg = false;
     let code = null;
     if (is_mod_pg) {
-        document.querySelectorAll('details code').forEach(function(c) {
+        document.querySelectorAll('details code').forEach(function (c) {
             if (c.innerText == "widget") {
                 code = c;
                 is_wgt_pg = true;
@@ -34,14 +34,14 @@ function editWgtPage() {
         })
     }
 
-    if(is_wgt_pg) {
+    if (is_wgt_pg) {
         // edit page.
 
         code.remove();
         let txt = h1.childNodes[0].childNodes[0];
         h1.childNodes[0].replaceChild(document.createTextNode("Widget "), txt);
 
-        document.querySelectorAll('h2.location a').forEach(function(a) {
+        document.querySelectorAll('h2.location a').forEach(function (a) {
             a.innerText = a.innerText.replace("Module ", "Widget ");
         });
 
@@ -65,18 +65,18 @@ function editWgtList() {
     }
 
     let tags = [];
-    mods.nextElementSibling.querySelectorAll("code").forEach(function(c) {
+    mods.nextElementSibling.querySelectorAll("code").forEach(function (c) {
         if (c.innerText == "widget") {
             tags.push(c);
         }
     });
 
-    if(tags.length == 0) {
+    if (tags.length == 0) {
         return;
     }
 
     let widgets = document.getElementById("widgets");
-    if(widgets == null) {
+    if (widgets == null) {
         widgets = mods.cloneNode(true);
         widgets.id = "widgets";
         let pa = widgets.querySelector("a");
@@ -88,7 +88,7 @@ function editWgtList() {
 
         let widgets_table = mods_table.cloneNode(false);
         mods.parentElement.insertBefore(widgets_table, widgets.nextElementSibling);
-    
+
         // insert sidebar link
         let sidebarMods = document.querySelector("li a[href='#modules']").parentElement;
         let sidebarWgts = sidebarMods.cloneNode(true);
@@ -121,8 +121,8 @@ function editWgtSideBar() {
     }
 
     let wgt_anchors = [];
-    mods.querySelector("ul").querySelectorAll("a").forEach(function(a) {
-        if(a.title.startsWith("`widget` ")) {
+    mods.querySelector("ul").querySelectorAll("a").forEach(function (a) {
+        if (a.title.startsWith("`widget` ")) {
             wgt_anchors.push(a);
         }
     });
@@ -151,7 +151,7 @@ function editWgtSideBar() {
 
     mods.parentElement.insertBefore(widgets, mods.nextElementSibling);
 
-    if(mods.querySelector("ul").querySelector("a") == null) {
+    if (mods.querySelector("ul").querySelector("a") == null) {
         mods.remove();
     }
 }
@@ -161,9 +161,43 @@ function onDocsIframeLoaded(docs) {
     inner_docs.innerHTML = docs;
     inner_docs.getElementsByTagName('p')[0].remove();
     inner_docs.getElementsByTagName('p')[0].remove();
+
+    inner_docs.querySelectorAll(".wp-title").forEach(function (s) {
+        let title = s.closest('ul');
+
+        s.classList.add("structfield");
+        s.classList.add("small-section-header");
+        s.style.overflowX = "visible";
+
+        let p_anchor = s.querySelector('a');
+        if (p_anchor.href.includes("fn@")) {
+            p_anchor.href = "#" + s.id;
+        }
+        let type_html = "";
+
+        let code = p_anchor.querySelector('code');
+        p_anchor.innerText = code.innerText;
+        code.innerHTML = p_anchor.outerHTML + type_html;
+        p_anchor.remove();
+        s.querySelector('strong').appendChild(code);
+
+        let a = document.createElement('a');
+        a.classList.add("anchor");
+        a.classList.add("field");
+        a.href = "#" + s.id;
+
+        s.prepend(a);
+
+        title.replaceWith(s);
+    });
+
     let frame = document.getElementById('wgt-docs-iframe');
-    frame.parentElement.insertAdjacentElement('afterend', inner_docs);
+    let doc_block = frame.parentElement;
+    frame.replaceWith(inner_docs);
     frame.remove();
+    while (inner_docs.childNodes.length > 0) {
+        doc_block.appendChild(inner_docs.childNodes[0]);
+    }
 
     editWgtPageSideBar();
     if (window.location.hash.length > 0) {
@@ -178,7 +212,7 @@ function editWgtPageSideBar() {
 
     let mod_items = sidebar.querySelector('.block');
     let first_mod_item = mod_items.querySelector('a');
-    if(first_mod_item != null) {
+    if (first_mod_item != null) {
         let title = document.createElement('h3');
         title.classList.add("sidebar-title");
         let a = first_mod_item.cloneNode(true);
@@ -216,7 +250,7 @@ function editWgtPageSideBar() {
 }
 function appendSidebarAnchor(ul, id) {
     let el = document.getElementById(id);
-    if(el != null) {
+    if (el != null) {
         let li = document.createElement("li");
         let a = document.createElement("a");
         a.href = "#" + id;

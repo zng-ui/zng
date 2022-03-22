@@ -1,8 +1,8 @@
 // Hides tagged `macro_rules!` macros from crate root.
 
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function () {
     let is_front_pg = false;
-    document.querySelectorAll('h1').forEach(function(h) {
+    document.querySelectorAll('h1').forEach(function (h) {
         if (h.innerText.trimStart().startsWith("Crate ")) {
             is_front_pg = true;
         }
@@ -29,4 +29,4 @@ document.addEventListener('DOMContentLoaded', function() {
             side_anchor.parentElement.remove();
         }
     }
- })
+})

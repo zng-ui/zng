@@ -1,6 +1,6 @@
 // Customizes property function pages and properties in function lists.
 
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function () {
     editPropPage();
     editPropList();
     editPropSideBar();
@@ -10,7 +10,7 @@ document.addEventListener('DOMContentLoaded', function() {
 function editPropPage() {
     let is_fn_pg = false;
     let h1 = null;
-    document.querySelectorAll('h1').forEach(function(h) {
+    document.querySelectorAll('h1').forEach(function (h) {
         if (h.innerText.trimStart().startsWith("Function ")) {
             h1 = h;
             is_fn_pg = true;
@@ -20,7 +20,7 @@ function editPropPage() {
     let is_prop_pg = false;
     let code = null;
     if (is_fn_pg) {
-        document.querySelectorAll('code').forEach(function(c) {
+        document.querySelectorAll('code').forEach(function (c) {
             if (c.innerText == "property") {
                 code = c;
                 is_prop_pg = true;
@@ -28,23 +28,23 @@ function editPropPage() {
         })
     }
 
-    if(is_prop_pg) {
+    if (is_prop_pg) {
         // edit page.
 
         code.remove();
         let txt = h1.childNodes[0].childNodes[0];
         h1.childNodes[0].replaceChild(document.createTextNode("Property "), txt);
 
-        let decl_code = document.querySelector("pre.rust.fn");    
-        let fn_decl_code =decl_code.cloneNode(true);
+        let decl_code = document.querySelector("pre.rust.fn");
+        let fn_decl_code = decl_code.cloneNode(true);
 
         let as_fn_title = document.getElementById("as-function");
         let capture_only = as_fn_title == null;
 
-        if(!capture_only) {
-            as_fn_title.parentElement.insertBefore(fn_decl_code, as_fn_title.nextElementSibling);   
+        if (!capture_only) {
+            as_fn_title.parentElement.insertBefore(fn_decl_code, as_fn_title.nextElementSibling);
         }
-        
+
         editPropDecl(capture_only, decl_code, fn_decl_code);
     }
 }
@@ -92,18 +92,18 @@ function editPropList() {
     }
 
     let tags = [];
-    functions.nextElementSibling.querySelectorAll("code").forEach(function(c) {
+    functions.nextElementSibling.querySelectorAll("code").forEach(function (c) {
         if (c.innerText == "property") {
             tags.push(c);
         }
     });
 
-    if(tags.length == 0) {
+    if (tags.length == 0) {
         return;
     }
 
     let properties = document.getElementById("properties");
-    if(properties == null) {
+    if (properties == null) {
         properties = functions.cloneNode(true);
         properties.id = "properties";
         let pa = properties.querySelector("a");
@@ -114,7 +114,7 @@ function editPropList() {
 
         let properties_table = functions.nextElementSibling.cloneNode(false);
         functions.parentElement.insertBefore(properties_table, functions);
-    
+
         // insert sidebar link
         let sidebarFns = document.querySelector("li a[href='#functions']").parentElement;
         let sidebarProps = sidebarFns.cloneNode(true);
@@ -150,8 +150,8 @@ function editPropSideBar() {
     }
 
     let prop_anchors = [];
-    functions.querySelector("ul").querySelectorAll("a").forEach(function(a) {
-        if(a.title.startsWith("`property` ")) {
+    functions.querySelector("ul").querySelectorAll("a").forEach(function (a) {
+        if (a.title.startsWith("`property` ")) {
             prop_anchors.push(a);
         }
     });
@@ -180,7 +180,7 @@ function editPropSideBar() {
 
     functions.parentElement.insertBefore(properties, functions);
 
-    if(functions.querySelector("ul").querySelector("a") == null) {
+    if (functions.querySelector("ul").querySelector("a") == null) {
         functions.remove();
     }
 }
