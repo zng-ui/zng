@@ -883,6 +883,15 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         /// This *const* is only visible if `zero-ui-docs` was not used to generate the docs.
         ///
         #auto_docs
+        ///
+        /// <script>
+        /// document.addEventListener('DOMContentLoaded', function() {
+        ///     let message = {
+        ///         inner_docs: document.getElementById('properties').parentElement.innerHTML,
+        ///     };
+        ///     window.parent.postMessage(message, "*")
+        /// });
+        /// </script>
         pub const __DOCS: () = ();
     };
 

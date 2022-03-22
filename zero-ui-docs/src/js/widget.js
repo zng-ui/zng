@@ -6,6 +6,12 @@ document.addEventListener('DOMContentLoaded', function() {
     editWgtSideBar();
 });
 
+window.addEventListener('message', function(a) {
+    if (a.data.inner_docs !== undefined) {
+        onDocsIframeLoaded(a.data.inner_docs);
+    }
+});
+
 // edit the widget mod item page, changes title and removes the widget tag.
 function editWgtPage() {
     let is_mod_pg = false;
@@ -20,7 +26,7 @@ function editWgtPage() {
     let is_wgt_pg = false;
     let code = null;
     if (is_mod_pg) {
-        document.querySelectorAll('code').forEach(function(c) {
+        document.querySelectorAll('details code').forEach(function(c) {
             if (c.innerText == "widget") {
                 code = c;
                 is_wgt_pg = true;
@@ -38,6 +44,16 @@ function editWgtPage() {
         document.querySelectorAll('h2.location a').forEach(function(a) {
             a.innerText = a.innerText.replace("Module ", "Widget ");
         });
+
+        let inner_docs_a = document.querySelector('a[href="constant.__DOCS.html"]');
+        let consts_table = inner_docs_a.closest("div.item-table");
+        inner_docs_a.remove();
+        if (consts_table.querySelector('a') == null) {
+            consts_table.previousElementSibling.remove();
+            consts_table.remove();
+            // sidepanel
+            document.querySelector('a[href="#constants"]').remove();
+        }
     }
 }
 
@@ -138,4 +154,14 @@ function editWgtSideBar() {
     if(mods.querySelector("ul").querySelector("a") == null) {
         mods.remove();
     }
+}
+
+function onDocsIframeLoaded(docs) {
+    let inner_docs = document.createElement("div");
+    inner_docs.innerHTML = docs;
+    inner_docs.getElementsByTagName('p')[0].remove();
+    inner_docs.getElementsByTagName('p')[0].remove();
+    let frame = document.getElementById('wgt-docs-iframe');
+    frame.parentElement.insertAdjacentElement('afterend', inner_docs);
+    frame.remove();
 }
