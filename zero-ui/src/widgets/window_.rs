@@ -284,7 +284,7 @@ pub mod window {
         ///
         /// The `view-process` will try to match the mode, if it is not available a fallback mode is selected,
         /// see [`RenderMode`] for more details about each mode and fallbacks.
-        /// 
+        ///
         /// [`Windows::default_render_mode`]: crate::core::window::Windows::default_render_mode
         #[allowed_in_when = false]
         render_mode(impl IntoValue<Option<RenderMode>>) = None;

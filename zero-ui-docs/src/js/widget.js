@@ -162,12 +162,36 @@ function onDocsIframeLoaded(docs) {
     inner_docs.getElementsByTagName('p')[0].remove();
     inner_docs.getElementsByTagName('p')[0].remove();
 
+    // convert headers to H5.
+    let known_titles = [
+        "required-properties",
+        "normal-properties",
+        "event-properties",
+        "state-properties",
+        "when-conditions",
+    ];
+    inner_docs.querySelectorAll('h2,h3,h4').forEach(function (ho) {
+        if (!known_titles.includes(ho.id)) {
+            let hn = document.createElement('h5');
+            hn.innerHTML = ho.innerHTML;
+
+            let id = ho.id;
+            if (document.getElementById(id) != null) {
+                id += "-inner-docs";
+                hn.querySelector("a").href = "#" + id;
+            }
+
+            hn.id = id;
+            ho.replaceWith(hn);
+        }
+    });
+
+    // convert property title to H4
     inner_docs.querySelectorAll(".wp-title").forEach(function (s) {
-        let title = s.closest('ul');
+        let place = s.closest('ul');
 
         s.classList.add("structfield");
         s.classList.add("small-section-header");
-        s.style.overflowX = "visible";
 
         let p_anchor = s.querySelector('a');
         if (p_anchor.href.includes("fn@")) {
@@ -188,30 +212,39 @@ function onDocsIframeLoaded(docs) {
 
         s.prepend(a);
 
-        title.replaceWith(s);
+        let title = document.createElement("h4");
+        while (s.firstChild) {
+            title.appendChild(s.firstChild);
+        }
+        for (index = s.attributes.length - 1; index >= 0; --index) {
+            title.attributes.setNamedItem(s.attributes[index].cloneNode());
+        }
+        title.style.overflowX = "visible";
+        title.style.borderBottomWidth = "0";
+        title.style.paddingBottom = "0";
+
+        place.replaceWith(title);
     });
 
-    let known_titles = [
-        "required-properties",
-        "normal-properties",
-        "event-properties",
-        "state-properties",
-        "when-conditions",
-    ];
-    inner_docs.querySelectorAll('h2,h3,h4').forEach(function (ho) {
-        if(!known_titles.includes(ho.id)) {
-            let hn = document.createElement('h5');
-            hn.innerHTML = ho.innerHTML;
-
-            let id = ho.id;
-            if (document.getElementById(id) != null) {
-                id += "-inner-docs";
-                hn.querySelector("a").href = "#" + id;
-            }
-            
-            hn.id = id;
-            ho.replaceWith(hn);
+    // convert when conditions title to H4
+    inner_docs.querySelectorAll("code").forEach(function (c) {
+        if (!c.innerText.startsWith("when ")) {
+            return;
         }
+        let place = c.closest("ul");
+
+        c.innerHTML = c.innerHTML.replace(/self\.(\w+)/gm, 'self.<a href="#wp-$1">$1</a>');
+
+        let title = document.createElement("h4");
+        title.classList.add("ww-title");
+        title.classList.add("structfield");
+        title.classList.add("small-section-header");
+        title.appendChild(c.parentElement);
+
+        title.style.borderBottomWidth = "0";
+        title.style.paddingBottom = "0";
+
+        place.replaceWith(title);
     });
 
     let frame = document.getElementById('wgt-docs-iframe');

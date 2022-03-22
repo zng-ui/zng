@@ -858,7 +858,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         }
     };
 
-    let auto_docs = auto_docs(docs_required, docs_normal, docs_event, docs_state, docs_whens, mixin);
+    let auto_docs = auto_docs(docs_required, docs_normal, docs_event, docs_state, docs_whens);
 
     let macro_ident = ident!("__{ident}_{}", util::uuid());
 
@@ -938,7 +938,6 @@ fn auto_docs(
     event: Vec<PropertyDocs>,
     state: Vec<PropertyDocs>,
     whens: Vec<WhenDocs>,
-    mixin: bool,
 ) -> TokenStream {
     #[allow(unused)]
     use util::is_doc_hidden;
@@ -960,13 +959,6 @@ fn auto_docs(
         state,
         "State Properties\n\nProperties that can be used in when conditions without importing.",
     );
-
-    if !mixin {
-        doc_extend!(
-            r,
-            "# Other Properties\n\nWidgets are open ended, standalone property functions can be used in any widget."
-        );
-    }
 
     if !whens.is_empty() {
         doc_extend!(
