@@ -1,9 +1,9 @@
 // Customizes widget module pages and widgets in mod lists.
 
 document.addEventListener('DOMContentLoaded', function() {
-    editWgtPage();
     editWgtList();
     editWgtSideBar();
+    editWgtPage();
 });
 
 window.addEventListener('message', function(a) {
@@ -164,4 +164,57 @@ function onDocsIframeLoaded(docs) {
     let frame = document.getElementById('wgt-docs-iframe');
     frame.parentElement.insertAdjacentElement('afterend', inner_docs);
     frame.remove();
+
+    editWgtPageSideBar();
+}
+
+// customize sidebar of widget module page.
+function editWgtPageSideBar() {
+    let sidebar = document.querySelector("div.sidebar-elems section");
+
+    let mod_items = sidebar.querySelector('.block');
+    let first_mod_item = mod_items.querySelector('a');
+    if(first_mod_item != null) {
+        let title = document.createElement('h3');
+        title.classList.add("sidebar-title");
+        let a = first_mod_item.cloneNode(true);
+        a.innerText = "Module Items";
+        mod_items.insertBefore(title, mod_items.querySelector('ui'));
+    } else {
+        mod_items.remove();
+        mod_items = null;
+    }
+
+    let widget_items_ul = document.createElement('ul');
+    appendSidebarAnchor(widget_items_ul, "required-properties");
+    appendSidebarAnchor(widget_items_ul, "normal-properties");
+    appendSidebarAnchor(widget_items_ul, "state-properties");
+    appendSidebarAnchor(widget_items_ul, "whens-conditions");
+
+    let first_widget_item = widget_items_ul.querySelector('a');
+    if (first_widget_item != null) {
+        let widget_items = document.createElement('div');
+        widget_items.classList.add("block");
+
+        let title = document.createElement('h3');
+        title.classList.add("sidebar-title");
+
+        let a = first_widget_item.cloneNode(true);
+        a.innerText = "Widget Items";
+
+        widget_items.appendChild(title);
+        widget_items.appendChild(widget_items_ul);
+        sidebar.insertBefore(widget_items, mod_items);
+    }
+}
+function appendSidebarAnchor(ul, id) {
+    let el = document.getElementById(id);
+    if(el != null) {
+        let li = document.createElement("li");
+        let a = document.createElement("a");
+        a.href = "#" + id;
+        a.innerText = el.innerText;
+        li.appendChild(a);
+        ul.appendChild(li);
+    }
 }

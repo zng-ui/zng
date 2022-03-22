@@ -885,9 +885,10 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         #auto_docs
         ///
         /// <script>
+        /// var zero_ui_inner_docs = document.currentScript;
         /// document.addEventListener('DOMContentLoaded', function() {
         ///     let message = {
-        ///         inner_docs: document.getElementById('properties').parentElement.innerHTML,
+        ///         inner_docs: zero_ui_inner_docs.parentElement.innerHTML,
         ///     };
         ///     window.parent.postMessage(message, "*")
         /// });
@@ -922,10 +923,10 @@ fn auto_docs(
     use util::is_doc_hidden;
     let mut r = TokenStream::default();
 
-    docs_section(&mut r, required, "Required Properties");
+    docs_section(&mut r, required, "Required Properties\n\nProperties that must be set.");
     default.extend(other);
-    docs_section(&mut r, default, "Properties");
-    docs_section(&mut r, state, "State Properties");
+    docs_section(&mut r, default, "Normal Properties\n\nProperties that can be set without importing.");
+    docs_section(&mut r, state, "State Properties\n\nProperties that can be used in when conditions without importing.");
 
     if !mixin {
         doc_extend!(
@@ -937,7 +938,7 @@ fn auto_docs(
     if !whens.is_empty() {
         doc_extend!(
             r,
-            "# Whens\n\nWhen expressions set by default, more expressions can be set during instantiation."
+            "# When Conditions\n\nWhen conditions set by default, more expressions can be set during instantiation."
         );
         for w in whens {
             doc_extend!(r, "```text\n{}\n```\n\n", w.expr);
