@@ -65,7 +65,8 @@ fn install(mut args: Vec<&str>) {
 //         Generate docs, then start `basic-http-server` on the docs and open
 //         the served URL on the browser.
 //
-//         Note: `basic-http-server` can be installed with cargo, it is not by default.
+//         Note: `basic-http-server` can be installed with cargo,
+//                it is not installed by `do install`.
 fn doc(mut args: Vec<&str>) {
     let custom_open = if args.contains(&"--manifest-path") {
         if let Some(open) = args.iter_mut().find(|a| **a == "-o") {
