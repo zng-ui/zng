@@ -320,6 +320,25 @@ function appendSidebarAnchor(ul, id) {
     }
 }
 
+// fetch HTML, parse and fix base URL.
+function fetchHtml(url) {
+    return fetch(url)
+            .then(function(r) { return r.text(); })
+            .then(function(html) {
+                var parser = new DOMParser();
+                var doc = parser.parseFromString(html, "text/html");
+                let base = doc.createElement('base');
+                base.setAttribute('href', url);
+                doc.head.append(base);
+
+                doc.querySelectorAll('a').forEach(function(a) {
+                    a.setAttribute('href', a.href);
+                });
+
+                return doc;
+            });
+}
+
 // fetch linked property pages and edit the types with the types.
 function fetchPropTypes() {
     let current_page = window.location.href.split('#')[0];
@@ -335,19 +354,13 @@ function fetchPropTypes() {
         }
 
         url = url.replace('/index.html', '/constant.__DOCS.html');
-
-        fetch(url)
-            .then(function (r) { return r.text(); })
-            .then(function (html) {
-                var parser = new DOMParser();
-                var doc = parser.parseFromString(html, "text/html");
-
-                if (url.includes('#')) {
-                    resolvePropPage(title, url, doc);
-                } else {
-                    copyPropType(title, doc);
-                }
-            })
+        fetchHtml(url).then(function(doc) {
+            if (url.includes('#')) {
+                resolvePropPage(title, url, doc);
+            } else {
+                copyPropType(title, doc);
+            }
+        });
     });
 }
 function resolvePropPage(title, url, doc) {
@@ -358,25 +371,20 @@ function resolvePropPage(title, url, doc) {
         return;
     }
 
-    let relative = inner_title.querySelector('a:not(.anchor)').getAttribute('href').replace('/index.html', '/constant.__DOCS.html');
-    let inner_url = new URL(relative, url).href;
+    let inner_url = inner_title.querySelector('a:not(.anchor)').href.replace('/index.html', '/constant.__DOCS.html');
 
     if (inner_url.includes("fn@")) {
         return;
     }
 
-    fetch(inner_url)
-        .then(function (r) { return r.text() })
-        .then(function (html) {
-            var parser = new DOMParser();
-            var inner_doc = parser.parseFromString(html, "text/html");
-
+    fetchHtml(inner_url)
+        .then(function(inner_doc) {
             if (inner_url.includes('#')) {
                 resolvePropPage(title, inner_url, inner_doc);
             } else {
                 copyPropType(title, inner_doc);
             }
-        })
+        });
 }
 function copyPropType(title, doc) {
     let target = title.querySelector('code');

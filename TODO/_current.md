@@ -1,5 +1,5 @@
 # Re-implement widget item page docs
-    - Fix fetched links.
+    - Generate id for when titles.
     - Generate type signature for capture-only declared inline.
 
 * Finish `Scrolling.md`.

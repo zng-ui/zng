@@ -968,7 +968,7 @@ fn auto_docs(
         for w in whens {
             doc_extend!(r, "* **`when {}`**\n\n", w.expr);
 
-            doc_extend!(r, "<div class='docblock'>\n\n");
+            doc_extend!(r, "\n\n<div class='docblock'>\n\n");
 
             r.extend(w.docs);
 
@@ -978,11 +978,11 @@ fn auto_docs(
                 use std::fmt::Write;
 
                 if cfg.is_empty() {
-                    let _ = write!(&mut affects, "{comma}[`{0}`](#wt-{0})", p);
+                    let _ = write!(&mut affects, "{comma}[`{0}`](#wp-{0})", p);
                 } else {
                     let _ = write!(
                         &mut affects,
-                        "{comma}[`{0}`](#wt-{0} \"{1}\")",
+                        "{comma}[`{0}`](#wp-{0} \"{1}\")",
                         p,
                         cfg.to_string().replace(' ', "").replace(',', ", ").replace('"', "&quote;")
                     );
@@ -991,7 +991,7 @@ fn auto_docs(
             }
             doc_extend!(r, "\n\n**Affects:** {affects}.");
 
-            doc_extend!(r, "\n\n</div>");
+            doc_extend!(r, "\n\n</div>\n\n");
         }
     }
 
