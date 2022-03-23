@@ -967,6 +967,9 @@ fn auto_docs(
         );
         for w in whens {
             doc_extend!(r, "* **`when {}`**\n\n", w.expr);
+
+            doc_extend!(r, "<div class='docblock'>\n\n");
+
             r.extend(w.docs);
 
             let mut comma = "";
@@ -987,6 +990,8 @@ fn auto_docs(
                 comma = ", ";
             }
             doc_extend!(r, "\n\n**Affects:** {affects}.");
+
+            doc_extend!(r, "\n\n</div>");
         }
     }
 
@@ -1013,11 +1018,13 @@ fn docs_section(r: &mut TokenStream, properties: Vec<PropertyDocs>, name: &str) 
             doc_extend!(r, "* <span id='wp-{0}' class='wp-title'>**[`{0}`](fn@{path})**</span>\n\n", p.ident);
         }
 
+        doc_extend!(r, "<div class='docblock'>\n\n");
         r.extend(p.docs);
-
+        
         if p.assigned_by_wgt {
             doc_extend!(r, "\n*Set by default.*");
         }
+        doc_extend!(r, "\n\n</div>");
 
         doc_extend!(r, "\n\n");
     }

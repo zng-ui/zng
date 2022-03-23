@@ -222,6 +222,7 @@ function onDocsIframeLoaded(docs) {
         title.style.overflowX = "visible";
         title.style.borderBottomWidth = "0";
         title.style.paddingBottom = "0";
+        code.style.backgroundColor = "transparent";
 
         place.replaceWith(title);
     });
@@ -243,6 +244,7 @@ function onDocsIframeLoaded(docs) {
 
         title.style.borderBottomWidth = "0";
         title.style.paddingBottom = "0";
+        c.style.backgroundColor = "transparent";
 
         place.replaceWith(title);
     });
@@ -389,6 +391,7 @@ function copyPropType(title, doc) {
     pre.appendChild(document.createTextNode(' =' + code.childNodes[0].textContent.split('=', 2)[1]));
     pre.style.margin = "0";
     pre.style.padding = "0";
+    pre.style.backgroundColor = "transparent";
     code.firstChild.remove();
     while (code.firstChild) {
         pre.appendChild(code.firstChild);
