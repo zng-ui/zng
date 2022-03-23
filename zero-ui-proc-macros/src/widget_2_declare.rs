@@ -909,7 +909,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         ///     window.parent.postMessage(message, "*")
         /// });
         /// </script>
-        pub const __DOCS: () = ();
+        pub mod __DOCS { }
     };
 
     r.into()

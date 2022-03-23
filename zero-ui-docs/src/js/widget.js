@@ -45,14 +45,13 @@ function editWgtPage() {
             a.innerText = a.innerText.replace("Module ", "Widget ");
         });
 
-        let inner_docs_a = document.querySelector('a[href="constant.__DOCS.html"]');
-        let consts_table = inner_docs_a.closest("div.item-table");
-        inner_docs_a.remove();
-        if (consts_table.querySelector('a') == null) {
-            consts_table.previousElementSibling.remove();
-            consts_table.remove();
-            // sidepanel
-            document.querySelector('a[href="#constants"]').remove();
+        let inner_docs_a = document.querySelector('a[href="__DOCS/index.html"]');
+        let mods_table = inner_docs_a.closest("div.item-table");
+        inner_docs_a.closest('div.item-row').remove();
+        if (mods_table.querySelector('a') == null) {
+            mods_table.previousElementSibling.remove();
+            mods_table.remove();
+            document.querySelector('a[href="#modules"]').remove();
         }
     }
 }
@@ -161,6 +160,14 @@ function onDocsIframeLoaded(docs) {
     inner_docs.innerHTML = docs;
     inner_docs.getElementsByTagName('p')[0].remove();
     inner_docs.getElementsByTagName('p')[0].remove();
+
+    inner_docs.querySelectorAll('a').forEach(function(a) {
+        let href = a.getAttribute('href');
+        if (href.startsWith('../')) {
+            href = href.substring('../'.length);
+            a.setAttribute('href', href);
+        }
+    });
 
     // convert headers to H5.
     let known_titles = [
@@ -364,7 +371,7 @@ function fetchPropTypes() {
             return;
         }
 
-        url = url.replace('/index.html', '/constant.__DOCS.html');
+        url = url.replace('/index.html', '/__DOCS/index.html');
         fetchHtml(url).then(function(doc) {
             if (url.includes('#')) {
                 resolvePropPage(title, url, doc);
@@ -382,7 +389,7 @@ function resolvePropPage(title, url, doc) {
         return;
     }
 
-    let inner_url = inner_title.querySelector('a:not(.anchor)').href.replace('/index.html', '/constant.__DOCS.html');
+    let inner_url = inner_title.querySelector('a:not(.anchor)').href.replace('/index.html', '/__DOCS/index.html');
 
     if (inner_url.includes("fn@")) {
         return;

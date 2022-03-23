@@ -62,7 +62,7 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
     }
     wgt_attrs.extend(quote! {
         ///
-        /// <iframe id="wgt-docs-iframe" src="constant.__DOCS.html" width="1" height="1" style="border:none;"></iframe>
+        /// <iframe id="wgt-docs-iframe" src="__DOCS/index.html" width="1" height="1" style="border:none;"></iframe>
     });
     let wgt_attrs = wgt_attrs;
 
