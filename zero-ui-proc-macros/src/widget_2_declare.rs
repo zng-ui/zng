@@ -1019,8 +1019,13 @@ fn docs_section(r: &mut TokenStream, properties: Vec<PropertyDocs>, name: &str) 
         }
 
         doc_extend!(r, "<div class='docblock'>\n\n");
-        r.extend(p.docs);
-        
+
+        if p.docs.is_empty() {
+            doc_extend!(r, "<span data-fetch-docs></span>");
+        } else {
+            r.extend(p.docs);
+        }
+
         if p.assigned_by_wgt {
             doc_extend!(r, "\n*Set by default.*");
         }

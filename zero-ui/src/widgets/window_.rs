@@ -55,6 +55,8 @@ pub mod window {
         /// If set to a writeable variable it is updated back if the user changes the window state.
         ///
         /// See [`WindowState`] for details.
+        ///
+        /// [`WindowState`]: crate::core::window::WindowState
         properties::state;
 
         /// Window position (*x*, *y*).

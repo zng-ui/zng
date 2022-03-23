@@ -5,10 +5,13 @@
   https://github.com/rust-lang/rfcs/blob/30221dc3e025eb9f8f84ccacbc9622e3a75dff5e/text/1574-more-api-documentation-conventions.md
   https://doc.rust-lang.org/rustdoc/how-to-write-documentation.html
 
-* Reconsider property grouping, what properties have an assigned value or not are not the most important trait to track.
+* Show widget properties that can be `unset!`.
+  - Review how assigned required properties behave.
+  - And *required* because capture too.
 
 # Difficult
 
 * Widget image/videos rendering from doc-tests.
-* Link property declaration to their source-code point.
-* Make a tool that can be used replace JS hacks with generated HTML.
+* Implements JS rewrites in Rust, targeting the generated doc files.
+  - The function must apply the rewrites and remove the custom scripts.
+  - Wait until `rustdoc` template is more stable?

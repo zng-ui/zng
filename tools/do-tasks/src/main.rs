@@ -93,7 +93,9 @@ fn doc(mut args: Vec<&str>) {
         Some(std::thread::spawn(|| {
             let root = std::env::current_dir().unwrap().join("target/doc/");
             if let Err(e) = std::process::Command::new("basic-http-server").arg(root).status() {
-                error(f!("couldn't serve docs: {e}\n\nYou can install the server with the command:\ncargo install basic-http-server"));
+                error(f!(
+                    "couldn't serve docs: {e}\n\nYou can install the server with the command:\ncargo install basic-http-server"
+                ));
             }
         }))
     } else {
@@ -107,7 +109,11 @@ fn doc(mut args: Vec<&str>) {
             // `basic-http-server` default.
             "http://127.0.0.1:4000/zero_ui/index.html".to_owned()
         } else {
-            std::env::current_dir().unwrap().join("target/doc/zero_ui/index.html").display().to_string()
+            std::env::current_dir()
+                .unwrap()
+                .join("target/doc/zero_ui/index.html")
+                .display()
+                .to_string()
         };
         match std::env::var_os("BROWSER") {
             Some(browser) => {

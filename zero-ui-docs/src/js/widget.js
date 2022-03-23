@@ -400,4 +400,11 @@ function copyPropType(title, doc) {
     target.replaceWith(pre);
 
     code.remove();
+
+    let docs_request = title.nextElementSibling.querySelector('span[data-fetch-docs]');
+    if (docs_request != null) {
+        let docs_target = docs_request.parentElement;
+        docs_target.innerHTML = doc.querySelector('summary + .docblock p').innerHTML;
+        docs_target.firstChild.remove(); // `property` tag
+    }
 }

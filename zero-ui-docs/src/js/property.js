@@ -63,7 +63,7 @@ function editPropDecl(capture_only, fn, ffn) {
     }
 
     if (inputs.match(/\w: /g).length > 1) {
-        fn.innerText = `${m.vis}${m.name} = { ${inputs} };`;
+        fn.innerText = `${m.vis}${m.name} = {${inputs}};`;
     } else {
         let input = inputs.trim().replace(/,$/, '').replace(/\w+: /, '');
         fn.innerText = `${m.vis}${m.name} = ${input};`;
