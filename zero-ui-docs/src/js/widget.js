@@ -234,14 +234,25 @@ function onDocsIframeLoaded(docs) {
         }
         let place = c.closest("ul");
 
+        let title_id = c.innerText.replaceAll(/\s+/gm, '-').replaceAll(/[^a-zA-Z0-9_\-\.]/gm, '').toLowerCase();
+
         c.innerHTML = c.innerHTML.replaceAll(/self\.(\w+)/gm, 'self.<a href="#wp-$1">$1</a>');
 
         let title = document.createElement("h4");
+        title.id = title_id;
         title.classList.add("ww-title");
         title.classList.add("structfield");
         title.classList.add("small-section-header");
+
+        let title_anchor = document.createElement('a');
+        title_anchor.classList.add("anchor");
+        title_anchor.classList.add("field");
+        title_anchor.href = "#" + title_id;
+
+        title.appendChild(title_anchor);
         title.appendChild(c.parentElement);
 
+        title.style.overflowX = "visible";
         title.style.borderBottomWidth = "0";
         title.style.paddingBottom = "0";
         c.style.backgroundColor = "transparent";
