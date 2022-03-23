@@ -260,6 +260,8 @@ function onDocsIframeLoaded(docs) {
         // scroll to anchor
         window.location.href = window.location.href;
     }
+
+    fetchPropTypes();
 }
 
 // customize sidebar of widget module page.
@@ -314,4 +316,61 @@ function appendSidebarAnchor(ul, id) {
         li.appendChild(a);
         ul.appendChild(li);
     }
+}
+
+// fetch linked property pages and edit the types with the types.
+function fetchPropTypes() {
+    let current_page = window.location.href.split('#')[0];
+    if (current_page.startsWith("file:///")) {
+        return;
+    }
+
+    document.querySelectorAll('h4.wp-title').forEach(function (title) {
+        let url = title.querySelector('a:not(.anchor)').href;
+
+        if (url.startsWith(current_page)) {
+            return;
+        }
+
+        url = url.replace('/index.html', '/constant.__DOCS.html');
+
+        fetch(url)
+            .then(function (r) { return r.text(); })
+            .then(function (html) {
+                var parser = new DOMParser();
+                var doc = parser.parseFromString(html, "text/html");
+
+                if (url.includes('#')) {
+                    resolvePropPage(title, url, doc);
+                } else {
+                    copyPropType(title, doc);
+                }
+            })
+    });
+}
+function resolvePropPage(title, url, doc) {
+    let anchor = url.split('#')[1];
+
+    let inner_title = doc.getElementById(anchor);
+    if (inner_title == null) {
+        console.error("failed: " + anchor);
+        return;
+    }
+    let inner_url = inner_title.querySelector('a:not(.anchor)').href.replace('/index.html', '/constant.__DOCS.html');
+
+    fetch(inner_url)
+        .then(function (r) { return r.text() })
+        .then(function (html) {
+            var parser = new DOMParser();
+            var inner_doc = parser.parseFromString(html, "text/html");
+
+            if (inner_url.includes('#')) {
+                resolvePropPage(title, inner_url, inner_doc);
+            } else {
+                copyPropType(title, doc);
+            }
+        })
+}
+function copyPropType(title, doc) {
+    console.log(doc.querySelector('pre.rust.fn'));
 }

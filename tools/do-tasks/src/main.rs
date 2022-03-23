@@ -54,7 +54,18 @@ fn install(mut args: Vec<&str>) {
 }
 
 // do doc [-o, --open] [<cargo-doc-args>]
+//        [-s, --serve]
+//
 //    Generate documentation for zero-ui crates.
+//
+// USAGE:
+//     doc -o
+//         Generate docs, then open the `zero-ui` crate on the browser.
+//     doc -s -o
+//         Generate docs, then start `basic-http-server` on the docs and open
+//         the served URL on the browser.
+//
+//         Note: `basic-http-server` can be installed with cargo, it is not by default.
 fn doc(mut args: Vec<&str>) {
     let custom_open = if args.contains(&"--manifest-path") {
         if let Some(open) = args.iter_mut().find(|a| **a == "-o") {
@@ -64,6 +75,8 @@ fn doc(mut args: Vec<&str>) {
     } else {
         take_flag(&mut args, &["-o", "--open"])
     };
+
+    let serve = take_flag(&mut args, &["-s", "--serve"]);
 
     cmd_env_req(
         "cargo",
@@ -75,10 +88,26 @@ fn doc(mut args: Vec<&str>) {
         )],
     );
 
+    let server = if serve {
+        Some(std::thread::spawn(|| {
+            let root = std::env::current_dir().unwrap().join("target/doc/");
+            if let Err(e) = std::process::Command::new("basic-http-server").arg(root).status() {
+                error(f!("couldn't serve docs: {e}\n\nYou can install the server with the command:\ncargo install basic-http-server"));
+            }
+        }))
+    } else {
+        None
+    };
+
     if custom_open {
         // Open the main crate.
         // based on https://github.com/rust-lang/cargo/blob/master/src/cargo/ops/cargo_doc.rs
-        let path = std::env::current_dir().unwrap().join("target/doc/zero_ui/index.html");
+        let path = if serve {
+            // `basic-http-server` default.
+            "http://127.0.0.1:4000/zero_ui/index.html".to_owned()
+        } else {
+            std::env::current_dir().unwrap().join("target/doc/zero_ui/index.html").display().to_string()
+        };
         match std::env::var_os("BROWSER") {
             Some(browser) => {
                 if let Err(e) = std::process::Command::new(&browser).arg(path).status() {
@@ -91,6 +120,10 @@ fn doc(mut args: Vec<&str>) {
                 }
             }
         };
+    }
+
+    if let Some(s) = server {
+        let _ = s.join();
     }
 }
 
