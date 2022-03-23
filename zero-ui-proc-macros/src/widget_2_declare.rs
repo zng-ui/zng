@@ -280,6 +280,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let mut docs_normal = vec![];
     let mut docs_event = vec![];
     let mut docs_state = vec![];
+    let mut docs_declared = vec![];
 
     // properties that are assigned (not in when blocks) or declared in the new widget.
     let wgt_used_properties: HashSet<_> = properties.iter().map(|p| &p.ident).collect();
@@ -375,6 +376,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             cfg,
             default,
             required,
+            declared,
             ..
         } = p;
         let required = *required || inherited_required.contains(ident);
@@ -405,6 +407,10 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             path: inherited_p.unwrap_or_else(|| p.path.clone()),
             assigned_by_wgt: *default,
         });
+
+        if *declared {
+            docs_declared.push(ident!("__p_{ident}"));
+        }
 
         // collect property data for macros.
         wgt_properties.extend(quote! {
@@ -909,7 +915,12 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         ///     window.parent.postMessage(message, "*")
         /// });
         /// </script>
-        pub mod __DOCS { }
+        pub mod __DOCS {
+            #(
+                /// Declared in widget.
+                pub use super::#docs_declared::wgt_cap_export as #docs_declared;
+            )*
+        }
     };
 
     r.into()
@@ -1163,6 +1174,7 @@ struct PropertyItem {
     path: TokenStream,
     default: bool,
     required: bool,
+    declared: bool,
 }
 impl Parse for PropertyItem {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
@@ -1183,6 +1195,10 @@ impl Parse for PropertyItem {
                 .unwrap_or_else(|e| non_user_error!(e))
                 .value,
             required: named_braces!("required")
+                .parse::<LitBool>()
+                .unwrap_or_else(|e| non_user_error!(e))
+                .value,
+            declared: named_braces!("declared")
                 .parse::<LitBool>()
                 .unwrap_or_else(|e| non_user_error!(e))
                 .value,

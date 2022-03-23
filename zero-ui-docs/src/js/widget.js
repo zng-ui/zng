@@ -161,7 +161,7 @@ function onDocsIframeLoaded(docs) {
     inner_docs.getElementsByTagName('p')[0].remove();
     inner_docs.getElementsByTagName('p')[0].remove();
 
-    inner_docs.querySelectorAll('a').forEach(function(a) {
+    inner_docs.querySelectorAll('a').forEach(function (a) {
         let href = a.getAttribute('href');
         if (href.startsWith('../')) {
             href = href.substring('../'.length);
@@ -341,20 +341,20 @@ function appendSidebarAnchor(ul, id) {
 // fetch HTML, parse and fix base URL.
 function fetchHtml(url) {
     return fetch(url)
-            .then(function(r) { return r.text(); })
-            .then(function(html) {
-                var parser = new DOMParser();
-                var doc = parser.parseFromString(html, "text/html");
-                let base = doc.createElement('base');
-                base.setAttribute('href', url);
-                doc.head.append(base);
+        .then(function (r) { return r.text(); })
+        .then(function (html) {
+            var parser = new DOMParser();
+            var doc = parser.parseFromString(html, "text/html");
+            let base = doc.createElement('base');
+            base.setAttribute('href', url);
+            doc.head.append(base);
 
-                doc.querySelectorAll('a').forEach(function(a) {
-                    a.setAttribute('href', a.href);
-                });
-
-                return doc;
+            doc.querySelectorAll('a').forEach(function (a) {
+                a.setAttribute('href', a.href);
             });
+
+            return doc;
+        });
 }
 
 // fetch linked property pages and edit the types with the types.
@@ -367,12 +367,8 @@ function fetchPropTypes() {
     document.querySelectorAll('h4.wp-title').forEach(function (title) {
         let url = title.querySelector('a:not(.anchor)').href;
 
-        if (url.startsWith(current_page)) {
-            return;
-        }
-
-        url = url.replace('/index.html', '/__DOCS/index.html');
-        fetchHtml(url).then(function(doc) {
+        url = url.replace('/index.html', '/__DOCS/index.html').replace(/\/fn@(\w+)/gm, '/fn.__p_$1.html');
+        fetchHtml(url).then(function (doc) {
             if (url.includes('#')) {
                 resolvePropPage(title, url, doc);
             } else {
@@ -389,14 +385,13 @@ function resolvePropPage(title, url, doc) {
         return;
     }
 
-    let inner_url = inner_title.querySelector('a:not(.anchor)').href.replace('/index.html', '/__DOCS/index.html');
-
-    if (inner_url.includes("fn@")) {
-        return;
-    }
+    let inner_url = inner_title
+        .querySelector('a:not(.anchor)').href
+        .replace('/index.html', '/__DOCS/index.html')
+        .replace(/\/fn@(\w+)/gm, '/fn.__p_$1.html');
 
     fetchHtml(inner_url)
-        .then(function(inner_doc) {
+        .then(function (inner_doc) {
             if (inner_url.includes('#')) {
                 resolvePropPage(title, inner_url, inner_doc);
             } else {

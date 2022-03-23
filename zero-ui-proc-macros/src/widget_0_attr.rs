@@ -138,7 +138,7 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
     }
 
     // collects name of captured properties, spans new input types and validates inputs.
-    let mut new_captures = vec![]; // [FnPriority:Span]
+    let mut new_captures = vec![]; // [Vec<Ident>]
     let mut new_captures_cfg = vec![]; // [TokenStream]
     let mut new_arg_ty_spans = vec![]; // [child_ty:Span, cap_ty:Span..]
     let mut captured_properties = HashMap::new();
@@ -568,6 +568,7 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
         let cfg = attrs.cfg;
         let path = &property.path;
 
+        let declared = property.type_.is_some();
         built_properties.extend(quote! {
             #p_ident {
                 docs { #(#docs)* }
@@ -575,6 +576,7 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
                 path { #path }
                 default { #default }
                 required { #required }
+                declared { #declared }
             }
         });
     }

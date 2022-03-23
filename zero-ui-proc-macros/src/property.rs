@@ -689,6 +689,30 @@ mod analysis {
             is_wgt_capture_only: is_capture_only && fn_.sig.ident.to_string().starts_with("__p_"),
         };
 
+        let mut wgt_capture_only_reexport = TokenStream::new();
+        let mut wgt_capture_only_reexport_use = TokenStream::new();
+        if fn_attrs.is_wgt_capture_only {
+            let cfg = &attrs.cfg;
+            let mut fn_ = fn_.clone();
+            let vis = &fn_.vis;
+            let mod_ident = ident!("__wgt_cap_{}", fn_.sig.ident);
+            fn_.sig.ident = ident!("wgt_cap_export");
+            wgt_capture_only_reexport = quote! {
+                #cfg
+                #[doc(hidden)]
+                #vis mod #mod_ident {
+                    use super::*;
+
+                    #fn_
+                }
+            };
+
+            wgt_capture_only_reexport_use = quote! {
+                #cfg
+                #vis use super::#mod_ident::wgt_cap_export;
+            }
+        }
+
         output::Output {
             errors,
             fn_and_errors_only,
@@ -718,6 +742,8 @@ mod analysis {
                 args_ident: ident!("{}_Args", fn_.sig.ident),
                 args_impl_ident: ident!("{}_ArgsImpl", fn_.sig.ident),
                 has_default_value,
+                wgt_capture_only_reexport,
+                wgt_capture_only_reexport_use,
             },
             macro_: output::OutputMacro {
                 cfg: attrs.cfg,
@@ -1511,6 +1537,8 @@ mod output {
         pub macro_ident: Ident,
         pub args_ident: Ident,
         pub args_impl_ident: Ident,
+        pub wgt_capture_only_reexport: TokenStream,
+        pub wgt_capture_only_reexport_use: TokenStream,
     }
     impl ToTokens for OutputMod {
         fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
@@ -1521,6 +1549,8 @@ mod output {
                 macro_ident,
                 args_ident,
                 args_impl_ident,
+                wgt_capture_only_reexport,
+                wgt_capture_only_reexport_use,
                 ..
             } = self;
 
@@ -1563,12 +1593,15 @@ mod output {
             };
 
             tokens.extend(quote! {
+                #wgt_capture_only_reexport
+
                 #cfg
                 #[doc(hidden)]
                 #vis mod #ident {
                     #vis use super::{
                         #ident as export,
                     };
+                    #wgt_capture_only_reexport_use
                     pub use super::{
                         #args_impl_ident as ArgsImpl,
                         #args_ident as Args,
