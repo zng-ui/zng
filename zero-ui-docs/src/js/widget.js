@@ -233,7 +233,7 @@ function onDocsIframeLoaded(docs) {
         }
         let place = c.closest("ul");
 
-        c.innerHTML = c.innerHTML.replace(/self\.(\w+)/gm, 'self.<a href="#wp-$1">$1</a>');
+        c.innerHTML = c.innerHTML.replaceAll(/self\.(\w+)/gm, 'self.<a href="#wp-$1">$1</a>');
 
         let title = document.createElement("h4");
         title.classList.add("ww-title");
@@ -353,10 +353,15 @@ function resolvePropPage(title, url, doc) {
 
     let inner_title = doc.getElementById(anchor);
     if (inner_title == null) {
-        console.error("failed: " + anchor);
         return;
     }
-    let inner_url = inner_title.querySelector('a:not(.anchor)').href.replace('/index.html', '/constant.__DOCS.html');
+
+    let relative = inner_title.querySelector('a:not(.anchor)').getAttribute('href').replace('/index.html', '/constant.__DOCS.html');
+    let inner_url = new URL(relative, url).href;
+
+    if (inner_url.includes("fn@")) {
+        return;
+    }
 
     fetch(inner_url)
         .then(function (r) { return r.text() })
@@ -367,10 +372,29 @@ function resolvePropPage(title, url, doc) {
             if (inner_url.includes('#')) {
                 resolvePropPage(title, inner_url, inner_doc);
             } else {
-                copyPropType(title, doc);
+                copyPropType(title, inner_doc);
             }
         })
 }
 function copyPropType(title, doc) {
-    console.log(doc.querySelector('pre.rust.fn'));
+    let target = title.querySelector('code');
+    let code = doc.querySelector('pre.rust.fn');
+    target.appendChild(code);
+    editPropDecl(false, code, code.cloneNode(true));
+
+    let pre = document.createElement('pre');
+    pre.classList.add('rust');
+    pre.classList.add('fn');
+    pre.appendChild(target.firstChild);
+    pre.appendChild(document.createTextNode(' =' + code.childNodes[0].textContent.split('=', 2)[1]));
+    pre.style.margin = "0";
+    pre.style.padding = "0";
+    code.firstChild.remove();
+    while (code.firstChild) {
+        pre.appendChild(code.firstChild);
+    }
+
+    target.replaceWith(pre);
+
+    code.remove();
 }
