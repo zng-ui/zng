@@ -33,9 +33,18 @@
 
 use std::{env, fs, path::PathBuf};
 
+mod rs;
+
+#[cfg(feature = "post")]
+pub use rs::transform;
+
 macro_rules! include_js {
     ($name:tt) => {
-        concat!("<script>", include_str!(concat!(env!("OUT_DIR"), "/js_min/", $name)), "</script>\n")
+        concat!(
+            "<script data-zero-ui>",
+            include_str!(concat!(env!("OUT_DIR"), "/js_min/", $name)),
+            "</script>\n"
+        )
     };
 }
 

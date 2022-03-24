@@ -5,5 +5,17 @@ authors = ["Samuel Guerra <sam.rodr.g@gmail.com>", "Well <well-r@hotmail.com>"]
 edition = "2021"
 license = "Apache-2.0"
 
+[features]
+default = ["post"]
+
+# Static pos-processing.
+post = ["nipper", "glob", "rayon"]
+
+[dependencies]
+nipper = { version = "0.1", optional = true }
+glob = { version = "0.3", optional = true }
+rayon = { version = "1", optional = true }
+regex = { version = "1", optional = true }
+
 [build-dependencies]
 minifier = "0.0.43"
