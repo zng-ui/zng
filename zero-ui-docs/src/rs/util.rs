@@ -1,9 +1,10 @@
 use std::{
+    borrow::Cow,
     fs,
     path::{Path, PathBuf},
 };
 
-use nipper::{Node, Selection};
+use lol_html::*;
 use rayon::prelude::*;
 
 /// Glob in `root`.
@@ -22,25 +23,33 @@ pub fn glob_par_each(root: &Path, pattern: &str, for_each: impl Fn(PathBuf, Stri
         })
 }
 
-/// Extensions for [`Node`].
-pub trait NodeExt {
-    /// Parse `html` element and append after `self`.
-    fn append_next_sibling_html(&self, html: &str);
+/// Apply rewrite matchers to `html`, discards rewrite requests.
+pub fn analyze_html(html: &str, element_content_handlers: Vec<(Cow<Selector>, ElementContentHandlers)>) {
+    let mut r = lol_html::HtmlRewriter::new(
+        RewriteStrSettings {
+            element_content_handlers,
+            ..Default::default()
+        }
+        .into(),
+        |_: &[u8]| {},
+    );
+    r.write(html.as_bytes()).unwrap();
+    r.end().unwrap();
 }
-impl<'a> NodeExt for Node<'a> {
-    fn append_next_sibling_html(&self, html: &str) {
-        let parent = self.parent().expect("cannot append sibling to root");
 
-        let mut parent = Selection::from(parent.clone());
-        parent.append_html(format!("<div id='append_next_sibling_html-temp'>{html}</div>"));
-
-        let temp = parent.select("#append_next_sibling_html-temp").nodes()[0].clone();
-        let new = temp.first_child().unwrap();
-        
-        temp.remove_from_parent();
-
-        let next = self.next_sibling().unwrap();
-        next.append_prev_sibling(&new.id);
-
+/// Rewrite `html`, returns `Some(_)` if any rewrite was applied.
+pub fn rewrite_html(html: &str, element_content_handlers: Vec<(Cow<Selector>, ElementContentHandlers)>) -> Option<String> {
+    let r = lol_html::rewrite_str(
+        html,
+        RewriteStrSettings {
+            element_content_handlers,
+            ..Default::default()
+        },
+    )
+    .ok()?;
+    if r != html {
+        Some(r)
+    } else {
+        None
     }
 }

@@ -17,6 +17,6 @@ pub fn transform(docs_root: impl AsRef<std::path::Path>) {
 
     macro_::transform(docs_root);
     property::transform(docs_root);
-    // widget::transform(docs_root);
+    widget::transform(docs_root);
     script::transform(docs_root);
 }

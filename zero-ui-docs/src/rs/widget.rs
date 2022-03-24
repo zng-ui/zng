@@ -1,29 +1,15 @@
 use std::path::Path;
 
-use nipper::Document;
-
 /// Edit Widget module pages and module lists.
 pub fn transform(docs_root: &Path) {
     super::util::glob_par_each(docs_root, "**/index.html", |file, html| {
-        let doc = Document::from(&html);
+        let html = super::util::rewrite_html(&html, vec![]);
 
-        let edited = transform_widget_mod_page(&doc) | transform_mod_list(&doc);
-
-        if edited {
-            std::fs::write(file, doc.html().as_bytes()).unwrap();
+        if let Some(html) = html {
+            std::fs::write(file, html.as_bytes()).unwrap();
         }
     });
     transform_sidebars(docs_root);
-}
-
-/// Edit module page for widget mod.
-fn transform_widget_mod_page(_doc: &Document) -> bool {
-    todo!()
-}
-
-/// Edit mod lists in module page, creates a new "Widgets" section.
-fn transform_mod_list(_doc: &Document) -> bool {
-    todo!()
 }
 
 /// Edit sidebar lists, creates a new "Widgets" section.

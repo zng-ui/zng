@@ -6,13 +6,13 @@ edition = "2021"
 license = "Apache-2.0"
 
 [features]
-# default = ["post"]
+default = ["post"]
 
 # Static pos-processing.
-post = ["nipper", "glob", "rayon"]
+post = ["lol_html", "glob", "rayon"]
 
 [dependencies]
-nipper = { version = "0.1", optional = true }
+lol_html = { version = "0.3", optional = true }
 glob = { version = "0.3", optional = true }
 rayon = { version = "1", optional = true }
 regex = { version = "1", optional = true }
