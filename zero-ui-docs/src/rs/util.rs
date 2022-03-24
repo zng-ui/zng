@@ -34,7 +34,8 @@ impl DocumentExt for Document {
             return s.nodes()[0].clone();
         }
 
-        self.select("body").append_html("<div id='zero-ui-post' style='display: none;'></div>");
+        self.select("body")
+            .append_html("<div id='zero-ui-post' style='display: none;'></div>");
 
         self.create_node(html)
     }

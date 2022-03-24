@@ -6,7 +6,9 @@ use crate::rs::util::{DocumentExt, NodeExt};
 
 /// Edit property function pages and function lists.
 pub fn transform(docs_root: &Path) {
-
+    transform_property_fn_pages(docs_root);
+    transform_fn_lists(docs_root);
+    transform_sidebars(docs_root);
 }
 
 /// Edit function pages for property functions.
@@ -58,8 +60,6 @@ fn edit_prop_decl(_capture_only: bool, pre: &Selection) {
     let mut where_ = pre.select("span.where");
     where_.remove();
 
-
-
     // TODO
 }
 
@@ -78,7 +78,7 @@ fn transform_sidebars(docs_root: &Path) {
         }
 
         let edit = js.contains("`property` ");
-        
+
         if edit {
             // TODO
 
