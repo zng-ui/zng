@@ -3,7 +3,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use nipper::{Document, Node, NodeId};
+use nipper::{Node, Selection};
 use rayon::prelude::*;
 
 /// Glob in `root`.
@@ -22,38 +22,25 @@ pub fn glob_par_each(root: &Path, pattern: &str, for_each: impl Fn(PathBuf, Stri
         })
 }
 
-/// Extensions for [`Document`].
-pub trait DocumentExt {
-    /// Create a new node from HTML.
-    fn create_node<T: AsRef<str>>(&self, html: T) -> Node;
-}
-impl DocumentExt for Document {
-    fn create_node<T: AsRef<str>>(&self, html: T) -> Node {
-        if let Some(mut s) = self.select("#zero-ui-post").iter().next() {
-            s.set_html(html.as_ref());
-            return s.nodes()[0].clone();
-        }
-
-        self.select("body")
-            .append_html("<div id='zero-ui-post' style='display: none;'></div>");
-
-        self.create_node(html)
-    }
-}
-
 /// Extensions for [`Node`].
 pub trait NodeExt {
-    /// Move node to be the next sibling of `self`.
-    fn append_next_sibling(&self, id: &NodeId);
+    /// Parse `html` element and append after `self`.
+    fn append_next_sibling_html(&self, html: &str);
 }
 impl<'a> NodeExt for Node<'a> {
-    fn append_next_sibling(&self, id: &NodeId) {
-        if let Some(next) = self.next_sibling() {
-            next.append_prev_sibling(id);
-        } else if let Some(parent) = self.parent() {
-            parent.append_child(id);
-        } else {
-            panic!("cannot append sibling to root");
-        }
+    fn append_next_sibling_html(&self, html: &str) {
+        let parent = self.parent().expect("cannot append sibling to root");
+
+        let mut parent = Selection::from(parent.clone());
+        parent.append_html(format!("<div id='append_next_sibling_html-temp'>{html}</div>"));
+
+        let temp = parent.select("#append_next_sibling_html-temp").nodes()[0].clone();
+        let new = temp.first_child().unwrap();
+        
+        temp.remove_from_parent();
+
+        let next = self.next_sibling().unwrap();
+        next.append_prev_sibling(&new.id);
+
     }
 }

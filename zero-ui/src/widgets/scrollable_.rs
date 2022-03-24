@@ -943,7 +943,7 @@ pub mod scrollable {
                 fn arrange(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, final_size: PxSize) {
                     self.child.arrange(ctx, widget_layout, final_size);
 
-                    if let Some(scroll_ctx) = ScrollContext::get(ctx.vars){
+                    if let Some(scroll_ctx) = ScrollContext::get(ctx.vars) {
                         let available_size = AvailableSize::finite(scroll_ctx.content_size_var.copy(ctx.vars));
                         let offset = self.offset.to_layout(ctx, available_size, PxVector::zero());
                         if offset.y != Px(0) {
@@ -1053,7 +1053,7 @@ pub mod scrollable {
                 fn arrange(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, final_size: PxSize) {
                     self.child.arrange(ctx, widget_layout, final_size);
 
-                    if let Some(scroll_ctx) = ScrollContext::get(ctx.vars){
+                    if let Some(scroll_ctx) = ScrollContext::get(ctx.vars) {
                         let available_size = AvailableSize::finite(scroll_ctx.content_size_var.copy(ctx.vars));
                         let offset = self.offset.to_layout(ctx, available_size, PxVector::zero());
                         if offset.y != Px(0) {

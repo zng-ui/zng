@@ -2,7 +2,7 @@ use std::path::Path;
 
 use nipper::{Document, Selection};
 
-use crate::rs::util::{DocumentExt, NodeExt};
+use crate::rs::util::NodeExt;
 
 /// Edit property function pages and function lists.
 pub fn transform(docs_root: &Path) {
@@ -33,7 +33,7 @@ fn transform_property_fn_pages(docs_root: &Path) {
         for mut h1 in doc.select("h1").iter() {
             if h1.text().starts_with("Function ") {
                 let html = h1.html().as_ref().replace(">Function <", ">Property <");
-                h1.set_html(html);
+                h1.replace_with_html(html);
             }
         }
 
@@ -44,8 +44,7 @@ fn transform_property_fn_pages(docs_root: &Path) {
         let capture_only = !as_fn_title.exists();
 
         if !capture_only {
-            let node = doc.create_node(decl_code.html());
-            as_fn_title.get(0).unwrap().append_next_sibling(&node.id);
+            as_fn_title.get(0).unwrap().append_next_sibling_html(&decl_code.html());
         }
 
         edit_prop_decl(capture_only, &decl_code);

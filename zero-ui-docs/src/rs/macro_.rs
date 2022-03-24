@@ -14,7 +14,7 @@ pub fn transform(docs_root: &Path) {
         let mut edited = false;
 
         // remove tagged macro entries
-        let mut tagged_entries = doc.select("span[data-del-macro-root]").parent().parent();
+        let tagged_entries = doc.select("span[data-del-macro-root]").parent().parent();
         if tagged_entries.exists() {
             edited = true;
             tagged_entries.parent().parent().remove();

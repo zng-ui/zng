@@ -93,7 +93,11 @@ fn doc(mut args: Vec<&str>) {
     );
 
     if !no_post {
-        cmd("cargo", &["run", "--release", "-p", "zero-ui-docs", "--features", "post", "--", "target/doc"], &[])
+        cmd(
+            "cargo",
+            &["run", "--release", "-p", "zero-ui-docs", "--features", "post", "--", "target/doc"],
+            &[],
+        )
     }
 
     let server = if serve {
