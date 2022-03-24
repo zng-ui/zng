@@ -781,6 +781,7 @@ pub mod scrollable {
 
                     cell_ctx.v_ratio_var.set_ne(ctx, v_ratio.fct());
                     cell_ctx.h_ratio_var.set_ne(ctx, h_ratio.fct());
+                    cell_ctx.content_size_var.set_ne(ctx, self.content_size);
                 }
 
                 fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
@@ -866,6 +867,8 @@ pub mod scrollable {
                 down: CommandHandle,
                 left: CommandHandle,
                 right: CommandHandle,
+
+                offset: Vector,
             }
             #[impl_ui_node(child)]
             impl<C: UiNode> UiNode for ScrollCommandsNode<C> {
@@ -908,23 +911,46 @@ pub mod scrollable {
                         self.child.event(ctx, args);
 
                         if !args.stop_propagation_requested() {
-                            let _unit = VerticalScrollUnitVar::get(ctx);
-                            // TODO get viewport height
+                            self.offset.y -= VerticalScrollUnitVar::get_clone(ctx);
+                            ctx.updates.layout();
                         }
                     } else if let Some(args) = ScrollDownCommand.scoped(scope).update(args) {
                         self.child.event(ctx, args);
 
-                        if !args.stop_propagation_requested() {}
+                        if !args.stop_propagation_requested() {
+                            self.offset.y += VerticalScrollUnitVar::get_clone(ctx);
+                            ctx.updates.layout();
+                        }
                     } else if let Some(args) = ScrollLeftCommand.scoped(scope).update(args) {
                         self.child.event(ctx, args);
 
-                        if !args.stop_propagation_requested() {}
+                        if !args.stop_propagation_requested() {
+                            self.offset.x -= HorizontalScrollUnitVar::get_clone(ctx);
+                            ctx.updates.layout();
+                        }
                     } else if let Some(args) = ScrollRightCommand.scoped(scope).update(args) {
                         self.child.event(ctx, args);
 
-                        if !args.stop_propagation_requested() {}
+                        if !args.stop_propagation_requested() {
+                            self.offset.x += HorizontalScrollUnitVar::get_clone(ctx);
+                            ctx.updates.layout();
+                        }
                     } else {
                         self.child.event(ctx, args);
+                    }
+                }
+
+                fn arrange(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, final_size: PxSize) {
+                    self.child.arrange(ctx, widget_layout, final_size);
+
+                    if let Some(scroll_ctx) = ScrollContext::get(ctx.vars){
+                        let available_size = AvailableSize::finite(scroll_ctx.content_size_var.copy(ctx.vars));
+                        let offset = self.offset.to_layout(ctx, available_size, PxVector::zero());
+                        if offset.y != Px(0) {
+                            // TODO: continue implementing this
+                            //scroll_ctx.v_offset.set(ctx.vars, )
+                        }
+                        self.offset = Vector::zero();
                     }
                 }
             }
@@ -936,6 +962,8 @@ pub mod scrollable {
                 down: CommandHandle::dummy(),
                 left: CommandHandle::dummy(),
                 right: CommandHandle::dummy(),
+
+                offset: Vector::zero(),
             }
         }
 
@@ -949,6 +977,8 @@ pub mod scrollable {
                 down: CommandHandle,
                 left: CommandHandle,
                 right: CommandHandle,
+
+                offset: Vector,
             }
             #[impl_ui_node(child)]
             impl<C: UiNode> UiNode for PageCommandsNode<C> {
@@ -991,23 +1021,46 @@ pub mod scrollable {
                         self.child.event(ctx, args);
 
                         if !args.stop_propagation_requested() {
-                            let _unit = VerticalPageUnitVar::get(ctx);
-                            // TODO get viewport height
+                            self.offset.y -= VerticalPageUnitVar::get_clone(ctx);
+                            ctx.updates.layout();
                         }
                     } else if let Some(args) = PageDownCommand.scoped(scope).update(args) {
                         self.child.event(ctx, args);
 
-                        if !args.stop_propagation_requested() {}
+                        if !args.stop_propagation_requested() {
+                            self.offset.y += VerticalPageUnitVar::get_clone(ctx);
+                            ctx.updates.layout();
+                        }
                     } else if let Some(args) = PageLeftCommand.scoped(scope).update(args) {
                         self.child.event(ctx, args);
 
-                        if !args.stop_propagation_requested() {}
+                        if !args.stop_propagation_requested() {
+                            self.offset.x -= HorizontalPageUnitVar::get_clone(ctx);
+                            ctx.updates.layout();
+                        }
                     } else if let Some(args) = PageRightCommand.scoped(scope).update(args) {
                         self.child.event(ctx, args);
 
-                        if !args.stop_propagation_requested() {}
+                        if !args.stop_propagation_requested() {
+                            self.offset.x += HorizontalPageUnitVar::get_clone(ctx);
+                            ctx.updates.layout();
+                        }
                     } else {
                         self.child.event(ctx, args);
+                    }
+                }
+
+                fn arrange(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, final_size: PxSize) {
+                    self.child.arrange(ctx, widget_layout, final_size);
+
+                    if let Some(scroll_ctx) = ScrollContext::get(ctx.vars){
+                        let available_size = AvailableSize::finite(scroll_ctx.content_size_var.copy(ctx.vars));
+                        let offset = self.offset.to_layout(ctx, available_size, PxVector::zero());
+                        if offset.y != Px(0) {
+                            // TODO: continue implementing this
+                            //scroll_ctx.v_offset.set(ctx.vars, )
+                        }
+                        self.offset = Vector::zero();
                     }
                 }
             }
@@ -1019,6 +1072,8 @@ pub mod scrollable {
                 down: CommandHandle::dummy(),
                 left: CommandHandle::dummy(),
                 right: CommandHandle::dummy(),
+
+                offset: Vector::zero(),
             }
         }
 
@@ -1107,6 +1162,8 @@ pub mod scrollable {
         v_ratio_var: RcVar<Factor>,
         h_ratio_var: RcVar<Factor>,
 
+        content_size_var: RcVar<PxSize>,
+
         /// Viewport width / content width.
         pub v_ratio: ReadOnlyRcVar<Factor>,
         /// Viewport height / content height.
@@ -1121,6 +1178,7 @@ pub mod scrollable {
         fn new() -> Self {
             let v_ratio_var = var(1.0.fct());
             let h_ratio_var = var(1.0.fct());
+            let content_size_var = var(PxSize::zero());
 
             ScrollContext {
                 v_offset: var(0.0.fct()),
@@ -1129,6 +1187,7 @@ pub mod scrollable {
                 h_ratio: h_ratio_var.clone().into_read_only(),
                 v_ratio_var,
                 h_ratio_var,
+                content_size_var,
             }
         }
 
