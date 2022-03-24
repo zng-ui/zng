@@ -6,8 +6,6 @@ edition = "2021"
 license = "Apache-2.0"
 
 [features]
-default = ["post"]
-
 # Static pos-processing.
 post = ["nipper", "glob", "rayon"]
 

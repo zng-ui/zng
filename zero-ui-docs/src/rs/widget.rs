@@ -3,7 +3,7 @@ use std::path::Path;
 use nipper::Document;
 
 /// Edit Widget module pages and module lists.
-pub fn tranform(docs_root: &Path) {
+pub fn transform(docs_root: &Path) {
     super::util::glob_par_each(docs_root, "**/index.html", |file, html| {
         let doc = Document::from(&html);
 
