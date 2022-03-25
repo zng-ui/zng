@@ -76,9 +76,7 @@ pub fn transform(docs_root: &Path) {
             }));
         }
 
-        let html = super::util::rewrite_html(&html, transforms);
-
-        if let Some(html) = html {
+        if let Some(html) = super::util::rewrite_html(&html, transforms) {
             std::fs::write(file, html.as_bytes()).unwrap();
         }
     });

@@ -46,7 +46,7 @@ pub fn rewrite_html(html: &str, element_content_handlers: Vec<(Cow<Selector>, El
             ..Default::default()
         },
     )
-    .ok()?;
+    .unwrap();
     if r != html {
         Some(r)
     } else {

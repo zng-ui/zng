@@ -9,7 +9,7 @@ license = "Apache-2.0"
 default = ["post"]
 
 # Static pos-processing.
-post = ["lol_html", "glob", "rayon"]
+post = ["lol_html", "glob", "rayon", "regex"]
 
 [dependencies]
 lol_html = { version = "0.3", optional = true }
