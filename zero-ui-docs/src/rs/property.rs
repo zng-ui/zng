@@ -137,7 +137,7 @@ fn transform_fn_lists(docs_root: &Path) {
                         h2.before(&properties, ContentType::Html);
                         Ok(())
                     }),
-                    lol_html::comments!("div-item-table", |c| {
+                    lol_html::comments!("div.item-table", |c| {
                         if c.text().contains("CUT") {
                             c.remove();
                         }
