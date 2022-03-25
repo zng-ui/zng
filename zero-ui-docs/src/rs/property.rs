@@ -1,7 +1,9 @@
-use std::{cell::Cell, collections::HashSet, path::Path};
+use std::{borrow::Cow, cell::Cell, collections::HashSet, path::Path};
 
 use lol_html::html_content::ContentType;
 use regex::Regex;
+
+use crate::rs::util::RegexExt;
 
 /// Edit property function pages and function lists.
 pub fn transform(docs_root: &Path) {
@@ -19,46 +21,106 @@ fn transform_property_fn_pages(docs_root: &Path) {
 
         let mut removed_tag = false;
 
-        let html = super::util::rewrite_html(&html, vec![
-            lol_html::text!("h1", |t| {
-                if t.as_str() == "Function " {
-                    t.replace("Property ", ContentType::Text);
-                }
-                Ok(())
-            }),
-            lol_html::element!("pre.rust.fn", |pre| {
-                pre.before("<!-- COPY ", ContentType::Html);
-                pre.after(" -->", ContentType::Html);
-                Ok(())
-            }),
-            lol_html::element!("div.docblock p strong", |strong| {
-                if !removed_tag {
-                    strong.remove();
-                    removed_tag = true;
-                }
-                Ok(())
-            }),
-        ]).unwrap();
+        let html = super::util::rewrite_html(
+            &html,
+            vec![
+                lol_html::text!("h1", |t| {
+                    if t.as_str() == "Function " {
+                        t.replace("Property ", ContentType::Text);
+                    }
+                    Ok(())
+                }),
+                lol_html::element!("pre.rust.fn", |pre| {
+                    pre.before("<!-- COPY ", ContentType::Html);
+                    pre.after(" -->", ContentType::Html);
+                    Ok(())
+                }),
+                lol_html::element!("div.docblock p strong", |strong| {
+                    if !removed_tag {
+                        strong.remove();
+                        removed_tag = true;
+                    }
+                    Ok(())
+                }),
+            ],
+        )
+        .unwrap();
 
         let copy = Regex::new(r"<!-- COPY \s*((?s).+?)\s* -->").unwrap();
         let code = &copy.captures(&html).unwrap()[1];
 
-        // TODO transform code
-        let transformed_code = &code;
+        let transformed_code = &transform_property_decl(code);
 
-        let html = super::util::rewrite_html(&html, vec![
-            lol_html::element!("div.item-decl", |div| {
-                div.set_inner_content(transformed_code, ContentType::Html);
-                Ok(())
-            }),
-            lol_html::element!("h2#as-function", |h2| {
-                h2.after(&code, ContentType::Html);
-                Ok(())
-            })
-        ]).unwrap();
+        let html = super::util::rewrite_html(
+            &html,
+            vec![
+                lol_html::element!("div.item-decl", |div| {
+                    div.set_inner_content(transformed_code, ContentType::Html);
+                    Ok(())
+                }),
+                lol_html::element!("h2#as-function", |h2| {
+                    h2.after(code, ContentType::Html);
+                    Ok(())
+                }),
+            ],
+        )
+        .unwrap();
 
         std::fs::write(file, html.as_bytes()).unwrap();
     });
+}
+fn transform_property_decl(pre: &str) -> String {
+    let capture_only = pre.contains(r#"primitive.never.html">!</a></code></pre>"#);
+
+    // remove return type
+    let end_cut = pre.rfind(") -&gt; ").unwrap(); // match last " ) -> "
+    let (pre, _after_arrow) = pre.split_at(end_cut + 1);
+
+    let fn_idx = pre.find("fn ").unwrap();
+    let (open_and_vis, pre) = pre.split_at(fn_idx);
+    let open_and_vis = open_and_vis.trim_end();
+    let pre = pre["fn ".len()..].trim_start();
+
+    // match first < or (
+    let first_paren = pre.find('(').unwrap();
+    let first_open_generic = pre.find("&lt;").unwrap_or(usize::MAX);
+    let name_end = first_paren.min(first_open_generic);
+    let (name, pre) = pre.split_at(name_end);
+
+    let (generic, pre) = if pre.starts_with("&lt;") {
+        pre.split_at(first_paren)
+    } else {
+        ("", pre)
+    };
+
+    let pre = pre.strip_prefix('(').unwrap().strip_suffix(')').unwrap();
+
+    // split at ", input_name:"
+    let comma_and_input_name = Regex::new(r",\s*(<br>)?(?:&nbsp;)*\s*\w+:").unwrap();
+    let inputs: Vec<_> = comma_and_input_name.split_keep(pre).collect();
+    let inputs = if capture_only { &inputs[..] } else { &inputs[1..] };
+
+    let input = if inputs.len() == 1 {
+        Cow::Borrowed(inputs[0].split_once(':').unwrap().1.trim_start())
+    } else {
+        let mut r = "{<br>".to_owned();
+        for input in inputs {
+            let input = input
+            .trim_start_matches(',')
+            .trim_start()
+            .trim_start_matches("<br>")
+            .trim_start_matches("&nbsp;")
+            .trim_end_matches("<br>");
+            println!("AFTER: {input}");
+
+            r.push_str("&nbsp;&nbsp;&nbsp;");
+            r.push_str(input);
+            r.push_str(",<br>");
+        }
+        r.push('}');
+        Cow::Owned(r)
+    };
+    format!("{open_and_vis} {name}{generic} = {input};</code></pre>")
 }
 
 /// Edit function lists in module pages, creates a new "Properties" section.

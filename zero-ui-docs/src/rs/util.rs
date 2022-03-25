@@ -6,6 +6,7 @@ use std::{
 
 use lol_html::*;
 use rayon::prelude::*;
+use regex::Regex;
 
 /// Glob in `root`.
 pub fn glob(root: &Path, pattern: &str) -> Vec<PathBuf> {
@@ -51,5 +52,51 @@ pub fn rewrite_html(html: &str, element_content_handlers: Vec<(Cow<Selector>, El
         Some(r)
     } else {
         None
+    }
+}
+
+/// Extension methods for [`Regex`].
+pub trait RegexExt {
+    /// Split including the delimiter as a prefix.
+    fn split_keep<'r, 's>(&'r self, text: &'s str) -> SplitKeep<'r, 's>;
+}
+impl RegexExt for Regex {
+    fn split_keep<'r, 's>(&'r self, text: &'s str) -> SplitKeep<'r, 's> {
+        SplitKeep {
+            text,
+            find_iter: self.find_iter(text),
+            start: 0,
+        }
+    }
+}
+
+/// See [`RegexExt::split_keep`].
+pub struct SplitKeep<'r, 's> {
+    text: &'s str,
+    find_iter: regex::Matches<'r, 's>,
+    start: usize,
+}
+impl<'r, 's> Iterator for SplitKeep<'r, 's> {
+    type Item = &'s str;
+
+    fn next(&mut self) -> Option<&'s str> {
+        match self.find_iter.next() {
+            Some(m) => {
+                let s = &self.text[self.start..m.start()];
+                if s.is_empty() {
+                    self.next()
+                } else {
+                    self.start = m.start();
+                    Some(s)
+                }
+            },
+            None => if self.start == self.text.len() {
+                None
+            } else {
+                let s = &self.text[self.start..];
+                self.start = self.text.len();
+                Some(s)
+            },
+        }
     }
 }
