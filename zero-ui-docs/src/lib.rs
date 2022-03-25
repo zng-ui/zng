@@ -43,7 +43,7 @@ macro_rules! include_js {
         concat!(
             "<script data-zero-ui>",
             include_str!(concat!(env!("OUT_DIR"), "/js_min/", $name)),
-            "</script>\n"
+            "</script>"
         )
     };
 }

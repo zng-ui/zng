@@ -13,11 +13,51 @@ pub fn transform(docs_root: &Path) {
 /// Edit function pages for property functions.
 fn transform_property_fn_pages(docs_root: &Path) {
     super::util::glob_par_each(docs_root, "**/fn.*.html", |file, html| {
-        let html = super::util::rewrite_html(&html, vec![]);
-
-        if let Some(html) = html {
-            std::fs::write(file, html.as_bytes()).unwrap();
+        if !html.contains(r#"<div class="docblock"><p><strong><code>property</code></strong>"#) {
+            return;
         }
+
+        let mut removed_tag = false;
+
+        let html = super::util::rewrite_html(&html, vec![
+            lol_html::text!("h1", |t| {
+                if t.as_str() == "Function " {
+                    t.replace("Property ", ContentType::Text);
+                }
+                Ok(())
+            }),
+            lol_html::element!("pre.rust.fn", |pre| {
+                pre.before("<!-- COPY ", ContentType::Html);
+                pre.after(" -->", ContentType::Html);
+                Ok(())
+            }),
+            lol_html::element!("div.docblock p strong", |strong| {
+                if !removed_tag {
+                    strong.remove();
+                    removed_tag = true;
+                }
+                Ok(())
+            }),
+        ]).unwrap();
+
+        let copy = Regex::new(r"<!-- COPY \s*((?s).+?)\s* -->").unwrap();
+        let code = &copy.captures(&html).unwrap()[1];
+
+        // TODO transform code
+        let transformed_code = &code;
+
+        let html = super::util::rewrite_html(&html, vec![
+            lol_html::element!("div.item-decl", |div| {
+                div.set_inner_content(transformed_code, ContentType::Html);
+                Ok(())
+            }),
+            lol_html::element!("h2#as-function", |h2| {
+                h2.after(&code, ContentType::Html);
+                Ok(())
+            })
+        ]).unwrap();
+
+        std::fs::write(file, html.as_bytes()).unwrap();
     });
 }
 
