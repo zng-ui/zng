@@ -9,7 +9,6 @@ use crate::rs::util::RegexExt;
 pub fn transform(docs_root: &Path) {
     transform_property_fn_pages(docs_root);
     transform_fn_lists(docs_root);
-    transform_sidebars(docs_root);
 }
 
 /// Edit function pages for property functions.
@@ -106,12 +105,11 @@ fn transform_property_decl(pre: &str) -> String {
         let mut r = "{<br>".to_owned();
         for input in inputs {
             let input = input
-            .trim_start_matches(',')
-            .trim_start()
-            .trim_start_matches("<br>")
-            .trim_start_matches("&nbsp;")
-            .trim_end_matches("<br>");
-            println!("AFTER: {input}");
+                .trim_start_matches(',')
+                .trim_start()
+                .trim_start_matches("<br>")
+                .trim_start_matches("&nbsp;")
+                .trim_end_matches("<br>");
 
             r.push_str("&nbsp;&nbsp;&nbsp;");
             r.push_str(input);
@@ -256,22 +254,5 @@ fn transform_fn_lists(docs_root: &Path) {
         }
 
         std::fs::write(file, html.as_bytes()).unwrap();
-    });
-}
-
-/// Edit sidebar lists, creates a new "Properties" section.
-fn transform_sidebars(docs_root: &Path) {
-    super::util::glob_par_each(docs_root, "**/sidebar-items.js", |file, js| {
-        if !js.starts_with("initSidebarItems(") {
-            return;
-        }
-
-        let edit = js.contains("`property` ");
-
-        if edit {
-            // TODO
-
-            std::fs::write(file, js.as_bytes()).unwrap();
-        }
     });
 }

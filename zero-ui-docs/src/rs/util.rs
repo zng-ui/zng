@@ -89,14 +89,16 @@ impl<'r, 's> Iterator for SplitKeep<'r, 's> {
                     self.start = m.start();
                     Some(s)
                 }
-            },
-            None => if self.start == self.text.len() {
-                None
-            } else {
-                let s = &self.text[self.start..];
-                self.start = self.text.len();
-                Some(s)
-            },
+            }
+            None => {
+                if self.start == self.text.len() {
+                    None
+                } else {
+                    let s = &self.text[self.start..];
+                    self.start = self.text.len();
+                    Some(s)
+                }
+            }
         }
     }
 }

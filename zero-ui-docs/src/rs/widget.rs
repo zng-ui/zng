@@ -1,4 +1,4 @@
-use std::{path::Path, cell::Cell, collections::HashSet};
+use std::{cell::Cell, collections::HashSet, path::Path};
 
 use lol_html::html_content::ContentType;
 use regex::Regex;
@@ -118,8 +118,7 @@ fn transform_mod_list(html: &str) -> Option<String> {
         let cut = Regex::new(r"<!-- CUT \s*((?s).+?)\s* -->").unwrap();
 
         let mut widgets =
-            r##"<h2 id="widgets" class="small-section-header"><a href="#widgets">Widgets</a></h2><div class="item-table">"##
-                .to_owned();
+            r##"<h2 id="widgets" class="small-section-header"><a href="#widgets">Widgets</a></h2><div class="item-table">"##.to_owned();
         for cap in cut.captures_iter(&html) {
             widgets.push_str(&cap[1]);
         }

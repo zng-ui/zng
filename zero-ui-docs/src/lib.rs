@@ -41,7 +41,9 @@ pub use rs::transform;
 macro_rules! include_js {
     ($name:tt) => {
         concat!(
-            "<script data-zero-ui>",
+            "<script data-zero-ui-dyn='",
+            $name,
+            "'>",
             include_str!(concat!(env!("OUT_DIR"), "/js_min/", $name)),
             "</script>"
         )
@@ -55,7 +57,7 @@ pub fn html() -> &'static str {
         include_js!("macro.js"),
         include_js!("property.js"),
         include_js!("widget.js"),
-        // "<script>console.log('zero-ui extensions enabled')</script>"
+        include_js!("sidebar.js")
     )
 }
 
