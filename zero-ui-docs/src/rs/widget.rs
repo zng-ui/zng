@@ -1,6 +1,6 @@
 use std::{
     cell::{Cell, RefCell},
-    collections::HashSet,
+    collections::{HashSet, HashMap},
     fs,
     path::{Path, PathBuf},
 };
@@ -38,6 +38,7 @@ fn transform_widget_mod_page(file: &Path, html: &str) -> Option<String> {
     let mut removed_docs_entry = false;
     let mut remove_mods_section = true;
     let mut mod_sidebar_items_count = 0;
+    let mut unique_ids = HashSet::new();
 
     let mut html = super::util::rewrite_html(
         html,
@@ -87,6 +88,12 @@ fn transform_widget_mod_page(file: &Path, html: &str) -> Option<String> {
                 mod_sidebar_items_count += 1;
                 Ok(())
             }),
+            lol_html::element!("*", |e| {
+                if let Some(id) = e.get_attribute("id") {
+                    unique_ids.insert(id);
+                }
+                Ok(())
+            })
         ],
     )
     .unwrap();
@@ -123,6 +130,7 @@ fn transform_widget_mod_page(file: &Path, html: &str) -> Option<String> {
             ],
         )
         .unwrap();
+        unique_ids.remove("modules");
     }
 
     let docs_file = file.parent().unwrap().join("__DOCS/index.html");
@@ -132,9 +140,35 @@ fn transform_widget_mod_page(file: &Path, html: &str) -> Option<String> {
     let widget_sidebar_items = RefCell::new(vec![]);
     let mut removed_docblock_help = 0;
 
+    let mut replaced_ids = HashMap::new();
+    let known_titles = vec![
+        ("required-properties", "Required Properties"),
+        ("normal-properties", "Normal Properties"),
+        ("event-properties", "Event Properties"),
+        ("state-properties", "State Properties"),
+        ("when-properties", "When Properties")
+    ];
+
     let docs_html = super::util::rewrite_html(
         &docs_html,
         vec![
+            lol_html::element!("*", |e| {
+                if let Some(id) = e.get_attribute("id") {
+                    if unique_ids.contains(&id) {
+                        let new_id = format!("{id}-wp");
+                        e.set_attribute("id", &new_id).unwrap();
+                        replaced_ids.insert(id, new_id);
+                    }
+                }
+                if let Some(href) = e.get_attribute("href") {
+                    if let Some(id) = href.strip_prefix('#') {
+                        if let Some(id) = replaced_ids.get(id) {
+                            e.set_attribute("href", &format!("#{id}")).unwrap();
+                        }
+                    }
+                }
+                Ok(())
+            }),
             lol_html::element!("div.docblock", |div| {
                 if first_docblock.take() {
                     div.prepend("<!-- COPY ", ContentType::Html);
@@ -157,26 +191,21 @@ fn transform_widget_mod_page(file: &Path, html: &str) -> Option<String> {
 
                 Ok(())
             }),
-            lol_html::element!("h2#required-properties", |_| {
-                widget_sidebar_items
-                    .borrow_mut()
-                    .push(("required-properties", "Required Properties"));
+            lol_html::element!("h2", |h2| {
+                if let Some(id) = h2.get_attribute("id") {
+                    let id = id.strip_suffix("-wp").unwrap_or(&id);
+                    if let Some((_, name)) = known_titles.iter().find(|(i, _)| *i == id) {
+                        widget_sidebar_items.borrow_mut().push((id.to_owned(), *name));
+                    }
+                }
                 Ok(())
             }),
-            lol_html::element!("h2#normal-properties", |_| {
-                widget_sidebar_items.borrow_mut().push(("normal-properties", "Normal Properties"));
-                Ok(())
-            }),
-            lol_html::element!("h2#event-properties", |_| {
-                widget_sidebar_items.borrow_mut().push(("event-properties", "Event Properties"));
-                Ok(())
-            }),
-            lol_html::element!("h2#state-properties", |_| {
-                widget_sidebar_items.borrow_mut().push(("state-properties", "State Properties"));
-                Ok(())
-            }),
-            lol_html::element!("h2#when-properties", |_| {
-                widget_sidebar_items.borrow_mut().push(("when-properties", "When Properties"));
+            lol_html::element!("h1, h2, h3", |h| {
+                if let Some(id) = h.get_attribute("id") {
+                    if !widget_sidebar_items.borrow().iter().any(|(i, _)| *i == id) {
+                        h.set_tag_name("h4").unwrap();
+                    }
+                }
                 Ok(())
             }),
         ],
@@ -188,19 +217,47 @@ fn transform_widget_mod_page(file: &Path, html: &str) -> Option<String> {
 
     // matches:
     // <ul>\n<li><span id='{id}' class='wp-title'><strong><a href="{href}"><code>{name}</code></a></strong></span></li>\n</ul>
-    let property_titles = Regex::new(r##"(?s)<ul>\s*<li><span id='(?P<id>[a-z\-_]+)' class='wp-title'><strong><a href="(?P<href>[\./a-z#\-_]+)"><code>(?P<name>[a-z_]+)</code></a></strong></span></li>\s*</ul>"##).unwrap();
+    let property_titles = Regex::new(r##"(?s)<ul>\s*<li><span id='(?P<id>[a-z\-_]+)' class='wp-title'><strong><a href="(?P<href>[\./a-z#\-_@]+)"><code>(?P<name>[a-z_]+)</code></a></strong></span></li>\s*</ul>"##).unwrap();
     let inner_html = property_titles.replace_all(inner_html, |caps: &regex::Captures| {
         let id = &caps["id"];
         let href = &caps["href"];
         let name = &caps["name"];
-        
-        let prop_types = if let Some(pfn_file) = resolve_property_href(file, href) {
-            todo!()
-        } else {
-            ""
-        };
 
-        format!(r##"<h3 id="{id}" class="wp-title variant small-section-header" style="overflow-x=visible;"><a href="#{id}" class="anchor field"></a><code style="background-color:transparent;"><a href="{href}">{name}</a>{prop_types}</code></h3>"##)
+        let mut prop_types = String::new();
+        if let Some(pfn_file) = resolve_property_href(file, href) {
+            if let Ok(pfn_html) = fs::read_to_string(&pfn_file) {
+                let base_path = file.parent().unwrap();
+                let pfn_base_path = pfn_file.parent().unwrap();
+                let pfn_html = super::util::rewrite_html(&pfn_html, vec![
+                    lol_html::element!("pre.rust.fn code", |code| {
+                        code.prepend("<!-- COPY ", ContentType::Html);
+                        code.append(" -->", ContentType::Html);
+                        Ok(())
+                    }),
+                    lol_html::element!("a", |a| {
+                        if let Some(href) = a.get_attribute("href") {
+                            if !href.contains("://") && !href.starts_with("//") {
+                                let full = pfn_base_path.join(href);
+                                if let Some(href) = pathdiff::diff_paths(full, base_path) {
+                                    a.set_attribute("href", href.display().to_string().as_ref()).unwrap();
+                                }
+                            }
+                        }
+                        Ok(())
+                    })
+                ]).unwrap();
+
+                let copy = Regex::new(r"<!-- COPY \s*((?s).+?)\s* -->").unwrap();
+
+                let code_inner_html = &copy.captures(&pfn_html).unwrap()[1];
+
+                let after_eq = code_inner_html.split_once('=').unwrap().1;
+                prop_types.push_str(" = ");
+                prop_types.push_str(after_eq.trim_start());
+            }
+        }
+
+        format!(r##"<h3 id="{id}" class="wp-title variant small-section-header" style="overflow-x:visible;"><a href="#{id}" class="anchor field"></a><code style="background-color:transparent;"><a href="{href}">{name}</a>{prop_types}</code></h3>"##)
     });
     let inner_html = inner_html.as_ref();
 
@@ -210,7 +267,7 @@ fn transform_widget_mod_page(file: &Path, html: &str) -> Option<String> {
         sidebar_add.push_str(r#"<div class="block"><h3 class="sidebar-title">Widget Items</h3><ul>"#);
         for (id, label) in widget_sidebar_items {
             sidebar_add.push_str(r##"<li><a href="#"##);
-            sidebar_add.push_str(id);
+            sidebar_add.push_str(&id);
             sidebar_add.push_str(r#"">"#);
             sidebar_add.push_str(label);
             sidebar_add.push_str("</a></li>");
@@ -241,31 +298,34 @@ fn transform_widget_mod_page(file: &Path, html: &str) -> Option<String> {
 
     Some(html)
 }
-fn resolve_property_href(file: &Path, href: &str) -> Option<PathBuf> {
+fn resolve_property_href(mod_index_file: &Path, href: &str) -> Option<PathBuf> {
+    let mod_dir = mod_index_file.parent().unwrap();
     if let Some(name) = href.strip_prefix("fn@") {
         let pfn_file = format!("fn.__p_{name}.html");
-        Some(file.join(pfn_file))
+        Some(mod_dir.join(pfn_file))
     } else if let Some((mod_file, id)) = href.rsplit_once('#') {
-        let file = file.join(mod_file);
+        let file = mod_dir.join(mod_file);
         if let Ok(html) = fs::read_to_string(file) {
             super::util::analyze_html(
                 &html,
                 vec![
                     lol_html::element!(format!("h3#{id} a"), |a| {
-                        todo!("already rewritten, could copy <code> from here?");
+                        // todo!("already rewritten, could copy <code> from here?");
                         Ok(())
                     }),
                     lol_html::element!(format!("span#{id} a"), |a| {
-                        todo!("not rewritten");
+                        // todo!("not rewritten");
                         Ok(())
                     }),
                 ],
             );
 
-            todo!()
+            None // TODO
         } else {
             None
         }
+    } else if href.contains("/fn.") {
+        Some(mod_dir.join(href))
     } else {
         None
     }
