@@ -1,6 +1,6 @@
 use std::{
     cell::{Cell, RefCell},
-    collections::{HashSet, HashMap},
+    collections::{HashMap, HashSet},
     fs,
     path::{Path, PathBuf},
 };
@@ -93,7 +93,7 @@ fn transform_widget_mod_page(file: &Path, html: &str) -> Option<String> {
                     unique_ids.insert(id);
                 }
                 Ok(())
-            })
+            }),
         ],
     )
     .unwrap();
@@ -146,7 +146,7 @@ fn transform_widget_mod_page(file: &Path, html: &str) -> Option<String> {
         ("normal-properties", "Normal Properties"),
         ("event-properties", "Event Properties"),
         ("state-properties", "State Properties"),
-        ("when-properties", "When Properties")
+        ("when-conditions", "When Conditions"),
     ];
 
     let docs_html = super::util::rewrite_html(
@@ -258,6 +258,26 @@ fn transform_widget_mod_page(file: &Path, html: &str) -> Option<String> {
         }
 
         format!(r##"<h3 id="{id}" class="wp-title variant small-section-header" style="overflow-x:visible;"><a href="#{id}" class="anchor field"></a><code style="background-color:transparent;"><a href="{href}">{name}</a>{prop_types}</code></h3>"##)
+    });
+    let inner_html = inner_html.as_ref();
+
+    // matches:
+    // <ul>\n<li><strong><code>when {expr}</code></strong></li>\n</ul>
+    let when_titles = Regex::new(r##"(?s)<ul>\s*<li><strong><code>(?P<expr>.+?)</code></strong></li>\s*</ul>"##).unwrap();
+    let spaces = Regex::new(r"(?s)\s+").unwrap();
+    let when_id_invalids = Regex::new(r"[^a-zA-Z0-9_\-\.]").unwrap();
+    let when_self_prop = Regex::new(r"self\.(?P<name>[\w_]+)").unwrap();
+    let inner_html = when_titles.replace_all(inner_html, |caps: &regex::Captures| {
+        let expr = &caps["expr"];
+        let id = spaces.replace_all(expr, "-");
+        let id = when_id_invalids.replace_all(&id,  "");
+
+        let expr = when_self_prop.replace_all(expr, |caps: &regex::Captures| {
+            let name = &caps["name"];
+            format!(r##"self.<a href="#wp-{name}">{name}</a>"##)
+        });
+
+        format!(r##"<h3 id="{id}" class="wp-title variant small-section-header" style="overflow-x:visible;"><a href="#{id}" class="anchor field"></a><code style="background-color:transparent;">{expr}</code></h3>"##)
     });
     let inner_html = inner_html.as_ref();
 
