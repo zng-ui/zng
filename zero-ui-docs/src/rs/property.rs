@@ -166,7 +166,9 @@ fn transform_fn_lists(docs_root: &Path) {
                 lol_html::element!("h2", |h2| {
                     if let Some(id) = h2.get_attribute("id") {
                         functions.set(id == "functions");
-                        h2.set_attribute("id", "properties").unwrap();
+                        if functions.get() {
+                            h2.set_attribute("id", "properties").unwrap();
+                        }
                     }
                     Ok(())
                 }),

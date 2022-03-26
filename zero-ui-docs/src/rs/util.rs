@@ -18,6 +18,7 @@ pub fn glob(root: &Path, pattern: &str) -> Vec<PathBuf> {
 pub fn glob_par_each(root: &Path, pattern: &str, for_each: impl Fn(PathBuf, String) + Sync + Send) {
     glob(root, pattern)
         .into_par_iter()
+        //.into_iter()
         .for_each(move |path| match fs::read_to_string(&path) {
             Ok(s) => for_each(path, s),
             Err(e) => eprintln!("{e}"),
