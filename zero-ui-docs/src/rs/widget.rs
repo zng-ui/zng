@@ -318,33 +318,30 @@ fn transform_widget_mod_page(file: &Path, html: &str) -> Option<String> {
 
     Some(html)
 }
-fn resolve_property_href(mod_index_file: &Path, href: &str) -> Option<PathBuf> {
-    let mod_dir = mod_index_file.parent().unwrap();
+fn resolve_property_href(mod_file: &Path, href: &str) -> Option<PathBuf> {
+    let mod_dir = mod_file.parent().unwrap();
     if let Some(name) = href.strip_prefix("fn@") {
         let pfn_file = format!("__DOCS/fn.__p_{name}.html");
         let cap_only_file = mod_dir.join(pfn_file);
         Some(cap_only_file)
-    } else if let Some((mod_file, id)) = href.rsplit_once('#') {
-        let mod_dir = mod_file.strip_suffix("/index.html").unwrap();
+    } else if let Some((inner_mod_file, id)) = href.rsplit_once('#') {
+        let inner_mod_file = mod_dir.join(inner_mod_file);
+        let inner_mod_dir = inner_mod_file.parent().unwrap();
         // use __DOCS to avoid reading from another widget being modified.
-        let file = format!("{mod_dir}/__DOCS/index.html");
-        println!("SEARCH: {file}");
+        let file = inner_mod_dir.join("__DOCS/index.html");
         if let Ok(html) = fs::read_to_string(&file) {
             let mut href = None;
             super::util::analyze_html(
                 &html,
-                vec![
-                    lol_html::element!(format!("span#{id} a"), |a| {
-                        href = a.get_attribute("href");
-                        Ok(())
-                    }),
-                ],
+                vec![lol_html::element!(format!("span#{id} a"), |a| {
+                    href = a.get_attribute("href");
+                    Ok(())
+                })],
             );
 
             href.and_then(|href| {
-                println!("{href}");
                 let href = href.strip_prefix("../").unwrap_or(&href);
-                resolve_property_href(mod_file.as_ref(), href)
+                resolve_property_href(inner_mod_file.as_ref(), href)
             })
         } else {
             None
