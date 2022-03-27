@@ -703,6 +703,7 @@ mod analysis {
                 #vis mod #mod_ident {
                     use super::*;
 
+                    /// **`property`**
                     #fn_
                 }
             };

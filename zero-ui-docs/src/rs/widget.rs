@@ -321,26 +321,31 @@ fn transform_widget_mod_page(file: &Path, html: &str) -> Option<String> {
 fn resolve_property_href(mod_index_file: &Path, href: &str) -> Option<PathBuf> {
     let mod_dir = mod_index_file.parent().unwrap();
     if let Some(name) = href.strip_prefix("fn@") {
-        let pfn_file = format!("fn.__p_{name}.html");
-        Some(mod_dir.join(pfn_file))
+        let pfn_file = format!("__DOCS/fn.__p_{name}.html");
+        let cap_only_file = mod_dir.join(pfn_file);
+        Some(cap_only_file)
     } else if let Some((mod_file, id)) = href.rsplit_once('#') {
-        let file = mod_dir.join(mod_file);
-        if let Ok(html) = fs::read_to_string(file) {
+        let mod_dir = mod_file.strip_suffix("/index.html").unwrap();
+        // use __DOCS to avoid reading from another widget being modified.
+        let file = format!("{mod_dir}/__DOCS/index.html");
+        println!("SEARCH: {file}");
+        if let Ok(html) = fs::read_to_string(&file) {
+            let mut href = None;
             super::util::analyze_html(
                 &html,
                 vec![
-                    lol_html::element!(format!("h3#{id} a"), |a| {
-                        // todo!("already rewritten, could copy <code> from here?");
-                        Ok(())
-                    }),
                     lol_html::element!(format!("span#{id} a"), |a| {
-                        // todo!("not rewritten");
+                        href = a.get_attribute("href");
                         Ok(())
                     }),
                 ],
             );
 
-            None // TODO
+            href.and_then(|href| {
+                println!("{href}");
+                let href = href.strip_prefix("../").unwrap_or(&href);
+                resolve_property_href(mod_file.as_ref(), href)
+            })
         } else {
             None
         }
