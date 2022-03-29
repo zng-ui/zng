@@ -310,9 +310,9 @@ pub enum WindowIcon {
     ///
     /// [`Images`]: crate::image::Images
     Image(ImageSource),
-    /// An [`UiNode`] that draws the icon.
+    /// A boxed closure that instantiates a boxed [`UiNode`] that draws the icon.
     ///
-    /// Use the [`render`](Self::render) function to initialize.
+    /// Use the [`render`](Self::render) function to construct this variant.
     Render(RenderIcon),
 }
 impl fmt::Debug for WindowIcon {
@@ -339,8 +339,8 @@ impl WindowIcon {
     /// The function is called once on init and every time the window icon property changes,
     /// the input is the window context, the result is a node that is rendered to create an icon.
     ///
-    /// The icon node is updated like any other node and it can request a new render, you should
-    /// limit the interval for new frames,
+    /// The icon node is updated like any other node and it can request a new render. Note that just
+    /// because you can update the icon does not mean that animating it is a good idea.
     pub fn render<I: UiNode, F: Fn(&mut WindowContext) -> I + 'static>(new_icon: F) -> Self {
         Self::Render(Rc::new(Box::new(move |ctx| new_icon(ctx).boxed())))
     }

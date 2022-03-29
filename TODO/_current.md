@@ -1,3 +1,3 @@
-* Finish `Scrolling.md`.
+* Implement window icon render, need a better type? Can we detect when the icon renderer is no longer needed? Update mask?
 
-* Improve docs special item tags matching, **`property`** can be written in an unrelated documentation.
+* Finish `Scrolling.md`.
