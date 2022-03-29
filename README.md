@@ -66,6 +66,7 @@ You just need the latest stable Rust toolchain installed.
 * `build-essential` or equivalent C/C++ compiler package.
 * `cmake`
 * `pkg-config`
+* `libssl-dev`
 * `libfreetype6-dev`
 * `libfontconfig1-dev`
 
