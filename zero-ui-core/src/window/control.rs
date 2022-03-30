@@ -1103,6 +1103,9 @@ impl ContentCtrl {
                 self.root.subscriptions(ctx, &mut subscriptions);
                 subscriptions
             });
+            ctx.services
+                .windows()
+                .set_subscriptions(self.info_tree.window_id(), self.subscriptions.clone());
         }
     }
 

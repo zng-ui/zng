@@ -1647,6 +1647,34 @@ impl HeadlessApp {
     pub fn wake_time(&mut self) -> Option<Instant> {
         self.app.wake_time()
     }
+
+    /// Execute the async `task` in the UI thread, updating the app until it finishes or the app shuts-down.
+    ///
+    /// Returns the task result if the app has not shut-down.
+    pub fn run_task<R, F, T>(&mut self, task: T) -> Option<R>
+    where
+        R: 'static,
+        F: Future<Output = R> + 'static,
+        T: FnOnce(AppContextMut) -> F,
+    {
+        let mut task = self.ctx().async_task(task);
+
+        loop {
+            if let ControlFlow::Exit = self.update_observe(
+                |ctx| {
+                    task.update(ctx);
+                },
+                true,
+            ) {
+                return None;
+            }
+
+            match task.into_result() {
+                Ok(r) => return Some(r),
+                Err(t) => task = t,
+            }
+        }
+    }
 }
 
 /// Observer for [`HeadlessApp::update_observed`].

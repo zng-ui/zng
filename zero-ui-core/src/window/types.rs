@@ -65,18 +65,48 @@ pub struct Window {
     pub(super) child: BoxedUiNode,
 }
 impl Window {
-    /// New window configuration.
+    /// New window from a `root` node that forms the window root widget.
     ///
-    /// * `root_id` - Widget ID of `child`.
+    /// * `root_id` - Widget ID of `root`.
     /// * `start_position` - Position of the window when it first opens.
     /// * `kiosk` - Only allow full-screen mode. Note this does not configure the operating system, only blocks the app itself
     ///             from accidentally exiting full-screen. Also causes subsequent open windows to be child of this window.
     /// * `transparent` - If the window should be created in a compositor mode that renders semi-transparent pixels as "see-through".
     /// * `render_mode` - Render mode preference overwrite for this window, note that the actual render mode selected can be different.
     /// * `headless_monitor` - "Monitor" configuration used in [headless mode](WindowMode::is_headless).
-    /// * `child` - The root widget outermost node, the window sets-up the root widget using this and the `root_id`.
+    /// * `root` - The root widget's context priority node, the window uses this and the `root_id` to form the root widget.
     #[allow(clippy::too_many_arguments)]
-    pub fn new(
+    pub fn new_root(
+        root_id: impl IntoValue<WidgetId>,
+        start_position: impl IntoValue<StartPosition>,
+        kiosk: bool,
+        transparent: bool,
+        render_mode: impl IntoValue<Option<RenderMode>>,
+        headless_monitor: impl IntoValue<HeadlessMonitor>,
+        root: impl UiNode,
+    ) -> Self {
+        Window {
+            id: root_id.into(),
+            start_position: start_position.into(),
+            kiosk,
+            transparent,
+            render_mode: render_mode.into(),
+            headless_monitor: headless_monitor.into(),
+            child: root.boxed(),
+        }
+    }
+
+    /// New window from a `child` node that becomes the child of the window root widget.
+    ///
+    /// The `child` parameter is a node that is the window's content, if it is an [`Widget`] the `root_id` is the id of
+    /// an internal container widget that is the parent of `child`, if it is not an widget it will still be placed in the inner
+    /// priority of the root widget.
+    ///
+    /// See [`new_root`] for other parameters.
+    ///
+    /// [`new_root`]: Self::new_root
+    /// [`Widget`]: crate::Widget
+    pub fn new_container(
         root_id: impl IntoValue<WidgetId>,
         start_position: impl IntoValue<StartPosition>,
         kiosk: bool,
@@ -85,28 +115,28 @@ impl Window {
         headless_monitor: impl IntoValue<HeadlessMonitor>,
         child: impl UiNode,
     ) -> Self {
-        Window {
-            id: root_id.into(),
+        Window::new_root(
+            root_id,
+            start_position,
             kiosk,
             transparent,
-            render_mode: render_mode.into(),
-            start_position: start_position.into(),
-            headless_monitor: headless_monitor.into(),
-            child: child.boxed(),
-        }
+            render_mode,
+            headless_monitor,
+            crate::widget_base::implicit_base::new_border(child),
+        )
     }
 
     /// New test window.
     #[cfg(any(test, doc, feature = "test_util"))]
-    pub fn test(child: impl UiNode) -> Self {
-        Window::new(
+    pub fn new_test(child: impl UiNode) -> Self {
+        Window::new_container(
             WidgetId::named("test-window-root"),
             StartPosition::Default,
             false,
             false,
             None,
             HeadlessMonitor::default(),
-            crate::widget_base::implicit_base::new_border(child),
+            child,
         )
     }
 }

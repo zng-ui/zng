@@ -1,14 +1,6 @@
 //! Image loading and cache.
 
-use std::{
-    cell::Cell,
-    collections::HashMap,
-    env,
-    future::Future,
-    mem,
-    path::{PathBuf},
-    sync::Arc,
-};
+use std::{cell::Cell, collections::HashMap, env, future::Future, mem, path::PathBuf, sync::Arc};
 
 use zero_ui_view_api::IpcBytes;
 
@@ -18,7 +10,7 @@ use crate::{
         view_process::{Respawned, ViewImage, ViewProcess, ViewProcessRespawnedEvent},
         AppEventSender, AppExtension,
     },
-    context::{AppContext},
+    context::AppContext,
     crate_util::IdMap,
     event::EventUpdateArgs,
     service::Service,
@@ -35,6 +27,9 @@ use crate::{
 
 mod types;
 pub use types::*;
+
+mod render;
+pub use render::*;
 
 /// Application extension that provides an image cache.
 ///
@@ -167,6 +162,8 @@ impl AppExtension for ImageManager {
                     }
                 } // else { *is loading, will continue normally in self.update_preview()* }
             }
+        } else {
+            self.event_preview_render(ctx, args);
         }
     }
 
@@ -238,6 +235,10 @@ impl AppExtension for ImageManager {
         }
         images.loading = loading;
     }
+
+    fn update(&mut self, ctx: &mut AppContext) {
+        self.update_render(ctx);
+    }
 }
 
 /// The [`Image`] loading cache service.
@@ -271,6 +272,8 @@ pub struct Images {
     decoding: Vec<(ImageDataFormat, IpcBytes, RcVar<Image>)>,
     cache: IdMap<ImageHash, CacheEntry>,
     not_cached: Vec<(WeakVar<Image>, ByteLength)>,
+
+    render: ImagesRender,
 }
 struct CacheEntry {
     img: RcVar<Image>,
@@ -290,6 +293,7 @@ impl Images {
             download_accept: Text::empty(),
             cache: HashMap::default(),
             not_cached: vec![],
+            render: ImagesRender::default(),
         }
     }
 

@@ -1972,6 +1972,12 @@ impl WidgetSubscriptions {
     pub fn update_mask(&self) -> UpdateMask {
         self.update
     }
+
+    /// Returns if both event and update subscriptions are none.
+    #[inline]
+    pub fn is_none(&self) -> bool {
+        self.event.is_none() && self.update.is_none()
+    }
 }
 impl ops::BitOr for WidgetSubscriptions {
     type Output = Self;

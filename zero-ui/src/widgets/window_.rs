@@ -443,7 +443,7 @@ pub mod window {
         render_mode: impl IntoValue<Option<RenderMode>>,
         headless_monitor: impl IntoValue<HeadlessMonitor>,
     ) -> Window {
-        Window::new(
+        Window::new_root(
             root_id,
             start_position,
             kiosk,

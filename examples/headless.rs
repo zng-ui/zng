@@ -8,10 +8,12 @@ fn main() {
     zero_ui_view::init();
 
     // zero_ui_view::run_same_process(app_main);
-    app_main();
+
+    images_render();
+    headless_example();
 }
 
-fn app_main() {
+fn headless_example() {
     println!("-=Headless Example=-\n");
     // This example uses a headless window to render an image.
 
@@ -89,4 +91,41 @@ fn image() -> impl Widget {
 fn flush_stdout() {
     use std::io::Write;
     std::io::stdout().lock().flush().ok();
+}
+
+/// You can also use the `Images` service to render to an image.
+#[allow(unused)]
+fn images_render() {
+    println!("-=Images::render Example=-\n");
+
+    use zero_ui::core::{app::ControlFlow, image::*};
+
+    // open headless with renderer flag, this causes the view-process to start.
+    let mut app = App::default().run_headless(true);
+
+    // request an image rendered from a node, the `Images` service will render the node and update the image
+    // variable every time the node (re)renders.
+    let img = app.ctx().services.images().render(image(), RenderConfig::default());
+
+    app.run_task(move |ctx| async move {
+        while ctx.with(|ctx| img.get(ctx).is_loading()) {
+            img.wait_new(&ctx).await;
+        }
+        let img = img.get_clone(&ctx);
+
+        if img.is_loaded() {
+            // we save it...
+            print!("saving ./screenshot.Images.png ... ");
+            flush_stdout();
+
+            img.save("screenshot.Images.png").await.unwrap();
+
+            println!("done");
+        } else if let Some(err) = img.error() {
+            eprintln!("[error]: {err}");
+        }
+    });
+
+    // Internally the `Images` service uses a headless window for rendering too, but this method is more easy
+    // to use, with the trade-off that you have less control over the headless window.
 }

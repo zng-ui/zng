@@ -10,7 +10,7 @@ use crate::render::FrameHitInfo;
 use crate::service::Service;
 use crate::state::OwnedStateMap;
 use crate::var::*;
-use crate::widget_info::WidgetInfoTree;
+use crate::widget_info::{WidgetInfoTree, WidgetSubscriptions};
 use crate::{
     app::{
         raw_events::{RawWindowCloseEvent, RawWindowCloseRequestedEvent},
@@ -210,6 +210,14 @@ impl Windows {
             .ok_or(WindowNotFound(window_id))
     }
 
+    /// Reference the current window's subscriptions.
+    pub fn subscriptions(&self, window_id: WindowId) -> Result<&WidgetSubscriptions, WindowNotFound> {
+        self.windows_info
+            .get(&window_id)
+            .map(|w| &w.subscriptions)
+            .ok_or(WindowNotFound(window_id))
+    }
+
     /// Generate an image from the current rendered frame of the window.
     ///
     /// The image is not loaded at the moment of return, it will update when it is loaded.
@@ -312,6 +320,13 @@ impl Windows {
 
             let args = WidgetInfoChangedArgs::now(info_tree.window_id(), info_tree, pending_layout, pending_render);
             WidgetInfoChangedEvent.notify(events, args);
+        }
+    }
+
+    /// Update window info subscriptions copy.
+    pub(super) fn set_subscriptions(&mut self, window_id: WindowId, subscriptions: WidgetSubscriptions) {
+        if let Some(info) = self.windows_info.get_mut(&window_id) {
+            info.subscriptions = subscriptions;
         }
     }
 
@@ -547,6 +562,7 @@ struct AppWindowInfo {
     vars: WindowVars,
 
     widget_tree: WidgetInfoTree,
+    subscriptions: WidgetSubscriptions,
     // focus tracked by the raw focus events.
     is_focused: bool,
 }
@@ -558,6 +574,7 @@ impl AppWindowInfo {
             renderer: None,
             vars,
             widget_tree: WidgetInfoTree::blank(id, root_id),
+            subscriptions: WidgetSubscriptions::new(),
             is_focused: false,
         }
     }

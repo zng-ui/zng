@@ -196,6 +196,7 @@ pub trait UiNode: 'static {
     /// [`stop_propagation`]: crate::event::EventArgs::stop_propagation
     /// [`EventUpdate`]: crate::event::EventUpdate
     /// [`on_pre_event`]: crate::event::on_pre_event
+    /// [`Event::update`]: crate::event::Event::update
     fn event<A: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &A);
 
     /// Called every time an update is requested.

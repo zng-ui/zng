@@ -381,6 +381,7 @@ impl<S: RcNodeTakeSignal, U: UiNode> UiNode for SlotNode<S, U> {
                     new.init(ctx);
                     *rc.node.borrow_mut() = Some(new);
                     rc.inited.set(true);
+                    ctx.updates.info_layout_and_render();
                 } else {
                     rc.node.borrow_mut().as_mut().unwrap().update(ctx);
                 }

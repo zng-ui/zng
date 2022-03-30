@@ -1,9 +1,9 @@
 use std::{
     cell::RefCell,
-    fmt, fs, io,
+    env, fmt, fs, io, mem, ops,
     path::{Path, PathBuf},
     rc::Rc,
-    sync::Arc, ops, mem, env,
+    sync::Arc,
 };
 
 use once_cell::unsync::OnceCell;
@@ -24,6 +24,8 @@ pub use crate::app::view_process::{ImageDataFormat, ImagePpi};
 /// A custom proxy in [`Images`].
 ///
 /// Implementers can intercept cache requests and redirect to another cache request or returns an image directly.
+///
+/// [`Images`]: super::Images
 pub trait ImageCacheProxy {
     /// Intercept a get request.
     fn get(&mut self, key: &ImageHash, source: &ImageSource, mode: ImageCacheMode) -> ProxyGetResult {
@@ -70,6 +72,8 @@ pub enum ProxyRemoveResult {
 /// Represents an [`Image`] tracked by the [`Images`] cache.
 ///
 /// The variable updates when the image updates.
+///
+/// [`Images`]: super::Images
 pub type ImageVar = ReadOnlyRcVar<Image>;
 
 /// State of an [`ImageVar`].
@@ -358,6 +362,8 @@ impl fmt::Debug for RenderImage {
 /// This hash is used to identify image files in the [`Images`] cache.
 ///
 /// Use [`ImageHasher`] to compute.
+///
+/// [`Images`]: super::Images
 #[derive(Clone, Copy)]
 pub struct ImageHash([u8; 32]);
 impl ImageHash {
@@ -464,6 +470,8 @@ pub enum ImageSource {
     /// Image equality is defined by the hash, it is usually the hash of the bytes but it does not need to be.
     ///
     /// Inside [`Images`] the reference to the bytes is held only until the image finishes decoding.
+    ///
+    /// [`Images`]: super::Images
     Data(ImageHash, Arc<Vec<u8>>, ImageDataFormat),
     /// Already loaded image.
     ///
@@ -630,6 +638,8 @@ impl_from_and_into_var! {
 }
 
 /// Cache mode of [`Images`].
+/// 
+/// [`Images`]: super::Images
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum ImageCacheMode {
     /// Don't hit the cache, just loads the image.
@@ -656,7 +666,6 @@ impl fmt::Debug for ImageCacheMode {
         }
     }
 }
-
 
 /// Represents a [`PathFilter`] and [`UriFilter`].
 #[derive(Clone)]
@@ -910,4 +919,3 @@ impl Default for ImageLimits {
         }
     }
 }
-
