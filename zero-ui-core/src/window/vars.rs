@@ -2,6 +2,7 @@ use std::rc::Rc;
 
 use super::{types::*, MonitorId, MonitorQuery};
 use crate::{
+    image::Image,
     state_key,
     text::{Text, TextAntiAliasing, ToText},
     units::*,
@@ -11,6 +12,7 @@ use crate::{
 pub(super) struct WindowVarsData {
     chrome: RcVar<WindowChrome>,
     icon: RcVar<WindowIcon>,
+    pub(super) actual_icon: RcVar<Option<Image>>,
     cursor: RcVar<Option<CursorIcon>>,
     title: RcVar<Text>,
 
@@ -70,6 +72,7 @@ impl WindowVars {
         let vars = Rc::new(WindowVarsData {
             chrome: var(WindowChrome::Default),
             icon: var(WindowIcon::Default),
+            actual_icon: var(None),
             cursor: var(Some(CursorIcon::Default)),
             title: var("".to_text()),
 
@@ -138,9 +141,24 @@ impl WindowVars {
     /// See [`WindowIcon`] for details.
     ///
     /// The default value is [`WindowIcon::Default`].
+    ///
+    /// You can retrieve the custom icon image using [`actual_icon`].
+    ///
+    /// [`actual_icon`]: Self::actual_icon
     #[inline]
     pub fn icon(&self) -> &RcVar<WindowIcon> {
         &self.0.icon
+    }
+
+    /// Window icon image.
+    ///
+    /// This is `None` if [`icon`] is [`WindowIcon::Default`], otherwise it is an [`Image`]
+    /// reference clone.
+    ///
+    /// [`icon`]: Self::icon
+    #[inline]
+    pub fn actual_icon(&self) -> ReadOnlyRcVar<Option<Image>> {
+        self.0.actual_icon.clone().into_read_only()
     }
 
     /// Window cursor icon and visibility.

@@ -32,6 +32,8 @@ fn app_main() {
 
         let icon_label = count.map(|&n| if n > 0 { formatx!("{n}") } else { "C".to_text() });
 
+        let actual_icon = ctx.window_state.req(WindowVarsKey).actual_icon();
+
         window! {
             title = "Countdown Example";
             size = (280, 120);
@@ -46,6 +48,7 @@ fn app_main() {
                 font_weight = FontWeight::BOLD;
                 content = text(icon_label.clone());
             }));
+            visible = actual_icon.map(|om| om.as_ref().map(|m| !m.is_loading()).unwrap_or(false));
 
             font_size = 42.pt();
             background_color;

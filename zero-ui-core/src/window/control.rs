@@ -47,6 +47,7 @@ struct HeadedCtrl {
     monitor: Option<MonitorInfo>,
     resize_wait_id: Option<FrameWaitId>,
     icon: Option<ImageVar>,
+    icon_binding: Option<VarBindingHandle>,
     actual_state: Option<WindowState>, // for WindowChangedEvent
 }
 impl HeadedCtrl {
@@ -67,6 +68,7 @@ impl HeadedCtrl {
             monitor: None,
             resize_wait_id: None,
             icon: None,
+            icon_binding: None,
 
             actual_state: None,
         }
@@ -222,7 +224,7 @@ impl HeadedCtrl {
             // icon:
             let mut send_icon = false;
             if self.vars.icon().is_new(ctx) {
-                Self::init_icon(&mut self.icon, &self.vars, ctx);
+                Self::init_icon(&mut self.icon, &mut self.icon_binding, &self.vars, ctx);
                 send_icon = true;
             } else if self.icon.as_ref().map(|ico| ico.is_new(ctx)).unwrap_or(false) {
                 send_icon = true;
@@ -473,7 +475,7 @@ impl HeadedCtrl {
             chrome_visible: self.vars.chrome().get(ctx).is_default(),
         };
 
-        Self::init_icon(&mut self.icon, &self.vars, ctx);
+        Self::init_icon(&mut self.icon, &mut self.icon_binding, &self.vars, ctx);
 
         let request = WindowRequest {
             id: ctx.window_id.get(),
@@ -607,7 +609,7 @@ impl HeadedCtrl {
 
         self.layout_update(ctx);
 
-        Self::init_icon(&mut self.icon, &self.vars, ctx);
+        Self::init_icon(&mut self.icon, &mut self.icon_binding, &self.vars, ctx);
 
         let request = WindowRequest {
             id: ctx.window_id.get(),
@@ -671,12 +673,20 @@ impl HeadedCtrl {
         self.window.is_some()
     }
 
-    fn init_icon(icon: &mut Option<ImageVar>, vars: &WindowVars, ctx: &mut WindowContext) {
+    fn init_icon(icon: &mut Option<ImageVar>, icon_binding: &mut Option<VarBindingHandle>, vars: &WindowVars, ctx: &mut WindowContext) {
         *icon = match vars.icon().get(ctx.vars) {
             WindowIcon::Default => None,
             WindowIcon::Image(source) => Some(ctx.services.images().cache(source.clone())),
             WindowIcon::Render(ctor) => Some(ctx.services.images().render(clone_move!(ctor, |ctx| ctor(ctx)), Default::default())),
         };
+
+        if let Some(ico) = &icon {
+            let b = ico.bind_map(ctx.vars, &vars.0.actual_icon, |_, img| Some(img.clone()));
+            *icon_binding = Some(b);
+        } else {
+            vars.0.actual_icon.set_ne(ctx.vars, None);
+            *icon_binding = None;
+        }
     }
 }
 
