@@ -16,6 +16,7 @@ fn app_main() {
         window! {
             title = "Gradient Example";
             auto_size = true;
+            icon = WindowIcon::render(|_| icon());
             content = scrollable! {
                 padding = 20;
                 content = v_stack! {
@@ -181,5 +182,16 @@ fn sample_line(items: impl WidgetList) -> impl Widget {
     h_stack! {
         spacing = 5;
         items;
+    }
+}
+
+fn icon() -> impl Widget {
+    container! {
+        size = (36, 36);
+        background_gradient = Line::to_bottom_right(), stops![colors::MIDNIGHT_BLUE, 70.pct(), colors::CRIMSON];
+        corner_radius = 6;
+        font_size = 28;
+        font_weight = FontWeight::BOLD;
+        content = text("G");
     }
 }
