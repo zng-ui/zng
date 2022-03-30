@@ -638,7 +638,7 @@ impl_from_and_into_var! {
 }
 
 /// Cache mode of [`Images`].
-/// 
+///
 /// [`Images`]: super::Images
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum ImageCacheMode {

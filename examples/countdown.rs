@@ -20,7 +20,7 @@ fn app_main() {
             }
             count
         });
-        let countdown = count.map(move |&n| {
+        let countdown = count.map(|&n| {
             let r = if n > 0 { formatx!("{n}") } else { "Done!".to_text() };
             println!("{r}");
             r
@@ -29,11 +29,22 @@ fn app_main() {
             let angle = (n + 3) as f32 / 10.0 * 360.0;
             hsl(angle.deg(), 80.pct(), 30.pct()).to_rgba()
         });
+
+        let icon_label = count.map(|&n| if n > 0 { formatx!("{n}") } else { "C".to_text() });
+
         window! {
             title = "Countdown Example";
             size = (280, 120);
             start_position = StartPosition::CenterMonitor;
             resizable = false;
+
+            icon = WindowIcon::render(clone_move!(background_color, |_| container! {
+                size = (36, 36);
+                background_color = background_color.clone();
+                corner_radius = 8;
+                font_size = 28;
+                content = text(icon_label.clone());
+            }));
 
             font_size = 42.pt();
             background_color;

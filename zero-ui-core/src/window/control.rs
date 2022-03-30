@@ -675,7 +675,7 @@ impl HeadedCtrl {
         *icon = match vars.icon().get(ctx.vars) {
             WindowIcon::Default => None,
             WindowIcon::Image(source) => Some(ctx.services.images().cache(source.clone())),
-            WindowIcon::Render(_) => todo!(),
+            WindowIcon::Render(ctor) => Some(ctx.services.images().render(clone_move!(ctor, |ctx| ctor(ctx)), Default::default())),
         };
     }
 }

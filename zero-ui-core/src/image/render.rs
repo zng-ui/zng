@@ -1,7 +1,16 @@
 use std::mem;
 
 use crate::{
-    context::AppContext, event::EventUpdateArgs, units::*, var::*, widget_info::UpdateMask, window::*, BoxedUiNode, UiNode, WidgetId,
+    color::{rgba, Rgba},
+    context::{AppContext, RenderContext, WindowContext},
+    event::EventUpdateArgs,
+    render::FrameBuilder,
+    units::*,
+    var::*,
+    widget_info::UpdateMask,
+    window::*,
+    BoxedUiNode, UiNode, WidgetId,
+    impl_ui_node,
 };
 
 use super::{Image, ImageManager, ImageVar, Images, ImagesExt};
@@ -15,10 +24,32 @@ impl Images {
     /// `node` is deinited and dropped.
     ///
     /// Requires the [`Windows`] service.
-    pub fn render<U: UiNode>(&mut self, node: U, config: RenderConfig) -> ImageVar {
+    pub fn render<U, N>(&mut self, node: N, config: RenderConfig) -> ImageVar
+    where
+        U: UiNode,
+        N: FnOnce(&mut WindowContext) -> U + 'static,
+    {
+        struct ImageRenderNode<C> {
+            child: C,
+            clear_color: Rgba,
+        }
+        #[impl_ui_node(child)]
+        impl<C: UiNode> UiNode for ImageRenderNode<C> {
+            fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
+                frame.set_clear_color(self.clear_color.into());
+                self.child.render(ctx, frame);
+            }
+        }
+
         let result = var(Image::new_none(None));
         self.render.requests.push(RenderRequest {
-            node: node.boxed(),
+            node: Box::new(move |ctx| {
+                ImageRenderNode {
+                    child: node(ctx),
+                    clear_color: config.clear_color,
+                }
+                .boxed()
+            }),
             config,
             image: result.downgrade(),
         });
@@ -67,7 +98,7 @@ impl ImageManager {
                             true,
                             req.config.render_mode,
                             HeadlessMonitor::new_scale(req.config.scale_factor),
-                            req.node,
+                            (req.node)(ctx),
                         );
 
                         let vars = ctx.window_state.req(WindowVarsKey);
@@ -79,6 +110,8 @@ impl ImageManager {
                         } else {
                             vars.auto_size().set(ctx.vars, true);
                         }
+
+                        vars.min_size().set(ctx.vars, (1.px(), 1.px()));
 
                         let a = ActiveRenderer {
                             window_id: *ctx.window_id,
@@ -123,7 +156,7 @@ struct ActiveRenderer {
 }
 
 struct RenderRequest {
-    node: BoxedUiNode,
+    node: Box<dyn FnOnce(&mut WindowContext) -> BoxedUiNode>,
     config: RenderConfig,
     image: WeakVar<Image>,
 }
@@ -145,6 +178,11 @@ pub struct RenderConfig {
 
     /// Render backend preference. Default is `Integrated`.
     pub render_mode: RenderMode,
+
+    /// Color the image is filled first before render.
+    ///
+    /// Is transparent black by default.
+    pub clear_color: Rgba,
 }
 impl Default for RenderConfig {
     fn default() -> Self {
@@ -153,6 +191,7 @@ impl Default for RenderConfig {
             size: None,
             scale_factor: 1.fct(),
             render_mode: RenderMode::Integrated,
+            clear_color: rgba(0, 0, 0, 0),
         }
     }
 }
