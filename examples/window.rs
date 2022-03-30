@@ -230,17 +230,20 @@ fn icon(window_vars: &WindowVars) -> impl Widget {
 
                 (bgra, ImageDataFormat::from(size)).into()
             }),
-            icon_btn("Render", WindowIcon::render(|_| text! {
-                size = (36, 36);
-                font_size = 28;
-                font_weight = FontWeight::BOLD;
-                text = "W";
-                drop_shadow = {
-                    offset: (2, 2),
-                    blur_radius: 5,
-                    color: colors::BLACK,
-                };
-            }))
+            icon_btn(
+                "Render",
+                WindowIcon::render(|_| text! {
+                    size = (36, 36);
+                    font_size = 28;
+                    font_weight = FontWeight::BOLD;
+                    text = "W";
+                    drop_shadow = {
+                        offset: (2, 2),
+                        blur_radius: 5,
+                        color: colors::BLACK,
+                    };
+                })
+            )
         ],
     )
 }

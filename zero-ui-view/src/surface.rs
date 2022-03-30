@@ -4,8 +4,8 @@ use glutin::event_loop::EventLoopWindowTarget;
 
 use webrender::{
     api::{
-        BuiltDisplayList, DisplayListPayload, DocumentId, DynamicProperties, FontInstanceKey, FontInstanceOptions,
-        FontInstancePlatformOptions, FontKey, FontVariation, HitTestResult, IdNamespace, ImageKey, PipelineId, SampledScrollOffset, ColorF,
+        BuiltDisplayList, ColorF, DisplayListPayload, DocumentId, DynamicProperties, FontInstanceKey, FontInstanceOptions,
+        FontInstancePlatformOptions, FontKey, FontVariation, HitTestResult, IdNamespace, ImageKey, PipelineId, SampledScrollOffset,
     },
     RenderApi, Renderer, RendererOptions, Transaction,
 };

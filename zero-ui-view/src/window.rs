@@ -8,9 +8,9 @@ use glutin::{
 use tracing::span::EnteredSpan;
 use webrender::{
     api::{
-        ApiHitTester, BuiltDisplayList, DisplayListPayload, DocumentId, DynamicProperties, FontInstanceKey, FontInstanceOptions,
+        ApiHitTester, BuiltDisplayList, ColorF, DisplayListPayload, DocumentId, DynamicProperties, FontInstanceKey, FontInstanceOptions,
         FontInstancePlatformOptions, FontKey, FontVariation, HitTestResult, HitTesterRequest, IdNamespace, ImageKey, PipelineId,
-        SampledScrollOffset, ColorF,
+        SampledScrollOffset,
     },
     RenderApi, Renderer, RendererOptions, Transaction, UploadMethod, VertexUsageHint,
 };
