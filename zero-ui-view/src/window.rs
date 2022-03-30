@@ -10,7 +10,7 @@ use webrender::{
     api::{
         ApiHitTester, BuiltDisplayList, DisplayListPayload, DocumentId, DynamicProperties, FontInstanceKey, FontInstanceOptions,
         FontInstancePlatformOptions, FontKey, FontVariation, HitTestResult, HitTesterRequest, IdNamespace, ImageKey, PipelineId,
-        SampledScrollOffset,
+        SampledScrollOffset, ColorF,
     },
     RenderApi, Renderer, RendererOptions, Transaction, UploadMethod, VertexUsageHint,
 };
@@ -236,6 +236,9 @@ impl Window {
             enable_aa: text_aa != TextAntiAliasing::Mono,
             enable_subpixel_aa: text_aa == TextAntiAliasing::Subpixel,
             renderer_id: Some((gen as u64) << 32 | id as u64),
+
+            // this clear color paints over the one set using `Renderer::set_clear_color`.
+            clear_color: ColorF::new(0.0, 0.0, 0.0, 0.0),
 
             allow_advanced_blend_equation: context.is_software(),
             clear_caches_with_quads: !context.is_software(),

@@ -37,6 +37,7 @@ fn main_window(ctx: &mut WindowContext) -> Window {
 
     window! {
         background_color = background.clone();
+        clear_color = rgba(0, 0, 0, 0);
         title;
         on_state_changed = hn!(|_, args: &WindowChangedArgs| {
             println!("state: {:?}", args.new_state().unwrap());
@@ -102,6 +103,7 @@ fn background_color(color: impl Var<Rgba>) -> impl Widget {
             color_btn(rgb(0.3, 0.0, 0.0)),
             color_btn(rgb(0.0, 0.3, 0.0)),
             color_btn(rgb(0.0, 0.0, 0.3)),
+            color_btn(rgba(0, 0, 240, 20.pct())),
         ],
     )
 }
@@ -228,7 +230,17 @@ fn icon(window_vars: &WindowVars) -> impl Widget {
 
                 (bgra, ImageDataFormat::from(size)).into()
             }),
-            text("TODO render")
+            icon_btn("Render", WindowIcon::render(|_| text! {
+                size = (36, 36);
+                font_size = 28;
+                font_weight = FontWeight::BOLD;
+                text = "W";
+                drop_shadow = {
+                    offset: (2, 2),
+                    blur_radius: 5,
+                    color: colors::BLACK,
+                };
+            }))
         ],
     )
 }

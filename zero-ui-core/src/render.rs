@@ -288,7 +288,7 @@ impl FrameBuilder {
     /// Note that the clear color is always *rendered* first before all other layers, if more then
     /// one layer sets the clear color only the value set on the top-most layer is used.
     #[inline]
-    pub fn set_clear_color(&mut self, color: RenderColor) {
+    pub fn set_clear_color(&mut self, color: RenderColor) {        
         self.clear_color = Some(color);
     }
 
@@ -1167,6 +1167,7 @@ impl FrameBuilder {
 
         let (pipeline_id, display_list) = self.display_list.end();
         let (payload, descriptor) = display_list.into_data();
+
         let clear_color = self.clear_color.unwrap_or(RenderColor::WHITE);
 
         let reuse = UsedFrameBuilder {
