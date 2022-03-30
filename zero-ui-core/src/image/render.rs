@@ -1,5 +1,3 @@
-use std::mem;
-
 use crate::{
     color::{rgba, Rgba},
     context::{AppContext, RenderContext, WindowContext},
@@ -63,19 +61,15 @@ impl Images {
 impl ImageManager {
     /// AppExtension::update
     pub(super) fn update_render(&mut self, ctx: &mut AppContext) {
-        let requests = mem::take(&mut ctx.services.images().render.requests);
-
-        if requests.is_empty() {
-            return;
-        }
-
         let (images, windows) = ctx.services.req_multi::<(Images, Windows)>();
 
         images.render.active.retain(|r| {
             let mut retain = false;
 
-            if r.image.upgrade().is_some() {
-                if let Ok(s) = windows.subscriptions(r.window_id) {
+            if let Some(img) = r.image.upgrade() {
+                if img.get(ctx.vars).is_loading() {
+                    retain = true;
+                } else if let Ok(s) = windows.subscriptions(r.window_id) {
                     retain = !s.is_none();
                 }
             }
@@ -87,7 +81,7 @@ impl ImageManager {
             retain
         });
 
-        for req in requests {
+        for req in images.render.requests.drain(..) {
             if let Some(img) = req.image.upgrade() {
                 windows.open_headless(
                     move |ctx| {
