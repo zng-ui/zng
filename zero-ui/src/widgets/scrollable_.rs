@@ -1,5 +1,4 @@
 use crate::prelude::new_widget::*;
-use std::fmt;
 
 /// A single content container that can be larger on the inside.
 #[widget($crate::widgets::scrollable)]
@@ -180,7 +179,25 @@ pub mod scrollable {
     }
 
     fn new_context(child: impl UiNode) -> impl UiNode {
-        let child = with_context_var(child, ScrollContextVar, Some(ScrollContext::new()));
+        let viewport_size = var(PxSize::zero());
+        let child = with_context_var(child, ScrollViewportSizeWriteVar, viewport_size.clone());
+        let child = with_context_var(child, ScrollViewportSizeVar, viewport_size.into_read_only());
+
+        let content_size = var(PxSize::zero());
+        let child = with_context_var(child, ScrollContentSizeWriteVar, content_size.clone());
+        let child = with_context_var(child, ScrollContentSizeVar, content_size.into_read_only());
+
+        let v_ratio = var(0.fct());
+        let child = with_context_var(child, ScrollVerticalRatioWriteVar, v_ratio.clone());
+        let child = with_context_var(child, ScrollVerticalRatioVar, v_ratio.into_read_only());
+
+        let h_ratio = var(0.fct());
+        let child = with_context_var(child, ScrollHorizontalRatioWriteVar, h_ratio.clone());
+        let child = with_context_var(child, ScrollHorizontalRatioVar, h_ratio.into_read_only());
+
+        let child = with_context_var(child, ScrollVerticalOffsetVar, var(0.fct()));
+        let child = with_context_var(child, ScrollHorizontalOffsetVar, var(0.fct()));
+
         let child = nodes::scroll_commands_node(child);
         let child = nodes::page_commands_node(child);
         nodes::scroll_to_command_node(child)
@@ -552,11 +569,11 @@ pub mod scrollable {
                 scrollbar! {
                     thumb = scrollbar::thumb! {
                         orientation = args.orientation;
-                        viewport_ratio = args.viewport_ratio.clone();
-                        offset = args.offset.clone();
+                        viewport_ratio = args.viewport_ratio();
+                        offset = args.offset();
                     };
                     orientation = args.orientation;
-                    visibility = args.viewport_ratio.map(|&r| if r < 1.0.fct() { Visibility::Visible } else { Visibility::Collapsed })
+                    visibility = args.viewport_ratio().map(|&r| if r < 1.0.fct() { Visibility::Visible } else { Visibility::Collapsed })
                 }
             })
         }
@@ -659,33 +676,34 @@ pub mod scrollable {
         pub struct ScrollBarArgs {
             /// Scrollbar orientation.
             pub orientation: scrollbar::Orientation,
-
-            /// Amount scrolled.
-            ///
-            /// If the content the content top or left is fully visible it is `0.0`, the the content bottom or right is
-            /// fully visible it is `1.0`.
-            pub offset: RcVar<Factor>,
-
-            /// Viewport size / content size.
-            ///
-            /// If the content is smaller or equal to the available area this var is `1.0`, if the content is ten times
-            /// larger then the available size this var is `0.1`.
-            pub viewport_ratio: ReadOnlyRcVar<Factor>,
         }
         impl ScrollBarArgs {
             /// Arguments from scroll context.
-            pub fn new(ctx: &ScrollContext, orientation: scrollbar::Orientation) -> Self {
-                match orientation {
-                    scrollbar::Orientation::Horizontal => Self {
-                        orientation,
-                        offset: ctx.h_offset.clone(),
-                        viewport_ratio: ctx.h_ratio.clone(),
-                    },
-                    scrollbar::Orientation::Vertical => Self {
-                        orientation,
-                        offset: ctx.v_offset.clone(),
-                        viewport_ratio: ctx.v_ratio.clone(),
-                    },
+            pub fn new(orientation: scrollbar::Orientation) -> Self {
+                Self { orientation }
+            }
+
+            /// Gets the context variable that gets and sets the offset for the orientation.
+            ///
+            /// See [`ScrollVerticalOffsetVar`] and [`ScrollHorizontalOffsetVar`] for more details.
+            pub fn offset(&self) -> BoxedVar<Factor> {
+                use scrollbar::Orientation::*;
+
+                match self.orientation {
+                    Vertical => ScrollVerticalOffsetVar::new().boxed(),
+                    Horizontal => ScrollHorizontalOffsetVar::new().boxed(),
+                }
+            }
+
+            /// Gets the context variable that gets the viewport/content ratio for the orientation.
+            ///
+            /// See [`ScrollVerticalRatioVar`] and [`ScrollHorizontalRatioVar`] for more details.
+            pub fn viewport_ratio(&self) -> BoxedVar<Factor> {
+                use scrollbar::Orientation::*;
+
+                match self.orientation {
+                    Vertical => ScrollVerticalRatioVar::new().boxed(),
+                    Horizontal => ScrollHorizontalRatioVar::new().boxed(),
                 }
             }
         }
@@ -750,6 +768,7 @@ pub mod scrollable {
                 fn arrange(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, final_size: PxSize) {
                     if self.viewport_size != final_size {
                         self.viewport_size = final_size;
+                        ScrollViewportSizeWriteVar::set(ctx, final_size).unwrap();
                         ctx.updates.render();
                     }
 
@@ -763,12 +782,10 @@ pub mod scrollable {
 
                     self.child.arrange(ctx, widget_layout, self.content_size);
 
-                    let cell_ctx = ScrollContext::get(ctx.vars).unwrap();
-
                     let mut content_offset = self.content_offset;
-                    let v_offset = cell_ctx.v_offset.copy(ctx.vars);
+                    let v_offset = *ScrollVerticalOffsetVar::get(ctx.vars);
                     content_offset.y = (self.viewport_size.height - self.content_size.height) * v_offset;
-                    let h_offset = cell_ctx.h_offset.copy(ctx.vars);
+                    let h_offset = *ScrollHorizontalOffsetVar::get(ctx.vars);
                     content_offset.x = (self.viewport_size.width - self.content_size.width) * h_offset;
 
                     if self.content_offset != content_offset {
@@ -779,9 +796,9 @@ pub mod scrollable {
                     let v_ratio = self.viewport_size.height.0 as f32 / self.content_size.height.0 as f32;
                     let h_ratio = self.viewport_size.width.0 as f32 / self.content_size.width.0 as f32;
 
-                    cell_ctx.v_ratio_var.set_ne(ctx, v_ratio.fct());
-                    cell_ctx.h_ratio_var.set_ne(ctx, h_ratio.fct());
-                    cell_ctx.content_size_var.set_ne(ctx, self.content_size);
+                    ScrollVerticalRatioWriteVar::new().set_ne(ctx, v_ratio.fct()).unwrap();
+                    ScrollHorizontalRatioWriteVar::new().set_ne(ctx, h_ratio.fct()).unwrap();
+                    ScrollContentSizeWriteVar::new().set_ne(ctx, self.content_size).unwrap();
                 }
 
                 fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
@@ -827,22 +844,10 @@ pub mod scrollable {
         fn scrollbar_presenter(var: impl IntoVar<ViewGenerator<ScrollBarArgs>>, orientation: scrollbar::Orientation) -> impl UiNode {
             ViewGenerator::presenter(
                 var,
-                |_vars, _widget| {
-                    // TODO subscriptions
-                },
-                move |ctx, is_new| {
+                |_, _| {},
+                move |_, is_new| {
                     if is_new {
-                        if let Some(ctx) = ScrollContext::get(ctx) {
-                            DataUpdate::Update(ScrollBarArgs::new(ctx, orientation))
-                        } else {
-                            DataUpdate::None
-                        }
-                    } else if let Some(new_ctx) = ScrollContext::get_new(ctx) {
-                        if let Some(ctx) = new_ctx {
-                            DataUpdate::Update(ScrollBarArgs::new(ctx, orientation))
-                        } else {
-                            DataUpdate::None
-                        }
+                        DataUpdate::Update(ScrollBarArgs::new(orientation))
                     } else {
                         DataUpdate::Same
                     }
@@ -943,14 +948,23 @@ pub mod scrollable {
                 fn arrange(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, final_size: PxSize) {
                     self.child.arrange(ctx, widget_layout, final_size);
 
-                    if let Some(scroll_ctx) = ScrollContext::get(ctx.vars) {
-                        let available_size = AvailableSize::finite(scroll_ctx.content_size_var.copy(ctx.vars));
-                        let offset = self.offset.to_layout(ctx, available_size, PxVector::zero());
-                        if offset.y != Px(0) {
-                            // TODO: continue implementing this
-                            //scroll_ctx.v_offset.set(ctx.vars, )
-                        }
-                        self.offset = Vector::zero();
+                    let content = *ScrollContentSizeVar::get(ctx);
+
+                    let available_size = AvailableSize::finite(content);
+                    let offset = self.offset.to_layout(ctx, available_size, PxVector::zero());
+                    self.offset = Vector::zero();
+
+                    if offset != PxVector::zero() {
+                        let viewport = *ScrollViewportSizeVar::get(ctx);
+                        let max_offset = (content - viewport).to_vector();
+
+                        let offset = max_offset.min(offset);
+
+                        let v_offset = max_offset.y.0 as f32 / offset.y.0 as f32;
+                        let h_offset = max_offset.x.0 as f32 / offset.x.0 as f32;
+
+                        let _ = ScrollVerticalOffsetVar::set(ctx, v_offset);
+                        let _ = ScrollHorizontalOffsetVar::set(ctx, h_offset);
                     }
                 }
             }
@@ -1053,14 +1067,23 @@ pub mod scrollable {
                 fn arrange(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, final_size: PxSize) {
                     self.child.arrange(ctx, widget_layout, final_size);
 
-                    if let Some(scroll_ctx) = ScrollContext::get(ctx.vars) {
-                        let available_size = AvailableSize::finite(scroll_ctx.content_size_var.copy(ctx.vars));
-                        let offset = self.offset.to_layout(ctx, available_size, PxVector::zero());
-                        if offset.y != Px(0) {
-                            // TODO: continue implementing this
-                            //scroll_ctx.v_offset.set(ctx.vars, )
-                        }
-                        self.offset = Vector::zero();
+                    let content = *ScrollContentSizeVar::get(ctx);
+
+                    let available_size = AvailableSize::finite(content);
+                    let offset = self.offset.to_layout(ctx, available_size, PxVector::zero());
+                    self.offset = Vector::zero();
+
+                    if offset != PxVector::zero() {
+                        let viewport = *ScrollViewportSizeVar::get(ctx);
+                        let max_offset = (content - viewport).to_vector();
+
+                        let offset = max_offset.min(offset);
+
+                        let v_offset = max_offset.y.0 as f32 / offset.y.0 as f32;
+                        let h_offset = max_offset.x.0 as f32 / offset.x.0 as f32;
+
+                        let _ = ScrollVerticalOffsetVar::set(ctx, v_offset);
+                        let _ = ScrollHorizontalOffsetVar::set(ctx, h_offset);
                     }
                 }
             }
@@ -1151,64 +1174,37 @@ pub mod scrollable {
         }
     }
 
-    /// Info about the parent scrollable widget.
-    #[derive(Clone)]
-    pub struct ScrollContext {
-        /// Amount of vertical scroll.
-        pub v_offset: RcVar<Factor>,
-        /// Amount of horizontal scroll.
-        pub h_offset: RcVar<Factor>,
-
-        v_ratio_var: RcVar<Factor>,
-        h_ratio_var: RcVar<Factor>,
-
-        content_size_var: RcVar<PxSize>,
-
-        /// Viewport width / content width.
-        pub v_ratio: ReadOnlyRcVar<Factor>,
-        /// Viewport height / content height.
-        pub h_ratio: ReadOnlyRcVar<Factor>,
-    }
-    impl fmt::Debug for ScrollContext {
-        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-            write!(f, "ScrollContext {{ .. }}")
-        }
-    }
-    impl ScrollContext {
-        fn new() -> Self {
-            let v_ratio_var = var(1.0.fct());
-            let h_ratio_var = var(1.0.fct());
-            let content_size_var = var(PxSize::zero());
-
-            ScrollContext {
-                v_offset: var(0.0.fct()),
-                h_offset: var(0.0.fct()),
-                v_ratio: v_ratio_var.clone().into_read_only(),
-                h_ratio: h_ratio_var.clone().into_read_only(),
-                v_ratio_var,
-                h_ratio_var,
-                content_size_var,
-            }
-        }
-
-        /// Returns a context if is within an scrollable widget.
-        pub fn get(vars: &impl AsRef<VarsRead>) -> Option<&Self> {
-            ScrollContextVar::get(vars).as_ref()
-        }
-
-        /// Returns the context if one or more variables in it where replaced.
-        pub fn get_new(vars: &impl AsRef<Vars>) -> Option<Option<&Self>> {
-            ScrollContextVar::get_new(vars).map(|o| o.as_ref())
-        }
-
-        /// Call closure `f` within a context.
-        pub fn with_context(vars: &impl WithVarsRead, context: &Option<ScrollContext>, f: impl FnOnce()) {
-            vars.with_vars_read(|vars| vars.with_context_var(ScrollContextVar, ContextVarData::fixed(context), f))
-        }
-    }
-
     context_var! {
-        struct ScrollContextVar: Option<ScrollContext> = None;
+        /// Vertical offset of the parent scroll.
+        ///
+        /// The value is a percentage of `content.height - viewport.height`. This variable is usually read-write,
+        /// scrollable content can modify it to scroll the parent.
+        pub struct ScrollVerticalOffsetVar: Factor = 0.fct();
+        /// Horizontal offset of the parent scroll.
+        ///
+        /// The value is a percentage of `content.width - viewport.width`. This variable is usually read-write,
+        /// scrollable content can modify it to scroll the parent.
+        pub struct ScrollHorizontalOffsetVar: Factor = 0.fct();
+
+        /// Ratio of the scroll parent viewport height to its content.
+        ///
+        /// The value is `viewport.height / content.height`.
+        pub struct ScrollVerticalRatioVar: Factor = 0.fct();
+        pub(super) struct ScrollVerticalRatioWriteVar: Factor = 0.fct();
+
+        /// Ratio of the scroll parent viewport width to its content.
+        ///
+        /// The value is `viewport.width / content.width`.
+        pub struct ScrollHorizontalRatioVar: Factor = 0.fct();
+        pub(super) struct ScrollHorizontalRatioWriteVar: Factor = 0.fct();
+
+        /// Latest computed viewport size of the parent scrollable.
+        pub struct ScrollViewportSizeVar: PxSize = PxSize::zero();
+        pub(super) struct ScrollViewportSizeWriteVar: PxSize = PxSize::zero();
+
+        /// Latest computed content size of the parent scrollable.
+        pub struct ScrollContentSizeVar: PxSize = PxSize::zero();
+        pub(super) struct ScrollContentSizeWriteVar: PxSize = PxSize::zero();
     }
 }
 
@@ -1305,7 +1301,7 @@ pub mod thumb {
 
         /// Content offset.
         #[required]
-        offset(RcVar<Factor>);
+        offset(impl IntoVar<Factor>);
 
         /// Width if orientation is vertical, otherwise height if orientation is horizontal.
         cross_length(impl IntoVar<Length>) = 16;
@@ -1463,7 +1459,7 @@ pub mod thumb {
         child: impl UiNode,
         orientation: impl IntoVar<scrollbar::Orientation>,
         viewport_ratio: impl IntoVar<Factor>,
-        offset: RcVar<Factor>,
+        offset: impl IntoVar<Factor>,
     ) -> impl UiNode {
         let child = with_context_var(child, ThumbOrientationVar, orientation);
         let child = with_context_var(child, ThumbViewportRatioVar, viewport_ratio);

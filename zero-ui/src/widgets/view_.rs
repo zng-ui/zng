@@ -247,7 +247,8 @@ impl<D> ViewGenerator<D> {
     /// that is used to [`generate`] a view, all other [`UiNode`] methods are delegated to this view. The `update` closure
     /// is also called every time the `generator` variable updates. The boolean parameter indicates if the generator variable has updated.
     ///
-    /// The `subscribe` is called every time [`UiNode::subscriptions`] is called, it must register every update source that affects `update`.
+    /// The `subscribe` is called every time [`UiNode::subscriptions`] is called, it must register every update source that affects `update`, other
+    /// then the `generator` variable.
     ///
     /// [`generate`]: ViewGenerator::generate
     pub fn presenter(
