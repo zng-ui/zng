@@ -182,9 +182,10 @@ pub mod scrollable {
     }
 
     fn new_context(child: impl UiNode) -> impl UiNode {
+        let child = nodes::scroll_to_command_node(child);
         let child = nodes::scroll_commands_node(child);
         let child = nodes::page_commands_node(child);
-        let child = nodes::scroll_to_command_node(child);
+        let child = nodes::scroll_to_edge_commands_node(child);
 
         let viewport_size = var(PxSize::zero());
         let child = with_context_var(child, ScrollViewportSizeWriteVar, viewport_size.clone());
@@ -209,6 +210,18 @@ pub mod scrollable {
     /// Commands that control the scoped scrollable widget.
     ///
     /// The scrollable widget implements all of this commands scoped to its widget ID.
+    /// 
+    /// # Duplicate Shortcuts
+    /// 
+    /// Some commands like [`ScrollToTopCommand`] and [`ScrollToLeftmostCommand`] have duplicate shortcuts,
+    /// with the command operating on the horizontal axis having and extra alternate shortcut. Command 
+    /// implementers must handle the vertical axis commands first and then handle the
+    /// horizontal axis commands, this way if the content only scrolls on the horizontal axis the primary
+    /// shortcuts still work, but if the content scrolls in both axis the primary shortcuts operate the
+    /// vertical scrolling and the alternate shortcuts operate the horizontal scrolling.
+    /// 
+    /// [`ScrollToTopCommand`]: crate::widgets::scrollable::commands::ScrollToTopCommand
+    /// [`ScrollToLeftmostCommand`]: crate::widgets::scrollable::commands::ScrollToLeftmostCommand
     pub mod commands {
         use super::*;
         use zero_ui::core::gesture::*;
@@ -351,7 +364,7 @@ pub mod scrollable {
             /// |--------------|--------------------------------------------------------|
             /// | [`name`]     | "Page Left"                                            |
             /// | [`info`]     | "Scroll the focused scrollable LEFT by one page unit." |
-            /// | [`shortcut`] | `ALT+PageLeft`                                         |
+            /// | [`shortcut`] | `PageUp`, `ALT+PageUp`                                 |
             ///
             /// [`name`]: CommandNameExt
             /// [`info`]: CommandInfoExt
@@ -360,7 +373,7 @@ pub mod scrollable {
             pub PageLeftCommand
                 .init_name("Page Left")
                 .init_info("Scroll the focused scrollable LEFT by one page unit.")
-                .init_shortcut([shortcut!(ALT+PageUp)]);
+                .init_shortcut([shortcut!(PageUp), shortcut!(ALT+PageUp)]);
 
             /// Represents the scrollable **page right** by one [`h_page_unit`] action.
             ///
@@ -372,7 +385,7 @@ pub mod scrollable {
             /// |--------------|---------------------------------------------------------|
             /// | [`name`]     | "Page Right"                                            |
             /// | [`info`]     | "Scroll the focused scrollable RIGHT by one page unit." |
-            /// | [`shortcut`] | `ALT+PageDown`                                          |
+            /// | [`shortcut`] | `PageDowm`, `ALT+PageDown`                              |
             ///
             /// [`name`]: CommandNameExt
             /// [`info`]: CommandInfoExt
@@ -381,7 +394,87 @@ pub mod scrollable {
             pub PageRightCommand
                 .init_name("Page Right")
                 .init_info("Scroll the focused scrollable RIGHT by one page unit.")
-                .init_shortcut([shortcut!(ALT+PageDown)]);
+                .init_shortcut([shortcut!(PageDown), shortcut!(ALT+PageDown)]);
+
+            /// Represents the scrollable **scroll to top** action.
+            ///
+            /// # Metadata
+            ///
+            /// This command initializes with the following metadata:
+            ///
+            /// | metadata     | value                                                  |
+            /// |--------------|--------------------------------------------------------|
+            /// | [`name`]     | "Scroll to Top"                                        |
+            /// | [`info`]     | "Scroll up to the content top."                        |
+            /// | [`shortcut`] | `CTRL+Home`                                            |
+            ///
+            /// [`name`]: CommandNameExt
+            /// [`info`]: CommandInfoExt
+            /// [`shortcut`]: CommandShortcutExt
+            pub ScrollToTopCommand
+                .init_name("Scroll to Top")
+                .init_info("Scroll up to the content top.")
+                .init_shortcut([shortcut!(CTRL+Home)]);
+
+            /// Represents the scrollable **scroll to bottom** action.
+            ///
+            /// # Metadata
+            ///
+            /// This command initializes with the following metadata:
+            ///
+            /// | metadata     | value                                                  |
+            /// |--------------|--------------------------------------------------------|
+            /// | [`name`]     | "Scroll to Bottom"                                     |
+            /// | [`info`]     | "Scroll down to the content bottom."                   |
+            /// | [`shortcut`] | `CTRL+End`                                             |
+            ///
+            /// [`name`]: CommandNameExt
+            /// [`info`]: CommandInfoExt
+            /// [`shortcut`]: CommandShortcutExt
+            pub ScrollToBottomCommand
+                .init_name("Scroll to Bottom")
+                .init_info("Scroll down to the content bottom.")
+                .init_shortcut([shortcut!(CTRL+End)]);
+
+            /// Represents the scrollable **scroll to leftmost** action.
+            ///
+            /// # Metadata
+            ///
+            /// This command initializes with the following metadata:
+            ///
+            /// | metadata     | value                                                  |
+            /// |--------------|--------------------------------------------------------|
+            /// | [`name`]     | "Scroll to Leftmost"                                   |
+            /// | [`info`]     | "Scroll left to the content left edge."                |
+            /// | [`shortcut`] | `CTRL+Home`, `CTRL|ALT+Home`                           |
+            ///
+            /// [`name`]: CommandNameExt
+            /// [`info`]: CommandInfoExt
+            /// [`shortcut`]: CommandShortcutExt
+            pub ScrollToLeftmostCommand
+                .init_name("Scroll to Leftmost")
+                .init_info("Scroll left to the content left edge.")
+                .init_shortcut([shortcut!(CTRL+Home), shortcut!(CTRL|ALT+Home)]);
+
+            /// Represents the scrollable **scroll to rightmost** action.
+            ///
+            /// # Metadata
+            ///
+            /// This command initializes with the following metadata:
+            ///
+            /// | metadata     | value                                                  |
+            /// |--------------|--------------------------------------------------------|
+            /// | [`name`]     | "Scroll to Righmost"                                   |
+            /// | [`info`]     | "Scroll right to the content right edge."              |
+            /// | [`shortcut`] | `CTRL+End`, `CTRL|ALT+End`                             |
+            ///
+            /// [`name`]: CommandNameExt
+            /// [`info`]: CommandInfoExt
+            /// [`shortcut`]: CommandShortcutExt
+            pub ScrollToRightmostCommand
+                .init_name("Scroll to Righmost")
+                .init_info("Scroll right to the content right edge.")
+                .init_shortcut([shortcut!(CTRL+End), shortcut!(CTRL|ALT+End)]);
 
             /// Represents the action of scrolling until a child widget is fully visible.
             ///
@@ -933,31 +1026,31 @@ pub mod scrollable {
                     if let Some(args) = ScrollUpCommand.scoped(scope).update(args) {
                         self.child.event(ctx, args);
 
-                        if !args.stop_propagation_requested() {
+                        args.handle(|_| {
                             self.offset.y -= VerticalScrollUnitVar::get_clone(ctx);
                             ctx.updates.layout();
-                        }
+                        });
                     } else if let Some(args) = ScrollDownCommand.scoped(scope).update(args) {
                         self.child.event(ctx, args);
 
-                        if !args.stop_propagation_requested() {
+                        args.handle(|_| {
                             self.offset.y += VerticalScrollUnitVar::get_clone(ctx);
                             ctx.updates.layout();
-                        }
+                        });
                     } else if let Some(args) = ScrollLeftCommand.scoped(scope).update(args) {
                         self.child.event(ctx, args);
 
-                        if !args.stop_propagation_requested() {
+                        args.handle(|_| {
                             self.offset.x -= HorizontalScrollUnitVar::get_clone(ctx);
                             ctx.updates.layout();
-                        }
+                        });
                     } else if let Some(args) = ScrollRightCommand.scoped(scope).update(args) {
                         self.child.event(ctx, args);
 
-                        if !args.stop_propagation_requested() {
+                        args.handle(|_| {
                             self.offset.x += HorizontalScrollUnitVar::get_clone(ctx);
                             ctx.updates.layout();
-                        }
+                        });
                     } else {
                         self.child.event(ctx, args);
                     }
@@ -1055,31 +1148,31 @@ pub mod scrollable {
                     if let Some(args) = PageUpCommand.scoped(scope).update(args) {
                         self.child.event(ctx, args);
 
-                        if !args.stop_propagation_requested() {
+                        args.handle(|_| {
                             self.offset.y -= VerticalPageUnitVar::get_clone(ctx);
                             ctx.updates.layout();
-                        }
+                        });
                     } else if let Some(args) = PageDownCommand.scoped(scope).update(args) {
                         self.child.event(ctx, args);
 
-                        if !args.stop_propagation_requested() {
+                        args.handle(|_| {
                             self.offset.y += VerticalPageUnitVar::get_clone(ctx);
                             ctx.updates.layout();
-                        }
+                        });
                     } else if let Some(args) = PageLeftCommand.scoped(scope).update(args) {
                         self.child.event(ctx, args);
 
-                        if !args.stop_propagation_requested() {
+                        args.handle(|_| {
                             self.offset.x -= HorizontalPageUnitVar::get_clone(ctx);
                             ctx.updates.layout();
-                        }
+                        });
                     } else if let Some(args) = PageRightCommand.scoped(scope).update(args) {
                         self.child.event(ctx, args);
 
-                        if !args.stop_propagation_requested() {
+                        args.handle(|_| {
                             self.offset.x += HorizontalPageUnitVar::get_clone(ctx);
                             ctx.updates.layout();
-                        }
+                        });
                     } else {
                         self.child.event(ctx, args);
                     }
@@ -1111,6 +1204,108 @@ pub mod scrollable {
                 right: CommandHandle::dummy(),
 
                 offset: Vector::zero(),
+            }
+        }
+
+        /// Create a node that implements [`ScrollToTopCommand`], [`ScrollToBottomCommand`],
+        /// [`ScrollToLeftmostCommand`] and [`ScrollToRightmostCommand`] scoped on the widget.
+        pub fn scroll_to_edge_commands_node(child: impl UiNode) -> impl UiNode {
+            struct ScrollToEdgeCommandsNode<C> {
+                child: C,
+
+                top: CommandHandle,
+                bottom: CommandHandle,
+                leftmost: CommandHandle,
+                rightmost: CommandHandle,
+            }
+            #[impl_ui_node(child)]
+            impl<C: UiNode> UiNode for ScrollToEdgeCommandsNode<C> {
+                fn init(&mut self, ctx: &mut WidgetContext) {
+                    let scope = ctx.path.widget_id();
+
+                    self.top = ScrollToTopCommand.scoped(scope).new_handle(ctx, ScrollContext::can_scroll_up(ctx));
+                    self.bottom = ScrollToBottomCommand
+                        .scoped(scope)
+                        .new_handle(ctx, ScrollContext::can_scroll_down(ctx));
+                    self.leftmost = ScrollToLeftmostCommand
+                        .scoped(scope)
+                        .new_handle(ctx, ScrollContext::can_scroll_left(ctx));
+                    self.rightmost = ScrollToRightmostCommand
+                        .scoped(scope)
+                        .new_handle(ctx, ScrollContext::can_scroll_right(ctx));
+
+                    self.child.init(ctx);
+                }
+
+                fn deinit(&mut self, ctx: &mut WidgetContext) {
+                    self.child.deinit(ctx);
+
+                    self.top = CommandHandle::dummy();
+                    self.bottom = CommandHandle::dummy();
+                    self.leftmost = CommandHandle::dummy();
+                    self.rightmost = CommandHandle::dummy();
+                }
+
+                fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
+                    let scope = ctx.path.widget_id();
+
+                    subscriptions
+                        .event(ScrollToTopCommand.scoped(scope))
+                        .event(ScrollToBottomCommand.scoped(scope))
+                        .event(ScrollToLeftmostCommand.scoped(scope))
+                        .event(ScrollToRightmostCommand.scoped(scope));
+
+                    self.child.subscriptions(ctx, subscriptions);
+                }
+
+                fn update(&mut self, ctx: &mut WidgetContext) {
+                    self.child.update(ctx);
+
+                    self.top.set_enabled(ScrollContext::can_scroll_up(ctx));
+                    self.bottom.set_enabled(ScrollContext::can_scroll_down(ctx));
+                    self.leftmost.set_enabled(ScrollContext::can_scroll_left(ctx));
+                    self.rightmost.set_enabled(ScrollContext::can_scroll_right(ctx));
+                }
+
+                fn event<A: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &A) {
+                    let scope = ctx.path.widget_id();
+
+                    if let Some(args) = ScrollToTopCommand.scoped(scope).update(args) {
+                        self.child.event(ctx, args);
+
+                        args.handle(|_| {
+                            ScrollVerticalOffsetVar::new().set_ne(ctx, 0.fct()).unwrap();
+                        });
+                    } else if let Some(args) = ScrollToBottomCommand.scoped(scope).update(args) {
+                        self.child.event(ctx, args);
+
+                        args.handle(|_| {
+                            ScrollVerticalOffsetVar::new().set_ne(ctx, 1.fct()).unwrap();
+                        });
+                    } else if let Some(args) = ScrollToLeftmostCommand.scoped(scope).update(args) {
+                        self.child.event(ctx, args);
+
+                        args.handle(|_| {
+                            ScrollHorizontalOffsetVar::new().set_ne(ctx, 0.fct()).unwrap();
+                        });
+                    } else if let Some(args) = ScrollToRightmostCommand.scoped(scope).update(args) {
+                        self.child.event(ctx, args);
+
+                        args.handle(|_| {
+                            ScrollHorizontalOffsetVar::new().set_ne(ctx, 1.fct()).unwrap();
+                        });
+                    } else {
+                        self.child.event(ctx, args);
+                    }
+                }
+            }
+            ScrollToEdgeCommandsNode {
+                child,
+
+                top: CommandHandle::dummy(),
+                bottom: CommandHandle::dummy(),
+                leftmost: CommandHandle::dummy(),
+                rightmost: CommandHandle::dummy(),
             }
         }
 

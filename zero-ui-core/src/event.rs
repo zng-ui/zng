@@ -41,6 +41,22 @@ pub trait EventArgs: Debug + Clone + 'static {
     /// [`UiNode`]: crate::UiNode
     /// [`AppExtension`]: crate::app::AppExtension
     fn stop_propagation_requested(&self) -> bool;
+
+    /// Calls `handler` and stops propagation if propagation is still allowed.
+    ///
+    /// Returns the `handler` result if it was called.
+    fn handle<F, R>(&self, handler: F) -> Option<R>
+    where
+        F: FnOnce(&Self) -> R,
+    {
+        if self.stop_propagation_requested() {
+            None
+        } else {
+            let r = handler(self);
+            self.stop_propagation();
+            Some(r)
+        }
+    }
 }
 
 /// [`Event`] arguments that can be canceled.
@@ -1296,6 +1312,17 @@ macro_rules! __event_args {
             #[inline]
             pub fn concerns_widget(&self, ctx: &mut $crate::context::WidgetContext) -> bool {
                 <Self as $crate::event::EventArgs>::concerns_widget(self, ctx)
+            }
+
+            /// Calls `handler` and stops propagation if propagation is still allowed.
+            ///
+            /// Returns the `handler` result if it was called.
+            #[inline]
+            pub fn handle<F, R>(&self, handler: F) -> Option<R>
+            where
+                F: FnOnce(&Self) -> R,
+            {
+                <Self as $crate::event::EventArgs>::handle(self, handler)
             }
         }
         impl $crate::event::EventArgs for $Args {

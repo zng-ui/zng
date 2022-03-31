@@ -59,6 +59,11 @@ fn commands() -> impl Widget {
                     cmd_btn(PageLeftCommand),
                     cmd_btn(PageRightCommand),
                     separator(),
+                    cmd_btn(ScrollToTopCommand),
+                    cmd_btn(ScrollToBottomCommand),
+                    cmd_btn(ScrollToLeftmostCommand),
+                    cmd_btn(ScrollToRightmostCommand),
+                    separator(),
                 ]
             },
             button! {

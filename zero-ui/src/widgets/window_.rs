@@ -701,7 +701,7 @@ pub mod window {
             /// |--------------|-------------------------------------------------------|
             /// | [`name`]     | "Full-Screen"                                         |
             /// | [`info`]     | "Toggle full-screen mode on the current window."      |
-            /// | [`shortcut`] | `CMD+SHIFT+F` on MacOS, `F11` on other systems.       |
+            /// | [`shortcut`] | `CMD|SHIFT+F` on MacOS, `F11` on other systems.       |
             ///
             /// # Behavior
             ///
@@ -773,7 +773,7 @@ pub mod window {
             /// |--------------|-------------------------------------------------------|
             /// | [`name`]     | "Debug Inspector"                                     |
             /// | [`info`]     | "Inspect the current window."                         |
-            /// | [`shortcut`] | `CTRL+SHIFT+I`, `F12`                                 |
+            /// | [`shortcut`] | `CTRL|SHIFT+I`, `F12`                                 |
             ///
             /// [`name`]: CommandNameExt
             /// [`info`]: CommandInfoExt
