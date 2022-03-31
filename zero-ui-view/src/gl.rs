@@ -468,8 +468,8 @@ impl GlContextManager {
                         let mut surfaceless_ok = false;
                         match &r {
                             Ok(Ok(_)) => surfaceless_ok = true,
-                            Err(Err(e)) => log_error(&format!("surfaceless error: {e:?}")),
-                            Err(payload) => log_error(&format!("surfaceless panic: {}", panic_msg(&payload))),
+                            Ok(Err(e)) => log_error(&format!("surfaceless error: {e:?}")),
+                            Err(payload) => log_error(&format!("surfaceless panic: {}", panic_msg(&*payload))),
                         }
 
                         if surfaceless_ok {
