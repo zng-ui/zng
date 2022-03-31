@@ -37,6 +37,7 @@ fn commands() -> impl Widget {
         background_color = rgba(0, 0, 0, 90.pct());
         corner_radius = (0, 0, 8, 0);
         button::theme::padding = 4;
+        alt_focus_scope = true;
 
         items = widgets![
             v_stack! {
@@ -65,7 +66,7 @@ fn commands() -> impl Widget {
                     show.modify(ctx, |s| **s = !**s);
                 });
             }
-        ];        
+        ];
     }
 }
 fn cmd_btn(cmd: impl Command) -> impl Widget {
@@ -86,16 +87,13 @@ fn separator() -> impl Widget {
 }
 
 fn ipsum() -> Text {
-    let mut p = String::new();
-    for _ in 0..10 {
-        p.push('\n');
-        p.push_str(&lipsum::lipsum_words(25));
-    }
-
     let mut s = "Lorem Ipsum".to_owned();
     for _ in 0..10 {
         s.push('\n');
-        s.push_str(&p);
+        for _ in 0..10 {
+            s.push('\n');
+            s.push_str(&lipsum::lipsum_words(25));
+        }
     }
 
     s.into()

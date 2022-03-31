@@ -570,22 +570,27 @@ impl AppExtension for FocusManager {
             }
         } else if let Some(args) = ShortcutEvent.update(args) {
             // keyboard
-            if args.shortcut == shortcut!(Tab) {
-                request = Some(FocusRequest::next(true))
-            } else if args.shortcut == shortcut!(SHIFT + Tab) {
-                request = Some(FocusRequest::prev(true))
-            } else if args.shortcut == shortcut!(Alt) {
-                request = Some(FocusRequest::alt(true))
-            } else if args.shortcut == shortcut!(Escape) {
-                request = Some(FocusRequest::escape_alt(true))
-            } else if args.shortcut == shortcut!(Up) {
-                request = Some(FocusRequest::up(true))
-            } else if args.shortcut == shortcut!(Right) {
-                request = Some(FocusRequest::right(true))
-            } else if args.shortcut == shortcut!(Down) {
-                request = Some(FocusRequest::down(true))
-            } else if args.shortcut == shortcut!(Left) {
-                request = Some(FocusRequest::left(true))
+            if !args.stop_propagation_requested() {
+                if args.shortcut == shortcut!(Tab) {
+                    request = Some(FocusRequest::next(true))
+                } else if args.shortcut == shortcut!(SHIFT + Tab) {
+                    request = Some(FocusRequest::prev(true))
+                } else if args.shortcut == shortcut!(Alt) {
+                    request = Some(FocusRequest::alt(true))
+                } else if args.shortcut == shortcut!(Escape) {
+                    request = Some(FocusRequest::escape_alt(true))
+                } else if args.shortcut == shortcut!(Up) {
+                    request = Some(FocusRequest::up(true))
+                } else if args.shortcut == shortcut!(Right) {
+                    request = Some(FocusRequest::right(true))
+                } else if args.shortcut == shortcut!(Down) {
+                    request = Some(FocusRequest::down(true))
+                } else if args.shortcut == shortcut!(Left) {
+                    request = Some(FocusRequest::left(true))
+                }
+                if request.is_some() {
+                    args.stop_propagation()
+                }
             }
         } else if let Some(args) = WindowFocusChangedEvent.update(args) {
             // foreground window maybe changed

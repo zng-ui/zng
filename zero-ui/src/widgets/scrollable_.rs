@@ -733,7 +733,11 @@ pub mod scrollable {
             #[impl_ui_node(child)]
             impl<C: UiNode, M: Var<ScrollMode>> UiNode for ViewportNode<C, M> {
                 fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
-                    subscriptions.vars(ctx).var(&self.mode).var(&ScrollVerticalOffsetVar::new()).var(&ScrollHorizontalOffsetVar::new());
+                    subscriptions
+                        .vars(ctx)
+                        .var(&self.mode)
+                        .var(&ScrollVerticalOffsetVar::new())
+                        .var(&ScrollHorizontalOffsetVar::new());
                     self.child.subscriptions(ctx, subscriptions);
                 }
 
@@ -886,7 +890,9 @@ pub mod scrollable {
                     self.up = ScrollUpCommand.scoped(scope).new_handle(ctx, ScrollContext::can_scroll_up(ctx));
                     self.down = ScrollDownCommand.scoped(scope).new_handle(ctx, ScrollContext::can_scroll_down(ctx));
                     self.left = ScrollLeftCommand.scoped(scope).new_handle(ctx, ScrollContext::can_scroll_left(ctx));
-                    self.right = ScrollRightCommand.scoped(scope).new_handle(ctx, ScrollContext::can_scroll_right(ctx));
+                    self.right = ScrollRightCommand
+                        .scoped(scope)
+                        .new_handle(ctx, ScrollContext::can_scroll_right(ctx));
 
                     self.child.init(ctx);
                 }
