@@ -446,7 +446,7 @@ pub mod scrollable {
             /// |--------------|--------------------------------------------------------|
             /// | [`name`]     | "Scroll to Leftmost"                                   |
             /// | [`info`]     | "Scroll left to the content left edge."                |
-            /// | [`shortcut`] | `CTRL+Home`, `CTRL|ALT+Home`                           |
+            /// | [`shortcut`] | `CTRL+Home`, <code>CTRL&#124;ALT+Home</code>           |
             ///
             /// [`name`]: CommandNameExt
             /// [`info`]: CommandInfoExt
@@ -466,7 +466,7 @@ pub mod scrollable {
             /// |--------------|--------------------------------------------------------|
             /// | [`name`]     | "Scroll to Righmost"                                   |
             /// | [`info`]     | "Scroll right to the content right edge."              |
-            /// | [`shortcut`] | `CTRL+End`, `CTRL|ALT+End`                             |
+            /// | [`shortcut`] | `CTRL+End`, <code>CTRL&#124;ALT+End</code>             |
             ///
             /// [`name`]: CommandNameExt
             /// [`info`]: CommandInfoExt
