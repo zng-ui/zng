@@ -71,6 +71,9 @@ pub mod scrollable {
         ///
         /// Disabled by default.
         clip_to_viewport(impl IntoVar<bool>) = false;
+
+        /// Enables keyboard controls.
+        focusable = true;
     }
 
     fn new_child(content: impl UiNode) -> impl UiNode {
@@ -179,6 +182,10 @@ pub mod scrollable {
     }
 
     fn new_context(child: impl UiNode) -> impl UiNode {
+        let child = nodes::scroll_commands_node(child);
+        let child = nodes::page_commands_node(child);
+        let child = nodes::scroll_to_command_node(child);
+
         let viewport_size = var(PxSize::zero());
         let child = with_context_var(child, ScrollViewportSizeWriteVar, viewport_size.clone());
         let child = with_context_var(child, ScrollViewportSizeVar, viewport_size.into_read_only());
@@ -196,11 +203,7 @@ pub mod scrollable {
         let child = with_context_var(child, ScrollHorizontalRatioVar, h_ratio.into_read_only());
 
         let child = with_context_var(child, ScrollVerticalOffsetVar, var(0.fct()));
-        let child = with_context_var(child, ScrollHorizontalOffsetVar, var(0.fct()));
-
-        let child = nodes::scroll_commands_node(child);
-        let child = nodes::page_commands_node(child);
-        nodes::scroll_to_command_node(child)
+        with_context_var(child, ScrollHorizontalOffsetVar, var(0.fct()))
     }
 
     /// Commands that control the scoped scrollable widget.
@@ -533,19 +536,19 @@ pub mod scrollable {
 
             /// Vertical offset added when the [`ScrollDownCommand`] runs and removed when the [`ScrollUpCommand`] runs.
             ///
-            /// Relative lengths are relative to the viewport height, default value is `1.dip()`.
+            /// Relative lengths are relative to the viewport height, default value is `1.em()`.
             ///
             /// [`ScrollDownCommand`]: crate::widgets::scrollable::commands::ScrollDownCommand
             /// [`ScrollUpCommand`]: crate::widgets::scrollable::commands::ScrollUpCommand
-            pub struct VerticalScrollUnitVar: Length = 1.dip();
+            pub struct VerticalScrollUnitVar: Length = 1.em();
 
             /// Horizontal offset added when the [`ScrollRightCommand`] runs and removed when the [`ScrollLeftCommand`] runs.
             ///
-            /// Relative lengths are relative to the viewport width, default value is `1.dip()`.
+            /// Relative lengths are relative to the viewport width, default value is `1.em()`.
             ///
             /// [`ScrollLeftCommand`]: crate::widgets::scrollable::commands::ScrollLeftCommand
             /// [`ScrollRightCommand`]: crate::widgets::scrollable::commands::ScrollRightCommand
-            pub struct HorizontalScrollUnitVar: Length = 1.dip();
+            pub struct HorizontalScrollUnitVar: Length = 1.em();
 
             /// Vertical offset added when the [`PageDownCommand`] runs and removed when the [`PageUpCommand`] runs.
             ///
@@ -730,14 +733,14 @@ pub mod scrollable {
             #[impl_ui_node(child)]
             impl<C: UiNode, M: Var<ScrollMode>> UiNode for ViewportNode<C, M> {
                 fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
-                    subscriptions.var(ctx, &self.mode);
+                    subscriptions.vars(ctx).var(&self.mode).var(&ScrollVerticalOffsetVar::new()).var(&ScrollHorizontalOffsetVar::new());
                     self.child.subscriptions(ctx, subscriptions);
                 }
 
                 fn update(&mut self, ctx: &mut WidgetContext) {
                     self.child.update(ctx);
 
-                    if self.mode.is_new(ctx) {
+                    if self.mode.is_new(ctx) || ScrollVerticalOffsetVar::is_new(ctx) || ScrollHorizontalOffsetVar::is_new(ctx) {
                         ctx.updates.layout();
                     }
                 }
@@ -880,10 +883,10 @@ pub mod scrollable {
                 fn init(&mut self, ctx: &mut WidgetContext) {
                     let scope = ctx.path.widget_id();
 
-                    self.up = ScrollUpCommand.scoped(scope).new_handle(ctx, false);
-                    self.down = ScrollDownCommand.scoped(scope).new_handle(ctx, false);
-                    self.left = ScrollDownCommand.scoped(scope).new_handle(ctx, false);
-                    self.right = ScrollDownCommand.scoped(scope).new_handle(ctx, false);
+                    self.up = ScrollUpCommand.scoped(scope).new_handle(ctx, ScrollContext::can_scroll_up(ctx));
+                    self.down = ScrollDownCommand.scoped(scope).new_handle(ctx, ScrollContext::can_scroll_down(ctx));
+                    self.left = ScrollLeftCommand.scoped(scope).new_handle(ctx, ScrollContext::can_scroll_left(ctx));
+                    self.right = ScrollRightCommand.scoped(scope).new_handle(ctx, ScrollContext::can_scroll_right(ctx));
 
                     self.child.init(ctx);
                 }
@@ -907,6 +910,15 @@ pub mod scrollable {
                         .event(ScrollRightCommand.scoped(scope));
 
                     self.child.subscriptions(ctx, subscriptions);
+                }
+
+                fn update(&mut self, ctx: &mut WidgetContext) {
+                    self.child.update(ctx);
+
+                    self.up.set_enabled(ScrollContext::can_scroll_up(ctx));
+                    self.down.set_enabled(ScrollContext::can_scroll_down(ctx));
+                    self.left.set_enabled(ScrollContext::can_scroll_left(ctx));
+                    self.right.set_enabled(ScrollContext::can_scroll_right(ctx));
                 }
 
                 fn event<A: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &A) {
@@ -947,24 +959,18 @@ pub mod scrollable {
 
                 fn arrange(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, final_size: PxSize) {
                     self.child.arrange(ctx, widget_layout, final_size);
+                    let viewport = *ScrollViewportSizeVar::get(ctx);
+                    let available_size = AvailableSize::finite(viewport);
 
-                    let content = *ScrollContentSizeVar::get(ctx);
-
-                    let available_size = AvailableSize::finite(content);
-                    let offset = self.offset.to_layout(ctx, available_size, PxVector::zero());
+                    let default = 1.em().to_layout(ctx, AvailablePx::Infinite, Px(0));
+                    let offset = self.offset.to_layout(ctx, available_size, PxVector::new(default, default));
                     self.offset = Vector::zero();
 
-                    if offset != PxVector::zero() {
-                        let viewport = *ScrollViewportSizeVar::get(ctx);
-                        let max_offset = (content - viewport).to_vector();
-
-                        let offset = max_offset.min(offset);
-
-                        let v_offset = max_offset.y.0 as f32 / offset.y.0 as f32;
-                        let h_offset = max_offset.x.0 as f32 / offset.x.0 as f32;
-
-                        let _ = ScrollVerticalOffsetVar::set(ctx, v_offset);
-                        let _ = ScrollHorizontalOffsetVar::set(ctx, h_offset);
+                    if offset.y != Px(0) {
+                        ScrollContext::scroll_vertical(ctx, offset.y);
+                    }
+                    if offset.x != Px(0) {
+                        ScrollContext::scroll_horizontal(ctx, offset.x);
                     }
                 }
             }
@@ -999,10 +1005,10 @@ pub mod scrollable {
                 fn init(&mut self, ctx: &mut WidgetContext) {
                     let scope = ctx.path.widget_id();
 
-                    self.up = ScrollUpCommand.scoped(scope).new_handle(ctx, false);
-                    self.down = ScrollDownCommand.scoped(scope).new_handle(ctx, false);
-                    self.left = ScrollDownCommand.scoped(scope).new_handle(ctx, false);
-                    self.right = ScrollDownCommand.scoped(scope).new_handle(ctx, false);
+                    self.up = PageUpCommand.scoped(scope).new_handle(ctx, ScrollContext::can_scroll_up(ctx));
+                    self.down = PageDownCommand.scoped(scope).new_handle(ctx, ScrollContext::can_scroll_down(ctx));
+                    self.left = PageLeftCommand.scoped(scope).new_handle(ctx, ScrollContext::can_scroll_left(ctx));
+                    self.right = PageRightCommand.scoped(scope).new_handle(ctx, ScrollContext::can_scroll_right(ctx));
 
                     self.child.init(ctx);
                 }
@@ -1026,6 +1032,15 @@ pub mod scrollable {
                         .event(PageRightCommand.scoped(scope));
 
                     self.child.subscriptions(ctx, subscriptions);
+                }
+
+                fn update(&mut self, ctx: &mut WidgetContext) {
+                    self.child.update(ctx);
+
+                    self.up.set_enabled(ScrollContext::can_scroll_up(ctx));
+                    self.down.set_enabled(ScrollContext::can_scroll_down(ctx));
+                    self.left.set_enabled(ScrollContext::can_scroll_left(ctx));
+                    self.right.set_enabled(ScrollContext::can_scroll_right(ctx));
                 }
 
                 fn event<A: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &A) {
@@ -1066,24 +1081,17 @@ pub mod scrollable {
 
                 fn arrange(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, final_size: PxSize) {
                     self.child.arrange(ctx, widget_layout, final_size);
+                    let viewport = *ScrollViewportSizeVar::get(ctx);
+                    let available_size = AvailableSize::finite(viewport);
 
-                    let content = *ScrollContentSizeVar::get(ctx);
-
-                    let available_size = AvailableSize::finite(content);
-                    let offset = self.offset.to_layout(ctx, available_size, PxVector::zero());
+                    let offset = self.offset.to_layout(ctx, available_size, viewport.to_vector());
                     self.offset = Vector::zero();
 
-                    if offset != PxVector::zero() {
-                        let viewport = *ScrollViewportSizeVar::get(ctx);
-                        let max_offset = (content - viewport).to_vector();
-
-                        let offset = max_offset.min(offset);
-
-                        let v_offset = max_offset.y.0 as f32 / offset.y.0 as f32;
-                        let h_offset = max_offset.x.0 as f32 / offset.x.0 as f32;
-
-                        let _ = ScrollVerticalOffsetVar::set(ctx, v_offset);
-                        let _ = ScrollHorizontalOffsetVar::set(ctx, h_offset);
+                    if offset.y != Px(0) {
+                        ScrollContext::scroll_vertical(ctx, offset.y);
+                    }
+                    if offset.x != Px(0) {
+                        ScrollContext::scroll_horizontal(ctx, offset.x);
                     }
                 }
             }
@@ -1205,6 +1213,120 @@ pub mod scrollable {
         /// Latest computed content size of the parent scrollable.
         pub struct ScrollContentSizeVar: PxSize = PxSize::zero();
         pub(super) struct ScrollContentSizeWriteVar: PxSize = PxSize::zero();
+    }
+
+    /// Controls the parent scrollable.
+    pub struct ScrollContext {}
+    impl ScrollContext {
+        /// Offset the vertical position by the given pixel `amount`.
+        pub fn scroll_vertical<Vw: WithVars>(vars: &Vw, amount: Px) {
+            vars.with_vars(|vars| {
+                let viewport = ScrollViewportSizeVar::get(vars).height;
+                let content = ScrollContentSizeVar::get(vars).height;
+
+                let max_scroll = content - viewport;
+
+                if max_scroll <= Px(0) {
+                    return;
+                }
+
+                let curr_scroll = max_scroll * *ScrollVerticalOffsetVar::get(vars);
+                let new_scroll = (curr_scroll + amount).min(max_scroll).max(Px(0));
+
+                if new_scroll != curr_scroll {
+                    let new_offset = new_scroll.0 as f32 / max_scroll.0 as f32;
+
+                    ScrollVerticalOffsetVar::set(vars, new_offset.fct()).unwrap();
+                }
+            })
+        }
+
+        /// Offset the horizontal position by the given pixel `amount`.
+        pub fn scroll_horizontal<Vw: WithVars>(vars: &Vw, amount: Px) {
+            vars.with_vars(|vars| {
+                let viewport = ScrollViewportSizeVar::get(vars).width;
+                let content = ScrollContentSizeVar::get(vars).width;
+
+                let max_scroll = content - viewport;
+
+                if max_scroll <= Px(0) {
+                    return;
+                }
+
+                let curr_scroll = max_scroll * *ScrollHorizontalOffsetVar::get(vars);
+                let new_scroll = (curr_scroll + amount).min(max_scroll).max(Px(0));
+
+                if new_scroll != curr_scroll {
+                    let new_offset = new_scroll.0 as f32 / max_scroll.0 as f32;
+
+                    ScrollHorizontalOffsetVar::set(vars, new_offset.fct()).unwrap();
+                }
+            })
+        }
+
+        /// Returns `true` if the content height is greater then the viewport height.
+        pub fn can_scroll_vertical<Vr: WithVarsRead>(vars: &Vr) -> bool {
+            vars.with_vars_read(|vars| {
+                let viewport = ScrollViewportSizeVar::get(vars).height;
+                let content = ScrollContentSizeVar::get(vars).height;
+
+                content > viewport
+            })
+        }
+
+        /// Returns `true` if the content width is greater then the viewport with.
+        pub fn can_scroll_horizontal<Vr: WithVarsRead>(vars: &Vr) -> bool {
+            vars.with_vars_read(|vars| {
+                let viewport = ScrollViewportSizeVar::get(vars).width;
+                let content = ScrollContentSizeVar::get(vars).width;
+
+                content > viewport
+            })
+        }
+
+        /// Returns `true` if the content height is greater then the viewport height and the vertical offset
+        /// is not at the maximum.
+        pub fn can_scroll_down<Vr: WithVarsRead>(vars: &Vr) -> bool {
+            vars.with_vars_read(|vars| {
+                let viewport = ScrollViewportSizeVar::get(vars).height;
+                let content = ScrollContentSizeVar::get(vars).height;
+
+                content > viewport && 1.fct() > *ScrollVerticalOffsetVar::get(vars)
+            })
+        }
+
+        /// Returns `true` if the content height is greater then the viewport height and the vertical offset
+        /// is not at the minimum.
+        pub fn can_scroll_up<Vr: WithVarsRead>(vars: &Vr) -> bool {
+            vars.with_vars_read(|vars| {
+                let viewport = ScrollViewportSizeVar::get(vars).height;
+                let content = ScrollContentSizeVar::get(vars).height;
+
+                content > viewport && 0.fct() < *ScrollVerticalOffsetVar::get(vars)
+            })
+        }
+
+        /// Returns `true` if the content width is greater then the viewport width and the horizontal offset
+        /// is not at the minimum.
+        pub fn can_scroll_left<Vr: WithVarsRead>(vars: &Vr) -> bool {
+            vars.with_vars_read(|vars| {
+                let viewport = ScrollViewportSizeVar::get(vars).width;
+                let content = ScrollContentSizeVar::get(vars).width;
+
+                content > viewport && 0.fct() < *ScrollHorizontalOffsetVar::get(vars)
+            })
+        }
+
+        /// Returns `true` if the content width is greater then the viewport width and the horizontal offset
+        /// is not at the maximum.
+        pub fn can_scroll_right<Vr: WithVarsRead>(vars: &Vr) -> bool {
+            vars.with_vars_read(|vars| {
+                let viewport = ScrollViewportSizeVar::get(vars).width;
+                let content = ScrollContentSizeVar::get(vars).width;
+
+                content > viewport && 1.fct() > *ScrollHorizontalOffsetVar::get(vars)
+            })
+        }
     }
 }
 
