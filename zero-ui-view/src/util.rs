@@ -1,3 +1,5 @@
+use std::cell::Cell;
+
 use glutin::{event::ElementState, monitor::MonitorHandle};
 use zero_ui_view_api::{
     units::*, ButtonState, CursorIcon, Force, Key, KeyState, ModifiersState, MonitorInfo, MouseButton, MouseScrollDelta, TouchPhase,
@@ -528,6 +530,22 @@ pub(crate) fn v_key_to_key(v_key: VKey) -> Key {
     unsafe { std::mem::transmute(v_key) }
 }
 
+thread_local! {
+    static SUPRESS: Cell<bool>  = Cell::new(false);
+}
+
+/// If `true` our custom panic hook must not log anything.
+pub(crate) fn supress_panic() -> bool {
+    SUPRESS.with(|s| s.get())
+}
+
+/// Like [`std::panic::catch_unwind`], but flags [`supress_panic`] for our custom panic hook.
+pub(crate) fn catch_supress<T>(f: impl FnOnce() -> T + std::panic::UnwindSafe) -> std::thread::Result<T> {
+    SUPRESS.with(|s| s.set(true));
+    let _cleanup = RunOnDrop::new(|| SUPRESS.with(|s| s.set(false)));
+    std::panic::catch_unwind(f)
+}
+
 pub(crate) fn panic_msg(payload: &dyn std::any::Any) -> &str {
     match payload.downcast_ref::<&'static str>() {
         Some(s) => *s,
@@ -535,5 +553,19 @@ pub(crate) fn panic_msg(payload: &dyn std::any::Any) -> &str {
             Some(s) => &s[..],
             None => "Box<dyn Any>",
         },
+    }
+}
+
+struct RunOnDrop<F: FnOnce()>(Option<F>);
+impl<F: FnOnce()> RunOnDrop<F> {
+    pub fn new(clean: F) -> Self {
+        RunOnDrop(Some(clean))
+    }
+}
+impl<F: FnOnce()> Drop for RunOnDrop<F> {
+    fn drop(&mut self) {
+        if let Some(clean) = self.0.take() {
+            clean();
+        }
     }
 }

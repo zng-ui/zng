@@ -7,7 +7,7 @@ fn main() {
     examples_util::print_info();
     zero_ui_view::init();
 
-    // zero_ui_view::run_same_process(app_main);
+    // zero_ui_view::run_same_process(headless_example);
 
     images_render();
     headless_example();

@@ -5,7 +5,7 @@ use std::{
     rc::Rc,
 };
 
-use crate::util::{panic_msg, PxToWinit};
+use crate::util::{self, panic_msg, PxToWinit};
 use gleam::gl::{self, Gl};
 use glutin::{event_loop::EventLoopWindowTarget, window::WindowBuilder, PossiblyCurrent};
 use zero_ui_view_api::{
@@ -348,7 +348,7 @@ impl GlContextManager {
 
                     let _span = tracing::trace_span!("create-glutin-ctx", ?config).entered();
 
-                    let panic_result = std::panic::catch_unwind(assert_unwind_safe(|| {
+                    let panic_result = util::catch_supress(assert_unwind_safe(|| {
                         glutin::ContextBuilder::new()
                             .with_gl(glutin::GlRequest::Latest)
                             .with_hardware_acceleration(config.hardware_acceleration)
@@ -463,7 +463,7 @@ impl GlContextManager {
                         use glutin::platform::unix::HeadlessContextExt;
 
                         let c = context_builder.clone();
-                        let r = std::panic::catch_unwind(assert_unwind_safe(|| c.build_surfaceless(window_target)));
+                        let r = util::catch_supress(assert_unwind_safe(|| c.build_surfaceless(window_target)));
 
                         let mut surfaceless_ok = false;
                         match &r {
@@ -475,7 +475,7 @@ impl GlContextManager {
                         if surfaceless_ok {
                             r
                         } else {
-                            std::panic::catch_unwind(assert_unwind_safe(|| {
+                            util::catch_supress(assert_unwind_safe(|| {
                                 context_builder.build_headless(window_target, size.to_winit())
                             }))
                         }
@@ -488,7 +488,7 @@ impl GlContextManager {
                         target_os = "netbsd",
                         target_os = "openbsd",
                     )))]
-                    let panic_result = std::panic::catch_unwind(assert_unwind_safe(|| {
+                    let panic_result = util::catch_supress(assert_unwind_safe(|| {
                         context_builder.build_headless(window_target, size.to_winit())
                     }));
 
@@ -563,13 +563,13 @@ impl GlContextManager {
     }
 }
 
+// check if equal or newer then 3.1
 fn wr_supports_gl(gl: &dyn Gl) -> bool {
-    let ver: Vec<_> = gl
-        .get_string(gl::VERSION)
-        .split('.')
-        .take(2)
-        .map(|n| n.parse::<u8>().unwrap())
-        .collect();
+    let version = gl.get_string(gl::VERSION);
+
+    // pattern is "\d+(\.\d+)?."
+    // we take the major and optionally minor versions.
+    let ver: Vec<_> = version.split('.').take(2).filter_map(|n| n.parse::<u8>().ok()).collect();
 
     if ver[0] == 3 {
         ver.get(1).copied().unwrap_or(0) >= 1

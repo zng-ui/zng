@@ -282,6 +282,10 @@ fn ffi_abort(info: &std::panic::PanicInfo) {
     panic_hook(info, "note: aborting to avoid unwind across FFI");
 }
 fn panic_hook(info: &std::panic::PanicInfo, details: &str) {
+    if crate::util::supress_panic() {
+        return;
+    }
+
     // see `default_hook` in https://doc.rust-lang.org/src/std/panicking.rs.html#182
 
     let current_thread = std::thread::current();
@@ -301,7 +305,9 @@ fn panic_hook(info: &std::panic::PanicInfo, details: &str) {
         },
     };
 
-    eprintln!("thread '{name}' panicked at '{msg}', {file}:{line}:{column}\n{details}",);
+    let backtrace = backtrace::Backtrace::new();
+
+    eprintln!("thread '{name}' panicked at '{msg}', {file}:{line}:{column}\n {details}\n{backtrace:?}",);
     std::process::exit(101) // Rust panic exit code.
 }
 
