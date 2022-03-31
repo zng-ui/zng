@@ -5,7 +5,7 @@ use std::{
     rc::Rc,
 };
 
-use crate::util::PxToWinit;
+use crate::util::{panic_msg, PxToWinit};
 use gleam::gl::{self, Gl};
 use glutin::{event_loop::EventLoopWindowTarget, window::WindowBuilder, PossiblyCurrent};
 use zero_ui_view_api::{
@@ -348,13 +348,15 @@ impl GlContextManager {
 
                     let _span = tracing::trace_span!("create-glutin-ctx", ?config).entered();
 
-                    let r = glutin::ContextBuilder::new()
-                        .with_gl(glutin::GlRequest::Latest)
-                        .with_hardware_acceleration(config.hardware_acceleration)
-                        .build_windowed(window.clone(), window_target);
+                    let panic_result = std::panic::catch_unwind(assert_unwind_safe(|| {
+                        glutin::ContextBuilder::new()
+                            .with_gl(glutin::GlRequest::Latest)
+                            .with_hardware_acceleration(config.hardware_acceleration)
+                            .build_windowed(window.clone(), window_target)
+                    }));
 
-                    match r {
-                        Ok(c) => {
+                    match panic_result {
+                        Ok(Ok(c)) => {
                             self.current_id.set(None);
 
                             // SAFETY: we assume all glutin context are managed by us in a single thread.
@@ -402,7 +404,8 @@ impl GlContextManager {
 
                             return (ctx, window);
                         }
-                        Err(e) => log_error(&e),
+                        Ok(Err(e)) => log_error(&e),
+                        Err(payload) => log_error(&panic_msg(&payload)),
                     }
                 }
             }
@@ -456,16 +459,26 @@ impl GlContextManager {
                         target_os = "netbsd",
                         target_os = "openbsd",
                     ))]
-                    let r = {
+                    let panic_result = {
                         use glutin::platform::unix::HeadlessContextExt;
 
-                        let mut r = context_builder.clone().build_surfaceless(window_target);
-                        if let Err(e) = r {
-                            log_error(&format!("surfaceless error: {e:?}"));
+                        let c = context_builder.clone();
+                        let r = std::panic::catch_unwind(assert_unwind_safe(|| c.build_surfaceless(window_target)));
 
-                            r = context_builder.build_headless(window_target, size.to_winit());
+                        let mut surfaceless_ok = false;
+                        match &r {
+                            Ok(Ok(_)) => surfaceless_ok = true,
+                            Err(Err(e)) => log_error(&format!("surfaceless error: {e:?}")),
+                            Err(payload) => log_error(&format!("surfaceless panic: {}", panic_msg(&payload))),
                         }
-                        r
+
+                        if surfaceless_ok {
+                            r
+                        } else {
+                            std::panic::catch_unwind(assert_unwind_safe(|| {
+                                context_builder.build_headless(window_target, size.to_winit())
+                            }))
+                        }
                     };
 
                     #[cfg(not(any(
@@ -475,10 +488,12 @@ impl GlContextManager {
                         target_os = "netbsd",
                         target_os = "openbsd",
                     )))]
-                    let r = context_builder.build_headless(window_target, size.to_winit());
+                    let panic_result = std::panic::catch_unwind(assert_unwind_safe(|| {
+                        context_builder.build_headless(window_target, size.to_winit())
+                    }));
 
-                    match r {
-                        Ok(c) => {
+                    match panic_result {
+                        Ok(Ok(c)) => {
                             self.current_id.set(None);
 
                             // SAFETY: we assume all glutin context are managed by us in a single thread.
@@ -520,7 +535,8 @@ impl GlContextManager {
                                 gl,
                             };
                         }
-                        Err(e) => log_error(&e),
+                        Ok(Err(e)) => log_error(&e),
+                        Err(payload) => log_error(&panic_msg(&payload)),
                     }
                 }
             }
@@ -789,4 +805,12 @@ mod blit {
             }
         }
     }
+}
+
+/// Assert that a glutin `&EventLoopWindowTarget` can still be used after a panic during build.
+///
+/// We expect panics to happen before the event loop is modified, they have some `unimplemented!` panics,
+/// at worst we will leak a bit but still fallback to software context, better then becoming unusable?
+fn assert_unwind_safe<T>(glutin_build: T) -> std::panic::AssertUnwindSafe<T> {
+    std::panic::AssertUnwindSafe(glutin_build)
 }

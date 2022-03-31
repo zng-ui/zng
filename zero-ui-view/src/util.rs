@@ -527,3 +527,13 @@ pub(crate) fn v_key_to_key(v_key: VKey) -> Key {
     // SAFETY: If the `match` above compiles then we have an exact copy of VKey.
     unsafe { std::mem::transmute(v_key) }
 }
+
+pub(crate) fn panic_msg(payload: &dyn std::any::Any) -> &str {
+    match payload.downcast_ref::<&'static str>() {
+        Some(s) => *s,
+        None => match payload.downcast_ref::<String>() {
+            Some(s) => &s[..],
+            None => "Box<dyn Any>",
+        },
+    }
+}
