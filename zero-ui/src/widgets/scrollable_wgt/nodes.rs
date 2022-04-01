@@ -71,12 +71,14 @@ pub fn viewport(child: impl UiNode, mode: impl IntoVar<ScrollMode>) -> impl UiNo
             if self.viewport_size != final_size {
                 self.viewport_size = final_size;
                 ScrollViewportSizeWriteVar::set(ctx, final_size).unwrap();
-                self.info.set_viewport(PxRect::new(
-                    widget_layout.global_transform().transform_px_vector(PxVector::zero()).to_point(),
-                    final_size,
-                ));
                 ctx.updates.render();
             }
+            let viewport = PxRect::new(
+                widget_layout.global_transform().transform_px_point(PxPoint::zero()).unwrap_or_default(),
+                final_size,
+            );
+
+            self.info.set_viewport(viewport);
 
             let mode = self.mode.copy(ctx);
             if !mode.contains(ScrollMode::VERTICAL) {
