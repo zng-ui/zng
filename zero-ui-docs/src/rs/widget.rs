@@ -2,7 +2,7 @@ use std::{
     cell::{Cell, RefCell},
     collections::{HashMap, HashSet},
     fs,
-    path::{Path, PathBuf},
+    path::{Path, PathBuf}, borrow::Cow,
 };
 
 use lol_html::html_content::ContentType;
@@ -251,10 +251,19 @@ fn transform_widget_mod_page(file: &Path, html: &str) -> Option<String> {
 
                 let code_inner_html = &copy.captures(&pfn_html).unwrap()[1];
 
-                let after_eq = code_inner_html.split_once('=').unwrap().1;
-                prop_types.push_str(" = ");
-                prop_types.push_str(after_eq.trim_start());
+                if let Some((before_eq, after_eq)) = code_inner_html.split_once('=') {
+                    let valid_prop = Regex::new(r#"^\s*(pub(\(\w+\))?)?\s+\w+\s*$"#).unwrap();
+                    if valid_prop.is_match(before_eq) {
+                        prop_types.push_str(" = ");
+                        prop_types.push_str(after_eq.trim_start());
+                    }
+                }
             }
+        }
+
+        let mut href = Cow::Borrowed(href);
+        if href.contains("fn@") {
+            href = Cow::Owned(format!("#{id}"));
         }
 
         format!(r##"<h3 id="{id}" class="wp-title variant small-section-header" style="overflow-x:visible;"><a href="#{id}" class="anchor field"></a><code style="background-color:transparent;"><a href="{href}">{name}</a>{prop_types}</code></h3>"##)

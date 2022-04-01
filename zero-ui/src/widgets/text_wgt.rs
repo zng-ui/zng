@@ -16,12 +16,12 @@ pub mod properties;
 ///     text = "Hello!";
 /// };
 /// ```
-/// # `text()`
+/// # As Function
 ///
 /// If you don't need to configure the text, you can just use the function [`text`](fn@text).
 #[widget($crate::widgets::text)]
 pub mod text {
-    use super::*;
+    use crate::prelude::new_widget::*;
 
     pub use super::{nodes, properties};
 

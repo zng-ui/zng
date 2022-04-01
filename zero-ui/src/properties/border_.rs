@@ -1,6 +1,6 @@
 use crate::prelude::new_property::*;
 
-#[doc(no_inline)]
+#[doc(inline)]
 pub use crate::core::border::{border_align, corner_radius};
 
 /// Widget border.

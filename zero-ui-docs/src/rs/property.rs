@@ -100,7 +100,7 @@ fn transform_property_decl(pre: &str) -> String {
     let inputs = if capture_only { &inputs[..] } else { &inputs[1..] };
 
     let input = if inputs.len() == 1 {
-        Cow::Borrowed(inputs[0].split_once(':').unwrap().1.trim_end().trim_end_matches("<br>"))
+        Cow::Borrowed(inputs[0].split_once(':').unwrap().1.trim().trim_end_matches("<br>"))
     } else {
         let mut r = "{<br>".to_owned();
         for input in inputs {
