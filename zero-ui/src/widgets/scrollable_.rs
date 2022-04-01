@@ -6,6 +6,7 @@ pub mod scrollable {
     use super::*;
     use bitflags::*;
     use properties::*;
+    use std::{cell::Cell, rc::Rc};
 
     #[doc(inline)]
     pub use super::scrollbar;
@@ -210,16 +211,16 @@ pub mod scrollable {
     /// Commands that control the scoped scrollable widget.
     ///
     /// The scrollable widget implements all of this commands scoped to its widget ID.
-    /// 
+    ///
     /// # Duplicate Shortcuts
-    /// 
+    ///
     /// Some commands like [`ScrollToTopCommand`] and [`ScrollToLeftmostCommand`] have duplicate shortcuts,
-    /// with the command operating on the horizontal axis having and extra alternate shortcut. Command 
+    /// with the command operating on the horizontal axis having and extra alternate shortcut. Command
     /// implementers must handle the vertical axis commands first and then handle the
     /// horizontal axis commands, this way if the content only scrolls on the horizontal axis the primary
     /// shortcuts still work, but if the content scrolls in both axis the primary shortcuts operate the
     /// vertical scrolling and the alternate shortcuts operate the horizontal scrolling.
-    /// 
+    ///
     /// [`ScrollToTopCommand`]: crate::widgets::scrollable::commands::ScrollToTopCommand
     /// [`ScrollToLeftmostCommand`]: crate::widgets::scrollable::commands::ScrollToLeftmostCommand
     pub mod commands {
@@ -821,10 +822,17 @@ pub mod scrollable {
 
                 viewport_size: PxSize,
                 content_size: PxSize,
-                content_offset: PxPoint,
+                content_offset: PxVector,
+
+                info: ScrollableInfo,
             }
             #[impl_ui_node(child)]
             impl<C: UiNode, M: Var<ScrollMode>> UiNode for ViewportNode<C, M> {
+                fn info(&self, ctx: &mut InfoContext, builder: &mut WidgetInfoBuilder) {
+                    builder.meta().set(ScrollableInfoKey, self.info.clone());
+                    self.child.info(ctx, builder);
+                }
+
                 fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
                     subscriptions
                         .vars(ctx)
@@ -869,6 +877,7 @@ pub mod scrollable {
                     if self.viewport_size != final_size {
                         self.viewport_size = final_size;
                         ScrollViewportSizeWriteVar::set(ctx, final_size).unwrap();
+                        self.info.0.viewport.set(PxRect::from_size(final_size)); // TODO offset
                         ctx.updates.render();
                     }
 
@@ -880,13 +889,15 @@ pub mod scrollable {
                         self.content_size.width = final_size.width;
                     }
 
-                    self.child.arrange(ctx, widget_layout, self.content_size);
-
                     let mut content_offset = self.content_offset;
                     let v_offset = *ScrollVerticalOffsetVar::get(ctx.vars);
                     content_offset.y = (self.viewport_size.height - self.content_size.height) * v_offset;
                     let h_offset = *ScrollHorizontalOffsetVar::get(ctx.vars);
                     content_offset.x = (self.viewport_size.width - self.content_size.width) * h_offset;
+
+                    widget_layout.with_custom_transform(&RenderTransform::translation_px(content_offset), |wl| {
+                        self.child.arrange(ctx, wl, self.content_size);
+                    });
 
                     if self.content_offset != content_offset {
                         self.content_offset = content_offset;
@@ -905,7 +916,7 @@ pub mod scrollable {
                     frame.push_scroll_frame(
                         self.scroll_id,
                         self.viewport_size,
-                        PxRect::new(self.content_offset, self.content_size),
+                        PxRect::new(self.content_offset.to_point(), self.content_size),
                         |frame| {
                             self.child.render(ctx, frame);
                         },
@@ -913,7 +924,7 @@ pub mod scrollable {
                 }
 
                 fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
-                    update.update_scroll(self.scroll_id, self.content_offset.to_vector());
+                    update.update_scroll(self.scroll_id, self.content_offset);
                     self.child.render_update(ctx, update);
                 }
             }
@@ -923,7 +934,8 @@ pub mod scrollable {
                 mode: mode.into_var(),
                 viewport_size: PxSize::zero(),
                 content_size: PxSize::zero(),
-                content_offset: PxPoint::zero(),
+                content_offset: PxVector::zero(),
+                info: ScrollableInfo::default(),
             }
         }
 
@@ -1315,6 +1327,7 @@ pub mod scrollable {
                 child: C,
 
                 handle: CommandHandle,
+                scroll_to: Option<(WidgetLayoutInfo, ScrollToMode)>,
             }
             #[impl_ui_node(child)]
             impl<C: UiNode> UiNode for ScrollToCommandNode<C> {
@@ -1334,13 +1347,70 @@ pub mod scrollable {
                 }
 
                 fn event<A: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &A) {
-                    if let Some(args) = ScrollToCommand.scoped(ctx.path.widget_id()).update(args) {
-                        if let Some(_request) = ScrollToRequest::from_args(args) {
-                            // TODO
+                    let self_id = ctx.path.widget_id();
+                    if let Some(args) = ScrollToCommand.scoped(self_id).update(args) {
+                        // event send to us
+                        if let Some(request) = ScrollToRequest::from_args(args) {
+                            // has unhandled request
+                            if let Some(target) = ctx.info_tree.find(request.widget_id) {
+                                // target exists
+                                if let Some(us) = target.ancestors().find(|w| w.widget_id() == self_id) {
+                                    // target is descendant
+                                    if us.is_scrollable() {
+                                        // we are a scrollable.
+
+                                        let target = target.inner_info();
+                                        let mode = request.mode;
+
+                                        // will scroll on the next arrange.
+                                        self.scroll_to = Some((target, mode));
+                                        ctx.updates.layout();
+
+                                        args.stop_propagation();
+                                    }
+                                }
+                            }
                         }
                         self.child.event(ctx, args);
                     } else {
                         self.child.event(ctx, args);
+                    }
+                }
+
+                fn arrange(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, final_size: PxSize) {
+                    self.child.arrange(ctx, widget_layout, final_size);
+
+                    if let Some((target, mode)) = self.scroll_to.take() {
+                        let us = ctx.info_tree.find(ctx.path.widget_id()).unwrap();
+                        if let Some(viewport_bounds) = us.viewport() {
+                            let target_bounds = target.bounds();
+                            match mode {
+                                ScrollToMode::Minimal { margin } => {
+                                    let margin = margin.to_layout(ctx, AvailableSize::from_size(target_bounds.size), PxSideOffsets::zero());
+
+                                    todo!()
+                                }
+                                ScrollToMode::Center {
+                                    widget_point,
+                                    scrollable_point,
+                                } => {
+                                    let default = (target_bounds.size / Px(2)).to_vector().to_point();
+                                    let widget_point = widget_point.to_layout(ctx, AvailableSize::from_size(target_bounds.size), default);
+
+                                    let default = (viewport_bounds.size / Px(2)).to_vector().to_point();
+                                    let scrollable_point =
+                                        scrollable_point.to_layout(ctx, AvailableSize::from_size(viewport_bounds.size), default);
+
+                                    let widget_point = widget_point + target_bounds.origin.to_vector();
+                                    let scrollable_point = scrollable_point + viewport_bounds.origin.to_vector();
+
+                                    let diff = widget_point - scrollable_point;
+
+                                    ScrollContext::scroll_vertical(ctx, diff.y);
+                                    ScrollContext::scroll_horizontal(ctx, diff.x);
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -1349,6 +1419,7 @@ pub mod scrollable {
                 child,
 
                 handle: CommandHandle::dummy(),
+                scroll_to: None,
             }
         }
     }
@@ -1528,6 +1599,54 @@ pub mod scrollable {
                 content > viewport && 1.fct() > *ScrollHorizontalOffsetVar::get(vars)
             })
         }
+    }
+
+    /// Scrollable extensions for [`WidgetInfo`].
+    pub trait WidgetInfoExt {
+        /// Returns `true` if the widget is a [`scrollable!`].
+        #[allow(clippy::wrong_self_convention)] // WidgetInfo is a reference.
+        fn is_scrollable(self) -> bool;
+
+        /// Returns a reference to the viewport bounds if the widget is a [`scrollable!`].
+        fn scrollable_info(self) -> Option<ScrollableInfo>;
+
+        /// Gets the viewport bounds relative to the scrollable widget inner bounds.
+        ///
+        /// The value is updated every layout, without requiring an info rebuild.
+        fn viewport(self) -> Option<PxRect>;
+    }
+    impl<'a> WidgetInfoExt for WidgetInfo<'a> {
+        fn is_scrollable(self) -> bool {
+            self.meta().get(ScrollableInfoKey).is_some()
+        }
+
+        fn scrollable_info(self) -> Option<ScrollableInfo> {
+            self.meta().get(ScrollableInfoKey).cloned()
+        }
+
+        fn viewport(self) -> Option<PxRect> {
+            self.meta().get(ScrollableInfoKey).map(|r| r.viewport())
+        }
+    }
+
+    #[derive(Debug, Default)]
+    struct ScrollableData {
+        viewport: Cell<PxRect>,
+    }
+
+    /// Shared reference to the viewport bounds of a scrollable.
+    #[derive(Clone, Default, Debug)]
+    pub struct ScrollableInfo(Rc<ScrollableData>);
+    impl ScrollableInfo {
+        /// Gets the viewport bounds relative to the scrollable inner-bounds.
+        #[inline]
+        pub fn viewport(&self) -> PxRect {
+            self.0.viewport.get()
+        }
+    }
+
+    state_key! {
+        struct ScrollableInfoKey: ScrollableInfo;
     }
 }
 

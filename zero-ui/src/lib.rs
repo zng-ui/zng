@@ -1099,7 +1099,9 @@ pub mod prelude {
             },
             widget,
             widget_base::{implicit_base, HitTestMode, Visibility},
-            widget_info::{WidgetBorderInfo, WidgetInfoBuilder, WidgetLayout, WidgetLayoutInfo, WidgetRenderInfo, WidgetSubscriptions},
+            widget_info::{
+                WidgetBorderInfo, WidgetInfo, WidgetInfoBuilder, WidgetLayout, WidgetLayoutInfo, WidgetRenderInfo, WidgetSubscriptions,
+            },
             widget_mixin, widget_vec, widgets, BoxedUiNode, BoxedWidget, FillUiNode, UiNode, Widget, WidgetId,
         };
         #[doc(no_inline)]

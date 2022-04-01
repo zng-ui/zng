@@ -297,13 +297,7 @@ fn panic_hook(info: &std::panic::PanicInfo, details: &str) {
         ("<unknown>", 0, 0)
     };
 
-    let msg = match info.payload().downcast_ref::<&'static str>() {
-        Some(s) => *s,
-        None => match info.payload().downcast_ref::<String>() {
-            Some(s) => &s[..],
-            None => "Box<dyn Any>",
-        },
-    };
+    let msg = util::panic_msg(info.payload());
 
     let backtrace = backtrace::Backtrace::new();
 
