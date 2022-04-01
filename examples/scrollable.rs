@@ -77,7 +77,7 @@ fn commands() -> impl Widget {
                     cmd_btn(ScrollToLeftmostCommand),
                     cmd_btn(ScrollToRightmostCommand),
                     separator(),
-                    scroll_to_btn(WidgetId::named("Lorem 1"), ScrollToMode::minimal(10)),
+                    scroll_to_btn(WidgetId::named("Lorem 2"), ScrollToMode::minimal(10)),
                     scroll_to_btn(WidgetId::named("Lorem 2"), ScrollToMode::center()),
                     separator(),
                 ]
@@ -110,7 +110,7 @@ fn scroll_to_btn(target: WidgetId, mode: ScrollToMode) -> impl Widget {
     let scrollable = WidgetId::named("scrollable");
     let cmd = commands::ScrollToCommand.scoped(scrollable);
     button! {
-        content = text(formatx!("Scroll To {}", target));
+        content = text(formatx!("Scroll To {} {}", target, if let ScrollToMode::Minimal{..} = &mode { "(minimal)" } else { "(center)" }));
         enabled = cmd.enabled();
         on_click = hn!(|ctx, _| {
             commands::scroll_to(ctx, scrollable, target, mode.clone());

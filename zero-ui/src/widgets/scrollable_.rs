@@ -1387,8 +1387,42 @@ pub mod scrollable {
                             match mode {
                                 ScrollToMode::Minimal { margin } => {
                                     let margin = margin.to_layout(ctx, AvailableSize::from_size(target_bounds.size), PxSideOffsets::zero());
+                                    let mut target_bounds = target_bounds;
+                                    target_bounds.origin.x -= margin.left;
+                                    target_bounds.origin.y -= margin.top;
+                                    target_bounds.size.width += margin.horizontal();
+                                    target_bounds.size.height += margin.vertical();
 
-                                    todo!()
+                                    if target_bounds.size.width < viewport_bounds.size.width {
+                                        if target_bounds.origin.x < viewport_bounds.origin.x {
+                                            let diff = target_bounds.origin.x - viewport_bounds.origin.x;
+                                            ScrollContext::scroll_horizontal(ctx, diff);
+                                        } else if target_bounds.max_x() > viewport_bounds.max_x() {
+                                            let diff = target_bounds.max_x() - viewport_bounds.max_x();
+                                            ScrollContext::scroll_horizontal(ctx, diff);
+                                        }
+                                    } else {
+                                        let target_center_x = (target_bounds.size.width / Px(2)) + target_bounds.origin.x;
+                                        let viewport_center_x = (target_bounds.size.width / Px(2)) + viewport_bounds.origin.x;
+
+                                        let diff = target_center_x - viewport_center_x;
+                                        ScrollContext::scroll_horizontal(ctx, diff);
+                                    }
+                                    if target_bounds.size.height < viewport_bounds.size.height {
+                                        if target_bounds.origin.y < viewport_bounds.origin.y {
+                                            let diff = target_bounds.origin.y - viewport_bounds.origin.y;
+                                            ScrollContext::scroll_vertical(ctx, diff);
+                                        } else if target_bounds.max_y() > viewport_bounds.max_y() {
+                                            let diff = target_bounds.max_y() - viewport_bounds.max_y();
+                                            ScrollContext::scroll_vertical(ctx, diff);
+                                        }
+                                    } else {
+                                        let target_center_y = (target_bounds.size.height / Px(2)) + target_bounds.origin.y;
+                                        let viewport_center_y = (target_bounds.size.height / Px(2)) + viewport_bounds.origin.y;
+
+                                        let diff = target_center_y - viewport_center_y;
+                                        ScrollContext::scroll_vertical(ctx, diff);
+                                    }
                                 }
                                 ScrollToMode::Center {
                                     widget_point,
@@ -1402,7 +1436,7 @@ pub mod scrollable {
                                         scrollable_point.to_layout(ctx, AvailableSize::from_size(viewport_bounds.size), default);
 
                                     let widget_point = widget_point + target_bounds.origin.to_vector();
-                                    let scrollable_point = scrollable_point + viewport_bounds.origin.to_vector();
+                                    let scrollable_point = scrollable_point + viewport_bounds.origin.to_vector(); // TODO origin non-zero?
 
                                     let diff = widget_point - scrollable_point;
 
