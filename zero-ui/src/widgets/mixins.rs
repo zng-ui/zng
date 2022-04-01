@@ -1,4 +1,4 @@
 //! Widget mix-ins.
 
-mod focusable_;
-pub use focusable_::*;
+mod focusable;
+pub use focusable::focusable_mixin;

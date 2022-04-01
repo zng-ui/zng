@@ -4,35 +4,57 @@ pub mod inspector;
 pub mod layouts;
 pub mod mixins;
 
-mod button_;
-mod checkerboard_;
-mod container_;
-mod fill_color;
-mod gradient;
-mod image_;
-mod line_;
-mod scrollable_;
-mod slot_;
-mod switch_;
-mod text_;
-mod ui_n;
-mod view_;
-mod window_;
+mod button_wgt;
+#[doc(inline)]
+pub use button_wgt::button;
 
-pub use button_::*;
-pub use checkerboard_::*;
-pub use container_::*;
-pub use fill_color::*;
-pub use gradient::*;
-pub use image_::*;
-pub use line_::*;
-pub use scrollable_::*;
-pub use slot_::*;
-pub use switch_::*;
-pub use text_::*;
-pub use ui_n::*;
-pub use view_::*;
-pub use window_::*;
+mod checkerboard_wgt;
+#[doc(inline)]
+pub use checkerboard_wgt::checkerboard;
+
+mod container_wgt;
+#[doc(inline)]
+pub use container_wgt::container;
+
+mod fill_color;
+#[doc(inline)]
+pub use fill_color::fill_color;
+
+mod gradient;
+#[doc(inline)]
+pub use gradient::{linear_gradient, linear_gradient_ext, linear_gradient_full, reflecting_linear_gradient, repeating_linear_gradient};
+
+mod image_wgt;
+#[doc(inline)]
+pub use image_wgt::image;
+
+mod rule_line_wgt;
+#[doc(inline)]
+pub use rule_line_wgt::{hr, rule_line};
+
+mod scrollable_wgt;
+#[doc(inline)]
+pub use scrollable_wgt::scrollable;
+
+mod slot_wgt;
+#[doc(inline)]
+pub use slot_wgt::slot;
+
+mod switch_wgt;
+#[doc(inline)]
+pub use switch_wgt::switch;
+
+mod text_wgt;
+#[doc(inline)]
+pub use text_wgt::{em, strong, text};
+
+mod view;
+#[doc(inline)]
+pub use view::*;
+
+mod window_wgt;
+#[doc(inline)]
+pub use window_wgt::window;
 
 /// A widget with only the implicit properties.
 ///

@@ -2,7 +2,7 @@ use std::cell::Cell;
 
 use crate::prelude::new_widget::*;
 
-/// Fill the widget area with a color.
+/// Node that fills the widget area with a color.
 pub fn fill_color(color: impl IntoVar<Rgba>) -> impl UiNode {
     struct FillColorNode<C> {
         color: C,

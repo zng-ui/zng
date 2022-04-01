@@ -420,7 +420,7 @@ fn section(header: &'static str, items: impl WidgetList) -> impl Widget {
 }
 
 fn separator() -> impl Widget {
-    line_w! {
+    hr! {
         color = rgba(1.0, 1.0, 1.0, 0.2);
         margin = (0, 8);
         style = LineStyle::Dashed;

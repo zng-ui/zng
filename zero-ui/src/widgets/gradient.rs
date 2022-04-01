@@ -1,24 +1,24 @@
 use crate::core::gradient::*;
 use crate::prelude::new_widget::*;
 
-/// Linear gradient with a line defined by angle or points.
+/// Node that fills the widget area with a linear gradient defined by angle or points.
 ///
 /// The extend mode is [`Clamp`](ExtendMode::Clamp).
 pub fn linear_gradient(axis: impl IntoVar<LinearGradientAxis>, stops: impl IntoVar<GradientStops>) -> impl UiNode {
     linear_gradient_ext(axis, stops, ExtendMode::Clamp)
 }
 
-/// Linear gradient with extend mode [`Repeat`](ExtendMode::Repeat).
+/// Node that fills the widget area with a linear gradient with extend mode [`Repeat`](ExtendMode::Repeat).
 pub fn repeating_linear_gradient(axis: impl IntoVar<LinearGradientAxis>, stops: impl IntoVar<GradientStops>) -> impl UiNode {
     linear_gradient_ext(axis, stops, ExtendMode::Repeat)
 }
 
-/// Linear gradient with extend mode [`Reflect`](ExtendMode::Reflect).
+/// Node that fills the widget area with a Linear gradient with extend mode [`Reflect`](ExtendMode::Reflect).
 pub fn reflecting_linear_gradient(axis: impl IntoVar<LinearGradientAxis>, stops: impl IntoVar<GradientStops>) -> impl UiNode {
     linear_gradient_ext(axis, stops, ExtendMode::Reflect)
 }
 
-/// Linear gradient with extend mode configurable.
+/// Node that fills the widget area with a linear gradient with extend mode configurable.
 pub fn linear_gradient_ext(
     axis: impl IntoVar<LinearGradientAxis>,
     stops: impl IntoVar<GradientStops>,
@@ -27,7 +27,7 @@ pub fn linear_gradient_ext(
     LinearGradientNode::new(axis.into_var(), stops.into_var(), extend_mode.into_var())
 }
 
-/// Linear gradient with all features configurable.
+/// Node that fills the widget area with a Linear gradient with all features configurable.
 pub fn linear_gradient_full(
     axis: impl IntoVar<LinearGradientAxis>,
     stops: impl IntoVar<GradientStops>,
