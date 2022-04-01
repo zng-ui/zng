@@ -264,6 +264,12 @@ impl WidgetLayout {
         transform
     }
 
+    /// Current applied transform in the window space.
+    #[inline]
+    pub fn global_transform(&self) -> RenderTransform {
+        self.global_transform
+    }
+
     /// Current accumulated border offsets.
     #[inline]
     pub fn border_offsets(&self) -> PxSideOffsets {

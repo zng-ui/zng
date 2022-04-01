@@ -877,7 +877,10 @@ pub mod scrollable {
                     if self.viewport_size != final_size {
                         self.viewport_size = final_size;
                         ScrollViewportSizeWriteVar::set(ctx, final_size).unwrap();
-                        self.info.0.viewport.set(PxRect::from_size(final_size)); // TODO offset
+                        self.info.0.viewport.set(PxRect::new(
+                            widget_layout.global_transform().transform_px_vector(PxVector::zero()).to_point(),
+                            final_size,
+                        ));
                         ctx.updates.render();
                     }
 
@@ -1672,7 +1675,7 @@ pub mod scrollable {
     #[derive(Clone, Default, Debug)]
     pub struct ScrollableInfo(Rc<ScrollableData>);
     impl ScrollableInfo {
-        /// Gets the viewport bounds relative to the scrollable inner-bounds.
+        /// Gets the viewport bounds in the window space.
         #[inline]
         pub fn viewport(&self) -> PxRect {
             self.0.viewport.get()
