@@ -1005,9 +1005,7 @@ impl<E: AppExtension> RunningApp<E> {
                 delta,
                 phase,
             } => {
-                // TODO
-                let _ = (delta, phase);
-                let args = RawMouseWheelArgs::now(window_id(w_id), self.device_id(d_id));
+                let args = RawMouseWheelArgs::now(window_id(w_id), self.device_id(d_id), delta, phase);
                 self.notify_event(RawMouseWheelEvent, args, observer);
             }
             Event::MouseInput {

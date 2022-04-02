@@ -134,4 +134,24 @@ event_property! {
         event: MouseCaptureEvent,
         args: MouseCaptureArgs,
     }
+
+    /// Mouse wheel scrolled while pointer hovering widget.
+    pub fn mouse_wheel {
+        event: MouseWheelEvent,
+        args: MouseWheelArgs,
+    }
+
+    /// Mouse wheel scrolled while pointer hovering widget and modifers all scroll operation.
+    pub fn mouse_scroll {
+        event: MouseWheelEvent,
+        args: MouseWheelArgs,
+        filter: |ctx, args| args.is_scroll() && args.concerns_widget(ctx)
+    }
+
+    /// Mouse wheel scrolled while pointer hovering widget and modifers all zoom operation.
+    pub fn mouse_zoom {
+        event: MouseWheelEvent,
+        args: MouseWheelArgs,
+        filter: |ctx, args| args.is_zoom() && args.concerns_widget(ctx)
+    }
 }

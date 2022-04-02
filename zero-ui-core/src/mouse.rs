@@ -21,7 +21,7 @@ use crate::{
 };
 use std::{fmt, mem, num::NonZeroU8, time::*};
 
-pub use zero_ui_view_api::{ButtonState, MouseButton, MultiClickConfig};
+pub use zero_ui_view_api::{ButtonState, MouseButton, MouseScrollDelta, MultiClickConfig, TouchPhase};
 
 event_args! {
     /// [`MouseMoveEvent`] event args.
@@ -234,6 +234,41 @@ event_args! {
                 }
             }
             false
+        }
+    }
+
+    /// [`MouseWheelEvent`] arguments.
+    pub struct MouseWheelArgs {
+        /// Id of window that received the event.
+        pub window_id: WindowId,
+        /// Id of device that generated the event.
+        pub device_id: DeviceId,
+
+        /// Position of the mouse in the coordinates of [`target`](MouseWheelArgs::target).
+        pub position: DipPoint,
+         /// What modifier keys where pressed when this event happened.
+        pub modifiers: ModifiersState,
+
+        /// Wheel motion delta, value is in pixels if the *wheel* is a touchpad.
+        pub delta: MouseScrollDelta,
+
+        /// Touch state if the device that generated the event is a touchpad.
+        pub phase: TouchPhase,
+
+        /// Hit-test result for the mouse point in the window, at the moment the wheel event
+        /// was generated.
+        pub hits: FrameHitInfo,
+        /// Full path to the widget that got scrolled.
+        pub target: WidgetPath,
+
+        ..
+
+        /// If the widget is in [`target`] and is interactive.
+        ///
+        /// [`target`]: MouseWheelArgs::target
+        fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
+            self.target.contains(ctx.path.widget_id())
+            && ctx.info_tree.find(ctx.path.widget_id()).map(|w|w.allow_interaction()).unwrap_or(false)
         }
     }
 }
@@ -459,6 +494,86 @@ impl MouseCaptureArgs {
     }
 }
 
+impl MouseWheelArgs {
+    /// Swaps the delta axis if [`modifiers`] contains `SHIFT`.
+    ///
+    /// [`modifiers`]: Self::modifiers
+    pub fn shifted_delta(&self) -> MouseScrollDelta {
+        if self.modifiers.shift() {
+            match self.delta {
+                MouseScrollDelta::LineDelta(x, y) => MouseScrollDelta::LineDelta(y, x),
+                MouseScrollDelta::PixelDelta(x, y) => MouseScrollDelta::PixelDelta(y, x),
+            }
+        } else {
+            self.delta
+        }
+    }
+
+    /// If the modifiers allow the event to be used for scrolling.
+    ///
+    /// Is `true` if only `SHIFT`, `ALT` or none modifiers are pressed. If `true` the
+    /// [`scroll_delta`] method returns a value.
+    ///
+    /// [`scroll_delta`]: Self::scroll_delta
+    pub fn is_scroll(&self) -> bool {
+        self.modifiers.is_empty()
+            || self.modifiers == ModifiersState::SHIFT
+            || self.modifiers == ModifiersState::ALT
+            || self.modifiers == ModifiersState::SHIFT | ModifiersState::ALT
+    }
+
+    /// Returns the delta for a scrolling operation, depending on the [`modifiers`].
+    ///
+    /// If `ALT` is pressed scales the delta by `alt_factor`, then, if no more modifers are pressed returns
+    /// the scaled delta, if only `SHIFT` is pressed returns the swapped delta, otherwise returns `None`.
+    ///
+    /// [`modifiers`]: Self::modifiers
+    pub fn scroll_delta(&self, alt_factor: impl Into<Factor>) -> Option<MouseScrollDelta> {
+        let mut modifiers = self.modifiers;
+        let mut delta = self.delta;
+        if modifiers.take_alt() {
+            let alt_factor = alt_factor.into();
+            delta = match delta {
+                MouseScrollDelta::LineDelta(x, y) => MouseScrollDelta::LineDelta(x * alt_factor.0, y * alt_factor.0),
+                MouseScrollDelta::PixelDelta(x, y) => MouseScrollDelta::PixelDelta(x * alt_factor.0, y * alt_factor.0),
+            };
+        }
+
+        if modifiers.is_empty() {
+            Some(delta)
+        } else if modifiers == ModifiersState::SHIFT {
+            Some(match delta {
+                MouseScrollDelta::LineDelta(x, y) => MouseScrollDelta::LineDelta(y, x),
+                MouseScrollDelta::PixelDelta(x, y) => MouseScrollDelta::PixelDelta(y, x),
+            })
+        } else {
+            None
+        }
+    }
+
+    /// If the modifiers allow the event to be used for zooming.
+    ///
+    /// Is `true` if only `CTRL` is pressed.  If `true` the [`zoom_delta`] method returns a value.
+    ///
+    /// [`zoom_delta`]: Self::zoom_delta
+    pub fn is_zoom(&self) -> bool {
+        self.modifiers == ModifiersState::CTRL
+    }
+
+    /// Returns the delta for a zoom-in/out operation, depending on the [`modifiers`].
+    ///
+    /// If only `CTRL` is pressed returns the delta, otherwise returns `None`.
+    ///
+    /// [`modifiers`]: Self::modifiers
+    pub fn zoom_delta(&self) -> Option<MouseScrollDelta> {
+        if self.modifiers == ModifiersState::CTRL {
+            Some(self.delta)
+        } else {
+            None
+        }
+    }
+}
+
 event! {
     /// Mouse move event.
     pub MouseMoveEvent: MouseMoveArgs;
@@ -474,6 +589,9 @@ event! {
 
     /// Mouse capture changed event.
     pub MouseCaptureEvent: MouseCaptureArgs;
+
+    /// Mouse wheel scroll event.
+    pub MouseWheelEvent: MouseWheelArgs;
 }
 
 /// Application extension that provides mouse events and service.
@@ -816,6 +934,28 @@ impl MouseManager {
         self.pos_hits = hits_res;
     }
 
+    fn on_scroll(&self, window_id: WindowId, device_id: DeviceId, delta: MouseScrollDelta, phase: TouchPhase, ctx: &mut AppContext) {
+        let position = if self.pos_window == Some(window_id) {
+            self.pos
+        } else {
+            DipPoint::default()
+        };
+
+        let windows = ctx.services.windows();
+
+        let hits = FrameHitInfo::new(window_id, self.pos_hits.0, self.pos_hits.1, &self.pos_hits.2);
+
+        let frame_info = windows.widget_tree(window_id).unwrap();
+
+        let target = hits
+            .target()
+            .and_then(|t| frame_info.find(t.widget_id).map(|w| w.path()))
+            .unwrap_or_else(|| frame_info.root().path());
+
+        let args = MouseWheelArgs::now(window_id, device_id, position, self.modifiers, delta, phase, hits, target);
+        MouseWheelEvent.notify(ctx.events, args);
+    }
+
     fn capture_info(&self, mouse: &mut Mouse) -> Option<CaptureInfo> {
         if let Some((path, mode)) = mouse.current_capture() {
             Some(CaptureInfo {
@@ -903,8 +1043,7 @@ impl AppExtension for MouseManager {
                     mouse.continue_capture(frame, ctx.events);
                 }
             }
-        }
-        if let Some(args) = RawCursorMovedEvent.update(args) {
+        } else if let Some(args) = RawCursorMovedEvent.update(args) {
             self.on_cursor_moved(
                 args.window_id,
                 args.device_id,
@@ -913,6 +1052,8 @@ impl AppExtension for MouseManager {
                 args.hits.clone(),
                 ctx,
             );
+        } else if let Some(args) = RawMouseWheelEvent.update(args) {
+            self.on_scroll(args.window_id, args.device_id, args.delta, args.phase, ctx);
         } else if let Some(args) = RawMouseInputEvent.update(args) {
             self.on_mouse_input(args.window_id, args.device_id, args.state, args.button, ctx);
         } else if let Some(args) = RawModifiersChangedEvent.update(args) {

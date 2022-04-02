@@ -27,7 +27,7 @@ use super::{
 use crate::{
     event::*,
     keyboard::{Key, KeyState, ModifiersState, ScanCode},
-    mouse::{ButtonState, MouseButton, MultiClickConfig},
+    mouse::{ButtonState, MouseButton, MouseScrollDelta, MultiClickConfig, TouchPhase},
     render::FrameId,
     units::{DipPoint, DipSize, Factor, PxPoint, PxRect},
     window::{EventCause, MonitorId, WindowId, WindowTheme},
@@ -301,7 +301,11 @@ event_args! {
         /// Device that generated this event.
         pub device_id: DeviceId,
 
-        // TODO
+        /// Wheel motion delta, value is in pixels if the *wheel* is a touchpad.
+        pub delta: MouseScrollDelta,
+
+        /// Touch state if the device that generated the event is a touchpad.
+        pub phase: TouchPhase,
 
         ..
 

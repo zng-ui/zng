@@ -151,20 +151,57 @@ bitflags! {
 }
 impl ModifiersState {
     /// Returns `true` if the shift key is pressed.
+    #[inline]
     pub fn shift(&self) -> bool {
         self.intersects(Self::SHIFT)
     }
     /// Returns `true` if the control key is pressed.
+    #[inline]
     pub fn ctrl(&self) -> bool {
         self.intersects(Self::CTRL)
     }
     /// Returns `true` if the alt key is pressed.
+    #[inline]
     pub fn alt(&self) -> bool {
         self.intersects(Self::ALT)
     }
     /// Returns `true` if the logo key is pressed.
+    #[inline]
     pub fn logo(&self) -> bool {
         self.intersects(Self::LOGO)
+    }
+
+    /// Removes `part` and returns if it was removed.
+    pub fn take(&mut self, part: ModifiersState) -> bool {
+        let r = self.intersects(part);
+        if r {
+            self.remove(part);
+        }
+        r
+    }
+
+    /// Removes `SHIFT` and returns if it was removed.
+    #[inline]
+    pub fn take_shift(&mut self) -> bool {
+        self.take(ModifiersState::SHIFT)
+    }
+
+    /// Removes `CTRL` and returns if it was removed.
+    #[inline]
+    pub fn take_ctrl(&mut self) -> bool {
+        self.take(ModifiersState::CTRL)
+    }
+
+    /// Removes `ALT` and returns if it was removed.
+    #[inline]
+    pub fn take_alt(&mut self) -> bool {
+        self.take(ModifiersState::ALT)
+    }
+
+    /// Removes `LOGO` and returns if it was removed.
+    #[inline]
+    pub fn take_logo(&mut self) -> bool {
+        self.take(ModifiersState::LOGO)
     }
 }
 

@@ -10,11 +10,11 @@ use super::DeviceId;
 use crate::{
     event::*,
     keyboard::{Key, KeyState, ScanCode},
-    mouse::ButtonState,
+    mouse::{ButtonState, MouseScrollDelta},
 };
 
 use zero_ui_view_api::webrender_api::euclid;
-pub use zero_ui_view_api::{AxisId, ButtonId, MouseScrollDelta};
+pub use zero_ui_view_api::{AxisId, ButtonId};
 
 event_args! {
     /// Arguments for [`DeviceAddedEvent`] and [`DeviceRemovedEvent`].
@@ -51,7 +51,7 @@ event_args! {
         /// Mouse device that generated the event.
         pub device_id: DeviceId,
 
-        /// Wheel motion delta, value be in pixels if the *wheel* is a touchpad.
+        /// Wheel motion delta, value is in pixels if the *wheel* is a touchpad.
         pub delta: MouseScrollDelta,
 
         ..

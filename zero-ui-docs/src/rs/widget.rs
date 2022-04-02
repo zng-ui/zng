@@ -1,8 +1,9 @@
 use std::{
+    borrow::Cow,
     cell::{Cell, RefCell},
     collections::{HashMap, HashSet},
     fs,
-    path::{Path, PathBuf}, borrow::Cow,
+    path::{Path, PathBuf},
 };
 
 use lol_html::html_content::ContentType;

@@ -55,13 +55,13 @@ pub mod scrollable {
 
         /// Horizontal and vertical offsets used when scrolling.
         ///
-        /// This property sets the [`h_scroll_unit`] and [`v_scroll_unit`].
+        /// This property sets the [`h_line_unit`] and [`v_line_unit`].
         ///
-        /// [`h_scroll_unit`]: #wp-h_scroll_unit
-        /// [`v_scroll_unit`]: #wp-v_scroll_unit
-        scroll_units;
-        h_scroll_unit;
-        v_scroll_unit;
+        /// [`h_line_unit`]: #wp-h_line_unit
+        /// [`v_line_unit`]: #wp-v_line_unit
+        line_units;
+        h_line_unit;
+        v_line_unit;
 
         /// Horizontal and vertical offsets used when page-scrolling.
         ///
@@ -72,6 +72,11 @@ pub mod scrollable {
         page_units;
         h_page_unit;
         v_page_unit;
+
+        /// Scroll unit multiplier used when alternate scrolling.
+        ///
+        /// This value is used, for example, when `ALT` is pressed during an scroll-wheel event,
+        alt_factor;
 
         /// Clip content to only be visible within the scrollable bounds, including under scrollbars.
         ///
@@ -197,6 +202,7 @@ pub mod scrollable {
         let child = nodes::scroll_commands_node(child);
         let child = nodes::page_commands_node(child);
         let child = nodes::scroll_to_edge_commands_node(child);
+        let child = nodes::scroll_wheel_node(child);
 
         let viewport_size = var(PxSize::zero());
         let child = with_context_var(child, ScrollViewportSizeWriteVar, viewport_size.clone());

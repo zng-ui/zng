@@ -20,19 +20,19 @@ context_var! {
 
     /// Vertical offset added when the [`ScrollDownCommand`] runs and removed when the [`ScrollUpCommand`] runs.
     ///
-    /// Relative lengths are relative to the viewport height, default value is `1.em()`.
+    /// Relative lengths are relative to the viewport height, default value is `1.3.em()`.
     ///
     /// [`ScrollDownCommand`]: crate::widgets::scrollable::commands::ScrollDownCommand
     /// [`ScrollUpCommand`]: crate::widgets::scrollable::commands::ScrollUpCommand
-    pub struct VerticalScrollUnitVar: Length = 1.em();
+    pub struct VerticalLineUnitVar: Length = 1.3.em();
 
     /// Horizontal offset added when the [`ScrollRightCommand`] runs and removed when the [`ScrollLeftCommand`] runs.
     ///
-    /// Relative lengths are relative to the viewport width, default value is `1.em()`.
+    /// Relative lengths are relative to the viewport width, default value is `1.3.em()`.
     ///
     /// [`ScrollLeftCommand`]: crate::widgets::scrollable::commands::ScrollLeftCommand
     /// [`ScrollRightCommand`]: crate::widgets::scrollable::commands::ScrollRightCommand
-    pub struct HorizontalScrollUnitVar: Length = 1.em();
+    pub struct HorizontalLineUnitVar: Length = 1.3.em();
 
     /// Vertical offset added when the [`PageDownCommand`] runs and removed when the [`PageUpCommand`] runs.
     ///
@@ -49,6 +49,9 @@ context_var! {
     /// [`PageLeftCommand`]: crate::widgets::scrollable::commands::PageLeftCommand
     /// [`PageRightCommand`]: crate::widgets::scrollable::commands::PageRightCommand
     pub struct HorizontalPageUnitVar: Length = 100.pct().into();
+
+    /// Scroll unit multiplier used when alternate scrolling.
+    pub struct AltFactorVar: Factor = 3.fct();
 }
 
 fn default_scrollbar() -> ViewGenerator<ScrollBarArgs> {
@@ -96,9 +99,9 @@ pub fn scrollbar_view(child: impl UiNode, generator: impl IntoVar<ViewGenerator<
 ///
 /// [`ScrollUpCommand`]: crate::widgets::scrollable::commands::ScrollUpCommand
 /// [`ScrollDownCommand`]: crate::widgets::scrollable::commands::ScrollDownCommand
-#[property(context, default(VerticalScrollUnitVar::default_value()))]
-pub fn v_scroll_unit(child: impl UiNode, unit: impl IntoVar<Length>) -> impl UiNode {
-    with_context_var(child, VerticalScrollUnitVar, unit)
+#[property(context, default(VerticalLineUnitVar::default_value()))]
+pub fn v_line_unit(child: impl UiNode, unit: impl IntoVar<Length>) -> impl UiNode {
+    with_context_var(child, VerticalLineUnitVar, unit)
 }
 
 /// Horizontal offset added when the [`ScrollRightCommand`] runs and removed when the [`ScrollLeftCommand`] runs.
@@ -107,21 +110,27 @@ pub fn v_scroll_unit(child: impl UiNode, unit: impl IntoVar<Length>) -> impl UiN
 ///
 /// [`ScrollLeftCommand`]: crate::widgets::scrollable::commands::ScrollLeftCommand
 /// [`ScrollRightCommand`]: crate::widgets::scrollable::commands::ScrollRightCommand
-#[property(context, default(HorizontalScrollUnitVar::default_value()))]
-pub fn h_scroll_unit(child: impl UiNode, unit: impl IntoVar<Length>) -> impl UiNode {
-    with_context_var(child, HorizontalScrollUnitVar, unit)
+#[property(context, default(HorizontalLineUnitVar::default_value()))]
+pub fn h_line_unit(child: impl UiNode, unit: impl IntoVar<Length>) -> impl UiNode {
+    with_context_var(child, HorizontalLineUnitVar, unit)
 }
 
 /// Horizontal and vertical offsets used when scrolling.
 ///
-/// This property sets the [`h_scroll_unit`] and [`v_scroll_unit`].
+/// This property sets the [`h_line_unit`] and [`v_line_unit`].
 ///
-/// [`h_scroll_unit`]: fn@h_scroll_unit
-/// [`v_scroll_unit`]: fn@v_scroll_unit
-#[property(context, default(HorizontalScrollUnitVar::default_value(), VerticalScrollUnitVar::default_value()))]
-pub fn scroll_units(child: impl UiNode, horizontal: impl IntoVar<Length>, vertical: impl IntoVar<Length>) -> impl UiNode {
-    let child = h_scroll_unit(child, horizontal);
-    v_scroll_unit(child, vertical)
+/// [`h_line_unit`]: fn@h_line_unit
+/// [`v_line_unit`]: fn@v_line_unit
+#[property(context, default(HorizontalLineUnitVar::default_value(), VerticalLineUnitVar::default_value()))]
+pub fn line_units(child: impl UiNode, horizontal: impl IntoVar<Length>, vertical: impl IntoVar<Length>) -> impl UiNode {
+    let child = h_line_unit(child, horizontal);
+    v_line_unit(child, vertical)
+}
+
+/// Scroll unit multiplier used when alternate scrolling.
+#[property(context, default(AltFactorVar::default_value()))]
+pub fn alt_factor(child: impl UiNode, factor: impl IntoVar<Factor>) -> impl UiNode {
+    with_context_var(child, AltFactorVar, factor)
 }
 
 /// Vertical offset added when the [`PageDownCommand`] runs and removed when the [`PageUpCommand`] runs.
