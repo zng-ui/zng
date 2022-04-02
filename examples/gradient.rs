@@ -28,6 +28,11 @@ fn app_main() {
                         linear_tile(),
                         title("Stack"),
                         stack_linear(),
+                        stack_linear(),
+                        blank! {
+                            background_color = colors::RED;
+                            height = 120;
+                        }
                     ];
                 };
             };

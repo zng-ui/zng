@@ -770,6 +770,8 @@ struct RunningApp<E: AppExtension> {
 
     wake_time: Option<Instant>,
 
+    loop_monitor: LoopMonitor,
+
     pending_view_events: Vec<zero_ui_view_api::Event>,
     pending_view_frame_events: Vec<zero_ui_view_api::EventFrameRendered>,
     pending_app_events: Vec<BoxedEventUpdate>,
@@ -827,6 +829,8 @@ impl<E: AppExtension> RunningApp<E> {
             extensions,
             owned_ctx,
             receiver,
+
+            loop_monitor: LoopMonitor::default(),
 
             pending_view_events: Vec::with_capacity(100),
             pending_view_frame_events: Vec::with_capacity(5),
@@ -1375,12 +1379,8 @@ impl<E: AppExtension> RunningApp<E> {
     fn apply_updates<O: AppEventObserver>(&mut self, observer: &mut O) {
         let _s = tracing::debug_span!("apply_updates").entered();
 
-        let mut limit = if cfg!(debug_assertions) { 1_000 } else { 100_000 };
         loop {
-            limit -= 1;
-            if limit == 0 {
-                panic!("update loop polled 100,000 times, probably stuck in an infinite loop");
-            }
+            self.loop_monitor.update();
 
             let u = self.owned_ctx.apply_updates();
 
@@ -1435,12 +1435,8 @@ impl<E: AppExtension> RunningApp<E> {
     fn apply_update_events<O: AppEventObserver>(&mut self, observer: &mut O) {
         let _s = tracing::debug_span!("apply_update_events").entered();
 
-        let mut limit = 100_000;
         loop {
-            limit -= 1;
-            if limit == 0 {
-                panic!("update_events loop polled 100,000 times, probably stuck in an infinite loop");
-            }
+            self.loop_monitor.update();
 
             let events: Vec<_> = self.pending_app_events.drain(..).collect();
             if events.is_empty() {
@@ -1493,6 +1489,8 @@ impl<E: AppExtension> RunningApp<E> {
         if mem::take(&mut self.pending_render) {
             let _s = tracing::debug_span!("apply_render").entered();
 
+            self.loop_monitor.render();
+
             let ctx = &mut self.owned_ctx.borrow();
 
             self.extensions.render(ctx);
@@ -1507,6 +1505,29 @@ impl<E: AppExtension> Drop for RunningApp<E> {
         let _s = tracing::debug_span!("extensions.deinit").entered();
         let mut ctx = self.owned_ctx.borrow();
         self.extensions.deinit(&mut ctx);
+    }
+}
+
+#[derive(Default)]
+struct LoopMonitor {
+    update_count: usize,
+}
+impl LoopMonitor {
+    const MAX_UPDATES_PENDING: usize = if cfg!(debug_assertions) { 1_000 } else { 100_000 };
+
+    pub fn update(&mut self) {
+        self.update_count += 1;
+
+        if self.update_count == Self::MAX_UPDATES_PENDING {
+            panic!(
+                "updated {} times without rendering, probably stuck in an infinite loop",
+                Self::MAX_UPDATES_PENDING
+            );
+        }
+    }
+
+    pub fn render(&mut self) {
+        self.update_count = 0;
     }
 }
 
