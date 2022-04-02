@@ -107,13 +107,13 @@ pub mod scrollable {
         impl<N: UiNodeList> UiNode for ScrollableNode<N> {
             // # Layout
             //
-            // +-----------------+-+
-            // |                 | |
-            // | 0 - viewport    |1| - v_scrollbar
-            // |                 | |
-            // +-----------------+-+
-            // | 2 - h_scrollbar |3| - scrollbar_joiner
-            ///+-----------------+-+
+            // +-----------------+---+
+            // |                 |   |
+            // | 0 - viewport    | 1 | - v_scrollbar
+            // |                 |   |
+            // +-----------------+---+
+            // | 2 - h_scrollbar | 3 | - scrollbar_joiner
+            ///+-----------------+---+
             fn measure(&mut self, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize {
                 let viewport = self.children.widget_measure(0, ctx, available_size);
                 let v_scroll = self.children.widget_measure(1, ctx, available_size);

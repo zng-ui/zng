@@ -141,14 +141,14 @@ event_property! {
         args: MouseWheelArgs,
     }
 
-    /// Mouse wheel scrolled while pointer hovering widget and modifers all scroll operation.
+    /// Mouse wheel scrolled while pointer is hovering the widget and the pressed keyboard modifiers allow a scroll operation.
     pub fn mouse_scroll {
         event: MouseWheelEvent,
         args: MouseWheelArgs,
         filter: |ctx, args| args.is_scroll() && args.concerns_widget(ctx)
     }
 
-    /// Mouse wheel scrolled while pointer hovering widget and modifers all zoom operation.
+    /// Mouse wheel scrolled while pointer is hovering the widget and the pressed keyboard modifiers allow a zoom operation.
     pub fn mouse_zoom {
         event: MouseWheelEvent,
         args: MouseWheelArgs,

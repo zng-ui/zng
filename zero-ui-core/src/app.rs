@@ -1375,7 +1375,7 @@ impl<E: AppExtension> RunningApp<E> {
     fn apply_updates<O: AppEventObserver>(&mut self, observer: &mut O) {
         let _s = tracing::debug_span!("apply_updates").entered();
 
-        let mut limit = 100_000;
+        let mut limit = if cfg!(debug_assertions) { 1_000 } else { 100_000 };
         loop {
             limit -= 1;
             if limit == 0 {
