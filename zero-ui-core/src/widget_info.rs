@@ -6,11 +6,10 @@ use ego_tree::Tree;
 
 use crate::{
     border::CornerRadius,
-    context::{LayoutMetrics, Updates},
+    context::{LayoutMetrics, Updates, OwnedStateMap, StateMap},
     crate_util::{IdMap, IdSet},
     event::EventUpdateArgs,
     handler::WidgetHandler,
-    state::{OwnedStateMap, StateMap},
     units::*,
     var::{Var, VarValue, VarsRead, WithVarsRead},
     widget_base::Visibility,

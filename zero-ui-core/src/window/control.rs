@@ -8,11 +8,10 @@ use crate::{
         view_process::*,
     },
     color::RenderColor,
-    context::{LayoutContext, WindowContext, WindowRenderUpdate, WindowUpdates},
+    context::{LayoutContext, OwnedStateMap, WindowContext, WindowRenderUpdate, WindowUpdates},
     event::EventUpdateArgs,
     image::{Image, ImageVar, ImagesExt},
     render::{FrameBuilder, FrameId, FrameUpdate, UsedFrameBuilder, UsedFrameUpdate},
-    state::OwnedStateMap,
     units::*,
     var::*,
     widget_info::{

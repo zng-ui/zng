@@ -51,6 +51,8 @@ macro_rules! state_key {
         }
     )+};
 }
+#[doc(inline)]
+pub use crate::state_key;
 
 /// A map of [state keys](StateKey) to values of their associated types that exists for
 /// a stage of the application.

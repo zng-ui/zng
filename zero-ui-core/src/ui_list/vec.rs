@@ -6,10 +6,9 @@ use std::{
 };
 
 use crate::{
-    context::{InfoContext, LayoutContext, RenderContext, WidgetContext, WithUpdates},
+    context::{InfoContext, LayoutContext, RenderContext, StateMap, WidgetContext, WithUpdates},
     event::EventUpdateArgs,
     render::{FrameBuilder, FrameUpdate},
-    state::StateMap,
     ui_list::{AvailableSizeArgs, DesiredSizeArgs, FinalSizeArgs, SortedWidgetVec, UiListObserver, WidgetFilterArgs, WidgetList},
     units::{AvailableSize, PxSize},
     widget_info::{UpdateSlot, WidgetBorderInfo, WidgetInfoBuilder, WidgetLayout, WidgetLayoutInfo, WidgetRenderInfo, WidgetSubscriptions},
