@@ -17,3 +17,5 @@
 
 * Fixed loop polling limit not working.
   - Can we improve it? Maybe if a limit is reached we force a render and skip one update?
+
+* zero-ui-core/context/trace

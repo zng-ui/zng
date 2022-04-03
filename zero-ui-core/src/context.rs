@@ -18,6 +18,9 @@ pub use update::*;
 mod state;
 pub use state::*;
 
+mod trace;
+pub use trace::*;
+
 /// Owner of [`AppContext`] objects.
 ///
 /// You can only have one instance of this at a time per-thread at a time.
