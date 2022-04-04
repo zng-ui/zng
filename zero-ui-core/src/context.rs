@@ -538,7 +538,7 @@ impl TestWidgetContext {
                 crate::app::AppEvent::ViewEvent(_) => unimplemented!(),
                 crate::app::AppEvent::Event(ev) => self.events.notify_app_event(ev),
                 crate::app::AppEvent::Var => self.vars.receive_sended_modify(),
-                crate::app::AppEvent::Update(mask) => self.updates.update(mask),
+                crate::app::AppEvent::Update(mask) => self.updates.update_internal(mask),
                 crate::app::AppEvent::ResumeUnwind(p) => std::panic::resume_unwind(p),
             }
         }

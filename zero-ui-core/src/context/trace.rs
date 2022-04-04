@@ -8,7 +8,7 @@ use std::{
 use parking_lot::Mutex;
 use tracing::span;
 
-use crate::{event::Event, var::VarValue, window::WindowId, WidgetId};
+use crate::{app::AppExtension, event::Event, var::VarValue, window::WindowId, WidgetId};
 
 pub(crate) struct UpdatesTrace {
     context: Mutex<UpdateContext>,
@@ -57,8 +57,10 @@ impl tracing::subscriber::Subscriber for UpdatesTrace {
 
                 span::Id::from_u64(3)
             }
-            "EXTENSION" => {
-                todo!()
+            "APP-EXTENSION" => {
+                let name = visit_str(|v| span.record(v), "type_name");
+                self.context.lock().app_extension = Some(name);
+                span::Id::from_u64(4)
             }
             _ => span::Id::from_u64(u64::MAX),
         }
@@ -80,10 +82,10 @@ impl tracing::subscriber::Subscriber for UpdatesTrace {
             "LAYOUT" => UpdateAction::Layout,
             _ => return,
         };
-        let entry = UpdateTrace {
-            ctx: self.context.lock().clone(),
-            action,
-        };
+
+        let ctx = self.context.lock().clone();
+
+        let entry = UpdateTrace { ctx, action };
         self.trace.lock().push(entry);
     }
 
@@ -97,6 +99,8 @@ impl tracing::subscriber::Subscriber for UpdatesTrace {
             ctx.widget_id = self.widgets_stack.lock().pop();
         } else if span == &span::Id::from_u64(3) {
             ctx.window_id = None;
+        } else if span == &span::Id::from_u64(4) {
+            ctx.app_extension = None;
         }
     }
 }
@@ -110,6 +114,12 @@ impl UpdatesTrace {
             widgets_stack: Mutex::new(Vec::with_capacity(100)),
             properties_stack: Mutex::new(Vec::with_capacity(100)),
         }
+    }
+
+    /// Opens an app extension span.
+    #[inline(always)]
+    pub fn extension_span<E: AppExtension>() -> tracing::span::EnteredSpan {
+        tracing::trace_span!(target: UpdatesTrace::UPDATES_TARGET, "APP-EXTENSION", type_name = type_name::<E>()).entered()
     }
 
     /// Opens a window span.
@@ -198,16 +208,20 @@ impl UpdatesTrace {
 
 #[derive(Debug, Default, Clone, PartialEq, Eq, Hash)]
 struct UpdateContext {
+    app_extension: Option<String>,
     window_id: Option<WindowId>,
     widget_id: Option<WidgetId>,
     property: Option<String>,
 }
 impl fmt::Display for UpdateContext {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        if let Some(w) = self.window_id {
-            write!(f, "{w}//?/")?;
+        if let Some(e) = &self.app_extension {
+            write!(f, "{}//", e.rsplit("::").next().unwrap())?;
         } else {
-            write!(f, "<app-extension>")?;
+            write!(f, "<unknown>//")?;
+        }
+        if let Some(w) = self.window_id {
+            write!(f, "{w}/?/")?;
         }
         if let Some(w) = self.widget_id {
             write!(f, "{w}")?;

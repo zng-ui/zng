@@ -1645,7 +1645,7 @@ impl HeadlessApp {
                 pending.retain(|h| h());
                 !pending.is_empty()
             } {
-                self.ctx().updates.update_ext();
+                self.ctx().updates.update_ext_internal();
                 let flow = self.update(false);
                 if Instant::now().duration_since(start_time) >= timeout {
                     return Err(format!(

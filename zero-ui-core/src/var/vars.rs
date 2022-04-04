@@ -361,7 +361,7 @@ impl Vars {
                 self.senders.borrow_mut().retain(|f| f(self));
 
                 // does an app update because some vars have new values.
-                updates.update(mask);
+                updates.update_internal(mask);
             }
         }
     }

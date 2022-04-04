@@ -130,6 +130,10 @@ impl Updates {
     #[inline]
     pub fn update(&mut self, mask: UpdateMask) {
         UpdatesTrace::log_update();
+        self.update_internal(mask);
+    }
+    #[inline]
+    pub(crate) fn update_internal(&mut self, mask: UpdateMask) {
         self.next_updates |= mask;
         self.update = true;
     }
@@ -142,6 +146,10 @@ impl Updates {
     #[inline]
     pub fn update_ext(&mut self) {
         self.update(UpdateMask::none());
+    }
+    #[inline]
+    pub(crate) fn update_ext_internal(&mut self) {
+        self.update_internal(UpdateMask::none())
     }
 
     /// Gets `true` if an update was requested.

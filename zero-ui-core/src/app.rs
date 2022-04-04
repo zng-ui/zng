@@ -439,6 +439,79 @@ impl AppExtension for Box<dyn AppExtensionBoxed> {
     }
 }
 
+struct TraceAppExt<E: AppExtension>(E);
+impl<E: AppExtension> AppExtension for TraceAppExt<E> {
+    fn id(&self) -> TypeId {
+        self.0.id()
+    }
+
+    fn is_or_contain(&self, app_extension_id: TypeId) -> bool {
+        self.0.is_or_contain(app_extension_id)
+    }
+
+    fn init(&mut self, ctx: &mut AppContext) {
+        let _span = UpdatesTrace::extension_span::<E>();
+        // let _scope = tracing::trace_span!("app-extension.init", name = type_name::<E>()).entered();
+        self.0.init(ctx);
+    }
+
+    fn enable_device_events(&self) -> bool {
+        self.0.enable_device_events()
+    }
+
+    fn event_preview<EV: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {
+        let _span = UpdatesTrace::extension_span::<E>();
+        self.0.event_preview(ctx, args);
+    }
+
+    fn event_ui<EV: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {
+        let _span = UpdatesTrace::extension_span::<E>();
+        self.0.event_ui(ctx, args);
+    }
+
+    fn event<EV: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {
+        let _span = UpdatesTrace::extension_span::<E>();
+        self.0.event(ctx, args);
+    }
+
+    fn update_preview(&mut self, ctx: &mut AppContext) {
+        let _span = UpdatesTrace::extension_span::<E>();
+        self.0.update_preview(ctx);
+    }
+
+    fn update_ui(&mut self, ctx: &mut AppContext) {
+        let _span = UpdatesTrace::extension_span::<E>();
+        self.0.update_ui(ctx);
+    }
+
+    fn update(&mut self, ctx: &mut AppContext) {
+        let _span = UpdatesTrace::extension_span::<E>();
+        self.0.update(ctx);
+    }
+
+    fn layout(&mut self, ctx: &mut AppContext) {
+        let _span = UpdatesTrace::extension_span::<E>();
+        self.0.layout(ctx);
+    }
+
+    fn render(&mut self, ctx: &mut AppContext) {
+        let _span = UpdatesTrace::extension_span::<E>();
+        self.0.render(ctx);
+    }
+
+    fn deinit(&mut self, ctx: &mut AppContext) {
+        let _span = UpdatesTrace::extension_span::<E>();
+        self.0.deinit(ctx);
+    }
+
+    fn boxed(self) -> Box<dyn AppExtensionBoxed>
+    where
+        Self: Sized,
+    {
+        Box::new(self)
+    }
+}
+
 cancelable_event_args! {
     /// Arguments for [`ShutdownRequestedEvent`].
     pub struct ShutdownRequestedArgs {
@@ -653,7 +726,7 @@ impl AppExtended<Vec<Box<dyn AppExtensionBoxed>>> {
             panic!("app already extended with `{}`", type_name::<F>())
         }
 
-        self.extensions.push(extension.boxed());
+        self.extensions.push(TraceAppExt(extension).boxed());
 
         self
     }
@@ -688,7 +761,7 @@ impl<E: AppExtension> AppExtended<E> {
             panic!("app already extended with `{}`", type_name::<F>())
         }
         AppExtended {
-            extensions: (self.extensions, extension),
+            extensions: (self.extensions, TraceAppExt(extension)),
             view_process_exe: self.view_process_exe,
         }
     }
@@ -1275,7 +1348,7 @@ impl<E: AppExtension> RunningApp<E> {
             },
             AppEvent::Event(ev) => self.ctx().events.notify_app_event(ev),
             AppEvent::Var => self.ctx().vars.receive_sended_modify(),
-            AppEvent::Update(mask) => self.ctx().updates.update(mask),
+            AppEvent::Update(mask) => self.ctx().updates.update_internal(mask),
             AppEvent::ResumeUnwind(p) => std::panic::resume_unwind(p),
         }
     }
@@ -1452,14 +1525,14 @@ impl<E: AppExtension> RunningApp<E> {
                     self.extensions.event_preview(ctx, &event);
                     observer.event_preview(ctx, &event);
                     Events::on_pre_events(ctx, &event);
-    
+
                     self.extensions.event_ui(ctx, &event);
                     observer.event_ui(ctx, &event);
-    
+
                     self.extensions.event(ctx, &event);
                     observer.event(ctx, &event);
                     Events::on_events(ctx, &event);
-                });                
+                });
 
                 self.apply_updates(observer);
             }
@@ -1523,13 +1596,13 @@ impl LoopMonitor {
 
         if self.update_count < 500 {
             update_once()
-        } else if self.update_count < 1000 {  
+        } else if self.update_count < 1000 {
             UpdatesTrace::collect_trace(&mut self.trace, update_once)
         } else if self.update_count == 1000 {
             let trace = UpdatesTrace::format_trace(mem::take(&mut self.trace));
             tracing::error!(
                 "updated 1000 times without rendering, probably stuck in an infinite loop\n\
-                            will start skipping updates to render and poll system events\nmost frequent:\n{trace}"
+                            will start skipping updates to render and poll system events\nmost frequent update requests:\n{trace}"
             );
             false
         } else if self.update_count % 1000 == 0 {

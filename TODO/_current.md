@@ -10,12 +10,10 @@
 
 ## TODO
 
+* Trace cause of stuck loop in error message of loop monitor.
 * Identify the scrollbar bug.
 * Fix the scrollbar bug.
 
 ## Done
 
-* Fixed loop polling limit not working.
-  - Can we improve it? Maybe if a limit is reached we force a render and skip one update?
-
-* zero-ui-core/context/trace
+* Refactored loop monitor to force poll/render when stuck.
