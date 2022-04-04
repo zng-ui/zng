@@ -10,10 +10,11 @@
 
 ## TODO
 
-* Trace cause of stuck loop in error message of loop monitor.
 * Identify the scrollbar bug.
 * Fix the scrollbar bug.
 
-## Done
+## Refactored loop monitor to force poll/render when stuck
 
-* Refactored loop monitor to force poll/render when stuck.
+* Restore from force mode if recovered? 
+* Trace widget name.
+* Trace widget constructor functions (add this to inspector?).

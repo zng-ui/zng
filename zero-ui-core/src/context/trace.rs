@@ -84,6 +84,9 @@ impl tracing::subscriber::Subscriber for UpdatesTrace {
         };
 
         let ctx = self.context.lock().clone();
+        if ctx.app_extension.is_none() {
+            return;
+        }
 
         let entry = UpdateTrace { ctx, action };
         self.trace.lock().push(entry);

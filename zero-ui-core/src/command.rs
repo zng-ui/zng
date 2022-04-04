@@ -27,7 +27,7 @@ use std::{
 };
 
 use crate::{
-    context::{state_key, InfoContext, OwnedStateMap, StateKey, StateMap, WidgetContext, WidgetContextMut, WindowContext},
+    context::{state_key, InfoContext, OwnedStateMap, StateKey, StateMap, WidgetContext, WidgetContextMut, WindowContext, UpdatesTrace},
     crate_util::{Handle, HandleOwner},
     event::{Event, Events, WithEvents},
     handler::WidgetHandler,
@@ -1191,6 +1191,8 @@ impl CommandHandle {
     /// When at least one [`CommandHandle`] is enabled the command is [`enabled`](Command::enabled).
     pub fn set_enabled(&self, enabled: bool) {
         if self.local_enabled.get() != enabled {
+            UpdatesTrace::log_var::<bool>();
+
             self.local_enabled.set(enabled);
             let data = self.handle.data();
 
