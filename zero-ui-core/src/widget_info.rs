@@ -6,7 +6,7 @@ use ego_tree::Tree;
 
 use crate::{
     border::CornerRadius,
-    context::{LayoutMetrics, Updates, OwnedStateMap, StateMap},
+    context::{LayoutMetrics, OwnedStateMap, StateMap, Updates},
     crate_util::{IdMap, IdSet},
     event::EventUpdateArgs,
     handler::WidgetHandler,

@@ -251,7 +251,7 @@ impl<T: VarValue, V: Var<T>> RcCowVar<T, V> {
             }
 
             let self_ = self.clone();
-            vars.push_change(Box::new(move |update_id| {
+            vars.push_change::<T>(Box::new(move |update_id| {
                 // SAFETY: this is safe because Vars requires a mutable reference to apply changes.
                 // the `modifying` flag is only used for `deep_clone`.
                 unsafe {
@@ -319,7 +319,7 @@ impl<T: VarValue, V: Var<T>> RcCowVar<T, V> {
                 self.0.version.set(source.version(vars));
 
                 let self_ = self.clone();
-                vars.push_change(Box::new(move |update_id| {
+                vars.push_change::<T>(Box::new(move |update_id| {
                     // SAFETY: this is safe because Vars requires a mutable reference to apply changes.
                     // the `modifying` flag is only used for `deep_clone`.
                     unsafe {
@@ -332,7 +332,7 @@ impl<T: VarValue, V: Var<T>> RcCowVar<T, V> {
                 }));
             } else {
                 let self_ = self.clone();
-                vars.push_change(Box::new(move |update_id| {
+                vars.push_change::<T>(Box::new(move |update_id| {
                     // SAFETY: this is safe because Vars requires a mutable reference to apply changes.
                     // the `modifying` flag is only used for `deep_clone`.
                     unsafe {

@@ -118,7 +118,7 @@ impl<T: VarValue> RcVar<T> {
     {
         vars.with_vars(|vars| {
             let self_ = self.clone();
-            vars.push_change(Box::new(move |update_id| {
+            vars.push_change::<T>(Box::new(move |update_id| {
                 debug_assert!(!self_.0.modifying.get());
                 self_.0.modifying.set(true);
                 let _drop = RunOnDrop::new(|| self_.0.modifying.set(false));

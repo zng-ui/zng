@@ -7,7 +7,7 @@ use linear_map::LinearMap;
 
 use crate::{
     context::LayoutContext,
-    context::{state_key, InfoContext, WidgetContext},
+    context::{state_key, InfoContext, UpdatesTrace, WidgetContext},
     impl_ui_node,
     render::{FrameBuilder, FrameUpdate},
     units::*,
@@ -680,10 +680,11 @@ impl UiNode for PropertyInfoNode {
     }
 
     fn init(&mut self, ctx: &mut WidgetContext) {
-        let _scope = tracing::trace_span!("property.init", name = self.info.borrow().property_name).entered();
-
         let mut info = self.info.borrow_mut();
         let property_name = info.property_name;
+
+        let _span = UpdatesTrace::property_span(property_name);
+        let _scope = tracing::trace_span!("property.init", name = property_name).entered();
 
         ctx.vars
             .with_context_var(ParentPropertyName, ContextVarData::fixed(&property_name), || {
@@ -701,18 +702,22 @@ impl UiNode for PropertyInfoNode {
         }
     }
     fn deinit(&mut self, ctx: &mut WidgetContext) {
+        let mut info = self.info.borrow_mut();
+
+        let _span = UpdatesTrace::property_span(info.property_name);
         let _scope = tracing::trace_span!("property.deinit", name = self.info.borrow().property_name).entered();
 
         let t = Instant::now();
         self.child.deinit(ctx);
         let d = t.elapsed();
-        let mut info = self.info.borrow_mut();
         info.duration.deinit = d;
         info.count.deinit += 1;
     }
 
     fn update(&mut self, ctx: &mut WidgetContext) {
-        let _scope = tracing::trace_span!("property.update", name = self.info.borrow().property_name).entered();
+        let property_name = self.info.borrow().property_name;
+        let _span = UpdatesTrace::property_span(property_name);
+        let _scope = tracing::trace_span!("property.update", name = property_name).entered();
 
         let t = Instant::now();
         self.child.update(ctx);
@@ -733,14 +738,18 @@ impl UiNode for PropertyInfoNode {
     where
         Self: Sized,
     {
-        let _scope = tracing::trace_span!("property.event", name = self.info.borrow().property_name).entered();
+        let property_name = self.info.borrow().property_name;
+        let _span = UpdatesTrace::property_span(property_name);
+        let _scope = tracing::trace_span!("property.event", name = property_name).entered();
 
         // TODO measure time and count
         self.child.event(ctx, args);
     }
 
     fn measure(&mut self, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize {
-        let _scope = tracing::trace_span!("property.measure", name = self.info.borrow().property_name).entered();
+        let property_name = self.info.borrow().property_name;
+        let _span = UpdatesTrace::property_span(property_name);
+        let _scope = tracing::trace_span!("property.measure", name = property_name).entered();
 
         let t = Instant::now();
         let r = self.child.measure(ctx, available_size);
@@ -751,7 +760,9 @@ impl UiNode for PropertyInfoNode {
         r
     }
     fn arrange(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, final_size: PxSize) {
-        let _scope = tracing::trace_span!("property.arrange", name = self.info.borrow().property_name).entered();
+        let property_name = self.info.borrow().property_name;
+        let _span = UpdatesTrace::property_span(property_name);
+        let _scope = tracing::trace_span!("property.arrange", name = property_name).entered();
 
         let t = Instant::now();
         self.child.arrange(ctx, widget_layout, final_size);

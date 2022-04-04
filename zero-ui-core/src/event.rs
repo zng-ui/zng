@@ -5,7 +5,7 @@ use unsafe_any::UnsafeAny;
 
 use crate::app::{AppEventSender, AppShutdown, RecvFut, TimeoutOrAppShutdown};
 use crate::command::AnyCommand;
-use crate::context::{AppContext, InfoContext, WidgetContext};
+use crate::context::{AppContext, InfoContext, UpdatesTrace, WidgetContext};
 use crate::crate_util::{Handle, HandleOwner};
 use crate::handler::{AppHandler, AppHandlerArgs, AppWeakHandle, WidgetHandler};
 use crate::var::Vars;
@@ -708,6 +708,7 @@ impl Events {
 
     /// Called by [`Event::notify`] to schedule a notification.
     pub fn notify<E: Event>(&mut self, event: E, args: E::Args) {
+        UpdatesTrace::log_event::<E>();
         let update = EventUpdate::<E>::new(event, args);
         self.updates.push(update.boxed());
     }

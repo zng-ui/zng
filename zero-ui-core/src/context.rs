@@ -19,7 +19,7 @@ mod state;
 pub use state::*;
 
 mod trace;
-pub use trace::*;
+pub(crate) use trace::*;
 
 /// Owner of [`AppContext`] objects.
 ///
@@ -143,6 +143,8 @@ impl<'a> AppContext<'a> {
         window_state: &mut OwnedStateMap,
         f: impl FnOnce(&mut WindowContext) -> R,
     ) -> (R, WindowUpdates) {
+        let _span = UpdatesTrace::window_span(window_id);
+
         self.updates.enter_window_ctx();
 
         let mut update_state = StateMap::new();
@@ -208,8 +210,10 @@ impl<'a> WindowContext<'a> {
         root_widget_state: &mut OwnedStateMap,
         f: impl FnOnce(&mut WidgetContext) -> R,
     ) -> R {
+        let widget_id = info_tree.root().widget_id();
+        let _span = UpdatesTrace::widget_span(widget_id);
         f(&mut WidgetContext {
-            path: &mut WidgetContextPath::new(*self.window_id, info_tree.root().widget_id()),
+            path: &mut WidgetContextPath::new(*self.window_id, widget_id),
 
             info_tree,
             app_state: self.app_state,
@@ -260,12 +264,14 @@ impl<'a> WindowContext<'a> {
         root_widget_state: &mut OwnedStateMap,
         f: impl FnOnce(&mut LayoutContext) -> R,
     ) -> R {
+        let widget_id = info_tree.root().widget_id();
+        let _span = UpdatesTrace::widget_span(widget_id);
         f(&mut LayoutContext {
             metrics: &LayoutMetrics::new(scale_factor, viewport_size, font_size)
                 .with_screen_ppi(screen_ppi)
                 .with_diff(metrics_diff),
 
-            path: &mut WidgetContextPath::new(*self.window_id, info_tree.root().widget_id()),
+            path: &mut WidgetContextPath::new(*self.window_id, widget_id),
 
             info_tree,
             app_state: self.app_state,
@@ -419,6 +425,7 @@ impl TestWidgetContext {
 
     /// Calls `action` in a fake widget context.
     pub fn widget_context<R>(&mut self, action: impl FnOnce(&mut WidgetContext) -> R) -> R {
+        let _span = UpdatesTrace::widget_span(self.root_id);
         action(&mut WidgetContext {
             path: &mut WidgetContextPath::new(self.window_id, self.root_id),
             info_tree: &self.info_tree,
@@ -609,6 +616,8 @@ impl<'a> WidgetContext<'a> {
         widget_state: &mut OwnedStateMap,
         f: impl FnOnce(&mut WidgetContext) -> R,
     ) -> R {
+        let _span = UpdatesTrace::widget_span(widget_id);
+
         self.path.push(widget_id);
 
         let r = self.vars.with_widget(widget_id, || {
@@ -799,6 +808,8 @@ impl<'a> LayoutContext<'a> {
     /// Runs a function `f` in the layout context of a widget.
     #[inline(always)]
     pub fn with_widget<R>(&mut self, widget_id: WidgetId, widget_state: &mut OwnedStateMap, f: impl FnOnce(&mut LayoutContext) -> R) -> R {
+        let _span = UpdatesTrace::widget_span(widget_id);
+
         self.path.push(widget_id);
 
         let r = self.vars.with_widget(widget_id, || {

@@ -13,7 +13,7 @@ use crate::{
 
 use retain_mut::RetainMut;
 
-use super::AppContext;
+use super::{AppContext, UpdatesTrace};
 
 /// Represents an [`on_pre_update`](Updates::on_pre_update) or [`on_update`](Updates::on_update) handler.
 ///
@@ -129,7 +129,7 @@ impl Updates {
     /// Schedules an update.
     #[inline]
     pub fn update(&mut self, mask: UpdateMask) {
-        // tracing::trace!("requested `update`");
+        UpdatesTrace::log_update();
         self.next_updates |= mask;
         self.update = true;
     }
@@ -176,7 +176,7 @@ impl Updates {
     /// Schedules a layout update for the parent window.
     #[inline]
     pub fn layout(&mut self) {
-        // tracing::trace!("requested `layout`");
+        UpdatesTrace::log_layout();
         self.layout = true;
         self.l_updates.window_updates.layout = true;
     }
@@ -375,7 +375,7 @@ impl DerefMut for Updates {
 }
 
 /// Subsect of [`Updates`] that is accessible in [`LayoutContext`].
-/// 
+///
 /// [`LayoutContext`]: crate::context::LayoutContext
 pub struct LayoutUpdates {
     render: bool,

@@ -3,7 +3,7 @@ use retain_mut::RetainMut;
 use super::*;
 use crate::{
     app::{AppEventSender, AppShutdown, RecvFut, TimeoutOrAppShutdown},
-    context::{AppContext, Updates},
+    context::{AppContext, Updates, UpdatesTrace},
     crate_util::{Handle, HandleOwner, PanicPayload, RunOnDrop},
     handler::{AppHandler, AppHandlerArgs, AppWeakHandle},
 };
@@ -316,7 +316,8 @@ impl Vars {
     }
 
     /// Schedule set/modify.
-    pub(super) fn push_change(&self, change: PendingUpdate) {
+    pub(super) fn push_change<T: VarValue>(&self, change: PendingUpdate) {
+        UpdatesTrace::log_var::<T>();
         self.pending.borrow_mut().push(change);
     }
 

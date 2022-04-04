@@ -1379,37 +1379,40 @@ impl<E: AppExtension> RunningApp<E> {
     fn apply_updates<O: AppEventObserver>(&mut self, observer: &mut O) {
         let _s = tracing::debug_span!("apply_updates").entered();
 
-        loop {
-            self.loop_monitor.update();
+        let mut run = true;
+        while run {
+            run = self.loop_monitor.update(|| {
+                let u = self.owned_ctx.apply_updates();
 
-            let u = self.owned_ctx.apply_updates();
+                Timers::notify(&mut self.owned_ctx.borrow());
 
-            Timers::notify(&mut self.owned_ctx.borrow());
+                self.pending_app_events.extend(u.events);
+                self.pending_layout |= u.layout;
+                self.pending_render |= u.render;
 
-            self.pending_app_events.extend(u.events);
-            self.pending_layout |= u.layout;
-            self.pending_render |= u.render;
+                if !u.update {
+                    return false;
+                }
 
-            if !u.update {
-                break;
-            }
+                let _s = tracing::debug_span!("apply_update").entered();
 
-            let _s = tracing::debug_span!("apply_update").entered();
+                let ctx = &mut self.owned_ctx.borrow();
 
-            let ctx = &mut self.owned_ctx.borrow();
+                self.extensions.update_preview(ctx);
+                observer.update_preview(ctx);
+                Vars::on_pre_vars(ctx);
+                Updates::on_pre_updates(ctx);
 
-            self.extensions.update_preview(ctx);
-            observer.update_preview(ctx);
-            Vars::on_pre_vars(ctx);
-            Updates::on_pre_updates(ctx);
+                self.extensions.update_ui(ctx);
+                observer.update_ui(ctx);
 
-            self.extensions.update_ui(ctx);
-            observer.update_ui(ctx);
+                self.extensions.update(ctx);
+                observer.update(ctx);
+                Vars::on_vars(ctx);
+                Updates::on_updates(ctx);
 
-            self.extensions.update(ctx);
-            observer.update(ctx);
-            Vars::on_vars(ctx);
-            Updates::on_updates(ctx);
+                true
+            });
         }
 
         // check shutdown.
@@ -1436,8 +1439,6 @@ impl<E: AppExtension> RunningApp<E> {
         let _s = tracing::debug_span!("apply_update_events").entered();
 
         loop {
-            self.loop_monitor.update();
-
             let events: Vec<_> = self.pending_app_events.drain(..).collect();
             if events.is_empty() {
                 break;
@@ -1447,16 +1448,18 @@ impl<E: AppExtension> RunningApp<E> {
 
                 let ctx = &mut self.owned_ctx.borrow();
 
-                self.extensions.event_preview(ctx, &event);
-                observer.event_preview(ctx, &event);
-                Events::on_pre_events(ctx, &event);
-
-                self.extensions.event_ui(ctx, &event);
-                observer.event_ui(ctx, &event);
-
-                self.extensions.event(ctx, &event);
-                observer.event(ctx, &event);
-                Events::on_events(ctx, &event);
+                self.loop_monitor.event(|| {
+                    self.extensions.event_preview(ctx, &event);
+                    observer.event_preview(ctx, &event);
+                    Events::on_pre_events(ctx, &event);
+    
+                    self.extensions.event_ui(ctx, &event);
+                    observer.event_ui(ctx, &event);
+    
+                    self.extensions.event(ctx, &event);
+                    observer.event(ctx, &event);
+                    Events::on_events(ctx, &event);
+                });                
 
                 self.apply_updates(observer);
             }
@@ -1511,23 +1514,44 @@ impl<E: AppExtension> Drop for RunningApp<E> {
 #[derive(Default)]
 struct LoopMonitor {
     update_count: usize,
+    trace: Vec<UpdateTrace>,
 }
 impl LoopMonitor {
-    const MAX_UPDATES_PENDING: usize = if cfg!(debug_assertions) { 1_000 } else { 100_000 };
-
-    pub fn update(&mut self) {
+    /// Returns `false` if the loop should break.
+    pub fn update(&mut self, update_once: impl FnOnce() -> bool) -> bool {
         self.update_count += 1;
 
-        if self.update_count == Self::MAX_UPDATES_PENDING {
-            panic!(
-                "updated {} times without rendering, probably stuck in an infinite loop",
-                Self::MAX_UPDATES_PENDING
+        if self.update_count < 500 {
+            update_once()
+        } else if self.update_count < 1000 {  
+            UpdatesTrace::collect_trace(&mut self.trace, update_once)
+        } else if self.update_count == 1000 {
+            let trace = UpdatesTrace::format_trace(mem::take(&mut self.trace));
+            tracing::error!(
+                "updated 1000 times without rendering, probably stuck in an infinite loop\n\
+                            will start skipping updates to render and poll system events\nmost frequent:\n{trace}"
             );
+            false
+        } else if self.update_count % 1000 == 0 {
+            false
+        } else {
+            update_once()
+        }
+    }
+
+    pub fn event(&mut self, notify_once: impl FnOnce()) {
+        if (500..1000).contains(&self.update_count) {
+            UpdatesTrace::collect_trace(&mut self.trace, notify_once);
+        } else {
+            notify_once();
         }
     }
 
     pub fn render(&mut self) {
-        self.update_count = 0;
+        if self.update_count < 1000 {
+            self.update_count = 0;
+            self.trace = vec![];
+        }
     }
 }
 
