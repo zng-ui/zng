@@ -232,16 +232,15 @@ mod inspect {
                 let info = widget.instance().expect("expected debug info").borrow();
 
                 if info.widget_name == "button" {
-                    let text_wgt = widget.descendants().next().expect("expected text in button");
-                    let info = text_wgt.instance().expect("expected debug info").borrow();
                     format!(
                         "button({})",
-                        info.captures
-                            .iter()
-                            .flat_map(|(_, c)| c.iter())
-                            .find(|p| p.property_name == "text")
-                            .expect("expected text in captures")
-                            .args[0]
+                        widget
+                            .descendant_instance("text")
+                            .expect("expected text in button")
+                            .property("text")
+                            .expect("expected text property")
+                            .borrow()
+                            .arg(0)
                             .value
                             .debug
                     )

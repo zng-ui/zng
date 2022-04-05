@@ -35,7 +35,7 @@ use std::{
 /// A location in source-code.
 ///
 /// Use [`source_location!`] to construct.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct SourceLocation {
     /// [`file!`]
     pub file: &'static str,
@@ -109,13 +109,147 @@ impl PropertyInstanceInfo {
 }
 
 /// A reference to a [`PropertyInstanceInfo`].
-pub type PropertyInstance = Rc<RefCell<PropertyInstanceInfo>>;
+#[derive(Clone)]
+pub struct PropertyInstance(Rc<RefCell<PropertyInstanceInfo>>);
+impl PropertyInstance {
+    fn new(info: PropertyInstanceInfo) -> Self {
+        PropertyInstance(Rc::new(RefCell::new(info)))
+    }
+
+    /// Imutable borrows the [`PropertyInstanceInfo`].
+    #[inline]
+    pub fn borrow(&self) -> std::cell::Ref<PropertyInstanceInfo> {
+        self.0.borrow()
+    }
+
+    /// Imutable borrows the [`PropertyInstanceInfo`], returning an error if the value is currently mutably borrowed..
+    #[inline]
+    pub fn try_borrow(&self) -> Result<std::cell::Ref<PropertyInstanceInfo>, std::cell::BorrowError> {
+        self.0.try_borrow()
+    }
+
+    fn borrow_mut(&self) -> std::cell::RefMut<PropertyInstanceInfo> {
+        self.0.borrow_mut()
+    }
+}
+impl fmt::Debug for PropertyInstance {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if let Ok(info) = self.0.try_borrow() {
+            write!(f, "PropertyInstance({info:?})")
+        } else {
+            write!(f, "PropertyInstance(<borrowed>)")
+        }
+    }
+}
+
+/// A reference to a [`CapturedPropertyInfo`].
+#[derive(Clone)]
+pub struct CapturedPropertyInstance {
+    new_fn: WidgetNewFnInstance,
+    index: usize,
+}
+impl CapturedPropertyInstance {
+    fn new(new_fn: WidgetNewFnInstance, index: usize) -> Self {
+        CapturedPropertyInstance { new_fn, index }
+    }
+
+    /// Imutable borrows the [`CapturedPropertyInfo`].
+    #[inline]
+    pub fn borrow(&self) -> std::cell::Ref<CapturedPropertyInfo> {
+        std::cell::Ref::map(self.new_fn.borrow(), |f| &f.captures[self.index])
+    }
+
+    /// Imutable borrows the [`CapturedPropertyInfo`], returning an error if the value is currently mutably borrowed..
+    #[inline]
+    pub fn try_borrow(&self) -> Result<std::cell::Ref<CapturedPropertyInfo>, std::cell::BorrowError> {
+        self.new_fn
+            .try_borrow()
+            .map(|f| std::cell::Ref::map(f, |f| &f.captures[self.index]))
+    }
+
+    /*
+    fn borrow_mut(&self) -> std::cell::RefMut<CapturedPropertyInfo> {
+        std::cell::RefMut::map(self.new_fn.borrow_mut(), |f| &mut f.captures[self.index])
+    }
+    */
+}
+impl fmt::Debug for CapturedPropertyInstance {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if let Ok(info) = self.try_borrow() {
+            write!(f, "CapturedPropertyInstance({info:?})")
+        } else {
+            write!(f, "CapturedPropertyInstance(<borrowed>)")
+        }
+    }
+}
 
 /// A reference to a [`WidgetNewFnInfo`].
-pub type WidgetNewFnInstance = Rc<RefCell<WidgetNewFnInfo>>;
+#[derive(Clone)]
+pub struct WidgetNewFnInstance(Rc<RefCell<WidgetNewFnInfo>>);
+impl WidgetNewFnInstance {
+    fn new(info: WidgetNewFnInfo) -> Self {
+        WidgetNewFnInstance(Rc::new(RefCell::new(info)))
+    }
+
+    /// Imutable borrows the [`WidgetNewFnInfo`].
+    #[inline]
+    pub fn borrow(&self) -> std::cell::Ref<WidgetNewFnInfo> {
+        self.0.borrow()
+    }
+
+    /// Imutable borrows the [`WidgetNewFnInfo`], returning an error if the value is currently mutably borrowed..
+    #[inline]
+    pub fn try_borrow(&self) -> Result<std::cell::Ref<WidgetNewFnInfo>, std::cell::BorrowError> {
+        self.0.try_borrow()
+    }
+
+    fn borrow_mut(&self) -> std::cell::RefMut<WidgetNewFnInfo> {
+        self.0.borrow_mut()
+    }
+}
+impl fmt::Debug for WidgetNewFnInstance {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if let Ok(info) = self.0.try_borrow() {
+            write!(f, "WidgetNewFnInstance({info:?})")
+        } else {
+            write!(f, "WidgetNewFnInstance(<borrowed>)")
+        }
+    }
+}
 
 /// A reference to a [`WidgetInstanceInfo`].
-pub type WidgetInstance = Rc<RefCell<WidgetInstanceInfo>>;
+#[derive(Clone)]
+pub struct WidgetInstance(Rc<RefCell<WidgetInstanceInfo>>);
+impl WidgetInstance {
+    fn new(info: WidgetInstanceInfo) -> Self {
+        WidgetInstance(Rc::new(RefCell::new(info)))
+    }
+
+    /// Imutable borrows the [`WidgetInstanceInfo`].
+    #[inline]
+    pub fn borrow(&self) -> std::cell::Ref<WidgetInstanceInfo> {
+        self.0.borrow()
+    }
+
+    /// Imutable borrows the [`WidgetInstanceInfo`], returning an error if the value is currently mutably borrowed..
+    #[inline]
+    pub fn try_borrow(&self) -> Result<std::cell::Ref<WidgetInstanceInfo>, std::cell::BorrowError> {
+        self.0.try_borrow()
+    }
+
+    fn borrow_mut(&self) -> std::cell::RefMut<WidgetInstanceInfo> {
+        self.0.borrow_mut()
+    }
+}
+impl fmt::Debug for WidgetInstance {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if let Ok(info) = self.0.try_borrow() {
+            write!(f, "WidgetInstance({info:?})")
+        } else {
+            write!(f, "WidgetInstance(<borrowed>)")
+        }
+    }
+}
 
 /// Debug information about a property argument.
 #[derive(Debug, Clone)]
@@ -467,7 +601,7 @@ impl WidgetNewFnInfoNode {
             child: node,
             debug_vars,
             new_fn,
-            info: Rc::new(RefCell::new(WidgetNewFnInfo { new_fn, captures })),
+            info: WidgetNewFnInstance::new(WidgetNewFnInfo { new_fn, captures }),
         }
     }
 }
@@ -475,7 +609,7 @@ impl UiNode for WidgetNewFnInfoNode {
     fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
         let _scope = tracing::trace_span!("new_fn.info", name = ?self.new_fn).entered();
 
-        info.meta().entry(WidgetNewFnInfoKey).or_default().push(Rc::clone(&self.info));
+        info.meta().entry(WidgetNewFnInfoKey).or_default().push(self.info.clone());
 
         self.child.info(ctx, info);
     }
@@ -634,14 +768,14 @@ impl WidgetInstanceInfoNode {
 
         WidgetInstanceInfoNode {
             child: node,
-            info: Rc::new(RefCell::new(WidgetInstanceInfo {
+            info: WidgetInstance::new(WidgetInstanceInfo {
                 instance_id: WidgetInstanceId::new_unique(),
                 widget_name,
                 decl_location,
                 instance_location,
                 whens,
                 parent_name: Cow::Borrowed(""),
-            })),
+            }),
             when_vars,
         }
     }
@@ -650,7 +784,7 @@ impl UiNode for WidgetInstanceInfoNode {
     fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
         let _scope = tracing::trace_span!("widget.info", name = self.info.borrow().widget_name, id = ?ctx.path.widget_id()).entered();
 
-        info.meta().set(WidgetInstanceInfoKey, Rc::clone(&self.info));
+        info.meta().set(WidgetInstanceInfoKey, self.info.clone());
         self.child.info(ctx, info);
     }
 
@@ -772,7 +906,7 @@ impl PropertyInfoNode {
         PropertyInfoNode {
             child: node,
             arg_debug_vars,
-            info: Rc::new(RefCell::new(PropertyInstanceInfo {
+            info: PropertyInstance::new(PropertyInstanceInfo {
                 priority,
                 original_name,
                 decl_location,
@@ -796,7 +930,7 @@ impl PropertyInfoNode {
                 user_assigned,
                 duration: UiNodeDurations::default(),
                 count: UiNodeCounts::default(),
-            })),
+            }),
         }
     }
 }
@@ -804,7 +938,7 @@ impl UiNode for PropertyInfoNode {
     fn info(&self, ctx: &mut InfoContext, wgt_info: &mut WidgetInfoBuilder) {
         let _scope = tracing::trace_span!("property.info", name = self.info.borrow().property_name).entered();
 
-        wgt_info.meta().entry(PropertiesInfoKey).or_default().push(Rc::clone(&self.info));
+        wgt_info.meta().entry(PropertiesInfoKey).or_default().push(self.info.clone());
 
         let t = Instant::now();
         self.child.info(ctx, wgt_info);
@@ -1200,6 +1334,14 @@ pub trait WidgetInspectorInfo<'a> {
     /// Gets the widget instance info if the widget is [`is_inspected`](Self::is_inspected).
     fn instance(self) -> Option<&'a WidgetInstance>;
 
+    /// Search for an inspected child widget.
+    fn child_instance(self, widget_name: &str) -> Option<WidgetInfo<'a>>;
+
+    /// Search for an inspected descendant widget.
+    fn descendant_instance(self, widget_name: &str) -> Option<WidgetInfo<'a>>;
+
+    // TODO more instance queries
+
     /// Gets the widget constructor functions info.
     ///
     /// Returns empty if [`is_inspected`](Self::is_inspected) is `false`.
@@ -1214,6 +1356,9 @@ pub trait WidgetInspectorInfo<'a> {
     ///
     /// Returns empty if [`is_inspected`](Self::is_inspected) is `false`.
     fn properties(self) -> &'a [PropertyInstance];
+
+    /// Search for the property in the inspected properties or captures of the widget.
+    fn property(self, property_name: &str) -> Option<PropertyOrCaptureInstance>;
 }
 impl<'a> WidgetInspectorInfo<'a> for WidgetInfo<'a> {
     #[inline]
@@ -1224,6 +1369,28 @@ impl<'a> WidgetInspectorInfo<'a> for WidgetInfo<'a> {
     #[inline]
     fn instance(self) -> Option<&'a WidgetInstance> {
         self.meta().get(WidgetInstanceInfoKey)
+    }
+
+    fn child_instance(self, widget_name: &str) -> Option<WidgetInfo<'a>> {
+        self.children().find_map(|c| {
+            let inst = c.instance()?;
+            if inst.borrow().widget_name == widget_name {
+                Some(c)
+            } else {
+                None
+            }
+        })
+    }
+
+    fn descendant_instance(self, widget_name: &str) -> Option<WidgetInfo<'a>> {
+        self.descendants().find_map(|c| {
+            let inst = c.instance()?;
+            if inst.borrow().widget_name == widget_name {
+                Some(c)
+            } else {
+                None
+            }
+        })
     }
 
     #[inline]
@@ -1239,6 +1406,98 @@ impl<'a> WidgetInspectorInfo<'a> for WidgetInfo<'a> {
     #[inline]
     fn properties(self) -> &'a [PropertyInstance] {
         self.meta().get(PropertiesInfoKey).map(|v| &v[..]).unwrap_or(&[])
+    }
+
+    fn property(self, property_name: &str) -> Option<PropertyOrCaptureInstance> {
+        if let Some(p) = self.properties().iter().find(|p| p.borrow().property_name == property_name) {
+            Some(PropertyOrCaptureInstance::Property(p.clone()))
+        } else {
+            for new_fn in self.new_fns() {
+                let new_fn_ref = new_fn.borrow();
+                if let Some(p) = new_fn_ref.captures.iter().position(|p| p.property_name == property_name) {
+                    return Some(PropertyOrCaptureInstance::Capture(CapturedPropertyInstance::new(new_fn.clone(), p)));
+                }
+            }
+            None
+        }
+    }
+}
+
+/// Represents either a [`PropertyInstance`] or [`CapturedPropertyInstance`].
+#[derive(Debug, Clone)]
+pub enum PropertyOrCaptureInstance {
+    /// Represents a full property, implemented by a property function.
+    Property(PropertyInstance),
+    /// Represents a captured property, implemented by one of the widget's new functions.
+    Capture(CapturedPropertyInstance),
+}
+impl PropertyOrCaptureInstance {
+    /// Borrow the instance info.
+    pub fn borrow(&self) -> PropertyOrCaptureRef {
+        match self {
+            PropertyOrCaptureInstance::Property(p) => PropertyOrCaptureRef::Property(p.borrow()),
+            PropertyOrCaptureInstance::Capture(p) => PropertyOrCaptureRef::Capture(p.borrow()),
+        }
+    }
+}
+
+/// Borrowed [`PropertyOrCaptureInstance`].
+#[derive(Debug)]
+pub enum PropertyOrCaptureRef<'a> {
+    /// Represents a full property, implemented by a property function.
+    Property(std::cell::Ref<'a, PropertyInstanceInfo>),
+    /// Represents a captured property, implemented by one of the widget's new functions.
+    Capture(std::cell::Ref<'a, CapturedPropertyInfo>),
+}
+impl<'a> PropertyOrCaptureRef<'a> {
+    /// Get the property name.
+    pub fn property_name(&self) -> &'a str {
+        match self {
+            PropertyOrCaptureRef::Property(p) => p.property_name,
+            PropertyOrCaptureRef::Capture(p) => p.property_name,
+        }
+    }
+
+    /// Source-code location of the widget instantiation or property assign.
+    pub fn instance_location(&self) -> SourceLocation {
+        match self {
+            PropertyOrCaptureRef::Property(p) => p.instance_location,
+            PropertyOrCaptureRef::Capture(p) => p.instance_location,
+        }
+    }
+
+    /// Get the property arguments.
+    pub fn args(&self) -> &[PropertyArgInfo] {
+        match self {
+            PropertyOrCaptureRef::Property(p) => &p.args,
+            PropertyOrCaptureRef::Capture(p) => &p.args,
+        }
+    }
+
+    /// Get the property argument by index.
+    pub fn arg(&self, index: usize) -> &PropertyArgInfo {
+        &self.args()[index]
+    }
+
+    /// If [`args`](Self::args) values can be inspected.
+    /// 
+    /// Only properties that are `allowed_in_when` are guaranteed to have
+    /// variable arguments with values that can print debug. For other properties
+    /// the [`value`](PropertyArgInfo::value) is always an empty string and
+    /// [`value_version`](PropertyArgInfo::value_version) is always zero.
+    pub fn can_debug_args(&self) -> bool {
+        match self {
+            PropertyOrCaptureRef::Property(p) => p.can_debug_args,
+            PropertyOrCaptureRef::Capture(p) => p.can_debug_args,
+        }
+    }
+
+    /// If the user assigned this property.
+    pub fn user_assigned(&self) -> bool {
+        match self {
+            PropertyOrCaptureRef::Property(p) => p.user_assigned,
+            PropertyOrCaptureRef::Capture(p) => p.user_assigned,
+        }
     }
 }
 
