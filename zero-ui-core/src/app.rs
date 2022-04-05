@@ -1585,7 +1585,8 @@ impl<E: AppExtension> Drop for RunningApp<E> {
 
 #[derive(Default)]
 struct LoopMonitor {
-    update_count: usize,
+    update_count: u16,
+    skipped: bool,
     trace: Vec<UpdateTrace>,
 }
 impl LoopMonitor {
@@ -1598,13 +1599,16 @@ impl LoopMonitor {
         } else if self.update_count < 1000 {
             UpdatesTrace::collect_trace(&mut self.trace, update_once)
         } else if self.update_count == 1000 {
+            self.skipped = true;
             let trace = UpdatesTrace::format_trace(mem::take(&mut self.trace));
             tracing::error!(
                 "updated 1000 times without rendering, probably stuck in an infinite loop\n\
                             will start skipping updates to render and poll system events\nmost frequent update requests (in 500 cycles):\n{trace}"
             );
             false
-        } else if self.update_count % 1000 == 0 {
+        } else if self.update_count == 1500 {
+            self.skipped = true;
+            self.update_count = 1001;
             false
         } else {
             update_once()
@@ -1620,7 +1624,8 @@ impl LoopMonitor {
     }
 
     pub fn finish_frame(&mut self) {
-        if self.update_count < 1000 {
+        if !self.skipped {
+            self.skipped = false;
             self.update_count = 0;
             self.trace = vec![];
         }
