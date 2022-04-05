@@ -344,7 +344,7 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
                             #(#cfgs #caps : impl self::#prop_idents::Args,)*
                             #(#cfgs #assigned_flags: bool,)*
                             __captures_info: &mut std::vec::Vec<#crate_core::inspector::CapturedPropertyV1>
-                        ) #output {
+                        ) -> #crate_core::inspector::WidgetNewFnInfoNode {
                             #(
                                 #cfgs
                                 __captures_info.push(#prop_idents::captured_inspect(&#caps, #names, #locations, #assigned_flags));
@@ -353,7 +353,7 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
                             fn box_fix(node: impl #crate_core::UiNode) -> #crate_core::BoxedUiNode {
                                 #crate_core::UiNode::boxed(node)
                             }
-                            box_fix(out)
+                            #crate_core::inspector::WidgetNewFnInfoNode::new_v1(box_fix(out), $crate_core::inspector::WidgetNewFnV1::)
                         }
                     });
                 } else {

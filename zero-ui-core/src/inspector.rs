@@ -3,12 +3,9 @@
 
 //! Helper types for debugging an UI tree.
 
-use linear_map::LinearMap;
-
 use crate::{
     context::LayoutContext,
     context::{state_key, InfoContext, UpdatesTrace, WidgetContext},
-    impl_ui_node,
     render::{FrameBuilder, FrameUpdate},
     units::*,
     var::{context_var, BoxedVar, ContextVarData, Var, VarVersion},
@@ -27,6 +24,7 @@ use crate::{
 };
 
 use std::{
+    borrow::Cow,
     cell::RefCell,
     collections::{HashMap, HashSet},
     fmt,
@@ -113,6 +111,9 @@ impl PropertyInstanceInfo {
 /// A reference to a [`PropertyInstanceInfo`].
 pub type PropertyInstance = Rc<RefCell<PropertyInstanceInfo>>;
 
+/// A reference to a [`WidgetNewFnInfo`].
+pub type WidgetNewFnInstance = Rc<RefCell<WidgetNewFnInfo>>;
+
 /// A reference to a [`WidgetInstanceInfo`].
 pub type WidgetInstance = Rc<RefCell<WidgetInstanceInfo>>;
 
@@ -153,7 +154,6 @@ pub enum PropertyPriority {
     /// [Capture-only](crate::property#capture_only) property.
     CaptureOnly,
 }
-
 impl PropertyPriority {
     fn token_str(self) -> &'static str {
         match self {
@@ -263,25 +263,74 @@ impl WidgetNewFn {
             Self::New,
         ]
     }
+
+    /// Returns the corresponding new function for the priority.
+    ///
+    /// Returns `None` for `CaptureOnly`.
+    pub fn from_priority(priority: PropertyPriority) -> Option<Self> {
+        match priority {
+            PropertyPriority::Context => Some(WidgetNewFn::NewContext),
+            PropertyPriority::Event => Some(WidgetNewFn::NewEvent),
+            PropertyPriority::Layout => Some(WidgetNewFn::NewLayout),
+            PropertyPriority::Size => Some(WidgetNewFn::NewSize),
+            PropertyPriority::Border => Some(WidgetNewFn::NewBorder),
+            PropertyPriority::Fill => Some(WidgetNewFn::NewFill),
+            PropertyPriority::ChildContext => Some(WidgetNewFn::NewChildContext),
+            PropertyPriority::ChildLayout => Some(WidgetNewFn::NewChildLayout),
+            PropertyPriority::CaptureOnly => None,
+        }
+    }
+
+    /// Returns the corrensponding priority for the new function.
+    ///
+    /// Returns `None` for `NewChild` and `New`.
+    pub fn priority(self) -> Option<PropertyPriority> {
+        match self {
+            WidgetNewFn::NewChild => None,
+            WidgetNewFn::NewChildLayout => Some(PropertyPriority::ChildLayout),
+            WidgetNewFn::NewChildContext => Some(PropertyPriority::ChildContext),
+            WidgetNewFn::NewFill => Some(PropertyPriority::Fill),
+            WidgetNewFn::NewBorder => Some(PropertyPriority::Border),
+            WidgetNewFn::NewSize => Some(PropertyPriority::Size),
+            WidgetNewFn::NewLayout => Some(PropertyPriority::Layout),
+            WidgetNewFn::NewEvent => Some(PropertyPriority::Event),
+            WidgetNewFn::NewContext => Some(PropertyPriority::Context),
+            WidgetNewFn::New => None,
+        }
+    }
+
+    fn token_str(self) -> &'static str {
+        match self {
+            Self::NewChild => "new_child",
+            Self::NewChildLayout => "new_child_layout",
+            Self::NewChildContext => "new_child_context",
+            Self::NewFill => "new_fill",
+            Self::NewBorder => "new_border",
+            Self::NewSize => "new_size",
+            Self::NewLayout => "new_layout",
+            Self::NewEvent => "new_event",
+            Self::NewContext => "new_context",
+            Self::New => "new",
+        }
+    }
 }
 impl fmt::Display for WidgetNewFn {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match *self {
-            Self::NewChild => write!(f, "new_child"),
-            Self::NewChildLayout => write!(f, "new_child_layout"),
-            Self::NewChildContext => write!(f, "new_child_context"),
-            Self::NewFill => write!(f, "new_fill"),
-            Self::NewBorder => write!(f, "new_border"),
-            Self::NewSize => write!(f, "new_size"),
-            Self::NewLayout => write!(f, "new_layout"),
-            Self::NewEvent => write!(f, "new_event"),
-            Self::NewContext => write!(f, "new_context"),
-            Self::New => write!(f, "new"),
-        }
+        write!(f, "{}", self.token_str())
     }
 }
 #[doc(hidden)]
 pub type WidgetNewFnV1 = WidgetNewFn;
+
+/// Debug info about a widget constructor function.
+#[derive(Debug, Clone)]
+pub struct WidgetNewFnInfo {
+    /// Constructor function.
+    pub new_fn: WidgetNewFn,
+
+    /// Properties captured by the widget in this function.
+    pub captures: Box<[CapturedPropertyInfo]>,
+}
 
 /// Debug info about a widget instance.
 #[derive(Debug, Clone)]
@@ -298,16 +347,13 @@ pub struct WidgetInstanceInfo {
     /// Source-code location of the widget instantiation.
     pub instance_location: SourceLocation,
 
-    /// Properties this widget captured in the new functions.
-    pub captures: LinearMap<WidgetNewFn, Box<[CapturedPropertyInfo]>>,
-
     /// When blocks setup by this widget instance.
     pub whens: Box<[WhenInfo]>,
 
-    /// Name of the parent widget property that introduces this widget.
+    /// Name of the parent widget property or new function that introduces this widget.
     ///
     /// Empty string (`""`) when the widget has no parent with debug enabled.
-    pub parent_property: &'static str,
+    pub parent_name: Cow<'static, str>,
 }
 
 /// Debug info about a *property* captured by a widget instance.
@@ -355,6 +401,7 @@ pub struct WhenInfo {
 
 state_key! {
     struct PropertiesInfoKey: Vec<PropertyInstance>;
+    struct WidgetNewFnInfoKey: Vec<WidgetNewFnInstance>;
     struct WidgetInstanceInfoKey: WidgetInstance;
 }
 
@@ -368,20 +415,175 @@ unique_id_64! {
 }
 
 context_var! {
-    struct ParentPropertyName: &'static str = "";
+    struct ParentName: Cow<'static, str> = Cow::Borrowed("");
 }
 
 type PropertyMembersVars = Box<[BoxedVar<ValueInfo>]>;
 type PropertiesVars = Box<[PropertyMembersVars]>;
 
+// node that marks constructor functions of a widget, wrapping said function output.
+// The `WidgetNewFn::New` value is not used.
+#[doc(hidden)]
+pub struct WidgetNewFnInfoNode {
+    child: BoxedUiNode,
+    new_fn: WidgetNewFn,
+    info: WidgetNewFnInstance,
+    // debug vars, captures[members[var]]
+    debug_vars: PropertiesVars,
+}
+#[allow(missing_docs)] // this is all hidden
+impl WidgetNewFnInfoNode {
+    pub fn new_v1(node: BoxedUiNode, new_fn: WidgetNewFnV1, captures_v1: Vec<CapturedPropertyV1>) -> Self {
+        let mut debug_vars = Vec::with_capacity(captures_v1.len());
+        let mut captures = Vec::with_capacity(captures_v1.len());
+        for p in captures_v1 {
+            let dbg_vars: PropertyMembersVars = std::mem::take(&mut p.arg_debug_vars);
+            captures.push(CapturedPropertyInfo {
+                property_name: p.property_name,
+                instance_location: p.instance_location,
+                args: p
+                    .arg_names
+                    .iter()
+                    .map(|n| PropertyArgInfo {
+                        name: n,
+                        value: ValueInfo {
+                            debug: "".into(),
+                            debug_alt: "".into(),
+                            type_name: "".into(),
+                        },
+                        value_version: VarVersion::normal(0),
+                        can_update: false,
+                    })
+                    .collect(),
+                can_debug_args: !dbg_vars.is_empty(),
+                user_assigned: p.user_assigned,
+            });
+            debug_vars.push(dbg_vars);
+        }
+        let captures = captures.into_boxed_slice();
+        let debug_vars = debug_vars.into_boxed_slice();
+
+        WidgetNewFnInfoNode {
+            child: node,
+            debug_vars,
+            new_fn,
+            info: Rc::new(RefCell::new(WidgetNewFnInfo { new_fn, captures })),
+        }
+    }
+}
+impl UiNode for WidgetNewFnInfoNode {
+    fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
+        let _scope = tracing::trace_span!("new_fn.info", name = ?self.new_fn).entered();
+
+        info.meta().entry(WidgetNewFnInfoKey).or_default().push(Rc::clone(&self.info));
+
+        self.child.info(ctx, info);
+    }
+
+    fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
+        let _scope = tracing::trace_span!("new_fn.subscriptions", name = ?self.new_fn).entered();
+
+        self.child.subscriptions(ctx, subscriptions);
+    }
+
+    fn init(&mut self, ctx: &mut WidgetContext) {
+        let _span = UpdatesTrace::new_fn_span(self.new_fn);
+        let _scope = tracing::trace_span!("new_fn.init", name = ?self.new_fn).entered();
+
+        {
+            let info = self.info.borrow();
+            let mut name = format!("{}(", self.new_fn);
+            let mut sep = "";
+            for cap in info.captures.iter() {
+                name.push_str(sep);
+                name.push_str(cap.property_name);
+                sep = ", ";
+            }
+            name.push(')');
+            drop(info);
+
+            ctx.vars.with_context_var(ParentName, ContextVarData::fixed(&Cow::Owned(name)), || {
+                self.child.init(ctx);
+            });
+        }
+
+        let mut info = self.info.borrow_mut();
+        let info = &mut *info;
+
+        for (p, vars) in info.captures.iter().zip(self.debug_vars.iter()) {
+            for (arg, var) in p.args.iter_mut().zip(vars.iter()) {
+                arg.value = var.get_clone(ctx);
+                arg.value_version = var.version(ctx);
+                arg.can_update = var.can_update();
+            }
+        }
+    }
+
+    fn deinit(&mut self, ctx: &mut WidgetContext) {
+        let _span = UpdatesTrace::new_fn_span(self.new_fn);
+        let _scope = tracing::trace_span!("new_fn.deinit", name = ?self.new_fn).entered();
+
+        self.child.deinit(ctx);
+    }
+
+    fn event<A: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &A) {
+        let _span = UpdatesTrace::new_fn_span(self.new_fn);
+        let _scope = tracing::trace_span!("new_fn.event", name = ?self.new_fn).entered();
+
+        self.child.event(ctx, args);
+    }
+
+    fn update(&mut self, ctx: &mut WidgetContext) {
+        let _span = UpdatesTrace::new_fn_span(self.new_fn);
+        let _scope = tracing::trace_span!("new_fn.update", name = ?self.new_fn).entered();
+
+        self.child.update(ctx);
+
+        let mut info = self.info.borrow_mut();
+        let info = &mut *info;
+        for (p, vars) in info.captures.iter().zip(self.debug_vars.iter()) {
+            for (arg, var) in p.args.iter_mut().zip(vars.iter()) {
+                if let Some(update) = var.clone_new(ctx) {
+                    arg.value = update;
+                    arg.value_version = var.version(ctx);
+                }
+            }
+        }
+    }
+
+    fn measure(&mut self, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize {
+        let _span = UpdatesTrace::new_fn_span(self.new_fn);
+        let _scope = tracing::trace_span!("new_fn.measure", name = ?self.new_fn).entered();
+
+        self.child.measure(ctx, available_size)
+    }
+
+    fn arrange(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, final_size: PxSize) {
+        let _span = UpdatesTrace::new_fn_span(self.new_fn);
+        let _scope = tracing::trace_span!("new_fn.arrange", name = ?self.new_fn).entered();
+
+        self.child.arrange(ctx, widget_layout, final_size);
+    }
+
+    fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
+        let _scope = tracing::trace_span!("new_fn.render", name = ?self.new_fn).entered();
+
+        self.child.render(ctx, frame);
+    }
+
+    fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
+        let _scope = tracing::trace_span!("new_fn.render_update", name = ?self.new_fn).entered();
+
+        self.child.render_update(ctx, update);
+    }
+}
+
 // Node inserted just before calling the widget new function in debug mode.
 // It registers the `WidgetInstanceInfo` metadata.
 #[doc(hidden)]
 pub struct WidgetInstanceInfoNode {
-    child: BoxedUiNode,
+    child: WidgetNewFnInfoNode,
     info: WidgetInstance,
-    // debug vars, [capture-fn => properties[members[var]]]
-    debug_vars: LinearMap<WidgetNewFn, PropertiesVars>,
     // when condition result variables.
     when_vars: Box<[BoxedVar<bool>]>,
 }
@@ -405,53 +607,13 @@ pub struct WhenInfoV1 {
 #[allow(missing_docs)] // this is all hidden
 impl WidgetInstanceInfoNode {
     pub fn new_v1(
-        node: BoxedUiNode,
+        node: WidgetNewFnInfoNode,
         widget_name: &'static str,
         decl_location: SourceLocation,
         instance_location: SourceLocation,
-        captures: Vec<(WidgetNewFnV1, Vec<CapturedPropertyV1>)>,
+        captures: Vec<CapturedPropertyV1>,
         mut whens: Vec<WhenInfoV1>,
     ) -> Self {
-        let mut debug_vars = LinearMap::default();
-        debug_vars.reserve(captures.len());
-        let mut captures_final = LinearMap::default();
-        captures_final.reserve(captures.len());
-
-        for (fn_, properties) in captures {
-            let mut infos = Vec::with_capacity(properties.len());
-            let mut vars = Vec::with_capacity(properties.len());
-
-            for mut p in properties {
-                let dbg_vars: PropertyMembersVars = std::mem::take(&mut p.arg_debug_vars);
-                infos.push(CapturedPropertyInfo {
-                    property_name: p.property_name,
-                    instance_location: p.instance_location,
-                    args: p
-                        .arg_names
-                        .iter()
-                        .map(|n| PropertyArgInfo {
-                            name: n,
-                            // TODO is this right?
-                            value: ValueInfo {
-                                debug: "".into(),
-                                debug_alt: "".into(),
-                                type_name: "".into(),
-                            },
-                            value_version: VarVersion::normal(0),
-                            can_update: false,
-                        })
-                        .collect(),
-                    can_debug_args: !dbg_vars.is_empty(),
-                    user_assigned: p.user_assigned,
-                });
-                vars.push(dbg_vars);
-            }
-
-            let vars: PropertiesVars = vars.into_boxed_slice();
-            debug_vars.insert(fn_, vars);
-            captures_final.insert(fn_, infos.into_boxed_slice());
-        }
-
         let when_vars = whens
             .iter_mut()
             .map(|w| w.condition_var.take().unwrap())
@@ -478,11 +640,9 @@ impl WidgetInstanceInfoNode {
                 widget_name,
                 decl_location,
                 instance_location,
-                captures: captures_final,
                 whens,
-                parent_property: "",
+                parent_name: Cow::Borrowed(""),
             })),
-            debug_vars,
             when_vars,
         }
     }
@@ -506,32 +666,17 @@ impl UiNode for WidgetInstanceInfoNode {
         let _span = UpdatesTrace::widget_span(ctx.path.widget_id(), widget_name);
         let _scope = tracing::trace_span!("widget.init", name = widget_name).entered();
 
-        {
-            ctx.vars
-                .with_context_var(ParentPropertyName, ContextVarData::fixed(&"new(..)"), || {
-                    self.child.init(ctx);
-                });
-        }
+        self.child.init(ctx);
 
-        let mut info_borrow = self.info.borrow_mut();
-        let info = &mut *info_borrow;
-
-        for (fn_, p) in &mut info.captures {
-            for (p, vars) in p.iter_mut().zip(self.debug_vars.get(fn_).unwrap().iter()) {
-                for (arg, var) in p.args.iter_mut().zip(vars.iter()) {
-                    arg.value = var.get_clone(ctx);
-                    arg.value_version = var.version(ctx);
-                    arg.can_update = var.can_update();
-                }
-            }
-        }
+        let mut info = self.info.borrow_mut();
+        let info = &mut *info;
 
         for (when, var) in info.whens.iter_mut().zip(self.when_vars.iter()) {
             when.condition = var.copy(ctx);
             when.condition_version = var.version(ctx);
         }
 
-        info.parent_property = ParentPropertyName::get(ctx);
+        info.parent_name = ParentName::get_clone(ctx);
     }
 
     fn deinit(&mut self, ctx: &mut WidgetContext) {
@@ -557,19 +702,9 @@ impl UiNode for WidgetInstanceInfoNode {
 
         self.child.update(ctx);
 
-        let mut info_borrow = self.info.borrow_mut();
-        let info = &mut *info_borrow;
+        let mut info = self.info.borrow_mut();
+        let info = &mut *info;
 
-        for (fn_, p) in &mut info.captures {
-            for (p, vars) in p.iter_mut().zip(self.debug_vars.get(fn_).unwrap().iter()) {
-                for (arg, var) in p.args.iter_mut().zip(vars.iter()) {
-                    if let Some(update) = var.clone_new(ctx) {
-                        arg.value = update;
-                        arg.value_version = var.version(ctx);
-                    }
-                }
-            }
-        }
         for (when, var) in info.whens.iter_mut().zip(self.when_vars.iter()) {
             if let Some(update) = var.get_new(ctx) {
                 when.condition = *update;
@@ -699,7 +834,7 @@ impl UiNode for PropertyInfoNode {
         let _scope = tracing::trace_span!("property.init", name = property_name).entered();
 
         ctx.vars
-            .with_context_var(ParentPropertyName, ContextVarData::fixed(&property_name), || {
+            .with_context_var(ParentName, ContextVarData::fixed(&Cow::Borrowed(property_name)), || {
                 let t = Instant::now();
                 self.child.init(ctx);
                 let d = t.elapsed();
@@ -802,26 +937,6 @@ impl UiNode for PropertyInfoNode {
         let mut info = self.info.borrow_mut();
         info.duration.render_update = d;
         info.count.render_update += 1;
-    }
-}
-
-#[doc(hidden)]
-pub struct NewChildMarkerNode {
-    child: BoxedUiNode,
-}
-#[allow(missing_docs)] // this is hidden
-impl NewChildMarkerNode {
-    pub fn new_v1(child: BoxedUiNode) -> Self {
-        NewChildMarkerNode { child }
-    }
-}
-#[impl_ui_node(child)]
-impl UiNode for NewChildMarkerNode {
-    fn init(&mut self, ctx: &mut WidgetContext) {
-        ctx.vars
-            .with_context_var(ParentPropertyName, ContextVarData::fixed(&"new_child(..)"), || {
-                self.child.init(ctx);
-            });
     }
 }
 
@@ -1086,6 +1201,16 @@ pub trait WidgetInspectorInfo<'a> {
     /// Gets the widget instance info if the widget is [`is_inspected`](Self::is_inspected).
     fn instance(self) -> Option<&'a WidgetInstance>;
 
+    /// Gets the widget constructor functions info.
+    ///
+    /// Returns empty if [`is_inspected`](Self::is_inspected) is `false`.
+    fn new_fns(self) -> &'a [WidgetNewFnInstance];
+
+    /// Gets the widget constructor info.
+    ///
+    /// Returns `None` if [`is_inspected`](Self::is_inspected) is `false`.
+    fn new_fn(self, new_fn: WidgetNewFn) -> Option<&'a WidgetNewFnInstance>;
+
     /// Gets the widget properties info.
     ///
     /// Returns empty if [`is_inspected`](Self::is_inspected) is `false`.
@@ -1100,6 +1225,16 @@ impl<'a> WidgetInspectorInfo<'a> for WidgetInfo<'a> {
     #[inline]
     fn instance(self) -> Option<&'a WidgetInstance> {
         self.meta().get(WidgetInstanceInfoKey)
+    }
+
+    #[inline]
+    fn new_fns(self) -> &'a [WidgetNewFnInstance] {
+        self.meta().get(WidgetNewFnInfoKey).map(|v| &v[..]).unwrap_or(&[])
+    }
+
+    #[inline]
+    fn new_fn(self, new_fn: WidgetNewFn) -> Option<&'a WidgetNewFnInstance> {
+        self.new_fns().iter().find(|n| n.borrow().new_fn == new_fn)
     }
 
     #[inline]
@@ -1141,9 +1276,12 @@ impl WriteTreeState {
             if let Some(info) = w.instance() {
                 let info = info.borrow();
                 let mut properties = HashMap::new();
-                for p in info.captures.values().flat_map(|c| c.iter()) {
-                    for arg in p.args.iter() {
-                        properties.insert((p.property_name, arg.name), (arg.value_version, arg.value.clone()));
+                for new_fn in w.new_fns() {
+                    let new_fn = new_fn.borrow();
+                    for p in new_fn.captures.iter() {
+                        for arg in p.args.iter() {
+                            properties.insert((p.property_name, arg.name), (arg.value_version, arg.value.clone()));
+                        }
                     }
                 }
                 for p in w.properties() {
@@ -1245,7 +1383,7 @@ fn write_impl<W: std::io::Write>(updates_from: &WriteTreeState, widget: WidgetIn
     if let Some(info) = widget.instance() {
         let wgt = info.borrow();
 
-        fmt.open_widget(wgt.widget_name, parent_name, wgt.parent_property);
+        fmt.open_widget(wgt.widget_name, parent_name, wgt.parent_name.as_ref());
 
         macro_rules! write_property {
             ($p:ident, $group:tt) => {
@@ -1278,19 +1416,30 @@ fn write_impl<W: std::io::Write>(updates_from: &WriteTreeState, widget: WidgetIn
             };
         }
 
-        if let Some(p) = wgt.captures.get(&WidgetNewFn::NewChild) {
-            for p in p.iter() {
+        if let Some(p) = widget.new_fn(WidgetNewFn::NewChild) {
+            let p = p.borrow();
+            for p in p.captures.iter() {
                 write_property!(p, "new_child");
             }
         }
         for prop in widget.properties() {
-            // TODO other capture functions
             let p = prop.borrow();
             let group = p.priority.token_str();
             write_property!(p, group);
+
+            if let Some(fn_) = WidgetNewFn::from_priority(p.priority) {
+                if let Some(p) = widget.new_fn(fn_) {
+                    let p = p.borrow();
+                    let group = fn_.token_str();
+                    for p in p.captures.iter() {
+                        write_property!(p, group);
+                    }
+                }
+            }
         }
-        if let Some(p) = wgt.captures.get(&WidgetNewFn::New) {
-            for p in p.iter() {
+        if let Some(p) = widget.new_fn(WidgetNewFn::New) {
+            let p = p.borrow();
+            for p in p.captures.iter() {
                 write_property!(p, "new");
             }
         }
@@ -1430,10 +1579,10 @@ mod print_fmt {
             self.writeln();
         }
 
-        pub fn open_widget(&mut self, name: &str, parent_name: &str, parent_property: &str) {
-            if !parent_property.is_empty() {
+        pub fn open_widget(&mut self, name: &str, parent_name: &str, parent_scope: &str) {
+            if !parent_scope.is_empty() {
                 self.writeln();
-                self.write_comment(format_args!("in {parent_name}::{parent_property}"));
+                self.write_comment(format_args!("in {parent_name}::{parent_scope}"));
             }
             self.write_tabs();
             self.write(name.yellow());

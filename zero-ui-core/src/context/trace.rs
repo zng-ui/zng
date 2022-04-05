@@ -15,7 +15,7 @@ pub(crate) struct UpdatesTrace {
     trace: Arc<Mutex<Vec<UpdateTrace>>>,
 
     widgets_stack: Mutex<Vec<(WidgetId, String)>>,
-    properties_stack: Mutex<Vec<String>>,
+    node_parents_stack: Mutex<Vec<String>>,
 }
 impl tracing::subscriber::Subscriber for UpdatesTrace {
     fn enabled(&self, metadata: &tracing::Metadata<'_>) -> bool {
@@ -24,12 +24,12 @@ impl tracing::subscriber::Subscriber for UpdatesTrace {
 
     fn new_span(&self, span: &span::Attributes<'_>) -> span::Id {
         match span.metadata().name() {
-            "PROPERTY" => {
+            "PROPERTY" | "NEW-FN" => {
                 let name = visit_str(|v| span.record(v), "name");
                 let mut ctx = self.context.lock();
 
-                if let Some(p) = ctx.property.replace(name) {
-                    self.properties_stack.lock().push(p);
+                if let Some(p) = ctx.node_parent.replace(name) {
+                    self.node_parents_stack.lock().push(p);
                 }
 
                 span::Id::from_u64(1)
@@ -47,6 +47,11 @@ impl tracing::subscriber::Subscriber for UpdatesTrace {
                 if let Some(p) = ctx.widget.replace((id, name)) {
                     self.widgets_stack.lock().push(p);
                 }
+
+                if let Some(p) = ctx.node_parent.replace("new".to_owned()) {
+                    self.node_parents_stack.lock().push(p);
+                }
+
                 span::Id::from_u64(2)
             }
             "WINDOW" => {
@@ -99,9 +104,10 @@ impl tracing::subscriber::Subscriber for UpdatesTrace {
     fn exit(&self, span: &span::Id) {
         let mut ctx = self.context.lock();
         if span == &span::Id::from_u64(1) {
-            ctx.property = self.properties_stack.lock().pop();
+            ctx.node_parent = self.node_parents_stack.lock().pop();
         } else if span == &span::Id::from_u64(2) {
-            ctx.widget= self.widgets_stack.lock().pop();
+            ctx.widget = self.widgets_stack.lock().pop();
+            ctx.node_parent = self.node_parents_stack.lock().pop();
         } else if span == &span::Id::from_u64(3) {
             ctx.window_id = None;
         } else if span == &span::Id::from_u64(4) {
@@ -117,7 +123,7 @@ impl UpdatesTrace {
             context: Mutex::new(UpdateContext::default()),
             trace: Arc::new(Mutex::new(Vec::with_capacity(100))),
             widgets_stack: Mutex::new(Vec::with_capacity(100)),
-            properties_stack: Mutex::new(Vec::with_capacity(100)),
+            node_parents_stack: Mutex::new(Vec::with_capacity(100)),
         }
     }
 
@@ -143,6 +149,13 @@ impl UpdatesTrace {
     #[inline(always)]
     pub fn property_span(name: &'static str) -> tracing::span::EnteredSpan {
         tracing::trace_span!(target: UpdatesTrace::UPDATES_TARGET, "PROPERTY", name).entered()
+    }
+
+    /// Opens a new span.
+    #[inline(always)]
+    #[cfg(inspector)]
+    pub fn new_fn_span(new_fn: crate::inspector::WidgetNewFn) -> tracing::span::EnteredSpan {
+        tracing::trace_span!(target: UpdatesTrace::UPDATES_TARGET, "NEW-FN", name = ?new_fn).entered()
     }
 
     /// Log a direct update request.
@@ -216,7 +229,7 @@ struct UpdateContext {
     app_extension: Option<String>,
     window_id: Option<WindowId>,
     widget: Option<(WidgetId, String)>,
-    property: Option<String>,
+    node_parent: Option<String>,
 }
 impl fmt::Display for UpdateContext {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -231,7 +244,7 @@ impl fmt::Display for UpdateContext {
         if let Some((id, name)) = &self.widget {
             write!(f, "{name}({id})")?;
         }
-        if let Some(p) = &self.property {
+        if let Some(p) = &self.node_parent {
             write!(f, "/{p}")?;
         }
         Ok(())
