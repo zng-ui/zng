@@ -795,9 +795,8 @@ impl UiNode for WidgetInstanceInfoNode {
     }
 
     fn init(&mut self, ctx: &mut WidgetContext) {
-        let widget_name = self.info.borrow().widget_name;
-        let _span = UpdatesTrace::widget_span(ctx.path.widget_id(), widget_name);
-        let _scope = tracing::trace_span!("widget.init", name = widget_name).entered();
+        let _span = UpdatesTrace::widget_span(ctx.path.widget_id(), self.info.borrow().widget_name);
+        let _scope = tracing::trace_span!("widget.init", name = self.info.borrow().widget_name).entered();
 
         self.child.init(ctx);
 
@@ -813,25 +812,22 @@ impl UiNode for WidgetInstanceInfoNode {
     }
 
     fn deinit(&mut self, ctx: &mut WidgetContext) {
-        let widget_name = self.info.borrow().widget_name;
-        let _span = UpdatesTrace::widget_span(ctx.path.widget_id(), widget_name);
-        let _scope = tracing::trace_span!("widget.deinit", name = widget_name).entered();
+        let _span = UpdatesTrace::widget_span(ctx.path.widget_id(), self.info.borrow().widget_name);
+        let _scope = tracing::trace_span!("widget.deinit", name = self.info.borrow().widget_name).entered();
 
         self.child.deinit(ctx);
     }
 
     fn event<A: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &A) {
-        let widget_name = self.info.borrow().widget_name;
-        let _span = UpdatesTrace::widget_span(ctx.path.widget_id(), widget_name);
-        let _scope = tracing::trace_span!("widget.event", name = widget_name).entered();
+        let _span = UpdatesTrace::widget_span(ctx.path.widget_id(), self.info.borrow().widget_name);
+        let _scope = tracing::trace_span!("widget.event", name = self.info.borrow().widget_name).entered();
 
         self.child.event(ctx, args);
     }
 
     fn update(&mut self, ctx: &mut WidgetContext) {
-        let widget_name = self.info.borrow().widget_name;
-        let _span = UpdatesTrace::widget_span(ctx.path.widget_id(), widget_name);
-        let _scope = tracing::trace_span!("widget.update", widget_name).entered();
+        let _span = UpdatesTrace::widget_span(ctx.path.widget_id(), self.info.borrow().widget_name);
+        let _scope = tracing::trace_span!("widget.update", name = self.info.borrow().widget_name).entered();
 
         self.child.update(ctx);
 
@@ -847,16 +843,16 @@ impl UiNode for WidgetInstanceInfoNode {
     }
 
     fn measure(&mut self, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize {
-        let widget_name = self.info.borrow().widget_name;
-        let _span = UpdatesTrace::widget_span(ctx.path.widget_id(), widget_name);
-        let _scope = tracing::trace_span!("widget.measure", name = widget_name).entered();
+        let _span = UpdatesTrace::widget_span(ctx.path.widget_id(), self.info.borrow().widget_name);
+        let _scope = tracing::trace_span!("widget.measure", name = self.info.borrow().widget_name).entered();
+
         self.child.measure(ctx, available_size)
     }
 
     fn arrange(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, final_size: PxSize) {
-        let widget_name = self.info.borrow().widget_name;
-        let _span = UpdatesTrace::widget_span(ctx.path.widget_id(), widget_name);
-        let _scope = tracing::trace_span!("widget.arrange", name = widget_name).entered();
+        let _span = UpdatesTrace::widget_span(ctx.path.widget_id(), self.info.borrow().widget_name);
+        let _scope = tracing::trace_span!("widget.arrange", name = self.info.borrow().widget_name).entered();
+
         self.child.arrange(ctx, widget_layout, final_size)
     }
 
@@ -960,9 +956,7 @@ impl UiNode for PropertyInfoNode {
     }
 
     fn init(&mut self, ctx: &mut WidgetContext) {
-        let mut info = self.info.borrow_mut();
-        let property_name = info.property_name;
-
+        let property_name = self.info.borrow().property_name;
         let _span = UpdatesTrace::property_span(property_name);
         let _scope = tracing::trace_span!("property.init", name = property_name).entered();
 
@@ -971,10 +965,12 @@ impl UiNode for PropertyInfoNode {
                 let t = Instant::now();
                 self.child.init(ctx);
                 let d = t.elapsed();
+                let mut info = self.info.borrow_mut();
                 info.duration.init = d;
                 info.count.init += 1;
             });
 
+        let mut info = self.info.borrow_mut();
         for (var, arg) in self.arg_debug_vars.iter().zip(info.args.iter_mut()) {
             arg.value = var.get_clone(ctx);
             arg.value_version = var.version(ctx);
@@ -982,30 +978,29 @@ impl UiNode for PropertyInfoNode {
         }
     }
     fn deinit(&mut self, ctx: &mut WidgetContext) {
-        let mut info = self.info.borrow_mut();
-
-        let _span = UpdatesTrace::property_span(info.property_name);
+        let _span = UpdatesTrace::property_span(self.info.borrow().property_name);
         let _scope = tracing::trace_span!("property.deinit", name = self.info.borrow().property_name).entered();
 
         let t = Instant::now();
         self.child.deinit(ctx);
         let d = t.elapsed();
+
+        let mut info = self.info.borrow_mut();
         info.duration.deinit = d;
         info.count.deinit += 1;
     }
 
     fn update(&mut self, ctx: &mut WidgetContext) {
-        let property_name = self.info.borrow().property_name;
-        let _span = UpdatesTrace::property_span(property_name);
-        let _scope = tracing::trace_span!("property.update", name = property_name).entered();
+        let _span = UpdatesTrace::property_span(self.info.borrow().property_name);
+        let _scope = tracing::trace_span!("property.update", name = self.info.borrow().property_name).entered();
 
         let t = Instant::now();
         self.child.update(ctx);
         let d = t.elapsed();
+
         let mut info = self.info.borrow_mut();
         info.duration.update = d;
         info.count.update += 1;
-
         for (var, arg) in self.arg_debug_vars.iter_mut().zip(info.args.iter_mut()) {
             if let Some(new) = var.get_new(ctx) {
                 arg.value = new.clone();
@@ -1018,18 +1013,16 @@ impl UiNode for PropertyInfoNode {
     where
         Self: Sized,
     {
-        let property_name = self.info.borrow().property_name;
-        let _span = UpdatesTrace::property_span(property_name);
-        let _scope = tracing::trace_span!("property.event", name = property_name).entered();
+        let _span = UpdatesTrace::property_span(self.info.borrow().property_name);
+        let _scope = tracing::trace_span!("property.event", name = self.info.borrow().property_name).entered();
 
         // TODO measure time and count
         self.child.event(ctx, args);
     }
 
     fn measure(&mut self, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize {
-        let property_name = self.info.borrow().property_name;
-        let _span = UpdatesTrace::property_span(property_name);
-        let _scope = tracing::trace_span!("property.measure", name = property_name).entered();
+        let _span = UpdatesTrace::property_span(self.info.borrow().property_name);
+        let _scope = tracing::trace_span!("property.measure", name = self.info.borrow().property_name).entered();
 
         let t = Instant::now();
         let r = self.child.measure(ctx, available_size);
@@ -1040,9 +1033,8 @@ impl UiNode for PropertyInfoNode {
         r
     }
     fn arrange(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, final_size: PxSize) {
-        let property_name = self.info.borrow().property_name;
-        let _span = UpdatesTrace::property_span(property_name);
-        let _scope = tracing::trace_span!("property.arrange", name = property_name).entered();
+        let _span = UpdatesTrace::property_span(self.info.borrow().property_name);
+        let _scope = tracing::trace_span!("property.arrange", name = self.info.borrow().property_name).entered();
 
         let t = Instant::now();
         self.child.arrange(ctx, widget_layout, final_size);
@@ -1480,7 +1472,7 @@ impl<'a> PropertyOrCaptureRef<'a> {
     }
 
     /// If [`args`](Self::args) values can be inspected.
-    /// 
+    ///
     /// Only properties that are `allowed_in_when` are guaranteed to have
     /// variable arguments with values that can print debug. For other properties
     /// the [`value`](PropertyArgInfo::value) is always an empty string and

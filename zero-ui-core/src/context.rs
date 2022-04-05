@@ -6,7 +6,7 @@ use std::{fmt, ops::Deref, time::Instant};
 use crate::app::AppEventSender;
 
 use crate::timer::Timers;
-use crate::widget_info::{UpdateMask, WidgetInfoTree};
+use crate::widget_info::WidgetInfoTree;
 use crate::{var::VarsRead, window::WindowMode};
 
 mod contextual;
@@ -566,7 +566,7 @@ impl TestWidgetContext {
     }
 
     /// Force set the current update mask.
-    pub fn set_current_update(&mut self, current: UpdateMask) {
+    pub fn set_current_update(&mut self, current: crate::widget_info::UpdateMask) {
         self.updates.current = current;
     }
 }
