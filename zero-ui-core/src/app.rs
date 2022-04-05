@@ -450,8 +450,7 @@ impl<E: AppExtension> AppExtension for TraceAppExt<E> {
     }
 
     fn init(&mut self, ctx: &mut AppContext) {
-        let _span = UpdatesTrace::extension_span::<E>();
-        // let _scope = tracing::trace_span!("app-extension.init", name = type_name::<E>()).entered();
+        let _span = UpdatesTrace::extension_span::<E>("init");
         self.0.init(ctx);
     }
 
@@ -460,47 +459,47 @@ impl<E: AppExtension> AppExtension for TraceAppExt<E> {
     }
 
     fn event_preview<EV: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {
-        let _span = UpdatesTrace::extension_span::<E>();
+        let _span = UpdatesTrace::extension_span::<E>("event_preview");
         self.0.event_preview(ctx, args);
     }
 
     fn event_ui<EV: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {
-        let _span = UpdatesTrace::extension_span::<E>();
+        let _span = UpdatesTrace::extension_span::<E>("event_ui");
         self.0.event_ui(ctx, args);
     }
 
     fn event<EV: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {
-        let _span = UpdatesTrace::extension_span::<E>();
+        let _span = UpdatesTrace::extension_span::<E>("event");
         self.0.event(ctx, args);
     }
 
     fn update_preview(&mut self, ctx: &mut AppContext) {
-        let _span = UpdatesTrace::extension_span::<E>();
+        let _span = UpdatesTrace::extension_span::<E>("update_preview");
         self.0.update_preview(ctx);
     }
 
     fn update_ui(&mut self, ctx: &mut AppContext) {
-        let _span = UpdatesTrace::extension_span::<E>();
+        let _span = UpdatesTrace::extension_span::<E>("update_ui");
         self.0.update_ui(ctx);
     }
 
     fn update(&mut self, ctx: &mut AppContext) {
-        let _span = UpdatesTrace::extension_span::<E>();
+        let _span = UpdatesTrace::extension_span::<E>("update");
         self.0.update(ctx);
     }
 
     fn layout(&mut self, ctx: &mut AppContext) {
-        let _span = UpdatesTrace::extension_span::<E>();
+        let _span = UpdatesTrace::extension_span::<E>("layout");
         self.0.layout(ctx);
     }
 
     fn render(&mut self, ctx: &mut AppContext) {
-        let _span = UpdatesTrace::extension_span::<E>();
+        let _span = UpdatesTrace::extension_span::<E>("render");
         self.0.render(ctx);
     }
 
     fn deinit(&mut self, ctx: &mut AppContext) {
-        let _span = UpdatesTrace::extension_span::<E>();
+        let _span = UpdatesTrace::extension_span::<E>("deinit");
         self.0.deinit(ctx);
     }
 
@@ -1455,7 +1454,7 @@ impl<E: AppExtension> RunningApp<E> {
         let mut run = true;
         while run {
             run = self.loop_monitor.update(|| {
-                let u = self.owned_ctx.apply_updates();
+                let u = self.owned_ctx.apply_updates();                
 
                 Timers::notify(&mut self.owned_ctx.borrow());
 
@@ -2038,6 +2037,7 @@ impl AppEventSender {
     /// Causes an update cycle to happen in the app.
     #[inline]
     pub fn send_update(&self, mask: UpdateMask) -> Result<(), AppShutdown<()>> {
+        UpdatesTrace::log_update();
         self.send_app_event(AppEvent::Update(mask)).map_err(|_| AppShutdown(()))
     }
 
@@ -2048,6 +2048,7 @@ impl AppEventSender {
     /// [`send_update`]: Self::send_update
     #[inline]
     pub fn send_ext_update(&self) -> Result<(), AppShutdown<()>> {
+        UpdatesTrace::log_update();
         self.send_update(UpdateMask::none())
     }
 

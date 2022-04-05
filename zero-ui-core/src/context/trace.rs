@@ -23,7 +23,7 @@ impl tracing::subscriber::Subscriber for UpdatesTrace {
     }
 
     fn new_span(&self, span: &span::Attributes<'_>) -> span::Id {
-        match span.metadata().name() {
+        let r = match span.metadata().name() {
             "property" | "new_fn" => {
                 let name = visit_str(|v| span.record(v), "name");
                 let mut ctx = self.context.lock();
@@ -70,7 +70,9 @@ impl tracing::subscriber::Subscriber for UpdatesTrace {
                 span::Id::from_u64(4)
             }
             _ => span::Id::from_u64(u64::MAX),
-        }
+        };
+        // println!("{}", self.context.lock());
+        r
     }
 
     fn record(&self, _span: &span::Id, _values: &span::Record<'_>) {}
@@ -129,8 +131,8 @@ impl UpdatesTrace {
 
     /// Opens an app extension span.
     #[inline(always)]
-    pub fn extension_span<E: AppExtension>() -> tracing::span::EnteredSpan {
-        tracing::trace_span!(target: UpdatesTrace::UPDATES_TARGET, "AppExtension", name = type_name::<E>()).entered()
+    pub fn extension_span<E: AppExtension>(ext_fn: &'static str) -> tracing::span::EnteredSpan {
+        tracing::trace_span!(target: UpdatesTrace::UPDATES_TARGET, "AppExtension", name = type_name::<E>(), %ext_fn).entered()
     }
 
     /// Opens a window span.

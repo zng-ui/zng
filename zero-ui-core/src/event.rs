@@ -470,6 +470,8 @@ where
 {
     /// Send an event update.
     pub fn send(&self, args: E::Args) -> Result<(), AppShutdown<E::Args>> {
+        UpdatesTrace::log_event::<E>();
+
         let update = EventUpdate::<E> { args, slot: self.slot }.boxed_send();
         self.sender.send_event(update).map_err(|e| {
             if let Ok(e) = e.0.unbox_for::<E>() {
