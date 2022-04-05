@@ -247,7 +247,7 @@ impl fmt::Display for UpdateContext {
             write!(f, "{w}/")?;
         }
         if let Some((id, name)) = &self.widget {
-            write!(f, "{name}({id})")?;
+            write!(f, "{name}#{id}")?;
         }
         if let Some(p) = &self.node_parent {
             write!(f, "/{p}")?;
@@ -291,7 +291,11 @@ fn visit_str(record: impl FnOnce(&mut dyn tracing::field::Visit), name: &str) ->
         result: String,
     }
     impl<'a> tracing::field::Visit for Visitor<'a> {
-        fn record_debug(&mut self, _field: &tracing::field::Field, _value: &dyn std::fmt::Debug) {}
+        fn record_debug(&mut self, field: &tracing::field::Field, value: &dyn std::fmt::Debug) {
+            if field.name() == self.name {
+                self.result = format!("{value:?}");
+            }
+        }
         fn record_str(&mut self, field: &tracing::field::Field, value: &str) {
             if field.name() == self.name {
                 self.result = value.to_owned();
