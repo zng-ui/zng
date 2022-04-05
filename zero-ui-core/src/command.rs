@@ -27,7 +27,7 @@ use std::{
 };
 
 use crate::{
-    context::{state_key, InfoContext, OwnedStateMap, StateKey, StateMap, WidgetContext, WidgetContextMut, WindowContext, UpdatesTrace},
+    context::{state_key, InfoContext, OwnedStateMap, StateKey, StateMap, UpdatesTrace, WidgetContext, WidgetContextMut, WindowContext},
     crate_util::{Handle, HandleOwner},
     event::{Event, Events, WithEvents},
     handler::WidgetHandler,

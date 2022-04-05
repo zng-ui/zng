@@ -16,5 +16,4 @@
 ## Refactored loop monitor to force poll/render when stuck
 
 * Restore from force mode if recovered? 
-* Trace widget name.
-* Trace widget constructor functions (add this to inspector?).
+* Trace widget constructor functions (add to inspector?).

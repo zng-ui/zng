@@ -502,7 +502,9 @@ impl UiNode for WidgetInstanceInfoNode {
     }
 
     fn init(&mut self, ctx: &mut WidgetContext) {
-        let _scope = tracing::trace_span!("widget.init", name = self.info.borrow().widget_name).entered();
+        let widget_name = self.info.borrow().widget_name;
+        let _span = UpdatesTrace::widget_span(ctx.path.widget_id(), widget_name);
+        let _scope = tracing::trace_span!("widget.init", name = widget_name).entered();
 
         {
             ctx.vars
@@ -533,19 +535,25 @@ impl UiNode for WidgetInstanceInfoNode {
     }
 
     fn deinit(&mut self, ctx: &mut WidgetContext) {
-        let _scope = tracing::trace_span!("widget.deinit", name = self.info.borrow().widget_name).entered();
+        let widget_name = self.info.borrow().widget_name;
+        let _span = UpdatesTrace::widget_span(ctx.path.widget_id(), widget_name);
+        let _scope = tracing::trace_span!("widget.deinit", name = widget_name).entered();
 
         self.child.deinit(ctx);
     }
 
     fn event<A: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &A) {
-        let _scope = tracing::trace_span!("widget.event", name = self.info.borrow().widget_name).entered();
+        let widget_name = self.info.borrow().widget_name;
+        let _span = UpdatesTrace::widget_span(ctx.path.widget_id(), widget_name);
+        let _scope = tracing::trace_span!("widget.event", name = widget_name).entered();
 
         self.child.event(ctx, args);
     }
 
     fn update(&mut self, ctx: &mut WidgetContext) {
-        let _scope = tracing::trace_span!("widget.update", name = self.info.borrow().widget_name).entered();
+        let widget_name = self.info.borrow().widget_name;
+        let _span = UpdatesTrace::widget_span(ctx.path.widget_id(), widget_name);
+        let _scope = tracing::trace_span!("widget.update", widget_name).entered();
 
         self.child.update(ctx);
 
@@ -571,12 +579,16 @@ impl UiNode for WidgetInstanceInfoNode {
     }
 
     fn measure(&mut self, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize {
-        let _scope = tracing::trace_span!("widget.measure", name = self.info.borrow().widget_name).entered();
+        let widget_name = self.info.borrow().widget_name;
+        let _span = UpdatesTrace::widget_span(ctx.path.widget_id(), widget_name);
+        let _scope = tracing::trace_span!("widget.measure", name = widget_name).entered();
         self.child.measure(ctx, available_size)
     }
 
     fn arrange(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, final_size: PxSize) {
-        let _scope = tracing::trace_span!("widget.arrange", name = self.info.borrow().widget_name).entered();
+        let widget_name = self.info.borrow().widget_name;
+        let _span = UpdatesTrace::widget_span(ctx.path.widget_id(), widget_name);
+        let _scope = tracing::trace_span!("widget.arrange", name = widget_name).entered();
         self.child.arrange(ctx, widget_layout, final_size)
     }
 

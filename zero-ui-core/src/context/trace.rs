@@ -14,7 +14,7 @@ pub(crate) struct UpdatesTrace {
     context: Mutex<UpdateContext>,
     trace: Arc<Mutex<Vec<UpdateTrace>>>,
 
-    widgets_stack: Mutex<Vec<WidgetId>>,
+    widgets_stack: Mutex<Vec<(WidgetId, String)>>,
     properties_stack: Mutex<Vec<String>>,
 }
 impl tracing::subscriber::Subscriber for UpdatesTrace {
@@ -41,8 +41,10 @@ impl tracing::subscriber::Subscriber for UpdatesTrace {
                 }
                 let id = unsafe { WidgetId::from_raw(id) };
 
+                let name = visit_str(|v| span.record(v), "name");
+
                 let mut ctx = self.context.lock();
-                if let Some(p) = ctx.widget_id.replace(id) {
+                if let Some(p) = ctx.widget.replace((id, name)) {
                     self.widgets_stack.lock().push(p);
                 }
                 span::Id::from_u64(2)
@@ -99,7 +101,7 @@ impl tracing::subscriber::Subscriber for UpdatesTrace {
         if span == &span::Id::from_u64(1) {
             ctx.property = self.properties_stack.lock().pop();
         } else if span == &span::Id::from_u64(2) {
-            ctx.widget_id = self.widgets_stack.lock().pop();
+            ctx.widget= self.widgets_stack.lock().pop();
         } else if span == &span::Id::from_u64(3) {
             ctx.window_id = None;
         } else if span == &span::Id::from_u64(4) {
@@ -133,8 +135,8 @@ impl UpdatesTrace {
 
     /// Opens a widget span.
     #[inline(always)]
-    pub fn widget_span(id: WidgetId) -> tracing::span::EnteredSpan {
-        tracing::trace_span!(target: UpdatesTrace::UPDATES_TARGET, "WIDGET", id = id.get()).entered()
+    pub fn widget_span(id: WidgetId, name: &'static str) -> tracing::span::EnteredSpan {
+        tracing::trace_span!(target: UpdatesTrace::UPDATES_TARGET, "WIDGET", id = id.get(), name).entered()
     }
 
     /// Opens a property span.
@@ -213,24 +215,24 @@ impl UpdatesTrace {
 struct UpdateContext {
     app_extension: Option<String>,
     window_id: Option<WindowId>,
-    widget_id: Option<WidgetId>,
+    widget: Option<(WidgetId, String)>,
     property: Option<String>,
 }
 impl fmt::Display for UpdateContext {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if let Some(e) = &self.app_extension {
-            write!(f, "{}//", e.rsplit("::").next().unwrap())?;
+            write!(f, "{}/", e.rsplit("::").next().unwrap())?;
         } else {
-            write!(f, "<unknown>//")?;
+            write!(f, "<unknown>/")?;
         }
         if let Some(w) = self.window_id {
-            write!(f, "{w}/?/")?;
+            write!(f, "{w}/")?;
         }
-        if let Some(w) = self.widget_id {
-            write!(f, "{w}")?;
+        if let Some((id, name)) = &self.widget {
+            write!(f, "{name}({id})")?;
         }
         if let Some(p) = &self.property {
-            write!(f, "::{p}")?;
+            write!(f, "/{p}")?;
         }
         Ok(())
     }
