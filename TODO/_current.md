@@ -1,5 +1,3 @@
-* Reduce tracing code, can merge some stuff.
-
 * Trace widget constructor functions.
     - Review order they are printed.
     - Review missing name in trace.

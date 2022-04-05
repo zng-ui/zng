@@ -24,7 +24,7 @@ impl tracing::subscriber::Subscriber for UpdatesTrace {
 
     fn new_span(&self, span: &span::Attributes<'_>) -> span::Id {
         match span.metadata().name() {
-            "PROPERTY" | "NEW-FN" => {
+            "property" | "new_fn" => {
                 let name = visit_str(|v| span.record(v), "name");
                 let mut ctx = self.context.lock();
 
@@ -34,8 +34,8 @@ impl tracing::subscriber::Subscriber for UpdatesTrace {
 
                 span::Id::from_u64(1)
             }
-            "WIDGET" => {
-                let id = visit_u64(|v| span.record(v), "id").unwrap();
+            "widget" => {
+                let id = visit_u64(|v| span.record(v), "raw_id").unwrap();
                 if id == 0 {
                     panic!()
                 }
@@ -54,8 +54,8 @@ impl tracing::subscriber::Subscriber for UpdatesTrace {
 
                 span::Id::from_u64(2)
             }
-            "WINDOW" => {
-                let id = visit_u64(|v| span.record(v), "id").unwrap() as u32;
+            "Window" => {
+                let id = visit_u64(|v| span.record(v), "raw_id").unwrap() as u32;
                 if id == 0 {
                     panic!()
                 }
@@ -64,8 +64,8 @@ impl tracing::subscriber::Subscriber for UpdatesTrace {
 
                 span::Id::from_u64(3)
             }
-            "APP-EXTENSION" => {
-                let name = visit_str(|v| span.record(v), "type_name");
+            "AppExtension" => {
+                let name = visit_str(|v| span.record(v), "name");
                 self.context.lock().app_extension = Some(name);
                 span::Id::from_u64(4)
             }
@@ -79,14 +79,14 @@ impl tracing::subscriber::Subscriber for UpdatesTrace {
 
     fn event(&self, event: &tracing::Event<'_>) {
         let action = match visit_str(|v| event.record(v), "kind").as_str() {
-            "VAR" => UpdateAction::Var {
+            "update var" => UpdateAction::Var {
                 type_name: visit_str(|v| event.record(v), "type_name"),
             },
-            "EVENT" => UpdateAction::Event {
+            "notify event" => UpdateAction::Event {
                 type_name: visit_str(|v| event.record(v), "type_name"),
             },
-            "UPDATE" => UpdateAction::Update,
-            "LAYOUT" => UpdateAction::Layout,
+            "update request" => UpdateAction::Update,
+            "layout request" => UpdateAction::Layout,
             _ => return,
         };
 
@@ -130,44 +130,49 @@ impl UpdatesTrace {
     /// Opens an app extension span.
     #[inline(always)]
     pub fn extension_span<E: AppExtension>() -> tracing::span::EnteredSpan {
-        tracing::trace_span!(target: UpdatesTrace::UPDATES_TARGET, "APP-EXTENSION", type_name = type_name::<E>()).entered()
+        tracing::trace_span!(target: UpdatesTrace::UPDATES_TARGET, "AppExtension", name = type_name::<E>()).entered()
     }
 
     /// Opens a window span.
     #[inline(always)]
     pub fn window_span(id: WindowId) -> tracing::span::EnteredSpan {
-        tracing::trace_span!(target: UpdatesTrace::UPDATES_TARGET, "WINDOW", id = id.get() as u64).entered()
+        tracing::trace_span!(target: UpdatesTrace::UPDATES_TARGET, "Window", %id, raw_id = id.get() as u64).entered()
     }
 
     /// Opens a widget span.
     #[inline(always)]
-    pub fn widget_span(id: WidgetId, name: &'static str) -> tracing::span::EnteredSpan {
-        tracing::trace_span!(target: UpdatesTrace::UPDATES_TARGET, "WIDGET", id = id.get(), name).entered()
+    pub fn widget_span(id: WidgetId, name: &'static str, node_fn: &'static str) -> tracing::span::EnteredSpan {
+        tracing::trace_span!(target: UpdatesTrace::UPDATES_TARGET, "widget", %id, raw_id = id.get(), name, %node_fn).entered()
     }
 
     /// Opens a property span.
     #[inline(always)]
-    pub fn property_span(name: &'static str) -> tracing::span::EnteredSpan {
-        tracing::trace_span!(target: UpdatesTrace::UPDATES_TARGET, "PROPERTY", name).entered()
+    #[cfg(inspector)]
+    pub fn property_span(name: &'static str, node_fn: &'static str) -> tracing::span::EnteredSpan {
+        tracing::trace_span!(target: UpdatesTrace::UPDATES_TARGET, "property", name, %node_fn).entered()
     }
 
     /// Opens a new span.
     #[inline(always)]
     #[cfg(inspector)]
-    pub fn new_fn_span(new_fn: crate::inspector::WidgetNewFn) -> tracing::span::EnteredSpan {
-        tracing::trace_span!(target: UpdatesTrace::UPDATES_TARGET, "NEW-FN", name = ?new_fn).entered()
+    pub fn new_fn_span(new_fn: crate::inspector::WidgetNewFn, node_fn: &'static str) -> tracing::span::EnteredSpan {
+        tracing::trace_span!(target: UpdatesTrace::UPDATES_TARGET, "new_fn", name = %new_fn, %node_fn).entered()
     }
 
     /// Log a direct update request.
     #[inline(always)]
     pub fn log_update() {
-        tracing::event!(target: UpdatesTrace::UPDATES_TARGET, tracing::Level::TRACE, { kind = "UPDATE" });
+        tracing::event!(target: UpdatesTrace::UPDATES_TARGET, tracing::Level::TRACE, {
+            kind = "update request"
+        });
     }
 
     /// Log a direct layout request.
     #[inline(always)]
     pub fn log_layout() {
-        tracing::event!(target: UpdatesTrace::UPDATES_TARGET, tracing::Level::TRACE, { kind = "LAYOUT" });
+        tracing::event!(target: UpdatesTrace::UPDATES_TARGET, tracing::Level::TRACE, {
+            kind = "layout request"
+        });
     }
 
     /// Log a var update request.
@@ -176,7 +181,7 @@ impl UpdatesTrace {
         tracing::event!(
             target: UpdatesTrace::UPDATES_TARGET,
             tracing::Level::TRACE,
-            { kind = "VAR", type_name = type_name::<T>() }
+            { kind = "update var", type_name = type_name::<T>() }
         );
     }
 
@@ -186,7 +191,7 @@ impl UpdatesTrace {
         tracing::event!(
             target: UpdatesTrace::UPDATES_TARGET,
             tracing::Level::TRACE,
-            { kind = "EVENT", type_name = type_name::<E>() }
+            { kind = "notify event", type_name = type_name::<E>() }
         );
     }
 

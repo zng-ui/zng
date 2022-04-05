@@ -936,7 +936,7 @@ pub mod prelude {
             WidgetInfoChangedEvent, Window, WindowChangedArgs, WindowChrome, WindowCloseRequestedArgs, WindowIcon, WindowId,
             WindowOpenArgs, WindowState, WindowVarsKey, Windows, WindowsExt,
         },
-        RcNode, UiNode, UiNodeList, Widget, WidgetId, WidgetList, WidgetPath,
+        FillUiNode, NilUiNode, RcNode, UiNode, UiNodeList, Widget, WidgetId, WidgetList, WidgetPath,
     };
 
     #[doc(no_inline)]

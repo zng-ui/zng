@@ -607,7 +607,7 @@ impl WidgetNewFnInfoNode {
 }
 impl UiNode for WidgetNewFnInfoNode {
     fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
-        let _scope = tracing::trace_span!("new_fn.info", name = ?self.new_fn).entered();
+        let _scope = tracing::trace_span!("new_fn", name = %self.new_fn, node_fn = "info").entered();
 
         info.meta().entry(WidgetNewFnInfoKey).or_default().push(self.info.clone());
 
@@ -615,15 +615,13 @@ impl UiNode for WidgetNewFnInfoNode {
     }
 
     fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
-        let _scope = tracing::trace_span!("new_fn.subscriptions", name = ?self.new_fn).entered();
+        let _scope = tracing::trace_span!("new_fn", name = %self.new_fn, node_fn = "subscriptions").entered();
 
         self.child.subscriptions(ctx, subscriptions);
     }
 
     fn init(&mut self, ctx: &mut WidgetContext) {
-        let _span = UpdatesTrace::new_fn_span(self.new_fn);
-        let _scope = tracing::trace_span!("new_fn.init", name = ?self.new_fn).entered();
-
+        let _span = UpdatesTrace::new_fn_span(self.new_fn, "init");
         {
             let info = self.info.borrow();
             let mut name = format!("{}(", self.new_fn);
@@ -654,22 +652,17 @@ impl UiNode for WidgetNewFnInfoNode {
     }
 
     fn deinit(&mut self, ctx: &mut WidgetContext) {
-        let _span = UpdatesTrace::new_fn_span(self.new_fn);
-        let _scope = tracing::trace_span!("new_fn.deinit", name = ?self.new_fn).entered();
-
+        let _span = UpdatesTrace::new_fn_span(self.new_fn, "deinit");
         self.child.deinit(ctx);
     }
 
     fn event<A: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &A) {
-        let _span = UpdatesTrace::new_fn_span(self.new_fn);
-        let _scope = tracing::trace_span!("new_fn.event", name = ?self.new_fn).entered();
-
+        let _span = UpdatesTrace::new_fn_span(self.new_fn, "event");
         self.child.event(ctx, args);
     }
 
     fn update(&mut self, ctx: &mut WidgetContext) {
-        let _span = UpdatesTrace::new_fn_span(self.new_fn);
-        let _scope = tracing::trace_span!("new_fn.update", name = ?self.new_fn).entered();
+        let _span = UpdatesTrace::new_fn_span(self.new_fn, "update");
 
         self.child.update(ctx);
 
@@ -686,27 +679,25 @@ impl UiNode for WidgetNewFnInfoNode {
     }
 
     fn measure(&mut self, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize {
-        let _span = UpdatesTrace::new_fn_span(self.new_fn);
-        let _scope = tracing::trace_span!("new_fn.measure", name = ?self.new_fn).entered();
+        let _span = UpdatesTrace::new_fn_span(self.new_fn, "measure");
 
         self.child.measure(ctx, available_size)
     }
 
     fn arrange(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, final_size: PxSize) {
-        let _span = UpdatesTrace::new_fn_span(self.new_fn);
-        let _scope = tracing::trace_span!("new_fn.arrange", name = ?self.new_fn).entered();
+        let _span = UpdatesTrace::new_fn_span(self.new_fn, "arrange");
 
         self.child.arrange(ctx, widget_layout, final_size);
     }
 
     fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-        let _scope = tracing::trace_span!("new_fn.render", name = ?self.new_fn).entered();
+        let _scope = tracing::trace_span!("new_fn", name = %self.new_fn, node_fn = "render").entered();
 
         self.child.render(ctx, frame);
     }
 
     fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
-        let _scope = tracing::trace_span!("new_fn.render_update", name = ?self.new_fn).entered();
+        let _scope = tracing::trace_span!("new_fn", name = %self.new_fn, node_fn = "render_update").entered();
 
         self.child.render_update(ctx, update);
     }
@@ -782,21 +773,20 @@ impl WidgetInstanceInfoNode {
 }
 impl UiNode for WidgetInstanceInfoNode {
     fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
-        let _scope = tracing::trace_span!("widget.info", name = self.info.borrow().widget_name, id = ?ctx.path.widget_id()).entered();
+        let _span = tracing::trace_span!("widget", id = ?ctx.path.widget_id(), raw_id = ctx.path.widget_id().get(), name = self.info.borrow().widget_name, node_fn = "info").entered();
 
         info.meta().set(WidgetInstanceInfoKey, self.info.clone());
         self.child.info(ctx, info);
     }
 
     fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
-        let _scope = tracing::trace_span!("widget.subscriptions", name = self.info.borrow().widget_name).entered();
+        let _span = tracing::trace_span!("widget", id = ?ctx.path.widget_id(), raw_id = ctx.path.widget_id().get(), name = self.info.borrow().widget_name, node_fn = "subscriptions").entered();
 
         self.child.subscriptions(ctx, subscriptions);
     }
 
     fn init(&mut self, ctx: &mut WidgetContext) {
-        let _span = UpdatesTrace::widget_span(ctx.path.widget_id(), self.info.borrow().widget_name);
-        let _scope = tracing::trace_span!("widget.init", name = self.info.borrow().widget_name).entered();
+        let _span = UpdatesTrace::widget_span(ctx.path.widget_id(), self.info.borrow().widget_name, "init");
 
         self.child.init(ctx);
 
@@ -812,22 +802,19 @@ impl UiNode for WidgetInstanceInfoNode {
     }
 
     fn deinit(&mut self, ctx: &mut WidgetContext) {
-        let _span = UpdatesTrace::widget_span(ctx.path.widget_id(), self.info.borrow().widget_name);
-        let _scope = tracing::trace_span!("widget.deinit", name = self.info.borrow().widget_name).entered();
+        let _span = UpdatesTrace::widget_span(ctx.path.widget_id(), self.info.borrow().widget_name, "deinit");
 
         self.child.deinit(ctx);
     }
 
     fn event<A: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &A) {
-        let _span = UpdatesTrace::widget_span(ctx.path.widget_id(), self.info.borrow().widget_name);
-        let _scope = tracing::trace_span!("widget.event", name = self.info.borrow().widget_name).entered();
+        let _span = UpdatesTrace::widget_span(ctx.path.widget_id(), self.info.borrow().widget_name, "event");
 
         self.child.event(ctx, args);
     }
 
     fn update(&mut self, ctx: &mut WidgetContext) {
-        let _span = UpdatesTrace::widget_span(ctx.path.widget_id(), self.info.borrow().widget_name);
-        let _scope = tracing::trace_span!("widget.update", name = self.info.borrow().widget_name).entered();
+        let _span = UpdatesTrace::widget_span(ctx.path.widget_id(), self.info.borrow().widget_name, "update");
 
         self.child.update(ctx);
 
@@ -843,27 +830,25 @@ impl UiNode for WidgetInstanceInfoNode {
     }
 
     fn measure(&mut self, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize {
-        let _span = UpdatesTrace::widget_span(ctx.path.widget_id(), self.info.borrow().widget_name);
-        let _scope = tracing::trace_span!("widget.measure", name = self.info.borrow().widget_name).entered();
+        let _span = UpdatesTrace::widget_span(ctx.path.widget_id(), self.info.borrow().widget_name, "measure");
 
         self.child.measure(ctx, available_size)
     }
 
     fn arrange(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, final_size: PxSize) {
-        let _span = UpdatesTrace::widget_span(ctx.path.widget_id(), self.info.borrow().widget_name);
-        let _scope = tracing::trace_span!("widget.arrange", name = self.info.borrow().widget_name).entered();
+        let _span = UpdatesTrace::widget_span(ctx.path.widget_id(), self.info.borrow().widget_name, "arrange");
 
         self.child.arrange(ctx, widget_layout, final_size)
     }
 
     fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-        let _scope = tracing::trace_span!("widget.render", name = self.info.borrow().widget_name).entered();
+        let _span = tracing::trace_span!("widget", id = ?ctx.path.widget_id(), raw_id = ctx.path.widget_id().get(), name = self.info.borrow().widget_name, node_fn = "render").entered();
 
         self.child.render(ctx, frame);
     }
 
     fn render_update(&self, ctx: &mut RenderContext, updates: &mut FrameUpdate) {
-        let _scope = tracing::trace_span!("widget.render_update", name = self.info.borrow().widget_name).entered();
+        let _span = tracing::trace_span!("widget", id = ?ctx.path.widget_id(), raw_id = ctx.path.widget_id().get(), name = self.info.borrow().widget_name, node_fn = "render_update").entered();
 
         self.child.render_update(ctx, updates);
     }
@@ -932,7 +917,7 @@ impl PropertyInfoNode {
 }
 impl UiNode for PropertyInfoNode {
     fn info(&self, ctx: &mut InfoContext, wgt_info: &mut WidgetInfoBuilder) {
-        let _scope = tracing::trace_span!("property.info", name = self.info.borrow().property_name).entered();
+        let _span = tracing::trace_span!("property", name = self.info.borrow().property_name, node_fn = "info").entered();
 
         wgt_info.meta().entry(PropertiesInfoKey).or_default().push(self.info.clone());
 
@@ -945,7 +930,7 @@ impl UiNode for PropertyInfoNode {
     }
 
     fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
-        let _scope = tracing::trace_span!("property.subscriptions", name = self.info.borrow().property_name).entered();
+        let _span = tracing::trace_span!("property", name = self.info.borrow().property_name, node_fn = "subscriptions").entered();
 
         let t = Instant::now();
         self.child.subscriptions(ctx, subscriptions);
@@ -957,8 +942,7 @@ impl UiNode for PropertyInfoNode {
 
     fn init(&mut self, ctx: &mut WidgetContext) {
         let property_name = self.info.borrow().property_name;
-        let _span = UpdatesTrace::property_span(property_name);
-        let _scope = tracing::trace_span!("property.init", name = property_name).entered();
+        let _span = UpdatesTrace::property_span(property_name, "init");
 
         ctx.vars
             .with_context_var(ParentName, ContextVarData::fixed(&Cow::Borrowed(property_name)), || {
@@ -978,8 +962,7 @@ impl UiNode for PropertyInfoNode {
         }
     }
     fn deinit(&mut self, ctx: &mut WidgetContext) {
-        let _span = UpdatesTrace::property_span(self.info.borrow().property_name);
-        let _scope = tracing::trace_span!("property.deinit", name = self.info.borrow().property_name).entered();
+        let _span = UpdatesTrace::property_span(self.info.borrow().property_name, "deinit");
 
         let t = Instant::now();
         self.child.deinit(ctx);
@@ -991,8 +974,7 @@ impl UiNode for PropertyInfoNode {
     }
 
     fn update(&mut self, ctx: &mut WidgetContext) {
-        let _span = UpdatesTrace::property_span(self.info.borrow().property_name);
-        let _scope = tracing::trace_span!("property.update", name = self.info.borrow().property_name).entered();
+        let _span = UpdatesTrace::property_span(self.info.borrow().property_name, "update");
 
         let t = Instant::now();
         self.child.update(ctx);
@@ -1013,16 +995,14 @@ impl UiNode for PropertyInfoNode {
     where
         Self: Sized,
     {
-        let _span = UpdatesTrace::property_span(self.info.borrow().property_name);
-        let _scope = tracing::trace_span!("property.event", name = self.info.borrow().property_name).entered();
+        let _span = UpdatesTrace::property_span(self.info.borrow().property_name, "event");
 
         // TODO measure time and count
         self.child.event(ctx, args);
     }
 
     fn measure(&mut self, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize {
-        let _span = UpdatesTrace::property_span(self.info.borrow().property_name);
-        let _scope = tracing::trace_span!("property.measure", name = self.info.borrow().property_name).entered();
+        let _span = UpdatesTrace::property_span(self.info.borrow().property_name, "measure");
 
         let t = Instant::now();
         let r = self.child.measure(ctx, available_size);
@@ -1033,8 +1013,7 @@ impl UiNode for PropertyInfoNode {
         r
     }
     fn arrange(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, final_size: PxSize) {
-        let _span = UpdatesTrace::property_span(self.info.borrow().property_name);
-        let _scope = tracing::trace_span!("property.arrange", name = self.info.borrow().property_name).entered();
+        let _span = UpdatesTrace::property_span(self.info.borrow().property_name, "arrange");
 
         let t = Instant::now();
         self.child.arrange(ctx, widget_layout, final_size);
@@ -1045,7 +1024,7 @@ impl UiNode for PropertyInfoNode {
     }
 
     fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-        let _scope = tracing::trace_span!("property.render", name = self.info.borrow().property_name).entered();
+        let _span = tracing::trace_span!("property", name = self.info.borrow().property_name, node_fn = "render").entered();
 
         let t = Instant::now();
         self.child.render(ctx, frame);
@@ -1056,6 +1035,8 @@ impl UiNode for PropertyInfoNode {
     }
 
     fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
+        let _span = tracing::trace_span!("property", name = self.info.borrow().property_name, node_fn = "render_update").entered();
+
         let t = Instant::now();
         self.child.render_update(ctx, update);
         let d = t.elapsed();
