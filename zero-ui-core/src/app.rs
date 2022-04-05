@@ -1454,7 +1454,7 @@ impl<E: AppExtension> RunningApp<E> {
         let mut run = true;
         while run {
             run = self.loop_monitor.update(|| {
-                let u = self.owned_ctx.apply_updates();                
+                let u = self.owned_ctx.apply_updates();
 
                 Timers::notify(&mut self.owned_ctx.borrow());
 
@@ -1564,8 +1564,6 @@ impl<E: AppExtension> RunningApp<E> {
         if mem::take(&mut self.pending_render) {
             let _s = tracing::debug_span!("apply_render").entered();
 
-            self.loop_monitor.render();
-
             let ctx = &mut self.owned_ctx.borrow();
 
             self.extensions.render(ctx);
@@ -1573,6 +1571,8 @@ impl<E: AppExtension> RunningApp<E> {
         } else {
             self.tick_timers = true;
         }
+
+        self.loop_monitor.finish_frame();
     }
 }
 impl<E: AppExtension> Drop for RunningApp<E> {
@@ -1619,7 +1619,7 @@ impl LoopMonitor {
         }
     }
 
-    pub fn render(&mut self) {
+    pub fn finish_frame(&mut self) {
         if self.update_count < 1000 {
             self.update_count = 0;
             self.trace = vec![];
