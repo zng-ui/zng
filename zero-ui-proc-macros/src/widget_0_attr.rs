@@ -311,31 +311,34 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
                             #(#cfgs #caps : impl self::#prop_idents::Args,)*
                             #(#cfgs #assigned_flags: bool,)*
                             __widget_name: &'static str,
-                            mut __captures: std::vec::Vec<(#crate_core::inspector::WidgetNewFnV1, Vec<#crate_core::inspector::CapturedPropertyV1>)>,
                             __whens: std::vec::Vec<#crate_core::inspector::WhenInfoV1>,
                             __decl_location: #crate_core::inspector::SourceLocation,
                             __instance_location: #crate_core::inspector::SourceLocation,
                         ) #output {
                             let __child = #crate_core::UiNode::boxed(__child);
-                            __captures.push((
+                            #[allow(unused_mut)]
+                            let mut __captures = std::vec![];
+                            #(
+                                #cfgs
+                                __captures.push(self::#prop_idents::captured_inspect(&#caps, #names, #locations, #assigned_flags));
+                            )*
+                            let __child = #crate_core::inspector::WidgetNewFnInfoNode::new_v1(
+                                __child,
                                 #crate_core::inspector::WidgetNewFnV1::New,
-                                std::vec![#(
-                                    #cfgs
-                                    self::#prop_idents::captured_inspect(&#caps, #names, #locations, #assigned_flags),
-                                )*]
-                            ));
+                                __captures,
+                            );
                             let __child = #crate_core::inspector::WidgetInstanceInfoNode::new_v1(
                                 __child,
                                 __widget_name,
                                 __decl_location,
                                 __instance_location,
-                                __captures,
                                 __whens,
                             );
                             self::__new(__child, #(#cfgs #caps),*)
                         }
                     });
-                } else if cfg!(dyn_property) {
+                } else {
+                    let priority_variant = ident!("{priority:?}");
                     r.extend(quote! {
                         #[doc(hidden)]
                         #[allow(clippy::too_many_arguments)]
@@ -343,37 +346,26 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
                             #child_decl
                             #(#cfgs #caps : impl self::#prop_idents::Args,)*
                             #(#cfgs #assigned_flags: bool,)*
-                            __captures_info: &mut std::vec::Vec<#crate_core::inspector::CapturedPropertyV1>
                         ) -> #crate_core::inspector::WidgetNewFnInfoNode {
+                            #[allow(unused_mut)]
+                            let mut __captures = std::vec![];
                             #(
                                 #cfgs
-                                __captures_info.push(#prop_idents::captured_inspect(&#caps, #names, #locations, #assigned_flags));
+                                __captures.push(#prop_idents::captured_inspect(&#caps, #names, #locations, #assigned_flags));
                             )*
                             let out = self::#new__(#child_pass #(#cfgs #caps),*);
+
                             fn box_fix(node: impl #crate_core::UiNode) -> #crate_core::BoxedUiNode {
                                 #crate_core::UiNode::boxed(node)
                             }
-                            #crate_core::inspector::WidgetNewFnInfoNode::new_v1(box_fix(out), $crate_core::inspector::WidgetNewFnV1::)
+                            #crate_core::inspector::WidgetNewFnInfoNode::new_v1(
+                                box_fix(out),
+                                #crate_core::inspector::WidgetNewFnV1::#priority_variant,
+                                __captures,
+                            )
                         }
                     });
-                } else {
-                    r.extend(quote! {
-                        #[doc(hidden)]
-                        #[allow(clippy::too_many_arguments)]
-                        pub fn #new_inspect__(
-                            #child_decl
-                            #(#cfgs #caps : impl self::#prop_idents::Args,)*
-                            #(#cfgs #assigned_flags: bool,)*
-                            __captures_info: &mut std::vec::Vec<#crate_core::inspector::CapturedPropertyV1>
-                        ) #output {
-                            #(
-                                #cfgs
-                                __captures_info.push(#prop_idents::captured_inspect(&#caps, #names, #locations, #assigned_flags));
-                            )*
-                            self::#new__(#child_pass #(#cfgs #caps),*)
-                        }
-                    });
-                };
+                }
             }
 
             new_declarations.push(r);
@@ -1071,7 +1063,7 @@ fn validate_new_fn(fn_: &ItemFn, errors: &mut Errors) {
 }
 
 #[allow(clippy::enum_variant_names)]
-#[derive(PartialEq, Eq, Hash, Clone, Copy)]
+#[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
 pub(crate) enum FnPriority {
     NewChild,
 

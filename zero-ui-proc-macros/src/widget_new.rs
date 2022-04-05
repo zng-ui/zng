@@ -673,16 +673,12 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
         if cfg!(inspector) {
             let new_fn_ident = ident!("__new_{}_inspect", priority);
-            let new_variant_ident = ident!("New{:#}", priority);
             let cap_user_set = widget_data.new_captures[caps_i]
                 .iter()
                 .map(|c| overriden_properties.contains(&c.ident));
             property_set_calls.extend(quote! {
-                #[allow(unused_mut)]
-                let mut capture_infos__ = std::vec![];
                 #[allow(unreachable_code)]
-                let #node__ = #module::#new_fn_ident(#node__, #(#cap_cfgs #cap_idents,)* #(#cap_cfgs #cap_user_set,)* &mut capture_infos__);
-                captures__.push((#module::__core::WidgetNewFnV1::#new_variant_ident, capture_infos__));
+                let #node__ = #module::#new_fn_ident(#node__, #(#cap_cfgs #cap_idents,)* #(#cap_cfgs #cap_user_set),*);
             })
         } else {
             let new_fn_ident = ident!("__new_{}", priority);
@@ -760,13 +756,8 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let new_child_call = if cfg!(inspector) {
         let cap_user_set = widget_data.new_captures[0].iter().map(|c| overriden_properties.contains(&c.ident));
         quote! {
-            #[allow(unused_mut)]
-            let mut captures__ = std::vec![];
-            #[allow(unused_mut)]
-            let mut captured_new_child__ = std::vec![];
             #[allow(unreachable_code)]
-            let node__ = #module::__new_child_inspect(#(#ncc_cfgs #ncc_idents,)* #(#ncc_cfgs #cap_user_set,)* &mut captured_new_child__);
-            captures__.push((#module::__core::WidgetNewFnV1::NewChild, captured_new_child__));
+            let node__ = #module::__new_child_inspect(#(#ncc_cfgs #ncc_idents,)* #(#ncc_cfgs #cap_user_set),*);
         }
     } else {
         quote! {
@@ -789,7 +780,6 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                 #(#nc_cfgs #nc_idents,)*
                 #(#nc_cfgs #cap_user_set,)*
                 #module::__widget_name(),
-                captures__,
                 when_infos__,
                 #module::__decl_location(),
                 #module::__core::source_location!()

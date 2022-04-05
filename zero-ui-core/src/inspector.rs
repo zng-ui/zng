@@ -437,7 +437,7 @@ impl WidgetNewFnInfoNode {
         let mut debug_vars = Vec::with_capacity(captures_v1.len());
         let mut captures = Vec::with_capacity(captures_v1.len());
         for p in captures_v1 {
-            let dbg_vars: PropertyMembersVars = std::mem::take(&mut p.arg_debug_vars);
+            let dbg_vars: PropertyMembersVars = p.arg_debug_vars;
             captures.push(CapturedPropertyInfo {
                 property_name: p.property_name,
                 instance_location: p.instance_location,
@@ -510,7 +510,7 @@ impl UiNode for WidgetNewFnInfoNode {
         let mut info = self.info.borrow_mut();
         let info = &mut *info;
 
-        for (p, vars) in info.captures.iter().zip(self.debug_vars.iter()) {
+        for (p, vars) in info.captures.iter_mut().zip(self.debug_vars.iter()) {
             for (arg, var) in p.args.iter_mut().zip(vars.iter()) {
                 arg.value = var.get_clone(ctx);
                 arg.value_version = var.version(ctx);
@@ -541,7 +541,7 @@ impl UiNode for WidgetNewFnInfoNode {
 
         let mut info = self.info.borrow_mut();
         let info = &mut *info;
-        for (p, vars) in info.captures.iter().zip(self.debug_vars.iter()) {
+        for (p, vars) in info.captures.iter_mut().zip(self.debug_vars.iter()) {
             for (arg, var) in p.args.iter_mut().zip(vars.iter()) {
                 if let Some(update) = var.clone_new(ctx) {
                     arg.value = update;
@@ -611,7 +611,6 @@ impl WidgetInstanceInfoNode {
         widget_name: &'static str,
         decl_location: SourceLocation,
         instance_location: SourceLocation,
-        captures: Vec<CapturedPropertyV1>,
         mut whens: Vec<WhenInfoV1>,
     ) -> Self {
         let when_vars = whens
