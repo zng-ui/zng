@@ -289,6 +289,18 @@ pub enum PropertyPriority {
     CaptureOnly,
 }
 impl PropertyPriority {
+    fn context_to_child_layout() -> &'static [PropertyPriority] {
+        &[
+            PropertyPriority::Context,
+            PropertyPriority::Event,
+            PropertyPriority::Layout,
+            PropertyPriority::Border,
+            PropertyPriority::Fill,
+            PropertyPriority::ChildContext,
+            PropertyPriority::ChildLayout,
+        ]
+    }
+
     fn token_str(self) -> &'static str {
         match self {
             PropertyPriority::Context => "context",
@@ -1070,11 +1082,11 @@ impl ValueInfo {
     pub fn new_type_name_only<T>(_: &T) -> Self {
         let name = std::any::type_name::<T>();
 
-        let debug = if name.starts_with("zero_ui_core::widget_base::implicit_base::new::WidgetNode") {
+        let debug = if name.contains("::WidgetNode") {
             "<widget!>".to_text()
-        } else if name == "zero_ui_core::ui_list::WidgetVec" || name.starts_with("zero_ui_core::ui_list::WidgetList") {
+        } else if name.contains("::WidgetVec") || name.contains("::WidgetList") {
             "<[widgets!]>".to_text()
-        } else if name == "zero_ui_core::ui_list::UiNodeVec" || name.starts_with("zero_ui_core::ui_list::UiNodeList") {
+        } else if name.contains("::UiNodeVec") || name.contains("::UiNodeList") {
             "<[nodes!]>".to_text()
         } else if name.ends_with("{{closure}}") {
             "<{{closure}}>".to_text()
@@ -1647,18 +1659,15 @@ fn write_impl<W: std::io::Write>(updates_from: &WriteTreeState, widget: WidgetIn
             };
         }
 
-        if let Some(p) = widget.new_fn(WidgetNewFn::NewChild) {
+        if let Some(p) = widget.new_fn(WidgetNewFn::New) {
             let p = p.borrow();
             for p in p.captures.iter() {
-                write_property!(p, "new_child");
+                write_property!(p, "new");
             }
         }
-        for prop in widget.properties() {
-            let p = prop.borrow();
-            let group = p.priority.token_str();
-            write_property!(p, group);
 
-            if let Some(fn_) = WidgetNewFn::from_priority(p.priority) {
+        for &priority in PropertyPriority::context_to_child_layout() {
+            if let Some(fn_) = WidgetNewFn::from_priority(priority) {
                 if let Some(p) = widget.new_fn(fn_) {
                     let p = p.borrow();
                     let group = fn_.token_str();
@@ -1667,11 +1676,20 @@ fn write_impl<W: std::io::Write>(updates_from: &WriteTreeState, widget: WidgetIn
                     }
                 }
             }
+
+            for prop in widget.properties() {
+                let p = prop.borrow();
+                if p.priority == priority {
+                    let group = p.priority.token_str();
+                    write_property!(p, group);
+                }
+            }
         }
-        if let Some(p) = widget.new_fn(WidgetNewFn::New) {
+
+        if let Some(p) = widget.new_fn(WidgetNewFn::NewChild) {
             let p = p.borrow();
             for p in p.captures.iter() {
-                write_property!(p, "new");
+                write_property!(p, "new_child");
             }
         }
 

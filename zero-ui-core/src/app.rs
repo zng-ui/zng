@@ -1603,7 +1603,9 @@ impl LoopMonitor {
             let trace = UpdatesTrace::format_trace(mem::take(&mut self.trace));
             tracing::error!(
                 "updated 1000 times without rendering, probably stuck in an infinite loop\n\
-                            will start skipping updates to render and poll system events\nmost frequent update requests (in 500 cycles):\n{trace}"
+                 will start skipping updates to render and poll system events\n\
+                 most frequent update requests (in 500 cycles):\n\
+                 {trace}"
             );
             false
         } else if self.update_count == 1500 {
