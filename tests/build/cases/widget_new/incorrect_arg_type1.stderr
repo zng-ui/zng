@@ -9,7 +9,7 @@ error[E0277]: the trait bound `bool: IntoVar<SideOffsets>` is not satisfied
              <bool as IntoVar<CaptureMode>>
              <bool as IntoVar<Factor>>
              <bool as IntoVar<FontFeatureState>>
-           and 5 others
+           and 6 others
 note: required by a bound in `margin_ArgsImpl::<T_margin>::new`
   --> $WORKSPACE/zero-ui/src/properties/layout.rs
    |
