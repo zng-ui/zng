@@ -13,32 +13,43 @@ use crate::{app::AppExtension, event::Event, var::VarValue, window::WindowId, In
 use super::InfoContext;
 
 /// Extension methods for infinite loop diagnostics.
-/// 
-/// Also see [`updates_trace_span`].
+///
+/// You can also use [`updates_trace_span`] to define a custom scope inside a node, and [`updates_trace_event`]
+/// to log a custom entry.
 pub trait UpdatesTraceUiNodeExt {
     /// Defines a custom span.
     #[allow(clippy::type_complexity)]
-    fn instrument(
+    fn instrument<S: Into<String>>(
         self,
-        tag: &'static str,
+        tag: S,
     ) -> InstrumentedNode<Self, Box<dyn Fn(&mut InfoContext, &'static str) -> tracing::span::EnteredSpan>>
     where
         Self: Sized;
 }
 impl<U: UiNode> UpdatesTraceUiNodeExt for U {
-    fn instrument(
+    fn instrument<S: Into<String>>(
         self,
-        tag: &'static str,
+        tag: S,
     ) -> InstrumentedNode<Self, Box<dyn Fn(&mut InfoContext, &'static str) -> tracing::span::EnteredSpan>> {
-        InstrumentedNode::new(self, Box::new(move |_ctx, node_mtd| UpdatesTrace::custom_span(tag, node_mtd)))
+        let tag = tag.into();
+        InstrumentedNode::new(self, Box::new(move |_ctx, node_mtd| UpdatesTrace::custom_span(&tag, node_mtd)))
     }
 }
 
-/// Custom span in the infinite loop diagnostics.
-/// 
-/// Also see [`UpdatesTraceUiNodeExt`].
+/// Custom span in the app loop diagnostics.
+///
+/// See [`UpdatesTraceUiNodeExt`] for more details.
+#[inline(always)]
 pub fn updates_trace_span(tag: &'static str) -> tracing::span::EnteredSpan {
     UpdatesTrace::custom_span(tag, "")
+}
+
+/// Custom log entry in the app loop diagnostics.
+///
+/// See [`UpdatesTraceUiNodeExt`] for more details.
+#[inline(always)]
+pub fn updates_trace_event(tag: &str) {
+    UpdatesTrace::log_custom(tag)
 }
 
 pub(crate) struct UpdatesTrace {
@@ -149,6 +160,9 @@ impl tracing::subscriber::Subscriber for UpdatesTrace {
             },
             "update request" => UpdateAction::Update,
             "layout request" => UpdateAction::Layout,
+            "custom" => UpdateAction::Custom {
+                tag: visit_str(|v| event.record(v), "tag"),
+            },
             _ => return,
         };
 
@@ -230,7 +244,7 @@ impl UpdatesTrace {
 
     /// Opens a custom tag span.
     #[inline(always)]
-    pub fn custom_span(tag: &'static str, node_mtd: &'static str) -> tracing::span::EnteredSpan {
+    pub fn custom_span(tag: &str, node_mtd: &'static str) -> tracing::span::EnteredSpan {
         tracing::trace_span!(target: UpdatesTrace::UPDATES_TARGET, "tag", %tag, %node_mtd).entered()
     }
 
@@ -247,6 +261,15 @@ impl UpdatesTrace {
     pub fn log_layout() {
         tracing::event!(target: UpdatesTrace::UPDATES_TARGET, tracing::Level::TRACE, {
             kind = "layout request"
+        });
+    }
+
+    /// Log a custom event.
+    #[inline(always)]
+    pub fn log_custom(tag: &str) {
+        tracing::event!(target: UpdatesTrace::UPDATES_TARGET, tracing::Level::TRACE, {
+            kind = "custom",
+            %tag
         });
     }
 
@@ -354,6 +377,7 @@ enum UpdateAction {
     Layout,
     Var { type_name: String },
     Event { type_name: String },
+    Custom { tag: String },
 }
 impl fmt::Display for UpdateAction {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -362,6 +386,7 @@ impl fmt::Display for UpdateAction {
             UpdateAction::Layout => write!(f, "layout"),
             UpdateAction::Var { type_name } => write!(f, "update var of type {type_name}"),
             UpdateAction::Event { type_name } => write!(f, "update event {type_name}"),
+            UpdateAction::Custom { tag } => write!(f, "{tag}"),
         }
     }
 }
