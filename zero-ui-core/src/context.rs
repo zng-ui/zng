@@ -19,7 +19,7 @@ mod state;
 pub use state::*;
 
 mod trace;
-pub(crate) use trace::*;
+pub use trace::*;
 
 /// Owner of [`AppContext`] objects.
 ///
@@ -649,6 +649,19 @@ impl<'a> WidgetContext<'a> {
 
         r
     }
+
+    /// Runs an [`InfoContext`] generated from `self`.
+    pub fn as_info(&mut self) -> InfoContext {
+        InfoContext {
+            path: self.path,
+            info_tree: self.info_tree,
+            app_state: self.app_state,
+            window_state: self.window_state,
+            widget_state: self.widget_state,
+            update_state: self.update_state,
+            vars: self.vars,
+        }
+    }
 }
 
 /// Current widget context path.
@@ -839,6 +852,19 @@ impl<'a> LayoutContext<'a> {
 
         r
     }
+
+    /// Runs an [`InfoContext`] generated from `self`.
+    pub fn as_info(&mut self) -> InfoContext {
+        InfoContext {
+            path: self.path,
+            info_tree: self.info_tree,
+            app_state: self.app_state,
+            window_state: self.window_state,
+            widget_state: self.widget_state,
+            update_state: self.update_state,
+            vars: self.vars,
+        }
+    }
 }
 
 /// A widget render context.
@@ -884,6 +910,19 @@ impl<'a> RenderContext<'a> {
         });
         self.path.pop();
         r
+    }
+
+    /// Runs an [`InfoContext`] generated from `self`.
+    pub fn as_info(&mut self) -> InfoContext {
+        InfoContext {
+            path: self.path,
+            info_tree: self.info_tree,
+            app_state: self.app_state,
+            window_state: self.window_state,
+            widget_state: self.widget_state,
+            update_state: self.update_state,
+            vars: self.vars,
+        }
     }
 }
 

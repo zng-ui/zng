@@ -18,6 +18,9 @@ use crate::{
 mod rc_node;
 pub use rc_node::*;
 
+mod instrument;
+pub use instrument::InstrumentedNode;
+
 unique_id_64! {
     /// Unique id of a widget.
     ///

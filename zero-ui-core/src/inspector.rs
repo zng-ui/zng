@@ -619,7 +619,7 @@ impl WidgetNewFnInfoNode {
 }
 impl UiNode for WidgetNewFnInfoNode {
     fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
-        let _scope = tracing::trace_span!("new_fn", name = %self.new_fn, node_fn = "info").entered();
+        let _scope = tracing::trace_span!("new_fn", name = %self.new_fn, node_mtd = "info").entered();
 
         info.meta().entry(WidgetNewFnInfoKey).or_default().push(self.info.clone());
 
@@ -627,7 +627,7 @@ impl UiNode for WidgetNewFnInfoNode {
     }
 
     fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
-        let _scope = tracing::trace_span!("new_fn", name = %self.new_fn, node_fn = "subscriptions").entered();
+        let _scope = tracing::trace_span!("new_fn", name = %self.new_fn, node_mtd = "subscriptions").entered();
 
         self.child.subscriptions(ctx, subscriptions);
     }
@@ -703,13 +703,13 @@ impl UiNode for WidgetNewFnInfoNode {
     }
 
     fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-        let _scope = tracing::trace_span!("new_fn", name = %self.new_fn, node_fn = "render").entered();
+        let _scope = tracing::trace_span!("new_fn", name = %self.new_fn, node_mtd = "render").entered();
 
         self.child.render(ctx, frame);
     }
 
     fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
-        let _scope = tracing::trace_span!("new_fn", name = %self.new_fn, node_fn = "render_update").entered();
+        let _scope = tracing::trace_span!("new_fn", name = %self.new_fn, node_mtd = "render_update").entered();
 
         self.child.render_update(ctx, update);
     }
@@ -785,14 +785,14 @@ impl WidgetInstanceInfoNode {
 }
 impl UiNode for WidgetInstanceInfoNode {
     fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
-        let _span = tracing::trace_span!("widget", id = ?ctx.path.widget_id(), raw_id = ctx.path.widget_id().get(), name = self.info.borrow().widget_name, node_fn = "info").entered();
+        let _span = tracing::trace_span!("widget", id = ?ctx.path.widget_id(), raw_id = ctx.path.widget_id().get(), name = self.info.borrow().widget_name, node_mtd = "info").entered();
 
         info.meta().set(WidgetInstanceInfoKey, self.info.clone());
         self.child.info(ctx, info);
     }
 
     fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
-        let _span = tracing::trace_span!("widget", id = ?ctx.path.widget_id(), raw_id = ctx.path.widget_id().get(), name = self.info.borrow().widget_name, node_fn = "subscriptions").entered();
+        let _span = tracing::trace_span!("widget", id = ?ctx.path.widget_id(), raw_id = ctx.path.widget_id().get(), name = self.info.borrow().widget_name, node_mtd = "subscriptions").entered();
 
         self.child.subscriptions(ctx, subscriptions);
     }
@@ -854,13 +854,13 @@ impl UiNode for WidgetInstanceInfoNode {
     }
 
     fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-        let _span = tracing::trace_span!("widget", id = ?ctx.path.widget_id(), raw_id = ctx.path.widget_id().get(), name = self.info.borrow().widget_name, node_fn = "render").entered();
+        let _span = tracing::trace_span!("widget", id = ?ctx.path.widget_id(), raw_id = ctx.path.widget_id().get(), name = self.info.borrow().widget_name, node_mtd = "render").entered();
 
         self.child.render(ctx, frame);
     }
 
     fn render_update(&self, ctx: &mut RenderContext, updates: &mut FrameUpdate) {
-        let _span = tracing::trace_span!("widget", id = ?ctx.path.widget_id(), raw_id = ctx.path.widget_id().get(), name = self.info.borrow().widget_name, node_fn = "render_update").entered();
+        let _span = tracing::trace_span!("widget", id = ?ctx.path.widget_id(), raw_id = ctx.path.widget_id().get(), name = self.info.borrow().widget_name, node_mtd = "render_update").entered();
 
         self.child.render_update(ctx, updates);
     }
@@ -929,7 +929,7 @@ impl PropertyInfoNode {
 }
 impl UiNode for PropertyInfoNode {
     fn info(&self, ctx: &mut InfoContext, wgt_info: &mut WidgetInfoBuilder) {
-        let _span = tracing::trace_span!("property", name = self.info.borrow().property_name, node_fn = "info").entered();
+        let _span = tracing::trace_span!("property", name = self.info.borrow().property_name, node_mtd = "info").entered();
 
         wgt_info.meta().entry(PropertiesInfoKey).or_default().push(self.info.clone());
 
@@ -942,7 +942,7 @@ impl UiNode for PropertyInfoNode {
     }
 
     fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
-        let _span = tracing::trace_span!("property", name = self.info.borrow().property_name, node_fn = "subscriptions").entered();
+        let _span = tracing::trace_span!("property", name = self.info.borrow().property_name, node_mtd = "subscriptions").entered();
 
         let t = Instant::now();
         self.child.subscriptions(ctx, subscriptions);
@@ -1036,7 +1036,7 @@ impl UiNode for PropertyInfoNode {
     }
 
     fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-        let _span = tracing::trace_span!("property", name = self.info.borrow().property_name, node_fn = "render").entered();
+        let _span = tracing::trace_span!("property", name = self.info.borrow().property_name, node_mtd = "render").entered();
 
         let t = Instant::now();
         self.child.render(ctx, frame);
@@ -1047,7 +1047,7 @@ impl UiNode for PropertyInfoNode {
     }
 
     fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
-        let _span = tracing::trace_span!("property", name = self.info.borrow().property_name, node_fn = "render_update").entered();
+        let _span = tracing::trace_span!("property", name = self.info.borrow().property_name, node_mtd = "render_update").entered();
 
         let t = Instant::now();
         self.child.render_update(ctx, update);

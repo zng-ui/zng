@@ -198,11 +198,13 @@ pub mod scrollable {
     }
 
     fn new_context(child: impl UiNode) -> impl UiNode {
-        let child = nodes::scroll_to_command_node(child);
-        let child = nodes::scroll_commands_node(child);
-        let child = nodes::page_commands_node(child);
-        let child = nodes::scroll_to_edge_commands_node(child);
-        let child = nodes::scroll_wheel_node(child);
+        use crate::core::context::UpdatesTraceUiNodeExt;
+
+        let child = nodes::scroll_to_command_node(child).instrument("scroll_to_command_node");
+        let child = nodes::scroll_commands_node(child).instrument("scroll_commands_node");
+        let child = nodes::page_commands_node(child).instrument("page_commands_node");
+        let child = nodes::scroll_to_edge_commands_node(child).instrument("scroll_to_edge_commands_node");
+        let child = nodes::scroll_wheel_node(child).instrument("scroll_wheel_node");
 
         let viewport_size = var(PxSize::zero());
         let child = with_context_var(child, ScrollViewportSizeWriteVar, viewport_size.clone());

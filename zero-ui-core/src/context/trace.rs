@@ -8,7 +8,38 @@ use std::{
 use parking_lot::Mutex;
 use tracing::span;
 
-use crate::{app::AppExtension, event::Event, var::VarValue, window::WindowId, WidgetId};
+use crate::{app::AppExtension, event::Event, var::VarValue, window::WindowId, InstrumentedNode, UiNode, WidgetId};
+
+use super::InfoContext;
+
+/// Extension methods for infinite loop diagnostics.
+/// 
+/// Also see [`updates_trace_span`].
+pub trait UpdatesTraceUiNodeExt {
+    /// Defines a custom span.
+    #[allow(clippy::type_complexity)]
+    fn instrument(
+        self,
+        tag: &'static str,
+    ) -> InstrumentedNode<Self, Box<dyn Fn(&mut InfoContext, &'static str) -> tracing::span::EnteredSpan>>
+    where
+        Self: Sized;
+}
+impl<U: UiNode> UpdatesTraceUiNodeExt for U {
+    fn instrument(
+        self,
+        tag: &'static str,
+    ) -> InstrumentedNode<Self, Box<dyn Fn(&mut InfoContext, &'static str) -> tracing::span::EnteredSpan>> {
+        InstrumentedNode::new(self, Box::new(move |_ctx, node_mtd| UpdatesTrace::custom_span(tag, node_mtd)))
+    }
+}
+
+/// Custom span in the infinite loop diagnostics.
+/// 
+/// Also see [`UpdatesTraceUiNodeExt`].
+pub fn updates_trace_span(tag: &'static str) -> tracing::span::EnteredSpan {
+    UpdatesTrace::custom_span(tag, "")
+}
 
 pub(crate) struct UpdatesTrace {
     context: Mutex<UpdateContext>,
@@ -16,6 +47,7 @@ pub(crate) struct UpdatesTrace {
 
     widgets_stack: Mutex<Vec<(WidgetId, String)>>,
     node_parents_stack: Mutex<Vec<String>>,
+    tags_stack: Mutex<Vec<String>>,
 }
 impl tracing::subscriber::Subscriber for UpdatesTrace {
     fn enabled(&self, metadata: &tracing::Metadata<'_>) -> bool {
@@ -30,6 +62,9 @@ impl tracing::subscriber::Subscriber for UpdatesTrace {
 
                 if let Some(p) = ctx.node_parent.replace(name) {
                     self.node_parents_stack.lock().push(p);
+                }
+                if let Some(p) = ctx.tag.replace(String::new()) {
+                    self.tags_stack.lock().push(p);
                 }
 
                 span::Id::from_u64(1)
@@ -52,6 +87,10 @@ impl tracing::subscriber::Subscriber for UpdatesTrace {
                     self.node_parents_stack.lock().push(p);
                 }
 
+                if let Some(p) = ctx.tag.replace(String::new()) {
+                    self.tags_stack.lock().push(p);
+                }
+
                 span::Id::from_u64(2)
             }
             "Window" => {
@@ -60,14 +99,35 @@ impl tracing::subscriber::Subscriber for UpdatesTrace {
                     panic!()
                 }
                 let id = unsafe { WindowId::from_raw(id) };
-                self.context.lock().window_id = Some(id);
+
+                let mut ctx = self.context.lock();
+                ctx.window_id = Some(id);
+
+                if let Some(p) = ctx.tag.replace(String::new()) {
+                    self.tags_stack.lock().push(p);
+                }
 
                 span::Id::from_u64(3)
             }
             "AppExtension" => {
                 let name = visit_str(|v| span.record(v), "name");
-                self.context.lock().app_extension = Some(name);
+
+                let mut ctx = self.context.lock();
+                ctx.app_extension = Some(name);
+
+                if let Some(p) = ctx.tag.replace(String::new()) {
+                    self.tags_stack.lock().push(p);
+                }
+
                 span::Id::from_u64(4)
+            }
+            "tag" => {
+                let tag = visit_str(|v| span.record(v), "tag");
+                let mut ctx = self.context.lock();
+                if let Some(p) = ctx.tag.replace(tag) {
+                    self.tags_stack.lock().push(p);
+                }
+                span::Id::from_u64(5)
             }
             _ => span::Id::from_u64(u64::MAX),
         };
@@ -107,13 +167,19 @@ impl tracing::subscriber::Subscriber for UpdatesTrace {
         let mut ctx = self.context.lock();
         if span == &span::Id::from_u64(1) {
             ctx.node_parent = self.node_parents_stack.lock().pop();
+            ctx.tag = self.tags_stack.lock().pop();
         } else if span == &span::Id::from_u64(2) {
             ctx.widget = self.widgets_stack.lock().pop();
             ctx.node_parent = self.node_parents_stack.lock().pop();
+            ctx.tag = self.tags_stack.lock().pop();
         } else if span == &span::Id::from_u64(3) {
             ctx.window_id = None;
+            ctx.tag = self.tags_stack.lock().pop();
         } else if span == &span::Id::from_u64(4) {
             ctx.app_extension = None;
+            ctx.tag = self.tags_stack.lock().pop();
+        } else if span == &span::Id::from_u64(5) {
+            ctx.tag = self.tags_stack.lock().pop();
         }
     }
 }
@@ -126,13 +192,14 @@ impl UpdatesTrace {
             trace: Arc::new(Mutex::new(Vec::with_capacity(100))),
             widgets_stack: Mutex::new(Vec::with_capacity(100)),
             node_parents_stack: Mutex::new(Vec::with_capacity(100)),
+            tags_stack: Mutex::new(Vec::new()),
         }
     }
 
     /// Opens an app extension span.
     #[inline(always)]
-    pub fn extension_span<E: AppExtension>(ext_fn: &'static str) -> tracing::span::EnteredSpan {
-        tracing::trace_span!(target: UpdatesTrace::UPDATES_TARGET, "AppExtension", name = type_name::<E>(), %ext_fn).entered()
+    pub fn extension_span<E: AppExtension>(ext_mtd: &'static str) -> tracing::span::EnteredSpan {
+        tracing::trace_span!(target: UpdatesTrace::UPDATES_TARGET, "AppExtension", name = type_name::<E>(), %ext_mtd).entered()
     }
 
     /// Opens a window span.
@@ -143,22 +210,28 @@ impl UpdatesTrace {
 
     /// Opens a widget span.
     #[inline(always)]
-    pub fn widget_span(id: WidgetId, name: &'static str, node_fn: &'static str) -> tracing::span::EnteredSpan {
-        tracing::trace_span!(target: UpdatesTrace::UPDATES_TARGET, "widget", %id, raw_id = id.get(), name, %node_fn).entered()
+    pub fn widget_span(id: WidgetId, name: &'static str, node_mtd: &'static str) -> tracing::span::EnteredSpan {
+        tracing::trace_span!(target: UpdatesTrace::UPDATES_TARGET, "widget", %id, raw_id = id.get(), name, %node_mtd).entered()
     }
 
     /// Opens a property span.
     #[inline(always)]
     #[cfg(inspector)]
-    pub fn property_span(name: &'static str, node_fn: &'static str) -> tracing::span::EnteredSpan {
-        tracing::trace_span!(target: UpdatesTrace::UPDATES_TARGET, "property", name, %node_fn).entered()
+    pub fn property_span(name: &'static str, node_mtd: &'static str) -> tracing::span::EnteredSpan {
+        tracing::trace_span!(target: UpdatesTrace::UPDATES_TARGET, "property", name, %node_mtd).entered()
     }
 
-    /// Opens a new span.
+    /// Opens a new function span.
     #[inline(always)]
     #[cfg(inspector)]
-    pub fn new_fn_span(new_fn: crate::inspector::WidgetNewFn, node_fn: &'static str) -> tracing::span::EnteredSpan {
-        tracing::trace_span!(target: UpdatesTrace::UPDATES_TARGET, "new_fn", name = %new_fn, %node_fn).entered()
+    pub fn new_fn_span(new_fn: crate::inspector::WidgetNewFn, node_mtd: &'static str) -> tracing::span::EnteredSpan {
+        tracing::trace_span!(target: UpdatesTrace::UPDATES_TARGET, "new_fn", name = %new_fn, %node_mtd).entered()
+    }
+
+    /// Opens a custom tag span.
+    #[inline(always)]
+    pub fn custom_span(tag: &'static str, node_mtd: &'static str) -> tracing::span::EnteredSpan {
+        tracing::trace_span!(target: UpdatesTrace::UPDATES_TARGET, "tag", %tag, %node_mtd).entered()
     }
 
     /// Log a direct update request.
@@ -237,22 +310,28 @@ struct UpdateContext {
     window_id: Option<WindowId>,
     widget: Option<(WidgetId, String)>,
     node_parent: Option<String>,
+    tag: Option<String>,
 }
 impl fmt::Display for UpdateContext {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if let Some(e) = &self.app_extension {
-            write!(f, "{}/", e.rsplit("::").next().unwrap())?;
+            write!(f, "{}", e.rsplit("::").next().unwrap())?;
         } else {
-            write!(f, "<unknown>/")?;
+            write!(f, "<unknown>")?;
         }
         if let Some(w) = self.window_id {
-            write!(f, "{w}/")?;
+            write!(f, "/{w}")?;
         }
         if let Some((id, name)) = &self.widget {
-            write!(f, "{name}#{id}")?;
+            write!(f, "/{name}#{id}")?;
         }
         if let Some(p) = &self.node_parent {
             write!(f, "/{p}")?;
+        }
+        if let Some(t) = &self.tag {
+            if !t.is_empty() {
+                write!(f, "/{t}")?;
+            }
         }
         Ok(())
     }

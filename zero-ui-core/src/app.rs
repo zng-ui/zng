@@ -1605,7 +1605,8 @@ impl LoopMonitor {
                 "updated 1000 times without rendering, probably stuck in an infinite loop\n\
                  will start skipping updates to render and poll system events\n\
                  most frequent update requests (in 500 cycles):\n\
-                 {trace}"
+                 {trace}\n\
+                    you can use `UpdatesTraceUiNodeExt` to refine the trace"
             );
             false
         } else if self.update_count == 1500 {
