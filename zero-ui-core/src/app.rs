@@ -1520,7 +1520,7 @@ impl<E: AppExtension> RunningApp<E> {
 
                 let ctx = &mut self.owned_ctx.borrow();
 
-                self.loop_monitor.event(|| {
+                self.loop_monitor.maybe_trace(|| {
                     self.extensions.event_preview(ctx, &event);
                     observer.event_preview(ctx, &event);
                     Events::on_pre_events(ctx, &event);
@@ -1555,8 +1555,11 @@ impl<E: AppExtension> RunningApp<E> {
             let _s = tracing::debug_span!("apply_layout").entered();
 
             let ctx = &mut self.owned_ctx.borrow();
-            self.extensions.layout(ctx);
-            observer.layout(ctx);
+
+            self.loop_monitor.maybe_trace(|| {
+                self.extensions.layout(ctx);
+                observer.layout(ctx);
+            });
 
             self.apply_updates(observer);
         }
@@ -1604,7 +1607,7 @@ impl LoopMonitor {
             tracing::error!(
                 "updated 1000 times without rendering, probably stuck in an infinite loop\n\
                  will start skipping updates to render and poll system events\n\
-                 most frequent update requests (in 500 cycles):\n\
+                 top 20 most frequent update requests (in 500 cycles):\n\
                  {trace}\n\
                     you can use `UpdatesTraceUiNodeExt` to refine the trace"
             );
@@ -1618,7 +1621,7 @@ impl LoopMonitor {
         }
     }
 
-    pub fn event(&mut self, notify_once: impl FnOnce()) {
+    pub fn maybe_trace(&mut self, notify_once: impl FnOnce()) {
         if (500..1000).contains(&self.update_count) {
             UpdatesTrace::collect_trace(&mut self.trace, notify_once);
         } else {

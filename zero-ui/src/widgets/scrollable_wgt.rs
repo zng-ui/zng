@@ -115,11 +115,11 @@ pub mod scrollable {
             // | 2 - h_scrollbar | 3 | - scrollbar_joiner
             ///+-----------------+---+
             fn measure(&mut self, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize {
-                let viewport = self.children.widget_measure(0, ctx, available_size);
                 let v_scroll = self.children.widget_measure(1, ctx, available_size);
                 let h_scroll = self.children.widget_measure(2, ctx, available_size);
-
                 self.joiner = PxSize::new(v_scroll.width, h_scroll.height);
+                let viewport = self.children.widget_measure(0, ctx, available_size.sub_px(self.joiner));
+
                 let _ = self.children.widget_measure(3, ctx, AvailableSize::from_size(self.joiner));
 
                 available_size.clip(viewport + self.joiner)
@@ -184,9 +184,14 @@ pub mod scrollable {
                 }
             }
         }
+
+        use crate::core::context::UpdatesTraceUiNodeExt;
         ScrollableNode {
             children: nodes![
-                clip_to_bounds(nodes::viewport(child, mode.into_var()), clip_to_viewport.into_var()),
+                clip_to_bounds(
+                    nodes::viewport(child, mode.into_var()).instrument("viewport"),
+                    clip_to_viewport.into_var()
+                ),
                 nodes::v_scrollbar_presenter(),
                 nodes::h_scrollbar_presenter(),
                 nodes::scrollbar_joiner_presenter(),
@@ -198,13 +203,11 @@ pub mod scrollable {
     }
 
     fn new_context(child: impl UiNode) -> impl UiNode {
-        use crate::core::context::UpdatesTraceUiNodeExt;
-
-        let child = nodes::scroll_to_command_node(child).instrument("scroll_to_command_node");
-        let child = nodes::scroll_commands_node(child).instrument("scroll_commands_node");
-        let child = nodes::page_commands_node(child).instrument("page_commands_node");
-        let child = nodes::scroll_to_edge_commands_node(child).instrument("scroll_to_edge_commands_node");
-        let child = nodes::scroll_wheel_node(child).instrument("scroll_wheel_node");
+        let child = nodes::scroll_to_command_node(child);
+        let child = nodes::scroll_commands_node(child);
+        let child = nodes::page_commands_node(child);
+        let child = nodes::scroll_to_edge_commands_node(child);
+        let child = nodes::scroll_wheel_node(child);
 
         let viewport_size = var(PxSize::zero());
         let child = with_context_var(child, ScrollViewportSizeWriteVar, viewport_size.clone());

@@ -267,10 +267,11 @@ impl UpdatesTrace {
     /// Log a custom event.
     #[inline(always)]
     pub fn log_custom(tag: &str) {
-        tracing::event!(target: UpdatesTrace::UPDATES_TARGET, tracing::Level::TRACE, {
-            kind = "custom",
-            %tag
-        });
+        tracing::event!(
+            target: UpdatesTrace::UPDATES_TARGET,
+            tracing::Level::TRACE,
+            { kind = "custom", %tag }
+        );
     }
 
     /// Log a var update request.
@@ -302,7 +303,7 @@ impl UpdatesTrace {
         r
     }
 
-    /// Displays the top 10 most frequent update sources in the trace.
+    /// Displays the top 20 most frequent update sources in the trace.
     pub fn format_trace(trace: Vec<UpdateTrace>) -> String {
         let mut frequencies = HashMap::with_capacity(50);
         for t in trace {
@@ -319,7 +320,7 @@ impl UpdatesTrace {
         frequencies.sort_by_key(|(_, c)| -c);
 
         let mut trace = String::new();
-        for (t, c) in frequencies.into_iter().take(10) {
+        for (t, c) in frequencies.into_iter().take(20) {
             use std::fmt::Write;
             let _ = writeln!(&mut trace, "{t} ({c} times)");
         }
