@@ -1473,7 +1473,7 @@ impl Client {
         if self.cache.is_none() || request.method() != Method::GET {
             CacheMode::NoCache
         } else {
-            (&self.cache_mode)(request)
+            (self.cache_mode)(request)
         }
     }
 }

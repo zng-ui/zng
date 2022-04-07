@@ -970,20 +970,20 @@ impl HeadlessSimulator {
         }
     }
 
-    fn is_enabled(&mut self, ctx: &mut WindowContext) -> bool {
+    fn enabled(&mut self, ctx: &mut WindowContext) -> bool {
         *self
             .is_enabled
             .get_or_insert_with(|| crate::app::App::window_mode(ctx.services).is_headless())
     }
 
     pub fn pre_event<EV: EventUpdateArgs>(&mut self, ctx: &mut WindowContext, args: &EV) {
-        if self.is_enabled(ctx) && self.is_open && ViewProcessRespawnedEvent.update(args).is_some() {
+        if self.enabled(ctx) && self.is_open && ViewProcessRespawnedEvent.update(args).is_some() {
             self.is_open = false;
         }
     }
 
     pub fn layout(&mut self, ctx: &mut WindowContext) {
-        if self.is_enabled(ctx) && !self.is_open {
+        if self.enabled(ctx) && !self.is_open {
             self.is_open = true;
 
             let timestamp = Instant::now();

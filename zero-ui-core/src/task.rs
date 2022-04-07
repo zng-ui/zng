@@ -827,7 +827,7 @@ pub async fn poll_fn<T, F: FnMut(&mut std::task::Context) -> Poll<T>>(fn_: F) ->
         type Output = T;
 
         fn poll(mut self: Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> Poll<Self::Output> {
-            (&mut self.0)(cx)
+            (self.0)(cx)
         }
     }
     PollFn(fn_).await
