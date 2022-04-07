@@ -398,30 +398,25 @@ fn check(args: Vec<&str>) {
     cmd("cargo", &["clippy", "--no-deps", "--tests", "--workspace", "--examples"], &args);
 }
 
-// do build, b [-e, --example] [--examples] [-t, --timing] [<cargo-build-args>]
+// do build, b [-e, --example] [--examples] [-t, --timings] [<cargo-build-args>]
 //    Compile the main crate and its dependencies.
 // USAGE:
 //    build -e <example>
 //       Compile the example.
 //    build --examples
 //       Compile all examples.
-//    build -p <crate> --timing
-//       Compile crate in nightly and report "cargo-timing.html"
+//    build -p <crate> -t
+//       Compile crate and report in "target/cargo-timings"
 fn build(mut args: Vec<&str>) {
     let mut cargo_args = vec![];
-
-    let timing = take_flag(&mut args, &["-t", "--timing"]);
-    if take_flag(&mut args, &["+nightly"]) || timing {
-        cargo_args.push("+nightly");
-    }
 
     cargo_args.push("build");
 
     let rust_flags = release_rust_flags(args.contains(&"--release"));
     let rust_flags = &[(rust_flags.0, rust_flags.1.as_str())];
 
-    if timing {
-        cargo_args.push("-Ztimings");
+    if take_flag(&mut args, &["-t", "--timings"]) {
+        cargo_args.push("--timings");
     }
 
     if take_flag(&mut args, &["-e", "--example"]) {
@@ -460,7 +455,10 @@ fn release_rust_flags(is_release: bool) -> (&'static str, String) {
 
 // do prebuild
 //    Compile the pre-build `zero-ui-view` release.
-fn prebuild(args: Vec<&str>) {
+fn prebuild(mut args: Vec<&str>) {
+    if let Some(t) = args.iter_mut().find(|a| *a == &"-t") {
+        *t = "--timings";
+    }
     cmd("cargo", &["build", "-p", "zero-ui-view", "--release"], &args);
 
     let files = cdylib_files("target/release/zero_ui_view");
