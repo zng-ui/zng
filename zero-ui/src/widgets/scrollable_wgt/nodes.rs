@@ -46,16 +46,18 @@ pub fn viewport(child: impl UiNode, mode: impl IntoVar<ScrollMode>) -> impl UiNo
             }
         }
 
-        fn measure(&mut self, ctx: &mut LayoutContext, mut available_size: AvailableSize) -> PxSize {
+        fn measure(&mut self, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize {
+            let mut c_available_size = available_size;
+
             let mode = self.mode.copy(ctx);
             if mode.contains(ScrollMode::VERTICAL) {
-                available_size.height = AvailablePx::Infinite;
+                c_available_size.height = AvailablePx::Infinite;
             }
             if mode.contains(ScrollMode::HORIZONTAL) {
-                available_size.width = AvailablePx::Infinite;
+                c_available_size.width = AvailablePx::Infinite;
             }
 
-            let ct_size = self.child.measure(ctx, available_size);
+            let ct_size = self.child.measure(ctx, c_available_size);
 
             if mode.contains(ScrollMode::VERTICAL) && ct_size.height != self.content_size.height {
                 self.content_size.height = ct_size.height;
@@ -66,7 +68,7 @@ pub fn viewport(child: impl UiNode, mode: impl IntoVar<ScrollMode>) -> impl UiNo
                 ctx.updates.render();
             }
 
-            ct_size
+            available_size.clip(ct_size)
         }
 
         fn arrange(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, final_size: PxSize) {

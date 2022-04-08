@@ -117,6 +117,7 @@ pub mod scrollable {
             fn measure(&mut self, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize {
                 let v_scroll = self.children.widget_measure(1, ctx, available_size);
                 let h_scroll = self.children.widget_measure(2, ctx, available_size);
+
                 self.joiner = PxSize::new(v_scroll.width, h_scroll.height);
                 let viewport = self.children.widget_measure(0, ctx, available_size.sub_px(self.joiner));
 

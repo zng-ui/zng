@@ -202,4 +202,13 @@ impl ScrollBarArgs {
             Horizontal => ScrollHorizontalRatioVar::new().boxed(),
         }
     }
+
+    pub fn content_overflows(&self) -> BoxedVar<bool> {
+        use scrollbar::Orientation::*;
+
+        match self.orientation {
+            Vertical => todo!(),
+            Horizontal => todo!()
+        }
+    }
 }
