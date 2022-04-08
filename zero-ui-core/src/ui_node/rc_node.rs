@@ -33,19 +33,14 @@ impl<U: UiNode> RcNode<U> {
     ///
     /// The `node` is assumed to not be inited.
     pub fn new(node: U) -> Self {
-        Self(Rc::new(RcNodeData::new(Some(node))))
+        Self(Rc::new(RcNodeData::new(node)))
     }
 
     /// New rc node that contains a weak reference to itself.
     ///
     /// **Note** the weak reference cannot be [upgraded](WeakNode::upgrade) during the call to `node`.
     pub fn new_cyclic(node: impl FnOnce(WeakNode<U>) -> U) -> Self {
-        // Note: Rewrite this method with `Rc::new_cyclic` when
-        // https://github.com/rust-lang/rust/issues/75861 stabilizes
-        let r = Self(Rc::new(RcNodeData::new(None)));
-        let n = node(r.downgrade());
-        *r.0.node.borrow_mut() = Some(n);
-        r
+        Self(Rc::new_cyclic(|wk| RcNodeData::new(node(WeakNode(wk.clone())))))
     }
 
     /// Creates an [`UiNode`] implementer that can *exclusive take* the referenced node as its child when
@@ -87,13 +82,9 @@ impl<U: UiNode> Clone for WeakNode<U> {
 }
 impl<U: UiNode> WeakNode<U> {
     /// Attempts to upgrade to a [`RcNode`].
+    #[inline]
     pub fn upgrade(&self) -> Option<RcNode<U>> {
-        if let Some(rc) = self.0.upgrade() {
-            if rc.node.borrow().is_some() {
-                return Some(RcNode(rc));
-            }
-        }
-        None
+        self.0.upgrade().map(RcNode)
     }
 }
 
@@ -171,12 +162,12 @@ struct RcNodeData<U: UiNode> {
     owner_id: Cell<u32>,
     waiting_deinit: Cell<bool>,
     inited: Cell<bool>,
-    node: RefCell<Option<U>>,
+    node: RefCell<U>,
     new_node: RefCell<Option<U>>,
     update_slot: UpdateSlot,
 }
 impl<U: UiNode> RcNodeData<U> {
-    pub fn new(node: Option<U>) -> Self {
+    pub fn new(node: U) -> Self {
         Self {
             next_id: Cell::new(1),
             owner_id: Cell::new(0),
@@ -233,7 +224,7 @@ struct SlotNode<S: RcNodeTakeSignal, U: UiNode> {
 impl<S: RcNodeTakeSignal, U: UiNode> UiNode for SlotNode<S, U> {
     fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
         if let SlotNodeState::Active(rc) = &self.state {
-            rc.node.borrow().as_ref().unwrap().info(ctx, info);
+            rc.node.borrow().info(ctx, info);
         }
     }
 
@@ -242,7 +233,7 @@ impl<S: RcNodeTakeSignal, U: UiNode> UiNode for SlotNode<S, U> {
         self.take_signal.subscribe(ctx, subscriptions);
 
         if let SlotNodeState::Active(rc) = &self.state {
-            rc.node.borrow().as_ref().unwrap().subscriptions(ctx, subscriptions);
+            rc.node.borrow().subscriptions(ctx, subscriptions);
         }
     }
 
@@ -255,7 +246,7 @@ impl<S: RcNodeTakeSignal, U: UiNode> UiNode for SlotNode<S, U> {
                     ctx.updates.update(self.update_slot.mask()); // notify the other slot to deactivate.
                 } else {
                     // node already free to take.
-                    rc.node.borrow_mut().as_mut().unwrap().init(ctx);
+                    rc.node.borrow_mut().init(ctx);
                     rc.inited.set(true);
                     rc.owner_id.set(self.slot_id);
                     self.state = SlotNodeState::Active(Rc::clone(rc));
@@ -270,7 +261,7 @@ impl<S: RcNodeTakeSignal, U: UiNode> UiNode for SlotNode<S, U> {
                             ctx.updates.update(self.update_slot.mask()); // notify the other slot to deactivate.
                         } else {
                             // node already free to take.
-                            rc.node.borrow_mut().as_mut().unwrap().init(ctx);
+                            rc.node.borrow_mut().init(ctx);
                             rc.inited.set(true);
                             rc.owner_id.set(self.slot_id);
                             self.state = SlotNodeState::Active(rc);
@@ -286,7 +277,7 @@ impl<S: RcNodeTakeSignal, U: UiNode> UiNode for SlotNode<S, U> {
                     assert!(!rc.inited.get());
                     assert!(!rc.waiting_deinit.get());
 
-                    rc.node.borrow_mut().as_mut().unwrap().init(ctx);
+                    rc.node.borrow_mut().init(ctx);
                     rc.inited.set(true);
 
                     self.state = SlotNodeState::Active(Rc::clone(rc));
@@ -308,7 +299,7 @@ impl<S: RcNodeTakeSignal, U: UiNode> UiNode for SlotNode<S, U> {
         if let SlotNodeState::Active(rc) = &self.state {
             assert!(rc.inited.take());
 
-            rc.node.borrow_mut().as_mut().unwrap().deinit(ctx);
+            rc.node.borrow_mut().deinit(ctx);
             rc.waiting_deinit.set(false); // just in case?
 
             self.state = SlotNodeState::ActiveDeinited(Rc::clone(rc));
@@ -321,7 +312,7 @@ impl<S: RcNodeTakeSignal, U: UiNode> UiNode for SlotNode<S, U> {
     {
         if let SlotNodeState::Active(rc) = &self.state {
             // propagate event to active node.
-            rc.node.borrow_mut().as_mut().unwrap().event(ctx, args);
+            rc.node.borrow_mut().event(ctx, args);
         } else if let SlotNodeState::Inactive(_) = &self.state {
             // check event take_signal.
             if self.take_signal.event_take(ctx, args) {
@@ -344,7 +335,7 @@ impl<S: RcNodeTakeSignal, U: UiNode> UiNode for SlotNode<S, U> {
                             ctx.updates.update(self.update_slot.mask()); // notify the other slot to deactivate.
                         } else {
                             // node already free to take.
-                            rc.node.borrow_mut().as_mut().unwrap().init(ctx);
+                            rc.node.borrow_mut().init(ctx);
                             rc.inited.set(true);
                             rc.owner_id.set(self.slot_id);
                             self.state = SlotNodeState::Active(rc);
@@ -358,7 +349,7 @@ impl<S: RcNodeTakeSignal, U: UiNode> UiNode for SlotNode<S, U> {
             SlotNodeState::Activating(rc) => {
                 if !rc.inited.get() {
                     // node now free to take.
-                    rc.node.borrow_mut().as_mut().unwrap().init(ctx);
+                    rc.node.borrow_mut().init(ctx);
                     rc.inited.set(true);
                     self.state = SlotNodeState::Active(Rc::clone(rc));
                     ctx.updates.info_layout_and_render();
@@ -368,22 +359,24 @@ impl<S: RcNodeTakeSignal, U: UiNode> UiNode for SlotNode<S, U> {
                 if rc.waiting_deinit.take() {
                     // moving to other slot, must deinit here.
                     if rc.inited.take() {
-                        rc.node.borrow_mut().as_mut().unwrap().deinit(ctx);
+                        rc.node.borrow_mut().deinit(ctx);
                     }
                     ctx.updates.update(self.update_slot.mask()); // notify the other slot to activate.
                     self.state = SlotNodeState::Inactive(Rc::downgrade(rc));
                     ctx.updates.info_layout_and_render();
-                } else if let Some(mut new) = rc.new_node.borrow_mut().take() {
-                    let mut old = rc.node.borrow_mut().take();
+                } else if let Some(new) = rc.new_node.borrow_mut().take() {
+                    let mut node = rc.node.borrow_mut();
                     if rc.inited.take() {
-                        old.deinit(ctx);
+                        node.deinit(ctx);
                     }
-                    new.init(ctx);
-                    *rc.node.borrow_mut() = Some(new);
+
+                    *node = new;
+                    node.init(ctx);
+
                     rc.inited.set(true);
                     ctx.updates.info_layout_and_render();
                 } else {
-                    rc.node.borrow_mut().as_mut().unwrap().update(ctx);
+                    rc.node.borrow_mut().update(ctx);
                 }
             }
             SlotNodeState::ActiveDeinited(_) => {
@@ -398,7 +391,7 @@ impl<S: RcNodeTakeSignal, U: UiNode> UiNode for SlotNode<S, U> {
 
     fn measure(&mut self, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize {
         if let SlotNodeState::Active(rc) = &self.state {
-            rc.node.borrow_mut().as_mut().unwrap().measure(ctx, available_size)
+            rc.node.borrow_mut().measure(ctx, available_size)
         } else {
             PxSize::zero()
         }
@@ -406,19 +399,19 @@ impl<S: RcNodeTakeSignal, U: UiNode> UiNode for SlotNode<S, U> {
 
     fn arrange(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, final_size: PxSize) {
         if let SlotNodeState::Active(rc) = &self.state {
-            rc.node.borrow_mut().as_mut().unwrap().arrange(ctx, widget_layout, final_size);
+            rc.node.borrow_mut().arrange(ctx, widget_layout, final_size);
         }
     }
 
     fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
         if let SlotNodeState::Active(rc) = &self.state {
-            rc.node.borrow().as_ref().unwrap().render(ctx, frame);
+            rc.node.borrow().render(ctx, frame);
         }
     }
 
     fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
         if let SlotNodeState::Active(rc) = &self.state {
-            rc.node.borrow().as_ref().unwrap().render_update(ctx, update);
+            rc.node.borrow().render_update(ctx, update);
         }
     }
 }
