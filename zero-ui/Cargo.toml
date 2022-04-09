@@ -7,12 +7,17 @@ license = "Apache-2.0"
 readme = "README.md"
 
 [features]
-default = ["ipc", "dyn_widget"]
+default = ["ipc", "dyn_widget", "http"]
 
 # Enables pre-build views and connecting to views running in another process.
 # 
 # Enabled by default.
 ipc = ["zero-ui-core/ipc"]
+
+# Enables http tasks.
+#
+# Enabled by default.
+http = ["zero-ui-core/http"]
 
 # Use dynamic dispatch at the property level by placing each property node in a `BoxedUiNode`.
 #

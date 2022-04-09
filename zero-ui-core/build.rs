@@ -7,4 +7,7 @@ fn main() {
     if cfg!(debug_assertions) || cfg!(feature = "inspector") {
         println!("cargo:rustc-cfg=inspector");
     }
+    if cfg!(feature = "http") {
+        println!("cargo:rustc-cfg=http");
+    }
 }

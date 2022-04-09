@@ -1,3 +1,6 @@
+#![cfg(http)]
+#![cfg_attr(doc_nightly, doc(cfg(http)))]
+
 //! HTTP client.
 //!
 //! This module is a thin wrapper around the [`isahc`] crate that just limits the API surface to only

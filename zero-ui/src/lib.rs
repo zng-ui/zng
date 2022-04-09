@@ -890,6 +890,10 @@ pub mod widgets;
 /// [`new_widget`]: crate::prelude::new_widget
 /// [`rayon`]: https://docs.rs/rayon
 pub mod prelude {
+    #[cfg(feature="http")]
+    #[doc(no_inline)]
+    pub use crate::core::task::http::Uri;
+
     #[doc(no_inline)]
     pub use crate::core::{
         app::{App, AppProcessExt},
@@ -913,7 +917,7 @@ pub mod prelude {
         node_vec, nodes,
         service::Services,
         take_on, take_on_init,
-        task::{self, http::Uri, rayon::prelude::*},
+        task::{self, rayon::prelude::*},
         text::{
             font_features::{
                 CapsVariant, CharVariant, CnVariant, EastAsianWidth, FontPosition, FontStyleSet, JpVariant, NumFraction, NumSpacing,

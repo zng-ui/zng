@@ -13,7 +13,7 @@ use crate::{
     app::view_process::{EncodeError, ViewImage, ViewRenderer},
     context::LayoutMetrics,
     impl_from_and_into_var,
-    task::{self, http::Uri, SignalOnce},
+    task::{self, SignalOnce},
     text::Text,
     units::*,
     var::ReadOnlyRcVar,
@@ -460,7 +460,9 @@ pub enum ImageSource {
     /// If the ACCEPT line is not given, all image formats supported by the view-process backend are accepted.
     ///
     /// Image equality is defined by the URI and ACCEPT string.
-    Download(Uri, Option<Text>),
+    #[cfg(http)]
+    #[cfg_attr(doc_nightly, doc(cfg(http)))]
+    Download(crate::task::http::Uri, Option<Text>),
     /// Static bytes for an encoded or decoded image.
     ///
     /// Image equality is defined by the hash, it is usually the hash of the bytes but it does not need to be.
@@ -485,6 +487,7 @@ impl ImageSource {
     pub fn hash128(&self) -> Option<ImageHash> {
         match self {
             ImageSource::Read(p) => Some(Self::hash128_read(p)),
+            #[cfg(http)]
             ImageSource::Download(u, a) => Some(Self::hash128_download(u, a)),
             ImageSource::Static(h, _, _) => Some(*h),
             ImageSource::Data(h, _, _) => Some(*h),
@@ -506,7 +509,9 @@ impl ImageSource {
     /// Compute hash for a borrowed [`Download`] URI and HTTP-ACCEPT.
     ///
     /// [`Download`]: Self::Download
-    pub fn hash128_download(uri: &Uri, accept: &Option<Text>) -> ImageHash {
+    #[cfg(http)]
+    #[cfg_attr(doc_nightly, doc(cfg(http)))]
+    pub fn hash128_download(uri: &crate::task::http::Uri, accept: &Option<Text>) -> ImageHash {
         use std::hash::Hash;
         let mut h = ImageHash::hasher();
         1u8.hash(&mut h);
@@ -519,6 +524,7 @@ impl PartialEq for ImageSource {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
             (Self::Read(l), Self::Read(r)) => l == r,
+            #[cfg(http)]
             (Self::Download(lu, la), Self::Download(ru, ra)) => lu == ru && la == ra,
             (Self::Image(l), Self::Image(r)) => l.ptr_eq(r),
             (l, r) => {
@@ -545,6 +551,7 @@ impl fmt::Debug for ImageSource {
         }
         match self {
             ImageSource::Read(p) => f.debug_tuple("Read").field(p).finish(),
+            #[cfg(http)]
             ImageSource::Download(u, a) => f.debug_tuple("Download").field(u).field(a).finish(),
             ImageSource::Static(key, _, fmt) => f.debug_tuple("Static").field(key).field(fmt).finish(),
             ImageSource::Data(key, _, fmt) => f.debug_tuple("Data").field(key).field(fmt).finish(),
@@ -552,19 +559,19 @@ impl fmt::Debug for ImageSource {
         }
     }
 }
+
+#[cfg(http)]
 impl_from_and_into_var! {
-    fn from(image: ImageVar) -> ImageSource {
-        ImageSource::Image(image)
-    }
-    fn from(path: PathBuf) -> ImageSource {
-        ImageSource::Read(path)
-    }
-    fn from(path: &Path) -> ImageSource {
-        path.to_owned().into()
-    }
-    fn from(uri: Uri) -> ImageSource {
+    #[cfg_attr(doc_nightly, doc(cfg(http)))]
+    fn from(uri: crate::task::http::Uri) -> ImageSource {
         ImageSource::Download(uri, None)
     }
+    /// From (URI, HTTP-ACCEPT).
+    #[cfg_attr(doc_nightly, doc(cfg(http)))]
+    fn from((uri, accept): (crate::task::http::Uri, &'static str)) -> ImageSource {
+        ImageSource::Download(uri, Some(accept.into()))
+    }
+
     /// Converts `http://` and `https://` to [`Download`], `file://` to
     /// [`Read`] the path component, and the rest to [`Read`] the string as a path.
     ///
@@ -583,6 +590,29 @@ impl_from_and_into_var! {
         }
         PathBuf::from(s).into()
     }
+}
+
+#[cfg(not(http))]
+impl_from_and_into_var! {
+    /// Converts to [`Read`].
+    ///
+    /// [`Read`]: ImageSource::Read
+    fn from(s: &str) -> ImageSource {
+        PathBuf::from(s).into()
+    }
+}
+
+impl_from_and_into_var! {
+    fn from(image: ImageVar) -> ImageSource {
+        ImageSource::Image(image)
+    }
+    fn from(path: PathBuf) -> ImageSource {
+        ImageSource::Read(path)
+    }
+    fn from(path: &Path) -> ImageSource {
+        path.to_owned().into()
+    }
+
     /// Same as conversion from `&str`.
     fn from(s: String) -> ImageSource {
        s.as_str().into()
@@ -590,10 +620,6 @@ impl_from_and_into_var! {
     /// Same as conversion from `&str`.
     fn from(s: Text) -> ImageSource {
         s.as_str().into()
-    }
-    /// From (URI, HTTP-ACCEPT).
-    fn from((uri, accept): (Uri, &'static str)) -> ImageSource {
-        ImageSource::Download(uri, Some(accept.into()))
     }
     /// From encoded data of [`Unknown`] format.
     ///
@@ -818,7 +844,10 @@ impl PathFilter {
 /// Represents a [`ImageSource::Download`] path request filter.
 ///
 /// See [`ImageLimits::allow_uri`] for more information.
-pub type UriFilter = ImageSourceFilter<Uri>;
+#[cfg(http)]
+#[cfg_attr(doc_nightly, doc(cfg(http)))]
+pub type UriFilter = ImageSourceFilter<crate::task::http::Uri>;
+#[cfg(http)]
 impl UriFilter {
     /// Allow any file from the `host` site.
     pub fn allow_host(host: impl Into<Text>) -> Self {
@@ -833,7 +862,8 @@ impl<F: Fn(&PathBuf) -> bool + 'static> From<F> for PathFilter {
     }
 }
 
-impl<F: Fn(&Uri) -> bool + 'static> From<F> for UriFilter {
+#[cfg(http)]
+impl<F: Fn(&task::http::Uri) -> bool + 'static> From<F> for UriFilter {
     fn from(custom: F) -> Self {
         UriFilter::custom(custom)
     }
@@ -861,6 +891,8 @@ pub struct ImageLimits {
     pub allow_path: PathFilter,
 
     /// Filter for [`ImageSource::Download`] URIs.
+    #[cfg(http)]
+    #[cfg_attr(doc_nightly, doc(cfg(http)))]
     pub allow_uri: UriFilter,
 }
 impl ImageLimits {
@@ -870,6 +902,7 @@ impl ImageLimits {
             max_encoded_size: ByteLength::MAX,
             max_decoded_size: ByteLength::MAX,
             allow_path: PathFilter::AllowAll,
+            #[cfg(http)]
             allow_uri: UriFilter::AllowAll,
         }
     }
@@ -901,6 +934,8 @@ impl ImageLimits {
     /// Set the [`allow_uri`].
     ///
     /// [`allow_uri`]: Self::allow_uri
+    #[cfg(http)]
+    #[cfg_attr(doc_nightly, doc(cfg(http)))]
     pub fn with_allow_uri(mut self, allow_url: impl Into<UriFilter>) -> Self {
         self.allow_uri = allow_url.into();
         self
@@ -915,6 +950,7 @@ impl Default for ImageLimits {
             max_encoded_size: 100.megabytes(),
             max_decoded_size: 4096.megabytes(),
             allow_path: PathFilter::AllowAll,
+            #[cfg(http)]
             allow_uri: UriFilter::BlockAll,
         }
     }

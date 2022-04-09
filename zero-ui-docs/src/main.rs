@@ -1,8 +1,6 @@
-#![cfg(feature = "post")]
-
-use std::{env, path::PathBuf};
-
+#[cfg(feature = "post")]
 fn main() {
+    use std::{env, path::PathBuf};
     let mut args = env::args();
     let _ = args.next();
     let docs_root = args
@@ -14,4 +12,8 @@ fn main() {
     println!("post-processing docs at `{}`", docs_root.display());
 
     zero_ui_docs::transform(docs_root);
+}
+#[cfg(not(feature = "post"))]
+fn main() {
+    panic!("run with feature `post`")
 }

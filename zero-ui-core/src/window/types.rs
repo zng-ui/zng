@@ -11,7 +11,6 @@ use crate::{
     event, event_args,
     image::{Image, ImageDataFormat, ImageSource, ImageVar},
     render::FrameId,
-    task::http::Uri,
     text::Text,
     units::*,
     var::*,
@@ -375,6 +374,12 @@ impl WindowIcon {
         Self::Render(Rc::new(Box::new(move |ctx| new_icon(ctx).boxed())))
     }
 }
+#[cfg(http)]
+impl_from_and_into_var! {
+    fn from(uri: crate::task::http::Uri) -> WindowIcon {
+        ImageSource::from(uri).into()
+    }
+}
 impl_from_and_into_var! {
     fn from(source: ImageSource) -> WindowIcon {
         WindowIcon::Image(source)
@@ -387,9 +392,6 @@ impl_from_and_into_var! {
     }
     fn from(path: &Path) -> WindowIcon {
         ImageSource::from(path).into()
-    }
-    fn from(uri: Uri) -> WindowIcon {
-        ImageSource::from(uri).into()
     }
     /// See [`ImageSource`] conversion from `&str`
     fn from(s: &str) -> WindowIcon {

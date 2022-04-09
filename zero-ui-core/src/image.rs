@@ -16,7 +16,6 @@ use crate::{
     service::Service,
     task::{
         self, fs,
-        http::{self, header, Request, TryUri},
         io::*,
         ui::UiTask,
     },
@@ -311,7 +310,9 @@ impl Images {
     ///
     /// Optionally define the HTTP ACCEPT header, if not set all image formats supported by the view-process
     /// backend are accepted.
-    pub fn download(&mut self, uri: impl TryUri, accept: Option<Text>) -> ImageVar {
+    #[cfg(http)]
+    #[cfg_attr(doc_nightly, doc(cfg(http)))]
+    pub fn download(&mut self, uri: impl task::http::TryUri, accept: Option<Text>) -> ImageVar {
         match uri.try_uri() {
             Ok(uri) => self.cache(ImageSource::Download(uri, accept)),
             Err(e) => self.dummy(Some(e.to_string())),
@@ -381,6 +382,7 @@ impl Images {
                 .max_decoded_size
                 .max(image.bgra8().map(|b| b.len()).unwrap_or(0).bytes()),
             allow_path: PathFilter::BlockAll,
+            #[cfg(http)]
             allow_uri: UriFilter::BlockAll,
         };
         let entry = CacheEntry {
@@ -508,6 +510,7 @@ impl Images {
                 }
                 ImageSource::Read(path)
             }
+            #[cfg(http)]
             ImageSource::Download(uri, accepts) => {
                 if !limits.allow_uri.allows(&uri) {
                     let error = format!("limits filter blocked `{uri}`");
@@ -610,6 +613,7 @@ impl Images {
                     r
                 }),
             ),
+            #[cfg(http)]
             ImageSource::Download(uri, accept) => {
                 let accept = accept.unwrap_or_else(|| self.download_accept());
 
@@ -626,16 +630,16 @@ impl Images {
                         // for image crate:
                         // image/webp decoder is only grayscale: https://docs.rs/image/0.23.14/image/codecs/webp/struct.WebPDecoder.html
                         // image/avif decoder does not build in Windows
-                        let request = Request::get(uri)
+                        let request = task::http::Request::get(uri)
                             .unwrap()
-                            .header(header::ACCEPT, accept)
+                            .header(task::http::header::ACCEPT, accept)
                             .unwrap()
                             .max_length(max_encoded_size)
                             .build();
 
-                        match http::send(request).await {
+                        match task::http::send(request).await {
                             Ok(mut rsp) => {
-                                if let Some(m) = rsp.headers().get(&header::CONTENT_TYPE).and_then(|v| v.to_str().ok()) {
+                                if let Some(m) = rsp.headers().get(&task::http::header::CONTENT_TYPE).and_then(|v| v.to_str().ok()) {
                                     let m = m.to_lowercase();
                                     if m.starts_with("image/") {
                                         r.format = ImageDataFormat::MimeType(m);
@@ -678,6 +682,7 @@ impl Images {
         }
     }
 
+    #[cfg(http)]
     fn download_accept(&mut self) -> Text {
         if self.download_accept.is_empty() {
             if let Some(view) = &self.view {

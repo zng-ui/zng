@@ -6,12 +6,17 @@ edition = "2021"
 license = "Apache-2.0"
 
 [features]
-default = ["ipc"]
+default = ["ipc", "http"]
 
 # Enables pre-build views and connecting to views running in another process.
 # 
 # Enabled by default.
 ipc = ["zero-ui-view-api/ipc"]
+
+# Enables http tasks.
+#
+# Enabled by default.
+http = ["isahc", "http-cache-semantics", "http-serde"]
 
 # Use dynamic dispatch at the property level by placing each property node in a `BoxedUiNode`.
 #
@@ -83,11 +88,11 @@ rayon = "1"
 blocking = "1"
 parking_lot = "0.12"
 futures-timer = "3"
-isahc = { version = "1", features = ["cookies", "json"] }
+isahc = { version = "1", features = ["cookies", "json"], optional = true }
 futures-lite = "1"
 async-fs = "1.5"
-http-cache-semantics = "1"
-http-serde = "1"
+http-cache-semantics = { version = "1", optional = true }
+http-serde = { version = "1", optional = true }
 
 # util
 bitflags = "1"
