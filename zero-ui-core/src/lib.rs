@@ -58,6 +58,7 @@ mod ui_node;
 pub use ui_node::*;
 
 pub mod ui_list;
+#[doc(inline)]
 pub use ui_list::{UiNodeList, WidgetList};
 
 pub mod widget_info;
