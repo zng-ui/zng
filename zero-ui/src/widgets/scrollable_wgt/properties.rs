@@ -208,7 +208,7 @@ impl ScrollBarArgs {
 
         match self.orientation {
             Vertical => todo!(),
-            Horizontal => todo!()
+            Horizontal => todo!(),
         }
     }
 }

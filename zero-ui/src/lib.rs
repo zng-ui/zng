@@ -1041,8 +1041,6 @@ pub mod prelude {
             widget_mixin, widget_vec, widgets, BoxedUiNode, BoxedWidget, FillUiNode, UiNode, Widget, WidgetId,
         };
         #[doc(no_inline)]
-        pub use crate::properties::set_widget_state;
-        #[doc(no_inline)]
         pub use crate::widgets::{layouts::stack_nodes, view_generator, DataUpdate, ViewGenerator};
     }
 

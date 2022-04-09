@@ -11,6 +11,7 @@ use crate::{
     widget_info::UpdateMask,
 };
 
+#[allow(unused_imports)] // nightly
 use retain_mut::RetainMut;
 
 use super::{AppContext, UpdatesTrace};

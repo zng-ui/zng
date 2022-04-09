@@ -1,5 +1,6 @@
 //! App event API.
 
+#[allow(unused_imports)] // nightly
 use retain_mut::RetainMut;
 use unsafe_any::UnsafeAny;
 

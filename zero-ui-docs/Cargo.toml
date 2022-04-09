@@ -6,7 +6,7 @@ edition = "2021"
 license = "Apache-2.0"
 
 [features]
-default = ["post"]
+# default = ["post"]
 
 # Static pos-processing.
 post = ["lol_html", "glob", "rayon", "regex", "pathdiff"]

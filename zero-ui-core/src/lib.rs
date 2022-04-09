@@ -229,7 +229,7 @@ pub use zero_ui_proc_macros::{property_new, static_list, widget_declare, widget_
 /// This is particularly useful for nodes that have a large amount of generic constrains, you just type then once.
 ///
 /// [`UiNode`]: crate::UiNode
-/// [`UiNodeList`]: crate::core::UiNodeList
+/// [`UiNodeList`]: crate::UiNodeList
 /// [`into_iter`]: std::iter::IntoIterator::into_iter
 /// [`measure`]: crate::UiNode::measure
 /// [`render`]: crate::UiNode::render
@@ -467,8 +467,8 @@ pub use zero_ui_proc_macros::impl_ui_node;
 ///
 /// [`UiNode`]: crate::UiNode
 /// [`StateVar`]: crate::var::StateVar
-/// [`with_context_var`]: crate::properties::with_context_var
-/// [`set_widget_state`]: crate::properties::set_widget_state
+/// [`with_context_var`]: crate::var::with_context_var
+/// [`set_widget_state`]: crate::context::set_widget_state
 /// [`on_event`]: crate::event::on_event
 /// [`impl IntoVar<T>`]: crate::var::IntoVar
 /// [`WidgetLayout`]: crate::widget_info::WidgetLayout
