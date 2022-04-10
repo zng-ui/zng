@@ -128,6 +128,22 @@ pub mod scrollable {
 
             fn arrange(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, final_size: PxSize) {
                 let mut viewport = final_size - self.joiner;
+                let content_size = ScrollContentSizeVar::get_clone(ctx);
+
+                if content_size.height > final_size.height {
+                    ScrollVerticalContentOverflowsWriteVar::new().set_ne(ctx, true).unwrap();
+                    ScrollHorizontalContentOverflowsWriteVar::new()
+                        .set_ne(ctx, content_size.width > viewport.width)
+                        .unwrap();
+                } else if content_size.width > final_size.width {
+                    ScrollHorizontalContentOverflowsWriteVar::new().set_ne(ctx, true).unwrap();
+                    ScrollVerticalContentOverflowsWriteVar::new()
+                        .set_ne(ctx, content_size.height > viewport.height)
+                        .unwrap();
+                } else {
+                    ScrollVerticalContentOverflowsWriteVar::new().set_ne(ctx, false).unwrap();
+                    ScrollHorizontalContentOverflowsWriteVar::new().set_ne(ctx, false).unwrap();
+                }
 
                 if viewport.width < self.joiner.width * 3.0.fct() {
                     self.joiner.width = Px(0);
@@ -225,6 +241,14 @@ pub mod scrollable {
         let h_ratio = var(0.fct());
         let child = with_context_var(child, ScrollHorizontalRatioWriteVar, h_ratio.clone());
         let child = with_context_var(child, ScrollHorizontalRatioVar, h_ratio.into_read_only());
+
+        let overflow_h = var(false);
+        let child = with_context_var(child, ScrollVerticalContentOverflowsWriteVar, overflow_h.clone());
+        let child = with_context_var(child, ScrollVerticalContentOverflowsVar, overflow_h.into_read_only());
+
+        let overflow_w = var(false);
+        let child = with_context_var(child, ScrollHorizontalContentOverflowsWriteVar, overflow_w.clone());
+        let child = with_context_var(child, ScrollHorizontalContentOverflowsVar, overflow_w.into_read_only());
 
         let child = with_context_var(child, ScrollVerticalOffsetVar, var(0.fct()));
         with_context_var(child, ScrollHorizontalOffsetVar, var(0.fct()))

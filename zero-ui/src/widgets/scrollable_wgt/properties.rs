@@ -63,7 +63,7 @@ fn default_scrollbar() -> ViewGenerator<ScrollBarArgs> {
                 offset = args.offset();
             };
             orientation = args.orientation;
-            visibility = args.viewport_ratio().map(|&r| if r < 1.0.fct() { Visibility::Visible } else { Visibility::Collapsed })
+            visibility = args.content_overflows().map_into()
         }
     })
 }
@@ -203,12 +203,15 @@ impl ScrollBarArgs {
         }
     }
 
+    /// Gets the context variable that gets if the scrollsbar should be visible.
+    ///
+    /// See [`ScrollVerticalContentOverflowsVar`] and [`ScrollHorizontalContentOverflowsVar`];
     pub fn content_overflows(&self) -> BoxedVar<bool> {
         use scrollbar::Orientation::*;
 
         match self.orientation {
-            Vertical => todo!(),
-            Horizontal => todo!(),
+            Vertical => ScrollVerticalContentOverflowsVar::new().boxed(),
+            Horizontal => ScrollHorizontalContentOverflowsVar::new().boxed(),
         }
     }
 }

@@ -57,6 +57,14 @@ context_var! {
     pub struct ScrollHorizontalRatioVar: Factor = 0.fct();
     pub(super) struct ScrollHorizontalRatioWriteVar: Factor = 0.fct();
 
+    /// If the vertical scrollbar should be visible.
+    pub struct ScrollVerticalContentOverflowsVar: bool = false;
+    pub(super) struct ScrollVerticalContentOverflowsWriteVar: bool = false;
+
+    /// If the horizontal scrollbar should be visible.
+    pub struct ScrollHorizontalContentOverflowsVar: bool = false;
+    pub(super) struct ScrollHorizontalContentOverflowsWriteVar: bool = false;
+
     /// Latest computed viewport size of the parent scrollable.
     pub struct ScrollViewportSizeVar: PxSize = PxSize::zero();
     pub(super) struct ScrollViewportSizeWriteVar: PxSize = PxSize::zero();

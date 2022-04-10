@@ -796,7 +796,7 @@ pub fn test_log() {
 }
 
 /// Calls [`fs2::FileExt::unlock`] and ignores "already unlocked" errors.
-#[allow(unused)]// http only
+#[allow(unused)] // http only
 pub fn unlock_ok(file: &impl fs2::FileExt) -> std::io::Result<()> {
     if let Err(e) = file.unlock() {
         if let Some(code) = e.raw_os_error() {

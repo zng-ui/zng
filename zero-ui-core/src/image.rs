@@ -14,11 +14,7 @@ use crate::{
     crate_util::IdMap,
     event::EventUpdateArgs,
     service::Service,
-    task::{
-        self, fs,
-        io::*,
-        ui::UiTask,
-    },
+    task::{self, fs, io::*, ui::UiTask},
     text::Text,
     units::*,
     var::{var, RcVar, Var, Vars, WeakVar},

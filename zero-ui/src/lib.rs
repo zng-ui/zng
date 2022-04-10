@@ -890,7 +890,7 @@ pub mod widgets;
 /// [`new_widget`]: crate::prelude::new_widget
 /// [`rayon`]: https://docs.rs/rayon
 pub mod prelude {
-    #[cfg(feature="http")]
+    #[cfg(feature = "http")]
     #[doc(no_inline)]
     pub use crate::core::task::http::Uri;
 
