@@ -114,7 +114,7 @@ impl<T: VarValue> RcVar<T> {
     pub fn modify<Vw, M>(&self, vars: &Vw, modify: M)
     where
         Vw: WithVars,
-        M: FnOnce(&mut VarModify<T>) + 'static,
+        M: FnOnce(VarModify<T>) + 'static,
     {
         vars.with_vars(|vars| {
             let self_ = self.clone();
@@ -125,13 +125,11 @@ impl<T: VarValue> RcVar<T> {
 
                 // SAFETY: this is safe because Vars requires a mutable reference to apply changes.
                 // the `modifying` flag is only used for `deep_clone`.
-                let mut guard = VarModify::new(unsafe { &mut *self_.0.value.get() });
-                modify(&mut guard);
-                if guard.touched() {
+                let mut touched = false;
+                modify(VarModify::new(unsafe { &mut *self_.0.value.get() }, &mut touched));
+                if touched {
                     self_.0.last_update_id.set(update_id);
                     self_.0.version.set(self_.0.version.get().wrapping_add(1));
-                }
-                if guard.touched() {
                     self_.0.update_slot.mask()
                 } else {
                     UpdateMask::none()
@@ -143,7 +141,7 @@ impl<T: VarValue> RcVar<T> {
     /// Causes the variable to notify update without changing the value.
     #[inline]
     pub fn touch<Vw: WithVars>(&self, vars: &Vw) {
-        self.modify(vars, |v| v.touch());
+        self.modify(vars, |mut v| v.touch());
     }
 
     /// Schedule a new value for this variable.
@@ -154,7 +152,7 @@ impl<T: VarValue> RcVar<T> {
         N: Into<T>,
     {
         let new_value = new_value.into();
-        self.modify(vars, move |v| **v = new_value)
+        self.modify(vars, move |mut v| *v = new_value)
     }
 
     /// Schedule a new value for this variable, the variable will only be set if
@@ -351,7 +349,7 @@ impl<T: VarValue> Var<T> for RcVar<T> {
     fn modify<Vw, M>(&self, vars: &Vw, modify: M) -> Result<(), VarIsReadOnly>
     where
         Vw: WithVars,
-        M: FnOnce(&mut VarModify<T>) + 'static,
+        M: FnOnce(VarModify<T>) + 'static,
     {
         self.modify(vars, modify);
         Ok(())

@@ -512,7 +512,7 @@ where
 
     spawn(async move {
         let ctor = task.await;
-        let _ = modify_sender.send(move |v| **v = crate::var::Response::Done(ctor()));
+        let _ = modify_sender.send(move |mut v| *v = crate::var::Response::Done(ctor()));
     });
 
     response

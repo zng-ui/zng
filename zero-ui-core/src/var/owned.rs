@@ -61,7 +61,7 @@ impl<T: VarValue> Var<T> for OwnedVar<T> {
     fn modify<Vw, M>(&self, _: &Vw, _: M) -> Result<(), VarIsReadOnly>
     where
         Vw: WithVars,
-        M: FnOnce(&mut VarModify<T>) + 'static,
+        M: FnOnce(VarModify<T>) + 'static,
     {
         Err(VarIsReadOnly)
     }

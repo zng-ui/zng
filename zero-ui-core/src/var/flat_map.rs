@@ -180,7 +180,7 @@ where
     fn modify<Vw, M2>(&self, vars: &Vw, modify: M2) -> Result<(), VarIsReadOnly>
     where
         Vw: WithVars,
-        M2: FnOnce(&mut VarModify<B>) + 'static,
+        M2: FnOnce(VarModify<B>) + 'static,
     {
         vars.with_vars(|vars| self.var(vars).modify(vars, modify))
     }

@@ -296,7 +296,7 @@ macro_rules! impl_rc_when_var {
                 })
             }
 
-            fn modify<Vw: WithVars, F: FnOnce(&mut VarModify<O>) + 'static>(&self, vars: &Vw, change: F) -> Result<(), VarIsReadOnly> {
+            fn modify<Vw: WithVars, F: FnOnce(VarModify<O>) + 'static>(&self, vars: &Vw, change: F) -> Result<(), VarIsReadOnly> {
                 vars.with_vars(|vars| {
                     $(
                         if *self.0.conditions.$n.get(vars) {
@@ -560,7 +560,7 @@ impl<O: VarValue> Var<O> for RcWhenVar<O> {
     }
 
     /// Modify the [current value variable](Self::get).
-    fn modify<Vw: WithVars, F: FnOnce(&mut VarModify<O>) + 'static>(&self, vars: &Vw, change: F) -> Result<(), VarIsReadOnly> {
+    fn modify<Vw: WithVars, F: FnOnce(VarModify<O>) + 'static>(&self, vars: &Vw, change: F) -> Result<(), VarIsReadOnly> {
         vars.with_vars(|vars| {
             for (c, v) in self.0.whens.iter() {
                 if c.copy(vars) {

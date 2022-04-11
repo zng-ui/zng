@@ -350,7 +350,7 @@ fn misc(window_id: WindowId, window_vars: &WindowVars) -> impl Widget {
         button! {
             content = text(label);
             on_click = hn!(flag, |ctx, _| {
-                flag.modify(ctx, |f| **f = !**f);
+                flag.modify(ctx, |mut f| *f = !*f);
             });
 
             background_color = c_false;

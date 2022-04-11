@@ -415,7 +415,7 @@ impl Vars {
         T: VarValue,
         V: Var<T>,
     {
-        let (sender, receiver) = flume::unbounded::<Box<dyn FnOnce(&mut VarModify<T>) + Send>>();
+        let (sender, receiver) = flume::unbounded::<Box<dyn FnOnce(VarModify<T>) + Send>>();
 
         if var.always_read_only() {
             self.receivers.borrow_mut().push(Box::new(move |_| {
@@ -463,7 +463,7 @@ impl Vars {
     ///         if let Some(i) = source_var.copy_new(vars) {
     ///             if let Some(squared) = i.checked_mul(i) {
     ///                 squared_var.set(vars, squared).ok();
-    ///                 count_var.modify(vars, |c| **c += 1).ok();
+    ///                 count_var.modify(vars, |mut c| *c += 1).ok();
     ///             } else {
     ///                 binding.unbind();
     ///             }
@@ -1178,7 +1178,7 @@ where
     T: VarValue,
 {
     wake: AppEventSender,
-    sender: flume::Sender<Box<dyn FnOnce(&mut VarModify<T>) + Send>>,
+    sender: flume::Sender<Box<dyn FnOnce(VarModify<T>) + Send>>,
 }
 impl<T: VarValue> Clone for VarModifySender<T> {
     fn clone(&self) -> Self {
@@ -1203,7 +1203,7 @@ where
     /// modification is sent before the app can process then, they all are applied in order sent.
     pub fn send<F>(&self, modify: F) -> Result<(), AppShutdown<()>>
     where
-        F: FnOnce(&mut VarModify<T>) + Send + 'static,
+        F: FnOnce(VarModify<T>) + Send + 'static,
     {
         self.sender.send(Box::new(modify)).map_err(|_| AppShutdown(()))?;
         let _ = self.wake.send_var();

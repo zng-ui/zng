@@ -269,7 +269,7 @@
 //! let moving_btn = button! {
 //!     margin = offset.clone();
 //!     on_click = hn!(|ctx, _| {
-//!         offset.modify(ctx, |m|m.left += 50.0);
+//!         offset.modify(ctx, |mut m|m.left += 50.0);
 //!     });
 //!     content = text("Click to Move!")
 //! };
@@ -319,7 +319,7 @@
 //!         // 3 methods doing the same thing.
 //!         flag.set(ctx.vars, new_value);
 //!         flag.set_ne(ctx.vars, new_value);
-//!         flag.modify(ctx.vars, move |f| **f = new_value);
+//!         flag.modify(ctx.vars, move |mut f| *f = new_value);
 //!     });
 //! };
 //! ```
@@ -374,7 +374,7 @@
 //!         content = button! {
 //!             content = text(count_text);
 //!             on_click = hn!(|ctx, _| {
-//!                 count.modify(ctx, |c| **c += 1);
+//!                 count.modify(ctx, |mut c| *c += 1);
 //!             });
 //!         }
 //!     }
@@ -512,7 +512,7 @@
 //!
 //! button! {
 //!     on_click = hn!(count, |ctx, _| {
-//!         count.modify(ctx, |c| **c += 1);
+//!         count.modify(ctx, |mut c| *c += 1);
 //!     });
 //!     content = text(count.map_to_text());
 //! }

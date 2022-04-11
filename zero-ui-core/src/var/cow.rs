@@ -234,7 +234,7 @@ impl<T: VarValue, V: Var<T>> RcCowVar<T, V> {
     pub fn modify<Vw, M>(&self, vars: &Vw, modify: M) -> Result<(), VarIsReadOnly>
     where
         Vw: WithVars,
-        M: FnOnce(&mut VarModify<T>) + 'static,
+        M: FnOnce(VarModify<T>) + 'static,
     {
         vars.with_vars(|vars| {
             if let Some(source) = self.source(vars) {
@@ -258,9 +258,9 @@ impl<T: VarValue, V: Var<T>> RcCowVar<T, V> {
                     *self_.0.source.get() = None;
                 }
                 self_.0.is_contextual.set(false);
-                let mut guard = VarModify::new(unsafe { &mut *self_.0.value.get() }.as_mut().unwrap());
-                modify(&mut guard);
-                if guard.touched() {
+                let mut touched = false;
+                modify(VarModify::new(unsafe { &mut *self_.0.value.get() }.as_mut().unwrap(), &mut touched));
+                if touched {
                     self_.0.last_update_id.set(update_id);
                     self_.0.version.set(self_.0.version.get().wrapping_add(1));
 
@@ -285,7 +285,7 @@ impl<T: VarValue, V: Var<T>> RcCowVar<T, V> {
     /// [`is_cloned`]: Self::is_cloned
     #[inline]
     pub fn touch<Vw: WithVars>(&self, vars: &Vw) -> Result<(), VarIsReadOnly> {
-        self.modify(vars, |v| v.touch())
+        self.modify(vars, |mut v| v.touch())
     }
 
     /// Schedule a new value for this variable.
@@ -413,7 +413,7 @@ impl<T: VarValue, V: Var<T>> Var<T> for RcCowVar<T, V> {
     fn modify<Vw, M>(&self, vars: &Vw, modify: M) -> Result<(), VarIsReadOnly>
     where
         Vw: WithVars,
-        M: FnOnce(&mut VarModify<T>) + 'static,
+        M: FnOnce(VarModify<T>) + 'static,
     {
         self.modify(vars, modify)
     }

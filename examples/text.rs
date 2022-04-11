@@ -64,8 +64,8 @@ fn app_main() {
 
 fn font_size(font_size: RcVar<Length>) -> impl Widget {
     fn change_size(font_size: &RcVar<Length>, change: f32, ctx: &mut WidgetContext) {
-        font_size.modify(ctx, move |s| {
-            **s += Length::Pt(change);
+        font_size.modify(ctx, move |mut s| {
+            *s += Length::Pt(change);
         });
     }
     h_stack! {

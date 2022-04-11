@@ -253,14 +253,14 @@ impl Keyboard {
 
                 let scan_code = args.scan_code;
                 if !self.codes.get(vars).contains(&scan_code) {
-                    self.codes.modify(vars, move |cs| {
+                    self.codes.modify(vars, move |mut cs| {
                         cs.push(scan_code);
                     });
                 }
 
                 if let Some(key) = args.key {
                     if !self.keys.get(vars).contains(&key) {
-                        self.keys.modify(vars, move |ks| {
+                        self.keys.modify(vars, move |mut ks| {
                             ks.push(key);
                         });
                     }
@@ -271,7 +271,7 @@ impl Keyboard {
 
                 let key = args.scan_code;
                 if self.codes.get(vars).contains(&key) {
-                    self.codes.modify(vars, move |cs| {
+                    self.codes.modify(vars, move |mut cs| {
                         if let Some(i) = cs.iter().position(|c| *c == key) {
                             cs.swap_remove(i);
                         }
@@ -280,7 +280,7 @@ impl Keyboard {
 
                 if let Some(key) = args.key {
                     if self.keys.get(vars).contains(&key) {
-                        self.keys.modify(vars, move |ks| {
+                        self.keys.modify(vars, move |mut ks| {
                             if let Some(i) = ks.iter().position(|k| *k == key) {
                                 ks.swap_remove(i);
                             }

@@ -193,7 +193,7 @@ where
     fn modify<Vw, Mo>(&self, _: &Vw, _: Mo) -> Result<(), VarIsReadOnly>
     where
         Vw: WithVars,
-        Mo: FnOnce(&mut VarModify<B>) + 'static,
+        Mo: FnOnce(VarModify<B>) + 'static,
     {
         Err(VarIsReadOnly)
     }
@@ -361,15 +361,15 @@ where
     fn modify<Vw, Mo>(&self, vars: &Vw, modify: Mo) -> Result<(), VarIsReadOnly>
     where
         Vw: WithVars,
-        Mo: FnOnce(&mut VarModify<B>) + 'static,
+        Mo: FnOnce(VarModify<B>) + 'static,
     {
         let self_ = self.clone();
-        self.0.source.modify(vars, move |source_value| {
-            let mut mapped_value = self_.0.map.borrow_mut()(source_value);
-            let mut guard = VarModify::new(&mut mapped_value);
-            modify(&mut guard);
-            if guard.touched() {
-                **source_value = self_.0.map_back.borrow_mut()(mapped_value);
+        self.0.source.modify(vars, move |mut source_value| {
+            let mut mapped_value = self_.0.map.borrow_mut()(&source_value);
+            let mut touched = false;
+            modify(VarModify::new(&mut mapped_value, &mut touched));
+            if touched {
+                *source_value = self_.0.map_back.borrow_mut()(mapped_value);
             }
         })
     }
@@ -523,7 +523,7 @@ where
     fn modify<Vw, Mo>(&self, vars: &Vw, modify: Mo) -> Result<(), VarIsReadOnly>
     where
         Vw: WithVars,
-        Mo: FnOnce(&mut VarModify<B>) + 'static,
+        Mo: FnOnce(VarModify<B>) + 'static,
     {
         self.modify(vars, modify)
     }

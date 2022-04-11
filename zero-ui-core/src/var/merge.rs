@@ -502,7 +502,7 @@ macro_rules! impl_rc_merge_var {
             }
 
             #[inline]
-            fn modify<Vw: WithVars, F2: FnOnce(&mut VarModify<O>) + 'static>(&self, _: &Vw, _: F2) -> Result<(), VarIsReadOnly> {
+            fn modify<Vw: WithVars, F2: FnOnce(VarModify<O>) + 'static>(&self, _: &Vw, _: F2) -> Result<(), VarIsReadOnly> {
                 Err(VarIsReadOnly)
             }
 

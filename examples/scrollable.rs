@@ -87,7 +87,7 @@ fn commands() -> impl Widget {
                 margin = show.map(|s| if !s { 0.into() } else { (3, 0, 0, 0).into() });
                 corner_radius = (0, 0, 4, 4);
                 on_click = hn!(|ctx, _| {
-                    show.modify(ctx, |s| **s = !**s);
+                    show.modify(ctx, |mut s| *s = !*s);
                 });
             }
         ];

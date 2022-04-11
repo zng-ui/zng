@@ -184,7 +184,7 @@ impl AppExtension for ImageManager {
                                         // request sent, add to `decoding` will receive
                                         // `RawImageLoadedEvent` or `RawImageLoadErrorEvent` event
                                         // when done.
-                                        var.modify(vars, move |v| {
+                                        var.modify(vars, move |mut v| {
                                             v.view.set(img).unwrap();
                                             v.touch();
                                         });
@@ -197,7 +197,7 @@ impl AppExtension for ImageManager {
                             } else {
                                 // success, but we are only doing `load_in_headless` validation.
                                 let img = ViewImage::dummy(None);
-                                var.modify(vars, move |v| {
+                                var.modify(vars, move |mut v| {
                                     v.view.set(img).unwrap();
                                     v.touch();
                                     v.done_signal.set();
@@ -208,7 +208,7 @@ impl AppExtension for ImageManager {
                             tracing::error!("load error: {e:?}");
                             // load error.
                             let img = ViewImage::dummy(Some(e));
-                            var.modify(vars, move |v| {
+                            var.modify(vars, move |mut v| {
                                 v.view.set(img).unwrap();
                                 v.touch();
                                 v.done_signal.set();

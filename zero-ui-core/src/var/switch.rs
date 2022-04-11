@@ -255,7 +255,7 @@ macro_rules! impl_rc_switch_var {
             fn modify<Vw, F>(&self, vars: &Vw, change: F) -> Result<(), VarIsReadOnly>
             where
                 Vw: WithVars,
-                F: FnOnce(&mut VarModify<O>) + 'static
+                F: FnOnce(VarModify<O>) + 'static
             {
                 vars.with_vars(|vars| {
                     match *self.0.index.get(vars) {
@@ -376,7 +376,7 @@ impl<O: VarValue, VI: Var<usize>> RcSwitchVar<O, VI> {
     }
 
     /// Modify the indexed variable.
-    pub fn modify<F: FnOnce(&mut VarModify<O>) + 'static>(&self, vars: &Vars, change: F) -> Result<(), VarIsReadOnly> {
+    pub fn modify<F: FnOnce(VarModify<O>) + 'static>(&self, vars: &Vars, change: F) -> Result<(), VarIsReadOnly> {
         <Self as Var<O>>::modify(self, vars, change)
     }
 }
@@ -478,7 +478,7 @@ impl<O: VarValue, VI: Var<usize>> Var<O> for RcSwitchVar<O, VI> {
         vars.with_vars(|vars| self.0.vars[*self.0.index.get(vars)].set_ne(vars, new_value))
     }
 
-    fn modify<Vw: WithVars, F: FnOnce(&mut VarModify<O>) + 'static>(&self, vars: &Vw, change: F) -> Result<(), VarIsReadOnly> {
+    fn modify<Vw: WithVars, F: FnOnce(VarModify<O>) + 'static>(&self, vars: &Vw, change: F) -> Result<(), VarIsReadOnly> {
         vars.with_vars(|vars| self.0.vars[*self.0.index.get(vars)].modify(vars, change))
     }
 

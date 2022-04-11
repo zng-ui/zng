@@ -150,7 +150,7 @@ where
     fn modify<Vw, Mo>(&self, _: &Vw, _: Mo) -> Result<(), VarIsReadOnly>
     where
         Vw: WithVars,
-        Mo: FnOnce(&mut VarModify<B>) + 'static,
+        Mo: FnOnce(VarModify<B>) + 'static,
     {
         Err(VarIsReadOnly)
     }
@@ -294,10 +294,10 @@ where
     pub fn modify<Vw, Mo>(&self, vars: &Vw, modify: Mo) -> Result<(), VarIsReadOnly>
     where
         Vw: WithVars,
-        Mo: FnOnce(&mut VarModify<B>) + 'static,
+        Mo: FnOnce(VarModify<B>) + 'static,
     {
         let map = self.map_mut.clone();
-        self.source.modify(vars, |v| {
+        self.source.modify(vars, |mut v| {
             v.map_ref(map, modify);
         })
     }
@@ -310,8 +310,8 @@ where
     {
         let map = self.map_mut.clone();
         let new_value = new_value.into();
-        self.source.modify(vars, move |v| {
-            *map(v) = new_value;
+        self.source.modify(vars, move |mut v| {
+            *map(&mut v) = new_value;
         })
     }
 
@@ -433,7 +433,7 @@ where
     fn modify<Vw, Mo>(&self, vars: &Vw, modify: Mo) -> Result<(), VarIsReadOnly>
     where
         Vw: WithVars,
-        Mo: FnOnce(&mut VarModify<B>) + 'static,
+        Mo: FnOnce(VarModify<B>) + 'static,
     {
         self.modify(vars, modify)
     }

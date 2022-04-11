@@ -313,7 +313,7 @@ impl Timers {
                     return true; // retain
                 }
 
-                var.modify(vars, |t| t.elapsed = true);
+                var.modify(vars, |mut t| t.elapsed = true);
             }
             false // don't retain
         });

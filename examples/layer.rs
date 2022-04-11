@@ -174,9 +174,9 @@ fn anchor_example() -> impl Widget {
     });
 
     let next_point = hn!(|ctx, _| {
-        point_index.modify(ctx, move |i| {
-            let next = **i + 1;
-            **i = if next == points_len { 0 } else { next };
+        point_index.modify(ctx, move |mut i| {
+            let next = *i + 1;
+            *i = if next == points_len { 0 } else { next };
         })
     });
 

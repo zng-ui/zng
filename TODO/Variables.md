@@ -1,6 +1,6 @@
-# Var TODO
+# Variables TODO
 
-* Review if var.modify() really needs to require double deref.
+
 
 # Animation
 

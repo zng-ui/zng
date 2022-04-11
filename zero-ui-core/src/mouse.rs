@@ -677,7 +677,7 @@ impl MouseManager {
             }
 
             if !mouse.buttons.get(ctx.vars).contains(&button) {
-                mouse.buttons.modify(ctx.vars, move |btns| btns.push(button));
+                mouse.buttons.modify(ctx.vars, move |mut btns| btns.push(button));
             }
         } else {
             self.capture_count = self.capture_count.saturating_sub(1);
@@ -686,7 +686,7 @@ impl MouseManager {
             }
 
             if mouse.buttons.get(ctx.vars).contains(&button) {
-                mouse.buttons.modify(ctx.vars, move |btns| {
+                mouse.buttons.modify(ctx.vars, move |mut btns| {
                     if let Some(i) = btns.iter().position(|k| *k == button) {
                         btns.swap_remove(i);
                     }

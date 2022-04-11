@@ -524,7 +524,7 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + crate::private::Sealed + 'stati
     fn modify<Vw, M>(&self, vars: &Vw, modify: M) -> Result<(), VarIsReadOnly>
     where
         Vw: WithVars,
-        M: FnOnce(&mut VarModify<T>) + 'static;
+        M: FnOnce(VarModify<T>) + 'static;
 
     /// Causes the variable to notify update without changing the value.
     ///
@@ -536,7 +536,7 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + crate::private::Sealed + 'stati
     /// [`strong_count`]: Var::strong_count
     #[inline]
     fn touch<Vw: WithVars>(&self, vars: &Vw) -> Result<(), VarIsReadOnly> {
-        self.modify(vars, |v| v.touch())
+        self.modify(vars, |mut v| v.touch())
     }
 
     /// Schedule a new value for the variable.
@@ -554,7 +554,7 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + crate::private::Sealed + 'stati
         N: Into<T>,
     {
         let new_value = new_value.into();
-        self.modify(vars, move |v| **v = new_value)
+        self.modify(vars, move |mut v| *v = new_value)
     }
 
     /// Schedule a new value for the variable, but only if the current value is not equal to `new_value`.
@@ -1413,45 +1413,55 @@ impl<T: ToText> OptionSomeText for Option<T> {
 /// [`DerefMut`] is used to get the variable value the variable value is flagged as *new*.
 pub struct VarModify<'a, T: VarValue> {
     value: &'a mut T,
-    touched: bool,
+    touched: &'a mut bool,
 }
 impl<'a, T: VarValue> VarModify<'a, T> {
     /// New wrapper.
-    pub fn new(value: &'a mut T) -> Self {
-        VarModify { value, touched: false }
+    pub fn new(value: &'a mut T, touched: &'a mut bool) -> Self {
+        *touched = false;
+        VarModify { value, touched }
     }
 
     /// If `deref_mut` was used or [`touch`](Self::touch) was called.
     #[inline]
     pub fn touched(&self) -> bool {
-        self.touched
+        *self.touched
     }
 
     /// Flags the value as modified.
     #[inline]
     pub fn touch(&mut self) {
-        self.touched = true;
+        *self.touched = true;
     }
 
     /// Runs `modify` with a mutable reference `B` derived from `T` using `map`.
-    /// Only flag touched if `modify` touches the the value.
+    /// The touched flag is only set if `modify` touches the the value.
     ///
-    /// This method does permit modifying the value without flagging the value as new, this is not `unsafe`
-    /// but is an error that will the variable dependents to go out of sync.
+    /// Note that modifying the value inside `map` is a logic error, it will not flag as touched
+    /// so the variable will have a new value that is not propagated, only use `map` to borrow the
+    /// map target.
     pub fn map_ref<B, M, Mo>(&mut self, map: M, modify: Mo)
     where
         B: VarValue,
         M: Fn(&mut T) -> &mut B,
-        Mo: FnOnce(&mut VarModify<B>),
+        Mo: FnOnce(VarModify<B>),
     {
-        let mut mapped = VarModify {
+        let mut touched = false;
+
+        modify(VarModify {
             value: map(self.value),
-            touched: false,
-        };
+            touched: &mut touched,
+        });
 
-        modify(&mut mapped);
+        *self.touched |= touched;
+    }
 
-        self.touched |= mapped.touched;
+    /// Reborrows `self` so that exclusive access can be given away without moving.
+    pub fn reborrow(&'a mut self) -> Self {
+        VarModify {
+            value: self.value,
+            touched: self.touched,
+        }
     }
 }
 impl<'a, T: VarValue> Deref for VarModify<'a, T> {
@@ -1463,7 +1473,7 @@ impl<'a, T: VarValue> Deref for VarModify<'a, T> {
 }
 impl<'a, T: VarValue> DerefMut for VarModify<'a, T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        self.touched = true;
+        *self.touched = true;
         self.value
     }
 }

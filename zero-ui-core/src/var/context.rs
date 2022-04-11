@@ -101,7 +101,7 @@ impl<C: ContextVar> Var<C::Type> for ContextVarProxy<C> {
     fn modify<Vw, M>(&self, vars: &Vw, modify: M) -> Result<(), VarIsReadOnly>
     where
         Vw: WithVars,
-        M: FnOnce(&mut VarModify<C::Type>) + 'static,
+        M: FnOnce(VarModify<C::Type>) + 'static,
     {
         vars.with_vars(|v| {
             if let Some(m) = C::thread_local_value().modify() {
@@ -188,7 +188,7 @@ pub struct ContextVarData<'a, T: VarValue> {
     /// like any other variable. The best way to implement this properly is using the [`ContextVarData::var`] constructor.
     pub modify: Option<Box<ContextModify<T>>>,
 }
-type ContextModify<T> = dyn Fn(&Vars, Box<dyn FnOnce(&mut VarModify<T>)>);
+type ContextModify<T> = dyn Fn(&Vars, Box<dyn FnOnce(VarModify<T>)>);
 impl<'a, T: VarValue> ContextVarData<'a, T> {
     /// Value that does not change or update.
     ///
@@ -328,11 +328,11 @@ impl<'a, T: VarValue> ContextVarData<'a, T> {
                 Some(Box::new(clone_move!(var, |vars, modify| {
                     var.modify(
                         vars,
-                        clone_move!(value, map_back, |m| {
+                        clone_move!(value, map_back, |mut m| {
                             let mut value = value.borrow_mut();
-                            modify(&mut VarModify::new(&mut value));
+                            modify(VarModify::new(&mut value, &mut false));
                             let value = (map_back.borrow_mut())(&value);
-                            **m = value;
+                            *m = value;
                         }),
                     )
                     .unwrap();
@@ -590,7 +590,7 @@ macro_rules! context_var {
             pub fn modify<Vw, M>(vars: &Vw, modify: M) -> std::result::Result<(), $crate::var::VarIsReadOnly>
             where
                 Vw: $crate::var::WithVars,
-                M: std::ops::FnOnce(&mut $crate::var::VarModify<$type>) + 'static
+                M: std::ops::FnOnce($crate::var::VarModify<$type>) + 'static
             {
                 $crate::var::Var::modify($crate::var::ContextVarProxy::<Self>::static_ref(), vars, modify)
             }
