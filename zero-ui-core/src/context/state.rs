@@ -428,8 +428,7 @@ impl OwnedStateMap {
 ///
 /// ```
 /// # fn main() -> () { }
-/// use zero_ui::core::{property, context::{state_key, WidgetContext}, var::IntoVar, UiNode, Widget};
-/// use zero_ui::properties::set_widget_state;
+/// use zero_ui_core::{property, context::{state_key, WidgetContext, set_widget_state}, var::IntoVar, UiNode, Widget};
 ///
 /// state_key! {
 ///     pub struct FooKey: u32;
