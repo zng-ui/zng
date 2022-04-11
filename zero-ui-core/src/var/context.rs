@@ -836,6 +836,36 @@ mod tests {
         }
     }
 
+    #[property(event)]
+    fn on_init(child: impl UiNode, handler: impl handler::WidgetHandler<()>) -> impl UiNode {
+        struct OnInitNode<C, H> {
+            child: C,
+            handler: H,
+        }
+        #[impl_ui_node(child)]
+        impl<C, H> UiNode for OnInitNode<C, H>
+        where
+            C: UiNode,
+            H: handler::WidgetHandler<()>,
+        {
+            fn init(&mut self, ctx: &mut WidgetContext) {
+                self.child.init(ctx);
+                self.handler.event(ctx, &());
+            }
+
+            fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut widget_info::WidgetSubscriptions) {
+                subscriptions.handler(&self.handler);
+                self.child.subscriptions(ctx, subscriptions);
+            }
+
+            fn update(&mut self, ctx: &mut WidgetContext) {
+                self.child.update(ctx);
+                self.handler.update(ctx);
+            }
+        }
+        OnInitNode { child, handler }
+    }
+
     #[widget($crate::var::context::tests::test_wgt)]
     mod test_wgt {
         use super::*;
@@ -1013,5 +1043,30 @@ mod tests {
         let _ = app.update(false);
         let ctx = app.ctx();
         assert_eq!(backing_var.get(ctx.vars), "set!");
+    }
+
+    #[test]
+    fn context_var_binding() {
+        let input_var = var("Input!".to_text());
+        let other_var = var(".".to_text());
+
+        let mut test = test_app(test_wgt! {
+            test_prop = input_var.clone();
+            on_init = hn_once!(other_var, |ctx, _| {
+                TestVar::new().bind(ctx, &other_var).permanent();
+            });
+            child = NilUiNode;
+        });
+
+        test.update(false).assert_wait();
+
+        assert_eq!(".", other_var.get(test.ctx().vars));
+
+        input_var.set(test.ctx().vars, "Update!");
+
+        test.update(false).assert_wait();
+
+        assert_eq!("Update!", input_var.get(test.ctx().vars));
+        assert_eq!(".", other_var.get(test.ctx().vars));
     }
 }

@@ -485,6 +485,9 @@ impl Vars {
     /// app update if it modifies any variable, so if you add an extra binding `VarC -> VarA` it will run, but it will not cause
     /// the first binding to run again.
     ///
+    /// The `binding` runs in the app context, just after the variable modifications are applied. This means that context variables
+    /// will only be their default value in bindings.
+    ///
     /// [`unbind`]: VarBindingHandle::unbind
     /// [`permanent`]: VarBindingHandle::permanent
     pub fn bind<B>(&self, mut binding: B) -> VarBindingHandle

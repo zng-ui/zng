@@ -941,7 +941,8 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + crate::private::Sealed + 'stati
     /// when the assign to the second variable would cause a second update.
     ///
     /// Note that the current value is **not** transferred just by creating a binding, only subsequent updates of `self` will
-    /// assign `to_var`, see [`Vars::bind`] for more details about variable binding.
+    /// assign `to_var`. Also note that bindings update at the app context level, so context variables are only their default value.
+    /// See [`Vars::bind`] for more details about variable binding.
     #[inline]
     fn bind<Vw, V2>(&self, vars: &Vw, to_var: &V2) -> VarBindingHandle
     where
@@ -958,7 +959,8 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + crate::private::Sealed + 'stati
     /// when the assign to the second variable would cause a second update.
     ///
     /// Note that the current value is **not** transferred just by creating a binding, only subsequent updates of `self`
-    /// or `other_var` transfer value, see [`Vars::bind`] for more details about variable binding.
+    /// or `other_var` transfer value. Also note that bindings update at the app context level, so context variables are only their default value.
+    /// See [`Vars::bind`] for more details about variable binding.
     #[inline]
     fn bind_bidi<Vw, V2>(&self, vars: &Vw, other_var: &V2) -> VarBindingHandle
     where
@@ -976,7 +978,8 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + crate::private::Sealed + 'stati
     /// where the assign to `to_var` would cause a second update.
     ///
     /// Note that the current value is **not** transferred just by creating a binding, only subsequent updates of `self` will
-    /// assign `to_var`, see [`Vars::bind`] for more details about variable binding.
+    /// assign `to_var`. Also note that bindings update at the app context level, so context variables are only their default value.
+    /// See [`Vars::bind`] for more details about variable binding.
     #[inline]
     fn bind_map<Vw, T2, V2, M>(&self, vars: &Vw, to_var: &V2, mut map: M) -> VarBindingHandle
     where
@@ -1029,7 +1032,8 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + crate::private::Sealed + 'stati
     /// when the assign to the second variable would cause a second update.
     ///
     /// Note that the current value is **not** transferred just by creating a binding, only subsequent updates of `self` will
-    /// assign `to_var`, see [`Vars::bind`] for more details about variable binding.
+    /// assign `to_var`. Also note that bindings update at the app context level, so context variables are only their default value.
+    /// See [`Vars::bind`] for more details about variable binding.
     #[inline]
     fn bind_map_bidi<Vw, T2, V2, M, N>(&self, vars: &Vw, other_var: &V2, mut map: M, mut map_back: N) -> VarBindingHandle
     where

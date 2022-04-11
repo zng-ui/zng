@@ -1651,6 +1651,21 @@ pub enum ControlFlow {
     /// Exit the loop and drop the app.
     Exit,
 }
+impl ControlFlow {
+    /// Assert that the value is [`ControlFlow::Wait`].
+    #[inline]
+    #[track_caller]
+    pub fn assert_wait(self) {
+        assert_eq!(ControlFlow::Wait, self)
+    }
+
+    /// Assert that the value is [`ControlFlow::Exit`].
+    #[inline]
+    #[track_caller]
+    pub fn assert_exit(self) {
+        assert_eq!(ControlFlow::Exit, self)
+    }
+}
 
 /// A headless app controller.
 ///
