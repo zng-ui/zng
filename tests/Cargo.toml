@@ -9,7 +9,6 @@ default = ["ipc"]
 ipc = ["zero-ui/ipc"]
 
 [dev-dependencies]
-image = "0.23"
 zero-ui = { path = "../zero-ui", default-features = false, features = ["test_util"] }
 
 [[test]]
@@ -19,7 +18,3 @@ path = "command.rs"
 [[test]]
 name = "focus"
 path = "focus.rs"
-
-[[test]]
-name = "image"
-path = "image.rs"
