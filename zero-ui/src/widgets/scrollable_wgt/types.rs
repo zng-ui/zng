@@ -48,35 +48,64 @@ context_var! {
     /// Ratio of the scroll parent viewport height to its content.
     ///
     /// The value is `viewport.height / content.height`.
-    pub struct ScrollVerticalRatioVar: Factor = 0.fct();
-    pub(super) struct ScrollVerticalRatioWriteVar: Factor = 0.fct();
+    pub(super) struct ScrollVerticalRatioVar: Factor = 0.fct();
 
     /// Ratio of the scroll parent viewport width to its content.
     ///
     /// The value is `viewport.width / content.width`.
-    pub struct ScrollHorizontalRatioVar: Factor = 0.fct();
-    pub(super) struct ScrollHorizontalRatioWriteVar: Factor = 0.fct();
+    pub(super) struct ScrollHorizontalRatioVar: Factor = 0.fct();
 
     /// If the vertical scrollbar should be visible.
-    pub struct ScrollVerticalContentOverflowsVar: bool = false;
-    pub(super) struct ScrollVerticalContentOverflowsWriteVar: bool = false;
+    pub(super) struct ScrollVerticalContentOverflowsVar: bool = false;
 
     /// If the horizontal scrollbar should be visible.
-    pub struct ScrollHorizontalContentOverflowsVar: bool = false;
-    pub(super) struct ScrollHorizontalContentOverflowsWriteVar: bool = false;
+    pub(super) struct ScrollHorizontalContentOverflowsVar: bool = false;
 
     /// Latest computed viewport size of the parent scrollable.
-    pub struct ScrollViewportSizeVar: PxSize = PxSize::zero();
-    pub(super) struct ScrollViewportSizeWriteVar: PxSize = PxSize::zero();
+    pub(super) struct ScrollViewportSizeVar: PxSize = PxSize::zero();
 
     /// Latest computed content size of the parent scrollable.
-    pub struct ScrollContentSizeVar: PxSize = PxSize::zero();
-    pub(super) struct ScrollContentSizeWriteVar: PxSize = PxSize::zero();
+    pub(super) struct ScrollContentSizeVar: PxSize = PxSize::zero();
 }
 
 /// Controls the parent scrollable.
+///
+/// Also see [`ScrollVerticalOffsetVar`] and [`ScrollHorizontalOffsetVar`] for controlling the scroll offset.
 pub struct ScrollContext {}
 impl ScrollContext {
+    /// Ratio of the scroll parent viewport height to its content.
+    ///
+    /// The value is `viewport.height / content.height`.
+    pub fn vertical_ratio() -> impl Var<Factor> {
+        ScrollVerticalRatioVar::new().into_read_only()
+    }
+    /// Ratio of the scroll parent viewport width to its content.
+    ///
+    /// The value is `viewport.width / content.width`.
+    pub fn horizontal_ratio() -> impl Var<Factor> {
+        ScrollHorizontalRatioVar::new().into_read_only()
+    }
+
+    /// If the vertical scrollbar should be visible.
+    pub fn vertical_content_overflows() -> impl Var<bool> {
+        ScrollVerticalContentOverflowsVar::new().into_read_only()
+    }
+
+    /// If the horizontal scrollbar should be visible.
+    pub fn horizontal_content_overflows() -> impl Var<bool> {
+        ScrollHorizontalContentOverflowsVar::new().into_read_only()
+    }
+
+    /// Latest computed viewport size of the parent scrollable.
+    pub fn viewport_size() -> impl Var<PxSize> {
+        ScrollViewportSizeVar::new().into_read_only()
+    }
+
+    /// Latest computed content size of the parent scrollable.
+    pub fn content_size() -> impl Var<PxSize> {
+        ScrollContentSizeVar::new().into_read_only()
+    }
+
     /// Offset the vertical position by the given pixel `amount`.
     pub fn scroll_vertical<Vw: WithVars>(vars: &Vw, amount: Px) {
         vars.with_vars(|vars| {

@@ -131,18 +131,18 @@ pub mod scrollable {
                 let content_size = ScrollContentSizeVar::get_clone(ctx);
 
                 if content_size.height > final_size.height {
-                    ScrollVerticalContentOverflowsWriteVar::new().set_ne(ctx, true).unwrap();
-                    ScrollHorizontalContentOverflowsWriteVar::new()
+                    ScrollVerticalContentOverflowsVar::new().set_ne(ctx, true).unwrap();
+                    ScrollHorizontalContentOverflowsVar::new()
                         .set_ne(ctx, content_size.width > viewport.width)
                         .unwrap();
                 } else if content_size.width > final_size.width {
-                    ScrollHorizontalContentOverflowsWriteVar::new().set_ne(ctx, true).unwrap();
-                    ScrollVerticalContentOverflowsWriteVar::new()
+                    ScrollHorizontalContentOverflowsVar::new().set_ne(ctx, true).unwrap();
+                    ScrollVerticalContentOverflowsVar::new()
                         .set_ne(ctx, content_size.height > viewport.height)
                         .unwrap();
                 } else {
-                    ScrollVerticalContentOverflowsWriteVar::new().set_ne(ctx, false).unwrap();
-                    ScrollHorizontalContentOverflowsWriteVar::new().set_ne(ctx, false).unwrap();
+                    ScrollVerticalContentOverflowsVar::new().set_ne(ctx, false).unwrap();
+                    ScrollHorizontalContentOverflowsVar::new().set_ne(ctx, false).unwrap();
                 }
 
                 if viewport.width < self.joiner.width * 3.0.fct() {
@@ -226,29 +226,14 @@ pub mod scrollable {
         let child = nodes::scroll_to_edge_commands_node(child);
         let child = nodes::scroll_wheel_node(child);
 
-        let viewport_size = var(PxSize::zero());
-        let child = with_context_var(child, ScrollViewportSizeWriteVar, viewport_size.clone());
-        let child = with_context_var(child, ScrollViewportSizeVar, viewport_size.into_read_only());
+        let child = with_context_var(child, ScrollViewportSizeVar, var(PxSize::zero()));
+        let child = with_context_var(child, ScrollContentSizeVar, var(PxSize::zero()));
 
-        let content_size = var(PxSize::zero());
-        let child = with_context_var(child, ScrollContentSizeWriteVar, content_size.clone());
-        let child = with_context_var(child, ScrollContentSizeVar, content_size.into_read_only());
+        let child = with_context_var(child, ScrollVerticalRatioVar, var(0.fct()));
+        let child = with_context_var(child, ScrollHorizontalRatioVar, var(0.fct()));
 
-        let v_ratio = var(0.fct());
-        let child = with_context_var(child, ScrollVerticalRatioWriteVar, v_ratio.clone());
-        let child = with_context_var(child, ScrollVerticalRatioVar, v_ratio.into_read_only());
-
-        let h_ratio = var(0.fct());
-        let child = with_context_var(child, ScrollHorizontalRatioWriteVar, h_ratio.clone());
-        let child = with_context_var(child, ScrollHorizontalRatioVar, h_ratio.into_read_only());
-
-        let overflow_h = var(false);
-        let child = with_context_var(child, ScrollVerticalContentOverflowsWriteVar, overflow_h.clone());
-        let child = with_context_var(child, ScrollVerticalContentOverflowsVar, overflow_h.into_read_only());
-
-        let overflow_w = var(false);
-        let child = with_context_var(child, ScrollHorizontalContentOverflowsWriteVar, overflow_w.clone());
-        let child = with_context_var(child, ScrollHorizontalContentOverflowsVar, overflow_w.into_read_only());
+        let child = with_context_var(child, ScrollVerticalContentOverflowsVar, var(false));
+        let child = with_context_var(child, ScrollHorizontalContentOverflowsVar, var(false));
 
         let child = with_context_var(child, ScrollVerticalOffsetVar, var(0.fct()));
         with_context_var(child, ScrollHorizontalOffsetVar, var(0.fct()))

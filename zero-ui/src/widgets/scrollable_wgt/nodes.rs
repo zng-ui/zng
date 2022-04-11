@@ -74,7 +74,7 @@ pub fn viewport(child: impl UiNode, mode: impl IntoVar<ScrollMode>) -> impl UiNo
         fn arrange(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, final_size: PxSize) {
             if self.viewport_size != final_size {
                 self.viewport_size = final_size;
-                ScrollViewportSizeWriteVar::set(ctx, final_size).unwrap();
+                ScrollViewportSizeVar::set(ctx, final_size).unwrap();
                 ctx.updates.render();
             }
             let viewport = PxRect::new(
@@ -113,9 +113,9 @@ pub fn viewport(child: impl UiNode, mode: impl IntoVar<ScrollMode>) -> impl UiNo
             let v_ratio = self.viewport_size.height.0 as f32 / self.content_size.height.0 as f32;
             let h_ratio = self.viewport_size.width.0 as f32 / self.content_size.width.0 as f32;
 
-            ScrollVerticalRatioWriteVar::new().set_ne(ctx, v_ratio.fct()).unwrap();
-            ScrollHorizontalRatioWriteVar::new().set_ne(ctx, h_ratio.fct()).unwrap();
-            ScrollContentSizeWriteVar::new().set_ne(ctx, self.content_size).unwrap();
+            ScrollVerticalRatioVar::new().set_ne(ctx, v_ratio.fct()).unwrap();
+            ScrollHorizontalRatioVar::new().set_ne(ctx, h_ratio.fct()).unwrap();
+            ScrollContentSizeVar::new().set_ne(ctx, self.content_size).unwrap();
         }
 
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {

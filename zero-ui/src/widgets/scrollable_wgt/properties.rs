@@ -193,25 +193,25 @@ impl ScrollBarArgs {
 
     /// Gets the context variable that gets the viewport/content ratio for the orientation.
     ///
-    /// See [`ScrollVerticalRatioVar`] and [`ScrollHorizontalRatioVar`] for more details.
+    /// See [`ScrollContext`] for more details.
     pub fn viewport_ratio(&self) -> BoxedVar<Factor> {
         use scrollbar::Orientation::*;
 
         match self.orientation {
-            Vertical => ScrollVerticalRatioVar::new().boxed(),
-            Horizontal => ScrollHorizontalRatioVar::new().boxed(),
+            Vertical => ScrollContext::vertical_ratio().boxed(),
+            Horizontal => ScrollContext::horizontal_ratio().boxed(),
         }
     }
 
     /// Gets the context variable that gets if the scrollsbar should be visible.
     ///
-    /// See [`ScrollVerticalContentOverflowsVar`] and [`ScrollHorizontalContentOverflowsVar`];
+    /// See [`ScrollContext`] for more details.
     pub fn content_overflows(&self) -> BoxedVar<bool> {
         use scrollbar::Orientation::*;
 
         match self.orientation {
-            Vertical => ScrollVerticalContentOverflowsVar::new().boxed(),
-            Horizontal => ScrollHorizontalContentOverflowsVar::new().boxed(),
+            Vertical => ScrollContext::vertical_content_overflows().boxed(),
+            Horizontal => ScrollContext::horizontal_content_overflows().boxed(),
         }
     }
 }
