@@ -28,7 +28,6 @@ pub use crate_util::test_log;
 #[doc(hidden)]
 pub use paste::paste;
 
-pub mod animation;
 pub mod app;
 pub mod border;
 pub mod color;

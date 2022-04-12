@@ -203,7 +203,7 @@ impl ScrollBarArgs {
         }
     }
 
-    /// Gets the context variable that gets if the scrollsbar should be visible.
+    /// Gets the context variable that gets if the scrollbar should be visible.
     ///
     /// See [`ScrollContext`] for more details.
     pub fn content_overflows(&self) -> BoxedVar<bool> {

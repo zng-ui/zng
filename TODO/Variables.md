@@ -1,6 +1,6 @@
 # Variables TODO
 
-
+a + f * (n - a)
 
 # Animation
 

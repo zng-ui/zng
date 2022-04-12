@@ -4,8 +4,8 @@ use std::{
     cell::Cell,
     convert::{TryFrom, TryInto},
     fmt,
-    ops::{Deref, DerefMut},
-    str::FromStr,
+    ops::{Deref, DerefMut, self},
+    str::FromStr, time::Duration,
 };
 
 mod vars;
@@ -52,6 +52,8 @@ pub use future::*;
 
 mod cow;
 pub use cow::*;
+
+pub mod easing;
 
 /// A type that can be a [`Var`] value.
 ///
@@ -555,6 +557,24 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + crate::private::Sealed + 'stati
     {
         let new_value = new_value.into();
         self.modify(vars, move |mut v| *v = new_value)
+    }
+
+    /// Schedule a transition animation for the variable.
+    /// 
+    /// After the current app update finishes the variable will start animation from the current value to `new_value`
+    /// for the `duration` and transitioning by the `easing` function.
+    fn ease<Vw, N, D, F>(&self, vars: &Vw, new_value: N, duration: D, easing: F) -> Result<(), VarIsReadOnly>
+    where
+        Vw: WithVars,
+        N: Into<T>,
+        D: Into<Duration>,
+        F: Fn(EasingTime) -> EasingStep,
+
+        T: ops::Add<T> + ops::Sub<T> + ops::Mul<EasingStep>
+    {
+        // a + f * (n - a)
+
+        todo!()
     }
 
     /// Schedule a new value for the variable, but only if the current value is not equal to `new_value`.
@@ -1545,7 +1565,7 @@ use crate::{
     handler::AppHandler,
     text::{Text, ToText},
     widget_info::UpdateMask,
-    WidgetId,
+    WidgetId, units::{EasingTime, EasingStep},
 };
 
 #[doc(hidden)]

@@ -2,7 +2,7 @@ use derive_more as dm;
 
 use super::{about_eq, Px, PxPoint, PxRect, PxSideOffsets, PxSize, PxVector, Size, EPSILON, EPSILON_100};
 use crate::impl_from_and_into_var;
-use std::{fmt, ops};
+use std::{fmt, ops, time::Duration};
 
 /// Multiplication factor in percentage (0%-100%).
 ///
@@ -106,6 +106,12 @@ impl Factor {
     #[inline]
     pub fn as_percent(self) -> FactorPercent {
         self.into()
+    }
+
+    /// Returns `1.fct() - self`.
+    #[inline]
+    pub fn flip(self) -> Factor {
+        1.fct() - self
     }
 }
 impl PartialEq for Factor {
@@ -698,5 +704,85 @@ impl_from_and_into_var! {
         )
         -> FactorSideOffsets {
         FactorSideOffsets::new(top, right, bottom, left)
+    }
+}
+
+/// Easing function output.
+/// 
+/// Usually in the [0..=1] range, but can overshoot. An easing function converts a [`EasingTime`]
+/// into this factor.
+/// 
+/// # Examples
+/// 
+/// ```
+/// use zero_ui_core::units::*;
+/// 
+/// /// Cubic animation curve.
+/// fn cubic(time: EasingTime) -> EasingStep {
+///     let f = time.fct();
+///     t * t * t
+/// }
+/// ```
+/// 
+/// Note that all the common easing functions are implemented in [`var::easing`].
+/// 
+/// [`var::easing`]: crate::var::easing
+pub type EasingStep = Factor;
+
+/// Easing function input.
+/// 
+/// Is always in the [0..=1] range. An easing function converts this time into a [`EasingStep`] factor.
+#[derive(Debug, PartialEq, Copy, Clone)]
+pub struct EasingTime(Factor);
+impl_from_and_into_var! {
+    fn from(factor: Factor) -> EasingTime {
+        EasingTime::new(factor)
+    }
+}
+impl EasingTime {
+    /// New from [`Factor`].
+    /// 
+    /// The `factor` is clamped to the [0..=1] range.
+    #[inline]
+    pub fn new(factor: Factor) -> Self {
+        EasingTime(factor.clamp_range())
+    }
+    
+    /// New easing time from total `duration` and `elapsed` time.
+    ///
+    /// If `elapsed >= duration` the time is 1.
+    #[inline]
+    pub fn elapsed(duration: Duration, elapsed: Duration) -> Self {
+        if elapsed < duration {
+            EasingTime(duration.as_secs_f32().fct() / elapsed.as_secs_f32().fct())
+        } else {
+            EasingTime(1.fct())
+        }
+    }
+
+    /// Gets the start time, zero.
+    #[inline]
+    pub fn start() -> Self {
+        EasingTime(0.fct())
+    }
+
+    /// Gets the end time, one.
+    #[inline]
+    pub fn end() -> Self {
+        EasingTime(1.fct())
+    }
+
+    /// Get the time as a [`Factor`].
+    #[inline]
+    pub fn fct(self) -> Factor {
+        self.0
+    }
+
+    /// Flip the time.
+    /// 
+    /// Returns `1 - self`.
+    #[inline]
+    pub fn reverse(self) -> Self {
+        EasingTime(self.0.flip())
     }
 }
