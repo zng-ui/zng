@@ -4,56 +4,10 @@ a + f * (n - a)
 
 # Animation
 
-We can just schedule an easing with Vars and it sets the variable until its done.
-
-```rust
-trait Var<T> {
-    fn set<Vw, N>(&self, vars: &Vw, new_value: N) -> Result<(), VarIsReadOnly>
-        where
-        Vw: WithVars,
-        N: Into<T>;
-    fn set_ne<Vw, N>(&self, vars: &Vw, new_value: N) -> Result<(), VarIsReadOnly>
-        where
-        Vw: WithVars,
-        N: Into<T>
-        T: PartialEq;
-
-    // new
-
-    /// Animate from the current value to the `new_value` using the `easing_fn` function that defines a curve.
-    fn ease<Vw, N, D, E>(&self, vars: &Vw, new_value: N, duration: D, easing_fn: E) -> Result<(), VarIsReadOnly>
-        where
-        Vw: WithVars,
-        N: Into<T>
-        D: Into<Duration>,
-        E: Fn(EasingTime) -> EasingStep,
-        T: TransitionValue;
-
-    /// Animate from the current value to the `new_value`, but only if the current value is not equal to `new_value`.
-    fn ease_ne<Vw, N, D, E>(&self, vars: &Vw, new_value: N, duration: D, easing_fn: E) -> Result<(), VarIsReadOnly>
-        where
-        Vw: WithVars,
-        N: Into<T>
-        D: Into<Duration>,
-        E: Fn(EasingTime) -> EasingStep,
-        T: TransitionValue + PartialEq;
-
-    /// Set the value imediatly to `new_value` then animate to `then`.
-    fn set_ease<Vw, N, M, D, E>(&self, vars: &Vw, new_value: N, then: M, duration: D, easing_fn: E) -> Result<(), VarIsReadOnly>
-        where
-        Vw: WithVars,
-        N: Into<T>
-        E: Fn(EasingTime) -> EasingStep
-        T: TransitionValue;
-
-    /// Animate  throught multiple *key-frames* offset (can have a macro like gradient `stops!` here)
-    fn ease_keys<Vw, N, D, E>(&self, vars: &Vw, values: Vec<(Factor, T)>, duration: D, easing_fn: E) -> Result<(), VarIsReadOnly>
-        where
-        Vw: WithVars,
-        E: Fn(EasingTime) -> EasingStep
-        T: TransitionValue;
-}
-```
+* `Var::is_animating` ?
+* Cancel animation if set from other source?
+* Config animation fps.
+* `EasingVar`, redirects calls to `Var::set` to `Var::ease` with a pre-configured duration and easing function.
 
 ## Storyboard/Key-frames
 

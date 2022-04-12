@@ -4,9 +4,21 @@ use std::{
     cell::Cell,
     convert::{TryFrom, TryInto},
     fmt,
-    ops::{Deref, DerefMut, self},
-    str::FromStr, time::Duration,
+    ops::{self, Deref, DerefMut},
+    str::FromStr,
+    time::Duration,
 };
+
+use crate::{
+    handler::AppHandler,
+    text::{Text, ToText},
+    units::{EasingStep, EasingTime, Factor, FactorUnits},
+    widget_info::UpdateMask,
+    WidgetId,
+};
+
+mod binding;
+pub use binding::*;
 
 mod vars;
 pub use vars::*;
@@ -559,37 +571,18 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + crate::private::Sealed + 'stati
         self.modify(vars, move |mut v| *v = new_value)
     }
 
-    /// Schedule a transition animation for the variable.
-    /// 
-    /// After the current app update finishes the variable will start animation from the current value to `new_value`
-    /// for the `duration` and transitioning by the `easing` function.
-    fn ease<Vw, N, D, F>(&self, vars: &Vw, new_value: N, duration: D, easing: F) -> Result<(), VarIsReadOnly>
-    where
-        Vw: WithVars,
-        N: Into<T>,
-        D: Into<Duration>,
-        F: Fn(EasingTime) -> EasingStep,
-
-        T: ops::Add<T> + ops::Sub<T> + ops::Mul<EasingStep>
-    {
-        // a + f * (n - a)
-
-        todo!()
-    }
-
     /// Schedule a new value for the variable, but only if the current value is not equal to `new_value`.
-    #[inline]
     fn set_ne<Vw, N>(&self, vars: &Vw, new_value: N) -> Result<bool, VarIsReadOnly>
     where
         Vw: WithVars,
         N: Into<T>,
         T: PartialEq,
     {
-        if self.is_read_only(vars) {
-            Err(VarIsReadOnly)
-        } else {
-            let new_value = new_value.into();
-            vars.with_vars(|vars| {
+        vars.with_vars(|vars| {
+            if self.is_read_only(vars) {
+                Err(VarIsReadOnly)
+            } else {
+                let new_value = new_value.into();
                 if self.get(vars) != &new_value {
                     let _r = self.set(vars, new_value);
                     debug_assert!(
@@ -601,8 +594,175 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + crate::private::Sealed + 'stati
                 } else {
                     Ok(false)
                 }
-            })
-        }
+            }
+        })
+    }
+
+    /// Schedule a transition animation for the variable.
+    ///
+    /// After the current app update finishes the variable will start animation from the current value to `new_value`
+    /// for the `duration` and transitioning by the `easing` function.
+    fn ease<Vw, N, D, F>(&self, vars: &Vw, new_value: N, duration: D, easing: F) -> Result<(), VarIsReadOnly>
+    where
+        Vw: WithVars,
+        N: Into<T>,
+        D: Into<Duration>,
+        F: Fn(EasingTime) -> EasingStep + 'static,
+
+        T: ops::Add<T, Output = T> + ops::Sub<T, Output = T> + ops::Mul<EasingStep, Output = T>,
+    {
+        vars.with_vars(|vars| {
+            if self.is_read_only(vars) {
+                Err(VarIsReadOnly)
+            } else {
+                easing::default_var_ease(
+                    self.clone(),
+                    vars,
+                    self.get_clone(vars),
+                    new_value.into(),
+                    duration.into(),
+                    easing,
+                    true,
+                );
+                Ok(())
+            }
+        })
+    }
+
+    /// Schedule a transition animation for the variable, but only if the current value is not equal to `new_value`.
+    ///
+    /// The variable is also updated using [`set_ne`] during animation.
+    ///
+    /// [`set_ne`]: Self::set_ne
+    fn ease_ne<Vw, N, D, F>(&self, vars: &Vw, new_value: N, duration: D, easing: F) -> Result<(), VarIsReadOnly>
+    where
+        Vw: WithVars,
+        N: Into<T>,
+        D: Into<Duration>,
+        F: Fn(EasingTime) -> EasingStep + 'static,
+
+        T: PartialEq + ops::Add<T, Output = T> + ops::Sub<T, Output = T> + ops::Mul<EasingStep, Output = T>,
+    {
+        vars.with_vars(|vars| {
+            if self.is_read_only(vars) {
+                Err(VarIsReadOnly)
+            } else {
+                let new_value = new_value.into();
+                if self.get(vars) != &new_value {
+                    easing::default_var_ease_ne(self.clone(), vars, self.get_clone(vars), new_value, duration.into(), easing, true);
+                }
+                Ok(())
+            }
+        })
+    }
+
+    /// Schedule a transition animation for the variable, from `new_value` to `then`.
+    ///
+    /// After the current app update finishes the variable will be set to `new_value`, then start animation from `new_value`
+    /// to `then` for the `duration` and transitioning by the `easing` function.
+    fn set_ease<Vw, N, Th, D, F>(&self, vars: &Vw, new_value: N, then: Th, duration: D, easing: F) -> Result<(), VarIsReadOnly>
+    where
+        Vw: WithVars,
+        N: Into<T>,
+        Th: Into<T>,
+        D: Into<Duration>,
+        F: Fn(EasingTime) -> EasingStep + 'static,
+
+        T: ops::Add<T, Output = T> + ops::Sub<T, Output = T> + ops::Mul<EasingStep, Output = T>,
+    {
+        vars.with_vars(|vars| {
+            if self.is_read_only(vars) {
+                Err(VarIsReadOnly)
+            } else {
+                easing::default_var_ease(self.clone(), vars, new_value.into(), then.into(), duration.into(), easing, false);
+                Ok(())
+            }
+        })
+    }
+
+    /// Schedule a transition animation for the variable, from `new_value` to `then`, but checks for equality at every step.
+    ///
+    /// The variable is also updated using [`set_ne`] during animation.
+    ///
+    /// [`set_ne`]: Self::set_ne
+    fn set_ease_ne<Vw, N, Th, D, F>(&self, vars: &Vw, new_value: N, then: Th, duration: D, easing: F) -> Result<(), VarIsReadOnly>
+    where
+        Vw: WithVars,
+        N: Into<T>,
+        Th: Into<T>,
+        D: Into<Duration>,
+        F: Fn(EasingTime) -> EasingStep + 'static,
+
+        T: PartialEq + ops::Add<T, Output = T> + ops::Sub<T, Output = T> + ops::Mul<EasingStep, Output = T>,
+    {
+        vars.with_vars(|vars| {
+            if self.is_read_only(vars) {
+                Err(VarIsReadOnly)
+            } else {
+                let new_value = new_value.into();
+                let then = then.into();
+
+                if new_value == then {
+                    self.set_ne(vars, new_value).map(|_| ())
+                } else {
+                    easing::default_var_ease_ne(self.clone(), vars, new_value, then, duration.into(), easing, false);
+                    Ok(())
+                }
+            }
+        })
+    }
+
+    /// Schedule a keyframed transition animation for the variable.
+    ///
+    /// After the current app update finishes the variable will start animation from the current value to the first key
+    /// in `keys`, going across all keys for the `duration`. The `easing` function applies across all keyframes, the interpolation
+    /// between keys is linear, use a full animation to control the easing between keys.
+    fn ease_keyed<Vw, N, Th, D, F>(&self, vars: &Vw, keys: Vec<(Factor, T)>, duration: D, easing: F) -> Result<(), VarIsReadOnly>
+    where
+        Vw: WithVars,
+        N: Into<T>,
+        Th: Into<T>,
+        D: Into<Duration>,
+        F: Fn(EasingTime) -> EasingStep + 'static,
+
+        T: ops::Add<T, Output = T> + ops::Sub<T, Output = T> + ops::Mul<EasingStep, Output = T>,
+    {
+        vars.with_vars(|vars| {
+            if self.is_read_only(vars) {
+                Err(VarIsReadOnly)
+            } else if !keys.is_empty() {
+                let mut keys = keys;
+                keys.insert(0, (keys[0].0.min(0.fct()), self.get_clone(vars)));
+                easing::default_var_ease_keyed(self.clone(), vars, keys, duration.into(), easing, true);
+                Ok(())
+            } else {
+                Ok(())
+            }
+        })
+    }
+
+    /// Schedule a keyframed transition animation for the variable, starting from the first key.
+    ///
+    /// After the current app update finishes the variable will be set to to the first keyframe, then animated
+    /// across all other keys.
+    fn set_ease_keyed<Vw, N, Th, D, F>(&self, vars: &Vw, keys: Vec<(Factor, T)>, duration: D, easing: F) -> Result<(), VarIsReadOnly>
+    where
+        Vw: WithVars,
+        N: Into<T>,
+        Th: Into<T>,
+        D: Into<Duration>,
+        F: Fn(EasingTime) -> EasingStep + 'static,
+
+        T: ops::Add<T, Output = T> + ops::Sub<T, Output = T> + ops::Mul<EasingStep, Output = T>,
+    {
+        vars.with_vars(|vars| {
+            if self.is_read_only(vars) {
+                Err(VarIsReadOnly)
+            } else {
+                easing::default_var_ease_keyed(self.clone(), vars, keys, duration.into(), easing, false);
+                Ok(())
+            }
+        })
     }
 
     /// Gets the number of references to this variable.
@@ -1561,12 +1721,6 @@ macro_rules! expr_var {
 }
 #[doc(inline)]
 pub use crate::expr_var;
-use crate::{
-    handler::AppHandler,
-    text::{Text, ToText},
-    widget_info::UpdateMask,
-    WidgetId, units::{EasingTime, EasingStep},
-};
 
 #[doc(hidden)]
 pub use zero_ui_proc_macros::expr_var as __expr_var;

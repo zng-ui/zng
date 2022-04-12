@@ -2,8 +2,16 @@
 //!
 //! See also: [`EasingFn`].
 
-use crate::units::*;
-use std::f32::consts::*;
+use crate::{
+    crate_util::{Handle, HandleOwner},
+    units::*,
+};
+use std::{
+    cell::Cell,
+    f32::consts::*,
+    ops,
+    time::{Duration, Instant},
+};
 
 /// Simple linear transition, no easing, no acceleration.
 #[inline]
@@ -97,7 +105,7 @@ pub fn cubic_bezier(x1: f32, y1: f32, x2: f32, y2: f32, time: EasingTime) -> Eas
 }
 
 /// Jumps to the final value by a number of `steps`.
-/// 
+///
 /// Starts from the first step value immediately.
 #[inline]
 pub fn step_ceil(steps: u32, time: EasingTime) -> EasingStep {
@@ -107,7 +115,7 @@ pub fn step_ceil(steps: u32, time: EasingTime) -> EasingStep {
 }
 
 /// Jumps to the final value by a number of `steps`.
-/// 
+///
 /// Waits until first step to output the first step value.
 #[inline]
 pub fn step_floor(steps: u32, time: EasingTime) -> EasingStep {
@@ -246,6 +254,8 @@ impl EasingFn {
 }
 
 pub use bezier::*;
+
+use super::{VarValue, Vars};
 mod bezier {
     /* This Source Code Form is subject to the terms of the Mozilla Public
      * License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -364,5 +374,275 @@ mod bezier {
         fn approx_eq(self, value: f64, epsilon: f64) -> bool {
             (self - value).abs() < epsilon
         }
+    }
+}
+
+pub(super) struct AnimationState {}
+impl AnimationState {
+    fn new() -> Self {
+        AnimationState {}
+    }
+
+    fn dummy() -> Self {
+        AnimationState {}
+    }
+}
+
+/// Represents a running animation created by [`Vars::animate`].
+///
+/// Drop all clones of this handle to stop the animation, or call [`permanent`] to drop the handle
+/// but keep the animation alive until it is stopped from the inside.
+///
+/// [`permanent`]: AnimationHandle::permanent
+#[derive(Clone)]
+#[must_use = "the animation stops if the handle is dropped"]
+pub struct AnimationHandle(Handle<AnimationState>);
+
+impl AnimationHandle {
+    pub(super) fn new() -> (HandleOwner<AnimationState>, Self) {
+        let (owner, handle) = Handle::new(AnimationState::new());
+        (owner, AnimationHandle(handle))
+    }
+
+    /// Create dummy handle that is always in the *stopped* state.
+    #[inline]
+    pub fn dummy() -> Self {
+        AnimationHandle(Handle::dummy(AnimationState::dummy()))
+    }
+
+    /// Drop the handle but does **not** stop.
+    ///
+    /// The animation stays in memory for the duration of the app or until another handle calls [`stop`](Self::stop).
+    #[inline]
+    pub fn permanent(self) {
+        self.0.permanent();
+    }
+
+    /// If another handle has called [`permanent`](Self::permanent).
+    /// If `true` the animation will stay active until the app shutdown, unless [`stop`](Self::stop) is called.
+    #[inline]
+    pub fn is_permanent(&self) -> bool {
+        self.0.is_permanent()
+    }
+
+    /// Drops the handle and forces the animation to drop.
+    #[inline]
+    pub fn stop(self) {
+        self.0.force_drop();
+    }
+
+    /// If another handle has called [`stop`](Self::stop).
+    ///
+    /// The animation is already dropped or will be dropped in the next app update, this is irreversible.
+    #[inline]
+    pub fn is_stopped(&self) -> bool {
+        self.0.is_dropped()
+    }
+}
+
+/// Represents an animation in its closure.
+/// 
+/// See the [`Vars::animate`] method for more details.
+pub struct Animation {
+    start_time: Instant,
+    stop: Cell<bool>,
+}
+
+impl Animation {
+    pub(super) fn new() -> Self {
+        Animation {
+            start_time: Instant::now(),
+            stop: Cell::new(false),
+        }
+    }
+
+    /// Instant this animation started.
+    #[inline]
+    pub fn start_time(&self) -> Instant {
+        self.start_time
+    }
+
+    /// Compute the elapsed [`EasingTime`], in the span of the total `duration`.
+    #[inline]
+    pub fn elapsed(&self, duration: Duration) -> EasingTime {
+        EasingTime::elapsed(duration, self.start_time.elapsed())
+    }
+
+    /// Compute the elapsed [`EasingTime`], if the time [`is_end`] requests animation stop.
+    ///
+    /// [`is_end`]: EasingTime::is_end
+    #[inline]
+    pub fn elapsed_stop(&self, duration: Duration) -> EasingTime {
+        let t = self.elapsed(duration);
+        if t.is_end() {
+            self.stop()
+        }
+        t
+    }
+
+    /// Drop the animation after applying the returned update.
+    #[inline]
+    pub fn stop(&self) {
+        self.stop.set(true);
+    }
+
+    /// If the animation will be dropped after applying the update.
+    #[inline]
+    pub fn stop_requested(&self) -> bool {
+        self.stop.get()
+    }
+}
+
+/// Represents a transition from one value to another that can be sampled using [`EasingStep`].
+#[derive(Clone, Debug)]
+pub struct Transition<T> {
+    start: T,
+    increment: T,
+}
+impl<T> Transition<T>
+where
+    T: Clone + ops::Add<T, Output = T> + ops::Sub<T, Output = T> + ops::Mul<Factor, Output = T>,
+{
+    /// New transition.
+    pub fn new(from: T, to: T) -> Self {
+        let increment = to - from.clone();
+        Transition { start: from, increment }
+    }
+
+    /// Compute the transition value at the `step`.
+    pub fn sample(&self, step: EasingStep) -> T {
+        self.start.clone() + self.increment.clone() * step
+    }
+}
+
+/// Represents a transition across multiple keyed values that can be sampled using [`EasingStep`].
+#[derive(Clone, Debug)]
+pub struct TransitionKeyed<T> {
+    keys: Vec<(Factor, T)>,
+}
+impl<T> TransitionKeyed<T>
+where
+    T: Clone + ops::Add<T, Output = T> + ops::Sub<T, Output = T> + ops::Mul<Factor, Output = T>,
+{
+    /// New transition.
+    ///
+    /// Returns `None` if `keys` is empty.
+    pub fn new(mut keys: Vec<(Factor, T)>) -> Option<Self> {
+        if keys.is_empty() {
+            return None;
+        }
+
+        // correct backtracking keyframes.
+        for i in 1..keys.len() {
+            if keys[i].0 < keys[i - 1].0 {
+                keys[i].0 = keys[i - 1].0;
+            }
+        }
+
+        Some(TransitionKeyed { keys })
+    }
+
+    /// Compute the transition value at the `step`.
+    pub fn sample(&self, step: EasingStep) -> T {
+        if let Some(i) = self.keys.iter().position(|(f, _)| *f > step) {
+            if i == 0 {
+                // step before first
+                self.keys[0].1.clone()
+            } else {
+                let (from_step, from_value) = self.keys[i - 1].clone();
+                if from_step == step {
+                    // step exact key
+                    from_value
+                } else {
+                    // linear interpolate between steps
+
+                    let (_, to_value) = self.keys[i].clone();
+                    let step = step - from_step;
+
+                    from_value.clone() + (to_value - from_value) * step
+                }
+            }
+        } else {
+            // step is after last
+            self.keys[self.keys.len() - 1].1.clone()
+        }
+    }
+}
+
+pub(super) fn default_var_ease<T>(
+    var: impl super::Var<T>,
+    vars: &Vars,
+    from: T,
+    to: T,
+    duration: Duration,
+    easing: impl Fn(EasingTime) -> EasingStep + 'static,
+    from_current: bool,
+) where
+    T: VarValue + ops::Add<T, Output = T> + ops::Sub<T, Output = T> + ops::Mul<Factor, Output = T>,
+{
+    let transition = Transition::new(from, to);
+    let mut prev_step = if from_current { 0.fct() } else { 999.fct() };
+    vars.animate(move |vars, anim| {
+        let step = easing(anim.elapsed_stop(duration));
+        if step != prev_step {
+            prev_step = step;
+
+            if var.set(vars, transition.sample(step)).is_err() {
+                anim.stop()
+            }
+        }
+    })
+    .permanent()
+}
+
+pub(super) fn default_var_ease_ne<T>(
+    var: impl super::Var<T>,
+    vars: &Vars,
+    from: T,
+    to: T,
+    duration: Duration,
+    easing: impl Fn(EasingTime) -> EasingStep + 'static,
+    from_current: bool,
+) where
+    T: PartialEq + VarValue + ops::Add<T, Output = T> + ops::Sub<T, Output = T> + ops::Mul<Factor, Output = T>,
+{
+    let transition = Transition::new(from, to);
+    let mut prev_step = if from_current { 0.fct() } else { 999.fct() };
+    vars.animate(move |vars, anim| {
+        let step = easing(anim.elapsed_stop(duration));
+        if step != prev_step {
+            prev_step = step;
+
+            if var.set_ne(vars, transition.sample(step)).is_err() {
+                anim.stop()
+            }
+        }
+    })
+    .permanent()
+}
+
+pub(super) fn default_var_ease_keyed<T>(
+    var: impl super::Var<T>,
+    vars: &Vars,
+    keys: Vec<(Factor, T)>,
+    duration: Duration,
+    easing: impl Fn(EasingTime) -> EasingStep + 'static,
+    from_current: bool,
+) where
+    T: VarValue + ops::Add<T, Output = T> + ops::Sub<T, Output = T> + ops::Mul<Factor, Output = T>,
+{
+    if let Some(transition) = TransitionKeyed::new(keys) {
+        let mut prev_step = if from_current { 0.fct() } else { 999.fct() };
+        vars.animate(move |vars, anim| {
+            let step = easing(anim.elapsed_stop(duration));
+            if step != prev_step {
+                prev_step = step;
+
+                if var.set(vars, transition.sample(step)).is_err() {
+                    anim.stop();
+                }
+            }
+        })
+        .permanent()
     }
 }

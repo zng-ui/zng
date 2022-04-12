@@ -1,7 +1,10 @@
 #[allow(unused_imports)] // nightly
 use retain_mut::RetainMut;
 
-use super::*;
+use super::{
+    easing::{Animation, AnimationHandle},
+    *,
+};
 use crate::{
     app::{AppEventSender, AppShutdown, RecvFut, TimeoutOrAppShutdown},
     context::{AppContext, Updates, UpdatesTrace},
@@ -22,6 +25,7 @@ type SyncEntry = Box<dyn Fn(&Vars) -> Retain>;
 type Retain = bool;
 type VarBindingFn = Box<dyn FnMut(&Vars) -> Retain>;
 type UpdateLinkFn = Box<dyn Fn(&Vars, &mut UpdateMask) -> Retain>;
+type AnimationFn = Box<dyn FnMut(&Vars) -> Retain>;
 
 /// Read-only access to variables.
 ///
@@ -273,6 +277,7 @@ pub struct Vars {
 
     binding_update_id: u32,
     bindings: RefCell<Vec<VarBindingFn>>,
+    animations: RefCell<Vec<AnimationFn>>,
 
     #[allow(clippy::type_complexity)]
     pending: RefCell<Vec<PendingUpdate>>,
@@ -310,6 +315,7 @@ impl Vars {
             },
             binding_update_id: 0u32.wrapping_sub(13),
             bindings: RefCell::default(),
+            animations: RefCell::default(),
             pending: Default::default(),
             pre_handlers: RefCell::default(),
             pos_handlers: RefCell::default(),
@@ -510,7 +516,7 @@ impl Vars {
             if retain {
                 let info = VarBinding::new();
                 binding(vars, &info);
-                retain = !info.unbind.get();
+                retain = !info.unbind_requested();
             }
 
             if retain && vars.pending.borrow().len() > changes_count {
@@ -519,6 +525,41 @@ impl Vars {
             }
 
             retain
+        }));
+
+        handle
+    }
+
+    /// Adds an animation handler that is called every frame to update captured variables.
+    /// 
+    /// This is used by the [`Var`] ease methods default implementation, it enables any kind of variable animation, 
+    /// including multiple variables.
+    /// 
+    /// Returns an [`AnimationHandle`] that can be used to monitor the animation status and to [`stop`] or to
+    /// make the animation [`permanent`].
+    /// 
+    /// # Examples
+    /// 
+    /// TODO
+    /// 
+    /// [`stop`]: AnimationHandle::stop
+    /// [`permanent`]: AnimationHandle::permanent
+    pub fn animate<A>(&self, mut animation: A) -> AnimationHandle
+    where
+        A: FnMut(&Vars, &Animation) + 'static,
+    {
+        let (handle_owner, handle) = AnimationHandle::new();
+        let anim = Animation::new();
+
+        self.animations.borrow_mut().push(Box::new(move |vars| {
+                let mut retain = !handle_owner.is_dropped();
+
+                if retain {
+                    animation(vars, &anim);
+                    retain = !anim.stop_requested();
+                }
+
+                retain
         }));
 
         handle
@@ -1239,479 +1280,10 @@ pub fn response_channel<T: VarValue + Send, Vw: WithVars>(vars: &Vw) -> (Respons
     vars.with_vars(|vars| (responder.sender(vars), response))
 }
 
-/// Represents a variable binding created by one of the `bind` methods of [`Vars`] or [`Var`].
-///
-/// Drop all clones of this handle to drop the binding, or call [`permanent`] to drop the handle
-/// but keep the binding alive for the duration of the app.
-///
-/// [`permanent`]: VarBindingHandle::permanent
-#[derive(Clone)]
-#[must_use = "the var binding is undone if the handle is dropped"]
-pub struct VarBindingHandle(Handle<()>);
-impl VarBindingHandle {
-    fn new() -> (HandleOwner<()>, VarBindingHandle) {
-        let (owner, handle) = Handle::new(());
-        (owner, VarBindingHandle(handle))
-    }
-
-    /// Create dummy handle that is always in the *unbound* state.
-    #[inline]
-    pub fn dummy() -> VarBindingHandle {
-        VarBindingHandle(Handle::dummy(()))
-    }
-
-    /// Drop the handle but does **not** unbind.
-    ///
-    /// The var binding stays in memory for the duration of the app or until another handle calls [`unbind`](Self::unbind.)
-    #[inline]
-    pub fn permanent(self) {
-        self.0.permanent();
-    }
-
-    /// If another handle has called [`permanent`](Self::permanent).
-    /// If `true` the var binding will stay active until the app shutdown, unless [`unbind`](Self::unbind) is called.
-    #[inline]
-    pub fn is_permanent(&self) -> bool {
-        self.0.is_permanent()
-    }
-
-    /// Drops the handle and forces the binding to drop.
-    #[inline]
-    pub fn unbind(self) {
-        self.0.force_drop();
-    }
-
-    /// If another handle has called [`unbind`](Self::unbind).
-    ///
-    /// The var binding is already dropped or will be dropped in the next app update, this is irreversible.
-    #[inline]
-    pub fn is_unbound(&self) -> bool {
-        self.0.is_dropped()
-    }
-}
-
-/// Represents the variable binding in its binding closure.
-///
-/// All of the `bind` methods of [`Vars`] take a closure that take a reference to this info
-/// as input, they can use it to drop the variable binding from the inside.
-pub struct VarBinding {
-    unbind: Cell<bool>,
-}
-impl VarBinding {
-    fn new() -> Self {
-        VarBinding { unbind: Cell::new(false) }
-    }
-
-    /// Drop the binding after applying the returned update.
-    #[inline]
-    pub fn unbind(&self) {
-        self.unbind.set(true);
-    }
-}
-
 #[cfg(test)]
 mod tests {
-    use crate::app::App;
     use crate::context::TestWidgetContext;
-    use crate::text::ToText;
-    use crate::var::{context_var, var, ContextVarData, Var};
-
-    #[test]
-    fn one_way_binding() {
-        let a = var(10);
-        let b = var("".to_text());
-
-        let mut app = App::blank().run_headless(false);
-
-        a.bind_map(&app.ctx(), &b, |_, a| a.to_text()).permanent();
-
-        let mut update_count = 0;
-        let _ = app.update_observe(
-            |_| {
-                update_count += 1;
-            },
-            false,
-        );
-        assert_eq!(0, update_count);
-
-        a.set(app.ctx().vars, 20);
-
-        update_count = 0;
-        let _ = app.update_observe(
-            |ctx| {
-                update_count += 1;
-                assert_eq!(Some(20i32), a.copy_new(ctx));
-                assert_eq!(Some("20".to_text()), b.clone_new(ctx));
-            },
-            false,
-        );
-        assert_eq!(1, update_count);
-
-        a.set(app.ctx().vars, 13);
-
-        update_count = 0;
-        let _ = app.update_observe(
-            |ctx| {
-                update_count += 1;
-                assert_eq!(Some(13i32), a.copy_new(ctx));
-                assert_eq!(Some("13".to_text()), b.clone_new(ctx));
-            },
-            false,
-        );
-        assert_eq!(1, update_count);
-    }
-
-    #[test]
-    fn two_way_binding() {
-        let a = var(10);
-        let b = var("".to_text());
-
-        let mut app = App::blank().run_headless(false);
-
-        a.bind_map_bidi(&app.ctx(), &b, |_, a| a.to_text(), |_, b| b.parse().unwrap())
-            .permanent();
-
-        let mut update_count = 0;
-        let _ = app.update_observe(
-            |_| {
-                update_count += 1;
-            },
-            false,
-        );
-        assert_eq!(0, update_count);
-
-        a.set(app.ctx().vars, 20);
-
-        update_count = 0;
-        let _ = app.update_observe(
-            |ctx| {
-                update_count += 1;
-                assert_eq!(Some(20i32), a.copy_new(ctx));
-                assert_eq!(Some("20".to_text()), b.clone_new(ctx));
-            },
-            false,
-        );
-        assert_eq!(1, update_count);
-
-        b.set(app.ctx().vars, "55");
-
-        update_count = 0;
-        let _ = app.update_observe(
-            |ctx| {
-                update_count += 1;
-                assert_eq!(Some("55".to_text()), b.clone_new(ctx));
-                assert_eq!(Some(55i32), a.copy_new(ctx));
-            },
-            false,
-        );
-        assert_eq!(1, update_count);
-    }
-
-    #[test]
-    fn one_way_filtered_binding() {
-        let a = var(10);
-        let b = var("".to_text());
-
-        let mut app = App::blank().run_headless(false);
-
-        a.bind_filter(&app.ctx(), &b, |_, a| if *a == 13 { None } else { Some(a.to_text()) })
-            .permanent();
-
-        let mut update_count = 0;
-        let _ = app.update_observe(
-            |_| {
-                update_count += 1;
-            },
-            false,
-        );
-        assert_eq!(0, update_count);
-
-        a.set(app.ctx().vars, 20);
-
-        update_count = 0;
-        let _ = app.update_observe(
-            |ctx| {
-                update_count += 1;
-                assert_eq!(Some(20i32), a.copy_new(ctx));
-                assert_eq!(Some("20".to_text()), b.clone_new(ctx));
-            },
-            false,
-        );
-        assert_eq!(1, update_count);
-
-        a.set(app.ctx().vars, 13);
-
-        update_count = 0;
-        let _ = app.update_observe(
-            |ctx| {
-                update_count += 1;
-                assert_eq!(Some(13i32), a.copy_new(ctx));
-                assert_eq!("20".to_text(), b.get_clone(ctx));
-                assert!(!b.is_new(ctx));
-            },
-            false,
-        );
-        assert_eq!(1, update_count);
-    }
-
-    #[test]
-    fn two_way_filtered_binding() {
-        let a = var(10);
-        let b = var("".to_text());
-
-        let mut app = App::blank().run_headless(false);
-
-        a.bind_filter_bidi(&app.ctx(), &b, |_, a| Some(a.to_text()), |_, b| b.parse().ok())
-            .permanent();
-
-        let mut update_count = 0;
-        let _ = app.update_observe(
-            |_| {
-                update_count += 1;
-            },
-            false,
-        );
-        assert_eq!(0, update_count);
-
-        a.set(app.ctx().vars, 20);
-
-        update_count = 0;
-        let _ = app.update_observe(
-            |ctx| {
-                update_count += 1;
-                assert_eq!(Some(20i32), a.copy_new(ctx));
-                assert_eq!(Some("20".to_text()), b.clone_new(ctx));
-            },
-            false,
-        );
-        assert_eq!(1, update_count);
-
-        b.set(app.ctx().vars, "55");
-
-        update_count = 0;
-        let _ = app.update_observe(
-            |ctx| {
-                update_count += 1;
-                assert_eq!(Some("55".to_text()), b.clone_new(ctx));
-                assert_eq!(Some(55i32), a.copy_new(ctx));
-            },
-            false,
-        );
-        assert_eq!(1, update_count);
-
-        b.set(app.ctx().vars, "not a i32");
-
-        update_count = 0;
-        let _ = app.update_observe(
-            |ctx| {
-                update_count += 1;
-                assert_eq!(Some("not a i32".to_text()), b.clone_new(ctx));
-                assert_eq!(55i32, a.copy(ctx));
-                assert!(!a.is_new(ctx));
-            },
-            false,
-        );
-        assert_eq!(1, update_count);
-    }
-
-    #[test]
-    fn binding_chain() {
-        let a = var(0);
-        let b = var(0);
-        let c = var(0);
-        let d = var(0);
-
-        let mut app = App::blank().run_headless(false);
-
-        a.bind_map(&app.ctx(), &b, |_, a| *a + 1).permanent();
-        b.bind_map(&app.ctx(), &c, |_, b| *b + 1).permanent();
-        c.bind_map(&app.ctx(), &d, |_, c| *c + 1).permanent();
-
-        let mut update_count = 0;
-        let _ = app.update_observe(
-            |_| {
-                update_count += 1;
-            },
-            false,
-        );
-        assert_eq!(0, update_count);
-
-        a.set(app.ctx().vars, 20);
-
-        let mut update_count = 0;
-        let _ = app.update_observe(
-            |ctx| {
-                update_count += 1;
-
-                assert_eq!(Some(20), a.copy_new(ctx));
-                assert_eq!(Some(21), b.copy_new(ctx));
-                assert_eq!(Some(22), c.copy_new(ctx));
-                assert_eq!(Some(23), d.copy_new(ctx));
-            },
-            false,
-        );
-        assert_eq!(1, update_count);
-
-        a.set(app.ctx().vars, 30);
-
-        let mut update_count = 0;
-        let _ = app.update_observe(
-            |ctx| {
-                update_count += 1;
-
-                assert_eq!(Some(30), a.copy_new(ctx));
-                assert_eq!(Some(31), b.copy_new(ctx));
-                assert_eq!(Some(32), c.copy_new(ctx));
-                assert_eq!(Some(33), d.copy_new(ctx));
-            },
-            false,
-        );
-        assert_eq!(1, update_count);
-    }
-
-    #[test]
-    fn binding_bidi_chain() {
-        let a = var(0);
-        let b = var(0);
-        let c = var(0);
-        let d = var(0);
-
-        let mut app = App::blank().run_headless(false);
-
-        a.bind_bidi(&app.ctx(), &b).permanent();
-        b.bind_bidi(&app.ctx(), &c).permanent();
-        c.bind_bidi(&app.ctx(), &d).permanent();
-
-        let mut update_count = 0;
-        let _ = app.update_observe(
-            |_| {
-                update_count += 1;
-            },
-            false,
-        );
-        assert_eq!(0, update_count);
-
-        a.set(app.ctx().vars, 20);
-
-        let mut update_count = 0;
-        let _ = app.update_observe(
-            |ctx| {
-                update_count += 1;
-
-                assert_eq!(Some(20), a.copy_new(ctx));
-                assert_eq!(Some(20), b.copy_new(ctx));
-                assert_eq!(Some(20), c.copy_new(ctx));
-                assert_eq!(Some(20), d.copy_new(ctx));
-            },
-            false,
-        );
-        assert_eq!(1, update_count);
-
-        d.set(app.ctx().vars, 30);
-
-        let mut update_count = 0;
-        let _ = app.update_observe(
-            |ctx| {
-                update_count += 1;
-
-                assert_eq!(Some(30), a.copy_new(ctx));
-                assert_eq!(Some(30), b.copy_new(ctx));
-                assert_eq!(Some(30), c.copy_new(ctx));
-                assert_eq!(Some(30), d.copy_new(ctx));
-            },
-            false,
-        );
-        assert_eq!(1, update_count);
-    }
-
-    #[test]
-    fn binding_drop_from_inside() {
-        let a = var(1);
-        let b = var(1);
-
-        let mut app = App::blank().run_headless(false);
-
-        let _handle = a.bind_map(&app.ctx(), &b, |info, i| {
-            info.unbind();
-            *i + 1
-        });
-
-        a.set(app.ctx().vars, 10);
-
-        let mut update_count = 0;
-        let _ = app.update_observe(
-            |ctx| {
-                update_count += 1;
-
-                assert_eq!(Some(10), a.copy_new(ctx));
-                assert_eq!(Some(11), b.copy_new(ctx));
-            },
-            false,
-        );
-        assert_eq!(1, update_count);
-
-        assert_eq!(1, a.strong_count());
-        assert_eq!(1, b.strong_count());
-
-        a.set(app.ctx().vars, 100);
-
-        update_count = 0;
-        let _ = app.update_observe(
-            |ctx| {
-                update_count += 1;
-
-                assert_eq!(Some(100), a.copy_new(ctx));
-                assert!(!b.is_new(ctx));
-                assert_eq!(11, b.copy(ctx));
-            },
-            false,
-        );
-        assert_eq!(1, update_count);
-    }
-
-    #[test]
-    fn binding_drop_from_outside() {
-        let a = var(1);
-        let b = var(1);
-
-        let mut app = App::blank().run_headless(false);
-
-        let handle = a.bind_map(&app.ctx(), &b, |_, i| *i + 1);
-
-        a.set(app.ctx().vars, 10);
-
-        let mut update_count = 0;
-        let _ = app.update_observe(
-            |ctx| {
-                update_count += 1;
-
-                assert_eq!(Some(10), a.copy_new(ctx));
-                assert_eq!(Some(11), b.copy_new(ctx));
-            },
-            false,
-        );
-        assert_eq!(1, update_count);
-
-        drop(handle);
-
-        a.set(app.ctx().vars, 100);
-
-        update_count = 0;
-        let _ = app.update_observe(
-            |ctx| {
-                update_count += 1;
-
-                assert_eq!(Some(100), a.copy_new(ctx));
-                assert!(!b.is_new(ctx));
-                assert_eq!(11, b.copy(ctx));
-            },
-            false,
-        );
-        assert_eq!(1, update_count);
-
-        assert_eq!(1, a.strong_count());
-        assert_eq!(1, b.strong_count());
-    }
+    use crate::var::{context_var, ContextVarData, Var};
 
     #[test]
     fn context_var_default() {

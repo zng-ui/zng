@@ -708,29 +708,29 @@ impl_from_and_into_var! {
 }
 
 /// Easing function output.
-/// 
+///
 /// Usually in the [0..=1] range, but can overshoot. An easing function converts a [`EasingTime`]
 /// into this factor.
-/// 
+///
 /// # Examples
-/// 
+///
 /// ```
 /// use zero_ui_core::units::*;
-/// 
+///
 /// /// Cubic animation curve.
 /// fn cubic(time: EasingTime) -> EasingStep {
 ///     let f = time.fct();
-///     t * t * t
+///     f * f * f
 /// }
 /// ```
-/// 
+///
 /// Note that all the common easing functions are implemented in [`var::easing`].
-/// 
+///
 /// [`var::easing`]: crate::var::easing
 pub type EasingStep = Factor;
 
 /// Easing function input.
-/// 
+///
 /// Is always in the [0..=1] range. An easing function converts this time into a [`EasingStep`] factor.
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub struct EasingTime(Factor);
@@ -741,13 +741,13 @@ impl_from_and_into_var! {
 }
 impl EasingTime {
     /// New from [`Factor`].
-    /// 
+    ///
     /// The `factor` is clamped to the [0..=1] range.
     #[inline]
     pub fn new(factor: Factor) -> Self {
         EasingTime(factor.clamp_range())
     }
-    
+
     /// New easing time from total `duration` and `elapsed` time.
     ///
     /// If `elapsed >= duration` the time is 1.
@@ -772,6 +772,18 @@ impl EasingTime {
         EasingTime(1.fct())
     }
 
+    /// If the time represents the start of the animation.
+    #[inline]
+    pub fn is_start(self) -> bool {
+        self == Self::start()
+    }
+
+    /// If the time represents the end of the animation.
+    #[inline]
+    pub fn is_end(self) -> bool {
+        self == Self::end()
+    }
+
     /// Get the time as a [`Factor`].
     #[inline]
     pub fn fct(self) -> Factor {
@@ -779,7 +791,7 @@ impl EasingTime {
     }
 
     /// Flip the time.
-    /// 
+    ///
     /// Returns `1 - self`.
     #[inline]
     pub fn reverse(self) -> Self {
