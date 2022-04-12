@@ -9,9 +9,13 @@ use crate::{
 use std::{
     cell::Cell,
     f32::consts::*,
+    marker::PhantomData,
     ops,
+    rc::Rc,
     time::{Duration, Instant},
 };
+
+use super::{IntoVar, Var, VarValue, Vars};
 
 /// Simple linear transition, no easing, no acceleration.
 #[inline]
@@ -255,7 +259,6 @@ impl EasingFn {
 
 pub use bezier::*;
 
-use super::{VarValue, Vars};
 mod bezier {
     /* This Source Code Form is subject to the terms of the Mozilla Public
      * License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -441,7 +444,7 @@ impl AnimationHandle {
 }
 
 /// Represents an animation in its closure.
-/// 
+///
 /// See the [`Vars::animate`] method for more details.
 pub struct Animation {
     start_time: Instant,
@@ -570,7 +573,7 @@ where
 }
 
 pub(super) fn default_var_ease<T>(
-    var: impl super::Var<T>,
+    var: impl Var<T>,
     vars: &Vars,
     from: T,
     to: T,
@@ -596,7 +599,7 @@ pub(super) fn default_var_ease<T>(
 }
 
 pub(super) fn default_var_ease_ne<T>(
-    var: impl super::Var<T>,
+    var: impl Var<T>,
     vars: &Vars,
     from: T,
     to: T,
@@ -622,7 +625,7 @@ pub(super) fn default_var_ease_ne<T>(
 }
 
 pub(super) fn default_var_ease_keyed<T>(
-    var: impl super::Var<T>,
+    var: impl Var<T>,
     vars: &Vars,
     keys: Vec<(Factor, T)>,
     duration: Duration,
@@ -644,5 +647,213 @@ pub(super) fn default_var_ease_keyed<T>(
             }
         })
         .permanent()
+    }
+}
+
+struct EasingVarData<T, V, F> {
+    _t: PhantomData<T>,
+    var: V,
+    duration: Duration,
+    easing: F,
+}
+
+/// Wraps another variable and turns assigns into transition animations.
+///
+/// Redirects calls to [`Var::set`] to [`Var::ease`] and [`Var::set_ne`] to [`Var::ease_ne`].
+/// 
+/// Use [`Var::easing`] to create.
+pub struct EasingVar<T, V, F>(Rc<EasingVarData<T, V, F>>);
+impl<T, V, F> EasingVar<T, V, F>
+where
+    T: VarValue + ops::Add<T, Output = T> + ops::Sub<T, Output = T> + ops::Mul<Factor, Output = T>,
+    V: Var<T>,
+    F: Fn(EasingTime) -> EasingStep + Clone + 'static,
+{
+    /// New easing var.
+    ///
+    /// Note that the `easing` closure must be cloneable, if it is not automatically wrap it into a [`Rc`].
+    pub fn new(var: V, duration: impl Into<Duration>, easing: F) -> Self {
+        EasingVar(Rc::new(EasingVarData {
+            _t: PhantomData,
+            var,
+            duration: duration.into(),
+            easing,
+        }))
+    }
+}
+impl<T, V, F> crate::private::Sealed for EasingVar<T, V, F> {}
+impl<T, V: Clone, F> Clone for EasingVar<T, V, F> {
+    fn clone(&self) -> Self {
+        Self(self.0.clone())
+    }
+}
+impl<T, V, F> Var<T> for EasingVar<T, V, F>
+where
+    T: VarValue + ops::Add<T, Output = T> + ops::Sub<T, Output = T> + ops::Mul<Factor, Output = T>,
+    V: Var<T>,
+    F: Fn(EasingTime) -> EasingStep + Clone + 'static,
+{
+    type AsReadOnly = V::AsReadOnly;
+
+    fn get<'a, Vr: AsRef<super::VarsRead>>(&'a self, vars: &'a Vr) -> &'a T {
+        self.0.var.get(vars)
+    }
+
+    fn get_new<'a, Vw: AsRef<Vars>>(&'a self, vars: &'a Vw) -> Option<&'a T> {
+        self.0.var.get_new(vars)
+    }
+
+    fn is_new<Vw: super::WithVars>(&self, vars: &Vw) -> bool {
+        self.0.var.is_new(vars)
+    }
+
+    fn version<Vr: super::WithVarsRead>(&self, vars: &Vr) -> super::VarVersion {
+        self.0.var.version(vars)
+    }
+
+    fn is_read_only<Vw: super::WithVars>(&self, vars: &Vw) -> bool {
+        self.0.var.is_read_only(vars)
+    }
+
+    fn always_read_only(&self) -> bool {
+        self.0.var.always_read_only()
+    }
+
+    fn is_contextual(&self) -> bool {
+        self.0.var.is_contextual()
+    }
+
+    fn can_update(&self) -> bool {
+        self.0.var.can_update()
+    }
+
+    fn into_value<Vr: super::WithVarsRead>(self, vars: &Vr) -> T {
+        match Rc::try_unwrap(self.0) {
+            Ok(v) => v.var.into_value(vars),
+            Err(v) => v.var.get_clone(vars),
+        }
+    }
+
+    fn modify<Vw, M>(&self, vars: &Vw, modify: M) -> Result<(), super::VarIsReadOnly>
+    where
+        Vw: super::WithVars,
+        M: FnOnce(super::VarModify<T>) + 'static,
+    {
+        self.0.var.modify(vars, modify)
+    }
+
+    fn strong_count(&self) -> usize {
+        Rc::strong_count(&self.0)
+    }
+
+    fn into_read_only(self) -> Self::AsReadOnly {
+        match Rc::try_unwrap(self.0) {
+            Ok(v) => v.var.into_read_only(),
+            Err(v) => v.var.clone().into_read_only(),
+        }
+    }
+
+    fn update_mask<Vr: super::WithVarsRead>(&self, vars: &Vr) -> crate::widget_info::UpdateMask {
+        self.0.var.update_mask(vars)
+    }
+
+    fn set<Vw, N>(&self, vars: &Vw, new_value: N) -> Result<(), super::VarIsReadOnly>
+    where
+        Vw: super::WithVars,
+        N: Into<T>,
+    {
+        self.0.var.ease(vars, new_value, self.0.duration, self.0.easing.clone())
+    }
+
+    fn set_ne<Vw, N>(&self, vars: &Vw, new_value: N) -> Result<bool, super::VarIsReadOnly>
+    where
+        Vw: super::WithVars,
+        N: Into<T>,
+        T: PartialEq,
+    {
+        self.0.var.ease_ne(vars, new_value, self.0.duration, self.0.easing.clone())
+    }
+
+    fn ease<Vw, N, D, F2>(&self, vars: &Vw, new_value: N, duration: D, easing: F2) -> Result<(), super::VarIsReadOnly>
+    where
+        Vw: super::WithVars,
+        N: Into<T>,
+        D: Into<Duration>,
+        F2: Fn(EasingTime) -> EasingStep + 'static,
+    {
+        self.0.var.ease(vars, new_value, duration, easing)
+    }
+
+    fn ease_ne<Vw, N, D, F2>(&self, vars: &Vw, new_value: N, duration: D, easing: F2) -> Result<bool, super::VarIsReadOnly>
+    where
+        Vw: super::WithVars,
+        N: Into<T>,
+        D: Into<Duration>,
+        F2: Fn(EasingTime) -> EasingStep + 'static,
+
+        T: PartialEq,
+    {
+        self.0.var.ease_ne(vars, new_value, duration, easing)
+    }
+
+    fn ease_keyed<Vw, D, F2>(&self, vars: &Vw, keys: Vec<(Factor, T)>, duration: D, easing: F2) -> Result<(), super::VarIsReadOnly>
+    where
+        Vw: super::WithVars,
+        D: Into<Duration>,
+        F2: Fn(EasingTime) -> EasingStep + 'static,
+    {
+        self.0.var.ease_keyed(vars, keys, duration, easing)
+    }
+
+    fn set_ease<Vw, N, Th, D, F2>(&self, vars: &Vw, new_value: N, then: Th, duration: D, easing: F2) -> Result<(), super::VarIsReadOnly>
+    where
+        Vw: super::WithVars,
+        N: Into<T>,
+        Th: Into<T>,
+        D: Into<Duration>,
+        F2: Fn(EasingTime) -> EasingStep + 'static,
+    {
+        self.0.var.set_ease(vars, new_value, then, duration, easing)
+    }
+
+    fn set_ease_ne<Vw, N, Th, D, F2>(&self, vars: &Vw, new_value: N, then: Th, duration: D, easing: F2) -> Result<bool, super::VarIsReadOnly>
+    where
+        Vw: super::WithVars,
+        N: Into<T>,
+        Th: Into<T>,
+        D: Into<Duration>,
+        F2: Fn(EasingTime) -> EasingStep + 'static,
+
+        T: PartialEq,
+    {
+        self.0.var.set_ease_ne(vars, new_value, then, duration, easing)
+    }
+
+    fn set_ease_keyed<Vw, D, F2>(
+        &self,
+        vars: &Vw,
+        keys: Vec<(Factor, T)>,
+        duration: D,
+        easing: F2,
+    ) -> Result<(), super::VarIsReadOnly>
+    where
+        Vw: super::WithVars,
+        D: Into<Duration>,
+        F2: Fn(EasingTime) -> EasingStep + 'static,
+    {
+        self.0.var.set_ease_keyed(vars, keys, duration, easing)
+    }
+}
+impl<T, V, F> IntoVar<T> for EasingVar<T, V, F>
+where
+    T: VarValue + ops::Add<T, Output = T> + ops::Sub<T, Output = T> + ops::Mul<Factor, Output = T>,
+    V: Var<T>,
+    F: Fn(EasingTime) -> EasingStep + Clone + 'static,
+{
+    type Var = Self;
+
+    #[inline]
+    fn into_var(self) -> Self::Var {
+        self
     }
 }

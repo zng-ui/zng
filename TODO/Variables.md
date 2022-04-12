@@ -7,7 +7,6 @@ a + f * (n - a)
 * `Var::is_animating` ?
 * Cancel animation if set from other source?
 * Config animation fps.
-* `EasingVar`, redirects calls to `Var::set` to `Var::ease` with a pre-configured duration and easing function.
 
 ## Storyboard/Key-frames
 

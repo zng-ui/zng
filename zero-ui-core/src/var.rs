@@ -631,10 +631,10 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + crate::private::Sealed + 'stati
 
     /// Schedule a transition animation for the variable, but only if the current value is not equal to `new_value`.
     ///
-    /// The variable is also updated using [`set_ne`] during animation.
+    /// The variable is also updated using [`set_ne`] during animation. Returns `true` is scheduled an animation.
     ///
     /// [`set_ne`]: Self::set_ne
-    fn ease_ne<Vw, N, D, F>(&self, vars: &Vw, new_value: N, duration: D, easing: F) -> Result<(), VarIsReadOnly>
+    fn ease_ne<Vw, N, D, F>(&self, vars: &Vw, new_value: N, duration: D, easing: F) -> Result<bool, VarIsReadOnly>
     where
         Vw: WithVars,
         N: Into<T>,
@@ -650,8 +650,10 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + crate::private::Sealed + 'stati
                 let new_value = new_value.into();
                 if self.get(vars) != &new_value {
                     easing::default_var_ease_ne(self.clone(), vars, self.get_clone(vars), new_value, duration.into(), easing, true);
+                    Ok(true)
+                } else {
+                    Ok(false)
                 }
-                Ok(())
             }
         })
     }
@@ -682,10 +684,10 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + crate::private::Sealed + 'stati
 
     /// Schedule a transition animation for the variable, from `new_value` to `then`, but checks for equality at every step.
     ///
-    /// The variable is also updated using [`set_ne`] during animation.
+    /// The variable is also updated using [`set_ne`] during animation. Returns `true` is scheduled an animation.
     ///
     /// [`set_ne`]: Self::set_ne
-    fn set_ease_ne<Vw, N, Th, D, F>(&self, vars: &Vw, new_value: N, then: Th, duration: D, easing: F) -> Result<(), VarIsReadOnly>
+    fn set_ease_ne<Vw, N, Th, D, F>(&self, vars: &Vw, new_value: N, then: Th, duration: D, easing: F) -> Result<bool, VarIsReadOnly>
     where
         Vw: WithVars,
         N: Into<T>,
@@ -703,10 +705,10 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + crate::private::Sealed + 'stati
                 let then = then.into();
 
                 if new_value == then {
-                    self.set_ne(vars, new_value).map(|_| ())
+                    self.set_ne(vars, new_value)
                 } else {
                     easing::default_var_ease_ne(self.clone(), vars, new_value, then, duration.into(), easing, false);
-                    Ok(())
+                    Ok(true)
                 }
             }
         })
@@ -717,11 +719,9 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + crate::private::Sealed + 'stati
     /// After the current app update finishes the variable will start animation from the current value to the first key
     /// in `keys`, going across all keys for the `duration`. The `easing` function applies across all keyframes, the interpolation
     /// between keys is linear, use a full animation to control the easing between keys.
-    fn ease_keyed<Vw, N, Th, D, F>(&self, vars: &Vw, keys: Vec<(Factor, T)>, duration: D, easing: F) -> Result<(), VarIsReadOnly>
+    fn ease_keyed<Vw, D, F>(&self, vars: &Vw, keys: Vec<(Factor, T)>, duration: D, easing: F) -> Result<(), VarIsReadOnly>
     where
         Vw: WithVars,
-        N: Into<T>,
-        Th: Into<T>,
         D: Into<Duration>,
         F: Fn(EasingTime) -> EasingStep + 'static,
 
@@ -745,11 +745,9 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + crate::private::Sealed + 'stati
     ///
     /// After the current app update finishes the variable will be set to to the first keyframe, then animated
     /// across all other keys.
-    fn set_ease_keyed<Vw, N, Th, D, F>(&self, vars: &Vw, keys: Vec<(Factor, T)>, duration: D, easing: F) -> Result<(), VarIsReadOnly>
+    fn set_ease_keyed<Vw, D, F>(&self, vars: &Vw, keys: Vec<(Factor, T)>, duration: D, easing: F) -> Result<(), VarIsReadOnly>
     where
         Vw: WithVars,
-        N: Into<T>,
-        Th: Into<T>,
         D: Into<Duration>,
         F: Fn(EasingTime) -> EasingStep + 'static,
 
@@ -763,6 +761,24 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + crate::private::Sealed + 'stati
                 Ok(())
             }
         })
+    }
+
+    /// Wraps the variable into another that turns assigns into transition animations.
+    ///
+    /// Redirects calls to [`Var::set`] to [`Var::ease`] and [`Var::set_ne`] to [`Var::ease_ne`].
+    /// 
+    /// Note that the `easing` closure must be cloneable, if it is not automatically wrap it into a [`Rc`].
+    /// 
+    /// [`Rc`]: std::rc::Rc
+    #[inline]
+    fn easing<D, F>(self, duration: D, easing: F) -> easing::EasingVar<T, Self, F>
+    where
+        D: Into<Duration>,
+        F: Fn(EasingTime) -> EasingStep + Clone + 'static,
+
+        T: ops::Add<T, Output = T> + ops::Sub<T, Output = T> + ops::Mul<EasingStep, Output = T>,
+    {
+        easing::EasingVar::new(self, duration.into(), easing)
     }
 
     /// Gets the number of references to this variable.
