@@ -1,3 +1,14 @@
+# Parallel UI
+
+* How much overhead needed to add `rayon` join support for UiNode methods?
+    * Need to make every thing sync.
+    * Vars are already *locked* for updates due to their delayed assign, is only reading from `Arc` slower then from `Rc`?
+    * Event `stop_propagation` becomes indeterministic.
+    * Services must become sync.
+    * State must become sync!
+* Maybe can always have an AppContext for each UI thread, with a copy of services and such, after each update they merge into
+  the main AppContext.
+
 # Build Time
 
 * Very slow build time in release mode without `dyn_widget` (window example up-to 18 minutes compile time and 25GB memory usage).
@@ -10,14 +21,6 @@
 # Update Mask
 
 * Sub-divide UiNodeList masks.
-
-# Events
-
-* Replace `EventArgs::concerns_widget` with a `EventsArgs::target` that is an `Option<&WidgetPath>`,
-  widgets can then route the event more efficiently, specially for cases like the cursor move where
-  most of the widgets are subscribing to the event type but only a small portion of then are going to receive.
-
-  Target `None` are only for `AppExtensions`, and maybe the window root?.
 
 # Startup
 

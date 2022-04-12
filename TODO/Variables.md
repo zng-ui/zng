@@ -108,7 +108,7 @@ Better, but maybe too powerful, need to optionally replay, change time scale, ca
 
 ### Async Loop
 
-Can code repeats too:
+Can encode repeats too:
 
 ```rust
 animation!(var1, var2, |ctx, args| {

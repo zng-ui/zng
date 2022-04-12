@@ -9,9 +9,5 @@
   - Review how assigned required properties behave.
   - And *required* because capture too.
 
-# Difficult
-
 * Widget image/videos rendering from doc-tests.
-* Implements JS rewrites in Rust, targeting the generated doc files.
-  - The function must apply the rewrites and remove the custom scripts.
-  - Wait until `rustdoc` template is more stable?
+* Use Rust implemented rewrite automatically, can it be done?

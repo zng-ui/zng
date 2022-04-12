@@ -8,14 +8,15 @@ Image loading and rendering.
 * DPI size correcting.
 * Color profile correcting.
     Use `qcms` or `lcms2`
+* Vector images (see Canvas.md).
 
 ## Nice to Have
 
 * Progressive decoding.
 
 ## View-image TODO
-* Optional pre-multiply. (can we undo pre-multiplication?)
-    Or can we use pre-multiplied images for the window icon.
+* Optional pre-multiply.
+    Or can we use pre-multiplied images for the window icon? Not seeing any problem so far.
 * Support creating resized image from existing image.
 * Partial image API implemented, need to implement use in Images and try implement partial decoding using the `images` crate.
    - Also test if `ImageMetadataLoaded` event is happening before the full image is received.
