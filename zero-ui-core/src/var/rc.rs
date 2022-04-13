@@ -175,6 +175,105 @@ impl<T: VarValue> RcVar<T> {
         })
     }
 
+    /// Schedule a transition animation for the variable.
+    ///
+    /// After the current app update finishes the variable will start animation from the current value to `new_value`
+    /// for the `duration` and transitioning by the `easing` function.
+    pub fn ease<Vw, N, D, F>(&self, vars: &Vw, new_value: N, duration: D, easing: F)
+    where
+        Vw: WithVars,
+        N: Into<T>,
+        D: Into<Duration>,
+        F: Fn(EasingTime) -> EasingStep + 'static,
+
+        T: ops::Add<T, Output = T> + ops::Sub<T, Output = T> + ops::Mul<EasingStep, Output = T>,
+    {
+        let _ = <Self as Var<T>>::ease(self, vars, new_value, duration, easing);
+    }
+
+    /// Schedule a transition animation for the variable, but only if the current value is not equal to `new_value`.
+    ///
+    /// The variable is also updated using [`set_ne`] during animation. Returns `true` is scheduled an animation.
+    ///
+    /// [`set_ne`]: Self::set_ne
+    pub fn ease_ne<Vw, N, D, F>(&self, vars: &Vw, new_value: N, duration: D, easing: F)
+    where
+        Vw: WithVars,
+        N: Into<T>,
+        D: Into<Duration>,
+        F: Fn(EasingTime) -> EasingStep + 'static,
+
+        T: PartialEq + ops::Add<T, Output = T> + ops::Sub<T, Output = T> + ops::Mul<EasingStep, Output = T>,
+    {
+        let _ = <Self as Var<T>>::ease_ne(self, vars, new_value, duration, easing);
+    }
+
+    /// Schedule a transition animation for the variable, from `new_value` to `then`.
+    ///
+    /// After the current app update finishes the variable will be set to `new_value`, then start animation from `new_value`
+    /// to `then` for the `duration` and transitioning by the `easing` function.
+    pub fn set_ease<Vw, N, Th, D, F>(&self, vars: &Vw, new_value: N, then: Th, duration: D, easing: F)
+    where
+        Vw: WithVars,
+        N: Into<T>,
+        Th: Into<T>,
+        D: Into<Duration>,
+        F: Fn(EasingTime) -> EasingStep + 'static,
+
+        T: ops::Add<T, Output = T> + ops::Sub<T, Output = T> + ops::Mul<EasingStep, Output = T>,
+    {
+        let _ = <Self as Var<T>>::set_ease(self, vars, new_value, then, duration, easing);
+    }
+
+    /// Schedule a transition animation for the variable, from `new_value` to `then`, but checks for equality at every step.
+    ///
+    /// The variable is also updated using [`set_ne`] during animation. Returns `true` is scheduled an animation.
+    ///
+    /// [`set_ne`]: Self::set_ne
+    pub fn set_ease_ne<Vw, N, Th, D, F>(&self, vars: &Vw, new_value: N, then: Th, duration: D, easing: F)
+    where
+        Vw: WithVars,
+        N: Into<T>,
+        Th: Into<T>,
+        D: Into<Duration>,
+        F: Fn(EasingTime) -> EasingStep + 'static,
+
+        T: PartialEq + ops::Add<T, Output = T> + ops::Sub<T, Output = T> + ops::Mul<EasingStep, Output = T>,
+    {
+        let _ = <Self as Var<T>>::set_ease_ne(self, vars, new_value, then, duration, easing);
+    }
+
+    /// Schedule a keyframed transition animation for the variable.
+    ///
+    /// After the current app update finishes the variable will start animation from the current value to the first key
+    /// in `keys`, going across all keys for the `duration`. The `easing` function applies across all keyframes, the interpolation
+    /// between keys is linear, use a full animation to control the easing between keys.
+    pub fn ease_keyed<Vw, D, F>(&self, vars: &Vw, keys: Vec<(Factor, T)>, duration: D, easing: F)
+    where
+        Vw: WithVars,
+        D: Into<Duration>,
+        F: Fn(EasingTime) -> EasingStep + 'static,
+
+        T: ops::Add<T, Output = T> + ops::Sub<T, Output = T> + ops::Mul<EasingStep, Output = T>,
+    {
+        let _ = <Self as Var<T>>::ease_keyed(self, vars, keys, duration, easing);
+    }
+
+    /// Schedule a keyframed transition animation for the variable, starting from the first key.
+    ///
+    /// After the current app update finishes the variable will be set to to the first keyframe, then animated
+    /// across all other keys.
+    pub fn set_ease_keyed<Vw, D, F>(&self, vars: &Vw, keys: Vec<(Factor, T)>, duration: D, easing: F)
+    where
+        Vw: WithVars,
+        D: Into<Duration>,
+        F: Fn(EasingTime) -> EasingStep + 'static,
+
+        T: ops::Add<T, Output = T> + ops::Sub<T, Output = T> + ops::Mul<EasingStep, Output = T>,
+    {
+        let _ = <Self as Var<T>>::set_ease_keyed(self, vars, keys, duration, easing);
+    }
+
     /// Gets the number of [`RcVar`] that point to this same variable.
     #[inline]
     pub fn strong_count(&self) -> usize {

@@ -10,6 +10,7 @@ use crate::{
     context::{AppContext, Updates, UpdatesTrace},
     crate_util::{Handle, HandleOwner, PanicPayload, RunOnDrop},
     handler::{AppHandler, AppHandlerArgs, AppWeakHandle},
+    units::TimeUnits,
 };
 use std::{
     any::type_name,
@@ -278,6 +279,8 @@ pub struct Vars {
     binding_update_id: u32,
     bindings: RefCell<Vec<VarBindingFn>>,
     animations: RefCell<Vec<AnimationFn>>,
+    last_frame: Instant,
+    frame_duration: Duration,
 
     #[allow(clippy::type_complexity)]
     pending: RefCell<Vec<PendingUpdate>>,
@@ -316,6 +319,8 @@ impl Vars {
             binding_update_id: 0u32.wrapping_sub(13),
             bindings: RefCell::default(),
             animations: RefCell::default(),
+            last_frame: Instant::now(),
+            frame_duration: (1.0 / 60.0).secs(),
             pending: Default::default(),
             pre_handlers: RefCell::default(),
             pos_handlers: RefCell::default(),
@@ -332,7 +337,30 @@ impl Vars {
         !self.pending.get_mut().is_empty()
     }
 
+    /// Called in `update_timers`, does one animation frame if over the FPS has elapsed.
+    pub(crate) fn update_animations(&mut self) -> Option<Instant> {
+        let mut animations = self.animations.borrow_mut();
+
+        if !animations.is_empty() {
+            let now = Instant::now();
+            let elapsed = now - self.last_frame;
+            if elapsed >= self.frame_duration {
+                self.last_frame = now;
+
+                animations.retain_mut(|a| a(self));
+
+                if !animations.is_empty() {
+                    return Some(now + self.frame_duration);
+                }
+            }
+        }
+
+        None
+    }
+
     /// Apply scheduled set/modify.
+    ///
+    /// Returns new app wake time if there are active animations.
     pub(crate) fn apply_updates(&mut self, updates: &mut Updates) {
         self.read.update_id = self.update_id.wrapping_add(1);
 
@@ -531,17 +559,17 @@ impl Vars {
     }
 
     /// Adds an animation handler that is called every frame to update captured variables.
-    /// 
-    /// This is used by the [`Var`] ease methods default implementation, it enables any kind of variable animation, 
+    ///
+    /// This is used by the [`Var`] ease methods default implementation, it enables any kind of variable animation,
     /// including multiple variables.
-    /// 
+    ///
     /// Returns an [`AnimationHandle`] that can be used to monitor the animation status and to [`stop`] or to
     /// make the animation [`permanent`].
-    /// 
+    ///
     /// # Examples
-    /// 
+    ///
     /// TODO
-    /// 
+    ///
     /// [`stop`]: AnimationHandle::stop
     /// [`permanent`]: AnimationHandle::permanent
     pub fn animate<A>(&self, mut animation: A) -> AnimationHandle
@@ -552,14 +580,14 @@ impl Vars {
         let anim = Animation::new();
 
         self.animations.borrow_mut().push(Box::new(move |vars| {
-                let mut retain = !handle_owner.is_dropped();
+            let mut retain = !handle_owner.is_dropped();
 
-                if retain {
-                    animation(vars, &anim);
-                    retain = !anim.stop_requested();
-                }
+            if retain {
+                animation(vars, &anim);
+                retain = !anim.stop_requested();
+            }
 
-                retain
+            retain
         }));
 
         handle

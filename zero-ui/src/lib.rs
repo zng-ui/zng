@@ -929,10 +929,10 @@ pub mod prelude {
         ui_list::{z_index, SortedWidgetVec, SortedWidgetVecRef, WidgetVec, WidgetVecRef, ZIndex},
         units::{
             rotate, scale, scale_x, scale_xy, scale_y, skew, skew_x, skew_y, translate, translate_x, translate_y, Align, AngleUnits,
-            ByteUnits, FactorUnits, Length, LengthUnits, Line, LineFromTuplesBuilder, LineHeight, Point, Px, PxPoint, PxSize, Rect,
-            RectFromTuplesBuilder, SideOffsets, Size, TimeUnits, Transform, Vector,
+            ByteUnits, EasingStep, EasingTime, FactorUnits, Length, LengthUnits, Line, LineFromTuplesBuilder, LineHeight, Point, Px,
+            PxPoint, PxSize, Rect, RectFromTuplesBuilder, SideOffsets, Size, TimeUnits, Transform, Vector,
         },
-        var::{merge_var, state_var, switch_var, var, var_default, var_from, IntoVar, RcVar, Var, VarReceiver, VarSender, Vars},
+        var::{easing, merge_var, state_var, switch_var, var, var_default, var_from, IntoVar, RcVar, Var, VarReceiver, VarSender, Vars},
         widget_base::{HitTestMode, Visibility},
         widget_vec, widgets,
         window::{

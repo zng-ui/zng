@@ -660,7 +660,7 @@ struct EasingVarData<T, V, F> {
 /// Wraps another variable and turns assigns into transition animations.
 ///
 /// Redirects calls to [`Var::set`] to [`Var::ease`] and [`Var::set_ne`] to [`Var::ease_ne`].
-/// 
+///
 /// Use [`Var::easing`] to create.
 pub struct EasingVar<T, V, F>(Rc<EasingVarData<T, V, F>>);
 impl<T, V, F> EasingVar<T, V, F>
@@ -816,7 +816,14 @@ where
         self.0.var.set_ease(vars, new_value, then, duration, easing)
     }
 
-    fn set_ease_ne<Vw, N, Th, D, F2>(&self, vars: &Vw, new_value: N, then: Th, duration: D, easing: F2) -> Result<bool, super::VarIsReadOnly>
+    fn set_ease_ne<Vw, N, Th, D, F2>(
+        &self,
+        vars: &Vw,
+        new_value: N,
+        then: Th,
+        duration: D,
+        easing: F2,
+    ) -> Result<bool, super::VarIsReadOnly>
     where
         Vw: super::WithVars,
         N: Into<T>,
@@ -829,13 +836,7 @@ where
         self.0.var.set_ease_ne(vars, new_value, then, duration, easing)
     }
 
-    fn set_ease_keyed<Vw, D, F2>(
-        &self,
-        vars: &Vw,
-        keys: Vec<(Factor, T)>,
-        duration: D,
-        easing: F2,
-    ) -> Result<(), super::VarIsReadOnly>
+    fn set_ease_keyed<Vw, D, F2>(&self, vars: &Vw, keys: Vec<(Factor, T)>, duration: D, easing: F2) -> Result<(), super::VarIsReadOnly>
     where
         Vw: super::WithVars,
         D: Into<Duration>,

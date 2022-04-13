@@ -766,9 +766,9 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + crate::private::Sealed + 'stati
     /// Wraps the variable into another that turns assigns into transition animations.
     ///
     /// Redirects calls to [`Var::set`] to [`Var::ease`] and [`Var::set_ne`] to [`Var::ease_ne`].
-    /// 
+    ///
     /// Note that the `easing` closure must be cloneable, if it is not automatically wrap it into a [`Rc`].
-    /// 
+    ///
     /// [`Rc`]: std::rc::Rc
     #[inline]
     fn easing<D, F>(self, duration: D, easing: F) -> easing::EasingVar<T, Self, F>

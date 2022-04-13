@@ -60,7 +60,7 @@ impl VarBindingHandle {
 /// Represents the variable binding in its binding closure.
 ///
 /// See the [`Vars::bind`] method for more details.
-/// 
+///
 /// [`Vars::bind`]: crate::var::Vars::bind
 pub struct VarBinding {
     unbind: Cell<bool>,

@@ -96,10 +96,17 @@ impl OwnedAppContext {
         self.timers.next_deadline(&self.vars)
     }
 
-    /// Update timers, returns next timer tick time.
+    /// Update timers and animations, returns next wake time.
     #[must_use]
     pub fn update_timers(&mut self) -> Option<Instant> {
-        self.timers.apply_updates(&self.vars)
+        let t = self.timers.apply_updates(&self.vars);
+        let v = self.vars.update_animations();
+
+        match (t, v) {
+            (None, None) => None,
+            (None, Some(m)) | (Some(m), None) => Some(m),
+            (Some(t), Some(v)) => Some(t.min(v)),
+        }
     }
 
     /// If a call to `apply_updates` will generate updates (ignoring timers).
@@ -561,9 +568,16 @@ impl TestWidgetContext {
         )
     }
 
-    /// Update timers, returns next timer tick time.
+    /// Update timers and animations, returns next wake time.
     pub fn update_timers(&mut self) -> Option<Instant> {
-        self.timers.apply_updates(&self.vars)
+        let t = self.timers.apply_updates(&self.vars);
+        let v = self.vars.update_animations();
+
+        match (t, v) {
+            (None, None) => None,
+            (None, Some(m)) | (Some(m), None) => Some(m),
+            (Some(t), Some(v)) => Some(t.min(v)),
+        }
     }
 
     /// Force set the current update mask.
