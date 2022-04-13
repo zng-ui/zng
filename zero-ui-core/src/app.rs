@@ -1366,14 +1366,17 @@ impl<E: AppExtension> RunningApp<E> {
 
         if wait_app_event {
             let idle = tracing::debug_span!("<idle>").entered();
-            if let Some(time) = self.wake_time.take() {
+            if let Some(time) = self.wake_time {
                 match self.receiver.recv_deadline(time) {
                     Ok(ev) => {
                         drop(idle);
                         self.push_coalesce(ev, observer)
                     }
                     Err(e) => match e {
-                        flume::RecvTimeoutError::Timeout => timer_elapsed = true,
+                        flume::RecvTimeoutError::Timeout => {
+                            self.wake_time = None;
+                            timer_elapsed = true
+                        },
                         flume::RecvTimeoutError::Disconnected => disconnected = true,
                     },
                 }
