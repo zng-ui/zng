@@ -342,21 +342,20 @@ impl Vars {
         let mut animations = self.animations.borrow_mut();
 
         if !animations.is_empty() {
-            let now = Instant::now();
-            let elapsed = now - self.last_frame;
-            if elapsed >= self.frame_duration {
-                self.last_frame = now;
+            let next_frame = self.last_frame + self.frame_duration;
+            if Instant::now() >= next_frame {
+                self.last_frame = next_frame;
                 animations.retain_mut(|a| a(self));
 
                 if !animations.is_empty() {
                     // next frame
-                    Some(now + self.frame_duration)
+                    Some(self.last_frame + self.frame_duration)
                 } else {
                     None
                 }
             } else {
                 // same frame
-                Some(self.last_frame + self.frame_duration)
+                Some(next_frame)
             }
         } else {
             None

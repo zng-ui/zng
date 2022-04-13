@@ -9,6 +9,7 @@ use crate::{
 use std::{
     cell::Cell,
     f32::consts::*,
+    fmt,
     marker::PhantomData,
     ops,
     rc::Rc,
@@ -136,25 +137,23 @@ pub fn none(_: EasingTime) -> EasingStep {
 
 /// Applies the `ease_fn`.
 #[inline]
-pub fn ease_in(ease_fn: impl FnOnce(EasingTime) -> EasingStep, time: EasingTime) -> EasingStep {
+pub fn ease_in(ease_fn: impl Fn(EasingTime) -> EasingStep, time: EasingTime) -> EasingStep {
     ease_fn(time)
 }
 
 /// Applies the `ease_fn` in reverse and flipped.
 #[inline]
-pub fn ease_out(ease_fn: impl FnOnce(EasingTime) -> EasingStep, time: EasingTime) -> EasingStep {
+pub fn ease_out(ease_fn: impl Fn(EasingTime) -> EasingStep, time: EasingTime) -> EasingStep {
     ease_fn(time.reverse()).flip()
 }
 
 /// Applies `ease_in` for the first half then [`ease_out`] scaled to fit a single duration (1.0).
-pub fn ease_in_out(ease_fn: impl FnOnce(EasingTime) -> EasingStep, time: EasingTime) -> EasingStep {
-    let time = EasingTime::new(time.fct() * 2.fct());
-    let step = if time.fct() < 1.fct() {
-        ease_in(ease_fn, time)
-    } else {
-        ease_out(ease_fn, time)
-    };
-    step * 0.5.fct()
+pub fn ease_in_out(ease_fn: impl Fn(EasingTime) -> EasingStep, time: EasingTime) -> EasingStep {
+    let in_step = ease_in(&ease_fn, time);
+    let out_step = ease_out(ease_fn, time);
+
+    let t = time.fct();
+    in_step * (1.fct() - t) + out_step * t
 }
 
 /// Returns `ease_fn`.
@@ -173,6 +172,41 @@ pub fn ease_out_fn<'s>(ease_fn: impl Fn(EasingTime) -> EasingStep + 's) -> impl 
 #[inline]
 pub fn ease_in_out_fn<'s>(ease_fn: impl Fn(EasingTime) -> EasingStep + 's) -> impl Fn(EasingTime) -> EasingStep + 's {
     move |t| ease_in_out(&ease_fn, t)
+}
+
+/// Common easing modifier functions as an enum.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum EasingModifierFn {
+    /// [`ease_in`].
+    EaseIn,
+    /// [`ease_out`].
+    EaseOut,
+    /// [`ease_in_out`].
+    EaseInOut,
+}
+impl EasingModifierFn {
+    /// Calls the easing function with the modifier `self` represents.
+    pub fn modify(self, easing: impl Fn(EasingTime) -> EasingStep, time: EasingTime) -> EasingStep {
+        match self {
+            EasingModifierFn::EaseIn => ease_in(easing, time),
+            EasingModifierFn::EaseOut => ease_out(easing, time),
+            EasingModifierFn::EaseInOut => ease_in_out(easing, time),
+        }
+    }
+
+    /// Create a closure that applies the `easing` with the modifier `self` represents.
+    pub fn modify_fn(self, easing: impl Fn(EasingTime) -> EasingStep) -> impl Fn(EasingTime) -> EasingStep {
+        move |t| self.modify(&easing, t)
+    }
+}
+impl fmt::Display for EasingModifierFn {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            EasingModifierFn::EaseIn => write!(f, "ease_in"),
+            EasingModifierFn::EaseOut => write!(f, "ease_out"),
+            EasingModifierFn::EaseInOut => write!(f, "ease_in_out"),
+        }
+    }
 }
 
 /// Common easing functions as an enum.
@@ -200,6 +234,8 @@ pub enum EasingFn {
     Elastic,
     /// [`bounce`].
     Bounce,
+    /// [`none`].
+    None,
 }
 impl EasingFn {
     /// Calls the easing function that `self` represents.
@@ -235,6 +271,7 @@ impl EasingFn {
             EasingFn::Back => self::back,
             EasingFn::Elastic => self::elastic,
             EasingFn::Bounce => self::bounce,
+            EasingFn::None => self::none,
         }
     }
 
@@ -254,6 +291,24 @@ impl EasingFn {
     #[inline]
     pub fn ease_in_out_fn(self) -> impl Fn(EasingTime) -> EasingStep {
         ease_in_out_fn(self.ease_fn())
+    }
+}
+impl fmt::Display for EasingFn {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            EasingFn::Linear => write!(f, "linear"),
+            EasingFn::Sine => write!(f, "sine"),
+            EasingFn::Quad => write!(f, "quad"),
+            EasingFn::Cubic => write!(f, "cubic"),
+            EasingFn::Quart => write!(f, "quart"),
+            EasingFn::Quint => write!(f, "quint"),
+            EasingFn::Expo => write!(f, "expo"),
+            EasingFn::Circ => write!(f, "circ"),
+            EasingFn::Back => write!(f, "back"),
+            EasingFn::Elastic => write!(f, "elastic"),
+            EasingFn::Bounce => write!(f, "bounce"),
+            EasingFn::None => write!(f, "none"),
+        }
     }
 }
 

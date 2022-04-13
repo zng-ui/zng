@@ -1376,7 +1376,7 @@ impl<E: AppExtension> RunningApp<E> {
                         flume::RecvTimeoutError::Timeout => {
                             self.wake_time = None;
                             timer_elapsed = true
-                        },
+                        }
                         flume::RecvTimeoutError::Disconnected => disconnected = true,
                     },
                 }
