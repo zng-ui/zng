@@ -69,6 +69,15 @@ fn app_main() {
                                 source = (Uri::from_static("https://httpbin.org/image"), "image/png");
                                 size = (200, 150);
                             },
+                            sub_title("Render"),
+                            image! {
+                                source = ImageSource::render(|_| container! {
+                                    size = (180, 120);
+                                    background_gradient = Line::to_bottom_right(), stops![colors::MIDNIGHT_BLUE, 50.pct(), colors::CRIMSON];
+                                    font_size = 28;
+                                    content = text("Rendered!");
+                                })
+                            }
                         ]
                     ),
 

@@ -1,6 +1,6 @@
 use derive_more as dm;
 
-use super::{about_eq, Px, PxPoint, PxRect, PxSideOffsets, PxSize, PxVector, Size, EPSILON, EPSILON_100};
+use super::{about_eq, Px, PxPoint, PxRect, PxSideOffsets, PxSize, PxVector, Size, EPSILON, EPSILON_100, about_eq_hash};
 use crate::impl_from_and_into_var;
 use std::{fmt, ops, time::Duration};
 
@@ -112,6 +112,11 @@ impl Factor {
     #[inline]
     pub fn flip(self) -> Factor {
         1.fct() - self
+    }
+}
+impl std::hash::Hash for Factor {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        about_eq_hash(self.0, EPSILON, state)
     }
 }
 impl PartialEq for Factor {

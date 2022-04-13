@@ -11,15 +11,18 @@ use zero_ui_view_api::{webrender_api::ImageKey, Respawned};
 
 use crate::{
     app::view_process::{EncodeError, ViewImage, ViewRenderer},
-    context::LayoutMetrics,
+    context::{LayoutMetrics, WindowContext},
     impl_from_and_into_var,
     task::{self, SignalOnce},
     text::Text,
     units::*,
     var::ReadOnlyRcVar,
+    BoxedUiNode, UiNode,
 };
 
 pub use crate::app::view_process::{ImageDataFormat, ImagePpi};
+
+use super::RenderConfig;
 
 /// A custom proxy in [`Images`].
 ///
@@ -448,6 +451,9 @@ impl std::hash::Hasher for ImageHasher {
     }
 }
 
+// We don't use Rc<dyn ..> because of this issue: https://github.com/rust-lang/rust/issues/69757
+type RenderFn = Rc<Box<dyn Fn(&mut WindowContext) -> BoxedUiNode>>;
+
 /// The different sources of an image resource.
 #[derive(Clone)]
 pub enum ImageSource {
@@ -475,12 +481,32 @@ pub enum ImageSource {
     ///
     /// [`Images`]: super::Images
     Data(ImageHash, Arc<Vec<u8>>, ImageDataFormat),
+
+    /// A boxed closure that instantiates a boxed [`UiNode`] that draws the image.
+    ///
+    /// Use the [`render`](Self::render) function to construct this variant.
+    Render(RenderFn, RenderConfig),
+
     /// Already loaded image.
     ///
     /// The image is passed-through, not cached.
     Image(ImageVar),
 }
 impl ImageSource {
+    /// New image from a function that generates a new [`UiNode`].
+    ///
+    /// The function is called every time the image source is resolved and it is not found in the cache.
+    ///
+    /// See [`Images::render`] for more information.
+    pub fn render<I: UiNode, F: Fn(&mut WindowContext) -> I + 'static>(new_img: F) -> Self {
+        Self::Render(Rc::new(Box::new(move |ctx| new_img(ctx).boxed())), RenderConfig::default())
+    }
+
+    /// Render with custom [`RenderConfig`].
+    pub fn render_cfg<I: UiNode, F: Fn(&mut WindowContext) -> I + 'static>(new_img: F, config: impl Into<RenderConfig>) -> Self {
+        Self::Render(Rc::new(Box::new(move |ctx| new_img(ctx).boxed())), config.into())
+    }
+
     /// Returns the image hash, unless the source is [`Image`].
     ///
     /// [`Image`]: Self::Image
@@ -491,6 +517,7 @@ impl ImageSource {
             ImageSource::Download(u, a) => Some(Self::hash128_download(u, a)),
             ImageSource::Static(h, _, _) => Some(*h),
             ImageSource::Data(h, _, _) => Some(*h),
+            ImageSource::Render(rfn, cfg) => Some(Self::hash128_render(rfn, cfg)),
             ImageSource::Image(_) => None,
         }
     }
@@ -519,6 +546,20 @@ impl ImageSource {
         accept.hash(&mut h);
         h.finish()
     }
+
+    /// Compute hash for a borrowed [`Render`] source.
+    ///
+    /// Pointer equality is used to identify the node closure.
+    ///
+    /// [`Render`]: Self::Render
+    pub fn hash128_render(rfn: &RenderFn, cfg: &RenderConfig) -> ImageHash {
+        use std::hash::Hash;
+        let mut h = ImageHash::hasher();
+        2u8.hash(&mut h);
+        (Rc::as_ptr(rfn) as usize).hash(&mut h);
+        cfg.hash(&mut h);
+        h.finish()
+    }
 }
 impl PartialEq for ImageSource {
     fn eq(&self, other: &Self) -> bool {
@@ -526,6 +567,7 @@ impl PartialEq for ImageSource {
             (Self::Read(l), Self::Read(r)) => l == r,
             #[cfg(http)]
             (Self::Download(lu, la), Self::Download(ru, ra)) => lu == ru && la == ra,
+            (Self::Render(lf, lc), Self::Render(rf, rc)) => Rc::ptr_eq(lf, rf) && lc == rc,
             (Self::Image(l), Self::Image(r)) => l.ptr_eq(r),
             (l, r) => {
                 let l_hash = match l {
@@ -555,6 +597,7 @@ impl fmt::Debug for ImageSource {
             ImageSource::Download(u, a) => f.debug_tuple("Download").field(u).field(a).finish(),
             ImageSource::Static(key, _, fmt) => f.debug_tuple("Static").field(key).field(fmt).finish(),
             ImageSource::Data(key, _, fmt) => f.debug_tuple("Data").field(key).field(fmt).finish(),
+            ImageSource::Render(_, cfg) => write!(f, "Render(_, {cfg:?})"),
             ImageSource::Image(_) => write!(f, "Image(_)"),
         }
     }

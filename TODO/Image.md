@@ -1,7 +1,5 @@
 # Image TODO
 
-Image loading and rendering.
-
 ## Requirements
 
 * All web formats (jpeg, bmp+ico, gif, png, webp).

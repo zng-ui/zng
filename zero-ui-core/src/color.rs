@@ -74,6 +74,14 @@ impl PartialEq for Rgba {
             && about_eq(self.alpha, other.alpha, EPSILON)
     }
 }
+impl std::hash::Hash for Rgba {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        about_eq_hash(self.red, EPSILON, state);
+        about_eq_hash(self.green, EPSILON, state);
+        about_eq_hash(self.blue, EPSILON, state);
+        about_eq_hash(self.alpha, EPSILON, state);
+    }
+}
 impl Rgba {
     /// See [`rgba`] for a better constructor.
     pub fn new(red: f32, green: f32, blue: f32, alpha: f32) -> Self {
@@ -264,6 +272,14 @@ impl PartialEq for Hsla {
             && about_eq(self.alpha, other.alpha, EPSILON)
     }
 }
+impl std::hash::Hash for Hsla {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        about_eq_hash(self.hue, EPSILON_100, state);
+        about_eq_hash(self.saturation, EPSILON, state);
+        about_eq_hash(self.lightness, EPSILON, state);
+        about_eq_hash(self.alpha, EPSILON, state);
+    }
+}
 impl Hsla {
     /// Adds the `amount` to the [`lightness`](Self::lightness).
     ///
@@ -430,6 +446,14 @@ impl PartialEq for Hsva {
             && about_eq(self.saturation, other.saturation, EPSILON)
             && about_eq(self.value, other.value, EPSILON)
             && about_eq(self.alpha, other.alpha, EPSILON)
+    }
+}
+impl std::hash::Hash for Hsva {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        about_eq_hash(self.hue, EPSILON_100, state);
+        about_eq_hash(self.saturation, EPSILON, state);
+        about_eq_hash(self.value, EPSILON, state);
+        about_eq_hash(self.alpha, EPSILON, state);
     }
 }
 impl Hsva {

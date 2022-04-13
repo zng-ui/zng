@@ -100,6 +100,8 @@ use impl_length_comp_conversions;
 /// * [`INFINITY`](f32::INFINITY) values are equal.
 /// * [`NEG_INFINITY`](f32::NEG_INFINITY) values are equal.
 /// * Finite values are equal if the difference is less than `epsilon`.
+/// 
+/// See also [`about_eq_hash`].
 pub fn about_eq(a: f32, b: f32, epsilon: f32) -> bool {
     if a.is_nan() {
         b.is_nan()
@@ -108,6 +110,22 @@ pub fn about_eq(a: f32, b: f32, epsilon: f32) -> bool {
     } else {
         (a - b).abs() < epsilon
     }
+}
+
+/// [`f32`] hash compatible with [`about_eq`] equality.
+pub fn about_eq_hash<H: std::hash::Hasher>(f: f32, epsilon: f32, state: &mut H) {
+    let (group, f) = if f.is_nan() {
+        (0u8, 0u64)
+    } else if f.is_infinite() {
+        (1, if f.is_sign_positive() { 1 } else { 2 })
+    } else {
+        let inv_epsi = if epsilon > EPSILON_100 { 100000.0 } else { 100.0 };
+        (2, ((f as f64) * inv_epsi) as u64)
+    };
+
+    use std::hash::Hash;
+    group.hash(state);
+    f.hash(state);
 }
 
 #[cfg(test)]

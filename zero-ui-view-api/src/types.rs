@@ -1613,7 +1613,7 @@ impl WindowStateAll {
 }
 
 /// Render backend preference.
-#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub enum RenderMode {
     /// Prefer the *best* dedicated GPU, probably the best performance but most power consumption.
     ///

@@ -674,6 +674,11 @@ impl Images {
                 };
                 self.load_task(key, mode, limits.max_decoded_size, async { r })
             }
+            ImageSource::Render(rfn, cfg) => {
+                let img = self.new_cache_image(key, mode, limits.max_decoded_size);
+                self.render_image(clone_move!(rfn, |ctx| rfn(ctx)), cfg, &img);
+                img.into_read_only()
+            }
             ImageSource::Image(_) => unreachable!(),
         }
     }
@@ -707,17 +712,10 @@ impl Images {
         }
     }
 
-    /// The `fetch_bytes` future is polled in the UI thread, use `task::run` for futures that poll a lot.
-    fn load_task(
-        &mut self,
-        key: ImageHash,
-        mode: ImageCacheMode,
-        max_decoded_size: ByteLength,
-        fetch_bytes: impl Future<Output = ImageData> + 'static,
-    ) -> ImageVar {
+    fn new_cache_image(&mut self, key: ImageHash, mode: ImageCacheMode, max_decoded_size: ByteLength) -> RcVar<Image> {
         self.cleanup_not_cached(false);
 
-        let img = if let ImageCacheMode::Reload = mode {
+        if let ImageCacheMode::Reload = mode {
             self.cache
                 .entry(key)
                 .or_insert_with(|| CacheEntry {
@@ -742,10 +740,20 @@ impl Images {
                 },
             );
             img
-        };
+        }
+    }
+
+    /// The `fetch_bytes` future is polled in the UI thread, use `task::run` for futures that poll a lot.
+    fn load_task(
+        &mut self,
+        key: ImageHash,
+        mode: ImageCacheMode,
+        max_decoded_size: ByteLength,
+        fetch_bytes: impl Future<Output = ImageData> + 'static,
+    ) -> ImageVar {
+        let img = self.new_cache_image(key, mode, max_decoded_size);
 
         let task = UiTask::new(&self.updates, fetch_bytes);
-
         self.loading.push((task, img.clone(), max_decoded_size));
 
         img.into_read_only()

@@ -21,8 +21,20 @@ impl Images {
     /// for every new render of the node. If the `node` does not subscribe to anything, or the returned image is dropped the
     /// `node` is deinited and dropped.
     ///
+    /// The closure input is the [`WindowContext`] of the headless window used for rendering the node.
+    ///
     /// Requires the [`Windows`] service.
     pub fn render<U, N>(&mut self, node: N, config: RenderConfig) -> ImageVar
+    where
+        U: UiNode,
+        N: FnOnce(&mut WindowContext) -> U + 'static,
+    {
+        let result = var(Image::new_none(None));
+        self.render_image(node, config, &result);
+        result.into_read_only()
+    }
+
+    pub(super) fn render_image<U, N>(&mut self, node: N, config: RenderConfig, result: &RcVar<Image>)
     where
         U: UiNode,
         N: FnOnce(&mut WindowContext) -> U + 'static,
@@ -39,7 +51,6 @@ impl Images {
             }
         }
 
-        let result = var(Image::new_none(None));
         self.render.requests.push(RenderRequest {
             node: Box::new(move |ctx| {
                 ImageRenderNode {
@@ -53,8 +64,6 @@ impl Images {
         });
 
         let _ = self.updates.send_update(UpdateMask::none());
-
-        result.into_read_only()
     }
 }
 
@@ -156,7 +165,7 @@ struct RenderRequest {
 }
 
 /// Configuration for the [`Images::render`] operation.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Hash, PartialEq)]
 pub struct RenderConfig {
     /// Widget id for the root widget that hosts the rendering node.
     ///

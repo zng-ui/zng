@@ -1,3 +1,2 @@
-* Animation, see `Variables.md`
-
-* Finish `Optimizations.md#Cache Everything`
+* Animation, see `Variables.md`.
+* Finish `Optimizations.md#Cache Everything`.

@@ -1,7 +1,6 @@
 use std::{
     fmt,
     path::{Path, PathBuf},
-    rc::Rc,
     sync::Arc,
 };
 
@@ -325,11 +324,8 @@ bitflags! {
     }
 }
 
-// We don't use Rc<dyn ..> because of this issue: https://github.com/rust-lang/rust/issues/69757
-type RenderIcon = Rc<Box<dyn Fn(&mut WindowContext) -> BoxedUiNode>>;
-
 /// Window icon.
-#[derive(Clone)]
+#[derive(Clone, PartialEq)]
 pub enum WindowIcon {
     /// Operating system default icon.
     ///
@@ -339,10 +335,6 @@ pub enum WindowIcon {
     ///
     /// [`Images`]: crate::image::Images
     Image(ImageSource),
-    /// A boxed closure that instantiates a boxed [`UiNode`] that draws the icon.
-    ///
-    /// Use the [`render`](Self::render) function to construct this variant.
-    Render(RenderIcon),
 }
 impl fmt::Debug for WindowIcon {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -352,7 +344,6 @@ impl fmt::Debug for WindowIcon {
         match self {
             WindowIcon::Default => write!(f, "Default"),
             WindowIcon::Image(r) => write!(f, "Image({r:?})"),
-            WindowIcon::Render(_) => write!(f, "Render(_)"),
         }
     }
 }
@@ -371,7 +362,7 @@ impl WindowIcon {
     /// The icon node is updated like any other node and it can request a new render. Note that just
     /// because you can update the icon does not mean that animating it is a good idea.
     pub fn render<I: UiNode, F: Fn(&mut WindowContext) -> I + 'static>(new_icon: F) -> Self {
-        Self::Render(Rc::new(Box::new(move |ctx| new_icon(ctx).boxed())))
+        Self::Image(ImageSource::render(new_icon))
     }
 }
 #[cfg(http)]
@@ -444,16 +435,6 @@ impl_from_and_into_var! {
     /// From encoded data of known format.
     fn from<F: Into<ImageDataFormat> + Clone>((data, format): (Arc<Vec<u8>>, F)) -> WindowIcon {
         ImageSource::from((data, format)).into()
-    }
-}
-impl PartialEq for WindowIcon {
-    fn eq(&self, other: &Self) -> bool {
-        match (self, other) {
-            (Self::Image(l0), Self::Image(r0)) => l0 == r0,
-            (Self::Render(l0), Self::Render(r0)) => Rc::ptr_eq(l0, r0),
-            (Self::Default, Self::Default) => true,
-            _ => false,
-        }
     }
 }
 
