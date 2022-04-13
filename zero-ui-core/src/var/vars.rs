@@ -346,16 +346,21 @@ impl Vars {
             let elapsed = now - self.last_frame;
             if elapsed >= self.frame_duration {
                 self.last_frame = now;
-
                 animations.retain_mut(|a| a(self));
 
                 if !animations.is_empty() {
-                    return Some(now + self.frame_duration);
+                    // next frame
+                    Some(now + self.frame_duration)
+                } else {
+                    None
                 }
+            } else {
+                // same frame
+                Some(self.last_frame + self.frame_duration)
             }
+        } else {
+            None
         }
-
-        None
     }
 
     /// Returns the next animation frame, if there are any active animations.
