@@ -17,96 +17,94 @@ fn main() {
 
 fn app_main() {
     App::default().run_window(|_| {
-        let x = var_from(0);
-
-        use easing::EasingModifierFn::*;
-        let easing_mod = var(EaseIn);
-
         window! {
             title = "Animation Example";
-
-            min_size = (800, 550);
-            height = 550;
-
-            content_align = unset!;
             padding = 10;
-            content = h_stack(widgets![
-                v_stack! {
-                    id = "side-menu";
-                    margin = (34, 0, 0, 0);
-                    spacing = 2;
-                    button::theme::padding = 3;
-                    items = widgets![
-                        ease_btn(&x, "linear", easing::linear, &easing_mod),
-                        ease_btn(&x, "quad", easing::quad, &easing_mod),
-                        ease_btn(&x, "cubic", easing::cubic, &easing_mod),
-                        ease_btn(&x, "quart", easing::quart, &easing_mod),
-                        ease_btn(&x, "quint", easing::quint, &easing_mod),
-                        ease_btn(&x, "sine", easing::sine, &easing_mod),
-                        ease_btn(&x, "expo", easing::expo, &easing_mod),
-                        ease_btn(&x, "circ", easing::circ, &easing_mod),
-                        ease_btn(&x, "back", easing::back, &easing_mod),
-                        ease_btn(&x, "elastic", easing::elastic, &easing_mod),
-                        ease_btn(&x, "bounce", easing::bounce, &easing_mod),
-                        ease_btn(&x, "step_ceil", |t| easing::step_ceil(5, t), &easing_mod),
-                        ease_btn(&x, "step_floor", |t| easing::step_floor(5, t), &easing_mod),
-                        ease_btn(&x, "none", easing::none, &easing_mod),
-                        button! {
-                            content = text("reset");
-                            foreground_highlight = {
-                                offsets: -2,
-                                widths: 1,
-                                sides: colors::DARK_RED,
-                            };
-                            margin = (10, 0, 0, 0);
-                            on_click = hn!(x, |ctx, _| {
-                                x.set(ctx, 0);
-                            });
-                        },
-                    ]
-                },
-                v_stack(widgets![
-                    h_stack! {
-                        id = "top-menu";
-                        margin = (0, 0, 0, 5);
-                        spacing = 2;
-                        button::theme::padding = 3;
-                        items = widgets![
-                            easing_mod_btn(&easing_mod, EaseIn),
-                            easing_mod_btn(&easing_mod, EaseOut),
-                            easing_mod_btn(&easing_mod, EaseInOut),
-                        ]
-                    },
-                    container! {
-                        id = "demo-area";
-                        min_width = 500;
-                        content_align = Align::LEFT;
-                        margin = (200, 150);
-                        content = blank! {
-                            id = "ball";
-                            size = (40, 40);
-                            corner_radius = 20;
-                            background_color = colors::RED;
-
-                            x;
-                        };
-                        background = z_stack!{
-                            items_align = Align::LEFT;
-                            items = widgets![
-                                marker("0", 0),
-                                marker("50", 50),
-                                marker("100", 100),
-                                marker("150", 150),
-                                marker("200", 200),
-                                marker("250", 250),
-                                marker("300", 300),
-                            ]
-                        }
-                    }
-                ])
-            ]);
+            content = example();
         }
     })
+}
+
+fn example() -> impl Widget {
+    let x = var_from(0);
+
+    use easing::EasingModifierFn::*;
+    let easing_mod = var(EaseIn);
+
+    v_stack! {
+        spacing = 10;
+        items_align = Align::TOP;
+        items = widgets![
+            container! {
+                id = "demo-area";
+                width = 340;
+                margin = (0, 0, 40, 0);
+                content_align = Align::LEFT;
+                content = blank! {
+                    id = "ball";
+                    size = (40, 40);
+                    corner_radius = 20;
+                    background_color = colors::RED;
+
+                    x = x.clone();
+                };
+                background = z_stack!{
+                    items_align = Align::LEFT;
+                    items = widgets![
+                        marker("0", 0),
+                        marker("50", 50),
+                        marker("100", 100),
+                        marker("150", 150),
+                        marker("200", 200),
+                        marker("250", 250),
+                        marker("300", 300),
+                    ]
+                }
+            },
+            h_stack! {
+                id = "mod-menu";
+                spacing = 2;
+                items = widgets![
+                    easing_mod_btn(&easing_mod, EaseIn),
+                    easing_mod_btn(&easing_mod, EaseOut),
+                    easing_mod_btn(&easing_mod, EaseInOut),
+                ]
+            },
+            uniform_grid! {
+                id = "easing-menu";
+                spacing = 2;
+                columns = 7;
+                button::theme::padding = 3;
+                items = widgets![
+                    ease_btn(&x, "linear", easing::linear, &easing_mod),
+                    ease_btn(&x, "quad", easing::quad, &easing_mod),
+                    ease_btn(&x, "cubic", easing::cubic, &easing_mod),
+                    ease_btn(&x, "quart", easing::quart, &easing_mod),
+                    ease_btn(&x, "quint", easing::quint, &easing_mod),
+                    ease_btn(&x, "sine", easing::sine, &easing_mod),
+                    ease_btn(&x, "expo", easing::expo, &easing_mod),
+                    ease_btn(&x, "circ", easing::circ, &easing_mod),
+                    ease_btn(&x, "back", easing::back, &easing_mod),
+                    ease_btn(&x, "elastic", easing::elastic, &easing_mod),
+                    ease_btn(&x, "bounce", easing::bounce, &easing_mod),
+                    ease_btn(&x, "step_ceil", |t| easing::step_ceil(5, t), &easing_mod),
+                    ease_btn(&x, "step_floor", |t| easing::step_floor(5, t), &easing_mod),
+                    ease_btn(&x, "none", easing::none, &easing_mod),                    
+                ]
+            },
+            button! {
+                content = text("reset");
+                foreground_highlight = {
+                    offsets: -2,
+                    widths: 1,
+                    sides: colors::DARK_RED,
+                };
+                on_click = hn!(x, |ctx, _| {
+                    x.set(ctx, 0);
+                });
+            },    
+        ]
+    }
 }
 
 fn ease_btn(
@@ -116,7 +114,13 @@ fn ease_btn(
     easing_mod: &RcVar<easing::EasingModifierFn>,
 ) -> impl Widget {
     button! {
-        content = text(name.into());
+        content = v_stack! {
+            spacing = 2;
+            items = widgets![
+                text(name.into()),
+                image(plot(easing.clone(), (42, 42))),
+            ]
+        };
         on_click = hn!(l, easing_mod, |ctx, _| {
             let easing = easing_mod.get(ctx).modify_fn(easing.clone());
             l.set_ease(ctx, 0, 300, 1.secs(), easing);
@@ -147,22 +151,25 @@ fn marker(c: impl Into<Text>, x: impl Into<Length>) -> impl Widget {
     }
 }
 
-fn plot(easing: impl Fn(EasingTime) -> EasingStep, size: impl IntoVar<Size>) -> impl Widget {
-    let mut dots = widget_vec![];
-    for i in 0..100 {
-        let x = (i as f32 / 100.0).fct();
-        let y = easing(EasingTime::new(x));
-        dots.push(blank! {
-            position = (x, y);
-            size = (10, 10);
-            corner_radius = 5;
-            translate = -5, -5;
-            background_color = colors::WHITE;
-        })
-    }
-    z_stack! {
-        items_align = Align::TOP_LEFT;
-        items = dots;
-        size;
-    }
+fn plot(easing: impl Fn(EasingTime) -> EasingStep + 'static, size: impl Into<Size>) -> ImageSource {
+    let size = size.into();
+    ImageSource::render(move |_| {
+        let mut dots = widget_vec![];
+        for i in 0..100 {
+            let x = (i as f32 / 100.0).fct();
+            let y = easing(EasingTime::new(x));
+            dots.push(blank! {
+                position = (x, y);
+                size = (2, 2);
+                corner_radius = 1;
+                translate = -1, -1;
+                background_color = colors::WHITE;
+            })
+        }
+        z_stack! {
+            items_align = Align::TOP_LEFT;
+            items = dots;
+            size = size.clone();
+        }
+    })
 }
