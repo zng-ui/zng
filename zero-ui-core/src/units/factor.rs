@@ -754,7 +754,7 @@ impl EasingTime {
     #[inline]
     pub fn elapsed(duration: Duration, elapsed: Duration) -> Self {
         if elapsed < duration {
-            EasingTime(duration.as_secs_f32().fct() / elapsed.as_secs_f32().fct())
+            EasingTime(elapsed.as_secs_f32().fct() / duration.as_secs_f32().fct())
         } else {
             EasingTime(1.fct())
         }
