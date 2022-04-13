@@ -358,6 +358,15 @@ impl Vars {
         None
     }
 
+    /// Returns the next animation frame, if there are any active animations.
+    pub(crate) fn next_deadline(&self) -> Option<Instant> {
+        if self.animations.borrow().is_empty() {
+            None
+        } else {
+            Some(self.last_frame + self.frame_duration)
+        }
+    }
+
     /// Apply scheduled set/modify.
     ///
     /// Returns new app wake time if there are active animations.

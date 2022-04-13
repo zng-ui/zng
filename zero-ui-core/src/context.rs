@@ -90,10 +90,17 @@ impl OwnedAppContext {
         }
     }
 
-    /// Returns next timer tick time.
+    /// Returns next timer or animation tick time.
     #[must_use]
     pub fn next_deadline(&self) -> Option<Instant> {
-        self.timers.next_deadline(&self.vars)
+        let t = self.timers.next_deadline(&self.vars);
+        let v = self.vars.next_deadline();
+
+        match (t, v) {
+            (None, None) => None,
+            (None, Some(m)) | (Some(m), None) => Some(m),
+            (Some(t), Some(v)) => Some(t.min(v)),
+        }
     }
 
     /// Update timers and animations, returns next wake time.
