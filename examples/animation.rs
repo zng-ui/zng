@@ -29,7 +29,7 @@ fn example() -> impl Widget {
     let x = var_from(0);
 
     use easing::EasingModifierFn::*;
-    let easing_mod = var(EaseIn);
+    let easing_mod = var(EaseOut);
 
     v_stack! {
         spacing = 10;
@@ -113,13 +113,30 @@ fn ease_btn(
     easing: impl Fn(EasingTime) -> EasingStep + Clone + 'static,
     easing_mod: &RcVar<easing::EasingModifierFn>,
 ) -> impl Widget {
+    let in_plot = plot(easing.clone(), (42, 42));
+    let out_plot = plot(easing::ease_out_fn(easing.clone()), (42, 42));
+    let in_out_plot = plot(easing::ease_in_out_fn(easing.clone()), (42, 42));
+
+    use easing::EasingModifierFn::*;
+
     button! {
         content = v_stack! {
             spacing = 2;
             items_align = Align::TOP;
             items = widgets![
                 text(name.into()),
-                image(plot(easing.clone(), (42, 42))),
+                image! {
+                    loading_view = view_generator!(|_, _| {
+                        blank! {
+                            size = (42, 42);
+                        }
+                    });
+                    source = easing_mod.map(move |m| match m {
+                        EaseIn => in_plot.clone(),
+                        EaseOut => out_plot.clone(),
+                        EaseInOut => in_out_plot.clone(),
+                    });
+                },
             ]
         };
         on_click = hn!(l, easing_mod, |ctx, _| {
@@ -156,8 +173,8 @@ fn plot(easing: impl Fn(EasingTime) -> EasingStep + 'static, size: impl Into<Siz
     let size = size.into();
     ImageSource::render(clone_move!(size, |_| {
         let mut dots = widget_vec![];
-        for i in 0..100 {
-            let x_fct = (i as f32 / 100.0).fct();
+        for i in 0..60 {
+            let x_fct = (i as f32 / 60.0).fct();
             let x = size.width.clone() *  x_fct;
             let y = size.height.clone() * (1.fct() - easing(EasingTime::new(x_fct)));
             dots.push(blank! {
