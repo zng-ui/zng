@@ -71,6 +71,8 @@ fn app_main() {
                             },
                             sub_title("Render"),
                             image! {
+                                // scale_ppi = true;
+                                // size = (180, 120);
                                 source = ImageSource::render(|_| container! {
                                     size = (180, 120);
                                     background_gradient = Line::to_bottom_left(), stops![hex!(#34753a), 40.pct(), hex!(#597d81)];

@@ -44,7 +44,7 @@ fn example() -> impl Widget {
                     id = "ball";
                     size = (40, 40);
                     corner_radius = 20;
-                    background_color = colors::RED;
+                    background_color = colors::WHITE;
 
                     x = x.clone();
                 };
@@ -87,8 +87,8 @@ fn example() -> impl Widget {
                     ease_btn(&x, "back", easing::back, &easing_mod),
                     ease_btn(&x, "elastic", easing::elastic, &easing_mod),
                     ease_btn(&x, "bounce", easing::bounce, &easing_mod),
-                    ease_btn(&x, "step_ceil", |t| easing::step_ceil(5, t), &easing_mod),
-                    ease_btn(&x, "step_floor", |t| easing::step_floor(5, t), &easing_mod),
+                    ease_btn(&x, "step_ceil(6)", |t| easing::step_ceil(6, t), &easing_mod),
+                    ease_btn(&x, "step_floor(6)", |t| easing::step_floor(6, t), &easing_mod),
                     ease_btn(&x, "none", easing::none, &easing_mod),
                 ]
             },
@@ -158,13 +158,13 @@ fn plot(easing: impl Fn(EasingTime) -> EasingStep + 'static, size: impl Into<Siz
         let mut dots = widget_vec![];
         for i in 0..100 {
             let x_fct = (i as f32 / 100.0).fct();
-            let x = size.width.clone() * (1.fct() - x_fct);
-            let y = size.height.clone() * easing(EasingTime::new(x_fct));
+            let x = size.width.clone() *  x_fct;
+            let y = size.height.clone() * (1.fct() - easing(EasingTime::new(x_fct)));
             dots.push(blank! {
                 position = (x, y);
-                size = (2, 2);
+                size = (1, 1);
                 corner_radius = 1;
-                translate = -1, -1;
+                translate = -0.5, -0.5;
                 background_color = colors::WHITE;
             })
         }

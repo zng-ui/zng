@@ -56,21 +56,25 @@ pub fn quint(time: EasingTime) -> EasingStep {
 #[inline]
 pub fn sine(time: EasingTime) -> EasingStep {
     let f = time.fct().0;
-    (1.0 - (f * FRAC_PI_2 * (1.0 - f)).sin()).fct()
+    (1.0 - (f * FRAC_PI_2).cos()).fct()
 }
 
 /// Exponential transition. Very slow start, very fast end.
 #[inline]
 pub fn expo(time: EasingTime) -> EasingStep {
-    let f = time.fct().0;
-    ((10.0 * (f - 1.0)).powf(2.0)).fct()
+    let f = time.fct();
+    if f == 0.fct() {
+        0.fct()
+    } else {
+        2.0_f32.powf(10.0 * f.0 - 10.0).fct()
+    }
 }
 
 /// Cubic transition with slightly slowed start then [`cubic`].
 #[inline]
 pub fn circ(time: EasingTime) -> EasingStep {
     let f = time.fct().0;
-    (1.0 - (1.0 - f).sqrt()).fct()
+    (1.0 - (1.0 - f.powf(2.0)).sqrt()).fct()
 }
 
 /// Cubic transition that goes slightly negative to start and ends very fast.
@@ -85,17 +89,42 @@ pub fn back(time: EasingTime) -> EasingStep {
 /// Oscillating transition that grows in magnitude, goes negative twice.
 #[inline]
 pub fn elastic(time: EasingTime) -> EasingStep {
-    let f = time.fct().0;
-    let f2 = f * f;
-    (f2 * f2 * (f * PI * 4.5).sin()).fct()
+    let t = time.fct();
+
+    const C: f32 = TAU / 3.0;
+
+    if t == 0.fct() || t == 1.fct() {
+        t
+    } else {
+        let t = t.0;
+        let s = -2.0_f32.powf(10.0 * t - 10.0) * ((t * 10.0 - 10.75) * C).sin();
+        s.fct()
+    }
 }
 
 /// Oscillating transition that grows in magnitude, does not go negative, when the curve
 /// is about to to go negative sharply transitions to a new arc of larger magnitude.
 #[inline]
 pub fn bounce(time: EasingTime) -> EasingStep {
-    let f = time.fct().0;
-    ((6.0 * (f - 1.0)).powf(2.0) * (f * PI * 3.5).sin().abs()).fct()
+    const N: f32 = 7.5625;
+    const D: f32 = 2.75;
+
+    let mut t = 1.0 - time.fct().0;
+
+    let f = if t < 1.0 / D {
+        N * t * t
+    } else if t < 2.0 / D {
+        t -= 1.5 / D;
+        N * t * t + 0.75
+    } else if t < 2.5 / D {
+        t -= 2.5 / D;
+        N * t * t + 0.9375
+    } else {
+        t -= 2.625 / D;
+        N * t * t + 0.984375
+    };
+
+    (1.0 - f).fct()
 }
 
 /// X coordinate is time, Y coordinate is function advancement.
@@ -116,7 +145,7 @@ pub fn cubic_bezier(x1: f32, y1: f32, x2: f32, y2: f32, time: EasingTime) -> Eas
 pub fn step_ceil(steps: u32, time: EasingTime) -> EasingStep {
     let steps = steps as f32;
     let step = (steps * time.fct().0).ceil();
-    (1.0 / step).fct()
+    (step / steps).fct()
 }
 
 /// Jumps to the final value by a number of `steps`.
@@ -126,7 +155,7 @@ pub fn step_ceil(steps: u32, time: EasingTime) -> EasingStep {
 pub fn step_floor(steps: u32, time: EasingTime) -> EasingStep {
     let steps = steps as f32;
     let step = (steps * time.fct().0).floor();
-    (1.0 / step).fct()
+    (step / steps).fct()
 }
 
 /// Always `1.fct()`, that is, the completed transition.
