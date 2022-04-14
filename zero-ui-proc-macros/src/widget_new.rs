@@ -4,6 +4,7 @@ use proc_macro2::{Span, TokenStream, TokenTree};
 use quote::{quote, ToTokens};
 use syn::{
     braced,
+    ext::IdentExt,
     parse::{discouraged::Speculative, Parse, ParseStream},
     parse_quote, parse_quote_spanned,
     punctuated::Punctuated,
@@ -12,7 +13,9 @@ use syn::{
 };
 
 use crate::{
-    util::{self, parse_all, parse_outer_attrs, parse_punct_terminated2, tokens_to_ident_str, Attributes, ErrorRecoverable, Errors},
+    util::{
+        self, parse_all, parse_outer_attrs, parse_punct_terminated2, peek_any3, tokens_to_ident_str, Attributes, ErrorRecoverable, Errors,
+    },
     widget_0_attr::FnPriority,
 };
 
@@ -1144,12 +1147,7 @@ impl PropertyValue {
 }
 impl Parse for PropertyValue {
     fn parse(input: ParseStream) -> syn::Result<Self> {
-        if input.peek(Ident)
-            && input.peek2(Token![!])
-            && !input.peek3(token::Paren)
-            && !input.peek3(token::Brace)
-            && !input.peek3(token::Bracket)
-        {
+        if input.peek(Ident) && input.peek2(Token![!]) && (input.peek3(Token![;]) || input.peek3(Ident::peek_any) || !peek_any3(input)) {
             let r = PropertyValue::Special(input.parse().unwrap(), input.parse().unwrap());
             return Ok(r);
         }
@@ -1195,41 +1193,43 @@ impl Parse for PropertyValue {
 
         // only valid option left is a sequence of "{expr},", we want to parse
         // in a recoverable way, so first we take raw token trees until we find the
-        // end "`;` | EOF" or we find the start of a new property "(#[meta])* ident = " or we find
-        // the start of a when "when".
+        // end "`;` | EOF" or we find the start of a new property, when or remove item.
         let mut args_input = TokenStream::new();
         while !input.is_empty() && !input.peek(Token![;]) {
-            let lookahead = input.fork();
-            let has_attr = lookahead.peek(Token![#]) && lookahead.peek(token::Bracket);
-            if has_attr {
-                let _ = parse_outer_attrs(&lookahead, &mut Errors::default());
+            if peek_next_wgt_item(&input.fork()) {
+                break;
             }
-            if lookahead.peek(keyword::when) {
-                break; // found `when` keyword.
-            }
-            if lookahead.peek2(Token![=]) {
-                break; // found next property "ident = ".
-            }
-            let is_path = lookahead.peek2(Token![::]) && lookahead.parse::<Path>().is_ok();
-            if is_path && lookahead.peek(Token![=]) {
-                break; // found next property "a::path = "
-            }
-            if lookahead.peek(Ident) && lookahead.peek(token::Brace) {
-                let ident = lookahead.parse::<Ident>().unwrap();
-                if ident == "remove" {
-                    break; // remove { }
-                }
-            }
-            if !has_attr && is_path {
-                input.parse::<Path>().unwrap().to_tokens(&mut args_input);
-            } else {
-                input.parse::<TokenTree>().unwrap().to_tokens(&mut args_input);
-            }
+            input.parse::<TokenTree>().unwrap().to_tokens(&mut args_input);
         }
 
         let r = util::parse_punct_terminated2(args_input).map_err(|e| e.set_recoverable())?;
         Ok(PropertyValue::Unnamed(r))
     }
+}
+
+fn peek_next_wgt_item(lookahead: ParseStream) -> bool {
+    let has_attr = lookahead.peek(Token![#]) && lookahead.peek(token::Bracket);
+    if has_attr {
+        let _ = parse_outer_attrs(lookahead, &mut Errors::default());
+    }
+    if lookahead.peek(keyword::when) {
+        return true; // when ..
+    }
+    if lookahead.peek(Ident) {
+        if lookahead.peek2(Token![::]) {
+            let _ = lookahead.parse::<Path>();
+        } else {
+            let ident = lookahead.parse::<Ident>().unwrap();
+
+            if lookahead.peek(token::Brace) {
+                return ident == "remove"; // remove { .. }
+            }
+        }
+
+        return lookahead.peek(Token![=]) && !lookahead.peek(Token![==]);
+    }
+
+    false
 }
 
 /// When block in a widget instantiation or declaration.

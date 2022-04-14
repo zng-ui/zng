@@ -922,6 +922,25 @@ pub fn snake_case(camel: &str) -> String {
     r.to_lowercase()
 }
 
+/// Returns `true` if the stream has at least 3 more tokens.
+pub fn peek_any3(stream: ParseStream) -> bool {
+    let mut cursor = stream.cursor();
+
+    if let Some(group) = stream.cursor().group(Delimiter::None) {
+        cursor = group.0;
+    }
+
+    if let Some((_, cursor)) = cursor.token_tree() {
+        if let Some((_, cursor)) = cursor.token_tree() {
+            if let Some((_tt, _)) = cursor.token_tree() {
+                return true;
+            }
+        }
+    }
+
+    false
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

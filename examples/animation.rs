@@ -158,7 +158,7 @@ fn marker(x: i32) -> impl Widget {
         orientation = LineOrientation::Vertical;
         color = colors::WHITE.with_alpha(40.pct());
         x = x.dip();
-        height = (if x % 100 == 0 { 52 } else if x % 50 == 0 { 22 } else { 12 });
+        height = if x % 100 == 0 { 52 } else if x % 50 == 0 { 22 } else { 12 };
     }
 }
 

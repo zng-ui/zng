@@ -1,5 +1,3 @@
-* Fix property value if expression.
-
 * Default scale factor of rendered window icon like in image.
 
 * Fix easing functions and modifiers.
