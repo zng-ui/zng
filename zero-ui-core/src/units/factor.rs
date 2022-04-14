@@ -300,6 +300,88 @@ impl ops::Neg for Factor {
     }
 }
 
+macro_rules! impl_for_integer {
+    ($($T:ty,)+) => {$(
+        impl ops::Mul<Factor> for $T {
+            type Output = $T;
+        
+            fn mul(self, rhs: Factor) -> $T {
+                (self as f64 * rhs.0 as f64).round() as $T
+            }
+        }
+        impl ops::Div<Factor> for $T {
+            type Output = $T;
+        
+            fn div(self, rhs: Factor) -> $T {
+                (self as f64 / rhs.0 as f64).round() as $T
+            }
+        }
+        impl ops::MulAssign<Factor> for $T {
+            fn mul_assign(&mut self, rhs: Factor) {
+                *self = *self * rhs;
+            }
+        }
+        impl ops::DivAssign<Factor> for $T {
+            fn div_assign(&mut self, rhs: Factor) {
+                *self = *self / rhs;
+            }
+        }
+    )+}
+}
+impl_for_integer! {
+    u8, i8, u16, i16, u32, i32, u64, i64, usize, isize, u128, i128,
+}
+
+impl ops::Mul<Factor> for f32 {
+    type Output = f32;
+
+    fn mul(self, rhs: Factor) -> f32 {
+        self * rhs.0
+    }
+}
+impl ops::Div<Factor> for f32 {
+    type Output = f32;
+
+    fn div(self, rhs: Factor) -> f32 {
+        self / rhs.0
+    }
+}
+impl ops::MulAssign<Factor> for f32 {
+    fn mul_assign(&mut self, rhs: Factor) {
+        *self = *self * rhs;
+    }
+}
+impl ops::DivAssign<Factor> for f32 {
+    fn div_assign(&mut self, rhs: Factor) {
+        *self = *self / rhs;
+    }
+}
+
+impl ops::Mul<Factor> for f64 {
+    type Output = f64;
+
+    fn mul(self, rhs: Factor) -> f64 {
+        self * rhs.0 as f64
+    }
+}
+impl ops::Div<Factor> for f64 {
+    type Output = f64;
+
+    fn div(self, rhs: Factor) -> f64 {
+        self / rhs.0 as f64
+    }
+}
+impl ops::MulAssign<Factor> for f64 {
+    fn mul_assign(&mut self, rhs: Factor) {
+        *self = *self * rhs;
+    }
+}
+impl ops::DivAssign<Factor> for f64 {
+    fn div_assign(&mut self, rhs: Factor) {
+        *self = *self / rhs;
+    }
+}
+
 impl_from_and_into_var! {
     fn from(percent: FactorPercent) -> Factor {
         Factor(percent.0 / 100.0)

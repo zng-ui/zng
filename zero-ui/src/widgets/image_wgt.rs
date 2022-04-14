@@ -109,7 +109,7 @@ pub mod image {
         /// If the image desired size is scaled by PPI.
         ///
         /// The image desired size is its original size, after [`crop`], and it can be in pixels or scaled considering
-        /// the image PPi, monitor PPI and scale factor.
+        /// the image PPI, monitor PPI and scale factor.
         ///
         /// By default this is `false`, if `true` the image is scaled in a attempt to recreate the original physical dimensions, but it
         /// only works if the image and monitor PPI are set correctly. The monitor PPI can be set using the [`Monitors`] service.

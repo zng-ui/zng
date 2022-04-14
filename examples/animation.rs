@@ -113,9 +113,9 @@ fn ease_btn(
     easing: impl Fn(EasingTime) -> EasingStep + Clone + 'static,
     easing_mod: &RcVar<easing::EasingModifierFn>,
 ) -> impl Widget {
-    let in_plot = plot(easing.clone(), (42, 42));
-    let out_plot = plot(easing::ease_out_fn(easing.clone()), (42, 42));
-    let in_out_plot = plot(easing::ease_in_out_fn(easing.clone()), (42, 42));
+    let in_plot = plot(easing.clone());
+    let out_plot = plot(easing::ease_out_fn(easing.clone()));
+    let in_out_plot = plot(easing::ease_in_out_fn(easing.clone()));
 
     use easing::EasingModifierFn::*;
 
@@ -126,11 +126,7 @@ fn ease_btn(
             items = widgets![
                 text(name.into()),
                 image! {
-                    loading_view = view_generator!(|_, _| {
-                        blank! {
-                            size = (42, 42);
-                        }
-                    });
+                    scale_ppi = true;
                     source = easing_mod.map(move |m| match m {
                         EaseIn => in_plot.clone(),
                         EaseOut => out_plot.clone(),
@@ -169,18 +165,17 @@ fn marker(c: impl Into<Text>, x: impl Into<Length>) -> impl Widget {
     }
 }
 
-fn plot(easing: impl Fn(EasingTime) -> EasingStep + 'static, size: impl Into<Size>) -> ImageSource {
-    let size = size.into();
+fn plot(easing: impl Fn(EasingTime) -> EasingStep + 'static) -> ImageSource {
+    let size = (42, 42);
     ImageSource::render(clone_move!(size, |_| {
         let mut dots = widget_vec![];
         for i in 0..60 {
             let x_fct = (i as f32 / 60.0).fct();
-            let x = size.width.clone() *  x_fct;
-            let y = size.height.clone() * (1.fct() - easing(EasingTime::new(x_fct)));
+            let x = size.0 *  x_fct;
+            let y = size.1 * (1.fct() - easing(EasingTime::new(x_fct)));
             dots.push(blank! {
                 position = (x, y);
                 size = (1, 1);
-                corner_radius = 1;
                 translate = -0.5, -0.5;
                 background_color = colors::WHITE;
             })
@@ -188,8 +183,8 @@ fn plot(easing: impl Fn(EasingTime) -> EasingStep + 'static, size: impl Into<Siz
         z_stack! {
             items_align = Align::TOP_LEFT;
             items = dots;
-            size = size.clone();
-            margin = 2;
+            size;
+            margin = 10;
         }
     }))
 }

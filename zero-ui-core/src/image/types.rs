@@ -223,7 +223,7 @@ impl Image {
         s.width *= (dpi_x / screen_res) * ctx.scale_factor.0;
         s.height *= (dpi_y / screen_res) * ctx.scale_factor.0;
 
-        s
+        dbg!(s)
     }
 
     /// Reference the decoded pre-multiplied BGRA8 pixel buffer.
