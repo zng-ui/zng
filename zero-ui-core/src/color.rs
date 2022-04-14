@@ -2,7 +2,7 @@
 
 use crate::render::webrender_api::{self as wr, FilterOp};
 use crate::{context::LayoutMetrics, render::FrameBinding, units::*, var::impl_from_and_into_var};
-use std::fmt;
+use std::{fmt, ops};
 
 ///<span data-del-macro-root></span> Hexadecimal color literal.
 ///
@@ -244,6 +244,74 @@ impl fmt::Display for Rgba {
             let rgba = rgb << 8 | a;
             write!(f, "#{rgba:0>8X}")
         }
+    }
+}
+impl ops::Add<Self> for Rgba {
+    type Output = Self;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        Rgba {
+            red: self.red + rhs.red,
+            green: self.green + rhs.green,
+            blue: self.blue + rhs.blue,
+            alpha: self.alpha + rhs.alpha,
+        }
+    }
+}
+impl ops::AddAssign<Self> for Rgba {
+    fn add_assign(&mut self, rhs: Self) {
+        *self = *self + rhs;
+    }
+}
+impl ops::Sub<Self> for Rgba {
+    type Output = Self;
+
+    fn sub(self, rhs: Self) -> Self::Output {
+        Rgba {
+            red: self.red - rhs.red,
+            green: self.green - rhs.green,
+            blue: self.blue - rhs.blue,
+            alpha: self.alpha - rhs.alpha,
+        }
+    }
+}
+impl ops::SubAssign<Self> for Rgba {
+    fn sub_assign(&mut self, rhs: Self) {
+        *self = *self - rhs;
+    }
+}
+impl ops::Mul<Factor> for Rgba {
+    type Output = Self;
+
+    fn mul(self, rhs: Factor) -> Self::Output {
+        Rgba {
+            red: self.red * rhs,
+            green: self.green * rhs,
+            blue: self.blue * rhs,
+            alpha: self.alpha * rhs,
+        }
+    }
+}
+impl ops::MulAssign<Factor> for Rgba {
+    fn mul_assign(&mut self, rhs: Factor) {
+        *self = *self * rhs;
+    }
+}
+impl ops::Div<Factor> for Rgba {
+    type Output = Self;
+
+    fn div(self, rhs: Factor) -> Self::Output {
+        Rgba {
+            red: self.red / rhs,
+            green: self.green * rhs,
+            blue: self.blue * rhs,
+            alpha: self.alpha * rhs,
+        }
+    }
+}
+impl ops::DivAssign<Factor> for Rgba {
+    fn div_assign(&mut self, rhs: Factor) {
+        *self = *self / rhs;
     }
 }
 

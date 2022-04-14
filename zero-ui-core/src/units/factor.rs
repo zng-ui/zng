@@ -304,14 +304,14 @@ macro_rules! impl_for_integer {
     ($($T:ty,)+) => {$(
         impl ops::Mul<Factor> for $T {
             type Output = $T;
-        
+
             fn mul(self, rhs: Factor) -> $T {
                 (self as f64 * rhs.0 as f64).round() as $T
             }
         }
         impl ops::Div<Factor> for $T {
             type Output = $T;
-        
+
             fn div(self, rhs: Factor) -> $T {
                 (self as f64 / rhs.0 as f64).round() as $T
             }

@@ -97,7 +97,7 @@ pub fn elastic(time: EasingTime) -> EasingStep {
         t
     } else {
         let t = t.0;
-        let s = -2.0_f32.powf(10.0 * t - 10.0) * ((t * 10.0 - 10.75) * C).sin();
+        let s = -(2.0_f32.powf(10.0 * t - 10.0)) * ((t * 10.0 - 10.75) * C).sin();
         s.fct()
     }
 }
@@ -580,6 +580,16 @@ impl Animation {
     }
 }
 
+/// A type that can animated by a transition.
+///
+/// # Trait Alias
+///
+/// This trait is used like a type alias for traits and is
+/// already implemented for all types it applies to. To be transitionable a type must add and subtract to it self
+/// and be multipliable by [`Factor`].
+pub trait Transitionable: Clone + ops::Add<Self, Output = Self> + ops::Sub<Self, Output = Self> + ops::Mul<Factor, Output = Self> {}
+impl<T> Transitionable for T where T: Clone + ops::Add<T, Output = T> + ops::Sub<T, Output = T> + ops::Mul<Factor, Output = T> {}
+
 /// Represents a transition from one value to another that can be sampled using [`EasingStep`].
 #[derive(Clone, Debug)]
 pub struct Transition<T> {
@@ -588,7 +598,7 @@ pub struct Transition<T> {
 }
 impl<T> Transition<T>
 where
-    T: Clone + ops::Add<T, Output = T> + ops::Sub<T, Output = T> + ops::Mul<Factor, Output = T>,
+    T: Transitionable,
 {
     /// New transition.
     pub fn new(from: T, to: T) -> Self {
@@ -609,7 +619,7 @@ pub struct TransitionKeyed<T> {
 }
 impl<T> TransitionKeyed<T>
 where
-    T: Clone + ops::Add<T, Output = T> + ops::Sub<T, Output = T> + ops::Mul<Factor, Output = T>,
+    T: Transitionable,
 {
     /// New transition.
     ///
@@ -665,7 +675,7 @@ pub(super) fn default_var_ease<T>(
     easing: impl Fn(EasingTime) -> EasingStep + 'static,
     from_current: bool,
 ) where
-    T: VarValue + ops::Add<T, Output = T> + ops::Sub<T, Output = T> + ops::Mul<Factor, Output = T>,
+    T: VarValue + Transitionable,
 {
     let transition = Transition::new(from, to);
     let mut prev_step = if from_current { 0.fct() } else { 999.fct() };
@@ -691,7 +701,7 @@ pub(super) fn default_var_ease_ne<T>(
     easing: impl Fn(EasingTime) -> EasingStep + 'static,
     from_current: bool,
 ) where
-    T: PartialEq + VarValue + ops::Add<T, Output = T> + ops::Sub<T, Output = T> + ops::Mul<Factor, Output = T>,
+    T: PartialEq + VarValue + Transitionable,
 {
     let transition = Transition::new(from, to);
     let mut prev_step = if from_current { 0.fct() } else { 999.fct() };
@@ -716,7 +726,7 @@ pub(super) fn default_var_ease_keyed<T>(
     easing: impl Fn(EasingTime) -> EasingStep + 'static,
     from_current: bool,
 ) where
-    T: VarValue + ops::Add<T, Output = T> + ops::Sub<T, Output = T> + ops::Mul<Factor, Output = T>,
+    T: VarValue + ops::Add<T, Output = T> + Transitionable,
 {
     if let Some(transition) = TransitionKeyed::new(keys) {
         let mut prev_step = if from_current { 0.fct() } else { 999.fct() };
@@ -749,7 +759,7 @@ struct EasingVarData<T, V, F> {
 pub struct EasingVar<T, V, F>(Rc<EasingVarData<T, V, F>>);
 impl<T, V, F> EasingVar<T, V, F>
 where
-    T: VarValue + ops::Add<T, Output = T> + ops::Sub<T, Output = T> + ops::Mul<Factor, Output = T>,
+    T: VarValue + Transitionable,
     V: Var<T>,
     F: Fn(EasingTime) -> EasingStep + Clone + 'static,
 {
@@ -773,7 +783,7 @@ impl<T, V: Clone, F> Clone for EasingVar<T, V, F> {
 }
 impl<T, V, F> Var<T> for EasingVar<T, V, F>
 where
-    T: VarValue + ops::Add<T, Output = T> + ops::Sub<T, Output = T> + ops::Mul<Factor, Output = T>,
+    T: VarValue + Transitionable,
     V: Var<T>,
     F: Fn(EasingTime) -> EasingStep + Clone + 'static,
 {
@@ -931,7 +941,7 @@ where
 }
 impl<T, V, F> IntoVar<T> for EasingVar<T, V, F>
 where
-    T: VarValue + ops::Add<T, Output = T> + ops::Sub<T, Output = T> + ops::Mul<Factor, Output = T>,
+    T: VarValue + Transitionable,
     V: Var<T>,
     F: Fn(EasingTime) -> EasingStep + Clone + 'static,
 {

@@ -488,7 +488,7 @@ pub fn image_presenter() -> impl UiNode {
                     let img = var.get(ctx.vars);
                     let sppi = ctx.metrics.screen_ppi;
                     let (ippi_x, ippi_y) = img.ppi().unwrap_or((sppi, sppi));
-                    scale *= Factor2d::new(sppi / ippi_x, sppi/ ippi_y);
+                    scale *= Factor2d::new(sppi / ippi_x, sppi / ippi_y);
                 }
 
                 if *ImageScaleFactorVar::get(ctx) {

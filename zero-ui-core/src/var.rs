@@ -4,7 +4,7 @@ use std::{
     cell::Cell,
     convert::{TryFrom, TryInto},
     fmt,
-    ops::{self, Deref, DerefMut},
+    ops::{Deref, DerefMut},
     str::FromStr,
     time::Duration,
 };
@@ -609,7 +609,7 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + crate::private::Sealed + 'stati
         D: Into<Duration>,
         F: Fn(EasingTime) -> EasingStep + 'static,
 
-        T: ops::Add<T, Output = T> + ops::Sub<T, Output = T> + ops::Mul<EasingStep, Output = T>,
+        T: Transitionable,
     {
         vars.with_vars(|vars| {
             if self.is_read_only(vars) {
@@ -641,7 +641,7 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + crate::private::Sealed + 'stati
         D: Into<Duration>,
         F: Fn(EasingTime) -> EasingStep + 'static,
 
-        T: PartialEq + ops::Add<T, Output = T> + ops::Sub<T, Output = T> + ops::Mul<EasingStep, Output = T>,
+        T: PartialEq + Transitionable,
     {
         vars.with_vars(|vars| {
             if self.is_read_only(vars) {
@@ -670,7 +670,7 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + crate::private::Sealed + 'stati
         D: Into<Duration>,
         F: Fn(EasingTime) -> EasingStep + 'static,
 
-        T: ops::Add<T, Output = T> + ops::Sub<T, Output = T> + ops::Mul<EasingStep, Output = T>,
+        T: Transitionable,
     {
         vars.with_vars(|vars| {
             if self.is_read_only(vars) {
@@ -695,7 +695,7 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + crate::private::Sealed + 'stati
         D: Into<Duration>,
         F: Fn(EasingTime) -> EasingStep + 'static,
 
-        T: PartialEq + ops::Add<T, Output = T> + ops::Sub<T, Output = T> + ops::Mul<EasingStep, Output = T>,
+        T: PartialEq + Transitionable,
     {
         vars.with_vars(|vars| {
             if self.is_read_only(vars) {
@@ -725,7 +725,7 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + crate::private::Sealed + 'stati
         D: Into<Duration>,
         F: Fn(EasingTime) -> EasingStep + 'static,
 
-        T: ops::Add<T, Output = T> + ops::Sub<T, Output = T> + ops::Mul<EasingStep, Output = T>,
+        T: Transitionable,
     {
         vars.with_vars(|vars| {
             if self.is_read_only(vars) {
@@ -751,7 +751,7 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + crate::private::Sealed + 'stati
         D: Into<Duration>,
         F: Fn(EasingTime) -> EasingStep + 'static,
 
-        T: ops::Add<T, Output = T> + ops::Sub<T, Output = T> + ops::Mul<EasingStep, Output = T>,
+        T: Transitionable,
     {
         vars.with_vars(|vars| {
             if self.is_read_only(vars) {
@@ -776,7 +776,7 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + crate::private::Sealed + 'stati
         D: Into<Duration>,
         F: Fn(EasingTime) -> EasingStep + Clone + 'static,
 
-        T: ops::Add<T, Output = T> + ops::Sub<T, Output = T> + ops::Mul<EasingStep, Output = T>,
+        T: Transitionable,
     {
         easing::EasingVar::new(self, duration.into(), easing)
     }
@@ -1821,6 +1821,8 @@ macro_rules! impl_from_and_into_var {
 }
 #[doc(inline)]
 pub use crate::impl_from_and_into_var;
+
+use self::easing::Transitionable;
 
 #[doc(hidden)]
 #[macro_export]

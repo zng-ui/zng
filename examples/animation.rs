@@ -25,8 +25,12 @@ fn app_main() {
     })
 }
 
+const FROM_COLOR: Rgba = colors::RED;
+const TO_COLOR: Rgba = colors::GREEN;
+
 fn example() -> impl Widget {
-    let x = var_from(0);
+    let x = var(0.dip());
+    let color = var(FROM_COLOR);
 
     use easing::EasingModifierFn::*;
     let easing_mod = var(EaseOut);
@@ -44,21 +48,13 @@ fn example() -> impl Widget {
                     id = "ball";
                     size = (40, 40);
                     corner_radius = 20;
-                    background_color = colors::WHITE;
+                    background_color = color.clone();
 
-                    x = x.clone();
+                    x = x.map(|x| x.clone() - 20.dip());
                 };
-                background = z_stack!{
+                background = z_stack! {
                     items_align = Align::LEFT;
-                    items = widgets![
-                        marker("0", 0),
-                        marker("50", 50),
-                        marker("100", 100),
-                        marker("150", 150),
-                        marker("200", 200),
-                        marker("250", 250),
-                        marker("300", 300),
-                    ]
+                    items = (0..=300).step_by(10).map(|i| marker(i).boxed_widget()).collect::<WidgetVec>(),                    
                 }
             },
             h_stack! {
@@ -76,20 +72,20 @@ fn example() -> impl Widget {
                 columns = 7;
                 button::theme::padding = 3;
                 items = widgets![
-                    ease_btn(&x, "linear", easing::linear, &easing_mod),
-                    ease_btn(&x, "quad", easing::quad, &easing_mod),
-                    ease_btn(&x, "cubic", easing::cubic, &easing_mod),
-                    ease_btn(&x, "quart", easing::quart, &easing_mod),
-                    ease_btn(&x, "quint", easing::quint, &easing_mod),
-                    ease_btn(&x, "sine", easing::sine, &easing_mod),
-                    ease_btn(&x, "expo", easing::expo, &easing_mod),
-                    ease_btn(&x, "circ", easing::circ, &easing_mod),
-                    ease_btn(&x, "back", easing::back, &easing_mod),
-                    ease_btn(&x, "elastic", easing::elastic, &easing_mod),
-                    ease_btn(&x, "bounce", easing::bounce, &easing_mod),
-                    ease_btn(&x, "step_ceil(6)", |t| easing::step_ceil(6, t), &easing_mod),
-                    ease_btn(&x, "step_floor(6)", |t| easing::step_floor(6, t), &easing_mod),
-                    ease_btn(&x, "none", easing::none, &easing_mod),
+                    ease_btn(&x, &color, "linear", easing::linear, &easing_mod),
+                    ease_btn(&x, &color, "quad", easing::quad, &easing_mod),
+                    ease_btn(&x, &color, "cubic", easing::cubic, &easing_mod),
+                    ease_btn(&x, &color, "quart", easing::quart, &easing_mod),
+                    ease_btn(&x, &color, "quint", easing::quint, &easing_mod),
+                    ease_btn(&x, &color, "sine", easing::sine, &easing_mod),
+                    ease_btn(&x, &color, "expo", easing::expo, &easing_mod),
+                    ease_btn(&x, &color, "circ", easing::circ, &easing_mod),
+                    ease_btn(&x, &color, "back", easing::back, &easing_mod),
+                    ease_btn(&x, &color, "elastic", easing::elastic, &easing_mod),
+                    ease_btn(&x, &color, "bounce", easing::bounce, &easing_mod),
+                    ease_btn(&x, &color, "step_ceil(6)", |t| easing::step_ceil(6, t), &easing_mod),
+                    ease_btn(&x, &color, "step_floor(6)", |t| easing::step_floor(6, t), &easing_mod),
+                    ease_btn(&x, &color, "none", easing::none, &easing_mod),
                 ]
             },
             button! {
@@ -99,8 +95,9 @@ fn example() -> impl Widget {
                     widths: 1,
                     sides: colors::DARK_RED,
                 };
-                on_click = hn!(x, |ctx, _| {
+                on_click = hn!(x, color, |ctx, _| {
                     x.set(ctx, 0);
+                    color.set(ctx, FROM_COLOR);
                 });
             },
         ]
@@ -109,6 +106,7 @@ fn example() -> impl Widget {
 
 fn ease_btn(
     l: &RcVar<Length>,
+    color: &RcVar<Rgba>,
     name: impl Into<Text>,
     easing: impl Fn(EasingTime) -> EasingStep + Clone + 'static,
     easing_mod: &RcVar<easing::EasingModifierFn>,
@@ -135,9 +133,9 @@ fn ease_btn(
                 },
             ]
         };
-        on_click = hn!(l, easing_mod, |ctx, _| {
-            let easing = easing_mod.get(ctx).modify_fn(easing.clone());
-            l.set_ease(ctx, 0, 300, 1.secs(), easing);
+        on_click = hn!(l, color, easing_mod, |ctx, _| {
+            l.set_ease(ctx, 0, 300, 1.secs(), easing_mod.get(ctx).modify_fn(easing.clone()));
+            color.set_ease(ctx, FROM_COLOR, TO_COLOR, 1.secs(), easing_mod.get(ctx).modify_fn(easing.clone()));
         });
     }
 }
@@ -155,35 +153,58 @@ fn easing_mod_btn(easing_mod: &RcVar<easing::EasingModifierFn>, value: easing::E
     }
 }
 
-fn marker(c: impl Into<Text>, x: impl Into<Length>) -> impl Widget {
-    text! {
-        text = c.into();
-        color = colors::WHITE.with_alpha(30.pct());
-        font_size = 20;
-        font_weight = FontWeight::BOLD;
-        x = x.into();
+fn marker(x: i32) -> impl Widget {
+    rule_line! {
+        orientation = LineOrientation::Vertical;
+        color = colors::WHITE.with_alpha(40.pct());
+        x = x.dip();
+        height = (if x % 100 == 0 { 52 } else if x % 50 == 0 { 22 } else { 12 });
     }
 }
 
 fn plot(easing: impl Fn(EasingTime) -> EasingStep + 'static) -> ImageSource {
-    let size = (42, 42);
+    let size = (64, 64);
     ImageSource::render(clone_move!(size, |_| {
-        let mut dots = widget_vec![];
+        let mut items = widget_vec![];
+        let color_t = easing::Transition::new(FROM_COLOR, TO_COLOR);
         for i in 0..60 {
             let x_fct = (i as f32 / 60.0).fct();
-            let x = size.0 *  x_fct;
-            let y = size.1 * (1.fct() - easing(EasingTime::new(x_fct)));
-            dots.push(blank! {
+            let x = size.0 * x_fct;
+
+            let y_fct = easing(EasingTime::new(x_fct));
+            let y = size.1 * (1.fct() - y_fct);
+
+            items.push(blank! {
                 position = (x, y);
-                size = (1, 1);
-                translate = -0.5, -0.5;
-                background_color = colors::WHITE;
+                size = (3, 3);
+                corner_radius = 2;
+                translate = -1.5, -1.5;
+                background_color = color_t.sample(y_fct);
             })
         }
+
+        let meta_color = colors::WHITE.with_alpha(40.pct());
+
+        #[allow(clippy::precedence)]
+        items.push(text! {
+            text = "v";
+            font_size = 12;
+            font_style = FontStyle::Italic;
+            color = meta_color;
+            position = (-3.dip() - 100.pct(), -3.dip());
+        });
+        items.push(text! {
+            text = "t";
+            font_size = 12;
+            font_style = FontStyle::Italic;
+            color = meta_color;
+            position = (size.0.dip() - 100.pct() - 3.dip(), size.1 - 3);
+        });
         z_stack! {
             items_align = Align::TOP_LEFT;
-            items = dots;
+            items;
             size;
+            border = (0, 0, 1, 1), meta_color;
             margin = 10;
         }
     }))

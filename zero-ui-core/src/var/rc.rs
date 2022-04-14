@@ -6,7 +6,7 @@ use std::{
 use crate::crate_util::RunOnDrop;
 use crate::widget_info::UpdateSlot;
 
-use super::*;
+use super::{easing::Transitionable, *};
 
 /// A [`Var`] that is a [`Rc`] pointer to its value.
 pub struct RcVar<T: VarValue>(Rc<Data<T>>);
@@ -186,7 +186,7 @@ impl<T: VarValue> RcVar<T> {
         D: Into<Duration>,
         F: Fn(EasingTime) -> EasingStep + 'static,
 
-        T: ops::Add<T, Output = T> + ops::Sub<T, Output = T> + ops::Mul<EasingStep, Output = T>,
+        T: Transitionable,
     {
         let _ = <Self as Var<T>>::ease(self, vars, new_value, duration, easing);
     }
@@ -203,7 +203,7 @@ impl<T: VarValue> RcVar<T> {
         D: Into<Duration>,
         F: Fn(EasingTime) -> EasingStep + 'static,
 
-        T: PartialEq + ops::Add<T, Output = T> + ops::Sub<T, Output = T> + ops::Mul<EasingStep, Output = T>,
+        T: PartialEq + Transitionable,
     {
         let _ = <Self as Var<T>>::ease_ne(self, vars, new_value, duration, easing);
     }
@@ -220,7 +220,7 @@ impl<T: VarValue> RcVar<T> {
         D: Into<Duration>,
         F: Fn(EasingTime) -> EasingStep + 'static,
 
-        T: ops::Add<T, Output = T> + ops::Sub<T, Output = T> + ops::Mul<EasingStep, Output = T>,
+        T: Transitionable,
     {
         let _ = <Self as Var<T>>::set_ease(self, vars, new_value, then, duration, easing);
     }
@@ -238,7 +238,7 @@ impl<T: VarValue> RcVar<T> {
         D: Into<Duration>,
         F: Fn(EasingTime) -> EasingStep + 'static,
 
-        T: PartialEq + ops::Add<T, Output = T> + ops::Sub<T, Output = T> + ops::Mul<EasingStep, Output = T>,
+        T: PartialEq + Transitionable,
     {
         let _ = <Self as Var<T>>::set_ease_ne(self, vars, new_value, then, duration, easing);
     }
@@ -254,7 +254,7 @@ impl<T: VarValue> RcVar<T> {
         D: Into<Duration>,
         F: Fn(EasingTime) -> EasingStep + 'static,
 
-        T: ops::Add<T, Output = T> + ops::Sub<T, Output = T> + ops::Mul<EasingStep, Output = T>,
+        T: Transitionable,
     {
         let _ = <Self as Var<T>>::ease_keyed(self, vars, keys, duration, easing);
     }
@@ -269,7 +269,7 @@ impl<T: VarValue> RcVar<T> {
         D: Into<Duration>,
         F: Fn(EasingTime) -> EasingStep + 'static,
 
-        T: ops::Add<T, Output = T> + ops::Sub<T, Output = T> + ops::Mul<EasingStep, Output = T>,
+        T: Transitionable,
     {
         let _ = <Self as Var<T>>::set_ease_keyed(self, vars, keys, duration, easing);
     }
