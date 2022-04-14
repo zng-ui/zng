@@ -73,8 +73,8 @@ fn app_main() {
                             image! {
                                 source = ImageSource::render(|_| container! {
                                     size = (180, 120);
-                                    background_gradient = Line::to_bottom_right(), stops![colors::MIDNIGHT_BLUE, 50.pct(), colors::CRIMSON];
-                                    font_size = 28;
+                                    background_gradient = Line::to_bottom_left(), stops![hex!(#34753a), 40.pct(), hex!(#597d81)];
+                                    font_size = 24;
                                     content = text("Rendered!");
                                 })
                             }

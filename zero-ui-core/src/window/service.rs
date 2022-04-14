@@ -619,7 +619,14 @@ struct AppWindow {
 impl AppWindow {
     pub fn new(ctx: &mut AppContext, mode: WindowMode, new: Box<dyn FnOnce(&mut WindowContext) -> Window>) -> (Self, AppWindowInfo) {
         let id = WindowId::new_unique();
-        let vars = WindowVars::new(ctx.services.windows().default_render_mode);
+        let primary_scale_factor = ctx
+            .services
+            .monitors()
+            .primary_monitor(ctx.vars)
+            .map(|m| m.scale_factor().copy(ctx.vars))
+            .unwrap_or_else(|| 1.fct());
+
+        let vars = WindowVars::new(ctx.services.windows().default_render_mode, primary_scale_factor);
         let mut state = OwnedStateMap::new();
         state.set(WindowVarsKey, vars.clone());
         let (window, _) = ctx.window_context(id, mode, &mut state, new);
@@ -630,6 +637,10 @@ impl AppWindow {
             if !vars.state().get(ctx).is_fullscreen() {
                 vars.state().set(ctx, WindowState::Exclusive);
             }
+        }
+
+        if mode.is_headless() {
+            vars.0.scale_factor.set_ne(ctx, window.headless_monitor.scale_factor);
         }
 
         let root_id = window.id;

@@ -100,7 +100,7 @@ use impl_length_comp_conversions;
 /// * [`INFINITY`](f32::INFINITY) values are equal.
 /// * [`NEG_INFINITY`](f32::NEG_INFINITY) values are equal.
 /// * Finite values are equal if the difference is less than `epsilon`.
-/// 
+///
 /// See also [`about_eq_hash`].
 pub fn about_eq(a: f32, b: f32, epsilon: f32) -> bool {
     if a.is_nan() {

@@ -100,7 +100,7 @@ impl ImageManager {
                             false,
                             true,
                             req.config.render_mode,
-                            HeadlessMonitor::new_scale(req.config.scale_factor),
+                            HeadlessMonitor::new_scale(req.config.scale_factor.unwrap_or_else(|| 1.fct())),
                             (req.node)(ctx),
                         );
 
@@ -177,7 +177,9 @@ pub struct RenderConfig {
     pub size: Option<DipSize>,
 
     /// Scale factor used during rendering and as the density of the resulting image.
-    pub scale_factor: Factor,
+    ///
+    /// If `None` the parent widget can override, otherwise is `1`.
+    pub scale_factor: Option<Factor>,
 
     /// Render backend preference. Default is `Integrated`.
     pub render_mode: RenderMode,
@@ -192,7 +194,7 @@ impl Default for RenderConfig {
         Self {
             root_id: None,
             size: None,
-            scale_factor: 1.fct(),
+            scale_factor: None,
             render_mode: RenderMode::Integrated,
             clear_color: rgba(0, 0, 0, 0),
         }

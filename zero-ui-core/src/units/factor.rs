@@ -1,6 +1,6 @@
 use derive_more as dm;
 
-use super::{about_eq, Px, PxPoint, PxRect, PxSideOffsets, PxSize, PxVector, Size, EPSILON, EPSILON_100, about_eq_hash};
+use super::{about_eq, about_eq_hash, Px, PxPoint, PxRect, PxSideOffsets, PxSize, PxVector, Size, EPSILON, EPSILON_100};
 use crate::impl_from_and_into_var;
 use std::{fmt, ops, time::Duration};
 

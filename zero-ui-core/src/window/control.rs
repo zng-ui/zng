@@ -110,11 +110,17 @@ impl HeadedCtrl {
                     let monitors = ctx.services.monitors();
 
                     if self.monitor.is_none() {
-                        self.monitor = Some(query.select_fallback(ctx.vars, monitors));
+                        let monitor = query.select_fallback(ctx.vars, monitors);
+                        let scale_factor = monitor.scale_factor().copy(ctx);
+                        self.vars.0.scale_factor.set_ne(ctx, scale_factor);
+                        self.monitor = Some(monitor);
                     } else if let Some(new) = query.select(ctx.vars, monitors) {
                         let current = self.vars.0.actual_monitor.copy(ctx.vars);
                         if Some(new.id()) != current {
-                            todo!()
+                            let scale_factor = new.scale_factor().copy(ctx.vars);
+                            self.vars.0.scale_factor.set_ne(ctx.vars, scale_factor);
+                            self.vars.0.actual_monitor.set_ne(ctx.vars, new.id());
+                            self.monitor = Some(new.clone());
                         }
                     }
                 }
@@ -266,6 +272,9 @@ impl HeadedCtrl {
             }
 
             if let Some(m) = &self.monitor {
+                if let Some(fct) = m.scale_factor().copy_new(ctx) {
+                    self.vars.0.scale_factor.set_ne(ctx, fct);
+                }
                 if m.scale_factor().is_new(ctx) || m.size().is_new(ctx) || m.ppi().is_new(ctx) {
                     self.content.layout_requested = true;
                     ctx.updates.layout();
@@ -510,6 +519,7 @@ impl HeadedCtrl {
             self.vars.0.actual_position.set_ne(ctx, data.position);
             self.vars.0.actual_size.set_ne(ctx, data.size);
             self.vars.0.actual_monitor.set_ne(ctx, data.monitor);
+            self.vars.0.scale_factor.set_ne(ctx, scale_factor);
 
             self.state = Some(data.state);
 

@@ -4,7 +4,7 @@ use super::properties::{
     ImageAlignVar, ImageCacheVar, ImageCropVar, ImageErrorArgs, ImageErrorViewVar, ImageFit, ImageFitVar, ImageLimitsVar, ImageLoadingArgs,
     ImageLoadingViewVar, ImageOffsetVar, ImageRenderingVar, ImageScaleFactorVar, ImageScalePpiVar, ImageScaleVar,
 };
-use crate::core::image::*;
+use crate::core::{image::*, window::WindowVarsKey};
 
 use super::*;
 use std::fmt;
@@ -75,6 +75,7 @@ pub fn image_source(child: impl UiNode, source: impl IntoVar<ImageSource>) -> im
         child: C,
         image: ContextImage,
         source: S,
+        render_factor: Option<ReadOnlyRcVar<Factor>>,
     }
     impl<C: UiNode, S: Var<ImageSource>> UiNode for ImageSourceNode<C, S> {
         fn init(&mut self, ctx: &mut WidgetContext) {
@@ -84,7 +85,18 @@ pub fn image_source(child: impl UiNode, source: impl IntoVar<ImageSource>) -> im
                 ImageCacheMode::Ignore
             };
             let limits = ImageLimitsVar::get_clone(ctx);
-            self.image = ContextImage::Some(ctx.services.images().get(self.source.get_clone(ctx.vars), mode, limits));
+
+            let mut source = self.source.get_clone(ctx.vars);
+            if let ImageSource::Render(_, cfg) = &mut source {
+                if cfg.scale_factor.is_none() {
+                    // Render without scale_factor can be configured by us, set it to our own scale factor.
+                    let fct = ctx.window_state.req(WindowVarsKey).scale_factor();
+                    cfg.scale_factor = Some(fct.copy(ctx));
+                    self.render_factor = Some(fct);
+                }
+            }
+
+            self.image = ContextImage::Some(ctx.services.images().get(source, mode, limits));
             ctx.vars
                 .with_context_var(ContextImageVar, ContextVarData::map(ctx.vars, &self.source, &self.image), || {
                     self.child.init(ctx);
@@ -97,6 +109,7 @@ pub fn image_source(child: impl UiNode, source: impl IntoVar<ImageSource>) -> im
                     self.child.deinit(ctx);
                 });
             self.image = ContextImage::None;
+            self.render_factor = None;
         }
 
         fn event<A: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &A) {
@@ -107,15 +120,32 @@ pub fn image_source(child: impl UiNode, source: impl IntoVar<ImageSource>) -> im
         }
 
         fn update(&mut self, ctx: &mut WidgetContext) {
-            if let Some(s) = self.source.clone_new(ctx) {
+            if let Some(mut source) = self.source.clone_new(ctx) {
                 // source update:
+
+                if let ImageSource::Render(_, cfg) = &mut source {
+                    // update render factor.
+                    if cfg.scale_factor.is_none() {
+                        if let Some(fct) = &self.render_factor {
+                            cfg.scale_factor = Some(fct.copy(ctx));
+                        } else {
+                            let fct = ctx.window_state.req(WindowVarsKey).scale_factor();
+                            cfg.scale_factor = Some(fct.copy(ctx));
+                            self.render_factor = Some(fct);
+                            ctx.updates.subscriptions();
+                        }
+                    } else if self.render_factor.take().is_some() {
+                        ctx.updates.subscriptions();
+                    }
+                }
+
                 let mode = if *ImageCacheVar::get(ctx) {
                     ImageCacheMode::Cache
                 } else {
                     ImageCacheMode::Ignore
                 };
                 let limits = ImageLimitsVar::get_clone(ctx);
-                self.image = ContextImage::Some(ctx.services.images().get(s, mode, limits));
+                self.image = ContextImage::Some(ctx.services.images().get(source, mode, limits));
             } else if let Some(enabled) = ImageCacheVar::clone_new(ctx) {
                 // cache-mode update:
                 let images = ctx.services.images();
@@ -132,6 +162,23 @@ pub fn image_source(child: impl UiNode, source: impl IntoVar<ImageSource>) -> im
                         let limits = ImageLimitsVar::get_clone(ctx);
                         self.image = ContextImage::Some(ctx.services.images().get(source, ImageCacheMode::Cache, limits));
                     }
+                }
+            } else if let Some(fct) = &self.render_factor {
+                if let Some(fct) = fct.copy_new(ctx) {
+                    let mut source = self.source.get_clone(ctx);
+                    match &mut source {
+                        ImageSource::Render(_, cfg) => {
+                            cfg.scale_factor = Some(fct);
+                        }
+                        _ => unreachable!(),
+                    }
+                    let mode = if *ImageCacheVar::get(ctx) {
+                        ImageCacheMode::Cache
+                    } else {
+                        ImageCacheMode::Ignore
+                    };
+                    let limits = ImageLimitsVar::get_clone(ctx);
+                    self.image = ContextImage::Some(ctx.services.images().get(source, mode, limits));
                 }
             }
 
@@ -166,6 +213,10 @@ pub fn image_source(child: impl UiNode, source: impl IntoVar<ImageSource>) -> im
         }
 
         fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
+            if let Some(fct) = &self.render_factor {
+                subscriptions.var(ctx, fct);
+            }
+
             ctx.vars.with_context_var(
                 ContextImageVar,
                 ContextVarData::map_read(ctx.vars, &self.source, &self.image),
@@ -199,6 +250,7 @@ pub fn image_source(child: impl UiNode, source: impl IntoVar<ImageSource>) -> im
         child,
         image: ContextImage::None,
         source: source.into_var(),
+        render_factor: None,
     }
 }
 

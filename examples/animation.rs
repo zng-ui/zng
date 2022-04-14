@@ -36,7 +36,7 @@ fn example() -> impl Widget {
         items_align = Align::TOP;
         items = widgets![
             container! {
-                id = "demo-area";
+                id = "demo";
                 width = 340;
                 margin = (0, 0, 40, 0);
                 content_align = Align::LEFT;
@@ -89,7 +89,7 @@ fn example() -> impl Widget {
                     ease_btn(&x, "bounce", easing::bounce, &easing_mod),
                     ease_btn(&x, "step_ceil", |t| easing::step_ceil(5, t), &easing_mod),
                     ease_btn(&x, "step_floor", |t| easing::step_floor(5, t), &easing_mod),
-                    ease_btn(&x, "none", easing::none, &easing_mod),                    
+                    ease_btn(&x, "none", easing::none, &easing_mod),
                 ]
             },
             button! {
@@ -102,7 +102,7 @@ fn example() -> impl Widget {
                 on_click = hn!(x, |ctx, _| {
                     x.set(ctx, 0);
                 });
-            },    
+            },
         ]
     }
 }
@@ -116,6 +116,7 @@ fn ease_btn(
     button! {
         content = v_stack! {
             spacing = 2;
+            items_align = Align::TOP;
             items = widgets![
                 text(name.into()),
                 image(plot(easing.clone(), (42, 42))),
@@ -153,11 +154,12 @@ fn marker(c: impl Into<Text>, x: impl Into<Length>) -> impl Widget {
 
 fn plot(easing: impl Fn(EasingTime) -> EasingStep + 'static, size: impl Into<Size>) -> ImageSource {
     let size = size.into();
-    ImageSource::render(move |_| {
+    ImageSource::render(clone_move!(size, |_| {
         let mut dots = widget_vec![];
         for i in 0..100 {
-            let x = (i as f32 / 100.0).fct();
-            let y = easing(EasingTime::new(x));
+            let x_fct = (i as f32 / 100.0).fct();
+            let x = size.width.clone() * (1.fct() - x_fct);
+            let y = size.height.clone() * easing(EasingTime::new(x_fct));
             dots.push(blank! {
                 position = (x, y);
                 size = (2, 2);
@@ -170,6 +172,7 @@ fn plot(easing: impl Fn(EasingTime) -> EasingStep + 'static, size: impl Into<Siz
             items_align = Align::TOP_LEFT;
             items = dots;
             size = size.clone();
+            margin = 2;
         }
-    })
+    }))
 }

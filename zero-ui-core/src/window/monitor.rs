@@ -105,7 +105,7 @@ impl Monitors {
     /// Reference the monitor info.
     ///
     /// Returns `None` if the monitor was not found or the app is running in headless mode without renderer.
-    pub fn monitor(&mut self, monitor_id: MonitorId) -> Option<&MonitorInfo> {
+    pub fn monitor(&self, monitor_id: MonitorId) -> Option<&MonitorInfo> {
         self.monitors.get(&monitor_id)
     }
 
@@ -115,8 +115,13 @@ impl Monitors {
     /// of a entry can change TODO.
     ///
     /// Is empty if no monitor was found or the app is running in headless mode without renderer.
-    pub fn available_monitors(&mut self) -> impl Iterator<Item = &MonitorInfo> {
+    pub fn available_monitors(&self) -> impl Iterator<Item = &MonitorInfo> {
         self.monitors.values()
+    }
+
+    /// Gets the monitor info marked as primary.
+    pub fn primary_monitor<Vr: WithVarsRead>(&self, vars: &Vr) -> Option<&MonitorInfo> {
+        vars.with_vars_read(|vars| self.available_monitors().find(|m| m.is_primary().copy(vars)))
     }
 
     fn on_monitors_changed(&mut self, events: &mut Events, vars: &Vars, args: &RawMonitorsChangedArgs) {

@@ -498,6 +498,8 @@ impl ImageSource {
     /// The function is called every time the image source is resolved and it is not found in the cache.
     ///
     /// See [`Images::render`] for more information.
+    ///
+    /// [`Images::render`]: crate::image::Images::render
     pub fn render<I: UiNode, F: Fn(&mut WindowContext) -> I + 'static>(new_img: F) -> Self {
         Self::Render(Rc::new(Box::new(move |ctx| new_img(ctx).boxed())), RenderConfig::default())
     }

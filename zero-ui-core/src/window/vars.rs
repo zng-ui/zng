@@ -32,6 +32,8 @@ pub(super) struct WindowVarsData {
     pub(super) actual_monitor: RcVar<Option<MonitorId>>,
     pub(super) actual_size: RcVar<DipSize>,
 
+    pub(super) scale_factor: RcVar<Factor>,
+
     pub(super) restore_state: RcVar<WindowState>,
     pub(super) restore_rect: RcVar<DipRect>,
 
@@ -68,7 +70,7 @@ pub(super) struct WindowVarsData {
 /// [`Windows::vars`]: crate::window::Windows::vars
 pub struct WindowVars(pub(super) Rc<WindowVarsData>);
 impl WindowVars {
-    pub(super) fn new(default_render_mode: RenderMode) -> Self {
+    pub(super) fn new(default_render_mode: RenderMode, primary_scale_factor: Factor) -> Self {
         let vars = Rc::new(WindowVarsData {
             chrome: var(WindowChrome::Default),
             icon: var(WindowIcon::Default),
@@ -86,6 +88,8 @@ impl WindowVars {
             actual_position: var(DipPoint::zero()),
             actual_monitor: var(None),
             actual_size: var(DipSize::zero()),
+
+            scale_factor: var(primary_scale_factor),
 
             restore_state: var(WindowState::Normal),
             restore_rect: var(DipRect::new(
@@ -228,6 +232,12 @@ impl WindowVars {
     #[inline]
     pub fn actual_monitor(&self) -> ReadOnlyRcVar<Option<MonitorId>> {
         self.0.actual_monitor.clone().into_read_only()
+    }
+
+    /// Current scale factor of the current monitor hosting the window.
+    #[inline]
+    pub fn scale_factor(&self) -> ReadOnlyRcVar<Factor> {
+        self.0.scale_factor.clone().into_read_only()
     }
 
     /// Window actual position on the [monitor].
