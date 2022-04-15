@@ -145,7 +145,7 @@ fn plot(easing: impl Fn(EasingTime) -> EasingStep + 'static) -> ImageSource {
     ImageSource::render(clone_move!(size, |_| {
         let mut items = widget_vec![];
         let color_t = easing::Transition::new(FROM_COLOR, TO_COLOR);
-        for i in 0..60 {
+        for i in 0..=60 {
             let x_fct = (i as f32 / 60.0).fct();
             let x = size.0 * x_fct;
 

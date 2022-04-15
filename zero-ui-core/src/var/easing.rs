@@ -117,7 +117,7 @@ pub fn bounce(time: EasingTime) -> EasingStep {
         t -= 1.5 / D;
         N * t * t + 0.75
     } else if t < 2.5 / D {
-        t -= 2.5 / D;
+        t -= 2.25 / D;
         N * t * t + 0.9375
     } else {
         t -= 2.625 / D;
@@ -178,11 +178,12 @@ pub fn ease_out(ease_fn: impl Fn(EasingTime) -> EasingStep, time: EasingTime) ->
 
 /// Applies `ease_in` for the first half then [`ease_out`] scaled to fit a single duration (1.0).
 pub fn ease_in_out(ease_fn: impl Fn(EasingTime) -> EasingStep, time: EasingTime) -> EasingStep {
-    let in_step = ease_in(&ease_fn, time);
-    let out_step = ease_out(ease_fn, time);
-
     let t = time.fct();
-    in_step * (1.fct() - t) + out_step * t
+    if t <= 0.5.fct() {
+        ease_in(&ease_fn, EasingTime::new(t * 2.fct())) / 2.fct()
+    } else {
+        ease_out(ease_fn, EasingTime::new((t - 0.5.fct()) * 2.fct())) / 2.fct() + 0.5.fct()
+    }
 }
 
 /// Returns `ease_fn`.
