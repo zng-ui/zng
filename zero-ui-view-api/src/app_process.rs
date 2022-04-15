@@ -33,6 +33,7 @@ pub(crate) const MODE_VAR: &str = "ZERO_UI_WR_MODE";
 #[cfg_attr(not(feature = "ipc"), allow(unused))]
 pub struct Controller {
     process: Option<DuctHandle>,
+    online: bool,
     generation: ViewProcessGen,
     view_process_exe: PathBuf,
     request_sender: ipc::RequestSender,
@@ -88,6 +89,7 @@ impl Controller {
 
         let mut c = Controller {
             same_process: process.is_none(),
+            online: false,
             process,
             view_process_exe,
             request_sender,
@@ -112,6 +114,11 @@ impl Controller {
         }
         self.startup(self.generation, self.device_events, self.headless)?;
         Ok(())
+    }
+
+    /// View-process is connected and ready to respond.
+    pub fn online(&self) -> bool {
+        self.online
     }
 
     /// View-process generation.
@@ -217,6 +224,13 @@ impl Controller {
         Ok((process, req, rsp, ev))
     }
 
+    /// Handle an [`Event::Inited`].
+    /// 
+    /// Set the online flag.
+    pub fn handle_inited(&mut self) {
+        self.online = true;
+    }
+
     /// Handle an [`Event::Disconnected`].
     ///
     /// The `gen` parameter is the generation provided by the event. It is used to determinate if the disconnect has
@@ -267,6 +281,8 @@ impl Controller {
     }
     #[cfg(feature = "ipc")]
     fn respawn_impl(&mut self, is_crash: bool) {
+        self.online = false;
+
         let process = if let Some(p) = self.process.take() {
             p
         } else {

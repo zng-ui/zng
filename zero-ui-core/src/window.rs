@@ -19,7 +19,6 @@ use crate::{
     app::{
         self,
         raw_events::{RawWindowFocusArgs, RawWindowFocusEvent},
-        view_process::ViewProcess,
         AppExtended, AppExtension, ControlFlow, HeadlessApp,
     },
     context::{AppContext, WindowContext},
@@ -51,8 +50,7 @@ use crate::{
 pub struct WindowManager {}
 impl AppExtension for WindowManager {
     fn init(&mut self, ctx: &mut AppContext) {
-        let monitors = Monitors::new(ctx.services.get::<ViewProcess>());
-        ctx.services.register(monitors);
+        ctx.services.register(Monitors::new());
         ctx.services.register(Windows::new(ctx.updates.sender()));
     }
 

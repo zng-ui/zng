@@ -756,6 +756,12 @@ impl WindowChanged {
 /// System/User events sent from the View Process.
 #[derive(Debug, Serialize, Deserialize)]
 pub enum Event {
+    /// View process is online.
+    Inited {
+        /// Available monitors.
+        available_monitors: Vec<(MonitorId, MonitorInfo)>,
+    },
+
     /// The view-process crashed and respawned, all resources must be rebuild.
     ///
     /// The [`ViewProcessGen`] is the new generation, after the respawn.

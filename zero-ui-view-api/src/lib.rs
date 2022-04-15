@@ -261,9 +261,6 @@ declare_api! {
     /// Called once after shutdown, if running in a managed external process it will be killed after this call.
     fn exit(&mut self);
 
-    /// Returns all available monitors.
-    pub fn available_monitors(&mut self) -> Vec<(MonitorId, MonitorInfo)>;
-
     /// Open a window.
     ///
     /// Returns the renderer ids.

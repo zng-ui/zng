@@ -23,6 +23,9 @@ use crate::{
     window::{WindowId, WindowManager},
 };
 
+use self::view_process::{
+    ViewProcess, ViewProcessExt, ViewProcessInitedArgs, ViewProcessInitedEvent, ViewProcessRespawnedArgs, ViewProcessRespawnedEvent,
+};
 use once_cell::sync::Lazy;
 use std::future::Future;
 use std::mem;
@@ -34,7 +37,6 @@ use std::{
     fmt,
     time::Instant,
 };
-use view_process::{ViewProcess, ViewProcessExt, ViewProcessRespawnedArgs, ViewProcessRespawnedEvent};
 
 /// Error when the app connected to a sender/receiver channel has shutdown.
 ///
@@ -1263,8 +1265,8 @@ impl<E: AppExtension> RunningApp<E> {
                 self.notify_event(TextEvent, args, observer);
             }
 
-            // Other
-            Event::Respawned(_) | Event::Disconnected(_) | Event::FrameRendered(_) => unreachable!(), // handled before coalesce.
+            // Others
+            Event::Inited { .. } | Event::Respawned(_) | Event::Disconnected(_) | Event::FrameRendered(_) => unreachable!(), // handled before coalesce.
         }
     }
 
@@ -1317,6 +1319,15 @@ impl<E: AppExtension> RunningApp<E> {
                     }
 
                     self.pending_view_frame_events.push(ev);
+                }
+                zero_ui_view_api::Event::Inited { available_monitors } => {
+                    // notify immediately.
+                    let view = self.ctx().services.req::<ViewProcess>();
+                    view.handle_inited();
+
+                    let monitors: Vec<_> = available_monitors.into_iter().map(|(id, info)| (view.monitor_id(id), info)).collect();
+                    let args = ViewProcessInitedArgs::now(monitors);
+                    self.notify_event(ViewProcessInitedEvent, args, observer);
                 }
                 zero_ui_view_api::Event::Respawned(g) => {
                     // update ViewProcess immediately.

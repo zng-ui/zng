@@ -4,6 +4,7 @@ use linear_map::LinearMap;
 use zero_ui_view_api::Respawned;
 
 use super::*;
+use crate::app::view_process::{ViewProcess, ViewProcessInitedEvent};
 use crate::context::OwnedStateMap;
 use crate::event::EventUpdateArgs;
 use crate::image::{Image, ImageVar};
@@ -351,6 +352,9 @@ impl Windows {
                 let args = WindowCloseArgs::new(args.timestamp, args.window_id);
                 WindowCloseEvent.notify(ctx, args);
             }
+        } else if ViewProcessInitedEvent.update(args).is_some() {
+            // we skipped request fulfillment until this event.
+            ctx.updates.update_ext();
         }
 
         Self::with_detached_windows(ctx, |ctx, windows| {
@@ -476,6 +480,13 @@ impl Windows {
     }
 
     fn fullfill_requests(ctx: &mut AppContext) {
+        if let Some(vp) = ctx.services.get::<ViewProcess>() {
+            if !vp.online() {
+                // wait ViewProcessInitedEvent
+                return;
+            }
+        }
+
         let (open, close) = {
             let wns = ctx.services.windows();
             wns.take_requests()

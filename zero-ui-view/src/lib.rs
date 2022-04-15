@@ -466,7 +466,7 @@ impl App<()> {
             } else {
                 use glutin::event::Event as GEvent;
                 match event {
-                    GEvent::NewEvents(_) => {}
+                    GEvent::NewEvents(_) => { }
                     GEvent::WindowEvent { window_id, event } => {
                         #[cfg(windows)]
                         if window_id != config_listener.id() {
@@ -1084,6 +1084,27 @@ impl<S: AppEventSender> App<S> {
             id
         }
     }
+
+    fn available_monitors(&mut self) -> Vec<(MonitorId, MonitorInfo)> {
+        let _span = tracing::trace_span!("available_monitors").entered();
+
+        self.assert_started();
+
+        let window_target = unsafe { &*self.window_target };
+
+        let primary = window_target.primary_monitor();
+
+        window_target
+            .available_monitors()
+            .map(|m| {
+                let id = self.monitor_id(&m);
+                let is_primary = primary.as_ref().map(|h| h == &m).unwrap_or(false);
+                let mut info = util::monitor_handle_to_info(&m);
+                info.is_primary = is_primary;
+                (id, info)
+            })
+            .collect()
+    }
 }
 macro_rules! with_window_or_surface {
     ($self:ident, $id:ident, |$el:ident|$action:expr, ||$fallback:expr) => {
@@ -1119,31 +1140,15 @@ impl<S: AppEventSender> Api for App<S> {
         if !self.device_events {
             util::unregister_raw_input();
         }
+
+        let available_monitors = self.available_monitors();
+        self.notify(Event::Inited { available_monitors });
     }
 
     fn exit(&mut self) {
         self.assert_started();
         self.started = false;
         self.exited = true;
-    }
-
-    fn available_monitors(&mut self) -> Vec<(MonitorId, MonitorInfo)> {
-        self.assert_started();
-
-        let window_target = unsafe { &*self.window_target };
-
-        let primary = window_target.primary_monitor();
-
-        window_target
-            .available_monitors()
-            .map(|m| {
-                let id = self.monitor_id(&m);
-                let is_primary = primary.as_ref().map(|h| h == &m).unwrap_or(false);
-                let mut info = util::monitor_handle_to_info(&m);
-                info.is_primary = is_primary;
-                (id, info)
-            })
-            .collect()
     }
 
     fn open_window(&mut self, mut config: WindowRequest) -> WindowOpenData {

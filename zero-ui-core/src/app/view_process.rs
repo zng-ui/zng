@@ -97,6 +97,12 @@ impl ViewProcess {
         })))
     }
 
+    /// View-process connected and ready to respond.
+    #[inline]
+    pub fn online(&self) -> bool {
+        self.0.borrow().process.online()
+    }
+ 
     /// If is running in headless renderer mode.
     #[inline]
     pub fn headless(&self) -> bool {
@@ -176,13 +182,6 @@ impl ViewProcess {
     #[inline]
     pub fn key_repeat_delay(&self) -> Result<Duration> {
         self.0.borrow_mut().process.key_repeat_delay()
-    }
-
-    /// Returns all available monitors.
-    #[inline]
-    pub fn available_monitors(&self) -> Result<Vec<(MonitorId, MonitorInfo)>> {
-        let m = self.0.borrow_mut().process.available_monitors()?;
-        Ok(m.into_iter().map(|(id, m)| (self.monitor_id(id), m)).collect())
     }
 
     /// Translate `DevId` to `DeviceId`, generates a device id if it was unknown.
@@ -418,6 +417,10 @@ impl ViewProcess {
             }
             !done
         })
+    }
+
+    pub(super) fn handle_inited(&self) {
+        self.0.borrow_mut().process.handle_inited();
     }
 
     pub(super) fn on_respawed(&self, _gen: ViewProcessGen) {
@@ -1143,6 +1146,19 @@ impl ViewRenderer {
 }
 
 event_args! {
+    /// Arguments for the [`ViewProcessInitedEvent`].
+    pub struct ViewProcessInitedArgs {
+        /// Up-to-date monitors list.
+        pub available_monitors: Vec<(MonitorId, MonitorInfo)>,
+
+        ..
+
+        /// Concerns all widgets.
+        fn concerns_widget(&self, _ctx: &mut WidgetContext) -> bool {
+            true
+        }
+    }
+
     /// Arguments for the [`ViewProcessRespawnedEvent`].
     pub struct ViewProcessRespawnedArgs {
         /// New view-process generation
@@ -1159,6 +1175,9 @@ event_args! {
 }
 
 event! {
+    /// View Process finished initializing and is now online.
+    pub ViewProcessInitedEvent: ViewProcessInitedArgs;
+
     /// View Process crashed and respawned, resources may need to be rebuild.
     ///
     /// This event fires if the view-process crashed and was successfully

@@ -6,7 +6,7 @@ use super::VideoMode;
 use crate::{
     app::{
         raw_events::{RawMonitorsChangedArgs, RawMonitorsChangedEvent, RawScaleFactorChangedEvent},
-        view_process::{ViewProcess, ViewProcessRespawnedEvent},
+        view_process::ViewProcessInitedEvent,
     },
     context::AppContext,
     event::{event, EventUpdateArgs, Events},
@@ -93,14 +93,8 @@ impl Monitors {
     /// Initial PPI of monitors, `96.0`.
     pub const DEFAULT_PPI: f32 = 96.0;
 
-    pub(super) fn new(view: Option<&mut ViewProcess>) -> Self {
-        let _span = tracing::trace_span!("Monitors::new").entered();
-        Monitors {
-            monitors: view
-                .and_then(|v| v.available_monitors().ok())
-                .map(|ms| ms.into_iter().map(|(id, info)| (id, MonitorInfo::from_view(id, info))).collect())
-                .unwrap_or_default(),
-        }
+    pub(super) fn new() -> Self {
+        Monitors { monitors: LinearMap::new() }
     }
 
     /// Reference the monitor info.
@@ -161,13 +155,8 @@ impl Monitors {
             }
         } else if let Some(args) = RawMonitorsChangedEvent.update(args) {
             ctx.services.monitors().on_monitors_changed(ctx.events, ctx.vars, args);
-        } else if let Some(args) = ViewProcessRespawnedEvent.update(args) {
-            let monitors = ctx
-                .services
-                .get::<ViewProcess>()
-                .and_then(|vp| vp.available_monitors().ok())
-                .unwrap_or_default();
-            let args = RawMonitorsChangedArgs::new(args.timestamp, monitors);
+        } else if let Some(args) = ViewProcessInitedEvent.update(args) {
+            let args = RawMonitorsChangedArgs::new(args.timestamp, args.available_monitors.clone());
             ctx.services.monitors().on_monitors_changed(ctx.events, ctx.vars, &args);
         }
     }
