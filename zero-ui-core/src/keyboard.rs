@@ -6,12 +6,13 @@
 
 use std::time::{Duration, Instant};
 
-use crate::app::view_process::{ViewProcess, ViewProcessRespawnedEvent};
+use crate::app::view_process::{ViewProcessInitedEvent, ViewProcessRespawnedEvent};
 use crate::app::{raw_events::*, *};
 use crate::context::*;
 use crate::event::*;
 use crate::focus::FocusExt;
 use crate::service::*;
+use crate::units::TimeUnits;
 use crate::var::{var, RcVar, ReadOnlyRcVar, Var, Vars};
 use crate::widget_info::WidgetPath;
 use crate::window::WindowId;
@@ -148,7 +149,7 @@ event! {
 pub struct KeyboardManager;
 impl AppExtension for KeyboardManager {
     fn init(&mut self, r: &mut AppContext) {
-        let kb = Keyboard::new(r.services.get::<ViewProcess>());
+        let kb = Keyboard::new();
         r.services.register(kb);
     }
 
@@ -171,19 +172,15 @@ impl AppExtension for KeyboardManager {
             let kb = ctx.services.keyboard();
             kb.repeat_delay.set_ne(ctx.vars, args.delay);
             kb.last_key_down = None;
+        } else if let Some(args) = ViewProcessInitedEvent.update(args) {
+            let kb = ctx.services.keyboard();
+            kb.repeat_delay.set_ne(ctx.vars, args.key_repeat_delay);
         } else if ViewProcessRespawnedEvent.update(args).is_some() {
-            let repeat_delay = ctx
-                .services
-                .get::<ViewProcess>()
-                .and_then(|vp| vp.key_repeat_delay().ok())
-                .unwrap_or_else(|| Duration::from_millis(600));
-
             let kb = ctx.services.keyboard();
 
             kb.modifiers.set_ne(ctx.vars, ModifiersState::empty());
             kb.codes.set_ne(ctx.vars, vec![]);
             kb.keys.set_ne(ctx.vars, vec![]);
-            kb.repeat_delay.set_ne(ctx.vars, repeat_delay);
 
             kb.last_key_down = None;
         }
@@ -208,15 +205,13 @@ pub struct Keyboard {
     last_key_down: Option<(DeviceId, ScanCode, Instant)>,
 }
 impl Keyboard {
-    fn new(vp: Option<&mut ViewProcess>) -> Self {
+    fn new() -> Self {
         Keyboard {
             current_modifiers: ModifiersState::empty(),
             modifiers: var(ModifiersState::empty()),
             codes: var(vec![]),
             keys: var(vec![]),
-            repeat_delay: var(vp
-                .and_then(|vp| vp.key_repeat_delay().ok())
-                .unwrap_or_else(|| Duration::from_millis(600))),
+            repeat_delay: var(600.ms()),
             last_key_down: None,
         }
     }

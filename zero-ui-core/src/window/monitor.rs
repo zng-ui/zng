@@ -94,7 +94,9 @@ impl Monitors {
     pub const DEFAULT_PPI: f32 = 96.0;
 
     pub(super) fn new() -> Self {
-        Monitors { monitors: LinearMap::new() }
+        Monitors {
+            monitors: LinearMap::new(),
+        }
     }
 
     /// Reference the monitor info.

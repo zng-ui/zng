@@ -5,7 +5,7 @@
 use crate::{
     app::{
         raw_events::*,
-        view_process::{ViewProcess, ViewProcessRespawnedEvent},
+        view_process::{ViewProcessInitedEvent, ViewProcessRespawnedEvent},
         *,
     },
     context::*,
@@ -524,7 +524,7 @@ impl MouseWheelArgs {
 
     /// Returns the delta for a scrolling operation, depending on the [`modifiers`].
     ///
-    /// If `ALT` is pressed scales the delta by `alt_factor`, then, if no more modifers are pressed returns
+    /// If `ALT` is pressed scales the delta by `alt_factor`, then, if no more modifiers are pressed returns
     /// the scaled delta, if only `SHIFT` is pressed returns the swapped delta, otherwise returns `None`.
     ///
     /// [`modifiers`]: Self::modifiers
@@ -1009,9 +1009,6 @@ impl MouseManager {
 }
 impl AppExtension for MouseManager {
     fn init(&mut self, ctx: &mut AppContext) {
-        if let Some(cfg) = ctx.services.get::<ViewProcess>().and_then(|vp| vp.multi_click_config().ok()) {
-            self.multi_click_config.set_ne(ctx.vars, cfg);
-        }
         ctx.services
             .register(Mouse::new(ctx.updates.sender(), self.multi_click_config.clone()));
     }
@@ -1069,15 +1066,9 @@ impl AppExtension for MouseManager {
         } else if let Some(args) = RawMultiClickConfigChangedEvent.update(args) {
             self.multi_click_config.set_ne(ctx.vars, args.config);
             self.click_state = ClickState::None;
+        } else if let Some(args) = ViewProcessInitedEvent.update(args) {
+            self.multi_click_config.set_ne(ctx.vars, args.multi_click_config);
         } else if ViewProcessRespawnedEvent.update(args).is_some() {
-            let multi_click_cfg = ctx
-                .services
-                .get::<ViewProcess>()
-                .and_then(|vp| vp.multi_click_config().ok())
-                .unwrap_or_default();
-
-            self.multi_click_config.set_ne(ctx.vars, multi_click_cfg);
-
             let mouse = ctx.services.mouse();
 
             if let Some(window_id) = self.pos_window.take() {

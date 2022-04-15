@@ -17,7 +17,7 @@ use super::{
 use crate::{
     app::{
         raw_events::{RawFontChangedEvent, RawTextAaChangedEvent},
-        view_process::{Respawned, ViewProcess, ViewProcessRespawnedEvent, ViewRenderer},
+        view_process::{Respawned, ViewProcessInitedEvent, ViewProcessRespawnedEvent, ViewRenderer},
         AppEventSender, AppExtension,
     },
     context::AppContext,
@@ -42,7 +42,7 @@ event! {
     pub FontChangedEvent: FontChangedArgs;
 }
 
-pub use crate::app::view_process::TextAntiAliasing;
+pub use zero_ui_view_api::TextAntiAliasing;
 
 event_args! {
     /// [`FontChangedEvent`] arguments.
@@ -96,12 +96,7 @@ pub enum FontChange {
 pub struct FontManager {}
 impl AppExtension for FontManager {
     fn init(&mut self, ctx: &mut AppContext) {
-        let text_aa = ctx
-            .services
-            .get::<ViewProcess>()
-            .and_then(|a| a.text_aa().ok())
-            .unwrap_or(TextAntiAliasing::Subpixel);
-        ctx.services.register(Fonts::new(text_aa, ctx.updates.sender()));
+        ctx.services.register(Fonts::new(ctx.updates.sender()));
     }
 
     fn event_preview<EV: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {
@@ -111,16 +106,11 @@ impl AppExtension for FontManager {
             ctx.services.fonts().text_aa.set_ne(ctx.vars, args.aa);
         } else if FontChangedEvent.update(args).is_some() {
             ctx.services.fonts().on_fonts_changed();
-        } else if ViewProcessRespawnedEvent.update(args).is_some() {
-            let text_aa = ctx
-                .services
-                .get::<ViewProcess>()
-                .and_then(|a| a.text_aa().ok())
-                .unwrap_or(TextAntiAliasing::Subpixel);
-
+        } else if let Some(args) = ViewProcessInitedEvent.update(args) {
             let fonts = ctx.services.fonts();
-
-            fonts.text_aa.set_ne(ctx.vars, text_aa);
+            fonts.text_aa.set_ne(ctx.vars, args.text_aa);
+        } else if ViewProcessRespawnedEvent.update(args).is_some() {
+            let fonts = ctx.services.fonts();
             fonts.loader.on_view_process_respawn();
         }
     }
@@ -147,12 +137,12 @@ pub struct Fonts {
     text_aa: RcVar<TextAntiAliasing>,
 }
 impl Fonts {
-    fn new(system_aa: TextAntiAliasing, update_sender: AppEventSender) -> Self {
+    fn new(update_sender: AppEventSender) -> Self {
         Fonts {
             loader: FontFaceLoader::new(),
             generics: GenericFonts::new(update_sender),
             prune_requested: false,
-            text_aa: var(system_aa),
+            text_aa: var(TextAntiAliasing::Default),
         }
     }
 

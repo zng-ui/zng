@@ -225,7 +225,7 @@ impl Controller {
     }
 
     /// Handle an [`Event::Inited`].
-    /// 
+    ///
     /// Set the online flag.
     pub fn handle_inited(&mut self) {
         self.online = true;

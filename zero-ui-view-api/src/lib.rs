@@ -22,7 +22,6 @@
 #![cfg_attr(doc_nightly, feature(doc_cfg))]
 
 use std::fmt;
-use std::time::Duration;
 
 use units::{DipPoint, DipSize, Px, PxPoint, PxRect};
 #[doc(inline)]
@@ -278,28 +277,6 @@ declare_api! {
     ///
     /// All documents associated with the window or surface are also closed.
     pub fn close_window(&mut self, id: WindowId);
-
-    /// Reads the system default text anti-aliasing config.
-    pub fn text_aa(&mut self) -> TextAntiAliasing;
-
-    /// Reads the system "double-click" config.
-    pub fn multi_click_config(&mut self) -> MultiClickConfig;
-
-    /// Returns `true` if animations are enabled in the operating system.
-    ///
-    /// People with photosensitive epilepsy usually disable animations system wide.
-    pub fn animation_enabled(&mut self) -> bool;
-
-    /// Retrieves the keyboard repeat-delay setting from the operating system.
-    ///
-    /// If the user holds a key pressed a new key-press event will happen every time this delay is elapsed.
-    /// Note, depending on the hardware the real delay can be slightly different.
-    ///
-    /// There is no repeat flag in the `winit` key press event, so as a general rule we consider a second key-press
-    /// without any other keyboard event within the window of time of twice this delay as a repeat.
-    ///
-    /// This delay can also be used as the text-boxes caret blink rate.
-    pub fn key_repeat_delay(&mut self) -> Duration;
 
     /// Set window title.
     pub fn set_title(&mut self, id: WindowId, title: String);

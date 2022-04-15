@@ -466,7 +466,7 @@ impl App<()> {
             } else {
                 use glutin::event::Event as GEvent;
                 match event {
-                    GEvent::NewEvents(_) => { }
+                    GEvent::NewEvents(_) => {}
                     GEvent::WindowEvent { window_id, event } => {
                         #[cfg(windows)]
                         if window_id != config_listener.id() {
@@ -1142,7 +1142,13 @@ impl<S: AppEventSender> Api for App<S> {
         }
 
         let available_monitors = self.available_monitors();
-        self.notify(Event::Inited { available_monitors });
+        self.notify(Event::Inited {
+            available_monitors,
+            multi_click_config: config::multi_click_config(),
+            key_repeat_delay: config::key_repeat_delay(),
+            text_aa: config::text_aa(),
+            animation_enabled: config::animation_enabled(),
+        });
     }
 
     fn exit(&mut self) {
@@ -1249,26 +1255,6 @@ impl<S: AppEventSender> Api for App<S> {
         if let Some(i) = self.surfaces.iter().position(|w| w.id() == id) {
             let _ = self.surfaces.swap_remove(i);
         }
-    }
-
-    fn text_aa(&mut self) -> TextAntiAliasing {
-        self.assert_started();
-        config::text_aa()
-    }
-
-    fn multi_click_config(&mut self) -> MultiClickConfig {
-        self.assert_started();
-        config::multi_click_config()
-    }
-
-    fn animation_enabled(&mut self) -> bool {
-        self.assert_started();
-        config::animation_enabled()
-    }
-
-    fn key_repeat_delay(&mut self) -> Duration {
-        self.assert_started();
-        config::key_repeat_delay()
     }
 
     fn set_title(&mut self, id: WindowId, title: String) {

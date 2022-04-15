@@ -213,8 +213,6 @@ pub use shaping::*;
 
 pub use font_kit::properties::{Stretch as FontStretch, Style as FontStyle, Weight as FontWeight};
 
-pub use crate::app::view_process::TextAntiAliasing;
-
 /// Configuration of text wrapping for Chinese, Japanese, or Korean text.
 #[derive(Copy, Clone)]
 pub enum LineBreak {

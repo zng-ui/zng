@@ -15,6 +15,7 @@ use crate::mouse::MultiClickConfig;
 use crate::render::FrameId;
 use crate::service::Service;
 use crate::task::SignalOnce;
+use crate::text::TextAntiAliasing;
 use crate::units::{DipPoint, DipSize, Factor, Px, PxPoint, PxRect, PxSize};
 use crate::window::{MonitorId, WindowId};
 use crate::{event, event_args};
@@ -24,8 +25,8 @@ use zero_ui_view_api::webrender_api::{
 };
 pub use zero_ui_view_api::{
     bytes_channel, CursorIcon, Event, EventCause, FrameRequest, FrameUpdateRequest, FrameWaitId, HeadlessOpenData, HeadlessRequest,
-    ImageDataFormat, ImagePpi, IpcBytes, IpcBytesReceiver, IpcBytesSender, MonitorInfo, RenderMode, Respawned, TextAntiAliasing, VideoMode,
-    ViewProcessGen, WindowRequest, WindowState, WindowStateAll, WindowTheme,
+    ImageDataFormat, ImagePpi, IpcBytes, IpcBytesReceiver, IpcBytesSender, MonitorInfo, RenderMode, Respawned, VideoMode, ViewProcessGen,
+    WindowRequest, WindowState, WindowStateAll, WindowTheme,
 };
 use zero_ui_view_api::{Controller, DeviceId as ApiDeviceId, ImageId, ImageLoadedData, MonitorId as ApiMonitorId, WindowId as ApiWindowId};
 
@@ -102,7 +103,7 @@ impl ViewProcess {
     pub fn online(&self) -> bool {
         self.0.borrow().process.online()
     }
- 
+
     /// If is running in headless renderer mode.
     #[inline]
     pub fn headless(&self) -> bool {
@@ -164,24 +165,6 @@ impl ViewProcess {
         );
 
         Ok((surf, data))
-    }
-
-    /// Read the system text anti-aliasing config.
-    #[inline]
-    pub fn text_aa(&self) -> Result<TextAntiAliasing> {
-        self.0.borrow_mut().process.text_aa()
-    }
-
-    /// Read the system "double-click" config.
-    #[inline]
-    pub fn multi_click_config(&self) -> Result<MultiClickConfig> {
-        self.0.borrow_mut().process.multi_click_config()
-    }
-
-    /// Retrieves the keyboard repeat-delay setting from the operating system.
-    #[inline]
-    pub fn key_repeat_delay(&self) -> Result<Duration> {
-        self.0.borrow_mut().process.key_repeat_delay()
     }
 
     /// Translate `DevId` to `DeviceId`, generates a device id if it was unknown.
@@ -1148,8 +1131,22 @@ impl ViewRenderer {
 event_args! {
     /// Arguments for the [`ViewProcessInitedEvent`].
     pub struct ViewProcessInitedArgs {
-        /// Up-to-date monitors list.
+        /// Monitors list.
         pub available_monitors: Vec<(MonitorId, MonitorInfo)>,
+
+        /// System multi-click config.
+        pub multi_click_config: MultiClickConfig,
+
+        /// System keyboard pressed repeat delay config.
+        pub key_repeat_delay: Duration,
+
+        /// System text anti-aliasing config.
+        pub text_aa: TextAntiAliasing,
+
+        /// System animations config.
+        ///
+        /// People with photosensitive epilepsy usually disable animations system wide.
+        pub animation_enabled: bool,
 
         ..
 
@@ -1171,7 +1168,6 @@ event_args! {
             true
         }
     }
-
 }
 
 event! {

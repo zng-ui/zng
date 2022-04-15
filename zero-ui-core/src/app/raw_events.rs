@@ -21,7 +21,7 @@ use zero_ui_view_api::FrameWaitId;
 
 use super::{
     raw_device_events::AxisId,
-    view_process::{MonitorInfo, TextAntiAliasing, ViewImage, WindowStateAll},
+    view_process::{MonitorInfo, ViewImage, WindowStateAll},
     DeviceId,
 };
 use crate::{
@@ -29,6 +29,7 @@ use crate::{
     keyboard::{Key, KeyState, ModifiersState, ScanCode},
     mouse::{ButtonState, MouseButton, MouseScrollDelta, MultiClickConfig, TouchPhase},
     render::FrameId,
+    text::TextAntiAliasing,
     units::{DipPoint, DipSize, Factor, PxPoint, PxRect},
     window::{EventCause, MonitorId, WindowId, WindowTheme},
 };

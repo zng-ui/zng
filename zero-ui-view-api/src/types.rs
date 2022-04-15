@@ -760,6 +760,16 @@ pub enum Event {
     Inited {
         /// Available monitors.
         available_monitors: Vec<(MonitorId, MonitorInfo)>,
+        /// System multi-click config.
+        multi_click_config: MultiClickConfig,
+        /// System keyboard pressed key repeat delay config.
+        key_repeat_delay: Duration,
+        /// System text anti-aliasing config.
+        text_aa: TextAntiAliasing,
+        /// System animations config.
+        ///
+        /// People with photosensitive epilepsy usually disable animations system wide.
+        animation_enabled: bool,
     },
 
     /// The view-process crashed and respawned, all resources must be rebuild.

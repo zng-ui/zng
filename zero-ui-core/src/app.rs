@@ -1320,13 +1320,22 @@ impl<E: AppExtension> RunningApp<E> {
 
                     self.pending_view_frame_events.push(ev);
                 }
-                zero_ui_view_api::Event::Inited { available_monitors } => {
+                zero_ui_view_api::Event::Inited {
+                    available_monitors,
+                    multi_click_config,
+                    key_repeat_delay,
+                    text_aa,
+                    animation_enabled,
+                } => {
                     // notify immediately.
                     let view = self.ctx().services.req::<ViewProcess>();
                     view.handle_inited();
 
-                    let monitors: Vec<_> = available_monitors.into_iter().map(|(id, info)| (view.monitor_id(id), info)).collect();
-                    let args = ViewProcessInitedArgs::now(monitors);
+                    let monitors: Vec<_> = available_monitors
+                        .into_iter()
+                        .map(|(id, info)| (view.monitor_id(id), info))
+                        .collect();
+                    let args = ViewProcessInitedArgs::now(monitors, multi_click_config, key_repeat_delay, text_aa, animation_enabled);
                     self.notify_event(ViewProcessInitedEvent, args, observer);
                 }
                 zero_ui_view_api::Event::Respawned(g) => {
