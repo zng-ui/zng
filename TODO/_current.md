@@ -1,6 +1,8 @@
 * Fix easing functions and modifiers.
 * Fix image rendering blocking the UI.
-* Improve image rendering performance, reuse renderer?
+    - Changing backend to Software improves some, we still need to make context and renderer
+      creation asynchronous.
+    - Reuse renderer?
 
 * Animation, see `Variables.md`.
 * Finish `Optimizations.md#Cache Everything`.
