@@ -52,10 +52,7 @@ fn example() -> impl Widget {
 
                     x = x.map(|x| x.clone() - 20.dip());
                 };
-                background = z_stack! {
-                    items_align = Align::LEFT;
-                    items = (0..=300).step_by(10).map(|i| marker(i).boxed_widget()).collect::<WidgetVec>(),                    
-                }
+                background = ruler()
             },
             h_stack! {
                 id = "mod-menu";
@@ -125,6 +122,10 @@ fn ease_btn(
                 text(name.into()),
                 image! {
                     scale_ppi = true;
+                    loading_view = view_generator!(|_, _| blank! {
+                        size = (64, 64);
+                        margin = 10;
+                    });
                     source = easing_mod.map(move |m| match m {
                         EaseIn => in_plot.clone(),
                         EaseOut => out_plot.clone(),
@@ -139,29 +140,6 @@ fn ease_btn(
         });
     }
 }
-
-fn easing_mod_btn(easing_mod: &RcVar<easing::EasingModifierFn>, value: easing::EasingModifierFn) -> impl Widget {
-    button! {
-        content = text(value.to_text());
-        on_click = hn!(easing_mod, |ctx, _| {
-            easing_mod.set_ne(ctx, value);
-        });
-
-        when *#{easing_mod.clone()} == value {
-            background_color = rgb(40, 40, 60);
-        }
-    }
-}
-
-fn marker(x: i32) -> impl Widget {
-    rule_line! {
-        orientation = LineOrientation::Vertical;
-        color = colors::WHITE.with_alpha(40.pct());
-        x = x.dip();
-        height = if x % 100 == 0 { 52 } else if x % 50 == 0 { 22 } else { 12 };
-    }
-}
-
 fn plot(easing: impl Fn(EasingTime) -> EasingStep + 'static) -> ImageSource {
     let size = (64, 64);
     ImageSource::render(clone_move!(size, |_| {
@@ -208,4 +186,32 @@ fn plot(easing: impl Fn(EasingTime) -> EasingStep + 'static) -> ImageSource {
             margin = 10;
         }
     }))
+}
+
+fn easing_mod_btn(easing_mod: &RcVar<easing::EasingModifierFn>, value: easing::EasingModifierFn) -> impl Widget {
+    button! {
+        content = text(value.to_text());
+        on_click = hn!(easing_mod, |ctx, _| {
+            easing_mod.set_ne(ctx, value);
+        });
+
+        when *#{easing_mod.clone()} == value {
+            background_color = rgb(40, 40, 60);
+        }
+    }
+}
+
+fn ruler() -> impl Widget {
+    z_stack! {
+        items_align = Align::LEFT;
+        items = (0..=300).step_by(10)
+            .map(|x| rule_line! {
+                orientation = LineOrientation::Vertical;
+                color = colors::WHITE.with_alpha(40.pct());
+                x = x.dip();
+                height = if x % 100 == 0 { 52 } else if x % 50 == 0 { 22 } else { 12 };
+            }
+            .boxed_widget())
+            .collect::<WidgetVec>(),
+    }
 }
