@@ -437,6 +437,8 @@ impl FontFace {
     }
 
     fn load(handle: font_kit::handle::Handle) -> Result<Self, FontLoadingError> {
+        let _span = tracing::trace_span!("FontFace::load").entered();
+
         let bytes;
         let face_index;
 
@@ -726,6 +728,8 @@ impl Font {
     const DUMMY_FONT_KEY: wr::FontInstanceKey = wr::FontInstanceKey(wr::IdNamespace(0), 0);
 
     fn render_font(&self, renderer: &ViewRenderer, synthesis: FontSynthesis) -> wr::FontInstanceKey {
+        let _span = tracing::trace_span!("Font::render_font").entered();
+
         let namespace = match renderer.namespace_id() {
             Ok(n) => n,
             Err(Respawned) => {
@@ -1239,6 +1243,7 @@ impl FontFaceLoader {
         weight: FontWeight,
         stretch: FontStretch,
     ) -> Option<font_kit::handle::Handle> {
+        let _span = tracing::trace_span!("FontFaceLoader::get_system").entered();
         let family_name = font_kit::family_name::FamilyName::from(font_name.clone());
         match self
             .system_fonts

@@ -94,6 +94,7 @@ impl Monitors {
     pub const DEFAULT_PPI: f32 = 96.0;
 
     pub(super) fn new(view: Option<&mut ViewProcess>) -> Self {
+        let _span = tracing::trace_span!("Monitors::new").entered();
         Monitors {
             monitors: view
                 .and_then(|v| v.available_monitors().ok())
@@ -110,9 +111,6 @@ impl Monitors {
     }
 
     /// Iterate over all available monitors.
-    ///
-    /// The list entries change only when a [`MonitorsChangedEvent`] happens, the scale_factor
-    /// of a entry can change TODO.
     ///
     /// Is empty if no monitor was found or the app is running in headless mode without renderer.
     pub fn available_monitors(&self) -> impl Iterator<Item = &MonitorInfo> {
