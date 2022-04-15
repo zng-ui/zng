@@ -41,7 +41,8 @@ fn example() -> impl Widget {
         items = widgets![
             container! {
                 id = "demo";
-                width = 340;
+                width = 301;
+                background = ruler();
                 margin = (0, 0, 40, 0);
                 content_align = Align::LEFT;
                 content = blank! {
@@ -52,7 +53,6 @@ fn example() -> impl Widget {
 
                     x = x.map(|x| x.clone() - 20.dip());
                 };
-                background = ruler()
             },
             h_stack! {
                 id = "mod-menu";

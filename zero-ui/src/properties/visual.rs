@@ -8,7 +8,8 @@ use super::{hit_test_mode, interactive};
 
 /// Custom background property. Allows using any other widget as a background.
 ///
-/// Backgrounds are not interactive and don't influence the widget layout but they are hit-testable.
+/// Backgrounds are not interactive, but are hit-testable, they don't influence the layout being measured and
+/// arranged with the widget size, and they are always clipped to the widget bounds.
 ///
 /// # Examples
 ///

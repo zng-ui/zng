@@ -1,5 +1,4 @@
 * Fix easing functions and modifiers.
-* Add colors to animation example.
 * Fix image rendering blocking the UI.
 * Improve image rendering performance, reuse renderer?
 
