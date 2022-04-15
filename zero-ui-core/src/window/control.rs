@@ -280,6 +280,16 @@ impl HeadedCtrl {
                     ctx.updates.layout();
                 }
             }
+
+            if self.vars.0.scale_factor.is_new(ctx) {
+                use crate::image::*;
+                if let WindowIcon::Image(ImageSource::Render(_, RenderConfig { scale_factor, .. })) = self.vars.icon().get(ctx.vars) {
+                    if scale_factor.is_none() {
+                        // scale_factor changed and we are configuring the icon image scale factor to be our own.
+                        self.vars.icon().touch(ctx.vars);
+                    }
+                }
+            }
         } else {
             // is not inited:
 
@@ -683,8 +693,20 @@ impl HeadedCtrl {
     }
 
     fn init_icon(icon: &mut Option<ImageVar>, icon_binding: &mut Option<VarBindingHandle>, vars: &WindowVars, ctx: &mut WindowContext) {
+        use crate::image::ImageSource;
+
         *icon = match vars.icon().get(ctx.vars) {
             WindowIcon::Default => None,
+            WindowIcon::Image(ImageSource::Render(ico, cfg)) => {
+                let ico = ico.clone();
+                let mut cfg = cfg.clone();
+
+                if cfg.scale_factor.is_none() {
+                    cfg.scale_factor = Some(vars.0.scale_factor.copy(ctx.vars));
+                }
+
+                Some(ctx.services.images().cache(ImageSource::Render(ico, cfg)))
+            }
             WindowIcon::Image(source) => Some(ctx.services.images().cache(source.clone())),
         };
 
