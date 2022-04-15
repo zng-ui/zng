@@ -61,6 +61,7 @@ fn example() -> impl Widget {
                     easing_mod_btn(&easing_mod, EaseIn),
                     easing_mod_btn(&easing_mod, EaseOut),
                     easing_mod_btn(&easing_mod, EaseInOut),
+                    easing_mod_btn(&easing_mod, EaseOutIn),
                 ]
             },
             uniform_grid! {
@@ -111,6 +112,7 @@ fn ease_btn(
     let in_plot = plot(easing.clone());
     let out_plot = plot(easing::ease_out_fn(easing.clone()));
     let in_out_plot = plot(easing::ease_in_out_fn(easing.clone()));
+    let out_in_plot = plot(easing::ease_out_in_fn(easing.clone()));
 
     use easing::EasingModifierFn::*;
 
@@ -130,6 +132,7 @@ fn ease_btn(
                         EaseIn => in_plot.clone(),
                         EaseOut => out_plot.clone(),
                         EaseInOut => in_out_plot.clone(),
+                        EaseOutIn => out_in_plot.clone(),
                     });
                 },
             ]

@@ -176,13 +176,23 @@ pub fn ease_out(ease_fn: impl Fn(EasingTime) -> EasingStep, time: EasingTime) ->
     ease_fn(time.reverse()).flip()
 }
 
-/// Applies `ease_in` for the first half then [`ease_out`] scaled to fit a single duration (1.0).
+/// Applies [`ease_in`] for the first half then [`ease_out`] scaled to fit a single duration (1.0).
 pub fn ease_in_out(ease_fn: impl Fn(EasingTime) -> EasingStep, time: EasingTime) -> EasingStep {
     let t = time.fct();
     if t <= 0.5.fct() {
         ease_in(&ease_fn, EasingTime::new(t * 2.fct())) / 2.fct()
     } else {
         ease_out(ease_fn, EasingTime::new((t - 0.5.fct()) * 2.fct())) / 2.fct() + 0.5.fct()
+    }
+}
+
+/// Applies [`ease_out`] for the first half then [`ease_in`] scaled to fit a single duration (1.0).
+pub fn ease_out_in(ease_fn: impl Fn(EasingTime) -> EasingStep, time: EasingTime) -> EasingStep {
+    let t = time.fct();
+    if t <= 0.5.fct() {
+        ease_out(&ease_fn, EasingTime::new(t * 2.fct())) / 2.fct()
+    } else {
+        ease_in(ease_fn, EasingTime::new((t - 0.5.fct()) * 2.fct())) / 2.fct() + 0.5.fct()
     }
 }
 
@@ -204,6 +214,12 @@ pub fn ease_in_out_fn<'s>(ease_fn: impl Fn(EasingTime) -> EasingStep + 's) -> im
     move |t| ease_in_out(&ease_fn, t)
 }
 
+/// Returns a function that applies `ease_fn` wrapped in [`ease_out_in`].
+#[inline]
+pub fn ease_out_in_fn<'s>(ease_fn: impl Fn(EasingTime) -> EasingStep + 's) -> impl Fn(EasingTime) -> EasingStep + 's {
+    move |t| ease_out_in(&ease_fn, t)
+}
+
 /// Common easing modifier functions as an enum.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum EasingModifierFn {
@@ -213,6 +229,8 @@ pub enum EasingModifierFn {
     EaseOut,
     /// [`ease_in_out`].
     EaseInOut,
+    /// [`ease_out_in`].
+    EaseOutIn,
 }
 impl EasingModifierFn {
     /// Calls the easing function with the modifier `self` represents.
@@ -221,6 +239,7 @@ impl EasingModifierFn {
             EasingModifierFn::EaseIn => ease_in(easing, time),
             EasingModifierFn::EaseOut => ease_out(easing, time),
             EasingModifierFn::EaseInOut => ease_in_out(easing, time),
+            EasingModifierFn::EaseOutIn => ease_out_in(easing, time),
         }
     }
 
@@ -235,6 +254,7 @@ impl fmt::Display for EasingModifierFn {
             EasingModifierFn::EaseIn => write!(f, "ease_in"),
             EasingModifierFn::EaseOut => write!(f, "ease_out"),
             EasingModifierFn::EaseInOut => write!(f, "ease_in_out"),
+            EasingModifierFn::EaseOutIn => write!(f, "ease_out_in"),
         }
     }
 }
