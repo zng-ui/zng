@@ -1257,18 +1257,6 @@ impl<C: Command> CommandShortcutExt for C {
     fn shortcut_event_matches<Vr: WithVarsRead>(self, vars: &Vr, args: &ShortcutArgs) -> bool {
         use crate::command::CommandScope::*;
 
-        /*
-        use crate::command::CommandNameExt;
-        vars.with_vars_read(|vars| {
-            if self.name().get(vars) == "Page Down" {
-                println!("!!: Page Down");
-                println!("!!: enabled: {}", self.enabled_value());
-                println!("!!: scope: {:?}", self.scope());
-                println!("!!: args: {args:?}");
-            }
-        });
-        */
-
         self.enabled_value()
             && vars.with_vars_read(|vars| {
                 self.shortcut().get(vars).contains(args.shortcut)

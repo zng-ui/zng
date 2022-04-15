@@ -217,13 +217,13 @@ impl Image {
             self.ppi().unwrap_or(fallback_ppi)
         };
 
-        let screen_res = ctx.screen_ppi;
-        let mut s = self.size();
+        let s_ppi = ctx.screen_ppi;
+        let mut size = self.size();
 
-        s.width *= (dpi_x / screen_res) * ctx.scale_factor.0;
-        s.height *= (dpi_y / screen_res) * ctx.scale_factor.0;
+        size.width *= (s_ppi / dpi_x) * ctx.scale_factor.0;
+        size.height *= (s_ppi / dpi_y) * ctx.scale_factor.0;
 
-        dbg!(s)
+        size
     }
 
     /// Reference the decoded pre-multiplied BGRA8 pixel buffer.
