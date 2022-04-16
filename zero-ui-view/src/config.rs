@@ -1,30 +1,79 @@
 use crate::{MultiClickConfig, TextAntiAliasing};
 use std::time::Duration;
 
-#[cfg(windows)]
-use crate::AppEvent;
-
 /// Create a hidden window that listen to Windows config change events.
 #[cfg(windows)]
-pub(crate) fn config_listener(
-    event_loop: impl crate::AppEventSender,
-    window_target: &glutin::event_loop::EventLoopWindowTarget<AppEvent>,
-) -> glutin::window::Window {
-    tracing::trace!("config_listener");
+pub(crate) fn spawn_listener(event_loop: impl crate::AppEventSender) {
+    config_listener(event_loop);
+    /*
+    std::thread::Builder::new()
+    .name("config_listener".to_owned())
+    .spawn(move || config_listener(event_loop))
+    .unwrap();
+    */
+}
+#[cfg(windows)]
+fn config_listener(event_loop: impl crate::AppEventSender) {
+    let _span = tracing::trace_span!("config_listener").entered();
 
-    use glutin::window::WindowBuilder;
-    use windows::Win32::{Foundation::LRESULT, UI::WindowsAndMessaging::*};
+    use crate::AppEvent;
+    use std::ptr;
+    use windows::core::*;
+    use windows::Win32::{
+        Foundation::{GetLastError, LRESULT},
+        System::LibraryLoader,
+        UI::WindowsAndMessaging::*,
+    };
     use zero_ui_view_api::Event;
 
     use crate::util;
 
-    let w = WindowBuilder::new()
-        .with_title("config-event-listener")
-        .with_visible(false)
-        .build(window_target)
-        .unwrap();
+    let class_name: Param<PCWSTR> = "zero-ui-view::config_listener".into_param();
 
-    util::set_raw_windows_event_handler(&w, u32::from_ne_bytes(*b"cevl") as _, move |_, msg, wparam, _| {
+    unsafe {
+        let class = WNDCLASSEXW {
+            cbSize: std::mem::size_of::<WNDCLASSEXW>() as u32,
+            style: Default::default(),
+            lpfnWndProc: Some(util::minimal_wndproc),
+            cbClsExtra: 0,
+            cbWndExtra: 0,
+            hInstance: LibraryLoader::GetModuleHandleW(None),
+            hIcon: Default::default(),
+            hCursor: Default::default(), // must be null in order for cursor state to work properly
+            hbrBackground: Default::default(),
+            lpszMenuName: Default::default(),
+            lpszClassName: class_name.abi(),
+            hIconSm: Default::default(),
+        };
+
+        let r = RegisterClassExW(&class);
+        if r == 0 {
+            GetLastError().ok().unwrap();
+        }
+    }
+
+    let window = unsafe {
+        let r = CreateWindowExW(
+            WS_EX_NOACTIVATE | WS_EX_TRANSPARENT | WS_EX_LAYERED | WS_EX_TOOLWINDOW,
+            class_name.abi(),
+            None,
+            WS_OVERLAPPED,
+            0,
+            0,
+            0,
+            0,
+            None,
+            None,
+            LibraryLoader::GetModuleHandleW(None),
+            ptr::null(),
+        );
+        if r.0 == 0 {
+            GetLastError().ok().unwrap();
+        }
+        r
+    };
+
+    let r = util::set_raw_windows_event_handler(window, u32::from_ne_bytes(*b"cevl") as _, move |_, msg, wparam, _| {
         let notify = |ev| {
             let _ = event_loop.send(AppEvent::Notify(ev));
             Some(LRESULT(0))
@@ -47,8 +96,9 @@ pub(crate) fn config_listener(
             _ => None,
         }
     });
-
-    w
+    if !r {
+        unsafe { GetLastError().ok().unwrap() }
+    }
 }
 
 /// Gets the system text anti-aliasing config.

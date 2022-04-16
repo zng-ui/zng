@@ -28,7 +28,8 @@ use zero_ui_view_api::{
 /// [`raw_events`]: crate::app::raw_events
 /// [`SUBCLASSPROC`]: https://docs.microsoft.com/en-us/windows/win32/api/commctrl/nc-commctrl-subclassproc
 #[cfg(windows)]
-pub fn set_raw_windows_event_handler<
+pub fn set_raw_windows_event_handler<H>(hwnd: windows::Win32::Foundation::HWND, subclass_id: usize, handler: H) -> bool
+where
     H: FnMut(
             windows::Win32::Foundation::HWND,
             u32,
@@ -36,23 +37,25 @@ pub fn set_raw_windows_event_handler<
             windows::Win32::Foundation::LPARAM,
         ) -> Option<windows::Win32::Foundation::LRESULT>
         + 'static,
->(
-    window: &glutin::window::Window,
-    subclass_id: usize,
-    handler: H,
-) -> bool {
-    use glutin::platform::windows::WindowExtWindows;
-    use windows::Win32::Foundation::{BOOL, HWND};
-
-    let hwnd = HWND(window.hwnd() as _);
+{
+    use windows::Win32::Foundation::BOOL;
     let data = Box::new(handler);
     unsafe {
         windows::Win32::UI::Shell::SetWindowSubclass(hwnd, Some(subclass_raw_event_proc::<H>), subclass_id, Box::into_raw(data) as _)
             != BOOL(0)
     }
 }
+
 #[cfg(windows)]
-unsafe extern "system" fn subclass_raw_event_proc<
+unsafe extern "system" fn subclass_raw_event_proc<H>(
+    hwnd: windows::Win32::Foundation::HWND,
+    msg: u32,
+    wparam: windows::Win32::Foundation::WPARAM,
+    lparam: windows::Win32::Foundation::LPARAM,
+    _id: usize,
+    data: usize,
+) -> windows::Win32::Foundation::LRESULT
+where
     H: FnMut(
             windows::Win32::Foundation::HWND,
             u32,
@@ -60,14 +63,7 @@ unsafe extern "system" fn subclass_raw_event_proc<
             windows::Win32::Foundation::LPARAM,
         ) -> Option<windows::Win32::Foundation::LRESULT>
         + 'static,
->(
-    hwnd: windows::Win32::Foundation::HWND,
-    msg: u32,
-    wparam: windows::Win32::Foundation::WPARAM,
-    lparam: windows::Win32::Foundation::LPARAM,
-    _id: usize,
-    data: usize,
-) -> windows::Win32::Foundation::LRESULT {
+{
     use windows::Win32::UI::WindowsAndMessaging::WM_DESTROY;
     match msg {
         WM_DESTROY => {
@@ -112,7 +108,7 @@ pub(crate) fn unregister_raw_input() {
 
     let device_size = std::mem::size_of::<RAWINPUTDEVICE>() as _;
 
-    let ok = unsafe { windows::Win32::UI::Input::RegisterRawInputDevices((&devices).as_ptr(), devices.len() as _, device_size) != BOOL(0) };
+    let ok = unsafe { windows::Win32::UI::Input::RegisterRawInputDevices(&devices, device_size) != BOOL(0) };
 
     if !ok {
         let e = unsafe { windows::Win32::Foundation::GetLastError() };
@@ -568,4 +564,14 @@ impl<F: FnOnce()> Drop for RunOnDrop<F> {
             clean();
         }
     }
+}
+
+#[cfg(windows)]
+pub(crate) extern "system" fn minimal_wndproc(
+    window: windows::Win32::Foundation::HWND,
+    message: u32,
+    wparam: windows::Win32::Foundation::WPARAM,
+    lparam: windows::Win32::Foundation::LPARAM,
+) -> windows::Win32::Foundation::LRESULT {
+    unsafe { windows::Win32::UI::WindowsAndMessaging::DefWindowProcW(window, message, wparam, lparam) }
 }

@@ -198,8 +198,10 @@ impl Window {
         {
             let allow_alt_f4 = allow_alt_f4.clone();
             let event_sender = event_sender.clone();
+            use glutin::platform::windows::WindowExtWindows;
 
-            crate::util::set_raw_windows_event_handler(&winit_window, u32::from_ne_bytes(*b"alf4") as _, move |_, msg, wparam, _| {
+            let hwnd = windows::Win32::Foundation::HWND(winit_window.hwnd() as _);
+            crate::util::set_raw_windows_event_handler(hwnd, u32::from_ne_bytes(*b"alf4") as _, move |_, msg, wparam, _| {
                 if msg == windows::Win32::UI::WindowsAndMessaging::WM_SYSKEYDOWN
                     && windows::Win32::UI::Input::KeyboardAndMouse::VIRTUAL_KEY(wparam.0 as u16)
                         == windows::Win32::UI::Input::KeyboardAndMouse::VK_F4

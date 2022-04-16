@@ -432,7 +432,9 @@ impl App<()> {
 
         warmup_open_gl();
 
+        let winit_span = tracing::trace_span!("winit::EventLoop::new").entered();
         let mut event_loop = EventLoop::with_user_event();
+        drop(winit_span);
         let app_sender = event_loop.create_proxy();
 
         let (request_sender, request_receiver) = flume::unbounded();
@@ -440,7 +442,7 @@ impl App<()> {
         app.start_receiving(c.request_receiver);
 
         #[cfg(windows)]
-        let config_listener = config::config_listener(app.app_sender.clone(), &event_loop);
+        config::spawn_listener(app.app_sender.clone());
 
         struct IdleTrace(Option<tracing::span::EnteredSpan>);
         impl IdleTrace {
@@ -467,16 +469,7 @@ impl App<()> {
                 use glutin::event::Event as GEvent;
                 match event {
                     GEvent::NewEvents(_) => {}
-                    GEvent::WindowEvent { window_id, event } => {
-                        #[cfg(windows)]
-                        if window_id != config_listener.id() {
-                            app.on_window_event(window_id, event);
-                        }
-                        #[cfg(not(windows))]
-                        {
-                            app.on_window_event(window_id, event);
-                        }
-                    }
+                    GEvent::WindowEvent { window_id, event } => app.on_window_event(window_id, event),
                     GEvent::DeviceEvent { device_id, event } => app.on_device_event(device_id, event),
                     GEvent::UserEvent(ev) => match ev {
                         AppEvent::Request => {
@@ -1556,11 +1549,17 @@ fn warmup_open_gl() {
     // idea copied from here:
     // https://hero.handmade.network/forums/code-discussion/t/2503-day_235_opengl%2527s_pixel_format_takes_a_long_time#13029
 
-    use windows::Win32::{Foundation::HWND, Graphics::Gdi::*};
+    use windows::Win32::{
+        Foundation::HWND,
+        Graphics::{
+            Gdi::*,
+            OpenGL::{self, PFD_PIXEL_TYPE},
+        },
+    };
 
     let _ = thread::Builder::new().stack_size(3 * 64 * 1024).spawn(|| unsafe {
         let hdc = GetDC(HWND(0));
-        let _ = windows::Win32::Graphics::OpenGL::DescribePixelFormat(hdc, 0, 0, std::ptr::null_mut());
+        let _ = OpenGL::DescribePixelFormat(hdc, PFD_PIXEL_TYPE(0), 0, std::ptr::null_mut());
         ReleaseDC(HWND(0), hdc);
     });
 }
