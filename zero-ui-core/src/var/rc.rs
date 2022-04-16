@@ -568,6 +568,17 @@ impl<T: VarValue> ResponseVar<T> {
         }
     }
 
+    /// Returns a future that awaits until a response is received.
+    ///
+    /// Note that you must call [`rsp`] after this to get the response.
+    ///
+    /// [`rsp`]: Self::rsp
+    pub async fn wait_rsp<Vr: WithVars>(&self, vars: &Vr) {
+        while vars.with_vars(|v| self.rsp(v).is_none()) {
+            self.wait_new(vars).await;
+        }
+    }
+
     /// References the response value if a response was set for this update.
     pub fn rsp_new<'a, Vw: AsRef<Vars>>(&'a self, vars: &'a Vw) -> Option<&'a T> {
         if let Some(new) = self.get_new(vars) {
@@ -595,10 +606,33 @@ impl<T: VarValue> ResponseVar<T> {
         vars.with_vars_read(|vars| self.rsp(vars).copied())
     }
 
+    /// Returns a future that awaits until a response is received, returns a copy of the response.
+    pub async fn wait_rsp_copy<Vw: WithVars>(&self, vars: &Vw) -> T
+    where
+        T: Copy,
+    {
+        loop {
+            if let Some(v) = vars.with_vars(|v| self.rsp_copy(v)) {
+                return v;
+            }
+            self.wait_new(vars).await;
+        }
+    }
+
     /// Clone the response value if a response was set.
     #[inline]
     pub fn rsp_clone<Vr: WithVarsRead>(&self, vars: &Vr) -> Option<T> {
         vars.with_vars_read(|vars| self.rsp(vars).cloned())
+    }
+
+    /// Returns a future that awaits until a response is received, returns a clone of the response.
+    pub async fn wait_rsp_clone<Vw: WithVars>(&self, vars: &Vw) -> T {
+        loop {
+            if let Some(v) = vars.with_vars(|v| self.rsp_clone(v)) {
+                return v;
+            }
+            self.wait_new(vars).await;
+        }
     }
 
     /// Copy the response value if a response was set for this update.

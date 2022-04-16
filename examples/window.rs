@@ -130,7 +130,7 @@ fn screenshot() -> impl Widget {
                 let img = ctx.with(|ctx|{
                     ctx.services.windows().frame_image(ctx.path.window_id()).get_clone(ctx.vars)
                 });
-                img.awaiter().await;
+                img.wait_done().await;
                 println!("taken in {:?}, saving..", t.elapsed());
 
                 let t = Instant::now();

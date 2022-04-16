@@ -91,7 +91,12 @@ impl ViewConfig {
         env::set_var(Self::SAME_PROCESS_VAR, Self::SG_DONE);
 
         let config: Vec<_> = config.lines().collect();
-        assert_eq!(config.len(), 3, "var `{}` format incorrect, expected 3 lines", Self::SAME_PROCESS_VAR);
+        assert_eq!(
+            config.len(),
+            3,
+            "var `{}` format incorrect, expected 3 lines",
+            Self::SAME_PROCESS_VAR
+        );
 
         ViewConfig {
             version: config[0].to_owned(),

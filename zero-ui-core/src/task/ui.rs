@@ -1,6 +1,7 @@
 //! UI-thread bound tasks.
 
 use std::{
+    fmt,
     future::Future,
     pin::Pin,
     task::{Poll, Waker},
@@ -53,6 +54,14 @@ enum UiTaskState<R> {
     },
     Ready(R),
 }
+impl<R: fmt::Debug> fmt::Debug for UiTaskState<R> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Pending { .. } => write!(f, "Pending"),
+            Self::Ready(arg0) => f.debug_tuple("Ready").field(arg0).finish(),
+        }
+    }
+}
 
 /// Represents a [`Future`] running in the UI thread.
 ///
@@ -63,6 +72,7 @@ enum UiTaskState<R> {
 /// [`Waker`]: std::task::Waker
 /// [`update`]: UiTask::update
 /// [`subscribe`]: UiTask::update
+#[derive(Debug)]
 pub struct UiTask<R>(UiTaskState<R>);
 impl<R> UiTask<R> {
     /// Create a app thread bound future executor.
@@ -207,6 +217,11 @@ impl<R> WidgetTask<R> {
         }
     }
 }
+impl<T: fmt::Debug> fmt::Debug for WidgetTask<T> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_tuple("WidgetTask").field(&self.task.0).finish()
+    }
+}
 
 /// Represents a [`Future`] running in the UI thread in the app context.
 ///
@@ -279,5 +294,10 @@ impl AppTask<()> {
                 }))
                 .permanent();
         }
+    }
+}
+impl<T: fmt::Debug> fmt::Debug for AppTask<T> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_tuple("AppTask").field(&self.task.0).finish()
     }
 }

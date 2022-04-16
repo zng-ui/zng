@@ -1826,21 +1826,44 @@ impl HeadlessApp {
     {
         let mut task = self.ctx().async_task(task);
 
-        loop {
-            if let ControlFlow::Exit = self.update_observe(
+        if task.update(&mut self.ctx()).is_some() {
+            let r = task.into_result().ok();
+            debug_assert!(r.is_some());
+            return r;
+        }
+
+        let mut flow = self.update_observe(
+            |ctx| {
+                task.update(ctx);
+            },
+            false,
+        );
+
+        while flow != ControlFlow::Exit {
+            flow = self.update_observe(
                 |ctx| {
                     task.update(ctx);
                 },
                 true,
-            ) {
-                return None;
-            }
+            );
 
             match task.into_result() {
                 Ok(r) => return Some(r),
                 Err(t) => task = t,
             }
         }
+
+        None
+    }
+
+    /// Requests and wait for app shutdown.
+    ///
+    /// Forces deinit if shutdown is cancelled.
+    pub fn shutdown(mut self) {
+        self.run_task(|ctx| async move {
+            let req = ctx.with(|ctx| ctx.services.app_process().shutdown());
+            req.wait_rsp(&ctx).await;
+        });
     }
 }
 
