@@ -68,11 +68,10 @@ impl ViewConfig {
         env::set_var(Self::SAME_PROCESS_VAR, Self::SG_WAITING);
 
         let time = Instant::now();
-        let skip = Duration::from_millis(10);
         let timeout = Duration::from_secs(5);
 
         while Self::is_awaiting_same_process() {
-            thread::sleep(skip);
+            thread::yield_now();
             if time.elapsed() >= timeout {
                 panic!("timeout, `wait_same_process` waited for `{timeout:?}`");
             }

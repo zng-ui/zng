@@ -111,9 +111,11 @@ impl Controller {
         c
     }
     fn try_init(&mut self) -> VpResult<()> {
+        let _span = tracing::trace_span!("api_version").entered();
         if crate::VERSION != self.api_version()? {
             panic!("app-process and view-process must be build using the same exact version of zero-ui-vp");
         }
+        drop(_span);
         self.init(self.generation, self.is_respawn, self.device_events, self.headless)?;
         Ok(())
     }
@@ -194,6 +196,8 @@ impl Controller {
         view_process_exe: &Path,
         headless: bool,
     ) -> AnyResult<(Option<DuctHandle>, ipc::RequestSender, ipc::ResponseReceiver, ipc::EventReceiver)> {
+        let _span = tracing::trace_span!("spawn_view_process").entered();
+
         let init = ipc::AppInit::new();
 
         // create process and spawn it, unless is running in same process mode.
