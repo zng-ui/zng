@@ -1,24 +1,21 @@
 # Unblock
 
-* No extensions init before `ViewProcess::start` and that takes up to 50ms.
 * The first update blocks in `FontFaceLoader::get_system` and `FontFace::load` up to 80ms (not a view block,`font_kit`).
 * The first layout blocks in `ViewProcess.open_window` up to 180ms.
 * Subsequent windows block layout in `ViewProcess.open_window` up to 130ms.
 
-## View Start and Monitors
+## Window Open
 
-* Don't block waiting for `ViewProcessInited`.
-* Review image requests before first `ViewProcessInited`.
+* Cache unsupported `RenderMode`.
+* Implement WindowOpen event in the view API to support async context creation.
+* Try to implement async context creation in default view crate.
+* Reuse windows and surfaces.
+* Start creating a window and surface as soon as possible, reuse on first request.
 
 ## Font Query/Load
 
 * We could refactor fonts to be like the images service, async loading.
 * Also gets the service ready for supporting web fonts.
-
-## Window Open
-
-* Implement WindowOpen event in the view API to support async context creation.
-* Try to implement async context creation in default view crate.
 
 # Other
 
