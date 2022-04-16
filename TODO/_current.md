@@ -8,7 +8,7 @@
 ## View Start and Monitors
 
 * Don't block waiting for `ViewProcessInited`.
-* Delay image requests until first `ViewProcessInited`.
+* Review image requests before first `ViewProcessInited`.
 
 ## Font Query/Load
 
