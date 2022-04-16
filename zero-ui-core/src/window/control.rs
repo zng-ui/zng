@@ -381,9 +381,11 @@ impl HeadedCtrl {
                 }
             }
             self.vars.monitor().touch(ctx);
-        } else if let Some(args) = ViewProcessRespawnedEvent.update(args) {
+        } else if let Some(args) = ViewProcessInitedEvent.update(args) {
             if let Some(view) = &self.window {
                 if view.renderer().generation() != Ok(args.generation) {
+                    debug_assert!(args.is_respawn);
+
                     self.window = None;
                     self.respawned = true;
 
@@ -773,9 +775,11 @@ impl HeadlessWithRendererCtrl {
     }
 
     pub fn pre_event<EV: EventUpdateArgs>(&mut self, ctx: &mut WindowContext, args: &EV) {
-        if let Some(args) = ViewProcessRespawnedEvent.update(args) {
+        if let Some(args) = ViewProcessInitedEvent.update(args) {
             if let Some(view) = &self.surface {
-                if view.renderer().generation() == Ok(args.generation) {
+                if view.renderer().generation() != Ok(args.generation) {
+                    debug_assert!(args.is_respawn);
+
                     self.surface = None;
 
                     self.content.is_rendering = false;
@@ -1008,7 +1012,7 @@ impl HeadlessSimulator {
     }
 
     pub fn pre_event<EV: EventUpdateArgs>(&mut self, ctx: &mut WindowContext, args: &EV) {
-        if self.enabled(ctx) && self.is_open && ViewProcessRespawnedEvent.update(args).is_some() {
+        if self.enabled(ctx) && self.is_open && ViewProcessInitedEvent.update(args).map(|a| a.is_respawn).unwrap_or(false) {
             self.is_open = false;
         }
     }
@@ -1513,4 +1517,4 @@ fn default_size(scale_factor: Factor) -> PxSize {
 }
 
 /// Respawned error is ok here, because we recreate the window/surface on respawn.
-type Ignore = Result<(), Respawned>;
+type Ignore = Result<(), ViewProcessOffline>;

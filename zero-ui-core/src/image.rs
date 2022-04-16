@@ -7,7 +7,7 @@ use zero_ui_view_api::IpcBytes;
 use crate::{
     app::{
         raw_events::{RawImageLoadErrorEvent, RawImageLoadedEvent, RawImageMetadataLoadedEvent},
-        view_process::{Respawned, ViewImage, ViewProcess, ViewProcessRespawnedEvent},
+        view_process::{ViewImage, ViewProcess, ViewProcessInitedEvent, ViewProcessOffline},
         AppEventSender, AppExtension,
     },
     context::AppContext,
@@ -103,7 +103,11 @@ impl AppExtension for ImageManager {
 
                 tracing::error!("decode error: {:?}", img.error().unwrap());
             }
-        } else if let Some(args) = ViewProcessRespawnedEvent.update(args) {
+        } else if let Some(args) = ViewProcessInitedEvent.update(args) {
+            if !args.is_respawn {
+                return;
+            }
+
             let images = ctx.services.images();
             images.cleanup_not_cached(true);
             images.download_accept.clear();
@@ -134,7 +138,7 @@ impl AppExtension for ImageManager {
                             Ok(img) => {
                                 img_var.set(vars, Image::new(img));
                             }
-                            Err(Respawned) => { /*will receive another event.*/ }
+                            Err(ViewProcessOffline) => { /*will receive another event.*/ }
                         }
                         images.decoding.push((img_format.clone(), data.clone(), img_var));
                     } else {
@@ -148,7 +152,7 @@ impl AppExtension for ImageManager {
                         let data = view.shared_bgra8().unwrap();
                         let img = match vp.add_image(img_format.clone(), data.clone(), max_decoded_size.0 as u64) {
                             Ok(img) => img,
-                            Err(Respawned) => return, // we will receive another event.
+                            Err(ViewProcessOffline) => return, // we will receive another event.
                         };
 
                         img_var.set(vars, Image::new(img));
@@ -189,8 +193,8 @@ impl AppExtension for ImageManager {
                                             v.touch();
                                         });
                                     }
-                                    Err(Respawned) => {
-                                        // will recover in ViewProcessRespawnedEvent
+                                    Err(ViewProcessOffline) => {
+                                        // will recover in ViewProcessInitedEvent
                                     }
                                 }
                                 decoding.push((d.format, data, var));

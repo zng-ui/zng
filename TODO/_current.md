@@ -1,15 +1,14 @@
 # Unblock
 
 * No extensions init before `ViewProcess::start` and that takes up to 50ms.
-* WindowManager blocks in `KeyboardManager::init` up to 14ms.
 * The first update blocks in `FontFaceLoader::get_system` and `FontFace::load` up to 80ms (not a view block,`font_kit`).
 * The first layout blocks in `ViewProcess.open_window` up to 180ms.
 * Subsequent windows block layout in `ViewProcess.open_window` up to 130ms.
 
 ## View Start and Monitors
 
-* Integrate respawn events with `ViewProcessInited`.
 * Don't block waiting for `ViewProcessInited`.
+* Delay image requests until first `ViewProcessInited`.
 
 ## Font Query/Load
 

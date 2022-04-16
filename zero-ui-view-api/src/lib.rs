@@ -55,6 +55,11 @@ use webrender_api::{DocumentId, FontInstanceKey, FontKey, HitTestResult, ImageKe
 #[cfg_attr(feature = "ipc", derive(Serialize, Deserialize))]
 pub struct Request(RequestData);
 impl Request {
+    /// Returns `true` if the request can only be made after the *init* event.
+    pub fn must_be_online(&self) -> bool {
+        !matches!(&self.0, RequestData::init { .. } | RequestData::api_version { .. })
+    }
+
     /// Returns `true` if the request represents a new frame or frame update for the window with the same wait ID.
     pub fn is_frame(&self, window_id: WindowId, wait_id: Option<FrameWaitId>) -> bool {
         match &self.0 {
@@ -247,15 +252,16 @@ macro_rules! declare_api {
 declare_api! {
     /// Returns the [`VERSION`].
     ///
-    /// This method can be called before the [`startup`].
+    /// This method can be called before the [`init`].
     ///
-    /// [`startup`]: Api::startup
+    /// [`init`]: Api::init
     fn api_version(&mut self) -> String;
 
-    /// Called once on startup.
+    /// Called once on init.
     ///
-    /// Other methods are only called after this was called once.
-    fn startup(&mut self, gen: ViewProcessGen, device_events: bool, headless: bool);
+    /// Sends a [`Event::Inited`] once the view is completely online.
+    /// Other methods may only be called after this event.
+    fn init(&mut self, gen: ViewProcessGen, is_respawn: bool, device_events: bool, headless: bool);
 
     /// Called once after shutdown, if running in a managed external process it will be killed after this call.
     fn exit(&mut self);

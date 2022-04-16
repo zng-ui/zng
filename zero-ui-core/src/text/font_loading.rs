@@ -17,7 +17,7 @@ use super::{
 use crate::{
     app::{
         raw_events::{RawFontChangedEvent, RawTextAaChangedEvent},
-        view_process::{Respawned, ViewProcessInitedEvent, ViewProcessRespawnedEvent, ViewRenderer},
+        view_process::{ViewProcessInitedEvent, ViewProcessOffline, ViewRenderer},
         AppEventSender, AppExtension,
     },
     context::AppContext,
@@ -109,9 +109,9 @@ impl AppExtension for FontManager {
         } else if let Some(args) = ViewProcessInitedEvent.update(args) {
             let fonts = ctx.services.fonts();
             fonts.text_aa.set_ne(ctx.vars, args.text_aa);
-        } else if ViewProcessRespawnedEvent.update(args).is_some() {
-            let fonts = ctx.services.fonts();
-            fonts.loader.on_view_process_respawn();
+            if args.is_respawn {
+                fonts.loader.on_view_process_respawn();
+            }
         }
     }
 
@@ -484,7 +484,7 @@ impl FontFace {
     fn render_face(&self, renderer: &ViewRenderer) -> wr::FontKey {
         let namespace = match renderer.namespace_id() {
             Ok(n) => n,
-            Err(Respawned) => {
+            Err(ViewProcessOffline) => {
                 tracing::debug!("respawned calling `namespace_id`, will return dummy font key");
                 return Self::DUMMY_FONT_KEY;
             }
@@ -498,7 +498,7 @@ impl FontFace {
 
         let key = match renderer.add_font((*self.data.0).clone(), self.face_index) {
             Ok(k) => k,
-            Err(Respawned) => {
+            Err(ViewProcessOffline) => {
                 tracing::debug!("respawned calling `add_font`, will return dummy font key");
                 return Self::DUMMY_FONT_KEY;
             }
@@ -722,7 +722,7 @@ impl Font {
 
         let namespace = match renderer.namespace_id() {
             Ok(n) => n,
-            Err(Respawned) => {
+            Err(ViewProcessOffline) => {
                 tracing::debug!("respawned calling `namespace_id`, will return dummy font key");
                 return Self::DUMMY_FONT_KEY;
             }
@@ -754,7 +754,7 @@ impl Font {
 
         let key = match renderer.add_font_instance(font_key, self.size, Some(opt), None, variations) {
             Ok(k) => k,
-            Err(Respawned) => {
+            Err(ViewProcessOffline) => {
                 tracing::debug!("respawned calling `add_font_instance`, will return dummy font key");
                 return Self::DUMMY_FONT_KEY;
             }

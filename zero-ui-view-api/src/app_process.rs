@@ -8,7 +8,7 @@ use std::{
 #[cfg(feature = "ipc")]
 use std::time::Duration;
 
-use crate::{ipc, AnyResult, Event, Request, Respawned, Response, ViewConfig, ViewProcessGen, VpResult};
+use crate::{ipc, AnyResult, Event, Request, Response, ViewConfig, ViewProcessGen, ViewProcessOffline, VpResult};
 
 /// The listener returns the closure on join for reuse in respawn.
 type EventListenerJoin = JoinHandle<Box<dyn FnMut(Event) + Send>>;
@@ -35,6 +35,7 @@ pub struct Controller {
     process: Option<DuctHandle>,
     online: bool,
     generation: ViewProcessGen,
+    is_respawn: bool,
     view_process_exe: PathBuf,
     request_sender: ipc::RequestSender,
     response_receiver: ipc::ResponseReceiver,
@@ -98,21 +99,22 @@ impl Controller {
             headless,
             device_events,
             generation: 1,
+            is_respawn: false,
             last_respawn: None,
             fast_respawn_count: 0,
         };
 
-        if let Err(Respawned) = c.try_startup() {
-            panic!("respawn on startup"); // TODO recover from this
+        if let Err(ViewProcessOffline) = c.try_init() {
+            panic!("respawn on init"); // TODO recover from this
         }
 
         c
     }
-    fn try_startup(&mut self) -> VpResult<()> {
+    fn try_init(&mut self) -> VpResult<()> {
         if crate::VERSION != self.api_version()? {
             panic!("app-process and view-process must be build using the same exact version of zero-ui-vp");
         }
-        self.startup(self.generation, self.device_events, self.headless)?;
+        self.init(self.generation, self.is_respawn, self.device_events, self.headless)?;
         Ok(())
     }
 
@@ -144,6 +146,14 @@ impl Controller {
         self.same_process
     }
 
+    fn offline_err(&self) -> Result<(), ViewProcessOffline> {
+        if self.online {
+            Ok(())
+        } else {
+            Err(ViewProcessOffline)
+        }
+    }
+
     fn try_talk(&mut self, req: Request) -> ipc::IpcResult<Response> {
         self.request_sender.send(req)?;
         self.response_receiver.recv()
@@ -151,11 +161,15 @@ impl Controller {
     pub(crate) fn talk(&mut self, req: Request) -> VpResult<Response> {
         debug_assert!(req.expect_response());
 
+        if req.must_be_online() {
+            self.offline_err()?;
+        }
+
         match self.try_talk(req) {
             Ok(r) => Ok(r),
             Err(ipc::Disconnected) => {
                 self.handle_disconnect(self.generation);
-                Err(Respawned)
+                Err(ViewProcessOffline)
             }
         }
     }
@@ -163,11 +177,15 @@ impl Controller {
     pub(crate) fn command(&mut self, req: Request) -> VpResult<()> {
         debug_assert!(!req.expect_response());
 
+        if req.must_be_online() {
+            self.offline_err()?;
+        }
+
         match self.request_sender.send(req) {
             Ok(_) => Ok(()),
             Err(ipc::Disconnected) => {
                 self.handle_disconnect(self.generation);
-                Err(Respawned)
+                Err(ViewProcessOffline)
             }
         }
     }
@@ -227,8 +245,10 @@ impl Controller {
     /// Handle an [`Event::Inited`].
     ///
     /// Set the online flag.
-    pub fn handle_inited(&mut self) {
-        self.online = true;
+    pub fn handle_inited(&mut self, gen: ViewProcessGen) {
+        if gen == self.generation {
+            self.online = true;
+        }
     }
 
     /// Handle an [`Event::Disconnected`].
@@ -282,6 +302,7 @@ impl Controller {
     #[cfg(feature = "ipc")]
     fn respawn_impl(&mut self, is_crash: bool) {
         self.online = false;
+        self.is_respawn = true;
 
         let process = if let Some(p) = self.process.take() {
             p
@@ -419,13 +440,11 @@ impl Controller {
         }
         self.generation = next_id;
 
-        if let Err(Respawned) = self.try_startup() {
+        if let Err(ViewProcessOffline) = self.try_init() {
             panic!("respawn on respawn startup");
         }
 
         let ev = thread::spawn(move || {
-            // notify a respawn.
-            on_event(Event::Respawned(next_id));
             while let Ok(ev) = event.recv() {
                 on_event(ev);
             }

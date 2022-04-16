@@ -3,11 +3,7 @@
 //! The app extension [`MouseManager`] provides the events and service. It is included in the default application.
 
 use crate::{
-    app::{
-        raw_events::*,
-        view_process::{ViewProcessInitedEvent, ViewProcessRespawnedEvent},
-        *,
-    },
+    app::{raw_events::*, view_process::ViewProcessInitedEvent, *},
     context::*,
     event::*,
     keyboard::ModifiersState,
@@ -1068,28 +1064,30 @@ impl AppExtension for MouseManager {
             self.click_state = ClickState::None;
         } else if let Some(args) = ViewProcessInitedEvent.update(args) {
             self.multi_click_config.set_ne(ctx.vars, args.multi_click_config);
-        } else if ViewProcessRespawnedEvent.update(args).is_some() {
-            let mouse = ctx.services.mouse();
 
-            if let Some(window_id) = self.pos_window.take() {
-                if let Some(path) = self.hovered.take() {
-                    let args = MouseHoverArgs::now(
-                        window_id,
-                        None,
-                        DipPoint::new(Dip::new(-1), Dip::new(-1)),
-                        FrameHitInfo::no_hits(window_id),
-                        Some(path),
-                        None,
-                        None,
-                        None,
-                    );
-                    MouseHoveredEvent.notify(ctx.events, args);
+            if args.is_respawn {
+                let mouse = ctx.services.mouse();
+
+                if let Some(window_id) = self.pos_window.take() {
+                    if let Some(path) = self.hovered.take() {
+                        let args = MouseHoverArgs::now(
+                            window_id,
+                            None,
+                            DipPoint::new(Dip::new(-1), Dip::new(-1)),
+                            FrameHitInfo::no_hits(window_id),
+                            Some(path),
+                            None,
+                            None,
+                            None,
+                        );
+                        MouseHoveredEvent.notify(ctx.events, args);
+                    }
                 }
+                mouse.current_capture = None;
+                mouse.capture_request = None;
+                mouse.release_requested = false;
+                mouse.buttons.set_ne(ctx.vars, vec![]);
             }
-            mouse.current_capture = None;
-            mouse.capture_request = None;
-            mouse.release_requested = false;
-            mouse.buttons.set_ne(ctx.vars, vec![]);
         }
     }
 

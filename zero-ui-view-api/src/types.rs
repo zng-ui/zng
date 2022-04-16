@@ -757,7 +757,17 @@ impl WindowChanged {
 #[derive(Debug, Serialize, Deserialize)]
 pub enum Event {
     /// View process is online.
+    ///
+    /// The [`ViewProcessGen`] is the generation of the new view-process, it must be passed to
+    /// [`Controller::handle_inited`].
+    ///
+    /// [`Controller::handle_inited`]: crate::Controller::handle_inited
     Inited {
+        /// View-process generation, changes after respawns and is never zero.
+        generation: ViewProcessGen,
+        /// If the view-process is a respawn from a previous crashed process.
+        is_respawn: bool,
+
         /// Available monitors.
         available_monitors: Vec<(MonitorId, MonitorInfo)>,
         /// System multi-click config.
@@ -772,10 +782,6 @@ pub enum Event {
         animation_enabled: bool,
     },
 
-    /// The view-process crashed and respawned, all resources must be rebuild.
-    ///
-    /// The [`ViewProcessGen`] is the new generation, after the respawn.
-    Respawned(ViewProcessGen),
     /// The event channel disconnected, probably because the view-process crashed.
     ///
     /// The [`ViewProcessGen`] is the generation of the view-process that was lost, it must be passed to
@@ -1319,18 +1325,18 @@ impl fmt::Debug for TextAntiAliasing {
     }
 }
 
-/// The View-Process crashed and respawned, all resources must be recreated.
+/// The View-Process disconnected or has not finished initializing, try again after the *inited* event.
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Serialize, Deserialize)]
-pub struct Respawned;
-impl fmt::Display for Respawned {
+pub struct ViewProcessOffline;
+impl fmt::Display for ViewProcessOffline {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "view-process crashed and respawned, all resources must be rebuild")
+        write!(f, "view-process disconnected or is initing, try again after the init event")
     }
 }
-impl std::error::Error for Respawned {}
+impl std::error::Error for ViewProcessOffline {}
 
 /// View Process IPC result.
-pub(crate) type VpResult<T> = std::result::Result<T, Respawned>;
+pub(crate) type VpResult<T> = std::result::Result<T, ViewProcessOffline>;
 
 /// Data for rendering a new frame.
 #[derive(Clone, Serialize, Deserialize)]

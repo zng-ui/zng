@@ -25,12 +25,12 @@ use zero_ui_view_api::webrender_api::{
 };
 pub use zero_ui_view_api::{
     bytes_channel, CursorIcon, Event, EventCause, FrameRequest, FrameUpdateRequest, FrameWaitId, HeadlessOpenData, HeadlessRequest,
-    ImageDataFormat, ImagePpi, IpcBytes, IpcBytesReceiver, IpcBytesSender, MonitorInfo, RenderMode, Respawned, VideoMode, ViewProcessGen,
-    WindowRequest, WindowState, WindowStateAll, WindowTheme,
+    ImageDataFormat, ImagePpi, IpcBytes, IpcBytesReceiver, IpcBytesSender, MonitorInfo, RenderMode, VideoMode, ViewProcessGen,
+    ViewProcessOffline, WindowRequest, WindowState, WindowStateAll, WindowTheme,
 };
 use zero_ui_view_api::{Controller, DeviceId as ApiDeviceId, ImageId, ImageLoadedData, MonitorId as ApiMonitorId, WindowId as ApiWindowId};
 
-type Result<T> = std::result::Result<T, Respawned>;
+type Result<T> = std::result::Result<T, ViewProcessOffline>;
 
 struct EncodeRequest {
     image_id: ImageId,
@@ -177,7 +177,7 @@ impl ViewProcess {
         *self.0.borrow_mut().monitor_ids.entry(id).or_insert_with(MonitorId::new_unique)
     }
 
-    /// Reopen the view-process, causing an [`Event::Respawned`].
+    /// Reopen the view-process, causing an [`Event::Respawned`] followed by another [`Event::Inited`].
     pub fn respawn(&self) {
         self.0.borrow_mut().process.respawn()
     }
@@ -186,6 +186,13 @@ impl ViewProcess {
     #[cfg(debug_assertions)]
     pub fn crash_view_process(&self) {
         self.0.borrow_mut().process.crash().unwrap();
+    }
+
+    /// Handle an [`Event::Inited`].
+    ///
+    /// The view-process becomes online only after this call.
+    pub(super) fn handle_inited(&self, gen: ViewProcessGen) {
+        self.0.borrow_mut().process.handle_inited(gen);
     }
 
     /// Handle an [`Event::Disconnected`].
@@ -402,10 +409,6 @@ impl ViewProcess {
         })
     }
 
-    pub(super) fn handle_inited(&self) {
-        self.0.borrow_mut().process.handle_inited();
-    }
-
     pub(super) fn on_respawed(&self, _gen: ViewProcessGen) {
         let mut vp = self.0.borrow_mut();
         vp.pending_frames = 0;
@@ -428,7 +431,7 @@ struct ImageConnection {
     done_signal: SignalOnce,
 }
 impl ImageConnection {
-    fn alive(&self) -> bool {
+    fn online(&self) -> bool {
         if let Some(app) = &self.app {
             self.generation == app.borrow().process.generation()
         } else {
@@ -468,7 +471,7 @@ impl fmt::Debug for ViewImage {
             .field("dpi", &self.ppi())
             .field("opaque", &self.is_opaque())
             .field("generation", &self.generation())
-            .field("alive", &self.alive())
+            .field("alive", &self.online())
             .finish_non_exhaustive()
     }
 }
@@ -569,11 +572,11 @@ impl ViewImage {
     /// Returns `true` if this window connection is still valid.
     ///
     /// The connection can be permanently lost in case the "view-process" respawns, in this
-    /// case all methods will return [`Respawned`], and you must discard this connection and
+    /// case all methods will return [`ViewProcessOffline`], and you must discard this connection and
     /// create a new one.
     #[inline]
-    pub fn alive(&self) -> bool {
-        self.0.alive()
+    pub fn online(&self) -> bool {
+        self.0.online()
     }
 
     /// Creates a [`WeakViewImage`].
@@ -663,22 +666,22 @@ pub enum EncodeError {
     /// In a headless-app without renderer all images are dummy because there is no
     /// view-process backend running.
     Dummy,
-    /// View-process respawned while waiting for encoded data.
-    Respawned,
+    /// The View-Process disconnected or has not finished initializing yet, try again after [`ViewProcessInitedEvent`].
+    ViewProcessOffline,
 }
 impl From<String> for EncodeError {
     fn from(e: String) -> Self {
         EncodeError::Encode(e)
     }
 }
-impl From<Respawned> for EncodeError {
-    fn from(_: Respawned) -> Self {
-        EncodeError::Respawned
+impl From<ViewProcessOffline> for EncodeError {
+    fn from(_: ViewProcessOffline) -> Self {
+        EncodeError::ViewProcessOffline
     }
 }
 impl From<flume::RecvError> for EncodeError {
     fn from(_: flume::RecvError) -> Self {
-        EncodeError::Respawned
+        EncodeError::ViewProcessOffline
     }
 }
 impl fmt::Display for EncodeError {
@@ -686,7 +689,7 @@ impl fmt::Display for EncodeError {
         match self {
             EncodeError::Encode(e) => write!(f, "{e}"),
             EncodeError::Dummy => write!(f, "cannot encode dummy image"),
-            EncodeError::Respawned => write!(f, "{}", Respawned),
+            EncodeError::ViewProcessOffline => write!(f, "{}", ViewProcessOffline),
         }
     }
 }
@@ -719,14 +722,15 @@ struct WindowConnection {
     app: Rc<RefCell<ViewApp>>,
 }
 impl WindowConnection {
-    fn alive(&self) -> bool {
-        self.generation == self.app.borrow().process.generation()
+    fn online(&self) -> bool {
+        let vp = self.app.borrow();
+        vp.process.online() && self.generation == vp.process.generation()
     }
 
     fn call<R>(&self, f: impl FnOnce(ApiWindowId, &mut Controller) -> Result<R>) -> Result<R> {
         let mut app = self.app.borrow_mut();
         if app.check_generation() {
-            Err(Respawned)
+            Err(ViewProcessOffline)
         } else {
             f(self.id, &mut app.process)
         }
@@ -756,11 +760,11 @@ impl ViewWindow {
     /// Returns `true` if this window connection is still valid.
     ///
     /// The connection can be permanently lost in case the "view-process" respawns, in this
-    /// case all methods will return [`Respawned`], and you must discard this connection and
+    /// case all methods will return [`ViewProcessOffline`], and you must discard this connection and
     /// create a new one.
     #[inline]
-    pub fn alive(&self) -> bool {
-        self.0.alive()
+    pub fn online(&self) -> bool {
+        self.0.online()
     }
 
     /// Returns the view-process generation on which the window was open.
@@ -807,7 +811,7 @@ impl ViewWindow {
                 if p.generation() == icon.0.generation {
                     p.set_icon(id, Some(icon.0.id))
                 } else {
-                    Err(Respawned)
+                    Err(ViewProcessOffline)
                 }
             } else {
                 p.set_icon(id, None)
@@ -908,10 +912,8 @@ impl ViewHeadless {
 
 /// Connection to a renderer in the View Process.
 ///
-/// This is only a weak reference, every method returns [`Respawned`] if the
+/// This is only a weak reference, every method returns [`ViewProcessOffline`] if the
 /// renderer has been dropped.
-///
-/// [`Respawned`]: Respawned
 #[derive(Clone, Debug)]
 pub struct ViewRenderer(rc::Weak<WindowConnection>);
 impl PartialEq for ViewRenderer {
@@ -928,21 +930,21 @@ impl ViewRenderer {
         if let Some(c) = self.0.upgrade() {
             c.call(f)
         } else {
-            Err(Respawned)
+            Err(ViewProcessOffline)
         }
     }
 
     /// Returns the view-process generation on which the renderer was created.
     pub fn generation(&self) -> Result<ViewProcessGen> {
-        self.0.upgrade().map(|c| c.generation).ok_or(Respawned)
+        self.0.upgrade().map(|c| c.generation).ok_or(ViewProcessOffline)
     }
 
     /// Returns `true` if the renderer is still alive.
     ///
     /// The renderer is dropped when the window closes or the view-process respawns.
     #[inline]
-    pub fn alive(&self) -> bool {
-        self.0.upgrade().map(|c| c.alive()).unwrap_or(false)
+    pub fn online(&self) -> bool {
+        self.0.upgrade().map(|c| c.online()).unwrap_or(false)
     }
 
     /// Pipeline ID.
@@ -951,11 +953,11 @@ impl ViewRenderer {
     #[inline]
     pub fn pipeline_id(&self) -> Result<PipelineId> {
         if let Some(c) = self.0.upgrade() {
-            if c.alive() {
+            if c.online() {
                 return Ok(c.pipeline_id);
             }
         }
-        Err(Respawned)
+        Err(ViewProcessOffline)
     }
 
     /// Resource namespace.
@@ -964,11 +966,11 @@ impl ViewRenderer {
     #[inline]
     pub fn namespace_id(&self) -> Result<IdNamespace> {
         if let Some(c) = self.0.upgrade() {
-            if c.alive() {
+            if c.online() {
                 return Ok(c.id_namespace);
             }
         }
-        Err(Respawned)
+        Err(ViewProcessOffline)
     }
 
     /// Document ID.
@@ -977,11 +979,11 @@ impl ViewRenderer {
     #[inline]
     pub fn document_id(&self) -> Result<DocumentId> {
         if let Some(c) = self.0.upgrade() {
-            if c.alive() {
+            if c.online() {
                 return Ok(c.document_id);
             }
         }
-        Err(Respawned)
+        Err(ViewProcessOffline)
     }
 
     /// Use an image resource in the window renderer.
@@ -992,7 +994,7 @@ impl ViewRenderer {
             if p.generation() == image.0.generation {
                 p.use_image(id, image.0.id)
             } else {
-                Err(Respawned)
+                Err(ViewProcessOffline)
             }
         })
     }
@@ -1003,7 +1005,7 @@ impl ViewRenderer {
             if p.generation() == image.0.generation {
                 p.update_image_use(id, key, image.0.id)
             } else {
-                Err(Respawned)
+                Err(ViewProcessOffline)
             }
         })
     }
@@ -1050,7 +1052,7 @@ impl ViewRenderer {
             let id = c.call(|id, p| p.frame_image(id))?;
             Ok(Self::add_frame_image(&c.app, id))
         } else {
-            Err(Respawned)
+            Err(ViewProcessOffline)
         }
     }
 
@@ -1060,7 +1062,7 @@ impl ViewRenderer {
             let id = c.call(|id, p| p.frame_image_rect(id, rect))?;
             Ok(Self::add_frame_image(&c.app, id))
         } else {
-            Err(Respawned)
+            Err(ViewProcessOffline)
         }
     }
 
@@ -1110,7 +1112,7 @@ impl ViewRenderer {
             w.app.borrow_mut().pending_frames += 1;
             Ok(())
         } else {
-            Err(Respawned)
+            Err(ViewProcessOffline)
         }
     }
 
@@ -1123,7 +1125,7 @@ impl ViewRenderer {
             w.app.borrow_mut().pending_frames += 1;
             Ok(())
         } else {
-            Err(Respawned)
+            Err(ViewProcessOffline)
         }
     }
 }
@@ -1131,6 +1133,13 @@ impl ViewRenderer {
 event_args! {
     /// Arguments for the [`ViewProcessInitedEvent`].
     pub struct ViewProcessInitedArgs {
+        /// View-process generation.
+        pub generation: ViewProcessGen,
+
+        /// If this is not the first time a view-process was inited. If `true`
+        /// all resources created in a previous generation must be rebuilt.
+        pub is_respawn: bool,
+
         /// Monitors list.
         pub available_monitors: Vec<(MonitorId, MonitorInfo)>,
 
@@ -1155,29 +1164,11 @@ event_args! {
             true
         }
     }
-
-    /// Arguments for the [`ViewProcessRespawnedEvent`].
-    pub struct ViewProcessRespawnedArgs {
-        /// New view-process generation
-        pub generation: ViewProcessGen,
-
-        ..
-
-        /// Returns `true` for all widgets.
-        fn concerns_widget(&self, _ctx: &mut WidgetContext) -> bool {
-            true
-        }
-    }
 }
 
 event! {
     /// View Process finished initializing and is now online.
     pub ViewProcessInitedEvent: ViewProcessInitedArgs;
-
-    /// View Process crashed and respawned, resources may need to be rebuild.
-    ///
-    /// This event fires if the view-process crashed and was successfully
-    pub ViewProcessRespawnedEvent: ViewProcessRespawnedArgs;
 }
 
 /// Information about a successfully opened window.

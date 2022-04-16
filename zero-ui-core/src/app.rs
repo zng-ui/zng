@@ -23,9 +23,7 @@ use crate::{
     window::{WindowId, WindowManager},
 };
 
-use self::view_process::{
-    ViewProcess, ViewProcessExt, ViewProcessInitedArgs, ViewProcessInitedEvent, ViewProcessRespawnedArgs, ViewProcessRespawnedEvent,
-};
+use self::view_process::{ViewProcess, ViewProcessExt, ViewProcessInitedArgs, ViewProcessInitedEvent};
 use once_cell::sync::Lazy;
 use std::future::Future;
 use std::mem;
@@ -1266,7 +1264,7 @@ impl<E: AppExtension> RunningApp<E> {
             }
 
             // Others
-            Event::Inited { .. } | Event::Respawned(_) | Event::Disconnected(_) | Event::FrameRendered(_) => unreachable!(), // handled before coalesce.
+            Event::Inited { .. } | Event::Disconnected(_) | Event::FrameRendered(_) => unreachable!(), // handled before coalesce.
         }
     }
 
@@ -1321,6 +1319,8 @@ impl<E: AppExtension> RunningApp<E> {
                     self.pending_view_frame_events.push(ev);
                 }
                 zero_ui_view_api::Event::Inited {
+                    generation,
+                    is_respawn,
                     available_monitors,
                     multi_click_config,
                     key_repeat_delay,
@@ -1328,27 +1328,30 @@ impl<E: AppExtension> RunningApp<E> {
                     animation_enabled,
                 } => {
                     // notify immediately.
+                    if is_respawn {
+                        self.ctx().services.req::<ViewProcess>().on_respawed(generation);
+
+                        // discard pending events.
+                        self.pending_app_events.clear();
+                    }
+
                     let view = self.ctx().services.req::<ViewProcess>();
-                    view.handle_inited();
+                    view.handle_inited(generation);
 
                     let monitors: Vec<_> = available_monitors
                         .into_iter()
                         .map(|(id, info)| (view.monitor_id(id), info))
                         .collect();
-                    let args = ViewProcessInitedArgs::now(monitors, multi_click_config, key_repeat_delay, text_aa, animation_enabled);
+                    let args = ViewProcessInitedArgs::now(
+                        generation,
+                        is_respawn,
+                        monitors,
+                        multi_click_config,
+                        key_repeat_delay,
+                        text_aa,
+                        animation_enabled,
+                    );
                     self.notify_event(ViewProcessInitedEvent, args, observer);
-                }
-                zero_ui_view_api::Event::Respawned(g) => {
-                    // update ViewProcess immediately.
-                    let view = self.ctx().services.view_process();
-                    view.on_respawed(g);
-
-                    // discard pending events.
-                    self.pending_app_events.clear();
-
-                    // notify immediately.
-                    let args = ViewProcessRespawnedArgs::now(g);
-                    self.notify_event(ViewProcessRespawnedEvent, args, observer);
                 }
                 zero_ui_view_api::Event::Disconnected(gen) => {
                     // update ViewProcess immediately.

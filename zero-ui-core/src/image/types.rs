@@ -7,7 +7,7 @@ use std::{
 };
 
 use once_cell::unsync::OnceCell;
-use zero_ui_view_api::{webrender_api::ImageKey, Respawned};
+use zero_ui_view_api::{webrender_api::ImageKey, ViewProcessOffline};
 
 use crate::{
     app::view_process::{EncodeError, ViewImage, ViewRenderer},
@@ -309,7 +309,7 @@ impl crate::render::Image for Image {
 
             let namespace = match renderer.namespace_id() {
                 Ok(n) => n,
-                Err(Respawned) => {
+                Err(ViewProcessOffline) => {
                     tracing::debug!("respawned calling `namespace_id`, will return DUMMY");
                     return ImageKey::DUMMY;
                 }
@@ -327,7 +327,7 @@ impl crate::render::Image for Image {
                     }
                     k
                 }
-                Err(Respawned) => {
+                Err(ViewProcessOffline) => {
                     tracing::debug!("respawned `add_image`, will return DUMMY");
                     return ImageKey::DUMMY;
                 }

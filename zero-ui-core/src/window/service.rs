@@ -1,10 +1,9 @@
 use std::mem;
 
 use linear_map::LinearMap;
-use zero_ui_view_api::Respawned;
 
 use super::*;
-use crate::app::view_process::{ViewProcess, ViewProcessInitedEvent};
+use crate::app::view_process::{ViewProcess, ViewProcessInitedEvent, ViewProcessOffline};
 use crate::context::OwnedStateMap;
 use crate::event::EventUpdateArgs;
 use crate::image::{Image, ImageVar};
@@ -240,7 +239,7 @@ impl Windows {
     fn frame_image_impl(
         &mut self,
         window_id: WindowId,
-        action: impl FnOnce(&ViewRenderer) -> std::result::Result<view_process::ViewImage, view_process::Respawned>,
+        action: impl FnOnce(&ViewRenderer) -> std::result::Result<view_process::ViewImage, view_process::ViewProcessOffline>,
     ) -> ImageVar {
         if let Some(w) = self.windows_info.get(&window_id) {
             if let Some(r) = &w.renderer {
@@ -598,7 +597,7 @@ impl AppWindowInfo {
                 Ok((frame_id, px_pt, hit_test)) => {
                     return FrameHitInfo::new(self.id, frame_id, px_pt, &hit_test);
                 }
-                Err(Respawned) => tracing::debug!("respawned calling `hit_test`, will return `no_hits`"),
+                Err(ViewProcessOffline) => tracing::debug!("respawned calling `hit_test`, will return `no_hits`"),
             }
         }
 

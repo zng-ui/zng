@@ -1124,7 +1124,7 @@ impl<S: AppEventSender> Api for App<S> {
         VERSION.to_owned()
     }
 
-    fn startup(&mut self, gen: ViewProcessGen, device_events: bool, headless: bool) {
+    fn init(&mut self, gen: ViewProcessGen, is_respawn: bool, device_events: bool, headless: bool) {
         if self.started {
             panic!("already started");
         }
@@ -1143,6 +1143,8 @@ impl<S: AppEventSender> Api for App<S> {
 
         let available_monitors = self.available_monitors();
         self.notify(Event::Inited {
+            generation: gen,
+            is_respawn,
             available_monitors,
             multi_click_config: config::multi_click_config(),
             key_repeat_delay: config::key_repeat_delay(),
