@@ -177,7 +177,7 @@ impl ViewProcess {
         *self.0.borrow_mut().monitor_ids.entry(id).or_insert_with(MonitorId::new_unique)
     }
 
-    /// Reopen the view-process, causing an [`Event::Respawned`] followed by another [`Event::Inited`].
+    /// Reopen the view-process, causing another [`Event::Inited`].
     pub fn respawn(&self) {
         self.0.borrow_mut().process.respawn()
     }

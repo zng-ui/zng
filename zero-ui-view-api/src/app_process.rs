@@ -258,7 +258,7 @@ impl Controller {
     /// The `gen` parameter is the generation provided by the event. It is used to determinate if the disconnect has
     /// not been handled already.
     ///
-    /// Tries to cleanup the old view-process and start a new one, if all is successful an [`Event::Respawned`] is send.
+    /// Tries to cleanup the old view-process and start a new one, if all is successful an [`Event::Inited`] is send.
     ///
     /// The old view-process exit code and std output is logged using the `vp_respawn` target.
     ///
@@ -286,7 +286,7 @@ impl Controller {
         }
     }
 
-    /// Reopen the view-process, causing an [`Event::Respawned`].
+    /// Reopen the view-process, causing another [`Event::Inited`].
     ///
     /// This is similar to [`handle_disconnect`] but the current process does not
     /// exit depending on the view-process exit code.
