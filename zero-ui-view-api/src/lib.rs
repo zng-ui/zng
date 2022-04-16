@@ -57,7 +57,7 @@ pub struct Request(RequestData);
 impl Request {
     /// Returns `true` if the request can only be made after the *init* event.
     pub fn must_be_online(&self) -> bool {
-        !matches!(&self.0, RequestData::init { .. } | RequestData::api_version { .. })
+        !matches!(&self.0, RequestData::init { .. })
     }
 
     /// Returns `true` if the request represents a new frame or frame update for the window with the same wait ID.
@@ -250,13 +250,6 @@ macro_rules! declare_api {
     };
 }
 declare_api! {
-    /// Returns the [`VERSION`].
-    ///
-    /// This method can be called before the [`init`].
-    ///
-    /// [`init`]: Api::init
-    fn api_version(&mut self) -> String;
-
     /// Called once on init.
     ///
     /// Sends a [`Event::Inited`] once the view is completely online.

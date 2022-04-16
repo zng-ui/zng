@@ -18,8 +18,9 @@ type DuctHandle = duct::Handle;
 #[cfg(not(feature = "ipc"))]
 struct DuctHandle;
 
-pub(crate) const SERVER_NAME_VAR: &str = "ZERO_UI_WR_SERVER";
-pub(crate) const MODE_VAR: &str = "ZERO_UI_WR_MODE";
+pub(crate) const VERSION_VAR: &str = "ZERO_UI_VIEW_VERSION";
+pub(crate) const SERVER_NAME_VAR: &str = "ZERO_UI_VIEW_SERVER";
+pub(crate) const MODE_VAR: &str = "ZERO_UI_VIEW_MODE";
 
 /// View Process controller, used in the App Process.
 ///
@@ -111,11 +112,6 @@ impl Controller {
         c
     }
     fn try_init(&mut self) -> VpResult<()> {
-        let _span = tracing::trace_span!("api_version").entered();
-        if crate::VERSION != self.api_version()? {
-            panic!("app-process and view-process must be build using the same exact version of zero-ui-vp");
-        }
-        drop(_span);
         self.init(self.generation, self.is_respawn, self.device_events, self.headless)?;
         Ok(())
     }
@@ -203,6 +199,7 @@ impl Controller {
         // create process and spawn it, unless is running in same process mode.
         let process = if ViewConfig::is_awaiting_same_process() {
             ViewConfig::set_same_process(ViewConfig {
+                version: crate::VERSION.to_owned(),
                 server_name: init.name().to_owned(),
                 headless,
             });
@@ -217,6 +214,7 @@ impl Controller {
             #[cfg(feature = "ipc")]
             {
                 let process = duct::cmd!(view_process_exe)
+                    .env(VERSION_VAR, crate::VERSION)
                     .env(SERVER_NAME_VAR, init.name())
                     .env(MODE_VAR, if headless { "headless" } else { "headed" })
                     .env("RUST_BACKTRACE", "full")
@@ -390,13 +388,24 @@ impl Controller {
                 tracing::error!(target: "vp_respawn", "view-process exit_code: 0x{code:x}");
             }
 
-            match String::from_utf8(c.stderr) {
+            let stderr = match String::from_utf8(c.stderr) {
                 Ok(s) => {
                     if !s.is_empty() {
                         tracing::error!(target: "vp_respawn", "view-process stderr:\n```stderr\n{s}\n```")
                     }
+                    Some(s)
                 }
-                Err(e) => tracing::error!(target: "vp_respawn", "failed to read view-process stderr: {e}"),
+                Err(e) => {
+                    tracing::error!(target: "vp_respawn", "failed to read view-process stderr: {e}");
+                    None
+                }
+            };
+
+            if ViewConfig::is_version_err(code, stderr.as_deref()) {
+                let code = code.unwrap_or(1);
+                tracing::error!(target: "vp_respawn", "view-process API version don't match, \
+                                        will exit app-process with code 0x{code:x}");
+                std::process::exit(code);
             }
 
             match String::from_utf8(c.stdout) {

@@ -180,6 +180,8 @@ pub fn init() {
     if let Some(config) = ViewConfig::from_env() {
         std::panic::set_hook(Box::new(init_abort));
 
+        config.assert_version(false);
+
         let c = connect_view_process(config.server_name).expect("failed to connect to app-process");
 
         if config.headless {
@@ -255,6 +257,7 @@ pub fn run_same_process(run_app: impl FnOnce() + Send + 'static) {
     thread::Builder::new().name("app".to_owned()).spawn(run_app).unwrap();
 
     let config = ViewConfig::wait_same_process();
+    config.assert_version(true);
 
     let c = connect_view_process(config.server_name).expect("failed to connect to app in same process");
 
@@ -1113,10 +1116,6 @@ macro_rules! with_window_or_surface {
 }
 
 impl<S: AppEventSender> Api for App<S> {
-    fn api_version(&mut self) -> String {
-        VERSION.to_owned()
-    }
-
     fn init(&mut self, gen: ViewProcessGen, is_respawn: bool, device_events: bool, headless: bool) {
         if self.started {
             panic!("already started");

@@ -3,11 +3,16 @@ use std::{
     time::{Duration, Instant},
 };
 
-use crate::{MODE_VAR, SERVER_NAME_VAR};
+use crate::{MODE_VAR, SERVER_NAME_VAR, VERSION_VAR};
 
 /// Configuration for starting a view-process.
 #[derive(Clone, Debug)]
 pub struct ViewConfig {
+    /// The [`VERSION`] of the API crate in the app-process.
+    ///
+    /// [`VERSION`]: crate::VERSION
+    pub version: String,
+
     /// Name of the initial channel used in [`connect_view_process`] to setup the connections to the
     /// client app-process.
     ///
@@ -25,9 +30,13 @@ impl ViewConfig {
     ///
     /// [`Controller`]: crate::Controller
     pub fn from_env() -> Option<Self> {
-        if let Ok(server_name) = env::var(SERVER_NAME_VAR) {
+        if let (Ok(version), Ok(server_name)) = (env::var(VERSION_VAR), env::var(SERVER_NAME_VAR)) {
             let headless = env::var(MODE_VAR).map(|m| m == "headless").unwrap_or(false);
-            Some(ViewConfig { server_name, headless })
+            Some(ViewConfig {
+                version,
+                server_name,
+                headless,
+            })
         } else {
             None
         }
@@ -46,7 +55,7 @@ impl ViewConfig {
     /// If there is no pending `wait_same_process`.
     pub(crate) fn set_same_process(cfg: ViewConfig) {
         if Self::is_awaiting_same_process() {
-            let cfg = format!("{}\n{}", cfg.server_name, cfg.headless);
+            let cfg = format!("{}\n{}\n{}", cfg.version, cfg.server_name, cfg.headless);
             env::set_var(Self::SAME_PROCESS_VAR, cfg);
         } else {
             unreachable!("use `waiting_same_process` to check, then call `set_same_process` only once")
@@ -82,12 +91,43 @@ impl ViewConfig {
         env::set_var(Self::SAME_PROCESS_VAR, Self::SG_DONE);
 
         let config: Vec<_> = config.lines().collect();
-        assert_eq!(config.len(), 2);
+        assert_eq!(config.len(), 3, "var `{}` format incorrect, expected 3 lines", Self::SAME_PROCESS_VAR);
 
         ViewConfig {
-            server_name: config[0].to_owned(),
-            headless: config[1] == "true",
+            version: config[0].to_owned(),
+            server_name: config[1].to_owned(),
+            headless: config[2] == "true",
         }
+    }
+
+    /// Assert that the [`VERSION`] is the same in the app-process and view-process.
+    ///
+    /// This method must be called in the view-process implementation, it fails if the versions don't match, panics if
+    /// `is_same_process` or writes to *stderr* and exits with code .
+    ///
+    /// [`VERSION`]: crate::VERSION
+    pub fn assert_version(&self, is_same_process: bool) {
+        if self.version != crate::VERSION {
+            let msg = format!(
+                "view API version is not equal, app-process: {}, view-process: {}",
+                self.version,
+                crate::VERSION
+            );
+            if is_same_process {
+                panic!("{}", msg)
+            } else {
+                eprintln!("{}", msg);
+                std::process::exit(i32::from_le_bytes(*b"vapi"));
+            }
+        }
+    }
+
+    /// Returns `true` if a view-process exited because of [`assert_version`].
+    ///
+    /// [`assert_version`]: Self::assert_version
+    pub fn is_version_err(exit_code: Option<i32>, stderr: Option<&str>) -> bool {
+        exit_code.map(|e| e == i32::from_le_bytes(*b"vapi")).unwrap_or(false)
+            || stderr.map(|s| s.contains("view API version is not equal")).unwrap_or(false)
     }
 
     /// Used to communicate the `ViewConfig` in the same process, we don't use
