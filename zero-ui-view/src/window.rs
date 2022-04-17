@@ -407,6 +407,8 @@ impl Window {
         }
 
         if !self.waiting_first_frame {
+            let _s = tracing::trace_span!("set_visible", %visible).entered();
+
             self.visible = visible;
 
             if visible {
