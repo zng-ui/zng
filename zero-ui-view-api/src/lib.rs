@@ -252,7 +252,7 @@ macro_rules! declare_api {
 declare_api! {
     /// Called once on init.
     ///
-    /// Sends a [`Event::Inited`] once the view is completely online.
+    /// Sends an [`Event::Inited`] once the view is completely online.
     /// Other methods may only be called after this event.
     fn init(&mut self, gen: ViewProcessGen, is_respawn: bool, device_events: bool, headless: bool);
 
@@ -261,16 +261,16 @@ declare_api! {
 
     /// Open a window.
     ///
-    /// Returns the renderer ids.
-    pub fn open_window(&mut self, request: WindowRequest) -> WindowOpenData;
+    /// Sends an [`Event::WindowOpened`] once the window, context and renderer have finished initializing.
+    pub fn open_window(&mut self, request: WindowRequest);
 
     /// Open a headless surface.
     ///
     /// This is a real renderer but not connected to any window, you can requests pixels to get the
     /// rendered frames.
     ///
-    /// Returns the renderer ids.
-    pub fn open_headless(&mut self, request: HeadlessRequest) -> HeadlessOpenData;
+    /// Sends an [`Event::HeadlessOpened`] once the context and renderer have finished initializing.
+    pub fn open_headless(&mut self, request: HeadlessRequest);
 
     /// Close the window or headless surface.
     ///

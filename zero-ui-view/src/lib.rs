@@ -1115,6 +1115,32 @@ macro_rules! with_window_or_surface {
     };
 }
 
+impl<S: AppEventSender> App<S> {
+    fn open_headless_impl(&mut self, config: HeadlessRequest) -> HeadlessOpenData {
+        self.assert_started();
+        let surf = Surface::open(
+            self.gen,
+            config,
+            unsafe { &*self.window_target },
+            &mut self.gl_manager,
+            self.app_sender.clone(),
+        );
+        let id_namespace = surf.id_namespace();
+        let pipeline_id = surf.pipeline_id();
+        let document_id = surf.document_id();
+        let render_mode = surf.render_mode();
+
+        self.surfaces.push(surf);
+
+        HeadlessOpenData {
+            id_namespace,
+            pipeline_id,
+            document_id,
+            render_mode,
+        }
+    }
+}
+
 impl<S: AppEventSender> Api for App<S> {
     fn init(&mut self, gen: ViewProcessGen, is_respawn: bool, device_events: bool, headless: bool) {
         if self.started {
@@ -1151,21 +1177,22 @@ impl<S: AppEventSender> Api for App<S> {
         self.exited = true;
     }
 
-    fn open_window(&mut self, mut config: WindowRequest) -> WindowOpenData {
+    fn open_window(&mut self, mut config: WindowRequest) {
         let _s = tracing::debug_span!("open_window", ?config).entered();
 
         config.state.clamp_size();
         config.enforce_kiosk();
 
         if self.headless {
-            let data = self.open_headless(HeadlessRequest {
+            let id = config.id;
+            let data = self.open_headless_impl(HeadlessRequest {
                 id: config.id,
                 scale_factor: 1.0,
                 size: config.state.restore_rect.size,
                 text_aa: config.text_aa,
                 render_mode: config.render_mode,
             });
-            WindowOpenData {
+            let msg = WindowOpenData {
                 id_namespace: data.id_namespace,
                 pipeline_id: data.pipeline_id,
                 document_id: data.document_id,
@@ -1182,9 +1209,13 @@ impl<S: AppEventSender> Api for App<S> {
                     max_size: DipSize::new(Dip::MAX, Dip::MAX),
                     chrome_visible: false,
                 },
-            }
+            };
+
+            self.notify(Event::WindowOpened(id, msg));
         } else {
             self.assert_started();
+
+            let id = config.id;
 
             let win = Window::open(
                 self.gen,
@@ -1195,7 +1226,7 @@ impl<S: AppEventSender> Api for App<S> {
                 self.app_sender.clone(),
             );
 
-            let data = WindowOpenData {
+            let msg = WindowOpenData {
                 id_namespace: win.id_namespace(),
                 pipeline_id: win.pipeline_id(),
                 document_id: win.document_id(),
@@ -1209,34 +1240,17 @@ impl<S: AppEventSender> Api for App<S> {
 
             self.windows.push(win);
 
-            data
+            self.notify(Event::WindowOpened(id, msg));
         }
     }
 
-    fn open_headless(&mut self, config: HeadlessRequest) -> HeadlessOpenData {
+    fn open_headless(&mut self, config: HeadlessRequest) {
         let _s = tracing::debug_span!("open_headless", ?config).entered();
 
-        self.assert_started();
-        let surf = Surface::open(
-            self.gen,
-            config,
-            unsafe { &*self.window_target },
-            &mut self.gl_manager,
-            self.app_sender.clone(),
-        );
-        let id_namespace = surf.id_namespace();
-        let pipeline_id = surf.pipeline_id();
-        let document_id = surf.document_id();
-        let render_mode = surf.render_mode();
+        let id = config.id;
+        let msg = self.open_headless_impl(config);
 
-        self.surfaces.push(surf);
-
-        HeadlessOpenData {
-            id_namespace,
-            pipeline_id,
-            document_id,
-            render_mode,
-        }
+        self.notify(Event::HeadlessOpened(id, msg));
     }
 
     fn close_window(&mut self, id: WindowId) {

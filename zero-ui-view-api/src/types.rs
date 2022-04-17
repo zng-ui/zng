@@ -790,12 +790,18 @@ pub enum Event {
     /// [`Controller::handle_disconnect`]: crate::Controller::handle_disconnect
     Disconnected(ViewProcessGen),
 
+    /// Window, context and renderer have finished initializing and is ready to receive commands.
+    WindowOpened(WindowId, WindowOpenData),
+
+    /// Headless context and renderer have finished initializing and is ready to receive commands.
+    HeadlessOpened(WindowId, HeadlessOpenData),
+
     /// A frame finished rendering.
     ///
     /// `EventsCleared` is not send after this event.
     FrameRendered(EventFrameRendered),
 
-    /// Window or window moved, or window resized, or minimized/maximized etc.
+    /// Window moved, resized, or minimized/maximized etc.
     ///
     /// This event coalesces events usually named `WindowMoved`, `WindowResized` and `WindowStateChanged` into a
     /// single event to simplify tracking composite changes, for example, the window changes size and position
@@ -1885,7 +1891,7 @@ impl fmt::Debug for ImageLoadedData {
 }
 
 /// Information about a successfully opened window.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WindowOpenData {
     /// Window renderer ID namespace.
     pub id_namespace: webrender_api::IdNamespace,
@@ -1915,7 +1921,7 @@ pub struct WindowOpenData {
 }
 
 /// Information about a successfully opened headless surface.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct HeadlessOpenData {
     /// Window renderer ID namespace.
     pub id_namespace: webrender_api::IdNamespace,

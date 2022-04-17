@@ -140,6 +140,20 @@ impl ViewProcess {
         Ok((win, WindowOpenData::new(data, |id| self.monitor_id(id))))
     }
 
+    pub(crate) fn on_window_opened(&self, window_id: WindowId, data: zero_ui_view_api::WindowOpenData) {
+        let win = ViewWindow(Rc::new(WindowConnection {
+            id: window_id,
+            app: self.0.clone(),
+            id_namespace: data.id_namespace,
+            pipeline_id: data.pipeline_id,
+            document_id: data.document_id,
+            generation: app.data_generation,
+        }));
+        let data = WindowOpenData::new(data, |id| self.monitor_id(id));
+
+        todo!("notify")
+    }
+
     /// Open a headless renderer and associate it with the `window_id`.
     ///
     /// Note that no actual window is created, only the renderer, the use of window-ids to identify
@@ -1172,7 +1186,7 @@ event! {
 }
 
 /// Information about a successfully opened window.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct WindowOpenData {
     /// Window complete state.
     pub state: WindowStateAll,

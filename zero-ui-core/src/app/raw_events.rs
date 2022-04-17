@@ -176,6 +176,41 @@ event_args! {
         }
     }
 
+    /// Arguments for the [`RawWindowOpenEvent`].
+    pub struct RawWindowOpenArgs {
+        /// Window that finished opening.
+        pub window_id: WindowId,
+
+        /// Live connection to the window in the view-process.
+        pub window: super::view_process::ViewWindow,
+
+        /// Extra data send by the view-process.
+        pub data: super::view_process::WindowOpenData,
+
+        ..
+
+        /// Returns `true` for all widgets in the [window](Self::window_id).
+        fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
+            ctx.path.window_id() == self.window_id
+        }
+    }
+
+    /// Arguments for the [`RawHeadlessOpenEvent`].
+    pub struct RawHeadlessOpenArgs {
+        /// Window id that represents the headless surface that finished opening.
+        pub window_id: WindowId,
+
+        /// Live connection to the headless surface in the view-process.
+        pub window: super::view_process::ViewHeadless,
+
+        ..
+
+        /// Returns `true` for all widgets in the [window](Self::window_id).
+        fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
+            ctx.path.window_id() == self.window_id
+        }
+    }
+
     /// Arguments for the [`RawWindowCloseRequestedEvent`].
     pub struct RawWindowCloseRequestedArgs {
         /// Window that was requested to close.
@@ -584,6 +619,12 @@ event! {
 
     /// A frame finished rendering and was presented in a window.
     pub RawFrameRenderedEvent: RawFrameRenderedArgs;
+
+    /// A window has finished initializing in the view-process.
+    pub RawWindowOpenEvent: RawWindowOpenArgs;
+
+    /// A headless surface has finished initializing in the view-process.
+    pub RawHeadlessOpenEvent: RawHeadlessOpenArgs;
 
     /// A window was requested to close.
     pub RawWindowCloseRequestedEvent: RawWindowCloseRequestedArgs;
