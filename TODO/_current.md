@@ -6,7 +6,6 @@
 
 ## Window Open
 
-* Cache unsupported `RenderMode`.
 * Implement WindowOpen event in the view API to support async context creation.
 * Try to implement async context creation in default view crate.
 * Reuse windows and surfaces.

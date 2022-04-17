@@ -8,6 +8,8 @@ use std::{
 use crate::util::{self, panic_msg, PxToWinit};
 use gleam::gl::{self, Gl};
 use glutin::{event_loop::EventLoopWindowTarget, window::WindowBuilder, PossiblyCurrent};
+use linear_map::set::LinearSet;
+use parking_lot::Mutex;
 use zero_ui_view_api::{
     units::{Px, PxSize},
     RenderMode, WindowId,
@@ -242,10 +244,11 @@ type CurrentId = Rc<Cell<Option<WindowId>>>;
 #[derive(Default)]
 pub(crate) struct GlContextManager {
     current_id: CurrentId,
+    unsupported: Mutex<LinearSet<TryConfig>>,
 }
 
 /// Glutin, SWGL config to attempt.
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 struct TryConfig {
     mode: RenderMode,
     hardware_acceleration: Option<bool>,
@@ -307,9 +310,16 @@ impl GlContextManager {
         window_target: &EventLoopWindowTarget<crate::AppEvent>,
         mode_pref: RenderMode,
     ) -> (GlContext, glutin::window::Window) {
+        let mut unsupported = self.unsupported.lock();
+
         let mut error_log = String::new();
 
         for config in TryConfig::iter(mode_pref) {
+            if unsupported.contains(&config) {
+                let _ = write!(&mut error_log, "\n[{}]\nskip, previous attempt failed", config.name());
+                continue;
+            }
+
             match config.mode {
                 #[cfg(software)]
                 RenderMode::Software => {
@@ -318,6 +328,7 @@ impl GlContextManager {
                             "\n[Software]\nzero-ui-view does not fully implement headed \"software\" backend on target OS (missing blit)",
                         );
 
+                        unsupported.insert(config);
                         continue;
                     }
 
@@ -332,6 +343,7 @@ impl GlContextManager {
                 #[cfg(not(software))]
                 RenderMode::Software => {
                     error_log.push_str("\n[Software]\nzero-ui-view not build with \"software\" backend");
+                    unsupported.insert(config);
                 }
 
                 mode => {
@@ -342,6 +354,7 @@ impl GlContextManager {
                         if !logged {
                             let _ = write!(error_log, "\n[{}]", config.name());
                             logged = true;
+                            unsupported.insert(config);
                         }
                         let _ = write!(error_log, "\n{e:?}");
                     };
@@ -420,11 +433,18 @@ impl GlContextManager {
         window_target: &EventLoopWindowTarget<crate::AppEvent>,
         mode_pref: RenderMode,
     ) -> GlContext {
+        let mut unsupported = self.unsupported.lock();
+
         let mut error_log = String::new();
 
         let size = PxSize::new(Px(2), Px(2));
 
         for config in TryConfig::iter(mode_pref) {
+            if unsupported.contains(&config) {
+                let _ = write!(&mut error_log, "\n[{}]\nskip, previous attempt failed", config.name());
+                continue;
+            }
+
             match config.mode {
                 #[cfg(software)]
                 RenderMode::Software => {
@@ -433,6 +453,7 @@ impl GlContextManager {
                 #[cfg(not(software))]
                 RenderMode::Software => {
                     error_log.push_str("\n[Software]\nzero-ui-view not build with \"software\" backend");
+                    unsupported.insert(config);
                 }
 
                 mode => {
@@ -443,6 +464,7 @@ impl GlContextManager {
                         if !logged {
                             let _ = write!(error_log, "\n[{}]", config.name());
                             logged = true;
+                            unsupported.insert(config);
                         }
                         let _ = write!(error_log, "\n{e:?}");
                     };
