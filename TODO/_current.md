@@ -10,6 +10,7 @@
 * Try to implement async context creation in default view crate.
 * Reuse windows and surfaces.
 * Start creating a window and surface as soon as possible, reuse on first request.
+    - This replaces the `warmup_open_gl` with a full context that is kept awaiting a window request.
 
 ## Font Query/Load
 
