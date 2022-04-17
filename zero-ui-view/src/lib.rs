@@ -285,7 +285,7 @@ fn ffi_abort(info: &std::panic::PanicInfo) {
     panic_hook(info, "note: aborting to avoid unwind across FFI");
 }
 fn panic_hook(info: &std::panic::PanicInfo, details: &str) {
-    if crate::util::supress_panic() {
+    if crate::util::suppress_panic() {
         return;
     }
 

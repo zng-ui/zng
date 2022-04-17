@@ -527,18 +527,18 @@ pub(crate) fn v_key_to_key(v_key: VKey) -> Key {
 }
 
 thread_local! {
-    static SUPRESS: Cell<bool>  = Cell::new(false);
+    static SUPPRESS: Cell<bool>  = Cell::new(false);
 }
 
 /// If `true` our custom panic hook must not log anything.
-pub(crate) fn supress_panic() -> bool {
-    SUPRESS.with(|s| s.get())
+pub(crate) fn suppress_panic() -> bool {
+    SUPPRESS.with(|s| s.get())
 }
 
-/// Like [`std::panic::catch_unwind`], but flags [`supress_panic`] for our custom panic hook.
+/// Like [`std::panic::catch_unwind`], but flags [`suppress_panic`] for our custom panic hook.
 pub(crate) fn catch_supress<T>(f: impl FnOnce() -> T + std::panic::UnwindSafe) -> std::thread::Result<T> {
-    SUPRESS.with(|s| s.set(true));
-    let _cleanup = RunOnDrop::new(|| SUPRESS.with(|s| s.set(false)));
+    SUPPRESS.with(|s| s.set(true));
+    let _cleanup = RunOnDrop::new(|| SUPPRESS.with(|s| s.set(false)));
     std::panic::catch_unwind(f)
 }
 
