@@ -4,7 +4,10 @@ use std::{mem, time::Instant};
 
 use crate::{
     app::{
-        raw_events::{RawFrameRenderedEvent, RawWindowChangedEvent, RawWindowFocusArgs, RawWindowFocusEvent},
+        raw_events::{
+            RawFrameRenderedEvent, RawHeadlessOpenEvent, RawWindowChangedEvent, RawWindowFocusArgs, RawWindowFocusEvent,
+            RawWindowOpenEvent, RawWindowOrHeadlessOpenErrorEvent,
+        },
         view_process::*,
     },
     color::RenderColor,
@@ -29,7 +32,10 @@ use super::{
 
 /// Implementer of `App <-> View` sync in a headed window.
 struct HeadedCtrl {
+    window_id: WindowId,
     window: Option<ViewWindow>,
+    waiting_view: bool,
+    delayed_view_updates: Vec<Box<dyn FnOnce(&ViewWindow)>>,
     vars: WindowVars,
     respawned: bool,
 
@@ -52,7 +58,10 @@ struct HeadedCtrl {
 impl HeadedCtrl {
     pub fn new(window_id: WindowId, vars: &WindowVars, content: Window) -> Self {
         Self {
+            window_id,
             window: None,
+            waiting_view: false,
+            delayed_view_updates: vec![],
 
             start_position: content.start_position,
             kiosk: if content.kiosk { Some(WindowState::Fullscreen) } else { None },
@@ -73,37 +82,64 @@ impl HeadedCtrl {
         }
     }
 
-    pub fn update(&mut self, ctx: &mut WindowContext) {
+    fn update_view(&mut self, update: impl FnOnce(&ViewWindow) + 'static) {
         if let Some(view) = &self.window {
-            // is inited:
+            // view is online, just update.
+            update(view);
+        } else if self.waiting_view {
+            // update after view requested, but still not ready. Will apply when the view is received
+            // or be discarded if the view-process respawns.
+            self.delayed_view_updates.push(Box::new(update));
+        } else {
+            // respawning or view-process not inited, will recreate entire window.
+        }
+    }
 
-            if let Some(enforced_fullscreen) = &mut self.kiosk {
-                // always fullscreen, but can be windowed or exclusive.
+    pub fn update(&mut self, ctx: &mut WindowContext) {
+        if self.window.is_none() && !self.waiting_view {
+            // we request a view on the first layout.
+            ctx.updates.layout();
 
-                if let Some(state) = self.vars.state().copy_new(ctx) {
-                    if !state.is_fullscreen() {
-                        tracing::error!("window in `kiosk` mode can only be fullscreen");
+            if let Some(enforced_fullscreen) = self.kiosk {
+                // enforce kiosk in pre-init.
 
-                        self.vars.state().set(ctx, *enforced_fullscreen);
-                    } else {
-                        *enforced_fullscreen = state;
-                    }
+                if !self.vars.state().get(ctx).is_fullscreen() {
+                    self.vars.state().set(ctx, enforced_fullscreen);
                 }
+            }
+        }
 
-                if let Some(false) = self.vars.visible().copy_new(ctx) {
-                    tracing::error!("window in `kiosk` mode can not be hidden");
+        if let Some(enforced_fullscreen) = &mut self.kiosk {
+            // always fullscreen, but can be windowed or exclusive.
 
-                    self.vars.visible().set(ctx, true);
+            if let Some(state) = self.vars.state().copy_new(ctx) {
+                if !state.is_fullscreen() {
+                    tracing::error!("window in `kiosk` mode can only be fullscreen");
+
+                    self.vars.state().set(ctx, *enforced_fullscreen);
+                } else {
+                    *enforced_fullscreen = state;
                 }
+            }
 
-                if let Some(mode) = self.vars.chrome().get_new(ctx) {
-                    if !mode.is_none() {
-                        tracing::error!("window in `kiosk` mode can not show chrome");
-                        self.vars.chrome().set(ctx, WindowChrome::None);
-                    }
+            if let Some(false) = self.vars.visible().copy_new(ctx) {
+                tracing::error!("window in `kiosk` mode can not be hidden");
+
+                self.vars.visible().set(ctx, true);
+            }
+
+            if let Some(mode) = self.vars.chrome().get_new(ctx) {
+                if !mode.is_none() {
+                    tracing::error!("window in `kiosk` mode can not show chrome");
+                    self.vars.chrome().set(ctx, WindowChrome::None);
                 }
-            } else {
-                let prev_state = self.state.as_ref().unwrap();
+            }
+        } else {
+            // not kiosk mode.
+
+            if let Some(prev_state) = self.state.clone() {
+                debug_assert!(self.window.is_some() || self.waiting_view);
+
                 let mut new_state = prev_state.clone();
 
                 if let Some(query) = self.vars.monitor().get_new(ctx.vars) {
@@ -210,19 +246,27 @@ impl HeadedCtrl {
                 }
 
                 if let Some(visible) = self.vars.visible().copy_new(ctx) {
-                    let _: Ignore = view.set_visible(visible);
+                    self.update_view(move |view| {
+                        let _: Ignore = view.set_visible(visible);
+                    });
                 }
 
                 if let Some(movable) = self.vars.movable().copy_new(ctx) {
-                    let _: Ignore = view.set_movable(movable);
+                    self.update_view(move |view| {
+                        let _: Ignore = view.set_movable(movable);
+                    });
                 }
 
                 if let Some(resizable) = self.vars.resizable().copy_new(ctx) {
-                    let _: Ignore = view.set_resizable(resizable);
+                    self.update_view(move |view| {
+                        let _: Ignore = view.set_resizable(resizable);
+                    });
                 }
 
-                if prev_state != &new_state {
-                    let _: Ignore = view.set_state(new_state);
+                if prev_state != new_state {
+                    self.update_view(move |view| {
+                        let _: Ignore = view.set_state(new_state);
+                    })
                 }
             }
 
@@ -235,40 +279,58 @@ impl HeadedCtrl {
                 send_icon = true;
             }
             if send_icon {
-                let icon = self.icon.as_ref().and_then(|ico| ico.get(ctx).view());
-                let _: Ignore = view.set_icon(icon);
+                let icon = self.icon.as_ref().and_then(|ico| ico.get(ctx).view().cloned());
+                self.update_view(move |view| {
+                    let _: Ignore = view.set_icon(icon.as_ref());
+                });
             }
 
-            if let Some(title) = self.vars.title().get_new(ctx) {
-                let _: Ignore = view.set_title(title.to_string());
+            if let Some(title) = self.vars.title().clone_new(ctx) {
+                self.update_view(move |view| {
+                    let _: Ignore = view.set_title(title.into_owned());
+                });
             }
 
             if let Some(mode) = self.vars.video_mode().copy_new(ctx) {
-                let _: Ignore = view.set_video_mode(mode);
+                self.update_view(move |view| {
+                    let _: Ignore = view.set_video_mode(mode);
+                });
             }
 
             if let Some(cursor) = self.vars.cursor().copy_new(ctx) {
-                let _: Ignore = view.set_cursor(cursor);
+                self.update_view(move |view| {
+                    let _: Ignore = view.set_cursor(cursor);
+                });
             }
 
             if let Some(visible) = self.vars.taskbar_visible().copy_new(ctx) {
-                let _: Ignore = view.set_taskbar_visible(visible);
+                self.update_view(move |view| {
+                    let _: Ignore = view.set_taskbar_visible(visible);
+                });
             }
 
             if let Some(aa) = self.vars.text_aa().copy_new(ctx) {
-                let _: Ignore = view.renderer().set_text_aa(aa);
+                self.update_view(move |view| {
+                    let _: Ignore = view.renderer().set_text_aa(aa);
+                });
             }
 
             if let Some(top) = self.vars.always_on_top().copy_new(ctx) {
-                let _: Ignore = view.set_always_on_top(top);
+                self.update_view(move |view| {
+                    let _: Ignore = view.set_always_on_top(top);
+                });
             }
 
             if let Some(mode) = self.vars.frame_capture_mode().copy_new(ctx.vars) {
-                let _: Ignore = view.set_capture_mode(matches!(mode, FrameCaptureMode::All));
+                self.update_view(move |view| {
+                    let _: Ignore = view.set_capture_mode(matches!(mode, FrameCaptureMode::All));
+                });
             }
 
             if let Some(allow) = self.vars.allow_alt_f4().copy_new(ctx) {
-                let _: Ignore = view.set_allow_alt_f4(allow);
+                self.update_view(move |view| {
+                    let _: Ignore = view.set_allow_alt_f4(allow);
+                });
             }
 
             if let Some(m) = &self.monitor {
@@ -284,23 +346,12 @@ impl HeadedCtrl {
             if self.vars.0.scale_factor.is_new(ctx) {
                 use crate::image::*;
                 if let WindowIcon::Image(ImageSource::Render(_, RenderConfig { scale_factor, .. })) = self.vars.icon().get(ctx.vars) {
-                    if scale_factor.is_none() {
+                    if scale_factor.is_none() && (self.window.is_some() || self.waiting_view) {
                         // scale_factor changed and we are configuring the icon image scale factor to be our own.
                         self.vars.icon().touch(ctx.vars);
                     }
                 }
             }
-        } else {
-            // is not inited:
-
-            if let Some(enforced_fullscreen) = self.kiosk {
-                if !self.vars.state().get(ctx).is_fullscreen() {
-                    self.vars.state().set(ctx, enforced_fullscreen);
-                }
-            }
-
-            // we init on the first layout.
-            ctx.updates.layout();
         }
 
         self.content.update(ctx);
@@ -381,12 +432,55 @@ impl HeadedCtrl {
                 }
             }
             self.vars.monitor().touch(ctx);
+        } else if let Some(args) = RawWindowOpenEvent.update(args) {
+            if args.window_id == self.window_id {
+                self.waiting_view = false;
+
+                ctx.services.windows().set_renderer(*ctx.window_id, args.window.renderer());
+
+                self.window = Some(args.window.clone());
+                self.vars.0.render_mode.set_ne(ctx, args.data.render_mode);
+                self.vars.state().set_ne(ctx, args.data.state.state);
+                self.actual_state = Some(args.data.state.state);
+                self.vars.0.restore_state.set_ne(ctx, args.data.state.restore_state);
+                self.vars.0.restore_rect.set_ne(ctx, args.data.state.restore_rect);
+                self.vars.0.actual_position.set_ne(ctx, args.data.position);
+                self.vars.0.actual_size.set_ne(ctx, args.data.size);
+                self.vars.0.actual_monitor.set_ne(ctx, args.data.monitor);
+                self.vars.0.scale_factor.set_ne(ctx, args.data.scale_factor);
+
+                self.state = Some(args.data.state.clone());
+
+                ctx.updates.layout_and_render();
+
+                for update in mem::take(&mut self.delayed_view_updates) {
+                    update(&args.window);
+                }
+            }
+        } else if let Some(args) = RawWindowOrHeadlessOpenErrorEvent.update(args) {
+            if args.window_id == self.window_id && self.window.is_none() && self.waiting_view {
+                tracing::error!("view-process failed to open a window, {}", args.error);
+
+                // was waiting view and failed, treat like a respawn.
+
+                self.waiting_view = false;
+                self.delayed_view_updates = vec![];
+                self.respawned = true;
+
+                self.content.layout_requested = true;
+                self.content.render_requested = WindowRenderUpdate::Render;
+                self.content.is_rendering = false;
+
+                ctx.updates.layout_and_render();
+            }
         } else if let Some(args) = ViewProcessInitedEvent.update(args) {
             if let Some(view) = &self.window {
                 if view.renderer().generation() != Ok(args.generation) {
                     debug_assert!(args.is_respawn);
 
                     self.window = None;
+                    self.waiting_view = false;
+                    self.delayed_view_updates = vec![];
                     self.respawned = true;
 
                     self.content.layout_requested = true;
@@ -410,14 +504,14 @@ impl HeadedCtrl {
             return;
         }
 
-        if self.is_inited() {
+        if self.window.is_some() {
             if matches!(self.state.as_ref().map(|s| s.state), Some(WindowState::Minimized)) {
                 return;
             }
             self.layout_update(ctx);
         } else if self.respawned {
             self.layout_respawn(ctx);
-        } else {
+        } else if !self.waiting_view {
             self.layout_init(ctx);
         }
     }
@@ -500,7 +594,7 @@ impl HeadedCtrl {
         let request = WindowRequest {
             id: ctx.window_id.get(),
             title: self.vars.title().get(ctx).to_string(),
-            state,
+            state: state.clone(),
             kiosk: self.kiosk.is_some(),
             default_position: system_pos,
             video_mode: self.vars.video_mode().copy(ctx),
@@ -517,41 +611,14 @@ impl HeadedCtrl {
             capture_mode: matches!(self.vars.frame_capture_mode().get(ctx), FrameCaptureMode::All),
             render_mode: self.render_mode.unwrap_or_else(|| ctx.services.windows().default_render_mode),
         };
-        let r = ctx.services.view_process().open_window(request);
 
-        if let Ok((window, data)) = r {
-            ctx.services.windows().set_renderer(*ctx.window_id, window.renderer());
-
-            self.window = Some(window);
-            self.vars.0.render_mode.set_ne(ctx, data.render_mode);
-            self.vars.state().set_ne(ctx, data.state.state);
-            self.actual_state = Some(data.state.state);
-            self.vars.0.restore_state.set_ne(ctx, data.state.restore_state);
-            self.vars.0.restore_rect.set_ne(ctx, data.state.restore_rect);
-            self.vars.0.actual_position.set_ne(ctx, data.position);
-            self.vars.0.actual_size.set_ne(ctx, data.size);
-            self.vars.0.actual_monitor.set_ne(ctx, data.monitor);
-            self.vars.0.scale_factor.set_ne(ctx, scale_factor);
-
-            self.state = Some(data.state);
-
-            // if we did not layout yet or the view-process used a different size.
-            self.content.layout_requested |= size != data.size;
-            if self.content.layout_requested {
-                self.content.layout(
-                    ctx,
-                    scale_factor,
-                    screen_ppi,
-                    min_size,
-                    max_size,
-                    data.size.to_px(scale_factor.0),
-                    true,
-                );
+        match ctx.services.view_process().open_window(request) {
+            Ok(()) => {
+                self.state = Some(state);
+                self.waiting_view = true;
             }
-
-            ctx.updates.render();
-        }
-        // else `Respawn`
+            Err(ViewProcessOffline) => {} //respawn
+        };
     }
 
     /// Layout for already open window.
@@ -652,25 +719,11 @@ impl HeadedCtrl {
             capture_mode: matches!(self.vars.frame_capture_mode().get(ctx), FrameCaptureMode::All),
             render_mode: self.render_mode.unwrap_or_else(|| ctx.services.windows().default_render_mode),
         };
-        let r = ctx.services.view_process().open_window(request);
 
-        if let Ok((window, data)) = r {
-            ctx.services.windows().set_renderer(*ctx.window_id, window.renderer());
-
-            self.window = Some(window);
-            self.vars.0.render_mode.set_ne(ctx, data.render_mode);
-            self.vars.state().set_ne(ctx, data.state.state);
-            self.vars.0.restore_state.set_ne(ctx, data.state.restore_state);
-            self.vars.0.restore_rect.set_ne(ctx, data.state.restore_rect);
-            self.vars.0.actual_position.set_ne(ctx, data.position);
-            self.vars.0.actual_size.set_ne(ctx, data.size);
-            self.vars.0.actual_monitor.set_ne(ctx, data.monitor);
-
-            self.state = Some(data.state);
-
-            ctx.updates.render();
+        match ctx.services.view_process().open_window(request) {
+            Ok(()) => self.waiting_view = true,
+            Err(ViewProcessOffline) => {} // respawn.
         }
-        // else `Respawn`
     }
 
     pub fn render(&mut self, ctx: &mut WindowContext) {
@@ -688,10 +741,6 @@ impl HeadedCtrl {
     pub fn close(&mut self, ctx: &mut WindowContext) {
         self.content.close(ctx);
         self.window = None;
-    }
-
-    fn is_inited(&self) -> bool {
-        self.window.is_some()
     }
 
     fn init_icon(icon: &mut Option<ImageVar>, icon_binding: &mut Option<VarBindingHandle>, vars: &WindowVars, ctx: &mut WindowContext) {
@@ -724,7 +773,10 @@ impl HeadedCtrl {
 
 /// Implementer of `App <-> View` sync in a headless window.
 struct HeadlessWithRendererCtrl {
+    window_id: WindowId,
     surface: Option<ViewHeadless>,
+    waiting_view: bool,
+    delayed_view_updates: Vec<Box<dyn FnOnce(&ViewHeadless)>>,
     vars: WindowVars,
     content: ContentCtrl,
 
@@ -739,7 +791,10 @@ struct HeadlessWithRendererCtrl {
 impl HeadlessWithRendererCtrl {
     pub fn new(window_id: WindowId, vars: &WindowVars, content: Window) -> Self {
         Self {
+            window_id,
             surface: None,
+            waiting_view: false,
+            delayed_view_updates: vec![],
             vars: vars.clone(),
 
             render_mode: content.render_mode,
@@ -753,7 +808,7 @@ impl HeadlessWithRendererCtrl {
     }
 
     pub fn update(&mut self, ctx: &mut WindowContext) {
-        if self.is_inited() {
+        if self.surface.is_some() {
             if self.vars.size().is_new(ctx)
                 || self.vars.min_size().is_new(ctx)
                 || self.vars.max_size().is_new(ctx)
@@ -775,7 +830,36 @@ impl HeadlessWithRendererCtrl {
     }
 
     pub fn pre_event<EV: EventUpdateArgs>(&mut self, ctx: &mut WindowContext, args: &EV) {
-        if let Some(args) = ViewProcessInitedEvent.update(args) {
+        if let Some(args) = RawHeadlessOpenEvent.update(args) {
+            if args.window_id == *ctx.window_id {
+                self.waiting_view = false;
+
+                ctx.services.windows().set_renderer(args.window_id, args.surface.renderer());
+
+                self.surface = Some(args.surface.clone());
+                self.vars.0.render_mode.set_ne(ctx.vars, args.data.render_mode);
+
+                ctx.updates.render();
+
+                for update in mem::take(&mut self.delayed_view_updates) {
+                    update(&args.surface);
+                }
+            }
+        } else if let Some(args) = RawWindowOrHeadlessOpenErrorEvent.update(args) {
+            if args.window_id == self.window_id && self.surface.is_none() && self.waiting_view {
+                tracing::error!("view-process failed to open a headless surface, {}", args.error);
+
+                // was waiting view and failed, treat like a respawn.
+
+                self.waiting_view = false;
+                self.delayed_view_updates = vec![];
+
+                self.content.layout_requested = true;
+                self.content.render_requested = WindowRenderUpdate::Render;
+
+                ctx.updates.layout_and_render();
+            }
+        } else if let Some(args) = ViewProcessInitedEvent.update(args) {
             if let Some(view) = &self.surface {
                 if view.renderer().generation() != Ok(args.generation) {
                     debug_assert!(args.is_respawn);
@@ -842,7 +926,7 @@ impl HeadlessWithRendererCtrl {
                 self.size = size;
                 let _: Ignore = view.set_size(size, scale_factor);
             }
-        } else {
+        } else if !self.waiting_view {
             // (re)spawn the view surface:
 
             let window_id = *ctx.window_id;
@@ -856,15 +940,10 @@ impl HeadlessWithRendererCtrl {
                 render_mode,
             });
 
-            if let Ok((surface, data)) = r {
-                ctx.services.windows().set_renderer(window_id, surface.renderer());
-
-                self.surface = Some(surface);
-                self.vars.0.render_mode.set_ne(ctx.vars, data.render_mode);
-
-                ctx.updates.render();
+            match r {
+                Ok(()) => self.waiting_view = true,
+                Err(ViewProcessOffline) => {} // respawn
             }
-            // else `Respawn`, handled in `pre_event`.
         }
 
         self.headless_simulator.layout(ctx);
@@ -883,10 +962,6 @@ impl HeadlessWithRendererCtrl {
     pub fn close(&mut self, ctx: &mut WindowContext) {
         self.content.close(ctx);
         self.surface = None;
-    }
-
-    fn is_inited(&self) -> bool {
-        self.surface.is_some()
     }
 }
 

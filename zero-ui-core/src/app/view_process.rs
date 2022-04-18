@@ -124,7 +124,7 @@ impl ViewProcess {
     /// [`RawWindowOrHeadlessOpenErrorEvent`]: crate::app::raw_events::RawWindowOrHeadlessOpenErrorEvent
     pub fn open_window(&self, config: WindowRequest) -> Result<()> {
         let _s = tracing::debug_span!("ViewProcess.open_window").entered();
-        self.0.borrow().process.open_window(config)
+        self.0.borrow_mut().process.open_window(config)
     }
 
     pub(crate) fn on_window_opened(&self, window_id: WindowId, data: zero_ui_view_api::WindowOpenData) -> (ViewWindow, WindowOpenData) {
@@ -139,6 +139,8 @@ impl ViewProcess {
             document_id: data.document_id,
             generation: app.data_generation,
         }));
+        drop(app);
+        
         let data = WindowOpenData::new(data, |id| self.monitor_id(id));
 
         (win, data)
@@ -155,7 +157,7 @@ impl ViewProcess {
     /// [`RawWindowOrHeadlessOpenErrorEvent`]: crate::app::raw_events::RawWindowOrHeadlessOpenErrorEvent
     pub fn open_headless(&self, config: HeadlessRequest) -> Result<()> {
         let _s = tracing::debug_span!("ViewProcess.open_headless").entered();
-        self.0.borrow().process.open_headless(config)
+        self.0.borrow_mut().process.open_headless(config)
     }
 
     pub(crate) fn on_headless_opened(&self, id: WindowId, data: zero_ui_view_api::HeadlessOpenData) -> (ViewHeadless, HeadlessOpenData) {

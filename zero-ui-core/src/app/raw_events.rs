@@ -201,7 +201,7 @@ event_args! {
         pub window_id: WindowId,
 
         /// Live connection to the headless surface in the view-process.
-        pub window: super::view_process::ViewHeadless,
+        pub surface: super::view_process::ViewHeadless,
 
         /// Extra data send by the view-process.
         pub data: super::view_process::HeadlessOpenData,
