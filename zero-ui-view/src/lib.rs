@@ -160,7 +160,7 @@ use zero_ui_view_api::{units::*, *};
 ///
 /// # Panics
 ///
-/// Panics if not called in the main thread, this is a requirement of OpenGL.
+/// Panics if not called in the main thread, this is a requirement of some operating systems.
 ///
 /// If there was an error connecting with the app-process.
 ///
@@ -174,7 +174,7 @@ use zero_ui_view_api::{units::*, *};
 #[cfg_attr(doc_nightly, doc(cfg(feature = "ipc")))]
 pub fn init() {
     if !is_main_thread::is_main_thread().unwrap_or(true) {
-        panic!("only call `init` in the main thread, this is a requirement of OpenGL");
+        panic!("only call `init` in the main thread, this is a requirement of some operating systems");
     }
 
     if let Some(config) = ViewConfig::from_env() {
@@ -241,7 +241,7 @@ pub extern "C" fn extern_init() {
 ///
 /// # Panics
 ///
-/// Panics if not called in the main thread, this is a requirement o OpenGL.
+/// Panics if not called in the main thread, this is a requirement of some operating systems.
 ///
 /// ## Background Panics Warning
 ///
@@ -251,7 +251,7 @@ pub extern "C" fn extern_init() {
 /// that you build with `panic=abort` or use [`std::panic::set_hook`] to detect these background panics.
 pub fn run_same_process(run_app: impl FnOnce() + Send + 'static) {
     if !is_main_thread::is_main_thread().unwrap_or(true) {
-        panic!("only call `run_same_process` in the main thread, this is a requirement of OpenGL");
+        panic!("only call `run_same_process` in the main thread, this is a requirement of some operating systems");
     }
 
     thread::Builder::new().name("app".to_owned()).spawn(run_app).unwrap();

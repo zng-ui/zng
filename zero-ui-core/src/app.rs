@@ -1733,9 +1733,8 @@ impl HeadlessApp {
     /// When enabled windows are still not visible but you can request [frame pixels]
     /// to get the frame image. Renderer is disabled by default in a headless app.
     ///
-    /// Only windows opened after enabling have a renderer. Already open windows are not changed by this method. When enabled
-    /// headless windows can only be initialized in the main thread due to limitations of OpenGL, this means you cannot run
-    /// a headless renderer in units tests.
+    /// Apps with render enabled can only be initialized in the main thread due to limitations of some operating systems,
+    /// this means you cannot run a headless renderer in units tests.
     ///
     /// Note that [`UiNode::render`] is still called when a renderer is disabled and you can still
     /// query the latest frame from [`Windows::widget_tree`]. The only thing that
