@@ -203,8 +203,24 @@ event_args! {
         /// Live connection to the headless surface in the view-process.
         pub window: super::view_process::ViewHeadless,
 
+        /// Extra data send by the view-process.
+        pub data: super::view_process::HeadlessOpenData,
+
         ..
 
+        /// Returns `true` for all widgets in the [window](Self::window_id).
+        fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
+            ctx.path.window_id() == self.window_id
+        }
+    }
+
+    /// Arguments for the [`RawWindowOrHeadlessOpenErrorEvent`].
+    pub struct RawWindowOrHeadlessOpenErrorArgs {
+        /// Window id that failed to open.
+        pub window_id: WindowId,
+        /// Error message from the view-process.
+        pub error: String,
+        ..
         /// Returns `true` for all widgets in the [window](Self::window_id).
         fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
             ctx.path.window_id() == self.window_id
@@ -625,6 +641,9 @@ event! {
 
     /// A headless surface has finished initializing in the view-process.
     pub RawHeadlessOpenEvent: RawHeadlessOpenArgs;
+
+    /// A window or headless surface initialization failed in the view-process.
+    pub RawWindowOrHeadlessOpenErrorEvent: RawWindowOrHeadlessOpenErrorArgs;
 
     /// A window was requested to close.
     pub RawWindowCloseRequestedEvent: RawWindowCloseRequestedArgs;

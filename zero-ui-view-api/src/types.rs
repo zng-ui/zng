@@ -796,6 +796,14 @@ pub enum Event {
     /// Headless context and renderer have finished initializing and is ready to receive commands.
     HeadlessOpened(WindowId, HeadlessOpenData),
 
+    /// Window open or headless context open request failed.
+    WindowOrHeadlessOpenError {
+        /// Id from the request.
+        id: WindowId,
+        /// Error message.
+        error: String,
+    },
+
     /// A frame finished rendering.
     ///
     /// `EventsCleared` is not send after this event.

@@ -261,7 +261,8 @@ declare_api! {
 
     /// Open a window.
     ///
-    /// Sends an [`Event::WindowOpened`] once the window, context and renderer have finished initializing.
+    /// Sends an [`Event::WindowOpened`] once the window, context and renderer have finished initializing or a
+    /// [`Event::WindowOrHeadlessOpenError`] if it failed.
     pub fn open_window(&mut self, request: WindowRequest);
 
     /// Open a headless surface.
@@ -269,7 +270,8 @@ declare_api! {
     /// This is a real renderer but not connected to any window, you can requests pixels to get the
     /// rendered frames.
     ///
-    /// Sends an [`Event::HeadlessOpened`] once the context and renderer have finished initializing.
+    /// Sends an [`Event::HeadlessOpened`] once the context and renderer have finished initializing or a
+    /// [`Event::WindowOrHeadlessOpenError`] if it failed.
     pub fn open_headless(&mut self, request: HeadlessRequest);
 
     /// Close the window or headless surface.

@@ -1139,6 +1139,23 @@ impl<E: AppExtension> RunningApp<E> {
                 let args = RawWindowCloseRequestedArgs::now(window_id(w_id));
                 self.notify_event(RawWindowCloseRequestedEvent, args, observer);
             }
+            Event::WindowOpened(w_id, data) => {
+                let w_id = window_id(w_id);
+                let (window, data) = self.ctx().services.req::<ViewProcess>().on_window_opened(w_id, data);
+                let args = RawWindowOpenArgs::now(w_id, window, data);
+                self.notify_event(RawWindowOpenEvent, args, observer);
+            }
+            Event::HeadlessOpened(w_id, data) => {
+                let w_id = window_id(w_id);
+                let (surface, data) = self.ctx().services.req::<ViewProcess>().on_headless_opened(w_id, data);
+                let args = RawHeadlessOpenArgs::now(w_id, surface, data);
+                self.notify_event(RawHeadlessOpenEvent, args, observer);
+            }
+            Event::WindowOrHeadlessOpenError { id: w_id, error } => {
+                let w_id = window_id(w_id);
+                let args = RawWindowOrHeadlessOpenErrorArgs::now(w_id, error);
+                self.notify_event(RawWindowOrHeadlessOpenErrorEvent, args, observer);
+            }
             Event::WindowClosed(w_id) => {
                 let args = RawWindowCloseArgs::now(window_id(w_id));
                 self.notify_event(RawWindowCloseEvent, args, observer);

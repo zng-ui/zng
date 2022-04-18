@@ -116,33 +116,23 @@ impl ViewProcess {
         self.0.borrow().process.same_process()
     }
 
-    /// Open a window and associate it with the `window_id`.
-    pub fn open_window(&self, config: WindowRequest) -> Result<(ViewWindow, WindowOpenData)> {
+    /// Sends a request to open a window and associate it with the `window_id`.
+    ///
+    /// A [`RawWindowOpenEvent`] or [`RawWindowOrHeadlessOpenErrorEvent`] will be received in response to this request.
+    ///
+    /// [`RawWindowOpenEvent`]: crate::app::raw_events::RawWindowOpenEvent
+    /// [`RawWindowOrHeadlessOpenErrorEvent`]: crate::app::raw_events::RawWindowOrHeadlessOpenErrorEvent
+    pub fn open_window(&self, config: WindowRequest) -> Result<()> {
         let _s = tracing::debug_span!("ViewProcess.open_window").entered();
+        self.0.borrow().process.open_window(config)
+    }
 
+    pub(crate) fn on_window_opened(&self, window_id: WindowId, data: zero_ui_view_api::WindowOpenData) -> (ViewWindow, WindowOpenData) {
         let mut app = self.0.borrow_mut();
         let _ = app.check_generation();
 
-        let id = config.id;
-        let data = app.process.open_window(config)?;
-
         let win = ViewWindow(Rc::new(WindowConnection {
-            id,
-            app: self.0.clone(),
-            id_namespace: data.id_namespace,
-            pipeline_id: data.pipeline_id,
-            document_id: data.document_id,
-            generation: app.data_generation,
-        }));
-
-        drop(app);
-
-        Ok((win, WindowOpenData::new(data, |id| self.monitor_id(id))))
-    }
-
-    pub(crate) fn on_window_opened(&self, window_id: WindowId, data: zero_ui_view_api::WindowOpenData) {
-        let win = ViewWindow(Rc::new(WindowConnection {
-            id: window_id,
+            id: window_id.get(),
             app: self.0.clone(),
             id_namespace: data.id_namespace,
             pipeline_id: data.pipeline_id,
@@ -151,24 +141,30 @@ impl ViewProcess {
         }));
         let data = WindowOpenData::new(data, |id| self.monitor_id(id));
 
-        todo!("notify")
+        (win, data)
     }
 
-    /// Open a headless renderer and associate it with the `window_id`.
+    /// Sends a request to open a headless renderer and associate it with the `window_id`.
     ///
     /// Note that no actual window is created, only the renderer, the use of window-ids to identify
     /// this renderer is only for convenience.
-    pub fn open_headless(&self, config: HeadlessRequest) -> Result<(ViewHeadless, HeadlessOpenData)> {
+    ///
+    /// A [`RawHeadlessOpenEvent`] or [`RawWindowOrHeadlessOpenErrorEvent`] will be received in response to this request.
+    ///
+    /// [`RawHeadlessOpenEvent`]: crate::app::raw_events::RawHeadlessOpenEvent
+    /// [`RawWindowOrHeadlessOpenErrorEvent`]: crate::app::raw_events::RawWindowOrHeadlessOpenErrorEvent
+    pub fn open_headless(&self, config: HeadlessRequest) -> Result<()> {
         let _s = tracing::debug_span!("ViewProcess.open_headless").entered();
+        self.0.borrow().process.open_headless(config)
+    }
 
+    pub(crate) fn on_headless_opened(&self, id: WindowId, data: zero_ui_view_api::HeadlessOpenData) -> (ViewHeadless, HeadlessOpenData) {
         let mut app = self.0.borrow_mut();
-
-        let id = config.id;
-        let data = app.process.open_headless(config)?;
+        let _ = app.check_generation();
 
         let surf = ViewHeadless(
             Rc::new(WindowConnection {
-                id,
+                id: id.get(),
                 app: self.0.clone(),
                 id_namespace: data.id_namespace,
                 pipeline_id: data.pipeline_id,
@@ -178,7 +174,7 @@ impl ViewProcess {
             data.document_id,
         );
 
-        Ok((surf, data))
+        (surf, data)
     }
 
     /// Translate `DevId` to `DeviceId`, generates a device id if it was unknown.
