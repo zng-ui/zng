@@ -1399,7 +1399,7 @@ impl Font {
 
     /// Calculates a [`ShapedText`].
     pub fn shape_text(self: &FontRef, text: &SegmentedText, config: &TextShapingArgs) -> ShapedText {
-        // let _scope = tracing::trace_span!("shape_text").entered();
+        // let _scope = tracing::trace_span!("Font::shape_text", name=%self.face().display_name()).entered();
 
         let mut out = ShapedText::alloc();
 

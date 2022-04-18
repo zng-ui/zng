@@ -6,7 +6,6 @@
 
 ## Window Open
 
-* Implement WindowOpen event in the view API to support async context creation.
 * Try to implement async context creation in default view crate.
 * Reuse windows and surfaces.
 * Start creating a window and surface as soon as possible, reuse on first request.
