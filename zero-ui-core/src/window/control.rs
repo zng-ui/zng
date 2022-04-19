@@ -509,7 +509,7 @@ impl HeadedCtrl {
                 return;
             }
             self.layout_update(ctx);
-        } else if self.respawned {
+        } else if self.respawned && !self.waiting_view {
             self.layout_respawn(ctx);
         } else if !self.waiting_view {
             self.layout_init(ctx);
