@@ -1,8 +1,7 @@
 # Unblock
 
-* The first update blocks in `FontFaceLoader::get_system` and `FontFace::load` up to 80ms (not a view block,`font_kit`).
-* The first layout blocks in `ViewProcess.open_window` up to 180ms.
-* Subsequent windows block layout in `ViewProcess.open_window` up to 130ms.
+The app-process blocks waiting for the view-process in some cases, need to implement better async communication
+and unblock the view-process.
 
 ## Window Open
 
