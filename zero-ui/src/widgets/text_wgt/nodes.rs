@@ -692,7 +692,7 @@ pub fn render_text() -> impl UiNode {
     impl UiNode for RenderTextNode {
         // subscriptions are handled by the `resolve_text` node.
         fn update(&mut self, ctx: &mut WidgetContext) {
-            if TextColorVar::is_new(ctx) {
+            if TextColorVar::is_new(ctx) || FontAaVar::is_new(ctx) {
                 ctx.updates.render();
             }
         }
@@ -704,8 +704,10 @@ pub fn render_text() -> impl UiNode {
             let clip = PxRect::from_size(t.shaped_text.size());
             let color = (*TextColorVar::get(ctx.vars)).into();
 
+            let aa = *FontAaVar::get(ctx.vars);
+
             for (font, glyphs) in t.shaped_text.glyphs() {
-                frame.push_text(clip, glyphs, font, color, r.synthesis);
+                frame.push_text(clip, glyphs, font, color, r.synthesis, aa);
             }
         }
     }

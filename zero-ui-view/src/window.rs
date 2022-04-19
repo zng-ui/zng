@@ -15,7 +15,7 @@ use webrender::{
     RenderApi, Renderer, RendererOptions, Transaction, UploadMethod, VertexUsageHint,
 };
 use zero_ui_view_api::{
-    units::*, CursorIcon, DeviceId, FrameId, FrameRequest, FrameUpdateRequest, ImageId, ImageLoadedData, RenderMode, TextAntiAliasing,
+    units::*, CursorIcon, DeviceId, FrameId, FrameRequest, FrameUpdateRequest, ImageId, ImageLoadedData, RenderMode,
     VideoMode, ViewProcessGen, WindowId, WindowRequest, WindowState, WindowStateAll,
 };
 
@@ -23,7 +23,6 @@ use zero_ui_view_api::{
 use zero_ui_view_api::{Event, Key, KeyState, ScanCode};
 
 use crate::{
-    config,
     gl::{GlContext, GlContextManager},
     image_cache::{Image, ImageCache, ImageUseMap, WrImageCache},
     util::{CursorToWinit, DipToWinit, WinitToDip, WinitToPx},
@@ -68,6 +67,7 @@ pub(crate) struct Window {
     image_use: ImageUseMap,
 
     window: GWindow,
+    transparent: bool,
     context: GlContext,
     renderer: Option<Renderer>,
     capture_mode: bool,
@@ -114,27 +114,59 @@ impl fmt::Debug for Window {
     }
 }
 impl Window {
+    pub fn can_reuse(&self, req: &WindowRequest, best_render_mode: RenderMode) -> bool {
+        best_render_mode == self.render_mode && req.transparent == self.transparent
+    }
+
+    pub fn reuse(&mut self, icon: Option<Icon>, req: WindowRequest) {
+        self.id = req.id;
+        self.pipeline_id.1 = req.id;
+
+        self.visible = req.visible; // will apply on "first" render.
+
+        self.kiosk = req.kiosk;
+
+        self.capture_mode = req.capture_mode;
+
+        self.set_title(req.title);
+        self.set_movable(req.movable);
+        self.set_resizable(req.resizable);
+        self.set_always_on_top(req.always_on_top);
+        self.set_icon(icon);
+        self.set_cursor(req.cursor);
+        self.set_allow_alt_f4(req.allow_alt_f4);
+
+        self.set_cursor(req.cursor);
+        self.set_taskbar_visible(req.taskbar_visible);
+
+        self.set_video_mode(req.video_mode);
+
+        let mut s = req.state;
+        s.clamp_size();
+        self.set_state(s);
+    }
+
     pub fn open(
         gen: ViewProcessGen,
         icon: Option<Icon>,
-        cfg: WindowRequest,
+        req: WindowRequest,
         window_target: &EventLoopWindowTarget<AppEvent>,
         gl_manager: &mut GlContextManager,
         event_sender: impl AppEventSender,
     ) -> Self {
-        let id = cfg.id;
+        let id = req.id;
 
         let window_scope = tracing::trace_span!("open/window").entered();
 
         // create window and OpenGL context
         let mut winit = WindowBuilder::new()
-            .with_title(cfg.title)
-            .with_resizable(cfg.resizable)
-            .with_transparent(cfg.transparent)
-            .with_always_on_top(cfg.always_on_top)
+            .with_title(req.title)
+            .with_resizable(req.resizable)
+            .with_transparent(req.transparent)
+            .with_always_on_top(req.always_on_top)
             .with_window_icon(icon);
 
-        let mut s = cfg.state;
+        let mut s = req.state;
         s.clamp_size();
 
         if let WindowState::Normal = s.state {
@@ -144,11 +176,11 @@ impl Window {
                 .with_inner_size(s.restore_rect.size.to_winit());
 
             #[cfg(target_os = "linux")]
-            if cfg.default_position {
+            if req.default_position {
                 // default X11 position is outer zero.
                 winit = winit.with_position(DipPoint::new(Dip::new(120), Dip::new(80)).to_winit());
             }
-        } else if cfg.default_position {
+        } else if req.default_position {
             if let Some(screen) = window_target.primary_monitor() {
                 // fallback to center.
                 let screen_size = screen.size().to_px().to_dip(screen.scale_factor() as f32);
@@ -164,7 +196,7 @@ impl Window {
                 // so that there is no white frame when it's opening.
                 //
                 // unless its "kiosk" mode.
-                .with_visible(cfg.kiosk);
+                .with_visible(req.kiosk);
         } else {
             // Maximized/Fullscreen Flickering Workaround Part 1
             //
@@ -184,16 +216,16 @@ impl Window {
             WindowState::Fullscreen | WindowState::Exclusive => winit.with_fullscreen(Some(Fullscreen::Borderless(None))),
         };
 
-        let mut render_mode = cfg.render_mode;
+        let mut render_mode = req.render_mode;
         if !cfg!(software) && render_mode == RenderMode::Software {
             tracing::warn!("ignoring `RenderMode::Software` because did not build with \"software\" feature");
             render_mode = RenderMode::Integrated;
         }
 
-        let (context, winit_window) = gl_manager.create_headed(id, winit, window_target, cfg.render_mode);
+        let (context, winit_window) = gl_manager.create_headed(id, winit, window_target, req.render_mode);
 
         // extend the winit Windows window to only block the Alt+F4 key press if we want it to.
-        let allow_alt_f4 = Rc::new(Cell::new(cfg.allow_alt_f4));
+        let allow_alt_f4 = Rc::new(Cell::new(req.allow_alt_f4));
         #[cfg(windows)]
         {
             let allow_alt_f4 = allow_alt_f4.clone();
@@ -229,14 +261,12 @@ impl Window {
 
         let device_size = winit_window.inner_size().to_px().to_wr_device();
 
-        let mut text_aa = cfg.text_aa;
-        if let TextAntiAliasing::Default = cfg.text_aa {
-            text_aa = config::text_aa();
-        }
-
         let opts = RendererOptions {
-            enable_aa: text_aa != TextAntiAliasing::Mono,
-            enable_subpixel_aa: text_aa == TextAntiAliasing::Subpixel,
+            // text-aa config from Firefox.
+            enable_aa: true,
+            force_subpixel_aa: false,
+            enable_subpixel_aa: cfg!(not(target_os = "android")),
+
             renderer_id: Some((gen as u64) << 32 | id as u64),
 
             // this clear color paints over the one set using `Renderer::set_clear_color`.
@@ -273,21 +303,22 @@ impl Window {
             prev_size: winit_window.inner_size().to_px(),
             prev_monitor: winit_window.current_monitor(),
             state: s,
-            kiosk: cfg.kiosk,
+            kiosk: req.kiosk,
             window: winit_window,
+            transparent: req.transparent,
             context,
-            capture_mode: cfg.capture_mode,
+            capture_mode: req.capture_mode,
             renderer: Some(renderer),
-            video_mode: cfg.video_mode,
+            video_mode: req.video_mode,
             api,
             document_id,
             pipeline_id,
             resized: true,
             waiting_first_frame: true,
-            visible: cfg.visible,
+            visible: req.visible,
             allow_alt_f4,
             taskbar_visible: true,
-            movable: cfg.movable,
+            movable: req.movable,
             pending_frames: VecDeque::new(),
             rendered_frame_id: FrameId::INVALID,
             cursor_pos: DipPoint::zero(),
@@ -298,7 +329,7 @@ impl Window {
             render_mode,
         };
 
-        if !cfg.default_position && win.state.state == WindowState::Normal {
+        if !req.default_position && win.state.state == WindowState::Normal {
             win.set_inner_position(win.state.restore_rect.origin);
         }
 
@@ -312,7 +343,7 @@ impl Window {
             win.prev_size = win.window.inner_size().to_px();
         }
 
-        if win.state.state == WindowState::Normal && cfg.default_position {
+        if win.state.state == WindowState::Normal && req.default_position {
             // system position.
             win.state.restore_rect.origin = win.window.inner_position().unwrap_or_default().to_px().to_dip(win.scale_factor());
         }
@@ -322,8 +353,8 @@ impl Window {
             win.windows_set_restore();
         }
 
-        win.set_cursor(cfg.cursor);
-        win.set_taskbar_visible(cfg.taskbar_visible);
+        win.set_cursor(req.cursor);
+        win.set_taskbar_visible(req.taskbar_visible);
         win
     }
 
@@ -913,10 +944,6 @@ impl Window {
         let mut txn = webrender::Transaction::new();
         txn.delete_font_instance(instance_key);
         self.api.send_transaction(self.document_id, txn);
-    }
-
-    pub fn set_text_aa(&mut self, aa: TextAntiAliasing) {
-        todo!("need to rebuild the renderer? {aa:?}")
     }
 
     pub fn set_allow_alt_f4(&mut self, allow: bool) {

@@ -29,7 +29,7 @@ use crate::{
     keyboard::{Key, KeyState, ModifiersState, ScanCode},
     mouse::{ButtonState, MouseButton, MouseScrollDelta, MultiClickConfig, TouchPhase},
     render::FrameId,
-    text::TextAntiAliasing,
+    text::FontAntiAliasing,
     units::{DipPoint, DipSize, Factor, PxPoint, PxRect},
     window::{EventCause, MonitorId, WindowId, WindowTheme},
 };
@@ -541,10 +541,10 @@ event_args! {
         }
     }
 
-    /// Arguments for the [`RawTextAaChangedEvent`].
-    pub struct RawTextAaChangedArgs {
+    /// Arguments for the [`RawFontAaChangedEvent`].
+    pub struct RawFontAaChangedArgs {
         /// The new anti-aliasing config.
-        pub aa: TextAntiAliasing,
+        pub aa: FontAntiAliasing,
 
         ..
 
@@ -701,8 +701,8 @@ event! {
     /// System theme changed for a window.
     pub RawWindowThemeChangedEvent: RawWindowThemeChangedArgs;
 
-    /// Change in system text anti-aliasing config.
-    pub RawTextAaChangedEvent: RawTextAaChangedArgs;
+    /// Change in system font anti-aliasing config.
+    pub RawFontAaChangedEvent: RawFontAaChangedArgs;
 
     /// Change in system text fonts, install or uninstall.
     pub RawFontChangedEvent: RawFontChangedArgs;

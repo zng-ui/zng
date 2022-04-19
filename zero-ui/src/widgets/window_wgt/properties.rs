@@ -57,20 +57,20 @@ where
 
 // Properties that set the full value.
 macro_rules! set_properties {
-            ($(
-                $ident:ident: $Type:ty,
-            )+) => {
-                $(paste::paste! {
-                    #[doc = "Binds the [`"$ident "`](WindowVars::"$ident ") window var with the property value."]
-                    ///
-                    /// The binding is bidirectional and the window variable is assigned on init.
-                    #[property(context)]
-                    pub fn $ident(child: impl UiNode, $ident: impl IntoVar<$Type>) -> impl UiNode {
-                        bind_window_var(child, $ident, |w|w.$ident().clone())
-                    }
-                })+
+    ($(
+        $ident:ident: $Type:ty,
+    )+) => {
+        $(paste::paste! {
+            #[doc = "Binds the [`"$ident "`](WindowVars::"$ident ") window var with the property value."]
+            ///
+            /// The binding is bidirectional and the window variable is assigned on init.
+            #[property(context)]
+            pub fn $ident(child: impl UiNode, $ident: impl IntoVar<$Type>) -> impl UiNode {
+                bind_window_var(child, $ident, |w|w.$ident().clone())
             }
-        }
+        })+
+    }
+}
 set_properties! {
     position: Point,
     monitor: MonitorQuery,

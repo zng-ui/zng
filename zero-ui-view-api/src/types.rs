@@ -774,8 +774,8 @@ pub enum Event {
         multi_click_config: MultiClickConfig,
         /// System keyboard pressed key repeat delay config.
         key_repeat_delay: Duration,
-        /// System text anti-aliasing config.
-        text_aa: TextAntiAliasing,
+        /// System font anti-aliasing config.
+        font_aa: FontAntiAliasing,
         /// System animations config.
         ///
         /// People with photo-sensitive epilepsy usually disable animations system wide.
@@ -1029,7 +1029,7 @@ pub enum Event {
     /// System fonts have changed.
     FontsChanged,
     /// System text-antialiasing configuration has changed.
-    TextAaChanged(TextAntiAliasing),
+    FontAaChanged(FontAntiAliasing),
     /// System double-click definition changed.
     MultiClickConfigChanged(MultiClickConfig),
     /// System animations enabled config changed.
@@ -1236,7 +1236,7 @@ impl Event {
             // fonts changed.
             (FontsChanged, FontsChanged) => {}
             // text aa.
-            (TextAaChanged(config), TextAaChanged(n_config)) => {
+            (FontAaChanged(config), FontAaChanged(n_config)) => {
                 *config = n_config;
             }
             // double-click timeout.
@@ -1310,7 +1310,7 @@ pub enum WindowTheme {
 }
 /// Text anti-aliasing.
 #[derive(Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub enum TextAntiAliasing {
+pub enum FontAntiAliasing {
     /// Uses the operating system configuration.
     Default,
     /// Sub-pixel anti-aliasing if a fast implementation is available, otherwise uses `Alpha`.
@@ -1320,21 +1320,21 @@ pub enum TextAntiAliasing {
     /// Disable anti-aliasing.
     Mono,
 }
-impl Default for TextAntiAliasing {
+impl Default for FontAntiAliasing {
     fn default() -> Self {
         Self::Default
     }
 }
-impl fmt::Debug for TextAntiAliasing {
+impl fmt::Debug for FontAntiAliasing {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if f.alternate() {
-            write!(f, "TextAntiAliasing::")?;
+            write!(f, "FontAntiAliasing::")?;
         }
         match self {
-            TextAntiAliasing::Default => write!(f, "Default"),
-            TextAntiAliasing::Subpixel => write!(f, "Subpixel"),
-            TextAntiAliasing::Alpha => write!(f, "Alpha"),
-            TextAntiAliasing::Mono => write!(f, "Mono"),
+            FontAntiAliasing::Default => write!(f, "Default"),
+            FontAntiAliasing::Subpixel => write!(f, "Subpixel"),
+            FontAntiAliasing::Alpha => write!(f, "Alpha"),
+            FontAntiAliasing::Mono => write!(f, "Mono"),
         }
     }
 }
@@ -1531,9 +1531,6 @@ pub struct WindowRequest {
     /// If the window is see-through in pixels that are not fully opaque.
     pub transparent: bool,
 
-    /// Text anti-aliasing.
-    pub text_aa: TextAntiAliasing,
-
     /// If all or most frames will be *screenshotted*.
     ///
     /// If `false` all resources for capturing frame images
@@ -1710,9 +1707,6 @@ pub struct HeadlessRequest {
 
     /// Surface area (viewport size).
     pub size: DipSize,
-
-    /// Text anti-aliasing.
-    pub text_aa: TextAntiAliasing,
 
     /// Render mode preference for this headless surface.
     pub render_mode: RenderMode,

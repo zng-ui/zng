@@ -1220,9 +1220,9 @@ impl<E: AppExtension> RunningApp<E> {
                 let args = RawFontChangedArgs::now();
                 self.notify_event(RawFontChangedEvent, args, observer);
             }
-            Event::TextAaChanged(aa) => {
-                let args = RawTextAaChangedArgs::now(aa);
-                self.notify_event(RawTextAaChangedEvent, args, observer);
+            Event::FontAaChanged(aa) => {
+                let args = RawFontAaChangedArgs::now(aa);
+                self.notify_event(RawFontAaChangedEvent, args, observer);
             }
             Event::MultiClickConfigChanged(cfg) => {
                 let args = RawMultiClickConfigChangedArgs::now(cfg);
@@ -1341,7 +1341,7 @@ impl<E: AppExtension> RunningApp<E> {
                     available_monitors,
                     multi_click_config,
                     key_repeat_delay,
-                    text_aa,
+                    font_aa,
                     animations_enabled,
                 } => {
                     // notify immediately.
@@ -1365,7 +1365,7 @@ impl<E: AppExtension> RunningApp<E> {
                         monitors,
                         multi_click_config,
                         key_repeat_delay,
-                        text_aa,
+                        font_aa,
                         animations_enabled,
                     );
                     self.notify_event(ViewProcessInitedEvent, args, observer);

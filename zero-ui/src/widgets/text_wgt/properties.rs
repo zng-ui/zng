@@ -19,6 +19,9 @@ context_var! {
     /// Font synthesis of [`text`](crate::widgets::text) spans.
     pub struct FontSynthesisVar: FontSynthesis = FontSynthesis::ENABLED;
 
+    /// Font anti-aliasing of [`text`](crate::widgets::text) spans.
+    pub struct FontAaVar: FontAntiAliasing = FontAntiAliasing::Default;
+
     /// Font size of [`text`](crate::widgets::text) spans.
     pub struct FontSizeVar: FontSize = FontSize::Pt(11.0);
 
@@ -121,6 +124,12 @@ pub fn font_stretch(child: impl UiNode, stretch: impl IntoVar<FontStretch>) -> i
 #[property(context, default(FontSynthesisVar))]
 pub fn font_synthesis(child: impl UiNode, enabled: impl IntoVar<FontSynthesis>) -> impl UiNode {
     with_context_var(child, FontSynthesisVar, enabled)
+}
+
+/// Sets the [`FontAaVar`] context var.
+#[property(context, default(FontAaVar))]
+pub fn font_aa(child: impl UiNode, aa: impl IntoVar<FontAntiAliasing>) -> impl UiNode {
+    with_context_var(child, FontAaVar, aa)
 }
 
 /// Sets the [`FontSizeVar`] context var and the [`LayoutMetrics::font_size`].
@@ -525,6 +534,8 @@ pub struct TextContext<'a> {
     /* Maybe affects render only */
     /// The [`font_synthesis`](fn@font_synthesis) value.
     pub font_synthesis: FontSynthesis,
+    /// The [`font_aa`](fn@font_aa) value.
+    pub font_aa: FontAntiAliasing,
 
     /// The [`overline`](fn@overline) values.
     pub overline: (&'a Length, LineStyle),
@@ -570,6 +581,7 @@ impl<'a> TextContext<'a> {
             .var(&TextAlignVar::new())
             .var(&TextColorVar::new())
             .var(&FontSynthesisVar::new())
+            .var(&FontAaVar::new())
             .var(&OverlineThicknessVar::new())
             .var(&OverlineStyleVar::new())
             .var(&OverlineColorVar::new())
@@ -613,6 +625,7 @@ impl<'a> TextContext<'a> {
             text_color: *TextColorVar::get(vars),
 
             font_synthesis: *FontSynthesisVar::get(vars),
+            font_aa: *FontAaVar::get(vars),
 
             overline: (OverlineThicknessVar::get(vars), *OverlineStyleVar::get(vars)),
             overline_color: *OverlineColorVar::get(vars),
@@ -795,6 +808,7 @@ impl<'a> Clone for TextContext<'a> {
             font_variations: self.font_variations,
             font_stretch: self.font_stretch,
             font_synthesis: self.font_synthesis,
+            font_aa: self.font_aa,
             text_color: self.text_color,
             line_height: self.line_height,
             letter_spacing: self.letter_spacing,

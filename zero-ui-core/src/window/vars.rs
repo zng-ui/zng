@@ -4,7 +4,7 @@ use super::{types::*, MonitorId, MonitorQuery};
 use crate::{
     image::Image,
     state_key,
-    text::{Text, TextAntiAliasing, ToText},
+    text::{Text, ToText},
     units::*,
     var::*,
 };
@@ -47,8 +47,6 @@ pub(super) struct WindowVarsData {
 
     parent: RcVar<Option<WindowId>>,
     modal: RcVar<bool>,
-
-    text_aa: RcVar<TextAntiAliasing>,
 
     allow_alt_f4: RcVar<bool>,
 
@@ -113,8 +111,6 @@ impl WindowVars {
 
             parent: var(None),
             modal: var(false),
-
-            text_aa: var(TextAntiAliasing::Default),
 
             allow_alt_f4: var(!cfg!(windows)),
 
@@ -487,14 +483,6 @@ impl WindowVars {
     #[inline]
     pub fn modal(&self) -> &RcVar<bool> {
         &self.0.modal
-    }
-
-    /// Text anti-aliasing config in the window.
-    ///
-    /// The default value is [`TextAntiAliasing::Default`] that is the OS default.
-    #[inline]
-    pub fn text_aa(&self) -> &RcVar<TextAntiAliasing> {
-        &self.0.text_aa
     }
 
     /// In Windows the `Alt+F4` shortcut is intercepted by the system and causes a window close request,

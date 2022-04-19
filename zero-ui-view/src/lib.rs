@@ -1170,7 +1170,7 @@ impl<S: AppEventSender> Api for App<S> {
             available_monitors,
             multi_click_config: config::multi_click_config(),
             key_repeat_delay: config::key_repeat_delay(),
-            text_aa: config::text_aa(),
+            font_aa: config::font_aa(),
             animations_enabled: config::animations_enabled(),
         });
     }
@@ -1193,7 +1193,6 @@ impl<S: AppEventSender> Api for App<S> {
                 id: config.id,
                 scale_factor: 1.0,
                 size: config.state.restore_rect.size,
-                text_aa: config.text_aa,
                 render_mode: config.render_mode,
             });
             let msg = WindowOpenData {
@@ -1429,10 +1428,6 @@ impl<S: AppEventSender> Api for App<S> {
             PxPoint::new(Px(-1), Px(-1)),
             HitTestResult::default()
         ))
-    }
-
-    fn set_text_aa(&mut self, id: WindowId, aa: TextAntiAliasing) {
-        with_window_or_surface!(self, id, |w| w.set_text_aa(aa), || ())
     }
 
     fn render(&mut self, id: WindowId, frame: FrameRequest) {

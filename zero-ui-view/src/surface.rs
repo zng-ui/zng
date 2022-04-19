@@ -10,8 +10,7 @@ use webrender::{
     RenderApi, Renderer, RendererOptions, Transaction,
 };
 use zero_ui_view_api::{
-    units::*, FrameId, FrameRequest, FrameUpdateRequest, HeadlessRequest, ImageId, ImageLoadedData, RenderMode, TextAntiAliasing,
-    ViewProcessGen, WindowId,
+    units::*, FrameId, FrameRequest, FrameUpdateRequest, HeadlessRequest, ImageId, ImageLoadedData, RenderMode, ViewProcessGen, WindowId,
 };
 
 use crate::{
@@ -61,14 +60,12 @@ impl Surface {
         let size = cfg.size.to_px(cfg.scale_factor);
         context.resize(size.width.0, size.height.0);
 
-        let mut text_aa = cfg.text_aa;
-        if let TextAntiAliasing::Default = cfg.text_aa {
-            text_aa = TextAntiAliasing::Alpha;
-        }
-
         let opts = RendererOptions {
-            enable_aa: text_aa != TextAntiAliasing::Mono,
-            enable_subpixel_aa: text_aa == TextAntiAliasing::Subpixel,
+            // text-aa config from Firefox.
+            enable_aa: true,
+            force_subpixel_aa: false,
+            enable_subpixel_aa: cfg!(not(target_os = "android")),
+
             renderer_id: Some((gen as u64) << 32 | id as u64),
 
             // this clear color paints over the one set using `Renderer::set_clear_color`.
@@ -196,10 +193,6 @@ impl Surface {
         let mut txn = webrender::Transaction::new();
         txn.delete_font_instance(instance_key);
         self.api.send_transaction(self.document_id(), txn);
-    }
-
-    pub fn set_text_aa(&mut self, aa: TextAntiAliasing) {
-        todo!("need to rebuild the renderer? {aa:?}")
     }
 
     fn push_resize(&mut self, txn: &mut Transaction) {

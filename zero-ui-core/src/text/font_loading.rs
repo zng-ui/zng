@@ -16,7 +16,7 @@ use super::{
 };
 use crate::{
     app::{
-        raw_events::{RawFontChangedEvent, RawTextAaChangedEvent},
+        raw_events::{RawFontAaChangedEvent, RawFontChangedEvent},
         view_process::{ViewProcessInitedEvent, ViewProcessOffline, ViewRenderer},
         AppEventSender, AppExtension,
     },
@@ -42,7 +42,7 @@ event! {
     pub FontChangedEvent: FontChangedArgs;
 }
 
-pub use zero_ui_view_api::TextAntiAliasing;
+pub use zero_ui_view_api::FontAntiAliasing;
 
 event_args! {
     /// [`FontChangedEvent`] arguments.
@@ -102,13 +102,13 @@ impl AppExtension for FontManager {
     fn event_preview<EV: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {
         if RawFontChangedEvent.update(args).is_some() {
             FontChangedEvent.notify(ctx.events, FontChangedArgs::now(FontChange::SystemFonts));
-        } else if let Some(args) = RawTextAaChangedEvent.update(args) {
-            ctx.services.fonts().text_aa.set_ne(ctx.vars, args.aa);
+        } else if let Some(args) = RawFontAaChangedEvent.update(args) {
+            ctx.services.fonts().font_aa.set_ne(ctx.vars, args.aa);
         } else if FontChangedEvent.update(args).is_some() {
             ctx.services.fonts().on_fonts_changed();
         } else if let Some(args) = ViewProcessInitedEvent.update(args) {
             let fonts = ctx.services.fonts();
-            fonts.text_aa.set_ne(ctx.vars, args.text_aa);
+            fonts.font_aa.set_ne(ctx.vars, args.font_aa);
             if args.is_respawn {
                 fonts.loader.on_view_process_respawn();
             }
@@ -134,7 +134,7 @@ pub struct Fonts {
     loader: FontFaceLoader,
     generics: GenericFonts,
     prune_requested: bool,
-    text_aa: RcVar<TextAntiAliasing>,
+    font_aa: RcVar<FontAntiAliasing>,
 }
 impl Fonts {
     fn new(update_sender: AppEventSender) -> Self {
@@ -142,7 +142,7 @@ impl Fonts {
             loader: FontFaceLoader::new(),
             generics: GenericFonts::new(update_sender),
             prune_requested: false,
-            text_aa: var(TextAntiAliasing::Default),
+            font_aa: var(FontAntiAliasing::Default),
         }
     }
 
@@ -276,11 +276,11 @@ impl Fonts {
             .collect()
     }
 
-    /// Gets the system text anti-aliasing config as a read-only var.
+    /// Gets the system font anti-aliasing config as a read-only var.
     ///
     /// The variable updates when the system config changes.
-    pub fn system_text_aa(&self) -> impl Var<TextAntiAliasing> {
-        self.text_aa.clone().into_read_only()
+    pub fn system_font_aa(&self) -> impl Var<FontAntiAliasing> {
+        self.font_aa.clone().into_read_only()
     }
 }
 
@@ -717,24 +717,26 @@ impl Font {
 
     const DUMMY_FONT_KEY: wr::FontInstanceKey = wr::FontInstanceKey(wr::IdNamespace(0), 0);
 
-    fn render_font(&self, renderer: &ViewRenderer, synthesis: FontSynthesis) -> wr::FontInstanceKey {
+    fn render_font(&self, renderer: &ViewRenderer, synthesis: FontSynthesis) -> (wr::FontInstanceKey, wr::FontInstanceFlags) {
         let _span = tracing::trace_span!("Font::render_font").entered();
 
         let namespace = match renderer.namespace_id() {
             Ok(n) => n,
             Err(ViewProcessOffline) => {
                 tracing::debug!("respawned calling `namespace_id`, will return dummy font key");
-                return Self::DUMMY_FONT_KEY;
+                return (Self::DUMMY_FONT_KEY, wr::FontInstanceFlags::empty());
             }
         };
         let mut keys = self.render_keys.borrow_mut();
         for r in keys.iter() {
             if r.key.0 == namespace && r.synthesis == synthesis {
-                return r.key;
+                return (r.key, r.flags);
             }
         }
 
         let font_key = self.face.render_face(renderer);
+
+        let mut flags = wr::FontInstanceFlags::empty();
 
         let mut opt = wr::FontInstanceOptions::default();
         if synthesis.contains(FontSynthesis::STYLE) {
@@ -742,6 +744,7 @@ impl Font {
         }
         if synthesis.contains(FontSynthesis::BOLD) {
             opt.flags |= wr::FontInstanceFlags::SYNTHETIC_BOLD;
+            flags |= wr::FontInstanceFlags::SYNTHETIC_BOLD;
         }
         let variations = self
             .variations
@@ -756,13 +759,13 @@ impl Font {
             Ok(k) => k,
             Err(ViewProcessOffline) => {
                 tracing::debug!("respawned calling `add_font_instance`, will return dummy font key");
-                return Self::DUMMY_FONT_KEY;
+                return (Self::DUMMY_FONT_KEY, wr::FontInstanceFlags::empty());
             }
         };
 
-        keys.push(RenderFont::new(renderer, synthesis, key));
+        keys.push(RenderFont::new(renderer, synthesis, key, flags));
 
-        key
+        (key, flags)
     }
 
     /// Reference the font face source of this font.
@@ -802,7 +805,7 @@ impl Font {
     }
 }
 impl crate::render::Font for Font {
-    fn instance_key(&self, renderer: &ViewRenderer, synthesis: FontSynthesis) -> wr::FontInstanceKey {
+    fn instance_key(&self, renderer: &ViewRenderer, synthesis: FontSynthesis) -> (wr::FontInstanceKey, wr::FontInstanceFlags) {
         // how does cache clear works with this?
         self.render_font(renderer, synthesis)
     }
@@ -812,7 +815,7 @@ impl crate::render::Font for Font {
 pub type FontRef = Rc<Font>;
 
 impl crate::render::Font for FontRef {
-    fn instance_key(&self, renderer: &ViewRenderer, synthesis: FontSynthesis) -> wr::FontInstanceKey {
+    fn instance_key(&self, renderer: &ViewRenderer, synthesis: FontSynthesis) -> (wr::FontInstanceKey, wr::FontInstanceFlags) {
         self.render_font(renderer, synthesis)
     }
 }
@@ -1390,13 +1393,15 @@ struct RenderFont {
     renderer: ViewRenderer,
     synthesis: FontSynthesis,
     key: wr::FontInstanceKey,
+    flags: wr::FontInstanceFlags,
 }
 impl RenderFont {
-    fn new(renderer: &ViewRenderer, synthesis: FontSynthesis, key: wr::FontInstanceKey) -> RenderFont {
+    fn new(renderer: &ViewRenderer, synthesis: FontSynthesis, key: wr::FontInstanceKey, flags: wr::FontInstanceFlags) -> RenderFont {
         RenderFont {
             renderer: renderer.clone(),
             synthesis,
             key,
+            flags,
         }
     }
 }

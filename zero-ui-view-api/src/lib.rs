@@ -435,9 +435,6 @@ declare_api! {
     /// Returns the frame ID, the actual pixel point tested and all hits from front-to-back.
     pub fn hit_test(&mut self, id: WindowId, point: DipPoint) -> (FrameId, PxPoint, HitTestResult);
 
-    /// Set the text anti-aliasing used in the window renderer.
-    pub fn set_text_aa(&mut self, id: WindowId, aa: TextAntiAliasing);
-
     /// Set the video mode used when the window is in exclusive fullscreen.
     pub fn set_video_mode(&mut self, id: WindowId, mode: VideoMode);
 

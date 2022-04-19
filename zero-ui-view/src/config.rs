@@ -1,4 +1,4 @@
-use crate::{MultiClickConfig, TextAntiAliasing};
+use crate::{FontAntiAliasing, MultiClickConfig};
 use std::time::Duration;
 
 /// Create a hidden window that listens to Windows config change events.
@@ -81,7 +81,7 @@ fn config_listener(event_loop: impl crate::AppEventSender) {
         match msg {
             WM_FONTCHANGE => notify(Event::FontsChanged),
             WM_SETTINGCHANGE => match SYSTEM_PARAMETERS_INFO_ACTION(wparam.0 as _) {
-                SPI_SETFONTSMOOTHING | SPI_SETFONTSMOOTHINGTYPE => notify(Event::TextAaChanged(text_aa())),
+                SPI_SETFONTSMOOTHING | SPI_SETFONTSMOOTHINGTYPE => notify(Event::FontAaChanged(font_aa())),
                 SPI_SETDOUBLECLICKTIME | SPI_SETDOUBLECLKWIDTH | SPI_SETDOUBLECLKHEIGHT => {
                     notify(Event::MultiClickConfigChanged(multi_click_config()))
                 }
@@ -103,7 +103,7 @@ fn config_listener(event_loop: impl crate::AppEventSender) {
 
 /// Gets the system text anti-aliasing config.
 #[cfg(windows)]
-pub fn text_aa() -> TextAntiAliasing {
+pub fn font_aa() -> FontAntiAliasing {
     use windows::Win32::Foundation::{GetLastError, BOOL};
     use windows::Win32::UI::WindowsAndMessaging::*;
 
@@ -119,10 +119,10 @@ pub fn text_aa() -> TextAntiAliasing {
         ) == BOOL(0)
         {
             tracing::error!("SPI_GETFONTSMOOTHING error: {:?}", GetLastError());
-            return TextAntiAliasing::Mono;
+            return FontAntiAliasing::Mono;
         }
         if enabled == 0 {
-            return TextAntiAliasing::Mono;
+            return FontAntiAliasing::Mono;
         }
 
         if SystemParametersInfoW(
@@ -133,20 +133,20 @@ pub fn text_aa() -> TextAntiAliasing {
         ) == BOOL(0)
         {
             tracing::error!("SPI_GETFONTSMOOTHINGTYPE error: {:?}", GetLastError());
-            return TextAntiAliasing::Mono;
+            return FontAntiAliasing::Mono;
         }
 
         if smoothing_type == FE_FONTSMOOTHINGCLEARTYPE {
-            TextAntiAliasing::Subpixel
+            FontAntiAliasing::Subpixel
         } else {
-            TextAntiAliasing::Alpha
+            FontAntiAliasing::Alpha
         }
     }
 }
 #[cfg(not(windows))]
-pub fn text_aa() -> TextAntiAliasing {
+pub fn font_aa() -> FontAntiAliasing {
     tracing::error!("`text_aa` not implemented for this OS, will use default");
-    TextAntiAliasing::Subpixel
+    FontAntiAliasing::Subpixel
 }
 
 /// Gets the "double-click" settings.

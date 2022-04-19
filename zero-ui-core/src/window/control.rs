@@ -15,6 +15,7 @@ use crate::{
     event::EventUpdateArgs,
     image::{Image, ImageVar, ImagesExt},
     render::{FrameBuilder, FrameId, FrameUpdate, UsedFrameBuilder, UsedFrameUpdate},
+    text::Fonts,
     units::*,
     var::*,
     widget_info::{
@@ -306,12 +307,6 @@ impl HeadedCtrl {
             if let Some(visible) = self.vars.taskbar_visible().copy_new(ctx) {
                 self.update_view(move |view| {
                     let _: Ignore = view.set_taskbar_visible(visible);
-                });
-            }
-
-            if let Some(aa) = self.vars.text_aa().copy_new(ctx) {
-                self.update_view(move |view| {
-                    let _: Ignore = view.renderer().set_text_aa(aa);
                 });
             }
 
@@ -607,7 +602,6 @@ impl HeadedCtrl {
             icon: self.icon.as_ref().and_then(|ico| ico.get(ctx).view()).map(|ico| ico.id()),
             cursor: self.vars.cursor().copy(ctx),
             transparent: self.transparent,
-            text_aa: self.vars.text_aa().copy(ctx),
             capture_mode: matches!(self.vars.frame_capture_mode().get(ctx), FrameCaptureMode::All),
             render_mode: self.render_mode.unwrap_or_else(|| ctx.services.windows().default_render_mode),
         };
@@ -715,7 +709,6 @@ impl HeadedCtrl {
             icon: self.icon.as_ref().and_then(|ico| ico.get(ctx).view()).map(|ico| ico.id()),
             cursor: self.vars.cursor().copy(ctx),
             transparent: self.transparent,
-            text_aa: self.vars.text_aa().copy(ctx),
             capture_mode: matches!(self.vars.frame_capture_mode().get(ctx), FrameCaptureMode::All),
             render_mode: self.render_mode.unwrap_or_else(|| ctx.services.windows().default_render_mode),
         };
@@ -936,7 +929,6 @@ impl HeadlessWithRendererCtrl {
                 id: window_id.get(),
                 scale_factor: scale_factor.0,
                 size,
-                text_aa: self.vars.text_aa().copy(ctx.vars),
                 render_mode,
             });
 
@@ -1403,11 +1395,18 @@ impl ContentCtrl {
 
                 self.frame_id = self.frame_id.next();
 
+                let default_text_aa = ctx
+                    .services
+                    .get::<Fonts>()
+                    .map(|f| f.system_font_aa().copy(ctx.vars))
+                    .unwrap_or_default();
+
                 let mut frame = FrameBuilder::new(
                     self.frame_id,
                     self.root_id,
                     renderer.clone(),
                     scale_factor,
+                    default_text_aa,
                     self.used_frame_builder.take(),
                 );
 

@@ -15,7 +15,7 @@ use crate::mouse::MultiClickConfig;
 use crate::render::FrameId;
 use crate::service::Service;
 use crate::task::SignalOnce;
-use crate::text::TextAntiAliasing;
+use crate::text::FontAntiAliasing;
 use crate::units::{DipPoint, DipSize, Factor, Px, PxPoint, PxRect, PxSize};
 use crate::window::{MonitorId, WindowId};
 use crate::{event, event_args};
@@ -1110,11 +1110,6 @@ impl ViewRenderer {
         self.call(|id, p| p.hit_test(id, point))
     }
 
-    /// Change the text anti-alias used in this renderer.
-    pub fn set_text_aa(&self, aa: TextAntiAliasing) -> Result<()> {
-        self.call(|id, p| p.set_text_aa(id, aa))
-    }
-
     /// Render a new frame.
     pub fn render(&self, frame: FrameRequest) -> Result<()> {
         let _s = tracing::debug_span!("ViewRenderer.render").entered();
@@ -1161,8 +1156,8 @@ event_args! {
         /// System keyboard pressed repeat delay config.
         pub key_repeat_delay: Duration,
 
-        /// System text anti-aliasing config.
-        pub text_aa: TextAntiAliasing,
+        /// System font font-aliasing config.
+        pub font_aa: FontAntiAliasing,
 
         /// System animations config.
         ///
