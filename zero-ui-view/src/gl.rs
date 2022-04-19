@@ -860,4 +860,4 @@ pub(crate) fn warmup() {
 }
 
 #[cfg(not(windows))]
-fn warmup() {}
+pub(crate) fn warmup() {}
