@@ -24,6 +24,7 @@ use crate::{
     context::{AppContext, WindowContext},
     event::EventUpdateArgs,
     image::ImageVar,
+    var::WithVars,
 };
 
 /// Application extension that manages windows.
@@ -165,17 +166,11 @@ pub trait HeadlessAppWindowExt {
 impl HeadlessAppWindowExt for HeadlessApp {
     fn open_window(&mut self, new_window: impl FnOnce(&mut WindowContext) -> Window + 'static) -> WindowId {
         let response = self.ctx().services.windows().open(new_window);
-        let mut window_id = None;
-        let cf = self.update_observe(
-            |ctx| {
-                if let Some(opened) = response.rsp_new(ctx) {
-                    window_id = Some(opened.window_id);
-                }
-            },
-            true,
-        );
-
-        window_id.unwrap_or_else(|| panic!("window did not open, ControlFlow: {cf:?}"))
+        self.run_task(move |ctx| async move {
+            response.wait_rsp(&ctx).await;
+            ctx.with_vars(|v| response.rsp(v).unwrap().window_id)
+        })
+        .unwrap()
     }
 
     fn focus_window(&mut self, window_id: WindowId) {

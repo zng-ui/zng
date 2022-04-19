@@ -138,7 +138,7 @@ impl HeadedCtrl {
             // not kiosk mode.
 
             if let Some(prev_state) = self.state.clone() {
-                debug_assert!(self.window.is_some() || self.waiting_view);
+                debug_assert!(self.window.is_some() || self.waiting_view || self.respawned);
 
                 let mut new_state = prev_state.clone();
 
