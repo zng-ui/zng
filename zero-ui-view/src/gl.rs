@@ -836,28 +836,3 @@ mod blit {
 fn assert_unwind_safe<T>(glutin_build: T) -> std::panic::AssertUnwindSafe<T> {
     std::panic::AssertUnwindSafe(glutin_build)
 }
-
-/// Warmup the OpenGL driver in a throwaway thread, some NVIDIA drivers have a slow startup (500ms~),
-/// hopefully this loads it in parallel while the app is starting up so we don't block creating the first window.
-#[cfg(windows)]
-pub(crate) fn warmup() {
-    // idea copied from here:
-    // https://hero.handmade.network/forums/code-discussion/t/2503-day_235_opengl%2527s_pixel_format_takes_a_long_time#13029
-
-    use windows::Win32::{
-        Foundation::HWND,
-        Graphics::{
-            Gdi::*,
-            OpenGL::{self, PFD_PIXEL_TYPE},
-        },
-    };
-
-    let _ = std::thread::Builder::new().stack_size(3 * 64 * 1024).spawn(|| unsafe {
-        let hdc = GetDC(HWND(0));
-        let _ = OpenGL::DescribePixelFormat(hdc, PFD_PIXEL_TYPE(0), 0, std::ptr::null_mut());
-        ReleaseDC(HWND(0), hdc);
-    });
-}
-
-#[cfg(not(windows))]
-pub(crate) fn warmup() {}

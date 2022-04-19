@@ -362,8 +362,6 @@ impl App<()> {
     pub fn run_headless(c: ViewChannels) {
         tracing::info!("running headless view-process");
 
-        crate::gl::warmup();
-
         let (app_sender, app_receiver) = flume::unbounded();
         let (request_sender, request_receiver) = flume::unbounded();
         let mut app = App::new((app_sender, request_sender), c.response_sender, c.event_sender, request_receiver);
@@ -436,8 +434,6 @@ impl App<()> {
 
     pub fn run_headed(c: ViewChannels) {
         tracing::info!("running headed view-process");
-
-        crate::gl::warmup();
 
         let winit_span = tracing::trace_span!("winit::EventLoop::new").entered();
         let mut event_loop = EventLoop::with_user_event();

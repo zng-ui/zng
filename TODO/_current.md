@@ -5,6 +5,7 @@ and unblock the view-process.
 
 ## Window Open
 
+* Try to detect unsupported render mode without glutin.
 * Reuse windows and surfaces.
 * Start creating a window and surface as soon as possible, reuse on first request.
 
