@@ -362,13 +362,17 @@ impl App<()> {
     pub fn run_headless(c: ViewChannels) {
         tracing::info!("running headless view-process");
 
-        warmup_open_gl();
+        crate::gl::warmup();
 
         let (app_sender, app_receiver) = flume::unbounded();
         let (request_sender, request_receiver) = flume::unbounded();
         let mut app = App::new((app_sender, request_sender), c.response_sender, c.event_sender, request_receiver);
         app.headless = true;
+
+        let winit_span = tracing::trace_span!("winit::EventLoop::new").entered();
         let event_loop = EventLoop::<AppEvent>::with_user_event();
+        drop(winit_span);
+
         let window_target: &EventLoopWindowTarget<AppEvent> = &event_loop;
         app.window_target = window_target as *const _;
 
@@ -433,7 +437,7 @@ impl App<()> {
     pub fn run_headed(c: ViewChannels) {
         tracing::info!("running headed view-process");
 
-        warmup_open_gl();
+        crate::gl::warmup();
 
         let winit_span = tracing::trace_span!("winit::EventLoop::new").entered();
         let mut event_loop = EventLoop::with_user_event();
@@ -1554,28 +1558,3 @@ impl<S: AppEventSender> RenderNotifier for WrNotifier<S> {
         let _ = self.sender.frame_ready(self.id, msg);
     }
 }
-
-/// Warmup the OpenGL driver in a throwaway thread, some NVIDIA drivers have a slow startup (500ms~),
-/// hopefully this loads it in parallel while the app is starting up so we don't block creating the first window.
-#[cfg(windows)]
-fn warmup_open_gl() {
-    // idea copied from here:
-    // https://hero.handmade.network/forums/code-discussion/t/2503-day_235_opengl%2527s_pixel_format_takes_a_long_time#13029
-
-    use windows::Win32::{
-        Foundation::HWND,
-        Graphics::{
-            Gdi::*,
-            OpenGL::{self, PFD_PIXEL_TYPE},
-        },
-    };
-
-    let _ = thread::Builder::new().stack_size(3 * 64 * 1024).spawn(|| unsafe {
-        let hdc = GetDC(HWND(0));
-        let _ = OpenGL::DescribePixelFormat(hdc, PFD_PIXEL_TYPE(0), 0, std::ptr::null_mut());
-        ReleaseDC(HWND(0), hdc);
-    });
-}
-
-#[cfg(not(windows))]
-fn warmup_open_gl() {}
