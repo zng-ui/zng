@@ -12,6 +12,7 @@ use crate::{
     },
     context::{AppContext, Updates, UpdatesTrace},
     crate_util::{Handle, HandleOwner, PanicPayload, RunOnDrop},
+    event::EventUpdateArgs,
     handler::{AppHandler, AppHandlerArgs, AppWeakHandle},
     units::TimeUnits,
 };
@@ -426,9 +427,12 @@ impl Vars {
 
     pub(crate) fn event_preview<EV: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {
         if let Some(args) = ViewProcessInitedEvent.update(args) {
-            ctx.vars.animations_enabled.set_ne(ctx.vars, args.animations_enabled)
+            ctx.vars.animations_enabled.set_ne(ctx.vars, args.animations_enabled);
         } else if let Some(args) = RawAnimationsEnabledChangedEvent.update(args) {
-            ctx.vars.animations_enabled.set_ne(ctx.vars, args.enabled)
+            if ctx.vars.animations_enabled.set_ne(ctx.vars, args.enabled) && !args.enabled {
+                // disabled
+                todo!("cancel animations")
+            }
         }
     }
 
