@@ -1842,18 +1842,18 @@ impl HeadlessApp {
     {
         let mut task = self.ctx().async_task(task);
 
-        if task.update(&mut self.ctx()).is_some() {
-            let r = task.into_result().ok();
-            debug_assert!(r.is_some());
-            return r;
-        }
-
         let mut flow = self.update_observe(
             |ctx| {
                 task.update(ctx);
             },
             false,
         );
+
+        if task.update(&mut self.ctx()).is_some() {
+            let r = task.into_result().ok();
+            debug_assert!(r.is_some());
+            return r;
+        }
 
         while flow != ControlFlow::Exit {
             flow = self.update_observe(
