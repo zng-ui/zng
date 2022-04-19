@@ -7,7 +7,6 @@ and unblock the view-process.
 
 * Reuse windows and surfaces.
 * Start creating a window and surface as soon as possible, reuse on first request.
-    - This replaces the `gl::warmup` with a full context that is kept awaiting a window request.
 
 * Try to implement async context creation in default view crate.
     - Problem, glutin needs the event-loop window target to build a context (it is not send and must be in main).

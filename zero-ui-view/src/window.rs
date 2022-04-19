@@ -15,8 +15,8 @@ use webrender::{
     RenderApi, Renderer, RendererOptions, Transaction, UploadMethod, VertexUsageHint,
 };
 use zero_ui_view_api::{
-    units::*, CursorIcon, DeviceId, FrameId, FrameRequest, FrameUpdateRequest, ImageId, ImageLoadedData, RenderMode,
-    VideoMode, ViewProcessGen, WindowId, WindowRequest, WindowState, WindowStateAll,
+    units::*, CursorIcon, DeviceId, FrameId, FrameRequest, FrameUpdateRequest, ImageId, ImageLoadedData, RenderMode, VideoMode,
+    ViewProcessGen, WindowId, WindowRequest, WindowState, WindowStateAll,
 };
 
 #[cfg(windows)]
@@ -67,7 +67,6 @@ pub(crate) struct Window {
     image_use: ImageUseMap,
 
     window: GWindow,
-    transparent: bool,
     context: GlContext,
     renderer: Option<Renderer>,
     capture_mode: bool,
@@ -114,38 +113,6 @@ impl fmt::Debug for Window {
     }
 }
 impl Window {
-    pub fn can_reuse(&self, req: &WindowRequest, best_render_mode: RenderMode) -> bool {
-        best_render_mode == self.render_mode && req.transparent == self.transparent
-    }
-
-    pub fn reuse(&mut self, icon: Option<Icon>, req: WindowRequest) {
-        self.id = req.id;
-        self.pipeline_id.1 = req.id;
-
-        self.visible = req.visible; // will apply on "first" render.
-
-        self.kiosk = req.kiosk;
-
-        self.capture_mode = req.capture_mode;
-
-        self.set_title(req.title);
-        self.set_movable(req.movable);
-        self.set_resizable(req.resizable);
-        self.set_always_on_top(req.always_on_top);
-        self.set_icon(icon);
-        self.set_cursor(req.cursor);
-        self.set_allow_alt_f4(req.allow_alt_f4);
-
-        self.set_cursor(req.cursor);
-        self.set_taskbar_visible(req.taskbar_visible);
-
-        self.set_video_mode(req.video_mode);
-
-        let mut s = req.state;
-        s.clamp_size();
-        self.set_state(s);
-    }
-
     pub fn open(
         gen: ViewProcessGen,
         icon: Option<Icon>,
@@ -222,7 +189,8 @@ impl Window {
             render_mode = RenderMode::Integrated;
         }
 
-        let (context, winit_window) = gl_manager.create_headed(id, winit, window_target, req.render_mode);
+        let (context, winit_window) = gl_manager.create_headed(id, winit, window_target, render_mode);
+        render_mode = context.render_mode();
 
         // extend the winit Windows window to only block the Alt+F4 key press if we want it to.
         let allow_alt_f4 = Rc::new(Cell::new(req.allow_alt_f4));
@@ -305,7 +273,6 @@ impl Window {
             state: s,
             kiosk: req.kiosk,
             window: winit_window,
-            transparent: req.transparent,
             context,
             capture_mode: req.capture_mode,
             renderer: Some(renderer),
