@@ -1,7 +1,7 @@
 use crate::{MultiClickConfig, TextAntiAliasing};
 use std::time::Duration;
 
-/// Create a hidden window that listen to Windows config change events.
+/// Create a hidden window that listens to Windows config change events.
 #[cfg(windows)]
 pub(crate) fn spawn_listener(event_loop: impl crate::AppEventSender) {
     config_listener(event_loop);
@@ -85,7 +85,7 @@ fn config_listener(event_loop: impl crate::AppEventSender) {
                 SPI_SETDOUBLECLICKTIME | SPI_SETDOUBLECLKWIDTH | SPI_SETDOUBLECLKHEIGHT => {
                     notify(Event::MultiClickConfigChanged(multi_click_config()))
                 }
-                SPI_SETCLIENTAREAANIMATION => notify(Event::AnimationEnabledChanged(animation_enabled())),
+                SPI_SETCLIENTAREAANIMATION => notify(Event::AnimationsEnabledChanged(animations_enabled())),
                 SPI_SETKEYBOARDDELAY => notify(Event::KeyRepeatDelayChanged(key_repeat_delay())),
                 _ => None,
             },
@@ -174,7 +174,7 @@ pub fn multi_click_config() -> MultiClickConfig {
 }
 
 #[cfg(windows)]
-pub fn animation_enabled() -> bool {
+pub fn animations_enabled() -> bool {
     use windows::Win32::Foundation::{GetLastError, BOOL};
     use windows::Win32::UI::WindowsAndMessaging::*;
 
@@ -196,8 +196,8 @@ pub fn animation_enabled() -> bool {
     }
 }
 #[cfg(not(windows))]
-pub fn animation_enabled() -> bool {
-    tracing::error!("`animation_enabled` not implemented for this OS, will use default");
+pub fn animations_enabled() -> bool {
+    tracing::error!("`animations_enabled` not implemented for this OS, will use default");
     true
 }
 

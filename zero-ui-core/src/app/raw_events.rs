@@ -567,8 +567,8 @@ event_args! {
         }
     }
 
-    /// Arguments for the [`RawAnimationEnabledChangedEvent`].
-    pub struct RawAnimationEnabledChangedArgs {
+    /// Arguments for the [`RawAnimationsEnabledChangedEvent`].
+    pub struct RawAnimationsEnabledChangedArgs {
         /// If animation is enabled in the operating system.
         pub enabled: bool,
 
@@ -711,7 +711,7 @@ event! {
     pub RawMultiClickConfigChangedEvent: RawMultiClickConfigChangedArgs;
 
     /// Change in system animation enabled config.
-    pub RawAnimationEnabledChangedEvent: RawAnimationEnabledChangedArgs;
+    pub RawAnimationsEnabledChangedEvent: RawAnimationsEnabledChangedArgs;
 
     /// Change in system key repeat interval config.
     pub RawKeyRepeatDelayChangedEvent: RawKeyRepeatDelayChangedArgs;

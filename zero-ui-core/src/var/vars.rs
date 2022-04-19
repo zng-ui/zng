@@ -6,7 +6,10 @@ use super::{
     *,
 };
 use crate::{
-    app::{AppEventSender, AppShutdown, RecvFut, TimeoutOrAppShutdown},
+    app::{
+        raw_events::RawAnimationsEnabledChangedEvent, view_process::ViewProcessInitedEvent, AppEventSender, AppShutdown, RecvFut,
+        TimeoutOrAppShutdown,
+    },
     context::{AppContext, Updates, UpdatesTrace},
     crate_util::{Handle, HandleOwner, PanicPayload, RunOnDrop},
     handler::{AppHandler, AppHandlerArgs, AppWeakHandle},
@@ -281,6 +284,7 @@ pub struct Vars {
     animations: RefCell<Vec<AnimationFn>>,
     last_frame: Instant,
     frame_duration: Duration,
+    animations_enabled: RcVar<bool>,
 
     #[allow(clippy::type_complexity)]
     pending: RefCell<Vec<PendingUpdate>>,
@@ -321,6 +325,7 @@ impl Vars {
             animations: RefCell::default(),
             last_frame: Instant::now(),
             frame_duration: (1.0 / 60.0).secs(),
+            animations_enabled: var(true),
             pending: Default::default(),
             pre_handlers: RefCell::default(),
             pos_handlers: RefCell::default(),
@@ -417,6 +422,14 @@ impl Vars {
     /// Receive and apply set/modify from [`VarSender`] and [`VarModifySender`] instances.
     pub(crate) fn receive_sended_modify(&self) {
         self.receivers.borrow_mut().retain(|f| f(self));
+    }
+
+    pub(crate) fn event_preview<EV: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {
+        if let Some(args) = ViewProcessInitedEvent.update(args) {
+            ctx.vars.animations_enabled.set_ne(ctx.vars, args.animations_enabled)
+        } else if let Some(args) = RawAnimationsEnabledChangedEvent.update(args) {
+            ctx.vars.animations_enabled.set_ne(ctx.vars, args.enabled)
+        }
     }
 
     /// Creates a channel that can set `var` from other threads.
@@ -590,7 +603,7 @@ impl Vars {
         A: FnMut(&Vars, &Animation) + 'static,
     {
         let (handle_owner, handle) = AnimationHandle::new();
-        let anim = Animation::new();
+        let anim = Animation::new(self.animations_enabled.copy(self));
 
         self.animations.borrow_mut().push(Box::new(move |vars| {
             let mut retain = !handle_owner.is_dropped();
@@ -604,6 +617,14 @@ impl Vars {
         }));
 
         handle
+    }
+
+    /// Returns a read-only variable that tracks if animations are enabled in the operating system.
+    ///
+    /// If `false` all animations must be skipped to the end, users with photo-sensitive epilepsy disable animations system wide.
+    #[inline]
+    pub fn animations_enabled(&self) -> ReadOnlyRcVar<bool> {
+        self.animations_enabled.clone().into_read_only()
     }
 
     /// If one or more variables have pending updates.

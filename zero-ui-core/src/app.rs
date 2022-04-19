@@ -1228,9 +1228,9 @@ impl<E: AppExtension> RunningApp<E> {
                 let args = RawMultiClickConfigChangedArgs::now(cfg);
                 self.notify_event(RawMultiClickConfigChangedEvent, args, observer);
             }
-            Event::AnimationEnabledChanged(enabled) => {
-                let args = RawAnimationEnabledChangedArgs::now(enabled);
-                self.notify_event(RawAnimationEnabledChangedEvent, args, observer);
+            Event::AnimationsEnabledChanged(enabled) => {
+                let args = RawAnimationsEnabledChangedArgs::now(enabled);
+                self.notify_event(RawAnimationsEnabledChangedEvent, args, observer);
             }
             Event::KeyRepeatDelayChanged(delay) => {
                 let args = RawKeyRepeatDelayChangedArgs::now(delay);
@@ -1342,7 +1342,7 @@ impl<E: AppExtension> RunningApp<E> {
                     multi_click_config,
                     key_repeat_delay,
                     text_aa,
-                    animation_enabled,
+                    animations_enabled,
                 } => {
                     // notify immediately.
                     if is_respawn {
@@ -1366,7 +1366,7 @@ impl<E: AppExtension> RunningApp<E> {
                         multi_click_config,
                         key_repeat_delay,
                         text_aa,
-                        animation_enabled,
+                        animations_enabled,
                     );
                     self.notify_event(ViewProcessInitedEvent, args, observer);
                 }

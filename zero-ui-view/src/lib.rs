@@ -1171,7 +1171,7 @@ impl<S: AppEventSender> Api for App<S> {
             multi_click_config: config::multi_click_config(),
             key_repeat_delay: config::key_repeat_delay(),
             text_aa: config::text_aa(),
-            animation_enabled: config::animation_enabled(),
+            animations_enabled: config::animations_enabled(),
         });
     }
 

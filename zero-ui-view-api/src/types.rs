@@ -778,8 +778,8 @@ pub enum Event {
         text_aa: TextAntiAliasing,
         /// System animations config.
         ///
-        /// People with photosensitive epilepsy usually disable animations system wide.
-        animation_enabled: bool,
+        /// People with photo-sensitive epilepsy usually disable animations system wide.
+        animations_enabled: bool,
     },
 
     /// The event channel disconnected, probably because the view-process crashed.
@@ -1032,8 +1032,8 @@ pub enum Event {
     TextAaChanged(TextAntiAliasing),
     /// System double-click definition changed.
     MultiClickConfigChanged(MultiClickConfig),
-    /// System animation enabled config changed.
-    AnimationEnabledChanged(bool),
+    /// System animations enabled config changed.
+    AnimationsEnabledChanged(bool),
     /// System definition of pressed key repeat event changed.
     KeyRepeatDelayChanged(Duration),
 
@@ -1244,7 +1244,7 @@ impl Event {
                 *config = n_config;
             }
             // animation enabled.
-            (AnimationEnabledChanged(config), AnimationEnabledChanged(n_config)) => {
+            (AnimationsEnabledChanged(config), AnimationsEnabledChanged(n_config)) => {
                 *config = n_config;
             }
             // key repeat delay timeout.

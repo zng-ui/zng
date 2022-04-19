@@ -1,13 +1,11 @@
 # Variables TODO
 
-a + f * (n - a)
-
 # Animation
 
 * `Var::is_animating` ?
 * Cancel animation if set from other source?
 * Config animation fps.
-* Support system `animation_enabled` setting.
+* Support system `animations_enabled` setting.
 
 ## Storyboard/Key-frames
 

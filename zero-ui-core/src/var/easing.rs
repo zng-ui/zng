@@ -554,13 +554,15 @@ impl AnimationHandle {
 pub struct Animation {
     start_time: Instant,
     stop: Cell<bool>,
+    animations_enabled: bool,
 }
 
 impl Animation {
-    pub(super) fn new() -> Self {
+    pub(super) fn new(animations_enabled: bool) -> Self {
         Animation {
             start_time: Instant::now(),
             stop: Cell::new(false),
+            animations_enabled,
         }
     }
 
@@ -570,10 +572,26 @@ impl Animation {
         self.start_time
     }
 
-    /// Compute the elapsed [`EasingTime`], in the span of the total `duration`.
+    /// Returns a value that indicates if animations are enabled in the operating system.
+    ///
+    /// If `false` all animations must be skipped to the end, users with photo-sensitive epilepsy disable animations system wide.
+    #[inline]
+    pub fn animations_enabled(&self) -> bool {
+        self.animations_enabled
+    }
+
+    /// Compute the elapsed [`EasingTime`], in the span of the total `duration`, if [`animations_enabled`].
+    ///
+    /// If animations are disabled, returns [`EasingTime::end`].
+    ///
+    /// [`animations_enabled`]: Self::animations_enabled
     #[inline]
     pub fn elapsed(&self, duration: Duration) -> EasingTime {
-        EasingTime::elapsed(duration, self.start_time.elapsed())
+        if self.animations_enabled {
+            EasingTime::elapsed(duration, self.start_time.elapsed())
+        } else {
+            EasingTime::end()
+        }
     }
 
     /// Compute the elapsed [`EasingTime`], if the time [`is_end`] requests animation stop.

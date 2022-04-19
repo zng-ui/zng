@@ -140,7 +140,7 @@ impl ViewProcess {
             generation: app.data_generation,
         }));
         drop(app);
-        
+
         let data = WindowOpenData::new(data, |id| self.monitor_id(id));
 
         (win, data)
@@ -1167,7 +1167,7 @@ event_args! {
         /// System animations config.
         ///
         /// People with photosensitive epilepsy usually disable animations system wide.
-        pub animation_enabled: bool,
+        pub animations_enabled: bool,
 
         ..
 
