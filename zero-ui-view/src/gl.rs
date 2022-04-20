@@ -1,9 +1,7 @@
 use std::{
     cell::Cell,
-    env,
     fmt::{self, Write},
     mem,
-    path::PathBuf,
     rc::Rc,
 };
 
@@ -11,7 +9,6 @@ use crate::util::{self, panic_msg, PxToWinit};
 use gleam::gl::{self, Gl};
 use glutin::{event_loop::EventLoopWindowTarget, window::WindowBuilder, PossiblyCurrent};
 use linear_map::set::LinearSet;
-use parking_lot::Mutex;
 use zero_ui_view_api::{
     units::{Px, PxSize},
     RenderMode, WindowId,
@@ -243,70 +240,27 @@ type CurrentId = Rc<Cell<Option<WindowId>>>;
 /// # Safety
 ///
 /// If this manager is in use all OpenGL contexts created in the process must be managed by a single instance of it.
+#[derive(Default)]
 pub(crate) struct GlContextManager {
     current_id: CurrentId,
-    unsupported: Mutex<LinearSet<TryConfig>>,
-    unsupported_cache: Option<PathBuf>,
-}
-
-impl GlContextManager {
-    pub(crate) fn new() -> Self {
-        let unsupported_cache = directories::ProjectDirs::from("rs", "zero_ui", if cfg!(software) { "view+software" } else { "view" })
-            .map(|d| d.cache_dir().join(format!("unsupported-modes-{}", env!("CARGO_PKG_VERSION"))));
-
-        let mut unsupported = LinearSet::new();
-        if let Some(cache) = &unsupported_cache {
-            if let Ok(cache) = std::fs::read_to_string(cache) {
-                let mut lines = cache.lines();
-                let driver = lines.next().unwrap_or_default();
-
-                if driver != "todo" {
-                    for line in lines {
-                        if let Some(c) = TryConfig::parse_name(line) {
-                            unsupported.insert(c);
-                        }
-                    }
-                }
-            }
-        }
-
-        Self {
-            current_id: Rc::default(),
-            unsupported: Mutex::new(unsupported),
-            unsupported_cache,
-        }
-    }
+    unsupported: LinearSet<TryConfig>,
 }
 impl GlContextManager {
-    fn save_unsupported(&self, unsupported: &mut LinearSet<TryConfig>) {
-        if let Some(cache) = &self.unsupported_cache {
-            if unsupported.is_empty() {
-                let _ = std::fs::remove_file(cache);
-            } else {
-                let _ = std::fs::create_dir_all(cache.parent().unwrap());
-
-                let mut file = "todo\n".to_owned();
-                for c in unsupported.iter() {
-                    let _ = writeln!(file, "{}", c.name());
-                }
-                let _ = std::fs::write(cache, file);
-            }
-        }
+    fn insert_unsupported(&mut self, config: TryConfig) {
+        self.unsupported.insert(config);
     }
 
     pub fn create_headed(
-        &self,
+        &mut self,
         id: WindowId,
         window: WindowBuilder,
         window_target: &EventLoopWindowTarget<crate::AppEvent>,
         mode_pref: RenderMode,
     ) -> (GlContext, glutin::window::Window) {
-        let mut unsupported = self.unsupported.lock();
-
         let mut error_log = String::new();
 
         for config in TryConfig::iter(mode_pref) {
-            if unsupported.contains(&config) {
+            if self.unsupported.contains(&config) {
                 let _ = write!(&mut error_log, "\n[{}]\nskip, previous attempt failed", config.name());
                 continue;
             }
@@ -318,9 +272,6 @@ impl GlContextManager {
                         error_log.push_str(
                             "\n[Software]\nzero-ui-view does not fully implement headed \"software\" backend on target OS (missing blit)",
                         );
-
-                        unsupported.insert(config);
-                        self.save_unsupported(&mut unsupported);
                         continue;
                     }
 
@@ -335,8 +286,6 @@ impl GlContextManager {
                 #[cfg(not(software))]
                 RenderMode::Software => {
                     error_log.push_str("\n[Software]\nzero-ui-view not build with \"software\" backend");
-                    unsupported.insert(config);
-                    self.save_unsupported(&mut unsupported);
                 }
 
                 mode => {
@@ -347,8 +296,6 @@ impl GlContextManager {
                         if !logged {
                             let _ = write!(error_log, "\n[{}]", config.name());
                             logged = true;
-                            unsupported.insert(config);
-                            self.save_unsupported(&mut unsupported);
                         }
                         let _ = write!(error_log, "\n{e:?}");
                     };
@@ -371,6 +318,7 @@ impl GlContextManager {
                                 Ok(c) => c,
                                 Err(e) => {
                                     log_error(&e);
+                                    self.insert_unsupported(config);
                                     continue;
                                 }
                             };
@@ -382,6 +330,7 @@ impl GlContextManager {
                                 },
                                 glutin::Api::WebGl => {
                                     log_error(&"WebGL is not supported");
+                                    self.insert_unsupported(config);
                                     continue;
                                 }
                             };
@@ -391,6 +340,7 @@ impl GlContextManager {
 
                             if !wr_supports_gl(&*gl) {
                                 log_error(&"Webrender requires at least OpenGL 3.1");
+                                self.insert_unsupported(config);
                                 continue;
                             }
 
@@ -411,8 +361,14 @@ impl GlContextManager {
 
                             return (ctx, window);
                         }
-                        Ok(Err(e)) => log_error(&e),
-                        Err(payload) => log_error(&panic_msg(&payload)),
+                        Ok(Err(e)) => {
+                            log_error(&e);
+                            self.insert_unsupported(config);
+                        }
+                        Err(payload) => {
+                            log_error(&panic_msg(&payload));
+                            self.insert_unsupported(config);
+                        }
                     }
                 }
             }
@@ -422,19 +378,17 @@ impl GlContextManager {
     }
 
     pub fn create_headless(
-        &self,
+        &mut self,
         id: WindowId,
         window_target: &EventLoopWindowTarget<crate::AppEvent>,
         mode_pref: RenderMode,
     ) -> GlContext {
-        let mut unsupported = self.unsupported.lock();
-
         let mut error_log = String::new();
 
         let size = PxSize::new(Px(2), Px(2));
 
         for config in TryConfig::iter(mode_pref) {
-            if unsupported.contains(&config) {
+            if self.unsupported.contains(&config) {
                 let _ = write!(&mut error_log, "\n[{}]\nskip, previous attempt failed", config.name());
                 continue;
             }
@@ -447,8 +401,6 @@ impl GlContextManager {
                 #[cfg(not(software))]
                 RenderMode::Software => {
                     error_log.push_str("\n[Software]\nzero-ui-view not build with \"software\" backend");
-                    unsupported.insert(config);
-                    self.save_unsupported(&mut unsupported);
                 }
 
                 mode => {
@@ -459,8 +411,6 @@ impl GlContextManager {
                         if !logged {
                             let _ = write!(error_log, "\n[{}]", config.name());
                             logged = true;
-                            unsupported.insert(config);
-                            self.save_unsupported(&mut unsupported);
                         }
                         let _ = write!(error_log, "\n{e:?}");
                     };
@@ -486,8 +436,14 @@ impl GlContextManager {
                         let mut surfaceless_ok = false;
                         match &r {
                             Ok(Ok(_)) => surfaceless_ok = true,
-                            Ok(Err(e)) => log_error(&format!("surfaceless error: {e:?}")),
-                            Err(payload) => log_error(&format!("surfaceless panic: {}", panic_msg(&*payload))),
+                            Ok(Err(e)) => {
+                                log_error(&format!("surfaceless error: {e:?}"));
+                                self.insert_unsupported(config);
+                            }
+                            Err(payload) => {
+                                log_error(&format!("surfaceless panic: {}", panic_msg(&*payload)));
+                                self.insert_unsupported(config);
+                            }
                         }
 
                         if surfaceless_ok {
@@ -519,6 +475,7 @@ impl GlContextManager {
                                 Ok(c) => c,
                                 Err(e) => {
                                     log_error(&e);
+                                    self.insert_unsupported(config);
                                     continue;
                                 }
                             };
@@ -530,6 +487,7 @@ impl GlContextManager {
                                 },
                                 glutin::Api::WebGl => {
                                     log_error(&"WebGL is not supported");
+                                    self.insert_unsupported(config);
                                     continue;
                                 }
                             };
@@ -538,6 +496,7 @@ impl GlContextManager {
 
                             if !wr_supports_gl(&*gl) {
                                 log_error(&"Webrender requires at least OpenGL 3.1");
+                                self.insert_unsupported(config);
                                 continue;
                             }
 
@@ -553,8 +512,14 @@ impl GlContextManager {
                                 gl,
                             };
                         }
-                        Ok(Err(e)) => log_error(&e),
-                        Err(payload) => log_error(&panic_msg(&payload)),
+                        Ok(Err(e)) => {
+                            log_error(&e);
+                            self.insert_unsupported(config);
+                        }
+                        Err(payload) => {
+                            log_error(&panic_msg(&payload));
+                            self.insert_unsupported(config);
+                        }
                     }
                 }
             }
@@ -632,28 +597,6 @@ impl TryConfig {
                 RenderMode::Dedicated => unreachable!(),
             },
             None => "Dedicated (generic)",
-        }
-    }
-
-    pub fn parse_name(name: &str) -> Option<TryConfig> {
-        match name {
-            "Dedicated" => Some(TryConfig {
-                mode: RenderMode::Dedicated,
-                hardware_acceleration: Some(true),
-            }),
-            "Integrated" => Some(TryConfig {
-                mode: RenderMode::Integrated,
-                hardware_acceleration: Some(false),
-            }),
-            "Software" => Some(TryConfig {
-                mode: RenderMode::Software,
-                hardware_acceleration: Some(false),
-            }),
-            "Dedicated (generic)" => Some(TryConfig {
-                mode: RenderMode::Dedicated,
-                hardware_acceleration: None,
-            }),
-            _ => None,
         }
     }
 }

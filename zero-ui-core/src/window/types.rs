@@ -361,9 +361,9 @@ impl WindowIcon {
     ///
     /// The icon node is updated like any other node and it can request a new render. Note that just
     /// because you can update the icon does not mean that animating it is a good idea.
-    /// 
+    ///
     /// # Examples
-    /// 
+    ///
     /// ```
     /// # use zero_ui_core::{window::WindowIcon, render::RenderMode};
     /// # macro_rules! container { ($($tt:tt)*) => { zero_ui_core::NilUiNode } }

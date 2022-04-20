@@ -527,7 +527,7 @@ impl<S: AppEventSender> App<S> {
         App {
             headless: false,
             started: false,
-            gl_manager: GlContextManager::new(),
+            gl_manager: GlContextManager::default(),
             image_cache: ImageCache::new(app_sender.clone()),
             app_sender,
             request_recv,

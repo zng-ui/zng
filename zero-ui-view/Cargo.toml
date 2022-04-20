@@ -47,8 +47,6 @@ rustc-hash = "1"
 rayon = "1"
 backtrace = "0.3"
 linear-map = "1"
-parking_lot = "0.12"
-directories = "4"
 
 [target.'cfg(windows)'.dependencies]
 windows = { version = "0.35", features = ["alloc", "Win32_Foundation", "Win32_UI_Shell", "Win32_UI_WindowsAndMessaging", "Win32_Devices_HumanInterfaceDevice", "Win32_UI_Input", "Win32_UI_Input_KeyboardAndMouse", "Win32_Graphics_Gdi", "Win32_Graphics_OpenGL", "Win32_System_Com", "Win32_System_LibraryLoader"] }
