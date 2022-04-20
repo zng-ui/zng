@@ -212,13 +212,13 @@ pub fn key_repeat_delay() -> Duration {
         let mut index = 0;
 
         if SystemParametersInfoW(
-            SPI_GETCLIENTAREAANIMATION,
+            SPI_GETKEYBOARDDELAY,
             0,
             &mut index as *mut _ as *mut _,
             SYSTEM_PARAMETERS_INFO_UPDATE_FLAGS(0),
         ) == BOOL(0)
         {
-            tracing::error!("SPI_GETCLIENTAREAANIMATION error: {:?}", GetLastError());
+            tracing::error!("SPI_GETKEYBOARDDELAY error: {:?}", GetLastError());
             return Duration::from_millis(600);
         }
 
