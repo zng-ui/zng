@@ -499,13 +499,25 @@ impl ImageSource {
     ///
     /// See [`Images::render`] for more information.
     ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use zero_ui_core::{image::ImageSource, render::RenderMode};
+    /// # macro_rules! container { ($($tt:tt)*) => { zero_ui_core::NilUiNode } }
+    /// # let _ =
+    /// ImageSource::render(
+    ///     RenderMode::Software,
+    ///     |_ctx| container! {
+    ///         size = (500, 400);
+    ///         background_color = colors::GREEN;
+    ///         content = text("Rendered!");
+    ///     }
+    /// )
+    /// # ;
+    /// ```
+    ///
     /// [`Images::render`]: crate::image::Images::render
-    pub fn render<I: UiNode, F: Fn(&mut WindowContext) -> I + 'static>(new_img: F) -> Self {
-        Self::Render(Rc::new(Box::new(move |ctx| new_img(ctx).boxed())), RenderConfig::default())
-    }
-
-    /// Render with custom [`RenderConfig`].
-    pub fn render_cfg<I: UiNode, F: Fn(&mut WindowContext) -> I + 'static>(new_img: F, config: impl Into<RenderConfig>) -> Self {
+    pub fn render<I: UiNode, F: Fn(&mut WindowContext) -> I + 'static>(config: impl Into<RenderConfig>, new_img: F) -> Self {
         Self::Render(Rc::new(Box::new(move |ctx| new_img(ctx).boxed())), config.into())
     }
 

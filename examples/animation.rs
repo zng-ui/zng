@@ -145,50 +145,53 @@ fn ease_btn(
 }
 fn plot(easing: impl Fn(EasingTime) -> EasingStep + 'static) -> ImageSource {
     let size = (64, 64);
-    ImageSource::render(clone_move!(size, |_| {
-        let mut items = widget_vec![];
-        let color_t = easing::Transition::new(FROM_COLOR, TO_COLOR);
-        for i in 0..=60 {
-            let x_fct = (i as f32 / 60.0).fct();
-            let x = size.0 * x_fct;
+    ImageSource::render(
+        RenderMode::Software,
+        clone_move!(size, |_| {
+            let mut items = widget_vec![];
+            let color_t = easing::Transition::new(FROM_COLOR, TO_COLOR);
+            for i in 0..=60 {
+                let x_fct = (i as f32 / 60.0).fct();
+                let x = size.0 * x_fct;
 
-            let y_fct = easing(EasingTime::new(x_fct));
-            let y = size.1 * (1.fct() - y_fct);
+                let y_fct = easing(EasingTime::new(x_fct));
+                let y = size.1 * (1.fct() - y_fct);
 
-            items.push(blank! {
-                position = (x, y);
-                size = (3, 3);
-                corner_radius = 2;
-                translate = -1.5, -1.5;
-                background_color = color_t.sample(y_fct);
-            })
-        }
+                items.push(blank! {
+                    position = (x, y);
+                    size = (3, 3);
+                    corner_radius = 2;
+                    translate = -1.5, -1.5;
+                    background_color = color_t.sample(y_fct);
+                })
+            }
 
-        let meta_color = colors::WHITE.with_alpha(40.pct());
+            let meta_color = colors::WHITE.with_alpha(40.pct());
 
-        #[allow(clippy::precedence)]
-        items.push(text! {
-            text = "v";
-            font_size = 12;
-            font_style = FontStyle::Italic;
-            color = meta_color;
-            position = (-3.dip() - 100.pct(), -3.dip());
-        });
-        items.push(text! {
-            text = "t";
-            font_size = 12;
-            font_style = FontStyle::Italic;
-            color = meta_color;
-            position = (size.0.dip() - 100.pct() - 3.dip(), size.1 - 3);
-        });
-        z_stack! {
-            items_align = Align::TOP_LEFT;
-            items;
-            size;
-            border = (0, 0, 1, 1), meta_color;
-            margin = 10;
-        }
-    }))
+            #[allow(clippy::precedence)]
+            items.push(text! {
+                text = "v";
+                font_size = 12;
+                font_style = FontStyle::Italic;
+                color = meta_color;
+                position = (-3.dip() - 100.pct(), -3.dip());
+            });
+            items.push(text! {
+                text = "t";
+                font_size = 12;
+                font_style = FontStyle::Italic;
+                color = meta_color;
+                position = (size.0.dip() - 100.pct() - 3.dip(), size.1 - 3);
+            });
+            z_stack! {
+                items_align = Align::TOP_LEFT;
+                items;
+                size;
+                border = (0, 0, 1, 1), meta_color;
+                margin = 10;
+            }
+        }),
+    )
 }
 
 fn easing_mod_btn(easing_mod: &RcVar<easing::EasingModifierFn>, value: easing::EasingModifierFn) -> impl Widget {

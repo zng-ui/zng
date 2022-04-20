@@ -8,8 +8,8 @@ use crate::{
     cancelable_event_args,
     context::WindowContext,
     event, event_args,
-    image::{Image, ImageDataFormat, ImageSource, ImageVar},
-    render::FrameId,
+    image::{Image, ImageDataFormat, ImageSource, ImageVar, RenderConfig},
+    render::{FrameId, RenderMode},
     text::Text,
     units::*,
     var::*,
@@ -17,7 +17,7 @@ use crate::{
     BoxedUiNode, UiNode, WidgetId,
 };
 
-pub use crate::app::view_process::{CursorIcon, EventCause, RenderMode, VideoMode, WindowState, WindowTheme};
+pub use crate::app::view_process::{CursorIcon, EventCause, VideoMode, WindowState, WindowTheme};
 
 use super::HeadlessMonitor;
 
@@ -361,8 +361,32 @@ impl WindowIcon {
     ///
     /// The icon node is updated like any other node and it can request a new render. Note that just
     /// because you can update the icon does not mean that animating it is a good idea.
-    pub fn render<I: UiNode, F: Fn(&mut WindowContext) -> I + 'static>(new_icon: F) -> Self {
-        Self::Image(ImageSource::render(new_icon))
+    /// 
+    /// # Examples
+    /// 
+    /// ```
+    /// # use zero_ui_core::{window::WindowIcon, render::RenderMode};
+    /// # macro_rules! container { ($($tt:tt)*) => { zero_ui_core::NilUiNode } }
+    /// # let _ =
+    /// WindowIcon::render(
+    ///     RenderMode::Software,
+    ///     |_ctx| container! {
+    ///         size = (36, 36);
+    ///         background_gradient = Line::to_bottom_right(), stops![colors::MIDNIGHT_BLUE, 70.pct(), colors::CRIMSON];
+    ///         corner_radius = 6;
+    ///         font_size = 28;
+    ///         font_weight = FontWeight::BOLD;
+    ///         content = text("A");
+    ///     }
+    /// )
+    /// # ;
+    /// ```
+    pub fn render<I, F>(config: impl Into<RenderConfig>, new_icon: F) -> Self
+    where
+        I: UiNode,
+        F: Fn(&mut WindowContext) -> I + 'static,
+    {
+        Self::Image(ImageSource::render(config, new_icon))
     }
 }
 #[cfg(http)]

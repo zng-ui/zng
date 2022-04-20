@@ -15,11 +15,9 @@ use crate::{
 
 use std::{marker::PhantomData, mem};
 
-pub use zero_ui_view_api::webrender_api;
+pub use zero_ui_view_api::{webrender_api, FrameId, RenderMode};
 
 use webrender_api::*;
-
-pub use zero_ui_view_api::FrameId;
 
 /// A text font.
 ///

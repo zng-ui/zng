@@ -4,6 +4,7 @@ use crate::{
     event::EventUpdateArgs,
     impl_ui_node,
     render::FrameBuilder,
+    render::RenderMode,
     units::*,
     var::*,
     widget_info::UpdateMask,
@@ -181,7 +182,7 @@ pub struct RenderConfig {
     /// If `None` the parent widget can override, otherwise is `1`.
     pub scale_factor: Option<Factor>,
 
-    /// Render backend preference. Default is `Integrated`.
+    /// Render backend preference. Default is `Software`.
     pub render_mode: RenderMode,
 
     /// Color the image is filled first before render.
@@ -195,8 +196,16 @@ impl Default for RenderConfig {
             root_id: None,
             size: None,
             scale_factor: None,
-            render_mode: RenderMode::Integrated,
+            render_mode: RenderMode::Software,
             clear_color: rgba(0, 0, 0, 0),
+        }
+    }
+}
+impl_from_and_into_var! {
+    fn from(render_mode: RenderMode) -> RenderConfig {
+        RenderConfig {
+            render_mode,
+            ..Default::default()
         }
     }
 }

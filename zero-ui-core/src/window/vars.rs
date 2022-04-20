@@ -3,6 +3,7 @@ use std::rc::Rc;
 use super::{types::*, MonitorId, MonitorQuery};
 use crate::{
     image::Image,
+    render::RenderMode,
     state_key,
     text::{Text, ToText},
     units::*,

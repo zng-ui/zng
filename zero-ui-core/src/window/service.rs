@@ -7,7 +7,7 @@ use crate::app::view_process::{ViewProcess, ViewProcessInitedEvent, ViewProcessO
 use crate::context::OwnedStateMap;
 use crate::event::EventUpdateArgs;
 use crate::image::{Image, ImageVar};
-use crate::render::FrameHitInfo;
+use crate::render::{FrameHitInfo, RenderMode};
 use crate::service::Service;
 use crate::var::*;
 use crate::widget_info::{WidgetInfoTree, WidgetSubscriptions};

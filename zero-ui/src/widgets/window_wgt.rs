@@ -1,5 +1,8 @@
 use crate::core::focus::*;
-use crate::core::window::{HeadlessMonitor, RenderMode, StartPosition, Window};
+use crate::core::{
+    render::RenderMode,
+    window::{HeadlessMonitor, StartPosition, Window},
+};
 use crate::prelude::new_widget::*;
 use crate::properties::events::window::*;
 
@@ -276,18 +279,17 @@ pub mod window {
         ///
         /// # Examples
         ///
-        /// Prefer `Integrated` renderer backend for just this window:
+        /// Prefer `Dedicated` renderer backend for just this window:
         ///
         /// ```no_run
-        /// use zero_ui::core::window::RenderMode;
         /// use zero_ui::prelude::*;
         ///
         /// fn example(ctx: &mut WindowContext) -> Window {
         ///     let selected_mode = ctx.window_state.req(WindowVarsKey).render_mode();
         ///     window! {
         ///         title = "Render Mode";
-        ///         render_mode = RenderMode::Integrated;
-        ///         content = text(selected_mode.map(|m| formatx!("Preference: Integrated\nActual: {m:?}")));
+        ///         render_mode = RenderMode::Dedicated;
+        ///         content = text(selected_mode.map(|m| formatx!("Preference: Dedicated\nActual: {m:?}")));
         ///     }
         /// }
         /// ```

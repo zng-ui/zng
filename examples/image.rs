@@ -72,7 +72,7 @@ fn app_main() {
                             sub_title("Render"),
                             image! {
                                 scale_ppi = true;
-                                source = ImageSource::render(|_| container! {
+                                source = ImageSource::render(RenderMode::Software, |_| container! {
                                     size = (180, 120);
                                     background_gradient = Line::to_bottom_left(), stops![hex!(#34753a), 40.pct(), hex!(#597d81)];
                                     font_size = 24;

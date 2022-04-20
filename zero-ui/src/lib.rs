@@ -915,6 +915,7 @@ pub mod prelude {
         keyboard::{CharInputArgs, Key, KeyInputArgs, KeyState, KeyboardExt, ModifiersChangedArgs, ModifiersState},
         mouse::{ButtonState, MouseButton, MouseExt, MouseMoveArgs},
         node_vec, nodes,
+        render::RenderMode,
         service::Services,
         take_on, take_on_init,
         task::{self, rayon::prelude::*},
