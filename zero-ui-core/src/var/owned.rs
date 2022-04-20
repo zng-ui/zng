@@ -38,6 +38,11 @@ impl<T: VarValue> Var<T> for OwnedVar<T> {
     }
 
     #[inline]
+    fn is_animating<Vr: WithVarsRead>(&self, _: &Vr) -> bool {
+        false   
+    }
+
+    #[inline]
     fn strong_count(&self) -> usize {
         0
     }

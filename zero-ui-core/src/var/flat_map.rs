@@ -154,6 +154,11 @@ where
         vars.with_vars(|vars| self.var(vars).is_read_only(vars))
     }
 
+    #[inline]
+    fn is_animating<Vr: WithVarsRead>(&self, vars: &Vr) -> bool {
+        vars.with_vars(|vars| self.var(vars).is_animating(vars))   
+    }
+
     fn always_read_only(&self) -> bool {
         false
     }

@@ -78,6 +78,11 @@ impl<C: ContextVar> Var<C::Type> for ContextVarProxy<C> {
     }
 
     #[inline]
+    fn is_animating<Vr: WithVarsRead>(&self, vars: &Vr) -> bool {
+        vars.with_vars_read(|_v| C::thread_local_value().is_animating())
+    }
+
+    #[inline]
     fn always_read_only(&self) -> bool {
         false
     }
@@ -173,6 +178,10 @@ pub struct ContextVarData<'a, T: VarValue> {
     pub is_new: bool,
     /// Value for [`Var::version`].
     pub version: VarVersion,
+
+    /// Value for [`Var::is_animating`].
+    pub is_animating: bool,
+
     /// Value for [`Var::update_mask`].
     ///
     /// Note that the node that owns `self` must not subscribe to this update mask, only
@@ -197,6 +206,7 @@ impl<'a, T: VarValue> ContextVarData<'a, T> {
         Self {
             value,
             is_new: false,
+            is_animating: false,
             version: VarVersion::normal(0),
             update_mask: UpdateMask::none(),
             modify: None,
@@ -210,6 +220,7 @@ impl<'a, T: VarValue> ContextVarData<'a, T> {
         Self {
             value: var.get(vars),
             is_new: var.is_new(vars),
+            is_animating: var.is_animating(vars),
             version: var.version(vars),
             update_mask: var.update_mask(vars),
             modify: if var.is_read_only(vars) {
@@ -230,6 +241,7 @@ impl<'a, T: VarValue> ContextVarData<'a, T> {
         Self {
             value: var.get(vars),
             is_new: var.is_new(vars),
+            is_animating: var.is_animating(vars),
             version: var.version(vars),
             update_mask: var.update_mask(vars),
             modify: None,
@@ -241,6 +253,7 @@ impl<'a, T: VarValue> ContextVarData<'a, T> {
         Self {
             value: var.get(vars),
             is_new: false,
+            is_animating: var.is_animating(vars),
             version: var.version(vars),
             update_mask: var.update_mask(vars),
             modify: None,
@@ -304,6 +317,7 @@ impl<'a, T: VarValue> ContextVarData<'a, T> {
         Self {
             value,
             is_new: var.is_new(vars),
+            is_animating: var.is_animating(vars),
             version: var.version(vars),
             update_mask: var.update_mask(vars),
             modify: None,
@@ -316,6 +330,7 @@ impl<'a, T: VarValue> ContextVarData<'a, T> {
     pub fn map_bidi<'b, S: VarValue>(vars: &'b Vars, var: &'b impl Var<S>, value: &'a T, map_back: impl FnMut(&T) -> S + 'static) -> Self {
         Self {
             is_new: var.is_new(vars),
+            is_animating: var.is_animating(vars),
             version: var.version(vars),
             update_mask: var.update_mask(vars),
             modify: if var.is_read_only(vars) {
@@ -347,6 +362,7 @@ impl<'a, T: VarValue> ContextVarData<'a, T> {
         Self {
             value,
             is_new: false,
+            is_animating: var.is_animating(vars),
             version: var.version(vars),
             update_mask: var.update_mask(vars),
             modify: None,
@@ -357,6 +373,7 @@ impl<'a, T: VarValue> ContextVarData<'a, T> {
         ContextVarDataRaw {
             value: self.value,
             is_new: self.is_new,
+            is_animating: self.is_animating,
             version: self.version,
             update_mask: self.update_mask,
             modify: self.modify.map(Box::into_raw),
@@ -368,6 +385,7 @@ pub(crate) struct ContextVarDataRaw<T: VarValue> {
     value: *const T,
     is_new: bool,
     version: VarVersion,
+    is_animating: bool,
     update_mask: UpdateMask,
     modify: Option<*mut ContextModify<T>>,
 }
@@ -380,6 +398,7 @@ pub struct ContextVarValue<V: ContextVar> {
     value: Cell<*const V::Type>,
     is_new: Cell<bool>,
     version: Cell<VarVersion>,
+    is_animating: Cell<bool>,
     update_mask: Cell<UpdateMask>,
     modify: Cell<Option<*mut ContextModify<V::Type>>>,
 }
@@ -396,6 +415,7 @@ impl<V: ContextVar> ContextVarValue<V> {
 
             is_new: Cell::new(false),
             version: Cell::new(VarVersion::normal(0)),
+            is_animating: Cell::new(false),
             update_mask: Cell::new(UpdateMask::none()),
             modify: Cell::new(None),
         }
@@ -434,6 +454,10 @@ impl<V: ContextVar> ContextVarLocalKey<V> {
         self.local.with(|l| l.modify.get().is_none())
     }
 
+    pub(super) fn is_animating(&self) -> bool {
+        self.local.with(|l| l.is_animating.get())
+    }
+
     pub(super) fn modify(&self) -> Option<*mut ContextModify<V::Type>> {
         self.local.with(|l| l.modify.get())
     }
@@ -454,6 +478,7 @@ impl<V: ContextVar> ContextVarLocalKey<V> {
         let prev = self.local.with(|l| ContextVarDataRaw {
             value: l.value.get(),
             is_new: l.is_new.get(),
+            is_animating: l.is_animating.get(),
             version: l.version.get(),
             update_mask: l.update_mask.get(),
             modify: l.modify.get(),

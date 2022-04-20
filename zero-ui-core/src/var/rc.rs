@@ -425,6 +425,12 @@ impl<T: VarValue> Var<T> for RcVar<T> {
     }
 
     #[inline]
+    fn is_animating<Vr: WithVarsRead>(&self, vars: &Vr) -> bool {
+        // TODO in modify retrieve some flag from Vars
+        todo!("!!: animating, main impl here")
+    }
+
+    #[inline]
     fn always_read_only(&self) -> bool {
         false
     }

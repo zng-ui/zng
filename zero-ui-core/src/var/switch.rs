@@ -207,6 +207,16 @@ macro_rules! impl_rc_switch_var {
                })
             }
 
+            #[inline]
+            fn is_animating<Vr: WithVarsRead>(&self, vars: &Vr) -> bool {
+                vars.with_vars_read(|vars| {
+                    match &self.0.index.get(vars) {
+                        $($n => self.0.vars.$n.is_animating(vars),)+
+                        _ => panic!("switch_var index out of range"),
+                    }
+                })   
+            }
+
             fn is_contextual(&self) -> bool {
                 self.0.index.is_contextual() || $(self.0.vars.$n.is_contextual())||+
             }
@@ -445,6 +455,11 @@ impl<O: VarValue, VI: Var<usize>> Var<O> for RcSwitchVar<O, VI> {
 
     fn is_read_only<Vw: WithVars>(&self, vars: &Vw) -> bool {
         vars.with_vars(|vars| self.0.vars[*self.0.index.get(vars)].is_read_only(vars))
+    }
+
+    #[inline]
+    fn is_animating<Vr: WithVarsRead>(&self, vars: &Vr) -> bool {
+        vars.with_vars_read(|vars| self.0.vars[*self.0.index.get(vars)].is_animating(vars))   
     }
 
     fn always_read_only(&self) -> bool {

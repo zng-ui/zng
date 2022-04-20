@@ -248,6 +248,18 @@ macro_rules! impl_rc_when_var {
                     }
                 })
             }
+            fn is_animating<Vr: WithVarsRead>(&self, vars: &Vr) -> bool {
+                vars.with_vars_read(|vars| {
+                    $(
+                        if *self.0.conditions.$n.get(vars) {
+                            self.0.values.$n.is_animating(vars)
+                        }
+                    )else+
+                    else {
+                        self.0.default_value.is_animating(vars)
+                    }
+                })
+            }
             #[inline]
             fn strong_count(&self) -> usize {
                 Rc::strong_count(&self.0)
@@ -503,6 +515,18 @@ impl<O: VarValue> Var<O> for RcWhenVar<O> {
                 }
             }
             self.0.default_.is_read_only(vars)
+        })
+    }
+
+    #[inline]
+    fn is_animating<Vr: WithVarsRead>(&self, vars: &Vr) -> bool {
+        vars.with_vars_read(|vars| {
+            for (c, v) in self.0.whens.iter() {
+                if c.copy(vars) {
+                    return v.is_animating(vars);
+                }
+            }
+            self.0.default_.is_animating(vars)
         })
     }
 

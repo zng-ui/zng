@@ -479,6 +479,13 @@ macro_rules! impl_rc_merge_var {
             }
 
             #[inline]
+            fn is_animating<Vr: WithVarsRead>(&self, vars: &Vr) -> bool {
+                vars.with_vars_read(|vars| {
+                    $(self.0.vars.$n.is_animating(vars))||+
+                })   
+            }
+
+            #[inline]
             fn always_read_only(&self) -> bool {
                 true
             }

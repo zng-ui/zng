@@ -133,6 +133,11 @@ where
     }
 
     #[inline]
+    fn is_animating<Vr: WithVarsRead>(&self, vars: &Vr) -> bool {
+        self.source.is_animating(vars)   
+    }
+
+    #[inline]
     fn always_read_only(&self) -> bool {
         true
     }
@@ -412,6 +417,11 @@ where
     #[inline]
     fn is_read_only<Vw: WithVars>(&self, vars: &Vw) -> bool {
         self.is_read_only(vars)
+    }
+
+    #[inline]
+    fn is_animating<Vr: WithVarsRead>(&self, vars: &Vr) -> bool {
+        self.source.is_animating(vars)   
     }
 
     #[inline]

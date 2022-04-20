@@ -221,6 +221,18 @@ impl<T: VarValue, V: Var<T>> RcCowVar<T, V> {
         self.is_pass_through() && self.is_read_only(vars)
     }
 
+    #[inline]
+    fn is_animating<Vr: WithVarsRead>(&self, vars: &Vr) -> bool {
+        vars.with_vars_read(|vars| {
+            if let Some(s) = self.source(vars) {
+                s.is_animating(vars)
+            } else {
+                // TODO see RcVar
+                todo!("!!: animating")
+            }
+        })
+    }
+
     /// Schedule a value modification for this variable.
     ///
     /// If [`is_pass_through`] pass the `modify` to the source variable, otherwise
@@ -470,6 +482,11 @@ impl<T: VarValue, V: Var<T>> Var<T> for RcCowVar<T, V> {
 
     fn is_read_only<Vw: WithVars>(&self, vars: &Vw) -> bool {
         self.is_read_only(vars)
+    }
+
+    #[inline]
+    fn is_animating<Vr: WithVarsRead>(&self, vars: &Vr) -> bool {
+        self.is_animating(vars)
     }
 
     fn strong_count(&self) -> usize {

@@ -852,6 +852,10 @@ where
         self.0.var.is_read_only(vars)
     }
 
+    fn is_animating<Vr: super::WithVarsRead>(&self, vars: &Vr) -> bool {
+        self.0.var.is_animating(vars)
+    }
+
     fn always_read_only(&self) -> bool {
         self.0.var.always_read_only()
     }

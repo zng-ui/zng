@@ -170,6 +170,11 @@ where
     }
 
     #[inline]
+    fn is_animating<Vr: WithVarsRead>(&self, vars: &Vr) -> bool {
+        self.0.source.is_animating(vars)   
+    }
+
+    #[inline]
     fn always_read_only(&self) -> bool {
         true
     }
@@ -350,8 +355,6 @@ where
     }
 
     /// Returns if the source variable is contextual.
-    ///
-    /// If `true` TODO deep-clone?
     #[inline]
     pub fn is_contextual(&self) -> bool {
         self.0.source.is_contextual()
@@ -497,6 +500,11 @@ where
     #[inline]
     fn is_read_only<Vw: WithVars>(&self, vars: &Vw) -> bool {
         self.is_read_only(vars)
+    }
+
+    #[inline]
+    fn is_animating<Vr: WithVarsRead>(&self, vars: &Vr) -> bool {
+        self.0.source.is_animating(vars)
     }
 
     #[inline]

@@ -13,6 +13,7 @@ pub trait VarBoxed<T: VarValue> {
     fn is_new_boxed(&self, vars: &Vars) -> bool;
     fn version_boxed<'a>(&'a self, vars: &'a VarsRead) -> VarVersion;
     fn is_read_only_boxed(&self, vars: &Vars) -> bool;
+    fn is_animating_boxed(&self, vars: &VarsRead) -> bool;
     fn into_value_boxed(self: Box<Self>, vars: &VarsRead) -> T;
     fn always_read_only_boxed(&self) -> bool;
     fn is_contextual_boxed(&self) -> bool;
@@ -52,6 +53,11 @@ impl<T: VarValue, V: Var<T>> VarBoxed<T> for V {
     #[inline]
     fn is_read_only_boxed(&self, vars: &Vars) -> bool {
         self.is_read_only(vars)
+    }
+
+    #[inline]
+    fn is_animating_boxed(&self, vars: &VarsRead) -> bool {
+        self.is_animating(vars)
     }
 
     #[inline]
@@ -139,6 +145,11 @@ impl<T: VarValue> Var<T> for BoxedVar<T> {
     #[inline]
     fn is_read_only<Vw: WithVars>(&self, vars: &Vw) -> bool {
         vars.with_vars(|vars| self.as_ref().is_read_only_boxed(vars))
+    }
+
+    #[inline]
+    fn is_animating<Vr: WithVarsRead>(&self, vars: &Vr) -> bool {
+        vars.with_vars_read(|vars| self.as_ref().is_animating_boxed(vars))
     }
 
     #[inline]
