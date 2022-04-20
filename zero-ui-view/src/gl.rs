@@ -1,7 +1,9 @@
 use std::{
     cell::Cell,
+    env,
     fmt::{self, Write},
     mem,
+    path::PathBuf,
     rc::Rc,
 };
 
@@ -241,68 +243,57 @@ type CurrentId = Rc<Cell<Option<WindowId>>>;
 /// # Safety
 ///
 /// If this manager is in use all OpenGL contexts created in the process must be managed by a single instance of it.
-#[derive(Default)]
 pub(crate) struct GlContextManager {
     current_id: CurrentId,
     unsupported: Mutex<LinearSet<TryConfig>>,
-}
-
-/// Glutin, SWGL config to attempt.
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
-struct TryConfig {
-    mode: RenderMode,
-    hardware_acceleration: Option<bool>,
-}
-impl TryConfig {
-    fn iter(mode: RenderMode) -> impl Iterator<Item = TryConfig> {
-        let mut configs = Vec::with_capacity(4);
-        let mut try_hardware_none = false;
-        for mode in mode.with_fallbacks() {
-            match mode {
-                RenderMode::Dedicated => {
-                    configs.push(TryConfig {
-                        mode,
-                        hardware_acceleration: Some(true),
-                    });
-                    try_hardware_none = true;
-                }
-                RenderMode::Integrated => configs.push(TryConfig {
-                    mode,
-                    hardware_acceleration: Some(false),
-                }),
-                RenderMode::Software => {
-                    if mem::take(&mut try_hardware_none) {
-                        // some dedicated hardware end-up classified as generic integrated for some reason,
-                        // so we try `None`, after `Some(false)`.
-                        configs.push(TryConfig {
-                            mode: RenderMode::Dedicated,
-                            hardware_acceleration: None,
-                        });
-                    }
-                    configs.push(TryConfig {
-                        mode,
-                        hardware_acceleration: Some(false),
-                    });
-                }
-            }
-        }
-        configs.into_iter()
-    }
-
-    pub fn name(&self) -> &str {
-        match self.hardware_acceleration {
-            Some(true) => "Dedicated",
-            Some(false) => match self.mode {
-                RenderMode::Integrated => "Integrated",
-                RenderMode::Software => "Software",
-                RenderMode::Dedicated => unreachable!(),
-            },
-            None => "Dedicated (generic)",
-        }
-    }
+    unsupported_cache: Option<PathBuf>,
 }
 
 impl GlContextManager {
+    pub(crate) fn new() -> Self {
+        let unsupported_cache = directories::ProjectDirs::from("rs", "zero_ui", if cfg!(software) { "view+software" } else { "view" })
+            .map(|d| d.cache_dir().join(format!("unsupported-modes-{}", env!("CARGO_PKG_VERSION"))));
+
+        let mut unsupported = LinearSet::new();
+        if let Some(cache) = &unsupported_cache {
+            if let Ok(cache) = std::fs::read_to_string(cache) {
+                let mut lines = cache.lines();
+                let driver = lines.next().unwrap_or_default();
+
+                if driver != "todo" {
+                    for line in lines {
+                        if let Some(c) = TryConfig::parse_name(line) {
+                            unsupported.insert(c);
+                        }
+                    }
+                }
+            }
+        }
+
+        Self {
+            current_id: Rc::default(),
+            unsupported: Mutex::new(unsupported),
+            unsupported_cache,
+        }
+    }
+}
+impl GlContextManager {
+    fn save_unsupported(&self, unsupported: &mut LinearSet<TryConfig>) {
+        if let Some(cache) = &self.unsupported_cache {
+            if unsupported.is_empty() {
+                let _ = std::fs::remove_file(cache);
+            } else {
+                let _ = std::fs::create_dir_all(cache.parent().unwrap());
+
+                let mut file = "todo\n".to_owned();
+                for c in unsupported.iter() {
+                    let _ = writeln!(file, "{}", c.name());
+                }
+                let _ = std::fs::write(cache, file);
+            }
+        }
+    }
+
     pub fn create_headed(
         &self,
         id: WindowId,
@@ -329,6 +320,7 @@ impl GlContextManager {
                         );
 
                         unsupported.insert(config);
+                        self.save_unsupported(&mut unsupported);
                         continue;
                     }
 
@@ -344,6 +336,7 @@ impl GlContextManager {
                 RenderMode::Software => {
                     error_log.push_str("\n[Software]\nzero-ui-view not build with \"software\" backend");
                     unsupported.insert(config);
+                    self.save_unsupported(&mut unsupported);
                 }
 
                 mode => {
@@ -355,6 +348,7 @@ impl GlContextManager {
                             let _ = write!(error_log, "\n[{}]", config.name());
                             logged = true;
                             unsupported.insert(config);
+                            self.save_unsupported(&mut unsupported);
                         }
                         let _ = write!(error_log, "\n{e:?}");
                     };
@@ -454,6 +448,7 @@ impl GlContextManager {
                 RenderMode::Software => {
                     error_log.push_str("\n[Software]\nzero-ui-view not build with \"software\" backend");
                     unsupported.insert(config);
+                    self.save_unsupported(&mut unsupported);
                 }
 
                 mode => {
@@ -465,6 +460,7 @@ impl GlContextManager {
                             let _ = write!(error_log, "\n[{}]", config.name());
                             logged = true;
                             unsupported.insert(config);
+                            self.save_unsupported(&mut unsupported);
                         }
                         let _ = write!(error_log, "\n{e:?}");
                     };
@@ -582,6 +578,83 @@ impl GlContextManager {
         ctx.make_current();
 
         ctx
+    }
+}
+
+/// Glutin, SWGL config to attempt.
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+struct TryConfig {
+    mode: RenderMode,
+    hardware_acceleration: Option<bool>,
+}
+impl TryConfig {
+    fn iter(mode: RenderMode) -> impl Iterator<Item = TryConfig> {
+        let mut configs = Vec::with_capacity(4);
+        let mut try_hardware_none = false;
+        for mode in mode.with_fallbacks() {
+            match mode {
+                RenderMode::Dedicated => {
+                    configs.push(TryConfig {
+                        mode,
+                        hardware_acceleration: Some(true),
+                    });
+                    try_hardware_none = true;
+                }
+                RenderMode::Integrated => configs.push(TryConfig {
+                    mode,
+                    hardware_acceleration: Some(false),
+                }),
+                RenderMode::Software => {
+                    if mem::take(&mut try_hardware_none) {
+                        // some dedicated hardware end-up classified as generic integrated for some reason,
+                        // so we try `None`, after `Some(false)` and before `Software`.
+                        configs.push(TryConfig {
+                            mode: RenderMode::Dedicated,
+                            hardware_acceleration: None,
+                        });
+                    }
+                    configs.push(TryConfig {
+                        mode,
+                        hardware_acceleration: Some(false),
+                    });
+                }
+            }
+        }
+        configs.into_iter()
+    }
+
+    pub fn name(&self) -> &str {
+        match self.hardware_acceleration {
+            Some(true) => "Dedicated",
+            Some(false) => match self.mode {
+                RenderMode::Integrated => "Integrated",
+                RenderMode::Software => "Software",
+                RenderMode::Dedicated => unreachable!(),
+            },
+            None => "Dedicated (generic)",
+        }
+    }
+
+    pub fn parse_name(name: &str) -> Option<TryConfig> {
+        match name {
+            "Dedicated" => Some(TryConfig {
+                mode: RenderMode::Dedicated,
+                hardware_acceleration: Some(true),
+            }),
+            "Integrated" => Some(TryConfig {
+                mode: RenderMode::Integrated,
+                hardware_acceleration: Some(false),
+            }),
+            "Software" => Some(TryConfig {
+                mode: RenderMode::Software,
+                hardware_acceleration: Some(false),
+            }),
+            "Dedicated (generic)" => Some(TryConfig {
+                mode: RenderMode::Dedicated,
+                hardware_acceleration: None,
+            }),
+            _ => None,
+        }
     }
 }
 
@@ -836,3 +909,32 @@ mod blit {
 fn assert_unwind_safe<T>(glutin_build: T) -> std::panic::AssertUnwindSafe<T> {
     std::panic::AssertUnwindSafe(glutin_build)
 }
+
+/// Warmup the OpenGL driver in a throwaway thread, some NVIDIA drivers have a slow startup (500ms~),
+/// hopefully this loads it in parallel while the app is starting up so we don't block creating the first window.
+#[cfg(windows)]
+pub(crate) fn warmup() {
+    // idea copied from here:
+    // https://hero.handmade.network/forums/code-discussion/t/2503-day_235_opengl%2527s_pixel_format_takes_a_long_time#13029
+
+    use windows::Win32::{
+        Foundation::HWND,
+        Graphics::{
+            Gdi::*,
+            OpenGL::{self, PFD_PIXEL_TYPE},
+        },
+    };
+
+    let _ = std::thread::Builder::new()
+        .name("warmup".to_owned())
+        .stack_size(3 * 64 * 1024)
+        .spawn(|| unsafe {
+            let _span = tracing::trace_span!("open-gl-init").entered();
+            let hdc = GetDC(HWND(0));
+            let _ = OpenGL::DescribePixelFormat(hdc, PFD_PIXEL_TYPE(0), 0, std::ptr::null_mut());
+            ReleaseDC(HWND(0), hdc);
+        });
+}
+
+#[cfg(not(windows))]
+pub(crate) fn warmup() {}
