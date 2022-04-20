@@ -572,6 +572,10 @@ impl Animation {
         self.start_time
     }
 
+    pub(crate) fn set_animations_enabled(&mut self, enabled: bool) {
+        self.animations_enabled = enabled;
+    }
+
     /// Returns a value that indicates if animations are enabled in the operating system.
     ///
     /// If `false` all animations must be skipped to the end, users with photo-sensitive epilepsy disable animations system wide.

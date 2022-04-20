@@ -948,6 +948,7 @@ impl<E: AppExtension> RunningApp<E> {
         let update = EventUpdate::new(event, args);
 
         extensions.event_preview(ctx, &update);
+        Vars::event_preview(ctx, &update);
         observer.event_preview(ctx, &update);
         let update = update.boxed();
         Events::on_pre_events(ctx, &update);
@@ -1565,6 +1566,7 @@ impl<E: AppExtension> RunningApp<E> {
 
                 self.loop_monitor.maybe_trace(|| {
                     self.extensions.event_preview(ctx, &event);
+                    Vars::event_preview(ctx, &event);
                     observer.event_preview(ctx, &event);
                     Events::on_pre_events(ctx, &event);
 

@@ -30,7 +30,7 @@ type SyncEntry = Box<dyn Fn(&Vars) -> Retain>;
 type Retain = bool;
 type VarBindingFn = Box<dyn FnMut(&Vars) -> Retain>;
 type UpdateLinkFn = Box<dyn Fn(&Vars, &mut UpdateMask) -> Retain>;
-type AnimationFn = Box<dyn FnMut(&Vars) -> Retain>;
+type AnimationFn = Box<dyn FnMut(&Vars, bool) -> Retain>;
 
 /// Read-only access to variables.
 ///
@@ -349,9 +349,10 @@ impl Vars {
 
         if !animations.is_empty() {
             let next_frame = self.last_frame + self.frame_duration;
+            let animations_enabled = self.animations_enabled.copy(self);
             if Instant::now() >= next_frame {
                 self.last_frame = next_frame;
-                animations.retain_mut(|a| a(self));
+                animations.retain_mut(|a| a(self, animations_enabled));
 
                 if !animations.is_empty() {
                     // next frame
@@ -425,14 +426,11 @@ impl Vars {
         self.receivers.borrow_mut().retain(|f| f(self));
     }
 
-    pub(crate) fn event_preview<EV: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {
+    pub(crate) fn event_preview<EV: EventUpdateArgs>(ctx: &mut AppContext, args: &EV) {
         if let Some(args) = ViewProcessInitedEvent.update(args) {
             ctx.vars.animations_enabled.set_ne(ctx.vars, args.animations_enabled);
         } else if let Some(args) = RawAnimationsEnabledChangedEvent.update(args) {
-            if ctx.vars.animations_enabled.set_ne(ctx.vars, args.enabled) && !args.enabled {
-                // disabled
-                todo!("cancel animations")
-            }
+            ctx.vars.animations_enabled.set_ne(ctx.vars, args.enabled);
         }
     }
 
@@ -607,12 +605,14 @@ impl Vars {
         A: FnMut(&Vars, &Animation) + 'static,
     {
         let (handle_owner, handle) = AnimationHandle::new();
-        let anim = Animation::new(self.animations_enabled.copy(self));
+        let mut anim = Animation::new(self.animations_enabled.copy(self));
 
-        self.animations.borrow_mut().push(Box::new(move |vars| {
+        self.animations.borrow_mut().push(Box::new(move |vars, enabled| {
             let mut retain = !handle_owner.is_dropped();
 
             if retain {
+                anim.set_animations_enabled(enabled);
+
                 animation(vars, &anim);
                 retain = !anim.stop_requested();
             }
