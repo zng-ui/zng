@@ -197,6 +197,8 @@ pub fn animations_enabled() -> bool {
 }
 #[cfg(not(windows))]
 pub fn animations_enabled() -> bool {
+    // see https://developer.mozilla.org/en-US/docs/Web/CSS/@media/prefers-reduced-motion
+    // for other config sources
     tracing::error!("`animations_enabled` not implemented for this OS, will use default");
     true
 }
