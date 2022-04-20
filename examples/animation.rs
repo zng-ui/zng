@@ -138,8 +138,8 @@ fn ease_btn(
             ]
         };
         on_click = hn!(l, color, easing_mod, |ctx, _| {
-            l.set_ease(ctx, 0, 300, 10.secs(), easing_mod.get(ctx).modify_fn(easing.clone()));
-            color.set_ease(ctx, FROM_COLOR, TO_COLOR, 10.secs(), easing_mod.get(ctx).modify_fn(easing.clone()));
+            l.set_ease(ctx, 0, 300, 1.secs(), easing_mod.get(ctx).modify_fn(easing.clone()));
+            color.set_ease(ctx, FROM_COLOR, TO_COLOR, 1.secs(), easing_mod.get(ctx).modify_fn(easing.clone()));
         });
     }
 }
