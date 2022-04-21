@@ -12,12 +12,14 @@
    - Any new animation takes control of the variable.
    - Manually setting the var removes control from any active animation.
  * Idea (extra):
-   - Possibility of blending multiple animations(with different weights) into one? Not the default behavior.
+   
 * Config animation fps.
 
 ## Storyboard/Key-frames
 
 Need to integrate with multiple animations stuff.
+
+- Possibility of blending multiple animations(with different weights) into one? Not the default behavior.
 
 ### Builder Style
 

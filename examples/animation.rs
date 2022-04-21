@@ -52,6 +52,10 @@ fn example() -> impl Widget {
                     background_color = color.clone();
 
                     x = x.map(|x| x.clone() - 20.dip());
+
+                    when self.is_hovered {
+                        background_color = colors::LIGHT_BLUE;
+                    }
                 };
             },
             h_stack! {
@@ -93,6 +97,7 @@ fn example() -> impl Widget {
                     widths: 1,
                     sides: colors::DARK_RED,
                 };
+                click_shortcut = shortcut![Escape];
                 on_click = hn!(x, color, |ctx, _| {
                     x.set(ctx, 0);
                     color.set(ctx, FROM_COLOR);
