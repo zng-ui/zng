@@ -2,7 +2,7 @@
 use retain_mut::RetainMut;
 
 use super::{
-    easing::{Animation, AnimationHandle},
+    easing::{Animation, AnimationHandle, WeakAnimationHandle},
     *,
 };
 use crate::{
@@ -283,11 +283,11 @@ pub struct Vars {
     binding_update_id: u32,
     bindings: RefCell<Vec<VarBindingFn>>,
     animations: RefCell<Vec<AnimationFn>>,
+    animation_id: Cell<u32>,
+    current_animation: RefCell<(WeakAnimationHandle, u32)>,
     last_frame: Instant,
     frame_duration: Duration,
     animations_enabled: RcVar<bool>,
-
-    is_animating: bool,
 
     #[allow(clippy::type_complexity)]
     pending: RefCell<Vec<PendingUpdate>>,
@@ -326,7 +326,8 @@ impl Vars {
             binding_update_id: 0u32.wrapping_sub(13),
             bindings: RefCell::default(),
             animations: RefCell::default(),
-            is_animating: false,
+            animation_id: Cell::new(1),
+            current_animation: RefCell::new((WeakAnimationHandle::new(), u32::MAX)),
             last_frame: Instant::now(),
             frame_duration: (1.0 / 60.0).secs(),
             animations_enabled: var(true),
@@ -336,8 +337,9 @@ impl Vars {
         }
     }
 
-    pub(super) fn is_animating(&self) -> bool {
-        self.is_animating
+    /// Animation weak handle + animation counter.
+    pub(super) fn current_animation(&self) -> (WeakAnimationHandle, u32) {
+        self.current_animation.borrow().clone()
     }
 
     /// Schedule set/modify.
@@ -360,9 +362,7 @@ impl Vars {
             if Instant::now() >= next_frame {
                 self.last_frame = next_frame;
 
-                self.is_animating = true;
                 animations.retain_mut(|a| a(self, animations_enabled));
-                self.is_animating = false;
 
                 if !animations.is_empty() {
                     // next frame
@@ -608,6 +608,8 @@ impl Vars {
     ///
     /// TODO
     ///
+    /// TODO explain animation/set overwrite
+    ///
     /// [`stop`]: AnimationHandle::stop
     /// [`permanent`]: AnimationHandle::permanent
     pub fn animate<A>(&self, mut animation: A) -> AnimationHandle
@@ -616,6 +618,12 @@ impl Vars {
     {
         let (handle_owner, handle) = AnimationHandle::new();
         let mut anim = Animation::new(self.animations_enabled.copy(self));
+        let id = self.animation_id.get();
+        let mut next_id = id + 1;
+        if next_id == u32::MAX {
+            next_id = 1;
+        }
+        self.animation_id.set(next_id);
 
         self.animations.borrow_mut().push(Box::new(move |vars, enabled| {
             let mut retain = !handle_owner.is_dropped();
@@ -623,7 +631,12 @@ impl Vars {
             if retain {
                 anim.set_animations_enabled(enabled);
 
+                let mut current_animation = vars.current_animation.borrow_mut();
+                *current_animation = (WeakAnimationHandle(handle_owner.weak_handle()), id);
+                let _cleanup = RunOnDrop::new(|| *current_animation = (WeakAnimationHandle::new(), u32::MAX));
+
                 animation(vars, &anim);
+
                 retain = !anim.stop_requested();
             }
 

@@ -1,5 +1,5 @@
 use std::{
-    cell::{Cell, UnsafeCell},
+    cell::{Cell, RefCell, UnsafeCell},
     rc::Rc,
 };
 
@@ -7,7 +7,7 @@ use once_cell::unsync::OnceCell;
 
 use crate::widget_info::UpdateSlot;
 
-use super::*;
+use super::{easing::WeakAnimationHandle, *};
 
 /// A clone-on-write variable.
 ///
@@ -62,7 +62,6 @@ bitflags! {
         const SOURCE_CAN_UPDATE =       0b_0000_0010;
         const SOURCE_IS_CONTEXTUAL =    0b_0000_0100;
         const IS_PASS_THROUGH =         0b_0000_1000;
-        const IS_ANIMATING =            0b_0001_0000;
     }
 }
 struct CowData<T, V> {
@@ -73,6 +72,7 @@ struct CowData<T, V> {
 
     value: UnsafeCell<Option<T>>,
     version: VarVersionCell,
+    animation: RefCell<(WeakAnimationHandle, u32)>,
     last_update_id: Cell<u32>,
 }
 impl<T: VarValue, V: Var<T>> Clone for RcCowVar<T, V> {
@@ -119,6 +119,7 @@ impl<T: VarValue, V: Var<T>> RcCowVar<T, V> {
             source: UnsafeCell::new(Some(source)),
             value: UnsafeCell::new(None),
             version: VarVersionCell::new(0),
+            animation: RefCell::new((WeakAnimationHandle::new(), u32::MAX)),
             last_update_id: Cell::new(0),
         }))
     }
@@ -228,7 +229,7 @@ impl<T: VarValue, V: Var<T>> RcCowVar<T, V> {
             if let Some(s) = self.source(vars) {
                 s.is_animating(vars)
             } else {
-                self.0.flags.get().contains(Flags::IS_ANIMATING)
+                self.0.animation.borrow().0.upgrade().is_some()
             }
         })
     }
@@ -263,8 +264,15 @@ impl<T: VarValue, V: Var<T>> RcCowVar<T, V> {
             }
 
             let self_ = self.clone();
-            let is_animating = vars.is_animating();
+            let (animation, started_in) = vars.current_animation();
             vars.push_change::<T>(Box::new(move |update_id| {
+                let mut prev_animation = self_.0.animation.borrow_mut();
+
+                if prev_animation.1 > started_in && prev_animation.1 < u32::MAX {
+                    // change caused by overwritten animation.
+                    return UpdateMask::none();
+                }
+
                 // SAFETY: this is safe because Vars requires a mutable reference to apply changes.
                 // the `modifying` flag is only used for `deep_clone`.
                 unsafe {
@@ -277,9 +285,7 @@ impl<T: VarValue, V: Var<T>> RcCowVar<T, V> {
                     self_.0.last_update_id.set(update_id);
                     self_.0.version.set(self_.0.version.get().wrapping_add(1));
 
-                    let mut flags = self_.0.flags.get();
-                    flags.set(Flags::IS_ANIMATING, is_animating);
-                    self_.0.flags.set(flags);
+                    *prev_animation = (animation, started_in);
 
                     *self_.0.update_mask.get_or_init(|| UpdateSlot::next().mask())
                 } else {

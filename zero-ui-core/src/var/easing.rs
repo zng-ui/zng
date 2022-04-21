@@ -538,7 +538,7 @@ impl AnimationHandle {
 
 /// Weak [`AnimationHandle`].
 #[derive(Clone, PartialEq, Eq, Hash, Default)]
-pub struct WeakAnimationHandle(WeakHandle<()>);
+pub struct WeakAnimationHandle(pub(super) WeakHandle<()>);
 impl WeakAnimationHandle {
     /// New weak handle that does not upgrade.
     pub fn new() -> Self {

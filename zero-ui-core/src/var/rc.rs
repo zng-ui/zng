@@ -1,39 +1,37 @@
 use std::{
-    cell::{Cell, UnsafeCell},
+    cell::{Cell, RefCell, UnsafeCell},
     rc::{Rc, Weak},
 };
 
 use crate::crate_util::RunOnDrop;
 use crate::widget_info::UpdateSlot;
 
-use super::{easing::Transitionable, *};
+use super::{
+    easing::{Transitionable, WeakAnimationHandle},
+    *,
+};
 
 /// A [`Var`] that is a [`Rc`] pointer to its value.
 pub struct RcVar<T: VarValue>(Rc<Data<T>>);
-bitflags! {
-    struct Flags: u8 {
-        const MODIFYING = 0b0001;
-        const IS_ANIMATING = 0b0010;
-    }
-}
 struct Data<T> {
     value: UnsafeCell<T>,
-    flags: Cell<Flags>,
+    modifying: Cell<bool>,
+    animation: RefCell<(WeakAnimationHandle, u32)>,
     last_update_id: Cell<u32>,
     version: Cell<u32>,
     update_slot: UpdateSlot,
 }
 impl<T: Clone> Clone for Data<T> {
     fn clone(&self) -> Self {
-        let flags = self.flags.get();
-        if flags.contains(Flags::MODIFYING) {
+        if self.modifying.get() {
             panic!("cannot `deep_clone`, value is mutable borrowed")
         }
         // SAFETY: we panic if `value` is exclusive borrowed.
         let value = unsafe { (&*self.value.get()).clone() };
         Data {
             value: UnsafeCell::new(value),
-            flags: Cell::new(flags),
+            modifying: Cell::new(false),
+            animation: RefCell::new((WeakAnimationHandle::new(), u32::MAX)),
             last_update_id: Cell::new(self.last_update_id.get()),
             version: Cell::new(self.version.get()),
             update_slot: self.update_slot,
@@ -47,7 +45,8 @@ impl<T: VarValue> RcVar<T> {
     pub fn new(initial_value: T) -> Self {
         RcVar(Rc::new(Data {
             value: UnsafeCell::new(initial_value),
-            flags: Cell::new(Flags::empty()),
+            modifying: Cell::new(false),
+            animation: RefCell::new((WeakAnimationHandle::new(), 0)),
             last_update_id: Cell::new(0),
             version: Cell::new(0),
             update_slot: UpdateSlot::next(),
@@ -125,18 +124,17 @@ impl<T: VarValue> RcVar<T> {
     {
         vars.with_vars(|vars| {
             let self_ = self.clone();
-            let is_animating = vars.is_animating();
+            let (animation, started_in) = vars.current_animation();
             vars.push_change::<T>(Box::new(move |update_id| {
-                debug_assert!(!self_.0.flags.get().contains(Flags::MODIFYING));
+                let mut prev_animation = self_.0.animation.borrow_mut();
 
-                let mut flags = self_.0.flags.get();
-                flags.insert(Flags::MODIFYING);
-                self_.0.flags.set(flags);
-                let _drop = RunOnDrop::new(|| {
-                    let mut flags = self_.0.flags.get();
-                    flags.remove(Flags::MODIFYING);
-                    self_.0.flags.set(flags);
-                });
+                if prev_animation.1 > started_in && prev_animation.1 < u32::MAX {
+                    // change caused by overwritten animation.
+                    return UpdateMask::none();
+                }
+
+                self_.0.modifying.set(true);
+                let _drop = RunOnDrop::new(|| self_.0.modifying.set(false));
 
                 // SAFETY: this is safe because Vars requires a mutable reference to apply changes.
                 // the `modifying` flag is only used for `deep_clone`.
@@ -146,9 +144,7 @@ impl<T: VarValue> RcVar<T> {
                     self_.0.last_update_id.set(update_id);
                     self_.0.version.set(self_.0.version.get().wrapping_add(1));
 
-                    let mut flags = self_.0.flags.get();
-                    flags.set(Flags::IS_ANIMATING, is_animating);
-                    self_.0.flags.set(Flags::IS_ANIMATING);
+                    *prev_animation = (animation, started_in);
 
                     self_.0.update_slot.mask()
                 } else {
@@ -446,7 +442,7 @@ impl<T: VarValue> Var<T> for RcVar<T> {
 
     #[inline]
     fn is_animating<Vr: WithVarsRead>(&self, _: &Vr) -> bool {
-        self.0.flags.get().contains(Flags::IS_ANIMATING)
+        self.0.animation.borrow().0.upgrade().is_some()
     }
 
     #[inline]
