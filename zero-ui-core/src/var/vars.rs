@@ -604,11 +604,59 @@ impl Vars {
     /// Returns an [`AnimationHandle`] that can be used to monitor the animation status and to [`stop`] or to
     /// make the animation [`permanent`].
     ///
+    /// # Variable Control
+    ///
+    /// Animations assume *control* of a variable on the first time they cause its value to be new, after this
+    /// moment the [`Var::is_animating`] value is `true` until the animation stops. Only one animation can control a
+    /// variable at a time, if an animation loses control of a variable all attempts to modify it from inside the animation are ignored.
+    ///
+    /// Later started animations steal control from previous animations, direct touch, modify or set calls also remove the variable
+    /// from being affected by a running animation.
+    ///
     /// # Examples
     ///
-    /// TODO
+    /// The example animates a `text` variable from `"Animation at 0%"` to `"Animation at 100%"`, when the animation
+    /// stops the `completed` variable is set to `true`.
     ///
-    /// TODO explain animation/set overwrite
+    /// ```
+    /// # use zero_ui_core::{var::*, *, units::*, text::*, handler::*};
+    /// #
+    /// fn animate_text(text: &impl Var<Text>, completed: &impl Var<bool>, vars: &Vars) {
+    ///     let transition = easing::Transition::new(0u8, 100);
+    ///     let mut prev_value = 101;
+    ///     vars.animate(clone_move!(text, completed, |vars, animation| {
+    ///         let step = easing::expo(animation.elapsed_stop(1.secs()));
+    ///         let value = transition.sample(step);
+    ///         if value != prev_value {
+    ///             if value == 100 {
+    ///                 animation.stop();
+    ///                 completed.set(vars, true);
+    ///             }
+    ///             let _ = text.set(vars, formatx!("Animation at {value}%"));
+    ///             prev_value = value;
+    ///         }
+    ///     }))
+    ///     .permanent()
+    /// }
+    /// ```
+    ///
+    /// Note that the animation can be stopped from the inside, the closure second parameter is an [`Animation`]. In
+    /// the example this is the only way to stop the animation, because we called [`permanent`]. Animations hold a clone
+    /// of the variables they affect and exist for the duration of the app if not stopped, causing the app to wake and call the
+    /// animation closure for every frame.
+    /// 
+    /// This method is the most basic animation interface, used to build all other animations and *easing*, its rare that you
+    /// will need to use it directly, most of the time animation effects can be composted using the [`Var`] easing and mapping
+    /// methods.
+    /// 
+    /// ```
+    /// # use zero_ui_core::{var::*, *, units::*, text::*, handler::*};
+    /// # fn demo(vars: &Vars) {
+    /// let value = var(0u8);
+    /// let text = value.map(|v| formatx!("Animation at {v}%"));
+    /// value.ease_ne(vars, 100, 1.secs(), easing::expo);
+    /// # }
+    /// ```
     ///
     /// [`stop`]: AnimationHandle::stop
     /// [`permanent`]: AnimationHandle::permanent

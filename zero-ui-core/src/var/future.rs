@@ -155,52 +155,54 @@ where
 #[doc(hidden)]
 pub struct VarIsNotAnimatingFut<'a, C, T, V>
 where
-    C: WithVars,
+    C: WithVarsRead,
     T: VarValue,
     V: Var<T>,
 {
-    is_new: VarIsNewFut<'a, C, T, V>,
-    is_animating: bool,
+    _t: PhantomData<T>,
+    ctx: &'a C,
+    var: &'a V,
+    update_id: Cell<u32>,
+    is_animating: Cell<bool>,
 }
 impl<'a, C, T, V> VarIsNotAnimatingFut<'a, C, T, V>
 where
-    C: WithVars,
+    C: WithVarsRead,
     T: VarValue,
     V: Var<T>,
 {
     #[allow(missing_docs)]
     pub fn new(ctx: &'a C, var: &'a V) -> Self {
         VarIsNotAnimatingFut {
-            is_animating: ctx.with_vars(|v| var.is_animating(v)),
-            is_new: VarIsNewFut::new(ctx, var),
+            _t: PhantomData,
+            update_id: Cell::new(ctx.with_vars_read(|vars| vars.update_id())),
+            is_animating: Cell::new(ctx.with_vars_read(|vars| var.is_animating(vars))),
+            ctx,
+            var,
         }
     }
 }
 impl<'a, C, T, V> Future for VarIsNotAnimatingFut<'a, C, T, V>
 where
-    C: WithVars,
+    C: WithVarsRead,
     T: VarValue,
     V: Var<T>,
 {
     type Output = ();
 
-    fn poll(self: Pin<&mut Self>, cx: &mut task::Context<'_>) -> Poll<Self::Output> {
-        // SAFETY: we don't move anything
-        let this = unsafe { self.get_unchecked_mut() };
-        let is_new = unsafe { Pin::new_unchecked(&mut this.is_new) };
+    fn poll(self: Pin<&mut Self>, _: &mut task::Context<'_>) -> Poll<Self::Output> {
+        let mut r = Poll::Pending;
 
-        match is_new.poll(cx) {
-            Poll::Ready(()) => {
-                let is_animating = this.is_new.ctx.with_vars(|v| this.is_new.var.is_animating(v));
-                let r = if this.is_animating && !is_animating {
-                    Poll::Ready(())
-                } else {
-                    Poll::Pending
-                };
-                this.is_animating = is_animating;
-                r
+        let update_id = self.ctx.with_vars_read(|vars| vars.update_id());
+        if update_id != self.update_id.get() {
+            self.update_id.set(update_id);
+            let is_animating = self.var.is_animating(self.ctx);
+            if !is_animating && self.is_animating.get() {
+                r = Poll::Ready(());
             }
-            Poll::Pending => Poll::Pending,
+            self.is_animating.set(is_animating);
         }
+
+        r
     }
 }

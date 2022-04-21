@@ -530,7 +530,8 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + crate::private::Sealed + 'stati
 
     /// if the variable current value was set by an active animation.
     ///
-    /// The variable [`is_new`] when this value changes.
+    /// The variable [`is_new`] when this changes to `true`, but it can change to `false` at any time
+    /// without the value updating.
     ///
     /// [`is_new`]: Var::is_new
     fn is_animating<Vr: WithVarsRead>(&self, vars: &Vr) -> bool;
@@ -544,7 +545,7 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + crate::private::Sealed + 'stati
     ///
     /// [`is_animating`]: Var::is_animating
     #[inline]
-    fn wait_animation<'a, Vw: WithVars>(&'a self, vars: &'a Vw) -> VarIsNotAnimatingFut<'a, Vw, T, Self> {
+    fn wait_animation<'a, Vr: WithVarsRead>(&'a self, vars: &'a Vr) -> VarIsNotAnimatingFut<'a, Vr, T, Self> {
         if !self.can_update() {
             tracing::warn!("`Var::wait_animation` called in a variable that never updates");
         }

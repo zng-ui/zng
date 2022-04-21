@@ -3,23 +3,17 @@
 # Animation
 
 * `Var::is_animating`.
-    - Need better track of animation end, current implementation only updates on the next `is_new`.
-    - Need to review filtered mapping vars, 
+    - Need to review filtered mapping vars.
+    - Need to review change to `false` without var update.
 * Cancel animation if set from other source?
- * Idea:
-   - An animation takes control of a var once in the first time it sets it.
-   - The var can only be updated by it's current controller.
-   - Any new animation takes control of the variable.
-   - Manually setting the var removes control from any active animation.
- * Idea (extra):
-   
 * Config animation fps.
+* Timed assigns, like setting to specific value after a delay, with `is_animating` flagged while it waits.
 
 ## Storyboard/Key-frames
 
 Need to integrate with multiple animations stuff.
 
-- Possibility of blending multiple animations(with different weights) into one? Not the default behavior.
+* Possibility of blending multiple animations(with different weights) into one? Not the default behavior.
 
 ### Builder Style
 
@@ -83,3 +77,8 @@ animation!(var1, var2, |ctx, args| {
 ```
 
 Leaves only the time scale, maybe something in `args` to get the time?
+
+
+# Futures
+
+* Variable futures don't use the waker context and don't provide any `subscriptions`, review how is this working in `WidgetTask` tasks.

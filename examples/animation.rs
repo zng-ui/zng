@@ -54,7 +54,7 @@ fn example() -> impl Widget {
                     x = x.map(|x| x.clone() - 20.dip());
 
                     when self.is_hovered {
-                        background_color = colors::LIGHT_BLUE;
+                        background_color = colors::LIME;
                     }
                 };
             },
