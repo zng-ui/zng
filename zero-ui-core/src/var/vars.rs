@@ -327,7 +327,7 @@ impl Vars {
             bindings: RefCell::default(),
             animations: RefCell::default(),
             animation_id: Cell::new(1),
-            current_animation: RefCell::new((WeakAnimationHandle::new(), u32::MAX)),
+            current_animation: RefCell::new((WeakAnimationHandle::new(), 0)),
             last_frame: Instant::now(),
             frame_duration: (1.0 / 60.0).secs(),
             animations_enabled: var(true),
@@ -652,6 +652,7 @@ impl Vars {
             next_set_id = 1;
         }
         self.animation_id.set(next_set_id);
+        self.current_animation.borrow_mut().1 = next_set_id;
 
         self.animations.borrow_mut().push(Box::new(move |vars, enabled| {
             let mut retain = !handle_owner.is_dropped();
