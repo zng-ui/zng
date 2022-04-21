@@ -544,9 +544,14 @@ impl DeadlineHandle {
 }
 
 /// Weak [`DeadlineHandle`]
-#[derive(Clone)]
+#[derive(Clone, PartialEq, Eq, Hash, Default)]
 pub struct WeakDeadlineHandle(WeakHandle<DeadlineState>);
 impl WeakDeadlineHandle {
+    /// New weak handle that does not upgrade.
+    pub fn new() -> Self {
+        Self(WeakHandle::new())
+    }
+
     /// Get the strong handle is still waiting the deadline.
     pub fn upgrade(&self) -> Option<DeadlineHandle> {
         self.0.upgrade().map(DeadlineHandle)
@@ -700,9 +705,14 @@ impl TimerHandle {
 }
 
 /// Weak [`TimerHandle`].
-#[derive(Clone)]
+#[derive(Clone, PartialEq, Eq, Hash)]
 pub struct WeakTimerHandle(WeakHandle<TimerState>);
 impl WeakTimerHandle {
+    /// New weak handle that does not upgrade.
+    pub fn new() -> Self {
+        Self(WeakHandle::new())
+    }
+
     /// Get the strong handle if the timer has not stopped.
     pub fn upgrade(&self) -> Option<TimerHandle> {
         self.0.upgrade().map(TimerHandle)

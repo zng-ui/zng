@@ -537,9 +537,14 @@ impl AnimationHandle {
 }
 
 /// Weak [`AnimationHandle`].
-#[derive(Clone)]
+#[derive(Clone, PartialEq, Eq, Hash, Default)]
 pub struct WeakAnimationHandle(WeakHandle<()>);
 impl WeakAnimationHandle {
+    /// New weak handle that does not upgrade.
+    pub fn new() -> Self {
+        Self(WeakHandle::new())
+    }
+
     /// Get the animation handle if it is still animating.
     pub fn upgrade(&self) -> Option<AnimationHandle> {
         self.0.upgrade().map(AnimationHandle)

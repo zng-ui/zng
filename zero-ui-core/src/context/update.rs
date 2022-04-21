@@ -72,9 +72,14 @@ impl OnUpdateHandle {
 }
 
 /// Weak [`OnUpdateHandle`].
-#[derive(Clone)]
+#[derive(Clone, PartialEq, Eq, Hash, Default)]
 pub struct WeakOnUpdateHandle(WeakHandle<()>);
 impl WeakOnUpdateHandle {
+    /// New weak handle that does not upgrade.
+    pub fn new() -> Self {
+        Self(WeakHandle::new())
+    }
+
     /// Gets the strong handle if it is still subscribed.
     pub fn upgrade(&self) -> Option<OnUpdateHandle> {
         self.0.upgrade().map(OnUpdateHandle)

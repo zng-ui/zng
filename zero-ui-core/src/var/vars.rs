@@ -857,9 +857,14 @@ impl OnVarHandle {
 }
 
 /// Weak [`OnVarHandle`].
-#[derive(Clone)]
+#[derive(Clone, PartialEq, Eq, Hash, Default)]
 pub struct WeakOnVarHandle(WeakHandle<()>);
 impl WeakOnVarHandle {
+    /// New weak handle that does not upgrade.
+    pub fn new() -> Self {
+        Self(WeakHandle::new())
+    }
+
     /// Get the strong handle if it is still subscribed.
     pub fn upgrade(&self) -> Option<OnVarHandle> {
         self.0.upgrade().map(OnVarHandle)

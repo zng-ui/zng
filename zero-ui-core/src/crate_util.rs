@@ -400,6 +400,11 @@ impl<D: Send + Sync> Drop for Handle<D> {
 /// A weak reference to a [`Handle`].
 pub(crate) struct WeakHandle<D: Send + Sync>(Weak<HandleState<D>>);
 impl<D: Send + Sync> WeakHandle<D> {
+    /// New weak handle that does not upgrade.
+    pub fn new() -> Self {
+        WeakHandle(Weak::new())
+    }
+
     /// Get a live handle if it was not dropped or force-dropped.
     pub fn upgrade(&self) -> Option<Handle<D>> {
         if let Some(arc) = self.0.upgrade() {
@@ -414,9 +419,26 @@ impl<D: Send + Sync> WeakHandle<D> {
         }
     }
 }
+impl<D: Send + Sync> Default for WeakHandle<D> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 impl<D: Send + Sync> Clone for WeakHandle<D> {
     fn clone(&self) -> Self {
         WeakHandle(self.0.clone())
+    }
+}
+impl<D: Send + Sync> PartialEq for WeakHandle<D> {
+    fn eq(&self, other: &Self) -> bool {
+        Weak::ptr_eq(&self.0, &other.0)
+    }
+}
+impl<D: Send + Sync> Eq for WeakHandle<D> {}
+impl<D: Send + Sync> std::hash::Hash for WeakHandle<D> {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        let ptr = self.0.as_ptr() as usize;
+        ptr.hash(state);
     }
 }
 

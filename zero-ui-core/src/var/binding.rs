@@ -64,8 +64,14 @@ impl VarBindingHandle {
 }
 
 /// Weak [`VarBindingHandle`].
+#[derive(Clone, PartialEq, Eq, Hash, Default)]
 pub struct WeakVarBindingHandle(WeakHandle<()>);
 impl WeakVarBindingHandle {
+    /// New weak handle that does not upgrade.
+    pub fn new() -> Self {
+        Self(WeakHandle::new())
+    }
+
     /// Get the binding handle if it is still bound.
     pub fn upgrade(&self) -> Option<VarBindingHandle> {
         self.0.upgrade().map(VarBindingHandle)
