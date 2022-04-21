@@ -6,6 +6,13 @@
     - Need better track of animation end, current implementation only updates on the next `is_new`.
     - Need to review filtered mapping vars, 
 * Cancel animation if set from other source?
+ * Idea:
+   - An animation takes control of a var once in the first time it sets it.
+   - The var can only be updated by it's current controller.
+   - Any new animation takes control of the variable.
+   - Manually setting the var removes control from any active animation.
+ * Idea (extra):
+   - Possibility of blending multiple animations(with different weights) into one? Not the default behavior.
 * Config animation fps.
 
 ## Storyboard/Key-frames
