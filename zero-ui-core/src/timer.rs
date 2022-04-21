@@ -535,6 +535,22 @@ impl DeadlineHandle {
     pub fn is_canceled(&self) -> bool {
         !self.has_executed() && self.0.is_dropped()
     }
+
+    /// Create a weak handle to the deadline.
+    #[inline]
+    pub fn downgrade(&self) -> WeakDeadlineHandle {
+        WeakDeadlineHandle(self.0.downgrade())
+    }
+}
+
+/// Weak [`DeadlineHandle`]
+#[derive(Clone)]
+pub struct WeakDeadlineHandle(WeakHandle<DeadlineState>);
+impl WeakDeadlineHandle {
+    /// Get the strong handle is still waiting the deadline.
+    pub fn upgrade(&self) -> Option<DeadlineHandle> {
+        self.0.upgrade().map(DeadlineHandle)
+    }
 }
 
 /// Arguments for the handler of [`on_deadline`](Timers::on_deadline) or [`on_timeout`](Timers::on_timeout).
@@ -674,6 +690,22 @@ impl TimerHandle {
     #[inline]
     pub fn set_count(&self, count: usize) {
         self.0.data().count.store(count, Ordering::Relaxed)
+    }
+
+    /// Create a weak handle to the timer.
+    #[inline]
+    pub fn downgrade(&self) -> WeakTimerHandle {
+        WeakTimerHandle(self.0.downgrade())
+    }
+}
+
+/// Weak [`TimerHandle`].
+#[derive(Clone)]
+pub struct WeakTimerHandle(WeakHandle<TimerState>);
+impl WeakTimerHandle {
+    /// Get the strong handle if the timer has not stopped.
+    pub fn upgrade(&self) -> Option<TimerHandle> {
+        self.0.upgrade().map(TimerHandle)
     }
 }
 
