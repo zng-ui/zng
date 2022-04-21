@@ -287,6 +287,8 @@ pub struct Vars {
     frame_duration: Duration,
     animations_enabled: RcVar<bool>,
 
+    is_animating: bool,
+
     #[allow(clippy::type_complexity)]
     pending: RefCell<Vec<PendingUpdate>>,
 
@@ -324,6 +326,7 @@ impl Vars {
             binding_update_id: 0u32.wrapping_sub(13),
             bindings: RefCell::default(),
             animations: RefCell::default(),
+            is_animating: false,
             last_frame: Instant::now(),
             frame_duration: (1.0 / 60.0).secs(),
             animations_enabled: var(true),
@@ -331,6 +334,10 @@ impl Vars {
             pre_handlers: RefCell::default(),
             pos_handlers: RefCell::default(),
         }
+    }
+
+    pub(super) fn is_animating(&self) -> bool {
+        self.is_animating
     }
 
     /// Schedule set/modify.
@@ -352,7 +359,10 @@ impl Vars {
             let animations_enabled = self.animations_enabled.copy(self);
             if Instant::now() >= next_frame {
                 self.last_frame = next_frame;
+
+                self.is_animating = true;
                 animations.retain_mut(|a| a(self, animations_enabled));
+                self.is_animating = false;
 
                 if !animations.is_empty() {
                     // next frame

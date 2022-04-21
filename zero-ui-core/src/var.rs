@@ -486,7 +486,7 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + crate::private::Sealed + 'stati
     /// for the variable to be new again but in a different update.
     ///
     /// You can also reuse the future, but it is very cheap to just create a new one.
-    /// 
+    ///
     /// [`is_new`]: Var::is_new
     #[inline]
     fn wait_new<'a, Vw: WithVars>(&'a self, vars: &'a Vw) -> VarIsNewFut<'a, Vw, T, Self> {
@@ -529,9 +529,9 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + crate::private::Sealed + 'stati
     fn can_update(&self) -> bool;
 
     /// if the variable current value was set by an active animation.
-    /// 
+    ///
     /// The variable [`is_new`] when this value changes.
-    /// 
+    ///
     /// [`is_new`]: Var::is_new
     fn is_animating<Vr: WithVarsRead>(&self, vars: &Vr) -> bool;
 
@@ -539,9 +539,9 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + crate::private::Sealed + 'stati
     ///
     /// You can `.await` this in UI thread bound async code, like in async event handlers. The future
     /// will unblock once for every time [`is_animating`] changes from `true` to `false` in a different update.
-    /// 
+    ///
     /// Note that if [`Var::can_update`] is `false` this will never awake and a warning will be logged.
-    /// 
+    ///
     /// [`is_animating`]: Var::is_animating
     #[inline]
     fn wait_animation<'a, Vw: WithVars>(&'a self, vars: &'a Vw) -> VarIsNotAnimatingFut<'a, Vw, T, Self> {

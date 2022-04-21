@@ -2,7 +2,9 @@
 
 # Animation
 
-* `Var::is_animating` ?
+* `Var::is_animating`.
+    - Need better track of animation end, current implementation only updates on the next `is_new`.
+    - Need to review filtered mapping vars, 
 * Cancel animation if set from other source?
 * Config animation fps.
 

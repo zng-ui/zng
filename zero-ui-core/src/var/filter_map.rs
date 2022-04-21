@@ -223,10 +223,7 @@ where
 
     #[inline]
     fn is_animating<Vr: WithVarsRead>(&self, vars: &Vr) -> bool {
-        // TODO what happens when the source stops animating in a filtered out value.
-        // - If we just return source.is_animating we stay animating until another source update.
-        // - To solve this we need track is_animating and flag as new without changing the value?
-        todo!("!!: animating");
+        self.0.source.is_animating(vars)
     }
 
     #[inline]
@@ -608,8 +605,7 @@ where
 
     #[inline]
     fn is_animating<Vr: WithVarsRead>(&self, vars: &Vr) -> bool {
-        // TODO see RcFilterMapVar
-        todo!("!!: animating")
+        self.0.source.is_animating(vars)
     }
 
     #[inline]

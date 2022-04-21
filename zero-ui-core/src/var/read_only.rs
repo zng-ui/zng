@@ -71,7 +71,7 @@ where
 
     #[inline]
     fn is_animating<Vr: WithVarsRead>(&self, vars: &Vr) -> bool {
-        self.0.is_animating(vars)   
+        self.0.is_animating(vars)
     }
 
     #[inline]

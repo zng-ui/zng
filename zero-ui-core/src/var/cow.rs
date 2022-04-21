@@ -58,15 +58,16 @@ use super::*;
 pub struct RcCowVar<T, V>(Rc<CowData<T, V>>);
 bitflags! {
     struct Flags: u8 {
-        const SOURCE_ALWAYS_READ_ONLY = 0b0001;
-        const SOURCE_CAN_UPDATE =       0b0010;
-        const SOURCE_IS_CONTEXTUAL =    0b0100;
-        const IS_PASS_THROUGH =         0b1000;
+        const SOURCE_ALWAYS_READ_ONLY = 0b_0000_0001;
+        const SOURCE_CAN_UPDATE =       0b_0000_0010;
+        const SOURCE_IS_CONTEXTUAL =    0b_0000_0100;
+        const IS_PASS_THROUGH =         0b_0000_1000;
+        const IS_ANIMATING =            0b_0001_0000;
     }
 }
 struct CowData<T, V> {
     source: UnsafeCell<Option<V>>,
-    flags: Flags,
+    flags: Cell<Flags>,
     is_contextual: Cell<bool>,
     update_mask: OnceCell<UpdateMask>,
 
@@ -113,7 +114,7 @@ impl<T: VarValue, V: Var<T>> RcCowVar<T, V> {
 
         RcCowVar(Rc::new(CowData {
             update_mask: OnceCell::default(),
-            flags,
+            flags: Cell::new(flags),
             is_contextual: Cell::new(source.is_contextual()),
             source: UnsafeCell::new(Some(source)),
             value: UnsafeCell::new(None),
@@ -142,7 +143,7 @@ impl<T: VarValue, V: Var<T>> RcCowVar<T, V> {
     /// [`pass_through`]: Self::pass_through
     #[inline]
     pub fn is_pass_through(&self) -> bool {
-        self.0.flags.contains(Flags::IS_PASS_THROUGH)
+        self.0.flags.get().contains(Flags::IS_PASS_THROUGH)
     }
 
     /// Reference the current value.
@@ -227,8 +228,7 @@ impl<T: VarValue, V: Var<T>> RcCowVar<T, V> {
             if let Some(s) = self.source(vars) {
                 s.is_animating(vars)
             } else {
-                // TODO see RcVar
-                todo!("!!: animating")
+                self.0.flags.get().contains(Flags::IS_ANIMATING)
             }
         })
     }
@@ -263,6 +263,7 @@ impl<T: VarValue, V: Var<T>> RcCowVar<T, V> {
             }
 
             let self_ = self.clone();
+            let is_animating = vars.is_animating();
             vars.push_change::<T>(Box::new(move |update_id| {
                 // SAFETY: this is safe because Vars requires a mutable reference to apply changes.
                 // the `modifying` flag is only used for `deep_clone`.
@@ -275,6 +276,10 @@ impl<T: VarValue, V: Var<T>> RcCowVar<T, V> {
                 if touched {
                     self_.0.last_update_id.set(update_id);
                     self_.0.version.set(self_.0.version.get().wrapping_add(1));
+
+                    let mut flags = self_.0.flags.get();
+                    flags.set(Flags::IS_ANIMATING, is_animating);
+                    self_.0.flags.set(flags);
 
                     *self_.0.update_mask.get_or_init(|| UpdateSlot::next().mask())
                 } else {
@@ -497,7 +502,7 @@ impl<T: VarValue, V: Var<T>> Var<T> for RcCowVar<T, V> {
     ///
     /// [`is_pass_through`]: Self::is_pass_through
     fn always_read_only(&self) -> bool {
-        self.is_pass_through() && self.0.flags.contains(Flags::SOURCE_ALWAYS_READ_ONLY)
+        self.is_pass_through() && self.0.flags.get().contains(Flags::SOURCE_ALWAYS_READ_ONLY)
     }
 
     /// Returns `true` if is still reading from the source variable and it is contextual, otherwise returns `false`.
@@ -510,7 +515,7 @@ impl<T: VarValue, V: Var<T>> Var<T> for RcCowVar<T, V> {
     ///
     /// [`is_pass_through`]: Self::is_pass_through
     fn can_update(&self) -> bool {
-        !self.is_pass_through() || self.0.flags.contains(Flags::SOURCE_CAN_UPDATE)
+        !self.is_pass_through() || self.0.flags.get().contains(Flags::SOURCE_CAN_UPDATE)
     }
 
     fn into_value<Vr: WithVarsRead>(self, vars: &Vr) -> T {

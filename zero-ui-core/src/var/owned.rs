@@ -39,7 +39,7 @@ impl<T: VarValue> Var<T> for OwnedVar<T> {
 
     #[inline]
     fn is_animating<Vr: WithVarsRead>(&self, _: &Vr) -> bool {
-        false   
+        false
     }
 
     #[inline]

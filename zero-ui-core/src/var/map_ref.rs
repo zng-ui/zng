@@ -134,7 +134,7 @@ where
 
     #[inline]
     fn is_animating<Vr: WithVarsRead>(&self, vars: &Vr) -> bool {
-        self.source.is_animating(vars)   
+        self.source.is_animating(vars)
     }
 
     #[inline]
@@ -421,7 +421,7 @@ where
 
     #[inline]
     fn is_animating<Vr: WithVarsRead>(&self, vars: &Vr) -> bool {
-        self.source.is_animating(vars)   
+        self.source.is_animating(vars)
     }
 
     #[inline]

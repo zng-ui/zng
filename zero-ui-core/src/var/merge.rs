@@ -482,7 +482,7 @@ macro_rules! impl_rc_merge_var {
             fn is_animating<Vr: WithVarsRead>(&self, vars: &Vr) -> bool {
                 vars.with_vars_read(|vars| {
                     $(self.0.vars.$n.is_animating(vars))||+
-                })   
+                })
             }
 
             #[inline]
