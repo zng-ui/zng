@@ -705,7 +705,7 @@ impl TimerHandle {
 }
 
 /// Weak [`TimerHandle`].
-#[derive(Clone, PartialEq, Eq, Hash)]
+#[derive(Clone, PartialEq, Eq, Hash, Default)]
 pub struct WeakTimerHandle(WeakHandle<TimerState>);
 impl WeakTimerHandle {
     /// New weak handle that does not upgrade.

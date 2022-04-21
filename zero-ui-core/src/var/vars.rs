@@ -19,7 +19,7 @@ use crate::{
 use std::{
     any::type_name,
     cell::{Cell, RefCell},
-    fmt,
+    fmt, mem,
     ops::Deref,
     time::{Duration, Instant},
 };
@@ -616,14 +616,42 @@ impl Vars {
     where
         A: FnMut(&Vars, &Animation) + 'static,
     {
+        // # Animation ID
+        //
+        // Variables only accept modifications from an animation ID >= the previous animation ID that modified it.
+        //
+        // Direct modifications always overwrite previous animations, so we advance the ID for each call to
+        // this method **and then** advance the ID again for all subsequent direct modifications.
+        //
+        // Example sequence of events:
+        //
+        // |ID| Modification  | Accepted
+        // |--|---------------|----------
+        // | 1| Var::set      | YES
+        // | 2| Var::ease     | YES
+        // | 2| ease update   | YES
+        // | 3| Var::set      | YES
+        // | 3| Var::set      | YES
+        // | 2| ease update   | NO
+        // | 4| Var::ease     | YES
+        // | 2| ease update   | NO
+        // | 4| ease update   | YES
+        // | 5| Var::set      | YES
+        // | 2| ease update   | NO
+        // | 4| ease update   | NO
+
         let (handle_owner, handle) = AnimationHandle::new();
         let mut anim = Animation::new(self.animations_enabled.copy(self));
-        let id = self.animation_id.get();
-        let mut next_id = id + 1;
-        if next_id == u32::MAX {
-            next_id = 1;
+        let mut id = self.animation_id.get().wrapping_add(1);
+        if id == 0 {
+            // TODO fix this case, can we update all current animations to a fresh sequence?
+            id = 1;
         }
-        self.animation_id.set(next_id);
+        let mut next_set_id = id.wrapping_add(1);
+        if next_set_id == 0 {
+            next_set_id = 1;
+        }
+        self.animation_id.set(next_set_id);
 
         self.animations.borrow_mut().push(Box::new(move |vars, enabled| {
             let mut retain = !handle_owner.is_dropped();
@@ -631,9 +659,11 @@ impl Vars {
             if retain {
                 anim.set_animations_enabled(enabled);
 
-                let mut current_animation = vars.current_animation.borrow_mut();
-                *current_animation = (WeakAnimationHandle(handle_owner.weak_handle()), id);
-                let _cleanup = RunOnDrop::new(|| *current_animation = (WeakAnimationHandle::new(), u32::MAX));
+                let prev = mem::replace(
+                    &mut *vars.current_animation.borrow_mut(),
+                    (WeakAnimationHandle(handle_owner.weak_handle()), id),
+                );
+                let _cleanup = RunOnDrop::new(|| *vars.current_animation.borrow_mut() = prev);
 
                 animation(vars, &anim);
 

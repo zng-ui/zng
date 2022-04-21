@@ -31,7 +31,7 @@ impl<T: Clone> Clone for Data<T> {
         Data {
             value: UnsafeCell::new(value),
             modifying: Cell::new(false),
-            animation: RefCell::new((WeakAnimationHandle::new(), u32::MAX)),
+            animation: RefCell::new((WeakAnimationHandle::new(), 0)),
             last_update_id: Cell::new(self.last_update_id.get()),
             version: Cell::new(self.version.get()),
             update_slot: self.update_slot,
@@ -128,7 +128,7 @@ impl<T: VarValue> RcVar<T> {
             vars.push_change::<T>(Box::new(move |update_id| {
                 let mut prev_animation = self_.0.animation.borrow_mut();
 
-                if prev_animation.1 > started_in && prev_animation.1 < u32::MAX {
+                if prev_animation.1 > started_in {
                     // change caused by overwritten animation.
                     return UpdateMask::none();
                 }

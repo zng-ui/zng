@@ -119,7 +119,7 @@ impl<T: VarValue, V: Var<T>> RcCowVar<T, V> {
             source: UnsafeCell::new(Some(source)),
             value: UnsafeCell::new(None),
             version: VarVersionCell::new(0),
-            animation: RefCell::new((WeakAnimationHandle::new(), u32::MAX)),
+            animation: RefCell::new((WeakAnimationHandle::new(), 0)),
             last_update_id: Cell::new(0),
         }))
     }
@@ -268,7 +268,7 @@ impl<T: VarValue, V: Var<T>> RcCowVar<T, V> {
             vars.push_change::<T>(Box::new(move |update_id| {
                 let mut prev_animation = self_.0.animation.borrow_mut();
 
-                if prev_animation.1 > started_in && prev_animation.1 < u32::MAX {
+                if prev_animation.1 > started_in {
                     // change caused by overwritten animation.
                     return UpdateMask::none();
                 }
