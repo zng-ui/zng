@@ -467,6 +467,7 @@ impl<V: ContextVar> ContextVarLocalKey<V> {
             l.value.set(d.value);
             l.is_new.set(d.is_new);
             l.version.set(d.version);
+            l.is_animating.set(d.is_animating);
             l.update_mask.set(d.update_mask);
             if let Some(m) = l.modify.replace(d.modify) {
                 let _ = unsafe { Box::from_raw(m) };

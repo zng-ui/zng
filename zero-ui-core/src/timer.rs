@@ -468,7 +468,7 @@ pub type DeadlineVar = ReadOnlyVar<Deadline, RcVar<Deadline>>;
 ///
 /// Drop all clones of this handle to cancel the timer, or call [`permanent`](Self::permanent) to drop the handle
 /// without cancelling the timer.
-#[derive(Clone)]
+#[derive(Clone, PartialEq, Eq, Hash)]
 #[must_use = "the timer is canceled if the handler is dropped"]
 pub struct DeadlineHandle(Handle<DeadlineState>);
 struct DeadlineState {
@@ -550,7 +550,7 @@ pub struct DeadlineArgs {
 ///
 /// Drop all clones of this handler to stop the timer, or call [`permanent`](Self::permanent) to drop the handler
 /// without cancelling the timer.
-#[derive(Clone)]
+#[derive(Clone, PartialEq, Eq, Hash)]
 #[must_use = "the timer is stopped if the handler is dropped"]
 pub struct TimerHandle(Handle<TimerState>);
 struct TimerState {

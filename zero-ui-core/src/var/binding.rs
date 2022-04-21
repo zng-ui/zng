@@ -12,7 +12,7 @@ use crate::crate_util::*;
 /// [`permanent`]: VarBindingHandle::permanent
 /// [`Vars`]: crate::var::Vars
 /// [`Var`]: crate::var::Var
-#[derive(Clone)]
+#[derive(Clone, PartialEq, Eq, Hash)]
 #[must_use = "the var binding is undone if the handle is dropped"]
 pub struct VarBindingHandle(Handle<()>);
 impl VarBindingHandle {
@@ -54,6 +54,21 @@ impl VarBindingHandle {
     #[inline]
     pub fn is_unbound(&self) -> bool {
         self.0.is_dropped()
+    }
+
+    /// Create a weak handle.
+    #[inline]
+    pub fn downgrade(&self) -> WeakVarBindingHandle {
+        WeakVarBindingHandle(self.0.downgrade())
+    }
+}
+
+/// Weak [`VarBindingHandle`].
+pub struct WeakVarBindingHandle(WeakHandle<()>);
+impl WeakVarBindingHandle {
+    /// Get the binding handle if it is still bound.
+    pub fn upgrade(&self) -> Option<VarBindingHandle> {
+        self.0.upgrade().map(VarBindingHandle)
     }
 }
 

@@ -11,7 +11,7 @@ use crate::{
         TimeoutOrAppShutdown,
     },
     context::{AppContext, Updates, UpdatesTrace},
-    crate_util::{Handle, HandleOwner, PanicPayload, RunOnDrop},
+    crate_util::{Handle, HandleOwner, PanicPayload, RunOnDrop, WeakHandle},
     event::EventUpdateArgs,
     handler::{AppHandler, AppHandlerArgs, AppWeakHandle},
     units::TimeUnits,
@@ -805,7 +805,7 @@ struct OnVarHandler {
 ///
 /// Drop all clones of this handle to drop the handler, or call [`unsubscribe`](Self::unsubscribe) to drop the handle
 /// without dropping the handler.
-#[derive(Clone)]
+#[derive(Clone, PartialEq, Eq, Hash)]
 #[must_use = "the handler unsubscribes if the handle is dropped"]
 pub struct OnVarHandle(Handle<()>);
 impl OnVarHandle {
@@ -847,6 +847,22 @@ impl OnVarHandle {
     #[inline]
     pub fn is_unsubscribed(&self) -> bool {
         self.0.is_dropped()
+    }
+
+    /// Create a weak handle.
+    #[inline]
+    pub fn downgrade(&self) -> WeakOnVarHandle {
+        WeakOnVarHandle(self.0.downgrade())
+    }
+}
+
+/// Weak [`OnVarHandle`].
+#[derive(Clone)]
+pub struct WeakOnVarHandle(WeakHandle<()>);
+impl WeakOnVarHandle {
+    /// Get the strong handle if it is still subscribed.
+    pub fn upgrade(&self) -> Option<OnVarHandle> {
+        self.0.upgrade().map(OnVarHandle)
     }
 }
 

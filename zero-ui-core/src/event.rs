@@ -7,7 +7,7 @@ use unsafe_any::UnsafeAny;
 use crate::app::{AppEventSender, AppShutdown, RecvFut, TimeoutOrAppShutdown};
 use crate::command::AnyCommand;
 use crate::context::{AppContext, InfoContext, UpdatesTrace, WidgetContext};
-use crate::crate_util::{Handle, HandleOwner};
+use crate::crate_util::{Handle, HandleOwner, WeakHandle};
 use crate::handler::{AppHandler, AppHandlerArgs, AppWeakHandle, WidgetHandler};
 use crate::var::Vars;
 use crate::widget_info::{EventSlot, WidgetInfoBuilder, WidgetSubscriptions};
@@ -619,7 +619,7 @@ struct OnEventHandler {
 ///
 /// Drop all clones of this handle to drop the handler, or call [`unsubscribe`](Self::unsubscribe) to drop the handle
 /// without dropping the handler.
-#[derive(Clone)]
+#[derive(Clone, PartialEq, Eq, Hash)]
 #[must_use = "the event handler unsubscribes if the handle is dropped"]
 pub struct OnEventHandle(Handle<()>);
 impl OnEventHandle {
@@ -661,6 +661,22 @@ impl OnEventHandle {
     #[inline]
     pub fn is_unsubscribed(&self) -> bool {
         self.0.is_dropped()
+    }
+
+    /// Create a weak handle.
+    #[inline]
+    pub fn downgrade(&self) -> WeakOnEventHandle {
+        WeakOnEventHandle(self.0.downgrade())
+    }
+}
+
+/// Weak [`OnEventHandle`].
+#[derive(Clone)]
+pub struct WeakOnEventHandle(WeakHandle<()>);
+impl WeakOnEventHandle {
+    /// Gets the strong handle if it is still subscribed.
+    pub fn upgrade(&self) -> Option<OnEventHandle> {
+        self.0.upgrade().map(OnEventHandle)
     }
 }
 

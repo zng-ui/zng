@@ -5,7 +5,7 @@ use std::{
 
 use crate::{
     app::AppEventSender,
-    crate_util::{Handle, HandleOwner},
+    crate_util::{Handle, HandleOwner, WeakHandle},
     event::BoxedEventUpdate,
     handler::{self, AppHandler, AppHandlerArgs, AppWeakHandle},
     widget_info::UpdateMask,
@@ -20,7 +20,7 @@ use super::{AppContext, UpdatesTrace};
 ///
 /// Drop all clones of this handle to drop the binding, or call [`permanent`](Self::permanent) to drop the handle
 /// but keep the handler alive for the duration of the app.
-#[derive(Clone)]
+#[derive(Clone, PartialEq, Eq, Hash)]
 #[must_use = "dropping the handle unsubscribes update handler"]
 pub struct OnUpdateHandle(Handle<()>);
 impl OnUpdateHandle {
@@ -62,6 +62,22 @@ impl OnUpdateHandle {
     #[inline]
     pub fn is_unsubscribed(&self) -> bool {
         self.0.is_dropped()
+    }
+
+    /// Create a weak handle.
+    #[inline]
+    pub fn downgrade(&self) -> WeakOnUpdateHandle {
+        WeakOnUpdateHandle(self.0.downgrade())
+    }
+}
+
+/// Weak [`OnUpdateHandle`].
+#[derive(Clone)]
+pub struct WeakOnUpdateHandle(WeakHandle<()>);
+impl WeakOnUpdateHandle {
+    /// Gets the strong handle if it is still subscribed.
+    pub fn upgrade(&self) -> Option<OnUpdateHandle> {
+        self.0.upgrade().map(OnUpdateHandle)
     }
 }
 

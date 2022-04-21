@@ -3,7 +3,7 @@
 //! See also: [`EasingFn`].
 
 use crate::{
-    crate_util::{Handle, HandleOwner},
+    crate_util::{Handle, HandleOwner, WeakHandle},
     units::*,
 };
 use std::{
@@ -485,37 +485,25 @@ mod bezier {
     }
 }
 
-pub(super) struct AnimationState {}
-impl AnimationState {
-    fn new() -> Self {
-        AnimationState {}
-    }
-
-    fn dummy() -> Self {
-        AnimationState {}
-    }
-}
-
 /// Represents a running animation created by [`Vars::animate`].
 ///
 /// Drop all clones of this handle to stop the animation, or call [`permanent`] to drop the handle
 /// but keep the animation alive until it is stopped from the inside.
 ///
 /// [`permanent`]: AnimationHandle::permanent
-#[derive(Clone)]
+#[derive(Clone, PartialEq, Eq, Hash)]
 #[must_use = "the animation stops if the handle is dropped"]
-pub struct AnimationHandle(Handle<AnimationState>);
-
+pub struct AnimationHandle(Handle<()>);
 impl AnimationHandle {
-    pub(super) fn new() -> (HandleOwner<AnimationState>, Self) {
-        let (owner, handle) = Handle::new(AnimationState::new());
+    pub(super) fn new() -> (HandleOwner<()>, Self) {
+        let (owner, handle) = Handle::new(());
         (owner, AnimationHandle(handle))
     }
 
     /// Create dummy handle that is always in the *stopped* state.
     #[inline]
     pub fn dummy() -> Self {
-        AnimationHandle(Handle::dummy(AnimationState::dummy()))
+        AnimationHandle(Handle::dummy(()))
     }
 
     /// Drop the handle but does **not** stop.
@@ -545,6 +533,16 @@ impl AnimationHandle {
     #[inline]
     pub fn is_stopped(&self) -> bool {
         self.0.is_dropped()
+    }
+}
+
+/// Weak [`AnimationHandle`].
+#[derive(Clone)]
+pub struct WeakAnimationHandle(WeakHandle<()>);
+impl WeakAnimationHandle {
+    /// Get the animation handle if it is still animating.
+    pub fn upgrade(&self) -> Option<AnimationHandle> {
+        self.0.upgrade().map(AnimationHandle)
     }
 }
 

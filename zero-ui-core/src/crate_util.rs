@@ -374,6 +374,18 @@ impl<D: Send + Sync> Clone for Handle<D> {
         Handle(Arc::clone(&self.0))
     }
 }
+impl<D: Send + Sync> PartialEq for Handle<D> {
+    fn eq(&self, other: &Self) -> bool {
+        Arc::ptr_eq(&self.0, &other.0)
+    }
+}
+impl<D: Send + Sync> Eq for Handle<D> {}
+impl<D: Send + Sync> std::hash::Hash for Handle<D> {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        let ptr = Arc::as_ptr(&self.0) as usize;
+        ptr.hash(state);
+    }
+}
 impl<D: Send + Sync> Drop for Handle<D> {
     fn drop(&mut self) {
         if !self.is_permanent() && Arc::strong_count(&self.0) == 2 {
