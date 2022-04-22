@@ -2,7 +2,7 @@
 use retain_mut::RetainMut;
 
 use super::{
-    easing::{Animation, AnimationHandle, WeakAnimationHandle},
+    easing::{AnimationArgs, AnimationHandle, WeakAnimationHandle},
     *,
 };
 use crate::{
@@ -640,7 +640,7 @@ impl Vars {
     /// }
     /// ```
     ///
-    /// Note that the animation can be stopped from the inside, the closure second parameter is an [`Animation`]. In
+    /// Note that the animation can be stopped from the inside, the closure second parameter is an [`AnimationArgs`]. In
     /// the example this is the only way to stop the animation, because we called [`permanent`]. Animations hold a clone
     /// of the variables they affect and exist for the duration of the app if not stopped, causing the app to wake and call the
     /// animation closure for every frame.
@@ -662,7 +662,7 @@ impl Vars {
     /// [`permanent`]: AnimationHandle::permanent
     pub fn animate<A>(&self, mut animation: A) -> AnimationHandle
     where
-        A: FnMut(&Vars, &Animation) + 'static,
+        A: FnMut(&Vars, &AnimationArgs) + 'static,
     {
         // # Animation ID
         //
@@ -689,7 +689,7 @@ impl Vars {
         // | 4| ease update   | NO
 
         let (handle_owner, handle) = AnimationHandle::new();
-        let mut anim = Animation::new(self.animations_enabled.copy(self));
+        let mut anim = AnimationArgs::new(self.animations_enabled.copy(self));
         let mut id = self.animation_id.get().wrapping_add(1);
         if id == 0 {
             // TODO fix this case, can we update all current animations to a fresh sequence?

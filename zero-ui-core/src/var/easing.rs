@@ -554,15 +554,15 @@ impl WeakAnimationHandle {
 /// Represents an animation in its closure.
 ///
 /// See the [`Vars::animate`] method for more details.
-pub struct Animation {
+pub struct AnimationArgs {
     start_time: Instant,
     stop: Cell<bool>,
     animations_enabled: bool,
 }
 
-impl Animation {
+impl AnimationArgs {
     pub(super) fn new(animations_enabled: bool) -> Self {
-        Animation {
+        AnimationArgs {
             start_time: Instant::now(),
             stop: Cell::new(false),
             animations_enabled,
