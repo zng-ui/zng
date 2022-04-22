@@ -513,7 +513,8 @@ impl WeakAnimationHandle {
 ///
 /// See the [`Vars::animate`] method for more details.
 pub struct AnimationArgs {
-    start_time: Instant,
+    start_time: Cell<Instant>,
+    restart_count: Cell<usize>,
     stop: Cell<bool>,
     animations_enabled: bool,
 }
@@ -521,16 +522,17 @@ pub struct AnimationArgs {
 impl AnimationArgs {
     pub(super) fn new(animations_enabled: bool) -> Self {
         AnimationArgs {
-            start_time: Instant::now(),
+            start_time: Cell::new(Instant::now()),
+            restart_count: Cell::new(0),
             stop: Cell::new(false),
             animations_enabled,
         }
     }
 
-    /// Instant this animation started.
+    /// Instant this animation (re)started.
     #[inline]
     pub fn start_time(&self) -> Instant {
-        self.start_time
+        self.start_time.get()
     }
 
     pub(crate) fn set_animations_enabled(&mut self, enabled: bool) {
@@ -553,7 +555,7 @@ impl AnimationArgs {
     #[inline]
     pub fn elapsed(&self, duration: Duration) -> EasingTime {
         if self.animations_enabled {
-            EasingTime::elapsed(duration, self.start_time.elapsed())
+            EasingTime::elapsed(duration, self.start_time.get().elapsed())
         } else {
             EasingTime::end()
         }
@@ -571,7 +573,34 @@ impl AnimationArgs {
         t
     }
 
-    /// Drop the animation after applying the returned update.
+    /// Compute the elapsed [`EasingTime`], if the time [`is_end`] restarts the animation.
+    ///
+    /// [`is_end`]: EasingTime::is_end
+    pub fn elapsed_restart(&self, duration: Duration) -> EasingTime {
+        let t = self.elapsed(duration);
+        if t.is_end() {
+            self.restart()
+        }
+        t
+    }
+
+    /// Compute the elapsed [`EasingTime`], if the time [`is_end`] restarts the animation, repeats until has
+    /// restarted `max_restarts` inclusive, then stops the animation.
+    ///
+    /// [`is_end`]: EasingTime::is_end
+    pub fn elapsed_restart_stop(&self, duration: Duration, max_restarts: usize) -> EasingTime {
+        let t = self.elapsed(duration);
+        if t.is_end() {
+            if self.restart_count() < max_restarts {
+                self.restart();
+            } else {
+                self.stop();
+            }
+        }
+        t
+    }
+
+    /// Drop the animation after applying the current update.
     #[inline]
     pub fn stop(&self) {
         self.stop.set(true);
@@ -581,6 +610,35 @@ impl AnimationArgs {
     #[inline]
     pub fn stop_requested(&self) -> bool {
         self.stop.get()
+    }
+
+    /// Set the animation start time to now.
+    #[inline]
+    pub fn restart(&self) {
+        self.set_start_time(Instant::now());
+        self.restart_count.set(self.restart_count.get() + 1);
+    }
+
+    /// Number of times the animation restarted.
+    #[inline]
+    pub fn restart_count(&self) -> usize {
+        self.restart_count.get()
+    }
+
+    /// Change the start time to an arbitrary value.
+    ///
+    /// Note that this does not affect the restart count.
+    #[inline]
+    pub fn set_start_time(&self, instant: Instant) {
+        self.start_time.set(instant)
+    }
+
+    /// Change the start to an instant that computes the `elapsed` for the `duration` at the moment
+    /// this method is called.
+    ///
+    /// Note that this does not affect the restart count.
+    pub fn set_elapsed(&self, elapsed: EasingTime, duration: Duration) {
+        self.set_start_time(Instant::now() - (duration * elapsed.fct()));
     }
 }
 

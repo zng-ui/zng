@@ -6,8 +6,6 @@
 * Variable that starts animating on first `get`.
 * Modify animate (just called `animate`?).
 * Time dilation control.
-* Loop control.
-* Start time control.
 
 ```rust
 trait Var {

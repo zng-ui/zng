@@ -387,6 +387,31 @@ impl ops::DivAssign<Factor> for f64 {
     }
 }
 
+impl ops::Mul<Factor> for Duration {
+    type Output = Duration;
+
+    fn mul(self, rhs: Factor) -> Duration {
+        self.mul_f32(rhs.0)
+    }
+}
+impl ops::Div<Factor> for Duration {
+    type Output = Duration;
+
+    fn div(self, rhs: Factor) -> Duration {
+        self.div_f32(rhs.0)
+    }
+}
+impl ops::MulAssign<Factor> for Duration {
+    fn mul_assign(&mut self, rhs: Factor) {
+        *self = *self * rhs;
+    }
+}
+impl ops::DivAssign<Factor> for Duration {
+    fn div_assign(&mut self, rhs: Factor) {
+        *self = *self / rhs;
+    }
+}
+
 impl_from_and_into_var! {
     fn from(percent: FactorPercent) -> Factor {
         Factor(percent.0 / 100.0)
@@ -880,6 +905,12 @@ impl EasingTime {
     #[inline]
     pub fn fct(self) -> Factor {
         self.0
+    }
+
+    /// Get the time as a [`FactorPercent`].
+    #[inline]
+    pub fn pct(self) -> FactorPercent {
+        self.0.pct()
     }
 
     /// Flip the time.
