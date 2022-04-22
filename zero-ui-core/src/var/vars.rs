@@ -644,11 +644,11 @@ impl Vars {
     /// the example this is the only way to stop the animation, because we called [`permanent`]. Animations hold a clone
     /// of the variables they affect and exist for the duration of the app if not stopped, causing the app to wake and call the
     /// animation closure for every frame.
-    /// 
+    ///
     /// This method is the most basic animation interface, used to build all other animations and *easing*, its rare that you
     /// will need to use it directly, most of the time animation effects can be composted using the [`Var`] easing and mapping
     /// methods.
-    /// 
+    ///
     /// ```
     /// # use zero_ui_core::{var::*, *, units::*, text::*, handler::*};
     /// # fn demo(vars: &Vars) {

@@ -3,8 +3,6 @@
 # Animation
 
 * Config animations fps.
-* Timed assigns, like setting to specific value after a delay, with `is_animating` flagged while it waits.
-    - Can work with values that are not animatable.
 * Variable that starts animating on first `get`.
 * Modify animate (just called `animate`?).
 

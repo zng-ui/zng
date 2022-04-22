@@ -76,7 +76,7 @@ impl_from_and_into_var! {
     }
 
     fn from(xy: FactorPercent) -> Align {
-        xy.as_normal().into()
+        xy.fct().into()
     }
 }
 macro_rules! named_aligns {

@@ -376,11 +376,10 @@ impl<T: VarValue, V: Var<T>> RcCowVar<T, V> {
     ///
     /// After the current app update finishes the variable will start animation from the current value to `new_value`
     /// for the `duration` and transitioning by the `easing` function.
-    pub fn ease<Vw, N, D, F>(&self, vars: &Vw, new_value: N, duration: D, easing: F)
+    pub fn ease<Vw, N, F>(&self, vars: &Vw, new_value: N, duration: Duration, easing: F)
     where
         Vw: WithVars,
         N: Into<T>,
-        D: Into<Duration>,
         F: Fn(EasingTime) -> EasingStep + 'static,
 
         T: Transitionable,
@@ -393,11 +392,10 @@ impl<T: VarValue, V: Var<T>> RcCowVar<T, V> {
     /// The variable is also updated using [`set_ne`] during animation. Returns `true` is scheduled an animation.
     ///
     /// [`set_ne`]: Self::set_ne
-    pub fn ease_ne<Vw, N, D, F>(&self, vars: &Vw, new_value: N, duration: D, easing: F)
+    pub fn ease_ne<Vw, N, F>(&self, vars: &Vw, new_value: N, duration: Duration, easing: F)
     where
         Vw: WithVars,
         N: Into<T>,
-        D: Into<Duration>,
         F: Fn(EasingTime) -> EasingStep + 'static,
 
         T: PartialEq + Transitionable,
@@ -409,12 +407,11 @@ impl<T: VarValue, V: Var<T>> RcCowVar<T, V> {
     ///
     /// After the current app update finishes the variable will be set to `new_value`, then start animation from `new_value`
     /// to `then` for the `duration` and transitioning by the `easing` function.
-    pub fn set_ease<Vw, N, Th, D, F>(&self, vars: &Vw, new_value: N, then: Th, duration: D, easing: F)
+    pub fn set_ease<Vw, N, Th, F>(&self, vars: &Vw, new_value: N, then: Th, duration: Duration, easing: F)
     where
         Vw: WithVars,
         N: Into<T>,
         Th: Into<T>,
-        D: Into<Duration>,
         F: Fn(EasingTime) -> EasingStep + 'static,
 
         T: Transitionable,
@@ -427,12 +424,11 @@ impl<T: VarValue, V: Var<T>> RcCowVar<T, V> {
     /// The variable is also updated using [`set_ne`] during animation. Returns `true` is scheduled an animation.
     ///
     /// [`set_ne`]: Self::set_ne
-    pub fn set_ease_ne<Vw, N, Th, D, F>(&self, vars: &Vw, new_value: N, then: Th, duration: D, easing: F)
+    pub fn set_ease_ne<Vw, N, Th, F>(&self, vars: &Vw, new_value: N, then: Th, duration: Duration, easing: F)
     where
         Vw: WithVars,
         N: Into<T>,
         Th: Into<T>,
-        D: Into<Duration>,
         F: Fn(EasingTime) -> EasingStep + 'static,
 
         T: PartialEq + Transitionable,
@@ -445,10 +441,9 @@ impl<T: VarValue, V: Var<T>> RcCowVar<T, V> {
     /// After the current app update finishes the variable will start animation from the current value to the first key
     /// in `keys`, going across all keys for the `duration`. The `easing` function applies across all keyframes, the interpolation
     /// between keys is linear, use a full animation to control the easing between keys.
-    pub fn ease_keyed<Vw, D, F>(&self, vars: &Vw, keys: Vec<(Factor, T)>, duration: D, easing: F)
+    pub fn ease_keyed<Vw, F>(&self, vars: &Vw, keys: Vec<(Factor, T)>, duration: Duration, easing: F)
     where
         Vw: WithVars,
-        D: Into<Duration>,
         F: Fn(EasingTime) -> EasingStep + 'static,
 
         T: Transitionable,
@@ -460,15 +455,85 @@ impl<T: VarValue, V: Var<T>> RcCowVar<T, V> {
     ///
     /// After the current app update finishes the variable will be set to to the first keyframe, then animated
     /// across all other keys.
-    pub fn set_ease_keyed<Vw, D, F>(&self, vars: &Vw, keys: Vec<(Factor, T)>, duration: D, easing: F)
+    pub fn set_ease_keyed<Vw, F>(&self, vars: &Vw, keys: Vec<(Factor, T)>, duration: Duration, easing: F)
     where
         Vw: WithVars,
-        D: Into<Duration>,
         F: Fn(EasingTime) -> EasingStep + 'static,
 
         T: Transitionable,
     {
         let _ = <Self as Var<T>>::set_ease_keyed(self, vars, keys, duration, easing);
+    }
+
+    /// Set the variable to `new_value` after a `delay`.
+    ///
+    /// The variable [`is_animating`] until the delay elapses and the value is set.
+    ///
+    /// [`is_animating`]: Var::is_animating
+    pub fn step<Vw, N>(&self, vars: &Vw, new_value: N, delay: Duration)
+    where
+        Vw: WithVars,
+        N: Into<T>,
+    {
+        let _ = <Self as Var<T>>::step(self, vars, new_value, delay);
+    }
+
+    /// Set the variable to `new_value` after a `delay`, but only if the new value is not equal to the current value.
+    ///
+    /// The variable [`is_animating`] until the delay elapses and the value is set.
+    ///
+    /// [`is_animating`]: Var::is_animating
+    pub fn step_ne<Vw, N>(&self, vars: &Vw, new_value: N, delay: Duration)
+    where
+        Vw: WithVars,
+        N: Into<T>,
+        T: PartialEq,
+    {
+        let _ = <Self as Var<T>>::step_ne(self, vars, new_value, delay);
+    }
+
+    /// Set the variable to a sequence of values as a time `duration` elapses.
+    ///
+    /// An animation curve is used to find the first factor in `steps` above or at the curve line at the current time,
+    /// the variable is set to this step value, continuing animating across the next steps until the last or the animation end.
+    /// The variable [`is_animating`] from the start, even if no step applies and stays *animating* until the last *step* applies
+    /// or the duration is reached.
+    ///
+    /// # Examples
+    ///
+    /// Creates a variable that outputs text every 5% of a 5 seconds animation, advanced linearly.
+    ///
+    /// ```
+    /// # use zero_ui_core::{var::*, units::*, text::*};
+    /// # fn demo(text_var: impl Var<Text>, vars: &Vars) {
+    /// let steps = (0..=100).step_by(5).map(|i| (i.pct().fct(), formatx!("{i}%"))).collect();
+    /// # let _ =
+    /// text_var.steps(vars, steps, 5.secs(), easing::linear)
+    /// # ;}
+    /// ```
+    ///
+    /// The variable is set to `"0%"`, after 5% of the `duration` elapses it is set to `"5%"` and so on
+    /// until the value is set to `"100%` at the end of the animation.
+    ///
+    /// [`is_animating`]: Var::is_animating
+    pub fn steps<Vw, F>(&self, vars: &Vw, steps: Vec<(Factor, T)>, duration: Duration, easing: F)
+    where
+        Vw: WithVars,
+        F: Fn(EasingTime) -> EasingStep + 'static,
+    {
+        let _ = <Self as Var<T>>::steps(self, vars, steps, duration, easing);
+    }
+
+    /// Same behavior as [`steps`], but checks for equality before setting each step.
+    ///
+    /// [`steps`]: Var::steps
+    pub fn steps_ne<Vw, F>(&self, vars: &Vw, steps: Vec<(Factor, T)>, duration: Duration, easing: F)
+    where
+        Vw: WithVars,
+        F: Fn(EasingTime) -> EasingStep + 'static,
+        T: PartialEq,
+    {
+        let _ = <Self as Var<T>>::steps_ne(self, vars, steps, duration, easing);
     }
 }
 impl<T: VarValue, V: Var<T>> crate::private::Sealed for RcCowVar<T, V> {}

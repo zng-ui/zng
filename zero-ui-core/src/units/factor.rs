@@ -22,7 +22,7 @@ impl FactorPercent {
 
     /// Convert to [`Factor`].
     #[inline]
-    pub fn as_normal(self) -> Factor {
+    pub fn fct(self) -> Factor {
         self.into()
     }
 }
@@ -104,7 +104,7 @@ impl Factor {
 
     /// Convert to [`FactorPercent`].
     #[inline]
-    pub fn as_percent(self) -> FactorPercent {
+    pub fn pct(self) -> FactorPercent {
         self.into()
     }
 
@@ -480,7 +480,7 @@ impl_from_and_into_var! {
     }
 
     fn from(xy: FactorPercent) -> Factor2d {
-        xy.as_normal().into()
+        xy.fct().into()
     }
 
     /// To relative width and height.
@@ -516,9 +516,9 @@ impl Factor2d {
 impl fmt::Display for Factor2d {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if self.is_uniform() {
-            write!(f, "{}", self.x.as_percent())
+            write!(f, "{}", self.x.pct())
         } else {
-            write!(f, "({}, {})", self.x.as_percent(), self.y.as_percent())
+            write!(f, "({}, {})", self.x.pct(), self.y.pct())
         }
     }
 }
