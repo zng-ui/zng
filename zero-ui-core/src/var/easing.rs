@@ -196,30 +196,6 @@ pub fn ease_out_in(ease_fn: impl Fn(EasingTime) -> EasingStep, time: EasingTime)
     }
 }
 
-/// Returns `ease_fn`.
-#[inline]
-pub fn ease_in_fn<E: Fn(EasingTime) -> EasingStep>(ease_fn: E) -> E {
-    ease_fn
-}
-
-/// Returns a function that applies `ease_fn` wrapped in [`ease_out`].
-#[inline]
-pub fn ease_out_fn<'s>(ease_fn: impl Fn(EasingTime) -> EasingStep + 's) -> impl Fn(EasingTime) -> EasingStep + 's {
-    move |t| ease_out(&ease_fn, t)
-}
-
-/// Returns a function that applies `ease_fn` wrapped in [`ease_in_out`].
-#[inline]
-pub fn ease_in_out_fn<'s>(ease_fn: impl Fn(EasingTime) -> EasingStep + 's) -> impl Fn(EasingTime) -> EasingStep + 's {
-    move |t| ease_in_out(&ease_fn, t)
-}
-
-/// Returns a function that applies `ease_fn` wrapped in [`ease_out_in`].
-#[inline]
-pub fn ease_out_in_fn<'s>(ease_fn: impl Fn(EasingTime) -> EasingStep + 's) -> impl Fn(EasingTime) -> EasingStep + 's {
-    move |t| ease_out_in(&ease_fn, t)
-}
-
 /// Common easing modifier functions as an enum.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum EasingModifierFn {
@@ -323,24 +299,6 @@ impl EasingFn {
             EasingFn::Bounce => self::bounce,
             EasingFn::None => self::none,
         }
-    }
-
-    /// Returns the [`ease_in_fn`] of the easing function `self` represents.
-    #[inline]
-    pub fn ease_in_fn(self) -> impl Fn(EasingTime) -> EasingStep {
-        ease_in_fn(self.ease_fn())
-    }
-
-    /// Returns the [`ease_out_fn`] of the easing function `self` represents.
-    #[inline]
-    pub fn ease_out_fn(self) -> impl Fn(EasingTime) -> EasingStep {
-        ease_out_fn(self.ease_fn())
-    }
-
-    /// Returns the [`ease_in_out_fn`] of the easing function `self` represents.
-    #[inline]
-    pub fn ease_in_out_fn(self) -> impl Fn(EasingTime) -> EasingStep {
-        ease_in_out_fn(self.ease_fn())
     }
 }
 impl fmt::Display for EasingFn {

@@ -101,6 +101,23 @@ use impl_length_comp_conversions;
 /// * [`NEG_INFINITY`](f32::NEG_INFINITY) values are equal.
 /// * Finite values are equal if the difference is less than `epsilon`.
 ///
+/// Note that this definition of equality is symmetric and reflexive, but it is **not** transitive, difference less then
+/// epsilon can *accumulate* over a chain of comparisons breaking the transitive property:
+///
+/// ```
+/// # use zero_ui_core::units::about_eq;
+/// let e = 0.001;
+/// let a = 0.0;
+/// let b = a + e - 0.0001;
+/// let c = b + e - 0.0001;
+///
+/// assert!(
+///     about_eq(a, b, e) &&
+///     about_eq(b, c, e) &&
+///     !about_eq(a, c, e)
+/// )
+/// ```
+///
 /// See also [`about_eq_hash`].
 pub fn about_eq(a: f32, b: f32, epsilon: f32) -> bool {
     if a.is_nan() {
@@ -126,6 +143,17 @@ pub fn about_eq_hash<H: std::hash::Hasher>(f: f32, epsilon: f32, state: &mut H) 
     use std::hash::Hash;
     group.hash(state);
     f.hash(state);
+}
+
+/// [`f32`] ordering compatible with [`about_eq`] equality.
+pub fn about_eq_ord(a: f32, b: f32, epsilon: f32) -> std::cmp::Ordering {
+    if about_eq(a, b, epsilon) {
+        std::cmp::Ordering::Equal
+    } else if a > b {
+        std::cmp::Ordering::Greater
+    } else {
+        std::cmp::Ordering::Less
+    }
 }
 
 #[cfg(test)]

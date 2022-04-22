@@ -111,13 +111,13 @@ fn ease_btn(
     l: &RcVar<Length>,
     color: &RcVar<Rgba>,
     name: impl Into<Text>,
-    easing: impl Fn(EasingTime) -> EasingStep + Clone + 'static,
+    easing: impl Fn(EasingTime) -> EasingStep + Copy + 'static,
     easing_mod: &RcVar<easing::EasingModifierFn>,
 ) -> impl Widget {
-    let in_plot = plot(easing.clone());
-    let out_plot = plot(easing::ease_out_fn(easing.clone()));
-    let in_out_plot = plot(easing::ease_in_out_fn(easing.clone()));
-    let out_in_plot = plot(easing::ease_out_in_fn(easing.clone()));
+    let in_plot = plot(easing);
+    let out_plot = plot(move |t| easing::ease_out(easing, t));
+    let in_out_plot = plot(move |t| easing::ease_in_out(easing, t));
+    let out_in_plot = plot(move |t| easing::ease_out_in(easing, t));
 
     use easing::EasingModifierFn::*;
 
@@ -143,8 +143,8 @@ fn ease_btn(
             ]
         };
         on_click = hn!(l, color, easing_mod, |ctx, _| {
-            l.set_ease(ctx, 0, 300, 1.secs(), easing_mod.get(ctx).modify_fn(easing.clone()));
-            color.set_ease(ctx, FROM_COLOR, TO_COLOR, 1.secs(), easing_mod.get(ctx).modify_fn(easing.clone()));
+            l.set_ease(ctx, 0, 300, 1.secs(), easing_mod.get(ctx).modify_fn(easing));
+            color.set_ease(ctx, FROM_COLOR, TO_COLOR, 1.secs(), easing_mod.get(ctx).modify_fn(easing));
         });
     }
 }

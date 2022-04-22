@@ -1,6 +1,6 @@
 use derive_more as dm;
 
-use super::{about_eq, about_eq_hash, Px, PxPoint, PxRect, PxSideOffsets, PxSize, PxVector, Size, EPSILON, EPSILON_100};
+use super::{about_eq, about_eq_hash, about_eq_ord, Px, PxPoint, PxRect, PxSideOffsets, PxSize, PxVector, Size, EPSILON, EPSILON_100};
 use crate::impl_from_and_into_var;
 use std::{fmt, ops, time::Duration};
 
@@ -69,7 +69,7 @@ impl fmt::Display for FactorPercent {
 /// # Equality
 ///
 /// Equality is determined using [`about_eq`] with `0.00001` epsilon.
-#[derive(Copy, Clone, dm::Add, dm::AddAssign, dm::Sub, dm::SubAssign, PartialOrd)]
+#[derive(Copy, Clone, dm::Add, dm::AddAssign, dm::Sub, dm::SubAssign)]
 pub struct Factor(pub f32);
 impl Factor {
     /// Clamp factor to `[0.0..=1.0]` range.
@@ -122,6 +122,11 @@ impl std::hash::Hash for Factor {
 impl PartialEq for Factor {
     fn eq(&self, other: &Self) -> bool {
         about_eq(self.0, other.0, EPSILON)
+    }
+}
+impl std::cmp::PartialOrd for Factor {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(about_eq_ord(self.0, other.0, EPSILON))
     }
 }
 impl ops::Mul for Factor {
@@ -819,7 +824,7 @@ pub type EasingStep = Factor;
 /// Easing function input.
 ///
 /// Is always in the [0..=1] range. An easing function converts this time into a [`EasingStep`] factor.
-#[derive(Debug, PartialEq, Copy, Clone)]
+#[derive(Debug, PartialEq, Copy, Clone, Hash, dm::Add, dm::AddAssign, dm::Sub, dm::SubAssign, PartialOrd)]
 pub struct EasingTime(Factor);
 impl_from_and_into_var! {
     fn from(factor: Factor) -> EasingTime {
