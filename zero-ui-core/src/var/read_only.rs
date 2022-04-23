@@ -2,6 +2,41 @@ use std::marker::PhantomData;
 
 use super::*;
 
+/// A [`WeakVar`] wrapper that upgrades to a [`ReadOnlyVar`].
+pub struct ReadOnlyWeakVar<T: VarValue, W: WeakVar<T>>(W, PhantomData<T>);
+impl<T: VarValue, W: WeakVar<T>> ReadOnlyWeakVar<T, W> {
+    /// New wrapper.
+    pub fn new(weak: W) -> Self {
+        Self(weak, PhantomData)
+    }
+}
+impl<T: VarValue, W: WeakVar<T>> crate::private::Sealed for ReadOnlyWeakVar<T, W> {
+}
+impl<T: VarValue, W: WeakVar<T>> Clone for ReadOnlyWeakVar<T, W> {
+    fn clone(&self) -> Self {
+        Self(self.0.clone(), PhantomData)
+    }
+}
+impl<T: VarValue, W: WeakVar<T>> WeakVar<T> for ReadOnlyWeakVar<T, W> {
+    type Strong = ReadOnlyVar<T, W::Strong>;
+
+    fn upgrade(&self) -> Option<Self::Strong> {
+        self.0.upgrade().map(ReadOnlyVar::new)
+    }
+
+    fn strong_count(&self) -> usize {
+        self.0.strong_count()
+    }
+
+    fn weak_count(&self) -> usize {
+        self.0.weak_count()
+    }
+
+    fn as_ptr(&self) -> *const () {
+        self.0.as_ptr()
+    }
+}
+
 /// A [`Var`] wrapper that makes it [`always_read_only`](Var::always_read_only).
 pub struct ReadOnlyVar<T: VarValue, V: Var<T>>(V, PhantomData<T>);
 
@@ -130,6 +165,24 @@ where
     #[inline]
     fn update_mask<Vr: WithVarsRead>(&self, vars: &Vr) -> UpdateMask {
         self.0.update_mask(vars)
+    }
+
+    type Weak = ReadOnlyWeakVar<T, V::Weak>;
+
+    fn is_rc(&self) -> bool {
+        self.0.is_rc()
+    }
+
+    fn downgrade(&self) -> Option<Self::Weak> {
+        self.0.downgrade().map(ReadOnlyWeakVar::new)
+    }
+
+    fn weak_count(&self) -> usize {
+        self.0.weak_count()
+    }
+
+    fn as_ptr(&self) -> *const () {
+        self.0.as_ptr()
     }
 }
 impl<T, V> IntoVar<T> for ReadOnlyVar<T, V>

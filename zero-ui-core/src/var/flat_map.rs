@@ -1,7 +1,7 @@
 use std::{
     cell::{Cell, RefCell, UnsafeCell},
     marker::PhantomData,
-    rc::Rc,
+    rc::{Rc, Weak},
 };
 
 use crate::widget_info::UpdateSlot;
@@ -18,9 +18,6 @@ where
     M: FnMut(&A) -> V + 'static,
     S: Var<A>,
 {
-    fn clone(&self) -> Self {
-        Self(self.0.clone())
-    }
 }
 impl<A, B, V, M, S> Clone for WeakRcFlatMapVar<A, B, V, M, S>
 where
@@ -45,7 +42,7 @@ where
     type Strong = RcFlatMapVar<A, B, V, M, S>;
 
     fn upgrade(&self) -> Option<Self::Strong> {
-        self.0.upgrade().map(WeakRcFlatMapVar)
+        self.0.upgrade().map(RcFlatMapVar)
     }
 
     fn strong_count(&self) -> usize {
@@ -131,6 +128,10 @@ where
             version: Cell::new(0),
             update_slot: UpdateSlot::next(),
         }))
+    }
+
+    pub fn downgrade(&self) -> WeakRcFlatMapVar<A, B, V, M, S> {
+        WeakRcFlatMapVar(Rc::downgrade(&self.0))
     }
 
     fn var(&self, vars: &VarsRead) -> &V {
@@ -280,7 +281,7 @@ where
 
     #[inline]
     fn as_ptr(&self) -> *const () {
-        Rc::as_ref(&self.0) as _
+        Rc::as_ptr(&self.0) as _
     }
 }
 impl<A, B, V, M, S> IntoVar<B> for RcFlatMapVar<A, B, V, M, S>
