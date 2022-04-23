@@ -12,11 +12,11 @@ use std::{
     fmt,
     marker::PhantomData,
     ops,
-    rc::Rc,
+    rc::{Rc, Weak},
     time::{Duration, Instant},
 };
 
-use super::{IntoVar, Var, VarValue, Vars};
+use super::{IntoVar, Var, VarValue, Vars, WeakVar};
 
 /// Simple linear transition, no easing, no acceleration.
 #[inline]
@@ -893,12 +893,57 @@ struct EasingVarData<T, V, F> {
     _t: PhantomData<T>,
     var: V,
     duration: Duration,
-    easing: F,
+    easing: Rc<F>,
+}
+
+/// A weak reference to a [`EasingVar`].
+pub struct WeakEasingVar<T, V, F>(Weak<EasingVarData<T, V, F>>);
+impl<T, V, F> crate::private::Sealed for WeakEasingVar<T, V, F>
+where
+    T: VarValue + Transitionable,
+    V: Var<T>,
+    F: Fn(EasingTime) -> EasingStep + 'static,
+{
+}
+impl<T, V, F> Clone for WeakEasingVar<T, V, F>
+where
+    T: VarValue + Transitionable,
+    V: Var<T>,
+    F: Fn(EasingTime) -> EasingStep + 'static,
+{
+    fn clone(&self) -> Self {
+        WeakEasingVar(self.0.clone())
+    }
+}
+impl<T, V, F> WeakVar<T> for WeakEasingVar<T, V, F>
+where
+    T: VarValue + Transitionable,
+    V: Var<T>,
+    F: Fn(EasingTime) -> EasingStep + 'static,
+{
+    type Strong = EasingVar<T, V, F>;
+
+    fn upgrade(&self) -> Option<Self::Strong> {
+        self.0.upgrade().map(EasingVar)
+    }
+
+    fn strong_count(&self) -> usize {
+        self.0.strong_count()
+    }
+
+    fn weak_count(&self) -> usize {
+        self.0.weak_count()
+    }
+
+    fn as_ptr(&self) -> *const () {
+        self.0.as_ptr() as *const ()
+    }
 }
 
 /// Wraps another variable and turns assigns into transition animations.
 ///
-/// Redirects calls to [`Var::set`] to [`Var::ease`] and [`Var::set_ne`] to [`Var::ease_ne`].
+/// Redirects calls to [`Var::set`] to [`Var::ease`] and [`Var::set_ne`] to [`Var::ease_ne`], calls to the
+/// methods that create animations by default are not affected by the var easing.
 ///
 /// Use [`Var::easing`] to create.
 pub struct EasingVar<T, V, F>(Rc<EasingVarData<T, V, F>>);
@@ -906,18 +951,21 @@ impl<T, V, F> EasingVar<T, V, F>
 where
     T: VarValue + Transitionable,
     V: Var<T>,
-    F: Fn(EasingTime) -> EasingStep + Clone + 'static,
+    F: Fn(EasingTime) -> EasingStep + 'static,
 {
     /// New easing var.
-    ///
-    /// Note that the `easing` closure must be cloneable, if it is not automatically wrap it into a [`Rc`].
     pub fn new(var: V, duration: impl Into<Duration>, easing: F) -> Self {
         EasingVar(Rc::new(EasingVarData {
             _t: PhantomData,
             var,
             duration: duration.into(),
-            easing,
+            easing: Rc::new(easing),
         }))
+    }
+
+    /// Create a weak reference to the var.
+    pub fn downgrade(&self) -> WeakEasingVar<T, V, F> {
+        WeakEasingVar(Rc::downgrade(&self.0))
     }
 }
 impl<T, V, F> crate::private::Sealed for EasingVar<T, V, F> {}
@@ -930,7 +978,7 @@ impl<T, V, F> Var<T> for EasingVar<T, V, F>
 where
     T: VarValue + Transitionable,
     V: Var<T>,
-    F: Fn(EasingTime) -> EasingStep + Clone + 'static,
+    F: Fn(EasingTime) -> EasingStep + 'static,
 {
     type AsReadOnly = V::AsReadOnly;
 
@@ -985,10 +1033,6 @@ where
         self.0.var.modify(vars, modify)
     }
 
-    fn strong_count(&self) -> usize {
-        Rc::strong_count(&self.0)
-    }
-
     fn into_read_only(self) -> Self::AsReadOnly {
         match Rc::try_unwrap(self.0) {
             Ok(v) => v.var.into_read_only(),
@@ -1005,7 +1049,8 @@ where
         Vw: super::WithVars,
         N: Into<T>,
     {
-        self.0.var.ease(vars, new_value, self.0.duration, self.0.easing.clone())
+        let easing = self.0.easing.clone();
+        self.0.var.ease(vars, new_value, self.0.duration, move |t| easing(t))
     }
 
     fn set_ne<Vw, N>(&self, vars: &Vw, new_value: N) -> Result<bool, super::VarIsReadOnly>
@@ -1014,7 +1059,8 @@ where
         N: Into<T>,
         T: PartialEq,
     {
-        self.0.var.ease_ne(vars, new_value, self.0.duration, self.0.easing.clone())
+        let easing = self.0.easing.clone();
+        self.0.var.ease_ne(vars, new_value, self.0.duration, |t|easing(t))
     }
 
     fn ease<Vw, N, F2>(&self, vars: &Vw, new_value: N, duration: Duration, easing: F2) -> Result<(), super::VarIsReadOnly>
@@ -1115,12 +1161,34 @@ where
     {
         self.0.var.steps_ne(vars, steps, duration, easing)
     }
+
+    type Weak = WeakEasingVar<T, V, F>;
+
+    fn is_rc(&self) -> bool {
+        true
+    }
+
+    fn strong_count(&self) -> usize {
+        Rc::strong_count(&self.0)
+    }
+
+    fn downgrade(&self) -> Option<Self::Weak> {
+        Some(self.downgrade())
+    }
+
+    fn weak_count(&self) -> usize {
+        Rc::weak_count(&self.0)
+    }
+
+    fn as_ptr(&self) -> *const () {
+        Rc::as_ptr(&self.0) as _
+    }
 }
 impl<T, V, F> IntoVar<T> for EasingVar<T, V, F>
 where
     T: VarValue + Transitionable,
     V: Var<T>,
-    F: Fn(EasingTime) -> EasingStep + Clone + 'static,
+    F: Fn(EasingTime) -> EasingStep + 'static,
 {
     type Var = Self;
 

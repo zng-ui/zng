@@ -128,6 +128,28 @@ impl<C: ContextVar> Var<C::Type> for ContextVarProxy<C> {
     fn update_mask<Vr: WithVarsRead>(&self, vars: &Vr) -> UpdateMask {
         vars.with_vars_read(|_v| C::thread_local_value().update_mask())
     }
+
+    type Weak = NoneWeakVar<C::Type>;
+
+    #[inline]
+    fn is_rc(&self) -> bool {
+        false
+    }
+
+    #[inline]
+    fn downgrade(&self) -> Option<Self::Weak> {
+        None
+    }
+
+    #[inline]
+    fn weak_count(&self) -> usize {
+        0
+    }
+
+    #[inline]
+    fn as_ptr(&self) -> *const () {
+        std::ptr::null()
+    }
 }
 
 impl<C: ContextVar> IntoVar<C::Type> for ContextVarProxy<C> {

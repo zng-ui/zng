@@ -6,6 +6,9 @@ pub struct OwnedVar<T: VarValue>(pub T);
 impl<T: VarValue> crate::private::Sealed for OwnedVar<T> {}
 impl<T: VarValue> Var<T> for OwnedVar<T> {
     type AsReadOnly = Self;
+    type Weak = NoneWeakVar<T>;
+
+    
 
     #[inline]
     fn get<'a, Vr: AsRef<VarsRead>>(&'a self, _: &'a Vr) -> &'a T {
@@ -98,6 +101,24 @@ impl<T: VarValue> Var<T> for OwnedVar<T> {
     #[inline]
     fn update_mask<Vr: WithVarsRead>(&self, _: &Vr) -> UpdateMask {
         UpdateMask::none()
+    }
+
+    #[inline]
+    fn is_rc(&self) -> bool {
+        false
+    }
+
+    #[inline]
+    fn downgrade(&self) -> Option<Self::Weak> {
+        None
+    }
+    #[inline]
+    fn weak_count(&self) -> usize {
+        0
+    }
+    #[inline]
+    fn as_ptr(&self) -> *const () {
+        std::ptr::null()
     }
 }
 impl<T: VarValue + Default> Default for OwnedVar<T> {

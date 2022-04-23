@@ -156,13 +156,13 @@ pub(super) struct ImagesRender {
 
 struct ActiveRenderer {
     window_id: WindowId,
-    image: WeakVar<Image>,
+    image: WeakRcVar<Image>,
 }
 
 struct RenderRequest {
     node: Box<dyn FnOnce(&mut WindowContext) -> BoxedUiNode>,
     config: RenderConfig,
-    image: WeakVar<Image>,
+    image: WeakRcVar<Image>,
 }
 
 /// Configuration for the [`Images::render`] operation.

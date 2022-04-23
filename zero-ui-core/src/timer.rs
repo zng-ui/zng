@@ -17,7 +17,7 @@ use crate::{
     context::AppContext,
     crate_util::{Handle, HandleOwner, WeakHandle},
     handler::{self, AppHandler, AppHandlerArgs, AppWeakHandle},
-    var::{var, RcVar, ReadOnlyVar, Var, Vars, VarsRead, WeakVar},
+    var::{var, RcVar, ReadOnlyVar, Var, Vars, VarsRead, WeakRcVar, WeakVar},
 };
 
 struct DeadlineHandlerEntry {
@@ -34,7 +34,7 @@ struct TimerHandlerEntry {
 
 struct TimerVarEntry {
     handle: HandleOwner<TimerState>,
-    weak_var: WeakVar<Timer>,
+    weak_var: WeakRcVar<Timer>,
 }
 
 /// App thread timers, deadlines and timeouts.
@@ -68,7 +68,7 @@ struct TimerVarEntry {
 /// [`async_app_hn!`]: crate::handler::async_app_hn!
 /// [`async_app_hn_once!`]: crate::async_app_hn_once!
 pub struct Timers {
-    deadlines: Vec<WeakVar<Deadline>>,
+    deadlines: Vec<WeakRcVar<Deadline>>,
     timers: Vec<TimerVarEntry>,
     deadline_handlers: Vec<DeadlineHandlerEntry>,
     timer_handlers: Vec<TimerHandlerEntry>,

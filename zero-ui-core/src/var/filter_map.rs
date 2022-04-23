@@ -2,10 +2,60 @@ use std::{
     cell::{Cell, RefCell, UnsafeCell},
     marker::PhantomData,
     mem,
-    rc::Rc,
+    rc::{Rc, Weak},
 };
 
 use super::*;
+
+/// A weak reference to a [`RcFilterMapVar`].
+pub struct WeakRcFilterMapVar<A, B, I, M, S>(Weak<FilterMapData<A, B, I, M, S>>);
+impl<A, B, M, I, S> crate::private::Sealed for WeakRcFilterMapVar<A, B, I, M, S>
+where
+    A: VarValue,
+    B: VarValue,
+    I: FnOnce(&A) -> B + 'static,
+    M: FnMut(&A) -> Option<B> + 'static,
+    S: Var<A>,
+{
+}
+impl<A, B, M, I, S> Clone for WeakRcFilterMapVar<A, B, I, M, S>
+where
+    A: VarValue,
+    B: VarValue,
+    I: FnOnce(&A) -> B + 'static,
+    M: FnMut(&A) -> Option<B> + 'static,
+    S: Var<A>,
+{
+    fn clone(&self) -> Self {
+        WeakRcFilterMapVar(self.0.clone())
+    }
+}
+impl<A, B, M, I, S> WeakVar<B> for WeakRcFilterMapVar<A, B, I, M, S>
+where
+    A: VarValue,
+    B: VarValue,
+    I: FnOnce(&A) -> B + 'static,
+    M: FnMut(&A) -> Option<B> + 'static,
+    S: Var<A>,
+{
+    type Strong = RcFilterMapVar<A, B, I, M, S>;
+
+    fn upgrade(&self) -> Option<Self::Strong> {
+        self.0.upgrade().map(RcFilterMapVar)
+    }
+
+    fn strong_count(&self) -> usize {
+        self.0.strong_count()
+    }
+
+    fn weak_count(&self) -> usize {
+        self.0.weak_count()
+    }
+
+    fn as_ptr(&self) -> *const () {
+        self.0.as_ptr() as _
+    }
+}
 
 /// A [`Var`] that maps from another var and is a [`Rc`] pointer to its value. The value updates only for
 /// source values approved by the mapping function.
@@ -74,91 +124,10 @@ where
         }))
     }
 
-    /// Get the value, applies the mapping if the value is out of sync.
-    pub fn get<'a, Vr: AsRef<VarsRead>>(&'a self, vars: &'a Vr) -> &'a B {
-        let vars = vars.as_ref();
-
-        // SAFETY: access to value is safe because `source` needs a `&mut Vars` to change its version
-        // and we change the value only in the first call to `get` with the new source version.
-
-        let source_version = self.0.source.version(vars);
-
-        if self.0.version.get() == 0 {
-            let source_value = self.0.source.get(vars);
-            let new_value = self.0.map.borrow_mut()(source_value).unwrap_or_else(|| {
-                let init = unsafe { &mut *self.0.value.get() }.unwrap_init();
-                init(source_value)
-            });
-
-            unsafe {
-                *self.0.value.get() = FilterMapValue::Value(new_value);
-            }
-
-            self.0.version.set(1);
-            self.0.version_checked.set(source_version);
-            self.0.last_update_id.set(vars.update_id());
-        } else if source_version != self.0.version_checked.get() {
-            if let Some(new_value) = self.0.map.borrow_mut()(self.0.source.get(vars)) {
-                unsafe {
-                    *self.0.value.get() = FilterMapValue::Value(new_value);
-                }
-                self.0.version.set(self.0.version.get().wrapping_add(1));
-                self.0.last_update_id.set(vars.update_id());
-            }
-            self.0.version_checked.set(source_version);
-        }
-        unsafe { &*self.0.value.get() }.unwrap()
-    }
-
-    /// Gets the value if [`is_new`](Self::is_new).
-    pub fn get_new<'a, Vw: AsRef<Vars>>(&'a self, vars: &'a Vw) -> Option<&'a B> {
-        let vars = vars.as_ref();
-
-        if self.0.source.is_new(vars) {
-            let value = self.get(vars);
-            if self.0.last_update_id.get() == vars.update_id() {
-                Some(value)
-            } else {
-                None
-            }
-        } else {
-            None
-        }
-    }
-
-    /// Gets if the value updated in the last update.
-    ///
-    /// Returns `true` if the source var is new and the new value was approved by the filter.
+    /// Create a weak reference to the variable.
     #[inline]
-    pub fn is_new<Vw: WithVars>(&self, vars: &Vw) -> bool {
-        vars.with_vars(|vars| self.get_new(vars).is_some())
-    }
-
-    /// Gets the up-to-date value version.
-    #[inline]
-    pub fn version<Vr: WithVarsRead>(&self, vars: &Vr) -> VarVersion {
-        vars.with_vars_read(|vars| {
-            let _ = self.get(vars);
-            VarVersion::normal(self.0.version.get())
-        })
-    }
-
-    /// If the source variable is contextual. If `true` this variable deep-clones instead of only cloning references.
-    #[inline]
-    pub fn is_contextual(&self) -> bool {
-        self.0.source.is_contextual()
-    }
-
-    /// Gets the number of [`RcFilterMapVar`] that point to this same variable.
-    #[inline]
-    pub fn strong_count(&self) -> usize {
-        Rc::strong_count(&self.0)
-    }
-
-    /// Returns `true` if `self` and `other` are the same variable.
-    #[inline]
-    pub fn ptr_eq(&self, other: &Self) -> bool {
-        Rc::ptr_eq(&self.0, &other.0)
+    pub fn downgrade(&self) -> WeakRcFilterMapVar<A, B, I, M, S> {
+        WeakRcFilterMapVar(Rc::downgrade(&self.0))
     }
 }
 impl<A, B, M, I, S> Clone for RcFilterMapVar<A, B, I, M, S>
@@ -194,12 +163,54 @@ where
 
     #[inline]
     fn get<'a, Vr: AsRef<VarsRead>>(&'a self, vars: &'a Vr) -> &'a B {
-        self.get(vars)
+        let vars = vars.as_ref();
+
+        // SAFETY: access to value is safe because `source` needs a `&mut Vars` to change its version
+        // and we change the value only in the first call to `get` with the new source version.
+
+        let source_version = self.0.source.version(vars);
+
+        if self.0.version.get() == 0 {
+            let source_value = self.0.source.get(vars);
+            let new_value = self.0.map.borrow_mut()(source_value).unwrap_or_else(|| {
+                let init = unsafe { &mut *self.0.value.get() }.unwrap_init();
+                init(source_value)
+            });
+
+            unsafe {
+                *self.0.value.get() = FilterMapValue::Value(new_value);
+            }
+
+            self.0.version.set(1);
+            self.0.version_checked.set(source_version);
+            self.0.last_update_id.set(vars.update_id());
+        } else if source_version != self.0.version_checked.get() {
+            if let Some(new_value) = self.0.map.borrow_mut()(self.0.source.get(vars)) {
+                unsafe {
+                    *self.0.value.get() = FilterMapValue::Value(new_value);
+                }
+                self.0.version.set(self.0.version.get().wrapping_add(1));
+                self.0.last_update_id.set(vars.update_id());
+            }
+            self.0.version_checked.set(source_version);
+        }
+        unsafe { &*self.0.value.get() }.unwrap()
     }
 
     #[inline]
     fn get_new<'a, Vw: AsRef<Vars>>(&'a self, vars: &'a Vw) -> Option<&'a B> {
-        self.get_new(vars)
+        let vars = vars.as_ref();
+
+        if self.0.source.is_new(vars) {
+            let value = self.get(vars);
+            if self.0.last_update_id.get() == vars.update_id() {
+                Some(value)
+            } else {
+                None
+            }
+        } else {
+            None
+        }
     }
 
     fn into_value<Vr: WithVarsRead>(self, vars: &Vr) -> B {
@@ -208,12 +219,15 @@ where
 
     #[inline]
     fn is_new<Vw: WithVars>(&self, vars: &Vw) -> bool {
-        self.is_new(vars)
+        vars.with_vars(|vars| self.get_new(vars).is_some())
     }
 
     #[inline]
     fn version<Vr: WithVarsRead>(&self, vars: &Vr) -> VarVersion {
-        self.version(vars)
+        vars.with_vars_read(|vars| {
+            let _ = self.get(vars);
+            VarVersion::normal(self.0.version.get())
+        })
     }
 
     #[inline]
@@ -238,7 +252,7 @@ where
 
     #[inline]
     fn is_contextual(&self) -> bool {
-        self.is_contextual()
+        self.0.source.is_contextual()
     }
 
     #[inline]
@@ -283,6 +297,28 @@ where
     fn update_mask<Vr: WithVarsRead>(&self, vars: &Vr) -> UpdateMask {
         self.0.source.update_mask(vars)
     }
+
+    type Weak = WeakRcFilterMapVar<A, B, I, M, S>;
+
+    #[inline]
+    fn is_rc(&self) -> bool {
+        true
+    }
+
+    #[inline]
+    fn downgrade(&self) -> Option<Self::Weak> {
+        Some(self.downgrade())
+    }
+
+    #[inline]
+    fn weak_count(&self) -> usize {
+        Rc::weak_count(&self.0)
+    }
+
+    #[inline]
+    fn as_ptr(&self) -> *const () {
+        Rc::as_ptr(&self.0) as _
+    }
 }
 impl<A, B, I, M, S> IntoVar<B> for RcFilterMapVar<A, B, I, M, S>
 where
@@ -297,6 +333,60 @@ where
     #[inline]
     fn into_var(self) -> Self::Var {
         self
+    }
+}
+
+/// A weak reference to a [`RcFilterMapBidiVar`].
+pub struct WeakRcFilterMapBidiVar<A, B, I, M, N, S>(Weak<FilterMapBidiData<A, B, I, M, N, S>>);
+impl<A, B, I, M, N, S> crate::private::Sealed for WeakRcFilterMapBidiVar<A, B, I, M, N, S>
+where
+    A: VarValue,
+    B: VarValue,
+    I: FnOnce(&A) -> B + 'static,
+    M: FnMut(&A) -> Option<B> + 'static,
+    N: FnMut(B) -> Option<A> + 'static,
+    S: Var<A>,
+{
+}
+
+impl<A, B, I, M, N, S> Clone for WeakRcFilterMapBidiVar<A, B, I, M, N, S>
+where
+    A: VarValue,
+    B: VarValue,
+    I: FnOnce(&A) -> B + 'static,
+    M: FnMut(&A) -> Option<B> + 'static,
+    N: FnMut(B) -> Option<A> + 'static,
+    S: Var<A>,
+{
+    fn clone(&self) -> Self {
+        WeakRcFilterMapBidiVar(self.0.clone())
+    }
+}
+impl<A, B, I, M, N, S> WeakVar<B> for WeakRcFilterMapBidiVar<A, B, I, M, N, S>
+where
+    A: VarValue,
+    B: VarValue,
+    I: FnOnce(&A) -> B + 'static,
+    M: FnMut(&A) -> Option<B> + 'static,
+    N: FnMut(B) -> Option<A> + 'static,
+    S: Var<A>,
+{
+    type Strong = RcFilterMapBidiVar<A, B, I, M, N, S>;
+
+    fn upgrade(&self) -> Option<Self::Strong> {
+        self.0.upgrade().map(RcFilterMapBidiVar)
+    }
+
+    fn strong_count(&self) -> usize {
+        self.0.strong_count()
+    }
+
+    fn weak_count(&self) -> usize {
+        self.0.weak_count()
+    }
+
+    fn as_ptr(&self) -> *const () {
+        self.0.as_ptr() as *const ()
     }
 }
 
@@ -349,167 +439,6 @@ where
         }))
     }
 
-    /// Get the value, applies the mapping if the value is out of sync.
-    pub fn get<'a, Vr: AsRef<VarsRead>>(&'a self, vars: &'a Vr) -> &'a B {
-        let vars = vars.as_ref();
-        // SAFETY: access to value is safe because `source` needs a `&mut Vars` to change its version
-        // and we change the value only in the first call to `get` with the new source version.
-
-        let source_version = self.0.source.version(vars);
-
-        if self.0.version.get() == 0 {
-            let source_value = self.0.source.get(vars);
-            let new_value = self.0.map.borrow_mut()(source_value).unwrap_or_else(|| {
-                let init = unsafe { &mut *self.0.value.get() }.unwrap_init();
-                init(source_value)
-            });
-
-            unsafe {
-                *self.0.value.get() = FilterMapValue::Value(new_value);
-            }
-
-            self.0.version.set(1);
-            self.0.version_checked.set(source_version);
-            self.0.last_update_id.set(vars.update_id());
-        } else if source_version != self.0.version_checked.get() {
-            if let Some(new_value) = self.0.map.borrow_mut()(self.0.source.get(vars)) {
-                unsafe {
-                    *self.0.value.get() = FilterMapValue::Value(new_value);
-                }
-                self.0.version.set(self.0.version.get().wrapping_add(1));
-                self.0.last_update_id.set(vars.update_id());
-            }
-            self.0.version_checked.set(source_version);
-        }
-        unsafe { &*self.0.value.get() }.unwrap()
-    }
-
-    /// Gets the value if [`is_new`](Self::is_new).
-    pub fn get_new<'a, Vw: AsRef<Vars>>(&'a self, vars: &'a Vw) -> Option<&'a B> {
-        let vars = vars.as_ref();
-
-        if self.0.source.is_new(vars) {
-            let value = self.get(vars);
-            if self.0.last_update_id.get() == vars.update_id() {
-                Some(value)
-            } else {
-                None
-            }
-        } else {
-            None
-        }
-    }
-
-    /// Gets if the value updated in the last update.
-    ///
-    /// Returns `true` if the source var is new and the new value was approved by the filter.
-    #[inline]
-    pub fn is_new<Vw: WithVars>(&self, vars: &Vw) -> bool {
-        vars.with_vars(|vars| self.get_new(vars).is_some())
-    }
-
-    /// Gets the up-to-date value version.
-    #[inline]
-    pub fn version<Vr: WithVarsRead>(&self, vars: &Vr) -> VarVersion {
-        vars.with_vars_read(|vars| {
-            let _ = self.get(vars);
-            VarVersion::normal(self.0.version.get())
-        })
-    }
-
-    /// If the source variable is currently read-only. You can only map-back when the source is read-write.
-    #[inline]
-    pub fn is_read_only<Vw: WithVars>(&self, vars: &Vw) -> bool {
-        self.0.source.is_read_only(vars)
-    }
-
-    /// If the source variable is always read-only. If `true` you can never map-back a value so this variable
-    /// is equivalent to a [`RcMapVar`].
-    #[inline]
-    pub fn always_read_only(&self) -> bool {
-        self.0.source.always_read_only()
-    }
-
-    /// If the source variable is contextual. If `true` this variable deep-clones instead of only cloning references.
-    #[inline]
-    pub fn is_contextual(&self) -> bool {
-        self.0.source.is_contextual()
-    }
-
-    /// If the source variable value can change.
-    #[inline]
-    pub fn can_update(&self) -> bool {
-        self.0.source.can_update()
-    }
-
-    /// Schedules a `map -> modify -> map_back -> set` chain.
-    fn modify<Vw, Mo>(&self, vars: &Vw, modify: Mo) -> Result<(), VarIsReadOnly>
-    where
-        Vw: WithVars,
-        Mo: FnOnce(VarModify<B>) + 'static,
-    {
-        let self_ = self.clone();
-        self.0.source.modify(vars, move |mut source_value| {
-            if let Some(mut mapped_value) = self_.0.map.borrow_mut()(&source_value) {
-                let mut touched = false;
-                modify(VarModify::new(&mut mapped_value, &mut touched));
-                if touched {
-                    if let Some(new_value) = self_.0.map_back.borrow_mut()(mapped_value) {
-                        *source_value = new_value;
-                    }
-                }
-            }
-        })
-    }
-
-    /// Map back the value and schedules a `set` in the source variable if the map-back function returned a value.
-    ///
-    /// Returns `Err(VarIsReadOnly)` if the source variable is currently read-only. Returns `Ok(bool)` where the `bool`
-    /// indicates if the map-back function produced some value.
-    fn set<Vw, Nv>(&self, vars: &Vw, new_value: Nv) -> Result<bool, VarIsReadOnly>
-    where
-        Vw: WithVars,
-        Nv: Into<B>,
-    {
-        if self.0.source.is_read_only(vars) {
-            Err(VarIsReadOnly)
-        } else if let Some(new_value) = self.0.map_back.borrow_mut()(new_value.into()) {
-            self.0.source.set(vars, new_value).map(|_| true)
-        } else {
-            Ok(false)
-        }
-    }
-
-    /// If the current value is not equal to `new_value` maps back the value and schedules a `set` in the source variable
-    /// if the map-back function returned a value.
-    ///
-    /// Returns `Err(VarIsReadOnly)` if the source variable is currently read-only. Returns `Ok(bool)` where the `bool`
-    /// indicates if the source variable will update.
-    fn set_ne<Vw, Nv>(&self, vars: &Vw, new_value: Nv) -> Result<bool, VarIsReadOnly>
-    where
-        Vw: WithVars,
-        Nv: Into<B>,
-        B: PartialEq,
-    {
-        if self.0.source.is_read_only(vars) {
-            Err(VarIsReadOnly)
-        } else {
-            let new_value = new_value.into();
-            vars.with_vars(|vars| {
-                if self.get(vars) != &new_value {
-                    if let Some(new_value) = self.0.map_back.borrow_mut()(new_value) {
-                        let _ = self.0.source.set(vars, new_value);
-                        Ok(true)
-                    } else {
-                        Ok(false)
-                    }
-                } else {
-                    Ok(false)
-                }
-            })
-        }
-    }
-
     /// Convert to a [`RcFilterMapVar`] if `self` is the only reference.
     #[inline]
     pub fn into_filter_map(self) -> Result<RcFilterMapVar<A, B, I, M, S>, Self> {
@@ -527,16 +456,10 @@ where
         }
     }
 
-    /// Gets the number of [`RcFilterMapVar`] that point to this same variable.
+    /// Create a weak reference to the variable.
     #[inline]
-    pub fn strong_count(&self) -> usize {
-        Rc::strong_count(&self.0)
-    }
-
-    /// Returns `true` if `self` and `other` are the same variable.
-    #[inline]
-    pub fn ptr_eq(&self, other: &Self) -> bool {
-        Rc::ptr_eq(&self.0, &other.0)
+    pub fn downgrade(&self) -> WeakRcFilterMapBidiVar<A, B, I, M, N, S> {
+        WeakRcFilterMapBidiVar(Rc::downgrade(&self.0))
     }
 }
 impl<A, B, I, M, N, S> Clone for RcFilterMapBidiVar<A, B, I, M, N, S>
@@ -575,12 +498,53 @@ where
 
     #[inline]
     fn get<'a, Vr: AsRef<VarsRead>>(&'a self, vars: &'a Vr) -> &'a B {
-        self.get(vars)
+        let vars = vars.as_ref();
+        // SAFETY: access to value is safe because `source` needs a `&mut Vars` to change its version
+        // and we change the value only in the first call to `get` with the new source version.
+
+        let source_version = self.0.source.version(vars);
+
+        if self.0.version.get() == 0 {
+            let source_value = self.0.source.get(vars);
+            let new_value = self.0.map.borrow_mut()(source_value).unwrap_or_else(|| {
+                let init = unsafe { &mut *self.0.value.get() }.unwrap_init();
+                init(source_value)
+            });
+
+            unsafe {
+                *self.0.value.get() = FilterMapValue::Value(new_value);
+            }
+
+            self.0.version.set(1);
+            self.0.version_checked.set(source_version);
+            self.0.last_update_id.set(vars.update_id());
+        } else if source_version != self.0.version_checked.get() {
+            if let Some(new_value) = self.0.map.borrow_mut()(self.0.source.get(vars)) {
+                unsafe {
+                    *self.0.value.get() = FilterMapValue::Value(new_value);
+                }
+                self.0.version.set(self.0.version.get().wrapping_add(1));
+                self.0.last_update_id.set(vars.update_id());
+            }
+            self.0.version_checked.set(source_version);
+        }
+        unsafe { &*self.0.value.get() }.unwrap()
     }
 
     #[inline]
     fn get_new<'a, Vw: AsRef<Vars>>(&'a self, vars: &'a Vw) -> Option<&'a B> {
-        self.get_new(vars)
+        let vars = vars.as_ref();
+
+        if self.0.source.is_new(vars) {
+            let value = self.get(vars);
+            if self.0.last_update_id.get() == vars.update_id() {
+                Some(value)
+            } else {
+                None
+            }
+        } else {
+            None
+        }
     }
 
     #[inline]
@@ -590,17 +554,20 @@ where
 
     #[inline]
     fn is_new<Vw: WithVars>(&self, vars: &Vw) -> bool {
-        self.is_new(vars)
+        vars.with_vars(|vars| self.get_new(vars).is_some())
     }
 
     #[inline]
     fn version<Vr: WithVarsRead>(&self, vars: &Vr) -> VarVersion {
-        self.version(vars)
+        vars.with_vars_read(|vars| {
+            let _ = self.get(vars);
+            VarVersion::normal(self.0.version.get())
+        })
     }
 
     #[inline]
     fn is_read_only<Vw: WithVars>(&self, vars: &Vw) -> bool {
-        self.is_read_only(vars)
+        self.0.source.is_read_only(vars)
     }
 
     #[inline]
@@ -610,17 +577,17 @@ where
 
     #[inline]
     fn always_read_only(&self) -> bool {
-        self.always_read_only()
+        self.0.source.always_read_only()
     }
 
     #[inline]
     fn is_contextual(&self) -> bool {
-        self.is_contextual()
+        self.0.source.is_contextual()
     }
 
     #[inline]
     fn can_update(&self) -> bool {
-        self.can_update()
+        self.0.source.can_update()
     }
 
     #[inline]
@@ -629,7 +596,18 @@ where
         Vw: WithVars,
         Mo: FnOnce(VarModify<B>) + 'static,
     {
-        self.modify(vars, modify)
+        let self_ = self.clone();
+        self.0.source.modify(vars, move |mut source_value| {
+            if let Some(mut mapped_value) = self_.0.map.borrow_mut()(&source_value) {
+                let mut touched = false;
+                modify(VarModify::new(&mut mapped_value, &mut touched));
+                if touched {
+                    if let Some(new_value) = self_.0.map_back.borrow_mut()(mapped_value) {
+                        *source_value = new_value;
+                    }
+                }
+            }
+        })
     }
 
     #[inline]
@@ -638,7 +616,13 @@ where
         Vw: WithVars,
         Nv: Into<B>,
     {
-        self.set(vars, new_value).map(|_| ())
+        if self.0.source.is_read_only(vars) {
+            Err(VarIsReadOnly)
+        } else if let Some(new_value) = self.0.map_back.borrow_mut()(new_value.into()) {
+            self.0.source.set(vars, new_value)
+        } else {
+            Ok(())
+        }
     }
 
     #[inline]
@@ -648,7 +632,23 @@ where
         Nv: Into<B>,
         B: PartialEq,
     {
-        self.set_ne(vars, new_value)
+        if self.0.source.is_read_only(vars) {
+            Err(VarIsReadOnly)
+        } else {
+            let new_value = new_value.into();
+            vars.with_vars(|vars| {
+                if self.get(vars) != &new_value {
+                    if let Some(new_value) = self.0.map_back.borrow_mut()(new_value) {
+                        let _ = self.0.source.set(vars, new_value);
+                        Ok(true)
+                    } else {
+                        Ok(false)
+                    }
+                } else {
+                    Ok(false)
+                }
+            })
+        }
     }
 
     #[inline]
@@ -660,9 +660,27 @@ where
     fn into_read_only(self) -> Self::AsReadOnly {
         ReadOnlyVar::new(self)
     }
-
+    #[inline]
     fn update_mask<Vr: WithVarsRead>(&self, vars: &Vr) -> UpdateMask {
         self.0.source.update_mask(vars)
+    }
+
+    type Weak = WeakRcFilterMapBidiVar<A, B, I, M, N, S>;
+    #[inline]
+    fn is_rc(&self) -> bool {
+        true
+    }
+    #[inline]
+    fn downgrade(&self) -> Option<Self::Weak> {
+        Some(self.downgrade())
+    }
+    #[inline]
+    fn weak_count(&self) -> usize {
+        Rc::weak_count(&self.0)
+    }
+    #[inline]
+    fn as_ptr(&self) -> *const () {
+        Rc::as_ptr(&self.0) as _
     }
 }
 impl<A, B, I, M, N, S> IntoVar<B> for RcFilterMapBidiVar<A, B, I, M, N, S>

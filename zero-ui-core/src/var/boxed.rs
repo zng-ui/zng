@@ -1,13 +1,78 @@
 use super::*;
 
-/// A [`Var`] in a box.
-///
-/// This type uses dynamic dispatch to access the generic methods of [`Var`], in exchange
-/// it can store any type of var.
+/// A dynamic [`Var<T>`] in a box.
 pub type BoxedVar<T> = Box<dyn VarBoxed<T>>;
 
+/// A dynamic [`WeakVar<T>`] in a box.
+pub type BoxedWeakVar<T> = Box<dyn WeakVarBoxed<T>>;
+
 #[doc(hidden)]
-pub trait VarBoxed<T: VarValue> {
+pub trait WeakVarBoxed<T: VarValue>: crate::private::Sealed {
+    fn upgrade_boxed(&self) -> Option<BoxedVar<T>>;
+    fn strong_count_boxed(&self) -> usize;
+    fn weak_count_boxed(&self) -> usize;
+    fn as_ptr_boxed(&self) -> *const ();
+    fn clone_boxed(&self) -> BoxedWeakVar<T>;
+}
+impl<T: VarValue, W: WeakVar<T>> WeakVarBoxed<T> for W {
+    #[inline]
+    fn upgrade_boxed(&self) -> Option<BoxedVar<T>> {
+        self.upgrade().map(|w| w.boxed())
+    }
+    #[inline]
+    fn strong_count_boxed(&self) -> usize {
+        self.strong_count()
+    }
+    #[inline]
+    fn weak_count_boxed(&self) -> usize {
+        self.weak_count()
+    }
+    #[inline]
+    fn as_ptr_boxed(&self) -> *const () {
+        self.as_ptr()
+    }
+    #[inline]
+    fn clone_boxed(&self) -> BoxedWeakVar<T> {
+        self.clone().boxed()
+    }
+}
+impl<T: VarValue> Clone for BoxedWeakVar<T> {
+    fn clone(&self) -> Self {
+        self.as_ref().clone_boxed()
+    }
+}
+impl<T: VarValue> crate::private::Sealed for BoxedWeakVar<T> {}
+impl<T: VarValue> WeakVar<T> for BoxedWeakVar<T> {
+    type Strong = BoxedVar<T>;
+
+    #[inline]
+    fn boxed(self) -> BoxedWeakVar<T>
+    where
+        Self: WeakVarBoxed<T> + Sized,
+    {
+        self
+    }
+
+    #[inline]
+    fn upgrade(&self) -> Option<Self::Strong> {
+        self.as_ref().upgrade_boxed()
+    }
+    #[inline]
+    fn strong_count(&self) -> usize {
+        self.as_ref().strong_count_boxed()
+    }
+    #[inline]
+    fn weak_count(&self) -> usize {
+        self.as_ref().weak_count_boxed()
+    }
+    #[inline]
+    fn as_ptr(&self) -> *const () {
+        self.as_ref().as_ptr_boxed()
+    }
+}
+
+#[doc(hidden)]
+pub trait VarBoxed<T: VarValue>: crate::private::Sealed {
     fn get_boxed<'a>(&'a self, vars: &'a VarsRead) -> &'a T;
     fn get_new_boxed<'a>(&'a self, vars: &'a Vars) -> Option<&'a T>;
     fn is_new_boxed(&self, vars: &Vars) -> bool;
@@ -23,6 +88,10 @@ pub trait VarBoxed<T: VarValue> {
     fn clone_boxed(&self) -> BoxedVar<T>;
     fn strong_count_boxed(&self) -> usize;
     fn update_mask_boxed(&self, vars: &VarsRead) -> UpdateMask;
+    fn is_rc_boxed(&self) -> bool;
+    fn downgrade_boxed(&self) -> Option<BoxedWeakVar<T>>;
+    fn weak_count_boxed(&self) -> usize;
+    fn as_ptr_boxed(&self) -> *const ();
 }
 impl<T: VarValue, V: Var<T>> VarBoxed<T> for V {
     #[inline]
@@ -99,6 +168,22 @@ impl<T: VarValue, V: Var<T>> VarBoxed<T> for V {
     fn update_mask_boxed(&self, vars: &VarsRead) -> UpdateMask {
         self.update_mask(vars)
     }
+    #[inline]
+    fn is_rc_boxed(&self) -> bool {
+        self.is_rc()
+    }
+    #[inline]
+    fn downgrade_boxed(&self) -> Option<BoxedWeakVar<T>> {
+        self.downgrade().map(|w| w.boxed())
+    }
+    #[inline]
+    fn weak_count_boxed(&self) -> usize {
+        self.weak_count()
+    }
+    #[inline]
+    fn as_ptr_boxed(&self) -> *const () {
+        self.as_ptr()
+    }
 }
 impl<T: VarValue> Clone for BoxedVar<T> {
     fn clone(&self) -> Self {
@@ -108,6 +193,7 @@ impl<T: VarValue> Clone for BoxedVar<T> {
 impl<T: VarValue> crate::private::Sealed for BoxedVar<T> {}
 impl<T: VarValue> Var<T> for BoxedVar<T> {
     type AsReadOnly = BoxedVar<T>;
+    type Weak = BoxedWeakVar<T>;
 
     #[inline]
     fn boxed(self) -> BoxedVar<T>
@@ -221,6 +307,26 @@ impl<T: VarValue> Var<T> for BoxedVar<T> {
 
     fn update_mask<Vr: WithVarsRead>(&self, vars: &Vr) -> UpdateMask {
         vars.with_vars_read(|vars| self.as_ref().update_mask_boxed(vars.as_ref()))
+    }
+
+    #[inline]
+    fn is_rc(&self) -> bool {
+        self.as_ref().is_rc_boxed()
+    }
+
+    #[inline]
+    fn downgrade(&self) -> Option<Self::Weak> {
+        self.as_ref().downgrade_boxed()
+    }
+
+    #[inline]
+    fn weak_count(&self) -> usize {
+        self.as_ref().weak_count_boxed()
+    }
+
+    #[inline]
+    fn as_ptr(&self) -> *const () {
+        self.as_ref().as_ptr_boxed()
     }
 }
 impl<T: VarValue> IntoVar<T> for BoxedVar<T> {

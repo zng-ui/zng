@@ -1,6 +1,6 @@
 use std::{
     cell::{Cell, RefCell, UnsafeCell},
-    rc::Rc,
+    rc::{Rc, Weak},
 };
 
 use once_cell::unsync::OnceCell;
@@ -142,18 +142,21 @@ impl<T: VarValue, V: Var<T>> RcCowVar<T, V> {
     /// You can use [`pass_through`] to create a pass-through variable.
     ///
     /// [`pass_through`]: Self::pass_through
-    #[inline]
     pub fn is_pass_through(&self) -> bool {
         self.0.flags.get().contains(Flags::IS_PASS_THROUGH)
     }
 
-    /// Reference the current value.
-    ///
-    /// The value can be from the source variable or a local clone if [`is_cloned`].
-    ///
-    /// [`is_cloned`]: Self::is_cloned
+    /// Returns a weak reference to the variable.
     #[inline]
-    pub fn get<'a, Vr: AsRef<VarsRead>>(&'a self, vars: &'a Vr) -> &'a T {
+    pub fn downgrade(&self) -> WeakRcCowVar<T, V> {
+        WeakRcCowVar(Rc::downgrade(&self.0))
+    }
+}
+impl<T: VarValue, V: Var<T>> crate::private::Sealed for RcCowVar<T, V> {}
+impl<T: VarValue, V: Var<T>> Var<T> for RcCowVar<T, V> {
+    type AsReadOnly = ReadOnlyVar<T, Self>;
+
+    fn get<'a, Vr: AsRef<VarsRead>>(&'a self, vars: &'a Vr) -> &'a T {
         let vars = vars.as_ref();
 
         if let Some(source) = self.source(vars) {
@@ -165,10 +168,7 @@ impl<T: VarValue, V: Var<T>> RcCowVar<T, V> {
         }
     }
 
-    /// Reference the current value if it [`is_new`].
-    ///
-    /// [`is_new`]: Self::is_new
-    pub fn get_new<'a, Vw: AsRef<Vars>>(&'a self, vars: &'a Vw) -> Option<&'a T> {
+    fn get_new<'a, Vw: AsRef<Vars>>(&'a self, vars: &'a Vw) -> Option<&'a T> {
         let vars = vars.as_ref();
 
         if let Some(source) = self.source(vars) {
@@ -180,14 +180,7 @@ impl<T: VarValue, V: Var<T>> RcCowVar<T, V> {
         }
     }
 
-    /// If the current value changed in the last update.
-    ///
-    /// Returns `true` is the source variable is new or if [`is_cloned`] returns if the
-    /// value was set in the previous update.
-    ///
-    /// [`is_cloned`]: Self::is_cloned
-    #[inline]
-    pub fn is_new<Vw: WithVars>(&self, vars: &Vw) -> bool {
+    fn is_new<Vw: WithVars>(&self, vars: &Vw) -> bool {
         vars.with_vars(|vars| {
             if let Some(source) = self.source(vars) {
                 source.is_new(vars)
@@ -197,15 +190,7 @@ impl<T: VarValue, V: Var<T>> RcCowVar<T, V> {
         })
     }
 
-    /// Gets the current value version.
-    ///
-    /// Returns the source variable version of if [`is_cloned`] returns the cloned version.
-    /// The source version is copied and incremented by one on the first *write*. Subsequent
-    /// *writes* increment the version by one.
-    ///
-    /// [`is_cloned`]: Self::is_cloned
-    #[inline]
-    pub fn version<Vr: WithVarsRead>(&self, vars: &Vr) -> VarVersion {
+    fn version<Vr: WithVarsRead>(&self, vars: &Vr) -> VarVersion {
         vars.with_vars_read(|vars| {
             if let Some(source) = self.source(vars) {
                 source.version(vars)
@@ -215,11 +200,7 @@ impl<T: VarValue, V: Var<T>> RcCowVar<T, V> {
         })
     }
 
-    /// Returns `false` unless [`is_pass_through`] and the source variable is read-only.
-    ///
-    /// [`is_pass_through`]: Self::is_pass_through.
-    #[inline]
-    pub fn is_read_only<Vw: WithVars>(&self, vars: &Vw) -> bool {
+    fn is_read_only<Vw: WithVars>(&self, vars: &Vw) -> bool {
         self.is_pass_through() && self.is_read_only(vars)
     }
 
@@ -232,341 +213,6 @@ impl<T: VarValue, V: Var<T>> RcCowVar<T, V> {
                 self.0.animation.borrow().0.upgrade().is_some()
             }
         })
-    }
-
-    /// Schedule a value modification for this variable.
-    ///
-    /// If [`is_pass_through`] pass the `modify` to the source variable, otherwise
-    /// clones the source variable and modifies that value on the first call and then
-    /// modified that cloned value in subsequent calls.
-    ///
-    /// Can return an error only if [`is_pass_through`], otherwise always succeeds.
-    ///
-    /// [`is_pass_through`]: Self::is_pass_through
-    #[inline]
-    pub fn modify<Vw, M>(&self, vars: &Vw, modify: M) -> Result<(), VarIsReadOnly>
-    where
-        Vw: WithVars,
-        M: FnOnce(VarModify<T>) + 'static,
-    {
-        vars.with_vars(|vars| {
-            if let Some(source) = self.source(vars) {
-                if self.is_pass_through() {
-                    return source.modify(vars, modify);
-                }
-
-                // SAFETY: this is safe because the `value` is not touched when `source` is some.
-                let value = unsafe { &mut *self.0.value.get() };
-                if value.is_none() {
-                    *value = Some(source.get_clone(vars));
-                    self.0.version.set(source.version(vars));
-                }
-            }
-
-            let self_ = self.clone();
-            let (animation, started_in) = vars.current_animation();
-            vars.push_change::<T>(Box::new(move |update_id| {
-                let mut prev_animation = self_.0.animation.borrow_mut();
-
-                if prev_animation.1 > started_in {
-                    // change caused by overwritten animation.
-                    return UpdateMask::none();
-                }
-
-                // SAFETY: this is safe because Vars requires a mutable reference to apply changes.
-                // the `modifying` flag is only used for `deep_clone`.
-                unsafe {
-                    *self_.0.source.get() = None;
-                }
-                self_.0.is_contextual.set(false);
-                let mut touched = false;
-                modify(VarModify::new(unsafe { &mut *self_.0.value.get() }.as_mut().unwrap(), &mut touched));
-                if touched {
-                    self_.0.last_update_id.set(update_id);
-                    self_.0.version.set(self_.0.version.get().wrapping_add(1));
-
-                    *prev_animation = (animation, started_in);
-
-                    *self_.0.update_mask.get_or_init(|| UpdateSlot::next().mask())
-                } else {
-                    UpdateMask::none()
-                }
-            }));
-
-            Ok(())
-        })
-    }
-
-    /// Causes the variable to notify update without changing the value.
-    ///
-    /// This counts as a *write* so unless [`is_pass_through`] is `true` the value will
-    /// be cloned and [`is_cloned`] set to `true` on touch.
-    ///
-    /// Can return an error only if [`is_pass_through`], otherwise always succeeds.
-    ///
-    /// [`is_pass_through`]: Self::is_pass_through
-    /// [`is_cloned`]: Self::is_cloned
-    #[inline]
-    pub fn touch<Vw: WithVars>(&self, vars: &Vw) -> Result<(), VarIsReadOnly> {
-        self.modify(vars, |mut v| v.touch())
-    }
-
-    /// Schedule a new value for this variable.
-    ///
-    /// If [`is_pass_through`] pass the `new_value` to the source variable, otherwise
-    /// the `new_value` will become the variable value on the next update. Unlike [`modify`]
-    /// and [`touch`] this method never clones the source variable.
-    ///
-    /// Can return an error only if [`is_pass_through`], otherwise always succeeds.
-    ///
-    /// [`is_pass_through`]: Self::is_pass_through
-    /// [`modify`]: Self::modify
-    /// [`touch`]: Self::touch
-    #[inline]
-    pub fn set<Vw, N>(&self, vars: &Vw, new_value: N) -> Result<(), VarIsReadOnly>
-    where
-        Vw: WithVars,
-        N: Into<T>,
-    {
-        let new_value = new_value.into();
-        vars.with_vars(|vars| {
-            if let Some(source) = self.source(vars) {
-                if self.is_pass_through() {
-                    return source.set(vars, new_value);
-                }
-
-                // SAFETY: this is safe because the `value` is not touched when `source` is some.
-                unsafe {
-                    *self.0.value.get() = Some(new_value);
-                }
-                self.0.version.set(source.version(vars));
-
-                let self_ = self.clone();
-                vars.push_change::<T>(Box::new(move |update_id| {
-                    // SAFETY: this is safe because Vars requires a mutable reference to apply changes.
-                    // the `modifying` flag is only used for `deep_clone`.
-                    unsafe {
-                        *self_.0.source.get() = None;
-                    }
-                    self_.0.last_update_id.set(update_id);
-                    self_.0.version.set(self_.0.version.get().wrapping_add(1));
-
-                    *self_.0.update_mask.get_or_init(|| UpdateSlot::next().mask())
-                }));
-            } else {
-                let self_ = self.clone();
-                vars.push_change::<T>(Box::new(move |update_id| {
-                    // SAFETY: this is safe because Vars requires a mutable reference to apply changes.
-                    // the `modifying` flag is only used for `deep_clone`.
-                    unsafe {
-                        *self_.0.value.get() = Some(new_value);
-                    }
-                    self_.0.last_update_id.set(update_id);
-                    self_.0.version.set(self_.0.version.get().wrapping_add(1));
-
-                    *self_.0.update_mask.get_or_init(|| UpdateSlot::next().mask())
-                }));
-            }
-
-            Ok(())
-        })
-    }
-
-    /// Schedule a transition animation for the variable.
-    ///
-    /// After the current app update finishes the variable will start animation from the current value to `new_value`
-    /// for the `duration` and transitioning by the `easing` function.
-    pub fn ease<Vw, N, F>(&self, vars: &Vw, new_value: N, duration: Duration, easing: F)
-    where
-        Vw: WithVars,
-        N: Into<T>,
-        F: Fn(EasingTime) -> EasingStep + 'static,
-
-        T: Transitionable,
-    {
-        let _ = <Self as Var<T>>::ease(self, vars, new_value, duration, easing);
-    }
-
-    /// Schedule a transition animation for the variable, but only if the current value is not equal to `new_value`.
-    ///
-    /// The variable is also updated using [`set_ne`] during animation. Returns `true` is scheduled an animation.
-    ///
-    /// [`set_ne`]: Self::set_ne
-    pub fn ease_ne<Vw, N, F>(&self, vars: &Vw, new_value: N, duration: Duration, easing: F)
-    where
-        Vw: WithVars,
-        N: Into<T>,
-        F: Fn(EasingTime) -> EasingStep + 'static,
-
-        T: PartialEq + Transitionable,
-    {
-        let _ = <Self as Var<T>>::ease_ne(self, vars, new_value, duration, easing);
-    }
-
-    /// Schedule a transition animation for the variable, from `new_value` to `then`.
-    ///
-    /// After the current app update finishes the variable will be set to `new_value`, then start animation from `new_value`
-    /// to `then` for the `duration` and transitioning by the `easing` function.
-    pub fn set_ease<Vw, N, Th, F>(&self, vars: &Vw, new_value: N, then: Th, duration: Duration, easing: F)
-    where
-        Vw: WithVars,
-        N: Into<T>,
-        Th: Into<T>,
-        F: Fn(EasingTime) -> EasingStep + 'static,
-
-        T: Transitionable,
-    {
-        let _ = <Self as Var<T>>::set_ease(self, vars, new_value, then, duration, easing);
-    }
-
-    /// Schedule a transition animation for the variable, from `new_value` to `then`, but checks for equality at every step.
-    ///
-    /// The variable is also updated using [`set_ne`] during animation. Returns `true` is scheduled an animation.
-    ///
-    /// [`set_ne`]: Self::set_ne
-    pub fn set_ease_ne<Vw, N, Th, F>(&self, vars: &Vw, new_value: N, then: Th, duration: Duration, easing: F)
-    where
-        Vw: WithVars,
-        N: Into<T>,
-        Th: Into<T>,
-        F: Fn(EasingTime) -> EasingStep + 'static,
-
-        T: PartialEq + Transitionable,
-    {
-        let _ = <Self as Var<T>>::set_ease_ne(self, vars, new_value, then, duration, easing);
-    }
-
-    /// Schedule a keyframed transition animation for the variable.
-    ///
-    /// After the current app update finishes the variable will start animation from the current value to the first key
-    /// in `keys`, going across all keys for the `duration`. The `easing` function applies across all keyframes, the interpolation
-    /// between keys is linear, use a full animation to control the easing between keys.
-    pub fn ease_keyed<Vw, F>(&self, vars: &Vw, keys: Vec<(Factor, T)>, duration: Duration, easing: F)
-    where
-        Vw: WithVars,
-        F: Fn(EasingTime) -> EasingStep + 'static,
-
-        T: Transitionable,
-    {
-        let _ = <Self as Var<T>>::ease_keyed(self, vars, keys, duration, easing);
-    }
-
-    /// Schedule a keyframed transition animation for the variable, starting from the first key.
-    ///
-    /// After the current app update finishes the variable will be set to to the first keyframe, then animated
-    /// across all other keys.
-    pub fn set_ease_keyed<Vw, F>(&self, vars: &Vw, keys: Vec<(Factor, T)>, duration: Duration, easing: F)
-    where
-        Vw: WithVars,
-        F: Fn(EasingTime) -> EasingStep + 'static,
-
-        T: Transitionable,
-    {
-        let _ = <Self as Var<T>>::set_ease_keyed(self, vars, keys, duration, easing);
-    }
-
-    /// Set the variable to `new_value` after a `delay`.
-    ///
-    /// The variable [`is_animating`] until the delay elapses and the value is set.
-    ///
-    /// [`is_animating`]: Var::is_animating
-    pub fn step<Vw, N>(&self, vars: &Vw, new_value: N, delay: Duration)
-    where
-        Vw: WithVars,
-        N: Into<T>,
-    {
-        let _ = <Self as Var<T>>::step(self, vars, new_value, delay);
-    }
-
-    /// Set the variable to `new_value` after a `delay`, but only if the new value is not equal to the current value.
-    ///
-    /// The variable [`is_animating`] until the delay elapses and the value is set.
-    ///
-    /// [`is_animating`]: Var::is_animating
-    pub fn step_ne<Vw, N>(&self, vars: &Vw, new_value: N, delay: Duration)
-    where
-        Vw: WithVars,
-        N: Into<T>,
-        T: PartialEq,
-    {
-        let _ = <Self as Var<T>>::step_ne(self, vars, new_value, delay);
-    }
-
-    /// Set the variable to a sequence of values as a time `duration` elapses.
-    ///
-    /// An animation curve is used to find the first factor in `steps` above or at the curve line at the current time,
-    /// the variable is set to this step value, continuing animating across the next steps until the last or the animation end.
-    /// The variable [`is_animating`] from the start, even if no step applies and stays *animating* until the last *step* applies
-    /// or the duration is reached.
-    ///
-    /// # Examples
-    ///
-    /// Creates a variable that outputs text every 5% of a 5 seconds animation, advanced linearly.
-    ///
-    /// ```
-    /// # use zero_ui_core::{var::*, units::*, text::*};
-    /// # fn demo(text_var: impl Var<Text>, vars: &Vars) {
-    /// let steps = (0..=100).step_by(5).map(|i| (i.pct().fct(), formatx!("{i}%"))).collect();
-    /// # let _ =
-    /// text_var.steps(vars, steps, 5.secs(), easing::linear)
-    /// # ;}
-    /// ```
-    ///
-    /// The variable is set to `"0%"`, after 5% of the `duration` elapses it is set to `"5%"` and so on
-    /// until the value is set to `"100%` at the end of the animation.
-    ///
-    /// [`is_animating`]: Var::is_animating
-    pub fn steps<Vw, F>(&self, vars: &Vw, steps: Vec<(Factor, T)>, duration: Duration, easing: F)
-    where
-        Vw: WithVars,
-        F: Fn(EasingTime) -> EasingStep + 'static,
-    {
-        let _ = <Self as Var<T>>::steps(self, vars, steps, duration, easing);
-    }
-
-    /// Same behavior as [`steps`], but checks for equality before setting each step.
-    ///
-    /// [`steps`]: Var::steps
-    pub fn steps_ne<Vw, F>(&self, vars: &Vw, steps: Vec<(Factor, T)>, duration: Duration, easing: F)
-    where
-        Vw: WithVars,
-        F: Fn(EasingTime) -> EasingStep + 'static,
-        T: PartialEq,
-    {
-        let _ = <Self as Var<T>>::steps_ne(self, vars, steps, duration, easing);
-    }
-}
-impl<T: VarValue, V: Var<T>> crate::private::Sealed for RcCowVar<T, V> {}
-impl<T: VarValue, V: Var<T>> Var<T> for RcCowVar<T, V> {
-    type AsReadOnly = ReadOnlyVar<T, Self>;
-
-    fn get<'a, Vr: AsRef<VarsRead>>(&'a self, vars: &'a Vr) -> &'a T {
-        self.get(vars)
-    }
-
-    fn get_new<'a, Vw: AsRef<Vars>>(&'a self, vars: &'a Vw) -> Option<&'a T> {
-        self.get_new(vars)
-    }
-
-    fn is_new<Vw: WithVars>(&self, vars: &Vw) -> bool {
-        self.is_new(vars)
-    }
-
-    fn version<Vr: WithVarsRead>(&self, vars: &Vr) -> VarVersion {
-        self.version(vars)
-    }
-
-    fn is_read_only<Vw: WithVars>(&self, vars: &Vw) -> bool {
-        self.is_read_only(vars)
-    }
-
-    #[inline]
-    fn is_animating<Vr: WithVarsRead>(&self, vars: &Vr) -> bool {
-        self.is_animating(vars)
-    }
-
-    fn strong_count(&self) -> usize {
-        Rc::strong_count(&self.0)
     }
 
     /// Returns `false` unless [`is_pass_through`] and the source variable is always read-only.
@@ -607,19 +253,51 @@ impl<T: VarValue, V: Var<T>> Var<T> for RcCowVar<T, V> {
         Vw: WithVars,
         M: FnOnce(VarModify<T>) + 'static,
     {
-        self.modify(vars, modify)
-    }
+        vars.with_vars(|vars| {
+            if let Some(source) = self.source(vars) {
+                if self.is_pass_through() {
+                    return source.modify(vars, modify);
+                }
 
-    fn set<Vw, N>(&self, vars: &Vw, new_value: N) -> Result<(), VarIsReadOnly>
-    where
-        Vw: WithVars,
-        N: Into<T>,
-    {
-        self.set(vars, new_value)
-    }
+                // SAFETY: this is safe because the `value` is not touched when `source` is some.
+                let value = unsafe { &mut *self.0.value.get() };
+                if value.is_none() {
+                    *value = Some(source.get_clone(vars));
+                    self.0.version.set(source.version(vars));
+                }
+            }
 
-    fn touch<Vw: WithVars>(&self, vars: &Vw) -> Result<(), VarIsReadOnly> {
-        self.touch(vars)
+            let self_ = self.clone();
+            let (animation, started_in) = vars.current_animation();
+            vars.push_change::<T>(Box::new(move |update_id| {
+                let mut prev_animation = self_.0.animation.borrow_mut();
+
+                if prev_animation.1 > started_in {
+                    // change caused by overwritten animation.
+                    return UpdateMask::none();
+                }
+
+                // SAFETY: this is safe because Vars requires a mutable reference to apply changes.
+                unsafe {
+                    *self_.0.source.get() = None;
+                }
+                self_.0.is_contextual.set(false);
+                let mut touched = false;
+                modify(VarModify::new(unsafe { &mut *self_.0.value.get() }.as_mut().unwrap(), &mut touched));
+                if touched {
+                    self_.0.last_update_id.set(update_id);
+                    self_.0.version.set(self_.0.version.get().wrapping_add(1));
+
+                    *prev_animation = (animation, started_in);
+
+                    *self_.0.update_mask.get_or_init(|| UpdateSlot::next().mask())
+                } else {
+                    UpdateMask::none()
+                }
+            }));
+
+            Ok(())
+        })
     }
 
     fn into_read_only(self) -> Self::AsReadOnly {
@@ -637,11 +315,62 @@ impl<T: VarValue, V: Var<T>> Var<T> for RcCowVar<T, V> {
             })
         })
     }
+
+    type Weak = WeakRcCowVar<T, V>;
+
+    #[inline]
+    fn is_rc(&self) -> bool {
+        true
+    }
+
+    fn downgrade(&self) -> Option<Self::Weak> {
+        Some(self.downgrade())
+    }
+
+    fn strong_count(&self) -> usize {
+        Rc::strong_count(&self.0)
+    }
+
+    fn weak_count(&self) -> usize {
+        Rc::weak_count(&self.0)
+    }
+
+    fn as_ptr(&self) -> *const () {
+        Rc::as_ptr(&self.0) as _
+    }
 }
 impl<T: VarValue, V: Var<T>> IntoVar<T> for RcCowVar<T, V> {
     type Var = Self;
 
     fn into_var(self) -> Self::Var {
         self
+    }
+}
+
+/// A weak reference to a [`RcCowVar`].
+pub struct WeakRcCowVar<T: VarValue, V: Var<T>>(Weak<CowData<T, V>>);
+impl<T: VarValue, V: Var<T>> crate::private::Sealed for WeakRcCowVar<T, V> {}
+impl<T: VarValue, V: Var<T>> Clone for WeakRcCowVar<T, V> {
+    fn clone(&self) -> Self {
+        WeakRcCowVar(self.0.clone())
+    }
+}
+impl<T: VarValue, V: Var<T>> WeakVar<T> for WeakRcCowVar<T, V> {
+    type Strong = RcCowVar<T, V>;
+
+    fn upgrade(&self) -> Option<Self::Strong> {
+        self.0.upgrade().map(RcCowVar)
+    }
+
+    fn strong_count(&self) -> usize {
+        self.0.strong_count()
+    }
+
+    fn weak_count(&self) -> usize {
+        self.0.weak_count()
+    }
+
+    fn as_ptr(&self) -> *const () {
+        self.0.as_ptr() as *const ()
     }
 }

@@ -11,7 +11,7 @@ use crate::{
     render::*,
     service::Service,
     units::DipPoint,
-    var::{impl_from_and_into_var, WithVarsRead},
+    var::{impl_from_and_into_var, WithVarsRead, Var},
     widget_info::WidgetPath,
     window::{WindowId, Windows},
     WidgetId,

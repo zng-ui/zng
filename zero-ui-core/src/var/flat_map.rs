@@ -8,6 +8,59 @@ use crate::widget_info::UpdateSlot;
 
 use super::*;
 
+/// A weak reference to a [`RcFlatMapVar`].
+pub struct WeakRcFlatMapVar<A, B, V, M, S>(Weak<MapData<A, B, V, M, S>>);
+impl<A, B, V, M, S> crate::private::Sealed for WeakRcFlatMapVar<A, B, V, M, S>
+where
+    A: VarValue,
+    B: VarValue,
+    V: Var<B>,
+    M: FnMut(&A) -> V + 'static,
+    S: Var<A>,
+{
+    fn clone(&self) -> Self {
+        Self(self.0.clone())
+    }
+}
+impl<A, B, V, M, S> Clone for WeakRcFlatMapVar<A, B, V, M, S>
+where
+    A: VarValue,
+    B: VarValue,
+    V: Var<B>,
+    M: FnMut(&A) -> V + 'static,
+    S: Var<A>,
+{
+    fn clone(&self) -> Self {
+        Self(self.0.clone())
+    }
+}
+impl<A, B, V, M, S> WeakVar<B> for WeakRcFlatMapVar<A, B, V, M, S>
+where
+    A: VarValue,
+    B: VarValue,
+    V: Var<B>,
+    M: FnMut(&A) -> V + 'static,
+    S: Var<A>,
+{
+    type Strong = RcFlatMapVar<A, B, V, M, S>;
+
+    fn upgrade(&self) -> Option<Self::Strong> {
+        self.0.upgrade().map(WeakRcFlatMapVar)
+    }
+
+    fn strong_count(&self) -> usize {
+        self.0.strong_count()
+    }
+
+    fn weak_count(&self) -> usize {
+        self.0.weak_count()
+    }
+
+    fn as_ptr(&self) -> *const () {
+        self.0.as_ptr() as _
+    }
+}
+
 /// A [`Var`] that maps from and to another var selected from a source var and is a [`Rc`] pointer to its value.
 pub struct RcFlatMapVar<A, B, V, M, S>(Rc<MapData<A, B, V, M, S>>)
 where
@@ -159,6 +212,7 @@ where
         vars.with_vars_read(|vars| self.var(vars).is_animating(vars))
     }
 
+    #[inline]
     fn always_read_only(&self) -> bool {
         false
     }
@@ -168,6 +222,7 @@ where
         self.0.source.is_contextual() || self.0.source.can_update() || self.0.var_is_contextual.get()
     }
 
+    #[inline]
     fn can_update(&self) -> bool {
         true
     }
@@ -190,10 +245,12 @@ where
         vars.with_vars(|vars| self.var(vars).modify(vars, modify))
     }
 
+    #[inline]
     fn strong_count(&self) -> usize {
         Rc::strong_count(&self.0)
     }
 
+    #[inline]
     fn into_read_only(self) -> Self::AsReadOnly {
         ReadOnlyVar::new(self)
     }
@@ -202,6 +259,28 @@ where
         let mut mask = self.0.source.update_mask(vars);
         mask.insert(self.0.update_slot);
         mask
+    }
+
+    type Weak = WeakRcFlatMapVar<A, B, V, M, S>;
+
+    #[inline]
+    fn is_rc(&self) -> bool {
+        true
+    }
+
+    #[inline]
+    fn downgrade(&self) -> Option<Self::Weak> {
+        Some(self.downgrade())
+    }
+
+    #[inline]
+    fn weak_count(&self) -> usize {
+        Rc::weak_count(&self.0)
+    }
+
+    #[inline]
+    fn as_ptr(&self) -> *const () {
+        Rc::as_ref(&self.0) as _
     }
 }
 impl<A, B, V, M, S> IntoVar<B> for RcFlatMapVar<A, B, V, M, S>

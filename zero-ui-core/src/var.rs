@@ -4,6 +4,7 @@ use std::{
     cell::Cell,
     convert::{TryFrom, TryInto},
     fmt,
+    marker::PhantomData,
     ops::{Deref, DerefMut},
     str::FromStr,
     time::Duration,
@@ -306,6 +307,75 @@ pub trait IntoVar<T: VarValue>: Clone {
 pub trait IntoValue<T: fmt::Debug>: Into<T> + Clone {}
 impl<T: fmt::Debug + Clone> IntoValue<T> for T {}
 
+/// Represents a weak reference to a [`Var<T>`] that is a shared pointer.
+pub trait WeakVar<T: VarValue>: Clone + crate::private::Sealed + 'static {
+    /// The strong var type.
+    type Strong: Var<T>;
+
+    /// Gets the variable if it still exists.
+    fn upgrade(&self) -> Option<Self::Strong>;
+
+    /// Gets the number of strong references to the variable.
+    fn strong_count(&self) -> usize;
+
+    /// Gets the number of weak references to the variable.
+    ///
+    /// If no strong references remain, returns zero.
+    fn weak_count(&self) -> usize;
+
+    /// Gets an opaque raw pointer to the shared variable inner data.
+    ///
+    /// This can only be used for comparisons, the only guarantee about the inner data is that it is not dynamic.
+    fn as_ptr(&self) -> *const ();
+
+    /// If `self` and `other` are both weak references to the same variable.
+    fn ptr_eq<W: WeakVar<T>>(&self, other: &W) -> bool {
+        self.as_ptr() == other.as_ptr()
+    }
+
+    /// Box this weak var.
+    #[inline]
+    fn boxed(self) -> BoxedWeakVar<T>
+    where
+        Self: WeakVarBoxed<T> + Sized,
+    {
+        Box::new(self)
+    }
+}
+
+#[doc(hidden)]
+pub struct NoneWeakVar<T: VarValue>(PhantomData<T>);
+impl<T: VarValue> Clone for NoneWeakVar<T> {
+    fn clone(&self) -> Self {
+        Self(PhantomData)
+    }
+}
+impl<T: VarValue> Default for NoneWeakVar<T> {
+    fn default() -> Self {
+        Self(PhantomData)
+    }
+}
+impl<T: VarValue> crate::private::Sealed for NoneWeakVar<T> {}
+impl<T: VarValue> WeakVar<T> for NoneWeakVar<T> {
+    type Strong = OwnedVar<T>;
+
+    fn upgrade(&self) -> Option<Self::Strong> {
+        None
+    }
+
+    fn strong_count(&self) -> usize {
+        0
+    }
+
+    fn weak_count(&self) -> usize {
+        0
+    }
+
+    fn as_ptr(&self) -> *const () {
+        std::ptr::null()
+    }
+}
+
 /// Represents an observable value.
 ///
 /// This trait is [sealed] and cannot be implemented for types outside of `zero_ui_core`.
@@ -329,6 +399,9 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + crate::private::Sealed + 'stati
 
     /// The variable type that represents a read-only version of this type.
     type AsReadOnly: Var<T>;
+
+    /// The type of an weak reference to the variable, if it is a shared reference.
+    type Weak: WeakVar<T>;
 
     // TODO when GATs are stable:
     // type Map<B: VarValue, M: FnMut(&T) -> B> : Var<B>;
@@ -534,8 +607,13 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + crate::private::Sealed + 'stati
     /// map variables can also deep clone instead of only cloning a reference.
     ///
     /// **Note** this can change only from `true` to `false` and only once because of the [`RcCowVar<T>`]. Variables
-    /// like [`switch_var!`] always return `true` if any of the dependencies is contextual.
+    /// like [`switch_var!`] always return `true` if any of the dependencies are contextual.
     fn is_contextual(&self) -> bool;
+
+    /// If the variable is implemented as a shared reference to the value.
+    ///
+    /// If `true` cloning the variable is very cheap, only incrementing a reference count.
+    fn is_rc(&self) -> bool;
 
     /// If the variable value can change.
     ///
@@ -568,6 +646,39 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + crate::private::Sealed + 'stati
 
     /// Convert this variable to the value, if the variable is a reference, clones the value.
     fn into_value<Vr: WithVarsRead>(self, vars: &Vr) -> T;
+
+    /// Returns a weak reference to the variable if it [`is_rc`].
+    ///
+    /// [`is_rc`]
+    fn downgrade(&self) -> Option<Self::Weak>;
+
+    /// Returns the number of strong references to this variable if it [`is_rc`].
+    ///
+    /// Returns zero if the variable is not implemented as a shared reference.
+    ///
+    /// [`is_rc`]
+    fn strong_count(&self) -> usize;
+
+    /// Returns the number of weak references to this variable if it [`is_rc`].
+    ///
+    /// [`is_rc`]
+    fn weak_count(&self) -> usize;
+
+    /// Returns an opaque pointer to the variable inner data.
+    ///
+    /// This is only useful for identifying the variable, the only guarantee is that the inner data is not dynamic.
+    fn as_ptr(&self) -> *const ();
+
+    /// Returns `true` if both `self` and `other` point to the same variable if both are [rc].
+    ///
+    /// Returns `false` if either pointer is null.
+    ///
+    /// [rc]: Self::is_rc
+    fn ptr_eq<V: Var<T>>(&self, other: &V) -> bool {
+        let a = self.as_ptr();
+        let b = other.as_ptr();
+        a == b && a != std::ptr::null() && b != std::ptr::null()
+    }
 
     /// Schedule a modification of the variable value.
     ///
@@ -893,25 +1004,17 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + crate::private::Sealed + 'stati
 
     /// Wraps the variable into another that turns assigns into transition animations.
     ///
-    /// Redirects calls to [`Var::set`] to [`Var::ease`] and [`Var::set_ne`] to [`Var::ease_ne`].
-    ///
-    /// Note that the `easing` closure must be cloneable, if it is not automatically wrap it into a [`Rc`].
-    ///
-    /// [`Rc`]: std::rc::Rc
+    /// Redirects calls to [`Var::set`] to [`Var::ease`] and [`Var::set_ne`] to [`Var::ease_ne`], calls to the
+    /// methods that create animations by default are not affected by the var easing.
     #[inline]
     fn easing<F>(self, duration: Duration, easing: F) -> easing::EasingVar<T, Self, F>
     where
-        F: Fn(EasingTime) -> EasingStep + Clone + 'static,
+        F: Fn(EasingTime) -> EasingStep + 'static,
 
         T: Transitionable,
     {
         easing::EasingVar::new(self, duration, easing)
     }
-
-    /// Gets the number of references to this variable.
-    ///
-    /// Returns `0` if the variable is not shareable.
-    fn strong_count(&self) -> usize;
 
     /// Box this var.
     #[inline]
@@ -972,7 +1075,7 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + crate::private::Sealed + 'stati
     fn map_ref<O, M>(&self, map: M) -> MapRefVar<T, O, M, Self>
     where
         O: VarValue,
-        M: Fn(&T) -> &O + Clone + 'static,
+        M: Fn(&T) -> &O + 'static,
     {
         MapRefVar::new(self.clone(), map)
     }
@@ -1014,8 +1117,8 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + crate::private::Sealed + 'stati
     fn map_ref_bidi<O, M, N>(&self, map: M, map_mut: N) -> MapBidiRefVar<T, O, M, N, Self>
     where
         O: VarValue,
-        M: Fn(&T) -> &O + Clone + 'static,
-        N: Fn(&mut T) -> &mut O + Clone + 'static,
+        M: Fn(&T) -> &O + 'static,
+        N: Fn(&mut T) -> &mut O + 'static,
     {
         MapBidiRefVar::new(self.clone(), map, map_mut)
     }

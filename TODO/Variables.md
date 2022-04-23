@@ -6,6 +6,8 @@
 * Variable that starts animating on first `get`.
 * Modify animate (just called `animate`?).
 * Time dilation control.
+* Drop animation if var is dropped. Need Var::WeakVar type.
+* `Var::repeat`.
 
 ```rust
 trait Var {

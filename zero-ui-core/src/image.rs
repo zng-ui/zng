@@ -17,7 +17,7 @@ use crate::{
     task::{self, fs, io::*, ui::UiTask},
     text::Text,
     units::*,
-    var::{var, RcVar, Var, Vars, WeakVar},
+    var::{var, RcVar, Var, Vars, WeakRcVar, WeakVar},
 };
 
 mod types;
@@ -270,7 +270,7 @@ pub struct Images {
     loading: Vec<(UiTask<ImageData>, RcVar<Image>, ByteLength)>,
     decoding: Vec<(ImageDataFormat, IpcBytes, RcVar<Image>)>,
     cache: IdMap<ImageHash, CacheEntry>,
-    not_cached: Vec<(WeakVar<Image>, ByteLength)>,
+    not_cached: Vec<(WeakRcVar<Image>, ByteLength)>,
 
     render: ImagesRender,
 }

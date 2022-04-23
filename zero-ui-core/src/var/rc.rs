@@ -53,68 +53,6 @@ impl<T: VarValue> RcVar<T> {
         }))
     }
 
-    /// Reference the current value.
-    #[inline]
-    pub fn get<'a, Vr: AsRef<VarsRead>>(&'a self, vars: &'a Vr) -> &'a T {
-        let _vars = vars.as_ref();
-        // SAFETY: this is safe because we are tying the `Vars` lifetime to the value
-        // and we require `&mut Vars` to modify the value.
-        unsafe { &*self.0.value.get() }
-    }
-
-    /// Copy the current value.
-    #[inline]
-    pub fn copy<Vr: WithVarsRead>(&self, vars: &Vr) -> T
-    where
-        T: Copy,
-    {
-        vars.with_vars_read(|vars| *self.get(vars))
-    }
-
-    /// Clone the current value.
-    #[inline]
-    pub fn get_clone<Vr: WithVarsRead>(&self, vars: &Vr) -> T {
-        vars.with_vars_read(|vars| self.get(vars).clone())
-    }
-
-    /// Reference the current value if it [is new](Self::is_new).
-    #[inline]
-    pub fn get_new<'a, Vw: AsRef<Vars>>(&'a self, vars: &'a Vw) -> Option<&'a T> {
-        let vars = vars.as_ref();
-        if self.0.last_update_id.get() == vars.update_id() {
-            Some(self.get(vars))
-        } else {
-            None
-        }
-    }
-
-    /// Copy the current value if it [is new](Self::is_new).
-    #[inline]
-    pub fn copy_new<Vw: WithVars>(&self, vars: &Vw) -> Option<T>
-    where
-        T: Copy,
-    {
-        vars.with_vars(|vars| self.get_new(vars).copied())
-    }
-
-    /// Cline the current value if it [is new](Self::is_new).
-    #[inline]
-    pub fn clone_new<Vw: WithVars>(&self, vars: &Vw) -> Option<T> {
-        vars.with_vars(|vars| self.get_new(vars).cloned())
-    }
-
-    /// If the current value changed in the last update.
-    #[inline]
-    pub fn is_new<Vw: WithVars>(&self, vars: &Vw) -> bool {
-        vars.with_vars(|vars| self.0.last_update_id.get() == vars.update_id())
-    }
-
-    /// Gets the current value version.
-    #[inline]
-    pub fn version<Vr: WithVarsRead>(&self, vars: &Vr) -> VarVersion {
-        vars.with_vars_read(|_| VarVersion::normal(self.0.version.get()))
-    }
-
     /// Schedule a value modification for this variable.
     #[inline]
     pub fn modify<Vw, M>(&self, vars: &Vw, modify: M)
@@ -355,28 +293,10 @@ impl<T: VarValue> RcVar<T> {
         let _ = <Self as Var<T>>::steps_ne(self, vars, steps, duration, easing);
     }
 
-    /// Gets the number of [`RcVar`] that point to this same variable.
+    /// Returns a weak reference to the variable.
     #[inline]
-    pub fn strong_count(&self) -> usize {
-        Rc::strong_count(&self.0)
-    }
-
-    ///Gets the number of [`WeakVar`] that point to this variable.
-    #[inline]
-    pub fn weak_count(&self) -> usize {
-        Rc::weak_count(&self.0)
-    }
-
-    /// Returns `true` if `self` and `other` are the same variable.
-    #[inline]
-    pub fn ptr_eq(&self, other: &RcVar<T>) -> bool {
-        Rc::ptr_eq(&self.0, &other.0)
-    }
-
-    /// Creates a new [`WeakVar`] that points to this variable.
-    #[inline]
-    pub fn downgrade(&self) -> WeakVar<T> {
-        WeakVar(Rc::downgrade(&self.0))
+    pub fn downgrade(&self) -> WeakRcVar<T> {
+        WeakRcVar(Rc::downgrade(&self.0))
     }
 
     /// Create a detached var with a clone of the current value.
@@ -424,29 +344,37 @@ pub fn var_default<T: VarValue + Default>() -> RcVar<T> {
 }
 
 /// A weak reference to a [`RcVar`].
-pub struct WeakVar<T: VarValue>(Weak<Data<T>>);
-
-impl<T: VarValue> Clone for WeakVar<T> {
+pub struct WeakRcVar<T: VarValue>(Weak<Data<T>>);
+impl<T: VarValue> crate::private::Sealed for WeakRcVar<T> {}
+impl<T: VarValue> Clone for WeakRcVar<T> {
     fn clone(&self) -> Self {
-        WeakVar(self.0.clone())
+       WeakRcVar(self.0.clone())
     }
 }
+impl<T: VarValue> WeakVar<T> for WeakRcVar<T> {
+    type Strong = RcVar<T>;
 
-impl<T: VarValue> WeakVar<T> {
-    /// Attempts to upgrade to an [`RcVar`], returns `None` if the variable no longer exists.
-    pub fn upgrade(&self) -> Option<RcVar<T>> {
+    fn upgrade(&self) -> Option<Self::Strong> {
         self.0.upgrade().map(RcVar)
     }
 
-    /// Gets the number of strong references to the variable.
-    pub fn strong_count(&self) -> usize {
+    fn strong_count(&self) -> usize {
         self.0.strong_count()
+    }
+
+    fn weak_count(&self) -> usize {
+        self.0.weak_count()
+    }
+
+    fn as_ptr(&self) -> *const () {
+        self.0.as_ptr() as *const ()
     }
 }
 
 impl<T: VarValue> crate::private::Sealed for RcVar<T> {}
 impl<T: VarValue> Var<T> for RcVar<T> {
     type AsReadOnly = ReadOnlyVar<T, Self>;
+    type Weak = WeakRcVar<T>;
 
     #[inline]
     fn get<'a, Vr: AsRef<VarsRead>>(&'a self, vars: &'a Vr) -> &'a T {
@@ -526,8 +454,28 @@ impl<T: VarValue> Var<T> for RcVar<T> {
     }
 
     #[inline]
+    fn downgrade(&self) -> Option<Self::Weak> {
+        Some(self.downgrade())
+    }
+
+    #[inline]
     fn strong_count(&self) -> usize {
-        self.strong_count()
+        Rc::strong_count(&self.0)
+    }
+
+    #[inline]
+    fn weak_count(&self) -> usize {
+        Rc::weak_count(&self.0)
+    }
+
+    #[inline]
+    fn as_ptr(&self) -> *const () {
+        Rc::as_ptr(&self.0) as _
+    }
+
+    #[inline]
+    fn is_rc(&self) -> bool {
+        true
     }
 
     #[inline]
