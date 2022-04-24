@@ -649,25 +649,27 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + crate::private::Sealed + 'stati
 
     /// Returns a weak reference to the variable if it [`is_rc`].
     ///
-    /// [`is_rc`]
+    /// [`is_rc`]: Self::is_rc
     fn downgrade(&self) -> Option<Self::Weak>;
 
     /// Returns the number of strong references to this variable if it [`is_rc`].
     ///
     /// Returns zero if the variable is not implemented as a shared reference.
     ///
-    /// [`is_rc`]
+    /// [`is_rc`]: Self::is_rc
     fn strong_count(&self) -> usize;
 
     /// Returns the number of weak references to this variable if it [`is_rc`].
     ///
-    /// [`is_rc`]
+    /// [`is_rc`]: Self::is_rc
     fn weak_count(&self) -> usize;
 
     /// Returns an opaque pointer to the variable inner data.
     ///
     /// This is only useful for identifying the variable, the only guarantee is that the inner data is not dynamic. Variables
     /// that are not [`is_rc`] always return `null`.
+    /// 
+    /// [`is_rc`]: Self::is_rc
     fn as_ptr(&self) -> *const ();
 
     /// Returns `true` if both `self` and `other` point to the same address of if both pointers are null.
