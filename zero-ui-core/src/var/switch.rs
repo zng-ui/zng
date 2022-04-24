@@ -537,7 +537,7 @@ impl<O: VarValue, VI: Var<usize>> Var<O> for RcSwitchVar<O, VI> {
 
     #[inline]
     fn downgrade(&self) -> Option<Self::Weak> {
-        Rc::downgrade(&self.0).map(WeakRcSwitchVar)
+        Some(WeakRcSwitchVar(Rc::downgrade(&self.0)))
     }
 
     #[inline]
@@ -552,7 +552,7 @@ impl<O: VarValue, VI: Var<usize>> Var<O> for RcSwitchVar<O, VI> {
 
     #[inline]
     fn as_ptr(&self) -> *const () {
-        Rc::inline(&self.0) as _
+        Rc::as_ptr(&self.0) as _
     }
 }
 impl<O: VarValue, VI: Var<usize>> WeakVar<O> for WeakRcSwitchVar<O, VI> {
@@ -560,7 +560,7 @@ impl<O: VarValue, VI: Var<usize>> WeakVar<O> for WeakRcSwitchVar<O, VI> {
 
     #[inline]
     fn upgrade(&self) -> Option<Self::Strong> {
-        self.0.upgrade().map($RcMergeVar)
+        self.0.upgrade().map(RcSwitchVar)
     }
 
     #[inline]
