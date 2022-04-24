@@ -2,7 +2,7 @@ use super::*;
 
 use std::cell::Cell;
 use std::marker::PhantomData;
-use std::rc::Rc;
+use std::rc::{Rc, Weak};
 
 ///<span data-del-macro-root></span> Initializes a new switch var.
 ///
@@ -79,6 +79,7 @@ macro_rules! impl_rc_switch_var {
         $crate::paste!{
             impl_rc_switch_var!{
                 Var: [<RcSwitch $len Var>];// RcSwitch2Var
+                WeakVar: [<WeakRcSwitch $len Var>];// WeakRcSwitch2Var
                 Data: [<RcSwitch $len VarData>];// RcSwitch2VarData
                 len: $len;//2
                 V: $([<V $n>]),+;// V0, V1
@@ -90,6 +91,7 @@ macro_rules! impl_rc_switch_var {
 
     (
         Var: $RcSwitchVar:ident;
+        WeakVar: $WeakRcSwitchVar:ident;
         Data: $RcSwitchVarData:ident;
         len: $len:tt;
         V: $($V:ident),+;
@@ -98,6 +100,10 @@ macro_rules! impl_rc_switch_var {
     ) => {
         #[doc(hidden)]
         pub struct $RcSwitchVar<O: VarValue, $($V: Var<O>,)+ VI: Var<usize>>(Rc<$RcSwitchVarData<O, $($V,)+ VI>>);
+
+        #[doc(hidden)]
+        pub struct $WeakRcSwitchVar<O: VarValue, $($V: Var<O>,)+ VI: Var<usize>>(Weak<$RcSwitchVarData<O, $($V,)+ VI>>);
+
         struct $RcSwitchVarData<O: VarValue, $($V: Var<O>,)+ VI: Var<usize>> {
             _o: PhantomData<O>,
             vars: ($($V),+),
@@ -112,10 +118,7 @@ macro_rules! impl_rc_switch_var {
             pub fn new<$($IV: IntoVar<O, Var=$V>),+>(index: VI, vars: ($($IV),+)) -> Self {
                 Self::from_vars(index, ($(vars.$n.into_var()),+))
             }
-        }
 
-        #[allow(missing_docs)] // this is hidden
-        impl<O: VarValue, $($V: Var<O>,)+ VI: Var<usize>> $RcSwitchVar<O, $($V,)+ VI> {
             pub fn from_vars(index: VI, vars: ($($V),+)) -> Self {
                 Self(Rc::new($RcSwitchVarData {
                     _o: PhantomData,
@@ -129,6 +132,12 @@ macro_rules! impl_rc_switch_var {
         }
 
         impl<O: VarValue, $($V: Var<O>,)+ VI: Var<usize>>
+        crate::private::Sealed for $RcSwitchVar<O, $($V,)+ VI> { }
+
+        impl<O: VarValue, $($V: Var<O>,)+ VI: Var<usize>>
+        crate::private::Sealed for $WeakRcSwitchVar<O, $($V,)+ VI> { }
+
+        impl<O: VarValue, $($V: Var<O>,)+ VI: Var<usize>>
         Clone for $RcSwitchVar<O, $($V,)+ VI> {
             fn clone(&self) -> Self {
                 Self(Rc::clone(&self.0))
@@ -136,11 +145,16 @@ macro_rules! impl_rc_switch_var {
         }
 
         impl<O: VarValue, $($V: Var<O>,)+ VI: Var<usize>>
-        crate::private::Sealed for $RcSwitchVar<O, $($V,)+ VI> { }
+        Clone for $WeakRcSwitchVar<O, $($V,)+ VI> {
+            fn clone(&self) -> Self {
+                Self(self.0.clone())
+            }
+        }
 
         impl<O: VarValue, $($V: Var<O>,)+ VI: Var<usize>>
         Var<O> for $RcSwitchVar<O, $($V,)+ VI> {
             type AsReadOnly = ReadOnlyVar<O, Self>;
+            type Weak = $WeakRcSwitchVar<O, $($V,)+ VI>;
 
             fn get<'a, Vr: AsRef<VarsRead>>(&'a self, vars: &'a Vr) -> &'a O {
                 let vars = vars.as_ref();
@@ -230,11 +244,6 @@ macro_rules! impl_rc_switch_var {
                 self.0.index.can_update() || $(self.0.vars.$n.can_update())||+
             }
 
-            #[inline]
-            fn strong_count(&self) -> usize {
-                Rc::strong_count(&self.0)
-            }
-
             fn set<Vw, N>(&self, vars: &Vw, new_value: N) -> Result<(), VarIsReadOnly>
             where
                 Vw: WithVars,
@@ -287,6 +296,56 @@ macro_rules! impl_rc_switch_var {
                     r
                 })
             }
+
+            #[inline]
+            fn is_rc(&self) -> bool {
+                true
+            }
+
+            #[inline]
+            fn downgrade(&self) -> Option<Self::Weak> {
+                Some($WeakRcSwitchVar(Rc::downgrade(&self.0)))
+            }
+
+            #[inline]
+            fn strong_count(&self) -> usize {
+                Rc::strong_count(&self.0)
+            }
+
+            #[inline]
+            fn weak_count(&self) -> usize {
+                Rc::weak_count(&self.0)
+            }
+
+            #[inline]
+            fn as_ptr(&self) -> *const () {
+                Rc::as_ptr(&self.0) as _
+            }
+        }
+
+        impl<O: VarValue, $($V: Var<O>,)+ VI: Var<usize>>
+        WeakVar<O> for $WeakRcSwitchVar<O, $($V,)+ VI> {
+            type Strong = $RcSwitchVar<O, $($V,)+ VI>;
+
+            #[inline]
+            fn upgrade(&self) -> Option<Self::Strong> {
+                self.0.upgrade().map($RcSwitchVar)
+            }
+
+            #[inline]
+            fn strong_count(&self) -> usize {
+                self.0.strong_count()
+            }
+
+            #[inline]
+            fn weak_count(&self) -> usize {
+                self.0.weak_count()
+            }
+
+            #[inline]
+            fn as_ptr(&self) -> *const () {
+                self.0.as_ptr() as _
+            }
         }
 
         impl<O: VarValue, $($V: Var<O>,)+ VI: Var<usize>>
@@ -318,6 +377,10 @@ impl_rc_switch_var! {
 ///
 /// Don't use this type directly use the [macro](switch_var!) instead.
 pub struct RcSwitchVar<O: VarValue, VI: Var<usize>>(Rc<RcSwitchVarData<O, VI>>);
+
+/// A weak reference to a [`RcSwitchVar`].
+pub struct WeakRcSwitchVar<O: VarValue, VI: Var<usize>>(Weak<RcSwitchVarData<O, VI>>);
+
 struct RcSwitchVarData<O: VarValue, VI: Var<usize>> {
     vars: Box<[BoxedVar<O>]>,
     var_versions: Box<[VarVersionCell]>,
@@ -327,6 +390,7 @@ struct RcSwitchVarData<O: VarValue, VI: Var<usize>> {
 
     self_version: Cell<u32>,
 }
+
 impl<O: VarValue, VI: Var<usize>> RcSwitchVar<O, VI> {
     #[doc(hidden)]
     pub fn from_vars(index: VI, vars: Box<[BoxedVar<O>]>) -> Self {
@@ -339,65 +403,22 @@ impl<O: VarValue, VI: Var<usize>> RcSwitchVar<O, VI> {
             self_version: Cell::new(0),
         }))
     }
-
-    /// Gets the indexed variable value.
-    pub fn get<'a>(&'a self, vars: &'a Vars) -> &O {
-        <Self as Var<O>>::get(self, vars)
-    }
-
-    /// Gets if the index is new or the indexed variable value is new.
-    pub fn is_new(&self, vars: &Vars) -> bool {
-        <Self as Var<O>>::is_new(self, vars)
-    }
-
-    /// Gets the version.
-    ///
-    /// The version is new when the index variable changes
-    /// or when the indexed variable changes.
-    pub fn version(&self, vars: &Vars) -> VarVersion {
-        <Self as Var<O>>::version(self, vars)
-    }
-
-    /// Gets if the indexed variable is read-only.
-    pub fn is_read_only(&self, vars: &Vars) -> bool {
-        <Self as Var<O>>::is_read_only(self, vars)
-    }
-
-    /// Gets if all alternate variables are always read-only.
-    pub fn always_read_only(&self) -> bool {
-        <Self as Var<O>>::always_read_only(self)
-    }
-
-    /// Tries to set the indexed variable.
-    pub fn set<N>(&self, vars: &Vars, new_value: N) -> Result<(), VarIsReadOnly>
-    where
-        N: Into<O>,
-    {
-        <Self as Var<O>>::set(self, vars, new_value)
-    }
-
-    /// Tries to set the indexed variable, but only sets if the value is not equal.
-    pub fn set_ne<N>(&self, vars: &Vars, new_value: N) -> Result<bool, VarIsReadOnly>
-    where
-        N: Into<O>,
-        O: PartialEq,
-    {
-        <Self as Var<O>>::set_ne(self, vars, new_value)
-    }
-
-    /// Modify the indexed variable.
-    pub fn modify<F: FnOnce(VarModify<O>) + 'static>(&self, vars: &Vars, change: F) -> Result<(), VarIsReadOnly> {
-        <Self as Var<O>>::modify(self, vars, change)
-    }
 }
 impl<O: VarValue, VI: Var<usize>> Clone for RcSwitchVar<O, VI> {
     fn clone(&self) -> Self {
         RcSwitchVar(Rc::clone(&self.0))
     }
 }
+impl<O: VarValue, VI: Var<usize>> Clone for WeakRcSwitchVar<O, VI> {
+    fn clone(&self) -> Self {
+        Self(self.0.clone())
+    }
+}
 impl<O: VarValue, VI: Var<usize>> crate::private::Sealed for RcSwitchVar<O, VI> {}
+impl<O: VarValue, VI: Var<usize>> crate::private::Sealed for WeakRcSwitchVar<O, VI> {}
 impl<O: VarValue, VI: Var<usize>> Var<O> for RcSwitchVar<O, VI> {
     type AsReadOnly = ReadOnlyVar<O, Self>;
+    type Weak = WeakRcSwitchVar<O, VI>;
 
     fn get<'a, Vr: AsRef<VarsRead>>(&'a self, vars: &'a Vr) -> &'a O {
         let vars = vars.as_ref();
@@ -422,10 +443,6 @@ impl<O: VarValue, VI: Var<usize>> Var<O> for RcSwitchVar<O, VI> {
             Ok(r) => vars.with_vars_read(move |vars| Vec::from(r.vars).swap_remove(r.index.copy(vars)).into_value(vars)),
             Err(e) => RcSwitchVar(e).get_clone(vars),
         }
-    }
-
-    fn strong_count(&self) -> usize {
-        Rc::strong_count(&self.0)
     }
 
     fn version<Vr: WithVarsRead>(&self, vars: &Vr) -> VarVersion {
@@ -512,6 +529,54 @@ impl<O: VarValue, VI: Var<usize>> Var<O> for RcSwitchVar<O, VI> {
             r
         })
     }
+
+    #[inline]
+    fn is_rc(&self) -> bool {
+        true
+    }
+
+    #[inline]
+    fn downgrade(&self) -> Option<Self::Weak> {
+        Rc::downgrade(&self.0).map(WeakRcSwitchVar)
+    }
+
+    #[inline]
+    fn strong_count(&self) -> usize {
+        Rc::strong_count(&self.0)
+    }
+
+    #[inline]
+    fn weak_count(&self) -> usize {
+        Rc::weak_count(&self.0)
+    }
+
+    #[inline]
+    fn as_ptr(&self) -> *const () {
+        Rc::inline(&self.0) as _
+    }
+}
+impl<O: VarValue, VI: Var<usize>> WeakVar<O> for WeakRcSwitchVar<O, VI> {
+    type Strong = RcSwitchVar<O, VI>;
+
+    #[inline]
+    fn upgrade(&self) -> Option<Self::Strong> {
+        self.0.upgrade().map($RcMergeVar)
+    }
+
+    #[inline]
+    fn strong_count(&self) -> usize {
+        self.0.strong_count()
+    }
+
+    #[inline]
+    fn weak_count(&self) -> usize {
+        self.0.weak_count()
+    }
+
+    #[inline]
+    fn as_ptr(&self) -> *const () {
+        self.0.as_ptr() as _
+    }    
 }
 impl<O: VarValue, VI: Var<usize>> IntoVar<O> for RcSwitchVar<O, VI> {
     type Var = Self;

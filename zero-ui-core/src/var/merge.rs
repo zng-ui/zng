@@ -2,7 +2,7 @@ use super::*;
 
 use std::cell::{Cell, RefCell, UnsafeCell};
 use std::marker::PhantomData;
-use std::rc::Rc;
+use std::rc::{Rc, Weak};
 
 ///<span data-del-macro-root></span> Initializes a new [`Var`](crate::var::Var) with value made
 /// by merging multiple other variables.
@@ -344,6 +344,7 @@ macro_rules! impl_rc_merge_var {
         $crate::paste!{
             impl_rc_merge_var!{
                 Var: [<RcMerge $len Var>];// RcMerge2Var
+                WeakVar: [<WeakRcMerge $len Var>];// WeakRcMerge2Var
                 Data: [<RcMerge $len VarData>];// RcMerge2VarData
                 len: $len;//2
                 I: $([<I $n>]),+;// I0, I1
@@ -356,6 +357,7 @@ macro_rules! impl_rc_merge_var {
 
     (
         Var: $RcMergeVar:ident;
+        WeakVar: $WeakRcMergeVar:ident;
         Data: $RcMergeVarData:ident;
         len: $len:tt;
         I: $($I:ident),+;
@@ -366,6 +368,11 @@ macro_rules! impl_rc_merge_var {
         #[doc(hidden)]
         pub struct $RcMergeVar<$($I: VarValue,)+ O: VarValue, $($V: Var<$I>,)+ F: FnMut($(&$I),+) -> O + 'static>(
             Rc<$RcMergeVarData<$($I,)+ O, $($V,)+ F>>,
+        );
+
+        #[doc(hidden)]
+        pub struct $WeakRcMergeVar<$($I: VarValue,)+ O: VarValue, $($V: Var<$I>,)+ F: FnMut($(&$I),+) -> O + 'static>(
+            Weak<$RcMergeVarData<$($I,)+ O, $($V,)+ F>>,
         );
 
         struct $RcMergeVarData<$($I: VarValue,)+ O: VarValue, $($V: Var<$I>,)+ F: FnMut($(&$I),+) -> O + 'static> {
@@ -414,17 +421,29 @@ macro_rules! impl_rc_merge_var {
         }
 
         impl<$($I: VarValue,)+ O: VarValue, $($V: Var<$I>,)+ F: FnMut($(&$I),+) -> O + 'static>
+        crate::private::Sealed for $RcMergeVar<$($I,)+ O, $($V,)+ F> {}
+
+        impl<$($I: VarValue,)+ O: VarValue, $($V: Var<$I>,)+ F: FnMut($(&$I),+) -> O + 'static>
+        crate::private::Sealed for $WeakRcMergeVar<$($I,)+ O, $($V,)+ F> {}
+
+        impl<$($I: VarValue,)+ O: VarValue, $($V: Var<$I>,)+ F: FnMut($(&$I),+) -> O + 'static>
         Clone for $RcMergeVar<$($I,)+ O, $($V,)+ F> {
             fn clone(&self) -> Self {
                 $RcMergeVar(Rc::clone(&self.0))
             }
         }
+
         impl<$($I: VarValue,)+ O: VarValue, $($V: Var<$I>,)+ F: FnMut($(&$I),+) -> O + 'static>
-        crate::private::Sealed for $RcMergeVar<$($I,)+ O, $($V,)+ F> {}
+        Clone for $WeakRcMergeVar<$($I,)+ O, $($V,)+ F> {
+            fn clone(&self) -> Self {
+                $WeakRcMergeVar(self.0.clone())
+            }
+        }
 
         impl<$($I: VarValue,)+ O: VarValue, $($V: Var<$I>,)+ F: FnMut($(&$I),+) -> O + 'static>
         Var<O> for $RcMergeVar<$($I,)+ O, $($V,)+ F> {
             type AsReadOnly = ReadOnlyVar<O, Self>;
+            type Weak = $WeakRcMergeVar<$($I,)+ O, $($V,)+ F>;
 
             fn get<'a, Vr: AsRef<VarsRead>>(&'a self, vars: &'a Vr) -> &'a O {
                 self.update_output(vars.as_ref());
@@ -458,12 +477,6 @@ macro_rules! impl_rc_merge_var {
 
             fn is_new<Vw: WithVars>(&self, vars: &Vw) -> bool {
                 $(self.0.vars.$n.is_new(vars))||+
-            }
-
-
-            #[inline]
-            fn strong_count(&self) -> usize {
-                Rc::strong_count(&self.0)
             }
 
             fn version<Vr: WithVarsRead>(&self, vars: &Vr) -> VarVersion {
@@ -526,6 +539,31 @@ macro_rules! impl_rc_merge_var {
                     r
                 })
             }
+
+            #[inline]
+            fn is_rc(&self) -> bool {
+                true
+            }
+
+            #[inline]
+            fn downgrade(&self) -> Option<Self::Weak> {
+                Some($WeakRcMergeVar(Rc::downgrade(&self.0)))
+            }
+
+            #[inline]
+            fn strong_count(&self) -> usize {
+                Rc::strong_count(&self.0)
+            }
+
+            #[inline]
+            fn weak_count(&self) -> usize {
+                Rc::weak_count(&self.0)
+            }
+
+            #[inline]
+            fn as_ptr(&self) -> *const () {
+                Rc::as_ptr(&self.0) as _
+            }
         }
 
         impl<$($I: VarValue,)+ O: VarValue, $($V: Var<$I>,)+ F: FnMut($(&$I),+) -> O + 'static>
@@ -533,6 +571,31 @@ macro_rules! impl_rc_merge_var {
             type Var = Self;
             fn into_var(self) -> Self {
                 self
+            }
+        }
+
+        impl<$($I: VarValue,)+ O: VarValue, $($V: Var<$I>,)+ F: FnMut($(&$I),+) -> O + 'static>
+        WeakVar<O> for $WeakRcMergeVar<$($I,)+ O, $($V,)+ F> {
+            type Strong = $RcMergeVar<$($I,)+ O, $($V,)+ F>;
+
+            #[inline]
+            fn upgrade(&self) -> Option<Self::Strong> {
+                self.0.upgrade().map($RcMergeVar)
+            }
+
+            #[inline]
+            fn strong_count(&self) -> usize {
+                self.0.strong_count()
+            }
+
+            #[inline]
+            fn weak_count(&self) -> usize {
+                self.0.weak_count()
+            }
+
+            #[inline]
+            fn as_ptr(&self) -> *const () {
+                self.0.as_ptr() as _
             }
         }
 
