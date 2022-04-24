@@ -210,8 +210,8 @@ impl AppInit {
             let _ = init_sender.send(r);
         });
 
-        let (_, (req_sender, chan_sender)) = init_recv.recv_timeout(Duration::from_secs(5)).map_err(|e| match e {
-            flume::RecvTimeoutError::Timeout => "timeout, did not connect in 5 seconds",
+        let (_, (req_sender, chan_sender)) = init_recv.recv_timeout(Duration::from_secs(10)).map_err(|e| match e {
+            flume::RecvTimeoutError::Timeout => "timeout, did not connect in 10 seconds",
             flume::RecvTimeoutError::Disconnected => {
                 std::panic::resume_unwind(handle.join().unwrap_err());
             }
