@@ -8,8 +8,6 @@ impl<T: VarValue> Var<T> for OwnedVar<T> {
     type AsReadOnly = Self;
     type Weak = NoneWeakVar<T>;
 
-    
-
     #[inline]
     fn get<'a, Vr: AsRef<VarsRead>>(&'a self, _: &'a Vr) -> &'a T {
         &self.0

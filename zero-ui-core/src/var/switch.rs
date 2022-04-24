@@ -576,7 +576,7 @@ impl<O: VarValue, VI: Var<usize>> WeakVar<O> for WeakRcSwitchVar<O, VI> {
     #[inline]
     fn as_ptr(&self) -> *const () {
         self.0.as_ptr() as _
-    }    
+    }
 }
 impl<O: VarValue, VI: Var<usize>> IntoVar<O> for RcSwitchVar<O, VI> {
     type Var = Self;

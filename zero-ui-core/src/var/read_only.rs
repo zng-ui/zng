@@ -10,8 +10,7 @@ impl<T: VarValue, W: WeakVar<T>> ReadOnlyWeakVar<T, W> {
         Self(weak, PhantomData)
     }
 }
-impl<T: VarValue, W: WeakVar<T>> crate::private::Sealed for ReadOnlyWeakVar<T, W> {
-}
+impl<T: VarValue, W: WeakVar<T>> crate::private::Sealed for ReadOnlyWeakVar<T, W> {}
 impl<T: VarValue, W: WeakVar<T>> Clone for ReadOnlyWeakVar<T, W> {
     fn clone(&self) -> Self {
         Self(self.0.clone(), PhantomData)

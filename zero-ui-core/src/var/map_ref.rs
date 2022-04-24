@@ -443,9 +443,9 @@ where
         Vw: WithVars,
         Mo: FnOnce(VarModify<B>) + 'static,
     {
-        let map = &self.0.map_mut.clone();
+        let map = self.0.map_mut.clone();
         self.0.source.modify(vars, move |mut v| {
-            v.map_ref(|v|map(v), modify);
+            v.map_ref(|v| map(v), modify);
         })
     }
 

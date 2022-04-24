@@ -666,18 +666,24 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + crate::private::Sealed + 'stati
 
     /// Returns an opaque pointer to the variable inner data.
     ///
-    /// This is only useful for identifying the variable, the only guarantee is that the inner data is not dynamic.
+    /// This is only useful for identifying the variable, the only guarantee is that the inner data is not dynamic. Variables
+    /// that are not [`is_rc`] always return `null`.
     fn as_ptr(&self) -> *const ();
+
+    /// Returns `true` if both `self` and `other` point to the same address of if both pointers are null.
+    fn ptr_eq<V: Var<T>>(&self, other: &V) -> bool {
+        self.as_ptr() == other.as_ptr()
+    }
 
     /// Returns `true` if both `self` and `other` point to the same variable if both are [rc].
     ///
     /// Returns `false` if either pointer is null.
     ///
     /// [rc]: Self::is_rc
-    fn ptr_eq<V: Var<T>>(&self, other: &V) -> bool {
+    fn partial_ptr_eq<V: Var<T>>(&self, other: &V) -> bool {
         let a = self.as_ptr();
         let b = other.as_ptr();
-        a == b && a != std::ptr::null() && b != std::ptr::null()
+        a == b && !a.is_null() && !b.is_null()
     }
 
     /// Schedule a modification of the variable value.

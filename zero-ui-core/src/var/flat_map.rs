@@ -130,6 +130,8 @@ where
         }))
     }
 
+    /// New weak reference to the variable.
+    #[inline]
     pub fn downgrade(&self) -> WeakRcFlatMapVar<A, B, V, M, S> {
         WeakRcFlatMapVar(Rc::downgrade(&self.0))
     }

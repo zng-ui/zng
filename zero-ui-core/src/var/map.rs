@@ -584,7 +584,7 @@ where
     }
 
     fn downgrade(&self) -> Option<Self::Weak> {
-       Some(self.downgrade())
+        Some(self.downgrade())
     }
 
     fn weak_count(&self) -> usize {
@@ -594,8 +594,6 @@ where
     fn as_ptr(&self) -> *const () {
         Rc::as_ptr(&self.0) as _
     }
-
-    
 }
 impl<A, B, M, N, S> IntoVar<B> for RcMapBidiVar<A, B, M, N, S>
 where

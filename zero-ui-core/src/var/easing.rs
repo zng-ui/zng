@@ -1060,7 +1060,7 @@ where
         T: PartialEq,
     {
         let easing = self.0.easing.clone();
-        self.0.var.ease_ne(vars, new_value, self.0.duration, |t|easing(t))
+        self.0.var.ease_ne(vars, new_value, self.0.duration, move |t| easing(t))
     }
 
     fn ease<Vw, N, F2>(&self, vars: &Vw, new_value: N, duration: Duration, easing: F2) -> Result<(), super::VarIsReadOnly>

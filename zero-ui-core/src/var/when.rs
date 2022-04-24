@@ -2,7 +2,7 @@ use super::*;
 
 use std::cell::Cell;
 use std::marker::PhantomData;
-use std::rc::Rc;
+use std::rc::{Rc, Weak};
 
 ///<span data-del-macro-root></span> Initializes a new conditional var.
 ///
@@ -77,6 +77,7 @@ macro_rules! impl_rc_when_var {
         $crate::paste!{
             impl_rc_when_var!{
                 Var: [<RcWhen $len Var>];// RcWhen2Var
+                WeakVar: [<WeakRcWhen $len Var>];// WeakRcWhen2Var
                 Data: [<RcWhen $len VarData>];// RcWhen2VarData
                 len: $len;//2
                 C: $([<C $n>]),+;// C0, C1
@@ -86,16 +87,21 @@ macro_rules! impl_rc_when_var {
         }
     )+};
     (
-        Var: $RcMergeVar:ident;
-        Data: $RcMergeVarData:ident;
+        Var: $RcWhenVar:ident;
+        WeakVar: $WeakRcWhenVar:ident;
+        Data: $RcWhenVarData:ident;
         len: $len:tt;
         C: $($C:ident),+;
         V: $($V:ident),+;
         n: $($n:tt),+;
     ) => {
         #[doc(hidden)]
-        pub struct $RcMergeVar<O: VarValue, D: Var<O>, $($C: Var<bool>),+ , $($V: Var<O>),+>(Rc<$RcMergeVarData<O, D, $($C),+ , $($V),+>>);
-        struct $RcMergeVarData<O: VarValue, D: Var<O>, $($C: Var<bool>),+ , $($V: Var<O>),+> {
+        pub struct $RcWhenVar<O: VarValue, D: Var<O>, $($C: Var<bool>),+ , $($V: Var<O>),+>(Rc<$RcWhenVarData<O, D, $($C),+ , $($V),+>>);
+
+        #[doc(hidden)]
+        pub struct $WeakRcWhenVar<O: VarValue, D: Var<O>, $($C: Var<bool>),+ , $($V: Var<O>),+>(Weak<$RcWhenVarData<O, D, $($C),+ , $($V),+>>);
+
+        struct $RcWhenVarData<O: VarValue, D: Var<O>, $($C: Var<bool>),+ , $($V: Var<O>),+> {
             _o: PhantomData<O>,
 
             default_value: D,
@@ -109,11 +115,12 @@ macro_rules! impl_rc_when_var {
 
             self_version: Cell<u32>,
         }
+
         #[allow(missing_docs)]// this is hidden
-        impl<O: VarValue, D: Var<O>, $($C: Var<bool>),+ , $($V: Var<O>),+> $RcMergeVar<O, D, $($C),+ , $($V),+> {
+        impl<O: VarValue, D: Var<O>, $($C: Var<bool>),+ , $($V: Var<O>),+> $RcWhenVar<O, D, $($C),+ , $($V),+> {
             pub fn new(default_value: D, conditions: ($($C,)+), values: ($($V,)+)) -> Self {
                 Self(
-                    Rc::new($RcMergeVarData {
+                    Rc::new($RcWhenVarData {
                         _o: PhantomData,
 
                         default_value,
@@ -131,16 +138,25 @@ macro_rules! impl_rc_when_var {
             }
         }
 
-        impl<O: VarValue, D: Var<O>, $($C: Var<bool>),+ , $($V: Var<O>),+> Clone for $RcMergeVar<O, D, $($C),+ , $($V),+> {
+        impl<O: VarValue, D: Var<O>, $($C: Var<bool>),+ , $($V: Var<O>),+> crate::private::Sealed for $RcWhenVar<O, D, $($C),+ , $($V),+> {}
+
+        impl<O: VarValue, D: Var<O>, $($C: Var<bool>),+ , $($V: Var<O>),+> crate::private::Sealed for $WeakRcWhenVar<O, D, $($C),+ , $($V),+> {}
+
+        impl<O: VarValue, D: Var<O>, $($C: Var<bool>),+ , $($V: Var<O>),+> Clone for $RcWhenVar<O, D, $($C),+ , $($V),+> {
             fn clone(&self) -> Self {
                 Self(Rc::clone(&self.0))
             }
         }
 
-        impl<O: VarValue, D: Var<O>, $($C: Var<bool>),+ , $($V: Var<O>),+> crate::private::Sealed for $RcMergeVar<O, D, $($C),+ , $($V),+> {}
+        impl<O: VarValue, D: Var<O>, $($C: Var<bool>),+ , $($V: Var<O>),+> Clone for $WeakRcWhenVar<O, D, $($C),+ , $($V),+> {
+            fn clone(&self) -> Self {
+                Self(self.0.clone())
+            }
+        }
 
-        impl<O: VarValue, D: Var<O>, $($C: Var<bool>),+ , $($V: Var<O>),+> Var<O> for $RcMergeVar<O, D, $($C),+ , $($V),+> {
+        impl<O: VarValue, D: Var<O>, $($C: Var<bool>),+ , $($V: Var<O>),+> Var<O> for $RcWhenVar<O, D, $($C),+ , $($V),+> {
             type AsReadOnly = ReadOnlyVar<O, Self>;
+            type Weak = $WeakRcWhenVar<O, D, $($C),+ , $($V),+>;
 
             fn get<'a, Vr: AsRef<VarsRead>>(&'a self, vars: &'a Vr) -> &'a O {
                 let vars = vars.as_ref();
@@ -187,7 +203,7 @@ macro_rules! impl_rc_when_var {
                             r.default_value.into_value(vars)
                         }
                     }),
-                    Err(e) => $RcMergeVar(e).get_clone(vars)
+                    Err(e) => $RcWhenVar(e).get_clone(vars)
                 }
             }
             fn is_new<Vw: WithVars>(&self, vars: &Vw) -> bool {
@@ -260,10 +276,7 @@ macro_rules! impl_rc_when_var {
                     }
                 })
             }
-            #[inline]
-            fn strong_count(&self) -> usize {
-                Rc::strong_count(&self.0)
-            }
+
             fn always_read_only(&self) -> bool {
                 $(self.0.values.$n.always_read_only())&&+ && self.0.default_value.always_read_only()
             }
@@ -334,9 +347,58 @@ macro_rules! impl_rc_when_var {
                     r
                 })
             }
+
+            #[inline]
+            fn downgrade(&self) -> Option<Self::Weak> {
+                Some($WeakRcWhenVar(Rc::downgrade(&self.0)))
+            }
+
+            #[inline]
+            fn is_rc(&self) -> bool {
+                true
+            }
+
+            #[inline]
+            fn strong_count(&self) -> usize {
+                Rc::strong_count(&self.0)
+            }
+
+            #[inline]
+            fn weak_count(&self) -> usize {
+                Rc::weak_count(&self.0)
+            }
+
+            #[inline]
+            fn as_ptr(&self) -> *const () {
+                Rc::as_ptr(&self.0) as _
+            }
         }
 
-        impl<O: VarValue, D: Var<O>, $($C: Var<bool>),+ , $($V: Var<O>),+> IntoVar<O> for $RcMergeVar<O, D, $($C),+ , $($V),+>  {
+        impl<O: VarValue, D: Var<O>, $($C: Var<bool>),+ , $($V: Var<O>),+> WeakVar<O> for $WeakRcWhenVar<O, D, $($C),+ , $($V),+> {
+            type Strong = $RcWhenVar<O, D, $($C),+ , $($V),+>;
+
+            #[inline]
+            fn upgrade(&self) -> Option<Self::Strong> {
+                self.0.upgrade().map($RcWhenVar)
+            }
+
+            #[inline]
+            fn strong_count(&self) -> usize {
+                self.0.strong_count()
+            }
+
+            #[inline]
+            fn weak_count(&self) -> usize {
+                self.0.weak_count()
+            }
+
+            #[inline]
+            fn as_ptr(&self) -> *const () {
+                self.0.as_ptr() as _
+            }
+        }
+
+        impl<O: VarValue, D: Var<O>, $($C: Var<bool>),+ , $($V: Var<O>),+> IntoVar<O> for $RcWhenVar<O, D, $($C),+ , $($V),+>  {
             type Var = Self;
 
             #[inline]
@@ -364,6 +426,10 @@ impl_rc_when_var! {
 ///
 /// Don't use this type directly use the [macro](when_var!) instead.
 pub struct RcWhenVar<O: VarValue>(Rc<RcWhenVarData<O>>);
+
+/// A weak reference to a [`RcWhenVar`].
+pub struct WeakRcWhenVar<O: VarValue>(Weak<RcWhenVarData<O>>);
+
 struct RcWhenVarData<O: VarValue> {
     default_: BoxedVar<O>,
     default_version: VarVersionCell,
@@ -373,6 +439,7 @@ struct RcWhenVarData<O: VarValue> {
 
     self_version: Cell<u32>,
 }
+
 impl<O: VarValue> RcWhenVar<O> {
     #[doc(hidden)]
     pub fn new(default_: BoxedVar<O>, whens: Box<[(BoxedVar<bool>, BoxedVar<O>)]>) -> Self {
@@ -387,14 +454,24 @@ impl<O: VarValue> RcWhenVar<O> {
         }))
     }
 }
+
+impl<O: VarValue> crate::private::Sealed for RcWhenVar<O> {}
+impl<O: VarValue> crate::private::Sealed for WeakRcWhenVar<O> {}
+
 impl<O: VarValue> Clone for RcWhenVar<O> {
     fn clone(&self) -> Self {
         Self(Rc::clone(&self.0))
     }
 }
-impl<O: VarValue> crate::private::Sealed for RcWhenVar<O> {}
+impl<O: VarValue> Clone for WeakRcWhenVar<O> {
+    fn clone(&self) -> Self {
+        Self(self.0.clone())
+    }
+}
+
 impl<O: VarValue> Var<O> for RcWhenVar<O> {
     type AsReadOnly = ReadOnlyVar<O, Self>;
+    type Weak = WeakRcWhenVar<O>;
 
     /// Gets the the first variable with `true` condition or the default variable.
     fn get<'a, Vr: AsRef<VarsRead>>(&'a self, vars: &'a Vr) -> &'a O {
@@ -562,11 +639,6 @@ impl<O: VarValue> Var<O> for RcWhenVar<O> {
         })
     }
 
-    #[inline]
-    fn strong_count(&self) -> usize {
-        Rc::strong_count(&self.0)
-    }
-
     fn set_ne<Vw, N>(&self, vars: &Vw, new_value: N) -> Result<bool, VarIsReadOnly>
     where
         Vw: WithVars,
@@ -609,6 +681,54 @@ impl<O: VarValue> Var<O> for RcWhenVar<O> {
             }
             r
         })
+    }
+
+    #[inline]
+    fn downgrade(&self) -> Option<Self::Weak> {
+        Some(WeakRcWhenVar(Rc::downgrade(&self.0)))
+    }
+
+    #[inline]
+    fn is_rc(&self) -> bool {
+        true
+    }
+
+    #[inline]
+    fn strong_count(&self) -> usize {
+        Rc::strong_count(&self.0)
+    }
+
+    #[inline]
+    fn weak_count(&self) -> usize {
+        Rc::weak_count(&self.0)
+    }
+
+    #[inline]
+    fn as_ptr(&self) -> *const () {
+        Rc::as_ptr(&self.0) as _
+    }
+}
+impl<O: VarValue> WeakVar<O> for WeakRcWhenVar<O> {
+    type Strong = RcWhenVar<O>;
+
+    #[inline]
+    fn upgrade(&self) -> Option<Self::Strong> {
+        self.0.upgrade().map(RcWhenVar)
+    }
+
+    #[inline]
+    fn strong_count(&self) -> usize {
+        self.0.strong_count()
+    }
+
+    #[inline]
+    fn weak_count(&self) -> usize {
+        self.0.weak_count()
+    }
+
+    #[inline]
+    fn as_ptr(&self) -> *const () {
+        self.0.as_ptr() as _
     }
 }
 impl<O: VarValue> IntoVar<O> for RcWhenVar<O> {

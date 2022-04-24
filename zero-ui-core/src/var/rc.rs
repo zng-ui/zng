@@ -348,7 +348,7 @@ pub struct WeakRcVar<T: VarValue>(Weak<Data<T>>);
 impl<T: VarValue> crate::private::Sealed for WeakRcVar<T> {}
 impl<T: VarValue> Clone for WeakRcVar<T> {
     fn clone(&self) -> Self {
-       WeakRcVar(self.0.clone())
+        WeakRcVar(self.0.clone())
     }
 }
 impl<T: VarValue> WeakVar<T> for WeakRcVar<T> {
@@ -378,36 +378,20 @@ impl<T: VarValue> Var<T> for RcVar<T> {
 
     #[inline]
     fn get<'a, Vr: AsRef<VarsRead>>(&'a self, vars: &'a Vr) -> &'a T {
-        self.get(vars)
-    }
-
-    #[inline]
-    fn copy<Vr: WithVarsRead>(&self, vars: &Vr) -> T
-    where
-        T: Copy,
-    {
-        self.copy(vars)
-    }
-
-    #[inline]
-    fn get_clone<Vr: WithVarsRead>(&self, vars: &Vr) -> T {
-        self.get_clone(vars)
+        let _vars = vars.as_ref();
+        // SAFETY: this is safe because we are tying the `Vars` lifetime to the value
+        // and we require `&mut Vars` to modify the value.
+        unsafe { &*self.0.value.get() }
     }
 
     #[inline]
     fn get_new<'a, Vw: AsRef<Vars>>(&'a self, vars: &'a Vw) -> Option<&'a T> {
-        self.get_new(vars)
-    }
-
-    fn copy_new<Vw: WithVars>(&self, vars: &Vw) -> Option<T>
-    where
-        T: Copy,
-    {
-        self.copy_new(vars)
-    }
-
-    fn clone_new<Vw: WithVars>(&self, vars: &Vw) -> Option<T> {
-        self.clone_new(vars)
+        let vars = vars.as_ref();
+        if self.0.last_update_id.get() == vars.update_id() {
+            Some(self.get(vars))
+        } else {
+            None
+        }
     }
 
     #[inline]
@@ -420,12 +404,12 @@ impl<T: VarValue> Var<T> for RcVar<T> {
 
     #[inline]
     fn is_new<Vw: WithVars>(&self, vars: &Vw) -> bool {
-        self.is_new(vars)
+        vars.with_vars(|vars| self.0.last_update_id.get() == vars.update_id())
     }
 
     #[inline]
     fn version<Vr: WithVarsRead>(&self, vars: &Vr) -> VarVersion {
-        self.version(vars)
+        vars.with_vars_read(|_| VarVersion::normal(self.0.version.get()))
     }
 
     #[inline]
