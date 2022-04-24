@@ -4,10 +4,13 @@
 
 * Config animations fps.
 * Variable that starts animating on first `get`.
-* Modify animate (just called `animate`?).
 * Time dilation control.
 * Drop animation if var is dropped. Need Var::WeakVar type.
 * `Var::repeat`.
+* `Var::animate`, that implements WeakVar handling.
+* `VarIsReadOnlyOrContextual` error.
+* `var::error` module.
+* `var::types` module, place all types unlikely to be used directly here.
 
 ```rust
 trait Var {
