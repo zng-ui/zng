@@ -283,6 +283,13 @@ macro_rules! impl_rc_when_var {
             fn is_contextual(&self) -> bool {
                 self.0.default_value.is_contextual() || $(self.0.values.$n.is_contextual())||+
             }
+            fn actual_var<Vw: WithVars>(&self, vars: &Vw) -> BoxedVar<O> {
+                if self.is_contextual() {
+                    todo!("!!:")
+                } else {
+                    self.clone().boxed()
+                }
+            }
             #[inline]
             fn can_update(&self) -> bool {
                 true
@@ -615,6 +622,15 @@ impl<O: VarValue> Var<O> for RcWhenVar<O> {
     /// If any value variables (including default)
     fn is_contextual(&self) -> bool {
         self.0.default_.is_contextual() || self.0.whens.iter().any(|(_, v)| v.is_contextual())
+    }
+
+    #[inline]
+    fn actual_var<Vw: WithVars>(&self, vars: &Vw) -> BoxedVar<O> {
+        if self.is_contextual() {
+            todo!("!!:")
+        } else {
+            self.clone().boxed()
+        }
     }
 
     /// Always `true`.

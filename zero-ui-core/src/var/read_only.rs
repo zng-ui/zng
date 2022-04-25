@@ -126,6 +126,15 @@ where
     }
 
     #[inline]
+    fn actual_var<Vw: WithVars>(&self, vars: &Vw) -> BoxedVar<T> {
+        if self.is_contextual() {
+            self.0.actual_var(vars).into_read_only()
+        } else {
+            self.clone().boxed()
+        }
+    }
+
+    #[inline]
     fn strong_count(&self) -> usize {
         self.0.strong_count()
     }

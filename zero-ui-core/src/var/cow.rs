@@ -67,7 +67,6 @@ bitflags! {
 struct CowData<T, V> {
     source: UnsafeCell<Option<V>>,
     flags: Cell<Flags>,
-    is_contextual: Cell<bool>,
     update_mask: OnceCell<UpdateMask>,
 
     value: UnsafeCell<Option<T>>,
@@ -115,7 +114,6 @@ impl<T: VarValue, V: Var<T>> RcCowVar<T, V> {
         RcCowVar(Rc::new(CowData {
             update_mask: OnceCell::default(),
             flags: Cell::new(flags),
-            is_contextual: Cell::new(source.is_contextual()),
             source: UnsafeCell::new(Some(source)),
             value: UnsafeCell::new(None),
             version: VarVersionCell::new(0),
@@ -225,7 +223,24 @@ impl<T: VarValue, V: Var<T>> Var<T> for RcCowVar<T, V> {
     /// Returns `true` if is still reading from the source variable and it is contextual, otherwise returns `false`.
     #[inline]
     fn is_contextual(&self) -> bool {
-        self.0.is_contextual.get()
+        self.0.flags.get().contains(Flags::SOURCE_IS_CONTEXTUAL)
+    }
+
+    fn actual_var<Vw: WithVars>(&self, vars: &Vw) -> BoxedVar<T> {
+        vars.with_vars(|vars| {
+            if let Some(source) = self.source(vars) {
+                if self.is_pass_through() {
+                    return source.actual_var(vars);
+                }
+
+                if self.is_contextual() {
+                    // stop being contextual.
+                    self.touch(vars);
+                }
+            }
+
+            self.clone().boxed()
+        })
     }
 
     /// Returns `true` unless [`is_pass_through`] and the source variable cannot update.
@@ -281,7 +296,12 @@ impl<T: VarValue, V: Var<T>> Var<T> for RcCowVar<T, V> {
                 unsafe {
                     *self_.0.source.get() = None;
                 }
-                self_.0.is_contextual.set(false);
+
+                let mut flags = self_.0.flags.get();
+                // rust-analyzer gets confused if we try `flags.set`
+                Flags::set(&mut flags, Flags::SOURCE_IS_CONTEXTUAL, false);
+                self_.0.flags.set(flags);
+
                 let mut touched = false;
                 modify(VarModify::new(unsafe { &mut *self_.0.value.get() }.as_mut().unwrap(), &mut touched));
                 if touched {

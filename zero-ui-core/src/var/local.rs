@@ -66,6 +66,11 @@ impl<T: VarValue> Var<T> for LocalVar<T> {
     }
 
     #[inline]
+    fn actual_var<Vw: WithVars>(&self, _: &Vw) -> BoxedVar<T> {
+        self.clone().boxed()
+    }
+
+    #[inline]
     fn modify<Vw, M>(&self, _: &Vw, _: M) -> Result<(), VarIsReadOnly>
     where
         Vw: WithVars,

@@ -200,6 +200,15 @@ where
     }
 
     #[inline]
+    fn actual_var<Vw: WithVars>(&self, vars: &Vw) -> BoxedVar<B> {
+        if self.is_contextual() {
+            todo!("!!:")
+        } else {
+            self.clone().boxed()
+        }
+    }
+
+    #[inline]
     fn strong_count(&self) -> usize {
         Rc::strong_count(&self.0)
     }
@@ -507,6 +516,15 @@ where
     #[inline]
     fn is_contextual(&self) -> bool {
         self.0.source.is_contextual()
+    }
+
+    #[inline]
+    fn actual_var<Vw: WithVars>(&self, vars: &Vw) -> BoxedVar<B> {
+        if self.is_contextual() {
+            todo!("!!:")
+        } else {
+            self.clone().boxed()
+        }
     }
 
     #[inline]

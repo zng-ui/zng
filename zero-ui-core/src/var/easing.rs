@@ -1014,6 +1014,21 @@ where
         self.0.var.is_contextual()
     }
 
+    #[inline]
+    fn actual_var<Vw: super::WithVars>(&self, vars: &Vw) -> super::BoxedVar<T> {
+        if self.is_contextual() {
+            let var = EasingVar(Rc::new(EasingVarData {
+                _t: PhantomData,
+                var: self.0.var.actual_var(vars),
+                duration: self.0.duration,
+                easing: self.0.easing.clone(),
+            }));
+            var.boxed()
+        } else {
+            self.clone().boxed()
+        }
+    }
+
     fn can_update(&self) -> bool {
         self.0.var.can_update()
     }

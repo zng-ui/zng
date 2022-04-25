@@ -438,6 +438,11 @@ impl<T: VarValue> Var<T> for RcVar<T> {
     }
 
     #[inline]
+    fn actual_var<Vw: WithVars>(&self, _: &Vw) -> BoxedVar<T> {
+        self.clone().boxed()
+    }
+
+    #[inline]
     fn downgrade(&self) -> Option<Self::Weak> {
         Some(self.downgrade())
     }

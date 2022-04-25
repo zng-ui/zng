@@ -82,6 +82,7 @@ pub trait VarBoxed<T: VarValue>: crate::private::Sealed {
     fn into_value_boxed(self: Box<Self>, vars: &VarsRead) -> T;
     fn always_read_only_boxed(&self) -> bool;
     fn is_contextual_boxed(&self) -> bool;
+    fn actual_var_boxed(&self, vars: &Vars) -> BoxedVar<T>;
     fn can_update_boxed(&self) -> bool;
     fn modify_boxed(&self, vars: &Vars, modify: Box<dyn FnOnce(VarModify<T>)>) -> Result<(), VarIsReadOnly>;
     fn set_boxed(&self, vars: &Vars, new_value: T) -> Result<(), VarIsReadOnly>;
@@ -137,6 +138,11 @@ impl<T: VarValue, V: Var<T>> VarBoxed<T> for V {
     #[inline]
     fn is_contextual_boxed(&self) -> bool {
         self.is_contextual()
+    }
+
+    #[inline]
+    fn actual_var_boxed(&self, vars: &Vars) -> BoxedVar<T> {
+        self.actual_var(vars)
     }
 
     #[inline]
@@ -249,6 +255,11 @@ impl<T: VarValue> Var<T> for BoxedVar<T> {
     }
 
     #[inline]
+    fn actual_var<Vw: WithVars>(&self, vars: &Vw) -> BoxedVar<T> {
+        vars.with_vars(|vars| self.as_ref().actual_var_boxed(vars))
+    }
+
+    #[inline]
     fn can_update(&self) -> bool {
         self.as_ref().can_update_boxed()
     }
@@ -277,19 +288,21 @@ impl<T: VarValue> Var<T> for BoxedVar<T> {
         N: Into<T>,
         T: PartialEq,
     {
-        if self.is_read_only(vars) {
-            Err(VarIsReadOnly)
-        } else {
-            let new_value = new_value.into();
-            vars.with_vars(|vars| {
-                if self.get(vars) != &new_value {
-                    let _ = self.set(vars, new_value);
-                    Ok(true)
-                } else {
-                    Ok(false)
-                }
-            })
-        }
+        vars.with_vars(|vars| {
+            if self.is_read_only(vars) {
+                Err(VarIsReadOnly)
+            } else {
+                let new_value = new_value.into();
+                vars.with_vars(|vars| {
+                    if self.get(vars) != &new_value {
+                        let _ = self.set(vars, new_value);
+                        Ok(true)
+                    } else {
+                        Ok(false)
+                    }
+                })
+            }
+        })
     }
 
     fn strong_count(&self) -> usize {

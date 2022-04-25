@@ -511,6 +511,14 @@ macro_rules! impl_rc_merge_var {
                 $(self.0.vars.$n.is_contextual())||+
             }
 
+            fn actual_var<Vw: WithVars>(&self, vars: &Vw) -> BoxedVar<O> {
+                if self.is_contextual() {
+                    todo!("!!:")
+                } else {
+                    self.clone().boxed()
+                }
+            }
+
             #[inline]
             fn set<Vw: WithVars, N>(&self, _: &Vw, _: N) -> Result<(), VarIsReadOnly> where N: Into<O> {
                 Err(VarIsReadOnly)

@@ -231,7 +231,7 @@ where
     }
 
     #[inline]
-    fn is_read_only<Vr: WithVars>(&self, _: &Vr) -> bool {
+    fn is_read_only<Vw: WithVars>(&self, _: &Vw) -> bool {
         true
     }
 
@@ -253,6 +253,15 @@ where
     #[inline]
     fn is_contextual(&self) -> bool {
         self.0.source.is_contextual()
+    }
+
+    #[inline]
+    fn actual_var<Vw: WithVars>(&self, vars: &Vw) -> BoxedVar<B> {
+        if self.is_contextual() {
+            todo!("!!:")
+        } else {
+            self.clone().boxed()
+        }
     }
 
     #[inline]
@@ -583,6 +592,15 @@ where
     #[inline]
     fn is_contextual(&self) -> bool {
         self.0.source.is_contextual()
+    }
+
+    #[inline]
+    fn actual_var<Vw: WithVars>(&self, vars: &Vw) -> BoxedVar<B> {
+        if self.is_contextual() {
+            todo!("!!:")
+        } else {
+            self.clone().boxed()
+        }
     }
 
     #[inline]

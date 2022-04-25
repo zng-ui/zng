@@ -235,6 +235,15 @@ macro_rules! impl_rc_switch_var {
                 self.0.index.is_contextual() || $(self.0.vars.$n.is_contextual())||+
             }
 
+            #[inline]
+            fn actual_var<Vw: WithVars>(&self, vars: &Vw) -> BoxedVar<O> {
+                if self.is_contextual() {
+                    todo!("!!:")
+                } else {
+                    self.clone().boxed()
+                }
+            }
+
             fn always_read_only(&self) -> bool {
                 $(self.0.vars.$n.always_read_only())&&+
             }
@@ -491,6 +500,15 @@ impl<O: VarValue, VI: Var<usize>> Var<O> for RcSwitchVar<O, VI> {
     #[inline]
     fn is_contextual(&self) -> bool {
         self.0.index.is_contextual() || self.0.vars.iter().any(|v| v.is_contextual())
+    }
+
+    #[inline]
+    fn actual_var<Vw: WithVars>(&self, vars: &Vw) -> BoxedVar<O> {
+        if self.is_contextual() {
+            todo!("!!:")
+        } else {
+            self.clone().boxed()
+        }
     }
 
     fn set<Vw, N>(&self, vars: &Vw, new_value: N) -> Result<(), VarIsReadOnly>

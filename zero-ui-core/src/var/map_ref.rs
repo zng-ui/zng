@@ -162,6 +162,15 @@ where
     }
 
     #[inline]
+    fn actual_var<Vw: WithVars>(&self, vars: &Vw) -> BoxedVar<B> {
+        if self.is_contextual() {
+            todo!("!!:")
+        } else {
+            self.clone().boxed()
+        }
+    }
+
+    #[inline]
     fn can_update(&self) -> bool {
         self.0.source.can_update()
     }
@@ -438,6 +447,15 @@ where
     }
 
     #[inline]
+    fn actual_var<Vw: WithVars>(&self, vars: &Vw) -> BoxedVar<B> {
+        if self.is_contextual() {
+            todo!("!!:")
+        } else {
+            self.clone().boxed()
+        }
+    }
+
+    #[inline]
     fn modify<Vw, Mo>(&self, vars: &Vw, modify: Mo) -> Result<(), VarIsReadOnly>
     where
         Vw: WithVars,
@@ -470,10 +488,10 @@ where
         Nv: Into<B>,
         B: PartialEq,
     {
-        if self.is_read_only(vars) {
-            Err(VarIsReadOnly)
-        } else {
-            vars.with_vars(|vars| {
+        vars.with_vars(|vars| {
+            if self.is_read_only(vars) {
+                Err(VarIsReadOnly)
+            } else {
                 let new_value = new_value.into();
                 if self.get(vars) != &new_value {
                     let _ = self.set(vars, new_value);
@@ -481,8 +499,8 @@ where
                 } else {
                     Ok(false)
                 }
-            })
-        }
+            }
+        })
     }
 
     #[inline]

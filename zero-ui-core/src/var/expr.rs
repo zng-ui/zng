@@ -53,7 +53,7 @@
 /// # Multiple Variables
 ///
 /// An expression with multiple variables is transformed into a [`merge_var!`] call.
-/// 
+///
 /// [`Var::get`]: crate::var::Var::get
 /// [`map`]: crate::var::Var::map
 /// [`IntoVar`]: crate::var::IntoVar

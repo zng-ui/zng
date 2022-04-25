@@ -226,6 +226,15 @@ where
     }
 
     #[inline]
+    fn actual_var<Vw: WithVars>(&self, vars: &Vw) -> BoxedVar<B> {
+        if self.is_contextual() {
+            todo!("!!:")
+        } else {
+            self.clone().boxed()
+        }
+    }
+
+    #[inline]
     fn can_update(&self) -> bool {
         true
     }

@@ -608,12 +608,18 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + crate::private::Sealed + 'stati
 
     /// If the variable is a [`ContextVar`] or depends on one right now.
     ///
-    /// If `true` the value and version can change depending on what context the variable is read at. Contextual
-    /// map variables can also deep clone instead of only cloning a reference.
+    /// If `true` the version is unique for each context, this in turn can cause mapping variables to re-evaluate
+    /// if used in more then one context.
     ///
     /// **Note** this can change only from `true` to `false` and only once because of the [`RcCowVar<T>`]. Variables
     /// like [`switch_var!`] always return `true` if any of the dependencies are contextual.
     fn is_contextual(&self) -> bool;
+
+    /// Returns a clone of the underlying variable that owns the value.
+    ///
+    /// If the variable [`is_contextual`], this is a clone of the underlying variable that is currently assigned to the context
+    /// var, if not it is a boxed clone of `self`.
+    fn actual_var<Vw: WithVars>(&self, vars: &Vw) -> BoxedVar<T>;
 
     /// If the variable is implemented as a shared reference to the value.
     ///

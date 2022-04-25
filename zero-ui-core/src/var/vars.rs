@@ -1500,7 +1500,7 @@ mod tests {
 
         let value = ctx
             .vars
-            .with_context_var(TestVar, ContextVarData::var(&ctx.vars, &TestVar2::new()), || {
+            .with_context_var(TestVar, ContextVarData::in_vars(&ctx.vars, &TestVar2::new(), false), || {
                 *TestVar::new().get(&ctx.vars)
             });
 
@@ -1513,7 +1513,7 @@ mod tests {
 
         let value = ctx
             .vars
-            .with_context_var(TestVar, ContextVarData::var(&ctx.vars, &TestVar::new()), || {
+            .with_context_var(TestVar, ContextVarData::in_vars(&ctx.vars, &TestVar::new(), false), || {
                 *TestVar::new().get(&ctx.vars)
             });
 
@@ -1526,10 +1526,10 @@ mod tests {
 
         let value = ctx
             .vars
-            .with_context_var(TestVar, ContextVarData::var(&ctx.vars, &TestVar2::new()), || {
+            .with_context_var(TestVar, ContextVarData::in_vars(&ctx.vars, &TestVar2::new(), false), || {
                 // set to "default value 2"
                 ctx.vars
-                    .with_context_var(TestVar2, ContextVarData::var(&ctx.vars, &TestVar::new()), || {
+                    .with_context_var(TestVar2, ContextVarData::in_vars(&ctx.vars, &TestVar::new(), false), || {
                         // set to "default value 2"
                         *TestVar::new().get(&ctx.vars)
                     })
