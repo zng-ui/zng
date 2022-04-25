@@ -71,7 +71,7 @@ error[E0277]: `<impl invalid2_Args as invalid2_Args>::T_value` doesn't implement
    = help: the trait `Debug` is not implemented for `<impl invalid2_Args as invalid2_Args>::T_value`
    = note: required because of the requirements on the impl of `VarValue` for `<impl invalid2_Args as invalid2_Args>::T_value`
 note: required by a bound in `LocalVar`
-  --> $WORKSPACE/zero-ui-core/src/var/owned.rs
+  --> $WORKSPACE/zero-ui-core/src/var/local.rs
    |
    | pub struct LocalVar<T: VarValue>(pub T);
    |                        ^^^^^^^^ required by this bound in `LocalVar`
@@ -85,7 +85,7 @@ error[E0277]: the trait bound `<impl invalid2_Args as invalid2_Args>::T_value: C
    |
    = note: required because of the requirements on the impl of `VarValue` for `<impl invalid2_Args as invalid2_Args>::T_value`
 note: required by a bound in `LocalVar`
-  --> $WORKSPACE/zero-ui-core/src/var/owned.rs
+  --> $WORKSPACE/zero-ui-core/src/var/local.rs
    |
    | pub struct LocalVar<T: VarValue>(pub T);
    |                        ^^^^^^^^ required by this bound in `LocalVar`
