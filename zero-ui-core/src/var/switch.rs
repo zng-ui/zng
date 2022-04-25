@@ -15,9 +15,9 @@ use std::rc::{Rc, Weak};
 /// * `$index`: A positive integer that is the initial switch index.
 /// * `$v0..$vn`: A list of [vars](crate::var::Var), minimal 2.
 ///
-/// [`RcSwitchVar`](crate::var::RcSwitchVar) is used for more then 8 variables.
+/// [`RcSwitchVar`](crate::var::types::RcSwitchVar) is used for more then 8 variables.
 ///
-/// All arguments are [`IntoVar`](crate::var::RcSwitchVar).
+/// All arguments are [`IntoVar`](crate::var::IntoVar).
 ///
 /// # Examples
 ///
@@ -39,29 +39,29 @@ macro_rules! switch_var {
         compile_error!{"switch_var requires at least 2 variables"}
     };
     ($index: expr, $v0: expr, $v1: expr) => {
-        $crate::var::RcSwitch2Var::new($index, ($v0, $v1))
+        $crate::var::types::RcSwitch2Var::new($index, ($v0, $v1))
     };
     ($index: expr, $v0: expr, $v1: expr, $v2: expr) => {
-        $crate::var::RcSwitch3Var::new($index, ($v0, $v1, $v2))
+        $crate::var::types::RcSwitch3Var::new($index, ($v0, $v1, $v2))
     };
     ($index: expr, $v0: expr, $v1: expr, $v2: expr, $v3: expr) => {
-        $crate::var::RcSwitch4Var::new($index, ($v0, $v1, $v2, $v3))
+        $crate::var::types::RcSwitch4Var::new($index, ($v0, $v1, $v2, $v3))
     };
     ($index: expr, $v0: expr, $v1: expr, $v2: expr, $v3: expr, $v4: expr) => {
-        $crate::var::RcSwitch5Var::new($index, ($v0, $v1, $v2, $v3, $v4))
+        $crate::var::types::RcSwitch5Var::new($index, ($v0, $v1, $v2, $v3, $v4))
     };
     ($index: expr, $v0: expr, $v1: expr, $v2: expr, $v3: expr, $v4: expr, $v5: expr) => {
-        $crate::var::RcSwitch6Var::new($index, ($v0, $v1, $v2, $v3, $v4, $v5))
+        $crate::var::types::RcSwitch6Var::new($index, ($v0, $v1, $v2, $v3, $v4, $v5))
     };
     ($index: expr, $v0: expr, $v1: expr, $v2: expr, $v3: expr, $v4: expr, $v5: expr, $v6: expr) => {
-        $crate::var::RcSwitch7Var::new($index, ($v0, $v1, $v2, $v3, $v4, $v5, $v6))
+        $crate::var::types::RcSwitch7Var::new($index, ($v0, $v1, $v2, $v3, $v4, $v5, $v6))
     };
     ($index: expr, $v0: expr, $v1: expr, $v2: expr, $v3: expr, $v4: expr, $v5: expr, $v6: expr, $v7: expr) => {
-        $crate::var::RcSwitch8Var::new($index, ($v0, $v1, $v2, $v3, $v4, $v5, $v6, $v7))
+        $crate::var::types::RcSwitch8Var::new($index, ($v0, $v1, $v2, $v3, $v4, $v5, $v6, $v7))
     };
     ($index: expr, $($v:expr),+) => {
         // we need a builder to have $v be IntoVar and work like the others.
-        $crate::var::RcSwitchVarBuilder::new($index)
+        $crate::var::types::RcSwitchVarBuilder::new($index)
         $(.push($v))+
         .build()
     };
@@ -153,7 +153,7 @@ macro_rules! impl_rc_switch_var {
 
         impl<O: VarValue, $($V: Var<O>,)+ VI: Var<usize>>
         Var<O> for $RcSwitchVar<O, $($V,)+ VI> {
-            type AsReadOnly = ReadOnlyVar<O, Self>;
+            type AsReadOnly = types::ReadOnlyVar<O, Self>;
             type Weak = $WeakRcSwitchVar<O, $($V,)+ VI>;
 
             fn get<'a, Vr: AsRef<VarsRead>>(&'a self, vars: &'a Vr) -> &'a O {
@@ -286,7 +286,7 @@ macro_rules! impl_rc_switch_var {
 
             #[inline]
             fn into_read_only(self) -> Self::AsReadOnly {
-                ReadOnlyVar::new(self)
+                types::ReadOnlyVar::new(self)
             }
 
             fn update_mask<Vr: WithVarsRead>(&self, vars: &Vr) -> UpdateMask {
@@ -417,7 +417,7 @@ impl<O: VarValue, VI: Var<usize>> Clone for WeakRcSwitchVar<O, VI> {
 impl<O: VarValue, VI: Var<usize>> crate::private::Sealed for RcSwitchVar<O, VI> {}
 impl<O: VarValue, VI: Var<usize>> crate::private::Sealed for WeakRcSwitchVar<O, VI> {}
 impl<O: VarValue, VI: Var<usize>> Var<O> for RcSwitchVar<O, VI> {
-    type AsReadOnly = ReadOnlyVar<O, Self>;
+    type AsReadOnly = types::ReadOnlyVar<O, Self>;
     type Weak = WeakRcSwitchVar<O, VI>;
 
     fn get<'a, Vr: AsRef<VarsRead>>(&'a self, vars: &'a Vr) -> &'a O {
@@ -516,7 +516,7 @@ impl<O: VarValue, VI: Var<usize>> Var<O> for RcSwitchVar<O, VI> {
 
     #[inline]
     fn into_read_only(self) -> Self::AsReadOnly {
-        ReadOnlyVar::new(self)
+        types::ReadOnlyVar::new(self)
     }
 
     #[inline]

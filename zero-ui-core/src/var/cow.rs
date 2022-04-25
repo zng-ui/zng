@@ -154,7 +154,7 @@ impl<T: VarValue, V: Var<T>> RcCowVar<T, V> {
 }
 impl<T: VarValue, V: Var<T>> crate::private::Sealed for RcCowVar<T, V> {}
 impl<T: VarValue, V: Var<T>> Var<T> for RcCowVar<T, V> {
-    type AsReadOnly = ReadOnlyVar<T, Self>;
+    type AsReadOnly = types::ReadOnlyVar<T, Self>;
 
     fn get<'a, Vr: AsRef<VarsRead>>(&'a self, vars: &'a Vr) -> &'a T {
         let vars = vars.as_ref();
@@ -301,7 +301,7 @@ impl<T: VarValue, V: Var<T>> Var<T> for RcCowVar<T, V> {
     }
 
     fn into_read_only(self) -> Self::AsReadOnly {
-        ReadOnlyVar::new(self)
+        types::ReadOnlyVar::new(self)
     }
 
     fn update_mask<Vr: WithVarsRead>(&self, vars: &Vr) -> UpdateMask {

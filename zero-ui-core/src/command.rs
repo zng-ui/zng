@@ -33,7 +33,7 @@ use crate::{
     handler::WidgetHandler,
     impl_ui_node,
     text::{Text, ToText},
-    var::*,
+    var::{types::ReadOnlyVar, *},
     widget_info::{EventSlot, WidgetInfoBuilder, WidgetSubscriptions},
     window::WindowId,
     UiNode, WidgetId,
@@ -177,7 +177,7 @@ macro_rules! command {
             /// visible but disabled.
             #[inline]
             #[allow(unused)]
-            pub fn enabled(self) -> $crate::var::ReadOnlyVar<bool, $crate::var::RcVar<bool>> {
+            pub fn enabled(self) -> $crate::var::ReadOnlyRcVar<bool> {
                 <Self as $crate::command::Command>::enabled(self)
             }
 
@@ -187,7 +187,7 @@ macro_rules! command {
             /// and associated command trigger widgets can be hidden.
             #[inline]
             #[allow(unused)]
-            pub fn has_handlers(self) -> $crate::var::ReadOnlyVar<bool, $crate::var::RcVar<bool>> {
+            pub fn has_handlers(self) -> $crate::var::types::ReadOnlyRcVar<bool> {
                 <Self as $crate::command::Command>::has_handlers(self)
             }
 

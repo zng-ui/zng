@@ -373,7 +373,7 @@ impl<T: VarValue> WeakVar<T> for WeakRcVar<T> {
 
 impl<T: VarValue> crate::private::Sealed for RcVar<T> {}
 impl<T: VarValue> Var<T> for RcVar<T> {
-    type AsReadOnly = ReadOnlyVar<T, Self>;
+    type AsReadOnly = types::ReadOnlyVar<T, Self>;
     type Weak = WeakRcVar<T>;
 
     #[inline]
@@ -494,7 +494,7 @@ impl<T: VarValue> Var<T> for RcVar<T> {
 
     #[inline]
     fn into_read_only(self) -> Self::AsReadOnly {
-        ReadOnlyVar::new(self)
+        types::ReadOnlyVar::new(self)
     }
 
     #[inline]
@@ -546,7 +546,7 @@ pub type ResponderVar<T> = RcVar<Response<T>>;
 /// Variable used to listen to a one time signal that an UI operation has completed.
 ///
 /// Use [`response_var`] or [`response_done_var`] to init.
-pub type ResponseVar<T> = ReadOnlyVar<Response<T>, RcVar<Response<T>>>;
+pub type ResponseVar<T> = types::ReadOnlyVar<Response<T>, RcVar<Response<T>>>;
 
 /// Raw value in a [`ResponseVar`] or [`ResponseSender`].
 #[derive(Clone, Copy)]
@@ -726,5 +726,5 @@ impl<T: VarValue> ResponderVar<T> {
     }
 }
 
-/// A [`ReadOnlyVar`] wrapping an [`RcVar`].
-pub type ReadOnlyRcVar<T> = ReadOnlyVar<T, RcVar<T>>;
+/// A [`ReadOnlyVar`](types::ReadOnlyVar) wrapping an [`RcVar`].
+pub type ReadOnlyRcVar<T> = types::ReadOnlyVar<T, RcVar<T>>;

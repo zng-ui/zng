@@ -1,7 +1,7 @@
 use super::*;
 
 /// A [`Var`] is a fixed value that is stored locally.
-/// 
+///
 /// Cloning this variable clones the value.
 #[derive(Clone)]
 pub struct LocalVar<T: VarValue>(pub T);

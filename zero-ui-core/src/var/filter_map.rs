@@ -494,7 +494,7 @@ where
     N: FnMut(B) -> Option<A> + 'static,
     S: Var<A>,
 {
-    type AsReadOnly = ReadOnlyVar<B, Self>;
+    type AsReadOnly = types::ReadOnlyVar<B, Self>;
 
     #[inline]
     fn get<'a, Vr: AsRef<VarsRead>>(&'a self, vars: &'a Vr) -> &'a B {
@@ -658,7 +658,7 @@ where
 
     #[inline]
     fn into_read_only(self) -> Self::AsReadOnly {
-        ReadOnlyVar::new(self)
+        types::ReadOnlyVar::new(self)
     }
     #[inline]
     fn update_mask<Vr: WithVarsRead>(&self, vars: &Vr) -> UpdateMask {

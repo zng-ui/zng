@@ -24,12 +24,12 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let mut out = if conditions.len() >= 8 {
         quote! {
             #(#default_attrs)*
-            let __b = #vars_mod::WhenVarBuilderDyn::new(#default_value);
+            let __b = #vars_mod::types::WhenVarBuilderDyn::new(#default_value);
         }
     } else {
         quote! {
             #(#default_attrs)*
-            let __b = #vars_mod::WhenVarBuilder::new(#default_value);
+            let __b = #vars_mod::types::WhenVarBuilder::new(#default_value);
         }
     };
 

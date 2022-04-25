@@ -6,7 +6,7 @@ use crate::{
     render::FrameBuilder,
     render::RenderMode,
     units::*,
-    var::*,
+    var::{types::WeakRcVar, *},
     widget_info::UpdateMask,
     window::*,
     BoxedUiNode, UiNode, WidgetId,

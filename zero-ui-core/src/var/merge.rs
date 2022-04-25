@@ -28,66 +28,66 @@ use std::rc::{Rc, Weak};
 #[macro_export]
 macro_rules! merge_var {
     ($v0: expr, $v1: expr, $merge: expr) => {
-        $crate::var::RcMerge2Var::new(($v0, $v1), $merge)
+        $crate::var::types::RcMerge2Var::new(($v0, $v1), $merge)
     };
     ($v0: expr, $v1: expr, $v2: expr, $merge: expr) => {
-        $crate::var::RcMerge3Var::new(($v0, $v1, $v2), $merge)
+        $crate::var::types::RcMerge3Var::new(($v0, $v1, $v2), $merge)
     };
     ($v0: expr, $v1: expr, $v2: expr, $v3: expr, $merge: expr) => {
-        $crate::var::RcMerge4Var::new(($v0, $v1, $v2, $v3), $merge)
+        $crate::var::types::RcMerge4Var::new(($v0, $v1, $v2, $v3), $merge)
     };
     ($v0: expr, $v1: expr, $v2: expr, $v3: expr, $v4: expr, $merge: expr) => {
-        $crate::var::RcMerge5Var::new(($v0, $v1, $v2, $v3, $v4), $merge)
+        $crate::var::types::RcMerge5Var::new(($v0, $v1, $v2, $v3, $v4), $merge)
     };
     ($v0: expr, $v1: expr, $v2: expr, $v3: expr, $v4: expr, $v5: expr, $merge: expr) => {
-        $crate::var::RcMerge6Var::new(($v0, $v1, $v2, $v3, $v4, $v5), $merge)
+        $crate::var::types::RcMerge6Var::new(($v0, $v1, $v2, $v3, $v4, $v5), $merge)
     };
     ($v0: expr, $v1: expr, $v2: expr, $v3: expr, $v4: expr, $v5: expr, $v6: expr, $merge: expr) => {
-        $crate::var::RcMerge7Var::new(($v0, $v1, $v2, $v3, $v4, $v5, $v6), $merge)
+        $crate::var::types::RcMerge7Var::new(($v0, $v1, $v2, $v3, $v4, $v5, $v6), $merge)
     };
     ($v0: expr, $v1: expr, $v2: expr, $v3: expr, $v4: expr, $v5: expr, $v6: expr, $v7: expr, $merge: expr) => {
-        $crate::var::RcMerge8Var::new(($v0, $v1, $v2, $v3, $v4, $v5, $v6, $v7), $merge)
+        $crate::var::types::RcMerge8Var::new(($v0, $v1, $v2, $v3, $v4, $v5, $v6, $v7), $merge)
     };
     ($v0: expr, $v1: expr, $v2: expr, $v3: expr, $v4: expr, $v5: expr, $v6: expr, $v7: expr, $v8: expr, $merge: expr) => {
-        $crate::var::RcMerge9Var::new(($v0, $v1, $v2, $v3, $v4, $v5, $v6, $v7, $v8), $merge)
+        $crate::var::types::RcMerge9Var::new(($v0, $v1, $v2, $v3, $v4, $v5, $v6, $v7, $v8), $merge)
     };
     ($v0: expr, $v1: expr, $v2: expr, $v3: expr, $v4: expr, $v5: expr, $v6: expr, $v7: expr, $v8: expr, $v9: expr, $merge: expr) => {
-        $crate::var::RcMerge10Var::new(($v0, $v1, $v2, $v3, $v4, $v5, $v6, $v7, $v8, $v9), $merge)
+        $crate::var::types::RcMerge10Var::new(($v0, $v1, $v2, $v3, $v4, $v5, $v6, $v7, $v8, $v9), $merge)
     };
     (
         $v0: expr, $v1: expr, $v2: expr, $v3: expr, $v4: expr, $v5: expr, $v6: expr, $v7: expr, $v8: expr, $v9: expr,
         $v10: expr,
         $merge: expr
     ) => {
-        $crate::var::RcMerge11Var::new(($v0, $v1, $v2, $v3, $v4, $v5, $v6, $v7, $v8, $v9, $v10), $merge)
+        $crate::var::types::RcMerge11Var::new(($v0, $v1, $v2, $v3, $v4, $v5, $v6, $v7, $v8, $v9, $v10), $merge)
     };
     (
         $v0: expr, $v1: expr, $v2: expr, $v3: expr, $v4: expr, $v5: expr, $v6: expr, $v7: expr, $v8: expr, $v9: expr,
         $v10: expr, $v11: expr,
         $merge: expr
     ) => {
-        $crate::var::RcMerge12Var::new(($v0, $v1, $v2, $v3, $v4, $v5, $v6, $v7, $v8, $v9, $v10, $v11), $merge)
+        $crate::var::types::RcMerge12Var::new(($v0, $v1, $v2, $v3, $v4, $v5, $v6, $v7, $v8, $v9, $v10, $v11), $merge)
     };
     (
         $v0: expr, $v1: expr, $v2: expr, $v3: expr, $v4: expr, $v5: expr, $v6: expr, $v7: expr, $v8: expr, $v9: expr,
         $v10: expr, $v11: expr, $v12: expr,
         $merge: expr
     ) => {
-        $crate::var::RcMerge13Var::new(($v0, $v1, $v2, $v3, $v4, $v5, $v6, $v7, $v8, $v9, $v10, $v11, $v12), $merge)
+        $crate::var::types::RcMerge13Var::new(($v0, $v1, $v2, $v3, $v4, $v5, $v6, $v7, $v8, $v9, $v10, $v11, $v12), $merge)
     };
     (
         $v0: expr, $v1: expr, $v2: expr, $v3: expr, $v4: expr, $v5: expr, $v6: expr, $v7: expr, $v8: expr, $v9: expr,
         $v10: expr, $v11: expr, $v12: expr, $v13: expr,
         $merge: expr
     ) => {
-        $crate::var::RcMerge14Var::new(($v0, $v1, $v2, $v3, $v4, $v5, $v6, $v7, $v8, $v9, $v10, $v11, $v12, $v13), $merge)
+        $crate::var::types::RcMerge14Var::new(($v0, $v1, $v2, $v3, $v4, $v5, $v6, $v7, $v8, $v9, $v10, $v11, $v12, $v13), $merge)
     };
     (
         $v0: expr, $v1: expr, $v2: expr, $v3: expr, $v4: expr, $v5: expr, $v6: expr, $v7: expr, $v8: expr, $v9: expr,
         $v10: expr, $v11: expr, $v12: expr, $v13: expr, $v14: expr,
         $merge: expr
     ) => {
-        $crate::var::RcMerge15Var::new(
+        $crate::var::types::RcMerge15Var::new(
             ($v0, $v1, $v2, $v3, $v4, $v5, $v6, $v7, $v8, $v9, $v10, $v11, $v12, $v13, $v14),
             $merge,
         )
@@ -97,7 +97,7 @@ macro_rules! merge_var {
         $v10: expr, $v11: expr, $v12: expr, $v13: expr, $v14: expr, $v15: expr,
         $merge: expr
     ) => {
-        $crate::var::RcMerge16Var::new(
+        $crate::var::types::RcMerge16Var::new(
             ($v0, $v1, $v2, $v3, $v4, $v5, $v6, $v7, $v8, $v9, $v10, $v11, $v12, $v13, $v14, $v15),
             $merge,
         )
@@ -107,7 +107,7 @@ macro_rules! merge_var {
         $v10: expr, $v11: expr, $v12: expr, $v13: expr, $v14: expr, $v15: expr, $v16: expr,
         $merge: expr
     ) => {
-        $crate::var::RcMerge17Var::new(
+        $crate::var::types::RcMerge17Var::new(
             (
                 $v0, $v1, $v2, $v3, $v4, $v5, $v6, $v7, $v8, $v9, $v10, $v11, $v12, $v13, $v14, $v15, $v16,
             ),
@@ -119,7 +119,7 @@ macro_rules! merge_var {
         $v10: expr, $v11: expr, $v12: expr, $v13: expr, $v14: expr, $v15: expr, $v16: expr, $v17: expr,
         $merge: expr
     ) => {
-        $crate::var::RcMerge18Var::new(
+        $crate::var::types::RcMerge18Var::new(
             (
                 $v0, $v1, $v2, $v3, $v4, $v5, $v6, $v7, $v8, $v9, $v10, $v11, $v12, $v13, $v14, $v15, $v16, $v17,
             ),
@@ -131,7 +131,7 @@ macro_rules! merge_var {
         $v10: expr, $v11: expr, $v12: expr, $v13: expr, $v14: expr, $v15: expr, $v16: expr, $v17: expr, $v18: expr,
         $merge: expr
     ) => {
-        $crate::var::RcMerge19Var::new(
+        $crate::var::types::RcMerge19Var::new(
             (
                 $v0, $v1, $v2, $v3, $v4, $v5, $v6, $v7, $v8, $v9, $v10, $v11, $v12, $v13, $v14, $v15, $v16, $v17, $v18,
             ),
@@ -144,7 +144,7 @@ macro_rules! merge_var {
         $v19: expr,
         $merge: expr
     ) => {
-        $crate::var::RcMerge20Var::new(
+        $crate::var::types::RcMerge20Var::new(
             (
                 $v0, $v1, $v2, $v3, $v4, $v5, $v6, $v7, $v8, $v9, $v10, $v11, $v12, $v13, $v14, $v15, $v16, $v17, $v18, $v19,
             ),
@@ -157,7 +157,7 @@ macro_rules! merge_var {
         $v19: expr, $v20: expr,
         $merge: expr
     ) => {
-        $crate::var::RcMerge21Var::new(
+        $crate::var::types::RcMerge21Var::new(
             (
                 $v0, $v1, $v2, $v3, $v4, $v5, $v6, $v7, $v8, $v9, $v10, $v11, $v12, $v13, $v14, $v15, $v16, $v17, $v18, $v19, $v20,
             ),
@@ -170,7 +170,7 @@ macro_rules! merge_var {
         $v19: expr, $v20: expr, $v21: expr,
         $merge: expr
     ) => {
-        $crate::var::RcMerge22Var::new(
+        $crate::var::types::RcMerge22Var::new(
             (
                 $v0, $v1, $v2, $v3, $v4, $v5, $v6, $v7, $v8, $v9, $v10, $v11, $v12, $v13, $v14, $v15, $v16, $v17, $v18, $v19, $v20, $v21,
             ),
@@ -183,7 +183,7 @@ macro_rules! merge_var {
         $v19: expr, $v20: expr, $v21: expr, $v22: expr,
         $merge: expr
     ) => {
-        $crate::var::RcMerge23Var::new(
+        $crate::var::types::RcMerge23Var::new(
             (
                 $v0, $v1, $v2, $v3, $v4, $v5, $v6, $v7, $v8, $v9, $v10, $v11, $v12, $v13, $v14, $v15, $v16, $v17, $v18, $v19, $v20, $v21,
                 $v22,
@@ -197,7 +197,7 @@ macro_rules! merge_var {
         $v19: expr, $v20: expr, $v21: expr, $v22: expr, $v23: expr,
         $merge: expr
     ) => {
-        $crate::var::RcMerge24Var::new(
+        $crate::var::types::RcMerge24Var::new(
             (
                 $v0, $v1, $v2, $v3, $v4, $v5, $v6, $v7, $v8, $v9, $v10, $v11, $v12, $v13, $v14, $v15, $v16, $v17, $v18, $v19, $v20, $v21,
                 $v22, $v23,
@@ -211,7 +211,7 @@ macro_rules! merge_var {
         $v19: expr, $v20: expr, $v21: expr, $v22: expr, $v23: expr, $v24: expr,
         $merge: expr
     ) => {
-        $crate::var::RcMerge25Var::new(
+        $crate::var::types::RcMerge25Var::new(
             (
                 $v0, $v1, $v2, $v3, $v4, $v5, $v6, $v7, $v8, $v9, $v10, $v11, $v12, $v13, $v14, $v15, $v16, $v17, $v18, $v19, $v20, $v21,
                 $v22, $v23, $v24,
@@ -225,7 +225,7 @@ macro_rules! merge_var {
         $v19: expr, $v20: expr, $v21: expr, $v22: expr, $v23: expr, $v24: expr, $v25: expr,
         $merge: expr
     ) => {
-        $crate::var::RcMerge26Var::new(
+        $crate::var::types::RcMerge26Var::new(
             (
                 $v0, $v1, $v2, $v3, $v4, $v5, $v6, $v7, $v8, $v9, $v10, $v11, $v12, $v13, $v14, $v15, $v16, $v17, $v18, $v19, $v20, $v21,
                 $v22, $v23, $v24, $v25,
@@ -239,7 +239,7 @@ macro_rules! merge_var {
         $v19: expr, $v20: expr, $v21: expr, $v22: expr, $v23: expr, $v24: expr, $v25: expr, $v26: expr,
         $merge: expr
     ) => {
-        $crate::var::RcMerge27Var::new(
+        $crate::var::types::RcMerge27Var::new(
             (
                 $v0, $v1, $v2, $v3, $v4, $v5, $v6, $v7, $v8, $v9, $v10, $v11, $v12, $v13, $v14, $v15, $v16, $v17, $v18, $v19, $v20, $v21,
                 $v22, $v23, $v24, $v25, $v26,
@@ -253,7 +253,7 @@ macro_rules! merge_var {
         $v19: expr, $v20: expr, $v21: expr, $v22: expr, $v23: expr, $v24: expr, $v25: expr, $v26: expr, $v27: expr,
         $merge: expr
     ) => {
-        $crate::var::RcMerge28Var::new(
+        $crate::var::types::RcMerge28Var::new(
             (
                 $v0, $v1, $v2, $v3, $v4, $v5, $v6, $v7, $v8, $v9, $v10, $v11, $v12, $v13, $v14, $v15, $v16, $v17, $v18, $v19, $v20, $v21,
                 $v22, $v23, $v24, $v25, $v26, $v27,
@@ -268,7 +268,7 @@ macro_rules! merge_var {
         $v28: expr,
         $merge: expr
     ) => {
-        $crate::var::RcMerge29Var::new(
+        $crate::var::types::RcMerge29Var::new(
             (
                 $v0, $v1, $v2, $v3, $v4, $v5, $v6, $v7, $v8, $v9, $v10, $v11, $v12, $v13, $v14, $v15, $v16, $v17, $v18, $v19, $v20, $v21,
                 $v22, $v23, $v24, $v25, $v26, $v27, $v28,
@@ -283,7 +283,7 @@ macro_rules! merge_var {
         $v28: expr, $v29: expr,
         $merge: expr
     ) => {
-        $crate::var::RcMerge30Var::new(
+        $crate::var::types::RcMerge30Var::new(
             (
                 $v0, $v1, $v2, $v3, $v4, $v5, $v6, $v7, $v8, $v9, $v10, $v11, $v12, $v13, $v14, $v15, $v16, $v17, $v18, $v19, $v20, $v21,
                 $v22, $v23, $v24, $v25, $v26, $v27, $v28, $v29,
@@ -298,7 +298,7 @@ macro_rules! merge_var {
         $v28: expr, $v29: expr, $v30: expr,
         $merge: expr
     ) => {
-        $crate::var::RcMerge31Var::new(
+        $crate::var::types::RcMerge31Var::new(
             (
                 $v0, $v1, $v2, $v3, $v4, $v5, $v6, $v7, $v8, $v9, $v10, $v11, $v12, $v13, $v14, $v15, $v16, $v17, $v18, $v19, $v20, $v21,
                 $v22, $v23, $v24, $v25, $v26, $v27, $v28, $v29, $v30,
@@ -313,7 +313,7 @@ macro_rules! merge_var {
         $v28: expr, $v29: expr, $v30: expr, $v31: expr,
         $merge: expr
     ) => {
-        $crate::var::RcMerge32Var::new(
+        $crate::var::types::RcMerge32Var::new(
             (
                 $v0, $v1, $v2, $v3, $v4, $v5, $v6, $v7, $v8, $v9, $v10, $v11, $v12, $v13, $v14, $v15, $v16, $v17, $v18, $v19, $v20, $v21,
                 $v22, $v23, $v24, $v25, $v26, $v27, $v28, $v29, $v30, $v31,
@@ -442,7 +442,7 @@ macro_rules! impl_rc_merge_var {
 
         impl<$($I: VarValue,)+ O: VarValue, $($V: Var<$I>,)+ F: FnMut($(&$I),+) -> O + 'static>
         Var<O> for $RcMergeVar<$($I,)+ O, $($V,)+ F> {
-            type AsReadOnly = ReadOnlyVar<O, Self>;
+            type AsReadOnly = types::ReadOnlyVar<O, Self>;
             type Weak = $WeakRcMergeVar<$($I,)+ O, $($V,)+ F>;
 
             fn get<'a, Vr: AsRef<VarsRead>>(&'a self, vars: &'a Vr) -> &'a O {
@@ -528,7 +528,7 @@ macro_rules! impl_rc_merge_var {
 
             #[inline]
             fn into_read_only(self) -> Self::AsReadOnly {
-                ReadOnlyVar::new(self)
+                types::ReadOnlyVar::new(self)
             }
 
             #[inline]

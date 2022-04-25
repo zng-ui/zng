@@ -385,7 +385,7 @@ where
     N: Fn(&mut A) -> &mut B + 'static,
     S: Var<A>,
 {
-    type AsReadOnly = ReadOnlyVar<B, Self>;
+    type AsReadOnly = types::ReadOnlyVar<B, Self>;
 
     #[inline]
     fn get<'a, Vr: AsRef<VarsRead>>(&'a self, vars: &'a Vr) -> &'a B {
@@ -445,7 +445,8 @@ where
     {
         let map = self.0.map_mut.clone();
         self.0.source.modify(vars, move |mut v| {
-            v.map_ref(|v| map(v), modify);
+            // rust-analyzer gets confused by `v.map_ref` here.
+            VarModify::map_ref(&mut v, |v| map(v), modify);
         })
     }
 
@@ -491,7 +492,7 @@ where
 
     #[inline]
     fn into_read_only(self) -> Self::AsReadOnly {
-        ReadOnlyVar::new(self)
+        types::ReadOnlyVar::new(self)
     }
 
     #[inline]

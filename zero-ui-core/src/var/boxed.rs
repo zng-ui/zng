@@ -301,7 +301,7 @@ impl<T: VarValue> Var<T> for BoxedVar<T> {
         if self.always_read_only() {
             self
         } else {
-            ReadOnlyVar::new(self).boxed()
+            types::ReadOnlyVar::new(self).boxed()
         }
     }
 

@@ -31,42 +31,47 @@ mod context;
 pub use context::*;
 
 mod read_only;
-pub use read_only::*;
 
 mod local;
-pub use local::*;
-
-mod rc;
-pub use rc::*;
-
-mod map;
-pub use map::*;
-
-mod map_ref;
-pub use map_ref::*;
-
-mod filter_map;
-pub use filter_map::*;
-
-mod flat_map;
-pub use flat_map::*;
-
-mod merge;
-pub use merge::*;
-
-mod switch;
-pub use switch::*;
-
-mod when;
-pub use when::*;
-
-mod future;
-pub use future::*;
 
 mod cow;
-pub use cow::*;
+mod expr;
+mod filter_map;
+mod flat_map;
+mod future;
+mod map;
+mod map_ref;
+mod merge;
+mod rc;
+mod switch;
+mod when;
 
 pub mod easing;
+
+/// Variable types.
+///
+/// These types are mostly implementation details, you should use the [`Var<T>`] interface when possible.
+pub mod types {
+    pub use super::cow::*;
+    pub use super::expr::*;
+    pub use super::filter_map::*;
+    pub use super::flat_map::*;
+    pub use super::future::*;
+    pub use super::local::*;
+    pub use super::map::*;
+    pub use super::map_ref::*;
+    pub use super::merge::*;
+    pub use super::rc::*;
+    pub use super::read_only::*;
+    pub use super::switch::*;
+    pub use super::when::*;
+}
+
+#[doc(inline)]
+pub use types::{
+    expr_var, merge_var, response_done_var, response_var, state_var, switch_var, var, var_default, var_from, when_var, LocalVar, RcCowVar,
+    RcVar, ReadOnlyRcVar, ResponderVar, Response, ResponseVar, StateVar,
+};
 
 /// A type that can be a [`Var`] value.
 ///
@@ -473,14 +478,14 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + crate::private::Sealed + 'stati
     ///
     /// You can also reuse the future, but it is very cheap to just create a new one.
     #[inline]
-    fn wait_copy<'a, Vw: WithVars>(&'a self, vars: &'a Vw) -> VarCopyNewFut<'a, Vw, T, Self>
+    fn wait_copy<'a, Vw: WithVars>(&'a self, vars: &'a Vw) -> types::VarCopyNewFut<'a, Vw, T, Self>
     where
         T: Copy,
     {
         if !self.can_update() {
             tracing::warn!("`Var::wait_copy` called in a variable that never updates");
         }
-        VarCopyNewFut::new(vars, self)
+        types::VarCopyNewFut::new(vars, self)
     }
 
     /// Clone the value if [`is_new`](Self::is_new).
@@ -525,11 +530,11 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + crate::private::Sealed + 'stati
     ///
     /// You can also reuse the future, but it is very cheap to just create a new one.
     #[inline]
-    fn wait_clone<'a, Vw: WithVars>(&'a self, vars: &'a Vw) -> VarCloneNewFut<'a, Vw, T, Self> {
+    fn wait_clone<'a, Vw: WithVars>(&'a self, vars: &'a Vw) -> types::VarCloneNewFut<'a, Vw, T, Self> {
         if !self.can_update() {
             tracing::warn!("`Var::wait_clone` called in a variable that never updates");
         }
-        VarCloneNewFut::new(vars, self)
+        types::VarCloneNewFut::new(vars, self)
     }
 
     /// If the variable value changed in this update.
@@ -576,11 +581,11 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + crate::private::Sealed + 'stati
     ///
     /// [`is_new`]: Var::is_new
     #[inline]
-    fn wait_new<'a, Vw: WithVars>(&'a self, vars: &'a Vw) -> VarIsNewFut<'a, Vw, T, Self> {
+    fn wait_new<'a, Vw: WithVars>(&'a self, vars: &'a Vw) -> types::VarIsNewFut<'a, Vw, T, Self> {
         if !self.can_update() {
             tracing::warn!("`Var::wait_new` called in a variable that never updates");
         }
-        VarIsNewFut::new(vars, self)
+        types::VarIsNewFut::new(vars, self)
     }
 
     /// Gets the variable value version.
@@ -637,11 +642,11 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + crate::private::Sealed + 'stati
     ///
     /// [`is_animating`]: Var::is_animating
     #[inline]
-    fn wait_animation<'a, Vr: WithVarsRead>(&'a self, vars: &'a Vr) -> VarIsNotAnimatingFut<'a, Vr, T, Self> {
+    fn wait_animation<'a, Vr: WithVarsRead>(&'a self, vars: &'a Vr) -> types::VarIsNotAnimatingFut<'a, Vr, T, Self> {
         if !self.can_update() {
             tracing::warn!("`Var::wait_animation` called in a variable that never updates");
         }
-        VarIsNotAnimatingFut::new(vars, self)
+        types::VarIsNotAnimatingFut::new(vars, self)
     }
 
     /// Convert this variable to the value, if the variable is a reference, clones the value.
@@ -1043,17 +1048,17 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + crate::private::Sealed + 'stati
     ///
     /// Also see [`Var::bind_map`] to create a *map binding* between two existing variables.
     #[inline]
-    fn map<O, M>(&self, map: M) -> RcMapVar<T, O, M, Self>
+    fn map<O, M>(&self, map: M) -> types::RcMapVar<T, O, M, Self>
     where
         O: VarValue,
         M: FnMut(&T) -> O + 'static,
     {
-        RcMapVar::new(self.clone(), map)
+        types::RcMapVar::new(self.clone(), map)
     }
 
     /// Create a [`map`](Var::map) that uses [`Into`] to convert from `T` to `O`.
     #[inline]
-    fn map_into<O>(&self) -> RcMapVar<T, O, fn(&T) -> O, Self>
+    fn map_into<O>(&self) -> types::RcMapVar<T, O, fn(&T) -> O, Self>
     where
         O: VarValue + From<T>,
     {
@@ -1062,7 +1067,7 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + crate::private::Sealed + 'stati
 
     /// Create a [`map`](Var::map) that uses [`ToText`](crate::text::ToText) to convert `T` to [`Text`](crate::text::ToText).
     #[inline]
-    fn map_to_text(&self) -> RcMapVar<T, crate::text::Text, fn(&T) -> crate::text::Text, Self>
+    fn map_to_text(&self) -> types::RcMapVar<T, crate::text::Text, fn(&T) -> crate::text::Text, Self>
     where
         T: crate::text::ToText,
     {
@@ -1071,7 +1076,7 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + crate::private::Sealed + 'stati
 
     /// Create a [`map`](Var::map) that maps to a debug [`Text`](crate::text::ToText) using the `{:?}` format.
     #[inline]
-    fn map_debug(&self) -> RcMapVar<T, crate::text::Text, fn(&T) -> crate::text::Text, Self> {
+    fn map_debug(&self) -> types::RcMapVar<T, crate::text::Text, fn(&T) -> crate::text::Text, Self> {
         self.map(|t| crate::formatx!("{t:?}"))
     }
 
@@ -1080,12 +1085,12 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + crate::private::Sealed + 'stati
     /// This is a lightweight alternative to [`map`](Var::map) that can be used when the *mapped* value already
     /// exist in the source variable, `map` is called every time the mapped value is accessed.
     #[inline]
-    fn map_ref<O, M>(&self, map: M) -> MapRefVar<T, O, M, Self>
+    fn map_ref<O, M>(&self, map: M) -> types::MapRefVar<T, O, M, Self>
     where
         O: VarValue,
         M: Fn(&T) -> &O + 'static,
     {
-        MapRefVar::new(self.clone(), map)
+        types::MapRefVar::new(self.clone(), map)
     }
 
     /// Create a read-write variable with a value that is mapped from and to this variable.
@@ -1096,19 +1101,19 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + crate::private::Sealed + 'stati
     ///
     /// Also see [`bind_map_bidi`](Var::bind_map_bidi) to create a *map binding* between two existing variables.
     #[inline]
-    fn map_bidi<O, M, N>(&self, map: M, map_back: N) -> RcMapBidiVar<T, O, M, N, Self>
+    fn map_bidi<O, M, N>(&self, map: M, map_back: N) -> types::RcMapBidiVar<T, O, M, N, Self>
     where
         O: VarValue,
         M: FnMut(&T) -> O + 'static,
         N: FnMut(O) -> T + 'static,
     {
-        RcMapBidiVar::new(self.clone(), map, map_back)
+        types::RcMapBidiVar::new(self.clone(), map, map_back)
     }
 
     /// Create a [`map_bidi`](Var::map_bidi) that uses [`Into`] to convert between `T` and `O`.
     #[inline]
     #[allow(clippy::type_complexity)]
-    fn map_into_bidi<O>(&self) -> RcMapBidiVar<T, O, fn(&T) -> O, fn(O) -> T, Self>
+    fn map_into_bidi<O>(&self) -> types::RcMapBidiVar<T, O, fn(&T) -> O, fn(O) -> T, Self>
     where
         O: VarValue + From<T>,
         T: From<O>,
@@ -1122,13 +1127,13 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + crate::private::Sealed + 'stati
     /// exist in the source variable, `map` is called every time the mapped value is accessed and `map_mut` is called
     /// to get a mutable reference to the value when the mapped variable is assigned.
     #[inline]
-    fn map_ref_bidi<O, M, N>(&self, map: M, map_mut: N) -> MapBidiRefVar<T, O, M, N, Self>
+    fn map_ref_bidi<O, M, N>(&self, map: M, map_mut: N) -> types::MapBidiRefVar<T, O, M, N, Self>
     where
         O: VarValue,
         M: Fn(&T) -> &O + 'static,
         N: Fn(&mut T) -> &mut O + 'static,
     {
-        MapBidiRefVar::new(self.clone(), map, map_mut)
+        types::MapBidiRefVar::new(self.clone(), map, map_mut)
     }
 
     /// Map to a variable selected from the value of `self`. The result variable outputs the
@@ -1136,13 +1141,13 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + crate::private::Sealed + 'stati
     ///
     /// If the selected variable can be modified setting the result variable sets the selected variable.
     #[inline]
-    fn flat_map<O, M, V>(&self, map: M) -> RcFlatMapVar<T, O, V, M, Self>
+    fn flat_map<O, M, V>(&self, map: M) -> types::RcFlatMapVar<T, O, V, M, Self>
     where
         O: VarValue,
         V: Var<O>,
         M: FnMut(&T) -> V + 'static,
     {
-        RcFlatMapVar::new(self.clone(), map)
+        types::RcFlatMapVar::new(self.clone(), map)
     }
 
     /// Create a read-only variable with a value that is mapped from this variable, but only if it passes a filter.
@@ -1154,13 +1159,13 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + crate::private::Sealed + 'stati
     ///
     /// Also see [`bind_filter`](Var::bind_filter) to create a *map binding* between two existing variables.
     #[inline]
-    fn filter_map<O, I, M>(&self, fallback_init: I, map: M) -> RcFilterMapVar<T, O, I, M, Self>
+    fn filter_map<O, I, M>(&self, fallback_init: I, map: M) -> types::RcFilterMapVar<T, O, I, M, Self>
     where
         O: VarValue,
         I: FnOnce(&T) -> O + 'static,
         M: FnMut(&T) -> Option<O> + 'static,
     {
-        RcFilterMapVar::new(self.clone(), fallback_init, map)
+        types::RcFilterMapVar::new(self.clone(), fallback_init, map)
     }
 
     /// Create a [`filter_map`] that uses [`TryInto`] to convert from `T` to `O`.
@@ -1168,12 +1173,12 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + crate::private::Sealed + 'stati
     /// [`filter_map`]: Var::filter_map
     #[inline]
     #[allow(clippy::type_complexity)]
-    fn filter_try_into<O, I>(&self, fallback_init: I) -> RcFilterMapVar<T, O, I, fn(&T) -> Option<O>, Self>
+    fn filter_try_into<O, I>(&self, fallback_init: I) -> types::RcFilterMapVar<T, O, I, fn(&T) -> Option<O>, Self>
     where
         O: VarValue + TryFrom<T>,
         I: FnOnce(&T) -> O + 'static,
     {
-        RcFilterMapVar::new(self.clone(), fallback_init, |v| v.clone().try_into().ok())
+        types::RcFilterMapVar::new(self.clone(), fallback_init, |v| v.clone().try_into().ok())
     }
 
     /// Create a [`filter_map`] that uses [`FromStr`] to convert from `T` to `O`.
@@ -1181,19 +1186,19 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + crate::private::Sealed + 'stati
     /// [`filter_map`]: Var::filter_map
     #[inline]
     #[allow(clippy::type_complexity)]
-    fn filter_parse<O, I>(&self, fallback_init: I) -> RcFilterMapVar<T, O, I, fn(&T) -> Option<O>, Self>
+    fn filter_parse<O, I>(&self, fallback_init: I) -> types::RcFilterMapVar<T, O, I, fn(&T) -> Option<O>, Self>
     where
         O: VarValue + FromStr,
         T: AsRef<str>,
         I: FnOnce(&T) -> O + 'static,
     {
-        RcFilterMapVar::new(self.clone(), fallback_init, |v| v.as_ref().parse().ok())
+        types::RcFilterMapVar::new(self.clone(), fallback_init, |v| v.as_ref().parse().ok())
     }
 
     /// Create a [`filter_map`](Var::filter_map) that passes when `T` is [`Ok`].
     #[inline]
     #[allow(clippy::type_complexity)]
-    fn filter_ok<O, I>(&self, fallback_init: I) -> RcFilterMapVar<T, O, I, fn(&T) -> Option<O>, Self>
+    fn filter_ok<O, I>(&self, fallback_init: I) -> types::RcFilterMapVar<T, O, I, fn(&T) -> Option<O>, Self>
     where
         O: VarValue,
         I: FnOnce(&T) -> O + 'static,
@@ -1205,7 +1210,7 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + crate::private::Sealed + 'stati
     /// Create a [`filter_map`](Var::filter_map) that passes when `T` is [`Ok`] and maps the result to [`Text`].
     #[inline]
     #[allow(clippy::type_complexity)]
-    fn filter_ok_text<I>(&self, fallback_init: I) -> RcFilterMapVar<T, Text, I, fn(&T) -> Option<Text>, Self>
+    fn filter_ok_text<I>(&self, fallback_init: I) -> types::RcFilterMapVar<T, Text, I, fn(&T) -> Option<Text>, Self>
     where
         I: FnOnce(&T) -> Text + 'static,
         T: ResultOkText,
@@ -1216,7 +1221,7 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + crate::private::Sealed + 'stati
     /// Create a [`filter_map`](Var::filter_map) that passes when `T` is [`Err`].
     #[inline]
     #[allow(clippy::type_complexity)]
-    fn filter_err<O, I>(&self, fallback_init: I) -> RcFilterMapVar<T, O, I, fn(&T) -> Option<O>, Self>
+    fn filter_err<O, I>(&self, fallback_init: I) -> types::RcFilterMapVar<T, O, I, fn(&T) -> Option<O>, Self>
     where
         O: VarValue,
         I: FnOnce(&T) -> O + 'static,
@@ -1228,7 +1233,7 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + crate::private::Sealed + 'stati
     /// Create a [`filter_map`](Var::filter_map) that passes when `T` is [`Err`] and maps the error to [`Text`].
     #[inline]
     #[allow(clippy::type_complexity)]
-    fn filter_err_text<I>(&self, fallback_init: I) -> RcFilterMapVar<T, Text, I, fn(&T) -> Option<Text>, Self>
+    fn filter_err_text<I>(&self, fallback_init: I) -> types::RcFilterMapVar<T, Text, I, fn(&T) -> Option<Text>, Self>
     where
         I: FnOnce(&T) -> Text + 'static,
         T: ResultErrText,
@@ -1239,7 +1244,7 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + crate::private::Sealed + 'stati
     /// Create a [`filter_map`](Var::filter_map) that passes when `T` is [`Some`].
     #[inline]
     #[allow(clippy::type_complexity)]
-    fn filter_some<O, I>(&self, fallback_init: I) -> RcFilterMapVar<T, O, I, fn(&T) -> Option<O>, Self>
+    fn filter_some<O, I>(&self, fallback_init: I) -> types::RcFilterMapVar<T, O, I, fn(&T) -> Option<O>, Self>
     where
         O: VarValue,
         I: FnOnce(&T) -> O + 'static,
@@ -1251,7 +1256,7 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + crate::private::Sealed + 'stati
     /// Create a [`filter_map`](Var::filter_map) that passes when `T` is [`Some`] and convert the value to [`Text`].
     #[inline]
     #[allow(clippy::type_complexity)]
-    fn filter_some_text<I>(&self, fallback_init: I) -> RcFilterMapVar<T, Text, I, fn(&T) -> Option<Text>, Self>
+    fn filter_some_text<I>(&self, fallback_init: I) -> types::RcFilterMapVar<T, Text, I, fn(&T) -> Option<Text>, Self>
     where
         I: FnOnce(&T) -> Text + 'static,
         T: OptionSomeText,
@@ -1268,14 +1273,14 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + crate::private::Sealed + 'stati
     ///
     /// Also see [`bind_filter_bidi`](Var::bind_filter_bidi) to create a *map binding* between two existing variables.
     #[inline]
-    fn filter_map_bidi<O, I, M, N>(&self, fallback_init: I, map: M, map_back: N) -> RcFilterMapBidiVar<T, O, I, M, N, Self>
+    fn filter_map_bidi<O, I, M, N>(&self, fallback_init: I, map: M, map_back: N) -> types::RcFilterMapBidiVar<T, O, I, M, N, Self>
     where
         O: VarValue,
         I: FnOnce(&T) -> O + 'static,
         M: FnMut(&T) -> Option<O> + 'static,
         N: FnMut(O) -> Option<T> + 'static,
     {
-        RcFilterMapBidiVar::new(self.clone(), fallback_init, map, map_back)
+        types::RcFilterMapBidiVar::new(self.clone(), fallback_init, map, map_back)
     }
 
     /// Create a [`filter_map_bidi`] that uses [`TryInto`] to convert between `T` and `O`.
@@ -1283,13 +1288,16 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + crate::private::Sealed + 'stati
     /// [`filter_map_bidi`]: Var::filter_map_bidi
     #[inline]
     #[allow(clippy::type_complexity)]
-    fn filter_try_into_bidi<O, I>(&self, fallback_init: I) -> RcFilterMapBidiVar<T, O, I, fn(&T) -> Option<O>, fn(O) -> Option<T>, Self>
+    fn filter_try_into_bidi<O, I>(
+        &self,
+        fallback_init: I,
+    ) -> types::RcFilterMapBidiVar<T, O, I, fn(&T) -> Option<O>, fn(O) -> Option<T>, Self>
     where
         O: VarValue + TryFrom<T>,
         I: FnOnce(&T) -> O + 'static,
         T: TryFrom<O>,
     {
-        RcFilterMapBidiVar::new(self.clone(), fallback_init, |t| t.clone().try_into().ok(), |o| o.try_into().ok())
+        types::RcFilterMapBidiVar::new(self.clone(), fallback_init, |t| t.clone().try_into().ok(), |o| o.try_into().ok())
     }
 
     /// Create a [`filter_map_bidi`] that uses [`FromStr`] to convert from `T` to `O` and [`ToText`] to convert from `O` to `T`.
@@ -1299,13 +1307,13 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + crate::private::Sealed + 'stati
     /// [`filter_map_bidi`]: Var::filter_map_bidi
     #[inline]
     #[allow(clippy::type_complexity)]
-    fn filter_parse_bidi<O, I>(&self, fallback_init: I) -> RcFilterMapBidiVar<T, O, I, fn(&T) -> Option<O>, fn(O) -> Option<T>, Self>
+    fn filter_parse_bidi<O, I>(&self, fallback_init: I) -> types::RcFilterMapBidiVar<T, O, I, fn(&T) -> Option<O>, fn(O) -> Option<T>, Self>
     where
         O: VarValue + FromStr + ToText,
         I: FnOnce(&T) -> O + 'static,
         T: AsRef<str> + From<Text>,
     {
-        RcFilterMapBidiVar::new(
+        types::RcFilterMapBidiVar::new(
             self.clone(),
             fallback_init,
             |t| t.as_ref().parse().ok(),
@@ -1318,12 +1326,12 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + crate::private::Sealed + 'stati
     /// [`filter_map_bidi`]: Var::filter_map_bidi
     #[inline]
     #[allow(clippy::type_complexity)]
-    fn filter_to_text_bidi<O>(&self) -> RcFilterMapBidiVar<T, O, fn(&T) -> O, fn(&T) -> Option<O>, fn(O) -> Option<T>, Self>
+    fn filter_to_text_bidi<O>(&self) -> types::RcFilterMapBidiVar<T, O, fn(&T) -> O, fn(&T) -> Option<O>, fn(O) -> Option<T>, Self>
     where
         O: VarValue + AsRef<str> + From<Text>,
         T: FromStr + ToText,
     {
-        RcFilterMapBidiVar::new(
+        types::RcFilterMapBidiVar::new(
             self.clone(),
             |_| unreachable!(),
             |t| Some(t.to_text().into()),
@@ -1911,73 +1919,6 @@ impl<'a, T: VarValue> DerefMut for VarModify<'a, T> {
         self.value
     }
 }
-
-///<span data-del-macro-root></span> New [`impl Var<T>`](Var) from an expression with interpolated *vars*.
-///
-/// # Interpolation
-///
-/// Other variables can be interpolated by quoting the var with `#{..}`. When
-/// an expression contains other interpolated vars the expression var updates when
-/// any of the interpolated vars update.
-///
-/// # Examples
-///
-/// ```
-/// # use zero_ui_core::var::*;
-/// let var_a = var(10);
-/// let var_b = var(10);
-/// let name = "var_eq";
-/// let var_eq = expr_var! {
-///     let eq = #{var_a} == #{var_b};
-///     println!("{} updated: {} == {}: {}", name, #{var_a}, #{var_b}, eq);
-///     eq
-/// };
-/// ```
-///
-/// In the example a `var_eq` of type `impl Var<bool>` is created. When either `var_a` or `var_b` are set
-/// the value of `var_eq` is updated on the next read. Normal variables like `name` are moved in, like a closure capture.
-///
-/// # Capture Mode
-///
-/// The expression operates like a closure that captures by `move`. Both the interpolated variables and any
-/// other `let` binding referenced from the scope are moved into the resulting variable.
-///
-/// # Interpolation
-///
-/// Variable interpolation is done by quoting the variable with `#{<var-expr>}`, the braces are required.
-///
-/// The `<var-expr>` is evaluated before *capturing* starts so if you interpolate `#{var_a.clone()}` `var_a`
-/// will still be available after the `expr_var` call. Equal `<var-expr>` only evaluate once.
-///
-/// The interpolation result value is the [`Var::get`] return value.
-///
-/// # Expansion
-///
-/// The expression is transformed into different types of vars depending on the number of interpolated variables.
-///
-/// ## No Variables
-///
-/// An expression with no interpolation is simply evaluated into a var using [`IntoVar`].
-///
-/// # Single Variable
-///
-/// An expression with a single variable is transformed in a [`map`](Var::map) operation, unless the expression
-/// is only the variable without any extra operation.
-///
-/// # Multiple Variables
-///
-/// An expression with multiple variables is transformed into a [`merge_var!`] call.
-#[macro_export]
-macro_rules! expr_var {
-    ($($expr:tt)+) => {
-        $crate::var::__expr_var! { $crate::var, $($expr)+ }
-    };
-}
-#[doc(inline)]
-pub use crate::expr_var;
-
-#[doc(hidden)]
-pub use zero_ui_proc_macros::expr_var as __expr_var;
 
 ///<span data-del-macro-root></span> Implements `U: From<T>`, `T: IntoVar<U>` and `T: IntoValue<U>` without boilerplate.
 ///

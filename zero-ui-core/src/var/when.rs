@@ -57,7 +57,7 @@ use std::rc::{Rc, Weak};
 #[macro_export]
 macro_rules! when_var {
     ($($tt:tt)*) => {
-        $crate::var::__when_var! {
+        $crate::var::types::__when_var! {
             $crate::var
             $($tt)*
         }
@@ -155,7 +155,7 @@ macro_rules! impl_rc_when_var {
         }
 
         impl<O: VarValue, D: Var<O>, $($C: Var<bool>),+ , $($V: Var<O>),+> Var<O> for $RcWhenVar<O, D, $($C),+ , $($V),+> {
-            type AsReadOnly = ReadOnlyVar<O, Self>;
+            type AsReadOnly = types::ReadOnlyVar<O, Self>;
             type Weak = $WeakRcWhenVar<O, D, $($C),+ , $($V),+>;
 
             fn get<'a, Vr: AsRef<VarsRead>>(&'a self, vars: &'a Vr) -> &'a O {
@@ -336,7 +336,7 @@ macro_rules! impl_rc_when_var {
 
             #[inline]
             fn into_read_only(self) -> Self::AsReadOnly {
-               ReadOnlyVar::new(self)
+               types::ReadOnlyVar::new(self)
             }
 
             fn update_mask<Vr: WithVarsRead>(&self, vars: &Vr) -> UpdateMask {
@@ -470,7 +470,7 @@ impl<O: VarValue> Clone for WeakRcWhenVar<O> {
 }
 
 impl<O: VarValue> Var<O> for RcWhenVar<O> {
-    type AsReadOnly = ReadOnlyVar<O, Self>;
+    type AsReadOnly = types::ReadOnlyVar<O, Self>;
     type Weak = WeakRcWhenVar<O>;
 
     /// Gets the the first variable with `true` condition or the default variable.
@@ -669,7 +669,7 @@ impl<O: VarValue> Var<O> for RcWhenVar<O> {
 
     #[inline]
     fn into_read_only(self) -> Self::AsReadOnly {
-        ReadOnlyVar::new(self)
+        types::ReadOnlyVar::new(self)
     }
 
     fn update_mask<Vr: WithVarsRead>(&self, vars: &Vr) -> UpdateMask {

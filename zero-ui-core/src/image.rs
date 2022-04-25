@@ -17,7 +17,7 @@ use crate::{
     task::{self, fs, io::*, ui::UiTask},
     text::Text,
     units::*,
-    var::{var, RcVar, Var, Vars, WeakRcVar, WeakVar},
+    var::{types::WeakRcVar, var, RcVar, Var, Vars, WeakVar},
 };
 
 mod types;

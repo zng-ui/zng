@@ -6,6 +6,8 @@ use super::*;
 pub struct ReadOnlyWeakVar<T: VarValue, W: WeakVar<T>>(W, PhantomData<T>);
 impl<T: VarValue, W: WeakVar<T>> ReadOnlyWeakVar<T, W> {
     /// New wrapper.
+    ///
+    /// Prefer [`Var::into_read_only`].
     pub fn new(weak: W) -> Self {
         Self(weak, PhantomData)
     }

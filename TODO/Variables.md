@@ -12,7 +12,6 @@
 * `Var::animate`, that implements WeakVar handling.
 * `VarIsReadOnlyOrContextual` error (first try `actual_var`).
 * `var::error` module.
-* `var::types` module, place all types unlikely to be used directly here.
 
 ```rust
 trait Var {
