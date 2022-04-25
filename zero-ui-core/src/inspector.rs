@@ -116,13 +116,13 @@ impl PropertyInstance {
         PropertyInstance(Rc::new(RefCell::new(info)))
     }
 
-    /// Imutable borrows the [`PropertyInstanceInfo`].
+    /// Immutable borrows the [`PropertyInstanceInfo`].
     #[inline]
     pub fn borrow(&self) -> std::cell::Ref<PropertyInstanceInfo> {
         self.0.borrow()
     }
 
-    /// Imutable borrows the [`PropertyInstanceInfo`], returning an error if the value is currently mutably borrowed..
+    /// Immutable borrows the [`PropertyInstanceInfo`], returning an error if the value is currently mutably borrowed..
     #[inline]
     pub fn try_borrow(&self) -> Result<std::cell::Ref<PropertyInstanceInfo>, std::cell::BorrowError> {
         self.0.try_borrow()
@@ -153,13 +153,13 @@ impl CapturedPropertyInstance {
         CapturedPropertyInstance { new_fn, index }
     }
 
-    /// Imutable borrows the [`CapturedPropertyInfo`].
+    /// Immutable borrows the [`CapturedPropertyInfo`].
     #[inline]
     pub fn borrow(&self) -> std::cell::Ref<CapturedPropertyInfo> {
         std::cell::Ref::map(self.new_fn.borrow(), |f| &f.captures[self.index])
     }
 
-    /// Imutable borrows the [`CapturedPropertyInfo`], returning an error if the value is currently mutably borrowed..
+    /// Immutable borrows the [`CapturedPropertyInfo`], returning an error if the value is currently mutably borrowed..
     #[inline]
     pub fn try_borrow(&self) -> Result<std::cell::Ref<CapturedPropertyInfo>, std::cell::BorrowError> {
         self.new_fn
@@ -191,13 +191,13 @@ impl WidgetNewFnInstance {
         WidgetNewFnInstance(Rc::new(RefCell::new(info)))
     }
 
-    /// Imutable borrows the [`WidgetNewFnInfo`].
+    /// Immutable borrows the [`WidgetNewFnInfo`].
     #[inline]
     pub fn borrow(&self) -> std::cell::Ref<WidgetNewFnInfo> {
         self.0.borrow()
     }
 
-    /// Imutable borrows the [`WidgetNewFnInfo`], returning an error if the value is currently mutably borrowed..
+    /// Immutable borrows the [`WidgetNewFnInfo`], returning an error if the value is currently mutably borrowed..
     #[inline]
     pub fn try_borrow(&self) -> Result<std::cell::Ref<WidgetNewFnInfo>, std::cell::BorrowError> {
         self.0.try_borrow()
@@ -225,13 +225,13 @@ impl WidgetInstance {
         WidgetInstance(Rc::new(RefCell::new(info)))
     }
 
-    /// Imutable borrows the [`WidgetInstanceInfo`].
+    /// Immutable borrows the [`WidgetInstanceInfo`].
     #[inline]
     pub fn borrow(&self) -> std::cell::Ref<WidgetInstanceInfo> {
         self.0.borrow()
     }
 
-    /// Imutable borrows the [`WidgetInstanceInfo`], returning an error if the value is currently mutably borrowed..
+    /// Immutable borrows the [`WidgetInstanceInfo`], returning an error if the value is currently mutably borrowed..
     #[inline]
     pub fn try_borrow(&self) -> Result<std::cell::Ref<WidgetInstanceInfo>, std::cell::BorrowError> {
         self.0.try_borrow()
@@ -1128,7 +1128,7 @@ impl PartialEq for ValueInfo {
 pub mod debug_var_util {
     use std::fmt::Debug;
 
-    use crate::var::{BoxedVar, IntoValue, IntoVar, OwnedVar, Var, VarValue};
+    use crate::var::{BoxedVar, IntoValue, IntoVar, LocalVar, Var, VarValue};
 
     use super::ValueInfo;
 
@@ -1141,7 +1141,7 @@ pub mod debug_var_util {
     }
     impl<T> FromTypeNameOnly for Wrap<&T> {
         fn debug_var(&self) -> BoxedVar<ValueInfo> {
-            OwnedVar(ValueInfo::new_type_name_only(self.0)).boxed()
+            LocalVar(ValueInfo::new_type_name_only(self.0)).boxed()
         }
     }
 
@@ -1153,7 +1153,7 @@ pub mod debug_var_util {
     }
     impl<T: Debug, V: IntoValue<T>> FromIntoValueDebug<T> for &Wrap<&V> {
         fn debug_var(&self) -> BoxedVar<ValueInfo> {
-            OwnedVar(ValueInfo::new(&self.0.clone().into())).boxed()
+            LocalVar(ValueInfo::new(&self.0.clone().into())).boxed()
         }
     }
 
@@ -1177,7 +1177,7 @@ pub mod debug_var_util {
     }
     impl<T: Debug> FromDebug for &&&Wrap<&T> {
         fn debug_var(&self) -> BoxedVar<ValueInfo> {
-            OwnedVar(ValueInfo::new(self.0)).boxed()
+            LocalVar(ValueInfo::new(self.0)).boxed()
         }
     }
 
@@ -1213,10 +1213,10 @@ pub mod debug_var_util {
                 #[derive(Clone, Copy)]
                 struct Test;
                 impl IntoVar<&'static str> for Test {
-                    type Var = crate::var::OwnedVar<&'static str>;
+                    type Var = crate::var::LocalVar<&'static str>;
 
                     fn into_var(self) -> Self::Var {
-                        crate::var::OwnedVar("called into_var")
+                        crate::var::LocalVar("called into_var")
                     }
                 }
                 Test

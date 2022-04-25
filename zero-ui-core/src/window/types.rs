@@ -761,19 +761,19 @@ impl fmt::Display for WindowNotFound {
 impl std::error::Error for WindowNotFound {}
 
 impl crate::var::IntoVar<Option<CursorIcon>> for CursorIcon {
-    type Var = crate::var::OwnedVar<Option<CursorIcon>>;
+    type Var = crate::var::LocalVar<Option<CursorIcon>>;
 
     fn into_var(self) -> Self::Var {
-        crate::var::OwnedVar(Some(self))
+        crate::var::LocalVar(Some(self))
     }
 }
 impl crate::var::IntoValue<Option<CursorIcon>> for CursorIcon {}
 
 impl crate::var::IntoVar<Option<RenderMode>> for RenderMode {
-    type Var = crate::var::OwnedVar<Option<RenderMode>>;
+    type Var = crate::var::LocalVar<Option<RenderMode>>;
 
     fn into_var(self) -> Self::Var {
-        crate::var::OwnedVar(Some(self))
+        crate::var::LocalVar(Some(self))
     }
 }
 impl crate::var::IntoValue<Option<RenderMode>> for RenderMode {}

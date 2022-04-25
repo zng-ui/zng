@@ -2,13 +2,15 @@
 
 # Animation
 
+* Try to implement `Var::actual_var` to retrieve the underlying var from contextual vars,
+  this makes `bind` and `animate` work for context vars.
 * Config animations fps.
 * Variable that starts animating on first `get`.
 * Time dilation control.
 * Drop animation if var is dropped. Need Var::WeakVar type.
 * `Var::repeat`.
 * `Var::animate`, that implements WeakVar handling.
-* `VarIsReadOnlyOrContextual` error.
+* `VarIsReadOnlyOrContextual` error (first try `actual_var`).
 * `var::error` module.
 * `var::types` module, place all types unlikely to be used directly here.
 

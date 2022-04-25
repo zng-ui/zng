@@ -988,10 +988,10 @@ impl<const N: usize> From<[FontName; N]> for FontNames {
     }
 }
 impl<const N: usize> IntoVar<FontNames> for [FontName; N] {
-    type Var = OwnedVar<FontNames>;
+    type Var = LocalVar<FontNames>;
 
     fn into_var(self) -> Self::Var {
-        OwnedVar(self.into())
+        LocalVar(self.into())
     }
 }
 impl<const N: usize> From<[&'static str; N]> for FontNames {
@@ -1000,10 +1000,10 @@ impl<const N: usize> From<[&'static str; N]> for FontNames {
     }
 }
 impl<const N: usize> IntoVar<FontNames> for [&'static str; N] {
-    type Var = OwnedVar<FontNames>;
+    type Var = LocalVar<FontNames>;
 
     fn into_var(self) -> Self::Var {
-        OwnedVar(self.into())
+        LocalVar(self.into())
     }
 }
 impl<const N: usize> From<[String; N]> for FontNames {
@@ -1012,10 +1012,10 @@ impl<const N: usize> From<[String; N]> for FontNames {
     }
 }
 impl<const N: usize> IntoVar<FontNames> for [String; N] {
-    type Var = OwnedVar<FontNames>;
+    type Var = LocalVar<FontNames>;
 
     fn into_var(self) -> Self::Var {
-        OwnedVar(self.into())
+        LocalVar(self.into())
     }
 }
 impl<const N: usize> From<[Text; N]> for FontNames {
@@ -1024,10 +1024,10 @@ impl<const N: usize> From<[Text; N]> for FontNames {
     }
 }
 impl<const N: usize> IntoVar<FontNames> for [Text; N] {
-    type Var = OwnedVar<FontNames>;
+    type Var = LocalVar<FontNames>;
 
     fn into_var(self) -> Self::Var {
-        OwnedVar(self.into())
+        LocalVar(self.into())
     }
 }
 
@@ -1821,4 +1821,4 @@ macro_rules! formatx {
 }
 #[doc(inline)]
 pub use crate::formatx;
-use crate::var::{IntoVar, OwnedVar};
+use crate::var::{IntoVar, LocalVar};

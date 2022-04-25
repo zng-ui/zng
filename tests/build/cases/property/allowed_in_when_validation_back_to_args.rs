@@ -3,10 +3,10 @@ use zero_ui::core::{property, var::IntoVar, UiNode};
 #[derive(Clone)]
 pub struct MyType;
 impl IntoVar<bool> for MyType {
-    type Var = zero_ui::core::var::OwnedVar<bool>;
+    type Var = zero_ui::core::var::LocalVar<bool>;
 
     fn into_var(self) -> Self::Var {
-        zero_ui::core::var::OwnedVar(true)
+        zero_ui::core::var::LocalVar(true)
     }
 }
 

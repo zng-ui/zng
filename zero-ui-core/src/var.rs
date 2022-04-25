@@ -33,8 +33,8 @@ pub use context::*;
 mod read_only;
 pub use read_only::*;
 
-mod owned;
-pub use owned::*;
+mod local;
+pub use local::*;
 
 mod rc;
 pub use rc::*;
@@ -121,14 +121,14 @@ impl std::fmt::Display for VarIsReadOnly {
 /// A value-to-[var](Var) conversion that consumes the value.
 ///
 /// Every [`Var`] implements this to convert to it-self, every [`VarValue`] implements this to
-/// convert to an [`OwnedVar`].
+/// convert to an [`LocalVar`].
 ///
 /// This trait is used by used by most properties, it allows then to accept literal values, variables and context variables
 /// all with a single signature. Together with [`Var`] this gives properties great flexibility of usage, at zero-cost. Widget
 /// `when` blocks also use [`IntoVar`] to support *changing* the property value depending on the widget state.
 ///
 /// Value types can also manually implement this to support a shorthand literal syntax for when they are used in properties,
-/// this converts the *shorthand value* like a tuple into the actual value type and wraps it into a variable, usually [`OwnedVar`]
+/// this converts the *shorthand value* like a tuple into the actual value type and wraps it into a variable, usually [`LocalVar`]
 /// too. They can implement the trait multiple times to support different shorthand syntaxes or different types in the shorthand
 /// value.
 ///
@@ -145,17 +145,17 @@ impl std::fmt::Display for VarIsReadOnly {
 ///     height: f32
 /// }
 /// impl IntoVar<Size> for (u32, u32) {
-///     type Var = OwnedVar<Size>;
+///     type Var = LocalVar<Size>;
 ///
 ///     fn into_var(self) -> Self::Var {
-///         OwnedVar(Size { width: self.0 as f32, height: self.1 as f32 })
+///         LocalVar(Size { width: self.0 as f32, height: self.1 as f32 })
 ///     }
 /// }
 /// impl IntoVar<Size> for (f32, f32) {
-///     type Var = OwnedVar<Size>;
+///     type Var = LocalVar<Size>;
 ///
 ///     fn into_var(self) -> Self::Var {
-///         OwnedVar(Size { width: self.0, height: self.1 })
+///         LocalVar(Size { width: self.0, height: self.1 })
 ///     }
 /// }
 /// #[property(size)]
@@ -247,7 +247,7 @@ impl std::fmt::Display for VarIsReadOnly {
 pub trait IntoVar<T: VarValue>: Clone {
     /// Variable type that will wrap the `T` value.
     ///
-    /// This is the [`OwnedVar`] for most types or `Self` for variable types.
+    /// This is the [`LocalVar`] for most types or `Self` for variable types.
     type Var: Var<T>;
 
     /// Converts the source value into a var.
@@ -357,7 +357,7 @@ impl<T: VarValue> Default for NoneWeakVar<T> {
 }
 impl<T: VarValue> crate::private::Sealed for NoneWeakVar<T> {}
 impl<T: VarValue> WeakVar<T> for NoneWeakVar<T> {
-    type Strong = OwnedVar<T>;
+    type Strong = LocalVar<T>;
 
     fn upgrade(&self) -> Option<Self::Strong> {
         None
@@ -668,7 +668,7 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + crate::private::Sealed + 'stati
     ///
     /// This is only useful for identifying the variable, the only guarantee is that the inner data is not dynamic. Variables
     /// that are not [`is_rc`] always return `null`.
-    /// 
+    ///
     /// [`is_rc`]: Self::is_rc
     fn as_ptr(&self) -> *const ();
 
@@ -1986,7 +1986,7 @@ pub use zero_ui_proc_macros::expr_var as __expr_var;
 /// enable the easy-to-use properties that are expected.
 ///
 /// You can use this macro to implement both `U: From<T>`, `T: IntoVar<U>` and `T: IntoValue<U>` at the same time.
-/// The macro syntax is one or more functions with signature `fn from(t: T) -> U`. The [`OwnedVar<U>`]
+/// The macro syntax is one or more functions with signature `fn from(t: T) -> U`. The [`LocalVar<U>`]
 /// type is selected for variables.
 ///
 /// Optionally you can declare generics using the pattern `fn from<const N: usize>(t: &'static [T; N]) -> U`
@@ -2209,12 +2209,12 @@ macro_rules! __impl_from_and_into_var {
         }
 
         impl $($generics)* $crate::var::IntoVar<$Output> for $Input {
-            type Var = $crate::var::OwnedVar<$Output>;
+            type Var = $crate::var::LocalVar<$Output>;
 
             $($docs)*
             #[inline]
             fn into_var(self) -> Self::Var {
-                $crate::var::OwnedVar(self.into())
+                $crate::var::LocalVar(self.into())
             }
         }
 

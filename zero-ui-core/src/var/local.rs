@@ -1,10 +1,12 @@
 use super::*;
 
-/// A [`Var`] that owns the value and keeps it locally.
+/// A [`Var`] is a fixed value that is stored locally.
+/// 
+/// Cloning this variable clones the value.
 #[derive(Clone)]
-pub struct OwnedVar<T: VarValue>(pub T);
-impl<T: VarValue> crate::private::Sealed for OwnedVar<T> {}
-impl<T: VarValue> Var<T> for OwnedVar<T> {
+pub struct LocalVar<T: VarValue>(pub T);
+impl<T: VarValue> crate::private::Sealed for LocalVar<T> {}
+impl<T: VarValue> Var<T> for LocalVar<T> {
     type AsReadOnly = Self;
     type Weak = NoneWeakVar<T>;
 
@@ -119,12 +121,12 @@ impl<T: VarValue> Var<T> for OwnedVar<T> {
         std::ptr::null()
     }
 }
-impl<T: VarValue + Default> Default for OwnedVar<T> {
+impl<T: VarValue + Default> Default for LocalVar<T> {
     fn default() -> Self {
-        OwnedVar(T::default())
+        LocalVar(T::default())
     }
 }
-impl<T: VarValue> IntoVar<T> for OwnedVar<T> {
+impl<T: VarValue> IntoVar<T> for LocalVar<T> {
     type Var = Self;
 
     #[inline]
@@ -133,9 +135,9 @@ impl<T: VarValue> IntoVar<T> for OwnedVar<T> {
     }
 }
 impl<T: VarValue> IntoVar<T> for T {
-    type Var = OwnedVar<T>;
+    type Var = LocalVar<T>;
 
     fn into_var(self) -> Self::Var {
-        OwnedVar(self)
+        LocalVar(self)
     }
 }

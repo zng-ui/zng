@@ -82,11 +82,11 @@ macro_rules! impl_length_comp_conversions {
             where
             $($N: Into<Length> + Clone,)+
             {
-                type Var = crate::var::OwnedVar<$For>;
+                type Var = crate::var::LocalVar<$For>;
 
                 $(#[$docs])*
                 fn into_var(self) -> Self::Var {
-                    crate::var::OwnedVar(self.into())
+                    crate::var::LocalVar(self.into())
                 }
             }
         )+

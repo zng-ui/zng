@@ -615,7 +615,7 @@ mod tests {
 
     #[test]
     fn small() {
-        let _: RcSwitch2Var<u32, OwnedVar<u32>, OwnedVar<u32>, RcVar<usize>> = switch_var!(var(0usize), 0, 1);
+        let _: RcSwitch2Var<u32, LocalVar<u32>, LocalVar<u32>, RcVar<usize>> = switch_var!(var(0usize), 0, 1);
         var_type_hint(switch_var!(var(0usize), 0, 1));
     }
 

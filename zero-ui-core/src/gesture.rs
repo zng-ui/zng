@@ -459,10 +459,10 @@ impl<const N: usize> From<[Shortcut; N]> for Shortcuts {
     }
 }
 impl<const N: usize> crate::var::IntoVar<Shortcuts> for [Shortcut; N] {
-    type Var = crate::var::OwnedVar<Shortcuts>;
+    type Var = crate::var::LocalVar<Shortcuts>;
 
     fn into_var(self) -> Self::Var {
-        crate::var::OwnedVar(self.into())
+        crate::var::LocalVar(self.into())
     }
 }
 
