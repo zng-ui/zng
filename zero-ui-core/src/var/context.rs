@@ -204,7 +204,7 @@ impl<C: ContextVar> IntoVar<C::Type> for ContextVarProxy<C> {
 ///
 /// Note that this is the lowest level of [`ContextVar`] manipulation, usually you can just use the [`with_context_var`]
 /// helper function to bind another variable to a context variable, internally these
-/// functions use the [`ContextVarData::var`] and [`ContextVarData::var_read`] in all [`UiNode`] methods.
+/// functions use the [`ContextVarData::in_vars`] and [`ContextVarData::in_vars_read`] in all [`UiNode`] methods.
 ///
 /// [`UiNode`]: crate::UiNode
 pub struct ContextVarData<'a, T: VarValue> {

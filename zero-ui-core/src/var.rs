@@ -615,7 +615,11 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + crate::private::Sealed + 'stati
     /// Returns a clone of the underlying variable that owns the value.
     ///
     /// If the variable [`is_contextual`], this is a clone of the underlying variable that is currently assigned to the context
-    /// var, if not it is a boxed clone of `self`.
+    /// var, if not it is a boxed clone of `self`. If the variable [`is_contextual`] because it depends on a [`ContextVar`], the
+    /// variable effect is recreated on the actual var, for example, in a map var, the mapping closures are shared with a new
+    /// mapping var that depends directly on the actual variable.
+    /// 
+    /// [`is_contextual`]: Self::is_contextual
     fn actual_var<Vw: WithVars>(&self, vars: &Vw) -> BoxedVar<T>;
 
     /// If the variable is implemented as a shared reference to the value.

@@ -83,7 +83,7 @@ type AnimationFn = Box<dyn FnMut(&Vars, bool) -> Retain>;
 /// # #[impl_ui_node(child)]
 /// impl<C: UiNode, V: Var<bool>> UiNode for FooNode<C, V> {
 ///     fn update(&mut self, ctx: &mut WidgetContext) {
-///         ctx.vars.with_context_var(FooVar, ContextVarData::var(ctx.vars, &self.var), || self.child.update(ctx));
+///         ctx.vars.with_context_var(FooVar, ContextVarData::in_vars(ctx.vars, &self.var, false), || self.child.update(ctx));
 ///     }
 /// }
 /// ```
