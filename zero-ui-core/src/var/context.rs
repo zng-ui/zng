@@ -1043,6 +1043,6 @@ mod tests {
         test.update(false).assert_wait();
 
         assert_eq!("Update!", input_var.get(test.ctx().vars));
-        assert_eq!(".", other_var.get(test.ctx().vars));
+        assert_eq!("Update!", other_var.get(test.ctx().vars));
     }
 }

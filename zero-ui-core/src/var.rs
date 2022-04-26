@@ -1384,14 +1384,62 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + crate::private::Sealed + 'stati
         vars.with_vars_read(|vars| vars.receiver(self))
     }
 
-    /// Create a binding with `to_var`. When `self` updates the `to_var` is assigned a clone of the new value.
+    /// Create a [`map`](Var::map) like binding between two existing variables.
     ///
-    /// Both `self` and `other_var` notify a new value in the same app update, this is different then a manually implemented *binding*
-    /// when the assign to the second variable would cause a second update.
+    /// The binding flows from `self` to `to_var`, every time `self` updates `map` is called to generate a value that is assigned `to_var`.
+    ///
+    /// Both `self` and `to_var` notify a new value in the same app update, this is different then a manually implemented *binding*
+    /// where the assign to `to_var` would cause a second update.
     ///
     /// Note that the current value is **not** transferred just by creating a binding, only subsequent updates of `self` will
-    /// assign `to_var`. Also note that bindings update at the app context level, so context variables are only their default value.
-    /// See [`Vars::bind`] for more details about variable binding.
+    /// assign `to_var`. No binding is set if `self` is not [`can_update`] or if `to_var` is [`always_read_only`]. If either
+    /// `self` or `to_var` are [`is_contextual`] the binding is set on the [`actual_var`] of both. The binding only holds weak
+    /// references to the vars, if any is dropped the binding is also dropped.
+    ///
+    /// Returns a [`VarBindingHandle`]. See [`Vars::bind`] for more details about variable binding.
+    ///
+    /// [`can_update`]: Var::can_update
+    /// [`always_read_only`]: Var::always_read_only
+    /// [`is_contextual`]: Var::is_contextual
+    /// [`actual_var`]: Var::actual_var
+    #[inline]
+    fn bind_map<Vw, T2, V2, M>(&self, vars: &Vw, to_var: &V2, mut map: M) -> VarBindingHandle
+    where
+        Vw: WithVars,
+        T2: VarValue,
+        V2: Var<T2>,
+        M: FnMut(&VarBinding, &T) -> T2 + 'static,
+    {
+        if !self.can_update() || to_var.always_read_only() {
+            VarBindingHandle::dummy()
+        } else if self.is_contextual() || to_var.is_contextual() {
+            vars.with_vars(|vars| self.actual_var(vars).bind_map(vars, &to_var.actual_var(vars), map))
+        } else {
+            // self can-update, to_var can be set and both are not contextual.
+
+            debug_assert!(self.is_rc());
+            debug_assert!(to_var.is_rc());
+
+            let wk_from_var = self.downgrade().unwrap();
+            let wk_to_var = to_var.downgrade().unwrap();
+
+            vars.with_vars(|vars| {
+                vars.bind(move |vars, info| match (wk_from_var.upgrade(), wk_to_var.upgrade()) {
+                    (Some(from), Some(to)) => {
+                        if let Some(new_value) = from.get_new(vars) {
+                            let new_value = map(info, new_value);
+                            let _ = to.set(vars, new_value);
+                        }
+                    }
+                    _ => info.unbind(),
+                })
+            })
+        }
+    }
+
+    /// Create a [`bind_map`] that uses clones the value for `to_var`.
+    ///
+    /// [`bind_map`]: Var::bind_map
     #[inline]
     fn bind<Vw, V2>(&self, vars: &Vw, to_var: &V2) -> VarBindingHandle
     where
@@ -1401,55 +1449,9 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + crate::private::Sealed + 'stati
         self.bind_map(vars, to_var, |_, v| v.clone())
     }
 
-    /// Create a bidirectional binding with `other_var`. When one of the vars update the other is
-    /// assigned a clone of the new value.
+    /// Create a [`bind_map`] that uses [`Into`] to convert `T` to `T2`.
     ///
-    /// Both `self` and `other_var` notify a new value in the same app update, this is different then a manually implemented *binding*
-    /// when the assign to the second variable would cause a second update.
-    ///
-    /// Note that the current value is **not** transferred just by creating a binding, only subsequent updates of `self`
-    /// or `other_var` transfer value. Also note that bindings update at the app context level, so context variables are only their default value.
-    /// See [`Vars::bind`] for more details about variable binding.
-    #[inline]
-    fn bind_bidi<Vw, V2>(&self, vars: &Vw, other_var: &V2) -> VarBindingHandle
-    where
-        Vw: WithVars,
-        V2: Var<T>,
-    {
-        self.bind_map_bidi(vars, other_var, |_, v| v.clone(), |_, v| v.clone())
-    }
-
-    /// Create a [`map`](Var::map) like binding between two existing variables.
-    ///
-    /// The binding flows from `self` to `to_var`, every time `self` updates `map` is called to generate a value that is assigned `to_var`.
-    ///
-    /// Both `self` and `to_var` notify a new value in the same app update, this is different then a manually implemented *binding*
-    /// where the assign to `to_var` would cause a second update.
-    ///
-    /// Note that the current value is **not** transferred just by creating a binding, only subsequent updates of `self` will
-    /// assign `to_var`. Also note that bindings update at the app context level, so context variables are only their default value.
-    /// See [`Vars::bind`] for more details about variable binding.
-    #[inline]
-    fn bind_map<Vw, T2, V2, M>(&self, vars: &Vw, to_var: &V2, mut map: M) -> VarBindingHandle
-    where
-        Vw: WithVars,
-        T2: VarValue,
-        V2: Var<T2>,
-        M: FnMut(&VarBinding, &T) -> T2 + 'static,
-    {
-        vars.with_vars(|vars| {
-            let from_var = self.clone();
-            let to_var = to_var.clone();
-            vars.bind(move |vars, info| {
-                if let Some(new_value) = from_var.get_new(vars) {
-                    let new_value = map(info, new_value);
-                    let _ = to_var.set(vars, new_value);
-                }
-            })
-        })
-    }
-
-    /// Create a [`bind_map`](Var::bind_map) that uses [`Into`] to convert `T` to `T2`.
+    /// [`bind_map`]: Var::bind_map
     #[inline]
     fn bind_into<Vw, T2, V2>(&self, vars: &Vw, to_var: &V2) -> VarBindingHandle
     where
@@ -1460,7 +1462,11 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + crate::private::Sealed + 'stati
         self.bind_map(vars, to_var, |_, v| v.clone().into())
     }
 
-    /// Create a [`bind_map`](Var::bind_map) that uses [`ToText`](crate::text::ToText) to convert `T` to [`Text`](crate::text::ToText).
+    /// Create a [`bind_map`] that uses [`ToText`] to convert `T` to [`Text`].
+    ///
+    /// [`bind_map`]: Var::bind_map
+    /// [`ToText`]: crate::text::ToText
+    /// [`Text`]: crate::text::Text
     #[inline]
     fn bind_to_text<Vw, V>(&self, vars: &Vw, text_var: &V) -> VarBindingHandle
     where
@@ -1480,9 +1486,17 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + crate::private::Sealed + 'stati
     /// Both `self` and `other_var` notify a new value in the same app update, this is different then a manually implemented *binding*
     /// when the assign to the second variable would cause a second update.
     ///
-    /// Note that the current value is **not** transferred just by creating a binding, only subsequent updates of `self` will
-    /// assign `to_var`. Also note that bindings update at the app context level, so context variables are only their default value.
-    /// See [`Vars::bind`] for more details about variable binding.
+    /// Note that the current value is **not** transferred just by creating a binding, only subsequent updates will assigns variables.
+    /// No binding is set if `self` or `other_var` are not [`can_update`] or are [`always_read_only`]. If either
+    /// `self` or `to_var` are [`is_contextual`] the binding is set on the [`actual_var`] of both. The binding only holds weak
+    /// references to the vars, if any is dropped the binding is also dropped.
+    ///
+    /// Returns a [`VarBindingHandle`]. See [`Vars::bind`] for more details about variable binding.
+    ///
+    /// [`can_update`]: Var::can_update
+    /// [`always_read_only`]: Var::always_read_only
+    /// [`is_contextual`]: Var::is_contextual
+    /// [`actual_var`]: Var::actual_var
     #[inline]
     fn bind_map_bidi<Vw, T2, V2, M, N>(&self, vars: &Vw, other_var: &V2, mut map: M, mut map_back: N) -> VarBindingHandle
     where
@@ -1492,23 +1506,74 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + crate::private::Sealed + 'stati
         M: FnMut(&VarBinding, &T) -> T2 + 'static,
         N: FnMut(&VarBinding, &T2) -> T + 'static,
     {
+        if !self.can_update() {
+            // self cannot generate new values (and cannot be set)
+
+            debug_assert!(self.always_read_only());
+            return VarBindingHandle::dummy();
+        }
+        if !other_var.can_update() {
+            // other cannot generate new values (and cannot be set)
+
+            debug_assert!(other_var.always_read_only());
+            return VarBindingHandle::dummy();
+        }
+
+        if self.always_read_only() {
+            // self cannot be set, so this is, maybe, only a `bind_map`
+            return self.bind_map(vars, other_var, map);
+        }
+
+        if other_var.always_read_only() {
+            // other_var cannot be set, so this is, maybe, only a *bind_map_back*
+            return other_var.bind_map(vars, self, map_back);
+        }
+
+        if self.is_contextual() || other_var.is_contextual() {
+            return vars.with_vars(|vars| {
+                self.actual_var(vars)
+                    .bind_map_bidi(vars, &other_var.actual_var(vars), map, map_back)
+            });
+        }
+
+        debug_assert!(self.is_rc());
+        debug_assert!(other_var.is_rc());
+
+        let wk_from_var = self.downgrade().unwrap();
+        let wk_to_var = other_var.downgrade().unwrap();
+
         vars.with_vars(|vars| {
-            let from_var = self.clone();
-            let to_var = other_var.clone();
-            vars.bind(move |vars, info| {
-                if let Some(new_value) = from_var.get_new(vars) {
-                    let new_value = map(info, new_value);
-                    let _ = to_var.set(vars, new_value);
+            vars.bind(move |vars, info| match (wk_from_var.upgrade(), wk_to_var.upgrade()) {
+                (Some(from_var), Some(to_var)) => {
+                    if let Some(new_value) = from_var.get_new(vars) {
+                        let new_value = map(info, new_value);
+                        let _ = to_var.set(vars, new_value);
+                    }
+                    if let Some(new_value) = to_var.get_new(vars) {
+                        let new_value = map_back(info, new_value);
+                        let _ = from_var.set(vars, new_value);
+                    }
                 }
-                if let Some(new_value) = to_var.get_new(vars) {
-                    let new_value = map_back(info, new_value);
-                    let _ = from_var.set(vars, new_value);
-                }
+                _ => info.unbind(),
             })
         })
     }
 
-    /// Create a [`bind_map_bidi`](Var::bind_map_bidi) that uses [`Into`] to convert between `self` and `other_var`.
+    /// Create a [`bind_map_bidi`] that clones values in between `self` and `other_var`.
+    ///
+    /// [`bind_map_bidi`]: Var::bind_map_bidi
+    #[inline]
+    fn bind_bidi<Vw, V2>(&self, vars: &Vw, other_var: &V2) -> VarBindingHandle
+    where
+        Vw: WithVars,
+        V2: Var<T>,
+    {
+        self.bind_map_bidi(vars, other_var, |_, v| v.clone(), |_, v| v.clone())
+    }
+
+    /// Create a [`bind_map_bidi`] that uses [`Into`] to convert between `self` and `other_var`.
+    ///
+    /// [`bind_map_bidi`]: Var::bind_map_bidi
     #[inline]
     fn bind_into_bidi<Vw, T2, V2>(&self, vars: &Vw, other_var: &V2) -> VarBindingHandle
     where
@@ -1527,6 +1592,18 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + crate::private::Sealed + 'stati
     ///
     /// Both `self` and `to_var` notify a new value in the same app update, this is different then a manually implemented *binding*
     /// where the assign to `to_var` would cause a second update.
+    ///
+    /// Note that the current value is **not** transferred just by creating a binding, only subsequent updates of `self` will
+    /// assign `to_var`. No binding is set if `self` is not [`can_update`] or if `to_var` is [`always_read_only`]. If either
+    /// `self` or `to_var` are [`is_contextual`] the binding is set on the [`actual_var`] of both. The binding only holds weak
+    /// references to the vars, if any is dropped the binding is also dropped.
+    ///
+    /// Returns a [`VarBindingHandle`]. See [`Vars::bind`] for more details about variable binding.
+    ///
+    /// [`can_update`]: Var::can_update
+    /// [`always_read_only`]: Var::always_read_only
+    /// [`is_contextual`]: Var::is_contextual
+    /// [`actual_var`]: Var::actual_var
     #[inline]
     fn bind_filter<Vw, T2, V2, M>(&self, vars: &Vw, to_var: &V2, mut map: M) -> VarBindingHandle
     where
@@ -1535,17 +1612,32 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + crate::private::Sealed + 'stati
         V2: Var<T2>,
         M: FnMut(&VarBinding, &T) -> Option<T2> + 'static,
     {
-        vars.with_vars(|vars| {
-            let from_var = self.clone();
-            let to_var = to_var.clone();
-            vars.bind(move |vars, info| {
-                if let Some(new_value) = from_var.get_new(vars) {
-                    if let Some(new_value) = map(info, new_value) {
-                        let _ = to_var.set(vars, new_value);
+        if !self.can_update() || to_var.always_read_only() {
+            VarBindingHandle::dummy()
+        } else if self.is_contextual() || to_var.is_contextual() {
+            vars.with_vars(|vars| self.actual_var(vars).bind_filter(vars, &to_var.actual_var(vars), map))
+        } else {
+            // self can-update, to_var can be set and both are not contextual.
+
+            debug_assert!(self.is_rc());
+            debug_assert!(to_var.is_rc());
+
+            let wk_from_var = self.downgrade().unwrap();
+            let wk_to_var = to_var.downgrade().unwrap();
+
+            vars.with_vars(|vars| {
+                vars.bind(move |vars, info| match (wk_from_var.upgrade(), wk_to_var.upgrade()) {
+                    (Some(from), Some(to)) => {
+                        if let Some(new_value) = from.get_new(vars) {
+                            if let Some(new_value) = map(info, new_value) {
+                                let _ = to.set(vars, new_value);
+                            }
+                        }
                     }
-                }
+                    _ => info.unbind(),
+                })
             })
-        })
+        }
     }
 
     /// Create a [`bind_filter`] that uses [`TryInto`] to convert from `self` to `to_var`.
@@ -1575,7 +1667,9 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + crate::private::Sealed + 'stati
         self.bind_filter(vars, parsed_var, |_, t| t.as_ref().parse().ok())
     }
 
-    /// Create a [`bind_filter`](Var::bind_filter) that sets `to_var` when `T` is [`Ok`].
+    /// Create a [`bind_filter`] that sets `to_var` when `T` is [`Ok`].
+    ///
+    /// [`bind_filter`]: Var::bind_filter
     #[inline]
     fn bind_ok<Vw, T2, V2>(&self, vars: &Vw, to_var: &V2) -> VarBindingHandle
     where
@@ -1587,7 +1681,9 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + crate::private::Sealed + 'stati
         self.bind_filter(vars, to_var, |_, t| t.r_ok().cloned())
     }
 
-    /// Create a [`bind_filter`](Var::bind_filter) that sets `text_var` when `T` is [`Ok`].
+    /// Create a [`bind_filter`] that sets `text_var` when `T` is [`Ok`].
+    ///
+    /// [`bind_filter`]: Var::bind_filter
     #[inline]
     fn bind_ok_text<Vw, V2>(&self, vars: &Vw, text_var: &V2) -> VarBindingHandle
     where
@@ -1598,7 +1694,9 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + crate::private::Sealed + 'stati
         self.bind_filter(vars, text_var, |_, t| t.r_ok_text())
     }
 
-    /// Create a [`bind_filter`](Var::bind_filter) that sets `to_var` when `T` is [`Err`].
+    /// Create a [`bind_filter`] that sets `to_var` when `T` is [`Err`].
+    ///
+    /// [`bind_filter`]: Var::bind_filter
     #[inline]
     fn bind_err<Vw, T2, V2>(&self, vars: &Vw, to_var: &V2) -> VarBindingHandle
     where
@@ -1610,7 +1708,9 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + crate::private::Sealed + 'stati
         self.bind_filter(vars, to_var, |_, t| t.r_err().cloned())
     }
 
-    /// Create a [`bind_filter`](Var::bind_filter) that sets `text_var` when `T` is [`Err`].
+    /// Create a [`bind_filter`] that sets `text_var` when `T` is [`Err`].
+    ///
+    /// [`bind_filter`]: Var::bind_filter
     #[inline]
     fn bind_err_text<Vw, V2>(&self, vars: &Vw, text_var: &V2) -> VarBindingHandle
     where
@@ -1621,7 +1721,9 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + crate::private::Sealed + 'stati
         self.bind_filter(vars, text_var, |_, t| t.r_err_text())
     }
 
-    /// Create a [`bind_filter`](Var::bind_filter) that sets `to_var` when `T` is [`Some`].
+    /// Create a [`bind_filter`] that sets `to_var` when `T` is [`Some`].
+    ///
+    /// [`bind_filter`]: Var::bind_filter
     #[inline]
     fn bind_some<Vw, T2, V2>(&self, vars: &Vw, to_var: &V2) -> VarBindingHandle
     where
@@ -1633,7 +1735,9 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + crate::private::Sealed + 'stati
         self.bind_filter(vars, to_var, |_, t| t.opt_some().cloned())
     }
 
-    /// Create a [`bind_filter`](Var::bind_filter) that sets `text_var` when `T` is [`Some`].
+    /// Create a [`bind_filter`] that sets `text_var` when `T` is [`Some`].
+    ///
+    /// [`bind_filter`]: Var::bind_filter
     #[inline]
     fn bind_some_text<Vw, V2>(&self, vars: &Vw, text_var: &V2) -> VarBindingHandle
     where
@@ -1653,6 +1757,18 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + crate::private::Sealed + 'stati
     ///
     /// Both `self` and `other_var` notify a new value in the same app update, this is different then a manually implemented *binding*
     /// when the assign to the second variable would cause a second update.
+    ///
+    /// Note that the current value is **not** transferred just by creating a binding, only subsequent updates will assigns variables.
+    /// No binding is set if `self` or `other_var` are not [`can_update`] or are [`always_read_only`]. If either
+    /// `self` or `to_var` are [`is_contextual`] the binding is set on the [`actual_var`] of both. The binding only holds weak
+    /// references to the vars, if any is dropped the binding is also dropped.
+    ///
+    /// Returns a [`VarBindingHandle`]. See [`Vars::bind`] for more details about variable binding.
+    /// 
+    /// [`can_update`]: Var::can_update
+    /// [`always_read_only`]: Var::always_read_only
+    /// [`is_contextual`]: Var::is_contextual
+    /// [`actual_var`]: Var::actual_var
     #[inline]
     fn bind_filter_bidi<Vw, T2, V2, M, N>(&self, vars: &Vw, other_var: &V2, mut map: M, mut map_back: N) -> VarBindingHandle
     where
@@ -1662,20 +1778,57 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + crate::private::Sealed + 'stati
         M: FnMut(&VarBinding, &T) -> Option<T2> + 'static,
         N: FnMut(&VarBinding, &T2) -> Option<T> + 'static,
     {
+        if !self.can_update() {
+            // self cannot generate new values (and cannot be set)
+
+            debug_assert!(self.always_read_only());
+            return VarBindingHandle::dummy();
+        }
+        if !other_var.can_update() {
+            // other cannot generate new values (and cannot be set)
+
+            debug_assert!(other_var.always_read_only());
+            return VarBindingHandle::dummy();
+        }
+
+        if self.always_read_only() {
+            // self cannot be set, so this is, maybe, only a `bind_map`
+            return self.bind_filter(vars, other_var, map);
+        }
+
+        if other_var.always_read_only() {
+            // other_var cannot be set, so this is, maybe, only a *bind_map_back*
+            return other_var.bind_filter(vars, self, map_back);
+        }
+
+        if self.is_contextual() || other_var.is_contextual() {
+            return vars.with_vars(|vars| {
+                self.actual_var(vars)
+                    .bind_filter_bidi(vars, &other_var.actual_var(vars), map, map_back)
+            });
+        }
+
+        debug_assert!(self.is_rc());
+        debug_assert!(other_var.is_rc());
+
+        let wk_from_var = self.downgrade().unwrap();
+        let wk_to_var = other_var.downgrade().unwrap();
+
         vars.with_vars(|vars| {
-            let from_var = self.clone();
-            let to_var = other_var.clone();
-            vars.bind(move |vars, info| {
-                if let Some(new_value) = from_var.get_new(vars) {
-                    if let Some(new_value) = map(info, new_value) {
-                        let _ = to_var.set(vars, new_value);
+            vars.bind(move |vars, info| match (wk_from_var.upgrade(), wk_to_var.upgrade()) {
+                (Some(from_var), Some(to_var)) => {
+                    if let Some(new_value) = from_var.get_new(vars) {
+                        if let Some(new_value) = map(info, new_value) {
+                            let _ = to_var.set(vars, new_value);
+                        }
+                    }
+                    if let Some(new_value) = to_var.get_new(vars) {
+                        if let Some(new_value) = map_back(info, new_value) {
+                            let _ = from_var.set(vars, new_value);
+                        }
                     }
                 }
-                if let Some(new_value) = to_var.get_new(vars) {
-                    if let Some(new_value) = map_back(info, new_value) {
-                        let _ = from_var.set(vars, new_value);
-                    }
-                }
+                _ => info.unbind(),
             })
         })
     }

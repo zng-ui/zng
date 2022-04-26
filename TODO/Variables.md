@@ -2,8 +2,6 @@
 
 # Animation
 
-* Refactor `Var::bind` using `Var::actual_var`.
-  this makes `bind` and `animate` work for context vars.
 * `Var::animate`, that implements WeakVar handling.
 * Refactor `Var::ease` using `Var::animate`. 
 * Config animations fps.
