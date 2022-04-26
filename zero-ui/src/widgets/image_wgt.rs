@@ -183,9 +183,13 @@ pub fn image(source: impl IntoVar<ImageSource>) -> impl Widget {
 
 #[cfg(test)]
 mod tests {
+    use zero_ui_core::var::ContextVarData;
+
     use crate::prelude::*;
     use std::cell::Cell;
     use std::rc::Rc;
+
+    use super::nodes::{ContextImageVar, ContextImage};
 
     #[test]
     fn error_view_recursion() {
@@ -214,5 +218,18 @@ mod tests {
         app.close_window(window_id);
 
         assert!(ok.get());
+    }
+
+    #[test]
+    fn heap_test() {
+        crate::core::test_log();
+
+        let img = var(ContextImage::Some(var(crate::core::image::Image::dummy(Some("test error".to_string()))).into_read_only()));
+
+        let mut app = App::default().run_headless(false);
+        let ctx = app.ctx();
+        ctx.vars.with_context_var(ContextImageVar, ContextVarData::in_vars(ctx.vars, &img, false),||{
+            ctx.vars.with_context_var(ContextImageVar, ContextVarData::in_vars(ctx.vars, &img, false),||{});
+        });
     }
 }

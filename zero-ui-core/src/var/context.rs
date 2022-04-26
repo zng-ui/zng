@@ -399,32 +399,30 @@ impl<V: ContextVar> ContextVarLocalKey<V> {
         self.local.with(|l| l.actual_var.get())
     }
 
-    pub(super) fn set(&self, d: ContextVarDataRaw<V::Type>) {
-        self.local.with(|l| {
-            l.value.set(d.value);
-            l.is_new.set(d.is_new);
-            l.version.set(d.version);
-            l.is_read_only.set(d.is_read_only);
-            l.is_animating.set(d.is_animating);
-            l.update_mask.set(d.update_mask);
-            if let Some(m) = l.actual_var.replace(d.actual_var) {
-                let _ = unsafe { Box::from_raw(m) };
-            }
+    pub(super) fn enter_context(&self, new: ContextVarDataRaw<V::Type>) -> ContextVarDataRaw<V::Type> {
+        self.local.with(|l| ContextVarDataRaw {
+            value: l.value.replace(new.value),
+            is_new: l.is_new.replace(new.is_new),
+            is_read_only: l.is_read_only.replace(new.is_read_only),
+            is_animating: l.is_animating.replace(new.is_animating),
+            version: l.version.replace(new.version),
+            update_mask: l.update_mask.replace(new.update_mask),
+            actual_var: l.actual_var.replace(new.actual_var),
         })
     }
 
-    pub(super) fn replace(&self, d: ContextVarDataRaw<V::Type>) -> ContextVarDataRaw<V::Type> {
-        let prev = self.local.with(|l| ContextVarDataRaw {
-            value: l.value.get(),
-            is_new: l.is_new.get(),
-            is_read_only: l.is_read_only.get(),
-            is_animating: l.is_animating.get(),
-            version: l.version.get(),
-            update_mask: l.update_mask.get(),
-            actual_var: l.actual_var.get(),
-        });
-        self.set(d);
-        prev
+    pub(super) fn exit_context(&self, prev: ContextVarDataRaw<V::Type>) {
+        self.local.with(|l| {
+            l.value.set(prev.value);
+            l.is_new.set(prev.is_new);
+            l.version.set(prev.version);
+            l.is_read_only.set(prev.is_read_only);
+            l.is_animating.set(prev.is_animating);
+            l.update_mask.set(prev.update_mask);
+            if let Some(m) = l.actual_var.replace(prev.actual_var) {
+                let _ = unsafe { Box::from_raw(m) };
+            }
+        })
     }
 }
 

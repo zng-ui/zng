@@ -146,7 +146,7 @@ impl VarsRead {
         C: ContextVar,
         F: FnOnce() -> R,
     {
-        // SAFETY: `Self::context_var` makes safety assumptions about this code
+        // SAFETY: `ContextVar` makes safety assumptions about this code
         // don't change before studying it.
 
         let _ = context_var;
@@ -160,9 +160,9 @@ impl VarsRead {
             data.version.set_app_context(count);
         }
 
-        let prev = C::thread_local_value().replace(data.into_raw());
+        let prev = C::thread_local_value().enter_context(data.into_raw());
         let _restore = RunOnDrop::new(move || {
-            C::thread_local_value().set(prev);
+            C::thread_local_value().exit_context(prev);
         });
 
         f()
