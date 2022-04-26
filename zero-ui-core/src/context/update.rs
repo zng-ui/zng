@@ -233,7 +233,7 @@ impl Updates {
     /// Flag a subscriptions aggregation for the parent window.
     ///
     /// The window will call [`UiNode::subscriptions`] as soon as the current UI node method finishes,
-    /// requests outside windows are ignored, widgets also call and cache subscriptions as soon as they receive this flag.
+    /// requests outside windows are ignored.
     ///
     /// [`UiNode::subscriptions`]: crate::UiNode::subscriptions
     #[inline]

@@ -470,10 +470,16 @@ impl Drop for ImageConnection {
 pub struct ViewImage(Rc<ImageConnection>);
 impl PartialEq for ViewImage {
     fn eq(&self, other: &Self) -> bool {
-        self.0.id == other.0.id && self.0.generation == other.0.generation
+        Rc::ptr_eq(&self.0, &other.0)
     }
 }
 impl Eq for ViewImage {}
+impl std::hash::Hash for ViewImage {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        let ptr = Rc::as_ptr(&self.0) as usize;
+        ptr.hash(state)
+    }
+}
 impl fmt::Debug for ViewImage {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("ViewImage")

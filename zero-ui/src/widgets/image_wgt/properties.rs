@@ -216,32 +216,18 @@ pub fn is_error(child: impl UiNode, state: StateVar) -> impl UiNode {
     impl<C: UiNode> UiNode for IsErrorNode<C> {
         fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
             subscriptions.var(ctx, &ContextImageVar::new());
-            if let Some(img) = ContextImageVar::get(ctx.vars).as_ref() {
-                subscriptions.var(ctx, img);
-            }
 
             self.child.subscriptions(ctx, subscriptions);
         }
 
         fn init(&mut self, ctx: &mut WidgetContext) {
-            if let Some(var) = ContextImageVar::get(ctx.vars).as_ref() {
-                let is_error = var.get(ctx.vars).is_error();
-                self.state.set_ne(ctx.vars, is_error);
-            } else {
-                self.state.set_ne(ctx.vars, false);
-            }
+            self.state.set_ne(ctx.vars, ContextImageVar::get(ctx.vars).is_error());
             self.child.init(ctx);
         }
 
         fn update(&mut self, ctx: &mut WidgetContext) {
-            if let Some(new_var) = ContextImageVar::get_new(ctx.vars) {
-                ctx.updates.subscriptions();
-                let is_error = new_var.as_ref().map(|v| v.get(ctx.vars).is_error()).unwrap_or(false);
-                self.state.set_ne(ctx.vars, is_error);
-            } else if let Some(var) = ContextImageVar::get(ctx.vars).as_ref() {
-                if let Some(img) = var.get_new(ctx.vars) {
-                    self.state.set_ne(ctx.vars, img.is_error());
-                }
+            if let Some(new_img) = ContextImageVar::get_new(ctx.vars) {
+                self.state.set_ne(ctx.vars, new_img.is_error());
             }
             self.child.update(ctx);
         }
@@ -260,32 +246,18 @@ pub fn is_loaded(child: impl UiNode, state: StateVar) -> impl UiNode {
     impl<C: UiNode> UiNode for IsLoadedNode<C> {
         fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
             subscriptions.var(ctx, &ContextImageVar::new());
-            if let Some(img) = ContextImageVar::get(ctx.vars).as_ref() {
-                subscriptions.var(ctx, img);
-            }
 
             self.child.subscriptions(ctx, subscriptions);
         }
 
         fn init(&mut self, ctx: &mut WidgetContext) {
-            if let Some(var) = ContextImageVar::get(ctx.vars).as_ref() {
-                let is_loaded = var.get(ctx.vars).is_loaded();
-                self.state.set_ne(ctx.vars, is_loaded);
-            } else {
-                self.state.set_ne(ctx.vars, false);
-            }
+            self.state.set_ne(ctx.vars, ContextImageVar::get(ctx.vars).is_loaded());
             self.child.init(ctx);
         }
 
         fn update(&mut self, ctx: &mut WidgetContext) {
-            if let Some(new_var) = ContextImageVar::get_new(ctx.vars) {
-                ctx.updates.subscriptions();
-                let is_loaded = new_var.as_ref().map(|v| v.get(ctx.vars).is_loaded()).unwrap_or(false);
-                self.state.set_ne(ctx.vars, is_loaded);
-            } else if let Some(var) = ContextImageVar::get(ctx.vars).as_ref() {
-                if let Some(img) = var.get_new(ctx.vars) {
-                    self.state.set_ne(ctx.vars, img.is_loaded());
-                }
+            if let Some(new_img) = ContextImageVar::get_new(ctx.vars) {
+                self.state.set_ne(ctx.vars, new_img.is_loaded());
             }
             self.child.update(ctx);
         }
@@ -353,44 +325,27 @@ pub fn on_error(child: impl UiNode, handler: impl WidgetHandler<ImageErrorArgs>)
     #[impl_ui_node(child)]
     impl<C: UiNode, H: WidgetHandler<ImageErrorArgs>> UiNode for OnErrorNode<C, H> {
         fn init(&mut self, ctx: &mut WidgetContext) {
-            if let Some(var) = ContextImageVar::get(ctx.vars).as_ref() {
-                if let Some(error) = var.get(ctx.vars).error() {
-                    self.error = error.to_owned().into();
-                    self.handler.event(ctx, &ImageErrorArgs { error: self.error.clone() });
-                }
+            if let Some(error) = ContextImageVar::get(ctx.vars).error() {
+                self.error = error.to_owned().into();
+                self.handler.event(ctx, &ImageErrorArgs { error: self.error.clone() });
             }
             self.child.init(ctx);
         }
 
         fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
             subscriptions.var(ctx, &ContextImageVar::new()).handler(&self.handler);
-            if let Some(img) = ContextImageVar::get(ctx.vars).as_ref() {
-                subscriptions.var(ctx, img);
-            }
             self.child.subscriptions(ctx, subscriptions);
         }
 
         fn update(&mut self, ctx: &mut WidgetContext) {
-            if let Some(new_var) = ContextImageVar::get_new(ctx.vars) {
-                ctx.updates.subscriptions();
-                if let Some(error) = new_var.as_ref().and_then(|v| v.get(ctx.vars).error()) {
+            if let Some(new_img) = ContextImageVar::get_new(ctx.vars) {
+                if let Some(error) = new_img.error() {
                     if self.error != error {
                         self.error = error.to_owned().into();
                         self.handler.event(ctx, &ImageErrorArgs { error: self.error.clone() });
                     }
                 } else {
                     self.error = "".into();
-                }
-            } else if let Some(var) = ContextImageVar::get(ctx.vars).as_ref() {
-                if let Some(img) = var.get_new(ctx.vars) {
-                    if let Some(error) = img.error() {
-                        if self.error != error {
-                            self.error = error.to_owned().into();
-                            self.handler.event(ctx, &ImageErrorArgs { error: self.error.clone() });
-                        }
-                    } else {
-                        self.error = "".into();
-                    }
                 }
             }
 
@@ -426,37 +381,21 @@ pub fn on_load(child: impl UiNode, handler: impl WidgetHandler<ImageLoadArgs>) -
     #[impl_ui_node(child)]
     impl<C: UiNode, H: WidgetHandler<ImageLoadArgs>> UiNode for OnLoadNode<C, H> {
         fn init(&mut self, ctx: &mut WidgetContext) {
-            if let Some(var) = ContextImageVar::get(ctx.vars).as_ref() {
-                if var.get(ctx.vars).is_loaded() {
-                    self.handler.event(ctx, &ImageLoadArgs {});
-                }
+            if ContextImageVar::get(ctx.vars).is_loaded() {
+                self.handler.event(ctx, &ImageLoadArgs {});
             }
-
             self.child.init(ctx);
         }
 
         fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
             subscriptions.var(ctx, &ContextImageVar::new()).handler(&self.handler);
-            if let Some(img) = ContextImageVar::get(ctx.vars).as_ref() {
-                subscriptions.var(ctx, img);
-            }
             self.child.subscriptions(ctx, subscriptions);
         }
 
         fn update(&mut self, ctx: &mut WidgetContext) {
-            if let Some(var_opt) = ContextImageVar::get_new(ctx.vars) {
-                ctx.updates.subscriptions();
-
-                if let Some(var) = var_opt.as_ref() {
-                    if var.get(ctx.vars).is_loaded() {
-                        self.handler.event(ctx, &ImageLoadArgs {});
-                    }
-                }
-            } else if let Some(var) = ContextImageVar::get(ctx.vars).as_ref() {
-                if let Some(img) = var.get_new(ctx.vars) {
-                    if img.is_loaded() {
-                        self.handler.event(ctx, &ImageLoadArgs {});
-                    }
+            if let Some(new_img) = ContextImageVar::get_new(ctx.vars) {
+                if new_img.is_loaded() {
+                    self.handler.event(ctx, &ImageLoadArgs {});
                 }
             }
 

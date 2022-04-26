@@ -1680,7 +1680,7 @@ macro_rules! update_slot {
         $(#[$meta])*
         ///
         /// This `struct` is a single byte that represents an index in the full bitmap.
-        #[derive(Clone, Copy, Debug)]
+        #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
         $vis struct $Slot(u8);
 
         impl $Slot {
@@ -1716,7 +1716,7 @@ macro_rules! update_mask {
         $(#[$meta])*
         ///
         /// This `struct` is a 256-bit bitmap of flagged slots.
-        #[derive(Clone, Copy, Default)]
+        #[derive(Clone, Copy, Default, PartialEq, Eq, Hash)]
         $vis struct $Mask([u128; 2]);
 
         impl $Mask {
@@ -1878,7 +1878,7 @@ update_mask! {
 ///
 /// [`UiNode::event`]: crate::UiNode::event
 /// [`UiNode::update`]: crate::UiNode::update
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default, Clone, PartialEq, Eq, Hash)]
 pub struct WidgetSubscriptions {
     event: EventMask,
     update: UpdateMask,

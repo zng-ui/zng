@@ -1,5 +1,7 @@
 //! UI nodes used for building the image widget.
 
+use std::mem;
+
 use super::properties::{
     ImageAlignVar, ImageCacheVar, ImageCropVar, ImageErrorArgs, ImageErrorViewVar, ImageFit, ImageFitVar, ImageLimitsVar, ImageLoadingArgs,
     ImageLoadingViewVar, ImageOffsetVar, ImageRenderingVar, ImageScaleFactorVar, ImageScalePpiVar, ImageScaleVar,
@@ -7,72 +9,12 @@ use super::properties::{
 use crate::core::{image::*, window::WindowVarsKey};
 
 use super::*;
-use std::fmt;
 
 context_var! {
-    /// Image acquired by [`image_source`], or `Unset` by default.
-    pub struct ContextImageVar: ContextImage = ContextImage::None;
-}
-
-/// Image set in a parent widget.
-///
-/// This type exists due to generics problems when using an `Option<impl Var<T>>` as the value of another variable.
-/// Call [`as_ref`] to use it like `Option`.
-///
-/// See [`ContextImageVar`] for details.
-///
-/// [`as_ref`]: ContextImage::as_ref
-#[derive(Clone)]
-pub enum ContextImage {
-    /// The context image variable.
-    Some(ImageVar),
-    /// No context image is set.
-    None,
-}
-impl Default for ContextImage {
-    fn default() -> Self {
-        ContextImage::None
-    }
-}
-impl ContextImage {
-    /// Like `Option::as_ref`.
-    pub fn as_ref(&self) -> Option<&ImageVar> {
-        match self {
-            ContextImage::Some(var) => Some(var),
-            ContextImage::None => None,
-        }
-    }
-
-    /// Like `Option::take`.
-    pub fn take(&mut self) -> Option<ImageVar> {
-        match std::mem::take(self) {
-            ContextImage::Some(var) => Some(var),
-            ContextImage::None => None,
-        }
-    }
-
-    /// Like `Option::unwrap`.
-    #[track_caller]
-    pub fn unwrap(mut self) -> ImageVar {
-        self.take().unwrap()
-    }
-}
-impl PartialEq for ContextImage {
-    fn eq(&self, other: &Self) -> bool {
-        match (self, other) {
-            (Self::Some(l0), Self::Some(r0)) => l0.ptr_eq(r0),
-            (Self::None, Self::None) => true,
-            _ => false,
-        }
-    }
-}
-impl fmt::Debug for ContextImage {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::Some(_) => write!(f, "Some(_)"),
-            Self::None => write!(f, "None"),
-        }
-    }
+    /// Image acquired by [`image_source`], or `"no image source in context"` error by default.
+    ///
+    /// [`image_source`]: fn@image_source
+    pub struct ContextImageVar: Image = Image::dummy(Some("no image source in context".to_owned()));
 }
 
 /// Requests an image from [`Images`] and sets [`ContextImageVar`].
@@ -89,11 +31,23 @@ pub fn image_source(child: impl UiNode, source: impl IntoVar<ImageSource>) -> im
     struct ImageSourceNode<C, S: Var<ImageSource>> {
         child: C,
         source: S,
-        image: RcVar<ContextImage>,
         render_factor: Option<ReadOnlyRcVar<Factor>>,
+
+        img: ImageVar,
+        ctx_img: RcVar<Image>,
+        ctx_binding: VarBindingHandle,
     }
     #[impl_ui_node(child)]
     impl<C: UiNode, S: Var<ImageSource>> UiNode for ImageSourceNode<C, S> {
+        fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
+            subscriptions.var(ctx, &self.source);
+            if let Some(fct) = &self.render_factor {
+                subscriptions.var(ctx, fct);
+            }
+
+            self.child.subscriptions(ctx, subscriptions);
+        }
+
         fn init(&mut self, ctx: &mut WidgetContext) {
             let mode = if *ImageCacheVar::get(ctx) {
                 ImageCacheMode::Cache
@@ -112,15 +66,19 @@ pub fn image_source(child: impl UiNode, source: impl IntoVar<ImageSource>) -> im
                 }
             }
 
-            let img = ContextImage::Some(ctx.services.images().get(source, mode, limits));
-            self.image.set(ctx.vars, img);
+            self.img = ctx.services.images().get(source, mode, limits);
+
+            self.ctx_img.set(ctx.vars, self.img.get_clone(ctx.vars));
+            self.ctx_binding = self.img.bind(ctx.vars, &self.ctx_img);
 
             self.child.init(ctx);
         }
 
         fn deinit(&mut self, ctx: &mut WidgetContext) {
             self.child.deinit(ctx);
-            self.image.set_ne(ctx, ContextImage::None);
+            self.ctx_img.set(ctx, ContextImageVar::default_value());
+            self.img = var(ContextImageVar::default_value()).into_read_only();
+            self.ctx_binding = VarBindingHandle::dummy();
             self.render_factor = None;
         }
 
@@ -151,27 +109,30 @@ pub fn image_source(child: impl UiNode, source: impl IntoVar<ImageSource>) -> im
                 };
                 let limits = ImageLimitsVar::get_clone(ctx);
 
-                let img = ContextImage::Some(ctx.services.images().get(source, mode, limits));
+                self.img = ctx.services.images().get(source, mode, limits);
 
-                self.image.set_ne(ctx, img);
+                self.ctx_img.set(ctx.vars, self.img.get_clone(ctx.vars));
+                self.ctx_binding = self.img.bind(ctx.vars, &self.ctx_img);
             } else if let Some(enabled) = ImageCacheVar::clone_new(ctx) {
                 // cache-mode update:
                 let images = ctx.services.images();
-                let is_cached = images.is_cached(self.image.get(ctx.vars).as_ref().unwrap().get(ctx.vars));
+                let is_cached = images.is_cached(self.ctx_img.get(ctx.vars));
                 if enabled != is_cached {
-                    let img = if is_cached {
+                    self.img = if is_cached {
                         // must not cache, but is cached, detach from cache.
 
-                        ContextImage::Some(images.detach(self.image.get_clone(ctx.vars).unwrap(), ctx.vars))
+                        let img = mem::replace(&mut self.img, var(Image::dummy(None)).into_read_only());
+                        images.detach(img, ctx.vars)
                     } else {
                         // must cache, but image is not cached, get source again.
 
                         let source = self.source.get_clone(ctx);
                         let limits = ImageLimitsVar::get_clone(ctx);
-                        ContextImage::Some(ctx.services.images().get(source, ImageCacheMode::Cache, limits))
+                        ctx.services.images().get(source, ImageCacheMode::Cache, limits)
                     };
 
-                    self.image.set_ne(ctx, img);
+                    self.ctx_img.set(ctx.vars, self.img.get_clone(ctx.vars));
+                    self.ctx_binding = self.img.bind(ctx.vars, &self.ctx_img);
                 }
             } else if let Some(fct) = &self.render_factor {
                 if let Some(fct) = fct.copy_new(ctx) {
@@ -188,30 +149,24 @@ pub fn image_source(child: impl UiNode, source: impl IntoVar<ImageSource>) -> im
                         ImageCacheMode::Ignore
                     };
                     let limits = ImageLimitsVar::get_clone(ctx);
-                    let img = ContextImage::Some(ctx.services.images().get(source, mode, limits));
+                    let img = ctx.services.images().get(source, mode, limits);
 
-                    self.image.set_ne(ctx, img);
+                    self.ctx_img.set(ctx.vars, img.get_clone(ctx.vars));
+                    self.ctx_binding = img.bind(ctx.vars, &self.ctx_img);
                 }
             }
 
             self.child.update(ctx);
         }
-
-        fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
-            subscriptions.var(ctx, &self.source);
-            if let Some(fct) = &self.render_factor {
-                subscriptions.var(ctx, fct);
-            }
-           
-            self.child.subscriptions(ctx, subscriptions);
-        }
     }
 
-    let image = var(ContextImage::None);
+    let ctx_img = var(Image::dummy(None));
 
     ImageSourceNode {
-        child: with_context_var(child, ContextImageVar, image.clone().into_read_only()),
-        image,
+        child: with_context_var(child, ContextImageVar, ctx_img.clone().into_read_only()),
+        img: var(Image::dummy(None)).into_read_only(),
+        ctx_img,
+        ctx_binding: VarBindingHandle::dummy(),
         source: source.into_var(),
         render_factor: None,
     }
@@ -238,42 +193,28 @@ pub fn image_error_presenter(child: impl UiNode) -> impl UiNode {
         |ctx, is_new| {
             if *InErrorViewVar::get(ctx) {
                 // avoid recursion.
-                return DataUpdate::None;
-            }
-            if is_new {
+                DataUpdate::None
+            } else if is_new {
                 // init or generator changed.
-                if let Some(var) = ContextImageVar::get(ctx.vars).as_ref() {
-                    if let Some(e) = var.get(ctx).error() {
-                        return DataUpdate::Update(ImageErrorArgs {
-                            error: e.to_owned().into(),
-                        });
-                    }
+                if let Some(e) = ContextImageVar::get(ctx.vars).error() {
+                    DataUpdate::Update(ImageErrorArgs {
+                        error: e.to_owned().into(),
+                    })
+                } else {
+                    DataUpdate::None
                 }
-                return DataUpdate::None;
             } else if let Some(new) = ContextImageVar::get_new(ctx.vars) {
                 // image var update.
-                if let Some(var) = new.as_ref() {
-                    if let Some(e) = var.get(ctx).error() {
-                        return DataUpdate::Update(ImageErrorArgs {
-                            error: e.to_owned().into(),
-                        });
-                    }
+                if let Some(e) = new.error() {
+                    DataUpdate::Update(ImageErrorArgs {
+                        error: e.to_owned().into(),
+                    })
+                } else {
+                    DataUpdate::None
                 }
-                return DataUpdate::None;
-            } else if let Some(var) = ContextImageVar::get(ctx.vars).as_ref() {
-                // image update.
-                if let Some(new) = var.get_new(ctx) {
-                    if let Some(e) = new.error() {
-                        return DataUpdate::Update(ImageErrorArgs {
-                            error: e.to_owned().into(),
-                        });
-                    } else {
-                        return DataUpdate::None;
-                    }
-                }
+            } else {
+                DataUpdate::Same
             }
-
-            DataUpdate::Same
         },
         |view| with_context_var(view, InErrorViewVar, true),
     );
@@ -291,44 +232,28 @@ pub fn image_loading_presenter(child: impl UiNode) -> impl UiNode {
         ImageLoadingViewVar,
         |vars, subscriptions| {
             subscriptions.var(vars, &ContextImageVar::new());
-            if let Some(img) = ContextImageVar::get(vars).as_ref() {
-                subscriptions.var(vars, img);
-            }
         },
         |ctx, is_new| {
             if *InLoadingViewVar::get(ctx) {
                 // avoid recursion.
-                return DataUpdate::None;
-            }
-            if is_new {
+                DataUpdate::None
+            } else if is_new {
                 // init or generator changed.
-                if let Some(var) = ContextImageVar::get(ctx.vars).as_ref() {
-                    if var.get(ctx).is_loading() {
-                        return DataUpdate::Update(ImageLoadingArgs {});
-                    }
+                if ContextImageVar::get(ctx.vars).is_loading() {
+                    DataUpdate::Update(ImageLoadingArgs {})
+                } else {
+                    DataUpdate::None
                 }
-                return DataUpdate::None;
             } else if let Some(new) = ContextImageVar::get_new(ctx.vars) {
-                ctx.updates.subscriptions();
                 // image var update.
-                if let Some(var) = new.as_ref() {
-                    if var.get(ctx).is_loading() {
-                        return DataUpdate::Update(ImageLoadingArgs {});
-                    }
+                if new.is_loading() {
+                    DataUpdate::Update(ImageLoadingArgs {})
+                } else {
+                    DataUpdate::None
                 }
-                return DataUpdate::None;
-            } else if let Some(var) = ContextImageVar::get(ctx.vars).as_ref() {
-                // image update.
-                if let Some(new) = var.get_new(ctx) {
-                    if new.is_loading() {
-                        return DataUpdate::Update(ImageLoadingArgs {});
-                    } else {
-                        return DataUpdate::None;
-                    }
-                }
+            } else {
+                DataUpdate::Same
             }
-
-            DataUpdate::Same
         },
         |view| with_context_var(view, InLoadingViewVar, true),
     );
@@ -382,30 +307,23 @@ pub fn image_presenter() -> impl UiNode {
                 .var(&ImageCropVar::new())
                 .var(&ImageAlignVar::new())
                 .var(&ImageRenderingVar::new());
-
-            if let Some(img) = ContextImageVar::get(ctx.vars).as_ref() {
-                subscriptions.var(ctx, img);
-            }
         }
 
         fn init(&mut self, ctx: &mut WidgetContext) {
-            if let Some(var) = ContextImageVar::get(ctx.vars).as_ref() {
-                self.img_size = var.get(ctx).size();
-                self.requested_layout = true;
-            } else {
-                self.img_size = PxSize::zero();
-            }
+            let img = ContextImageVar::get(ctx.vars);
+            self.img_size = img.size();
+            self.requested_layout = true;
         }
 
         fn update(&mut self, ctx: &mut WidgetContext) {
-            if let Some(var) = ContextImageVar::get_new(ctx.vars) {
-                ctx.updates.subscriptions_layout_and_render();
-                self.requested_layout = true;
-
-                if let Some(var) = var.as_ref() {
-                    self.img_size = var.get(ctx).size();
-                } else {
-                    self.img_size = PxSize::zero();
+            if let Some(img) = ContextImageVar::get_new(ctx.vars) {
+                let img_size = img.size();
+                if self.img_size != img_size {
+                    self.img_size = img_size;
+                    ctx.updates.layout();
+                    self.requested_layout = true;
+                } else if img.is_loaded() {
+                    ctx.updates.render();
                 }
             }
 
@@ -419,70 +337,52 @@ pub fn image_presenter() -> impl UiNode {
                 self.requested_layout = true;
             }
 
-            if let Some(var) = ContextImageVar::get(ctx.vars).as_ref() {
-                if let Some(img) = var.get_new(ctx.vars) {
-                    let img_size = img.size();
-                    if self.img_size != img_size {
-                        self.img_size = img_size;
-                        ctx.updates.layout();
-                        self.requested_layout = true;
-                    } else if img.is_loaded() {
-                        ctx.updates.render();
-                    }
-                }
-            }
-
             if ImageRenderingVar::is_new(ctx) {
                 ctx.updates.render();
             }
         }
 
         fn measure(&mut self, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize {
-            if let Some(var) = ContextImageVar::get(ctx.vars).as_ref() {
-                let img_rect = PxRect::from_size(self.img_size);
+            let img_rect = PxRect::from_size(self.img_size);
 
-                let crop = ImageCropVar::get(ctx).to_layout(ctx, AvailableSize::from_size(self.img_size), img_rect);
+            let crop = ImageCropVar::get(ctx).to_layout(ctx, AvailableSize::from_size(self.img_size), img_rect);
 
-                self.measure_img_size = self.img_size;
-                self.measure_clip_rect = img_rect.intersection(&crop).unwrap_or_default();
+            self.measure_img_size = self.img_size;
+            self.measure_clip_rect = img_rect.intersection(&crop).unwrap_or_default();
 
-                let mut scale = *ImageScaleVar::get(ctx);
-                if *ImageScalePpiVar::get(ctx) {
-                    let img = var.get(ctx.vars);
-                    let sppi = ctx.metrics.screen_ppi;
-                    let (ippi_x, ippi_y) = img.ppi().unwrap_or((sppi, sppi));
-                    scale *= Factor2d::new(sppi / ippi_x, sppi / ippi_y);
-                }
-
-                if *ImageScaleFactorVar::get(ctx) {
-                    scale *= ctx.scale_factor;
-                }
-                self.measure_img_size *= scale;
-                self.measure_clip_rect *= scale;
-
-                self.requested_layout |= self.measure_clip_rect.size != self.desired_size;
-                self.desired_size = self.measure_clip_rect.size;
-
-                if let ImageFit::Fill = *ImageFitVar::get(ctx) {
-                    match (available_size.width, available_size.height) {
-                        (AvailablePx::Infinite, AvailablePx::Finite(h)) if self.desired_size.height > Px(0) => {
-                            let scale = h.0 as f32 / self.desired_size.height.0 as f32;
-                            self.desired_size.width *= scale;
-                            self.desired_size.height = h;
-                        }
-                        (AvailablePx::Finite(w), AvailablePx::Infinite) if self.desired_size.width > Px(0) => {
-                            let scale = w.0 as f32 / self.desired_size.width.0 as f32;
-                            self.desired_size.height *= scale;
-                            self.desired_size.width = w;
-                        }
-                        _ => {}
-                    }
-                }
-                available_size.clip(self.desired_size)
-            } else {
-                // no context image
-                PxSize::zero()
+            let mut scale = *ImageScaleVar::get(ctx);
+            if *ImageScalePpiVar::get(ctx) {
+                let img = ContextImageVar::get(ctx.vars);
+                let sppi = ctx.metrics.screen_ppi;
+                let (ippi_x, ippi_y) = img.ppi().unwrap_or((sppi, sppi));
+                scale *= Factor2d::new(sppi / ippi_x, sppi / ippi_y);
             }
+
+            if *ImageScaleFactorVar::get(ctx) {
+                scale *= ctx.scale_factor;
+            }
+            self.measure_img_size *= scale;
+            self.measure_clip_rect *= scale;
+
+            self.requested_layout |= self.measure_clip_rect.size != self.desired_size;
+            self.desired_size = self.measure_clip_rect.size;
+
+            if let ImageFit::Fill = *ImageFitVar::get(ctx) {
+                match (available_size.width, available_size.height) {
+                    (AvailablePx::Infinite, AvailablePx::Finite(h)) if self.desired_size.height > Px(0) => {
+                        let scale = h.0 as f32 / self.desired_size.height.0 as f32;
+                        self.desired_size.width *= scale;
+                        self.desired_size.height = h;
+                    }
+                    (AvailablePx::Finite(w), AvailablePx::Infinite) if self.desired_size.width > Px(0) => {
+                        let scale = w.0 as f32 / self.desired_size.width.0 as f32;
+                        self.desired_size.height *= scale;
+                        self.desired_size.width = w;
+                    }
+                    _ => {}
+                }
+            }
+            available_size.clip(self.desired_size)
         }
 
         fn arrange(&mut self, ctx: &mut LayoutContext, _: &mut WidgetLayout, final_size: PxSize) {
@@ -577,17 +477,15 @@ pub fn image_presenter() -> impl UiNode {
         }
 
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-            if let Some(var) = ContextImageVar::get(ctx.vars).as_ref() {
-                let img = var.get(ctx.vars);
-                if img.is_loaded() && !self.img_size.is_empty() && !self.render_clip_rect.is_empty() {
-                    if self.render_offset != PxVector::zero() {
-                        let transform = RenderTransform::translation_px(self.render_offset);
-                        frame.push_reference_frame(self.spatial_id, FrameBinding::Value(transform), true, |frame| {
-                            frame.push_image(self.render_clip_rect, self.render_img_size, img, *ImageRenderingVar::get(ctx.vars))
-                        });
-                    } else {
-                        frame.push_image(self.render_clip_rect, self.render_img_size, img, *ImageRenderingVar::get(ctx.vars));
-                    }
+            let img = ContextImageVar::get(ctx.vars);
+            if img.is_loaded() && !self.img_size.is_empty() && !self.render_clip_rect.is_empty() {
+                if self.render_offset != PxVector::zero() {
+                    let transform = RenderTransform::translation_px(self.render_offset);
+                    frame.push_reference_frame(self.spatial_id, FrameBinding::Value(transform), true, |frame| {
+                        frame.push_image(self.render_clip_rect, self.render_img_size, img, *ImageRenderingVar::get(ctx.vars))
+                    });
+                } else {
+                    frame.push_image(self.render_clip_rect, self.render_img_size, img, *ImageRenderingVar::get(ctx.vars));
                 }
             }
         }
