@@ -2,16 +2,15 @@
 
 # Animation
 
-* Try to implement `Var::actual_var` to retrieve the underlying var from contextual vars,
+* Refactor `Var::bind` using `Var::actual_var`.
   this makes `bind` and `animate` work for context vars.
+* `Var::animate`, that implements WeakVar handling.
+* Refactor `Var::ease` using `Var::animate`. 
 * Config animations fps.
 * Variable that starts animating on first `get`.
 * Time dilation control.
 * Drop animation if var is dropped. Need Var::WeakVar type.
 * `Var::repeat`.
-* `Var::animate`, that implements WeakVar handling.
-* `VarIsReadOnlyOrContextual` error (first try `actual_var`).
-* `var::error` module.
 
 ```rust
 trait Var {

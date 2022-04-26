@@ -285,7 +285,23 @@ macro_rules! impl_rc_when_var {
             }
             fn actual_var<Vw: WithVars>(&self, vars: &Vw) -> BoxedVar<O> {
                 if self.is_contextual() {
-                    todo!("!!:")
+                    vars.with_vars(|vars| {
+                        let var = $RcWhenVar(Rc::new($RcWhenVarData {
+                            _o: PhantomData,
+
+                            default_value: self.0.default_value.actual_var(vars),
+                            default_version: self.0.default_version.clone(),
+
+                            conditions: ($(self.0.conditions.$n.actual_var(vars),)+),
+                            condition_versions: self.0.condition_versions.clone(),
+
+                            values: ($(self.0.values.$n.actual_var(vars),)+),
+                            value_versions:self.0.value_versions.clone(),
+
+                            self_version: Cell::new(0),
+                        }));
+                        var.boxed()
+                    })
                 } else {
                     self.clone().boxed()
                 }
@@ -627,7 +643,16 @@ impl<O: VarValue> Var<O> for RcWhenVar<O> {
     #[inline]
     fn actual_var<Vw: WithVars>(&self, vars: &Vw) -> BoxedVar<O> {
         if self.is_contextual() {
-            todo!("!!:")
+            vars.with_vars(|vars| {
+                let var = RcWhenVar(Rc::new(RcWhenVarData {
+                    default_: self.0.default_.actual_var(vars),
+                    default_version: self.0.default_version.clone(),
+                    whens: self.0.whens.iter().map(|(c, v)| (c.actual_var(vars), v.actual_var(vars))).collect(),
+                    when_versions: self.0.when_versions.clone(),
+                    self_version: self.0.self_version.clone(),
+                }));
+                var.boxed()
+            })
         } else {
             self.clone().boxed()
         }

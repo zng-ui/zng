@@ -238,7 +238,17 @@ macro_rules! impl_rc_switch_var {
             #[inline]
             fn actual_var<Vw: WithVars>(&self, vars: &Vw) -> BoxedVar<O> {
                 if self.is_contextual() {
-                    todo!("!!:")
+                    vars.with_vars(|vars| {
+                        let var = $RcSwitchVar(Rc::new($RcSwitchVarData {
+                            _o: PhantomData,
+                            vars: ($(self.0.vars.$n.actual_var(vars)),+),
+                            versions: self.0.versions.clone(),
+                            index: self.0.index.actual_var(vars),
+                            index_version: self.0.index_version.clone(),
+                            self_version: self.0.self_version.clone(),
+                        }));
+                        var.boxed()
+                    })
                 } else {
                     self.clone().boxed()
                 }
@@ -505,7 +515,16 @@ impl<O: VarValue, VI: Var<usize>> Var<O> for RcSwitchVar<O, VI> {
     #[inline]
     fn actual_var<Vw: WithVars>(&self, vars: &Vw) -> BoxedVar<O> {
         if self.is_contextual() {
-            todo!("!!:")
+            vars.with_vars(|vars| {
+                let var = RcSwitchVar(Rc::new(RcSwitchVarData {
+                    vars: self.0.vars.iter().map(|v| v.actual_var(vars)).collect(),
+                    var_versions: self.0.var_versions.clone(),
+                    index: self.0.index.actual_var(vars),
+                    index_version: self.0.index_version.clone(),
+                    self_version: self.0.self_version.clone(),
+                }));
+                var.boxed()
+            })
         } else {
             self.clone().boxed()
         }

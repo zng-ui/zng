@@ -378,7 +378,7 @@ macro_rules! impl_rc_merge_var {
         struct $RcMergeVarData<$($I: VarValue,)+ O: VarValue, $($V: Var<$I>,)+ F: FnMut($(&$I),+) -> O + 'static> {
             _i: PhantomData<($($I),+)>,
             vars: ($($V),+),
-            f: RefCell<F>,
+            f: Rc<RefCell<F>>,
             versions: [VarVersionCell; $len],
             output_version: Cell<u32>,
             output: UnsafeCell<Option<O>>,
@@ -390,7 +390,7 @@ macro_rules! impl_rc_merge_var {
                 Self(Rc::new($RcMergeVarData {
                     _i: PhantomData,
                     vars,
-                    f: RefCell::new(f),
+                    f: Rc::new(RefCell::new(f)),
                     versions: array_init::array_init(|_|VarVersionCell::new(0)),
                     output_version: Cell::new(0),
                     output: UnsafeCell::new(None),
@@ -513,7 +513,19 @@ macro_rules! impl_rc_merge_var {
 
             fn actual_var<Vw: WithVars>(&self, vars: &Vw) -> BoxedVar<O> {
                 if self.is_contextual() {
-                    todo!("!!:")
+                    vars.with_vars(|vars| {
+                        let value = self.get_clone(vars);
+                        let var = $RcMergeVar(Rc::new($RcMergeVarData {
+                            _i: PhantomData,
+                            vars: ($(self.0.vars.$n.actual_var(vars)),+),
+                            f: self.0.f.clone(),
+                            versions: self.0.versions.clone(),
+                            output_version: self.0.output_version.clone(),
+                            output: UnsafeCell::new(Some(value)),
+                        }));
+
+                        var.boxed()
+                    })
                 } else {
                     self.clone().boxed()
                 }

@@ -71,7 +71,7 @@ struct FilterMapData<A, B, I, M, S> {
     _a: PhantomData<A>,
 
     source: S,
-    map: RefCell<M>,
+    map: Rc<RefCell<M>>,
 
     value: UnsafeCell<FilterMapValue<I, B>>,
     version_checked: VarVersionCell,
@@ -116,7 +116,7 @@ where
         RcFilterMapVar(Rc::new(FilterMapData {
             _a: PhantomData,
             source,
-            map: RefCell::new(map),
+            map: Rc::new(RefCell::new(map)),
             value: UnsafeCell::new(FilterMapValue::Uninited(fallback_init)),
             version_checked: VarVersionCell::new(0),
             version: Cell::new(0),
@@ -258,7 +258,19 @@ where
     #[inline]
     fn actual_var<Vw: WithVars>(&self, vars: &Vw) -> BoxedVar<B> {
         if self.is_contextual() {
-            todo!("!!:")
+            vars.with_vars(|vars| {
+                let value = self.get_clone(vars);
+                let var = RcFilterMapVar::<_, _, I, _, _>(Rc::new(FilterMapData {
+                    _a: PhantomData,
+                    source: self.0.source.actual_var(vars),
+                    map: self.0.map.clone(),
+                    value: UnsafeCell::new(FilterMapValue::Value(value)),
+                    version_checked: self.0.version_checked.clone(),
+                    version: self.0.version.clone(),
+                    last_update_id: self.0.last_update_id.clone(),
+                }));
+                var.boxed()
+            })
         } else {
             self.clone().boxed()
         }
@@ -414,8 +426,8 @@ struct FilterMapBidiData<A, B, I, M, N, S> {
     _a: PhantomData<A>,
 
     source: S,
-    map: RefCell<M>,
-    map_back: RefCell<N>,
+    map: Rc<RefCell<M>>,
+    map_back: Rc<RefCell<N>>,
 
     value: UnsafeCell<FilterMapValue<I, B>>,
     version_checked: VarVersionCell,
@@ -438,8 +450,8 @@ where
         RcFilterMapBidiVar(Rc::new(FilterMapBidiData {
             _a: PhantomData,
             source,
-            map: RefCell::new(map),
-            map_back: RefCell::new(map_back),
+            map: Rc::new(RefCell::new(map)),
+            map_back: Rc::new(RefCell::new(map_back)),
 
             value: UnsafeCell::new(FilterMapValue::Uninited(fallback_init)),
             version_checked: VarVersionCell::new(0),
@@ -448,11 +460,11 @@ where
         }))
     }
 
-    /// Convert to a [`RcFilterMapVar`] if `self` is the only reference.
+    /// Convert to a [`RcFilterMapVar`], a deep clone is made if `self` is not the only reference.
     #[inline]
-    pub fn into_filter_map(self) -> Result<RcFilterMapVar<A, B, I, M, S>, Self> {
+    pub fn into_filter_map<Vr: WithVarsRead>(self, vars: &Vr) -> RcFilterMapVar<A, B, I, M, S> {
         match Rc::try_unwrap(self.0) {
-            Ok(data) => Ok(RcFilterMapVar(Rc::new(FilterMapData {
+            Ok(data) => RcFilterMapVar(Rc::new(FilterMapData {
                 _a: PhantomData,
                 source: data.source,
                 map: data.map,
@@ -460,8 +472,20 @@ where
                 version_checked: data.version_checked,
                 version: data.version,
                 last_update_id: data.last_update_id,
-            }))),
-            Err(rc) => Err(Self(rc)),
+            })),
+            Err(rc) => vars.with_vars_read(|vars| {
+                let self_ = Self(rc);
+                let value = self_.get_clone(vars);
+                RcFilterMapVar(Rc::new(FilterMapData {
+                    _a: PhantomData,
+                    source: self_.0.source.clone(),
+                    map: self_.0.map.clone(),
+                    value: UnsafeCell::new(FilterMapValue::Value(value)),
+                    version_checked: self_.0.version_checked.clone(),
+                    version: self_.0.version.clone(),
+                    last_update_id: self_.0.last_update_id.clone(),
+                }))
+            }),
         }
     }
 
@@ -597,7 +621,20 @@ where
     #[inline]
     fn actual_var<Vw: WithVars>(&self, vars: &Vw) -> BoxedVar<B> {
         if self.is_contextual() {
-            todo!("!!:")
+            vars.with_vars(|vars| {
+                let value = self.get_clone(vars);
+                let var = RcFilterMapBidiVar::<_, _, I, _, _, _>(Rc::new(FilterMapBidiData {
+                    _a: PhantomData,
+                    source: self.0.source.actual_var(vars),
+                    map: self.0.map.clone(),
+                    map_back: self.0.map_back.clone(),
+                    value: UnsafeCell::new(FilterMapValue::Value(value)),
+                    version_checked: self.0.version_checked.clone(),
+                    version: self.0.version.clone(),
+                    last_update_id: self.0.last_update_id.clone(),
+                }));
+                var.boxed()
+            })
         } else {
             self.clone().boxed()
         }

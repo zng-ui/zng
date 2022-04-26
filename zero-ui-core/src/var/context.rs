@@ -284,7 +284,7 @@ impl<'a, T: VarValue> ContextVarData<'a, T> {
     }
 
     /// Binds the context var to another `var` in a read-only context.
-    /// 
+    ///
     /// Note that the API does not forbid using this in a full [`Vars`] context, but doing so is probably a logic
     /// error, [`Var::is_new`] is always `false`, and [`Var::actual_var`] always returns a [`LocalVar`]
     /// clone of the current value instead of `var`.
@@ -713,7 +713,9 @@ mod properties {
             #[inline(always)]
             fn init(&mut self, ctx: &mut WidgetContext) {
                 ctx.vars
-                    .with_context_var(self.var, ContextVarData::in_vars(ctx.vars, &self.value, false), || self.child.init(ctx));
+                    .with_context_var(self.var, ContextVarData::in_vars(ctx.vars, &self.value, false), || {
+                        self.child.init(ctx)
+                    });
             }
             #[inline(always)]
             fn deinit(&mut self, ctx: &mut WidgetContext) {

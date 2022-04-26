@@ -228,7 +228,7 @@ where
     #[inline]
     fn actual_var<Vw: WithVars>(&self, vars: &Vw) -> BoxedVar<B> {
         if self.is_contextual() {
-            todo!("!!:")
+            vars.with_vars(|vars| self.var(vars).actual_var(vars))
         } else {
             self.clone().boxed()
         }

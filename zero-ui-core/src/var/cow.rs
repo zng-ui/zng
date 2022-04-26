@@ -235,7 +235,7 @@ impl<T: VarValue, V: Var<T>> Var<T> for RcCowVar<T, V> {
 
                 if self.is_contextual() {
                     // stop being contextual.
-                    self.touch(vars);
+                    let _ = self.touch(vars);
                 }
             }
 

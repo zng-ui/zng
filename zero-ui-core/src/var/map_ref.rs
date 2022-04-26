@@ -164,7 +164,12 @@ where
     #[inline]
     fn actual_var<Vw: WithVars>(&self, vars: &Vw) -> BoxedVar<B> {
         if self.is_contextual() {
-            todo!("!!:")
+            let var = MapRefVar(Rc::new(MapRefData {
+                _ab: PhantomData,
+                source: self.0.source.actual_var(vars),
+                map: self.0.map.clone(),
+            }));
+            var.boxed()
         } else {
             self.clone().boxed()
         }
@@ -449,7 +454,13 @@ where
     #[inline]
     fn actual_var<Vw: WithVars>(&self, vars: &Vw) -> BoxedVar<B> {
         if self.is_contextual() {
-            todo!("!!:")
+            let var = MapBidiRefVar(Rc::new(MapBidiRefData {
+                _ab: PhantomData,
+                source: self.0.source.actual_var(vars),
+                map: self.0.map.clone(),
+                map_mut: self.0.map_mut.clone(),
+            }));
+            var.boxed()
         } else {
             self.clone().boxed()
         }

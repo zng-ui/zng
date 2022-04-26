@@ -610,9 +610,6 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + crate::private::Sealed + 'stati
     ///
     /// If `true` the version is unique for each context, this in turn can cause mapping variables to re-evaluate
     /// if used in more then one context.
-    ///
-    /// **Note** this can change only from `true` to `false` and only once because of the [`RcCowVar<T>`]. Variables
-    /// like [`switch_var!`] always return `true` if any of the dependencies are contextual.
     fn is_contextual(&self) -> bool;
 
     /// Returns a clone of the underlying variable that owns the value.
@@ -2220,6 +2217,7 @@ impl VarVersion {
     }
 }
 
+#[derive(Clone)]
 pub(crate) struct VarVersionCell(Cell<VarVersion>);
 impl VarVersionCell {
     pub fn new(version: u32) -> Self {

@@ -64,7 +64,7 @@ struct MapData<A, B, M, S> {
     _a: PhantomData<A>,
 
     source: S,
-    map: RefCell<M>,
+    map: Rc<RefCell<M>>,
 
     value: UnsafeCell<Option<B>>,
     version: VarVersionCell,
@@ -85,7 +85,7 @@ where
         RcMapVar(Rc::new(MapData {
             _a: PhantomData,
             source,
-            map: RefCell::new(map),
+            map: Rc::new(RefCell::new(map)),
             value: UnsafeCell::new(None),
             version: VarVersionCell::new(0),
         }))
@@ -202,7 +202,17 @@ where
     #[inline]
     fn actual_var<Vw: WithVars>(&self, vars: &Vw) -> BoxedVar<B> {
         if self.is_contextual() {
-            todo!("!!:")
+            vars.with_vars(|vars| {
+                let value = self.get_clone(vars);
+                let var = RcMapVar(Rc::new(MapData {
+                    _a: PhantomData,
+                    source: self.0.source.actual_var(vars),
+                    map: self.0.map.clone(),
+                    value: UnsafeCell::new(Some(value)),
+                    version: self.0.version.clone(),
+                }));
+                var.boxed()
+            })
         } else {
             self.clone().boxed()
         }
@@ -350,8 +360,8 @@ struct MapBidiData<A, B, M, N, S> {
     _a: PhantomData<A>,
 
     source: S,
-    map: RefCell<M>,
-    map_back: RefCell<N>,
+    map: Rc<RefCell<M>>,
+    map_back: Rc<RefCell<N>>,
 
     value: UnsafeCell<Option<B>>,
     version: VarVersionCell,
@@ -373,8 +383,8 @@ where
         RcMapBidiVar(Rc::new(MapBidiData {
             _a: PhantomData,
             source,
-            map: RefCell::new(map),
-            map_back: RefCell::new(map_back),
+            map: Rc::new(RefCell::new(map)),
+            map_back: Rc::new(RefCell::new(map_back)),
             value: UnsafeCell::new(None),
             version: VarVersionCell::new(0),
         }))
@@ -385,18 +395,28 @@ where
         WeakRcMapBidiVar(Rc::downgrade(&self.0))
     }
 
-    /// Convert to a [`RcMapVar`] if `self` is the only reference.
+    /// Convert to a [`RcMapVar`], a deep clone is made if `self` is the only reference.
     #[inline]
-    pub fn into_map(self) -> Result<RcMapVar<A, B, M, S>, Self> {
+    pub fn into_map<Vr: WithVarsRead>(self, vars: &Vr) -> RcMapVar<A, B, M, S> {
         match Rc::try_unwrap(self.0) {
-            Ok(data) => Ok(RcMapVar(Rc::new(MapData {
+            Ok(data) => RcMapVar(Rc::new(MapData {
                 _a: PhantomData,
                 source: data.source,
                 map: data.map,
                 value: data.value,
                 version: data.version,
-            }))),
-            Err(rc) => Err(Self(rc)),
+            })),
+            Err(rc) => vars.with_vars_read(|vars| {
+                let self_ = Self(rc);
+                let value = self_.get_clone(vars);
+                RcMapVar(Rc::new(MapData {
+                    _a: PhantomData,
+                    source: self_.0.source.clone(),
+                    map: self_.0.map.clone(),
+                    value: UnsafeCell::new(Some(value)),
+                    version: self_.0.version.clone(),
+                }))
+            }),
         }
     }
 
@@ -521,7 +541,18 @@ where
     #[inline]
     fn actual_var<Vw: WithVars>(&self, vars: &Vw) -> BoxedVar<B> {
         if self.is_contextual() {
-            todo!("!!:")
+            vars.with_vars(|vars| {
+                let value = self.get_clone(vars);
+                let var = RcMapBidiVar(Rc::new(MapBidiData {
+                    _a: PhantomData,
+                    source: self.0.source.actual_var(vars),
+                    map: self.0.map.clone(),
+                    map_back: self.0.map_back.clone(),
+                    value: UnsafeCell::new(Some(value)),
+                    version: self.0.version.clone(),
+                }));
+                var.boxed()
+            })
         } else {
             self.clone().boxed()
         }
