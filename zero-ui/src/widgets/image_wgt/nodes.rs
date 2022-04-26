@@ -198,9 +198,11 @@ pub fn image_source(child: impl UiNode, source: impl IntoVar<ImageSource>) -> im
         }
 
         fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
+            subscriptions.var(ctx, &self.source);
             if let Some(fct) = &self.render_factor {
                 subscriptions.var(ctx, fct);
             }
+           
             self.child.subscriptions(ctx, subscriptions);
         }
     }
