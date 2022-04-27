@@ -2,10 +2,12 @@
 
 # Animation
 
+* Animation value distribution does not look right (try 24 FPS).
 * Variable that starts animating on first `get`.
 * `Var::repeat`.
 * Fps per animation.
 * Animation *sleep* until time, like a timer.
+* Default FPS from monitor.
 
 ```rust
 trait Var {
