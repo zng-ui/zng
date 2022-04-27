@@ -848,7 +848,9 @@ pub type EasingStep = Factor;
 
 /// Easing function input.
 ///
-/// Is always in the [0..=1] range. An easing function converts this time into a [`EasingStep`] factor.
+/// An easing function converts this time into a [`EasingStep`] factor.
+/// 
+/// The time is always in the [0..=1] range, factors are clamped to this range on creation. 
 #[derive(Debug, PartialEq, Copy, Clone, Hash, dm::Add, dm::AddAssign, dm::Sub, dm::SubAssign, PartialOrd)]
 pub struct EasingTime(Factor);
 impl_from_and_into_var! {
@@ -865,16 +867,12 @@ impl EasingTime {
         EasingTime(factor.clamp_range())
     }
 
-    /// New easing time from total `duration` and `elapsed` time.
+    /// New easing time from total `duration`, `elapsed` time and `time_scale`.
     ///
     /// If `elapsed >= duration` the time is 1.
     #[inline]
-    pub fn elapsed(duration: Duration, elapsed: Duration) -> Self {
-        if elapsed < duration {
-            EasingTime(elapsed.as_secs_f32().fct() / duration.as_secs_f32().fct())
-        } else {
-            EasingTime(1.fct())
-        }
+    pub fn elapsed(duration: Duration, elapsed: Duration, time_scale: Factor) -> Self {
+        EasingTime::new(elapsed.as_secs_f32().fct() / duration.as_secs_f32().fct() * time_scale)
     }
 
     /// Gets the start time, zero.
@@ -919,29 +917,5 @@ impl EasingTime {
     #[inline]
     pub fn reverse(self) -> Self {
         EasingTime(self.0.flip())
-    }
-}
-impl ops::Mul<Factor> for EasingTime {
-    type Output = EasingTime;
-
-    fn mul(self, rhs: Factor) -> EasingTime {
-        Self(self.0 * rhs)
-    }
-}
-impl ops::Div<Factor> for EasingTime {
-    type Output = EasingTime;
-
-    fn div(self, rhs: Factor) -> EasingTime {
-        Self(self.0 / rhs)
-    }
-}
-impl ops::MulAssign<Factor> for EasingTime {
-    fn mul_assign(&mut self, rhs: Factor) {
-        *self = *self * rhs;
-    }
-}
-impl ops::DivAssign<Factor> for EasingTime {
-    fn div_assign(&mut self, rhs: Factor) {
-        *self = *self / rhs;
     }
 }

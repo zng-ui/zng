@@ -564,7 +564,7 @@ impl AnimationArgs {
     #[inline]
     pub fn elapsed(&self, duration: Duration) -> EasingTime {
         if self.animations_enabled {
-            EasingTime::elapsed(duration, self.start_time.get().elapsed()) * self.time_scale
+            EasingTime::elapsed(duration, self.start_time.get().elapsed(), self.time_scale)
         } else {
             EasingTime::end()
         }

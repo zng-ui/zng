@@ -17,20 +17,22 @@ fn main() {
 
 fn app_main() {
     App::default().run_window(|ctx| {
-        ctx.vars.animation_time_scale().set(ctx.vars, 0.1.fct());
-
         window! {
             title = "Animation Example";
             padding = 10;
-            content = example();
+            content = example(ctx.vars);
         }
     })
 }
 
 const FROM_COLOR: Rgba = colors::RED;
 const TO_COLOR: Rgba = colors::GREEN;
+const FPS: u32 = 60;
 
-fn example() -> impl Widget {
+fn example(vars: &Vars) -> impl Widget {
+    // vars.animation_time_scale().set(vars, 0.5.fct());
+    vars.frame_duration().set(vars, (1.0 / FPS as f32).secs());
+
     let x = var(0.dip());
     let color = var(FROM_COLOR);
 
@@ -157,8 +159,9 @@ fn plot(easing: impl Fn(EasingTime) -> EasingStep + 'static) -> ImageSource {
         clone_move!(size, |_| {
             let mut items = widget_vec![];
             let color_t = easing::Transition::new(FROM_COLOR, TO_COLOR);
-            for i in 0..=60 {
-                let x_fct = (i as f32 / 60.0).fct();
+            let fps_f = FPS as f32;
+            for i in 0..=FPS {
+                let x_fct = (i as f32 / fps_f).fct();
                 let x = size.0 * x_fct;
 
                 let y_fct = easing(EasingTime::new(x_fct));
