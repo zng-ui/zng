@@ -565,6 +565,8 @@ impl TestWidgetContext {
 
     /// Update timers and animations, returns next wake time.
     pub fn update_timers(&mut self) -> Option<Instant> {
+        self.loop_timer.awake();
+
         self.timers.apply_updates(&self.vars, &mut self.loop_timer);
         self.vars.update_animations(&mut self.loop_timer);
 

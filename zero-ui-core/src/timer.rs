@@ -283,7 +283,7 @@ impl Timers {
         // update `deadline` vars
         self.deadlines.retain(|wk| {
             if let Some(var) = wk.upgrade() {
-                if !timer.wake(var.get(vars).deadline) {
+                if !timer.elapsed(var.get(vars).deadline) {
                     return true; // retain
                 }
 
@@ -299,7 +299,7 @@ impl Timers {
                     let t = var.get(vars);
                     let mut deadline = t.0 .0.data().deadline.lock();
 
-                    if timer.wake(deadline.current_deadline()) {
+                    if timer.elapsed(deadline.current_deadline()) {
                         // timer elapses, but only update if is enabled:
                         if t.is_enabled() {
                             t.0 .0.data().count.fetch_add(1, Ordering::Relaxed);
@@ -323,7 +323,7 @@ impl Timers {
             }
 
             let deadline = e.handle.data().deadline;
-            e.pending = timer.wake(deadline);
+            e.pending = timer.elapsed(deadline);
 
             true // retain if not canceled, elapsed deadlines will be dropped in [`Self::notify`].
         });
@@ -337,7 +337,7 @@ impl Timers {
             let state = e.handle.data();
             let mut deadline = state.deadline.lock();
 
-            if timer.wake(deadline.current_deadline()) {
+            if timer.elapsed(deadline.current_deadline()) {
                 // timer elapsed, but only flag for handler call if is enabled:
                 if state.enabled.load(Ordering::Relaxed) {
                     // this is wrapping_add
