@@ -764,9 +764,9 @@ impl Vars {
     /// Returns a [`OnVarHandle`] that can be used to unsubscribe, you can also unsubscribe from inside the handler by calling
     /// [`unsubscribe`](crate::handler::AppWeakHandle::unsubscribe) in the third parameter of [`app_hn!`] or [`async_app_hn!`].
     ///
-    /// The handler also auto-unsubscribes if the variable [`strong_count`] becomes `1`.
-    ///
-    /// If the `var` cannot update it and the `handler` are immediately dropped and the [`dummy`] handle is returned.
+    /// The handler does not hold a strong reference to the `var`, if the variable is dropped the handler auto-unsubscribes.
+    /// If [`can_update`] is `false` the `handler` is immediately dropped and the [`dummy`] handle is returned.
+    /// If [`is_contextual`] is `true` the handler is set for the [`actual_var`].
     ///
     /// # Examples
     ///
@@ -775,7 +775,7 @@ impl Vars {
     /// # use zero_ui_core::handler::app_hn;
     /// fn trace_var<T: VarValue>(var: &impl Var<T>, vars: &Vars) {
     ///     let mut prev_value = format!("{:?}", var.get(vars));
-    ///     vars.on_pre_var(var.clone(), app_hn!(|_ctx, new_value, _subscription| {
+    ///     vars.on_pre_var(var, app_hn!(|_ctx, new_value, _subscription| {
     ///         let new_value = format!("{new_value:?}");
     ///         println!("{prev_value} -> {new_value}");
     ///         prev_value = new_value;
@@ -796,18 +796,16 @@ impl Vars {
     /// [`async_app_hn!`]: crate::handler::async_app_hn!
     /// [`app_hn_once!`]: crate::handler::app_hn_once!
     /// [`async_app_hn!`]: crate::handler::async_app_hn_once!
-    /// [`strong_count`]: Var::strong_count
-    pub fn on_pre_var<T, V, H>(&self, var: V, handler: H) -> OnVarHandle
+    /// [`can_update`]: Var::can_update
+    /// [`is_contextual`]: Var::is_contextual
+    /// [`actual_var`]: Var::actual_var
+    pub fn on_pre_var<T, V, H>(&self, var: &V, handler: H) -> OnVarHandle
     where
         T: VarValue,
         V: Var<T>,
         H: AppHandler<T>,
     {
-        if !var.can_update() {
-            return OnVarHandle::dummy();
-        }
-
-        Self::push_var_handler(&self.pre_handlers, true, var, handler)
+        self.push_var_handler(&self.pre_handlers, true, var, handler)
     }
 
     /// Create a variable update handler.
@@ -818,9 +816,9 @@ impl Vars {
     /// Returns a [`OnVarHandle`] that can be used to unsubscribe, you can also unsubscribe from inside the handler by calling
     /// [`unsubscribe`](crate::handler::AppWeakHandle::unsubscribe) in the third parameter of [`app_hn!`] or [`async_app_hn!`].
     ///
-    /// The handler also auto-unsubscribes if the variable [`strong_count`] becomes `1`.
-    ///
-    /// If the `var` cannot update it and the `handler` are immediately dropped and the [`dummy`] handle is returned.
+    /// The handler does not hold a strong reference to the `var`, if the variable is dropped the handler auto-unsubscribes.
+    /// If [`can_update`] is `false` the `handler` is immediately dropped and the [`dummy`] handle is returned.
+    /// If [`is_contextual`] is `true` the handler is set for the [`actual_var`].
     ///
     /// # Handlers
     ///
@@ -833,8 +831,10 @@ impl Vars {
     /// [`async_app_hn!`]: crate::handler::async_app_hn!
     /// [`app_hn_once!`]: crate::handler::app_hn_once!
     /// [`async_app_hn!`]: crate::handler::async_app_hn_once!
-    /// [`strong_count`]: Var::strong_count
-    pub fn on_var<T, V, H>(&self, var: V, handler: H) -> OnVarHandle
+    /// [`can_update`]: Var::can_update
+    /// [`is_contextual`]: Var::is_contextual
+    /// [`actual_var`]: Var::actual_var
+    pub fn on_var<T, V, H>(&self, var: &V, handler: H) -> OnVarHandle
     where
         T: VarValue,
         V: Var<T>,
@@ -844,10 +844,10 @@ impl Vars {
             return OnVarHandle::dummy();
         }
 
-        Self::push_var_handler(&self.pos_handlers, false, var, handler)
+        self.push_var_handler(&self.pos_handlers, false, var, handler)
     }
 
-    fn push_var_handler<T, V, H>(handlers: &RefCell<Vec<OnVarHandler>>, is_preview: bool, var: V, mut handler: H) -> OnVarHandle
+    fn push_var_handler<T, V, H>(&self, handlers: &RefCell<Vec<OnVarHandler>>, is_preview: bool, var: &V, mut handler: H) -> OnVarHandle
     where
         T: VarValue,
         V: Var<T>,
@@ -856,13 +856,21 @@ impl Vars {
         if !var.can_update() {
             return OnVarHandle::dummy();
         }
+        if var.is_contextual() {
+            return self.push_var_handler(handlers, is_preview, var, handler);
+        }
+
+        debug_assert!(var.is_rc());
+
+        let wk_var = var.downgrade().unwrap();
 
         let (handle_owner, handle) = OnVarHandle::new();
         let handler = move |ctx: &mut AppContext, handle: &dyn AppWeakHandle| {
-            if let Some(new_value) = var.get_new(ctx.vars) {
-                handler.event(ctx, new_value, &AppHandlerArgs { handle, is_preview });
-            }
-            if var.strong_count() == 1 {
+            if let Some(var) = wk_var.upgrade() {
+                if let Some(new_value) = var.get_new(ctx.vars) {
+                    handler.event(ctx, new_value, &AppHandlerArgs { handle, is_preview });
+                }
+            } else {
                 handle.unsubscribe();
             }
         };

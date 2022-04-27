@@ -718,7 +718,6 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + crate::private::Sealed + 'stati
     ///
     /// [`version`]: Var::version
     /// [`is_new`]: Var::is_new
-    /// [`strong_count`]: Var::strong_count
     #[inline]
     fn touch<Vw: WithVars>(&self, vars: &Vw) -> Result<(), VarIsReadOnly> {
         self.modify(vars, |mut v| v.touch())
@@ -731,7 +730,6 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + crate::private::Sealed + 'stati
     ///
     /// [`version`]: Var::version
     /// [`is_new`]: Var::is_new
-    /// [`strong_count`]: Var::strong_count
     #[inline]
     fn set<Vw, N>(&self, vars: &Vw, new_value: N) -> Result<(), VarIsReadOnly>
     where
@@ -1986,7 +1984,7 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + crate::private::Sealed + 'stati
         H: AppHandler<T>,
     {
         if self.can_update() {
-            vars.with_vars(|vars| vars.on_pre_var(self.clone(), handler))
+            vars.with_vars(|vars| vars.on_pre_var(self, handler))
         } else {
             OnVarHandle::dummy()
         }
@@ -2003,7 +2001,7 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + crate::private::Sealed + 'stati
         H: AppHandler<T>,
     {
         if self.can_update() {
-            vars.with_vars(|vars| vars.on_var(self.clone(), handler))
+            vars.with_vars(|vars| vars.on_var(self, handler))
         } else {
             OnVarHandle::dummy()
         }
@@ -2016,9 +2014,11 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + crate::private::Sealed + 'stati
     ///
     /// The `enter_value` is also called immediately when this method is called to start tracking the first value.
     ///
-    /// Returns a [`OnVarHandle`] that can be used to stop tracing.
+    /// Returns a [`OnVarHandle`] that can be used to stop tracing. Making the handle permanent means that the tracing will happen
+    /// for the variable or app, the tracing handler only holds a weak reference to the variable.
     ///
-    /// If this variable can never update the span is immediately dropped and a dummy handle is returned.
+    /// If this variable can never update the span is immediately dropped and a dummy handle is returned. If the variable [`is_contextual`]
+    /// the trace is set on the [`actual_var`].
     ///
     /// # Examples
     ///
@@ -2031,17 +2031,25 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + crate::private::Sealed + 'stati
     /// # #[macro_export]
     /// # macro_rules! info_span { ($($tt:tt)*) => { Fake }; }
     /// # mod tracing {  pub use crate::info_span; }
-    /// fn trace_var<T: VarValue>(var: &impl Var<T>, vars: &Vars) {
-    ///     let handle = var.trace_value(vars, |value| {
-    ///         tracing::info_span!("my_var", ?value, track = "<vars>").entered()
-    ///     });
-    ///     handle.perm();
-    /// }
+    /// # fn trace_var<T: VarValue>(var: &impl Var<T>, vars: &Vars) {
+    /// var.trace_value(vars, |value| {
+    ///     tracing::info_span!("my_var", ?value, track = "<vars>").entered()
+    /// }).perm();
+    /// # }
     /// ```
     ///
-    /// Making the handle permanent means that the tracing will happen for the duration of the variable or app.
+    /// Note that you don't need to use any external tracing crate, this method also works with the standard printing:
+    ///
+    /// ```
+    /// # use zero_ui_core::var::*;
+    /// # fn trace_var(var: &impl Var<u32>, vars: &Vars) {
+    /// var.trace_value(vars, |v| println!("value: {v:?}")).perm();
+    /// # }
+    /// ```
     ///
     /// [`tracing`]: https://docs.rs/tracing/
+    /// [`is_contextual`]: Var::is_contextual
+    /// [`actual_var`]: Var::actual_var
     fn trace_value<Vw, S, E>(&self, vars: &Vw, mut enter_value: E) -> OnVarHandle
     where
         Vw: WithVars,

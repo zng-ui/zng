@@ -34,6 +34,7 @@ fn example(vars: &Vars) -> impl Widget {
     vars.frame_duration().set(vars, (1.0 / FPS as f32).secs());
 
     let x = var(0.dip());
+
     let color = var(FROM_COLOR);
 
     use easing::EasingModifierFn::*;

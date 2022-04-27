@@ -849,8 +849,8 @@ pub type EasingStep = Factor;
 /// Easing function input.
 ///
 /// An easing function converts this time into a [`EasingStep`] factor.
-/// 
-/// The time is always in the [0..=1] range, factors are clamped to this range on creation. 
+///
+/// The time is always in the [0..=1] range, factors are clamped to this range on creation.
 #[derive(Debug, PartialEq, Copy, Clone, Hash, dm::Add, dm::AddAssign, dm::Sub, dm::SubAssign, PartialOrd)]
 pub struct EasingTime(Factor);
 impl_from_and_into_var! {
