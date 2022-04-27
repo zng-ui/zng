@@ -1,7 +1,7 @@
 //! Context information for app extensions, windows and widgets.
 
 use crate::{event::Events, service::Services, units::*, var::Vars, window::WindowId, WidgetId};
-use std::{fmt, ops::Deref, time::Instant};
+use std::{fmt, ops::Deref};
 
 use crate::app::{AppEventSender, LoopTimer};
 
@@ -564,7 +564,7 @@ impl TestWidgetContext {
     }
 
     /// Update timers and animations, returns next wake time.
-    pub fn update_timers(&mut self) -> Option<Instant> {
+    pub fn update_timers(&mut self) -> Option<std::time::Instant> {
         self.loop_timer.awake();
 
         self.timers.apply_updates(&self.vars, &mut self.loop_timer);

@@ -1654,10 +1654,8 @@ impl LoopTimer {
                 self.wake = None;
             }
             self.awake = false;
-        } else {
-            if let Some(w) = self.next_wake.take() {
-                self.wake = Some(w.max(Instant::now()));
-            }
+        } else if let Some(w) = self.next_wake.take() {
+            self.wake = Some(w.max(Instant::now()));
         }
         self.wake
     }
@@ -1851,10 +1849,8 @@ impl HeadlessApp {
 
     /// Does updates with an [`AppEventObserver`].
     ///
-    /// If `wait_app_event` is `true` the thread sleeps until at least one app event is received or the [`wake_time`] is reached,
+    /// If `wait_app_event` is `true` the thread sleeps until at least one app event is received or a timer elapses,
     /// if it is `false` only responds to app events already in the buffer.
-    ///
-    /// [`wake_time`]: Self::wake_time
     pub fn update_observed<O: AppEventObserver>(&mut self, observer: &mut O, mut wait_app_event: bool) -> ControlFlow {
         loop {
             match self.app.poll(wait_app_event, observer) {
