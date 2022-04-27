@@ -5,7 +5,6 @@
 * Config animations fps.
 * Variable that starts animating on first `get`.
 * Time dilation control.
-* Drop animation if var is dropped. Need Var::WeakVar type.
 * `Var::repeat`.
 
 ```rust
