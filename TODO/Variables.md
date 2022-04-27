@@ -2,8 +2,6 @@
 
 # Animation
 
-* `Var::animate`, that implements WeakVar handling.
-* Refactor `Var::ease` using `Var::animate`. 
 * Config animations fps.
 * Variable that starts animating on first `get`.
 * Time dilation control.

@@ -728,167 +728,6 @@ where
     }
 }
 
-pub(super) fn default_var_ease<T>(
-    var: impl Var<T>,
-    vars: &Vars,
-    from: T,
-    to: T,
-    duration: Duration,
-    easing: impl Fn(EasingTime) -> EasingStep + 'static,
-    from_current: bool,
-) where
-    T: VarValue + Transitionable,
-{
-    let transition = Transition::new(from, to);
-    let mut prev_step = if from_current { 0.fct() } else { 999.fct() };
-    vars.animate(move |vars, anim| {
-        let step = easing(anim.elapsed_stop(duration));
-        if step != prev_step {
-            prev_step = step;
-
-            if var.set(vars, transition.sample(step)).is_err() {
-                anim.stop()
-            }
-        }
-    })
-    .permanent()
-}
-
-pub(super) fn default_var_ease_ne<T>(
-    var: impl Var<T>,
-    vars: &Vars,
-    from: T,
-    to: T,
-    duration: Duration,
-    easing: impl Fn(EasingTime) -> EasingStep + 'static,
-    from_current: bool,
-) where
-    T: PartialEq + VarValue + Transitionable,
-{
-    let transition = Transition::new(from, to);
-    let mut prev_step = if from_current { 0.fct() } else { 999.fct() };
-    vars.animate(move |vars, anim| {
-        let step = easing(anim.elapsed_stop(duration));
-        if step != prev_step {
-            prev_step = step;
-
-            if var.set_ne(vars, transition.sample(step)).is_err() {
-                anim.stop()
-            }
-        }
-    })
-    .permanent()
-}
-
-pub(super) fn default_var_ease_keyed<T>(
-    var: impl Var<T>,
-    vars: &Vars,
-    keys: Vec<(Factor, T)>,
-    duration: Duration,
-    easing: impl Fn(EasingTime) -> EasingStep + 'static,
-    from_current: bool,
-) where
-    T: VarValue + Transitionable,
-{
-    if let Some(transition) = TransitionKeyed::new(keys) {
-        let mut prev_step = if from_current { 0.fct() } else { 999.fct() };
-        vars.animate(move |vars, anim| {
-            let step = easing(anim.elapsed_stop(duration));
-            if step != prev_step {
-                prev_step = step;
-
-                if var.set(vars, transition.sample(step)).is_err() {
-                    anim.stop();
-                }
-            }
-        })
-        .permanent()
-    }
-}
-
-pub(super) fn default_var_step<T>(var: impl Var<T>, vars: &Vars, value: T, duration: Duration)
-where
-    T: VarValue,
-{
-    let mut is_animating = false;
-    let mut value = Some(value);
-    vars.animate(move |vars, anim| {
-        if !anim.animations_enabled() || anim.start_time().elapsed() >= duration {
-            anim.stop();
-
-            let _ = var.set(vars, value.take().unwrap());
-        }
-
-        if !is_animating {
-            is_animating = true;
-            let _ = var.touch(vars);
-        }
-    })
-    .permanent();
-}
-
-pub(super) fn default_var_steps<T, F>(var: impl Var<T>, vars: &Vars, steps: Vec<(Factor, T)>, duration: Duration, easing: F)
-where
-    T: VarValue,
-    F: Fn(EasingTime) -> EasingStep + 'static,
-{
-    let mut prev_step = 999.fct();
-    let mut is_animating = false;
-    vars.animate(move |vars, anim| {
-        let step = easing(anim.elapsed_stop(duration));
-        if step != prev_step {
-            prev_step = step;
-
-            // the easing function can backtrack here, so a step value can end used more then once.
-            if let Some((_, step)) = steps.iter().find(|(f, _)| *f >= step) {
-                if var.set(vars, step.clone()).is_err() {
-                    anim.stop()
-                }
-                is_animating = true;
-            }
-
-            if !is_animating {
-                is_animating = true;
-                if var.touch(vars).is_err() {
-                    anim.stop();
-                }
-            }
-        }
-    })
-    .permanent()
-}
-
-pub(super) fn default_var_steps_ne<T, F>(var: impl Var<T>, vars: &Vars, steps: Vec<(Factor, T)>, duration: Duration, easing: F)
-where
-    T: VarValue + PartialEq,
-    F: Fn(EasingTime) -> EasingStep + 'static,
-{
-    let mut prev_step = 999.fct();
-    let mut is_animating = false;
-    vars.animate(move |vars, anim| {
-        let step = easing(anim.elapsed_stop(duration));
-        if step != prev_step {
-            prev_step = step;
-
-            // the easing function can backtrack here, so a step value can end used more then once.
-            if let Some((_, step)) = steps.iter().find(|(f, _)| *f >= step) {
-                if var.set_ne(vars, step.clone()).is_err() {
-                    anim.stop()
-                }
-                is_animating = true;
-            }
-
-            if !is_animating {
-                is_animating = true;
-                if var.touch(vars).is_err() {
-                    anim.stop();
-                }
-            }
-        }
-    })
-    .permanent()
-}
-
 struct EasingVarData<T, V, F> {
     _t: PhantomData<T>,
     var: V,
@@ -1064,8 +903,15 @@ where
         Vw: super::WithVars,
         N: Into<T>,
     {
-        let easing = self.0.easing.clone();
-        self.0.var.ease(vars, new_value, self.0.duration, move |t| easing(t))
+        vars.with_vars(|vars| {
+            if self.is_read_only(vars) {
+                Err(super::VarIsReadOnly)
+            } else {
+                let easing = self.0.easing.clone();
+                self.0.var.ease(vars, new_value, self.0.duration, move |t| easing(t)).permanent();
+                Ok(())
+            }
+        })
     }
 
     fn set_ne<Vw, N>(&self, vars: &Vw, new_value: N) -> Result<bool, super::VarIsReadOnly>
@@ -1074,11 +920,18 @@ where
         N: Into<T>,
         T: PartialEq,
     {
-        let easing = self.0.easing.clone();
-        self.0.var.ease_ne(vars, new_value, self.0.duration, move |t| easing(t))
+        vars.with_vars(|vars| {
+            if self.is_read_only(vars) {
+                Err(super::VarIsReadOnly)
+            } else {
+                let easing = self.0.easing.clone();
+                self.0.var.ease_ne(vars, new_value, self.0.duration, move |t| easing(t)).permanent();
+                Ok(true)
+            }
+        })
     }
 
-    fn ease<Vw, N, F2>(&self, vars: &Vw, new_value: N, duration: Duration, easing: F2) -> Result<(), super::VarIsReadOnly>
+    fn ease<Vw, N, F2>(&self, vars: &Vw, new_value: N, duration: Duration, easing: F2) -> AnimationHandle
     where
         Vw: super::WithVars,
         N: Into<T>,
@@ -1087,7 +940,7 @@ where
         self.0.var.ease(vars, new_value, duration, easing)
     }
 
-    fn ease_ne<Vw, N, F2>(&self, vars: &Vw, new_value: N, duration: Duration, easing: F2) -> Result<bool, super::VarIsReadOnly>
+    fn ease_ne<Vw, N, F2>(&self, vars: &Vw, new_value: N, duration: Duration, easing: F2) -> AnimationHandle
     where
         Vw: super::WithVars,
         N: Into<T>,
@@ -1098,7 +951,7 @@ where
         self.0.var.ease_ne(vars, new_value, duration, easing)
     }
 
-    fn ease_keyed<Vw, F2>(&self, vars: &Vw, keys: Vec<(Factor, T)>, duration: Duration, easing: F2) -> Result<(), super::VarIsReadOnly>
+    fn ease_keyed<Vw, F2>(&self, vars: &Vw, keys: Vec<(Factor, T)>, duration: Duration, easing: F2) -> AnimationHandle
     where
         Vw: super::WithVars,
         F2: Fn(EasingTime) -> EasingStep + 'static,
@@ -1106,7 +959,7 @@ where
         self.0.var.ease_keyed(vars, keys, duration, easing)
     }
 
-    fn set_ease<Vw, N, Th, F2>(&self, vars: &Vw, new_value: N, then: Th, duration: Duration, easing: F2) -> Result<(), super::VarIsReadOnly>
+    fn set_ease<Vw, N, Th, F2>(&self, vars: &Vw, new_value: N, then: Th, duration: Duration, easing: F2) -> AnimationHandle
     where
         Vw: super::WithVars,
         N: Into<T>,
@@ -1116,14 +969,7 @@ where
         self.0.var.set_ease(vars, new_value, then, duration, easing)
     }
 
-    fn set_ease_ne<Vw, N, Th, F2>(
-        &self,
-        vars: &Vw,
-        new_value: N,
-        then: Th,
-        duration: Duration,
-        easing: F2,
-    ) -> Result<bool, super::VarIsReadOnly>
+    fn set_ease_ne<Vw, N, Th, F2>(&self, vars: &Vw, new_value: N, then: Th, duration: Duration, easing: F2) -> AnimationHandle
     where
         Vw: super::WithVars,
         N: Into<T>,
@@ -1135,7 +981,7 @@ where
         self.0.var.set_ease_ne(vars, new_value, then, duration, easing)
     }
 
-    fn set_ease_keyed<Vw, F2>(&self, vars: &Vw, keys: Vec<(Factor, T)>, duration: Duration, easing: F2) -> Result<(), super::VarIsReadOnly>
+    fn set_ease_keyed<Vw, F2>(&self, vars: &Vw, keys: Vec<(Factor, T)>, duration: Duration, easing: F2) -> AnimationHandle
     where
         Vw: super::WithVars,
         F2: Fn(EasingTime) -> EasingStep + 'static,
@@ -1143,7 +989,7 @@ where
         self.0.var.set_ease_keyed(vars, keys, duration, easing)
     }
 
-    fn step<Vw, N>(&self, vars: &Vw, new_value: N, delay: Duration) -> Result<(), super::VarIsReadOnly>
+    fn step<Vw, N>(&self, vars: &Vw, new_value: N, delay: Duration) -> AnimationHandle
     where
         Vw: super::WithVars,
         N: Into<T>,
@@ -1151,7 +997,7 @@ where
         self.0.var.step(vars, new_value, delay)
     }
 
-    fn step_ne<Vw, N>(&self, vars: &Vw, new_value: N, delay: Duration) -> Result<(), super::VarIsReadOnly>
+    fn step_ne<Vw, N>(&self, vars: &Vw, new_value: N, delay: Duration) -> AnimationHandle
     where
         Vw: super::WithVars,
         N: Into<T>,
@@ -1160,7 +1006,7 @@ where
         self.0.var.step_ne(vars, new_value, delay)
     }
 
-    fn steps<Vw, F2>(&self, vars: &Vw, steps: Vec<(Factor, T)>, duration: Duration, easing: F2) -> Result<(), super::VarIsReadOnly>
+    fn steps<Vw, F2>(&self, vars: &Vw, steps: Vec<(Factor, T)>, duration: Duration, easing: F2) -> AnimationHandle
     where
         Vw: super::WithVars,
         F2: Fn(EasingTime) -> EasingStep + 'static,
@@ -1168,7 +1014,7 @@ where
         self.0.var.steps(vars, steps, duration, easing)
     }
 
-    fn steps_ne<Vw, F2>(&self, vars: &Vw, steps: Vec<(Factor, T)>, duration: Duration, easing: F2) -> Result<(), super::VarIsReadOnly>
+    fn steps_ne<Vw, F2>(&self, vars: &Vw, steps: Vec<(Factor, T)>, duration: Duration, easing: F2) -> AnimationHandle
     where
         Vw: super::WithVars,
         F2: Fn(EasingTime) -> EasingStep + 'static,
