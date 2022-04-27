@@ -27,13 +27,27 @@ fn app_main() {
 
 const FROM_COLOR: Rgba = colors::RED;
 const TO_COLOR: Rgba = colors::GREEN;
-const FPS: u32 = 60;
+const FPS: u32 = 30;
 
 fn example(vars: &Vars) -> impl Widget {
     // vars.animation_time_scale().set(vars, 0.5.fct());
     vars.frame_duration().set(vars, (1.0 / FPS as f32).secs());
 
     let x = var(0.dip());
+
+    /* !!:
+    x.trace_value(vars, |v| {
+        use zero_ui::core::units::DipToPx;
+        println!(
+            "{:?}",
+            match v {
+                Length::Dip(d) => d.to_px(1.5),
+                _ => unreachable!(),
+            }
+        )
+    })
+    .perm();
+    */
 
     let color = var(FROM_COLOR);
 

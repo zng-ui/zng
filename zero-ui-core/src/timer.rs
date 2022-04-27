@@ -14,6 +14,7 @@ use std::{
 use retain_mut::RetainMut;
 
 use crate::{
+    app::LoopTimer,
     context::AppContext,
     crate_util::{Handle, HandleOwner, WeakHandle},
     handler::{self, AppHandler, AppHandlerArgs, AppWeakHandle},
@@ -246,70 +247,43 @@ impl Timers {
         handle
     }
 
-    pub(crate) fn next_deadline(&self, vars: &VarsRead) -> Option<Instant> {
-        let now = Instant::now();
-
-        let mut min_next_some = false;
-        let mut min_next = now + Duration::from_secs(60 * 60 * 60);
-
+    pub(crate) fn next_deadline(&self, vars: &VarsRead, timer: &mut LoopTimer) {
         for wk in &self.deadlines {
             if let Some(var) = wk.upgrade() {
-                let deadline = var.get(vars).deadline;
-                if deadline > now {
-                    min_next_some = true;
-                    min_next = min_next.min(deadline);
-                }
+                timer.register(var.get(vars).deadline);
             }
         }
 
         for t in &self.timers {
             if let Some(var) = t.weak_var.upgrade() {
                 if !t.handle.is_dropped() {
-                    let timer = var.get(vars);
-                    let deadline = timer.0 .0.data().deadline.lock();
-
-                    min_next_some = true;
-                    min_next = min_next.min(deadline.current_deadline());
+                    let t = var.get(vars);
+                    let deadline = t.0 .0.data().deadline.lock();
+                    timer.register(deadline.current_deadline());
                 }
             }
         }
 
         for e in &self.deadline_handlers {
             let deadline = e.handle.data().deadline;
-            min_next_some = true;
-            min_next = min_next.min(deadline);
+            timer.register(deadline);
         }
 
         for e in &self.timer_handlers {
             let state = e.handle.data();
             let deadline = state.deadline.lock();
-
-            min_next_some = true;
-            min_next = min_next.min(deadline.current_deadline());
-        }
-
-        if min_next_some {
-            Some(min_next)
-        } else {
-            None
+            timer.register(deadline.current_deadline());
         }
     }
 
     /// Update timer vars, flag handlers to be called in [`Self::notify`], returns new app wake time.
-    pub(crate) fn apply_updates(&mut self, vars: &Vars) -> Option<Instant> {
+    pub(crate) fn apply_updates(&mut self, vars: &Vars, timer: &mut LoopTimer) {
         let now = Instant::now();
-
-        let mut min_next_some = false;
-        let mut min_next = now + Duration::from_secs(60 * 60 * 60);
 
         // update `deadline` vars
         self.deadlines.retain(|wk| {
             if let Some(var) = wk.upgrade() {
-                let deadline = var.get(vars).deadline;
-                if deadline > now {
-                    min_next_some = true;
-                    min_next = min_next.min(deadline);
-
+                if !timer.wake(var.get(vars).deadline) {
                     return true; // retain
                 }
 
@@ -322,23 +296,21 @@ impl Timers {
         self.timers.retain(|t| {
             if let Some(var) = t.weak_var.upgrade() {
                 if !t.handle.is_dropped() {
-                    let timer = var.get(vars);
-                    let mut deadline = timer.0 .0.data().deadline.lock();
+                    let t = var.get(vars);
+                    let mut deadline = t.0 .0.data().deadline.lock();
 
-                    if deadline.current_deadline() <= now {
+                    if timer.wake(deadline.current_deadline()) {
                         // timer elapses, but only update if is enabled:
-                        if timer.is_enabled() {
-                            timer.0 .0.data().count.fetch_add(1, Ordering::Relaxed);
+                        if t.is_enabled() {
+                            t.0 .0.data().count.fetch_add(1, Ordering::Relaxed);
                             var.touch(vars);
                         }
 
                         deadline.last = now;
+                        timer.register(deadline.current_deadline());
                     }
 
-                    min_next_some = true;
-                    min_next = min_next.min(deadline.current_deadline());
-
-                    return true; // retain, has at least one var and did not call stop.
+                    return true; // retain, var is alive and did not call stop.
                 }
             }
             false // don't retain.
@@ -351,12 +323,7 @@ impl Timers {
             }
 
             let deadline = e.handle.data().deadline;
-            e.pending = deadline <= now;
-
-            if e.pending {
-                min_next_some = true;
-                min_next = min_next.min(deadline);
-            }
+            e.pending = timer.wake(deadline);
 
             true // retain if not canceled, elapsed deadlines will be dropped in [`Self::notify`].
         });
@@ -370,7 +337,7 @@ impl Timers {
             let state = e.handle.data();
             let mut deadline = state.deadline.lock();
 
-            if deadline.current_deadline() <= now {
+            if timer.wake(deadline.current_deadline()) {
                 // timer elapsed, but only flag for handler call if is enabled:
                 if state.enabled.load(Ordering::Relaxed) {
                     // this is wrapping_add
@@ -378,19 +345,12 @@ impl Timers {
                     e.pending = Some(deadline.current_deadline());
                 }
                 deadline.last = now;
-            }
 
-            min_next_some = true;
-            min_next = min_next.min(deadline.current_deadline());
+                timer.register(deadline.current_deadline());
+            }
 
             true // retain if stop was not called
         });
-
-        if min_next_some {
-            Some(min_next)
-        } else {
-            None
-        }
     }
 
     /// does on_* notifications.

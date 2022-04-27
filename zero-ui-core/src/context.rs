@@ -3,7 +3,7 @@
 use crate::{event::Events, service::Services, units::*, var::Vars, window::WindowId, WidgetId};
 use std::{fmt, ops::Deref, time::Instant};
 
-use crate::app::AppEventSender;
+use crate::app::{AppEventSender, LoopTimer};
 
 use crate::timer::Timers;
 use crate::widget_info::WidgetInfoTree;
@@ -91,29 +91,15 @@ impl OwnedAppContext {
     }
 
     /// Returns next timer or animation tick time.
-    #[must_use]
-    pub fn next_deadline(&self) -> Option<Instant> {
-        let t = self.timers.next_deadline(&self.vars);
-        let v = self.vars.next_deadline();
-
-        match (t, v) {
-            (None, None) => None,
-            (None, Some(m)) | (Some(m), None) => Some(m),
-            (Some(t), Some(v)) => Some(t.min(v)),
-        }
+    pub fn next_deadline(&self, timer: &mut LoopTimer) {
+        self.timers.next_deadline(&self.vars, timer);
+        self.vars.next_deadline(timer);
     }
 
     /// Update timers and animations, returns next wake time.
-    #[must_use]
-    pub fn update_timers(&mut self) -> Option<Instant> {
-        let t = self.timers.apply_updates(&self.vars);
-        let v = self.vars.update_animations();
-
-        match (t, v) {
-            (None, None) => None,
-            (None, Some(m)) | (Some(m), None) => Some(m),
-            (Some(t), Some(v)) => Some(t.min(v)),
-        }
+    pub fn update_timers(&mut self, timer: &mut LoopTimer) {
+        self.timers.apply_updates(&self.vars, timer);
+        self.vars.update_animations(timer);
     }
 
     /// If a call to `apply_updates` will generate updates (ignoring timers).
@@ -400,6 +386,7 @@ pub struct TestWidgetContext {
     pub timers: Timers,
 
     receiver: flume::Receiver<crate::app::AppEvent>,
+    loop_timer: crate::app::LoopTimer,
 }
 #[cfg(any(test, doc, feature = "test_util"))]
 impl Default for TestWidgetContext {
@@ -437,6 +424,7 @@ impl TestWidgetContext {
             timers: Timers::new(),
 
             receiver,
+            loop_timer: LoopTimer::default(),
         }
     }
 
@@ -577,14 +565,10 @@ impl TestWidgetContext {
 
     /// Update timers and animations, returns next wake time.
     pub fn update_timers(&mut self) -> Option<Instant> {
-        let t = self.timers.apply_updates(&self.vars);
-        let v = self.vars.update_animations();
+        self.timers.apply_updates(&self.vars, &mut self.loop_timer);
+        self.vars.update_animations(&mut self.loop_timer);
 
-        match (t, v) {
-            (None, None) => None,
-            (None, Some(m)) | (Some(m), None) => Some(m),
-            (Some(t), Some(v)) => Some(t.min(v)),
-        }
+        self.loop_timer.poll()
     }
 
     /// Force set the current update mask.

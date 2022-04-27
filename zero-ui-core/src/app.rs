@@ -840,8 +840,7 @@ struct RunningApp<E: AppExtension> {
     owned_ctx: OwnedAppContext,
     receiver: flume::Receiver<AppEvent>,
 
-    wake_time: Option<Instant>,
-
+    loop_timer: LoopTimer,
     loop_monitor: LoopMonitor,
 
     pending_view_events: Vec<zero_ui_view_api::Event>,
@@ -849,7 +848,7 @@ struct RunningApp<E: AppExtension> {
     pending_app_events: Vec<BoxedEventUpdate>,
     pending_layout: bool,
     pending_render: bool,
-    tick_timers: bool,
+    waked_by_timer: bool,
 
     // shutdown was requested.
     exiting: bool,
@@ -902,6 +901,7 @@ impl<E: AppExtension> RunningApp<E> {
             owned_ctx,
             receiver,
 
+            loop_timer: LoopTimer::default(),
             loop_monitor: LoopMonitor::default(),
 
             pending_view_events: Vec::with_capacity(100),
@@ -909,8 +909,7 @@ impl<E: AppExtension> RunningApp<E> {
             pending_app_events: Vec::with_capacity(100),
             pending_layout: false,
             pending_render: false,
-            tick_timers: true,
-            wake_time: None,
+            waked_by_timer: true,
             exiting: false,
         }
     }
@@ -964,12 +963,6 @@ impl<E: AppExtension> RunningApp<E> {
 
     fn device_id(&mut self, id: zero_ui_view_api::DeviceId) -> DeviceId {
         self.ctx().services.req::<ViewProcess>().device_id(id)
-    }
-
-    /// Next timer deadline.
-    #[inline]
-    pub fn wake_time(&self) -> Option<Instant> {
-        self.wake_time
     }
 
     /// Process a View Process event.
@@ -1326,7 +1319,7 @@ impl<E: AppExtension> RunningApp<E> {
                     // update ViewProcess immediately.
                     if let Some(vp) = self.ctx().services.get::<ViewProcess>() {
                         vp.on_frame_rendered(window);
-                        self.tick_timers = true;
+                        self.waked_by_timer = true;
                     }
 
                     #[cfg(debug_assertions)]
@@ -1407,17 +1400,14 @@ impl<E: AppExtension> RunningApp<E> {
 
         if wait_app_event {
             let idle = tracing::debug_span!("<idle>").entered();
-            if let Some(time) = self.wake_time {
+            if let Some(time) = self.loop_timer.poll() {
                 match self.receiver.recv_deadline(time) {
                     Ok(ev) => {
                         drop(idle);
                         self.push_coalesce(ev, observer)
                     }
                     Err(e) => match e {
-                        flume::RecvTimeoutError::Timeout => {
-                            self.wake_time = None;
-                            timer_elapsed = true
-                        }
+                        flume::RecvTimeoutError::Timeout => timer_elapsed = true,
                         flume::RecvTimeoutError::Disconnected => disconnected = true,
                     },
                 }
@@ -1469,10 +1459,10 @@ impl<E: AppExtension> RunningApp<E> {
         }
         self.pending_view_frame_events = events;
 
-        if mem::take(&mut self.tick_timers) {
-            self.wake_time = self.owned_ctx.update_timers();
+        if mem::take(&mut self.waked_by_timer) {
+            self.owned_ctx.update_timers(&mut self.loop_timer);
         } else {
-            self.wake_time = self.owned_ctx.next_deadline();
+            self.owned_ctx.next_deadline(&mut self.loop_timer);
         }
 
         if pending_update {
@@ -1617,7 +1607,7 @@ impl<E: AppExtension> RunningApp<E> {
             self.extensions.render(ctx);
             observer.render(ctx);
         } else {
-            self.tick_timers = true;
+            self.waked_by_timer = true;
         }
 
         self.loop_monitor.finish_frame();
@@ -1628,6 +1618,43 @@ impl<E: AppExtension> Drop for RunningApp<E> {
         let _s = tracing::debug_span!("extensions.deinit").entered();
         let mut ctx = self.owned_ctx.borrow();
         self.extensions.deinit(&mut ctx);
+    }
+}
+
+/// App main loop timer.
+#[derive(Default)]
+pub(crate) struct LoopTimer {
+    wake: Option<Instant>,
+    next_wake: Option<Instant>,
+}
+impl LoopTimer {
+    /// Returns `true` if the `instant` has elapsed, `false` if the `instance` was
+    /// registered for future waking.
+    pub fn wake(&mut self, instant: Instant) -> bool {
+        if let Some(w) = self.wake {
+            if instant <= w {
+                return true;
+            }
+        }
+        self.register(instant);
+        false
+    }
+
+    /// Register the future `instant`.
+    pub fn register(&mut self, instant: Instant) {
+        if let Some(nxt) = &mut self.next_wake {
+            if instant < *nxt {
+                *nxt = instant;
+            }
+        } else {
+            self.next_wake = Some(instant);
+        }
+    }
+
+    /// Completes one update cycle, returns the next time the main loop must wake.
+    pub(crate) fn poll(&mut self) -> Option<Instant> {
+        self.wake = self.next_wake.take();
+        self.wake
     }
 }
 
@@ -1825,12 +1852,6 @@ impl HeadlessApp {
                 flow => return flow,
             }
         }
-    }
-
-    /// Next timer deadline.
-    #[inline]
-    pub fn wake_time(&mut self) -> Option<Instant> {
-        self.app.wake_time()
     }
 
     /// Execute the async `task` in the UI thread, updating the app until it finishes or the app shuts-down.
