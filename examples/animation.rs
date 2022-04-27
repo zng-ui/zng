@@ -16,7 +16,9 @@ fn main() {
 }
 
 fn app_main() {
-    App::default().run_window(|_| {
+    App::default().run_window(|ctx| {
+        ctx.vars.animation_time_scale().set(ctx.vars, 0.1.fct());
+
         window! {
             title = "Animation Example";
             padding = 10;

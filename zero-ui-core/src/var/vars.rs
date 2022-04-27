@@ -30,7 +30,7 @@ type SyncEntry = Box<dyn Fn(&Vars) -> Retain>;
 type Retain = bool;
 type VarBindingFn = Box<dyn FnMut(&Vars) -> Retain>;
 type UpdateLinkFn = Box<dyn Fn(&Vars, &mut UpdateMask) -> Retain>;
-type AnimationFn = Box<dyn FnMut(&Vars, bool) -> Retain>;
+type AnimationFn = Box<dyn FnMut(&Vars, bool, Factor) -> Retain>;
 
 /// Read-only access to variables.
 ///
@@ -286,8 +286,9 @@ pub struct Vars {
     animation_id: Cell<u32>,
     current_animation: RefCell<(WeakAnimationHandle, u32)>,
     last_frame: Instant,
-    frame_duration: Duration,
     animations_enabled: RcVar<bool>,
+    frame_duration: RcVar<Duration>,
+    animation_time_scale: RcVar<Factor>,
 
     #[allow(clippy::type_complexity)]
     pending: RefCell<Vec<PendingUpdate>>,
@@ -329,7 +330,8 @@ impl Vars {
             animation_id: Cell::new(1),
             current_animation: RefCell::new((WeakAnimationHandle::new(), 0)),
             last_frame: Instant::now(),
-            frame_duration: (1.0 / 60.0).secs(),
+            frame_duration: var((1.0 / 60.0).secs()),
+            animation_time_scale: var(1.fct()),
             animations_enabled: var(true),
             pending: Default::default(),
             pre_handlers: RefCell::default(),
@@ -357,16 +359,19 @@ impl Vars {
         let mut animations = self.animations.borrow_mut();
 
         if !animations.is_empty() {
-            let next_frame = self.last_frame + self.frame_duration;
+            let frame_duration = self.frame_duration.copy(self);
+
+            let next_frame = self.last_frame + frame_duration;
             let animations_enabled = self.animations_enabled.copy(self);
+            let time_scale = self.animation_time_scale.copy(self);
             if Instant::now() >= next_frame {
                 self.last_frame = next_frame;
 
-                animations.retain_mut(|a| a(self, animations_enabled));
+                animations.retain_mut(|a| a(self, animations_enabled, time_scale));
 
                 if !animations.is_empty() {
                     // next frame
-                    Some(self.last_frame + self.frame_duration)
+                    Some(self.last_frame + frame_duration)
                 } else {
                     None
                 }
@@ -384,7 +389,7 @@ impl Vars {
         if self.animations.borrow().is_empty() {
             None
         } else {
-            Some(self.last_frame + self.frame_duration)
+            Some(self.last_frame + self.frame_duration.copy(self))
         }
     }
 
@@ -689,7 +694,7 @@ impl Vars {
         // | 4| ease update   | NO
 
         let (handle_owner, handle) = AnimationHandle::new();
-        let mut anim = AnimationArgs::new(self.animations_enabled.copy(self));
+        let mut anim = AnimationArgs::new(self.animations_enabled.copy(self), self.animation_time_scale.copy(self));
         let mut id = self.animation_id.get().wrapping_add(1);
         if id == 0 {
             // TODO fix this case, can we update all current animations to a fresh sequence?
@@ -702,11 +707,11 @@ impl Vars {
         self.animation_id.set(next_set_id);
         self.current_animation.borrow_mut().1 = next_set_id;
 
-        self.animations.borrow_mut().push(Box::new(move |vars, enabled| {
+        self.animations.borrow_mut().push(Box::new(move |vars, enabled, time_scale| {
             let mut retain = !handle_owner.is_dropped();
 
             if retain {
-                anim.set_animations_enabled(enabled);
+                anim.set_state(enabled, time_scale);
 
                 let prev = mem::replace(
                     &mut *vars.current_animation.borrow_mut(),
@@ -733,7 +738,20 @@ impl Vars {
         self.animations_enabled.clone().into_read_only()
     }
 
+    /// Variable that defines the global frame duration, the default is 60fps `(1.0 / 60.0).secs()`.
+    #[inline]
+    pub fn frame_duration(&self) -> &RcVar<Duration> {
+        &self.frame_duration
+    }
+
+    /// Variable that defines a global scale for the elapsed time of animations.
+    #[inline]
+    pub fn animation_time_scale(&self) -> &RcVar<Factor> {
+        &self.animation_time_scale
+    }
+
     /// If one or more variables have pending updates.
+    #[inline]
     pub fn update_requested(&self) -> bool {
         !self.pending.borrow().is_empty()
     }

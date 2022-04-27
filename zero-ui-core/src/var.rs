@@ -1537,14 +1537,14 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + crate::private::Sealed + 'stati
             let wk_to_var = to_var.downgrade().unwrap();
 
             vars.with_vars(|vars| {
-                vars.bind(move |vars, info| match (wk_from_var.upgrade(), wk_to_var.upgrade()) {
+                vars.bind(move |vars, binding| match (wk_from_var.upgrade(), wk_to_var.upgrade()) {
                     (Some(from), Some(to)) => {
                         if let Some(new_value) = from.get_new(vars) {
-                            let new_value = map(info, new_value);
+                            let new_value = map(binding, new_value);
                             let _ = to.set(vars, new_value);
                         }
                     }
-                    _ => info.unbind(),
+                    _ => binding.unbind(),
                 })
             })
         }
@@ -1656,18 +1656,18 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + crate::private::Sealed + 'stati
         let wk_to_var = other_var.downgrade().unwrap();
 
         vars.with_vars(|vars| {
-            vars.bind(move |vars, info| match (wk_from_var.upgrade(), wk_to_var.upgrade()) {
+            vars.bind(move |vars, binding| match (wk_from_var.upgrade(), wk_to_var.upgrade()) {
                 (Some(from_var), Some(to_var)) => {
                     if let Some(new_value) = from_var.get_new(vars) {
-                        let new_value = map(info, new_value);
+                        let new_value = map(binding, new_value);
                         let _ = to_var.set(vars, new_value);
                     }
                     if let Some(new_value) = to_var.get_new(vars) {
-                        let new_value = map_back(info, new_value);
+                        let new_value = map_back(binding, new_value);
                         let _ = from_var.set(vars, new_value);
                     }
                 }
-                _ => info.unbind(),
+                _ => binding.unbind(),
             })
         })
     }
@@ -1739,15 +1739,15 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + crate::private::Sealed + 'stati
             let wk_to_var = to_var.downgrade().unwrap();
 
             vars.with_vars(|vars| {
-                vars.bind(move |vars, info| match (wk_from_var.upgrade(), wk_to_var.upgrade()) {
+                vars.bind(move |vars, binding| match (wk_from_var.upgrade(), wk_to_var.upgrade()) {
                     (Some(from), Some(to)) => {
                         if let Some(new_value) = from.get_new(vars) {
-                            if let Some(new_value) = map(info, new_value) {
+                            if let Some(new_value) = map(binding, new_value) {
                                 let _ = to.set(vars, new_value);
                             }
                         }
                     }
-                    _ => info.unbind(),
+                    _ => binding.unbind(),
                 })
             })
         }
@@ -1928,20 +1928,20 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + crate::private::Sealed + 'stati
         let wk_to_var = other_var.downgrade().unwrap();
 
         vars.with_vars(|vars| {
-            vars.bind(move |vars, info| match (wk_from_var.upgrade(), wk_to_var.upgrade()) {
+            vars.bind(move |vars, binding| match (wk_from_var.upgrade(), wk_to_var.upgrade()) {
                 (Some(from_var), Some(to_var)) => {
                     if let Some(new_value) = from_var.get_new(vars) {
-                        if let Some(new_value) = map(info, new_value) {
+                        if let Some(new_value) = map(binding, new_value) {
                             let _ = to_var.set(vars, new_value);
                         }
                     }
                     if let Some(new_value) = to_var.get_new(vars) {
-                        if let Some(new_value) = map_back(info, new_value) {
+                        if let Some(new_value) = map_back(binding, new_value) {
                             let _ = from_var.set(vars, new_value);
                         }
                     }
                 }
-                _ => info.unbind(),
+                _ => binding.unbind(),
             })
         })
     }

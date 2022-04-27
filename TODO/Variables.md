@@ -2,10 +2,10 @@
 
 # Animation
 
-* Config animations fps.
 * Variable that starts animating on first `get`.
-* Time dilation control.
 * `Var::repeat`.
+* Fps per animation.
+* Animation *sleep* until time, like a timer.
 
 ```rust
 trait Var {
@@ -44,7 +44,7 @@ impl CompositeAnimation {
             - Needs to affect the animation ID to have multiple at the same time.
             - Better only support this in a composite animation?
 
-        - Need to annotate each animation fn too so the contextual blender now how to cross-fade.
+        - Need to annotate each animation fn too so the contextual blender knows how to cross-fade.
             - Not if we only allow it in composite animation.
 
 ```rust

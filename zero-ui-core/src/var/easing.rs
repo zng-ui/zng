@@ -517,15 +517,17 @@ pub struct AnimationArgs {
     restart_count: Cell<usize>,
     stop: Cell<bool>,
     animations_enabled: bool,
+    time_scale: Factor,
 }
 
 impl AnimationArgs {
-    pub(super) fn new(animations_enabled: bool) -> Self {
+    pub(super) fn new(animations_enabled: bool, time_scale: Factor) -> Self {
         AnimationArgs {
             start_time: Cell::new(Instant::now()),
             restart_count: Cell::new(0),
             stop: Cell::new(false),
             animations_enabled,
+            time_scale,
         }
     }
 
@@ -535,8 +537,15 @@ impl AnimationArgs {
         self.start_time.get()
     }
 
-    pub(crate) fn set_animations_enabled(&mut self, enabled: bool) {
+    /// Global time scale for animations.
+    #[inline]
+    pub fn time_scale(&self) -> Factor {
+        self.time_scale
+    }
+
+    pub(crate) fn set_state(&mut self, enabled: bool, time_scale: Factor) {
         self.animations_enabled = enabled;
+        self.time_scale = time_scale;
     }
 
     /// Returns a value that indicates if animations are enabled in the operating system.
@@ -549,13 +558,13 @@ impl AnimationArgs {
 
     /// Compute the elapsed [`EasingTime`], in the span of the total `duration`, if [`animations_enabled`].
     ///
-    /// If animations are disabled, returns [`EasingTime::end`].
+    /// If animations are disabled, returns [`EasingTime::end`], the returned time is scaled.
     ///
     /// [`animations_enabled`]: Self::animations_enabled
     #[inline]
     pub fn elapsed(&self, duration: Duration) -> EasingTime {
         if self.animations_enabled {
-            EasingTime::elapsed(duration, self.start_time.get().elapsed())
+            EasingTime::elapsed(duration, self.start_time.get().elapsed()) * self.time_scale
         } else {
             EasingTime::end()
         }

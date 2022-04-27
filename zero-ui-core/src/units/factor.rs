@@ -921,3 +921,27 @@ impl EasingTime {
         EasingTime(self.0.flip())
     }
 }
+impl ops::Mul<Factor> for EasingTime {
+    type Output = EasingTime;
+
+    fn mul(self, rhs: Factor) -> EasingTime {
+        Self(self.0 * rhs)
+    }
+}
+impl ops::Div<Factor> for EasingTime {
+    type Output = EasingTime;
+
+    fn div(self, rhs: Factor) -> EasingTime {
+        Self(self.0 / rhs)
+    }
+}
+impl ops::MulAssign<Factor> for EasingTime {
+    fn mul_assign(&mut self, rhs: Factor) {
+        *self = *self * rhs;
+    }
+}
+impl ops::DivAssign<Factor> for EasingTime {
+    fn div_assign(&mut self, rhs: Factor) {
+        *self = *self / rhs;
+    }
+}
