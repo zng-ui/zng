@@ -139,7 +139,7 @@ impl AppContextMut {
     ///     // we are in the requested update, variable value is no longer new.
     ///     assert_eq!(None, foo_var.copy_new(&ctx));
     /// })
-    /// # ).permanent();
+    /// # ).perm();
     /// # app.update(false);
     /// # assert!(foo_var.copy(&app.ctx()));
     /// ```

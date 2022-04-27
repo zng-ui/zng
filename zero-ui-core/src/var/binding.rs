@@ -6,10 +6,10 @@ use crate::crate_util::*;
 
 /// Represents a variable binding created by one of the `bind` methods of [`Vars`] or [`Var`].
 ///
-/// Drop all clones of this handle to drop the binding, or call [`permanent`] to drop the handle
+/// Drop all clones of this handle to drop the binding, or call [`perm`] to drop the handle
 /// but keep the binding alive for the duration of the app.
 ///
-/// [`permanent`]: VarBindingHandle::permanent
+/// [`perm`]: VarBindingHandle::perm
 /// [`Vars`]: crate::var::Vars
 /// [`Var`]: crate::var::Var
 #[derive(Clone, PartialEq, Eq, Hash)]
@@ -31,11 +31,11 @@ impl VarBindingHandle {
     ///
     /// The var binding stays in memory for the duration of the app or until another handle calls [`unbind`](Self::unbind).
     #[inline]
-    pub fn permanent(self) {
-        self.0.permanent();
+    pub fn perm(self) {
+        self.0.perm();
     }
 
-    /// If another handle has called [`permanent`](Self::permanent).
+    /// If another handle has called [`perm`](Self::perm).
     /// If `true` the var binding will stay active until the app shutdown, unless [`unbind`](Self::unbind) is called.
     #[inline]
     pub fn is_permanent(&self) -> bool {
@@ -117,7 +117,7 @@ mod tests {
 
         let mut app = App::blank().run_headless(false);
 
-        a.bind_map(&app.ctx(), &b, |_, a| a.to_text()).permanent();
+        a.bind_map(&app.ctx(), &b, |_, a| a.to_text()).perm();
 
         let mut update_count = 0;
         let _ = app.update_observe(
@@ -163,7 +163,7 @@ mod tests {
         let mut app = App::blank().run_headless(false);
 
         a.bind_map_bidi(&app.ctx(), &b, |_, a| a.to_text(), |_, b| b.parse().unwrap())
-            .permanent();
+            .perm();
 
         let mut update_count = 0;
         let _ = app.update_observe(
@@ -209,7 +209,7 @@ mod tests {
         let mut app = App::blank().run_headless(false);
 
         a.bind_filter(&app.ctx(), &b, |_, a| if *a == 13 { None } else { Some(a.to_text()) })
-            .permanent();
+            .perm();
 
         let mut update_count = 0;
         let _ = app.update_observe(
@@ -256,7 +256,7 @@ mod tests {
         let mut app = App::blank().run_headless(false);
 
         a.bind_filter_bidi(&app.ctx(), &b, |_, a| Some(a.to_text()), |_, b| b.parse().ok())
-            .permanent();
+            .perm();
 
         let mut update_count = 0;
         let _ = app.update_observe(
@@ -317,9 +317,9 @@ mod tests {
 
         let mut app = App::blank().run_headless(false);
 
-        a.bind_map(&app.ctx(), &b, |_, a| *a + 1).permanent();
-        b.bind_map(&app.ctx(), &c, |_, b| *b + 1).permanent();
-        c.bind_map(&app.ctx(), &d, |_, c| *c + 1).permanent();
+        a.bind_map(&app.ctx(), &b, |_, a| *a + 1).perm();
+        b.bind_map(&app.ctx(), &c, |_, b| *b + 1).perm();
+        c.bind_map(&app.ctx(), &d, |_, c| *c + 1).perm();
 
         let mut update_count = 0;
         let _ = app.update_observe(
@@ -372,9 +372,9 @@ mod tests {
 
         let mut app = App::blank().run_headless(false);
 
-        a.bind_bidi(&app.ctx(), &b).permanent();
-        b.bind_bidi(&app.ctx(), &c).permanent();
-        c.bind_bidi(&app.ctx(), &d).permanent();
+        a.bind_bidi(&app.ctx(), &b).perm();
+        b.bind_bidi(&app.ctx(), &c).perm();
+        c.bind_bidi(&app.ctx(), &d).perm();
 
         let mut update_count = 0;
         let _ = app.update_observe(

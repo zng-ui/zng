@@ -638,11 +638,11 @@ impl OnEventHandle {
     ///
     /// The handler stays in memory for the duration of the app or until another handle calls [`unsubscribe`](Self::unsubscribe.)
     #[inline]
-    pub fn permanent(self) {
-        self.0.permanent();
+    pub fn perm(self) {
+        self.0.perm();
     }
 
-    /// If another handle has called [`permanent`](Self::permanent).
+    /// If another handle has called [`perm`](Self::perm).
     /// If `true` the var binding will stay active until the app shutdown, unless [`unsubscribe`](Self::unsubscribe) is called.
     #[inline]
     pub fn is_permanent(&self) -> bool {

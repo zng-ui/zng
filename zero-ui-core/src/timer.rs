@@ -192,7 +192,7 @@ impl Timers {
     /// # Handle
     ///
     /// Returns a [`DeadlineHandle`] that can be used to cancel the timer, either by dropping the handle or by
-    /// calling [`cancel`](DeadlineHandle::cancel). You can also call [`permanent`](DeadlineHandle::permanent)
+    /// calling [`cancel`](DeadlineHandle::cancel). You can also call [`perm`](DeadlineHandle::perm)
     /// to drop the handle without cancelling.
     pub fn on_deadline<H>(&mut self, deadline: Instant, mut handler: H) -> DeadlineHandle
     where
@@ -466,7 +466,7 @@ pub type DeadlineVar = ReadOnlyRcVar<Deadline>;
 
 /// Represents a [`on_deadline`](Timers::on_deadline) or [`on_timeout`](Timers::on_timeout) handler.
 ///
-/// Drop all clones of this handle to cancel the timer, or call [`permanent`](Self::permanent) to drop the handle
+/// Drop all clones of this handle to cancel the timer, or call [`perm`](Self::perm) to drop the handle
 /// without cancelling the timer.
 #[derive(Clone, PartialEq, Eq, Hash)]
 #[must_use = "the timer is canceled if the handler is dropped"]
@@ -496,11 +496,11 @@ impl DeadlineHandle {
     ///
     /// The handler closure will be dropped after it is executed or when the app shutdown.
     #[inline]
-    pub fn permanent(self) {
-        self.0.permanent();
+    pub fn perm(self) {
+        self.0.perm();
     }
 
-    /// If [`permanent`](Self::permanent) was called in another handle.
+    /// If [`perm`](Self::perm) was called in another handle.
     /// If `true` the closure will be dropped when it executes, when the app shutdown or if [`cancel`](Self::cancel) is called.
     #[inline]
     pub fn is_permanent(&self) -> bool {
@@ -569,7 +569,7 @@ pub struct DeadlineArgs {
 
 /// Represents a [`on_interval`](Timers::on_interval) handler.
 ///
-/// Drop all clones of this handler to stop the timer, or call [`permanent`](Self::permanent) to drop the handler
+/// Drop all clones of this handler to stop the timer, or call [`perm`](Self::perm) to drop the handler
 /// without cancelling the timer.
 #[derive(Clone, PartialEq, Eq, Hash)]
 #[must_use = "the timer is stopped if the handler is dropped"]
@@ -617,11 +617,11 @@ impl TimerHandle {
     ///
     /// The handler closure will be dropped when the app shutdown or if it is stopped from the inside or using another handle.
     #[inline]
-    pub fn permanent(self) {
-        self.0.permanent();
+    pub fn perm(self) {
+        self.0.perm();
     }
 
-    /// If [`permanent`](Self::permanent) was called in another handle.
+    /// If [`perm`](Self::perm) was called in another handle.
     /// If `true` the closure will keep being called until the app shutdown or the timer is stopped from the inside or using
     /// another handle.
     #[inline]

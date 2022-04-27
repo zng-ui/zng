@@ -570,6 +570,6 @@ macro_rules! trace_var {
     ($vars:expr, $tracing_display_or_debug:tt $var:ident) => {
         $var.trace_value($vars, |value| {
             tracing::trace_span!("", name = $tracing_display_or_debug value, track = stringify!($var)).entered()
-        }).permanent();
+        }).perm();
     };
 }

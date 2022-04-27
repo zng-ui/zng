@@ -1029,7 +1029,7 @@ mod tests {
         let mut test = test_app(test_wgt! {
             test_prop = input_var.clone();
             on_init = hn_once!(other_var, |ctx, _| {
-                TestVar::new().bind(ctx, &other_var).permanent();
+                TestVar::new().bind(ctx, &other_var).perm();
             });
             child = NilUiNode;
         });

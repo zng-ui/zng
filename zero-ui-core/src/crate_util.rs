@@ -292,7 +292,7 @@ impl<F: FnOnce()> Drop for RunOnDrop<F> {
 /// is dropped the resource will be removed after an indeterminate time at the discretion
 /// of the resource manager.
 ///
-/// You can *forget* a handle by calling [`permanent`](Self::permanent), this releases the handle memory
+/// You can *forget* a handle by calling [`perm`](Self::perm), this releases the handle memory
 /// but the resource stays alive for the duration of the app, unlike calling [`std::mem::forget`] no memory is leaked.
 ///
 /// Any handle can also [`force_drop`](Self::force_drop), meaning that even if there are various handles active the
@@ -333,11 +333,11 @@ impl<D: Send + Sync> Handle<D> {
     /// Mark the handle as permanent and drops this clone of it. This causes the resource to stay in memory
     /// until the app exits, no need to hold a handle somewhere.
     #[inline]
-    pub fn permanent(self) {
+    pub fn perm(self) {
         self.0.state.fetch_or(PERMANENT, Ordering::Relaxed);
     }
 
-    /// If [`permanent`](Self::permanent) was called in another clone of this handle.
+    /// If [`perm`](Self::perm) was called in another clone of this handle.
     ///
     /// If `true` the resource will stay in memory for the duration of the app, unless [`force_drop`](Self::force_drop)
     /// is also called.

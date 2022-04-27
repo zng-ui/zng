@@ -2035,7 +2035,7 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + crate::private::Sealed + 'stati
     ///     let handle = var.trace_value(vars, |value| {
     ///         tracing::info_span!("my_var", ?value, track = "<vars>").entered()
     ///     });
-    ///     handle.permanent();
+    ///     handle.perm();
     /// }
     /// ```
     ///

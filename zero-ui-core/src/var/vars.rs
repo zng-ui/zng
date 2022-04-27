@@ -516,7 +516,7 @@ impl Vars {
     /// value in the same update as the variables that caused the new value.
     ///
     /// Returns a [`VarBindingHandle`] that can be used to monitor the binding status and to [`unbind`] or to
-    /// make the binding [`permanent`].
+    /// make the binding [`perm`].
     ///
     /// # Examples
     ///
@@ -540,12 +540,12 @@ impl Vars {
     ///                 binding.unbind();
     ///             }
     ///         }
-    ///     })).permanent();
+    ///     })).perm();
     /// }
     /// ```
     ///
     /// Note that the binding can be undone from the inside, the closure second parameter is a [`VarBinding`]. In
-    /// the example this is the only way to stop the binding, because we called [`permanent`]. Bindings hold a clone
+    /// the example this is the only way to stop the binding, because we called [`perm`]. Bindings hold a clone
     /// of the variables and exist for the duration of the app if not unbound.
     ///
     /// In the example all three variables will update *at the same time* until the binding finishes. They will
@@ -561,7 +561,7 @@ impl Vars {
     /// will only be their default value in bindings.
     ///
     /// [`unbind`]: VarBindingHandle::unbind
-    /// [`permanent`]: VarBindingHandle::permanent
+    /// [`perm`]: VarBindingHandle::perm
     pub fn bind<B>(&self, mut binding: B) -> VarBindingHandle
     where
         B: FnMut(&Vars, &VarBinding) + 'static,
@@ -602,7 +602,7 @@ impl Vars {
     /// including multiple variables.
     ///
     /// Returns an [`AnimationHandle`] that can be used to monitor the animation status and to [`stop`] or to
-    /// make the animation [`permanent`].
+    /// make the animation [`perm`].
     ///
     /// # Variable Control
     ///
@@ -636,12 +636,12 @@ impl Vars {
     ///             prev_value = value;
     ///         }
     ///     }))
-    ///     .permanent()
+    ///     .perm()
     /// }
     /// ```
     ///
     /// Note that the animation can be stopped from the inside, the closure second parameter is an [`AnimationArgs`]. In
-    /// the example this is the only way to stop the animation, because we called [`permanent`]. Animations hold a clone
+    /// the example this is the only way to stop the animation, because we called [`perm`]. Animations hold a clone
     /// of the variables they affect and exist for the duration of the app if not stopped, causing the app to wake and call the
     /// animation closure for every frame.
     ///
@@ -659,7 +659,7 @@ impl Vars {
     /// ```
     ///
     /// [`stop`]: AnimationHandle::stop
-    /// [`permanent`]: AnimationHandle::permanent
+    /// [`perm`]: AnimationHandle::perm
     pub fn animate<A>(&self, mut animation: A) -> AnimationHandle
     where
         A: FnMut(&Vars, &AnimationArgs) + 'static,
@@ -761,7 +761,7 @@ impl Vars {
     ///         let new_value = format!("{new_value:?}");
     ///         println!("{prev_value} -> {new_value}");
     ///         prev_value = new_value;
-    ///     })).permanent();
+    ///     })).perm();
     /// }
     /// ```
     ///
@@ -916,11 +916,11 @@ impl OnVarHandle {
     ///
     /// The handler stays in memory for the duration of the app or until another handle calls [`unsubscribe`](Self::unsubscribe.)
     #[inline]
-    pub fn permanent(self) {
-        self.0.permanent();
+    pub fn perm(self) {
+        self.0.perm();
     }
 
-    /// If another handle has called [`permanent`](Self::permanent).
+    /// If another handle has called [`perm`](Self::perm).
     /// If `true` the var binding will stay active until the app shutdown, unless [`unsubscribe`](Self::unsubscribe) is called.
     #[inline]
     pub fn is_permanent(&self) -> bool {

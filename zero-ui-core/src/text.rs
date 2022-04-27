@@ -1083,7 +1083,7 @@ impl InternedStr {
     }
 
     /// Intern the string for the duration of the process.
-    pub fn permanent(&self) {
+    pub fn perm(&self) {
         let leak = Arc::clone(&self.0);
         let _ = Arc::into_raw(leak);
     }

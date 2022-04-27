@@ -766,7 +766,7 @@ where
                             handle.unsubscribe();
                         }
                     }))
-                    .permanent();
+                    .perm();
             } else {
                 ctx.updates
                     .on_update(app_hn!(|ctx, _, handle| {
@@ -774,7 +774,7 @@ where
                             handle.unsubscribe();
                         }
                     }))
-                    .permanent();
+                    .perm();
             }
         }
     }
@@ -917,7 +917,7 @@ where
                                 handle.unsubscribe();
                             }
                         }))
-                        .permanent();
+                        .perm();
                 } else {
                     ctx.updates
                         .on_update(app_hn!(|ctx, _, handle| {
@@ -925,7 +925,7 @@ where
                                 handle.unsubscribe();
                             }
                         }))
-                        .permanent();
+                        .perm();
                 }
             }
         } else {

@@ -292,7 +292,7 @@ impl AppTask<()> {
                         handle.unsubscribe();
                     }
                 }))
-                .permanent();
+                .perm();
         }
     }
 }

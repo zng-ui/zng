@@ -369,7 +369,7 @@
 //!             n => formatx!("Clicked {n} Times!")
 //!         }
 //!     });
-//!     handle.permanent();
+//!     handle.perm();
 //!     window! {
 //!         content = button! {
 //!             content = text(count_text);

@@ -445,10 +445,10 @@ mod bezier {
 
 /// Represents a running animation created by [`Vars::animate`].
 ///
-/// Drop all clones of this handle to stop the animation, or call [`permanent`] to drop the handle
+/// Drop all clones of this handle to stop the animation, or call [`perm`] to drop the handle
 /// but keep the animation alive until it is stopped from the inside.
 ///
-/// [`permanent`]: AnimationHandle::permanent
+/// [`perm`]: AnimationHandle::perm
 #[derive(Clone, PartialEq, Eq, Hash)]
 #[must_use = "the animation stops if the handle is dropped"]
 pub struct AnimationHandle(Handle<()>);
@@ -468,11 +468,11 @@ impl AnimationHandle {
     ///
     /// The animation stays in memory for the duration of the app or until another handle calls [`stop`](Self::stop).
     #[inline]
-    pub fn permanent(self) {
-        self.0.permanent();
+    pub fn perm(self) {
+        self.0.perm();
     }
 
-    /// If another handle has called [`permanent`](Self::permanent).
+    /// If another handle has called [`perm`](Self::perm).
     /// If `true` the animation will stay active until the app shutdown, unless [`stop`](Self::stop) is called.
     #[inline]
     pub fn is_permanent(&self) -> bool {
@@ -908,7 +908,7 @@ where
                 Err(super::VarIsReadOnly)
             } else {
                 let easing = self.0.easing.clone();
-                self.0.var.ease(vars, new_value, self.0.duration, move |t| easing(t)).permanent();
+                self.0.var.ease(vars, new_value, self.0.duration, move |t| easing(t)).perm();
                 Ok(())
             }
         })
@@ -925,7 +925,7 @@ where
                 Err(super::VarIsReadOnly)
             } else {
                 let easing = self.0.easing.clone();
-                self.0.var.ease_ne(vars, new_value, self.0.duration, move |t| easing(t)).permanent();
+                self.0.var.ease_ne(vars, new_value, self.0.duration, move |t| easing(t)).perm();
                 Ok(true)
             }
         })
