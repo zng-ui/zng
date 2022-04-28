@@ -285,7 +285,6 @@ pub struct Vars {
     animations: RefCell<Vec<AnimationFn>>,
     animation_id: Cell<u32>,
     current_animation: RefCell<(WeakAnimationHandle, u32)>,
-    last_frame: Option<Instant>,
     next_frame: Cell<Option<Instant>>,
     animations_enabled: RcVar<bool>,
     frame_duration: RcVar<Duration>,
@@ -330,7 +329,6 @@ impl Vars {
             animations: RefCell::default(),
             animation_id: Cell::new(1),
             current_animation: RefCell::new((WeakAnimationHandle::new(), 0)),
-            last_frame: None,
             next_frame: Cell::new(None),
             frame_duration: var((1.0 / 60.0).secs()),
             animation_time_scale: var(1.fct()),
@@ -358,7 +356,7 @@ impl Vars {
 
     /// Called in `update_timers`, does one animation frame if over the FPS has elapsed.
     pub(crate) fn update_animations(&mut self, timer: &mut LoopTimer) {
-        if let Some(mut next_frame) = self.next_frame.get() {
+        if let Some(next_frame) = self.next_frame.get() {
             if timer.elapsed(next_frame) {
                 let mut animations = self.animations.borrow_mut();
                 debug_assert!(!animations.is_empty());
@@ -369,20 +367,10 @@ impl Vars {
                 animations.retain_mut(|a| a(self, enabled, time_scale));
 
                 if !animations.is_empty() {
-                    next_frame += self.frame_duration.copy(self);
-
+                    let next_frame = next_frame + self.frame_duration.copy(self);
                     self.next_frame.set(Some(next_frame));
                     timer.register(next_frame);
-
-                    /* !!:
-                     */
-                    let now = Instant::now();
-                    if let Some(last) = self.last_frame {
-                        println!("FRAME: {:?}", now - last);
-                    }
-                    self.last_frame = Some(now);
                 } else {
-                    self.last_frame = None;
                     self.next_frame.set(None);
                 }
             }
