@@ -354,10 +354,10 @@ impl Vars {
         !self.pending.get_mut().is_empty()
     }
 
-    /// Called in `update_timers`, does one animation frame if over the FPS has elapsed.
+    /// Called in `update_timers`, does one animation frame if the frame duration has elapsed.
     pub(crate) fn update_animations(&mut self, timer: &mut LoopTimer) {
-        if let Some(mut next_frame) = self.next_frame.get() {
-            if timer.elapsed(next_frame) {
+        if let Some(next_frame) = self.next_frame.get() {
+            if next_frame <= Instant::now() {
                 let mut animations = self.animations.borrow_mut();
                 debug_assert!(!animations.is_empty());
 
@@ -367,24 +367,21 @@ impl Vars {
                 animations.retain_mut(|a| a(self, enabled, time_scale));
 
                 if !animations.is_empty() {
-                    next_frame += self.frame_duration.copy(self);
-                    let now = Instant::now();
-                    if next_frame < now {
-                        next_frame = now;
-                    }
-                    self.next_frame.set(Some(next_frame));
-                    timer.register(next_frame);
+                    self.next_frame.set(Some(next_frame + self.frame_duration.copy(self)));
+                    timer.register(Instant::now());
                 } else {
                     self.next_frame.set(None);
                 }
+            } else {
+                timer.register(Instant::now());
             }
         }
     }
 
     /// Returns the next animation frame, if there are any active animations.
     pub(crate) fn next_deadline(&mut self, timer: &mut LoopTimer) {
-        if let Some(t) = self.next_frame.get() {
-            timer.register(t);
+        if self.next_frame.get().is_some() {
+            timer.register(Instant::now());
         }
     }
 

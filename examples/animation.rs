@@ -27,7 +27,7 @@ fn app_main() {
 
 const FROM_COLOR: Rgba = colors::RED;
 const TO_COLOR: Rgba = colors::GREEN;
-const FPS: u32 = 30;
+const FPS: u32 = 60;
 
 fn example(vars: &Vars) -> impl Widget {
     // vars.animation_time_scale().set(vars, 0.5.fct());
@@ -36,7 +36,6 @@ fn example(vars: &Vars) -> impl Widget {
     let x = var(0.dip());
 
     /* !!:
-     */
     let mut t = std::time::Instant::now();
     x.trace_value(vars, move |v| {
         let now = std::time::Instant::now();
@@ -54,6 +53,7 @@ fn example(vars: &Vars) -> impl Widget {
         )
     })
     .perm();
+    */
 
     let color = var(FROM_COLOR);
 
