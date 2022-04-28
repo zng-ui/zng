@@ -91,7 +91,7 @@ impl OwnedAppContext {
     }
 
     /// Returns next timer or animation tick time.
-    pub fn next_deadline(&self, timer: &mut LoopTimer) {
+    pub fn next_deadline(&mut self, timer: &mut LoopTimer) {
         self.timers.next_deadline(&self.vars, timer);
         self.vars.next_deadline(timer);
     }
