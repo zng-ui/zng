@@ -30,7 +30,7 @@ type SyncEntry = Box<dyn Fn(&Vars) -> Retain>;
 type Retain = bool;
 type VarBindingFn = Box<dyn FnMut(&Vars) -> Retain>;
 type UpdateLinkFn = Box<dyn Fn(&Vars, &mut UpdateMask) -> Retain>;
-type AnimationFn = Box<dyn FnMut(&Vars, bool, Factor) -> Retain>;
+type AnimationFn = Box<dyn FnMut(&Vars, bool, Instant, Factor) -> Retain>;
 
 /// Read-only access to variables.
 ///
@@ -282,9 +282,11 @@ pub struct Vars {
 
     binding_update_id: u32,
     bindings: RefCell<Vec<VarBindingFn>>,
+
     animations: RefCell<Vec<AnimationFn>>,
     animation_id: Cell<u32>,
     current_animation: RefCell<(WeakAnimationHandle, u32)>,
+    animation_start_time: Cell<Option<Instant>>,
     next_frame: Cell<Option<Instant>>,
     animations_enabled: RcVar<bool>,
     frame_duration: RcVar<Duration>,
@@ -328,6 +330,7 @@ impl Vars {
             bindings: RefCell::default(),
             animations: RefCell::default(),
             animation_id: Cell::new(1),
+            animation_start_time: Cell::new(None),
             current_animation: RefCell::new((WeakAnimationHandle::new(), 0)),
             next_frame: Cell::new(None),
             frame_duration: var((1.0 / 60.0).secs()),
@@ -357,31 +360,33 @@ impl Vars {
     /// Called in `update_timers`, does one animation frame if the frame duration has elapsed.
     pub(crate) fn update_animations(&mut self, timer: &mut LoopTimer) {
         if let Some(next_frame) = self.next_frame.get() {
-            if next_frame <= Instant::now() {
+            if timer.elapsed(next_frame) {
+                // println!("!!: elapsed, drift: {:?}", next_frame.elapsed());
                 let mut animations = self.animations.borrow_mut();
                 debug_assert!(!animations.is_empty());
 
                 let enabled = self.animations_enabled.copy(self);
                 let time_scale = self.animation_time_scale.copy(self);
 
-                animations.retain_mut(|a| a(self, enabled, time_scale));
+                let now = Instant::now();
+
+                animations.retain_mut(|a| a(self, enabled, now, time_scale));
 
                 if !animations.is_empty() {
-                    self.next_frame.set(Some(next_frame + self.frame_duration.copy(self)));
-                    timer.register(Instant::now());
+                    let next_frame = next_frame + self.frame_duration.copy(self);
+                    self.next_frame.set(Some(next_frame.max(now)));
+                    timer.register(next_frame);
                 } else {
                     self.next_frame.set(None);
                 }
-            } else {
-                timer.register(Instant::now());
             }
         }
     }
 
     /// Returns the next animation frame, if there are any active animations.
     pub(crate) fn next_deadline(&mut self, timer: &mut LoopTimer) {
-        if self.next_frame.get().is_some() {
-            timer.register(Instant::now());
+        if let Some(next_frame) = self.next_frame.get() {
+            timer.register(next_frame);
         }
     }
 
@@ -390,6 +395,7 @@ impl Vars {
     /// Returns new app wake time if there are active animations.
     pub(crate) fn apply_updates(&mut self, updates: &mut Updates) {
         self.read.update_id = self.update_id.wrapping_add(1);
+        self.animation_start_time.set(None);
 
         let pending = self.pending.get_mut();
         if !pending.is_empty() {
@@ -686,7 +692,18 @@ impl Vars {
         // | 4| ease update   | NO
 
         let (handle_owner, handle) = AnimationHandle::new();
-        let mut anim = AnimationArgs::new(self.animations_enabled.copy(self), self.animation_time_scale.copy(self));
+
+        // ensure that all animations started in this update have the same exact time, we update then with the same `now`
+        // timestamp also, this ensures that synchronized animations match perfectly.
+        let start_time = if let Some(t) = self.animation_start_time.get() {
+            t
+        } else {
+            let t = Instant::now();
+            self.animation_start_time.set(Some(t));
+            t
+        };
+
+        let mut anim = AnimationArgs::new(self.animations_enabled.copy(self), start_time, self.animation_time_scale.copy(self));
         let mut id = self.animation_id.get().wrapping_add(1);
         if id == 0 {
             // TODO fix this case, can we update all current animations to a fresh sequence?
@@ -699,11 +716,11 @@ impl Vars {
         self.animation_id.set(next_set_id);
         self.current_animation.borrow_mut().1 = next_set_id;
 
-        self.animations.borrow_mut().push(Box::new(move |vars, enabled, time_scale| {
+        self.animations.borrow_mut().push(Box::new(move |vars, enabled, now, time_scale| {
             let mut retain = !handle_owner.is_dropped();
 
             if retain {
-                anim.set_state(enabled, time_scale);
+                anim.set_state(enabled, now, time_scale);
 
                 let prev = mem::replace(
                     &mut *vars.current_animation.borrow_mut(),

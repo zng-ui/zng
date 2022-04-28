@@ -12,6 +12,8 @@ use std::{
         atomic::{AtomicU32, AtomicU64, AtomicU8, Ordering},
         Arc, Weak,
     },
+    thread,
+    time::{Duration, Instant},
 };
 
 /// Declare a new unique id type that is backed by a `NonZeroU32`.
@@ -513,7 +515,7 @@ pub fn panic_str<'s>(payload: &'s Box<dyn std::any::Any + Send + 'static>) -> &'
 pub type PanicPayload = Box<dyn std::any::Any + Send + 'static>;
 
 /// The result that is returned by [`std::panic::catch_unwind`].
-pub type PanicResult<R> = std::thread::Result<R>;
+pub type PanicResult<R> = thread::Result<R>;
 
 // this is the FxHasher with a patch that fixes slow deserialization.
 // see https://github.com/rust-lang/rustc-hash/issues/15 for details.
@@ -967,3 +969,43 @@ macro_rules! print_backtrace {
     }}
 }
 */
+
+/// Extension methods for [`flume::Receiver<T>`].
+pub trait ReceiverExt<T> {
+    /// Receive or precise timeout.
+    fn recv_deadline_sp(&self, deadline: Instant) -> Result<T, flume::RecvTimeoutError>;
+}
+const SLEEP_DUR: Duration = Duration::from_millis(30);
+const SPIN_DUR: Duration = Duration::from_millis(1);
+impl<T> ReceiverExt<T> for flume::Receiver<T> {
+    fn recv_deadline_sp(&self, deadline: Instant) -> Result<T, flume::RecvTimeoutError> {
+        if let Some(d) = deadline.checked_duration_since(Instant::now()) {
+            if d > SLEEP_DUR {
+                // thread sleeps here, error up-to 20ms
+                match self.recv_deadline(deadline - SLEEP_DUR) {
+                    Err(flume::RecvTimeoutError::Timeout) => self.recv_deadline_sp(deadline),
+                    interrupt => interrupt,
+                }
+            } else if d > SPIN_DUR {
+                // start spinning, try_recv error up-to
+                let spin_deadline = deadline - SPIN_DUR;
+                while spin_deadline > Instant::now() {
+                    match self.try_recv() {
+                        Err(flume::TryRecvError::Empty) => thread::yield_now(),
+                        Err(flume::TryRecvError::Disconnected) => return Err(flume::RecvTimeoutError::Disconnected),
+                        Ok(msg) => return Ok(msg),
+                    }
+                }
+
+                self.recv_deadline_sp(deadline)
+            } else {
+                while deadline > Instant::now() {
+                    thread::yield_now();
+                }
+                Err(flume::RecvTimeoutError::Timeout)
+            }
+        } else {
+            Err(flume::RecvTimeoutError::Timeout)
+        }
+    }
+}

@@ -5,7 +5,7 @@ pub mod raw_events;
 pub mod view_process;
 
 use crate::context::*;
-use crate::crate_util::PanicPayload;
+use crate::crate_util::{PanicPayload, ReceiverExt};
 use crate::event::{cancelable_event_args, event, AnyEventUpdate, BoxedEventUpdate, EventUpdate, EventUpdateArgs, Events};
 use crate::image::ImageManager;
 use crate::timer::Timers;
@@ -1395,8 +1395,9 @@ impl<E: AppExtension> RunningApp<E> {
 
         if wait_app_event {
             let idle = tracing::debug_span!("<idle>").entered();
+
             if let Some(time) = self.loop_timer.poll() {
-                match self.receiver.recv_deadline(time) {
+                match self.receiver.recv_deadline_sp(time) {
                     Ok(ev) => {
                         drop(idle);
                         self.push_coalesce(ev, observer)
@@ -1438,6 +1439,13 @@ impl<E: AppExtension> RunningApp<E> {
             return ControlFlow::Wait;
         }
 
+        // clear timers.
+        let updated_timers = self.loop_timer.awake();
+        if updated_timers {
+            // tick timers and collect not elapsed timers.
+            self.owned_ctx.update_timers(&mut self.loop_timer);
+        }
+
         let mut events = mem::take(&mut self.pending_view_events);
         for ev in events.drain(..) {
             self.on_view_event(ev, observer);
@@ -1452,15 +1460,15 @@ impl<E: AppExtension> RunningApp<E> {
         }
         self.pending_view_frame_events = events;
 
-        if self.loop_timer.awake() {
-            self.owned_ctx.update_timers(&mut self.loop_timer);
-        } else {
-            self.owned_ctx.next_deadline(&mut self.loop_timer);
-        }
-
         if self.has_pending_updates() {
             self.apply_updates(observer);
             self.apply_update_events(observer);
+
+            // collect timers or if `updated_timers` collects new timers.
+            self.owned_ctx.next_deadline(&mut self.loop_timer);
+        } else if !updated_timers {
+            // collect timers again.
+            self.owned_ctx.next_deadline(&mut self.loop_timer);
         }
 
         self.finish_frame(observer);

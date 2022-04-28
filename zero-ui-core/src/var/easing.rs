@@ -517,15 +517,17 @@ pub struct AnimationArgs {
     restart_count: Cell<usize>,
     stop: Cell<bool>,
     animations_enabled: bool,
+    now: Instant,
     time_scale: Factor,
 }
 
 impl AnimationArgs {
-    pub(super) fn new(animations_enabled: bool, time_scale: Factor) -> Self {
+    pub(super) fn new(animations_enabled: bool, now: Instant, time_scale: Factor) -> Self {
         AnimationArgs {
-            start_time: Cell::new(Instant::now()),
+            start_time: Cell::new(now),
             restart_count: Cell::new(0),
             stop: Cell::new(false),
+            now,
             animations_enabled,
             time_scale,
         }
@@ -537,14 +539,24 @@ impl AnimationArgs {
         self.start_time.get()
     }
 
+    /// Instant the current animation update started.
+    ///
+    /// Use this value instead of [`Instant::now`], animations update sequentially, but should behave as if
+    /// they are updating exactly in parallel, using this timestamp ensures that.
+    #[inline]
+    pub fn now(&self) -> Instant {
+        self.now
+    }
+
     /// Global time scale for animations.
     #[inline]
     pub fn time_scale(&self) -> Factor {
         self.time_scale
     }
 
-    pub(crate) fn set_state(&mut self, enabled: bool, time_scale: Factor) {
+    pub(crate) fn set_state(&mut self, enabled: bool, now: Instant, time_scale: Factor) {
         self.animations_enabled = enabled;
+        self.now = now;
         self.time_scale = time_scale;
     }
 
@@ -556,6 +568,15 @@ impl AnimationArgs {
         self.animations_enabled
     }
 
+    /// Compute the time elapsed from [`start_time`] to [`now`].
+    ///
+    /// [`start_time`]: Self::start_time
+    /// [`now`]: Self::now
+    #[inline]
+    pub fn elapsed_dur(&self) -> Duration {
+        self.now - self.start_time.get()
+    }
+
     /// Compute the elapsed [`EasingTime`], in the span of the total `duration`, if [`animations_enabled`].
     ///
     /// If animations are disabled, returns [`EasingTime::end`], the returned time is scaled.
@@ -564,7 +585,7 @@ impl AnimationArgs {
     #[inline]
     pub fn elapsed(&self, duration: Duration) -> EasingTime {
         if self.animations_enabled {
-            EasingTime::elapsed(duration, self.start_time.get().elapsed(), self.time_scale)
+            EasingTime::elapsed(duration, self.elapsed_dur(), self.time_scale)
         } else {
             EasingTime::end()
         }
@@ -624,7 +645,7 @@ impl AnimationArgs {
     /// Set the animation start time to now.
     #[inline]
     pub fn restart(&self) {
-        self.set_start_time(Instant::now());
+        self.set_start_time(self.now);
         self.restart_count.set(self.restart_count.get() + 1);
     }
 
@@ -647,7 +668,7 @@ impl AnimationArgs {
     ///
     /// Note that this does not affect the restart count.
     pub fn set_elapsed(&self, elapsed: EasingTime, duration: Duration) {
-        self.set_start_time(Instant::now() - (duration * elapsed.fct()));
+        self.set_start_time(self.now - (duration * elapsed.fct()));
     }
 }
 

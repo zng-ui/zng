@@ -2,7 +2,6 @@
 
 # Animation
 
-* Animation value distribution does not look right (try 24 FPS).
 * Variable that starts animating on first `get`.
 * `Var::repeat`.
 * Fps per animation.

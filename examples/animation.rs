@@ -34,27 +34,6 @@ fn example(vars: &Vars) -> impl Widget {
     vars.frame_duration().set(vars, (1.0 / FPS as f32).secs());
 
     let x = var(0.dip());
-
-    /* !!:
-    let mut t = std::time::Instant::now();
-    x.trace_value(vars, move |v| {
-        let now = std::time::Instant::now();
-        let elapsed = now - t;
-        t = now;
-
-        use zero_ui::core::units::DipToPx;
-        println!(
-            "{:?} after {:?}",
-            match v {
-                Length::Dip(d) => d.to_px(1.5),
-                _ => unreachable!(),
-            },
-            elapsed
-        )
-    })
-    .perm();
-    */
-
     let color = var(FROM_COLOR);
 
     use easing::EasingModifierFn::*;
