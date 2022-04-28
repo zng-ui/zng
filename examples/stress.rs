@@ -20,7 +20,7 @@ fn shape_text_filter(args: FilterArgs) -> bool {
 
 fn text_change_all(ctx: &mut WindowContext) -> Window {
     let mut dots_count = 3;
-    let msg = ctx.timers.interval(1.secs() / 60, true).map(move |_| {
+    let msg = ctx.timers.interval(1.secs() / 60, false).map(move |_| {
         dots_count += 1;
         if dots_count == 8 {
             dots_count = 0;
@@ -77,7 +77,7 @@ fn text_change_one(_ctx: &mut WindowContext) -> Window {
 
 fn multi_window(ctx: &mut WindowContext) -> Window {
     let mut dots_count = 3;
-    let msg = ctx.timers.interval(1.secs() / 60, true).map(move |_| {
+    let msg = ctx.timers.interval(1.secs() / 60, false).map(move |_| {
         dots_count += 1;
         if dots_count == 8 {
             dots_count = 0;

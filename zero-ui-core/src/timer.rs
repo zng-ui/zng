@@ -127,7 +127,7 @@ impl Timers {
     /// Returns a [`TimerVar`] that will update every time the `interval` elapses.
     ///
     /// The timer can be controlled using methods in the variable value. The timer starts
-    /// running immediately if `enabled` is `true`.
+    /// running immediately if `paused` is `false`.
     ///
     /// ```
     /// # use zero_ui_core::timer::*;
@@ -138,7 +138,7 @@ impl Timers {
     /// # use zero_ui_core::context::WidgetContext;
     /// # use std::time::Instant;
     /// # fn foo(ctx: &mut WidgetContext) {
-    /// let timer = ctx.timers.interval(1.secs(), true);
+    /// let timer = ctx.timers.interval(1.secs(), false);
     ///
     /// # let
     /// text = timer.map(|t| match t.count() {
@@ -154,8 +154,8 @@ impl Timers {
     /// be used to control the timer to some extent, see [`TimerVar`] for details.
     #[inline]
     #[must_use]
-    pub fn interval(&mut self, interval: Duration, enabled: bool) -> TimerVar {
-        let (owner, handle) = TimerHandle::new(interval, enabled);
+    pub fn interval(&mut self, interval: Duration, paused: bool) -> TimerVar {
+        let (owner, handle) = TimerHandle::new(interval, paused);
         let timer = var(Timer(handle));
         self.timers.push(TimerVarEntry {
             handle: owner,
@@ -230,12 +230,12 @@ impl Timers {
 
     /// Register a `handler` that will be called every time the `interval` elapses.
     ///
-    /// The timer starts running immediately if `enabled`.
-    pub fn on_interval<H>(&mut self, interval: Duration, enabled: bool, mut handler: H) -> TimerHandle
+    /// The timer starts running immediately if `paused` is `false`.
+    pub fn on_interval<H>(&mut self, interval: Duration, paused: bool, mut handler: H) -> TimerHandle
     where
         H: AppHandler<TimerArgs>,
     {
-        let (owner, handle) = TimerHandle::new(interval, enabled);
+        let (owner, handle) = TimerHandle::new(interval, paused);
 
         self.timer_handlers.push(TimerHandlerEntry {
             handle: owner,
@@ -256,7 +256,8 @@ impl Timers {
 
         for t in &self.timers {
             if let Some(var) = t.weak_var.upgrade() {
-                if !t.handle.is_dropped() {
+                if !t.handle.is_dropped() && !t.handle.data().paused.load(Ordering::Relaxed) {
+                    // not dropped and not paused
                     let t = var.get(vars);
                     let deadline = t.0 .0.data().deadline.lock();
                     timer.register(deadline.current_deadline());
@@ -265,14 +266,20 @@ impl Timers {
         }
 
         for e in &self.deadline_handlers {
-            let deadline = e.handle.data().deadline;
-            timer.register(deadline);
+            if !e.handle.is_dropped() {
+                let deadline = e.handle.data().deadline;
+                timer.register(deadline);
+            }
         }
 
-        for e in &self.timer_handlers {
-            let state = e.handle.data();
-            let deadline = state.deadline.lock();
-            timer.register(deadline.current_deadline());
+        for t in &self.timer_handlers {
+            if !t.handle.is_dropped() {
+                let state = t.handle.data();
+                if !state.paused.load(Ordering::Relaxed) {
+                    let deadline = state.deadline.lock();
+                    timer.register(deadline.current_deadline());
+                }
+            }
         }
     }
 
@@ -296,18 +303,17 @@ impl Timers {
         self.timers.retain(|t| {
             if let Some(var) = t.weak_var.upgrade() {
                 if !t.handle.is_dropped() {
-                    let t = var.get(vars);
-                    let mut deadline = t.0 .0.data().deadline.lock();
+                    if !t.handle.data().paused.load(Ordering::Relaxed) {
+                        let t = var.get(vars);
+                        let mut deadline = t.0 .0.data().deadline.lock();
 
-                    if timer.elapsed(deadline.current_deadline()) {
-                        // timer elapses, but only update if is enabled:
-                        if t.is_enabled() {
+                        if timer.elapsed(deadline.current_deadline()) {
                             t.0 .0.data().count.fetch_add(1, Ordering::Relaxed);
                             var.touch(vars);
-                        }
 
-                        deadline.last = now;
-                        timer.register(deadline.current_deadline());
+                            deadline.last = now;
+                            timer.register(deadline.current_deadline());
+                        }
                     }
 
                     return true; // retain, var is alive and did not call stop.
@@ -335,18 +341,16 @@ impl Timers {
             }
 
             let state = e.handle.data();
-            let mut deadline = state.deadline.lock();
+            if !state.paused.load(Ordering::Relaxed) {
+                let mut deadline = state.deadline.lock();
 
-            if timer.elapsed(deadline.current_deadline()) {
-                // timer elapsed, but only flag for handler call if is enabled:
-                if state.enabled.load(Ordering::Relaxed) {
-                    // this is wrapping_add
+                if timer.elapsed(deadline.current_deadline()) {
                     state.count.fetch_add(1, Ordering::Relaxed);
                     e.pending = Some(deadline.current_deadline());
-                }
-                deadline.last = now;
 
-                timer.register(deadline.current_deadline());
+                    deadline.last = now;
+                    timer.register(deadline.current_deadline());
+                }
             }
 
             true // retain if stop was not called
@@ -535,7 +539,7 @@ pub struct DeadlineArgs {
 #[must_use = "the timer is stopped if the handler is dropped"]
 pub struct TimerHandle(Handle<TimerState>);
 struct TimerState {
-    enabled: AtomicBool,
+    paused: AtomicBool,
     deadline: Mutex<TimerDeadline>,
     count: AtomicUsize,
 }
@@ -549,9 +553,9 @@ impl TimerDeadline {
     }
 }
 impl TimerHandle {
-    fn new(interval: Duration, enabled: bool) -> (HandleOwner<TimerState>, TimerHandle) {
+    fn new(interval: Duration, paused: bool) -> (HandleOwner<TimerState>, TimerHandle) {
         let (owner, handle) = Handle::new(TimerState {
-            enabled: AtomicBool::new(enabled),
+            paused: AtomicBool::new(paused),
             deadline: Mutex::new(TimerDeadline {
                 interval,
                 last: Instant::now(),
@@ -564,7 +568,7 @@ impl TimerHandle {
     /// Create a handle to nothing, the handle is always in the *stopped* state.
     pub fn dummy() -> TimerHandle {
         TimerHandle(Handle::dummy(TimerState {
-            enabled: AtomicBool::new(false),
+            paused: AtomicBool::new(true),
             deadline: Mutex::new(TimerDeadline {
                 interval: Duration::MAX,
                 last: Instant::now(),
@@ -633,19 +637,37 @@ impl TimerHandle {
         self.0.data().deadline.lock().current_deadline()
     }
 
-    /// If the handler is called when the timer elapses.
+    /// If the timer is not ticking.
     #[inline]
-    pub fn is_enabled(&self) -> bool {
-        self.0.data().enabled.load(Ordering::Relaxed)
+    pub fn is_paused(&self) -> bool {
+        self.0.data().paused.load(Ordering::Relaxed)
     }
 
-    /// Disable or re-enable the timer. Disabled timers don't can call their handler and don't increase the [`count`](Self::count).
+    /// Disable the timer, this causes the timer to stop ticking until [`play`] is called.
+    ///
+    /// [`play`]: Self::play
     #[inline]
-    pub fn set_enabled(&self, enabled: bool) {
-        self.0.data().enabled.store(enabled, Ordering::Relaxed);
+    pub fn pause(&self) {
+        self.0.data().paused.store(true, Ordering::Relaxed);
     }
 
-    /// Count incremented by one every time the timer elapses and it is [`enabled`](Self::count).
+    /// Enable the timer, this causes it to start ticking again.
+    ///
+    /// If `reset` is `true` the last [`timestamp`] is set to now.
+    ///
+    /// Note that this method does not awake the app, so if this is called from outside the app
+    /// the timer will only start ticking in next app update.
+    ///
+    /// [`timestamp`]: Self::timestamp
+    #[inline]
+    pub fn play(&self, reset: bool) {
+        self.0.data().paused.store(false, Ordering::Relaxed);
+        if reset {
+            self.0.data().deadline.lock().last = Instant::now();
+        }
+    }
+
+    /// Count incremented by one every time the timer elapses.
     #[inline]
     pub fn count(&self) -> usize {
         self.0.data().count.load(Ordering::Relaxed)
@@ -695,7 +717,7 @@ impl WeakTimerHandle {
 /// # use zero_ui_core::context::WidgetContext;
 /// # use std::time::Instant;
 /// # fn foo(ctx: &mut WidgetContext) {
-/// let timer: TimerVar = ctx.timers.interval(1.secs(), true);
+/// let timer: TimerVar = ctx.timers.interval(1.secs(), false);
 ///
 /// # let
 /// text = timer.map(|d| match 20 - d.count() {
@@ -725,7 +747,7 @@ impl fmt::Debug for Timer {
         f.debug_struct("Timer")
             .field("interval", &self.interval())
             .field("count", &self.count())
-            .field("enabled", &self.is_enabled())
+            .field("is_paused", &self.is_paused())
             .field("is_stopped", &self.is_stopped())
             .finish_non_exhaustive()
     }
@@ -774,19 +796,31 @@ impl Timer {
         self.0.deadline()
     }
 
-    /// If the timer variable updates when the time elapses.
+    /// If the timer is not ticking.
     #[inline]
-    pub fn is_enabled(&self) -> bool {
-        self.0.is_enabled()
+    pub fn is_paused(&self) -> bool {
+        self.0.is_paused()
     }
 
-    /// Disable or re-enable the timer. Disabled timers don't update.
+    /// Disable the timer, this causes the timer to stop ticking until [`play`] is called.
+    ///
+    /// [`play`]: Self::play
     #[inline]
-    pub fn set_enabled(&self, enabled: bool) {
-        self.0.set_enabled(enabled)
+    pub fn pause(&self) {
+        self.0.pause();
     }
 
-    /// Count incremented by one every time the timer elapses and it is [`enabled`](Self::count).
+    /// Enable the timer, this causes it to start ticking again.
+    ///
+    /// If `reset` is `true` the last [`timestamp`] is set to now.
+    ///
+    /// [`timestamp`]: Self::timestamp
+    #[inline]
+    pub fn play(&self, reset: bool) {
+        self.0.play(reset);
+    }
+
+    /// Count incremented by one every time the timer elapses.
     #[inline]
     pub fn count(&self) -> usize {
         self.0.count()
@@ -842,21 +876,35 @@ impl TimerArgs {
         }
     }
 
-    /// If the handler is called when the time elapses.
+    /// If the timer is not ticking.
     #[inline]
-    pub fn is_enabled(&self) -> bool {
-        self.handle().map(|h| h.is_enabled()).unwrap_or(false)
+    pub fn is_paused(&self) -> bool {
+        self.handle().map(|h| h.is_paused()).unwrap_or(true)
     }
 
-    /// Disable or re-enable the timer. Disabled timers don't call the handler.
+    /// Disable the timer, this causes the timer to stop ticking until [`play`] is called.
+    ///
+    /// [`play`]: Self::play
     #[inline]
-    pub fn set_enabled(&self, enabled: bool) {
+    pub fn pause(&self) {
         if let Some(h) = self.handle() {
-            h.set_enabled(enabled);
+            h.pause();
         }
     }
 
-    /// Count incremented by one every time the timer elapses and it is [`enabled`](Self::count).
+    /// Enable the timer, this causes it to start ticking again.
+    ///
+    /// If `reset` is `true` the last [`timestamp`] is set to now.
+    ///
+    /// [`timestamp`]: Self::timestamp
+    #[inline]
+    pub fn play(&self, reset: bool) {
+        if let Some(h) = self.handle() {
+            h.play(reset);
+        }
+    }
+
+    /// Count incremented by one every time the timer elapses.
     #[inline]
     pub fn count(&self) -> usize {
         self.handle().map(|h| h.count()).unwrap_or(0)

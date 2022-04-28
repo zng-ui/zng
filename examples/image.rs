@@ -195,7 +195,7 @@ fn img_window(title: impl IntoVar<Text>, content: impl UiNode) -> Window {
         // content shown by all images when loading.
         image_loading_view = view_generator!(|ctx, _| {
             let mut dots_count = 3;
-            let msg = ctx.timers.interval(300.ms(), true).map(move |_| {
+            let msg = ctx.timers.interval(300.ms(), false).map(move |_| {
                 dots_count += 1;
                 if dots_count == 8 {
                     dots_count = 0;
@@ -248,7 +248,7 @@ fn img_window(title: impl IntoVar<Text>, content: impl UiNode) -> Window {
 }
 
 fn sprite(timers: &mut Timers) -> impl Widget {
-    let timer = timers.interval((1.0 / 24.0).secs(), false);
+    let timer = timers.interval((1.0 / 24.0).secs(), true);
     let label = var_from("play");
 
     v_stack! {
@@ -260,9 +260,12 @@ fn sprite(timers: &mut Timers) -> impl Widget {
                 padding = (2, 3);
                 on_click = hn!(timer, |ctx, _| {
                     let t = timer.get(ctx);
-                    let enabled = !t.is_enabled();
-                    t.set_enabled(enabled);
-                    label.set(ctx, if enabled { "stop" } else { "play" });
+                    if t.is_paused() {
+                        t.play(false);
+                    } else {
+                        t.pause();
+                    }
+                    label.set(ctx, if t.is_paused() { "play" } else { "pause" });
                 });
             },
             image! {

@@ -981,13 +981,13 @@ impl<T> ReceiverExt<T> for flume::Receiver<T> {
     fn recv_deadline_sp(&self, deadline: Instant) -> Result<T, flume::RecvTimeoutError> {
         if let Some(d) = deadline.checked_duration_since(Instant::now()) {
             if d > SLEEP_DUR {
-                // thread sleeps here, error up-to 20ms
+                // thread sleeps here
                 match self.recv_deadline(deadline - SLEEP_DUR) {
                     Err(flume::RecvTimeoutError::Timeout) => self.recv_deadline_sp(deadline),
                     interrupt => interrupt,
                 }
             } else if d > SPIN_DUR {
-                // start spinning, try_recv error up-to
+                // start spinning
                 let spin_deadline = deadline - SPIN_DUR;
                 while spin_deadline > Instant::now() {
                     match self.try_recv() {
