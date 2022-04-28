@@ -356,7 +356,7 @@ impl Vars {
 
     /// Called in `update_timers`, does one animation frame if over the FPS has elapsed.
     pub(crate) fn update_animations(&mut self, timer: &mut LoopTimer) {
-        if let Some(next_frame) = self.next_frame.get() {
+        if let Some(mut next_frame) = self.next_frame.get() {
             if timer.elapsed(next_frame) {
                 let mut animations = self.animations.borrow_mut();
                 debug_assert!(!animations.is_empty());
@@ -367,7 +367,11 @@ impl Vars {
                 animations.retain_mut(|a| a(self, enabled, time_scale));
 
                 if !animations.is_empty() {
-                    let next_frame = next_frame + self.frame_duration.copy(self);
+                    next_frame += self.frame_duration.copy(self);
+                    let now = Instant::now();
+                    if next_frame < now {
+                        next_frame = now;
+                    }
                     self.next_frame.set(Some(next_frame));
                     timer.register(next_frame);
                 } else {
