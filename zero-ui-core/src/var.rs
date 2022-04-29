@@ -1014,10 +1014,11 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + crate::private::Sealed + 'stati
             vars,
             |_| Some(Some(new_value.into())),
             move |animation, _, new_value| {
-                if !animation.animations_enabled() || animation.start_time().elapsed() >= delay {
+                if !animation.animations_enabled() || animation.elapsed_dur() >= delay {
                     animation.stop();
                     new_value.take()
                 } else {
+                    animation.sleep(delay);
                     None
                 }
             },
@@ -1048,10 +1049,11 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + crate::private::Sealed + 'stati
                 }
             },
             move |animation, _, new_value| {
-                if !animation.animations_enabled() || animation.start_time().elapsed() >= delay {
+                if !animation.animations_enabled() || animation.elapsed_dur() >= delay {
                     animation.stop();
                     new_value.take()
                 } else {
+                    animation.sleep(delay);
                     None
                 }
             },

@@ -30,7 +30,7 @@ type SyncEntry = Box<dyn Fn(&Vars) -> Retain>;
 type Retain = bool;
 type VarBindingFn = Box<dyn FnMut(&Vars) -> Retain>;
 type UpdateLinkFn = Box<dyn Fn(&Vars, &mut UpdateMask) -> Retain>;
-type AnimationFn = Box<dyn FnMut(&Vars, bool, Instant, Factor) -> Retain>;
+type AnimationFn = Box<dyn FnMut(&Vars, bool, Instant, Factor, &mut Option<Instant>) -> Retain>;
 
 /// Read-only access to variables.
 ///
@@ -283,7 +283,7 @@ pub struct Vars {
     binding_update_id: u32,
     bindings: RefCell<Vec<VarBindingFn>>,
 
-    animations: RefCell<Vec<AnimationFn>>,
+    animations: RefCell<Vec<(Option<Instant>, AnimationFn)>>,
     animation_id: Cell<u32>,
     current_animation: RefCell<(WeakAnimationHandle, u32)>,
     animation_start_time: Cell<Option<Instant>>,
@@ -368,14 +368,22 @@ impl Vars {
                 let enabled = self.animations_enabled.copy(self);
                 let time_scale = self.animation_time_scale.copy(self);
 
+                let next_frame = next_frame + self.frame_duration.copy(self);
                 let now = Instant::now();
+                let mut min_sleep = now + Duration::from_secs(60);
 
-                animations.retain_mut(|a| a(self, enabled, now, time_scale));
+                animations.retain_mut(|(deadline, animate)| {
+                    let retain = animate(self, enabled, now, time_scale, deadline);
+                    if retain {
+                        min_sleep = min_sleep.min(deadline.unwrap_or(next_frame));
+                    }
+                    retain
+                });
 
                 if !animations.is_empty() {
-                    let next_frame = next_frame + self.frame_duration.copy(self);
-                    self.next_frame.set(Some(next_frame.max(now)));
-                    timer.register(next_frame);
+                    min_sleep = min_sleep.max(now);
+                    self.next_frame.set(Some(min_sleep));
+                    timer.register(min_sleep);
                 } else {
                     self.next_frame.set(None);
                 }
@@ -716,25 +724,34 @@ impl Vars {
         self.animation_id.set(next_set_id);
         self.current_animation.borrow_mut().1 = next_set_id;
 
-        self.animations.borrow_mut().push(Box::new(move |vars, enabled, now, time_scale| {
-            let mut retain = !handle_owner.is_dropped();
+        self.animations.borrow_mut().push((
+            None,
+            Box::new(move |vars, enabled, now, time_scale, deadline| {
+                let mut retain = !handle_owner.is_dropped();
 
-            if retain {
-                anim.set_state(enabled, now, time_scale);
+                if retain {
+                    if let Some(deadline) = *deadline {
+                        if deadline < now {
+                            return retain;
+                        }
+                    }
+                    anim.set_state(enabled, now, time_scale);
 
-                let prev = mem::replace(
-                    &mut *vars.current_animation.borrow_mut(),
-                    (WeakAnimationHandle(handle_owner.weak_handle()), id),
-                );
-                let _cleanup = RunOnDrop::new(|| *vars.current_animation.borrow_mut() = prev);
+                    let prev = mem::replace(
+                        &mut *vars.current_animation.borrow_mut(),
+                        (WeakAnimationHandle(handle_owner.weak_handle()), id),
+                    );
+                    let _cleanup = RunOnDrop::new(|| *vars.current_animation.borrow_mut() = prev);
 
-                animation(vars, &anim);
+                    animation(vars, &anim);
 
-                retain = !anim.stop_requested();
-            }
+                    retain = !anim.stop_requested();
+                    *deadline = anim.take_sleep();
+                }
 
-            retain
-        }));
+                retain
+            }),
+        ));
 
         if self.next_frame.get().is_none() {
             self.next_frame.set(Some(Instant::now()));

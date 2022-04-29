@@ -5,7 +5,6 @@
 * Variable that starts animating on first `get`.
 * `Var::repeat`.
 * Fps per animation.
-* Animation *sleep* until time, like a timer.
 * Default FPS from monitor.
 
 ```rust

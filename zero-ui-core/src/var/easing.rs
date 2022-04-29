@@ -516,6 +516,7 @@ pub struct AnimationArgs {
     start_time: Cell<Instant>,
     restart_count: Cell<usize>,
     stop: Cell<bool>,
+    sleep: Cell<Option<Duration>>,
     animations_enabled: bool,
     now: Instant,
     time_scale: Factor,
@@ -528,6 +529,7 @@ impl AnimationArgs {
             restart_count: Cell::new(0),
             stop: Cell::new(false),
             now,
+            sleep: Cell::new(None),
             animations_enabled,
             time_scale,
         }
@@ -558,6 +560,16 @@ impl AnimationArgs {
         self.animations_enabled = enabled;
         self.now = now;
         self.time_scale = time_scale;
+    }
+
+    /// Stop updating the animation for a time. The animation will only update after `duration` elapses.
+    #[inline]
+    pub fn sleep(&self, duration: Duration) {
+        self.sleep.set(Some(duration));
+    }
+
+    pub(crate) fn take_sleep(&mut self) -> Option<Instant> {
+        self.sleep.get_mut().take().map(|d| self.now() + d)
     }
 
     /// Returns a value that indicates if animations are enabled in the operating system.
