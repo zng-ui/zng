@@ -36,6 +36,9 @@ pub struct FilterArgs<'a> {
     pub line: Option<u32>,
     /// Arguments for the span or event.
     pub args: &'a FxHashMap<&'static str, String>,
+
+    /// Duration in microseconds. Is zero for events.
+    pub duration: u64,
 }
 impl<'a> FilterArgs<'a> {
     /// If is [`Level::TRACE`].
@@ -168,6 +171,7 @@ fn record_profile_impl(
                             file: c_file,
                             line,
                             args: &args,
+                            duration: 0,
                         }) {
                             continue;
                         }
@@ -202,6 +206,7 @@ fn record_profile_impl(
                         let enter = span.open.iter().rposition(|(t, _)| *t == tid).unwrap();
                         let (_, start_ts) = span.open.remove(enter);
 
+                        let dur = ts - start_ts;
                         if !filter(FilterArgs {
                             is_span: true,
                             level: span.level,
@@ -210,6 +215,7 @@ fn record_profile_impl(
                             file: span.file,
                             line: span.line,
                             args: &span.args,
+                            duration: dur,
                         }) {
                             continue;
                         }
@@ -221,7 +227,6 @@ fn record_profile_impl(
                             name = NameDisplay(span.name, &["name"], &span.args),
                             cat = span.level,
                             ts = start_ts,
-                            dur = ts - start_ts,
                             target = escape(span.target)
                         )
                         .unwrap();
@@ -443,7 +448,7 @@ impl Subscriber for Profiler {
     }
 
     fn event(&self, event: &tracing::Event<'_>) {
-        let ts = time_ns();
+        let ts = timestamp();
 
         let tid = self.thread_id();
         let meta = event.metadata();
@@ -464,7 +469,7 @@ impl Subscriber for Profiler {
     }
 
     fn enter(&self, span: &span::Id) {
-        let ts = time_ns();
+        let ts = timestamp();
 
         let tid = self.thread_id();
 
@@ -472,7 +477,7 @@ impl Subscriber for Profiler {
     }
 
     fn exit(&self, span: &span::Id) {
-        let ts = time_ns();
+        let ts = timestamp();
 
         let tid = self.thread_id();
 
@@ -480,7 +485,7 @@ impl Subscriber for Profiler {
     }
 }
 
-fn time_ns() -> u64 {
+fn timestamp() -> u64 {
     std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap()

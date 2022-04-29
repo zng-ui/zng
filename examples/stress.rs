@@ -1,4 +1,3 @@
-use examples_util::FilterArgs;
 use zero_ui::core::{context::WindowContext, window::Window};
 use zero_ui::prelude::*;
 
@@ -7,16 +6,10 @@ const SAME_PROCESS: bool = true;
 const RENDER_MODE: RenderMode = RenderMode::Dedicated;
 
 static TESTS: &[(&str, TestFn, FilterFn)] = &[
-    ("text_change_all", text_change_all, all_trace),
-    ("text_change_one", text_change_one, all_trace),
-    ("multi_window", multi_window, all_trace),
+    ("text_change_all", text_change_all, default_filter),
+    ("text_change_one", text_change_one, default_filter),
+    ("multi_window", multi_window, default_filter),
 ];
-
-#[allow(unused)]
-fn shape_text_filter(args: FilterArgs) -> bool {
-    // uncomment in "zero-ui-core\src\text\shaping.rs"
-    args.name == "shape_text"
-}
 
 fn text_change_all(ctx: &mut WindowContext) -> Window {
     let mut dots_count = 3;
@@ -230,12 +223,12 @@ fn main() {
 type TestFn = fn(&mut WindowContext) -> Window;
 type FilterFn = fn(examples_util::FilterArgs) -> bool;
 
+/// Debug events, trace spans above 1ms.
 #[allow(unused)]
-fn all_trace(_: FilterArgs) -> bool {
-    true
-}
-
-#[allow(unused)]
-fn all_debug(a: FilterArgs) -> bool {
-    !a.is_trace()
+fn default_filter(a: examples_util::FilterArgs) -> bool {
+    if a.is_span {
+        a.duration > 1000
+    } else {
+        a.level < tracing::Level::DEBUG
+    }
 }
