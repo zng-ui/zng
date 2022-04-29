@@ -39,7 +39,7 @@ fn example(vars: &Vars) -> impl Widget {
     // let mut t = std::time::Instant::now();
     // x.trace_value(vars, move |v| {
     //     let now = std::time::Instant::now();
-    //     println!("!!: {v:?} after {:?}", now - t);
+    //     println!("{v:?} after {:?}", now - t);
     //     t = now;
     // }).perm();
 
