@@ -975,20 +975,32 @@ pub trait ReceiverExt<T> {
     /// Receive or precise timeout.
     fn recv_deadline_sp(&self, deadline: Instant) -> Result<T, flume::RecvTimeoutError>;
 }
-const SLEEP_DUR: Duration = Duration::from_millis(30);
-const SPIN_DUR: Duration = Duration::from_millis(1);
+
+const WORST_SLEEP_ERR: Duration = Duration::from_millis(if cfg!(windows) { 20 } else { 10 });
+const WORST_SPIN_ERR: Duration = Duration::from_millis(if cfg!(windows) { 2 } else { 1 });
+
 impl<T> ReceiverExt<T> for flume::Receiver<T> {
     fn recv_deadline_sp(&self, deadline: Instant) -> Result<T, flume::RecvTimeoutError> {
         if let Some(d) = deadline.checked_duration_since(Instant::now()) {
-            if d > SLEEP_DUR {
-                // thread sleeps here
-                match self.recv_deadline(deadline - SLEEP_DUR) {
+            if d > WORST_SLEEP_ERR {
+                // probably sleeps here.
+                match self.recv_deadline(deadline - WORST_SLEEP_ERR) {
                     Err(flume::RecvTimeoutError::Timeout) => self.recv_deadline_sp(deadline),
                     interrupt => interrupt,
                 }
-            } else if d > SPIN_DUR {
-                // start spinning
-                let spin_deadline = deadline - SPIN_DUR;
+            } else if d > WORST_SPIN_ERR {
+                let spin_deadline = deadline - WORST_SPIN_ERR;
+
+                // high-res sleep.
+                #[cfg(windows)]
+                if let Some(_hr) = windows_timer_util::HighResTimerRegion::begin() {
+                    return match self.recv_deadline(spin_deadline) {
+                        Err(flume::RecvTimeoutError::Timeout) => self.recv_deadline_sp(deadline),
+                        interrupt => interrupt,
+                    };
+                }
+
+                // try_recv spin
                 while spin_deadline > Instant::now() {
                     match self.try_recv() {
                         Err(flume::TryRecvError::Empty) => thread::yield_now(),
@@ -996,11 +1008,11 @@ impl<T> ReceiverExt<T> for flume::Receiver<T> {
                         Ok(msg) => return Ok(msg),
                     }
                 }
-
                 self.recv_deadline_sp(deadline)
             } else {
+                // last millis spin
                 while deadline > Instant::now() {
-                    thread::yield_now();
+                    std::thread::yield_now();
                 }
                 Err(flume::RecvTimeoutError::Timeout)
             }
@@ -1008,4 +1020,40 @@ impl<T> ReceiverExt<T> for flume::Receiver<T> {
             Err(flume::RecvTimeoutError::Timeout)
         }
     }
+}
+
+#[cfg(windows)]
+mod windows_timer_util {
+    use once_cell::sync::Lazy;
+    use windows::Win32::Media::*;
+
+    pub struct HighResTimerRegion(u32);
+    impl HighResTimerRegion {
+        pub fn begin() -> Option<Self> {
+            let res = *TIMER_CAP;
+            if unsafe { timeBeginPeriod(res) } == TIMERR_NOERROR {
+                Some(Self(res))
+            } else {
+                None
+            }
+        }
+    }
+    impl Drop for HighResTimerRegion {
+        fn drop(&mut self) {
+            unsafe { timeEndPeriod(self.0) };
+        }
+    }
+
+    pub static TIMER_CAP: Lazy<u32> = Lazy::new(|| unsafe {
+        let mut tc = TIMECAPS {
+            wPeriodMin: 0,
+            wPeriodMax: 0,
+        };
+
+        if timeGetDevCaps(&mut tc, std::mem::size_of::<TIMECAPS>() as u32) == MMSYSERR_NOERROR {
+            tc.wPeriodMin
+        } else {
+            1
+        }
+    });
 }

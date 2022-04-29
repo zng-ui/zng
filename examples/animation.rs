@@ -36,6 +36,13 @@ fn example(vars: &Vars) -> impl Widget {
     let x = var(0.dip());
     let color = var(FROM_COLOR);
 
+    // let mut t = std::time::Instant::now();
+    // x.trace_value(vars, move |v| {
+    //     let now = std::time::Instant::now();
+    //     println!("!!: {v:?} after {:?}", now - t);
+    //     t = now;
+    // }).perm();
+
     use easing::EasingModifierFn::*;
     let easing_mod = var(EaseOut);
 

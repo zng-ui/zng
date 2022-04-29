@@ -37,7 +37,7 @@ fn config_listener(event_loop: impl crate::AppEventSender) {
             lpfnWndProc: Some(util::minimal_wndproc),
             cbClsExtra: 0,
             cbWndExtra: 0,
-            hInstance: LibraryLoader::GetModuleHandleW(None),
+            hInstance: LibraryLoader::GetModuleHandleW(None).unwrap(),
             hIcon: Default::default(),
             hCursor: Default::default(), // must be null in order for cursor state to work properly
             hbrBackground: Default::default(),
@@ -64,7 +64,7 @@ fn config_listener(event_loop: impl crate::AppEventSender) {
             0,
             None,
             None,
-            LibraryLoader::GetModuleHandleW(None),
+            LibraryLoader::GetModuleHandleW(None).unwrap(),
             ptr::null(),
         );
         if r.0 == 0 {
