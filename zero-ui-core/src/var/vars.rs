@@ -729,7 +729,8 @@ impl Vars {
         let mut anim = AnimationArgs::new(self.animations_enabled.copy(self), start_time, self.animation_time_scale.copy(self));
         let mut id = self.animation_id.get().wrapping_add(1);
         if id == 0 {
-            // TODO fix this case, can we update all current animations to a fresh sequence?
+            // variables may not be able to overwrite animated values from long running animations at this point.
+            tracing::error!("animation ID overflow");
             id = 1;
         }
         let mut next_set_id = id.wrapping_add(1);
