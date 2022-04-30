@@ -516,7 +516,7 @@ pub struct AnimationArgs {
     start_time: Cell<Instant>,
     restart_count: Cell<usize>,
     stop: Cell<bool>,
-    sleep: Cell<Option<Duration>>,
+    sleep: Cell<Option<Instant>>,
     animations_enabled: bool,
     now: Instant,
     time_scale: Factor,
@@ -556,10 +556,15 @@ impl AnimationArgs {
         self.time_scale
     }
 
-    pub(crate) fn set_state(&mut self, enabled: bool, now: Instant, time_scale: Factor) {
+    pub(crate) fn reset_state(&mut self, enabled: bool, now: Instant, time_scale: Factor) {
         self.animations_enabled = enabled;
         self.now = now;
         self.time_scale = time_scale;
+        *self.sleep.get_mut() = None;
+    }
+
+    pub(crate) fn reset_sleep(&mut self) {
+        *self.sleep.get_mut() = None;
     }
 
     /// Set the duration to the next animation update. The animation will *sleep* until `duration` elapses.
@@ -569,11 +574,11 @@ impl AnimationArgs {
     /// possible `duration` is the frame duration, shorter durations behave the same as if not set.
     #[inline]
     pub fn sleep(&self, duration: Duration) {
-        self.sleep.set(Some(duration));
+        self.sleep.set(Some(self.now + duration));
     }
 
-    pub(crate) fn take_sleep(&mut self) -> Option<Instant> {
-        self.sleep.get_mut().take().map(|d| self.now() + d)
+    pub(crate) fn sleep_deadline(&self) -> Option<Instant> {
+        self.sleep.get()
     }
 
     /// Returns a value that indicates if animations are enabled in the operating system.

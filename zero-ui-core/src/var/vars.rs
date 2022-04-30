@@ -30,7 +30,15 @@ type SyncEntry = Box<dyn Fn(&Vars) -> Retain>;
 type Retain = bool;
 type VarBindingFn = Box<dyn FnMut(&Vars) -> Retain>;
 type UpdateLinkFn = Box<dyn Fn(&Vars, &mut UpdateMask) -> Retain>;
-type AnimationFn = Box<dyn FnMut(&Vars, bool, Instant, Factor, &mut Option<Instant>) -> Retain>;
+type AnimationFn = Box<dyn FnMut(&Vars, AnimationUpdateInfo) -> Option<Instant>>;
+
+#[derive(Clone, Copy)]
+struct AnimationUpdateInfo {
+    animations_enabled: bool,
+    now: Instant,
+    time_scale: Factor,
+    next_frame: Instant,
+}
 
 /// Read-only access to variables.
 ///
@@ -283,7 +291,7 @@ pub struct Vars {
     binding_update_id: u32,
     bindings: RefCell<Vec<VarBindingFn>>,
 
-    animations: RefCell<Vec<(Option<Instant>, AnimationFn)>>,
+    animations: RefCell<Vec<AnimationFn>>,
     animation_id: Cell<u32>,
     current_animation: RefCell<(WeakAnimationHandle, u32)>,
     animation_start_time: Cell<Option<Instant>>,
@@ -364,31 +372,26 @@ impl Vars {
                 let mut animations = self.animations.borrow_mut();
                 debug_assert!(!animations.is_empty());
 
-                let enabled = self.animations_enabled.copy(self);
-                let time_scale = self.animation_time_scale.copy(self);
+                let info = AnimationUpdateInfo {
+                    animations_enabled: self.animations_enabled.copy(self),
+                    time_scale: self.animation_time_scale.copy(self),
+                    now: Instant::now(),
+                    next_frame: next_frame + self.frame_duration.copy(self),
+                };
 
-                let next_frame = next_frame + self.frame_duration.copy(self);
-                let now = Instant::now();
-                let mut min_sleep = now + Duration::from_secs(60 * 60);
-                let mut min_is_next_frame = false;
+                let mut min_sleep = info.now + Duration::from_secs(60 * 60);
 
-                animations.retain_mut(|(deadline, animate)| {
-                    let retain = animate(self, enabled, now, time_scale, deadline);
-                    if retain && !min_is_next_frame {
-                        match *deadline {
-                            Some(deadline) if deadline > next_frame => min_sleep = min_sleep.min(deadline),
-                            _ => min_is_next_frame = true,
-                        }
+                animations.retain_mut(|animate| {
+                    if let Some(sleep) = animate(self, info) {
+                        min_sleep = min_sleep.min(sleep);
+                        true
+                    } else {
+                        false
                     }
-                    retain
                 });
 
                 if !animations.is_empty() {
-                    if min_is_next_frame {
-                        self.next_frame.set(Some(next_frame));
-                    } else {
-                        self.next_frame.set(Some(min_sleep));
-                    }
+                    self.next_frame.set(Some(min_sleep));
                     timer.register(min_sleep);
                 } else {
                     self.next_frame.set(None);
@@ -730,34 +733,44 @@ impl Vars {
         self.animation_id.set(next_set_id);
         self.current_animation.borrow_mut().1 = next_set_id;
 
-        self.animations.borrow_mut().push((
-            None,
-            Box::new(move |vars, enabled, now, time_scale, deadline| {
-                let mut retain = !handle_owner.is_dropped();
-
-                if retain {
-                    if let Some(deadline) = *deadline {
-                        if deadline > now {
-                            return retain;
-                        }
+        self.animations.borrow_mut().push(Box::new(move |vars, info| {
+            if !handle_owner.is_dropped() {
+                if let Some(sleep) = anim.sleep_deadline() {
+                    if sleep > info.next_frame {
+                        // retain sleep
+                        return Some(sleep);
+                    } else if sleep > info.now {
+                        // sync-up to frame rate after sleep
+                        anim.reset_sleep();
+                        return Some(info.next_frame);
                     }
-                    anim.set_state(enabled, now, time_scale);
-
-                    let prev = mem::replace(
-                        &mut *vars.current_animation.borrow_mut(),
-                        (WeakAnimationHandle(handle_owner.weak_handle()), id),
-                    );
-                    let _cleanup = RunOnDrop::new(|| *vars.current_animation.borrow_mut() = prev);
-
-                    animation(vars, &anim);
-
-                    retain = !anim.stop_requested();
-                    *deadline = anim.take_sleep();
                 }
 
-                retain
-            }),
-        ));
+                anim.reset_state(info.animations_enabled, info.now, info.time_scale);
+
+                let prev = mem::replace(
+                    &mut *vars.current_animation.borrow_mut(),
+                    (WeakAnimationHandle(handle_owner.weak_handle()), id),
+                );
+                let _cleanup = RunOnDrop::new(|| *vars.current_animation.borrow_mut() = prev);
+
+                animation(vars, &anim);
+
+                if anim.stop_requested() {
+                    // drop
+                    return None;
+                }
+
+                // retain
+                match anim.sleep_deadline() {
+                    Some(sleep) if sleep > info.next_frame => Some(sleep),
+                    _ => Some(info.next_frame),
+                }
+            } else {
+                // drop
+                None
+            }
+        }));
 
         if self.next_frame.get().is_none() {
             self.next_frame.set(Some(Instant::now()));
@@ -1710,6 +1723,29 @@ mod tests {
                 }
             }))
             .perm();
+    }
+
+    #[test]
+    fn nested_animation() {
+        let mut app = App::blank().run_headless(false);
+
+        let test = var(0u32);
+
+        let mut start_nested = true;
+        app.ctx()
+            .vars
+            .animate(clone_move!(test, |vars, args| {
+                if start_nested {
+                    test.ease(vars, 100u32, 1.secs(), easing::linear).perm();
+                    start_nested = false;
+                }
+                args.elapsed_stop(1.secs());
+            }))
+            .perm();
+
+        app.run_task(async_clone_move_fn!(test, |ctx| test.wait_animation(&ctx).await));
+
+        assert_eq!(100, test.copy(&app));
     }
 
     context_var! {
