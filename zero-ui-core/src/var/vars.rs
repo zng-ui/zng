@@ -633,6 +633,12 @@ impl Vars {
     /// Later started animations steal control from previous animations, direct touch, modify or set calls also remove the variable
     /// from being affected by a running animation.
     ///
+    /// # Nested Animations
+    ///
+    /// Other animations can be started from inside the animation closure, these *nested* animations have the same handle
+    /// as the *parent* animation, stopping an animation by dropping the handle or calling [`stop`] stops the parent animation
+    /// and any other animation started by it.
+    ///
     /// # Examples
     ///
     /// The example animates a `text` variable from `"Animation at 0%"` to `"Animation at 100%"`, when the animation
@@ -972,7 +978,7 @@ struct OnVarHandler {
 ///
 /// Drop all clones of this handle to drop the handler, or call [`unsubscribe`](Self::unsubscribe) to drop the handle
 /// without dropping the handler.
-#[derive(Clone, PartialEq, Eq, Hash)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 #[must_use = "the handler unsubscribes if the handle is dropped"]
 pub struct OnVarHandle(Handle<()>);
 impl OnVarHandle {
@@ -1024,7 +1030,7 @@ impl OnVarHandle {
 }
 
 /// Weak [`OnVarHandle`].
-#[derive(Clone, PartialEq, Eq, Hash, Default)]
+#[derive(Clone, PartialEq, Eq, Hash, Default, Debug)]
 pub struct WeakOnVarHandle(WeakHandle<()>);
 impl WeakOnVarHandle {
     /// New weak handle that does not upgrade.
@@ -1731,21 +1737,23 @@ mod tests {
 
         let test = var(0u32);
 
+        let inner_handle = Rc::new(RefCell::new(None));
+
         let mut start_nested = true;
-        app.ctx()
-            .vars
-            .animate(clone_move!(test, |vars, args| {
-                if start_nested {
-                    test.ease(vars, 100u32, 1.secs(), easing::linear).perm();
-                    start_nested = false;
-                }
-                args.elapsed_stop(1.secs());
-            }))
-            .perm();
+        let outer_handle = app.ctx().vars.animate(clone_move!(test, inner_handle, |vars, args| {
+            if start_nested {
+                let hn = test.ease(vars, 100u32, 1.secs(), easing::linear);
+                *inner_handle.borrow_mut() = Some(hn);
+                start_nested = false;
+            }
+            args.elapsed_stop(1.secs());
+        }));
 
         app.run_task(async_clone_move_fn!(test, |ctx| test.wait_animation(&ctx).await));
 
         assert_eq!(100, test.copy(&app));
+        let inner_handle = Rc::try_unwrap(inner_handle).unwrap().into_inner().unwrap();
+        assert_eq!(outer_handle, inner_handle);
     }
 
     context_var! {

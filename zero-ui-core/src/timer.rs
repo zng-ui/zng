@@ -506,9 +506,27 @@ impl DeadlineHandle {
         WeakDeadlineHandle(self.0.downgrade())
     }
 }
+impl fmt::Debug for DeadlineHandle {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("DeadlineHandle")
+            .field("deadline", &self.deadline())
+            .field("handle", &self.0)
+            .field(
+                "state",
+                &if self.has_executed() {
+                    "has_executed"
+                } else if self.is_canceled() {
+                    "is_canceled"
+                } else {
+                    "awaiting"
+                },
+            )
+            .finish()
+    }
+}
 
 /// Weak [`DeadlineHandle`]
-#[derive(Clone, PartialEq, Eq, Hash, Default)]
+#[derive(Clone, PartialEq, Eq, Hash, Default, Debug)]
 pub struct WeakDeadlineHandle(WeakHandle<DeadlineState>);
 impl WeakDeadlineHandle {
     /// New weak handle that does not upgrade.
@@ -685,9 +703,29 @@ impl TimerHandle {
         WeakTimerHandle(self.0.downgrade())
     }
 }
+impl fmt::Debug for TimerHandle {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("TimerHandle")
+            .field("interval", &self.interval())
+            .field("count", &self.count())
+            .field("timestamp", &self.timestamp())
+            .field("handle", &self.0)
+            .field(
+                "state",
+                &if self.is_stopped() {
+                    "is_stopped"
+                } else if self.is_paused() {
+                    "is_paused"
+                } else {
+                    "playing"
+                },
+            )
+            .finish()
+    }
+}
 
 /// Weak [`TimerHandle`].
-#[derive(Clone, PartialEq, Eq, Hash, Default)]
+#[derive(Clone, PartialEq, Eq, Hash, Default, Debug)]
 pub struct WeakTimerHandle(WeakHandle<TimerState>);
 impl WeakTimerHandle {
     /// New weak handle that does not upgrade.

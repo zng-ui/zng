@@ -20,7 +20,7 @@ use super::{AppContext, UpdatesTrace};
 ///
 /// Drop all clones of this handle to drop the binding, or call [`perm`](Self::perm) to drop the handle
 /// but keep the handler alive for the duration of the app.
-#[derive(Clone, PartialEq, Eq, Hash)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 #[must_use = "dropping the handle unsubscribes update handler"]
 pub struct OnUpdateHandle(Handle<()>);
 impl OnUpdateHandle {
@@ -72,7 +72,7 @@ impl OnUpdateHandle {
 }
 
 /// Weak [`OnUpdateHandle`].
-#[derive(Clone, PartialEq, Eq, Hash, Default)]
+#[derive(Clone, PartialEq, Eq, Hash, Default, Debug)]
 pub struct WeakOnUpdateHandle(WeakHandle<()>);
 impl WeakOnUpdateHandle {
     /// New weak handle that does not upgrade.

@@ -449,7 +449,7 @@ mod bezier {
 /// but keep the animation alive until it is stopped from the inside.
 ///
 /// [`perm`]: AnimationHandle::perm
-#[derive(Clone, PartialEq, Eq, Hash)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 #[must_use = "the animation stops if the handle is dropped"]
 pub struct AnimationHandle(Handle<()>);
 impl AnimationHandle {
@@ -495,7 +495,7 @@ impl AnimationHandle {
 }
 
 /// Weak [`AnimationHandle`].
-#[derive(Clone, PartialEq, Eq, Hash, Default)]
+#[derive(Clone, PartialEq, Eq, Hash, Default, Debug)]
 pub struct WeakAnimationHandle(pub(super) WeakHandle<()>);
 impl WeakAnimationHandle {
     /// New weak handle that does not upgrade.

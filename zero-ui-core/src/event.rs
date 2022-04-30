@@ -619,7 +619,7 @@ struct OnEventHandler {
 ///
 /// Drop all clones of this handle to drop the handler, or call [`unsubscribe`](Self::unsubscribe) to drop the handle
 /// without dropping the handler.
-#[derive(Clone, PartialEq, Eq, Hash)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 #[must_use = "the event handler unsubscribes if the handle is dropped"]
 pub struct OnEventHandle(Handle<()>);
 impl OnEventHandle {
@@ -671,7 +671,7 @@ impl OnEventHandle {
 }
 
 /// Weak [`OnEventHandle`].
-#[derive(Clone, PartialEq, Eq, Hash, Default)]
+#[derive(Clone, PartialEq, Eq, Hash, Default, Debug)]
 pub struct WeakOnEventHandle(WeakHandle<()>);
 impl WeakOnEventHandle {
     /// New weak handle that does not upgrade.

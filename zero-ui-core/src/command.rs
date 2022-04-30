@@ -1221,6 +1221,14 @@ impl CommandHandle {
         }
     }
 }
+impl fmt::Debug for CommandHandle {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("CommandHandle")
+            .field("handle", &self.handle)
+            .field("local_enabled", &self.local_enabled)
+            .finish()
+    }
+}
 impl Drop for CommandHandle {
     fn drop(&mut self) {
         if self.local_enabled.get() {

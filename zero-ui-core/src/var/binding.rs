@@ -12,7 +12,7 @@ use crate::crate_util::*;
 /// [`perm`]: VarBindingHandle::perm
 /// [`Vars`]: crate::var::Vars
 /// [`Var`]: crate::var::Var
-#[derive(Clone, PartialEq, Eq, Hash)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 #[must_use = "the var binding is undone if the handle is dropped"]
 pub struct VarBindingHandle(Handle<()>);
 impl VarBindingHandle {
@@ -64,7 +64,7 @@ impl VarBindingHandle {
 }
 
 /// Weak [`VarBindingHandle`].
-#[derive(Clone, PartialEq, Eq, Hash, Default)]
+#[derive(Clone, PartialEq, Eq, Hash, Default, Debug)]
 pub struct WeakVarBindingHandle(WeakHandle<()>);
 impl WeakVarBindingHandle {
     /// New weak handle that does not upgrade.

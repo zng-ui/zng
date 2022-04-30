@@ -398,6 +398,17 @@ impl<D: Send + Sync> Drop for Handle<D> {
         }
     }
 }
+impl<D: Send + Sync> fmt::Debug for Handle<D> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if self.is_permanent() {
+            write!(f, "permanent")
+        } else if self.is_dropped() {
+            write!(f, "dropped")
+        } else {
+            write!(f, "holding")
+        }
+    }
+}
 
 /// A weak reference to a [`Handle`].
 pub(crate) struct WeakHandle<D: Send + Sync>(Weak<HandleState<D>>);
@@ -441,6 +452,15 @@ impl<D: Send + Sync> std::hash::Hash for WeakHandle<D> {
     fn hash<H: Hasher>(&self, state: &mut H) {
         let ptr = self.0.as_ptr() as usize;
         ptr.hash(state);
+    }
+}
+impl<D: Send + Sync> fmt::Debug for WeakHandle<D> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if self.0.strong_count() > 0 {
+            write!(f, "can-upgrade")
+        } else {
+            write!(f, "dropped")
+        }
     }
 }
 
