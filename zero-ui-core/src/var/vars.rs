@@ -361,7 +361,6 @@ impl Vars {
     pub(crate) fn update_animations(&mut self, timer: &mut LoopTimer) {
         if let Some(next_frame) = self.next_frame.get() {
             if timer.elapsed(next_frame) {
-                // println!("!!: elapsed, drift: {:?}", next_frame.elapsed());
                 let mut animations = self.animations.borrow_mut();
                 debug_assert!(!animations.is_empty());
 
@@ -370,19 +369,26 @@ impl Vars {
 
                 let next_frame = next_frame + self.frame_duration.copy(self);
                 let now = Instant::now();
-                let mut min_sleep = now + Duration::from_secs(60);
+                let mut min_sleep = now + Duration::from_secs(60 * 60);
+                let mut min_is_next_frame = false;
 
                 animations.retain_mut(|(deadline, animate)| {
                     let retain = animate(self, enabled, now, time_scale, deadline);
-                    if retain {
-                        min_sleep = min_sleep.min(deadline.unwrap_or(next_frame));
+                    if retain && !min_is_next_frame {
+                        match *deadline {
+                            Some(deadline) if deadline > next_frame => min_sleep = min_sleep.min(deadline),
+                            _ => min_is_next_frame = true,
+                        }
                     }
                     retain
                 });
 
                 if !animations.is_empty() {
-                    min_sleep = min_sleep.max(now);
-                    self.next_frame.set(Some(min_sleep));
+                    if min_is_next_frame {
+                        self.next_frame.set(Some(next_frame));
+                    } else {
+                        self.next_frame.set(Some(min_sleep));
+                    }
                     timer.register(min_sleep);
                 } else {
                     self.next_frame.set(None);
@@ -731,7 +737,7 @@ impl Vars {
 
                 if retain {
                     if let Some(deadline) = *deadline {
-                        if deadline < now {
+                        if deadline > now {
                             return retain;
                         }
                     }
@@ -1527,8 +1533,16 @@ pub fn response_channel<T: VarValue + Send, Vw: WithVars>(vars: &Vw) -> (Respons
 
 #[cfg(test)]
 mod tests {
-    use crate::context::TestWidgetContext;
-    use crate::var::{context_var, ContextVarData, Var};
+    use std::cell::RefCell;
+    use std::rc::Rc;
+    use std::time::Instant;
+
+    use crate::{
+        app::{App, HeadlessApp},
+        context::TestWidgetContext,
+        units::*,
+        var::*,
+    };
 
     #[test]
     fn context_var_default() {
@@ -1592,6 +1606,110 @@ mod tests {
             });
 
         assert_eq!("default value 2", value);
+    }
+
+    #[test]
+    fn animation_tick() {
+        let fps20 = (1.0 / 20.0).secs();
+
+        let mut app = App::blank().run_headless(false);
+        {
+            let ctx = app.ctx();
+            ctx.vars.frame_duration().set(ctx.vars, fps20);
+        }
+
+        let test = var(0i32);
+        let updates = Rc::new(RefCell::new(vec![]));
+        let trace_handle = test.trace_value(
+            app.ctx().vars,
+            clone_move!(updates, |value| updates.borrow_mut().push((*value, Instant::now()))),
+        );
+
+        test.ease(app.ctx().vars, 20, 1.secs(), easing::linear).perm();
+
+        app.run_task(async_clone_move_fn!(test, |ctx| {
+            test.wait_animation(&ctx).await;
+        }));
+
+        assert_eq!(20, test.copy(app.ctx().vars));
+
+        drop(trace_handle);
+        app.ctx().updates.update_ext();
+        app.update(false).assert_wait();
+
+        let updates = Rc::try_unwrap(updates).unwrap().into_inner();
+
+        assert_eq!(22, updates.len(), "expected trace_start + animation_start + 20_frames");
+
+        let fps_range = (fps20 - 0.5.ms())..=(fps20 + 0.5.ms());
+
+        let (_, mut inst) = updates[2];
+        let mut value = updates[3].0 - 1; // ignore animation start interpolation.
+
+        for (v, i) in &updates[3..] {
+            let dur = i.duration_since(inst);
+            assert!(fps_range.contains(&dur));
+            inst = *i;
+
+            assert_eq!(1, *v - value, "expected 1 = {v} - {value}");
+            value = *v;
+        }
+    }
+
+    #[test]
+    fn animation_sleep() {
+        let mut app = App::blank().run_headless(false);
+
+        let test = var(false);
+        start_sleep_1s(&mut app, &test);
+
+        app.run_task(async_clone_move_fn!(test, |ctx| {
+            test.wait_animation(&ctx).await;
+        }));
+
+        assert!(test.copy(&app.ctx()));
+    }
+
+    #[test]
+    fn animation_sleep_and_not() {
+        let mut app = App::blank().run_headless(false);
+
+        let test = var(false);
+        let other_anim = var(0u32);
+
+        start_sleep_1s(&mut app, &test);
+        other_anim.ease(&app.ctx(), 100u32, 1.secs(), easing::linear).perm();
+
+        app.run_task(async_clone_move_fn!(test, |ctx| {
+            test.wait_animation(&ctx).await;
+        }));
+
+        assert!(test.copy(&app.ctx()));
+    }
+
+    fn start_sleep_1s(app: &mut HeadlessApp, test: &RcVar<bool>) {
+        let start = Instant::now();
+        let mut stage = 0;
+        app.ctx()
+            .vars
+            .animate(clone_move!(test, |vars, args| {
+                if stage == 0 {
+                    stage = 1;
+                    args.sleep(1.secs());
+                    test.touch(vars);
+                } else if stage == 1 {
+                    stage = 2;
+                    args.stop();
+                    test.set(vars, true);
+
+                    let elapsed = start.elapsed();
+
+                    assert!(elapsed >= 1.secs() && elapsed < 1.5.secs(), "elapsed: {elapsed:?}, expected: 1s");
+                } else {
+                    panic!("animation called after stop");
+                }
+            }))
+            .perm();
     }
 
     context_var! {

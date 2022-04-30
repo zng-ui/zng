@@ -2,10 +2,8 @@
 
 # Animation
 
-* Variable that starts animating on first `get`.
+* Starting animations inside other animations, needs testing and can we give then the same handle as the parent?
 * `Var::repeat`.
-* Fps per animation.
-* Default FPS from monitor.
 
 ```rust
 trait Var {

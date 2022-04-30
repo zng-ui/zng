@@ -562,7 +562,11 @@ impl AnimationArgs {
         self.time_scale = time_scale;
     }
 
-    /// Stop updating the animation for a time. The animation will only update after `duration` elapses.
+    /// Set the duration to the next animation update. The animation will *sleep* until `duration` elapses.
+    ///
+    /// The animation awakes in the next [`Vars::frame_duration`] after the `duration` elapses, if the sleep duration is not
+    /// a multiple of the frame duration it will delay an extra `frame_duration - 1ns` in the worst case. The minimum
+    /// possible `duration` is the frame duration, shorter durations behave the same as if not set.
     #[inline]
     pub fn sleep(&self, duration: Duration) {
         self.sleep.set(Some(duration));
