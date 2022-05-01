@@ -14,6 +14,8 @@
 * Very slow build time in release mode without `dyn_widget` (window example up-to 18 minutes compile time and 25GB memory usage).
     Might be related to https://github.com/rust-lang/rust/issues/75992
 
+* Use https://github.com/rust-lang/measureme/blob/master/summarize/README.md to profile the build time.
+
 # Mouse Move Interest
 
 * Let widgets define what sort of mouse event they want, use the hit-test tag, filter events in the view-process.
