@@ -13,7 +13,7 @@ pub struct RcVar<T: VarValue>(Rc<Data<T>>);
 struct Data<T> {
     value: UnsafeCell<T>,
     modifying: Cell<bool>,
-    animation: RefCell<(WeakAnimationHandle, u32)>,
+    animation: RefCell<(Option<WeakAnimationHandle>, u32)>,
     last_update_id: Cell<u32>,
     version: Cell<u32>,
     update_slot: UpdateSlot,
@@ -28,7 +28,7 @@ impl<T: Clone> Clone for Data<T> {
         Data {
             value: UnsafeCell::new(value),
             modifying: Cell::new(false),
-            animation: RefCell::new((WeakAnimationHandle::new(), 0)),
+            animation: RefCell::new((None, 0)),
             last_update_id: Cell::new(self.last_update_id.get()),
             version: Cell::new(self.version.get()),
             update_slot: self.update_slot,
@@ -43,7 +43,7 @@ impl<T: VarValue> RcVar<T> {
         RcVar(Rc::new(Data {
             value: UnsafeCell::new(initial_value),
             modifying: Cell::new(false),
-            animation: RefCell::new((WeakAnimationHandle::new(), 0)),
+            animation: RefCell::new((None, 0)),
             last_update_id: Cell::new(0),
             version: Cell::new(0),
             update_slot: UpdateSlot::next(),
@@ -252,7 +252,7 @@ impl<T: VarValue> Var<T> for RcVar<T> {
 
     #[inline]
     fn is_animating<Vr: WithVarsRead>(&self, _: &Vr) -> bool {
-        self.0.animation.borrow().0.upgrade().is_some()
+        self.0.animation.borrow().0.as_ref().and_then(|w| w.upgrade()).is_some()
     }
 
     #[inline]

@@ -492,6 +492,12 @@ impl AnimationHandle {
     pub fn is_stopped(&self) -> bool {
         self.0.is_dropped()
     }
+
+    /// Create a weak handle.
+    #[inline]
+    pub fn downgrade(&self) -> WeakAnimationHandle {
+        WeakAnimationHandle(self.0.downgrade())
+    }
 }
 
 /// Weak [`AnimationHandle`].

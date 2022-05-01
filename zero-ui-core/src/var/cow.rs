@@ -71,7 +71,7 @@ struct CowData<T, V> {
 
     value: UnsafeCell<Option<T>>,
     version: VarVersionCell,
-    animation: RefCell<(WeakAnimationHandle, u32)>,
+    animation: RefCell<(Option<WeakAnimationHandle>, u32)>,
     last_update_id: Cell<u32>,
 }
 impl<T: VarValue, V: Var<T>> Clone for RcCowVar<T, V> {
@@ -117,7 +117,7 @@ impl<T: VarValue, V: Var<T>> RcCowVar<T, V> {
             source: UnsafeCell::new(Some(source)),
             value: UnsafeCell::new(None),
             version: VarVersionCell::new(0),
-            animation: RefCell::new((WeakAnimationHandle::new(), 0)),
+            animation: RefCell::new((None, 0)),
             last_update_id: Cell::new(0),
         }))
     }
@@ -208,7 +208,7 @@ impl<T: VarValue, V: Var<T>> Var<T> for RcCowVar<T, V> {
             if let Some(s) = self.source(vars) {
                 s.is_animating(vars)
             } else {
-                self.0.animation.borrow().0.upgrade().is_some()
+                self.0.animation.borrow().0.as_ref().and_then(|w| w.upgrade()).is_some()
             }
         })
     }

@@ -293,7 +293,7 @@ pub struct Vars {
 
     animations: RefCell<Vec<AnimationFn>>,
     animation_id: Cell<u32>,
-    current_animation: RefCell<(WeakAnimationHandle, u32)>,
+    current_animation: RefCell<(Option<WeakAnimationHandle>, u32)>,
     animation_start_time: Cell<Option<Instant>>,
     next_frame: Cell<Option<Instant>>,
     animations_enabled: RcVar<bool>,
@@ -339,7 +339,7 @@ impl Vars {
             animations: RefCell::default(),
             animation_id: Cell::new(1),
             animation_start_time: Cell::new(None),
-            current_animation: RefCell::new((WeakAnimationHandle::new(), 0)),
+            current_animation: RefCell::new((None, 1)),
             next_frame: Cell::new(None),
             frame_duration: var((1.0 / 60.0).secs()),
             animation_time_scale: var(1.fct()),
@@ -351,7 +351,7 @@ impl Vars {
     }
 
     /// Animation weak handle + animation counter.
-    pub(super) fn current_animation(&self) -> (WeakAnimationHandle, u32) {
+    pub(super) fn current_animation(&self) -> (Option<WeakAnimationHandle>, u32) {
         self.current_animation.borrow().clone()
     }
 
@@ -369,7 +369,7 @@ impl Vars {
     pub(crate) fn update_animations(&mut self, timer: &mut LoopTimer) {
         if let Some(next_frame) = self.next_frame.get() {
             if timer.elapsed(next_frame) {
-                let mut animations = self.animations.borrow_mut();
+                let mut animations = mem::take(&mut *self.animations.borrow_mut());
                 debug_assert!(!animations.is_empty());
 
                 let info = AnimationUpdateInfo {
@@ -390,7 +390,11 @@ impl Vars {
                     }
                 });
 
-                if !animations.is_empty() {
+                let mut self_animations = self.animations.borrow_mut();
+                animations.extend(self_animations.drain(..));
+                *self_animations = animations;
+
+                if !self_animations.is_empty() {
                     self.next_frame.set(Some(min_sleep));
                     timer.register(min_sleep);
                 } else {
@@ -714,8 +718,6 @@ impl Vars {
         // | 2| ease update   | NO
         // | 4| ease update   | NO
 
-        let (handle_owner, handle) = AnimationHandle::new();
-
         // ensure that all animations started in this update have the same exact time, we update then with the same `now`
         // timestamp also, this ensures that synchronized animations match perfectly.
         let start_time = if let Some(t) = self.animation_start_time.get() {
@@ -726,11 +728,8 @@ impl Vars {
             t
         };
 
-        let mut anim = AnimationArgs::new(self.animations_enabled.copy(self), start_time, self.animation_time_scale.copy(self));
         let mut id = self.animation_id.get().wrapping_add(1);
         if id == 0 {
-            // variables may not be able to overwrite animated values from long running animations at this point.
-            tracing::error!("animation ID overflow");
             id = 1;
         }
         let mut next_set_id = id.wrapping_add(1);
@@ -740,8 +739,36 @@ impl Vars {
         self.animation_id.set(next_set_id);
         self.current_animation.borrow_mut().1 = next_set_id;
 
+        let handle_owner;
+        let handle;
+        let weak_handle;
+
+        if let Some(parent_handle) = self.current_animation.borrow().0.clone() {
+            // is `animate` request inside other animate closure,
+            // in this case we give it the same animation handle as the *parent*
+            // animation, that holds the actual handle owner.
+            handle_owner = None;
+
+            if let Some(h) = parent_handle.upgrade() {
+                handle = h;
+            } else {
+                // attempt to create new animation from inside dropping animation, ignore
+                return AnimationHandle::dummy();
+            }
+
+            weak_handle = parent_handle;
+        } else {
+            let (o, h) = AnimationHandle::new();
+            handle_owner = Some(o);
+            weak_handle = h.downgrade();
+            handle = h;
+        };
+
+        let mut anim = AnimationArgs::new(self.animations_enabled.copy(self), start_time, self.animation_time_scale.copy(self));
         self.animations.borrow_mut().push(Box::new(move |vars, info| {
-            if !handle_owner.is_dropped() {
+            let _handle_owner = &handle_owner; // capture and own the handle owner.
+
+            if weak_handle.upgrade().is_some() {
                 if let Some(sleep) = anim.sleep_deadline() {
                     if sleep > info.next_frame {
                         // retain sleep
@@ -755,10 +782,7 @@ impl Vars {
 
                 anim.reset_state(info.animations_enabled, info.now, info.time_scale);
 
-                let prev = mem::replace(
-                    &mut *vars.current_animation.borrow_mut(),
-                    (WeakAnimationHandle(handle_owner.weak_handle()), id),
-                );
+                let prev = mem::replace(&mut *vars.current_animation.borrow_mut(), (Some(weak_handle.clone()), id));
                 let _cleanup = RunOnDrop::new(|| *vars.current_animation.borrow_mut() = prev);
 
                 animation(vars, &anim);
@@ -1747,7 +1771,9 @@ mod tests {
                 *inner_handle.borrow_mut() = Some(hn);
                 start_nested = false;
             }
+
             args.elapsed_stop(1.secs());
+            test.touch(vars);
         }));
 
         app.run_task(async_clone_move_fn!(test, |ctx| test.wait_animation(&ctx).await));
