@@ -1770,9 +1770,7 @@ mod tests {
                 *inner_handle.borrow_mut() = Some(hn);
                 start_nested = false;
             }
-
-            args.elapsed_stop(1.secs());
-            test.touch(vars);
+            args.elapsed_stop(1.5.secs());
         }));
 
         app.run_task(async_clone_move_fn!(test, |ctx| {

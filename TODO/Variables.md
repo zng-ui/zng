@@ -2,7 +2,6 @@
 
 # Animation
 
-* Starting animations inside other animations, needs testing and can we give then the same handle as the parent?
 * `Var::repeat`.
 
 ```rust
