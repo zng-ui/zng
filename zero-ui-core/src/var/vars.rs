@@ -1577,13 +1577,12 @@ pub fn response_channel<T: VarValue + Send, Vw: WithVars>(vars: &Vw) -> (Respons
 
 #[cfg(test)]
 mod tests {
-    use std::cell::RefCell;
-    use std::rc::Rc;
-    use std::time::Instant;
+    use std::{cell::RefCell, rc::Rc, time::Instant};
 
     use crate::{
         app::{App, HeadlessApp},
         context::TestWidgetContext,
+        task::with_timeout,
         units::*,
         var::*,
     };
@@ -1672,7 +1671,7 @@ mod tests {
         test.ease(app.ctx().vars, 20, 1.secs(), easing::linear).perm();
 
         app.run_task(async_clone_move_fn!(test, |ctx| {
-            test.wait_animation(&ctx).await;
+            with_timeout(test.wait_animation(&ctx), 2.secs()).await.unwrap();
         }));
 
         assert_eq!(20, test.copy(app.ctx().vars));
@@ -1708,7 +1707,7 @@ mod tests {
         start_sleep_1s(&mut app, &test);
 
         app.run_task(async_clone_move_fn!(test, |ctx| {
-            test.wait_animation(&ctx).await;
+            with_timeout(test.wait_animation(&ctx), 2.secs()).await.unwrap();
         }));
 
         assert!(test.copy(&app.ctx()));
@@ -1725,7 +1724,7 @@ mod tests {
         other_anim.ease(&app.ctx(), 100u32, 1.secs(), easing::linear).perm();
 
         app.run_task(async_clone_move_fn!(test, |ctx| {
-            test.wait_animation(&ctx).await;
+            with_timeout(test.wait_animation(&ctx), 2.secs()).await.unwrap();
         }));
 
         assert!(test.copy(&app.ctx()));
@@ -1776,8 +1775,9 @@ mod tests {
             test.touch(vars);
         }));
 
-        app.run_task(async_clone_move_fn!(test, |ctx| test.wait_animation(&ctx).await));
-
+        app.run_task(async_clone_move_fn!(test, |ctx| {
+            with_timeout(test.wait_animation(&ctx), 2.secs()).await
+        }));
         assert_eq!(100, test.copy(&app));
         let inner_handle = Rc::try_unwrap(inner_handle).unwrap().into_inner().unwrap();
         assert_eq!(outer_handle, inner_handle);
