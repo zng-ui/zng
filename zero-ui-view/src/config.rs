@@ -3,7 +3,7 @@ use std::time::Duration;
 
 /// Create a hidden window that listens to Windows config change events.
 #[cfg(windows)]
-pub(crate) fn spawn_listener(event_loop: impl crate::AppEventSender) {
+pub(crate) fn spawn_listener(event_loop: crate::AppEventSender) {
     config_listener(event_loop);
     /*
     std::thread::Builder::new()
@@ -13,7 +13,7 @@ pub(crate) fn spawn_listener(event_loop: impl crate::AppEventSender) {
     */
 }
 #[cfg(windows)]
-fn config_listener(event_loop: impl crate::AppEventSender) {
+fn config_listener(event_loop: crate::AppEventSender) {
     let _span = tracing::trace_span!("config_listener").entered();
 
     use crate::AppEvent;

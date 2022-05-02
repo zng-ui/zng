@@ -14,13 +14,13 @@ pub(crate) const ENCODERS: &[&str] = &["png", "jpg", "jpeg", "gif", "ico", "bmp"
 pub(crate) const DECODERS: &[&str] = ENCODERS;
 
 /// Decode and cache image resources.
-pub(crate) struct ImageCache<S> {
-    app_sender: S,
+pub(crate) struct ImageCache {
+    app_sender: AppEventSender,
     images: FxHashMap<ImageId, Image>,
     image_id_gen: ImageId,
 }
-impl<S: AppEventSender> ImageCache<S> {
-    pub fn new(app_sender: S) -> Self {
+impl ImageCache {
+    pub fn new(app_sender: AppEventSender) -> Self {
         Self {
             app_sender,
             images: FxHashMap::default(),
@@ -698,12 +698,12 @@ mod capture {
 
     use crate::{
         image_cache::{Image, ImageData},
-        AppEvent, AppEventSender,
+        AppEvent,
     };
 
     use super::ImageCache;
 
-    impl<S: AppEventSender> ImageCache<S> {
+    impl ImageCache {
         /// Create frame_image for a `Api::frame_image` request.
         pub fn frame_image(
             &mut self,

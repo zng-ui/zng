@@ -309,19 +309,19 @@ fn panic_hook(info: &std::panic::PanicInfo, details: &str) {
 }
 
 /// The backend implementation.
-pub(crate) struct App<S> {
+pub(crate) struct App {
     started: bool,
 
     headless: bool,
 
     gl_manager: GlContextManager,
     window_target: *const EventLoopWindowTarget<AppEvent>,
-    app_sender: S,
+    app_sender: AppEventSender,
     request_recv: flume::Receiver<RequestEvent>,
 
     response_sender: ResponseSender,
     event_sender: EventSender,
-    image_cache: ImageCache<S>,
+    image_cache: ImageCache,
 
     gen: ViewProcessGen,
     device_events: bool,
@@ -347,7 +347,7 @@ pub(crate) struct App<S> {
 
     exited: bool,
 }
-impl<S> fmt::Debug for App<S> {
+impl fmt::Debug for App {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("HeadlessBackend")
             .field("started", &self.started)
@@ -358,7 +358,7 @@ impl<S> fmt::Debug for App<S> {
             .finish_non_exhaustive()
     }
 }
-impl App<()> {
+impl App {
     pub fn run_headless(c: ViewChannels) {
         tracing::info!("running headless view-process");
 
@@ -366,7 +366,12 @@ impl App<()> {
 
         let (app_sender, app_receiver) = flume::unbounded();
         let (request_sender, request_receiver) = flume::unbounded();
-        let mut app = App::new((app_sender, request_sender), c.response_sender, c.event_sender, request_receiver);
+        let mut app = App::new(
+            AppEventSender::Headless(app_sender, request_sender),
+            c.response_sender,
+            c.event_sender,
+            request_receiver,
+        );
         app.headless = true;
 
         let winit_span = tracing::trace_span!("winit::EventLoop::new").entered();
@@ -445,7 +450,12 @@ impl App<()> {
         let app_sender = event_loop.create_proxy();
 
         let (request_sender, request_receiver) = flume::unbounded();
-        let mut app = App::new((app_sender, request_sender), c.response_sender, c.event_sender, request_receiver);
+        let mut app = App::new(
+            AppEventSender::Headed(app_sender, request_sender),
+            c.response_sender,
+            c.event_sender,
+            request_receiver,
+        );
         app.start_receiving(c.request_receiver);
 
         #[cfg(windows)]
@@ -521,9 +531,13 @@ impl App<()> {
             idle.enter();
         })
     }
-}
-impl<S: AppEventSender> App<S> {
-    fn new(app_sender: S, response_sender: ResponseSender, event_sender: EventSender, request_recv: flume::Receiver<RequestEvent>) -> Self {
+
+    fn new(
+        app_sender: AppEventSender,
+        response_sender: ResponseSender,
+        event_sender: EventSender,
+        request_recv: flume::Receiver<RequestEvent>,
+    ) -> Self {
         App {
             headless: false,
             started: false,
@@ -1119,7 +1133,7 @@ macro_rules! with_window_or_surface {
     };
 }
 
-impl<S: AppEventSender> App<S> {
+impl App {
     fn open_headless_impl(&mut self, config: HeadlessRequest) -> HeadlessOpenData {
         self.assert_started();
         let surf = Surface::open(
@@ -1145,7 +1159,7 @@ impl<S: AppEventSender> App<S> {
     }
 }
 
-impl<S: AppEventSender> Api for App<S> {
+impl Api for App {
     fn init(&mut self, gen: ViewProcessGen, is_respawn: bool, device_events: bool, headless: bool) {
         if self.started {
             panic!("already started");
@@ -1482,59 +1496,50 @@ pub(crate) struct FrameReadyMsg {
 }
 
 /// Abstraction over channel senders  that can inject [`AppEvent`] in the app loop.
-pub(crate) trait AppEventSender: Clone + Send + 'static {
+#[derive(Clone)]
+pub(crate) enum AppEventSender {
+    Headed(EventLoopProxy<AppEvent>, flume::Sender<RequestEvent>),
+    Headless(flume::Sender<AppEvent>, flume::Sender<RequestEvent>),
+}
+impl AppEventSender {
     /// Send an event.
-    fn send(&self, ev: AppEvent) -> Result<(), Disconnected>;
+    fn send(&self, ev: AppEvent) -> Result<(), Disconnected> {
+        match self {
+            AppEventSender::Headed(p, _) => p.send_event(ev).map_err(|_| Disconnected),
+            AppEventSender::Headless(p, _) => p.send(ev).map_err(|_| Disconnected),
+        }
+    }
 
     /// Send a request.
-    fn request(&self, req: Request) -> Result<(), Disconnected>;
+    fn request(&self, req: Request) -> Result<(), Disconnected> {
+        match self {
+            AppEventSender::Headed(_, p) => p.send(RequestEvent::Request(req)).map_err(|_| Disconnected),
+            AppEventSender::Headless(_, p) => p.send(RequestEvent::Request(req)).map_err(|_| Disconnected),
+        }?;
+        self.send(AppEvent::Request)
+    }
 
     /// Send a frame-ready.
-    fn frame_ready(&self, window_id: WindowId, msg: FrameReadyMsg) -> Result<(), Disconnected>;
-}
-/// headless
-impl AppEventSender for (flume::Sender<AppEvent>, flume::Sender<RequestEvent>) {
-    fn send(&self, ev: AppEvent) -> Result<(), Disconnected> {
-        self.0.send(ev).map_err(|_| Disconnected)
-    }
-    fn request(&self, req: Request) -> Result<(), Disconnected> {
-        self.1.send(RequestEvent::Request(req)).map_err(|_| Disconnected)?;
-        self.send(AppEvent::Request)
-    }
-
     fn frame_ready(&self, window_id: WindowId, msg: FrameReadyMsg) -> Result<(), Disconnected> {
-        self.1.send(RequestEvent::FrameReady(window_id, msg)).map_err(|_| Disconnected)?;
-        self.send(AppEvent::Request)
-    }
-}
-/// headed
-impl AppEventSender for (EventLoopProxy<AppEvent>, flume::Sender<RequestEvent>) {
-    fn send(&self, ev: AppEvent) -> Result<(), Disconnected> {
-        self.0.send_event(ev).map_err(|_| Disconnected)
-    }
-
-    fn request(&self, req: Request) -> Result<(), Disconnected> {
-        self.1.send(RequestEvent::Request(req)).map_err(|_| Disconnected)?;
-        self.send(AppEvent::Request)
-    }
-
-    fn frame_ready(&self, window_id: WindowId, msg: FrameReadyMsg) -> Result<(), Disconnected> {
-        self.1.send(RequestEvent::FrameReady(window_id, msg)).map_err(|_| Disconnected)?;
+        match self {
+            AppEventSender::Headed(_, p) => p.send(RequestEvent::FrameReady(window_id, msg)).map_err(|_| Disconnected),
+            AppEventSender::Headless(_, p) => p.send(RequestEvent::FrameReady(window_id, msg)).map_err(|_| Disconnected),
+        }?;
         self.send(AppEvent::Request)
     }
 }
 
 /// Webrender frame-ready notifier.
-pub(crate) struct WrNotifier<S> {
+pub(crate) struct WrNotifier {
     id: WindowId,
-    sender: S,
+    sender: AppEventSender,
 }
-impl<S: AppEventSender> WrNotifier<S> {
-    pub fn create(id: WindowId, sender: S) -> Box<dyn RenderNotifier> {
+impl WrNotifier {
+    pub fn create(id: WindowId, sender: AppEventSender) -> Box<dyn RenderNotifier> {
         Box::new(WrNotifier { id, sender })
     }
 }
-impl<S: AppEventSender> RenderNotifier for WrNotifier<S> {
+impl RenderNotifier for WrNotifier {
     fn clone(&self) -> Box<dyn RenderNotifier> {
         Box::new(Self {
             id: self.id,

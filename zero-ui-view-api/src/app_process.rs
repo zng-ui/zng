@@ -63,10 +63,18 @@ impl Controller {
     ///
     /// [`current_exe`]: std::env::current_exe
     /// [`VERSION`]: crate::VERSION
-    pub fn start<F>(view_process_exe: Option<PathBuf>, device_events: bool, headless: bool, mut on_event: F) -> Self
+    pub fn start<F>(view_process_exe: Option<PathBuf>, device_events: bool, headless: bool, on_event: F) -> Self
     where
         F: FnMut(Event) + Send + 'static,
     {
+        Self::start_impl(view_process_exe, device_events, headless, Box::new(on_event))
+    }
+    fn start_impl(
+        view_process_exe: Option<PathBuf>,
+        device_events: bool,
+        headless: bool,
+        mut on_event: Box<dyn FnMut(Event) + Send>,
+    ) -> Self {
         if ViewConfig::from_env().is_some() {
             panic!("cannot start Controller in process configured to be view-process");
         }
@@ -85,8 +93,7 @@ impl Controller {
             on_event(Event::Disconnected(1));
 
             // return to reuse in respawn.
-            let t: Box<dyn FnMut(Event) + Send> = Box::new(on_event);
-            t
+            on_event
         });
 
         let mut c = Controller {
@@ -111,6 +118,7 @@ impl Controller {
 
         c
     }
+
     fn try_init(&mut self) -> VpResult<()> {
         self.init(self.generation, self.is_respawn, self.device_events, self.headless)?;
         Ok(())

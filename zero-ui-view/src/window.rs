@@ -119,7 +119,7 @@ impl Window {
         req: WindowRequest,
         window_target: &EventLoopWindowTarget<AppEvent>,
         gl_manager: &mut GlContextManager,
-        event_sender: impl AppEventSender,
+        event_sender: AppEventSender,
     ) -> Self {
         let id = req.id;
 
@@ -1007,7 +1007,7 @@ impl Window {
 
     /// Returns info for `FrameRendered` and if this is the first frame.
     #[must_use = "events must be generated from the result"]
-    pub fn on_frame_ready<S: AppEventSender>(&mut self, msg: FrameReadyMsg, images: &mut ImageCache<S>) -> FrameReadyResult {
+    pub fn on_frame_ready(&mut self, msg: FrameReadyMsg, images: &mut ImageCache) -> FrameReadyResult {
         debug_assert_eq!(self.document_id, msg.document_id);
 
         let (frame_id, capture, _) = self.pending_frames.pop_front().unwrap_or((self.rendered_frame_id, false, None));
@@ -1092,7 +1092,7 @@ impl Window {
         }
     }
 
-    pub fn frame_image<S: AppEventSender>(&mut self, images: &mut ImageCache<S>) -> ImageId {
+    pub fn frame_image(&mut self, images: &mut ImageCache) -> ImageId {
         let scale_factor = self.scale_factor();
         images.frame_image(
             self.renderer.as_mut().unwrap(),
@@ -1104,7 +1104,7 @@ impl Window {
         )
     }
 
-    pub fn frame_image_rect<S: AppEventSender>(&mut self, images: &mut ImageCache<S>, rect: PxRect) -> ImageId {
+    pub fn frame_image_rect(&mut self, images: &mut ImageCache, rect: PxRect) -> ImageId {
         // TODO check any frame rendered
         let scale_factor = self.scale_factor();
         let rect = PxRect::from_size(self.window.inner_size().to_px())

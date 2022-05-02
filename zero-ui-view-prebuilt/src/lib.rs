@@ -68,6 +68,9 @@ impl ViewLib {
 
     /// Extract the embedded library to `dir` and link to it.
     pub fn install_to(dir: impl Into<PathBuf>) -> Result<Self, Error> {
+        Self::install_to_impl(dir.into())
+    }
+    fn install_to_impl(dir: PathBuf) -> Result<Self, Error> {
         #[cfg(not(zero_ui_lib_embedded))]
         {
             let _ = dir;
@@ -76,7 +79,7 @@ impl ViewLib {
 
         #[cfg(zero_ui_lib_embedded)]
         {
-            let file = Self::install_path(dir.into());
+            let file = Self::install_path(dir);
 
             if !file.exists() {
                 std::fs::write(&file, LIB)?;
@@ -94,6 +97,9 @@ impl ViewLib {
     /// Note that the file is probably in use if it was installed in the current process instance, in Windows
     /// files cannot be deleted until they are released.
     pub fn uninstall_from(dir: impl Into<PathBuf>) -> Result<bool, io::Error> {
+        Self::uninstall_from_impl(dir.into())
+    }
+    fn uninstall_from_impl(dir: PathBuf) -> Result<bool, io::Error> {
         #[cfg(not(zero_ui_lib_embedded))]
         {
             let _ = dir;
@@ -102,7 +108,7 @@ impl ViewLib {
 
         #[cfg(zero_ui_lib_embedded)]
         {
-            let file = Self::install_path(dir.into());
+            let file = Self::install_path(dir);
 
             if file.exists() {
                 std::fs::remove_file(file)?;
@@ -133,8 +139,9 @@ impl ViewLib {
     /// Note that the is only searched as described above, if it is not found an error returns immediately,
     /// the operating system library search feature is not used.
     pub fn link(view_dylib: impl Into<PathBuf>) -> Result<Self, Error> {
-        let mut lib = view_dylib.into();
-
+        Self::link_impl(view_dylib.into())
+    }
+    fn link_impl(mut lib: PathBuf) -> Result<Self, Error> {
         if !lib.exists() && lib.extension().is_none() {
             #[cfg(target_os = "windows")]
             lib.set_extension("dll");
@@ -184,6 +191,9 @@ impl ViewLib {
     ///
     /// [`run_same_process`]: https://docs.rs/zero-ui-view/fn.run_same_process.html
     pub fn run_same_process(self, run_app: impl FnOnce() + Send + 'static) {
+        self.run_same_process_impl(Box::new(run_app))
+    }
+    fn run_same_process_impl(self, run_app: Box<dyn FnOnce() + Send>) {
         unsafe {
             use std::sync::atomic::{AtomicU8, Ordering};
 
@@ -198,7 +208,7 @@ impl ViewLib {
                 panic!("expected only one call to `run_same_process`");
             }
 
-            RUN = Some(Box::new(run_app));
+            RUN = Some(run_app);
 
             extern "C" fn run() {
                 if STATE.swap(ST_TAKEN, Ordering::SeqCst) != ST_SOME {

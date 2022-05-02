@@ -52,7 +52,7 @@ impl Surface {
         cfg: HeadlessRequest,
         window_target: &EventLoopWindowTarget<AppEvent>,
         gl_manager: &mut GlContextManager,
-        event_sender: impl AppEventSender,
+        event_sender: AppEventSender,
     ) -> Self {
         let id = cfg.id;
 
@@ -278,11 +278,7 @@ impl Surface {
         self.api.send_transaction(self.document_id(), txn);
     }
 
-    pub fn on_frame_ready<S: AppEventSender>(
-        &mut self,
-        msg: FrameReadyMsg,
-        images: &mut ImageCache<S>,
-    ) -> (FrameId, Option<ImageLoadedData>) {
+    pub fn on_frame_ready(&mut self, msg: FrameReadyMsg, images: &mut ImageCache) -> (FrameId, Option<ImageLoadedData>) {
         debug_assert_eq!(self.document_id, msg.document_id);
 
         if self.document_id != msg.document_id {
@@ -315,7 +311,7 @@ impl Surface {
         (frame_id, captured_data)
     }
 
-    pub fn frame_image<S: AppEventSender>(&mut self, images: &mut ImageCache<S>) -> ImageId {
+    pub fn frame_image(&mut self, images: &mut ImageCache) -> ImageId {
         images.frame_image(
             self.renderer.as_mut().unwrap(),
             PxRect::from_size(self.size.to_px(self.scale_factor)),
@@ -326,7 +322,7 @@ impl Surface {
         )
     }
 
-    pub fn frame_image_rect<S: AppEventSender>(&mut self, images: &mut ImageCache<S>, rect: PxRect) -> ImageId {
+    pub fn frame_image_rect(&mut self, images: &mut ImageCache, rect: PxRect) -> ImageId {
         let rect = PxRect::from_size(self.size.to_px(self.scale_factor)).intersection(&rect).unwrap();
         images.frame_image(
             self.renderer.as_mut().unwrap(),
