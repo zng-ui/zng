@@ -578,3 +578,39 @@ macro_rules! trace_var {
         }).perm();
     };
 }
+
+/// Suppress tracing warnings from dependencies that we can't handle.
+pub fn filter(level: &Level, metadata: &tracing::Metadata) -> bool {
+    if metadata.level() > level {
+        return false;
+    }
+
+    // suppress webrender warnings:
+    //
+    if metadata.target() == "webrender::device::gl" {
+        // suppress vertex debug-only warnings.
+        // see: https://bugzilla.mozilla.org/show_bug.cgi?id=1615342
+        if metadata.line() == Some(2396) {
+            return false;
+        }
+
+        // Suppress "Cropping texture upload Box2D((0, 0), (0, 1)) to None"
+        // This happens when an empty frame is rendered.
+        if metadata.line() == Some(4560) {
+            return false;
+        }
+    }
+
+    // suppress font-kit warnings:
+    //
+    if metadata.target() == "font_kit::loaders::freetype" {
+        // Suppress "get_type_1_or_sfnt_name(): found invalid platform ID $n"
+        // This does not look fully implemented and generates a lot of warns
+        // with the default Ubuntu font set all with valid platform IDs.
+        if metadata.line() == Some(735) {
+            return false;
+        }
+    }
+
+    true
+}

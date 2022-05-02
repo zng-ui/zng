@@ -14,3 +14,4 @@ examples/examples
 TODO/_local.md
 zero-ui-view-prebuilt/lib/zero_ui_view.*
 zero-ui-view-prebuilt/lib/libzero_ui_view.*
+**/*.mm_profdata

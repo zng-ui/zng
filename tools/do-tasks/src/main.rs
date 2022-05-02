@@ -11,6 +11,7 @@ fn main() {
         "rust_analyzer_check" => rust_analyzer_check(args),
         "fmt" | "f" => fmt(args),
         "test" | "t" => test(args),
+        "profile" | "p" => profile(args),
         "run" | "r" => run(args),
         "doc" => doc(args),
         "expand" => expand(args),
@@ -40,6 +41,18 @@ fn install(mut args: Vec<&str>) {
         cmd("rustup", &["component", "add", "clippy"], &[]);
         cmd("cargo", &["install", "cargo-expand"], &[]);
         cmd("cargo", &["install", "cargo-asm"], &[]);
+        cmd(
+            "cargo",
+            &[
+                "install",
+                "--git",
+                "https://github.com/rust-lang/measureme",
+                "--branch",
+                "stable",
+                "summarize",
+            ],
+            &[],
+        );
     } else {
         println(f!(
             "Install cargo binaries used by `do` after confirmation.\n  ACCEPT:\n   {} install --accept\n\n  TO RUN:",
@@ -50,6 +63,7 @@ fn install(mut args: Vec<&str>) {
         println("   rustup component add clippy");
         println("   cargo install cargo-expand");
         println("   cargo install cargo-asm");
+        println("   cargo install --git https://github.com/rust-lang/measureme --branch stable summarize");
     }
 }
 
@@ -380,9 +394,13 @@ fn fmt(args: Vec<&str>) {
     println("done");
 
     print("    fmt tests/build/cases/**/*.rs ... ");
-    let cases = all_rs("tests/build/cases");
+    let cases = all_ext("tests/build/cases", "rs");
     let cases_str: Vec<_> = cases.iter().map(|s| s.as_str()).collect();
     cmd("rustfmt", &["--edition", "2021"], &cases_str);
+    println("done");
+
+    print("    fmt profile/build-time ... ");
+    cmd("cargo", &["fmt", "--manifest-path", "profile/build-time/Cargo.toml"], &args);
     println("done");
 
     print("    fmt tools ... ");
@@ -479,8 +497,44 @@ fn prebuild(mut args: Vec<&str>) {
     cmd("cargo", &["build", "-p", "zero-ui-view-prebuilt", "--release"], &[]);
 }
 
+// do profile, p [-b --build] [-s --stress <stress-test>]
+//    Build time and runtime profiling.
+// USAGE:
+//    profile --build --release
+//       Profile `rustc` using `-Z self-timings` and summarize.
+//    profile -s <stress-test> --release
+//       Record a tracing profile of the stress test build in release mode.
+fn profile(mut args: Vec<&str>) {
+    if let Some(t) = take_value(&mut args, &["-s", "--stress"], "") {
+        args.push("--");
+        args.push(&t[0]); // the crate prints a list for ""
+        cmd("cargo", &["run", "--manifest-path", "profile/stress/Cargo.toml"], &args);
+    } else if take_flag(&mut args, &["-b", "--build"]) {
+        if !args.contains(&"--") {
+            args.push("--");
+        }
+        args.push("-Zself-profile");
+
+        cmd(
+            "cargo",
+            &["+nightly", "rustc", "--manifest-path", "profile/build-time/Cargo.toml"],
+            &args,
+        );
+
+        let profiles = all_ext("profile/build-time", "mm_profdata");
+        if profiles.is_empty() {
+            fatal("no profile generated\n   was `profile/build-time` already built and the profile file deleted?\n   try `do clean --profile-build` and then this command again")
+        }
+        let profile = newest_file(&profiles);
+
+        cmd("summarize", &["summarize", profile.strip_suffix(".mm_profdata").unwrap()], &[]);
+    } else {
+        help(vec!["profile"])
+    }
+}
+
 // do clean [--tools] [--workspace] [<cargo-clean-args>]
-//    Remove workspace, test-crates and tools target directories.
+//    Remove workspace, test crates, profile crates and tools target directories.
 // USAGE:
 //    clean --tools
 //       Remove only the target directories in ./tools.
@@ -492,11 +546,14 @@ fn prebuild(mut args: Vec<&str>) {
 //       Remove only the release files from the target directories.
 //    clean --temp, --tmp
 //       Remove the temp files from the target workspace target directory.
+//    clean --profile-build
+//       Remove only the target directory of ./profile/build-time.
 fn clean(mut args: Vec<&str>) {
     let tools = take_flag(&mut args, &["--tools"]);
     let workspace = take_flag(&mut args, &["--workspace"]);
     let temp = take_flag(&mut args, &["--temp", "--tmp"]);
-    let all = !tools && !workspace && !temp;
+    let profile_build = take_flag(&mut args, &["--profile-build"]);
+    let all = !tools && !workspace && !temp && !profile_build;
 
     if all || workspace {
         cmd("cargo", &["clean"], &args);
@@ -510,6 +567,11 @@ fn clean(mut args: Vec<&str>) {
             Err(e) => error(f!("failed to cleanup temp, {e}")),
         }
     }
+
+    if all || profile_build {
+        cmd("cargo", &["clean", "--manifest-path", "profile/build-time/Cargo.toml"], &[]);
+    }
+
     if all || tools {
         for tool_ in top_cargo_toml("test-crates") {
             if tool_.contains("/do-tasks/") {

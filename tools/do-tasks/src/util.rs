@@ -135,6 +135,29 @@ pub fn take_option<'a>(args: &mut Vec<&'a str>, option: &[&str], value_name: &st
     }
 }
 
+// Removes all of the `option` values, if the option is set without value (as a flag), uses the `default_value`.
+pub fn take_value<'a>(args: &mut Vec<&'a str>, option: &[&str], default_value: &'a str) -> Option<Vec<&'a str>> {
+    let mut i = 0;
+    let mut values = vec![];
+    while i < args.len() {
+        if option.iter().any(|&o| args[i] == o) {
+            args.remove(i); // remove option
+            if i == args.len() || args[i].starts_with('-') {
+                values.push(default_value);
+            } else {
+                values.push(args.remove(i)) // take value.
+            }
+        }
+        i += 1;
+    }
+
+    if values.is_empty() {
+        None
+    } else {
+        Some(values)
+    }
+}
+
 // Parses the initial input. Returns ("task-name", ["task", "args"]).
 pub fn args() -> (&'static str, Vec<&'static str>) {
     #[cfg(windows)]
@@ -213,9 +236,27 @@ pub fn top_cargo_toml(dir: &str) -> Vec<String> {
     glob(&format!("{dir}/*/Cargo.toml"))
 }
 
-// Get all `dir/**/*.rs` files.
-pub fn all_rs(dir: &str) -> Vec<String> {
-    glob(&format!("{dir}/**/*.rs"))
+/// Get all `dir/**/*`.ext files.
+pub fn all_ext(dir: &str, ext: &str) -> Vec<String> {
+    glob(&format!("{dir}/**/*.{ext}"))
+}
+
+/// Gets the last modified file of the list.
+pub fn newest_file(files: &[String]) -> &str {
+    let mut newest = None::<(std::time::SystemTime, &str)>;
+    for file in files {
+        if let Ok(t) = std::fs::metadata(file).and_then(|m| m.modified()) {
+            if let Some(n) = &mut newest {
+                if t > n.0 {
+                    n.0 = t;
+                    n.1 = file;
+                }
+            } else {
+                newest = Some((t, file));
+            }
+        }
+    }
+    newest.expect("could not find newest file").1
 }
 
 // Get all `examples/*.rs` file names.

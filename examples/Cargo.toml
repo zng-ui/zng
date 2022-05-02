@@ -75,10 +75,6 @@ name = "shortcuts"
 path = "shortcuts.rs"
 
 [[example]]
-name = "stress"
-path = "stress.rs"
-
-[[example]]
 name = "text"
 path = "text.rs"
 

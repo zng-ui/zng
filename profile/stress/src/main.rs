@@ -1,7 +1,6 @@
 use zero_ui::core::{context::WindowContext, window::Window};
 use zero_ui::prelude::*;
 
-const PROFILE: bool = true;
 const SAME_PROCESS: bool = true;
 const RENDER_MODE: RenderMode = RenderMode::Dedicated;
 
@@ -10,6 +9,18 @@ static TESTS: &[(&str, TestFn, FilterFn)] = &[
     ("text_change_one", text_change_one, default_filter),
     ("multi_window", multi_window, default_filter),
 ];
+
+/// Exclude trace and debug events.
+///
+/// Include trace spans above only above 1ms.
+#[allow(unused)]
+fn default_filter(a: profile_util::FilterArgs) -> bool {
+    if a.is_span {
+        a.duration > 1000
+    } else {
+        a.level < profile_util::Level::DEBUG
+    }
+}
 
 fn text_change_all(ctx: &mut WindowContext) -> Window {
     let mut dots_count = 3;
@@ -160,48 +171,41 @@ fn main() {
             return;
         }
     } else {
-        eprintln!("do run stress -- <stress-test>\nTESTS:");
+        eprintln!("do profile --stress <stress-test>\nTESTS:");
         for (t, _, _) in TESTS {
             eprintln!("   {t}");
         }
         return;
     }
 
-    let rec = if PROFILE {
-        let rec = examples_util::record_profile(
-            format!(
-                "profile-stress-{}{}{}{}{}{}{}{}.json.gz",
-                name,
-                if cfg!(debug_assertions) { "-dbg" } else { "" },
-                if SAME_PROCESS { "" } else { "-no_vp" },
-                if cfg!(feature = "ipc") { "-ipc" } else { "" },
-                if cfg!(feature = "dyn_widget") { "-dynw" } else { "" },
-                if cfg!(feature = "dyn_property") { "-dynp" } else { "" },
-                if cfg!(feature = "dyn_app_extension") { "-dyna" } else { "" },
-                match RENDER_MODE {
-                    RenderMode::Dedicated => "",
-                    RenderMode::Integrated => "-integrated",
-                    RenderMode::Software => "-software",
-                }
-            ),
-            &[
-                ("stress-test", name),
-                ("SAME_PROCESS", &SAME_PROCESS),
-                ("ipc", &cfg!(feature = "ipc")),
-                ("dyn_app_extension", &cfg!(feature = "dyn_app_extension")),
-                ("dyn_widget", &cfg!(feature = "dyn_widget")),
-                ("dyn_property", &cfg!(feature = "dyn_property")),
-                ("render_mode", &format!("{RENDER_MODE:?}")),
-            ],
-            filter,
-        );
-
-        Some(rec)
-    } else {
-        examples_util::print_info();
-
-        None
-    };
+    let profile_file = format!(
+        "profile-stress-{}{}{}{}{}{}{}{}.json.gz",
+        name,
+        if cfg!(debug_assertions) { "-dbg" } else { "" },
+        if SAME_PROCESS { "" } else { "-no_vp" },
+        if cfg!(feature = "ipc") { "-ipc" } else { "" },
+        if cfg!(feature = "dyn_widget") { "-dynw" } else { "" },
+        if cfg!(feature = "dyn_property") { "-dynp" } else { "" },
+        if cfg!(feature = "dyn_app_extension") { "-dyna" } else { "" },
+        match RENDER_MODE {
+            RenderMode::Dedicated => "",
+            RenderMode::Integrated => "-integrated",
+            RenderMode::Software => "-software",
+        }
+    );
+    let rec = profile_util::record_profile(
+        &profile_file,
+        &[
+            ("stress-test", name),
+            ("SAME_PROCESS", &SAME_PROCESS),
+            ("ipc", &cfg!(feature = "ipc")),
+            ("dyn_app_extension", &cfg!(feature = "dyn_app_extension")),
+            ("dyn_widget", &cfg!(feature = "dyn_widget")),
+            ("dyn_property", &cfg!(feature = "dyn_property")),
+            ("render_mode", &format!("{RENDER_MODE:?}")),
+        ],
+        filter,
+    );
 
     let run_app = move || {
         App::default().run_window(|ctx| {
@@ -215,20 +219,9 @@ fn main() {
         run_app();
     }
 
-    if let Some(rec) = rec {
-        rec.finish();
-    }
+    println!("saving `{profile_file}`..");
+    rec.finish();
 }
 
 type TestFn = fn(&mut WindowContext) -> Window;
-type FilterFn = fn(examples_util::FilterArgs) -> bool;
-
-/// Debug events, trace spans above 1ms.
-#[allow(unused)]
-fn default_filter(a: examples_util::FilterArgs) -> bool {
-    if a.is_span {
-        a.duration > 1000
-    } else {
-        a.level < tracing::Level::DEBUG
-    }
-}
+type FilterFn = fn(profile_util::FilterArgs) -> bool;

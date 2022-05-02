@@ -11,10 +11,11 @@
 
 # Build Time
 
+* Use https://github.com/rust-lang/measureme/blob/master/summarize/README.md to profile the build time.
 * Very slow build time in release mode without `dyn_widget` (window example up-to 18 minutes compile time and 25GB memory usage).
     Might be related to https://github.com/rust-lang/rust/issues/75992
-
-* Use https://github.com/rust-lang/measureme/blob/master/summarize/README.md to profile the build time.
+* Test https://github.com/rust-lang/rust/pull/92044.
+  - See https://github.com/rust-lang/rust/issues/87012 for details.
 
 # Mouse Move Interest
 

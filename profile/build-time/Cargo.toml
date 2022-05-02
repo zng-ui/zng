@@ -1,0 +1,11 @@
+[package]
+name = "build-time"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+zero-ui = { path = "../../zero-ui" }
+zero-ui-view = { path = "../../zero-ui-view" }
+zero-ui-view-prebuilt = { path = "../../zero-ui-view-prebuilt" }
+
+[workspace]
