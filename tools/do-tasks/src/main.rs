@@ -367,19 +367,45 @@ fn expand(mut args: Vec<&str>) {
         } else if take_flag(&mut args, &["-r", "--raw"]) {
             let p = take_option(&mut args, &["-p", "--package"], "<crate-name>").unwrap();
 
-            cmd(
-                "cargo",
-                &[
-                    "+nightly",
-                    "rustc",
-                    "--profile=check",
-                    "--package",
-                    p[0],
-                    "--",
-                    "-Zunpretty=expanded",
-                ],
-                &args,
-            );
+            if p[0] == "build-time" {
+                cmd(
+                    "cargo",
+                    &[
+                        "+nightly",
+                        "rustc",
+                        "--profile=check",
+                        "--manifest-path",
+                        "profile/build-time/Cargo.toml",
+                        "--",
+                        "-Zunpretty=expanded",
+                    ],
+                    &args,
+                )
+            } else {
+                cmd(
+                    "cargo",
+                    &[
+                        "+nightly",
+                        "rustc",
+                        "--profile=check",
+                        "--package",
+                        p[0],
+                        "--",
+                        "-Zunpretty=expanded",
+                    ],
+                    &args,
+                );
+            }
+        } else if let Some(p) = take_option(&mut args, &["-p", "--package"], "<crate-name>") {
+            if p[0] == "build-time" {
+                cmd(
+                    "cargo",
+                    &["expand", "--all-features", "--manifest-path", "profile/build-time/Cargo.toml"],
+                    &args,
+                );
+            } else {
+                cmd("cargo", &["expand", "--all-features", "-p", p[0]], &args);
+            }
         } else {
             cmd("cargo", &["expand", "--lib", "--tests", "--all-features"], &args);
         }

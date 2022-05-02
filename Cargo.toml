@@ -30,8 +30,3 @@ members = [
 exclude = [
     "dependencies/webrender"
 ]
-
-[profile.dev.package."*"]
-opt-level = 3
-[profile.dev.build-override]
-opt-level = 3
