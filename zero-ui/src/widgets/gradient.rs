@@ -24,7 +24,7 @@ pub fn linear_gradient_ext(
     stops: impl IntoVar<GradientStops>,
     extend_mode: impl IntoVar<ExtendMode>,
 ) -> impl UiNode {
-    LinearGradientNode::new(axis.into_var(), stops.into_var(), extend_mode.into_var())
+    LinearGradientNode::new(axis.into_var(), stops.into_var(), extend_mode.into_var()).cfg_boxed()
 }
 
 /// Node that fills the widget area with a Linear gradient with all features configurable.
@@ -41,7 +41,7 @@ pub fn linear_gradient_full(
         tile_spacing: tile_spacing.into_var(),
         render_tile_size: PxSize::zero(),
         render_tile_spacing: PxSize::zero(),
-    }
+    }.cfg_boxed()
 }
 
 struct LinearGradientNode<A, S, E> {

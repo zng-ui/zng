@@ -28,6 +28,9 @@ context_var! {
 /// [`Images`]: crate::core::image::Images
 /// [`image_cache`]: mod@crate::widgets::image::properties::image_cache
 pub fn image_source(child: impl UiNode, source: impl IntoVar<ImageSource>) -> impl UiNode {
+    image_source_impl(child.cfg_boxed(), source.into_var()).cfg_boxed()
+}
+fn image_source_impl(child: impl UiNode, source: impl Var<ImageSource>) -> impl UiNode {
     struct ImageSourceNode<C, S: Var<ImageSource>> {
         child: C,
         source: S,
@@ -167,7 +170,7 @@ pub fn image_source(child: impl UiNode, source: impl IntoVar<ImageSource>) -> im
         img: var(Image::dummy(None)).into_read_only(),
         ctx_img,
         ctx_binding: VarBindingHandle::dummy(),
-        source: source.into_var(),
+        source,
         render_factor: None,
     }
 }
