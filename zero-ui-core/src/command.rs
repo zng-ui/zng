@@ -1325,10 +1325,19 @@ impl CommandValue {
         scope: CommandScope,
         enabled: bool,
     ) -> CommandHandle {
+        events.with_events(|ev| self.new_handle_impl(ev, key, scope, enabled))
+    }
+    fn new_handle_impl(
+        &self,
+        events: &mut Events,
+        key: &'static LocalKey<CommandValue>,
+        scope: CommandScope,
+        enabled: bool,
+    ) -> CommandHandle {
         if let CommandScope::App = scope {
             if !self.registered.get() {
                 self.registered.set(true);
-                events.with_events(|e| e.register_command(AnyCommand(key, CommandScope::App)));
+                events.register_command(AnyCommand(key, CommandScope::App));
             }
             let r = CommandHandle {
                 handle: self.handle.reanimate(),
@@ -1342,7 +1351,7 @@ impl CommandValue {
             let mut scopes = self.scopes.borrow_mut();
             let value = scopes.entry(scope).or_insert_with(|| {
                 // register scope first time and can create variables with the updated values already.
-                events.with_events(|e| e.register_command(AnyCommand(key, scope)));
+                events.register_command(AnyCommand(key, scope));
                 ScopedValue {
                     enabled: var(enabled),
                     has_handlers: var(true),
@@ -1353,7 +1362,7 @@ impl CommandValue {
             });
             if !value.registered {
                 // register scope first time.
-                events.with_events(|e| e.register_command(AnyCommand(key, scope)));
+                events.register_command(AnyCommand(key, scope));
                 value.registered = true;
             }
             let r = CommandHandle {
@@ -1473,6 +1482,17 @@ where
     EB: FnMut(&mut WidgetContext) -> E + 'static,
     H: WidgetHandler<CommandArgs>,
 {
+    on_command_impl(child.cfg_boxed(), command_builder, enabled_builder, handler).cfg_boxed()
+}
+fn on_command_impl<U, C, CB, E, EB, H>(child: U, command_builder: CB, enabled_builder: EB, handler: H) -> impl UiNode
+where
+    U: UiNode,
+    C: Command,
+    CB: FnMut(&mut WidgetContext) -> C + 'static,
+    E: Var<bool>,
+    EB: FnMut(&mut WidgetContext) -> E + 'static,
+    H: WidgetHandler<CommandArgs>,
+{
     struct OnCommandNode<U, C, CB, E, EB, H> {
         child: U,
         command: Option<C>,
@@ -1547,6 +1567,7 @@ where
             self.enabled = None;
         }
     }
+
     OnCommandNode {
         child,
         command: None,
@@ -1561,6 +1582,17 @@ where
 /// Helper for declaring command preview handlers.
 #[inline]
 pub fn on_pre_command<U, C, CB, E, EB, H>(child: U, command_builder: CB, enabled_builder: EB, handler: H) -> impl UiNode
+where
+    U: UiNode,
+    C: Command,
+    CB: FnMut(&mut WidgetContext) -> C + 'static,
+    E: Var<bool>,
+    EB: FnMut(&mut WidgetContext) -> E + 'static,
+    H: WidgetHandler<CommandArgs>,
+{
+    on_pre_command_impl(child.cfg_boxed(), command_builder, enabled_builder, handler).cfg_boxed()
+}
+fn on_pre_command_impl<U, C, CB, E, EB, H>(child: U, command_builder: CB, enabled_builder: EB, handler: H) -> impl UiNode
 where
     U: UiNode,
     C: Command,

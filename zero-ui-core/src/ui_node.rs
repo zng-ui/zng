@@ -248,6 +248,34 @@ pub trait UiNode: 'static {
     {
         Box::new(self)
     }
+
+    /// Helper for complying with the `dyn_property` feature, boxes the node or just returns it depending of the
+    /// compile time feature.
+    /// 
+    /// If the `dyn_property` feature is enabled nodes should be nested using [`BoxedUiNode`] instead of
+    /// generating a new type. The `#[property(..)]` attribute macro auto-implements this for property functions,
+    /// other functions in the format `fn(impl UiNode, ..) -> impl UiNode` can use this method to achieve the same.
+    #[cfg(dyn_property)]
+    fn cfg_boxed(self) -> BoxedUiNode
+    where
+        Self: Sized,
+    {
+        self.boxed()
+    }
+
+    /// Helper for complying with the `dyn_property` feature, boxes the node or just returns it depending of the
+    /// compile time feature.
+    /// 
+    /// If the `dyn_property` feature is enabled nodes should be nested using [`BoxedUiNode`] instead of
+    /// generating a new type. The `#[property(..)]` attribute macro auto-implements this for property functions,
+    /// other functions in the format `fn(impl UiNode, ..) -> impl UiNode` can use this method to achieve the same.
+    #[cfg(not(dyn_property))]
+    fn cfg_boxed(self) -> Self
+    where
+        Self: Sized,
+    {
+        self
+    }
 }
 #[doc(hidden)]
 pub trait UiNodeBoxed: 'static {
