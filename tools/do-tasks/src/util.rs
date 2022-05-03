@@ -241,22 +241,14 @@ pub fn all_ext(dir: &str, ext: &str) -> Vec<String> {
     glob(&format!("{dir}/**/*.{ext}"))
 }
 
-/// Gets the last modified file of the list.
-pub fn newest_file(files: &[String]) -> &str {
-    let mut newest = None::<(std::time::SystemTime, &str)>;
-    for file in files {
-        if let Ok(t) = std::fs::metadata(file).and_then(|m| m.modified()) {
-            if let Some(n) = &mut newest {
-                if t > n.0 {
-                    n.0 = t;
-                    n.1 = file;
-                }
-            } else {
-                newest = Some((t, file));
-            }
-        }
-    }
-    newest.expect("could not find newest file").1
+/// Sort the file list by newest modification first.
+pub fn sort_modified(files: &mut [String]) {
+    files.sort_by_cached_key(|f| {
+        std::fs::metadata(f)
+            .and_then(|m| m.modified())
+            .unwrap_or(std::time::SystemTime::UNIX_EPOCH)
+    });
+    files.reverse();
 }
 
 // Get all `examples/*.rs` file names.

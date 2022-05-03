@@ -523,11 +523,13 @@ fn prebuild(mut args: Vec<&str>) {
     cmd("cargo", &["build", "-p", "zero-ui-view-prebuilt", "--release"], &[]);
 }
 
-// do profile, p [-b --build] [-s --stress <stress-test>]
+// do profile, p [-b --build [--diff]] [-s --stress <stress-test>]
 //    Build time and runtime profiling.
 // USAGE:
 //    profile --build --release
 //       Profile `rustc` using `-Z self-timings` and summarize.
+//    profile --build --release --diff
+//       Profile `rustc` using `-Z self-timings` and compare with previous profile.
 //    profile -s <stress-test> --release
 //       Record a tracing profile of the stress test build in release mode.
 fn profile(mut args: Vec<&str>) {
@@ -536,6 +538,8 @@ fn profile(mut args: Vec<&str>) {
         args.push(&t[0]); // the crate prints a list for ""
         cmd("cargo", &["run", "--manifest-path", "profile/stress/Cargo.toml"], &args);
     } else if take_flag(&mut args, &["-b", "--build"]) {
+        let diff = take_flag(&mut args, &["--diff"]);
+
         if !args.contains(&"--") {
             args.push("--");
         }
@@ -547,13 +551,19 @@ fn profile(mut args: Vec<&str>) {
             &args,
         );
 
-        let profiles = all_ext("profile/build-time", "mm_profdata");
+        let mut profiles = all_ext("profile/build-time", "mm_profdata");
         if profiles.is_empty() {
             fatal("no profile generated\n   was `profile/build-time` already built and the profile file deleted?\n   try `do clean --profile-build` and then this command again")
         }
-        let profile = newest_file(&profiles);
 
-        cmd("summarize", &["summarize", profile.strip_suffix(".mm_profdata").unwrap()], &[]);
+        if diff && profiles.len() > 1 {
+            sort_modified(&mut profiles);
+            let from = profiles[1].strip_suffix(".mm_profdata").unwrap();
+            let to = profiles[0].strip_suffix(".mm_profdata").unwrap();
+            cmd("summarize", &["diff", from, to], &[]);
+        } else {
+            cmd("summarize", &["summarize", profiles[0].strip_suffix(".mm_profdata").unwrap()], &[]);
+        }
     } else {
         help(vec!["profile"])
     }
