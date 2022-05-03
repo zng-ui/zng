@@ -682,10 +682,6 @@ mod properties {
     /// [`actual_var`]: Var::actual_var
     /// [`default`]: crate::property#default
     pub fn with_context_var<T: VarValue>(child: impl UiNode, var: impl ContextVar<Type = T>, value: impl IntoVar<T>) -> impl UiNode {
-        with_context_var_impl(child.cfg_boxed(), var, value.into_var()).cfg_boxed()
-    }
-
-    fn with_context_var_impl<T: VarValue>(child: impl UiNode, var: impl ContextVar<Type = T>, value: impl Var<T>) -> impl UiNode {
         struct WithContextVarNode<U, C, V> {
             child: U,
             var: C,
@@ -769,7 +765,12 @@ mod properties {
                     });
             }
         }
-        WithContextVarNode { child, var, value }
+        WithContextVarNode {
+            child: child.cfg_boxed(),
+            var,
+            value: value.into_var(),
+        }
+        .cfg_boxed()
     }
 }
 #[doc(inline)]

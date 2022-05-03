@@ -4,9 +4,6 @@ use crate::prelude::new_widget::*;
 
 /// Node that fills the widget area with a color.
 pub fn fill_color(color: impl IntoVar<Rgba>) -> impl UiNode {
-    fill_color_impl(color.into_var()).cfg_boxed()
-}
-fn fill_color_impl(color: impl Var<Rgba>) -> impl UiNode {
     struct FillColorNode<C> {
         color: C,
         frame_key: Option<FrameBindingKey<RenderColor>>,
@@ -53,6 +50,7 @@ fn fill_color_impl(color: impl Var<Rgba>) -> impl UiNode {
         }
     }
 
+    let color = color.into_var();
     let frame_key = if color.can_update() {
         Some(FrameBindingKey::new_unique())
     } else {
@@ -64,4 +62,5 @@ fn fill_color_impl(color: impl Var<Rgba>) -> impl UiNode {
         final_size: PxSize::zero(),
         requested_update: Cell::new(false),
     }
+    .cfg_boxed()
 }

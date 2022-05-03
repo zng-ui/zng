@@ -647,9 +647,6 @@ context_var! {
 /// [`corner_radius`]: fn@corner_radius
 /// [`border_align`]: fn@border_align
 pub fn fill_node(content: impl UiNode) -> impl UiNode {
-    fill_node_impl(content.cfg_boxed()).cfg_boxed()
-}
-fn fill_node_impl(content: impl UiNode) -> impl UiNode {
     struct FillNodeNode<C> {
         child: C,
         offset: PxVector,
@@ -716,9 +713,10 @@ fn fill_node_impl(content: impl UiNode) -> impl UiNode {
         }
     }
     FillNodeNode {
-        child: content,
+        child: content.cfg_boxed(),
         offset: PxVector::zero(),
         clip: (PxSize::zero(), PxCornerRadius::zero()),
         spatial_id: SpatialFrameId::new_unique(),
     }
+    .cfg_boxed()
 }

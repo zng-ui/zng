@@ -474,16 +474,6 @@ where
     V: IntoVar<K::Type>,
     H: FnMut(&mut WidgetContext, &K::Type) + 'static,
 {
-    set_widget_state_update_impl(child.cfg_boxed(), key, value.into_var(), on_update).cfg_boxed()
-}
-fn set_widget_state_update_impl<U, K, V, H>(child: U, key: K, var: V, on_update: H) -> impl UiNode
-where
-    U: UiNode,
-    K: StateKey,
-    K::Type: VarValue,
-    V: Var<K::Type>,
-    H: FnMut(&mut WidgetContext, &K::Type) + 'static,
-{
     struct SetWidgetStateNode<U, K, V, H> {
         child: U,
         key: K,
@@ -518,9 +508,10 @@ where
         }
     }
     SetWidgetStateNode {
-        child,
+        child: child.cfg_boxed(),
         key,
-        var,
+        var: value.into_var(),
         on_update,
     }
+    .cfg_boxed()
 }

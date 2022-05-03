@@ -41,7 +41,8 @@ pub fn linear_gradient_full(
         tile_spacing: tile_spacing.into_var(),
         render_tile_size: PxSize::zero(),
         render_tile_spacing: PxSize::zero(),
-    }.cfg_boxed()
+    }
+    .cfg_boxed()
 }
 
 struct LinearGradientNode<A, S, E> {

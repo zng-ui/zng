@@ -23,6 +23,7 @@
      - `zero-ui-core` REVIEWED
      - `zero-ui` PENDING
   - Use https://github.com/dtolnay/cargo-llvm-lines
+* Review #[property] and #[widget] proc-macros, they can use `UiNode::cfg_boxed` now.
 
 # Mouse Move Interest
 

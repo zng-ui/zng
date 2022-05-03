@@ -1482,17 +1482,6 @@ where
     EB: FnMut(&mut WidgetContext) -> E + 'static,
     H: WidgetHandler<CommandArgs>,
 {
-    on_command_impl(child.cfg_boxed(), command_builder, enabled_builder, handler).cfg_boxed()
-}
-fn on_command_impl<U, C, CB, E, EB, H>(child: U, command_builder: CB, enabled_builder: EB, handler: H) -> impl UiNode
-where
-    U: UiNode,
-    C: Command,
-    CB: FnMut(&mut WidgetContext) -> C + 'static,
-    E: Var<bool>,
-    EB: FnMut(&mut WidgetContext) -> E + 'static,
-    H: WidgetHandler<CommandArgs>,
-{
     struct OnCommandNode<U, C, CB, E, EB, H> {
         child: U,
         command: Option<C>,
@@ -1569,7 +1558,7 @@ where
     }
 
     OnCommandNode {
-        child,
+        child: child.cfg_boxed(),
         command: None,
         command_builder,
         enabled: None,
@@ -1577,22 +1566,12 @@ where
         handler,
         handle: None,
     }
+    .cfg_boxed()
 }
 
 /// Helper for declaring command preview handlers.
 #[inline]
 pub fn on_pre_command<U, C, CB, E, EB, H>(child: U, command_builder: CB, enabled_builder: EB, handler: H) -> impl UiNode
-where
-    U: UiNode,
-    C: Command,
-    CB: FnMut(&mut WidgetContext) -> C + 'static,
-    E: Var<bool>,
-    EB: FnMut(&mut WidgetContext) -> E + 'static,
-    H: WidgetHandler<CommandArgs>,
-{
-    on_pre_command_impl(child.cfg_boxed(), command_builder, enabled_builder, handler).cfg_boxed()
-}
-fn on_pre_command_impl<U, C, CB, E, EB, H>(child: U, command_builder: CB, enabled_builder: EB, handler: H) -> impl UiNode
 where
     U: UiNode,
     C: Command,
@@ -1676,7 +1655,7 @@ where
         }
     }
     OnPreCommandNode {
-        child,
+        child: child.cfg_boxed(),
         command: None,
         command_builder,
         enabled: None,
@@ -1684,6 +1663,7 @@ where
         handler,
         handle: None,
     }
+    .cfg_boxed()
 }
 
 #[cfg(test)]
