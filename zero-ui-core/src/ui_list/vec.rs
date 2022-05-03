@@ -64,12 +64,12 @@ impl WidgetVec {
         self.ctrl.clone()
     }
 
-    /// Appends the widget, automatically calls [`Widget::boxed_widget`].
+    /// Appends the widget, automatically calls [`Widget::boxed_wgt`].
     pub fn push<W: Widget>(&mut self, widget: W) {
         self.vec.push(widget.boxed_wgt());
     }
 
-    /// Appends the widget, automatically calls [`Widget::boxed_widget`].
+    /// Appends the widget, automatically calls [`Widget::boxed_wgt`].
     pub fn insert<W: Widget>(&mut self, index: usize, widget: W) {
         self.vec.insert(index, widget.boxed_wgt());
     }
@@ -895,7 +895,7 @@ impl UiNodeList for UiNodeVec {
 /// ];
 /// ```
 ///
-/// `widget_vec!` automatically calls [`Widget::boxed_widget`] for each item.
+/// `widget_vec!` automatically calls [`Widget::boxed_wgt`] for each item.
 ///
 /// [`WidgetVec`]: crate::ui_list::WidgetVec
 #[macro_export]

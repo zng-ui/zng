@@ -72,7 +72,7 @@ impl SortedWidgetVec {
     ///
     /// The widget is inserted all other widgets that are less then or equal to as defined by the sorting function.
     ///
-    /// Automatically calls [`Widget::boxed_widget`].
+    /// Automatically calls [`Widget::boxed_wgt`].
     pub fn insert<W: Widget>(&mut self, widget: W) {
         self.insert_impl(widget.boxed_wgt());
     }
