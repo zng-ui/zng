@@ -933,6 +933,35 @@ impl<E: AppExtension> RunningApp<E> {
         Self::notify_event_(&mut self.owned_ctx.borrow(), &mut self.extensions, event, args, observer);
     }
 
+    #[cfg(dyn_app_extension)]
+    fn notify_event_<Ev: crate::event::Event, O: AppEventObserver>(
+        ctx: &mut AppContext,
+        extensions: &mut E,
+        event: Ev,
+        args: Ev::Args,
+        observer: &mut O,
+    ) {
+        let _scope = tracing::trace_span!("notify_event", event = type_name::<Ev>()).entered();
+        Self::notify_event_impl(ctx, extensions, EventUpdate::new(event, args).boxed(), &mut observer.as_dyn());
+    }
+    #[cfg(dyn_app_extension)]
+    fn notify_event_impl(ctx: &mut AppContext, extensions: &mut E, update: BoxedEventUpdate, observer: &mut impl AppEventObserver) {
+        extensions.event_preview(ctx, &update);
+        Vars::event_preview(ctx, &update);
+        observer.event_preview(ctx, &update);
+
+        Events::on_pre_events(ctx, &update);
+
+        extensions.event_ui(ctx, &update);
+        observer.event_ui(ctx, &update);
+
+        extensions.event(ctx, &update);
+        observer.event(ctx, &update);
+
+        Events::on_events(ctx, &update);
+    }
+
+    #[cfg(not(dyn_app_extension))]
     fn notify_event_<Ev: crate::event::Event, O: AppEventObserver>(
         ctx: &mut AppContext,
         extensions: &mut E,
@@ -1391,6 +1420,13 @@ impl<E: AppExtension> RunningApp<E> {
     }
 
     fn poll<O: AppEventObserver>(&mut self, wait_app_event: bool, observer: &mut O) -> ControlFlow {
+        #[cfg(dyn_app_extension)]
+        let mut observer = observer.as_dyn();
+        #[cfg(dyn_app_extension)]
+        let observer = &mut observer;
+        self.poll_impl(wait_app_event, observer)
+    }
+    fn poll_impl<O: AppEventObserver>(&mut self, wait_app_event: bool, observer: &mut O) -> ControlFlow {
         let mut disconnected = false;
 
         if wait_app_event {
@@ -1834,6 +1870,7 @@ impl HeadlessApp {
             }
         }
         let mut observer = Observer(on_update);
+
         self.update_observed(&mut observer, wait_app_event)
     }
 
@@ -1971,9 +2008,112 @@ pub trait AppEventObserver {
     fn render(&mut self, ctx: &mut AppContext) {
         let _ = ctx;
     }
+
+    /// Cast to dynamically dispatched observer, this can help avoid code bloat.
+    ///
+    /// The app methods that accept observers automatically use this method if the feature `"dyn_app_extension"` is active.
+    fn as_dyn(&mut self) -> DynAppEventObserver
+    where
+        Self: Sized,
+    {
+        DynAppEventObserver(self)
+    }
 }
 /// Nil observer, does nothing.
 impl AppEventObserver for () {}
+
+#[doc(hidden)]
+pub struct DynAppEventObserver<'a>(&'a mut dyn AppEventObserverDyn);
+
+trait AppEventObserverDyn {
+    fn raw_event_dyn(&mut self, ctx: &mut AppContext, ev: &zero_ui_view_api::Event);
+    fn event_preview_dyn(&mut self, ctx: &mut AppContext, args: &AnyEventUpdate);
+    fn event_ui_dyn(&mut self, ctx: &mut AppContext, args: &AnyEventUpdate);
+    fn event_dyn(&mut self, ctx: &mut AppContext, args: &AnyEventUpdate);
+    fn update_preview_dyn(&mut self, ctx: &mut AppContext);
+    fn update_ui_dyn(&mut self, ctx: &mut AppContext);
+    fn update_dyn(&mut self, ctx: &mut AppContext);
+    fn layout_dyn(&mut self, ctx: &mut AppContext);
+    fn render_dyn(&mut self, ctx: &mut AppContext);
+}
+impl<O: AppEventObserver> AppEventObserverDyn for O {
+    fn raw_event_dyn(&mut self, ctx: &mut AppContext, ev: &zero_ui_view_api::Event) {
+        self.raw_event(ctx, ev)
+    }
+
+    fn event_preview_dyn(&mut self, ctx: &mut AppContext, args: &AnyEventUpdate) {
+        self.event_preview(ctx, args)
+    }
+
+    fn event_ui_dyn(&mut self, ctx: &mut AppContext, args: &AnyEventUpdate) {
+        self.event_ui(ctx, args)
+    }
+
+    fn event_dyn(&mut self, ctx: &mut AppContext, args: &AnyEventUpdate) {
+        self.event(ctx, args)
+    }
+
+    fn update_preview_dyn(&mut self, ctx: &mut AppContext) {
+        self.update_preview(ctx)
+    }
+
+    fn update_ui_dyn(&mut self, ctx: &mut AppContext) {
+        self.update_ui(ctx)
+    }
+
+    fn update_dyn(&mut self, ctx: &mut AppContext) {
+        self.update(ctx)
+    }
+
+    fn layout_dyn(&mut self, ctx: &mut AppContext) {
+        self.layout(ctx)
+    }
+
+    fn render_dyn(&mut self, ctx: &mut AppContext) {
+        self.render(ctx)
+    }
+}
+impl<'a> AppEventObserver for DynAppEventObserver<'a> {
+    fn raw_event(&mut self, ctx: &mut AppContext, ev: &zero_ui_view_api::Event) {
+        self.0.raw_event_dyn(ctx, ev)
+    }
+
+    fn event_preview<EU: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EU) {
+        self.0.event_preview_dyn(ctx, &args.as_any())
+    }
+
+    fn event_ui<EU: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EU) {
+        self.0.event_ui_dyn(ctx, &args.as_any())
+    }
+
+    fn event<EU: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EU) {
+        self.0.event_dyn(ctx, &args.as_any())
+    }
+
+    fn update_preview(&mut self, ctx: &mut AppContext) {
+        self.0.update_preview_dyn(ctx)
+    }
+
+    fn update_ui(&mut self, ctx: &mut AppContext) {
+        self.0.update_ui_dyn(ctx)
+    }
+
+    fn update(&mut self, ctx: &mut AppContext) {
+        self.0.update_dyn(ctx)
+    }
+
+    fn layout(&mut self, ctx: &mut AppContext) {
+        self.0.layout_dyn(ctx)
+    }
+
+    fn render(&mut self, ctx: &mut AppContext) {
+        self.0.render_dyn(ctx)
+    }
+
+    fn as_dyn(&mut self) -> DynAppEventObserver {
+        DynAppEventObserver(self.0)
+    }
+}
 
 impl AppExtension for () {
     #[inline]
