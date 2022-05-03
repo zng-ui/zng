@@ -234,7 +234,7 @@ fn ruler() -> impl Widget {
                 x = x.dip();
                 height = if x % 100 == 0 { 52 } else if x % 50 == 0 { 22 } else { 12 };
             }
-            .boxed_widget())
+            .boxed_wgt())
             .collect::<WidgetVec>(),
     }
 }

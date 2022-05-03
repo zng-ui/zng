@@ -212,7 +212,7 @@ command! {
     /// |--------------|---------------------------------------------------------|
     /// | [`name`]     | "Page Right"                                            |
     /// | [`info`]     | "Scroll the focused scrollable RIGHT by one page unit." |
-    /// | [`shortcut`] | `PageDowm`, `SHIFT+PageDown`                            |
+    /// | [`shortcut`] | `PageDown`, `SHIFT+PageDown`                            |
     ///
     /// # Parameter
     ///
@@ -296,7 +296,7 @@ command! {
     ///
     /// | metadata     | value                                                  |
     /// |--------------|--------------------------------------------------------|
-    /// | [`name`]     | "Scroll to Righmost"                                   |
+    /// | [`name`]     | "Scroll to Rightmost"                                   |
     /// | [`info`]     | "Scroll right to the content right edge."              |
     /// | [`shortcut`] | `CTRL+End`, <code>CTRL&#124;SHIFT+End</code>           |
     ///
