@@ -556,8 +556,9 @@ fn profile(mut args: Vec<&str>) {
             fatal("no profile generated\n   was `profile/build-time` already built and the profile file deleted?\n   try `do clean --profile-build` and then this command again")
         }
 
+        sort_modified(&mut profiles);
+
         if diff && profiles.len() > 1 {
-            sort_modified(&mut profiles);
             let from = profiles[1].strip_suffix(".mm_profdata").unwrap();
             let to = profiles[0].strip_suffix(".mm_profdata").unwrap();
             cmd("summarize", &["diff", from, to], &[]);
