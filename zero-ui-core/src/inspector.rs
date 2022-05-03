@@ -1108,6 +1108,8 @@ impl ValueInfo {
             "async_app_hn!({{closure}})".to_text()
         } else if name.contains("::AsyncFnOnceAppHandler<") {
             "async_app_hn_once!({{closure}})".to_text()
+        } else if name.contains("::Box<dyn zero_ui_core::ui_node::WidgetBoxed>") {
+            "BoxedWidget".to_text()
         } else {
             // TODO short name
             formatx!("<{name}>")

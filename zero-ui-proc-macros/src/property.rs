@@ -1044,7 +1044,7 @@ mod output {
                     child: impl #crate_core::UiNode
                 };
                 let child_arg_use = quote_spanned! {set_child_span=>
-                    child
+                    box_fix(child)
                 };
 
                 let set_ident = ident!("__{ident}_set");
@@ -1057,8 +1057,12 @@ mod output {
                         #[doc(hidden)]
                         #[inline]
                         pub fn #set_ident(self_: impl #args_ident, #child_arg) -> #output_ty {
+                            fn box_fix(node: impl #crate_core::UiNode) -> #crate_core::BoxedUiNode {
+                                #crate_core::UiNode::cfg_boxed(node)
+                            }
                             let ( #(#arg_locals),* ) = self_.unwrap();
-                            #ident(#child_arg_use, #( #arg_locals ),*)
+                            let out = #ident(#child_arg_use, #( #arg_locals ),*);
+                            box_fix(out)
                         }
                     });
                 }
