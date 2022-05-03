@@ -57,6 +57,7 @@ impl<U: UiNode> RcNode<U> {
                 SlotNodeState::Inactive(Rc::downgrade(&self.0))
             },
         }
+        .cfg_boxed()
     }
 
     /// Creates a new [`WeakNode`] that points to this node.

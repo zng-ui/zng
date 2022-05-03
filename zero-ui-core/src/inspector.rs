@@ -427,7 +427,7 @@ impl WidgetNewFn {
         }
     }
 
-    /// Returns the corrensponding priority for the new function.
+    /// Returns the corresponding priority for the new function.
     ///
     /// Returns `None` for `NewChild` and `New`.
     pub fn priority(self) -> Option<PropertyPriority> {
@@ -1080,8 +1080,10 @@ impl ValueInfo {
 
     /// New [`ValueInfo`] from a value type that is not known to implement any format trait.
     pub fn new_type_name_only<T>(_: &T) -> Self {
-        let name = std::any::type_name::<T>();
+        Self::new_type_name_only_impl(std::any::type_name::<T>())
+    }
 
+    fn new_type_name_only_impl(name: &'static str) -> Self {
         let debug = if name.contains("::WidgetNode") {
             "<widget!>".to_text()
         } else if name.contains("::WidgetVec") || name.contains("::WidgetList") {
@@ -1622,7 +1624,7 @@ pub fn write_tree<W: std::io::Write>(tree: &WidgetInfoTree, updates_from: &Write
     write_impl(updates_from, tree.root(), "", &mut fmt);
     fmt.write_legend();
 }
-fn write_impl<W: std::io::Write>(updates_from: &WriteTreeState, widget: WidgetInfo, parent_name: &str, fmt: &mut print_fmt::Fmt<W>) {
+fn write_impl(updates_from: &WriteTreeState, widget: WidgetInfo, parent_name: &str, fmt: &mut print_fmt::Fmt) {
     if let Some(info) = widget.instance() {
         let wgt = info.borrow();
 
@@ -1791,13 +1793,13 @@ mod print_fmt {
     use std::fmt::Display;
     use std::io::Write;
 
-    pub struct Fmt<'w, W: Write> {
+    pub struct Fmt<'w> {
         depth: u32,
-        output: &'w mut W,
+        output: &'w mut dyn Write,
         property_group: &'static str,
     }
-    impl<'w, W: Write> Fmt<'w, W> {
-        pub fn new(output: &'w mut W) -> Self {
+    impl<'w> Fmt<'w> {
+        pub fn new(output: &'w mut dyn Write) -> Self {
             Fmt {
                 depth: 0,
                 output,

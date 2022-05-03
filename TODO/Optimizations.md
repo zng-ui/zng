@@ -20,8 +20,9 @@
      - `zero-ui-view-api` REVIEWED
      - `zero-ui-view` REVIEWED
      - `zero-ui-view-prebuilt` REVIEWED
-     - `zero-ui-core` PENDING
+     - `zero-ui-core` REVIEWED
      - `zero-ui` PENDING
+  - Use https://github.com/dtolnay/cargo-llvm-lines
 
 # Mouse Move Interest
 

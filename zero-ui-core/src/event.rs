@@ -1920,6 +1920,15 @@ where
     F: FnMut(&mut WidgetContext, &E::Args) -> bool + 'static,
     H: WidgetHandler<E::Args>,
 {
+    on_event_impl(child.cfg_boxed(), event, filter, handler).cfg_boxed()
+}
+fn on_event_impl<C, E, F, H>(child: C, event: E, filter: F, handler: H) -> impl UiNode
+where
+    C: UiNode,
+    E: Event,
+    F: FnMut(&mut WidgetContext, &E::Args) -> bool + 'static,
+    H: WidgetHandler<E::Args>,
+{
     struct OnEventNode<C, E, F, H> {
         child: C,
         event: E,
@@ -1993,6 +2002,15 @@ where
 /// [`stop_propagation`]: EventArgs::stop_propagation
 /// [`stop_propagation_requested`]: EventArgs::stop_propagation_requested
 pub fn on_pre_event<C, E, F, H>(child: C, event: E, filter: F, handler: H) -> impl UiNode
+where
+    C: UiNode,
+    E: Event,
+    F: FnMut(&mut WidgetContext, &E::Args) -> bool + 'static,
+    H: WidgetHandler<E::Args>,
+{
+    on_pre_event_impl(child.cfg_boxed(), event, filter, handler).cfg_boxed()
+}
+fn on_pre_event_impl<C, E, F, H>(child: C, event: E, filter: F, handler: H) -> impl UiNode
 where
     C: UiNode,
     E: Event,

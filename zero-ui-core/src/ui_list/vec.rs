@@ -66,12 +66,12 @@ impl WidgetVec {
 
     /// Appends the widget, automatically calls [`Widget::boxed_widget`].
     pub fn push<W: Widget>(&mut self, widget: W) {
-        self.vec.push(widget.boxed_widget());
+        self.vec.push(widget.boxed_wgt());
     }
 
     /// Appends the widget, automatically calls [`Widget::boxed_widget`].
     pub fn insert<W: Widget>(&mut self, index: usize, widget: W) {
-        self.vec.insert(index, widget.boxed_widget());
+        self.vec.insert(index, widget.boxed_wgt());
     }
 
     /// Returns a reference to the widget with the same `id`.
@@ -533,7 +533,7 @@ impl WidgetVecRef {
     pub fn insert(&self, updates: &mut impl WithUpdates, index: usize, widget: impl Widget) {
         updates.with_updates(|u| {
             let mut s = self.0.borrow_mut();
-            s.insert.push((index, widget.boxed_widget()));
+            s.insert.push((index, widget.boxed_wgt()));
             u.update(s.update_slot.mask());
         })
     }
@@ -548,7 +548,7 @@ impl WidgetVecRef {
     pub fn push(&self, updates: &mut impl WithUpdates, widget: impl Widget) {
         updates.with_updates(|u| {
             let mut s = self.0.borrow_mut();
-            s.push.push(widget.boxed_widget());
+            s.push.push(widget.boxed_wgt());
             u.update(s.update_slot.mask());
         })
     }
@@ -903,7 +903,7 @@ macro_rules! widget_vec {
     () => { $crate::ui_list::WidgetVec::new() };
     ($($widget:expr),+ $(,)?) => {
         $crate::ui_list::WidgetVec::from(vec![
-            $($crate::Widget::boxed_widget($widget)),*
+            $($crate::Widget::boxed_wgt($widget)),*
         ])
     };
 }

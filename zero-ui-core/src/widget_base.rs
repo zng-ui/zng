@@ -131,6 +131,9 @@ pub mod implicit_base {
         ///
         /// This node makes properties like *padding* work for content that does not implement [`Widget`].
         pub fn leaf_transform(content: impl UiNode) -> impl UiNode {
+            leaf_transform_impl(content.cfg_boxed()).cfg_boxed()
+        }
+        fn leaf_transform_impl(content: impl UiNode) -> impl UiNode {
             struct LeafTransformNode<C> {
                 child: C,
                 leaf_transform: Option<Box<(SpatialFrameId, RenderTransform)>>,
@@ -170,6 +173,9 @@ pub mod implicit_base {
         /// The `baseline` closure is called every [`UiNode::arrange`] and must return the offset up from the final size height
         /// that is the widgets baseline. The implicit default is `Px(0)` meaning the widget inner bounds bottom.
         pub fn inner(child: impl UiNode, baseline: impl FnMut(&mut LayoutContext, &BaselineArgs) -> Px + 'static) -> impl UiNode {
+            inner_impl(child.cfg_boxed(), baseline).cfg_boxed()
+        }
+        fn inner_impl(child: impl UiNode, baseline: impl FnMut(&mut LayoutContext, &BaselineArgs) -> Px + 'static) -> impl UiNode {
             struct InnerNode<T, B> {
                 child: T,
                 baseline: B,
@@ -220,6 +226,9 @@ pub mod implicit_base {
         /// [`WidgetContext::widget_context`], [`LayoutContext::with_widget`] and [`FrameBuilder::push_widget`]
         /// to define the widget.
         pub fn widget(child: impl UiNode, id: impl IntoValue<WidgetId>) -> impl Widget {
+            widget_impl(child.cfg_boxed(), id.into()).cfg_boxed_wgt()
+        }
+        fn widget_impl(child: impl UiNode, id: WidgetId) -> impl Widget {
             struct WidgetNode<T> {
                 id: WidgetId,
                 state: OwnedStateMap,
@@ -393,7 +402,7 @@ pub mod implicit_base {
                 }
             }
             WidgetNode {
-                id: id.into(),
+                id,
                 state: OwnedStateMap::default(),
                 child,
                 outer_info: WidgetLayoutInfo::new(),

@@ -251,7 +251,7 @@ pub trait UiNode: 'static {
 
     /// Helper for complying with the `dyn_property` feature, boxes the node or just returns it depending of the
     /// compile time feature.
-    /// 
+    ///
     /// If the `dyn_property` feature is enabled nodes should be nested using [`BoxedUiNode`] instead of
     /// generating a new type. The `#[property(..)]` attribute macro auto-implements this for property functions,
     /// other functions in the format `fn(impl UiNode, ..) -> impl UiNode` can use this method to achieve the same.
@@ -265,7 +265,7 @@ pub trait UiNode: 'static {
 
     /// Helper for complying with the `dyn_property` feature, boxes the node or just returns it depending of the
     /// compile time feature.
-    /// 
+    ///
     /// If the `dyn_property` feature is enabled nodes should be nested using [`BoxedUiNode`] instead of
     /// generating a new type. The `#[property(..)]` attribute macro auto-implements this for property functions,
     /// other functions in the format `fn(impl UiNode, ..) -> impl UiNode` can use this method to achieve the same.
@@ -502,11 +502,39 @@ pub trait Widget: UiNode {
     fn render_info(&self) -> &WidgetRenderInfo;
 
     /// Box this widget node, unless it is already `BoxedWidget`.
-    fn boxed_widget(self) -> BoxedWidget
+    fn boxed_wgt(self) -> BoxedWidget
     where
         Self: Sized,
     {
         Box::new(self)
+    }
+
+    /// Helper for complying with the `dyn_widget` feature, boxes the widget or just returns it depending of the
+    /// compile time feature.
+    ///
+    /// If the `dyn_widget` feature is enabled widget should be nested using [`BoxedUiNode`] instead of
+    /// generating a new type. The `#[widget(..)]` attribute macro auto-implements this for widget new functions,
+    /// other functions in the format `fn() -> impl Widget` can use this method to achieve the same.
+    #[cfg(dyn_widget)]
+    fn cfg_boxed_wgt(self) -> BoxedWidget
+    where
+        Self: Sized,
+    {
+        self.boxed_wgt()
+    }
+
+    /// Helper for complying with the `dyn_widget` feature, boxes the widget or just returns it depending of the
+    /// compile time feature.
+    ///
+    /// If the `dyn_widget` feature is enabled widget should be nested using [`BoxedUiNode`] instead of
+    /// generating a new type. The `#[widget(..)]` attribute macro auto-implements this for widget new functions,
+    /// other functions in the format `fn() -> impl Widget` can use this method to achieve the same.
+    #[cfg(not(dyn_widget))]
+    fn cfg_boxed_wgt(self) -> Self
+    where
+        Self: Sized,
+    {
+        self
     }
 
     declare_widget_test_calls! {

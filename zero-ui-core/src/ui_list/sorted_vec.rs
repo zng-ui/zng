@@ -74,7 +74,7 @@ impl SortedWidgetVec {
     ///
     /// Automatically calls [`Widget::boxed_widget`].
     pub fn insert<W: Widget>(&mut self, widget: W) {
-        self.insert_impl(widget.boxed_widget());
+        self.insert_impl(widget.boxed_wgt());
     }
     fn insert_impl(&mut self, widget: BoxedWidget) -> usize {
         match self.vec.binary_search_by(|a| (self.sort)(a, &widget)) {
@@ -509,7 +509,7 @@ impl SortedWidgetVecRef {
     pub fn insert(&self, updates: &mut impl WithUpdates, widget: impl Widget) {
         updates.with_updates(|u| {
             let mut s = self.0.borrow_mut();
-            s.insert.push(widget.boxed_widget());
+            s.insert.push(widget.boxed_wgt());
             u.update(s.update_slot.mask());
         })
     }
