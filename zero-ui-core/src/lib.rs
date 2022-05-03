@@ -1098,3 +1098,35 @@ mod private {
     // https://rust-lang.github.io/api-guidelines/future-proofing.html#sealed-traits-protect-against-downstream-implementations-c-sealed
     pub trait Sealed {}
 }
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! core_cfg_ok {
+    (@NOT $($tt:tt)*) => { };
+    ($($tt:tt)*) => { $($tt)* };
+}
+#[doc(hidden)]
+#[macro_export]
+macro_rules! core_cfg_ignore {
+    (@NOT $($tt:tt)*) => { $($tt)* };
+    ($($tt:tt)*) => { };
+}
+
+// core features as macros that discard or pass input, used in proc-macros.
+macro_rules! core_cfg {
+    ($($feature:ident,)+) => {$(paste::paste!{
+        #[cfg($feature)]
+        #[doc(hidden)]
+        pub use $crate::core_cfg_ok as [<core_cfg_ $feature>];
+
+        #[cfg(not($feature))]
+        #[doc(hidden)]
+        #[macro_export]
+        pub use $crate::core_cfg_ignore as [<core_cfg_ $feature>];
+    })+}
+}
+core_cfg! {
+    dyn_property,
+    dyn_widget,
+    inspector,
+}

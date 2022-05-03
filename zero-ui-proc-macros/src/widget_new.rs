@@ -242,12 +242,10 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     // generate whens.
     let mut when_inits = TokenStream::default();
 
-    if cfg!(inspector) {
-        when_inits.extend(quote! {
-            #[allow(unused_mut)]
-            let mut when_infos__: std::vec::Vec<#module::__core::WhenInfoV1> = std::vec![];
-        });
-    }
+    when_inits.extend(quote! { #module::__core::core_cfg_inspector! {
+        #[allow(unused_mut)]
+        let mut when_infos__: std::vec::Vec<#module::__core::WhenInfoV1> = std::vec![];
+    }});
 
     // map of { property => [(cfg, condition_var, when_value_ident, when_value_for_prop)] }
     let mut when_assigns: HashMap<Path, Vec<(TokenStream, Ident, Ident, TokenStream)>> = HashMap::new();
@@ -286,13 +284,14 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         }
         let c_ident = ident!("__c_{ident}");
 
-        let condition_call = if cfg!(inspector) {
-            quote! {
-                #module::#dbg_ident(#(&#inputs),* , &mut when_infos__)
-            }
-        } else {
-            quote! {
-                #module::#ident(#(&#inputs),*)
+        let condition_call = quote! {
+            {
+                #module::__core::core_cfg_inspector! {
+                    #module::#dbg_ident(#(&#inputs),* , &mut when_infos__)
+                }
+                #module::__core::core_cfg_inspector! {@NOT
+                    #module::#ident(#(&#inputs),*)
+                }
             }
         };
 
@@ -466,10 +465,10 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                 };
             }
         });
-        if cfg!(inspector) {
+        {
             let expr_str = util::format_rust_expr(w.condition_expr.to_string());
             let assign_names = w.assigns.iter().map(|a| util::display_path(&a.path));
-            when_inits.extend(quote! {
+            when_inits.extend(quote! { #module::__core::core_cfg_inspector! {
                 #cfg
                 when_infos__.push(#module::__core::WhenInfoV1 {
                     condition_expr: #expr_str,
@@ -480,7 +479,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                     decl_location: #module::__core::source_location!(),
                     user_declared: false,
                 });
-            });
+            }});
         }
 
         // init assign variables
@@ -652,21 +651,12 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             // __set @ value span
 
             let set = ident_spanned!(*val_span=> "__set");
-            if cfg!(inspector) {
-                property_set_calls.extend(quote_spanned! {*p_span=>
-                    #cfg
-                    #p_mod::code_gen! {
-                        set #priority, #node__, #p_mod, #p_var_ident, #p_name, #source_loc, #user_assigned, #set
-                    }
-                });
-            } else {
-                property_set_calls.extend(quote_spanned! {*p_span=>
-                    #cfg
-                    #p_mod::code_gen! {
-                        set #priority, #node__, #p_mod, #p_var_ident, #set
-                    }
-                });
-            }
+            property_set_calls.extend(quote_spanned! {*p_span=>
+                #cfg
+                #p_mod::code_gen! {
+                    set #priority, #node__, #p_mod, #p_var_ident, #p_name, #source_loc, #user_assigned, #set
+                }
+            });
         }
 
         let caps_i = i + 1;
@@ -674,22 +664,21 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         let cap_idents = caps.iter().map(|(i, _)| i);
         let cap_cfgs: Vec<_> = caps.iter().map(|(_, c)| c).collect();
 
-        if cfg!(inspector) {
-            let new_fn_ident = ident!("__new_{}_inspect", priority);
-            let cap_user_set = widget_data.new_captures[caps_i]
-                .iter()
-                .map(|c| overriden_properties.contains(&c.ident));
-            property_set_calls.extend(quote! {
-                #[allow(unreachable_code)]
-                let #node__ = #module::#new_fn_ident(#node__, #(#cap_cfgs #cap_idents,)* #(#cap_cfgs #cap_user_set),*);
-            })
-        } else {
-            let new_fn_ident = ident!("__new_{}", priority);
-            property_set_calls.extend(quote! {
-                #[allow(unreachable_code)]
-                let #node__ = #module::#new_fn_ident(#node__, #(#cap_cfgs #cap_idents),*);
-            })
-        }
+        let new_fn_ident = ident!("__new_{}_inspect", priority);
+        let cap_user_set = widget_data.new_captures[caps_i]
+            .iter()
+            .map(|c| overriden_properties.contains(&c.ident));
+        let cap_idents2 = cap_idents.clone();
+        property_set_calls.extend(quote! { #module::__core::core_cfg_inspector! {
+            #[allow(unreachable_code)]
+            let #node__ = #module::#new_fn_ident(#node__, #(#cap_cfgs #cap_idents2,)* #(#cap_cfgs #cap_user_set),*);
+        }});
+
+        let new_fn_ident = ident!("__new_{}", priority);
+        property_set_calls.extend(quote! { #module::__core::core_cfg_inspector! {@NOT
+            #[allow(unreachable_code)]
+            let #node__ = #module::#new_fn_ident(#node__, #(#cap_cfgs #cap_idents),*);
+        }});
     }
     let property_set_calls = property_set_calls;
 
@@ -756,20 +745,25 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let nc_idents = new_caps.iter().map(|(i, _)| i);
     let nc_cfgs: Vec<_> = new_caps.iter().map(|(_, c)| c).collect();
 
-    let new_child_call = if cfg!(inspector) {
+    let new_child_call = {
+        let ncc_idents2 = ncc_idents.clone();
+
         let cap_user_set = widget_data.new_captures[0].iter().map(|c| overriden_properties.contains(&c.ident));
         quote! {
-            #[allow(unreachable_code)]
-            let node__ = #module::__new_child_inspect(#(#ncc_cfgs #ncc_idents,)* #(#ncc_cfgs #cap_user_set),*);
-        }
-    } else {
-        quote! {
-            #[allow(unreachable_code)]
-            let node__ = #module::__new_child(#(#ncc_cfgs #ncc_idents),*);
+            #module::__core::core_cfg_inspector! {
+                #[allow(unreachable_code)]
+                let node__ = #module::__new_child_inspect(#(#ncc_cfgs #ncc_idents2,)* #(#ncc_cfgs #cap_user_set),*);
+            }
+            #module::__core::core_cfg_inspector! {@NOT
+                #[allow(unreachable_code)]
+                let node__ = #module::__new_child(#(#ncc_cfgs #ncc_idents),*);
+            }
         }
     };
 
-    let new_call = if cfg!(inspector) {
+    let new_call = {
+        let nc_idens2 = nc_idents.clone();
+
         let cap_user_set = widget_data
             .new_captures
             .last()
@@ -777,29 +771,25 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             .iter()
             .map(|c| overriden_properties.contains(&c.ident));
         quote! {
-            #[allow(unreachable_code)]
-            #module::__new_inspect(
-                node__,
-                #(#nc_cfgs #nc_idents,)*
-                #(#nc_cfgs #cap_user_set,)*
-                #module::__widget_name(),
-                when_infos__,
-                #module::__decl_location(),
-                #module::__core::source_location!()
-            )
-        }
-    } else if cfg!(dyn_widget) {
-        quote! {
-            fn box_fix(node: impl #module::__core::UiNode) -> #module::__core::BoxedUiNode {
-                #module::__core::UiNode::boxed(node)
+            #module::__core::core_cfg_inspector! {
+                #[allow(unreachable_code)]
+                #module::__new_inspect(
+                    node__,
+                    #(#nc_cfgs #nc_idens2,)*
+                    #(#nc_cfgs #cap_user_set,)*
+                    #module::__widget_name(),
+                    when_infos__,
+                    #module::__decl_location(),
+                    #module::__core::source_location!()
+                )
             }
-            #[allow(unreachable_code)]
-            #module::__new(box_fix(node__), #(#nc_cfgs #nc_idents),*)
-        }
-    } else {
-        quote! {
-            #[allow(unreachable_code)]
-            #module::__new(node__, #(#nc_cfgs #nc_idents),*)
+            #module::__core::core_cfg_inspector! {@NOT
+                fn box_fix(node: impl #module::__core::UiNode) -> impl #module::__core::UiNode {
+                    #module::__core::UiNode::cfg_boxed(node)
+                }
+                #[allow(unreachable_code)]
+                #module::__new(box_fix(node__), #(#nc_cfgs #nc_idents),*)
+            }
         }
     };
 

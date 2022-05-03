@@ -131,12 +131,12 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                     #[doc(hidden)]
                     pub use #source_mod::#new_ident;
                 });
-                if cfg!(inspector) {
+                {
                     let new_ident = ident!("__{priority}_inspect");
-                    new_reexports.extend(quote! {
+                    new_reexports.extend(quote! { #source_mod::__core::core_cfg_inspector! {
                         #[doc(hidden)]
                         pub use #source_mod::#new_ident;
-                    });
+                    }});
                 }
                 new_captures[i] = parent.new_captures[i].clone();
                 for cap in &new_captures[i] {
@@ -358,13 +358,13 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             });
 
             // source location reexport.
-            if cfg!(inspector) {
+            {
                 let loc_ident = ident!("__loc_{}", ip.ident);
-                property_reexports.extend(quote! {
+                property_reexports.extend(quote! { #path::__core::core_cfg_inspector! {
                     #cfg
                     #[doc(hidden)]
                     pub use #path::#loc_ident;
-                });
+                }});
             }
         }
     }
@@ -551,12 +551,12 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                 pub use #module::#ident as #new_ident;
                 #defaults_tt
             });
-            if cfg!(inspector) {
-                when_reexports.extend(quote! {
+            {
+                when_reexports.extend(quote! { #module::__core::core_cfg_inspector! {
                     #[doc(hidden)]
                     #cfg
                     pub use #module::#dbg_ident as #new_dbg_ident;
-                });
+                }});
             }
         }
     }
@@ -742,10 +742,10 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                 }
             }
         });
-        if cfg!(inspector) {
+        {
             let crate_core = util::crate_core();
             let loc_ident = ident!("__loc_{w_prop}");
-            when_condition_default_props.extend(quote_spanned! {p_ident.span()=>
+            when_condition_default_props.extend(quote_spanned! {p_ident.span()=> #crate_core::core_cfg_inspector! {
                 #w_prop::code_gen! {
                     if default=>
 
@@ -754,7 +754,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                         #crate_core::inspector::source_location!()
                     }
                 }
-            });
+            }});
         }
 
         // OR compile error because the property has no default value.

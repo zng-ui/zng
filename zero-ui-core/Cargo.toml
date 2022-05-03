@@ -22,7 +22,7 @@ http = ["isahc", "http-cache-semantics", "http-serde"]
 #
 # This speeds-up compilation time at the cost of runtime, if `inspector` is enabled 
 # the generated code has the same effect as this.
-dyn_property = ["zero-ui-proc-macros/dyn_property"]
+dyn_property = []
 
 # Use dynamic dispatch at the widget level by placing the widget child node in a `BoxedUiNode`.
 #
@@ -30,14 +30,14 @@ dyn_property = ["zero-ui-proc-macros/dyn_property"]
 # in most desktop machines. Without this feature build time and memory grows exponentially or worst, a similar
 # effect that can be observed in nested async code. Only enable this if you have build server that can handle it,
 # the result is as optimized as it gets with some event handlers compiling down to an almost direct call.
-dyn_widget = ["zero-ui-proc-macros/dyn_widget"]
+dyn_widget = []
 
 # Instrument each property and widget instance with "Inspector" nodes.
 #
 # This is enabled by default in debug builds.
 #
 # Note: This has the effect of `dyn_widget` and `dyn_property`.
-inspector = ["zero-ui-proc-macros/inspector"]
+inspector = []
 
 # Use dynamic dispatch at the app-extension level.
 #

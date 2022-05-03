@@ -997,7 +997,7 @@ mod output {
                 co
             };
 
-            let arg_debug_vars = if cfg!(inspector) {
+            let arg_debug_vars = {
                 let args_len = arg_locals.len();
                 // generate debug_var calls with the arg type span in case the type does
                 // not implement Clone and (IntoVar or Var or Debug) which generates a compile error.
@@ -1020,8 +1020,6 @@ mod output {
                         Box::new(__r)
                     };
                 }
-            } else {
-                TokenStream::new()
             };
 
             let mut child_ty_span = proc_macro2::Span::call_site();
@@ -1050,20 +1048,7 @@ mod output {
                 };
 
                 let set_ident = ident!("__{ident}_set");
-                if cfg!(dyn_property) {
-                    set.extend(quote! {
-                        #[doc(hidden)]
-                        #[inline]
-                        pub fn #set_ident(self_: impl #args_ident, #child_arg) -> #crate_core::BoxedUiNode {
-                            let ( #(#arg_locals),* ) = self_.unwrap();
-                            let out = #ident(#child_arg_use, #( #arg_locals ),*);
-                            fn box_fix(node: impl #crate_core::UiNode) -> #crate_core::BoxedUiNode {
-                                #crate_core::UiNode::boxed(node)
-                            }
-                            box_fix(out)
-                        }
-                    });
-                } else {
+                {
                     let output_span = self.output_assert.unwrap_or_else(proc_macro2::Span::call_site);
                     let output_ty = quote_spanned! {output_span=>
                         impl #crate_core::UiNode
@@ -1078,7 +1063,7 @@ mod output {
                     });
                 }
 
-                if cfg!(inspector) {
+                {
                     let set_inspect_ident = ident!("__{ident}_set_inspect");
                     let ident_str = ident.to_string();
                     let arg_idents_str = arg_idents.iter().map(|i| i.to_string());
@@ -1094,63 +1079,65 @@ mod output {
                         Priority::CaptureOnly(_) => quote!(CaptureOnly),
                     };
                     set.extend(quote! {
-                        #[doc(hidden)]
-                        #[inline]
-                        pub fn #set_inspect_ident(
-                            self_: impl #args_ident,
-                            #child_arg,
-                            property_name: &'static str,
-                            instance_location: #crate_core::inspector::SourceLocation,
-                            user_assigned: bool,
-                        ) -> #crate_core::inspector::PropertyInfoNode {
-                            #arg_debug_vars
+                        #crate_core::core_cfg_inspector! {
+                            #[doc(hidden)]
+                            #[inline]
+                            pub fn #set_inspect_ident(
+                                self_: impl #args_ident,
+                                #child_arg,
+                                property_name: &'static str,
+                                instance_location: #crate_core::inspector::SourceLocation,
+                                user_assigned: bool,
+                            ) -> #crate_core::inspector::PropertyInfoNode {
+                                #arg_debug_vars
 
-                            fn box_fix(node: impl #crate_core::UiNode) -> #crate_core::BoxedUiNode {
-                                #crate_core::UiNode::boxed(node)
+                                fn box_fix(node: impl #crate_core::UiNode) -> #crate_core::BoxedUiNode {
+                                    #crate_core::UiNode::boxed(node)
+                                }
+                                let node = box_fix(#set_ident(self_, #child_arg_use));
+
+                                #crate_core::inspector::PropertyInfoNode::new_v1(
+                                    node,
+                                    #crate_core::inspector::PropertyPriority::#priority,
+                                    #ident_str,
+                                    #crate_core::inspector::source_location!(),
+                                    property_name,
+                                    instance_location,
+                                    &[#( #arg_idents_str ),*],
+                                    arg_debug_vars,
+                                    user_assigned
+                                )
                             }
-                            let node = box_fix(#set_ident(self_, #child_arg_use));
-
-                            #crate_core::inspector::PropertyInfoNode::new_v1(
-                                node,
-                                #crate_core::inspector::PropertyPriority::#priority,
-                                #ident_str,
-                                #crate_core::inspector::source_location!(),
-                                property_name,
-                                instance_location,
-                                &[#( #arg_idents_str ),*],
-                                arg_debug_vars,
-                                user_assigned
-                            )
                         }
                     });
                 }
             };
 
-            let cap_debug = if cfg!(inspector) {
+            let cap_debug = {
                 let cap_ident = ident!("__{ident}_captured_inspect");
                 let arg_idents_str = arg_idents.iter().map(|i| i.to_string());
 
                 quote! {
-                    #[doc(hidden)]
-                    #[inline]
-                    pub fn #cap_ident(
-                        self_: &impl #args_ident,
-                        property_name: &'static str,
-                        instance_location: #crate_core::inspector::SourceLocation,
-                        user_assigned: bool
-                    ) -> #crate_core::inspector::CapturedPropertyV1 {
-                        #arg_debug_vars
-                        #crate_core::inspector::CapturedPropertyV1 {
-                            property_name,
-                            instance_location,
-                            arg_names: &[#( #arg_idents_str ),*],
-                            arg_debug_vars,
-                            user_assigned,
+                    #crate_core::core_cfg_inspector! {
+                        #[doc(hidden)]
+                        #[inline]
+                        pub fn #cap_ident(
+                            self_: &impl #args_ident,
+                            property_name: &'static str,
+                            instance_location: #crate_core::inspector::SourceLocation,
+                            user_assigned: bool
+                        ) -> #crate_core::inspector::CapturedPropertyV1 {
+                            #arg_debug_vars
+                            #crate_core::inspector::CapturedPropertyV1 {
+                                property_name,
+                                instance_location,
+                                arg_names: &[#( #arg_idents_str ),*],
+                                arg_debug_vars,
+                                user_assigned,
+                            }
                         }
                     }
                 }
-            } else {
-                TokenStream::new()
             };
 
             let (unwrap_ty, unwrap_expr) = if arg_return_types.len() == 1 {
@@ -1359,33 +1346,22 @@ mod output {
                 // we need $__set as input because some errors of type mismatch
                 // on assign also highlight the __set function, so we take it as
                 // input and in widget_new! we set the ident span to be value span.
-                if cfg!(inspector) {
-                    quote! {
-                        (set #priority, $node:ident, $property_path: path, $args:ident,
-                            $property_name:expr, $source_location:expr, $user_assigned:tt, $__set:ident) => {
-                                let $node = {
+                quote! {
+                    (set #priority, $node:ident, $property_path: path, $args:ident,
+                        $property_name:expr, $source_location:expr, $user_assigned:tt, $__set:ident) => {
+                            let $node = {
+                                use $property_path::{core_cfg_inspector as __core_cfg_inspector};
+                                __core_cfg_inspector! {
                                     use $property_path::{set_inspect as $__set};
                                     $__set($args, $node, $property_name, $source_location, $user_assigned)
-                                };
-                        };
-                        (set #priority, $node:ident, $property_path: path, $args:ident, $__set:ident) => {
-                            let $node = {
-                                use $property_path::{set as $__set};
-                                $__set($args, $node)
+                                }
+                                __core_cfg_inspector! {@NOT
+                                    use $property_path::{set as $__set};
+                                    $__set($args, $node)
+                                }
                             };
-                        };
-                        (set $other:ident, $($ignore:tt)+) => { };
-                    }
-                } else {
-                    quote! {
-                        (set #priority, $node:ident, $property_path: path, $args:ident, $__set:ident) => {
-                            let $node = {
-                                use $property_path::{set as __set};
-                                $__set($args, $node)
-                            };
-                        };
-                        (set $other:ident, $($ignore:tt)+) => { };
-                    }
+                    };
+                    (set $other:ident, $($ignore:tt)+) => { };
                 }
             };
 
@@ -1566,31 +1542,25 @@ mod output {
                 TokenStream::new()
             };
 
-            let set_export = if self.is_capture_only {
-                TokenStream::new()
+            let (set_export, set_inspect_export) = if self.is_capture_only {
+                (TokenStream::new(), TokenStream::new())
             } else {
                 let set_ident = ident!("__{ident}_set");
+                let set_dbg_ident = ident!("__{ident}_set_inspect");
 
-                if cfg!(inspector) {
-                    let set_dbg_ident = ident!("__{ident}_set_inspect");
+                (
                     quote! {
                         #set_ident as set,
+                    },
+                    quote! {
                         #set_dbg_ident as set_inspect,
-                    }
-                } else {
-                    quote! {
-                        #set_ident as set,
-                    }
-                }
+                    },
+                )
             };
 
-            let cap_export = if cfg!(inspector) {
-                let cap_ident = ident!("__{ident}_captured_inspect");
-                quote! {
-                    #cap_ident as captured_inspect,
-                }
-            } else {
-                TokenStream::new()
+            let cap_ident = ident!("__{ident}_captured_inspect");
+            let cap_export = quote! {
+                #cap_ident as captured_inspect,
             };
 
             tokens.extend(quote! {
@@ -1608,12 +1578,19 @@ mod output {
                         #args_ident as Args,
                         #default_export
                         #set_export
-                        #cap_export
                     };
+
+                    #crate_core::core_cfg_inspector! {
+                        pub use super::{
+                            #set_inspect_export
+                            #cap_export
+                        };
+                    }
+
                     pub use #macro_ident as code_gen;
                     pub use #crate_core::var::{when_var, switch_var};
                     #[doc(hidden)]
-                    pub use #crate_core::property_new as __property_new;
+                    pub use #crate_core::{property_new as __property_new, core_cfg_inspector};
                 }
             })
         }
