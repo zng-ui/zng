@@ -332,7 +332,10 @@ mod analysis {
         }
 
         // validate return type.
-        let output_assert_data = if args.priority.is_capture_only() {
+        let mut output_assert_data = None;
+        let mut output_is_impl_node = false;
+
+        if args.priority.is_capture_only() {
             let mut fix = false;
             match &fn_.sig.output {
                 syn::ReturnType::Default => {
@@ -354,15 +357,13 @@ mod analysis {
             if fix {
                 fn_.sig.output = parse_quote!( -> ! );
             }
-
-            None
         } else {
             // properties not capture_only:
             // rust will validate because we call fn_ in ArgsImpl.set(..) -> impl UiNode.
             // we only need the span so that the error highlights the right code.
-            match &fn_.sig.output {
-                syn::ReturnType::Default => None,
-                syn::ReturnType::Type(_, t) => Some(t.span()),
+            if let syn::ReturnType::Type(_, t) = &fn_.sig.output {
+                output_assert_data = Some(t.span());
+                output_is_impl_node = is_impl_node(t);
             }
         };
 
@@ -714,6 +715,39 @@ mod analysis {
             }
         }
 
+        // Build time optimization:
+        //
+        // Refactors the function to redirect to a private "property_impl" that is called using `UiNode::cfg_boxed`.
+        //
+        // This only applies if the property function is valid, is not capture-only, the child input is a simple `ident: impl UiNode`
+        // and the return is also `impl UiNode`
+        let mut actual_fn = None;
+        if !fn_and_errors_only && output_is_impl_node {
+            if let Some(syn::FnArg::Typed(t)) = fn_.sig.inputs.first() {
+                if let syn::Pat::Ident(child_ident) = &*t.pat {
+                    if is_impl_node(&t.ty) {
+                        let mut fn_impl = fn_.clone();
+
+                        let crate_core = crate_core();
+                        let impl_ident = ident!("__{}_impl", fn_.sig.ident);
+
+                        fn_.block = parse_quote! {{
+                            fn box_fix(child: impl #crate_core::UiNode) -> impl #crate_core::UiNode {
+                                #crate_core::UiNode::cfg_boxed(child)
+                            }
+
+                            let out = #impl_ident(box_fix(#child_ident), #(#arg_idents),*);
+                            box_fix(out)
+                        }};
+
+                        fn_impl.sig.ident = impl_ident;
+                        fn_impl.vis = syn::Visibility::Inherited;
+                        actual_fn = Some(fn_impl);
+                    }
+                }
+            }
+        }
+
         output::Output {
             errors,
             fn_and_errors_only,
@@ -756,6 +790,7 @@ mod analysis {
                 has_default_value,
             },
             fn_,
+            actual_fn,
         }
     }
 
@@ -828,6 +863,25 @@ mod analysis {
             syn::visit::visit_type(self, i);
         }
     }
+
+    /// Best effort matches `impl opt_path::UiNode`.
+    fn is_impl_node(ty: &syn::Type) -> bool {
+        if let syn::Type::ImplTrait(ty) = ty {
+            if ty.bounds.len() == 1 {
+                let ty = ty.bounds.first().unwrap();
+                if let syn::TypeParamBound::Trait(ty) = ty {
+                    if ty.lifetimes.is_none() && matches!(&ty.modifier, syn::TraitBoundModifier::None) {
+                        if let Some(seg) = ty.path.segments.last() {
+                            if seg.arguments.is_empty() {
+                                return seg.ident == "UiNode";
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        false
+    }
 }
 
 mod output {
@@ -843,6 +897,7 @@ mod output {
         pub errors: Errors,
         pub fn_attrs: OutputAttributes,
         pub fn_: ItemFn,
+        pub actual_fn: Option<ItemFn>,
         pub fn_and_errors_only: bool,
         pub types: OutputTypes,
         pub macro_: OutputMacro,
@@ -857,6 +912,10 @@ mod output {
             } else {
                 self.fn_attrs.to_tokens(tokens, false);
                 self.fn_.to_tokens(tokens);
+                if let Some(actual_fn) = &self.actual_fn {
+                    self.fn_attrs.to_tokens_no_docs(tokens);
+                    actual_fn.to_tokens(tokens);
+                }
                 self.types.to_tokens(tokens);
                 self.macro_.to_tokens(tokens);
                 self.mod_.to_tokens(tokens);
@@ -915,6 +974,15 @@ mod output {
                 });
             }
 
+            self.cfg.to_tokens(tokens);
+
+            self.inline.to_tokens(tokens);
+            for attr in &self.attrs {
+                attr.to_tokens(tokens);
+            }
+        }
+
+        pub fn to_tokens_no_docs(&self, tokens: &mut TokenStream) {
             self.cfg.to_tokens(tokens);
 
             self.inline.to_tokens(tokens);

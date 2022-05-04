@@ -297,8 +297,11 @@ pub fn uuid() -> String {
             ID.store(id, Ordering::Relaxed);
         }
         format!("sp_{id:x}")
+    } else if let Some((n, _)) = call_site.split_once(' ') {
+        n.replace('#', "u")
     } else {
-        call_site.split_once(' ').unwrap().0.replace('#', "u")
+        // can happen when restarting rust-analyzer
+        call_site
     }
 }
 
