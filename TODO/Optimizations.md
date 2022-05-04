@@ -13,17 +13,7 @@
 
 * Use `do profile --build` to profile builds.
 * 50% of our build time is in `LLVM_module_codegen_emit_obj`, this is probably code bloat from all the generics.
-  - Review all generics, try to reduce the body, calling `into()` early and then passing to another non-generic fn for example.
-    Use regex search `fn\s\w+<.+>\(` and `\w+:\s+impl` to find generic functions.
-     - `zero-ui-proc-macros` REVIEWED
-     - `zero-ui-docs` REVIEWED
-     - `zero-ui-view-api` REVIEWED
-     - `zero-ui-view` REVIEWED
-     - `zero-ui-view-prebuilt` REVIEWED
-     - `zero-ui-core` REVIEWED
-     - `zero-ui` PENDING
   - Use https://github.com/dtolnay/cargo-llvm-lines
-* Review #[property] and #[widget] proc-macros, they can use `UiNode::cfg_boxed` now.
 
 # Mouse Move Interest
 

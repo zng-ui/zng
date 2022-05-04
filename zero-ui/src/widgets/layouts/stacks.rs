@@ -567,5 +567,5 @@ pub fn stack_nodes(nodes: impl UiNodeList) -> impl UiNode {
     #[impl_ui_node(children)]
     impl<C: UiNodeList> NodesStackNode<C> {}
 
-    NodesStackNode { children: nodes }
+    NodesStackNode { children: nodes }.cfg_boxed()
 }

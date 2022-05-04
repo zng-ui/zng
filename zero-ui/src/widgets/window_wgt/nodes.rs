@@ -84,7 +84,7 @@ impl WindowLayers {
             ctx.updates,
             LayeredWidget {
                 layer: layer.into_var(),
-                widget,
+                widget: widget.cfg_boxed_wgt(),
             },
         );
     }
@@ -339,7 +339,7 @@ impl WindowLayers {
             AnchoredWidget {
                 anchor: anchor.into_var(),
                 mode: mode.into_var(),
-                widget,
+                widget: widget.cfg_boxed_wgt(),
 
                 anchor_info: None,
 
@@ -423,6 +423,7 @@ pub fn layers(child: impl UiNode) -> impl UiNode {
         children: nodes![child].chain_nodes(layers_vec),
         layered,
     }
+    .cfg_boxed()
 }
 
 /// Represents a layer in a window.

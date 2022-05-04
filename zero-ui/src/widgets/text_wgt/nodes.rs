@@ -274,10 +274,11 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Text>) -> impl UiNode
         }
     }
     ResolveTextNode {
-        child,
+        child: child.cfg_boxed(),
         text: text.into_var(),
         resolved: None,
     }
+    .cfg_boxed()
 }
 
 /// Custom [`implicit_base::nodes::inner`] that setups the text baseline.
@@ -538,12 +539,13 @@ pub fn layout_text(child: impl UiNode, padding: impl IntoVar<SideOffsets>) -> im
         }
     }
     LayoutTextNode {
-        child,
+        child: child.cfg_boxed(),
         padding: padding.into_var(),
         layout: None,
         shaping_args: TextShapingArgs::default(),
         pending: Layout::empty(),
     }
+    .cfg_boxed()
 }
 
 /// An Ui node that renders the default underline visual using the parent [`LayoutText`].
@@ -588,7 +590,7 @@ pub fn render_underlines(child: impl UiNode) -> impl UiNode {
             self.child.render(ctx, frame);
         }
     }
-    RenderUnderlineNode { child }
+    RenderUnderlineNode { child: child.cfg_boxed() }.cfg_boxed()
 }
 
 /// An Ui node that renders the default strikethrough visual using the parent [`LayoutText`].
@@ -633,7 +635,7 @@ pub fn render_strikethroughs(child: impl UiNode) -> impl UiNode {
             self.child.render(ctx, frame);
         }
     }
-    RenderStrikethroughsNode { child }
+    RenderStrikethroughsNode { child: child.cfg_boxed() }.cfg_boxed()
 }
 
 /// An Ui node that renders the default overline visual using the parent [`LayoutText`].
@@ -678,7 +680,7 @@ pub fn render_overlines(child: impl UiNode) -> impl UiNode {
             self.child.render(ctx, frame);
         }
     }
-    RenderOverlineNode { child }
+    RenderOverlineNode { child: child.cfg_boxed() }.cfg_boxed()
 }
 
 /// An UI node that renders the parent [`LayoutText`].

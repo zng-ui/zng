@@ -243,6 +243,6 @@ pub mod scrollable {
 /// Shorthand [`scrollable!`] with default properties.
 ///
 /// [`scrollable!`]: mod@scrollable
-pub fn scrollable(content: impl UiNode) -> impl UiNode {
+pub fn scrollable(content: impl UiNode) -> impl Widget {
     scrollable!(content)
 }

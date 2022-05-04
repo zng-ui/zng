@@ -135,7 +135,7 @@ pub fn viewport(child: impl UiNode, mode: impl IntoVar<ScrollMode>) -> impl UiNo
         }
     }
     ViewportNode {
-        child,
+        child: child.cfg_boxed(),
         scroll_id: ScrollId::new_unique(),
         mode: mode.into_var(),
         viewport_size: PxSize::zero(),
@@ -143,6 +143,7 @@ pub fn viewport(child: impl UiNode, mode: impl IntoVar<ScrollMode>) -> impl UiNo
         content_offset: PxVector::zero(),
         info: ScrollableInfo::default(),
     }
+    .cfg_boxed()
 }
 
 /// Create a node that generates and presents the [vertical scrollbar].
@@ -309,7 +310,7 @@ pub fn scroll_commands_node(child: impl UiNode) -> impl UiNode {
     }
 
     ScrollCommandsNode {
-        child,
+        child: child.cfg_boxed(),
 
         up: CommandHandle::dummy(),
         down: CommandHandle::dummy(),
@@ -318,6 +319,7 @@ pub fn scroll_commands_node(child: impl UiNode) -> impl UiNode {
 
         offset: Vector::zero(),
     }
+    .cfg_boxed()
 }
 
 /// Create a node that implements [`PageUpCommand`], [`PageDownCommand`],
@@ -550,13 +552,14 @@ pub fn scroll_to_edge_commands_node(child: impl UiNode) -> impl UiNode {
         }
     }
     ScrollToEdgeCommandsNode {
-        child,
+        child: child.cfg_boxed(),
 
         top: CommandHandle::dummy(),
         bottom: CommandHandle::dummy(),
         leftmost: CommandHandle::dummy(),
         rightmost: CommandHandle::dummy(),
     }
+    .cfg_boxed()
 }
 
 /// Create a node that implements [`ScrollToCommand`] scoped on the widget.
@@ -687,11 +690,12 @@ pub fn scroll_to_command_node(child: impl UiNode) -> impl UiNode {
     }
 
     ScrollToCommandNode {
-        child,
+        child: child.cfg_boxed(),
 
         handle: CommandHandle::dummy(),
         scroll_to: None,
     }
+    .cfg_boxed()
 }
 
 /// Create a node that implements scroll-wheel handling for the widget.
@@ -750,7 +754,8 @@ pub fn scroll_wheel_node(child: impl UiNode) -> impl UiNode {
         }
     }
     ScrollWheelNode {
-        child,
+        child: child.cfg_boxed(),
         offset: Vector::zero(),
     }
+    .cfg_boxed()
 }

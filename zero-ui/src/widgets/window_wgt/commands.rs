@@ -327,7 +327,7 @@ pub(super) fn window_control_node(child: impl UiNode) -> impl UiNode {
         }
     }
     WindowControlNode {
-        child,
+        child: child.cfg_boxed(),
 
         maximize_handle: CommandHandle::dummy(),
         minimize_handle: CommandHandle::dummy(),
@@ -342,6 +342,7 @@ pub(super) fn window_control_node(child: impl UiNode) -> impl UiNode {
 
         allow_alt_f4_binding: VarBindingHandle::dummy(),
     }
+    .cfg_boxed()
 }
 
 #[cfg(debug_assertions)]

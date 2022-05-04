@@ -165,6 +165,7 @@ where
         presenter,
         _d: std::marker::PhantomData,
     }
+    .cfg_boxed()
 }
 
 type BoxedGenerator<D> = Box<dyn Fn(&mut WidgetContext, D) -> BoxedUiNode>;
@@ -370,6 +371,7 @@ impl<D> ViewGenerator<D> {
             map,
             child: None,
         }
+        .cfg_boxed()
     }
 }
 

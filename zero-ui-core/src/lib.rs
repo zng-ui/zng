@@ -269,9 +269,9 @@ pub use zero_ui_proc_macros::impl_ui_node;
 /// are the property values. The function must return a type that implements [`UiNode`]. The first argument must support any
 /// type that implements [`UiNode`], the other arguments also have type requirements depending on the [priority](#priority) or
 /// [allowed-in-when](#when-integration). All of these requirements are validated at compile time.
-/// 
+///
 /// If the child input and output types are `impl UiNode` an automatic wrapping call to [`UiNode::cfg_boxed`] is inserted, enabling this
-/// optimizations for the property-as-function use case. 
+/// optimizations for the property-as-function use case.
 ///
 /// ```
 /// # fn main() { }
@@ -467,7 +467,7 @@ pub use zero_ui_proc_macros::impl_ui_node;
 /// ```
 ///
 /// In this case the default value is used if the property is not setted.
-/// 
+///
 ///
 /// [`UiNode`]: crate::UiNode
 /// [`StateVar`]: crate::var::StateVar
