@@ -381,6 +381,19 @@ impl<T: VarValue> WeakVar<T> for NoneWeakVar<T> {
     }
 }
 
+#[cfg(dyn_closure)]
+macro_rules! DefaultMapVar {
+    ($T:ty, $O:ty, $M:ty, $V:ty) => {
+        types::RcMapVar<$T, $O, Box<dyn FnMut(&$T) -> $O>, BoxedVar<T>>
+    }
+}
+#[cfg(not(dyn_closure))]
+macro_rules! DefaultMapVar {
+    ($T:ty, $O:ty, $M:ty, $V:ty) => {
+        types::RcMapVar<$T, $O, $M, $V>
+    }
+}
+
 /// Represents an observable value.
 ///
 /// This trait is [sealed] and cannot be implemented for types outside of `zero_ui_core`.
@@ -1168,17 +1181,21 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + crate::private::Sealed + 'stati
     ///
     /// Also see [`Var::bind_map`] to create a *map binding* between two existing variables.
     #[inline]
-    fn map<O, M>(&self, map: M) -> types::RcMapVar<T, O, M, Self>
+    fn map<O, M>(&self, map: M) -> DefaultMapVar![T, O, M, Self]
     where
         O: VarValue,
         M: FnMut(&T) -> O + 'static,
     {
+        #[cfg(dyn_closure)]
+        return types::RcMapVar::new(self.clone().boxed(), Box::new(map));
+
+        #[cfg(not(dyn_closure))]
         types::RcMapVar::new(self.clone(), map)
     }
 
     /// Create a [`map`](Var::map) that uses [`Into`] to convert from `T` to `O`.
     #[inline]
-    fn map_into<O>(&self) -> types::RcMapVar<T, O, fn(&T) -> O, Self>
+    fn map_into<O>(&self) -> DefaultMapVar![T, O, fn(&T) -> O, Self]
     where
         O: VarValue + From<T>,
     {
@@ -1187,7 +1204,7 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + crate::private::Sealed + 'stati
 
     /// Create a [`map`](Var::map) that uses [`ToText`](crate::text::ToText) to convert `T` to [`Text`](crate::text::ToText).
     #[inline]
-    fn map_to_text(&self) -> types::RcMapVar<T, crate::text::Text, fn(&T) -> crate::text::Text, Self>
+    fn map_to_text(&self) -> DefaultMapVar![T, crate::text::Text, fn(&T) -> crate::text::Text, Self]
     where
         T: crate::text::ToText,
     {
@@ -1196,7 +1213,7 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + crate::private::Sealed + 'stati
 
     /// Create a [`map`](Var::map) that maps to a debug [`Text`](crate::text::ToText) using the `{:?}` format.
     #[inline]
-    fn map_debug(&self) -> types::RcMapVar<T, crate::text::Text, fn(&T) -> crate::text::Text, Self> {
+    fn map_debug(&self) -> DefaultMapVar![T, crate::text::Text, fn(&T) -> crate::text::Text, Self] {
         self.map(|t| crate::formatx!("{t:?}"))
     }
 

@@ -1,8 +1,10 @@
 use super::*;
 
 use std::cell::Cell;
-use std::marker::PhantomData;
 use std::rc::{Rc, Weak};
+
+#[cfg(not(dyn_closure))]
+use std::marker::PhantomData;
 
 ///<span data-del-macro-root></span> Initializes a new conditional var.
 ///
@@ -70,6 +72,7 @@ pub use crate::when_var;
 #[doc(hidden)]
 pub use zero_ui_proc_macros::when_var as __when_var;
 
+#[cfg(not(dyn_closure))]
 macro_rules! impl_rc_when_var {
     ($(
         $len:tt => $($n:tt),+;
@@ -431,6 +434,7 @@ macro_rules! impl_rc_when_var {
         }
     };
 }
+#[cfg(not(dyn_closure))]
 impl_rc_when_var! {
     1 => 0;
     2 => 0, 1;
@@ -476,6 +480,36 @@ impl<O: VarValue> RcWhenVar<O> {
             self_version: Cell::new(0),
         }))
     }
+
+    fn get_impl<'a>(&'a self, vars: &'a VarsRead) -> &'a O {
+        for (c, v) in self.0.whens.iter() {
+            if c.copy(vars) {
+                return v.get(vars);
+            }
+        }
+        self.0.default_.get(vars)
+    }
+
+    fn get_new_impl<'a>(&'a self, vars: &'a Vars) -> Option<&'a O> {
+        let mut condition_is_new = false;
+        for (c, v) in self.0.whens.iter() {
+            condition_is_new |= c.is_new(vars);
+            if c.copy(vars) {
+                return if condition_is_new {
+                    // a higher priority condition is new `false` of the current condition is new `true`.
+                    Some(v.get(vars))
+                } else {
+                    v.get_new(vars)
+                };
+            }
+        }
+
+        if condition_is_new {
+            Some(self.0.default_.get(vars))
+        } else {
+            self.0.default_.get_new(vars)
+        }
+    }
 }
 
 impl<O: VarValue> crate::private::Sealed for RcWhenVar<O> {}
@@ -498,14 +532,7 @@ impl<O: VarValue> Var<O> for RcWhenVar<O> {
 
     /// Gets the the first variable with `true` condition or the default variable.
     fn get<'a, Vr: AsRef<VarsRead>>(&'a self, vars: &'a Vr) -> &'a O {
-        let vars = vars.as_ref();
-
-        for (c, v) in self.0.whens.iter() {
-            if c.copy(vars) {
-                return v.get(vars);
-            }
-        }
-        self.0.default_.get(vars)
+        self.get_impl(vars.as_ref())
     }
 
     /// Gets the first variable with `true` condition if that condition or previous conditions are new.
@@ -516,26 +543,7 @@ impl<O: VarValue> Var<O> for RcWhenVar<O> {
     ///
     /// Gets the default variable if all conditions are `false` and the default variable value is new.
     fn get_new<'a, Vw: AsRef<Vars>>(&'a self, vars: &'a Vw) -> Option<&'a O> {
-        let vars = vars.as_ref();
-
-        let mut condition_is_new = false;
-        for (c, v) in self.0.whens.iter() {
-            condition_is_new |= c.is_new(vars);
-            if c.copy(vars) {
-                return if condition_is_new {
-                    // a higher priority condition is new `false` of the current condition is new `true`.
-                    Some(v.get(vars))
-                } else {
-                    v.get_new(vars)
-                };
-            }
-        }
-
-        if condition_is_new {
-            Some(self.0.default_.get(vars))
-        } else {
-            self.0.default_.get_new(vars)
-        }
+        self.get_new_impl(vars.as_ref())
     }
 
     /// Gets if [`get_new`](Self::get_new) will return `Some(_)` if called.
@@ -806,13 +814,18 @@ impl<O: VarValue> WhenVarBuilderDyn<O> {
     }
 }
 
+#[cfg(dyn_closure)]
+pub use WhenVarBuilderDyn as WhenVarBuilder;
+
 /// Builder used in [`when_var!`], designed to support #[cfg(..)] attributes in conditions.
 #[doc(hidden)]
+#[cfg(not(dyn_closure))]
 pub struct WhenVarBuilder<O: VarValue, D: Var<O>> {
     _v: PhantomData<O>,
     default_value: D,
 }
 #[allow(missing_docs)] // this is hidden
+#[cfg(not(dyn_closure))]
 impl<O: VarValue, D: Var<O>> WhenVarBuilder<O, D> {
     /// Start the builder with the last item, it is the only *condition* that cannot be excluded by #[cfg(..)].
     pub fn new<ID: IntoVar<O, Var = D>>(default_value: ID) -> Self {
@@ -837,6 +850,7 @@ impl<O: VarValue, D: Var<O>> WhenVarBuilder<O, D> {
         self.default_value
     }
 }
+#[cfg(not(dyn_closure))]
 macro_rules! impl_when_var_builder {
     ($(
         $len:tt => $($n:tt),+ => $next_len:tt ;
@@ -894,6 +908,7 @@ macro_rules! impl_when_var_builder {
         }
     }
 }
+#[cfg(not(dyn_closure))]
 impl_when_var_builder! {
     1 => 0 => 2;
     2 => 0, 1 => 3;
@@ -908,6 +923,7 @@ impl_when_var_builder! {
 /// exists because of the nature of the [`impl_when_var_builder`] code.
 #[doc(hidden)]
 #[allow(unused)]
+#[cfg(not(dyn_closure))]
 pub struct WhenVarBuilder9<O, D, C0, C1, C2, C3, C4, C5, C6, C7, C8, V0, V1, V2, V3, V4, V5, V6, V7, V8> {
     _v: PhantomData<O>,
     default_value: D,

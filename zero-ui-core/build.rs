@@ -14,6 +14,7 @@ fn main() {
         enable!("dyn_app_extension");
         enable!("dyn_widget");
         enable!("dyn_node");
+        enable!("dyn_closure");
         enable!("inspector");
     } else if cfg!(feature = "inspector") {
         println!("cargo:rustc-cfg=inspector");
@@ -25,6 +26,9 @@ fn main() {
         }
         if cfg!(featue = "dyn_node") {
             println!("cargo:rustc-cfg=dyn_node");
+        }
+        if cfg!(featue = "dyn_closure") {
+            println!("cargo:rustc-cfg=dyn_closure");
         }
     }
 

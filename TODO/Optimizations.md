@@ -15,7 +15,9 @@
 * 50% of our build time is in `LLVM_module_codegen_emit_obj`, this is probably code bloat from all the generics.
   - Use https://github.com/dtolnay/cargo-llvm-lines
 * Implement and use `mono!` macro, described here https://internals.rust-lang.org/t/explicit-monomorphization-for-compilation-time-reduction/15907/30
-* `dyn_closure`.
+* Implement `dyn_closure` for more types.
+* Experiment removing all `#[inline]` attributes, this causes the method to be "generic"? Plus users can enable LTO
+  for release builds to auto-inline.
 
 # Mouse Move Interest
 
