@@ -95,6 +95,42 @@ where
     pub fn downgrade(&self) -> WeakRcMapVar<A, B, M, S> {
         WeakRcMapVar(Rc::downgrade(&self.0))
     }
+
+    fn get_impl(&self, vars: &VarsRead) -> &B {
+        // SAFETY: access to value is safe because `source` needs a `&mut Vars` to change its version
+        // and we change the value only in the first call to `get` with the new source version.
+
+        let version = self.0.source.version(vars);
+        let first = unsafe { &*self.0.value.get() }.is_none();
+
+        if first || version != self.0.version.get() {
+            let new_value = self.0.map.borrow_mut()(self.0.source.get(vars));
+
+            unsafe {
+                *self.0.value.get() = Some(new_value);
+            }
+
+            self.0.version.set(version);
+        }
+
+        unsafe { &*self.0.value.get() }.as_ref().unwrap()
+    }
+
+    fn actual_var_impl(&self, vars: &Vars) -> BoxedVar<B> {
+        if self.is_contextual() {
+            let value = self.get_clone(vars);
+            let var = RcMapVar(Rc::new(MapData {
+                _a: PhantomData,
+                source: self.0.source.actual_var(vars),
+                map: self.0.map.clone(),
+                value: UnsafeCell::new(Some(value)),
+                version: self.0.version.clone(),
+            }));
+            var.boxed()
+        } else {
+            self.clone().boxed()
+        }
+    }
 }
 
 impl<A, B, M, S> Clone for RcMapVar<A, B, M, S>
@@ -127,25 +163,7 @@ where
 
     #[inline]
     fn get<'a, Vr: AsRef<VarsRead>>(&'a self, vars: &'a Vr) -> &'a B {
-        let vars = vars.as_ref();
-
-        // SAFETY: access to value is safe because `source` needs a `&mut Vars` to change its version
-        // and we change the value only in the first call to `get` with the new source version.
-
-        let version = self.0.source.version(vars);
-        let first = unsafe { &*self.0.value.get() }.is_none();
-
-        if first || version != self.0.version.get() {
-            let new_value = self.0.map.borrow_mut()(self.0.source.get(vars));
-
-            unsafe {
-                *self.0.value.get() = Some(new_value);
-            }
-
-            self.0.version.set(version);
-        }
-
-        unsafe { &*self.0.value.get() }.as_ref().unwrap()
+        self.get_impl(vars.as_ref())
     }
 
     #[inline]
@@ -201,21 +219,7 @@ where
 
     #[inline]
     fn actual_var<Vw: WithVars>(&self, vars: &Vw) -> BoxedVar<B> {
-        if self.is_contextual() {
-            vars.with_vars(|vars| {
-                let value = self.get_clone(vars);
-                let var = RcMapVar(Rc::new(MapData {
-                    _a: PhantomData,
-                    source: self.0.source.actual_var(vars),
-                    map: self.0.map.clone(),
-                    value: UnsafeCell::new(Some(value)),
-                    version: self.0.version.clone(),
-                }));
-                var.boxed()
-            })
-        } else {
-            self.clone().boxed()
-        }
+        vars.with_vars(|vars| self.actual_var_impl(vars))
     }
 
     #[inline]
