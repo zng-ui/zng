@@ -185,7 +185,7 @@ fn main() {
         if SAME_PROCESS { "" } else { "-no_vp" },
         if cfg!(feature = "ipc") { "-ipc" } else { "" },
         if cfg!(feature = "dyn_widget") { "-dynw" } else { "" },
-        if cfg!(feature = "dyn_property") { "-dynp" } else { "" },
+        if cfg!(feature = "dyn_node") { "-dynp" } else { "" },
         if cfg!(feature = "dyn_app_extension") { "-dyna" } else { "" },
         match RENDER_MODE {
             RenderMode::Dedicated => "",
@@ -201,7 +201,7 @@ fn main() {
             ("ipc", &cfg!(feature = "ipc")),
             ("dyn_app_extension", &cfg!(feature = "dyn_app_extension")),
             ("dyn_widget", &cfg!(feature = "dyn_widget")),
-            ("dyn_property", &cfg!(feature = "dyn_property")),
+            ("dyn_node", &cfg!(feature = "dyn_node")),
             ("render_mode", &format!("{RENDER_MODE:?}")),
         ],
         filter,

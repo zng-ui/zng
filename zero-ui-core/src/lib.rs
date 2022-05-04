@@ -1125,12 +1125,11 @@ macro_rules! core_cfg {
 
         #[cfg(not($feature))]
         #[doc(hidden)]
-        #[macro_export]
         pub use $crate::core_cfg_ignore as [<core_cfg_ $feature>];
     })+}
 }
 core_cfg! {
-    dyn_property,
+    dyn_node,
     dyn_widget,
     inspector,
 }

@@ -215,10 +215,9 @@ pub mod window {
         /// The default value is `true`.
         properties::taskbar_visible;
 
-        /// If the Debug Inspector can be opened for this window.
+        /// If the Inspector can be opened for this window.
         ///
-        /// The default value is `true`.
-        #[cfg(debug_assertions)]
+        /// The default value is `true`, but only applies if the built with the `inspector` feature.
         can_inspect(impl IntoVar<bool>) = true;
 
         /// Monitor used for calculating the [`start_position`], [`position`] and [`size`] of the window.
@@ -434,9 +433,9 @@ pub mod window {
         }
     }
 
-    fn new_event(child: impl UiNode, #[cfg(debug_assertions)] can_inspect: impl IntoVar<bool>) -> impl UiNode {
+    fn new_event(child: impl UiNode, #[allow(unused)] can_inspect: impl IntoVar<bool>) -> impl UiNode {
         let child = commands::window_control_node(child);
-        #[cfg(debug_assertions)]
+        #[cfg(inspector)]
         let child = commands::inspect_node(child, can_inspect);
 
         nodes::layers(child)

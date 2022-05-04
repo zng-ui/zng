@@ -784,11 +784,8 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                 )
             }
             #module::__core::core_cfg_inspector! {@NOT
-                fn box_fix(node: impl #module::__core::UiNode) -> impl #module::__core::UiNode {
-                    #module::__core::UiNode::cfg_boxed(node)
-                }
                 #[allow(unreachable_code)]
-                #module::__new(box_fix(node__), #(#nc_cfgs #nc_idents),*)
+                #module::__new(node__, #(#nc_cfgs #nc_idents),*)
             }
         }
     };

@@ -941,10 +941,22 @@ impl<E: AppExtension> RunningApp<E> {
         args: Ev::Args,
         observer: &mut O,
     ) {
-        Self::notify_event_impl(ctx, extensions, type_name::<Ev>(), EventUpdate::new(event, args).boxed(), &mut observer.as_dyn());
+        Self::notify_event_impl(
+            ctx,
+            extensions,
+            type_name::<Ev>(),
+            EventUpdate::new(event, args).boxed(),
+            &mut observer.as_dyn(),
+        );
     }
     #[cfg(dyn_app_extension)]
-    fn notify_event_impl(ctx: &mut AppContext, extensions: &mut E, name: &'static str, update: BoxedEventUpdate, observer: &mut impl AppEventObserver) {
+    fn notify_event_impl(
+        ctx: &mut AppContext,
+        extensions: &mut E,
+        name: &'static str,
+        update: BoxedEventUpdate,
+        observer: &mut impl AppEventObserver,
+    ) {
         let _scope = tracing::trace_span!("notify_event", event = name).entered();
 
         extensions.event_preview(ctx, &update);

@@ -345,7 +345,7 @@ pub(super) fn window_control_node(child: impl UiNode) -> impl UiNode {
     .cfg_boxed()
 }
 
-#[cfg(debug_assertions)]
+#[cfg(inspector)]
 pub(super) fn inspect_node(child: impl UiNode, can_inspect: impl var::IntoVar<bool>) -> impl UiNode {
     use crate::core::inspector::{write_tree, WriteTreeState};
 

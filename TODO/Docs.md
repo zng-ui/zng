@@ -11,3 +11,4 @@
 
 * Widget image/videos rendering from doc-tests.
 * Use Rust implemented rewrite automatically, can it be done?
+* Generate feature docs from `Cargo.toml` comments.

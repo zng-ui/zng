@@ -1125,7 +1125,7 @@ mod output {
                         #[doc(hidden)]
                         #[inline]
                         pub fn #set_ident(self_: impl #args_ident, #child_arg) -> #output_ty {
-                            fn box_fix(node: impl #crate_core::UiNode) -> #crate_core::BoxedUiNode {
+                            fn box_fix(node: impl #crate_core::UiNode) -> impl #crate_core::UiNode {
                                 #crate_core::UiNode::cfg_boxed(node)
                             }
                             let ( #(#arg_locals),* ) = self_.unwrap();

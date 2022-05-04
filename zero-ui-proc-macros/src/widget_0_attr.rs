@@ -269,8 +269,15 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
                     #[doc(hidden)]
                     #[allow(clippy::too_many_arguments)]
                     pub fn #new__<#(#cfgs #generic_tys: #prop_idents::Args),*>(#child_decl #(#cfgs #spanned_inputs : #generic_tys),*) #output {
-                        fn box_fix(node: impl #crate_core::UiNode) -> impl #crate_core::UiNode {
-                            #crate_core::UiNode::cfg_boxed(node)
+                        #crate_core::core_cfg_dyn_widget! {
+                            fn box_fix(node: impl #crate_core::UiNode) -> impl #crate_core::UiNode {
+                                #crate_core::UiNode::boxed(node)
+                            }
+                        }
+                        #crate_core::core_cfg_dyn_widget! {@NOT
+                            fn box_fix(node: impl #crate_core::UiNode) -> impl #crate_core::UiNode {
+                                #crate_core::UiNode::cfg_boxed(node)
+                            }
                         }
                         self::#new_id(#child_pass #(#spanned_unwrap),*)
                     }
