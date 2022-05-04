@@ -1669,6 +1669,9 @@ impl<E: AppExtension> Drop for RunningApp<E> {
     }
 }
 
+#[cfg(dyn_app_extension)]
+share_generics!(RunningApp<Box<dyn AppExtensionBoxed>>::start);
+
 /// App main loop timer.
 #[derive(Default)]
 pub(crate) struct LoopTimer {

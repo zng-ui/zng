@@ -1077,3 +1077,12 @@ mod windows_timer_util {
         }
     });
 }
+
+/// Pre-compile generic variation so that dependent crates don't need to.
+macro_rules! share_generics {
+    ($f:path) => {
+        #[doc(hidden)]
+        #[cfg(debug_assertions)]
+        pub const _: *const () = (&$f) as *const _ as _;
+    };
+}
