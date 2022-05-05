@@ -1,7 +1,3 @@
-//! This macro can almost be implemented using macro_rules!, we only need a proc-macro
-//! to get the tuple member index for for each input and split off the last expression as the merge
-//! closure, instead of another input.
-
 use syn::{
     parse::{Parse, ParseStream},
     parse_macro_input,
@@ -17,22 +13,45 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     }
 
     let merge = inputs.pop().unwrap();
-    let idx: Vec<_> = (0..inputs.len()).map(|i| syn::Index {
-        index: i as u32,
-        span: proc_macro2::Span::call_site(),
-    }).collect();
+
+    let type_idents: Vec<_> = (0..inputs.len()).map(|i| ident!("T{i}")).collect();
+    let var_idents: Vec<_> = (0..inputs.len()).map(|i| ident!("V{i}")).collect();
+    let input_idents: Vec<_> = (0..inputs.len()).map(|i| ident!("var{i}")).collect();
+    let idx: Vec<_> = (0..inputs.len())
+        .map(|i| syn::Index {
+            index: i as _,
+            span: proc_macro2::Span::call_site(),
+        })
+        .collect();
 
     let out = quote! {
         {
-            let inputs__ = (#inputs);
-            let input_types__ = (#(#vars_mod::types::RcMergeVarInput::new(&inputs__.#idx)),*);
-            let mut merge__ = #merge;
-            #vars_mod::types::RcMergeVar::new(
-                Box::new([#(Box::new(inputs__.#idx)),*]),
-                Box::new(move |vars, inputs| {
-                    merge__(#(input_types__.#idx.get(&inputs[#idx])),*)
-                })
-            )
+            fn merge_var__<
+                #(#type_idents: #vars_mod::VarValue,)*
+                #(#var_idents: #vars_mod::Var<#type_idents>,)*
+                O: #vars_mod::VarValue,
+                F: FnMut(
+                    #(&#type_idents,)*
+                ) -> O + 'static
+            >(
+                #(#input_idents: #var_idents,)*
+                mut merge: F
+            ) -> #vars_mod::types::RcMergeVar<O> {
+                let input_types = (
+                    #(#vars_mod::types::RcMergeVarInput::new(&#input_idents)),*
+                );
+                #vars_mod::types::RcMergeVar::new(
+                    Box::new([
+                        #(Box::new(#input_idents),)*
+                    ]),
+                    Box::new(move |vars, inputs| {
+                        merge(
+                            #(input_types.#idx.get(&inputs[#idx], vars)),*
+                        )
+                    })
+                )
+            }
+            merge_var__(#inputs #merge)
         }
     };
 

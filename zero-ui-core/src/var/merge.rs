@@ -1,11 +1,8 @@
 use super::*;
 
+use std::cell::{Cell, RefCell, UnsafeCell};
 use std::marker::PhantomData;
 use std::rc::{Rc, Weak};
-use std::{
-    any::Any,
-    cell::{Cell, RefCell, UnsafeCell},
-};
 
 ///<span data-del-macro-root></span> Initializes a new [`Var`](crate::var::Var) with value made
 /// by merging multiple other variables.
@@ -450,20 +447,22 @@ impl<O: VarValue> RcMergeVar<O> {
         // of this update, and borrows cannot exist across updates because source
         // vars require a &mut Vars for changing version.
 
-        if self.0.last_update.get() != vars.update_id() {
+        let first = unsafe { &*self.0.output.get() }.is_none();
+
+        if first || self.0.last_update.get() != vars.update_id() {
             self.0.last_update.set(vars.update_id());
 
-            let mut changed = false;
+            let mut merge = first;
             for (version, var) in self.0.versions.iter().zip(self.0.inputs.iter()) {
                 let new_version = var.version_any(vars);
 
                 if version.get() != new_version {
                     version.set(new_version);
-                    changed = true;
+                    merge = true;
                 }
             }
 
-            if changed {
+            if merge {
                 let new_value = (self.0.merge.borrow_mut())(vars, &self.0.inputs);
 
                 unsafe {
@@ -661,12 +660,15 @@ impl<T: VarValue> WeakVar<T> for WeakRcMergeVar<T> {
 pub use zero_ui_proc_macros::merge_var as __merge_var;
 
 /// <span data-del-macro-root></span> Instantiate a [`RcMergeVar`].
+///
+/// The macro syntax is the same as [`merge_var!`], but outputs a [`RcMergeVar`] instead of
+/// an optimized opaque var type.
 #[macro_export]
 macro_rules! rc_merge_var {
-    ($($input:expr),+ $(,)?) => {
+    ($($tt:tt)+) => {
         $crate::var::types::__merge_var! {
             $crate::var,
-            $($input,)+
+            $($tt)+
         }
     };
 }
@@ -680,11 +682,13 @@ impl<T: VarValue, V: Var<T>> RcMergeVarInput<T, V> {
         RcMergeVarInput(PhantomData)
     }
 
-    pub fn get<'a>(&self, var: &'a Box<dyn Any>, vars: &'a VarsRead) -> &'a T {
-        var.downcast_ref::<V>().unwrap().get(vars)
+    #[allow(clippy::borrowed_box)]
+    pub fn get<'a>(&self, var: &'a Box<dyn any::AnyVar>, vars: &'a VarsRead) -> &'a T {
+        var.as_any().downcast_ref::<V>().unwrap().get(vars)
     }
 
-    pub fn is_new(&self, var: &Box<dyn Any>, vars: &Vars) -> bool {
-        var.downcast_ref::<V>().unwrap().is_new(vars)
+    #[allow(clippy::borrowed_box)]
+    pub fn is_new(&self, var: &Box<dyn any::AnyVar>, vars: &Vars) -> bool {
+        var.as_any().downcast_ref::<V>().unwrap().is_new(vars)
     }
 }

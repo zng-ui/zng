@@ -14,6 +14,7 @@ pub trait AnyVar: Any + crate::private::Sealed {
     fn is_animating_any(&self, vars: &VarsRead) -> bool;
     fn update_mask_any(&self, vars: &VarsRead) -> UpdateMask;
     fn actual_var_any(&self, vars: &Vars) -> Box<dyn AnyVar>;
+    fn as_any(&self) -> &dyn Any;
 }
 
 macro_rules! any_var_impls {
@@ -52,6 +53,10 @@ macro_rules! any_var_impls {
 
         fn actual_var_any(&self, vars: &Vars) -> Box<dyn any::AnyVar> {
             any::AnyVar::into_any(Var::actual_var(self, vars))
+        }
+
+        fn as_any(&self) -> &dyn std::any::Any {
+            self
         }
     };
 }
