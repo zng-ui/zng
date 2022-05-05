@@ -1960,13 +1960,14 @@ where
             self.handler.update(ctx);
         }
     }
+
+    #[cfg(dyn_closure)]
+    let filter: Box<dyn FnMut(&mut WidgetContext, &E::Args) -> bool> = Box::new(filter);
+
     OnEventNode {
         child: child.cfg_boxed(),
         event,
-        #[cfg(not(dyn_closure))]
         filter,
-        #[cfg(dyn_closure)]
-        filter: Box::new(filter),
         handler: handler.cfg_boxed(),
     }
     .cfg_boxed()
@@ -2042,13 +2043,14 @@ where
             self.child.update(ctx);
         }
     }
+
+    #[cfg(dyn_closure)]
+    let filter: Box<dyn FnMut(&mut WidgetContext, &E::Args) -> bool> = Box::new(filter);
+
     OnPreviewEventNode {
         child: child.cfg_boxed(),
         event,
-        #[cfg(not(dyn_closure))]
         filter,
-        #[cfg(dyn_closure)]
-        filter: Box::new(filter),
         handler: handler.cfg_boxed(),
     }
     .cfg_boxed()

@@ -149,18 +149,28 @@ impl VarsRead {
     /// [`update_mask`]: ContextVarData::update_mask
     /// [`info`]: crate::context::Updates::info
     #[inline(always)]
-    pub fn with_context_var<C, R, F>(&self, context_var: C, mut data: ContextVarData<C::Type>, f: F) -> R
+    pub fn with_context_var<C, R, F>(&self, context_var: C, data: ContextVarData<C::Type>, f: F) -> R
     where
         C: ContextVar,
+        F: FnOnce() -> R,
+    {
+        #[cfg(dyn_closure)]
+        let f: Box<dyn FnOnce() -> R> = Box::new(f);
+
+        let _ = context_var;
+        self.with_context_var_impl(C::thread_local_value(), data, f)
+    }
+
+    fn with_context_var_impl<T, R, F>(&self, thread_local_value: ContextVarLocalKey<T>, mut data: ContextVarData<T>, f: F) -> R
+    where
+        T: VarValue,
         F: FnOnce() -> R,
     {
         // SAFETY: `ContextVar` makes safety assumptions about this code
         // don't change before studying it.
 
-        let _ = context_var;
-
         if let Some(context_id) = self.context_id.get() {
-            let prev_version = C::thread_local_value().version();
+            let prev_version = thread_local_value.version();
             data.version.set_widget_context(&prev_version, context_id);
         } else {
             let count = self.contextless_count.get().wrapping_add(1);
@@ -168,9 +178,9 @@ impl VarsRead {
             data.version.set_app_context(count);
         }
 
-        let prev = C::thread_local_value().enter_context(data.into_raw());
+        let prev = thread_local_value.enter_context(data.into_raw());
         let _restore = RunOnDrop::new(move || {
-            C::thread_local_value().exit_context(prev);
+            thread_local_value.exit_context(prev);
         });
 
         f()
@@ -183,6 +193,11 @@ impl VarsRead {
     /// This is called by the layout and render contexts.
     #[inline(always)]
     pub(crate) fn with_widget<R, F: FnOnce() -> R>(&self, widget_id: WidgetId, f: F) -> R {
+        #[cfg(dyn_closure)]
+        let f: Box<dyn FnOnce() -> R> = Box::new(f);
+        self.with_widget_impl(widget_id, f)
+    }
+    fn with_widget_impl<R, F: FnOnce() -> R>(&self, widget_id: WidgetId, f: F) -> R {
         let parent_wgt = self.context_id.get();
         self.context_id.set(Some(widget_id));
 
