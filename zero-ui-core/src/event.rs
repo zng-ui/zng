@@ -1963,8 +1963,11 @@ where
     OnEventNode {
         child: child.cfg_boxed(),
         event,
+        #[cfg(not(dyn_closure))]
         filter,
-        handler,
+        #[cfg(dyn_closure)]
+        filter: Box::new(filter),
+        handler: handler.cfg_boxed(),
     }
     .cfg_boxed()
 }
@@ -2042,8 +2045,11 @@ where
     OnPreviewEventNode {
         child: child.cfg_boxed(),
         event,
+        #[cfg(not(dyn_closure))]
         filter,
-        handler,
+        #[cfg(dyn_closure)]
+        filter: Box::new(filter),
+        handler: handler.cfg_boxed(),
     }
     .cfg_boxed()
 }

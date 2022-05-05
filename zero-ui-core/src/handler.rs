@@ -91,7 +91,55 @@ pub trait WidgetHandler<A: Clone + 'static>: 'static {
         let _ = ctx;
         false
     }
+
+    /// Box the handler.
+    ///
+    /// The type `Box<dyn WidgetHandler<A>>` implements `WidgetHandler<A>` and just returns it-self
+    /// in this method, avoiding double boxing.
+    fn boxed(self) -> Box<dyn WidgetHandler<A>>
+    where
+        Self: Sized,
+    {
+        Box::new(self)
+    }
+    /// Boxes the handler if the `dyn_closure` feature is active, otherwise retains the same handler type.    
+    #[cfg(dyn_closure)]
+    fn cfg_boxed(self) -> Box<dyn WidgetHandler<A>>
+    where
+        Self: Sized,
+    {
+        self.boxed()
+    }
+    /// Boxes the handler if the `dyn_closure` feature is active, otherwise retains the same handler type.
+    #[cfg(not(dyn_closure))]
+    fn cfg_boxed(self) -> Self
+    where
+        Self: Sized,
+    {
+        self
+    }
 }
+impl<A: Clone + 'static> WidgetHandler<A> for Box<dyn WidgetHandler<A>> {
+    fn event(&mut self, ctx: &mut WidgetContext, args: &A) -> bool {
+        self.as_mut().event(ctx, args)
+    }
+
+    fn subscribe(&self, widget_subscriptions: &mut WidgetSubscriptions) {
+        self.as_ref().subscribe(widget_subscriptions)
+    }
+
+    fn update(&mut self, ctx: &mut WidgetContext) -> bool {
+        self.as_mut().update(ctx)
+    }
+
+    fn boxed(self) -> Box<dyn WidgetHandler<A>>
+    where
+        Self: Sized,
+    {
+        self
+    }
+}
+
 #[doc(hidden)]
 pub struct FnMutWidgetHandler<H> {
     handler: H,
@@ -107,13 +155,26 @@ where
     }
 }
 impl<H> marker::NotAsyncHn for FnMutWidgetHandler<H> {}
+
 #[doc(hidden)]
+#[cfg(not(dyn_closure))]
 pub fn hn<A, H>(handler: H) -> FnMutWidgetHandler<H>
 where
     A: Clone + 'static,
     H: FnMut(&mut WidgetContext, &A) + 'static,
 {
     FnMutWidgetHandler { handler }
+}
+#[doc(hidden)]
+#[cfg(dyn_closure)]
+pub fn hn<A, H>(handler: H) -> FnMutWidgetHandler<Box<dyn FnMut(&mut WidgetContext, &A)>>
+where
+    A: Clone + 'static,
+    H: FnMut(&mut WidgetContext, &A) + 'static,
+{
+    FnMutWidgetHandler {
+        handler: Box::new(handler),
+    }
 }
 
 ///<span data-del-macro-root></span> Declare a mutable *clone-move* event handler.
@@ -204,12 +265,24 @@ where
 impl<H> marker::OnceHn for FnOnceWidgetHandler<H> {}
 impl<H> marker::NotAsyncHn for FnOnceWidgetHandler<H> {}
 #[doc(hidden)]
+#[cfg(not(dyn_closure))]
 pub fn hn_once<A, H>(handler: H) -> FnOnceWidgetHandler<H>
 where
     A: Clone + 'static,
     H: FnOnce(&mut WidgetContext, &A) + 'static,
 {
     FnOnceWidgetHandler { handler: Some(handler) }
+}
+#[doc(hidden)]
+#[cfg(dyn_closure)]
+pub fn hn_once<A, H>(handler: H) -> FnOnceWidgetHandler<Box<dyn FnOnce(&mut WidgetContext, &A)>>
+where
+    A: Clone + 'static,
+    H: FnOnce(&mut WidgetContext, &A) + 'static,
+{
+    FnOnceWidgetHandler {
+        handler: Some(Box::new(handler)),
+    }
 }
 
 ///<span data-del-macro-root></span> Declare a *clone-move* event handler that is only called once.
@@ -298,6 +371,7 @@ where
 }
 impl<H> marker::AsyncHn for AsyncFnMutWidgetHandler<H> {}
 #[doc(hidden)]
+#[cfg(not(dyn_closure))]
 pub fn async_hn<A, F, H>(handler: H) -> AsyncFnMutWidgetHandler<H>
 where
     A: Clone + 'static,
@@ -305,6 +379,23 @@ where
     H: FnMut(WidgetContextMut, A) -> F + 'static,
 {
     AsyncFnMutWidgetHandler { handler, tasks: vec![] }
+}
+
+#[cfg(dyn_closure)]
+type BoxedAsyncHn<A> = Box<dyn FnMut(WidgetContextMut, A) -> std::pin::Pin<Box<dyn Future<Output = ()>>>>;
+
+#[doc(hidden)]
+#[cfg(dyn_closure)]
+pub fn async_hn<A, F, H>(mut handler: H) -> AsyncFnMutWidgetHandler<BoxedAsyncHn<A>>
+where
+    A: Clone + 'static,
+    F: Future<Output = ()> + 'static,
+    H: FnMut(WidgetContextMut, A) -> F + 'static,
+{
+    AsyncFnMutWidgetHandler {
+        handler: Box::new(move |ctx, args| Box::pin(handler(ctx, args))),
+        tasks: vec![],
+    }
 }
 
 ///<span data-del-macro-root></span> Declare an async *clone-move* event handler.
@@ -452,6 +543,7 @@ where
 impl<H> marker::AsyncHn for AsyncFnOnceWidgetHandler<H> {}
 impl<H> marker::OnceHn for AsyncFnOnceWidgetHandler<H> {}
 #[doc(hidden)]
+#[cfg(not(dyn_closure))]
 pub fn async_hn_once<A, F, H>(handler: H) -> AsyncFnOnceWidgetHandler<H>
 where
     A: Clone + 'static,
@@ -460,6 +552,22 @@ where
 {
     AsyncFnOnceWidgetHandler {
         state: AsyncFnOnceWhState::NotCalled(handler),
+    }
+}
+
+#[cfg(dyn_closure)]
+type BoxedAsyncHnOnce<A> = Box<dyn FnOnce(WidgetContextMut, A) -> std::pin::Pin<Box<dyn Future<Output = ()>>>>;
+
+#[doc(hidden)]
+#[cfg(dyn_closure)]
+pub fn async_hn_once<A, F, H>(handler: H) -> AsyncFnOnceWidgetHandler<BoxedAsyncHnOnce<A>>
+where
+    A: Clone + 'static,
+    F: Future<Output = ()> + 'static,
+    H: FnOnce(WidgetContextMut, A) -> F + 'static,
+{
+    AsyncFnOnceWidgetHandler {
+        state: AsyncFnOnceWhState::NotCalled(Box::new(move |ctx, args| Box::pin(handler(ctx, args)))),
     }
 }
 
@@ -567,6 +675,44 @@ pub trait AppHandler<A: Clone + 'static>: 'static {
     ///
     /// [`Updates::on_update`]: crate::context::Updates::on_update
     fn event(&mut self, ctx: &mut AppContext, args: &A, handler_args: &AppHandlerArgs);
+
+    /// Boxes the handler.
+    ///
+    /// The type `Box<dyn AppHandler<A>>` implements `AppHandler<A>` and just returns it-self
+    /// in this method, avoiding double boxing.
+    fn boxed(self) -> Box<dyn AppHandler<A>>
+    where
+        Self: Sized,
+    {
+        Box::new(self)
+    }
+
+    /// Boxes the handler if the `dyn_closure` feature is enabled, otherwise maintain the same type.
+    #[cfg(dyn_closure)]
+    fn cfg_boxed(self) -> Box<dyn AppHandler<A>>
+    where
+        Self: Sized,
+    {
+        self.boxed()
+    }
+
+    /// Boxes the handler if the `dyn_closure` feature is enabled, otherwise maintain the same type.    
+    #[cfg(not(dyn_closure))]
+    fn cfg_boxed(self) -> Self
+    where
+        Self: Sized,
+    {
+        self
+    }
+}
+impl<A: Clone + 'static> AppHandler<A> for Box<dyn AppHandler<A>> {
+    fn event(&mut self, ctx: &mut AppContext, args: &A, handler_args: &AppHandlerArgs) {
+        self.as_mut().event(ctx, args, handler_args)
+    }
+
+    fn boxed(self) -> Box<dyn AppHandler<A>> {
+        self
+    }
 }
 
 #[doc(hidden)]
@@ -584,12 +730,28 @@ where
 }
 impl<H> marker::NotAsyncHn for FnMutAppHandler<H> {}
 #[doc(hidden)]
+#[cfg(not(dyn_closure))]
 pub fn app_hn<A, H>(handler: H) -> FnMutAppHandler<H>
 where
     A: Clone + 'static,
     H: FnMut(&mut AppContext, &A, &dyn AppWeakHandle) + 'static,
 {
     FnMutAppHandler { handler }
+}
+
+#[cfg(dyn_closure)]
+type BoxedAppHn<A> = Box<dyn FnMut(&mut AppContext, &A, &dyn AppWeakHandle) + 'static>;
+
+#[doc(hidden)]
+#[cfg(dyn_closure)]
+pub fn app_hn<A, H>(handler: H) -> FnMutAppHandler<BoxedAppHn<A>>
+where
+    A: Clone + 'static,
+    H: FnMut(&mut AppContext, &A, &dyn AppWeakHandle) + 'static,
+{
+    FnMutAppHandler {
+        handler: Box::new(handler),
+    }
 }
 
 ///<span data-del-macro-root></span> Declare a mutable *clone-move* app event handler.
@@ -684,12 +846,24 @@ where
 impl<H> marker::OnceHn for FnOnceAppHandler<H> {}
 impl<H> marker::NotAsyncHn for FnOnceAppHandler<H> {}
 #[doc(hidden)]
+#[cfg(not(dyn_closure))]
 pub fn app_hn_once<A, H>(handler: H) -> FnOnceAppHandler<H>
 where
     A: Clone + 'static,
     H: FnOnce(&mut AppContext, &A) + 'static,
 {
     FnOnceAppHandler { handler: Some(handler) }
+}
+#[doc(hidden)]
+#[cfg(dyn_closure)]
+pub fn app_hn_once<A, H>(handler: H) -> FnOnceAppHandler<Box<dyn FnOnce(&mut AppContext, &A)>>
+where
+    A: Clone + 'static,
+    H: FnOnce(&mut AppContext, &A) + 'static,
+{
+    FnOnceAppHandler {
+        handler: Some(Box::new(handler)),
+    }
 }
 
 ///<span data-del-macro-root></span> Declare a *clone-move* app event handler that is only called once.
@@ -781,6 +955,7 @@ where
 }
 impl<H> marker::AsyncHn for AsyncFnMutAppHandler<H> {}
 #[doc(hidden)]
+#[cfg(not(dyn_closure))]
 pub fn async_app_hn<A, F, H>(handler: H) -> AsyncFnMutAppHandler<H>
 where
     A: Clone + 'static,
@@ -788,6 +963,22 @@ where
     H: FnMut(AppContextMut, A, Box<dyn AppWeakHandle>) -> F + 'static,
 {
     AsyncFnMutAppHandler { handler }
+}
+
+#[cfg(dyn_closure)]
+type BoxedAsynAppHn<A> = Box<dyn FnMut(AppContextMut, A, Box<dyn AppWeakHandle>) -> std::pin::Pin<Box<dyn Future<Output = ()>>>>;
+
+#[doc(hidden)]
+#[cfg(dyn_closure)]
+pub fn async_app_hn<A, F, H>(mut handler: H) -> AsyncFnMutAppHandler<BoxedAsynAppHn<A>>
+where
+    A: Clone + 'static,
+    F: Future<Output = ()> + 'static,
+    H: FnMut(AppContextMut, A, Box<dyn AppWeakHandle>) -> F + 'static,
+{
+    AsyncFnMutAppHandler {
+        handler: Box::new(move |ctx, args, handle| Box::pin(handler(ctx, args, handle))),
+    }
 }
 
 ///<span data-del-macro-root></span> Declare an async *clone-move* app event handler.
@@ -936,6 +1127,7 @@ where
 impl<H> marker::AsyncHn for AsyncFnOnceAppHandler<H> {}
 impl<H> marker::OnceHn for AsyncFnOnceAppHandler<H> {}
 #[doc(hidden)]
+#[cfg(not(dyn_closure))]
 pub fn async_app_hn_once<A, F, H>(handler: H) -> AsyncFnOnceAppHandler<H>
 where
     A: Clone + 'static,
@@ -943,6 +1135,22 @@ where
     H: FnOnce(AppContextMut, A) -> F + 'static,
 {
     AsyncFnOnceAppHandler { handler: Some(handler) }
+}
+
+#[cfg(dyn_closure)]
+type BoxedAsynAppHnOnce<A> = Box<dyn FnOnce(AppContextMut, A) -> std::pin::Pin<Box<dyn Future<Output = ()>>>>;
+
+#[doc(hidden)]
+#[cfg(dyn_closure)]
+pub fn async_app_hn_once<A, F, H>(handler: H) -> AsyncFnOnceAppHandler<BoxedAsynAppHnOnce<A>>
+where
+    A: Clone + 'static,
+    F: Future<Output = ()> + 'static,
+    H: FnOnce(AppContextMut, A) -> F + 'static,
+{
+    AsyncFnOnceAppHandler {
+        handler: Some(Box::new(move |ctx, args| Box::pin(handler(ctx, args)))),
+    }
 }
 
 ///<span data-del-macro-root></span> Declare an async *clone-move* app event handler that is only called once.
