@@ -207,12 +207,13 @@ where
         self
     }
 }
-impl<T> crate::var::rc::ReadOnlyRcVar<T>
+impl<T, V> any::AnyVar for ReadOnlyVar<T, V>
 where
     T: VarValue,
+    V: Var<T>,
 {
-    /// If both [`ReadOnlyRcVar`] are wrapping the same [`RcVar`].
-    pub fn ptr_eq(&self, other: &Self) -> bool {
-        self.0.ptr_eq(&other.0)
+    fn into_any(self) -> Box<dyn any::AnyVar> {
+        any::AnyVar::into_any(self.0)
     }
+    any_var_impls!();
 }

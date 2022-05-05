@@ -193,7 +193,7 @@ fn crate_name_impl(orig_name: &str, toml: &str) -> Result<FoundCrate, ()> {
 macro_rules! abort {
     ($span:expr, $($tt:tt)*) => {{
         let error = format!($($tt)*);
-        let error = LitStr::new(&error, Span::call_site());
+        let error = syn::LitStr::new(&error, proc_macro2::Span::call_site());
 
         return quote_spanned!($span=> compile_error!{#error}).into();
     }};
@@ -202,7 +202,7 @@ macro_rules! abort {
 /// Generates a return of a compile_error message in the call_site span.
 macro_rules! abort_call_site {
     ($($tt:tt)*) => {
-        abort!(Span::call_site(), $($tt)*)
+        abort!(proc_macro2::Span::call_site(), $($tt)*)
     };
 }
 

@@ -146,3 +146,10 @@ impl<T: VarValue> IntoVar<T> for T {
         LocalVar(self)
     }
 }
+impl<T: VarValue> any::AnyVar for LocalVar<T> {
+    fn into_any(self) -> Box<dyn any::AnyVar> {
+        Box::new(self)
+    }
+
+    any_var_impls!();
+}

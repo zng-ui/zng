@@ -309,6 +309,20 @@ where
         self
     }
 }
+impl<A, B, V, M, S> any::AnyVar for RcFlatMapVar<A, B, V, M, S>
+where
+    A: VarValue,
+    B: VarValue,
+    V: Var<B>,
+    M: FnMut(&A) -> V + 'static,
+    S: Var<A>,
+{
+    fn into_any(self) -> Box<dyn any::AnyVar> {
+        Box::new(self)
+    }
+
+    any_var_impls!();
+}
 
 #[cfg(test)]
 mod tests {

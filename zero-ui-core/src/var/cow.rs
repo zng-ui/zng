@@ -366,6 +366,13 @@ impl<T: VarValue, V: Var<T>> IntoVar<T> for RcCowVar<T, V> {
         self
     }
 }
+impl<T: VarValue, V: Var<T>> any::AnyVar for RcCowVar<T, V> {
+    fn into_any(self) -> Box<dyn any::AnyVar> {
+        Box::new(self)
+    }
+
+    any_var_impls!();
+}
 
 /// A weak reference to a [`RcCowVar`].
 pub struct WeakRcCowVar<T: VarValue, V: Var<T>>(Weak<CowData<T, V>>);

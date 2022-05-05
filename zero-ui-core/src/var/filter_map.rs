@@ -356,6 +356,20 @@ where
         self
     }
 }
+impl<A, B, I, M, S> any::AnyVar for RcFilterMapVar<A, B, I, M, S>
+where
+    A: VarValue,
+    B: VarValue,
+    I: FnOnce(&A) -> B + 'static,
+    M: FnMut(&A) -> Option<B> + 'static,
+    S: Var<A>,
+{
+    fn into_any(self) -> Box<dyn any::AnyVar> {
+        Box::new(self)
+    }
+
+    any_var_impls!();
+}
 
 /// A weak reference to a [`RcFilterMapBidiVar`].
 pub struct WeakRcFilterMapBidiVar<A, B, I, M, N, S>(Weak<FilterMapBidiData<A, B, I, M, N, S>>);
@@ -753,4 +767,19 @@ where
     fn into_var(self) -> Self::Var {
         self
     }
+}
+impl<A, B, I, M, N, S> any::AnyVar for RcFilterMapBidiVar<A, B, I, M, N, S>
+where
+    A: VarValue,
+    B: VarValue,
+    I: FnOnce(&A) -> B + 'static,
+    M: FnMut(&A) -> Option<B> + 'static,
+    N: FnMut(B) -> Option<A> + 'static,
+    S: Var<A>,
+{
+    fn into_any(self) -> Box<dyn any::AnyVar> {
+        Box::new(self)
+    }
+
+    any_var_impls!();
 }

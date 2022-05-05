@@ -432,6 +432,14 @@ macro_rules! impl_rc_when_var {
                 self
             }
         }
+
+        impl<O: VarValue, D: Var<O>, $($C: Var<bool>),+ , $($V: Var<O>),+> any::AnyVar for $RcWhenVar<O, D, $($C),+ , $($V),+> {
+            fn into_any(self) -> Box<dyn any::AnyVar> {
+                Box::new(self)
+            }
+
+            any_var_impls!();
+        }
     };
 }
 #[cfg(not(dyn_closure))]
@@ -787,6 +795,13 @@ impl<O: VarValue> IntoVar<O> for RcWhenVar<O> {
     fn into_var(self) -> Self::Var {
         self
     }
+}
+impl<O: VarValue> any::AnyVar for RcWhenVar<O> {
+    fn into_any(self) -> Box<dyn any::AnyVar> {
+        Box::new(self)
+    }
+
+    any_var_impls!();
 }
 
 /// Builder used in [`when_var!`] when there is more then 8 conditions. Boxes the variables.

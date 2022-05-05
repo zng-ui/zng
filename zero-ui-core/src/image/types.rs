@@ -16,7 +16,7 @@ use crate::{
     task::{self, SignalOnce},
     text::Text,
     units::*,
-    var::ReadOnlyRcVar,
+    var::{ReadOnlyRcVar, Var},
     BoxedUiNode, UiNode,
 };
 

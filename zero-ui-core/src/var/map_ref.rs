@@ -245,7 +245,6 @@ where
         Rc::as_ptr(&self.0) as _
     }
 }
-
 impl<A, B, M, S> IntoVar<B> for MapRefVar<A, B, M, S>
 where
     A: VarValue,
@@ -259,6 +258,19 @@ where
     fn into_var(self) -> Self::Var {
         self
     }
+}
+impl<A, B, M, S> any::AnyVar for MapRefVar<A, B, M, S>
+where
+    A: VarValue,
+    B: VarValue,
+    M: Fn(&A) -> &B + 'static,
+    S: Var<A>,
+{
+    fn into_any(self) -> Box<dyn any::AnyVar> {
+        Box::new(self)
+    }
+
+    any_var_impls!();
 }
 
 struct MapBidiRefData<A, B, M, N, S> {
@@ -547,7 +559,6 @@ where
         Rc::as_ptr(&self.0) as _
     }
 }
-
 impl<A, B, M, N, S> IntoVar<B> for MapBidiRefVar<A, B, M, N, S>
 where
     A: VarValue,
@@ -562,4 +573,18 @@ where
     fn into_var(self) -> Self::Var {
         self
     }
+}
+impl<A, B, M, N, S> any::AnyVar for MapBidiRefVar<A, B, M, N, S>
+where
+    A: VarValue,
+    B: VarValue,
+    M: Fn(&A) -> &B + 'static,
+    N: Fn(&mut A) -> &mut B + 'static,
+    S: Var<A>,
+{
+    fn into_any(self) -> Box<dyn any::AnyVar> {
+        Box::new(self)
+    }
+
+    any_var_impls!();
 }

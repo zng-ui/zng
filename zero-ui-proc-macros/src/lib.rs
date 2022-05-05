@@ -14,6 +14,7 @@ mod util;
 mod derive_service;
 pub(crate) mod expr_var;
 mod hex_color;
+mod merge_var;
 mod static_list;
 mod when_var;
 
@@ -124,6 +125,12 @@ pub fn expr_var(input: TokenStream) -> TokenStream {
 #[proc_macro]
 pub fn when_var(input: TokenStream) -> TokenStream {
     when_var::expand(input)
+}
+
+#[doc(hidden)]
+#[proc_macro]
+pub fn merge_var(input: TokenStream) -> TokenStream {
+    merge_var::expand(input)
 }
 
 #[doc(hidden)]

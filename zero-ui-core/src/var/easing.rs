@@ -16,7 +16,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use super::{IntoVar, Var, VarValue, Vars, WeakVar};
+use super::{any, IntoVar, Var, VarValue, Vars, WeakVar};
 
 /// Simple linear transition, no easing, no acceleration.
 #[inline]
@@ -1114,4 +1114,16 @@ where
     fn into_var(self) -> Self::Var {
         self
     }
+}
+impl<T, V, F> any::AnyVar for EasingVar<T, V, F>
+where
+    T: VarValue + Transitionable,
+    V: Var<T>,
+    F: Fn(EasingTime) -> EasingStep + 'static,
+{
+    fn into_any(self) -> Box<dyn any::AnyVar> {
+        Box::new(self)
+    }
+
+    any_var_impls!();
 }

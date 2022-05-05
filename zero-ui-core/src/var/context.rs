@@ -165,7 +165,6 @@ impl<C: ContextVar> Var<C::Type> for ContextVarProxy<C> {
         })
     }
 }
-
 impl<C: ContextVar> IntoVar<C::Type> for ContextVarProxy<C> {
     type Var = Self;
 
@@ -173,6 +172,13 @@ impl<C: ContextVar> IntoVar<C::Type> for ContextVarProxy<C> {
     fn into_var(self) -> Self::Var {
         self
     }
+}
+impl<C: ContextVar> any::AnyVar for ContextVarProxy<C> {
+    fn into_any(self) -> Box<dyn any::AnyVar> {
+        Box::new(self)
+    }
+
+    any_var_impls!();
 }
 
 /// Value bound to a [`ContextVar`] at a context.

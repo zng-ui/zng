@@ -376,6 +376,15 @@ macro_rules! impl_rc_switch_var {
                 self
             }
         }
+
+        impl<O: VarValue, $($V: Var<O>,)+ VI: Var<usize>>
+        any::AnyVar for $RcSwitchVar<O, $($V,)+ VI> {
+            fn into_any(self) -> Box<dyn any::AnyVar> {
+                Box::new(self)
+            }
+
+            any_var_impls!();
+        }
     };
 }
 
@@ -622,6 +631,13 @@ impl<O: VarValue, VI: Var<usize>> IntoVar<O> for RcSwitchVar<O, VI> {
     fn into_var(self) -> Self::Var {
         self
     }
+}
+impl<O: VarValue, VI: Var<usize>> any::AnyVar for RcSwitchVar<O, VI> {
+    fn into_any(self) -> Box<dyn any::AnyVar> {
+        Box::new(self)
+    }
+
+    any_var_impls!();
 }
 
 #[doc(hidden)]

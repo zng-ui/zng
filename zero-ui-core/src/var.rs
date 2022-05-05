@@ -18,6 +18,9 @@ use crate::{
     WidgetId,
 };
 
+#[macro_use]
+mod any;
+
 mod binding;
 pub use binding::*;
 
@@ -32,13 +35,12 @@ pub use context::*;
 
 mod read_only;
 
-mod local;
-
 mod cow;
 mod expr;
 mod filter_map;
 mod flat_map;
 mod future;
+mod local;
 mod map;
 mod map_ref;
 mod merge;
@@ -400,7 +402,7 @@ macro_rules! DefaultMapVar {
 ///
 /// [sealed]: https://rust-lang.github.io/api-guidelines/future-proofing.html#sealed-traits-protect-against-downstream-implementations-c-sealed
 #[cfg_attr(doc_nightly, doc(notable_trait))]
-pub trait Var<T: VarValue>: Clone + IntoVar<T> + crate::private::Sealed + 'static {
+pub trait Var<T: VarValue>: Clone + IntoVar<T> + any::AnyVar + crate::private::Sealed + 'static {
     /**
      * README Before Adding Methods/Docs
      *

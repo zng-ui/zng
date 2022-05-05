@@ -348,6 +348,13 @@ impl<T: VarValue> IntoVar<T> for RcVar<T> {
         self
     }
 }
+impl<T: VarValue> any::AnyVar for RcVar<T> {
+    fn into_any(self) -> Box<dyn any::AnyVar> {
+        Box::new(self)
+    }
+
+    any_var_impls!();
+}
 
 /// New [`StateVar`].
 #[inline]

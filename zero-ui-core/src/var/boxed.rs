@@ -72,7 +72,12 @@ impl<T: VarValue> WeakVar<T> for BoxedWeakVar<T> {
 }
 
 #[doc(hidden)]
-pub trait VarBoxed<T: VarValue>: crate::private::Sealed {
+pub trait IntoAnyBoxed<T: VarValue>: any::AnyVar + crate::private::Sealed {
+    fn into_any_boxed(self: Box<Self>) -> Box<dyn any::AnyVar>;
+}
+
+#[doc(hidden)]
+pub trait VarBoxed<T: VarValue>: IntoAnyBoxed<T> + crate::private::Sealed {
     fn get_boxed<'a>(&'a self, vars: &'a VarsRead) -> &'a T;
     fn get_new_boxed<'a>(&'a self, vars: &'a Vars) -> Option<&'a T>;
     fn is_new_boxed(&self, vars: &Vars) -> bool;
@@ -93,6 +98,11 @@ pub trait VarBoxed<T: VarValue>: crate::private::Sealed {
     fn downgrade_boxed(&self) -> Option<BoxedWeakVar<T>>;
     fn weak_count_boxed(&self) -> usize;
     fn as_ptr_boxed(&self) -> *const ();
+}
+impl<T: VarValue, V: Var<T>> IntoAnyBoxed<T> for V {
+    fn into_any_boxed(self: Box<Self>) -> Box<dyn any::AnyVar> {
+        any::AnyVar::into_any(*self)
+    }
 }
 impl<T: VarValue, V: Var<T>> VarBoxed<T> for V {
     #[inline]
@@ -349,4 +359,11 @@ impl<T: VarValue> IntoVar<T> for BoxedVar<T> {
     fn into_var(self) -> Self::Var {
         self
     }
+}
+impl<T: VarValue> any::AnyVar for BoxedVar<T> {
+    fn into_any(self) -> Box<dyn any::AnyVar> {
+        self.into_any_boxed()
+    }
+
+    any_var_impls!();
 }
