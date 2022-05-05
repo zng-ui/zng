@@ -331,27 +331,25 @@ pub(crate) struct ContextVarDataRaw<T: VarValue> {
 
 /// See `ContextVar::thread_local_value`.
 #[doc(hidden)]
-pub struct ContextVarValue<V: ContextVar> {
-    _var: PhantomData<V>,
-    _default_value: Box<V::Type>,
-    value: Cell<*const V::Type>,
+pub struct ContextVarValue<T: VarValue> {
+    _default_value: Box<T>,
+    value: Cell<*const T>,
     is_new: Cell<bool>,
     version: Cell<VarVersion>,
     is_read_only: Cell<bool>,
     is_animating: Cell<bool>,
     update_mask: Cell<UpdateMask>,
-    actual_var: Cell<Option<*mut DynActualVarFn<V::Type>>>,
+    actual_var: Cell<Option<*mut DynActualVarFn<T>>>,
 }
 
 type DynActualVarFn<T> = dyn Fn(&Vars) -> BoxedVar<T>;
 
 #[allow(missing_docs)]
-impl<V: ContextVar> ContextVarValue<V> {
+impl<T: VarValue> ContextVarValue<T> {
     #[inline]
-    pub fn init() -> Self {
-        let default_value = Box::new(V::default_value());
+    pub fn init(default_value: T) -> Self {
+        let default_value = Box::new(default_value);
         ContextVarValue {
-            _var: PhantomData,
             value: Cell::new(default_value.as_ref()),
             _default_value: default_value,
 
@@ -367,17 +365,17 @@ impl<V: ContextVar> ContextVarValue<V> {
 
 /// See `ContextVar::thread_local_value`.
 #[doc(hidden)]
-pub struct ContextVarLocalKey<V: ContextVar> {
-    local: &'static LocalKey<ContextVarValue<V>>,
+pub struct ContextVarLocalKey<T: VarValue> {
+    local: &'static LocalKey<ContextVarValue<T>>,
 }
 #[allow(missing_docs)]
-impl<V: ContextVar> ContextVarLocalKey<V> {
+impl<T: VarValue> ContextVarLocalKey<T> {
     #[inline]
-    pub fn new(local: &'static LocalKey<ContextVarValue<V>>) -> Self {
+    pub fn new(local: &'static LocalKey<ContextVarValue<T>>) -> Self {
         ContextVarLocalKey { local }
     }
 
-    pub(super) fn value(&self) -> *const V::Type {
+    pub(super) fn value(&self) -> *const T {
         self.local.with(|l| l.value.get())
     }
 
@@ -401,11 +399,11 @@ impl<V: ContextVar> ContextVarLocalKey<V> {
         self.local.with(|l| l.is_animating.get())
     }
 
-    pub(super) fn actual_var(&self) -> Option<*mut DynActualVarFn<V::Type>> {
+    pub(super) fn actual_var(&self) -> Option<*mut DynActualVarFn<T>> {
         self.local.with(|l| l.actual_var.get())
     }
 
-    pub(super) fn enter_context(&self, new: ContextVarDataRaw<V::Type>) -> ContextVarDataRaw<V::Type> {
+    pub(super) fn enter_context(&self, new: ContextVarDataRaw<T>) -> ContextVarDataRaw<T> {
         self.local.with(|l| ContextVarDataRaw {
             value: l.value.replace(new.value),
             is_new: l.is_new.replace(new.is_new),
@@ -417,7 +415,7 @@ impl<V: ContextVar> ContextVarLocalKey<V> {
         })
     }
 
-    pub(super) fn exit_context(&self, prev: ContextVarDataRaw<V::Type>) {
+    pub(super) fn exit_context(&self, prev: ContextVarDataRaw<T>) {
         self.local.with(|l| {
             l.value.set(prev.value);
             l.is_new.set(prev.is_new);
@@ -474,7 +472,7 @@ macro_rules! context_var {
 
         impl $ident {
             std::thread_local! {
-                static THREAD_LOCAL_VALUE: $crate::var::ContextVarValue<$ident> = $crate::var::ContextVarValue::init();
+                static THREAD_LOCAL_VALUE: $crate::var::ContextVarValue<$type> = $crate::var::ContextVarValue::init($ident::default_value());
             }
 
             /// [`Var`](crate::var::Var) implementer that represents this context var.
@@ -589,7 +587,7 @@ macro_rules! context_var {
             }
 
             #[inline]
-            fn thread_local_value() -> $crate::var::ContextVarLocalKey<Self> {
+            fn thread_local_value() -> $crate::var::ContextVarLocalKey<$type> {
                 $crate::var::ContextVarLocalKey::new(&Self::THREAD_LOCAL_VALUE)
             }
         }

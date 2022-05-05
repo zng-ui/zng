@@ -113,7 +113,7 @@ pub trait ContextVar: Clone + Copy + 'static {
     /// If that is not possible copy the `thread_local` implementation generated
     /// by the macro as close as possible.
     #[doc(hidden)]
-    fn thread_local_value() -> ContextVarLocalKey<Self>;
+    fn thread_local_value() -> ContextVarLocalKey<Self::Type>;
 }
 
 /// Error when trying to set or modify a read-only variable.
