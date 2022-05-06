@@ -315,7 +315,6 @@ pub struct Vars {
     frame_duration: RcVar<Duration>,
     animation_time_scale: RcVar<Factor>,
 
-    #[allow(clippy::type_complexity)]
     pending: RefCell<Vec<PendingUpdate>>,
 
     pre_handlers: RefCell<Vec<OnVarHandler>>,

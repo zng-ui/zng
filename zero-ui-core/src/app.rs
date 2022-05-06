@@ -1512,15 +1512,12 @@ impl<E: AppExtension> RunningApp<E> {
         if self.has_pending_updates() {
             self.apply_updates(observer);
             self.apply_update_events(observer);
-
-            // collect timers or if `updated_timers` collects new timers.
-            self.owned_ctx.next_deadline(&mut self.loop_timer);
-        } else if !updated_timers {
-            // collect timers again.
-            self.owned_ctx.next_deadline(&mut self.loop_timer);
         }
 
         self.finish_frame(observer);
+
+        // TODO: can we optimize this?
+        self.owned_ctx.next_deadline(&mut self.loop_timer);
 
         if self.exiting {
             ControlFlow::Exit
@@ -1673,7 +1670,7 @@ impl<E: AppExtension> Drop for RunningApp<E> {
 share_generics!(RunningApp<Box<dyn AppExtensionBoxed>>::start);
 
 /// App main loop timer.
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub(crate) struct LoopTimer {
     awake: bool,
     wake: Option<Instant>,

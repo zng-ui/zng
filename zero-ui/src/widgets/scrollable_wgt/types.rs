@@ -123,8 +123,8 @@ impl ScrollContext {
 
             if new_scroll != curr_scroll {
                 let new_offset = new_scroll.0 as f32 / max_scroll.0 as f32;
-
-                ScrollVerticalOffsetVar::set(vars, new_offset.fct()).unwrap();
+                //smooth scrolling
+                ScrollVerticalOffsetVar::new().ease(vars, new_offset.fct(), 100.ms(), easing::linear).perm();
             }
         })
     }
@@ -146,8 +146,8 @@ impl ScrollContext {
 
             if new_scroll != curr_scroll {
                 let new_offset = new_scroll.0 as f32 / max_scroll.0 as f32;
-
-                ScrollHorizontalOffsetVar::set(vars, new_offset.fct()).unwrap();
+                //smooth scrolling
+                ScrollHorizontalOffsetVar::new().ease(vars, new_offset.fct(), 100.ms(), easing::linear).perm();
             }
         })
     }
