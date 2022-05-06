@@ -29,7 +29,7 @@ pub fn derive(item: proc_macro::TokenStream) -> proc_macro::TokenStream {
         }
 
         impl #crate_::service::Service for #ident {
-            #[inline]
+
             fn thread_local_entry() -> #crate_::service::ServiceEntry<Self> {
                 #crate_::service::ServiceEntry::new(&Self::TL_SERVICE_ENTRY)
             }
@@ -41,7 +41,7 @@ pub fn derive(item: proc_macro::TokenStream) -> proc_macro::TokenStream {
             fn #ext_mtd_ident(&mut self)  -> &mut #ident;
         }
         impl #ext_ident for #crate_::service::Services {
-            #[inline]
+
             #[track_caller]
             fn #ext_mtd_ident(&mut self) -> &mut #ident {
                 self.req::<#ident>()

@@ -221,7 +221,7 @@ macro_rules! impl_rc_switch_var {
                })
             }
 
-            #[inline]
+
             fn is_animating<Vr: WithVarsRead>(&self, vars: &Vr) -> bool {
                 vars.with_vars_read(|vars| {
                     match &self.0.index.get(vars) {
@@ -235,7 +235,7 @@ macro_rules! impl_rc_switch_var {
                 self.0.index.is_contextual() || $(self.0.vars.$n.is_contextual())||+
             }
 
-            #[inline]
+
             fn actual_var<Vw: WithVars>(&self, vars: &Vw) -> BoxedVar<O> {
                 if self.is_contextual() {
                     vars.with_vars(|vars| {
@@ -258,7 +258,7 @@ macro_rules! impl_rc_switch_var {
                 $(self.0.vars.$n.always_read_only())&&+
             }
 
-            #[inline]
+
             fn can_update(&self) -> bool {
                 self.0.index.can_update() || $(self.0.vars.$n.can_update())||+
             }
@@ -303,7 +303,7 @@ macro_rules! impl_rc_switch_var {
                 })
             }
 
-            #[inline]
+
             fn into_read_only(self) -> Self::AsReadOnly {
                 types::ReadOnlyVar::new(self)
             }
@@ -316,27 +316,27 @@ macro_rules! impl_rc_switch_var {
                 })
             }
 
-            #[inline]
+
             fn is_rc(&self) -> bool {
                 true
             }
 
-            #[inline]
+
             fn downgrade(&self) -> Option<Self::Weak> {
                 Some($WeakRcSwitchVar(Rc::downgrade(&self.0)))
             }
 
-            #[inline]
+
             fn strong_count(&self) -> usize {
                 Rc::strong_count(&self.0)
             }
 
-            #[inline]
+
             fn weak_count(&self) -> usize {
                 Rc::weak_count(&self.0)
             }
 
-            #[inline]
+
             fn as_ptr(&self) -> *const () {
                 Rc::as_ptr(&self.0) as _
             }
@@ -346,22 +346,22 @@ macro_rules! impl_rc_switch_var {
         WeakVar<O> for $WeakRcSwitchVar<O, $($V,)+ VI> {
             type Strong = $RcSwitchVar<O, $($V,)+ VI>;
 
-            #[inline]
+
             fn upgrade(&self) -> Option<Self::Strong> {
                 self.0.upgrade().map($RcSwitchVar)
             }
 
-            #[inline]
+
             fn strong_count(&self) -> usize {
                 self.0.strong_count()
             }
 
-            #[inline]
+
             fn weak_count(&self) -> usize {
                 self.0.weak_count()
             }
 
-            #[inline]
+
             fn as_ptr(&self) -> *const () {
                 self.0.as_ptr() as _
             }
@@ -371,7 +371,7 @@ macro_rules! impl_rc_switch_var {
         IntoVar<O> for $RcSwitchVar<O, $($V,)+ VI> {
             type Var = Self;
 
-            #[inline]
+
             fn into_var(self) -> Self {
                 self
             }
@@ -502,7 +502,6 @@ impl<O: VarValue, VI: Var<usize>> Var<O> for RcSwitchVar<O, VI> {
         vars.with_vars(|vars| self.0.vars[*self.0.index.get(vars)].is_read_only(vars))
     }
 
-    #[inline]
     fn is_animating<Vr: WithVarsRead>(&self, vars: &Vr) -> bool {
         vars.with_vars_read(|vars| self.0.vars[*self.0.index.get(vars)].is_animating(vars))
     }
@@ -511,17 +510,14 @@ impl<O: VarValue, VI: Var<usize>> Var<O> for RcSwitchVar<O, VI> {
         self.0.vars.iter().all(|v| v.always_read_only())
     }
 
-    #[inline]
     fn can_update(&self) -> bool {
         self.0.index.can_update() || self.0.vars.iter().any(|v| v.can_update())
     }
 
-    #[inline]
     fn is_contextual(&self) -> bool {
         self.0.index.is_contextual() || self.0.vars.iter().any(|v| v.is_contextual())
     }
 
-    #[inline]
     fn actual_var<Vw: WithVars>(&self, vars: &Vw) -> BoxedVar<O> {
         if self.is_contextual() {
             vars.with_vars(|vars| {
@@ -560,12 +556,10 @@ impl<O: VarValue, VI: Var<usize>> Var<O> for RcSwitchVar<O, VI> {
         vars.with_vars(|vars| self.0.vars[*self.0.index.get(vars)].modify(vars, change))
     }
 
-    #[inline]
     fn into_read_only(self) -> Self::AsReadOnly {
         types::ReadOnlyVar::new(self)
     }
 
-    #[inline]
     fn update_mask<Vr: WithVarsRead>(&self, vars: &Vr) -> UpdateMask {
         vars.with_vars_read(|vars| {
             let mut r = self.0.index.update_mask(vars);
@@ -576,27 +570,22 @@ impl<O: VarValue, VI: Var<usize>> Var<O> for RcSwitchVar<O, VI> {
         })
     }
 
-    #[inline]
     fn is_rc(&self) -> bool {
         true
     }
 
-    #[inline]
     fn downgrade(&self) -> Option<Self::Weak> {
         Some(WeakRcSwitchVar(Rc::downgrade(&self.0)))
     }
 
-    #[inline]
     fn strong_count(&self) -> usize {
         Rc::strong_count(&self.0)
     }
 
-    #[inline]
     fn weak_count(&self) -> usize {
         Rc::weak_count(&self.0)
     }
 
-    #[inline]
     fn as_ptr(&self) -> *const () {
         Rc::as_ptr(&self.0) as _
     }
@@ -604,22 +593,18 @@ impl<O: VarValue, VI: Var<usize>> Var<O> for RcSwitchVar<O, VI> {
 impl<O: VarValue, VI: Var<usize>> WeakVar<O> for WeakRcSwitchVar<O, VI> {
     type Strong = RcSwitchVar<O, VI>;
 
-    #[inline]
     fn upgrade(&self) -> Option<Self::Strong> {
         self.0.upgrade().map(RcSwitchVar)
     }
 
-    #[inline]
     fn strong_count(&self) -> usize {
         self.0.strong_count()
     }
 
-    #[inline]
     fn weak_count(&self) -> usize {
         self.0.weak_count()
     }
 
-    #[inline]
     fn as_ptr(&self) -> *const () {
         self.0.as_ptr() as _
     }
@@ -627,7 +612,6 @@ impl<O: VarValue, VI: Var<usize>> WeakVar<O> for WeakRcSwitchVar<O, VI> {
 impl<O: VarValue, VI: Var<usize>> IntoVar<O> for RcSwitchVar<O, VI> {
     type Var = Self;
 
-    #[inline]
     fn into_var(self) -> Self::Var {
         self
     }

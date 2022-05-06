@@ -109,7 +109,7 @@ pub mod implicit_base {
     /// Implicit `new`, captures the `id` property.
     ///
     /// Returns [`nodes::widget`].
-    #[inline]
+
     pub fn new(child: impl UiNode, id: impl IntoValue<WidgetId>) -> impl Widget {
         nodes::widget(child, id)
     }
@@ -235,7 +235,6 @@ pub mod implicit_base {
                 inited: bool,
             }
             impl<T: UiNode> UiNode for WidgetNode<T> {
-                #[inline(always)]
                 fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
                     #[cfg(debug_assertions)]
                     if !self.inited {
@@ -253,7 +252,7 @@ pub mod implicit_base {
                         );
                     });
                 }
-                #[inline(always)]
+
                 fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
                     let mut wgt_subs = self.subscriptions.borrow_mut();
                     *wgt_subs = WidgetSubscriptions::new();
@@ -262,7 +261,7 @@ pub mod implicit_base {
 
                     subscriptions.extend(&wgt_subs);
                 }
-                #[inline(always)]
+
                 fn init(&mut self, ctx: &mut WidgetContext) {
                     #[cfg(debug_assertions)]
                     if self.inited {
@@ -276,7 +275,7 @@ pub mod implicit_base {
                         self.inited = true;
                     }
                 }
-                #[inline(always)]
+
                 fn deinit(&mut self, ctx: &mut WidgetContext) {
                     #[cfg(debug_assertions)]
                     if !self.inited {
@@ -290,7 +289,7 @@ pub mod implicit_base {
                         self.inited = false;
                     }
                 }
-                #[inline(always)]
+
                 fn update(&mut self, ctx: &mut WidgetContext) {
                     #[cfg(debug_assertions)]
                     if !self.inited {
@@ -301,7 +300,7 @@ pub mod implicit_base {
                         ctx.widget_context(self.id, &mut self.state, |ctx| self.child.update(ctx));
                     }
                 }
-                #[inline(always)]
+
                 fn event<EU: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &EU) {
                     #[cfg(debug_assertions)]
                     if !self.inited {
@@ -312,7 +311,7 @@ pub mod implicit_base {
                         ctx.widget_context(self.id, &mut self.state, |ctx| self.child.event(ctx, args));
                     }
                 }
-                #[inline(always)]
+
                 fn measure(&mut self, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize {
                     #[cfg(debug_assertions)]
                     {
@@ -328,7 +327,7 @@ pub mod implicit_base {
 
                     child_size
                 }
-                #[inline(always)]
+
                 fn arrange(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, final_size: PxSize) {
                     #[cfg(debug_assertions)]
                     {
@@ -343,7 +342,7 @@ pub mod implicit_base {
                         });
                     });
                 }
-                #[inline(always)]
+
                 fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
                     #[cfg(debug_assertions)]
                     if !self.inited {
@@ -354,7 +353,7 @@ pub mod implicit_base {
                         frame.push_widget(self.id, &self.render_info, |frame| self.child.render(ctx, frame));
                     });
                 }
-                #[inline(always)]
+
                 fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
                     #[cfg(debug_assertions)]
                     if !self.inited {
@@ -365,31 +364,30 @@ pub mod implicit_base {
                 }
             }
             impl<T: UiNode> Widget for WidgetNode<T> {
-                #[inline]
                 fn id(&self) -> WidgetId {
                     self.id
                 }
-                #[inline]
+
                 fn state(&self) -> &StateMap {
                     &self.state.0
                 }
-                #[inline]
+
                 fn state_mut(&mut self) -> &mut StateMap {
                     &mut self.state.0
                 }
-                #[inline]
+
                 fn outer_info(&self) -> &WidgetLayoutInfo {
                     &self.outer_info
                 }
-                #[inline]
+
                 fn inner_info(&self) -> &WidgetLayoutInfo {
                     &self.inner_info
                 }
-                #[inline]
+
                 fn border_info(&self) -> &WidgetBorderInfo {
                     &self.border_info
                 }
-                #[inline]
+
                 fn render_info(&self) -> &WidgetRenderInfo {
                     &self.render_info
                 }
@@ -440,13 +438,13 @@ impl<'a> WidgetEnabledExt for WidgetInfo<'a> {
 pub struct IsEnabled;
 impl IsEnabled {
     /// Gets the enabled state in the current `vars` context.
-    #[inline]
+
     pub fn get<Vr: WithVarsRead>(vars: &Vr) -> bool {
         vars.with_vars_read(|vars| *IsEnabledVar::get(vars))
     }
 
     /// Gets the new enabled state in the current `vars` context.
-    #[inline]
+
     pub fn get_new<Vw: WithVars>(vars: &Vw) -> Option<bool> {
         vars.with_vars(|vars| IsEnabledVar::get_new(vars).copied())
     }
@@ -454,7 +452,7 @@ impl IsEnabled {
     /// Gets the update mask for [`WidgetSubscriptions`].
     ///
     /// [`WidgetSubscriptions`]: crate::widget_info::WidgetSubscriptions
-    #[inline]
+
     pub fn update_mask<Vr: WithVarsRead>(vars: &Vr) -> UpdateMask {
         vars.with_vars_read(|vars| IsEnabledVar::new().update_mask(vars))
     }
@@ -892,7 +890,7 @@ impl HitTestMode {
     }
 
     /// Gets the new hit-test mode of the current widget context.
-    #[inline]
+
     pub fn get_new<Vw: AsRef<Vars>>(vars: &Vw) -> Option<&HitTestMode> {
         HitTestModeVar::get_new(vars)
     }
@@ -900,7 +898,7 @@ impl HitTestMode {
     /// Gets the update mask for [`WidgetSubscriptions`].
     ///
     /// [`WidgetSubscriptions`]: crate::widget_info::WidgetSubscriptions
-    #[inline]
+
     pub fn update_mask<Vr: WithVarsRead>(vars: &Vr) -> UpdateMask {
         vars.with_vars_read(|vars| HitTestModeVar::new().update_mask(vars))
     }

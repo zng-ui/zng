@@ -556,13 +556,13 @@ pub type ResponseParts = isahc::http::response::Parts;
 pub struct Response(isahc::Response<isahc::AsyncBody>);
 impl Response {
     /// Returns the [`StatusCode`].
-    #[inline]
+
     pub fn status(&self) -> StatusCode {
         self.0.status()
     }
 
     /// Returns a reference to the associated header field map.
-    #[inline]
+
     pub fn headers(&self) -> &header::HeaderMap<header::HeaderValue> {
         self.0.headers()
     }
@@ -678,7 +678,7 @@ impl Body {
     /// Create a new empty body.
     ///
     /// An empty body represents the *absence* of a body, which is semantically different than the presence of a body of zero length.
-    #[inline]
+
     pub fn empty() -> Body {
         Body(isahc::AsyncBody::empty())
     }
@@ -689,19 +689,19 @@ impl Body {
     ///
     /// This will try to prevent a copy if the type passed in can be re-used, otherwise the buffer
     /// will be copied first. This method guarantees to not require a copy for the following types:
-    #[inline]
+
     pub fn from_bytes_static(bytes: impl AsRef<[u8]> + 'static) -> Self {
         Body(isahc::AsyncBody::from_bytes_static(bytes))
     }
 
     /// Create a streaming body of unknown length.
-    #[inline]
+
     pub fn from_reader(read: impl AsyncRead + Send + Sync + 'static) -> Self {
         Body(isahc::AsyncBody::from_reader(read))
     }
 
     /// Create a streaming body of with known length.
-    #[inline]
+
     pub fn from_reader_sized(read: impl AsyncRead + Send + Sync + 'static, size: u64) -> Self {
         Body(isahc::AsyncBody::from_reader_sized(read, size))
     }
@@ -711,13 +711,13 @@ impl Body {
     /// This is not necessarily the same as checking for zero length, since HTTP message bodies are optional,
     /// there is a semantic difference between the absence of a body and the presence of a zero-length body.
     /// This method will only return `true` for the former.
-    #[inline]
+
     pub fn is_empty(&self) -> bool {
         self.0.is_empty()
     }
 
     /// Get the size of the body, if known.
-    #[inline]
+
     pub fn len(&self) -> Option<u64> {
         self.0.len()
     }
@@ -725,7 +725,7 @@ impl Body {
     /// If this body is repeatable, reset the body stream back to the start of the content.
     ///
     /// Returns false if the body cannot be reset.
-    #[inline]
+
     pub fn reset(&mut self) -> bool {
         self.0.reset()
     }
@@ -816,7 +816,7 @@ impl AsyncRead for Body {
 /// Send a GET request to the `uri`.
 ///
 /// The [`default_client`]  is used to send the request.
-#[inline]
+
 pub async fn get(uri: impl TryUri) -> Result<Response, Error> {
     default_client().get(uri).await
 }
@@ -824,7 +824,7 @@ pub async fn get(uri: impl TryUri) -> Result<Response, Error> {
 /// Send a GET request to the `uri` and read the response as a string.
 ///
 /// The [`default_client`]  is used to send the request.
-#[inline]
+
 pub async fn get_text(uri: impl TryUri) -> Result<String, Error> {
     default_client().get_text(uri).await
 }
@@ -832,7 +832,7 @@ pub async fn get_text(uri: impl TryUri) -> Result<String, Error> {
 /// Send a GET request to the `uri` and read the response as raw bytes.
 ///
 /// The [`default_client`]  is used to send the request.
-#[inline]
+
 pub async fn get_bytes(uri: impl TryUri) -> Result<Vec<u8>, Error> {
     default_client().get_bytes(uri).await
 }
@@ -840,7 +840,7 @@ pub async fn get_bytes(uri: impl TryUri) -> Result<Vec<u8>, Error> {
 /// Send a GET request to the `uri` and de-serializes the response.
 ///
 /// The [`default_client`]  is used to send the request.
-#[inline]
+
 pub async fn get_json<O>(uri: impl TryUri) -> Result<O, Box<dyn std::error::Error>>
 where
     O: serde::de::DeserializeOwned + std::marker::Unpin,
@@ -851,7 +851,7 @@ where
 /// Send a HEAD request to the `uri`.
 ///
 /// The [`default_client`]  is used to send the request.
-#[inline]
+
 pub async fn head(uri: impl TryUri) -> Result<Response, Error> {
     default_client().head(uri).await
 }
@@ -859,7 +859,7 @@ pub async fn head(uri: impl TryUri) -> Result<Response, Error> {
 /// Send a PUT request to the `uri` with a given request body.
 ///
 /// The [`default_client`]  is used to send the request.
-#[inline]
+
 pub async fn put(uri: impl TryUri, body: impl TryBody) -> Result<Response, Error> {
     default_client().put(uri, body).await
 }
@@ -867,7 +867,7 @@ pub async fn put(uri: impl TryUri, body: impl TryBody) -> Result<Response, Error
 /// Send a POST request to the `uri` with a given request body.
 ///
 /// The [`default_client`]  is used to send the request.
-#[inline]
+
 pub async fn post(uri: impl TryUri, body: impl TryBody) -> Result<Response, Error> {
     default_client().post(uri, body).await
 }
@@ -875,7 +875,7 @@ pub async fn post(uri: impl TryUri, body: impl TryBody) -> Result<Response, Erro
 /// Send a DELETE request to the `uri`.
 ///
 /// The [`default_client`]  is used to send the request.
-#[inline]
+
 pub async fn delete(uri: impl TryUri) -> Result<Response, Error> {
     default_client().delete(uri).await
 }
@@ -883,7 +883,7 @@ pub async fn delete(uri: impl TryUri) -> Result<Response, Error> {
 /// Send a custom [`Request`].
 ///
 /// The [`default_client`]  is used to send the request.
-#[inline]
+
 pub async fn send(request: Request) -> Result<Response, Error> {
     default_client().send(request).await
 }
@@ -1134,7 +1134,7 @@ impl Client {
     }
 
     /// Start a new [`ClientBuilder`] for creating a custom client.
-    #[inline]
+
     pub fn builder() -> ClientBuilder {
         ClientBuilder {
             builder: isahc::HttpClient::builder(),
@@ -1149,7 +1149,7 @@ impl Client {
     }
 
     ///  Send a GET request to the `uri`.
-    #[inline]
+
     pub async fn get(&self, uri: impl TryUri) -> Result<Response, Error> {
         self.send(Request::get(uri)?.build()).await
     }
@@ -1179,24 +1179,24 @@ impl Client {
     }
 
     /// Send a HEAD request to the `uri`.
-    #[inline]
+
     pub async fn head(&self, uri: impl TryUri) -> Result<Response, Error> {
         self.send(Request::head(uri)?.build()).await
     }
     /// Send a PUT request to the `uri` with a given request body.
-    #[inline]
+
     pub async fn put(&self, uri: impl TryUri, body: impl TryBody) -> Result<Response, Error> {
         self.send(Request::put(uri)?.body(body)?).await
     }
 
     /// Send a POST request to the `uri` with a given request body.
-    #[inline]
+
     pub async fn post(&self, uri: impl TryUri, body: impl TryBody) -> Result<Response, Error> {
         self.send(Request::post(uri)?.body(body)?).await
     }
 
     /// Send a DELETE request to the `uri`.
-    #[inline]
+
     pub async fn delete(&self, uri: impl TryUri) -> Result<Response, Error> {
         self.send(Request::delete(uri)?.build()).await
     }
@@ -1211,7 +1211,7 @@ impl Client {
     /// [`cache`]: Self::cache
     /// [`cache_mode`]: Self::cache_mode
     /// [`get_cached`]: Self::get_cached
-    #[inline]
+
     pub async fn send(&self, request: Request) -> Result<Response, Error> {
         if let Some(db) = &self.cache {
             match self.cache_mode(&request) {
@@ -1466,7 +1466,7 @@ impl Client {
     }
 
     /// Reference the cache used in this client.
-    #[inline]
+
     pub fn cache(&self) -> Option<&dyn CacheDb> {
         self.cache.as_deref()
     }
@@ -1518,13 +1518,13 @@ impl Default for ClientBuilder {
 }
 impl ClientBuilder {
     /// New default builder.
-    #[inline]
+
     pub fn new() -> Self {
         Client::builder()
     }
 
     /// Build the [`Client`] using the configured options.
-    #[inline]
+
     pub fn build(self) -> Client {
         Client {
             client: self.builder.build().unwrap(),
@@ -1548,7 +1548,7 @@ impl ClientBuilder {
     }
 
     /// Add a default header to be passed with every request.
-    #[inline]
+
     pub fn default_header(self, key: impl TryHeaderName, value: impl TryHeaderValue) -> Result<Self, Error> {
         Ok(Self {
             builder: self.builder.default_header(key.try_header_name()?, value.try_header_value()?),
@@ -1558,7 +1558,7 @@ impl ClientBuilder {
     }
 
     /// Enable persistent cookie handling for all requests using this client using a shared cookie jar.
-    #[inline]
+
     pub fn cookies(self) -> Self {
         Self {
             builder: self.builder.cookies(),

@@ -33,13 +33,13 @@ type FontFeaturesMap = FxHashMap<FontFeatureName, u32>;
 pub struct FontFeatures(FontFeaturesMap);
 impl FontFeatures {
     /// New default.
-    #[inline]
+
     pub fn new() -> FontFeatures {
         FontFeatures::default()
     }
 
     /// New builder.
-    #[inline]
+
     pub fn builder() -> FontFeaturesBuilder {
         FontFeaturesBuilder::default()
     }
@@ -47,7 +47,7 @@ impl FontFeatures {
     /// Set or override the features of `self` from `other`.
     ///
     /// Returns the previous state of all affected names.
-    #[inline]
+
     pub fn set_all(&mut self, other: &FontFeatures) -> Vec<(FontFeatureName, Option<u32>)> {
         let mut prev = Vec::with_capacity(other.0.len());
         for (&name, &state) in other.0.iter() {
@@ -57,7 +57,7 @@ impl FontFeatures {
     }
 
     /// Restore feature states that where overridden in [`set_all`](Self::set_all).
-    #[inline]
+
     pub fn restore(&mut self, prev: Vec<(FontFeatureName, Option<u32>)>) {
         for (name, state) in prev {
             match state {
@@ -72,7 +72,7 @@ impl FontFeatures {
     }
 
     /// Access to the named feature.
-    #[inline]
+
     pub fn feature(&mut self, name: FontFeatureName) -> FontFeature {
         FontFeature(self.0.entry(name))
     }
@@ -82,7 +82,7 @@ impl FontFeatures {
     /// # Panics
     ///
     /// If `names` has less than 2 names.
-    #[inline]
+
     pub fn feature_set(&mut self, names: &'static [FontFeatureName]) -> FontFeatureSet {
         assert!(names.len() >= 2);
         FontFeatureSet {
@@ -119,7 +119,7 @@ impl FontFeatures {
     }
 
     /// Generate the harfbuzz font features.
-    #[inline]
+
     pub fn finalize(&self) -> RFontFeatures {
         self.0
             .iter()
@@ -158,13 +158,13 @@ fn name_to_str(name: &[u8; 4]) -> &str {
 pub struct FontFeaturesBuilder(FontFeatures);
 impl FontFeaturesBuilder {
     /// Finish building.
-    #[inline]
+
     pub fn build(self) -> FontFeatures {
         self.0
     }
 
     /// Set the named feature.
-    #[inline]
+
     pub fn feature(mut self, name: FontFeatureName, state: impl Into<FontFeatureState>) -> Self {
         self.0.feature(name).set(state);
         self
@@ -175,7 +175,7 @@ impl FontFeaturesBuilder {
     /// # Panics
     ///
     /// If `names` has less than 2 names.
-    #[inline]
+
     pub fn feature_set(mut self, names: &'static [FontFeatureName], state: impl Into<FontFeatureState>) -> Self {
         self.0.feature_set(names).set(state);
         self
@@ -220,7 +220,7 @@ macro_rules! font_features {
 
     (feature $(#[$docs:meta])* fn $name:ident($feat0:tt, $feat1:tt); ) => {
         $(#[$docs])*
-        #[inline]
+
         pub fn $name(&mut self) -> FontFeatureSet {
             self.feature_set(&[$feat0, $feat1])
         }
@@ -229,7 +229,7 @@ macro_rules! font_features {
 
     (feature $(#[$docs:meta])* fn $name:ident($feat0:tt);) => {
         $(#[$docs])*
-        #[inline]
+
         pub fn $name(&mut self) -> FontFeature {
             self.feature($feat0)
         }
@@ -238,7 +238,7 @@ macro_rules! font_features {
 
     (feature $(#[$docs:meta])* fn $name:ident($Enum:ident) -> $Helper:ident;) => {
         $(#[$docs])*
-        #[inline]
+
         pub fn $name(&mut self) -> $Helper<$Enum> {
             $Helper { features: &mut self.0, _t: PhantomData }
         }
@@ -247,7 +247,7 @@ macro_rules! font_features {
 
     (builder $(#[$docs:meta])* fn $name:ident();) => {
         $(#[$docs])*
-        #[inline]
+
         pub fn $name(mut self, state: impl Into<FontFeatureState>) -> Self {
             self.0.$name().set(state);
             self
@@ -257,7 +257,7 @@ macro_rules! font_features {
 
     (builder $(#[$docs:meta])* fn $name:ident($Enum:ident -> $Helper:ident);) => {
         $(#[$docs])*
-        #[inline]
+
         pub fn $name(mut self, state: impl Into<$Enum>) -> Self {
             self.0.$name().set(state);
             self
@@ -426,7 +426,7 @@ font_features! {
 pub struct FontFeature<'a>(FxEntry<'a, FontFeatureName, u32>);
 impl<'a> FontFeature<'a> {
     /// Gets the OpenType name of the feature.
-    #[inline]
+
     pub fn name(&self) -> FontFeatureName {
         self.0.key()
     }
@@ -445,13 +445,13 @@ impl<'a> FontFeature<'a> {
     }
 
     /// If the feature is explicitly disabled.
-    #[inline]
+
     pub fn is_disabled(&self) -> bool {
         self.state().is_disabled()
     }
 
     /// If the feature is auto enabled zero-ui.
-    #[inline]
+
     pub fn is_auto(&self) -> bool {
         self.state().is_auto()
     }
@@ -459,7 +459,7 @@ impl<'a> FontFeature<'a> {
     /// Set the feature state.
     ///
     /// Returns the previous state.
-    #[inline]
+
     pub fn set(self, state: impl Into<FontFeatureState>) -> FontFeatureState {
         let prev = self.state();
         match state.into().0 {
@@ -481,25 +481,25 @@ impl<'a> FontFeature<'a> {
     }
 
     /// Enable the feature.
-    #[inline]
+
     pub fn enable(self) {
         self.set_explicit(FEATURE_ENABLED);
     }
 
     /// Enable the feature with alternative selection.
-    #[inline]
+
     pub fn enable_alt(self, alt: NonZeroU32) {
         self.set_explicit(alt.get())
     }
 
     /// Disable the feature.
-    #[inline]
+
     pub fn disable(self) {
         self.set_explicit(FEATURE_DISABLED);
     }
 
     /// Set the feature to auto.
-    #[inline]
+
     pub fn auto(self) {
         if let FxEntry::Occupied(e) = self.0 {
             e.remove();
@@ -519,7 +519,7 @@ pub struct FontFeatureSet<'a> {
 }
 impl<'a> FontFeatureSet<'a> {
     /// Gets the OpenType name of the features.
-    #[inline]
+
     pub fn names(&self) -> &'static [FontFeatureName] {
         self.names
     }
@@ -527,7 +527,7 @@ impl<'a> FontFeatureSet<'a> {
     /// Gets the current state of the features.
     ///
     /// Returns `Auto` if the features are mixed.
-    #[inline]
+
     pub fn state(&self) -> FontFeatureState {
         if let Some(&a) = self.features.get(self.names[0]) {
             for name in &self.names[1..] {
@@ -547,13 +547,13 @@ impl<'a> FontFeatureSet<'a> {
     }
 
     /// If the features are explicitly disabled.
-    #[inline]
+
     pub fn is_disabled(&self) -> bool {
         self.state().is_disabled()
     }
 
     /// If the features are auto enabled zero-ui, or in a mixed state.
-    #[inline]
+
     pub fn is_auto(&self) -> bool {
         self.state().is_auto()
     }
@@ -561,7 +561,7 @@ impl<'a> FontFeatureSet<'a> {
     /// Set the feature state.
     ///
     /// Returns the previous state.
-    #[inline]
+
     pub fn set(self, state: impl Into<FontFeatureState>) -> FontFeatureState {
         let prev = self.state();
         match state.into().0 {
@@ -578,19 +578,19 @@ impl<'a> FontFeatureSet<'a> {
     }
 
     /// Enable the feature.
-    #[inline]
+
     pub fn enable(self) {
         self.set_explicit(FEATURE_ENABLED);
     }
 
     /// Disable the feature.
-    #[inline]
+
     pub fn disable(self) {
         self.set_explicit(FEATURE_DISABLED);
     }
 
     /// Set the feature to auto.
-    #[inline]
+
     pub fn auto(self) {
         for name in self.names {
             self.features.remove(name);
@@ -616,13 +616,13 @@ pub struct FontFeatureExclusiveSet<'a, S: FontFeatureExclusiveSetState> {
 }
 impl<'a, S: FontFeatureExclusiveSetState> FontFeatureExclusiveSet<'a, S> {
     /// Gets the OpenType names of all the features affected.
-    #[inline]
+
     pub fn names(&self) -> &'static [FontFeatureName] {
         S::names()
     }
 
     /// Gets the current state of the features.
-    #[inline]
+
     pub fn state(&self) -> S {
         let mut state = 0;
 
@@ -661,7 +661,7 @@ impl<'a, S: FontFeatureExclusiveSetState> FontFeatureExclusiveSet<'a, S> {
     }
 
     /// If state is `Auto`.
-    #[inline]
+
     pub fn is_auto(&self) -> bool {
         self.state() == S::auto()
     }
@@ -669,7 +669,7 @@ impl<'a, S: FontFeatureExclusiveSetState> FontFeatureExclusiveSet<'a, S> {
     /// Sets the features.
     ///
     /// Returns the previous state.
-    #[inline]
+
     pub fn set(&mut self, state: impl Into<S>) -> S {
         let prev = self.take_state();
         if let Some(state) = state.into().variant() {
@@ -692,13 +692,13 @@ pub struct FontFeatureExclusiveSets<'a, S: FontFeatureExclusiveSetsState> {
 }
 impl<'a, S: FontFeatureExclusiveSetsState> FontFeatureExclusiveSets<'a, S> {
     /// Gets the OpenType names of all the features affected.
-    #[inline]
+
     pub fn names(&self) -> &'static [&'static [FontFeatureName]] {
         S::names()
     }
 
     /// Gets the current state of the features.
-    #[inline]
+
     pub fn state(&self) -> S {
         let mut active = FxHashSet::default();
         for &names in self.names() {
@@ -767,7 +767,7 @@ impl<'a, S: FontFeatureExclusiveSetsState> FontFeatureExclusiveSets<'a, S> {
     }
 
     /// If state is `Auto`.
-    #[inline]
+
     pub fn is_auto(&self) -> bool {
         self.state() == S::auto()
     }
@@ -775,7 +775,7 @@ impl<'a, S: FontFeatureExclusiveSetsState> FontFeatureExclusiveSets<'a, S> {
     /// Sets the features.
     ///
     /// Returns the previous state.
-    #[inline]
+
     pub fn set(&mut self, state: impl Into<S>) -> S {
         let prev = self.take_state();
         if let Some(state) = state.into().variant() {
@@ -826,37 +826,37 @@ pub trait FontFeatureExclusiveSetsState: Copy + PartialEq + 'static {
 pub struct FontFeatureState(Option<u32>);
 impl FontFeatureState {
     /// Automatic state.
-    #[inline]
+
     pub const fn auto() -> Self {
         FontFeatureState(None)
     }
 
     /// Enabled state.
-    #[inline]
+
     pub const fn enabled() -> Self {
         FontFeatureState(Some(1))
     }
 
     /// Enabled state with alternative selected.
-    #[inline]
+
     pub const fn enabled_alt(alt: NonZeroU32) -> Self {
         FontFeatureState(Some(alt.get()))
     }
 
     /// Disabled state.
-    #[inline]
+
     pub const fn disabled() -> Self {
         FontFeatureState(Some(0))
     }
 
     /// Is [`auto`](Self::auto).
-    #[inline]
+
     pub fn is_auto(self) -> bool {
         self.0.is_none()
     }
 
     /// Is [`enabled`](Self::enabled) or [`enabled_alt`](Self::enabled_alt).
-    #[inline]
+
     pub fn is_enabled(self) -> bool {
         if let Some(n) = self.0 {
             if n >= 1 {
@@ -867,13 +867,13 @@ impl FontFeatureState {
     }
 
     /// Is [`disabled`](Self::disabled).
-    #[inline]
+
     pub fn is_disabled(self) -> bool {
         self == Self::disabled()
     }
 
     /// Gets the enabled alternative.
-    #[inline]
+
     pub fn alt(self) -> Option<u32> {
         if let Some(n) = self.0 {
             if n >= 1 {
@@ -973,7 +973,6 @@ impl Default for CapsVariant {
     }
 }
 impl FontFeatureExclusiveSetsState for CapsVariant {
-    #[inline]
     fn names() -> &'static [&'static [FontFeatureName]] {
         &[
             &[b"smcp"],
@@ -985,7 +984,6 @@ impl FontFeatureExclusiveSetsState for CapsVariant {
         ]
     }
 
-    #[inline]
     fn variant(self) -> Option<u32> {
         if self == CapsVariant::Auto {
             None
@@ -994,7 +992,6 @@ impl FontFeatureExclusiveSetsState for CapsVariant {
         }
     }
 
-    #[inline]
     fn from_variant(v: u32) -> Self {
         if v as usize > Self::names().len() {
             CapsVariant::Auto
@@ -1004,7 +1001,6 @@ impl FontFeatureExclusiveSetsState for CapsVariant {
         }
     }
 
-    #[inline]
     fn auto() -> Self {
         CapsVariant::Auto
     }
@@ -1043,12 +1039,10 @@ impl Default for NumVariant {
     }
 }
 impl FontFeatureExclusiveSetState for NumVariant {
-    #[inline]
     fn names() -> &'static [FontFeatureName] {
         &[b"lnum", b"onum"]
     }
 
-    #[inline]
     fn variant(self) -> Option<u32> {
         match self {
             NumVariant::Auto => None,
@@ -1057,7 +1051,6 @@ impl FontFeatureExclusiveSetState for NumVariant {
         }
     }
 
-    #[inline]
     fn from_variant(v: u32) -> Self {
         match v {
             1 => NumVariant::Lining,
@@ -1066,7 +1059,6 @@ impl FontFeatureExclusiveSetState for NumVariant {
         }
     }
 
-    #[inline]
     fn auto() -> Self {
         NumVariant::Auto
     }
@@ -1105,12 +1097,10 @@ impl Default for NumSpacing {
     }
 }
 impl FontFeatureExclusiveSetState for NumSpacing {
-    #[inline]
     fn names() -> &'static [FontFeatureName] {
         &[b"pnum", b"tnum"]
     }
 
-    #[inline]
     fn variant(self) -> Option<u32> {
         match self {
             NumSpacing::Auto => None,
@@ -1119,7 +1109,6 @@ impl FontFeatureExclusiveSetState for NumSpacing {
         }
     }
 
-    #[inline]
     fn from_variant(v: u32) -> Self {
         match v {
             1 => NumSpacing::Proportional,
@@ -1128,7 +1117,6 @@ impl FontFeatureExclusiveSetState for NumSpacing {
         }
     }
 
-    #[inline]
     fn auto() -> Self {
         NumSpacing::Auto
     }
@@ -1167,12 +1155,10 @@ impl Default for NumFraction {
     }
 }
 impl FontFeatureExclusiveSetState for NumFraction {
-    #[inline]
     fn names() -> &'static [FontFeatureName] {
         &[b"frac", b"afrc"]
     }
 
-    #[inline]
     fn variant(self) -> Option<u32> {
         match self {
             NumFraction::Auto => None,
@@ -1181,7 +1167,6 @@ impl FontFeatureExclusiveSetState for NumFraction {
         }
     }
 
-    #[inline]
     fn from_variant(v: u32) -> Self {
         match v {
             1 => NumFraction::Diagonal,
@@ -1190,7 +1175,6 @@ impl FontFeatureExclusiveSetState for NumFraction {
         }
     }
 
-    #[inline]
     fn auto() -> Self {
         NumFraction::Auto
     }
@@ -1260,7 +1244,6 @@ impl_from_and_into_var! {
     }
 }
 impl FontFeatureExclusiveSetState for FontStyleSet {
-    #[inline]
     fn names() -> &'static [FontFeatureName] {
         &[
             b"ss01", b"ss02", b"ss03", b"ss04", b"ss05", b"ss06", b"ss07", b"ss08", b"ss09", b"ss10", b"ss11", b"ss12", b"ss13", b"ss14",
@@ -1268,7 +1251,6 @@ impl FontFeatureExclusiveSetState for FontStyleSet {
         ]
     }
 
-    #[inline]
     fn variant(self) -> Option<u32> {
         if self == FontStyleSet::Auto {
             None
@@ -1277,7 +1259,6 @@ impl FontFeatureExclusiveSetState for FontStyleSet {
         }
     }
 
-    #[inline]
     fn from_variant(v: u32) -> Self {
         if v > 20 {
             FontStyleSet::Auto
@@ -1287,7 +1268,6 @@ impl FontFeatureExclusiveSetState for FontStyleSet {
         }
     }
 
-    #[inline]
     fn auto() -> Self {
         FontStyleSet::Auto
     }
@@ -1302,7 +1282,7 @@ impl CharVariant {
     /// New variant.
     ///
     /// `v == 0 || v > 99` is Auto, `v >= 1 && v <= 99` maps to their variant.
-    #[inline]
+
     pub const fn new(v: u8) -> Self {
         if v > 99 {
             CharVariant(0)
@@ -1312,13 +1292,13 @@ impl CharVariant {
     }
 
     /// New auto.
-    #[inline]
+
     pub const fn auto() -> Self {
         CharVariant(0)
     }
 
     /// Is auto.
-    #[inline]
+
     pub const fn is_auto(self) -> bool {
         self.0 == 0
     }
@@ -1330,7 +1310,6 @@ impl_from_and_into_var! {
     }
 }
 impl FontFeatureExclusiveSetState for CharVariant {
-    #[inline]
     fn names() -> &'static [FontFeatureName] {
         &[
             b"cv01", b"cv02", b"cv03", b"cv04", b"cv05", b"cv06", b"cv07", b"cv08", b"cv09", b"cv20", b"cv21", b"cv22", b"cv23", b"cv24",
@@ -1344,7 +1323,6 @@ impl FontFeatureExclusiveSetState for CharVariant {
         ]
     }
 
-    #[inline]
     fn variant(self) -> Option<u32> {
         if self.is_auto() {
             None
@@ -1353,7 +1331,6 @@ impl FontFeatureExclusiveSetState for CharVariant {
         }
     }
 
-    #[inline]
     fn from_variant(v: u32) -> Self {
         if v > 99 {
             CharVariant::auto()
@@ -1362,7 +1339,6 @@ impl FontFeatureExclusiveSetState for CharVariant {
         }
     }
 
-    #[inline]
     fn auto() -> Self {
         CharVariant::auto()
     }
@@ -1401,12 +1377,10 @@ impl Default for FontPosition {
     }
 }
 impl FontFeatureExclusiveSetState for FontPosition {
-    #[inline]
     fn names() -> &'static [FontFeatureName] {
         &[b"subs", b"sups"]
     }
 
-    #[inline]
     fn variant(self) -> Option<u32> {
         match self {
             FontPosition::Auto => None,
@@ -1415,7 +1389,6 @@ impl FontFeatureExclusiveSetState for FontPosition {
         }
     }
 
-    #[inline]
     fn from_variant(v: u32) -> Self {
         match v {
             1 => FontPosition::Sub,
@@ -1424,7 +1397,6 @@ impl FontFeatureExclusiveSetState for FontPosition {
         }
     }
 
-    #[inline]
     fn auto() -> Self {
         FontPosition::Auto
     }
@@ -1480,12 +1452,10 @@ impl Default for JpVariant {
     }
 }
 impl FontFeatureExclusiveSetState for JpVariant {
-    #[inline]
     fn names() -> &'static [FontFeatureName] {
         &[b"jp78", b"jp83", b"jp90", b"jp04", b"nlck"]
     }
 
-    #[inline]
     fn variant(self) -> Option<u32> {
         if self == JpVariant::Auto {
             None
@@ -1494,7 +1464,6 @@ impl FontFeatureExclusiveSetState for JpVariant {
         }
     }
 
-    #[inline]
     fn from_variant(v: u32) -> Self {
         if v > Self::names().len() as u32 {
             JpVariant::Auto
@@ -1504,7 +1473,6 @@ impl FontFeatureExclusiveSetState for JpVariant {
         }
     }
 
-    #[inline]
     fn auto() -> Self {
         JpVariant::Auto
     }
@@ -1542,12 +1510,10 @@ impl Default for CnVariant {
     }
 }
 impl FontFeatureExclusiveSetState for CnVariant {
-    #[inline]
     fn names() -> &'static [FontFeatureName] {
         &[b"smpl", b"trad"]
     }
 
-    #[inline]
     fn variant(self) -> Option<u32> {
         match self {
             CnVariant::Auto => None,
@@ -1556,7 +1522,6 @@ impl FontFeatureExclusiveSetState for CnVariant {
         }
     }
 
-    #[inline]
     fn from_variant(v: u32) -> Self {
         match v {
             1 => CnVariant::Simplified,
@@ -1565,7 +1530,6 @@ impl FontFeatureExclusiveSetState for CnVariant {
         }
     }
 
-    #[inline]
     fn auto() -> Self {
         CnVariant::Auto
     }
@@ -1642,12 +1606,10 @@ impl Default for EastAsianWidth {
     }
 }
 impl FontFeatureExclusiveSetState for EastAsianWidth {
-    #[inline]
     fn names() -> &'static [FontFeatureName] {
         &[b"pwid", b"palt", b"pkna", b"fwid", b"hwid", b"halt", b"twid", b"qwid"]
     }
 
-    #[inline]
     fn variant(self) -> Option<u32> {
         if self == EastAsianWidth::Auto {
             None
@@ -1656,7 +1618,6 @@ impl FontFeatureExclusiveSetState for EastAsianWidth {
         }
     }
 
-    #[inline]
     fn from_variant(v: u32) -> Self {
         if v > Self::names().len() as u32 {
             EastAsianWidth::Auto
@@ -1666,7 +1627,6 @@ impl FontFeatureExclusiveSetState for EastAsianWidth {
         }
     }
 
-    #[inline]
     fn auto() -> Self {
         EastAsianWidth::Auto
     }
@@ -1689,19 +1649,19 @@ pub type FontVariationName = &'static [u8; 4];
 pub struct FontVariations(Vec<(FontVariationName, f32)>);
 impl FontVariations {
     /// New empty.
-    #[inline]
+
     pub fn new() -> Self {
         Self::default()
     }
 
     /// New empty with pre-allocated capacity.
-    #[inline]
+
     pub fn with_capacity(capacity: usize) -> Self {
         Self(Vec::with_capacity(capacity))
     }
 
     /// New font variations from pairs of name, value.
-    #[inline]
+
     pub fn from_pairs(pairs: &[(FontVariationName, f32)]) -> Self {
         let mut r = Self::with_capacity(pairs.len());
         for (name, value) in pairs {
@@ -1711,7 +1671,7 @@ impl FontVariations {
     }
 
     /// Insert the font variation, returns the previous value if the variation was already set.
-    #[inline]
+
     pub fn insert(&mut self, name: FontVariationName, value: f32) -> Option<f32> {
         if let Some(entry) = self.0.iter_mut().find(|v| v.0 == name) {
             let prev = Some(entry.1);
@@ -1724,7 +1684,7 @@ impl FontVariations {
     }
 
     /// Remove the font variation, returns the value if the variation was set.
-    #[inline]
+
     pub fn remove(&mut self, name: FontVariationName) -> Option<f32> {
         if let Some(i) = self.0.iter().position(|v| v.0 == name) {
             Some(self.0.swap_remove(i).1)
@@ -1734,37 +1694,37 @@ impl FontVariations {
     }
 
     /// If the variation is set.
-    #[inline]
+
     pub fn contains(&self, name: FontVariationName) -> bool {
         self.0.iter().any(|v| v.0 == name)
     }
 
     /// Gets a copy of the variation value if it is set.
-    #[inline]
+
     pub fn get(&self, name: FontVariationName) -> Option<f32> {
         self.0.iter().find(|v| v.0 == name).map(|v| v.1)
     }
 
     /// Exclusive borrow the variation value if it is set.
-    #[inline]
+
     pub fn get_mut(&mut self, name: FontVariationName) -> Option<&mut f32> {
         self.0.iter_mut().find(|v| v.0 == name).map(|v| &mut v.1)
     }
 
     /// Count of font variations set.
-    #[inline]
+
     pub fn len(&self) -> usize {
         self.0.len()
     }
 
     /// If not font variation is set.
-    #[inline]
+
     pub fn is_empty(&self) -> bool {
         self.0.is_empty()
     }
 
     /// Finalize variations config for use in a font.
-    #[inline]
+
     pub fn finalize(&self) -> RFontVariations {
         self.0
             .iter()

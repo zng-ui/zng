@@ -358,14 +358,14 @@ impl ShapedText {
     }
 
     /// Glyphs segments.
-    #[inline]
+
     pub fn segments(&self) -> &[TextSegment] {
         &self.segments.0
     }
 
     /// Bounding box size, the width is the longest line, the height is the sum of line heights + spacing in between,
     /// no spacing is added before the first line and after the last line.
-    #[inline]
+
     pub fn size(&self) -> PxSize {
         self.size
     }
@@ -373,7 +373,7 @@ impl ShapedText {
     /// Current applied offsets around the text block.
     ///
     /// Note this padding is already computed in all other values.
-    #[inline]
+
     pub fn padding(&self) -> PxSideOffsets {
         self.padding
     }
@@ -400,7 +400,7 @@ impl ShapedText {
     }
 
     /// Height of a single line.
-    #[inline]
+
     pub fn line_height(&self) -> Px {
         self.line_height
     }
@@ -436,7 +436,7 @@ impl ShapedText {
     }
 
     /// Vertical spacing in between lines.
-    #[inline]
+
     pub fn line_spacing(&self) -> Px {
         self.line_spacing
     }
@@ -472,7 +472,7 @@ impl ShapedText {
     /// The *line bottom* is the [`line_height`].
     ///
     /// [`line_height`]: Self::line_height
-    #[inline]
+
     pub fn baseline(&self) -> Px {
         self.baseline
     }
@@ -482,38 +482,38 @@ impl ShapedText {
     /// The *bottom* is the [`size`] height.
     ///
     /// [`size`]: Self::size
-    #[inline]
+
     pub fn box_baseline(&self) -> Px {
         self.baseline + self.padding.bottom
     }
 
     /// Vertical offset from the line bottom up that is the overline placement.
-    #[inline]
+
     pub fn overline(&self) -> Px {
         self.overline
     }
 
     /// Vertical offset from the line bottom up that is the strikethrough placement.
-    #[inline]
+
     pub fn strikethrough(&self) -> Px {
         self.strikethrough
     }
 
     /// Vertical offset from the line bottom up that is the font defined underline placement.
-    #[inline]
+
     pub fn underline(&self) -> Px {
         self.underline
     }
 
     /// Vertical offset from the line bottom up that is the underline placement when the option for
     /// clearing all glyph descents is selected.
-    #[inline]
+
     pub fn underline_descent(&self) -> Px {
         self.underline_descent
     }
 
     /// No segments.
-    #[inline]
+
     pub fn is_empty(&self) -> bool {
         self.segments.0.is_empty()
     }
@@ -521,7 +521,7 @@ impl ShapedText {
     /// Iterate over [`ShapedLine`] selections split by [`LineBreak`].
     ///
     /// [`LineBreak`]: TextSegmentKind::LineBreak
-    #[inline]
+
     pub fn lines(&self) -> impl Iterator<Item = ShapedLine> {
         self.lines.iter_segs().enumerate().map(move |(i, (w, r))| ShapedLine {
             text: self,
@@ -804,13 +804,13 @@ impl<'a> ShapedLine<'a> {
     }
 
     /// Full overline, start point + width.
-    #[inline]
+
     pub fn overline(&self) -> (PxPoint, Px) {
         self.decoration_line(self.text.overline)
     }
 
     /// Full strikethrough line, start point + width.
-    #[inline]
+
     pub fn strikethrough(&self) -> (PxPoint, Px) {
         self.decoration_line(self.text.strikethrough)
     }
@@ -820,7 +820,7 @@ impl<'a> ShapedLine<'a> {
     /// The *y* is defined by the font metrics.
     ///
     /// Returns start point + width.
-    #[inline]
+
     pub fn underline(&self) -> (PxPoint, Px) {
         self.decoration_line(self.text.underline)
     }
@@ -830,7 +830,7 @@ impl<'a> ShapedLine<'a> {
     /// The *y* is the baseline + descent + 1px.
     ///
     /// Returns start point + width.
-    #[inline]
+
     pub fn underline_descent(&self) -> (PxPoint, Px) {
         self.decoration_line(self.text.underline_descent)
     }
@@ -840,7 +840,7 @@ impl<'a> ShapedLine<'a> {
     /// The *y* is defined by the font metrics.
     ///
     /// Returns and iterator of start point + width for each word.
-    #[inline]
+
     pub fn underline_skip_spaces(&self) -> impl Iterator<Item = (PxPoint, Px)> + 'a {
         MergingLineIter::new(self.parts().filter(|s| s.is_word()).map(|s| s.underline()))
     }
@@ -850,7 +850,7 @@ impl<'a> ShapedLine<'a> {
     /// The *y* is the baseline + descent + 1px.
     ///
     /// Returns and iterator of start point + width for each word.
-    #[inline]
+
     pub fn underline_descent_skip_spaces(&self) -> impl Iterator<Item = (PxPoint, Px)> + 'a {
         MergingLineIter::new(self.parts().filter(|s| s.is_word()).map(|s| s.underline_descent()))
     }
@@ -860,7 +860,7 @@ impl<'a> ShapedLine<'a> {
     /// The *y* is defined by the font metrics.
     ///
     /// Returns an iterator of start point + width for continuous underline.
-    #[inline]
+
     pub fn underline_skip_glyphs(&self, thickness: Px) -> impl Iterator<Item = (PxPoint, Px)> + 'a {
         MergingLineIter::new(self.parts().flat_map(move |s| s.underline_skip_glyphs(thickness)))
     }
@@ -870,7 +870,7 @@ impl<'a> ShapedLine<'a> {
     /// The *y* is defined by font metrics.
     ///
     /// Returns an iterator of start point + width for continuous underline.
-    #[inline]
+
     pub fn underline_skip_glyphs_and_spaces(&self, thickness: Px) -> impl Iterator<Item = (PxPoint, Px)> + 'a {
         MergingLineIter::new(
             self.parts()
@@ -879,7 +879,6 @@ impl<'a> ShapedLine<'a> {
         )
     }
 
-    #[inline]
     fn decoration_line(&self, bottom_up_offset: Px) -> (PxPoint, Px) {
         let y = (self.text.line_height * Px((self.index as i32) + 1)) - bottom_up_offset;
         (PxPoint::new(Px(0), y + self.text.padding.top), self.width)
@@ -887,20 +886,20 @@ impl<'a> ShapedLine<'a> {
 
     /// Text segments of the line, does not include the line-break that started the line, can include
     /// the line break that starts the next line.
-    #[inline]
+
     pub fn segments(&self) -> &'a [TextSegment] {
         &self.text.segments.0[self.seg_range.iter()]
     }
 
     /// Glyphs in the line.
-    #[inline]
+
     pub fn glyphs(&self) -> impl Iterator<Item = (&'a FontRef, &'a [GlyphInstance])> + 'a {
         let r = self.glyphs_range();
         self.text.glyphs_range(r)
     }
 
     /// Glyphs in the line paired with the *x-advance* to the next glyph or the end of the line.
-    #[inline]
+
     pub fn glyphs_with_x_advance(&self) -> impl Iterator<Item = (&'a FontRef, impl Iterator<Item = (GlyphInstance, f32)> + 'a)> + 'a {
         let r = self.glyphs_range();
         self.text.glyphs_with_x_advance_range(self.index, r)
@@ -911,7 +910,7 @@ impl<'a> ShapedLine<'a> {
     }
 
     /// Iterate over word and space segments in this line.
-    #[inline]
+
     pub fn parts(&self) -> impl Iterator<Item = ShapedSegment<'a>> {
         let text = self.text;
         let line_index = self.index;
@@ -987,7 +986,7 @@ impl<'a> fmt::Debug for ShapedSegment<'a> {
 }
 impl<'a> ShapedSegment<'a> {
     /// Segment kind.
-    #[inline]
+
     pub fn kind(&self) -> TextSegmentKind {
         self.text.segments.0[self.index].kind
     }
@@ -995,7 +994,7 @@ impl<'a> ShapedSegment<'a> {
     /// If the segment kind is [`Word`].
     ///
     /// [`Word`]: TextSegmentKind::Word
-    #[inline]
+
     pub fn is_word(&self) -> bool {
         matches!(self.kind(), TextSegmentKind::Word)
     }
@@ -1004,13 +1003,13 @@ impl<'a> ShapedSegment<'a> {
     ///
     /// [`Space`]: TextSegmentKind::Space
     /// [`Tab`]: TextSegmentKind::Tab
-    #[inline]
+
     pub fn is_space(&self) -> bool {
         matches!(self.kind(), TextSegmentKind::Space | TextSegmentKind::Tab)
     }
 
     /// If this is the last segment of the line.
-    #[inline]
+
     pub fn is_last(&self) -> bool {
         self.is_last
     }
@@ -1020,14 +1019,14 @@ impl<'a> ShapedSegment<'a> {
     }
 
     /// Glyphs in the word or space.
-    #[inline]
+
     pub fn glyphs(&self) -> impl Iterator<Item = (&'a FontRef, &'a [GlyphInstance])> {
         let r = self.glyph_range();
         self.text.glyphs_range(r)
     }
 
     /// Glyphs in the word or space, paired with the *x-advance* to then next glyph or line end.
-    #[inline]
+
     pub fn glyphs_with_x_advance(&self) -> impl Iterator<Item = (&'a FontRef, impl Iterator<Item = (GlyphInstance, f32)> + 'a)> + 'a {
         let r = self.glyph_range();
         self.text.glyphs_with_x_advance_range(self.line_index, r)
@@ -1054,7 +1053,6 @@ impl<'a> ShapedSegment<'a> {
         PxRect::new(origin, size)
     }
 
-    #[inline]
     fn decoration_line(&self, bottom_up_offset: Px) -> (PxPoint, Px) {
         let (x, width) = self.x_width();
         let y = (self.text.line_height * Px((self.line_index as i32) + 1)) - bottom_up_offset;
@@ -1062,13 +1060,13 @@ impl<'a> ShapedSegment<'a> {
     }
 
     /// Overline spanning the word or spaces, start point + width.
-    #[inline]
+
     pub fn overline(&self) -> (PxPoint, Px) {
         self.decoration_line(self.text.overline)
     }
 
     /// Strikethrough spanning the word or spaces, start point + width.
-    #[inline]
+
     pub fn strikethrough(&self) -> (PxPoint, Px) {
         self.decoration_line(self.text.strikethrough)
     }
@@ -1078,7 +1076,7 @@ impl<'a> ShapedSegment<'a> {
     /// The *y* is defined by the font metrics.
     ///
     /// Returns start point + width.
-    #[inline]
+
     pub fn underline(&self) -> (PxPoint, Px) {
         self.decoration_line(self.text.underline)
     }
@@ -1086,7 +1084,7 @@ impl<'a> ShapedSegment<'a> {
     /// Underline spanning the word or spaces, skipping glyph descends that intercept the line.
     ///
     /// Returns an iterator of start point + width for underline segments.
-    #[inline]
+
     pub fn underline_skip_glyphs(&self, thickness: Px) -> impl Iterator<Item = (PxPoint, Px)> + 'a {
         let y = (self.text.line_height * Px((self.line_index as i32) + 1)) - self.text.underline;
         let y = y + self.text.padding.top;
@@ -1176,7 +1174,7 @@ impl<'a> ShapedSegment<'a> {
     /// The *y* is the baseline + descent + 1px.
     ///
     /// Returns start point + width.
-    #[inline]
+
     pub fn underline_descent(&self) -> (PxPoint, Px) {
         self.decoration_line(self.text.underline_descent)
     }

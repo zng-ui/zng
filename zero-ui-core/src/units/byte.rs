@@ -47,47 +47,38 @@ pub trait ByteUnits {
     fn terabytes(self) -> ByteLength;
 }
 impl ByteUnits for usize {
-    #[inline]
     fn bytes(self) -> ByteLength {
         ByteLength(self)
     }
 
-    #[inline]
     fn kibibytes(self) -> ByteLength {
         ByteLength::from_kibi(self)
     }
 
-    #[inline]
     fn kilobytes(self) -> ByteLength {
         ByteLength::from_kilo(self)
     }
 
-    #[inline]
     fn mebibytes(self) -> ByteLength {
         ByteLength::from_mebi(self)
     }
 
-    #[inline]
     fn megabytes(self) -> ByteLength {
         ByteLength::from_mega(self)
     }
 
-    #[inline]
     fn gibibytes(self) -> ByteLength {
         ByteLength::from_gibi(self)
     }
 
-    #[inline]
     fn gigabytes(self) -> ByteLength {
         ByteLength::from_giga(self)
     }
 
-    #[inline]
     fn tebibytes(self) -> ByteLength {
         ByteLength::from_tebi(self)
     }
 
-    #[inline]
     fn terabytes(self) -> ByteLength {
         ByteLength::from_tera(self)
     }
@@ -244,7 +235,7 @@ impl ByteLength {
     /// From bytes.
     ///
     /// This is the same as `ByteLength(bytes)`.
-    #[inline]
+
     pub fn from_byte(bytes: usize) -> Self {
         ByteLength(bytes)
     }
@@ -256,7 +247,7 @@ impl ByteLength {
     /// From kibi-bytes.
     ///
     /// 1 kibi-byte equals 1024 bytes.
-    #[inline]
+
     pub fn from_kibi(kibi_bytes: usize) -> Self {
         Self::new(kibi_bytes, 1024)
     }
@@ -264,7 +255,7 @@ impl ByteLength {
     /// From kilo-bytes.
     ///
     /// 1 kilo-byte equals 1000 bytes.
-    #[inline]
+
     pub fn from_kilo(kibi_bytes: usize) -> Self {
         Self::new(kibi_bytes, 1000)
     }
@@ -314,13 +305,13 @@ impl ByteLength {
 
 impl ByteLength {
     /// Compares and returns the maximum of two lengths.
-    #[inline]
+
     pub fn max(self, other: Self) -> Self {
         Self(self.0.max(other.0))
     }
 
     /// Compares and returns the minimum of two lengths.
-    #[inline]
+
     pub fn min(self, other: Self) -> Self {
         Self(self.0.min(other.0))
     }

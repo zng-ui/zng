@@ -338,14 +338,14 @@ pub enum TextAlign {
 }
 impl TextAlign {
     /// Justify Auto.
-    #[inline]
+
     pub fn justify() -> Self {
         TextAlign::Justify(Justify::Auto)
     }
 }
 impl Default for TextAlign {
     /// [`TextAlign::Start`].
-    #[inline]
+
     fn default() -> Self {
         TextAlign::Start
     }
@@ -572,14 +572,14 @@ pub enum WhiteSpace {
 }
 impl Default for WhiteSpace {
     /// [`WhiteSpace::Preserve`].
-    #[inline]
+
     fn default() -> Self {
         WhiteSpace::Preserve
     }
 }
 impl WhiteSpace {
     /// Transform the white space of the text.
-    #[inline]
+
     pub fn transform(self, text: Text) -> Text {
         match self {
             WhiteSpace::Preserve => text,
@@ -656,7 +656,7 @@ impl FontName {
     ///
     /// Font names are case insensitive but the input casing is preserved, this casing shows during display and in
     /// the value of [`name`](Self::name).
-    #[inline]
+
     pub fn new(name: impl Into<Text>) -> Self {
         let text = name.into();
         FontName {
@@ -668,7 +668,7 @@ impl FontName {
     /// New "serif" font.
     ///
     /// Serif fonts represent the formal text style for a script.
-    #[inline]
+
     pub fn serif() -> Self {
         Self::new("serif")
     }
@@ -677,7 +677,7 @@ impl FontName {
     ///
     /// Glyphs in sans-serif fonts, are generally low contrast (vertical and horizontal stems have the close to the same thickness)
     /// and have stroke endings that are plain — without any flaring, cross stroke, or other ornamentation.
-    #[inline]
+
     pub fn sans_serif() -> Self {
         Self::new("sans-serif")
     }
@@ -685,7 +685,7 @@ impl FontName {
     /// New "monospace" font.
     ///
     /// The sole criterion of a monospace font is that all glyphs have the same fixed width.
-    #[inline]
+
     pub fn monospace() -> Self {
         Self::new("monospace")
     }
@@ -694,7 +694,7 @@ impl FontName {
     ///
     /// Glyphs in cursive fonts generally use a more informal script style, and the result looks more
     /// like handwritten pen or brush writing than printed letter-work.
-    #[inline]
+
     pub fn cursive() -> Self {
         Self::new("cursive")
     }
@@ -702,19 +702,19 @@ impl FontName {
     /// New "fantasy" font.
     ///
     /// Fantasy fonts are primarily decorative or expressive fonts that contain decorative or expressive representations of characters.
-    #[inline]
+
     pub fn fantasy() -> Self {
         Self::new("fantasy")
     }
 
     /// Reference the font name.
-    #[inline]
+
     pub fn name(&self) -> &str {
         &self.text
     }
 
     /// Unwraps into a [`Text`].
-    #[inline]
+
     pub fn into_text(self) -> Text {
         self.text
     }
@@ -780,7 +780,7 @@ impl AsRef<str> for FontName {
 pub struct FontNames(pub Vec<FontName>);
 impl FontNames {
     /// Empty list.
-    #[inline]
+
     pub fn empty() -> Self {
         FontNames(vec![])
     }
@@ -1077,7 +1077,7 @@ impl InternedStr {
     }
 
     /// Reference the string.
-    #[inline]
+
     pub fn as_str(&self) -> &str {
         &self.0
     }
@@ -1596,7 +1596,7 @@ pub struct TextPoint {
 }
 impl TextPoint {
     /// New text point.
-    #[inline]
+
     pub fn new(line: usize, index: usize) -> Self {
         TextPoint { line, index }
     }
@@ -1608,7 +1608,7 @@ impl TextPoint {
     ///
     /// The input is the [`line`](Self::line) pointed by `self`, this method **panics** if the `line` length cannot accommodate
     /// the byte [`index`](Self::index).
-    #[inline]
+
     pub fn display(self, line: &str) -> TextPointDisplay {
         TextPointDisplay::new(line, self)
     }
@@ -1625,7 +1625,6 @@ pub struct TextPointDisplay {
     pub column: usize,
 }
 impl TextPointDisplay {
-    #[inline]
     fn new(line: &str, point: TextPoint) -> Self {
         TextPointDisplay {
             line: point.line + 1,
@@ -1671,7 +1670,7 @@ pub enum TextLineColor {
 }
 impl TextLineColor {
     /// Returns the color or the `text_color`.
-    #[inline]
+
     pub fn unwrap_or(self, text_color: Rgba) -> Rgba {
         match self {
             TextLineColor::Text => text_color,

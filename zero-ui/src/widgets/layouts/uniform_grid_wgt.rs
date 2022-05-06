@@ -82,7 +82,7 @@ pub mod uniform_grid {
     }
 
     /// New uniform grid layout.
-    #[inline]
+
     fn new_child(
         items: impl WidgetList,
         columns: impl IntoVar<u32>,
@@ -290,7 +290,7 @@ pub mod uniform_grid {
 ///
 /// This function is just a shortcut for [`uniform_grid!`](module@uniform_grid). Use the full widget
 /// to better configure the grid widget.
-#[inline]
+
 pub fn uniform_grid(items: impl WidgetList) -> impl Widget {
     uniform_grid! { items; }
 }

@@ -42,7 +42,7 @@ pub struct WidgetVec {
 }
 impl WidgetVec {
     /// New empty (default).
-    #[inline]
+
     pub fn new() -> Self {
         WidgetVec {
             vec: vec![],
@@ -693,13 +693,13 @@ pub struct UiNodeVec {
 }
 impl UiNodeVec {
     /// New empty (default).
-    #[inline]
+
     pub fn new() -> Self {
         UiNodeVec { vec: vec![] }
     }
 
     /// New empty with pre-allocated capacity.
-    #[inline]
+
     pub fn with_capacity(capacity: usize) -> Self {
         UiNodeVec {
             vec: Vec::with_capacity(capacity),

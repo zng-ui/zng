@@ -31,7 +31,7 @@ impl GridSpacing {
     }
 
     /// Compute the spacing in a layout context.
-    #[inline]
+
     pub fn to_layout(&self, ctx: &LayoutMetrics, available_size: AvailableSize, default_value: PxGridSpacing) -> PxGridSpacing {
         PxGridSpacing {
             column: self.column.to_layout(ctx, available_size.width, default_value.column),
@@ -42,7 +42,7 @@ impl GridSpacing {
     /// Compute a [`LayoutMask`] that flags all contextual values that affect the result of [`to_layout`].
     ///
     /// [`to_layout`]: Self::to_layout
-    #[inline]
+
     pub fn affect_mask(&self) -> LayoutMask {
         self.column.affect_mask() | self.row.affect_mask()
     }

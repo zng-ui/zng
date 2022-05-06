@@ -51,7 +51,7 @@ impl<T: VarValue> RcVar<T> {
     }
 
     /// Schedule a value modification for this variable.
-    #[inline]
+
     pub fn modify<Vw, M>(&self, vars: &Vw, modify: M)
     where
         Vw: WithVars,
@@ -90,13 +90,13 @@ impl<T: VarValue> RcVar<T> {
     }
 
     /// Causes the variable to notify update without changing the value.
-    #[inline]
+
     pub fn touch<Vw: WithVars>(&self, vars: &Vw) {
         self.modify(vars, |mut v| v.touch());
     }
 
     /// Schedule a new value for this variable.
-    #[inline]
+
     pub fn set<Vw, N>(&self, vars: &Vw, new_value: N)
     where
         Vw: WithVars,
@@ -108,7 +108,7 @@ impl<T: VarValue> RcVar<T> {
 
     /// Schedule a new value for this variable, the variable will only be set if
     /// the value is not equal to `new_value`.
-    #[inline]
+
     pub fn set_ne<Vw, N>(&self, vars: &Vw, new_value: N) -> bool
     where
         Vw: WithVars,
@@ -127,7 +127,7 @@ impl<T: VarValue> RcVar<T> {
     }
 
     /// Returns a weak reference to the variable.
-    #[inline]
+
     pub fn downgrade(&self) -> WeakRcVar<T> {
         WeakRcVar(Rc::downgrade(&self.0))
     }
@@ -157,13 +157,13 @@ impl<T: VarValue + Default> Default for RcVar<T> {
 }
 
 /// New [`RcVar`].
-#[inline]
+
 pub fn var<T: VarValue>(value: T) -> RcVar<T> {
     RcVar::new(value)
 }
 
 /// New [`RcVar`] from any value that converts to `T`.
-#[inline]
+
 pub fn var_from<T: VarValue, I: Into<T>>(value: I) -> RcVar<T> {
     RcVar::new(value.into())
 }
@@ -171,7 +171,7 @@ pub fn var_from<T: VarValue, I: Into<T>>(value: I) -> RcVar<T> {
 /// New [`RcVar`] with [default] initial value.
 ///
 /// [default]: Default
-#[inline]
+
 pub fn var_default<T: VarValue + Default>() -> RcVar<T> {
     RcVar::new(T::default())
 }
@@ -209,7 +209,6 @@ impl<T: VarValue> Var<T> for RcVar<T> {
     type AsReadOnly = types::ReadOnlyVar<T, Self>;
     type Weak = WeakRcVar<T>;
 
-    #[inline]
     fn get<'a, Vr: AsRef<VarsRead>>(&'a self, vars: &'a Vr) -> &'a T {
         let _vars = vars.as_ref();
         // SAFETY: this is safe because we are tying the `Vars` lifetime to the value
@@ -217,7 +216,6 @@ impl<T: VarValue> Var<T> for RcVar<T> {
         unsafe { &*self.0.value.get() }
     }
 
-    #[inline]
     fn get_new<'a, Vw: AsRef<Vars>>(&'a self, vars: &'a Vw) -> Option<&'a T> {
         let vars = vars.as_ref();
         if self.0.last_update_id.get() == vars.update_id() {
@@ -227,7 +225,6 @@ impl<T: VarValue> Var<T> for RcVar<T> {
         }
     }
 
-    #[inline]
     fn into_value<Vr: WithVarsRead>(self, vars: &Vr) -> T {
         match Rc::try_unwrap(self.0) {
             Ok(v) => v.value.into_inner(),
@@ -235,72 +232,58 @@ impl<T: VarValue> Var<T> for RcVar<T> {
         }
     }
 
-    #[inline]
     fn is_new<Vw: WithVars>(&self, vars: &Vw) -> bool {
         vars.with_vars(|vars| self.0.last_update_id.get() == vars.update_id())
     }
 
-    #[inline]
     fn version<Vr: WithVarsRead>(&self, vars: &Vr) -> VarVersion {
         vars.with_vars_read(|_| VarVersion::normal(self.0.version.get()))
     }
 
-    #[inline]
     fn is_read_only<Vw: WithVars>(&self, _: &Vw) -> bool {
         false
     }
 
-    #[inline]
     fn is_animating<Vr: WithVarsRead>(&self, _: &Vr) -> bool {
         self.0.animation.borrow().0.as_ref().and_then(|w| w.upgrade()).is_some()
     }
 
-    #[inline]
     fn always_read_only(&self) -> bool {
         false
     }
 
-    #[inline]
     fn can_update(&self) -> bool {
         true
     }
 
-    #[inline]
     fn is_contextual(&self) -> bool {
         false
     }
 
-    #[inline]
     fn actual_var<Vw: WithVars>(&self, _: &Vw) -> BoxedVar<T> {
         self.clone().boxed()
     }
 
-    #[inline]
     fn downgrade(&self) -> Option<Self::Weak> {
         Some(self.downgrade())
     }
 
-    #[inline]
     fn strong_count(&self) -> usize {
         Rc::strong_count(&self.0)
     }
 
-    #[inline]
     fn weak_count(&self) -> usize {
         Rc::weak_count(&self.0)
     }
 
-    #[inline]
     fn as_ptr(&self) -> *const () {
         Rc::as_ptr(&self.0) as _
     }
 
-    #[inline]
     fn is_rc(&self) -> bool {
         true
     }
 
-    #[inline]
     fn modify<Vw, M>(&self, vars: &Vw, modify: M) -> Result<(), VarIsReadOnly>
     where
         Vw: WithVars,
@@ -310,7 +293,6 @@ impl<T: VarValue> Var<T> for RcVar<T> {
         Ok(())
     }
 
-    #[inline]
     fn set<Vw, N>(&self, vars: &Vw, new_value: N) -> Result<(), VarIsReadOnly>
     where
         Vw: WithVars,
@@ -320,7 +302,6 @@ impl<T: VarValue> Var<T> for RcVar<T> {
         Ok(())
     }
 
-    #[inline]
     fn set_ne<Vw, N>(&self, vars: &Vw, new_value: N) -> Result<bool, VarIsReadOnly>
     where
         Vw: WithVars,
@@ -330,12 +311,10 @@ impl<T: VarValue> Var<T> for RcVar<T> {
         Ok(self.set_ne(vars, new_value))
     }
 
-    #[inline]
     fn into_read_only(self) -> Self::AsReadOnly {
         types::ReadOnlyVar::new(self)
     }
 
-    #[inline]
     fn update_mask<Vr: WithVarsRead>(&self, _: &Vr) -> UpdateMask {
         self.0.update_slot.mask()
     }
@@ -343,7 +322,6 @@ impl<T: VarValue> Var<T> for RcVar<T> {
 impl<T: VarValue> IntoVar<T> for RcVar<T> {
     type Var = Self;
 
-    #[inline]
     fn into_var(self) -> Self::Var {
         self
     }
@@ -357,7 +335,7 @@ impl<T: VarValue> any::AnyVar for RcVar<T> {
 }
 
 /// New [`StateVar`].
-#[inline]
+
 pub fn state_var() -> StateVar {
     var(false)
 }
@@ -370,7 +348,7 @@ pub fn state_var() -> StateVar {
 pub type StateVar = RcVar<bool>;
 
 /// New paired [`ResponderVar`] and [`ResponseVar`] in the waiting state.
-#[inline]
+
 pub fn response_var<T: VarValue>() -> (ResponderVar<T>, ResponseVar<T>) {
     let responder = var(Response::Waiting::<T>);
     let response = responder.clone().into_read_only();
@@ -378,7 +356,7 @@ pub fn response_var<T: VarValue>() -> (ResponderVar<T>, ResponseVar<T>) {
 }
 
 /// New [`ResponseVar`] in the done state.
-#[inline]
+
 pub fn response_done_var<T: VarValue>(response: T) -> ResponseVar<T> {
     var(Response::Done(response)).into_read_only()
 }
@@ -423,7 +401,7 @@ impl<T: VarValue> fmt::Debug for Response<T> {
 
 impl<T: VarValue> ResponseVar<T> {
     /// References the response value if a response was set.
-    #[inline]
+
     pub fn rsp<'a, Vr: AsRef<VarsRead>>(&'a self, vars: &'a Vr) -> Option<&'a T> {
         match self.get(vars) {
             Response::Waiting => None,
@@ -455,13 +433,13 @@ impl<T: VarValue> ResponseVar<T> {
     }
 
     /// If the variable contains a response.
-    #[inline]
+
     pub fn responded<Vr: WithVarsRead>(&self, vars: &Vr) -> bool {
         vars.with_vars_read(|vars| self.rsp(vars).is_some())
     }
 
     /// Copy the response value if a response was set.
-    #[inline]
+
     pub fn rsp_copy<Vr: WithVarsRead>(&self, vars: &Vr) -> Option<T>
     where
         T: Copy,
@@ -483,7 +461,7 @@ impl<T: VarValue> ResponseVar<T> {
     }
 
     /// Clone the response value if a response was set.
-    #[inline]
+
     pub fn rsp_clone<Vr: WithVarsRead>(&self, vars: &Vr) -> Option<T> {
         vars.with_vars_read(|vars| self.rsp(vars).cloned())
     }
@@ -499,7 +477,7 @@ impl<T: VarValue> ResponseVar<T> {
     }
 
     /// Copy the response value if a response was set for this update.
-    #[inline]
+
     pub fn rsp_new_copy<Vw: WithVars>(self, vars: &Vw) -> Option<T>
     where
         T: Copy,
@@ -508,14 +486,14 @@ impl<T: VarValue> ResponseVar<T> {
     }
 
     /// Clone the response value if a response was set for this update.
-    #[inline]
+
     pub fn rsp_new_clone<Vw: WithVars>(self, vars: &Vw) -> Option<T> {
         vars.with_vars(|vars| self.rsp_new(vars).cloned())
     }
 
     /// If the variable has responded returns the response value or a clone of it if `self` is not the only reference to the response.
     /// If the variable has **not** responded returns `self` in the error.
-    #[inline]
+
     pub fn try_into_rsp<Vr: WithVarsRead>(self, vars: &Vr) -> Result<T, Self> {
         vars.with_vars_read(|vars| {
             if self.responded(vars) {
@@ -530,7 +508,7 @@ impl<T: VarValue> ResponseVar<T> {
     }
 
     /// Map the response value using `map`, if the variable is awaiting a response uses the `waiting_value` first.
-    #[inline]
+
     pub fn map_rsp<O, I, M>(&self, waiting_value: I, map: M) -> impl Var<O>
     where
         O: VarValue,
@@ -554,7 +532,7 @@ impl<T: VarValue> ResponderVar<T> {
     /// # Panics
     ///
     /// Panics if the variable is already in the done state.
-    #[inline]
+
     pub fn respond<'a, Vw: WithVars>(&'a self, vars: &'a Vw, response: T) {
         vars.with_vars(|vars| {
             if let Response::Done(_) = self.get(vars) {
@@ -565,7 +543,7 @@ impl<T: VarValue> ResponderVar<T> {
     }
 
     /// Creates a [`ResponseVar`] linked to this responder.
-    #[inline]
+
     pub fn response_var(&self) -> ResponseVar<T> {
         self.clone().into_read_only()
     }

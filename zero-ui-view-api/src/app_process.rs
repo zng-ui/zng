@@ -135,19 +135,19 @@ impl Controller {
     }
 
     /// If is running in headless mode.
-    #[inline]
+
     pub fn headless(&self) -> bool {
         self.headless
     }
 
     /// If device events are enabled.
-    #[inline]
+
     pub fn device_events(&self) -> bool {
         self.device_events
     }
 
     /// If is running both view and app in the same process.
-    #[inline]
+
     pub fn same_process(&self) -> bool {
         self.same_process
     }

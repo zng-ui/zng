@@ -290,19 +290,19 @@ impl_from_and_into_var! {
 }
 impl Length {
     /// Length of exact zero.
-    #[inline]
+
     pub const fn zero() -> Length {
         Length::Px(Px(0))
     }
 
     /// Length that fills the available space.
-    #[inline]
+
     pub const fn fill() -> Length {
         Length::Relative(Factor(1.0))
     }
 
     /// Length that fills 50% of the available space.
-    #[inline]
+
     pub const fn half() -> Length {
         Length::Relative(Factor(0.5))
     }
@@ -346,7 +346,7 @@ impl Length {
     }
 
     /// Returns a length that constrains the computed layout length between `min` and `max`.
-    #[inline]
+
     pub fn clamp(&self, min: impl Into<Length>, max: impl Into<Length>) -> Length {
         self.max(min).min(max)
     }
@@ -447,7 +447,7 @@ impl Length {
     }
 
     /// If is [`Length::Default`].
-    #[inline]
+
     pub fn is_default(&self) -> bool {
         matches!(self, Length::Default)
     }
@@ -667,77 +667,75 @@ pub trait LengthUnits {
     fn vmax(self) -> Length;
 }
 impl LengthUnits for f32 {
-    #[inline]
     fn dip(self) -> Length {
         Length::Dip(Dip::new_f32(self))
     }
-    #[inline]
+
     fn px(self) -> Length {
         Length::Px(Px(self.round() as i32))
     }
-    #[inline]
+
     fn pt(self) -> Length {
         Length::Pt(self)
     }
-    #[inline]
+
     fn em(self) -> Length {
         Length::Em(self.into())
     }
-    #[inline]
+
     fn rem(self) -> Length {
         Length::RootEm(self.into())
     }
-    #[inline]
+
     fn vw(self) -> Length {
         Length::ViewportWidth(self)
     }
-    #[inline]
+
     fn vh(self) -> Length {
         Length::ViewportHeight(self)
     }
-    #[inline]
+
     fn vmin(self) -> Length {
         Length::ViewportMin(self)
     }
-    #[inline]
+
     fn vmax(self) -> Length {
         Length::ViewportMax(self)
     }
 }
 impl LengthUnits for i32 {
-    #[inline]
     fn dip(self) -> Length {
         Length::Dip(Dip::new(self))
     }
-    #[inline]
+
     fn px(self) -> Length {
         Length::Px(Px(self))
     }
-    #[inline]
+
     fn pt(self) -> Length {
         Length::Pt(self as f32)
     }
-    #[inline]
+
     fn em(self) -> Length {
         Length::Em(self.fct())
     }
-    #[inline]
+
     fn rem(self) -> Length {
         Length::RootEm(self.fct())
     }
-    #[inline]
+
     fn vw(self) -> Length {
         Length::ViewportWidth(self as f32)
     }
-    #[inline]
+
     fn vh(self) -> Length {
         Length::ViewportHeight(self as f32)
     }
-    #[inline]
+
     fn vmin(self) -> Length {
         Length::ViewportMin(self as f32)
     }
-    #[inline]
+
     fn vmax(self) -> Length {
         Length::ViewportMax(self as f32)
     }

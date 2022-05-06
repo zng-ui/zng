@@ -47,7 +47,7 @@ where
     V: Var<T>,
 {
     /// Wrap var.
-    #[inline]
+
     pub fn new(var: V) -> Self {
         ReadOnlyVar(var, PhantomData)
     }
@@ -75,57 +75,46 @@ where
 {
     type AsReadOnly = Self;
 
-    #[inline]
     fn get<'a, Vr: AsRef<VarsRead>>(&'a self, vars: &'a Vr) -> &'a T {
         self.0.get(vars)
     }
 
-    #[inline]
     fn get_new<'a, Vw: AsRef<Vars>>(&'a self, vars: &'a Vw) -> Option<&'a T> {
         self.0.get_new(vars)
     }
 
-    #[inline]
     fn is_new<Vw: WithVars>(&self, vars: &Vw) -> bool {
         self.0.is_new(vars)
     }
 
-    #[inline]
     fn into_value<Vr: WithVarsRead>(self, vars: &Vr) -> T {
         self.0.into_value(vars)
     }
 
-    #[inline]
     fn version<Vr: WithVarsRead>(&self, vars: &Vr) -> VarVersion {
         self.0.version(vars)
     }
 
-    #[inline]
     fn is_read_only<Vw: WithVars>(&self, _: &Vw) -> bool {
         true
     }
 
-    #[inline]
     fn is_animating<Vr: WithVarsRead>(&self, vars: &Vr) -> bool {
         self.0.is_animating(vars)
     }
 
-    #[inline]
     fn always_read_only(&self) -> bool {
         true
     }
 
-    #[inline]
     fn can_update(&self) -> bool {
         self.0.can_update()
     }
 
-    #[inline]
     fn is_contextual(&self) -> bool {
         self.0.is_contextual()
     }
 
-    #[inline]
     fn actual_var<Vw: WithVars>(&self, vars: &Vw) -> BoxedVar<T> {
         if self.is_contextual() {
             self.0.actual_var(vars).into_read_only()
@@ -134,12 +123,10 @@ where
         }
     }
 
-    #[inline]
     fn strong_count(&self) -> usize {
         self.0.strong_count()
     }
 
-    #[inline]
     fn modify<Vw, M>(&self, _: &Vw, _: M) -> Result<(), VarIsReadOnly>
     where
         Vw: WithVars,
@@ -148,7 +135,6 @@ where
         Err(VarIsReadOnly)
     }
 
-    #[inline]
     fn set<Vw, N>(&self, _: &Vw, _: N) -> Result<(), VarIsReadOnly>
     where
         Vw: WithVars,
@@ -157,7 +143,6 @@ where
         Err(VarIsReadOnly)
     }
 
-    #[inline]
     fn set_ne<Vw, N>(&self, _: &Vw, _: N) -> Result<bool, VarIsReadOnly>
     where
         Vw: WithVars,
@@ -167,12 +152,10 @@ where
         Err(VarIsReadOnly)
     }
 
-    #[inline]
     fn into_read_only(self) -> Self::AsReadOnly {
         self
     }
 
-    #[inline]
     fn update_mask<Vr: WithVarsRead>(&self, vars: &Vr) -> UpdateMask {
         self.0.update_mask(vars)
     }
@@ -202,7 +185,6 @@ where
 {
     type Var = Self;
 
-    #[inline]
     fn into_var(self) -> Self::Var {
         self
     }

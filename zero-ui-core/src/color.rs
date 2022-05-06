@@ -133,19 +133,19 @@ impl Rgba {
     }
 
     /// Returns a copy of the color with the alpha set to `0`.
-    #[inline]
+
     pub fn transparent(self) -> Self {
         self.with_alpha(0.0)
     }
 
     /// Convert a copy of the color to [`Hsla`].
-    #[inline]
+
     pub fn to_hsla(self) -> Hsla {
         self.into()
     }
 
     /// Convert a copy of the color to [`Hsva`].
-    #[inline]
+
     pub fn to_hsva(self) -> Hsva {
         self.into()
     }
@@ -181,7 +181,7 @@ impl Rgba {
     /// # use zero_ui_core::units::*;
     /// colors::DARK_RED.darken(10.pct())
     /// # ;
-    #[inline]
+
     pub fn darken<A: Into<Factor>>(self, amount: A) -> Self {
         self.to_hsla().darken(amount).to_rgba()
     }
@@ -194,7 +194,7 @@ impl Rgba {
     }
 
     /// Convert a copy to [R, G, B, A] bytes.
-    #[inline]
+
     pub fn to_bytes(self) -> [u8; 4] {
         [
             (self.red * 255.0) as u8,
@@ -436,13 +436,13 @@ impl Hsla {
     }
 
     /// Converts a copy of this color to [`Rgba`].
-    #[inline]
+
     pub fn to_rgba(self) -> Rgba {
         self.into()
     }
 
     /// Converts a copy of this color to [`Hsva`].
-    #[inline]
+
     pub fn to_hsva(self) -> Hsva {
         self.into()
     }
@@ -572,13 +572,13 @@ impl Hsva {
     }
 
     /// Converts a copy of this color to [`Rgba`].
-    #[inline]
+
     pub fn to_rgba(self) -> Rgba {
         self.into()
     }
 
     /// Converts a copy of this color to [`Hsla`].
-    #[inline]
+
     pub fn to_hsla(self) -> Hsla {
         self.into()
     }
@@ -1196,7 +1196,7 @@ impl Filter {
     }
 
     /// Returns `true` if this filter is affected by the layout context where it is evaluated.
-    #[inline]
+
     pub fn needs_layout(&self) -> bool {
         self.needs_layout
     }

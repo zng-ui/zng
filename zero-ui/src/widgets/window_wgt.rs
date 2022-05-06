@@ -441,7 +441,6 @@ pub mod window {
         nodes::layers(child)
     }
 
-    #[inline]
     #[allow(clippy::too_many_arguments)]
     fn new(
         child: impl UiNode,

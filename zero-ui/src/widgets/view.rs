@@ -13,7 +13,7 @@ pub enum View<U: UiNode> {
 }
 impl<U: UiNode> View<U> {
     /// Convert to `View<BoxedUiNode>`.
-    #[inline]
+
     pub fn boxed(self) -> View<BoxedUiNode> {
         match self {
             View::Update(ui) => View::Update(ui.boxed()),

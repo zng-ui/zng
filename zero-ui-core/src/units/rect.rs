@@ -51,13 +51,13 @@ impl Rect {
     }
 
     /// New rectangle at [`Point::zero`] and [`Size::zero`].
-    #[inline]
+
     pub fn zero() -> Self {
         Self::new(Point::zero(), Size::zero())
     }
 
     /// Rect that fills the available space.
-    #[inline]
+
     pub fn fill() -> Self {
         Self::from_size(Size::fill())
     }
@@ -65,7 +65,7 @@ impl Rect {
     /// Min x and y, this is the [`origin`].
     ///
     /// [`origin`]: Self::origin
-    #[inline]
+
     pub fn min(&self) -> Point {
         self.origin.clone()
     }
@@ -74,35 +74,35 @@ impl Rect {
     ///
     /// [`origin`]: Self::origin
     /// [`size`]: Self::size
-    #[inline]
+
     pub fn max(&self) -> Point {
         self.origin.clone() + self.size.clone()
     }
 
     /// Min x, this is the `origin.x`.
-    #[inline]
+
     pub fn min_x(&self) -> Length {
         self.origin.x.clone()
     }
     /// Min y, this is the `origin.y`.
-    #[inline]
+
     pub fn min_y(&self) -> Length {
         self.origin.y.clone()
     }
 
     /// Max x, this is the `origin.x + width`.
-    #[inline]
+
     pub fn max_x(&self) -> Length {
         self.origin.x.clone() + self.size.width.clone()
     }
     /// Max y, this is the `origin.y + height`.
-    #[inline]
+
     pub fn max_y(&self) -> Length {
         self.origin.y.clone() + self.size.height.clone()
     }
 
     /// Returns a rectangle of same size that adds the vector to the origin.
-    #[inline]
+
     pub fn translate(&self, by: impl Into<Vector>) -> Self {
         let mut r = self.clone();
         r.origin += by.into();
@@ -110,7 +110,7 @@ impl Rect {
     }
 
     /// Compute the rectangle in a layout context.
-    #[inline]
+
     pub fn to_layout(&self, ctx: &LayoutMetrics, available_size: AvailableSize, default_value: PxRect) -> PxRect {
         PxRect::new(
             self.origin.to_layout(ctx, available_size, default_value.origin),
@@ -121,7 +121,7 @@ impl Rect {
     /// Compute a [`LayoutMask`] that flags all contextual values that affect the result of [`to_layout`].
     ///
     /// [`to_layout`]: Self::to_layout
-    #[inline]
+
     pub fn affect_mask(&self) -> LayoutMask {
         self.origin.affect_mask() | self.size.affect_mask()
     }

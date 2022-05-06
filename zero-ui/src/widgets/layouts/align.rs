@@ -9,7 +9,6 @@ mod center {
         content(impl Widget);
     }
 
-    #[inline]
     fn new_child(content: impl Widget) -> impl UiNode {
         align(content, Align::CENTER)
     }
@@ -18,7 +17,7 @@ mod center {
 /// Centralizes the content in the available space.
 ///
 /// This is the equivalent of setting [`align`](fn@align) to [`Align::CENTER`], but as a widget.
-#[inline]
+
 pub fn center(content: impl Widget) -> impl Widget {
     center! { content; }
 }

@@ -45,7 +45,7 @@ macro_rules! unique_id_32 {
 
             /// Retrieve the underlying `u32` value.
             #[allow(dead_code)]
-            #[inline]
+
             pub fn get(self) -> u32 {
                 self.0.get()
             }
@@ -104,7 +104,7 @@ macro_rules! unique_id_64 {
 
             /// Retrieve the underlying `u64` value.
             #[allow(dead_code)]
-            #[inline]
+
             pub fn get(self) -> u64 {
                 self.0.get()
             }
@@ -166,7 +166,6 @@ pub fn next_id64(next: &'static AtomicU64) -> NonZeroU64 {
     }
 }
 
-#[inline]
 fn hash32(n: u32) -> u32 {
     use std::num::Wrapping as W;
 
@@ -177,7 +176,7 @@ fn hash32(n: u32) -> u32 {
     z.0
 }
 #[doc(hidden)]
-#[inline]
+
 pub fn un_hash32(z: u32) -> u32 {
     use std::num::Wrapping as W;
 
@@ -188,7 +187,6 @@ pub fn un_hash32(z: u32) -> u32 {
     n.0
 }
 
-#[inline]
 fn splitmix64(n: u64) -> u64 {
     use std::num::Wrapping as W;
 
@@ -199,7 +197,7 @@ fn splitmix64(n: u64) -> u64 {
     z.0
 }
 #[doc(hidden)]
-#[inline]
+
 pub fn un_splitmix64(z: u64) -> u64 {
     use std::num::Wrapping as W;
 
@@ -222,12 +220,10 @@ impl Hasher for IdHasher {
         unreachable!("`only `write_u64` is supported");
     }
 
-    #[inline]
     fn write_u64(&mut self, id: u64) {
         self.0 = id;
     }
 
-    #[inline]
     fn finish(&self) -> u64 {
         self.0
     }
@@ -318,7 +314,7 @@ impl<D: Send + Sync> Handle<D> {
     }
 
     /// Create a handle to nothing, the handle always in the *dropped* state.
-    #[inline]
+
     pub fn dummy(data: D) -> Self {
         Handle(Arc::new(HandleState {
             state: AtomicU8::new(FORCE_DROP),
@@ -327,14 +323,14 @@ impl<D: Send + Sync> Handle<D> {
     }
 
     /// Reference the attached data.
-    #[inline]
+
     pub fn data(&self) -> &D {
         &self.0.data
     }
 
     /// Mark the handle as permanent and drops this clone of it. This causes the resource to stay in memory
     /// until the app exits, no need to hold a handle somewhere.
-    #[inline]
+
     pub fn perm(self) {
         self.0.state.fetch_or(PERMANENT, Ordering::Relaxed);
     }
@@ -343,13 +339,13 @@ impl<D: Send + Sync> Handle<D> {
     ///
     /// If `true` the resource will stay in memory for the duration of the app, unless [`force_drop`](Self::force_drop)
     /// is also called.
-    #[inline]
+
     pub fn is_permanent(&self) -> bool {
         self.0.state.load(Ordering::Relaxed) == PERMANENT
     }
 
     /// Force drops the handle, meaning the resource will be dropped even if there are other handles active.
-    #[inline]
+
     pub fn force_drop(self) {
         self.0.state.store(FORCE_DROP, Ordering::Relaxed);
     }
@@ -360,13 +356,13 @@ impl<D: Send + Sync> Handle<D> {
     /// was called in any of the clones.
     ///
     /// Note that in this method it can only be because [`force_drop`](Handle::force_drop) was called.
-    #[inline]
+
     pub fn is_dropped(&self) -> bool {
         self.0.state.load(Ordering::Relaxed) == FORCE_DROP
     }
 
     /// Create a [`WeakHandle`] to this handle.
-    #[inline]
+
     pub fn downgrade(&self) -> WeakHandle<D> {
         WeakHandle(Arc::downgrade(&self.0))
     }
@@ -904,25 +900,25 @@ impl From<std::ops::Range<usize>> for IndexRange {
 }
 impl IndexRange {
     /// Into `Range<usize>`.
-    #[inline]
+
     pub fn iter(self) -> std::ops::Range<usize> {
         self.0..self.1
     }
 
     /// `self.0`
-    #[inline]
+
     pub fn start(self) -> usize {
         self.0
     }
 
     /// `self.1`
-    #[inline]
+
     pub fn end(self) -> usize {
         self.1
     }
 
     /// `self.1.saturating_sub(1)`
-    #[inline]
+
     pub fn inclusive_end(self) -> usize {
         self.1.saturating_sub(1)
     }

@@ -1123,7 +1123,7 @@ mod output {
                     };
                     set.extend(quote! {
                         #[doc(hidden)]
-                        #[inline]
+
                         pub fn #set_ident(self_: impl #args_ident, #child_arg) -> #output_ty {
                             fn box_fix(node: impl #crate_core::UiNode) -> impl #crate_core::UiNode {
                                 #crate_core::UiNode::cfg_boxed(node)
@@ -1153,7 +1153,7 @@ mod output {
                     set.extend(quote! {
                         #crate_core::core_cfg_inspector! {
                             #[doc(hidden)]
-                            #[inline]
+
                             pub fn #set_inspect_ident(
                                 self_: impl #args_ident,
                                 #child_arg,
@@ -1192,7 +1192,7 @@ mod output {
                 quote! {
                     #crate_core::core_cfg_inspector! {
                         #[doc(hidden)]
-                        #[inline]
+
                         pub fn #cap_ident(
                             self_: &impl #args_ident,
                             property_name: &'static str,
@@ -1245,7 +1245,7 @@ mod output {
             } else {
                 let default_fn_ident = ident!("__{ident}_default_args");
                 quote! {
-                    #[inline]
+
                     #[doc(hidden)]
                     #[allow(non_snake_case)]
                     pub fn #default_fn_ident() -> impl #args_ident {
@@ -1318,7 +1318,7 @@ mod output {
                 #[allow(missing_docs)]
                 #[allow(non_camel_case_types)]
                 impl #generic_decl #args_impl_ident #generic_use {
-                    #[inline]
+
                     pub fn new(#( #arg_idents: #arg_types ),*) -> impl #args_ident {
                         Self {
                             #phantom_init
@@ -1326,7 +1326,7 @@ mod output {
                         }
                     }
 
-                    #[inline]
+
                     pub fn args(self) -> impl #args_ident {
                         self
                     }
@@ -1341,23 +1341,23 @@ mod output {
                     #assoc_connect
 
                     #(
-                        #[inline]
+
                         fn #named_arg_mtds(&self) -> &#arg_return_types {
                             &self.#arg_idents
                         }
 
-                        #[inline]
+
                         fn #numbered_arg_mtds(&self) -> &#arg_return_types {
                             &self.#arg_idents
                         }
                     )*
 
-                    #[inline]
+
                     fn unwrap(self) -> #unwrap_ty {
                         #unwrap_expr
                     }
 
-                    #[inline]
+
                     fn unwrap_ref(&self) -> #unwrap_ty_ref {
                         #unwrap_expr_ref
                     }

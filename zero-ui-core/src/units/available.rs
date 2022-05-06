@@ -25,13 +25,13 @@ impl From<Px> for AvailablePx {
 }
 impl AvailablePx {
     /// Convert `Infinite` to zero, or returns the `Finite`.
-    #[inline]
+
     pub fn to_px(self) -> Px {
         self.to_px_or(Px(0))
     }
 
     /// Convert `Infinite` to `fallback` or return the `Finite`.
-    #[inline]
+
     pub fn to_px_or(self, fallback: Px) -> Px {
         match self {
             AvailablePx::Infinite => fallback,
@@ -42,7 +42,7 @@ impl AvailablePx {
     /// Returns the greater length.
     ///
     /// Infinite is greater then any finite value.
-    #[inline]
+
     pub fn max(self, other: AvailablePx) -> AvailablePx {
         if self > other {
             self
@@ -54,7 +54,7 @@ impl AvailablePx {
     /// Returns the lesser length.
     ///
     /// Infinite is greater then any finite value.
-    #[inline]
+
     pub fn min(self, other: AvailablePx) -> AvailablePx {
         if self < other {
             self
@@ -64,25 +64,25 @@ impl AvailablePx {
     }
 
     /// Returns the greater finite length or `Infinite` if `self` is `Infinite`.
-    #[inline]
+
     pub fn max_px(self, other: Px) -> AvailablePx {
         self.max(AvailablePx::Finite(other))
     }
 
     /// Return the lesser finite length.
-    #[inline]
+
     pub fn min_px(self, other: Px) -> AvailablePx {
         self.min(AvailablePx::Finite(other))
     }
 
     /// Returns `true` if is `Infinite`.
-    #[inline]
+
     pub fn is_infinite(self) -> bool {
         matches!(self, AvailablePx::Infinite)
     }
 
     /// Returns `true` if is `Finite(_)`.
-    #[inline]
+
     pub fn is_finite(self) -> bool {
         matches!(self, AvailablePx::Finite(_))
     }
@@ -249,57 +249,50 @@ pub trait AvailableSizeExt {
     fn from_size(size: PxSize) -> AvailableSize;
 }
 impl AvailableSizeExt for AvailableSize {
-    #[inline]
     fn inf() -> Self {
         AvailableSize::new(AvailablePx::Infinite, AvailablePx::Infinite)
     }
-    #[inline]
+
     fn finite(size: PxSize) -> Self {
         AvailableSize::new(AvailablePx::Finite(size.width), AvailablePx::Finite(size.height))
     }
 
-    #[inline]
     fn to_px(self) -> PxSize {
         PxSize::new(self.width.to_px(), self.height.to_px())
     }
-    #[inline]
+
     fn to_px_or(self, fallback: PxSize) -> PxSize {
         PxSize::new(self.width.to_px_or(fallback.width), self.height.to_px_or(fallback.height))
     }
 
-    #[inline]
     fn add_px(self, size: PxSize) -> Self {
         AvailableSize::new(self.width + size.width, self.height + size.height)
     }
-    #[inline]
+
     fn sub_px(self, size: PxSize) -> Self {
         AvailableSize::new(self.width - size.width, self.height - size.height)
     }
 
-    #[inline]
     fn max(self, other: Self) -> Self {
         AvailableSize::new(self.width.max(other.width), self.height.max(other.height))
     }
-    #[inline]
+
     fn min(self, other: Self) -> Self {
         AvailableSize::new(self.width.min(other.width), self.height.min(other.height))
     }
 
-    #[inline]
     fn max_px(self, other: PxSize) -> Self {
         AvailableSize::new(self.width.max_px(other.width), self.height.max_px(other.height))
     }
-    #[inline]
+
     fn min_px(self, other: PxSize) -> Self {
         AvailableSize::new(self.width.min_px(other.width), self.height.min_px(other.height))
     }
 
-    #[inline]
     fn clip(self, other: PxSize) -> PxSize {
         other.min(self.to_px_or(PxSize::new(Px::MAX, Px::MAX)))
     }
 
-    #[inline]
     fn from_size(size: PxSize) -> AvailableSize {
         AvailableSize::new(size.width.into(), size.height.into())
     }

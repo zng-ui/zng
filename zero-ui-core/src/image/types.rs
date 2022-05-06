@@ -196,7 +196,7 @@ impl Image {
     ///
     /// [`ppi`]: Self::ppi
     /// [`screen_ppi`]: LayoutMetrics::screen_ppi
-    #[inline]
+
     pub fn layout_size(&self, ctx: &LayoutMetrics) -> PxSize {
         self.calc_size(ctx, (ctx.screen_ppi, ctx.screen_ppi), false)
     }
@@ -227,7 +227,7 @@ impl Image {
     }
 
     /// Reference the decoded pre-multiplied BGRA8 pixel buffer.
-    #[inline]
+
     pub fn bgra8(&self) -> Option<&[u8]> {
         self.view.get().and_then(|v| v.bgra8())
     }

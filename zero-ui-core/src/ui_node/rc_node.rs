@@ -61,7 +61,7 @@ impl<U: UiNode> RcNode<U> {
     }
 
     /// Creates a new [`WeakNode`] that points to this node.
-    #[inline]
+
     pub fn downgrade(&self) -> WeakNode<U> {
         WeakNode(Rc::downgrade(&self.0))
     }
@@ -83,7 +83,7 @@ impl<U: UiNode> Clone for WeakNode<U> {
 }
 impl<U: UiNode> WeakNode<U> {
     /// Attempts to upgrade to a [`RcNode`].
-    #[inline]
+
     pub fn upgrade(&self) -> Option<RcNode<U>> {
         self.0.upgrade().map(RcNode)
     }

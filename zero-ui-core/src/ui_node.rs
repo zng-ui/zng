@@ -56,7 +56,7 @@ impl WidgetId {
     /// [`named`]: WidgetId::named
     /// [`new_unique`]: WidgetId::new_unique
     /// [`id`]: mod@crate::widget_base::implicit_base#wp-id
-    #[inline(always)]
+
     pub fn debug_named(name: &'static str) -> Self {
         #[cfg(debug_assertions)]
         return Self::named(name);
@@ -768,11 +768,10 @@ pub mod impl_ui_node_util {
         UiNode,
     };
 
-    #[inline]
     pub fn delegate_iter<'a>(d: impl IntoIterator<Item = &'a impl UiNode>) -> impl IterImpl {
         d
     }
-    #[inline]
+
     pub fn delegate_iter_mut<'a>(d: impl IntoIterator<Item = &'a mut impl UiNode>) -> impl IterMutImpl {
         d
     }

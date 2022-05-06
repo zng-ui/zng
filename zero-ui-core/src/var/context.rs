@@ -15,13 +15,13 @@ impl<C: ContextVar> ContextVarProxy<C> {
     /// New context var proxy.
     ///
     /// Prefer using [`ContextVar::new`] or the `new` generated using the [`context_var!`] macro.
-    #[inline]
+
     pub fn new() -> Self {
         ContextVarProxy(PhantomData)
     }
 
     #[doc(hidden)]
-    #[inline]
+
     pub fn static_ref() -> &'static Self {
         &ContextVarProxy(PhantomData)
     }
@@ -37,7 +37,6 @@ impl<C: ContextVar> crate::private::Sealed for ContextVarProxy<C> {}
 impl<C: ContextVar> Var<C::Type> for ContextVarProxy<C> {
     type AsReadOnly = Self;
 
-    #[inline]
     fn get<'a, Vr: AsRef<VarsRead>>(&'a self, vars: &'a Vr) -> &'a C::Type {
         let _vars = vars.as_ref();
         let ptr = C::thread_local_value().value();
@@ -46,7 +45,6 @@ impl<C: ContextVar> Var<C::Type> for ContextVarProxy<C> {
         unsafe { &*ptr }
     }
 
-    #[inline]
     fn get_new<'a, Vw: AsRef<Vars>>(&'a self, vars: &'a Vw) -> Option<&'a C::Type> {
         let vars = vars.as_ref();
         let key = C::thread_local_value();
@@ -57,52 +55,42 @@ impl<C: ContextVar> Var<C::Type> for ContextVarProxy<C> {
         }
     }
 
-    #[inline]
     fn is_new<Vw: WithVars>(&self, vars: &Vw) -> bool {
         vars.with_vars(|_v| C::thread_local_value().is_new())
     }
 
-    #[inline]
     fn into_value<Vr: WithVarsRead>(self, vars: &Vr) -> C::Type {
         self.get_clone(vars)
     }
 
-    #[inline]
     fn version<Vr: WithVarsRead>(&self, vars: &Vr) -> VarVersion {
         vars.with_vars_read(|_v| C::thread_local_value().version())
     }
 
-    #[inline]
     fn is_read_only<Vw: WithVars>(&self, vars: &Vw) -> bool {
         vars.with_vars(|_v| C::thread_local_value().is_read_only())
     }
 
-    #[inline]
     fn is_animating<Vr: WithVarsRead>(&self, vars: &Vr) -> bool {
         vars.with_vars_read(|_v| C::thread_local_value().is_animating())
     }
 
-    #[inline]
     fn always_read_only(&self) -> bool {
         false
     }
 
-    #[inline]
     fn is_contextual(&self) -> bool {
         true
     }
 
-    #[inline]
     fn can_update(&self) -> bool {
         true
     }
 
-    #[inline]
     fn strong_count(&self) -> usize {
         0
     }
 
-    #[inline]
     fn modify<Vw, M>(&self, vars: &Vw, modify: M) -> Result<(), VarIsReadOnly>
     where
         Vw: WithVars,
@@ -119,39 +107,32 @@ impl<C: ContextVar> Var<C::Type> for ContextVarProxy<C> {
         })
     }
 
-    #[inline]
     fn into_read_only(self) -> Self::AsReadOnly {
         self
     }
 
-    #[inline]
     fn update_mask<Vr: WithVarsRead>(&self, vars: &Vr) -> UpdateMask {
         vars.with_vars_read(|_v| C::thread_local_value().update_mask())
     }
 
     type Weak = NoneWeakVar<C::Type>;
 
-    #[inline]
     fn is_rc(&self) -> bool {
         false
     }
 
-    #[inline]
     fn downgrade(&self) -> Option<Self::Weak> {
         None
     }
 
-    #[inline]
     fn weak_count(&self) -> usize {
         0
     }
 
-    #[inline]
     fn as_ptr(&self) -> *const () {
         std::ptr::null()
     }
 
-    #[inline]
     fn actual_var<Vw: WithVars>(&self, vars: &Vw) -> BoxedVar<C::Type> {
         vars.with_vars(|vars| {
             if let Some(actual) = C::thread_local_value().actual_var() {
@@ -168,7 +149,6 @@ impl<C: ContextVar> Var<C::Type> for ContextVarProxy<C> {
 impl<C: ContextVar> IntoVar<C::Type> for ContextVarProxy<C> {
     type Var = Self;
 
-    #[inline]
     fn into_var(self) -> Self::Var {
         self
     }
@@ -346,7 +326,6 @@ type DynActualVarFn<T> = dyn Fn(&Vars) -> BoxedVar<T>;
 
 #[allow(missing_docs)]
 impl<T: VarValue> ContextVarValue<T> {
-    #[inline]
     pub fn init(default_value: T) -> Self {
         let default_value = Box::new(default_value);
         ContextVarValue {
@@ -370,7 +349,6 @@ pub struct ContextVarLocalKey<T: VarValue> {
 }
 #[allow(missing_docs)]
 impl<T: VarValue> ContextVarLocalKey<T> {
-    #[inline]
     pub fn new(local: &'static LocalKey<ContextVarValue<T>>) -> Self {
         ContextVarLocalKey { local }
     }
@@ -476,7 +454,7 @@ macro_rules! context_var {
             }
 
             /// [`Var`](crate::var::Var) implementer that represents this context var.
-            #[inline]
+
             #[allow(unused)]
             pub fn new() -> $crate::var::ContextVarProxy<Self> {
                 $crate::var::ContextVarProxy::new()
@@ -485,34 +463,34 @@ macro_rules! context_var {
             /// New default value.
             ///
             /// Returns a value that is equal to the variable value when it is not set in any context.
-            #[inline]
+
             pub fn default_value() -> $type {
                 $default
             }
 
             /// References the value in the current `vars` context.
-            #[inline]
+
             #[allow(unused)]
             pub fn get<'a, Vr: AsRef<$crate::var::VarsRead>>(vars: &'a Vr) -> &'a $type {
                 $crate::var::Var::get($crate::var::ContextVarProxy::<Self>::static_ref(), vars)
             }
 
             /// Returns a clone of the value in the current `vars` context.
-            #[inline]
+
             #[allow(unused)]
             pub fn get_clone<Vr: $crate::var::WithVarsRead>(vars: &Vr) -> $type {
                 $crate::var::Var::get_clone($crate::var::ContextVarProxy::<Self>::static_ref(), vars)
             }
 
             /// References the value in the current `vars` context if it is marked as new.
-            #[inline]
+
             #[allow(unused)]
             pub fn get_new<'a, Vw: AsRef<$crate::var::Vars>>(vars: &'a Vw) -> Option<&'a $type> {
                 $crate::var::Var::get_new($crate::var::ContextVarProxy::<Self>::static_ref(), vars)
             }
 
             /// Returns a clone of the value in the current `vars` context if it is marked as new.
-            #[inline]
+
             #[allow(unused)]
             pub fn clone_new<Vw: $crate::var::WithVars>(vars: &Vw) -> Option<$type> {
                 $crate::var::Var::clone_new($crate::var::ContextVarProxy::<Self>::static_ref(), vars)
@@ -521,14 +499,14 @@ macro_rules! context_var {
             // TODO generate copy and set_ne fns when https://github.com/rust-lang/rust/issues/48214 is stable
 
             /// If the value in the current `vars` context is marked as new.
-            #[inline]
+
             #[allow(unused)]
             pub fn is_new<Vw: $crate::var::WithVars>(vars: &Vw) -> bool {
                 $crate::var::Var::is_new($crate::var::ContextVarProxy::<Self>::static_ref(), vars)
             }
 
             /// Gets the version of the value in the current `vars` context.
-            #[inline]
+
             #[allow(unused)]
             pub fn version<Vr: $crate::var::WithVarsRead>(vars: &Vr) -> $crate::var::VarVersion {
                 $crate::var::Var::version($crate::var::ContextVarProxy::<Self>::static_ref(), vars)
@@ -541,7 +519,7 @@ macro_rules! context_var {
             ///
             /// [`set`]: Self::set
             /// [`modify`]: Self::modify
-            #[inline]
+
             #[allow(unused)]
             pub fn is_read_only<Vw: $crate::var::WithVars>(vars: &Vw) -> bool {
                 $crate::var::Var::is_read_only($crate::var::ContextVarProxy::<Self>::static_ref(), vars)
@@ -552,7 +530,7 @@ macro_rules! context_var {
             /// If the backing source [`is_read_only`] returns an error.
             ///
             /// [`is_read_only`]: Self::is_read_only
-            #[inline]
+
             #[allow(unused)]
             pub fn modify<Vw, M>(vars: &Vw, modify: M) -> std::result::Result<(), $crate::var::VarIsReadOnly>
             where
@@ -567,7 +545,7 @@ macro_rules! context_var {
             /// If the backing source [`is_read_only`] returns an error.
             ///
             /// [`is_read_only`]: Self::is_read_only
-            #[inline]
+
             #[allow(unused)]
             pub fn set<Vw, N>(vars: &Vw, new_value: N) -> std::result::Result<(), $crate::var::VarIsReadOnly>
             where
@@ -581,12 +559,12 @@ macro_rules! context_var {
         impl $crate::var::ContextVar for $ident {
             type Type = $type;
 
-            #[inline]
+
             fn default_value() -> Self::Type {
                Self::default_value()
             }
 
-            #[inline]
+
             fn thread_local_value() -> $crate::var::ContextVarLocalKey<$type> {
                 $crate::var::ContextVarLocalKey::new(&Self::THREAD_LOCAL_VALUE)
             }
@@ -594,7 +572,7 @@ macro_rules! context_var {
 
         impl $crate::var::IntoVar<$type> for $ident {
             type Var = $crate::var::ContextVarProxy<Self>;
-            #[inline]
+
             fn into_var(self) -> Self::Var {
                 $crate::var::ContextVarProxy::default()
             }
@@ -698,70 +676,69 @@ mod properties {
             C: ContextVar<Type = T>,
             V: Var<T>,
         {
-            #[inline(always)]
             fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
                 ctx.vars
                     .with_context_var(self.var, ContextVarData::in_vars_read(ctx.vars, &self.value), || {
                         self.child.info(ctx, info)
                     });
             }
-            #[inline(always)]
+
             fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
                 ctx.vars
                     .with_context_var(self.var, ContextVarData::in_vars_read(ctx.vars, &self.value), || {
                         self.child.subscriptions(ctx, subscriptions)
                     });
             }
-            #[inline(always)]
+
             fn init(&mut self, ctx: &mut WidgetContext) {
                 ctx.vars
                     .with_context_var(self.var, ContextVarData::in_vars(ctx.vars, &self.value, false), || {
                         self.child.init(ctx)
                     });
             }
-            #[inline(always)]
+
             fn deinit(&mut self, ctx: &mut WidgetContext) {
                 ctx.vars
                     .with_context_var(self.var, ContextVarData::in_vars(ctx.vars, &self.value, false), || {
                         self.child.deinit(ctx)
                     });
             }
-            #[inline(always)]
+
             fn update(&mut self, ctx: &mut WidgetContext) {
                 ctx.vars
                     .with_context_var(self.var, ContextVarData::in_vars(ctx.vars, &self.value, false), || {
                         self.child.update(ctx)
                     });
             }
-            #[inline(always)]
+
             fn event<EU: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &EU) {
                 ctx.vars
                     .with_context_var(self.var, ContextVarData::in_vars(ctx.vars, &self.value, false), || {
                         self.child.event(ctx, args)
                     });
             }
-            #[inline(always)]
+
             fn measure(&mut self, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize {
                 ctx.vars
                     .with_context_var(self.var, ContextVarData::in_vars(ctx.vars, &self.value, false), || {
                         self.child.measure(ctx, available_size)
                     })
             }
-            #[inline(always)]
+
             fn arrange(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, final_size: PxSize) {
                 ctx.vars
                     .with_context_var(self.var, ContextVarData::in_vars(ctx.vars, &self.value, false), || {
                         self.child.arrange(ctx, widget_layout, final_size)
                     });
             }
-            #[inline(always)]
+
             fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
                 ctx.vars
                     .with_context_var(self.var, ContextVarData::in_vars_read(ctx.vars, &self.value), || {
                         self.child.render(ctx, frame)
                     });
             }
-            #[inline(always)]
+
             fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
                 ctx.vars
                     .with_context_var(self.var, ContextVarData::in_vars_read(ctx.vars, &self.value), || {

@@ -39,7 +39,7 @@ impl<U: UiNode> UpdatesTraceUiNodeExt for U {
 /// Custom span in the app loop diagnostics.
 ///
 /// See [`UpdatesTraceUiNodeExt`] for more details.
-#[inline(always)]
+
 pub fn updates_trace_span(tag: &'static str) -> tracing::span::EnteredSpan {
     UpdatesTrace::custom_span(tag, "")
 }
@@ -47,7 +47,7 @@ pub fn updates_trace_span(tag: &'static str) -> tracing::span::EnteredSpan {
 /// Custom log entry in the app loop diagnostics.
 ///
 /// See [`UpdatesTraceUiNodeExt`] for more details.
-#[inline(always)]
+
 pub fn updates_trace_event(tag: &str) {
     UpdatesTrace::log_custom(tag)
 }
@@ -211,45 +211,45 @@ impl UpdatesTrace {
     }
 
     /// Opens an app extension span.
-    #[inline(always)]
+
     pub fn extension_span<E: AppExtension>(ext_mtd: &'static str) -> tracing::span::EnteredSpan {
         tracing::trace_span!(target: UpdatesTrace::UPDATES_TARGET, "AppExtension", name = type_name::<E>(), %ext_mtd).entered()
     }
 
     /// Opens a window span.
-    #[inline(always)]
+
     pub fn window_span(id: WindowId) -> tracing::span::EnteredSpan {
         tracing::trace_span!(target: UpdatesTrace::UPDATES_TARGET, "Window", %id, raw_id = id.get() as u64).entered()
     }
 
     /// Opens a widget span.
-    #[inline(always)]
+
     pub fn widget_span(id: WidgetId, name: &'static str, node_mtd: &'static str) -> tracing::span::EnteredSpan {
         tracing::trace_span!(target: UpdatesTrace::UPDATES_TARGET, "widget", %id, raw_id = id.get(), name, %node_mtd).entered()
     }
 
     /// Opens a property span.
-    #[inline(always)]
+
     #[cfg(inspector)]
     pub fn property_span(name: &'static str, node_mtd: &'static str) -> tracing::span::EnteredSpan {
         tracing::trace_span!(target: UpdatesTrace::UPDATES_TARGET, "property", name, %node_mtd).entered()
     }
 
     /// Opens a new function span.
-    #[inline(always)]
+
     #[cfg(inspector)]
     pub fn new_fn_span(new_fn: crate::inspector::WidgetNewFn, node_mtd: &'static str) -> tracing::span::EnteredSpan {
         tracing::trace_span!(target: UpdatesTrace::UPDATES_TARGET, "new_fn", name = %new_fn, %node_mtd).entered()
     }
 
     /// Opens a custom tag span.
-    #[inline(always)]
+
     pub fn custom_span(tag: &str, node_mtd: &'static str) -> tracing::span::EnteredSpan {
         tracing::trace_span!(target: UpdatesTrace::UPDATES_TARGET, "tag", %tag, %node_mtd).entered()
     }
 
     /// Log a direct update request.
-    #[inline(always)]
+
     pub fn log_update() {
         tracing::event!(target: UpdatesTrace::UPDATES_TARGET, tracing::Level::TRACE, {
             kind = "update request"
@@ -257,7 +257,7 @@ impl UpdatesTrace {
     }
 
     /// Log a direct layout request.
-    #[inline(always)]
+
     pub fn log_layout() {
         tracing::event!(target: UpdatesTrace::UPDATES_TARGET, tracing::Level::TRACE, {
             kind = "layout request"
@@ -265,7 +265,7 @@ impl UpdatesTrace {
     }
 
     /// Log a custom event.
-    #[inline(always)]
+
     pub fn log_custom(tag: &str) {
         tracing::event!(
             target: UpdatesTrace::UPDATES_TARGET,
@@ -275,7 +275,7 @@ impl UpdatesTrace {
     }
 
     /// Log a var update request.
-    #[inline(always)]
+
     pub fn log_var<T: VarValue>() {
         tracing::event!(
             target: UpdatesTrace::UPDATES_TARGET,
@@ -285,7 +285,7 @@ impl UpdatesTrace {
     }
 
     /// Log an event update request.
-    #[inline(always)]
+
     pub fn log_event<E: Event>() {
         tracing::event!(
             target: UpdatesTrace::UPDATES_TARGET,

@@ -107,7 +107,7 @@ impl Timers {
     /// In the example above the deadline variable starts with [`elapsed`](Deadline::elapsed) set to `false`,
     /// 20 seconds later the variable will update with [`elapsed`](Deadline::elapsed) set to `true`. The variable
     /// is read-only and will only update once.
-    #[inline]
+
     #[must_use]
     pub fn deadline(&mut self, deadline: Instant) -> DeadlineVar {
         let timer = var(Deadline { deadline, elapsed: false });
@@ -118,7 +118,7 @@ impl Timers {
     /// Returns a [`DeadlineVar`] that will update once when the `timeout` has elapsed.
     ///
     /// This method just calculates the [`deadline`](Self::deadline), from the time this method is called plus `timeout`.
-    #[inline]
+
     #[must_use]
     pub fn timeout(&mut self, timeout: Duration) -> DeadlineVar {
         self.deadline(Instant::now() + timeout)
@@ -152,7 +152,7 @@ impl Timers {
     /// In the example above the timer variable will update every second, the variable keeps a [`count`](Timer::count)
     /// of times the time elapsed, that is incremented every update. The variable is read-only but the value can
     /// be used to control the timer to some extent, see [`TimerVar`] for details.
-    #[inline]
+
     #[must_use]
     pub fn interval(&mut self, interval: Duration, paused: bool) -> TimerVar {
         let (owner, handle) = TimerHandle::new(interval, paused);
@@ -459,14 +459,14 @@ impl DeadlineHandle {
     /// Drops the handle but does **not** drop the handler closure.
     ///
     /// The handler closure will be dropped after it is executed or when the app shutdown.
-    #[inline]
+
     pub fn perm(self) {
         self.0.perm();
     }
 
     /// If [`perm`](Self::perm) was called in another handle.
     /// If `true` the closure will be dropped when it executes, when the app shutdown or if [`cancel`](Self::cancel) is called.
-    #[inline]
+
     pub fn is_permanent(&self) -> bool {
         self.0.is_permanent()
     }
@@ -474,7 +474,7 @@ impl DeadlineHandle {
     /// Drops the handle and forces the handler to drop.
     ///
     /// If the deadline has not been reached the handler will not be called, and will drop in the next app update.
-    #[inline]
+
     pub fn cancel(self) {
         self.0.force_drop();
     }
@@ -482,26 +482,26 @@ impl DeadlineHandle {
     /// The timeout deadline.
     ///
     /// The handler is called once when this deadline is reached.
-    #[inline]
+
     pub fn deadline(&self) -> Instant {
         self.0.data().deadline
     }
 
     /// If the handler has executed. The handler executes once when the deadline is reached.
-    #[inline]
+
     pub fn has_executed(&self) -> bool {
         self.0.data().executed.load(Ordering::Relaxed)
     }
 
     /// If the timeout handler will never execute. Returns `true` if [`cancel`](Self::cancel) was called
     /// before the handler could execute.
-    #[inline]
+
     pub fn is_canceled(&self) -> bool {
         !self.has_executed() && self.0.is_dropped()
     }
 
     /// Create a weak handle to the deadline.
-    #[inline]
+
     pub fn downgrade(&self) -> WeakDeadlineHandle {
         WeakDeadlineHandle(self.0.downgrade())
     }
@@ -598,7 +598,7 @@ impl TimerHandle {
     /// Drops the handle but does **not** drop the handler closure.
     ///
     /// The handler closure will be dropped when the app shutdown or if it is stopped from the inside or using another handle.
-    #[inline]
+
     pub fn perm(self) {
         self.0.perm();
     }
@@ -606,7 +606,7 @@ impl TimerHandle {
     /// If [`perm`](Self::perm) was called in another handle.
     /// If `true` the closure will keep being called until the app shutdown or the timer is stopped from the inside or using
     /// another handle.
-    #[inline]
+
     pub fn is_permanent(&self) -> bool {
         self.0.is_permanent()
     }
@@ -614,20 +614,20 @@ impl TimerHandle {
     /// Drops the handle and forces the handler to drop.
     ///
     /// The handler will no longer be called and will drop in the next app update.
-    #[inline]
+
     pub fn stop(self) {
         self.0.force_drop();
     }
 
     /// If the timer was stopped. The timer can be stopped from the inside, from another handle calling [`stop`](Self::stop)
     /// or from the app shutting down.
-    #[inline]
+
     pub fn is_stopped(&self) -> bool {
         self.0.is_dropped()
     }
 
     /// The timer interval. Enabled handlers are called every time this interval elapses.
-    #[inline]
+
     pub fn interval(&self) -> Duration {
         self.0.data().deadline.lock().interval
     }
@@ -636,13 +636,13 @@ impl TimerHandle {
     ///
     /// Note that this method does not awake the app, so if this is called from outside the app
     /// thread it will only apply on the next app update.
-    #[inline]
+
     pub fn set_interval(&self, new_interval: Duration) {
         self.0.data().deadline.lock().interval = new_interval;
     }
 
     /// Last elapsed time, or the start time if the timer has not elapsed yet.
-    #[inline]
+
     pub fn timestamp(&self) -> Instant {
         self.0.data().deadline.lock().last
     }
@@ -650,13 +650,13 @@ impl TimerHandle {
     /// The next deadline.
     ///
     /// This is the [`timestamp`](Self::timestamp) plus the [`interval`](Self::interval).
-    #[inline]
+
     pub fn deadline(&self) -> Instant {
         self.0.data().deadline.lock().current_deadline()
     }
 
     /// If the timer is not ticking.
-    #[inline]
+
     pub fn is_paused(&self) -> bool {
         self.0.data().paused.load(Ordering::Relaxed)
     }
@@ -664,7 +664,7 @@ impl TimerHandle {
     /// Disable the timer, this causes the timer to stop ticking until [`play`] is called.
     ///
     /// [`play`]: Self::play
-    #[inline]
+
     pub fn pause(&self) {
         self.0.data().paused.store(true, Ordering::Relaxed);
     }
@@ -677,7 +677,7 @@ impl TimerHandle {
     /// the timer will only start ticking in next app update.
     ///
     /// [`timestamp`]: Self::timestamp
-    #[inline]
+
     pub fn play(&self, reset: bool) {
         self.0.data().paused.store(false, Ordering::Relaxed);
         if reset {
@@ -686,19 +686,19 @@ impl TimerHandle {
     }
 
     /// Count incremented by one every time the timer elapses.
-    #[inline]
+
     pub fn count(&self) -> usize {
         self.0.data().count.load(Ordering::Relaxed)
     }
 
     /// Resets the [`count`](Self::count).
-    #[inline]
+
     pub fn set_count(&self, count: usize) {
         self.0.data().count.store(count, Ordering::Relaxed)
     }
 
     /// Create a weak handle to the timer.
-    #[inline]
+
     pub fn downgrade(&self) -> WeakTimerHandle {
         WeakTimerHandle(self.0.downgrade())
     }
@@ -792,7 +792,7 @@ impl fmt::Debug for Timer {
 }
 impl Timer {
     /// Permanently stops the timer.
-    #[inline]
+
     pub fn stop(&self) {
         self.0.clone().stop();
     }
@@ -800,13 +800,13 @@ impl Timer {
     /// If the timer was stopped.
     ///
     /// If `true` the timer var will not update again, this is permanent.
-    #[inline]
+
     pub fn is_stopped(&self) -> bool {
         self.0.is_stopped()
     }
 
     /// The timer interval. Enabled variables update every time this interval elapses.
-    #[inline]
+
     pub fn interval(&self) -> Duration {
         self.0.interval()
     }
@@ -815,13 +815,13 @@ impl Timer {
     ///
     /// Note that this method does not awake the app, so if this is called from outside the app
     /// thread it will only apply on the next app update.
-    #[inline]
+
     pub fn set_interval(&self, new_interval: Duration) {
         self.0.set_interval(new_interval)
     }
 
     /// Last update time, or the start time if the timer has not updated yet.
-    #[inline]
+
     pub fn timestamp(&self) -> Instant {
         self.0.timestamp()
     }
@@ -829,13 +829,13 @@ impl Timer {
     /// The next deadline.
     ///
     /// This is the [`timestamp`](Self::timestamp) plus the [`interval`](Self::interval).
-    #[inline]
+
     pub fn deadline(&self) -> Instant {
         self.0.deadline()
     }
 
     /// If the timer is not ticking.
-    #[inline]
+
     pub fn is_paused(&self) -> bool {
         self.0.is_paused()
     }
@@ -843,7 +843,7 @@ impl Timer {
     /// Disable the timer, this causes the timer to stop ticking until [`play`] is called.
     ///
     /// [`play`]: Self::play
-    #[inline]
+
     pub fn pause(&self) {
         self.0.pause();
     }
@@ -853,19 +853,19 @@ impl Timer {
     /// If `reset` is `true` the last [`timestamp`] is set to now.
     ///
     /// [`timestamp`]: Self::timestamp
-    #[inline]
+
     pub fn play(&self, reset: bool) {
         self.0.play(reset);
     }
 
     /// Count incremented by one every time the timer elapses.
-    #[inline]
+
     pub fn count(&self) -> usize {
         self.0.count()
     }
 
     /// Resets the [`count`](Self::count).
-    #[inline]
+
     pub fn set_count(&self, count: usize) {
         self.0.set_count(count)
     }
@@ -898,7 +898,7 @@ impl TimerArgs {
     }
 
     /// The timer interval. Enabled handlers are called every time this interval elapses.
-    #[inline]
+
     pub fn interval(&self) -> Duration {
         self.handle().map(|h| h.interval()).unwrap_or_default()
     }
@@ -907,7 +907,7 @@ impl TimerArgs {
     ///
     /// Note that this method does not awake the app, so if this is called from outside the app
     /// thread it will only apply on the next app update.
-    #[inline]
+
     pub fn set_interval(&self, new_interval: Duration) {
         if let Some(h) = self.handle() {
             h.set_interval(new_interval)
@@ -915,7 +915,7 @@ impl TimerArgs {
     }
 
     /// If the timer is not ticking.
-    #[inline]
+
     pub fn is_paused(&self) -> bool {
         self.handle().map(|h| h.is_paused()).unwrap_or(true)
     }
@@ -923,7 +923,7 @@ impl TimerArgs {
     /// Disable the timer, this causes the timer to stop ticking until [`play`] is called.
     ///
     /// [`play`]: Self::play
-    #[inline]
+
     pub fn pause(&self) {
         if let Some(h) = self.handle() {
             h.pause();
@@ -935,7 +935,7 @@ impl TimerArgs {
     /// If `reset` is `true` the last [`timestamp`] is set to now.
     ///
     /// [`timestamp`]: Self::timestamp
-    #[inline]
+
     pub fn play(&self, reset: bool) {
         if let Some(h) = self.handle() {
             h.play(reset);
@@ -943,13 +943,13 @@ impl TimerArgs {
     }
 
     /// Count incremented by one every time the timer elapses.
-    #[inline]
+
     pub fn count(&self) -> usize {
         self.handle().map(|h| h.count()).unwrap_or(0)
     }
 
     /// Resets the [`count`](Self::count).
-    #[inline]
+
     pub fn set_count(&self, count: usize) {
         if let Some(h) = self.handle() {
             h.set_count(count)
@@ -958,7 +958,7 @@ impl TimerArgs {
 
     /// The timestamp of the last update. This can be different from [`timestamp`](Self::timestamp)
     /// after the first `.await` in async handlers of if called from a different thread.
-    #[inline]
+
     pub fn last_timestamp(&self) -> Instant {
         self.handle().map(|h| h.timestamp()).unwrap_or(self.timestamp)
     }
@@ -966,7 +966,7 @@ impl TimerArgs {
     /// The next timer deadline.
     ///
     /// This is [`last_timestamp`](Self::last_timestamp) plus [`interval`](Self::interval).
-    #[inline]
+
     pub fn next_deadline(&self) -> Instant {
         self.handle().map(|h| h.deadline()).unwrap_or(self.deadline)
     }
@@ -979,7 +979,7 @@ impl TimerArgs {
     /// Outside of the handler the [`TimerHandle`] can be used to stop the timer at any time, even from another thread.
     ///
     /// [`unsubscribe`]: crate::handler::AppWeakHandle::unsubscribe
-    #[inline]
+
     pub fn is_stopped(&self) -> bool {
         self.handle().is_none()
     }

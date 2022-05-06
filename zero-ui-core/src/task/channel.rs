@@ -79,19 +79,19 @@ impl<T> UnboundSender<T> {
     }
 
     /// Returns `true` if all receivers for this channel have been dropped.
-    #[inline]
+
     pub fn is_disconnected(&self) -> bool {
         self.0.is_disconnected()
     }
 
     /// Returns `true` if the channel is empty.
-    #[inline]
+
     pub fn is_empty(&self) -> bool {
         self.0.is_empty()
     }
 
     /// Returns the number of messages in the channel.
-    #[inline]
+
     pub fn len(&self) -> usize {
         self.0.len()
     }
@@ -127,7 +127,7 @@ impl<T> Sender<T> {
     /// Waits until there is space in the channel buffer.
     ///
     /// Returns an error if all receivers have been dropped.
-    #[inline]
+
     pub async fn send(&self, msg: T) -> Result<(), SendError<T>> {
         self.0.send_async(msg).await
     }
@@ -166,7 +166,7 @@ impl<T> Sender<T> {
     }
 
     /// Returns `true` if all receivers for this channel have been dropped.
-    #[inline]
+
     pub fn is_disconnected(&self) -> bool {
         self.0.is_disconnected()
     }
@@ -174,7 +174,7 @@ impl<T> Sender<T> {
     /// Returns `true` if the channel is empty.
     ///
     /// Note: [`rendezvous`] channels are always empty.
-    #[inline]
+
     pub fn is_empty(&self) -> bool {
         self.0.is_empty()
     }
@@ -182,19 +182,19 @@ impl<T> Sender<T> {
     /// Returns `true` if the channel is full.
     ///
     /// Note: [`rendezvous`] channels are always full and [`unbounded`] channels are never full.
-    #[inline]
+
     pub fn is_full(&self) -> bool {
         self.0.is_full()
     }
 
     /// Returns the number of messages in the channel.
-    #[inline]
+
     pub fn len(&self) -> usize {
         self.0.len()
     }
 
     /// If the channel is bounded, returns its capacity.
-    #[inline]
+
     pub fn capacity(&self) -> Option<usize> {
         self.0.capacity()
     }
@@ -254,7 +254,7 @@ impl<T> Receiver<T> {
     }
 
     /// Returns `true` if all senders for this channel have been dropped.
-    #[inline]
+
     pub fn is_disconnected(&self) -> bool {
         self.0.is_disconnected()
     }
@@ -262,7 +262,7 @@ impl<T> Receiver<T> {
     /// Returns `true` if the channel is empty.
     ///
     /// Note: [`rendezvous`] channels are always empty.
-    #[inline]
+
     pub fn is_empty(&self) -> bool {
         self.0.is_empty()
     }
@@ -270,25 +270,25 @@ impl<T> Receiver<T> {
     /// Returns `true` if the channel is full.
     ///
     /// Note: [`rendezvous`] channels are always full and [`unbounded`] channels are never full.
-    #[inline]
+
     pub fn is_full(&self) -> bool {
         self.0.is_full()
     }
 
     /// Returns the number of messages in the channel.
-    #[inline]
+
     pub fn len(&self) -> usize {
         self.0.len()
     }
 
     /// If the channel is bounded, returns its capacity.
-    #[inline]
+
     pub fn capacity(&self) -> Option<usize> {
         self.0.capacity()
     }
 
     /// Takes all sitting in the channel.
-    #[inline]
+
     pub fn drain(&self) -> flume::Drain<T> {
         self.0.drain()
     }
@@ -338,7 +338,7 @@ impl<T> Receiver<T> {
 /// [`send`]: UnboundSender::send
 /// [received]: Receiver::recv
 /// [spawns]: crate::task::spawn
-#[inline]
+
 pub fn unbounded<T>() -> (UnboundSender<T>, Receiver<T>) {
     let (s, r) = flume::unbounded();
     (UnboundSender(s), Receiver(r))
@@ -386,7 +386,7 @@ pub fn unbounded<T>() -> (UnboundSender<T>, Receiver<T>) {
 /// [`send`]: UnboundSender::send
 /// [received]: Receiver::recv
 /// [spawns]: crate::task::spawn
-#[inline]
+
 pub fn bounded<T>(capacity: usize) -> (Sender<T>, Receiver<T>) {
     let (s, r) = flume::bounded(capacity);
     (Sender(s), Receiver(r))
@@ -437,7 +437,7 @@ pub fn bounded<T>(capacity: usize) -> (Sender<T>, Receiver<T>) {
 /// [`send`]: UnboundSender::send
 /// [received]: Receiver::recv
 /// [spawns]: crate::task::spawn
-#[inline]
+
 pub fn rendezvous<T>() -> (Sender<T>, Receiver<T>) {
     bounded::<T>(0)
 }

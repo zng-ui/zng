@@ -25,7 +25,7 @@ macro_rules! impl_tuples {
             items { $($n = $W),+ }
 
             measure {
-                #[inline(always)]
+
                 fn measure_all<A, D>(&mut self, ctx: &mut LayoutContext, mut available_size: A, mut desired_size: D)
                 where
                     A: FnMut(&mut LayoutContext, AvailableSizeArgs) -> AvailableSize,
@@ -49,7 +49,7 @@ macro_rules! impl_tuples {
             }
 
             arrange {
-                #[inline(always)]
+
                 fn arrange_all<F>(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, mut final_size: F)
                 where
                     F: FnMut(&mut LayoutContext, &mut FinalSizeArgs) -> PxSize,
@@ -68,7 +68,7 @@ macro_rules! impl_tuples {
             items { $($n = $W),+ }
 
             measure {
-                #[inline(always)]
+
                 fn measure_all<A, D>(&mut self, ctx: &mut LayoutContext, mut available_size: A, mut desired_size: D)
                 where
                     A: FnMut(&mut LayoutContext, AvailableSizeArgs) -> AvailableSize,
@@ -92,7 +92,7 @@ macro_rules! impl_tuples {
             }
 
             arrange {
-                #[inline(always)]
+
                 fn arrange_all<F>(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, mut final_size: F)
                 where
                     F: FnMut(&mut LayoutContext, &mut FinalSizeArgs) -> PxSize,
@@ -105,12 +105,12 @@ macro_rules! impl_tuples {
         } }
 
         impl<$($W: Widget),+> WidgetList for $WidgetList<$($W,)+> {
-            #[inline]
+
             fn boxed_widget_all(self) -> WidgetVec {
                 widget_vec![$(self.items.$n),+]
             }
 
-            #[inline(always)]
+
             fn count<F>(&self, mut filter: F) -> usize
             where
                 F: FnMut(WidgetFilterArgs) -> bool,
@@ -124,7 +124,7 @@ macro_rules! impl_tuples {
                 count
             }
 
-            #[inline(always)]
+
             fn render_filtered<F>(&self, mut filter: F, ctx: &mut RenderContext, frame: &mut FrameBuilder)
             where
                 F: FnMut(WidgetFilterArgs) -> bool,
@@ -136,7 +136,7 @@ macro_rules! impl_tuples {
                 )+
             }
 
-            #[inline]
+
             fn widget_id(&self, index: usize) -> WidgetId {
                 match index {
                     $($n => self.items.$n.id(),)+
@@ -144,7 +144,7 @@ macro_rules! impl_tuples {
                 }
             }
 
-            #[inline]
+
             fn widget_state(&self, index: usize) -> &StateMap {
                 match index {
                     $($n => self.items.$n.state(),)+
@@ -152,7 +152,7 @@ macro_rules! impl_tuples {
                 }
             }
 
-            #[inline]
+
             fn widget_state_mut(&mut self, index: usize) -> &mut StateMap {
                 match index {
                     $($n => self.items.$n.state_mut(),)+
@@ -160,7 +160,7 @@ macro_rules! impl_tuples {
                 }
             }
 
-            #[inline]
+
             fn widget_outer_info(&self, index: usize) -> &WidgetLayoutInfo {
                 match index {
                     $($n => self.items.$n.outer_info(),)+
@@ -168,7 +168,7 @@ macro_rules! impl_tuples {
                 }
             }
 
-            #[inline]
+
             fn widget_inner_info(&self, index: usize) -> &WidgetLayoutInfo {
                 match index {
                     $($n => self.items.$n.inner_info(),)+
@@ -176,7 +176,7 @@ macro_rules! impl_tuples {
                 }
             }
 
-            #[inline]
+
             fn widget_border_info(&self, index: usize) -> &WidgetBorderInfo {
                 match index {
                     $($n => self.items.$n.border_info(),)+
@@ -184,7 +184,7 @@ macro_rules! impl_tuples {
                 }
             }
 
-            #[inline]
+
             fn widget_render_info(&self, index: usize) -> &WidgetRenderInfo {
                 match index {
                     $($n => self.items.$n.render_info(),)+
@@ -225,51 +225,51 @@ macro_rules! impl_tuples {
         }
 
         impl<$($W: $Bound),+> UiNodeList for $NodeList<$($W,)+> {
-            #[inline]
+
             fn is_fixed(&self) -> bool {
                 true
             }
 
-            #[inline]
+
             fn len(&self) -> usize {
                 $L
             }
 
-            #[inline]
+
             fn is_empty(&self) -> bool {
                 false
             }
 
-            #[inline]
+
             fn boxed_all(self) -> UiNodeVec {
                 node_vec![
                     $(self.items.$n),+
                 ]
             }
 
-            #[inline(always)]
+
             fn init_all(&mut self, ctx: &mut WidgetContext) {
                 $(self.items.$n.init(ctx);)+
             }
 
-            #[inline(always)]
+
             fn deinit_all(&mut self, ctx: &mut WidgetContext) {
                 $(self.items.$n.deinit(ctx);)+
             }
 
-            #[inline(always)]
+
             fn update_all<O: UiListObserver>(&mut self, ctx: &mut WidgetContext, _: &mut O) {
                 $(self.items.$n.update(ctx);)+
             }
 
-            #[inline(always)]
+
             fn event_all<EU: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &EU) {
                 $(self.items.$n.event(ctx, args);)+
             }
 
             $($measure_all)+
 
-            #[inline]
+
             fn widget_measure(&mut self, index: usize, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize {
                 match index {
                     $(
@@ -281,7 +281,7 @@ macro_rules! impl_tuples {
 
             $($arrange_all)+
 
-            #[inline]
+
             fn widget_arrange(&mut self, index: usize, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, final_size: PxSize) {
                 match index {
                     $(
@@ -291,14 +291,14 @@ macro_rules! impl_tuples {
                 }
             }
 
-            #[inline(always)]
+
             fn info_all(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
                 $(
                     self.items.$n.info(ctx, info);
                 )+
             }
 
-            #[inline]
+
             fn widget_info(&self, index: usize, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
                 match index {
                     $(
@@ -308,14 +308,14 @@ macro_rules! impl_tuples {
                 }
             }
 
-            #[inline(always)]
+
             fn subscriptions_all(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
                 $(
                     self.items.$n.subscriptions(ctx, subscriptions);
                 )+
             }
 
-            #[inline]
+
             fn widget_subscriptions(&self, index: usize, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
                 match index {
                     $(
@@ -325,14 +325,14 @@ macro_rules! impl_tuples {
                 }
             }
 
-            #[inline(always)]
+
             fn render_all(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
                 $(
                     self.items.$n.render(ctx, frame);
                 )+
             }
 
-            #[inline]
+
             fn widget_render(&self, index: usize, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
                 match index {
                     $(
@@ -342,12 +342,12 @@ macro_rules! impl_tuples {
                 }
             }
 
-            #[inline(always)]
+
             fn render_update_all(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
                 $(self.items.$n.render_update(ctx, update);)+
             }
 
-            #[inline]
+
             fn widget_render_update(&self, index: usize, ctx: &mut RenderContext, update: &mut FrameUpdate) {
                 match index {
                     $(
@@ -397,17 +397,17 @@ macro_rules! empty_node_list {
         }
 
         impl UiNodeList for $ident {
-            #[inline]
+
             fn is_fixed(&self) -> bool {
                 true
             }
 
-            #[inline]
+
             fn len(&self) -> usize {
                 0
             }
 
-            #[inline]
+
             fn is_empty(&self) -> bool {
                 true
             }
@@ -416,19 +416,19 @@ macro_rules! empty_node_list {
                 node_vec![]
             }
 
-            #[inline]
+
             fn init_all(&mut self, _: &mut WidgetContext) {}
 
-            #[inline]
+
             fn deinit_all(&mut self, _: &mut WidgetContext) {}
 
-            #[inline]
+
             fn update_all<O: UiListObserver>(&mut self, _: &mut WidgetContext, _: &mut O) {}
 
-            #[inline]
+
             fn event_all<EU: EventUpdateArgs>(&mut self, _: &mut WidgetContext, _: &EU) {}
 
-            #[inline]
+
             fn measure_all<A, D>(&mut self, _: &mut LayoutContext, _: A, _: D)
             where
                 A: FnMut(&mut LayoutContext, AvailableSizeArgs) -> AvailableSize,
@@ -436,19 +436,19 @@ macro_rules! empty_node_list {
             {
             }
 
-            #[inline]
+
             fn widget_measure(&mut self, index: usize, _: &mut LayoutContext, _: AvailableSize) -> PxSize {
                 panic!("index {index} out of range for length 0")
             }
 
-            #[inline]
+
             fn arrange_all<F>(&mut self, _: &mut LayoutContext, _: &mut WidgetLayout, _: F)
             where
                 F: FnMut(&mut LayoutContext, &mut FinalSizeArgs) -> PxSize,
             {
             }
 
-            #[inline]
+
             fn widget_arrange(&mut self, index: usize, _: &mut LayoutContext, _: &mut WidgetLayout, _: PxSize) {
                 panic!("index {index} out of range for length 0")
             }
@@ -456,14 +456,14 @@ macro_rules! empty_node_list {
             fn info_all(&self, _: &mut InfoContext, _: &mut WidgetInfoBuilder) {
             }
 
-            #[inline]
+
             fn widget_info(&self, index: usize, _: &mut InfoContext, _: &mut WidgetInfoBuilder) {
                 panic!("index {index} out of range for length 0")
             }
 
             fn subscriptions_all(&self, _: &mut InfoContext, _: &mut WidgetSubscriptions) {}
 
-            #[inline]
+
             fn widget_subscriptions(&self, index: usize, _: &mut InfoContext, _: &mut WidgetSubscriptions) {
                 panic!("index {index} out of range for length 0")
             }
@@ -471,15 +471,15 @@ macro_rules! empty_node_list {
             fn render_all(&self, _: &mut RenderContext, _: &mut FrameBuilder) {
             }
 
-            #[inline]
+
             fn widget_render(&self, index: usize, _: &mut RenderContext, _: &mut FrameBuilder) {
                 panic!("index {index} out of range for length 0")
             }
 
-            #[inline]
+
             fn render_update_all(&self, _: &mut RenderContext, _: &mut FrameUpdate) {}
 
-            #[inline]
+
             fn widget_render_update(&self, index: usize, _: &mut RenderContext, _: &mut FrameUpdate) {
                 panic!("index {index} out of range for length 0")
             }
@@ -498,7 +498,6 @@ impl WidgetList for WidgetList0 {
         0
     }
 
-    #[inline]
     fn boxed_widget_all(self) -> WidgetVec {
         widget_vec![]
     }

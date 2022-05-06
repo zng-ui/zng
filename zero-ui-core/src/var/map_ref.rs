@@ -117,12 +117,10 @@ where
 {
     type AsReadOnly = Self;
 
-    #[inline]
     fn get<'a, Vr: AsRef<VarsRead>>(&'a self, vars: &'a Vr) -> &'a B {
         (self.0.map)(self.0.source.get(vars))
     }
 
-    #[inline]
     fn get_new<'a, Vw: AsRef<Vars>>(&'a self, vars: &'a Vw) -> Option<&'a B> {
         self.0.source.get_new(vars).map(|v| (self.0.map)(v))
     }
@@ -131,37 +129,30 @@ where
         self.get_clone(vars)
     }
 
-    #[inline]
     fn is_new<Vw: WithVars>(&self, vars: &Vw) -> bool {
         self.0.source.is_new(vars)
     }
 
-    #[inline]
     fn version<Vr: WithVarsRead>(&self, vars: &Vr) -> VarVersion {
         self.0.source.version(vars)
     }
 
-    #[inline]
     fn is_read_only<Vw: WithVars>(&self, _: &Vw) -> bool {
         true
     }
 
-    #[inline]
     fn is_animating<Vr: WithVarsRead>(&self, vars: &Vr) -> bool {
         self.0.source.is_animating(vars)
     }
 
-    #[inline]
     fn always_read_only(&self) -> bool {
         true
     }
 
-    #[inline]
     fn is_contextual(&self) -> bool {
         self.0.source.is_contextual()
     }
 
-    #[inline]
     fn actual_var<Vw: WithVars>(&self, vars: &Vw) -> BoxedVar<B> {
         if self.is_contextual() {
             let var = MapRefVar(Rc::new(MapRefData {
@@ -175,12 +166,10 @@ where
         }
     }
 
-    #[inline]
     fn can_update(&self) -> bool {
         self.0.source.can_update()
     }
 
-    #[inline]
     fn modify<Vw, Mo>(&self, _: &Vw, _: Mo) -> Result<(), VarIsReadOnly>
     where
         Vw: WithVars,
@@ -189,7 +178,6 @@ where
         Err(VarIsReadOnly)
     }
 
-    #[inline]
     fn set<Vw, N>(&self, _: &Vw, _: N) -> Result<(), VarIsReadOnly>
     where
         Vw: WithVars,
@@ -198,7 +186,6 @@ where
         Err(VarIsReadOnly)
     }
 
-    #[inline]
     fn set_ne<Vw, N>(&self, _: &Vw, _: N) -> Result<bool, VarIsReadOnly>
     where
         Vw: WithVars,
@@ -208,39 +195,32 @@ where
         Err(VarIsReadOnly)
     }
 
-    #[inline]
     fn strong_count(&self) -> usize {
         Rc::strong_count(&self.0)
     }
 
-    #[inline]
     fn into_read_only(self) -> Self::AsReadOnly {
         self
     }
 
-    #[inline]
     fn update_mask<Vr: WithVarsRead>(&self, vars: &Vr) -> UpdateMask {
         self.0.source.update_mask(vars)
     }
 
     type Weak = WeakMapRefVar<A, B, M, S>;
 
-    #[inline]
     fn is_rc(&self) -> bool {
         true
     }
 
-    #[inline]
     fn downgrade(&self) -> Option<Self::Weak> {
         Some(self.downgrade())
     }
 
-    #[inline]
     fn weak_count(&self) -> usize {
         Rc::weak_count(&self.0)
     }
 
-    #[inline]
     fn as_ptr(&self) -> *const () {
         Rc::as_ptr(&self.0) as _
     }
@@ -254,7 +234,6 @@ where
 {
     type Var = Self;
 
-    #[inline]
     fn into_var(self) -> Self::Var {
         self
     }
@@ -360,7 +339,7 @@ where
     }
 
     /// Convert this variable into a [`MapRefVar`].
-    #[inline]
+
     pub fn into_map(self) -> MapRefVar<A, B, M, S> {
         match Rc::try_unwrap(self.0) {
             Ok(data) => MapRefVar(Rc::new(MapRefData {
@@ -413,57 +392,46 @@ where
 {
     type AsReadOnly = types::ReadOnlyVar<B, Self>;
 
-    #[inline]
     fn get<'a, Vr: AsRef<VarsRead>>(&'a self, vars: &'a Vr) -> &'a B {
         (self.0.map)(self.0.source.get(vars))
     }
 
-    #[inline]
     fn get_new<'a, Vw: AsRef<Vars>>(&'a self, vars: &'a Vw) -> Option<&'a B> {
         self.0.source.get_new(vars).map(|v| (self.0.map)(v))
     }
 
-    #[inline]
     fn into_value<Vr: WithVarsRead>(self, vars: &Vr) -> B {
         self.get_clone(vars)
     }
 
-    #[inline]
     fn is_new<Vw: WithVars>(&self, vars: &Vw) -> bool {
         self.0.source.is_new(vars)
     }
 
-    #[inline]
     fn version<Vr: WithVarsRead>(&self, vars: &Vr) -> VarVersion {
         self.0.source.version(vars)
     }
 
-    #[inline]
     fn is_read_only<Vw: WithVars>(&self, vars: &Vw) -> bool {
         self.0.source.is_read_only(vars)
     }
 
-    #[inline]
     fn is_animating<Vr: WithVarsRead>(&self, vars: &Vr) -> bool {
         self.0.source.is_animating(vars)
     }
 
-    #[inline]
     fn always_read_only(&self) -> bool {
         self.0.source.always_read_only()
     }
 
-    #[inline]
     fn can_update(&self) -> bool {
         self.0.source.can_update()
     }
 
-    #[inline]
     fn is_contextual(&self) -> bool {
         self.0.source.is_contextual()
     }
 
-    #[inline]
     fn actual_var<Vw: WithVars>(&self, vars: &Vw) -> BoxedVar<B> {
         if self.is_contextual() {
             let var = MapBidiRefVar(Rc::new(MapBidiRefData {
@@ -478,7 +446,6 @@ where
         }
     }
 
-    #[inline]
     fn modify<Vw, Mo>(&self, vars: &Vw, modify: Mo) -> Result<(), VarIsReadOnly>
     where
         Vw: WithVars,
@@ -491,7 +458,6 @@ where
         })
     }
 
-    #[inline]
     fn set<Vw, Nv>(&self, vars: &Vw, new_value: Nv) -> Result<(), VarIsReadOnly>
     where
         Vw: WithVars,
@@ -504,7 +470,6 @@ where
         })
     }
 
-    #[inline]
     fn set_ne<Vw, Nv>(&self, vars: &Vw, new_value: Nv) -> Result<bool, VarIsReadOnly>
     where
         Vw: WithVars,
@@ -526,17 +491,14 @@ where
         })
     }
 
-    #[inline]
     fn strong_count(&self) -> usize {
         self.0.source.strong_count()
     }
 
-    #[inline]
     fn into_read_only(self) -> Self::AsReadOnly {
         types::ReadOnlyVar::new(self)
     }
 
-    #[inline]
     fn update_mask<Vr: WithVarsRead>(&self, vars: &Vr) -> UpdateMask {
         self.0.source.update_mask(vars)
     }
@@ -569,7 +531,6 @@ where
 {
     type Var = Self;
 
-    #[inline]
     fn into_var(self) -> Self::Var {
         self
     }

@@ -115,7 +115,7 @@ where
     /// New mapping var.
     ///
     /// Prefer using the [`Var::flat_map`] method.
-    #[inline]
+
     pub fn new(source: S, map: M) -> Self {
         RcFlatMapVar(Rc::new(MapData {
             _a: PhantomData,
@@ -131,7 +131,7 @@ where
     }
 
     /// New weak reference to the variable.
-    #[inline]
+
     pub fn downgrade(&self) -> WeakRcFlatMapVar<A, B, V, M, S> {
         WeakRcFlatMapVar(Rc::downgrade(&self.0))
     }
@@ -210,12 +210,10 @@ where
         vars.with_vars(|vars| self.var(vars).is_read_only(vars))
     }
 
-    #[inline]
     fn is_animating<Vr: WithVarsRead>(&self, vars: &Vr) -> bool {
         vars.with_vars_read(|vars| self.var(vars).is_animating(vars))
     }
 
-    #[inline]
     fn always_read_only(&self) -> bool {
         false
     }
@@ -225,7 +223,6 @@ where
         self.0.source.is_contextual() || self.0.source.can_update() || self.0.var_is_contextual.get()
     }
 
-    #[inline]
     fn actual_var<Vw: WithVars>(&self, vars: &Vw) -> BoxedVar<B> {
         if self.is_contextual() {
             vars.with_vars(|vars| self.var(vars).actual_var(vars))
@@ -234,7 +231,6 @@ where
         }
     }
 
-    #[inline]
     fn can_update(&self) -> bool {
         true
     }
@@ -257,12 +253,10 @@ where
         vars.with_vars(|vars| self.var(vars).modify(vars, modify))
     }
 
-    #[inline]
     fn strong_count(&self) -> usize {
         Rc::strong_count(&self.0)
     }
 
-    #[inline]
     fn into_read_only(self) -> Self::AsReadOnly {
         types::ReadOnlyVar::new(self)
     }
@@ -275,22 +269,18 @@ where
 
     type Weak = WeakRcFlatMapVar<A, B, V, M, S>;
 
-    #[inline]
     fn is_rc(&self) -> bool {
         true
     }
 
-    #[inline]
     fn downgrade(&self) -> Option<Self::Weak> {
         Some(self.downgrade())
     }
 
-    #[inline]
     fn weak_count(&self) -> usize {
         Rc::weak_count(&self.0)
     }
 
-    #[inline]
     fn as_ptr(&self) -> *const () {
         Rc::as_ptr(&self.0) as _
     }

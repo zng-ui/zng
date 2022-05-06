@@ -52,7 +52,6 @@ pub mod h_stack {
         items_align(impl IntoVar<Align>) = Align::FILL_LEFT;
     }
 
-    #[inline]
     fn new_child(items: impl WidgetList, spacing: impl IntoVar<Length>, items_align: impl IntoVar<Align>) -> impl UiNode {
         HStackNode {
             children_info: vec![ChildInfo::default(); items.len()],
@@ -235,7 +234,6 @@ pub mod v_stack {
         items_align(impl IntoVar<Align>) = Align::FILL_TOP;
     }
 
-    #[inline]
     fn new_child(items: impl WidgetList, spacing: impl IntoVar<Length>, items_align: impl IntoVar<Align>) -> impl UiNode {
         VStackNode {
             children_info: vec![ChildInfo::default(); items.len()],
@@ -463,7 +461,6 @@ pub mod z_stack {
         items_align(impl IntoVar<Align>) = Align::FILL;
     }
 
-    #[inline]
     fn new_child(items: impl WidgetList, items_align: impl IntoVar<Align>) -> impl UiNode {
         ZStackNode {
             children_info: vec![ChildInfo::default(); items.len()],

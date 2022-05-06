@@ -202,13 +202,13 @@ impl fmt::Debug for HeadlessMonitor {
 }
 impl HeadlessMonitor {
     /// New with custom size at `1.0` scale.
-    #[inline]
+
     pub fn new(size: DipSize) -> Self {
         Self::new_scaled(size, 1.0.fct())
     }
 
     /// New with custom size and scale.
-    #[inline]
+
     pub fn new_scaled(size: DipSize, scale_factor: Factor) -> Self {
         HeadlessMonitor {
             scale_factor,
@@ -218,7 +218,7 @@ impl HeadlessMonitor {
     }
 
     /// New with default size `1920x1080` and custom scale.
-    #[inline]
+
     pub fn new_scale(scale_factor: Factor) -> Self {
         HeadlessMonitor {
             scale_factor,
@@ -285,35 +285,35 @@ impl MonitorInfo {
     }
 
     /// Unique ID.
-    #[inline]
+
     pub fn id(&self) -> MonitorId {
         self.id
     }
 
     /// If could determine this monitor is the primary.
-    #[inline]
+
     pub fn is_primary(&self) -> ReadOnlyRcVar<bool> {
         self.is_primary.clone().into_read_only()
     }
 
     /// Name of the monitor.
-    #[inline]
+
     pub fn name(&self) -> ReadOnlyRcVar<Text> {
         self.name.clone().into_read_only()
     }
     /// Top-left offset of the monitor region in the virtual screen, in pixels.
-    #[inline]
+
     pub fn position(&self) -> ReadOnlyRcVar<PxPoint> {
         self.position.clone().into_read_only()
     }
     /// Width/height of the monitor region in the virtual screen, in pixels.
-    #[inline]
+
     pub fn size(&self) -> ReadOnlyRcVar<PxSize> {
         self.size.clone().into_read_only()
     }
 
     /// Exclusive fullscreen video modes.
-    #[inline]
+
     pub fn video_modes(&self) -> ReadOnlyRcVar<Vec<VideoMode>> {
         self.video_modes.clone().into_read_only()
     }
@@ -321,12 +321,12 @@ impl MonitorInfo {
     /// The monitor scale factor.
     ///
     /// Can update if the user changes system settings.
-    #[inline]
+
     pub fn scale_factor(&self) -> ReadOnlyRcVar<Factor> {
         self.scale_factor.clone().into_read_only()
     }
     /// PPI config var.
-    #[inline]
+
     pub fn ppi(&self) -> RcVar<f32> {
         self.ppi.clone()
     }
@@ -361,13 +361,13 @@ pub enum MonitorQuery {
 }
 impl MonitorQuery {
     /// New query.
-    #[inline]
+
     pub fn new(query: impl for<'v, 'm> Fn(&'v VarsRead, &'m mut Monitors) -> Option<&'m MonitorInfo> + 'static) -> Self {
         Self::Query(Rc::new(query))
     }
 
     /// Runs the query.
-    #[inline]
+
     pub fn select<'a, 'v, 'm>(&'a self, vars: &'v impl WithVarsRead, monitors: &'m mut Monitors) -> Option<&'m MonitorInfo> {
         vars.with_vars_read(|vars| match self {
             MonitorQuery::Primary => Self::primary_query(vars, monitors),

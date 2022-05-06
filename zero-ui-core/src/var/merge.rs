@@ -203,7 +203,7 @@ macro_rules! impl_rc_merge_var {
                 }
             }
 
-            #[inline]
+
             fn into_value<Vr: WithVarsRead>(self, vars: &Vr) -> O {
                 vars.with_vars_read(|vars| {
                     self.update_output(vars);
@@ -226,19 +226,19 @@ macro_rules! impl_rc_merge_var {
                })
             }
 
-            #[inline]
+
             fn is_read_only<Vw: WithVars>(&self, _: &Vw) -> bool {
                 true
             }
 
-            #[inline]
+
             fn is_animating<Vr: WithVarsRead>(&self, vars: &Vr) -> bool {
                 vars.with_vars_read(|vars| {
                     $(self.0.vars.$n.is_animating(vars))||+
                 })
             }
 
-            #[inline]
+
             fn always_read_only(&self) -> bool {
                 true
             }
@@ -271,27 +271,27 @@ macro_rules! impl_rc_merge_var {
                 }
             }
 
-            #[inline]
+
             fn set<Vw: WithVars, N>(&self, _: &Vw, _: N) -> Result<(), VarIsReadOnly> where N: Into<O> {
                 Err(VarIsReadOnly)
             }
 
-            #[inline]
+
             fn set_ne<Vw: WithVars, N>(&self, _: &Vw, _: N) -> Result<bool, VarIsReadOnly>  where N: Into<O>, O: PartialEq {
                 Err(VarIsReadOnly)
             }
 
-            #[inline]
+
             fn modify<Vw: WithVars, F2: FnOnce(VarModify<O>) + 'static>(&self, _: &Vw, _: F2) -> Result<(), VarIsReadOnly> {
                 Err(VarIsReadOnly)
             }
 
-            #[inline]
+
             fn into_read_only(self) -> Self::AsReadOnly {
                 types::ReadOnlyVar::new(self)
             }
 
-            #[inline]
+
             fn update_mask<Vr: WithVarsRead>(&self, vars: &Vr) -> UpdateMask {
                 vars.with_vars_read(|vars| {
                     let mut r = UpdateMask::none();
@@ -300,27 +300,27 @@ macro_rules! impl_rc_merge_var {
                 })
             }
 
-            #[inline]
+
             fn is_rc(&self) -> bool {
                 true
             }
 
-            #[inline]
+
             fn downgrade(&self) -> Option<Self::Weak> {
                 Some($WeakRcMergeVar(Rc::downgrade(&self.0)))
             }
 
-            #[inline]
+
             fn strong_count(&self) -> usize {
                 Rc::strong_count(&self.0)
             }
 
-            #[inline]
+
             fn weak_count(&self) -> usize {
                 Rc::weak_count(&self.0)
             }
 
-            #[inline]
+
             fn as_ptr(&self) -> *const () {
                 Rc::as_ptr(&self.0) as _
             }
@@ -347,22 +347,22 @@ macro_rules! impl_rc_merge_var {
         WeakVar<O> for $WeakRcMergeVar<$($I,)+ O, $($V,)+ F> {
             type Strong = $RcMergeVar<$($I,)+ O, $($V,)+ F>;
 
-            #[inline]
+
             fn upgrade(&self) -> Option<Self::Strong> {
                 self.0.upgrade().map($RcMergeVar)
             }
 
-            #[inline]
+
             fn strong_count(&self) -> usize {
                 self.0.strong_count()
             }
 
-            #[inline]
+
             fn weak_count(&self) -> usize {
                 self.0.weak_count()
             }
 
-            #[inline]
+
             fn as_ptr(&self) -> *const () {
                 self.0.as_ptr() as _
             }

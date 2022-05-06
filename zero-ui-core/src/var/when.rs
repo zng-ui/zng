@@ -309,7 +309,7 @@ macro_rules! impl_rc_when_var {
                     self.clone().boxed()
                 }
             }
-            #[inline]
+
             fn can_update(&self) -> bool {
                 true
             }
@@ -360,7 +360,7 @@ macro_rules! impl_rc_when_var {
                 })
             }
 
-            #[inline]
+
             fn into_read_only(self) -> Self::AsReadOnly {
                types::ReadOnlyVar::new(self)
             }
@@ -374,27 +374,27 @@ macro_rules! impl_rc_when_var {
                 })
             }
 
-            #[inline]
+
             fn downgrade(&self) -> Option<Self::Weak> {
                 Some($WeakRcWhenVar(Rc::downgrade(&self.0)))
             }
 
-            #[inline]
+
             fn is_rc(&self) -> bool {
                 true
             }
 
-            #[inline]
+
             fn strong_count(&self) -> usize {
                 Rc::strong_count(&self.0)
             }
 
-            #[inline]
+
             fn weak_count(&self) -> usize {
                 Rc::weak_count(&self.0)
             }
 
-            #[inline]
+
             fn as_ptr(&self) -> *const () {
                 Rc::as_ptr(&self.0) as _
             }
@@ -403,22 +403,22 @@ macro_rules! impl_rc_when_var {
         impl<O: VarValue, D: Var<O>, $($C: Var<bool>),+ , $($V: Var<O>),+> WeakVar<O> for $WeakRcWhenVar<O, D, $($C),+ , $($V),+> {
             type Strong = $RcWhenVar<O, D, $($C),+ , $($V),+>;
 
-            #[inline]
+
             fn upgrade(&self) -> Option<Self::Strong> {
                 self.0.upgrade().map($RcWhenVar)
             }
 
-            #[inline]
+
             fn strong_count(&self) -> usize {
                 self.0.strong_count()
             }
 
-            #[inline]
+
             fn weak_count(&self) -> usize {
                 self.0.weak_count()
             }
 
-            #[inline]
+
             fn as_ptr(&self) -> *const () {
                 self.0.as_ptr() as _
             }
@@ -427,7 +427,7 @@ macro_rules! impl_rc_when_var {
         impl<O: VarValue, D: Var<O>, $($C: Var<bool>),+ , $($V: Var<O>),+> IntoVar<O> for $RcWhenVar<O, D, $($C),+ , $($V),+>  {
             type Var = Self;
 
-            #[inline]
+
             fn into_var(self) -> Self::Var {
                 self
             }
@@ -634,7 +634,6 @@ impl<O: VarValue> Var<O> for RcWhenVar<O> {
         })
     }
 
-    #[inline]
     fn is_animating<Vr: WithVarsRead>(&self, vars: &Vr) -> bool {
         vars.with_vars_read(|vars| {
             for (c, v) in self.0.whens.iter() {
@@ -656,7 +655,6 @@ impl<O: VarValue> Var<O> for RcWhenVar<O> {
         self.0.default_.is_contextual() || self.0.whens.iter().any(|(_, v)| v.is_contextual())
     }
 
-    #[inline]
     fn actual_var<Vw: WithVars>(&self, vars: &Vw) -> BoxedVar<O> {
         if self.is_contextual() {
             vars.with_vars(|vars| {
@@ -675,7 +673,7 @@ impl<O: VarValue> Var<O> for RcWhenVar<O> {
     }
 
     /// Always `true`.
-    #[inline]
+
     fn can_update(&self) -> bool {
         true
     }
@@ -724,7 +722,6 @@ impl<O: VarValue> Var<O> for RcWhenVar<O> {
         })
     }
 
-    #[inline]
     fn into_read_only(self) -> Self::AsReadOnly {
         types::ReadOnlyVar::new(self)
     }
@@ -740,27 +737,22 @@ impl<O: VarValue> Var<O> for RcWhenVar<O> {
         })
     }
 
-    #[inline]
     fn downgrade(&self) -> Option<Self::Weak> {
         Some(WeakRcWhenVar(Rc::downgrade(&self.0)))
     }
 
-    #[inline]
     fn is_rc(&self) -> bool {
         true
     }
 
-    #[inline]
     fn strong_count(&self) -> usize {
         Rc::strong_count(&self.0)
     }
 
-    #[inline]
     fn weak_count(&self) -> usize {
         Rc::weak_count(&self.0)
     }
 
-    #[inline]
     fn as_ptr(&self) -> *const () {
         Rc::as_ptr(&self.0) as _
     }
@@ -768,22 +760,18 @@ impl<O: VarValue> Var<O> for RcWhenVar<O> {
 impl<O: VarValue> WeakVar<O> for WeakRcWhenVar<O> {
     type Strong = RcWhenVar<O>;
 
-    #[inline]
     fn upgrade(&self) -> Option<Self::Strong> {
         self.0.upgrade().map(RcWhenVar)
     }
 
-    #[inline]
     fn strong_count(&self) -> usize {
         self.0.strong_count()
     }
 
-    #[inline]
     fn weak_count(&self) -> usize {
         self.0.weak_count()
     }
 
-    #[inline]
     fn as_ptr(&self) -> *const () {
         self.0.as_ptr() as _
     }
@@ -791,7 +779,6 @@ impl<O: VarValue> WeakVar<O> for WeakRcWhenVar<O> {
 impl<O: VarValue> IntoVar<O> for RcWhenVar<O> {
     type Var = Self;
 
-    #[inline]
     fn into_var(self) -> Self::Var {
         self
     }

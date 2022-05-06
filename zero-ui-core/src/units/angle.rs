@@ -19,14 +19,14 @@ use std::{
 pub struct AngleRadian(pub f32);
 impl AngleRadian {
     /// Radians in `[0.0 ..= TAU]`.
-    #[inline]
+
     pub fn modulo(self) -> Self {
         AngleGradian::from(self).modulo().into()
     }
     /// Change type to [`LayoutAngle`].
     ///
     /// Note that layout angle is in radians so no computation happens.
-    #[inline]
+
     pub fn to_layout(self) -> LayoutAngle {
         self.into()
     }
@@ -75,7 +75,7 @@ impl fmt::Display for AngleRadian {
 pub struct AngleGradian(pub f32);
 impl AngleGradian {
     /// Gradians in `[0.0 ..= 400.0]`.
-    #[inline]
+
     pub fn modulo(self) -> Self {
         AngleGradian(self.0.rem_euclid(400.0))
     }
@@ -124,7 +124,7 @@ impl fmt::Display for AngleGradian {
 pub struct AngleDegree(pub f32);
 impl AngleDegree {
     /// Degrees in `[0.0 ..= 360.0]`.
-    #[inline]
+
     pub fn modulo(self) -> Self {
         AngleDegree(self.0.rem_euclid(360.0))
     }
@@ -173,7 +173,7 @@ impl fmt::Display for AngleDegree {
 pub struct AngleTurn(pub f32);
 impl AngleTurn {
     /// Turns in `[0.0 ..= 1.0]`.
-    #[inline]
+
     pub fn modulo(self) -> Self {
         AngleTurn(self.0.rem_euclid(1.0))
     }
@@ -247,22 +247,18 @@ pub trait AngleUnits {
     fn turn(self) -> AngleTurn;
 }
 impl AngleUnits for f32 {
-    #[inline]
     fn rad(self) -> AngleRadian {
         AngleRadian(self)
     }
 
-    #[inline]
     fn grad(self) -> AngleGradian {
         AngleGradian(self)
     }
 
-    #[inline]
     fn deg(self) -> AngleDegree {
         AngleDegree(self)
     }
 
-    #[inline]
     fn turn(self) -> AngleTurn {
         AngleTurn(self)
     }

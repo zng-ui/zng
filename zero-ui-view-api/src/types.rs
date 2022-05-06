@@ -56,13 +56,13 @@ impl FrameId {
     pub const INVALID: FrameId = FrameId(Epoch(u32::MAX), u32::MAX);
 
     /// Create first frame id of a window.
-    #[inline]
+
     pub fn first() -> FrameId {
         FrameId(Epoch(0), 0)
     }
 
     /// Create the next full frame ID after the current one.
-    #[inline]
+
     pub fn next(self) -> FrameId {
         let mut id = self.0 .0.wrapping_add(1);
         if id == u32::MAX {
@@ -72,7 +72,7 @@ impl FrameId {
     }
 
     /// Create the next update frame ID after the current one.
-    #[inline]
+
     pub fn next_update(self) -> FrameId {
         let mut id = self.1.wrapping_add(1);
         if id == u32::MAX {
@@ -82,19 +82,19 @@ impl FrameId {
     }
 
     /// Get the raw ID.
-    #[inline]
+
     pub fn get(self) -> u64 {
         (self.0 .0 as u64) << 32 | (self.1 as u64)
     }
 
     /// Get the full frame ID.
-    #[inline]
+
     pub fn epoch(self) -> Epoch {
         self.0
     }
 
     /// Get the frame update ID.
-    #[inline]
+
     pub fn update(self) -> u32 {
         self.1
     }
@@ -151,22 +151,22 @@ bitflags! {
 }
 impl ModifiersState {
     /// Returns `true` if the shift key is pressed.
-    #[inline]
+
     pub fn shift(&self) -> bool {
         self.intersects(Self::SHIFT)
     }
     /// Returns `true` if the control key is pressed.
-    #[inline]
+
     pub fn ctrl(&self) -> bool {
         self.intersects(Self::CTRL)
     }
     /// Returns `true` if the alt key is pressed.
-    #[inline]
+
     pub fn alt(&self) -> bool {
         self.intersects(Self::ALT)
     }
     /// Returns `true` if the logo key is pressed.
-    #[inline]
+
     pub fn logo(&self) -> bool {
         self.intersects(Self::LOGO)
     }
@@ -181,25 +181,25 @@ impl ModifiersState {
     }
 
     /// Removes `SHIFT` and returns if it was removed.
-    #[inline]
+
     pub fn take_shift(&mut self) -> bool {
         self.take(ModifiersState::SHIFT)
     }
 
     /// Removes `CTRL` and returns if it was removed.
-    #[inline]
+
     pub fn take_ctrl(&mut self) -> bool {
         self.take(ModifiersState::CTRL)
     }
 
     /// Removes `ALT` and returns if it was removed.
-    #[inline]
+
     pub fn take_alt(&mut self) -> bool {
         self.take(ModifiersState::ALT)
     }
 
     /// Removes `LOGO` and returns if it was removed.
-    #[inline]
+
     pub fn take_logo(&mut self) -> bool {
         self.take(ModifiersState::LOGO)
     }
@@ -1739,7 +1739,7 @@ pub struct MonitorInfo {
 }
 impl MonitorInfo {
     /// Returns the `size` descaled using the `scale_factor`.
-    #[inline]
+
     pub fn dip_size(&self) -> DipSize {
         self.size.to_dip(self.scale_factor)
     }

@@ -214,7 +214,6 @@ mod em {
         text(impl IntoVar<Text>);
     }
 
-    #[inline]
     fn new_child(text: impl IntoVar<Text>) -> impl UiNode {
         let child = nodes::render_text();
         let child = nodes::layout_text(child, 0);

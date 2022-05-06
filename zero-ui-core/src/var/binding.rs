@@ -22,7 +22,7 @@ impl VarBindingHandle {
     }
 
     /// Create dummy handle that is always in the *unbound* state.
-    #[inline]
+
     pub fn dummy() -> VarBindingHandle {
         VarBindingHandle(Handle::dummy(()))
     }
@@ -30,20 +30,20 @@ impl VarBindingHandle {
     /// Drop the handle but does **not** unbind.
     ///
     /// The var binding stays in memory for the duration of the app or until another handle calls [`unbind`](Self::unbind).
-    #[inline]
+
     pub fn perm(self) {
         self.0.perm();
     }
 
     /// If another handle has called [`perm`](Self::perm).
     /// If `true` the var binding will stay active until the app shutdown, unless [`unbind`](Self::unbind) is called.
-    #[inline]
+
     pub fn is_permanent(&self) -> bool {
         self.0.is_permanent()
     }
 
     /// Drops the handle and forces the binding to drop.
-    #[inline]
+
     pub fn unbind(self) {
         self.0.force_drop();
     }
@@ -51,13 +51,13 @@ impl VarBindingHandle {
     /// If another handle has called [`unbind`](Self::unbind).
     ///
     /// The var binding is already dropped or will be dropped in the next app update, this is irreversible.
-    #[inline]
+
     pub fn is_unbound(&self) -> bool {
         self.0.is_dropped()
     }
 
     /// Create a weak handle.
-    #[inline]
+
     pub fn downgrade(&self) -> WeakVarBindingHandle {
         WeakVarBindingHandle(self.0.downgrade())
     }
@@ -92,13 +92,13 @@ impl VarBinding {
     }
 
     /// Drop the binding after applying the returned update.
-    #[inline]
+
     pub fn unbind(&self) {
         self.unbind.set(true);
     }
 
     /// If the binding will be dropped after applying the update.
-    #[inline]
+
     pub fn unbind_requested(&self) -> bool {
         self.unbind.get()
     }

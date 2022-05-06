@@ -373,7 +373,7 @@ impl Images {
     /// Associate the `image` with the `key` in the cache.
     ///
     /// Returns `Some(previous)` if the `key` was already associated with an image.
-    #[inline]
+
     pub fn register(&mut self, key: ImageHash, image: ViewImage) -> Option<ImageVar> {
         let limits = ImageLimits {
             max_encoded_size: self.limits.max_encoded_size,

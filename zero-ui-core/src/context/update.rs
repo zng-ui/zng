@@ -30,7 +30,7 @@ impl OnUpdateHandle {
     }
 
     /// Create a handle to nothing, the handle always in the *unsubscribed* state.
-    #[inline]
+
     pub fn dummy() -> Self {
         OnUpdateHandle(Handle::dummy(()))
     }
@@ -38,20 +38,20 @@ impl OnUpdateHandle {
     /// Drop the handle but does **not** unsubscribe.
     ///
     /// The handler stays in memory for the duration of the app or until another handle calls [`unsubscribe`](Self::unsubscribe.)
-    #[inline]
+
     pub fn perm(self) {
         self.0.perm();
     }
 
     /// If another handle has called [`perm`](Self::perm).
     /// If `true` the var binding will stay active until the app shutdown, unless [`unsubscribe`](Self::unsubscribe) is called.
-    #[inline]
+
     pub fn is_permanent(&self) -> bool {
         self.0.is_permanent()
     }
 
     /// Drops the handle and forces the handler to drop.
-    #[inline]
+
     pub fn unsubscribe(self) {
         self.0.force_drop()
     }
@@ -59,13 +59,13 @@ impl OnUpdateHandle {
     /// If another handle has called [`unsubscribe`](Self::unsubscribe).
     ///
     /// The handler is already dropped or will be dropped in the next app update, this is irreversible.
-    #[inline]
+
     pub fn is_unsubscribed(&self) -> bool {
         self.0.is_dropped()
     }
 
     /// Create a weak handle.
-    #[inline]
+
     pub fn downgrade(&self) -> WeakOnUpdateHandle {
         WeakOnUpdateHandle(self.0.downgrade())
     }
@@ -132,7 +132,7 @@ impl Updates {
     }
 
     /// Create an [`AppEventSender`] that can be used to awake the app and send app events.
-    #[inline]
+
     pub fn sender(&self) -> AppEventSender {
         self.event_sender.clone()
     }
@@ -143,18 +143,18 @@ impl Updates {
     /// Note that this value is only valid in [`UiNode::update`] and is used by widget roots to optimize the call to update.
     ///
     /// [`UiNode::update`]: crate::UiNode::update
-    #[inline]
+
     pub fn current(&self) -> &UpdateMask {
         &self.current
     }
 
     /// Schedules an update.
-    #[inline]
+
     pub fn update(&mut self, mask: UpdateMask) {
         UpdatesTrace::log_update();
         self.update_internal(mask);
     }
-    #[inline]
+
     pub(crate) fn update_internal(&mut self, mask: UpdateMask) {
         self.next_updates |= mask;
         self.update = true;
@@ -165,23 +165,23 @@ impl Updates {
     /// This is the equivalent of calling [`update`] with [`UpdateMask::none`].
     ///
     /// [`update`]: Self::update
-    #[inline]
+
     pub fn update_ext(&mut self) {
         self.update(UpdateMask::none());
     }
-    #[inline]
+
     pub(crate) fn update_ext_internal(&mut self) {
         self.update_internal(UpdateMask::none())
     }
 
     /// Gets `true` if an update was requested.
-    #[inline]
+
     pub fn update_requested(&self) -> bool {
         self.update
     }
 
     /// Schedules a info tree rebuild, layout and render.
-    #[inline]
+
     pub fn info_layout_and_render(&mut self) {
         self.info();
         self.layout();
@@ -189,7 +189,7 @@ impl Updates {
     }
 
     /// Schedules subscriptions aggregation, layout and render.
-    #[inline]
+
     pub fn subscriptions_layout_and_render(&mut self) {
         self.subscriptions();
         self.layout();
@@ -197,14 +197,14 @@ impl Updates {
     }
 
     /// Schedules a layout and render update.
-    #[inline]
+
     pub fn layout_and_render(&mut self) {
         self.layout();
         self.render();
     }
 
     /// Schedules a layout update for the parent window.
-    #[inline]
+
     pub fn layout(&mut self) {
         UpdatesTrace::log_layout();
         self.layout = true;
@@ -212,7 +212,7 @@ impl Updates {
     }
 
     /// Gets `true` if a layout update is scheduled.
-    #[inline]
+
     pub fn layout_requested(&self) -> bool {
         self.layout
     }
@@ -223,7 +223,7 @@ impl Updates {
     /// requests outside windows are ignored.
     ///
     /// [`UiNode::info`]: crate::UiNode::info
-    #[inline]
+
     pub fn info(&mut self) {
         // tracing::trace!("requested `info`");
         self.l_updates.window_updates.info = true;
@@ -236,33 +236,33 @@ impl Updates {
     /// requests outside windows are ignored.
     ///
     /// [`UiNode::subscriptions`]: crate::UiNode::subscriptions
-    #[inline]
+
     pub fn subscriptions(&mut self) {
         // tracing::trace!("requested `subscriptions`");
         self.l_updates.window_updates.subscriptions = true;
     }
 
     /// Gets `true` if a widget info rebuild is scheduled.
-    #[inline]
+
     pub fn info_requested(&self) -> bool {
         self.l_updates.window_updates.info
     }
 
     /// Gets `true` if a widget info rebuild or subscriptions aggregation was requested for the parent window.
-    #[inline]
+
     pub fn subscriptions_requested(&self) -> bool {
         self.l_updates.window_updates.subscriptions
     }
 
     /// Schedules a new full frame for the parent window.
-    #[inline]
+
     pub fn render(&mut self) {
         // tracing::trace!("requested `render`");
         self.l_updates.render();
     }
 
     /// Returns `true` if a new frame or frame update is scheduled.
-    #[inline]
+
     pub fn render_requested(&self) -> bool {
         self.l_updates.render_requested()
     }
@@ -272,7 +272,7 @@ impl Updates {
     /// Note that if another widget requests a full [`render`] this update will not run.
     ///
     /// [`render`]: Updates::render
-    #[inline]
+
     pub fn render_update(&mut self) {
         // tracing::trace!("requested `render_update`");
         self.l_updates.render_update();
@@ -413,7 +413,7 @@ pub struct LayoutUpdates {
 }
 impl LayoutUpdates {
     /// Schedules a new frame for the parent window.
-    #[inline]
+
     pub fn render(&mut self) {
         self.render = true;
         self.window_updates.render = WindowRenderUpdate::Render;
@@ -424,14 +424,14 @@ impl LayoutUpdates {
     /// Note that if another widget requests a full [`render`] this update will not run.
     ///
     /// [`render`]: LayoutUpdates::render
-    #[inline]
+
     pub fn render_update(&mut self) {
         self.render = true;
         self.window_updates.render |= WindowRenderUpdate::RenderUpdate;
     }
 
     /// Returns `true` if a new frame or frame update is scheduled.
-    #[inline]
+
     pub fn render_requested(&self) -> bool {
         self.render
     }
@@ -505,13 +505,12 @@ pub struct ContextUpdates {
 }
 impl ContextUpdates {
     /// If has events, update, layout or render was requested.
-    #[inline]
+
     pub fn has_updates(&self) -> bool {
         self.update || self.layout || self.render
     }
 }
 impl std::ops::BitOrAssign for ContextUpdates {
-    #[inline]
     fn bitor_assign(&mut self, rhs: Self) {
         self.events.extend(rhs.events);
         self.update |= rhs.update;
@@ -522,7 +521,6 @@ impl std::ops::BitOrAssign for ContextUpdates {
 impl std::ops::BitOr for ContextUpdates {
     type Output = Self;
 
-    #[inline]
     fn bitor(mut self, rhs: Self) -> Self {
         self |= rhs;
         self
@@ -635,7 +633,6 @@ impl WindowUpdates {
     }
 }
 impl std::ops::BitOrAssign for WindowUpdates {
-    #[inline]
     fn bitor_assign(&mut self, rhs: Self) {
         self.info |= rhs.info;
         self.subscriptions |= rhs.subscriptions;
@@ -646,7 +643,6 @@ impl std::ops::BitOrAssign for WindowUpdates {
 impl std::ops::BitOr for WindowUpdates {
     type Output = Self;
 
-    #[inline]
     fn bitor(mut self, rhs: Self) -> Self {
         self |= rhs;
         self
@@ -665,25 +661,25 @@ pub enum WindowRenderUpdate {
 }
 impl WindowRenderUpdate {
     /// If full frame was requested.
-    #[inline]
+
     pub fn is_render(self) -> bool {
         matches!(self, Self::Render)
     }
 
     /// If only frame update was requested.
-    #[inline]
+
     pub fn is_render_update(self) -> bool {
         matches!(self, Self::RenderUpdate)
     }
 
     /// If no render was requested.
-    #[inline]
+
     pub fn is_none(self) -> bool {
         matches!(self, Self::None)
     }
 
     /// Returns a copy of `self` and replaces `self` with `None`
-    #[inline]
+
     pub fn take(&mut self) -> Self {
         mem::take(self)
     }
@@ -694,7 +690,6 @@ impl Default for WindowRenderUpdate {
     }
 }
 impl std::ops::BitOrAssign for WindowRenderUpdate {
-    #[inline]
     fn bitor_assign(&mut self, rhs: Self) {
         use WindowRenderUpdate::*;
         *self = match (*self, rhs) {
@@ -707,7 +702,6 @@ impl std::ops::BitOrAssign for WindowRenderUpdate {
 impl std::ops::BitOr for WindowRenderUpdate {
     type Output = Self;
 
-    #[inline]
     fn bitor(mut self, rhs: Self) -> Self {
         self |= rhs;
         self

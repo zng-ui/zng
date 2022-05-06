@@ -117,13 +117,13 @@ impl PropertyInstance {
     }
 
     /// Immutable borrows the [`PropertyInstanceInfo`].
-    #[inline]
+
     pub fn borrow(&self) -> std::cell::Ref<PropertyInstanceInfo> {
         self.0.borrow()
     }
 
     /// Immutable borrows the [`PropertyInstanceInfo`], returning an error if the value is currently mutably borrowed..
-    #[inline]
+
     pub fn try_borrow(&self) -> Result<std::cell::Ref<PropertyInstanceInfo>, std::cell::BorrowError> {
         self.0.try_borrow()
     }
@@ -154,13 +154,13 @@ impl CapturedPropertyInstance {
     }
 
     /// Immutable borrows the [`CapturedPropertyInfo`].
-    #[inline]
+
     pub fn borrow(&self) -> std::cell::Ref<CapturedPropertyInfo> {
         std::cell::Ref::map(self.new_fn.borrow(), |f| &f.captures[self.index])
     }
 
     /// Immutable borrows the [`CapturedPropertyInfo`], returning an error if the value is currently mutably borrowed..
-    #[inline]
+
     pub fn try_borrow(&self) -> Result<std::cell::Ref<CapturedPropertyInfo>, std::cell::BorrowError> {
         self.new_fn
             .try_borrow()
@@ -192,13 +192,13 @@ impl WidgetNewFnInstance {
     }
 
     /// Immutable borrows the [`WidgetNewFnInfo`].
-    #[inline]
+
     pub fn borrow(&self) -> std::cell::Ref<WidgetNewFnInfo> {
         self.0.borrow()
     }
 
     /// Immutable borrows the [`WidgetNewFnInfo`], returning an error if the value is currently mutably borrowed..
-    #[inline]
+
     pub fn try_borrow(&self) -> Result<std::cell::Ref<WidgetNewFnInfo>, std::cell::BorrowError> {
         self.0.try_borrow()
     }
@@ -226,13 +226,13 @@ impl WidgetInstance {
     }
 
     /// Immutable borrows the [`WidgetInstanceInfo`].
-    #[inline]
+
     pub fn borrow(&self) -> std::cell::Ref<WidgetInstanceInfo> {
         self.0.borrow()
     }
 
     /// Immutable borrows the [`WidgetInstanceInfo`], returning an error if the value is currently mutably borrowed..
-    #[inline]
+
     pub fn try_borrow(&self) -> Result<std::cell::Ref<WidgetInstanceInfo>, std::cell::BorrowError> {
         self.0.try_borrow()
     }
@@ -1350,12 +1350,10 @@ pub trait WidgetInspectorInfo<'a> {
     fn property(self, property_name: &str) -> Option<PropertyOrCaptureInstance>;
 }
 impl<'a> WidgetInspectorInfo<'a> for WidgetInfo<'a> {
-    #[inline]
     fn is_inspected(self) -> bool {
         self.meta().contains(WidgetInstanceInfoKey)
     }
 
-    #[inline]
     fn instance(self) -> Option<&'a WidgetInstance> {
         self.meta().get(WidgetInstanceInfoKey)
     }
@@ -1382,17 +1380,14 @@ impl<'a> WidgetInspectorInfo<'a> for WidgetInfo<'a> {
         })
     }
 
-    #[inline]
     fn new_fns(self) -> &'a [WidgetNewFnInstance] {
         self.meta().get(WidgetNewFnInfoKey).map(|v| &v[..]).unwrap_or(&[])
     }
 
-    #[inline]
     fn new_fn(self, new_fn: WidgetNewFn) -> Option<&'a WidgetNewFnInstance> {
         self.new_fns().iter().find(|n| n.borrow().new_fn == new_fn)
     }
 
-    #[inline]
     fn properties(self) -> &'a [PropertyInstance] {
         self.meta().get(PropertiesInfoKey).map(|v| &v[..]).unwrap_or(&[])
     }
@@ -1620,7 +1615,7 @@ pub enum WriteArgDiff {
 /// When writing to a terminal the text is color coded and a legend is printed. The coloring
 /// can be configured using environment variables, see [colored](https://github.com/mackwic/colored#features)
 /// for details.
-#[inline]
+
 pub fn write_tree<W: std::io::Write>(tree: &WidgetInfoTree, updates_from: &WriteTreeState, out: &mut W) {
     let mut fmt = print_fmt::Fmt::new(out);
     write_impl(updates_from, tree.root(), "", &mut fmt);

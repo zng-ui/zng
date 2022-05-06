@@ -5,7 +5,6 @@ use std::collections::HashSet;
 use syn::parse::{Error, Parse, ParseStream, Result};
 use syn::spanned::Spanned;
 use syn::visit::{self, Visit};
-use syn::visit_mut::{self, VisitMut};
 use syn::*;
 
 pub(crate) fn gen_impl_ui_node(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> proc_macro::TokenStream {
@@ -164,11 +163,6 @@ pub(crate) fn gen_impl_ui_node(args: proc_macro::TokenStream, input: proc_macro:
         .map(|p| p.to_token_stream())
         .unwrap_or_else(|| quote! { #crate_::UiNode });
 
-    let mut inline_all = InlineEverything::new();
-    for mtd in node_items.iter_mut() {
-        inline_all.visit_impl_item_mut(mtd);
-    }
-
     let result = if in_node_impl {
         quote! {
             #errors
@@ -203,27 +197,6 @@ pub(crate) fn gen_impl_ui_node(args: proc_macro::TokenStream, input: proc_macro:
     result.into()
 }
 
-/// Visitor that adds `#[inline]` in every `ImplItemMethod`.
-struct InlineEverything {
-    inline: Attribute,
-}
-impl InlineEverything {
-    pub fn new() -> Self {
-        InlineEverything {
-            inline: parse_quote! {#[inline]},
-        }
-    }
-}
-impl VisitMut for InlineEverything {
-    fn visit_impl_item_method_mut(&mut self, i: &mut ImplItemMethod) {
-        if i.attrs.iter().all(|a| a.path.get_ident() != self.inline.path.get_ident()) {
-            i.attrs.push(self.inline.clone());
-        }
-
-        visit_mut::visit_impl_item_method_mut(self, i);
-    }
-}
-
 macro_rules! make_absents {
     ($user_mtds:ident $([fn $ident:ident $($tt:tt)*])+) => {{
         let mut absents = vec![];
@@ -231,7 +204,7 @@ macro_rules! make_absents {
         $(
         if !user_mtds.contains(&ident!(stringify!($ident))) {
             absents.push(parse_quote! {
-                #[inline]
+
                 fn $ident $($tt)*
             });
         }

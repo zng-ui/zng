@@ -338,7 +338,7 @@ impl Default for OwnedStateMap {
 }
 impl OwnedStateMap {
     /// New default, empty.
-    #[inline]
+
     pub fn new() -> Self {
         Self::default()
     }
@@ -352,7 +352,7 @@ impl OwnedStateMap {
     }
 
     /// Removes all entries.
-    #[inline]
+
     pub fn clear(&mut self) {
         self.0.map.clear()
     }
