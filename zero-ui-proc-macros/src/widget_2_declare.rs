@@ -341,30 +341,50 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         // generate re-export.
         let path = &inherited_properties[&ip.ident].module;
         let p_ident = ident!("__p_{}", ip.ident);
-        property_reexports.extend(quote! {
-            #cfg
-            #[doc(hidden)]
-            pub use #path::#p_ident;
-        });
+
+        if *cfg {
+            let cfg_ident = ident!("__cfg_{p_ident}");
+
+            property_reexports.extend(quote! {
+                #path::#cfg_ident! {
+                    #[doc(hidden)]
+                    pub use #path::{#p_ident, #cfg_ident};
+                }
+            });
+        } else {
+            property_reexports.extend(quote! {
+                #[doc(hidden)]
+                pub use #path::#p_ident;
+            });
+        }
 
         // generate values re-export.
         if ip.default {
             // default value.
             let d_ident = ident!("__d_{}", ip.ident);
-            property_reexports.extend(quote! {
-                #cfg
+            // source location reexport.
+            let loc_ident = ident!("__loc_{}", ip.ident);
+
+            let exp = quote! {
                 #[doc(hidden)]
                 pub use #path::#d_ident;
-            });
 
-            // source location reexport.
-            {
-                let loc_ident = ident!("__loc_{}", ip.ident);
-                property_reexports.extend(quote! { #path::__core::core_cfg_inspector! {
-                    #cfg
+                #path::__core::core_cfg_inspector! {
                     #[doc(hidden)]
                     pub use #path::#loc_ident;
-                }});
+                }
+            };
+
+            if *cfg {
+                let cfg_ident = ident!("__cfg_{p_ident}");
+
+                property_reexports.extend(quote! {
+                    #path::#cfg_ident! {
+                        #exp
+                    }
+                });
+            } else {
+                property_reexports.extend(exp);
             }
         }
     }
@@ -436,11 +456,21 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                 if let Some(inherited) = inherited_properties.get(&p.ident) {
                     let inherited_source = &inherited.module;
                     // re-export inherited property.
-                    property_reexports.extend(quote! {
-                        #cfg
-                        #[doc(hidden)]
-                        pub use #inherited_source::#p_ident;
-                    });
+
+                    if *cfg {
+                        let cfg_ident = ident!("__cfg_{p_ident}");
+                        property_reexports.extend(quote! {
+                            #inherited_source::#cfg_ident! {
+                                #[doc(hidden)]
+                                pub use #inherited_source::{#p_ident, #cfg_ident};
+                            }
+                        });
+                    } else {
+                        property_reexports.extend(quote! {
+                            #[doc(hidden)]
+                            pub use #inherited_source::#p_ident;
+                        });
+                    }
                     continue;
                 }
             }
@@ -449,22 +479,44 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                     let inherited_source = &inherited.module;
                     // re-export inherited property as a new name.
                     let inherited_ident = ident!("__p_{maybe_inherited}");
-                    property_reexports.extend(quote! {
-                        #cfg
-                        #[doc(hidden)]
-                        pub use #inherited_source::#inherited_ident as #p_ident;
-                    });
+
+                    if *cfg {
+                        let cfg_ident = ident!("__cfg_{inherited_ident}");
+                        let new_cfg_ident = ident!("__cfg_{p_ident}");
+                        property_reexports.extend(quote! {
+                            #inherited_source::#cfg_ident! {
+                                #[doc(hidden)]
+                                pub use #inherited_source::{#inherited_ident as #p_ident, #cfg_ident as #new_cfg_ident};
+                            }
+
+                        });
+                    } else {
+                        property_reexports.extend(quote! {
+                            #[doc(hidden)]
+                            pub use #inherited_source::#inherited_ident as #p_ident;
+                        });
+                    }
                     continue;
                 }
             }
             PropertyItemKind::Path => {}
         }
         // not inherited.
-        property_reexports.extend(quote! {
-            #cfg
-            #[doc(hidden)]
-            pub use #path::export as #p_ident;
-        });
+
+        if *cfg {
+            let cfg_ident = ident!("__cfg_{p_ident}");
+            property_reexports.extend(quote! {
+                self::#cfg_ident! {
+                    #[doc(hidden)]
+                    pub use #path::export as #p_ident;
+                }
+            });
+        } else {
+            property_reexports.extend(quote! {
+                #[doc(hidden)]
+                pub use #path::export as #p_ident;
+            });
+        }
     }
     let property_reexports = property_reexports;
     let wgt_properties = wgt_properties;
@@ -512,7 +564,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                 docs_whens.push(WhenDocs {
                     docs: docs.clone(),
                     expr: expr_str.value(),
-                    affects: assigns.iter().map(|a| (a.property.clone(), a.cfg.clone())).collect(),
+                    affects: assigns.iter().map(|a| (a.property.clone(), a.cfg)).collect(),
                 });
 
                 let new_value_fn = ident!("__{module_id_str}{value_fn}");
@@ -521,11 +573,20 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                     #property { cfg { #cfg } value_fn { #new_value_fn } }
                 });
 
-                defaults_tt.extend(quote! {
-                    #[doc(hidden)]
-                    #cfg
-                    pub use #module::#value_fn as #new_value_fn;
-                });
+                if *cfg {
+                    let cfg_ident = ident!("__cfg_{ident}_{property}");
+                    defaults_tt.extend(quote! {
+                        #module::#cfg_ident! {
+                            #[doc(hidden)]
+                            pub use #module::#value_fn as #new_value_fn;
+                        }
+                    });
+                } else {
+                    defaults_tt.extend(quote! {
+                        #[doc(hidden)]
+                        pub use #module::#value_fn as #new_value_fn;
+                    });
+                }
             }
             if assigns_tt.is_empty() {
                 continue; // all properties removed, remove when block.
@@ -545,18 +606,32 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                     expr_str { #expr_str }
                 }
             });
-            when_reexports.extend(quote! {
+
+            let rexp = quote! {
                 #[doc(hidden)]
-                #cfg
                 pub use #module::#ident as #new_ident;
                 #defaults_tt
-            });
-            {
-                when_reexports.extend(quote! { #module::__core::core_cfg_inspector! {
+
+                #module::__core::core_cfg_inspector! {
                     #[doc(hidden)]
-                    #cfg
                     pub use #module::#dbg_ident as #new_dbg_ident;
-                }});
+                }
+            };
+
+            if *cfg {
+                let cfg_ident = ident!("__cfg_{ident}");
+                let new_cfg_ident = ident!("__cfg_{new_ident}");
+
+                when_reexports.extend(quote! {
+                    #module::#cfg_ident! {
+                        #rexp
+
+                        #[doc(hidden)]
+                        pub use #module::#cfg_ident as #new_cfg_ident;
+                    }
+                });
+            } else {
+                when_reexports.extend(rexp);
             }
         }
     }
@@ -597,13 +672,23 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                 p.ident
             );
             let p_mod = ident!("__p_{}", p.ident);
-            let cfg = &p.cfg;
-            assert_not_captures.extend(quote_spanned!(p.ident.span()=>
-                #cfg
+
+            let assert = quote_spanned!(p.ident.span()=>
                 self::#p_mod::code_gen! {
                     if capture_only=> std::compile_error!{#msg}
                 }
-            ));
+            );
+
+            if p.cfg {
+                let cfg_ident = ident!("__cfg_{}", p.ident);
+                assert_not_captures.extend(quote! {
+                    self::#cfg_ident! {
+                        #assert
+                    }
+                });
+            } else {
+                assert_not_captures.extend(assert);
+            }
         }
     } else {
         for p in &properties {
@@ -613,20 +698,29 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
             let msg = format!("property `{}` is capture-only, but is not captured by the widget", p.ident);
             let p_mod = ident!("__p_{}", p.ident);
-            let cfg = &p.cfg;
-            assert_not_captures.extend(quote_spanned!(p.ident.span()=>
-                #cfg
+
+            let assert = quote_spanned!(p.ident.span()=>
                 self::#p_mod::code_gen! {
                     if capture_only=> std::compile_error!{#msg}
                 }
-            ));
+            );
+            if p.cfg {
+                let cfg_ident = ident!("__cfg_{}", p.ident);
+                assert_not_captures.extend(quote! {
+                    self::#cfg_ident! {
+                        #assert
+                    }
+                });
+            } else {
+                assert_not_captures.extend(assert);
+            }
         }
     }
     let assert_not_captures = assert_not_captures;
 
     // widget properties introduced first by use in when blocks, we validate for default value.
-    // map of [property_without_value => combined_cfg_for_default_init]
-    let mut wgt_when_properties: HashMap<Ident, Option<TokenStream>> = HashMap::new();
+    // map of [property_without_value => when_cfg_macro]
+    let mut wgt_when_properties: HashMap<Ident, Option<Ident>> = HashMap::new();
 
     for bw in whens {
         let dbg_ident = &bw.dbg_ident;
@@ -643,34 +737,27 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         docs_whens.push(WhenDocs {
             docs: docs.clone(),
             expr: expr_str.value(),
-            affects: assigns.iter().map(|a| (a.property.clone(), a.cfg.clone())).collect(),
+            affects: assigns.iter().map(|a| (a.property.clone(), a.cfg)).collect(),
         });
 
-        let bw_cfg = if cfg.is_empty() {
-            None
-        } else {
-            Some(util::parse_attr(cfg.clone()).unwrap())
-        };
+        let when_cfg = if cfg { Some(ident!("__cfg_{ident}")) } else { None };
 
         // for each property in inputs and assigns that are not declared in widget or inherited.
-        for (property, p_cfg) in inputs
+        for property in inputs
             .iter()
-            .map(|i| (i, None))
-            .chain(
-                assigns
-                    .iter()
-                    .map(|a| (&a.property, if a.cfg.is_empty() { None } else { Some(a.cfg.clone()) })),
-            )
-            .filter(|(p, _)| !wgt_all_properties.contains(p))
+            .chain(assigns.iter().map(|a| &a.property))
+            .filter(|p| !wgt_all_properties.contains(p))
         {
-            let cfg = util::cfg_attr_or(bw_cfg.clone(), p_cfg.map(|tt| util::parse_attr(tt).unwrap()));
+            // set to the cfg of one of the whens that use it or `None` if any of the
+            // whens that use don't have cfg.
             match wgt_when_properties.entry(property.clone()) {
-                std::collections::hash_map::Entry::Occupied(mut e) => {
-                    let prev = e.get().clone().map(|tt| util::parse_attr(tt).unwrap());
-                    *e.get_mut() = util::cfg_attr_or(prev, cfg.map(|tt| util::parse_attr(tt).unwrap()));
-                }
                 std::collections::hash_map::Entry::Vacant(e) => {
-                    e.insert(cfg);
+                    e.insert(when_cfg.clone());
+                }
+                std::collections::hash_map::Entry::Occupied(mut e) => {
+                    if when_cfg.is_none() {
+                        *e.get_mut() = None;
+                    }
                 }
             }
         }
@@ -767,10 +854,19 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             }
         });
 
+        if let Some(cfg) = &cfg {
+            let cfg_ident = ident!("__cfg_{w_prop}");
+            when_condition_default_props.extend(quote! {
+                #[doc(hidden)]
+                pub use self::#cfg as #cfg_ident;
+            });
+        }
+
+        let has_cfg = cfg.is_some();
         wgt_properties.extend(quote! {
             #w_prop {
                 docs { }
-                cfg { #cfg }
+                cfg { #has_cfg }
                 default { true }
                 required { false }
             }
@@ -941,7 +1037,7 @@ struct WhenDocs {
     docs: TokenStream,
     expr: String,
     // [(assigned_property, cfg)]
-    affects: Vec<(Ident, TokenStream)>,
+    affects: Vec<(Ident, bool)>,
 }
 fn auto_docs(
     required: Vec<PropertyDocs>,
@@ -988,15 +1084,10 @@ fn auto_docs(
             for (p, cfg) in w.affects {
                 use std::fmt::Write;
 
-                if cfg.is_empty() {
+                if !cfg {
                     let _ = write!(&mut affects, "{comma}[`{0}`](#wp-{0})", p);
                 } else {
-                    let _ = write!(
-                        &mut affects,
-                        "{comma}[`{0}`](#wp-{0} \"{1}\")",
-                        p,
-                        cfg.to_string().replace(' ', "").replace(',', ", ").replace('"', "&quote;")
-                    );
+                    let _ = write!(&mut affects, "{comma}[`{0}`](#wp-{0} \"conditional\")", p,);
                 }
                 comma = ", ";
             }
@@ -1170,7 +1261,7 @@ impl Parse for WidgetItem {
 struct PropertyItem {
     ident: Ident,
     docs: TokenStream,
-    cfg: TokenStream,
+    cfg: bool,
     path: TokenStream,
     default: bool,
     required: bool,
@@ -1188,7 +1279,7 @@ impl Parse for PropertyItem {
         let property_item = PropertyItem {
             ident,
             docs: named_braces!("docs").parse().unwrap(),
-            cfg: named_braces!("cfg").parse().unwrap(),
+            cfg: named_braces!("cfg").parse::<LitBool>().unwrap_or_else(|e| non_user_error!(e)).value,
             path: named_braces!("path").parse().unwrap(),
             default: named_braces!("default")
                 .parse::<LitBool>()

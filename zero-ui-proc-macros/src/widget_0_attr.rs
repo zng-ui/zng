@@ -547,12 +547,28 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
             }
         }
 
+        if let Some(cfg) = &attrs.cfg {
+            let not_cfg = util::cfg_attr_not(attrs.cfg.clone());
+
+            let cfg_ident = ident!("__cfg_{p_ident}");
+
+            property_declarations.extend(quote! {
+                #cfg
+                #[doc(hidden)]
+                pub use #crate_core::core_cfg_ok as #cfg_ident;
+
+                #not_cfg
+                #[doc(hidden)]
+                pub use #crate_core::core_cfg_ignore as #cfg_ident;
+            });
+        }
+
         if skip {
             continue;
         }
 
         let docs = attrs.docs;
-        let cfg = attrs.cfg;
+        let cfg = attrs.cfg.is_some();
         let path = &property.path;
 
         let declared = property.type_.is_some();
@@ -671,10 +687,11 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
                 let fn_ident = ident!("{ident}__{property}");
 
                 let cfg = util::cfg_attr_and(attrs.cfg, cfg.clone());
+                let has_cfg = cfg.is_some();
 
                 assigns_tokens.extend(quote! {
                     #property {
-                        cfg { #cfg }
+                        cfg { #has_cfg }
                         value_fn { #fn_ident }
                     }
                 });
@@ -696,6 +713,22 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
                         #expr
                     }
                 });
+
+                if let Some(cfg) = cfg {
+                    let cfg: Attribute = parse_quote!(#cfg);
+                    let not_cfg = util::cfg_attr_not(Some(cfg.clone()));
+
+                    let cfg_ident = ident!("__cfg_{fn_ident}");
+
+                    when_defaults.extend(quote! {
+                        #cfg
+                        #[doc(hidden)]
+                        pub use #crate_core::core_cfg_ok as #cfg_ident;
+                        #not_cfg
+                        #[doc(hidden)]
+                        pub use #crate_core::core_cfg_ok as #cfg_ident;
+                    })
+                }
             } else {
                 // assign.path.get_ident() == None
                 let suggestion = &assign.path.segments.last().unwrap().ident;
@@ -766,6 +799,22 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
                 var
             }
         }});
+
+        if let Some(cfg) = &cfg {
+            let not_cfg = util::cfg_attr_not(Some(cfg.clone()));
+            let cfg_ident = ident!("__cfg_{ident}");
+
+            when_conditions.extend(quote! {
+                #cfg
+                #[doc(hidden)]
+                pub use #crate_core::core_cfg_ok as #cfg_ident;
+                #not_cfg
+                #[doc(hidden)]
+                pub use #crate_core::core_cfg_ignore as #cfg_ident;
+            })
+        }
+
+        let cfg = cfg.is_some();
 
         let inputs = inputs.iter();
         built_whens.extend(quote! {
@@ -850,6 +899,8 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
 
     let new_idents: Vec<_> = FnPriority::all().iter().map(|p| ident!("{p}")).collect();
 
+    let new_captures_has_cfg = new_captures_cfg.iter().map(|ts| ts.is_empty());
+
     let r = quote! {
         #wgt_cfg
         mod #errors_mod {
@@ -924,7 +975,7 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
                         #(
                             #new_idents {
                                 #(#new_captures {
-                                    cfg { #new_captures_cfg }
+                                    cfg { #new_captures_has_cfg }
                                 })*
                             }
                         )*

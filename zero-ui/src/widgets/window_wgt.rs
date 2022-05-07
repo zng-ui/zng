@@ -217,7 +217,8 @@ pub mod window {
 
         /// If the Inspector can be opened for this window.
         ///
-        /// The default value is `true`, but only applies if the built with the `inspector` feature.
+        /// The default value is `true`, but only applies if built with the `inspector` feature.
+        // #[cfg(inspector)] // !!: TODO
         can_inspect(impl IntoVar<bool>) = true;
 
         /// Monitor used for calculating the [`start_position`], [`position`] and [`size`] of the window.
@@ -433,7 +434,7 @@ pub mod window {
         }
     }
 
-    fn new_event(child: impl UiNode, #[allow(unused)] can_inspect: impl IntoVar<bool>) -> impl UiNode {
+    fn new_event(child: impl UiNode, #[cfg(inspector)] can_inspect: impl IntoVar<bool>) -> impl UiNode {
         let child = commands::window_control_node(child);
         #[cfg(inspector)]
         let child = commands::inspect_node(child, can_inspect);

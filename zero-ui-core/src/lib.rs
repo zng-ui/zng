@@ -1103,17 +1103,24 @@ mod private {
     pub trait Sealed {}
 }
 
+// These macros are used in `core_cfg` and are also re-exported by `#[widget(..)]` to define the `cfg` of properties.
+//
+// # About `#[cfg(zero_ui_core_cfg_never)]never!{}`
+//
+// This is done to make this syntax valid: `foo(a, core_cfg_ignore!(b), c)`
+// Rustc removes the extra comma when it removes the inactive `cfg`, if the macro just expanded to nothing
+// we would get a missing expression compile error.
 #[doc(hidden)]
 #[macro_export]
 macro_rules! core_cfg_ok {
-    (@NOT $($tt:tt)*) => { };
+    (@NOT $($tt:tt)*) => { #[cfg(zero_ui_core_cfg_never)]never!{} };
     ($($tt:tt)*) => { $($tt)* };
 }
 #[doc(hidden)]
 #[macro_export]
 macro_rules! core_cfg_ignore {
     (@NOT $($tt:tt)*) => { $($tt)* };
-    ($($tt:tt)*) => { };
+    ($($tt:tt)*) => { #[cfg(zero_ui_core_cfg_never)]never!{} };
 }
 
 // core features as macros that discard or pass input, used in proc-macros.

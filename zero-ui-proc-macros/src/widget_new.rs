@@ -65,7 +65,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
     let mut errors = user_input.errors;
 
-    let inherited_properties: HashSet<_> = widget_data.properties.iter().map(|p| &p.ident).collect();
+    let inherited_properties: HashMap<_, _> = widget_data.properties.iter().map(|p| (&p.ident, p.cfg)).collect();
 
     // properties that must be assigned by the user.
     let required_properties: HashSet<_> = widget_data.properties.iter().filter(|p| p.required).map(|p| &p.ident).collect();
@@ -131,12 +131,12 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let overriden_properties: HashSet<_> = user_properties
         .iter()
         .filter_map(|p| p.path.get_ident())
-        .filter(|p_id| inherited_properties.contains(p_id))
+        .filter(|p_id| inherited_properties.contains_key(p_id))
         .chain(unset_properties.iter().copied())
         .collect();
 
-    // all widget properties that will be set (property_path, (property_var, cfg)).
-    let mut wgt_properties = HashMap::<syn::Path, (Ident, TokenStream)>::new();
+    // all widget properties that will be set (property_path, (Option<property_var|unreachable!>, property_cfg, user_cfg)).
+    let mut wgt_properties = HashMap::<syn::Path, (Option<Ident>, Option<Ident>, TokenStream)>::new();
 
     let mut property_inits = TokenStream::default();
     let mut prop_set_calls = vec![];
@@ -150,15 +150,25 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         let ident = &ip.ident;
         let p_default_fn_ident = ident!("__d_{ident}");
         let p_var_ident = ident!("__{ident}");
-        let cfg = &ip.cfg;
+        let p_cfg = if ip.cfg { Some(ident!("__cfg_{ident}")) } else { None };
 
-        wgt_properties.insert(parse_quote! { #ident }, (p_var_ident.clone(), cfg.clone()));
+        wgt_properties.insert(
+            parse_quote! { #ident },
+            (Some(p_var_ident.clone()), p_cfg.clone(), TokenStream::new()),
+        );
 
         // generate call to default args.
-        property_inits.extend(quote! {
-            #cfg
-            let #p_var_ident = #module::#p_default_fn_ident();
-        });
+        if let Some(cfg) = &p_cfg {
+            property_inits.extend(quote! {
+                #module::#cfg! {
+                    let #p_var_ident = #module::#p_default_fn_ident();
+                }
+            });
+        } else {
+            property_inits.extend(quote! {
+                let #p_var_ident = #module::#p_default_fn_ident();
+            });
+        }
 
         if captured_properties.contains(ident) {
             continue; // we don't set captured properties.
@@ -174,8 +184,9 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                 let p_source_loc_ident = ident!("__loc_{}", ip.ident);
                 quote! { #module::#p_source_loc_ident() }
             },
-            cfg.clone(),
-            /*user_assigned: */ false,
+            p_cfg.clone(),
+            /* user_cfg: */ TokenStream::new(),
+            /* user_assigned: */ false,
             call_site,
             call_site,
         ));
@@ -185,29 +196,47 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     for (i, up) in user_properties.iter().enumerate() {
         let p_name = util::display_path(&up.path);
 
-        let p_mod = match up.path.get_ident() {
-            Some(maybe_inherited) if inherited_properties.contains(maybe_inherited) => {
+        let (p_mod, p_cfg) = match up.path.get_ident() {
+            Some(maybe_inherited) if inherited_properties.contains_key(maybe_inherited) => {
                 let p_ident = ident!("__p_{maybe_inherited}");
-                quote! { #module::#p_ident }
+
+                let p_cfg = if *inherited_properties.get(maybe_inherited).unwrap() {
+                    Some(ident!("__cfg_{maybe_inherited}"))
+                } else {
+                    None
+                };
+
+                (quote! { #module::#p_ident }, p_cfg)
             }
-            _ => up.path.to_token_stream(),
+            _ => (up.path.to_token_stream(), None),
         };
         let p_var_ident = ident!("__u{}_{}", i, p_name.replace("::", "_"));
         let attrs = Attributes::new(up.attrs.clone());
         let cfg = attrs.cfg;
         let lints = attrs.lints;
 
-        wgt_properties.insert(up.path.clone(), (p_var_ident.clone(), cfg.to_token_stream()));
+        wgt_properties.insert(up.path.clone(), (Some(p_var_ident.clone()), p_cfg.clone(), cfg.to_token_stream()));
 
         let init_expr = up
             .value
             .expr_tokens(&p_mod, up.path.span(), up.value_span)
             .unwrap_or_else(|e| non_user_error!(e));
-        property_inits.extend(quote! {
-            #cfg
-            #(#lints)*
-            let #p_var_ident = #init_expr;
-        });
+
+        if let Some(p_cfg) = &p_cfg {
+            property_inits.extend(quote! {
+                #module::#p_cfg! {
+                    #cfg
+                    #(#lints)*
+                    let #p_var_ident = #init_expr;
+                }
+            });
+        } else {
+            property_inits.extend(quote! {
+                #cfg
+                #(#lints)*
+                let #p_var_ident = #init_expr;
+            });
+        }
 
         if let Some(maybe_inherited) = up.path.get_ident() {
             if captured_properties.contains(maybe_inherited) {
@@ -222,6 +251,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             quote_spanned! {up.path.span()=>
                 #module::__core::source_location!()
             },
+            p_cfg,
             cfg.to_token_stream(),
             /*user_assigned: */ true,
             up.path.span(),
@@ -247,8 +277,9 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         let mut when_infos__: std::vec::Vec<#module::__core::WhenInfoV1> = std::vec![];
     }});
 
-    // map of { property => [(cfg, condition_var, when_value_ident, when_value_for_prop)] }
-    let mut when_assigns: HashMap<Path, Vec<(TokenStream, Ident, Ident, TokenStream)>> = HashMap::new();
+    // map of { property => [(p_cfg, user_cfg, condition_var, when_value_ident, when_value_for_prop)] }
+    #[allow(clippy::type_complexity)]
+    let mut when_assigns: HashMap<Path, Vec<(Option<Ident>, TokenStream, Ident, Ident, TokenStream)>> = HashMap::new();
     for iw in widget_data.whens {
         if iw.inputs.iter().any(|p| unset_properties.contains(p)) {
             // deactivate when block because user unset one of the inputs.
@@ -263,7 +294,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
         let ident = iw.ident;
         let dbg_ident = iw.dbg_ident;
-        let cfg = iw.cfg;
+        let cfg = if iw.cfg { Some(ident!("__cfgw_{ident}")) } else { None };
 
         // arg variables for each input, they should all have a default value or be required (already deactivated if any unset).
         let len = iw.inputs.len();
@@ -271,7 +302,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             .inputs
             .into_iter()
             .filter_map(|id| {
-                let r = wgt_properties.get(&parse_quote! { #id }).map(|(id, _)| id);
+                let r = wgt_properties.get(&parse_quote! { #id }).map(|(id, _, _)| id);
                 if r.is_none() && !missing_required.contains(&id) {
                     non_user_error!("inherited when condition uses property not set, not required and not unset");
                 }
@@ -295,19 +326,30 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             }
         };
 
-        when_inits.extend(quote! {
-            #cfg
+        let when_init = quote! {
             #[allow(non_snake_case)]
             #[allow(clippy::needless_late_init)]
             let #c_ident;
-            #cfg { #c_ident = #condition_call; }
-        });
+            #c_ident = #condition_call;
+        };
+        if let Some(cfg) = &cfg {
+            when_inits.extend(quote! {
+                #module::#cfg! {
+                    #when_init
+                }
+            });
+        } else {
+            when_inits.extend(when_init);
+        }
 
         // register when for each property assigned.
         for BuiltWhenAssign { property, cfg, value_fn } in assigns {
             let value = quote! { #module::#value_fn() };
             let p_whens = when_assigns.entry(parse_quote! { #property }).or_default();
-            p_whens.push((cfg, c_ident.clone(), value_fn, value));
+
+            let cfg = if cfg { Some(ident!("__cfg_wv_{value_fn}")) } else { None };
+
+            p_whens.push((cfg, TokenStream::new(), c_ident.clone(), value_fn, value));
         }
     }
 
@@ -361,7 +403,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                         );
 
                         let property_path = match property.get_ident() {
-                            Some(maybe_inherited) if inherited_properties.contains(maybe_inherited) => {
+                            Some(maybe_inherited) if inherited_properties.contains_key(maybe_inherited) => {
                                 let p_ident = ident!("__p_{maybe_inherited}");
                                 quote! { #module::#p_ident }
                             }
@@ -398,7 +440,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         let mut member_vars = TokenStream::default();
         for ((property, member), var_ident) in inputs {
             let property_path = match property.get_ident() {
-                Some(maybe_inherited) if inherited_properties.contains(maybe_inherited) => {
+                Some(maybe_inherited) if inherited_properties.contains_key(maybe_inherited) => {
                     let p_ident = ident!("__p_{}", maybe_inherited);
                     quote! { #module::#p_ident }
                 }
@@ -420,11 +462,11 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                 }
             }
 
-            let args_ident = wgt_properties.get(&property).map(|(id, _)| id.clone()).unwrap_or_else(|| {
+            let args_ident = wgt_properties.get(&property).map(|(id, _, _)| id.clone()).unwrap_or_else(|| {
                 // if is not in `wgt_properties` it must be in `user_when_properties`
                 // that will generate a __u_ variable before this binding in the final code.
                 let (_, i) = user_when_properties.get(&property).unwrap_or_else(|| non_user_error!(""));
-                ident!("__ud{i}_{}", util::path_to_ident_str(&property))
+                Some(ident!("__ud{i}_{}", util::path_to_ident_str(&property)))
             });
 
             member_vars.extend(quote! {
@@ -524,7 +566,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             let a_lints = attrs.lints;
 
             let (property_path, property_span, value_span) = match assign.path.get_ident() {
-                Some(maybe_inherited) if inherited_properties.contains(maybe_inherited) => {
+                Some(maybe_inherited) if inherited_properties.contains_key(maybe_inherited) => {
                     let p_ident = ident!("__p_{maybe_inherited}");
                     let span = maybe_inherited.span();
                     (quote_spanned! {span=> #module::#p_ident }, span, span)
@@ -552,7 +594,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             // map of { property => [(cfg, condition_var, when_value_ident, when_value_for_prop)] }
             let p_whens = when_assigns.entry(assign.path).or_default();
             let val = assign_val_id.to_token_stream();
-            p_whens.push((cfg.to_token_stream(), ident.clone(), assign_val_id, val));
+            p_whens.push((None, cfg.to_token_stream(), ident.clone(), assign_val_id, val));
         }
     }
     // properties that are only introduced in user when conditions.
@@ -560,7 +602,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         let args_ident = ident!("__ud{i}_{}", util::path_to_ident_str(&property));
 
         let property_path = match property.get_ident() {
-            Some(maybe_inherited) if inherited_properties.contains(maybe_inherited) => {
+            Some(maybe_inherited) if inherited_properties.contains_key(maybe_inherited) => {
                 let p_ident = ident!("__p_{maybe_inherited}");
                 parse_quote! { #module::#p_ident }
             }
@@ -603,13 +645,14 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                     #module::__core::source_location!()
                 }
             },
+            None,
             cfg.to_token_stream(),
             /*user_assigned: */ true,
             p_span,
             /*val_span: */ call_site,
         ));
 
-        wgt_properties.insert(property, (args_ident, cfg.unwrap_or_default()));
+        wgt_properties.insert(property, (Some(args_ident), None, cfg.unwrap_or_default()));
     }
 
     // generate property assigns.
@@ -623,61 +666,119 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         .map(|c| {
             c.iter()
                 .map(|p| {
-                    let p = &p.ident;
                     wgt_properties
-                        .get(&parse_quote! {#p})
-                        .map(|(id, cfg)| (id.to_token_stream(), cfg.clone()))
-                        .unwrap_or_else(|| (quote! { std::unreachable!() }, quote!()))
+                        .get({
+                            let ident = &p.ident;
+                            &parse_quote!(#ident)
+                        })
+                        .cloned()
+                        .unwrap_or_else(|| (None, None, quote!()))
                 })
                 .collect()
         })
         .collect();
 
     // generate capture_only asserts.
-    for (p_mod, _, p_name, _, cfg, _, p_span, _) in &prop_set_calls {
+    for (p_mod, _, p_name, _, p_cfg, cfg, _, p_span, _) in &prop_set_calls {
         let capture_only_error =
             format!("property `{p_name}` cannot be set because it is capture-only, but is not captured by the widget",);
-        property_set_calls.extend(quote_spanned! {*p_span=>
+        let assert = quote_spanned! {*p_span=>
             #cfg
             #p_mod::code_gen!{
                 if capture_only =>  std::compile_error!{#capture_only_error}
             }
-        })
+        };
+        if let Some(p_cfg) = p_cfg {
+            property_set_calls.extend(quote! {
+                #module::#p_cfg! {
+                    #assert
+                }
+            })
+        } else {
+            property_set_calls.extend(assert)
+        };
     }
+
+    let make_cap_idents = |(ident, p_cfg, cfg): &(Option<Ident>, Option<Ident>, TokenStream)| {
+        if let Some(ident) = ident {
+            let ident = quote! {
+                #cfg
+                #ident
+            };
+            if let Some(p_cfg) = p_cfg {
+                quote! {
+                    #module::#p_cfg! {
+                        #ident
+                    }
+                }
+            } else {
+                ident
+            }
+        } else {
+            quote! { std::unreachable!() }
+        }
+    };
+    let make_cap_user_set = |(ident, p_cfg, cfg): &(Option<Ident>, Option<Ident>, TokenStream)| {
+        if let Some(ident) = ident {
+            let user_set = overriden_properties.contains(&ident);
+            let user_set = quote! {
+                #cfg
+                #user_set
+            };
+            if let Some(p_cfg) = p_cfg {
+                quote! {
+                    #module::#p_cfg! {
+                        #user_set
+                    }
+                }
+            } else {
+                user_set
+            }
+        } else {
+            quote! { std::unreachable!() }
+        }
+    };
 
     let settable_priorities = crate::property::Priority::all_settable();
     for (i, priority) in settable_priorities.iter().enumerate() {
-        for (p_mod, p_var_ident, p_name, source_loc, cfg, user_assigned, p_span, val_span) in prop_set_calls.iter().rev() {
+        for (p_mod, p_var_ident, p_name, source_loc, p_cfg, cfg, user_assigned, p_span, val_span) in prop_set_calls.iter().rev() {
             // __set @ value span
 
             let set = ident_spanned!(*val_span=> "__set");
-            property_set_calls.extend(quote_spanned! {*p_span=>
+            let set_call = quote_spanned! {*p_span=>
                 #cfg
                 #p_mod::code_gen! {
                     set #priority, #node__, #p_mod, #p_var_ident, #p_name, #source_loc, #user_assigned, #set
                 }
-            });
+            };
+            if let Some(p_cfg) = p_cfg {
+                property_set_calls.extend(quote! {
+                    #module::#p_cfg! {
+                        #set_call
+                    }
+                });
+            } else {
+                property_set_calls.extend(set_call);
+            }
         }
 
         let caps_i = i + 1;
         let caps = &caps[caps_i];
-        let cap_idents = caps.iter().map(|(i, _)| i);
-        let cap_cfgs: Vec<_> = caps.iter().map(|(_, c)| c).collect();
+        let cap_idents: Vec<_> = caps.iter().map(make_cap_idents).collect();
+        let cap_user_set: Vec<_> = caps.iter().map(make_cap_user_set).collect();
 
         let new_fn_ident = ident!("__new_{}_inspect", priority);
-        let cap_user_set = widget_data.new_captures[caps_i]
-            .iter()
-            .map(|c| overriden_properties.contains(&c.ident));
-        let cap_idents2 = cap_idents.clone();
+        let cap_idents2 = cap_idents.iter();
+
         property_set_calls.extend(quote! { #module::__core::core_cfg_inspector! {
             #[allow(unreachable_code)]
-            let #node__ = #module::#new_fn_ident(#node__, #(#cap_cfgs #cap_idents2,)* #(#cap_cfgs #cap_user_set),*);
+            let #node__ = #module::#new_fn_ident(#node__, #(#cap_idents2,)* #(#cap_user_set),*);
         }});
 
         let new_fn_ident = ident!("__new_{}", priority);
         property_set_calls.extend(quote! { #module::__core::core_cfg_inspector! {@NOT
             #[allow(unreachable_code)]
-            let #node__ = #module::#new_fn_ident(#node__, #(#cap_cfgs #cap_idents),*);
+            let #node__ = #module::#new_fn_ident(#node__, #(#cap_idents),*);
         }});
     }
     let property_set_calls = property_set_calls;
@@ -685,7 +786,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     // apply the whens for each property.
     for (property, assigns) in when_assigns {
         let property_path = match property.get_ident() {
-            Some(maybe_inherited) if inherited_properties.contains(maybe_inherited) => {
+            Some(maybe_inherited) if inherited_properties.contains_key(maybe_inherited) => {
                 let p_ident = ident!("__p_{maybe_inherited}");
                 quote! { #module::#p_ident }
             }
@@ -695,17 +796,28 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         // collect assign items.
         let mut init_members = TokenStream::default();
         let mut conditions = Vec::with_capacity(assigns.len());
-        for (w_cfg, condition_ident, value_ident, value) in assigns {
+        for (p_cfg, w_cfg, condition_ident, value_ident, value) in assigns {
             if !util::token_stream_eq(value_ident.to_token_stream(), value.clone()) {
-                init_members.extend(quote! {
+                let assign = quote! {
                     #[allow(non_snake_case)]
                     #w_cfg
                     let #value_ident;
                     #w_cfg {
                         #value_ident = #value;
                     }
-                });
+                };
+
+                if let Some(p_cfg) = p_cfg {
+                    init_members.extend(quote! {
+                        #module::#p_cfg! {
+                            #assign
+                        }
+                    });
+                } else {
+                    init_members.extend(assign);
+                }
             }
+
             conditions.push(quote! {
                 #w_cfg
                 #[allow(non_snake_case)]
@@ -715,10 +827,11 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         // later conditions have priority.
         conditions.reverse();
 
-        let (default, cfg) = wgt_properties
+        let (default, p_cfg, cfg) = wgt_properties
             .get(&property)
             .unwrap_or_else(|| non_user_error!("property `{}` (introduced in when?) not found", quote!(#property)));
-        when_inits.extend(quote! {
+
+        let when_init = quote! {
             #property_path::code_gen! { if allowed_in_when=>
                 #cfg
                 #[allow(non_snake_case)]
@@ -732,51 +845,49 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                     }
                 };
             }
-        });
+        };
+        if let Some(p_cfg) = p_cfg {
+            when_inits.extend(quote! {
+                #module::#p_cfg! {
+                    #when_init
+                }
+            });
+        } else {
+            when_inits.extend(when_init);
+        }
     }
 
     // Generate new function calls:
-
-    let new_child_caps = &caps[0];
-    let ncc_idents = new_child_caps.iter().map(|(i, _)| i);
-    let ncc_cfgs: Vec<_> = new_child_caps.iter().map(|(_, c)| c).collect();
-
-    let new_caps = caps.last().unwrap();
-    let nc_idents = new_caps.iter().map(|(i, _)| i);
-    let nc_cfgs: Vec<_> = new_caps.iter().map(|(_, c)| c).collect();
-
     let new_child_call = {
-        let ncc_idents2 = ncc_idents.clone();
+        let new_child_caps = &caps[0];
+        let ncc_idents: Vec<_> = new_child_caps.iter().map(make_cap_idents).collect();
+        let ncc_idents2 = ncc_idents.iter();
+        let ncc_cap_user_set: Vec<_> = new_child_caps.iter().map(make_cap_user_set).collect();
 
-        let cap_user_set = widget_data.new_captures[0].iter().map(|c| overriden_properties.contains(&c.ident));
         quote! {
             #module::__core::core_cfg_inspector! {
                 #[allow(unreachable_code)]
-                let node__ = #module::__new_child_inspect(#(#ncc_cfgs #ncc_idents2,)* #(#ncc_cfgs #cap_user_set),*);
+                let node__ = #module::__new_child_inspect(#(#ncc_idents2,)* #(#ncc_cap_user_set),*);
             }
             #module::__core::core_cfg_inspector! {@NOT
                 #[allow(unreachable_code)]
-                let node__ = #module::__new_child(#(#ncc_cfgs #ncc_idents),*);
+                let node__ = #module::__new_child(#(#ncc_idents),*);
             }
         }
     };
 
     let new_call = {
-        let nc_idens2 = nc_idents.clone();
-
-        let cap_user_set = widget_data
-            .new_captures
-            .last()
-            .unwrap()
-            .iter()
-            .map(|c| overriden_properties.contains(&c.ident));
+        let new_caps = caps.last().unwrap();
+        let nc_idents: Vec<_> = new_caps.iter().map(make_cap_idents).collect();
+        let nc_idents2 = nc_idents.iter();
+        let nc_cap_user_set: Vec<_> = new_caps.iter().map(make_cap_user_set).collect();
         quote! {
             #module::__core::core_cfg_inspector! {
                 #[allow(unreachable_code)]
                 #module::__new_inspect(
                     node__,
-                    #(#nc_cfgs #nc_idens2,)*
-                    #(#nc_cfgs #cap_user_set,)*
+                    #(#nc_idents2,)*
+                    #(#nc_cap_user_set,)*
                     #module::__widget_name(),
                     when_infos__,
                     #module::__decl_location(),
@@ -785,7 +896,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             }
             #module::__core::core_cfg_inspector! {@NOT
                 #[allow(unreachable_code)]
-                #module::__new(node__, #(#nc_cfgs #nc_idents),*)
+                #module::__new(node__, #(#nc_idents),*)
             }
         }
     };
@@ -847,7 +958,7 @@ impl Parse for WidgetData {
 pub struct BuiltProperty {
     pub ident: Ident,
     pub docs: TokenStream,
-    pub cfg: TokenStream,
+    pub cfg: bool,
     pub default: bool,
     pub required: bool,
 }
@@ -859,7 +970,10 @@ impl Parse for BuiltProperty {
         let r = Ok(BuiltProperty {
             ident,
             docs: non_user_braced!(&input, "docs").parse().unwrap(),
-            cfg: non_user_braced!(&input, "cfg").parse().unwrap(),
+            cfg: non_user_braced!(&input, "cfg")
+                .parse::<LitBool>()
+                .unwrap_or_else(|e| non_user_error!(e))
+                .value,
             default: non_user_braced!(&input, "default")
                 .parse::<LitBool>()
                 .unwrap_or_else(|e| non_user_error!(e))
@@ -876,7 +990,7 @@ impl Parse for BuiltProperty {
 #[derive(Clone)]
 pub struct PropertyCapture {
     pub ident: Ident,
-    pub cfg: TokenStream,
+    pub cfg: bool,
 }
 impl Parse for PropertyCapture {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
@@ -884,7 +998,10 @@ impl Parse for PropertyCapture {
         let input = non_user_braced!(input);
         let r = Ok(PropertyCapture {
             ident,
-            cfg: non_user_braced!(&input, "cfg").parse().unwrap(),
+            cfg: non_user_braced!(&input, "cfg")
+                .parse::<LitBool>()
+                .unwrap_or_else(|e| non_user_error!(e))
+                .value,
         });
         r
     }
@@ -894,7 +1011,7 @@ pub struct BuiltWhen {
     pub ident: Ident,
     pub dbg_ident: TokenStream,
     pub docs: TokenStream,
-    pub cfg: TokenStream,
+    pub cfg: bool,
     pub inputs: Vec<Ident>,
     pub assigns: Vec<BuiltWhenAssign>,
     pub expr_str: syn::LitStr,
@@ -908,7 +1025,10 @@ impl Parse for BuiltWhen {
             ident,
             dbg_ident: non_user_braced!(&input, "dbg_ident").parse().unwrap(),
             docs: non_user_braced!(&input, "docs").parse().unwrap(),
-            cfg: non_user_braced!(&input, "cfg").parse().unwrap(),
+            cfg: non_user_braced!(&input, "cfg")
+                .parse::<LitBool>()
+                .unwrap_or_else(|e| non_user_error!(e))
+                .value,
             inputs: parse_all(&non_user_braced!(&input, "inputs")).unwrap_or_else(|e| non_user_error!(e)),
             assigns: parse_all(&non_user_braced!(&input, "assigns")).unwrap_or_else(|e| non_user_error!(e)),
             expr_str: non_user_braced!(&input, "expr_str").parse().unwrap_or_else(|e| non_user_error!(e)),
@@ -919,7 +1039,7 @@ impl Parse for BuiltWhen {
 
 pub struct BuiltWhenAssign {
     pub property: Ident,
-    pub cfg: TokenStream,
+    pub cfg: bool,
     pub value_fn: Ident,
 }
 impl Parse for BuiltWhenAssign {
@@ -928,7 +1048,10 @@ impl Parse for BuiltWhenAssign {
         let input = non_user_braced!(input);
         let r = Ok(BuiltWhenAssign {
             property,
-            cfg: non_user_braced!(&input, "cfg").parse().unwrap(),
+            cfg: non_user_braced!(&input, "cfg")
+                .parse::<LitBool>()
+                .unwrap_or_else(|e| non_user_error!(e))
+                .value,
             value_fn: non_user_braced!(&input, "value_fn").parse().unwrap_or_else(|e| non_user_error!(e)),
         });
         r
