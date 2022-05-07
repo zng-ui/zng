@@ -537,6 +537,7 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
                     let loc_ident = ident!("__loc_{p_ident}");
                     property_defaults.extend(quote_spanned! {p_ident.span()=>
                         #crate_core::core_cfg_inspector! {
+                            #cfg
                             #[doc(hidden)]
                             pub fn #loc_ident() -> #crate_core::inspector::SourceLocation {
                                 #crate_core::inspector::source_location!()

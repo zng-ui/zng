@@ -343,7 +343,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         let p_ident = ident!("__p_{}", ip.ident);
 
         if *cfg {
-            let cfg_ident = ident!("__cfg_{p_ident}");
+            let cfg_ident = ident!("__cfg_{}", ip.ident);
 
             property_reexports.extend(quote! {
                 #path::#cfg_ident! {
@@ -376,7 +376,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             };
 
             if *cfg {
-                let cfg_ident = ident!("__cfg_{p_ident}");
+                let cfg_ident = ident!("__cfg_{}", ip.ident);
 
                 property_reexports.extend(quote! {
                     #path::#cfg_ident! {
@@ -458,7 +458,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                     // re-export inherited property.
 
                     if *cfg {
-                        let cfg_ident = ident!("__cfg_{p_ident}");
+                        let cfg_ident = ident!("__cfg_{}", p.ident);
                         property_reexports.extend(quote! {
                             #inherited_source::#cfg_ident! {
                                 #[doc(hidden)]
@@ -481,8 +481,8 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                     let inherited_ident = ident!("__p_{maybe_inherited}");
 
                     if *cfg {
-                        let cfg_ident = ident!("__cfg_{inherited_ident}");
-                        let new_cfg_ident = ident!("__cfg_{p_ident}");
+                        let cfg_ident = ident!("__cfg_{maybe_inherited}");
+                        let new_cfg_ident = ident!("__cfg_{}", p.ident);
                         property_reexports.extend(quote! {
                             #inherited_source::#cfg_ident! {
                                 #[doc(hidden)]
@@ -504,7 +504,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         // not inherited.
 
         if *cfg {
-            let cfg_ident = ident!("__cfg_{p_ident}");
+            let cfg_ident = ident!("__cfg_{}", p.ident);
             property_reexports.extend(quote! {
                 self::#cfg_ident! {
                     #[doc(hidden)]

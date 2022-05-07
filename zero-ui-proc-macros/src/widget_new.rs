@@ -294,7 +294,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
         let ident = iw.ident;
         let dbg_ident = iw.dbg_ident;
-        let cfg = if iw.cfg { Some(ident!("__cfgw_{ident}")) } else { None };
+        let cfg = if iw.cfg { Some(ident!("__cfg_{ident}")) } else { None };
 
         // arg variables for each input, they should all have a default value or be required (already deactivated if any unset).
         let len = iw.inputs.len();
@@ -347,7 +347,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             let value = quote! { #module::#value_fn() };
             let p_whens = when_assigns.entry(parse_quote! { #property }).or_default();
 
-            let cfg = if cfg { Some(ident!("__cfg_wv_{value_fn}")) } else { None };
+            let cfg = if cfg { Some(ident!("__cfg_{value_fn}")) } else { None };
 
             p_whens.push((cfg, TokenStream::new(), c_ident.clone(), value_fn, value));
         }
