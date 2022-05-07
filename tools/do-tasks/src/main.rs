@@ -359,7 +359,26 @@ fn expand(mut args: Vec<&str>) {
         }
     } else if take_flag(&mut args, &["-e", "--example"]) {
         TaskInfo::get().stdout_dump = "dump.rs";
-        cmd("cargo", &["expand", "--package", "examples", "--example"], &args);
+
+        if take_flag(&mut args, &["-r", "--raw"]) {
+            cmd(
+                "cargo",
+                &[
+                    "+nightly",
+                    "rustc",
+                    "--profile=check",
+                    "--package",
+                    "examples",
+                    "--example",
+                    args.first().unwrap_or(&""),
+                    "--",
+                    "-Zunpretty=expanded",
+                ],
+                &[],
+            )
+        } else {
+            cmd("cargo", &["expand", "--package", "examples", "--example"], &args);
+        }
     } else {
         TaskInfo::get().stdout_dump = "dump.rs";
         if !args.contains(&"-p") && !args.contains(&"--package") {
