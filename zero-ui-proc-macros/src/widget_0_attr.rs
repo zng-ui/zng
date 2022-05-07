@@ -727,7 +727,7 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
                         pub use #crate_core::core_cfg_ok as #cfg_ident;
                         #not_cfg
                         #[doc(hidden)]
-                        pub use #crate_core::core_cfg_ok as #cfg_ident;
+                        pub use #crate_core::core_cfg_ignore as #cfg_ident;
                     })
                 }
             } else {
