@@ -16,4 +16,7 @@
         "json",
         "rust"
     ],
+    "explorer.fileNesting.patterns": {
+        "*.rs": "${capture}.stderr"
+    },
 }
