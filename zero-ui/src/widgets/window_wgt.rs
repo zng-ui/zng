@@ -218,7 +218,7 @@ pub mod window {
         /// If the Inspector can be opened for this window.
         ///
         /// The default value is `true`, but only applies if built with the `inspector` feature.
-        // #[cfg(inspector)] // !!: TODO
+        #[cfg(inspector)]
         can_inspect(impl IntoVar<bool>) = true;
 
         /// Monitor used for calculating the [`start_position`], [`position`] and [`size`] of the window.

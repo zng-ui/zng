@@ -2,10 +2,9 @@
 
 Proc-macros are mostly implemented, there are some improvements we can make:
 
+* Add doc(cfg) badges to properties.
 * Improve property `allowed_in_when` validation for generics, generate a `new` like call for each
   argument, instead of all at once.
-* Support doc(cfg).
-* Support cfg in captures.
 * Allow "property as new_name" syntax in widget_new? Can be used for things like double fancy borders.
 * Use `get_` prefix for properties that only return a value, can teach as inverse of normal accessor methods where setting uses the `set_` prefix
 and getting only uses the name directly.
@@ -43,6 +42,7 @@ pub mod foo {
 
 # Difficult
 
+* Improve `cfg` to support declaring multiple properties with the same name, but different cfg.
 * Figure out a way to enable auto-complete and hover tooltip inside macro code?
 * Pre-build to wasm: 
     Need $crate support, or to be able to read cargo.toml from wasm,
