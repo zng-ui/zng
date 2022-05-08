@@ -232,16 +232,20 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
             }
 
             // output type, for `new` is a copy, for others is `impl UiNode` to validate the type.
-            let output = if *priority == FnPriority::New {
-                fn_.sig.output.to_token_stream()
+            let output;
+            let out_ident;
+            if *priority == FnPriority::New {
+                output = fn_.sig.output.to_token_stream();
+                out_ident = ident!("out");// not used
             } else {
                 let out_span = match &fn_.sig.output {
                     syn::ReturnType::Default => fn_.block.span(),
                     syn::ReturnType::Type(_, t) => t.span(),
                 };
-                quote_spanned! {out_span=>
+                output = quote_spanned! {out_span=>
                     -> impl #crate_core::UiNode
-                }
+                };
+                out_ident = ident_spanned!(out_span=> "out");
             };
 
             // declare `__new_*`
@@ -256,11 +260,11 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
                     #[allow(clippy::too_many_arguments)]
                     pub fn #new__<#(#cfgs #generic_tys: #prop_idents::Args),*>(#child_decl #(#cfgs #spanned_inputs : #generic_tys),*) #output {
                         // rustc gets confused about lifetimes if we call cfg_boxed directly
-                        fn box_fix(node: impl #crate_core::UiNode) -> impl #crate_core::UiNode {
+                        fn box_fix(node: impl #crate_core::UiNode)#output {
                             #crate_core::UiNode::cfg_boxed(node)
                         }
-                        let out = self::#new_id(#child_pass #(#spanned_unwrap),*);
-                        box_fix(out)
+                        let #out_ident = self::#new_id(#child_pass #(#spanned_unwrap),*);
+                        box_fix(#out_ident)
                     }
                 });
             } else {
