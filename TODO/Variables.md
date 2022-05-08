@@ -1,5 +1,12 @@
 # Variables TODO
 
+* `Var::chase`, a transition animation that can update its final value, reset time.
+
+* Changes to enable [# Widget Property Transition]:
+    - "Easing-map", a variable that eases between changes in a source variable, like a map that clones and transitions.
+    - "Ease-switch", a `switch_var!` that eases between changes.
+    - Problem: dependent variables lazy update on read, with access only to `VarsRead`.
+
 # Animation
 
 * `Var::repeat`.
@@ -122,6 +129,40 @@ But its so generic, how do we have any external control over it:
 # Widget Property Transition
 
 * How do we define a transition that gets applied to an widget's property?
+* Can we define "extension" macros that apply automatically on the property final variable.
+    - Actually we don't have a var that "maps-clone-easing", the `EasingVar` must be assigned to work.
+    - Wait until we have an "easing-map" or at least "easing-switch".
+
+```rust
+// in widget-decl
+properties! {
+    #[ease(150.ms(), easing::linear)]// ease applied in the when generated switch_var!.
+    background_color = colors::RED;
+
+    #[ease(150.ms(), easing::linear)]// ease applied to all switch_vars of this property, (error is not all transitionable).
+    margin = {
+        #[ease(1.secs(), easing::expo)] // ease applied just to this witch_var!, replaces the outer one.
+        top: 0,
+        right: 0,
+        bottom: 0,
+        left: 0,
+    }
+
+    when self.is_hovered { // properties switch with ease defined on-top.
+        background_color = colors::GREEN;
+        margin = 10;
+    }
+}
+
+// in widget-new
+foo! {
+    #[ease(300.ms(), easing::linear)] // overwrites the ease for just this instance.
+    background_color = colors::RED;
+
+    #[no_ease] // disables ease forjust this instance.
+    margin = 0;
+}
+```
 
 # Futures
 
