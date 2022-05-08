@@ -43,7 +43,7 @@ fn example(vars: &Vars) -> impl Widget {
     //     t = now;
     // }).perm();
 
-    use easing::EasingModifierFn::*;
+    use animation::EasingModifierFn::*;
     let easing_mod = var(EaseOut);
 
     v_stack! {
@@ -123,14 +123,14 @@ fn ease_btn(
     color: &RcVar<Rgba>,
     name: impl Into<Text>,
     easing: impl Fn(EasingTime) -> EasingStep + Copy + 'static,
-    easing_mod: &RcVar<easing::EasingModifierFn>,
+    easing_mod: &RcVar<animation::EasingModifierFn>,
 ) -> impl Widget {
     let in_plot = plot(easing);
     let out_plot = plot(move |t| easing::ease_out(easing, t));
     let in_out_plot = plot(move |t| easing::ease_in_out(easing, t));
     let out_in_plot = plot(move |t| easing::ease_out_in(easing, t));
 
-    use easing::EasingModifierFn::*;
+    use animation::EasingModifierFn::*;
 
     button! {
         content = v_stack! {
@@ -165,7 +165,7 @@ fn plot(easing: impl Fn(EasingTime) -> EasingStep + 'static) -> ImageSource {
         RenderMode::Software,
         clone_move!(size, |_| {
             let mut items = widget_vec![];
-            let color_t = easing::Transition::new(FROM_COLOR, TO_COLOR);
+            let color_t = animation::Transition::new(FROM_COLOR, TO_COLOR);
             let fps_f = FPS as f32;
             for i in 0..=FPS {
                 let x_fct = (i as f32 / fps_f).fct();
@@ -211,7 +211,7 @@ fn plot(easing: impl Fn(EasingTime) -> EasingStep + 'static) -> ImageSource {
     )
 }
 
-fn easing_mod_btn(easing_mod: &RcVar<easing::EasingModifierFn>, value: easing::EasingModifierFn) -> impl Widget {
+fn easing_mod_btn(easing_mod: &RcVar<animation::EasingModifierFn>, value: animation::EasingModifierFn) -> impl Widget {
     button! {
         content = text(value.to_text());
         on_click = hn!(easing_mod, |ctx, _| {

@@ -2,7 +2,7 @@
 use retain_mut::RetainMut;
 
 use super::{
-    easing::{AnimationArgs, AnimationHandle, WeakAnimationHandle},
+    animation::{AnimationArgs, AnimationHandle, WeakAnimationHandle},
     *,
 };
 use crate::{

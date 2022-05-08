@@ -6,7 +6,7 @@ use std::{
 use crate::crate_util::RunOnDrop;
 use crate::widget_info::UpdateSlot;
 
-use super::{easing::WeakAnimationHandle, *};
+use super::{animation::WeakAnimationHandle, *};
 
 /// A [`Var`] that is a [`Rc`] pointer to its value.
 pub struct RcVar<T: VarValue>(Rc<Data<T>>);

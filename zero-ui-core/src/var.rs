@@ -48,7 +48,11 @@ mod rc;
 mod switch;
 mod when;
 
-pub mod easing;
+pub mod animation;
+
+pub use animation::easing;
+
+use animation::{AnimationHandle, Transitionable};
 
 /// Variable types.
 ///
@@ -797,13 +801,13 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + any::AnyVar + crate::private::S
     /// [`always_read_only`]: Var::always_read_only
     /// [`actual_var`]: Var::actual_var
     /// [`is_contextual`]: Var::is_contextual
-    /// [`AnimationArgs`]: easing::AnimationArgs
+    /// [`AnimationArgs`]: animation::AnimationArgs
     fn animate<Vw, D, S, A>(&self, vars: &Vw, start: S, mut animate: A) -> AnimationHandle
     where
         Vw: WithVars,
         D: 'static,
         S: FnOnce(&T) -> Option<D>,
-        A: FnMut(&easing::AnimationArgs, &T, &mut D) -> Option<T> + 'static,
+        A: FnMut(&animation::AnimationArgs, &T, &mut D) -> Option<T> + 'static,
     {
         if self.always_read_only() {
             AnimationHandle::dummy()
@@ -853,7 +857,7 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + any::AnyVar + crate::private::S
         let mut prev_step = 0.fct();
         self.animate(
             vars,
-            |value| Some(easing::Transition::new(value.clone(), new_value.into())),
+            |value| Some(animation::Transition::new(value.clone(), new_value.into())),
             move |animation, _, transition| {
                 let step = easing(animation.elapsed_stop(duration));
                 if step != prev_step {
@@ -880,7 +884,7 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + any::AnyVar + crate::private::S
         let mut prev_step = 0.fct();
         self.animate(
             vars,
-            |value| Some(easing::Transition::new(value.clone(), new_value.into())),
+            |value| Some(animation::Transition::new(value.clone(), new_value.into())),
             move |animation, value, transition| {
                 let step = easing(animation.elapsed_stop(duration));
                 if step != prev_step {
@@ -910,7 +914,7 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + any::AnyVar + crate::private::S
         let mut prev_step = 999.fct(); // ensure that we set for `0.fct()`
         self.animate(
             vars,
-            |_| Some(easing::Transition::new(start.into(), end.into())),
+            |_| Some(animation::Transition::new(start.into(), end.into())),
             move |animation, _, transition| {
                 let step = easing(animation.elapsed_stop(duration));
                 if step != prev_step {
@@ -938,7 +942,7 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + any::AnyVar + crate::private::S
         let mut prev_step = 999.fct(); // ensure that we set for `0.fct()`
         self.animate(
             vars,
-            |_| Some(easing::Transition::new(start.into(), end.into())),
+            |_| Some(animation::Transition::new(start.into(), end.into())),
             move |animation, value, transition| {
                 let step = easing(animation.elapsed_stop(duration));
                 if step != prev_step {
@@ -973,7 +977,7 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + any::AnyVar + crate::private::S
             vars,
             |value| {
                 keys.insert(0, (keys[0].0.min(0.fct()), value.clone()));
-                easing::TransitionKeyed::new(keys)
+                animation::TransitionKeyed::new(keys)
             },
             move |animation, _, transition| {
                 let step = easing(animation.elapsed_stop(duration));
@@ -1001,7 +1005,7 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + any::AnyVar + crate::private::S
         let mut prev_step = 0.fct();
         self.animate(
             vars,
-            |_| easing::TransitionKeyed::new(keys),
+            |_| animation::TransitionKeyed::new(keys),
             move |animation, _, transition| {
                 let step = easing(animation.elapsed_stop(duration));
                 if step != prev_step {
@@ -1155,13 +1159,13 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + any::AnyVar + crate::private::S
     /// Redirects calls to [`Var::set`] to [`Var::ease`] and [`Var::set_ne`] to [`Var::ease_ne`], calls to the
     /// animation methods are not affected by the var easing.
 
-    fn easing<F>(self, duration: Duration, easing: F) -> easing::EasingVar<T, Self, F>
+    fn easing<F>(self, duration: Duration, easing: F) -> animation::EasingVar<T, Self, F>
     where
         F: Fn(EasingTime) -> EasingStep + 'static,
 
         T: Transitionable,
     {
-        easing::EasingVar::new(self, duration, easing)
+        animation::EasingVar::new(self, duration, easing)
     }
 
     /// Box this var.
@@ -2302,8 +2306,6 @@ macro_rules! impl_from_and_into_var {
 }
 #[doc(inline)]
 pub use crate::impl_from_and_into_var;
-
-use self::easing::{AnimationHandle, Transitionable};
 
 #[doc(hidden)]
 #[macro_export]

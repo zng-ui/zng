@@ -933,7 +933,10 @@ pub mod prelude {
             ByteUnits, EasingStep, EasingTime, FactorUnits, Length, LengthUnits, Line, LineFromTuplesBuilder, LineHeight, Point, Px,
             PxPoint, PxSize, Rect, RectFromTuplesBuilder, SideOffsets, Size, TimeUnits, Transform, Vector,
         },
-        var::{easing, merge_var, state_var, switch_var, var, var_default, var_from, IntoVar, RcVar, Var, VarReceiver, VarSender, Vars},
+        var::{
+            animation, easing, merge_var, state_var, switch_var, var, var_default, var_from, IntoVar, RcVar, Var, VarReceiver, VarSender,
+            Vars,
+        },
         widget_base::{HitTestMode, Visibility},
         widget_vec, widgets,
         window::{

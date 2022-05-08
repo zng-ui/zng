@@ -7,7 +7,7 @@ use once_cell::unsync::OnceCell;
 
 use crate::widget_info::UpdateSlot;
 
-use super::{easing::WeakAnimationHandle, *};
+use super::{animation::WeakAnimationHandle, *};
 
 /// A clone-on-write variable.
 ///
