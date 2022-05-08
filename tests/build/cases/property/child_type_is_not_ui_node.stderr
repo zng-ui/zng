@@ -1,14 +1,16 @@
 error[E0277]: the trait bound `NotUiNode: UiNode` is not satisfied
- --> $DIR/child_type_is_not_ui_node.rs:6:29
+ --> cases/property/child_type_is_not_ui_node.rs:6:29
   |
 6 | pub fn invalid_child(child: NotUiNode, input: bool) -> impl UiNode {
   |                             ^^^^^^^^^ the trait `UiNode` is not implemented for `NotUiNode`
 
 error[E0308]: mismatched types
- --> $DIR/child_type_is_not_ui_node.rs:6:29
+ --> cases/property/child_type_is_not_ui_node.rs:6:29
   |
+5 | #[property(context, allowed_in_when = false)]
+  | --------------------------------------------- the found opaque type
 6 | pub fn invalid_child(child: NotUiNode, input: bool) -> impl UiNode {
-  |                             ^^^^^^^^^ expected struct `NotUiNode`, found type parameter `impl zero_ui::core::UiNode`
+  |                             ^^^^^^^^^ expected struct `NotUiNode`, found opaque type
   |
-  = note:      expected struct `NotUiNode`
-          found type parameter `impl zero_ui::core::UiNode`
+  = note:   expected struct `NotUiNode`
+          found opaque type `impl UiNode`
