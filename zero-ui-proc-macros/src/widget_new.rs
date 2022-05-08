@@ -807,7 +807,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                     }
                 };
 
-                if let Some(p_cfg) = p_cfg {
+                if let Some(p_cfg) = &p_cfg {
                     init_members.extend(quote! {
                         #module::#p_cfg! {
                             #assign
@@ -818,10 +818,20 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                 }
             }
 
+            let p_cfg = if let Some(p_cfg) = p_cfg {
+                quote! {
+                    use(#module::#p_cfg)
+                }
+            } else {
+                quote! {
+                    use(#module::__core::core_cfg_ok)
+                }
+            };
+
             conditions.push(quote! {
                 #w_cfg
                 #[allow(non_snake_case)]
-                #condition_ident => #value_ident,
+                #p_cfg #condition_ident => #value_ident,
             });
         }
         // later conditions have priority.

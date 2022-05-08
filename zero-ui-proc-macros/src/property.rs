@@ -1501,7 +1501,7 @@ mod output {
                     let #arg = __when_var! {
                         $(
                             $(#[$meta])*
-                            std::clone::Clone::clone(&$condition) => $args,
+                            use($cfg_macro) std::clone::Clone::clone(&$condition) => $args,
                         )*
                         _ => $default_args,
                     };
@@ -1557,15 +1557,17 @@ mod output {
                     (when $property_path:path {
                         $(
                             $(#[$meta:meta])*
-                            $condition:ident => $args:ident,
+                            use($cfg_macro:path) $condition:ident => $args:ident,
                         )+
                         _ => $default_args:ident,
                     }) => {
                         {
                             use $property_path::{ArgsImpl as __ArgsImpl, Args as __Args, when_var as __when_var};
                             $(
-                                $(#[$meta])*
-                                let $args = __Args::unwrap($args);
+                                $cfg_macro! {
+                                    $(#[$meta])*
+                                    let $args = __Args::unwrap($args);
+                                }
                             )+
                             let $default_args = __Args::unwrap($default_args);
                             #whens

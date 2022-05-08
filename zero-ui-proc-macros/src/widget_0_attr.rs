@@ -931,7 +931,7 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
 
             #[doc(hidden)]
             pub mod __core {
-                pub use #crate_core::{UiNode, BoxedUiNode, widget_inherit, widget_new, var, core_cfg_inspector};
+                pub use #crate_core::{UiNode, BoxedUiNode, widget_inherit, widget_new, var, core_cfg_inspector, core_cfg_ok};
 
                 #crate_core::core_cfg_inspector! {
                     #[doc(hidden)]

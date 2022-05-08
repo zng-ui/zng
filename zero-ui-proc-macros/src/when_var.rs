@@ -1,7 +1,5 @@
-//! This macro can almost be implemented using macro_rules!, we only need a proc-macro because
-//! of the ambiguity of parsing outer attributes before expressions.
-
 use syn::{
+    parenthesized,
     parse::{Parse, ParseStream},
     parse_macro_input,
     punctuated::Punctuated,
@@ -12,11 +10,13 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let Input {
         vars_mod,
         conditions,
-        default: DefaultArm {
-            attrs: default_attrs,
-            value: default_value,
-            ..
-        },
+        default:
+            DefaultArm {
+                attrs: default_attrs,
+                use_macro: default_use_macro,
+                value: default_value,
+                ..
+            },
         ..
     } = parse_macro_input!(input as Input);
 
@@ -33,15 +33,39 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         }
     };
 
+    if let Some(m) = default_use_macro {
+        let m = m.path;
+        out = quote! {
+            #m! {
+                #out
+            }
+        };
+    }
+
     // add conditions
     for ConditionArm {
-        attrs, condition, value, ..
+        attrs,
+        use_macro,
+        condition,
+        value,
+        ..
     } in conditions
     {
-        out.extend(quote! {
+        let mut arm = quote! {
             #(#attrs)*
             let __b = __b.push(#condition, #value);
-        });
+        };
+
+        if let Some(m) = use_macro {
+            let m = m.path;
+            arm = quote! {
+                #m! {
+                    #arm
+                }
+            };
+        }
+
+        out.extend(arm);
     }
 
     // build
@@ -80,6 +104,7 @@ impl Parse for Input {
 
 struct ConditionArm {
     attrs: Vec<Attribute>,
+    use_macro: Option<UseMacro>,
     condition: Expr,
     _fat_arrow_token: Token![=>],
     value: Expr,
@@ -88,6 +113,7 @@ impl Parse for ConditionArm {
     fn parse(input: ParseStream) -> syn::Result<Self> {
         Ok(ConditionArm {
             attrs: Attribute::parse_outer(input)?,
+            use_macro: if input.peek(Token![use]) { Some(input.parse()?) } else { None },
             condition: input.parse()?,
             _fat_arrow_token: input.parse()?,
             value: input.parse()?,
@@ -97,6 +123,7 @@ impl Parse for ConditionArm {
 
 struct DefaultArm {
     attrs: Vec<Attribute>,
+    use_macro: Option<UseMacro>,
     _wild_token: Token![_],
     _fat_arrow_token: Token![=>],
     value: Expr,
@@ -105,9 +132,22 @@ impl Parse for DefaultArm {
     fn parse(input: ParseStream) -> syn::Result<Self> {
         Ok(DefaultArm {
             attrs: Attribute::parse_outer(input)?,
+            use_macro: if input.peek(Token![use]) { Some(input.parse()?) } else { None },
             _wild_token: input.parse()?,
             _fat_arrow_token: input.parse()?,
             value: input.parse()?,
         })
+    }
+}
+
+struct UseMacro {
+    path: Path,
+}
+impl Parse for UseMacro {
+    fn parse(input: ParseStream) -> syn::Result<Self> {
+        let _: Token![use] = input.parse()?;
+        let inner;
+        let _ = parenthesized!(inner in input);
+        Ok(UseMacro { path: inner.parse()? })
     }
 }
