@@ -475,7 +475,7 @@ mod analysis {
         };
 
         let mut invalid_n = 0;
-        let mut invalid_idents = move || {
+        let mut invalid_idents = || {
             let next = ident!("_invalid{invalid_n}");
             invalid_n += 1;
             next
@@ -722,7 +722,7 @@ mod analysis {
         // This only applies if the property function is valid, is not capture-only, the child input is a simple `ident: impl UiNode`
         // and the return is also `impl UiNode`
         let mut actual_fn = None;
-        if !fn_and_errors_only && output_is_impl_node {
+        if !fn_and_errors_only && invalid_n == 0 && output_is_impl_node {
             if let Some(syn::FnArg::Typed(t)) = fn_.sig.inputs.first() {
                 if let syn::Pat::Ident(child_ident) = &*t.pat {
                     if is_impl_node(&t.ty) {
