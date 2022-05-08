@@ -1,8 +1,11 @@
 error[E0308]: mismatched types
- --> $DIR/new_fn_first_arg_not_impl_ui_node.rs:7:42
+ --> cases/widget/new_fn_first_arg_not_impl_ui_node.rs:7:42
   |
+3 | #[widget($crate::test_widget)]
+  | ------------------------------ the found opaque type
+...
 7 |     fn new(/* child: impl UiNode, */ id: WidgetId) {}
-  |                                          ^^^^^^^^ expected struct `WidgetId`, found type parameter `impl zero_ui::core::UiNode`
+  |                                          ^^^^^^^^ expected struct `WidgetId`, found opaque type
   |
-  = note:      expected struct `WidgetId`
-          found type parameter `impl zero_ui::core::UiNode`
+  = note:   expected struct `WidgetId`
+          found opaque type `impl UiNode`

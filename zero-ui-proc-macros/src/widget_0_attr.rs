@@ -228,7 +228,7 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
                     impl #crate_core::UiNode
                 };
                 child_decl = quote! { #child_ident: #child_ty, };
-                child_pass = quote! { box_fix(#child_ident), }
+                child_pass = quote_spanned! {span=> box_fix(#child_ident), }
             }
 
             // output type, for `new` is a copy, for others is `impl UiNode` to validate the type.
