@@ -4,144 +4,38 @@
 
 * Changes to enable [# Widget Property Transition]:
     - "Easing-map", a variable that eases between changes in a source variable, like a map that clones and transitions.
-    - "Ease-switch", a `switch_var!` that eases between changes.
+    - "Ease-switch", a `switch_var!` that eases between changes (probably just as good as an "easing-map").
     - Problem: dependent variables lazy update on read, with access only to `VarsRead`.
+        - Move animation stuff to `VarsRead`, give private access for variables to create animations in `VarsRead` contexts.
+    - Can call "easing-map" `chaser`
+        - `Var::chaser(&self, duration: Duration, easing: fn(EasingTime) -> EasingStep) -> ChaserVar<T>`
 
-# Animation
-
-* `Var::repeat`.
-
-```rust
-trait Var {
-    /// Create a function that applies a easing transition to this variable.
-    fn ease_fn<N, F>(&self, new_value: N, easing: F) -> Result<Box<dyn Fn(EasingStep)>, VarIsReadOnly>;
-}
-
-impl CompositeAnimation {
-    /// Add an animation that plays from `start` to `end` of the composite animation.
-    /// 
-    /// The `animation` closure is called with a normalized step [0..=1] when the composite
-    /// animation is in the [start..=end] range.
-    pub fn with(mut self, animation: Box<dyn Fn(EasingStep)>, start: Factor, end: Factor) -> Self {
-        todo!()
-    }
-
-    pub fn play(self, vars: &Vars, duration: Duration, easing: F) {
-        vars.animate(move |vars, args| {
-            let step = anim.elapsed_stop(duration);
-            for a in &self.animations {
-                if a.range.contains(step) {
-                    a.function(step - a.range.start)
-                }
-            }
-        })
-    }
-}
-```
-
-* How to Blend
-    - Can we just blend the EasingSteps?
-        - No, the easing function can set anything.
-    - How to cross-fade two values?
-        - Its just a `set_ease` of sorts, set_ease(output1, output2).
-        - Can we have a `Vars::with_blend(range)` animations inside get blended?
-            - Needs to affect the animation ID to have multiple at the same time.
-            - Better only support this in a composite animation?
-
-        - Need to annotate each animation fn too so the contextual blender knows how to cross-fade.
-            - Not if we only allow it in composite animation.
-
-```rust
-impl<T> Blender<T> {
-    /// Calls to `Var::modify` by animations in the blend range are redirect here.
-    pub fn push_modify(&mut self, modify: ModifyFn, weight: Factor) {
-        todo!()
-    }
-
-    /// During var apply updates.
-    pub fn apply(mut self, vars: &Vars) {
-        let value = self.var.get_clone(vars);
-
-        let mut values = Vec::with_capacity(self.modifies.len());
-        for (modify, weight) in self.modifies {
-            let mut value = value.clone();
-            if modify(&mut value) {
-                values.push((value, weight))
-            }
-        }
-
-        if !values.is_empty() {
-            let mut value = value;
-            for (value, weight) in values {
-
-            }
-
-            self.var.set(vars, value);
-        }
-    }
-}
-```
-
-## Storyboard/Sequencer
-
-A way to coordinate multiple animations together, most open design is to just use an async handler:
-
-```rust
-// like async_hn
-animation!(var1, var2, |ctx, args| {
-    ctx.wait(1.secs()).await;
-
-    println!("Startup delay");
-
-    let t = 2.secs();
-    var1.ease(&ctx, 10, t, easing::cubic);
-    var2.ease(&ctx, 10, t, easing::cubic);
-    ctx.wait(t).await;
-
-    println!("Waited same time, all variables finished animating");
-
-    var1.ease(&ctx, 10, 2.secs(), easing::linear);
-    var2.ease(&ctx, 10, 1.secs(), easing::linear);
-
-    task::all!(var1.wait_animation(&ctx), var2.wait_animation(&ctx)).await;
-
-    println!("Waited all animations, different times");
-})
-```
-
-Can encode repeats too:
-
-```rust
-animation!(var1, var2, |ctx, args| {
-    let mut next = 10;
-    loop {
-        var2.ease(&ctx, next, 500.ms(), easing::cubic).await;
-        next = if next == 10 { 0 } else { 10 };
-    }
-})
-```
-
-But its so generic, how do we have any external control over it:
-
-* There are multiple animations IDs here.
-* Possibility of blending multiple animations(with different weights) into one.
+* `Var::repeat` animation.
 
 # Widget Property Transition
 
 * How do we define a transition that gets applied to an widget's property?
-* Can we define "extension" macros that apply automatically on the property final variable.
-    - Actually we don't have a var that "maps-clone-easing", the `EasingVar` must be assigned to work.
-    - Wait until we have an "easing-map" or at least "easing-switch".
+    - Use a *fake* attribute, `#[ease(..)]`.
+* How do we apply the ease attribute?
+    - Use the `ChaserVar` on the `switch_var!` just before passing it to the property?
+    - This forces us to call `IntoVar` early, like we do for the Inspector instrumentation, can use the same type validation?
+
+
+## Transition Attribute
+
+Attribute that configures the transition of a property changed by `when`.
+
+### Usage
 
 ```rust
 // in widget-decl
 properties! {
-    #[ease(150.ms(), easing::linear)]// ease applied in the when generated switch_var!.
+    #[transition(150.ms(), easing::linear)]// ease applied in the when generated switch_var!.
     background_color = colors::RED;
 
-    #[ease(150.ms(), easing::linear)]// ease applied to all switch_vars of this property, (error is not all transitionable).
+    #[transition(150.ms(), easing::linear)]// ease applied to all switch_vars of this property, (error is not all transitionable).
     margin = {
-        #[ease(1.secs(), easing::expo)] // ease applied just to this witch_var!, replaces the outer one.
+        #[transition(1.secs(), easing::expo)] // ease applied just to this witch_var!, replaces the outer one.
         top: 0,
         right: 0,
         bottom: 0,
@@ -156,14 +50,38 @@ properties! {
 
 // in widget-new
 foo! {
-    #[ease(300.ms(), easing::linear)] // overwrites the ease for just this instance.
+    #[transition(300.ms(), easing::linear)] // overwrites the ease for just this instance.
     background_color = colors::RED;
 
-    #[no_ease] // disables ease forjust this instance.
+    #[no_transition] // disables ease forjust this instance.
     margin = 0;
 }
 ```
 
+### Name and Args
+
+* Is `ease` a good name?
+   - Maybe, but it expands to a `chaser` call, new users can get a bad intuition of `Var::ease` if they learn this attribute first.
+   - `#[chaser(..)]` is not good, its cool name in `Var` close to the other animation methods, but here its something new that is
+      not easy to guess controls animation.
+   - `#[transition(..)]` is a more general term, its the "CSS" term that everyone knows, and we do use the trait `Transitionable`.
+      - Slightly longer name, it does have a performance impact so maybe a full word is the Rust way.
+
+* Args are the same as `Var::chaser`.
+    - CSS has an extra "delay", investigate how this is implemented there, we could hack it with the easing curve, but it
+        is best to use the `sleep` feature available in the raw animation.
+    - Review other frameworks, not just CSS.
+
+
+## Storyboard/Sequencer
+
+A way to coordinate multiple animations together. Starting animations inside other animations already gives then all the same animation handle, need to implement some helpers.
+
+* Animation blending, that is when two animations overlap in time, one affects the value less the other more across the
+ overlap period. Not sure if this can be done automatically, maybe we need a sequencer builder that computes this stuff.
+
 # Futures
 
-* Variable futures don't use the waker context and don't provide any `subscriptions`, review how is this working in `WidgetTask` tasks.
+* Variable futures don't use the waker context and don't provide any `subscriptions`, review this.
+* Animation future does not wake once done and variables don't update also, causing it to hang until some other
+      app update.
