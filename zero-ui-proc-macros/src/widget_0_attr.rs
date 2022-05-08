@@ -236,7 +236,7 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
             let out_ident;
             if *priority == FnPriority::New {
                 output = fn_.sig.output.to_token_stream();
-                out_ident = ident!("out");// not used
+                out_ident = ident!("out"); // not used
             } else {
                 let out_span = match &fn_.sig.output {
                     syn::ReturnType::Default => fn_.block.span(),
