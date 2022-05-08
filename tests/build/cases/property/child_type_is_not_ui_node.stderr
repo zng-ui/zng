@@ -7,10 +7,10 @@ error[E0277]: the trait bound `NotUiNode: UiNode` is not satisfied
 error[E0308]: mismatched types
  --> cases/property/child_type_is_not_ui_node.rs:6:29
   |
-5 | #[property(context, allowed_in_when = false)]
-  | --------------------------------------------- the found opaque type
 6 | pub fn invalid_child(child: NotUiNode, input: bool) -> impl UiNode {
-  |                             ^^^^^^^^^ expected struct `NotUiNode`, found opaque type
+  |                             ^^^^^^^^^                  ---- the found opaque type
+  |                             |
+  |                             expected struct `NotUiNode`, found opaque type
   |
   = note:   expected struct `NotUiNode`
           found opaque type `impl UiNode`

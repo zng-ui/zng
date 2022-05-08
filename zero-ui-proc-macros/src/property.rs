@@ -1121,16 +1121,17 @@ mod output {
                     let output_ty = quote_spanned! {output_span=>
                         impl #crate_core::UiNode
                     };
+                    let out_ident = ident_spanned!(output_span=> "out");
                     set.extend(quote! {
                         #[doc(hidden)]
 
                         pub fn #set_ident(self_: impl #args_ident, #child_arg) -> #output_ty {
-                            fn box_fix(node: impl #crate_core::UiNode) -> impl #crate_core::UiNode {
+                            fn box_fix(node: impl #crate_core::UiNode) -> #output_ty {
                                 #crate_core::UiNode::cfg_boxed(node)
                             }
                             let ( #(#arg_locals),* ) = self_.unwrap();
-                            let out = #ident(#child_arg_use, #( #arg_locals ),*);
-                            box_fix(out)
+                            let #out_ident = #ident(#child_arg_use, #( #arg_locals ),*);
+                            box_fix(#out_ident)
                         }
                     });
                 }
