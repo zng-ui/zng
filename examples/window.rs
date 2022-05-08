@@ -33,7 +33,7 @@ fn main_window(ctx: &mut WindowContext) -> Window {
         move |p: &DipPoint, s: &DipSize| { formatx!("Window Example {} - position: {p:.0?}, size: {s:.0?}", window_id.sequential()) }
     );
 
-    let background = var(rgb(0.1, 0.1, 0.1));
+    let background = var(rgb(0.1, 0.1, 0.1)).easing(150.ms(), easing::linear);
 
     window! {
         background_color = background.clone();

@@ -1075,6 +1075,7 @@ mod windows_timer_util {
 }
 
 /// Pre-compile generic variation so that dependent crates don't need to.
+#[allow(unused)]
 macro_rules! share_generics {
     ($f:path) => {
         #[doc(hidden)]

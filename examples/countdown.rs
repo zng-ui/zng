@@ -30,6 +30,9 @@ fn app_main() {
             hsl(angle.deg(), 80.pct(), 30.pct()).to_rgba()
         });
 
+        let window_background = var(background_color.copy(ctx)).easing(150.ms(), easing::linear);
+        background_color.bind(ctx, &window_background).perm();
+
         let icon_label = count.map(|&n| if n > 0 { formatx!("{n}") } else { "C".to_text() });
 
         let actual_icon = ctx.window_state.req(WindowVarsKey).actual_icon();
@@ -51,7 +54,7 @@ fn app_main() {
             visible = actual_icon.map(|om| om.as_ref().map(|m| !m.is_loading()).unwrap_or(false));
 
             font_size = 42.pt();
-            background_color;
+            background_color = window_background;
             content = text(countdown);
         }
     })

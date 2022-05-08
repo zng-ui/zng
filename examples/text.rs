@@ -19,9 +19,13 @@ fn main() {
 fn app_main() {
     App::default().run_window(|ctx| {
         let fs = var(Length::Pt(11.0));
+
+        let actual_fs = fs.deep_clone().easing(150.ms(), easing::linear);
+        fs.bind(ctx, &actual_fs).perm();
+
         window! {
             title = fs.map(|s| formatx!("Text Example - font_size: {s}"));
-            font_size = fs.clone();
+            font_size = actual_fs;
             content_align = unset!;
             content = z_stack(widgets![
                 h_stack! {
