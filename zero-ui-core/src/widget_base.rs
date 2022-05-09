@@ -242,19 +242,19 @@ pub mod implicit_base {
                         tracing::error!(target: "widget_base", "`UiNode::info` called in not inited widget {:?}", self.id);
                     }
 
-                    if !mem::take(&mut self.pending_updates.borrow_mut().info) {
-                        tracing::warn!(target: "wiget_base", "TODO, optimize UiNode::info, widget {:?} did not need to rebuild children info", self.id);
-                    }
-
                     ctx.with_widget(self.id, &self.state, |ctx| {
-                        info.push_widget(
-                            self.id,
-                            self.outer_info.clone(),
-                            self.inner_info.clone(),
-                            self.border_info.clone(),
-                            self.render_info.clone(),
-                            |info| self.child.info(ctx, info),
-                        );
+                        if mem::take(&mut self.pending_updates.borrow_mut().info) {
+                            info.push_widget(
+                                self.id,
+                                self.outer_info.clone(),
+                                self.inner_info.clone(),
+                                self.border_info.clone(),
+                                self.render_info.clone(),
+                                |info| self.child.info(ctx, info),
+                            );
+                        } else {
+                            info.push_widget_reuse(ctx);
+                        }
                     });
                 }
 
@@ -273,6 +273,8 @@ pub mod implicit_base {
                         });
 
                         subscriptions.extend(&wgt_subs);
+                    } else {
+                        subscriptions.extend(&*self.subscriptions.borrow());
                     }
                 }
 

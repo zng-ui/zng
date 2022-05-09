@@ -6,7 +6,7 @@ use ego_tree::Tree;
 
 use crate::{
     border::CornerRadius,
-    context::{LayoutMetrics, OwnedStateMap, StateMap, Updates},
+    context::{InfoContext, LayoutMetrics, OwnedStateMap, StateMap, Updates},
     crate_util::{IdMap, IdSet},
     event::EventUpdateArgs,
     handler::WidgetHandler,
@@ -402,7 +402,7 @@ impl WidgetInfoBuilder {
                 inner_info: root_inner_info,
                 border_info: root_border_info,
                 render_info,
-                meta: OwnedStateMap::new(),
+                meta: Rc::new(OwnedStateMap::new()),
             },
             tree_capacity,
         );
@@ -433,6 +433,8 @@ impl WidgetInfoBuilder {
     }
 
     /// Calls `f` in a new widget context.
+    ///
+    /// Only call this in widget node implementations.
     pub fn push_widget(
         &mut self,
         id: WidgetId,
@@ -455,15 +457,40 @@ impl WidgetInfoBuilder {
                 outer_info,
                 border_info,
                 render_info,
-                meta: OwnedStateMap::new(),
+                meta: Rc::new(OwnedStateMap::new()),
             })
             .id();
 
         f(self);
 
-        self.node(self.node).value().meta = mem::replace(&mut self.meta, parent_meta);
+        self.node(self.node).value().meta = Rc::new(mem::replace(&mut self.meta, parent_meta));
         self.node = parent_node;
         self.widget_id = parent_widget_id;
+    }
+
+    /// Reuse the widget info branch from the previous tree.
+    ///
+    /// Only call this in widget node implementations that monitor the updates requested by their content.
+    pub fn push_widget_reuse(&mut self, ctx: &mut InfoContext) {
+        let widget_id = ctx.path.widget_id();
+
+        debug_assert_ne!(
+            self.widget_id, widget_id,
+            "can only call `push_widget` or `push_widget_reuse` for each widget"
+        );
+
+        let wgt = ctx
+            .info_tree
+            .find(widget_id)
+            .unwrap_or_else(|| panic!("cannot reuse `{:?}`, not found in previous tree", ctx.path));
+
+        Self::clone_append(wgt.node(), &mut self.node(self.node));
+    }
+    fn clone_append(from: ego_tree::NodeRef<WidgetInfoInner>, to: &mut ego_tree::NodeMut<WidgetInfoInner>) {
+        let mut to = to.append(from.value().clone());
+        for from in from.children() {
+            Self::clone_append(from, &mut to);
+        }
     }
 
     /// Register a closure that returns `true` if the widget is interactive or `false` if it is not.
@@ -477,7 +504,7 @@ impl WidgetInfoBuilder {
 
     /// Build the info tree.
     pub fn finalize(mut self) -> (WidgetInfoTree, UsedWidgetInfoBuilder) {
-        self.tree.root_mut().value().meta = self.meta;
+        self.tree.root_mut().value().meta = Rc::new(self.meta);
         let root_id = self.tree.root().id();
 
         // we build a WidgetId => NodeId lookup
@@ -980,13 +1007,14 @@ impl WidgetRenderInfo {
     }
 }
 
+#[derive(Clone)]
 struct WidgetInfoInner {
     widget_id: WidgetId,
     outer_info: WidgetLayoutInfo,
     inner_info: WidgetLayoutInfo,
     border_info: WidgetBorderInfo,
     render_info: WidgetRenderInfo,
-    meta: OwnedStateMap,
+    meta: Rc<OwnedStateMap>,
 }
 
 /// Reference to a widget info in a [`WidgetInfoTree`].

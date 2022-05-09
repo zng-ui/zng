@@ -287,7 +287,7 @@ fn test(mut args: Vec<&str>) {
 //        Builds all examples then runs them one by one.
 fn run(mut args: Vec<&str>) {
     let trace = if take_flag(&mut args, &["-b", "--backtrace"]) {
-        ("RUST_BACKTRACE", "1")
+        ("RUST_BACKTRACE", "full")
     } else {
         ("", "")
     };
