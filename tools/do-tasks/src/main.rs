@@ -274,13 +274,13 @@ fn test(mut args: Vec<&str>) {
     }
 }
 
-// do run, r EXAMPLE [-b, --backtrace] [<cargo-run-args>]
+// do run, r EXAMPLE [-b, --backtrace] [--release-lto] [<cargo-run-args>]
 //    Run an example in ./examples.
 // USAGE:
 //     run some_example
 //        Runs the example in debug mode.
-//     run some_example --release
-//        Runs the example in release mode.
+//     run some_example --release-lto
+//        Runs the example in release with LTO mode.
 //     run some_example --backtrace
 //        Runs the "some_example" with `RUST_BACKTRACE=1`.
 //     run *
@@ -294,23 +294,36 @@ fn run(mut args: Vec<&str>) {
 
     if let Some(&"*") = args.first() {
         args.remove(0);
-        let release = args.contains(&"--release");
+        let release = args.contains(&"--release") || args.contains(&"--release-lto");
         let rust_flags = release_rust_flags(release);
         let rust_flags = &[(rust_flags.0, rust_flags.1.as_str()), trace];
 
-        let release = if release { "--release" } else { "" };
-        cmd_env("cargo", &["build", "--package", "examples", "--examples", release], &[], rust_flags);
+        let release: &[&str] = if release {
+            if args.contains(&"--release-lto") {
+                &["--profile", "release-lto"]
+            } else {
+                &["--release"]
+            }
+        } else {
+            &[""]
+        };
+        let mut build_args = vec!["build", "--package", "examples", "--examples"];
+        build_args.extend(release);
+        cmd_env("cargo", &build_args, &[], rust_flags);
         for example in examples() {
-            cmd_env(
-                "cargo",
-                &["run", "--package", "examples", "--example", &example, release],
-                &[],
-                rust_flags,
-            );
+            let mut ex_args = vec!["run", "--package", "examples", "--example", &example];
+            ex_args.extend(release);
+            cmd_env("cargo", &ex_args, &[], rust_flags);
         }
     } else {
         let rust_flags = release_rust_flags(args.contains(&"--release"));
         let rust_flags = &[(rust_flags.0, rust_flags.1.as_str()), trace];
+
+        if take_flag(&mut args, &["--release-lto"]) {
+            args.push("--profile");
+            args.push("release-lto");
+        }
+
         cmd_env("cargo", &["run", "--package", "examples", "--example"], &args, rust_flags);
     }
 }
@@ -461,7 +474,7 @@ fn check(args: Vec<&str>) {
     cmd("cargo", &["clippy", "--no-deps", "--tests", "--workspace", "--examples"], &args);
 }
 
-// do build, b [-e, --example] [--examples] [-t, --timings] [<cargo-build-args>]
+// do build, b [-e, --example] [--examples] [-t, --timings] [--release-lto] [<cargo-build-args>]
 //    Compile the main crate and its dependencies.
 // USAGE:
 //    build -e <example>
@@ -486,6 +499,11 @@ fn build(mut args: Vec<&str>) {
         cargo_args.extend(&["--package", "examples", "--example"]);
     } else if take_flag(&mut args, &["--examples"]) {
         cargo_args.extend(&["--package", "examples", "--examples"]);
+    }
+
+    if take_flag(&mut args, &["--release-lto"]) {
+        args.push("--profile");
+        args.push("release-lto");
     }
 
     cmd_env("cargo", &cargo_args, &args, rust_flags);
@@ -549,8 +567,8 @@ fn prebuild(mut args: Vec<&str>) {
 //       Profile `rustc` using `-Z self-timings` and summarize.
 //    profile --build --release --diff
 //       Profile `rustc` using `-Z self-timings` and compare with previous profile.
-//    profile -s <stress-test> --release
-//       Record a tracing profile of the stress test build in release mode.
+//    profile -s <stress-test> --release-lto
+//       Record a tracing profile of the stress test build in release with LTO mode.
 fn profile(mut args: Vec<&str>) {
     if let Some(t) = take_value(&mut args, &["-s", "--stress"], "") {
         args.push("--");
@@ -589,7 +607,7 @@ fn profile(mut args: Vec<&str>) {
     }
 }
 
-// do clean [--tools] [--workspace] [--prebuild] [<cargo-clean-args>]
+// do clean [--tools] [--workspace] [--release-lto] [--prebuild] [<cargo-clean-args>]
 //    Remove workspace, test crates, profile crates and tools target directories.
 // USAGE:
 //    clean --tools
@@ -611,6 +629,7 @@ fn clean(mut args: Vec<&str>) {
     let profile_build = take_flag(&mut args, &["--profile-build"]);
     let all = !tools && !workspace && !temp && !profile_build;
 
+    let release_lto = take_flag(&mut args, &["--release-lto"]);
     let prebuild = take_flag(&mut args, &["--prebuild"]);
 
     if all || workspace {
@@ -618,6 +637,9 @@ fn clean(mut args: Vec<&str>) {
         if prebuild {
             args.push("--profile");
             args.push("prebuild");
+        } else if release_lto {
+            args.push("--profile");
+            args.push("release-lto");
         }
 
         cmd("cargo", &["clean"], &args);

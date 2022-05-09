@@ -31,6 +31,9 @@ exclude = [
     "dependencies/webrender"
 ]
 
-[profile.prebuild]
+[profile.release-lto]
 inherits = "release"
 lto = true
+
+[profile.prebuild]
+inherits = "release-lto"
