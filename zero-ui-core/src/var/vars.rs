@@ -2,7 +2,7 @@
 use retain_mut::RetainMut;
 
 use super::{
-    animation::{AnimationArgs, AnimationHandle, WeakAnimationHandle},
+    animation::{AnimationArgs, AnimationHandle, VarsAnimations, WeakAnimationHandle},
     *,
 };
 use crate::{
@@ -14,12 +14,11 @@ use crate::{
     crate_util::{Handle, HandleOwner, PanicPayload, RunOnDrop, WeakHandle},
     event::EventUpdateArgs,
     handler::{AppHandler, AppHandlerArgs, AppWeakHandle},
-    units::TimeUnits,
 };
 use std::{
     any::type_name,
     cell::{Cell, RefCell},
-    fmt, mem,
+    fmt,
     ops::Deref,
     time::{Duration, Instant},
 };
@@ -30,15 +29,6 @@ type SyncEntry = Box<dyn Fn(&Vars) -> Retain>;
 type Retain = bool;
 type VarBindingFn = Box<dyn FnMut(&Vars) -> Retain>;
 type UpdateLinkFn = Box<dyn Fn(&Vars, &mut UpdateMask) -> Retain>;
-type AnimationFn = Box<dyn FnMut(&Vars, AnimationUpdateInfo) -> Option<Instant>>;
-
-#[derive(Clone, Copy)]
-struct AnimationUpdateInfo {
-    animations_enabled: bool,
-    now: Instant,
-    time_scale: Factor,
-    next_frame: Instant,
-}
 
 /// Read-only access to variables.
 ///
@@ -121,6 +111,8 @@ pub struct VarsRead {
     app_event_sender: AppEventSender,
     senders: RefCell<Vec<SyncEntry>>,
     receivers: RefCell<Vec<SyncEntry>>,
+
+    pub(crate) ans: VarsAnimations,
 
     update_links: RefCell<Vec<UpdateLinkFn>>,
 }
@@ -306,15 +298,6 @@ pub struct Vars {
     binding_update_id: u32,
     bindings: RefCell<Vec<VarBindingFn>>,
 
-    animations: RefCell<Vec<AnimationFn>>,
-    animation_id: Cell<u32>,
-    current_animation: RefCell<(Option<WeakAnimationHandle>, u32)>,
-    animation_start_time: Cell<Option<Instant>>,
-    next_frame: Cell<Option<Instant>>,
-    animations_enabled: RcVar<bool>,
-    frame_duration: RcVar<Duration>,
-    animation_time_scale: RcVar<Factor>,
-
     pending: RefCell<Vec<PendingUpdate>>,
 
     pre_handlers: RefCell<Vec<OnVarHandler>>,
@@ -347,17 +330,11 @@ impl Vars {
                 senders: RefCell::default(),
                 receivers: RefCell::default(),
                 update_links: RefCell::default(),
+                ans: VarsAnimations::new(),
             },
             binding_update_id: 0u32.wrapping_sub(13),
             bindings: RefCell::default(),
-            animations: RefCell::default(),
-            animation_id: Cell::new(1),
-            animation_start_time: Cell::new(None),
-            current_animation: RefCell::new((None, 1)),
-            next_frame: Cell::new(None),
-            frame_duration: var((1.0 / 60.0).secs()),
-            animation_time_scale: var(1.fct()),
-            animations_enabled: var(true),
+
             pending: Default::default(),
             pre_handlers: RefCell::default(),
             pos_handlers: RefCell::default(),
@@ -366,7 +343,7 @@ impl Vars {
 
     /// Animation weak handle + animation counter.
     pub(super) fn current_animation(&self) -> (Option<WeakAnimationHandle>, u32) {
-        self.current_animation.borrow().clone()
+        self.ans.current_animation.borrow().clone()
     }
 
     /// Schedule set/modify.
@@ -381,48 +358,12 @@ impl Vars {
 
     /// Called in `update_timers`, does one animation frame if the frame duration has elapsed.
     pub(crate) fn update_animations(&mut self, timer: &mut LoopTimer) {
-        if let Some(next_frame) = self.next_frame.get() {
-            if timer.elapsed(next_frame) {
-                let mut animations = mem::take(&mut *self.animations.borrow_mut());
-                debug_assert!(!animations.is_empty());
-
-                let info = AnimationUpdateInfo {
-                    animations_enabled: self.animations_enabled.copy(self),
-                    time_scale: self.animation_time_scale.copy(self),
-                    now: Instant::now(),
-                    next_frame: next_frame + self.frame_duration.copy(self),
-                };
-
-                let mut min_sleep = info.now + Duration::from_secs(60 * 60);
-
-                animations.retain_mut(|animate| {
-                    if let Some(sleep) = animate(self, info) {
-                        min_sleep = min_sleep.min(sleep);
-                        true
-                    } else {
-                        false
-                    }
-                });
-
-                let mut self_animations = self.animations.borrow_mut();
-                animations.extend(self_animations.drain(..));
-                *self_animations = animations;
-
-                if !self_animations.is_empty() {
-                    self.next_frame.set(Some(min_sleep));
-                    timer.register(min_sleep);
-                } else {
-                    self.next_frame.set(None);
-                }
-            }
-        }
+        VarsAnimations::update_animations(self, timer)
     }
 
     /// Returns the next animation frame, if there are any active animations.
     pub(crate) fn next_deadline(&mut self, timer: &mut LoopTimer) {
-        if let Some(next_frame) = self.next_frame.get() {
-            timer.register(next_frame);
-        }
+        VarsAnimations::next_deadline(self, timer)
     }
 
     /// Apply scheduled set/modify.
@@ -430,7 +371,7 @@ impl Vars {
     /// Returns new app wake time if there are active animations.
     pub(crate) fn apply_updates(&mut self, updates: &mut Updates) {
         self.read.update_id = self.update_id.wrapping_add(1);
-        self.animation_start_time.set(None);
+        self.ans.animation_start_time.set(None);
 
         let pending = self.pending.get_mut();
         if !pending.is_empty() {
@@ -476,9 +417,9 @@ impl Vars {
 
     pub(crate) fn event_preview<EV: EventUpdateArgs>(ctx: &mut AppContext, args: &EV) {
         if let Some(args) = ViewProcessInitedEvent.update(args) {
-            ctx.vars.animations_enabled.set_ne(ctx.vars, args.animations_enabled);
+            ctx.vars.ans.animations_enabled.set_ne(ctx.vars, args.animations_enabled);
         } else if let Some(args) = RawAnimationsEnabledChangedEvent.update(args) {
-            ctx.vars.animations_enabled.set_ne(ctx.vars, args.enabled);
+            ctx.vars.ans.animations_enabled.set_ne(ctx.vars, args.enabled);
         }
     }
 
@@ -666,7 +607,7 @@ impl Vars {
     /// # use zero_ui_core::{var::*, *, units::*, text::*, handler::*};
     /// #
     /// fn animate_text(text: &impl Var<Text>, completed: &impl Var<bool>, vars: &Vars) {
-    ///     let transition = easing::Transition::new(0u8, 100);
+    ///     let transition = animation::Transition::new(0u8, 100);
     ///     let mut prev_value = 101;
     ///     vars.animate(clone_move!(text, completed, |vars, animation| {
     ///         let step = easing::expo(animation.elapsed_stop(1.secs()));
@@ -704,124 +645,11 @@ impl Vars {
     ///
     /// [`stop`]: AnimationHandle::stop
     /// [`perm`]: AnimationHandle::perm
-    pub fn animate<A>(&self, mut animation: A) -> AnimationHandle
+    pub fn animate<A>(&self, animation: A) -> AnimationHandle
     where
         A: FnMut(&Vars, &AnimationArgs) + 'static,
     {
-        // # Animation ID
-        //
-        // Variables only accept modifications from an animation ID >= the previous animation ID that modified it.
-        //
-        // Direct modifications always overwrite previous animations, so we advance the ID for each call to
-        // this method **and then** advance the ID again for all subsequent direct modifications.
-        //
-        // Example sequence of events:
-        //
-        // |ID| Modification  | Accepted
-        // |--|---------------|----------
-        // | 1| Var::set      | YES
-        // | 2| Var::ease     | YES
-        // | 2| ease update   | YES
-        // | 3| Var::set      | YES
-        // | 3| Var::set      | YES
-        // | 2| ease update   | NO
-        // | 4| Var::ease     | YES
-        // | 2| ease update   | NO
-        // | 4| ease update   | YES
-        // | 5| Var::set      | YES
-        // | 2| ease update   | NO
-        // | 4| ease update   | NO
-
-        // ensure that all animations started in this update have the same exact time, we update then with the same `now`
-        // timestamp also, this ensures that synchronized animations match perfectly.
-        let start_time = if let Some(t) = self.animation_start_time.get() {
-            t
-        } else {
-            let t = Instant::now();
-            self.animation_start_time.set(Some(t));
-            t
-        };
-
-        let mut id = self.animation_id.get().wrapping_add(1);
-        if id == 0 {
-            id = 1;
-        }
-        let mut next_set_id = id.wrapping_add(1);
-        if next_set_id == 0 {
-            next_set_id = 1;
-        }
-        self.animation_id.set(next_set_id);
-        self.current_animation.borrow_mut().1 = next_set_id;
-
-        let handle_owner;
-        let handle;
-        let weak_handle;
-
-        if let Some(parent_handle) = self.current_animation.borrow().0.clone() {
-            // is `animate` request inside other animate closure,
-            // in this case we give it the same animation handle as the *parent*
-            // animation, that holds the actual handle owner.
-            handle_owner = None;
-
-            if let Some(h) = parent_handle.upgrade() {
-                handle = h;
-            } else {
-                // attempt to create new animation from inside dropping animation, ignore
-                return AnimationHandle::dummy();
-            }
-
-            weak_handle = parent_handle;
-        } else {
-            let (o, h) = AnimationHandle::new();
-            handle_owner = Some(o);
-            weak_handle = h.downgrade();
-            handle = h;
-        };
-
-        let mut anim = AnimationArgs::new(self.animations_enabled.copy(self), start_time, self.animation_time_scale.copy(self));
-        self.animations.borrow_mut().push(Box::new(move |vars, info| {
-            let _handle_owner = &handle_owner; // capture and own the handle owner.
-
-            if weak_handle.upgrade().is_some() {
-                if let Some(sleep) = anim.sleep_deadline() {
-                    if sleep > info.next_frame {
-                        // retain sleep
-                        return Some(sleep);
-                    } else if sleep > info.now {
-                        // sync-up to frame rate after sleep
-                        anim.reset_sleep();
-                        return Some(info.next_frame);
-                    }
-                }
-
-                anim.reset_state(info.animations_enabled, info.now, info.time_scale);
-
-                let prev = mem::replace(&mut *vars.current_animation.borrow_mut(), (Some(weak_handle.clone()), id));
-                let _cleanup = RunOnDrop::new(|| *vars.current_animation.borrow_mut() = prev);
-
-                animation(vars, &anim);
-
-                if anim.stop_requested() {
-                    // drop
-                    return None;
-                }
-
-                // retain
-                match anim.sleep_deadline() {
-                    Some(sleep) if sleep > info.next_frame => Some(sleep),
-                    _ => Some(info.next_frame),
-                }
-            } else {
-                // drop
-                None
-            }
-        }));
-
-        if self.next_frame.get().is_none() {
-            self.next_frame.set(Some(Instant::now()));
-        }
-
-        handle
+        VarsAnimations::animate(self, animation)
     }
 
     /// Returns a read-only variable that tracks if animations are enabled in the operating system.
@@ -829,19 +657,19 @@ impl Vars {
     /// If `false` all animations must be skipped to the end, users with photo-sensitive epilepsy disable animations system wide.
 
     pub fn animations_enabled(&self) -> ReadOnlyRcVar<bool> {
-        self.animations_enabled.clone().into_read_only()
+        self.ans.animations_enabled.clone().into_read_only()
     }
 
     /// Variable that defines the global frame duration, the default is 60fps `(1.0 / 60.0).secs()`.
 
     pub fn frame_duration(&self) -> &RcVar<Duration> {
-        &self.frame_duration
+        &self.ans.frame_duration
     }
 
     /// Variable that defines a global scale for the elapsed time of animations.
 
     pub fn animation_time_scale(&self) -> &RcVar<Factor> {
-        &self.animation_time_scale
+        &self.ans.animation_time_scale
     }
 
     /// If one or more variables have pending updates.

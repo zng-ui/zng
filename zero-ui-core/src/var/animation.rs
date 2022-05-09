@@ -16,6 +16,9 @@ use std::{
 
 use super::{any, IntoVar, Var, VarValue, Vars, WeakVar};
 
+mod vars;
+pub(crate) use vars::*;
+
 pub mod easing;
 
 /// Common easing modifier functions as an enum.
