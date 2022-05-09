@@ -17,7 +17,7 @@ ipc = ["ipc-channel", "duct"]
 [dependencies]
 webrender_api = { path = "../dependencies/webrender/webrender_api" }
 serde = { version = "1.0", features = ["derive"] }
-ipc-channel = { version = "0.15", optional = true }
+ipc-channel = { version = "0.16", optional = true }
 duct = { version = "0.13", optional = true }
 
 tracing = "0.1"

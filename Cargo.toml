@@ -30,3 +30,7 @@ members = [
 exclude = [
     "dependencies/webrender"
 ]
+
+[profile.prebuild]
+inherits = "release"
+lto = true

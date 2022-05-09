@@ -522,9 +522,9 @@ fn prebuild(mut args: Vec<&str>) {
     if let Some(t) = args.iter_mut().find(|a| *a == &"-t") {
         *t = "--timings";
     }
-    cmd("cargo", &["build", "-p", "zero-ui-view", "--release"], &args);
+    cmd("cargo", &["build", "-p", "zero-ui-view", "--profile", "prebuild"], &args);
 
-    let files = cdylib_files("target/release/zero_ui_view");
+    let files = cdylib_files("target/prebuild/zero_ui_view");
 
     if files.is_empty() {
         error("no pre-build `cdylib` output found");
@@ -589,7 +589,7 @@ fn profile(mut args: Vec<&str>) {
     }
 }
 
-// do clean [--tools] [--workspace] [<cargo-clean-args>]
+// do clean [--tools] [--workspace] [--prebuild] [<cargo-clean-args>]
 //    Remove workspace, test crates, profile crates and tools target directories.
 // USAGE:
 //    clean --tools
@@ -611,7 +611,15 @@ fn clean(mut args: Vec<&str>) {
     let profile_build = take_flag(&mut args, &["--profile-build"]);
     let all = !tools && !workspace && !temp && !profile_build;
 
+    let prebuild = take_flag(&mut args, &["--prebuild"]);
+
     if all || workspace {
+        let mut args = args.clone();
+        if prebuild {
+            args.push("--profile");
+            args.push("prebuild");
+        }
+
         cmd("cargo", &["clean"], &args);
     } else if temp {
         match std::fs::remove_dir_all("target/tmp") {

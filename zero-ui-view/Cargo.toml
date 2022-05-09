@@ -54,3 +54,5 @@ windows = { version = "0.36", features = ["alloc", "Win32_Foundation", "Win32_UI
 [target.'cfg(any(target_os = "linux", target_os = "dragonfly", target_os = "freebsd", target_os = "openbsd", target_os = "netbsd"))'.dependencies]
 wayland-client = { version = "0.29", default_features = false,  features = ["use_system_lib"] }
 # xlib is re-exported by glutin/winit
+
+# prebuild profile defined in the workspace toml
