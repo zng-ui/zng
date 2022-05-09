@@ -9,18 +9,9 @@
 * Maybe can always have an AppContext for each UI thread, with a copy of services and such, after each update they merge into
   the main AppContext.
 
-# Build Time
-
-* Use `do profile --build` to profile builds.
-* 50% of our build time is in `LLVM_module_codegen_emit_obj`, this is probably code bloat from all the generics.
-  - Use https://github.com/dtolnay/cargo-llvm-lines
-* Implement and use `mono!` macro, described here https://internals.rust-lang.org/t/explicit-monomorphization-for-compilation-time-reduction/15907/30
-* Implement `dyn_closure` for more types.
-
-
 # Mouse Move Interest
 
-* Let widgets define what sort of mouse event they want, use the hit-test tag, filter events in the view-process.
+* Let widgets define what sort of mouse event they want, use the hit-test tag, filter events in the view-process?
 
 # Update Mask
 

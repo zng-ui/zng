@@ -161,7 +161,7 @@ impl<'a> AppContext<'a> {
             updates: self.updates,
         });
 
-        (r, self.updates.take_win_updates())
+        (r, self.updates.exit_window_ctx())
     }
 }
 
@@ -532,7 +532,7 @@ impl TestWidgetContext {
     /// Returns the [`WindowUpdates`] and [`ContextUpdates`] a full app and window would
     /// use to update the application.
     pub fn apply_updates(&mut self) -> (WindowUpdates, ContextUpdates) {
-        let win_updt = self.updates.take_win_updates();
+        let win_updt = self.updates.exit_window_ctx();
 
         for ev in self.receiver.try_iter() {
             match ev {
@@ -614,17 +614,20 @@ pub struct WidgetContext<'a> {
     pub updates: &'a mut Updates,
 }
 impl<'a> WidgetContext<'a> {
-    /// Runs a function `f` in the context of a widget.
+    /// Runs a function `f` in the context of a widget, returns the function result and
+    /// what updates where requested inside it.
     pub fn widget_context<R>(
         &mut self,
         widget_id: WidgetId,
         widget_state: &mut OwnedStateMap,
         f: impl FnOnce(&mut WidgetContext) -> R,
-    ) -> R {
+    ) -> (R, WidgetUpdates) {
         #[cfg(not(inspector))]
         let _span = UpdatesTrace::widget_span(widget_id, "", "");
 
         self.path.push(widget_id);
+
+        let prev_updates = self.updates.enter_widget_ctx();
 
         let r = self.vars.with_widget(widget_id, || {
             f(&mut WidgetContext {
@@ -648,7 +651,7 @@ impl<'a> WidgetContext<'a> {
 
         self.path.pop();
 
-        r
+        (r, self.updates.exit_widget_ctx(prev_updates))
     }
 
     /// Runs an [`InfoContext`] generated from `self`.
@@ -817,11 +820,18 @@ impl<'a> LayoutContext<'a> {
     }
 
     /// Runs a function `f` in the layout context of a widget.
-    pub fn with_widget<R>(&mut self, widget_id: WidgetId, widget_state: &mut OwnedStateMap, f: impl FnOnce(&mut LayoutContext) -> R) -> R {
+    pub fn with_widget<R>(
+        &mut self,
+        widget_id: WidgetId,
+        widget_state: &mut OwnedStateMap,
+        f: impl FnOnce(&mut LayoutContext) -> R,
+    ) -> (R, WidgetUpdates) {
         #[cfg(not(inspector))]
         let _span = UpdatesTrace::widget_span(widget_id, "", "");
 
         self.path.push(widget_id);
+
+        let prev_updates = self.updates.enter_widget_ctx();
 
         let r = self.vars.with_widget(widget_id, || {
             f(&mut LayoutContext {
@@ -842,7 +852,7 @@ impl<'a> LayoutContext<'a> {
 
         self.path.pop();
 
-        r
+        (r, self.updates.exit_widget_ctx(prev_updates))
     }
 
     /// Runs an [`InfoContext`] generated from `self`.

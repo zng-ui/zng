@@ -1,6 +1,6 @@
 //! The [`implicit_base`](mod@implicit_base) and properties used in all or most widgets.
 
-use std::{fmt, ops};
+use std::{fmt, mem, ops};
 
 use crate::{
     context::{state_key, InfoContext, LayoutContext, RenderContext, StateMap, WidgetContext},
@@ -20,7 +20,7 @@ pub mod implicit_base {
     use std::cell::RefCell;
 
     use crate::{
-        context::{OwnedStateMap, RenderContext},
+        context::{OwnedStateMap, RenderContext, WidgetUpdates},
         render::FrameBindingKey,
         units::RenderTransform,
         widget_info::{WidgetBorderInfo, WidgetLayout, WidgetLayoutInfo, WidgetRenderInfo, WidgetSubscriptions},
@@ -230,14 +230,20 @@ pub mod implicit_base {
                 border_info: WidgetBorderInfo,
                 render_info: WidgetRenderInfo,
                 subscriptions: RefCell<WidgetSubscriptions>,
+
                 #[cfg(debug_assertions)]
                 inited: bool,
+                pending_updates: RefCell<WidgetUpdates>,
             }
             impl<T: UiNode> UiNode for WidgetNode<T> {
                 fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
                     #[cfg(debug_assertions)]
                     if !self.inited {
                         tracing::error!(target: "widget_base", "`UiNode::info` called in not inited widget {:?}", self.id);
+                    }
+
+                    if !mem::take(&mut self.pending_updates.borrow_mut().info) {
+                        tracing::warn!(target: "wiget_base", "TODO, optimize UiNode::info, widget {:?} did not need to rebuild children info", self.id);
                     }
 
                     ctx.with_widget(self.id, &self.state, |ctx| {
@@ -253,12 +259,16 @@ pub mod implicit_base {
                 }
 
                 fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
-                    let mut wgt_subs = self.subscriptions.borrow_mut();
-                    *wgt_subs = WidgetSubscriptions::new();
+                    if mem::take(&mut self.pending_updates.borrow_mut().subscriptions) {
+                        let mut wgt_subs = self.subscriptions.borrow_mut();
+                        *wgt_subs = WidgetSubscriptions::new();
 
-                    self.child.subscriptions(ctx, &mut wgt_subs);
+                        ctx.with_widget(self.id, &self.state, |ctx| {
+                            self.child.subscriptions(ctx, &mut wgt_subs);
+                        });
 
-                    subscriptions.extend(&wgt_subs);
+                        subscriptions.extend(&wgt_subs);
+                    }
                 }
 
                 fn init(&mut self, ctx: &mut WidgetContext) {
@@ -268,6 +278,7 @@ pub mod implicit_base {
                     }
 
                     ctx.widget_context(self.id, &mut self.state, |ctx| self.child.init(ctx));
+                    *self.pending_updates.get_mut() = WidgetUpdates::all();
 
                     #[cfg(debug_assertions)]
                     {
@@ -282,6 +293,7 @@ pub mod implicit_base {
                     }
 
                     ctx.widget_context(self.id, &mut self.state, |ctx| self.child.deinit(ctx));
+                    *self.pending_updates.get_mut() = WidgetUpdates::none();
 
                     #[cfg(debug_assertions)]
                     {
@@ -296,7 +308,8 @@ pub mod implicit_base {
                     }
 
                     if self.subscriptions.borrow().update_intersects(ctx.updates) {
-                        ctx.widget_context(self.id, &mut self.state, |ctx| self.child.update(ctx));
+                        let (_, updates) = ctx.widget_context(self.id, &mut self.state, |ctx| self.child.update(ctx));
+                        *self.pending_updates.get_mut() |= updates;
                     }
                 }
 
@@ -307,39 +320,36 @@ pub mod implicit_base {
                     }
 
                     if self.subscriptions.borrow().event_contains(args) {
-                        ctx.widget_context(self.id, &mut self.state, |ctx| self.child.event(ctx, args));
+                        let (_, updates) = ctx.widget_context(self.id, &mut self.state, |ctx| self.child.event(ctx, args));
+                        *self.pending_updates.get_mut() |= updates;
                     }
                 }
 
                 fn measure(&mut self, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize {
                     #[cfg(debug_assertions)]
-                    {
-                        if !self.inited {
-                            tracing::error!(target: "widget_base", "`UiNode::measure` called in not inited widget {:?}", self.id);
-                        }
+                    if !self.inited {
+                        tracing::error!(target: "widget_base", "`UiNode::measure` called in not inited widget {:?}", self.id);
                     }
 
-                    let child_size = ctx.with_widget(self.id, &mut self.state, |ctx| self.child.measure(ctx, available_size));
-
-                    #[cfg(debug_assertions)]
-                    {}
+                    let (child_size, updates) = ctx.with_widget(self.id, &mut self.state, |ctx| self.child.measure(ctx, available_size));
+                    *self.pending_updates.get_mut() |= updates;
 
                     child_size
                 }
 
                 fn arrange(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, final_size: PxSize) {
                     #[cfg(debug_assertions)]
-                    {
-                        if !self.inited {
-                            tracing::error!(target: "widget_base", "`UiNode::arrange` called in not inited widget {:?}", self.id);
-                        }
+                    if !self.inited {
+                        tracing::error!(target: "widget_base", "`UiNode::arrange` called in not inited widget {:?}", self.id);
                     }
 
-                    ctx.with_widget(self.id, &mut self.state, |ctx| {
+                    let (_, updates) = ctx.with_widget(self.id, &mut self.state, |ctx| {
                         widget_layout.with_widget(self.id, &self.outer_info, &self.inner_info, &self.border_info, final_size, |wo| {
                             self.child.arrange(ctx, wo, final_size);
                         });
                     });
+
+                    *self.pending_updates.get_mut() |= updates;
                 }
 
                 fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
@@ -402,6 +412,7 @@ pub mod implicit_base {
                 subscriptions: RefCell::default(),
                 #[cfg(debug_assertions)]
                 inited: false,
+                pending_updates: RefCell::default(),
             }
             .cfg_boxed_wgt()
         }

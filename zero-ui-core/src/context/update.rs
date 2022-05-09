@@ -165,7 +165,7 @@ impl Updates {
     }
 
     /// Gets `true` if an update was requested.
-    pub fn update_requested(&self) -> bool {
+    pub(crate) fn update_requested(&self) -> bool {
         self.update
     }
 
@@ -197,7 +197,7 @@ impl Updates {
     }
 
     /// Gets `true` if a layout update is scheduled.
-    pub fn layout_requested(&self) -> bool {
+    pub(crate) fn layout_requested(&self) -> bool {
         self.layout
     }
 
@@ -224,16 +224,6 @@ impl Updates {
         self.l_updates.window_updates.subscriptions = true;
     }
 
-    /// Gets `true` if a widget info rebuild is scheduled.
-    pub fn info_requested(&self) -> bool {
-        self.l_updates.window_updates.info
-    }
-
-    /// Gets `true` if a widget info rebuild or subscriptions aggregation was requested for the parent window.
-    pub fn subscriptions_requested(&self) -> bool {
-        self.l_updates.window_updates.subscriptions
-    }
-
     /// Schedules a new full frame for the parent window.
     pub fn render(&mut self) {
         // tracing::trace!("requested `render`");
@@ -241,7 +231,7 @@ impl Updates {
     }
 
     /// Returns `true` if a new frame or frame update is scheduled.
-    pub fn render_requested(&self) -> bool {
+    pub(crate) fn render_requested(&self) -> bool {
         self.l_updates.render_requested()
     }
 
@@ -336,9 +326,16 @@ impl Updates {
     pub(super) fn enter_window_ctx(&mut self) {
         self.l_updates.window_updates = WindowUpdates::default();
     }
-
-    pub(super) fn take_win_updates(&mut self) -> WindowUpdates {
+    pub(super) fn exit_window_ctx(&mut self) -> WindowUpdates {
         mem::take(&mut self.l_updates.window_updates)
+    }
+
+    pub(super) fn enter_widget_ctx(&mut self) -> WindowUpdates {
+        mem::take(&mut self.l_updates.window_updates)
+    }
+    pub(super) fn exit_widget_ctx(&mut self, mut prev: WindowUpdates) -> WindowUpdates {
+        prev |= self.l_updates.window_updates;
+        mem::replace(&mut self.l_updates.window_updates, prev)
     }
 
     pub(super) fn take_updates(&mut self) -> (bool, bool, bool) {
@@ -406,8 +403,16 @@ impl LayoutUpdates {
     }
 
     /// Returns `true` if a new frame or frame update is scheduled.
-    pub fn render_requested(&self) -> bool {
+    pub(crate) fn render_requested(&self) -> bool {
         self.render
+    }
+
+    pub(super) fn enter_widget_ctx(&mut self) -> WindowUpdates {
+        mem::take(&mut self.window_updates)
+    }
+    pub(super) fn exit_widget_ctx(&mut self, mut prev: WindowUpdates) -> WindowUpdates {
+        prev |= self.window_updates;
+        mem::replace(&mut self.window_updates, prev)
     }
 }
 
@@ -499,6 +504,12 @@ impl std::ops::BitOr for ContextUpdates {
         self
     }
 }
+
+/// Info, Layout or render updates that where requested by the content of a widget.
+///
+/// Unlike the general updates, layout and render can be optimized to only apply if
+/// the content requested it.
+pub type WidgetUpdates = WindowUpdates;
 
 /// Info, Layout or render updates that where requested by the content of a window.
 ///
