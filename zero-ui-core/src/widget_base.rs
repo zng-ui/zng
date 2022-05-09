@@ -259,6 +259,11 @@ pub mod implicit_base {
                 }
 
                 fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
+                    #[cfg(debug_assertions)]
+                    if !self.inited {
+                        tracing::error!(target: "widget_base", "`UiNode::subscriptions` called in not inited widget {:?}", self.id);
+                    }
+
                     if mem::take(&mut self.pending_updates.borrow_mut().subscriptions) {
                         let mut wgt_subs = self.subscriptions.borrow_mut();
                         *wgt_subs = WidgetSubscriptions::new();
