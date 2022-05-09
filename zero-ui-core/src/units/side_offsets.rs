@@ -71,25 +71,21 @@ impl SideOffsets {
     }
 
     /// All sides [zero](Length::zero).
-
     pub fn zero() -> Self {
         Self::new_all(Length::zero())
     }
 
     /// If all sides are equal.
-
     pub fn all_eq(&self) -> bool {
         self.top == self.bottom && self.top == self.left && self.top == self.right
     }
 
     /// If top and bottom are equal; and left and right are equal.
-
     pub fn dimensions_eq(&self) -> bool {
         self.top == self.bottom && self.left == self.right
     }
 
     /// Compute the offsets in a layout context.
-
     pub fn to_layout(&self, ctx: &LayoutMetrics, available_size: AvailableSize, default_value: PxSideOffsets) -> PxSideOffsets {
         let width = available_size.width;
         let height = available_size.height;
@@ -104,7 +100,6 @@ impl SideOffsets {
     /// Compute a [`LayoutMask`] that flags all contextual values that affect the result of [`to_layout`].
     ///
     /// [`to_layout`]: Self::to_layout
-
     pub fn affect_mask(&self) -> LayoutMask {
         self.top.affect_mask() | self.right.affect_mask() | self.bottom.affect_mask() | self.left.affect_mask()
     }

@@ -56,7 +56,6 @@ impl WidgetId {
     /// [`named`]: WidgetId::named
     /// [`new_unique`]: WidgetId::new_unique
     /// [`id`]: mod@crate::widget_base::implicit_base#wp-id
-
     pub fn debug_named(name: &'static str) -> Self {
         #[cfg(debug_assertions)]
         return Self::named(name);

@@ -109,7 +109,6 @@ pub mod implicit_base {
     /// Implicit `new`, captures the `id` property.
     ///
     /// Returns [`nodes::widget`].
-
     pub fn new(child: impl UiNode, id: impl IntoValue<WidgetId>) -> impl Widget {
         nodes::widget(child, id)
     }
@@ -438,13 +437,11 @@ impl<'a> WidgetEnabledExt for WidgetInfo<'a> {
 pub struct IsEnabled;
 impl IsEnabled {
     /// Gets the enabled state in the current `vars` context.
-
     pub fn get<Vr: WithVarsRead>(vars: &Vr) -> bool {
         vars.with_vars_read(|vars| *IsEnabledVar::get(vars))
     }
 
     /// Gets the new enabled state in the current `vars` context.
-
     pub fn get_new<Vw: WithVars>(vars: &Vw) -> Option<bool> {
         vars.with_vars(|vars| IsEnabledVar::get_new(vars).copied())
     }
@@ -452,7 +449,6 @@ impl IsEnabled {
     /// Gets the update mask for [`WidgetSubscriptions`].
     ///
     /// [`WidgetSubscriptions`]: crate::widget_info::WidgetSubscriptions
-
     pub fn update_mask<Vr: WithVarsRead>(vars: &Vr) -> UpdateMask {
         vars.with_vars_read(|vars| IsEnabledVar::new().update_mask(vars))
     }
@@ -890,7 +886,6 @@ impl HitTestMode {
     }
 
     /// Gets the new hit-test mode of the current widget context.
-
     pub fn get_new<Vw: AsRef<Vars>>(vars: &Vw) -> Option<&HitTestMode> {
         HitTestModeVar::get_new(vars)
     }
@@ -898,7 +893,6 @@ impl HitTestMode {
     /// Gets the update mask for [`WidgetSubscriptions`].
     ///
     /// [`WidgetSubscriptions`]: crate::widget_info::WidgetSubscriptions
-
     pub fn update_mask<Vr: WithVarsRead>(vars: &Vr) -> UpdateMask {
         vars.with_vars_read(|vars| HitTestModeVar::new().update_mask(vars))
     }

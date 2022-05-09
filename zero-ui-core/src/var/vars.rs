@@ -140,7 +140,6 @@ impl VarsRead {
     ///
     /// [`update_mask`]: ContextVarData::update_mask
     /// [`info`]: crate::context::Updates::info
-
     pub fn with_context_var<C, R, F>(&self, context_var: C, data: ContextVarData<C::Type>, f: F) -> R
     where
         C: ContextVar,
@@ -183,7 +182,6 @@ impl VarsRead {
     /// Clears widget only context var values, calls `f` and restores widget only context var values.
     ///
     /// This is called by the layout and render contexts.
-
     pub(crate) fn with_widget<R, F: FnOnce() -> R>(&self, widget_id: WidgetId, f: F) -> R {
         #[cfg(dyn_closure)]
         let f: Box<dyn FnOnce() -> R> = Box::new(f);
@@ -310,7 +308,6 @@ impl fmt::Debug for Vars {
 }
 impl Vars {
     /// If an instance of `Vars` already exists in the  current thread.
-
     pub(crate) fn instantiated() -> bool {
         SingletonVars::in_use()
     }
@@ -318,7 +315,6 @@ impl Vars {
     /// Produces the instance of `Vars`. Only a single
     /// instance can exist in a thread at a time, panics if called
     /// again before dropping the previous instance.
-
     pub(crate) fn instance(app_event_sender: AppEventSender) -> Self {
         Vars {
             read: VarsRead {
@@ -655,25 +651,21 @@ impl Vars {
     /// Returns a read-only variable that tracks if animations are enabled in the operating system.
     ///
     /// If `false` all animations must be skipped to the end, users with photo-sensitive epilepsy disable animations system wide.
-
     pub fn animations_enabled(&self) -> ReadOnlyRcVar<bool> {
         self.ans.animations_enabled.clone().into_read_only()
     }
 
     /// Variable that defines the global frame duration, the default is 60fps `(1.0 / 60.0).secs()`.
-
     pub fn frame_duration(&self) -> &RcVar<Duration> {
         &self.ans.frame_duration
     }
 
     /// Variable that defines a global scale for the elapsed time of animations.
-
     pub fn animation_time_scale(&self) -> &RcVar<Factor> {
         &self.ans.animation_time_scale
     }
 
     /// If one or more variables have pending updates.
-
     pub fn update_requested(&self) -> bool {
         !self.pending.borrow().is_empty()
     }
@@ -855,7 +847,6 @@ impl OnVarHandle {
     }
 
     /// Create a handle to nothing, the handle always in the *unsubscribed* state.
-
     pub fn dummy() -> Self {
         OnVarHandle(Handle::dummy(()))
     }
@@ -863,20 +854,17 @@ impl OnVarHandle {
     /// Drop the handle but does **not** unsubscribe.
     ///
     /// The handler stays in memory for the duration of the app or until another handle calls [`unsubscribe`](Self::unsubscribe.)
-
     pub fn perm(self) {
         self.0.perm();
     }
 
     /// If another handle has called [`perm`](Self::perm).
     /// If `true` the var binding will stay active until the app shutdown, unless [`unsubscribe`](Self::unsubscribe) is called.
-
     pub fn is_permanent(&self) -> bool {
         self.0.is_permanent()
     }
 
     /// Drops the handle and forces the handler to drop.
-
     pub fn unsubscribe(self) {
         self.0.force_drop()
     }
@@ -884,13 +872,11 @@ impl OnVarHandle {
     /// If another handle has called [`unsubscribe`](Self::unsubscribe).
     ///
     /// The handler is already dropped or will be dropped in the next app update, this is irreversible.
-
     pub fn is_unsubscribed(&self) -> bool {
         self.0.is_dropped()
     }
 
     /// Create a weak handle.
-
     pub fn downgrade(&self) -> WeakOnVarHandle {
         WeakOnVarHandle(self.0.downgrade())
     }
@@ -1226,7 +1212,6 @@ impl<T: VarValue + Send> fmt::Debug for VarReceiver<T> {
 }
 impl<T: VarValue + Send> VarReceiver<T> {
     /// Receives the oldest sent update not received, blocks until the variable updates.
-
     pub fn recv(&self) -> Result<T, AppShutdown<()>> {
         self.receiver.recv().map_err(|_| AppShutdown(()))
     }
@@ -1234,7 +1219,6 @@ impl<T: VarValue + Send> VarReceiver<T> {
     /// Tries to receive the oldest sent update, returns `Ok(args)` if there was at least
     /// one update, or returns `Err(None)` if there was no update or returns `Err(AppHasShutdown)` if the connected
     /// app has shutdown.
-
     pub fn try_recv(&self) -> Result<T, Option<AppShutdown<()>>> {
         self.receiver.try_recv().map_err(|e| match e {
             flume::TryRecvError::Empty => None,
@@ -1243,39 +1227,33 @@ impl<T: VarValue + Send> VarReceiver<T> {
     }
 
     /// Receives the oldest sent update, blocks until the event updates or until the `deadline` is reached.
-
     pub fn recv_deadline(&self, deadline: Instant) -> Result<T, TimeoutOrAppShutdown> {
         self.receiver.recv_deadline(deadline).map_err(TimeoutOrAppShutdown::from)
     }
 
     /// Receives the oldest sent update, blocks until the event updates or until timeout.
-
     pub fn recv_timeout(&self, dur: Duration) -> Result<T, TimeoutOrAppShutdown> {
         self.receiver.recv_timeout(dur).map_err(TimeoutOrAppShutdown::from)
     }
 
     /// Returns a future that receives the oldest sent update, awaits until an event update occurs.
-
     pub fn recv_async(&self) -> RecvFut<T> {
         self.receiver.recv_async().into()
     }
 
     /// Turns into a future that receives the oldest sent update, awaits until an event update occurs.
-
     pub fn into_recv_async(self) -> RecvFut<'static, T> {
         self.receiver.into_recv_async().into()
     }
 
     /// Creates a blocking iterator over event updates, if there are no updates in the buffer the iterator blocks,
     /// the iterator only finishes when the app shuts-down.
-
     pub fn iter(&self) -> flume::Iter<T> {
         self.receiver.iter()
     }
 
     /// Create a non-blocking iterator over event updates, the iterator finishes if
     /// there are no more updates in the buffer.
-
     pub fn try_iter(&self) -> flume::TryIter<T> {
         self.receiver.try_iter()
     }

@@ -235,7 +235,6 @@ impl ByteLength {
     /// From bytes.
     ///
     /// This is the same as `ByteLength(bytes)`.
-
     pub fn from_byte(bytes: usize) -> Self {
         ByteLength(bytes)
     }
@@ -247,7 +246,6 @@ impl ByteLength {
     /// From kibi-bytes.
     ///
     /// 1 kibi-byte equals 1024 bytes.
-
     pub fn from_kibi(kibi_bytes: usize) -> Self {
         Self::new(kibi_bytes, 1024)
     }
@@ -255,7 +253,6 @@ impl ByteLength {
     /// From kilo-bytes.
     ///
     /// 1 kilo-byte equals 1000 bytes.
-
     pub fn from_kilo(kibi_bytes: usize) -> Self {
         Self::new(kibi_bytes, 1000)
     }
@@ -305,13 +302,11 @@ impl ByteLength {
 
 impl ByteLength {
     /// Compares and returns the maximum of two lengths.
-
     pub fn max(self, other: Self) -> Self {
         Self(self.0.max(other.0))
     }
 
     /// Compares and returns the minimum of two lengths.
-
     pub fn min(self, other: Self) -> Self {
         Self(self.0.min(other.0))
     }

@@ -54,7 +54,6 @@ impl Size {
     }
 
     /// ***width:*** [`Length::zero`], ***height:*** [`Length::zero`]
-
     pub fn zero() -> Self {
         Self::new(Length::zero(), Length::zero())
     }
@@ -62,25 +61,21 @@ impl Size {
     /// Size that fills the available space.
     ///
     /// ***width:*** [`Length::fill`], ***height:*** [`Length::fill`]
-
     pub fn fill() -> Self {
         Self::new(Length::fill(), Length::fill())
     }
 
     /// Returns `(width, height)`.
-
     pub fn as_tuple(self) -> (Length, Length) {
         (self.width, self.height)
     }
 
     /// Returns `[width, height]`.
-
     pub fn as_array(self) -> [Length; 2] {
         [self.width, self.height]
     }
 
     /// Compute the size in a layout context.
-
     pub fn to_layout(&self, ctx: &LayoutMetrics, available_size: AvailableSize, default_value: PxSize) -> PxSize {
         PxSize::new(
             self.width.to_layout(ctx, available_size.width, default_value.width),
@@ -91,7 +86,6 @@ impl Size {
     /// Compute a [`LayoutMask`] that flags all contextual values that affect the result of [`to_layout`].
     ///
     /// [`to_layout`]: Self::to_layout
-
     pub fn affect_mask(&self) -> LayoutMask {
         self.width.affect_mask() | self.height.affect_mask()
     }

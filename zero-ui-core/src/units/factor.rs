@@ -15,13 +15,11 @@ use std::{fmt, ops, time::Duration};
 pub struct FactorPercent(pub f32);
 impl FactorPercent {
     /// Clamp factor to [0.0..=100.0] range.
-
     pub fn clamp_range(self) -> Self {
         FactorPercent(self.0.max(0.0).min(100.0))
     }
 
     /// Convert to [`Factor`].
-
     pub fn fct(self) -> Factor {
         self.into()
     }
@@ -73,43 +71,36 @@ impl fmt::Display for FactorPercent {
 pub struct Factor(pub f32);
 impl Factor {
     /// Clamp factor to `[0.0..=1.0]` range.
-
     pub fn clamp_range(self) -> Self {
         Factor(self.0.max(0.0).min(1.0))
     }
 
     /// Returns the maximum of two factors.
-
     pub fn max(self, other: impl Into<Factor>) -> Factor {
         Factor(self.0.max(other.into().0))
     }
 
     /// Returns the minimum of two factors.
-
     pub fn min(self, other: impl Into<Factor>) -> Factor {
         Factor(self.0.min(other.into().0))
     }
 
     /// Returns `self` if `min <= self <= max`, returns `min` if `self < min` or returns `max` if `self > max`.
-
     pub fn clamp(self, min: impl Into<Factor>, max: impl Into<Factor>) -> Factor {
         self.min(max).max(min)
     }
 
     /// Computes the absolute value of self.
-
     pub fn abs(self) -> Factor {
         Factor(self.0.abs())
     }
 
     /// Convert to [`FactorPercent`].
-
     pub fn pct(self) -> FactorPercent {
         self.into()
     }
 
     /// Returns `1.fct() - self`.
-
     pub fn flip(self) -> Factor {
         1.fct() - self
     }
@@ -858,7 +849,6 @@ impl EasingTime {
     /// New from [`Factor`].
     ///
     /// The `factor` is clamped to the [0..=1] range.
-
     pub fn new(factor: Factor) -> Self {
         EasingTime(factor.clamp_range())
     }
@@ -866,43 +856,36 @@ impl EasingTime {
     /// New easing time from total `duration`, `elapsed` time and `time_scale`.
     ///
     /// If `elapsed >= duration` the time is 1.
-
     pub fn elapsed(duration: Duration, elapsed: Duration, time_scale: Factor) -> Self {
         EasingTime::new(elapsed.as_secs_f32().fct() / duration.as_secs_f32().fct() * time_scale)
     }
 
     /// Gets the start time, zero.
-
     pub fn start() -> Self {
         EasingTime(0.fct())
     }
 
     /// Gets the end time, one.
-
     pub fn end() -> Self {
         EasingTime(1.fct())
     }
 
     /// If the time represents the start of the animation.
-
     pub fn is_start(self) -> bool {
         self == Self::start()
     }
 
     /// If the time represents the end of the animation.
-
     pub fn is_end(self) -> bool {
         self == Self::end()
     }
 
     /// Get the time as a [`Factor`].
-
     pub fn fct(self) -> Factor {
         self.0
     }
 
     /// Get the time as a [`FactorPercent`].
-
     pub fn pct(self) -> FactorPercent {
         self.0.pct()
     }
@@ -910,7 +893,6 @@ impl EasingTime {
     /// Flip the time.
     ///
     /// Returns `1 - self`.
-
     pub fn reverse(self) -> Self {
         EasingTime(self.0.flip())
     }

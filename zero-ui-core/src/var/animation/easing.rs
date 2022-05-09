@@ -5,48 +5,41 @@
 use super::*;
 
 /// Simple linear transition, no easing, no acceleration.
-
 pub fn linear(time: EasingTime) -> EasingStep {
     time.fct()
 }
 
 /// Quadratic transition (t²).
-
 pub fn quad(time: EasingTime) -> EasingStep {
     let f = time.fct();
     f * f
 }
 
 /// Cubic transition (t³).
-
 pub fn cubic(time: EasingTime) -> EasingStep {
     let f = time.fct();
     f * f * f
 }
 
 /// Fourth power transition (t⁴).
-
 pub fn quart(time: EasingTime) -> EasingStep {
     let f = time.fct();
     f * f * f * f
 }
 
 /// Fifth power transition (t⁵).
-
 pub fn quint(time: EasingTime) -> EasingStep {
     let f = time.fct();
     f * f * f * f * f
 }
 
 /// Sine transition. Slow start, fast end.
-
 pub fn sine(time: EasingTime) -> EasingStep {
     let f = time.fct().0;
     (1.0 - (f * FRAC_PI_2).cos()).fct()
 }
 
 /// Exponential transition. Very slow start, very fast end.
-
 pub fn expo(time: EasingTime) -> EasingStep {
     let f = time.fct();
     if f == 0.fct() {
@@ -57,7 +50,6 @@ pub fn expo(time: EasingTime) -> EasingStep {
 }
 
 /// Cubic transition with slightly slowed start then [`cubic`].
-
 pub fn circ(time: EasingTime) -> EasingStep {
     let f = time.fct().0;
     (1.0 - (1.0 - f.powf(2.0)).sqrt()).fct()
@@ -66,14 +58,12 @@ pub fn circ(time: EasingTime) -> EasingStep {
 /// Cubic transition that goes slightly negative to start and ends very fast.
 ///
 /// Like it backs-up and the shoots out.
-
 pub fn back(time: EasingTime) -> EasingStep {
     let f = time.fct().0;
     (f * f * (2.70158 * f - 1.70158)).fct()
 }
 
 /// Oscillating transition that grows in magnitude, goes negative twice.
-
 pub fn elastic(time: EasingTime) -> EasingStep {
     let t = time.fct();
 
@@ -90,7 +80,6 @@ pub fn elastic(time: EasingTime) -> EasingStep {
 
 /// Oscillating transition that grows in magnitude, does not go negative, when the curve
 /// is about to to go negative sharply transitions to a new arc of larger magnitude.
-
 pub fn bounce(time: EasingTime) -> EasingStep {
     const N: f32 = 7.5625;
     const D: f32 = 2.75;
@@ -118,7 +107,6 @@ pub fn bounce(time: EasingTime) -> EasingStep {
 ///
 /// The start and end points are always (0, 0) and (1, 1) so that a transition or animation
 /// starts at 0% and ends at 100%.
-
 pub fn cubic_bezier(x1: f32, y1: f32, x2: f32, y2: f32, time: EasingTime) -> EasingStep {
     let f = time.fct().0 as f64;
     (Bezier::new(x1, y1, x2, y2).solve(f, 0.00001) as f32).fct()
@@ -127,7 +115,6 @@ pub fn cubic_bezier(x1: f32, y1: f32, x2: f32, y2: f32, time: EasingTime) -> Eas
 /// Jumps to the final value by a number of `steps`.
 ///
 /// Starts from the first step value immediately.
-
 pub fn step_ceil(steps: u32, time: EasingTime) -> EasingStep {
     let steps = steps as f32;
     let step = (steps * time.fct().0).ceil();
@@ -137,7 +124,6 @@ pub fn step_ceil(steps: u32, time: EasingTime) -> EasingStep {
 /// Jumps to the final value by a number of `steps`.
 ///
 /// Waits until first step to output the first step value.
-
 pub fn step_floor(steps: u32, time: EasingTime) -> EasingStep {
     let steps = steps as f32;
     let step = (steps * time.fct().0).floor();
@@ -145,19 +131,16 @@ pub fn step_floor(steps: u32, time: EasingTime) -> EasingStep {
 }
 
 /// Always `1.fct()`, that is, the completed transition.
-
 pub fn none(_: EasingTime) -> EasingStep {
     1.fct()
 }
 
 /// Applies the `ease_fn`.
-
 pub fn ease_in(ease_fn: impl Fn(EasingTime) -> EasingStep, time: EasingTime) -> EasingStep {
     ease_fn(time)
 }
 
 /// Applies the `ease_fn` in reverse and flipped.
-
 pub fn ease_out(ease_fn: impl Fn(EasingTime) -> EasingStep, time: EasingTime) -> EasingStep {
     ease_fn(time.reverse()).flip()
 }
@@ -209,7 +192,6 @@ mod bezier {
         ///
         /// The start and end points are always (0, 0) and (1, 1) so that a transition or animation
         /// starts at 0% and ends at 100%.
-
         pub fn new(x1: f32, y1: f32, x2: f32, y2: f32) -> Bezier {
             let cx = 3. * x1 as f64;
             let bx = 3. * (x2 as f64 - x1 as f64) - cx;
@@ -283,7 +265,6 @@ mod bezier {
 
         /// Solve the bezier curve for a given `x` and an `epsilon`, that should be
         /// between zero and one.
-
         pub fn solve(&self, x: f64, epsilon: f64) -> f64 {
             self.sample_curve_y(self.solve_curve_x(x, epsilon))
         }

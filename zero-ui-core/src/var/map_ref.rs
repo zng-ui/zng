@@ -339,7 +339,6 @@ where
     }
 
     /// Convert this variable into a [`MapRefVar`].
-
     pub fn into_map(self) -> MapRefVar<A, B, M, S> {
         match Rc::try_unwrap(self.0) {
             Ok(data) => MapRefVar(Rc::new(MapRefData {

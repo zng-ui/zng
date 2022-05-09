@@ -81,7 +81,6 @@ impl<T: VarValue, V: Var<T>> Clone for RcCowVar<T, V> {
 }
 impl<T: VarValue, V: Var<T>> RcCowVar<T, V> {
     /// Returns a new var that reads from `source`.
-
     pub fn new(source: V) -> Self {
         Self::new_(source, false)
     }
@@ -91,7 +90,6 @@ impl<T: VarValue, V: Var<T>> RcCowVar<T, V> {
     /// Modifying the returned variable modifies the `source`. You can use this to
     /// avoid boxing variables in methods that can return either the source variable
     /// or an override variable.
-
     pub fn pass_through(source: V) -> Self {
         Self::new_(source, true)
     }
@@ -145,7 +143,6 @@ impl<T: VarValue, V: Var<T>> RcCowVar<T, V> {
     }
 
     /// Returns a weak reference to the variable.
-
     pub fn downgrade(&self) -> WeakRcCowVar<T, V> {
         WeakRcCowVar(Rc::downgrade(&self.0))
     }
@@ -220,7 +217,6 @@ impl<T: VarValue, V: Var<T>> Var<T> for RcCowVar<T, V> {
     }
 
     /// Returns `true` if is still reading from the source variable and it is contextual, otherwise returns `false`.
-
     fn is_contextual(&self) -> bool {
         self.0.flags.get().contains(Flags::SOURCE_IS_CONTEXTUAL)
     }

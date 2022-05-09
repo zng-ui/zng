@@ -172,7 +172,6 @@ event_args! {
 
 impl FocusChangedArgs {
     /// If the focus is still in the same widget but the widget path changed.
-
     pub fn is_widget_move(&self) -> bool {
         match (&self.prev_focus, &self.new_focus) {
             (Some(prev), Some(new)) => prev.widget_id() == new.widget_id() && prev != new,
@@ -181,13 +180,11 @@ impl FocusChangedArgs {
     }
 
     /// If the focus is still in the same widget but [`highlight`](FocusChangedArgs::highlight) changed.
-
     pub fn is_hightlight_changed(&self) -> bool {
         self.prev_focus == self.new_focus
     }
 
     /// If `widget_id` is the new focus.
-
     pub fn is_focus(&self, widget_id: WidgetId) -> bool {
         match (&self.prev_focus, &self.new_focus) {
             (Some(prev), Some(new)) => prev.widget_id() != widget_id && new.widget_id() == widget_id,
@@ -197,7 +194,6 @@ impl FocusChangedArgs {
     }
 
     /// If `widget_id` is the previous focus.
-
     pub fn is_blur(&self, widget_id: WidgetId) -> bool {
         match (&self.prev_focus, &self.new_focus) {
             (Some(prev), Some(new)) => prev.widget_id() == widget_id && new.widget_id() != widget_id,
@@ -207,7 +203,6 @@ impl FocusChangedArgs {
     }
 
     /// If `widget_id` is the new focus or a parent of the new focus and was not a parent of the previous focus.
-
     pub fn is_focus_enter(&self, widget_id: WidgetId) -> bool {
         match (&self.prev_focus, &self.new_focus) {
             (Some(prev), Some(new)) => !prev.contains(widget_id) && new.contains(widget_id),
@@ -217,7 +212,6 @@ impl FocusChangedArgs {
     }
 
     /// If `widget_id` is the previous focus or a parent of the previous focus and is not a parent of the new focus.
-
     pub fn is_focus_leave(&self, widget_id: WidgetId) -> bool {
         match (&self.prev_focus, &self.new_focus) {
             (Some(prev), Some(new)) => prev.contains(widget_id) && !new.contains(widget_id),
@@ -229,7 +223,6 @@ impl FocusChangedArgs {
 
 impl ReturnFocusChangedArgs {
     /// If the return focus is the same widget but the widget path changed and the widget is still in the same focus scope.
-
     pub fn is_widget_move(&self) -> bool {
         match (&self.prev_return, &self.new_return) {
             (Some(prev), Some(new)) => prev.widget_id() == new.widget_id() && prev != new,
@@ -239,7 +232,6 @@ impl ReturnFocusChangedArgs {
 
     /// If [`scope_id`](Self::scope_id) is an ALT scope and `prev_return` or `new_return` if the
     /// widget outside the scope that will be focused back when the user escapes the ALT scope.
-
     pub fn is_alt_return(&self) -> bool {
         match (&self.prev_return, &self.new_return) {
             (Some(prev), None) => !prev.contains(self.scope_id),
@@ -265,7 +257,6 @@ pub enum FocusChangedCause {
 }
 impl FocusChangedCause {
     /// If the change cause by a request to the previous widget, by tab index.
-
     pub fn is_prev_request(self) -> bool {
         match self {
             FocusChangedCause::Request(r) => matches!(r.target, FocusTarget::Prev),
@@ -299,25 +290,21 @@ impl TabIndex {
     pub const AUTO: TabIndex = TabIndex(u32::MAX / 2);
 
     /// If is [`SKIP`](TabIndex::SKIP).
-
     pub fn is_skip(self) -> bool {
         self == Self::SKIP
     }
 
     /// If is [`AUTO`](TabIndex::AUTO).
-
     pub fn is_auto(self) -> bool {
         self == Self::AUTO
     }
 
     /// If is a custom index placed [before auto](Self::before_auto).
-
     pub fn is_before_auto(self) -> bool {
         self.0 < Self::AUTO.0
     }
 
     /// If is a custom index placed [after auto](Self::after_auto).
-
     pub fn is_after_auto(self) -> bool {
         self.0 > Self::AUTO.0
     }
@@ -325,7 +312,6 @@ impl TabIndex {
     /// Create a new tab index that is guaranteed to not be [`SKIP`](Self::SKIP).
     ///
     /// Returns `SKIP - 1` if `index` is `SKIP`.
-
     pub fn not_skip(index: u32) -> Self {
         TabIndex(if index == Self::SKIP.0 { Self::SKIP.0 - 1 } else { index })
     }
@@ -333,7 +319,6 @@ impl TabIndex {
     /// Create a new tab index that is guaranteed to be before [`AUTO`](Self::AUTO).
     ///
     /// Returns `AUTO - 1` if `index` is equal to or greater then `AUTO`.
-
     pub fn before_auto(index: u32) -> Self {
         TabIndex(if index >= Self::AUTO.0 { Self::AUTO.0 - 1 } else { index })
     }
@@ -343,7 +328,6 @@ impl TabIndex {
     /// The `index` argument is zero based here.
     ///
     /// Returns `not_skip(AUTO + 1 + index)`.
-
     pub fn after_auto(index: u32) -> Self {
         Self::not_skip((Self::AUTO.0 + 1).saturating_add(index))
     }
@@ -693,7 +677,6 @@ pub struct Focus {
 }
 impl Focus {
     /// New focus service, the `update_sender` is used to flag an update after a focus change request.
-
     #[must_use]
     pub fn new(app_event_sender: AppEventSender) -> Self {
         Focus {
@@ -715,14 +698,12 @@ impl Focus {
     }
 
     /// Current focused widget.
-
     #[must_use]
     pub fn focused(&self) -> ReadOnlyRcVar<Option<WidgetPath>> {
         self.focused_var.clone().into_read_only()
     }
 
     /// Current return focus of a scope.
-
     #[must_use]
     pub fn return_focused(&mut self, scope_id: WidgetId) -> ReadOnlyRcVar<Option<WidgetPath>> {
         self.return_focused_var
@@ -735,34 +716,29 @@ impl Focus {
     /// If the [`focused`] path is in the given `window_id`.
     ///
     /// [`focused`]: Self::focused
-
     pub fn is_window_focused(&self, window_id: WindowId) -> impl Var<bool> {
         self.focused().map(move |p| matches!(p, Some(p) if p.window_id() == window_id))
     }
 
     /// Current ALT return focus.
-
     #[must_use]
     pub fn alt_return(&self) -> ReadOnlyRcVar<Option<WidgetPath>> {
         self.alt_return_var.clone().into_read_only()
     }
 
     /// If focus is in an ALT scope.
-
     #[must_use]
     pub fn in_alt(&self) -> impl Var<bool> {
         self.alt_return_var.map(|p| p.is_some())
     }
 
     /// If the current focused widget is visually indicated.
-
     #[must_use]
     pub fn is_highlighting(&self) -> ReadOnlyRcVar<bool> {
         self.is_highlighting_var.clone().into_read_only()
     }
 
     /// Request a focus update.
-
     pub fn focus(&mut self, request: FocusRequest) {
         self.request = Some(request);
         let _ = self.app_event_sender.send_ext_update();
@@ -774,7 +750,6 @@ impl Focus {
     /// for the current focused widget.
     ///
     /// This makes a [`focus`](Self::focus) request using [`FocusRequest::direct`].
-
     pub fn focus_widget(&mut self, widget_id: WidgetId, highlight: bool) {
         self.focus(FocusRequest::direct(widget_id, highlight))
     }
@@ -785,7 +760,6 @@ impl Focus {
     /// for the current focused widget.
     ///
     /// This makes a [`focus`](Self::focus) request using [`FocusRequest::direct_or_exit`].
-
     pub fn focus_widget_or_exit(&mut self, widget_id: WidgetId, highlight: bool) {
         self.focus(FocusRequest::direct_or_exit(widget_id, highlight))
     }
@@ -796,7 +770,6 @@ impl Focus {
     /// the current focused widget.
     ///
     /// This makes a [`focus`](Self::focus) request [`FocusRequest::direct_or_enter`].
-
     pub fn focus_widget_or_enter(&mut self, widget_id: WidgetId, highlight: bool) {
         self.focus(FocusRequest::direct_or_enter(widget_id, highlight))
     }
@@ -808,7 +781,6 @@ impl Focus {
     /// for the current focused widget.
     ///
     /// This makes a [`focus`](Self::focus) request using [`FocusRequest::direct_or_related`].
-
     pub fn focus_widget_or_related(&mut self, widget_id: WidgetId, highlight: bool) {
         self.focus(FocusRequest::direct_or_related(widget_id, highlight))
     }
@@ -818,7 +790,6 @@ impl Focus {
     /// Does nothing if no widget is focused. Continues highlighting the new focus if the current is highlighted.
     ///
     /// This is makes a [`focus`](Self::focus) request using [`FocusRequest::enter`].
-
     pub fn focus_enter(&mut self) {
         self.focus(FocusRequest::enter(self.is_highlighting))
     }
@@ -828,7 +799,6 @@ impl Focus {
     /// Does nothing if no widget is focused. Continues highlighting the new focus if the current is highlighted.
     ///
     /// This is makes a [`focus`](Self::focus) request using [`FocusRequest::exit`].
-
     pub fn focus_exit(&mut self) {
         self.focus(FocusRequest::exit(self.is_highlighting))
     }
@@ -838,7 +808,6 @@ impl Focus {
     /// Does nothing if no widget is focused. Continues highlighting the new focus if the current is highlighted.
     ///
     /// This is makes a [`focus`](Self::focus) request using [`FocusRequest::next`].
-
     pub fn focus_next(&mut self) {
         self.focus(FocusRequest::next(self.is_highlighting));
     }
@@ -848,7 +817,6 @@ impl Focus {
     /// Does nothing if no widget is focused. Continues highlighting the new focus if the current is highlighted.
     ///
     /// This is makes a [`focus`](Self::focus) request using [`FocusRequest::prev`].
-
     pub fn focus_prev(&mut self) {
         self.focus(FocusRequest::prev(self.is_highlighting));
     }
@@ -858,7 +826,6 @@ impl Focus {
     /// Does nothing if no widget is focused. Continues highlighting the new focus if the current is highlighted.
     ///
     /// This is makes a [`focus`](Self::focus) request using [`FocusRequest::up`].
-
     pub fn focus_up(&mut self) {
         self.focus(FocusRequest::up(self.is_highlighting));
     }
@@ -868,7 +835,6 @@ impl Focus {
     /// Does nothing if no widget is focused. Continues highlighting the new focus if the current is highlighted.
     ///
     /// This is makes a [`focus`](Self::focus) request using [`FocusRequest::right`].
-
     pub fn focus_right(&mut self) {
         self.focus(FocusRequest::right(self.is_highlighting));
     }
@@ -878,7 +844,6 @@ impl Focus {
     /// Does nothing if no widget is focused. Continues highlighting the new focus if the current is highlighted.
     ///
     /// This is makes a [`focus`](Self::focus) request using [`FocusRequest::down`].
-
     pub fn focus_down(&mut self) {
         self.focus(FocusRequest::down(self.is_highlighting));
     }
@@ -888,7 +853,6 @@ impl Focus {
     /// Does nothing if no widget is focused. Continues highlighting the new focus if the current is highlighted.
     ///
     /// This is makes a [`focus`](Self::focus) request using [`FocusRequest::left`].
-
     pub fn focus_left(&mut self) {
         self.focus(FocusRequest::left(self.is_highlighting));
     }
@@ -898,7 +862,6 @@ impl Focus {
     /// Does nothing if no widget is focused. Continues highlighting the new focus if the current is highlighted.
     ///
     /// This is makes a [`focus`](Self::focus) request using [`FocusRequest::alt`].
-
     pub fn focus_alt(&mut self) {
         self.focus(FocusRequest::alt(self.is_highlighting));
     }
@@ -908,7 +871,6 @@ impl Focus {
     /// Does nothing if no widget is focused. Continues highlighting the new focus if the current is highlighted.
     ///
     /// This is makes a [`focus`](Self::focus) request using [`FocusRequest::escape_alt`].
-
     pub fn escape_alt(&mut self) {
         self.focus(FocusRequest::escape_alt(self.is_highlighting));
     }
@@ -1427,72 +1389,58 @@ impl FocusRequest {
     }
 
     /// New [`FocusTarget::Direct`] request.
-
     pub fn direct(widget_id: WidgetId, highlight: bool) -> Self {
         Self::new(FocusTarget::Direct(widget_id), highlight)
     }
     /// New [`FocusTarget::DirectOrExit`] request.
-
     pub fn direct_or_exit(widget_id: WidgetId, highlight: bool) -> Self {
         Self::new(FocusTarget::DirectOrExit(widget_id), highlight)
     }
     /// New [`FocusTarget::DirectOrEnder`] request.
-
     pub fn direct_or_enter(widget_id: WidgetId, highlight: bool) -> Self {
         Self::new(FocusTarget::DirectOrEnder(widget_id), highlight)
     }
     /// New [`FocusTarget::DirectOrRelated`] request.
-
     pub fn direct_or_related(widget_id: WidgetId, highlight: bool) -> Self {
         Self::new(FocusTarget::DirectOrRelated(widget_id), highlight)
     }
     /// New [`FocusTarget::Enter`] request.
-
     pub fn enter(highlight: bool) -> Self {
         Self::new(FocusTarget::Enter, highlight)
     }
     /// New [`FocusTarget::Exit`] request.
-
     pub fn exit(highlight: bool) -> Self {
         Self::new(FocusTarget::Exit, highlight)
     }
     /// New [`FocusTarget::Next`] request.
-
     pub fn next(highlight: bool) -> Self {
         Self::new(FocusTarget::Next, highlight)
     }
     /// New [`FocusTarget::Prev`] request.
-
     pub fn prev(highlight: bool) -> Self {
         Self::new(FocusTarget::Prev, highlight)
     }
     /// New [`FocusTarget::Up`] request.
-
     pub fn up(highlight: bool) -> Self {
         Self::new(FocusTarget::Up, highlight)
     }
     /// New [`FocusTarget::Right`] request.
-
     pub fn right(highlight: bool) -> Self {
         Self::new(FocusTarget::Right, highlight)
     }
     /// New [`FocusTarget::Down`] request.
-
     pub fn down(highlight: bool) -> Self {
         Self::new(FocusTarget::Down, highlight)
     }
     /// New [`FocusTarget::Left`] request.
-
     pub fn left(highlight: bool) -> Self {
         Self::new(FocusTarget::Left, highlight)
     }
     /// New [`FocusTarget::Alt`] request.
-
     pub fn alt(highlight: bool) -> Self {
         Self::new(FocusTarget::Alt, highlight)
     }
     /// New [`FocusTarget::EscapeAlt`] request.
-
     pub fn escape_alt(highlight: bool) -> Self {
         Self::new(FocusTarget::EscapeAlt, highlight)
     }
@@ -1544,7 +1492,6 @@ pub struct FocusInfoTree<'a> {
 }
 impl<'a> FocusInfoTree<'a> {
     /// Wrap a `widget_info` reference to enable focus info querying.
-
     pub fn new(tree: &'a WidgetInfoTree) -> Self {
         FocusInfoTree { tree }
     }
@@ -1553,7 +1500,6 @@ impl<'a> FocusInfoTree<'a> {
     ///
     /// The root is usually a focusable focus scope but it may not be. This
     /// is the only method that returns a [`WidgetFocusInfo`] that may not be focusable.
-
     pub fn root(&self) -> WidgetFocusInfo {
         WidgetFocusInfo::new(self.tree.root())
     }
@@ -1583,7 +1529,6 @@ impl<'a> FocusInfoTree<'a> {
     }
 
     /// Reference to the widget in the tree, if it is present and is focusable.
-
     pub fn find(&self, widget_id: WidgetId) -> Option<WidgetFocusInfo> {
         self.tree.find(widget_id).and_then(|i| i.as_focusable())
     }
@@ -1591,20 +1536,17 @@ impl<'a> FocusInfoTree<'a> {
     /// Reference to the widget in the tree, if it is present and is focusable.
     ///
     /// Faster then [`find`](Self::find) if the widget path was generated by the same tree.
-
     pub fn get(&self, path: &WidgetPath) -> Option<WidgetFocusInfo> {
         self.tree.get(path).and_then(|i| i.as_focusable())
     }
 
     /// Reference to the first focusable widget or parent in the tree.
-
     pub fn get_or_parent(&self, path: &WidgetPath) -> Option<WidgetFocusInfo> {
         self.get(path)
             .or_else(|| path.ancestors().iter().rev().find_map(|&id| self.find(id)))
     }
 
     /// If the tree info contains the widget and it is focusable.
-
     pub fn contains(&self, widget_id: WidgetId) -> bool {
         self.find(widget_id).is_some()
     }
@@ -1649,13 +1591,11 @@ macro_rules! DirectionFn {
 }
 impl<'a> WidgetFocusInfo<'a> {
     /// Wrap a `widget_info` reference to enable focus info querying.
-
     pub fn new(widget_info: WidgetInfo<'a>) -> Self {
         WidgetFocusInfo { info: widget_info }
     }
 
     /// Root focusable.
-
     pub fn root(self) -> Self {
         self.ancestors().last().unwrap_or(self)
     }
@@ -1668,25 +1608,21 @@ impl<'a> WidgetFocusInfo<'a> {
     /// calling [`as_focus_info`](WidgetInfoFocusExt::as_focus_info) or explicitly constructing one.
     ///
     /// Focus scopes are also focusable.
-
     pub fn is_focusable(self) -> bool {
         self.focus_info().is_focusable()
     }
 
     /// Is focus scope.
-
     pub fn is_scope(self) -> bool {
         self.focus_info().is_scope()
     }
 
     /// Is ALT focus scope.
-
     pub fn is_alt_scope(self) -> bool {
         self.focus_info().is_alt_scope()
     }
 
     /// Widget focus metadata.
-
     pub fn focus_info(self) -> FocusInfo {
         if self.info.visibility() != Visibility::Visible || !self.info.allow_interaction() {
             FocusInfo::NotFocusable
@@ -1698,13 +1634,11 @@ impl<'a> WidgetFocusInfo<'a> {
     }
 
     /// Iterator over focusable parent -> grandparent -> .. -> root.
-
     pub fn ancestors(self) -> impl Iterator<Item = WidgetFocusInfo<'a>> {
         self.info.ancestors().focusable()
     }
 
     /// Iterator over focus scopes parent -> grandparent -> .. -> root.
-
     pub fn scopes(self) -> impl Iterator<Item = WidgetFocusInfo<'a>> {
         self.info.ancestors().filter_map(|i| {
             let i = i.as_focus_info();
@@ -1717,13 +1651,11 @@ impl<'a> WidgetFocusInfo<'a> {
     }
 
     /// Reference to the focusable parent that contains this widget.
-
     pub fn parent(self) -> Option<WidgetFocusInfo<'a>> {
         self.ancestors().next()
     }
 
     /// Reference the focus scope parent that contains the widget.
-
     pub fn scope(self) -> Option<WidgetFocusInfo<'a>> {
         self.scopes().next()
     }
@@ -1750,7 +1682,6 @@ impl<'a> WidgetFocusInfo<'a> {
     /// a - If `self` is already an ALT scope or is in one, moves to a sibling ALT scope, nested ALT scopes are ignored.
     /// b - If `self` is a normal scope, moves to the first descendant ALT scope, otherwise..
     /// c - Recursively searches for an ALT scope sibling up the scope tree.
-
     pub fn alt_scope(self) -> Option<WidgetFocusInfo<'a>> {
         if self.in_alt_scope() {
             // We do not allow nested alt scopes, search for sibling focus scope.
@@ -1787,7 +1718,6 @@ impl<'a> WidgetFocusInfo<'a> {
     }
 
     /// Widget is in a ALT scope or is an ALT scope.
-
     pub fn in_alt_scope(self) -> bool {
         self.is_alt_scope() || self.scopes().any(|s| s.is_alt_scope())
     }
@@ -1804,7 +1734,6 @@ impl<'a> WidgetFocusInfo<'a> {
     /// Returns the different widget the focus must move to after focusing in `self` that is a focus scope.
     ///
     /// If `self` is not a [`FocusScope`](FocusInfo::FocusScope) always returns `None`.
-
     pub fn on_focus_scope_move<'p>(
         self,
         last_focused: impl FnOnce(WidgetId) -> Option<&'p WidgetPath>,
@@ -1843,7 +1772,6 @@ impl<'a> WidgetFocusInfo<'a> {
     }
 
     /// Iterator over the focusable widgets contained by this widget.
-
     pub fn descendants(self) -> impl Iterator<Item = WidgetFocusInfo<'a>> {
         self.info.descendants().focusable()
     }
@@ -1851,7 +1779,6 @@ impl<'a> WidgetFocusInfo<'a> {
     /// Iterator over all focusable widgets contained by this widget filtered by the `filter` closure.
     ///
     /// If `skip` returns `true` the widget and all its descendants are skipped.
-
     pub fn filter_descendants(
         self,
         mut filter: impl FnMut(WidgetFocusInfo<'a>) -> DescendantFilter,
@@ -1870,7 +1797,6 @@ impl<'a> WidgetFocusInfo<'a> {
     /// Descendants sorted by TAB index.
     ///
     /// [`SKIP`](TabIndex::SKIP) focusable items and its descendants are not included.
-
     pub fn tab_descendants(self) -> Vec<WidgetFocusInfo<'a>> {
         self.filter_tab_descendants(|f| {
             if f.focus_info().tab_index().is_skip() {
@@ -1889,19 +1815,16 @@ impl<'a> WidgetFocusInfo<'a> {
     }
 
     /// First descendant considering TAB index.
-
     pub fn first_tab_descendant(self) -> Option<WidgetFocusInfo<'a>> {
         self.tab_descendants().first().copied()
     }
 
     /// Last descendant considering TAB index.
-
     pub fn last_tab_descendant(self) -> Option<WidgetFocusInfo<'a>> {
         self.tab_descendants().last().copied()
     }
 
     /// Iterator over all focusable widgets in the same scope after this widget.
-
     pub fn next_focusables(self) -> impl Iterator<Item = WidgetFocusInfo<'a>> {
         let self_id = self.info.widget_id();
         self.scope()
@@ -1912,7 +1835,6 @@ impl<'a> WidgetFocusInfo<'a> {
     }
 
     /// Next focusable in the same scope after this widget.
-
     pub fn next_focusable(self) -> Option<WidgetFocusInfo<'a>> {
         self.next_focusables().next()
     }
@@ -1979,7 +1901,6 @@ impl<'a> WidgetFocusInfo<'a> {
     }
 
     /// Iterator over all focusable widgets in the same scope before this widget in reverse.
-
     pub fn prev_focusables(self) -> impl Iterator<Item = WidgetFocusInfo<'a>> {
         let self_id = self.info.widget_id();
 
@@ -1996,7 +1917,6 @@ impl<'a> WidgetFocusInfo<'a> {
     }
 
     /// Previous focusable in the same scope before this widget.
-
     pub fn prev_focusable(self) -> Option<WidgetFocusInfo<'a>> {
         let self_id = self.info.widget_id();
 
@@ -2087,7 +2007,6 @@ impl<'a> WidgetFocusInfo<'a> {
     /// Set `skip_self` to not enter `self`, that is, the focus goes to the next sibling or next sibling descendant.
     ///
     /// Returns `None` if the focus does not move to another widget.
-
     pub fn next_tab(self, skip_self: bool) -> Option<WidgetFocusInfo<'a>> {
         if let Some(scope) = self.scope() {
             let scope_info = scope.focus_info();
@@ -2121,7 +2040,6 @@ impl<'a> WidgetFocusInfo<'a> {
     /// Set `skip_self` to not enter `self`, that is, the focus goes to the previous sibling or previous sibling descendant.
     ///
     /// Returns `None` if the focus does not move to another widget.
-
     pub fn prev_tab(self, skip_self: bool) -> Option<WidgetFocusInfo<'a>> {
         if let Some(scope) = self.scope() {
             let scope_info = scope.focus_info();
@@ -2220,31 +2138,26 @@ impl<'a> WidgetFocusInfo<'a> {
     }
 
     /// Closest focusable in the same scope above this widget.
-
     pub fn focusable_up(self) -> Option<WidgetFocusInfo<'a>> {
         self.directional_next(DirectionFn![up])
     }
 
     /// Closest focusable in the same scope below this widget.
-
     pub fn focusable_down(self) -> Option<WidgetFocusInfo<'a>> {
         self.directional_next(DirectionFn![down])
     }
 
     /// Closest focusable in the same scope to the left of this widget.
-
     pub fn focusable_left(self) -> Option<WidgetFocusInfo<'a>> {
         self.directional_next(DirectionFn![left])
     }
 
     /// Closest focusable in the same scope to the right of this widget.
-
     pub fn focusable_right(self) -> Option<WidgetFocusInfo<'a>> {
         self.directional_next(DirectionFn![right])
     }
 
     /// Widget to focus when pressing the arrow up key from this widget.
-
     pub fn next_up(self) -> Option<WidgetFocusInfo<'a>> {
         self.next_up_from(self.info.center())
     }
@@ -2270,7 +2183,6 @@ impl<'a> WidgetFocusInfo<'a> {
     }
 
     /// Widget to focus when pressing the arrow right key from this widget.
-
     pub fn next_right(self) -> Option<WidgetFocusInfo<'a>> {
         self.next_right_from(self.info.center())
     }
@@ -2294,7 +2206,6 @@ impl<'a> WidgetFocusInfo<'a> {
     }
 
     /// Widget to focus when pressing the arrow down key from this widget.
-
     pub fn next_down(self) -> Option<WidgetFocusInfo<'a>> {
         self.next_down_from(self.info.center())
     }
@@ -2318,7 +2229,6 @@ impl<'a> WidgetFocusInfo<'a> {
     }
 
     /// Widget to focus when pressing the arrow left key from this widget.
-
     pub fn next_left(self) -> Option<WidgetFocusInfo<'a>> {
         self.next_left_from(self.info.center())
     }
@@ -2417,19 +2327,16 @@ impl Default for FocusScopeOnFocus {
 
 impl FocusInfo {
     /// If is focusable or a focus scope.
-
     pub fn is_focusable(self) -> bool {
         !matches!(self, FocusInfo::NotFocusable)
     }
 
     /// If is a focus scope.
-
     pub fn is_scope(self) -> bool {
         matches!(self, FocusInfo::FocusScope { .. })
     }
 
     /// If is an ALT focus scope.
-
     pub fn is_alt_scope(self) -> bool {
         match self {
             FocusInfo::FocusScope { alt, .. } => alt,
@@ -2444,7 +2351,6 @@ impl FocusInfo {
     /// | Focus scope               | Associated value, default is `Continue` |
     /// | Focusable                 | `TabNav::Continue`                      |
     /// | Not-Focusable             | `TabNav::None`                          |
-
     pub fn tab_nav(self) -> TabNav {
         match self {
             FocusInfo::FocusScope { tab_nav, .. } => tab_nav,
@@ -2460,7 +2366,6 @@ impl FocusInfo {
     /// | Focus scope               | Associated value, default is `None` |
     /// | Focusable                 | `DirectionalNav::Continue`          |
     /// | Not-Focusable             | `DirectionalNav::None`              |
-
     pub fn directional_nav(self) -> DirectionalNav {
         match self {
             FocusInfo::FocusScope { directional_nav, .. } => directional_nav,
@@ -2475,7 +2380,6 @@ impl FocusInfo {
     /// |-------------------|-----------------------------------------------|
     /// | Focusable & Scope | Associated value, default is `TabIndex::AUTO` |
     /// | Not-Focusable     | `TabIndex::SKIP`                              |
-
     pub fn tab_index(self) -> TabIndex {
         match self {
             FocusInfo::Focusable { tab_index, .. } => tab_index,
@@ -2490,7 +2394,6 @@ impl FocusInfo {
     /// |-------------------|-----------------------------------------------|
     /// | Focusable & Scope | Associated value, default is `false`          |
     /// | Not-Focusable     | `true`                                        |
-
     pub fn skip_directional(self) -> bool {
         match self {
             FocusInfo::Focusable { skip_directional, .. } => skip_directional,
@@ -2505,7 +2408,6 @@ impl FocusInfo {
     /// |---------------------------|-------------------------------------------------------------------|
     /// | Scope                     | Associated value, default is `FocusScopeOnFocus::FirstDescendant` |
     /// | Focusable & Not-Focusable | `FocusScopeOnFocus::Self_`                                        |
-
     pub fn scope_on_focus(self) -> FocusScopeOnFocus {
         match self {
             FocusInfo::FocusScope { on_focus, .. } => on_focus,
@@ -2576,7 +2478,6 @@ impl FocusInfoBuilder {
     /// ### Directional Navigation
     ///
     /// If [`directional_nav`](Self::directional_nav) is not set but the widget is a focus scope, [`DirectionalNav::Continue`] is used.
-
     pub fn build(&self) -> FocusInfo {
         match (self.focusable, self.scope, self.tab_index, self.tab_nav, self.directional_nav) {
             // Set as not focusable.

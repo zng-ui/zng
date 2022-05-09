@@ -304,19 +304,16 @@ impl Keyboard {
     }
 
     /// Returns a read-only variable  that tracks the currently pressed modifier keys.
-
     pub fn modifiers(&self) -> ReadOnlyRcVar<ModifiersState> {
         self.modifiers.clone().into_read_only()
     }
 
     /// Returns a read-only variable that tracks the [`ScanCode`] of the keys currently pressed.
-
     pub fn codes(&self) -> ReadOnlyRcVar<Vec<ScanCode>> {
         self.codes.clone().into_read_only()
     }
 
     /// Returns a read-only variable that tracks the [`Key`] identifier of the keys currently pressed.
-
     pub fn keys(&self) -> ReadOnlyRcVar<Vec<Key>> {
         self.keys.clone().into_read_only()
     }
@@ -328,7 +325,6 @@ impl Keyboard {
     /// value if is marked [`is_repeat`] by the [`KeyboardManager`].
     ///
     /// [`is_repeat`]: KeyInputArgs::is_repeat
-
     pub fn repeat_delay(&self) -> ReadOnlyRcVar<Duration> {
         self.repeat_delay.clone().into_read_only()
     }

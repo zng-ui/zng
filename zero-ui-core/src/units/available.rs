@@ -25,13 +25,11 @@ impl From<Px> for AvailablePx {
 }
 impl AvailablePx {
     /// Convert `Infinite` to zero, or returns the `Finite`.
-
     pub fn to_px(self) -> Px {
         self.to_px_or(Px(0))
     }
 
     /// Convert `Infinite` to `fallback` or return the `Finite`.
-
     pub fn to_px_or(self, fallback: Px) -> Px {
         match self {
             AvailablePx::Infinite => fallback,
@@ -42,7 +40,6 @@ impl AvailablePx {
     /// Returns the greater length.
     ///
     /// Infinite is greater then any finite value.
-
     pub fn max(self, other: AvailablePx) -> AvailablePx {
         if self > other {
             self
@@ -54,7 +51,6 @@ impl AvailablePx {
     /// Returns the lesser length.
     ///
     /// Infinite is greater then any finite value.
-
     pub fn min(self, other: AvailablePx) -> AvailablePx {
         if self < other {
             self
@@ -64,25 +60,21 @@ impl AvailablePx {
     }
 
     /// Returns the greater finite length or `Infinite` if `self` is `Infinite`.
-
     pub fn max_px(self, other: Px) -> AvailablePx {
         self.max(AvailablePx::Finite(other))
     }
 
     /// Return the lesser finite length.
-
     pub fn min_px(self, other: Px) -> AvailablePx {
         self.min(AvailablePx::Finite(other))
     }
 
     /// Returns `true` if is `Infinite`.
-
     pub fn is_infinite(self) -> bool {
         matches!(self, AvailablePx::Infinite)
     }
 
     /// Returns `true` if is `Finite(_)`.
-
     pub fn is_finite(self) -> bool {
         matches!(self, AvailablePx::Finite(_))
     }

@@ -31,7 +31,6 @@ impl [<$Context Mut>] {
     /// Panics if `with` is called again inside `action`, also panics if not called inside the paired
     #[doc = "[`"$Context "Scope::with`]. You should assume that if you have access to a [`"$Context "Mut`] it is in a valid"]
     /// state, the onus of safety is on the caller.
-
     pub fn with<R, A>(&self, action: A) -> R
     where
         A: FnOnce(&mut $Context) -> R,
@@ -175,7 +174,6 @@ impl WidgetContextMut {
     /// })
     /// # );
     /// ```
-
     pub async fn yield_one(&self) {
         task::yield_one().await
     }

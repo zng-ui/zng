@@ -132,7 +132,6 @@ impl WindowVars {
     /// See [`WindowChrome`] for details.
     ///
     /// The default value is [`WindowChrome::Default`].
-
     pub fn chrome(&self) -> &RcVar<WindowChrome> {
         &self.0.chrome
     }
@@ -146,7 +145,6 @@ impl WindowVars {
     /// You can retrieve the custom icon image using [`actual_icon`].
     ///
     /// [`actual_icon`]: Self::actual_icon
-
     pub fn icon(&self) -> &RcVar<WindowIcon> {
         &self.0.icon
     }
@@ -157,7 +155,6 @@ impl WindowVars {
     /// reference clone.
     ///
     /// [`icon`]: Self::icon
-
     pub fn actual_icon(&self) -> ReadOnlyRcVar<Option<Image>> {
         self.0.actual_icon.clone().into_read_only()
     }
@@ -167,7 +164,6 @@ impl WindowVars {
     /// See [`CursorIcon`] for details.
     ///
     /// The default is [`CursorIcon::Default`], if set to `None` no cursor icon is shown.
-
     pub fn cursor(&self) -> &RcVar<Option<CursorIcon>> {
         &self.0.cursor
     }
@@ -175,7 +171,6 @@ impl WindowVars {
     /// Window title text.
     ///
     /// The default value is `""`.
-
     pub fn title(&self) -> &RcVar<Text> {
         &self.0.title
     }
@@ -185,7 +180,6 @@ impl WindowVars {
     /// Minimized, maximized or full-screen. See [`WindowState`] for details.
     ///
     /// The default value is [`WindowState::Normal`]
-
     pub fn state(&self) -> &RcVar<WindowState> {
         &self.0.state
     }
@@ -211,13 +205,11 @@ impl WindowVars {
     /// [`position`]: WindowVars::position
     /// [`actual_monitor`]: WindowVars::actual_monitor
     /// [`size`]: WindowVars::size
-
     pub fn monitor(&self) -> &RcVar<MonitorQuery> {
         &self.0.monitor
     }
 
     /// Video mode for exclusive fullscreen.
-
     pub fn video_mode(&self) -> &RcVar<VideoMode> {
         &self.0.video_mode
     }
@@ -226,13 +218,11 @@ impl WindowVars {
     ///
     /// This is `None` only if the window has not opened yet (before first render) or if
     /// no monitors where found in the operating system or if the window if headless without renderer.
-
     pub fn actual_monitor(&self) -> ReadOnlyRcVar<Option<MonitorId>> {
         self.0.actual_monitor.clone().into_read_only()
     }
 
     /// Current scale factor of the current monitor hosting the window.
-
     pub fn scale_factor(&self) -> ReadOnlyRcVar<Factor> {
         self.0.scale_factor.clone().into_read_only()
     }
@@ -246,7 +236,6 @@ impl WindowVars {
     /// is relative to the origin of the [monitor].
     ///
     /// [monitor]: Self::actual_monitor
-
     pub fn actual_position(&self) -> ReadOnlyRcVar<DipPoint> {
         self.0.actual_position.clone().into_read_only()
     }
@@ -265,7 +254,6 @@ impl WindowVars {
     /// [`Normal`]: WindowState::Normal
     /// [`Minimized`]: WindowState::Minimized
     /// [`restore_rect`]: Self::restore_rect
-
     pub fn restore_state(&self) -> ReadOnlyRcVar<WindowState> {
         self.0.restore_state.clone().into_read_only()
     }
@@ -294,7 +282,6 @@ impl WindowVars {
     /// [`actual_monitor`]: Self::actual_monitor
     /// [`state`]: Self::state
     /// [`restore_state`]: Self::restore_state
-
     pub fn restore_rect(&self) -> ReadOnlyRcVar<DipRect> {
         self.0.restore_rect.clone().into_read_only()
     }
@@ -317,7 +304,6 @@ impl WindowVars {
     /// [`actual_position`]: WindowVars::actual_position
     /// [`monitor`]: WindowVars::monitor
     /// [`Normal`]: WindowState::Normal
-
     pub fn position(&self) -> &RcVar<Point> {
         &self.0.position
     }
@@ -328,7 +314,6 @@ impl WindowVars {
     /// the window resizes.
     ///
     /// The initial value is `(0, 0)` but this is updated quickly to an actual value.
-
     pub fn actual_size(&self) -> ReadOnlyRcVar<DipSize> {
         self.0.actual_size.clone().into_read_only()
     }
@@ -349,7 +334,6 @@ impl WindowVars {
     /// [`actual_size`]: WindowVars::actual_size
     /// [`restore_rect`]: WindowVars::restore_rect
     /// [`Normal`]: WindowState::Normal
-
     pub fn size(&self) -> &RcVar<Size> {
         &self.0.size
     }
@@ -360,7 +344,6 @@ impl WindowVars {
     /// and [`max_size`](Self::max_size). Auto-size is disabled if the user [manually resizes](Self::resizable).
     ///
     /// The default value is [`AutoSize::DISABLED`].
-
     pub fn auto_size(&self) -> &RcVar<AutoSize> {
         &self.0.auto_size
     }
@@ -376,7 +359,6 @@ impl WindowVars {
     /// The default value is [`Point::top_left`].
     ///
     /// [`auto_size`]: Self::auto_size
-
     pub fn auto_size_origin(&self) -> &RcVar<Point> {
         &self.0.auto_size_origin
     }
@@ -391,7 +373,6 @@ impl WindowVars {
     /// The default value is `(192, 48)`.
     ///
     /// [`size`]: Self::size
-
     pub fn min_size(&self) -> &RcVar<Size> {
         &self.0.min_size
     }
@@ -406,7 +387,6 @@ impl WindowVars {
     /// The default value is `(100.pct(), 100.pct())`
     ///
     /// [`size`]: Self::size
-
     pub fn max_size(&self) -> &RcVar<Size> {
         &self.0.max_size
     }
@@ -416,7 +396,6 @@ impl WindowVars {
     /// Note that even if disabled the window can still be resized from other sources.
     ///
     /// The default value is `true`.
-
     pub fn resizable(&self) -> &RcVar<bool> {
         &self.0.resizable
     }
@@ -426,7 +405,6 @@ impl WindowVars {
     /// Note that even if disabled the window can still be moved from other sources.
     ///
     /// The default value is `true`.
-
     pub fn movable(&self) -> &RcVar<bool> {
         &self.0.movable
     }
@@ -436,7 +414,6 @@ impl WindowVars {
     /// Note this only applies to other windows that are not also "always-on-top".
     ///
     /// The default value is `false`.
-
     pub fn always_on_top(&self) -> &RcVar<bool> {
         &self.0.always_on_top
     }
@@ -447,7 +424,6 @@ impl WindowVars {
     /// is always not visible.
     ///
     /// The default value is `true`.
-
     pub fn visible(&self) -> &RcVar<bool> {
         &self.0.visible
     }
@@ -455,7 +431,6 @@ impl WindowVars {
     /// If the window is visible in the task-bar.
     ///
     /// The default value is `true`.
-
     pub fn taskbar_visible(&self) -> &RcVar<bool> {
         &self.0.taskbar_visible
     }
@@ -471,7 +446,6 @@ impl WindowVars {
     /// * If [`modal`](Self::modal) is set, the parent window cannot be focused while this window is open.
     ///
     /// The default value is `None`.
-
     pub fn parent(&self) -> &RcVar<Option<WindowId>> {
         &self.0.parent
     }
@@ -481,7 +455,6 @@ impl WindowVars {
     /// Value is ignored is `parent` is not set.
     ///
     /// The default value is `false`.
-
     pub fn modal(&self) -> &RcVar<bool> {
         &self.0.modal
     }
@@ -489,7 +462,6 @@ impl WindowVars {
     /// In Windows the `Alt+F4` shortcut is intercepted by the system and causes a window close request,
     /// if this variable is set to `true` this default behavior is disabled and a key-press event is generated
     /// instead.
-
     pub fn allow_alt_f4(&self) -> &RcVar<bool> {
         &self.0.allow_alt_f4
     }
@@ -498,7 +470,6 @@ impl WindowVars {
     ///
     /// This is a read-only variable, it starts set to `true` and will update only once,
     /// when the window finishes closing.
-
     pub fn is_open(&self) -> ReadOnlyRcVar<bool> {
         self.0.is_open.clone().into_read_only()
     }
@@ -512,7 +483,6 @@ impl WindowVars {
     /// [`Next`]: FrameCaptureMode::Next
     /// [`Sporadic`]: FrameCaptureMode::Sporadic
     /// [`Updates::render_update`]: crate::context::Updates::render_update
-
     pub fn frame_capture_mode(&self) -> &RcVar<FrameCaptureMode> {
         &self.0.frame_capture_mode
     }
@@ -523,7 +493,6 @@ impl WindowVars {
     /// actually creates the backend window and after a view-process respawn.
     ///
     /// [`default_render_mode`]: crate::window::Windows::default_render_mode
-
     pub fn render_mode(&self) -> ReadOnlyRcVar<RenderMode> {
         self.0.render_mode.clone().into_read_only()
     }

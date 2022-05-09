@@ -290,19 +290,16 @@ impl_from_and_into_var! {
 }
 impl Length {
     /// Length of exact zero.
-
     pub const fn zero() -> Length {
         Length::Px(Px(0))
     }
 
     /// Length that fills the available space.
-
     pub const fn fill() -> Length {
         Length::Relative(Factor(1.0))
     }
 
     /// Length that fills 50% of the available space.
-
     pub const fn half() -> Length {
         Length::Relative(Factor(0.5))
     }
@@ -346,7 +343,6 @@ impl Length {
     }
 
     /// Returns a length that constrains the computed layout length between `min` and `max`.
-
     pub fn clamp(&self, min: impl Into<Length>, max: impl Into<Length>) -> Length {
         self.max(min).min(max)
     }
@@ -447,7 +443,6 @@ impl Length {
     }
 
     /// If is [`Length::Default`].
-
     pub fn is_default(&self) -> bool {
         matches!(self, Length::Default)
     }

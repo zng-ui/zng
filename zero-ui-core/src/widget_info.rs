@@ -108,7 +108,6 @@ impl WidgetLayout {
     /// Nodes that declare [reference frames] during render must also use this method.
     ///
     /// [reference frames]: crate::render::FrameBuilder::push_reference_frame
-
     pub fn with_custom_transform(&mut self, transform: &RenderTransform, f: impl FnOnce(&mut Self)) {
         let global_transform = transform.then(&self.global_transform);
         let prev_global_transform = mem::replace(&mut self.global_transform, global_transform);
@@ -121,7 +120,6 @@ impl WidgetLayout {
     ///
     /// Panel widgets should use this method to position their children widgets, it saves on the need to declare a custom
     /// transform for each child as it uses the child's own layout transform without being affected by it.
-
     pub fn with_parent_translate(&mut self, offset: PxVector, f: impl FnOnce(&mut Self)) {
         self.parent_translate += offset;
         f(self);
@@ -129,7 +127,6 @@ impl WidgetLayout {
     }
 
     /// Multiply the transform that will be applied to the next inner bounds by `transform`.
-
     pub fn with_inner_transform(&mut self, transform: &RenderTransform, f: impl FnOnce(&mut Self)) {
         let transform = self.transform.then(transform);
         let prev_transform = mem::replace(&mut self.transform, transform);
@@ -140,7 +137,6 @@ impl WidgetLayout {
     /// Sets the *center point* of the inner transform that will be applied to the next inner bounds.
     ///
     /// The `origin` will be resolved in the layout context of the un-transformed inner size.
-
     pub fn with_inner_transform_origin(&mut self, origin: &Point, f: impl FnOnce(&mut Self)) {
         let prev_origin = mem::replace(&mut self.transform_origin, origin.clone());
         f(self);
@@ -173,7 +169,6 @@ impl WidgetLayout {
     /// properties and baselines are defined after *size*.
     ///
     /// [`with_inner`]: Self::with_inner
-
     pub fn with_baseline_translate(&mut self, translate_baseline: bool, f: impl FnOnce(&mut Self)) {
         let prev_translate_baseline = mem::replace(&mut self.translate_baseline, translate_baseline);
         f(self);
@@ -264,13 +259,11 @@ impl WidgetLayout {
     }
 
     /// Current applied transform in the window space.
-
     pub fn global_transform(&self) -> RenderTransform {
         self.global_transform
     }
 
     /// Current accumulated border offsets.
-
     pub fn border_offsets(&self) -> PxSideOffsets {
         self.border_offsets
     }
@@ -278,7 +271,6 @@ impl WidgetLayout {
     /// Current corner radius set by [`with_corner_radius`].
     ///
     /// [`with_corner_radius`]: Self::with_corner_radius
-
     pub fn ctx_corner_radius(&self) -> &CornerRadius {
         &self.ctx_corner_radius
     }
@@ -287,7 +279,6 @@ impl WidgetLayout {
     ///
     /// [`with_corner_radius`]: Self::with_corner_radius
     /// [`with_border`]: Self::with_border
-
     pub fn corner_radius(&self) -> PxCornerRadius {
         self.corner_radius
     }
@@ -301,7 +292,6 @@ impl WidgetLayout {
     /// [`with_inner`]: Self::with_inner
     /// [`with_border`]: Self::with_border
     /// [`Default`]: crate::units::Length::Default
-
     pub fn with_corner_radius(&mut self, corners: &CornerRadius, f: impl FnOnce(&mut Self)) {
         let prev_ctx_corner_radius = mem::replace(&mut self.ctx_corner_radius, corners.clone());
 
@@ -315,7 +305,6 @@ impl WidgetLayout {
     /// Inside `f` corner radius [`Default`] will evaluate to `corners` instead of the parent value.
     ///
     /// [`Default`]: crate::units::Length::Default
-
     pub fn with_base_corner_radius(&mut self, corners: PxCornerRadius, f: impl FnOnce(&mut Self)) {
         let prev_corner_radius = mem::replace(&mut self.corner_radius, corners);
 
@@ -332,7 +321,6 @@ impl WidgetLayout {
     ///
     /// [`with_parent_translate`]: Self::with_parent_translate
     /// [`push_border`]: crate::render::FrameBuilder::push_border
-
     pub fn with_border(
         &mut self,
         offsets: PxSideOffsets,
@@ -366,7 +354,6 @@ impl WidgetLayout {
     /// then to a custom transform that is returned and must be rendered.
     ///
     /// This method is useful for implementing container widgets that want to host both any `UiNode` and a full `Widget` as content.
-
     pub fn leaf_transform(&mut self, metrics: &LayoutMetrics, final_size: PxSize, f: impl FnOnce(&mut Self)) -> Option<RenderTransform> {
         let prev_is_leaf = mem::replace(&mut self.is_leaf, true);
 
@@ -396,7 +383,6 @@ pub struct WidgetInfoBuilder {
 }
 impl WidgetInfoBuilder {
     /// Starts building a info tree with the root information.
-
     pub fn new(
         window_id: WindowId,
         root_id: WidgetId,
@@ -437,19 +423,16 @@ impl WidgetInfoBuilder {
     }
 
     /// Current widget id.
-
     pub fn widget_id(&self) -> WidgetId {
         self.widget_id
     }
 
     /// Current widget metadata.
-
     pub fn meta(&mut self) -> &mut StateMap {
         &mut self.meta.0
     }
 
     /// Calls `f` in a new widget context.
-
     pub fn push_widget(
         &mut self,
         id: WidgetId,
@@ -493,7 +476,6 @@ impl WidgetInfoBuilder {
     }
 
     /// Build the info tree.
-
     pub fn finalize(mut self) -> (WidgetInfoTree, UsedWidgetInfoBuilder) {
         self.tree.root_mut().value().meta = self.meta;
         let root_id = self.tree.root().id();
@@ -570,7 +552,6 @@ struct WidgetInfoTreeInner {
 }
 impl WidgetInfoTree {
     /// Blank window that contains only the root widget taking no space.
-
     pub fn blank(window_id: WindowId, root_id: WidgetId) -> Self {
         WidgetInfoBuilder::new(
             window_id,
@@ -586,25 +567,21 @@ impl WidgetInfoTree {
     }
 
     /// Reference to the root widget in the tree.
-
     pub fn root(&self) -> WidgetInfo {
         WidgetInfo::new(self, self.0.tree.root().id())
     }
 
     /// All widgets including `root`.
-
     pub fn all_widgets(&self) -> impl Iterator<Item = WidgetInfo> {
         self.0.tree.root().descendants().map(move |n| WidgetInfo::new(self, n.id()))
     }
 
     /// Id of the window that owns all widgets represented in the tree.
-
     pub fn window_id(&self) -> WindowId {
         self.0.window_id
     }
 
     /// Reference to the widget in the tree, if it is present.
-
     pub fn find(&self, widget_id: WidgetId) -> Option<WidgetInfo> {
         self.0
             .lookup
@@ -613,7 +590,6 @@ impl WidgetInfoTree {
     }
 
     /// If the tree contains the widget.
-
     pub fn contains(&self, widget_id: WidgetId) -> bool {
         self.0.lookup.contains_key(&widget_id)
     }
@@ -621,7 +597,6 @@ impl WidgetInfoTree {
     /// Reference to the widget in the tree, if it is present.
     ///
     /// Faster then [`find`](Self::find) if the widget path was generated by `self`.
-
     pub fn get(&self, path: &WidgetPath) -> Option<WidgetInfo> {
         if let Some((tree_id, id)) = path.node_id {
             if tree_id == self.0.id {
@@ -633,7 +608,6 @@ impl WidgetInfoTree {
     }
 
     /// Reference to the widget or first parent that is present.
-
     pub fn get_or_parent(&self, path: &WidgetPath) -> Option<WidgetInfo> {
         self.get(path)
             .or_else(|| path.ancestors().iter().rev().find_map(|&id| self.find(id)))
@@ -702,37 +676,31 @@ impl WidgetPath {
     }
 
     /// Id of the window that contains the widgets.
-
     pub fn window_id(&self) -> WindowId {
         self.window_id
     }
 
     /// Widgets that contain [`widget_id`](WidgetPath::widget_id), root first.
-
     pub fn ancestors(&self) -> &[WidgetId] {
         &self.path[..self.path.len() - 1]
     }
 
     /// The widget.
-
     pub fn widget_id(&self) -> WidgetId {
         self.path[self.path.len() - 1]
     }
 
     /// [`ancestors`](WidgetPath::ancestors) and [`widget_id`](WidgetPath::widget_id), root first.
-
     pub fn widgets_path(&self) -> &[WidgetId] {
         &self.path[..]
     }
 
     /// If the `widget_id` is part of the path.
-
     pub fn contains(&self, widget_id: WidgetId) -> bool {
         self.path.iter().any(move |&w| w == widget_id)
     }
 
     /// Make a path to an ancestor id that is contained in the current path.
-
     pub fn ancestor_path(&self, ancestor_id: WidgetId) -> Option<WidgetPath> {
         self.path.iter().position(|&id| id == ancestor_id).map(|i| WidgetPath {
             node_id: None,
@@ -742,7 +710,6 @@ impl WidgetPath {
     }
 
     /// Get the inner most widget parent shared by both `self` and `other`.
-
     pub fn shared_ancestor(&self, other: &WidgetPath) -> Option<WidgetPath> {
         if self.window_id == other.window_id {
             let mut path = Vec::default();
@@ -766,7 +733,6 @@ impl WidgetPath {
     }
 
     /// Gets a path to the root widget of this path.
-
     pub fn root_path(&self) -> WidgetPath {
         WidgetPath {
             node_id: None,
@@ -788,13 +754,11 @@ struct WidgetLayoutData {
 pub struct WidgetLayoutInfo(Rc<WidgetLayoutData>);
 impl WidgetLayoutInfo {
     /// New default.
-
     pub fn new() -> Self {
         Self::default()
     }
 
     /// New with a size.
-
     pub fn from_size(final_size: PxSize) -> Self {
         let self_ = WidgetLayoutInfo::new();
         self_.set_size(final_size);
@@ -804,7 +768,6 @@ impl WidgetLayoutInfo {
     /// Get a copy of the current transform.
     ///
     /// The transform converts from the widget bounds space to the bounds space.
-
     pub fn transform(&self) -> RenderTransform {
         self.0.transform.get()
     }
@@ -814,7 +777,6 @@ impl WidgetLayoutInfo {
     /// The transform converts from the window space to the widget bounds space.
     ///
     /// [`transform`]: Self::transform
-
     pub fn inverse_transform(&self) -> RenderTransform {
         self.transform().inverse().unwrap()
     }
@@ -823,7 +785,6 @@ impl WidgetLayoutInfo {
     ///
     /// The `transform` must be invertible and *make sense*, if constructed only by the associated
     /// functions and methods it is valid.
-
     fn set_transform(&self, transform: RenderTransform) {
         // TODO validate so that all `unwrap` calls in other methods pass.
         self.0.transform.set(transform)
@@ -832,13 +793,11 @@ impl WidgetLayoutInfo {
     /// Copy the current raw size.
     ///
     /// Note that this is not transformed.
-
     pub fn size(&self) -> PxSize {
         self.0.size.get()
     }
 
     /// Set the current raw size.
-
     fn set_size(&self, size: PxSize) {
         self.0.size.set(size)
     }
@@ -851,13 +810,11 @@ impl WidgetLayoutInfo {
     /// For outer bounds this is always `0`.
     ///
     /// [`size`]: Self::size
-
     pub fn baseline(&self) -> Px {
         self.0.baseline.get()
     }
 
     /// Set the current raw baseline.
-
     fn set_baseline(&self, baseline: Px) {
         self.0.baseline.set(baseline)
     }
@@ -919,19 +876,16 @@ struct WidgetBorderData {
 pub struct WidgetBorderInfo(Rc<WidgetBorderData>);
 impl WidgetBorderInfo {
     /// New default.
-
     pub fn new() -> Self {
         Self::default()
     }
 
     /// Sum of the widths of all borders set on the widget.
-
     pub fn offsets(&self) -> PxSideOffsets {
         self.0.offsets.get()
     }
 
     /// Corner radius set on the widget, this is the *outer* curve of border corners.
-
     pub fn corner_radius(&self) -> PxCornerRadius {
         self.0.corner_radius.get()
     }
@@ -1011,19 +965,16 @@ struct WidgetRenderData {
 pub struct WidgetRenderInfo(Rc<WidgetRenderData>);
 impl WidgetRenderInfo {
     /// New default.
-
     pub fn new() -> Self {
         Self::default()
     }
 
     /// Get if the widget or descendant widgets rendered in the latest window frame.
-
     pub fn rendered(&self) -> bool {
         self.0.rendered.get()
     }
 
     /// Set if the widget or child widgets rendered.
-
     pub(super) fn set_rendered(&self, rendered: bool) {
         self.0.rendered.set(rendered);
     }
@@ -1078,13 +1029,11 @@ impl<'a> WidgetInfo<'a> {
     }
 
     /// Widget id.
-
     pub fn widget_id(self) -> WidgetId {
         self.info().widget_id
     }
 
     /// Full path to this widget.
-
     pub fn path(self) -> WidgetPath {
         let mut path: Vec<_> = self.ancestors().map(|a| a.widget_id()).collect();
         path.reverse();
@@ -1104,7 +1053,6 @@ impl<'a> WidgetInfo<'a> {
     /// # Panics
     ///
     /// If `old_path` does not point to the same widget id as `self`.
-
     pub fn new_path(self, old_path: &WidgetPath) -> Option<WidgetPath> {
         assert_eq!(old_path.widget_id(), self.widget_id());
         if self
@@ -1123,7 +1071,6 @@ impl<'a> WidgetInfo<'a> {
     /// This value is updated every [`render`] without causing a tree rebuild.
     ///
     /// [`render`]: crate::UiNode::render
-
     pub fn rendered(self) -> bool {
         self.info().render_info.rendered()
     }
@@ -1131,7 +1078,6 @@ impl<'a> WidgetInfo<'a> {
     /// Clone a reference to the widget latest render information.
     ///
     /// This information is up-to-date, it is updated every render without causing a tree rebuild.
-
     pub fn render_info(self) -> WidgetRenderInfo {
         self.info().render_info.clone()
     }
@@ -1146,7 +1092,6 @@ impl<'a> WidgetInfo<'a> {
     /// [`outer_info`]: Self::outer_info
     /// [`Collapsed`]: Visibility::Collapsed
     /// [`Hidden`]: Visibility::Hidden
-
     pub fn visibility(self) -> Visibility {
         if self.rendered() {
             Visibility::Visible
@@ -1179,7 +1124,6 @@ impl<'a> WidgetInfo<'a> {
     /// Clone a reference to the widget outer bounds layout information.
     ///
     /// This information is up-to-date, it is updated every layout without causing a tree rebuild.
-
     pub fn outer_info(self) -> WidgetLayoutInfo {
         self.info().outer_info.clone()
     }
@@ -1187,7 +1131,6 @@ impl<'a> WidgetInfo<'a> {
     /// Clone a reference to the widget inner bounds layout information.
     ///
     /// This information is up-to-date, it is updated every layout without causing a tree rebuild.
-
     pub fn inner_info(self) -> WidgetLayoutInfo {
         self.info().inner_info.clone()
     }
@@ -1195,7 +1138,6 @@ impl<'a> WidgetInfo<'a> {
     /// Clone a reference to the widget border and corner radius information.
     ///
     /// This information is up-to-date, it is updated every layout without causing a tree rebuild.
-
     pub fn border_info(self) -> WidgetBorderInfo {
         self.info().border_info.clone()
     }
@@ -1203,7 +1145,6 @@ impl<'a> WidgetInfo<'a> {
     /// Side of the widget outer area, not transformed.
     ///
     /// Returns an up-to-date size, the size is updated every layout without causing a tree rebuild.
-
     pub fn outer_final_size(self) -> PxSize {
         self.info().outer_info.size()
     }
@@ -1211,7 +1152,6 @@ impl<'a> WidgetInfo<'a> {
     /// Side of the widget inner area, not transformed.
     ///
     /// Returns an up-to-date size, the size is updated every layout without causing a tree rebuild.
-
     pub fn inner_final_size(self) -> PxSize {
         self.info().inner_info.size()
     }
@@ -1219,7 +1159,6 @@ impl<'a> WidgetInfo<'a> {
     /// Widget outer transform in the window space, before its own transforms are applied.
     ///
     /// Returns an up-to-date transform, the transform is updated every layout without causing a tree rebuild.
-
     pub fn outer_transform(self) -> RenderTransform {
         self.info().outer_info.transform()
     }
@@ -1227,7 +1166,6 @@ impl<'a> WidgetInfo<'a> {
     /// Widget outer transform in the `parent` space.
     ///
     /// Returns `None` if `parent` is not invertible.
-
     pub fn outer_transform_in(self, parent: &RenderTransform) -> Option<RenderTransform> {
         self.info().outer_info.local_transform(parent)
     }
@@ -1235,7 +1173,6 @@ impl<'a> WidgetInfo<'a> {
     /// Widget transform in the window space, including its own transforms.
     ///
     /// Returns an up-to-date transform, the transform is updated every layout without causing a tree rebuild.
-
     pub fn inner_transform(self) -> RenderTransform {
         self.info().inner_info.transform()
     }
@@ -1243,7 +1180,6 @@ impl<'a> WidgetInfo<'a> {
     /// Widget inner transform in the `parent` space.
     ///
     /// Returns `None` if `parent` is not invertible.
-
     pub fn inner_transform_in(self, parent: &RenderTransform) -> Option<RenderTransform> {
         self.info().inner_info.local_transform(parent)
     }
@@ -1251,7 +1187,6 @@ impl<'a> WidgetInfo<'a> {
     /// Widget rectangle in the window space, including *outer* properties like margin.
     ///
     /// Returns an up-to-date rect, the bounds are updated every layout without causing a tree rebuild.
-
     pub fn outer_bounds(self) -> PxRect {
         self.info().outer_info.bounds()
     }
@@ -1259,7 +1194,6 @@ impl<'a> WidgetInfo<'a> {
     /// Widget outer bounds in the `parent` space.
     ///
     /// Returns `None` if `parent` is not invertible.
-
     pub fn outer_bounds_in(self, parent: &RenderTransform) -> Option<PxRect> {
         self.info().outer_info.local_bounds(parent)
     }
@@ -1267,7 +1201,6 @@ impl<'a> WidgetInfo<'a> {
     /// Widget rectangle in the window space, but only the visible *inner* properties.
     ///
     /// Returns an up-to-date rect, the bounds are updated every layout without causing a tree rebuild.
-
     pub fn inner_bounds(self) -> PxRect {
         self.info().inner_info.bounds()
     }
@@ -1275,7 +1208,6 @@ impl<'a> WidgetInfo<'a> {
     /// Widget inner bounds in the `parent` space.
     ///
     /// Returns `None` if `parent` is not invertible.
-
     pub fn inner_bounds_in(self, parent: &RenderTransform) -> Option<PxRect> {
         self.info().inner_info.local_bounds(parent)
     }
@@ -1307,7 +1239,6 @@ impl<'a> WidgetInfo<'a> {
     }
 
     /// Widget inner bounds center in the window space.
-
     pub fn center(self) -> PxPoint {
         self.inner_bounds().center()
     }
@@ -1315,25 +1246,21 @@ impl<'a> WidgetInfo<'a> {
     /// Widget inner bounds center in the `parent` space.
     ///
     /// Returns `None` if the `parent` is not invertible.
-
     pub fn center_in(self, parent: &RenderTransform) -> Option<PxPoint> {
         self.inner_bounds_in(parent).map(|r| r.center())
     }
 
     /// Metadata associated with the widget during render.
-
     pub fn meta(self) -> &'a StateMap {
         &self.info().meta.0
     }
 
     /// Reference the [`WidgetInfoTree`] that owns `self`.
-
     pub fn tree(self) -> &'a WidgetInfoTree {
         self.tree
     }
 
     /// Reference to the root widget.
-
     pub fn root(self) -> Self {
         self.ancestors().last().unwrap_or(self)
     }
@@ -1341,74 +1268,62 @@ impl<'a> WidgetInfo<'a> {
     /// Reference to the widget that contains this widget.
     ///
     /// Is `None` only for [`root`](WidgetInfoTree::root).
-
     pub fn parent(self) -> Option<Self> {
         self.node().parent().map(move |n| WidgetInfo::new(self.tree, n.id()))
     }
 
     /// Reference to the previous widget within the same parent.
-
     pub fn prev_sibling(self) -> Option<Self> {
         self.node().prev_sibling().map(move |n| WidgetInfo::new(self.tree, n.id()))
     }
 
     /// Reference to the next widget within the same parent.
-
     pub fn next_sibling(self) -> Option<Self> {
         self.node().next_sibling().map(move |n| WidgetInfo::new(self.tree, n.id()))
     }
 
     /// Reference to the first widget within this widget.
-
     pub fn first_child(self) -> Option<Self> {
         self.node().first_child().map(move |n| WidgetInfo::new(self.tree, n.id()))
     }
 
     /// Reference to the last widget within this widget.
-
     pub fn last_child(self) -> Option<Self> {
         self.node().last_child().map(move |n| WidgetInfo::new(self.tree, n.id()))
     }
 
     /// If the parent widget has multiple children.
-
     pub fn has_siblings(self) -> bool {
         self.node().has_siblings()
     }
 
     /// If the widget has at least one child.
-
     pub fn has_children(self) -> bool {
         self.node().has_children()
     }
 
     /// All parent children except this widget.
-
     pub fn siblings(self) -> impl Iterator<Item = WidgetInfo<'a>> {
         self.prev_siblings().chain(self.next_siblings())
     }
 
     /// Iterator over the widgets directly contained by this widget.
-
     pub fn children(self) -> impl DoubleEndedIterator<Item = WidgetInfo<'a>> {
         self.node().children().map(move |n| WidgetInfo::new(self.tree, n.id()))
     }
 
     /// Iterator over all widgets contained by this widget.
-
     pub fn descendants(self) -> impl Iterator<Item = WidgetInfo<'a>> {
         //skip(1) due to ego_tree's descendants() including the node in the descendants
         self.node().descendants().skip(1).map(move |n| WidgetInfo::new(self.tree, n.id()))
     }
 
     /// iterator over the widget and all widgets contained by it.
-
     pub fn self_and_descendants(self) -> impl Iterator<Item = WidgetInfo<'a>> {
         self.node().descendants().map(move |n| WidgetInfo::new(self.tree, n.id()))
     }
 
     /// Iterator over all widgets contained by this widget filtered by the `filter` closure.
-
     pub fn filter_descendants<F>(self, filter: F) -> FilterDescendants<'a, F>
     where
         F: FnMut(WidgetInfo<'a>) -> DescendantFilter,
@@ -1423,31 +1338,26 @@ impl<'a> WidgetInfo<'a> {
     }
 
     /// Iterator over parent -> grandparent -> .. -> root.
-
     pub fn ancestors(self) -> impl Iterator<Item = WidgetInfo<'a>> {
         self.node().ancestors().map(move |n| WidgetInfo::new(self.tree, n.id()))
     }
 
     /// Iterator over self -> parent -> grandparent -> .. -> root.
-
     pub fn self_and_ancestors(self) -> impl Iterator<Item = WidgetInfo<'a>> {
         [self].into_iter().chain(self.ancestors())
     }
 
     /// Iterator over all previous widgets within the same parent.
-
     pub fn prev_siblings(self) -> impl Iterator<Item = WidgetInfo<'a>> {
         self.node().prev_siblings().map(move |n| WidgetInfo::new(self.tree, n.id()))
     }
 
     /// Iterator over all next widgets within the same parent.
-
     pub fn next_siblings(self) -> impl Iterator<Item = WidgetInfo<'a>> {
         self.node().next_siblings().map(move |n| WidgetInfo::new(self.tree, n.id()))
     }
 
     /// This widgets [`center`](Self::center) orientation in relation to a `origin`.
-
     pub fn orientation_from(self, origin: PxPoint) -> WidgetOrientation {
         let o = self.center();
         for &d in &[
@@ -1465,21 +1375,18 @@ impl<'a> WidgetInfo<'a> {
 
     ///Iterator over all parent children except this widget with orientation in relation
     /// to this widget center.
-
     pub fn oriented_siblings(self) -> impl Iterator<Item = (WidgetInfo<'a>, WidgetOrientation)> {
         let c = self.center();
         self.siblings().map(move |s| (s, s.orientation_from(c)))
     }
 
     /// All parent children except this widget, sorted by closest first.
-
     pub fn closest_siblings(self) -> Vec<WidgetInfo<'a>> {
         self.closest_first(self.siblings())
     }
 
     /// All parent children except this widget, sorted by closest first and with orientation in
     /// relation to this widget center.
-
     pub fn closest_oriented_siblings(self) -> Vec<(WidgetInfo<'a>, WidgetOrientation)> {
         let mut vec: Vec<_> = self.oriented_siblings().collect();
         let origin = self.center();
@@ -1488,7 +1395,6 @@ impl<'a> WidgetInfo<'a> {
     }
 
     /// Unordered siblings to the left of this widget.
-
     pub fn un_left_siblings(self) -> impl Iterator<Item = WidgetInfo<'a>> {
         self.oriented_siblings().filter_map(|(s, o)| match o {
             WidgetOrientation::Left => Some(s),
@@ -1497,7 +1403,6 @@ impl<'a> WidgetInfo<'a> {
     }
 
     /// Unordered siblings to the right of this widget.
-
     pub fn un_right_siblings(self) -> impl Iterator<Item = WidgetInfo<'a>> {
         self.oriented_siblings().filter_map(|(s, o)| match o {
             WidgetOrientation::Right => Some(s),
@@ -1506,7 +1411,6 @@ impl<'a> WidgetInfo<'a> {
     }
 
     /// Unordered siblings to the above of this widget.
-
     pub fn un_above_siblings(self) -> impl Iterator<Item = WidgetInfo<'a>> {
         self.oriented_siblings().filter_map(|(s, o)| match o {
             WidgetOrientation::Above => Some(s),
@@ -1515,7 +1419,6 @@ impl<'a> WidgetInfo<'a> {
     }
 
     /// Unordered siblings to the below of this widget.
-
     pub fn un_below_siblings(self) -> impl Iterator<Item = WidgetInfo<'a>> {
         self.oriented_siblings().filter_map(|(s, o)| match o {
             WidgetOrientation::Below => Some(s),
@@ -1524,32 +1427,27 @@ impl<'a> WidgetInfo<'a> {
     }
 
     /// Siblings to the left of this widget sorted by closest first.
-
     pub fn left_siblings(self) -> Vec<WidgetInfo<'a>> {
         self.closest_first(self.un_left_siblings())
     }
 
     /// Siblings to the right of this widget sorted by closest first.
-
     pub fn right_siblings(self) -> Vec<WidgetInfo<'a>> {
         self.closest_first(self.un_right_siblings())
     }
 
     /// Siblings to the above of this widget sorted by closest first.
-
     pub fn above_siblings(self) -> Vec<WidgetInfo<'a>> {
         self.closest_first(self.un_above_siblings())
     }
 
     /// Siblings to the below of this widget sorted by closest first.
-
     pub fn below_siblings(self) -> Vec<WidgetInfo<'a>> {
         self.closest_first(self.un_below_siblings())
     }
 
     /// Value that indicates the distance between this widget center
     /// and `origin`.
-
     pub fn distance_key(self, origin: PxPoint) -> usize {
         let o = self.center();
         let a = (o.x - origin.x).0.pow(2);
@@ -1680,7 +1578,6 @@ macro_rules! update_slot {
 
         impl $Slot {
             /// Gets a slot.
-
             pub fn next() -> Self {
                 thread_local! {
                     static SLOT: Cell<u8> = Cell::new(0);
@@ -1696,7 +1593,6 @@ macro_rules! update_slot {
             }
 
             /// Gets a mask representing just this slot.
-
             pub fn mask(self) -> $Mask {
                 $Mask::from_slot(self)
             }
@@ -1723,25 +1619,21 @@ macro_rules! update_mask {
             }
 
             /// Returns a mask that represents no update.
-
             pub const fn none() -> Self {
                 $Mask([0; 2])
             }
 
             /// Returns a mask that represents all updates.
-
             pub const fn all() -> Self {
                 $Mask([u128::MAX; 2])
             }
 
             /// Returns `true` if this mask does not represent any update.
-
             pub fn is_none(&self) -> bool {
                 self.0[0] == 0 && self.0[1] == 0
             }
 
             /// Flags the `slot` in this mask.
-
             pub fn insert(&mut self, slot: $Slot) {
                 let slot = slot.0;
                 if slot < 128 {
@@ -1752,7 +1644,6 @@ macro_rules! update_mask {
             }
 
             /// Returns `true` if the `slot` is set in this mask.
-
             pub fn contains(&self, slot: $Slot) -> bool {
                 let slot = slot.0;
                 if slot < 128 {
@@ -1763,14 +1654,12 @@ macro_rules! update_mask {
             }
 
             /// Flags all slots set in `other` in `self` as well.
-
             pub fn extend(&mut self, other: &Self) {
                 self.0[0] |= other.0[0];
                 self.0[1] |= other.0[1];
             }
 
             /// Returns `true` if any slot is set in both `self` and `other`.
-
             pub fn intersects(&self, other: &Self) -> bool {
                 (self.0[0] & other.0[0]) != 0 || (self.0[1] & other.0[1]) != 0
             }
@@ -1880,7 +1769,6 @@ pub struct WidgetSubscriptions {
 }
 impl WidgetSubscriptions {
     /// New default, no subscriptions.
-
     pub fn new() -> Self {
         Self::default()
     }
@@ -1888,21 +1776,18 @@ impl WidgetSubscriptions {
     /// Register an [`Event`] or command subscription.
     ///
     /// [`Event`]: crate::event::Event
-
     pub fn event(&mut self, event: impl crate::event::Event) -> &mut Self {
         self.event.insert(event.slot());
         self
     }
 
     /// Register multiple event or command subscriptions.
-
     pub fn events(&mut self, mask: &EventMask) -> &mut Self {
         self.event.extend(mask);
         self
     }
 
     /// Register async handler waker update source.
-
     pub fn handler<A>(&mut self, handler: &impl WidgetHandler<A>) -> &mut Self
     where
         A: Clone + 'static,
@@ -1912,27 +1797,23 @@ impl WidgetSubscriptions {
     }
 
     /// Register a custom update source subscription.
-
     pub fn update(&mut self, slot: UpdateSlot) -> &mut Self {
         self.update.insert(slot);
         self
     }
 
     /// Register multiple update source subscriptions.
-
     pub fn updates(&mut self, mask: &UpdateMask) -> &mut Self {
         self.update.extend(mask);
         self
     }
 
     /// Register all subscriptions from `other` in `self`.
-
     pub fn extend(&mut self, other: &WidgetSubscriptions) -> &mut Self {
         self.events(&other.event).updates(&other.update)
     }
 
     /// Register a variable subscription.
-
     pub fn var<Vr, T>(&mut self, vars: &Vr, var: &impl Var<T>) -> &mut Self
     where
         Vr: WithVarsRead,
@@ -1943,7 +1824,6 @@ impl WidgetSubscriptions {
     }
 
     /// Start a [`WidgetVarSubscriptions`] to register multiple variables without needing to reference the [`VarsRead`] for every variable.
-
     pub fn vars<'s, 'v>(&'s mut self, vars: &'v impl AsRef<VarsRead>) -> WidgetVarSubscriptions<'v, 's> {
         WidgetVarSubscriptions {
             vars: vars.as_ref(),
@@ -1962,19 +1842,16 @@ impl WidgetSubscriptions {
     }
 
     /// Returns the current set event subscriptions.
-
     pub fn event_mask(&self) -> EventMask {
         self.event
     }
 
     /// Returns the current set update subscriptions.
-
     pub fn update_mask(&self) -> UpdateMask {
         self.update
     }
 
     /// Returns if both event and update subscriptions are none.
-
     pub fn is_none(&self) -> bool {
         self.event.is_none() && self.update.is_none()
     }
@@ -2002,7 +1879,6 @@ pub struct WidgetVarSubscriptions<'v, 's> {
 }
 impl<'v, 's> WidgetVarSubscriptions<'v, 's> {
     /// Register a variable subscriptions.
-
     pub fn var<T: VarValue>(self, var: &impl Var<T>) -> Self {
         Self {
             subscriptions: self.subscriptions.var(self.vars, var),

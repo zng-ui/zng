@@ -68,7 +68,6 @@ impl CachePolicy {
     }
 
     /// Returns how long the response has been sitting in cache.
-
     pub fn age(&self, now: SystemTime) -> Duration {
         match &self.0 {
             PolicyInner::Policy(p) => p.age(now),
@@ -77,7 +76,6 @@ impl CachePolicy {
     }
 
     /// Returns approximate time in milliseconds until the response becomes stale.
-
     pub fn time_to_live(&self, now: SystemTime) -> Duration {
         match &self.0 {
             PolicyInner::Policy(p) => p.time_to_live(now),
@@ -86,7 +84,6 @@ impl CachePolicy {
     }
 
     /// Returns `true` if the cache entry has expired.
-
     pub fn is_stale(&self, now: SystemTime) -> bool {
         match &self.0 {
             PolicyInner::Policy(p) => p.is_stale(now),

@@ -271,31 +271,26 @@ event_args! {
 
 impl MouseHoverArgs {
     /// Event caused by the mouse position moving over/out of the widget bounds.
-
     pub fn is_mouse_move(&self) -> bool {
         self.device_id.is_some()
     }
 
     /// Event caused by the widget moving under/out of the mouse position.
-
     pub fn is_widget_move(&self) -> bool {
         self.device_id.is_none()
     }
 
     /// Event caused by a mouse capture change.
-
     pub fn is_capture_change(&self) -> bool {
         self.prev_capture != self.capture
     }
 
     /// Returns `true` if the widget was not hovered, but now is.
-
     pub fn is_mouse_enter(&self, path: &WidgetContextPath) -> bool {
         !self.was_over(path) && self.is_over(path)
     }
 
     /// Returns `true` if the widget was hovered, but now isn't.
-
     pub fn is_mouse_leave(&self, path: &WidgetContextPath) -> bool {
         self.was_over(path) && !self.is_over(path)
     }
@@ -304,7 +299,6 @@ impl MouseHoverArgs {
     ///
     /// [`prev_target`]: Self::prev_target
     /// [`prev_capture`]: Self::prev_capture
-
     pub fn was_over(&self, path: &WidgetContextPath) -> bool {
         if let Some(cap) = &self.prev_capture {
             if !cap.allows(path) {
@@ -323,7 +317,6 @@ impl MouseHoverArgs {
     ///
     /// [`target`]: Self::target
     /// [`capture`]: Self::capture
-
     pub fn is_over(&self, path: &WidgetContextPath) -> bool {
         if let Some(cap) = &self.capture {
             if !cap.allows(path) {
@@ -343,7 +336,6 @@ impl MouseHoverArgs {
     /// [`target`]: Self::target
     /// [`prev_target`]: Self::prev_target
     /// [`capture`]: Self::capture
-
     pub fn concerns_capture(&self, ctx: &mut WidgetContext) -> bool {
         self.capture
             .as_ref()
@@ -356,7 +348,6 @@ impl MouseHoverArgs {
 
 impl MouseMoveArgs {
     /// If the widget is in [`target`](Self::target) or is the [`capture`](Self::capture) holder.
-
     pub fn concerns_capture(&self, ctx: &mut WidgetContext) -> bool {
         self.target.contains(ctx.path.widget_id())
             || self
@@ -372,7 +363,6 @@ impl MouseInputArgs {
     ///
     /// [`target`]: Self::target
     /// [`capture`]: Self::capture
-
     pub fn concerns_capture(&self, ctx: &mut WidgetContext) -> bool {
         (self.target.contains(ctx.path.widget_id())
             && ctx
@@ -390,13 +380,11 @@ impl MouseInputArgs {
     /// If the [`button`] is the primary.
     ///
     /// [`button`]: Self::button
-
     pub fn is_primary(&self) -> bool {
         self.button == MouseButton::Left
     }
 
     /// If the [`button`](Self::button) is the context (right).
-
     pub fn is_context(&self) -> bool {
         self.button == MouseButton::Right
     }
@@ -404,7 +392,6 @@ impl MouseInputArgs {
     /// If the [`state`] is pressed.
     ///
     /// [`state`]: Self::state
-
     pub fn is_mouse_down(&self) -> bool {
         self.state == ButtonState::Pressed
     }
@@ -412,7 +399,6 @@ impl MouseInputArgs {
     /// If the [`state`] is released.
     ///
     /// [`state`]: Self::state
-
     pub fn is_mouse_up(&self) -> bool {
         self.state == ButtonState::Released
     }
@@ -420,31 +406,26 @@ impl MouseInputArgs {
 
 impl MouseClickArgs {
     /// If the [`button`](Self::button) is the primary.
-
     pub fn is_primary(&self) -> bool {
         self.button == MouseButton::Left
     }
 
     /// If the [`button`](Self::button) is the context (right).
-
     pub fn is_context(&self) -> bool {
         self.button == MouseButton::Right
     }
 
     /// If the [`click_count`](Self::click_count) is `1`.
-
     pub fn is_single(&self) -> bool {
         self.click_count.get() == 1
     }
 
     /// If the [`click_count`](Self::click_count) is `2`.
-
     pub fn is_double(&self) -> bool {
         self.click_count.get() == 2
     }
 
     /// If the [`click_count`](Self::click_count) is `3`.
-
     pub fn is_triple(&self) -> bool {
         self.click_count.get() == 3
     }
@@ -452,7 +433,6 @@ impl MouseClickArgs {
 
 impl MouseCaptureArgs {
     /// If the same widget has mouse capture, but the widget path changed.
-
     pub fn is_widget_move(&self) -> bool {
         match (&self.prev_capture, &self.new_capture) {
             (Some(prev), Some(new)) => prev.0.widget_id() == new.0.widget_id() && prev.0 != new.0,
@@ -461,7 +441,6 @@ impl MouseCaptureArgs {
     }
 
     /// If the same widget has mouse capture, but the capture mode changed.
-
     pub fn is_mode_change(&self) -> bool {
         match (&self.prev_capture, &self.new_capture) {
             (Some(prev), Some(new)) => prev.0.widget_id() == new.0.widget_id() && prev.1 != new.1,
@@ -470,7 +449,6 @@ impl MouseCaptureArgs {
     }
 
     /// If the `widget_id` lost mouse capture with this update.
-
     pub fn is_lost(&self, widget_id: WidgetId) -> bool {
         match (&self.prev_capture, &self.new_capture) {
             (None, _) => false,
@@ -480,7 +458,6 @@ impl MouseCaptureArgs {
     }
 
     /// If the `widget_id` got mouse capture with this update.
-
     pub fn is_got(&self, widget_id: WidgetId) -> bool {
         match (&self.prev_capture, &self.new_capture) {
             (_, None) => false,
@@ -1193,7 +1170,6 @@ impl Mouse {
     /// Returns a read-only variable that tracks the [buttons] that are currently pressed.
     ///
     /// [buttons]: MouseButton
-
     pub fn buttons(&self) -> ReadOnlyRcVar<Vec<MouseButton>> {
         self.buttons.clone().into_read_only()
     }
@@ -1211,13 +1187,11 @@ impl Mouse {
     ///
     /// Internally the [`RawMultiClickConfigChangedEvent`] is listened to update this variable, so you can notify
     /// this event to set this variable, if you really must.
-
     pub fn multi_click_config(&self) -> ReadOnlyRcVar<MultiClickConfig> {
         self.multi_click_config.clone().into_read_only()
     }
 
     /// The current capture target and mode.
-
     pub fn current_capture(&self) -> Option<(&WidgetPath, CaptureMode)> {
         self.current_capture.as_ref().map(|(p, c)| (p, *c))
     }
@@ -1225,7 +1199,6 @@ impl Mouse {
     /// Set a widget to redirect all mouse events to.
     ///
     /// The capture will be set only if the pointer is currently pressed over the widget.
-
     pub fn capture_widget(&mut self, widget_id: WidgetId) {
         self.capture_request = Some((widget_id, CaptureMode::Widget));
         let _ = self.update_sender.send_ext_update();
@@ -1237,7 +1210,6 @@ impl Mouse {
     /// the capture root are redirected to the capture root.
     ///
     /// The capture will be set only if the pointer is currently pressed over the widget.
-
     pub fn capture_subtree(&mut self, widget_id: WidgetId) {
         self.capture_request = Some((widget_id, CaptureMode::Subtree));
         let _ = self.update_sender.send_ext_update();
@@ -1247,7 +1219,6 @@ impl Mouse {
     ///
     /// **Note:** The capture is released automatically when the mouse buttons are released
     /// or when the window loses focus.
-
     pub fn release_capture(&mut self) {
         self.release_requested = true;
         let _ = self.update_sender.send_ext_update();
@@ -1281,7 +1252,6 @@ impl Mouse {
     /// The point is relative to the window, if the window moves the cursor moves to match the point.
     ///
     /// **NOT IMPLEMENTED**
-
     pub fn lock_cursor_pt(&mut self, window_id: WindowId, point: DipPoint) {
         self.lock_cursor(window_id, DipRect::new(point, DipSize::zero()))
     }
@@ -1424,7 +1394,6 @@ impl fmt::Debug for CaptureMode {
 }
 impl Default for CaptureMode {
     /// [`CaptureMode::Window`]
-
     fn default() -> Self {
         CaptureMode::Window
     }
@@ -1458,7 +1427,6 @@ impl CaptureInfo {
     /// | `Window`       | All widgets in the same window.                    |
     /// | `Subtree`      | All widgets that have the `target` in their path.  |
     /// | `Widget`       | Only the `target` widget.                          |
-
     pub fn allows(&self, path: &WidgetContextPath) -> bool {
         match self.mode {
             CaptureMode::Window => self.target.window_id() == path.window_id(),

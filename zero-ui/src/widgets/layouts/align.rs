@@ -17,7 +17,6 @@ mod center {
 /// Centralizes the content in the available space.
 ///
 /// This is the equivalent of setting [`align`](fn@align) to [`Align::CENTER`], but as a widget.
-
 pub fn center(content: impl Widget) -> impl Widget {
     center! { content; }
 }

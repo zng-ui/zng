@@ -47,7 +47,6 @@ where
     V: Var<T>,
 {
     /// Wrap var.
-
     pub fn new(var: V) -> Self {
         ReadOnlyVar(var, PhantomData)
     }

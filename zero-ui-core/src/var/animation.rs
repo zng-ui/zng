@@ -90,25 +90,21 @@ pub enum EasingFn {
 }
 impl EasingFn {
     /// Calls the easing function that `self` represents.
-
     pub fn ease_in(self, time: EasingTime) -> EasingStep {
         (self.ease_fn())(time)
     }
 
     /// Calls the easing function that `self` represents and inverts the value using [`easing::ease_out`].
-
     pub fn ease_out(self, time: EasingTime) -> EasingStep {
         easing::ease_out(|t| self.ease_in(t), time)
     }
 
     /// Calls the easing function that `self` represents and transforms the value using [`easing::ease_in_out`].
-
     pub fn ease_in_out(self, time: EasingTime) -> EasingStep {
         easing::ease_in_out(|t| self.ease_in(t), time)
     }
 
     /// Gets the easing function that `self` represents.
-
     pub fn ease_fn(self) -> fn(EasingTime) -> EasingStep {
         match self {
             EasingFn::Linear => easing::linear,
@@ -161,7 +157,6 @@ impl AnimationHandle {
     }
 
     /// Create dummy handle that is always in the *stopped* state.
-
     pub fn dummy() -> Self {
         AnimationHandle(Handle::dummy(()))
     }
@@ -169,20 +164,17 @@ impl AnimationHandle {
     /// Drop the handle but does **not** stop.
     ///
     /// The animation stays in memory for the duration of the app or until another handle calls [`stop`](Self::stop).
-
     pub fn perm(self) {
         self.0.perm();
     }
 
     /// If another handle has called [`perm`](Self::perm).
     /// If `true` the animation will stay active until the app shutdown, unless [`stop`](Self::stop) is called.
-
     pub fn is_permanent(&self) -> bool {
         self.0.is_permanent()
     }
 
     /// Drops the handle and forces the animation to drop.
-
     pub fn stop(self) {
         self.0.force_drop();
     }
@@ -190,13 +182,11 @@ impl AnimationHandle {
     /// If another handle has called [`stop`](Self::stop).
     ///
     /// The animation is already dropped or will be dropped in the next app update, this is irreversible.
-
     pub fn is_stopped(&self) -> bool {
         self.0.is_dropped()
     }
 
     /// Create a weak handle.
-
     pub fn downgrade(&self) -> WeakAnimationHandle {
         WeakAnimationHandle(self.0.downgrade())
     }
@@ -244,7 +234,6 @@ impl AnimationArgs {
     }
 
     /// Instant this animation (re)started.
-
     pub fn start_time(&self) -> Instant {
         self.start_time.get()
     }
@@ -253,13 +242,11 @@ impl AnimationArgs {
     ///
     /// Use this value instead of [`Instant::now`], animations update sequentially, but should behave as if
     /// they are updating exactly in parallel, using this timestamp ensures that.
-
     pub fn now(&self) -> Instant {
         self.now
     }
 
     /// Global time scale for animations.
-
     pub fn time_scale(&self) -> Factor {
         self.time_scale
     }
@@ -280,7 +267,6 @@ impl AnimationArgs {
     /// The animation awakes in the next [`Vars::frame_duration`] after the `duration` elapses, if the sleep duration is not
     /// a multiple of the frame duration it will delay an extra `frame_duration - 1ns` in the worst case. The minimum
     /// possible `duration` is the frame duration, shorter durations behave the same as if not set.
-
     pub fn sleep(&self, duration: Duration) {
         self.sleep.set(Some(self.now + duration));
     }
@@ -292,7 +278,6 @@ impl AnimationArgs {
     /// Returns a value that indicates if animations are enabled in the operating system.
     ///
     /// If `false` all animations must be skipped to the end, users with photo-sensitive epilepsy disable animations system wide.
-
     pub fn animations_enabled(&self) -> bool {
         self.animations_enabled
     }
@@ -301,7 +286,6 @@ impl AnimationArgs {
     ///
     /// [`start_time`]: Self::start_time
     /// [`now`]: Self::now
-
     pub fn elapsed_dur(&self) -> Duration {
         self.now - self.start_time.get()
     }
@@ -311,7 +295,6 @@ impl AnimationArgs {
     /// If animations are disabled, returns [`EasingTime::end`], the returned time is scaled.
     ///
     /// [`animations_enabled`]: Self::animations_enabled
-
     pub fn elapsed(&self, duration: Duration) -> EasingTime {
         if self.animations_enabled {
             EasingTime::elapsed(duration, self.elapsed_dur(), self.time_scale)
@@ -323,7 +306,6 @@ impl AnimationArgs {
     /// Compute the elapsed [`EasingTime`], if the time [`is_end`] requests animation stop.
     ///
     /// [`is_end`]: EasingTime::is_end
-
     pub fn elapsed_stop(&self, duration: Duration) -> EasingTime {
         let t = self.elapsed(duration);
         if t.is_end() {
@@ -360,26 +342,22 @@ impl AnimationArgs {
     }
 
     /// Drop the animation after applying the current update.
-
     pub fn stop(&self) {
         self.stop.set(true);
     }
 
     /// If the animation will be dropped after applying the update.
-
     pub fn stop_requested(&self) -> bool {
         self.stop.get()
     }
 
     /// Set the animation start time to now.
-
     pub fn restart(&self) {
         self.set_start_time(self.now);
         self.restart_count.set(self.restart_count.get() + 1);
     }
 
     /// Number of times the animation restarted.
-
     pub fn restart_count(&self) -> usize {
         self.restart_count.get()
     }
@@ -387,7 +365,6 @@ impl AnimationArgs {
     /// Change the start time to an arbitrary value.
     ///
     /// Note that this does not affect the restart count.
-
     pub fn set_start_time(&self, instant: Instant) {
         self.start_time.set(instant)
     }

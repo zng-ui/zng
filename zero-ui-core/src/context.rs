@@ -135,7 +135,6 @@ impl<'a> AppContext<'a> {
     /// Runs a function `f` in the context of a window.
     ///
     /// Returns the function result and
-
     pub fn window_context<R>(
         &mut self,
         window_id: WindowId,
@@ -203,7 +202,6 @@ pub struct WindowContext<'a> {
 }
 impl<'a> WindowContext<'a> {
     /// Runs a function `f` in the context of a widget.
-
     pub fn widget_context<R>(
         &mut self,
         info_tree: &WidgetInfoTree,
@@ -234,7 +232,6 @@ impl<'a> WindowContext<'a> {
     }
 
     /// Run a function `f` in the info context of a widget.
-
     pub fn info_context<R>(
         &mut self,
         info_tree: &WidgetInfoTree,
@@ -253,7 +250,6 @@ impl<'a> WindowContext<'a> {
     }
 
     /// Runs a function `f` in the layout context of a widget.
-
     #[allow(clippy::too_many_arguments)]
     pub fn layout_context<R>(
         &mut self,
@@ -289,7 +285,6 @@ impl<'a> WindowContext<'a> {
     }
 
     /// Runs a function `f` in the render context of a widget.
-
     pub fn render_context<R>(
         &mut self,
         root_widget_id: WidgetId,
@@ -620,7 +615,6 @@ pub struct WidgetContext<'a> {
 }
 impl<'a> WidgetContext<'a> {
     /// Runs a function `f` in the context of a widget.
-
     pub fn widget_context<R>(
         &mut self,
         widget_id: WidgetId,
@@ -693,25 +687,21 @@ impl WidgetContextPath {
     }
 
     /// Parent window id.
-
     pub fn window_id(&self) -> WindowId {
         self.window_id
     }
 
     /// Window root widget id.
-
     pub fn root_id(&self) -> WidgetId {
         self.widget_ids[0]
     }
 
     /// Current widget id.
-
     pub fn widget_id(&self) -> WidgetId {
         self.widget_ids[self.widget_ids.len() - 1]
     }
 
     /// Ancestor widgets, parent first.
-
     #[allow(clippy::needless_lifetimes)] // clippy bug
     pub fn ancestors<'s>(&'s self) -> impl Iterator<Item = WidgetId> + 's {
         let max = self.widget_ids.len() - 1;
@@ -719,19 +709,16 @@ impl WidgetContextPath {
     }
 
     /// Parent widget id.
-
     pub fn parent(&self) -> Option<WidgetId> {
         self.ancestors().next()
     }
 
     /// If the `widget_id` is part of the path.
-
     pub fn contains(&self, widget_id: WidgetId) -> bool {
         self.widget_ids.iter().any(move |&w| w == widget_id)
     }
 
     /// Returns `true` if the current widget is the window.
-
     pub fn is_root(&self) -> bool {
         self.widget_ids.len() == 1
     }
@@ -810,7 +797,6 @@ impl<'a> LayoutContext<'a> {
     /// Runs a function `f` in a layout context that has the new computed font size.
     ///
     /// The `font_size_new` flag indicates if the `font_size` value changed from the previous layout call.
-
     pub fn with_font_size<R>(&mut self, font_size: Px, font_size_new: bool, f: impl FnOnce(&mut LayoutContext) -> R) -> R {
         let mut diff = self.metrics.diff;
         diff.set(LayoutMask::FONT_SIZE, font_size_new);
@@ -831,7 +817,6 @@ impl<'a> LayoutContext<'a> {
     }
 
     /// Runs a function `f` in the layout context of a widget.
-
     pub fn with_widget<R>(&mut self, widget_id: WidgetId, widget_state: &mut OwnedStateMap, f: impl FnOnce(&mut LayoutContext) -> R) -> R {
         #[cfg(not(inspector))]
         let _span = UpdatesTrace::widget_span(widget_id, "", "");
@@ -903,7 +888,6 @@ pub struct RenderContext<'a> {
 }
 impl<'a> RenderContext<'a> {
     /// Runs a function `f` in the render context of a widget.
-
     pub fn with_widget<R>(&mut self, widget_id: WidgetId, widget_state: &OwnedStateMap, f: impl FnOnce(&mut RenderContext) -> R) -> R {
         self.path.push(widget_id);
         let r = f(&mut RenderContext {
@@ -962,7 +946,6 @@ pub struct InfoContext<'a> {
 }
 impl<'a> InfoContext<'a> {
     /// Runs a function `f` in the info context of a widget.
-
     pub fn with_widget<R>(&mut self, widget_id: WidgetId, widget_state: &OwnedStateMap, f: impl FnOnce(&mut InfoContext) -> R) -> R {
         self.path.push(widget_id);
         let r = f(&mut InfoContext {
@@ -1034,7 +1017,6 @@ impl LayoutMetrics {
     /// Smallest dimension of the [`viewport_size`].
     ///
     /// [`viewport_size`]: Self::viewport_size
-
     pub fn viewport_min(&self) -> Px {
         self.viewport_size.width.min(self.viewport_size.height)
     }
@@ -1042,7 +1024,6 @@ impl LayoutMetrics {
     /// Largest dimension of the [`viewport_size`].
     ///
     /// [`viewport_size`]: Self::viewport_size
-
     pub fn viewport_max(&self) -> Px {
         self.viewport_size.width.max(self.viewport_size.height)
     }
@@ -1053,7 +1034,6 @@ impl LayoutMetrics {
     /// method updates the `prev_available_size` to the new `available_size` after the comparison.
     ///
     /// [`UiNode::measure`]: crate::UiNode::measure
-
     pub fn measure_diff(
         &self,
         prev_available_size: &mut Option<AvailableSize>,
@@ -1069,7 +1049,6 @@ impl LayoutMetrics {
     /// updates the `prev_final_size` to the new `final_size` after the comparison.
     ///
     /// [`UiNode::arrange`]: crate::UiNode::arrange
-
     pub fn arrange_diff(&self, prev_final_size: &mut Option<PxSize>, final_size: PxSize, default_is_new: bool) -> LayoutMask {
         self.node_diff(prev_final_size, final_size, default_is_new)
     }
@@ -1094,7 +1073,6 @@ impl LayoutMetrics {
     /// Sets the [`font_size`].
     ///
     /// [`font_size`]: Self::font_size
-
     pub fn with_font_size(mut self, font_size: Px) -> Self {
         self.font_size = font_size;
         self
@@ -1103,7 +1081,6 @@ impl LayoutMetrics {
     /// Sets the [`scale_factor`].
     ///
     /// [`scale_factor`]: Self::scale_factor
-
     pub fn with_scale_factor(mut self, scale_factor: Factor) -> Self {
         self.scale_factor = scale_factor;
         self
@@ -1112,7 +1089,6 @@ impl LayoutMetrics {
     /// Sets the [`screen_ppi`].
     ///
     /// [`screen_ppi`]: Self::screen_ppi
-
     pub fn with_screen_ppi(mut self, screen_ppi: f32) -> Self {
         self.screen_ppi = screen_ppi;
         self
@@ -1121,7 +1097,6 @@ impl LayoutMetrics {
     /// Sets the [`diff`].
     ///
     /// [`diff`]: Self::diff
-
     pub fn with_diff(mut self, diff: LayoutMask) -> Self {
         self.diff = diff;
         self

@@ -131,7 +131,6 @@ macro_rules! command {
             }
 
             /// Gets the event arguments if the update is for this command type and scope.
-
             #[allow(unused)]
             pub fn update<U: $crate::event::EventUpdateArgs>(self, args: &U) -> Option<&$crate::event::EventUpdate<$Command>> {
                 if let Some(args) = args.args_for::<Self>() {
@@ -146,7 +145,6 @@ macro_rules! command {
             }
 
             /// Gets the event arguments if the update is for this command type disregarding the scope.
-
             #[allow(unused)]
             pub fn update_any_scope<U: $crate::event::EventUpdateArgs>(self, args: &U) -> Option<&$crate::event::EventUpdate<$Command>> {
                 args.args_for::<Self>()
@@ -157,7 +155,6 @@ macro_rules! command {
             /// The `parameter` is an optional value for the command handler.
             ///
             /// Returns `true` if notified, only notifies if the command is enabled.
-
             #[allow(unused)]
             pub fn notify<Evs: $crate::event::WithEvents>(self, events: &mut Evs, parameter: Option<$crate::command::CommandParam>) -> bool {
                 let scope = $crate::command::Command::scope(self);
@@ -175,7 +172,6 @@ macro_rules! command {
             /// When this is `false` but [`has_handlers`](Self::has_handlers) is `true` the command can be considered
             /// *relevant* in the current app state but not enabled, associated command trigger widgets should be
             /// visible but disabled.
-
             #[allow(unused)]
             pub fn enabled(self) -> $crate::var::ReadOnlyRcVar<bool> {
                 <Self as $crate::command::Command>::enabled(self)
@@ -185,7 +181,6 @@ macro_rules! command {
             ///
             /// When this is `false` the command can be considered *not relevant* in the current app state
             /// and associated command trigger widgets can be hidden.
-
             #[allow(unused)]
             pub fn has_handlers(self) -> $crate::var::types::ReadOnlyRcVar<bool> {
                 <Self as $crate::command::Command>::has_handlers(self)
@@ -195,14 +190,12 @@ macro_rules! command {
             ///
             /// A handle indicates that there is an active *handler* for the event, the handle can also
             /// be used to set the [`enabled`](Self::enabled) state.
-
             #[allow(unused)]
             pub fn new_handle<Evs: $crate::event::WithEvents>(self, events: &mut Evs, enabled: bool) -> $crate::command::CommandHandle {
                 <Self as $crate::command::Command>::new_handle(self, events, enabled)
             }
 
             /// Get a scoped command derived from this command type.
-
             #[allow(unused)]
             pub fn scoped<S: Into<$crate::command::CommandScope>>(self, scope: S) -> $crate::command::ScopedCommand<Self> {
                 <Self as $crate::command::Command>::scoped(self, scope)
@@ -575,14 +568,12 @@ impl<C: Command> ScopedCommand<C> {
     ///
     /// You can use this in a notifier widget that *knows* the limited scope it applies too, unlike the general
     /// enabled, the widget will only enable if there is an active handler in the scope.
-
     #[allow(unused)]
     pub fn enabled(self) -> ReadOnlyVar<bool, RcVar<bool>> {
         <Self as Command>::enabled(self)
     }
 
     /// Gets a read-only variable that indicates if the command has at least one handler in the scope.
-
     #[allow(unused)]
     pub fn has_handlers(self) -> ReadOnlyVar<bool, RcVar<bool>> {
         <Self as Command>::has_handlers(self)
@@ -592,7 +583,6 @@ impl<C: Command> ScopedCommand<C> {
     ///
     /// A handle indicates that there is an active *handler* for the event, the handle can also
     /// be used to set the [`enabled`](Self::enabled) state.
-
     #[allow(unused)]
     pub fn new_handle<Evs: WithEvents>(self, events: &mut Evs, enabled: bool) -> CommandHandle {
         <Self as Command>::new_handle(self, events, enabled)
@@ -719,19 +709,16 @@ impl CommandParam {
     }
 
     /// Gets the [`TypeId`] of the parameter.
-
     pub fn type_id(&self) -> TypeId {
         self.0.type_id()
     }
 
     /// Gets a typed reference to the parameter if it is of type `T`.
-
     pub fn downcast_ref<T: Any>(&self) -> Option<&T> {
         self.0.downcast_ref()
     }
 
     /// Returns `true` if the parameter type is `T`.
-
     pub fn is<T: Any>(&self) -> bool {
         self.0.is::<T>()
     }
@@ -757,25 +744,21 @@ impl AnyCommand {
     }
 
     /// Gets the [`TypeId`] of the command represented by `self`.
-
     pub fn command_type_id(self) -> TypeId {
         self.0.with(|c| c.command_type_id)
     }
 
     /// Gets the scope of the command represented by `self`.
-
     pub fn scope(self) -> CommandScope {
         self.1
     }
 
     /// Gets the [`type_name`] of the command represented by `self`.
-
     pub fn command_type_name(self) -> &'static str {
         self.0.with(|c| c.command_type_name)
     }
 
     /// If the command `C` is represented by `self`.
-
     pub fn is<C: Command>(self) -> bool {
         self.command_type_id() == TypeId::of::<C>()
     }
@@ -787,7 +770,6 @@ impl AnyCommand {
     /// The `parameter` is an optional value for the command handler.
     ///
     /// Returns `true` if notified, only notifies if the command is enabled.
-
     pub fn notify<Evs: WithEvents>(self, events: &mut Evs, parameter: Option<CommandParam>) -> bool {
         let enabled = self.0.with(|c| c.enabled_value(self.1));
 
@@ -1464,14 +1446,12 @@ crate::event_args! {
 }
 impl CommandArgs {
     /// Returns a reference to a parameter of `T` if [`parameter`](#structfield.parameter) is set to a value of `T`.
-
     pub fn parameter<T: Any>(&self) -> Option<&T> {
         self.parameter.as_ref().and_then(|p| p.downcast_ref::<T>())
     }
 }
 
 /// Helper for declaring command handlers.
-
 pub fn on_command<U, C, CB, E, EB, H>(child: U, command_builder: CB, enabled_builder: EB, handler: H) -> impl UiNode
 where
     U: UiNode,
@@ -1569,7 +1549,6 @@ where
 }
 
 /// Helper for declaring command preview handlers.
-
 pub fn on_pre_command<U, C, CB, E, EB, H>(child: U, command_builder: CB, enabled_builder: EB, handler: H) -> impl UiNode
 where
     U: UiNode,

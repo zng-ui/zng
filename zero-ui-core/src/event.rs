@@ -79,13 +79,11 @@ pub trait Event: Debug + Clone + Copy + 'static {
     type Args: EventArgs;
 
     /// Schedule an event update.
-
     fn notify<Evs: WithEvents>(self, events: &mut Evs, args: Self::Args) {
         events.with_events(|events| events.notify::<Self>(self, args));
     }
 
     /// Gets the event arguments if the update is for `Self`.
-
     fn update<U: EventUpdateArgs>(self, args: &U) -> Option<&EventUpdate<Self>> {
         args.args_for::<Self>()
     }
@@ -284,7 +282,6 @@ pub struct AnyEventUpdate<'a> {
 }
 impl<'a> AnyEventUpdate<'a> {
     /// Gets the [`TypeId`] of the event type represented by `self`.
-
     pub fn event_type_id(&self) -> TypeId {
         self.event_type_id
     }
@@ -389,13 +386,11 @@ pub struct EventBuffer<E: Event> {
 }
 impl<E: Event> EventBuffer<E> {
     /// If there are any updates in the buffer.
-
     pub fn has_updates(&self) -> bool {
         !RefCell::borrow(&self.queue).is_empty()
     }
 
     /// Take the oldest event in the buffer.
-
     pub fn pop_oldest(&self) -> Option<E::Args> {
         self.queue.borrow_mut().pop_front()
     }
@@ -403,7 +398,6 @@ impl<E: Event> EventBuffer<E> {
     /// Take the oldest `n` events from the buffer.
     ///
     /// The result is sorted from oldest to newer.
-
     pub fn pop_oldest_n(&self, n: usize) -> Vec<E::Args> {
         self.queue.borrow_mut().drain(..n).collect()
     }
@@ -411,13 +405,11 @@ impl<E: Event> EventBuffer<E> {
     /// Take all the events from the buffer.
     ///
     /// The result is sorted from oldest to newest.
-
     pub fn pop_all(&self) -> Vec<E::Args> {
         self.queue.borrow_mut().drain(..).collect()
     }
 
     /// Create an empty buffer that will always stay empty.
-
     pub fn never() -> Self {
         EventBuffer { queue: Default::default() }
     }
@@ -513,7 +505,6 @@ where
     E::Args: Send,
 {
     /// Receives the oldest send update, blocks until the event updates.
-
     pub fn recv(&self) -> Result<E::Args, AppShutdown<()>> {
         self.receiver.recv().map_err(|_| AppShutdown(()))
     }
@@ -521,7 +512,6 @@ where
     /// Tries to receive the oldest sent update not received, returns `Ok(args)` if there was at least
     /// one update, or returns `Err(None)` if there was no update or returns `Err(AppHasShutdown)` if the connected
     /// app has shutdown.
-
     pub fn try_recv(&self) -> Result<E::Args, Option<AppShutdown<()>>> {
         self.receiver.try_recv().map_err(|e| match e {
             flume::TryRecvError::Empty => None,
@@ -530,39 +520,33 @@ where
     }
 
     /// Receives the oldest send update, blocks until the event updates or until the `deadline` is reached.
-
     pub fn recv_deadline(&self, deadline: Instant) -> Result<E::Args, TimeoutOrAppShutdown> {
         self.receiver.recv_deadline(deadline).map_err(TimeoutOrAppShutdown::from)
     }
 
     /// Receives the oldest send update, blocks until the event updates or until timeout.
-
     pub fn recv_timeout(&self, dur: Duration) -> Result<E::Args, TimeoutOrAppShutdown> {
         self.receiver.recv_timeout(dur).map_err(TimeoutOrAppShutdown::from)
     }
 
     /// Returns a future that receives the oldest send update, awaits until an event update occurs.
-
     pub fn recv_async(&self) -> RecvFut<E::Args> {
         self.receiver.recv_async().into()
     }
 
     /// Turns into a future that receives the oldest send update, awaits until an event update occurs.
-
     pub fn into_recv_async(self) -> RecvFut<'static, E::Args> {
         self.receiver.into_recv_async().into()
     }
 
     /// Creates a blocking iterator over event updates, if there are no updates sent the iterator blocks,
     /// the iterator only finishes when the app shuts-down.
-
     pub fn iter(&self) -> flume::Iter<E::Args> {
         self.receiver.iter()
     }
 
     /// Create a non-blocking iterator over event updates, the iterator finishes if
     /// there are no more updates sent.
-
     pub fn try_iter(&self) -> flume::TryIter<E::Args> {
         self.receiver.try_iter()
     }
@@ -622,7 +606,6 @@ impl OnEventHandle {
     }
 
     /// Create a handle to nothing, the handle always in the *unsubscribed* state.
-
     pub fn dummy() -> Self {
         OnEventHandle(Handle::dummy(()))
     }
@@ -630,20 +613,17 @@ impl OnEventHandle {
     /// Drop the handle but does **not** unsubscribe.
     ///
     /// The handler stays in memory for the duration of the app or until another handle calls [`unsubscribe`](Self::unsubscribe.)
-
     pub fn perm(self) {
         self.0.perm();
     }
 
     /// If another handle has called [`perm`](Self::perm).
     /// If `true` the var binding will stay active until the app shutdown, unless [`unsubscribe`](Self::unsubscribe) is called.
-
     pub fn is_permanent(&self) -> bool {
         self.0.is_permanent()
     }
 
     /// Drops the handle and forces the handler to drop.
-
     pub fn unsubscribe(self) {
         self.0.force_drop()
     }
@@ -651,13 +631,11 @@ impl OnEventHandle {
     /// If another handle has called [`unsubscribe`](Self::unsubscribe).
     ///
     /// The handler is already dropped or will be dropped in the next app update, this is irreversible.
-
     pub fn is_unsubscribed(&self) -> bool {
         self.0.is_dropped()
     }
 
     /// Create a weak handle.
-
     pub fn downgrade(&self) -> WeakOnEventHandle {
         WeakOnEventHandle(self.0.downgrade())
     }
@@ -701,7 +679,6 @@ pub struct Events {
 }
 impl Events {
     /// If an instance of `Events` already exists in the  current thread.
-
     pub(crate) fn instantiated() -> bool {
         SingletonEvents::in_use()
     }
@@ -709,7 +686,6 @@ impl Events {
     /// Produces the instance of `Events`. Only a single
     /// instance can exist in a thread at a time, panics if called
     /// again before dropping the previous instance.
-
     pub(crate) fn instance(app_event_sender: AppEventSender) -> Self {
         Events {
             app_event_sender,
@@ -990,7 +966,6 @@ impl Events {
     /// When [`Command::new_handle`] is called for the first time in an app, the command gets registered here.
     ///
     /// [`Command::new_handle`]: crate::command::Command::new_handle
-
     pub fn commands(&self) -> impl Iterator<Item = AnyCommand> + '_ {
         self.commands.iter().copied()
     }
@@ -1176,7 +1151,6 @@ macro_rules! __event_args {
             /// # Panics
             ///
             /// Panics if the arguments are invalid.
-
             #[track_caller]
             #[allow(clippy::too_many_arguments)]
             pub fn new(timestamp: impl Into<std::time::Instant>, $($arg : impl Into<$arg_ty>),*) -> Self {
@@ -1192,7 +1166,6 @@ macro_rules! __event_args {
             /// New args from values that convert [into](Into) the argument types.
             ///
             /// Returns an error if the constructed arguments are invalid.
-
             #[allow(clippy::too_many_arguments)]
             pub fn try_new(timestamp: impl Into<std::time::Instant>, $($arg : impl Into<$arg_ty>),*) -> Result<Self, $ValidationError> {
                 let args = $Args {
@@ -1209,7 +1182,6 @@ macro_rules! __event_args {
             /// # Panics
             ///
             /// Panics if the arguments are invalid.
-
             #[track_caller]
             #[allow(clippy::too_many_arguments)]
             pub fn now($($arg : impl Into<$arg_ty>),*) -> Self {
@@ -1219,7 +1191,6 @@ macro_rules! __event_args {
             /// Arguments for event that happened now (`Instant::now`).
             ///
             /// Returns an error if the constructed arguments are invalid.
-
             #[allow(clippy::too_many_arguments)]
             pub fn try_now($($arg : impl Into<$arg_ty>),*) -> Result<Self, $ValidationError> {
                 Self::try_new(std::time::Instant::now(), $($arg),*)
@@ -1263,7 +1234,6 @@ macro_rules! __event_args {
 
         impl $Args {
             /// New args from values that convert [into](Into) the argument types.
-
             #[allow(clippy::too_many_arguments)]
             pub fn new(timestamp: impl Into<std::time::Instant>, $($arg : impl Into<$arg_ty>),*) -> Self {
                 $Args {
@@ -1278,7 +1248,6 @@ macro_rules! __event_args {
             /// # Panics
             ///
             /// Panics if the arguments are invalid.
-
             #[allow(clippy::too_many_arguments)]
             pub fn now($($arg : impl Into<$arg_ty>),*) -> Self {
                 Self::new(std::time::Instant::now(), $($arg),*)
@@ -1311,7 +1280,6 @@ macro_rules! __event_args {
             /// Requests that subsequent handlers skip this event.
             ///
             /// Cloned arguments signal stop for all clones.
-
             pub fn stop_propagation(&self) {
                 <Self as $crate::event::EventArgs>::stop_propagation(self)
             }
@@ -1321,13 +1289,11 @@ macro_rules! __event_args {
             /// Note that property level handlers don't need to check this, as those handlers are
             /// already not called when this is `true`. [`UiNode`](crate::UiNode) and
             /// [`AppExtension`](crate::app::AppExtension) implementers must check if this is `true`.
-
             pub fn stop_propagation_requested(&self) -> bool {
                 <Self as $crate::event::EventArgs>::stop_propagation_requested(self)
             }
 
             /// If the event described by these arguments is relevant in the given widget context.
-
             pub fn concerns_widget(&self, ctx: &mut $crate::context::WidgetContext) -> bool {
                 <Self as $crate::event::EventArgs>::concerns_widget(self, ctx)
             }
@@ -1335,7 +1301,6 @@ macro_rules! __event_args {
             /// Calls `handler` and stops propagation if propagation is still allowed.
             ///
             /// Returns the `handler` result if it was called.
-
             pub fn handle<F, R>(&self, handler: F) -> Option<R>
             where
                 F: FnOnce(&Self) -> R,
@@ -1475,7 +1440,6 @@ macro_rules! __cancelable_event_args {
             /// # Panics
             ///
             /// Panics if the arguments are invalid.
-
             #[track_caller]
             #[allow(clippy::too_many_arguments)]
             pub fn new(timestamp: impl Into<std::time::Instant>, $($arg : impl Into<$arg_ty>),*) -> Self {
@@ -1492,7 +1456,6 @@ macro_rules! __cancelable_event_args {
             /// New args from values that convert [into](Into) the argument types.
             ///
             /// Returns an error if the constructed arguments are invalid.
-
             #[allow(clippy::too_many_arguments)]
             pub fn try_new(timestamp: impl Into<std::time::Instant>, $($arg : impl Into<$arg_ty>),*) -> Result<Self, $ValidationError> {
                 let args = $Args {
@@ -1510,7 +1473,6 @@ macro_rules! __cancelable_event_args {
             /// # Panics
             ///
             /// Panics if the arguments are invalid.
-
             #[track_caller]
             #[allow(clippy::too_many_arguments)]
             pub fn now($($arg : impl Into<$arg_ty>),*) -> Self {
@@ -1520,7 +1482,6 @@ macro_rules! __cancelable_event_args {
             /// Arguments for event that happened now (`Instant::now`).
             ///
             /// Returns an error if the constructed arguments are invalid.
-
             #[allow(clippy::too_many_arguments)]
             pub fn try_now($($arg : impl Into<$arg_ty>),*) -> Result<Self, $ValidationError> {
                 Self::try_new(std::time::Instant::now(), $($arg),*)
@@ -1564,7 +1525,6 @@ macro_rules! __cancelable_event_args {
 
         impl $Args {
             /// New args from values that convert [into](Into) the argument types.
-
             #[allow(clippy::too_many_arguments)]
             pub fn new(timestamp: impl Into<std::time::Instant>, $($arg : impl Into<$arg_ty>),*) -> Self {
                 $Args {
@@ -1580,7 +1540,6 @@ macro_rules! __cancelable_event_args {
             /// # Panics
             ///
             /// Panics if the arguments are invalid.
-
             #[allow(clippy::too_many_arguments)]
             pub fn now($($arg : impl Into<$arg_ty>),*) -> Self {
                 Self::new(std::time::Instant::now(), $($arg),*)
@@ -1614,7 +1573,6 @@ macro_rules! __cancelable_event_args {
             /// Requests that subsequent handlers skip this event.
             ///
             /// Cloned arguments signal stop for all clones.
-
             pub fn stop_propagation(&self) {
                 <Self as $crate::event::EventArgs>::stop_propagation(self)
             }
@@ -1624,7 +1582,6 @@ macro_rules! __cancelable_event_args {
             /// Note that property level handlers don't need to check this, as those handlers are
             /// already not called when this is `true`. [`UiNode`](crate::UiNode) and
             /// [`AppExtension`](crate::app::AppExtension) implementers must check if this is `true`.
-
             pub fn stop_propagation_requested(&self) -> bool {
                 <Self as $crate::event::EventArgs>::stop_propagation_requested(self)
             }
@@ -1632,19 +1589,16 @@ macro_rules! __cancelable_event_args {
             /// Cancel the originating action.
             ///
             /// Cloned arguments signal cancel for all clones.
-
             pub fn cancel(&self) {
                 <Self as $crate::event::CancelableEventArgs>::cancel(self)
             }
 
             /// If the originating action must be canceled.
-
             pub fn cancel_requested(&self) -> bool {
                 <Self as $crate::event::CancelableEventArgs>::cancel_requested(self)
             }
 
             /// If the event described by these arguments is relevant in the given widget context.
-
             pub fn concerns_widget(&self, ctx: &mut $crate::context::WidgetContext) -> bool {
                 <Self as $crate::event::EventArgs>::concerns_widget(self, ctx)
             }
@@ -1714,13 +1668,11 @@ macro_rules! event {
         $vis struct $Event;
         impl $Event {
             /// Gets the event arguments if the update is for this event.
-
             pub fn update<U: $crate::event::EventUpdateArgs>(self, args: &U) -> Option<&$crate::event::EventUpdate<$Event>> {
                 <Self as $crate::event::Event>::update(self, args)
             }
 
             /// Schedule an event update.
-
             pub fn notify<Evs: $crate::event::WithEvents>(self, events: &mut Evs, args: $Args) {
                 <Self as $crate::event::Event>::notify(self, events, args);
             }
@@ -1905,7 +1857,6 @@ pub use crate::event_property;
 /// [`allow_interaction`]: crate::widget_info::WidgetInfo::allow_interaction
 /// [`stop_propagation`]: EventArgs::stop_propagation
 /// [`stop_propagation_requested`]: EventArgs::stop_propagation_requested
-
 pub fn on_event<C, E, F, H>(child: C, event: E, filter: F, handler: H) -> impl UiNode
 where
     C: UiNode,

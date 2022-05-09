@@ -15,7 +15,6 @@ impl<C: ContextVar> ContextVarProxy<C> {
     /// New context var proxy.
     ///
     /// Prefer using [`ContextVar::new`] or the `new` generated using the [`context_var!`] macro.
-
     pub fn new() -> Self {
         ContextVarProxy(PhantomData)
     }
@@ -454,7 +453,6 @@ macro_rules! context_var {
             }
 
             /// [`Var`](crate::var::Var) implementer that represents this context var.
-
             #[allow(unused)]
             pub fn new() -> $crate::var::ContextVarProxy<Self> {
                 $crate::var::ContextVarProxy::new()
@@ -463,34 +461,29 @@ macro_rules! context_var {
             /// New default value.
             ///
             /// Returns a value that is equal to the variable value when it is not set in any context.
-
             pub fn default_value() -> $type {
                 $default
             }
 
             /// References the value in the current `vars` context.
-
             #[allow(unused)]
             pub fn get<'a, Vr: AsRef<$crate::var::VarsRead>>(vars: &'a Vr) -> &'a $type {
                 $crate::var::Var::get($crate::var::ContextVarProxy::<Self>::static_ref(), vars)
             }
 
             /// Returns a clone of the value in the current `vars` context.
-
             #[allow(unused)]
             pub fn get_clone<Vr: $crate::var::WithVarsRead>(vars: &Vr) -> $type {
                 $crate::var::Var::get_clone($crate::var::ContextVarProxy::<Self>::static_ref(), vars)
             }
 
             /// References the value in the current `vars` context if it is marked as new.
-
             #[allow(unused)]
             pub fn get_new<'a, Vw: AsRef<$crate::var::Vars>>(vars: &'a Vw) -> Option<&'a $type> {
                 $crate::var::Var::get_new($crate::var::ContextVarProxy::<Self>::static_ref(), vars)
             }
 
             /// Returns a clone of the value in the current `vars` context if it is marked as new.
-
             #[allow(unused)]
             pub fn clone_new<Vw: $crate::var::WithVars>(vars: &Vw) -> Option<$type> {
                 $crate::var::Var::clone_new($crate::var::ContextVarProxy::<Self>::static_ref(), vars)
@@ -499,14 +492,12 @@ macro_rules! context_var {
             // TODO generate copy and set_ne fns when https://github.com/rust-lang/rust/issues/48214 is stable
 
             /// If the value in the current `vars` context is marked as new.
-
             #[allow(unused)]
             pub fn is_new<Vw: $crate::var::WithVars>(vars: &Vw) -> bool {
                 $crate::var::Var::is_new($crate::var::ContextVarProxy::<Self>::static_ref(), vars)
             }
 
             /// Gets the version of the value in the current `vars` context.
-
             #[allow(unused)]
             pub fn version<Vr: $crate::var::WithVarsRead>(vars: &Vr) -> $crate::var::VarVersion {
                 $crate::var::Var::version($crate::var::ContextVarProxy::<Self>::static_ref(), vars)
@@ -519,7 +510,6 @@ macro_rules! context_var {
             ///
             /// [`set`]: Self::set
             /// [`modify`]: Self::modify
-
             #[allow(unused)]
             pub fn is_read_only<Vw: $crate::var::WithVars>(vars: &Vw) -> bool {
                 $crate::var::Var::is_read_only($crate::var::ContextVarProxy::<Self>::static_ref(), vars)
@@ -530,7 +520,6 @@ macro_rules! context_var {
             /// If the backing source [`is_read_only`] returns an error.
             ///
             /// [`is_read_only`]: Self::is_read_only
-
             #[allow(unused)]
             pub fn modify<Vw, M>(vars: &Vw, modify: M) -> std::result::Result<(), $crate::var::VarIsReadOnly>
             where
@@ -545,7 +534,6 @@ macro_rules! context_var {
             /// If the backing source [`is_read_only`] returns an error.
             ///
             /// [`is_read_only`]: Self::is_read_only
-
             #[allow(unused)]
             pub fn set<Vw, N>(vars: &Vw, new_value: N) -> std::result::Result<(), $crate::var::VarIsReadOnly>
             where

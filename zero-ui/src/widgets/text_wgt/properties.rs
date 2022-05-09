@@ -667,7 +667,6 @@ impl<'a> TextContext<'a> {
     }
 
     /// Gets the properties that affect the text characters.
-
     pub fn text<Vr: WithVarsRead>(vars: &Vr) -> (TextTransformFn, WhiteSpace) {
         vars.with_vars_read(|vars| (TextTransformVar::get(vars).clone(), *WhiteSpaceVar::get(vars)))
     }
@@ -683,13 +682,11 @@ impl<'a> TextContext<'a> {
     }
 
     /// Gets the properties that affect the sized font.
-
     pub fn font<Vr: AsRef<VarsRead>>(vars: &'a Vr) -> (&'a FontSize, &'a FontVariations) {
         let vars = vars.as_ref();
         (FontSizeVar::get(vars), FontVariationsVar::get(vars))
     }
     /// Gets [`font`](Self::font) if any of the properties updated.
-
     pub fn font_update<Vw: AsRef<Vars>>(vars: &'a Vw) -> Option<(&'a FontSize, &'a FontVariations)> {
         let vars = vars.as_ref();
         if FontSizeVar::is_new(vars) || FontVariationsVar::is_new(vars) {
@@ -700,7 +697,6 @@ impl<'a> TextContext<'a> {
     }
 
     /// Gets the properties that affect text shaping.
-
     pub fn shaping<Vr: AsRef<VarsRead>>(
         vars: &'a Vr,
     ) -> (
@@ -723,7 +719,6 @@ impl<'a> TextContext<'a> {
     }
 
     /// Gets [`shaping`](Self::shaping) if any of the properties is new.
-
     pub fn shaping_update<Vw: AsRef<Vars>>(
         vars: &'a Vw,
     ) -> Option<(
@@ -749,13 +744,11 @@ impl<'a> TextContext<'a> {
     }
 
     /// Gets the properties that affect text wrapping only.
-
     pub fn wrapping<Vr: AsRef<VarsRead>>(vars: &'a Vr) -> (WordBreak, LineBreak) {
         (*WordBreakVar::get(vars), *LineBreakVar::get(vars))
     }
 
     /// Gets [`wrapping`](Self::wrapping) if any of the properties updated.
-
     pub fn wrapping_update<Vw: WithVars>(vars: &'a Vw) -> Option<(WordBreak, LineBreak)> {
         vars.with_vars(|vars| {
             if WordBreakVar::is_new(vars) || LineBreakVar::is_new(vars) {
@@ -767,24 +760,20 @@ impl<'a> TextContext<'a> {
     }
 
     /// Gets the property that affect color.
-
     pub fn color<Vr: AsRef<VarsRead>>(vars: &Vr) -> Rgba {
         *TextColorVar::get(vars)
     }
     /// Gets [`color`](Self::color) if the property updated.
-
     pub fn color_update<Vw: WithVars>(vars: &Vw) -> Option<Rgba> {
         vars.with_vars(|vars| TextColorVar::get_new(vars).copied())
     }
 
     /// Gets the properties that affects what font synthesis is used.
-
     pub fn font_synthesis<Vr: WithVarsRead>(vars: &Vr) -> (FontSynthesis, FontStyle, FontWeight) {
         vars.with_vars_read(|vars| (*FontSynthesisVar::get(vars), *FontStyleVar::get(vars), *FontWeightVar::get(vars)))
     }
 
     /// Gets [`font_synthesis`](Self::font_synthesis) if any of the properties changed.
-
     pub fn font_synthesis_update<Vw: WithVars>(vars: &Vw) -> Option<(FontSynthesis, FontStyle, FontWeight)> {
         vars.with_vars(|vars| {
             if FontSynthesisVar::is_new(vars) || FontStyleVar::is_new(vars) || FontWeightVar::is_new(vars) {

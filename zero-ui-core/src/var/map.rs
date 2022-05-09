@@ -80,7 +80,6 @@ where
     /// New mapping var.
     ///
     /// Prefer using the [`Var::map`] method.
-
     pub fn new(source: S, map: M) -> Self {
         RcMapVar(Rc::new(MapData {
             _a: PhantomData,
@@ -374,7 +373,6 @@ where
     /// New bidirectional mapping var.
     ///
     /// Prefer using the [`Var::map_bidi`] method.
-
     pub fn new(source: S, map: M, map_back: N) -> Self {
         RcMapBidiVar(Rc::new(MapBidiData {
             _a: PhantomData,
@@ -392,7 +390,6 @@ where
     }
 
     /// Convert to a [`RcMapVar`], a deep clone is made if `self` is the only reference.
-
     pub fn into_map<Vr: WithVarsRead>(self, vars: &Vr) -> RcMapVar<A, B, M, S> {
         match Rc::try_unwrap(self.0) {
             Ok(data) => RcMapVar(Rc::new(MapData {
@@ -417,13 +414,11 @@ where
     }
 
     /// Gets the number of [`RcMapBidiVar`] that point to this same variable.
-
     pub fn strong_count(&self) -> usize {
         Rc::strong_count(&self.0)
     }
 
     /// Returns `true` if `self` and `other` are the same variable.
-
     pub fn ptr_eq(&self, other: &Self) -> bool {
         Rc::ptr_eq(&self.0, &other.0)
     }

@@ -99,19 +99,16 @@ impl ViewProcess {
     }
 
     /// View-process connected and ready to respond.
-
     pub fn online(&self) -> bool {
         self.0.borrow().process.online()
     }
 
     /// If is running in headless renderer mode.
-
     pub fn headless(&self) -> bool {
         self.0.borrow().process.headless()
     }
 
     /// If is running both view and app in the same process.
-
     pub fn same_process(&self) -> bool {
         self.0.borrow().process.same_process()
     }
@@ -505,7 +502,6 @@ impl ViewImage {
     }
 
     /// Returns `true` if the image has successfully decoded.
-
     pub fn is_loaded(&self) -> bool {
         self.0.bgra8.get().map(|r| r.is_ok()).unwrap_or(false)
     }
@@ -518,19 +514,16 @@ impl ViewImage {
     /// if [`error`] is `Some`.
     ///
     /// [`error`]: Self::error
-
     pub fn is_error(&self) -> bool {
         self.0.bgra8.get().map(|r| r.is_err()).unwrap_or(false)
     }
 
     /// Returns the load error if one happened.
-
     pub fn error(&self) -> Option<&str> {
         self.0.bgra8.get().and_then(|s| s.as_ref().err().map(|s| s.as_str()))
     }
 
     /// Returns the pixel size, or zero if is not loaded or error.
-
     pub fn size(&self) -> PxSize {
         self.0.size.get()
     }
@@ -540,20 +533,17 @@ impl ViewImage {
     /// Can be different from [`size`] if the image is progressively decoding.
     ///
     /// [`size`]: Self::size
-
     pub fn partial_size(&self) -> PxSize {
         self.0.partial_size.get()
     }
 
     /// Returns the "pixels-per-inch" metadata associated with the image, or `None` if not loaded or error or no
     /// metadata provided by decoder.
-
     pub fn ppi(&self) -> ImagePpi {
         self.0.ppi.get()
     }
 
     /// Returns if the image is fully opaque.
-
     pub fn is_opaque(&self) -> bool {
         self.0.opaque.get()
     }
@@ -570,7 +560,6 @@ impl ViewImage {
     /// partially decoded bytes.
     ///
     /// [`partial_bgra8`]: Self::partial_bgra8
-
     pub fn bgra8(&self) -> Option<&[u8]> {
         self.0.bgra8.get().and_then(|r| r.as_ref().ok()).map(|m| &m[..])
     }
@@ -582,7 +571,6 @@ impl ViewImage {
     }
 
     /// Returns the view-process generation on which the image is loaded.
-
     pub fn generation(&self) -> ViewProcessGen {
         self.0.generation
     }
@@ -592,13 +580,11 @@ impl ViewImage {
     /// The connection can be permanently lost in case the "view-process" respawns, in this
     /// case all methods will return [`ViewProcessOffline`], and you must discard this connection and
     /// create a new one.
-
     pub fn online(&self) -> bool {
         self.0.online()
     }
 
     /// Creates a [`WeakViewImage`].
-
     pub fn downgrade(&self) -> WeakViewImage {
         WeakViewImage(Rc::downgrade(&self.0))
     }
@@ -724,7 +710,6 @@ impl WeakViewImage {
     /// Attempt to upgrade the weak pointer to the image to a full image.
     ///
     /// Returns `Some` if the is at least another [`ViewImage`] holding the image alive.
-
     pub fn upgrade(&self) -> Option<ViewImage> {
         self.0.upgrade().map(ViewImage)
     }
@@ -780,49 +765,41 @@ impl ViewWindow {
     /// The connection can be permanently lost in case the "view-process" respawns, in this
     /// case all methods will return [`ViewProcessOffline`], and you must discard this connection and
     /// create a new one.
-
     pub fn online(&self) -> bool {
         self.0.online()
     }
 
     /// Returns the view-process generation on which the window was open.
-
     pub fn generation(&self) -> ViewProcessGen {
         self.0.generation
     }
 
     /// Set the window title.
-
     pub fn set_title(&self, title: String) -> Result<()> {
         self.0.call(|id, p| p.set_title(id, title))
     }
 
     /// Set the window visibility.
-
     pub fn set_visible(&self, visible: bool) -> Result<()> {
         self.0.call(|id, p| p.set_visible(id, visible))
     }
 
     /// Set if the window is "top-most".
-
     pub fn set_always_on_top(&self, always_on_top: bool) -> Result<()> {
         self.0.call(|id, p| p.set_always_on_top(id, always_on_top))
     }
 
     /// Set if the user can drag-move the window.
-
     pub fn set_movable(&self, movable: bool) -> Result<()> {
         self.0.call(|id, p| p.set_movable(id, movable))
     }
 
     /// Set if the user can resize the window.
-
     pub fn set_resizable(&self, resizable: bool) -> Result<()> {
         self.0.call(|id, p| p.set_resizable(id, resizable))
     }
 
     /// Set the window icon.
-
     pub fn set_icon(&self, icon: Option<&ViewImage>) -> Result<()> {
         self.0.call(|id, p| {
             if let Some(icon) = icon {
@@ -838,13 +815,11 @@ impl ViewWindow {
     }
 
     /// Set the window cursor icon and visibility.
-
     pub fn set_cursor(&self, icon: Option<CursorIcon>) -> Result<()> {
         self.0.call(|id, p| p.set_cursor(id, icon))
     }
 
     /// Set the window icon visibility in the taskbar.
-
     pub fn set_taskbar_visible(&self, visible: bool) -> Result<()> {
         self.0.call(|id, p| p.set_taskbar_visible(id, visible))
     }
@@ -852,39 +827,33 @@ impl ViewWindow {
     /// Set the window parent and if `self` has a modal connection to it.
     ///
     /// The `parent` window must be already open or this returns `WindowNotFound(0)`.
-
     pub fn set_parent(&self, parent: Option<WindowId>, modal: bool) -> Result<()> {
         self.0.call(|id, p| p.set_parent(id, parent.map(WindowId::get), modal))
     }
 
     /// Set the window state.
-
     pub fn set_state(&self, state: WindowStateAll) -> Result<()> {
         self.0.call(|id, p| p.set_state(id, state))
     }
 
     /// Set video mode used in exclusive fullscreen.
-
     pub fn set_video_mode(&self, mode: VideoMode) -> Result<()> {
         self.0.call(|id, p| p.set_video_mode(id, mode))
     }
 
     /// Reference the window renderer.
-
     pub fn renderer(&self) -> ViewRenderer {
         ViewRenderer(Rc::downgrade(&self.0))
     }
 
     /// In Windows stops the system from requesting a window close on `ALT+F4` and sends a key
     /// press for F4 instead.
-
     pub fn set_allow_alt_f4(&self, allow: bool) -> Result<()> {
         self.0.call(|id, p| p.set_allow_alt_f4(id, allow))
     }
 
     /// Sets if the headed window is in *capture-mode*. If `true` the resources used to capture
     /// a screenshot are kept in memory to be reused in the next screenshot capture.
-
     pub fn set_capture_mode(&self, enabled: bool) -> Result<()> {
         self.0.call(|id, p| p.set_capture_mode(id, enabled))
     }
@@ -915,14 +884,12 @@ impl PartialEq for ViewHeadless {
 impl Eq for ViewHeadless {}
 impl ViewHeadless {
     /// Resize the headless surface.
-
     pub fn set_size(&self, size: DipSize, scale_factor: Factor) -> Result<()> {
         let doc_id = self.1;
         self.0.call(|id, p| p.set_headless_size(id, doc_id, size, scale_factor.0))
     }
 
     /// Reference the window renderer.
-
     pub fn renderer(&self) -> ViewRenderer {
         ViewRenderer(Rc::downgrade(&self.0))
     }
@@ -960,7 +927,6 @@ impl ViewRenderer {
     /// Returns `true` if the renderer is still alive.
     ///
     /// The renderer is dropped when the window closes or the view-process respawns.
-
     pub fn online(&self) -> bool {
         self.0.upgrade().map(|c| c.online()).unwrap_or(false)
     }
@@ -968,7 +934,6 @@ impl ViewRenderer {
     /// Pipeline ID.
     ///
     /// This value is cached locally (not an IPC call).
-
     pub fn pipeline_id(&self) -> Result<PipelineId> {
         if let Some(c) = self.0.upgrade() {
             if c.online() {
@@ -981,7 +946,6 @@ impl ViewRenderer {
     /// Resource namespace.
     ///
     /// This value is cached locally (not an IPC call).
-
     pub fn namespace_id(&self) -> Result<IdNamespace> {
         if let Some(c) = self.0.upgrade() {
             if c.online() {
@@ -994,7 +958,6 @@ impl ViewRenderer {
     /// Document ID.
     ///
     /// This value is cached locally (not an IPC call).
-
     pub fn document_id(&self) -> Result<DocumentId> {
         if let Some(c) = self.0.upgrade() {
             if c.online() {

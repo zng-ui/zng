@@ -82,7 +82,6 @@ enum TransformPart {
 }
 impl Transform {
     /// No transform.
-
     pub fn identity() -> Self {
         Self::default()
     }
@@ -130,19 +129,16 @@ impl Transform {
     }
 
     /// Change `self` to apply a 2d translation after its transformation.
-
     pub fn translate<X: Into<Length>, Y: Into<Length>>(mut self, x: X, y: Y) -> Self {
         self.parts.push(TransformPart::Translate(x.into(), y.into()));
         self.needs_layout = true;
         self
     }
     /// Change `self` to apply a ***x*** translation after its transformation.
-
     pub fn translate_x<X: Into<Length>>(self, x: X) -> Self {
         self.translate(x, 0.0)
     }
     /// Change `self` to apply a ***y*** translation after its transformation.
-
     pub fn translate_y<Y: Into<Length>>(self, y: Y) -> Self {
         self.translate(0.0, y)
     }
@@ -181,7 +177,6 @@ impl Transform {
     }
 
     /// Compute a [`RenderTransform`].
-
     pub fn to_render(&self, ctx: &LayoutMetrics, available_size: AvailableSize) -> RenderTransform {
         let mut r = RenderTransform::identity();
         for step in &self.parts {
@@ -214,7 +209,6 @@ impl Transform {
     }
 
     /// Returns `true` if this filter is affected by the layout context where it is evaluated.
-
     pub fn needs_layout(&self) -> bool {
         self.needs_layout
     }

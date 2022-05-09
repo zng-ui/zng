@@ -259,7 +259,6 @@ struct ScrollableData {
 pub struct ScrollableInfo(Rc<ScrollableData>);
 impl ScrollableInfo {
     /// Gets the viewport bounds in the window space.
-
     pub fn viewport(&self) -> PxRect {
         self.0.viewport.get()
     }

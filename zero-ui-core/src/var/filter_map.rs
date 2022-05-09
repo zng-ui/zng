@@ -125,7 +125,6 @@ where
     }
 
     /// Create a weak reference to the variable.
-
     pub fn downgrade(&self) -> WeakRcFilterMapVar<A, B, I, M, S> {
         WeakRcFilterMapVar(Rc::downgrade(&self.0))
     }
@@ -454,7 +453,6 @@ where
     }
 
     /// Convert to a [`RcFilterMapVar`], a deep clone is made if `self` is not the only reference.
-
     pub fn into_filter_map<Vr: WithVarsRead>(self, vars: &Vr) -> RcFilterMapVar<A, B, I, M, S> {
         match Rc::try_unwrap(self.0) {
             Ok(data) => RcFilterMapVar(Rc::new(FilterMapData {
@@ -483,7 +481,6 @@ where
     }
 
     /// Create a weak reference to the variable.
-
     pub fn downgrade(&self) -> WeakRcFilterMapBidiVar<A, B, I, M, N, S> {
         WeakRcFilterMapBidiVar(Rc::downgrade(&self.0))
     }

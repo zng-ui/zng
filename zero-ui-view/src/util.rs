@@ -130,7 +130,6 @@ pub(crate) trait WinitToDip {
 /// Conversion from `winit` physical units to [`Dip`].
 ///
 /// All conversions are 1 to 1.
-
 pub(crate) trait WinitToPx {
     /// `Self` equivalent in [`Px`] units.
     type AsPx;

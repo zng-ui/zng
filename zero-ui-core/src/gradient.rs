@@ -170,7 +170,6 @@ impl fmt::Debug for ColorStop {
 }
 impl ColorStop {
     /// New color stop with a defined offset.
-
     pub fn new(color: impl Into<Rgba>, offset: impl Into<Length>) -> Self {
         ColorStop {
             color: color.into(),
@@ -183,7 +182,6 @@ impl ColorStop {
     /// See [`is_positional`] for more details.
     ///
     /// [`is_positional`]: Self::is_positional
-
     pub fn new_positional(color: impl Into<Rgba>) -> Self {
         ColorStop {
             color: color.into(),
@@ -208,7 +206,6 @@ impl ColorStop {
     /// # Note
     ///
     /// Use [`ColorStop::is_layout_positional`] if you already have the layout offset.
-
     pub fn is_positional(&self) -> bool {
         self.offset.is_default()
     }
@@ -219,7 +216,6 @@ impl ColorStop {
     /// positional in webrender units.
     ///
     /// [positional]: Self::is_positional
-
     pub fn is_layout_positional(layout_offset: f32) -> bool {
         !f32::is_finite(layout_offset)
     }
@@ -230,7 +226,6 @@ impl ColorStop {
     /// You can use [`ColorStop::is_layout_positional`] to check a layout offset.
     ///
     /// [is positional]: Self::is_positional
-
     pub fn to_layout(&self, ctx: &LayoutMetrics, length: AvailablePx) -> RenderGradientStop {
         RenderGradientStop {
             offset: if self.is_positional() {
@@ -820,7 +815,6 @@ impl GradientStops {
     }
 
     /// Number of stops.
-
     pub fn len(&self) -> usize {
         self.middle.len() + 2
     }

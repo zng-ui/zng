@@ -228,7 +228,6 @@ impl BorderSide {
     }
 
     /// New border side with [`Hidden`](BorderStyle::Hidden) style and transparent color.
-
     pub fn hidden() -> Self {
         Self::new(colors::BLACK.transparent(), BorderStyle::Hidden)
     }
@@ -308,19 +307,16 @@ impl CornerRadius {
     }
 
     /// No corner radius.
-
     pub fn zero() -> Self {
         Self::new_all(Size::zero())
     }
 
     /// If all corners are the same value.
-
     pub fn all_corners_eq(&self) -> bool {
         self.top_left == self.top_right && self.top_left == self.bottom_right && self.top_left == self.bottom_left
     }
 
     /// Compute the radii in a layout context.
-
     pub fn to_layout(&self, ctx: &LayoutMetrics, available_size: AvailableSize, default_value: PxCornerRadius) -> PxCornerRadius {
         PxCornerRadius {
             top_left: self.top_left.to_layout(ctx, available_size, default_value.top_left),
@@ -472,19 +468,16 @@ impl BorderSides {
     }
 
     /// All sides hidden.
-
     pub fn hidden() -> Self {
         Self::new_all(BorderSide::hidden())
     }
 
     /// If all sides are equal.
-
     pub fn all_eq(&self) -> bool {
         self.top == self.bottom && self.top == self.left && self.top == self.right
     }
 
     /// If top and bottom are equal; and left and right are equal.
-
     pub fn dimensions_eq(&self) -> bool {
         self.top == self.bottom && self.left == self.right
     }

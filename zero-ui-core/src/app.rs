@@ -187,19 +187,16 @@ impl<'a, M> Future for RecvFut<'a, M> {
 #[cfg_attr(doc_nightly, doc(notable_trait))]
 pub trait AppExtension: 'static {
     /// Type id of this extension.
-
     fn id(&self) -> TypeId {
         TypeId::of::<Self>()
     }
 
     /// If this extension is the `app_extension_id` or dispatches to it.
-
     fn is_or_contain(&self, app_extension_id: TypeId) -> bool {
         self.id() == app_extension_id
     }
 
     /// Initializes this extension.
-
     fn init(&mut self, ctx: &mut AppContext) {
         let _ = ctx;
     }
@@ -213,7 +210,6 @@ pub trait AppExtension: 'static {
     /// This is called zero or one times before [`init`](Self::init).
     ///
     /// Returns `false` by default.
-
     fn enable_device_events(&self) -> bool {
         false
     }
@@ -224,7 +220,6 @@ pub trait AppExtension: 'static {
     ///
     /// Note that this is not related to the `on_event_preview` properties, all UI events
     /// happen in `on_event_ui`.
-
     fn event_preview<EV: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {
         let _ = (ctx, args);
     }
@@ -233,7 +228,6 @@ pub trait AppExtension: 'static {
     ///
     /// Only extensions that generate windows must handle this method. The [`UiNode::event`](super::UiNode::event)
     /// method is called here.
-
     fn event_ui<EV: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {
         let _ = (ctx, args);
     }
@@ -241,7 +235,6 @@ pub trait AppExtension: 'static {
     /// Called after every [`event_ui`](Self::event_ui).
     ///
     /// This is the general extensions event handler, it gives the chance for the UI to signal stop propagation.
-
     fn event<EV: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {
         let _ = (ctx, args);
     }
@@ -252,7 +245,6 @@ pub trait AppExtension: 'static {
     ///
     /// Note that this is not related to the `on_event_preview` properties, all UI events
     /// happen in `update_ui`.
-
     fn update_preview(&mut self, ctx: &mut AppContext) {
         let _ = ctx;
     }
@@ -261,7 +253,6 @@ pub trait AppExtension: 'static {
     ///
     /// Only extensions that generate windows must handle this method. The [`UiNode::update`](super::UiNode::update)
     /// method is called here.
-
     fn update_ui(&mut self, ctx: &mut AppContext) {
         let _ = ctx;
     }
@@ -270,19 +261,16 @@ pub trait AppExtension: 'static {
     ///
     /// This is the general extensions update, it gives the chance for
     /// the UI to signal stop propagation.
-
     fn update(&mut self, ctx: &mut AppContext) {
         let _ = ctx;
     }
 
     /// Called after every sequence of updates if layout was requested.
-
     fn layout(&mut self, ctx: &mut AppContext) {
         let _ = ctx;
     }
 
     /// Called after every sequence of updates and layout if render was requested.
-
     fn render(&mut self, ctx: &mut AppContext) {
         let _ = ctx;
     }
@@ -291,7 +279,6 @@ pub trait AppExtension: 'static {
     ///
     /// Update requests and event notifications generated during this call are ignored,
     /// the extensions will be dropped after every extension received this call.
-
     fn deinit(&mut self, ctx: &mut AppContext) {
         let _ = ctx;
     }
@@ -548,7 +535,6 @@ impl App {
     /// If an app is already running in the current thread.
     ///
     /// Only a single app is allowed per-thread.
-
     pub fn is_running() -> bool {
         crate::var::Vars::instantiated() || crate::event::Events::instantiated()
     }
@@ -581,7 +567,6 @@ fn assert_not_view_process() {
 #[cfg(not(dyn_app_extension))]
 impl App {
     /// Application without any extension.
-
     pub fn blank() -> AppExtended<()> {
         assert_not_view_process();
         AppExtended {
@@ -603,7 +588,6 @@ impl App {
     /// * [FontManager]
     /// * [FocusManager]
     /// * [ImageManager]
-
     pub fn default() -> AppExtended<impl AppExtension> {
         App::blank()
             .extend(MouseManager::default())
@@ -719,7 +703,6 @@ impl AppExtended<Vec<Box<dyn AppExtensionBoxed>>> {
     ///
     /// * `"app already extended with `{}`"` when the app is already [`extended_with`](AppExtended::extended_with) the
     /// extension type.
-
     pub fn extend<F: AppExtension>(mut self, extension: F) -> AppExtended<Vec<Box<dyn AppExtensionBoxed>>> {
         if self.extended_with::<F>() {
             panic!("app already extended with `{}`", type_name::<F>())
@@ -754,7 +737,6 @@ impl<E: AppExtension> AppExtended<E> {
     ///
     /// * `"app already extended with `{}`"` when the app is already [`extended_with`](AppExtended::extended_with) the
     /// extension type.
-
     pub fn extend<F: AppExtension>(self, extension: F) -> AppExtended<impl AppExtension> {
         if self.extended_with::<F>() {
             panic!("app already extended with `{}`", type_name::<F>())
@@ -782,7 +764,6 @@ impl<E: AppExtension> AppExtended<E> {
 }
 impl<E: AppExtension> AppExtended<E> {
     /// Gets if the application is already extended with the extension type.
-
     pub fn extended_with<F: AppExtension>(&self) -> bool {
         self.extensions.is_or_contain(TypeId::of::<F>())
     }
@@ -913,7 +894,6 @@ impl<E: AppExtension> RunningApp<E> {
     }
 
     /// If device events are enabled in this app.
-
     pub fn device_events(&self) -> bool {
         self.device_events
     }
@@ -1793,14 +1773,12 @@ pub enum ControlFlow {
 }
 impl ControlFlow {
     /// Assert that the value is [`ControlFlow::Wait`].
-
     #[track_caller]
     pub fn assert_wait(self) {
         assert_eq!(ControlFlow::Wait, self)
     }
 
     /// Assert that the value is [`ControlFlow::Exit`].
-
     #[track_caller]
     pub fn assert_exit(self) {
         assert_eq!(ControlFlow::Exit, self)
@@ -1864,7 +1842,6 @@ impl HeadlessApp {
     /// See [`update_observed`] for more details.
     ///
     /// [`update_observed`]: HeadlessApp::update
-
     pub fn update(&mut self, wait_app_event: bool) -> ControlFlow {
         self.update_observed(&mut (), wait_app_event)
     }
@@ -2304,7 +2281,6 @@ impl AppEventSender {
     }
 
     /// Causes an update cycle to happen in the app.
-
     pub fn send_update(&self, mask: UpdateMask) -> Result<(), AppShutdown<()>> {
         UpdatesTrace::log_update();
         self.send_app_event(AppEvent::Update(mask)).map_err(|_| AppShutdown(()))
@@ -2315,14 +2291,12 @@ impl AppEventSender {
     /// This is the equivalent of calling [`send_update`] with [`UpdateMask::none`].
     ///
     /// [`send_update`]: Self::send_update
-
     pub fn send_ext_update(&self) -> Result<(), AppShutdown<()>> {
         UpdatesTrace::log_update();
         self.send_update(UpdateMask::none())
     }
 
     /// [`VarSender`](crate::var::VarSender) util.
-
     pub(crate) fn send_var(&self) -> Result<(), AppShutdown<()>> {
         self.send_app_event(AppEvent::Var).map_err(|_| AppShutdown(()))
     }

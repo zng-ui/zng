@@ -314,7 +314,6 @@ impl<D: Send + Sync> Handle<D> {
     }
 
     /// Create a handle to nothing, the handle always in the *dropped* state.
-
     pub fn dummy(data: D) -> Self {
         Handle(Arc::new(HandleState {
             state: AtomicU8::new(FORCE_DROP),
@@ -323,14 +322,12 @@ impl<D: Send + Sync> Handle<D> {
     }
 
     /// Reference the attached data.
-
     pub fn data(&self) -> &D {
         &self.0.data
     }
 
     /// Mark the handle as permanent and drops this clone of it. This causes the resource to stay in memory
     /// until the app exits, no need to hold a handle somewhere.
-
     pub fn perm(self) {
         self.0.state.fetch_or(PERMANENT, Ordering::Relaxed);
     }
@@ -339,13 +336,11 @@ impl<D: Send + Sync> Handle<D> {
     ///
     /// If `true` the resource will stay in memory for the duration of the app, unless [`force_drop`](Self::force_drop)
     /// is also called.
-
     pub fn is_permanent(&self) -> bool {
         self.0.state.load(Ordering::Relaxed) == PERMANENT
     }
 
     /// Force drops the handle, meaning the resource will be dropped even if there are other handles active.
-
     pub fn force_drop(self) {
         self.0.state.store(FORCE_DROP, Ordering::Relaxed);
     }
@@ -356,13 +351,11 @@ impl<D: Send + Sync> Handle<D> {
     /// was called in any of the clones.
     ///
     /// Note that in this method it can only be because [`force_drop`](Handle::force_drop) was called.
-
     pub fn is_dropped(&self) -> bool {
         self.0.state.load(Ordering::Relaxed) == FORCE_DROP
     }
 
     /// Create a [`WeakHandle`] to this handle.
-
     pub fn downgrade(&self) -> WeakHandle<D> {
         WeakHandle(Arc::downgrade(&self.0))
     }
@@ -900,25 +893,21 @@ impl From<std::ops::Range<usize>> for IndexRange {
 }
 impl IndexRange {
     /// Into `Range<usize>`.
-
     pub fn iter(self) -> std::ops::Range<usize> {
         self.0..self.1
     }
 
     /// `self.0`
-
     pub fn start(self) -> usize {
         self.0
     }
 
     /// `self.1`
-
     pub fn end(self) -> usize {
         self.1
     }
 
     /// `self.1.saturating_sub(1)`
-
     pub fn inclusive_end(self) -> usize {
         self.1.saturating_sub(1)
     }

@@ -19,7 +19,6 @@ impl<'a> AppContext<'a> {
     /// The `task` closure is called immediately with the [`AppContextMut`] that is paired with the task, it
     /// should return the task future `F` in an inert state. Calls to [`AppTask::update`] exclusive borrow the
     /// [`AppContext`] that is made available inside `F` using the [`AppContextMut::with`] method.
-
     pub fn async_task<R, F, T>(&mut self, task: T) -> AppTask<R>
     where
         R: 'static,
@@ -35,7 +34,6 @@ impl<'a> WidgetContext<'a> {
     /// The `task` closure is called immediately with the [`WidgetContextMut`] that is paired with the task, it
     /// should return the task future `F` in an inert state. Calls to [`WidgetTask::update`] exclusive borrow a
     /// [`WidgetContext`] that is made available inside `F` using the [`WidgetContextMut::with`] method.
-
     pub fn async_task<R, F, T>(&mut self, task: T) -> WidgetTask<R>
     where
         R: 'static,
@@ -103,7 +101,6 @@ impl<R> UiTask<R> {
     /// Polls the future if needed, returns a reference to the result if the task is done.
     ///
     /// This does not poll the future if the task is done.
-
     pub fn update(&mut self) -> Option<&R> {
         if let UiTaskState::Pending {
             future, event_loop_waker, ..
@@ -126,7 +123,6 @@ impl<R> UiTask<R> {
     /// Returns `true` if the task is done.
     ///
     /// This does not poll the future.
-
     pub fn is_ready(&self) -> bool {
         matches!(&self.0, UiTaskState::Ready(_))
     }
@@ -137,7 +133,6 @@ impl<R> UiTask<R> {
     /// then call this method to take ownership of the result.
     ///
     /// [`update`]: Self::update
-
     pub fn into_result(self) -> Result<R, Self> {
         match self.0 {
             UiTaskState::Ready(r) => Ok(r),
@@ -183,7 +178,6 @@ impl<R> WidgetTask<R> {
     }
 
     /// Register the waker update slot in the widget update mask if the task is pending.
-
     pub fn subscribe(&self, widget_subscriptions: &mut WidgetSubscriptions) {
         self.task.subscribe(widget_subscriptions);
     }
@@ -191,7 +185,6 @@ impl<R> WidgetTask<R> {
     /// Polls the future if needed, returns a reference to the result if the task is done.
     ///
     /// This does not poll the future if the task is done, it also only polls the future if it requested poll.
-
     pub fn update(&mut self, ctx: &mut WidgetContext) -> Option<&R> {
         let task = &mut self.task;
         self.scope.with(ctx, move || task.update())
@@ -200,7 +193,6 @@ impl<R> WidgetTask<R> {
     /// Returns `true` if the task is done.
     ///
     /// This does not poll the future.
-
     pub fn is_ready(&self) -> bool {
         self.task.is_ready()
     }
@@ -209,7 +201,6 @@ impl<R> WidgetTask<R> {
     ///
     /// This does not poll the future, you must call [`update`](Self::update) to poll until a result is available,
     /// then call this method to take ownership of the result.
-
     pub fn into_result(self) -> Result<R, Self> {
         match self.task.into_result() {
             Ok(r) => Ok(r),
@@ -256,7 +247,6 @@ impl<R> AppTask<R> {
     /// Polls the future if needed, returns a reference to the result if the task is done.
     ///
     /// This does not poll the future if the task is done, it also only polls the future if it requested poll.
-
     pub fn update(&mut self, ctx: &mut AppContext) -> Option<&R> {
         let task = &mut self.task;
         self.scope.with(ctx, move || task.update())
@@ -265,7 +255,6 @@ impl<R> AppTask<R> {
     /// Returns `true` if the task is done.
     ///
     /// This does not poll the future.
-
     pub fn is_ready(&self) -> bool {
         self.task.is_ready()
     }
@@ -274,7 +263,6 @@ impl<R> AppTask<R> {
     ///
     /// This does not poll the future, you must call [`update`](Self::update) to poll until a result is available,
     /// then call this method to take ownership of the result.
-
     pub fn into_result(self) -> Result<R, Self> {
         match self.task.into_result() {
             Ok(r) => Ok(r),

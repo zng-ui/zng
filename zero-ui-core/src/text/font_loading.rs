@@ -163,13 +163,11 @@ impl Fonts {
     /// Clear cache and notify `Refresh` in [`FontChangedEvent`].
     ///
     /// See the event documentation for more information.
-
     pub fn refresh(&mut self) {
         self.generics.notify(FontChange::Refesh);
     }
 
     /// Remove all unused fonts from cache.
-
     pub fn prune(&mut self) {
         if !self.prune_requested {
             self.prune_requested = true;
@@ -178,13 +176,11 @@ impl Fonts {
     }
 
     /// Actual name of generic fonts.
-
     pub fn generics(&self) -> &GenericFonts {
         &self.generics
     }
 
     /// Configure the actual name of generic fonts.
-
     pub fn generics_mut(&mut self) -> &mut GenericFonts {
         &mut self.generics
     }
@@ -194,7 +190,6 @@ impl Fonts {
     /// If the font loads correctly a [`FontChangedEvent`] notification is scheduled.
     /// Fonts sourced from a file are not monitored for changes, you can *reload* the font
     /// by calling `register` again with the same font name.
-
     pub fn register(&mut self, custom_font: CustomFont) -> Result<(), FontLoadingError> {
         self.loader.register(custom_font)?;
         self.generics.notify(FontChange::CustomFonts);
@@ -204,7 +199,6 @@ impl Fonts {
     /// Removes a custom font family. If the font faces are not in use it is also unloaded.
     ///
     /// Returns if any was removed.
-
     pub fn unregister(&mut self, custom_family: &FontName) -> bool {
         let unregistered = self.loader.unregister(custom_family);
         if unregistered {
@@ -214,7 +208,6 @@ impl Fonts {
     }
 
     /// Gets a font list that best matches the query.
-
     pub fn get_list(
         &mut self,
         families: &[FontName],
@@ -227,7 +220,6 @@ impl Fonts {
     }
 
     /// Gets a single font face that best matches the query.
-
     pub fn get(
         &mut self,
         family: &FontName,
@@ -240,31 +232,26 @@ impl Fonts {
     }
 
     /// Gets a single font face with all normal properties.
-
     pub fn get_normal(&mut self, family: &FontName, lang: &Lang) -> Option<FontFaceRef> {
         self.get(family, FontStyle::Normal, FontWeight::NORMAL, FontStretch::NORMAL, lang)
     }
 
     /// Gets a single font face with italic italic style and normal weight and stretch.
-
     pub fn get_italic(&mut self, family: &FontName, lang: &Lang) -> Option<FontFaceRef> {
         self.get(family, FontStyle::Italic, FontWeight::NORMAL, FontStretch::NORMAL, lang)
     }
 
     /// Gets a single font face with bold weight and normal style and stretch.
-
     pub fn get_bold(&mut self, family: &FontName, lang: &Lang) -> Option<FontFaceRef> {
         self.get(family, FontStyle::Normal, FontWeight::BOLD, FontStretch::NORMAL, lang)
     }
 
     /// Gets all [registered](Self::register) font families.
-
     pub fn custom_fonts(&self) -> Vec<FontName> {
         self.loader.custom_fonts.keys().cloned().collect()
     }
 
     /// Gets all font families available in the system.
-
     pub fn system_fonts(&self) -> Vec<FontName> {
         self.loader
             .system_fonts
@@ -509,73 +496,61 @@ impl FontFace {
     }
 
     /// Reference the `harfbuzz` face.
-
     pub fn harfbuzz_face(&self) -> &harfbuzz_rs::Shared<harfbuzz_rs::Face<'static>> {
         &self.face
     }
 
     /// Reference the `font_kit` face.
-
     pub fn font_kit(&self) -> &font_kit::font::Font {
         &self.font_kit
     }
 
     /// Reference the font file bytes.
-
     pub fn bytes(&self) -> &FontDataRef {
         &self.data
     }
 
     /// Font full name.
-
     pub fn display_name(&self) -> &FontName {
         &self.display_name
     }
 
     /// Font family name.
-
     pub fn family_name(&self) -> &FontName {
         &self.family_name
     }
 
     /// Font globally unique name.
-
     pub fn postscript_name(&self) -> Option<&str> {
         self.postscript_name.as_deref()
     }
 
     /// Index of the font face in the [font file](Self::bytes).
-
     pub fn index(&self) -> u32 {
         self.face_index
     }
 
     /// Font style.
-
     pub fn style(&self) -> FontStyle {
         self.properties.style
     }
 
     /// Font weight.
-
     pub fn weight(&self) -> FontWeight {
         self.properties.weight
     }
 
     /// Font stretch.
-
     pub fn stretch(&self) -> FontStretch {
         self.properties.stretch
     }
 
     /// Font is monospace (fixed-width).
-
     pub fn is_monospace(&self) -> bool {
         self.is_monospace
     }
 
     /// Font metrics in font units.
-
     pub fn metrics(&self) -> &FontFaceMetrics {
         &self.metrics
     }
@@ -620,7 +595,6 @@ impl FontFace {
     }
 
     /// If both font faces are the same.
-
     pub fn ptr_eq(self: &Rc<Self>, other: &Rc<Self>) -> bool {
         Rc::ptr_eq(self, other)
     }
@@ -628,7 +602,6 @@ impl FontFace {
     /// If this font face is cached. All font faces are cached by default, a font face can be detached from
     /// cache when a [`FontChangedEvent`] event happens, in this case the font can still be used normally, but
     /// a request for the same font name will return a different reference.
-
     pub fn is_cached(&self) -> bool {
         !self.unregistered.get()
     }
@@ -636,7 +609,6 @@ impl FontFace {
     /// Returns the number of glyphs in the font.
     ///
     /// The [`GlyphIndex`] range for this font is from 0 inclusive to this value exclusive.
-
     pub fn glyph_count(&self) -> u32 {
         self.font_kit.glyph_count()
     }
@@ -647,7 +619,6 @@ impl FontFace {
     /// This function is only useful for best-effort simple use cases like “what does character X look like on its own”.
     ///
     /// [`shape_text`]: Font::shape_text
-
     pub fn glyph_for_char(&self, character: char) -> Option<GlyphIndex> {
         self.font_kit.glyph_for_char(character)
     }
@@ -768,37 +739,31 @@ impl Font {
     }
 
     /// Reference the font face source of this font.
-
     pub fn face(&self) -> &FontFaceRef {
         &self.face
     }
 
     /// Reference the `harfbuzz` font.
-
     pub fn harfbuzz_font(&self) -> &harfbuzz_rs::Shared<harfbuzz_rs::Font<'static>> {
         &self.font
     }
 
     /// Font size.
-
     pub fn size(&self) -> Px {
         self.size
     }
 
     /// Custom font variations.
-
     pub fn variations(&self) -> &RFontVariations {
         &self.variations
     }
 
     /// Sized font metrics.
-
     pub fn metrics(&self) -> &FontMetrics {
         &self.metrics
     }
 
     /// If both fonts are the same.
-
     pub fn ptr_eq(self: &Rc<Self>, other: &Rc<Self>) -> bool {
         Rc::ptr_eq(self, other)
     }
@@ -832,31 +797,26 @@ pub struct FontFaceList {
 #[allow(clippy::len_without_is_empty)] // is never empty.
 impl FontFaceList {
     /// Style requested in the query that generated this font face list.
-
     pub fn requested_style(&self) -> FontStyle {
         self.requested_style
     }
 
     /// Weight requested in the query that generated this font face list.
-
     pub fn requested_weight(&self) -> FontWeight {
         self.requested_weight
     }
 
     /// Stretch requested in the query that generated this font face list.
-
     pub fn requested_stretch(&self) -> FontStretch {
         self.requested_stretch
     }
 
     /// The font face that best matches the requested properties.
-
     pub fn best(&self) -> &FontFaceRef {
         &self.fonts[0]
     }
 
     /// Gets the font synthesis to use to better render the given font face on the list.
-
     pub fn face_synthesis(&self, face_index: usize) -> FontSynthesis {
         if let Some(face) = self.fonts.get(face_index) {
             face.synthesis_for(self.requested_style, self.requested_weight)
@@ -866,7 +826,6 @@ impl FontFaceList {
     }
 
     /// Iterate over font faces, more specific first.
-
     pub fn iter(&self) -> std::slice::Iter<FontFaceRef> {
         self.fonts.iter()
     }
@@ -874,7 +833,6 @@ impl FontFaceList {
     /// Number of font faces in the list.
     ///
     /// This is at least `1`.
-
     pub fn len(&self) -> usize {
         self.fonts.len()
     }
@@ -882,7 +840,6 @@ impl FontFaceList {
     /// Gets a sized font list.
     ///
     /// This calls [`FontFace::sized`] for each font in the list.
-
     pub fn sized(&self, font_size: Px, variations: RFontVariations) -> FontList {
         FontList {
             fonts: self.fonts.iter().map(|f| f.sized(font_size, variations.clone())).collect(),
@@ -938,37 +895,31 @@ pub struct FontList {
 #[allow(clippy::len_without_is_empty)] // cannot be empty.
 impl FontList {
     /// The font that best matches the requested properties.
-
     pub fn best(&self) -> &FontRef {
         &self.fonts[0]
     }
 
     /// Font size requested in the query that generated  this font list.
-
     pub fn requested_size(&self) -> Px {
         self.fonts[0].size()
     }
 
     /// Style requested in the query that generated this font list.
-
     pub fn requested_style(&self) -> FontStyle {
         self.requested_style
     }
 
     /// Weight requested in the query that generated this font list.
-
     pub fn requested_weight(&self) -> FontWeight {
         self.requested_weight
     }
 
     /// Stretch requested in the query that generated this font list.
-
     pub fn requested_stretch(&self) -> FontStretch {
         self.requested_stretch
     }
 
     /// Gets the font synthesis to use to better render the given font on the list.
-
     pub fn face_synthesis(&self, font_index: usize) -> FontSynthesis {
         if let Some(font) = self.fonts.get(font_index) {
             font.face.synthesis_for(self.requested_style, self.requested_weight)
@@ -978,7 +929,6 @@ impl FontList {
     }
 
     /// Iterate over font faces, more specific first.
-
     pub fn iter(&self) -> std::slice::Iter<FontRef> {
         self.fonts.iter()
     }
@@ -986,7 +936,6 @@ impl FontList {
     /// Number of font faces in the list.
     ///
     /// This is at least `1`.
-
     pub fn len(&self) -> usize {
         self.fonts.len()
     }
@@ -1503,7 +1452,6 @@ impl GenericFonts {
     /// Gets the ultimate fallback font used when none of the other fonts support a glyph.
     ///
     /// Returns a font name.
-
     pub fn fallback(&self, lang: &Lang) -> &FontName {
         self.fallback.get(lang).unwrap()
     }
@@ -1640,7 +1588,6 @@ impl CustomFont {
     /// Set the [`FontStretch`].
     ///
     /// Default is [`FontStretch::NORMAL`].
-
     pub fn stretch(mut self, stretch: FontStretch) -> Self {
         self.stretch = stretch;
         self
@@ -1649,7 +1596,6 @@ impl CustomFont {
     /// Set the [`FontStyle`].
     ///
     /// Default is [`FontStyle::Normal`].
-
     pub fn style(mut self, style: FontStyle) -> Self {
         self.style = style;
         self
@@ -1658,7 +1604,6 @@ impl CustomFont {
     /// Set the [`FontWeight`].
     ///
     /// Default is [`FontWeight::NORMAL`].
-
     pub fn weight(mut self, weight: FontWeight) -> Self {
         self.weight = weight;
         self

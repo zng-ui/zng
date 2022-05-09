@@ -46,37 +46,31 @@ impl Vector {
     }
 
     /// ***x:*** [`Length::zero`], ***y:*** [`Length::zero`].
-
     pub fn zero() -> Self {
         Self::new(Length::zero(), Length::zero())
     }
 
     /// `(1, 1)`.
-
     pub fn one() -> Self {
         Self::new(1, 1)
     }
 
     /// `(1.px(), 1.px())`.
-
     pub fn one_px() -> Self {
         Self::new(1.px(), 1.px())
     }
 
     /// Swap `x` and `y`.
-
     pub fn yx(self) -> Self {
         Vector { y: self.x, x: self.y }
     }
 
     /// Returns `(x, y)`.
-
     pub fn as_tuple(self) -> (Length, Length) {
         (self.x, self.y)
     }
 
     /// Returns `[x, y]`.
-
     pub fn as_array(self) -> [Length; 2] {
         [self.x, self.y]
     }
@@ -90,7 +84,6 @@ impl Vector {
     }
 
     /// Compute the vector in a layout context.
-
     pub fn to_layout(&self, ctx: &LayoutMetrics, available_size: AvailableSize, default_value: PxVector) -> PxVector {
         PxVector::new(
             self.x.to_layout(ctx, available_size.width, default_value.x),
@@ -101,7 +94,6 @@ impl Vector {
     /// Compute a [`LayoutMask`] that flags all contextual values that affect the result of [`to_layout`].
     ///
     /// [`to_layout`]: Self::to_layout
-
     pub fn affect_mask(&self) -> LayoutMask {
         self.x.affect_mask() | self.y.affect_mask()
     }

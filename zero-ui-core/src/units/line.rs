@@ -42,7 +42,6 @@ impl Line {
     }
 
     /// Line from [zero](Point::zero) to [zero](Point::zero).
-
     pub fn zero() -> Line {
         Line {
             start: Point::zero(),
@@ -51,7 +50,6 @@ impl Line {
     }
 
     /// Line that fills the available length from [bottom](Point::bottom) to [top](Point::top).
-
     pub fn to_top() -> Line {
         Line {
             start: Point::bottom(),
@@ -60,7 +58,6 @@ impl Line {
     }
 
     /// Line that traces the length from [top](Point::top) to [bottom](Point::bottom).
-
     pub fn to_bottom() -> Line {
         Line {
             start: Point::top(),
@@ -69,7 +66,6 @@ impl Line {
     }
 
     /// Line that traces the length from [left](Point::left) to [right](Point::right).
-
     pub fn to_right() -> Line {
         Line {
             start: Point::left(),
@@ -78,7 +74,6 @@ impl Line {
     }
 
     /// Line that traces the length from [right](Point::right) to [left](Point::left).
-
     pub fn to_left() -> Line {
         Line {
             start: Point::right(),
@@ -87,7 +82,6 @@ impl Line {
     }
 
     /// Line that traces the length from [bottom-right](Point::bottom_right) to [top-left](Point::top_left).
-
     pub fn to_top_left() -> Line {
         Line {
             start: Point::bottom_right(),
@@ -96,7 +90,6 @@ impl Line {
     }
 
     /// Line that traces the length from [bottom-left](Point::bottom_left) to [top-right](Point::top_right).
-
     pub fn to_top_right() -> Line {
         Line {
             start: Point::bottom_left(),
@@ -105,7 +98,6 @@ impl Line {
     }
 
     /// Line that traces the length from [top-right](Point::top_right) to [bottom-left](Point::bottom_left).
-
     pub fn to_bottom_left() -> Line {
         Line {
             start: Point::top_right(),
@@ -114,7 +106,6 @@ impl Line {
     }
 
     /// Line that traces the length from [top-left](Point::top_left) to [bottom-right](Point::bottom_right).
-
     pub fn to_bottom_right() -> Line {
         Line {
             start: Point::top_left(),
@@ -123,7 +114,6 @@ impl Line {
     }
 
     /// Compute the line in a layout context.
-
     pub fn to_layout(&self, ctx: &LayoutMetrics, available_size: AvailableSize, default_value: PxLine) -> PxLine {
         PxLine {
             start: self.start.to_layout(ctx, available_size, default_value.start),
@@ -134,7 +124,6 @@ impl Line {
     /// Compute a [`LayoutMask`] that flags all contextual values that affect the result of [`to_layout`].
     ///
     /// [`to_layout`]: Self::to_layout
-
     pub fn affect_mask(&self) -> LayoutMask {
         self.start.affect_mask() | self.end.affect_mask()
     }
@@ -156,19 +145,16 @@ pub struct PxLine {
 }
 impl PxLine {
     /// New layout line defined by two layout points.
-
     pub fn new(start: PxPoint, end: PxPoint) -> Self {
         Self { start, end }
     }
 
     /// Line from (0, 0) to (0, 0).
-
     pub fn zero() -> Self {
         Self::new(PxPoint::zero(), PxPoint::zero())
     }
 
     /// Line length in rounded pixels.
-
     pub fn length(self) -> Px {
         let s = self.start.to_wr();
         let e = self.end.to_wr();
@@ -176,13 +162,11 @@ impl PxLine {
     }
 
     /// Bounding box that fits the line points, in layout units.
-
     pub fn bounds(self) -> PxRect {
         PxRect::from_points(&[self.start, self.end])
     }
 
     /// Returns a line that starts from the left-top most point and ends at the bottom-right most point.
-
     pub fn normalize(self) -> PxLine {
         let start = self.start.min(self.end);
         let end = self.start.max(self.end);

@@ -117,13 +117,11 @@ impl PropertyInstance {
     }
 
     /// Immutable borrows the [`PropertyInstanceInfo`].
-
     pub fn borrow(&self) -> std::cell::Ref<PropertyInstanceInfo> {
         self.0.borrow()
     }
 
     /// Immutable borrows the [`PropertyInstanceInfo`], returning an error if the value is currently mutably borrowed..
-
     pub fn try_borrow(&self) -> Result<std::cell::Ref<PropertyInstanceInfo>, std::cell::BorrowError> {
         self.0.try_borrow()
     }
@@ -154,13 +152,11 @@ impl CapturedPropertyInstance {
     }
 
     /// Immutable borrows the [`CapturedPropertyInfo`].
-
     pub fn borrow(&self) -> std::cell::Ref<CapturedPropertyInfo> {
         std::cell::Ref::map(self.new_fn.borrow(), |f| &f.captures[self.index])
     }
 
     /// Immutable borrows the [`CapturedPropertyInfo`], returning an error if the value is currently mutably borrowed..
-
     pub fn try_borrow(&self) -> Result<std::cell::Ref<CapturedPropertyInfo>, std::cell::BorrowError> {
         self.new_fn
             .try_borrow()
@@ -192,13 +188,11 @@ impl WidgetNewFnInstance {
     }
 
     /// Immutable borrows the [`WidgetNewFnInfo`].
-
     pub fn borrow(&self) -> std::cell::Ref<WidgetNewFnInfo> {
         self.0.borrow()
     }
 
     /// Immutable borrows the [`WidgetNewFnInfo`], returning an error if the value is currently mutably borrowed..
-
     pub fn try_borrow(&self) -> Result<std::cell::Ref<WidgetNewFnInfo>, std::cell::BorrowError> {
         self.0.try_borrow()
     }
@@ -226,13 +220,11 @@ impl WidgetInstance {
     }
 
     /// Immutable borrows the [`WidgetInstanceInfo`].
-
     pub fn borrow(&self) -> std::cell::Ref<WidgetInstanceInfo> {
         self.0.borrow()
     }
 
     /// Immutable borrows the [`WidgetInstanceInfo`], returning an error if the value is currently mutably borrowed..
-
     pub fn try_borrow(&self) -> Result<std::cell::Ref<WidgetInstanceInfo>, std::cell::BorrowError> {
         self.0.try_borrow()
     }
@@ -1615,7 +1607,6 @@ pub enum WriteArgDiff {
 /// When writing to a terminal the text is color coded and a legend is printed. The coloring
 /// can be configured using environment variables, see [colored](https://github.com/mackwic/colored#features)
 /// for details.
-
 pub fn write_tree<W: std::io::Write>(tree: &WidgetInfoTree, updates_from: &WriteTreeState, out: &mut W) {
     let mut fmt = print_fmt::Fmt::new(out);
     write_impl(updates_from, tree.root(), "", &mut fmt);

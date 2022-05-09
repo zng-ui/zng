@@ -238,7 +238,6 @@ pub mod ui;
 ///
 /// [unwind safety validation]: std::panic::UnwindSafe
 /// [`Waker`]: std::task::Waker
-
 pub fn spawn<F>(task: F)
 where
     F: Future<Output = ()> + Send + 'static,
@@ -335,7 +334,6 @@ where
 ///
 /// [`resume_unwind`]: panic::resume_unwind
 /// [`Waker`]: std::task::Waker
-
 pub async fn run<R, T>(task: T) -> R
 where
     R: Send + 'static,
@@ -459,7 +457,6 @@ where
 /// [`respond_ctor`] to workaround this constrain by sending a *constructor* closure to run in the UI thread.
 ///
 /// [`resume_unwind`]: panic::resume_unwind
-
 pub fn respond<Vw: WithVars, R, F>(vars: &Vw, task: F) -> ResponseVar<R>
 where
     R: VarValue + Send + 'static,
@@ -552,7 +549,6 @@ where
 ///
 /// [`blocking`]: https://docs.rs/blocking
 /// [`resume_unwind`]: panic::resume_unwind
-
 pub async fn wait<T, F>(task: F) -> T
 where
     F: FnOnce() -> T + Send + 'static,
@@ -577,7 +573,6 @@ where
 /// if this function returns an error.
 ///
 /// [unwind safety validation]: std::panic::UnwindSafe
-
 pub async fn wait_catch<T, F>(task: F) -> PanicResult<T>
 where
     F: FnOnce() -> T + Send + 'static,
@@ -600,7 +595,6 @@ where
 /// to propagate a panic.
 ///
 /// [unwind safety validation]: std::panic::UnwindSafe
-
 pub fn spawn_wait<F>(task: F)
 where
     F: FnOnce() + Send + 'static,
@@ -645,7 +639,6 @@ where
 /// [`TestWidgetContext::block_on`]: crate::context::TestWidgetContext::block_on
 /// [`HeadlessApp::block_on`]: crate::app::HeadlessApp::block_on
 /// [`futures-lite`]: https://docs.rs/futures-lite/
-
 pub fn block_on<F>(task: F) -> F::Output
 where
     F: Future,
@@ -677,7 +670,6 @@ where
 ///
 /// If `spin` is `true` the [`spin_on`] executor is used with a timeout of 500 milliseconds.
 /// IF `spin` is `false` the [`block_on`] executor is used with a timeout of 5 seconds.
-
 #[cfg(any(test, doc, feature = "test_util"))]
 #[cfg_attr(doc_nightly, doc(cfg(feature = "test_util")))]
 pub fn doc_test<F>(spin: bool, task: F) -> F::Output
@@ -784,7 +776,6 @@ pub async fn yield_now() {
 /// [`Pending`]: std::task::Poll::Pending
 /// [`futures_timer`]: https://docs.rs/futures-timer
 /// [`Timers`]: crate::timer::Timers#async
-
 pub async fn timeout(timeout: Duration) {
     futures_timer::Delay::new(timeout).await
 }
@@ -1902,7 +1893,6 @@ impl std::task::Wake for WakeVec {
 }
 impl McWaker {
     /// New empty waker.
-
     pub fn empty() -> Self {
         Self(Arc::new(WakeVec::default()))
     }
@@ -1914,7 +1904,6 @@ impl McWaker {
     /// is ready [`cancel`] must be called.
     ///
     /// [`cancel`]: Self::cancel
-
     pub fn push(&self, waker: std::task::Waker) -> Option<std::task::Waker> {
         if self.0.push(waker) {
             Some(self.0.clone().into())
@@ -1924,7 +1913,6 @@ impl McWaker {
     }
 
     /// Clear current registered wakers.
-
     pub fn cancel(&self) {
         self.0.cancel()
     }

@@ -228,7 +228,6 @@ impl fmt::Debug for WindowMode {
 }
 impl WindowMode {
     /// If is the [`Headed`](WindowMode::Headed) mode.
-
     pub fn is_headed(self) -> bool {
         match self {
             WindowMode::Headed => true,
@@ -237,7 +236,6 @@ impl WindowMode {
     }
 
     /// If is the [`Headless`](WindowMode::Headed) or [`HeadlessWithRenderer`](WindowMode::Headed) modes.
-
     pub fn is_headless(self) -> bool {
         match self {
             WindowMode::Headless | WindowMode::HeadlessWithRenderer => true,
@@ -246,7 +244,6 @@ impl WindowMode {
     }
 
     /// If is the [`Headed`](WindowMode::Headed) or [`HeadlessWithRenderer`](WindowMode::HeadlessWithRenderer) modes.
-
     pub fn has_renderer(self) -> bool {
         match self {
             WindowMode::Headed | WindowMode::HeadlessWithRenderer => true,
@@ -279,13 +276,11 @@ impl fmt::Debug for WindowChrome {
 }
 impl WindowChrome {
     /// Is operating system chrome.
-
     pub fn is_default(&self) -> bool {
         matches!(self, WindowChrome::Default)
     }
 
     /// Is chromeless.
-
     pub fn is_none(&self) -> bool {
         matches!(self, WindowChrome::None)
     }

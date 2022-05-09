@@ -33,7 +33,6 @@ pub struct SortedWidgetVec {
 }
 impl SortedWidgetVec {
     /// New empty (default).
-
     pub fn new(sort: impl FnMut(&BoxedWidget, &BoxedWidget) -> cmp::Ordering + 'static) -> Self {
         SortedWidgetVec {
             vec: vec![],

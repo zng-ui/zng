@@ -673,7 +673,6 @@ impl<O: VarValue> Var<O> for RcWhenVar<O> {
     }
 
     /// Always `true`.
-
     fn can_update(&self) -> bool {
         true
     }

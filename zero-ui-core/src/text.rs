@@ -338,14 +338,12 @@ pub enum TextAlign {
 }
 impl TextAlign {
     /// Justify Auto.
-
     pub fn justify() -> Self {
         TextAlign::Justify(Justify::Auto)
     }
 }
 impl Default for TextAlign {
     /// [`TextAlign::Start`].
-
     fn default() -> Self {
         TextAlign::Start
     }
@@ -572,14 +570,12 @@ pub enum WhiteSpace {
 }
 impl Default for WhiteSpace {
     /// [`WhiteSpace::Preserve`].
-
     fn default() -> Self {
         WhiteSpace::Preserve
     }
 }
 impl WhiteSpace {
     /// Transform the white space of the text.
-
     pub fn transform(self, text: Text) -> Text {
         match self {
             WhiteSpace::Preserve => text,
@@ -656,7 +652,6 @@ impl FontName {
     ///
     /// Font names are case insensitive but the input casing is preserved, this casing shows during display and in
     /// the value of [`name`](Self::name).
-
     pub fn new(name: impl Into<Text>) -> Self {
         let text = name.into();
         FontName {
@@ -668,7 +663,6 @@ impl FontName {
     /// New "serif" font.
     ///
     /// Serif fonts represent the formal text style for a script.
-
     pub fn serif() -> Self {
         Self::new("serif")
     }
@@ -677,7 +671,6 @@ impl FontName {
     ///
     /// Glyphs in sans-serif fonts, are generally low contrast (vertical and horizontal stems have the close to the same thickness)
     /// and have stroke endings that are plain — without any flaring, cross stroke, or other ornamentation.
-
     pub fn sans_serif() -> Self {
         Self::new("sans-serif")
     }
@@ -685,7 +678,6 @@ impl FontName {
     /// New "monospace" font.
     ///
     /// The sole criterion of a monospace font is that all glyphs have the same fixed width.
-
     pub fn monospace() -> Self {
         Self::new("monospace")
     }
@@ -694,7 +686,6 @@ impl FontName {
     ///
     /// Glyphs in cursive fonts generally use a more informal script style, and the result looks more
     /// like handwritten pen or brush writing than printed letter-work.
-
     pub fn cursive() -> Self {
         Self::new("cursive")
     }
@@ -702,19 +693,16 @@ impl FontName {
     /// New "fantasy" font.
     ///
     /// Fantasy fonts are primarily decorative or expressive fonts that contain decorative or expressive representations of characters.
-
     pub fn fantasy() -> Self {
         Self::new("fantasy")
     }
 
     /// Reference the font name.
-
     pub fn name(&self) -> &str {
         &self.text
     }
 
     /// Unwraps into a [`Text`].
-
     pub fn into_text(self) -> Text {
         self.text
     }
@@ -780,7 +768,6 @@ impl AsRef<str> for FontName {
 pub struct FontNames(pub Vec<FontName>);
 impl FontNames {
     /// Empty list.
-
     pub fn empty() -> Self {
         FontNames(vec![])
     }
@@ -1077,7 +1064,6 @@ impl InternedStr {
     }
 
     /// Reference the string.
-
     pub fn as_str(&self) -> &str {
         &self.0
     }
@@ -1596,7 +1582,6 @@ pub struct TextPoint {
 }
 impl TextPoint {
     /// New text point.
-
     pub fn new(line: usize, index: usize) -> Self {
         TextPoint { line, index }
     }
@@ -1608,7 +1593,6 @@ impl TextPoint {
     ///
     /// The input is the [`line`](Self::line) pointed by `self`, this method **panics** if the `line` length cannot accommodate
     /// the byte [`index`](Self::index).
-
     pub fn display(self, line: &str) -> TextPointDisplay {
         TextPointDisplay::new(line, self)
     }
@@ -1670,7 +1654,6 @@ pub enum TextLineColor {
 }
 impl TextLineColor {
     /// Returns the color or the `text_color`.
-
     pub fn unwrap_or(self, text_color: Rgba) -> Rgba {
         match self {
             TextLineColor::Text => text_color,

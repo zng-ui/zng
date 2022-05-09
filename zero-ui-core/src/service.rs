@@ -74,7 +74,6 @@ impl Services {
     }
 
     /// Gets a service reference if the service is registered in the application.
-
     pub fn get<S: Service>(&mut self) -> Option<&mut S> {
         let ptr = S::thread_local_entry().get();
         if ptr.is_null() {
@@ -97,7 +96,6 @@ impl Services {
     /// # Panics
     ///
     /// If  the service is not registered in the application.
-
     #[track_caller]
     pub fn req<S: Service>(&mut self) -> &mut S {
         self.get::<S>()
@@ -114,7 +112,6 @@ impl Services {
     /// # Panics
     ///
     /// If the same service type is requested more then once.
-
     pub fn get_multi<'m, M: ServiceTuple<'m>>(&'m mut self) -> Option<M::Borrowed> {
         M::get().ok()
     }
@@ -131,7 +128,6 @@ impl Services {
     /// If any of the services is not registered in the application.
     ///
     /// If the same service type is required more then once.
-
     #[track_caller]
     pub fn req_multi<'m, M: ServiceTuple<'m>>(&'m mut self) -> M::Borrowed {
         M::get().unwrap_or_else(|e| panic!("service `{e}` is required"))

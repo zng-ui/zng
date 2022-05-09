@@ -115,7 +115,6 @@ where
     /// New mapping var.
     ///
     /// Prefer using the [`Var::flat_map`] method.
-
     pub fn new(source: S, map: M) -> Self {
         RcFlatMapVar(Rc::new(MapData {
             _a: PhantomData,
@@ -131,7 +130,6 @@ where
     }
 
     /// New weak reference to the variable.
-
     pub fn downgrade(&self) -> WeakRcFlatMapVar<A, B, V, M, S> {
         WeakRcFlatMapVar(Rc::downgrade(&self.0))
     }

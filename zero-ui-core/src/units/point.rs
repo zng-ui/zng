@@ -43,7 +43,6 @@ impl Point {
     }
 
     /// ***x:*** [`Length::zero`], ***y:*** [`Length::zero`].
-
     pub fn zero() -> Self {
         Self::new(Length::zero(), Length::zero())
     }
@@ -51,7 +50,6 @@ impl Point {
     /// Point at the top-middle of the available space.
     ///
     /// ***x:*** [`Length::half`], ***y:*** [`Length::zero`]
-
     pub fn top() -> Self {
         Self::new(Length::half(), Length::zero())
     }
@@ -59,7 +57,6 @@ impl Point {
     /// Point at the bottom-middle of the available space.
     ///
     /// ***x:*** [`Length::half`], ***y:*** [`Length::fill`]
-
     pub fn bottom() -> Self {
         Self::new(Length::half(), Length::fill())
     }
@@ -67,7 +64,6 @@ impl Point {
     /// Point at the middle-left of the available space.
     ///
     /// ***x:*** [`Length::zero`], ***y:*** [`Length::half`]
-
     pub fn left() -> Self {
         Self::new(Length::zero(), Length::half())
     }
@@ -75,7 +71,6 @@ impl Point {
     /// Point at the middle-right of the available space.
     ///
     /// ***x:*** [`Length::fill`], ***y:*** [`Length::half`]
-
     pub fn right() -> Self {
         Self::new(Length::fill(), Length::half())
     }
@@ -83,7 +78,6 @@ impl Point {
     /// Point at the top-left of the available space.
     ///
     /// ***x:*** [`Length::zero`], ***y:*** [`Length::zero`]
-
     pub fn top_left() -> Self {
         Self::zero()
     }
@@ -91,7 +85,6 @@ impl Point {
     /// Point at the top-right of the available space.
     ///
     /// ***x:*** [`Length::fill`], ***y:*** [`Length::zero`]
-
     pub fn top_right() -> Self {
         Self::new(Length::fill(), Length::zero())
     }
@@ -99,7 +92,6 @@ impl Point {
     /// Point at the bottom-left of the available space.
     ///
     /// ***x:*** [`Length::zero`], ***y:*** [`Length::fill`]
-
     pub fn bottom_left() -> Self {
         Self::new(Length::zero(), Length::fill())
     }
@@ -107,7 +99,6 @@ impl Point {
     /// Point at the bottom-right of the available space.
     ///
     /// ***x:*** [`Length::fill`], ***y:*** [`Length::fill`]
-
     pub fn bottom_right() -> Self {
         Self::new(Length::fill(), Length::fill())
     }
@@ -115,31 +106,26 @@ impl Point {
     /// Point at the center.
     ///
     /// ***x:*** [`Length::half`], ***y:*** [`Length::half`]
-
     pub fn center() -> Self {
         Self::new(Length::half(), Length::half())
     }
 
     /// Swap `x` and `y`.
-
     pub fn yx(self) -> Self {
         Point { y: self.x, x: self.y }
     }
 
     /// Returns `(x, y)`.
-
     pub fn as_tuple(self) -> (Length, Length) {
         (self.x, self.y)
     }
 
     /// Returns `[x, y]`.
-
     pub fn as_array(self) -> [Length; 2] {
         [self.x, self.y]
     }
 
     /// Compute the point in a layout context.
-
     pub fn to_layout(&self, ctx: &LayoutMetrics, available_size: AvailableSize, default_value: PxPoint) -> PxPoint {
         PxPoint::new(
             self.x.to_layout(ctx, available_size.width, default_value.x),
@@ -150,7 +136,6 @@ impl Point {
     /// Compute a [`LayoutMask`] that flags all contextual values that affect the result of [`to_layout`].
     ///
     /// [`to_layout`]: Self::to_layout
-
     pub fn affect_mask(&self) -> LayoutMask {
         self.x.affect_mask() | self.y.affect_mask()
     }

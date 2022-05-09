@@ -40,7 +40,6 @@ pub struct SegmentedText {
 }
 impl SegmentedText {
     /// New segmented text from any text type.
-
     pub fn new(text: impl Into<Text>) -> Self {
         Self::new_text(text.into())
     }
@@ -108,13 +107,11 @@ impl SegmentedText {
     }
 
     /// The text string.
-
     pub fn text(&self) -> &str {
         &self.text
     }
 
     /// The raw segment data.
-
     pub fn segments(&self) -> &[TextSegment] {
         &self.segments
     }
@@ -143,19 +140,16 @@ impl SegmentedText {
     }
 
     /// Returns the number of segments.
-
     pub fn len(&self) -> usize {
         self.segments.len()
     }
 
     /// Returns `true` if text and segments are empty.
-
     pub fn is_empty(&self) -> bool {
         self.segments.is_empty()
     }
 
     /// Destructs `self` into the text and segments.
-
     pub fn into_parts(self) -> (Text, Vec<TextSegment>) {
         (self.text, self.segments)
     }
@@ -168,7 +162,6 @@ impl SegmentedText {
     ///
     /// * If one of the inputs is empty but the other is not.
     /// * If text is not empty and the last segment ends after the last text byte.
-
     pub fn from_parts(text: Text, segments: Vec<TextSegment>) -> Self {
         assert_eq!(text.is_empty(), segments.is_empty());
         if !text.is_empty() {
@@ -196,7 +189,6 @@ impl SegmentedText {
     /// "\n" is a `LineBreak`
     /// "Baz." is a `Word`
     /// ```
-
     pub fn iter(&self) -> SegmentedTextIter {
         SegmentedTextIter {
             text: &self.text,
