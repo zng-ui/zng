@@ -1485,7 +1485,7 @@ mod tests {
         let updates = Rc::new(RefCell::new(vec![]));
         let trace_handle = test.trace_value(
             app.ctx().vars,
-            clone_move!(updates, |value| updates.borrow_mut().push((*value, Instant::now()))),
+            clone_move!(updates, |value| updates.borrow_mut().push(*value)),
         );
 
         test.ease(app.ctx().vars, 20, 1.secs(), easing::linear).perm();
@@ -1504,16 +1504,8 @@ mod tests {
 
         assert_eq!(22, updates.len(), "expected trace_start + animation_start + 20_frames");
 
-        let fps_range = (fps20 - 0.5.ms())..=(fps20 + 0.5.ms());
-
-        let (_, mut inst) = updates[2];
-        let mut value = updates[3].0 - 1; // ignore animation start interpolation.
-
-        for (v, i) in &updates[3..] {
-            let dur = i.duration_since(inst);
-            assert!(fps_range.contains(&dur));
-            inst = *i;
-
+        let mut value = updates[3] - 1; // ignore animation start interpolation.
+        for v in &updates[3..] {
             assert_eq!(1, *v - value, "expected 1 = {v} - {value}");
             value = *v;
         }
