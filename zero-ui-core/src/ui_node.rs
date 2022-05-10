@@ -580,8 +580,6 @@ pub trait Widget: UiNode {
         )
     }
 
-    // TODO don't require user to init frame?
-
     /// Run [`UiNode::info`] using the [`TestWidgetContext`].
     #[cfg(any(test, doc, feature = "test_util"))]
     #[cfg_attr(doc_nightly, doc(cfg(feature = "test_util")))]
@@ -620,6 +618,13 @@ pub trait Widget: UiNode {
     #[cfg_attr(doc_nightly, doc(cfg(feature = "test_util")))]
     fn test_render_update(&self, ctx: &mut TestWidgetContext, update: &mut FrameUpdate) {
         ctx.render_context(|ctx| self.render_update(ctx, update));
+    }
+
+    /// Run [`UiNode::event`] using the [`TestWidgetContext`].
+    #[cfg(any(test, doc, feature = "test_util"))]
+    #[cfg_attr(doc_nightly, doc(cfg(feature = "test_util")))]
+    fn test_event<A: EventUpdateArgs>(&mut self, ctx: &mut TestWidgetContext, args: &A) {
+        ctx.widget_context(|ctx| self.event(ctx, args))
     }
 }
 

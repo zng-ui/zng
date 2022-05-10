@@ -1142,9 +1142,9 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + any::AnyVar + crate::private::S
         )
     }
 
-    /// 
-    fn chase<Vw, F>(&self, vars: &Vw, target: flume::Receiver<T>, duration: Duration, easing: F) -> AnimationHandle 
-    where     
+    ///
+    fn chase<Vw, F>(&self, vars: &Vw, target: flume::Receiver<T>, duration: Duration, easing: F) -> AnimationHandle
+    where
         Vw: WithVars,
         F: Fn(EasingTime) -> EasingStep + 'static,
         T: Transitionable,

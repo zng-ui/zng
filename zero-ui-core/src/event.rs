@@ -1280,6 +1280,7 @@ macro_rules! __event_args {
             /// Requests that subsequent handlers skip this event.
             ///
             /// Cloned arguments signal stop for all clones.
+            #[allow(unused)]
             pub fn stop_propagation(&self) {
                 <Self as $crate::event::EventArgs>::stop_propagation(self)
             }
@@ -1289,11 +1290,13 @@ macro_rules! __event_args {
             /// Note that property level handlers don't need to check this, as those handlers are
             /// already not called when this is `true`. [`UiNode`](crate::UiNode) and
             /// [`AppExtension`](crate::app::AppExtension) implementers must check if this is `true`.
+            #[allow(unused)]
             pub fn stop_propagation_requested(&self) -> bool {
                 <Self as $crate::event::EventArgs>::stop_propagation_requested(self)
             }
 
             /// If the event described by these arguments is relevant in the given widget context.
+            #[allow(unused)]
             pub fn concerns_widget(&self, ctx: &mut $crate::context::WidgetContext) -> bool {
                 <Self as $crate::event::EventArgs>::concerns_widget(self, ctx)
             }
@@ -1301,6 +1304,7 @@ macro_rules! __event_args {
             /// Calls `handler` and stops propagation if propagation is still allowed.
             ///
             /// Returns the `handler` result if it was called.
+            #[allow(unused)]
             pub fn handle<F, R>(&self, handler: F) -> Option<R>
             where
                 F: FnOnce(&Self) -> R,
@@ -1673,6 +1677,7 @@ macro_rules! event {
             }
 
             /// Schedule an event update.
+            #[cfg_attr(test, allow(unused))]
             pub fn notify<Evs: $crate::event::WithEvents>(self, events: &mut Evs, args: $Args) {
                 <Self as $crate::event::Event>::notify(self, events, args);
             }

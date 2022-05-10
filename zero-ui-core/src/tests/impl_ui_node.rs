@@ -128,6 +128,9 @@ fn test_trace(node: impl UiNode) {
     wgt.test_render(&mut ctx, &mut frame);
     assert_only_traced!(wgt.state(), "render");
 
+    TraceNode::notify_render_update(&mut wgt, &mut ctx);
+    assert_only_traced!(wgt.state(), "event");
+
     let mut update = FrameUpdate::new(FrameId::INVALID, None, RenderColor::BLACK, None);
     wgt.test_render_update(&mut ctx, &mut update);
     assert_only_traced!(wgt.state(), "render_update");
@@ -265,13 +268,13 @@ mod util {
     use std::{cell::RefCell, rc::Rc};
 
     use crate::{
-        context::{InfoContext, LayoutContext, RenderContext, WidgetContext},
-        event::EventUpdateArgs,
+        context::{InfoContext, LayoutContext, RenderContext, TestWidgetContext, WidgetContext},
+        event::{event, event_args, EventUpdate, EventUpdateArgs},
         render::{FrameBuilder, FrameUpdate},
         state_key,
         units::*,
         widget_info::{EventMask, UpdateMask, WidgetInfoBuilder, WidgetLayout, WidgetSubscriptions},
-        UiNode,
+        UiNode, Widget,
     };
 
     state_key! {
@@ -293,10 +296,10 @@ mod util {
                         assert_eq!(trace_entry, method, "tracer_0 traced `{trace_entry}`, expected only `{method}`");
                         any = true;
                     }
-                    assert!(any, "tracer_{i} did not trace anything");
+                    assert!(any, "tracer_{i} did not trace anything, expected `{method}`");
                 }
             } else {
-                panic!("no trace initialized");
+                panic!("no trace initialized, expected `{method}`");
             }
         }};
     }
@@ -330,6 +333,10 @@ mod util {
         fn trace(&self, method: &'static str) {
             self.trace.borrow_mut().push(method);
         }
+
+        pub fn notify_render_update(wgt: &mut impl Widget, ctx: &mut TestWidgetContext) {
+            wgt.test_event(ctx, &EventUpdate::new(RenderUpdateEvent, RenderUpdateArgs::now()));
+        }
     }
     impl UiNode for TraceNode {
         fn init(&mut self, ctx: &mut WidgetContext) {
@@ -357,8 +364,12 @@ mod util {
             self.trace("update");
         }
 
-        fn event<U: EventUpdateArgs>(&mut self, _: &mut WidgetContext, _: &U) {
+        fn event<U: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &U) {
             self.trace("event");
+
+            if RenderUpdateEvent.update(args).is_some() {
+                ctx.updates.render_update();
+            }
         }
 
         fn measure(&mut self, _: &mut LayoutContext, _: AvailableSize) -> PxSize {
@@ -377,5 +388,19 @@ mod util {
         fn render_update(&self, _: &mut RenderContext, _: &mut FrameUpdate) {
             self.trace("render_update");
         }
+    }
+
+    event_args! {
+        struct RenderUpdateArgs {
+            ..
+
+            fn concerns_widget(&self, _: &mut WidgetContext) -> bool {
+                true
+            }
+        }
+    }
+
+    event! {
+        RenderUpdateEvent: RenderUpdateArgs;
     }
 }
