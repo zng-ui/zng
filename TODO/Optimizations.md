@@ -28,15 +28,10 @@
 General idea, reuse computed data for `UiNode` info, layout and render at
 widget boundaries if the widget or inner widgets did not request an update of these types.
 
-## `UiNode::render_update`
-
-Can record inserted range of the update for each widget and keep all update data in the `UsedFrameUpdate`, then copy from it
-on the new update.
-
 ## `UiNode::render`
 
-Webrender needs to support this? Can we implement our own display list? If so, we can do the same thing as the `render_update`,
-record ranges. Maybe even have the ranges expand in the view-process?
+Webrender needs to support this? Can we implement our own display list? If so, we can record the inserted range of display list,
+keep the old display list around, then copy from it to the new display list. Maybe even have the ranges expand in the view-process?
 
 ## `UiNode::measure` and `UiNode::arrange`
 

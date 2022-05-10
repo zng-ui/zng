@@ -20,7 +20,7 @@ pub mod implicit_base {
     use std::cell::RefCell;
 
     use crate::{
-        context::{OwnedStateMap, RenderContext, WidgetUpdates},
+        context::{OwnedStateMap, RenderContext, WidgetUpdates, WindowRenderUpdate},
         render::FrameBindingKey,
         units::RenderTransform,
         widget_info::{WidgetBorderInfo, WidgetLayout, WidgetLayoutInfo, WidgetRenderInfo, WidgetSubscriptions},
@@ -365,9 +365,14 @@ pub mod implicit_base {
                         tracing::error!(target: "widget_base", "`UiNode::render` called in not inited widget {:?}", self.id);
                     }
 
-                    ctx.with_widget(self.id, &self.state, |ctx| {
-                        frame.push_widget(self.id, &self.render_info, |frame| self.child.render(ctx, frame));
-                    });
+                    if matches!(self.pending_updates.borrow_mut().render.take(), WindowRenderUpdate::Render) || !frame.can_reuse_widget() {
+                        ctx.with_widget(self.id, &self.state, |ctx| {
+                            frame.push_widget(self.id, &self.render_info, |frame| self.child.render(ctx, frame));
+                        });
+                    } else {
+                        // can_reuse_widget is always `false`.
+                        todo!()
+                    }
                 }
 
                 fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
@@ -376,7 +381,10 @@ pub mod implicit_base {
                         tracing::error!(target: "widget_base", "`UiNode::render_update` called in not inited widget {:?}", self.id);
                     }
 
-                    self.child.render_update(ctx, update);
+                    if matches!(self.pending_updates.borrow_mut().render.take(), WindowRenderUpdate::RenderUpdate) {
+                        self.child.render_update(ctx, update);
+                    }
+                    // else, don't need to do anything, updates are additive.
                 }
             }
             impl<T: UiNode> Widget for WidgetNode<T> {

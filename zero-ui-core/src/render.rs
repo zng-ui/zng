@@ -430,6 +430,33 @@ impl FrameBuilder {
         self.widget_rendered |= parent_rendered;
     }
 
+    /// If previously generated display list items are available for reuse.
+    ///
+    /// If `false` widgets must do a full render using [`push_widget`] even if they did not request a render.
+    ///
+    /// # TODO
+    ///
+    /// Is always `false`, widget reuse is not implemented yet.
+    ///
+    /// [`push_widget`]: Self::push_widget
+    pub fn can_reuse_widget(&self) -> bool {
+        // TODO
+        false
+    }
+
+    /// Reuse the display list items generated for the widget on the previous frame.
+    ///
+    /// # Panics
+    ///
+    /// Panics, if [`can_reuse_widget`] is `false`.
+    ///
+    /// [`can_reuse_widget`]: Self::can_reuse_widget
+    pub fn push_widget_reuse(&mut self) {
+        assert!(self.can_reuse_widget());
+
+        todo!()
+    }
+
     /// Register that all the current widget descendants are not rendered in this frame.
     ///
     /// Nodes the set the visibility to the equivalent of [`Hidden`] or [`Collapsed`] must not call `render` and `render_update`

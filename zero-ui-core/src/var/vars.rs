@@ -1483,10 +1483,7 @@ mod tests {
 
         let test = var(0i32);
         let updates = Rc::new(RefCell::new(vec![]));
-        let trace_handle = test.trace_value(
-            app.ctx().vars,
-            clone_move!(updates, |value| updates.borrow_mut().push(*value)),
-        );
+        let trace_handle = test.trace_value(app.ctx().vars, clone_move!(updates, |value| updates.borrow_mut().push(*value)));
 
         test.ease(app.ctx().vars, 20, 1.secs(), easing::linear).perm();
 
