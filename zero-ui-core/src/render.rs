@@ -1252,6 +1252,9 @@ pub struct FrameUpdate {
     frame_id: FrameId,
 }
 impl FrameUpdate {
+    // in case they add more dynamic property types.
+    assert_size_of!(DynamicProperties, 72);
+
     /// New frame update builder.
     ///
     /// * `frame_id` - Id of the frame that will be updated.

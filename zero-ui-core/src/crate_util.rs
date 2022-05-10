@@ -1072,3 +1072,11 @@ macro_rules! share_generics {
         pub const _: *const () = (&$f) as *const _ as _;
     };
 }
+
+/// Asserts the `size_of` a type at compile time.
+#[allow(unused)]
+macro_rules! assert_size_of {
+    ($Type:ty, $n:tt) => {
+        const _ASSERT: [u8; $n] = [0; std::mem::size_of::<$Type>()];
+    };
+}

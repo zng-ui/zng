@@ -28,26 +28,19 @@
 General idea, reuse computed data for `UiNode` info, layout and render at
 widget boundaries if the widget or inner widgets did not request an update of these types.
 
-## `UiNode::subscriptions` 
+## `UiNode::render_update`
 
-Easiest to do, can serve as a test for the others?
-
-## `UiNode::info`
-
-Could probably look the same as `subscriptions` but can an ego-tree be build from sub-trees?
-
-To cache metadata we need to clone-it, `AnyMap` is not cloneable, could `Rc` the map.
+Can record inserted range of the update for each widget and keep all update data in the `UsedFrameUpdate`, then copy from it
+on the new update.
 
 ## `UiNode::render`
 
-Webrender needs to support this, check how they do `<iframe>`?
+Webrender needs to support this? Can we implement our own display list? If so, we can do the same thing as the `render_update`,
+record ranges. Maybe even have the ranges expand in the view-process?
 
-Has potential to use add megabytes of memory use, lots of repeating nested content, 
-maybe we dynamically change what widget must cache based on use.
+## `UiNode::measure` and `UiNode::arrange`
 
-## Layout
-
-Most difficult, can depend on context available size, font size, view-port size, can it be done?
+Most difficult, result can depend on context available size, font size, view-port size, can we track access to this values?
 
 # Image Render
 
