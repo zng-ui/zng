@@ -28,14 +28,39 @@
 General idea, reuse computed data for `UiNode` info, layout and render at
 widget boundaries if the widget or inner widgets did not request an update of these types.
 
+## `UiNode::measure` and `UiNode::arrange`
+
+* Already started implementing this, see `LayoutMask`.
+
 ## `UiNode::render`
 
 Webrender needs to support this? Can we implement our own display list? If so, we can record the inserted range of display list,
 keep the old display list around, then copy from it to the new display list. Maybe even have the ranges expand in the view-process?
 
-## `UiNode::measure` and `UiNode::arrange`
+* See `DisplayListBuilder::start_item_group`, `finish_item_group` and `push_reuse_items`.
+* `set_cache_size` is a part of this too? Yes needs to be set to the count of item groups.
+* Does not allow nesting, can we auto-split nested items?
 
-Most difficult, result can depend on context available size, font size, view-port size, can we track access to this values?
+If each widget here is a "reuse item", we can auto generate WR keys like:
+  - widget_0 = start key0
+    -child_1 = end key0, start key1
+      -leaf3 = end key1, start key2
+      -leaf4 = end key2, start key3
+     child_1 = end key4, start key5 // child_1 added more items after content.
+    -child_2 = end key6, start key7
+      -leaf5 = end key8, start key9
+
+We can store the key range for each widget, if it did not invalidate render it can generate all keys and push reuse:
+- widget_0 = key0..=key9
+-  child_1 = key0..=key5
+-  child_2 = key6..=key9
+-    leaf3 = key1..=key2
+
+* Keys are `u16` are we generating to many keys?
+  - If we hit max `65535` we cause a full frame rebuild?
+  - If we hit max in a single frame, just stop caching for the rest, the window is probably exploding anyway.
+* If keys are just ranges, how to update unchanged items after a remove?
+  - If we insert a new leaf after lead3 what key will it get?
 
 # Image Render
 
