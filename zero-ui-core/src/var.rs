@@ -1142,6 +1142,37 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + any::AnyVar + crate::private::S
         )
     }
 
+    /// 
+    fn chase<Vw, F>(&self, vars: &Vw, target: flume::Receiver<T>, duration: Duration, easing: F) -> AnimationHandle 
+    where     
+        Vw: WithVars,
+        F: Fn(EasingTime) -> EasingStep + 'static,
+        T: Transitionable,
+    {
+        let mut prev_step = 0.fct();
+        let new_value = target.try_recv().unwrap();
+        self.animate(
+            vars,
+            |value| Some(animation::Transition::new(value.clone(), new_value)),
+            move |animation, _, transition| {
+                let step = easing(animation.elapsed_stop(duration));
+                if let Ok(new) = target.try_recv() {
+                    animation.restart();
+                    let from = transition.sample(step);
+                    *transition = animation::Transition::new(from.clone(), new);
+                    if step != prev_step {
+                        prev_step = step;
+                        return Some(from);
+                    }
+                } else if step != prev_step {
+                    prev_step = step;
+                    return Some(transition.sample(step));
+                }
+                None
+            },
+        )
+    }
+
     /// Wraps the variable into another that turns assigns into transition animations.
     ///
     /// Redirects calls to [`Var::set`] to [`Var::ease`] and [`Var::set_ne`] to [`Var::ease_ne`], calls to the

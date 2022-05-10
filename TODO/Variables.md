@@ -1,6 +1,7 @@
 # Variables TODO
 
 * `Var::chase`, a transition animation that can update its final value, reset time.
+    - Make a `ChaseAnimationHandle` that can change the target value.
 
 * Changes to enable [# Widget Property Transition]:
     - "Easing-map", a variable that eases between changes in a source variable, like a map that clones and transitions.

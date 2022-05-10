@@ -219,7 +219,6 @@ pub struct AnimationArgs {
     now: Instant,
     time_scale: Factor,
 }
-
 impl AnimationArgs {
     pub(super) fn new(animations_enabled: bool, now: Instant, time_scale: Factor) -> Self {
         AnimationArgs {
