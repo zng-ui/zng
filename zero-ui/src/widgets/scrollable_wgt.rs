@@ -90,6 +90,9 @@ pub mod scrollable {
 
         /// Enables keyboard controls.
         focusable = true;
+
+        /// Smooth scrolling configuration.
+        smooth_scrolling;
     }
 
     fn new_child(content: impl UiNode) -> impl UiNode {
@@ -219,13 +222,15 @@ pub mod scrollable {
         }
     }
 
-    fn new_context(child: impl UiNode) -> impl UiNode {
+    fn new_event(child: impl UiNode) -> impl UiNode {
         let child = nodes::scroll_to_command_node(child);
         let child = nodes::scroll_commands_node(child);
         let child = nodes::page_commands_node(child);
         let child = nodes::scroll_to_edge_commands_node(child);
-        let child = nodes::scroll_wheel_node(child);
+        nodes::scroll_wheel_node(child)
+    }
 
+    fn new_context(child: impl UiNode) -> impl UiNode {
         let child = with_context_var(child, ScrollViewportSizeVar, var(PxSize::zero()));
         let child = with_context_var(child, ScrollContentSizeVar, var(PxSize::zero()));
 

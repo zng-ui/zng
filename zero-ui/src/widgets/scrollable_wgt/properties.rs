@@ -52,6 +52,9 @@ context_var! {
 
     /// Scroll unit multiplier used when alternate scrolling.
     pub struct AltFactorVar: Factor = 3.fct();
+
+    /// Smooth scrolling config for an scrollable widget.
+    pub struct SmoothScrollingVar: SmoothScrolling = SmoothScrolling::default();
 }
 
 fn default_scrollbar() -> ViewGenerator<ScrollBarArgs> {
@@ -165,6 +168,12 @@ pub fn h_page_unit(child: impl UiNode, unit: impl IntoVar<Length>) -> impl UiNod
 pub fn page_units(child: impl UiNode, horizontal: impl IntoVar<Length>, vertical: impl IntoVar<Length>) -> impl UiNode {
     let child = h_page_unit(child, horizontal);
     v_page_unit(child, vertical)
+}
+
+/// Smooth scrolling config.
+#[property(context, default(SmoothScrollingVar::default_value()))]
+pub fn smooth_scrolling(child: impl UiNode, config: impl IntoVar<SmoothScrolling>) -> impl UiNode {
+    with_context_var(child, SmoothScrollingVar, config)
 }
 
 /// Arguments for scrollbar view generators.

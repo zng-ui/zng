@@ -19,6 +19,7 @@ fn app_main() {
                     id = "scrollable";
                     padding = 20;
                     background_color = hex!(#245E81);
+                    // smooth_scrolling = false;
                     content = v_stack(widgets![
                         text! {
                             id = "Lorem 1";

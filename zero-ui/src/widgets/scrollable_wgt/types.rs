@@ -1,7 +1,9 @@
-use std::{cell::Cell, rc::Rc};
+use std::{cell::Cell, fmt, rc::Rc, time::Duration};
 
 use crate::core::{context::state_key, units::*, var::*, widget_info::WidgetInfo};
 use bitflags::bitflags;
+
+use super::scrollable::properties::SmoothScrollingVar;
 
 bitflags! {
     /// What dimensions are scrollable in an widget.
@@ -123,10 +125,17 @@ impl ScrollContext {
 
             if new_scroll != curr_scroll {
                 let new_offset = new_scroll.0 as f32 / max_scroll.0 as f32;
+
                 //smooth scrolling
-                ScrollVerticalOffsetVar::new()
-                    .ease(vars, new_offset.fct(), 150.ms(), easing::linear)
-                    .perm();
+                let smooth = SmoothScrollingVar::get(vars);
+                if smooth.is_disabled() {
+                    let _ = ScrollVerticalOffsetVar::set(vars, new_offset);
+                } else {
+                    let ease = smooth.easing.clone();
+                    ScrollVerticalOffsetVar::new()
+                        .ease(vars, new_offset.fct(), smooth.duration, move |t| ease(t))
+                        .perm();
+                }
             }
         })
     }
@@ -148,10 +157,17 @@ impl ScrollContext {
 
             if new_scroll != curr_scroll {
                 let new_offset = new_scroll.0 as f32 / max_scroll.0 as f32;
+
                 //smooth scrolling
-                ScrollHorizontalOffsetVar::new()
-                    .ease(vars, new_offset.fct(), 150.ms(), easing::linear)
-                    .perm();
+                let smooth = SmoothScrollingVar::get(vars);
+                if smooth.is_disabled() {
+                    let _ = ScrollHorizontalOffsetVar::set(vars, new_offset);
+                } else {
+                    let ease = smooth.easing.clone();
+                    ScrollHorizontalOffsetVar::new()
+                        .ease(vars, new_offset.fct(), smooth.duration, move |t| ease(t))
+                        .perm();
+                }
             }
         })
     }
@@ -270,4 +286,74 @@ impl ScrollableInfo {
 
 state_key! {
     pub(super) struct ScrollableInfoKey: ScrollableInfo;
+}
+
+/// Scrollable smooth scrolling config.
+#[derive(Clone)]
+pub struct SmoothScrolling {
+    /// Transition duration.
+    ///
+    /// Default is `150.ms()`.
+    pub duration: Duration,
+    /// Transition easing function.
+    ///
+    /// Default is [`easing::linear`].
+    pub easing: Rc<dyn Fn(EasingTime) -> EasingStep>,
+}
+impl fmt::Debug for SmoothScrolling {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("SmoothScrolling")
+            .field("duration", &self.duration)
+            .finish_non_exhaustive()
+    }
+}
+impl Default for SmoothScrolling {
+    fn default() -> Self {
+        Self::new(150.ms(), easing::linear)
+    }
+}
+impl SmoothScrolling {
+    /// New custom smooth scrolling config.
+    pub fn new(duration: Duration, easing: impl Fn(EasingTime) -> EasingStep + 'static) -> Self {
+        Self {
+            duration,
+            easing: Rc::new(easing),
+        }
+    }
+
+    /// No smooth scrolling, scroll position updates immediately.
+    pub fn disabled() -> Self {
+        Self::new(Duration::ZERO, easing::none)
+    }
+
+    /// If this config represents [`disabled`].
+    ///
+    /// [`disabled`]: Self::disabled
+    pub fn is_disabled(&self) -> bool {
+        self.duration == Duration::ZERO
+    }
+}
+impl_from_and_into_var! {
+    /// Linear duration of smooth transition.
+    fn from(duration: Duration) -> SmoothScrolling {
+        SmoothScrolling {
+            duration,
+            ..Default::default()
+        }
+    }
+
+    /// Returns default config for `true`, [`disabled`] for `false`.
+    ///
+    /// [`disabled`]: SmoothScrolling::disabled
+    fn from(enabled: bool) -> SmoothScrolling {
+        if enabled {
+            SmoothScrolling::default()
+        } else {
+            SmoothScrolling::disabled()
+        }
+    }
+
+    fn from<F: Fn(EasingTime) -> EasingStep + Clone + 'static>((duration, easing): (Duration, F)) -> SmoothScrolling {
+        SmoothScrolling::new(duration, easing)
+    }
 }
