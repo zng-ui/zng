@@ -985,8 +985,6 @@ impl Window {
 
         let mut txn = Transaction::new();
 
-        txn.reset_dynamic_properties();
-
         txn.set_root_pipeline(self.pipeline_id);
         txn.append_dynamic_properties(frame.updates);
         for (scroll_id, offset) in frame.scroll_updates {
