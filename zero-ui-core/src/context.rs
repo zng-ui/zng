@@ -1,6 +1,7 @@
 //! Context information for app extensions, windows and widgets.
 
 use crate::{event::Events, service::Services, units::*, var::Vars, window::WindowId, WidgetId};
+use std::cell::Cell;
 use std::{fmt, ops::Deref};
 
 use crate::app::{AppEventSender, LoopTimer};
@@ -797,6 +798,31 @@ impl<'a> Deref for LayoutContext<'a> {
     }
 }
 impl<'a> LayoutContext<'a> {
+    /// Runs a function `f` in a layout context that has the new available size.
+    pub fn with_available_size<R>(&mut self, available_size: AvailableSize, f: impl FnOnce(&mut LayoutContext) -> R) -> R {
+        // TODO !!: diff
+        f(&mut LayoutContext {
+            metrics: &self.metrics.clone().with_available_size(available_size),
+
+            path: self.path,
+
+            info_tree: self.info_tree,
+            app_state: self.app_state,
+            window_state: self.window_state,
+            widget_state: self.widget_state,
+            update_state: self.update_state,
+
+            vars: self.vars,
+            updates: self.updates,
+        })
+    }
+
+    /// Runs a function `f` in a layout context that has its available size subtracted by `taken`.
+    pub fn with_less_available_size<R>(&mut self, taken: PxSize, f: impl FnOnce(&mut LayoutContext) -> R) -> R {
+        let av = self.available_size().sub_px(taken);
+        self.with_available_size(av, f)
+    }
+
     /// Runs a function `f` in a layout context that has the new computed font size.
     ///
     /// The `font_size_new` flag indicates if the `font_size` value changed from the previous layout call.
@@ -977,17 +1003,110 @@ impl<'a> InfoContext<'a> {
 /// The [`LayoutContext`] type dereferences to this one.
 #[derive(Debug, Clone)]
 pub struct LayoutMetrics {
+    use_mask: Cell<LayoutMask>,
+
+    available_size: AvailableSize,
+    font_size: Px,
+    root_font_size: Px,
+    scale_factor: Factor,
+    viewport_size: PxSize,
+    screen_ppi: f32,
+    diff: LayoutMask,
+}
+impl LayoutMetrics {
+    /// New root [`LayoutMetrics`].
+    ///
+    /// The `font_size` sets both font sizes, the initial PPI is `96.0`, you can use the builder style method and
+    /// [`with_screen_ppi`] to set a different value.
+    ///
+    /// [`with_screen_ppi`]: LayoutMetrics::with_screen_ppi
+    pub fn new(scale_factor: Factor, viewport_size: PxSize, font_size: Px) -> Self {
+        LayoutMetrics {
+            use_mask: Cell::new(LayoutMask::NONE),
+            available_size: AvailableSize::from_size(viewport_size),
+            font_size,
+            root_font_size: font_size,
+            scale_factor,
+            viewport_size,
+            screen_ppi: 96.0,
+            diff: LayoutMask::all(),
+        }
+    }
+
+    /// Selects the *width* dimension for 1D metrics.
+    pub fn for_x(&self) -> Layout1dMetrics {
+        Layout1dMetrics {
+            is_width: true,
+            metrics: self,
+        }
+    }
+
+    /// Selects the *height* dimension for 1D metrics.
+    pub fn for_y(&self) -> Layout1dMetrics {
+        Layout1dMetrics {
+            is_width: false,
+            metrics: self,
+        }
+    }
+
+    /// What metrics changed from the last layout in the same context.
+    pub fn diff(&self) -> LayoutMask {
+        self.diff
+    }
+
+    /// What metrics where requested so far.
+    pub fn metrics_used(&self) -> LayoutMask {
+        self.use_mask.get()
+    }
+
+    pub fn register_use(&self, mask: LayoutMask) {
+        let m = self.use_mask.get();
+        self.use_mask.set(m | mask);
+    }
+
+    /// Current max size allowed.
+    pub fn available_size(&self) -> AvailableSize {
+        self.register_use(LayoutMask::AVAILABLE_SIZE);
+        self.available_size
+    }
+
     /// Current computed font size.
-    pub font_size: Px,
+    pub fn font_size(&self) -> Px {
+        self.register_use(LayoutMask::FONT_SIZE);
+        self.font_size
+    }
 
     /// Computed font size at the root widget.
-    pub root_font_size: Px,
+    pub fn root_font_size(&self) -> Px {
+        self.register_use(LayoutMask::ROOT_FONT_SIZE);
+        self.root_font_size
+    }
 
     /// Pixel scale factor.
-    pub scale_factor: Factor,
+    pub fn scale_factor(&self) -> Factor {
+        self.register_use(LayoutMask::SCALE_FACTOR);
+        self.scale_factor
+    }
 
     /// Size of the window content.
-    pub viewport_size: PxSize,
+    pub fn viewport_size(&self) -> PxSize {
+        self.register_use(LayoutMask::VIEWPORT_SIZE);
+        self.viewport_size
+    }
+
+    /// Smallest dimension of the [`viewport_size`].
+    ///
+    /// [`viewport_size`]: Self::viewport_size
+    pub fn viewport_min(&self) -> Px {
+        self.viewport_size().width.min(self.viewport_size.height)
+    }
+
+    /// Largest dimension of the [`viewport_size`].
+    ///
+    /// [`viewport_size`]: Self::viewport_size
+    pub fn viewport_max(&self) -> Px {
+        self.viewport_size().width.max(self.viewport_size.height)
+    }
 
     /// The current screen "pixels-per-inch" resolution.
     ///
@@ -1001,83 +1120,32 @@ pub struct LayoutMetrics {
     ///
     /// [`Monitors`]: crate::window::Monitors
     /// [`scale_factor`]: LayoutMetrics::scale_factor
-    pub screen_ppi: f32,
-
-    /// What metrics changed from the last layout in the same context.
-    pub diff: LayoutMask,
-}
-impl LayoutMetrics {
-    /// New root [`LayoutMetrics`].
-    ///
-    /// The `font_size` sets both font sizes, the initial PPI is `96.0`, you can use the builder style method and
-    /// [`with_screen_ppi`] to set a different value.
-    ///
-    /// [`with_screen_ppi`]: LayoutMetrics::with_screen_ppi
-    pub fn new(scale_factor: Factor, viewport_size: PxSize, font_size: Px) -> Self {
-        LayoutMetrics {
-            font_size,
-            root_font_size: font_size,
-            scale_factor,
-            viewport_size,
-            screen_ppi: 96.0,
-            diff: LayoutMask::all(),
-        }
+    pub fn screen_ppi(&self) -> f32 {
+        self.screen_ppi
     }
 
-    /// Smallest dimension of the [`viewport_size`].
+    /// Sets the [`available_size`].
     ///
-    /// [`viewport_size`]: Self::viewport_size
-    pub fn viewport_min(&self) -> Px {
-        self.viewport_size.width.min(self.viewport_size.height)
+    /// [`available_size`]: Self::available_size
+    pub fn with_available_size(mut self, available_size: AvailableSize) -> Self {
+        self.available_size = available_size;
+        self
     }
 
-    /// Largest dimension of the [`viewport_size`].
+    /// Sets the [`available_size`] width.
     ///
-    /// [`viewport_size`]: Self::viewport_size
-    pub fn viewport_max(&self) -> Px {
-        self.viewport_size.width.max(self.viewport_size.height)
+    /// [`available_size`]: Self::available_size
+    pub fn with_available_width(mut self, avaiable_width: AvailablePx) -> Self {
+        self.available_size.width = avaiable_width;
+        self
     }
 
-    /// Computes the full diff mask of changes in a [`UiNode::measure`].
+    /// Sets the [`available_size`] height.
     ///
-    /// Note that the node owner must store the previous available size, this
-    /// method updates the `prev_available_size` to the new `available_size` after the comparison.
-    ///
-    /// [`UiNode::measure`]: crate::UiNode::measure
-    pub fn measure_diff(
-        &self,
-        prev_available_size: &mut Option<AvailableSize>,
-        available_size: AvailableSize,
-        default_is_new: bool,
-    ) -> LayoutMask {
-        self.node_diff(prev_available_size, available_size, default_is_new)
-    }
-
-    /// Computes the full diff mask of changes in a [`UiNode::arrange`].
-    ///
-    /// Note that the node owner must store the previous final size, this method
-    /// updates the `prev_final_size` to the new `final_size` after the comparison.
-    ///
-    /// [`UiNode::arrange`]: crate::UiNode::arrange
-    pub fn arrange_diff(&self, prev_final_size: &mut Option<PxSize>, final_size: PxSize, default_is_new: bool) -> LayoutMask {
-        self.node_diff(prev_final_size, final_size, default_is_new)
-    }
-
-    fn node_diff<A: PartialEq>(&self, prev: &mut Option<A>, new: A, default_is_new: bool) -> LayoutMask {
-        let mut diff = self.diff;
-        if let Some(p) = prev {
-            if *p != new {
-                diff |= LayoutMask::AVAILABLE_SIZE;
-                *p = new;
-            }
-        } else {
-            diff |= LayoutMask::AVAILABLE_SIZE;
-            *prev = Some(new);
-        }
-        if default_is_new {
-            diff |= LayoutMask::DEFAULT_VALUE;
-        }
-        diff
+    /// [`available_size`]: Self::available_size
+    pub fn with_available_height(mut self, avaiable_height: AvailablePx) -> Self {
+        self.available_size.height = avaiable_height;
+        self
     }
 
     /// Sets the [`font_size`].
@@ -1110,6 +1178,48 @@ impl LayoutMetrics {
     pub fn with_diff(mut self, diff: LayoutMask) -> Self {
         self.diff = diff;
         self
+    }
+
+    /// Sets the [`metrics_used`].
+    ///
+    /// [`metrics_used`]: Self::metrics_used
+    pub fn with_use(mut self, use_mask: LayoutMask) -> Self {
+        self.use_mask = Cell::new(use_mask);
+        self
+    }
+}
+
+/// Represents a [`LayoutMetrics`] with a selected dimension.
+pub struct Layout1dMetrics<'m> {
+    /// If the selected dimension is *width*, if not it is *height*.
+    pub is_width: bool,
+    /// The full metrics.
+    pub metrics: &'m LayoutMetrics,
+}
+impl<'m> Layout1dMetrics<'m> {
+    /// Available length in the selected dimension.
+    pub fn available_length(&self) -> AvailablePx {
+        if self.is_width {
+            self.metrics.available_size().width
+        } else {
+            self.metrics.available_size().height
+        }
+    }
+
+    /// Viewport length in the selected dimension.
+    pub fn viewport_length(&self) -> Px {
+        if self.is_width {
+            self.metrics.viewport_size().width
+        } else {
+            self.metrics.viewport_size().height
+        }
+    }
+}
+impl<'m> Deref for Layout1dMetrics<'m> {
+    type Target = LayoutMetrics;
+
+    fn deref(&self) -> &Self::Target {
+        &*self.metrics
     }
 }
 

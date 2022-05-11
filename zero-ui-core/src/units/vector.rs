@@ -3,7 +3,7 @@ use std::{fmt, ops};
 use crate::{context::LayoutMetrics, impl_from_and_into_var};
 
 use super::{
-    impl_length_comp_conversions, translate, AvailableSize, Dip, DipVector, Factor, Factor2d, FactorPercent, LayoutMask, Length,
+    impl_length_comp_conversions, translate, Dip, DipVector, Factor, Factor2d, FactorPercent, LayoutMask, Length,
     LengthUnits, Point, Px, PxVector, Size, Transform,
 };
 
@@ -84,10 +84,10 @@ impl Vector {
     }
 
     /// Compute the vector in a layout context.
-    pub fn to_layout(&self, ctx: &LayoutMetrics, available_size: AvailableSize, default_value: PxVector) -> PxVector {
+    pub fn layout(&self, ctx: &LayoutMetrics, default_value: PxVector) -> PxVector {
         PxVector::new(
-            self.x.to_layout(ctx, available_size.width, default_value.x),
-            self.y.to_layout(ctx, available_size.height, default_value.y),
+            self.x.layout(ctx.for_x(), default_value.x),
+            self.y.layout(ctx.for_y(), default_value.y),
         )
     }
 

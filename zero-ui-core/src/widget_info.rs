@@ -41,14 +41,14 @@ pub struct WidgetLayout {
 }
 impl WidgetLayout {
     /// Start the layout arrange pass from the window root widget.
-    pub fn with_root_widget(
+    pub fn with_root_widget<R>(
         root_id: WidgetId,
         outer_info: &WidgetLayoutInfo,
         inner_info: &WidgetLayoutInfo,
         border_info: &WidgetBorderInfo,
         final_size: PxSize,
-        f: impl FnOnce(&mut Self),
-    ) {
+        f: impl FnOnce(&mut Self) -> R,
+    ) -> R {
         let mut self_ = Self {
             global_transform: RenderTransform::identity(),
             widget_id: root_id,
@@ -64,7 +64,7 @@ impl WidgetLayout {
             corner_radius: PxCornerRadius::zero(),
             ctx_corner_radius: CornerRadius::default(),
         };
-        self_.with_widget(root_id, outer_info, inner_info, border_info, final_size, f);
+        self_.with_widget(root_id, outer_info, inner_info, border_info, final_size, f)
     }
 
     /// Mark the widget outer-boundaries.
@@ -72,15 +72,15 @@ impl WidgetLayout {
     /// Must be called in the widget `new`, the [`implicit_base::new`] node does this.
     ///
     /// [`implicit_base::new`]: crate::widget_base::implicit_base::new
-    pub fn with_widget(
+    pub fn with_widget<R>(
         &mut self,
         widget_id: WidgetId,
         outer_info: &WidgetLayoutInfo,
         inner_info: &WidgetLayoutInfo,
         border_info: &WidgetBorderInfo,
         final_size: PxSize,
-        f: impl FnOnce(&mut Self),
-    ) {
+        f: impl FnOnce(&mut Self) -> R,
+    ) -> R {
         self.is_leaf = false;
 
         outer_info.set_size(final_size);
@@ -95,11 +95,13 @@ impl WidgetLayout {
         let pre_inner_info = mem::replace(&mut self.inner_info, inner_info.clone());
         let pre_border_info = mem::replace(&mut self.border_info, border_info.clone());
 
-        f(self);
+        let r = f(self);
 
         self.inner_info = pre_inner_info;
         self.border_info = pre_border_info;
         self.widget_id = pre_widget_id;
+
+        r
     }
 
     /// Set the frame of reference as the `transform` inside the previous transform, all inner bounds and widgets are
@@ -108,11 +110,12 @@ impl WidgetLayout {
     /// Nodes that declare [reference frames] during render must also use this method.
     ///
     /// [reference frames]: crate::render::FrameBuilder::push_reference_frame
-    pub fn with_custom_transform(&mut self, transform: &RenderTransform, f: impl FnOnce(&mut Self)) {
+    pub fn with_custom_transform<R>(&mut self, transform: &RenderTransform, f: impl FnOnce(&mut Self) -> R) -> R {
         let global_transform = transform.then(&self.global_transform);
         let prev_global_transform = mem::replace(&mut self.global_transform, global_transform);
-        f(self);
+        let r = f(self);
         self.global_transform = prev_global_transform;
+        r
     }
 
     /// Adds to a translate transform that will be applied to the next inner bounds such that
@@ -292,12 +295,14 @@ impl WidgetLayout {
     /// [`with_inner`]: Self::with_inner
     /// [`with_border`]: Self::with_border
     /// [`Default`]: crate::units::Length::Default
-    pub fn with_corner_radius(&mut self, corners: &CornerRadius, f: impl FnOnce(&mut Self)) {
+    pub fn with_corner_radius<R>(&mut self, corners: &CornerRadius, f: impl FnOnce(&mut Self) -> R) -> R {
         let prev_ctx_corner_radius = mem::replace(&mut self.ctx_corner_radius, corners.clone());
 
-        f(self);
+        let r = f(self);
 
         self.ctx_corner_radius = prev_ctx_corner_radius;
+
+        r
     }
 
     /// Overrides the parent corner radius that will affect the next inner borders.

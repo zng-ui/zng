@@ -317,12 +317,12 @@ impl CornerRadius {
     }
 
     /// Compute the radii in a layout context.
-    pub fn to_layout(&self, ctx: &LayoutMetrics, available_size: AvailableSize, default_value: PxCornerRadius) -> PxCornerRadius {
+    pub fn layout(&self, ctx: &LayoutMetrics, default_value: PxCornerRadius) -> PxCornerRadius {
         PxCornerRadius {
-            top_left: self.top_left.to_layout(ctx, available_size, default_value.top_left),
-            top_right: self.top_right.to_layout(ctx, available_size, default_value.top_right),
-            bottom_left: self.bottom_left.to_layout(ctx, available_size, default_value.bottom_left),
-            bottom_right: self.bottom_right.to_layout(ctx, available_size, default_value.bottom_right),
+            top_left: self.top_left.layout(ctx, default_value.top_left),
+            top_right: self.top_right.layout(ctx, default_value.top_right),
+            bottom_left: self.bottom_left.layout(ctx, default_value.bottom_left),
+            bottom_right: self.bottom_right.layout(ctx, default_value.bottom_right),
         }
     }
 }
@@ -590,10 +590,8 @@ pub fn corner_radius(child: impl UiNode, radius: impl IntoVar<CornerRadius>) -> 
             self.child.update(ctx);
         }
 
-        fn arrange(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, final_size: PxSize) {
-            widget_layout.with_corner_radius(self.radius.get(ctx.vars), |wl| {
-                self.child.arrange(ctx, wl, final_size);
-            });
+        fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
+            wl.with_corner_radius(self.radius.get(ctx.vars), |wl| self.child.layout(ctx, wl))
         }
     }
     CornerRadiusNode {
@@ -660,27 +658,29 @@ pub fn fill_node(content: impl UiNode) -> impl UiNode {
             self.child.update(ctx);
         }
 
-        fn arrange(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, final_size: PxSize) {
-            let border_offsets = widget_layout.border_offsets();
+        fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
+            let border_offsets = wl.border_offsets();
 
             let border_align = *BorderAlignVar::get(ctx);
             let used_offsets = border_offsets * border_align;
 
             let offset = PxVector::new(border_offsets.left - used_offsets.left, border_offsets.top - used_offsets.top);
 
-            let final_size = final_size + PxSize::new(used_offsets.horizontal(), used_offsets.vertical());
+            ctx.with_less_available_size(PxSize::new(used_offsets.horizontal(), used_offsets.vertical()), |ctx| {
+                let final_size = wl.with_custom_transform(&RenderTransform::translation_px(self.offset), |wl| {
+                    self.child.layout(ctx, wl)
+                });
 
-            let clip = (final_size, widget_layout.corner_radius().inflate(used_offsets));
+                let clip = (final_size, wl.corner_radius().inflate(used_offsets));
 
-            if offset != self.offset || clip != self.clip {
-                self.offset = offset;
-                self.clip = clip;
-                ctx.updates.render();
-            }
+                if offset != self.offset || clip != self.clip {
+                    self.offset = offset;
+                    self.clip = clip;
+                    ctx.updates.render();
+                }
 
-            widget_layout.with_custom_transform(&RenderTransform::translation_px(self.offset), |wl| {
-                self.child.arrange(ctx, wl, final_size);
-            });
+                final_size
+            })
         }
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
             let mut clip_render = |frame: &mut FrameBuilder| {

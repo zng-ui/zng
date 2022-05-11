@@ -2,7 +2,7 @@ use std::{fmt, ops};
 
 use crate::{context::LayoutMetrics, impl_from_and_into_var};
 
-use super::{impl_length_comp_conversions, AvailableSize, DipPoint, Factor2d, LayoutMask, Length, PxPoint, Size, Vector};
+use super::{impl_length_comp_conversions, DipPoint, Factor2d, LayoutMask, Length, PxPoint, Size, Vector};
 
 /// 2D point in [`Length`] units.
 #[derive(Clone, Default, PartialEq)]
@@ -126,10 +126,10 @@ impl Point {
     }
 
     /// Compute the point in a layout context.
-    pub fn to_layout(&self, ctx: &LayoutMetrics, available_size: AvailableSize, default_value: PxPoint) -> PxPoint {
+    pub fn layout(&self, ctx: &LayoutMetrics, default_value: PxPoint) -> PxPoint {
         PxPoint::new(
-            self.x.to_layout(ctx, available_size.width, default_value.x),
-            self.y.to_layout(ctx, available_size.height, default_value.y),
+            self.x.layout(ctx.for_x(), default_value.x),
+            self.y.layout(ctx.for_y(), default_value.y),
         )
     }
 

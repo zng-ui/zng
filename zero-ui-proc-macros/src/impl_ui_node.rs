@@ -227,16 +227,13 @@ fn no_delegate_absents(crate_: TokenStream, user_mtds: HashSet<Ident>) -> Vec<Im
 
         [fn event<__EU: #crate_::event::EventUpdateArgs>(&mut self, ctx: &mut #crate_::context::WidgetContext, args: &__EU) { }]
 
-
+        [fn layout(&mut self, ctx: &mut #crate_::context::LayoutContext, wl: &mut #crate_::widget_info::WidgetLayout) -> #crate_::units::PxSize {
+            use #crate_::units::AvailableSizeExt;
+            ctx.metrics.available_size().to_px()
+        }]
         [fn render(&self, ctx: &mut #crate_::context::RenderContext, frame: &mut #crate_::render::FrameBuilder) { }]
 
         [fn render_update(&self, ctx: &mut #crate_::context::RenderContext, update: &mut #crate_::render::FrameUpdate) { }]
-
-        [fn arrange(&mut self, ctx: &mut #crate_::context::LayoutContext, widget_layout: &mut #crate_::widget_info::WidgetLayout, final_size: #crate_::units::PxSize) { }]
-
-        [fn measure(&mut self, ctx: &mut #crate_::context::LayoutContext, available_size: #crate_::units::AvailableSize) -> #crate_::units::PxSize {
-            #crate_::units::PxSize::new(available_size.width.to_px(), available_size.height.to_px())
-        }]
     }
 }
 
@@ -282,6 +279,11 @@ fn delegate_absents(crate_: TokenStream, user_mtds: HashSet<Ident>, borrow: Expr
             #crate_::UiNode::event::<__EU>(#deref_mut, ctx, args);
         }]
 
+        [fn layout(&mut self, ctx: &mut #crate_::context::LayoutContext, wl: &mut #crate_::widget_info::WidgetLayout) -> #crate_::units::PxSize {
+            let mut #child_mut = {#borrow_mut};
+            #crate_::UiNode::layout(#deref_mut, ctx, wl)
+        }]
+
         [fn render(&self, ctx: &mut #crate_::context::RenderContext, frame: &mut #crate_::render::FrameBuilder) {
             let #child = {#borrow};
             #crate_::UiNode::render(#deref, ctx, frame);
@@ -290,16 +292,6 @@ fn delegate_absents(crate_: TokenStream, user_mtds: HashSet<Ident>, borrow: Expr
         [fn render_update(&self, ctx: &mut #crate_::context::RenderContext, update: &mut #crate_::render::FrameUpdate) {
             let #child = {#borrow};
             #crate_::UiNode::render_update(#deref, ctx, update);
-        }]
-
-        [fn arrange(&mut self, ctx: &mut #crate_::context::LayoutContext, widget_layout: &mut #crate_::widget_info::WidgetLayout, final_size: #crate_::units::PxSize) {
-            let mut #child_mut = {#borrow_mut};
-            #crate_::UiNode::arrange(#deref_mut, ctx, widget_layout, final_size);
-        }]
-
-        [fn measure(&mut self, ctx: &mut #crate_::context::LayoutContext, available_size: #crate_::units::AvailableSize) -> #crate_::units::PxSize {
-            let mut #child_mut = {#borrow_mut};
-            #crate_::UiNode::measure(#deref_mut, ctx, available_size)
         }]
     }
 }
@@ -348,6 +340,15 @@ fn delegate_list_absents(crate_: TokenStream, user_mtds: HashSet<Ident>, borrow:
             #crate_::UiNodeList::event_all::<__EU>(#deref_mut, ctx, args);
         }]
 
+        [fn layout(&mut self, ctx: &mut #crate_::context::LayoutContext, wl: &mut #crate_::widget_info::WidgetLayout) -> #crate_::units::PxSize {
+            let #children_mut = {#borrow_mut};
+            let mut size = #crate_::units::PxSize::zero();
+            #crate_::UiNodeList::layout_all(#deref_mut, ctx, |_, _|available_size, |_, args| {
+                size = size.max(args.desired_size);
+            });
+            size
+        }]
+
         [fn render(&self, ctx: &mut #crate_::context::RenderContext, frame: &mut #crate_::render::FrameBuilder) {
             let #children = {#borrow};
             #crate_::UiNodeList::render_all(#deref, ctx, frame)
@@ -356,15 +357,6 @@ fn delegate_list_absents(crate_: TokenStream, user_mtds: HashSet<Ident>, borrow:
         [fn render_update(&self, ctx: &mut #crate_::context::RenderContext, update: &mut #crate_::render::FrameUpdate) {
             let #children = {#borrow};
             #crate_::UiNodeList::render_update_all(#deref, ctx, update)
-        }]
-
-        [fn measure(&mut self, ctx: &mut #crate_::context::LayoutContext, available_size: #crate_::units::AvailableSize) -> #crate_::units::PxSize {
-            let #children_mut = {#borrow_mut};
-            let mut size = #crate_::units::PxSize::zero();
-            #crate_::UiNodeList::measure_all(#deref_mut, ctx, |_, _|available_size, |_, args| {
-                size = size.max(args.desired_size);
-            });
-            size
         }]
 
         [fn arrange(&mut self, ctx: &mut #crate_::context::LayoutContext, widget_layout: &mut #crate_::widget_info::WidgetLayout, final_size: #crate_::units::PxSize) {
@@ -416,6 +408,10 @@ fn delegate_iter_absents(crate_: TokenStream, user_mtds: HashSet<Ident>, iter: E
             #crate_::impl_ui_node_util::IterMutImpl::event_all::<__EU>(#children_mut, ctx, args);
         }]
 
+        [fn layout(&mut self, ctx: &mut #crate_::context::LayoutContext, wl: &mut #crate_::widget_info::WidgetLayout) -> #crate_::units::PxSize  {
+            let #children_mut = {#iter_mut};
+            #crate_::impl_ui_node_util::IterMutImpl::layout_all(#children_mut, ctx, wl);
+        }]
 
         [fn render(&self, ctx: &mut #crate_::context::RenderContext, frame: &mut #crate_::render::FrameBuilder) {
             let #children = {#iter};
@@ -425,16 +421,6 @@ fn delegate_iter_absents(crate_: TokenStream, user_mtds: HashSet<Ident>, iter: E
         [fn render_update(&self, ctx: &mut #crate_::context::RenderContext, update: &mut #crate_::render::FrameUpdate) {
             let #children = {#iter};
             #crate_::impl_ui_node_util::IterImpl::render_update_all(#children, ctx, update);
-        }]
-
-        [fn arrange(&mut self, ctx: &mut #crate_::context::LayoutContext, widget_layout: &mut #crate_::widget_info::WidgetLayout, final_size: #crate_::units::PxSize) {
-            let #children_mut = {#iter_mut};
-            #crate_::impl_ui_node_util::IterMutImpl::arrange_all(#children_mut, ctx, widget_layout, final_size);
-        }]
-
-        [fn measure(&mut self, ctx: &mut #crate_::context::LayoutContext, available_size: #crate_::units::AvailableSize) -> #crate_::units::PxSize {
-            let #children_mut = {#iter_mut};
-            #crate_::impl_ui_node_util::IterMutImpl::measure_all(#children_mut, ctx, available_size)
         }]
     }
 }

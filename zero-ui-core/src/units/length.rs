@@ -1,7 +1,7 @@
-use super::{about_eq, AvailablePx, Dip, DipToPx, Factor, FactorPercent, FactorUnits, Px, EPSILON, EPSILON_100};
+use super::{about_eq, Dip, DipToPx, Factor, FactorPercent, FactorUnits, Px, EPSILON, EPSILON_100};
 use std::{fmt, mem, ops};
 
-use crate::{context::LayoutMetrics, impl_from_and_into_var};
+use crate::{context::Layout1dMetrics, impl_from_and_into_var};
 
 /// 1D length units.
 ///
@@ -367,21 +367,21 @@ impl Length {
     }
 
     /// Compute the length at a context.
-    pub fn to_layout(&self, ctx: &LayoutMetrics, available_size: AvailablePx, default_value: Px) -> Px {
+    pub fn layout(&self, ctx: Layout1dMetrics, default_value: Px) -> Px {
         use Length::*;
         match self {
             Default => default_value,
-            Dip(l) => l.to_px(ctx.scale_factor.0),
+            Dip(l) => l.to_px(ctx.scale_factor().0),
             Px(l) => *l,
-            Pt(l) => Self::pt_to_px(*l, ctx.scale_factor),
-            Relative(f) => available_size.to_px() * f.0,
-            Em(f) => ctx.font_size * f.0,
-            RootEm(f) => ctx.root_font_size * f.0,
-            ViewportWidth(p) => ctx.viewport_size.width * *p,
-            ViewportHeight(p) => ctx.viewport_size.height * *p,
+            Pt(l) => Self::pt_to_px(*l, ctx.scale_factor()),
+            Relative(f) => ctx.available_length().to_px() * f.0,
+            Em(f) => ctx.font_size() * f.0,
+            RootEm(f) => ctx.root_font_size() * f.0,
+            ViewportWidth(p) => ctx.viewport_size().width * *p,
+            ViewportHeight(p) => ctx.viewport_size().height * *p,
             ViewportMin(p) => ctx.viewport_min() * *p,
             ViewportMax(p) => ctx.viewport_max() * *p,
-            Expr(e) => e.to_layout(ctx, available_size, default_value),
+            Expr(e) => e.layout(ctx, default_value),
         }
     }
 
@@ -513,25 +513,25 @@ pub enum LengthExpr {
 }
 impl LengthExpr {
     /// Evaluate the expression at a layout context.
-    pub fn to_layout(&self, ctx: &LayoutMetrics, available_size: AvailablePx, default_value: Px) -> Px {
+    pub fn layout(&self, ctx: Layout1dMetrics, default_value: Px) -> Px {
         use LengthExpr::*;
         match self {
-            Add(a, b) => a.to_layout(ctx, available_size, default_value) + b.to_layout(ctx, available_size, default_value),
-            Sub(a, b) => a.to_layout(ctx, available_size, default_value) - b.to_layout(ctx, available_size, default_value),
-            Mul(l, s) => l.to_layout(ctx, available_size, default_value) * s.0,
-            Div(l, s) => l.to_layout(ctx, available_size, default_value) / s.0,
+            Add(a, b) => a.layout(ctx, default_value) + b.layout(ctx, default_value),
+            Sub(a, b) => a.layout(ctx, default_value) - b.layout(ctx, default_value),
+            Mul(l, s) => l.layout(ctx, default_value) * s.0,
+            Div(l, s) => l.layout(ctx, default_value) / s.0,
             Max(a, b) => {
-                let a = a.to_layout(ctx, available_size, default_value);
-                let b = b.to_layout(ctx, available_size, default_value);
+                let a = a.layout(ctx, default_value);
+                let b = b.layout(ctx, default_value);
                 a.max(b)
             }
             Min(a, b) => {
-                let a = a.to_layout(ctx, available_size, default_value);
-                let b = b.to_layout(ctx, available_size, default_value);
+                let a = a.layout(ctx, default_value);
+                let b = b.layout(ctx, default_value);
                 a.min(b)
             }
-            Abs(e) => e.to_layout(ctx, available_size, default_value).abs(),
-            Neg(e) => -e.to_layout(ctx, available_size, default_value),
+            Abs(e) => e.layout(ctx, default_value).abs(),
+            Neg(e) => -e.layout(ctx, default_value),
         }
     }
 

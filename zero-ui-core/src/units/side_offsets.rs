@@ -2,7 +2,7 @@ use std::fmt;
 
 use crate::{context::LayoutMetrics, impl_from_and_into_var};
 
-use super::{impl_length_comp_conversions, AvailableSize, Factor, FactorPercent, LayoutMask, Length, PxSideOffsets};
+use super::{impl_length_comp_conversions, Factor, FactorPercent, LayoutMask, Length, PxSideOffsets};
 
 /// 2D size offsets in [`Length`] units.
 ///
@@ -86,14 +86,12 @@ impl SideOffsets {
     }
 
     /// Compute the offsets in a layout context.
-    pub fn to_layout(&self, ctx: &LayoutMetrics, available_size: AvailableSize, default_value: PxSideOffsets) -> PxSideOffsets {
-        let width = available_size.width;
-        let height = available_size.height;
+    pub fn layout(&self, ctx: &LayoutMetrics, default_value: PxSideOffsets) -> PxSideOffsets {
         PxSideOffsets::new(
-            self.top.to_layout(ctx, height, default_value.top),
-            self.right.to_layout(ctx, width, default_value.right),
-            self.bottom.to_layout(ctx, height, default_value.bottom),
-            self.left.to_layout(ctx, width, default_value.left),
+            self.top.layout(ctx.for_y(), default_value.top),
+            self.right.layout(ctx.for_x(), default_value.right),
+            self.bottom.layout(ctx.for_y(), default_value.bottom),
+            self.left.layout(ctx.for_x(), default_value.left),
         )
     }
 

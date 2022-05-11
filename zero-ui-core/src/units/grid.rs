@@ -2,7 +2,7 @@ use std::{fmt, mem, ops};
 
 use crate::{context::LayoutMetrics, impl_from_and_into_var};
 
-use super::{impl_length_comp_conversions, AvailableSize, Factor, Factor2d, FactorPercent, LayoutMask, Length, Px};
+use super::{impl_length_comp_conversions, Factor, Factor2d, FactorPercent, LayoutMask, Length, Px};
 
 /// Spacing in-between grid cells in [`Length`] units.
 #[derive(Clone, Default, PartialEq)]
@@ -31,10 +31,10 @@ impl GridSpacing {
     }
 
     /// Compute the spacing in a layout context.
-    pub fn to_layout(&self, ctx: &LayoutMetrics, available_size: AvailableSize, default_value: PxGridSpacing) -> PxGridSpacing {
+    pub fn layout(&self, ctx: &LayoutMetrics, default_value: PxGridSpacing) -> PxGridSpacing {
         PxGridSpacing {
-            column: self.column.to_layout(ctx, available_size.width, default_value.column),
-            row: self.row.to_layout(ctx, available_size.height, default_value.row),
+            column: self.column.layout(ctx.for_x(), default_value.column),
+            row: self.row.layout(ctx.for_y(), default_value.row),
         }
     }
 

@@ -2,7 +2,7 @@ use zero_ui_view_api::webrender_api;
 
 use crate::context::LayoutMetrics;
 
-use super::{euclid, AngleRadian, AngleUnits, AvailableSize, Factor, Length, Px, PxPoint, PxToWr, PxVector};
+use super::{euclid, AngleRadian, AngleUnits, Factor, Length, Px, PxPoint, PxToWr, PxVector};
 
 /// Computed [`Transform`].
 ///
@@ -177,14 +177,14 @@ impl Transform {
     }
 
     /// Compute a [`RenderTransform`].
-    pub fn to_render(&self, ctx: &LayoutMetrics, available_size: AvailableSize) -> RenderTransform {
+    pub fn layout(&self, ctx: &LayoutMetrics) -> RenderTransform {
         let mut r = RenderTransform::identity();
         for step in &self.parts {
             r = match step {
                 TransformPart::Computed(m) => r.then(m),
                 TransformPart::Translate(x, y) => r.then(&RenderTransform::translation(
-                    x.to_layout(ctx, available_size.width, Px(0)).to_wr().get(),
-                    y.to_layout(ctx, available_size.height, Px(0)).to_wr().get(),
+                    x.layout(ctx.for_x(), Px(0)).to_wr().get(),
+                    y.layout(ctx.for_y(), Px(0)).to_wr().get(),
                     0.0,
                 )),
             };

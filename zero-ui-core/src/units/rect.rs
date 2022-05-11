@@ -2,7 +2,7 @@ use std::{fmt, ops};
 
 use crate::{context::LayoutMetrics, impl_from_and_into_var};
 
-use super::{impl_length_comp_conversions, AvailableSize, DipRect, Factor2d, LayoutMask, Length, Point, PxRect, Size, Vector};
+use super::{impl_length_comp_conversions, DipRect, Factor2d, LayoutMask, Length, Point, PxRect, Size, Vector};
 
 /// 2D rect in [`Length`] units.
 #[derive(Clone, Default, PartialEq)]
@@ -101,10 +101,10 @@ impl Rect {
     }
 
     /// Compute the rectangle in a layout context.
-    pub fn to_layout(&self, ctx: &LayoutMetrics, available_size: AvailableSize, default_value: PxRect) -> PxRect {
+    pub fn to_layout(&self, ctx: &LayoutMetrics, default_value: PxRect) -> PxRect {
         PxRect::new(
-            self.origin.to_layout(ctx, available_size, default_value.origin),
-            self.size.to_layout(ctx, available_size, default_value.size),
+            self.origin.layout(ctx, default_value.origin),
+            self.size.layout(ctx, default_value.size),
         )
     }
 

@@ -323,10 +323,8 @@ pub struct UiNodeDurations {
     pub deinit: Duration,
     /// Duration of [`UiNode::update`] call.
     pub update: Duration,
-    /// Duration of [`UiNode::measure`] call.
-    pub measure: Duration,
-    /// Duration of [`UiNode::arrange`] call.
-    pub arrange: Duration,
+    /// Duration of [`UiNode::layout`] call.
+    pub layout: Duration,
     /// Duration of [`UiNode::render`] call.
     pub render: Duration,
     /// Duration of [`UiNode::render_update`] call.
@@ -348,10 +346,8 @@ pub struct UiNodeCounts {
     pub deinit: usize,
     /// Count of calls to [`UiNode::update`].
     pub update: usize,
-    /// Count of calls to [`UiNode::measure`].
-    pub measure: usize,
-    /// Count of calls to [`UiNode::arrange`].
-    pub arrange: usize,
+    /// Count of calls to [`UiNode::layout`].
+    pub layout: usize,
     /// Count of calls to [`UiNode::render`].
     pub render: usize,
     /// Count of calls to [`UiNode::render_update`].
@@ -682,16 +678,10 @@ impl UiNode for WidgetNewFnInfoNode {
         }
     }
 
-    fn measure(&mut self, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize {
-        let _span = UpdatesTrace::new_fn_span(self.new_fn, "measure");
+    fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
+        let _span = UpdatesTrace::new_fn_span(self.new_fn, "layout");
 
-        self.child.measure(ctx, available_size)
-    }
-
-    fn arrange(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, final_size: PxSize) {
-        let _span = UpdatesTrace::new_fn_span(self.new_fn, "arrange");
-
-        self.child.arrange(ctx, widget_layout, final_size);
+        self.child.layout(ctx, wl)
     }
 
     fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
@@ -833,16 +823,10 @@ impl UiNode for WidgetInstanceInfoNode {
         }
     }
 
-    fn measure(&mut self, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize {
-        let _span = UpdatesTrace::widget_span(ctx.path.widget_id(), self.info.borrow().widget_name, "measure");
+    fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
+        let _span = UpdatesTrace::widget_span(ctx.path.widget_id(), self.info.borrow().widget_name, "layout");
 
-        self.child.measure(ctx, available_size)
-    }
-
-    fn arrange(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, final_size: PxSize) {
-        let _span = UpdatesTrace::widget_span(ctx.path.widget_id(), self.info.borrow().widget_name, "arrange");
-
-        self.child.arrange(ctx, widget_layout, final_size)
+        self.child.layout(ctx, wl)
     }
 
     fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
@@ -1005,26 +989,16 @@ impl UiNode for PropertyInfoNode {
         self.child.event(ctx, args);
     }
 
-    fn measure(&mut self, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize {
-        let _span = UpdatesTrace::property_span(self.info.borrow().property_name, "measure");
+    fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
+        let _span = UpdatesTrace::property_span(self.info.borrow().property_name, "layout");
 
         let t = Instant::now();
-        let r = self.child.measure(ctx, available_size);
+        let r = self.child.layout(ctx, wl);
         let d = t.elapsed();
         let mut info = self.info.borrow_mut();
-        info.duration.measure = d;
-        info.count.measure += 1;
+        info.duration.layout = d;
+        info.count.layout += 1;
         r
-    }
-    fn arrange(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, final_size: PxSize) {
-        let _span = UpdatesTrace::property_span(self.info.borrow().property_name, "arrange");
-
-        let t = Instant::now();
-        self.child.arrange(ctx, widget_layout, final_size);
-        let d = t.elapsed();
-        let mut info = self.info.borrow_mut();
-        info.duration.arrange = d;
-        info.count.arrange += 1;
     }
 
     fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
