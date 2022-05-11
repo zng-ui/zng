@@ -23,6 +23,136 @@
 * First render is also slow.
 * We block the app process waiting view-process startup.
 
+# Single Pass Layout
+
+* Can we merge measure, arrange?
+  - `UiNode::layout(LayoutContext, WidgetLayout)`
+  - How do we do `available_size` -> `desired_size` -> `final_size` in one pass?
+  - What do we loose by making the `desired_size` be the `final_size`?
+   - A layout that equally divides the extra space after measuring children for each child?
+   - There is nothing stopping us from doing two passes in this case.
+
+```rust
+trait UiNode {
+  /// Available-size is in ctx.metrics.
+  fn layout(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout) -> PxSize;
+}
+
+// usage:
+
+impl UiNode for Center {
+  fn layout(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout) -> PxSize {
+    let desired_size = self.child.layout(ctx, widget_layout);
+    let offset = self.center(ctx.metrics.available_size, desired_size);
+    // how does the transform gets comunicated to child?
+  }
+}
+```
+
+## Layout Requirements
+
+* Widget as a child defines its own size.
+```rust
+impl UiNode for WidthNode {
+  fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
+    let mut size = self.child.layout(ctx, wl);
+    size.width = self.width.to_layout(ctx); // Metrics dependencies recorded here.
+    size
+  }
+}
+``` 
+
+* Widget as a parent defines its children position.
+* The global transform of an widget outer and inner regions must be available in info, before render.
+```rust
+impl UiNode for CenterNode {
+  fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
+    let size = self.child.layout(ctx, wl);
+
+    let available_size = ctx.metrics.available_size;
+    if available_size.is_inf() {
+      size
+    } else {
+      let offset = self.center(ctx, size);
+      // TODO how to add offset to child transform?
+      // wl.offset_child(offset); // this causes each parent to visit all node transforms again.
+      //                          // of if we make the outer/inner info be relative, forces a big matrix merge for decorators.
+      //                          // right now we place the parent transform in the stack and acumulate as we go.
+      available_size
+    }
+  }
+  
+}
+```
+
+* The border "padding" and corner radius mut be available in info.
+* The border info of parent must be available for children, they adjust their own corner-radius to fit.
+```rust
+impl UiNode for BorderNode {
+  fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
+    let border = self.border.to_layout(ctx);
+    wl.with_border(border, |wl| {
+      self.child.layout(ctx, wl)
+    })
+  }
+}
+impl UiNode for CornerRadiusNode {
+  fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
+    let corners = self.corners.to_layout(ctx);
+    wl.with_corner_radius(corners, |wl| {
+      self.child.layout(ctx, wl)
+    })
+  }
+}
+```
+
+* Render wants to accumulate transforms to apply in one display item.
+```rust
+impl UiNode for InnerBoundaryNode {
+  fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
+    let size = self.child.layout(ctx, wl);
+    wl.set_bounds(self.bounds.clone(), size); // parent `offset_child` affects these bounds.
+    size
+  }
+}
+```
+
+* Widgets want to cache size, only invalidating once the contextual metrics it uses changes.
+* Widget size cache should survive transform updates.
+```rust
+impl UiNode for WidgetNode {
+  fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
+    if self.requested_layout || self.cached_metrics.affected_by(ctx.metrics) {
+      self.size = self.child.layout(ctx, wl);
+    } else {
+      // if all bounds are relative we are done
+    }
+    wl.set_bounds(self.bounds.clone(), self.size); // parent `offset_child` affects these bounds.
+    self.size
+  }
+}
+
+// reading global bounds
+// if relative no convenient direct reference to computed transform
+fn global_bounds(wgt: &WidgetInfo) -> Transform {
+  let mut t = wgt.outer_bounds().transform();
+  for wgt in wgt.ancestors() {
+    t = t.then(wgt.inner_bounds().transform());
+    t = t.then(wgt.outer_bounds().transform());
+  }
+  t
+}
+// How does layer link operates in this case?
+// Currently layer link only works if layout after the content, so the same, but now they need to query the info tree?
+```
+
+## Other Layout Changes
+
+* Place metrics in `WidgetLayout`.
+* Metrics contains AvailableSize, have sub-selection of metrics for each dimension.
+* Rename Length types `to_layout` to just `layout`. 
+* Have metrics value accessible only by methods, on usage of method update a `LayoutMask` as a widget layout cache key.
+
 # Cache Everything
 
 General idea, reuse computed data for `UiNode` info, layout and render at
@@ -31,6 +161,7 @@ widget boundaries if the widget or inner widgets did not request an update of th
 ## `UiNode::measure` and `UiNode::arrange`
 
 * Already started implementing this, see `LayoutMask`.
+* Await single pass layout rewrite.
 
 ## `UiNode::render`
 

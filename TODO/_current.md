@@ -4,5 +4,5 @@
   - Can we abstract this as a method in `Var`, seems useful.
   - Implement `smooth_scrolling` config property.
 
-* Build Optimization, see `Optimizations.md`.
 * Animation, see `Variables.md`.
+* Simplify layout, see `Optimizations.md#Single Pass Layout`.
