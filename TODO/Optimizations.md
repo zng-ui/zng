@@ -75,7 +75,7 @@ impl UiNode for CenterNode {
     } else {
       let offset = self.center(ctx, size);
       // TODO how to add offset to child transform?
-      // wl.offset_child(offset); // this causes each parent to visit all node transforms again.
+      // wl.add_inner_offset(offset); // this causes each parent to visit all node transforms again.
       //                          // of if we make the outer/inner info be relative, forces a big matrix merge for decorators.
       //                          // right now we place the parent transform in the stack and acumulate as we go.
       available_size
@@ -107,27 +107,18 @@ impl UiNode for CornerRadiusNode {
 ```
 
 * Render wants to accumulate transforms to apply in one display item.
-```rust
-impl UiNode for InnerBoundaryNode {
-  fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
-    let size = self.child.layout(ctx, wl);
-    wl.set_bounds(self.bounds.clone(), size); // parent `offset_child` affects these bounds.
-    size
-  }
-}
-```
-
 * Widgets want to cache size, only invalidating once the contextual metrics it uses changes.
 * Widget size cache should survive transform updates.
 ```rust
 impl UiNode for WidgetNode {
   fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
     if self.requested_layout || self.cached_metrics.affected_by(ctx.metrics) {
-      self.size = self.child.layout(ctx, wl);
+      wl.with_widget(&self.outer_bounds, &self.inner_bounds, |wl| {
+        self.size = self.child.layout(ctx, wl);
+      });
     } else {
       // if all bounds are relative we are done
     }
-    wl.set_bounds(self.bounds.clone(), self.size); // parent `offset_child` affects these bounds.
     self.size
   }
 }
@@ -143,7 +134,54 @@ fn global_bounds(wgt: &WidgetInfo) -> Transform {
   t
 }
 // How does layer link operates in this case?
-// Currently layer link only works if layout after the content, so the same, but now they need to query the info tree?
+// Currently layer link only works if layout after the content, so the same, but now they need to query the info tree.
+
+// How do transforms get updated?
+//
+// Nodes can affect their own bounds, the widget outer-most node sets the references with `with_widget`, that gets
+// targeted by `set_inner_offset` while inside the widget.
+//
+// Panels can use the `Widget::outer_bounds` maybe? No this lets anyone move the widgets.//
+```
+
+* Panels want to position multiple widgets depending on their size.
+* Panels may want to change the available size of widgets after measuring then, causing an immediate second layout.
+```rust
+impl UiNode for VStackNode {
+  fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
+    let mut available_size = wl.available_size();
+    available_size.height = AvailablePx::Inf;
+    wl.with_available_size(avaiable_size, |wl| {
+      let mut width = 0;
+      let mut offset_y = 0;
+      self.children.layout_all(ctx, wl, |ctx, wl, size| {
+        wl.add_child_offset(PxSize::new(0, offset_y));
+        width = width.max(size.width);
+        offset_y += size.height;
+      });
+
+      width = available_size.width.min(width);
+      PxSize::new(width, offset_y)
+    })
+  }
+}
+
+// How does `add_child_offset` works?
+// - We could retain the last set `outer_bounds`?
+// - Used in conjunction with `WidgetList::layout_all` there is no confusion.
+// - Maybe we can have a `with_child` method in WidgetLayout, and only in it we have the child_outer_bounds, also only
+//   after the first call of `with_widget` inside it.
+
+wl.with_child(|wl| {
+  // wl.set_child_offset(..); // panic here
+  self.child.layout(ctx, wl);
+
+  wl.set_child_offset(..);
+  // WidgetList::layout_all closure gets called here.
+});
+// 
+// Problems?
+// Panels need to handle bad Widget implementations, or just panic really.
 ```
 
 ## Other Layout Changes
