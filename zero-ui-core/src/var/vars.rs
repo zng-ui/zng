@@ -771,7 +771,7 @@ impl Vars {
             return OnVarHandle::dummy();
         }
         if var.is_contextual() {
-            return self.push_var_handler(handlers, is_preview, var, handler);
+            return self.push_var_handler(handlers, is_preview, &var.actual_var(self), handler);
         }
 
         debug_assert!(var.is_rc());
