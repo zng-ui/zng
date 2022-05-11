@@ -1,6 +1,6 @@
 use std::{cell::Cell, fmt, rc::Rc, time::Duration};
 
-use crate::core::{context::state_key, units::*, var::*, widget_info::WidgetInfo};
+use crate::core::{context::state_key, units::*, var::{*, animation::EasingFn}, widget_info::WidgetInfo};
 use bitflags::bitflags;
 
 use super::scrollable::properties::SmoothScrollingVar;
@@ -288,16 +288,20 @@ state_key! {
     pub(super) struct ScrollableInfoKey: ScrollableInfo;
 }
 
-/// Scrollable smooth scrolling config.
+/// Smooth scrolling config.
+/// 
+/// This config can be set by the [`smooth_scrolling`] property.
+/// 
+/// [`smooth_scrolling`]: fn@smooth_scrolling.
 #[derive(Clone)]
 pub struct SmoothScrolling {
-    /// Transition duration.
+    /// Chase transition duration.
     ///
     /// Default is `150.ms()`.
     pub duration: Duration,
-    /// Transition easing function.
+    /// Chase transition easing function.
     ///
-    /// Default is [`easing::linear`].
+    /// Default is linear.
     pub easing: Rc<dyn Fn(EasingTime) -> EasingStep>,
 }
 impl fmt::Debug for SmoothScrolling {
@@ -317,7 +321,7 @@ impl SmoothScrolling {
     pub fn new(duration: Duration, easing: impl Fn(EasingTime) -> EasingStep + 'static) -> Self {
         Self {
             duration,
-            easing: Rc::new(easing),
+            easing: easing.into(),
         }
     }
 
@@ -355,5 +359,9 @@ impl_from_and_into_var! {
 
     fn from<F: Fn(EasingTime) -> EasingStep + Clone + 'static>((duration, easing): (Duration, F)) -> SmoothScrolling {
         SmoothScrolling::new(duration, easing)
+    }
+
+    fn from((duration, easing): (Duration, EasingFn)) -> SmoothScrolling {
+        SmoothScrolling::new(duration, easing.ease_fn())
     }
 }
