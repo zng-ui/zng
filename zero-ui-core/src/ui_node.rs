@@ -207,6 +207,8 @@ pub trait UiNode: 'static {
     /// when variables update and any other context or service structure that can be observed updates.
     fn update(&mut self, ctx: &mut WidgetContext);
 
+    fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize;
+
     /// Called every time a layout update is needed.
     ///
     /// # Arguments
