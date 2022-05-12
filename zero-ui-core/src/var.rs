@@ -1,11 +1,13 @@
 //! Variables.
 
 use std::{
-    cell::Cell,
+    cell::{Cell, RefCell},
     convert::{TryFrom, TryInto},
     fmt,
     marker::PhantomData,
+    mem,
     ops::{Deref, DerefMut},
+    rc::Rc,
     str::FromStr,
     time::Duration,
 };
@@ -52,7 +54,7 @@ pub mod animation;
 
 pub use animation::easing;
 
-use animation::{AnimationHandle, Transitionable};
+use animation::{AnimationHandle, ChaseAnimation, ChaseMsg, Transitionable};
 
 /// Variable types.
 ///
@@ -1143,34 +1145,50 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + any::AnyVar + crate::private::S
     }
 
     ///
-    fn chase<Vw, F>(&self, vars: &Vw, target: flume::Receiver<T>, duration: Duration, easing: F) -> AnimationHandle
+    fn chase<Vw, F>(&self, vars: &Vw, first_target: T, duration: Duration, easing: F) -> ChaseAnimation<T>
     where
         Vw: WithVars,
         F: Fn(EasingTime) -> EasingStep + 'static,
         T: Transitionable,
     {
         let mut prev_step = 0.fct();
-        let new_value = target.try_recv().unwrap();
-        self.animate(
+        let next_target = Rc::new(RefCell::new(ChaseMsg::None));
+        let handle = self.animate(
             vars,
-            |value| Some(animation::Transition::new(value.clone(), new_value)),
-            move |animation, _, transition| {
+            |value| Some(animation::Transition::new(value.clone(), first_target)),
+            clone_move!(next_target, |animation, _, transition: &mut animation::Transition<T>| {
                 let step = easing(animation.elapsed_stop(duration));
-                if let Ok(new) = target.try_recv() {
-                    animation.restart();
-                    let from = transition.sample(step);
-                    *transition = animation::Transition::new(from.clone(), new);
-                    if step != prev_step {
-                        prev_step = step;
-                        return Some(from);
+                match mem::take(&mut *next_target.borrow_mut()) {
+                    ChaseMsg::Add(inc) => {
+                        animation.restart();
+                        let from = transition.sample(step);
+                        transition.start = from.clone();
+                        transition.increment += inc;
+                        if step != prev_step {
+                            prev_step = step;
+                            return Some(from);
+                        }
                     }
-                } else if step != prev_step {
-                    prev_step = step;
-                    return Some(transition.sample(step));
+                    ChaseMsg::Replace(new_target) => {
+                        animation.restart();
+                        let from = transition.sample(step);
+                        *transition = animation::Transition::new(from.clone(), new_target);
+                        if step != prev_step {
+                            prev_step = step;
+                            return Some(from);
+                        }
+                    }
+                    ChaseMsg::None => {
+                        if step != prev_step {
+                            prev_step = step;
+                            return Some(transition.sample(step));
+                        }
+                    }
                 }
                 None
-            },
-        )
+            }),
+        );
+        ChaseAnimation { handle, next_target }
     }
 
     /// Wraps the variable into another that turns assigns into transition animations.

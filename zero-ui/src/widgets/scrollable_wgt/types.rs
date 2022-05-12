@@ -1,7 +1,13 @@
 use std::{cell::Cell, fmt, rc::Rc, time::Duration};
 
-use crate::core::{context::state_key, units::*, var::{*, animation::EasingFn}, widget_info::WidgetInfo};
+use crate::core::{
+    context::state_key,
+    units::*,
+    var::{animation::EasingFn, *},
+    widget_info::WidgetInfo,
+};
 use bitflags::bitflags;
+use zero_ui_core::var::animation::ChaseAnimation;
 
 use super::scrollable::properties::SmoothScrollingVar;
 
@@ -68,6 +74,9 @@ context_var! {
 
     /// Latest computed content size of the parent scrollable.
     pub(super) struct ScrollContentSizeVar: PxSize = PxSize::zero();
+
+    pub(super) struct ScrollVerticalChasingVar: Option<ChaseAnimation<Factor>> = None;
+    //pub(super) struct ScrollHorizontalChasingVar: Option<ChaseAnimation<Factor>> = None;
 }
 
 /// Controls the parent scrollable.
@@ -131,10 +140,14 @@ impl ScrollContext {
                 if smooth.is_disabled() {
                     let _ = ScrollVerticalOffsetVar::set(vars, new_offset);
                 } else {
-                    let ease = smooth.easing.clone();
-                    ScrollVerticalOffsetVar::new()
-                        .ease(vars, new_offset.fct(), smooth.duration, move |t| ease(t))
-                        .perm();
+                    match ScrollVerticalChasingVar::get(vars) {
+                        Some(anim) if !anim.handle.is_stopped() => anim.add(todo!("input the correct value")), //was new_offset.fct()
+                        _ => {
+                            let ease = smooth.easing.clone();
+                            let anim = ScrollVerticalOffsetVar::new().chase(vars, new_offset.fct(), smooth.duration, move |t| ease(t));
+                            ScrollVerticalChasingVar::set(vars, Some(anim));
+                        }
+                    }
                 }
             }
         })
@@ -289,9 +302,9 @@ state_key! {
 }
 
 /// Smooth scrolling config.
-/// 
+///
 /// This config can be set by the [`smooth_scrolling`] property.
-/// 
+///
 /// [`smooth_scrolling`]: fn@smooth_scrolling.
 #[derive(Clone)]
 pub struct SmoothScrolling {
@@ -321,7 +334,7 @@ impl SmoothScrolling {
     pub fn new(duration: Duration, easing: impl Fn(EasingTime) -> EasingStep + 'static) -> Self {
         Self {
             duration,
-            easing: easing.into(),
+            easing: Rc::new(easing),
         }
     }
 
