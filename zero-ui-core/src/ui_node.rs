@@ -743,7 +743,7 @@ pub mod impl_ui_node_util {
         fn deinit_all(self, ctx: &mut WidgetContext);
         fn update_all(self, ctx: &mut WidgetContext);
         fn event_all<EU: EventUpdateArgs>(self, ctx: &mut WidgetContext, args: &EU);
-        fn layout_all(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize;
+        fn layout_all(self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize;
     }
     pub trait IterImpl {
         fn info_all(self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder);
@@ -777,7 +777,7 @@ pub mod impl_ui_node_util {
             }
         }
 
-        fn layout_all(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
+        fn layout_all(self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
             let mut size = PxSize::zero();
             for child in self {
                 size = child.layout(ctx, wl).max(size);

@@ -99,14 +99,14 @@ impl WidgetLayout {
     /// Runs `f` with a builder that sets the `child` outer transform.
     ///
     /// Panel widgets should use this to set it's children transform after updating the children's layout.
-    pub fn with_outer<R>(
+    pub fn with_outer<W: Widget, R>(
         &mut self,
         ctx: &mut LayoutContext,
-        child: &mut impl Widget,
-        f: impl FnOnce(&mut LayoutContext, &mut WidgetTransformBuilder) -> R,
+        child: &mut W,
+        f: impl FnOnce(&mut LayoutContext, &mut W, &mut WidgetTransformBuilder) -> R,
     ) -> R {
         let mut builder = WidgetTransformBuilder::new();
-        let r = f(ctx, &mut builder);
+        let r = f(ctx, child, &mut builder);
         child.outer_info().set_transform(builder.build(ctx));
         r
     }

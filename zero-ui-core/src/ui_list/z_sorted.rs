@@ -153,7 +153,7 @@ impl<W: WidgetList> UiNodeList for ZSortedWidgetList<W> {
     fn measure_all<A, D>(&mut self, ctx: &mut LayoutContext, available_size: A, desired_size: D)
     where
         A: FnMut(&mut LayoutContext, AvailableSizeArgs) -> AvailableSize,
-        D: FnMut(&mut LayoutContext, DesiredSizeArgs),
+        D: FnMut(&mut LayoutContext, FinalSizeArgs),
     {
         self.list.measure_all(ctx, available_size, desired_size)
     }

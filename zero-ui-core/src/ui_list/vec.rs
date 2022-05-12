@@ -9,7 +9,7 @@ use crate::{
     context::{InfoContext, LayoutContext, RenderContext, StateMap, WidgetContext, WithUpdates},
     event::EventUpdateArgs,
     render::{FrameBuilder, FrameUpdate},
-    ui_list::{AvailableSizeArgs, DesiredSizeArgs, FinalSizeArgs, SortedWidgetVec, UiListObserver, WidgetFilterArgs, WidgetList},
+    ui_list::{AvailableSizeArgs, FinalSizeArgs, FinalSizeArgs, SortedWidgetVec, UiListObserver, WidgetFilterArgs, WidgetList},
     units::{AvailableSize, PxSize},
     widget_info::{UpdateSlot, WidgetBorderInfo, WidgetInfoBuilder, WidgetLayout, WidgetLayoutInfo, WidgetRenderInfo, WidgetSubscriptions},
     BoxedUiNode, BoxedWidget, UiNode, UiNodeList, Widget, WidgetId,
@@ -338,7 +338,7 @@ impl UiNodeList for WidgetVec {
     fn measure_all<A, D>(&mut self, ctx: &mut LayoutContext, mut available_size: A, mut desired_size: D)
     where
         A: FnMut(&mut LayoutContext, AvailableSizeArgs) -> AvailableSize,
-        D: FnMut(&mut LayoutContext, DesiredSizeArgs),
+        D: FnMut(&mut LayoutContext, FinalSizeArgs),
     {
         for (i, w) in self.iter_mut().enumerate() {
             let available_size = available_size(
@@ -353,7 +353,7 @@ impl UiNodeList for WidgetVec {
 
             desired_size(
                 ctx,
-                DesiredSizeArgs {
+                FinalSizeArgs {
                     index: i,
                     state: Some(w.state_mut()),
                     desired_size: ds,
@@ -371,7 +371,7 @@ impl UiNodeList for WidgetVec {
         F: FnMut(&mut LayoutContext, &mut FinalSizeArgs) -> PxSize,
     {
         for (i, w) in self.iter_mut().enumerate() {
-            FinalSizeArgs::impl_widget(ctx, widget_layout, i, w, &mut final_size);
+            FinalSizeArgs::impl_widget_layout(ctx, widget_layout, i, w, &mut final_size);
         }
     }
 
@@ -800,7 +800,7 @@ impl UiNodeList for UiNodeVec {
     fn measure_all<A, D>(&mut self, ctx: &mut LayoutContext, mut available_size: A, mut desired_size: D)
     where
         A: FnMut(&mut LayoutContext, AvailableSizeArgs) -> AvailableSize,
-        D: FnMut(&mut LayoutContext, DesiredSizeArgs),
+        D: FnMut(&mut LayoutContext, FinalSizeArgs),
     {
         for (i, node) in self.iter_mut().enumerate() {
             let av = available_size(ctx, AvailableSizeArgs { index: i, state: None });
@@ -809,7 +809,7 @@ impl UiNodeList for UiNodeVec {
 
             desired_size(
                 ctx,
-                DesiredSizeArgs {
+                FinalSizeArgs {
                     index: i,
                     state: None,
                     desired_size: d,
@@ -827,7 +827,7 @@ impl UiNodeList for UiNodeVec {
         F: FnMut(&mut LayoutContext, &mut FinalSizeArgs) -> PxSize,
     {
         for (i, node) in self.iter_mut().enumerate() {
-            FinalSizeArgs::impl_node(ctx, widget_layout, i, node, &mut final_size);
+            FinalSizeArgs::impl_node_layout(ctx, widget_layout, i, node, &mut final_size);
         }
     }
 

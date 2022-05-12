@@ -4,7 +4,7 @@ use crate::{
     event::EventUpdateArgs,
     node_vec,
     render::{FrameBuilder, FrameUpdate},
-    ui_list::{AvailableSizeArgs, DesiredSizeArgs, FinalSizeArgs, UiListObserver, UiNodeList, UiNodeVec, WidgetList, WidgetVec},
+    ui_list::{AvailableSizeArgs, FinalSizeArgs, FinalSizeArgs, UiListObserver, UiNodeList, UiNodeVec, WidgetList, WidgetVec},
     units::{AvailableSize, PxSize},
     widget_info::{WidgetBorderInfo, WidgetInfoBuilder, WidgetLayout, WidgetLayoutInfo, WidgetRenderInfo, WidgetSubscriptions},
     widget_vec, UiNode, Widget, WidgetId,
