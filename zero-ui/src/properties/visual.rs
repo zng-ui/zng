@@ -40,8 +40,8 @@ pub fn background(child: impl UiNode, background: impl UiNode) -> impl UiNode {
     #[impl_ui_node(children)]
     impl<C: UiNodeList> UiNode for BackgroundNode<C> {
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
-            size = self.children.widget_layout(1, ctx, wl);
-            ctx.with_available_size(size, |ctx| {
+            let size = self.children.widget_layout(1, ctx, wl);
+            ctx.with_available_size(AvailableSize::from_size(size), |ctx| {
                 self.children.widget_layout(0, ctx, wl);
             });
             size
@@ -156,7 +156,7 @@ pub fn foreground(child: impl UiNode, foreground: impl UiNode) -> impl UiNode {
     impl<C: UiNodeList> UiNode for ForegroundNode<C> {
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
             let size = self.children.widget_layout(0, ctx, wl);
-            ctx.with_available_size(size, |ctx| {
+            ctx.with_available_size(AvailableSize::from_size(size), |ctx| {
                 self.children.widget_layout(1, ctx, wl);
             });
             size

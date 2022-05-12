@@ -167,8 +167,8 @@ where
         self.g.final_size = self.render_tile_size;
 
         ctx.with_available_size(AvailableSize::finite(final_size), |ctx| {
-            self.render_tile_size = self.tile_size.get(ctx).layout(ctx, final_size);
-            self.render_tile_spacing = self.tile_spacing.get(ctx).layout(ctx, final_size);
+            self.render_tile_size = self.tile_size.get(ctx.vars).layout(ctx.metrics, final_size);
+            self.render_tile_spacing = self.tile_spacing.get(ctx.vars).layout(ctx.metrics, final_size);
         });
 
         ctx.with_available_size(AvailableSize::from_size(self.render_tile_size), |ctx| {

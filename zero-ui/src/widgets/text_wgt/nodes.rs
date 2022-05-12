@@ -361,19 +361,19 @@ pub fn layout_text(child: impl UiNode, padding: impl IntoVar<SideOffsets>) -> im
         }
 
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
-            let available_size = ctx.available_size();
             let t = ResolvedText::get(ctx.vars).expect("expected `ResolvedText` in `layout_text`");
 
             if t.reshape {
                 self.pending.insert(Layout::RESHAPE);
             }
 
-            let padding = self.padding.get(ctx.vars).layout(ctx, available_size, PxSideOffsets::zero());
-            let diff = PxSize::new(padding.horizontal(), padding.vertical());
-            let available_size = available_size.sub_px(diff);
+            let padding = self.padding.get(ctx.vars).layout(ctx, PxSideOffsets::zero());
 
-            let (font_size, variations) = TextContext::font(ctx);
-            let font_size = font_size.layout(ctx, available_size.width, ctx.metrics.root_font_size);
+            let (font_size, variations) = TextContext::font(ctx.vars);
+
+            let mut av = ctx.peek(|m| m.available_size());
+            av.height -= padding.vertical();
+            let font_size = ctx.with_available_size(av, |ctx| font_size.layout(ctx.for_y(), ctx.metrics.root_font_size()));
 
             if self.layout.is_none() {
                 let fonts = t.faces.sized(font_size, variations.finalize());
@@ -409,12 +409,20 @@ pub fn layout_text(child: impl UiNode, padding: impl IntoVar<SideOffsets>) -> im
             let space_len = font.space_x_advance();
             let dft_tab_len = space_len * 3;
             let space_len = AvailablePx::Finite(space_len);
-            let letter_spacing = letter_spacing.layout(ctx, space_len, Px(0));
-            let word_spacing = word_spacing.layout(ctx, space_len, Px(0));
-            let tab_length = tab_length.layout(ctx, space_len, dft_tab_len);
+
+            let (letter_spacing, word_spacing, tab_length) = ctx.with_available_width(space_len, |ctx| {
+                (
+                    letter_spacing.layout(ctx.for_x(), Px(0)),
+                    word_spacing.layout(ctx.for_x(), Px(0)),
+                    tab_length.layout(ctx.for_x(), dft_tab_len),
+                )
+            });
+
             let dft_line_height = font.metrics().line_height();
-            let line_height = line_height.layout(ctx, AvailablePx::Finite(dft_line_height), dft_line_height);
-            let line_spacing = line_spacing.layout(ctx, AvailablePx::Finite(line_height), Px(0));
+            let line_height = ctx.with_available_height(AvailablePx::Finite(dft_line_height), |ctx| {
+                line_height.layout(ctx.for_y(), dft_line_height)
+            });
+            let line_spacing = ctx.with_available_height(AvailablePx::Finite(line_height), |ctx| line_spacing.layout(ctx.for_y(), Px(0)));
 
             if !self.pending.contains(Layout::RESHAPE)
                 && (letter_spacing != self.shaping_args.letter_spacing
@@ -434,9 +442,13 @@ pub fn layout_text(child: impl UiNode, padding: impl IntoVar<SideOffsets>) -> im
 
             let dft_thickness = font.metrics().underline_thickness;
             let av_height = AvailablePx::Finite(line_height);
-            let overline = OverlineThicknessVar::get(ctx.vars).layout(ctx, av_height, dft_thickness);
-            let strikethrough = StrikethroughThicknessVar::get(ctx.vars).layout(ctx, av_height, dft_thickness);
-            let underline = UnderlineThicknessVar::get(ctx.vars).layout(ctx, av_height, dft_thickness);
+            let (overline, strikethrough, underline) = ctx.with_available_height(av_height, |ctx| {
+                (
+                    OverlineThicknessVar::get(ctx.vars).layout(ctx.for_y(), dft_thickness),
+                    StrikethroughThicknessVar::get(ctx.vars).layout(ctx.for_y(), dft_thickness),
+                    UnderlineThicknessVar::get(ctx.vars).layout(ctx.for_y(), dft_thickness),
+                )
+            });
 
             if !self.pending.contains(Layout::OVERLINE) && (r.overline_thickness == Px(0) && overline > Px(0)) {
                 self.pending.insert(Layout::OVERLINE);

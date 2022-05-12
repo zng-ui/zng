@@ -25,7 +25,7 @@ impl AngleRadian {
     /// Change type to [`LayoutAngle`].
     ///
     /// Note that layout angle is in radians so no computation happens.
-    pub fn to_layout(self) -> LayoutAngle {
+    pub fn layout(self) -> LayoutAngle {
         self.into()
     }
 }

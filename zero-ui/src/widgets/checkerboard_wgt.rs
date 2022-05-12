@@ -161,6 +161,8 @@ pub fn node() -> impl UiNode {
 
                 ctx.updates.render();
             }
+
+            self.final_size
         }
 
         fn render(&self, _: &mut RenderContext, frame: &mut FrameBuilder) {

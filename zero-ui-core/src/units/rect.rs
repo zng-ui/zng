@@ -101,7 +101,7 @@ impl Rect {
     }
 
     /// Compute the rectangle in a layout context.
-    pub fn to_layout(&self, ctx: &LayoutMetrics, default_value: PxRect) -> PxRect {
+    pub fn layout(&self, ctx: &LayoutMetrics, default_value: PxRect) -> PxRect {
         PxRect::new(
             self.origin.layout(ctx, default_value.origin),
             self.size.layout(ctx, default_value.size),

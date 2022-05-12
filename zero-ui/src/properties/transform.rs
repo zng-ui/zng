@@ -24,11 +24,6 @@ pub fn transform(child: impl UiNode, transform: impl IntoVar<Transform>) -> impl
             self.child.subscriptions(ctx, subscriptions);
         }
 
-        fn init(&mut self, ctx: &mut WidgetContext) {
-            self.render_transform = self.transform.get(ctx).try_render();
-            self.child.init(ctx);
-        }
-
         fn update(&mut self, ctx: &mut WidgetContext) {
             self.child.update(ctx);
             if self.transform.is_new(ctx.vars) {
@@ -37,8 +32,8 @@ pub fn transform(child: impl UiNode, transform: impl IntoVar<Transform>) -> impl
         }
 
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
-            let transform = self.transform.layout(ctx);
-            wl.transform(transform);
+            let transform = self.transform.get(ctx.vars).layout(ctx.metrics);
+            wl.transform(&transform);
             self.child.layout(ctx, wl)
         }
     }
@@ -208,9 +203,7 @@ pub fn transform_origin(child: impl UiNode, origin: impl IntoVar<Point>) -> impl
 
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
             let default_origin = Point::center().layout(ctx, PxPoint::zero());
-            let origin = self.origin.layout(ctx, default_origin); // TODO !!: review this
-
-            wl.set_origin(origin);
+            wl.set_origin(self.origin.get_clone(ctx.vars));
 
             self.child.layout(ctx, wl)
         }

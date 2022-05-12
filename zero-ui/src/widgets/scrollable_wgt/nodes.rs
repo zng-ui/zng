@@ -644,7 +644,9 @@ pub fn scroll_to_command_node(child: impl UiNode) -> impl UiNode {
                     let target_bounds = target.bounds();
                     match mode {
                         ScrollToMode::Minimal { margin } => {
-                            let margin = margin.layout(ctx, AvailableSize::from_size(target_bounds.size), PxSideOffsets::zero());
+                            let margin = ctx.with_available_size(AvailableSize::from_size(target_bounds.size), |ctx| {
+                                margin.layout(ctx, PxSideOffsets::zero())
+                            });
                             let mut target_bounds = target_bounds;
                             target_bounds.origin.x -= margin.left;
                             target_bounds.origin.y -= margin.top;
@@ -687,10 +689,14 @@ pub fn scroll_to_command_node(child: impl UiNode) -> impl UiNode {
                             scrollable_point,
                         } => {
                             let default = (target_bounds.size / Px(2)).to_vector().to_point();
-                            let widget_point = widget_point.layout(ctx, AvailableSize::from_size(target_bounds.size), default);
+                            let widget_point = ctx.with_available_size(AvailableSize::from_size(target_bounds.size), |ctx| {
+                                widget_point.layout(ctx, default)
+                            });
 
                             let default = (viewport_bounds.size / Px(2)).to_vector().to_point();
-                            let scrollable_point = scrollable_point.layout(ctx, AvailableSize::from_size(viewport_bounds.size), default);
+                            let scrollable_point = ctx.with_available_size(AvailableSize::from_size(viewport_bounds.size), |ctx| {
+                                scrollable_point.layout(ctx, default)
+                            });
 
                             let widget_point = widget_point + target_bounds.origin.to_vector();
                             let scrollable_point = scrollable_point + viewport_bounds.origin.to_vector(); // TODO origin non-zero?
@@ -763,7 +769,7 @@ pub fn scroll_wheel_node(child: impl UiNode) -> impl UiNode {
             let available_size = AvailableSize::finite(viewport);
 
             ctx.with_available_size(available_size, |ctx| {
-                let offset = self.offset.layout(ctx, available_size, viewport.to_vector());
+                let offset = self.offset.layout(ctx, viewport.to_vector());
                 self.offset = Vector::zero();
 
                 if offset.y != Px(0) {

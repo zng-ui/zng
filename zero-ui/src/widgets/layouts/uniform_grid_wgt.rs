@@ -174,6 +174,7 @@ pub mod uniform_grid {
         #[UiNode]
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
             // TODO !!: reimplement after all others, and after we maybe do the `panel!` base widget?
+            self.children.layout_all(ctx, wl, |_, _| LayoutContextConfig::none(), |_, _| {});
             todo!()
         }
 
