@@ -186,10 +186,10 @@ wl.with_child(|wl| {
 
 ## Other Layout Changes
 
-* Place metrics in `WidgetLayout`.
 * Metrics contains AvailableSize, have sub-selection of metrics for each dimension.
 * Rename Length types `to_layout` to just `layout`. 
 * Have metrics value accessible only by methods, on usage of method update a `LayoutMask` as a widget layout cache key.
+* Remove `leaf_transform`, id does not give any performance benedict over creating an widget.
 
 # Cache Everything
 

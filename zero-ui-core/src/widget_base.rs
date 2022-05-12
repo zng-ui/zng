@@ -7,7 +7,7 @@ use crate::{
     event::EventUpdateArgs,
     impl_ui_node, property,
     render::{FrameBuilder, FrameUpdate},
-    units::{AvailableSize, Px, PxCornerRadius, PxRect, PxSize},
+    units::{Px, PxCornerRadius, PxRect, PxSize},
     var::*,
     widget_info::{UpdateMask, WidgetInfo, WidgetInfoBuilder, WidgetLayout, WidgetSubscriptions},
     NilUiNode, UiNode, Widget, WidgetId,
@@ -23,7 +23,7 @@ pub mod implicit_base {
         context::{OwnedStateMap, RenderContext, WidgetUpdates, WindowRenderUpdate},
         render::FrameBindingKey,
         units::RenderTransform,
-        widget_info::{WidgetBorderInfo, WidgetLayout, WidgetLayoutInfo, WidgetRenderInfo, WidgetSubscriptions},
+        widget_info::{WidgetBorderInfo, WidgetContextInfo, WidgetLayout, WidgetLayoutInfo, WidgetRenderInfo, WidgetSubscriptions},
     };
 
     use super::*;
@@ -115,80 +115,43 @@ pub mod implicit_base {
 
     /// UI nodes used for implementing all widgets.
     pub mod nodes {
-        use crate::render::{FrameBinding, SpatialFrameId};
-
         use super::*;
 
         /// Arguments for the baseline request closure of [`inner`].
         #[derive(Debug)]
         pub struct BaselineArgs {
-            /// Inner arrange final size.
+            /// Inner bounds size.
             pub final_size: PxSize,
-        }
-
-        /// Returns a node that applies widget transforms if `child` does not contain an widget.
-        ///
-        /// This node makes properties like *padding* work for content that does not implement [`Widget`].
-        pub fn leaf_transform(content: impl UiNode) -> impl UiNode {
-            struct LeafTransformNode<C> {
-                child: C,
-                leaf_transform: Option<Box<(SpatialFrameId, RenderTransform)>>,
-            }
-            #[impl_ui_node(child)]
-            impl<C: UiNode> UiNode for LeafTransformNode<C> {
-                fn arrange(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, final_size: PxSize) {
-                    if let Some(t) = widget_layout.leaf_transform(ctx.metrics, final_size, |wl| self.child.arrange(ctx, wl, final_size)) {
-                        if let Some(lt) = &mut self.leaf_transform {
-                            if t != lt.1 {
-                                lt.1 = t;
-                                ctx.updates.render();
-                            }
-                        } else {
-                            self.leaf_transform = Some(Box::new((SpatialFrameId::new_unique(), t)));
-                            ctx.updates.render();
-                        }
-                    }
-                }
-
-                fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-                    if let Some(lt) = &self.leaf_transform {
-                        frame.push_reference_frame(lt.0, FrameBinding::Value(lt.1), false, |f| self.child.render(ctx, f));
-                    } else {
-                        self.child.render(ctx, frame);
-                    }
-                }
-            }
-            LeafTransformNode {
-                child: content.cfg_boxed(),
-                leaf_transform: None,
-            }
-            .cfg_boxed()
         }
 
         /// Returns a node that wraps `child` and marks the [`WidgetLayout::with_inner`] and [`FrameBuilder::push_inner`].
         ///
-        /// The `baseline` closure is called every [`UiNode::arrange`] and must return the offset up from the final size height
+        /// The `baseline` closure is called every [`UiNode::layout`] and must return the offset up from the final size height
         /// that is the widgets baseline. The implicit default is `Px(0)` meaning the widget inner bounds bottom.
         pub fn inner(child: impl UiNode, baseline: impl FnMut(&mut LayoutContext, &BaselineArgs) -> Px + 'static) -> impl UiNode {
             struct InnerNode<T, B> {
                 child: T,
                 baseline: B,
                 transform_key: FrameBindingKey<RenderTransform>,
-                transform: RenderTransform,
                 clip: (PxSize, PxCornerRadius),
             }
             #[impl_ui_node(child)]
             impl<T: UiNode, B: FnMut(&mut LayoutContext, &BaselineArgs) -> Px + 'static> UiNode for InnerNode<T, B> {
-                fn arrange(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, final_size: PxSize) {
-                    self.clip.0 = final_size;
-                    let baseline = (self.baseline)(ctx, &BaselineArgs { final_size });
-                    self.transform = widget_layout.with_inner(ctx.metrics, final_size, baseline, |wl| {
-                        self.clip.1 = wl.corner_radius();
-                        self.child.arrange(ctx, wl, final_size)
+                fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
+                    let final_size = wl.with_inner(ctx, |ctx, wl| {
+                        self.child.layout(ctx, wl)
                     });
+
+                    self.clip = (final_size, wl.corner_radius());
+
+                    let baseline = (self.baseline)(ctx, &BaselineArgs { final_size });
+                    // TODO !!: optionally apply baseline?
+
+                    final_size
                 }
                 fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-                    frame.push_inner(self.transform_key.bind(self.transform), |frame| {
+                    let transform = ctx.widget_info.inner.transform();
+                    frame.push_inner(self.transform_key.bind(transform), |frame| {
                         match HitTestMode::get(ctx.vars) {
                             HitTestMode::RoundedBounds => {
                                 let rect = PxRect::from_size(self.clip.0);
@@ -203,7 +166,8 @@ pub mod implicit_base {
                     });
                 }
                 fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
-                    update.update_transform(self.transform_key.update(self.transform));
+                    let transform = ctx.widget_info.inner.transform();
+                    update.update_transform(self.transform_key.update(transform));
                     self.child.render_update(ctx, update);
                 }
             }
@@ -211,7 +175,6 @@ pub mod implicit_base {
                 child: child.cfg_boxed(),
                 baseline,
                 transform_key: FrameBindingKey::new_unique(),
-                transform: RenderTransform::identity(),
                 clip: (PxSize::zero(), PxCornerRadius::zero()),
             }
             .cfg_boxed()
@@ -225,10 +188,7 @@ pub mod implicit_base {
                 id: WidgetId,
                 state: OwnedStateMap,
                 child: T,
-                outer_info: WidgetLayoutInfo,
-                inner_info: WidgetLayoutInfo,
-                border_info: WidgetBorderInfo,
-                render_info: WidgetRenderInfo,
+                info: WidgetContextInfo,
                 subscriptions: RefCell<WidgetSubscriptions>,
 
                 #[cfg(debug_assertions)]
@@ -242,14 +202,14 @@ pub mod implicit_base {
                         tracing::error!(target: "widget_base", "`UiNode::info` called in not inited widget {:?}", self.id);
                     }
 
-                    ctx.with_widget(self.id, &self.state, |ctx| {
+                    ctx.with_widget(self.id, &self.info, &self.state, |ctx| {
                         if mem::take(&mut self.pending_updates.borrow_mut().info) {
                             info.push_widget(
                                 self.id,
-                                self.outer_info.clone(),
-                                self.inner_info.clone(),
-                                self.border_info.clone(),
-                                self.render_info.clone(),
+                                self.info.outer.clone(),
+                                self.info.inner.clone(),
+                                self.info.border.clone(),
+                                self.info.render.clone(),
                                 |info| self.child.info(ctx, info),
                             );
                         } else {
@@ -268,7 +228,7 @@ pub mod implicit_base {
                         let mut wgt_subs = self.subscriptions.borrow_mut();
                         *wgt_subs = WidgetSubscriptions::new();
 
-                        ctx.with_widget(self.id, &self.state, |ctx| {
+                        ctx.with_widget(self.id, &self.info, &self.state, |ctx| {
                             self.child.subscriptions(ctx, &mut wgt_subs);
                         });
 
@@ -284,7 +244,7 @@ pub mod implicit_base {
                         tracing::error!(target: "widget_base", "`UiNode::init` called in already inited widget {:?}", self.id);
                     }
 
-                    ctx.widget_context(self.id, &mut self.state, |ctx| self.child.init(ctx));
+                    ctx.widget_context(self.id, &self.info, &mut self.state, |ctx| self.child.init(ctx));
                     *self.pending_updates.get_mut() = WidgetUpdates::all();
 
                     #[cfg(debug_assertions)]
@@ -299,7 +259,7 @@ pub mod implicit_base {
                         tracing::error!(target: "widget_base", "`UiNode::deinit` called in not inited widget {:?}", self.id);
                     }
 
-                    ctx.widget_context(self.id, &mut self.state, |ctx| self.child.deinit(ctx));
+                    ctx.widget_context(self.id, &self.info, &mut self.state, |ctx| self.child.deinit(ctx));
                     *self.pending_updates.get_mut() = WidgetUpdates::none();
 
                     #[cfg(debug_assertions)]
@@ -315,7 +275,7 @@ pub mod implicit_base {
                     }
 
                     if self.subscriptions.borrow().update_intersects(ctx.updates) {
-                        let (_, updates) = ctx.widget_context(self.id, &mut self.state, |ctx| self.child.update(ctx));
+                        let (_, updates) = ctx.widget_context(self.id, &self.info, &mut self.state, |ctx| self.child.update(ctx));
                         *self.pending_updates.get_mut() |= updates;
                     }
                 }
@@ -327,36 +287,25 @@ pub mod implicit_base {
                     }
 
                     if self.subscriptions.borrow().event_contains(args) {
-                        let (_, updates) = ctx.widget_context(self.id, &mut self.state, |ctx| self.child.event(ctx, args));
+                        let (_, updates) = ctx.widget_context(self.id, &self.info, &mut self.state, |ctx| self.child.event(ctx, args));
                         *self.pending_updates.get_mut() |= updates;
                     }
                 }
 
-                fn measure(&mut self, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize {
+                fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
                     #[cfg(debug_assertions)]
                     if !self.inited {
-                        tracing::error!(target: "widget_base", "`UiNode::measure` called in not inited widget {:?}", self.id);
+                        tracing::error!(target: "widget_base", "`UiNode::layout` called in not inited widget {:?}", self.id);
                     }
 
-                    let (child_size, updates) = ctx.with_widget(self.id, &mut self.state, |ctx| self.child.measure(ctx, available_size));
+                    let (child_size, updates) = ctx.with_widget(self.id, &self.info, &mut self.state, |ctx| {
+                        wl.with_widget(ctx, |ctx, wl| {
+                            self.child.layout(ctx, wl)
+                        })
+                    });
                     *self.pending_updates.get_mut() |= updates;
 
                     child_size
-                }
-
-                fn arrange(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, final_size: PxSize) {
-                    #[cfg(debug_assertions)]
-                    if !self.inited {
-                        tracing::error!(target: "widget_base", "`UiNode::arrange` called in not inited widget {:?}", self.id);
-                    }
-
-                    let (_, updates) = ctx.with_widget(self.id, &mut self.state, |ctx| {
-                        widget_layout.with_widget(self.id, &self.outer_info, &self.inner_info, &self.border_info, final_size, |wo| {
-                            self.child.arrange(ctx, wo, final_size);
-                        });
-                    });
-
-                    *self.pending_updates.get_mut() |= updates;
                 }
 
                 fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
@@ -366,8 +315,8 @@ pub mod implicit_base {
                     }
 
                     if matches!(self.pending_updates.borrow_mut().render.take(), WindowRenderUpdate::Render) || !frame.can_reuse_widget() {
-                        ctx.with_widget(self.id, &self.state, |ctx| {
-                            frame.push_widget(self.id, &self.render_info, |frame| self.child.render(ctx, frame));
+                        ctx.with_widget(self.id, &self.info, &self.state, |ctx| {
+                            frame.push_widget(self.id, &self.info.render, |frame| self.child.render(ctx, frame));
                         });
                     } else {
                         // can_reuse_widget is always `false`.
@@ -401,29 +350,26 @@ pub mod implicit_base {
                 }
 
                 fn outer_info(&self) -> &WidgetLayoutInfo {
-                    &self.outer_info
+                    &self.info.outer
                 }
 
                 fn inner_info(&self) -> &WidgetLayoutInfo {
-                    &self.inner_info
+                    &self.info.inner
                 }
 
                 fn border_info(&self) -> &WidgetBorderInfo {
-                    &self.border_info
+                    &self.info.border
                 }
 
                 fn render_info(&self) -> &WidgetRenderInfo {
-                    &self.render_info
+                    &self.info.render
                 }
             }
             WidgetNode {
                 id: id.into(),
                 state: OwnedStateMap::default(),
                 child: child.cfg_boxed(),
-                outer_info: WidgetLayoutInfo::new(),
-                inner_info: WidgetLayoutInfo::new(),
-                border_info: WidgetBorderInfo::new(),
-                render_info: WidgetRenderInfo::new(),
+                info: WidgetContextInfo::default(),
                 subscriptions: RefCell::default(),
                 #[cfg(debug_assertions)]
                 inited: false,
@@ -442,6 +388,7 @@ state_key! {
 context_var! {
     struct IsEnabledVar: bool = true;
 }
+
 
 /// Extension method for accessing the [`enabled`](fn@enabled) state in [`WidgetInfo`].
 pub trait WidgetEnabledExt {
@@ -707,18 +654,12 @@ pub fn visibility(child: impl UiNode, visibility: impl IntoVar<Visibility>) -> i
             self.child.update(ctx);
         }
 
-        fn measure(&mut self, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize {
-            match self.visibility.copy(ctx) {
-                Visibility::Collapsed => PxSize::zero(),
-                _ => self.child.measure(ctx, available_size),
-            }
-        }
-
-        fn arrange(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, final_size: PxSize) {
+        fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
             if Visibility::Collapsed != self.visibility.copy(ctx) {
-                self.child.arrange(ctx, widget_layout, final_size)
+                self.child.layout(ctx, wl)
             } else {
-                widget_layout.collapse(ctx.info_tree);
+                wl.collapse(ctx.info_tree);
+                PxSize::zero()
             }
         }
 

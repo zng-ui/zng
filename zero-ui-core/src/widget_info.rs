@@ -6,7 +6,7 @@ use ego_tree::Tree;
 
 use crate::{
     border::CornerRadius,
-    context::{InfoContext, LayoutMetrics, OwnedStateMap, StateMap, Updates},
+    context::{InfoContext, LayoutContext, LayoutMetrics, OwnedStateMap, StateMap, Updates},
     crate_util::{IdMap, IdSet},
     event::EventUpdateArgs,
     handler::WidgetHandler,
@@ -14,7 +14,7 @@ use crate::{
     var::{Var, VarValue, VarsRead, WithVarsRead},
     widget_base::Visibility,
     window::WindowId,
-    WidgetId,
+    Widget, WidgetId,
 };
 
 unique_id_64! {
@@ -22,8 +22,184 @@ unique_id_64! {
     struct WidgetInfoTreeId;
 }
 
-/// Represents the in-progress layout arrange pass for an widget.
+/// Represents the in-progress layout pass for an widget.
+///
+/// Dereferences to a [`WidgetTransformBuilder`] that affects the widget's inner transform.
 pub struct WidgetLayout {
+    widget_id: WidgetId,
+    inner: WidgetTransformBuilder,
+}
+impl WidgetLayout {
+    /// Layout the window content.
+    ///
+    /// Must be called by the owner of the widget tree, usually the window implementer.
+    pub fn with_root_widget(
+        ctx: &mut LayoutContext,
+        f: impl FnOnce(&mut LayoutContext, &mut Self) -> PxSize,
+    ) -> PxSize {
+        assert!(ctx.path.is_root());
+
+        let mut wl = WidgetLayout {
+            widget_id: ctx.path.widget_id(),
+            inner: WidgetTransformBuilder::new(),
+        };
+        let size = f(ctx, &mut wl);
+
+        ctx.widget_info.outer.set_size(size);
+        ctx.widget_info.inner.set_transform(wl.inner.build(ctx));
+
+        size
+    }
+
+    /// Layout the widget.
+    ///
+    /// Must be called by the [`Widget`] node, usually done by the `implicit_base`.
+    pub fn with_widget(&mut self, ctx: &mut LayoutContext, layout: impl FnOnce(&mut LayoutContext, &mut Self) -> PxSize) -> PxSize {
+        #[cfg(debug_assertions)]
+        if let Some(p) = ctx.path.parent() {
+            if p != self.widget_id {
+                tracing::error!(
+                    "expected `with_widget` for {:?} to happen inside {:?}, but was inside {:?}",
+                    ctx.path.widget_id(),
+                    self.widget_id,
+                    p
+                );
+            }
+        }
+
+        let parent_id = mem::replace(&mut self.widget_id, ctx.path.widget_id());
+        let parent_inner = mem::replace(&mut self.inner, WidgetTransformBuilder::new());
+
+        let size = layout(ctx, self);
+
+        let inner = mem::replace(&mut self.inner, parent_inner);
+
+        ctx.widget_info.outer.set_size(size);
+        ctx.widget_info.inner.set_transform(inner.build(ctx));
+
+        size
+    }
+
+    /// Marks the inner bounds of the current widget.
+    pub fn with_inner(&mut self, ctx: &mut LayoutContext, layout: impl FnOnce(&mut LayoutContext, &mut Self) -> PxSize) -> PxSize {
+        #[cfg(debug_assertions)]
+        if ctx.path.widget_id() != self.widget_id {
+            tracing::error!(
+                "called `with_inner` for {:?}, but was inside layout for {:?}",
+                ctx.path.widget_id(),
+                self.widget_id
+            );
+        }
+
+        let size = layout(ctx, self);
+        ctx.widget_info.inner.set_size(size);
+        size
+    }
+
+    /// Runs `f` with a builder that sets the `child` outer transform.
+    ///
+    /// Panel widgets should use this to set it's children transform after updating the children's layout.
+    pub fn with_outer<R>(
+        &mut self,
+        ctx: &mut LayoutContext,
+        child: &mut impl Widget,
+        f: impl FnOnce(&mut LayoutContext, &mut WidgetTransformBuilder) -> R,
+    ) -> R {
+        let mut builder = WidgetTransformBuilder::new();
+        let r = f(ctx, &mut builder);
+        child.outer_info().set_transform(builder.build(ctx));
+        r
+    }
+
+    /// Returns the corner radius set for the widget.
+    pub fn corner_radius(&self) -> PxCornerRadius {
+        todo!()
+    }
+
+    /// Collapse the layout of `self` and descendants, the size is set to zero and the transform to identity.
+    ///
+    /// Nodes that set the visibility to the equivalent of [`Collapsed`] must skip measuring descendants and return [`PxSize::zero`] as
+    /// the desired size, and they must skip arranging descendants an instead call this method, it updates all the descendant
+    /// bounds information to be a zero-sized point at the current transform.
+    ///
+    /// [`Collapsed`]: Visibility::Collapsed
+    pub fn collapse(&mut self, info_tree: &WidgetInfoTree) {
+        if let Some(w) = info_tree.find(self.widget_id) {
+            for w in w.self_and_descendants() {
+                w.info().outer_info.set_size(PxSize::zero());
+                w.info().outer_info.set_transform(RenderTransform::identity());
+                w.info().inner_info.set_size(PxSize::zero());
+                w.info().inner_info.set_transform(RenderTransform::identity());
+            }
+        } else {
+            tracing::error!("collapse did not find `{}` in the info tree", self.widget_id)
+        }
+    }
+}
+impl ops::Deref for WidgetLayout {
+    type Target = WidgetTransformBuilder;
+
+    fn deref(&self) -> &Self::Target {
+        &self.inner
+    }
+}
+impl ops::DerefMut for WidgetLayout {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.inner
+    }
+}
+
+/// Write access to an widget transform.
+pub struct WidgetTransformBuilder {
+    transform: RenderTransform,
+    origin: Point,
+}
+impl WidgetTransformBuilder {
+    fn new() -> Self {
+        Self {
+            transform: RenderTransform::identity(),
+            origin: Point::center(),
+        }
+    }
+
+    /// Add an offset to the widget transform.
+    pub fn translate(&mut self, offset: PxVector) {
+        self.transform = self.transform.then_translate_px(offset);
+    }
+
+    /// Multiply the widget transform by
+    pub fn transform(&mut self, then: &RenderTransform) {
+        self.transform = self.transform.then(then);
+    }
+
+    /// Sets the *center* point of the transform.
+    ///
+    /// Relative units are resolved for the layout size at the same bounds level this builder represents, so
+    /// if the builder is defining the widget *inner* bounds, the available-size for `origin` is the new inner bounds.
+    pub fn set_origin(&mut self, origin: Point) {
+        self.origin = origin;
+    }
+
+    fn build(self, ctx: &LayoutMetrics) -> RenderTransform {
+        let default_origin = Point::center().layout(ctx, PxPoint::zero());
+        let origin = self.origin.layout(ctx, default_origin);
+
+        let mut transform = self.transform;
+
+        if origin != PxPoint::zero() {
+            let x = origin.x.0 as f32;
+            let y = origin.y.0 as f32;
+            transform = RenderTransform::translation(-x, -y, 0.0)
+                .then(&transform)
+                .then_translate(euclid::vec3(x, y, 0.0));
+        }
+
+        transform
+    }
+}
+
+/// Represents the in-progress layout arrange pass for an widget.
+pub struct WidgetLayoutOld {
     global_transform: RenderTransform,
 
     widget_id: WidgetId,
@@ -39,7 +215,7 @@ pub struct WidgetLayout {
     corner_radius: PxCornerRadius,
     ctx_corner_radius: CornerRadius,
 }
-impl WidgetLayout {
+impl WidgetLayoutOld {
     /// Start the layout arrange pass from the window root widget.
     pub fn with_root_widget<R>(
         root_id: WidgetId,
@@ -208,7 +384,7 @@ impl WidgetLayout {
 
         let new_corner_radius = self
             .ctx_corner_radius
-            .to_layout(metrics, AvailableSize::finite(final_size), self.corner_radius);
+            .layout(metrics, self.corner_radius);
 
         let prev_corner_radius = mem::replace(&mut self.corner_radius, new_corner_radius);
         self.border_info.set_corner_radius(new_corner_radius);
@@ -240,9 +416,8 @@ impl WidgetLayout {
             }
         }
 
-        let transform_origin = self.transform_origin.to_layout(
+        let transform_origin = self.transform_origin.layout(
             metrics,
-            AvailableSize::finite(final_size),
             PxPoint::new(final_size.width / 2, final_size.height / 2),
         );
 
@@ -566,6 +741,19 @@ impl WidgetInfoBuilder {
 
         (r, cap)
     }
+}
+
+/// Bundle of widget info data from the current widget.
+#[derive(Clone, Default)]
+pub struct WidgetContextInfo {
+    /// Outer layout info.
+    pub outer: WidgetLayoutInfo,
+    /// Inner layout info.
+    pub inner: WidgetLayoutInfo,
+    /// Border and corners info.
+    pub border: WidgetBorderInfo,
+    /// Render visibility info.
+    pub render: WidgetRenderInfo,
 }
 
 /// A tree of [`WidgetInfo`].

@@ -268,6 +268,7 @@ pub trait UiNode: 'static {
         self
     }
 }
+
 #[doc(hidden)]
 pub trait UiNodeBoxed: 'static {
     fn info_boxed(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder);
@@ -534,7 +535,7 @@ pub trait Widget: UiNode {
                 let inner = self.inner_info().clone();
                 let border = self.border_info().clone();
                 let id = self.id();
-                WidgetLayout::with_root_widget(id, &outer, &inner, &border, |wl| {
+                WidgetLayout::with_root_widget(ctx, |ctx, wl| {
                     self.layout(ctx, wl)
                 })
             },

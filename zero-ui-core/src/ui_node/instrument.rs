@@ -61,14 +61,9 @@ where
         self.node.update(ctx);
     }
 
-    fn measure(&mut self, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize {
-        let _span = (self.span)(&mut ctx.as_info(), "measure");
-        self.node.measure(ctx, available_size)
-    }
-
-    fn arrange(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, final_size: PxSize) {
-        let _span = (self.span)(&mut ctx.as_info(), "arrange");
-        self.node.arrange(ctx, widget_layout, final_size)
+    fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
+        let _span = (self.span)(&mut ctx.as_info(), "layout");
+        self.node.layout(ctx, wl)
     }
 
     fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {

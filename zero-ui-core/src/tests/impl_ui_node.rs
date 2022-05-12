@@ -372,13 +372,9 @@ mod util {
             }
         }
 
-        fn measure(&mut self, _: &mut LayoutContext, _: AvailableSize) -> PxSize {
-            self.trace("measure");
+        fn layout(&mut self, _: &mut LayoutContext, _: &mut WidgetLayout) -> PxSize {
+            self.trace("layout");
             PxSize::zero()
-        }
-
-        fn arrange(&mut self, _: &mut LayoutContext, _: &mut WidgetLayout, _: PxSize) {
-            self.trace("arrange");
         }
 
         fn render(&self, _: &mut RenderContext, _: &mut FrameBuilder) {

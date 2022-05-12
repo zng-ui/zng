@@ -8,7 +8,7 @@ use crate::{
     context::{InfoContext, LayoutContext, RenderContext, WidgetContext},
     event::{Event, EventUpdateArgs},
     render::{FrameBuilder, FrameUpdate},
-    units::{AvailableSize, PxSize},
+    units::PxSize,
     widget_info::{UpdateSlot, WidgetInfoBuilder, WidgetLayout, WidgetSubscriptions},
     UiNode,
 };
@@ -388,17 +388,11 @@ impl<S: RcNodeTakeSignal, U: UiNode> UiNode for SlotNode<S, U> {
         }
     }
 
-    fn measure(&mut self, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize {
+    fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
         if let SlotNodeState::Active(rc) = &self.state {
-            rc.node.borrow_mut().measure(ctx, available_size)
+            rc.node.borrow_mut().layout(ctx, wl)
         } else {
             PxSize::zero()
-        }
-    }
-
-    fn arrange(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, final_size: PxSize) {
-        if let SlotNodeState::Active(rc) = &self.state {
-            rc.node.borrow_mut().arrange(ctx, widget_layout, final_size);
         }
     }
 

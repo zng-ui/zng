@@ -358,11 +358,6 @@ fn delegate_list_absents(crate_: TokenStream, user_mtds: HashSet<Ident>, borrow:
             let #children = {#borrow};
             #crate_::UiNodeList::render_update_all(#deref, ctx, update)
         }]
-
-        [fn arrange(&mut self, ctx: &mut #crate_::context::LayoutContext, widget_layout: &mut #crate_::widget_info::WidgetLayout, final_size: #crate_::units::PxSize) {
-            let #children_mut = {#borrow_mut};
-            #crate_::UiNodeList::arrange_all(#deref_mut, ctx, widget_layout, |_, _| final_size)
-        }]
     }
 }
 
