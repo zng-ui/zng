@@ -123,7 +123,7 @@ impl Line {
 
     /// Compute a [`LayoutMask`] that flags all contextual values that affect the result of [`to_layout`].
     ///
-    /// [`to_layout`]: Self::to_layout
+    /// [`layout`]: Self::layout
     pub fn affect_mask(&self) -> LayoutMask {
         self.start.affect_mask() | self.end.affect_mask()
     }

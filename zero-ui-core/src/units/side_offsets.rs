@@ -97,7 +97,7 @@ impl SideOffsets {
 
     /// Compute a [`LayoutMask`] that flags all contextual values that affect the result of [`to_layout`].
     ///
-    /// [`to_layout`]: Self::to_layout
+    /// [`layout`]: Self::layout
     pub fn affect_mask(&self) -> LayoutMask {
         self.top.affect_mask() | self.right.affect_mask() | self.bottom.affect_mask() | self.left.affect_mask()
     }

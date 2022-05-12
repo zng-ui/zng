@@ -83,7 +83,7 @@ impl Size {
 
     /// Compute a [`LayoutMask`] that flags all contextual values that affect the result of [`to_layout`].
     ///
-    /// [`to_layout`]: Self::to_layout
+    /// [`layout`]: Self::layout
     pub fn affect_mask(&self) -> LayoutMask {
         self.width.affect_mask() | self.height.affect_mask()
     }

@@ -25,12 +25,36 @@
 
 # Single Pass Layout
 
-* Can we merge measure, arrange?
-  - `UiNode::layout(LayoutContext, WidgetLayout)`
-  - How do we do `available_size` -> `desired_size` -> `final_size` in one pass?
-  - What do we loose by making the `desired_size` be the `final_size`?
-   - A layout that equally divides the extra space after measuring children for each child?
-   - There is nothing stopping us from doing two passes in this case.
+* What do we loose by making the `desired_size` be the `final_size`?
+  - A layout that equally divides the extra space after measuring children for each child?
+    - There is nothing stopping us from doing two passes in this case.
+  - Min size, right now we pass inf and get zero for fill nodes, then in arrange we pass the min size.
+    - If we add a min size to the metrics this can work too.
+  - Max size, right now we pass inf and get zero for fill nodes, then in arrange we pass the zero.
+    - New case already works then, for inf.
+  - Max size for finite nodes, right now we pass inf, get a size larger then max, then in arrange we pass max.
+    - New needs a second layout pass? Can we avoid it?
+    - We need to better signal for fill nodes when they should be min, Align::FILL right now does not work for fill nodes, it should.
+
+```rust
+pub struct LayoutConstrains {
+  /// Maximum size allowed.
+  pub max: PxSize,
+  /// Minimum size allowed.
+  pub min: PxSize,
+  /// If nodes that fill all available space should be sized `max` (`true`) or `min` (`false`).
+  pub fill: BoolVector2D,
+}
+impl LayoutConstrains {
+  pub fn fill_size(&self) -> PxSize {
+    self.fill.select_size(self.max, self.min)
+  }
+
+  pub fn collapse_size(&self) -> PxSize {
+    self.fill.select_size(self.min, self.max)
+  }
+}
+```
 
 ```rust
 trait UiNode {

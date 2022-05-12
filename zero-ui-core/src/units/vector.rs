@@ -93,7 +93,7 @@ impl Vector {
 
     /// Compute a [`LayoutMask`] that flags all contextual values that affect the result of [`to_layout`].
     ///
-    /// [`to_layout`]: Self::to_layout
+    /// [`layout`]: Self::layout
     pub fn affect_mask(&self) -> LayoutMask {
         self.x.affect_mask() | self.y.affect_mask()
     }

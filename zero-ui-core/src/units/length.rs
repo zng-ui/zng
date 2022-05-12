@@ -387,7 +387,7 @@ impl Length {
 
     /// Compute a [`LayoutMask`] that flags all contextual values that affect the result of [`to_layout`].
     ///
-    /// [`to_layout`]: Self::to_layout
+    /// [`layout`]: Self::layout
     pub fn affect_mask(&self) -> LayoutMask {
         use Length::*;
         match self {
@@ -538,7 +538,7 @@ impl LengthExpr {
     /// Compute a [`LayoutMask`] that flags all contextual values that affect the result
     /// of [`to_layout`] called for this length.
     ///
-    /// [`to_layout`]: Self::to_layout
+    /// [`layout`]: Self::layout
     pub fn affect_mask(&self) -> LayoutMask {
         use LengthExpr::*;
         match self {
