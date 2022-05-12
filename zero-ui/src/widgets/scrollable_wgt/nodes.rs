@@ -46,6 +46,12 @@ pub fn viewport(child: impl UiNode, mode: impl IntoVar<ScrollMode>) -> impl UiNo
             }
         }
 
+        fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
+            // TODO !!: reimplement after all others, and after we maybe do the `panel!` base widget?
+            self.child.layout(ctx, wl)
+        }
+
+        /*
         fn measure(&mut self, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize {
             let mut c_available_size = available_size;
 
@@ -82,7 +88,7 @@ pub fn viewport(child: impl UiNode, mode: impl IntoVar<ScrollMode>) -> impl UiNo
                     .global_transform()
                     .transform_px_point(PxPoint::zero())
                     .unwrap_or_default(),
-                final_size,
+                    final_size,
             );
 
             self.info.set_viewport(viewport);
@@ -117,6 +123,7 @@ pub fn viewport(child: impl UiNode, mode: impl IntoVar<ScrollMode>) -> impl UiNo
             ScrollHorizontalRatioVar::new().set_ne(ctx, h_ratio.fct()).unwrap();
             ScrollContentSizeVar::new().set_ne(ctx, self.content_size).unwrap();
         }
+        */
 
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
             frame.push_scroll_frame(
@@ -291,21 +298,26 @@ pub fn scroll_commands_node(child: impl UiNode) -> impl UiNode {
             }
         }
 
-        fn arrange(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, final_size: PxSize) {
-            self.child.arrange(ctx, widget_layout, final_size);
+        fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
+            let r = self.child.layout(ctx, wl);
+
             let viewport = *ScrollViewportSizeVar::get(ctx);
             let available_size = AvailableSize::finite(viewport);
 
-            let default = 1.em().to_layout(ctx, AvailablePx::Infinite, Px(0));
-            let offset = self.offset.to_layout(ctx, available_size, PxVector::new(default, default));
-            self.offset = Vector::zero();
+            ctx.with_available_size(available_size, |ctx| {
+                let default = 1.em().layout(ctx.for_y(), Px(0));
+                let offset = self.offset.layout(ctx, PxVector::new(default, default));
+                self.offset = Vector::zero();
 
-            if offset.y != Px(0) {
-                ScrollContext::scroll_vertical(ctx, offset.y);
-            }
-            if offset.x != Px(0) {
-                ScrollContext::scroll_horizontal(ctx, offset.x);
-            }
+                if offset.y != Px(0) {
+                    ScrollContext::scroll_vertical(ctx, offset.y);
+                }
+                if offset.x != Px(0) {
+                    ScrollContext::scroll_horizontal(ctx, offset.x);
+                }
+            });
+
+            r
         }
     }
 
@@ -430,20 +442,25 @@ pub fn page_commands_node(child: impl UiNode) -> impl UiNode {
             }
         }
 
-        fn arrange(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, final_size: PxSize) {
-            self.child.arrange(ctx, widget_layout, final_size);
+        fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
+            let r = self.child.layout(ctx, wl);
+
             let viewport = *ScrollViewportSizeVar::get(ctx);
             let available_size = AvailableSize::finite(viewport);
 
-            let offset = self.offset.to_layout(ctx, available_size, viewport.to_vector());
-            self.offset = Vector::zero();
+            ctx.with_available_size(available_size, |ctx| {
+                let offset = self.offset.layout(ctx, viewport.to_vector());
+                self.offset = Vector::zero();
 
-            if offset.y != Px(0) {
-                ScrollContext::scroll_vertical(ctx, offset.y);
-            }
-            if offset.x != Px(0) {
-                ScrollContext::scroll_horizontal(ctx, offset.x);
-            }
+                if offset.y != Px(0) {
+                    ScrollContext::scroll_vertical(ctx, offset.y);
+                }
+                if offset.x != Px(0) {
+                    ScrollContext::scroll_horizontal(ctx, offset.x);
+                }
+            });
+
+            r
         }
     }
 
@@ -618,8 +635,8 @@ pub fn scroll_to_command_node(child: impl UiNode) -> impl UiNode {
             }
         }
 
-        fn arrange(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, final_size: PxSize) {
-            self.child.arrange(ctx, widget_layout, final_size);
+        fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
+            let r = self.child.layout(ctx, wl);
 
             if let Some((target, mode)) = self.scroll_to.take() {
                 let us = ctx.info_tree.find(ctx.path.widget_id()).unwrap();
@@ -627,7 +644,7 @@ pub fn scroll_to_command_node(child: impl UiNode) -> impl UiNode {
                     let target_bounds = target.bounds();
                     match mode {
                         ScrollToMode::Minimal { margin } => {
-                            let margin = margin.to_layout(ctx, AvailableSize::from_size(target_bounds.size), PxSideOffsets::zero());
+                            let margin = margin.layout(ctx, AvailableSize::from_size(target_bounds.size), PxSideOffsets::zero());
                             let mut target_bounds = target_bounds;
                             target_bounds.origin.x -= margin.left;
                             target_bounds.origin.y -= margin.top;
@@ -670,10 +687,10 @@ pub fn scroll_to_command_node(child: impl UiNode) -> impl UiNode {
                             scrollable_point,
                         } => {
                             let default = (target_bounds.size / Px(2)).to_vector().to_point();
-                            let widget_point = widget_point.to_layout(ctx, AvailableSize::from_size(target_bounds.size), default);
+                            let widget_point = widget_point.layout(ctx, AvailableSize::from_size(target_bounds.size), default);
 
                             let default = (viewport_bounds.size / Px(2)).to_vector().to_point();
-                            let scrollable_point = scrollable_point.to_layout(ctx, AvailableSize::from_size(viewport_bounds.size), default);
+                            let scrollable_point = scrollable_point.layout(ctx, AvailableSize::from_size(viewport_bounds.size), default);
 
                             let widget_point = widget_point + target_bounds.origin.to_vector();
                             let scrollable_point = scrollable_point + viewport_bounds.origin.to_vector(); // TODO origin non-zero?
@@ -686,6 +703,8 @@ pub fn scroll_to_command_node(child: impl UiNode) -> impl UiNode {
                     }
                 }
             }
+
+            r
         }
     }
 
@@ -737,20 +756,25 @@ pub fn scroll_wheel_node(child: impl UiNode) -> impl UiNode {
             }
         }
 
-        fn arrange(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, final_size: PxSize) {
-            self.child.arrange(ctx, widget_layout, final_size);
+        fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
+            let r = self.child.layout(ctx, wl);
+
             let viewport = *ScrollViewportSizeVar::get(ctx);
             let available_size = AvailableSize::finite(viewport);
 
-            let offset = self.offset.to_layout(ctx, available_size, viewport.to_vector());
-            self.offset = Vector::zero();
+            ctx.with_available_size(available_size, |ctx| {
+                let offset = self.offset.layout(ctx, available_size, viewport.to_vector());
+                self.offset = Vector::zero();
 
-            if offset.y != Px(0) {
-                ScrollContext::scroll_vertical(ctx, offset.y);
-            }
-            if offset.x != Px(0) {
-                ScrollContext::scroll_horizontal(ctx, offset.x);
-            }
+                if offset.y != Px(0) {
+                    ScrollContext::scroll_vertical(ctx, offset.y);
+                }
+                if offset.x != Px(0) {
+                    ScrollContext::scroll_horizontal(ctx, offset.x);
+                }
+            });
+
+            r
         }
     }
     ScrollWheelNode {

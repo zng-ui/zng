@@ -12,7 +12,6 @@ pub fn transform(child: impl UiNode, transform: impl IntoVar<Transform>) -> impl
     struct TransformNode<C, T> {
         child: C,
         transform: T,
-        render_transform: Option<RenderTransform>,
     }
     #[impl_ui_node(child)]
     impl<C, T> UiNode for TransformNode<C, T>
@@ -32,32 +31,20 @@ pub fn transform(child: impl UiNode, transform: impl IntoVar<Transform>) -> impl
 
         fn update(&mut self, ctx: &mut WidgetContext) {
             self.child.update(ctx);
-            if let Some(t) = self.transform.get_new(ctx.vars) {
-                if let Some(t) = t.try_render() {
-                    self.render_transform = Some(t);
-                    ctx.updates.render_update();
-                } else {
-                    self.render_transform = None;
-                    ctx.updates.layout();
-                }
+            if self.transform.is_new(ctx.vars) {
+                ctx.updates.layout();
             }
         }
 
-        fn arrange(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, final_size: PxSize) {
-            if self.render_transform.is_none() {
-                let t = self.transform.get(ctx).to_render(ctx, AvailableSize::finite(final_size));
-                self.render_transform = Some(t);
-                ctx.updates.render_update();
-            }
-            widget_layout.with_inner_transform(self.render_transform.as_ref().unwrap(), |wo| {
-                self.child.arrange(ctx, wo, final_size)
-            });
+        fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
+            let transform = self.transform.layout(ctx);
+            wl.transform(transform);
+            self.child.layout(ctx, wl)
         }
     }
     TransformNode {
         child,
         transform: transform.into_var(),
-        render_transform: None,
     }
 }
 
@@ -219,8 +206,13 @@ pub fn transform_origin(child: impl UiNode, origin: impl IntoVar<Point>) -> impl
             self.child.update(ctx);
         }
 
-        fn arrange(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, final_size: PxSize) {
-            widget_layout.with_inner_transform_origin(self.origin.get(ctx.vars), |wl| self.child.arrange(ctx, wl, final_size));
+        fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
+            let default_origin = Point::center().layout(ctx, PxPoint::zero());
+            let origin = self.origin.layout(ctx, default_origin); // TODO !!: review this
+
+            wl.set_origin(origin);
+
+            self.child.layout(ctx, wl)
         }
     }
     TransformOriginNode {

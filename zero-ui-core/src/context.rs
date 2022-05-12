@@ -845,9 +845,36 @@ impl<'a> LayoutContext<'a> {
         })
     }
 
-    /// Runs a function `f` in a layout context that has its available size subtracted by `taken`.
-    pub fn with_less_available_size<R>(&mut self, taken: PxSize, f: impl FnOnce(&mut LayoutContext) -> R) -> R {
-        let av = self.available_size().sub_px(taken);
+    /// Runs a function `f` in a layout context that has the new available width.
+    pub fn with_available_width<R>(&mut self, available_width: AvailablePx, f: impl FnOnce(&mut LayoutContext) -> R) -> R {
+        let mut size = self.peek(|m| m.available_size());
+        size.width = available_width;
+        self.with_available_size(size, f)
+    }
+
+    /// Runs a function `f` in a layout context that has the new available height.
+    pub fn with_available_height<R>(&mut self, available_height: AvailablePx, f: impl FnOnce(&mut LayoutContext) -> R) -> R {
+        let mut size = self.peek(|m| m.available_size());
+        size.height = available_height;
+        self.with_available_size(size, f)
+    }
+
+    /// Runs a function `f` in a layout context that has its available size subtracted by `taken` and its final size added by `taken`.
+    ///
+    /// The available size is only [peeked], this method does not register a layout dependency on the available size.
+    ///
+    /// [peeked]: LayoutMetrics::peek
+    pub fn with_taken_size(&mut self, taken: PxSize, f: impl FnOnce(&mut LayoutContext) -> PxSize) -> PxSize {
+        self.with_less_size(taken, f) + taken
+    }
+
+    /// Runs a function `f` in a layout context that has its available size subtracted by `removed`.
+    ///
+    /// The available size is only [peeked], this method does not register a layout dependency on the available size.
+    ///
+    /// [peeked]: LayoutMetrics::peek
+    pub fn with_less_size(&mut self, removed: PxSize, f: impl FnOnce(&mut LayoutContext) -> PxSize) -> PxSize {
+        let av = self.metrics.peek(|m| m.available_size().sub_px(removed));
         self.with_available_size(av, f)
     }
 
@@ -1113,11 +1140,23 @@ impl LayoutMetrics {
     }
 
     /// Register that the node layout depends on these contextual values.
-    /// 
+    ///
     /// Note that the value methods already register use when they are used.
     pub fn register_use(&self, mask: LayoutMask) {
         let m = self.use_mask.get();
         self.use_mask.set(m | mask);
+    }
+
+    /// Get metrics without registering use.
+    ///
+    /// The `req` closure is called to get a value, then the [`metrics_used`] is undone to the previous state.
+    ///
+    /// [`metrics_used`]: Self::metrics_used
+    pub fn peek<R>(&self, req: impl FnOnce(&Self) -> R) -> R {
+        let m = self.use_mask.get();
+        let r = req(self);
+        self.use_mask.set(m);
+        r
     }
 
     /// Current max size allowed.

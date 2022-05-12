@@ -92,6 +92,14 @@ pub mod h_stack {
             }
         }
 
+        fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
+            // TODO !!: reimplement after all others, and after we maybe do the `panel!` base widget?
+            self.children.layout_all(ctx, wl, |_, _| LayoutContextConfig::none(), |_, _| {});
+
+            PxSize::zero()
+        }
+
+        /*
         fn measure(&mut self, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize {
             let mut ds = PxSize::zero();
             self.visible_count = 0;
@@ -109,7 +117,7 @@ pub mod h_stack {
                 },
             );
 
-            let spacing = self.spacing.get(ctx.vars).to_layout(ctx, available_size.width, Px(0));
+            let spacing = self.spacing.get(ctx.vars).layout(ctx, available_size.width, Px(0));
 
             ds.width += Px(self.visible_count.saturating_sub(1) as i32) * spacing;
             self.items_width = ds.width;
@@ -125,7 +133,7 @@ pub mod h_stack {
             let spacing = self
                 .spacing
                 .get(ctx.vars)
-                .to_layout(ctx, AvailablePx::Finite(final_size.width), Px(0));
+                .layout(ctx, AvailablePx::Finite(final_size.width), Px(0));
             let align = self.align.copy(ctx);
             let fill_width = align.is_fill_width();
 
@@ -180,6 +188,7 @@ pub mod h_stack {
                 size
             });
         }
+        */
     }
 }
 
@@ -274,6 +283,12 @@ pub mod v_stack {
             }
         }
 
+        fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
+            // TODO !!: reimplement after all others, and after we maybe do the `panel!` base widget?
+            todo!()
+        }
+
+        /*
         fn measure(&mut self, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize {
             let mut ds = PxSize::zero();
             self.visible_count = 0;
@@ -291,7 +306,7 @@ pub mod v_stack {
                 },
             );
 
-            let spacing = self.spacing.get(ctx.vars).to_layout(ctx, available_size.height, Px(0));
+            let spacing = self.spacing.get(ctx.vars).layout(ctx, available_size.height, Px(0));
 
             ds.height += Px(self.visible_count.saturating_sub(1) as i32) * spacing;
             self.items_height = ds.height;
@@ -307,7 +322,7 @@ pub mod v_stack {
             let spacing = self
                 .spacing
                 .get(ctx.vars)
-                .to_layout(ctx, AvailablePx::Finite(final_size.height), Px(0));
+                .layout(ctx, AvailablePx::Finite(final_size.height), Px(0));
             let align = self.align.copy(ctx);
             let fill_height = align.is_fill_height();
             let baseline = align.is_baseline();
@@ -362,6 +377,7 @@ pub mod v_stack {
                 size
             });
         }
+        */
     }
 }
 
@@ -493,6 +509,12 @@ pub mod z_stack {
             }
         }
 
+        fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
+            // TODO !!: reimplement after all others, and after we maybe do the `panel!` base widget?
+            todo!()
+        }
+
+        /*
         fn measure(&mut self, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize {
             let mut ds = PxSize::zero();
             self.children.measure_all(
@@ -521,6 +543,7 @@ pub mod z_stack {
                 bounds.size
             });
         }
+        */
     }
 }
 

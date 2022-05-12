@@ -39,10 +39,12 @@ pub fn background(child: impl UiNode, background: impl UiNode) -> impl UiNode {
     }
     #[impl_ui_node(children)]
     impl<C: UiNodeList> UiNode for BackgroundNode<C> {
-        fn measure(&mut self, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize {
-            let available_size = self.children.widget_measure(1, ctx, available_size);
-            self.children.widget_measure(0, ctx, AvailableSize::finite(available_size));
-            available_size
+        fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
+            size = self.children.widget_layout(1, ctx, wl);
+            ctx.with_available_size(size, |ctx| {
+                self.children.widget_layout(0, ctx, wl);
+            });
+            size
         }
     }
 
@@ -152,10 +154,12 @@ pub fn foreground(child: impl UiNode, foreground: impl UiNode) -> impl UiNode {
     }
     #[impl_ui_node(children)]
     impl<C: UiNodeList> UiNode for ForegroundNode<C> {
-        fn measure(&mut self, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize {
-            let available_size = self.children.widget_measure(0, ctx, available_size);
-            self.children.widget_measure(1, ctx, AvailableSize::finite(available_size));
-            available_size
+        fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
+            let size = self.children.widget_layout(0, ctx, wl);
+            ctx.with_available_size(size, |ctx| {
+                self.children.widget_layout(1, ctx, wl);
+            });
+            size
         }
     }
 
@@ -226,6 +230,13 @@ pub fn foreground_highlight(
                 ctx.updates.render();
             }
         }
+
+        fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
+            // TODO !!: reimplement this after border is working
+            self.child.layout(ctx, wl)
+        }
+
+        /*
         fn arrange(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, final_size: PxSize) {
             self.child.arrange(ctx, widget_layout, final_size);
 
@@ -233,12 +244,12 @@ pub fn foreground_highlight(
             let final_offsets = self
                 .offsets
                 .get(ctx.vars)
-                .to_layout(ctx.metrics, available_size, PxSideOffsets::zero());
+                .layout(ctx.metrics, available_size, PxSideOffsets::zero());
 
             self.final_widths = self
                 .widths
                 .get(ctx.vars)
-                .to_layout(ctx.metrics, available_size, PxSideOffsets::zero());
+                .layout(ctx.metrics, available_size, PxSideOffsets::zero());
 
             let diff = PxSize::new(final_offsets.horizontal(), final_offsets.vertical());
 
@@ -248,6 +259,7 @@ pub fn foreground_highlight(
             self.final_rect.size = final_size - diff;
             self.final_radius = widget_layout.corner_radius();
         }
+        */
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
             self.child.render(ctx, frame);
             frame.with_hit_tests_disabled(|f| {
@@ -377,6 +389,12 @@ pub fn clip_to_bounds(child: impl UiNode, clip: impl IntoVar<bool>) -> impl UiNo
             self.child.update(ctx);
         }
 
+        fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
+            // TODO !!: reimplement this after borders and corners.
+            self.child.layout(ctx, wl)
+        }
+
+        /*
         fn arrange(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, final_size: PxSize) {
             let mut changed = false;
 
@@ -399,6 +417,7 @@ pub fn clip_to_bounds(child: impl UiNode, clip: impl IntoVar<bool>) -> impl UiNo
 
             self.child.arrange(ctx, widget_layout, final_size)
         }
+        */
 
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
             if self.clip.copy(ctx) {

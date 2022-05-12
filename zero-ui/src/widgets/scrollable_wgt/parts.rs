@@ -30,7 +30,7 @@ pub mod scrollbar {
     }
 
     fn new_child(thumb: impl UiNode) -> impl UiNode {
-        implicit_base::nodes::leaf_transform(thumb)
+        thumb // TODO !!: leaf_transform
     }
 
     fn new_layout(child: impl UiNode, orientation: impl IntoVar<Orientation>) -> impl UiNode {
@@ -199,7 +199,9 @@ pub mod thumb {
                 self.child.update(ctx);
             }
 
-            fn arrange(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, final_size: PxSize) {
+            fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
+                let final_size = ctx.available_size().to_px();
+
                 let mut final_offset = self.final_offset;
                 let (px_vp_length, final_offset_d) = match *ThumbOrientationVar::get(ctx) {
                     scrollbar::Orientation::Vertical => (final_size.height, &mut final_offset.y),
@@ -210,7 +212,7 @@ pub mod thumb {
                 let px_tb_length = px_vp_length * ratio;
                 *final_offset_d = (px_vp_length - px_tb_length) * ThumbOffsetVar::get_clone(ctx.vars);
 
-                let fct = ctx.metrics.scale_factor.0;
+                let fct = ctx.metrics.scale_factor().0;
                 self.viewport_length = px_vp_length.to_dip(fct);
                 self.thumb_length = px_tb_length.to_dip(fct);
 
@@ -219,9 +221,9 @@ pub mod thumb {
                     ctx.updates.render_update();
                 }
 
-                widget_layout.with_custom_transform(&RenderTransform::translation_px(self.final_offset), |wo| {
-                    self.child.arrange(ctx, wo, final_size)
-                });
+                // TODO: !! register transform
+
+                self.child.layout(ctx, wl)
             }
 
             fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {

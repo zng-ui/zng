@@ -199,6 +199,12 @@ impl WindowLayers {
                 self.widget.update(ctx);
             }
 
+            fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
+                // TODO !!: reimplement this after image!.
+                self.widget.layout(ctx, wl)
+            }
+
+            /*
             fn measure(&mut self, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize {
                 if let Some((inner, outer, border, _)) = &self.anchor_info {
                     let mode = self.mode.get(ctx.vars);
@@ -239,17 +245,17 @@ impl WindowLayers {
                         self.transform = match &mode.transform {
                             AnchorTransform::None => RenderTransform::identity(),
                             AnchorTransform::InnerOffset(p) => {
-                                let p = p.to_layout(ctx, AvailableSize::finite(inner.size()), PxPoint::zero());
+                                let p = p.layout(ctx, AvailableSize::finite(inner.size()), PxPoint::zero());
                                 let offset = inner.point_in_window(p);
                                 RenderTransform::translation_px(offset.to_vector())
                             }
                             AnchorTransform::InnerBorderOffset(p) => {
-                                let p = p.to_layout(ctx, AvailableSize::finite(inner.size()), PxPoint::zero());
+                                let p = p.layout(ctx, AvailableSize::finite(inner.size()), PxPoint::zero());
                                 let offset = border.inner_point_in_window(inner, p);
                                 RenderTransform::translation_px(offset.to_vector())
                             }
                             AnchorTransform::OuterOffset(p) => {
-                                let p = p.to_layout(ctx, AvailableSize::finite(outer.size()), PxPoint::zero());
+                                let p = p.layout(ctx, AvailableSize::finite(outer.size()), PxPoint::zero());
                                 let offset = outer.point_in_window(p);
                                 RenderTransform::translation_px(offset.to_vector())
                             }
@@ -280,6 +286,7 @@ impl WindowLayers {
 
                 widget_layout.collapse(ctx.info_tree);
             }
+            */
 
             fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
                 if let Some((_, _, _, render_info)) = &self.anchor_info {
@@ -396,18 +403,19 @@ pub fn layers(child: impl UiNode) -> impl UiNode {
             }
         }
 
-        fn measure(&mut self, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize {
-            let mut desired_size = PxSize::zero();
-            self.children.measure_all(
+        fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
+            let mut size = PxSize::zero();
+            self.children.layout_all(
                 ctx,
-                |_, _| available_size,
+                wl,
+                |_, _| LayoutContextConfig::none(),
                 |_, args| {
                     if args.index == 0 {
-                        desired_size = args.desired_size;
+                        size = args.size;
                     }
                 },
             );
-            desired_size
+            size
         }
     }
 

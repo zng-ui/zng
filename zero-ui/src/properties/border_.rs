@@ -46,24 +46,13 @@ pub fn border(child: impl UiNode, widths: impl IntoVar<SideOffsets>, sides: impl
             }
         }
 
-        fn measure(&mut self, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize {
-            self.final_widths = self
-                .widths
-                .get(ctx.vars)
-                .to_layout(ctx.metrics, available_size, PxSideOffsets::zero());
+        fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
+            self.final_widths = self.widths.get(ctx.vars).layout(ctx.metrics, PxSideOffsets::zero());
 
             let diff = PxSize::new(self.final_widths.horizontal(), self.final_widths.vertical());
 
-            self.child.measure(ctx, available_size.sub_px(diff)) + diff
-        }
-
-        fn arrange(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, final_size: PxSize) {
-            let (final_rect, final_radius) = widget_layout.with_border(self.final_widths, final_size, |wl, fs| {
-                self.child.arrange(ctx, wl, fs);
-            });
-
-            self.final_rect = final_rect;
-            self.final_radius = final_radius;
+            // TODO !!: with_border
+            ctx.with_taken_size(diff, |ctx| self.child.layout(ctx, wl))
         }
 
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {

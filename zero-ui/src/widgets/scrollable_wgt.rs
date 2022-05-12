@@ -96,7 +96,7 @@ pub mod scrollable {
     }
 
     fn new_child(content: impl UiNode) -> impl UiNode {
-        implicit_base::nodes::leaf_transform(content)
+        content // TODO !!: leaf_transform
     }
 
     fn new_child_context(child: impl UiNode, mode: impl IntoVar<ScrollMode>, clip_to_viewport: impl IntoVar<bool>) -> impl UiNode {
@@ -117,20 +117,18 @@ pub mod scrollable {
             // +-----------------+---+
             // | 2 - h_scrollbar | 3 | - scrollbar_joiner
             ///+-----------------+---+
-            fn measure(&mut self, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize {
-                let v_scroll = self.children.widget_measure(1, ctx, available_size);
-                let h_scroll = self.children.widget_measure(2, ctx, available_size);
+            fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
+                // measure
+                let v_scroll = self.children.widget_layout(1, ctx, wl);
+                let h_scroll = self.children.widget_layout(2, ctx, wl);
 
                 self.joiner = PxSize::new(v_scroll.width, h_scroll.height);
-                let viewport = self.children.widget_measure(0, ctx, available_size.sub_px(self.joiner));
+                let mut viewport = ctx.with_less_size(self.joiner, |ctx| self.children.widget_layout(0, ctx, wl));
 
-                let _ = self.children.widget_measure(3, ctx, AvailableSize::from_size(self.joiner));
+                let _ = ctx.with_available_size(AvailableSize::from_size(self.joiner), |ctx| self.children.widget_layout(3, ctx, wl));
 
-                available_size.clip(viewport + self.joiner)
-            }
-
-            fn arrange(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, final_size: PxSize) {
-                let mut viewport = final_size - self.joiner;
+                // arrange
+                let final_size = viewport + self.joiner; // TODO !!: review this
                 let content_size = ScrollContentSizeVar::get_clone(ctx);
 
                 if content_size.height > final_size.height {
@@ -148,13 +146,14 @@ pub mod scrollable {
                     ScrollHorizontalContentOverflowsVar::new().set_ne(ctx, false).unwrap();
                 }
 
+                // collapse scrollbars if they take more the 1/3 of the total area.
                 if viewport.width < self.joiner.width * 3.0.fct() {
+                    viewport.width += self.joiner.width;
                     self.joiner.width = Px(0);
-                    viewport.width = final_size.width;
                 }
                 if viewport.height < self.joiner.height * 3.0.fct() {
+                    viewport.height += self.joiner.height;
                     self.joiner.height = Px(0);
-                    viewport.height = final_size.height;
                 }
 
                 if viewport != self.viewport {
@@ -162,21 +161,9 @@ pub mod scrollable {
                     ctx.updates.render();
                 }
 
-                self.children.widget_arrange(0, ctx, widget_layout, self.viewport);
+                // TODO !!: position scrollbars and joiner in layout info?
 
-                let joiner_offset = self.viewport.to_vector();
-                widget_layout.with_custom_transform(&RenderTransform::translation_px(PxVector::new(joiner_offset.x, Px(0))), |wo| {
-                    self.children
-                        .widget_arrange(1, ctx, wo, PxSize::new(self.joiner.width, self.viewport.height))
-                });
-                widget_layout.with_custom_transform(&RenderTransform::translation_px(PxVector::new(Px(0), joiner_offset.y)), |wo| {
-                    self.children
-                        .widget_arrange(2, ctx, wo, PxSize::new(self.viewport.width, self.joiner.height))
-                });
-
-                widget_layout.with_custom_transform(&RenderTransform::translation_px(joiner_offset), |wo| {
-                    self.children.widget_arrange(3, ctx, wo, self.joiner)
-                });
+                self.viewport + self.joiner
             }
 
             fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {

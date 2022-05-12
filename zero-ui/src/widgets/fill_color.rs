@@ -22,11 +22,13 @@ pub fn fill_color(color: impl IntoVar<Rgba>) -> impl UiNode {
                 self.requested_update.set(true);
             }
         }
-        fn arrange(&mut self, ctx: &mut LayoutContext, _: &mut WidgetLayout, final_size: PxSize) {
+        fn layout(&mut self, ctx: &mut LayoutContext, _: &mut WidgetLayout) -> PxSize {
+            let final_size = ctx.available_size().to_px();
             if self.final_size != final_size {
                 self.final_size = final_size;
                 ctx.updates.render();
             }
+            final_size
         }
 
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {

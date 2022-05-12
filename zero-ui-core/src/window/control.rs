@@ -18,9 +18,7 @@ use crate::{
     text::Fonts,
     units::*,
     var::*,
-    widget_info::{
-        UsedWidgetInfoBuilder, WidgetContextInfo, WidgetInfoBuilder, WidgetInfoTree, WidgetLayout, WidgetSubscriptions,
-    },
+    widget_info::{UsedWidgetInfoBuilder, WidgetContextInfo, WidgetInfoBuilder, WidgetInfoTree, WidgetLayout, WidgetSubscriptions},
     window::AutoSize,
     BoxedUiNode, UiNode, WidgetId,
 };
@@ -1308,9 +1306,7 @@ impl ContentCtrl {
                     }
                 }
 
-                let desired_size = WidgetLayout::with_root_widget(ctx, |ctx, wl| {
-                    self.root.layout(ctx, wl)
-                });
+                let desired_size = WidgetLayout::with_root_widget(ctx, |ctx, wl| self.root.layout(ctx, wl));
 
                 let mut final_size = viewport_size;
                 if !skip_auto_size {

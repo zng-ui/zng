@@ -124,7 +124,7 @@ impl Transform {
 
     /// Change `self` to apply a 2d rotation after its transformation.
     pub fn rotate<A: Into<AngleRadian>>(mut self, angle: A) -> Self {
-        self.then_transform(RenderTransform::rotation(0.0, 0.0, -1.0, angle.into().to_layout()));
+        self.then_transform(RenderTransform::rotation(0.0, 0.0, -1.0, angle.into().layout()));
         self
     }
 
@@ -145,7 +145,7 @@ impl Transform {
 
     /// Change `self` to apply a 2d skew after its transformation.
     pub fn skew<X: Into<AngleRadian>, Y: Into<AngleRadian>>(mut self, x: X, y: Y) -> Self {
-        self.then_transform(RenderTransform::skew(x.into().to_layout(), y.into().to_layout()));
+        self.then_transform(RenderTransform::skew(x.into().layout(), y.into().layout()));
         self
     }
     /// Change `self` to apply a ***x*** skew after its transformation.

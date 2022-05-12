@@ -661,9 +661,9 @@ pub fn fill_node(content: impl UiNode) -> impl UiNode {
         }
 
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
-            /* 
+            /*
             let border_offsets = wl.border_offsets();
-            
+
             let border_align = *BorderAlignVar::get(ctx);
             let used_offsets = border_offsets * border_align;
 

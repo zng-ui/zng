@@ -343,10 +343,15 @@ pub fn image_presenter() -> impl UiNode {
             }
         }
 
+        fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
+            // TODO !!: reimplement, wait until most of the others are done
+        }
+
+        /*
         fn measure(&mut self, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize {
             let img_rect = PxRect::from_size(self.img_size);
 
-            let crop = ImageCropVar::get(ctx).to_layout(ctx, AvailableSize::from_size(self.img_size), img_rect);
+            let crop = ImageCropVar::get(ctx).layout(ctx, AvailableSize::from_size(self.img_size), img_rect);
 
             self.measure_img_size = self.img_size;
             self.measure_clip_rect = img_rect.intersection(&crop).unwrap_or_default();
@@ -455,7 +460,7 @@ pub fn image_presenter() -> impl UiNode {
             // 3 - offset to align + user image_offset:
             let mut offset = PxVector::zero();
             offset += align_offset;
-            offset += ImageOffsetVar::get(ctx.vars).to_layout(ctx, AvailableSize::from_size(final_size), PxVector::zero());
+            offset += ImageOffsetVar::get(ctx.vars).layout(ctx, AvailableSize::from_size(final_size), PxVector::zero());
 
             // 4 - adjust clip_rect to clip content to container final_size:
             let top_left_clip = -offset.min(PxVector::zero());
@@ -476,6 +481,7 @@ pub fn image_presenter() -> impl UiNode {
                 ctx.updates.render();
             }
         }
+        */
 
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
             let img = ContextImageVar::get(ctx.vars);

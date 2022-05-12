@@ -146,7 +146,7 @@ pub mod image {
         let node = nodes::image_presenter();
         let node = nodes::image_error_presenter(node);
         let node = nodes::image_loading_presenter(node);
-        implicit_base::nodes::leaf_transform(node)
+        node // TODO !!: leaf_transform
     }
 
     fn new_event(child: impl UiNode, source: impl IntoVar<ImageSource>) -> impl UiNode {

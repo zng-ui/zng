@@ -41,7 +41,7 @@ pub mod rule_line {
             color: color.into_var(),
             style: style.into_var(),
         };
-        implicit_base::nodes::leaf_transform(node)
+        node // TODO !!: leaf_transform
     }
 
     struct LineNode<W, L, O, C, S> {
@@ -77,40 +77,30 @@ pub mod rule_line {
                 ctx.updates.layout();
             }
             if self.color.is_new(ctx) || self.style.is_new(ctx) {
-                ctx.updates.render();
+                ctx.updates.render(); // TODO !!: use render_update for color.
             }
         }
 
-        fn measure(&mut self, ctx: &mut LayoutContext, available_space: AvailableSize) -> PxSize {
-            let default_stroke = Dip::new(1).to_px(ctx.scale_factor.0);
+        fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
+            let default_stroke = Dip::new(1).to_px(ctx.scale_factor().0);
 
-            match *self.orientation.get(ctx) {
+            let bounds = match *self.orientation.get(ctx) {
                 LineOrientation::Horizontal => PxSize::new(
-                    self.length.get(ctx).to_layout(ctx, available_space.width, Px(0)),
-                    self.stroke_thickness
-                        .get(ctx)
-                        .to_layout(ctx, available_space.height, default_stroke),
+                    self.length.get(ctx).layout(ctx.for_x(), Px(0)),
+                    self.stroke_thickness.get(ctx).layout(ctx.for_y(), default_stroke),
                 ),
                 LineOrientation::Vertical => PxSize::new(
-                    self.stroke_thickness
-                        .get(ctx)
-                        .to_layout(ctx, available_space.height, default_stroke),
-                    self.length.get(ctx).to_layout(ctx, available_space.width, Px(0)),
+                    self.stroke_thickness.get(ctx).layout(ctx.for_x(), default_stroke),
+                    self.length.get(ctx).layout(ctx.for_y(), Px(0)),
                 ),
-            }
-        }
-
-        fn arrange(&mut self, ctx: &mut LayoutContext, _: &mut WidgetLayout, final_size: PxSize) {
-            let bounds = if self.length.get(ctx).is_default() {
-                final_size
-            } else {
-                self.measure(ctx, AvailableSize::finite(final_size)).max(final_size)
             };
 
             if bounds != self.bounds {
                 self.bounds = bounds;
                 ctx.updates.render();
             }
+
+            bounds
         }
 
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {

@@ -3,12 +3,13 @@
 use crate::{
     context::{InfoContext, LayoutContext, RenderContext, StateMap, WidgetContext},
     event::EventUpdateArgs,
+    impl_from_and_into_var,
     render::{FrameBuilder, FrameUpdate},
     units::{AvailableSize, PxSize},
     widget_info::{
         WidgetBorderInfo, WidgetInfoBuilder, WidgetLayout, WidgetLayoutInfo, WidgetRenderInfo, WidgetSubscriptions, WidgetTransformBuilder,
     },
-    WidgetId, impl_from_and_into_var,
+    WidgetId,
 };
 #[allow(unused)] // used in docs.
 use crate::{UiNode, Widget};

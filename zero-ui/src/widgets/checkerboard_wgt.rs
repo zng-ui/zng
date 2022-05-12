@@ -29,7 +29,7 @@ pub mod checkerboard {
     }
 
     fn new_child() -> impl UiNode {
-        implicit_base::nodes::leaf_transform(self::node())
+        self::node() // TODO !!: leaf_transform
     }
 }
 
@@ -139,13 +139,12 @@ pub fn node() -> impl UiNode {
             }
         }
 
-        fn arrange(&mut self, ctx: &mut LayoutContext, _: &mut WidgetLayout, final_size: PxSize) {
-            self.final_size = final_size;
-            let available_size = AvailableSize::from_size(final_size);
+        fn layout(&mut self, ctx: &mut LayoutContext, _: &mut WidgetLayout) -> PxSize {
+            self.final_size = ctx.available_size().to_px();
 
-            let tile_size = CheckerboardSizeVar::get(ctx.vars).to_layout(ctx, available_size, PxSize::splat(Px(4)));
+            let tile_size = CheckerboardSizeVar::get(ctx.vars).layout(ctx, PxSize::splat(Px(4)));
 
-            let mut offset = CheckerboardOffsetVar::get(ctx.vars).to_layout(ctx, available_size, PxVector::zero());
+            let mut offset = CheckerboardOffsetVar::get(ctx.vars).layout(ctx, PxVector::zero());
             if offset.x > self.tile_size.width {
                 offset.x /= self.tile_size.width;
             }

@@ -90,12 +90,13 @@ where
         }
     }
     #[UiNode]
-    fn arrange(&mut self, ctx: &mut LayoutContext, _: &mut WidgetLayout, final_size: PxSize) {
+    fn layout(&mut self, ctx: &mut LayoutContext, _: &mut WidgetLayout) -> PxSize {
+        let final_size = ctx.available_size().to_px();
         if self.do_layout || self.final_size != final_size {
             self.do_layout = false;
 
             self.final_size = final_size;
-            self.render_line = self.axis.get(ctx).layout(ctx, AvailableSize::finite(final_size));
+            self.render_line = self.axis.get(ctx).layout(ctx);
 
             let length = self.render_line.length();
 
@@ -109,6 +110,7 @@ where
 
             ctx.updates.render();
         }
+        final_size
     }
     #[UiNode]
     fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
@@ -155,19 +157,27 @@ where
         }
     }
 
-    fn arrange(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, final_size: PxSize) {
+    fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
+        let final_size = ctx.available_size().to_px();
+
         if self.g.final_size != final_size {
             ctx.updates.render();
         }
 
         self.g.final_size = self.render_tile_size;
 
-        let available_size = AvailableSize::finite(final_size);
-        self.render_tile_size = self.tile_size.get(ctx).to_layout(ctx, available_size, final_size);
-        self.render_tile_spacing = self.tile_spacing.get(ctx).to_layout(ctx, available_size, final_size);
-        self.g.arrange(ctx, widget_layout, self.render_tile_size);
+        ctx.with_available_size(AvailableSize::finite(final_size), |ctx| {
+            self.render_tile_size = self.tile_size.get(ctx).layout(ctx, final_size);
+            self.render_tile_spacing = self.tile_spacing.get(ctx).layout(ctx, final_size);
+        });
+
+        ctx.with_available_size(AvailableSize::from_size(self.render_tile_size), |ctx| {
+            self.g.layout(ctx, wl);
+        });
 
         self.g.final_size = final_size;
+
+        final_size
     }
 
     fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {

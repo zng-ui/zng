@@ -170,9 +170,17 @@ pub mod uniform_grid {
                 ctx.updates.layout_and_render();
             }
         }
+
+        #[UiNode]
+        fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
+            // TODO !!: reimplement after all others, and after we maybe do the `panel!` base widget?
+            todo!()
+        }
+
+        /*
         #[UiNode]
         fn measure(&mut self, ctx: &mut LayoutContext, mut available_size: AvailableSize) -> PxSize {
-            let layout_spacing = self.spacing.get(ctx).to_layout(ctx, available_size, PxGridSpacing::zero());
+            let layout_spacing = self.spacing.get(ctx).layout(ctx, available_size, PxGridSpacing::zero());
 
             let (columns, rows) = self.grid_len(ctx.vars, self.children.len());
 
@@ -208,7 +216,7 @@ pub mod uniform_grid {
             let layout_spacing = self
                 .spacing
                 .get(ctx)
-                .to_layout(ctx, AvailableSize::finite(final_size), PxGridSpacing::zero());
+                .layout(ctx, AvailableSize::finite(final_size), PxGridSpacing::zero());
 
             let cell_size = PxSize::new(
                 (final_size.width - layout_spacing.column * Px(columns - 1)) / Px(columns),
@@ -229,6 +237,7 @@ pub mod uniform_grid {
                 cell_size
             });
         }
+        */
         #[UiNode]
         #[allow_(zero_ui::missing_delegate)] // false positive
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
