@@ -2,9 +2,7 @@ use std::{fmt, ops};
 
 use crate::{context::LayoutMetrics, impl_from_and_into_var};
 
-use super::{
-    impl_length_comp_conversions, DipSize, Factor, Factor2d, FactorPercent, LayoutMask, Length, PxSize, Rect, Vector,
-};
+use super::{impl_length_comp_conversions, DipSize, Factor, Factor2d, FactorPercent, LayoutMask, Length, PxSize, Rect, Vector};
 
 /// 2D size in [`Length`] units.
 #[derive(Clone, Default, PartialEq)]

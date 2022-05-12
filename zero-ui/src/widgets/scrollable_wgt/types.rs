@@ -1,6 +1,11 @@
 use std::{cell::Cell, fmt, rc::Rc, time::Duration};
 
-use crate::core::{context::state_key, units::*, var::{*, animation::EasingFn}, widget_info::WidgetInfo};
+use crate::core::{
+    context::state_key,
+    units::*,
+    var::{animation::EasingFn, *},
+    widget_info::WidgetInfo,
+};
 use bitflags::bitflags;
 
 use super::scrollable::properties::SmoothScrollingVar;
@@ -289,9 +294,9 @@ state_key! {
 }
 
 /// Smooth scrolling config.
-/// 
+///
 /// This config can be set by the [`smooth_scrolling`] property.
-/// 
+///
 /// [`smooth_scrolling`]: fn@smooth_scrolling.
 #[derive(Clone)]
 pub struct SmoothScrolling {
@@ -321,7 +326,7 @@ impl SmoothScrolling {
     pub fn new(duration: Duration, easing: impl Fn(EasingTime) -> EasingStep + 'static) -> Self {
         Self {
             duration,
-            easing: easing.into(),
+            easing: Rc::new(easing),
         }
     }
 

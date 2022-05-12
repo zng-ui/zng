@@ -521,7 +521,7 @@ pub trait Widget: UiNode {
     /// Run [`UiNode::layout`] using the [`TestWidgetContext`].
     #[cfg(any(test, doc, feature = "test_util"))]
     #[cfg_attr(doc_nightly, doc(cfg(feature = "test_util")))]
-    fn test_layout(&mut self, ctx: &mut TestWidgetContext) -> PxSize {
+    fn test_layout(&mut self, ctx: &mut TestWidgetContext, config: crate::ui_list::LayoutContextConfig) -> PxSize {
         let font_size = Length::pt_to_px(14.0, 1.0.fct());
         ctx.layout_context(
             font_size,
@@ -530,15 +530,7 @@ pub trait Widget: UiNode {
             1.0.fct(),
             96.0,
             LayoutMask::all(),
-            |ctx| {
-                let outer = self.outer_info().clone();
-                let inner = self.inner_info().clone();
-                let border = self.border_info().clone();
-                let id = self.id();
-                WidgetLayout::with_root_widget(ctx, |ctx, wl| {
-                    self.layout(ctx, wl)
-                })
-            },
+            |ctx| config.with(ctx, |ctx| WidgetLayout::with_root_widget(ctx, |ctx, wl| self.layout(ctx, wl))),
         )
     }
 

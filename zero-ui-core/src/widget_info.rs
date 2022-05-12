@@ -33,10 +33,7 @@ impl WidgetLayout {
     /// Layout the window content.
     ///
     /// Must be called by the owner of the widget tree, usually the window implementer.
-    pub fn with_root_widget(
-        ctx: &mut LayoutContext,
-        f: impl FnOnce(&mut LayoutContext, &mut Self) -> PxSize,
-    ) -> PxSize {
+    pub fn with_root_widget(ctx: &mut LayoutContext, f: impl FnOnce(&mut LayoutContext, &mut Self) -> PxSize) -> PxSize {
         assert!(ctx.path.is_root());
 
         let mut wl = WidgetLayout {
@@ -73,6 +70,7 @@ impl WidgetLayout {
         let size = layout(ctx, self);
 
         let inner = mem::replace(&mut self.inner, parent_inner);
+        self.widget_id = parent_id;
 
         ctx.widget_info.outer.set_size(size);
         ctx.widget_info.inner.set_transform(inner.build(ctx));
@@ -382,9 +380,7 @@ impl WidgetLayoutOld {
 
         let prev_border_offsets = mem::take(&mut self.border_offsets);
 
-        let new_corner_radius = self
-            .ctx_corner_radius
-            .layout(metrics, self.corner_radius);
+        let new_corner_radius = self.ctx_corner_radius.layout(metrics, self.corner_radius);
 
         let prev_corner_radius = mem::replace(&mut self.corner_radius, new_corner_radius);
         self.border_info.set_corner_radius(new_corner_radius);
@@ -416,10 +412,9 @@ impl WidgetLayoutOld {
             }
         }
 
-        let transform_origin = self.transform_origin.layout(
-            metrics,
-            PxPoint::new(final_size.width / 2, final_size.height / 2),
-        );
+        let transform_origin = self
+            .transform_origin
+            .layout(metrics, PxPoint::new(final_size.width / 2, final_size.height / 2));
 
         if transform_origin != PxPoint::zero() {
             let x = transform_origin.x.0 as f32;
@@ -754,6 +749,12 @@ pub struct WidgetContextInfo {
     pub border: WidgetBorderInfo,
     /// Render visibility info.
     pub render: WidgetRenderInfo,
+}
+impl WidgetContextInfo {
+    /// New default.
+    pub fn new() -> Self {
+        Self::default()
+    }
 }
 
 /// A tree of [`WidgetInfo`].

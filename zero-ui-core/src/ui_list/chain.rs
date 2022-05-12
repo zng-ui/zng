@@ -3,10 +3,10 @@ use crate::{
     event::EventUpdateArgs,
     render::{FrameBuilder, FrameUpdate},
     ui_list::{
-        AvailableSizeArgs, FinalSizeArgs, OffsetUiListObserver, UiListObserver, UiNodeList, UiNodeVec, WidgetFilterArgs, WidgetList,
-        WidgetVec,
+        ConfigContextArgs, FinalSizeArgs, LayoutContextConfig, OffsetUiListObserver, UiListObserver, UiNodeList, UiNodeVec,
+        WidgetFilterArgs, WidgetList, WidgetVec,
     },
-    units::{AvailableSize, PxSize},
+    units::PxSize,
     widget_info::{WidgetBorderInfo, WidgetInfoBuilder, WidgetLayout, WidgetLayoutInfo, WidgetRenderInfo, WidgetSubscriptions},
     WidgetId,
 };
@@ -55,19 +55,19 @@ impl<A: WidgetList, B: WidgetList> UiNodeList for WidgetListChain<A, B> {
         self.1.event_all(ctx, args);
     }
 
-    fn layout_all<Av, D>(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout, available_size: Av, final_size: D)
+    fn layout_all<C, D>(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout, mut widget_ctx: C, mut final_size: D)
     where
-        Av: FnMut(&mut LayoutContext, AvailableSizeArgs) -> AvailableSize,
+        C: FnMut(&mut LayoutContext, ConfigContextArgs) -> LayoutContextConfig,
         D: FnMut(&mut LayoutContext, FinalSizeArgs),
     {
-        self.0.layout_all(ctx, wl, &mut available_size, &mut final_size);
+        self.0.layout_all(ctx, wl, &mut widget_ctx, &mut final_size);
         let offset = self.0.len();
         self.1.layout_all(
             ctx,
             wl,
             |ctx, mut args| {
                 args.index += offset;
-                available_size(ctx, args)
+                widget_ctx(ctx, args)
             },
             |ctx, mut args| {
                 args.index += offset;
@@ -82,18 +82,6 @@ impl<A: WidgetList, B: WidgetList> UiNodeList for WidgetListChain<A, B> {
             self.0.widget_layout(index, ctx, wl)
         } else {
             self.1.widget_layout(index - a_len, ctx, wl)
-        }
-    }
-
-    fn widget_outer<F>(&mut self, index: usize, ctx: &mut LayoutContext, wl: &mut WidgetLayout, f: F)
-    where
-        F: FnOnce(&mut LayoutContext, FinalSizeArgs),
-    {
-        let a_len = self.0.len();
-        if index < a_len {
-            self.0.widget_outer(index, ctx, wl, f);
-        } else {
-            self.1.widget_outer(index - a_len, ctx, wl, f);
         }
     }
 
@@ -255,6 +243,18 @@ impl<A: WidgetList, B: WidgetList> WidgetList for WidgetListChain<A, B> {
             self.1.widget_render_info(index - a_len)
         }
     }
+
+    fn widget_outer<F>(&mut self, index: usize, ctx: &mut LayoutContext, wl: &mut WidgetLayout, f: F)
+    where
+        F: FnOnce(&mut LayoutContext, FinalSizeArgs),
+    {
+        let a_len = self.0.len();
+        if index < a_len {
+            self.0.widget_outer(index, ctx, wl, f);
+        } else {
+            self.1.widget_outer(index - a_len, ctx, wl, f);
+        }
+    }
 }
 
 /// Two [`UiNodeList`] lists chained.
@@ -301,19 +301,19 @@ impl<A: UiNodeList, B: UiNodeList> UiNodeList for UiNodeListChain<A, B> {
         self.1.event_all(ctx, args);
     }
 
-    fn layout_all<Av, D>(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout, available_size: Av, final_size: D)
+    fn layout_all<C, D>(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout, mut wgt_ctx: C, mut final_size: D)
     where
-        Av: FnMut(&mut LayoutContext, AvailableSizeArgs) -> AvailableSize,
+        C: FnMut(&mut LayoutContext, ConfigContextArgs) -> LayoutContextConfig,
         D: FnMut(&mut LayoutContext, FinalSizeArgs),
     {
-        self.0.layout_all(ctx, wl, &mut available_size, &mut final_size);
+        self.0.layout_all(ctx, wl, &mut wgt_ctx, &mut final_size);
         let offset = self.0.len();
         self.1.layout_all(
             ctx,
             wl,
             |ctx, mut args| {
                 args.index += offset;
-                available_size(ctx, args)
+                wgt_ctx(ctx, args)
             },
             |ctx, mut args| {
                 args.index += offset;
@@ -328,18 +328,6 @@ impl<A: UiNodeList, B: UiNodeList> UiNodeList for UiNodeListChain<A, B> {
             self.0.widget_layout(index, ctx, wl)
         } else {
             self.1.widget_layout(index - a_len, ctx, wl)
-        }
-    }
-
-    fn widget_outer<F>(&mut self, index: usize, ctx: &mut LayoutContext, wl: &mut WidgetLayout, f: F)
-    where
-        F: FnOnce(&mut LayoutContext, FinalSizeArgs),
-    {
-        let a_len = self.0.len();
-        if index < a_len {
-            self.0.widget_outer(index, ctx, wl, f);
-        } else {
-            self.1.widget_outer(index - a_len, ctx, wl, f);
         }
     }
 

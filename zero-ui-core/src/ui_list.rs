@@ -8,7 +8,7 @@ use crate::{
     widget_info::{
         WidgetBorderInfo, WidgetInfoBuilder, WidgetLayout, WidgetLayoutInfo, WidgetRenderInfo, WidgetSubscriptions, WidgetTransformBuilder,
     },
-    WidgetId,
+    WidgetId, impl_from_and_into_var,
 };
 #[allow(unused)] // used in docs.
 use crate::{UiNode, Widget};
@@ -84,25 +84,21 @@ pub trait UiNodeList: 'static {
 
     /// Calls [`UiNode::layout`] in all widgets in the list, sequentially.
     ///
-    /// # `available_size`
+    /// # `widget_config`
     ///
-    /// The `available_size` parameter is a function that must return the available size for each widget.
+    /// The `widget_config` parameter is a function that must return customs layout context configs to apply for the call of layout for
+    /// each child.
     ///
     /// # `final_size`
     ///
     /// The `final_size` parameter is a function is called with the widget measured size and outer transform builder.
-    fn layout_all<A, D>(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout, available_size: A, final_size: D)
+    fn layout_all<C, D>(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout, widget_cfg: C, final_size: D)
     where
-        A: FnMut(&mut LayoutContext, AvailableSizeArgs) -> AvailableSize,
+        C: FnMut(&mut LayoutContext, ConfigContextArgs) -> LayoutContextConfig,
         D: FnMut(&mut LayoutContext, FinalSizeArgs);
 
     /// Calls [`UiNode::layout`] in only the `index` item.
     fn widget_layout(&mut self, index: usize, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize;
-
-    /// Calls [`WidgetLayout::with_outer`] in only the `index` item.
-    fn widget_outer<F>(&mut self, index: usize, ctx: &mut LayoutContext, wl: &mut WidgetLayout, f: F)
-    where
-        F: FnOnce(&mut LayoutContext, FinalSizeArgs);
 
     /// Calls [`UiNode::render`] in all widgets in the list, sequentially.
     fn render_all(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder);
@@ -118,7 +114,7 @@ pub trait UiNodeList: 'static {
 }
 
 /// Arguments for the closure in [`UiNodeList::layout_all`] that provides the available size for an widget.
-pub struct AvailableSizeArgs<'a> {
+pub struct ConfigContextArgs<'a> {
     /// The widget/node index in the list.
     pub index: usize,
 
@@ -126,6 +122,35 @@ pub struct AvailableSizeArgs<'a> {
     ///
     /// Is `None` for arrange in UI node lists.
     pub state: Option<&'a mut StateMap>,
+}
+
+/// Parameters to set on a layout context for calling layout in a widget item in a [`UiNode::layout_all`] operation.
+#[derive(Default, Debug, Clone)]
+pub struct LayoutContextConfig {
+    /// Available size.
+    pub available_size: Option<AvailableSize>,
+}
+impl LayoutContextConfig {
+    /// New default.
+    pub fn none() -> Self {
+        Self::default()
+    }
+
+    /// Call `f` with the layout context configured.
+    pub fn with<R>(&self, ctx: &mut LayoutContext, f: impl FnOnce(&mut LayoutContext) -> R) -> R {
+        if let Some(av) = self.available_size {
+            ctx.with_available_size(av, f)
+        } else {
+            f(ctx)
+        }
+    }
+}
+impl_from_and_into_var! {
+    fn from(available_size: AvailableSize) -> LayoutContextConfig {
+        LayoutContextConfig {
+            available_size: Some(available_size)
+        }
+    }
 }
 
 /// Arguments for the closure in [`UiNodeList::layout_all`] that received the widget desired size.
@@ -145,72 +170,6 @@ pub struct FinalSizeArgs<'a> {
     ///
     /// Is `None` for layout in UI node lists.
     pub transform: Option<&'a mut WidgetTransformBuilder>,
-}
-impl<'a> FinalSizeArgs<'a> {
-    /// Full widget list implementers can use this method to implement the layout for an widget.
-    pub fn impl_widget_layout(
-        ctx: &mut LayoutContext,
-        wl: &mut WidgetLayout,
-        index: usize,
-        widget: &mut impl Widget,
-        mut final_size: impl FnMut(&mut LayoutContext, FinalSizeArgs),
-    ) {
-        let size = widget.layout(ctx, wl);
-        wl.with_outer(ctx, widget, |ctx, widget, builder| {
-            final_size(
-                ctx,
-                FinalSizeArgs {
-                    index,
-                    state: Some(widget.state_mut()),
-                    size,
-                    transform: Some(builder),
-                },
-            );
-        });
-    }
-
-    // Full widget list implementers can use this method to implement the widget_outer method.
-    pub fn impl_widget_outer(
-        ctx: &mut LayoutContext,
-        wl: &mut WidgetLayout,
-        index: usize,
-        widget: &mut impl Widget,
-        mut final_size: impl FnMut(&mut LayoutContext, FinalSizeArgs),
-    ) {
-        let size = widget.outer_info().size();
-        wl.with_outer(ctx, widget, |ctx, widget, builder| {
-            final_size(
-                ctx,
-                FinalSizeArgs {
-                    index,
-                    state: Some(widget.state_mut()),
-                    size,
-                    transform: Some(builder),
-                },
-            );
-        });
-    }
-
-    /// Ui node only list implementer can use this method to implement the arrange for a node.
-    pub fn impl_node_layout(
-        ctx: &mut LayoutContext,
-        wl: &mut WidgetLayout,
-        index: usize,
-        node: &mut impl UiNode,
-        mut final_size: impl FnMut(&mut LayoutContext, FinalSizeArgs),
-    ) {
-        let size = node.layout(ctx, wl);
-
-        final_size(
-            ctx,
-            FinalSizeArgs {
-                index,
-                state: None,
-                size,
-                transform: None,
-            },
-        );
-    }
 }
 
 /// All [`Widget`] accessible *info*.
@@ -310,6 +269,11 @@ pub trait WidgetList: UiNodeList {
     fn render_filtered<F>(&self, filter: F, ctx: &mut RenderContext, frame: &mut FrameBuilder)
     where
         F: FnMut(WidgetFilterArgs) -> bool;
+
+    /// Calls [`WidgetLayout::with_outer`] in only the `index` widget.
+    fn widget_outer<F>(&mut self, index: usize, ctx: &mut LayoutContext, wl: &mut WidgetLayout, f: F)
+    where
+        F: FnOnce(&mut LayoutContext, FinalSizeArgs);
 }
 
 /// Initialize an optimized [`WidgetList`].

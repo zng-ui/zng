@@ -118,11 +118,8 @@ fn test_trace(node: impl UiNode) {
     wgt.test_update(&mut ctx);
     assert_only_traced!(wgt.state(), "update");
 
-    wgt.test_measure(&mut ctx, l_size);
-    assert_only_traced!(wgt.state(), "measure");
-
-    wgt.test_arrange(&mut ctx, l_size.to_px());
-    assert_only_traced!(wgt.state(), "arrange");
+    wgt.test_layout(&mut ctx, l_size.into());
+    assert_only_traced!(wgt.state(), "layout");
 
     let mut frame = FrameBuilder::new_renderless(FrameId::INVALID, ctx.root_id, 1.0.fct(), Default::default(), None);
     wgt.test_render(&mut ctx, &mut frame);
@@ -214,15 +211,13 @@ pub fn default_no_child() {
     let available_size = AvailableSize::new(1000.into(), 800.into());
 
     // we expect default to fill available space and collapse in infinite spaces.
-    let desired_size = wgt.test_measure(&mut ctx, available_size);
+
+    let desired_size = wgt.test_layout(&mut ctx, available_size.into());
     assert_eq!(desired_size, available_size.to_px());
 
     let available_size = AvailableSize::new(AvailablePx::Infinite, AvailablePx::Infinite);
-    let desired_size = wgt.test_measure(&mut ctx, available_size);
+    let desired_size = wgt.test_layout(&mut ctx, available_size.into());
     assert_eq!(desired_size, PxSize::zero());
-
-    // arrange does nothing, not really anything to test.
-    wgt.test_arrange(&mut ctx, desired_size);
 
     // we expect default to not render anything (except a hit-rect for the window).
     let window_id = WindowId::new_unique();

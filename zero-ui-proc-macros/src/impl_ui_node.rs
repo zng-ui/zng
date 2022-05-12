@@ -343,8 +343,8 @@ fn delegate_list_absents(crate_: TokenStream, user_mtds: HashSet<Ident>, borrow:
         [fn layout(&mut self, ctx: &mut #crate_::context::LayoutContext, wl: &mut #crate_::widget_info::WidgetLayout) -> #crate_::units::PxSize {
             let #children_mut = {#borrow_mut};
             let mut size = #crate_::units::PxSize::zero();
-            #crate_::UiNodeList::layout_all(#deref_mut, ctx, |_, _|available_size, |_, args| {
-                size = size.max(args.desired_size);
+            #crate_::UiNodeList::layout_all(#deref_mut, ctx, wl, |ctx, _|#crate_::ui_list::LayoutContextConfig::none(), |_, args| {
+                size = size.max(args.size);
             });
             size
         }]
@@ -405,7 +405,7 @@ fn delegate_iter_absents(crate_: TokenStream, user_mtds: HashSet<Ident>, iter: E
 
         [fn layout(&mut self, ctx: &mut #crate_::context::LayoutContext, wl: &mut #crate_::widget_info::WidgetLayout) -> #crate_::units::PxSize  {
             let #children_mut = {#iter_mut};
-            #crate_::impl_ui_node_util::IterMutImpl::layout_all(#children_mut, ctx, wl);
+            #crate_::impl_ui_node_util::IterMutImpl::layout_all(#children_mut, ctx, wl)
         }]
 
         [fn render(&self, ctx: &mut #crate_::context::RenderContext, frame: &mut #crate_::render::FrameBuilder) {

@@ -1112,6 +1112,9 @@ impl LayoutMetrics {
         self.use_mask.get()
     }
 
+    /// Register that the node layout depends on these contextual values.
+    /// 
+    /// Note that the value methods already register use when they are used.
     pub fn register_use(&self, mask: LayoutMask) {
         let m = self.use_mask.get();
         self.use_mask.set(m | mask);
@@ -1243,6 +1246,7 @@ impl LayoutMetrics {
 }
 
 /// Represents a [`LayoutMetrics`] with a selected dimension.
+#[derive(Clone, Copy, Debug)]
 pub struct Layout1dMetrics<'m> {
     /// If the selected dimension is *width*, if not it is *height*.
     pub is_width: bool,

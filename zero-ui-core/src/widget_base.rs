@@ -138,9 +138,7 @@ pub mod implicit_base {
             #[impl_ui_node(child)]
             impl<T: UiNode, B: FnMut(&mut LayoutContext, &BaselineArgs) -> Px + 'static> UiNode for InnerNode<T, B> {
                 fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
-                    let final_size = wl.with_inner(ctx, |ctx, wl| {
-                        self.child.layout(ctx, wl)
-                    });
+                    let final_size = wl.with_inner(ctx, |ctx, wl| self.child.layout(ctx, wl));
 
                     self.clip = (final_size, wl.corner_radius());
 
@@ -299,9 +297,7 @@ pub mod implicit_base {
                     }
 
                     let (child_size, updates) = ctx.with_widget(self.id, &self.info, &mut self.state, |ctx| {
-                        wl.with_widget(ctx, |ctx, wl| {
-                            self.child.layout(ctx, wl)
-                        })
+                        wl.with_widget(ctx, |ctx, wl| self.child.layout(ctx, wl))
                     });
                     *self.pending_updates.get_mut() |= updates;
 
@@ -388,7 +384,6 @@ state_key! {
 context_var! {
     struct IsEnabledVar: bool = true;
 }
-
 
 /// Extension method for accessing the [`enabled`](fn@enabled) state in [`WidgetInfo`].
 pub trait WidgetEnabledExt {

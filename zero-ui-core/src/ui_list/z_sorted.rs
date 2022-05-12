@@ -150,27 +150,16 @@ impl<W: WidgetList> UiNodeList for ZSortedWidgetList<W> {
         self.list.event_all(ctx, args)
     }
 
-    fn measure_all<A, D>(&mut self, ctx: &mut LayoutContext, available_size: A, desired_size: D)
+    fn layout_all<C, D>(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout, wgt_ctx: C, final_size: D)
     where
-        A: FnMut(&mut LayoutContext, AvailableSizeArgs) -> AvailableSize,
+        C: FnMut(&mut LayoutContext, ConfigContextArgs) -> LayoutContextConfig,
         D: FnMut(&mut LayoutContext, FinalSizeArgs),
     {
-        self.list.measure_all(ctx, available_size, desired_size)
+        self.list.layout_all(ctx, wl, wgt_ctx, final_size)
     }
 
-    fn widget_measure(&mut self, index: usize, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize {
-        self.list.widget_measure(index, ctx, available_size)
-    }
-
-    fn arrange_all<F>(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, final_size: F)
-    where
-        F: FnMut(&mut LayoutContext, &mut FinalSizeArgs) -> PxSize,
-    {
-        self.list.arrange_all(ctx, widget_layout, final_size)
-    }
-
-    fn widget_arrange(&mut self, index: usize, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, final_size: PxSize) {
-        self.list.widget_arrange(index, ctx, widget_layout, final_size)
+    fn widget_layout(&mut self, index: usize, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
+        self.list.widget_layout(index, ctx, wl)
     }
 
     fn render_all(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
@@ -257,6 +246,13 @@ impl<W: WidgetList> WidgetList for ZSortedWidgetList<W> {
                 }
             }
         }
+    }
+
+    fn widget_outer<F>(&mut self, index: usize, ctx: &mut LayoutContext, wl: &mut WidgetLayout, f: F)
+    where
+        F: FnOnce(&mut LayoutContext, FinalSizeArgs),
+    {
+        self.list.widget_outer(index, ctx, wl, f)
     }
 }
 

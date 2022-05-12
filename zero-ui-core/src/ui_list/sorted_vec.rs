@@ -5,10 +5,10 @@ use crate::{
     event::EventUpdateArgs,
     render::{FrameBuilder, FrameUpdate},
     ui_list::{
-        AvailableSizeArgs, FinalSizeArgs, FinalSizeArgs, UiListObserver, UiNodeList, UiNodeVec, WidgetFilterArgs, WidgetList, WidgetVec,
-        WidgetVecRef,
+        ConfigContextArgs, FinalSizeArgs, LayoutContextConfig, UiListObserver, UiNodeList, UiNodeVec, WidgetFilterArgs, WidgetList,
+        WidgetVec, WidgetVecRef,
     },
-    units::{AvailableSize, PxSize},
+    units::PxSize,
     widget_info::{UpdateSlot, WidgetBorderInfo, WidgetInfoBuilder, WidgetLayout, WidgetLayoutInfo, WidgetRenderInfo, WidgetSubscriptions},
     BoxedWidget, UiNode, Widget, WidgetId,
 };
@@ -317,55 +317,38 @@ impl UiNodeList for SortedWidgetVec {
         }
     }
 
-    fn layout_all<A, D>(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout, available_size: A, final_size: D)
+    fn layout_all<C, D>(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout, mut widget_ctx: C, mut final_size: D)
     where
-            A: FnMut(&mut LayoutContext, AvailableSizeArgs) -> AvailableSize,
-            D: FnMut(&mut LayoutContext, FinalSizeArgs) {
-        
-    }
-
-    fn measure_all<A, D>(&mut self, ctx: &mut LayoutContext, mut available_size: A, mut desired_size: D)
-    where
-        A: FnMut(&mut LayoutContext, AvailableSizeArgs) -> AvailableSize,
+        C: FnMut(&mut LayoutContext, ConfigContextArgs) -> LayoutContextConfig,
         D: FnMut(&mut LayoutContext, FinalSizeArgs),
     {
         for (i, w) in self.vec.iter_mut().enumerate() {
-            let available_size = available_size(
+            let cfg = widget_ctx(
                 ctx,
-                AvailableSizeArgs {
+                ConfigContextArgs {
                     index: i,
                     state: Some(w.state_mut()),
                 },
             );
 
-            let r = w.measure(ctx, available_size);
+            let size = cfg.with(ctx, |ctx| w.layout(ctx, wl));
 
-            desired_size(
-                ctx,
-                FinalSizeArgs {
-                    index: i,
-                    state: Some(w.state_mut()),
-                    desired_size: r,
-                },
-            );
+            wl.with_outer(ctx, w, |ctx, w, transform| {
+                final_size(
+                    ctx,
+                    FinalSizeArgs {
+                        index: i,
+                        state: Some(w.state_mut()),
+                        size,
+                        transform: Some(transform),
+                    },
+                );
+            });
         }
     }
 
-    fn widget_measure(&mut self, index: usize, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize {
-        self.vec[index].measure(ctx, available_size)
-    }
-
-    fn arrange_all<F>(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, mut final_size: F)
-    where
-        F: FnMut(&mut LayoutContext, &mut FinalSizeArgs) -> PxSize,
-    {
-        for (i, w) in self.vec.iter_mut().enumerate() {
-            FinalSizeArgs::impl_widget_layout(ctx, widget_layout, i, w, &mut final_size);
-        }
-    }
-
-    fn widget_arrange(&mut self, index: usize, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, final_size: PxSize) {
-        self.vec[index].arrange(ctx, widget_layout, final_size)
+    fn widget_layout(&mut self, index: usize, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
+        self.vec[index].layout(ctx, wl)
     }
 
     fn info_all(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
@@ -469,6 +452,25 @@ impl WidgetList for SortedWidgetVec {
             }
         }
         count
+    }
+
+    fn widget_outer<F>(&mut self, index: usize, ctx: &mut LayoutContext, wl: &mut WidgetLayout, f: F)
+    where
+        F: FnOnce(&mut LayoutContext, FinalSizeArgs),
+    {
+        let w = &mut self.vec[index];
+        wl.with_outer(ctx, w, |ctx, w, t| {
+            let size = w.outer_info().size();
+            f(
+                ctx,
+                FinalSizeArgs {
+                    index,
+                    state: Some(w.state_mut()),
+                    size,
+                    transform: Some(t),
+                },
+            )
+        });
     }
 }
 impl Drop for SortedWidgetVec {
