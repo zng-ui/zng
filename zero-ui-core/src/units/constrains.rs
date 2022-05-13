@@ -30,6 +30,15 @@ impl PxConstrains {
         Self::default()
     }
 
+    /// Fixed length constrains, both max and min are `px`, fill is false.
+    pub fn fixed(px: Px) -> Self {
+        Self {
+            max: px,
+            min: px,
+            fill: false,
+        }
+    }
+
     /// Returns the length to fill.
     pub fn fill_length(&self) -> Px {
         if self.fill {
