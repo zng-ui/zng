@@ -825,11 +825,13 @@ impl<'a> Deref for LayoutContext<'a> {
     }
 }
 impl<'a> LayoutContext<'a> {
-    /// Runs a function `f` in a layout context that has the new available size.
-    pub fn with_available_size<R>(&mut self, available_size: AvailableSize, f: impl FnOnce(&mut LayoutContext) -> R) -> R {
+    /// Runs a function `f` in a layout context that has the new or modified constrains.
+    /// 
+    /// The `constrains` closure is called to produce the new constrains, the input is the current constrains.
+    pub fn with_constrains<R>(&mut self, constrains: impl FnOnce(PxSizeConstrains) -> PxSizeConstrains, f: impl FnOnce(&mut LayoutContext) -> R) -> R {
         // TODO !!: diff
         f(&mut LayoutContext {
-            metrics: &self.metrics.clone().with_available_size(available_size),
+            metrics: &self.metrics.clone().with_constrains(constrains),
 
             path: self.path,
 
@@ -844,38 +846,14 @@ impl<'a> LayoutContext<'a> {
             updates: self.updates,
         })
     }
-
-    /// Runs a function `f` in a layout context that has the new available width.
-    pub fn with_available_width<R>(&mut self, available_width: AvailablePx, f: impl FnOnce(&mut LayoutContext) -> R) -> R {
-        let mut size = self.peek(|m| m.available_size());
-        size.width = available_width;
-        self.with_available_size(size, f)
-    }
-
-    /// Runs a function `f` in a layout context that has the new available height.
-    pub fn with_available_height<R>(&mut self, available_height: AvailablePx, f: impl FnOnce(&mut LayoutContext) -> R) -> R {
-        let mut size = self.peek(|m| m.available_size());
-        size.height = available_height;
-        self.with_available_size(size, f)
-    }
-
-    /// Runs a function `f` in a layout context that has its available size subtracted by `taken` and its final size added by `taken`.
+   
+    /// Runs a function `f` in a layout context that has its max size subtracted by `taken` and its final size added by `taken`.
     ///
-    /// The available size is only [peeked], this method does not register a layout dependency on the available size.
+    /// The constrains are only [peeked], this method does not register a layout dependency on the constrains.
     ///
     /// [peeked]: LayoutMetrics::peek
     pub fn with_taken_size(&mut self, taken: PxSize, f: impl FnOnce(&mut LayoutContext) -> PxSize) -> PxSize {
-        self.with_less_size(taken, f) + taken
-    }
-
-    /// Runs a function `f` in a layout context that has its available size subtracted by `removed`.
-    ///
-    /// The available size is only [peeked], this method does not register a layout dependency on the available size.
-    ///
-    /// [peeked]: LayoutMetrics::peek
-    pub fn with_less_size(&mut self, removed: PxSize, f: impl FnOnce(&mut LayoutContext) -> PxSize) -> PxSize {
-        let av = self.metrics.peek(|m| m.available_size().sub_px(removed));
-        self.with_available_size(av, f)
+        self.with_constrains(|c|c.with_less_size(taken), f) + taken
     }
 
     /// Runs a function `f` in a layout context that has the new computed font size.
@@ -1083,9 +1061,10 @@ impl<'a> InfoContext<'a> {
 /// The [`LayoutContext`] type dereferences to this one.
 #[derive(Debug, Clone)]
 pub struct LayoutMetrics {
+    // TODO !!: connect this with clone?
     use_mask: Cell<LayoutMask>,
 
-    available_size: AvailableSize,
+    constrains: PxSizeConstrains,
     font_size: Px,
     root_font_size: Px,
     scale_factor: Factor,
@@ -1103,7 +1082,7 @@ impl LayoutMetrics {
     pub fn new(scale_factor: Factor, viewport_size: PxSize, font_size: Px) -> Self {
         LayoutMetrics {
             use_mask: Cell::new(LayoutMask::NONE),
-            available_size: AvailableSize::from_size(viewport_size),
+            constrains: PxSizeConstrains::none().with_max(viewport_size),
             font_size,
             root_font_size: font_size,
             scale_factor,
@@ -1159,10 +1138,10 @@ impl LayoutMetrics {
         r
     }
 
-    /// Current max size allowed.
-    pub fn available_size(&self) -> AvailableSize {
-        self.register_use(LayoutMask::AVAILABLE_SIZE);
-        self.available_size
+    /// Current size constrains.
+    pub fn constrains(&self) -> PxSizeConstrains {
+        self.register_use(LayoutMask::CONSTRAINS);
+        self.constrains
     }
 
     /// Current computed font size.
@@ -1219,30 +1198,14 @@ impl LayoutMetrics {
         self.screen_ppi
     }
 
-    /// Sets the [`available_size`].
+    /// Sets the [`constrains`] to the value returned by `constrains`. The closure input is the current constrains.
     ///
-    /// [`available_size`]: Self::available_size
-    pub fn with_available_size(mut self, available_size: AvailableSize) -> Self {
-        self.available_size = available_size;
+    /// [`constrains`]: Self::constrains
+    pub fn with_constrains(mut self, constrains: impl FnOnce(PxSizeConstrains) -> PxSizeConstrains) -> Self {
+        self.constrains = constrains(self.constrains);
         self
     }
-
-    /// Sets the [`available_size`] width.
-    ///
-    /// [`available_size`]: Self::available_size
-    pub fn with_available_width(mut self, avaiable_width: AvailablePx) -> Self {
-        self.available_size.width = avaiable_width;
-        self
-    }
-
-    /// Sets the [`available_size`] height.
-    ///
-    /// [`available_size`]: Self::available_size
-    pub fn with_available_height(mut self, avaiable_height: AvailablePx) -> Self {
-        self.available_size.height = avaiable_height;
-        self
-    }
-
+    
     /// Sets the [`font_size`].
     ///
     /// [`font_size`]: Self::font_size
@@ -1293,12 +1256,12 @@ pub struct Layout1dMetrics<'m> {
     pub metrics: &'m LayoutMetrics,
 }
 impl<'m> Layout1dMetrics<'m> {
-    /// Available length in the selected dimension.
-    pub fn available_length(&self) -> AvailablePx {
+    /// Length constrains in the selected dimension.
+    pub fn constrains(&self) -> PxConstrains {
         if self.is_width {
-            self.metrics.available_size().width
+            self.metrics.constrains.x_constrains()
         } else {
-            self.metrics.available_size().height
+            self.metrics.constrains.y_constrains()
         }
     }
 

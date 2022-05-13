@@ -178,12 +178,7 @@ impl_from_and_into_var! {
     }
 }
 impl Align {
-    /// Compute a content rectangle given this alignment, the content size and the available size.
-    ///
-    /// To implement alignment, the `content_size` should be measured and recorded in [`UiNode::measure`]
-    /// and then this method called in the [`UiNode::arrange`] with the final container size to get the
-    /// content rectangle that must be recorded and used in [`UiNode::render`] to size and position the content
-    /// in the space of the container.
+    /// Compute a content rectangle given this alignment, the content and container size.
     ///
     /// The `baseline` is a vertical offset up from the `content_size` bottom, usually it `0` meaning the bottom is the baseline,
     /// see also [`WidgetLayout::with_baseline_translate`].

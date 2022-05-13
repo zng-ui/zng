@@ -1296,17 +1296,20 @@ impl ContentCtrl {
             &self.root_info,
             &mut self.root_state,
             |ctx| {
-                let mut available_size = AvailableSize::finite(viewport_size);
-                if !skip_auto_size {
-                    if auto_size.contains(AutoSize::CONTENT_WIDTH) {
-                        available_size.width = AvailablePx::Infinite;
-                    }
-                    if auto_size.contains(AutoSize::CONTENT_HEIGHT) {
-                        available_size.height = AvailablePx::Infinite;
-                    }
-                }
-
-                let desired_size = WidgetLayout::with_root_widget(ctx, |ctx, wl| self.root.layout(ctx, wl));
+                let desired_size = ctx.with_constrains(
+                    |mut c| {
+                        if !skip_auto_size {
+                            if auto_size.contains(AutoSize::CONTENT_WIDTH) {
+                                c = c.with_max_width(Px::MAX).with_fill_x(true);
+                            }
+                            if auto_size.contains(AutoSize::CONTENT_HEIGHT) {
+                                c = c.with_max_height(Px::MAX).with_fill_y(true);
+                            }
+                        }
+                        c
+                    },
+                    |ctx| WidgetLayout::with_root_widget(ctx, |ctx, wl| self.root.layout(ctx, wl)),
+                );
 
                 let mut final_size = viewport_size;
                 if !skip_auto_size {

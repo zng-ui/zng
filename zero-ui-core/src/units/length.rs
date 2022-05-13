@@ -26,7 +26,7 @@ pub enum Length {
     Px(Px),
     /// The exact length in font points.
     Pt(f32),
-    /// Relative to the available size.
+    /// Relative to the fill length.
     Relative(Factor),
     /// Relative to the font-size of the widget.
     Em(Factor),
@@ -367,6 +367,10 @@ impl Length {
     }
 
     /// Compute the length at a context.
+    /// 
+    /// Note that the result is not clamped by the [constrains], they are only used to compute the `Relative` value.
+    /// 
+    /// [constrains]: Layout1dMetrics::length_constrains
     pub fn layout(&self, ctx: Layout1dMetrics, default_value: Px) -> Px {
         use Length::*;
         match self {
@@ -374,7 +378,7 @@ impl Length {
             Dip(l) => l.to_px(ctx.scale_factor().0),
             Px(l) => *l,
             Pt(l) => Self::pt_to_px(*l, ctx.scale_factor()),
-            Relative(f) => ctx.available_length().to_px() * f.0,
+            Relative(f) => ctx.constrains().fill_length() * f.0,
             Em(f) => ctx.font_size() * f.0,
             RootEm(f) => ctx.root_font_size() * f.0,
             ViewportWidth(p) => ctx.viewport_size().width * *p,
@@ -395,7 +399,7 @@ impl Length {
             Dip(_) => LayoutMask::SCALE_FACTOR,
             Px(_) => LayoutMask::NONE,
             Pt(_) => LayoutMask::SCALE_FACTOR,
-            Relative(_) => LayoutMask::AVAILABLE_SIZE,
+            Relative(_) => LayoutMask::CONSTRAINS,
             Em(_) => LayoutMask::FONT_SIZE,
             RootEm(_) => LayoutMask::ROOT_FONT_SIZE,
             ViewportWidth(_) => LayoutMask::VIEWPORT_SIZE,
@@ -468,8 +472,8 @@ bitflags! {
 
         /// The `default_value`.
         const DEFAULT_VALUE = 1 << 31;
-        /// The `available_size`.
-        const AVAILABLE_SIZE = 1 << 30;
+        /// The `constrains`.
+        const CONSTRAINS = 1 << 30;
 
         /// The [`LayoutMetrics::font_size`].
         const FONT_SIZE = 1;
@@ -615,8 +619,8 @@ impl fmt::Display for LengthExpr {
 /// // other length units not provided by `LengthUnits`:
 ///
 /// let exact_size: Length = 500.into();
-/// let available_size: Length = 100.pct().into();// FactorUnits
-/// let available_size: Length = 1.0.fct().into();// FactorUnits
+/// let relative_size: Length = 100.pct().into();// FactorUnits
+/// let relative_size: Length = 1.0.fct().into();// FactorUnits
 /// ```
 pub trait LengthUnits {
     /// Exact size in device independent pixels.

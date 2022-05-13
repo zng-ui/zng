@@ -5,7 +5,7 @@ use crate::{
     event::EventUpdateArgs,
     impl_from_and_into_var,
     render::{FrameBuilder, FrameUpdate},
-    units::{AvailableSize, PxSize},
+    units::{PxSizeConstrains, PxSize},
     widget_info::{
         WidgetBorderInfo, WidgetInfoBuilder, WidgetLayout, WidgetLayoutInfo, WidgetRenderInfo, WidgetSubscriptions, WidgetTransformBuilder,
     },
@@ -128,8 +128,8 @@ pub struct ConfigContextArgs<'a> {
 /// Parameters to set on a layout context for calling layout in a widget item in a [`UiNode::layout_all`] operation.
 #[derive(Default, Debug, Clone)]
 pub struct LayoutContextConfig {
-    /// Available size.
-    pub available_size: Option<AvailableSize>,
+    /// Constrains overwrite.
+    pub constrains: Option<PxSizeConstrains>,
 }
 impl LayoutContextConfig {
     /// New default.
@@ -139,17 +139,17 @@ impl LayoutContextConfig {
 
     /// Call `f` with the layout context configured.
     pub fn with<R>(&self, ctx: &mut LayoutContext, f: impl FnOnce(&mut LayoutContext) -> R) -> R {
-        if let Some(av) = self.available_size {
-            ctx.with_available_size(av, f)
+        if let Some(c) = self.constrains {
+            ctx.with_constrains(|_| c, f)
         } else {
             f(ctx)
         }
     }
 }
 impl_from_and_into_var! {
-    fn from(available_size: AvailableSize) -> LayoutContextConfig {
+    fn from(constrains: PxSizeConstrains) -> LayoutContextConfig {
         LayoutContextConfig {
-            available_size: Some(available_size)
+            constrains: Some(constrains)
         }
     }
 }

@@ -228,8 +228,7 @@ fn no_delegate_absents(crate_: TokenStream, user_mtds: HashSet<Ident>) -> Vec<Im
         [fn event<__EU: #crate_::event::EventUpdateArgs>(&mut self, ctx: &mut #crate_::context::WidgetContext, args: &__EU) { }]
 
         [fn layout(&mut self, ctx: &mut #crate_::context::LayoutContext, wl: &mut #crate_::widget_info::WidgetLayout) -> #crate_::units::PxSize {
-            use #crate_::units::AvailableSizeExt;
-            ctx.metrics.available_size().to_px()
+            ctx.metrics.constrains().fill_size()
         }]
         [fn render(&self, ctx: &mut #crate_::context::RenderContext, frame: &mut #crate_::render::FrameBuilder) { }]
 

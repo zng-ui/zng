@@ -96,13 +96,13 @@ fn test_trace(node: impl UiNode) {
     wgt.test_init(&mut ctx);
     assert_only_traced!(wgt.state(), "init");
 
-    let l_size = AvailableSize::new(1000.into(), 800.into());
+    let l_size = PxSize::new(1000.into(), 800.into());
     let window_id = WindowId::new_unique();
     let mut info = WidgetInfoBuilder::new(
         window_id,
         ctx.root_id,
-        WidgetLayoutInfo::from_size(l_size.to_px()),
-        WidgetLayoutInfo::from_size(l_size.to_px()),
+        WidgetLayoutInfo::from_size(l_size),
+        WidgetLayoutInfo::from_size(l_size),
         WidgetBorderInfo::new(),
         WidgetRenderInfo::new(),
         None,
@@ -118,7 +118,7 @@ fn test_trace(node: impl UiNode) {
     wgt.test_update(&mut ctx);
     assert_only_traced!(wgt.state(), "update");
 
-    wgt.test_layout(&mut ctx, l_size.into());
+    wgt.test_layout(&mut ctx, PxSizeConstrains::none().with_max(l_size).into());
     assert_only_traced!(wgt.state(), "layout");
 
     let mut frame = FrameBuilder::new_renderless(FrameId::INVALID, ctx.root_id, 1.0.fct(), Default::default(), None);
@@ -208,16 +208,18 @@ pub fn default_no_child() {
 
     wgt.test_init(&mut ctx);
 
-    let available_size = AvailableSize::new(1000.into(), 800.into());
+    // we expect default to fill or collapsed depending on the
+    let constrains = PxSizeConstrains::none()
+        .with_min(PxSize::new(Px(1), Px(8)))
+        .with_max(PxSize::new(Px(100), Px(800)))
+        .with_fill(true, true);
 
-    // we expect default to fill available space and collapse in infinite spaces.
+    let desired_size = wgt.test_layout(&mut ctx, constrains.into());
+    assert_eq!(desired_size, constrains.max);
 
-    let desired_size = wgt.test_layout(&mut ctx, available_size.into());
-    assert_eq!(desired_size, available_size.to_px());
-
-    let available_size = AvailableSize::new(AvailablePx::Infinite, AvailablePx::Infinite);
-    let desired_size = wgt.test_layout(&mut ctx, available_size.into());
-    assert_eq!(desired_size, PxSize::zero());
+    let constrains = constrains.with_fill(false, false);
+    let desired_size = wgt.test_layout(&mut ctx, constrains.into());
+    assert_eq!(desired_size, constrains.min);
 
     // we expect default to not render anything (except a hit-rect for the window).
     let window_id = WindowId::new_unique();

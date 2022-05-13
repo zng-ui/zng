@@ -1142,10 +1142,10 @@ impl Filter {
 
     /// Compute a [`RenderFilter`].
     ///
-    /// Most filters convert one-to-one, effects that have a [`Length`] value use the `available_size`
-    /// and layout context to calculate relative values.
+    /// Most filters convert one-to-one, effects that have a [`Length`] value use the 
+    /// layout context to calculate relative values.
     ///
-    /// Relative blur radius lengths are calculated using the `available_size.width` value.
+    /// Relative blur radius lengths are calculated using the `constrains().fill_size().width` value.
     pub fn layout(&self, ctx: &LayoutMetrics) -> RenderFilter {
         self.filters
             .iter()
