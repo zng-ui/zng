@@ -5,7 +5,7 @@ use std::{cell::Cell, fmt, mem, ops, rc::Rc};
 use ego_tree::Tree;
 
 use crate::{
-    border::CornerRadius,
+
     context::{InfoContext, LayoutContext, LayoutMetrics, OwnedStateMap, StateMap, Updates},
     crate_util::{IdMap, IdSet},
     event::EventUpdateArgs,
@@ -28,6 +28,8 @@ unique_id_64! {
 pub struct WidgetLayout {
     widget_id: WidgetId,
     inner: WidgetTransformBuilder,
+    baseline: Px,
+    corner_radius: PxCornerRadius,
 }
 impl WidgetLayout {
     /// Layout the window content.
@@ -39,6 +41,8 @@ impl WidgetLayout {
         let mut wl = WidgetLayout {
             widget_id: ctx.path.widget_id(),
             inner: WidgetTransformBuilder::new(),
+            baseline: Px(0),
+            corner_radius: PxCornerRadius::zero(),
         };
         let size = f(ctx, &mut wl);
 
@@ -66,11 +70,15 @@ impl WidgetLayout {
 
         let parent_id = mem::replace(&mut self.widget_id, ctx.path.widget_id());
         let parent_inner = mem::replace(&mut self.inner, WidgetTransformBuilder::new());
+        let parent_baseline = mem::take(&mut self.baseline);
+        let parent_corner_radius = mem::take(&mut self.corner_radius);
 
         let size = layout(ctx, self);
 
         let inner = mem::replace(&mut self.inner, parent_inner);
         self.widget_id = parent_id;
+        self.baseline = parent_baseline;
+        self.corner_radius = parent_corner_radius;
 
         ctx.widget_info.outer.set_size(size);
         ctx.widget_info.inner.set_transform(inner.build(ctx));
@@ -109,9 +117,66 @@ impl WidgetLayout {
         r
     }
 
-    /// Returns the corner radius set for the widget.
-    pub fn corner_radius(&self) -> PxCornerRadius {
+
+    /// Returns the combined offsets of all borders applied to the current widget.
+    pub fn border_offsets(&self) -> PxSideOffsets {
         todo!()
+    }
+
+    /// Returns the corner radius for the widget inner bounds.
+    /// 
+    /// This is the first corner radius computed for the widget, each added border delates it, see [`corner_radius`].
+    /// 
+    /// [`corner_radius`]: Self::corner_radius
+    pub fn wgt_corner_radius(&self) -> PxCornerRadius {
+        // TODO !!: problem, we want to compute the `CornerRadius` relative to the inner size, but it also
+        // needs to be available for the inner properties.
+        todo!()
+    }
+
+    /// Returns the corner radius for the current border.
+    /// 
+    /// This is the same value as [`bounds_corner_radius`] at first, but each border deflates it by their offsets,
+    /// this way nested borders perfectly fit inside each other.
+    pub fn corner_radius(&self) -> PxCornerRadius {
+        self.corner_radius
+    }
+
+    pub fn with_border(&self, offsets: PxSideOffsets) {
+
+    }
+
+    /// Returns the offset up-from the widget inner bounds that is the baseline of the widget.
+    pub fn baseline(&self) -> Px {
+        self.baseline
+    }
+
+    /// Set the [`baseline`] offset for the current widget.
+    /// 
+    /// This should be called before layout of child nodes or only in an inner nodes, layout nodes expect this value to be
+    /// up-to-date after the layout their child node when they call [`translate_baseline`].
+    /// 
+    /// [`baseline`]: Self::baseline
+    /// [`translate_baseline`]: Self::translate_baseline
+    pub fn set_baseline(&mut self, baseline: Px) {
+        #[cfg(debug_assertions)]
+        if self.baseline != Px(0) {
+            tracing::warn!("baseline already set for {:?}", self.widget_id);
+        }
+
+        self.baseline = baseline;
+    }
+
+    /// Applies the [`baseline`] as a translation down on the widget's inner transform.
+    /// 
+    /// This should only be called by layout nodes after layout of their child node, other nodes [`set_baseline`] in the 
+    /// preview route or only in inner nodes.
+    /// 
+    /// [`baseline`]: Self::baseline
+    /// [`set_baseline`]: Self::set_baseline
+    pub fn translate_baseline(&mut self) {
+        let offset = PxVector::new(Px(0), self.baseline);
+        self.translate(offset);
     }
 
     /// Collapse the layout of `self` and descendants, the size is set to zero and the transform to identity.
@@ -148,6 +213,8 @@ impl ops::DerefMut for WidgetLayout {
 }
 
 /// Write access to an widget transform.
+/// 
+/// See [`WidgetLayout`] for more details.
 pub struct WidgetTransformBuilder {
     transform: RenderTransform,
     origin: Point,
@@ -193,355 +260,6 @@ impl WidgetTransformBuilder {
         }
 
         transform
-    }
-}
-
-/// Represents the in-progress layout arrange pass for an widget.
-pub struct WidgetLayoutOld {
-    global_transform: RenderTransform,
-
-    widget_id: WidgetId,
-    is_leaf: bool,
-    parent_translate: PxVector,
-    translate_baseline: bool,
-    transform: RenderTransform,
-    transform_origin: Point,
-    inner_info: WidgetLayoutInfo,
-    border_info: WidgetBorderInfo,
-
-    border_offsets: PxSideOffsets,
-    corner_radius: PxCornerRadius,
-    ctx_corner_radius: CornerRadius,
-}
-impl WidgetLayoutOld {
-    /// Start the layout arrange pass from the window root widget.
-    pub fn with_root_widget<R>(
-        root_id: WidgetId,
-        outer_info: &WidgetLayoutInfo,
-        inner_info: &WidgetLayoutInfo,
-        border_info: &WidgetBorderInfo,
-        final_size: PxSize,
-        f: impl FnOnce(&mut Self) -> R,
-    ) -> R {
-        let mut self_ = Self {
-            global_transform: RenderTransform::identity(),
-            widget_id: root_id,
-            is_leaf: false,
-            parent_translate: PxVector::zero(),
-            translate_baseline: false,
-            transform: RenderTransform::identity(),
-            transform_origin: Point::center(),
-            inner_info: inner_info.clone(),
-            border_info: border_info.clone(),
-
-            border_offsets: PxSideOffsets::zero(),
-            corner_radius: PxCornerRadius::zero(),
-            ctx_corner_radius: CornerRadius::default(),
-        };
-        self_.with_widget(root_id, outer_info, inner_info, border_info, final_size, f)
-    }
-
-    /// Mark the widget outer-boundaries.
-    ///
-    /// Must be called in the widget `new`, the [`implicit_base::new`] node does this.
-    ///
-    /// [`implicit_base::new`]: crate::widget_base::implicit_base::new
-    pub fn with_widget<R>(
-        &mut self,
-        widget_id: WidgetId,
-        outer_info: &WidgetLayoutInfo,
-        inner_info: &WidgetLayoutInfo,
-        border_info: &WidgetBorderInfo,
-        final_size: PxSize,
-        f: impl FnOnce(&mut Self) -> R,
-    ) -> R {
-        self.is_leaf = false;
-
-        outer_info.set_size(final_size);
-        // includes offsets from properties line "content_align".
-        outer_info.set_transform(self.global_transform.then_translate(euclid::vec3(
-            self.parent_translate.x.0 as f32,
-            self.parent_translate.y.0 as f32,
-            0.0,
-        )));
-
-        let pre_widget_id = mem::replace(&mut self.widget_id, widget_id);
-        let pre_inner_info = mem::replace(&mut self.inner_info, inner_info.clone());
-        let pre_border_info = mem::replace(&mut self.border_info, border_info.clone());
-
-        let r = f(self);
-
-        self.inner_info = pre_inner_info;
-        self.border_info = pre_border_info;
-        self.widget_id = pre_widget_id;
-
-        r
-    }
-
-    /// Set the frame of reference as the `transform` inside the previous transform, all inner bounds and widgets are
-    /// resolved in the new transform space.
-    ///
-    /// Nodes that declare [reference frames] during render must also use this method.
-    ///
-    /// [reference frames]: crate::render::FrameBuilder::push_reference_frame
-    pub fn with_custom_transform<R>(&mut self, transform: &RenderTransform, f: impl FnOnce(&mut Self) -> R) -> R {
-        let global_transform = transform.then(&self.global_transform);
-        let prev_global_transform = mem::replace(&mut self.global_transform, global_transform);
-        let r = f(self);
-        self.global_transform = prev_global_transform;
-        r
-    }
-
-    /// Adds to a translate transform that will be applied to the next inner bounds such that
-    /// it moves the widget in the space of the parent widget and not in the transformed space of the widget.
-    ///
-    /// Panel widgets should use this method to position their children widgets, it saves on the need to declare a custom
-    /// transform for each child as it uses the child's own layout transform without being affected by it.
-    pub fn with_parent_translate(&mut self, offset: PxVector, f: impl FnOnce(&mut Self)) {
-        self.parent_translate += offset;
-        f(self);
-        self.parent_translate -= offset;
-    }
-
-    /// Multiply the transform that will be applied to the next inner bounds by `transform`.
-    pub fn with_inner_transform(&mut self, transform: &RenderTransform, f: impl FnOnce(&mut Self)) {
-        let transform = self.transform.then(transform);
-        let prev_transform = mem::replace(&mut self.transform, transform);
-        f(self);
-        self.transform = prev_transform;
-    }
-
-    /// Sets the *center point* of the inner transform that will be applied to the next inner bounds.
-    ///
-    /// The `origin` will be resolved in the layout context of the un-transformed inner size.
-    pub fn with_inner_transform_origin(&mut self, origin: &Point, f: impl FnOnce(&mut Self)) {
-        let prev_origin = mem::replace(&mut self.transform_origin, origin.clone());
-        f(self);
-        self.transform_origin = prev_origin;
-    }
-
-    /// Collapse the layout of `self` and descendants, the size is set to zero and the transform to identity.
-    ///
-    /// Nodes that set the visibility to the equivalent of [`Collapsed`] must skip measuring descendants and return [`PxSize::zero`] as
-    /// the desired size, and they must skip arranging descendants an instead call this method, it updates all the descendant
-    /// bounds information to be a zero-sized point at the current transform.
-    ///
-    /// [`Collapsed`]: Visibility::Collapsed
-    pub fn collapse(&mut self, info_tree: &WidgetInfoTree) {
-        if let Some(w) = info_tree.find(self.widget_id) {
-            for w in w.self_and_descendants() {
-                w.info().outer_info.set_size(PxSize::zero());
-                w.info().outer_info.set_transform(RenderTransform::identity());
-                w.info().inner_info.set_size(PxSize::zero());
-                w.info().inner_info.set_transform(RenderTransform::identity());
-            }
-        } else {
-            tracing::error!("collapse did not find `{}` in the info tree", self.widget_id)
-        }
-    }
-
-    /// Signal the first [`with_inner`] call inside `f` to apply the baseline offset as a translation *down*.
-    ///
-    /// Alignment properties must align bottom and call this method to implement [`Align::BASELINE`] as they are *layout*
-    /// properties and baselines are defined after *size*.
-    ///
-    /// [`with_inner`]: Self::with_inner
-    pub fn with_baseline_translate(&mut self, translate_baseline: bool, f: impl FnOnce(&mut Self)) {
-        let prev_translate_baseline = mem::replace(&mut self.translate_baseline, translate_baseline);
-        f(self);
-        self.translate_baseline = prev_translate_baseline;
-    }
-
-    /// Mark the widget inner-boundaries and reset the border offsets.
-    ///
-    /// Must be called in the widget `new_border`, the [`implicit_base::new_border`] node does this.
-    ///
-    /// The `baseline` is an offset up from the `final_size` bottom, most widgets can pass `0` here, making their baseline
-    /// the bottom line.
-    ///
-    /// Returns the inner transform in the space of the outer bounds, the `new_inner` node must pass this value to [`FrameBuilder::push_inner`].
-    ///
-    /// [`implicit_base::new_border`]: crate::widget_base::implicit_base::new_border
-    /// [`FrameBuilder::push_inner`]: crate::render::FrameBuilder::push_inner
-    pub fn with_inner(&mut self, metrics: &LayoutMetrics, final_size: PxSize, baseline: Px, f: impl FnOnce(&mut Self)) -> RenderTransform {
-        self.inner_info.set_baseline(baseline);
-
-        let transform = self.compute_inner(metrics, final_size);
-
-        let global_transform = transform.then(&self.global_transform);
-        let prev_global_transform = mem::replace(&mut self.global_transform, global_transform);
-
-        self.inner_info.set_size(final_size);
-        self.inner_info.set_transform(self.global_transform);
-
-        let prev_pre_translate = mem::take(&mut self.parent_translate);
-        let prev_transform = mem::take(&mut self.transform);
-        let prev_transform_origin = mem::replace(&mut self.transform_origin, Point::center());
-
-        let prev_border_offsets = mem::take(&mut self.border_offsets);
-
-        let new_corner_radius = self.ctx_corner_radius.layout(metrics, self.corner_radius);
-
-        let prev_corner_radius = mem::replace(&mut self.corner_radius, new_corner_radius);
-        self.border_info.set_corner_radius(new_corner_radius);
-
-        let prev_translate_baseline = mem::take(&mut self.translate_baseline);
-
-        f(self);
-
-        self.border_info.set_offsets(self.border_offsets);
-        self.translate_baseline = prev_translate_baseline;
-        self.border_offsets = prev_border_offsets;
-        self.corner_radius = prev_corner_radius;
-        self.parent_translate = prev_pre_translate;
-        self.transform = prev_transform;
-        self.transform_origin = prev_transform_origin;
-
-        self.global_transform = prev_global_transform;
-
-        transform
-    }
-
-    fn compute_inner(&self, metrics: &LayoutMetrics, final_size: PxSize) -> RenderTransform {
-        let mut transform = self.transform;
-
-        if self.translate_baseline {
-            let baseline = self.inner_info.baseline();
-            if baseline != Px(0) {
-                transform = transform.pre_translate_px(PxVector::new(Px(0), baseline));
-            }
-        }
-
-        let transform_origin = self
-            .transform_origin
-            .layout(metrics, PxPoint::new(final_size.width / 2, final_size.height / 2));
-
-        if transform_origin != PxPoint::zero() {
-            let x = transform_origin.x.0 as f32;
-            let y = transform_origin.y.0 as f32;
-            transform = RenderTransform::translation(-x, -y, 0.0)
-                .then(&transform)
-                .then_translate(euclid::vec3(x, y, 0.0));
-        }
-
-        if self.parent_translate != PxVector::zero() {
-            transform = transform.then(&RenderTransform::translation_px(self.parent_translate));
-        }
-
-        transform
-    }
-
-    /// Current applied transform in the window space.
-    pub fn global_transform(&self) -> RenderTransform {
-        self.global_transform
-    }
-
-    /// Current accumulated border offsets.
-    pub fn border_offsets(&self) -> PxSideOffsets {
-        self.border_offsets
-    }
-
-    /// Current corner radius set by [`with_corner_radius`].
-    ///
-    /// [`with_corner_radius`]: Self::with_corner_radius
-    pub fn ctx_corner_radius(&self) -> &CornerRadius {
-        &self.ctx_corner_radius
-    }
-
-    /// Current corner radius set by [`with_corner_radius`] and deflated by [`with_border`].
-    ///
-    /// [`with_corner_radius`]: Self::with_corner_radius
-    /// [`with_border`]: Self::with_border
-    pub fn corner_radius(&self) -> PxCornerRadius {
-        self.corner_radius
-    }
-
-    /// Sets the corner radius that will affect the next inner borders.
-    ///
-    /// In the first [`with_inner`] call inside `f` the `corners` will be evaluated and become the new
-    /// base corner radius, after each [`with_border`] the `corners` value will be deflated to fit inside the *outer* border.
-    /// The [`Default`] value in `corners` means the parent corner radius.
-    ///
-    /// [`with_inner`]: Self::with_inner
-    /// [`with_border`]: Self::with_border
-    /// [`Default`]: crate::units::Length::Default
-    pub fn with_corner_radius<R>(&mut self, corners: &CornerRadius, f: impl FnOnce(&mut Self) -> R) -> R {
-        let prev_ctx_corner_radius = mem::replace(&mut self.ctx_corner_radius, corners.clone());
-
-        let r = f(self);
-
-        self.ctx_corner_radius = prev_ctx_corner_radius;
-
-        r
-    }
-
-    /// Overrides the parent corner radius that will affect the next inner borders.
-    ///
-    /// Inside `f` corner radius [`Default`] will evaluate to `corners` instead of the parent value.
-    ///
-    /// [`Default`]: crate::units::Length::Default
-    pub fn with_base_corner_radius(&mut self, corners: PxCornerRadius, f: impl FnOnce(&mut Self)) {
-        let prev_corner_radius = mem::replace(&mut self.corner_radius, corners);
-
-        f(self);
-
-        self.corner_radius = prev_corner_radius;
-    }
-
-    /// Adds to the accumulated border offsets, deflates the corner radius for the next inner border or content clip,
-    /// applies the top-left offsets as [`with_parent_translate`] and calculate the final size to pass to the node child.
-    ///
-    /// Returns the border final rectangle and corner radius, values that can be used in [`push_border`] to render the border
-    /// in the correct position.
-    ///
-    /// [`with_parent_translate`]: Self::with_parent_translate
-    /// [`push_border`]: crate::render::FrameBuilder::push_border
-    pub fn with_border(
-        &mut self,
-        offsets: PxSideOffsets,
-        final_size: PxSize,
-        f: impl FnOnce(&mut Self, PxSize),
-    ) -> (PxRect, PxCornerRadius) {
-        let o = self.border_offsets;
-        let c = self.corner_radius;
-        self.border_offsets.top += offsets.top;
-        self.border_offsets.right += offsets.right;
-        self.border_offsets.bottom += offsets.bottom;
-        self.border_offsets.left += offsets.left;
-        self.corner_radius = c.deflate(offsets);
-
-        let diff = PxSize::new(offsets.horizontal(), offsets.vertical());
-
-        self.with_parent_translate(PxVector::new(offsets.left, offsets.top), |wl| {
-            f(wl, final_size - diff);
-        });
-
-        self.border_offsets = o;
-        self.corner_radius = c;
-
-        (
-            PxRect::new(PxPoint::new(self.border_offsets.left, self.border_offsets.top), final_size),
-            c,
-        )
-    }
-
-    /// Calls a closure that delegates measure to a child node, if no inner widget consumes the pending transforms converts
-    /// then to a custom transform that is returned and must be rendered.
-    ///
-    /// This method is useful for implementing container widgets that want to host both any `UiNode` and a full `Widget` as content.
-    pub fn leaf_transform(&mut self, metrics: &LayoutMetrics, final_size: PxSize, f: impl FnOnce(&mut Self)) -> Option<RenderTransform> {
-        let prev_is_leaf = mem::replace(&mut self.is_leaf, true);
-
-        f(self);
-
-        if mem::replace(&mut self.is_leaf, prev_is_leaf)
-            && (self.parent_translate != PxVector::zero() || self.transform != RenderTransform::identity())
-        {
-            // is leaf and has pending transforms.
-            Some(self.compute_inner(metrics, final_size))
-        } else {
-            None
-        }
     }
 }
 

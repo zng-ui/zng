@@ -29,6 +29,8 @@
 * The global transform of an widget outer and inner regions must be available in info, before render.
 
 * The border "padding" and corner radius mut be available in info.
+  - Can we remove the border and radius stuff from the WidgetLayout?
+    - Trying now `ContextBorders`.
 * The border info of parent must be available for children, they adjust their own corner-radius to fit.
 ```rust
 impl UiNode for BorderNode {
