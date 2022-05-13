@@ -91,7 +91,7 @@ where
     }
     #[UiNode]
     fn layout(&mut self, ctx: &mut LayoutContext, _: &mut WidgetLayout) -> PxSize {
-        let final_size = ctx.available_size().to_px();
+        let final_size = ctx.constrains().fill_size();
         if self.do_layout || self.final_size != final_size {
             self.do_layout = false;
 
@@ -100,12 +100,16 @@ where
 
             let length = self.render_line.length();
 
-            self.stops.get(ctx).layout_linear(
-                AvailablePx::Finite(length),
-                ctx,
-                *self.extend_mode.get(ctx),
-                &mut self.render_line,
-                &mut self.render_stops,
+            ctx.with_constrains(
+                |c| c.with_width_fill(length),
+                |ctx| {
+                    self.stops.get(ctx).layout_linear(
+                        ctx.for_x(),
+                        *self.extend_mode.get(ctx),
+                        &mut self.render_line,
+                        &mut self.render_stops,
+                    )
+                },
             );
 
             ctx.updates.render();
@@ -158,7 +162,7 @@ where
     }
 
     fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
-        let final_size = ctx.available_size().to_px();
+        let final_size = ctx.constrains().fill_size();
 
         if self.g.final_size != final_size {
             ctx.updates.render();
@@ -166,14 +170,15 @@ where
 
         self.g.final_size = self.render_tile_size;
 
-        ctx.with_available_size(AvailableSize::finite(final_size), |ctx| {
-            self.render_tile_size = self.tile_size.get(ctx.vars).layout(ctx.metrics, final_size);
-            self.render_tile_spacing = self.tile_spacing.get(ctx.vars).layout(ctx.metrics, final_size);
-        });
+        self.render_tile_size = self.tile_size.get(ctx.vars).layout(ctx.metrics, final_size);
+        self.render_tile_spacing = self.tile_spacing.get(ctx.vars).layout(ctx.metrics, final_size);
 
-        ctx.with_available_size(AvailableSize::from_size(self.render_tile_size), |ctx| {
-            self.g.layout(ctx, wl);
-        });
+        ctx.with_constrains(
+            |c| c.with_max_fill(self.render_tile_size),
+            |ctx| {
+                self.g.layout(ctx, wl);
+            },
+        );
 
         self.g.final_size = final_size;
 

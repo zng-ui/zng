@@ -826,9 +826,13 @@ impl<'a> Deref for LayoutContext<'a> {
 }
 impl<'a> LayoutContext<'a> {
     /// Runs a function `f` in a layout context that has the new or modified constrains.
-    /// 
+    ///
     /// The `constrains` closure is called to produce the new constrains, the input is the current constrains.
-    pub fn with_constrains<R>(&mut self, constrains: impl FnOnce(PxSizeConstrains) -> PxSizeConstrains, f: impl FnOnce(&mut LayoutContext) -> R) -> R {
+    pub fn with_constrains<R>(
+        &mut self,
+        constrains: impl FnOnce(PxSizeConstrains) -> PxSizeConstrains,
+        f: impl FnOnce(&mut LayoutContext) -> R,
+    ) -> R {
         // TODO !!: diff
         f(&mut LayoutContext {
             metrics: &self.metrics.clone().with_constrains(constrains),
@@ -846,14 +850,14 @@ impl<'a> LayoutContext<'a> {
             updates: self.updates,
         })
     }
-   
+
     /// Runs a function `f` in a layout context that has its max size subtracted by `taken` and its final size added by `taken`.
     ///
     /// The constrains are only [peeked], this method does not register a layout dependency on the constrains.
     ///
     /// [peeked]: LayoutMetrics::peek
     pub fn with_taken_size(&mut self, taken: PxSize, f: impl FnOnce(&mut LayoutContext) -> PxSize) -> PxSize {
-        self.with_constrains(|c|c.with_less_size(taken), f) + taken
+        self.with_constrains(|c| c.with_less_size(taken), f) + taken
     }
 
     /// Runs a function `f` in a layout context that has the new computed font size.
@@ -880,6 +884,13 @@ impl<'a> LayoutContext<'a> {
     }
 
     /// Runs a function `f` in the layout context of a widget.
+    /// 
+    /// Automatically checks if the outer or inner transforms changed, if they did requests a [`render_update`], widget
+    /// implementers must render these transforms using a frame binding.
+    /// 
+    /// Returns the closure `f` result and the updates requested by it.
+    /// 
+    /// [`render_update`]: Updates::render_update
     pub fn with_widget<R>(
         &mut self,
         widget_id: WidgetId,
@@ -893,6 +904,9 @@ impl<'a> LayoutContext<'a> {
         self.path.push(widget_id);
 
         let prev_updates = self.updates.enter_widget_ctx();
+
+        let outer_transform = widget_info.outer.transform();
+        let inner_transform = widget_info.inner.transform();
 
         let r = self.vars.with_widget(widget_id, || {
             f(&mut LayoutContext {
@@ -913,6 +927,10 @@ impl<'a> LayoutContext<'a> {
         });
 
         self.path.pop();
+
+        if outer_transform != widget_info.outer.transform() || inner_transform != widget_info.inner.transform() {
+            self.updates.render_update();
+        }
 
         (r, self.updates.exit_widget_ctx(prev_updates))
     }
@@ -1205,7 +1223,7 @@ impl LayoutMetrics {
         self.constrains = constrains(self.constrains);
         self
     }
-    
+
     /// Sets the [`font_size`].
     ///
     /// [`font_size`]: Self::font_size

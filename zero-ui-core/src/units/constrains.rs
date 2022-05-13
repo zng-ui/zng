@@ -67,7 +67,7 @@ impl PxConstrains {
         self.max -= removed;
         self.min = self.min.min(self.max);
         self
-    } 
+    }
 }
 
 /// Constrains on a pixel size.
@@ -153,10 +153,16 @@ impl PxSizeConstrains {
         }
     }
 
-    /// Returns a constrain with `max` size.
+    /// Returns a constrain with `max` size and `min` adjusted to be less-or-equal to `max`.
     pub fn with_max(mut self, max: PxSize) -> Self {
         self.max = max;
+        self.min = self.min.min(self.max);
         self
+    }
+
+    /// Returns a constrain with `max` size, `min` adjusted to be less-or-equal to `max` and fill set to both.
+    pub fn with_max_fill(self, max: PxSize) -> Self {
+        self.with_max(max).with_fill(true, true)
     }
 
     /// Returns a constrain with `min` size.
@@ -165,16 +171,28 @@ impl PxSizeConstrains {
         self
     }
 
-    /// Returns a constrain with `max.width` size.
+    /// Returns a constrain with `max.width` size and `min.width` adjusted to be less-or-equal to `max.width`.
     pub fn with_max_width(mut self, max_width: Px) -> Self {
         self.max.width = max_width;
+        self.min.width = self.min.width.min(self.max.width);
         self
     }
 
-    /// Returns a constrain with `max.height` size.
+    /// Returns a constrain with `max.width` size, `min.width` adjusted to be less-or-equal to `max.width` and `fill.x` set.
+    pub fn with_width_fill(self, max_width: Px) -> Self {
+        self.with_max_width(max_width).with_fill_x(true)
+    }
+
+    /// Returns a constrain with `max.height` size and `min.height` adjusted to be less-or-equal to `max.height`.
     pub fn with_max_height(mut self, max_height: Px) -> Self {
         self.max.height = max_height;
+        self.min.height = self.min.height.min(self.max.height);
         self
+    }
+
+    /// Returns a constrain with `max.height` size, `min.height` adjusted to be less-or-equal to `max.height` and `fill.y` set.
+    pub fn with_height_fill(self, max_height: Px) -> Self {
+        self.with_max_height(max_height).with_fill_y(true)
     }
 
     /// Returns a constrain with `min.width` size.

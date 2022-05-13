@@ -23,7 +23,7 @@ pub fn fill_color(color: impl IntoVar<Rgba>) -> impl UiNode {
             }
         }
         fn layout(&mut self, ctx: &mut LayoutContext, _: &mut WidgetLayout) -> PxSize {
-            let final_size = ctx.available_size().to_px();
+            let final_size = ctx.constrains().fill_size();
             if self.final_size != final_size {
                 self.final_size = final_size;
                 ctx.updates.render();

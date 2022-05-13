@@ -1142,7 +1142,7 @@ impl Filter {
 
     /// Compute a [`RenderFilter`].
     ///
-    /// Most filters convert one-to-one, effects that have a [`Length`] value use the 
+    /// Most filters convert one-to-one, effects that have a [`Length`] value use the
     /// layout context to calculate relative values.
     ///
     /// Relative blur radius lengths are calculated using the `constrains().fill_size().width` value.

@@ -27,7 +27,7 @@ pub struct ResolvedText {
     pub reshape: bool,
 
     /// Baseline set by `layout_text` during measure and used by `new_border` during arrange.
-    baseline: Cell<Px>,
+    baseline: Cell<Px>, // TODO !!: review this, every node can affect the inner transform now, so we removed it from the inner node.
 }
 impl ResolvedText {
     /// Gets the contextual [`ResolvedText`], returns `Some(_)` for any property with priority `event` or up
@@ -278,17 +278,6 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Text>) -> impl UiNode
     .cfg_boxed()
 }
 
-/// Custom [`implicit_base::nodes::inner`] that setups the text baseline.
-///
-/// The `text!` widget overrides the `new_border` constructor with this node.
-///
-/// [``]
-pub fn inner(child: impl UiNode) -> impl UiNode {
-    implicit_base::nodes::inner(child, |ctx, _| {
-        ResolvedText::get(ctx).expect("expected `ResolvedText` in `inner`").baseline.get()
-    })
-}
-
 /// An UI node that layouts the parent [`ResolvedText`] according with the [`TextContext`].
 ///
 /// This node setups the [`LayoutText`] for all inner nodes in the layout and render methods, the `text!` widget introduces this
@@ -371,9 +360,10 @@ pub fn layout_text(child: impl UiNode, padding: impl IntoVar<SideOffsets>) -> im
 
             let (font_size, variations) = TextContext::font(ctx.vars);
 
-            let mut av = ctx.peek(|m| m.available_size());
-            av.height -= padding.vertical();
-            let font_size = ctx.with_available_size(av, |ctx| font_size.layout(ctx.for_y(), ctx.metrics.root_font_size()));
+            let font_size = ctx.with_constrains(
+                |c| c.with_less_height(padding.vertical()),
+                |ctx| font_size.layout(ctx.for_y(), ctx.metrics.root_font_size()),
+            );
 
             if self.layout.is_none() {
                 let fonts = t.faces.sized(font_size, variations.finalize());
@@ -408,21 +398,24 @@ pub fn layout_text(child: impl UiNode, padding: impl IntoVar<SideOffsets>) -> im
             let (letter_spacing, word_spacing, line_spacing, line_height, tab_length, _) = TextContext::shaping(ctx.vars);
             let space_len = font.space_x_advance();
             let dft_tab_len = space_len * 3;
-            let space_len = AvailablePx::Finite(space_len);
 
-            let (letter_spacing, word_spacing, tab_length) = ctx.with_available_width(space_len, |ctx| {
-                (
-                    letter_spacing.layout(ctx.for_x(), Px(0)),
-                    word_spacing.layout(ctx.for_x(), Px(0)),
-                    tab_length.layout(ctx.for_x(), dft_tab_len),
-                )
-            });
+            let (letter_spacing, word_spacing, tab_length) = ctx.with_constrains(
+                |c| c.with_max_width(space_len),
+                |ctx| {
+                    (
+                        letter_spacing.layout(ctx.for_x(), Px(0)),
+                        word_spacing.layout(ctx.for_x(), Px(0)),
+                        tab_length.layout(ctx.for_x(), dft_tab_len),
+                    )
+                },
+            );
 
             let dft_line_height = font.metrics().line_height();
-            let line_height = ctx.with_available_height(AvailablePx::Finite(dft_line_height), |ctx| {
-                line_height.layout(ctx.for_y(), dft_line_height)
-            });
-            let line_spacing = ctx.with_available_height(AvailablePx::Finite(line_height), |ctx| line_spacing.layout(ctx.for_y(), Px(0)));
+            let line_height = ctx.with_constrains(
+                |c| c.with_height_fill(dft_line_height),
+                |ctx| line_height.layout(ctx.for_y(), dft_line_height),
+            );
+            let line_spacing = ctx.with_constrains(|c| c.with_height_fill(line_height), |ctx| line_spacing.layout(ctx.for_y(), Px(0)));
 
             if !self.pending.contains(Layout::RESHAPE)
                 && (letter_spacing != self.shaping_args.letter_spacing
@@ -441,14 +434,16 @@ pub fn layout_text(child: impl UiNode, padding: impl IntoVar<SideOffsets>) -> im
             self.shaping_args.line_spacing = line_spacing;
 
             let dft_thickness = font.metrics().underline_thickness;
-            let av_height = AvailablePx::Finite(line_height);
-            let (overline, strikethrough, underline) = ctx.with_available_height(av_height, |ctx| {
-                (
-                    OverlineThicknessVar::get(ctx.vars).layout(ctx.for_y(), dft_thickness),
-                    StrikethroughThicknessVar::get(ctx.vars).layout(ctx.for_y(), dft_thickness),
-                    UnderlineThicknessVar::get(ctx.vars).layout(ctx.for_y(), dft_thickness),
-                )
-            });
+            let (overline, strikethrough, underline) = ctx.with_constrains(
+                |c| c.with_height_fill(line_height),
+                |ctx| {
+                    (
+                        OverlineThicknessVar::get(ctx.vars).layout(ctx.for_y(), dft_thickness),
+                        StrikethroughThicknessVar::get(ctx.vars).layout(ctx.for_y(), dft_thickness),
+                        UnderlineThicknessVar::get(ctx.vars).layout(ctx.for_y(), dft_thickness),
+                    )
+                },
+            );
 
             if !self.pending.contains(Layout::OVERLINE) && (r.overline_thickness == Px(0) && overline > Px(0)) {
                 self.pending.insert(Layout::OVERLINE);
@@ -532,9 +527,12 @@ pub fn layout_text(child: impl UiNode, padding: impl IntoVar<SideOffsets>) -> im
             }
 
             let desired_size = r.shaped_text.size();
-            ctx.with_available_size(AvailableSize::from_size(desired_size), |ctx| {
-                self.with_mut(ctx.vars, |c| c.layout(ctx, wl));
-            });
+            ctx.with_constrains(
+                |c| c.with_max_fill(desired_size),
+                |ctx| {
+                    self.with_mut(ctx.vars, |c| c.layout(ctx, wl));
+                },
+            );
             desired_size
         }
 

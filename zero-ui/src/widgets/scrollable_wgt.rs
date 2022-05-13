@@ -123,9 +123,9 @@ pub mod scrollable {
                 let h_scroll = self.children.widget_layout(2, ctx, wl);
 
                 self.joiner = PxSize::new(v_scroll.width, h_scroll.height);
-                let mut viewport = ctx.with_less_size(self.joiner, |ctx| self.children.widget_layout(0, ctx, wl));
+                let mut viewport = ctx.with_constrains(|c| c.with_less_size(self.joiner), |ctx| self.children.widget_layout(0, ctx, wl));
 
-                let _ = ctx.with_available_size(AvailableSize::from_size(self.joiner), |ctx| self.children.widget_layout(3, ctx, wl));
+                let _ = ctx.with_constrains(|c| c.with_max(self.joiner), |ctx| self.children.widget_layout(3, ctx, wl));
 
                 // arrange
                 let final_size = viewport + self.joiner; // TODO !!: review this

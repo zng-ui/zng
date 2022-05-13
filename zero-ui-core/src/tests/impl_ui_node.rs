@@ -211,8 +211,7 @@ pub fn default_no_child() {
     // we expect default to fill or collapsed depending on the
     let constrains = PxSizeConstrains::none()
         .with_min(PxSize::new(Px(1), Px(8)))
-        .with_max(PxSize::new(Px(100), Px(800)))
-        .with_fill(true, true);
+        .with_max_fill(PxSize::new(Px(100), Px(800)));
 
     let desired_size = wgt.test_layout(&mut ctx, constrains.into());
     assert_eq!(desired_size, constrains.max);

@@ -200,7 +200,7 @@ pub mod thumb {
             }
 
             fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
-                let final_size = ctx.available_size().to_px();
+                let final_size = ctx.constrains().fill_size();
 
                 let mut final_offset = self.final_offset;
                 let (px_vp_length, final_offset_d) = match *ThumbOrientationVar::get(ctx) {

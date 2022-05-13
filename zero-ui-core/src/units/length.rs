@@ -367,9 +367,9 @@ impl Length {
     }
 
     /// Compute the length at a context.
-    /// 
+    ///
     /// Note that the result is not clamped by the [constrains], they are only used to compute the `Relative` value.
-    /// 
+    ///
     /// [constrains]: Layout1dMetrics::length_constrains
     pub fn layout(&self, ctx: Layout1dMetrics, default_value: Px) -> Px {
         use Length::*;

@@ -7,7 +7,7 @@ use crate::{
     event::EventUpdateArgs,
     impl_ui_node, property,
     render::{FrameBuilder, FrameUpdate},
-    units::{Px, PxCornerRadius, PxRect, PxSize},
+    units::{PxCornerRadius, PxRect, PxSize},
     var::*,
     widget_info::{UpdateMask, WidgetInfo, WidgetInfoBuilder, WidgetLayout, WidgetSubscriptions},
     NilUiNode, UiNode, Widget, WidgetId,
@@ -81,9 +81,9 @@ pub mod implicit_base {
         child
     }
 
-    /// Implicit `new_border`, returns [`nodes::inner`] with baseline `0`.
+    /// Implicit `new_border`, returns [`nodes::inner`].
     pub fn new_border(child: impl UiNode) -> impl UiNode {
-        nodes::inner(child, |_, _| Px(0))
+        nodes::inner(child)
     }
 
     /// No-op, returns `child`.
@@ -117,46 +117,61 @@ pub mod implicit_base {
     pub mod nodes {
         use super::*;
 
-        /// Arguments for the baseline request closure of [`inner`].
-        #[derive(Debug)]
-        pub struct BaselineArgs {
-            /// Inner bounds size.
-            pub final_size: PxSize,
-        }
-
         /// Returns a node that wraps `child` and marks the [`WidgetLayout::with_inner`] and [`FrameBuilder::push_inner`].
-        ///
-        /// The `baseline` closure is called every [`UiNode::layout`] and must return the offset up from the final size height
-        /// that is the widgets baseline. The implicit default is `Px(0)` meaning the widget inner bounds bottom.
-        pub fn inner(child: impl UiNode, baseline: impl FnMut(&mut LayoutContext, &BaselineArgs) -> Px + 'static) -> impl UiNode {
-            struct InnerNode<T, B> {
+        /// 
+        /// This node renders the inner transform and implements the [`HitTestMode`] for the widget.
+        pub fn inner(child: impl UiNode) -> impl UiNode {
+            struct InnerNode<T> {
                 child: T,
-                baseline: B,
                 transform_key: FrameBindingKey<RenderTransform>,
-                clip: (PxSize, PxCornerRadius),
+                hits_clip: (PxSize, PxCornerRadius),
             }
             #[impl_ui_node(child)]
-            impl<T: UiNode, B: FnMut(&mut LayoutContext, &BaselineArgs) -> Px + 'static> UiNode for InnerNode<T, B> {
+            impl<T: UiNode> UiNode for InnerNode<T> {
+                fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
+                    subs.updates(&HitTestMode::update_mask(ctx));
+                    self.child.subscriptions(ctx, subs);
+                }
+
+                fn update(&mut self, ctx: &mut WidgetContext) {
+                    if HitTestMode::is_new(ctx) {
+                        ctx.updates.render();
+                    }
+                    self.child.update(ctx);
+                }
+
                 fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
-                    let final_size = wl.with_inner(ctx, |ctx, wl| self.child.layout(ctx, wl));
+                    let size = wl.with_inner(ctx, |ctx, wl| self.child.layout(ctx, wl));
 
-                    self.clip = (final_size, wl.corner_radius());
+                    let clip = (size, wl.corner_radius());
 
-                    let baseline = (self.baseline)(ctx, &BaselineArgs { final_size });
-                    // TODO !!: optionally apply baseline?
+                    match HitTestMode::get(ctx.vars) {
+                        HitTestMode::RoundedBounds => {
+                            if self.hits_clip != clip {
+                                ctx.updates.render();
+                            }
+                        }
+                        HitTestMode::Bounds => {
+                            if self.hits_clip.0 != clip.0 {
+                                ctx.updates.render();
+                            }
+                        }
+                        _ => {}
+                    }
 
-                    final_size
+                    self.hits_clip = clip;
+                    size
                 }
                 fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
                     let transform = ctx.widget_info.inner.transform();
                     frame.push_inner(self.transform_key.bind(transform), |frame| {
                         match HitTestMode::get(ctx.vars) {
                             HitTestMode::RoundedBounds => {
-                                let rect = PxRect::from_size(self.clip.0);
-                                frame.push_clip_rounded_rect(rect, self.clip.1, false, |f| f.push_hit_test(rect));
+                                let rect = PxRect::from_size(self.hits_clip.0);
+                                frame.push_clip_rounded_rect(rect, self.hits_clip.1, false, |f| f.push_hit_test(rect));
                             }
                             HitTestMode::Bounds => {
-                                frame.push_hit_test(PxRect::from_size(self.clip.0));
+                                frame.push_hit_test(PxRect::from_size(self.hits_clip.0));
                             }
                             _ => {}
                         }
@@ -171,9 +186,8 @@ pub mod implicit_base {
             }
             InnerNode {
                 child: child.cfg_boxed(),
-                baseline,
                 transform_key: FrameBindingKey::new_unique(),
-                clip: (PxSize::zero(), PxCornerRadius::zero()),
+                hits_clip: (PxSize::zero(), PxCornerRadius::zero()),
             }
             .cfg_boxed()
         }
@@ -843,13 +857,18 @@ impl HitTestMode {
     }
 
     /// Gets the hit-test mode of the current widget context.
-    pub fn get<Vr: AsRef<VarsRead>>(vars: &Vr) -> &HitTestMode {
-        HitTestModeVar::get(vars)
+    pub fn get<Vr: WithVarsRead>(vars: &Vr) -> HitTestMode {
+        HitTestModeVar::get_clone(vars)
     }
 
     /// Gets the new hit-test mode of the current widget context.
-    pub fn get_new<Vw: AsRef<Vars>>(vars: &Vw) -> Option<&HitTestMode> {
-        HitTestModeVar::get_new(vars)
+    pub fn get_new<Vw: WithVars>(vars: &Vw) -> Option<HitTestMode> {
+        HitTestModeVar::clone_new(vars)
+    }
+
+    /// Gets if the hit-test mode has changed.
+    pub fn is_new<Vw: WithVars>(vars: &Vw) -> bool {
+        HitTestModeVar::is_new(vars)
     }
 
     /// Gets the update mask for [`WidgetSubscriptions`].

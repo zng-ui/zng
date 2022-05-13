@@ -1299,11 +1299,13 @@ impl ContentCtrl {
                 let desired_size = ctx.with_constrains(
                     |mut c| {
                         if !skip_auto_size {
+                            debug_assert!(c.fill.none());
+
                             if auto_size.contains(AutoSize::CONTENT_WIDTH) {
-                                c = c.with_max_width(Px::MAX).with_fill_x(true);
+                                c = c.with_max_width(Px::MAX);
                             }
                             if auto_size.contains(AutoSize::CONTENT_HEIGHT) {
-                                c = c.with_max_height(Px::MAX).with_fill_y(true);
+                                c = c.with_max_height(Px::MAX);
                             }
                         }
                         c

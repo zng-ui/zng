@@ -139,10 +139,6 @@ pub mod text {
         nodes::layout_text(child, padding)
     }
 
-    fn new_border(child: impl UiNode) -> impl UiNode {
-        nodes::inner(child)
-    }
-
     fn new_event(child: impl UiNode, text: impl IntoVar<Text>) -> impl UiNode {
         nodes::resolve_text(child, text)
     }

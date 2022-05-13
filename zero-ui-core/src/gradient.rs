@@ -698,10 +698,7 @@ impl GradientStops {
             let length = after.offset - prev.offset;
             if length > 0.00001 {
                 if let GradientStop::ColorHint(offset) = &self.middle[i - 1] {
-                    let ctx = ctx
-                        .metrics
-                        .clone()
-                        .with_constrains(|c| c.with_max_height(Px(length as i32)).with_fill_y(true));
+                    let ctx = ctx.metrics.clone().with_constrains(|c| c.with_height_fill(Px(length as i32)));
                     let mut offset = offset.layout(ctx.for_y(), Px(0)).to_wr().get();
                     if is_positional(offset) {
                         offset = length / 2.0;

@@ -25,89 +25,8 @@
 
 # Single Pass Layout
 
-* What do we loose by making the `desired_size` be the `final_size`?
-  - A layout that equally divides the extra space after measuring children for each child?
-    - There is nothing stopping us from doing two passes in this case.
-  - Min size, right now we pass inf and get zero for fill nodes, then in arrange we pass the min size.
-    - If we add a min size to the metrics this can work too.
-  - Max size, right now we pass inf and get zero for fill nodes, then in arrange we pass the zero.
-    - New case already works then, for inf.
-  - Max size for finite nodes, right now we pass inf, get a size larger then max, then in arrange we pass max.
-    - New needs a second layout pass? Can we avoid it?
-    - We need to better signal for fill nodes when they should be min, Align::FILL right now does not work for fill nodes, it should.
-
-```rust
-pub struct LayoutConstrains {
-  /// Maximum size allowed.
-  pub max: PxSize,
-  /// Minimum size allowed.
-  pub min: PxSize,
-  /// If nodes that fill all available space should be sized `max` (`true`) or `min` (`false`).
-  pub fill: BoolVector2D,
-}
-impl LayoutConstrains {
-  pub fn fill_size(&self) -> PxSize {
-    self.fill.select_size(self.max, self.min)
-  }
-
-  pub fn collapse_size(&self) -> PxSize {
-    self.fill.select_size(self.min, self.max)
-  }
-}
-```
-
-```rust
-trait UiNode {
-  /// Available-size is in ctx.metrics.
-  fn layout(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout) -> PxSize;
-}
-
-// usage:
-
-impl UiNode for Center {
-  fn layout(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout) -> PxSize {
-    let desired_size = self.child.layout(ctx, widget_layout);
-    let offset = self.center(ctx.metrics.available_size, desired_size);
-    // how does the transform gets comunicated to child?
-  }
-}
-```
-
-## Layout Requirements
-
-* Widget as a child defines its own size.
-```rust
-impl UiNode for WidthNode {
-  fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
-    let mut size = self.child.layout(ctx, wl);
-    size.width = self.width.layout(ctx); // Metrics dependencies recorded here.
-    size
-  }
-}
-``` 
-
 * Widget as a parent defines its children position.
 * The global transform of an widget outer and inner regions must be available in info, before render.
-```rust
-impl UiNode for CenterNode {
-  fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
-    let size = self.child.layout(ctx, wl);
-
-    let available_size = ctx.metrics.available_size;
-    if available_size.is_inf() {
-      size
-    } else {
-      let offset = self.center(ctx, size);
-      // TODO how to add offset to child transform?
-      // wl.add_inner_offset(offset); // this causes each parent to visit all node transforms again.
-      //                          // of if we make the outer/inner info be relative, forces a big matrix merge for decorators.
-      //                          // right now we place the parent transform in the stack and acumulate as we go.
-      available_size
-    }
-  }
-  
-}
-```
 
 * The border "padding" and corner radius mut be available in info.
 * The border info of parent must be available for children, they adjust their own corner-radius to fit.

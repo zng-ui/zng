@@ -5,7 +5,7 @@ use crate::{
     event::EventUpdateArgs,
     impl_from_and_into_var,
     render::{FrameBuilder, FrameUpdate},
-    units::{PxSizeConstrains, PxSize},
+    units::{PxSize, PxSizeConstrains},
     widget_info::{
         WidgetBorderInfo, WidgetInfoBuilder, WidgetLayout, WidgetLayoutInfo, WidgetRenderInfo, WidgetSubscriptions, WidgetTransformBuilder,
     },
