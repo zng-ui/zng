@@ -75,6 +75,7 @@ context_var! {
     /// Latest computed content size of the parent scrollable.
     pub(super) struct ScrollContentSizeVar: PxSize = PxSize::zero();
 
+    // TODO
     pub(super) struct ScrollVerticalChasingVar: Option<ChaseAnimation<Factor>> = None;
     //pub(super) struct ScrollHorizontalChasingVar: Option<ChaseAnimation<Factor>> = None;
 }
@@ -129,7 +130,8 @@ impl ScrollContext {
                 return;
             }
 
-            let curr_scroll = max_scroll * *ScrollVerticalOffsetVar::get(vars);
+            let curr_scroll_fct = *ScrollVerticalOffsetVar::get(vars);
+            let curr_scroll = max_scroll * curr_scroll_fct;
             let new_scroll = (curr_scroll + amount).min(max_scroll).max(Px(0));
 
             if new_scroll != curr_scroll {
@@ -141,11 +143,20 @@ impl ScrollContext {
                     let _ = ScrollVerticalOffsetVar::set(vars, new_offset);
                 } else {
                     match ScrollVerticalChasingVar::get(vars) {
-                        Some(anim) if !anim.handle.is_stopped() => anim.add(todo!("input the correct value")), //was new_offset.fct()
+                        Some(anim) if !anim.handle.is_stopped() => {
+                            let amount = amount.0 as f32 / max_scroll.0 as f32;
+                            anim.add(amount.fct());
+                        }
                         _ => {
                             let ease = smooth.easing.clone();
-                            let anim = ScrollVerticalOffsetVar::new().chase(vars, new_offset.fct(), smooth.duration, move |t| ease(t));
-                            ScrollVerticalChasingVar::set(vars, Some(anim));
+                            let anim = ScrollVerticalOffsetVar::new().chase_bounded(
+                                vars,
+                                new_offset.fct(),
+                                smooth.duration,
+                                move |t| ease(t),
+                                0.fct()..=1.fct(),
+                            );
+                            let _ = ScrollVerticalChasingVar::set(vars, Some(anim));
                         }
                     }
                 }

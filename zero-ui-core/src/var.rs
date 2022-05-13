@@ -6,7 +6,7 @@ use std::{
     fmt,
     marker::PhantomData,
     mem,
-    ops::{Deref, DerefMut},
+    ops::{self, Deref, DerefMut},
     rc::Rc,
     str::FromStr,
     time::Duration,
@@ -54,7 +54,7 @@ pub mod animation;
 
 pub use animation::easing;
 
-use animation::{AnimationHandle, ChaseAnimation, ChaseMsg, Transitionable};
+use animation::{AnimationHandle, ChaseAnimation, ChaseMsg, Transitionable, Transition, TransitionKeyed};
 
 /// Variable types.
 ///
@@ -847,7 +847,7 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + any::AnyVar + crate::private::S
         let mut prev_step = 0.fct();
         self.animate(
             vars,
-            |value| Some(animation::Transition::new(value.clone(), new_value.into())),
+            |value| Some(Transition::new(value.clone(), new_value.into())),
             move |animation, _, transition| {
                 let step = easing(animation.elapsed_stop(duration));
                 if step != prev_step {
@@ -874,7 +874,7 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + any::AnyVar + crate::private::S
         let mut prev_step = 0.fct();
         self.animate(
             vars,
-            |value| Some(animation::Transition::new(value.clone(), new_value.into())),
+            |value| Some(Transition::new(value.clone(), new_value.into())),
             move |animation, value, transition| {
                 let step = easing(animation.elapsed_stop(duration));
                 if step != prev_step {
@@ -904,7 +904,7 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + any::AnyVar + crate::private::S
         let mut prev_step = 999.fct(); // ensure that we set for `0.fct()`
         self.animate(
             vars,
-            |_| Some(animation::Transition::new(start.into(), end.into())),
+            |_| Some(Transition::new(start.into(), end.into())),
             move |animation, _, transition| {
                 let step = easing(animation.elapsed_stop(duration));
                 if step != prev_step {
@@ -932,7 +932,7 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + any::AnyVar + crate::private::S
         let mut prev_step = 999.fct(); // ensure that we set for `0.fct()`
         self.animate(
             vars,
-            |_| Some(animation::Transition::new(start.into(), end.into())),
+            |_| Some(Transition::new(start.into(), end.into())),
             move |animation, value, transition| {
                 let step = easing(animation.elapsed_stop(duration));
                 if step != prev_step {
@@ -967,7 +967,7 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + any::AnyVar + crate::private::S
             vars,
             |value| {
                 keys.insert(0, (keys[0].0.min(0.fct()), value.clone()));
-                animation::TransitionKeyed::new(keys)
+                TransitionKeyed::new(keys)
             },
             move |animation, _, transition| {
                 let step = easing(animation.elapsed_stop(duration));
@@ -995,7 +995,7 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + any::AnyVar + crate::private::S
         let mut prev_step = 0.fct();
         self.animate(
             vars,
-            |_| animation::TransitionKeyed::new(keys),
+            |_| TransitionKeyed::new(keys),
             move |animation, _, transition| {
                 let step = easing(animation.elapsed_stop(duration));
                 if step != prev_step {
@@ -1155,8 +1155,8 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + any::AnyVar + crate::private::S
         let next_target = Rc::new(RefCell::new(ChaseMsg::None));
         let handle = self.animate(
             vars,
-            |value| Some(animation::Transition::new(value.clone(), first_target)),
-            clone_move!(next_target, |animation, _, transition: &mut animation::Transition<T>| {
+            |value| Some(Transition::new(value.clone(), first_target)),
+            clone_move!(next_target, |animation, _, transition: &mut Transition<T>| {
                 let step = easing(animation.elapsed_stop(duration));
                 match mem::take(&mut *next_target.borrow_mut()) {
                     ChaseMsg::Add(inc) => {
@@ -1172,7 +1172,67 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + any::AnyVar + crate::private::S
                     ChaseMsg::Replace(new_target) => {
                         animation.restart();
                         let from = transition.sample(step);
-                        *transition = animation::Transition::new(from.clone(), new_target);
+                        *transition = Transition::new(from.clone(), new_target);
+                        if step != prev_step {
+                            prev_step = step;
+                            return Some(from);
+                        }
+                    }
+                    ChaseMsg::None => {
+                        if step != prev_step {
+                            prev_step = step;
+                            return Some(transition.sample(step));
+                        }
+                    }
+                }
+                None
+            }),
+        );
+        ChaseAnimation { handle, next_target }
+    }
+
+    ///
+    fn chase_bounded<Vw, F>(&self, vars: &Vw, first_target: T, duration: Duration, easing: F, bounds: ops::RangeInclusive<T>) -> ChaseAnimation<T>
+    where
+        Vw: WithVars,
+        F: Fn(EasingTime) -> EasingStep + 'static,
+        T: Transitionable + std::cmp::PartialOrd<T>,
+    {
+        let mut prev_step = 0.fct();
+        let next_target = Rc::new(RefCell::new(ChaseMsg::None));
+        let handle = self.animate(
+            vars,
+            |value| Some(Transition::new(value.clone(), first_target)),
+            clone_move!(next_target, |animation, _, transition: &mut Transition<T>| {
+                let step = easing(animation.elapsed_stop(duration));
+                match mem::take(&mut *next_target.borrow_mut()) {
+                    ChaseMsg::Add(inc) => {
+                        animation.restart();
+                        let from = transition.sample(step);
+                        let mut to = from.clone() + transition.increment.clone() + inc;                        
+                        if &to > bounds.end() {
+                            to = bounds.end().clone();
+                        } else if &to < bounds.start() {
+                            to = bounds.start().clone();
+                        }
+                        *transition = Transition::new(from.clone(), to);
+
+                        if step != prev_step {
+                            prev_step = step;
+                            return Some(from);
+                        }
+                    }
+                    ChaseMsg::Replace(mut new_target) => {
+                        animation.restart();
+                        let from = transition.sample(step);
+
+                        if &new_target > bounds.end() {
+                            new_target = bounds.end().clone();
+                        } else if &new_target < bounds.start() {
+                            new_target = bounds.start().clone();
+                        }
+
+                        *transition = Transition::new(from.clone(), new_target);
                         if step != prev_step {
                             prev_step = step;
                             return Some(from);
@@ -2293,6 +2353,7 @@ macro_rules! impl_from_and_into_var {
 }
 #[doc(inline)]
 pub use crate::impl_from_and_into_var;
+
 
 #[doc(hidden)]
 #[macro_export]
