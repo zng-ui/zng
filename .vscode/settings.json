@@ -2,7 +2,6 @@
     "rust-analyzer.files.excludeDirs": [
         "tests/build",
     ],
-    "rust-analyzer.runnables.overrideCargo": "cargo do rust_analyzer_run",
     "rust-analyzer.checkOnSave.overrideCommand": ["cargo", "do", "rust_analyzer_check"],
     "files.eol": "\n",
     "spellright.language": [
@@ -19,4 +18,5 @@
     "explorer.fileNesting.patterns": {
         "*.rs": "${capture}.stderr"
     },
+    "rust-analyzer.runnables.command": "cargo do rust_analyzer_run",
 }

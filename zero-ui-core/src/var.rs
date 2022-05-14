@@ -1207,13 +1207,15 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + any::AnyVar + crate::private::S
                 let step = easing(animation.elapsed_stop(duration));
                 match mem::take(&mut *next_target.borrow_mut()) {
                     ChaseMsg::Add(inc) => {
-                        animation.restart();
-                        let from = transition.sample(step);
-                        let mut to = from.clone() + transition.increment.clone() + inc;                        
+                        let partial_inc = transition.increment.clone() * step;
+                        let from = transition.start.clone() + partial_inc.clone();
+                        let mut to = from.clone() + transition.increment.clone() - partial_inc + inc;
                         if &to > bounds.end() {
                             to = bounds.end().clone();
                         } else if &to < bounds.start() {
                             to = bounds.start().clone();
+                        } else {
+                            animation.restart();
                         }
                         *transition = Transition::new(from.clone(), to);
 
