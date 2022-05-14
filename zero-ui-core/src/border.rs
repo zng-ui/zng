@@ -887,17 +887,14 @@ impl ContextBorders {
         ctx.widget_info.border.set_corner_radius(corner_radius);
         ctx.widget_info.border.set_offsets(PxSideOffsets::zero());
         let r = f(ctx);
-        r        
+        r
     }
 
     fn with_border(ctx: &mut LayoutContext, offsets: PxSideOffsets, f: impl FnOnce(&mut LayoutContext, PxSideOffsets)) {
         let mut data = BorderDataVar::get_clone(ctx.vars);
         let (ctx_offsets, is_wgt_start) = data.add_offset(ctx, offsets);
-        if is_wgt_start && !ctx.widget_info.border.offsets().is_zero() {
-            #[cfg(debug_assertions)]
-            tracing::error!("widget {:?} layout border outside of ")
-        }
-        ctx.vars.with_context_var(BorderDataVar, ContextVarData::fixed(&data), || f(ctx, ctx_offsets));
+        ctx.vars
+            .with_context_var(BorderDataVar, ContextVarData::fixed(&data), || f(ctx, ctx_offsets));
     }
 
     fn with_corner_radius<R>(vars: &VarsRead, f: impl FnOnce() -> R) -> R {
@@ -942,12 +939,11 @@ impl BorderOffsetsData {
     /// Adds to the widget offsets, or start a new one.
     ///
     /// Computes a new `corner_radius` if fit is Widget and is in a new one.
-    fn add_offset(&mut self, ctx: &mut LayoutContext, offset: PxSideOffsets) -> (PxSideOffsets, bool) {
+    fn add_offset(&mut self, ctx: &mut LayoutContext, offset: PxSideOffsets) -> PxSideOffsets {
         let mut ctx_offsets = self.wgt_offsets;
-        
+
         let widget_id = Some(ctx.path.widget_id());
-        let is_wgt_start = self.widget_id != widget_id;
-        if is_wgt_start {
+        if self.widget_id != widget_id {
             // changed widget, reset offsets, and maybe corner-radius too.
             self.widget_id = widget_id;
             self.wgt_offsets = offset;
@@ -968,6 +964,7 @@ impl BorderOffsetsData {
         if is_wgt_start {
             ctx.widget_info.border.set_corner_radius(self.corner_radius);
         }
+        ctx.widget_info.border.set_offsets(self.wgt_offsets);
 
         (ctx_offsets, is_wgt_start)
     }

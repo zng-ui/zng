@@ -5,6 +5,7 @@ use std::{cell::Cell, fmt, mem, ops, rc::Rc};
 use ego_tree::Tree;
 
 use crate::{
+    border::ContextBorders,
     context::{InfoContext, LayoutContext, LayoutMetrics, OwnedStateMap, StateMap, Updates},
     crate_util::{IdMap, IdSet},
     event::EventUpdateArgs,
@@ -13,7 +14,7 @@ use crate::{
     var::{Var, VarValue, VarsRead, WithVarsRead},
     widget_base::Visibility,
     window::WindowId,
-    Widget, WidgetId, border::ContextBorders,
+    Widget, WidgetId,
 };
 
 unique_id_64! {
@@ -84,7 +85,7 @@ impl WidgetLayout {
     }
 
     /// Marks the inner bounds of the current widget.
-    /// 
+    ///
     /// This method fully updates the border and updates the inner info size.
     ///
     /// Returns the size.
