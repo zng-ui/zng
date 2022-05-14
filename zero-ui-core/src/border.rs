@@ -717,10 +717,13 @@ pub fn fill_node(content: impl UiNode) -> impl UiNode {
 
             let size_increase = PxSize::new(our_offsets.horizontal(), our_offsets.vertical());
 
-            ctx.with_add_size(size_increase, |ctx| {
+            self.clip.0 = ctx.with_add_size(size_increase, |ctx| {
                 // TODO !!: notify child translation.
                 self.child.layout(ctx, wl)
-            })
+            });
+            self.clip.1 = ContextBorders::corner_radius(ctx);
+
+            self.clip.0
         }
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
             let mut clip_render = |frame: &mut FrameBuilder| {

@@ -398,8 +398,10 @@ pub fn clip_to_bounds(child: impl UiNode, clip: impl IntoVar<bool>) -> impl UiNo
         }
 
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
-            // TODO !!: reimplement this after borders and corners.
-            self.child.layout(ctx, wl)
+            self.bounds = self.child.layout(ctx, wl);
+            self.corners = ContextBorders::corner_radius(ctx);
+
+            self.bounds
         }
 
         /*
