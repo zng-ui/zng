@@ -9,6 +9,7 @@ Proc-macros are mostly implemented, there are some improvements we can make:
 * Use `get_` prefix for properties that only return a value, can teach as inverse of normal accessor methods where setting uses the `set_` prefix
 and getting only uses the name directly.
 * Custom lints for when widgets do not delegate to parent constructor functions that have custom nodes.
+* False positive, `deny_(zero_ui::missing_delegate)` fails for delegate inside macro, test `cfg!(self.child.layout())`.
 
 ## Widget Bind-Self
 
