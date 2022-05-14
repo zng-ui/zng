@@ -225,8 +225,8 @@ mod tests {
     #[test]
     pub fn length_expr_eval() {
         let l = (Length::from(200) - 100.pct()).abs();
-        let ctx = LayoutMetrics::new(1.0.fct(), PxSize::new(Px(600), Px(400)), Px(0)).with_constrains(|c| c.with_fill(true, true));
-        let l = l.layout(ctx.for_x(), Px(0));
+        let ctx = LayoutMetrics::new(1.0.fct(), PxSize::new(Px(600), Px(400)), Px(0));
+        let l = l.layout(ctx.for_x(), |_| Px(0));
 
         assert_eq!(l.0, (200i32 - 600i32).abs());
     }
@@ -236,16 +236,16 @@ mod tests {
         let l = Length::from(100.pct()).clamp(100, 500);
         assert!(matches!(l, Length::Expr(_)));
 
-        let metrics = LayoutMetrics::new(1.0.fct(), PxSize::new(Px(200), Px(50)), Px(0)).with_constrains(|c| c.with_fill(true, true));
+        let metrics = LayoutMetrics::new(1.0.fct(), PxSize::new(Px(200), Px(50)), Px(0));
 
-        let r = l.layout(metrics.for_x(), Px(0));
+        let r = l.layout(metrics.for_x(), |_| Px(0));
         assert_eq!(r.0, 200);
 
-        let r = l.layout(metrics.for_y(), Px(0));
+        let r = l.layout(metrics.for_y(), |_| Px(0));
         assert_eq!(r.0, 100);
 
         let metrics = metrics.with_constrains(|c| c.with_max_width(Px(550)));
-        let r = l.layout(metrics.for_x(), Px(0));
+        let r = l.layout(metrics.for_x(), |_| Px(0));
         assert_eq!(r.0, 500);
     }
 

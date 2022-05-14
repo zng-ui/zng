@@ -117,8 +117,10 @@ impl LinearGradientAxis {
                 )
             }
             LinearGradientAxis::Line(line) => {
-                let default_line = PxLine::new(PxPoint::new(Px(0), ctx.viewport_size().height), PxPoint::zero()); // 0º
-                line.layout(ctx, default_line)
+                line.layout(ctx, |ctx| {
+                    // default is 0º
+                    PxLine::new(PxPoint::new(Px(0), ctx.viewport_size().height), PxPoint::zero())
+                })
             }
         }
     }
@@ -232,7 +234,7 @@ impl ColorStop {
             offset: if self.is_positional() {
                 f32::INFINITY
             } else {
-                self.offset.layout(ctx, Px(0)).to_wr().get()
+                self.offset.layout(ctx, |_| Px(0)).to_wr().get()
             },
             color: self.color.into(),
         }
@@ -699,7 +701,7 @@ impl GradientStops {
             if length > 0.00001 {
                 if let GradientStop::ColorHint(offset) = &self.middle[i - 1] {
                     let ctx = ctx.metrics.clone().with_constrains(|c| c.with_height_fill(Px(length as i32)));
-                    let mut offset = offset.layout(ctx.for_y(), Px(0)).to_wr().get();
+                    let mut offset = offset.layout(ctx.for_y(), |_| Px(0)).to_wr().get();
                     if is_positional(offset) {
                         offset = length / 2.0;
                     } else {

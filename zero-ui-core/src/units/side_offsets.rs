@@ -86,12 +86,12 @@ impl SideOffsets {
     }
 
     /// Compute the offsets in a layout context.
-    pub fn layout(&self, ctx: &LayoutMetrics, default_value: PxSideOffsets) -> PxSideOffsets {
+    pub fn layout(&self, ctx: &LayoutMetrics, mut default_value: impl FnMut(&LayoutMetrics) -> PxSideOffsets) -> PxSideOffsets {
         PxSideOffsets::new(
-            self.top.layout(ctx.for_y(), default_value.top),
-            self.right.layout(ctx.for_x(), default_value.right),
-            self.bottom.layout(ctx.for_y(), default_value.bottom),
-            self.left.layout(ctx.for_x(), default_value.left),
+            self.top.layout(ctx.for_y(), |ctx| default_value(ctx.metrics).top),
+            self.right.layout(ctx.for_x(), |ctx| default_value(ctx.metrics).right),
+            self.bottom.layout(ctx.for_y(), |ctx| default_value(ctx.metrics).bottom),
+            self.left.layout(ctx.for_x(), |ctx| default_value(ctx.metrics).left),
         )
     }
 

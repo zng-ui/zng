@@ -126,10 +126,10 @@ impl Point {
     }
 
     /// Compute the point in a layout context.
-    pub fn layout(&self, ctx: &LayoutMetrics, default_value: PxPoint) -> PxPoint {
+    pub fn layout(&self, ctx: &LayoutMetrics, mut default_value: impl FnMut(&LayoutMetrics) -> PxPoint) -> PxPoint {
         PxPoint::new(
-            self.x.layout(ctx.for_x(), default_value.x),
-            self.y.layout(ctx.for_y(), default_value.y),
+            self.x.layout(ctx.for_x(), |ctx| default_value(ctx.metrics).x),
+            self.y.layout(ctx.for_y(), |ctx| default_value(ctx.metrics).y),
         )
     }
 

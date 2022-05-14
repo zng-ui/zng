@@ -356,13 +356,13 @@ pub fn layout_text(child: impl UiNode, padding: impl IntoVar<SideOffsets>) -> im
                 self.pending.insert(Layout::RESHAPE);
             }
 
-            let padding = self.padding.get(ctx.vars).layout(ctx, PxSideOffsets::zero());
+            let padding = self.padding.get(ctx.vars).layout(ctx, |_| PxSideOffsets::zero());
 
             let (font_size, variations) = TextContext::font(ctx.vars);
 
             let font_size = ctx.with_constrains(
                 |c| c.with_less_height(padding.vertical()),
-                |ctx| font_size.layout(ctx.for_y(), ctx.metrics.root_font_size()),
+                |ctx| font_size.layout(ctx.for_y(), |ctx| ctx.metrics.root_font_size()),
             );
 
             if self.layout.is_none() {
@@ -403,9 +403,9 @@ pub fn layout_text(child: impl UiNode, padding: impl IntoVar<SideOffsets>) -> im
                 |c| c.with_max_width(space_len),
                 |ctx| {
                     (
-                        letter_spacing.layout(ctx.for_x(), Px(0)),
-                        word_spacing.layout(ctx.for_x(), Px(0)),
-                        tab_length.layout(ctx.for_x(), dft_tab_len),
+                        letter_spacing.layout(ctx.for_x(), |_| Px(0)),
+                        word_spacing.layout(ctx.for_x(), |_| Px(0)),
+                        tab_length.layout(ctx.for_x(), |_| dft_tab_len),
                     )
                 },
             );
@@ -413,9 +413,12 @@ pub fn layout_text(child: impl UiNode, padding: impl IntoVar<SideOffsets>) -> im
             let dft_line_height = font.metrics().line_height();
             let line_height = ctx.with_constrains(
                 |c| c.with_height_fill(dft_line_height),
-                |ctx| line_height.layout(ctx.for_y(), dft_line_height),
+                |ctx| line_height.layout(ctx.for_y(), |_| dft_line_height),
             );
-            let line_spacing = ctx.with_constrains(|c| c.with_height_fill(line_height), |ctx| line_spacing.layout(ctx.for_y(), Px(0)));
+            let line_spacing = ctx.with_constrains(
+                |c| c.with_height_fill(line_height),
+                |ctx| line_spacing.layout(ctx.for_y(), |_| Px(0)),
+            );
 
             if !self.pending.contains(Layout::RESHAPE)
                 && (letter_spacing != self.shaping_args.letter_spacing
@@ -438,9 +441,9 @@ pub fn layout_text(child: impl UiNode, padding: impl IntoVar<SideOffsets>) -> im
                 |c| c.with_height_fill(line_height),
                 |ctx| {
                     (
-                        OverlineThicknessVar::get(ctx.vars).layout(ctx.for_y(), dft_thickness),
-                        StrikethroughThicknessVar::get(ctx.vars).layout(ctx.for_y(), dft_thickness),
-                        UnderlineThicknessVar::get(ctx.vars).layout(ctx.for_y(), dft_thickness),
+                        OverlineThicknessVar::get(ctx.vars).layout(ctx.for_y(), |_| dft_thickness),
+                        StrikethroughThicknessVar::get(ctx.vars).layout(ctx.for_y(), |_| dft_thickness),
+                        UnderlineThicknessVar::get(ctx.vars).layout(ctx.for_y(), |_| dft_thickness),
                     )
                 },
             );

@@ -370,11 +370,22 @@ impl Length {
     ///
     /// Note that the result is not clamped by the [constrains], they are only used to compute the `Relative` value.
     ///
+    /// The `default_value` closure is evaluated for every [`Default`] value is request, it can be more then once for [`Expr`] lengths,
+    /// the closure value must not be expensive to produce, we only use a closure to avoid flagging layout dependencies in values that
+    /// are only used for [`Default`].
+    ///
     /// [constrains]: Layout1dMetrics::length_constrains
-    pub fn layout(&self, ctx: Layout1dMetrics, default_value: Px) -> Px {
+    /// [`Default`]: Length::Default
+    /// [`Expr`]: Length::Expr
+    pub fn layout(&self, ctx: Layout1dMetrics, default_value: impl FnMut(Layout1dMetrics) -> Px) -> Px {
+        #[cfg(dyn_closure)]
+        let default_value: Box<dyn FnMut(Layout1dMetrics) -> Px> = Box::new(default_value);
+        self.layout_impl(ctx, default_value)
+    }
+    fn layout_impl(&self, ctx: Layout1dMetrics, mut default_value: impl FnMut(Layout1dMetrics) -> Px) -> Px {
         use Length::*;
         match self {
-            Default => default_value,
+            Default => default_value(ctx),
             Dip(l) => l.to_px(ctx.scale_factor().0),
             Px(l) => *l,
             Pt(l) => Self::pt_to_px(*l, ctx.scale_factor()),
@@ -517,24 +528,24 @@ pub enum LengthExpr {
 }
 impl LengthExpr {
     /// Evaluate the expression at a layout context.
-    pub fn layout(&self, ctx: Layout1dMetrics, default_value: Px) -> Px {
+    pub fn layout(&self, ctx: Layout1dMetrics, mut default_value: impl FnMut(Layout1dMetrics) -> Px) -> Px {
         use LengthExpr::*;
         match self {
-            Add(a, b) => a.layout(ctx, default_value) + b.layout(ctx, default_value),
-            Sub(a, b) => a.layout(ctx, default_value) - b.layout(ctx, default_value),
+            Add(a, b) => a.layout(ctx, &mut default_value) + b.layout(ctx, default_value),
+            Sub(a, b) => a.layout(ctx, &mut default_value) - b.layout(ctx, default_value),
             Mul(l, s) => l.layout(ctx, default_value) * s.0,
             Div(l, s) => l.layout(ctx, default_value) / s.0,
             Max(a, b) => {
-                let a = a.layout(ctx, default_value);
+                let a = a.layout(ctx, &mut default_value);
                 let b = b.layout(ctx, default_value);
                 a.max(b)
             }
             Min(a, b) => {
-                let a = a.layout(ctx, default_value);
+                let a = a.layout(ctx, &mut default_value);
                 let b = b.layout(ctx, default_value);
                 a.min(b)
             }
-            Abs(e) => e.layout(ctx, default_value).abs(),
+            Abs(e) => e.layout(ctx, &mut default_value).abs(),
             Neg(e) => -e.layout(ctx, default_value),
         }
     }

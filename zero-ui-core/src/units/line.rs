@@ -114,10 +114,10 @@ impl Line {
     }
 
     /// Compute the line in a layout context.
-    pub fn layout(&self, ctx: &LayoutMetrics, default_value: PxLine) -> PxLine {
+    pub fn layout(&self, ctx: &LayoutMetrics, mut default_value: impl FnMut(&LayoutMetrics) -> PxLine) -> PxLine {
         PxLine {
-            start: self.start.layout(ctx, default_value.start),
-            end: self.end.layout(ctx, default_value.end),
+            start: self.start.layout(ctx, |ctx| default_value(ctx).start),
+            end: self.end.layout(ctx, |ctx| default_value(ctx).end),
         }
     }
 

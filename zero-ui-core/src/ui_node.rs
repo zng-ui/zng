@@ -696,12 +696,12 @@ impl Widget for BoxedWidget {
     }
 }
 
-/// A UI node that does not contain any other node, does not take any space and renders nothing.
+/// A UI node that does not contain any other node, only takes the minimum space and renders nothing.
 pub struct NilUiNode;
 #[impl_ui_node(none)]
 impl UiNode for NilUiNode {
-    fn layout(&mut self, _: &mut LayoutContext, _: &mut WidgetLayout) -> PxSize {
-        PxSize::zero()
+    fn layout(&mut self, ctx: &mut LayoutContext, _: &mut WidgetLayout) -> PxSize {
+        ctx.constrains().min
     }
 }
 

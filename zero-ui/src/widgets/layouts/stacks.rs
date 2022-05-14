@@ -54,9 +54,6 @@ pub mod h_stack {
 
     fn new_child(items: impl WidgetList, spacing: impl IntoVar<Length>, items_align: impl IntoVar<Align>) -> impl UiNode {
         HStackNode {
-            children_info: vec![ChildInfo::default(); items.len()],
-            items_width: Px(0),
-            visible_count: 0,
             children: ZSortedWidgetList::new(items),
             spacing: spacing.into_var(),
             align: items_align.into_var(),
@@ -65,9 +62,6 @@ pub mod h_stack {
 
     struct HStackNode<C, S, A> {
         children: C,
-        children_info: Vec<ChildInfo>,
-        items_width: Px,
-        visible_count: u32,
 
         spacing: S,
         align: A,
@@ -83,20 +77,40 @@ pub mod h_stack {
             let mut changed = false;
             self.children.update_all(ctx, &mut changed);
 
-            if changed {
-                self.children_info.resize(self.children.len(), ChildInfo::default());
-            }
-
             if changed || self.spacing.is_new(ctx) || self.align.is_new(ctx) {
                 ctx.updates.layout_and_render();
             }
         }
 
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
-            // TODO !!: reimplement after all others, and after we maybe do the `panel!` base widget?
-            self.children.layout_all(ctx, wl, |_, _| LayoutContextConfig::none(), |_, _| {});
+            let spacing = self.spacing.get(ctx.vars).layout(ctx.for_x(), |_| Px(0));
 
-            PxSize::zero()
+            let mut size = PxSize::zero();
+            let child_constrains = ctx.constrains().with_unbounded_x();
+            self.children.layout_all(
+                ctx,
+                wl,
+                |_, _| child_constrains.into(),
+                |_, a| {
+                    a.transform.unwrap().translate(PxVector::new(size.width, Px(0)));
+
+                    size.height = size.height.max(a.size.height);
+
+                    if a.size.width > Px(0) {
+                        // only add spacing for visible items.
+                        size.width += a.size.width + spacing;
+                    }
+                },
+            );
+
+            if size.width > Px(0) {
+                // spacing is only in between items.
+                size.width -= spacing;
+            }
+
+            let align = self.align.copy(ctx); // TODO !!: align
+
+            ctx.constrains().clamp(size)
         }
 
         /*
@@ -245,9 +259,6 @@ pub mod v_stack {
 
     fn new_child(items: impl WidgetList, spacing: impl IntoVar<Length>, items_align: impl IntoVar<Align>) -> impl UiNode {
         VStackNode {
-            children_info: vec![ChildInfo::default(); items.len()],
-            items_height: Px(0),
-            visible_count: 0,
             children: ZSortedWidgetList::new(items),
             spacing: spacing.into_var(),
             align: items_align.into_var(),
@@ -256,9 +267,6 @@ pub mod v_stack {
 
     struct VStackNode<C, S, A> {
         children: C,
-        children_info: Vec<ChildInfo>,
-        items_height: Px,
-        visible_count: usize,
 
         spacing: S,
         align: A,
@@ -274,19 +282,40 @@ pub mod v_stack {
             let mut changed = false;
             self.children.update_all(ctx, &mut changed);
 
-            if changed {
-                self.children_info.resize(self.children.len(), ChildInfo::default());
-            }
-
             if changed || self.spacing.is_new(ctx) || self.align.is_new(ctx) {
                 ctx.updates.layout_and_render();
             }
         }
 
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
-            // TODO !!: reimplement after all others, and after we maybe do the `panel!` base widget?
-            self.children.layout_all(ctx, wl, |_, _| LayoutContextConfig::none(), |_, _| {});
-            todo!()
+            let spacing = self.spacing.get(ctx.vars).layout(ctx.for_y(), |_| Px(0));
+
+            let mut size = PxSize::zero();
+            let child_constrains = ctx.constrains().with_unbounded_y();
+            self.children.layout_all(
+                ctx,
+                wl,
+                |_, _| child_constrains.into(),
+                |_, a| {
+                    a.transform.unwrap().translate(PxVector::new(Px(0), size.height));
+
+                    size.width = size.width.max(a.size.width);
+
+                    if a.size.height > Px(0) {
+                        // only add spacing for visible items.
+                        size.height += a.size.height + spacing;
+                    }
+                },
+            );
+
+            if size.height > Px(0) {
+                // spacing is only in between items.
+                size.height -= spacing;
+            }
+
+            let align = self.align.copy(ctx); // TODO !!: align
+
+            ctx.constrains().clamp(size)
         }
 
         /*
@@ -480,14 +509,12 @@ pub mod z_stack {
 
     fn new_child(items: impl WidgetList, items_align: impl IntoVar<Align>) -> impl UiNode {
         ZStackNode {
-            children_info: vec![ChildInfo::default(); items.len()],
             children: ZSortedWidgetList::new(items),
             align: items_align.into_var(),
         }
     }
     struct ZStackNode<C, A> {
         children: C,
-        children_info: Vec<ChildInfo>,
         align: A,
     }
     #[impl_ui_node(children)]
@@ -501,19 +528,27 @@ pub mod z_stack {
             let mut changed = false;
             self.children.update_all(ctx, &mut changed);
 
-            if changed {
-                self.children_info.resize(self.children.len(), ChildInfo::default());
-            }
-
             if changed || self.align.is_new(ctx) {
                 ctx.updates.layout_and_render();
             }
         }
 
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
-            // TODO !!: reimplement after all others, and after we maybe do the `panel!` base widget?
-            self.children.layout_all(ctx, wl, |_, _| LayoutContextConfig::none(), |_, _| {});
-            todo!()
+            let mut s = PxSize::zero();
+            self.children.layout_all(
+                ctx,
+                wl,
+                |_, _| LayoutContextConfig::none(),
+                |_, args| {
+                    s = s.max(args.size);
+                },
+            );
+            let size = ctx.constrains().clamp(s);
+
+            let align = self.align.copy(ctx);
+            // TODO !!: align
+
+            size
         }
 
         /*
@@ -567,11 +602,6 @@ pub mod z_stack {
 /// to better configure the layering stack widget.
 pub fn z_stack(items: impl WidgetList) -> impl Widget {
     z_stack! { items; }
-}
-
-#[derive(Default, Clone, Copy)]
-struct ChildInfo {
-    desired_size: PxSize,
 }
 
 /// Creates a node that processes the `nodes` in the logical order they appear in the list, layouts for the largest node

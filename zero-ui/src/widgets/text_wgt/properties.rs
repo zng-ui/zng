@@ -160,7 +160,7 @@ pub fn font_size(child: impl UiNode, size: impl IntoVar<FontSize>) -> impl UiNod
         }
 
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
-            let font_size = FontSizeVar::get(ctx.vars).layout(ctx.for_y(), ctx.metrics.root_font_size());
+            let font_size = FontSizeVar::get(ctx.vars).layout(ctx.for_y(), |ctx|ctx.metrics.root_font_size());
             let s = ctx.with_font_size(font_size, self.size_new, |ctx| self.child.layout(ctx, wl));
             self.size_new = false;
             s

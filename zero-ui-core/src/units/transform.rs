@@ -183,8 +183,8 @@ impl Transform {
             r = match step {
                 TransformPart::Computed(m) => r.then(m),
                 TransformPart::Translate(x, y) => r.then(&RenderTransform::translation(
-                    x.layout(ctx.for_x(), Px(0)).to_wr().get(),
-                    y.layout(ctx.for_y(), Px(0)).to_wr().get(),
+                    x.layout(ctx.for_x(), |_| Px(0)).to_wr().get(),
+                    y.layout(ctx.for_y(), |_| Px(0)).to_wr().get(),
                     0.0,
                 )),
             };

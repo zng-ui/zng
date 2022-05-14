@@ -31,10 +31,10 @@ impl GridSpacing {
     }
 
     /// Compute the spacing in a layout context.
-    pub fn layout(&self, ctx: &LayoutMetrics, default_value: PxGridSpacing) -> PxGridSpacing {
+    pub fn layout(&self, ctx: &LayoutMetrics, mut default_value: impl FnMut(&LayoutMetrics) -> PxGridSpacing) -> PxGridSpacing {
         PxGridSpacing {
-            column: self.column.layout(ctx.for_x(), default_value.column),
-            row: self.row.layout(ctx.for_y(), default_value.row),
+            column: self.column.layout(ctx.for_x(), |ctx| default_value(ctx.metrics).column),
+            row: self.row.layout(ctx.for_y(), |ctx| default_value(ctx.metrics).row),
         }
     }
 

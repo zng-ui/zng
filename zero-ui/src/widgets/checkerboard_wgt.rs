@@ -142,9 +142,9 @@ pub fn node() -> impl UiNode {
         fn layout(&mut self, ctx: &mut LayoutContext, _: &mut WidgetLayout) -> PxSize {
             self.final_size = ctx.constrains().fill_size();
 
-            let tile_size = CheckerboardSizeVar::get(ctx.vars).layout(ctx, PxSize::splat(Px(4)));
+            let tile_size = CheckerboardSizeVar::get(ctx.vars).layout(ctx, |_| PxSize::splat(Px(4)));
 
-            let mut offset = CheckerboardOffsetVar::get(ctx.vars).layout(ctx, PxVector::zero());
+            let mut offset = CheckerboardOffsetVar::get(ctx.vars).layout(ctx, |_| PxVector::zero());
             if offset.x > self.tile_size.width {
                 offset.x /= self.tile_size.width;
             }

@@ -306,8 +306,11 @@ pub fn scroll_commands_node(child: impl UiNode) -> impl UiNode {
             ctx.with_constrains(
                 |c| c.with_max_fill(viewport),
                 |ctx| {
-                    let default = 1.em().layout(ctx.for_y(), Px(0));
-                    let offset = self.offset.layout(ctx, PxVector::new(default, default));
+                    let default = |ctx: &LayoutMetrics| {
+                        let default = 1.em().layout(ctx.for_y(), |_| Px(0));
+                        PxVector::new(default, default)
+                    };
+                    let offset = self.offset.layout(ctx, default);
                     self.offset = Vector::zero();
 
                     if offset.y != Px(0) {
@@ -452,7 +455,7 @@ pub fn page_commands_node(child: impl UiNode) -> impl UiNode {
             ctx.with_constrains(
                 |c| c.with_max_fill(viewport),
                 |ctx| {
-                    let offset = self.offset.layout(ctx, viewport.to_vector());
+                    let offset = self.offset.layout(ctx, |_|viewport.to_vector());
                     self.offset = Vector::zero();
 
                     if offset.y != Px(0) {
@@ -650,7 +653,7 @@ pub fn scroll_to_command_node(child: impl UiNode) -> impl UiNode {
                         ScrollToMode::Minimal { margin } => {
                             let margin = ctx.with_constrains(
                                 |c| c.with_max_fill(target_bounds.size),
-                                |ctx| margin.layout(ctx, PxSideOffsets::zero()),
+                                |ctx| margin.layout(ctx, |_|PxSideOffsets::zero()),
                             );
                             let mut target_bounds = target_bounds;
                             target_bounds.origin.x -= margin.left;
@@ -695,12 +698,12 @@ pub fn scroll_to_command_node(child: impl UiNode) -> impl UiNode {
                         } => {
                             let default = (target_bounds.size / Px(2)).to_vector().to_point();
                             let widget_point =
-                                ctx.with_constrains(|c| c.with_max_fill(target_bounds.size), |ctx| widget_point.layout(ctx, default));
+                                ctx.with_constrains(|c| c.with_max_fill(target_bounds.size), |ctx| widget_point.layout(ctx, |_|default));
 
                             let default = (viewport_bounds.size / Px(2)).to_vector().to_point();
                             let scrollable_point = ctx.with_constrains(
                                 |c| c.with_max_fill(viewport_bounds.size),
-                                |ctx| scrollable_point.layout(ctx, default),
+                                |ctx| scrollable_point.layout(ctx, |_|default),
                             );
 
                             let widget_point = widget_point + target_bounds.origin.to_vector();
@@ -775,7 +778,7 @@ pub fn scroll_wheel_node(child: impl UiNode) -> impl UiNode {
             ctx.with_constrains(
                 |c| c.with_max_fill(viewport),
                 |ctx| {
-                    let offset = self.offset.layout(ctx, viewport.to_vector());
+                    let offset = self.offset.layout(ctx, |_|viewport.to_vector());
                     self.offset = Vector::zero();
 
                     if offset.y != Px(0) {

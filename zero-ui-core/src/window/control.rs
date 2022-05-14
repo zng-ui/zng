@@ -174,9 +174,9 @@ impl HeadedCtrl {
                         let screen_ppi = m.ppi().copy(ctx);
                         let screen_size = m.size().copy(ctx);
                         let (min_size, max_size) = self.content.outer_layout(ctx, scale_factor, screen_ppi, screen_size, |ctx| {
-                            let min_size = self.vars.min_size().get(ctx.vars).layout(ctx, default_min_size(scale_factor));
+                            let min_size = self.vars.min_size().get(ctx.vars).layout(ctx, |_| default_min_size(scale_factor));
 
-                            let max_size = self.vars.max_size().get(ctx.vars).layout(ctx, screen_size);
+                            let max_size = self.vars.max_size().get(ctx.vars).layout(ctx, |_| screen_size);
 
                             (min_size.to_dip(scale_factor.0), max_size.to_dip(scale_factor.0))
                         });
@@ -208,7 +208,7 @@ impl HeadedCtrl {
                                 self.vars
                                     .size()
                                     .get(ctx.vars)
-                                    .layout(ctx, default_size(scale_factor))
+                                    .layout(ctx, |_| default_size(scale_factor))
                                     .to_dip(scale_factor.0)
                             });
 
@@ -230,7 +230,7 @@ impl HeadedCtrl {
                         let screen_ppi = m.ppi().copy(ctx);
                         let screen_size = m.size().copy(ctx);
                         let pos = self.content.outer_layout(ctx, scale_factor, screen_ppi, screen_size, |ctx| {
-                            pos.layout(ctx, PxPoint::new(Px(50), Px(50)))
+                            pos.layout(ctx, |_| PxPoint::new(Px(50), Px(50)))
                         });
                         new_state.restore_rect.origin = pos.to_dip(scale_factor.0);
                     }
@@ -515,10 +515,11 @@ impl HeadedCtrl {
                 .vars
                 .min_size()
                 .get(ctx.vars)
-                .layout(ctx.metrics, default_min_size(scale_factor));
-            let max_size = self.vars.max_size().get(ctx.vars).layout(ctx.metrics, screen_size);
+                .layout(ctx.metrics, |_| default_min_size(scale_factor));
 
-            let size = self.vars.size().get(ctx.vars).layout(ctx.metrics, default_size(scale_factor));
+            let max_size = self.vars.max_size().get(ctx.vars).layout(ctx.metrics, |_| screen_size);
+
+            let size = self.vars.size().get(ctx.vars).layout(ctx.metrics, |_| default_size(scale_factor));
 
             (min_size, max_size, size.min(max_size).max(min_size))
         });
@@ -538,7 +539,7 @@ impl HeadedCtrl {
                     PxPoint::zero()
                 } else {
                     self.content.outer_layout(ctx, scale_factor, screen_ppi, screen_size, |ctx| {
-                        pos.layout(ctx.metrics, PxPoint::zero())
+                        pos.layout(ctx.metrics, |_| PxPoint::zero())
                     })
                 }
             }
@@ -639,7 +640,7 @@ impl HeadedCtrl {
                     &self.content.info_tree,
                     &self.content.root_info,
                     &mut self.content.root_state,
-                    |ctx| auto_size_origin.layout(ctx, PxPoint::zero()).to_dip(scale_factor.0),
+                    |ctx| auto_size_origin.layout(ctx, |_| PxPoint::zero()).to_dip(scale_factor.0),
                 )
             };
             let prev_origin = auto_size_origin(current_size);
@@ -867,11 +868,11 @@ impl HeadlessWithRendererCtrl {
                 .vars
                 .min_size()
                 .get(ctx.vars)
-                .layout(ctx.metrics, default_min_size(scale_factor));
+                .layout(ctx.metrics, |_| default_min_size(scale_factor));
 
-            let max_size = self.vars.max_size().get(ctx.vars).layout(ctx.metrics, screen_size);
+            let max_size = self.vars.max_size().get(ctx.vars).layout(ctx.metrics, |_| screen_size);
 
-            let size = self.vars.size().get(ctx.vars).layout(ctx.metrics, default_size(scale_factor));
+            let size = self.vars.size().get(ctx.vars).layout(ctx.metrics, |_| default_size(scale_factor));
 
             (min_size, max_size, size.min(max_size).max(min_size))
         });
@@ -989,11 +990,11 @@ impl HeadlessCtrl {
                 .vars
                 .min_size()
                 .get(ctx.vars)
-                .layout(ctx.metrics, default_min_size(scale_factor));
+                .layout(ctx.metrics, |_| default_min_size(scale_factor));
 
-            let max_size = self.vars.max_size().get(ctx.vars).layout(ctx.metrics, screen_size);
+            let max_size = self.vars.max_size().get(ctx.vars).layout(ctx.metrics, |_| screen_size);
 
-            let size = self.vars.size().get(ctx.vars).layout(ctx.metrics, default_size(scale_factor));
+            let size = self.vars.size().get(ctx.vars).layout(ctx.metrics, |_| default_size(scale_factor));
 
             (min_size, max_size, size.min(max_size).max(min_size))
         });
@@ -1299,13 +1300,11 @@ impl ContentCtrl {
                 let desired_size = ctx.with_constrains(
                     |mut c| {
                         if !skip_auto_size {
-                            debug_assert!(c.fill.none());
-
                             if auto_size.contains(AutoSize::CONTENT_WIDTH) {
-                                c = c.with_max_width(Px::MAX);
+                                c = c.with_unbounded_x();
                             }
                             if auto_size.contains(AutoSize::CONTENT_HEIGHT) {
-                                c = c.with_max_height(Px::MAX);
+                                c = c.with_unbounded_y();
                             }
                         }
                         c

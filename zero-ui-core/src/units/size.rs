@@ -74,10 +74,10 @@ impl Size {
     }
 
     /// Compute the size in a layout context.
-    pub fn layout(&self, ctx: &LayoutMetrics, default_value: PxSize) -> PxSize {
+    pub fn layout(&self, ctx: &LayoutMetrics, mut default_value: impl FnMut(&LayoutMetrics) -> PxSize) -> PxSize {
         PxSize::new(
-            self.width.layout(ctx.for_x(), default_value.width),
-            self.height.layout(ctx.for_y(), default_value.height),
+            self.width.layout(ctx.for_x(), |ctx| default_value(ctx.metrics).width),
+            self.height.layout(ctx.for_y(), |ctx| default_value(ctx.metrics).height),
         )
     }
 

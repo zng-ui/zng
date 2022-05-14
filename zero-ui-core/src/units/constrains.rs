@@ -180,9 +180,10 @@ impl PxSizeConstrains {
         self.with_max(max).with_fill(true, true)
     }
 
-    /// Returns a constrain with `min` size.
+    /// Returns a constrain with `min` size and `max` adjusted to be more-or-equal to `min`.
     pub fn with_min(mut self, min: PxSize) -> Self {
         self.min = min;
+        self.max = self.max.max(self.min);
         self
     }
 
@@ -210,15 +211,17 @@ impl PxSizeConstrains {
         self.with_max_height(max_height).with_fill_y(true)
     }
 
-    /// Returns a constrain with `min.width` size.
+    /// Returns a constrain with `min.width` size and `max.width` adjusted to be more-or-equal to `min.width`.
     pub fn with_min_width(mut self, min_width: Px) -> Self {
         self.min.width = min_width;
+        self.max.width = self.max.width.max(self.min.width);
         self
     }
 
-    /// Returns a constrain with `max.height` size.
+    /// Returns a constrain with `max.height` size and `max.height` adjusted to be more-or-equal to `min.height`.
     pub fn with_min_height(mut self, min_height: Px) -> Self {
         self.min.height = min_height;
+        self.max.height = self.max.height.max(self.min.height);
         self
     }
 
@@ -278,6 +281,20 @@ impl PxSizeConstrains {
     /// Returns a constrains with `max.height` added by `added`.
     pub fn with_more_height(mut self, added: Px) -> Self {
         self.max.height += added;
+        self
+    }
+
+    /// Returns a constrains with `max.width` set to MAX and `fill.x` set to false.
+    pub fn with_unbounded_x(mut self) -> Self {
+        self.max.width = Px::MAX;
+        self.fill.x = false;
+        self
+    }
+
+    /// Returns a constrains with `max.height` set to MAX and `fill.y` set to false.
+    pub fn with_unbounded_y(mut self) -> Self {
+        self.max.height = Px::MAX;
+        self.fill.y = false;
         self
     }
 }

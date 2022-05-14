@@ -833,7 +833,6 @@ impl<'a> LayoutContext<'a> {
         constrains: impl FnOnce(PxSizeConstrains) -> PxSizeConstrains,
         f: impl FnOnce(&mut LayoutContext) -> R,
     ) -> R {
-        // TODO !!: diff
         f(&mut LayoutContext {
             metrics: &self.metrics.clone().with_constrains(constrains),
 
@@ -1088,7 +1087,6 @@ impl<'a> InfoContext<'a> {
 /// The [`LayoutContext`] type dereferences to this one.
 #[derive(Debug, Clone)]
 pub struct LayoutMetrics {
-    // TODO !!: connect this with clone?
     use_mask: Cell<LayoutMask>,
 
     constrains: PxSizeConstrains,
@@ -1109,7 +1107,7 @@ impl LayoutMetrics {
     pub fn new(scale_factor: Factor, viewport_size: PxSize, font_size: Px) -> Self {
         LayoutMetrics {
             use_mask: Cell::new(LayoutMask::NONE),
-            constrains: PxSizeConstrains::none().with_max(viewport_size),
+            constrains: PxSizeConstrains::none().with_max_fill(viewport_size),
             font_size,
             root_font_size: font_size,
             scale_factor,

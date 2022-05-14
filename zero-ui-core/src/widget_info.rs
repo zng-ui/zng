@@ -221,8 +221,7 @@ impl WidgetTransformBuilder {
     }
 
     fn build(self, ctx: &LayoutMetrics) -> RenderTransform {
-        let default_origin = Point::center().layout(ctx, PxPoint::zero());
-        let origin = self.origin.layout(ctx, default_origin);
+        let origin = self.origin.layout(ctx, |ctx| Point::center().layout(ctx, |_| PxPoint::zero()));
 
         let mut transform = self.transform;
 
