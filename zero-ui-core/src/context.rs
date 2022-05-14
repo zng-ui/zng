@@ -851,13 +851,22 @@ impl<'a> LayoutContext<'a> {
         })
     }
 
-    /// Runs a function `f` in a layout context that has its max size subtracted by `taken` and its final size added by `taken`.
+    /// Runs a function `f` in a layout context that has its max size subtracted by `removed` and its final size added by `removed`.
     ///
     /// The constrains are only [peeked], this method does not register a layout dependency on the constrains.
     ///
     /// [peeked]: LayoutMetrics::peek
-    pub fn with_taken_size(&mut self, taken: PxSize, f: impl FnOnce(&mut LayoutContext) -> PxSize) -> PxSize {
-        self.with_constrains(|c| c.with_less_size(taken), f) + taken
+    pub fn with_sub_size(&mut self, removed: PxSize, f: impl FnOnce(&mut LayoutContext) -> PxSize) -> PxSize {
+        self.with_constrains(|c| c.with_less_size(removed), f) + removed
+    }
+
+    /// Runs a function `f` in a layout context that has its max size added by `added` and its final size subtracted by `added`.
+    ///
+    /// The constrains are only [peeked], this method does not register a layout dependency on the constrains.
+    ///
+    /// [peeked]: LayoutMetrics::peek
+    pub fn with_add_size(&mut self, added: PxSize, f: impl FnOnce(&mut LayoutContext) -> PxSize) -> PxSize {
+        self.with_constrains(|c| c.with_more_size(added), f) - added
     }
 
     /// Runs a function `f` in a layout context that has the new computed font size.
@@ -884,12 +893,12 @@ impl<'a> LayoutContext<'a> {
     }
 
     /// Runs a function `f` in the layout context of a widget.
-    /// 
+    ///
     /// Automatically checks if the outer or inner transforms changed, if they did requests a [`render_update`], widget
     /// implementers must render these transforms using a frame binding.
-    /// 
+    ///
     /// Returns the closure `f` result and the updates requested by it.
-    /// 
+    ///
     /// [`render_update`]: Updates::render_update
     pub fn with_widget<R>(
         &mut self,

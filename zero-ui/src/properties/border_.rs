@@ -52,7 +52,7 @@ pub fn border(child: impl UiNode, widths: impl IntoVar<SideOffsets>, sides: impl
             let diff = PxSize::new(self.final_widths.horizontal(), self.final_widths.vertical());
 
             // TODO !!: with_border
-            ctx.with_taken_size(diff, |ctx| self.child.layout(ctx, wl))
+            ctx.with_sub_size(diff, |ctx| self.child.layout(ctx, wl))
         }
 
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {

@@ -63,7 +63,7 @@ pub fn margin(child: impl UiNode, margin: impl IntoVar<SideOffsets>) -> impl UiN
 
             wl.translate(PxVector::new(margin.left, margin.top)); // TODO !!: review this, does it need to be "pre-translate".
 
-            ctx.with_taken_size(self.size_increment, |ctx| self.child.layout(ctx, wl))
+            ctx.with_sub_size(self.size_increment, |ctx| self.child.layout(ctx, wl))
         }
     }
     MarginNode {

@@ -77,6 +77,12 @@ impl PxConstrains {
         self.min = self.min.min(self.max);
         self
     }
+
+    /// Returns a constrains with `max` added by `added`
+    pub fn with_more(mut self, added: Px) -> Self {
+        self.max += added;
+        self
+    }
 }
 
 /// Constrains on a pixel size.
@@ -234,6 +240,8 @@ impl PxSizeConstrains {
         self
     }
 
+    /* Note, Px ops are saturating */
+
     /// Returns a constrains with `max` subtracted by `removed` and `min` adjusted to be less-or-equal to `max`.
     pub fn with_less_size(mut self, removed: PxSize) -> Self {
         self.max -= removed;
@@ -252,6 +260,24 @@ impl PxSizeConstrains {
     pub fn with_less_height(mut self, removed: Px) -> Self {
         self.max.height -= removed;
         self.min.height = self.min.height.min(self.max.height);
+        self
+    }
+
+    /// Returns a constrains with `max` added by `added`.
+    pub fn with_more_size(mut self, added: PxSize) -> Self {
+        self.max -= added;
+        self
+    }
+
+    /// Returns a constrains with `max.width` added by `added`.
+    pub fn with_more_width(mut self, added: Px) -> Self {
+        self.max.width -= added;
+        self
+    }
+
+    /// Returns a constrains with `max.height` added by `added`.
+    pub fn with_more_height(mut self, added: Px) -> Self {
+        self.max.height += added;
         self
     }
 }

@@ -118,7 +118,7 @@ pub mod implicit_base {
         use super::*;
 
         /// Returns a node that wraps `child` and marks the [`WidgetLayout::with_inner`] and [`FrameBuilder::push_inner`].
-        /// 
+        ///
         /// This node renders the inner transform and implements the [`HitTestMode`] for the widget.
         pub fn inner(child: impl UiNode) -> impl UiNode {
             struct InnerNode<T> {
@@ -135,7 +135,7 @@ pub mod implicit_base {
 
                 fn update(&mut self, ctx: &mut WidgetContext) {
                     if HitTestMode::is_new(ctx) {
-                        ctx.updates.render();
+                        ctx.updates.layout();
                     }
                     self.child.update(ctx);
                 }
@@ -143,23 +143,23 @@ pub mod implicit_base {
                 fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
                     let size = wl.with_inner(ctx, |ctx, wl| self.child.layout(ctx, wl));
 
-                    let clip = (size, wl.corner_radius());
-
                     match HitTestMode::get(ctx.vars) {
                         HitTestMode::RoundedBounds => {
+                            let clip = (size, crate::border::ContextBorders::corner_radius(ctx));
                             if self.hits_clip != clip {
+                                self.hits_clip = clip;
                                 ctx.updates.render();
                             }
                         }
                         HitTestMode::Bounds => {
-                            if self.hits_clip.0 != clip.0 {
+                            if self.hits_clip.0 != size {
+                                self.hits_clip.0 = size;
                                 ctx.updates.render();
                             }
                         }
                         _ => {}
                     }
 
-                    self.hits_clip = clip;
                     size
                 }
                 fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {

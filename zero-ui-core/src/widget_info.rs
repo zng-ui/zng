@@ -5,7 +5,6 @@ use std::{cell::Cell, fmt, mem, ops, rc::Rc};
 use ego_tree::Tree;
 
 use crate::{
-
     context::{InfoContext, LayoutContext, LayoutMetrics, OwnedStateMap, StateMap, Updates},
     crate_util::{IdMap, IdSet},
     event::EventUpdateArgs,
@@ -29,7 +28,6 @@ pub struct WidgetLayout {
     widget_id: WidgetId,
     inner: WidgetTransformBuilder,
     baseline: Px,
-    corner_radius: PxCornerRadius,
 }
 impl WidgetLayout {
     /// Layout the window content.
@@ -42,7 +40,6 @@ impl WidgetLayout {
             widget_id: ctx.path.widget_id(),
             inner: WidgetTransformBuilder::new(),
             baseline: Px(0),
-            corner_radius: PxCornerRadius::zero(),
         };
         let size = f(ctx, &mut wl);
 
@@ -71,14 +68,12 @@ impl WidgetLayout {
         let parent_id = mem::replace(&mut self.widget_id, ctx.path.widget_id());
         let parent_inner = mem::replace(&mut self.inner, WidgetTransformBuilder::new());
         let parent_baseline = mem::take(&mut self.baseline);
-        let parent_corner_radius = mem::take(&mut self.corner_radius);
 
         let size = layout(ctx, self);
 
         let inner = mem::replace(&mut self.inner, parent_inner);
         self.widget_id = parent_id;
         self.baseline = parent_baseline;
-        self.corner_radius = parent_corner_radius;
 
         ctx.widget_info.outer.set_size(size);
         ctx.widget_info.inner.set_transform(inner.build(ctx));
@@ -87,6 +82,8 @@ impl WidgetLayout {
     }
 
     /// Marks the inner bounds of the current widget.
+    ///
+    /// Returns the inner bounds size.
     pub fn with_inner(&mut self, ctx: &mut LayoutContext, layout: impl FnOnce(&mut LayoutContext, &mut Self) -> PxSize) -> PxSize {
         #[cfg(debug_assertions)]
         if ctx.path.widget_id() != self.widget_id {
@@ -99,6 +96,7 @@ impl WidgetLayout {
 
         let size = layout(ctx, self);
         ctx.widget_info.inner.set_size(size);
+
         size
     }
 
@@ -117,45 +115,16 @@ impl WidgetLayout {
         r
     }
 
-
-    /// Returns the combined offsets of all borders applied to the current widget.
-    pub fn border_offsets(&self) -> PxSideOffsets {
-        todo!()
-    }
-
-    /// Returns the corner radius for the widget inner bounds.
-    /// 
-    /// This is the first corner radius computed for the widget, each added border delates it, see [`corner_radius`].
-    /// 
-    /// [`corner_radius`]: Self::corner_radius
-    pub fn wgt_corner_radius(&self) -> PxCornerRadius {
-        // TODO !!: problem, we want to compute the `CornerRadius` relative to the inner size, but it also
-        // needs to be available for the inner properties.
-        todo!()
-    }
-
-    /// Returns the corner radius for the current border.
-    /// 
-    /// This is the same value as [`bounds_corner_radius`] at first, but each border deflates it by their offsets,
-    /// this way nested borders perfectly fit inside each other.
-    pub fn corner_radius(&self) -> PxCornerRadius {
-        self.corner_radius
-    }
-
-    pub fn with_border(&self, offsets: PxSideOffsets) {
-
-    }
-
     /// Returns the offset up-from the widget inner bounds that is the baseline of the widget.
     pub fn baseline(&self) -> Px {
         self.baseline
     }
 
     /// Set the [`baseline`] offset for the current widget.
-    /// 
+    ///
     /// This should be called before layout of child nodes or only in an inner nodes, layout nodes expect this value to be
     /// up-to-date after the layout their child node when they call [`translate_baseline`].
-    /// 
+    ///
     /// [`baseline`]: Self::baseline
     /// [`translate_baseline`]: Self::translate_baseline
     pub fn set_baseline(&mut self, baseline: Px) {
@@ -168,10 +137,10 @@ impl WidgetLayout {
     }
 
     /// Applies the [`baseline`] as a translation down on the widget's inner transform.
-    /// 
-    /// This should only be called by layout nodes after layout of their child node, other nodes [`set_baseline`] in the 
+    ///
+    /// This should only be called by layout nodes after layout of their child node, other nodes [`set_baseline`] in the
     /// preview route or only in inner nodes.
-    /// 
+    ///
     /// [`baseline`]: Self::baseline
     /// [`set_baseline`]: Self::set_baseline
     pub fn translate_baseline(&mut self) {
@@ -213,7 +182,7 @@ impl ops::DerefMut for WidgetLayout {
 }
 
 /// Write access to an widget transform.
-/// 
+///
 /// See [`WidgetLayout`] for more details.
 pub struct WidgetTransformBuilder {
     transform: RenderTransform,
@@ -706,14 +675,15 @@ impl WidgetLayoutInfo {
 
     /// Get a copy of the current transform.
     ///
-    /// The transform converts from the widget bounds space to the bounds space.
+    /// The transform converts from this bounds space to the parent bounds space, that is, widget inner to widget outer to
+    /// parent widget inner and so on.
     pub fn transform(&self) -> RenderTransform {
         self.0.transform.get()
     }
 
     /// Gets [`transform`] inverted.
     ///
-    /// The transform converts from the window space to the widget bounds space.
+    /// The transform converts from the parent bounds space this bounds space.
     ///
     /// [`transform`]: Self::transform
     pub fn inverse_transform(&self) -> RenderTransform {
@@ -725,7 +695,6 @@ impl WidgetLayoutInfo {
     /// The `transform` must be invertible and *make sense*, if constructed only by the associated
     /// functions and methods it is valid.
     fn set_transform(&self, transform: RenderTransform) {
-        // TODO validate so that all `unwrap` calls in other methods pass.
         self.0.transform.set(transform)
     }
 
@@ -739,6 +708,12 @@ impl WidgetLayoutInfo {
     /// Set the current raw size.
     fn set_size(&self, size: PxSize) {
         self.0.size.set(size)
+    }
+
+    /// Compute a rectangle that encompasses this bounds in the parent bounds.
+    pub fn bounds(&self) -> PxRect {
+        let bounds = PxRect::from_size(self.size()).to_wr();
+        self.transform().outer_transformed_box2d(&bounds).unwrap().to_px()
     }
 
     /// Copy the current raw baseline.
@@ -757,49 +732,36 @@ impl WidgetLayoutInfo {
     fn set_baseline(&self, baseline: Px) {
         self.0.baseline.set(baseline)
     }
+}
 
-    /// Calculate the bounding box.
-    pub fn bounds(&self) -> PxRect {
-        Self::bounds_impl(self.transform(), self.size())
+/// Represents a computed transform of a child widget in a parent space.
+#[derive(Debug, Clone, Copy)]
+pub struct ParentChildTransform(pub RenderTransform);
+impl ParentChildTransform {
+    /// Transform a point from the parent space to the child space.
+    pub fn point_in_child(&self, point_in_parent: PxPoint) -> PxPoint {
+        self.0.inverse().unwrap().transform_px_point(point_in_parent).unwrap()
     }
 
-    /// Compute the transform in the context of a parent transform.
-    ///
-    /// Returns `None` if the `parent_transform` is not invertible.
-    pub fn local_transform(&self, parent_transform: &RenderTransform) -> Option<RenderTransform> {
-        parent_transform.inverse().map(|m| m.then(&self.transform()))
+    /// Transform a point from the child space to the parent space.
+    pub fn point_in_parent(&self, point_in_child: PxPoint) -> PxPoint {
+        self.0.transform_px_point(point_in_child).unwrap()
     }
 
-    /// Compute the bounding box in the context of a parent transform.
-    ///
-    /// Returns `None` if the `parent_transform` is not invertible.
-    pub fn local_bounds(&self, parent_transform: &RenderTransform) -> Option<PxRect> {
-        self.local_transform(parent_transform).map(|m| Self::bounds_impl(m, self.size()))
+    /// Transform a point from the parent space to the child space.
+    pub fn vector_in_child(&self, vector_in_parent: PxVector) -> PxVector {
+        self.0.inverse().unwrap().transform_px_vector(vector_in_parent)
     }
 
-    /// Transform a point from the window's space to the widget's space.
-    pub fn point_in_widget(&self, point_in_window: PxPoint) -> PxPoint {
-        self.inverse_transform().transform_px_point(point_in_window).unwrap()
+    /// Transform a point from the child space to the parent space.
+    pub fn vector_in_parent(&self, vector_in_child: PxVector) -> PxVector {
+        self.0.transform_px_vector(vector_in_child)
     }
 
-    /// Transform a vector from the window's space to the widget's space.
-    pub fn vector_in_widget(&self, vector_in_window: PxVector) -> PxVector {
-        self.inverse_transform().transform_px_vector(vector_in_window)
-    }
-
-    /// Transform a point from the widget's space to the window's space.
-    pub fn point_in_window(&self, point_in_widget: PxPoint) -> PxPoint {
-        self.transform().transform_px_point(point_in_widget).unwrap()
-    }
-
-    ///Transform a vector from the widget's space to the window's space.
-    pub fn vector_in_window(&self, vector_in_widget: PxVector) -> PxVector {
-        self.transform().transform_px_vector(vector_in_widget)
-    }
-
-    fn bounds_impl(transform: RenderTransform, size: PxSize) -> PxRect {
-        let rect = PxRect::from_size(size).to_wr();
-        let bounds = transform.outer_transformed_box2d(&rect).unwrap();
+    /// Returns a rectangle that encompasses the child `bounds` in the parent space.
+    pub fn bounds_in_parent(&self, bounds: PxRect) -> PxRect {
+        let rect = bounds.to_wr();
+        let bounds = self.0.outer_transformed_box2d(&rect).unwrap();
         bounds.to_px()
     }
 }
@@ -852,33 +814,6 @@ impl WidgetBorderInfo {
     pub fn inner_border_size(&self, inner_info: &WidgetLayoutInfo) -> PxSize {
         let o = self.offsets();
         inner_info.size() - PxSize::new(o.horizontal(), o.vertical())
-    }
-
-    /// Transform a point from the window's space to the widget's space.
-    pub fn inner_point_in_widget(&self, inner_info: &WidgetLayoutInfo, point_in_window: PxPoint) -> PxPoint {
-        self.inner_transform(inner_info)
-            .inverse()
-            .unwrap()
-            .transform_px_point(point_in_window)
-            .unwrap()
-    }
-
-    /// Transform a vector from the window's space to the widget's space.
-    pub fn inner_vector_in_widget(&self, inner_info: &WidgetLayoutInfo, vector_in_window: PxVector) -> PxVector {
-        self.inner_transform(inner_info)
-            .inverse()
-            .unwrap()
-            .transform_px_vector(vector_in_window)
-    }
-
-    /// Transform a point from the widget's space to the window's space.
-    pub fn inner_point_in_window(&self, inner_info: &WidgetLayoutInfo, point_in_widget: PxPoint) -> PxPoint {
-        self.inner_transform(inner_info).transform_px_point(point_in_widget).unwrap()
-    }
-
-    ///Transform a vector from the widget's space to the window's space.
-    pub fn inner_vector_in_window(&self, inner_info: &WidgetLayoutInfo, vector_in_widget: PxVector) -> PxVector {
-        self.inner_transform(inner_info).transform_px_vector(vector_in_widget)
     }
 
     fn set_offsets(&self, widths: PxSideOffsets) {
@@ -1096,98 +1031,90 @@ impl<'a> WidgetInfo<'a> {
         self.info().inner_info.size()
     }
 
-    /// Widget outer transform in the window space, before its own transforms are applied.
+    /// Widget outer transform in the parent inner space.
     ///
     /// Returns an up-to-date transform, the transform is updated every layout without causing a tree rebuild.
     pub fn outer_transform(self) -> RenderTransform {
         self.info().outer_info.transform()
     }
 
-    /// Widget outer transform in the `parent` space.
+    /// Widget outer transform in the `parent_id` space.
     ///
-    /// Returns `None` if `parent` is not invertible.
-    pub fn outer_transform_in(self, parent: &RenderTransform) -> Option<RenderTransform> {
-        self.info().outer_info.local_transform(parent)
+    /// If `parent_outer` is set, the transform is up to the parent outer transform, otherwise it is up to the parent inner transform.
+    ///
+    /// Returns `None` if `parent` is not found.
+    pub fn outer_transform_in(self, parent_id: WidgetId, parent_outer: bool) -> Option<ParentChildTransform> {
+        let mut t = self.outer_transform();
+        for a in self.ancestors() {
+            t = t.then(&a.inner_transform());
+
+            if a.widget_id() == parent_id {
+                if parent_outer {
+                    t = t.then(&a.outer_transform());
+                }
+
+                return Some(ParentChildTransform(t));
+            }
+
+            t = t.then(&a.outer_transform());
+        }
+        None
     }
 
-    /// Widget transform in the window space, including its own transforms.
+    /// Widget inner transform in the outer space.
     ///
     /// Returns an up-to-date transform, the transform is updated every layout without causing a tree rebuild.
     pub fn inner_transform(self) -> RenderTransform {
         self.info().inner_info.transform()
     }
 
-    /// Widget inner transform in the `parent` space.
+    /// Widget inner transform in the `parent_id` space.
+    ///
+    /// If `parent_outer` is set, the transform is up to the parent outer transform, otherwise it is up to the parent inner transform.
     ///
     /// Returns `None` if `parent` is not invertible.
-    pub fn inner_transform_in(self, parent: &RenderTransform) -> Option<RenderTransform> {
-        self.info().inner_info.local_transform(parent)
+    pub fn inner_transform_in(self, parent_id: WidgetId, parent_outer: bool) -> Option<ParentChildTransform> {
+        let mut t = self.inner_transform();
+        t = t.then(&self.outer_transform());
+        for a in self.ancestors() {
+            t = t.then(&a.inner_transform());
+
+            if a.widget_id() == parent_id {
+                if parent_outer {
+                    t = t.then(&a.outer_transform());
+                }
+
+                return Some(ParentChildTransform(t));
+            }
+
+            t = t.then(&a.outer_transform());
+        }
+        None
     }
 
-    /// Widget rectangle in the window space, including *outer* properties like margin.
+    /// Widget outer rectangle in the window space.
     ///
     /// Returns an up-to-date rect, the bounds are updated every layout without causing a tree rebuild.
     pub fn outer_bounds(self) -> PxRect {
-        self.info().outer_info.bounds()
+        let bounds = PxRect::from_size(self.outer_info().size());
+        self.outer_transform_in(self.root().widget_id(), true)
+            .unwrap()
+            .bounds_in_parent(bounds)
     }
 
-    /// Widget outer bounds in the `parent` space.
-    ///
-    /// Returns `None` if `parent` is not invertible.
-    pub fn outer_bounds_in(self, parent: &RenderTransform) -> Option<PxRect> {
-        self.info().outer_info.local_bounds(parent)
-    }
-
-    /// Widget rectangle in the window space, but only the visible *inner* properties.
+    /// Widget inner rectangle in the window space.
     ///
     /// Returns an up-to-date rect, the bounds are updated every layout without causing a tree rebuild.
     pub fn inner_bounds(self) -> PxRect {
-        self.info().inner_info.bounds()
-    }
-
-    /// Widget inner bounds in the `parent` space.
-    ///
-    /// Returns `None` if `parent` is not invertible.
-    pub fn inner_bounds_in(self, parent: &RenderTransform) -> Option<PxRect> {
-        self.info().inner_info.local_bounds(parent)
-    }
-
-    /// Calculate the offsets from `outer_bounds` to `bounds`.
-    pub fn outer_offsets(self) -> PxSideOffsets {
-        let info = self.info();
-        let outer_bounds = info.outer_info.bounds();
-        let bounds = info.inner_info.bounds();
-
-        Self::calc_offsets(outer_bounds, bounds)
-    }
-
-    /// Calculate the offsets from root's `outer_bounds` to this widget's `bounds`.
-    pub fn root_offsets(self) -> PxSideOffsets {
-        let outer = self.root().outer_bounds();
-        let inner = self.inner_bounds();
-
-        Self::calc_offsets(outer, inner)
-    }
-
-    fn calc_offsets(outer: PxRect, inner: PxRect) -> PxSideOffsets {
-        let top = outer.origin.y - inner.origin.y;
-        let left = outer.origin.x - inner.origin.x;
-        let right = outer.size.width - inner.size.width;
-        let bottom = outer.size.height - inner.size.height;
-
-        PxSideOffsets::new(top, right, bottom, left)
+        let bounds = PxRect::from_size(self.inner_info().size());
+        self.inner_transform_in(self.root().widget_id(), true)
+            .unwrap()
+            .bounds_in_parent(bounds)
     }
 
     /// Widget inner bounds center in the window space.
     pub fn center(self) -> PxPoint {
         self.inner_bounds().center()
-    }
-
-    /// Widget inner bounds center in the `parent` space.
-    ///
-    /// Returns `None` if the `parent` is not invertible.
-    pub fn center_in(self, parent: &RenderTransform) -> Option<PxPoint> {
-        self.inner_bounds_in(parent).map(|r| r.center())
     }
 
     /// Metadata associated with the widget during render.
