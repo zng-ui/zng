@@ -145,7 +145,7 @@ pub mod implicit_base {
 
                     match HitTestMode::get(ctx.vars) {
                         HitTestMode::RoundedBounds => {
-                            let clip = (size, crate::border::ContextBorders::corner_radius(ctx));
+                            let clip = (size, ctx.widget_info.border.corner_radius());
                             if self.hits_clip != clip {
                                 self.hits_clip = clip;
                                 ctx.updates.render();

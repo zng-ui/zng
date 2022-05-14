@@ -13,7 +13,7 @@ use crate::{
     var::{Var, VarValue, VarsRead, WithVarsRead},
     widget_base::Visibility,
     window::WindowId,
-    Widget, WidgetId,
+    Widget, WidgetId, border::ContextBorders,
 };
 
 unique_id_64! {
@@ -70,20 +70,24 @@ impl WidgetLayout {
         let parent_baseline = mem::take(&mut self.baseline);
 
         let size = layout(ctx, self);
+        ctx.widget_info.outer.set_size(size);
 
         let inner = mem::replace(&mut self.inner, parent_inner);
-        self.widget_id = parent_id;
+        ctx.widget_info.inner.set_transform(inner.build(ctx));
+
+        ctx.widget_info.inner.set_baseline(self.baseline);
         self.baseline = parent_baseline;
 
-        ctx.widget_info.outer.set_size(size);
-        ctx.widget_info.inner.set_transform(inner.build(ctx));
+        self.widget_id = parent_id;
 
         size
     }
 
     /// Marks the inner bounds of the current widget.
+    /// 
+    /// This method fully updates the border and updates the inner info size.
     ///
-    /// Returns the inner bounds size.
+    /// Returns the size.
     pub fn with_inner(&mut self, ctx: &mut LayoutContext, layout: impl FnOnce(&mut LayoutContext, &mut Self) -> PxSize) -> PxSize {
         #[cfg(debug_assertions)]
         if ctx.path.widget_id() != self.widget_id {
@@ -94,7 +98,8 @@ impl WidgetLayout {
             );
         }
 
-        let size = layout(ctx, self);
+        let size = ContextBorders::with_inner(ctx, |ctx| layout(ctx, self));
+
         ctx.widget_info.inner.set_size(size);
 
         size
@@ -816,11 +821,11 @@ impl WidgetBorderInfo {
         inner_info.size() - PxSize::new(o.horizontal(), o.vertical())
     }
 
-    fn set_offsets(&self, widths: PxSideOffsets) {
+    pub(super) fn set_offsets(&self, widths: PxSideOffsets) {
         self.0.offsets.set(widths);
     }
 
-    fn set_corner_radius(&self, radius: PxCornerRadius) {
+    pub(super) fn set_corner_radius(&self, radius: PxCornerRadius) {
         self.0.corner_radius.set(radius)
     }
 }

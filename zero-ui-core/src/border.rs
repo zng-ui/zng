@@ -801,7 +801,7 @@ pub fn border_node(child: impl UiNode, border_offsets: impl IntoVar<SideOffsets>
                 self.render_offsets = offsets;
             }
 
-            ContextBorders::with_border(ctx.metrics, ctx.vars, ctx.path.widget_id(), offsets, |ctx_offsets| {
+            ContextBorders::with_border(ctx, offsets, |ctx, ctx_offsets| {
                 // child nodes are naturally *inside* borders, `border_align` affected nodes cancel this offset.
                 // TODO !!: how do we add to the child outer-transform here? with_outer does not work.
 
@@ -882,11 +882,22 @@ impl ContextBorders {
         }
     }
 
-    fn with_border(metrics: &LayoutMetrics, vars: &VarsRead, widget_id: WidgetId, offsets: PxSideOffsets, f: impl FnOnce(PxSideOffsets)) {
-        let mut data = BorderDataVar::get_clone(vars);
-        let ctx_offsets = data.add_offset(metrics, vars, widget_id, offsets);
+    pub(super) fn with_inner(ctx: &mut LayoutContext, f: impl FnOnce(&mut LayoutContext) -> PxSize) -> PxSize {
+        let corner_radius = ContextBorders::corner_radius(ctx);
+        ctx.widget_info.border.set_corner_radius(corner_radius);
+        ctx.widget_info.border.set_offsets(PxSideOffsets::zero());
+        let r = f(ctx);
+        r        
+    }
 
-        vars.with_context_var(BorderDataVar, ContextVarData::fixed(&data), || f(ctx_offsets));
+    fn with_border(ctx: &mut LayoutContext, offsets: PxSideOffsets, f: impl FnOnce(&mut LayoutContext, PxSideOffsets)) {
+        let mut data = BorderDataVar::get_clone(ctx.vars);
+        let (ctx_offsets, is_wgt_start) = data.add_offset(ctx, offsets);
+        if is_wgt_start && !ctx.widget_info.border.offsets().is_zero() {
+            #[cfg(debug_assertions)]
+            tracing::error!("widget {:?} layout border outside of ")
+        }
+        ctx.vars.with_context_var(BorderDataVar, ContextVarData::fixed(&data), || f(ctx, ctx_offsets));
     }
 
     fn with_corner_radius<R>(vars: &VarsRead, f: impl FnOnce() -> R) -> R {
@@ -931,15 +942,16 @@ impl BorderOffsetsData {
     /// Adds to the widget offsets, or start a new one.
     ///
     /// Computes a new `corner_radius` if fit is Widget and is in a new one.
-    fn add_offset(&mut self, metrics: &LayoutMetrics, vars: &VarsRead, widget_id: WidgetId, offset: PxSideOffsets) -> PxSideOffsets {
+    fn add_offset(&mut self, ctx: &mut LayoutContext, offset: PxSideOffsets) -> (PxSideOffsets, bool) {
         let mut ctx_offsets = self.wgt_offsets;
-
-        let widget_id = Some(widget_id);
-        if self.widget_id != widget_id {
+        
+        let widget_id = Some(ctx.path.widget_id());
+        let is_wgt_start = self.widget_id != widget_id;
+        if is_wgt_start {
             // changed widget, reset offsets, and maybe corner-radius too.
             self.widget_id = widget_id;
             self.wgt_offsets = offset;
-            self.eval_cr |= matches!(CornerRadiusFitVar::get(vars), CornerRadiusFit::Widget);
+            self.eval_cr |= matches!(CornerRadiusFitVar::get(ctx.vars), CornerRadiusFit::Widget);
             ctx_offsets = PxSideOffsets::zero();
         } else {
             self.wgt_offsets += offset;
@@ -947,13 +959,17 @@ impl BorderOffsetsData {
         }
 
         if mem::take(&mut self.eval_cr) {
-            self.corner_radius = CornerRadiusVar::get(vars).layout(metrics, PxCornerRadius::zero());
+            self.corner_radius = CornerRadiusVar::get(ctx.vars).layout(ctx.metrics, PxCornerRadius::zero());
             self.cr_offsets = PxSideOffsets::zero();
         } else {
             self.cr_offsets += offset;
         }
 
-        ctx_offsets
+        if is_wgt_start {
+            ctx.widget_info.border.set_corner_radius(self.corner_radius);
+        }
+
+        (ctx_offsets, is_wgt_start)
     }
 
     fn set_corner_radius(&mut self, vars: &VarsRead) {
