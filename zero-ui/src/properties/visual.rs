@@ -391,43 +391,26 @@ pub fn clip_to_bounds(child: impl UiNode, clip: impl IntoVar<bool>) -> impl UiNo
 
         fn update(&mut self, ctx: &mut WidgetContext) {
             if self.clip.is_new(ctx) {
-                ctx.updates.render();
+                ctx.updates.layout_and_render();
             }
 
             self.child.update(ctx);
         }
 
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
-            self.bounds = self.child.layout(ctx, wl);
-            self.corners = ContextBorders::corner_radius(ctx);
+            let bounds = self.child.layout(ctx, wl);
 
-            self.bounds
+            if self.clip.copy(ctx) {
+                let corners = ContextBorders::corner_radius(ctx);
+                if bounds != self.bounds || corners != self.corners {
+                    self.bounds = bounds;
+                    self.corners = corners;
+                    ctx.updates.render();
+                }
+            }
+
+            bounds
         }
-
-        /*
-        fn arrange(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, final_size: PxSize) {
-            let mut changed = false;
-
-            let border_offsets = widget_layout.border_offsets();
-            let new_bounds = final_size + PxSize::new(border_offsets.horizontal(), border_offsets.vertical());
-            if self.bounds != new_bounds {
-                self.bounds = new_bounds;
-                changed = true;
-            }
-
-            let corners = widget_layout.corner_radius().inflate(border_offsets);
-            if self.corners != corners {
-                self.corners = corners;
-                changed = true;
-            }
-
-            if changed && self.clip.copy(ctx) {
-                ctx.updates.render();
-            }
-
-            self.child.arrange(ctx, widget_layout, final_size)
-        }
-        */
 
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
             if self.clip.copy(ctx) {
