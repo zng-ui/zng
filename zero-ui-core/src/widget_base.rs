@@ -10,7 +10,7 @@ use crate::{
     units::{PxCornerRadius, PxRect, PxSize},
     var::*,
     widget_info::{UpdateMask, WidgetInfo, WidgetInfoBuilder, WidgetLayout, WidgetSubscriptions},
-    NilUiNode, UiNode, Widget, WidgetId,
+    FillUiNode, UiNode, Widget, WidgetId,
 };
 
 /// Base widget inherited implicitly by all [widgets](widget!) that don't inherit from
@@ -54,7 +54,7 @@ pub mod implicit_base {
         visibility;
     }
 
-    /// Implicit `new_child`, does nothing, returns the [`NilUiNode`].
+    /// Implicit `new_child`, does nothing, returns the [`FillUiNode`].
     ///
     /// # Child Layout
     ///
@@ -63,7 +63,7 @@ pub mod implicit_base {
     /// child widget, so if this function does not return an widget they are ignored, the [`nodes::leaf_transform`] detects this
     /// and applies the pending transform.
     pub fn new_child() -> impl UiNode {
-        NilUiNode
+        FillUiNode
     }
 
     /// No-op, returns `child`.

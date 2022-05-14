@@ -129,9 +129,13 @@ pub fn align(child: impl UiNode, alignment: impl IntoVar<Align>) -> impl UiNode 
                 |mut c| {
                     if align.is_fill_width() {
                         c = c.with_width_fill(size.width);
+                    } else {
+                        c = c.with_fill_x(false);
                     }
                     if align.is_fill_height() {
                         c = c.with_height_fill(size.height);
+                    } else {
+                        c = c.with_fill_y(false);
                     }
                     c
                 },
