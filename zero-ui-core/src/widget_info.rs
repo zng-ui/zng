@@ -14,7 +14,7 @@ use crate::{
     var::{Var, VarValue, VarsRead, WithVarsRead},
     widget_base::Visibility,
     window::WindowId,
-    WidgetId,
+    Widget, WidgetId,
 };
 
 unique_id_64! {
@@ -24,13 +24,7 @@ unique_id_64! {
 
 /// Represents the in-progress layout pass for an widget tree.
 pub struct WidgetLayout {
-    transform_buf: RenderTransform,
-    origin: Point,
-    baseline: Length,
-    translate_baseline: f32,
-
-    inner: Option<WidgetLayoutInfo>,
-    inner_collapsed: bool,
+    t: WidgetLayoutTransform,
 }
 impl WidgetLayout {
     // # Requirements
@@ -39,8 +33,7 @@ impl WidgetLayout {
     // * Inner can be affected by widget only.
     // * Parent widget can pre-load child outer-transforms, applied when the outer-transform is visited.
     // * Parent widget can detect when they don't actually have a child, so they can simulate padding for child nodes.
-    // * Parent panels can retain a mutable ref to each child transform until after it finishes layout for all children. OPEN
-    //    - Can we do this without a vec alloc?
+    // * Parent panels can set the children outer transforms directly, in case they need to layout every child first to compute position.
     //
     // ## Nice to Have
     //
@@ -59,14 +52,14 @@ impl WidgetLayout {
 
     fn finish_bounds(&mut self, ctx: &LayoutMetrics) {
         // last opportunity to update the current target, apply origin transform.
-        if let Some(finish_target) = self.inner.take() {
-            debug_assert!(!self.inner_collapsed);
+        if let Some(finish_target) = self.t.inner.take() {
+            debug_assert!(!self.t.inner_collapsed);
 
             let av_size = finish_target.size();
             let ctx = ctx.clone().with_constrains(|c| c.with_max_fill(av_size));
 
             let origin_dft = PxPoint::new(av_size.width / 2.0, av_size.height / 2.0);
-            let origin = mem::take(&mut self.origin);
+            let origin = mem::take(&mut self.t.origin);
             let origin = origin.layout(&ctx, |_| origin_dft);
 
             if origin != PxPoint::zero() {
@@ -80,11 +73,11 @@ impl WidgetLayout {
             }
 
             let baseline_dft = Px(0);
-            let baseline = mem::take(&mut self.baseline);
+            let baseline = mem::take(&mut self.t.baseline);
             let baseline = baseline.layout(ctx.for_y(), |_| baseline_dft);
 
             finish_target.set_baseline(baseline);
-            let baseline_offset = baseline * mem::take(&mut self.translate_baseline);
+            let baseline_offset = baseline * mem::take(&mut self.t.translate_baseline);
             if baseline_offset != Px(0) {
                 let y = baseline_offset.0 as f32;
                 let transform = finish_target.transform();
@@ -92,7 +85,7 @@ impl WidgetLayout {
                 finish_target.set_transform(transform);
             }
         } else {
-            self.inner_collapsed = false;
+            self.t.inner_collapsed = false;
         }
     }
 
@@ -105,33 +98,35 @@ impl WidgetLayout {
         self.finish_bounds(ctx); // in case of WidgetList or bad Widget implementation.
 
         // drain preview transforms.
-        let transform = mem::take(&mut self.transform_buf);
+        let transform = mem::take(&mut self.t.transform_buf);
         bounds.set_transform(transform);
 
-        self.origin = Point::default();
-        self.baseline = Length::default();
-        self.translate_baseline = 0.0;
-        self.inner = None;
+        self.t.origin = Point::default();
+        self.t.baseline = Length::default();
+        self.t.translate_baseline = 0.0;
+        self.t.inner = None;
 
         let size = layout(ctx, self);
         bounds.set_size(size);
 
-        self.inner = Some(bounds);
+        self.t.inner = Some(bounds);
 
         size
     }
 
     /// Defines the root widget outer-bounds scope.
-    /// 
+    ///
     /// The default window implementation calls this.
     pub fn with_root_widget(ctx: &mut LayoutContext, layout: impl FnOnce(&mut LayoutContext, &mut Self) -> PxSize) -> PxSize {
         let mut wl = Self {
-            transform_buf: RenderTransform::identity(),
-            origin: Point::center(),
-            baseline: Length::default(),
-            translate_baseline: 0.0,
-            inner: None,
-            inner_collapsed: false,
+            t: WidgetLayoutTransform {
+                transform_buf: RenderTransform::identity(),
+                origin: Point::center(),
+                baseline: Length::default(),
+                translate_baseline: 0.0,
+                inner: None,
+                inner_collapsed: false,
+            },
         };
         let size = wl.with_widget(ctx, layout);
         wl.finish_bounds(ctx);
@@ -140,9 +135,9 @@ impl WidgetLayout {
 
     /// Defines a widget outer-bounds scope, applies pending transforms to the outer transform,
     /// calls `layout`, then sets the transform target to the outer transform.
-    /// 
+    ///
     /// The default widget constructor calls this, see [`implicit_base::nodes::widget`].
-    /// 
+    ///
     /// [`implicit_base::nodes::widget`]: crate::widget_base::implicit_base::nodes::widget
     pub fn with_widget(&mut self, ctx: &mut LayoutContext, layout: impl FnOnce(&mut LayoutContext, &mut Self) -> PxSize) -> PxSize {
         let bounds = ctx.widget_info.outer.clone();
@@ -151,24 +146,22 @@ impl WidgetLayout {
 
     /// Defines a widget inner-bounds scope, applies pending transforms to the inner transform,
     /// calls `layout`, then sets the transform target to the inner transform.
-    /// 
-    /// This method also updates the border info. 
-    /// 
+    ///
+    /// This method also updates the border info.
+    ///
     /// The default widget borders constructor calls this, see [`implicit_base::nodes::inner`].
-    /// 
+    ///
     /// [`implicit_base::nodes::inner`]: crate::widget_base::implicit_base::nodes::inner
     pub fn with_inner(&mut self, ctx: &mut LayoutContext, layout: impl FnOnce(&mut LayoutContext, &mut Self) -> PxSize) -> PxSize {
         let bounds = ctx.widget_info.outer.clone();
-        self.with_bounds(ctx, bounds, |ctx, wl| {
-            ContextBorders::with_inner(ctx, |ctx| layout(ctx, wl))
-        })
+        self.with_bounds(ctx, bounds, |ctx, wl| ContextBorders::with_inner(ctx, |ctx| layout(ctx, wl)))
     }
 
     /// Defines a widget child scope, drops the current layout target, calls `layout`, then if no transform targets where set
     /// by `layout` returns the child transform, otherwise the transform target is set to the child outer bounds.
-    /// 
+    ///
     /// The default widget child layout constructor calls this, see [`implicit_base::nodes::child_layout`].
-    /// 
+    ///
     /// [`implicit_base::nodes::child_layout`]: crate::widget_base::implicit_base::nodes::child_layout
     pub fn with_child(
         &mut self,
@@ -177,16 +170,49 @@ impl WidgetLayout {
     ) -> (PxSize, Option<RenderTransform>) {
         self.finish_bounds(ctx);
 
-        self.inner = None;
+        self.t.inner = None;
 
         let size = layout(ctx, self);
 
-        let collapse = mem::take(&mut self.inner_collapsed);
-        if self.inner.is_none() && !collapse {
-            (size, Some(mem::take(&mut self.transform_buf)))
+        let collapse = mem::take(&mut self.t.inner_collapsed);
+        if self.t.inner.is_none() && !collapse {
+            (size, Some(mem::take(&mut self.t.transform_buf)))
         } else {
             (size, None)
         }
+    }
+
+    /// Overwrite the widget's outer transform, the `transform` closure is called with the
+    /// [`WidgetLayoutTransform`] set to apply directly to the `widget` outer info, after it returns `self` has
+    /// the same state it had before.
+    ///
+    /// This is a limited version of the [`with_child`] method, useful for cases where multiple children need
+    /// to be layout first before each child's position can be computed, in these scenarios this method avoids a second
+    /// layout pass by using the [`Widget`] trait to access and replace the outer transform.
+    ///
+    /// [`with_child`]: Self::with_child
+    pub fn with_outer<W: Widget, R>(
+        &mut self,
+        metrics: &LayoutMetrics,
+        widget: &mut W,
+        transform: impl FnOnce(&mut WidgetLayoutTransform) -> R,
+    ) -> R {
+        let mut wl = WidgetLayout {
+            t: WidgetLayoutTransform {
+                transform_buf: RenderTransform::identity(),
+                origin: Point::center(),
+                baseline: Length::zero(),
+                translate_baseline: 0.0,
+                inner: Some(widget.outer_info().clone()),
+                inner_collapsed: false,
+            },
+        };
+
+        let r = transform(&mut wl);
+
+        wl.finish_bounds(metrics);
+
+        r
     }
 
     /// Collapse the layout of `self` and descendants, the size is set to zero and the transform to identity.
@@ -197,8 +223,8 @@ impl WidgetLayout {
     ///
     /// [`Collapsed`]: Visibility::Collapsed
     pub fn collapse(&mut self, ctx: &mut LayoutContext) {
-        self.inner = None;
-        self.inner_collapsed = true;
+        self.t.inner = None;
+        self.t.inner_collapsed = true;
 
         let widget_id = ctx.path.widget_id();
         if let Some(w) = ctx.info_tree.find(widget_id) {
@@ -214,7 +240,33 @@ impl WidgetLayout {
             tracing::error!("collapse did not find `{}` in the info tree", widget_id)
         }
     }
+}
+impl ops::Deref for WidgetLayout {
+    type Target = WidgetLayoutTransform;
 
+    fn deref(&self) -> &Self::Target {
+        &self.t
+    }
+}
+impl ops::DerefMut for WidgetLayout {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.t
+    }
+}
+
+/// Mutable access to the transform of a widget bounds in [`WidgetLayout`].
+///
+/// Note that [`WidgetLayout`] dereferences to this type.
+pub struct WidgetLayoutTransform {
+    transform_buf: RenderTransform,
+    origin: Point,
+    baseline: Length,
+    translate_baseline: f32,
+
+    inner: Option<WidgetLayoutInfo>,
+    inner_collapsed: bool,
+}
+impl WidgetLayoutTransform {
     /// Transforms the closest *inner* bounds.
     ///
     /// In the *preview* track, before the layout is delegated to a child node, the transform is buffered, as soon as the

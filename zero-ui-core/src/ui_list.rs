@@ -7,7 +7,7 @@ use crate::{
     render::{FrameBuilder, FrameUpdate},
     units::{PxSize, PxSizeConstrains},
     widget_info::{
-        WidgetBorderInfo, WidgetInfoBuilder, WidgetLayout, WidgetLayoutInfo, WidgetRenderInfo, WidgetSubscriptions,
+        WidgetBorderInfo, WidgetInfoBuilder, WidgetLayout, WidgetLayoutInfo, WidgetLayoutTransform, WidgetRenderInfo, WidgetSubscriptions,
     },
     WidgetId,
 };
@@ -167,10 +167,10 @@ pub struct FinalSizeArgs<'a> {
     /// The widget outer size.
     pub size: PxSize,
 
-    /// The widget outer transform builder.
+    /// The widget outer transform.
     ///
     /// Is `None` for layout in UI node lists.
-    pub transform: Option<&'a mut WidgetTransformBuilder>,
+    pub transform: Option<&'a mut WidgetLayoutTransform>,
 }
 
 /// All [`Widget`] accessible *info*.
