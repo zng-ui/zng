@@ -7,7 +7,7 @@ use crate::{
     render::{FrameBuilder, FrameUpdate},
     units::{PxSize, PxSizeConstrains},
     widget_info::{
-        WidgetBorderInfo, WidgetInfoBuilder, WidgetLayout, WidgetLayoutInfo, WidgetRenderInfo, WidgetSubscriptions, WidgetTransformBuilder,
+        WidgetBorderInfo, WidgetInfoBuilder, WidgetLayout, WidgetLayoutInfo, WidgetRenderInfo, WidgetSubscriptions,
     },
     WidgetId,
 };

@@ -6,7 +6,7 @@ use crate::{
     context::{state_key, InfoContext, LayoutContext, RenderContext, StateMap, WidgetContext},
     event::EventUpdateArgs,
     impl_ui_node, property,
-    render::{FrameBuilder, FrameUpdate},
+    render::{FrameBuilder, FrameUpdate, SpatialFrameId},
     units::{PxCornerRadius, PxRect, PxSize},
     var::*,
     widget_info::{UpdateMask, WidgetInfo, WidgetInfoBuilder, WidgetLayout, WidgetSubscriptions},
@@ -68,7 +68,7 @@ pub mod implicit_base {
 
     /// No-op, returns `child`.
     pub fn new_child_layout(child: impl UiNode) -> impl UiNode {
-        child
+        nodes::child_layout(child)
     }
 
     /// No-op, returns `child`.
@@ -117,17 +117,90 @@ pub mod implicit_base {
     pub mod nodes {
         use super::*;
 
+        /// Returns a node that wraps `child` and potentially applies child transforms if the `child` turns out
+        /// to not be a full [`Widget`]. This is important for making properties like *padding* or *content_align* work
+        /// for container widgets that accept any [`UiNode`] as content.
+        ///
+        /// This node should wrap the outer-most border node in the [`new_child_layout`] constructor, the implicit implementation already does this.
+        ///
+        /// [`new_child_layout`]: super::new_child_layout
+        pub fn child_layout(child: impl UiNode) -> impl UiNode {
+            struct LeafTransform {
+                spatial_id: SpatialFrameId,
+                transform: RenderTransform,
+                transform_key: FrameBindingKey<RenderTransform>,
+            }
+            impl LeafTransform {
+                fn new(transform: RenderTransform) -> Self {
+                    Self {
+                        spatial_id: SpatialFrameId::new_unique(),
+                        transform,
+                        transform_key: FrameBindingKey::new_unique(),
+                    }
+                }
+            }
+            struct ChildLayoutNode<C> {
+                child: C,
+                transform: Option<Box<LeafTransform>>,
+            }
+            #[impl_ui_node(child)]
+            impl<C: UiNode> UiNode for ChildLayoutNode<C> {
+                fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
+                    let (size, mut transform) = wl.with_child(ctx, |ctx, wl| self.child.layout(ctx, wl));
+                    if let Some(transform) = transform {
+                        if let Some(lt) = &mut self.transform {
+                            if lt.transform != transform {
+                                lt.transform = transform;
+                                ctx.updates.render_update();
+                            }
+                        } else {
+                            self.transform = Some(Box::new(LeafTransform::new(transform)));
+                            ctx.updates.render_update();
+                        }
+                    } else if self.transform.take().is_some() {
+                        ctx.updates.render();
+                    }
+
+                    size
+                }
+                fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
+                    if let Some(lt) = &self.transform {
+                        frame.push_reference_frame(lt.spatial_id, lt.transform_key.bind(lt.transform), false, |frame| {
+                            self.child.render(ctx, frame)
+                        });
+                    } else {
+                        self.child.render(ctx, frame)
+                    }
+                }
+                fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
+                    if let Some(lt) = &self.transform {
+                        update.update_transform(lt.transform_key.update(lt.transform));
+                    }
+                    self.child.render_update(ctx, update)
+                }
+            }
+            ChildLayoutNode {
+                child: child.cfg_boxed(),
+                transform: None,
+            }
+            .cfg_boxed()
+        }
+
         /// Returns a node that wraps `child` and marks the [`WidgetLayout::with_inner`] and [`FrameBuilder::push_inner`].
         ///
         /// This node renders the inner transform and implements the [`HitTestMode`] for the widget.
+        ///
+        /// This node should wrap the outer-most border node in the [`new_border`] constructor, the implicit implementation already does this.
+        ///
+        /// [`new_border`]: super::new_border
         pub fn inner(child: impl UiNode) -> impl UiNode {
-            struct InnerNode<T> {
-                child: T,
+            struct InnerNode<C> {
+                child: C,
                 transform_key: FrameBindingKey<RenderTransform>,
                 hits_clip: (PxSize, PxCornerRadius),
             }
             #[impl_ui_node(child)]
-            impl<T: UiNode> UiNode for InnerNode<T> {
+            impl<C: UiNode> UiNode for InnerNode<C> {
                 fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
                     subs.updates(&HitTestMode::update_mask(ctx));
                     self.child.subscriptions(ctx, subs);
@@ -195,11 +268,15 @@ pub mod implicit_base {
         /// Create a [`Widget`] node that wraps `child` and introduces a new widget context. The node calls
         /// [`WidgetContext::widget_context`], [`LayoutContext::with_widget`] and [`FrameBuilder::push_widget`]
         /// to define the widget.
+        ///
+        /// This node should wrap the outer-most context node in the [`new`] constructor, the implicit implementation already does this.
+        ///
+        /// [`new`]: super::new
         pub fn widget(child: impl UiNode, id: impl IntoValue<WidgetId>) -> impl Widget {
-            struct WidgetNode<T> {
+            struct WidgetNode<C> {
                 id: WidgetId,
                 state: OwnedStateMap,
-                child: T,
+                child: C,
                 info: WidgetContextInfo,
                 subscriptions: RefCell<WidgetSubscriptions>,
 
@@ -207,7 +284,7 @@ pub mod implicit_base {
                 inited: bool,
                 pending_updates: RefCell<WidgetUpdates>,
             }
-            impl<T: UiNode> UiNode for WidgetNode<T> {
+            impl<C: UiNode> UiNode for WidgetNode<C> {
                 fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
                     #[cfg(debug_assertions)]
                     if !self.inited {
@@ -667,7 +744,7 @@ pub fn visibility(child: impl UiNode, visibility: impl IntoVar<Visibility>) -> i
             if Visibility::Collapsed != self.visibility.copy(ctx) {
                 self.child.layout(ctx, wl)
             } else {
-                wl.collapse(ctx.info_tree);
+                wl.collapse(ctx);
                 PxSize::zero()
             }
         }
