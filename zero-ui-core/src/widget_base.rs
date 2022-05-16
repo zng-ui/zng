@@ -146,7 +146,7 @@ pub mod implicit_base {
             #[impl_ui_node(child)]
             impl<C: UiNode> UiNode for ChildLayoutNode<C> {
                 fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
-                    let (size, mut transform) = wl.with_child(ctx, |ctx, wl| self.child.layout(ctx, wl));
+                    let (size, transform) = wl.with_child(ctx, |ctx, wl| self.child.layout(ctx, wl));
                     if let Some(transform) = transform {
                         if let Some(lt) = &mut self.transform {
                             if lt.transform != transform {

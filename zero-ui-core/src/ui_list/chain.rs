@@ -1,13 +1,14 @@
 use crate::{
-    context::{InfoContext, LayoutContext, RenderContext, StateMap, WidgetContext},
+    context::{InfoContext, LayoutContext, LayoutMetrics, RenderContext, StateMap, WidgetContext},
     event::EventUpdateArgs,
     render::{FrameBuilder, FrameUpdate},
     ui_list::{
-        ConfigContextArgs, FinalSizeArgs, LayoutContextConfig, OffsetUiListObserver, UiListObserver, UiNodeList, UiNodeVec,
-        WidgetFilterArgs, WidgetList, WidgetVec,
+        OffsetUiListObserver, PosLayoutArgs, PreLayoutArgs, UiListObserver, UiNodeList, UiNodeVec, WidgetFilterArgs, WidgetList, WidgetVec,
     },
     units::PxSize,
-    widget_info::{WidgetBorderInfo, WidgetInfoBuilder, WidgetLayout, WidgetLayoutInfo, WidgetRenderInfo, WidgetSubscriptions},
+    widget_info::{
+        WidgetBorderInfo, WidgetInfoBuilder, WidgetLayout, WidgetLayoutInfo, WidgetLayoutTransform, WidgetRenderInfo, WidgetSubscriptions,
+    },
     WidgetId,
 };
 
@@ -55,23 +56,24 @@ impl<A: WidgetList, B: WidgetList> UiNodeList for WidgetListChain<A, B> {
         self.1.event_all(ctx, args);
     }
 
-    fn layout_all<C, D>(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout, mut widget_ctx: C, mut final_size: D)
+    fn layout_all<C, D>(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout, mut pre_layout: C, mut pos_layout: D)
     where
-        C: FnMut(&mut LayoutContext, ConfigContextArgs) -> LayoutContextConfig,
-        D: FnMut(&mut LayoutContext, FinalSizeArgs),
+        C: FnMut(&mut LayoutContext, &mut WidgetLayout, &mut PreLayoutArgs),
+        D: FnMut(&mut LayoutContext, &mut WidgetLayout, PosLayoutArgs),
     {
-        self.0.layout_all(ctx, wl, &mut widget_ctx, &mut final_size);
+        self.0.layout_all(ctx, wl, &mut pre_layout, &mut pos_layout);
         let offset = self.0.len();
         self.1.layout_all(
             ctx,
             wl,
-            |ctx, mut args| {
+            |ctx, wl, args| {
                 args.index += offset;
-                widget_ctx(ctx, args)
+                pre_layout(ctx, wl, args);
+                args.index -= offset;
             },
-            |ctx, mut args| {
+            |ctx, wl, mut args| {
                 args.index += offset;
-                final_size(ctx, args)
+                pos_layout(ctx, wl, args);
             },
         );
     }
@@ -244,15 +246,15 @@ impl<A: WidgetList, B: WidgetList> WidgetList for WidgetListChain<A, B> {
         }
     }
 
-    fn widget_outer<F>(&mut self, index: usize, ctx: &mut LayoutContext, wl: &mut WidgetLayout, f: F)
+    fn widget_outer<F>(&mut self, index: usize, metrics: &LayoutMetrics, wl: &mut WidgetLayout, transform: F)
     where
-        F: FnOnce(&mut LayoutContext, FinalSizeArgs),
+        F: FnOnce(&mut WidgetLayoutTransform, PosLayoutArgs),
     {
         let a_len = self.0.len();
         if index < a_len {
-            self.0.widget_outer(index, ctx, wl, f);
+            self.0.widget_outer(index, metrics, wl, transform);
         } else {
-            self.1.widget_outer(index - a_len, ctx, wl, f);
+            self.1.widget_outer(index - a_len, metrics, wl, transform);
         }
     }
 }
@@ -301,23 +303,23 @@ impl<A: UiNodeList, B: UiNodeList> UiNodeList for UiNodeListChain<A, B> {
         self.1.event_all(ctx, args);
     }
 
-    fn layout_all<C, D>(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout, mut wgt_ctx: C, mut final_size: D)
+    fn layout_all<C, D>(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout, mut pre_layout: C, mut pos_layout: D)
     where
-        C: FnMut(&mut LayoutContext, ConfigContextArgs) -> LayoutContextConfig,
-        D: FnMut(&mut LayoutContext, FinalSizeArgs),
+        C: FnMut(&mut LayoutContext, &mut WidgetLayout, &mut PreLayoutArgs),
+        D: FnMut(&mut LayoutContext, &mut WidgetLayout, PosLayoutArgs),
     {
-        self.0.layout_all(ctx, wl, &mut wgt_ctx, &mut final_size);
+        self.0.layout_all(ctx, wl, &mut pre_layout, &mut pos_layout);
         let offset = self.0.len();
         self.1.layout_all(
             ctx,
             wl,
-            |ctx, mut args| {
+            |ctx, wl, mut args| {
                 args.index += offset;
-                wgt_ctx(ctx, args)
+                pre_layout(ctx, wl, args)
             },
-            |ctx, mut args| {
+            |ctx, wl, mut args| {
                 args.index += offset;
-                final_size(ctx, args)
+                pos_layout(ctx, wl, args)
             },
         );
     }

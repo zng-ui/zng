@@ -1,12 +1,14 @@
 use super::WidgetFilterArgs;
 use crate::{
-    context::{InfoContext, LayoutContext, RenderContext, StateMap, WidgetContext},
+    context::{InfoContext, LayoutContext, LayoutMetrics, RenderContext, StateMap, WidgetContext},
     event::EventUpdateArgs,
     node_vec,
     render::{FrameBuilder, FrameUpdate},
-    ui_list::{ConfigContextArgs, FinalSizeArgs, LayoutContextConfig, UiListObserver, UiNodeList, UiNodeVec, WidgetList, WidgetVec},
+    ui_list::{PosLayoutArgs, PreLayoutArgs, UiListObserver, UiNodeList, UiNodeVec, WidgetList, WidgetVec},
     units::PxSize,
-    widget_info::{WidgetBorderInfo, WidgetInfoBuilder, WidgetLayout, WidgetLayoutInfo, WidgetRenderInfo, WidgetSubscriptions},
+    widget_info::{
+        WidgetBorderInfo, WidgetInfoBuilder, WidgetLayout, WidgetLayoutInfo, WidgetLayoutTransform, WidgetRenderInfo, WidgetSubscriptions,
+    },
     widget_vec, UiNode, Widget, WidgetId,
 };
 
@@ -25,26 +27,12 @@ macro_rules! impl_tuples {
             items { $($n = $W),+ }
 
             layout {
-                fn layout_all<C, D>(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout, mut wgt_ctx: C, mut final_size: D)
+                fn layout_all<C, D>(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout, mut pre_layout: C, mut pos_layout: D)
                 where
-                    C: FnMut(&mut LayoutContext, ConfigContextArgs) -> LayoutContextConfig,
-                    D: FnMut(&mut LayoutContext, FinalSizeArgs)
+                    C: FnMut(&mut LayoutContext, &mut WidgetLayout, &mut PreLayoutArgs),
+                    D: FnMut(&mut LayoutContext, &mut WidgetLayout, PosLayoutArgs)
                 {$(
-                    let cfg = wgt_ctx(ctx, ConfigContextArgs {
-                        index: $n,
-                        state: None,
-                    });
-
-                    let size = cfg.with(ctx, |ctx| {
-                        self.items.$n.layout(ctx, wl)
-                    });
-
-                    final_size(ctx, FinalSizeArgs {
-                        index: $n,
-                        state: None,
-                        size,
-                        transform: None
-                    });
+                    super::default_ui_node_list_layout_all($n, &mut self.items.$n, ctx, wl, &mut pre_layout, &mut pos_layout);
                 )+}
             }
         } }
@@ -56,28 +44,12 @@ macro_rules! impl_tuples {
             items { $($n = $W),+ }
 
             layout {
-                fn layout_all<C, D>(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout, mut wgt_ctx: C, mut final_size: D)
+                fn layout_all<C, D>(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout, mut pre_layout: C, mut pos_layout: D)
                 where
-                    C: FnMut(&mut LayoutContext, ConfigContextArgs) -> LayoutContextConfig,
-                    D: FnMut(&mut LayoutContext, FinalSizeArgs)
+                    C: FnMut(&mut LayoutContext, &mut WidgetLayout, &mut PreLayoutArgs),
+                    D: FnMut(&mut LayoutContext, &mut WidgetLayout, PosLayoutArgs)
                 {$(
-                    let cfg = wgt_ctx(ctx, ConfigContextArgs {
-                        index: $n,
-                        state: Some(self.items.$n.state_mut())
-                    });
-
-                    let size = cfg.with(ctx, |ctx| {
-                        self.items.$n.layout(ctx, wl)
-                    });
-
-                    wl.with_outer(ctx, &mut self.items.$n, |ctx, w, t| {
-                        final_size(ctx, FinalSizeArgs {
-                            index: $n,
-                            state: Some(w.state_mut()),
-                            size,
-                            transform: Some(t)
-                        })
-                    });
+                    super::default_widget_list_layout_all($n, &mut self.items.$n, ctx, wl, &mut pre_layout, &mut pos_layout);
                 )+}
             }
         } }
@@ -161,22 +133,17 @@ macro_rules! impl_tuples {
                 }
             }
 
-            fn widget_outer<F>(&mut self, index: usize, ctx: &mut LayoutContext, wl: &mut WidgetLayout, f: F)
+            fn widget_outer<F>(&mut self, index: usize, metrics: &LayoutMetrics, wl: &mut WidgetLayout, transform: F)
             where
-            F: FnOnce(&mut LayoutContext, FinalSizeArgs)
+            F: FnOnce(&mut WidgetLayoutTransform, PosLayoutArgs),
             {
                 match index {
                     $($n => {
                         let w = &mut self.items.$n;
-                        wl.with_outer(ctx, w, |ctx, w, t| {
-                            let size = w.outer_info().size();
-                            f(ctx, FinalSizeArgs {
-                                index: $n,
-                                state: Some(w.state_mut()),
-                                size,
-                                transform: Some(t)
-                            })
-                        })
+                        let size = w.outer_info().size();
+                        wl.with_outer(metrics, w, |wlt, w| {
+                            transform(wlt, PosLayoutArgs::new($n, Some(w.state_mut()), size));
+                        });
                     })+
                     _ => panic!("index {index} out of range for length {}", self.len())
                 }
@@ -382,8 +349,8 @@ macro_rules! empty_node_list {
 
             fn layout_all<C, D>(&mut self, _: &mut LayoutContext, _: &mut WidgetLayout, _: C, _: D)
             where
-                C: FnMut(&mut LayoutContext, ConfigContextArgs) -> LayoutContextConfig,
-                D: FnMut(&mut LayoutContext, FinalSizeArgs)
+                C: FnMut(&mut LayoutContext, &mut WidgetLayout, &mut PreLayoutArgs),
+                D: FnMut(&mut LayoutContext, &mut WidgetLayout, PosLayoutArgs)
                 {}
 
             fn widget_layout(&mut self, index: usize, _: &mut LayoutContext, _: &mut WidgetLayout) -> PxSize {
@@ -468,9 +435,9 @@ impl WidgetList for WidgetList0 {
         panic!("index {index} out of range for length 0")
     }
 
-    fn widget_outer<F>(&mut self, index: usize, _: &mut LayoutContext, _: &mut WidgetLayout, _: F)
+    fn widget_outer<F>(&mut self, index: usize, _: &LayoutMetrics, _: &mut WidgetLayout, _: F)
     where
-        F: FnOnce(&mut LayoutContext, FinalSizeArgs),
+        F: FnOnce(&mut WidgetLayoutTransform, PosLayoutArgs),
     {
         panic!("index {index} out of range for length 0")
     }

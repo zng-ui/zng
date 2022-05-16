@@ -147,7 +147,7 @@ pub fn align(child: impl UiNode, alignment: impl IntoVar<Align>) -> impl UiNode 
             wl.translate(child_rect.origin.to_vector());
 
             if align.is_baseline() {
-                wl.translate_baseline();
+                wl.translate_baseline(1.0);
             }
 
             size

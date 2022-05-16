@@ -150,12 +150,12 @@ impl<W: WidgetList> UiNodeList for ZSortedWidgetList<W> {
         self.list.event_all(ctx, args)
     }
 
-    fn layout_all<C, D>(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout, wgt_ctx: C, final_size: D)
+    fn layout_all<C, D>(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout, mut pre_layout: C, mut pos_layout: D)
     where
-        C: FnMut(&mut LayoutContext, ConfigContextArgs) -> LayoutContextConfig,
-        D: FnMut(&mut LayoutContext, FinalSizeArgs),
+        C: FnMut(&mut LayoutContext, &mut WidgetLayout, &mut PreLayoutArgs),
+        D: FnMut(&mut LayoutContext, &mut WidgetLayout, PosLayoutArgs),
     {
-        self.list.layout_all(ctx, wl, wgt_ctx, final_size)
+        self.list.layout_all(ctx, wl, &mut pre_layout, &mut pos_layout)
     }
 
     fn widget_layout(&mut self, index: usize, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
@@ -248,11 +248,11 @@ impl<W: WidgetList> WidgetList for ZSortedWidgetList<W> {
         }
     }
 
-    fn widget_outer<F>(&mut self, index: usize, ctx: &mut LayoutContext, wl: &mut WidgetLayout, f: F)
+    fn widget_outer<F>(&mut self, index: usize, metrics: &LayoutMetrics, wl: &mut WidgetLayout, transform: F)
     where
-        F: FnOnce(&mut LayoutContext, FinalSizeArgs),
+        F: FnOnce(&mut WidgetLayoutTransform, PosLayoutArgs),
     {
-        self.list.widget_outer(index, ctx, wl, f)
+        self.list.widget_outer(index, metrics, wl, transform)
     }
 }
 

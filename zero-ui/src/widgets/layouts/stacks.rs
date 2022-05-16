@@ -90,9 +90,9 @@ pub mod h_stack {
             self.children.layout_all(
                 ctx,
                 wl,
-                |_, _| child_constrains.into(),
-                |_, a| {
-                    a.transform.unwrap().translate(PxVector::new(size.width, Px(0)));
+                |_, _, _| {},
+                |_, wl, a| {
+                    wl.translate(PxVector::new(size.width, Px(0)));
 
                     size.height = size.height.max(a.size.height);
 
@@ -295,9 +295,9 @@ pub mod v_stack {
             self.children.layout_all(
                 ctx,
                 wl,
-                |_, _| child_constrains.into(),
-                |_, a| {
-                    a.transform.unwrap().translate(PxVector::new(Px(0), size.height));
+                |_, _, _| {},
+                |_, wl, a| {
+                    wl.translate(PxVector::new(Px(0), size.height));
 
                     size.width = size.width.max(a.size.width);
 
@@ -538,8 +538,8 @@ pub mod z_stack {
             self.children.layout_all(
                 ctx,
                 wl,
-                |_, _| LayoutContextConfig::none(),
-                |_, args| {
+                |_, _, _| {},
+                |_, _, args| {
                     s = s.max(args.size);
                 },
             );

@@ -6,10 +6,10 @@ use std::{
 };
 
 use crate::{
-    context::{InfoContext, LayoutContext, RenderContext, StateMap, WidgetContext, WithUpdates},
+    context::{InfoContext, LayoutContext, LayoutMetrics, RenderContext, StateMap, WidgetContext, WithUpdates},
     event::EventUpdateArgs,
     render::{FrameBuilder, FrameUpdate},
-    ui_list::{ConfigContextArgs, FinalSizeArgs, LayoutContextConfig, SortedWidgetVec, UiListObserver, WidgetFilterArgs, WidgetList},
+    ui_list::{PosLayoutArgs, PreLayoutArgs, SortedWidgetVec, UiListObserver, WidgetFilterArgs, WidgetLayoutTransform, WidgetList},
     units::PxSize,
     widget_info::{UpdateSlot, WidgetBorderInfo, WidgetInfoBuilder, WidgetLayout, WidgetLayoutInfo, WidgetRenderInfo, WidgetSubscriptions},
     BoxedUiNode, BoxedWidget, UiNode, UiNodeList, Widget, WidgetId,
@@ -335,33 +335,13 @@ impl UiNodeList for WidgetVec {
         }
     }
 
-    fn layout_all<C, D>(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout, mut wgt_ctx: C, mut final_size: D)
+    fn layout_all<C, D>(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout, mut pre_layout: C, mut pos_layout: D)
     where
-        C: FnMut(&mut LayoutContext, ConfigContextArgs) -> LayoutContextConfig,
-        D: FnMut(&mut LayoutContext, FinalSizeArgs),
+        C: FnMut(&mut LayoutContext, &mut WidgetLayout, &mut PreLayoutArgs),
+        D: FnMut(&mut LayoutContext, &mut WidgetLayout, PosLayoutArgs),
     {
         for (i, w) in self.iter_mut().enumerate() {
-            let cfg = wgt_ctx(
-                ctx,
-                ConfigContextArgs {
-                    index: i,
-                    state: Some(w.state_mut()),
-                },
-            );
-
-            let size = cfg.with(ctx, |ctx| w.layout(ctx, wl));
-
-            wl.with_outer(ctx, w, |ctx, w, t| {
-                final_size(
-                    ctx,
-                    FinalSizeArgs {
-                        index: i,
-                        state: Some(w.state_mut()),
-                        size,
-                        transform: Some(t),
-                    },
-                )
-            })
+            super::default_widget_list_layout_all(i, w, ctx, wl, &mut pre_layout, &mut pos_layout);
         }
     }
 
@@ -469,23 +449,15 @@ impl WidgetList for WidgetVec {
         count
     }
 
-    fn widget_outer<F>(&mut self, index: usize, ctx: &mut LayoutContext, wl: &mut WidgetLayout, f: F)
+    fn widget_outer<F>(&mut self, index: usize, metrics: &LayoutMetrics, wl: &mut WidgetLayout, transform: F)
     where
-        F: FnOnce(&mut LayoutContext, FinalSizeArgs),
+        F: FnOnce(&mut WidgetLayoutTransform, PosLayoutArgs),
     {
         let w = &mut self.vec[index];
-        wl.with_outer(ctx, w, |ctx, w, t| {
-            let size = w.outer_info().size();
-            f(
-                ctx,
-                FinalSizeArgs {
-                    index,
-                    state: Some(w.state_mut()),
-                    size,
-                    transform: Some(t),
-                },
-            )
-        })
+        let size = w.outer_info().size();
+        wl.with_outer(metrics, w, |wlt, w| {
+            transform(wlt, PosLayoutArgs::new(index, Some(w.state_mut()), size));
+        });
     }
 }
 impl Drop for WidgetVec {
@@ -806,25 +778,13 @@ impl UiNodeList for UiNodeVec {
         }
     }
 
-    fn layout_all<C, D>(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout, mut wgt_ctx: C, mut final_size: D)
+    fn layout_all<C, D>(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout, mut pre_layout: C, mut pos_layout: D)
     where
-        C: FnMut(&mut LayoutContext, ConfigContextArgs) -> LayoutContextConfig,
-        D: FnMut(&mut LayoutContext, FinalSizeArgs),
+        C: FnMut(&mut LayoutContext, &mut WidgetLayout, &mut PreLayoutArgs),
+        D: FnMut(&mut LayoutContext, &mut WidgetLayout, PosLayoutArgs),
     {
         for (i, node) in self.iter_mut().enumerate() {
-            let cfg = wgt_ctx(ctx, ConfigContextArgs { index: i, state: None });
-
-            let size = cfg.with(ctx, |ctx| node.layout(ctx, wl));
-
-            final_size(
-                ctx,
-                FinalSizeArgs {
-                    index: i,
-                    state: None,
-                    size,
-                    transform: None,
-                },
-            )
+            super::default_ui_node_list_layout_all(i, node, ctx, wl, &mut pre_layout, &mut pos_layout);
         }
     }
 

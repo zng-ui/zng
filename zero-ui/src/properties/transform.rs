@@ -202,7 +202,6 @@ pub fn transform_origin(child: impl UiNode, origin: impl IntoVar<Point>) -> impl
         }
 
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
-            let default_origin = Point::center().layout(ctx, |_| PxPoint::zero());
             wl.set_origin(self.origin.get_clone(ctx.vars));
 
             self.child.layout(ctx, wl)

@@ -195,7 +195,7 @@ impl WidgetLayout {
         &mut self,
         metrics: &LayoutMetrics,
         widget: &mut W,
-        transform: impl FnOnce(&mut WidgetLayoutTransform) -> R,
+        transform: impl FnOnce(&mut WidgetLayoutTransform, &mut W) -> R,
     ) -> R {
         let mut wl = WidgetLayout {
             t: WidgetLayoutTransform {
@@ -208,7 +208,7 @@ impl WidgetLayout {
             },
         };
 
-        let r = transform(&mut wl);
+        let r = transform(&mut wl, widget);
 
         wl.finish_bounds(metrics);
 

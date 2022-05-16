@@ -519,9 +519,11 @@ pub trait Widget: UiNode {
     }
 
     /// Run [`UiNode::layout`] using the [`TestWidgetContext`].
+    ///
+    /// If `constrains` is set it is used for the layout context.
     #[cfg(any(test, doc, feature = "test_util"))]
     #[cfg_attr(doc_nightly, doc(cfg(feature = "test_util")))]
-    fn test_layout(&mut self, ctx: &mut TestWidgetContext, config: crate::ui_list::LayoutContextConfig) -> PxSize {
+    fn test_layout(&mut self, ctx: &mut TestWidgetContext, constrains: Option<PxSizeConstrains>) -> PxSize {
         let font_size = Length::pt_to_px(14.0, 1.0.fct());
         ctx.layout_context(
             font_size,
@@ -530,7 +532,12 @@ pub trait Widget: UiNode {
             1.0.fct(),
             96.0,
             LayoutMask::all(),
-            |ctx| config.with(ctx, |ctx| WidgetLayout::with_root_widget(ctx, |ctx, wl| self.layout(ctx, wl))),
+            |ctx| {
+                ctx.with_constrains(
+                    |c| constrains.unwrap_or(c),
+                    |ctx| WidgetLayout::with_root_widget(ctx, |ctx, wl| self.layout(ctx, wl)),
+                )
+            },
         )
     }
 

@@ -408,8 +408,8 @@ pub fn layers(child: impl UiNode) -> impl UiNode {
             self.children.layout_all(
                 ctx,
                 wl,
-                |_, _| LayoutContextConfig::none(),
-                |_, args| {
+                |_, _, _| {},
+                |_, _, args| {
                     if args.index == 0 {
                         size = args.size;
                     }

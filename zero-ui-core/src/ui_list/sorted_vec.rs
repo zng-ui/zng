@@ -1,15 +1,15 @@
 use std::{cell::RefCell, cmp, mem, ops::Deref, rc::Rc};
 
 use crate::{
-    context::{InfoContext, LayoutContext, RenderContext, StateMap, WidgetContext, WithUpdates},
+    context::{InfoContext, LayoutContext, LayoutMetrics, RenderContext, StateMap, WidgetContext, WithUpdates},
     event::EventUpdateArgs,
     render::{FrameBuilder, FrameUpdate},
-    ui_list::{
-        ConfigContextArgs, FinalSizeArgs, LayoutContextConfig, UiListObserver, UiNodeList, UiNodeVec, WidgetFilterArgs, WidgetList,
-        WidgetVec, WidgetVecRef,
-    },
+    ui_list::{PosLayoutArgs, PreLayoutArgs, UiListObserver, UiNodeList, UiNodeVec, WidgetFilterArgs, WidgetList, WidgetVec, WidgetVecRef},
     units::PxSize,
-    widget_info::{UpdateSlot, WidgetBorderInfo, WidgetInfoBuilder, WidgetLayout, WidgetLayoutInfo, WidgetRenderInfo, WidgetSubscriptions},
+    widget_info::{
+        UpdateSlot, WidgetBorderInfo, WidgetInfoBuilder, WidgetLayout, WidgetLayoutInfo, WidgetLayoutTransform, WidgetRenderInfo,
+        WidgetSubscriptions,
+    },
     BoxedWidget, UiNode, Widget, WidgetId,
 };
 
@@ -317,33 +317,13 @@ impl UiNodeList for SortedWidgetVec {
         }
     }
 
-    fn layout_all<C, D>(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout, mut widget_ctx: C, mut final_size: D)
+    fn layout_all<C, D>(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout, mut pre_layout: C, mut pos_layout: D)
     where
-        C: FnMut(&mut LayoutContext, ConfigContextArgs) -> LayoutContextConfig,
-        D: FnMut(&mut LayoutContext, FinalSizeArgs),
+        C: FnMut(&mut LayoutContext, &mut WidgetLayout, &mut PreLayoutArgs),
+        D: FnMut(&mut LayoutContext, &mut WidgetLayout, PosLayoutArgs),
     {
         for (i, w) in self.vec.iter_mut().enumerate() {
-            let cfg = widget_ctx(
-                ctx,
-                ConfigContextArgs {
-                    index: i,
-                    state: Some(w.state_mut()),
-                },
-            );
-
-            let size = cfg.with(ctx, |ctx| w.layout(ctx, wl));
-
-            wl.with_outer(ctx, w, |ctx, w, transform| {
-                final_size(
-                    ctx,
-                    FinalSizeArgs {
-                        index: i,
-                        state: Some(w.state_mut()),
-                        size,
-                        transform: Some(transform),
-                    },
-                );
-            });
+            super::default_widget_list_layout_all(i, w, ctx, wl, &mut pre_layout, &mut pos_layout)
         }
     }
 
@@ -454,22 +434,14 @@ impl WidgetList for SortedWidgetVec {
         count
     }
 
-    fn widget_outer<F>(&mut self, index: usize, ctx: &mut LayoutContext, wl: &mut WidgetLayout, f: F)
+    fn widget_outer<F>(&mut self, index: usize, metrics: &LayoutMetrics, wl: &mut WidgetLayout, transform: F)
     where
-        F: FnOnce(&mut LayoutContext, FinalSizeArgs),
+        F: FnOnce(&mut WidgetLayoutTransform, PosLayoutArgs),
     {
         let w = &mut self.vec[index];
-        wl.with_outer(ctx, w, |ctx, w, t| {
-            let size = w.outer_info().size();
-            f(
-                ctx,
-                FinalSizeArgs {
-                    index,
-                    state: Some(w.state_mut()),
-                    size,
-                    transform: Some(t),
-                },
-            )
+        let size = w.outer_info().size();
+        wl.with_outer(metrics, w, |wlt, w| {
+            transform(wlt, PosLayoutArgs::new(index, Some(w.state_mut()), size));
         });
     }
 }

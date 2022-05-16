@@ -342,7 +342,7 @@ fn delegate_list_absents(crate_: TokenStream, user_mtds: HashSet<Ident>, borrow:
         [fn layout(&mut self, ctx: &mut #crate_::context::LayoutContext, wl: &mut #crate_::widget_info::WidgetLayout) -> #crate_::units::PxSize {
             let #children_mut = {#borrow_mut};
             let mut size = #crate_::units::PxSize::zero();
-            #crate_::UiNodeList::layout_all(#deref_mut, ctx, wl, |ctx, _|#crate_::ui_list::LayoutContextConfig::none(), |_, args| {
+            #crate_::UiNodeList::layout_all(#deref_mut, ctx, wl, |ctx, _, _|{}, |_, _, args| {
                 size = size.max(args.size);
             });
             size
