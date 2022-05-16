@@ -41,7 +41,7 @@ pub mod rule_line {
             color: color.into_var(),
             style: style.into_var(),
         };
-        node // TODO !!: leaf_transform
+        node
     }
 
     struct LineNode<W, L, O, C, S> {

@@ -132,7 +132,7 @@ pub mod text {
         let child = nodes::render_overlines(child);
         let child = nodes::render_strikethroughs(child);
         let child = nodes::render_underlines(child);
-        child // TODO !!: leaf_transform
+        child
     }
 
     fn new_fill(child: impl UiNode, padding: impl IntoVar<SideOffsets>) -> impl UiNode {

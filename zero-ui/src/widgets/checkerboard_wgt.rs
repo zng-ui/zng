@@ -29,7 +29,7 @@ pub mod checkerboard {
     }
 
     fn new_child() -> impl UiNode {
-        self::node() // TODO !!: leaf_transform
+        self::node()
     }
 }
 

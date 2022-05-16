@@ -30,7 +30,7 @@ pub mod scrollbar {
     }
 
     fn new_child(thumb: impl UiNode) -> impl UiNode {
-        thumb // TODO !!: leaf_transform
+        thumb
     }
 
     fn new_layout(child: impl UiNode, orientation: impl IntoVar<Orientation>) -> impl UiNode {

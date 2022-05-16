@@ -96,7 +96,7 @@ pub mod scrollable {
     }
 
     fn new_child(content: impl UiNode) -> impl UiNode {
-        content // TODO !!: leaf_transform
+        content
     }
 
     fn new_child_context(child: impl UiNode, mode: impl IntoVar<ScrollMode>, clip_to_viewport: impl IntoVar<bool>) -> impl UiNode {

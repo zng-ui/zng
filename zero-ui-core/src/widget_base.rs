@@ -55,18 +55,11 @@ pub mod implicit_base {
     }
 
     /// Implicit `new_child`, does nothing, returns the [`FillUiNode`].
-    ///
-    /// # Child Layout
-    ///
-    /// Consider using [`nodes::leaf_transform`] to support properties with `child_layout` priority in implementations that
-    /// may not return a full [`Widget`] from `new_child`.  Child layout properties usually set transforms that apply to the
-    /// child widget, so if this function does not return an widget they are ignored, the [`nodes::leaf_transform`] detects this
-    /// and applies the pending transform.
     pub fn new_child() -> impl UiNode {
         FillUiNode
     }
 
-    /// No-op, returns `child`.
+    /// Implicit `new_child_layout`, returns [`nodes::child_layout`].
     pub fn new_child_layout(child: impl UiNode) -> impl UiNode {
         nodes::child_layout(child)
     }
