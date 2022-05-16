@@ -236,7 +236,8 @@ pub mod implicit_base {
                     size
                 }
                 fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-                    let transform = ctx.widget_info.inner.transform();
+                    let mut transform = ctx.widget_info.outer.transform();
+                    transform = transform.then(&ctx.widget_info.inner.transform());
                     frame.push_inner(self.transform_key.bind(transform), |frame| {
                         match HitTestMode::get(ctx.vars) {
                             HitTestMode::RoundedBounds => {
@@ -252,7 +253,8 @@ pub mod implicit_base {
                     });
                 }
                 fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
-                    let transform = ctx.widget_info.inner.transform();
+                    let mut transform = ctx.widget_info.outer.transform();
+                    transform = transform.then(&ctx.widget_info.inner.transform());
                     update.update_transform(self.transform_key.update(transform));
                     self.child.render_update(ctx, update);
                 }
