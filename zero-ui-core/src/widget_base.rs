@@ -140,17 +140,23 @@ pub mod implicit_base {
             impl<C: UiNode> UiNode for ChildLayoutNode<C> {
                 fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
                     let (size, transform) = wl.with_child(ctx, |ctx, wl| self.child.layout(ctx, wl));
+
                     if let Some(transform) = transform {
+                        // no child Widget, we need to render the transform:
+
                         if let Some(lt) = &mut self.transform {
+                            // already rendering, just update.
                             if lt.transform != transform {
                                 lt.transform = transform;
                                 ctx.updates.render_update();
                             }
-                        } else {
+                        } else if transform != RenderTransform::identity() {
+                            // start rendering.
                             self.transform = Some(Box::new(LeafTransform::new(transform)));
                             ctx.updates.render_update();
                         }
                     } else if self.transform.take().is_some() {
+                        // child is now a Widget.
                         ctx.updates.render();
                     }
 
