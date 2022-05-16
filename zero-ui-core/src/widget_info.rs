@@ -153,7 +153,7 @@ impl WidgetLayout {
     ///
     /// [`implicit_base::nodes::inner`]: crate::widget_base::implicit_base::nodes::inner
     pub fn with_inner(&mut self, ctx: &mut LayoutContext, layout: impl FnOnce(&mut LayoutContext, &mut Self) -> PxSize) -> PxSize {
-        let bounds = ctx.widget_info.outer.clone();
+        let bounds = ctx.widget_info.inner.clone();
         self.with_bounds(ctx, bounds, |ctx, wl| ContextBorders::with_inner(ctx, |ctx| layout(ctx, wl)))
     }
 
@@ -1124,8 +1124,12 @@ impl<'a> WidgetInfo<'a> {
     ///
     /// If `parent_outer` is set, the transform is up to the parent outer transform, otherwise it is up to the parent inner transform.
     ///
-    /// Returns `None` if `parent` is not found.
+    /// Returns `None` if `parent_id` is not found, returns identity transform if `parent_id` is the current widget.
     pub fn outer_transform_in(self, parent_id: WidgetId, parent_outer: bool) -> Option<ParentChildTransform> {
+        if self.widget_id() == parent_id {
+            return Some(ParentChildTransform(RenderTransform::identity()));
+        }
+
         let mut t = self.outer_transform();
         for a in self.ancestors() {
             t = t.then(&a.inner_transform());
@@ -1154,8 +1158,17 @@ impl<'a> WidgetInfo<'a> {
     ///
     /// If `parent_outer` is set, the transform is up to the parent outer transform, otherwise it is up to the parent inner transform.
     ///
-    /// Returns `None` if `parent` is not invertible.
+    /// Returns `None` if `parent_id` is not found, if `parent_id` is the current widget returns the identity transform or the
+    /// inner transform depending on the `parent_outer` flag.
     pub fn inner_transform_in(self, parent_id: WidgetId, parent_outer: bool) -> Option<ParentChildTransform> {
+        if self.widget_id() == parent_id {
+            if parent_outer {
+                return Some(ParentChildTransform(self.inner_transform()));
+            } else {
+                return Some(ParentChildTransform(RenderTransform::identity()));
+            }
+        }
+
         let mut t = self.inner_transform();
         t = t.then(&self.outer_transform());
         for a in self.ancestors() {

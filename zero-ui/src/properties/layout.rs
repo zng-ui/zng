@@ -123,34 +123,9 @@ pub fn align(child: impl UiNode, alignment: impl IntoVar<Align>) -> impl UiNode 
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
             let align = self.alignment.get(ctx.vars);
 
-            let size = ctx.constrains().fill_size();
+            let child_size = ctx.with_constrains(|c| align.child_constrains(c), |ctx| self.child.layout(ctx, wl));
 
-            let child_size = ctx.with_constrains(
-                |mut c| {
-                    if align.is_fill_width() {
-                        c = c.with_width_fill(size.width);
-                    } else {
-                        c = c.with_fill_x(false);
-                    }
-                    if align.is_fill_height() {
-                        c = c.with_height_fill(size.height);
-                    } else {
-                        c = c.with_fill_y(false);
-                    }
-                    c
-                },
-                |ctx| self.child.layout(ctx, wl),
-            );
-
-            let child_rect = align.solve(child_size, Px(0), size);
-
-            wl.translate(child_rect.origin.to_vector());
-
-            if align.is_baseline() {
-                wl.translate_baseline(1.0);
-            }
-
-            size
+            align.layout(child_size, ctx.constrains(), wl)
         }
     }
 

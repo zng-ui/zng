@@ -1,8 +1,8 @@
 use std::fmt::{self, Write};
 
-use crate::impl_from_and_into_var;
+use crate::{impl_from_and_into_var, widget_info::WidgetLayoutTransform};
 
-use super::{Factor, FactorPercent, Point, Px, PxRect, PxSize, PxVector};
+use super::{Factor, FactorPercent, Point, Px, PxRect, PxSize, PxSizeConstrains, PxVector};
 
 /// `x` and `y` alignment.
 ///
@@ -64,6 +64,14 @@ impl Align {
     /// [`y`]: Align::y
     pub fn is_baseline(self) -> bool {
         self.y.0.is_infinite() && self.y.0.is_sign_negative()
+    }
+
+    /// Returns a boolean vector of the fill values.
+    pub fn fill_vector(self) -> super::euclid::BoolVector2D {
+        super::euclid::BoolVector2D {
+            x: self.is_fill_width(),
+            y: self.is_fill_height(),
+        }
     }
 }
 impl_from_and_into_var! {
@@ -178,57 +186,43 @@ impl_from_and_into_var! {
     }
 }
 impl Align {
-    /// Compute a content rectangle given this alignment, the content and container size.
-    ///
-    /// The `baseline` is a vertical offset up from the `content_size` bottom, usually it `0` meaning the bottom is the baseline,
-    /// see also [`WidgetLayout::with_baseline_translate`].
-    ///
-    /// [`UiNode::measure`]: crate::UiNode::measure
-    /// [`UiNode::arrange`]: crate::UiNode::arrange
-    /// [`UiNode::render`]: crate::UiNode::render
-    /// [`WidgetLayout::with_baseline_translate`]: crate::widget_info::WidgetLayout::with_baseline_translate
-    pub fn solve(self, content_size: PxSize, baseline: Px, container_size: PxSize) -> PxRect {
-        let mut r = PxRect::zero();
-
+    /// Constrains that must be used to layout a child node with the alignment.
+    pub fn child_constrains(self, parent_constrains: PxSizeConstrains) -> PxSizeConstrains {
+        let mut c = parent_constrains;
         if self.is_fill_width() {
-            r.size.width = container_size.width;
+            let max = c.fill_width();
+            c = c.with_width_fill(max);
         } else {
-            r.size.width = container_size.width.min(content_size.width);
-            r.origin.x = (container_size.width - r.size.width) * self.x.0;
+            c = c.with_fill_x(false);
         }
         if self.is_fill_height() {
-            r.size.height = container_size.height;
-        } else if self.is_baseline() {
-            r.size.height = container_size.height.min(content_size.height);
-            r.origin.y = container_size.height - r.size.height - baseline;
+            let max = c.fill_height();
+            c = c.with_height_fill(max);
         } else {
-            r.size.height = container_size.height.min(content_size.height);
-            r.origin.y = (container_size.height - r.size.height) * self.y.0;
+            c = c.with_fill_y(false);
         }
-
-        r
+        c
     }
 
-    /// Compute an offset to apply to the content given the available size.
-    ///
-    /// [`FILL`] align resolves like [`TOP_LEFT`] align.
-    ///
-    /// Unlike [`solve`] the content does not change size, it must be clipped if larger than the container.
-    ///
-    /// [`FILL`]: Align::FILL
-    /// [`TOP_LEFT`]: Align::TOP_LEFT
-    /// [`solve`]: Align::solve
-    pub fn solve_offset(self, content_size: PxSize, container_size: PxSize) -> PxVector {
-        let mut r = PxVector::zero();
+    /// Applies the alignment transform to `wl` and returns the size of the parent align node.
+    pub fn layout(self, child_size: PxSize, parent_constrains: PxSizeConstrains, wl: &mut WidgetLayoutTransform) -> PxSize {
+        let size = parent_constrains.fill_size().max(child_size);
+        let size = parent_constrains.clamp(size);
 
+        let mut offset = PxVector::zero();
         if !self.is_fill_width() {
-            r.x = (container_size.width - content_size.width) * self.x.0;
+            offset.x = (size.width - child_size.width) * self.x.0;
         }
-
         if !self.is_fill_height() {
-            r.y = (container_size.height - content_size.height) * self.y.0;
+            offset.y = (size.height - child_size.height) * self.y.0;
         }
 
-        r
+        wl.translate(offset);
+
+        if self.is_baseline() {
+            wl.translate_baseline(-1.0);
+        }
+
+        size
     }
 }

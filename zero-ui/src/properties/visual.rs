@@ -240,34 +240,33 @@ pub fn foreground_highlight(
         }
 
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
-            // TODO !!: reimplement this after border is working
-            self.child.layout(ctx, wl)
+            let size = self.child.layout(ctx, wl);
+
+            ctx.with_constrains(
+                |_| PxSizeConstrains::fixed(size),
+                |ctx| {
+                    let offsets = self.offsets.get(ctx.vars).layout(ctx.metrics, |_| PxSideOffsets::zero());
+                    let widths = self.widths.get(ctx.vars).layout(ctx.metrics, |_| PxSideOffsets::zero());
+                    let radius = ContextBorders::corner_radius(ctx);
+
+                    let rect = PxRect::new(
+                        PxPoint::new(offsets.left, offsets.top),
+                        size - PxSize::new(offsets.horizontal(), offsets.vertical()),
+                    );
+
+                    if rect != self.final_rect || widths != self.final_widths || radius != self.final_radius {
+                        self.final_rect = rect;
+                        self.final_widths = widths;
+                        self.final_radius = radius;
+
+                        ctx.updates.render();
+                    }
+                },
+            );
+
+            size
         }
 
-        /*
-        fn arrange(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, final_size: PxSize) {
-            self.child.arrange(ctx, widget_layout, final_size);
-
-            let available_size = AvailableSize::finite(final_size);
-            let final_offsets = self
-                .offsets
-                .get(ctx.vars)
-                .layout(ctx.metrics, available_size, PxSideOffsets::zero());
-
-            self.final_widths = self
-                .widths
-                .get(ctx.vars)
-                .layout(ctx.metrics, available_size, PxSideOffsets::zero());
-
-            let diff = PxSize::new(final_offsets.horizontal(), final_offsets.vertical());
-
-            let border_offsets = widget_layout.border_offsets();
-
-            self.final_rect.origin = PxPoint::new(final_offsets.left + border_offsets.left, final_offsets.top + border_offsets.top);
-            self.final_rect.size = final_size - diff;
-            self.final_radius = widget_layout.corner_radius();
-        }
-        */
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
             self.child.render(ctx, frame);
             frame.with_hit_tests_disabled(|f| {

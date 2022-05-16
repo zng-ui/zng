@@ -785,9 +785,9 @@ pub fn border_node(child: impl UiNode, border_offsets: impl IntoVar<SideOffsets>
 
             ContextBorders::with_border(ctx, offsets, |ctx, ctx_offsets| {
                 // child nodes are naturally *inside* borders, `border_align` affected nodes cancel this offset.
-                // TODO !!: how do we add to the child outer-transform here? with_outer does not work.
 
                 self.rect.origin = PxPoint::new(ctx_offsets.left, ctx_offsets.top);
+                wl.translate(self.rect.origin.to_vector());
 
                 let taken_size = PxSize::new(offsets.horizontal(), offsets.vertical());
                 self.rect.size = ctx.with_sub_size(taken_size, |ctx| self.children.widget_layout(0, ctx, wl));
