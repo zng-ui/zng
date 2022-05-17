@@ -289,22 +289,28 @@ pub mod v_stack {
 
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
             let spacing = self.spacing.get(ctx.vars).layout(ctx.for_y(), |_| Px(0));
+            let align = self.align.copy(ctx);
 
             let mut size = PxSize::zero();
-            let child_constrains = ctx.constrains().with_unbounded_y();
-            self.children.layout_all(
-                ctx,
-                wl,
-                |_, _, _| {},
-                |_, wl, a| {
-                    wl.translate(PxVector::new(Px(0), size.height));
 
-                    size.width = size.width.max(a.size.width);
+            ctx.with_constrains(
+                |c| dbg!(align.child_constrains(dbg!(c)).with_unbounded_y()),
+                |ctx| {
+                    self.children.layout_all(
+                        ctx,
+                        wl,
+                        |_, _, _| {},
+                        |_, wl, a| {
+                            wl.translate(PxVector::new(Px(0), size.height));
 
-                    if a.size.height > Px(0) {
-                        // only add spacing for visible items.
-                        size.height += a.size.height + spacing;
-                    }
+                            size.width = size.width.max(dbg!(a.size).width);
+
+                            if a.size.height > Px(0) {
+                                // only add spacing for visible items.
+                                size.height += a.size.height + spacing;
+                            }
+                        },
+                    );
                 },
             );
 
@@ -534,52 +540,30 @@ pub mod z_stack {
         }
 
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
-            let mut s = PxSize::zero();
-            self.children.layout_all(
-                ctx,
-                wl,
-                |_, _, _| {},
-                |_, _, args| {
-                    s = s.max(args.size);
+            let mut size = PxSize::zero();
+            let align = self.align.copy(ctx);
+
+            let parent_constrains = ctx.constrains();
+
+            ctx.with_constrains(
+                |c| align.child_constrains(c),
+                |ctx| {
+                    self.children.layout_all(
+                        ctx,
+                        wl,
+                        |_, _, _| {},
+                        |_, wl, args| {
+                            let child_size = align.layout(args.size, parent_constrains, wl);
+                            size = size.max(child_size);
+                        },
+                    );
                 },
             );
-            let size = ctx.constrains().clamp(s);
 
-            let align = self.align.copy(ctx);
+            let size = parent_constrains.clamp(size);
 
             size
         }
-
-        /*
-        fn measure(&mut self, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize {
-            let mut ds = PxSize::zero();
-            self.children.measure_all(
-                ctx,
-                |_, _| available_size,
-                |_, args| {
-                    ds = ds.max(args.desired_size);
-                    self.children_info[args.index].desired_size = args.desired_size;
-                },
-            );
-            ds
-        }
-
-        fn arrange(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, final_size: PxSize) {
-            let align = self.align.copy(ctx);
-            let baseline = align.is_baseline();
-            self.children.arrange_all(ctx, widget_layout, |_, args| {
-                let size = self.children_info[args.index].desired_size.min(final_size);
-                if baseline {
-                    args.translate_baseline = Some(true);
-                }
-                let bounds = align.solve(size, size.height, final_size);
-                if bounds.origin != PxPoint::zero() {
-                    args.pre_translate = Some(bounds.origin.to_vector());
-                }
-                bounds.size
-            });
-        }
-        */
     }
 }
 

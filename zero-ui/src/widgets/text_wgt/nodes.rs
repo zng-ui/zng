@@ -530,13 +530,17 @@ pub fn layout_text(child: impl UiNode, padding: impl IntoVar<SideOffsets>) -> im
             }
 
             let desired_size = r.shaped_text.size();
+
+            let size = ctx.constrains().clamp(desired_size);
+
             ctx.with_constrains(
-                |c| c.with_max_fill(desired_size),
+                |c| c.with_max_fill(size),
                 |ctx| {
                     self.with_mut(ctx.vars, |c| c.layout(ctx, wl));
                 },
             );
-            desired_size
+
+            size
         }
 
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
