@@ -207,6 +207,26 @@ impl WeakAnimationHandle {
     }
 }
 
+/// Represents a running chase animation created by [`Var::chase`] or other *chase* animation methods. 
+#[derive(Clone, Debug)]
+pub struct ChaseAnimation<T> {
+    /// Underlying animation handle.
+    pub handle: AnimationHandle,
+    pub(super) next_target: Rc<RefCell<ChaseMsg<T>>>,
+}
+impl<T: VarValue> ChaseAnimation<T> {
+    /// Sets a new target value for the easing animation and restarts the time.
+    /// 
+    /// The animation will update to lerp between the current variable value to the `new_target`.
+    pub fn reset(&self, new_target: T) {
+        *self.next_target.borrow_mut() = ChaseMsg::Replace(new_target);
+    }
+
+    /// Adds `increment` to the current target value for the easing animation and restarts the time.
+    pub fn add(&self, increment: T) {
+        *self.next_target.borrow_mut() = ChaseMsg::Add(increment);
+    }
+}
 #[derive(Debug)]
 pub(super) enum ChaseMsg<T> {
     None,
@@ -216,20 +236,6 @@ pub(super) enum ChaseMsg<T> {
 impl<T> Default for ChaseMsg<T> {
     fn default() -> Self {
         Self::None
-    }
-}
-#[derive(Clone, Debug)]
-pub struct ChaseAnimation<T> {
-    pub handle: AnimationHandle,
-    pub(super) next_target: Rc<RefCell<ChaseMsg<T>>>,
-}
-impl<T: VarValue> ChaseAnimation<T> {
-    pub fn reset(&self, new_target: T) {
-        *self.next_target.borrow_mut() = ChaseMsg::Replace(new_target);
-    }
-
-    pub fn add(&self, increment: T) {
-        *self.next_target.borrow_mut() = ChaseMsg::Add(increment);
     }
 }
 
@@ -422,7 +428,10 @@ impl<T> Transitionable for T where
 /// Represents a transition from one value to another that can be sampled using [`EasingStep`].
 #[derive(Clone, Debug)]
 pub struct Transition<T> {
+    /// Value sampled at the `0.fct()` step.
     pub start: T,
+    /// 
+    /// Value plus start is sampled at the `1.fct()` step.
     pub increment: T,
 }
 impl<T> Transition<T>
