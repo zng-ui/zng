@@ -150,6 +150,21 @@ impl PxSizeConstrains {
         self.min.max(size).min(self.max)
     }
 
+    /// Returns the fill size, or the desired size clamped.
+    pub fn leaf_fill(&self, desired_size: PxSize) -> PxSize {
+        let width = if self.fill.x {
+            self.max.width
+        } else {
+            desired_size.width.max(self.min.width).min(self.max.width)
+        };
+        let height = if self.fill.y {
+            self.max.height
+        } else {
+            desired_size.height.max(self.min.height).min(self.max.height)
+        };
+        PxSize::new(width, height)
+    }
+
     /// X-axis constrains.
     pub fn x_constrains(&self) -> PxConstrains {
         PxConstrains {
