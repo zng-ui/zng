@@ -3,7 +3,7 @@
 use std::{fmt, mem};
 
 use crate::context::RenderContext;
-use crate::render::{webrender_api as w_api, FrameBinding, FrameBuilder, FrameUpdate, SpatialFrameId};
+use crate::render::{webrender_api as w_api, FrameBuilder, FrameUpdate};
 use crate::{nodes, UiNodeList, WidgetId};
 
 use crate::{

@@ -294,7 +294,7 @@ pub mod v_stack {
             let mut size = PxSize::zero();
 
             ctx.with_constrains(
-                |c| dbg!(align.child_constrains(dbg!(c)).with_unbounded_y()),
+                |c| align.child_constrains(c).with_unbounded_y(),
                 |ctx| {
                     self.children.layout_all(
                         ctx,
@@ -303,7 +303,7 @@ pub mod v_stack {
                         |_, wl, a| {
                             wl.translate(PxVector::new(Px(0), size.height));
 
-                            size.width = size.width.max(dbg!(a.size).width);
+                            size.width = size.width.max(a.size.width);
 
                             if a.size.height > Px(0) {
                                 // only add spacing for visible items.

@@ -76,20 +76,9 @@ impl Align {
 
     /// Constrains that must be used to layout a child node with the alignment.
     pub fn child_constrains(self, parent_constrains: PxSizeConstrains) -> PxSizeConstrains {
-        let mut c = parent_constrains;
-        if self.is_fill_width() {
-            let max = c.fill_width();
-            c = c.with_width_fill(max);
-        } else {
-            c = c.with_fill_x(false);
-        }
-        if self.is_fill_height() {
-            let max = c.fill_height();
-            c = c.with_height_fill(max);
-        } else {
-            c = c.with_fill_y(false);
-        }
-        c
+        parent_constrains
+            .with_fill_x(self.is_fill_width())
+            .with_fill_y(self.is_fill_height())
     }
 
     /// Applies the alignment transform to `wl` and returns the size of the parent align node.
