@@ -54,7 +54,7 @@ pub mod animation;
 
 pub use animation::easing;
 
-use animation::{AnimationHandle, ChaseAnimation, ChaseMsg, Transitionable, Transition, TransitionKeyed};
+use animation::{AnimationHandle, ChaseAnimation, ChaseMsg, Transition, TransitionKeyed, Transitionable};
 
 /// Variable types.
 ///
@@ -1192,33 +1192,43 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + any::AnyVar + crate::private::S
     }
 
     /// Starts a [`chase`] animation that eases to a target value, but does not escape `bounds`.
-    /// 
+    ///
     /// [`chase`]: Var::chase
-    fn chase_bounded<Vw, F>(&self, vars: &Vw, first_target: T, duration: Duration, easing: F, bounds: ops::RangeInclusive<T>) -> ChaseAnimation<T>
+    fn chase_bounded<Vw, F>(
+        &self,
+        vars: &Vw,
+        first_target: T,
+        duration: Duration,
+        easing: F,
+        bounds: ops::RangeInclusive<T>,
+    ) -> ChaseAnimation<T>
     where
         Vw: WithVars,
         F: Fn(EasingTime) -> EasingStep + 'static,
         T: Transitionable + std::cmp::PartialOrd<T>,
     {
         let mut prev_step = 0.fct();
+        let mut check_linear = !bounds.contains(&first_target);
+
         let next_target = Rc::new(RefCell::new(ChaseMsg::None));
         let handle = self.animate(
             vars,
             |value| Some(Transition::new(value.clone(), first_target)),
             clone_move!(next_target, |animation, _, transition: &mut Transition<T>| {
-                let step = easing(animation.elapsed_stop(duration));
+                let time = animation.elapsed_stop(duration);
+                let step = easing(time);
                 match mem::take(&mut *next_target.borrow_mut()) {
+                    // to > bounds
+                    // stop animation when linear sampling > bounds
                     ChaseMsg::Add(inc) => {
+                        animation.restart();
+
                         let partial_inc = transition.increment.clone() * step;
                         let from = transition.start.clone() + partial_inc.clone();
-                        let mut to = from.clone() + transition.increment.clone() - partial_inc + inc;
-                        if &to > bounds.end() {
-                            to = bounds.end().clone();
-                        } else if &to < bounds.start() {
-                            to = bounds.start().clone();
-                        } else {
-                            animation.restart();
-                        }
+                        let to = from.clone() + transition.increment.clone() - partial_inc + inc;
+
+                        check_linear = !bounds.contains(&to);
+
                         *transition = Transition::new(from.clone(), to);
 
                         if step != prev_step {
@@ -1226,15 +1236,11 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + any::AnyVar + crate::private::S
                             return Some(from);
                         }
                     }
-                    ChaseMsg::Replace(mut new_target) => {
+                    ChaseMsg::Replace(new_target) => {
                         animation.restart();
                         let from = transition.sample(step);
 
-                        if &new_target > bounds.end() {
-                            new_target = bounds.end().clone();
-                        } else if &new_target < bounds.start() {
-                            new_target = bounds.start().clone();
-                        }
+                        check_linear = !bounds.contains(&new_target);
 
                         *transition = Transition::new(from.clone(), new_target);
                         if step != prev_step {
@@ -1243,8 +1249,19 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + any::AnyVar + crate::private::S
                         }
                     }
                     ChaseMsg::None => {
+                        // normal execution
+
                         if step != prev_step {
                             prev_step = step;
+
+                            if check_linear {
+                                let linear_sample = transition.sample(time.fct());
+                                if !bounds.contains(&linear_sample) {
+                                    animation.stop();
+                                    return None;
+                                }
+                            }
+
                             return Some(transition.sample(step));
                         }
                     }
@@ -2357,7 +2374,6 @@ macro_rules! impl_from_and_into_var {
 }
 #[doc(inline)]
 pub use crate::impl_from_and_into_var;
-
 
 #[doc(hidden)]
 #[macro_export]
