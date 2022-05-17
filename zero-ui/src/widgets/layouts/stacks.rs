@@ -319,9 +319,29 @@ pub mod v_stack {
                 size.height -= spacing;
             }
 
-            let align = self.align.copy(ctx);
+            let final_size = ctx.constrains().fill_or(size);
+            let extra_height = final_size.height - size.height;
+            let mut extra_y = Px(0); 
+            
+            if extra_height > Px(0) {
+                if align.is_fill_height() {
+                    // TODO !!: second pass?
+                } else {
+                    extra_y = extra_height;
+                }
+            }
+            if !align.is_fill_width() && align.x > 0.fct() {
+                self.children.outer_all(ctx.metrics, wl, true, |wlt, a| {
+                    let x = (final_size.width - a.size.width) * align.x;
+                    wlt.translate(PxVector::new(x, extra_y));
+                });
+            } else if extra_y > Px(0) {
+                self.children.outer_all(ctx.metrics, wl, true, |wlt, a| {
+                    wlt.translate(PxVector::new(Px(0), extra_y));
+                });
+            }
 
-            ctx.constrains().clamp(size)
+            final_size
         }
 
         /*

@@ -190,13 +190,20 @@ impl WidgetLayout {
     /// to be layout first before each child's position can be computed, in these scenarios this method avoids a second
     /// layout pass by using the [`Widget`] trait to access and replace the outer transform.
     ///
+    /// If `keep_previous` is `true` the new transform is *added* to the previous.
+    ///
     /// [`with_child`]: Self::with_child
     pub fn with_outer<W: Widget, R>(
         &mut self,
         metrics: &LayoutMetrics,
         widget: &mut W,
+        keep_previous: bool,
         transform: impl FnOnce(&mut WidgetLayoutTransform, &mut W) -> R,
     ) -> R {
+        if !keep_previous {
+            widget.outer_info().set_transform(RenderTransform::identity());
+        }
+
         let mut wl = WidgetLayout {
             t: WidgetLayoutTransform {
                 transform_buf: RenderTransform::identity(),

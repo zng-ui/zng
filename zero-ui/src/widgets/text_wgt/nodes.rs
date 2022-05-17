@@ -531,7 +531,7 @@ pub fn layout_text(child: impl UiNode, padding: impl IntoVar<SideOffsets>) -> im
 
             let desired_size = r.shaped_text.size();
 
-            let size = ctx.constrains().leaf_fill(desired_size);
+            let size = ctx.constrains().fill_or(desired_size);
 
             ctx.with_constrains(
                 |c| c.with_max_fill(size),

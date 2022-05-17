@@ -73,7 +73,7 @@ impl PxConstrains {
     }
 
     /// Returns the fill length or the desired length
-    pub fn leaf_fill(&self, desired_length: Px) -> Px {
+    pub fn fill_or(&self, desired_length: Px) -> Px {
         if self.actually_fill() {
             self.max
         } else {
@@ -208,7 +208,7 @@ impl PxSizeConstrains {
     }
 
     /// Returns the fill size, or the desired size clamped.
-    pub fn leaf_fill(&self, desired_size: PxSize) -> PxSize {
+    pub fn fill_or(&self, desired_size: PxSize) -> PxSize {
         let fill = self.actually_fill();
         let width = if fill.x {
             self.max.width

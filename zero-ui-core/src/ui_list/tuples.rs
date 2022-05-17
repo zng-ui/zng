@@ -133,7 +133,7 @@ macro_rules! impl_tuples {
                 }
             }
 
-            fn widget_outer<F>(&mut self, index: usize, metrics: &LayoutMetrics, wl: &mut WidgetLayout, transform: F)
+            fn widget_outer<F>(&mut self, index: usize, metrics: &LayoutMetrics, wl: &mut WidgetLayout, keep_previous: bool, transform: F)
             where
             F: FnOnce(&mut WidgetLayoutTransform, PosLayoutArgs),
             {
@@ -141,12 +141,25 @@ macro_rules! impl_tuples {
                     $($n => {
                         let w = &mut self.items.$n;
                         let size = w.outer_info().size();
-                        wl.with_outer(metrics, w, |wlt, w| {
+                        wl.with_outer(metrics, w, keep_previous, |wlt, w| {
                             transform(wlt, PosLayoutArgs::new($n, Some(w.state_mut()), size));
                         });
                     })+
                     _ => panic!("index {index} out of range for length {}", self.len())
                 }
+            }
+
+            fn outer_all<F>(&mut self, metrics: &LayoutMetrics, wl: &mut WidgetLayout, keep_previous: bool, mut transform: F)
+            where
+                F: FnMut(&mut WidgetLayoutTransform, PosLayoutArgs),
+            {
+                $(
+                    let w = &mut self.items.$n;
+                    let size = w.outer_info().size();
+                    wl.with_outer(metrics, w, keep_previous, |wlt, w| {
+                        transform(wlt, PosLayoutArgs::new($n, Some(w.state_mut()), size));
+                    });
+                )*
             }
         }
     };
@@ -435,10 +448,16 @@ impl WidgetList for WidgetList0 {
         panic!("index {index} out of range for length 0")
     }
 
-    fn widget_outer<F>(&mut self, index: usize, _: &LayoutMetrics, _: &mut WidgetLayout, _: F)
+    fn widget_outer<F>(&mut self, index: usize, _: &LayoutMetrics, _: &mut WidgetLayout, _: bool, _: F)
     where
         F: FnOnce(&mut WidgetLayoutTransform, PosLayoutArgs),
     {
         panic!("index {index} out of range for length 0")
+    }
+
+    fn outer_all<F>(&mut self, _: &LayoutMetrics, _: &mut WidgetLayout, _: bool, _: F)
+    where
+        F: FnMut(&mut WidgetLayoutTransform, PosLayoutArgs),
+    {
     }
 }

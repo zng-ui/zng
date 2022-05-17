@@ -449,15 +449,27 @@ impl WidgetList for WidgetVec {
         count
     }
 
-    fn widget_outer<F>(&mut self, index: usize, metrics: &LayoutMetrics, wl: &mut WidgetLayout, transform: F)
+    fn widget_outer<F>(&mut self, index: usize, metrics: &LayoutMetrics, wl: &mut WidgetLayout, keep_previous: bool, transform: F)
     where
         F: FnOnce(&mut WidgetLayoutTransform, PosLayoutArgs),
     {
         let w = &mut self.vec[index];
         let size = w.outer_info().size();
-        wl.with_outer(metrics, w, |wlt, w| {
+        wl.with_outer(metrics, w, keep_previous, |wlt, w| {
             transform(wlt, PosLayoutArgs::new(index, Some(w.state_mut()), size));
         });
+    }
+
+    fn outer_all<F>(&mut self, metrics: &LayoutMetrics, wl: &mut WidgetLayout, keep_previous: bool, mut transform: F)
+    where
+        F: FnMut(&mut WidgetLayoutTransform, PosLayoutArgs),
+    {
+        for (i, w) in self.iter_mut().enumerate() {
+            let size = w.outer_info().size();
+            wl.with_outer(metrics, w, keep_previous, |wlt, w| {
+                transform(wlt, PosLayoutArgs::new(i, Some(w.state_mut()), size));
+            });
+        }
     }
 }
 impl Drop for WidgetVec {

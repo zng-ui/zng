@@ -248,11 +248,18 @@ impl<W: WidgetList> WidgetList for ZSortedWidgetList<W> {
         }
     }
 
-    fn widget_outer<F>(&mut self, index: usize, metrics: &LayoutMetrics, wl: &mut WidgetLayout, transform: F)
+    fn widget_outer<F>(&mut self, index: usize, metrics: &LayoutMetrics, wl: &mut WidgetLayout, keep_previous: bool, transform: F)
     where
         F: FnOnce(&mut WidgetLayoutTransform, PosLayoutArgs),
     {
-        self.list.widget_outer(index, metrics, wl, transform)
+        self.list.widget_outer(index, metrics, wl, keep_previous, transform)
+    }
+
+    fn outer_all<F>(&mut self, metrics: &LayoutMetrics, wl: &mut WidgetLayout, keep_previous: bool, transform: F)
+    where
+        F: FnMut(&mut WidgetLayoutTransform, PosLayoutArgs),
+    {
+        self.list.outer_all(metrics, wl, keep_previous, transform)
     }
 }
 

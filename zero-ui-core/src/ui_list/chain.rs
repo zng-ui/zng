@@ -246,16 +246,28 @@ impl<A: WidgetList, B: WidgetList> WidgetList for WidgetListChain<A, B> {
         }
     }
 
-    fn widget_outer<F>(&mut self, index: usize, metrics: &LayoutMetrics, wl: &mut WidgetLayout, transform: F)
+    fn widget_outer<F>(&mut self, index: usize, metrics: &LayoutMetrics, wl: &mut WidgetLayout, keep_previous: bool, transform: F)
     where
         F: FnOnce(&mut WidgetLayoutTransform, PosLayoutArgs),
     {
         let a_len = self.0.len();
         if index < a_len {
-            self.0.widget_outer(index, metrics, wl, transform);
+            self.0.widget_outer(index, metrics, wl, keep_previous, transform);
         } else {
-            self.1.widget_outer(index - a_len, metrics, wl, transform);
+            self.1.widget_outer(index - a_len, metrics, wl, keep_previous, transform);
         }
+    }
+
+    fn outer_all<F>(&mut self, metrics: &LayoutMetrics, wl: &mut WidgetLayout, keep_previous: bool, mut transform: F)
+    where
+        F: FnMut(&mut WidgetLayoutTransform, PosLayoutArgs),
+    {
+        self.0.outer_all(metrics, wl, keep_previous, &mut transform);
+        let offset = self.0.len();
+        self.1.outer_all(metrics, wl, keep_previous, |wlt, mut args| {
+            args.index += offset;
+            transform(wlt, args);
+        })
     }
 }
 

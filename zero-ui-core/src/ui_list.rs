@@ -302,9 +302,14 @@ pub trait WidgetList: UiNodeList {
         F: FnMut(WidgetFilterArgs) -> bool;
 
     /// Calls [`WidgetLayout::with_outer`] in only the `index` widget.
-    fn widget_outer<F>(&mut self, index: usize, metrics: &LayoutMetrics, wl: &mut WidgetLayout, transform: F)
+    fn widget_outer<F>(&mut self, index: usize, metrics: &LayoutMetrics, wl: &mut WidgetLayout, keep_previous: bool, transform: F)
     where
         F: FnOnce(&mut WidgetLayoutTransform, PosLayoutArgs);
+
+    /// Calls [`WidgetLayout::with_outer`] in all widgets on the list.
+    fn outer_all<F>(&mut self, metrics: &LayoutMetrics, wl: &mut WidgetLayout, keep_previous: bool, transform: F)
+    where
+        F: FnMut(&mut WidgetLayoutTransform, PosLayoutArgs);
 }
 
 /// Initialize an optimized [`WidgetList`].
