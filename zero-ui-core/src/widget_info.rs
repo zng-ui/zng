@@ -89,7 +89,10 @@ impl WidgetLayout {
         }
     }
 
-    fn with_bounds(
+    /// Defines a custom widget bounds scope.
+    /// 
+    /// The `bounds` must be registered in the widget info using [`WidgetInfoBuilder::push_bounds`].
+    pub fn with_bounds(
         &mut self,
         ctx: &mut LayoutContext,
         bounds: WidgetLayoutInfo,
@@ -237,7 +240,7 @@ impl WidgetLayout {
         if let Some(w) = ctx.info_tree.find(widget_id) {
             for w in w.self_and_descendants() {
                 let info = w.info();
-                for info in [&info.outer_info, &info.inner_info] {
+                for info in &info.layout_info {
                     info.set_size(PxSize::zero());
                     info.set_transform(RenderTransform::identity());
                     info.set_baseline(Px(0));
@@ -329,8 +332,10 @@ pub struct WidgetInfoBuilder {
     widget_id: WidgetId,
     meta: OwnedStateMap,
 
-    tree: Tree<WidgetInfoInner>,
+    tree: Tree<WidgetInfoData>,
     interaction_filter: Vec<Box<dyn Fn(&InteractiveFilterArgs) -> bool>>,
+
+    in_inner: bool,
 }
 impl WidgetInfoBuilder {
     /// Starts building a info tree with the root information.
@@ -345,17 +350,17 @@ impl WidgetInfoBuilder {
     ) -> Self {
         debug_assert_eq!(RenderTransform::identity(), root_outer_info.transform());
 
-        let (tree_capacity, interactive_capacity) = used_data.map(|d| (d.tree_capacity, d.interactive_capacity)).unwrap_or((100, 30));
+        let used_data = used_data.unwrap_or_else(UsedWidgetInfoBuilder::fallback);
         let tree = Tree::with_capacity(
-            WidgetInfoInner {
+            WidgetInfoData {
                 widget_id: root_id,
-                outer_info: root_outer_info,
-                inner_info: root_inner_info,
+                layout_info: vec![root_outer_info, root_inner_info],
+                inner_info: 1,
                 border_info: root_border_info,
                 render_info,
                 meta: Rc::new(OwnedStateMap::new()),
             },
-            tree_capacity,
+            used_data.tree_capacity,
         );
 
         let root_node = tree.root().id();
@@ -363,13 +368,14 @@ impl WidgetInfoBuilder {
             window_id,
             node: root_node,
             tree,
-            interaction_filter: Vec::with_capacity(interactive_capacity),
+            interaction_filter: Vec::with_capacity(used_data.interactive_capacity),
             meta: OwnedStateMap::new(),
             widget_id: root_id,
+            in_inner: false,
         }
     }
 
-    fn node(&mut self, id: ego_tree::NodeId) -> ego_tree::NodeMut<WidgetInfoInner> {
+    fn node(&mut self, id: ego_tree::NodeId) -> ego_tree::NodeMut<WidgetInfoData> {
         self.tree.get_mut(id).unwrap()
     }
 
@@ -402,10 +408,10 @@ impl WidgetInfoBuilder {
         self.widget_id = id;
         self.node = self
             .node(parent_node)
-            .append(WidgetInfoInner {
+            .append(WidgetInfoData {
                 widget_id: id,
-                inner_info,
-                outer_info,
+                layout_info: vec![outer_info, inner_info],
+                inner_info: 1,
                 border_info,
                 render_info,
                 meta: Rc::new(OwnedStateMap::new()),
@@ -417,6 +423,31 @@ impl WidgetInfoBuilder {
         self.node(self.node).value().meta = Rc::new(mem::replace(&mut self.meta, parent_meta));
         self.node = parent_node;
         self.widget_id = parent_widget_id;
+    }
+
+    /// Calls `f` in a new custom layout bounds scope.
+    /// 
+    /// Custom transforms rendered directly by the node must be registered with this method so that the real position
+    /// of a widget in the window can be computed correctly.
+    /// 
+    /// The `bounds` must be updated during layout using [`WidgetLayout::with_bounds`] and must be rendered.
+    pub fn push_bounds(&mut self, bounds: WidgetLayoutInfo, f: impl FnOnce(&mut Self)) {
+        if self.in_inner {
+            self.node(self.node).value().layout_info.push(bounds);
+        } else {
+            let mut node = self.node(self.node);
+            let value = node.value();
+            value.layout_info.insert(value.inner_info, bounds);
+            value.inner_info += 1;
+        }
+        f(self);
+    }
+
+    /// Calls `f` in the widget's inner scope.
+    pub fn push_inner(&mut self, f: impl FnOnce(&mut Self)) {
+        self.in_inner = true;
+        f(self);
+        self.in_inner = false;
     }
 
     /// Reuse the widget info branch from the previous tree.
@@ -437,7 +468,7 @@ impl WidgetInfoBuilder {
 
         Self::clone_append(wgt.node(), &mut self.node(self.node));
     }
-    fn clone_append(from: ego_tree::NodeRef<WidgetInfoInner>, to: &mut ego_tree::NodeMut<WidgetInfoInner>) {
+    fn clone_append(from: ego_tree::NodeRef<WidgetInfoData>, to: &mut ego_tree::NodeMut<WidgetInfoData>) {
         let mut to = to.append(from.value().clone());
         for from in from.children() {
             Self::clone_append(from, &mut to);
@@ -543,7 +574,7 @@ pub struct WidgetInfoTree(Rc<WidgetInfoTreeInner>);
 struct WidgetInfoTreeInner {
     id: WidgetInfoTreeId,
     window_id: WindowId,
-    tree: Tree<WidgetInfoInner>,
+    tree: Tree<WidgetInfoData>,
     lookup: IdMap<WidgetId, ego_tree::NodeId>,
     interaction_filter: Vec<Box<dyn Fn(&InteractiveFilterArgs) -> bool>>,
 }
@@ -944,10 +975,10 @@ impl WidgetRenderInfo {
 }
 
 #[derive(Clone)]
-struct WidgetInfoInner {
+struct WidgetInfoData {
     widget_id: WidgetId,
-    outer_info: WidgetLayoutInfo,
-    inner_info: WidgetLayoutInfo,
+    layout_info: Vec<WidgetLayoutInfo>,
+    inner_info: usize,
     border_info: WidgetBorderInfo,
     render_info: WidgetRenderInfo,
     meta: Rc<OwnedStateMap>,
@@ -984,11 +1015,11 @@ impl<'a> WidgetInfo<'a> {
         Self { tree, node_id }
     }
 
-    fn node(&self) -> ego_tree::NodeRef<'a, WidgetInfoInner> {
+    fn node(&self) -> ego_tree::NodeRef<'a, WidgetInfoData> {
         unsafe { self.tree.0.tree.get_unchecked(self.node_id) }
     }
 
-    fn info(&self) -> &'a WidgetInfoInner {
+    fn info(&self) -> &'a WidgetInfoData {
         self.node().value()
     }
 
@@ -1059,7 +1090,7 @@ impl<'a> WidgetInfo<'a> {
     pub fn visibility(self) -> Visibility {
         if self.rendered() {
             Visibility::Visible
-        } else if self.info().outer_info.size() == PxSize::zero() {
+        } else if self.info().layout_info[0].size() == PxSize::zero() {
             Visibility::Collapsed
         } else {
             Visibility::Hidden
@@ -1085,18 +1116,32 @@ impl<'a> WidgetInfo<'a> {
         true
     }
 
+    /// All the transforms introduced by this widget, starting from the outer info.
+    pub fn layout_info(self) -> &'a [WidgetLayoutInfo] {
+        &self.info().layout_info
+    }
+
+    /// Index of the [`inner_info`] in the [`layout_info`].
+    /// 
+    /// [`inner_info`]: Self::inner_info
+    /// [`layout_info`]: Self::layout_info
+    pub fn inner_info_index(self) -> usize {
+        self.info().inner_info
+    }
+
     /// Clone a reference to the widget outer bounds layout information.
     ///
     /// This information is up-to-date, it is updated every layout without causing a tree rebuild.
     pub fn outer_info(self) -> WidgetLayoutInfo {
-        self.info().outer_info.clone()
+        self.info().layout_info[0].clone()
     }
 
     /// Clone a reference to the widget inner bounds layout information.
     ///
     /// This information is up-to-date, it is updated every layout without causing a tree rebuild.
     pub fn inner_info(self) -> WidgetLayoutInfo {
-        self.info().inner_info.clone()
+        let info = self.info();
+        info.layout_info[info.inner_info].clone()
     }
 
     /// Clone a reference to the widget border and corner radius information.
@@ -1109,22 +1154,23 @@ impl<'a> WidgetInfo<'a> {
     /// Side of the widget outer area, not transformed.
     ///
     /// Returns an up-to-date size, the size is updated every layout without causing a tree rebuild.
-    pub fn outer_final_size(self) -> PxSize {
-        self.info().outer_info.size()
+    pub fn outer_size(self) -> PxSize {
+        self.info().layout_info[0].size()
     }
 
     /// Side of the widget inner area, not transformed.
     ///
     /// Returns an up-to-date size, the size is updated every layout without causing a tree rebuild.
-    pub fn inner_final_size(self) -> PxSize {
-        self.info().inner_info.size()
+    pub fn inner_size(self) -> PxSize {
+        let info = self.info();
+        info.layout_info[info.inner_info].size()
     }
 
     /// Widget outer transform in the parent inner space.
     ///
     /// Returns an up-to-date transform, the transform is updated every layout without causing a tree rebuild.
     pub fn outer_transform(self) -> RenderTransform {
-        self.info().outer_info.transform()
+        self.info().layout_info[0].transform()
     }
 
     /// Widget outer transform in the `parent_id` space.
@@ -1158,7 +1204,8 @@ impl<'a> WidgetInfo<'a> {
     ///
     /// Returns an up-to-date transform, the transform is updated every layout without causing a tree rebuild.
     pub fn inner_transform(self) -> RenderTransform {
-        self.info().inner_info.transform()
+        let info = self.info();
+        info.layout_info[info.inner_info].transform()
     }
 
     /// Widget inner transform in the `parent_id` space.
@@ -1451,7 +1498,7 @@ pub enum DescendantFilter {
 ///
 /// This `struct` is created by the [`filter_descendants`](WidgetInfo::filter_descendants) method on [`WidgetInfo`]. See its documentation for more.
 pub struct FilterDescendants<'a, F: FnMut(WidgetInfo<'a>) -> DescendantFilter> {
-    traverse: ego_tree::iter::Traverse<'a, WidgetInfoInner>,
+    traverse: ego_tree::iter::Traverse<'a, WidgetInfoData>,
     filter: F,
     tree: &'a WidgetInfoTree,
 }
@@ -1532,6 +1579,14 @@ pub enum WidgetOrientation {
 pub struct UsedWidgetInfoBuilder {
     tree_capacity: usize,
     interactive_capacity: usize,
+}
+impl UsedWidgetInfoBuilder {
+    fn fallback() -> Self {
+        UsedWidgetInfoBuilder {
+            tree_capacity: 100,
+            interactive_capacity: 30,
+        }
+    }    
 }
 
 macro_rules! update_slot {

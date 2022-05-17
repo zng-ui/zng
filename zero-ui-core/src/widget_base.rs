@@ -3,13 +3,18 @@
 use std::{fmt, mem, ops};
 
 use crate::{
-    context::{state_key, InfoContext, LayoutContext, RenderContext, StateMap, WidgetContext},
+    context::{
+        state_key, InfoContext, LayoutContext, OwnedStateMap, RenderContext, StateMap, WidgetContext, WidgetUpdates, WindowRenderUpdate,
+    },
     event::EventUpdateArgs,
     impl_ui_node, property,
-    render::{FrameBuilder, FrameUpdate, SpatialFrameId},
-    units::{PxCornerRadius, PxRect, PxSize},
+    render::{FrameBindingKey, FrameBuilder, FrameUpdate, SpatialFrameId},
+    units::{PxCornerRadius, PxRect, PxSize, RenderTransform},
     var::*,
-    widget_info::{UpdateMask, WidgetInfo, WidgetInfoBuilder, WidgetLayout, WidgetSubscriptions},
+    widget_info::{
+        UpdateMask, WidgetBorderInfo, WidgetContextInfo, WidgetInfo, WidgetInfoBuilder, WidgetLayout, WidgetLayoutInfo, WidgetRenderInfo,
+        WidgetSubscriptions,
+    },
     FillUiNode, UiNode, Widget, WidgetId,
 };
 
@@ -18,13 +23,6 @@ use crate::{
 #[zero_ui_proc_macros::widget_base($crate::widget_base::implicit_base)]
 pub mod implicit_base {
     use std::cell::RefCell;
-
-    use crate::{
-        context::{OwnedStateMap, RenderContext, WidgetUpdates, WindowRenderUpdate},
-        render::FrameBindingKey,
-        units::RenderTransform,
-        widget_info::{WidgetBorderInfo, WidgetContextInfo, WidgetLayout, WidgetLayoutInfo, WidgetRenderInfo, WidgetSubscriptions},
-    };
 
     use super::*;
 
@@ -109,6 +107,64 @@ pub mod implicit_base {
     /// UI nodes used for implementing all widgets.
     pub mod nodes {
         use super::*;
+
+        /// Returns a node that wraps `panel` and applies *child_layout* transforms to it.
+        ///
+        /// This node should wrap the inner most *child* node of panel widgets in the [`new_child`] constructor.
+        /// 
+        /// [`new_child`]: super::new_child
+        pub fn children_layout(panel: impl UiNode) -> impl UiNode {
+            struct ChildrenLayoutNode<P> {
+                panel: P,
+                info: WidgetLayoutInfo,
+                id: Option<(SpatialFrameId, FrameBindingKey<RenderTransform>)>,
+            }
+            #[impl_ui_node(
+                delegate = &self.panel,
+                delegate_mut = &mut self.panel,
+            )]
+            impl<P: UiNode> UiNode for ChildrenLayoutNode<P> {
+                fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
+                    info.push_bounds(self.info.clone(), |info| self.panel.info(ctx, info))
+                }
+
+                fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
+                    let transform = self.info.transform();
+
+                    let size = wl.with_bounds(ctx, self.info.clone(), |ctx, wl| self.panel.layout(ctx, wl));
+                    if self.id.is_none() {
+                        if self.info.transform() != RenderTransform::identity() {
+                            self.id = Some((SpatialFrameId::new_unique(), FrameBindingKey::new_unique()));
+                            ctx.updates.render();
+                        }
+                    } else if self.info.transform() != transform {
+                        ctx.updates.render_update();
+                    }
+                    size
+                }
+
+                fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
+                    if let Some((id, key)) = &self.id {
+                        frame.push_reference_frame(*id, key.bind(self.info.transform()), false, |frame| self.panel.render(ctx, frame));
+                    } else {
+                        self.panel.render(ctx, frame);
+                    }
+                }
+
+                fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
+                    if let Some((_, key)) = &self.id {
+                        update.update_transform(key.update(self.info.transform()));
+                    }
+                    self.panel.render_update(ctx, update);
+                }
+            }
+            ChildrenLayoutNode {
+                panel: panel.cfg_boxed(),
+                info: WidgetLayoutInfo::new(),
+                id: None,
+            }
+            .cfg_boxed()
+        }
 
         /// Returns a node that wraps `child` and potentially applies child transforms if the `child` turns out
         /// to not be a full [`Widget`]. This is important for making properties like *padding* or *content_align* work

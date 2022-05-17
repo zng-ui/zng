@@ -258,11 +258,12 @@ pub mod v_stack {
     }
 
     fn new_child(items: impl WidgetList, spacing: impl IntoVar<Length>, items_align: impl IntoVar<Align>) -> impl UiNode {
-        VStackNode {
+        let node = VStackNode {
             children: ZSortedWidgetList::new(items),
             spacing: spacing.into_var(),
             align: items_align.into_var(),
-        }
+        };
+        implicit_base::nodes::children_layout(node)
     }
 
     struct VStackNode<C, S, A> {
