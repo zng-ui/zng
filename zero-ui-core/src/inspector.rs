@@ -994,6 +994,7 @@ impl UiNode for PropertyInfoNode {
 
         let t = Instant::now();
         let r = self.child.layout(ctx, wl);
+
         let d = t.elapsed();
         let mut info = self.info.borrow_mut();
         info.duration.layout = d;

@@ -284,16 +284,18 @@ impl PxSizeConstrains {
         self
     }
 
-    /// Returns a constrains with `max.width` set to MAX and `fill.x` set to false.
+    /// Returns a constrains with `max.width` set to MAX, `min.width` set to zero and `fill.x` set to false.
     pub fn with_unbounded_x(mut self) -> Self {
         self.max.width = Px::MAX;
+        self.min.width = Px(0);
         self.fill.x = false;
         self
     }
 
-    /// Returns a constrains with `max.height` set to MAX and `fill.y` set to false.
+    /// Returns a constrains with `max.height` set to MAX, `min.height` set to zero and `fill.y` set to false.
     pub fn with_unbounded_y(mut self) -> Self {
         self.max.height = Px::MAX;
+        self.min.height = Px(0);
         self.fill.y = false;
         self
     }

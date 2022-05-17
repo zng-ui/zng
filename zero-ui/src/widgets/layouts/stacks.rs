@@ -108,7 +108,7 @@ pub mod h_stack {
                 size.width -= spacing;
             }
 
-            let align = self.align.copy(ctx); // TODO !!: align
+            let align = self.align.copy(ctx);
 
             ctx.constrains().clamp(size)
         }
@@ -313,7 +313,7 @@ pub mod v_stack {
                 size.height -= spacing;
             }
 
-            let align = self.align.copy(ctx); // TODO !!: align
+            let align = self.align.copy(ctx);
 
             ctx.constrains().clamp(size)
         }
@@ -546,7 +546,6 @@ pub mod z_stack {
             let size = ctx.constrains().clamp(s);
 
             let align = self.align.copy(ctx);
-            // TODO !!: align
 
             size
         }

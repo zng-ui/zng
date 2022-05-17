@@ -27,7 +27,7 @@ pub struct ResolvedText {
     pub reshape: bool,
 
     /// Baseline set by `layout_text` during measure and used by `new_border` during arrange.
-    baseline: Cell<Px>, // TODO !!: review this, every node can affect the inner transform now, so we removed it from the inner node.
+    baseline: Cell<Px>,
 }
 impl ResolvedText {
     /// Gets the contextual [`ResolvedText`], returns `Some(_)` for any property with priority `event` or up
@@ -258,7 +258,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Text>) -> impl UiNode
 
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
             let size = self.with_mut(ctx.vars, |c| c.layout(ctx, wl));
-            self.resolved.as_mut().unwrap().reshape = false; // TODO !!: review this
+            self.resolved.as_mut().unwrap().reshape = false;
             size
         }
 

@@ -19,7 +19,6 @@ pub fn border(child: impl UiNode, widths: impl IntoVar<SideOffsets>, sides: impl
     #[impl_ui_node(none)]
     impl<S: Var<BorderSides>> UiNode for BorderNode<S> {
         fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-            // TODO !!: do I need to sub to corner_radius?
             subs.var(ctx, &self.sides);
         }
 

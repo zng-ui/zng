@@ -77,7 +77,7 @@ pub mod rule_line {
                 ctx.updates.layout();
             }
             if self.color.is_new(ctx) || self.style.is_new(ctx) {
-                ctx.updates.render(); // TODO !!: use render_update for color.
+                ctx.updates.render();
             }
         }
 

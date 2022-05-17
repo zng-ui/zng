@@ -61,7 +61,7 @@ pub fn margin(child: impl UiNode, margin: impl IntoVar<SideOffsets>) -> impl UiN
             let margin = self.margin.get(ctx.vars).layout(ctx.metrics, |_| PxSideOffsets::zero());
             self.size_increment = PxSize::new(margin.horizontal(), margin.vertical());
 
-            wl.translate(PxVector::new(margin.left, margin.top)); // TODO !!: review this, does it need to be "pre-translate".
+            wl.translate(PxVector::new(margin.left, margin.top));
 
             ctx.with_sub_size(self.size_increment, |ctx| self.child.layout(ctx, wl))
         }

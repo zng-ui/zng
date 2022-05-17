@@ -200,7 +200,6 @@ impl WindowLayers {
             }
 
             fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
-                // TODO !!: reimplement this after image!.
                 self.widget.layout(ctx, wl)
             }
 

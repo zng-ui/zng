@@ -344,7 +344,6 @@ pub fn image_presenter() -> impl UiNode {
         }
 
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
-            // TODO !!: reimplement, wait until most of the others are done
             self.img_size
         }
 

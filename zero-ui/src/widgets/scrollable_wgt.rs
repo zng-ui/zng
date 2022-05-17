@@ -128,7 +128,7 @@ pub mod scrollable {
                 let _ = ctx.with_constrains(|c| c.with_max(self.joiner), |ctx| self.children.widget_layout(3, ctx, wl));
 
                 // arrange
-                let final_size = viewport + self.joiner; // TODO !!: review this
+                let final_size = viewport + self.joiner;
                 let content_size = ScrollContentSizeVar::get_clone(ctx);
 
                 if content_size.height > final_size.height {
@@ -160,8 +160,6 @@ pub mod scrollable {
                     self.viewport = viewport;
                     ctx.updates.render();
                 }
-
-                // TODO !!: position scrollbars and joiner in layout info?
 
                 self.viewport + self.joiner
             }
