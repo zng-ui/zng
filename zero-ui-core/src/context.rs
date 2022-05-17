@@ -1107,7 +1107,7 @@ impl LayoutMetrics {
     pub fn new(scale_factor: Factor, viewport_size: PxSize, font_size: Px) -> Self {
         LayoutMetrics {
             use_mask: Cell::new(LayoutMask::NONE),
-            constrains: PxSizeConstrains::none().with_max_fill(viewport_size),
+            constrains: PxSizeConstrains::unbounded().with_max_fill(viewport_size),
             font_size,
             root_font_size: font_size,
             scale_factor,

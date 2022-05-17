@@ -118,7 +118,7 @@ fn test_trace(node: impl UiNode) {
     wgt.test_update(&mut ctx);
     assert_only_traced!(wgt.state(), "update");
 
-    wgt.test_layout(&mut ctx, PxSizeConstrains::none().with_max(l_size).into());
+    wgt.test_layout(&mut ctx, PxSizeConstrains::unbounded().with_max(l_size).into());
     assert_only_traced!(wgt.state(), "layout");
 
     let mut frame = FrameBuilder::new_renderless(FrameId::INVALID, ctx.root_id, 1.0.fct(), Default::default(), None);
@@ -209,7 +209,7 @@ pub fn default_no_child() {
     wgt.test_init(&mut ctx);
 
     // we expect default to fill or collapsed depending on the
-    let constrains = PxSizeConstrains::none()
+    let constrains = PxSizeConstrains::unbounded()
         .with_min(PxSize::new(Px(1), Px(8)))
         .with_max_fill(PxSize::new(Px(100), Px(800)));
 

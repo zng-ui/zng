@@ -1,9 +1,6 @@
 use super::{euclid, Px, PxSize};
 
-/// If the `max` size is the *fill* size, otherwise `min` is the *fill* size.
-///
-/// See [`LayoutConstrains`] for more details.
-pub type FillVector = euclid::BoolVector2D;
+pub use euclid::BoolVector2D;
 
 /// Constrains on a pixel length.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -13,6 +10,11 @@ pub struct PxConstrains {
     /// Minimum allowed length.
     pub min: Px,
     /// If `max` is the *fill* length, otherwise `min` is.
+    ///
+    /// Note that this is ignored if the max [`is_unbounded`], use [`actually_fill`] for operations.
+    ///
+    /// [`is_unbounded`]: Self::is_unbounded
+    /// [`actually_fill`]: Self::actually_fill
     pub fill: bool,
 }
 impl Default for PxConstrains {
@@ -26,7 +28,7 @@ impl Default for PxConstrains {
 }
 impl PxConstrains {
     /// No constrains, max is [`Px::MAX`], min is zero and fill is false, this the default value.
-    pub fn none() -> Self {
+    pub fn unbounded() -> Self {
         Self::default()
     }
 
@@ -39,9 +41,26 @@ impl PxConstrains {
         }
     }
 
-    /// Returns the length to fill.
+    /// Returns if [`max`] is [`Px::MAX`]. Unbounded constrains do not fill even if [`fill`] is requested.
+    ///
+    /// [`max`]: Self::max
+    /// [`fill`]: Self::fill
+    pub fn is_unbounded(&self) -> bool {
+        self.max == Px::MAX
+    }
+
+    /// Returns `true` if fill is requested and the constrains are bounded.
+    pub fn actually_fill(&self) -> bool {
+        self.fill && !self.is_unbounded()
+    }
+
+    /// Returns the length to fill, that is [`max`] if [`actually_fill`] is `true`, otherwise returns [`min`].
+    ///
+    /// [`max`]: Self::max
+    /// [`actual_fill`]: Self::actual_fill
+    /// [`min`]: Self::min
     pub fn fill_length(&self) -> Px {
-        if self.fill {
+        if self.actually_fill() {
             self.max
         } else {
             self.min
@@ -53,15 +72,26 @@ impl PxConstrains {
         self.min.max(px).min(self.max)
     }
 
-    /// Returns a constrain with `max`.
+    /// Returns the fill length or the desired length
+    pub fn leaf_fill(&self, desired_length: Px) -> Px {
+        if self.actually_fill() {
+            self.max
+        } else {
+            self.clamp(desired_length)
+        }
+    }
+
+    /// Returns a constrain with `max`, adjusts min to be less or equal to the new `max`.
     pub fn with_max(mut self, max: Px) -> Self {
         self.max = max;
+        self.min = self.min.min(self.max);
         self
     }
 
-    /// Returns a constrain with `min`.
+    /// Returns a constrain with `min`, adjusts max to be more or equal to the new `min`.
     pub fn with_min(mut self, min: Px) -> Self {
         self.min = min;
+        self.max = self.max.max(min);
         self
     }
 
@@ -71,16 +101,22 @@ impl PxConstrains {
         self
     }
 
-    /// Returns a constrains with `max` subtracted by `removed` and `min` adjusted to be less-or-equal to `max`.
+    /// Returns a constrain with max subtracted by `removed` and min adjusted to be less or equal to max.
     pub fn with_less(mut self, removed: Px) -> Self {
         self.max -= removed;
         self.min = self.min.min(self.max);
         self
     }
 
-    /// Returns a constrains with `max` added by `added`
+    /// Returns a constrain with max added by `added`.
     pub fn with_more(mut self, added: Px) -> Self {
         self.max += added;
+        self
+    }
+
+    /// Returns a constrain with max set to the unbounded value, [`Px::MAX`].
+    pub fn with_unbounded(mut self) -> Self {
+        self.max = Px::MAX;
         self
     }
 }
@@ -93,20 +129,25 @@ pub struct PxSizeConstrains {
     /// Minimum allowed size.
     pub min: PxSize,
     /// If `max` size is the *fill* size, otherwise `min` is.
-    pub fill: FillVector,
+    ///
+    /// Note that this is ignored if the max [`is_unbounded`], use [`actually_fill`] for operations.
+    ///
+    /// [`is_unbounded`]: Self::is_unbounded
+    /// [`actually_fill`]: Self::actually_fill
+    pub fill: BoolVector2D,
 }
 impl Default for PxSizeConstrains {
     fn default() -> Self {
         PxSizeConstrains {
             max: PxSize::new(Px::MAX, Px::MAX),
             min: PxSize::zero(),
-            fill: FillVector { x: false, y: false },
+            fill: BoolVector2D { x: false, y: false },
         }
     }
 }
 impl PxSizeConstrains {
     /// No constrains, max is [`Px::MAX`], min is zero and fill is false, this the default value.
-    pub fn none() -> Self {
+    pub fn unbounded() -> Self {
         Self::default()
     }
 
@@ -115,8 +156,24 @@ impl PxSizeConstrains {
         Self {
             max: size,
             min: size,
-            fill: FillVector { x: false, y: false },
+            fill: BoolVector2D { x: false, y: false },
         }
+    }
+
+    /// Returns if [`max`] is [`Px::MAX`]. Unbounded constrains do not fill even if [`fill`] is requested.
+    ///
+    /// [`max`]: Self::max
+    /// [`fill`]: Self::fill
+    pub fn is_unbounded(&self) -> BoolVector2D {
+        BoolVector2D {
+            x: self.max.width == Px::MAX,
+            y: self.max.height == Px::MAX,
+        }
+    }
+
+    /// Returns `true` if fill is requested and the constrains are bounded.
+    pub fn actually_fill(&self) -> BoolVector2D {
+        self.fill.and(self.is_unbounded().not())
     }
 
     /// Returns the size to fill all available space.
@@ -124,12 +181,12 @@ impl PxSizeConstrains {
         debug_assert!(self.max.width >= self.min.width);
         debug_assert!(self.max.height >= self.min.height);
 
-        self.fill.select_size(self.max, self.min)
+        self.actually_fill().select_size(self.max, self.min)
     }
 
     /// Returns the width that fills the X-axis.
     pub fn fill_width(&self) -> Px {
-        if self.fill.x {
+        if self.actually_fill().x {
             self.max.width
         } else {
             self.min.width
@@ -138,7 +195,7 @@ impl PxSizeConstrains {
 
     /// Returns the height that fills the Y-axis.
     pub fn fill_height(&self) -> Px {
-        if self.fill.y {
+        if self.actually_fill().y {
             self.max.height
         } else {
             self.min.height
@@ -152,12 +209,13 @@ impl PxSizeConstrains {
 
     /// Returns the fill size, or the desired size clamped.
     pub fn leaf_fill(&self, desired_size: PxSize) -> PxSize {
-        let width = if self.fill.x {
+        let fill = self.actually_fill();
+        let width = if fill.x {
             self.max.width
         } else {
             desired_size.width.max(self.min.width).min(self.max.width)
         };
-        let height = if self.fill.y {
+        let height = if fill.y {
             self.max.height
         } else {
             desired_size.height.max(self.min.height).min(self.max.height)
@@ -242,7 +300,7 @@ impl PxSizeConstrains {
 
     /// Returns a constrain with fill config in both axis.
     pub fn with_fill(mut self, fill_x: bool, fill_y: bool) -> Self {
-        self.fill = FillVector { x: fill_x, y: fill_y };
+        self.fill = BoolVector2D { x: fill_x, y: fill_y };
         self
     }
 
@@ -299,19 +357,15 @@ impl PxSizeConstrains {
         self
     }
 
-    /// Returns a constrains with `max.width` set to MAX, `min.width` set to zero and `fill.x` set to false.
+    /// Returns a constrains with `max.width` set to [`Px::MAX`].
     pub fn with_unbounded_x(mut self) -> Self {
         self.max.width = Px::MAX;
-        self.min.width = Px(0);
-        self.fill.x = false;
         self
     }
 
-    /// Returns a constrains with `max.height` set to MAX, `min.height` set to zero and `fill.y` set to false.
+    /// Returns a constrains with `max.height` set to [`Px::MAX`].
     pub fn with_unbounded_y(mut self) -> Self {
         self.max.height = Px::MAX;
-        self.min.height = Px(0);
-        self.fill.y = false;
         self
     }
 }
