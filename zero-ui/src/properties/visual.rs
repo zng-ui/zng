@@ -243,7 +243,7 @@ pub fn foreground_highlight(
             let size = self.child.layout(ctx, wl);
 
             ctx.with_constrains(
-                |_| PxSizeConstrains::fixed(size),
+                |_| PxSizeConstrains::exact(size),
                 |ctx| {
                     let offsets = self.offsets.get(ctx.vars).layout(ctx.metrics, |_| PxSideOffsets::zero());
                     let widths = self.widths.get(ctx.vars).layout(ctx.metrics, |_| PxSideOffsets::zero());

@@ -30,8 +30,8 @@ impl PxConstrains {
         Self::default()
     }
 
-    /// Fixed length constrains, both max and min are `px`, fill is false.
-    pub fn fixed(px: Px) -> Self {
+    /// Exact length constrains, both max and min are `px`, fill is false.
+    pub fn exact(px: Px) -> Self {
         Self {
             max: px,
             min: px,
@@ -110,8 +110,8 @@ impl PxSizeConstrains {
         Self::default()
     }
 
-    /// Fixed size constrains, both max and min are `size`, fill is false.
-    pub fn fixed(size: PxSize) -> Self {
+    /// Exact size constrains, both max and min are `size`, fill is false.
+    pub fn exact(size: PxSize) -> Self {
         Self {
             max: size,
             min: size,

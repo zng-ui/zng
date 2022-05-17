@@ -728,7 +728,7 @@ pub fn fill_node(content: impl UiNode) -> impl UiNode {
                 ctx.updates.render();
             }
 
-            ctx.with_constrains(|_| PxSizeConstrains::fixed(fill_bounds), |ctx| self.content.layout(ctx, wl));
+            ctx.with_constrains(|_| PxSizeConstrains::exact(fill_bounds), |ctx| self.content.layout(ctx, wl));
 
             fill_bounds
         }
@@ -803,7 +803,7 @@ pub fn border_node(child: impl UiNode, border_offsets: impl IntoVar<SideOffsets>
 
                 // layout border visual
                 ctx.with_constrains(
-                    |_| PxSizeConstrains::fixed(self.border_rect.size),
+                    |_| PxSizeConstrains::exact(self.border_rect.size),
                     |ctx| {
                         ContextBorders::with_border_layout(ctx.vars, self.border_rect, offsets, || {
                             self.children.widget_layout(1, ctx, wl);

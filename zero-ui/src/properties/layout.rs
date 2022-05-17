@@ -691,7 +691,7 @@ pub fn size(child: impl UiNode, size: impl IntoVar<Size>) -> impl UiNode {
 
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
             let size = self.size.get(ctx.vars).layout(ctx.metrics, |ctx| ctx.constrains().fill_size());
-            ctx.with_constrains(|_| PxSizeConstrains::fixed(size), |ctx| self.child.layout(ctx, wl));
+            ctx.with_constrains(|_| PxSizeConstrains::exact(size), |ctx| self.child.layout(ctx, wl));
             size
         }
     }
