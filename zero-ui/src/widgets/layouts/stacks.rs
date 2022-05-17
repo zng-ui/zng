@@ -322,8 +322,8 @@ pub mod v_stack {
 
             let final_size = ctx.constrains().fill_or(size);
             let extra_height = final_size.height - size.height;
-            let mut extra_y = Px(0); 
-            
+            let mut extra_y = Px(0);
+
             if extra_height > Px(0) {
                 if align.is_fill_height() {
                     // TODO !!: second pass?

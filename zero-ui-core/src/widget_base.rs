@@ -111,7 +111,7 @@ pub mod implicit_base {
         /// Returns a node that wraps `panel` and applies *child_layout* transforms to it.
         ///
         /// This node should wrap the inner most *child* node of panel widgets in the [`new_child`] constructor.
-        /// 
+        ///
         /// [`new_child`]: super::new_child
         pub fn children_layout(panel: impl UiNode) -> impl UiNode {
             struct ChildrenLayoutNode<P> {

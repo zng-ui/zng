@@ -90,7 +90,7 @@ impl WidgetLayout {
     }
 
     /// Defines a custom widget bounds scope.
-    /// 
+    ///
     /// The `bounds` must be registered in the widget info using [`WidgetInfoBuilder::push_bounds`].
     pub fn with_bounds(
         &mut self,
@@ -112,6 +112,7 @@ impl WidgetLayout {
         let size = layout(ctx, self);
         bounds.set_size(size);
 
+        self.finish_bounds(ctx);
         self.t.inner = Some(bounds);
 
         size
@@ -426,10 +427,10 @@ impl WidgetInfoBuilder {
     }
 
     /// Calls `f` in a new custom layout bounds scope.
-    /// 
+    ///
     /// Custom transforms rendered directly by the node must be registered with this method so that the real position
     /// of a widget in the window can be computed correctly.
-    /// 
+    ///
     /// The `bounds` must be updated during layout using [`WidgetLayout::with_bounds`] and must be rendered.
     pub fn push_bounds(&mut self, bounds: WidgetLayoutInfo, f: impl FnOnce(&mut Self)) {
         if self.in_inner {
@@ -1122,7 +1123,7 @@ impl<'a> WidgetInfo<'a> {
     }
 
     /// Index of the [`inner_info`] in the [`layout_info`].
-    /// 
+    ///
     /// [`inner_info`]: Self::inner_info
     /// [`layout_info`]: Self::layout_info
     pub fn inner_info_index(self) -> usize {
@@ -1586,7 +1587,7 @@ impl UsedWidgetInfoBuilder {
             tree_capacity: 100,
             interactive_capacity: 30,
         }
-    }    
+    }
 }
 
 macro_rules! update_slot {
