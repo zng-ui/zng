@@ -38,24 +38,21 @@ pub struct Align {
 }
 impl PartialEq for Align {
     fn eq(&self, other: &Self) -> bool {
-        self.is_fill_width() == other.is_fill_width()
-            && self.is_fill_height() == other.is_fill_height()
-            && self.x == other.x
-            && self.y == other.y
+        self.is_fill_x() == other.is_fill_x() && self.is_fill_y() == other.is_fill_y() && self.x == other.x && self.y == other.y
     }
 }
 impl Align {
     /// Returns `true` if [`x`] is a special value that indicates the content width must be the container width.
     ///
     /// [`x`]: Align::x
-    pub fn is_fill_width(self) -> bool {
+    pub fn is_fill_x(self) -> bool {
         self.x.0.is_infinite() && self.x.0.is_sign_positive()
     }
 
     /// Returns `true` if [`y`] is a special value that indicates the content height must be the container height.
     ///
     /// [`y`]: Align::y
-    pub fn is_fill_height(self) -> bool {
+    pub fn is_fill_y(self) -> bool {
         self.y.0.is_infinite() && self.y.0.is_sign_positive()
     }
 
@@ -69,16 +66,17 @@ impl Align {
     /// Returns a boolean vector of the fill values.
     pub fn fill_vector(self) -> super::euclid::BoolVector2D {
         super::euclid::BoolVector2D {
-            x: self.is_fill_width(),
-            y: self.is_fill_height(),
+            x: self.is_fill_x(),
+            y: self.is_fill_y(),
         }
     }
 
     /// Constrains that must be used to layout a child node with the alignment.
     pub fn child_constrains(self, parent_constrains: PxSizeConstrains) -> PxSizeConstrains {
-        parent_constrains
-            .with_fill_x(self.is_fill_width())
-            .with_fill_y(self.is_fill_height())
+        let mut c = parent_constrains;
+        c.fill.x &= self.is_fill_x();
+        c.fill.y &= self.is_fill_y();
+        c
     }
 
     /// Applies the alignment transform to `wl` and returns the size of the parent align node.
@@ -87,10 +85,10 @@ impl Align {
         let size = parent_constrains.clamp(size);
 
         let mut offset = PxVector::zero();
-        if !self.is_fill_width() {
+        if !self.is_fill_x() {
             offset.x = (size.width - child_size.width) * self.x.0;
         }
-        if !self.is_fill_height() {
+        if !self.is_fill_y() {
             offset.y = (size.height - child_size.height) * self.y.0;
         }
 
@@ -159,13 +157,13 @@ impl fmt::Display for Align {
             f.write_str(name)
         } else {
             f.write_char('(')?;
-            if self.is_fill_width() {
+            if self.is_fill_x() {
                 f.write_str("<fill>")?;
             } else {
                 write!(f, "{}", FactorPercent::from(self.x))?;
             }
             f.write_str(", ")?;
-            if self.is_fill_height() {
+            if self.is_fill_y() {
                 f.write_str("<fill>")?;
             } else if self.is_baseline() {
                 f.write_str("<baseline>")?;

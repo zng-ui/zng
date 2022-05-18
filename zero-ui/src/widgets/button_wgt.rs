@@ -134,7 +134,7 @@ pub mod theme {
         pub struct TextColorVar: Rgba = colors::WHITE;
 
         /// Button content align.
-        /// 
+        ///
         /// Use the [`button::theme::content_align`] property to set.
         ///
         /// [`button::theme::content_align`]: fn@content_align
@@ -172,11 +172,11 @@ pub mod theme {
         with_context_var(child, TextColorVar, color)
     }
 
-        /// Sets the [`ContentAlignVar`] that affects all texts inside buttons inside the widget.
-        #[property(context, default(ContentAlignVar))]
-        pub fn content_align(child: impl UiNode, align: impl IntoVar<Align>) -> impl UiNode {
-            with_context_var(child, ContentAlignVar, align)
-        }
+    /// Sets the [`ContentAlignVar`] that affects all texts inside buttons inside the widget.
+    #[property(context, default(ContentAlignVar))]
+    pub fn content_align(child: impl UiNode, align: impl IntoVar<Align>) -> impl UiNode {
+        with_context_var(child, ContentAlignVar, align)
+    }
 
     /// Pointer hovered values.
     pub mod hovered {

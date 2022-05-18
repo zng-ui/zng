@@ -315,6 +315,31 @@ pub mod v_stack {
                 },
             );
 
+            if align.is_fill_x() && !ctx.constrains().fill.x {
+                // panel is not fill-x but items are, so we need to fill to the widest item.
+                ctx.with_constrains(
+                    move |c| c.with_width_fill(c.x_constrains().clamp(size.width)).with_unbounded_y(),
+                    |ctx| {
+                        size = PxSize::zero();
+
+                        self.children.layout_all(
+                            ctx,
+                            wl,
+                            |_, _, _| {},
+                            |_, wl, a| {
+                                wl.translate(PxVector::new(Px(0), size.height));
+
+                                size.width = size.width.max(a.size.width);
+
+                                if a.size.height > Px(0) {
+                                    size.height += a.size.height + spacing;
+                                }
+                            },
+                        )
+                    },
+                );
+            }
+
             if size.height > Px(0) {
                 // spacing is only in between items.
                 size.height -= spacing;
@@ -325,13 +350,13 @@ pub mod v_stack {
             let mut extra_y = Px(0);
 
             if extra_height > Px(0) {
-                if align.is_fill_height() {
+                if align.is_fill_y() {
                     // TODO !!: second pass?
                 } else {
                     extra_y = extra_height * align.y;
                 }
             }
-            if !align.is_fill_width() && align.x > 0.fct() {
+            if !align.is_fill_x() && align.x > 0.fct() {
                 self.children.outer_all(ctx.metrics, wl, true, |wlt, a| {
                     let x = (final_size.width - a.size.width) * align.x;
                     wlt.translate(PxVector::new(x, extra_y));
