@@ -66,7 +66,7 @@ fn image_button() -> impl Widget {
         on_click = hn!(|_, _| println!("Clicked image button"));
         content = h_stack! {
             items = widgets![
-                image! { source = "examples/res/window/icon-bytes.png"; size = (16, 16); },
+                image! { source = "examples/res/window/icon-bytes.png"; size = (16, 16) },
                 text("Click Me!")
             ];
             spacing = 5;

@@ -31,10 +31,14 @@ pub mod image {
         /// so for examples, alignment [`BOTTOM_RIGHT`] makes a smaller image sit at the bottom-right of the widget and makes
         /// a larger image bottom-right fill the widget, clipping the rest.
         ///
-        /// By default the alignment is [`CENTER`].
+        /// By default the alignment is [`CENTER`]. The [`BASELINE`] alignment is treaded as [`BOTTOM`], the fill alignments
+        /// are only used with [`ImageFit::None`], otherwise the [`CENTER`] alignment is used. The [`ImageFit::Fill`] mode
+        /// ignores the alignment and always fill.
         ///
         /// [`BOTTOM_RIGHT`]: Align::BOTTOM_RIGHT
         /// [`CENTER`]: Align::CENTER
+        /// [`BASELINE`]: Align::BASELINE
+        /// [`BOTTOM`]: Align::BOTTOM
         properties::image_align;
 
         /// Offset applied to the image after the final size and alignment.
