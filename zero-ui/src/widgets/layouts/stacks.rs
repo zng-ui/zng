@@ -167,7 +167,7 @@ pub mod h_stack {
                     wlt.translate(PxVector::new(extra_x, y));
                 });
             } else if extra_x > Px(0) {
-                self.children.outer_all(ctx.metrics, wl, true, |wlt, a| {
+                self.children.outer_all(ctx.metrics, wl, true, |wlt, _| {
                     wlt.translate(PxVector::new(extra_x, Px(0)));
                 });
             }
@@ -343,7 +343,7 @@ pub mod v_stack {
                     wlt.translate(PxVector::new(x, extra_y));
                 });
             } else if extra_y > Px(0) {
-                self.children.outer_all(ctx.metrics, wl, true, |wlt, a| {
+                self.children.outer_all(ctx.metrics, wl, true, |wlt, _| {
                     wlt.translate(PxVector::new(Px(0), extra_y));
                 });
             }

@@ -81,7 +81,7 @@ pub mod rule_line {
             }
         }
 
-        fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
+        fn layout(&mut self, ctx: &mut LayoutContext, _: &mut WidgetLayout) -> PxSize {
             let default_stroke = Dip::new(1).to_px(ctx.scale_factor().0);
 
             let bounds = match *self.orientation.get(ctx) {

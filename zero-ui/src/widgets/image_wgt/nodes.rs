@@ -334,7 +334,7 @@ pub fn image_presenter() -> impl UiNode {
             }
         }
 
-        fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
+        fn layout(&mut self, ctx: &mut LayoutContext, _: &mut WidgetLayout) -> PxSize {
             // Step 1 - Scale & Crop
             // - Starting from the image pixel size, apply scaling then crop.
 
@@ -356,73 +356,86 @@ pub fn image_presenter() -> impl UiNode {
             let img_rect = PxRect::from_size(self.img_size);
             let crop = ctx.with_constrains(
                 |c| c.with_max_fill(self.img_size),
-                |ctx| ImageCropVar::get(ctx.vars).layout(ctx.metrics, |_|img_rect),
+                |ctx| ImageCropVar::get(ctx.vars).layout(ctx.metrics, |_| img_rect),
             );
             self.render_clip = img_rect.intersection(&crop).unwrap_or_default() * scale;
             self.render_offset = -self.render_clip.origin.to_vector();
 
-            // Step 2 - Fit & Clip
+            // Step 2 - Fit, Align & Clip
             // - Fit the cropped and scaled image to the constrains, add a bounds clip to the crop clip.
 
             let mut align = *ImageAlignVar::get(ctx);
             if align.is_baseline() {
                 align.y = 1.fct();
             }
-            let fit = *ImageFitVar::get(ctx);
-            
+
             let wgt_size = ctx.constrains().fill_or(self.render_clip.size);
 
-            // see `image_align` does on the widget
-            match fit {
-                ImageFit::None | ImageFit::Fill => {
-                    if let ImageFit::Fill = fit {
-                        align = Align::FILL;
-                    }                    
-                    if align.is_fill_x() {
-                        let factor = wgt_size.width.0 as f32 / self.render_clip.size.width.0 as f32;
-                        self.render_clip.size.width = wgt_size.width;
-                        self.render_clip.origin.x *= factor;
-                        self.render_img_size.width *= factor;
-                        self.render_offset.x = -self.render_clip.origin.x;
-                    } else {
-                        let offset = (wgt_size.width - self.render_clip.size.width) * align.x;
-                        self.render_offset.x += offset;
-                    }
-                    if align.is_fill_y() {
-                        let factor = wgt_size.height.0 as f32 / self.render_clip.size.height.0 as f32;
-                        self.render_clip.size.height = wgt_size.height;
-                        self.render_clip.origin.y *= factor;
-                        self.render_img_size.height *= factor;
-                        self.render_offset.y = -self.render_clip.origin.y;
-                    } else {
-                        let offset = (wgt_size.height - self.render_clip.size.height) * align.y;
-                        self.render_offset.y += offset;
-                    }
-
-                    println!("HERE!: {wgt_size:?} -> {:?}", self.render_clip);
-                }
-                _ => {
-                    if align.is_fill_x() {
-                        align.x = 0.5.fct();
-                    }
-                    if align.is_fill_y() {
-                        align.y = 0.5.fct();
-                    }
-                    
-                    match fit {
-                        ImageFit::Contain => {
-
-                        }
-                        ImageFit::Cover => {
-                            
-                        }
-                        ImageFit::ScaleDown => {
-                            
-                        }
-                        _ => unreachable!()
-                    }
+            let mut fit = *ImageFitVar::get(ctx);
+            if let ImageFit::ScaleDown = fit {
+                if self.render_clip.size.width < wgt_size.width && self.render_clip.size.height < wgt_size.height {
+                    fit = ImageFit::None;
+                } else {
+                    fit = ImageFit::Contain;
                 }
             }
+            match fit {
+                ImageFit::Fill => {
+                    align = Align::FILL;
+                }
+                ImageFit::Contain => {
+                    let container = wgt_size.to_f32();
+                    let content = self.render_clip.size.to_f32();
+                    let scale = (container.width / content.width).min(container.height / content.height).fct();
+                    self.render_clip *= scale;
+                    self.render_img_size *= scale;
+                    self.render_offset *= scale;
+                }
+                ImageFit::Cover => {
+                    let container = wgt_size.to_f32();
+                    let content = self.render_clip.size.to_f32();
+                    let scale = (container.width / content.width).max(container.height / content.height).fct();
+                    self.render_clip *= scale;
+                    self.render_img_size *= scale;
+                    self.render_offset *= scale;
+                }
+                ImageFit::None => {}
+                ImageFit::ScaleDown => unreachable!(),
+            }
+
+            if align.is_fill_x() {
+                let factor = wgt_size.width.0 as f32 / self.render_clip.size.width.0 as f32;
+                self.render_clip.size.width = wgt_size.width;
+                self.render_clip.origin.x *= factor;
+                self.render_img_size.width *= factor;
+                self.render_offset.x = -self.render_clip.origin.x;
+            } else {
+                let diff = wgt_size.width - self.render_clip.size.width;
+                let offset = diff * align.x;
+                self.render_offset.x += offset;
+                if diff < Px(0) {
+                    self.render_clip.origin.x -= offset;
+                    self.render_clip.size.width += diff;
+                }
+            }
+            if align.is_fill_y() {
+                let factor = wgt_size.height.0 as f32 / self.render_clip.size.height.0 as f32;
+                self.render_clip.size.height = wgt_size.height;
+                self.render_clip.origin.y *= factor;
+                self.render_img_size.height *= factor;
+                self.render_offset.y = -self.render_clip.origin.y;
+            } else {
+                let diff = wgt_size.height - self.render_clip.size.height;
+                let offset = diff * align.y;
+                self.render_offset.y += offset;
+                if diff < Px(0) {
+                    self.render_clip.origin.y -= offset;
+                    self.render_clip.size.height += diff;
+                }
+            }
+
+            // Step 3 - Clip Offset
+            
 
             wgt_size
         }
