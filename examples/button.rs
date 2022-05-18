@@ -20,6 +20,7 @@ fn app_main() {
         window! {
             title = "Button Example";
             content = v_stack! {
+                align = Align::CENTER;
                 spacing = 5;
                 items = widgets![
                     example(),

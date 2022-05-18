@@ -19,7 +19,7 @@ pub mod container {
         padding;
 
         /// Content alignment.
-        child_align as content_align = Align::CENTER;
+        child_align as content_align;
 
         /// Content overflow clipping.
         clip_to_bounds;

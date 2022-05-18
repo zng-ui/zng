@@ -328,7 +328,7 @@ pub mod v_stack {
                 if align.is_fill_height() {
                     // TODO !!: second pass?
                 } else {
-                    extra_y = extra_height;
+                    extra_y = extra_height * align.y;
                 }
             }
             if !align.is_fill_width() && align.x > 0.fct() {
@@ -344,97 +344,6 @@ pub mod v_stack {
 
             final_size
         }
-
-        /*
-        fn measure(&mut self, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize {
-            let mut ds = PxSize::zero();
-            self.visible_count = 0;
-
-            self.children.measure_all(
-                ctx,
-                |_, _| available_size,
-                |_, args| {
-                    self.children_info[args.index].desired_size = args.desired_size;
-                    ds.width = ds.width.max(args.desired_size.width);
-                    if args.desired_size.height > Px(0) {
-                        ds.height += args.desired_size.height;
-                        self.visible_count += 1;
-                    }
-                },
-            );
-
-            let spacing = self.spacing.get(ctx.vars).layout(ctx, available_size.height, Px(0));
-
-            ds.height += Px(self.visible_count.saturating_sub(1) as i32) * spacing;
-            self.items_height = ds.height;
-
-            if self.align.get(ctx).is_fill_height() {
-                ds.max(available_size.to_px())
-            } else {
-                ds
-            }
-        }
-
-        fn arrange(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, final_size: PxSize) {
-            let spacing = self
-                .spacing
-                .get(ctx.vars)
-                .layout(ctx, AvailablePx::Finite(final_size.height), Px(0));
-            let align = self.align.copy(ctx);
-            let fill_height = align.is_fill_height();
-            let baseline = align.is_baseline();
-
-            // if `fill_height` and there is space to fill we give the extra height divided equally
-            // for each visible item. The fill alignment is usually only set for the width so this is a corner case.
-            let extra_height = if fill_height && self.items_height < final_size.height {
-                let vis_count = Px(self.visible_count.saturating_sub(1) as i32);
-                (final_size.height - vis_count * spacing) / vis_count
-            } else {
-                Px(0)
-            };
-
-            // offset for each item to apply the vertical alignment.
-            let mut y_offset = if fill_height {
-                Px(0)
-            } else {
-                let diff = final_size.height - self.items_height;
-                diff * align.y.0
-            };
-
-            let fill_width = align.is_fill_width();
-
-            self.children.arrange_all(ctx, widget_layout, |_, args| {
-                let mut size = self.children_info[args.index].desired_size;
-
-                let spacing = if size.height > Px(0) { spacing } else { Px(0) };
-                size.height += extra_height;
-
-                let x;
-                let y = y_offset;
-
-                if baseline {
-                    args.translate_baseline = Some(true);
-                }
-
-                y_offset += size.height + spacing;
-
-                if fill_width {
-                    size.width = final_size.width;
-                    x = Px(0);
-                } else {
-                    size.width = size.width.min(final_size.width);
-                    x = (final_size.width - size.width) * align.x.0;
-                };
-
-                let offset = PxVector::new(x, y);
-                if offset != PxVector::zero() {
-                    args.pre_translate = Some(offset);
-                }
-
-                size
-            });
-        }
-        */
     }
 }
 
