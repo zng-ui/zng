@@ -315,7 +315,8 @@ pub mod v_stack {
                 },
             );
 
-            if align.is_fill_x() && !ctx.constrains().fill.x {
+            let c = ctx.constrains();
+            if align.is_fill_x() && !c.fill.x && !c.is_exact_width() {
                 // panel is not fill-x but items are, so we need to fill to the widest item.
                 ctx.with_constrains(
                     move |c| c.with_width_fill(c.x_constrains().clamp(size.width)).with_unbounded_y(),

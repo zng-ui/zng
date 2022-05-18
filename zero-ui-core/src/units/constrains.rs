@@ -49,6 +49,14 @@ impl PxConstrains {
         self.max == Px::MAX
     }
 
+    /// Returns if [`max`] is equal to [`min`].
+    ///
+    /// [`max`]: Self::max
+    /// [`min`]: Self::min
+    pub fn is_exact(&self) -> bool {
+        self.max == self.min
+    }
+
     /// Returns `true` if fill is requested and the constrains are bounded.
     pub fn actually_fill(&self) -> bool {
         self.fill && !self.is_unbounded()
@@ -169,6 +177,26 @@ impl PxSizeConstrains {
             x: self.max.width == Px::MAX,
             y: self.max.height == Px::MAX,
         }
+    }
+
+    /// Returns if [`max`] is equal to [`min`].
+    ///
+    /// [`max`]: Self::max
+    /// [`min`]: Self::min
+    pub fn is_exact(&self) -> BoolVector2D {
+        BoolVector2D {
+            x: self.max.width == self.min.width,
+            y: self.max.height == self.min.height,
+        }
+    }
+
+    /// Returns if `max.width` is equal to `min.width`.
+    pub fn is_exact_width(&self) -> bool {
+        self.max.width == self.min.width
+    }
+    /// Returns if `max.height` is equal to `min.height`.
+    pub fn is_exact_height(&self) -> bool {
+        self.max.height == self.min.height
     }
 
     /// Returns `true` if fill is requested and the constrains are bounded.
