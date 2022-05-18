@@ -58,20 +58,6 @@ impl WidgetLayout {
             let av_size = finish_target.size();
             let ctx = ctx.clone().with_constrains(|c| c.with_max_fill(av_size));
 
-            let origin_dft = PxPoint::new(av_size.width / 2.0, av_size.height / 2.0);
-            let origin = mem::take(&mut self.t.origin);
-            let origin = origin.layout(&ctx, |_| origin_dft);
-
-            if origin != PxPoint::zero() {
-                let x = origin.x.0 as f32;
-                let y = origin.y.0 as f32;
-                let transform = finish_target.transform();
-                let transform = RenderTransform::translation(-x, -y, 0.0)
-                    .then(&transform)
-                    .then_translate(euclid::vec3(x, y, 0.0));
-                finish_target.set_transform(transform);
-            }
-
             let baseline_dft = Px(0);
             let baseline = mem::take(&mut self.t.baseline);
             let baseline = baseline.layout(ctx.for_y(), |_| baseline_dft);
@@ -104,10 +90,8 @@ impl WidgetLayout {
         let transform = mem::take(&mut self.t.transform_buf);
         bounds.set_transform(transform);
 
-        self.t.origin = Point::default();
         self.t.baseline = Length::default();
         self.t.translate_baseline = 0.0;
-        self.t.inner = None;
 
         let size = layout(ctx, self);
         bounds.set_size(size);
@@ -125,7 +109,6 @@ impl WidgetLayout {
         let mut wl = Self {
             t: WidgetLayoutTransform {
                 transform_buf: RenderTransform::identity(),
-                origin: Point::center(),
                 baseline: Length::default(),
                 translate_baseline: 0.0,
                 inner: None,
@@ -211,7 +194,6 @@ impl WidgetLayout {
         let mut wl = WidgetLayout {
             t: WidgetLayoutTransform {
                 transform_buf: RenderTransform::identity(),
-                origin: Point::center(),
                 baseline: Length::zero(),
                 translate_baseline: 0.0,
                 inner: Some(widget.outer_info().clone()),
@@ -270,7 +252,6 @@ impl ops::DerefMut for WidgetLayout {
 /// Note that [`WidgetLayout`] dereferences to this type.
 pub struct WidgetLayoutTransform {
     transform_buf: RenderTransform,
-    origin: Point,
     baseline: Length,
     translate_baseline: f32,
 
@@ -287,6 +268,11 @@ impl WidgetLayoutTransform {
         self.transform_with(|t| *t = t.then(transform));
     }
 
+    /// Insert the `transform` *before* the current transform.
+    pub fn pre_transform(&mut self, transform: &RenderTransform) {
+        self.transform_with(|t| *t = transform.then(t))
+    }
+
     /// Adds the `offset` to the closest *inner* bounds transform.
     pub fn translate(&mut self, offset: PxVector) {
         self.transform_with(|t| *t = t.then_translate_px(offset));
@@ -301,14 +287,6 @@ impl WidgetLayoutTransform {
         } else {
             op(&mut self.transform_buf);
         }
-    }
-
-    /// Set the origin point of the closest *inner* bounds. The point is computed relative to the bounds size and is
-    /// applied once the inner bounds goes fully out of scope, this always affects the same bounds as the current [`transform`].
-    ///
-    /// [`transform`]: Self::transform
-    pub fn set_origin(&mut self, origin: Point) {
-        self.origin = origin;
     }
 
     /// Set the baseline offset of the closest *inner* bounds. The offset is up from the bottom of the bounds and is computed
