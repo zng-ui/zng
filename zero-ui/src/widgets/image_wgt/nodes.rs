@@ -445,7 +445,23 @@ pub fn image_presenter() -> impl UiNode {
                 |c| c.with_max_fill(wgt_size),
                 |ctx| ImageOffsetVar::get(ctx.vars).layout(ctx.metrics, |_| PxVector::zero()),
             );
-            // TODO
+            render_offset += offset;
+            if offset.x < Px(0) {
+                render_clip.origin.x -= offset.x;
+            } else {
+                let extra = render_clip.origin.x + render_clip.size.width + offset.x - wgt_size.width;
+                if extra > Px(0) {
+                    render_clip.size.width -= extra;
+                }
+            }
+            if offset.y < Px(0) {
+                render_clip.origin.y -= offset.y;
+            } else {
+                let extra = render_clip.origin.y + render_clip.size.height + offset.y - wgt_size.height;
+                if extra > Px(0) {
+                    render_clip.size.height -= extra;
+                }
+            }
 
             if self.render_clip != render_clip || self.render_img_size != render_img_size || self.render_offset != render_offset {
                 self.render_clip = render_clip;
