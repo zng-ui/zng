@@ -1215,8 +1215,8 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + any::AnyVar + crate::private::S
             vars,
             |value| Some(Transition::new(value.clone(), first_target)),
             clone_move!(next_target, |animation, _, transition: &mut Transition<T>| {
-                let time = animation.elapsed_stop(duration);
-                let step = easing(time);
+                let mut time = animation.elapsed_stop(duration);
+                let mut step = easing(time);
                 match mem::take(&mut *next_target.borrow_mut()) {
                     // to > bounds
                     // stop animation when linear sampling > bounds
@@ -1229,12 +1229,10 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + any::AnyVar + crate::private::S
 
                         check_linear = !bounds.contains(&to);
 
-                        *transition = Transition::new(from.clone(), to);
+                        *transition = Transition::new(from, to);
 
-                        if step != prev_step {
-                            prev_step = step;
-                            return Some(from);
-                        }
+                        step = 0.fct();
+                        time = EasingTime::start();
                     }
                     ChaseMsg::Replace(new_target) => {
                         animation.restart();
@@ -1242,31 +1240,33 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + any::AnyVar + crate::private::S
 
                         check_linear = !bounds.contains(&new_target);
 
-                        *transition = Transition::new(from.clone(), new_target);
-                        if step != prev_step {
-                            prev_step = step;
-                            return Some(from);
-                        }
+                        *transition = Transition::new(from, new_target);
+
+                        step = 0.fct();
+                        time = EasingTime::start();
                     }
                     ChaseMsg::None => {
                         // normal execution
-
-                        if step != prev_step {
-                            prev_step = step;
-
-                            if check_linear {
-                                let linear_sample = transition.sample(time.fct());
-                                if !bounds.contains(&linear_sample) {
-                                    animation.stop();
-                                    return None;
-                                }
-                            }
-
-                            return Some(transition.sample(step));
-                        }
                     }
                 }
-                None
+
+                if step != prev_step {
+                    prev_step = step;
+
+                    if check_linear {
+                        let linear_sample = transition.sample(time.fct());
+                        if &linear_sample > bounds.end() {
+                            animation.stop();
+                            return Some(bounds.end().clone());
+                        } else if &linear_sample < bounds.start() {
+                            animation.stop();
+                            return Some(bounds.start().clone());
+                        }
+                    }
+                    Some(transition.sample(step))
+                } else {
+                    None
+                }
             }),
         );
         ChaseAnimation { handle, next_target }

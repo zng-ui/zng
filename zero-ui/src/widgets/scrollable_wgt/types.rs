@@ -1,7 +1,12 @@
-use std::{cell::{Cell, RefCell}, fmt, rc::Rc, time::Duration};
+use std::{
+    cell::{Cell, RefCell},
+    fmt,
+    rc::Rc,
+    time::Duration,
+};
 
 use crate::core::{
-    context::{state_key},
+    context::state_key,
     units::*,
     var::{animation::EasingFn, *},
     widget_info::WidgetInfo,
@@ -91,7 +96,7 @@ struct ScrollConfig {
 pub struct ScrollContext {}
 impl ScrollContext {
     /// New node that holds data for the [`ScrollContext`] operation.
-    /// 
+    ///
     /// Scrollable implementers must add this node to their context.
     pub fn config_node(child: impl UiNode) -> impl UiNode {
         with_context_var(child, ScrollConfigVar, RefCell::default())
