@@ -904,10 +904,16 @@ impl ContextBorders {
     }
 
     pub(super) fn with_inner(ctx: &mut LayoutContext, f: impl FnOnce(&mut LayoutContext) -> PxSize) -> PxSize {
-        let corner_radius = ContextBorders::border_radius(ctx);
-        ctx.widget_info.border.set_corner_radius(corner_radius);
-        ctx.widget_info.border.set_offsets(PxSideOffsets::zero());
-        f(ctx)
+        let mut data = BorderDataVar::get_clone(ctx.vars);
+        data.add_inner(ctx);
+
+        ctx.vars.with_context_var(BorderDataVar, ContextVarData::fixed(&data), || {
+            let corner_radius = ContextBorders::border_radius(ctx);
+            ctx.widget_info.border.set_corner_radius(corner_radius);
+            ctx.widget_info.border.set_offsets(PxSideOffsets::zero());
+
+            f(ctx)
+        })
     }
 
     fn with_border(ctx: &mut LayoutContext, offsets: PxSideOffsets, f: impl FnOnce(&mut LayoutContext)) {
@@ -985,6 +991,11 @@ impl BorderOffsetsData {
             ctx.widget_info.border.set_corner_radius(self.corner_radius);
         }
         ctx.widget_info.border.set_offsets(self.wgt_offsets);
+    }
+
+    fn add_inner(&mut self, ctx: &mut LayoutContext) {
+        // ensure at least one "border" so that we have an up-to-date corner radius.
+        self.add_offset(ctx, PxSideOffsets::zero());
     }
 
     fn set_corner_radius(&mut self, vars: &VarsRead) {

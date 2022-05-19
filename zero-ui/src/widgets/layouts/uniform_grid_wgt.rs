@@ -180,7 +180,6 @@ pub mod uniform_grid {
             let mut size_final = false;
 
             let mut panel_size = PxSize::zero();
-            let mut panel_size_final = false;
 
             let constrains = ctx.constrains();
 
@@ -207,7 +206,7 @@ pub mod uniform_grid {
                 } else {
                     c
                 }, |ctx| {
-                    self.children.layout_all(ctx, wl, |_, _, _| {}, |_, wl, a| {
+                    self.children.layout_all(ctx, wl, |_, _, _| {}, |_, _, a| {
                         if a.size != PxSize::zero() {
                             actual_count += 1;
                             if !size_final {
