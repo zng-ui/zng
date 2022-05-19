@@ -794,7 +794,7 @@ pub fn border_node(child: impl UiNode, border_offsets: impl IntoVar<SideOffsets>
                 ctx.updates.render();
             }
 
-            // layout child and border size
+            // layout child and border visual
             ContextBorders::with_border(ctx, offsets, |ctx| {
                 wl.translate(PxVector::new(offsets.left, offsets.top));
 
@@ -939,7 +939,6 @@ impl BorderOffsetsData {
             self.eval_cr |= matches!(CornerRadiusFitVar::get(ctx.vars), CornerRadiusFit::Widget);
         } else {
             self.wgt_offsets += offset;
-            self.cr_offsets += offset;
         }
 
         if mem::take(&mut self.eval_cr) {
