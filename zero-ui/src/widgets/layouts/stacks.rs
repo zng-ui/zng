@@ -116,7 +116,7 @@ pub mod h_stack {
                 ctx.with_constrains(
                     move |c| c.with_width_fill(c.y_constrains().clamp(size.height)).with_unbounded_x(),
                     |ctx| {
-                        size = PxSize::zero();
+                        size.width = Px(0);
                         for i in 0..self.children.len() {
                             let o_size = self.children.widget_outer_info(i).size();
                             if o_size.height != ctx.constrains().max.height {
@@ -292,7 +292,7 @@ pub mod v_stack {
                 ctx.with_constrains(
                     move |c| c.with_width_fill(c.x_constrains().clamp(size.width)).with_unbounded_y(),
                     |ctx| {
-                        size = PxSize::zero();
+                        size.height = Px(0);
                         for i in 0..self.children.len() {
                             let o_size = self.children.widget_outer_info(i).size();
                             if o_size.width != ctx.constrains().max.width {
