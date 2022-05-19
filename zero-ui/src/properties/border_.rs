@@ -29,7 +29,7 @@ pub fn border(child: impl UiNode, widths: impl IntoVar<SideOffsets>, sides: impl
         }
 
         fn layout(&mut self, ctx: &mut LayoutContext, _: &mut WidgetLayout) -> PxSize {
-            self.corners = ContextBorders::corner_radius(ctx);
+            self.corners = ContextBorders::border_radius(ctx);
             ctx.constrains().fill_size()
         }
 

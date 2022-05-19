@@ -247,7 +247,7 @@ pub fn foreground_highlight(
                 |ctx| {
                     let offsets = self.offsets.get(ctx.vars).layout(ctx.metrics, |_| PxSideOffsets::zero());
                     let widths = self.widths.get(ctx.vars).layout(ctx.metrics, |_| PxSideOffsets::zero());
-                    let radius = ContextBorders::corner_radius(ctx);
+                    let radius = ContextBorders::border_radius(ctx);
 
                     let rect = PxRect::new(
                         PxPoint::new(offsets.left, offsets.top),
@@ -400,7 +400,7 @@ pub fn clip_to_bounds(child: impl UiNode, clip: impl IntoVar<bool>) -> impl UiNo
             let bounds = self.child.layout(ctx, wl);
 
             if self.clip.copy(ctx) {
-                let corners = ContextBorders::corner_radius(ctx);
+                let corners = ContextBorders::border_radius(ctx);
                 if bounds != self.bounds || corners != self.corners {
                     self.bounds = bounds;
                     self.corners = corners;

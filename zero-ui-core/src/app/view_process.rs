@@ -623,7 +623,7 @@ impl ViewImage {
     /// The `format` must be one of the [`image_encoders`] supported by the view-process backend.
     ///
     /// [`image_encoders`]: View::image_encoders.
-    #[allow(clippy::await_holding_refcell_ref)]// false positive
+    #[allow(clippy::await_holding_refcell_ref)] // false positive
     pub async fn encode(&self, format: String) -> std::result::Result<Arc<Vec<u8>>, EncodeError> {
         self.awaiter().await;
 
