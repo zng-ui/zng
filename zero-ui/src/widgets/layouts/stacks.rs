@@ -114,7 +114,7 @@ pub mod h_stack {
             if align.is_fill_y() && !c.fill.y && !c.is_exact_height() {
                 // panel is not fill-y but items are, so we need to fill to the widest item.
                 ctx.with_constrains(
-                    move |c| c.with_width_fill(c.y_constrains().clamp(size.height)).with_unbounded_x(),
+                    move |c| c.with_height_fill(c.y_constrains().clamp(size.height)).with_unbounded_x(),
                     |ctx| {
                         size.width = Px(0);
                         for i in 0..self.children.len() {
