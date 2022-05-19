@@ -89,7 +89,7 @@ pub mod uniform_grid {
         first_column: impl IntoVar<u32>,
         spacing: impl IntoVar<GridSpacing>,
     ) -> impl UiNode {
-        UniformGridNode {
+        let node = UniformGridNode {
             children_info: vec![ChildInfo::default(); items.len()],
             children: ZSortedWidgetList::new(items),
 
@@ -97,7 +97,8 @@ pub mod uniform_grid {
             rows: rows.into_var(),
             first_column: first_column.into_var(),
             spacing: spacing.into_var(),
-        }
+        };
+        implicit_base::nodes::children_layout(node)
     }
 
     #[derive(Default, Clone, Copy)]
@@ -173,8 +174,24 @@ pub mod uniform_grid {
 
         #[UiNode]
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
-            self.children.layout_all(ctx, wl, |_, _, _| {}, |_, _, _| {});
-            todo!()
+            let spacing = self.spacing.get(ctx.vars).layout(ctx.metrics, |_| PxGridSpacing::zero());
+
+            let (columns, rows) = self.grid_len(ctx.vars, self.children.len());
+
+            let size = ctx.constrains().fill_size();
+            let cell_size = PxSize::new(
+                size.width - spacing.column / Px(2) / Px(columns),
+                size.height - spacing.row / Px(2) / Px(rows)
+            );
+
+            ctx.with_constrains(|c|c.with_max_fill(cell_size), |ctx| {
+                self.children.layout_all(ctx, wl, |_, _, _| {}, |_, wl, a| {
+                    todo!()
+                });
+            });
+
+
+            size
         }
 
         /*
