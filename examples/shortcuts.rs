@@ -56,6 +56,7 @@ fn app_main() {
                 shortcut_text.set(ctx.vars, new_shortcut_text);
                 shortcut_color.set(ctx.vars, colors::SALMON);
             });
+            content_align = Align::CENTER;
             content = v_stack! {
                 items = widgets![
                     text!{

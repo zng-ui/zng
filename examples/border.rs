@@ -25,6 +25,7 @@ fn app_main() {
             background_color = colors::BLUE.darken(70.pct());
 
             content = v_stack! {
+                align = Align::CENTER;
                 spacing = 20;
                 items = widgets![
                     widgets::mr_borders! {

@@ -42,6 +42,7 @@ fn main_window(ctx: &mut WindowContext) -> Window {
         on_state_changed = hn!(|_, args: &WindowChangedArgs| {
             println!("state: {:?}", args.new_state().unwrap());
         });
+        content_align = Align::CENTER;
         content = h_stack! {
             spacing = 40;
             items = widgets![

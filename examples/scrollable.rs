@@ -13,7 +13,6 @@ fn main() {
 fn app_main() {
     App::default().run_window(|_| {
         window! {
-            content_align = unset!;
             content = z_stack(widgets![
                 scrollable! {
                     id = "scrollable";

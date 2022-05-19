@@ -181,6 +181,7 @@ fn img_window(title: impl IntoVar<Text>, content: impl UiNode) -> Window {
     window! {
         title;
         content;
+        content_align = Align::CENTER;
 
         // render_mode = zero_ui::core::window::RenderMode::Software;
 

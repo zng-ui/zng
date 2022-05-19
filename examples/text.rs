@@ -26,7 +26,6 @@ fn app_main() {
         window! {
             title = fs.map(|s| formatx!("Text Example - font_size: {s}"));
             font_size = actual_fs;
-            content_align = unset!;
             content = z_stack(widgets![
                 h_stack! {
                     align = Align::CENTER;

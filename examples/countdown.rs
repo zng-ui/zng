@@ -55,6 +55,7 @@ fn app_main() {
 
             font_size = 42.pt();
             background_color = window_background;
+            content_align = Align::CENTER;
             content = text(countdown);
         }
     })

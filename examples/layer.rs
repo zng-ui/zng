@@ -43,6 +43,7 @@ fn app_main() {
                 })
             });
 
+            content_align = Align::CENTER;
             content = v_stack! {
                 spacing = 5;
                 items = widgets![

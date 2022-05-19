@@ -181,15 +181,15 @@ pub mod uniform_grid {
             let size = ctx.constrains().fill_size();
             let cell_size = PxSize::new(
                 size.width - spacing.column / Px(2) / Px(columns),
-                size.height - spacing.row / Px(2) / Px(rows)
+                size.height - spacing.row / Px(2) / Px(rows),
             );
 
-            ctx.with_constrains(|c|c.with_max_fill(cell_size), |ctx| {
-                self.children.layout_all(ctx, wl, |_, _, _| {}, |_, wl, a| {
-                    todo!()
-                });
-            });
-
+            ctx.with_constrains(
+                |c| c.with_max_fill(cell_size),
+                |ctx| {
+                    self.children.layout_all(ctx, wl, |_, _, _| {}, |_, wl, a| todo!());
+                },
+            );
 
             size
         }

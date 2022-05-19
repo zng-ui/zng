@@ -20,7 +20,6 @@ fn app_main() {
         window! {
             title = "Focus Example";
             enabled = window_enabled.clone();
-            content_align = unset!;
             content = v_stack! {
                 items = widgets![
                     alt_scope(),
