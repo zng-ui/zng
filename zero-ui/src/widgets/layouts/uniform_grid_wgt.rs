@@ -1,5 +1,7 @@
 use crate::prelude::new_widget::*;
 
+use std::mem;
+
 /// Grid layout where all cells are the same size.
 ///
 /// # Z-Index
@@ -90,7 +92,6 @@ pub mod uniform_grid {
         spacing: impl IntoVar<GridSpacing>,
     ) -> impl UiNode {
         let node = UniformGridNode {
-            children_info: vec![ChildInfo::default(); items.len()],
             children: ZSortedWidgetList::new(items),
 
             columns: columns.into_var(),
@@ -101,14 +102,7 @@ pub mod uniform_grid {
         implicit_base::nodes::children_layout(node)
     }
 
-    #[derive(Default, Clone, Copy)]
-    struct ChildInfo {
-        /// If last desired size was not zero.
-        visible: bool,
-    }
-
     struct UniformGridNode<U, C, R, FC, S> {
-        children_info: Vec<ChildInfo>,
         children: U,
         columns: C,
         rows: R,
@@ -163,10 +157,6 @@ pub mod uniform_grid {
             let mut changed = false;
             self.children.update_all(ctx, &mut changed);
 
-            if changed {
-                self.children_info.resize(self.children.len(), ChildInfo::default());
-            }
-
             if changed || self.columns.is_new(ctx) || self.rows.is_new(ctx) || self.first_column.is_new(ctx) || self.spacing.is_new(ctx) {
                 ctx.updates.layout_and_render();
             }
@@ -176,90 +166,114 @@ pub mod uniform_grid {
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
             let spacing = self.spacing.get(ctx.vars).layout(ctx.metrics, |_| PxGridSpacing::zero());
 
-            let (columns, rows) = self.grid_len(ctx.vars, self.children.len());
-
-            let size = ctx.constrains().fill_size();
-            let cell_size = PxSize::new(
-                size.width - spacing.column / Px(2) / Px(columns),
-                size.height - spacing.row / Px(2) / Px(rows),
-            );
-
-            ctx.with_constrains(
-                |c| c.with_max_fill(cell_size),
-                |ctx| {
-                    self.children.layout_all(ctx, wl, |_, _, _| {}, |_, wl, a| todo!());
-                },
-            );
-
-            size
-        }
-
-        /*
-        #[UiNode]
-        fn measure(&mut self, ctx: &mut LayoutContext, mut available_size: AvailableSize) -> PxSize {
-            let layout_spacing = self.spacing.get(ctx).layout(ctx, available_size, PxGridSpacing::zero());
-
-            let (columns, rows) = self.grid_len(ctx.vars, self.children.len());
-
-            if let AvailablePx::Finite(f) = &mut available_size.width {
-                *f = (*f - layout_spacing.column / Px(2)) / Px(columns);
+            // we don't assign cells for collapsed widgets, if the widget has not changed
+            // from the previous layout everything is done in one pass, otherwise we do
+            // a second pass with the updated count.
+            let mut count = self.children.count(|c| c.outer_info.size() != PxSize::zero());
+            if count == 0 {
+                count = self.children.len();
             }
-            if let AvailablePx::Finite(f) = &mut available_size.height {
-                *f = (*f - layout_spacing.row / Px(2)) / Px(rows);
-            }
+            let mut count_final = false;
 
+            let (mut columns, mut rows) = self.grid_len(ctx.vars, count);
             let mut cell_size = PxSize::zero();
+            let mut size_final = false;
 
-            self.children.measure_all(
-                ctx,
-                |_, _| available_size,
-                |_, args| {
-                    cell_size = cell_size.max(args.desired_size);
-                    self.children_info[args.index].visible = args.desired_size != PxSize::zero();
-                },
-            );
+            let mut panel_size = PxSize::zero();
+            let mut panel_size_final = false;
 
-            PxSize::new(
-                cell_size.width * columns + layout_spacing.column * (columns - 1),
-                cell_size.height * rows + layout_spacing.row * (rows - 1),
-            )
-        }
-        #[UiNode]
-        fn arrange(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, final_size: PxSize) {
-            let cell_count = self.children_info.iter().filter(|o| o.visible).count();
+            let constrains = ctx.constrains();
 
-            let (columns, rows) = self.grid_len(ctx.vars, cell_count);
+            if let Some(size) = constrains.fill_or_exact() {
+                if size.width == Px(0) || size.height == Px(0) {
+                    return size;
+                }
 
-            let layout_spacing = self
-                .spacing
-                .get(ctx)
-                .layout(ctx, AvailableSize::finite(final_size), PxGridSpacing::zero());
+                panel_size = size;
+                size_final = true;
+               
+                cell_size = PxSize::new(
+                    (panel_size.width - spacing.column / Px(2)) / Px(columns),
+                    (panel_size.height - spacing.row / Px(2)) / Px(rows),
+                );
+            }
 
-            let cell_size = PxSize::new(
-                (final_size.width - layout_spacing.column * Px(columns - 1)) / Px(columns),
-                (final_size.height - layout_spacing.row * Px(rows - 1)) / Px(rows),
-            );
+            let mut layout = true;
+            while mem::take(&mut layout) {
+                let mut actual_count = 0;
+
+                ctx.with_constrains(move |c| if size_final {
+                    c.with_max_fill(cell_size)
+                } else {
+                    c
+                }, |ctx| {
+                    self.children.layout_all(ctx, wl, |_, _, _| {}, |_, wl, a| {
+                        if a.size != PxSize::zero() {
+                            actual_count += 1;
+                            if !size_final {
+                                cell_size = cell_size.max(a.size);
+                            }
+                        }
+                    });
+                });
+
+                if actual_count == 0 {
+                    // no children or all collapsed.
+                    return ctx.constrains().min;
+                }
+
+                if !count_final {
+                    count_final = true;
+
+                    if actual_count != count {
+                        count = actual_count;
+                        let (n_columns, n_rows) = self.grid_len(ctx.vars, actual_count);
+                        if n_columns != columns || n_rows != rows {
+                            columns = n_columns;
+                            rows = n_rows;
+                            layout = true;
+                        }
+                    }
+                }
+
+                if !size_final {
+                    size_final = true;
+                    
+                    panel_size = PxSize::new(
+                        (cell_size.width + spacing.column / Px(2)) * Px(columns),
+                        (cell_size.height + spacing.row / Px(2)) * Px(rows),
+                    );
+                    let clamped = constrains.fill_or(panel_size);                    
+                    if clamped != panel_size {
+                        panel_size = clamped;
+
+                        cell_size = PxSize::new(
+                            (panel_size.width - spacing.column / Px(2)) / Px(columns),
+                            (panel_size.height - spacing.row / Px(2)) / Px(rows),
+                        );
+                    }
+
+                    layout = true;                    
+                }
+            }
 
             let mut first_column = self.first_column.copy(ctx);
             if first_column as i32 >= columns {
                 first_column = 0;
             }
 
-            let mut cells = CellsIter::new(cell_size, columns, first_column as i32, layout_spacing);
+            let mut cells = CellsIter::new(cell_size, columns, first_column as i32, spacing);
+            let mut actual_count = 0;
 
-            self.children.arrange_all(ctx, widget_layout, |_, args| {
-                if self.children_info[args.index].visible {
-                    args.pre_translate = cells.next();
+            self.children.outer_all(ctx.metrics, wl, false, |wlt, a| {
+                if a.size != PxSize::zero() {
+                    if let Some(offset) = cells.next() {
+                        wlt.translate(offset);
+                    }
                 }
-                cell_size
             });
-        }
-        */
-        #[UiNode]
-        #[allow_(zero_ui::missing_delegate)] // false positive
-        fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-            self.children
-                .render_filtered(move |args| self.children_info[args.index].visible, ctx, frame);
+
+            panel_size
         }
     }
     #[derive(Clone, Default)]

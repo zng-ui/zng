@@ -212,6 +212,24 @@ impl PxSizeConstrains {
         self.actually_fill().select_size(self.max, self.min)
     }
 
+    /// Returns a size both dimensions are fill or an exact length.
+    pub fn fill_or_exact(&self) -> Option<PxSize> {
+        let fill = self.actually_fill();
+
+        let width = if fill.x || self.is_exact_width() {
+            self.max.width
+        } else {
+            return None;
+        };
+        let height = if fill.y || self.is_exact_height() {
+            self.max.height
+        } else {
+            return None;
+        };
+
+        Some(PxSize::new(width, height))
+    }
+
     /// Returns the width that fills the X-axis.
     pub fn fill_width(&self) -> Px {
         if self.actually_fill().x {
