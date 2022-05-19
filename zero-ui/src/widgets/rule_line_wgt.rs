@@ -33,17 +33,15 @@ pub mod rule_line {
         color: impl IntoVar<Rgba>,
         style: impl IntoVar<LineStyle>,
     ) -> impl UiNode {
-        let node = LineNode {
+        LineNode {
             bounds: PxSize::zero(),
             orientation: orientation.into_var(),
             length: length.into_var(),
             stroke_thickness: stroke_thickness.into_var(),
             color: color.into_var(),
             style: style.into_var(),
-        };
-        node
+        }
     }
-
     struct LineNode<W, L, O, C, S> {
         stroke_thickness: W,
         length: L,

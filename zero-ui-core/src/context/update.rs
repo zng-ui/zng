@@ -11,9 +11,6 @@ use crate::{
     widget_info::UpdateMask,
 };
 
-#[allow(unused_imports)] // nightly
-use retain_mut::RetainMut;
-
 use super::{AppContext, UpdatesTrace};
 
 /// Represents an [`on_pre_update`](Updates::on_pre_update) or [`on_update`](Updates::on_update) handler.

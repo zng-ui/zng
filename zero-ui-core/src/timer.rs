@@ -10,9 +10,6 @@ use std::{
     time::{Duration, Instant},
 };
 
-#[allow(unused_imports)] // nightly
-use retain_mut::RetainMut;
-
 use crate::{
     app::LoopTimer,
     context::AppContext,

@@ -496,9 +496,7 @@ pub mod z_stack {
                 },
             );
 
-            let size = parent_constrains.clamp(size);
-
-            size
+             parent_constrains.clamp(size)
         }
     }
 }

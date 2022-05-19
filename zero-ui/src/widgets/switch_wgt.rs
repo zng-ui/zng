@@ -119,7 +119,6 @@ pub mod switch {
     }
 
     fn new_child(index: impl Var<usize>, options: impl UiNodeList) -> impl UiNode {
-        let child = self::new_node(index, options);
-        child
+        self::new_node(index, options)
     }
 }

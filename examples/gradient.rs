@@ -171,7 +171,6 @@ fn sample(name: impl ToText, gradient: impl UiNode) -> impl Widget {
             text(name),
             container! {
                 size = (180, 180);
-                content_align = unset!;
                 content = gradient;
             }
         ];

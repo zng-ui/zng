@@ -76,7 +76,6 @@ zero-ui-core = { path = "../zero-ui-core", default-features = false }
 
 # util
 paste = "1"
-retain_mut = "0.1"
 tracing = "0.1"
 bitflags = "1"
 

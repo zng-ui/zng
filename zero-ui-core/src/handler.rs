@@ -14,9 +14,6 @@ use std::future::Future;
 use std::time::{Duration, Instant};
 use std::{mem, thread};
 
-#[allow(unused_imports)] // nightly
-use retain_mut::RetainMut;
-
 use crate::app::HeadlessApp;
 use crate::context::{AppContext, AppContextMut, WidgetContext, WidgetContextMut};
 use crate::crate_util::{Handle, WeakHandle};

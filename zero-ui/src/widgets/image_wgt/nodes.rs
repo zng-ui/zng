@@ -337,10 +337,6 @@ pub fn image_presenter() -> impl UiNode {
         }
 
         fn layout(&mut self, ctx: &mut LayoutContext, _: &mut WidgetLayout) -> PxSize {
-            let mut render_clip = PxRect::zero();
-            let mut render_img_size = PxSize::zero();
-            let mut render_offset = PxVector::zero();
-
             // Part 1 - Scale & Crop
             // - Starting from the image pixel size, apply scaling then crop.
 
@@ -356,7 +352,7 @@ pub fn image_presenter() -> impl UiNode {
             }
 
             // webrender needs the full image size, we offset and clip it to render the final image.
-            render_img_size = self.img_size * scale;
+            let mut render_img_size = self.img_size * scale;
 
             // crop is relative to the unscaled pixel size, then applied scaled as the clip.
             let img_rect = PxRect::from_size(self.img_size);
@@ -364,8 +360,8 @@ pub fn image_presenter() -> impl UiNode {
                 |c| c.with_max_fill(self.img_size),
                 |ctx| ImageCropVar::get(ctx.vars).layout(ctx.metrics, |_| img_rect),
             );
-            render_clip = img_rect.intersection(&crop).unwrap_or_default() * scale;
-            render_offset = -render_clip.origin.to_vector();
+            let mut render_clip = img_rect.intersection(&crop).unwrap_or_default() * scale;
+            let mut render_offset = -render_clip.origin.to_vector();
 
             // Part 2 - Fit, Align & Clip
             // - Fit the cropped and scaled image to the constrains, add a bounds clip to the crop clip.

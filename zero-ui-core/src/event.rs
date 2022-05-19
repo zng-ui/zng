@@ -1,7 +1,5 @@
 //! App event API.
 
-#[allow(unused_imports)] // nightly
-use retain_mut::RetainMut;
 use unsafe_any::UnsafeAny;
 
 use crate::app::{AppEventSender, AppShutdown, RecvFut, TimeoutOrAppShutdown};

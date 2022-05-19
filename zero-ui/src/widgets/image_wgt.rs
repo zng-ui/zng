@@ -147,8 +147,7 @@ pub mod image {
     fn new_child() -> impl UiNode {
         let node = nodes::image_presenter();
         let node = nodes::image_error_presenter(node);
-        let node = nodes::image_loading_presenter(node);
-        node
+        nodes::image_loading_presenter(node)
     }
 
     fn new_event(child: impl UiNode, source: impl IntoVar<ImageSource>) -> impl UiNode {
