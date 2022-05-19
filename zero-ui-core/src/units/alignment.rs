@@ -74,6 +74,7 @@ impl Align {
     /// Constrains that must be used to layout a child node with the alignment.
     pub fn child_constrains(self, parent_constrains: PxSizeConstrains) -> PxSizeConstrains {
         let mut c = parent_constrains;
+        c.min = PxSize::zero();
         c.fill.x &= self.is_fill_x();
         c.fill.y &= self.is_fill_y();
         c

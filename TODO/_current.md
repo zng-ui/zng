@@ -1,7 +1,9 @@
-* Finish smooth scrolling.
-  - Chase animation, right now next scroll pos. calculated from var current value, need to record next value and compute from there.
-    - See `Variables.md`.
-  - Can we abstract this as a method in `Var`, seems useful.
+# Pre-Merge
 
-* Animation, see `Variables.md`.
-* Simplify layout, see `Optimizations.md#Single Pass Layout`.
+* Animation flickering.
+* Window-auto size.
+* Baseline align.
+* Layers & Custom transforms info.
+* Fix all warnings.
+* Pass all tests.
+* Docs without warnings.

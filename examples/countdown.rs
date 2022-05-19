@@ -49,6 +49,7 @@ fn app_main() {
                 corner_radius = 8;
                 font_size = 28;
                 font_weight = FontWeight::BOLD;
+                content_align = Align::CENTER;
                 content = text(icon_label.clone());
             }));
             visible = actual_icon.map(|om| om.as_ref().map(|m| !m.is_loading()).unwrap_or(false));
