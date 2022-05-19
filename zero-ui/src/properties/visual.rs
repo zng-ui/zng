@@ -182,7 +182,7 @@ pub fn foreground(child: impl UiNode, foreground: impl UiNode) -> impl UiNode {
 
 /// Foreground highlight border overlay.
 ///
-/// This property draws a border contour with extra `offsets` padding as a fill overlay.
+/// This property draws a border contour with extra `offsets` padding as an overlay.
 ///
 /// # Examples
 ///
@@ -214,76 +214,69 @@ pub fn foreground_highlight(
         widths: W,
         sides: S,
 
-        final_widths: PxSideOffsets,
-        final_rect: PxRect,
-        final_radius: PxCornerRadius,
+        render_bounds: PxRect,
+        render_widths: PxSideOffsets,
+        render_radius: PxCornerRadius,
     }
     #[impl_ui_node(child)]
     impl<C: UiNode, O: Var<SideOffsets>, W: Var<SideOffsets>, S: Var<BorderSides>> UiNode for ForegroundHighlightNode<C, O, W, S> {
-        fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
-            subscriptions.vars(ctx).var(&self.offsets).var(&self.widths).var(&self.sides);
-
-            self.child.subscriptions(ctx, subscriptions);
+        fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
+            subs.vars(ctx).var(&self.offsets).var(&self.widths).var(&self.sides);
+            self.child.subscriptions(ctx, subs);
         }
-        fn update(&mut self, ctx: &mut WidgetContext) {
-            self.child.update(ctx);
 
-            if self.offsets.is_new(ctx) {
-                ctx.updates.layout()
-            }
-            if self.widths.is_new(ctx) {
-                ctx.updates.layout()
-            }
-            if self.sides.is_new(ctx) {
+        fn update(&mut self, ctx: &mut WidgetContext) {
+            if self.offsets.is_new(ctx) || self.widths.is_new(ctx) {
+                ctx.updates.layout();
+            } else if self.sides.is_new(ctx) {
                 ctx.updates.render();
             }
+            self.child.update(ctx);
         }
 
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
             let size = self.child.layout(ctx, wl);
+            
+            let radius = ContextBorders::inner_radius(ctx);
+            let offsets = self.offsets.get(ctx.vars).layout(ctx.metrics, |_| PxSideOffsets::zero());
+            let radius = radius.deflate(offsets);
+            let border_offsets = ContextBorders::inner_offsets(ctx.path.widget_id(), ctx.vars);
 
-            ctx.with_constrains(
-                |_| PxSizeConstrains::exact(size),
-                |ctx| {
-                    let offsets = self.offsets.get(ctx.vars).layout(ctx.metrics, |_| PxSideOffsets::zero());
-                    let widths = self.widths.get(ctx.vars).layout(ctx.metrics, |_| PxSideOffsets::zero());
-                    let radius = ContextBorders::border_radius(ctx);
-
-                    let rect = PxRect::new(
-                        PxPoint::new(offsets.left, offsets.top),
-                        size - PxSize::new(offsets.horizontal(), offsets.vertical()),
-                    );
-
-                    if rect != self.final_rect || widths != self.final_widths || radius != self.final_radius {
-                        self.final_rect = rect;
-                        self.final_widths = widths;
-                        self.final_radius = radius;
-
-                        ctx.updates.render();
-                    }
-                },
+            let bounds = PxRect::new(
+                PxPoint::new(offsets.left + border_offsets.left, offsets.top + border_offsets.top),
+                size - PxSize::new(offsets.horizontal(), offsets.vertical()),
             );
+
+            let widths = ctx.with_constrains(
+                |_| PxSizeConstrains::exact(size),
+                |ctx| self.widths.get(ctx.vars).layout(ctx.metrics, |_| PxSideOffsets::zero()),
+            );
+
+            if self.render_bounds != bounds || self.render_widths != widths || self.render_radius != radius {
+                self.render_bounds = bounds;
+                self.render_widths = widths;
+                self.render_radius = radius;
+                ctx.updates.render();
+            }
 
             size
         }
 
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
             self.child.render(ctx, frame);
-            frame.with_hit_tests_disabled(|f| {
-                f.push_border(self.final_rect, self.final_widths, self.sides.copy(ctx), self.final_radius);
-            })
+            frame.push_border(self.render_bounds, self.render_widths, self.sides.copy(ctx), self.render_radius);
         }
     }
     ForegroundHighlightNode {
-        child,
+        child: child.cfg_boxed(),
         offsets: offsets.into_var(),
         widths: widths.into_var(),
         sides: sides.into_var(),
 
-        final_widths: PxSideOffsets::zero(),
-        final_rect: PxRect::zero(),
-        final_radius: PxCornerRadius::zero(),
-    }
+        render_bounds: PxRect::zero(),
+        render_widths: PxSideOffsets::zero(),
+        render_radius: PxCornerRadius::zero(),
+    }.cfg_boxed()
 }
 
 /// Fill color overlay property.
