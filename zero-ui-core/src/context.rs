@@ -826,7 +826,7 @@ impl<'a> LayoutContext<'a> {
     /// The `constrains` closure is called to produce the new constrains, the input is the current constrains.
     pub fn with_constrains<R>(
         &mut self,
-        constrains: impl FnOnce(PxSizeConstrains) -> PxSizeConstrains,
+        constrains: impl FnOnce(PxConstrains2d) -> PxConstrains2d,
         f: impl FnOnce(&mut LayoutContext) -> R,
     ) -> R {
         f(&mut LayoutContext {
@@ -1085,7 +1085,7 @@ impl<'a> InfoContext<'a> {
 pub struct LayoutMetrics {
     use_mask: Cell<LayoutMask>,
 
-    constrains: PxSizeConstrains,
+    constrains: PxConstrains2d,
     font_size: Px,
     root_font_size: Px,
     scale_factor: Factor,
@@ -1103,7 +1103,7 @@ impl LayoutMetrics {
     pub fn new(scale_factor: Factor, viewport_size: PxSize, font_size: Px) -> Self {
         LayoutMetrics {
             use_mask: Cell::new(LayoutMask::NONE),
-            constrains: PxSizeConstrains::unbounded().with_max_fill(viewport_size),
+            constrains: PxConstrains2d::new_fill_size(viewport_size),
             font_size,
             root_font_size: font_size,
             scale_factor,
@@ -1160,7 +1160,7 @@ impl LayoutMetrics {
     }
 
     /// Current size constrains.
-    pub fn constrains(&self) -> PxSizeConstrains {
+    pub fn constrains(&self) -> PxConstrains2d {
         self.register_use(LayoutMask::CONSTRAINS);
         self.constrains
     }
@@ -1222,7 +1222,7 @@ impl LayoutMetrics {
     /// Sets the [`constrains`] to the value returned by `constrains`. The closure input is the current constrains.
     ///
     /// [`constrains`]: Self::constrains
-    pub fn with_constrains(mut self, constrains: impl FnOnce(PxSizeConstrains) -> PxSizeConstrains) -> Self {
+    pub fn with_constrains(mut self, constrains: impl FnOnce(PxConstrains2d) -> PxConstrains2d) -> Self {
         self.constrains = constrains(self.constrains);
         self
     }
@@ -1280,9 +1280,9 @@ impl<'m> Layout1dMetrics<'m> {
     /// Length constrains in the selected dimension.
     pub fn constrains(&self) -> PxConstrains {
         if self.is_width {
-            self.metrics.constrains.x_constrains()
+            self.metrics.constrains.x
         } else {
-            self.metrics.constrains.y_constrains()
+            self.metrics.constrains.y
         }
     }
 

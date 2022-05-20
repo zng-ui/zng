@@ -389,7 +389,7 @@ impl Length {
             Dip(l) => l.to_px(ctx.scale_factor().0),
             Px(l) => *l,
             Pt(l) => Self::pt_to_px(*l, ctx.scale_factor()),
-            Relative(f) => ctx.constrains().fill_length() * f.0,
+            Relative(f) => ctx.constrains().fill() * f.0,
             Em(f) => ctx.font_size() * f.0,
             RootEm(f) => ctx.root_font_size() * f.0,
             ViewportWidth(p) => ctx.viewport_size().width * *p,

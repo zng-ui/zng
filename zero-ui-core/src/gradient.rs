@@ -600,7 +600,7 @@ impl GradientStops {
         let mut l_end = line.end.to_wr();
 
         let v = l_end - l_start;
-        let v = v / ctx.constrains().fill_length().to_wr().get();
+        let v = v / ctx.constrains().fill().to_wr().get();
 
         l_end = l_start + v * end_offset;
         l_start += v * start_offset;
@@ -680,7 +680,7 @@ impl GradientStops {
 
         let mut stop = self.end.layout(ctx); // 1
         if is_positional(stop.offset) {
-            stop.offset = ctx.constrains().fill_length().to_wr().get();
+            stop.offset = ctx.constrains().fill().to_wr().get();
         }
         if stop.offset < prev_offset {
             stop.offset = prev_offset; // 2
@@ -700,7 +700,10 @@ impl GradientStops {
             let length = after.offset - prev.offset;
             if length > 0.00001 {
                 if let GradientStop::ColorHint(offset) = &self.middle[i - 1] {
-                    let ctx = ctx.metrics.clone().with_constrains(|c| c.with_height_fill(Px(length as i32)));
+                    let ctx = ctx
+                        .metrics
+                        .clone()
+                        .with_constrains(|c| c.with_max_y(Px(length as i32)).with_fill_y(true));
                     let mut offset = offset.layout(ctx.for_y(), |_| Px(0)).to_wr().get();
                     if is_positional(offset) {
                         offset = length / 2.0;

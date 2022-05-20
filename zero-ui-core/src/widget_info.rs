@@ -56,7 +56,7 @@ impl WidgetLayout {
             debug_assert!(!self.t.inner_collapsed);
 
             let av_size = finish_target.size();
-            let ctx = ctx.clone().with_constrains(|c| c.with_max_fill(av_size));
+            let ctx = ctx.clone().with_constrains(|c| c.with_max_size(av_size).with_fill(true, true));
 
             let baseline_dft = Px(0);
             let baseline = mem::take(&mut self.t.baseline);

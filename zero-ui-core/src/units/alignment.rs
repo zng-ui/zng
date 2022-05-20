@@ -2,7 +2,7 @@ use std::fmt::{self, Write};
 
 use crate::{impl_from_and_into_var, widget_info::WidgetLayoutTransform};
 
-use super::{Factor, FactorPercent, Point, PxSize, PxSizeConstrains, PxVector};
+use super::{Factor, FactorPercent, Point, Px, PxConstrains2d, PxSize, PxVector};
 
 /// `x` and `y` alignment.
 ///
@@ -72,18 +72,16 @@ impl Align {
     }
 
     /// Constrains that must be used to layout a child node with the alignment.
-    pub fn child_constrains(self, parent_constrains: PxSizeConstrains) -> PxSizeConstrains {
-        let mut c = parent_constrains;
-        c.min = PxSize::zero();
-        c.fill.x &= self.is_fill_x();
-        c.fill.y &= self.is_fill_y();
-        c
+    pub fn child_constrains(self, parent_constrains: PxConstrains2d) -> PxConstrains2d {
+        parent_constrains
+            .with_min(Px(0), Px(0))
+            .with_fill_and(self.is_fill_x(), self.is_fill_y())
     }
 
     /// Applies the alignment transform to `wl` and returns the size of the parent align node.
-    pub fn layout(self, child_size: PxSize, parent_constrains: PxSizeConstrains, wl: &mut WidgetLayoutTransform) -> PxSize {
+    pub fn layout(self, child_size: PxSize, parent_constrains: PxConstrains2d, wl: &mut WidgetLayoutTransform) -> PxSize {
         let size = parent_constrains.fill_size().max(child_size);
-        let size = parent_constrains.clamp(size);
+        let size = parent_constrains.clamp_size(size);
 
         let mut offset = PxVector::zero();
         if !self.is_fill_x() {

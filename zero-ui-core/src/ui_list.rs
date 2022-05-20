@@ -4,7 +4,7 @@ use crate::{
     context::{InfoContext, LayoutContext, LayoutMetrics, RenderContext, StateMap, WidgetContext},
     event::EventUpdateArgs,
     render::{FrameBuilder, FrameUpdate},
-    units::{PxSize, PxSizeConstrains},
+    units::{PxConstrains2d, PxSize},
     widget_info::{
         WidgetBorderInfo, WidgetInfoBuilder, WidgetLayout, WidgetLayoutInfo, WidgetLayoutTransform, WidgetRenderInfo, WidgetSubscriptions,
     },
@@ -131,7 +131,7 @@ pub struct PreLayoutArgs<'a> {
     pub state: Option<&'a mut StateMap>,
 
     /// Constrains overwrite just for this child.
-    pub constrains: Option<PxSizeConstrains>,
+    pub constrains: Option<PxConstrains2d>,
 }
 impl<'a> PreLayoutArgs<'a> {
     /// New args for item.

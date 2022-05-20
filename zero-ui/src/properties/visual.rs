@@ -248,7 +248,7 @@ pub fn foreground_highlight(
             );
 
             let widths = ctx.with_constrains(
-                |_| PxSizeConstrains::exact(size),
+                |_| PxConstrains2d::new_exact_size(size),
                 |ctx| self.widths.get(ctx.vars).layout(ctx.metrics, |_| PxSideOffsets::zero()),
             );
 

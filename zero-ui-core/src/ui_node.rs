@@ -523,7 +523,7 @@ pub trait Widget: UiNode {
     /// If `constrains` is set it is used for the layout context.
     #[cfg(any(test, doc, feature = "test_util"))]
     #[cfg_attr(doc_nightly, doc(cfg(feature = "test_util")))]
-    fn test_layout(&mut self, ctx: &mut TestWidgetContext, constrains: Option<PxSizeConstrains>) -> PxSize {
+    fn test_layout(&mut self, ctx: &mut TestWidgetContext, constrains: Option<PxConstrains2d>) -> PxSize {
         let font_size = Length::pt_to_px(14.0, 1.0.fct());
         ctx.layout_context(
             font_size,
@@ -708,7 +708,7 @@ pub struct NilUiNode;
 #[impl_ui_node(none)]
 impl UiNode for NilUiNode {
     fn layout(&mut self, ctx: &mut LayoutContext, _: &mut WidgetLayout) -> PxSize {
-        ctx.constrains().min
+        ctx.constrains().min_size()
     }
 }
 
