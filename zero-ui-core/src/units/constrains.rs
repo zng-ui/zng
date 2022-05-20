@@ -111,8 +111,10 @@ impl PxConstrains {
 
     /// Returns a constrain with max subtracted by `removed` and min adjusted to be less or equal to max.
     pub fn with_less(mut self, removed: Px) -> Self {
-        self.max -= removed;
-        self.min = self.min.min(self.max);
+        if !self.is_unbounded() {
+            self.max -= removed;
+            self.min = self.min.min(self.max);
+        }
         self
     }
 
@@ -206,9 +208,6 @@ impl PxSizeConstrains {
 
     /// Returns the size to fill all available space.
     pub fn fill_size(&self) -> PxSize {
-        debug_assert!(self.max.width >= self.min.width);
-        debug_assert!(self.max.height >= self.min.height);
-
         self.actually_fill().select_size(self.max, self.min)
     }
 
@@ -366,34 +365,44 @@ impl PxSizeConstrains {
 
     /// Returns a constrains with `max` subtracted by `removed` and `min` adjusted to be less-or-equal to `max`.
     pub fn with_less_size(mut self, removed: PxSize) -> Self {
-        self.max -= removed;
+        let unbounded = self.is_unbounded();
+        if !unbounded.x {
+            self.max.width -= removed.width;
+        }
+        if !unbounded.y {
+            self.max.height -= removed.height;
+        }
         self.min = self.min.min(self.max);
         self
     }
 
     /// Returns a constrains with `max.width` subtracted by `removed` and `min.width` adjusted to be less-or-equal to `max.width`.
     pub fn with_less_width(mut self, removed: Px) -> Self {
-        self.max.width -= removed;
-        self.min.width = self.min.width.min(self.max.width);
+        if !self.is_unbounded().x {
+            self.max.width -= removed;
+            self.min.width = self.min.width.min(self.max.width);
+        }
         self
     }
 
     /// Returns a constrains with `max.height` subtracted by `removed` and `min.height` adjusted to be less-or-equal to `max.height`.
     pub fn with_less_height(mut self, removed: Px) -> Self {
-        self.max.height -= removed;
-        self.min.height = self.min.height.min(self.max.height);
+        if !self.is_unbounded().y {
+            self.max.height -= removed;
+            self.min.height = self.min.height.min(self.max.height);
+        }
         self
     }
 
     /// Returns a constrains with `max` added by `added`.
     pub fn with_more_size(mut self, added: PxSize) -> Self {
-        self.max -= added;
+        self.max += added;
         self
     }
 
     /// Returns a constrains with `max.width` added by `added`.
     pub fn with_more_width(mut self, added: Px) -> Self {
-        self.max.width -= added;
+        self.max.width += added;
         self
     }
 

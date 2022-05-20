@@ -81,6 +81,7 @@ fn functions(window_enabled: RcVar<bool>) -> impl Widget {
                         title = "Other Window";
                         focus_shortcut = shortcut!(W);
                         content = v_stack! {
+                            align = Align::CENTER;
                             spacing = 5;
                             items = widgets![
                                 title("Other Window (W)"),

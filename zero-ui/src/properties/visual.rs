@@ -236,7 +236,7 @@ pub fn foreground_highlight(
 
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
             let size = self.child.layout(ctx, wl);
-            
+
             let radius = ContextBorders::inner_radius(ctx);
             let offsets = self.offsets.get(ctx.vars).layout(ctx.metrics, |_| PxSideOffsets::zero());
             let radius = radius.deflate(offsets);
@@ -276,7 +276,8 @@ pub fn foreground_highlight(
         render_bounds: PxRect::zero(),
         render_widths: PxSideOffsets::zero(),
         render_radius: PxCornerRadius::zero(),
-    }.cfg_boxed()
+    }
+    .cfg_boxed()
 }
 
 /// Fill color overlay property.

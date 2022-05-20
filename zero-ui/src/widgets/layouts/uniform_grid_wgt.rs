@@ -190,7 +190,7 @@ pub mod uniform_grid {
 
                 panel_size = size;
                 size_final = true;
-               
+
                 cell_size = PxSize::new(
                     (panel_size.width - spacing.column / Px(2)) / Px(columns),
                     (panel_size.height - spacing.row / Px(2)) / Px(rows),
@@ -201,20 +201,24 @@ pub mod uniform_grid {
             while mem::take(&mut layout) {
                 let mut actual_count = 0;
 
-                ctx.with_constrains(move |c| if size_final {
-                    c.with_max_fill(cell_size)
-                } else {
-                    c
-                }, |ctx| {
-                    self.children.layout_all(ctx, wl, |_, _, _| {}, |_, _, a| {
-                        if a.size != PxSize::zero() {
-                            actual_count += 1;
-                            if !size_final {
-                                cell_size = cell_size.max(a.size);
-                            }
-                        }
-                    });
-                });
+                ctx.with_constrains(
+                    move |c| if size_final { c.with_max_fill(cell_size) } else { c },
+                    |ctx| {
+                        self.children.layout_all(
+                            ctx,
+                            wl,
+                            |_, _, _| {},
+                            |_, _, a| {
+                                if a.size != PxSize::zero() {
+                                    actual_count += 1;
+                                    if !size_final {
+                                        cell_size = cell_size.max(a.size);
+                                    }
+                                }
+                            },
+                        );
+                    },
+                );
 
                 if actual_count == 0 {
                     // no children or all collapsed.
@@ -237,12 +241,12 @@ pub mod uniform_grid {
 
                 if !size_final {
                     size_final = true;
-                    
+
                     panel_size = PxSize::new(
                         (cell_size.width + spacing.column / Px(2)) * Px(columns),
                         (cell_size.height + spacing.row / Px(2)) * Px(rows),
                     );
-                    let clamped = constrains.fill_or(panel_size);                    
+                    let clamped = constrains.fill_or(panel_size);
                     if clamped != panel_size {
                         panel_size = clamped;
 
@@ -252,7 +256,7 @@ pub mod uniform_grid {
                         );
                     }
 
-                    layout = true;                    
+                    layout = true;
                 }
             }
 
