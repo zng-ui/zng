@@ -292,6 +292,8 @@ impl WidgetLayoutTransform {
     /// Set the baseline offset of the closest *inner* bounds. The offset is up from the bottom of the bounds and is computed
     /// relative to the bounds height, so 0% is the bottom line and 100% is the top line. This always affects the same bounds
     /// as the current [`transform`].
+    ///
+    /// [`transform`]: Self::transform
     pub fn set_baseline(&mut self, baseline: Length) {
         self.baseline = baseline;
     }

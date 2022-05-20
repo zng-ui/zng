@@ -23,10 +23,10 @@ use super::{Factor, FactorPercent, Point, PxSize, PxSizeConstrains, PxVector};
 /// The [`f32::NEG_INFINITY`] value can be used in ***y*** to indicate that a panel widget should align its items by each *baseline*,
 /// for most widgets this is the same as `BOTTOM`, but for texts this aligns to the baseline of the texts.
 ///
-/// You can use the [`is_fill_width`], [`is_fill_height`] and [`is_baseline`] methods to probe for this special values.
+/// You can use the [`is_fill_x`], [`is_fill_y`] and [`is_baseline`] methods to probe for this special values.
 ///
-/// [`is_fill_width`]: Align::is_fill_width
-/// [`is_fill_height`]: Align::is_fill_height
+/// [`is_fill_x`]: Align::is_fill_x
+/// [`is_fill_y`]: Align::is_fill_y
 /// [`is_baseline`]: Align::is_baseline
 /// [`as_self_align`]: Align::as_self_align
 #[derive(Clone, Copy)]

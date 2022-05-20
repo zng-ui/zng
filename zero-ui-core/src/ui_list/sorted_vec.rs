@@ -25,6 +25,7 @@ use crate::{
 /// in both cases the sorting is *stable*, widgets with equal keys retain order of insertion.
 ///
 /// [`std::slice::sort_by`]: https://doc.rust-lang.org/std/primitive.slice.html#method.sort_by
+/// [`widget_vec!`]: crate::ui_list::widget_vec
 pub struct SortedWidgetVec {
     vec: Vec<BoxedWidget>,
 

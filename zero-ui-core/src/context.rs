@@ -800,10 +800,6 @@ pub struct LayoutContext<'a> {
     pub widget_state: &'a mut StateMap,
 
     /// State that lives for the duration of the node tree layout update call in the window.
-    ///
-    /// This state lives only for the sequence of two [`UiNode::measure`](crate::UiNode::measure) and [`UiNode::arrange`](crate::UiNode::arrange)
-    /// method calls in all nodes of the window. You can use this to signal nodes that have not participated in the current
-    /// layout update yet, or from `measure` signal `arrange`.
     pub update_state: &'a mut StateMap,
 
     /// Access to variables.

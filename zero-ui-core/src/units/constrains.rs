@@ -67,6 +67,7 @@ impl PxConstrains {
     /// [`max`]: Self::max
     /// [`actual_fill`]: Self::actual_fill
     /// [`min`]: Self::min
+    /// [`actually_fill`]: Self::actually_fill
     pub fn fill_length(&self) -> Px {
         if self.actually_fill() {
             self.max

@@ -374,7 +374,7 @@ impl Length {
     /// the closure value must not be expensive to produce, we only use a closure to avoid flagging layout dependencies in values that
     /// are only used for [`Default`].
     ///
-    /// [constrains]: Layout1dMetrics::length_constrains
+    /// [constrains]: Layout1dMetrics::constrains
     /// [`Default`]: Length::Default
     /// [`Expr`]: Length::Expr
     pub fn layout(&self, ctx: Layout1dMetrics, default_value: impl FnMut(Layout1dMetrics) -> Px) -> Px {
@@ -400,7 +400,7 @@ impl Length {
         }
     }
 
-    /// Compute a [`LayoutMask`] that flags all contextual values that affect the result of [`to_layout`].
+    /// Compute a [`LayoutMask`] that flags all contextual values that affect the result of [`layout`].
     ///
     /// [`layout`]: Self::layout
     pub fn affect_mask(&self) -> LayoutMask {
@@ -423,10 +423,10 @@ impl Length {
 
     /// If this length is zero in any finite layout context.
     ///
-    /// Returns `None` if the value depends on the input to [`to_layout`].
+    /// Returns `None` if the value depends on the input to [`layout`].
     ///
     /// [`Expr`]: Length::Expr
-    /// [`to_layout`]: Length::to_layout
+    /// [`layout`]: Length::layout
     pub fn is_zero(&self) -> Option<bool> {
         use Length::*;
         match self {
@@ -476,7 +476,7 @@ impl Length {
 }
 
 bitflags! {
-    /// Mask of values that can affect the [`Length::to_layout`] operation.
+    /// Mask of values that can affect the [`Length::layout`] operation.
     pub struct LayoutMask: u32 {
         /// Represents no value dependency or change.
         const NONE = 0;
@@ -551,7 +551,7 @@ impl LengthExpr {
     }
 
     /// Compute a [`LayoutMask`] that flags all contextual values that affect the result
-    /// of [`to_layout`] called for this length.
+    /// of [`layout`] called for this length.
     ///
     /// [`layout`]: Self::layout
     pub fn affect_mask(&self) -> LayoutMask {

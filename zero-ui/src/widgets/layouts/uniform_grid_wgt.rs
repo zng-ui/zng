@@ -266,7 +266,6 @@ pub mod uniform_grid {
             }
 
             let mut cells = CellsIter::new(cell_size, columns, first_column as i32, spacing);
-            let mut actual_count = 0;
 
             self.children.outer_all(ctx.metrics, wl, false, |wlt, a| {
                 if a.size != PxSize::zero() {

@@ -571,6 +571,9 @@ impl_from_and_into_var! {
 /// Nesting borders with round corners need slightly different radius values to perfectly fit, the [`ContextBorders`]
 /// coordinator can adjusts the radius inside each border to match the inside curve of the border, this behavior is
 /// controlled by [`corner_radius_fit`].
+///
+/// [`corner_radius`]: fn@corner_radius
+/// [`corner_radius_fit`]: fn@corner_radius_fit
 #[derive(Clone, Copy)]
 pub enum CornerRadiusFit {
     /// Corner radius is computed for each usage.
@@ -584,6 +587,7 @@ pub enum CornerRadiusFit {
     /// This is the default value.
     ///
     /// [deflated]: PxCornerRadius::deflate
+    /// [`corner_radius`]: fn@corner_radius
     Tree,
 }
 impl Default for CornerRadiusFit {
@@ -658,12 +662,12 @@ context_var! {
 
     /// Corner radius.
     ///
-    /// See [`corner_radius`] for more details.
+    /// See [`corner_radius`](fn@corner_radius) for more details.
     pub struct CornerRadiusVar: CornerRadius = CornerRadius::zero();
 
     /// Corner radius fit.
     ///
-    /// See [`corner_radius_fit`] for more details.
+    /// See [`corner_radius_fit`](fn@corner_radius_fit) for more details.
     pub struct CornerRadiusFitVar: CornerRadiusFit = CornerRadiusFit::default();
 }
 
@@ -932,8 +936,6 @@ impl ContextBorders {
     /// Gets the computed border rect and side offsets for the border visual.
     ///
     /// This is only valid to call in the border visual node (in [`border_node`]) during layout and render.
-    ///
-    /// [`border_node`]: Self::border_node
     pub fn border_layout<Vr: WithVarsRead>(vars: &Vr) -> (PxRect, PxSideOffsets) {
         BorderLayoutVar::get_clone(vars).unwrap_or_else(|| {
             #[cfg(debug_assertions)]

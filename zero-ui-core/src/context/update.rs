@@ -261,6 +261,10 @@ impl Updates {
     ///
     /// Returns an [`OnUpdateHandle`] that can be used to unsubscribe, you can also unsubscribe from inside the handler by calling
     /// [`unsubscribe`](crate::handler::AppWeakHandle::unsubscribe) in the third parameter of [`app_hn!`] or [`async_app_hn!`].
+    ///
+    /// [`app_hn_once!`]: macro@crate::handler::app_hn_once
+    /// [`app_hn!`]: macro@crate::handler::app_hn
+    /// [`async_app_hn!`]: macro@crate::handler::async_app_hn
     pub fn on_pre_update<H>(&mut self, handler: H) -> OnUpdateHandle
     where
         H: AppHandler<UpdateArgs> + handler::marker::NotAsyncHn,
@@ -274,6 +278,9 @@ impl Updates {
     ///
     /// Returns an [`OnUpdateHandle`] that can be used to unsubscribe, you can also unsubscribe from inside the handler by calling
     /// [`unsubscribe`](crate::handler::AppWeakHandle::unsubscribe) in the third parameter of [`app_hn!`] or [`async_app_hn!`].
+    ///
+    /// [`app_hn!`]: macro@crate::handler::app_hn
+    /// [`async_app_hn!`]: macro@crate::handler::async_app_hn
     pub fn on_update<H>(&mut self, handler: H) -> OnUpdateHandle
     where
         H: AppHandler<UpdateArgs> + handler::marker::NotAsyncHn,

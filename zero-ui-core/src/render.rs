@@ -705,15 +705,13 @@ impl FrameBuilder {
 
     /// Calls `f` inside a new reference frame transformed by `transform`.
     ///
-    /// Note that properties that use this method must also call [`WidgetLayout::with_custom_transform`] during arrange.
-    /// Outer properties that only do layout should **not** use this method, just update the [`WidgetLayout`] inner transform
-    /// that gets combined into a single reference frame per widget.
+    /// Note that properties that use this method must also register the custom transform with the widget info, so that the widget
+    /// can be found by decorator overlays or other features that depend on the info tree position.
     ///
     /// The `is_2d_scale_translation` flag optionally marks the `transform` as only ever having a simple 2D scale or translation,
     /// allowing for webrender optimizations.
     ///
     /// [`push_inner`]: Self::push_inner
-    /// [`WidgetLayout::with_custom_transform`]: crate::widget_info::WidgetLayout::with_custom_transform
     /// [`WidgetLayout`]: crate::widget_info::WidgetLayout
     pub fn push_reference_frame(
         &mut self,

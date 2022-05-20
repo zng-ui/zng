@@ -108,7 +108,7 @@ impl Rect {
         )
     }
 
-    /// Compute a [`LayoutMask`] that flags all contextual values that affect the result of [`to_layout`].
+    /// Compute a [`LayoutMask`] that flags all contextual values that affect the result of [`layout`].
     ///
     /// [`layout`]: Self::layout
     pub fn affect_mask(&self) -> LayoutMask {

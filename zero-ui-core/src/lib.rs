@@ -167,7 +167,7 @@ pub use zero_ui_proc_macros::{property_new, static_list, widget_declare, widget_
 /// The generated code calls [`into_iter`] and uses the iterator to apply the
 /// same [`UiNode`] method on each child.
 ///
-/// The generated [`measure`] code returns the desired size of the largest child.
+/// The generated [`layout`] code returns the size of the largest child.
 ///
 /// The generated [`render`] code simply draws each child on top of the previous one.
 ///
@@ -182,8 +182,7 @@ pub use zero_ui_proc_macros::{property_new, static_list, widget_declare, widget_
 /// impl UiNode for MyNode { }
 /// ```
 ///
-/// The generated [`measure`] code fills the available space or collapses if
-/// any space is available (positive infinity).
+/// The generated [`layout`] code returns the fill size.
 ///
 /// The other generated methods are empty.
 ///
@@ -231,7 +230,7 @@ pub use zero_ui_proc_macros::{property_new, static_list, widget_declare, widget_
 /// [`UiNode`]: crate::UiNode
 /// [`UiNodeList`]: crate::UiNodeList
 /// [`into_iter`]: std::iter::IntoIterator::into_iter
-/// [`measure`]: crate::UiNode::measure
+/// [`layout`]: crate::UiNode::layout
 /// [`render`]: crate::UiNode::render
 ///
 /// <div style='display:none'>
