@@ -1,7 +1,5 @@
 # Pre-Merge
 
-* Animation flickering.
-* Window-auto size.
 * Align content larger then max? See hit_test example.
 * Baseline align.
 * Scrollable.
@@ -13,3 +11,8 @@
 * Fix all warnings.
 * Pass all tests.
 * Docs without warnings.
+
+# After-Merge
+
+* Cursor demo, cursor does not clear on mouse-leave.
+* Master branch TODOs.

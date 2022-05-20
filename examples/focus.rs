@@ -105,6 +105,7 @@ fn functions(window_enabled: RcVar<bool>) -> impl Widget {
                             ctx.services.windows().open(move |_| {
                                 window! {
                                     title = "Detached Button";
+                                    content_align = Align::CENTER;
                                     content = slot(wwk.upgrade().unwrap(), take_on_init());
                                 }
                             });

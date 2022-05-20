@@ -191,6 +191,7 @@ fn icon() -> impl Widget {
         corner_radius = 6;
         font_size = 28;
         font_weight = FontWeight::BOLD;
+        content_align = Align::CENTER;
         content = text("G");
     }
 }
