@@ -475,7 +475,9 @@ pub mod implicit_base {
                     }
 
                     if matches!(self.pending_updates.borrow_mut().render.take(), WindowRenderUpdate::RenderUpdate) {
-                        self.child.render_update(ctx, update);
+                        ctx.with_widget(self.id, &self.info, &self.state, |ctx| {
+                            self.child.render_update(ctx, update);
+                        })
                     }
                     // else, don't need to do anything, updates are additive.
                 }

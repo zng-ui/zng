@@ -284,9 +284,9 @@ impl PxConstrains2d {
     /// New bounded to a inclusive range.
     ///
     /// A tuple of two [`PxSize`] values can also be converted to these constrains.
-    /// 
+    ///
     /// # Panics
-    /// 
+    ///
     /// Panics if min is greater then max.
     pub fn new_range(min_x: Px, max_x: Px, min_y: Px, max_y: Px) -> Self {
         Self {
