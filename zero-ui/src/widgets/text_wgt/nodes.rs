@@ -361,7 +361,7 @@ pub fn layout_text(child: impl UiNode, padding: impl IntoVar<SideOffsets>) -> im
             let (font_size, variations) = TextContext::font(ctx.vars);
 
             let font_size = ctx.with_constrains(
-                |c| c.with_less_height(padding.vertical()),
+                |c| c.with_less_y(padding.vertical()),
                 |ctx| font_size.layout(ctx.for_y(), |ctx| ctx.metrics.root_font_size()),
             );
 
@@ -400,7 +400,7 @@ pub fn layout_text(child: impl UiNode, padding: impl IntoVar<SideOffsets>) -> im
             let dft_tab_len = space_len * 3;
 
             let (letter_spacing, word_spacing, tab_length) = ctx.with_constrains(
-                |c| c.with_max_width(space_len),
+                |c| c.with_max_x(space_len),
                 |ctx| {
                     (
                         letter_spacing.layout(ctx.for_x(), |_| Px(0)),
@@ -412,11 +412,11 @@ pub fn layout_text(child: impl UiNode, padding: impl IntoVar<SideOffsets>) -> im
 
             let dft_line_height = font.metrics().line_height();
             let line_height = ctx.with_constrains(
-                |c| c.with_height_fill(dft_line_height),
+                |c| c.with_max_y(dft_line_height).with_fill_y(true),
                 |ctx| line_height.layout(ctx.for_y(), |_| dft_line_height),
             );
             let line_spacing = ctx.with_constrains(
-                |c| c.with_height_fill(line_height),
+                |c| c.with_max_y(line_height).with_fill_y(true),
                 |ctx| line_spacing.layout(ctx.for_y(), |_| Px(0)),
             );
 
@@ -438,7 +438,7 @@ pub fn layout_text(child: impl UiNode, padding: impl IntoVar<SideOffsets>) -> im
 
             let dft_thickness = font.metrics().underline_thickness;
             let (overline, strikethrough, underline) = ctx.with_constrains(
-                |c| c.with_height_fill(line_height),
+                |c| c.with_max_y(line_height).with_fill_y(true),
                 |ctx| {
                     (
                         OverlineThicknessVar::get(ctx.vars).layout(ctx.for_y(), |_| dft_thickness),
@@ -531,10 +531,10 @@ pub fn layout_text(child: impl UiNode, padding: impl IntoVar<SideOffsets>) -> im
 
             let desired_size = r.shaped_text.size();
 
-            let size = ctx.constrains().fill_or(desired_size);
+            let size = ctx.constrains().fill_size_or(desired_size);
 
             ctx.with_constrains(
-                |c| c.with_max_fill(size),
+                |c| c.with_max_size(size).with_fill(true, true),
                 |ctx| {
                     self.with_mut(ctx.vars, |c| c.layout(ctx, wl));
                 },

@@ -111,15 +111,15 @@ pub mod h_stack {
             );
 
             let c = ctx.constrains();
-            if align.is_fill_y() && !c.actually_fill().y && !c.is_exact_height() {
+            if align.is_fill_y() && !c.y.is_fill_max() && !c.y.is_exact() {
                 // panel is not fill-y but items are, so we need to fill to the widest item.
                 ctx.with_constrains(
-                    move |c| c.with_height_fill(c.y_constrains().clamp(size.height)).with_unbounded_x(),
+                    move |c| c.with_max_y(c.y.clamp(size.height)).with_fill_x(true).with_unbounded_x(),
                     |ctx| {
                         size.width = Px(0);
                         for i in 0..self.children.len() {
                             let o_size = self.children.widget_outer_info(i).size();
-                            if o_size.height != ctx.constrains().max.height {
+                            if Some(o_size.height) != ctx.constrains().y.max() {
                                 // only need second pass for items that don't fill
                                 let (a_size, _) = wl.with_child(ctx, |ctx, wl| {
                                     wl.translate(PxVector::new(size.width, Px(0)));
@@ -150,7 +150,7 @@ pub mod h_stack {
                 // spacing is only in between items.
                 size.width -= spacing;
             }
-            let final_size = ctx.constrains().fill_or(size);
+            let final_size = ctx.constrains().fill_size_or(size);
             let extra_width = final_size.width - size.width;
             let mut extra_x = Px(0);
 
@@ -287,15 +287,15 @@ pub mod v_stack {
             );
 
             let c = ctx.constrains();
-            if align.is_fill_x() && !c.actually_fill().x && !c.is_exact_width() {
+            if align.is_fill_x() && !c.x.is_fill_max() && !c.x.is_exact() {
                 // panel is not fill-x but items are, so we need to fill to the widest item.
                 ctx.with_constrains(
-                    move |c| c.with_width_fill(c.x_constrains().clamp(size.width)).with_unbounded_y(),
+                    move |c| c.with_max_x(c.x.clamp(size.width)).with_fill_x(true).with_unbounded_y(),
                     |ctx| {
                         size.height = Px(0);
                         for i in 0..self.children.len() {
                             let o_size = self.children.widget_outer_info(i).size();
-                            if o_size.width != ctx.constrains().max.width {
+                            if Some(o_size.width) != ctx.constrains().x.max() {
                                 // only need second pass for items that don't fill
                                 let (a_size, _) = wl.with_child(ctx, |ctx, wl| {
                                     wl.translate(PxVector::new(Px(0), size.height));
@@ -326,7 +326,7 @@ pub mod v_stack {
                 // spacing is only in between items.
                 size.height -= spacing;
             }
-            let final_size = ctx.constrains().fill_or(size);
+            let final_size = ctx.constrains().fill_size_or(size);
             let extra_height = final_size.height - size.height;
             let mut extra_y = Px(0);
 
@@ -496,7 +496,7 @@ pub mod z_stack {
                 },
             );
 
-            parent_constrains.clamp(size)
+            parent_constrains.clamp_size(size)
         }
     }
 }

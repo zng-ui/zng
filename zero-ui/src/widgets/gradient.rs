@@ -101,7 +101,7 @@ where
             let length = self.render_line.length();
 
             ctx.with_constrains(
-                |c| c.with_width_fill(length),
+                |c| c.with_max_x(length).with_fill_x(true),
                 |ctx| {
                     self.stops.get(ctx).layout_linear(
                         ctx.for_x(),
@@ -174,7 +174,7 @@ where
         self.render_tile_spacing = self.tile_spacing.get(ctx.vars).layout(ctx.metrics, |_| final_size);
 
         ctx.with_constrains(
-            |c| c.with_max_fill(self.render_tile_size),
+            |c| c.with_max_size(self.render_tile_size).with_fill(true, true),
             |ctx| {
                 self.g.layout(ctx, wl);
             },

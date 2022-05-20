@@ -202,7 +202,13 @@ pub mod uniform_grid {
                 let mut actual_count = 0;
 
                 ctx.with_constrains(
-                    move |c| if size_final { c.with_max_fill(cell_size) } else { c },
+                    move |c| {
+                        if size_final {
+                            c.with_max_size(cell_size).with_fill(true, true)
+                        } else {
+                            c
+                        }
+                    },
                     |ctx| {
                         self.children.layout_all(
                             ctx,
@@ -222,7 +228,7 @@ pub mod uniform_grid {
 
                 if actual_count == 0 {
                     // no children or all collapsed.
-                    return ctx.constrains().min;
+                    return ctx.constrains().min_size();
                 }
 
                 if !count_final {
@@ -246,7 +252,7 @@ pub mod uniform_grid {
                         (cell_size.width + spacing.column / Px(2)) * Px(columns),
                         (cell_size.height + spacing.row / Px(2)) * Px(rows),
                     );
-                    let clamped = constrains.fill_or(panel_size);
+                    let clamped = constrains.fill_size_or(panel_size);
                     if clamped != panel_size {
                         panel_size = clamped;
 

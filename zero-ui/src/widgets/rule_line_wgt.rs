@@ -84,12 +84,12 @@ pub mod rule_line {
 
             let bounds = match *self.orientation.get(ctx) {
                 LineOrientation::Horizontal => PxSize::new(
-                    self.length.get(ctx).layout(ctx.for_x(), |c| c.constrains().fill_length()),
+                    self.length.get(ctx).layout(ctx.for_x(), |c| c.constrains().fill()),
                     self.stroke_thickness.get(ctx).layout(ctx.for_y(), |_| default_stroke),
                 ),
                 LineOrientation::Vertical => PxSize::new(
                     self.stroke_thickness.get(ctx).layout(ctx.for_x(), |_| default_stroke),
-                    self.length.get(ctx).layout(ctx.for_y(), |c| c.constrains().fill_length()),
+                    self.length.get(ctx).layout(ctx.for_y(), |c| c.constrains().fill()),
                 ),
             };
 

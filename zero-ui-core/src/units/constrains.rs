@@ -135,6 +135,11 @@ impl PxConstrains {
         self.fill
     }
 
+    /// Gets if the context prefers the maximum length and there is a maximum length.
+    pub fn is_fill_max(self) -> bool {
+        self.fill && !self.is_unbounded()
+    }
+
     /// Gets the fixed length if the constrains only allow one length.
     pub fn exact(self) -> Option<Px> {
         if self.is_exact() {
@@ -163,7 +168,7 @@ impl PxConstrains {
     }
 
     /// Clamp the `px` by min and max.
-    pub fn clamp(&self, px: Px) -> Px {
+    pub fn clamp(self, px: Px) -> Px {
         self.min.max(px).min(self.max)
     }
 
@@ -177,11 +182,20 @@ impl PxConstrains {
     }
 
     /// Gets the maximum if fill is preferred and max is bounded, or `desired_length` clamped by the constrains.
-    pub fn fill_or(&self, desired_length: Px) -> Px {
+    pub fn fill_or(self, desired_length: Px) -> Px {
         if self.fill && !self.is_unbounded() {
             self.max
         } else {
             self.clamp(desired_length)
+        }
+    }
+
+    /// Gets the max size if is fill and has max bounds, or gets the exact size if min equals max.
+    pub fn fill_or_exact(self) -> Option<Px> {
+        if self.is_fill_max() || self.is_exact() {
+            Some(self.max)
+        } else {
+            None
         }
     }
 }
@@ -465,6 +479,14 @@ impl PxConstrains2d {
         }
     }
 
+    /// Gets if the context prefers the maximum length over the minimum and there is a maximum length.
+    pub fn is_fill_max(self) -> BoolVector2D {
+        BoolVector2D {
+            x: self.x.is_fill_max(),
+            y: self.y.is_fill_max(),
+        }
+    }
+
     /// Gets the fixed size if the constrains only allow one length in both axis.
     pub fn fixed_size(self) -> Option<PxSize> {
         Some(PxSize::new(self.x.exact()?, self.y.exact()?))
@@ -495,8 +517,13 @@ impl PxConstrains2d {
     }
 
     /// Gets the maximum if fill is preferred and max is bounded, or `desired_length` clamped by the constrains.
-    pub fn fill_size_or(&self, desired_size: PxSize) -> PxSize {
+    pub fn fill_size_or(self, desired_size: PxSize) -> PxSize {
         PxSize::new(self.x.fill_or(desired_size.width), self.y.fill_or(desired_size.height))
+    }
+
+    /// Gets the max size if is fill and has max bounds, or gets the exact size if min equals max.
+    pub fn fill_or_exact(self) -> Option<PxSize> {
+        Some(PxSize::new(self.x.fill_or_exact()?, self.y.fill_or_exact()?))
     }
 }
 impl_from_and_into_var! {
