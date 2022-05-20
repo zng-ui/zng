@@ -407,7 +407,7 @@ pub fn image_presenter() -> impl UiNode {
 
             if align.is_fill_x() {
                 let factor = wgt_size.width.0 as f32 / render_clip.size.width.0 as f32;
-                render_clip.size.width = dbg!(wgt_size.width);
+                render_clip.size.width = wgt_size.width;
                 render_clip.origin.x *= factor;
                 render_img_size.width *= factor;
                 render_offset.x = -render_clip.origin.x;
