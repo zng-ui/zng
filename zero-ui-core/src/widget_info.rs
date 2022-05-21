@@ -161,7 +161,7 @@ impl WidgetLayout {
     /// The [`implicit_base::nodes::children_layout`] implements children bounds. Callers must render the [`child_in_inner_transform`].
     ///
     /// [`implicit_base::nodes::children_layout`]: crate::widget_base::implicit_base::nodes::children_layout
-    /// [`child_in_inner_transform`]: WidgetBoundsInfo:child_in_inner_transform
+    /// [`child_in_inner_transform`]: WidgetBoundsInfo::child_in_inner_transform
     pub fn with_children(&mut self, ctx: &mut LayoutContext, layout: impl FnOnce(&mut LayoutContext, &mut Self) -> PxSize) -> PxSize {
         #[cfg(debug_assertions)]
         if self.known.is_some() {
@@ -1084,12 +1084,12 @@ impl<'a> WidgetInfo<'a> {
 
     /// Compute the visibility of the widget or the widget's descendants.
     ///
-    /// If is [`rendered`] is [`Visible`], if not and the [`outer_info`] size is zero then is [`Collapsed`] else
+    /// If is [`rendered`] is [`Visible`], if not and the [`bounds_info`] outer size is zero then is [`Collapsed`] else
     /// is [`Hidden`].
     ///
     /// [`rendered`]: Self::rendered
     /// [`Visible`]: Visibility::Visible
-    /// [`outer_info`]: Self::outer_info
+    /// [`bounds_info`]: Self::bounds_info
     /// [`Collapsed`]: Visibility::Collapsed
     /// [`Hidden`]: Visibility::Hidden
     pub fn visibility(self) -> Visibility {
