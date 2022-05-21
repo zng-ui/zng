@@ -405,7 +405,7 @@ impl Default for TestWidgetContext {
     }
 }
 #[cfg(any(test, doc, feature = "test_util"))]
-use crate::widget_info::{WidgetInfoBuilder, WidgetLayoutInfo, WidgetRenderInfo, WidgetSubscriptions};
+use crate::widget_info::{WidgetBoundsInfo, WidgetInfoBuilder, WidgetRenderInfo, WidgetSubscriptions};
 #[cfg(any(test, doc, feature = "test_util"))]
 impl TestWidgetContext {
     /// Gets a new [`TestWidgetContext`] instance. Panics is another instance is alive in the current thread
@@ -475,21 +475,12 @@ impl TestWidgetContext {
     /// Builds a info tree.
     pub fn info_tree<R>(
         &mut self,
-        root_outer_info: WidgetLayoutInfo,
-        root_inner_info: WidgetLayoutInfo,
+        root_bounds_info: WidgetBoundsInfo,
         root_border_info: crate::widget_info::WidgetBorderInfo,
         rendered: WidgetRenderInfo,
         action: impl FnOnce(&mut InfoContext, &mut WidgetInfoBuilder) -> R,
     ) -> (WidgetInfoTree, R) {
-        let mut builder = WidgetInfoBuilder::new(
-            self.window_id,
-            self.root_id,
-            root_outer_info,
-            root_inner_info,
-            root_border_info,
-            rendered,
-            None,
-        );
+        let mut builder = WidgetInfoBuilder::new(self.window_id, self.root_id, root_bounds_info, root_border_info, rendered, None);
         let r = self.info_context(|ctx| action(ctx, &mut builder));
         let (t, _) = builder.finalize();
         (t, r)
@@ -909,8 +900,7 @@ impl<'a> LayoutContext<'a> {
 
         let prev_updates = self.updates.enter_widget_ctx();
 
-        let outer_transform = widget_info.outer.transform();
-        let inner_transform = widget_info.inner.transform();
+        let all_transforms = widget_info.bounds.child_transform();
 
         let r = self.vars.with_widget(widget_id, || {
             f(&mut LayoutContext {
@@ -932,7 +922,7 @@ impl<'a> LayoutContext<'a> {
 
         self.path.pop();
 
-        if outer_transform != widget_info.outer.transform() || inner_transform != widget_info.inner.transform() {
+        if all_transforms != widget_info.bounds.child_transform() {
             self.updates.render_update();
         }
 

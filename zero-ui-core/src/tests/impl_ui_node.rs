@@ -12,7 +12,7 @@ use crate::{
     ui_list::UiNodeVec,
     units::*,
     widget_base::implicit_base,
-    widget_info::{UpdateMask, WidgetBorderInfo, WidgetInfoBuilder, WidgetLayoutInfo, WidgetRenderInfo, WidgetSubscriptions},
+    widget_info::{UpdateMask, WidgetBorderInfo, WidgetBoundsInfo, WidgetInfoBuilder, WidgetRenderInfo, WidgetSubscriptions},
     window::WindowId,
     UiNode, UiNodeList, Widget, WidgetId,
 };
@@ -101,8 +101,7 @@ fn test_trace(node: impl UiNode) {
     let mut info = WidgetInfoBuilder::new(
         window_id,
         ctx.root_id,
-        WidgetLayoutInfo::from_size(l_size),
-        WidgetLayoutInfo::from_size(l_size),
+        WidgetBoundsInfo::new_size(l_size, l_size),
         WidgetBorderInfo::new(),
         WidgetRenderInfo::new(),
         None,
@@ -228,8 +227,7 @@ pub fn default_no_child() {
     let mut info = WidgetInfoBuilder::new(
         window_id,
         ctx.root_id,
-        WidgetLayoutInfo::from_size(desired_size),
-        WidgetLayoutInfo::from_size(desired_size),
+        WidgetBoundsInfo::new_size(desired_size, desired_size),
         WidgetBorderInfo::new(),
         root_rendered.clone(),
         None,

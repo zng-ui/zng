@@ -591,7 +591,7 @@ pub fn scroll_to_command_node(child: impl UiNode) -> impl UiNode {
         child: C,
 
         handle: CommandHandle,
-        scroll_to: Option<(WidgetLayoutInfo, ScrollToMode)>,
+        scroll_to: Option<(WidgetBoundsInfo, ScrollToMode)>,
     }
     #[impl_ui_node(child)]
     impl<C: UiNode> UiNode for ScrollToCommandNode<C> {
@@ -623,7 +623,7 @@ pub fn scroll_to_command_node(child: impl UiNode) -> impl UiNode {
                             if us.is_scrollable() {
                                 // we are a scrollable.
 
-                                let target = target.inner_info();
+                                let target = target.bounds_info();
                                 let mode = request.mode;
 
                                 // will scroll on the next arrange.
@@ -647,7 +647,7 @@ pub fn scroll_to_command_node(child: impl UiNode) -> impl UiNode {
             if let Some((target, mode)) = self.scroll_to.take() {
                 let us = ctx.info_tree.find(ctx.path.widget_id()).unwrap();
                 if let Some(viewport_bounds) = us.viewport() {
-                    let target_bounds = target.bounds();
+                    let target_bounds = PxRect::zero();// TODO
                     match mode {
                         ScrollToMode::Minimal { margin } => {
                             let margin = ctx.with_constrains(

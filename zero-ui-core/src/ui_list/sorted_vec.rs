@@ -1,13 +1,13 @@
 use std::{cell::RefCell, cmp, mem, ops::Deref, rc::Rc};
 
 use crate::{
-    context::{InfoContext, LayoutContext, LayoutMetrics, RenderContext, StateMap, WidgetContext, WithUpdates},
+    context::{InfoContext, LayoutContext, RenderContext, StateMap, WidgetContext, WithUpdates},
     event::EventUpdateArgs,
     render::{FrameBuilder, FrameUpdate},
     ui_list::{PosLayoutArgs, PreLayoutArgs, UiListObserver, UiNodeList, UiNodeVec, WidgetFilterArgs, WidgetList, WidgetVec, WidgetVecRef},
     units::PxSize,
     widget_info::{
-        UpdateSlot, WidgetBorderInfo, WidgetInfoBuilder, WidgetLayout, WidgetLayoutInfo, WidgetLayoutTransform, WidgetRenderInfo,
+        UpdateSlot, WidgetBorderInfo, WidgetBoundsInfo, WidgetInfoBuilder, WidgetLayout, WidgetLayoutTransform, WidgetRenderInfo,
         WidgetSubscriptions,
     },
     BoxedWidget, UiNode, Widget, WidgetId,
@@ -393,12 +393,8 @@ impl WidgetList for SortedWidgetVec {
         self.vec[index].state_mut()
     }
 
-    fn widget_outer_info(&self, index: usize) -> &WidgetLayoutInfo {
-        self.vec[index].outer_info()
-    }
-
-    fn widget_inner_info(&self, index: usize) -> &WidgetLayoutInfo {
-        self.vec[index].inner_info()
+    fn widget_bounds_info(&self, index: usize) -> &WidgetBoundsInfo {
+        self.vec[index].bounds_info()
     }
 
     fn widget_border_info(&self, index: usize) -> &WidgetBorderInfo {
@@ -435,24 +431,24 @@ impl WidgetList for SortedWidgetVec {
         count
     }
 
-    fn widget_outer<F>(&mut self, index: usize, metrics: &LayoutMetrics, wl: &mut WidgetLayout, keep_previous: bool, transform: F)
+    fn widget_outer<F>(&mut self, index: usize, wl: &mut WidgetLayout, keep_previous: bool, transform: F)
     where
         F: FnOnce(&mut WidgetLayoutTransform, PosLayoutArgs),
     {
         let w = &mut self.vec[index];
-        let size = w.outer_info().size();
-        wl.with_outer(metrics, w, keep_previous, |wlt, w| {
+        let size = w.bounds_info().outer_size();
+        wl.with_outer(w, keep_previous, |wlt, w| {
             transform(wlt, PosLayoutArgs::new(index, Some(w.state_mut()), size));
         });
     }
 
-    fn outer_all<F>(&mut self, metrics: &LayoutMetrics, wl: &mut WidgetLayout, keep_previous: bool, mut transform: F)
+    fn outer_all<F>(&mut self, wl: &mut WidgetLayout, keep_previous: bool, mut transform: F)
     where
         F: FnMut(&mut WidgetLayoutTransform, PosLayoutArgs),
     {
         for (i, w) in self.vec.iter_mut().enumerate() {
-            let size = w.outer_info().size();
-            wl.with_outer(metrics, w, keep_previous, |wlt, w| {
+            let size = w.bounds_info().outer_size();
+            wl.with_outer(w, keep_previous, |wlt, w| {
                 transform(wlt, PosLayoutArgs::new(i, Some(w.state_mut()), size));
             })
         }

@@ -118,7 +118,7 @@ pub mod h_stack {
                     |ctx| {
                         size.width = Px(0);
                         for i in 0..self.children.len() {
-                            let o_size = self.children.widget_outer_info(i).size();
+                            let o_size = self.children.widget_bounds_info(i).outer_size();
                             if Some(o_size.height) != ctx.constrains().y.max() {
                                 // only need second pass for items that don't fill
                                 let (a_size, _) = wl.with_child(ctx, |ctx, wl| {
@@ -133,7 +133,7 @@ pub mod h_stack {
                                 }
                             } else {
                                 // item already fills width, but may have moved due to sibling new fill size
-                                self.children.widget_outer(i, ctx.metrics, wl, false, |wlt, _| {
+                                self.children.widget_outer(i, wl, false, |wlt, _| {
                                     wlt.translate(PxVector::new(size.width, Px(0)));
 
                                     if o_size.width > Px(0) {
@@ -162,12 +162,12 @@ pub mod h_stack {
                 }
             }
             if !align.is_fill_y() && align.y > 0.fct() {
-                self.children.outer_all(ctx.metrics, wl, true, |wlt, a| {
+                self.children.outer_all(wl, true, |wlt, a| {
                     let y = (final_size.height - a.size.height) * align.y;
                     wlt.translate(PxVector::new(extra_x, y));
                 });
             } else if extra_x > Px(0) {
-                self.children.outer_all(ctx.metrics, wl, true, |wlt, _| {
+                self.children.outer_all(wl, true, |wlt, _| {
                     wlt.translate(PxVector::new(extra_x, Px(0)));
                 });
             }
@@ -294,7 +294,7 @@ pub mod v_stack {
                     |ctx| {
                         size.height = Px(0);
                         for i in 0..self.children.len() {
-                            let o_size = self.children.widget_outer_info(i).size();
+                            let o_size = self.children.widget_bounds_info(i).outer_size();
                             if Some(o_size.width) != ctx.constrains().x.max() {
                                 // only need second pass for items that don't fill
                                 let (a_size, _) = wl.with_child(ctx, |ctx, wl| {
@@ -309,7 +309,7 @@ pub mod v_stack {
                                 }
                             } else {
                                 // item already fills width, but may have moved due to sibling new fill size
-                                self.children.widget_outer(i, ctx.metrics, wl, false, |wlt, _| {
+                                self.children.widget_outer(i, wl, false, |wlt, _| {
                                     wlt.translate(PxVector::new(Px(0), size.height));
 
                                     if o_size.height > Px(0) {
@@ -338,12 +338,12 @@ pub mod v_stack {
                 }
             }
             if !align.is_fill_x() && align.x > 0.fct() {
-                self.children.outer_all(ctx.metrics, wl, true, |wlt, a| {
+                self.children.outer_all(wl, true, |wlt, a| {
                     let x = (final_size.width - a.size.width) * align.x;
                     wlt.translate(PxVector::new(x, extra_y));
                 });
             } else if extra_y > Px(0) {
-                self.children.outer_all(ctx.metrics, wl, true, |wlt, _| {
+                self.children.outer_all(wl, true, |wlt, _| {
                     wlt.translate(PxVector::new(Px(0), extra_y));
                 });
             }

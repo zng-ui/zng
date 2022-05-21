@@ -1,13 +1,13 @@
 use super::WidgetFilterArgs;
 use crate::{
-    context::{InfoContext, LayoutContext, LayoutMetrics, RenderContext, StateMap, WidgetContext},
+    context::{InfoContext, LayoutContext, RenderContext, StateMap, WidgetContext},
     event::EventUpdateArgs,
     node_vec,
     render::{FrameBuilder, FrameUpdate},
     ui_list::{PosLayoutArgs, PreLayoutArgs, UiListObserver, UiNodeList, UiNodeVec, WidgetList, WidgetVec},
     units::PxSize,
     widget_info::{
-        WidgetBorderInfo, WidgetInfoBuilder, WidgetLayout, WidgetLayoutInfo, WidgetLayoutTransform, WidgetRenderInfo, WidgetSubscriptions,
+        WidgetBorderInfo, WidgetBoundsInfo, WidgetInfoBuilder, WidgetLayout, WidgetLayoutTransform, WidgetRenderInfo, WidgetSubscriptions,
     },
     widget_vec, UiNode, Widget, WidgetId,
 };
@@ -105,16 +105,9 @@ macro_rules! impl_tuples {
                 }
             }
 
-            fn widget_outer_info(&self, index: usize) -> &WidgetLayoutInfo {
+            fn widget_bounds_info(&self, index: usize) -> &WidgetBoundsInfo {
                 match index {
-                    $($n => self.items.$n.outer_info(),)+
-                    _ => panic!("index {index} out of range for length {}", self.len())
-                }
-            }
-
-            fn widget_inner_info(&self, index: usize) -> &WidgetLayoutInfo {
-                match index {
-                    $($n => self.items.$n.inner_info(),)+
+                    $($n => self.items.$n.bounds_info(),)+
                     _ => panic!("index {index} out of range for length {}", self.len())
                 }
             }
@@ -133,15 +126,15 @@ macro_rules! impl_tuples {
                 }
             }
 
-            fn widget_outer<F>(&mut self, index: usize, metrics: &LayoutMetrics, wl: &mut WidgetLayout, keep_previous: bool, transform: F)
+            fn widget_outer<F>(&mut self, index: usize, wl: &mut WidgetLayout, keep_previous: bool, transform: F)
             where
             F: FnOnce(&mut WidgetLayoutTransform, PosLayoutArgs),
             {
                 match index {
                     $($n => {
                         let w = &mut self.items.$n;
-                        let size = w.outer_info().size();
-                        wl.with_outer(metrics, w, keep_previous, |wlt, w| {
+                        let size = w.bounds_info().outer_size();
+                        wl.with_outer(w, keep_previous, |wlt, w| {
                             transform(wlt, PosLayoutArgs::new($n, Some(w.state_mut()), size));
                         });
                     })+
@@ -149,14 +142,14 @@ macro_rules! impl_tuples {
                 }
             }
 
-            fn outer_all<F>(&mut self, metrics: &LayoutMetrics, wl: &mut WidgetLayout, keep_previous: bool, mut transform: F)
+            fn outer_all<F>(&mut self, wl: &mut WidgetLayout, keep_previous: bool, mut transform: F)
             where
                 F: FnMut(&mut WidgetLayoutTransform, PosLayoutArgs),
             {
                 $(
                     let w = &mut self.items.$n;
-                    let size = w.outer_info().size();
-                    wl.with_outer(metrics, w, keep_previous, |wlt, w| {
+                    let size = w.bounds_info().outer_size();
+                    wl.with_outer(w, keep_previous, |wlt, w| {
                         transform(wlt, PosLayoutArgs::new($n, Some(w.state_mut()), size));
                     });
                 )*
@@ -432,11 +425,7 @@ impl WidgetList for WidgetList0 {
         panic!("index {index} out of range for length 0")
     }
 
-    fn widget_outer_info(&self, index: usize) -> &WidgetLayoutInfo {
-        panic!("index {index} out of range for length 0")
-    }
-
-    fn widget_inner_info(&self, index: usize) -> &WidgetLayoutInfo {
+    fn widget_bounds_info(&self, index: usize) -> &WidgetBoundsInfo {
         panic!("index {index} out of range for length 0")
     }
 
@@ -448,14 +437,14 @@ impl WidgetList for WidgetList0 {
         panic!("index {index} out of range for length 0")
     }
 
-    fn widget_outer<F>(&mut self, index: usize, _: &LayoutMetrics, _: &mut WidgetLayout, _: bool, _: F)
+    fn widget_outer<F>(&mut self, index: usize, _: &mut WidgetLayout, _: bool, _: F)
     where
         F: FnOnce(&mut WidgetLayoutTransform, PosLayoutArgs),
     {
         panic!("index {index} out of range for length 0")
     }
 
-    fn outer_all<F>(&mut self, _: &LayoutMetrics, _: &mut WidgetLayout, _: bool, _: F)
+    fn outer_all<F>(&mut self, _: &mut WidgetLayout, _: bool, _: F)
     where
         F: FnMut(&mut WidgetLayoutTransform, PosLayoutArgs),
     {

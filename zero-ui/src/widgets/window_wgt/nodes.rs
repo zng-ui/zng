@@ -12,7 +12,7 @@ use crate::prelude::new_property::*;
 ///
 /// Layered widgets are measured and arranged using the same constrains as the window root widget, the desired
 /// size is discarded, only the root widget desired size can affect the window size. Layered widgets are all layout
-/// and rendered after the window content and from the bottom layer up to the top-most, this means that the [`WidgetLayoutInfo`]
+/// and rendered after the window content and from the bottom layer up to the top-most, this means that the [`WidgetBoundsInfo`]
 /// and [`WidgetRenderInfo`] of normal widgets are always up-to-date when the layered widget is arranged and rendered, so if you
 /// implement custom layouts that align the layered widget with a normal widget using the info values it will always be in sync with
 /// a single layout pass, see [`insert_anchored`] for more details.
@@ -63,12 +63,8 @@ impl WindowLayers {
                 self.widget.state_mut()
             }
 
-            fn outer_info(&self) -> &WidgetLayoutInfo {
-                self.widget.outer_info()
-            }
-
-            fn inner_info(&self) -> &WidgetLayoutInfo {
-                self.widget.inner_info()
+            fn bounds_info(&self) -> &WidgetBoundsInfo {
+                self.widget.bounds_info()
             }
 
             fn border_info(&self) -> &WidgetBorderInfo {
@@ -109,7 +105,7 @@ impl WindowLayers {
             mode: M,
             widget: W,
 
-            anchor_info: Option<(WidgetLayoutInfo, WidgetLayoutInfo, WidgetBorderInfo, WidgetRenderInfo)>,
+            anchor_info: Option<(WidgetBoundsInfo, WidgetBorderInfo, WidgetRenderInfo)>,
 
             desired_size: PxSize,
             interaction: bool,
@@ -151,7 +147,7 @@ impl WindowLayers {
 
             fn init(&mut self, ctx: &mut WidgetContext) {
                 if let Some(w) = ctx.info_tree.find(self.anchor.copy(ctx.vars)) {
-                    self.anchor_info = Some((w.inner_info(), w.outer_info(), w.border_info(), w.render_info()));
+                    self.anchor_info = Some((w.bounds_info(), w.border_info(), w.render_info()));
                 }
 
                 self.interaction = self.mode.get(ctx).interaction;
@@ -170,7 +166,7 @@ impl WindowLayers {
                         self.anchor_info = ctx
                             .info_tree
                             .find(self.anchor.copy(ctx.vars))
-                            .map(|w| (w.inner_info(), w.outer_info(), w.border_info(), w.render_info()));
+                            .map(|w| (w.bounds_info(), w.border_info(), w.render_info()));
                     }
                     self.widget.event(ctx, args);
                 } else {
@@ -183,7 +179,7 @@ impl WindowLayers {
                     self.anchor_info = ctx
                         .info_tree
                         .find(anchor)
-                        .map(|w| (w.inner_info(), w.outer_info(), w.border_info(), w.render_info()));
+                        .map(|w| (w.bounds_info(), w.border_info(), w.render_info()));
                     if self.mode.get(ctx).interaction {
                         ctx.updates.info();
                     }
@@ -288,7 +284,7 @@ impl WindowLayers {
             */
 
             fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-                if let Some((_, _, _, render_info)) = &self.anchor_info {
+                if let Some((_, _, render_info)) = &self.anchor_info {
                     if !self.mode.get(ctx).visibility || render_info.rendered() {
                         frame.push_reference_frame(self.spatial_id, self.transform_key.bind(self.transform), false, |frame| {
                             self.widget.render(ctx, frame);
@@ -301,7 +297,7 @@ impl WindowLayers {
             }
 
             fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
-                if let Some((_, _, _, render_info)) = &self.anchor_info {
+                if let Some((_, _, render_info)) = &self.anchor_info {
                     if !self.mode.get(ctx).visibility || render_info.rendered() {
                         update.update_transform(self.transform_key.update(self.transform));
                         self.widget.render_update(ctx, update);
@@ -322,12 +318,8 @@ impl WindowLayers {
                 self.widget.state_mut()
             }
 
-            fn outer_info(&self) -> &WidgetLayoutInfo {
-                self.widget.outer_info()
-            }
-
-            fn inner_info(&self) -> &WidgetLayoutInfo {
-                self.widget.inner_info()
+            fn bounds_info(&self) -> &WidgetBoundsInfo {
+                self.widget.bounds_info()
             }
 
             fn border_info(&self) -> &WidgetBorderInfo {

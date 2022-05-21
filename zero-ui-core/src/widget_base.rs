@@ -12,7 +12,7 @@ use crate::{
     units::{PxCornerRadius, PxRect, PxSize, RenderTransform},
     var::*,
     widget_info::{
-        UpdateMask, WidgetBorderInfo, WidgetContextInfo, WidgetInfo, WidgetInfoBuilder, WidgetLayout, WidgetLayoutInfo, WidgetRenderInfo,
+        UpdateMask, WidgetBorderInfo, WidgetBoundsInfo, WidgetContextInfo, WidgetInfo, WidgetInfoBuilder, WidgetLayout, WidgetRenderInfo,
         WidgetSubscriptions,
     },
     FillUiNode, UiNode, Widget, WidgetId,
@@ -116,7 +116,6 @@ pub mod implicit_base {
         pub fn children_layout(panel: impl UiNode) -> impl UiNode {
             struct ChildrenLayoutNode<P> {
                 panel: P,
-                info: WidgetLayoutInfo,
                 id: Option<(SpatialFrameId, FrameBindingKey<RenderTransform>)>,
             }
             #[impl_ui_node(
@@ -124,28 +123,28 @@ pub mod implicit_base {
                 delegate_mut = &mut self.panel,
             )]
             impl<P: UiNode> UiNode for ChildrenLayoutNode<P> {
-                fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
-                    info.push_bounds(self.info.clone(), |info| self.panel.info(ctx, info))
-                }
-
                 fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
-                    let transform = self.info.transform();
+                    let transform = ctx.widget_info.bounds.child_in_inner_transform();
 
-                    let size = wl.with_bounds(ctx, self.info.clone(), |ctx, wl| self.panel.layout(ctx, wl));
+                    let size = wl.with_children(ctx, |ctx, wl| self.panel.layout(ctx, wl));
+
                     if self.id.is_none() {
-                        if self.info.transform() != RenderTransform::identity() {
+                        if ctx.widget_info.bounds.child_transform() != RenderTransform::identity() {
                             self.id = Some((SpatialFrameId::new_unique(), FrameBindingKey::new_unique()));
                             ctx.updates.render();
                         }
-                    } else if self.info.transform() != transform {
+                    } else if ctx.widget_info.bounds.child_in_inner_transform() != transform {
                         ctx.updates.render_update();
                     }
+
                     size
                 }
 
                 fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
                     if let Some((id, key)) = &self.id {
-                        frame.push_reference_frame(*id, key.bind(self.info.transform()), false, |frame| self.panel.render(ctx, frame));
+                        frame.push_reference_frame(*id, key.bind(ctx.widget_info.bounds.child_in_inner_transform()), false, |frame| {
+                            self.panel.render(ctx, frame)
+                        });
                     } else {
                         self.panel.render(ctx, frame);
                     }
@@ -153,14 +152,13 @@ pub mod implicit_base {
 
                 fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
                     if let Some((_, key)) = &self.id {
-                        update.update_transform(key.update(self.info.transform()));
+                        update.update_transform(key.update(ctx.widget_info.bounds.child_in_inner_transform()));
                     }
                     self.panel.render_update(ctx, update);
                 }
             }
             ChildrenLayoutNode {
                 panel: panel.cfg_boxed(),
-                info: WidgetLayoutInfo::new(),
                 id: None,
             }
             .cfg_boxed()
@@ -170,48 +168,36 @@ pub mod implicit_base {
         /// to not be a full [`Widget`]. This is important for making properties like *padding* or *content_align* work
         /// for container widgets that accept any [`UiNode`] as content.
         ///
-        /// This node should wrap the outer-most border node in the [`new_child_layout`] constructor, the implicit implementation already does this.
+        /// This node should wrap the outer-most border node in the [`new_child_layout`] constructor, the implicit
+        /// implementation already does this.
         ///
         /// [`new_child_layout`]: super::new_child_layout
         pub fn child_layout(child: impl UiNode) -> impl UiNode {
-            struct LeafTransform {
-                spatial_id: SpatialFrameId,
-                transform: RenderTransform,
-                transform_key: FrameBindingKey<RenderTransform>,
-            }
-            impl LeafTransform {
-                fn new(transform: RenderTransform) -> Self {
-                    Self {
-                        spatial_id: SpatialFrameId::new_unique(),
-                        transform,
-                        transform_key: FrameBindingKey::new_unique(),
-                    }
-                }
-            }
             struct ChildLayoutNode<C> {
                 child: C,
-                transform: Option<Box<LeafTransform>>,
+                id: Option<(SpatialFrameId, FrameBindingKey<RenderTransform>)>,
             }
             #[impl_ui_node(child)]
             impl<C: UiNode> UiNode for ChildLayoutNode<C> {
                 fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
-                    let (size, transform) = wl.with_child(ctx, |ctx, wl| self.child.layout(ctx, wl));
+                    let transform = ctx.widget_info.bounds.child_in_inner_transform();
 
-                    if let Some(transform) = transform {
+                    let (size, needed) = wl.with_child(ctx, |ctx, wl| self.child.layout(ctx, wl));
+
+                    if needed {
                         // no child Widget, we need to render the transform:
 
-                        if let Some(lt) = &mut self.transform {
+                        if self.id.is_some() {
                             // already rendering, just update.
-                            if lt.transform != transform {
-                                lt.transform = transform;
+                            if transform != ctx.widget_info.bounds.child_in_inner_transform() {
                                 ctx.updates.render_update();
                             }
-                        } else if transform != RenderTransform::identity() {
+                        } else if ctx.widget_info.bounds.child_in_inner_transform() != RenderTransform::identity() {
                             // start rendering.
-                            self.transform = Some(Box::new(LeafTransform::new(transform)));
+                            self.id = Some((SpatialFrameId::new_unique(), FrameBindingKey::new_unique()));
                             ctx.updates.render_update();
                         }
-                    } else if self.transform.take().is_some() {
+                    } else if self.id.take().is_some() {
                         // child is now a Widget.
                         ctx.updates.render();
                     }
@@ -219,24 +205,25 @@ pub mod implicit_base {
                     size
                 }
                 fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-                    if let Some(lt) = &self.transform {
-                        frame.push_reference_frame(lt.spatial_id, lt.transform_key.bind(lt.transform), false, |frame| {
+                    if let Some((id, key)) = &self.id {
+                        frame.push_reference_frame(*id, key.bind(ctx.widget_info.bounds.child_in_inner_transform()), false, |frame| {
                             self.child.render(ctx, frame)
                         });
                     } else {
-                        self.child.render(ctx, frame)
+                        self.child.render(ctx, frame);
                     }
                 }
+
                 fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
-                    if let Some(lt) = &self.transform {
-                        update.update_transform(lt.transform_key.update(lt.transform));
+                    if let Some((_, key)) = &self.id {
+                        update.update_transform(key.update(ctx.widget_info.bounds.child_in_inner_transform()));
                     }
-                    self.child.render_update(ctx, update)
+                    self.child.render_update(ctx, update);
                 }
             }
             ChildLayoutNode {
                 child: child.cfg_boxed(),
-                transform: None,
+                id: None,
             }
             .cfg_boxed()
         }
@@ -291,8 +278,7 @@ pub mod implicit_base {
                     size
                 }
                 fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-                    let mut transform = ctx.widget_info.inner.transform();
-                    transform = transform.then(&ctx.widget_info.outer.transform());
+                    let transform = ctx.widget_info.bounds.inner_transform();
                     frame.push_inner(self.transform_key.bind(transform), |frame| {
                         match HitTestMode::get(ctx.vars) {
                             HitTestMode::RoundedBounds => {
@@ -308,8 +294,7 @@ pub mod implicit_base {
                     });
                 }
                 fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
-                    let mut transform = ctx.widget_info.inner.transform();
-                    transform = transform.then(&ctx.widget_info.outer.transform());
+                    let transform = ctx.widget_info.bounds.inner_transform();
                     update.update_transform(self.transform_key.update(transform));
                     self.child.render_update(ctx, update);
                 }
@@ -352,8 +337,7 @@ pub mod implicit_base {
                         if mem::take(&mut self.pending_updates.borrow_mut().info) {
                             info.push_widget(
                                 self.id,
-                                self.info.outer.clone(),
-                                self.info.inner.clone(),
+                                self.info.bounds.clone(),
                                 self.info.border.clone(),
                                 self.info.render.clone(),
                                 |info| self.child.info(ctx, info),
@@ -495,12 +479,8 @@ pub mod implicit_base {
                     &mut self.state.0
                 }
 
-                fn outer_info(&self) -> &WidgetLayoutInfo {
-                    &self.info.outer
-                }
-
-                fn inner_info(&self) -> &WidgetLayoutInfo {
-                    &self.info.inner
+                fn bounds_info(&self) -> &WidgetBoundsInfo {
+                    &self.info.bounds
                 }
 
                 fn border_info(&self) -> &WidgetBorderInfo {

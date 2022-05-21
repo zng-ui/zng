@@ -208,12 +208,8 @@ impl<W: WidgetList> WidgetList for ZSortedWidgetList<W> {
         self.list.widget_state_mut(index)
     }
 
-    fn widget_outer_info(&self, index: usize) -> &WidgetLayoutInfo {
-        self.list.widget_outer_info(index)
-    }
-
-    fn widget_inner_info(&self, index: usize) -> &WidgetLayoutInfo {
-        self.list.widget_inner_info(index)
+    fn widget_bounds_info(&self, index: usize) -> &WidgetBoundsInfo {
+        self.list.widget_bounds_info(index)
     }
 
     fn widget_border_info(&self, index: usize) -> &WidgetBorderInfo {
@@ -235,8 +231,7 @@ impl<W: WidgetList> WidgetList for ZSortedWidgetList<W> {
                 let i = i as usize;
                 let args = WidgetFilterArgs {
                     index: i,
-                    outer_info: self.widget_outer_info(i),
-                    inner_info: self.widget_inner_info(i),
+                    bounds_info: self.widget_bounds_info(i),
                     border_info: self.widget_border_info(i),
                     render_info: self.widget_render_info(i),
                     state: self.widget_state(i),
@@ -248,18 +243,18 @@ impl<W: WidgetList> WidgetList for ZSortedWidgetList<W> {
         }
     }
 
-    fn widget_outer<F>(&mut self, index: usize, metrics: &LayoutMetrics, wl: &mut WidgetLayout, keep_previous: bool, transform: F)
+    fn widget_outer<F>(&mut self, index: usize, wl: &mut WidgetLayout, keep_previous: bool, transform: F)
     where
         F: FnOnce(&mut WidgetLayoutTransform, PosLayoutArgs),
     {
-        self.list.widget_outer(index, metrics, wl, keep_previous, transform)
+        self.list.widget_outer(index, wl, keep_previous, transform)
     }
 
-    fn outer_all<F>(&mut self, metrics: &LayoutMetrics, wl: &mut WidgetLayout, keep_previous: bool, transform: F)
+    fn outer_all<F>(&mut self, wl: &mut WidgetLayout, keep_previous: bool, transform: F)
     where
         F: FnMut(&mut WidgetLayoutTransform, PosLayoutArgs),
     {
-        self.list.outer_all(metrics, wl, keep_previous, transform)
+        self.list.outer_all(wl, keep_previous, transform)
     }
 }
 

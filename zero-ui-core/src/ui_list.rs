@@ -1,12 +1,12 @@
 //! UI node and widget lists abstraction.
 
 use crate::{
-    context::{InfoContext, LayoutContext, LayoutMetrics, RenderContext, StateMap, WidgetContext},
+    context::{InfoContext, LayoutContext, RenderContext, StateMap, WidgetContext},
     event::EventUpdateArgs,
     render::{FrameBuilder, FrameUpdate},
     units::{PxConstrains2d, PxSize},
     widget_info::{
-        WidgetBorderInfo, WidgetInfoBuilder, WidgetLayout, WidgetLayoutInfo, WidgetLayoutTransform, WidgetRenderInfo, WidgetSubscriptions,
+        WidgetBorderInfo, WidgetBoundsInfo, WidgetInfoBuilder, WidgetLayout, WidgetLayoutTransform, WidgetRenderInfo, WidgetSubscriptions,
     },
     WidgetId,
 };
@@ -208,10 +208,8 @@ pub struct WidgetFilterArgs<'a> {
     /// The widget index in the list.
     pub index: usize,
 
-    /// The [`Widget::outer_info`].
-    pub outer_info: &'a WidgetLayoutInfo,
-    /// The [`Widget::inner_info`].
-    pub inner_info: &'a WidgetLayoutInfo,
+    /// The [`Widget::bounds_info`].
+    pub bounds_info: &'a WidgetBoundsInfo,
     /// The [`Widget::border_info`].
     pub border_info: &'a WidgetBorderInfo,
     /// The [`Widget::render_info`].
@@ -224,8 +222,7 @@ impl<'a> WidgetFilterArgs<'a> {
     pub fn get(list: &'a impl WidgetList, index: usize) -> Self {
         WidgetFilterArgs {
             index,
-            outer_info: list.widget_outer_info(index),
-            inner_info: list.widget_inner_info(index),
+            bounds_info: list.widget_bounds_info(index),
             border_info: list.widget_border_info(index),
             render_info: list.widget_render_info(index),
             state: list.widget_state(index),
@@ -236,8 +233,7 @@ impl<'a> WidgetFilterArgs<'a> {
     pub fn new(index: usize, widget: &'a impl Widget) -> Self {
         WidgetFilterArgs {
             index,
-            outer_info: widget.outer_info(),
-            inner_info: widget.inner_info(),
+            bounds_info: widget.bounds_info(),
             border_info: widget.border_info(),
             render_info: widget.render_info(),
             state: widget.state(),
@@ -277,14 +273,10 @@ pub trait WidgetList: UiNodeList {
     /// Exclusive reference the state of the widget at the `index`.
     fn widget_state_mut(&mut self, index: usize) -> &mut StateMap;
 
-    /// Gets the outer bounds layout info of the widget at the `index`.
+    /// Gets the bounds layout info of the widget at the `index`.
     ///
-    /// See [`Widget::outer_info`] for more details.
-    fn widget_outer_info(&self, index: usize) -> &WidgetLayoutInfo;
-    /// Gets the inner bounds layout info of the widget at the `index`.
-    ///
-    /// See [`Widget::inner_info`] for more details.
-    fn widget_inner_info(&self, index: usize) -> &WidgetLayoutInfo;
+    /// See [`Widget::bounds_info`] for more details.
+    fn widget_bounds_info(&self, index: usize) -> &WidgetBoundsInfo;
 
     /// Gets the border and corners info of the widget at the `index`.
     ///
@@ -302,12 +294,12 @@ pub trait WidgetList: UiNodeList {
         F: FnMut(WidgetFilterArgs) -> bool;
 
     /// Calls [`WidgetLayout::with_outer`] in only the `index` widget.
-    fn widget_outer<F>(&mut self, index: usize, metrics: &LayoutMetrics, wl: &mut WidgetLayout, keep_previous: bool, transform: F)
+    fn widget_outer<F>(&mut self, index: usize, wl: &mut WidgetLayout, keep_previous: bool, transform: F)
     where
         F: FnOnce(&mut WidgetLayoutTransform, PosLayoutArgs);
 
     /// Calls [`WidgetLayout::with_outer`] in all widgets on the list.
-    fn outer_all<F>(&mut self, metrics: &LayoutMetrics, wl: &mut WidgetLayout, keep_previous: bool, transform: F)
+    fn outer_all<F>(&mut self, wl: &mut WidgetLayout, keep_previous: bool, transform: F)
     where
         F: FnMut(&mut WidgetLayoutTransform, PosLayoutArgs);
 }

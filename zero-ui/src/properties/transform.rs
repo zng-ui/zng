@@ -36,7 +36,7 @@ pub fn transform(child: impl UiNode, transform: impl IntoVar<Transform>) -> impl
             let size = self.child.layout(ctx, wl);
 
             let transform = self.transform.get(ctx.vars).layout(ctx.metrics);
-            let av_size = ctx.widget_info.inner.size();
+            let av_size = ctx.widget_info.bounds.inner_size();
             let default_origin = PxPoint::new(av_size.width / 2.0, av_size.height / 2.0);
             let origin = ctx.with_constrains(
                 |c| c.with_max_size(av_size).with_fill(true, true),

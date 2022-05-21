@@ -1,5 +1,5 @@
 use crate::{
-    context::{InfoContext, LayoutContext, LayoutMetrics, RenderContext, StateMap, WidgetContext},
+    context::{InfoContext, LayoutContext, RenderContext, StateMap, WidgetContext},
     event::EventUpdateArgs,
     render::{FrameBuilder, FrameUpdate},
     ui_list::{
@@ -7,7 +7,7 @@ use crate::{
     },
     units::PxSize,
     widget_info::{
-        WidgetBorderInfo, WidgetInfoBuilder, WidgetLayout, WidgetLayoutInfo, WidgetLayoutTransform, WidgetRenderInfo, WidgetSubscriptions,
+        WidgetBorderInfo, WidgetBoundsInfo, WidgetInfoBuilder, WidgetLayout, WidgetLayoutTransform, WidgetRenderInfo, WidgetSubscriptions,
     },
     WidgetId,
 };
@@ -210,21 +210,12 @@ impl<A: WidgetList, B: WidgetList> WidgetList for WidgetListChain<A, B> {
         }
     }
 
-    fn widget_outer_info(&self, index: usize) -> &WidgetLayoutInfo {
+    fn widget_bounds_info(&self, index: usize) -> &WidgetBoundsInfo {
         let a_len = self.0.len();
         if index < a_len {
-            self.0.widget_outer_info(index)
+            self.0.widget_bounds_info(index)
         } else {
-            self.1.widget_outer_info(index - a_len)
-        }
-    }
-
-    fn widget_inner_info(&self, index: usize) -> &WidgetLayoutInfo {
-        let a_len = self.0.len();
-        if index < a_len {
-            self.0.widget_inner_info(index)
-        } else {
-            self.1.widget_inner_info(index - a_len)
+            self.1.widget_bounds_info(index - a_len)
         }
     }
 
@@ -246,25 +237,25 @@ impl<A: WidgetList, B: WidgetList> WidgetList for WidgetListChain<A, B> {
         }
     }
 
-    fn widget_outer<F>(&mut self, index: usize, metrics: &LayoutMetrics, wl: &mut WidgetLayout, keep_previous: bool, transform: F)
+    fn widget_outer<F>(&mut self, index: usize, wl: &mut WidgetLayout, keep_previous: bool, transform: F)
     where
         F: FnOnce(&mut WidgetLayoutTransform, PosLayoutArgs),
     {
         let a_len = self.0.len();
         if index < a_len {
-            self.0.widget_outer(index, metrics, wl, keep_previous, transform);
+            self.0.widget_outer(index, wl, keep_previous, transform);
         } else {
-            self.1.widget_outer(index - a_len, metrics, wl, keep_previous, transform);
+            self.1.widget_outer(index - a_len, wl, keep_previous, transform);
         }
     }
 
-    fn outer_all<F>(&mut self, metrics: &LayoutMetrics, wl: &mut WidgetLayout, keep_previous: bool, mut transform: F)
+    fn outer_all<F>(&mut self, wl: &mut WidgetLayout, keep_previous: bool, mut transform: F)
     where
         F: FnMut(&mut WidgetLayoutTransform, PosLayoutArgs),
     {
-        self.0.outer_all(metrics, wl, keep_previous, &mut transform);
+        self.0.outer_all(wl, keep_previous, &mut transform);
         let offset = self.0.len();
-        self.1.outer_all(metrics, wl, keep_previous, |wlt, mut args| {
+        self.1.outer_all(wl, keep_previous, |wlt, mut args| {
             args.index += offset;
             transform(wlt, args);
         })

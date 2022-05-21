@@ -1139,8 +1139,7 @@ impl ContentCtrl {
             let mut info = WidgetInfoBuilder::new(
                 *ctx.window_id,
                 self.root_id,
-                self.root_info.outer.clone(),
-                self.root_info.inner.clone(),
+                self.root_info.bounds.clone(),
                 self.root_info.border.clone(),
                 self.root_info.render.clone(),
                 self.used_info_builder.take(),

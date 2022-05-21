@@ -5,7 +5,7 @@ use parking_lot::Mutex;
 use crate::{
     context::*,
     event::AnyEventUpdate,
-    widget_info::{WidgetBorderInfo, WidgetInfoBuilder, WidgetLayout, WidgetLayoutInfo, WidgetRenderInfo, WidgetSubscriptions},
+    widget_info::{WidgetBorderInfo, WidgetBoundsInfo, WidgetInfoBuilder, WidgetLayout, WidgetRenderInfo, WidgetSubscriptions},
     IdNameError,
 };
 use crate::{crate_util::NameIdMap, units::*};
@@ -458,15 +458,10 @@ pub trait Widget: UiNode {
     /// Exclusive borrow the widget lazy state.
     fn state_mut(&mut self) -> &mut StateMap;
 
-    /// Outer-bounds layout information.
+    /// Bounds layout information.
     ///
     /// The information is kept up-to-date, updating every arrange.
-    fn outer_info(&self) -> &WidgetLayoutInfo;
-
-    /// Inner-bounds layout information.
-    ///
-    /// The information is kept up-to-date, updating every arrange.
-    fn inner_info(&self) -> &WidgetLayoutInfo;
+    fn bounds_info(&self) -> &WidgetBoundsInfo;
 
     /// Border and corner radius information.
     ///
@@ -528,7 +523,7 @@ pub trait Widget: UiNode {
         ctx.layout_context(
             font_size,
             font_size,
-            self.outer_info().size(),
+            self.bounds_info().outer_size(),
             1.0.fct(),
             96.0,
             LayoutMask::all(),
@@ -594,8 +589,7 @@ pub trait WidgetBoxed: UiNodeBoxed {
     fn id_boxed(&self) -> WidgetId;
     fn state_boxed(&self) -> &StateMap;
     fn state_mut_boxed(&mut self) -> &mut StateMap;
-    fn outer_info_boxed(&self) -> &WidgetLayoutInfo;
-    fn inner_info_boxed(&self) -> &WidgetLayoutInfo;
+    fn bounds_info_boxed(&self) -> &WidgetBoundsInfo;
     fn border_info_boxed(&self) -> &WidgetBorderInfo;
     fn render_info_boxed(&self) -> &WidgetRenderInfo;
 }
@@ -612,12 +606,8 @@ impl<W: Widget> WidgetBoxed for W {
         self.state_mut()
     }
 
-    fn outer_info_boxed(&self) -> &WidgetLayoutInfo {
-        self.outer_info()
-    }
-
-    fn inner_info_boxed(&self) -> &WidgetLayoutInfo {
-        self.inner_info()
+    fn bounds_info_boxed(&self) -> &WidgetBoundsInfo {
+        self.bounds_info()
     }
 
     fn border_info_boxed(&self) -> &WidgetBorderInfo {
@@ -686,12 +676,8 @@ impl Widget for BoxedWidget {
         self.as_mut().state_mut_boxed()
     }
 
-    fn outer_info(&self) -> &WidgetLayoutInfo {
-        self.as_ref().outer_info_boxed()
-    }
-
-    fn inner_info(&self) -> &WidgetLayoutInfo {
-        self.as_ref().inner_info_boxed()
+    fn bounds_info(&self) -> &WidgetBoundsInfo {
+        self.as_ref().bounds_info_boxed()
     }
 
     fn border_info(&self) -> &WidgetBorderInfo {

@@ -169,7 +169,7 @@ pub mod uniform_grid {
             // we don't assign cells for collapsed widgets, if the widget has not changed
             // from the previous layout everything is done in one pass, otherwise we do
             // a second pass with the updated count.
-            let mut count = self.children.count(|c| c.outer_info.size() != PxSize::zero());
+            let mut count = self.children.count(|c| c.bounds_info.outer_size() != PxSize::zero());
             if count == 0 {
                 count = self.children.len();
             }
@@ -273,7 +273,7 @@ pub mod uniform_grid {
 
             let mut cells = CellsIter::new(cell_size, columns, first_column as i32, spacing);
 
-            self.children.outer_all(ctx.metrics, wl, false, |wlt, a| {
+            self.children.outer_all(wl, false, |wlt, a| {
                 if a.size != PxSize::zero() {
                     if let Some(offset) = cells.next() {
                         wlt.translate(offset);
