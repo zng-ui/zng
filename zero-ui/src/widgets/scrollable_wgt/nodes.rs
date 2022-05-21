@@ -647,7 +647,7 @@ pub fn scroll_to_command_node(child: impl UiNode) -> impl UiNode {
             if let Some((target, mode)) = self.scroll_to.take() {
                 let us = ctx.info_tree.find(ctx.path.widget_id()).unwrap();
                 if let Some(viewport_bounds) = us.viewport() {
-                    let target_bounds = PxRect::zero();// TODO
+                    let target_bounds = PxRect::zero(); // TODO
                     match mode {
                         ScrollToMode::Minimal { margin } => {
                             let margin = ctx.with_constrains(

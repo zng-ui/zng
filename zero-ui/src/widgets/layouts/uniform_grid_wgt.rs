@@ -192,8 +192,8 @@ pub mod uniform_grid {
                 size_final = true;
 
                 cell_size = PxSize::new(
-                    (panel_size.width - spacing.column / Px(2)) / Px(columns),
-                    (panel_size.height - spacing.row / Px(2)) / Px(rows),
+                    (panel_size.width + spacing.column) / Px(columns) - spacing.column,
+                    (panel_size.height + spacing.row) / Px(rows) - spacing.row,
                 );
             }
 
@@ -249,16 +249,16 @@ pub mod uniform_grid {
                     size_final = true;
 
                     panel_size = PxSize::new(
-                        (cell_size.width + spacing.column / Px(2)) * Px(columns),
-                        (cell_size.height + spacing.row / Px(2)) * Px(rows),
+                        (cell_size.width + spacing.column) * Px(columns) - spacing.column,
+                        (cell_size.height + spacing.row) * Px(rows) - spacing.row,
                     );
                     let clamped = constrains.fill_size_or(panel_size);
                     if clamped != panel_size {
                         panel_size = clamped;
 
                         cell_size = PxSize::new(
-                            (panel_size.width - spacing.column / Px(2)) / Px(columns),
-                            (panel_size.height - spacing.row / Px(2)) / Px(rows),
+                            (panel_size.width + spacing.column) / Px(columns) - spacing.column,
+                            (panel_size.height + spacing.row) / Px(rows) - spacing.row,
                         );
                     }
 

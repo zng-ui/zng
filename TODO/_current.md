@@ -5,7 +5,6 @@
 * Scrollable.
     - Panorama image set to fill.
 * Layers & Custom transforms info.
-* Uniform grid wrong spacing? See calculator example.
 * Headless screenshot did not align.
 
 * Fix all warnings.

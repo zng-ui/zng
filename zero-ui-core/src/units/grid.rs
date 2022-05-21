@@ -161,6 +161,10 @@ pub struct PxGridSpacing {
     pub row: Px,
 }
 impl PxGridSpacing {
+    /// New grid spacing
+    pub fn new(column: Px, row: Px) -> Self {
+        Self { column, row }
+    }
     /// Zero spacing.
     pub fn zero() -> Self {
         PxGridSpacing { column: Px(0), row: Px(0) }

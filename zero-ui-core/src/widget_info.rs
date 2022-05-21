@@ -1179,15 +1179,15 @@ impl<'a> WidgetInfo<'a> {
 
     /// Gets the parent space, if `parent_id` is one of the widget's ancestors. The widget's transforms
     /// are relative to this space, so the inner transform in the parent is `inner.then(&parent)`.
-    /// 
+    ///
     /// Returns identity if the widget is the parent id.
     pub fn parent_transform(self, parent_id: WidgetId) -> Option<ParentChildTransform> {
         let mut t = RenderTransform::identity();
-        
+
         if parent_id == self.widget_id() {
-            return Some(ParentChildTransform(t));   
+            return Some(ParentChildTransform(t));
         }
-        
+
         for p in self.ancestors() {
             if p.widget_id() == parent_id {
                 return Some(ParentChildTransform(t));
