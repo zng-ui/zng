@@ -80,7 +80,9 @@ impl WidgetLayout {
         let transform = mem::take(&mut self.t.transform_buf);
         ctx.widget_info.bounds.set_outer_transform(transform);
 
-        let r = layout(ctx, self);
+        let size = layout(ctx, self);
+
+        ctx.widget_info.bounds.set_outer_size(size);
 
         #[cfg(debug_assertions)]
         if !self.known_collapsed && (self.known.is_none() || !matches!(self.known_target, KnownTarget::Inner)) {
@@ -91,7 +93,7 @@ impl WidgetLayout {
         self.known = Some(ctx.widget_info.bounds.clone());
         self.known_target = KnownTarget::Outer;
 
-        r
+        size
     }
 
     /// Defines a widget inner-bounds scope, applies pending transforms to the inner transform,
@@ -114,15 +116,16 @@ impl WidgetLayout {
         ctx.widget_info.bounds.set_inner_transform(transform);
         ctx.widget_info.bounds.set_child_transform(RenderTransform::identity());
 
-        let r = ContextBorders::with_inner(ctx, |ctx| layout(ctx, self));
+        let size = ContextBorders::with_inner(ctx, |ctx| layout(ctx, self));
 
+        ctx.widget_info.bounds.set_inner_size(size);
         // TODO baseline?
 
         // setup returning transforms target.
         self.known = Some(ctx.widget_info.bounds.clone());
         self.known_target = KnownTarget::Inner;
 
-        r
+        size
     }
 
     /// Defines a widget child scope, drops the current layout target, calls `layout`, then if no transform targets where set
