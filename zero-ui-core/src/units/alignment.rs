@@ -58,6 +58,8 @@ impl Align {
 
     /// Returns `true` if [`y`] is a special value that indicates the contents must be aligned by their baseline.
     ///
+    /// If this is `true` the *y* alignment should be `BOTTOM` plus the baseline offset.
+    ///
     /// [`y`]: Align::y
     pub fn is_baseline(self) -> bool {
         self.y.0.is_infinite() && self.y.0.is_sign_negative()
@@ -87,13 +89,18 @@ impl Align {
         if !self.is_fill_x() {
             offset.x = (size.width - child_size.width) * self.x.0;
         }
+
+        let baseline = self.is_baseline();
+
         if !self.is_fill_y() {
-            offset.y = (size.height - child_size.height) * self.y.0;
+            let y = if baseline { 1.0 } else { self.y.0 };
+
+            offset.y = (size.height - child_size.height) * y;
         }
 
         wl.translate(offset);
 
-        if self.is_baseline() {
+        if baseline {
             wl.translate_baseline(1.0);
         }
 

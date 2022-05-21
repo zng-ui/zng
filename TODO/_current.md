@@ -1,6 +1,5 @@
 # Pre-Merge
 
-* Baseline align.
 * Layers & Custom transforms info.
 
 * Merge master -> layout (has some scrollable updates).

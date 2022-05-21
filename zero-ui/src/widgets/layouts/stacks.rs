@@ -161,20 +161,22 @@ pub mod h_stack {
             } else if extra_width > Px(0) {
                 extra_x = extra_width * align.x;
             }
-            if !align.is_fill_y() && align.y > 0.fct() {
+
+            let is_baseline = align.is_baseline();
+            if !align.is_fill_y() && (is_baseline || align.y > 0.fct()) {
+                let y = if is_baseline { 1.fct() } else { align.y };
+
                 self.children.outer_all(wl, true, |wlt, a| {
-                    let y = (best_size.height - a.size.height) * align.y;
+                    let y = (best_size.height - a.size.height) * y;
                     wlt.translate(PxVector::new(extra_x, y));
+
+                    if is_baseline {
+                        wlt.translate_baseline(1.0);
+                    }
                 });
             } else if extra_x > Px(0) {
                 self.children.outer_all(wl, true, |wlt, _| {
                     wlt.translate(PxVector::new(extra_x, Px(0)));
-                });
-            }
-
-            if align.is_baseline() {
-                self.children.outer_all(wl, true, |wlt, _| {
-                    wlt.translate_baseline(1.0);
                 });
             }
 
@@ -336,28 +338,34 @@ pub mod v_stack {
             let extra_height = best_size.height - size.height;
             let mut extra_y = Px(0);
 
+            let is_baseline = align.is_baseline();
+
             if align.is_fill_y() {
                 if extra_height != Px(0) {
                     // TODO distribute/take height
                 }
             } else if extra_height > Px(0) {
-                extra_y = extra_height * align.x;
-            }
-            if extra_height > Px(0) {
-                if align.is_fill_y() {
-                    // TODO distribute height
-                } else {
-                    extra_y = extra_height * align.y;
-                }
+                let y = if is_baseline { 1.fct() } else { align.y };
+                extra_y = extra_height * y;
             }
             if !align.is_fill_x() && align.x > 0.fct() {
                 self.children.outer_all(wl, true, |wlt, a| {
                     let x = (best_size.width - a.size.width) * align.x;
                     wlt.translate(PxVector::new(x, extra_y));
+                    if is_baseline {
+                        wlt.translate_baseline(1.0);
+                    }
                 });
             } else if extra_y > Px(0) {
                 self.children.outer_all(wl, true, |wlt, _| {
                     wlt.translate(PxVector::new(Px(0), extra_y));
+                    if is_baseline {
+                        wlt.translate_baseline(1.0);
+                    }
+                });
+            } else if is_baseline {
+                self.children.outer_all(wl, true, |wlt, _| {
+                    wlt.translate_baseline(1.0);
                 });
             }
 

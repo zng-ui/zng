@@ -807,3 +807,51 @@ pub fn height(child: impl UiNode, height: impl IntoVar<Length>) -> impl UiNode {
         height: height.into_var(),
     }
 }
+
+/// Set or overwrite the baseline of the widget.
+///
+/// The `baseline` is a vertical offset from the bottom edge of the widget's inner bounds up, it defines the
+/// line where the widget naturally *sits*, some widgets like [`text!`] have a non-zero default baseline, most others leave it at zero.
+/// 
+/// [`text!`]: mod@crate::widgets::text
+#[property(border, default(Length::Default))]
+pub fn baseline(child: impl UiNode, baseline: impl IntoVar<Length>) -> impl UiNode {
+    struct BaselineNode<C, B> {
+        child: C,
+        baseline: B,
+    }
+    #[impl_ui_node(child)]
+    impl<C: UiNode, B: Var<Length>> UiNode for BaselineNode<C, B> {
+        fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
+            subs.var(ctx, &self.baseline);
+            self.child.subscriptions(ctx, subs);
+        }
+
+        fn update(&mut self, ctx: &mut WidgetContext) {
+            if self.baseline.is_new(ctx) {
+                ctx.updates.layout();
+            }
+            self.child.update(ctx);
+        }
+
+        fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
+            let size = self.child.layout(ctx, wl);
+
+            let inner_size = ctx.widget_info.bounds.inner_size();
+            let default = ctx.widget_info.bounds.baseline();
+
+            let baseline = ctx.with_constrains(
+                |c| c.with_max_size(inner_size).with_fill(true, true),
+                |ctx| self.baseline.get(ctx.vars).layout(ctx.metrics.for_y(), |_| default),
+            );
+            wl.set_baseline(baseline);
+
+            size
+        }
+    }
+    BaselineNode {
+        child: child.cfg_boxed(),
+        baseline: baseline.into_var(),
+    }
+    .cfg_boxed()
+}
