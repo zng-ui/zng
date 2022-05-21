@@ -5,8 +5,8 @@
 * Scrollable.
     - Panorama image set to fill.
 * Layers & Custom transforms info.
-    - Replace LayoutInfo to a single one per-widget that contains all the transforms applied by the widget?
-    - Right now we have "outer" applied with "inner", could be a single entry?
+* Uniform grid wrong spacing? See calculator example.
+* Headless screenshot did not align.
 
 * Fix all warnings.
 * Pass all tests.
