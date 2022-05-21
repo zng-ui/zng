@@ -150,20 +150,20 @@ pub mod h_stack {
                 // spacing is only in between items.
                 size.width -= spacing;
             }
-            let final_size = ctx.constrains().fill_size_or(size);
-            let extra_width = final_size.width - size.width;
+            let best_size = ctx.constrains().fill_size_or(size);
+            let extra_width = best_size.width - size.width;
             let mut extra_x = Px(0);
 
-            if extra_width > Px(0) {
-                if align.is_fill_x() {
-                    // TODO distribute width
-                } else {
-                    extra_x = extra_width * align.x;
+            if align.is_fill_x() {
+                if extra_width != Px(0) {
+                    // TODO distribute/take width
                 }
+            } else if extra_width > Px(0) {
+                extra_x = extra_width * align.x;
             }
             if !align.is_fill_y() && align.y > 0.fct() {
                 self.children.outer_all(wl, true, |wlt, a| {
-                    let y = (final_size.height - a.size.height) * align.y;
+                    let y = (best_size.height - a.size.height) * align.y;
                     wlt.translate(PxVector::new(extra_x, y));
                 });
             } else if extra_x > Px(0) {
@@ -172,7 +172,7 @@ pub mod h_stack {
                 });
             }
 
-            final_size
+            best_size.max(size)
         }
     }
 }
@@ -326,10 +326,17 @@ pub mod v_stack {
                 // spacing is only in between items.
                 size.height -= spacing;
             }
-            let final_size = ctx.constrains().fill_size_or(size);
-            let extra_height = final_size.height - size.height;
+            let best_size = ctx.constrains().fill_size_or(size);
+            let extra_height = best_size.height - size.height;
             let mut extra_y = Px(0);
 
+            if align.is_fill_y() {
+                if extra_height != Px(0) {
+                    // TODO distribute/take height
+                }
+            } else if extra_height > Px(0) {
+                extra_y = extra_height * align.x;
+            }
             if extra_height > Px(0) {
                 if align.is_fill_y() {
                     // TODO distribute height
@@ -339,7 +346,7 @@ pub mod v_stack {
             }
             if !align.is_fill_x() && align.x > 0.fct() {
                 self.children.outer_all(wl, true, |wlt, a| {
-                    let x = (final_size.width - a.size.width) * align.x;
+                    let x = (best_size.width - a.size.width) * align.x;
                     wlt.translate(PxVector::new(x, extra_y));
                 });
             } else if extra_y > Px(0) {
@@ -348,7 +355,7 @@ pub mod v_stack {
                 });
             }
 
-            final_size
+            best_size.max(size)
         }
     }
 }

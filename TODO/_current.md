@@ -1,11 +1,12 @@
 # Pre-Merge
 
-* Align content larger then max? See hit_test example.
+* Layers & Custom transforms info.
+
 * Baseline align.
+
+* Merge master -> layout (has some scrollable updates).
 * Scrollable.
     - Panorama image set to fill.
-* Layers & Custom transforms info.
-* Headless screenshot did not align.
 
 * Fix all warnings.
 * Pass all tests.
@@ -15,3 +16,4 @@
 
 * Cursor demo, cursor does not clear on mouse-leave.
 * Master branch TODOs.
+* Fix text final size, either clip or return accurate size.

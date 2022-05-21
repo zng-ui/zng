@@ -208,6 +208,9 @@ pub trait UiNode: 'static {
     fn update(&mut self, ctx: &mut WidgetContext);
 
     /// Called every time a layout update is requested.
+    /// 
+    /// Implementers must try to fit their size inside the [`constrains`] as best as it can and return an accurate final size. If
+    /// the size breaks the constrains the widget may end-up clipped.
     ///
     /// # Arguments
     ///
@@ -218,6 +221,8 @@ pub trait UiNode: 'static {
     /// # Returns
     ///
     /// Returns the computed node size, this will end-up influencing the size of the widget inner or outer bounds.
+    /// 
+    /// [`constrains`]: LayoutMetrics::constrains
     fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize;
 
     /// Called every time a new frame must be rendered.
