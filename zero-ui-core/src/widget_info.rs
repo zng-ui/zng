@@ -57,8 +57,7 @@ impl WidgetLayout {
         let mut wl = Self {
             t: WidgetLayoutTransform {
                 transform_buf: RenderTransform::identity(),
-                baseline: Length::default(),
-                translate_baseline: 0.0,
+                baseline: Px(0),
                 known: None,
                 known_target: KnownTarget::Outer,
                 known_collapsed: false,
@@ -75,10 +74,10 @@ impl WidgetLayout {
     /// [`implicit_base::nodes::widget`]: crate::widget_base::implicit_base::nodes::widget
     pub fn with_widget(&mut self, ctx: &mut LayoutContext, layout: impl FnOnce(&mut LayoutContext, &mut Self) -> PxSize) -> PxSize {
         self.known = None; // in case of WidgetList.
+        self.baseline = Px(0);
 
         // drain preview transforms.
-        let transform = mem::take(&mut self.t.transform_buf);
-        ctx.widget_info.bounds.set_outer_transform(transform);
+        ctx.widget_info.bounds.set_outer_transform(mem::take(&mut self.transform_buf));
 
         let size = layout(ctx, self);
 
@@ -112,14 +111,12 @@ impl WidgetLayout {
         self.known = None;
 
         // drain preview transforms.
-        let transform = mem::take(&mut self.t.transform_buf);
-        ctx.widget_info.bounds.set_inner_transform(transform);
-        ctx.widget_info.bounds.set_child_transform(RenderTransform::identity());
+        ctx.widget_info.bounds.set_inner_transform(mem::take(&mut self.transform_buf));
+        ctx.widget_info.bounds.set_baseline(mem::take(&mut self.baseline));
 
         let size = ContextBorders::with_inner(ctx, |ctx| layout(ctx, self));
 
         ctx.widget_info.bounds.set_inner_size(size);
-        // TODO baseline?
 
         // setup returning transforms target.
         self.known = Some(ctx.widget_info.bounds.clone());
@@ -136,15 +133,14 @@ impl WidgetLayout {
     /// [`implicit_base::nodes::child_layout`]: crate::widget_base::implicit_base::nodes::child_layout
     /// [`child_in_inner_transform`]: WidgetBoundsInfo::child_in_inner_transform
     pub fn with_child(&mut self, ctx: &mut LayoutContext, layout: impl FnOnce(&mut LayoutContext, &mut Self) -> PxSize) -> (PxSize, bool) {
-        self.t.known = None; // in case of WidgetList?
+        self.known = None; // in case of WidgetList?
 
         let size = layout(ctx, self);
 
-        let collapse = mem::take(&mut self.t.known_collapsed);
-        if self.t.known.is_none() && !collapse {
-            let transform = mem::take(&mut self.t.transform_buf);
-
-            ctx.widget_info.bounds.set_child_transform(transform);
+        let collapse = mem::take(&mut self.known_collapsed);
+        if self.known.is_none() && !collapse {
+            ctx.widget_info.bounds.set_child_transform(mem::take(&mut self.transform_buf));
+            ctx.widget_info.bounds.set_baseline(mem::take(&mut self.baseline));
 
             self.known = Some(ctx.widget_info.bounds.clone());
             self.known_target = KnownTarget::Child;
@@ -173,8 +169,7 @@ impl WidgetLayout {
         self.known = None;
 
         // drain preview transforms.
-        let transform = mem::take(&mut self.t.transform_buf);
-        ctx.widget_info.bounds.set_child_transform(transform);
+        ctx.widget_info.bounds.set_child_transform(mem::take(&mut self.transform_buf));
 
         let r = layout(ctx, self);
 
@@ -209,8 +204,7 @@ impl WidgetLayout {
         let mut wl = WidgetLayout {
             t: WidgetLayoutTransform {
                 transform_buf: RenderTransform::identity(),
-                baseline: Length::zero(),
-                translate_baseline: 0.0,
+                baseline: Px(0),
                 known: Some(widget.bounds_info().clone()),
                 known_target: KnownTarget::Outer,
                 known_collapsed: false,
@@ -228,8 +222,8 @@ impl WidgetLayout {
     ///
     /// [`Collapsed`]: Visibility::Collapsed
     pub fn collapse(&mut self, ctx: &mut LayoutContext) {
-        self.t.known = None;
-        self.t.known_collapsed = true;
+        self.known = None;
+        self.known_collapsed = true;
 
         let widget_id = ctx.path.widget_id();
         if let Some(w) = ctx.info_tree.find(widget_id) {
@@ -271,8 +265,7 @@ enum KnownTarget {
 /// Note that [`WidgetLayout`] dereferences to this type.
 pub struct WidgetLayoutTransform {
     transform_buf: RenderTransform,
-    baseline: Length,
-    translate_baseline: f32,
+    baseline: Px,
 
     known: Option<WidgetBoundsInfo>,
     known_target: KnownTarget,
@@ -323,19 +316,26 @@ impl WidgetLayoutTransform {
         }
     }
 
-    /// Set the baseline offset of the closest *inner* bounds. The offset is up from the bottom of the bounds and is computed
-    /// relative to the bounds height, so 0% is the bottom line and 100% is the top line. This always affects the same bounds
-    /// as the current [`transform`].
-    ///
-    /// [`transform`]: Self::transform
-    pub fn set_baseline(&mut self, baseline: Length) {
-        self.baseline = baseline;
+    /// Set the baseline offset of the closest *inner* bounds. The offset is up from the bottom of the bounds.
+    pub fn set_baseline(&mut self, baseline: Px) {
+        if let Some(info) = &self.known {
+            info.set_baseline(baseline);
+        } else {
+            self.baseline = baseline;
+        }
     }
 
-    /// Set a translation transform to apply when the baseline is computed, `1.0` translates one baseline offset down, `-1.0`
-    /// translates one baseline up.
-    pub fn translate_baseline(&mut self, vector: f32) {
-        self.translate_baseline = vector;
+    /// Pre-translate the inner transform of the last visited widget by its baseline multiplied by `amount` on the *y* axis.
+    ///
+    /// Does nothing in the preview route.
+    pub fn translate_baseline(&mut self, amount: f32) {
+        if let Some(info) = &self.known {
+            let baseline = info.baseline() * amount;
+            if baseline != Px(0) {
+                let inner_t = info.inner_in_outer_transform().pre_translate_px(PxVector::new(Px(0), baseline));
+                info.set_inner_transform(inner_t);
+            }
+        }
     }
 }
 

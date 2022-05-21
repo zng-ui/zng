@@ -124,20 +124,21 @@ pub mod implicit_base {
             )]
             impl<P: UiNode> UiNode for ChildrenLayoutNode<P> {
                 fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
-                    let transform = ctx.widget_info.bounds.child_in_inner_transform();
-
-                    let size = wl.with_children(ctx, |ctx, wl| self.panel.layout(ctx, wl));
-
-                    if self.id.is_none() {
-                        if ctx.widget_info.bounds.child_transform() != RenderTransform::identity() {
+                    if self.id.is_some() {
+                        let transform = ctx.widget_info.bounds.child_in_inner_transform();
+                        let size = wl.with_children(ctx, |ctx, wl| self.panel.layout(ctx, wl));
+                        if ctx.widget_info.bounds.child_in_inner_transform() != transform {
+                            ctx.updates.render_update();
+                        }
+                        size
+                    } else {
+                        let size = wl.with_children(ctx, |ctx, wl| self.panel.layout(ctx, wl));
+                        if ctx.widget_info.bounds.child_in_inner_transform() != RenderTransform::identity() {
                             self.id = Some((SpatialFrameId::new_unique(), FrameBindingKey::new_unique()));
                             ctx.updates.render();
                         }
-                    } else if ctx.widget_info.bounds.child_in_inner_transform() != transform {
-                        ctx.updates.render_update();
+                        size
                     }
-
-                    size
                 }
 
                 fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
@@ -180,29 +181,31 @@ pub mod implicit_base {
             #[impl_ui_node(child)]
             impl<C: UiNode> UiNode for ChildLayoutNode<C> {
                 fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
-                    let transform = ctx.widget_info.bounds.child_in_inner_transform();
+                    if self.id.is_none() {
+                        let (size, needed) = wl.with_child(ctx, |ctx, wl| self.child.layout(ctx, wl));
 
-                    let (size, needed) = wl.with_child(ctx, |ctx, wl| self.child.layout(ctx, wl));
-
-                    if needed {
-                        // no child Widget, we need to render the transform:
-
-                        if self.id.is_some() {
-                            // already rendering, just update.
-                            if transform != ctx.widget_info.bounds.child_in_inner_transform() {
-                                ctx.updates.render_update();
-                            }
-                        } else if ctx.widget_info.bounds.child_in_inner_transform() != RenderTransform::identity() {
+                        if needed && ctx.widget_info.bounds.child_in_inner_transform() != RenderTransform::identity() {
                             // start rendering.
                             self.id = Some((SpatialFrameId::new_unique(), FrameBindingKey::new_unique()));
                             ctx.updates.render_update();
                         }
-                    } else if self.id.take().is_some() {
-                        // child is now a Widget.
-                        ctx.updates.render();
-                    }
 
-                    size
+                        size
+                    } else {
+                        let transform = ctx.widget_info.bounds.child_in_inner_transform();
+                        let (size, needed) = wl.with_child(ctx, |ctx, wl| self.child.layout(ctx, wl));
+
+                        if needed {
+                            if transform != ctx.widget_info.bounds.child_in_inner_transform() {
+                                ctx.updates.render_update();
+                            }
+                        } else {
+                            self.id = None;
+                            ctx.updates.render();
+                        }
+
+                        size
+                    }
                 }
                 fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
                     if let Some((id, key)) = &self.id {

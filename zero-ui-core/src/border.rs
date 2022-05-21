@@ -3,7 +3,7 @@
 use std::{fmt, mem};
 
 use crate::context::RenderContext;
-use crate::render::{webrender_api as w_api, FrameBuilder, FrameUpdate};
+use crate::render::{webrender_api as w_api, FrameBinding, FrameBuilder, FrameUpdate, SpatialFrameId};
 use crate::{nodes, UiNodeList, WidgetId};
 
 use crate::{
@@ -689,6 +689,9 @@ pub fn fill_node(content: impl UiNode) -> impl UiNode {
 
         clip_bounds: PxSize,
         clip_corners: PxCornerRadius,
+
+        offset: PxVector,
+        offset_id: SpatialFrameId,
     }
     #[impl_ui_node(
         delegate = &self.content,
@@ -711,15 +714,12 @@ pub fn fill_node(content: impl UiNode) -> impl UiNode {
             // We are inside the *inner* bounds AND inside border_nodes:
             //
             // .. ( layout ( new_border/inner ( border_nodes ( FILL_NODES ( new_child_context ( new_child_layout ( ..
-            //
-            // `wl` is targeting the `content` transform, potentially a new *child* transform, because we wrap this node with `child_layout`,
-            // so we don't need to render the transform, only the clip, but we do need to compute the inverse offset and size.
 
             let offsets = ContextBorders::inner_offsets(ctx.path.widget_id(), ctx.vars);
             let align = BorderAlignVar::get_clone(ctx.vars);
 
             let our_offsets = offsets * align;
-            wl.translate(PxVector::new(our_offsets.left, our_offsets.top));
+            self.offset = PxVector::new(our_offsets.left, our_offsets.top);
 
             let size_offset = offsets - our_offsets;
             let size_increase = PxSize::new(size_offset.horizontal(), size_offset.vertical());
@@ -738,25 +738,31 @@ pub fn fill_node(content: impl UiNode) -> impl UiNode {
         }
 
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-            let bounds = PxRect::from_size(self.clip_bounds);
-
-            if self.clip_corners != PxCornerRadius::zero() {
-                frame.push_clip_rounded_rect(bounds, self.clip_corners, false, |f| self.content.render(ctx, f))
-            } else {
-                frame.push_clip_rect(bounds, |f| self.content.render(ctx, f))
-            }
+            // TODO avoid this if content is a widget.
+            frame.push_reference_frame(
+                self.offset_id,
+                FrameBinding::Value(RenderTransform::translation_px(self.offset)),
+                true,
+                |frame| {
+                    let bounds = PxRect::from_size(self.clip_bounds);
+                    if self.clip_corners != PxCornerRadius::zero() {
+                        frame.push_clip_rounded_rect(bounds, self.clip_corners, false, |f| self.content.render(ctx, f))
+                    } else {
+                        frame.push_clip_rect(bounds, |f| self.content.render(ctx, f))
+                    }
+                },
+            );
         }
     }
 
-    let node = FillNodeNode {
+    FillNodeNode {
         content: content.cfg_boxed(),
         clip_bounds: PxSize::zero(),
         clip_corners: PxCornerRadius::zero(),
+        offset: PxVector::zero(),
+        offset_id: SpatialFrameId::new_unique(),
     }
-    .cfg_boxed();
-
-    // if content is a `Widget` we use its outer-transform, otherwise a new reference-frame is introduced here.
-    crate::widget_base::implicit_base::nodes::child_layout(node)
+    .cfg_boxed()
 }
 
 /// Creates a border node that delegates rendering to a `border_visual`, but manages the `border_offsets` coordinating

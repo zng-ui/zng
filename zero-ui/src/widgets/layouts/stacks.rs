@@ -172,6 +172,12 @@ pub mod h_stack {
                 });
             }
 
+            if align.is_baseline() {
+                self.children.outer_all(wl, true, |wlt, _| {
+                    wlt.translate_baseline(1.0);
+                });
+            }
+
             best_size.max(size)
         }
     }

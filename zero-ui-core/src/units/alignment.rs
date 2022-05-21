@@ -94,7 +94,7 @@ impl Align {
         wl.translate(offset);
 
         if self.is_baseline() {
-            wl.translate_baseline(-1.0);
+            wl.translate_baseline(1.0);
         }
 
         size
