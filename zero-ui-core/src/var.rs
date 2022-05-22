@@ -1,11 +1,13 @@
 //! Variables.
 
 use std::{
-    cell::Cell,
+    cell::{Cell, RefCell},
     convert::{TryFrom, TryInto},
     fmt,
     marker::PhantomData,
-    ops::{Deref, DerefMut},
+    mem,
+    ops::{self, Deref, DerefMut},
+    rc::Rc,
     str::FromStr,
     time::Duration,
 };
@@ -52,7 +54,7 @@ pub mod animation;
 
 pub use animation::easing;
 
-use animation::{AnimationHandle, Transitionable};
+use animation::{AnimationHandle, ChaseAnimation, ChaseMsg, Transition, TransitionKeyed, Transitionable};
 
 /// Variable types.
 ///
@@ -845,7 +847,7 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + any::AnyVar + crate::private::S
         let mut prev_step = 0.fct();
         self.animate(
             vars,
-            |value| Some(animation::Transition::new(value.clone(), new_value.into())),
+            |value| Some(Transition::new(value.clone(), new_value.into())),
             move |animation, _, transition| {
                 let step = easing(animation.elapsed_stop(duration));
                 if step != prev_step {
@@ -872,7 +874,7 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + any::AnyVar + crate::private::S
         let mut prev_step = 0.fct();
         self.animate(
             vars,
-            |value| Some(animation::Transition::new(value.clone(), new_value.into())),
+            |value| Some(Transition::new(value.clone(), new_value.into())),
             move |animation, value, transition| {
                 let step = easing(animation.elapsed_stop(duration));
                 if step != prev_step {
@@ -902,7 +904,7 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + any::AnyVar + crate::private::S
         let mut prev_step = 999.fct(); // ensure that we set for `0.fct()`
         self.animate(
             vars,
-            |_| Some(animation::Transition::new(start.into(), end.into())),
+            |_| Some(Transition::new(start.into(), end.into())),
             move |animation, _, transition| {
                 let step = easing(animation.elapsed_stop(duration));
                 if step != prev_step {
@@ -930,7 +932,7 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + any::AnyVar + crate::private::S
         let mut prev_step = 999.fct(); // ensure that we set for `0.fct()`
         self.animate(
             vars,
-            |_| Some(animation::Transition::new(start.into(), end.into())),
+            |_| Some(Transition::new(start.into(), end.into())),
             move |animation, value, transition| {
                 let step = easing(animation.elapsed_stop(duration));
                 if step != prev_step {
@@ -965,7 +967,7 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + any::AnyVar + crate::private::S
             vars,
             |value| {
                 keys.insert(0, (keys[0].0.min(0.fct()), value.clone()));
-                animation::TransitionKeyed::new(keys)
+                TransitionKeyed::new(keys)
             },
             move |animation, _, transition| {
                 let step = easing(animation.elapsed_stop(duration));
@@ -993,7 +995,7 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + any::AnyVar + crate::private::S
         let mut prev_step = 0.fct();
         self.animate(
             vars,
-            |_| animation::TransitionKeyed::new(keys),
+            |_| TransitionKeyed::new(keys),
             move |animation, _, transition| {
                 let step = easing(animation.elapsed_stop(duration));
                 if step != prev_step {
@@ -1142,35 +1144,132 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + any::AnyVar + crate::private::S
         )
     }
 
-    ///
-    fn chase<Vw, F>(&self, vars: &Vw, target: flume::Receiver<T>, duration: Duration, easing: F) -> AnimationHandle
+    /// Starts an easing animation that *chases* a target value that can be changed using the [`CaseAnimation`] handle.
+    fn chase<Vw, F>(&self, vars: &Vw, first_target: T, duration: Duration, easing: F) -> ChaseAnimation<T>
     where
         Vw: WithVars,
         F: Fn(EasingTime) -> EasingStep + 'static,
         T: Transitionable,
     {
         let mut prev_step = 0.fct();
-        let new_value = target.try_recv().unwrap();
-        self.animate(
+        let next_target = Rc::new(RefCell::new(ChaseMsg::None));
+        let handle = self.animate(
             vars,
-            |value| Some(animation::Transition::new(value.clone(), new_value)),
-            move |animation, _, transition| {
+            |value| Some(Transition::new(value.clone(), first_target)),
+            clone_move!(next_target, |animation, _, transition: &mut Transition<T>| {
                 let step = easing(animation.elapsed_stop(duration));
-                if let Ok(new) = target.try_recv() {
-                    animation.restart();
-                    let from = transition.sample(step);
-                    *transition = animation::Transition::new(from.clone(), new);
-                    if step != prev_step {
-                        prev_step = step;
-                        return Some(from);
+                match mem::take(&mut *next_target.borrow_mut()) {
+                    ChaseMsg::Add(inc) => {
+                        animation.restart();
+                        let from = transition.sample(step);
+                        transition.start = from.clone();
+                        transition.increment += inc;
+                        if step != prev_step {
+                            prev_step = step;
+                            return Some(from);
+                        }
                     }
-                } else if step != prev_step {
-                    prev_step = step;
-                    return Some(transition.sample(step));
+                    ChaseMsg::Replace(new_target) => {
+                        animation.restart();
+                        let from = transition.sample(step);
+                        *transition = Transition::new(from.clone(), new_target);
+                        if step != prev_step {
+                            prev_step = step;
+                            return Some(from);
+                        }
+                    }
+                    ChaseMsg::None => {
+                        if step != prev_step {
+                            prev_step = step;
+                            return Some(transition.sample(step));
+                        }
+                    }
                 }
                 None
-            },
-        )
+            }),
+        );
+        ChaseAnimation { handle, next_target }
+    }
+
+    /// Starts a [`chase`] animation that eases to a target value, but does not escape `bounds`.
+    ///
+    /// [`chase`]: Var::chase
+    fn chase_bounded<Vw, F>(
+        &self,
+        vars: &Vw,
+        first_target: T,
+        duration: Duration,
+        easing: F,
+        bounds: ops::RangeInclusive<T>,
+    ) -> ChaseAnimation<T>
+    where
+        Vw: WithVars,
+        F: Fn(EasingTime) -> EasingStep + 'static,
+        T: Transitionable + std::cmp::PartialOrd<T>,
+    {
+        let mut prev_step = 0.fct();
+        let mut check_linear = !bounds.contains(&first_target);
+
+        let next_target = Rc::new(RefCell::new(ChaseMsg::None));
+        let handle = self.animate(
+            vars,
+            |value| Some(Transition::new(value.clone(), first_target)),
+            clone_move!(next_target, |animation, _, transition: &mut Transition<T>| {
+                let mut time = animation.elapsed_stop(duration);
+                let mut step = easing(time);
+                match mem::take(&mut *next_target.borrow_mut()) {
+                    // to > bounds
+                    // stop animation when linear sampling > bounds
+                    ChaseMsg::Add(inc) => {
+                        animation.restart();
+
+                        let partial_inc = transition.increment.clone() * step;
+                        let from = transition.start.clone() + partial_inc.clone();
+                        let to = from.clone() + transition.increment.clone() - partial_inc + inc;
+
+                        check_linear = !bounds.contains(&to);
+
+                        *transition = Transition::new(from, to);
+
+                        step = 0.fct();
+                        time = EasingTime::start();
+                    }
+                    ChaseMsg::Replace(new_target) => {
+                        animation.restart();
+                        let from = transition.sample(step);
+
+                        check_linear = !bounds.contains(&new_target);
+
+                        *transition = Transition::new(from, new_target);
+
+                        step = 0.fct();
+                        time = EasingTime::start();
+                    }
+                    ChaseMsg::None => {
+                        // normal execution
+                    }
+                }
+
+                if step != prev_step {
+                    prev_step = step;
+
+                    if check_linear {
+                        let linear_sample = transition.sample(time.fct());
+                        if &linear_sample > bounds.end() {
+                            animation.stop();
+                            return Some(bounds.end().clone());
+                        } else if &linear_sample < bounds.start() {
+                            animation.stop();
+                            return Some(bounds.start().clone());
+                        }
+                    }
+                    Some(transition.sample(step))
+                } else {
+                    None
+                }
+            }),
+        );
+        ChaseAnimation { handle, next_target }
     }
 
     /// Wraps the variable into another that turns assigns into transition animations.

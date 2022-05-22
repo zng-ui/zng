@@ -225,6 +225,8 @@ pub mod scrollable {
         let child = with_context_var(child, ScrollVerticalContentOverflowsVar, var(false));
         let child = with_context_var(child, ScrollHorizontalContentOverflowsVar, var(false));
 
+        let child = ScrollContext::config_node(child);
+
         let child = with_context_var(child, ScrollVerticalOffsetVar, var(0.fct()));
         with_context_var(child, ScrollHorizontalOffsetVar, var(0.fct()))
     }

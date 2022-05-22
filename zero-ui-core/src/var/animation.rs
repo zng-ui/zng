@@ -5,7 +5,7 @@ use crate::{
     units::*,
 };
 use std::{
-    cell::Cell,
+    cell::{Cell, RefCell},
     f32::consts::*,
     fmt,
     marker::PhantomData,
@@ -207,6 +207,38 @@ impl WeakAnimationHandle {
     }
 }
 
+/// Represents a running chase animation created by [`Var::chase`] or other *chase* animation methods.
+#[derive(Clone, Debug)]
+pub struct ChaseAnimation<T> {
+    /// Underlying animation handle.
+    pub handle: AnimationHandle,
+    pub(super) next_target: Rc<RefCell<ChaseMsg<T>>>,
+}
+impl<T: VarValue> ChaseAnimation<T> {
+    /// Sets a new target value for the easing animation and restarts the time.
+    ///
+    /// The animation will update to lerp between the current variable value to the `new_target`.
+    pub fn reset(&self, new_target: T) {
+        *self.next_target.borrow_mut() = ChaseMsg::Replace(new_target);
+    }
+
+    /// Adds `increment` to the current target value for the easing animation and restarts the time.
+    pub fn add(&self, increment: T) {
+        *self.next_target.borrow_mut() = ChaseMsg::Add(increment);
+    }
+}
+#[derive(Debug)]
+pub(super) enum ChaseMsg<T> {
+    None,
+    Replace(T),
+    Add(T),
+}
+impl<T> Default for ChaseMsg<T> {
+    fn default() -> Self {
+        Self::None
+    }
+}
+
 /// Represents an animation in its closure.
 ///
 /// See the [`Vars::animate`] method for more details.
@@ -384,14 +416,23 @@ impl AnimationArgs {
 /// This trait is used like a type alias for traits and is
 /// already implemented for all types it applies to. To be transitionable a type must add and subtract to it self
 /// and be multipliable by [`Factor`].
-pub trait Transitionable: Clone + ops::Add<Self, Output = Self> + ops::Sub<Self, Output = Self> + ops::Mul<Factor, Output = Self> {}
-impl<T> Transitionable for T where T: Clone + ops::Add<T, Output = T> + ops::Sub<T, Output = T> + ops::Mul<Factor, Output = T> {}
+pub trait Transitionable:
+    Clone + ops::Add<Self, Output = Self> + std::ops::AddAssign + ops::Sub<Self, Output = Self> + ops::Mul<Factor, Output = Self>
+{
+}
+impl<T> Transitionable for T where
+    T: Clone + ops::Add<T, Output = T> + std::ops::AddAssign + ops::Sub<T, Output = T> + ops::Mul<Factor, Output = T>
+{
+}
 
 /// Represents a transition from one value to another that can be sampled using [`EasingStep`].
 #[derive(Clone, Debug)]
 pub struct Transition<T> {
-    start: T,
-    increment: T,
+    /// Value sampled at the `0.fct()` step.
+    pub start: T,
+    ///
+    /// Value plus start is sampled at the `1.fct()` step.
+    pub increment: T,
 }
 impl<T> Transition<T>
 where

@@ -1,12 +1,19 @@
-use std::{cell::Cell, fmt, rc::Rc, time::Duration};
+use std::{
+    cell::{Cell, RefCell},
+    fmt,
+    rc::Rc,
+    time::Duration,
+};
 
 use crate::core::{
     context::state_key,
     units::*,
     var::{animation::EasingFn, *},
     widget_info::WidgetInfo,
+    UiNode,
 };
 use bitflags::bitflags;
+use zero_ui_core::var::animation::ChaseAnimation;
 
 use super::scrollable::properties::SmoothScrollingVar;
 
@@ -73,6 +80,14 @@ context_var! {
 
     /// Latest computed content size of the parent scrollable.
     pub(super) struct ScrollContentSizeVar: PxSize = PxSize::zero();
+
+    struct ScrollConfigVar: RefCell<ScrollConfig> = RefCell::default();
+}
+
+#[derive(Debug, Clone, Default)]
+struct ScrollConfig {
+    horizontal: Option<ChaseAnimation<Factor>>,
+    vertical: Option<ChaseAnimation<Factor>>,
 }
 
 /// Controls the parent scrollable.
@@ -80,6 +95,13 @@ context_var! {
 /// Also see [`ScrollVerticalOffsetVar`] and [`ScrollHorizontalOffsetVar`] for controlling the scroll offset.
 pub struct ScrollContext {}
 impl ScrollContext {
+    /// New node that holds data for the [`ScrollContext`] operation.
+    ///
+    /// Scrollable implementers must add this node to their context.
+    pub fn config_node(child: impl UiNode) -> impl UiNode {
+        with_context_var(child, ScrollConfigVar, RefCell::default())
+    }
+
     /// Ratio of the scroll parent viewport height to its content.
     ///
     /// The value is `viewport.height / content.height`.
@@ -125,7 +147,8 @@ impl ScrollContext {
                 return;
             }
 
-            let curr_scroll = max_scroll * *ScrollVerticalOffsetVar::get(vars);
+            let curr_scroll_fct = *ScrollVerticalOffsetVar::get(vars);
+            let curr_scroll = max_scroll * curr_scroll_fct;
             let new_scroll = (curr_scroll + amount).min(max_scroll).max(Px(0));
 
             if new_scroll != curr_scroll {
@@ -136,10 +159,26 @@ impl ScrollContext {
                 if smooth.is_disabled() {
                     let _ = ScrollVerticalOffsetVar::set(vars, new_offset);
                 } else {
-                    let ease = smooth.easing.clone();
-                    ScrollVerticalOffsetVar::new()
-                        .ease(vars, new_offset.fct(), smooth.duration, move |t| ease(t))
-                        .perm();
+                    let config = ScrollConfigVar::get(vars);
+                    let mut config = config.borrow_mut();
+
+                    match &config.vertical {
+                        Some(anim) if !anim.handle.is_stopped() => {
+                            let amount = amount.0 as f32 / max_scroll.0 as f32;
+                            anim.add(amount.fct());
+                        }
+                        _ => {
+                            let ease = smooth.easing.clone();
+                            let anim = ScrollVerticalOffsetVar::new().chase_bounded(
+                                vars,
+                                new_offset.fct(),
+                                smooth.duration,
+                                move |t| ease(t),
+                                0.fct()..=1.fct(),
+                            );
+                            config.vertical = Some(anim);
+                        }
+                    }
                 }
             }
         })
@@ -157,7 +196,8 @@ impl ScrollContext {
                 return;
             }
 
-            let curr_scroll = max_scroll * *ScrollHorizontalOffsetVar::get(vars);
+            let curr_scroll_fct = *ScrollHorizontalOffsetVar::get(vars);
+            let curr_scroll = max_scroll * curr_scroll_fct;
             let new_scroll = (curr_scroll + amount).min(max_scroll).max(Px(0));
 
             if new_scroll != curr_scroll {
@@ -168,10 +208,26 @@ impl ScrollContext {
                 if smooth.is_disabled() {
                     let _ = ScrollHorizontalOffsetVar::set(vars, new_offset);
                 } else {
-                    let ease = smooth.easing.clone();
-                    ScrollHorizontalOffsetVar::new()
-                        .ease(vars, new_offset.fct(), smooth.duration, move |t| ease(t))
-                        .perm();
+                    let config = ScrollConfigVar::get(vars);
+                    let mut config = config.borrow_mut();
+
+                    match &config.horizontal {
+                        Some(anim) if !anim.handle.is_stopped() => {
+                            let amount = amount.0 as f32 / max_scroll.0 as f32;
+                            anim.add(amount.fct());
+                        }
+                        _ => {
+                            let ease = smooth.easing.clone();
+                            let anim = ScrollHorizontalOffsetVar::new().chase_bounded(
+                                vars,
+                                new_offset.fct(),
+                                smooth.duration,
+                                move |t| ease(t),
+                                0.fct()..=1.fct(),
+                            );
+                            config.horizontal = Some(anim);
+                        }
+                    }
                 }
             }
         })
