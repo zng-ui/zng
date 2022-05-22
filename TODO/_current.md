@@ -12,6 +12,7 @@
 
 # After-Merge
 
+* Rename ` AnchorSize::Infinite` to Unbounded.
 * Cursor demo, cursor does not clear on mouse-leave.
 * Master branch TODOs.
 * Fix text final size, either clip or return accurate size.

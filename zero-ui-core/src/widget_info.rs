@@ -1135,18 +1135,26 @@ impl<'a> WidgetInfo<'a> {
         self.info().border_info.clone()
     }
 
-    /// Side of the widget outer area, not transformed.
+    /// Size of the widget outer area, not transformed.
     ///
     /// Returns an up-to-date size, the size is updated every layout without causing a tree rebuild.
     pub fn outer_size(self) -> PxSize {
         self.info().bounds_info.outer_size()
     }
 
-    /// Side of the widget inner area, not transformed.
+    /// Size of the widget inner area, not transformed.
     ///
     /// Returns an up-to-date size, the size is updated every layout without causing a tree rebuild.
     pub fn inner_size(self) -> PxSize {
         self.info().bounds_info.inner_size()
+    }
+
+    /// Size of the widget child area, not transformed.
+    /// 
+    /// Returns an up-to-date size, the size is updated every layout without causing a tree rebuild.
+    pub fn inner_border_size(self) -> PxSize {
+        let info = self.info();
+        info.border_info.inner_border_size(&info.bounds_info)
     }
 
     /// Gets the baseline offset up from the inner bounds bottom line.
