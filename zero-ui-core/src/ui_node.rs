@@ -535,7 +535,7 @@ pub trait Widget: UiNode {
             |ctx| {
                 ctx.with_constrains(
                     |c| constrains.unwrap_or(c),
-                    |ctx| WidgetLayout::with_root_widget(ctx, |ctx, wl| self.layout(ctx, wl)),
+                    |ctx| WidgetLayout::with_root_widget(ctx, |ctx, wl| wl.with_inner(ctx, |ctx, wl| self.layout(ctx, wl))),
                 )
             },
         )
@@ -556,28 +556,19 @@ pub trait Widget: UiNode {
     }
 
     /// Run [`UiNode::render`] using the [`TestWidgetContext`].
-    ///
-    /// If the `frame` [`is_outer`] pushes inner, before calling render.
-    ///
-    /// [`is_outer`]: FrameBuilder::is_outer
     #[cfg(any(test, doc, feature = "test_util"))]
     #[cfg_attr(doc_nightly, doc(cfg(feature = "test_util")))]
     fn test_render(&self, ctx: &mut TestWidgetContext, frame: &mut FrameBuilder) {
-        let key = ctx.layout_translation_key;
-        ctx.render_context(|ctx| {
-            if frame.is_outer() {
-                frame.push_inner(ctx, key, |ctx, frame| self.render(ctx, frame))
-            } else {
-                self.render(ctx, frame)
-            }
-        });
+        let key = ctx.root_translation_key;
+        ctx.render_context(|ctx| frame.push_inner(ctx, key, |ctx, frame| self.render(ctx, frame)));
     }
 
     /// Run [`UiNode::render_update`] using the [`TestWidgetContext`].
     #[cfg(any(test, doc, feature = "test_util"))]
     #[cfg_attr(doc_nightly, doc(cfg(feature = "test_util")))]
     fn test_render_update(&self, ctx: &mut TestWidgetContext, update: &mut FrameUpdate) {
-        ctx.render_context(|ctx| self.render_update(ctx, update));
+        let key = ctx.root_translation_key;
+        ctx.render_context(|ctx| update.update_inner(ctx, key, |ctx, update| self.render_update(ctx, update)));
     }
 
     /// Run [`UiNode::event`] using the [`TestWidgetContext`].

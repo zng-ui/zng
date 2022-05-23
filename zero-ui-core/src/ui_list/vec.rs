@@ -33,7 +33,7 @@ use crate::{
 /// widgets.push(bar("Dynamic!"));
 ///
 /// for widget in widgets {
-///     println!("{:?}", widget.inner_info().bounds());
+///     println!("{:?}", widget.bounds_info().inner_size());
 /// }
 /// ```
 pub struct WidgetVec {

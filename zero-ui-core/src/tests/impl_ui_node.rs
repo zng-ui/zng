@@ -11,10 +11,9 @@ use crate::{
     render::{FrameBuilder, FrameId, FrameUpdate},
     ui_list::UiNodeVec,
     units::*,
-    widget_base::implicit_base,
     widget_info::{UpdateMask, WidgetBorderInfo, WidgetBoundsInfo, WidgetInfoBuilder, WidgetRenderInfo, WidgetSubscriptions},
     window::WindowId,
-    UiNode, UiNodeList, Widget, WidgetId,
+    UiNode, UiNodeList, Widget,
 };
 
 #[test]
@@ -90,7 +89,7 @@ pub fn default_delegate_iter() {
     })
 }
 fn test_trace(node: impl UiNode) {
-    let mut wgt = implicit_base::new(node, WidgetId::new_unique());
+    let mut wgt = util::test_wgt(node);
     let mut ctx = TestWidgetContext::new();
 
     wgt.test_init(&mut ctx);
@@ -159,7 +158,7 @@ pub fn allow_missing_delegate() {
     }
 
     fn test(node: impl UiNode) {
-        let mut wgt = implicit_base::new(node, WidgetId::new_unique());
+        let mut wgt = util::test_wgt(node);
         let mut ctx = TestWidgetContext::new();
 
         wgt.test_init(&mut ctx);
@@ -185,7 +184,7 @@ pub fn default_no_child() {
     #[impl_ui_node(none)]
     impl UiNode for Node {}
 
-    let mut wgt = implicit_base::new(Node, WidgetId::new_unique());
+    let mut wgt = util::test_wgt(Node);
     let mut ctx = TestWidgetContext::new();
 
     wgt.test_init(&mut ctx);
@@ -252,7 +251,7 @@ pub fn default_no_child() {
     let mut update = FrameUpdate::new(FrameId::INVALID, ctx.root_id, None, RenderColor::BLACK, None);
     wgt.test_render_update(&mut ctx, &mut update);
     let (update, _) = update.finalize();
-    assert!(update.bindings.transforms.is_empty());
+    assert!(!update.bindings.transforms.is_empty());
     assert!(update.bindings.floats.is_empty());
     assert!(update.bindings.colors.is_empty());
     assert!(update.scrolls.is_empty());
@@ -268,6 +267,7 @@ mod util {
         render::{FrameBuilder, FrameUpdate},
         state_key,
         units::*,
+        widget_base::implicit_base,
         widget_info::{EventMask, UpdateMask, WidgetInfoBuilder, WidgetLayout, WidgetSubscriptions},
         UiNode, Widget,
     };
@@ -393,5 +393,10 @@ mod util {
 
     event! {
         RenderUpdateEvent: RenderUpdateArgs;
+    }
+
+    pub fn test_wgt(node: impl UiNode) -> impl Widget {
+        let node = implicit_base::nodes::inner(node);
+        implicit_base::nodes::widget(node, crate::WidgetId::new_unique())
     }
 }

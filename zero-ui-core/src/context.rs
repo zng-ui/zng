@@ -394,7 +394,7 @@ pub struct TestWidgetContext {
     /// TODO testable timers.
     pub timers: Timers,
 
-    pub(crate) layout_translation_key: crate::render::FrameBindingKey<RenderTransform>,
+    pub(crate) root_translation_key: crate::render::FrameBindingKey<RenderTransform>,
     receiver: flume::Receiver<crate::app::AppEvent>,
     loop_timer: crate::app::LoopTimer,
 }
@@ -433,7 +433,7 @@ impl TestWidgetContext {
             vars: Vars::instance(sender.clone()),
             updates: Updates::new(sender),
             timers: Timers::new(),
-            layout_translation_key: crate::render::FrameBindingKey::new_unique(),
+            root_translation_key: crate::render::FrameBindingKey::new_unique(),
 
             receiver,
             loop_timer: LoopTimer::default(),
