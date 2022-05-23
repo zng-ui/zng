@@ -9,7 +9,7 @@ use crate::{
     context::{InfoContext, LayoutContext, RenderContext, StateMap, WidgetContext, WithUpdates},
     event::EventUpdateArgs,
     render::{FrameBuilder, FrameUpdate},
-    ui_list::{PosLayoutArgs, PreLayoutArgs, SortedWidgetVec, UiListObserver, WidgetFilterArgs, WidgetLayoutTransform, WidgetList},
+    ui_list::{PosLayoutArgs, PreLayoutArgs, SortedWidgetVec, UiListObserver, WidgetFilterArgs, WidgetLayoutTranslation, WidgetList},
     units::PxSize,
     widget_info::{UpdateSlot, WidgetBorderInfo, WidgetBoundsInfo, WidgetInfoBuilder, WidgetLayout, WidgetRenderInfo, WidgetSubscriptions},
     BoxedUiNode, BoxedWidget, UiNode, UiNodeList, Widget, WidgetId,
@@ -447,7 +447,7 @@ impl WidgetList for WidgetVec {
 
     fn widget_outer<F>(&mut self, index: usize, wl: &mut WidgetLayout, keep_previous: bool, transform: F)
     where
-        F: FnOnce(&mut WidgetLayoutTransform, PosLayoutArgs),
+        F: FnOnce(&mut WidgetLayoutTranslation, PosLayoutArgs),
     {
         let w = &mut self.vec[index];
         let size = w.bounds_info().outer_size();
@@ -458,7 +458,7 @@ impl WidgetList for WidgetVec {
 
     fn outer_all<F>(&mut self, wl: &mut WidgetLayout, keep_previous: bool, mut transform: F)
     where
-        F: FnMut(&mut WidgetLayoutTransform, PosLayoutArgs),
+        F: FnMut(&mut WidgetLayoutTranslation, PosLayoutArgs),
     {
         for (i, w) in self.iter_mut().enumerate() {
             let size = w.bounds_info().outer_size();

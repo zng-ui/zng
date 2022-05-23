@@ -880,9 +880,6 @@ impl<'a> LayoutContext<'a> {
 
     /// Runs a function `f` in the layout context of a widget.
     ///
-    /// Automatically checks if the outer or inner transforms changed, if they did requests a [`render_update`], widget
-    /// implementers must render these transforms using a frame binding.
-    ///
     /// Returns the closure `f` result and the updates requested by it.
     ///
     /// [`render_update`]: Updates::render_update
@@ -899,8 +896,6 @@ impl<'a> LayoutContext<'a> {
         self.path.push(widget_id);
 
         let prev_updates = self.updates.enter_widget_ctx();
-
-        let all_transforms = widget_info.bounds.child_transform();
 
         let r = self.vars.with_widget(widget_id, || {
             f(&mut LayoutContext {
@@ -921,10 +916,6 @@ impl<'a> LayoutContext<'a> {
         });
 
         self.path.pop();
-
-        if all_transforms != widget_info.bounds.child_transform() {
-            self.updates.render_update();
-        }
 
         (r, self.updates.exit_widget_ctx(prev_updates))
     }

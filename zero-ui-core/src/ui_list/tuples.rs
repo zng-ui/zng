@@ -7,7 +7,7 @@ use crate::{
     ui_list::{PosLayoutArgs, PreLayoutArgs, UiListObserver, UiNodeList, UiNodeVec, WidgetList, WidgetVec},
     units::PxSize,
     widget_info::{
-        WidgetBorderInfo, WidgetBoundsInfo, WidgetInfoBuilder, WidgetLayout, WidgetLayoutTransform, WidgetRenderInfo, WidgetSubscriptions,
+        WidgetBorderInfo, WidgetBoundsInfo, WidgetInfoBuilder, WidgetLayout, WidgetLayoutTranslation, WidgetRenderInfo, WidgetSubscriptions,
     },
     widget_vec, UiNode, Widget, WidgetId,
 };
@@ -128,7 +128,7 @@ macro_rules! impl_tuples {
 
             fn widget_outer<F>(&mut self, index: usize, wl: &mut WidgetLayout, keep_previous: bool, transform: F)
             where
-            F: FnOnce(&mut WidgetLayoutTransform, PosLayoutArgs),
+            F: FnOnce(&mut WidgetLayoutTranslation, PosLayoutArgs),
             {
                 match index {
                     $($n => {
@@ -144,7 +144,7 @@ macro_rules! impl_tuples {
 
             fn outer_all<F>(&mut self, wl: &mut WidgetLayout, keep_previous: bool, mut transform: F)
             where
-                F: FnMut(&mut WidgetLayoutTransform, PosLayoutArgs),
+                F: FnMut(&mut WidgetLayoutTranslation, PosLayoutArgs),
             {
                 $(
                     let w = &mut self.items.$n;
@@ -439,14 +439,14 @@ impl WidgetList for WidgetList0 {
 
     fn widget_outer<F>(&mut self, index: usize, _: &mut WidgetLayout, _: bool, _: F)
     where
-        F: FnOnce(&mut WidgetLayoutTransform, PosLayoutArgs),
+        F: FnOnce(&mut WidgetLayoutTranslation, PosLayoutArgs),
     {
         panic!("index {index} out of range for length 0")
     }
 
     fn outer_all<F>(&mut self, _: &mut WidgetLayout, _: bool, _: F)
     where
-        F: FnMut(&mut WidgetLayoutTransform, PosLayoutArgs),
+        F: FnMut(&mut WidgetLayoutTranslation, PosLayoutArgs),
     {
     }
 }

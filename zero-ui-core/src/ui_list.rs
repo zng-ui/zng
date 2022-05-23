@@ -6,7 +6,7 @@ use crate::{
     render::{FrameBuilder, FrameUpdate},
     units::{PxConstrains2d, PxSize},
     widget_info::{
-        WidgetBorderInfo, WidgetBoundsInfo, WidgetInfoBuilder, WidgetLayout, WidgetLayoutTransform, WidgetRenderInfo, WidgetSubscriptions,
+        WidgetBorderInfo, WidgetBoundsInfo, WidgetInfoBuilder, WidgetLayout, WidgetLayoutTranslation, WidgetRenderInfo, WidgetSubscriptions,
     },
     WidgetId,
 };
@@ -296,12 +296,12 @@ pub trait WidgetList: UiNodeList {
     /// Calls [`WidgetLayout::with_outer`] in only the `index` widget.
     fn widget_outer<F>(&mut self, index: usize, wl: &mut WidgetLayout, keep_previous: bool, transform: F)
     where
-        F: FnOnce(&mut WidgetLayoutTransform, PosLayoutArgs);
+        F: FnOnce(&mut WidgetLayoutTranslation, PosLayoutArgs);
 
     /// Calls [`WidgetLayout::with_outer`] in all widgets on the list.
     fn outer_all<F>(&mut self, wl: &mut WidgetLayout, keep_previous: bool, transform: F)
     where
-        F: FnMut(&mut WidgetLayoutTransform, PosLayoutArgs);
+        F: FnMut(&mut WidgetLayoutTranslation, PosLayoutArgs);
 }
 
 /// Initialize an optimized [`WidgetList`].

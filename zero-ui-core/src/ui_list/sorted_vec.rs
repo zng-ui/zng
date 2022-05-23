@@ -7,7 +7,7 @@ use crate::{
     ui_list::{PosLayoutArgs, PreLayoutArgs, UiListObserver, UiNodeList, UiNodeVec, WidgetFilterArgs, WidgetList, WidgetVec, WidgetVecRef},
     units::PxSize,
     widget_info::{
-        UpdateSlot, WidgetBorderInfo, WidgetBoundsInfo, WidgetInfoBuilder, WidgetLayout, WidgetLayoutTransform, WidgetRenderInfo,
+        UpdateSlot, WidgetBorderInfo, WidgetBoundsInfo, WidgetInfoBuilder, WidgetLayout, WidgetLayoutTranslation, WidgetRenderInfo,
         WidgetSubscriptions,
     },
     BoxedWidget, UiNode, Widget, WidgetId,
@@ -433,7 +433,7 @@ impl WidgetList for SortedWidgetVec {
 
     fn widget_outer<F>(&mut self, index: usize, wl: &mut WidgetLayout, keep_previous: bool, transform: F)
     where
-        F: FnOnce(&mut WidgetLayoutTransform, PosLayoutArgs),
+        F: FnOnce(&mut WidgetLayoutTranslation, PosLayoutArgs),
     {
         let w = &mut self.vec[index];
         let size = w.bounds_info().outer_size();
@@ -444,7 +444,7 @@ impl WidgetList for SortedWidgetVec {
 
     fn outer_all<F>(&mut self, wl: &mut WidgetLayout, keep_previous: bool, mut transform: F)
     where
-        F: FnMut(&mut WidgetLayoutTransform, PosLayoutArgs),
+        F: FnMut(&mut WidgetLayoutTranslation, PosLayoutArgs),
     {
         for (i, w) in self.vec.iter_mut().enumerate() {
             let size = w.bounds_info().outer_size();

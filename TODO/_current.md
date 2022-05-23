@@ -19,6 +19,7 @@ have a local in context only transform for the inner and a building transform st
     - Transforms live up to their name, `RenderTransform`.
     - Transform properties create their own reference-frame, no mixing accumulation with layout position.
     - Services that depend on the widget transform may en-dup one frame behind, review `FocusManager`.
+        - No `FocusManager` waits render because of visibility already.
     - Render optimization may skip branches, webrender allows updating a reference-frame without trouble, but how do we update the info with global transforms?
         - We can invert the old parent transform, and apply the new one.
         - If the parent was no invertible all content was hidden, we could skip render at each transform point that is not invertible (CSS does this https://www.w3.org/TR/css-transforms-1/#transform-function-lists).

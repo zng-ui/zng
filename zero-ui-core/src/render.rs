@@ -10,7 +10,7 @@ use crate::{
     var::impl_from_and_into_var,
     widget_info::{WidgetInfoTree, WidgetRenderInfo},
     window::WindowId,
-    WidgetId,
+    WidgetId, context::RenderContext,
 };
 
 use std::{marker::PhantomData, mem};
@@ -550,17 +550,22 @@ impl FrameBuilder {
     }
 
     /// Push the widget reference frame and stacking context then call `f` inside of it.
-    pub fn push_inner(&mut self, transform: FrameBinding<RenderTransform>, f: impl FnOnce(&mut Self)) {
+    pub fn push_inner(&mut self, ctx: &mut RenderContext, f: impl FnOnce(&mut RenderContext, &mut Self)) {
         if let Some(mut data) = self.widget_data.take() {
             let parent_spatial_id = self.spatial_id;
+
+            let translation_key = FrameBindingKey::widget_id_to_wr(self.widget_id);
+            let translation = RenderTransform::translation_px(ctx.widget_info.bounds.outer_offset() + ctx.widget_info.bounds.inner_offset());
+
+            ctx.widget_info.render.set_inner_transform(todo!());
 
             self.spatial_id = self.display_list.push_reference_frame(
                 PxPoint::zero().to_wr(),
                 self.spatial_id,
                 TransformStyle::Flat,
-                transform,
+                PropertyBinding::Binding(translation_key, translation),
                 ReferenceFrameKind::Transform {
-                    is_2d_scale_translation: false, // TODO track this
+                    is_2d_scale_translation: true,
                     should_snap: false,
                     paired_with_perspective: false,
                 },
@@ -1455,6 +1460,8 @@ impl SpatialFrameId {
 
     /// Make a [`SpatialTreeItemKey`] from a [`WidgetId`], there is no collision
     /// with other keys generated.
+    /// 
+    /// This is the spatial id used for the widget's inner bounds offset.
     pub fn widget_id_to_wr(self_: WidgetId, pipeline_id: PipelineId) -> SpatialTreeItemKey {
         SpatialTreeItemKey::new(pipeline_id.0 as u64 | Self::WIDGET_ID_FLAG, self_.get())
     }
@@ -1494,6 +1501,13 @@ impl<T> FrameBindingKey<T> {
             id: FrameBindingKeyId::new_unique(),
             _type: PhantomData,
         }
+    }
+
+    /// Make a [`PropertyBindingKey<T>`] from a [`WidgetId`], there is no collision with other keys generated.
+    /// 
+    /// This is the binding key used for the widget's inner bounds offset.
+    pub fn widget_id_to_wr(self_: WidgetId) -> PropertyBindingKey<T> {
+        todo!()
     }
 
     fn property_key(&self) -> PropertyBindingKey<T> {

@@ -7,7 +7,7 @@ use crate::{
     },
     units::PxSize,
     widget_info::{
-        WidgetBorderInfo, WidgetBoundsInfo, WidgetInfoBuilder, WidgetLayout, WidgetLayoutTransform, WidgetRenderInfo, WidgetSubscriptions,
+        WidgetBorderInfo, WidgetBoundsInfo, WidgetInfoBuilder, WidgetLayout, WidgetLayoutTranslation, WidgetRenderInfo, WidgetSubscriptions,
     },
     WidgetId,
 };
@@ -239,7 +239,7 @@ impl<A: WidgetList, B: WidgetList> WidgetList for WidgetListChain<A, B> {
 
     fn widget_outer<F>(&mut self, index: usize, wl: &mut WidgetLayout, keep_previous: bool, transform: F)
     where
-        F: FnOnce(&mut WidgetLayoutTransform, PosLayoutArgs),
+        F: FnOnce(&mut WidgetLayoutTranslation, PosLayoutArgs),
     {
         let a_len = self.0.len();
         if index < a_len {
@@ -251,7 +251,7 @@ impl<A: WidgetList, B: WidgetList> WidgetList for WidgetListChain<A, B> {
 
     fn outer_all<F>(&mut self, wl: &mut WidgetLayout, keep_previous: bool, mut transform: F)
     where
-        F: FnMut(&mut WidgetLayoutTransform, PosLayoutArgs),
+        F: FnMut(&mut WidgetLayoutTranslation, PosLayoutArgs),
     {
         self.0.outer_all(wl, keep_previous, &mut transform);
         let offset = self.0.len();

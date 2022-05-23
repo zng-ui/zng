@@ -1,6 +1,6 @@
 use std::fmt::{self, Write};
 
-use crate::{impl_from_and_into_var, widget_info::WidgetLayoutTransform};
+use crate::{impl_from_and_into_var, widget_info::WidgetLayoutTranslation};
 
 use super::{Factor, FactorPercent, Point, Px, PxConstrains2d, PxSize, PxVector};
 
@@ -81,7 +81,7 @@ impl Align {
     }
 
     /// Applies the alignment transform to `wl` and returns the size of the parent align node.
-    pub fn layout(self, child_size: PxSize, parent_constrains: PxConstrains2d, wl: &mut WidgetLayoutTransform) -> PxSize {
+    pub fn layout(self, child_size: PxSize, parent_constrains: PxConstrains2d, wl: &mut WidgetLayoutTranslation) -> PxSize {
         let size = parent_constrains.fill_size().max(child_size);
         let size = parent_constrains.clamp_size(size);
 
