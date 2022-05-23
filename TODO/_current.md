@@ -25,6 +25,7 @@ have a local in context only transform for the inner and a building transform st
         - If the parent was no invertible all content was hidden, we could skip render at each transform point that is not invertible (CSS does this https://www.w3.org/TR/css-transforms-1/#transform-function-lists).
         - Problem solved, use visibility update mechanism in case of singular transform, otherwise patch all descendants.
     - Render update will need to track reference-frames also, and same consideration about optimization.
+    - How to request render-update only when the bounds offset has changed?
 
 
 * Layers & Custom transforms info.

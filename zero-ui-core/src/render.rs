@@ -130,6 +130,7 @@ pub struct FrameBuilder {
     frame_id: FrameId,
     pipeline_id: PipelineId,
     widget_id: WidgetId,
+    transform: RenderTransform,
 
     default_font_aa: FontRenderMode,
 
@@ -197,6 +198,7 @@ impl FrameBuilder {
             frame_id,
             pipeline_id,
             widget_id: root_id,
+            transform: RenderTransform::identity(),
             default_font_aa: match default_font_aa {
                 FontAntiAliasing::Default | FontAntiAliasing::Subpixel => FontRenderMode::Subpixel,
                 FontAntiAliasing::Alpha => FontRenderMode::Alpha,
@@ -348,6 +350,11 @@ impl FrameBuilder {
         (self.widget_id.get(), 0)
     }
 
+    /// Current transform.
+    pub fn transform(&self) -> &RenderTransform {
+        &self.transform
+    }
+
     /// Common item properties given a `clip_rect` and the current context.
     ///
     /// This is a common case helper, it also calls [`widget_rendered`].
@@ -407,13 +414,15 @@ impl FrameBuilder {
     ///
     /// [`is_outer`]: Self::is_outer
     /// [`push_inner`]: Self::push_inner
-    pub fn push_widget(&mut self, widget_id: WidgetId, rendered: &WidgetRenderInfo, f: impl FnOnce(&mut Self)) {
+    pub fn push_widget(&mut self, ctx: &mut RenderContext, f: impl FnOnce(&mut RenderContext, &mut Self)) {
         if self.widget_data.is_some() {
             tracing::error!(
                 "called `push_widget` for `{widget_id}` without calling `push_inner` for the parent `{}`",
                 self.widget_id
             );
         }
+
+        ctx.widget_info.render.set_outer_transform(self.transform);
 
         let parent_rendered = mem::take(&mut self.widget_rendered);
         self.widget_data = Some(WidgetData {
@@ -557,7 +566,11 @@ impl FrameBuilder {
             let translation_key = FrameBindingKey::widget_id_to_wr(self.widget_id);
             let translation = RenderTransform::translation_px(ctx.widget_info.bounds.outer_offset() + ctx.widget_info.bounds.inner_offset());
 
-            ctx.widget_info.render.set_inner_transform(todo!());
+
+            let parent_transform = self.transform;
+            self.transform = translation.then(&parent_transform);
+
+            ctx.widget_info.render.set_inner_transform(self.transform);
 
             self.spatial_id = self.display_list.push_reference_frame(
                 PxPoint::zero().to_wr(),
@@ -600,6 +613,7 @@ impl FrameBuilder {
             self.display_list.pop_reference_frame();
 
             self.spatial_id = parent_spatial_id;
+            self.transform = parent_transform;
         } else {
             tracing::error!("called `push_inner` more then once for `{}`", self.widget_id);
             f(self)
@@ -747,6 +761,11 @@ impl FrameBuilder {
         f: impl FnOnce(&mut Self),
     ) {
         let parent_spatial_id = self.spatial_id;
+        let parent_transform = self.transform;
+        self.transform = match transform {
+            PropertyBinding::Value(value)| PropertyBinding::Binding(_, value) => value,
+        }.then(&parent_transform);
+
         self.spatial_id = self.display_list.push_reference_frame(
             PxPoint::zero().to_wr(),
             parent_spatial_id,
@@ -764,6 +783,7 @@ impl FrameBuilder {
 
         self.display_list.pop_reference_frame();
         self.spatial_id = parent_spatial_id;
+        self.transform = parent_transform;
     }
 
     /// Calls `f` with added `filter` stacking context.
@@ -1280,6 +1300,8 @@ pub struct FrameUpdate {
     clear_color: Option<RenderColor>,
     scrolls: Vec<(ExternalScrollId, PxVector)>,
     frame_id: FrameId,
+
+    transform: RenderTransform,
 }
 impl FrameUpdate {
     // in case they add more dynamic property types.
@@ -1321,6 +1343,8 @@ impl FrameUpdate {
             clear_color: None,
             frame_id,
             current_clear_color: clear_color,
+
+            transform: RenderTransform::identity(),
         }
     }
 
@@ -1329,14 +1353,44 @@ impl FrameUpdate {
         self.frame_id
     }
 
+    /// Current transform.
+    pub fn transform(&self) -> &RenderTransform {
+        &self.transform
+    }
+
     /// Change the color used to clear the pixel buffer when redrawing the frame.
     pub fn set_clear_color(&mut self, color: RenderColor) {
         self.clear_color = Some(color);
     }
 
-    /// Update a layout transform value.
+    /// Update a transform value that does not potentially affect widget bounds.
+    /// 
+    /// Use [`with_transform`] to update transforms that affect widget bounds.
     pub fn update_transform(&mut self, new_value: FrameValue<RenderTransform>) {
         self.bindings.transforms.push(new_value);
+    }
+
+    /// Update a transform that potentially affects widget bounds.
+    /// 
+    /// The [`transform`] is updated to include this space for the call to the `render_update` closure. The closure
+    /// must call render update on child nodes.
+    pub fn with_transform(&mut self, new_value: FrameValue<RenderTransform>, render_update: impl FnOnce(&mut Self)) {
+        let parent_transform = self.transform;
+        self.transform = new_value.value.then(&parent_transform);
+        render_update(self);
+        self.transform = parent_transform;
+    }
+
+    /// Update the widget's outer transform.
+    pub fn with_widget(&mut self, ctx: &mut RenderContext, render_update: impl FnOnce(&mut RenderContext, &mut Self)) {
+        ctx.widget_info.render.set_outer_transform(self.transform);
+        render_update(ctx, self);
+    }
+
+    /// Update the widget's inner transform.
+    pub fn with_inner(&mut self, ctx: &mut RenderContext, render_update: impl FnOnce(&mut RenderContext, &mut Self)) {
+        let translate = ctx.widget_info.bounds.inner_offset() + ctx.widget_info.bounds.outer_offset();
+        todo!()
     }
 
     /// Update a float value.
