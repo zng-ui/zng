@@ -579,7 +579,7 @@ impl FrameBuilder {
             let parent_has_transform = data.has_transform;
             let parent_transform = data.transform;
             data.has_transform = true;
-            data.transform = transform.then(&data.transform);
+            data.transform = data.transform.then(&transform);
 
             render(self);
 
@@ -1431,6 +1431,8 @@ impl FrameUpdate {
     /// Update a transform value that does not potentially affect widget bounds.
     ///
     /// Use [`with_transform`] to update transforms that affect widget bounds.
+    /// 
+    /// [`with_transform`]: Self::with_transform
     pub fn update_transform(&mut self, new_value: FrameValue<RenderTransform>) {
         self.bindings.transforms.push(new_value);
     }
@@ -1439,6 +1441,8 @@ impl FrameUpdate {
     ///
     /// The [`transform`] is updated to include this space for the call to the `render_update` closure. The closure
     /// must call render update on child nodes.
+    ///
+    /// [`transform`]: Self::transform
     pub fn with_transform(&mut self, new_value: FrameValue<RenderTransform>, render_update: impl FnOnce(&mut Self)) {
         let parent_transform = self.transform;
         self.transform = new_value.value.then(&parent_transform);
@@ -1449,10 +1453,12 @@ impl FrameUpdate {
     /// Update the transform applied after the inner bounds translate.
     ///
     /// This is only valid if [`is_outer`].
+    /// 
+    /// [`is_outer`]: Self::is_outer
     pub fn with_inner_transform(&mut self, transform: &RenderTransform, render_update: impl FnOnce(&mut Self)) {
         if let Some(inner_transform) = &mut self.inner_transform {
             let parent = *inner_transform;
-            *inner_transform = transform.then(inner_transform);
+            *inner_transform = inner_transform.then(transform);
 
             render_update(self);
 
@@ -1500,7 +1506,7 @@ impl FrameUpdate {
 
             self.transform = inner_transform.then(&parent_transform);
             ctx.widget_info.render.set_inner_transform(self.transform);
-            
+
             render_update(ctx, self);
             self.transform = parent_transform;
         } else {
