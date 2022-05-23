@@ -159,11 +159,7 @@ impl WidgetLayout {
     ///
     /// [`implicit_base::nodes::children_layout`]: crate::widget_base::implicit_base::nodes::children_layout
     /// [`child_offset`]: WidgetBoundsInfo::child_offset
-    pub fn with_children(
-        &mut self,
-        ctx: &mut LayoutContext,
-        layout: impl FnOnce(&mut LayoutContext, &mut Self) -> PxSize,
-    ) -> PxSize {
+    pub fn with_children(&mut self, ctx: &mut LayoutContext, layout: impl FnOnce(&mut LayoutContext, &mut Self) -> PxSize) -> PxSize {
         #[cfg(debug_assertions)]
         if self.known.is_some() {
             tracing::error!(

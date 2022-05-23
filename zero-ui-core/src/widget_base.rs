@@ -181,9 +181,7 @@ pub mod implicit_base {
                 fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
                     if let Some((id, key)) = &self.id {
                         let transform = RenderTransform::translation_px(ctx.widget_info.bounds.child_offset());
-                        frame.push_reference_frame(*id, key.bind(transform), true, |frame| {
-                            self.child.render(ctx, frame)
-                        });
+                        frame.push_reference_frame(*id, key.bind(transform), true, |frame| self.child.render(ctx, frame));
                     } else {
                         self.child.render(ctx, frame);
                     }
@@ -254,8 +252,7 @@ pub mod implicit_base {
                     size
                 }
                 fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-                    let transform = ctx.widget_info.bounds.inner_transform();
-                    frame.push_inner(self.transform_key.bind(transform), |frame| {
+                    frame.push_inner(ctx, self.transform_key, |ctx, frame| {
                         match HitTestMode::get(ctx.vars) {
                             HitTestMode::RoundedBounds => {
                                 let rect = PxRect::from_size(self.hits_clip.0);
@@ -270,9 +267,7 @@ pub mod implicit_base {
                     });
                 }
                 fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
-                    let transform = ctx.widget_info.bounds.inner_transform();
-                    update.update_transform(self.transform_key.update(transform));
-                    self.child.render_update(ctx, update);
+                    update.update_inner(ctx, self.transform_key, |ctx, update| self.child.render_update(ctx, update));
                 }
             }
             InnerNode {
@@ -420,7 +415,7 @@ pub mod implicit_base {
 
                     if matches!(self.pending_updates.borrow_mut().render.take(), WindowRenderUpdate::Render) || !frame.can_reuse_widget() {
                         ctx.with_widget(self.id, &self.info, &self.state, |ctx| {
-                            frame.push_widget(self.id, &self.info.render, |frame| self.child.render(ctx, frame));
+                            frame.push_widget(ctx, |ctx, frame| self.child.render(ctx, frame));
                         });
                     } else {
                         // can_reuse_widget is always `false`.

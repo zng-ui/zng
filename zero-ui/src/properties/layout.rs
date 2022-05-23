@@ -812,7 +812,7 @@ pub fn height(child: impl UiNode, height: impl IntoVar<Length>) -> impl UiNode {
 ///
 /// The `baseline` is a vertical offset from the bottom edge of the widget's inner bounds up, it defines the
 /// line where the widget naturally *sits*, some widgets like [`text!`] have a non-zero default baseline, most others leave it at zero.
-/// 
+///
 /// [`text!`]: mod@crate::widgets::text
 #[property(border, default(Length::Default))]
 pub fn baseline(child: impl UiNode, baseline: impl IntoVar<Length>) -> impl UiNode {

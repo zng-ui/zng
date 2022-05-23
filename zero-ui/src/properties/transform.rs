@@ -13,6 +13,10 @@ pub fn transform(child: impl UiNode, transform: impl IntoVar<Transform>) -> impl
     struct TransformNode<C, T> {
         child: C,
         transform: T,
+
+        render_transform: RenderTransform,
+        spatial_id: SpatialFrameId,
+        binding_key: FrameBindingKey<RenderTransform>,
     }
     #[impl_ui_node(child)]
     impl<C, T> UiNode for TransformNode<C, T>
@@ -49,14 +53,41 @@ pub fn transform(child: impl UiNode, transform: impl IntoVar<Transform>) -> impl
                 .then(&transform)
                 .then_translate(euclid::vec3(x, y, 0.0));
 
-            wl.pre_transform(&transform);
+            if transform != self.render_transform {
+                self.render_transform = transform;
+                ctx.updates.render_update();
+            }
 
             size
+        }
+
+        fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
+            if frame.is_outer() {
+                frame.push_inner_transform(self.render_transform, |frame| self.child.render(ctx, frame));
+            } else {
+                frame.push_reference_frame(self.spatial_id, self.binding_key.bind(self.render_transform), false, |frame| {
+                    self.child.render(ctx, frame)
+                });
+            }
+        }
+
+        fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
+            if update.is_outer() {
+                update.with_inner_transform(&self.render_transform, |update| self.child.render_update(ctx, update));
+            } else {
+                update.with_transform(self.binding_key.update(self.render_transform), |update| {
+                    self.child.render_update(ctx, update)
+                })
+            }
         }
     }
     TransformNode {
         child: child.cfg_boxed(),
         transform: transform.into_var(),
+
+        render_transform: RenderTransform::identity(),
+        spatial_id: SpatialFrameId::new_unique(),
+        binding_key: FrameBindingKey::new_unique(),
     }
     .cfg_boxed()
 }

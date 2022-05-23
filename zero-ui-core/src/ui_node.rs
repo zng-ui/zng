@@ -563,11 +563,10 @@ pub trait Widget: UiNode {
     #[cfg(any(test, doc, feature = "test_util"))]
     #[cfg_attr(doc_nightly, doc(cfg(feature = "test_util")))]
     fn test_render(&self, ctx: &mut TestWidgetContext, frame: &mut FrameBuilder) {
+        let key = ctx.layout_translation_key;
         ctx.render_context(|ctx| {
             if frame.is_outer() {
-                frame.push_inner(crate::render::FrameBinding::Value(RenderTransform::identity()), |frame| {
-                    self.render(ctx, frame)
-                })
+                frame.push_inner(ctx, key, |ctx, frame| self.render(ctx, frame))
             } else {
                 self.render(ctx, frame)
             }
