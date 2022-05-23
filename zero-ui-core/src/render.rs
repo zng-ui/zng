@@ -1431,7 +1431,7 @@ impl FrameUpdate {
     /// Update a transform value that does not potentially affect widget bounds.
     ///
     /// Use [`with_transform`] to update transforms that affect widget bounds.
-    /// 
+    ///
     /// [`with_transform`]: Self::with_transform
     pub fn update_transform(&mut self, new_value: FrameValue<RenderTransform>) {
         self.bindings.transforms.push(new_value);
@@ -1453,7 +1453,7 @@ impl FrameUpdate {
     /// Update the transform applied after the inner bounds translate.
     ///
     /// This is only valid if [`is_outer`].
-    /// 
+    ///
     /// [`is_outer`]: Self::is_outer
     pub fn with_inner_transform(&mut self, transform: &RenderTransform, render_update: impl FnOnce(&mut Self)) {
         if let Some(inner_transform) = &mut self.inner_transform {

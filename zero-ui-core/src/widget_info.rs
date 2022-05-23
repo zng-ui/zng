@@ -805,7 +805,7 @@ impl WidgetBoundsInfo {
     }
 
     fn set_child_offset(&self, offset: PxVector) {
-        self.0.inner_offset.set(offset);
+        self.0.child_offset.set(offset);
     }
 
     fn set_inner_size(&self, size: PxSize) {
