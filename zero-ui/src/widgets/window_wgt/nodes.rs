@@ -108,6 +108,9 @@ impl WindowLayers {
             anchor_info: Option<(WidgetBoundsInfo, WidgetBorderInfo, WidgetRenderInfo)>,
             offset_point: PxPoint,
             interaction: bool,
+
+            spatial_id: SpatialFrameId,
+            transform_key: FrameBindingKey<RenderTransform>,
         }
         #[impl_ui_node(
                 delegate = &self.widget,
@@ -252,36 +255,59 @@ impl WindowLayers {
                                     .inner_transform()
                                     .transform_px_point(self.offset_point)
                                     .unwrap_or_default();
-                                frame.push_inner_transform(&RenderTransform::translation_px(point_in_window.to_vector()), |frame| {
-                                    self.widget.render(ctx, frame)
-                                })
+
+                                frame.push_reference_frame(
+                                    self.spatial_id,
+                                    self.transform_key
+                                        .bind(RenderTransform::translation_px(point_in_window.to_vector())),
+                                    true,
+                                    |frame| self.widget.render(ctx, frame),
+                                )
                             }
                             AnchorTransform::InnerBorderOffset(_) => {
                                 let point_in_window = border_info
                                     .inner_transform(render_info)
                                     .transform_px_point(self.offset_point)
                                     .unwrap_or_default();
-                                frame.push_inner_transform(&RenderTransform::translation_px(point_in_window.to_vector()), |frame| {
-                                    self.widget.render(ctx, frame)
-                                })
+                                frame.push_reference_frame(
+                                    self.spatial_id,
+                                    self.transform_key
+                                        .bind(RenderTransform::translation_px(point_in_window.to_vector())),
+                                    true,
+                                    |frame| self.widget.render(ctx, frame),
+                                )
                             }
                             AnchorTransform::OuterOffset(_) => {
                                 let point_in_window = render_info
                                     .outer_transform()
                                     .transform_px_point(self.offset_point)
                                     .unwrap_or_default();
-                                frame.push_inner_transform(&RenderTransform::translation_px(point_in_window.to_vector()), |frame| {
-                                    self.widget.render(ctx, frame)
-                                })
+                                frame.push_reference_frame(
+                                    self.spatial_id,
+                                    self.transform_key
+                                        .bind(RenderTransform::translation_px(point_in_window.to_vector())),
+                                    true,
+                                    |frame| self.widget.render(ctx, frame),
+                                )
                             }
-                            AnchorTransform::InnerTransform => {
-                                frame.push_inner_transform(&render_info.inner_transform(), |frame| self.widget.render(ctx, frame))
-                            }
-                            AnchorTransform::InnerBorderTransform => frame
-                                .push_inner_transform(&border_info.inner_transform(render_info), |frame| self.widget.render(ctx, frame)),
-                            AnchorTransform::OuterTransform => {
-                                frame.push_inner_transform(&render_info.outer_transform(), |frame| self.widget.render(ctx, frame))
-                            }
+                            AnchorTransform::InnerTransform => frame.push_reference_frame(
+                                self.spatial_id,
+                                self.transform_key.bind(render_info.inner_transform()),
+                                false,
+                                |frame| self.widget.render(ctx, frame),
+                            ),
+                            AnchorTransform::InnerBorderTransform => frame.push_reference_frame(
+                                self.spatial_id,
+                                self.transform_key.bind(border_info.inner_transform(render_info)),
+                                false,
+                                |frame| self.widget.render(ctx, frame),
+                            ),
+                            AnchorTransform::OuterTransform => frame.push_reference_frame(
+                                self.spatial_id,
+                                self.transform_key.bind(render_info.outer_transform()),
+                                false,
+                                |frame| self.widget.render(ctx, frame),
+                            ),
                             _ => self.widget.render(ctx, frame),
                         }
                         return;
@@ -301,37 +327,48 @@ impl WindowLayers {
                                     .inner_transform()
                                     .transform_px_point(self.offset_point)
                                     .unwrap_or_default();
-                                update.with_inner_transform(&RenderTransform::translation_px(point_in_window.to_vector()), |update| {
-                                    self.widget.render_update(ctx, update)
-                                })
+                                update.with_transform(
+                                    self.transform_key
+                                        .update(RenderTransform::translation_px(point_in_window.to_vector())),
+                                    |update| self.widget.render_update(ctx, update),
+                                )
                             }
                             AnchorTransform::InnerBorderOffset(_) => {
                                 let point_in_window = border_info
                                     .inner_transform(render_info)
                                     .transform_px_point(self.offset_point)
                                     .unwrap_or_default();
-                                update.with_inner_transform(&RenderTransform::translation_px(point_in_window.to_vector()), |update| {
-                                    self.widget.render_update(ctx, update)
-                                })
+                                update.with_transform(
+                                    self.transform_key
+                                        .update(RenderTransform::translation_px(point_in_window.to_vector())),
+                                    |update| self.widget.render_update(ctx, update),
+                                )
                             }
                             AnchorTransform::OuterOffset(_) => {
                                 let point_in_window = render_info
                                     .outer_transform()
                                     .transform_px_point(self.offset_point)
                                     .unwrap_or_default();
-                                update.with_inner_transform(&RenderTransform::translation_px(point_in_window.to_vector()), |update| {
-                                    self.widget.render_update(ctx, update)
-                                })
+                                update.with_transform(
+                                    self.transform_key
+                                        .update(RenderTransform::translation_px(point_in_window.to_vector())),
+                                    |update| self.widget.render_update(ctx, update),
+                                )
                             }
                             AnchorTransform::InnerTransform => {
-                                update.with_inner_transform(&render_info.inner_transform(), |update| self.widget.render_update(ctx, update))
-                            }
-                            AnchorTransform::InnerBorderTransform => update
-                                .with_inner_transform(&border_info.inner_transform(render_info), |update| {
+                                update.with_transform(self.transform_key.update(render_info.inner_transform()), |update| {
                                     self.widget.render_update(ctx, update)
-                                }),
+                                });
+                            }
+                            AnchorTransform::InnerBorderTransform => {
+                                update.with_transform(self.transform_key.update(border_info.inner_transform(render_info)), |update| {
+                                    self.widget.render_update(ctx, update)
+                                });
+                            }
                             AnchorTransform::OuterTransform => {
-                                update.with_inner_transform(&render_info.outer_transform(), |update| self.widget.render_update(ctx, update))
+                                update.with_transform(self.transform_key.update(render_info.outer_transform()), |update| {
+                                    self.widget.render_update(ctx, update)
+                                });
                             }
                             _ => self.widget.render_update(ctx, update),
                         }
@@ -376,6 +413,9 @@ impl WindowLayers {
                 anchor_info: None,
                 offset_point: PxPoint::zero(),
                 interaction: false,
+
+                transform_key: FrameBindingKey::new_unique(),
+                spatial_id: SpatialFrameId::new_unique(),
             },
         );
     }
