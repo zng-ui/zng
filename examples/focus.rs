@@ -142,6 +142,7 @@ fn overlay(window_enabled: RcVar<bool>) -> impl Widget {
     container! {
         id = "overlay";
         modal = true;
+        content_align = Align::CENTER;
         content = container! {
             focus_scope = true;
             tab_nav = TabNav::Cycle;
