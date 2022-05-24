@@ -361,6 +361,11 @@ impl_from_and_into_var! {
     ) -> CornerRadius {
         CornerRadius::new(top_left, top_right, bottom_right, bottom_left)
     }
+
+    /// From layout corner-radius.
+    fn from(corner_radius: PxCornerRadius) -> CornerRadius {
+        CornerRadius::new(corner_radius.top_left, corner_radius.top_right, corner_radius.bottom_right, corner_radius.bottom_left)
+    }
 }
 
 /// The line style and color for each side of a widget's border.
@@ -621,7 +626,7 @@ pub fn corner_radius(child: impl UiNode, radius: impl IntoVar<CornerRadius>) -> 
     #[impl_ui_node(child)]
     impl<C: UiNode> UiNode for CornerRadiusNode<C> {
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
-            ContextBorders::with_corner_radius(ctx.vars, || self.child.layout(ctx, wl))
+            ContextBorders::with_corner_radius(ctx, |ctx| self.child.layout(ctx, wl))
         }
     }
     with_context_var(CornerRadiusNode { child }, CornerRadiusVar, radius)
@@ -932,11 +937,16 @@ impl ContextBorders {
         ctx.vars.with_context_var(BorderDataVar, ContextVarData::fixed(&data), || f(ctx));
     }
 
-    fn with_corner_radius<R>(vars: &VarsRead, f: impl FnOnce() -> R) -> R {
-        let mut data = BorderDataVar::get_clone(vars);
-        data.set_corner_radius(vars);
+    /// Indicates a boundary point where the [`CornerRadiusVar`] backing context changes during layout.
+    ///
+    /// The variable must have been just rebound before this call, the [`corner_radius`] property implements this method.
+    ///
+    /// [`corner_radius`]: fn@corner_radius
+    pub fn with_corner_radius<R>(ctx: &mut LayoutContext, f: impl FnOnce(&mut LayoutContext) -> R) -> R {
+        let mut data = BorderDataVar::get_clone(ctx.vars);
+        data.set_corner_radius(ctx.vars);
 
-        vars.with_context_var(BorderDataVar, ContextVarData::fixed(&data), f)
+        ctx.vars.with_context_var(BorderDataVar, ContextVarData::fixed(&data), || f(ctx))
     }
 
     /// Gets the computed border rect and side offsets for the border visual.

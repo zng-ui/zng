@@ -1,6 +1,6 @@
 # Pre-Merge
 
-* Layers & Custom transforms info.
+* Layers.
 * Scrollable.
     - Panorama image set to fill.
 

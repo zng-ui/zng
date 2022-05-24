@@ -574,12 +574,12 @@ impl FrameBuilder {
     ///
     /// [`is_outer`]: Self::is_outer
     /// [`push_inner`]: Self::push_inner
-    pub fn push_inner_transform(&mut self, transform: RenderTransform, render: impl FnOnce(&mut Self)) {
+    pub fn push_inner_transform(&mut self, transform: &RenderTransform, render: impl FnOnce(&mut Self)) {
         if let Some(data) = &mut self.widget_data {
             let parent_has_transform = data.has_transform;
             let parent_transform = data.transform;
             data.has_transform = true;
-            data.transform = data.transform.then(&transform);
+            data.transform = data.transform.then(transform);
 
             render(self);
 
