@@ -47,7 +47,45 @@ pub fn viewport(child: impl UiNode, mode: impl IntoVar<ScrollMode>) -> impl UiNo
         }
 
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
-            self.child.layout(ctx, wl)
+            let mode = self.mode.copy(ctx);
+            let ct_size = ctx.with_constrains(|mut c| {
+                if mode.contains(ScrollMode::VERTICAL) {
+                    c = c.with_unbounded_y();
+                }
+                if mode.contains(ScrollMode::HORIZONTAL) {
+                    c = c.with_unbounded_x();
+                }
+                c
+            }, |ctx| {
+                self.child.layout(ctx, wl)  
+            });
+
+            let viewport_size = ctx.constrains().clamp_size(ct_size);
+            if self.viewport_size != viewport_size {
+                self.viewport_size = viewport_size;
+                ScrollViewportSizeVar::set(ctx, viewport_size).unwrap();
+                ctx.updates.render();
+            }
+
+            self.content_size = ct_size;
+            if !mode.contains(ScrollMode::VERTICAL) {
+                self.content_size.height = viewport_size.height;
+            }
+            if !mode.contains(ScrollMode::HORIZONTAL) {
+                self.content_size.width = viewport_size.width;
+            }
+
+            let mut content_offset = PxVector::zero();
+            let v_offset = *ScrollVerticalOffsetVar::get(ctx.vars);
+            content_offset.y = (self.viewport_size.height - self.content_size.height) * v_offset;
+            let h_offset = *ScrollHorizontalOffsetVar::get(ctx.vars);
+            content_offset.x = (self.viewport_size.width - self.content_size.width) * h_offset;
+
+
+            // TODO: continue
+
+
+            self.viewport_size
         }
 
         /*
@@ -591,7 +629,7 @@ pub fn scroll_to_command_node(child: impl UiNode) -> impl UiNode {
         child: C,
 
         handle: CommandHandle,
-        scroll_to: Option<(WidgetBoundsInfo, ScrollToMode)>,
+        scroll_to: Option<(WidgetBoundsInfo, WidgetRenderInfo, ScrollToMode)>,
     }
     #[impl_ui_node(child)]
     impl<C: UiNode> UiNode for ScrollToCommandNode<C> {
@@ -623,11 +661,12 @@ pub fn scroll_to_command_node(child: impl UiNode) -> impl UiNode {
                             if us.is_scrollable() {
                                 // we are a scrollable.
 
-                                let target = target.bounds_info();
+                                let bounds = target.bounds_info();
+                                let render = target.render_info();
                                 let mode = request.mode;
 
                                 // will scroll on the next arrange.
-                                self.scroll_to = Some((target, mode));
+                                self.scroll_to = Some((bounds, render, mode));
                                 ctx.updates.layout();
 
                                 args.stop_propagation();
@@ -644,10 +683,10 @@ pub fn scroll_to_command_node(child: impl UiNode) -> impl UiNode {
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
             let r = self.child.layout(ctx, wl);
 
-            if let Some((target, mode)) = self.scroll_to.take() {
+            if let Some((bounds, render, mode)) = self.scroll_to.take() {
                 let us = ctx.info_tree.find(ctx.path.widget_id()).unwrap();
                 if let Some(viewport_bounds) = us.viewport() {
-                    let target_bounds = PxRect::zero(); // TODO
+                    let target_bounds = bounds.inner_bounds(&render);
                     match mode {
                         ScrollToMode::Minimal { margin } => {
                             let margin = ctx.with_constrains(

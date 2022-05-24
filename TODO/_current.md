@@ -1,6 +1,5 @@
 # Pre-Merge
 
-* Layers.
 * Scrollable.
     - Panorama image set to fill.
 

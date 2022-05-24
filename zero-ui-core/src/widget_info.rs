@@ -79,10 +79,10 @@ impl WidgetLayout {
 
         ctx.widget_info.bounds.set_outer_size(size);
 
-        #[cfg(debug_assertions)]
-        if !self.known_collapsed && (self.known.is_none() || !matches!(self.known_target, KnownTarget::Inner)) {
-            tracing::error!("widget `{:?}` did not setup inner bounds during layout", ctx.path);
-        }
+        // #[cfg(debug_assertions)]
+        // if !self.known_collapsed && (self.known.is_none() || !matches!(self.known_target, KnownTarget::Inner)) {
+        //     tracing::error!("widget `{:?}` did not setup inner bounds during layout", ctx.path);
+        // }
 
         // setup returning translations target.
         self.known = Some(ctx.widget_info.bounds.clone());
