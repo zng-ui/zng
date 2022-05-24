@@ -143,24 +143,21 @@ pub fn child_align(child: impl UiNode, alignment: impl IntoVar<Align>) -> impl U
     align(child, alignment)
 }
 
-/// Widget left-top offset.
+/// Widget layout offset.
 ///
 /// # Examples
 ///
 /// ```
 /// use zero_ui::prelude::*;
 ///
-/// container! {
-///     content = button! {
-///         position = (100, 20.pct());
-///         content = text("Click Me!")
-///     };
+/// button! {
+///     position = (100, 20.pct());
+///     content = text("Click Me!")
 /// }
 /// # ;
 /// ```
 ///
-/// In the example the button is manually positioned `100` layout pixels from the left of the container and
-/// at `20` percent of the container height from the top of the container.
+/// In the example the button is offset 100 layout pixels to the right and 20% of its own height down.
 ///
 /// # `x` and `y`
 ///
@@ -186,9 +183,13 @@ pub fn position(child: impl UiNode, position: impl IntoVar<Point>) -> impl UiNod
         }
 
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
-            let pos = self.position.get(ctx.vars).layout(ctx.metrics, |_| PxPoint::zero());
+            let size = self.child.layout(ctx, wl);
+            let pos = ctx.with_constrains(
+                |_| PxConstrains2d::new_exact_size(size),
+                |ctx| self.position.get(ctx.vars).layout(ctx.metrics, |_| PxPoint::zero()),
+            );
             wl.translate(pos.to_vector());
-            self.child.layout(ctx, wl)
+            size
         }
     }
     PositionNode {
@@ -197,23 +198,23 @@ pub fn position(child: impl UiNode, position: impl IntoVar<Point>) -> impl UiNod
     }
 }
 
-/// Left offset.
+/// Offset on the ***x*** axis.
+/// 
+/// Value is relative to the widget's width.
 ///
 /// # Examples
 ///
 /// ```
 /// use zero_ui::prelude::*;
 ///
-/// container! {
-///     content = button! {
-///         x = 20.pct();
-///         content = text("Click Me!")
-///     };
-/// }
+/// button! {
+///     x = 20.pct();
+///     content = text("Click Me!")
+/// };
 /// # ;
 /// ```
 ///
-/// In the example the button is manually positioned at `20` percent of the container width from the left of the container.
+/// In the example the button is moved 20 percent of its own width to the right.
 ///
 /// # `position`
 ///
@@ -239,31 +240,35 @@ pub fn x(child: impl UiNode, x: impl IntoVar<Length>) -> impl UiNode {
         }
 
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
-            let x = self.x.get(ctx.vars).layout(ctx.metrics.for_x(), |_| Px(0));
+            let size = self.child.layout(ctx, wl);
+            let x = ctx.with_constrains(
+                |_| PxConstrains2d::new_exact_size(size),
+                |ctx| self.x.get(ctx.vars).layout(ctx.metrics.for_x(), |_| Px(0)),
+            );
             wl.translate(PxVector::new(x, Px(0)));
-            self.child.layout(ctx, wl)
+            size
         }
     }
     XNode { child, x: x.into_var() }
 }
 
-/// Top offset.
+/// Offset on the ***y*** axis.
+/// 
+/// Value is relative to the widget's height.
 ///
 /// # Examples
 ///
 /// ```
 /// use zero_ui::prelude::*;
 ///
-/// container! {
-///     content = button! {
-///         y = 20.pct();
-///         content = text("Click Me!")
-///     };
+/// button! {
+///     y = 20.pct();
+///     content = text("Click Me!")
 /// }
 /// # ;
 /// ```
 ///
-/// In the example the button is manually positioned at `20` percent of the container height from the top of the container.
+/// In the example the button is moved down 20 percent of its own height.
 ///
 /// # `position`
 ///
@@ -289,9 +294,13 @@ pub fn y(child: impl UiNode, y: impl IntoVar<Length>) -> impl UiNode {
         }
 
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
-            let y = self.y.get(ctx.vars).layout(ctx.metrics.for_y(), |_| Px(0));
+            let size = self.child.layout(ctx, wl);
+            let y = ctx.with_constrains(
+                |_| PxConstrains2d::new_exact_size(size),
+                |ctx| self.y.get(ctx.vars).layout(ctx.metrics.for_y(), |_| Px(0)),
+            );
             wl.translate(PxVector::new(Px(0), y));
-            self.child.layout(ctx, wl)
+            size
         }
     }
     YNode { child, y: y.into_var() }
