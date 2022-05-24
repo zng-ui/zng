@@ -134,10 +134,6 @@ pub mod thumb {
             thumb_length: Dip,
 
             mouse_down: Option<(Dip, Factor)>,
-
-            final_offset: PxVector,
-            spatial_id: SpatialFrameId,
-            offset_key: FrameBindingKey<RenderTransform>,
         }
         #[impl_ui_node(child)]
         impl<C: UiNode> UiNode for DragNode<C> {
@@ -202,7 +198,7 @@ pub mod thumb {
             fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
                 let final_size = ctx.constrains().fill_size();
 
-                let mut final_offset = self.final_offset;
+                let mut final_offset = PxVector::zero();
                 let (px_vp_length, final_offset_d) = match *ThumbOrientationVar::get(ctx) {
                     scrollbar::Orientation::Vertical => (final_size.height, &mut final_offset.y),
                     scrollbar::Orientation::Horizontal => (final_size.width, &mut final_offset.x),
@@ -216,28 +212,9 @@ pub mod thumb {
                 self.viewport_length = px_vp_length.to_dip(fct);
                 self.thumb_length = px_tb_length.to_dip(fct);
 
-                if self.final_offset != final_offset {
-                    self.final_offset = final_offset;
-                    ctx.updates.render_update();
-                }
-
-                // TODO: !! register transform
+                wl.translate(final_offset);
 
                 self.child.layout(ctx, wl)
-            }
-
-            fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-                let transform = RenderTransform::translation_px(self.final_offset);
-                frame.push_reference_frame(self.spatial_id, self.offset_key.bind(transform), true, |f| {
-                    self.child.render(ctx, f)
-                });
-            }
-
-            fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
-                let transform = RenderTransform::translation_px(self.final_offset);
-                update.update_transform(self.offset_key.update(transform));
-
-                self.child.render_update(ctx, update);
             }
         }
         DragNode {
@@ -246,10 +223,6 @@ pub mod thumb {
             thumb_length: Dip::new(0),
 
             mouse_down: None,
-
-            final_offset: PxVector::zero(),
-            spatial_id: SpatialFrameId::new_unique(),
-            offset_key: FrameBindingKey::new_unique(),
         }
     }
 

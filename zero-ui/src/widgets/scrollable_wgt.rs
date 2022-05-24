@@ -119,17 +119,27 @@ pub mod scrollable {
             ///+-----------------+---+
             fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
                 // scroll-bars
-                let v_scroll = ctx.with_constrains(
-                    |c| c.with_min_x(Px(0)).with_fill(false, true),
-                    |ctx| self.children.widget_layout(1, ctx, wl),
-                );
-                let h_scroll = ctx.with_constrains(
-                    |c| c.with_min_y(Px(0)).with_fill(true, false),
-                    |ctx| self.children.widget_layout(2, ctx, wl),
-                );
+                let mut layout = 2;
+                while layout > 0 {
+                    let v_scroll = ctx.with_constrains(
+                        |c| c.with_min_x(Px(0)).with_less_y(self.joiner.height).with_fill(false, true),
+                        |ctx| self.children.widget_layout(1, ctx, wl),
+                    );
+                    let h_scroll = ctx.with_constrains(
+                        |c| c.with_min_y(Px(0)).with_less_x(self.joiner.width).with_fill(true, false),
+                        |ctx| self.children.widget_layout(2, ctx, wl),
+                    );
 
-                // corner joiner
-                self.joiner = PxSize::new(v_scroll.width, h_scroll.height);
+                    let joiner = PxSize::new(v_scroll.width, h_scroll.height);
+
+                    if joiner != self.joiner {
+                        self.joiner = joiner;
+                        layout -= 1;
+                    } else {
+                        break;
+                    }
+                }
+               
                 let _ = ctx.with_constrains(|c| c.with_max_size(self.joiner), |ctx| self.children.widget_layout(3, ctx, wl));
 
                 // viewport
