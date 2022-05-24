@@ -757,8 +757,10 @@ impl FrameBuilder {
             SpatialFrameId::scroll_id_to_wr(scroll_id, self.pipeline_id),
         );
 
-        // offset can only be set using transaction `set_scroll_offsets` ?
+        // offset can only be set using transaction `set_scroll_offsets` so we send then separate for the view-process.
         let offset = content_rect.origin.to_vector();
+
+        // offset in our API is the content translate inside the viewport, in webrender this is inverted for some reason.
         self.scrolls.push((scroll_id_wr, -offset));
 
         let parent_transform = self.transform;
