@@ -48,17 +48,18 @@ pub fn viewport(child: impl UiNode, mode: impl IntoVar<ScrollMode>) -> impl UiNo
 
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
             let mode = self.mode.copy(ctx);
-            let ct_size = ctx.with_constrains(|mut c| {
-                if mode.contains(ScrollMode::VERTICAL) {
-                    c = c.with_unbounded_y();
-                }
-                if mode.contains(ScrollMode::HORIZONTAL) {
-                    c = c.with_unbounded_x();
-                }
-                c
-            }, |ctx| {
-                self.child.layout(ctx, wl)  
-            });
+            let ct_size = ctx.with_constrains(
+                |mut c| {
+                    if mode.contains(ScrollMode::VERTICAL) {
+                        c = c.with_unbounded_y();
+                    }
+                    if mode.contains(ScrollMode::HORIZONTAL) {
+                        c = c.with_unbounded_x();
+                    }
+                    c
+                },
+                |ctx| self.child.layout(ctx, wl),
+            );
 
             let viewport_size = ctx.constrains().clamp_size(ct_size);
             if self.viewport_size != viewport_size {
@@ -66,6 +67,8 @@ pub fn viewport(child: impl UiNode, mode: impl IntoVar<ScrollMode>) -> impl UiNo
                 ScrollViewportSizeVar::set(ctx, viewport_size).unwrap();
                 ctx.updates.render();
             }
+
+            self.info.set_viewport_size(viewport_size);
 
             self.content_size = ct_size;
             if !mode.contains(ScrollMode::VERTICAL) {
@@ -81,74 +84,7 @@ pub fn viewport(child: impl UiNode, mode: impl IntoVar<ScrollMode>) -> impl UiNo
             let h_offset = *ScrollHorizontalOffsetVar::get(ctx.vars);
             content_offset.x = (self.viewport_size.width - self.content_size.width) * h_offset;
 
-
-            // TODO: continue
-
-
-            self.viewport_size
-        }
-
-        /*
-        fn measure(&mut self, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize {
-            let mut c_available_size = available_size;
-
-            let mode = self.mode.copy(ctx);
-            if mode.contains(ScrollMode::VERTICAL) {
-                c_available_size.height = AvailablePx::Infinite;
-            }
-            if mode.contains(ScrollMode::HORIZONTAL) {
-                c_available_size.width = AvailablePx::Infinite;
-            }
-
-            let ct_size = self.child.measure(ctx, c_available_size);
-
-            if mode.contains(ScrollMode::VERTICAL) && ct_size.height != self.content_size.height {
-                self.content_size.height = ct_size.height;
-                ctx.updates.render();
-            }
-            if mode.contains(ScrollMode::HORIZONTAL) && ct_size.width != self.content_size.width {
-                self.content_size.width = ct_size.width;
-                ctx.updates.render();
-            }
-
-            available_size.clip(ct_size)
-        }
-
-        fn arrange(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, final_size: PxSize) {
-            if self.viewport_size != final_size {
-                self.viewport_size = final_size;
-                ScrollViewportSizeVar::set(ctx, final_size).unwrap();
-                ctx.updates.render();
-            }
-            let viewport = PxRect::new(
-                widget_layout
-                    .global_transform()
-                    .transform_px_point(PxPoint::zero())
-                    .unwrap_or_default(),
-                    final_size,
-            );
-
-            self.info.set_viewport(viewport);
-
-            let mode = self.mode.copy(ctx);
-            if !mode.contains(ScrollMode::VERTICAL) {
-                self.content_size.height = final_size.height;
-            }
-            if !mode.contains(ScrollMode::HORIZONTAL) {
-                self.content_size.width = final_size.width;
-            }
-
-            let mut content_offset = self.content_offset;
-            let v_offset = *ScrollVerticalOffsetVar::get(ctx.vars);
-            content_offset.y = (self.viewport_size.height - self.content_size.height) * v_offset;
-            let h_offset = *ScrollHorizontalOffsetVar::get(ctx.vars);
-            content_offset.x = (self.viewport_size.width - self.content_size.width) * h_offset;
-
-            widget_layout.with_custom_transform(&RenderTransform::translation_px(content_offset), |wl| {
-                self.child.arrange(ctx, wl, self.content_size);
-            });
-
-            if self.content_offset != content_offset {
+            if content_offset != self.content_offset {
                 self.content_offset = content_offset;
                 ctx.updates.render_update();
             }
@@ -159,10 +95,13 @@ pub fn viewport(child: impl UiNode, mode: impl IntoVar<ScrollMode>) -> impl UiNo
             ScrollVerticalRatioVar::new().set_ne(ctx, v_ratio.fct()).unwrap();
             ScrollHorizontalRatioVar::new().set_ne(ctx, h_ratio.fct()).unwrap();
             ScrollContentSizeVar::new().set_ne(ctx, self.content_size).unwrap();
+
+            self.viewport_size
         }
-        */
 
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
+            self.info.set_viewport_transform(*frame.transform());
+
             frame.push_scroll_frame(
                 self.scroll_id,
                 self.viewport_size,
@@ -174,8 +113,9 @@ pub fn viewport(child: impl UiNode, mode: impl IntoVar<ScrollMode>) -> impl UiNo
         }
 
         fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
-            update.update_scroll(self.scroll_id, self.content_offset);
-            self.child.render_update(ctx, update);
+            self.info.set_viewport_transform(*update.transform());
+
+            update.with_scroll(self.scroll_id, self.content_offset, |update| self.child.render_update(ctx, update));
         }
     }
     ViewportNode {

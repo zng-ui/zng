@@ -794,16 +794,18 @@ impl WidgetBoundsInfo {
 
     /// Calculate the bounding box that envelops the actual size and position of the inner bounds last rendered.
     pub fn outer_bounds(&self, render: &WidgetRenderInfo) -> PxRect {
-        let rect = PxRect::from_size(self.inner_size()).to_wr();
-        let bounds = render.inner_transform().outer_transformed_box2d(&rect).unwrap();
-        bounds.to_px()
+        render
+            .outer_transform()
+            .outer_transformed_px(PxRect::from_size(self.outer_size()))
+            .unwrap_or_default()
     }
 
     /// Calculate the bounding box that envelops the actual size and position of the inner bounds last rendered.
     pub fn inner_bounds(&self, render: &WidgetRenderInfo) -> PxRect {
-        let rect = PxRect::from_size(self.inner_size()).to_wr();
-        let bounds = render.inner_transform().outer_transformed_box2d(&rect).unwrap();
-        bounds.to_px()
+        render
+            .inner_transform()
+            .outer_transformed_px(PxRect::from_size(self.inner_size()))
+            .unwrap_or_default()
     }
 
     fn set_outer_offset(&self, offset: PxVector) {
@@ -1148,18 +1150,16 @@ impl<'a> WidgetInfo<'a> {
     ///
     /// Returns an up-to-date rect, the bounds are updated every render or render update without causing a tree rebuild.
     pub fn outer_bounds(self) -> PxRect {
-        let rect = PxRect::from_size(self.outer_size()).to_wr();
-        let bounds = self.outer_transform().outer_transformed_box2d(&rect).unwrap();
-        bounds.to_px()
+        let info = self.info();
+        info.bounds_info.outer_bounds(&info.render_info)
     }
 
     /// Widget inner rectangle in the window space.
     ///
     /// Returns an up-to-date rect, the bounds are updated every render or render update without causing a tree rebuild.
     pub fn inner_bounds(self) -> PxRect {
-        let rect = PxRect::from_size(self.inner_size()).to_wr();
-        let bounds = self.inner_transform().outer_transformed_box2d(&rect).unwrap();
-        bounds.to_px()
+        let info = self.info();
+        info.bounds_info.inner_bounds(&info.render_info)
     }
 
     /// Widget inner bounds center in the window space.

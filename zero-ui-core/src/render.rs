@@ -758,10 +758,15 @@ impl FrameBuilder {
         );
 
         // offset can only be set using transaction `set_scroll_offsets` ?
-        self.scrolls.push((scroll_id_wr, -content_rect.origin.to_vector()));
+        let offset = content_rect.origin.to_vector();
+        self.scrolls.push((scroll_id_wr, -offset));
+
+        let parent_transform = self.transform;
+        self.transform = RenderTransform::translation_px(offset).then(&self.transform);
 
         f(self);
 
+        self.transform = parent_transform;
         self.spatial_id = parent_spatial_id;
     }
 
@@ -1528,8 +1533,26 @@ impl FrameUpdate {
     /// Update a scroll frame offset.
     ///
     /// The `offset` replaces the previous offset set for `id`, it represents the translation of the content in the viewport space.
+    ///
+    /// Use [`with_scroll`] to update scrolls that may contain widget bounds.
+    ///
+    /// [`with_scroll`]: Self::with_scroll
     pub fn update_scroll(&mut self, id: ScrollId, offset: PxVector) {
         self.scrolls.push((id.to_wr(self.pipeline_id), -offset))
+    }
+
+    /// Update a scroll frame offset for scroll content that may contain widgets.
+    ///
+    /// The [`transform`] is updated to include this space for the call to the `render_update` closure. The closure
+    /// must call render update on the scroll content.
+    ///
+    /// [`transform`]: Self::transform
+    pub fn with_scroll(&mut self, id: ScrollId, offset: PxVector, render_update: impl FnOnce(&mut Self)) {
+        let parent_transform = self.transform;
+        self.transform = RenderTransform::translation_px(offset).then(&parent_transform);
+        self.update_scroll(id, offset);
+        render_update(self);
+        self.transform = parent_transform;
     }
 
     /// Finalize the update.

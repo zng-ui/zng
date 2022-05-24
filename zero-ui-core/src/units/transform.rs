@@ -2,7 +2,7 @@ use zero_ui_view_api::webrender_api;
 
 use crate::context::LayoutMetrics;
 
-use super::{euclid, AngleRadian, AngleUnits, Factor, Length, Px, PxPoint, PxToWr, PxVector};
+use super::{euclid, AngleRadian, AngleUnits, Factor, Length, Px, PxPoint, PxRect, PxToWr, PxVector, WrToPx};
 
 /// Computed [`Transform`].
 ///
@@ -24,8 +24,12 @@ pub trait RenderTransformExt {
     /// or `None` otherwise.
     fn transform_px_point(&self, point: PxPoint) -> Option<PxPoint>;
 
-    /// Returns the given [`PxVector`] transformed by this matrix.
+    /// Returns the given [`PxVector`] transformed by this transform.
     fn transform_px_vector(&self, vector: PxVector) -> PxVector;
+
+    /// Returns a [`PxRect`] that encompasses the result of transforming the `rect` by this transform, if the transform makes sense,
+    /// or `None` otherwise.
+    fn outer_transformed_px(&self, rect: PxRect) -> Option<PxRect>;
 }
 impl RenderTransformExt for RenderTransform {
     fn translation_px(offset: PxVector) -> RenderTransform {
@@ -50,6 +54,12 @@ impl RenderTransformExt for RenderTransform {
         let vector = euclid::vec2(vector.x.0 as f32, vector.y.0 as f32);
         let vector = self.transform_vector2d(vector);
         PxVector::new(Px(vector.x as i32), Px(vector.y as i32))
+    }
+
+    fn outer_transformed_px(&self, rect: PxRect) -> Option<PxRect> {
+        let rect = rect.to_wr();
+        let bounds = self.outer_transformed_box2d(&rect)?;
+        Some(bounds.to_px())
     }
 }
 

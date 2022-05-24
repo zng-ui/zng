@@ -118,14 +118,22 @@ pub mod scrollable {
             // | 2 - h_scrollbar | 3 | - scrollbar_joiner
             ///+-----------------+---+
             fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
-                // measure
-                let v_scroll = self.children.widget_layout(1, ctx, wl);
-                let h_scroll = self.children.widget_layout(2, ctx, wl);
+                // scroll-bars
+                let v_scroll = ctx.with_constrains(
+                    |c| c.with_min_x(Px(0)).with_fill(false, true),
+                    |ctx| self.children.widget_layout(1, ctx, wl),
+                );
+                let h_scroll = ctx.with_constrains(
+                    |c| c.with_min_y(Px(0)).with_fill(true, false),
+                    |ctx| self.children.widget_layout(2, ctx, wl),
+                );
 
+                // corner joiner
                 self.joiner = PxSize::new(v_scroll.width, h_scroll.height);
-                let mut viewport = ctx.with_constrains(|c| c.with_less_size(self.joiner), |ctx| self.children.widget_layout(0, ctx, wl));
-
                 let _ = ctx.with_constrains(|c| c.with_max_size(self.joiner), |ctx| self.children.widget_layout(3, ctx, wl));
+
+                // viewport
+                let mut viewport = ctx.with_constrains(|c| c.with_less_size(self.joiner), |ctx| self.children.widget_layout(0, ctx, wl));
 
                 // arrange
                 let final_size = viewport + self.joiner;

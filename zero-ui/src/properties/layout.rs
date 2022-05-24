@@ -199,7 +199,7 @@ pub fn position(child: impl UiNode, position: impl IntoVar<Point>) -> impl UiNod
 }
 
 /// Offset on the ***x*** axis.
-/// 
+///
 /// Value is relative to the widget's width.
 ///
 /// # Examples
@@ -253,7 +253,7 @@ pub fn x(child: impl UiNode, x: impl IntoVar<Length>) -> impl UiNode {
 }
 
 /// Offset on the ***y*** axis.
-/// 
+///
 /// Value is relative to the widget's height.
 ///
 /// # Examples

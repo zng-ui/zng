@@ -9,6 +9,7 @@
 
 # After-Merge
 
+* Why is the scroll offset inverted?
 * Rename ` AnchorSize::Infinite` to Unbounded.
 * Cursor demo, cursor does not clear on mouse-leave.
 * Master branch TODOs.
