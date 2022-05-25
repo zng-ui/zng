@@ -55,11 +55,23 @@ impl WidgetLayout {
                 offset_buf: PxVector::zero(),
                 baseline: Px(0),
                 known: None,
+                known_prev_offsets: [PxVector::zero(); 3],
                 known_target: KnownTarget::Outer,
                 known_collapsed: false,
             },
         };
         wl.with_widget(ctx, layout)
+    }
+
+    fn finish_known(&mut self) {
+        if let Some(bounds) = self.known.take() {
+            if let KnownTarget::Outer = self.known_target {
+                let [outer, inner, child] = self.known_prev_offsets;
+                if bounds.outer_offset() != outer || bounds.inner_offset() != inner || bounds.child_offset() != child {
+                    bounds.update_offsets_version();
+                }
+            }
+        }
     }
 
     /// Defines a widget outer-bounds scope, applies pending translations to the outer offset,
@@ -69,8 +81,14 @@ impl WidgetLayout {
     ///
     /// [`implicit_base::nodes::widget`]: crate::widget_base::implicit_base::nodes::widget
     pub fn with_widget(&mut self, ctx: &mut LayoutContext, layout: impl FnOnce(&mut LayoutContext, &mut Self) -> PxSize) -> PxSize {
-        self.known = None; // in case of WidgetList.
+        self.finish_known(); // in case of WidgetList.
         self.baseline = Px(0);
+
+        let prev_offsets = [
+            ctx.widget_info.bounds.outer_offset(),
+            ctx.widget_info.bounds.inner_offset(),
+            ctx.widget_info.bounds.child_offset(),
+        ];
 
         // drain preview translations.
         ctx.widget_info.bounds.set_outer_offset(mem::take(&mut self.offset_buf));
@@ -79,13 +97,9 @@ impl WidgetLayout {
 
         ctx.widget_info.bounds.set_outer_size(size);
 
-        // #[cfg(debug_assertions)]
-        // if !self.known_collapsed && (self.known.is_none() || !matches!(self.known_target, KnownTarget::Inner)) {
-        //     tracing::error!("widget `{:?}` did not setup inner bounds during layout", ctx.path);
-        // }
-
         // setup returning translations target.
         self.known = Some(ctx.widget_info.bounds.clone());
+        self.known_prev_offsets = prev_offsets;
         self.known_target = KnownTarget::Outer;
 
         size
@@ -104,7 +118,7 @@ impl WidgetLayout {
         if self.known.is_some() {
             tracing::error!("widget `{:?}` started inner bounds in the return path of another bounds", ctx.path)
         }
-        self.known = None;
+        self.finish_known();
 
         // drain preview translations.
         ctx.widget_info.bounds.set_inner_offset(mem::take(&mut self.offset_buf));
@@ -131,7 +145,7 @@ impl WidgetLayout {
     /// [`implicit_base::nodes::child_layout`]: crate::widget_base::implicit_base::nodes::child_layout
     /// [`child_offset`]: WidgetBoundsInfo::child_offset
     pub fn with_child(&mut self, ctx: &mut LayoutContext, layout: impl FnOnce(&mut LayoutContext, &mut Self) -> PxSize) -> (PxSize, bool) {
-        self.known = None; // in case of WidgetList?
+        self.finish_known(); // in case of WidgetList?
 
         let size = layout(ctx, self);
 
@@ -167,7 +181,7 @@ impl WidgetLayout {
                 ctx.path
             )
         }
-        self.known = None;
+        self.finish_known();
 
         // drain preview translations.
         ctx.widget_info.bounds.set_child_offset(mem::take(&mut self.offset_buf));
@@ -198,6 +212,8 @@ impl WidgetLayout {
         keep_previous: bool,
         translate: impl FnOnce(&mut WidgetLayoutTranslation, &mut W) -> R,
     ) -> R {
+        let prev_outer = widget.bounds_info().outer_offset();
+
         if !keep_previous {
             widget.bounds_info().set_outer_offset(PxVector::zero());
         }
@@ -206,13 +222,20 @@ impl WidgetLayout {
             t: WidgetLayoutTranslation {
                 offset_buf: PxVector::zero(),
                 baseline: Px(0),
+                known_prev_offsets: [PxVector::zero(); 3],
                 known: Some(widget.bounds_info().clone()),
                 known_target: KnownTarget::Outer,
                 known_collapsed: false,
             },
         };
 
-        translate(&mut wl, widget)
+        let size = translate(&mut wl, widget);
+
+        if prev_outer != widget.bounds_info().outer_offset() {
+            widget.bounds_info().update_offsets_version();
+        }
+
+        size
     }
 
     /// Collapse the layout of `self` and descendants, the size and offsets are set to zero.
@@ -223,7 +246,7 @@ impl WidgetLayout {
     ///
     /// [`Collapsed`]: Visibility::Collapsed
     pub fn collapse(&mut self, ctx: &mut LayoutContext) {
-        self.known = None;
+        self.finish_known();
         self.known_collapsed = true;
 
         let widget_id = ctx.path.widget_id();
@@ -268,6 +291,7 @@ pub struct WidgetLayoutTranslation {
     offset_buf: PxVector,
     baseline: Px,
 
+    known_prev_offsets: [PxVector; 3],
     known: Option<WidgetBoundsInfo>,
     known_target: KnownTarget,
     known_collapsed: bool,
@@ -735,6 +759,7 @@ struct WidgetBoundsData {
     outer_offset: Cell<PxVector>,
     inner_offset: Cell<PxVector>,
     child_offset: Cell<PxVector>,
+    offsets_version: Cell<u32>,
 
     outer_size: Cell<PxSize>,
     inner_size: Cell<PxSize>,
@@ -808,6 +833,13 @@ impl WidgetBoundsInfo {
             .unwrap_or_default()
     }
 
+    /// Version of the offsets.
+    ///
+    /// The version is different every time any of the offsets changes after a layout update.
+    pub fn offsets_version(&self) -> u32 {
+        self.0.offsets_version.get()
+    }
+
     fn set_outer_offset(&self, offset: PxVector) {
         self.0.outer_offset.set(offset);
     }
@@ -822,6 +854,11 @@ impl WidgetBoundsInfo {
 
     fn set_child_offset(&self, offset: PxVector) {
         self.0.child_offset.set(offset);
+    }
+
+    fn update_offsets_version(&self) {
+        let version = self.offsets_version();
+        self.0.offsets_version.set(dbg!(version.wrapping_add(1)));
     }
 
     fn set_inner_size(&self, size: PxSize) {

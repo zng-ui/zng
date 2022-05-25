@@ -22,7 +22,7 @@ use crate::{
 /// any other widget.
 #[zero_ui_proc_macros::widget_base($crate::widget_base::implicit_base)]
 pub mod implicit_base {
-    use std::cell::RefCell;
+    use std::cell::{Cell, RefCell};
 
     use super::*;
 
@@ -173,8 +173,6 @@ pub mod implicit_base {
                     } else if !needed {
                         self.id = None;
                         ctx.updates.render();
-                    } else {
-                        ctx.updates.render_update()
                     }
                     size
                 }
@@ -296,6 +294,7 @@ pub mod implicit_base {
                 #[cfg(debug_assertions)]
                 inited: bool,
                 pending_updates: RefCell<WidgetUpdates>,
+                offsets_version: Cell<u32>,
             }
             impl<C: UiNode> UiNode for WidgetNode<C> {
                 fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
@@ -413,7 +412,11 @@ pub mod implicit_base {
                         tracing::error!(target: "widget_base", "`UiNode::render` called in not inited widget {:?}", self.id);
                     }
 
-                    if matches!(self.pending_updates.borrow_mut().render.take(), WindowRenderUpdate::Render) || !frame.can_reuse_widget() {
+                    if matches!(self.pending_updates.borrow_mut().render.take(), WindowRenderUpdate::Render)
+                        || !frame.can_reuse_widget()
+                        || self.offsets_version.get() != self.info.bounds.offsets_version()
+                    {
+                        self.offsets_version.set(self.info.bounds.offsets_version());
                         ctx.with_widget(self.id, &self.info, &self.state, |ctx| {
                             frame.push_widget(ctx, |ctx, frame| self.child.render(ctx, frame));
                         });
@@ -429,7 +432,10 @@ pub mod implicit_base {
                         tracing::error!(target: "widget_base", "`UiNode::render_update` called in not inited widget {:?}", self.id);
                     }
 
-                    if matches!(self.pending_updates.borrow_mut().render.take(), WindowRenderUpdate::RenderUpdate) {
+                    if matches!(self.pending_updates.borrow_mut().render.take(), WindowRenderUpdate::RenderUpdate)
+                        || self.offsets_version.get() != self.info.bounds.offsets_version()
+                    {
+                        self.offsets_version.set(self.info.bounds.offsets_version());
                         ctx.with_widget(self.id, &self.info, &self.state, |ctx| {
                             update.update_widget(ctx, |ctx, update| self.child.render_update(ctx, update));
                         })
@@ -471,6 +477,7 @@ pub mod implicit_base {
                 #[cfg(debug_assertions)]
                 inited: false,
                 pending_updates: RefCell::default(),
+                offsets_version: Cell::default(),
             }
             .cfg_boxed_wgt()
         }
