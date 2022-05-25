@@ -1232,6 +1232,7 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + any::AnyVar + crate::private::S
                         *transition = Transition::new(from, to);
 
                         step = 0.fct();
+                        prev_step = 1.fct();
                         time = EasingTime::start();
                     }
                     ChaseMsg::Replace(new_target) => {
@@ -1243,6 +1244,7 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + any::AnyVar + crate::private::S
                         *transition = Transition::new(from, new_target);
 
                         step = 0.fct();
+                        prev_step = 1.fct();
                         time = EasingTime::start();
                     }
                     ChaseMsg::None => {

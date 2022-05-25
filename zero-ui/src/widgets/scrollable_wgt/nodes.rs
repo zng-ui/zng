@@ -176,7 +176,7 @@ pub fn scroll_commands_node(child: impl UiNode) -> impl UiNode {
         left: CommandHandle,
         right: CommandHandle,
 
-        offset: Vector,
+        layout_line: PxVector,
     }
     #[impl_ui_node(child)]
     impl<C: UiNode> UiNode for ScrollCommandsNode<C> {
@@ -209,7 +209,10 @@ pub fn scroll_commands_node(child: impl UiNode) -> impl UiNode {
                 .event(ScrollUpCommand.scoped(scope))
                 .event(ScrollDownCommand.scoped(scope))
                 .event(ScrollLeftCommand.scoped(scope))
-                .event(ScrollRightCommand.scoped(scope));
+                .event(ScrollRightCommand.scoped(scope))
+                .vars(ctx)
+                .var(&VerticalLineUnitVar::new())
+                .var(&HorizontalLineUnitVar::new());
 
             self.child.subscriptions(ctx, subscriptions);
         }
@@ -221,6 +224,10 @@ pub fn scroll_commands_node(child: impl UiNode) -> impl UiNode {
             self.down.set_enabled(ScrollContext::can_scroll_down(ctx));
             self.left.set_enabled(ScrollContext::can_scroll_left(ctx));
             self.right.set_enabled(ScrollContext::can_scroll_right(ctx));
+
+            if VerticalLineUnitVar::is_new(ctx) || HorizontalLineUnitVar::is_new(ctx) {
+                ctx.updates.layout();
+            }
         }
 
         fn event<A: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &A) {
@@ -230,45 +237,41 @@ pub fn scroll_commands_node(child: impl UiNode) -> impl UiNode {
                 self.child.event(ctx, args);
 
                 args.handle(|_| {
+                    let mut offset = -self.layout_line.y;
                     if ScrollRequest::from_args(args).map(|f| f.alternate).unwrap_or(false) {
-                        self.offset.y -= VerticalLineUnitVar::get_clone(ctx) * AltFactorVar::get_clone(ctx);
-                    } else {
-                        self.offset.y -= VerticalLineUnitVar::get_clone(ctx);
-                    }
-                    ctx.updates.layout();
+                        offset *= AltFactorVar::get_clone(ctx);
+                    } 
+                    ScrollContext::scroll_vertical(ctx.vars, offset);
                 });
             } else if let Some(args) = ScrollDownCommand.scoped(scope).update(args) {
                 self.child.event(ctx, args);
 
                 args.handle(|_| {
+                    let mut offset = self.layout_line.y;
                     if ScrollRequest::from_args(args).map(|f| f.alternate).unwrap_or(false) {
-                        self.offset.y += VerticalLineUnitVar::get_clone(ctx) * AltFactorVar::get_clone(ctx);
-                    } else {
-                        self.offset.y += VerticalLineUnitVar::get_clone(ctx);
-                    }
-                    ctx.updates.layout();
+                        offset *= AltFactorVar::get_clone(ctx);
+                    } 
+                    ScrollContext::scroll_vertical(ctx.vars, offset);
                 });
             } else if let Some(args) = ScrollLeftCommand.scoped(scope).update(args) {
                 self.child.event(ctx, args);
 
                 args.handle(|_| {
+                    let mut offset = -self.layout_line.x;
                     if ScrollRequest::from_args(args).map(|f| f.alternate).unwrap_or(false) {
-                        self.offset.x -= HorizontalLineUnitVar::get_clone(ctx) * AltFactorVar::get_clone(ctx);
-                    } else {
-                        self.offset.x -= HorizontalLineUnitVar::get_clone(ctx);
-                    }
-                    ctx.updates.layout();
+                        offset *= AltFactorVar::get_clone(ctx);
+                    } 
+                    ScrollContext::scroll_horizontal(ctx.vars, offset);
                 });
             } else if let Some(args) = ScrollRightCommand.scoped(scope).update(args) {
                 self.child.event(ctx, args);
 
                 args.handle(|_| {
+                    let mut offset = self.layout_line.x;
                     if ScrollRequest::from_args(args).map(|f| f.alternate).unwrap_or(false) {
-                        self.offset.x += HorizontalLineUnitVar::get_clone(ctx) * AltFactorVar::get_clone(ctx);
-                    } else {
-                        self.offset.x += HorizontalLineUnitVar::get_clone(ctx);
-                    }
-                    ctx.updates.layout();
+                        offset *= AltFactorVar::get_clone(ctx);
+                    } 
+                    ScrollContext::scroll_horizontal(ctx.vars, offset);
                 });
             } else {
                 self.child.event(ctx, args);
@@ -277,25 +280,15 @@ pub fn scroll_commands_node(child: impl UiNode) -> impl UiNode {
 
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
             let r = self.child.layout(ctx, wl);
-
+            
             let viewport = *ScrollViewportSizeVar::get(ctx);
-
             ctx.with_constrains(
                 |c| c.with_max_size(viewport).with_fill(true, true),
                 |ctx| {
-                    let default = |ctx: &LayoutMetrics| {
-                        let default = 1.em().layout(ctx.for_y(), |_| Px(0));
-                        PxVector::new(default, default)
-                    };
-                    let offset = self.offset.layout(ctx, default);
-                    self.offset = Vector::zero();
-
-                    if offset.y != Px(0) {
-                        ScrollContext::scroll_vertical(ctx, offset.y);
-                    }
-                    if offset.x != Px(0) {
-                        ScrollContext::scroll_horizontal(ctx, offset.x);
-                    }
+                    self.layout_line = PxVector::new(
+                        HorizontalLineUnitVar::get(ctx.vars).layout(ctx.metrics.for_x(), |_| Px(20)),
+                        VerticalLineUnitVar::get(ctx.vars).layout(ctx.metrics.for_y(), |_| Px(20)),
+                    );
                 },
             );
 
@@ -311,7 +304,7 @@ pub fn scroll_commands_node(child: impl UiNode) -> impl UiNode {
         left: CommandHandle::dummy(),
         right: CommandHandle::dummy(),
 
-        offset: Vector::zero(),
+        layout_line: PxVector::zero(),
     }
     .cfg_boxed()
 }
@@ -327,7 +320,7 @@ pub fn page_commands_node(child: impl UiNode) -> impl UiNode {
         left: CommandHandle,
         right: CommandHandle,
 
-        offset: Vector,
+        layout_page: PxVector,
     }
     #[impl_ui_node(child)]
     impl<C: UiNode> UiNode for PageCommandsNode<C> {
@@ -358,7 +351,10 @@ pub fn page_commands_node(child: impl UiNode) -> impl UiNode {
                 .event(PageUpCommand.scoped(scope))
                 .event(PageDownCommand.scoped(scope))
                 .event(PageLeftCommand.scoped(scope))
-                .event(PageRightCommand.scoped(scope));
+                .event(PageRightCommand.scoped(scope))
+                .vars(ctx)
+                .var(&VerticalPageUnitVar::new())
+                .var(&HorizontalPageUnitVar::new());
 
             self.child.subscriptions(ctx, subscriptions);
         }
@@ -370,6 +366,10 @@ pub fn page_commands_node(child: impl UiNode) -> impl UiNode {
             self.down.set_enabled(ScrollContext::can_scroll_down(ctx));
             self.left.set_enabled(ScrollContext::can_scroll_left(ctx));
             self.right.set_enabled(ScrollContext::can_scroll_right(ctx));
+
+            if VerticalPageUnitVar::is_new(ctx) || HorizontalPageUnitVar::is_new(ctx) {
+                ctx.updates.layout();
+            }
         }
 
         fn event<A: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &A) {
@@ -379,45 +379,41 @@ pub fn page_commands_node(child: impl UiNode) -> impl UiNode {
                 self.child.event(ctx, args);
 
                 args.handle(|_| {
+                    let mut offset = -self.layout_page.y;
                     if ScrollRequest::from_args(args).map(|f| f.alternate).unwrap_or(false) {
-                        self.offset.y -= VerticalPageUnitVar::get_clone(ctx) * AltFactorVar::get_clone(ctx);
-                    } else {
-                        self.offset.y -= VerticalPageUnitVar::get_clone(ctx);
-                    }
-                    ctx.updates.layout();
+                        offset *= AltFactorVar::get_clone(ctx);
+                    } 
+                    ScrollContext::scroll_vertical(ctx.vars, offset);
                 });
             } else if let Some(args) = PageDownCommand.scoped(scope).update(args) {
                 self.child.event(ctx, args);
 
                 args.handle(|_| {
+                    let mut offset = self.layout_page.y;
                     if ScrollRequest::from_args(args).map(|f| f.alternate).unwrap_or(false) {
-                        self.offset.y += VerticalPageUnitVar::get_clone(ctx) * AltFactorVar::get_clone(ctx);
-                    } else {
-                        self.offset.y += VerticalPageUnitVar::get_clone(ctx);
-                    }
-                    ctx.updates.layout();
+                        offset *= AltFactorVar::get_clone(ctx);
+                    } 
+                    ScrollContext::scroll_vertical(ctx.vars, offset);
                 });
             } else if let Some(args) = PageLeftCommand.scoped(scope).update(args) {
                 self.child.event(ctx, args);
 
                 args.handle(|_| {
+                    let mut offset = -self.layout_page.x;
                     if ScrollRequest::from_args(args).map(|f| f.alternate).unwrap_or(false) {
-                        self.offset.x -= HorizontalPageUnitVar::get_clone(ctx) * AltFactorVar::get_clone(ctx);
-                    } else {
-                        self.offset.x -= HorizontalPageUnitVar::get_clone(ctx);
-                    }
-                    ctx.updates.layout();
+                        offset *= AltFactorVar::get_clone(ctx);
+                    } 
+                    ScrollContext::scroll_horizontal(ctx.vars, offset);
                 });
             } else if let Some(args) = PageRightCommand.scoped(scope).update(args) {
                 self.child.event(ctx, args);
 
                 args.handle(|_| {
+                    let mut offset = self.layout_page.x;
                     if ScrollRequest::from_args(args).map(|f| f.alternate).unwrap_or(false) {
-                        self.offset.x += HorizontalPageUnitVar::get_clone(ctx) * AltFactorVar::get_clone(ctx);
-                    } else {
-                        self.offset.x += HorizontalPageUnitVar::get_clone(ctx);
-                    }
-                    ctx.updates.layout();
+                        offset *= AltFactorVar::get_clone(ctx);
+                    } 
+                    ScrollContext::scroll_horizontal(ctx.vars, offset);
                 });
             } else {
                 self.child.event(ctx, args);
@@ -428,19 +424,13 @@ pub fn page_commands_node(child: impl UiNode) -> impl UiNode {
             let r = self.child.layout(ctx, wl);
 
             let viewport = *ScrollViewportSizeVar::get(ctx);
-
             ctx.with_constrains(
                 |c| c.with_max_size(viewport).with_fill(true, true),
                 |ctx| {
-                    let offset = self.offset.layout(ctx, |_| viewport.to_vector());
-                    self.offset = Vector::zero();
-
-                    if offset.y != Px(0) {
-                        ScrollContext::scroll_vertical(ctx, offset.y);
-                    }
-                    if offset.x != Px(0) {
-                        ScrollContext::scroll_horizontal(ctx, offset.x);
-                    }
+                    self.layout_page = PxVector::new(
+                        HorizontalPageUnitVar::get(ctx.vars).layout(ctx.metrics.for_x(), |_| Px(20)),
+                        VerticalPageUnitVar::get(ctx.vars).layout(ctx.metrics.for_y(), |_| Px(20)),
+                    );
                 },
             );
 
@@ -456,7 +446,7 @@ pub fn page_commands_node(child: impl UiNode) -> impl UiNode {
         left: CommandHandle::dummy(),
         right: CommandHandle::dummy(),
 
-        offset: Vector::zero(),
+        layout_page: PxVector::zero(),
     }
 }
 
