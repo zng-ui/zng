@@ -1,6 +1,7 @@
 # Pre-Merge
 
-* Image example panorama loading is not centered.
+* Panorama fill does not change width when height change.
+    - Implement special image Fill for unconstrained again, or is this another kind of fit?
 
 * Fix all warnings.
 * Pass all tests.
@@ -8,6 +9,9 @@
 
 # After-Merge
 
+* Image example panorama loading is not centered, given the size of the image.
+    - Before it was centered, but not visible all the same because of the size of the image.
+    - This is due to the `stack_nodes` not doing a second pass when a larger child is found.
 * Button example can click disabled after adding a button.
 * Review layout double-pass of stacks.
 * Rename ` AnchorSize::Infinite` to Unbounded.
