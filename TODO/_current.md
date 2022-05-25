@@ -1,9 +1,6 @@
 # Pre-Merge
 
 * Image example panorama loading is not centered.
-    - Check viewport not filling?
-* Maximizing scrollable does not fill horizontal.
-    - Check viewport not filling?
 
 * Fix all warnings.
 * Pass all tests.

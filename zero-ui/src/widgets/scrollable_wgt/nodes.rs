@@ -61,7 +61,7 @@ pub fn viewport(child: impl UiNode, mode: impl IntoVar<ScrollMode>) -> impl UiNo
                 |ctx| self.child.layout(ctx, wl),
             );
 
-            let viewport_size = ctx.constrains().clamp_size(ct_size);
+            let viewport_size = ctx.constrains().fill_size_or(ct_size);
             if self.viewport_size != viewport_size {
                 self.viewport_size = viewport_size;
                 ScrollViewportSizeVar::set(ctx, viewport_size).unwrap();
