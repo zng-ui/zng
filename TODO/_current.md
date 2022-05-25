@@ -1,8 +1,5 @@
 # Pre-Merge
 
-* Button example focused on disabled.
-    - After adding a button.
-
 * Image example panorama loading is not centered.
     - Check viewport not filling?
 * Maximizing scrollable does not fill horizontal.
@@ -14,6 +11,7 @@
 
 # After-Merge
 
+* Button example can click disabled after adding a button.
 * Review layout double-pass of stacks.
 * Rename ` AnchorSize::Infinite` to Unbounded.
 * Cursor demo, cursor does not clear on mouse-leave.
