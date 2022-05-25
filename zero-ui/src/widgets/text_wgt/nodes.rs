@@ -377,7 +377,6 @@ pub fn layout_text(child: impl UiNode, padding: impl IntoVar<SideOffsets>) -> im
                     underlines: vec![],
                     underline_thickness: Px(0),
                 });
-
                 self.pending.insert(Layout::RESHAPE);
             }
 
@@ -385,7 +384,6 @@ pub fn layout_text(child: impl UiNode, padding: impl IntoVar<SideOffsets>) -> im
 
             if font_size != r.fonts.requested_size() {
                 r.fonts = t.faces.sized(font_size, variations.finalize());
-
                 self.pending.insert(Layout::RESHAPE);
             }
 
@@ -400,7 +398,7 @@ pub fn layout_text(child: impl UiNode, padding: impl IntoVar<SideOffsets>) -> im
             let dft_tab_len = space_len * 3;
 
             let (letter_spacing, word_spacing, tab_length) = ctx.with_constrains(
-                |c| c.with_max_x(space_len),
+                |_| PxConstrains2d::new_exact(space_len, space_len),
                 |ctx| {
                     (
                         letter_spacing.layout(ctx.for_x(), |_| Px(0)),
@@ -412,11 +410,11 @@ pub fn layout_text(child: impl UiNode, padding: impl IntoVar<SideOffsets>) -> im
 
             let dft_line_height = font.metrics().line_height();
             let line_height = ctx.with_constrains(
-                |c| c.with_max_y(dft_line_height).with_fill_y(true),
+                |_| PxConstrains2d::new_exact(dft_line_height, dft_line_height),
                 |ctx| line_height.layout(ctx.for_y(), |_| dft_line_height),
             );
             let line_spacing = ctx.with_constrains(
-                |c| c.with_max_y(line_height).with_fill_y(true),
+                |_| PxConstrains2d::new_exact(line_height, line_height),
                 |ctx| line_spacing.layout(ctx.for_y(), |_| Px(0)),
             );
 
@@ -438,7 +436,7 @@ pub fn layout_text(child: impl UiNode, padding: impl IntoVar<SideOffsets>) -> im
 
             let dft_thickness = font.metrics().underline_thickness;
             let (overline, strikethrough, underline) = ctx.with_constrains(
-                |c| c.with_max_y(line_height).with_fill_y(true),
+                |_| PxConstrains2d::new_exact(line_height, line_height),
                 |ctx| {
                     (
                         OverlineThicknessVar::get(ctx.vars).layout(ctx.for_y(), |_| dft_thickness),

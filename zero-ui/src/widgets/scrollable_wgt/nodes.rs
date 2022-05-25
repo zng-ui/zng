@@ -240,7 +240,7 @@ pub fn scroll_commands_node(child: impl UiNode) -> impl UiNode {
                     let mut offset = -self.layout_line.y;
                     if ScrollRequest::from_args(args).map(|f| f.alternate).unwrap_or(false) {
                         offset *= AltFactorVar::get_clone(ctx);
-                    } 
+                    }
                     ScrollContext::scroll_vertical(ctx.vars, offset);
                 });
             } else if let Some(args) = ScrollDownCommand.scoped(scope).update(args) {
@@ -250,7 +250,7 @@ pub fn scroll_commands_node(child: impl UiNode) -> impl UiNode {
                     let mut offset = self.layout_line.y;
                     if ScrollRequest::from_args(args).map(|f| f.alternate).unwrap_or(false) {
                         offset *= AltFactorVar::get_clone(ctx);
-                    } 
+                    }
                     ScrollContext::scroll_vertical(ctx.vars, offset);
                 });
             } else if let Some(args) = ScrollLeftCommand.scoped(scope).update(args) {
@@ -260,7 +260,7 @@ pub fn scroll_commands_node(child: impl UiNode) -> impl UiNode {
                     let mut offset = -self.layout_line.x;
                     if ScrollRequest::from_args(args).map(|f| f.alternate).unwrap_or(false) {
                         offset *= AltFactorVar::get_clone(ctx);
-                    } 
+                    }
                     ScrollContext::scroll_horizontal(ctx.vars, offset);
                 });
             } else if let Some(args) = ScrollRightCommand.scoped(scope).update(args) {
@@ -270,7 +270,7 @@ pub fn scroll_commands_node(child: impl UiNode) -> impl UiNode {
                     let mut offset = self.layout_line.x;
                     if ScrollRequest::from_args(args).map(|f| f.alternate).unwrap_or(false) {
                         offset *= AltFactorVar::get_clone(ctx);
-                    } 
+                    }
                     ScrollContext::scroll_horizontal(ctx.vars, offset);
                 });
             } else {
@@ -280,7 +280,7 @@ pub fn scroll_commands_node(child: impl UiNode) -> impl UiNode {
 
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
             let r = self.child.layout(ctx, wl);
-            
+
             let viewport = *ScrollViewportSizeVar::get(ctx);
             ctx.with_constrains(
                 |c| c.with_max_size(viewport).with_fill(true, true),
@@ -382,7 +382,7 @@ pub fn page_commands_node(child: impl UiNode) -> impl UiNode {
                     let mut offset = -self.layout_page.y;
                     if ScrollRequest::from_args(args).map(|f| f.alternate).unwrap_or(false) {
                         offset *= AltFactorVar::get_clone(ctx);
-                    } 
+                    }
                     ScrollContext::scroll_vertical(ctx.vars, offset);
                 });
             } else if let Some(args) = PageDownCommand.scoped(scope).update(args) {
@@ -392,7 +392,7 @@ pub fn page_commands_node(child: impl UiNode) -> impl UiNode {
                     let mut offset = self.layout_page.y;
                     if ScrollRequest::from_args(args).map(|f| f.alternate).unwrap_or(false) {
                         offset *= AltFactorVar::get_clone(ctx);
-                    } 
+                    }
                     ScrollContext::scroll_vertical(ctx.vars, offset);
                 });
             } else if let Some(args) = PageLeftCommand.scoped(scope).update(args) {
@@ -402,7 +402,7 @@ pub fn page_commands_node(child: impl UiNode) -> impl UiNode {
                     let mut offset = -self.layout_page.x;
                     if ScrollRequest::from_args(args).map(|f| f.alternate).unwrap_or(false) {
                         offset *= AltFactorVar::get_clone(ctx);
-                    } 
+                    }
                     ScrollContext::scroll_horizontal(ctx.vars, offset);
                 });
             } else if let Some(args) = PageRightCommand.scoped(scope).update(args) {
@@ -412,7 +412,7 @@ pub fn page_commands_node(child: impl UiNode) -> impl UiNode {
                     let mut offset = self.layout_page.x;
                     if ScrollRequest::from_args(args).map(|f| f.alternate).unwrap_or(false) {
                         offset *= AltFactorVar::get_clone(ctx);
-                    } 
+                    }
                     ScrollContext::scroll_horizontal(ctx.vars, offset);
                 });
             } else {
