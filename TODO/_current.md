@@ -1,7 +1,8 @@
 # Pre-Merge
 
-* Scrollable.
-    - Panorama image set to fill.
+* Button example focused on disabled.
+* Image example panorama loading is not centered.
+* Maximizing scrollable does not fill horizontal.
 
 * Fix all warnings.
 * Pass all tests.
@@ -9,6 +10,7 @@
 
 # After-Merge
 
+* Review layout double-pass of stacks.
 * Rename ` AnchorSize::Infinite` to Unbounded.
 * Cursor demo, cursor does not clear on mouse-leave.
 * Master branch TODOs.
