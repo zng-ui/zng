@@ -1,8 +1,12 @@
 # Pre-Merge
 
 * Button example focused on disabled.
+    - After adding a button.
+
 * Image example panorama loading is not centered.
+    - Check viewport not filling?
 * Maximizing scrollable does not fill horizontal.
+    - Check viewport not filling?
 
 * Fix all warnings.
 * Pass all tests.
