@@ -26,8 +26,9 @@ unique_id_64! {
 pub struct WidgetLayout {
     t: WidgetLayoutTranslation,
     known_prev_offsets: [PxVector; 3],
-    child_changed_offsets: bool,
     known_collapsed: bool,
+    known_child_offset_changed: bool,
+    child_offset_changed: bool,
 }
 impl WidgetLayout {
     // # Requirements
@@ -61,8 +62,9 @@ impl WidgetLayout {
                 known_target: KnownTarget::Outer,
             },
             known_prev_offsets: [PxVector::zero(); 3],
-            child_changed_offsets: false,
             known_collapsed: false,
+            known_child_offset_changed: false,
+            child_offset_changed: false,
         };
         let size = wl.with_widget(ctx, layout);
         wl.finish_known();
@@ -73,12 +75,12 @@ impl WidgetLayout {
         if let Some(bounds) = self.known.take() {
             if let KnownTarget::Outer = self.known_target {
                 let [outer, inner, child] = self.known_prev_offsets;
-                if self.child_changed_offsets
+                if mem::take(&mut self.known_child_offset_changed)
                     || bounds.outer_offset() != outer
                     || bounds.inner_offset() != inner
                     || bounds.child_offset() != child
                 {
-                    self.child_changed_offsets = true;
+                    self.child_offset_changed = true;
                     bounds.update_offsets_version();
                 }
             }
@@ -94,8 +96,7 @@ impl WidgetLayout {
     pub fn with_widget(&mut self, ctx: &mut LayoutContext, layout: impl FnOnce(&mut LayoutContext, &mut Self) -> PxSize) -> PxSize {
         self.finish_known(); // in case of WidgetList.
         self.baseline = Px(0);
-
-        let prev_changed_offsets = mem::take(&mut self.child_changed_offsets);
+        let parent_child_offset_changed = mem::take(&mut self.child_offset_changed);
 
         let prev_offsets = [
             ctx.widget_info.bounds.outer_offset(),
@@ -115,8 +116,9 @@ impl WidgetLayout {
         self.known = Some(ctx.widget_info.bounds.clone());
         self.known_prev_offsets = prev_offsets;
         self.known_target = KnownTarget::Outer;
+        self.known_child_offset_changed = self.child_offset_changed;
 
-        self.child_changed_offsets |= prev_changed_offsets;
+        self.child_offset_changed |= parent_child_offset_changed; // when parent inner closes this the flag is for the parent not this
 
         size
     }
@@ -245,15 +247,16 @@ impl WidgetLayout {
                 known_target: KnownTarget::Outer,
             },
             known_prev_offsets: [PxVector::zero(); 3],
-            child_changed_offsets: false,
             known_collapsed: false,
+            known_child_offset_changed: false,
+            child_offset_changed: false,
         };
 
         let size = translate(&mut wl, widget);
 
         if prev_outer != widget.bounds_info().outer_offset() {
             widget.bounds_info().update_offsets_version();
-            self.child_changed_offsets = true;
+            self.child_offset_changed = true;
         }
 
         size
