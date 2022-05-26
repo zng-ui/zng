@@ -12,7 +12,7 @@ error[E0277]: the trait bound `(): IntoVar<SideOffsets>` is not satisfied
              <(&'static [u8; N], F) as IntoVar<WindowIcon>>
              <(&'static [u8], F) as IntoVar<ImageSource>>
              <(&'static [u8], F) as IntoVar<WindowIcon>>
-           and 29 others
+           and 32 others
 note: required by a bound in `margin_ArgsImpl::<T_margin>::new`
   --> $WORKSPACE/zero-ui/src/properties/layout.rs
    |

@@ -171,7 +171,6 @@ fn sample(name: impl ToText, gradient: impl UiNode) -> impl Widget {
             text(name),
             container! {
                 size = (180, 180);
-                content_align = unset!;
                 content = gradient;
             }
         ];
@@ -192,6 +191,7 @@ fn icon() -> impl Widget {
         corner_radius = 6;
         font_size = 28;
         font_weight = FontWeight::BOLD;
+        content_align = Align::CENTER;
         content = text("G");
     }
 }

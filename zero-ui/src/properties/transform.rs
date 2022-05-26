@@ -4,15 +4,19 @@ use crate::prelude::new_property::*;
 
 /// Custom transform.
 ///
-/// See [`Transform`] for how to initialize a custom transform.
+/// See [`Transform`] for how to initialize a custom transform. The [`transform_origin`] is applied using the widget's inner size
+/// for relative values.
 ///
-/// This property does not affect layout, the widget is transformed only during rendering.
-#[property(context, default(Transform::identity()))]
+/// [`transform_origin`]: fn@transform_origin
+#[property(layout, default(Transform::identity()))]
 pub fn transform(child: impl UiNode, transform: impl IntoVar<Transform>) -> impl UiNode {
     struct TransformNode<C, T> {
         child: C,
         transform: T,
-        render_transform: Option<RenderTransform>,
+
+        render_transform: RenderTransform,
+        spatial_id: SpatialFrameId,
+        binding_key: FrameBindingKey<RenderTransform>,
     }
     #[impl_ui_node(child)]
     impl<C, T> UiNode for TransformNode<C, T>
@@ -25,50 +29,78 @@ pub fn transform(child: impl UiNode, transform: impl IntoVar<Transform>) -> impl
             self.child.subscriptions(ctx, subscriptions);
         }
 
-        fn init(&mut self, ctx: &mut WidgetContext) {
-            self.render_transform = self.transform.get(ctx).try_render();
-            self.child.init(ctx);
-        }
-
         fn update(&mut self, ctx: &mut WidgetContext) {
             self.child.update(ctx);
-            if let Some(t) = self.transform.get_new(ctx.vars) {
-                if let Some(t) = t.try_render() {
-                    self.render_transform = Some(t);
-                    ctx.updates.render_update();
-                } else {
-                    self.render_transform = None;
-                    ctx.updates.layout();
-                }
+            if self.transform.is_new(ctx.vars) {
+                ctx.updates.layout();
             }
         }
 
-        fn arrange(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, final_size: PxSize) {
-            if self.render_transform.is_none() {
-                let t = self.transform.get(ctx).to_render(ctx, AvailableSize::finite(final_size));
-                self.render_transform = Some(t);
+        fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
+            let size = self.child.layout(ctx, wl);
+
+            let transform = self.transform.get(ctx.vars).layout(ctx.metrics);
+            let av_size = ctx.widget_info.bounds.inner_size();
+            let default_origin = PxPoint::new(av_size.width / 2.0, av_size.height / 2.0);
+            let origin = ctx.with_constrains(
+                |c| c.with_max_size(av_size).with_fill(true, true),
+                |ctx| TransformOriginVar::get(ctx.vars).layout(ctx.metrics, |_| default_origin),
+            );
+
+            let x = origin.x.0 as f32;
+            let y = origin.y.0 as f32;
+            let transform = RenderTransform::translation(-x, -y, 0.0)
+                .then(&transform)
+                .then_translate(euclid::vec3(x, y, 0.0));
+
+            if transform != self.render_transform {
+                self.render_transform = transform;
                 ctx.updates.render_update();
             }
-            widget_layout.with_inner_transform(self.render_transform.as_ref().unwrap(), |wo| {
-                self.child.arrange(ctx, wo, final_size)
-            });
+
+            size
+        }
+
+        fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
+            if frame.is_outer() {
+                frame.push_inner_transform(&self.render_transform, |frame| self.child.render(ctx, frame));
+            } else {
+                frame.push_reference_frame(self.spatial_id, self.binding_key.bind(self.render_transform), false, |frame| {
+                    self.child.render(ctx, frame)
+                });
+            }
+        }
+
+        fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
+            if update.is_outer() {
+                update.with_inner_transform(&self.render_transform, |update| self.child.render_update(ctx, update));
+            } else {
+                update.with_transform(self.binding_key.update(self.render_transform), |update| {
+                    self.child.render_update(ctx, update)
+                })
+            }
         }
     }
     TransformNode {
-        child,
+        child: child.cfg_boxed(),
         transform: transform.into_var(),
-        render_transform: None,
+
+        render_transform: RenderTransform::identity(),
+        spatial_id: SpatialFrameId::new_unique(),
+        binding_key: FrameBindingKey::new_unique(),
     }
+    .cfg_boxed()
 }
 
 /// Rotate transform.
 ///
 /// This property is a shorthand way of setting [`transform`] to [`rotate(angle)`](units::rotate) using variable mapping.
 ///
-/// This property does not affect layout, the widget is rotated only during rendering.
+/// The rotation is done *around* the [`transform_origin`].
 ///
 /// [`transform`]: fn@transform
-#[property(context, default(0.rad()))]
+/// [`transform_origin`]: fn@transform_origin
+#[property(layout, default(0.rad()))]
 pub fn rotate(child: impl UiNode, angle: impl IntoVar<AngleRadian>) -> impl UiNode {
     transform(child, angle.into_var().map(|&a| units::rotate(a)))
 }
@@ -77,10 +109,8 @@ pub fn rotate(child: impl UiNode, angle: impl IntoVar<AngleRadian>) -> impl UiNo
 ///
 /// This property is a shorthand way of setting [`transform`] to [`scale(s)`](units::scale) using variable mapping.
 ///
-/// This property does not affect layout, the widget is scaled only during rendering.
-///
 /// [`transform`]: fn@transform
-#[property(context, default(1.0))]
+#[property(layout, default(1.0))]
 pub fn scale(child: impl UiNode, s: impl IntoVar<Factor>) -> impl UiNode {
     transform(child, s.into_var().map(|&x| units::scale(x)))
 }
@@ -89,10 +119,8 @@ pub fn scale(child: impl UiNode, s: impl IntoVar<Factor>) -> impl UiNode {
 ///
 /// This property is a shorthand way of setting [`transform`] to [`scale_xy(x, y)`](units::scale) using variable merging.
 ///
-/// This property does not affect layout, the widget is scaled only during rendering.
-///
 /// [`transform`]: fn@transform
-#[property(context, default(1.0, 1.0))]
+#[property(layout, default(1.0, 1.0))]
 pub fn scale_xy(child: impl UiNode, x: impl IntoVar<Factor>, y: impl IntoVar<Factor>) -> impl UiNode {
     transform(child, merge_var!(x.into_var(), y.into_var(), |&x, &y| units::scale_xy(x, y)))
 }
@@ -101,10 +129,8 @@ pub fn scale_xy(child: impl UiNode, x: impl IntoVar<Factor>, y: impl IntoVar<Fac
 ///
 /// This property is a shorthand way of setting [`transform`] to [`scale_x(x)`](units::scale_x) using variable mapping.
 ///
-/// This property does not affect layout, the widget is scaled only during rendering.
-///
 /// [`transform`]: fn@transform
-#[property(context, default(1.0))]
+#[property(layout, default(1.0))]
 pub fn scale_x(child: impl UiNode, x: impl IntoVar<Factor>) -> impl UiNode {
     transform(child, x.into_var().map(|&x| units::scale_x(x)))
 }
@@ -113,10 +139,8 @@ pub fn scale_x(child: impl UiNode, x: impl IntoVar<Factor>) -> impl UiNode {
 ///
 /// This property is a shorthand way of setting [`transform`] to [`scale_y(y)`](units::scale_y) using variable mapping.
 ///
-/// This property does not affect layout, the widget is scaled only during rendering.
-///
 /// [`transform`]: fn@transform
-#[property(context, default(1.0))]
+#[property(layout, default(1.0))]
 pub fn scale_y(child: impl UiNode, y: impl IntoVar<Factor>) -> impl UiNode {
     transform(child, y.into_var().map(|&y| units::scale_y(y)))
 }
@@ -125,10 +149,8 @@ pub fn scale_y(child: impl UiNode, y: impl IntoVar<Factor>) -> impl UiNode {
 ///
 /// This property is a shorthand way of setting [`transform`] to [`skew(x, y)`](units::skew) using variable merging.
 ///
-/// This property does not affect layout, the widget is skewed only during rendering.
-///
 /// [`transform`]: fn@transform
-#[property(context, default(0.rad(), 0.rad()))]
+#[property(layout, default(0.rad(), 0.rad()))]
 pub fn skew(child: impl UiNode, x: impl IntoVar<AngleRadian>, y: impl IntoVar<AngleRadian>) -> impl UiNode {
     transform(child, merge_var!(x.into_var(), y.into_var(), |&x, &y| units::skew(x, y)))
 }
@@ -137,10 +159,8 @@ pub fn skew(child: impl UiNode, x: impl IntoVar<AngleRadian>, y: impl IntoVar<An
 ///
 /// This property is a shorthand way of setting [`transform`] to [`skew_x(x)`](units::skew_x) using variable mapping.
 ///
-/// This property does not affect layout, the widget is skewed only during rendering.
-///
 /// [`transform`]: fn@transform
-#[property(context, default(0.rad()))]
+#[property(layout, default(0.rad()))]
 pub fn skew_x(child: impl UiNode, x: impl IntoVar<AngleRadian>) -> impl UiNode {
     transform(child, x.into_var().map(|&x| units::skew_x(x)))
 }
@@ -149,10 +169,8 @@ pub fn skew_x(child: impl UiNode, x: impl IntoVar<AngleRadian>) -> impl UiNode {
 ///
 /// This property is a shorthand way of setting [`transform`] to [`skew_y(y)`](units::skew_y) using variable mapping.
 ///
-/// This property does not affect layout, the widget is skewed only during rendering.
-///
 /// [`transform`]: fn@transform
-#[property(context)]
+#[property(layout)]
 pub fn skew_y(child: impl UiNode, y: impl IntoVar<AngleRadian>) -> impl UiNode {
     transform(child, y.into_var().map(|&y| units::skew_y(y)))
 }
@@ -161,10 +179,8 @@ pub fn skew_y(child: impl UiNode, y: impl IntoVar<AngleRadian>) -> impl UiNode {
 ///
 /// This property is a shorthand way of setting [`transform`] to [`translate(x, y)`](units::translate) using variable merging.
 ///
-/// This property does not affect layout, the widget is moved only during rendering.
-///
 /// [`transform`]: fn@transform
-#[property(context, default(0, 0))]
+#[property(layout, default(0, 0))]
 pub fn translate(child: impl UiNode, x: impl IntoVar<Length>, y: impl IntoVar<Length>) -> impl UiNode {
     transform(
         child,
@@ -176,10 +192,8 @@ pub fn translate(child: impl UiNode, x: impl IntoVar<Length>, y: impl IntoVar<Le
 ///
 /// This property is a shorthand way of setting [`transform`] to [`translate_x(x)`](units::translate_x) using variable mapping.
 ///
-/// This property does not affect layout, the widget is moved only during rendering.
-///
 /// [`transform`]: fn@transform
-#[property(context, default(0))]
+#[property(layout, default(0))]
 pub fn translate_x(child: impl UiNode, x: impl IntoVar<Length>) -> impl UiNode {
     transform(child, x.into_var().map(|x| units::translate_x(x.clone())))
 }
@@ -188,43 +202,23 @@ pub fn translate_x(child: impl UiNode, x: impl IntoVar<Length>) -> impl UiNode {
 ///
 /// This property is a shorthand way of setting [`transform`] to [`translate_y(y)`](units::translate_y) using variable mapping.
 ///
-/// This property does not affect layout, the widget is moved only during rendering.
-///
 /// [`transform`]: fn@transform
-#[property(context, default(0))]
+#[property(layout, default(0))]
 pub fn translate_y(child: impl UiNode, y: impl IntoVar<Length>) -> impl UiNode {
     transform(child, y.into_var().map(|y| units::translate_y(y.clone())))
 }
 
-/// Point relative to the widget inner bounds around which the widget transform is applied.
+/// Point relative to the widget inner bounds around which the [`transform`] is applied.
 ///
-/// When unset the default origin is the center (50%, 50%).
-#[property(context, default(Point::center()))]
+/// This property sets the [`TransformOriginVar`] context variable.
+#[property(context, default(TransformOriginVar::new()))]
 pub fn transform_origin(child: impl UiNode, origin: impl IntoVar<Point>) -> impl UiNode {
-    struct TransformOriginNode<C, O> {
-        child: C,
-        origin: O,
-    }
-    #[impl_ui_node(child)]
-    impl<C: UiNode, O: Var<Point>> UiNode for TransformOriginNode<C, O> {
-        fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
-            subscriptions.var(ctx, &self.origin);
-            self.child.subscriptions(ctx, subscriptions);
-        }
+    with_context_var(child, TransformOriginVar, origin)
+}
 
-        fn update(&mut self, ctx: &mut WidgetContext) {
-            if self.origin.is_new(ctx) {
-                ctx.updates.layout();
-            }
-            self.child.update(ctx);
-        }
-
-        fn arrange(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, final_size: PxSize) {
-            widget_layout.with_inner_transform_origin(self.origin.get(ctx.vars), |wl| self.child.arrange(ctx, wl, final_size));
-        }
-    }
-    TransformOriginNode {
-        child,
-        origin: origin.into_var(),
-    }
+context_var! {
+    /// Point relative to the widget inner bounds around which the [`transform`] is applied.
+    ///
+    /// Default origin is the center (50%, 50%).
+    pub struct TransformOriginVar: Point = Point::center();
 }

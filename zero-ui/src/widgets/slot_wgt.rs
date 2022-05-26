@@ -28,8 +28,7 @@ pub mod slot {
     }
 
     fn new_child(node: RcNode<impl UiNode>, take_signal: impl RcNodeTakeSignal) -> impl UiNode {
-        let node = node.slot(take_signal);
-        implicit_base::nodes::leaf_transform(node)
+        node.slot(take_signal)
     }
 }
 

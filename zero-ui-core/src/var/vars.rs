@@ -1,6 +1,3 @@
-#[allow(unused_imports)] // nightly
-use retain_mut::RetainMut;
-
 use super::{
     animation::{AnimationArgs, AnimationHandle, VarsAnimations, WeakAnimationHandle},
     *,

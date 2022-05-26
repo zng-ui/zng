@@ -19,6 +19,7 @@ fn app_main() {
     App::default().run_window(|_| {
         window! {
             title = "Transform Example";
+            content_align = Align::CENTER;
             content = h_stack! {
                 spacing = 40;
                 items = widgets![

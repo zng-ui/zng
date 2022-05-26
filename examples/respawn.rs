@@ -17,6 +17,7 @@ fn main() {
                 }
             });
             foreground = window_status(ctx);
+            content_align = Align::CENTER;
             content = v_stack! {
                 spacing = 5;
                 items_align = Align::TOP;

@@ -4,12 +4,12 @@ use crate::{
     context::{InfoContext, LayoutContext, RenderContext, StateMap, WidgetContext, WithUpdates},
     event::EventUpdateArgs,
     render::{FrameBuilder, FrameUpdate},
-    ui_list::{
-        AvailableSizeArgs, DesiredSizeArgs, FinalSizeArgs, UiListObserver, UiNodeList, UiNodeVec, WidgetFilterArgs, WidgetList, WidgetVec,
-        WidgetVecRef,
+    ui_list::{PosLayoutArgs, PreLayoutArgs, UiListObserver, UiNodeList, UiNodeVec, WidgetFilterArgs, WidgetList, WidgetVec, WidgetVecRef},
+    units::PxSize,
+    widget_info::{
+        UpdateSlot, WidgetBorderInfo, WidgetBoundsInfo, WidgetInfoBuilder, WidgetLayout, WidgetLayoutTranslation, WidgetRenderInfo,
+        WidgetSubscriptions,
     },
-    units::{AvailableSize, PxSize},
-    widget_info::{UpdateSlot, WidgetBorderInfo, WidgetInfoBuilder, WidgetLayout, WidgetLayoutInfo, WidgetRenderInfo, WidgetSubscriptions},
     BoxedWidget, UiNode, Widget, WidgetId,
 };
 
@@ -25,6 +25,7 @@ use crate::{
 /// in both cases the sorting is *stable*, widgets with equal keys retain order of insertion.
 ///
 /// [`std::slice::sort_by`]: https://doc.rust-lang.org/std/primitive.slice.html#method.sort_by
+/// [`widget_vec!`]: crate::ui_list::widget_vec
 pub struct SortedWidgetVec {
     vec: Vec<BoxedWidget>,
 
@@ -317,48 +318,18 @@ impl UiNodeList for SortedWidgetVec {
         }
     }
 
-    fn measure_all<A, D>(&mut self, ctx: &mut LayoutContext, mut available_size: A, mut desired_size: D)
+    fn layout_all<C, D>(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout, mut pre_layout: C, mut pos_layout: D)
     where
-        A: FnMut(&mut LayoutContext, AvailableSizeArgs) -> AvailableSize,
-        D: FnMut(&mut LayoutContext, DesiredSizeArgs),
+        C: FnMut(&mut LayoutContext, &mut WidgetLayout, &mut PreLayoutArgs),
+        D: FnMut(&mut LayoutContext, &mut WidgetLayout, PosLayoutArgs),
     {
         for (i, w) in self.vec.iter_mut().enumerate() {
-            let available_size = available_size(
-                ctx,
-                AvailableSizeArgs {
-                    index: i,
-                    state: Some(w.state_mut()),
-                },
-            );
-
-            let r = w.measure(ctx, available_size);
-
-            desired_size(
-                ctx,
-                DesiredSizeArgs {
-                    index: i,
-                    state: Some(w.state_mut()),
-                    desired_size: r,
-                },
-            );
+            super::default_widget_list_layout_all(i, w, ctx, wl, &mut pre_layout, &mut pos_layout)
         }
     }
 
-    fn widget_measure(&mut self, index: usize, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize {
-        self.vec[index].measure(ctx, available_size)
-    }
-
-    fn arrange_all<F>(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, mut final_size: F)
-    where
-        F: FnMut(&mut LayoutContext, &mut FinalSizeArgs) -> PxSize,
-    {
-        for (i, w) in self.vec.iter_mut().enumerate() {
-            FinalSizeArgs::impl_widget(ctx, widget_layout, i, w, &mut final_size);
-        }
-    }
-
-    fn widget_arrange(&mut self, index: usize, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, final_size: PxSize) {
-        self.vec[index].arrange(ctx, widget_layout, final_size)
+    fn widget_layout(&mut self, index: usize, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
+        self.vec[index].layout(ctx, wl)
     }
 
     fn info_all(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
@@ -422,12 +393,8 @@ impl WidgetList for SortedWidgetVec {
         self.vec[index].state_mut()
     }
 
-    fn widget_outer_info(&self, index: usize) -> &WidgetLayoutInfo {
-        self.vec[index].outer_info()
-    }
-
-    fn widget_inner_info(&self, index: usize) -> &WidgetLayoutInfo {
-        self.vec[index].inner_info()
+    fn widget_bounds_info(&self, index: usize) -> &WidgetBoundsInfo {
+        self.vec[index].bounds_info()
     }
 
     fn widget_border_info(&self, index: usize) -> &WidgetBorderInfo {
@@ -462,6 +429,29 @@ impl WidgetList for SortedWidgetVec {
             }
         }
         count
+    }
+
+    fn widget_outer<F>(&mut self, index: usize, wl: &mut WidgetLayout, keep_previous: bool, transform: F)
+    where
+        F: FnOnce(&mut WidgetLayoutTranslation, PosLayoutArgs),
+    {
+        let w = &mut self.vec[index];
+        let size = w.bounds_info().outer_size();
+        wl.with_outer(w, keep_previous, |wlt, w| {
+            transform(wlt, PosLayoutArgs::new(index, Some(w.state_mut()), size));
+        });
+    }
+
+    fn outer_all<F>(&mut self, wl: &mut WidgetLayout, keep_previous: bool, mut transform: F)
+    where
+        F: FnMut(&mut WidgetLayoutTranslation, PosLayoutArgs),
+    {
+        for (i, w) in self.vec.iter_mut().enumerate() {
+            let size = w.bounds_info().outer_size();
+            wl.with_outer(w, keep_previous, |wlt, w| {
+                transform(wlt, PosLayoutArgs::new(i, Some(w.state_mut()), size));
+            })
+        }
     }
 }
 impl Drop for SortedWidgetVec {

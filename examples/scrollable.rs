@@ -7,35 +7,41 @@ use zero_ui_view_prebuilt as zero_ui_view;
 fn main() {
     examples_util::print_info();
     zero_ui_view::init();
+
+    // let rec = examples_util::record_profile("profile-scrollable.json.gz", &[("example", &"scrollable")], |_| true);
+
     app_main();
+
+    // rec.finish();
 }
 
 fn app_main() {
     App::default().run_window(|_| {
         window! {
-            content_align = unset!;
+            title = "Scrollable Example";
             content = z_stack(widgets![
                 scrollable! {
                     id = "scrollable";
                     padding = 20;
                     background_color = hex!(#245E81);
                     // smooth_scrolling = false;
-                    content = v_stack(widgets![
-                        text! {
-                            id = "Lorem 1";
-                            text = "Lorem 1";
-                            font_size = 20;
-                            align = Align::LEFT;
-                        },
-                        text(ipsum()),
-                        text! {
-                            id = "Lorem 2";
-                            text = "Lorem 2";
-                            font_size = 20;
-                            align = Align::LEFT;
-                        },
-                        text(ipsum())
-                    ])
+                    content = v_stack!{
+                        items_align = Align::LEFT;
+                        items = widgets![
+                            text! {
+                                id = "Lorem 1";
+                                text = "Lorem 1";
+                                font_size = 20;
+                            },
+                            text(ipsum()),
+                            text! {
+                                id = "Lorem 2";
+                                text = "Lorem 2";
+                                font_size = 20;
+                            },
+                            text(ipsum())
+                        ];
+                    }
                 },
                 commands()
             ]);

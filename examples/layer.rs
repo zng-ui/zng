@@ -43,6 +43,7 @@ fn app_main() {
                 })
             });
 
+            content_align = Align::CENTER;
             content = v_stack! {
                 spacing = 5;
                 items = widgets![
@@ -70,6 +71,7 @@ fn overlay(id: impl Into<WidgetId>, offset: i32) -> impl Widget {
         id;
         modal = true;
         background_color = colors::GRAY.with_alpha(10.pct());
+        content_align = Align::CENTER;
         content = container! {
             position = (offset, offset);
             focus_scope = true;

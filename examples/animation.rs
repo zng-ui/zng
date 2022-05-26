@@ -20,6 +20,7 @@ fn app_main() {
         window! {
             title = "Animation Example";
             padding = 10;
+            content_align = Align::CENTER;
             content = example(ctx.vars);
         }
     })

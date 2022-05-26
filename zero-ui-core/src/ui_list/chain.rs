@@ -3,11 +3,12 @@ use crate::{
     event::EventUpdateArgs,
     render::{FrameBuilder, FrameUpdate},
     ui_list::{
-        AvailableSizeArgs, DesiredSizeArgs, FinalSizeArgs, OffsetUiListObserver, UiListObserver, UiNodeList, UiNodeVec, WidgetFilterArgs,
-        WidgetList, WidgetVec,
+        OffsetUiListObserver, PosLayoutArgs, PreLayoutArgs, UiListObserver, UiNodeList, UiNodeVec, WidgetFilterArgs, WidgetList, WidgetVec,
     },
-    units::{AvailableSize, PxSize},
-    widget_info::{WidgetBorderInfo, WidgetInfoBuilder, WidgetLayout, WidgetLayoutInfo, WidgetRenderInfo, WidgetSubscriptions},
+    units::PxSize,
+    widget_info::{
+        WidgetBorderInfo, WidgetBoundsInfo, WidgetInfoBuilder, WidgetLayout, WidgetLayoutTranslation, WidgetRenderInfo, WidgetSubscriptions,
+    },
     WidgetId,
 };
 
@@ -55,53 +56,34 @@ impl<A: WidgetList, B: WidgetList> UiNodeList for WidgetListChain<A, B> {
         self.1.event_all(ctx, args);
     }
 
-    fn measure_all<AS, D>(&mut self, ctx: &mut LayoutContext, mut available_size: AS, mut desired_size: D)
+    fn layout_all<C, D>(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout, mut pre_layout: C, mut pos_layout: D)
     where
-        AS: FnMut(&mut LayoutContext, AvailableSizeArgs) -> AvailableSize,
-        D: FnMut(&mut LayoutContext, DesiredSizeArgs),
+        C: FnMut(&mut LayoutContext, &mut WidgetLayout, &mut PreLayoutArgs),
+        D: FnMut(&mut LayoutContext, &mut WidgetLayout, PosLayoutArgs),
     {
-        self.0.measure_all(ctx, &mut available_size, &mut desired_size);
+        self.0.layout_all(ctx, wl, &mut pre_layout, &mut pos_layout);
         let offset = self.0.len();
-        self.1.measure_all(
+        self.1.layout_all(
             ctx,
-            |ctx, mut args| {
+            wl,
+            |ctx, wl, args| {
                 args.index += offset;
-                available_size(ctx, args)
+                pre_layout(ctx, wl, args);
+                args.index -= offset;
             },
-            |ctx, mut args| {
+            |ctx, wl, mut args| {
                 args.index += offset;
-                desired_size(ctx, args)
+                pos_layout(ctx, wl, args);
             },
         );
     }
 
-    fn widget_measure(&mut self, index: usize, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize {
+    fn widget_layout(&mut self, index: usize, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
         let a_len = self.0.len();
         if index < a_len {
-            self.0.widget_measure(index, ctx, available_size)
+            self.0.widget_layout(index, ctx, wl)
         } else {
-            self.1.widget_measure(index - a_len, ctx, available_size)
-        }
-    }
-
-    fn arrange_all<F>(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, mut final_size: F)
-    where
-        F: FnMut(&mut LayoutContext, &mut FinalSizeArgs) -> PxSize,
-    {
-        self.0.arrange_all(ctx, widget_layout, &mut final_size);
-        let offset = self.0.len();
-        self.1.arrange_all(ctx, widget_layout, |ctx, args| {
-            args.index += offset;
-            final_size(ctx, args)
-        });
-    }
-
-    fn widget_arrange(&mut self, index: usize, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, final_size: PxSize) {
-        let a_len = self.0.len();
-        if index < a_len {
-            self.0.widget_arrange(index, ctx, widget_layout, final_size)
-        } else {
-            self.1.widget_arrange(index - a_len, ctx, widget_layout, final_size)
+            self.1.widget_layout(index - a_len, ctx, wl)
         }
     }
 
@@ -228,21 +210,12 @@ impl<A: WidgetList, B: WidgetList> WidgetList for WidgetListChain<A, B> {
         }
     }
 
-    fn widget_outer_info(&self, index: usize) -> &WidgetLayoutInfo {
+    fn widget_bounds_info(&self, index: usize) -> &WidgetBoundsInfo {
         let a_len = self.0.len();
         if index < a_len {
-            self.0.widget_outer_info(index)
+            self.0.widget_bounds_info(index)
         } else {
-            self.1.widget_outer_info(index - a_len)
-        }
-    }
-
-    fn widget_inner_info(&self, index: usize) -> &WidgetLayoutInfo {
-        let a_len = self.0.len();
-        if index < a_len {
-            self.0.widget_inner_info(index)
-        } else {
-            self.1.widget_inner_info(index - a_len)
+            self.1.widget_bounds_info(index - a_len)
         }
     }
 
@@ -262,6 +235,30 @@ impl<A: WidgetList, B: WidgetList> WidgetList for WidgetListChain<A, B> {
         } else {
             self.1.widget_render_info(index - a_len)
         }
+    }
+
+    fn widget_outer<F>(&mut self, index: usize, wl: &mut WidgetLayout, keep_previous: bool, transform: F)
+    where
+        F: FnOnce(&mut WidgetLayoutTranslation, PosLayoutArgs),
+    {
+        let a_len = self.0.len();
+        if index < a_len {
+            self.0.widget_outer(index, wl, keep_previous, transform);
+        } else {
+            self.1.widget_outer(index - a_len, wl, keep_previous, transform);
+        }
+    }
+
+    fn outer_all<F>(&mut self, wl: &mut WidgetLayout, keep_previous: bool, mut transform: F)
+    where
+        F: FnMut(&mut WidgetLayoutTranslation, PosLayoutArgs),
+    {
+        self.0.outer_all(wl, keep_previous, &mut transform);
+        let offset = self.0.len();
+        self.1.outer_all(wl, keep_previous, |wlt, mut args| {
+            args.index += offset;
+            transform(wlt, args);
+        })
     }
 }
 
@@ -309,53 +306,33 @@ impl<A: UiNodeList, B: UiNodeList> UiNodeList for UiNodeListChain<A, B> {
         self.1.event_all(ctx, args);
     }
 
-    fn measure_all<AS, D>(&mut self, ctx: &mut LayoutContext, mut available_size: AS, mut desired_size: D)
+    fn layout_all<C, D>(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout, mut pre_layout: C, mut pos_layout: D)
     where
-        AS: FnMut(&mut LayoutContext, AvailableSizeArgs) -> AvailableSize,
-        D: FnMut(&mut LayoutContext, DesiredSizeArgs),
+        C: FnMut(&mut LayoutContext, &mut WidgetLayout, &mut PreLayoutArgs),
+        D: FnMut(&mut LayoutContext, &mut WidgetLayout, PosLayoutArgs),
     {
-        self.0.measure_all(ctx, &mut available_size, &mut desired_size);
+        self.0.layout_all(ctx, wl, &mut pre_layout, &mut pos_layout);
         let offset = self.0.len();
-        self.1.measure_all(
+        self.1.layout_all(
             ctx,
-            |ctx, mut args| {
+            wl,
+            |ctx, wl, mut args| {
                 args.index += offset;
-                available_size(ctx, args)
+                pre_layout(ctx, wl, args)
             },
-            |ctx, mut args| {
+            |ctx, wl, mut args| {
                 args.index += offset;
-                desired_size(ctx, args)
+                pos_layout(ctx, wl, args)
             },
         );
     }
 
-    fn widget_measure(&mut self, index: usize, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize {
+    fn widget_layout(&mut self, index: usize, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
         let a_len = self.0.len();
         if index < a_len {
-            self.0.widget_measure(index, ctx, available_size)
+            self.0.widget_layout(index, ctx, wl)
         } else {
-            self.1.widget_measure(index - a_len, ctx, available_size)
-        }
-    }
-
-    fn arrange_all<F>(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, mut final_size: F)
-    where
-        F: FnMut(&mut LayoutContext, &mut FinalSizeArgs) -> PxSize,
-    {
-        self.0.arrange_all(ctx, widget_layout, &mut final_size);
-        let offset = self.0.len();
-        self.1.arrange_all(ctx, widget_layout, |ctx, args| {
-            args.index += offset;
-            final_size(ctx, args)
-        });
-    }
-
-    fn widget_arrange(&mut self, index: usize, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, final_size: PxSize) {
-        let a_len = self.0.len();
-        if index < a_len {
-            self.0.widget_arrange(index, ctx, widget_layout, final_size)
-        } else {
-            self.1.widget_arrange(index - a_len, ctx, widget_layout, final_size)
+            self.1.widget_layout(index - a_len, ctx, wl)
         }
     }
 

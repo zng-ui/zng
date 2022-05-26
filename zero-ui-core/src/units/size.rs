@@ -2,9 +2,7 @@ use std::{fmt, ops};
 
 use crate::{context::LayoutMetrics, impl_from_and_into_var};
 
-use super::{
-    impl_length_comp_conversions, AvailableSize, DipSize, Factor, Factor2d, FactorPercent, LayoutMask, Length, PxSize, Rect, Vector,
-};
+use super::{impl_length_comp_conversions, DipSize, Factor, Factor2d, FactorPercent, LayoutMask, Length, PxSize, Rect, Vector};
 
 /// 2D size in [`Length`] units.
 #[derive(Clone, Default, PartialEq)]
@@ -76,16 +74,16 @@ impl Size {
     }
 
     /// Compute the size in a layout context.
-    pub fn to_layout(&self, ctx: &LayoutMetrics, available_size: AvailableSize, default_value: PxSize) -> PxSize {
+    pub fn layout(&self, ctx: &LayoutMetrics, mut default_value: impl FnMut(&LayoutMetrics) -> PxSize) -> PxSize {
         PxSize::new(
-            self.width.to_layout(ctx, available_size.width, default_value.width),
-            self.height.to_layout(ctx, available_size.height, default_value.height),
+            self.width.layout(ctx.for_x(), |ctx| default_value(ctx.metrics).width),
+            self.height.layout(ctx.for_y(), |ctx| default_value(ctx.metrics).height),
         )
     }
 
-    /// Compute a [`LayoutMask`] that flags all contextual values that affect the result of [`to_layout`].
+    /// Compute a [`LayoutMask`] that flags all contextual values that affect the result of [`layout`].
     ///
-    /// [`to_layout`]: Self::to_layout
+    /// [`layout`]: Self::layout
     pub fn affect_mask(&self) -> LayoutMask {
         self.width.affect_mask() | self.height.affect_mask()
     }

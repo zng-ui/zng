@@ -1,8 +1,8 @@
 use std::fmt::{self, Write};
 
-use crate::impl_from_and_into_var;
+use crate::{impl_from_and_into_var, widget_info::WidgetLayoutTranslation};
 
-use super::{Factor, FactorPercent, Point, Px, PxRect, PxSize, PxVector};
+use super::{Factor, FactorPercent, Point, Px, PxConstrains2d, PxSize, PxVector};
 
 /// `x` and `y` alignment.
 ///
@@ -23,10 +23,10 @@ use super::{Factor, FactorPercent, Point, Px, PxRect, PxSize, PxVector};
 /// The [`f32::NEG_INFINITY`] value can be used in ***y*** to indicate that a panel widget should align its items by each *baseline*,
 /// for most widgets this is the same as `BOTTOM`, but for texts this aligns to the baseline of the texts.
 ///
-/// You can use the [`is_fill_width`], [`is_fill_height`] and [`is_baseline`] methods to probe for this special values.
+/// You can use the [`is_fill_x`], [`is_fill_y`] and [`is_baseline`] methods to probe for this special values.
 ///
-/// [`is_fill_width`]: Align::is_fill_width
-/// [`is_fill_height`]: Align::is_fill_height
+/// [`is_fill_x`]: Align::is_fill_x
+/// [`is_fill_y`]: Align::is_fill_y
 /// [`is_baseline`]: Align::is_baseline
 /// [`as_self_align`]: Align::as_self_align
 #[derive(Clone, Copy)]
@@ -38,32 +38,73 @@ pub struct Align {
 }
 impl PartialEq for Align {
     fn eq(&self, other: &Self) -> bool {
-        self.is_fill_width() == other.is_fill_width()
-            && self.is_fill_height() == other.is_fill_height()
-            && self.x == other.x
-            && self.y == other.y
+        self.is_fill_x() == other.is_fill_x() && self.is_fill_y() == other.is_fill_y() && self.x == other.x && self.y == other.y
     }
 }
 impl Align {
     /// Returns `true` if [`x`] is a special value that indicates the content width must be the container width.
     ///
     /// [`x`]: Align::x
-    pub fn is_fill_width(self) -> bool {
+    pub fn is_fill_x(self) -> bool {
         self.x.0.is_infinite() && self.x.0.is_sign_positive()
     }
 
     /// Returns `true` if [`y`] is a special value that indicates the content height must be the container height.
     ///
     /// [`y`]: Align::y
-    pub fn is_fill_height(self) -> bool {
+    pub fn is_fill_y(self) -> bool {
         self.y.0.is_infinite() && self.y.0.is_sign_positive()
     }
 
     /// Returns `true` if [`y`] is a special value that indicates the contents must be aligned by their baseline.
     ///
+    /// If this is `true` the *y* alignment should be `BOTTOM` plus the baseline offset.
+    ///
     /// [`y`]: Align::y
     pub fn is_baseline(self) -> bool {
         self.y.0.is_infinite() && self.y.0.is_sign_negative()
+    }
+
+    /// Returns a boolean vector of the fill values.
+    pub fn fill_vector(self) -> super::euclid::BoolVector2D {
+        super::euclid::BoolVector2D {
+            x: self.is_fill_x(),
+            y: self.is_fill_y(),
+        }
+    }
+
+    /// Constrains that must be used to layout a child node with the alignment.
+    pub fn child_constrains(self, parent_constrains: PxConstrains2d) -> PxConstrains2d {
+        parent_constrains
+            .with_min(Px(0), Px(0))
+            .with_fill_and(self.is_fill_x(), self.is_fill_y())
+    }
+
+    /// Applies the alignment transform to `wl` and returns the size of the parent align node.
+    pub fn layout(self, child_size: PxSize, parent_constrains: PxConstrains2d, wl: &mut WidgetLayoutTranslation) -> PxSize {
+        let size = parent_constrains.fill_size().max(child_size);
+        let size = parent_constrains.clamp_size(size);
+
+        let mut offset = PxVector::zero();
+        if !self.is_fill_x() {
+            offset.x = (size.width - child_size.width) * self.x.0;
+        }
+
+        let baseline = self.is_baseline();
+
+        if !self.is_fill_y() {
+            let y = if baseline { 1.0 } else { self.y.0 };
+
+            offset.y = (size.height - child_size.height) * y;
+        }
+
+        wl.translate(offset);
+
+        if baseline {
+            wl.translate_baseline(1.0);
+        }
+
+        size
     }
 }
 impl_from_and_into_var! {
@@ -122,13 +163,13 @@ impl fmt::Display for Align {
             f.write_str(name)
         } else {
             f.write_char('(')?;
-            if self.is_fill_width() {
+            if self.is_fill_x() {
                 f.write_str("<fill>")?;
             } else {
                 write!(f, "{}", FactorPercent::from(self.x))?;
             }
             f.write_str(", ")?;
-            if self.is_fill_height() {
+            if self.is_fill_y() {
                 f.write_str("<fill>")?;
             } else if self.is_baseline() {
                 f.write_str("<baseline>")?;
@@ -175,65 +216,5 @@ impl_from_and_into_var! {
             x: alignment.x.into(),
             y: alignment.y.into(),
         }
-    }
-}
-impl Align {
-    /// Compute a content rectangle given this alignment, the content size and the available size.
-    ///
-    /// To implement alignment, the `content_size` should be measured and recorded in [`UiNode::measure`]
-    /// and then this method called in the [`UiNode::arrange`] with the final container size to get the
-    /// content rectangle that must be recorded and used in [`UiNode::render`] to size and position the content
-    /// in the space of the container.
-    ///
-    /// The `baseline` is a vertical offset up from the `content_size` bottom, usually it `0` meaning the bottom is the baseline,
-    /// see also [`WidgetLayout::with_baseline_translate`].
-    ///
-    /// [`UiNode::measure`]: crate::UiNode::measure
-    /// [`UiNode::arrange`]: crate::UiNode::arrange
-    /// [`UiNode::render`]: crate::UiNode::render
-    /// [`WidgetLayout::with_baseline_translate`]: crate::widget_info::WidgetLayout::with_baseline_translate
-    pub fn solve(self, content_size: PxSize, baseline: Px, container_size: PxSize) -> PxRect {
-        let mut r = PxRect::zero();
-
-        if self.is_fill_width() {
-            r.size.width = container_size.width;
-        } else {
-            r.size.width = container_size.width.min(content_size.width);
-            r.origin.x = (container_size.width - r.size.width) * self.x.0;
-        }
-        if self.is_fill_height() {
-            r.size.height = container_size.height;
-        } else if self.is_baseline() {
-            r.size.height = container_size.height.min(content_size.height);
-            r.origin.y = container_size.height - r.size.height - baseline;
-        } else {
-            r.size.height = container_size.height.min(content_size.height);
-            r.origin.y = (container_size.height - r.size.height) * self.y.0;
-        }
-
-        r
-    }
-
-    /// Compute an offset to apply to the content given the available size.
-    ///
-    /// [`FILL`] align resolves like [`TOP_LEFT`] align.
-    ///
-    /// Unlike [`solve`] the content does not change size, it must be clipped if larger than the container.
-    ///
-    /// [`FILL`]: Align::FILL
-    /// [`TOP_LEFT`]: Align::TOP_LEFT
-    /// [`solve`]: Align::solve
-    pub fn solve_offset(self, content_size: PxSize, container_size: PxSize) -> PxVector {
-        let mut r = PxVector::zero();
-
-        if !self.is_fill_width() {
-            r.x = (container_size.width - content_size.width) * self.x.0;
-        }
-
-        if !self.is_fill_height() {
-            r.y = (container_size.height - content_size.height) * self.y.0;
-        }
-
-        r
     }
 }

@@ -2,7 +2,7 @@ use std::fmt;
 
 use crate::{context::LayoutMetrics, impl_from_and_into_var};
 
-use super::{impl_length_comp_conversions, AvailableSize, Factor, FactorPercent, LayoutMask, Length, PxSideOffsets};
+use super::{impl_length_comp_conversions, Factor, FactorPercent, LayoutMask, Length, PxSideOffsets};
 
 /// 2D size offsets in [`Length`] units.
 ///
@@ -86,20 +86,18 @@ impl SideOffsets {
     }
 
     /// Compute the offsets in a layout context.
-    pub fn to_layout(&self, ctx: &LayoutMetrics, available_size: AvailableSize, default_value: PxSideOffsets) -> PxSideOffsets {
-        let width = available_size.width;
-        let height = available_size.height;
+    pub fn layout(&self, ctx: &LayoutMetrics, mut default_value: impl FnMut(&LayoutMetrics) -> PxSideOffsets) -> PxSideOffsets {
         PxSideOffsets::new(
-            self.top.to_layout(ctx, height, default_value.top),
-            self.right.to_layout(ctx, width, default_value.right),
-            self.bottom.to_layout(ctx, height, default_value.bottom),
-            self.left.to_layout(ctx, width, default_value.left),
+            self.top.layout(ctx.for_y(), |ctx| default_value(ctx.metrics).top),
+            self.right.layout(ctx.for_x(), |ctx| default_value(ctx.metrics).right),
+            self.bottom.layout(ctx.for_y(), |ctx| default_value(ctx.metrics).bottom),
+            self.left.layout(ctx.for_x(), |ctx| default_value(ctx.metrics).left),
         )
     }
 
-    /// Compute a [`LayoutMask`] that flags all contextual values that affect the result of [`to_layout`].
+    /// Compute a [`LayoutMask`] that flags all contextual values that affect the result of [`layout`].
     ///
-    /// [`to_layout`]: Self::to_layout
+    /// [`layout`]: Self::layout
     pub fn affect_mask(&self) -> LayoutMask {
         self.top.affect_mask() | self.right.affect_mask() | self.bottom.affect_mask() | self.left.affect_mask()
     }

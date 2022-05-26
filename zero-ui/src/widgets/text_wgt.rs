@@ -131,16 +131,11 @@ pub mod text {
         let child = nodes::render_text();
         let child = nodes::render_overlines(child);
         let child = nodes::render_strikethroughs(child);
-        let child = nodes::render_underlines(child);
-        implicit_base::nodes::leaf_transform(child)
+        nodes::render_underlines(child)
     }
 
     fn new_fill(child: impl UiNode, padding: impl IntoVar<SideOffsets>) -> impl UiNode {
         nodes::layout_text(child, padding)
-    }
-
-    fn new_border(child: impl UiNode) -> impl UiNode {
-        nodes::inner(child)
     }
 
     fn new_event(child: impl UiNode, text: impl IntoVar<Text>) -> impl UiNode {

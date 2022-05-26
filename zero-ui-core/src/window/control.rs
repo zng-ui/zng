@@ -18,10 +18,7 @@ use crate::{
     text::Fonts,
     units::*,
     var::*,
-    widget_info::{
-        UsedWidgetInfoBuilder, WidgetBorderInfo, WidgetInfoBuilder, WidgetInfoTree, WidgetLayout, WidgetLayoutInfo, WidgetRenderInfo,
-        WidgetSubscriptions,
-    },
+    widget_info::{UsedWidgetInfoBuilder, WidgetContextInfo, WidgetInfoBuilder, WidgetInfoTree, WidgetLayout, WidgetSubscriptions},
     window::AutoSize,
     BoxedUiNode, UiNode, WidgetId,
 };
@@ -177,15 +174,9 @@ impl HeadedCtrl {
                         let screen_ppi = m.ppi().copy(ctx);
                         let screen_size = m.size().copy(ctx);
                         let (min_size, max_size) = self.content.outer_layout(ctx, scale_factor, screen_ppi, screen_size, |ctx| {
-                            let available_size = AvailableSize::finite(screen_size);
+                            let min_size = self.vars.min_size().get(ctx.vars).layout(ctx, |_| default_min_size(scale_factor));
 
-                            let min_size =
-                                self.vars
-                                    .min_size()
-                                    .get(ctx.vars)
-                                    .to_layout(ctx, available_size, default_min_size(scale_factor));
-
-                            let max_size = self.vars.max_size().get(ctx.vars).to_layout(ctx, available_size, screen_size);
+                            let max_size = self.vars.max_size().get(ctx.vars).layout(ctx, |_| screen_size);
 
                             (min_size.to_dip(scale_factor.0), max_size.to_dip(scale_factor.0))
                         });
@@ -214,11 +205,10 @@ impl HeadedCtrl {
                             let screen_ppi = m.ppi().copy(ctx);
                             let screen_size = m.size().copy(ctx);
                             let size = self.content.outer_layout(ctx, scale_factor, screen_ppi, screen_size, |ctx| {
-                                let available_size = AvailableSize::finite(screen_size);
                                 self.vars
                                     .size()
                                     .get(ctx.vars)
-                                    .to_layout(ctx, available_size, default_size(scale_factor))
+                                    .layout(ctx, |_| default_size(scale_factor))
                                     .to_dip(scale_factor.0)
                             });
 
@@ -240,7 +230,7 @@ impl HeadedCtrl {
                         let screen_ppi = m.ppi().copy(ctx);
                         let screen_size = m.size().copy(ctx);
                         let pos = self.content.outer_layout(ctx, scale_factor, screen_ppi, screen_size, |ctx| {
-                            pos.to_layout(ctx, AvailableSize::finite(screen_size), PxPoint::new(Px(50), Px(50)))
+                            pos.layout(ctx, |_| PxPoint::new(Px(50), Px(50)))
                         });
                         new_state.restore_rect.origin = pos.to_dip(scale_factor.0);
                     }
@@ -521,24 +511,15 @@ impl HeadedCtrl {
         let screen_size = m.size().copy(ctx);
 
         let (min_size, max_size, mut size) = self.content.outer_layout(ctx, scale_factor, screen_ppi, screen_size, |ctx| {
-            let available_size = AvailableSize::finite(screen_size);
-
             let min_size = self
                 .vars
                 .min_size()
                 .get(ctx.vars)
-                .to_layout(ctx.metrics, available_size, default_min_size(scale_factor));
-            let max_size = self
-                .vars
-                .max_size()
-                .get(ctx.vars)
-                .to_layout(ctx.metrics, available_size, screen_size);
+                .layout(ctx.metrics, |_| default_min_size(scale_factor));
 
-            let size = self
-                .vars
-                .size()
-                .get(ctx.vars)
-                .to_layout(ctx.metrics, available_size, default_size(scale_factor));
+            let max_size = self.vars.max_size().get(ctx.vars).layout(ctx.metrics, |_| screen_size);
+
+            let size = self.vars.size().get(ctx.vars).layout(ctx.metrics, |_| default_size(scale_factor));
 
             (min_size, max_size, size.min(max_size).max(min_size))
         });
@@ -558,8 +539,7 @@ impl HeadedCtrl {
                     PxPoint::zero()
                 } else {
                     self.content.outer_layout(ctx, scale_factor, screen_ppi, screen_size, |ctx| {
-                        let available_size = AvailableSize::finite(screen_size);
-                        pos.to_layout(ctx.metrics, available_size, PxPoint::zero())
+                        pos.layout(ctx.metrics, |_| PxPoint::zero())
                     })
                 }
             }
@@ -658,12 +638,9 @@ impl HeadedCtrl {
                     size,
                     LayoutMask::LAYOUT_METRICS,
                     &self.content.info_tree,
+                    &self.content.root_info,
                     &mut self.content.root_state,
-                    |ctx| {
-                        auto_size_origin
-                            .to_layout(ctx, AvailableSize::finite(size), PxPoint::zero())
-                            .to_dip(scale_factor.0)
-                    },
+                    |ctx| auto_size_origin.layout(ctx, |_| PxPoint::zero()).to_dip(scale_factor.0),
                 )
             };
             let prev_origin = auto_size_origin(current_size);
@@ -887,25 +864,15 @@ impl HeadlessWithRendererCtrl {
         let screen_size = self.headless_monitor.size.to_px(scale_factor.0);
 
         let (min_size, max_size, size) = self.content.outer_layout(ctx, scale_factor, screen_ppi, screen_size, |ctx| {
-            let available_size = AvailableSize::finite(screen_size);
-
             let min_size = self
                 .vars
                 .min_size()
                 .get(ctx.vars)
-                .to_layout(ctx.metrics, available_size, default_min_size(scale_factor));
+                .layout(ctx.metrics, |_| default_min_size(scale_factor));
 
-            let max_size = self
-                .vars
-                .max_size()
-                .get(ctx.vars)
-                .to_layout(ctx.metrics, available_size, screen_size);
+            let max_size = self.vars.max_size().get(ctx.vars).layout(ctx.metrics, |_| screen_size);
 
-            let size = self
-                .vars
-                .size()
-                .get(ctx.vars)
-                .to_layout(ctx.metrics, available_size, default_size(scale_factor));
+            let size = self.vars.size().get(ctx.vars).layout(ctx.metrics, |_| default_size(scale_factor));
 
             (min_size, max_size, size.min(max_size).max(min_size))
         });
@@ -1019,25 +986,15 @@ impl HeadlessCtrl {
         let screen_size = self.headless_monitor.size.to_px(scale_factor.0);
 
         let (min_size, max_size, size) = self.content.outer_layout(ctx, scale_factor, screen_ppi, screen_size, |ctx| {
-            let available_size = AvailableSize::finite(screen_size);
-
             let min_size = self
                 .vars
                 .min_size()
                 .get(ctx.vars)
-                .to_layout(ctx.metrics, available_size, default_min_size(scale_factor));
+                .layout(ctx.metrics, |_| default_min_size(scale_factor));
 
-            let max_size = self
-                .vars
-                .max_size()
-                .get(ctx.vars)
-                .to_layout(ctx.metrics, available_size, screen_size);
+            let max_size = self.vars.max_size().get(ctx.vars).layout(ctx.metrics, |_| screen_size);
 
-            let size = self
-                .vars
-                .size()
-                .get(ctx.vars)
-                .to_layout(ctx.metrics, available_size, default_size(scale_factor));
+            let size = self.vars.size().get(ctx.vars).layout(ctx.metrics, |_| default_size(scale_factor));
 
             (min_size, max_size, size.min(max_size).max(min_size))
         });
@@ -1110,10 +1067,7 @@ struct ContentCtrl {
     root: BoxedUiNode,
     // info
     info_tree: WidgetInfoTree,
-    root_outer_info: WidgetLayoutInfo,
-    root_inner_info: WidgetLayoutInfo,
-    root_border_info: WidgetBorderInfo,
-    root_rendered: WidgetRenderInfo,
+    root_info: WidgetContextInfo,
     used_info_builder: Option<UsedWidgetInfoBuilder>,
 
     prev_metrics: Option<(Px, Factor, f32, PxSize)>,
@@ -1141,10 +1095,7 @@ impl ContentCtrl {
             root: window.child,
 
             info_tree: WidgetInfoTree::blank(window_id, window.id),
-            root_outer_info: WidgetLayoutInfo::new(),
-            root_inner_info: WidgetLayoutInfo::new(),
-            root_border_info: WidgetBorderInfo::new(),
-            root_rendered: WidgetRenderInfo::new(),
+            root_info: WidgetContextInfo::new(),
             used_info_builder: None,
 
             prev_metrics: None,
@@ -1166,7 +1117,7 @@ impl ContentCtrl {
 
     pub fn update(&mut self, ctx: &mut WindowContext) {
         if !self.inited {
-            ctx.widget_context(&self.info_tree, &mut self.root_state, |ctx| {
+            ctx.widget_context(&self.info_tree, &self.root_info, &mut self.root_state, |ctx| {
                 self.root.init(ctx);
 
                 ctx.updates.info();
@@ -1174,7 +1125,7 @@ impl ContentCtrl {
             });
             self.inited = true;
         } else {
-            ctx.widget_context(&self.info_tree, &mut self.root_state, |ctx| {
+            ctx.widget_context(&self.info_tree, &self.root_info, &mut self.root_state, |ctx| {
                 self.root.update(ctx);
             })
         }
@@ -1188,14 +1139,13 @@ impl ContentCtrl {
             let mut info = WidgetInfoBuilder::new(
                 *ctx.window_id,
                 self.root_id,
-                self.root_outer_info.clone(),
-                self.root_inner_info.clone(),
-                self.root_border_info.clone(),
-                self.root_rendered.clone(),
+                self.root_info.bounds.clone(),
+                self.root_info.border.clone(),
+                self.root_info.render.clone(),
                 self.used_info_builder.take(),
             );
 
-            ctx.info_context(&self.info_tree, &self.root_state, |ctx| {
+            ctx.info_context(&self.info_tree, &self.root_info, &self.root_state, |ctx| {
                 self.root.info(ctx, &mut info);
             });
 
@@ -1209,7 +1159,7 @@ impl ContentCtrl {
         }
 
         if updates.subscriptions {
-            self.subscriptions = ctx.info_context(&self.info_tree, &self.root_state, |ctx| {
+            self.subscriptions = ctx.info_context(&self.info_tree, &self.root_info, &self.root_state, |ctx| {
                 let mut subscriptions = WidgetSubscriptions::new();
                 self.root.subscriptions(ctx, &mut subscriptions);
                 subscriptions
@@ -1247,7 +1197,7 @@ impl ContentCtrl {
         debug_assert!(self.inited);
 
         if self.subscriptions.event_contains(args) {
-            ctx.widget_context(&self.info_tree, &mut self.root_state, |ctx| {
+            ctx.widget_context(&self.info_tree, &self.root_info, &mut self.root_state, |ctx| {
                 self.root.event(ctx, args);
             });
         } else {
@@ -1255,7 +1205,7 @@ impl ContentCtrl {
     }
 
     pub fn close(&mut self, ctx: &mut WindowContext) {
-        ctx.widget_context(&self.info_tree, &mut self.root_state, |ctx| {
+        ctx.widget_context(&self.info_tree, &self.root_info, &mut self.root_state, |ctx| {
             self.root.deinit(ctx);
         });
 
@@ -1278,6 +1228,7 @@ impl ContentCtrl {
             screen_size,
             LayoutMask::LAYOUT_METRICS,
             &self.info_tree,
+            &self.root_info,
             &mut self.root_state,
             action,
         )
@@ -1342,19 +1293,23 @@ impl ContentCtrl {
             viewport_size,
             changes,
             &self.info_tree,
+            &self.root_info,
             &mut self.root_state,
             |ctx| {
-                let mut available_size = AvailableSize::finite(viewport_size);
-                if !skip_auto_size {
-                    if auto_size.contains(AutoSize::CONTENT_WIDTH) {
-                        available_size.width = AvailablePx::Infinite;
-                    }
-                    if auto_size.contains(AutoSize::CONTENT_HEIGHT) {
-                        available_size.height = AvailablePx::Infinite;
-                    }
-                }
-
-                let desired_size = self.root.measure(ctx, available_size);
+                let desired_size = ctx.with_constrains(
+                    |mut c| {
+                        if !skip_auto_size {
+                            if auto_size.contains(AutoSize::CONTENT_WIDTH) {
+                                c = c.with_unbounded_x();
+                            }
+                            if auto_size.contains(AutoSize::CONTENT_HEIGHT) {
+                                c = c.with_unbounded_y();
+                            }
+                        }
+                        c
+                    },
+                    |ctx| WidgetLayout::with_root_widget(ctx, |ctx, wl| self.root.layout(ctx, wl)),
+                );
 
                 let mut final_size = viewport_size;
                 if !skip_auto_size {
@@ -1365,17 +1320,6 @@ impl ContentCtrl {
                         final_size.height = desired_size.height.max(min_size.height).min(max_size.height);
                     }
                 }
-
-                WidgetLayout::with_root_widget(
-                    self.root_id,
-                    &self.root_outer_info,
-                    &self.root_inner_info,
-                    &self.root_border_info,
-                    final_size,
-                    |wl| {
-                        self.root.arrange(ctx, wl, final_size);
-                    },
-                );
 
                 final_size
             },
@@ -1410,9 +1354,9 @@ impl ContentCtrl {
                     self.used_frame_builder.take(),
                 );
 
-                let (frame, used) = ctx.render_context(self.root_id, &self.root_state, &self.info_tree, |ctx| {
+                let (frame, used) = ctx.render_context(self.root_id, &self.root_state, &self.info_tree, &self.root_info, |ctx| {
                     self.root.render(ctx, &mut frame);
-                    frame.finalize(&self.root_rendered)
+                    frame.finalize(&self.root_info.render)
                 });
 
                 self.used_frame_builder = Some(used);
@@ -1458,9 +1402,15 @@ impl ContentCtrl {
 
                 self.frame_id = self.frame_id.next_update();
 
-                let mut update = FrameUpdate::new(self.frame_id, renderer.as_ref(), self.clear_color, self.used_frame_update.take());
+                let mut update = FrameUpdate::new(
+                    self.frame_id,
+                    self.root_id,
+                    renderer.as_ref(),
+                    self.clear_color,
+                    self.used_frame_update.take(),
+                );
 
-                ctx.render_context(self.root_id, &self.root_state, &self.info_tree, |ctx| {
+                ctx.render_context(self.root_id, &self.root_state, &self.info_tree, &self.root_info, |ctx| {
                     self.root.render_update(ctx, &mut update);
                 });
 

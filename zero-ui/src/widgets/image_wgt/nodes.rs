@@ -278,19 +278,10 @@ pub fn image_presenter() -> impl UiNode {
     struct ImagePresenterNode {
         requested_layout: bool,
 
-        // pixel size of the last image presented.
+        // pixel size of the context image.
         img_size: PxSize,
 
-        // raw size of the image the last time a full `measure` was done.
-        measure_img_size: PxSize,
-        // last computed clip-rect in the `measure` pass.
-        measure_clip_rect: PxRect,
-        // desired-size (pre-available) the last time a full `measure` was done.
-        desired_size: PxSize,
-        // `final_size` of the last processed `arrange`.
-        final_size: PxSize,
-
-        render_clip_rect: PxRect,
+        render_clip: PxRect,
         render_img_size: PxSize,
         render_offset: PxVector,
 
@@ -307,7 +298,8 @@ pub fn image_presenter() -> impl UiNode {
                 .var(&ImageScalePpiVar::new())
                 .var(&ImageCropVar::new())
                 .var(&ImageAlignVar::new())
-                .var(&ImageRenderingVar::new());
+                .var(&ImageRenderingVar::new())
+                .var(&ImageOffsetVar::new());
         }
 
         fn init(&mut self, ctx: &mut WidgetContext) {
@@ -333,6 +325,7 @@ pub fn image_presenter() -> impl UiNode {
                 || ImageScalePpiVar::is_new(ctx)
                 || ImageCropVar::is_new(ctx)
                 || ImageAlignVar::is_new(ctx)
+                || ImageOffsetVar::is_new(ctx)
             {
                 ctx.updates.layout();
                 self.requested_layout = true;
@@ -343,150 +336,139 @@ pub fn image_presenter() -> impl UiNode {
             }
         }
 
-        fn measure(&mut self, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize {
-            let img_rect = PxRect::from_size(self.img_size);
-
-            let crop = ImageCropVar::get(ctx).to_layout(ctx, AvailableSize::from_size(self.img_size), img_rect);
-
-            self.measure_img_size = self.img_size;
-            self.measure_clip_rect = img_rect.intersection(&crop).unwrap_or_default();
+        fn layout(&mut self, ctx: &mut LayoutContext, _: &mut WidgetLayout) -> PxSize {
+            // Part 1 - Scale & Crop
+            // - Starting from the image pixel size, apply scaling then crop.
 
             let mut scale = *ImageScaleVar::get(ctx);
             if *ImageScalePpiVar::get(ctx) {
                 let img = ContextImageVar::get(ctx.vars);
-                let sppi = ctx.metrics.screen_ppi;
+                let sppi = ctx.metrics.screen_ppi();
                 let (ippi_x, ippi_y) = img.ppi().unwrap_or((sppi, sppi));
                 scale *= Factor2d::new(sppi / ippi_x, sppi / ippi_y);
             }
-
             if *ImageScaleFactorVar::get(ctx) {
-                scale *= ctx.scale_factor;
-            }
-            self.measure_img_size *= scale;
-            self.measure_clip_rect *= scale;
-
-            self.requested_layout |= self.measure_clip_rect.size != self.desired_size;
-            self.desired_size = self.measure_clip_rect.size;
-
-            if let ImageFit::Fill = *ImageFitVar::get(ctx) {
-                match (available_size.width, available_size.height) {
-                    (AvailablePx::Infinite, AvailablePx::Finite(h)) if self.desired_size.height > Px(0) => {
-                        let scale = h.0 as f32 / self.desired_size.height.0 as f32;
-                        self.desired_size.width *= scale;
-                        self.desired_size.height = h;
-                    }
-                    (AvailablePx::Finite(w), AvailablePx::Infinite) if self.desired_size.width > Px(0) => {
-                        let scale = w.0 as f32 / self.desired_size.width.0 as f32;
-                        self.desired_size.height *= scale;
-                        self.desired_size.width = w;
-                    }
-                    _ => {}
-                }
-            }
-            available_size.clip(self.desired_size)
-        }
-
-        fn arrange(&mut self, ctx: &mut LayoutContext, _: &mut WidgetLayout, final_size: PxSize) {
-            self.requested_layout |= final_size != self.final_size;
-
-            if !self.requested_layout {
-                return;
+                scale *= ctx.scale_factor();
             }
 
-            self.final_size = final_size;
-            self.requested_layout = false;
+            // webrender needs the full image size, we offset and clip it to render the final image.
+            let mut render_img_size = self.img_size * scale;
 
-            let mut f_img_size = self.measure_img_size;
-            let mut f_clip_rect = self.measure_clip_rect;
-            // let f_offset;
+            // crop is relative to the unscaled pixel size, then applied scaled as the clip.
+            let img_rect = PxRect::from_size(self.img_size);
+            let crop = ctx.with_constrains(
+                |c| c.with_max_size(self.img_size).with_fill(true, true),
+                |ctx| ImageCropVar::get(ctx.vars).layout(ctx.metrics, |_| img_rect),
+            );
+            let mut render_clip = img_rect.intersection(&crop).unwrap_or_default() * scale;
+            let mut render_offset = -render_clip.origin.to_vector();
 
-            // 1 - fit crop-rect:
+            // Part 2 - Fit, Align & Clip
+            // - Fit the cropped and scaled image to the constrains, add a bounds clip to the crop clip.
 
-            let mut align_offset = PxVector::zero();
-            let mut crop_size = self.measure_clip_rect.size;
+            let mut align = *ImageAlignVar::get(ctx);
+            if align.is_baseline() {
+                align.y = 1.fct();
+            }
 
-            let align = *ImageAlignVar::get(ctx.vars);
+            let wgt_size = ctx.constrains().fill_ratio(render_clip.size);
+
             let mut fit = *ImageFitVar::get(ctx);
-            loop {
-                match fit {
-                    ImageFit::None => {
-                        align_offset = align.solve_offset(crop_size, final_size);
-                        break;
-                    }
-                    ImageFit::Fill => {
-                        crop_size = final_size;
-                        break;
-                    }
-                    ImageFit::Contain => {
-                        let container = final_size.to_f32();
-                        let content = crop_size.to_f32();
-                        let scale = (container.width / content.width).min(container.height / content.height).fct();
-                        crop_size *= scale;
-                        align_offset = align.solve_offset(crop_size, final_size);
-                        break;
-                    }
-                    ImageFit::Cover => {
-                        let container = final_size.to_f32();
-                        let content = crop_size.to_f32();
-                        let scale = (container.width / content.width).max(container.height / content.height).fct();
-                        crop_size *= scale;
-                        align_offset = align.solve_offset(crop_size, final_size);
-                        break;
-                    }
-                    ImageFit::ScaleDown => {
-                        if crop_size.width < final_size.width && crop_size.height < final_size.height {
-                            fit = ImageFit::None;
-                        } else {
-                            fit = ImageFit::Contain;
-                        }
-                    }
+            if let ImageFit::ScaleDown = fit {
+                if render_clip.size.width < wgt_size.width && render_clip.size.height < wgt_size.height {
+                    fit = ImageFit::None;
+                } else {
+                    fit = ImageFit::Contain;
+                }
+            }
+            match fit {
+                ImageFit::Fill => {
+                    align = Align::FILL;
+                }
+                ImageFit::Contain => {
+                    let container = wgt_size.to_f32();
+                    let content = render_clip.size.to_f32();
+                    let scale = (container.width / content.width).min(container.height / content.height).fct();
+                    render_clip *= scale;
+                    render_img_size *= scale;
+                    render_offset *= scale;
+                }
+                ImageFit::Cover => {
+                    let container = wgt_size.to_f32();
+                    let content = render_clip.size.to_f32();
+                    let scale = (container.width / content.width).max(container.height / content.height).fct();
+                    render_clip *= scale;
+                    render_img_size *= scale;
+                    render_offset *= scale;
+                }
+                ImageFit::None => {}
+                ImageFit::ScaleDown => unreachable!(),
+            }
+
+            if align.is_fill_x() {
+                let factor = wgt_size.width.0 as f32 / render_clip.size.width.0 as f32;
+                render_clip.size.width = wgt_size.width;
+                render_clip.origin.x *= factor;
+                render_img_size.width *= factor;
+                render_offset.x = -render_clip.origin.x;
+            } else {
+                let diff = wgt_size.width - render_clip.size.width;
+                let offset = diff * align.x;
+                render_offset.x += offset;
+                if diff < Px(0) {
+                    render_clip.origin.x -= offset;
+                    render_clip.size.width += diff;
+                }
+            }
+            if align.is_fill_y() {
+                let factor = wgt_size.height.0 as f32 / render_clip.size.height.0 as f32;
+                render_clip.size.height = wgt_size.height;
+                render_clip.origin.y *= factor;
+                render_img_size.height *= factor;
+                render_offset.y = -render_clip.origin.y;
+            } else {
+                let diff = wgt_size.height - render_clip.size.height;
+                let offset = diff * align.y;
+                render_offset.y += offset;
+                if diff < Px(0) {
+                    render_clip.origin.y -= offset;
+                    render_clip.size.height += diff;
                 }
             }
 
-            // 2 - scale image to new crop size:
-            let scale_x = crop_size.width.0 as f32 / f_clip_rect.size.width.0 as f32;
-            let scale_y = crop_size.height.0 as f32 / f_clip_rect.size.height.0 as f32;
-            let scale = Factor2d::new(scale_x, scale_y);
+            // Part 3 - Custom Offset and Update
+            let offset = ctx.with_constrains(
+                |c| c.with_max_size(wgt_size).with_fill(true, true),
+                |ctx| ImageOffsetVar::get(ctx.vars).layout(ctx.metrics, |_| PxVector::zero()),
+            );
+            if offset != PxVector::zero() {
+                render_offset += offset;
 
-            f_img_size *= scale;
-            f_clip_rect.origin *= scale;
-            f_clip_rect.size = crop_size;
+                let screen_clip = PxRect::new(-render_offset.to_point(), wgt_size);
+                render_clip.origin -= offset;
+                render_clip = render_clip.intersection(&screen_clip).unwrap_or_default();
+            }
 
-            // 3 - offset to align + user image_offset:
-            let mut offset = PxVector::zero();
-            offset += align_offset;
-            offset += ImageOffsetVar::get(ctx.vars).to_layout(ctx, AvailableSize::from_size(final_size), PxVector::zero());
-
-            // 4 - adjust clip_rect to clip content to container final_size:
-            let top_left_clip = -offset.min(PxVector::zero());
-            f_clip_rect.origin += top_left_clip;
-            f_clip_rect.size -= top_left_clip.to_size();
-            offset += top_left_clip;
-            // bottom-right clip
-            f_clip_rect.size = f_clip_rect.size.min(final_size - offset.to_size());
-
-            // 5 - adjust offset so that clip_rect.origin is at widget (0, 0):
-            let f_offset = offset;
-            offset -= f_clip_rect.origin.to_vector();
-
-            if f_img_size != self.render_img_size || f_clip_rect != self.render_clip_rect || f_offset != self.render_offset {
-                self.render_img_size = f_img_size;
-                self.render_clip_rect = f_clip_rect;
-                self.render_offset = offset;
+            if self.render_clip != render_clip || self.render_img_size != render_img_size || self.render_offset != render_offset {
+                self.render_clip = render_clip;
+                self.render_img_size = render_img_size;
+                self.render_offset = render_offset;
                 ctx.updates.render();
             }
+
+            wgt_size
         }
 
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
             let img = ContextImageVar::get(ctx.vars);
-            if img.is_loaded() && !self.img_size.is_empty() && !self.render_clip_rect.is_empty() {
+            if img.is_loaded() && !self.img_size.is_empty() && !self.render_clip.is_empty() {
                 if self.render_offset != PxVector::zero() {
                     let transform = RenderTransform::translation_px(self.render_offset);
                     frame.push_reference_frame(self.spatial_id, FrameBinding::Value(transform), true, |frame| {
-                        frame.push_image(self.render_clip_rect, self.render_img_size, img, *ImageRenderingVar::get(ctx.vars))
+                        frame.push_image(self.render_clip, self.render_img_size, img, *ImageRenderingVar::get(ctx.vars))
                     });
                 } else {
-                    frame.push_image(self.render_clip_rect, self.render_img_size, img, *ImageRenderingVar::get(ctx.vars));
+                    frame.push_image(self.render_clip, self.render_img_size, img, *ImageRenderingVar::get(ctx.vars));
                 }
             }
         }
@@ -496,13 +478,7 @@ pub fn image_presenter() -> impl UiNode {
 
         img_size: PxSize::zero(),
 
-        measure_clip_rect: PxRect::zero(),
-        measure_img_size: PxSize::zero(),
-        desired_size: PxSize::zero(),
-
-        final_size: PxSize::zero(),
-
-        render_clip_rect: PxRect::zero(),
+        render_clip: PxRect::zero(),
         render_img_size: PxSize::zero(),
         render_offset: PxVector::zero(),
 

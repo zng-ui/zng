@@ -33,17 +33,15 @@ pub mod rule_line {
         color: impl IntoVar<Rgba>,
         style: impl IntoVar<LineStyle>,
     ) -> impl UiNode {
-        let node = LineNode {
+        LineNode {
             bounds: PxSize::zero(),
             orientation: orientation.into_var(),
             length: length.into_var(),
             stroke_thickness: stroke_thickness.into_var(),
             color: color.into_var(),
             style: style.into_var(),
-        };
-        implicit_base::nodes::leaf_transform(node)
+        }
     }
-
     struct LineNode<W, L, O, C, S> {
         stroke_thickness: W,
         length: L,
@@ -81,36 +79,26 @@ pub mod rule_line {
             }
         }
 
-        fn measure(&mut self, ctx: &mut LayoutContext, available_space: AvailableSize) -> PxSize {
-            let default_stroke = Dip::new(1).to_px(ctx.scale_factor.0);
+        fn layout(&mut self, ctx: &mut LayoutContext, _: &mut WidgetLayout) -> PxSize {
+            let default_stroke = Dip::new(1).to_px(ctx.scale_factor().0);
 
-            match *self.orientation.get(ctx) {
+            let bounds = match *self.orientation.get(ctx) {
                 LineOrientation::Horizontal => PxSize::new(
-                    self.length.get(ctx).to_layout(ctx, available_space.width, Px(0)),
-                    self.stroke_thickness
-                        .get(ctx)
-                        .to_layout(ctx, available_space.height, default_stroke),
+                    self.length.get(ctx).layout(ctx.for_x(), |c| c.constrains().fill()),
+                    self.stroke_thickness.get(ctx).layout(ctx.for_y(), |_| default_stroke),
                 ),
                 LineOrientation::Vertical => PxSize::new(
-                    self.stroke_thickness
-                        .get(ctx)
-                        .to_layout(ctx, available_space.height, default_stroke),
-                    self.length.get(ctx).to_layout(ctx, available_space.width, Px(0)),
+                    self.stroke_thickness.get(ctx).layout(ctx.for_x(), |_| default_stroke),
+                    self.length.get(ctx).layout(ctx.for_y(), |c| c.constrains().fill()),
                 ),
-            }
-        }
-
-        fn arrange(&mut self, ctx: &mut LayoutContext, _: &mut WidgetLayout, final_size: PxSize) {
-            let bounds = if self.length.get(ctx).is_default() {
-                final_size
-            } else {
-                self.measure(ctx, AvailableSize::finite(final_size)).max(final_size)
             };
 
             if bounds != self.bounds {
                 self.bounds = bounds;
                 ctx.updates.render();
             }
+
+            bounds
         }
 
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {

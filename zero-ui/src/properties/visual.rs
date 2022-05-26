@@ -39,10 +39,16 @@ pub fn background(child: impl UiNode, background: impl UiNode) -> impl UiNode {
     }
     #[impl_ui_node(children)]
     impl<C: UiNodeList> UiNode for BackgroundNode<C> {
-        fn measure(&mut self, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize {
-            let available_size = self.children.widget_measure(1, ctx, available_size);
-            self.children.widget_measure(0, ctx, AvailableSize::finite(available_size));
-            available_size
+        fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
+            let size = self.children.widget_layout(1, ctx, wl);
+            let size = ctx.constrains().fill_size_or(size);
+            ctx.with_constrains(
+                |c| c.with_max_size(size).with_fill(true, true),
+                |ctx| {
+                    self.children.widget_layout(0, ctx, wl);
+                },
+            );
+            size
         }
     }
 
@@ -152,10 +158,16 @@ pub fn foreground(child: impl UiNode, foreground: impl UiNode) -> impl UiNode {
     }
     #[impl_ui_node(children)]
     impl<C: UiNodeList> UiNode for ForegroundNode<C> {
-        fn measure(&mut self, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize {
-            let available_size = self.children.widget_measure(0, ctx, available_size);
-            self.children.widget_measure(1, ctx, AvailableSize::finite(available_size));
-            available_size
+        fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
+            let size = self.children.widget_layout(0, ctx, wl);
+            let size = ctx.constrains().fill_size_or(size);
+            ctx.with_constrains(
+                |c| c.with_max_size(size).with_fill(true, true),
+                |ctx| {
+                    self.children.widget_layout(1, ctx, wl);
+                },
+            );
+            size
         }
     }
 
@@ -170,7 +182,7 @@ pub fn foreground(child: impl UiNode, foreground: impl UiNode) -> impl UiNode {
 
 /// Foreground highlight border overlay.
 ///
-/// This property draws a border contour with extra `offsets` padding as a fill overlay.
+/// This property draws a border contour with extra `offsets` padding as an overlay.
 ///
 /// # Examples
 ///
@@ -202,69 +214,70 @@ pub fn foreground_highlight(
         widths: W,
         sides: S,
 
-        final_widths: PxSideOffsets,
-        final_rect: PxRect,
-        final_radius: PxCornerRadius,
+        render_bounds: PxRect,
+        render_widths: PxSideOffsets,
+        render_radius: PxCornerRadius,
     }
     #[impl_ui_node(child)]
     impl<C: UiNode, O: Var<SideOffsets>, W: Var<SideOffsets>, S: Var<BorderSides>> UiNode for ForegroundHighlightNode<C, O, W, S> {
-        fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
-            subscriptions.vars(ctx).var(&self.offsets).var(&self.widths).var(&self.sides);
-
-            self.child.subscriptions(ctx, subscriptions);
+        fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
+            subs.vars(ctx).var(&self.offsets).var(&self.widths).var(&self.sides);
+            self.child.subscriptions(ctx, subs);
         }
-        fn update(&mut self, ctx: &mut WidgetContext) {
-            self.child.update(ctx);
 
-            if self.offsets.is_new(ctx) {
-                ctx.updates.layout()
-            }
-            if self.widths.is_new(ctx) {
-                ctx.updates.layout()
-            }
-            if self.sides.is_new(ctx) {
+        fn update(&mut self, ctx: &mut WidgetContext) {
+            if self.offsets.is_new(ctx) || self.widths.is_new(ctx) {
+                ctx.updates.layout();
+            } else if self.sides.is_new(ctx) {
                 ctx.updates.render();
             }
+            self.child.update(ctx);
         }
-        fn arrange(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, final_size: PxSize) {
-            self.child.arrange(ctx, widget_layout, final_size);
 
-            let available_size = AvailableSize::finite(final_size);
-            let final_offsets = self
-                .offsets
-                .get(ctx.vars)
-                .to_layout(ctx.metrics, available_size, PxSideOffsets::zero());
+        fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
+            let size = self.child.layout(ctx, wl);
 
-            self.final_widths = self
-                .widths
-                .get(ctx.vars)
-                .to_layout(ctx.metrics, available_size, PxSideOffsets::zero());
+            let radius = ContextBorders::inner_radius(ctx);
+            let offsets = self.offsets.get(ctx.vars).layout(ctx.metrics, |_| PxSideOffsets::zero());
+            let radius = radius.deflate(offsets);
+            let border_offsets = ContextBorders::inner_offsets(ctx.path.widget_id(), ctx.vars);
 
-            let diff = PxSize::new(final_offsets.horizontal(), final_offsets.vertical());
+            let bounds = PxRect::new(
+                PxPoint::new(offsets.left + border_offsets.left, offsets.top + border_offsets.top),
+                size - PxSize::new(offsets.horizontal(), offsets.vertical()),
+            );
 
-            let border_offsets = widget_layout.border_offsets();
+            let widths = ctx.with_constrains(
+                |_| PxConstrains2d::new_exact_size(size),
+                |ctx| self.widths.get(ctx.vars).layout(ctx.metrics, |_| PxSideOffsets::zero()),
+            );
 
-            self.final_rect.origin = PxPoint::new(final_offsets.left + border_offsets.left, final_offsets.top + border_offsets.top);
-            self.final_rect.size = final_size - diff;
-            self.final_radius = widget_layout.corner_radius();
+            if self.render_bounds != bounds || self.render_widths != widths || self.render_radius != radius {
+                self.render_bounds = bounds;
+                self.render_widths = widths;
+                self.render_radius = radius;
+                ctx.updates.render();
+            }
+
+            size
         }
+
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
             self.child.render(ctx, frame);
-            frame.with_hit_tests_disabled(|f| {
-                f.push_border(self.final_rect, self.final_widths, self.sides.copy(ctx), self.final_radius);
-            })
+            frame.push_border(self.render_bounds, self.render_widths, self.sides.copy(ctx), self.render_radius);
         }
     }
     ForegroundHighlightNode {
-        child,
+        child: child.cfg_boxed(),
         offsets: offsets.into_var(),
         widths: widths.into_var(),
         sides: sides.into_var(),
 
-        final_widths: PxSideOffsets::zero(),
-        final_rect: PxRect::zero(),
-        final_radius: PxCornerRadius::zero(),
+        render_bounds: PxRect::zero(),
+        render_widths: PxSideOffsets::zero(),
+        render_radius: PxCornerRadius::zero(),
     }
+    .cfg_boxed()
 }
 
 /// Fill color overlay property.
@@ -371,33 +384,25 @@ pub fn clip_to_bounds(child: impl UiNode, clip: impl IntoVar<bool>) -> impl UiNo
 
         fn update(&mut self, ctx: &mut WidgetContext) {
             if self.clip.is_new(ctx) {
-                ctx.updates.render();
+                ctx.updates.layout_and_render();
             }
 
             self.child.update(ctx);
         }
 
-        fn arrange(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, final_size: PxSize) {
-            let mut changed = false;
+        fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
+            let bounds = self.child.layout(ctx, wl);
 
-            let border_offsets = widget_layout.border_offsets();
-            let new_bounds = final_size + PxSize::new(border_offsets.horizontal(), border_offsets.vertical());
-            if self.bounds != new_bounds {
-                self.bounds = new_bounds;
-                changed = true;
+            if self.clip.copy(ctx) {
+                let corners = ContextBorders::border_radius(ctx);
+                if bounds != self.bounds || corners != self.corners {
+                    self.bounds = bounds;
+                    self.corners = corners;
+                    ctx.updates.render();
+                }
             }
 
-            let corners = widget_layout.corner_radius().inflate(border_offsets);
-            if self.corners != corners {
-                self.corners = corners;
-                changed = true;
-            }
-
-            if changed && self.clip.copy(ctx) {
-                ctx.updates.render();
-            }
-
-            self.child.arrange(ctx, widget_layout, final_size)
+            bounds
         }
 
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {

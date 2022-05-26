@@ -309,7 +309,7 @@ pub trait WidgetInfoExt {
 
     /// Gets the viewport bounds relative to the scrollable widget inner bounds.
     ///
-    /// The value is updated every layout, without requiring an info rebuild.
+    /// The value is updated every layout and render, without requiring an info rebuild.
     fn viewport(self) -> Option<PxRect>;
 }
 impl<'a> WidgetInfoExt for WidgetInfo<'a> {
@@ -328,7 +328,8 @@ impl<'a> WidgetInfoExt for WidgetInfo<'a> {
 
 #[derive(Debug, Default)]
 struct ScrollableData {
-    viewport: Cell<PxRect>,
+    viewport_transform: Cell<RenderTransform>,
+    viewport_size: Cell<PxSize>,
 }
 
 /// Shared reference to the viewport bounds of a scrollable.
@@ -337,11 +338,27 @@ pub struct ScrollableInfo(Rc<ScrollableData>);
 impl ScrollableInfo {
     /// Gets the viewport bounds in the window space.
     pub fn viewport(&self) -> PxRect {
-        self.0.viewport.get()
+        self.viewport_transform()
+            .outer_transformed_px(PxRect::from_size(self.viewport_size()))
+            .unwrap_or_default()
     }
 
-    pub(super) fn set_viewport(&self, bounds: PxRect) {
-        self.0.viewport.set(bounds)
+    /// Gets the layout size of the viewport.
+    pub fn viewport_size(&self) -> PxSize {
+        self.0.viewport_size.get()
+    }
+
+    /// Gets the render transform of the viewport.
+    pub fn viewport_transform(&self) -> RenderTransform {
+        self.0.viewport_transform.get()
+    }
+
+    pub(super) fn set_viewport_size(&self, size: PxSize) {
+        self.0.viewport_size.set(size)
+    }
+
+    pub(super) fn set_viewport_transform(&self, transform: RenderTransform) {
+        self.0.viewport_transform.set(transform)
     }
 }
 

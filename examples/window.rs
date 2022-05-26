@@ -42,6 +42,7 @@ fn main_window(ctx: &mut WindowContext) -> Window {
         on_state_changed = hn!(|_, args: &WindowChangedArgs| {
             println!("state: {:?}", args.new_state().unwrap());
         });
+        content_align = Align::CENTER;
         content = h_stack! {
             spacing = 40;
             items = widgets![
@@ -172,6 +173,7 @@ fn screenshot() -> impl Widget {
                         size = (500, 400);
                         background_color = colors::DARK_GREEN;
                         font_size = 72;
+                        content_align = Align::CENTER;
                         content = text("No Head!");
 
                         frame_capture_mode = FrameCaptureMode::Next;

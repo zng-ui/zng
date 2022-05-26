@@ -159,16 +159,11 @@ pub fn font_size(child: impl UiNode, size: impl IntoVar<FontSize>) -> impl UiNod
             self.child.update(ctx);
         }
 
-        fn measure(&mut self, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize {
-            let font_size = FontSizeVar::get(ctx.vars).to_layout(ctx, available_size.height, ctx.metrics.root_font_size);
-            ctx.with_font_size(font_size, self.size_new, |ctx| self.child.measure(ctx, available_size))
-        }
-
-        fn arrange(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, final_size: PxSize) {
-            let font_size = FontSizeVar::get(ctx.vars).to_layout(ctx, AvailablePx::Finite(final_size.height), ctx.metrics.root_font_size);
-
-            ctx.with_font_size(font_size, self.size_new, |ctx| self.child.arrange(ctx, widget_layout, final_size));
+        fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
+            let font_size = FontSizeVar::get(ctx.vars).layout(ctx.for_y(), |ctx| ctx.metrics.root_font_size());
+            let s = ctx.with_font_size(font_size, self.size_new, |ctx| self.child.layout(ctx, wl));
             self.size_new = false;
+            s
         }
     }
     let child = FontSizeNode { child, size_new: true };

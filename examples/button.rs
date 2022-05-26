@@ -20,6 +20,7 @@ fn app_main() {
         window! {
             title = "Button Example";
             content = v_stack! {
+                align = Align::CENTER;
                 spacing = 5;
                 items = widgets![
                     example(),
@@ -64,6 +65,7 @@ fn image_button() -> impl Widget {
         id = "img-btn";
         on_click = hn!(|_, _| println!("Clicked image button"));
         content = h_stack! {
+            items_align = Align::CENTER;
             items = widgets![
                 image! { source = "examples/res/window/icon-bytes.png"; size = (16, 16); },
                 text("Click Me!")

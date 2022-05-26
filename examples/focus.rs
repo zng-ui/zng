@@ -20,7 +20,6 @@ fn app_main() {
         window! {
             title = "Focus Example";
             enabled = window_enabled.clone();
-            content_align = unset!;
             content = v_stack! {
                 items = widgets![
                     alt_scope(),
@@ -82,6 +81,7 @@ fn functions(window_enabled: RcVar<bool>) -> impl Widget {
                         title = "Other Window";
                         focus_shortcut = shortcut!(W);
                         content = v_stack! {
+                            align = Align::CENTER;
                             spacing = 5;
                             items = widgets![
                                 title("Other Window (W)"),
@@ -105,6 +105,7 @@ fn functions(window_enabled: RcVar<bool>) -> impl Widget {
                             ctx.services.windows().open(move |_| {
                                 window! {
                                     title = "Detached Button";
+                                    content_align = Align::CENTER;
                                     content = slot(wwk.upgrade().unwrap(), take_on_init());
                                 }
                             });
@@ -141,6 +142,7 @@ fn overlay(window_enabled: RcVar<bool>) -> impl Widget {
     container! {
         id = "overlay";
         modal = true;
+        content_align = Align::CENTER;
         content = container! {
             focus_scope = true;
             tab_nav = TabNav::Cycle;

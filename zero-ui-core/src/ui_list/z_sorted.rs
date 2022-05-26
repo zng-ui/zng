@@ -150,27 +150,16 @@ impl<W: WidgetList> UiNodeList for ZSortedWidgetList<W> {
         self.list.event_all(ctx, args)
     }
 
-    fn measure_all<A, D>(&mut self, ctx: &mut LayoutContext, available_size: A, desired_size: D)
+    fn layout_all<C, D>(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout, mut pre_layout: C, mut pos_layout: D)
     where
-        A: FnMut(&mut LayoutContext, AvailableSizeArgs) -> AvailableSize,
-        D: FnMut(&mut LayoutContext, DesiredSizeArgs),
+        C: FnMut(&mut LayoutContext, &mut WidgetLayout, &mut PreLayoutArgs),
+        D: FnMut(&mut LayoutContext, &mut WidgetLayout, PosLayoutArgs),
     {
-        self.list.measure_all(ctx, available_size, desired_size)
+        self.list.layout_all(ctx, wl, &mut pre_layout, &mut pos_layout)
     }
 
-    fn widget_measure(&mut self, index: usize, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize {
-        self.list.widget_measure(index, ctx, available_size)
-    }
-
-    fn arrange_all<F>(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, final_size: F)
-    where
-        F: FnMut(&mut LayoutContext, &mut FinalSizeArgs) -> PxSize,
-    {
-        self.list.arrange_all(ctx, widget_layout, final_size)
-    }
-
-    fn widget_arrange(&mut self, index: usize, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, final_size: PxSize) {
-        self.list.widget_arrange(index, ctx, widget_layout, final_size)
+    fn widget_layout(&mut self, index: usize, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
+        self.list.widget_layout(index, ctx, wl)
     }
 
     fn render_all(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
@@ -219,12 +208,8 @@ impl<W: WidgetList> WidgetList for ZSortedWidgetList<W> {
         self.list.widget_state_mut(index)
     }
 
-    fn widget_outer_info(&self, index: usize) -> &WidgetLayoutInfo {
-        self.list.widget_outer_info(index)
-    }
-
-    fn widget_inner_info(&self, index: usize) -> &WidgetLayoutInfo {
-        self.list.widget_inner_info(index)
+    fn widget_bounds_info(&self, index: usize) -> &WidgetBoundsInfo {
+        self.list.widget_bounds_info(index)
     }
 
     fn widget_border_info(&self, index: usize) -> &WidgetBorderInfo {
@@ -246,8 +231,7 @@ impl<W: WidgetList> WidgetList for ZSortedWidgetList<W> {
                 let i = i as usize;
                 let args = WidgetFilterArgs {
                     index: i,
-                    outer_info: self.widget_outer_info(i),
-                    inner_info: self.widget_inner_info(i),
+                    bounds_info: self.widget_bounds_info(i),
                     border_info: self.widget_border_info(i),
                     render_info: self.widget_render_info(i),
                     state: self.widget_state(i),
@@ -257,6 +241,20 @@ impl<W: WidgetList> WidgetList for ZSortedWidgetList<W> {
                 }
             }
         }
+    }
+
+    fn widget_outer<F>(&mut self, index: usize, wl: &mut WidgetLayout, keep_previous: bool, transform: F)
+    where
+        F: FnOnce(&mut WidgetLayoutTranslation, PosLayoutArgs),
+    {
+        self.list.widget_outer(index, wl, keep_previous, transform)
+    }
+
+    fn outer_all<F>(&mut self, wl: &mut WidgetLayout, keep_previous: bool, transform: F)
+    where
+        F: FnMut(&mut WidgetLayoutTranslation, PosLayoutArgs),
+    {
+        self.list.outer_all(wl, keep_previous, transform)
     }
 }
 

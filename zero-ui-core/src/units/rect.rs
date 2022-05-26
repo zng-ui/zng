@@ -2,7 +2,7 @@ use std::{fmt, ops};
 
 use crate::{context::LayoutMetrics, impl_from_and_into_var};
 
-use super::{impl_length_comp_conversions, AvailableSize, DipRect, Factor2d, LayoutMask, Length, Point, PxRect, Size, Vector};
+use super::{impl_length_comp_conversions, DipRect, Factor2d, LayoutMask, Length, Point, PxRect, Size, Vector};
 
 /// 2D rect in [`Length`] units.
 #[derive(Clone, Default, PartialEq)]
@@ -101,16 +101,16 @@ impl Rect {
     }
 
     /// Compute the rectangle in a layout context.
-    pub fn to_layout(&self, ctx: &LayoutMetrics, available_size: AvailableSize, default_value: PxRect) -> PxRect {
+    pub fn layout(&self, ctx: &LayoutMetrics, mut default_value: impl FnMut(&LayoutMetrics) -> PxRect) -> PxRect {
         PxRect::new(
-            self.origin.to_layout(ctx, available_size, default_value.origin),
-            self.size.to_layout(ctx, available_size, default_value.size),
+            self.origin.layout(ctx, |ctx| default_value(ctx).origin),
+            self.size.layout(ctx, |ctx| default_value(ctx).size),
         )
     }
 
-    /// Compute a [`LayoutMask`] that flags all contextual values that affect the result of [`to_layout`].
+    /// Compute a [`LayoutMask`] that flags all contextual values that affect the result of [`layout`].
     ///
-    /// [`to_layout`]: Self::to_layout
+    /// [`layout`]: Self::layout
     pub fn affect_mask(&self) -> LayoutMask {
         self.origin.affect_mask() | self.size.affect_mask()
     }

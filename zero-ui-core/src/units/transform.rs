@@ -2,7 +2,7 @@ use zero_ui_view_api::webrender_api;
 
 use crate::context::LayoutMetrics;
 
-use super::{euclid, AngleRadian, AngleUnits, AvailableSize, Factor, Length, Px, PxPoint, PxToWr, PxVector};
+use super::{euclid, AngleRadian, AngleUnits, Factor, Length, Px, PxPoint, PxRect, PxToWr, PxVector, WrToPx};
 
 /// Computed [`Transform`].
 ///
@@ -24,8 +24,12 @@ pub trait RenderTransformExt {
     /// or `None` otherwise.
     fn transform_px_point(&self, point: PxPoint) -> Option<PxPoint>;
 
-    /// Returns the given [`PxVector`] transformed by this matrix.
+    /// Returns the given [`PxVector`] transformed by this transform.
     fn transform_px_vector(&self, vector: PxVector) -> PxVector;
+
+    /// Returns a [`PxRect`] that encompasses the result of transforming the `rect` by this transform, if the transform makes sense,
+    /// or `None` otherwise.
+    fn outer_transformed_px(&self, rect: PxRect) -> Option<PxRect>;
 }
 impl RenderTransformExt for RenderTransform {
     fn translation_px(offset: PxVector) -> RenderTransform {
@@ -50,6 +54,12 @@ impl RenderTransformExt for RenderTransform {
         let vector = euclid::vec2(vector.x.0 as f32, vector.y.0 as f32);
         let vector = self.transform_vector2d(vector);
         PxVector::new(Px(vector.x as i32), Px(vector.y as i32))
+    }
+
+    fn outer_transformed_px(&self, rect: PxRect) -> Option<PxRect> {
+        let rect = rect.to_wr();
+        let bounds = self.outer_transformed_box2d(&rect)?;
+        Some(bounds.to_px())
     }
 }
 
@@ -124,7 +134,7 @@ impl Transform {
 
     /// Change `self` to apply a 2d rotation after its transformation.
     pub fn rotate<A: Into<AngleRadian>>(mut self, angle: A) -> Self {
-        self.then_transform(RenderTransform::rotation(0.0, 0.0, -1.0, angle.into().to_layout()));
+        self.then_transform(RenderTransform::rotation(0.0, 0.0, -1.0, angle.into().layout()));
         self
     }
 
@@ -145,7 +155,7 @@ impl Transform {
 
     /// Change `self` to apply a 2d skew after its transformation.
     pub fn skew<X: Into<AngleRadian>, Y: Into<AngleRadian>>(mut self, x: X, y: Y) -> Self {
-        self.then_transform(RenderTransform::skew(x.into().to_layout(), y.into().to_layout()));
+        self.then_transform(RenderTransform::skew(x.into().layout(), y.into().layout()));
         self
     }
     /// Change `self` to apply a ***x*** skew after its transformation.
@@ -177,14 +187,14 @@ impl Transform {
     }
 
     /// Compute a [`RenderTransform`].
-    pub fn to_render(&self, ctx: &LayoutMetrics, available_size: AvailableSize) -> RenderTransform {
+    pub fn layout(&self, ctx: &LayoutMetrics) -> RenderTransform {
         let mut r = RenderTransform::identity();
         for step in &self.parts {
             r = match step {
                 TransformPart::Computed(m) => r.then(m),
                 TransformPart::Translate(x, y) => r.then(&RenderTransform::translation(
-                    x.to_layout(ctx, available_size.width, Px(0)).to_wr().get(),
-                    y.to_layout(ctx, available_size.height, Px(0)).to_wr().get(),
+                    x.layout(ctx.for_x(), |_| Px(0)).to_wr().get(),
+                    y.layout(ctx.for_y(), |_| Px(0)).to_wr().get(),
                     0.0,
                 )),
             };

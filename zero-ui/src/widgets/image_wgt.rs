@@ -31,10 +31,12 @@ pub mod image {
         /// so for examples, alignment [`BOTTOM_RIGHT`] makes a smaller image sit at the bottom-right of the widget and makes
         /// a larger image bottom-right fill the widget, clipping the rest.
         ///
-        /// By default the alignment is [`CENTER`].
+        /// By default the alignment is [`CENTER`]. The [`BASELINE`] alignment is treaded the same as [`BOTTOM`].
         ///
         /// [`BOTTOM_RIGHT`]: Align::BOTTOM_RIGHT
         /// [`CENTER`]: Align::CENTER
+        /// [`BASELINE`]: Align::BASELINE
+        /// [`BOTTOM`]: Align::BOTTOM
         properties::image_align;
 
         /// Offset applied to the image after the final size and alignment.
@@ -145,8 +147,7 @@ pub mod image {
     fn new_child() -> impl UiNode {
         let node = nodes::image_presenter();
         let node = nodes::image_error_presenter(node);
-        let node = nodes::image_loading_presenter(node);
-        implicit_base::nodes::leaf_transform(node)
+        nodes::image_loading_presenter(node)
     }
 
     fn new_event(child: impl UiNode, source: impl IntoVar<ImageSource>) -> impl UiNode {

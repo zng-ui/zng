@@ -12,7 +12,7 @@ use crate::prelude::new_property::*;
 ///
 /// Layered widgets are measured and arranged using the same constrains as the window root widget, the desired
 /// size is discarded, only the root widget desired size can affect the window size. Layered widgets are all layout
-/// and rendered after the window content and from the bottom layer up to the top-most, this means that the [`WidgetLayoutInfo`]
+/// and rendered after the window content and from the bottom layer up to the top-most, this means that the [`WidgetBoundsInfo`]
 /// and [`WidgetRenderInfo`] of normal widgets are always up-to-date when the layered widget is arranged and rendered, so if you
 /// implement custom layouts that align the layered widget with a normal widget using the info values it will always be in sync with
 /// a single layout pass, see [`insert_anchored`] for more details.
@@ -63,12 +63,8 @@ impl WindowLayers {
                 self.widget.state_mut()
             }
 
-            fn outer_info(&self) -> &WidgetLayoutInfo {
-                self.widget.outer_info()
-            }
-
-            fn inner_info(&self) -> &WidgetLayoutInfo {
-                self.widget.inner_info()
+            fn bounds_info(&self) -> &WidgetBoundsInfo {
+                self.widget.bounds_info()
             }
 
             fn border_info(&self) -> &WidgetBorderInfo {
@@ -109,14 +105,12 @@ impl WindowLayers {
             mode: M,
             widget: W,
 
-            anchor_info: Option<(WidgetLayoutInfo, WidgetLayoutInfo, WidgetBorderInfo, WidgetRenderInfo)>,
-
-            desired_size: PxSize,
+            anchor_info: Option<(WidgetBoundsInfo, WidgetBorderInfo, WidgetRenderInfo)>,
+            offset_point: PxPoint,
             interaction: bool,
 
             spatial_id: SpatialFrameId,
             transform_key: FrameBindingKey<RenderTransform>,
-            transform: RenderTransform,
         }
         #[impl_ui_node(
                 delegate = &self.widget,
@@ -151,7 +145,7 @@ impl WindowLayers {
 
             fn init(&mut self, ctx: &mut WidgetContext) {
                 if let Some(w) = ctx.info_tree.find(self.anchor.copy(ctx.vars)) {
-                    self.anchor_info = Some((w.inner_info(), w.outer_info(), w.border_info(), w.render_info()));
+                    self.anchor_info = Some((w.bounds_info(), w.border_info(), w.render_info()));
                 }
 
                 self.interaction = self.mode.get(ctx).interaction;
@@ -170,7 +164,7 @@ impl WindowLayers {
                         self.anchor_info = ctx
                             .info_tree
                             .find(self.anchor.copy(ctx.vars))
-                            .map(|w| (w.inner_info(), w.outer_info(), w.border_info(), w.render_info()));
+                            .map(|w| (w.bounds_info(), w.border_info(), w.render_info()));
                     }
                     self.widget.event(ctx, args);
                 } else {
@@ -183,7 +177,7 @@ impl WindowLayers {
                     self.anchor_info = ctx
                         .info_tree
                         .find(anchor)
-                        .map(|w| (w.inner_info(), w.outer_info(), w.border_info(), w.render_info()));
+                        .map(|w| (w.bounds_info(), w.border_info(), w.render_info()));
                     if self.mode.get(ctx).interaction {
                         ctx.updates.info();
                     }
@@ -199,94 +193,123 @@ impl WindowLayers {
                 self.widget.update(ctx);
             }
 
-            fn measure(&mut self, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize {
-                if let Some((inner, outer, border, _)) = &self.anchor_info {
+            fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
+                if let Some((bounds, border, _)) = &self.anchor_info {
                     let mode = self.mode.get(ctx.vars);
 
-                    if !mode.visibility || inner.size() != PxSize::zero() {
-                        let available_size = match mode.size {
-                            AnchorSize::Infinite => AvailableSize::inf(),
-                            AnchorSize::Window => available_size,
-                            AnchorSize::InnerSize => AvailableSize::finite(inner.size()),
-                            AnchorSize::InnerBorder => AvailableSize::finite(border.inner_border_size(inner)),
-                            AnchorSize::OuterSize => AvailableSize::finite(outer.size()),
+                    if !mode.visibility || bounds.inner_size() != PxSize::zero() {
+                        // if we don't link visibility or anchor is not collapsed.
+
+                        self.offset_point = match &mode.transform {
+                            AnchorTransform::InnerOffset(p) => ctx.with_constrains(
+                                |_| PxConstrains2d::new_exact_size(bounds.inner_size()),
+                                |ctx| p.layout(ctx, |_| PxPoint::zero()),
+                            ),
+                            AnchorTransform::InnerBorderOffset(p) => ctx.with_constrains(
+                                |_| PxConstrains2d::new_exact_size(border.inner_size(bounds)),
+                                |ctx| p.layout(ctx, |_| PxPoint::zero()),
+                            ),
+                            AnchorTransform::OuterOffset(p) => ctx.with_constrains(
+                                |_| PxConstrains2d::new_exact_size(bounds.outer_size()),
+                                |ctx| p.layout(ctx, |_| PxPoint::zero()),
+                            ),
+                            _ => PxPoint::zero(),
                         };
-                        let desired_size = self.widget.measure(ctx, available_size);
-                        if mode.size == AnchorSize::Infinite {
-                            self.desired_size = desired_size;
-                        }
-                        return desired_size;
+
+                        return ctx.with_constrains(
+                            |c| match mode.size {
+                                AnchorSize::Infinite => PxConstrains2d::new_unbounded(),
+                                AnchorSize::Window => c,
+                                AnchorSize::InnerSize => PxConstrains2d::new_exact_size(bounds.inner_size()),
+                                AnchorSize::InnerBorder => PxConstrains2d::new_exact_size(border.inner_size(bounds)),
+                                AnchorSize::OuterSize => PxConstrains2d::new_exact_size(bounds.outer_size()),
+                            },
+                            |ctx| {
+                                if mode.corner_radius {
+                                    let mut cr = border.corner_radius();
+                                    if let AnchorSize::InnerBorder = mode.size {
+                                        cr = cr.deflate(border.offsets());
+                                    }
+                                    ctx.vars.with_context_var(CornerRadiusVar, ContextVarData::fixed(&cr.into()), || {
+                                        ContextBorders::with_corner_radius(ctx, |ctx| self.widget.layout(ctx, wl))
+                                    })
+                                } else {
+                                    self.widget.layout(ctx, wl)
+                                }
+                            },
+                        );
                     }
                 }
 
+                wl.collapse(ctx);
                 PxSize::zero()
             }
 
-            fn arrange(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, final_size: PxSize) {
-                if let Some((inner, outer, border, _)) = &self.anchor_info {
-                    let mode = self.mode.get(ctx.vars);
-
-                    if !mode.visibility || inner.size() != PxSize::zero() {
-                        // if we don't link visibility or anchor is not collapsed.
-
-                        let final_size = match mode.size {
-                            AnchorSize::Infinite => self.desired_size,
-                            AnchorSize::Window => final_size,
-                            AnchorSize::InnerSize => inner.size(),
-                            AnchorSize::InnerBorder => border.inner_border_size(inner),
-                            AnchorSize::OuterSize => outer.size(),
-                        };
-                        self.transform = match &mode.transform {
-                            AnchorTransform::None => RenderTransform::identity(),
-                            AnchorTransform::InnerOffset(p) => {
-                                let p = p.to_layout(ctx, AvailableSize::finite(inner.size()), PxPoint::zero());
-                                let offset = inner.point_in_window(p);
-                                RenderTransform::translation_px(offset.to_vector())
-                            }
-                            AnchorTransform::InnerBorderOffset(p) => {
-                                let p = p.to_layout(ctx, AvailableSize::finite(inner.size()), PxPoint::zero());
-                                let offset = border.inner_point_in_window(inner, p);
-                                RenderTransform::translation_px(offset.to_vector())
-                            }
-                            AnchorTransform::OuterOffset(p) => {
-                                let p = p.to_layout(ctx, AvailableSize::finite(outer.size()), PxPoint::zero());
-                                let offset = outer.point_in_window(p);
-                                RenderTransform::translation_px(offset.to_vector())
-                            }
-                            AnchorTransform::InnerTransform => inner.transform(),
-                            AnchorTransform::InnerBorderTransform => border.inner_transform(inner),
-                            AnchorTransform::OuterTransform => outer.transform(),
-                        };
-
-                        if mode.corner_radius {
-                            let mut cr = border.corner_radius();
-                            if let AnchorSize::InnerBorder = mode.size {
-                                cr = cr.deflate(border.offsets());
-                            }
-                            widget_layout.with_base_corner_radius(cr, |wl| {
-                                wl.with_custom_transform(&self.transform, |wl| {
-                                    self.widget.arrange(ctx, wl, final_size);
-                                });
-                            })
-                        } else {
-                            widget_layout.with_custom_transform(&self.transform, |wl| {
-                                self.widget.arrange(ctx, wl, final_size);
-                            });
-                        }
-
-                        return;
-                    }
-                }
-
-                widget_layout.collapse(ctx.info_tree);
-            }
-
             fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-                if let Some((_, _, _, render_info)) = &self.anchor_info {
+                if let Some((_, border_info, render_info)) = &self.anchor_info {
+                    let mode = &self.mode.get(ctx.vars);
                     if !self.mode.get(ctx).visibility || render_info.rendered() {
-                        frame.push_reference_frame(self.spatial_id, self.transform_key.bind(self.transform), false, |frame| {
-                            self.widget.render(ctx, frame);
-                        });
+                        match &mode.transform {
+                            AnchorTransform::InnerOffset(_) => {
+                                let point_in_window = render_info
+                                    .inner_transform()
+                                    .transform_px_point(self.offset_point)
+                                    .unwrap_or_default();
+
+                                frame.push_reference_frame(
+                                    self.spatial_id,
+                                    self.transform_key
+                                        .bind(RenderTransform::translation_px(point_in_window.to_vector())),
+                                    true,
+                                    |frame| self.widget.render(ctx, frame),
+                                )
+                            }
+                            AnchorTransform::InnerBorderOffset(_) => {
+                                let point_in_window = border_info
+                                    .inner_transform(render_info)
+                                    .transform_px_point(self.offset_point)
+                                    .unwrap_or_default();
+                                frame.push_reference_frame(
+                                    self.spatial_id,
+                                    self.transform_key
+                                        .bind(RenderTransform::translation_px(point_in_window.to_vector())),
+                                    true,
+                                    |frame| self.widget.render(ctx, frame),
+                                )
+                            }
+                            AnchorTransform::OuterOffset(_) => {
+                                let point_in_window = render_info
+                                    .outer_transform()
+                                    .transform_px_point(self.offset_point)
+                                    .unwrap_or_default();
+                                frame.push_reference_frame(
+                                    self.spatial_id,
+                                    self.transform_key
+                                        .bind(RenderTransform::translation_px(point_in_window.to_vector())),
+                                    true,
+                                    |frame| self.widget.render(ctx, frame),
+                                )
+                            }
+                            AnchorTransform::InnerTransform => frame.push_reference_frame(
+                                self.spatial_id,
+                                self.transform_key.bind(render_info.inner_transform()),
+                                false,
+                                |frame| self.widget.render(ctx, frame),
+                            ),
+                            AnchorTransform::InnerBorderTransform => frame.push_reference_frame(
+                                self.spatial_id,
+                                self.transform_key.bind(border_info.inner_transform(render_info)),
+                                false,
+                                |frame| self.widget.render(ctx, frame),
+                            ),
+                            AnchorTransform::OuterTransform => frame.push_reference_frame(
+                                self.spatial_id,
+                                self.transform_key.bind(render_info.outer_transform()),
+                                false,
+                                |frame| self.widget.render(ctx, frame),
+                            ),
+                            _ => self.widget.render(ctx, frame),
+                        }
                         return;
                     }
                 }
@@ -295,10 +318,60 @@ impl WindowLayers {
             }
 
             fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
-                if let Some((_, _, _, render_info)) = &self.anchor_info {
-                    if !self.mode.get(ctx).visibility || render_info.rendered() {
-                        update.update_transform(self.transform_key.update(self.transform));
-                        self.widget.render_update(ctx, update);
+                if let Some((_, border_info, render_info)) = &self.anchor_info {
+                    let mode = &self.mode.get(ctx.vars);
+                    if !mode.visibility || render_info.rendered() {
+                        match &mode.transform {
+                            AnchorTransform::InnerOffset(_) => {
+                                let point_in_window = render_info
+                                    .inner_transform()
+                                    .transform_px_point(self.offset_point)
+                                    .unwrap_or_default();
+                                update.with_transform(
+                                    self.transform_key
+                                        .update(RenderTransform::translation_px(point_in_window.to_vector())),
+                                    |update| self.widget.render_update(ctx, update),
+                                )
+                            }
+                            AnchorTransform::InnerBorderOffset(_) => {
+                                let point_in_window = border_info
+                                    .inner_transform(render_info)
+                                    .transform_px_point(self.offset_point)
+                                    .unwrap_or_default();
+                                update.with_transform(
+                                    self.transform_key
+                                        .update(RenderTransform::translation_px(point_in_window.to_vector())),
+                                    |update| self.widget.render_update(ctx, update),
+                                )
+                            }
+                            AnchorTransform::OuterOffset(_) => {
+                                let point_in_window = render_info
+                                    .outer_transform()
+                                    .transform_px_point(self.offset_point)
+                                    .unwrap_or_default();
+                                update.with_transform(
+                                    self.transform_key
+                                        .update(RenderTransform::translation_px(point_in_window.to_vector())),
+                                    |update| self.widget.render_update(ctx, update),
+                                )
+                            }
+                            AnchorTransform::InnerTransform => {
+                                update.with_transform(self.transform_key.update(render_info.inner_transform()), |update| {
+                                    self.widget.render_update(ctx, update)
+                                });
+                            }
+                            AnchorTransform::InnerBorderTransform => {
+                                update.with_transform(self.transform_key.update(border_info.inner_transform(render_info)), |update| {
+                                    self.widget.render_update(ctx, update)
+                                });
+                            }
+                            AnchorTransform::OuterTransform => {
+                                update.with_transform(self.transform_key.update(render_info.outer_transform()), |update| {
+                                    self.widget.render_update(ctx, update)
+                                });
+                            }
+                            _ => self.widget.render_update(ctx, update),
+                        }
                     }
                 }
             }
@@ -316,12 +389,8 @@ impl WindowLayers {
                 self.widget.state_mut()
             }
 
-            fn outer_info(&self) -> &WidgetLayoutInfo {
-                self.widget.outer_info()
-            }
-
-            fn inner_info(&self) -> &WidgetLayoutInfo {
-                self.widget.inner_info()
+            fn bounds_info(&self) -> &WidgetBoundsInfo {
+                self.widget.bounds_info()
             }
 
             fn border_info(&self) -> &WidgetBorderInfo {
@@ -342,10 +411,9 @@ impl WindowLayers {
                 widget: widget.cfg_boxed_wgt(),
 
                 anchor_info: None,
-
-                desired_size: PxSize::zero(),
+                offset_point: PxPoint::zero(),
                 interaction: false,
-                transform: RenderTransform::identity(),
+
                 transform_key: FrameBindingKey::new_unique(),
                 spatial_id: SpatialFrameId::new_unique(),
             },
@@ -396,18 +464,19 @@ pub fn layers(child: impl UiNode) -> impl UiNode {
             }
         }
 
-        fn measure(&mut self, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize {
-            let mut desired_size = PxSize::zero();
-            self.children.measure_all(
+        fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
+            let mut size = PxSize::zero();
+            self.children.layout_all(
                 ctx,
-                |_, _| available_size,
-                |_, args| {
+                wl,
+                |_, _, _| {},
+                |_, _, args| {
                     if args.index == 0 {
-                        desired_size = args.desired_size;
+                        size = args.size;
                     }
                 },
             );
-            desired_size
+            size
         }
     }
 
@@ -510,7 +579,7 @@ pub enum AnchorTransform {
     /// and then applied as a translate offset.
     InnerOffset(Point),
     /// The point is resolved in the inner space of the anchor widget offset by the anchor border widths, transformed
-    /// to the window space and t hen applied as a translate offset.
+    /// to the window space and then applied as a translate offset.
     InnerBorderOffset(Point),
 
     /// The point is resolved in the outer space of the anchor widget, transformed to the window space

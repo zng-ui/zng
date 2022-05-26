@@ -4,8 +4,10 @@ use crate::{
     context::{InfoContext, LayoutContext, RenderContext, StateMap, WidgetContext},
     event::EventUpdateArgs,
     render::{FrameBuilder, FrameUpdate},
-    units::{AvailableSize, PxSize, PxVector, RenderTransform},
-    widget_info::{WidgetBorderInfo, WidgetInfoBuilder, WidgetLayout, WidgetLayoutInfo, WidgetRenderInfo, WidgetSubscriptions},
+    units::{PxConstrains2d, PxSize},
+    widget_info::{
+        WidgetBorderInfo, WidgetBoundsInfo, WidgetInfoBuilder, WidgetLayout, WidgetLayoutTranslation, WidgetRenderInfo, WidgetSubscriptions,
+    },
     WidgetId,
 };
 #[allow(unused)] // used in docs.
@@ -80,223 +82,125 @@ pub trait UiNodeList: 'static {
     /// Calls [`UiNode::event`] in all widgets in the list, sequentially.
     fn event_all<EU: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &EU);
 
-    /// Calls [`UiNode::measure`] in all widgets in the list, sequentially.
+    /// Calls [`UiNode::layout`] in all widgets in the list, sequentially.
     ///
-    /// # `available_size`
+    /// Note that you can also layout specific children with [`widget_layout`], and if the list is a full [`WidgetList`]
+    /// you can use the [`widget_outer`] method to update each child transform without causing a second layout pass.
     ///
-    /// The `available_size` parameter is a function that must return the available size for the widget.
+    /// # Pre-Layout
     ///
-    /// # `desired_size`
+    /// The `pre_layout` closure is called just before the layout call for each child, inside it the [`WidgetLayout`] already
+    /// affects the child, you can also use the [`PreLayoutArgs`] to configure the constrains used to layout the child.
     ///
-    /// The `desired_size` parameter is a function is called with the widget measured size.
-    fn measure_all<A, D>(&mut self, ctx: &mut LayoutContext, available_size: A, desired_size: D)
+    /// # Pos-Layout
+    ///
+    /// The `pos_layout` closure is called after the layout call for each child, inside it the [`WidgetLayout`] still affects the
+    /// child, you can also see the new child size in [`PosLayoutArgs`].
+    ///
+    /// [`widget_layout`]: UiNodeList::widget_layout
+    /// [`widget_outer`]: WidgetList::widget_outer
+    fn layout_all<C, D>(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout, pre_layout: C, pos_layout: D)
     where
-        A: FnMut(&mut LayoutContext, AvailableSizeArgs) -> AvailableSize,
-        D: FnMut(&mut LayoutContext, DesiredSizeArgs);
+        C: FnMut(&mut LayoutContext, &mut WidgetLayout, &mut PreLayoutArgs),
+        D: FnMut(&mut LayoutContext, &mut WidgetLayout, PosLayoutArgs);
 
-    /// Calls [`UiNode::measure`] in only the `index` widget.
-    fn widget_measure(&mut self, index: usize, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize;
-
-    /// Calls [`UiNode::arrange`] in all widgets in the list, sequentially.
-    ///
-    /// # `final_size`
-    ///
-    /// The `final_size` parameter is a function that must return the widget final size, the [`FinalSizeArgs`]
-    /// can also be used to configure the [`WidgetLayout`] transform.
-    fn arrange_all<F>(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, final_size: F)
-    where
-        F: FnMut(&mut LayoutContext, &mut FinalSizeArgs) -> PxSize;
-
-    /// Calls [`UiNode::arrange`] in only the `index` widget.
-    fn widget_arrange(&mut self, index: usize, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, final_size: PxSize);
+    /// Calls [`UiNode::layout`] in only the `index` item.
+    fn widget_layout(&mut self, index: usize, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize;
 
     /// Calls [`UiNode::render`] in all widgets in the list, sequentially.
     fn render_all(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder);
 
-    /// Calls [`UiNode::render`] in only the `index` widget.
+    /// Calls [`UiNode::render`] in only the `index` item.
     fn widget_render(&self, index: usize, ctx: &mut RenderContext, frame: &mut FrameBuilder);
 
     /// Calls [`UiNode::render_update`] in all widgets in the list, sequentially.
     fn render_update_all(&self, ctx: &mut RenderContext, update: &mut FrameUpdate);
 
-    /// Calls [`UiNode::render_update`] in only the `index` widget.
+    /// Calls [`UiNode::render_update`] in only the `index` item.
     fn widget_render_update(&self, index: usize, ctx: &mut RenderContext, update: &mut FrameUpdate);
 }
 
-/// Arguments for the closure in [`UiNodeList::widget_measure`] that provides the available size for an widget.
-pub struct AvailableSizeArgs<'a> {
+/// Arguments for the closure in [`UiNodeList::layout_all`] that runs before each child is layout.
+pub struct PreLayoutArgs<'a> {
     /// The widget/node index in the list.
     pub index: usize,
 
     /// Mutable reference to the widget state.
     ///
-    /// Is `None` for arrange in UI node lists.
-    pub state: Option<&'a mut StateMap>,
-}
-
-/// Arguments for the closure in [`UiNodeList::widget_measure`] that received the widget desired size.
-pub struct DesiredSizeArgs<'a> {
-    /// The widget/node index in the list.
-    pub index: usize,
-
-    /// Mutable reference to the widget state.
-    ///
-    /// Is `None` for arrange in UI node lists.
+    /// Is `None` in lists that only implement [`UiNodeList`].
     pub state: Option<&'a mut StateMap>,
 
-    /// The widget measured size.
-    pub desired_size: PxSize,
+    /// Constrains overwrite just for this child.
+    pub constrains: Option<PxConstrains2d>,
 }
-
-/// Arguments for the closure in [`UiNodeList::widget_measure`] that provides the widget final size.
-pub struct FinalSizeArgs<'a> {
-    /// The widget/node index in the list.
-    pub index: usize,
-
-    /// Mutable reference to the widget state.
-    ///
-    /// Is `None` for arrange in UI node lists.
-    pub state: Option<&'a mut StateMap>,
-
-    /// Optional pre-translation to register for the widget.
-    ///
-    /// If set the widget list calls [`WidgetLayout::with_parent_translate`].
-    pub pre_translate: Option<PxVector>,
-
-    /// Optional pre-translate down by the widget baseline when it is set.
-    ///
-    /// If set the widget list calls [`WidgetLayout::with_baseline_translate`].
-    pub translate_baseline: Option<bool>,
-
-    /// Optional custom transform to register for the widget.
-    ///
-    /// If set the widget list calls [`WidgetLayout::with_custom_transform`].
-    pub custom_transform: Option<RenderTransform>,
-}
-impl<'a> FinalSizeArgs<'a> {
-    /// New arguments for an item in a full widget list.
-    pub fn from_widget(index: usize, widget: &mut impl Widget) -> FinalSizeArgs {
-        FinalSizeArgs {
+impl<'a> PreLayoutArgs<'a> {
+    /// New args for item.
+    pub fn new(index: usize, state: Option<&'a mut StateMap>) -> Self {
+        PreLayoutArgs {
             index,
-            state: Some(widget.state_mut()),
-            pre_translate: None,
-            translate_baseline: None,
-            custom_transform: None,
+            state,
+            constrains: None,
         }
     }
+}
 
-    /// New arguments for an item in a UI node only list.
-    pub fn from_node(index: usize) -> Self {
-        Self {
-            index,
-            state: None,
-            pre_translate: None,
-            translate_baseline: None,
-            custom_transform: None,
-        }
-    }
+/// Arguments for the closure in [`UiNodeList::layout_all`] that runs after each child is layout.
+pub struct PosLayoutArgs<'a> {
+    /// The widget/node index in the list.
+    pub index: usize,
 
-    /// Full widget list implementers can use this method to implement the arrange for an widget.
-    pub fn impl_widget(
-        ctx: &mut LayoutContext,
-        widget_layout: &mut WidgetLayout,
-        index: usize,
-        widget: &mut impl Widget,
-        mut final_size: impl FnMut(&mut LayoutContext, &mut FinalSizeArgs) -> PxSize,
-    ) {
-        let mut args = Self::from_widget(index, widget);
-        let final_size = final_size(ctx, &mut args);
-        let FinalSizeArgs {
-            pre_translate,
-            custom_transform,
-            translate_baseline,
-            ..
-        } = args;
-        Self::impl_(
-            ctx,
-            widget_layout,
-            widget,
-            custom_transform,
-            pre_translate,
-            translate_baseline,
-            final_size,
-        );
-    }
+    /// Mutable reference to the widget state.
+    ///
+    /// Is `None` in lists that only implement [`UiNodeList`].
+    pub state: Option<&'a mut StateMap>,
 
-    /// Ui node only list implementer can use this method to implement the arrange for a node.
-    pub fn impl_node(
-        ctx: &mut LayoutContext,
-        widget_layout: &mut WidgetLayout,
-        index: usize,
-        node: &mut impl UiNode,
-        mut final_size: impl FnMut(&mut LayoutContext, &mut FinalSizeArgs) -> PxSize,
-    ) {
-        let mut args = Self::from_node(index);
-        let final_size = final_size(ctx, &mut args);
-        let Self {
-            pre_translate,
-            custom_transform,
-            translate_baseline,
-            ..
-        } = args;
-        Self::impl_(
-            ctx,
-            widget_layout,
-            node,
-            custom_transform,
-            pre_translate,
-            translate_baseline,
-            final_size,
-        );
+    /// The widget outer size.
+    pub size: PxSize,
+}
+impl<'a> PosLayoutArgs<'a> {
+    /// New args for item.
+    pub fn new(index: usize, state: Option<&'a mut StateMap>, size: PxSize) -> Self {
+        PosLayoutArgs { index, state, size }
     }
+}
 
-    fn impl_(
-        ctx: &mut LayoutContext,
-        wl: &mut WidgetLayout,
-        node: &mut impl UiNode,
-        custom_transform: Option<RenderTransform>,
-        pre_translate: Option<PxVector>,
-        translate_baseline: Option<bool>,
-        final_size: PxSize,
-    ) {
-        if let Some(t) = custom_transform {
-            wl.with_custom_transform(&t, |wl| {
-                if let Some(t) = pre_translate {
-                    wl.with_parent_translate(t, |wl| {
-                        if let Some(b) = translate_baseline {
-                            wl.with_baseline_translate(b, |wl| {
-                                node.arrange(ctx, wl, final_size);
-                            })
-                        } else {
-                            node.arrange(ctx, wl, final_size);
-                        }
-                    })
-                } else if let Some(b) = translate_baseline {
-                    wl.with_baseline_translate(b, |wl| {
-                        node.arrange(ctx, wl, final_size);
-                    })
-                } else {
-                    node.arrange(ctx, wl, final_size);
-                }
-            })
-        } else if let Some(t) = pre_translate {
-            wl.with_parent_translate(t, |wl| {
-                if let Some(b) = translate_baseline {
-                    wl.with_baseline_translate(b, |wl| {
-                        node.arrange(ctx, wl, final_size);
-                    })
-                } else {
-                    node.arrange(ctx, wl, final_size);
-                }
-            })
-        } else if let Some(b) = translate_baseline {
-            wl.with_baseline_translate(b, |wl| {
-                node.arrange(ctx, wl, final_size);
-            })
-        } else {
-            node.arrange(ctx, wl, final_size);
-        }
-    }
+fn default_widget_list_layout_all<W, C, D>(
+    index: usize,
+    widget: &mut W,
+    ctx: &mut LayoutContext,
+    wl: &mut WidgetLayout,
+    mut pre_layout: C,
+    mut pos_layout: D,
+) where
+    W: Widget,
+    C: FnMut(&mut LayoutContext, &mut WidgetLayout, &mut PreLayoutArgs),
+    D: FnMut(&mut LayoutContext, &mut WidgetLayout, PosLayoutArgs),
+{
+    let (size, _) = wl.with_child(ctx, |ctx, wl| {
+        let mut args = PreLayoutArgs::new(index, Some(widget.state_mut()));
+        pre_layout(ctx, wl, &mut args);
+        ctx.with_constrains(|c| args.constrains.take().unwrap_or(c), |ctx| widget.layout(ctx, wl))
+    });
+    pos_layout(ctx, wl, PosLayoutArgs::new(index, Some(widget.state_mut()), size));
+}
+fn default_ui_node_list_layout_all<N, C, D>(
+    index: usize,
+    node: &mut N,
+    ctx: &mut LayoutContext,
+    wl: &mut WidgetLayout,
+    mut pre_layout: C,
+    mut pos_layout: D,
+) where
+    N: UiNode,
+    C: FnMut(&mut LayoutContext, &mut WidgetLayout, &mut PreLayoutArgs),
+    D: FnMut(&mut LayoutContext, &mut WidgetLayout, PosLayoutArgs),
+{
+    let (size, _) = wl.with_child(ctx, |ctx, wl| {
+        let mut args = PreLayoutArgs::new(index, None);
+        pre_layout(ctx, wl, &mut args);
+        ctx.with_constrains(|c| args.constrains.take().unwrap_or(c), |ctx| node.layout(ctx, wl))
+    });
+    pos_layout(ctx, wl, PosLayoutArgs::new(index, None, size));
 }
 
 /// All [`Widget`] accessible *info*.
@@ -304,10 +208,8 @@ pub struct WidgetFilterArgs<'a> {
     /// The widget index in the list.
     pub index: usize,
 
-    /// The [`Widget::outer_info`].
-    pub outer_info: &'a WidgetLayoutInfo,
-    /// The [`Widget::inner_info`].
-    pub inner_info: &'a WidgetLayoutInfo,
+    /// The [`Widget::bounds_info`].
+    pub bounds_info: &'a WidgetBoundsInfo,
     /// The [`Widget::border_info`].
     pub border_info: &'a WidgetBorderInfo,
     /// The [`Widget::render_info`].
@@ -320,8 +222,7 @@ impl<'a> WidgetFilterArgs<'a> {
     pub fn get(list: &'a impl WidgetList, index: usize) -> Self {
         WidgetFilterArgs {
             index,
-            outer_info: list.widget_outer_info(index),
-            inner_info: list.widget_inner_info(index),
+            bounds_info: list.widget_bounds_info(index),
             border_info: list.widget_border_info(index),
             render_info: list.widget_render_info(index),
             state: list.widget_state(index),
@@ -332,8 +233,7 @@ impl<'a> WidgetFilterArgs<'a> {
     pub fn new(index: usize, widget: &'a impl Widget) -> Self {
         WidgetFilterArgs {
             index,
-            outer_info: widget.outer_info(),
-            inner_info: widget.inner_info(),
+            bounds_info: widget.bounds_info(),
             border_info: widget.border_info(),
             render_info: widget.render_info(),
             state: widget.state(),
@@ -373,14 +273,10 @@ pub trait WidgetList: UiNodeList {
     /// Exclusive reference the state of the widget at the `index`.
     fn widget_state_mut(&mut self, index: usize) -> &mut StateMap;
 
-    /// Gets the outer bounds layout info of the widget at the `index`.
+    /// Gets the bounds layout info of the widget at the `index`.
     ///
-    /// See [`Widget::outer_info`] for more details.
-    fn widget_outer_info(&self, index: usize) -> &WidgetLayoutInfo;
-    /// Gets the inner bounds layout info of the widget at the `index`.
-    ///
-    /// See [`Widget::inner_info`] for more details.
-    fn widget_inner_info(&self, index: usize) -> &WidgetLayoutInfo;
+    /// See [`Widget::bounds_info`] for more details.
+    fn widget_bounds_info(&self, index: usize) -> &WidgetBoundsInfo;
 
     /// Gets the border and corners info of the widget at the `index`.
     ///
@@ -396,6 +292,16 @@ pub trait WidgetList: UiNodeList {
     fn render_filtered<F>(&self, filter: F, ctx: &mut RenderContext, frame: &mut FrameBuilder)
     where
         F: FnMut(WidgetFilterArgs) -> bool;
+
+    /// Calls [`WidgetLayout::with_outer`] in only the `index` widget.
+    fn widget_outer<F>(&mut self, index: usize, wl: &mut WidgetLayout, keep_previous: bool, transform: F)
+    where
+        F: FnOnce(&mut WidgetLayoutTranslation, PosLayoutArgs);
+
+    /// Calls [`WidgetLayout::with_outer`] in all widgets on the list.
+    fn outer_all<F>(&mut self, wl: &mut WidgetLayout, keep_previous: bool, transform: F)
+    where
+        F: FnMut(&mut WidgetLayoutTranslation, PosLayoutArgs);
 }
 
 /// Initialize an optimized [`WidgetList`].

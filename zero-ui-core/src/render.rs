@@ -4,6 +4,7 @@ use crate::{
     app::view_process::ViewRenderer,
     border::BorderSides,
     color::{RenderColor, RenderFilter},
+    context::RenderContext,
     gradient::{RenderExtendMode, RenderGradientStop},
     text::FontAntiAliasing,
     units::*,
@@ -121,6 +122,8 @@ macro_rules! expect_inner {
 }
 
 struct WidgetData {
+    has_transform: bool,
+    transform: RenderTransform,
     filter: RenderFilter,
     flags: PrimitiveFlags,
 }
@@ -130,6 +133,7 @@ pub struct FrameBuilder {
     frame_id: FrameId,
     pipeline_id: PipelineId,
     widget_id: WidgetId,
+    transform: RenderTransform,
 
     default_font_aa: FontRenderMode,
 
@@ -155,7 +159,7 @@ impl FrameBuilder {
     /// New builder.
     ///
     /// * `frame_id` - Id of the new frame.
-    /// * `widget_id` - Id of the window root widget.
+    /// * `root_id` - Id of the window root widget.
     /// * `renderer` - Connection to the renderer connection that will render the frame, is `None` in renderless mode.
     /// * `scale_factor` - Scale factor that will be used to render the frame, usually the scale factor of the screen the window is at.
     /// * `default_font_aa` - Fallback font anti-aliasing used when the default value is requested.
@@ -197,6 +201,7 @@ impl FrameBuilder {
             frame_id,
             pipeline_id,
             widget_id: root_id,
+            transform: RenderTransform::identity(),
             default_font_aa: match default_font_aa {
                 FontAntiAliasing::Default | FontAntiAliasing::Subpixel => FontRenderMode::Subpixel,
                 FontAntiAliasing::Alpha => FontRenderMode::Alpha,
@@ -211,6 +216,8 @@ impl FrameBuilder {
             widget_data: Some(WidgetData {
                 filter: vec![],
                 flags: PrimitiveFlags::empty(),
+                has_transform: false,
+                transform: RenderTransform::identity(),
             }),
             widget_rendered: false,
 
@@ -348,6 +355,11 @@ impl FrameBuilder {
         (self.widget_id.get(), 0)
     }
 
+    /// Current transform.
+    pub fn transform(&self) -> &RenderTransform {
+        &self.transform
+    }
+
     /// Common item properties given a `clip_rect` and the current context.
     ///
     /// This is a common case helper, it also calls [`widget_rendered`].
@@ -407,26 +419,31 @@ impl FrameBuilder {
     ///
     /// [`is_outer`]: Self::is_outer
     /// [`push_inner`]: Self::push_inner
-    pub fn push_widget(&mut self, widget_id: WidgetId, rendered: &WidgetRenderInfo, f: impl FnOnce(&mut Self)) {
+    pub fn push_widget(&mut self, ctx: &mut RenderContext, render: impl FnOnce(&mut RenderContext, &mut Self)) {
         if self.widget_data.is_some() {
             tracing::error!(
-                "called `push_widget` for `{widget_id}` without calling `push_inner` for the parent `{}`",
+                "called `push_widget` for `{}` without calling `push_inner` for the parent `{}`",
+                ctx.path.widget_id(),
                 self.widget_id
             );
         }
+
+        ctx.widget_info.render.set_outer_transform(self.transform);
 
         let parent_rendered = mem::take(&mut self.widget_rendered);
         self.widget_data = Some(WidgetData {
             filter: vec![],
             flags: PrimitiveFlags::empty(),
+            has_transform: false,
+            transform: RenderTransform::identity(),
         });
-        let parent_widget = mem::replace(&mut self.widget_id, widget_id);
+        let parent_widget = mem::replace(&mut self.widget_id, ctx.path.widget_id());
 
-        f(self);
+        render(ctx, self);
 
         self.widget_id = parent_widget;
         self.widget_data = None;
-        rendered.set_rendered(self.widget_rendered);
+        ctx.widget_info.render.set_rendered(self.widget_rendered);
         self.widget_rendered |= parent_rendered;
     }
 
@@ -487,34 +504,34 @@ impl FrameBuilder {
 
     /// Includes a widget filter and continues the render build.
     ///
-    /// This is `Ok(_)` only when not [`is_outer`].
+    /// This is valid only when [`is_outer`].
     ///
     /// When [`push_inner`] is called a stacking context is created for the widget that includes the `filter`.
     ///
     /// [`is_outer`]: Self::is_outer
     /// [`push_inner`]: Self::push_inner
-    pub fn push_inner_filter(&mut self, filter: RenderFilter, f: impl FnOnce(&mut Self)) {
+    pub fn push_inner_filter(&mut self, filter: RenderFilter, render: impl FnOnce(&mut Self)) {
         if let Some(data) = self.widget_data.as_mut() {
             let mut filter = filter;
             filter.reverse(); // see `Self::open_widget_display` for why it is reversed.
             data.filter.extend(filter.iter().copied());
 
-            f(self);
+            render(self);
         } else {
             tracing::error!("called `push_inner_filter` inside inner context of `{}`", self.widget_id);
-            f(self);
+            render(self);
         }
     }
 
     /// Includes a widget opacity filter and continues the render build.
     ///
-    /// This is `Ok(_)` only when not [`is_outer`].
+    /// This is valid only when [`is_outer`].
     ///
     /// When [`push_inner`] is called a stacking context is created for the widget that includes the opacity filter.
     ///
     /// [`is_outer`]: Self::is_outer
     /// [`push_inner`]: Self::push_inner
-    pub fn push_inner_opacity(&mut self, bind: FrameBinding<f32>, f: impl FnOnce(&mut Self)) {
+    pub fn push_inner_opacity(&mut self, bind: FrameBinding<f32>, render: impl FnOnce(&mut Self)) {
         if let Some(data) = self.widget_data.as_mut() {
             let value = match &bind {
                 PropertyBinding::Value(v) => *v,
@@ -524,43 +541,87 @@ impl FrameBuilder {
             let filter = vec![FilterOp::Opacity(bind, value)];
             data.filter.push(filter[0]);
 
-            f(self);
+            render(self);
         } else {
             tracing::error!("called `push_inner_opacity` inside inner context of `{}`", self.widget_id);
-            f(self);
+            render(self);
         }
     }
 
     /// Include the `flags` on the widget stacking context flags.
     ///
-    /// This is `Ok(_)` only when not [`is_outer`].
+    /// This is valid only when [`is_outer`].
     ///
     /// When [`push_inner`] is called a stacking context is created for the widget that includes the `flags`.
     ///
     /// [`is_outer`]: Self::is_outer
     /// [`push_inner`]: Self::push_inner
-    pub fn push_inner_flags(&mut self, flags: PrimitiveFlags, f: impl FnOnce(&mut Self)) {
+    pub fn push_inner_flags(&mut self, flags: PrimitiveFlags, render: impl FnOnce(&mut Self)) {
         if let Some(data) = self.widget_data.as_mut() {
             data.flags |= flags;
-            f(self);
+            render(self);
         } else {
             tracing::error!("called `push_inner_flags` inside inner context of `{}`", self.widget_id);
-            f(self);
+            render(self);
+        }
+    }
+
+    /// Include the `transform` on the widget inner reference frame.
+    ///
+    /// This is valid only when [`is_outer`].
+    ///
+    /// When [`push_inner`] is called a reference frame is created for the widget that applies the layout translate then the `transform`.
+    ///
+    /// [`is_outer`]: Self::is_outer
+    /// [`push_inner`]: Self::push_inner
+    pub fn push_inner_transform(&mut self, transform: &RenderTransform, render: impl FnOnce(&mut Self)) {
+        if let Some(data) = &mut self.widget_data {
+            let parent_has_transform = data.has_transform;
+            let parent_transform = data.transform;
+            data.has_transform = true;
+            data.transform = data.transform.then(transform);
+
+            render(self);
+
+            if let Some(data) = &mut self.widget_data {
+                data.has_transform = parent_has_transform;
+                data.transform = parent_transform;
+            }
+        } else {
+            tracing::error!("called `push_inner_transform` inside inner context of `{}`", self.widget_id);
+            render(self);
         }
     }
 
     /// Push the widget reference frame and stacking context then call `f` inside of it.
-    pub fn push_inner(&mut self, transform: FrameBinding<RenderTransform>, f: impl FnOnce(&mut Self)) {
+    pub fn push_inner(
+        &mut self,
+        ctx: &mut RenderContext,
+        layout_translation_key: FrameBindingKey<RenderTransform>,
+        render: impl FnOnce(&mut RenderContext, &mut Self),
+    ) {
         if let Some(mut data) = self.widget_data.take() {
             let parent_spatial_id = self.spatial_id;
+
+            let mut inner_transform =
+                RenderTransform::translation_px(ctx.widget_info.bounds.outer_offset() + ctx.widget_info.bounds.inner_offset());
+
+            if data.has_transform {
+                inner_transform = data.transform.then(&inner_transform);
+            }
+
+            let parent_transform = self.transform;
+            self.transform = inner_transform.then(&parent_transform);
+
+            ctx.widget_info.render.set_inner_transform(self.transform);
 
             self.spatial_id = self.display_list.push_reference_frame(
                 PxPoint::zero().to_wr(),
                 self.spatial_id,
                 TransformStyle::Flat,
-                transform,
+                layout_translation_key.bind(inner_transform),
                 ReferenceFrameKind::Transform {
-                    is_2d_scale_translation: false, // TODO track this
+                    is_2d_scale_translation: !data.has_transform,
                     should_snap: false,
                     paired_with_perspective: false,
                 },
@@ -587,7 +648,7 @@ impl FrameBuilder {
                 );
             }
 
-            f(self);
+            render(ctx, self);
 
             if has_stacking_ctx {
                 self.display_list.pop_stacking_context();
@@ -595,9 +656,10 @@ impl FrameBuilder {
             self.display_list.pop_reference_frame();
 
             self.spatial_id = parent_spatial_id;
+            self.transform = parent_transform;
         } else {
             tracing::error!("called `push_inner` more then once for `{}`", self.widget_id);
-            f(self)
+            render(ctx, self)
         }
     }
 
@@ -695,25 +757,30 @@ impl FrameBuilder {
             SpatialFrameId::scroll_id_to_wr(scroll_id, self.pipeline_id),
         );
 
-        // offset can only be set using transaction `set_scroll_offsets` ?
-        self.scrolls.push((scroll_id_wr, -content_rect.origin.to_vector()));
+        // offset can only be set using transaction `set_scroll_offsets` so we send then separate for the view-process.
+        let offset = content_rect.origin.to_vector();
+
+        // offset in our API is the content translate inside the viewport, in webrender this is inverted for some reason.
+        self.scrolls.push((scroll_id_wr, -offset));
+
+        let parent_transform = self.transform;
+        self.transform = RenderTransform::translation_px(offset).then(&self.transform);
 
         f(self);
 
+        self.transform = parent_transform;
         self.spatial_id = parent_spatial_id;
     }
 
     /// Calls `f` inside a new reference frame transformed by `transform`.
     ///
-    /// Note that properties that use this method must also call [`WidgetLayout::with_custom_transform`] during arrange.
-    /// Outer properties that only do layout should **not** use this method, just update the [`WidgetLayout`] inner transform
-    /// that gets combined into a single reference frame per widget.
+    /// Note that properties that use this method must also register the custom transform with the widget info, so that the widget
+    /// can be found by decorator overlays or other features that depend on the info tree position.
     ///
     /// The `is_2d_scale_translation` flag optionally marks the `transform` as only ever having a simple 2D scale or translation,
     /// allowing for webrender optimizations.
     ///
     /// [`push_inner`]: Self::push_inner
-    /// [`WidgetLayout::with_custom_transform`]: crate::widget_info::WidgetLayout::with_custom_transform
     /// [`WidgetLayout`]: crate::widget_info::WidgetLayout
     pub fn push_reference_frame(
         &mut self,
@@ -744,6 +811,12 @@ impl FrameBuilder {
         f: impl FnOnce(&mut Self),
     ) {
         let parent_spatial_id = self.spatial_id;
+        let parent_transform = self.transform;
+        self.transform = match transform {
+            PropertyBinding::Value(value) | PropertyBinding::Binding(_, value) => value,
+        }
+        .then(&parent_transform);
+
         self.spatial_id = self.display_list.push_reference_frame(
             PxPoint::zero().to_wr(),
             parent_spatial_id,
@@ -761,6 +834,7 @@ impl FrameBuilder {
 
         self.display_list.pop_reference_frame();
         self.spatial_id = parent_spatial_id;
+        self.transform = parent_transform;
     }
 
     /// Calls `f` with added `filter` stacking context.
@@ -1277,6 +1351,10 @@ pub struct FrameUpdate {
     clear_color: Option<RenderColor>,
     scrolls: Vec<(ExternalScrollId, PxVector)>,
     frame_id: FrameId,
+
+    widget_id: WidgetId,
+    transform: RenderTransform,
+    inner_transform: Option<RenderTransform>,
 }
 impl FrameUpdate {
     // in case they add more dynamic property types.
@@ -1285,10 +1363,17 @@ impl FrameUpdate {
     /// New frame update builder.
     ///
     /// * `frame_id` - Id of the frame that will be updated.
+    /// * `root_id` - Id of the window root widget.
     /// * `renderer` - Reference to the renderer that will update.
     /// * `clear_color` - The current clear color.
     /// * `used_data` - Data generated by a previous frame update, if set is recycled for a performance boost.
-    pub fn new(frame_id: FrameId, renderer: Option<&ViewRenderer>, clear_color: RenderColor, used_data: Option<UsedFrameUpdate>) -> Self {
+    pub fn new(
+        frame_id: FrameId,
+        root_id: WidgetId,
+        renderer: Option<&ViewRenderer>,
+        clear_color: RenderColor,
+        used_data: Option<UsedFrameUpdate>,
+    ) -> Self {
         let pipeline_id = renderer
             .as_ref()
             .and_then(|r| r.pipeline_id().ok())
@@ -1309,6 +1394,7 @@ impl FrameUpdate {
         });
         FrameUpdate {
             pipeline_id,
+            widget_id: root_id,
             bindings: DynamicProperties {
                 transforms: Vec::with_capacity(hint.transforms_capacity),
                 floats: Vec::with_capacity(hint.floats_capacity),
@@ -1318,6 +1404,9 @@ impl FrameUpdate {
             clear_color: None,
             frame_id,
             current_clear_color: clear_color,
+
+            transform: RenderTransform::identity(),
+            inner_transform: Some(RenderTransform::identity()),
         }
     }
 
@@ -1326,14 +1415,111 @@ impl FrameUpdate {
         self.frame_id
     }
 
+    /// Returns `true` if the widget inner transform update is still being build.
+    ///
+    /// This is `true` when inside a [`update_widget`] call but `false` when inside a [`update_inner`] call.
+    ///
+    /// [`update_widget`]: Self::update_widget
+    /// [`update_inner`]: Self::update_inner
+    pub fn is_outer(&self) -> bool {
+        self.inner_transform.is_some()
+    }
+
+    /// Current transform.
+    pub fn transform(&self) -> &RenderTransform {
+        &self.transform
+    }
+
     /// Change the color used to clear the pixel buffer when redrawing the frame.
     pub fn set_clear_color(&mut self, color: RenderColor) {
         self.clear_color = Some(color);
     }
 
-    /// Update a layout transform value.
+    /// Update a transform value that does not potentially affect widget bounds.
+    ///
+    /// Use [`with_transform`] to update transforms that affect widget bounds.
+    ///
+    /// [`with_transform`]: Self::with_transform
     pub fn update_transform(&mut self, new_value: FrameValue<RenderTransform>) {
         self.bindings.transforms.push(new_value);
+    }
+
+    /// Update a transform that potentially affects widget bounds.
+    ///
+    /// The [`transform`] is updated to include this space for the call to the `render_update` closure. The closure
+    /// must call render update on child nodes.
+    ///
+    /// [`transform`]: Self::transform
+    pub fn with_transform(&mut self, new_value: FrameValue<RenderTransform>, render_update: impl FnOnce(&mut Self)) {
+        let parent_transform = self.transform;
+        self.transform = new_value.value.then(&parent_transform);
+        render_update(self);
+        self.transform = parent_transform;
+    }
+
+    /// Update the transform applied after the inner bounds translate.
+    ///
+    /// This is only valid if [`is_outer`].
+    ///
+    /// [`is_outer`]: Self::is_outer
+    pub fn with_inner_transform(&mut self, transform: &RenderTransform, render_update: impl FnOnce(&mut Self)) {
+        if let Some(inner_transform) = &mut self.inner_transform {
+            let parent = *inner_transform;
+            *inner_transform = inner_transform.then(transform);
+
+            render_update(self);
+
+            if let Some(inner_transform) = &mut self.inner_transform {
+                *inner_transform = parent;
+            }
+        } else {
+            tracing::error!("called `with_inner_transform` inside inner context of `{}`", self.widget_id);
+            render_update(self);
+        }
+    }
+
+    /// Update the widget's outer transform.
+    pub fn update_widget(&mut self, ctx: &mut RenderContext, render_update: impl FnOnce(&mut RenderContext, &mut Self)) {
+        if self.inner_transform.is_some() {
+            tracing::error!(
+                "called `update_widget` for `{}` without calling `update_inner` for the parent `{}`",
+                ctx.path.widget_id(),
+                self.widget_id
+            );
+        }
+
+        ctx.widget_info.render.set_outer_transform(self.transform);
+        self.inner_transform = Some(RenderTransform::identity());
+        let parent_id = self.widget_id;
+        self.widget_id = ctx.path.widget_id();
+        render_update(ctx, self);
+        self.inner_transform = None;
+        self.widget_id = parent_id;
+    }
+
+    /// Update the widget's inner transform.
+    pub fn update_inner(
+        &mut self,
+        ctx: &mut RenderContext,
+        layout_translation_key: FrameBindingKey<RenderTransform>,
+        render_update: impl FnOnce(&mut RenderContext, &mut Self),
+    ) {
+        if let Some(inner_transform) = self.inner_transform.take() {
+            let translate = ctx.widget_info.bounds.inner_offset() + ctx.widget_info.bounds.outer_offset();
+            let translate = RenderTransform::translation_px(translate);
+            let inner_transform = inner_transform.then(&translate);
+            self.update_transform(layout_translation_key.update(inner_transform));
+            let parent_transform = self.transform;
+
+            self.transform = inner_transform.then(&parent_transform);
+            ctx.widget_info.render.set_inner_transform(self.transform);
+
+            render_update(ctx, self);
+            self.transform = parent_transform;
+        } else {
+            tracing::error!("called `update_inner` more then once for `{}`", self.widget_id);
+            render_update(ctx, self)
+        }
     }
 
     /// Update a float value.
@@ -1349,8 +1535,26 @@ impl FrameUpdate {
     /// Update a scroll frame offset.
     ///
     /// The `offset` replaces the previous offset set for `id`, it represents the translation of the content in the viewport space.
+    ///
+    /// Use [`with_scroll`] to update scrolls that may contain widget bounds.
+    ///
+    /// [`with_scroll`]: Self::with_scroll
     pub fn update_scroll(&mut self, id: ScrollId, offset: PxVector) {
         self.scrolls.push((id.to_wr(self.pipeline_id), -offset))
+    }
+
+    /// Update a scroll frame offset for scroll content that may contain widgets.
+    ///
+    /// The [`transform`] is updated to include this space for the call to the `render_update` closure. The closure
+    /// must call render update on the scroll content.
+    ///
+    /// [`transform`]: Self::transform
+    pub fn with_scroll(&mut self, id: ScrollId, offset: PxVector, render_update: impl FnOnce(&mut Self)) {
+        let parent_transform = self.transform;
+        self.transform = RenderTransform::translation_px(offset).then(&parent_transform);
+        self.update_scroll(id, offset);
+        render_update(self);
+        self.transform = parent_transform;
     }
 
     /// Finalize the update.
@@ -1457,6 +1661,8 @@ impl SpatialFrameId {
 
     /// Make a [`SpatialTreeItemKey`] from a [`WidgetId`], there is no collision
     /// with other keys generated.
+    ///
+    /// This is the spatial id used for the widget's inner bounds offset.
     pub fn widget_id_to_wr(self_: WidgetId, pipeline_id: PipelineId) -> SpatialTreeItemKey {
         SpatialTreeItemKey::new(pipeline_id.0 as u64 | Self::WIDGET_ID_FLAG, self_.get())
     }

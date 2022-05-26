@@ -53,21 +53,16 @@ pub mod h_stack {
     }
 
     fn new_child(items: impl WidgetList, spacing: impl IntoVar<Length>, items_align: impl IntoVar<Align>) -> impl UiNode {
-        HStackNode {
-            children_info: vec![ChildInfo::default(); items.len()],
-            items_width: Px(0),
-            visible_count: 0,
+        let node = HStackNode {
             children: ZSortedWidgetList::new(items),
             spacing: spacing.into_var(),
             align: items_align.into_var(),
-        }
+        };
+        implicit_base::nodes::children_layout(node)
     }
 
     struct HStackNode<C, S, A> {
         children: C,
-        children_info: Vec<ChildInfo>,
-        items_width: Px,
-        visible_count: u32,
 
         spacing: S,
         align: A,
@@ -83,102 +78,109 @@ pub mod h_stack {
             let mut changed = false;
             self.children.update_all(ctx, &mut changed);
 
-            if changed {
-                self.children_info.resize(self.children.len(), ChildInfo::default());
-            }
-
             if changed || self.spacing.is_new(ctx) || self.align.is_new(ctx) {
                 ctx.updates.layout_and_render();
             }
         }
 
-        fn measure(&mut self, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize {
-            let mut ds = PxSize::zero();
-            self.visible_count = 0;
+        fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
+            let spacing = self.spacing.get(ctx.vars).layout(ctx.for_x(), |_| Px(0));
+            let align = self.align.copy(ctx);
 
-            self.children.measure_all(
-                ctx,
-                |_, _| available_size,
-                |_, args| {
-                    self.children_info[args.index].desired_size = args.desired_size;
-                    ds.height = ds.height.max(args.desired_size.height);
-                    if args.desired_size.width > Px(0) {
-                        ds.width += args.desired_size.width;
-                        self.visible_count += 1;
-                    }
+            let mut size = PxSize::zero();
+
+            ctx.with_constrains(
+                |c| align.child_constrains(c).with_unbounded_x(),
+                |ctx| {
+                    self.children.layout_all(
+                        ctx,
+                        wl,
+                        |_, _, _| {},
+                        |_, wl, a| {
+                            wl.translate(PxVector::new(size.width, Px(0)));
+
+                            size.height = size.height.max(a.size.height);
+
+                            if a.size.width > Px(0) {
+                                // only add spacing for visible items.
+                                size.width += a.size.width + spacing;
+                            }
+                        },
+                    );
                 },
             );
 
-            let spacing = self.spacing.get(ctx.vars).to_layout(ctx, available_size.width, Px(0));
+            let c = ctx.constrains();
+            if align.is_fill_y() && !c.y.is_fill_max() && !c.y.is_exact() {
+                // panel is not fill-y but items are, so we need to fill to the widest item.
+                ctx.with_constrains(
+                    move |c| c.with_max_y(c.y.clamp(size.height)).with_fill_x(true).with_unbounded_x(),
+                    |ctx| {
+                        size.width = Px(0);
+                        for i in 0..self.children.len() {
+                            let o_size = self.children.widget_bounds_info(i).outer_size();
+                            if Some(o_size.height) != ctx.constrains().y.max() {
+                                // only need second pass for items that don't fill
+                                let (a_size, _) = wl.with_child(ctx, |ctx, wl| {
+                                    wl.translate(PxVector::new(size.width, Px(0)));
+                                    self.children.widget_layout(i, ctx, wl)
+                                });
 
-            ds.width += Px(self.visible_count.saturating_sub(1) as i32) * spacing;
-            self.items_width = ds.width;
+                                size.height = size.height.max(a_size.height);
 
-            if self.align.get(ctx).is_fill_width() {
-                ds.max(available_size.to_px())
-            } else {
-                ds
+                                if a_size.width > Px(0) {
+                                    size.width += a_size.width + spacing;
+                                }
+                            } else {
+                                // item already fills width, but may have moved due to sibling new fill size
+                                self.children.widget_outer(i, wl, false, |wlt, _| {
+                                    wlt.translate(PxVector::new(size.width, Px(0)));
+
+                                    if o_size.width > Px(0) {
+                                        size.width += o_size.width + spacing;
+                                    }
+                                });
+                            }
+                        }
+                    },
+                );
             }
-        }
 
-        fn arrange(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, final_size: PxSize) {
-            let spacing = self
-                .spacing
-                .get(ctx.vars)
-                .to_layout(ctx, AvailablePx::Finite(final_size.width), Px(0));
-            let align = self.align.copy(ctx);
-            let fill_width = align.is_fill_width();
+            if size.width > Px(0) {
+                // spacing is only in between items.
+                size.width -= spacing;
+            }
+            let best_size = ctx.constrains().fill_size_or(size);
+            let extra_width = best_size.width - size.width;
+            let mut extra_x = Px(0);
 
-            // if `fill_width` and there is space to fill we give the extra width divided equally
-            // for each visible item. The fill alignment is usually only set for the height so this is a corner case.
-            let extra_width = if fill_width && self.items_width < final_size.width {
-                let vis_count = Px(self.visible_count.saturating_sub(1) as i32);
-                (final_size.width - vis_count * spacing) / vis_count
-            } else {
-                Px(0)
-            };
-
-            // offset for each item to apply the vertical alignment.
-            let mut x_offset = if fill_width {
-                Px(0)
-            } else {
-                let diff = final_size.width - self.items_width;
-                diff * align.x.0
-            };
-
-            let fill_height = align.is_fill_height();
-            let baseline = align.is_baseline();
-
-            self.children.arrange_all(ctx, widget_layout, |_, args| {
-                let mut size = self.children_info[args.index].desired_size;
-
-                let spacing = if size.width > Px(0) { spacing } else { Px(0) };
-
-                size.width += extra_width;
-
-                let x = x_offset;
-                let y;
-
-                x_offset += size.width + spacing;
-
-                if fill_height {
-                    size.height = final_size.height;
-                    y = Px(0);
-                } else if baseline {
-                    y = final_size.height - size.height;
-                    args.translate_baseline = Some(true);
-                } else {
-                    size.height = size.height.min(final_size.height);
-                    y = (final_size.height - size.height) * align.y.0;
-                };
-
-                let offset = PxVector::new(x, y);
-                if offset != PxVector::zero() {
-                    args.pre_translate = Some(offset);
+            if align.is_fill_x() {
+                if extra_width != Px(0) {
+                    // TODO distribute/take width
                 }
+            } else if extra_width > Px(0) {
+                extra_x = extra_width * align.x;
+            }
 
-                size
-            });
+            let is_baseline = align.is_baseline();
+            if !align.is_fill_y() && (is_baseline || align.y > 0.fct()) {
+                let y = if is_baseline { 1.fct() } else { align.y };
+
+                self.children.outer_all(wl, true, |wlt, a| {
+                    let y = (best_size.height - a.size.height) * y;
+                    wlt.translate(PxVector::new(extra_x, y));
+
+                    if is_baseline {
+                        wlt.translate_baseline(1.0);
+                    }
+                });
+            } else if extra_x > Px(0) {
+                self.children.outer_all(wl, true, |wlt, _| {
+                    wlt.translate(PxVector::new(extra_x, Px(0)));
+                });
+            }
+
+            best_size.max(size)
         }
     }
 }
@@ -235,21 +237,16 @@ pub mod v_stack {
     }
 
     fn new_child(items: impl WidgetList, spacing: impl IntoVar<Length>, items_align: impl IntoVar<Align>) -> impl UiNode {
-        VStackNode {
-            children_info: vec![ChildInfo::default(); items.len()],
-            items_height: Px(0),
-            visible_count: 0,
+        let node = VStackNode {
             children: ZSortedWidgetList::new(items),
             spacing: spacing.into_var(),
             align: items_align.into_var(),
-        }
+        };
+        implicit_base::nodes::children_layout(node)
     }
 
     struct VStackNode<C, S, A> {
         children: C,
-        children_info: Vec<ChildInfo>,
-        items_height: Px,
-        visible_count: usize,
 
         spacing: S,
         align: A,
@@ -265,102 +262,114 @@ pub mod v_stack {
             let mut changed = false;
             self.children.update_all(ctx, &mut changed);
 
-            if changed {
-                self.children_info.resize(self.children.len(), ChildInfo::default());
-            }
-
             if changed || self.spacing.is_new(ctx) || self.align.is_new(ctx) {
                 ctx.updates.layout_and_render();
             }
         }
 
-        fn measure(&mut self, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize {
-            let mut ds = PxSize::zero();
-            self.visible_count = 0;
+        fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
+            let spacing = self.spacing.get(ctx.vars).layout(ctx.for_y(), |_| Px(0));
+            let align = self.align.copy(ctx);
 
-            self.children.measure_all(
-                ctx,
-                |_, _| available_size,
-                |_, args| {
-                    self.children_info[args.index].desired_size = args.desired_size;
-                    ds.width = ds.width.max(args.desired_size.width);
-                    if args.desired_size.height > Px(0) {
-                        ds.height += args.desired_size.height;
-                        self.visible_count += 1;
-                    }
+            let mut size = PxSize::zero();
+
+            ctx.with_constrains(
+                |c| align.child_constrains(c).with_unbounded_y(),
+                |ctx| {
+                    self.children.layout_all(
+                        ctx,
+                        wl,
+                        |_, _, _| {},
+                        |_, wl, a| {
+                            wl.translate(PxVector::new(Px(0), size.height));
+
+                            size.width = size.width.max(a.size.width);
+
+                            if a.size.height > Px(0) {
+                                // only add spacing for visible items.
+                                size.height += a.size.height + spacing;
+                            }
+                        },
+                    );
                 },
             );
 
-            let spacing = self.spacing.get(ctx.vars).to_layout(ctx, available_size.height, Px(0));
+            let c = ctx.constrains();
+            if align.is_fill_x() && !c.x.is_fill_max() && !c.x.is_exact() {
+                // panel is not fill-x but items are, so we need to fill to the widest item.
+                ctx.with_constrains(
+                    move |c| c.with_max_x(c.x.clamp(size.width)).with_fill_x(true).with_unbounded_y(),
+                    |ctx| {
+                        size.height = Px(0);
+                        for i in 0..self.children.len() {
+                            let o_size = self.children.widget_bounds_info(i).outer_size();
+                            if Some(o_size.width) != ctx.constrains().x.max() {
+                                // only need second pass for items that don't fill
+                                let (a_size, _) = wl.with_child(ctx, |ctx, wl| {
+                                    wl.translate(PxVector::new(Px(0), size.height));
+                                    self.children.widget_layout(i, ctx, wl)
+                                });
 
-            ds.height += Px(self.visible_count.saturating_sub(1) as i32) * spacing;
-            self.items_height = ds.height;
+                                size.width = size.width.max(a_size.width);
 
-            if self.align.get(ctx).is_fill_height() {
-                ds.max(available_size.to_px())
-            } else {
-                ds
+                                if a_size.height > Px(0) {
+                                    size.height += a_size.height + spacing;
+                                }
+                            } else {
+                                // item already fills width, but may have moved due to sibling new fill size
+                                self.children.widget_outer(i, wl, false, |wlt, _| {
+                                    wlt.translate(PxVector::new(Px(0), size.height));
+
+                                    if o_size.height > Px(0) {
+                                        size.height += o_size.height + spacing;
+                                    }
+                                });
+                            }
+                        }
+                    },
+                );
             }
-        }
 
-        fn arrange(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, final_size: PxSize) {
-            let spacing = self
-                .spacing
-                .get(ctx.vars)
-                .to_layout(ctx, AvailablePx::Finite(final_size.height), Px(0));
-            let align = self.align.copy(ctx);
-            let fill_height = align.is_fill_height();
-            let baseline = align.is_baseline();
+            if size.height > Px(0) {
+                // spacing is only in between items.
+                size.height -= spacing;
+            }
+            let best_size = ctx.constrains().fill_size_or(size);
+            let extra_height = best_size.height - size.height;
+            let mut extra_y = Px(0);
 
-            // if `fill_height` and there is space to fill we give the extra height divided equally
-            // for each visible item. The fill alignment is usually only set for the width so this is a corner case.
-            let extra_height = if fill_height && self.items_height < final_size.height {
-                let vis_count = Px(self.visible_count.saturating_sub(1) as i32);
-                (final_size.height - vis_count * spacing) / vis_count
-            } else {
-                Px(0)
-            };
+            let is_baseline = align.is_baseline();
 
-            // offset for each item to apply the vertical alignment.
-            let mut y_offset = if fill_height {
-                Px(0)
-            } else {
-                let diff = final_size.height - self.items_height;
-                diff * align.y.0
-            };
-
-            let fill_width = align.is_fill_width();
-
-            self.children.arrange_all(ctx, widget_layout, |_, args| {
-                let mut size = self.children_info[args.index].desired_size;
-
-                let spacing = if size.height > Px(0) { spacing } else { Px(0) };
-                size.height += extra_height;
-
-                let x;
-                let y = y_offset;
-
-                if baseline {
-                    args.translate_baseline = Some(true);
+            if align.is_fill_y() {
+                if extra_height != Px(0) {
+                    // TODO distribute/take height
                 }
+            } else if extra_height > Px(0) {
+                let y = if is_baseline { 1.fct() } else { align.y };
+                extra_y = extra_height * y;
+            }
+            if !align.is_fill_x() && align.x > 0.fct() {
+                self.children.outer_all(wl, true, |wlt, a| {
+                    let x = (best_size.width - a.size.width) * align.x;
+                    wlt.translate(PxVector::new(x, extra_y));
+                    if is_baseline {
+                        wlt.translate_baseline(1.0);
+                    }
+                });
+            } else if extra_y > Px(0) {
+                self.children.outer_all(wl, true, |wlt, _| {
+                    wlt.translate(PxVector::new(Px(0), extra_y));
+                    if is_baseline {
+                        wlt.translate_baseline(1.0);
+                    }
+                });
+            } else if is_baseline {
+                self.children.outer_all(wl, true, |wlt, _| {
+                    wlt.translate_baseline(1.0);
+                });
+            }
 
-                y_offset += size.height + spacing;
-
-                if fill_width {
-                    size.width = final_size.width;
-                    x = Px(0);
-                } else {
-                    size.width = size.width.min(final_size.width);
-                    x = (final_size.width - size.width) * align.x.0;
-                };
-
-                let offset = PxVector::new(x, y);
-                if offset != PxVector::zero() {
-                    args.pre_translate = Some(offset);
-                }
-
-                size
-            });
+            best_size.max(size)
         }
     }
 }
@@ -463,14 +472,12 @@ pub mod z_stack {
 
     fn new_child(items: impl WidgetList, items_align: impl IntoVar<Align>) -> impl UiNode {
         ZStackNode {
-            children_info: vec![ChildInfo::default(); items.len()],
             children: ZSortedWidgetList::new(items),
             align: items_align.into_var(),
         }
     }
     struct ZStackNode<C, A> {
         children: C,
-        children_info: Vec<ChildInfo>,
         align: A,
     }
     #[impl_ui_node(children)]
@@ -484,42 +491,33 @@ pub mod z_stack {
             let mut changed = false;
             self.children.update_all(ctx, &mut changed);
 
-            if changed {
-                self.children_info.resize(self.children.len(), ChildInfo::default());
-            }
-
             if changed || self.align.is_new(ctx) {
                 ctx.updates.layout_and_render();
             }
         }
 
-        fn measure(&mut self, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize {
-            let mut ds = PxSize::zero();
-            self.children.measure_all(
-                ctx,
-                |_, _| available_size,
-                |_, args| {
-                    ds = ds.max(args.desired_size);
-                    self.children_info[args.index].desired_size = args.desired_size;
+        fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
+            let mut size = PxSize::zero();
+            let align = self.align.copy(ctx);
+
+            let parent_constrains = ctx.constrains();
+
+            ctx.with_constrains(
+                |c| align.child_constrains(c),
+                |ctx| {
+                    self.children.layout_all(
+                        ctx,
+                        wl,
+                        |_, _, _| {},
+                        |_, wl, args| {
+                            let child_size = align.layout(args.size, parent_constrains, wl);
+                            size = size.max(child_size);
+                        },
+                    );
                 },
             );
-            ds
-        }
 
-        fn arrange(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, final_size: PxSize) {
-            let align = self.align.copy(ctx);
-            let baseline = align.is_baseline();
-            self.children.arrange_all(ctx, widget_layout, |_, args| {
-                let size = self.children_info[args.index].desired_size.min(final_size);
-                if baseline {
-                    args.translate_baseline = Some(true);
-                }
-                let bounds = align.solve(size, size.height, final_size);
-                if bounds.origin != PxPoint::zero() {
-                    args.pre_translate = Some(bounds.origin.to_vector());
-                }
-                bounds.size
-            });
+            parent_constrains.clamp_size(size)
         }
     }
 }
@@ -542,11 +540,6 @@ pub mod z_stack {
 /// to better configure the layering stack widget.
 pub fn z_stack(items: impl WidgetList) -> impl Widget {
     z_stack! { items; }
-}
-
-#[derive(Default, Clone, Copy)]
-struct ChildInfo {
-    desired_size: PxSize,
 }
 
 /// Creates a node that processes the `nodes` in the logical order they appear in the list, layouts for the largest node

@@ -90,25 +90,31 @@ where
         }
     }
     #[UiNode]
-    fn arrange(&mut self, ctx: &mut LayoutContext, _: &mut WidgetLayout, final_size: PxSize) {
+    fn layout(&mut self, ctx: &mut LayoutContext, _: &mut WidgetLayout) -> PxSize {
+        let final_size = ctx.constrains().fill_size();
         if self.do_layout || self.final_size != final_size {
             self.do_layout = false;
 
             self.final_size = final_size;
-            self.render_line = self.axis.get(ctx).layout(ctx, AvailableSize::finite(final_size));
+            self.render_line = self.axis.get(ctx).layout(ctx);
 
             let length = self.render_line.length();
 
-            self.stops.get(ctx).layout_linear(
-                AvailablePx::Finite(length),
-                ctx,
-                *self.extend_mode.get(ctx),
-                &mut self.render_line,
-                &mut self.render_stops,
+            ctx.with_constrains(
+                |c| c.with_max_x(length).with_fill_x(true),
+                |ctx| {
+                    self.stops.get(ctx).layout_linear(
+                        ctx.for_x(),
+                        *self.extend_mode.get(ctx),
+                        &mut self.render_line,
+                        &mut self.render_stops,
+                    )
+                },
             );
 
             ctx.updates.render();
         }
+        final_size
     }
     #[UiNode]
     fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
@@ -155,19 +161,28 @@ where
         }
     }
 
-    fn arrange(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, final_size: PxSize) {
+    fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
+        let final_size = ctx.constrains().fill_size();
+
         if self.g.final_size != final_size {
             ctx.updates.render();
         }
 
         self.g.final_size = self.render_tile_size;
 
-        let available_size = AvailableSize::finite(final_size);
-        self.render_tile_size = self.tile_size.get(ctx).to_layout(ctx, available_size, final_size);
-        self.render_tile_spacing = self.tile_spacing.get(ctx).to_layout(ctx, available_size, final_size);
-        self.g.arrange(ctx, widget_layout, self.render_tile_size);
+        self.render_tile_size = self.tile_size.get(ctx.vars).layout(ctx.metrics, |_| final_size);
+        self.render_tile_spacing = self.tile_spacing.get(ctx.vars).layout(ctx.metrics, |_| final_size);
+
+        ctx.with_constrains(
+            |c| c.with_max_size(self.render_tile_size).with_fill(true, true),
+            |ctx| {
+                self.g.layout(ctx, wl);
+            },
+        );
 
         self.g.final_size = final_size;
+
+        final_size
     }
 
     fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {

@@ -706,18 +706,11 @@ mod properties {
                     });
             }
 
-            fn measure(&mut self, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize {
+            fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
                 ctx.vars
                     .with_context_var(self.var, ContextVarData::in_vars(ctx.vars, &self.value, false), || {
-                        self.child.measure(ctx, available_size)
+                        self.child.layout(ctx, wl)
                     })
-            }
-
-            fn arrange(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, final_size: PxSize) {
-                ctx.vars
-                    .with_context_var(self.var, ContextVarData::in_vars(ctx.vars, &self.value, false), || {
-                        self.child.arrange(ctx, widget_layout, final_size)
-                    });
             }
 
             fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {

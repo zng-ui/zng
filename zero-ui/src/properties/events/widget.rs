@@ -320,117 +320,63 @@ pub fn on_pre_deinit(child: impl UiNode, handler: impl WidgetHandler<OnDeinitArg
     OnPreviewDeinitNode { child, handler, count: 0 }
 }
 
-/// Arguments of the [`on_measure`](fn@on_measure) event.
-#[derive(Debug, Clone, Copy)]
-pub struct OnMeasureArgs {
-    /// The maximum size available to the widget.
-    pub available_size: AvailableSize,
+/// Arguments of the [`on_layout`](fn@on_layout) event.
+pub struct OnLayoutArgs<'a> {
+    /// The layout builder.
+    pub wl: &'a mut WidgetLayout,
 
-    /// The [outer](crate::core::property#outer) size calculated by the widget.
-    pub desired_size: PxSize,
+    /// The calculated size for the widget outer bounds.
+    pub size: PxSize,
 }
 
-/// Event fired during the widget [`measure`](UiNode::measure) layout.
+/// Event fired during the widget [`layout`](UiNode::layout) layout.
 ///
-/// The `handler` is called after the [preview event](fn@on_pre_arrange) and after the widget children.
-/// The inputs are layout context and the [`OnMeasureArgs`].
+/// The `handler` is called after the [preview event](fn@on_pre_layout) and after the widget children.
+/// The inputs are layout context and [`OnLayoutArgs`].
 ///
 /// The `handler` is called even when the widget is [disabled].
 ///
 /// [disabled]: crate::core::widget_base::IsEnabled
 #[property(event, default(|_, _|{}))]
-pub fn on_measure(child: impl UiNode, handler: impl FnMut(&mut LayoutContext, OnMeasureArgs) + 'static) -> impl UiNode {
-    struct OnMeasureNode<C, F> {
+pub fn on_layout(child: impl UiNode, handler: impl FnMut(&mut LayoutContext, OnLayoutArgs) + 'static) -> impl UiNode {
+    struct OnLayoutNode<C, F> {
         child: C,
         handler: F,
     }
     #[impl_ui_node(child)]
-    impl<C: UiNode, F: FnMut(&mut LayoutContext, OnMeasureArgs) + 'static> UiNode for OnMeasureNode<C, F> {
-        fn measure(&mut self, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize {
-            let desired_size = self.child.measure(ctx, available_size);
-            (self.handler)(
-                ctx,
-                OnMeasureArgs {
-                    available_size,
-                    desired_size,
-                },
-            );
-            desired_size
+    impl<C: UiNode, F: FnMut(&mut LayoutContext, OnLayoutArgs) + 'static> UiNode for OnLayoutNode<C, F> {
+        fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
+            let size = self.child.layout(ctx, wl);
+            (self.handler)(ctx, OnLayoutArgs { wl, size });
+            size
         }
     }
-    OnMeasureNode { child, handler }
+    OnLayoutNode { child, handler }
 }
 
-/// Preview [`on_measure`] event.
+/// Preview [`on_layout`] event.
 ///
 /// The `handler` is called before the main event and before the widget children. The inputs are the layout context
-/// and the available size.
+/// and layout builder.
 ///
 /// The `handler` is called even when the widget is [disabled].
 ///
 /// [disabled]: crate::core::widget_base::IsEnabled
-/// [`on_measure`]: fn@on_measure
+/// [`on_layout`]: fn@on_layout
 #[property(event, default(|_, _|{}))]
-pub fn on_pre_measure(child: impl UiNode, handler: impl FnMut(&mut LayoutContext, AvailableSize) + 'static) -> impl UiNode {
-    struct OnPreviewMeasureNode<C, F> {
+pub fn on_pre_layout(child: impl UiNode, handler: impl FnMut(&mut LayoutContext, &mut WidgetLayout) + 'static) -> impl UiNode {
+    struct OnPreviewLayoutNode<C, F> {
         child: C,
         handler: F,
     }
     #[impl_ui_node(child)]
-    impl<C: UiNode, F: FnMut(&mut LayoutContext, AvailableSize) + 'static> UiNode for OnPreviewMeasureNode<C, F> {
-        fn measure(&mut self, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize {
-            (self.handler)(ctx, available_size);
-            self.child.measure(ctx, available_size)
+    impl<C: UiNode, F: FnMut(&mut LayoutContext, &mut WidgetLayout) + 'static> UiNode for OnPreviewLayoutNode<C, F> {
+        fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
+            (self.handler)(ctx, wl);
+            self.child.layout(ctx, wl)
         }
     }
-    OnPreviewMeasureNode { child, handler }
-}
-
-/// Event fired during the widget [`arrange`](UiNode::arrange) layout.
-///
-/// The `handler` is called after the [preview event](fn@on_pre_arrange) and after the widget children.
-///
-/// The `handler` is called even when the widget is [disabled].
-///
-/// [disabled]: crate::core::widget_base::IsEnabled
-#[property(event, default(|_, _|{}))]
-pub fn on_arrange(child: impl UiNode, handler: impl FnMut(&mut LayoutContext, PxSize) + 'static) -> impl UiNode {
-    struct OnArrangeNode<C, F> {
-        child: C,
-        handler: F,
-    }
-    #[impl_ui_node(child)]
-    impl<C: UiNode, F: FnMut(&mut LayoutContext, PxSize) + 'static> UiNode for OnArrangeNode<C, F> {
-        fn arrange(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, final_size: PxSize) {
-            self.child.arrange(ctx, widget_layout, final_size);
-            (self.handler)(ctx, final_size);
-        }
-    }
-    OnArrangeNode { child, handler }
-}
-
-/// Preview [`on_arrange`] event.
-///
-/// The `handler` is called before the main event and before the widget children.
-///
-/// The `handler` is called even when the widget is [disabled].
-///
-/// [disabled]: crate::core::widget_base::IsEnabled
-/// [`on_arrange`]: fn@on_arrange
-#[property(event, default(|_, _|{}))]
-pub fn on_pre_arrange(child: impl UiNode, handler: impl FnMut(&mut LayoutContext, PxSize) + 'static) -> impl UiNode {
-    struct OnPreviewArrangeNode<C, F> {
-        child: C,
-        handler: F,
-    }
-    #[impl_ui_node(child)]
-    impl<C: UiNode, F: FnMut(&mut LayoutContext, PxSize) + 'static> UiNode for OnPreviewArrangeNode<C, F> {
-        fn arrange(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, final_size: PxSize) {
-            (self.handler)(ctx, final_size);
-            self.child.arrange(ctx, widget_layout, final_size);
-        }
-    }
-    OnPreviewArrangeNode { child, handler }
+    OnPreviewLayoutNode { child, handler }
 }
 
 /// Event fired during the widget [`render`](UiNode::render).

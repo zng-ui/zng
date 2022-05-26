@@ -1045,7 +1045,7 @@ pub mod prelude {
             ui_list::{SortedWidgetVec, SortedWidgetVecRef, UiListObserver, UiNodeList, WidgetList, WidgetVec, WidgetVecRef},
             widget,
             widget_base::Visibility,
-            widget_info::{WidgetBorderInfo, WidgetInfoBuilder, WidgetLayout, WidgetLayoutInfo, WidgetRenderInfo, WidgetSubscriptions},
+            widget_info::{WidgetBorderInfo, WidgetBoundsInfo, WidgetInfoBuilder, WidgetLayout, WidgetRenderInfo, WidgetSubscriptions},
             widget_mixin, widget_vec, widgets, BoxedUiNode, BoxedWidget, FillUiNode, UiNode, Widget, WidgetId,
         };
         #[doc(no_inline)]
@@ -1106,7 +1106,7 @@ pub mod prelude {
             widget,
             widget_base::{implicit_base, HitTestMode, Visibility},
             widget_info::{
-                WidgetBorderInfo, WidgetInfo, WidgetInfoBuilder, WidgetLayout, WidgetLayoutInfo, WidgetRenderInfo, WidgetSubscriptions,
+                WidgetBorderInfo, WidgetBoundsInfo, WidgetInfo, WidgetInfoBuilder, WidgetLayout, WidgetRenderInfo, WidgetSubscriptions,
             },
             widget_mixin, widget_vec, widgets, BoxedUiNode, BoxedWidget, FillUiNode, UiNode, Widget, WidgetId,
         };

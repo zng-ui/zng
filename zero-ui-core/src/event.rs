@@ -1,7 +1,5 @@
 //! App event API.
 
-#[allow(unused_imports)] // nightly
-use retain_mut::RetainMut;
 use unsafe_any::UnsafeAny;
 
 use crate::app::{AppEventSender, AppShutdown, RecvFut, TimeoutOrAppShutdown};
@@ -846,7 +844,7 @@ impl Events {
     /// [`app_hn!`]: crate::handler::app_hn!
     /// [`async_app_hn!`]: crate::handler::async_app_hn!
     /// [`app_hn_once!`]: crate::handler::app_hn_once!
-    /// [`async_app_hn!`]: crate::handler::async_app_hn_once!
+    /// [`async_app_hn_once!`]: crate::handler::async_app_hn_once!
     pub fn on_pre_event<E, H>(&mut self, event: E, handler: H) -> OnEventHandle
     where
         E: Event,
@@ -893,7 +891,7 @@ impl Events {
     /// [`app_hn!`]: crate::handler::app_hn!
     /// [`async_app_hn!`]: crate::handler::async_app_hn!
     /// [`app_hn_once!`]: crate::handler::app_hn_once!
-    /// [`async_app_hn!`]: crate::handler::async_app_hn_once!
+    /// [`async_app_hn_once!`]: crate::handler::async_app_hn_once!
     pub fn on_event<E, H>(&mut self, event: E, handler: H) -> OnEventHandle
     where
         E: Event,

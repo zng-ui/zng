@@ -1144,7 +1144,7 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + any::AnyVar + crate::private::S
         )
     }
 
-    /// Starts an easing animation that *chases* a target value that can be changed using the [`CaseAnimation`] handle.
+    /// Starts an easing animation that *chases* a target value that can be changed using the [`ChaseAnimation`] handle.
     fn chase<Vw, F>(&self, vars: &Vw, first_target: T, duration: Duration, easing: F) -> ChaseAnimation<T>
     where
         Vw: WithVars,
@@ -1232,6 +1232,7 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + any::AnyVar + crate::private::S
                         *transition = Transition::new(from, to);
 
                         step = 0.fct();
+                        prev_step = 1.fct();
                         time = EasingTime::start();
                     }
                     ChaseMsg::Replace(new_target) => {
@@ -1243,6 +1244,7 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + any::AnyVar + crate::private::S
                         *transition = Transition::new(from, new_target);
 
                         step = 0.fct();
+                        prev_step = 1.fct();
                         time = EasingTime::start();
                     }
                     ChaseMsg::None => {

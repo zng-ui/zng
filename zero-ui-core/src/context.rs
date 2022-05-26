@@ -1,12 +1,13 @@
 //! Context information for app extensions, windows and widgets.
 
 use crate::{event::Events, service::Services, units::*, var::Vars, window::WindowId, WidgetId};
+use std::cell::Cell;
 use std::{fmt, ops::Deref};
 
 use crate::app::{AppEventSender, LoopTimer};
 
 use crate::timer::Timers;
-use crate::widget_info::WidgetInfoTree;
+use crate::widget_info::{WidgetContextInfo, WidgetInfoTree};
 use crate::{var::VarsRead, window::WindowMode};
 
 mod contextual;
@@ -205,6 +206,7 @@ impl<'a> WindowContext<'a> {
     pub fn widget_context<R>(
         &mut self,
         info_tree: &WidgetInfoTree,
+        widget_info: &WidgetContextInfo,
         root_widget_state: &mut OwnedStateMap,
         f: impl FnOnce(&mut WidgetContext) -> R,
     ) -> R {
@@ -216,6 +218,7 @@ impl<'a> WindowContext<'a> {
             path: &mut WidgetContextPath::new(*self.window_id, widget_id),
 
             info_tree,
+            widget_info,
             app_state: self.app_state,
             window_state: self.window_state,
             widget_state: &mut root_widget_state.0,
@@ -235,12 +238,14 @@ impl<'a> WindowContext<'a> {
     pub fn info_context<R>(
         &mut self,
         info_tree: &WidgetInfoTree,
+        widget_info: &WidgetContextInfo,
         root_widget_state: &OwnedStateMap,
         f: impl FnOnce(&mut InfoContext) -> R,
     ) -> R {
         f(&mut InfoContext {
             path: &mut WidgetContextPath::new(*self.window_id, info_tree.root().widget_id()),
             info_tree,
+            widget_info,
             app_state: self.app_state,
             window_state: self.window_state,
             widget_state: &root_widget_state.0,
@@ -259,6 +264,7 @@ impl<'a> WindowContext<'a> {
         viewport_size: PxSize,
         metrics_diff: LayoutMask,
         info_tree: &WidgetInfoTree,
+        widget_info: &WidgetContextInfo,
         root_widget_state: &mut OwnedStateMap,
         f: impl FnOnce(&mut LayoutContext) -> R,
     ) -> R {
@@ -273,6 +279,7 @@ impl<'a> WindowContext<'a> {
             path: &mut WidgetContextPath::new(*self.window_id, widget_id),
 
             info_tree,
+            widget_info,
             app_state: self.app_state,
             window_state: self.window_state,
             widget_state: &mut root_widget_state.0,
@@ -290,11 +297,13 @@ impl<'a> WindowContext<'a> {
         root_widget_id: WidgetId,
         root_widget_state: &OwnedStateMap,
         info_tree: &WidgetInfoTree,
+        widget_info: &WidgetContextInfo,
         f: impl FnOnce(&mut RenderContext) -> R,
     ) -> R {
         f(&mut RenderContext {
             path: &mut WidgetContextPath::new(*self.window_id, root_widget_id),
             info_tree,
+            widget_info,
             app_state: self.app_state,
             window_state: self.window_state,
             widget_state: &root_widget_state.0,
@@ -327,6 +336,11 @@ pub struct TestWidgetContext {
     ///
     /// [`info_tree`]: WidgetContext::info_tree
     pub info_tree: WidgetInfoTree,
+
+    ///The [`widget_info`] value.
+    ///
+    /// [`widget_info`]: WidgetContext::widget_info
+    pub widget_info: WidgetContextInfo,
 
     /// The [`app_state`] value. Empty by default.
     ///
@@ -380,6 +394,7 @@ pub struct TestWidgetContext {
     /// TODO testable timers.
     pub timers: Timers,
 
+    pub(crate) root_translation_key: crate::render::FrameBindingKey<RenderTransform>,
     receiver: flume::Receiver<crate::app::AppEvent>,
     loop_timer: crate::app::LoopTimer,
 }
@@ -391,7 +406,7 @@ impl Default for TestWidgetContext {
     }
 }
 #[cfg(any(test, doc, feature = "test_util"))]
-use crate::widget_info::{WidgetInfoBuilder, WidgetLayoutInfo, WidgetRenderInfo, WidgetSubscriptions};
+use crate::widget_info::{WidgetBoundsInfo, WidgetInfoBuilder, WidgetRenderInfo, WidgetSubscriptions};
 #[cfg(any(test, doc, feature = "test_util"))]
 impl TestWidgetContext {
     /// Gets a new [`TestWidgetContext`] instance. Panics is another instance is alive in the current thread
@@ -408,6 +423,7 @@ impl TestWidgetContext {
             window_id,
             root_id,
             info_tree: WidgetInfoTree::blank(window_id, root_id),
+            widget_info: WidgetContextInfo::default(),
             app_state: OwnedStateMap::new(),
             window_state: OwnedStateMap::new(),
             widget_state: OwnedStateMap::new(),
@@ -417,6 +433,7 @@ impl TestWidgetContext {
             vars: Vars::instance(sender.clone()),
             updates: Updates::new(sender),
             timers: Timers::new(),
+            root_translation_key: crate::render::FrameBindingKey::new_unique(),
 
             receiver,
             loop_timer: LoopTimer::default(),
@@ -430,6 +447,7 @@ impl TestWidgetContext {
         action(&mut WidgetContext {
             path: &mut WidgetContextPath::new(self.window_id, self.root_id),
             info_tree: &self.info_tree,
+            widget_info: &self.widget_info,
             app_state: &mut self.app_state.0,
             window_state: &mut self.window_state.0,
             widget_state: &mut self.widget_state.0,
@@ -447,6 +465,7 @@ impl TestWidgetContext {
         action(&mut InfoContext {
             path: &mut WidgetContextPath::new(self.window_id, self.root_id),
             info_tree: &self.info_tree,
+            widget_info: &self.widget_info,
             app_state: &self.app_state.0,
             window_state: &self.window_state.0,
             widget_state: &self.widget_state.0,
@@ -458,21 +477,12 @@ impl TestWidgetContext {
     /// Builds a info tree.
     pub fn info_tree<R>(
         &mut self,
-        root_outer_info: WidgetLayoutInfo,
-        root_inner_info: WidgetLayoutInfo,
+        root_bounds_info: WidgetBoundsInfo,
         root_border_info: crate::widget_info::WidgetBorderInfo,
         rendered: WidgetRenderInfo,
         action: impl FnOnce(&mut InfoContext, &mut WidgetInfoBuilder) -> R,
     ) -> (WidgetInfoTree, R) {
-        let mut builder = WidgetInfoBuilder::new(
-            self.window_id,
-            self.root_id,
-            root_outer_info,
-            root_inner_info,
-            root_border_info,
-            rendered,
-            None,
-        );
+        let mut builder = WidgetInfoBuilder::new(self.window_id, self.root_id, root_bounds_info, root_border_info, rendered, None);
         let r = self.info_context(|ctx| action(ctx, &mut builder));
         let (t, _) = builder.finalize();
         (t, r)
@@ -505,6 +515,7 @@ impl TestWidgetContext {
 
             path: &mut WidgetContextPath::new(self.window_id, self.root_id),
             info_tree: &self.info_tree,
+            widget_info: &self.widget_info,
             app_state: &mut self.app_state.0,
             window_state: &mut self.window_state.0,
             widget_state: &mut self.widget_state.0,
@@ -519,6 +530,7 @@ impl TestWidgetContext {
         action(&mut RenderContext {
             path: &mut WidgetContextPath::new(self.window_id, self.root_id),
             info_tree: &self.info_tree,
+            widget_info: &self.widget_info,
             app_state: &self.app_state.0,
             window_state: &self.window_state.0,
             widget_state: &self.widget_state.0,
@@ -582,6 +594,9 @@ pub struct WidgetContext<'a> {
     /// Last build widget info tree of the parent window.
     pub info_tree: &'a WidgetInfoTree,
 
+    /// Current widget's outer, inner, border and render info.
+    pub widget_info: &'a WidgetContextInfo,
+
     /// State that lives for the duration of the application.
     pub app_state: &'a mut StateMap,
 
@@ -619,6 +634,7 @@ impl<'a> WidgetContext<'a> {
     pub fn widget_context<R>(
         &mut self,
         widget_id: WidgetId,
+        widget_info: &WidgetContextInfo,
         widget_state: &mut OwnedStateMap,
         f: impl FnOnce(&mut WidgetContext) -> R,
     ) -> (R, WidgetUpdates) {
@@ -634,6 +650,7 @@ impl<'a> WidgetContext<'a> {
                 path: self.path,
 
                 info_tree: self.info_tree,
+                widget_info,
                 app_state: self.app_state,
                 window_state: self.window_state,
                 widget_state: &mut widget_state.0,
@@ -659,6 +676,7 @@ impl<'a> WidgetContext<'a> {
         InfoContext {
             path: self.path,
             info_tree: self.info_tree,
+            widget_info: self.widget_info,
             app_state: self.app_state,
             window_state: self.window_state,
             widget_state: self.widget_state,
@@ -762,6 +780,9 @@ pub struct LayoutContext<'a> {
     /// Last build widget info tree of the parent window.
     pub info_tree: &'a WidgetInfoTree,
 
+    /// Current widget's outer, inner, border and render info.
+    pub widget_info: &'a WidgetContextInfo,
+
     /// State that lives for the duration of the application.
     pub app_state: &'a mut StateMap,
 
@@ -772,10 +793,6 @@ pub struct LayoutContext<'a> {
     pub widget_state: &'a mut StateMap,
 
     /// State that lives for the duration of the node tree layout update call in the window.
-    ///
-    /// This state lives only for the sequence of two [`UiNode::measure`](crate::UiNode::measure) and [`UiNode::arrange`](crate::UiNode::arrange)
-    /// method calls in all nodes of the window. You can use this to signal nodes that have not participated in the current
-    /// layout update yet, or from `measure` signal `arrange`.
     pub update_state: &'a mut StateMap,
 
     /// Access to variables.
@@ -797,6 +814,49 @@ impl<'a> Deref for LayoutContext<'a> {
     }
 }
 impl<'a> LayoutContext<'a> {
+    /// Runs a function `f` in a layout context that has the new or modified constrains.
+    ///
+    /// The `constrains` closure is called to produce the new constrains, the input is the current constrains.
+    pub fn with_constrains<R>(
+        &mut self,
+        constrains: impl FnOnce(PxConstrains2d) -> PxConstrains2d,
+        f: impl FnOnce(&mut LayoutContext) -> R,
+    ) -> R {
+        f(&mut LayoutContext {
+            metrics: &self.metrics.clone().with_constrains(constrains),
+
+            path: self.path,
+
+            info_tree: self.info_tree,
+            widget_info: self.widget_info,
+            app_state: self.app_state,
+            window_state: self.window_state,
+            widget_state: self.widget_state,
+            update_state: self.update_state,
+
+            vars: self.vars,
+            updates: self.updates,
+        })
+    }
+
+    /// Runs a function `f` in a layout context that has its max size subtracted by `removed` and its final size added by `removed`.
+    ///
+    /// The constrains are only [peeked], this method does not register a layout dependency on the constrains.
+    ///
+    /// [peeked]: LayoutMetrics::peek
+    pub fn with_sub_size(&mut self, removed: PxSize, f: impl FnOnce(&mut LayoutContext) -> PxSize) -> PxSize {
+        self.with_constrains(|c| c.with_less_size(removed), f) + removed
+    }
+
+    /// Runs a function `f` in a layout context that has its max size added by `added` and its final size subtracted by `added`.
+    ///
+    /// The constrains are only [peeked], this method does not register a layout dependency on the constrains.
+    ///
+    /// [peeked]: LayoutMetrics::peek
+    pub fn with_add_size(&mut self, added: PxSize, f: impl FnOnce(&mut LayoutContext) -> PxSize) -> PxSize {
+        self.with_constrains(|c| c.with_more_size(added), f) - added
+    }
+
     /// Runs a function `f` in a layout context that has the new computed font size.
     ///
     /// The `font_size_new` flag indicates if the `font_size` value changed from the previous layout call.
@@ -809,6 +869,7 @@ impl<'a> LayoutContext<'a> {
             path: self.path,
 
             info_tree: self.info_tree,
+            widget_info: self.widget_info,
             app_state: self.app_state,
             window_state: self.window_state,
             widget_state: self.widget_state,
@@ -820,9 +881,14 @@ impl<'a> LayoutContext<'a> {
     }
 
     /// Runs a function `f` in the layout context of a widget.
+    ///
+    /// Returns the closure `f` result and the updates requested by it.
+    ///
+    /// [`render_update`]: Updates::render_update
     pub fn with_widget<R>(
         &mut self,
         widget_id: WidgetId,
+        widget_info: &WidgetContextInfo,
         widget_state: &mut OwnedStateMap,
         f: impl FnOnce(&mut LayoutContext) -> R,
     ) -> (R, WidgetUpdates) {
@@ -840,6 +906,7 @@ impl<'a> LayoutContext<'a> {
                 path: self.path,
 
                 info_tree: self.info_tree,
+                widget_info,
                 app_state: self.app_state,
                 window_state: self.window_state,
                 widget_state: &mut widget_state.0,
@@ -860,6 +927,7 @@ impl<'a> LayoutContext<'a> {
         InfoContext {
             path: self.path,
             info_tree: self.info_tree,
+            widget_info: self.widget_info,
             app_state: self.app_state,
             window_state: self.window_state,
             widget_state: self.widget_state,
@@ -876,6 +944,9 @@ pub struct RenderContext<'a> {
 
     /// Last build widget info tree of the parent window.
     pub info_tree: &'a WidgetInfoTree,
+
+    /// Current widget's outer, inner, border and render info.
+    pub widget_info: &'a WidgetContextInfo,
 
     /// Read-only access to the state that lives for the duration of the application.
     pub app_state: &'a StateMap,
@@ -898,11 +969,18 @@ pub struct RenderContext<'a> {
 }
 impl<'a> RenderContext<'a> {
     /// Runs a function `f` in the render context of a widget.
-    pub fn with_widget<R>(&mut self, widget_id: WidgetId, widget_state: &OwnedStateMap, f: impl FnOnce(&mut RenderContext) -> R) -> R {
+    pub fn with_widget<R>(
+        &mut self,
+        widget_id: WidgetId,
+        widget_info: &WidgetContextInfo,
+        widget_state: &OwnedStateMap,
+        f: impl FnOnce(&mut RenderContext) -> R,
+    ) -> R {
         self.path.push(widget_id);
         let r = f(&mut RenderContext {
             path: self.path,
             info_tree: self.info_tree,
+            widget_info,
             app_state: self.app_state,
             window_state: self.window_state,
             widget_state: &widget_state.0,
@@ -918,6 +996,7 @@ impl<'a> RenderContext<'a> {
         InfoContext {
             path: self.path,
             info_tree: self.info_tree,
+            widget_info: self.widget_info,
             app_state: self.app_state,
             window_state: self.window_state,
             widget_state: self.widget_state,
@@ -934,6 +1013,9 @@ pub struct InfoContext<'a> {
 
     /// Last build widget info tree of the parent window.
     pub info_tree: &'a WidgetInfoTree,
+
+    /// Current widget's outer, inner, border and render info.
+    pub widget_info: &'a WidgetContextInfo,
 
     /// Read-only access to the state that lives for the duration of the application.
     pub app_state: &'a StateMap,
@@ -956,11 +1038,18 @@ pub struct InfoContext<'a> {
 }
 impl<'a> InfoContext<'a> {
     /// Runs a function `f` in the info context of a widget.
-    pub fn with_widget<R>(&mut self, widget_id: WidgetId, widget_state: &OwnedStateMap, f: impl FnOnce(&mut InfoContext) -> R) -> R {
+    pub fn with_widget<R>(
+        &mut self,
+        widget_id: WidgetId,
+        widget_info: &WidgetContextInfo,
+        widget_state: &OwnedStateMap,
+        f: impl FnOnce(&mut InfoContext) -> R,
+    ) -> R {
         self.path.push(widget_id);
         let r = f(&mut InfoContext {
             path: self.path,
             info_tree: self.info_tree,
+            widget_info,
             app_state: self.app_state,
             window_state: self.window_state,
             widget_state: &widget_state.0,
@@ -977,17 +1066,125 @@ impl<'a> InfoContext<'a> {
 /// The [`LayoutContext`] type dereferences to this one.
 #[derive(Debug, Clone)]
 pub struct LayoutMetrics {
+    use_mask: Cell<LayoutMask>,
+
+    constrains: PxConstrains2d,
+    font_size: Px,
+    root_font_size: Px,
+    scale_factor: Factor,
+    viewport_size: PxSize,
+    screen_ppi: f32,
+    diff: LayoutMask,
+}
+impl LayoutMetrics {
+    /// New root [`LayoutMetrics`].
+    ///
+    /// The `font_size` sets both font sizes, the initial PPI is `96.0`, you can use the builder style method and
+    /// [`with_screen_ppi`] to set a different value.
+    ///
+    /// [`with_screen_ppi`]: LayoutMetrics::with_screen_ppi
+    pub fn new(scale_factor: Factor, viewport_size: PxSize, font_size: Px) -> Self {
+        LayoutMetrics {
+            use_mask: Cell::new(LayoutMask::NONE),
+            constrains: PxConstrains2d::new_fill_size(viewport_size),
+            font_size,
+            root_font_size: font_size,
+            scale_factor,
+            viewport_size,
+            screen_ppi: 96.0,
+            diff: LayoutMask::all(),
+        }
+    }
+
+    /// Selects the *width* dimension for 1D metrics.
+    pub fn for_x(&self) -> Layout1dMetrics {
+        Layout1dMetrics {
+            is_width: true,
+            metrics: self,
+        }
+    }
+
+    /// Selects the *height* dimension for 1D metrics.
+    pub fn for_y(&self) -> Layout1dMetrics {
+        Layout1dMetrics {
+            is_width: false,
+            metrics: self,
+        }
+    }
+
+    /// What metrics changed from the last layout in the same context.
+    pub fn diff(&self) -> LayoutMask {
+        self.diff
+    }
+
+    /// What metrics where requested so far.
+    pub fn metrics_used(&self) -> LayoutMask {
+        self.use_mask.get()
+    }
+
+    /// Register that the node layout depends on these contextual values.
+    ///
+    /// Note that the value methods already register use when they are used.
+    pub fn register_use(&self, mask: LayoutMask) {
+        let m = self.use_mask.get();
+        self.use_mask.set(m | mask);
+    }
+
+    /// Get metrics without registering use.
+    ///
+    /// The `req` closure is called to get a value, then the [`metrics_used`] is undone to the previous state.
+    ///
+    /// [`metrics_used`]: Self::metrics_used
+    pub fn peek<R>(&self, req: impl FnOnce(&Self) -> R) -> R {
+        let m = self.use_mask.get();
+        let r = req(self);
+        self.use_mask.set(m);
+        r
+    }
+
+    /// Current size constrains.
+    pub fn constrains(&self) -> PxConstrains2d {
+        self.register_use(LayoutMask::CONSTRAINS);
+        self.constrains
+    }
+
     /// Current computed font size.
-    pub font_size: Px,
+    pub fn font_size(&self) -> Px {
+        self.register_use(LayoutMask::FONT_SIZE);
+        self.font_size
+    }
 
     /// Computed font size at the root widget.
-    pub root_font_size: Px,
+    pub fn root_font_size(&self) -> Px {
+        self.register_use(LayoutMask::ROOT_FONT_SIZE);
+        self.root_font_size
+    }
 
     /// Pixel scale factor.
-    pub scale_factor: Factor,
+    pub fn scale_factor(&self) -> Factor {
+        self.register_use(LayoutMask::SCALE_FACTOR);
+        self.scale_factor
+    }
 
     /// Size of the window content.
-    pub viewport_size: PxSize,
+    pub fn viewport_size(&self) -> PxSize {
+        self.register_use(LayoutMask::VIEWPORT_SIZE);
+        self.viewport_size
+    }
+
+    /// Smallest dimension of the [`viewport_size`].
+    ///
+    /// [`viewport_size`]: Self::viewport_size
+    pub fn viewport_min(&self) -> Px {
+        self.viewport_size().width.min(self.viewport_size.height)
+    }
+
+    /// Largest dimension of the [`viewport_size`].
+    ///
+    /// [`viewport_size`]: Self::viewport_size
+    pub fn viewport_max(&self) -> Px {
+        self.viewport_size().width.max(self.viewport_size.height)
+    }
 
     /// The current screen "pixels-per-inch" resolution.
     ///
@@ -1001,83 +1198,16 @@ pub struct LayoutMetrics {
     ///
     /// [`Monitors`]: crate::window::Monitors
     /// [`scale_factor`]: LayoutMetrics::scale_factor
-    pub screen_ppi: f32,
-
-    /// What metrics changed from the last layout in the same context.
-    pub diff: LayoutMask,
-}
-impl LayoutMetrics {
-    /// New root [`LayoutMetrics`].
-    ///
-    /// The `font_size` sets both font sizes, the initial PPI is `96.0`, you can use the builder style method and
-    /// [`with_screen_ppi`] to set a different value.
-    ///
-    /// [`with_screen_ppi`]: LayoutMetrics::with_screen_ppi
-    pub fn new(scale_factor: Factor, viewport_size: PxSize, font_size: Px) -> Self {
-        LayoutMetrics {
-            font_size,
-            root_font_size: font_size,
-            scale_factor,
-            viewport_size,
-            screen_ppi: 96.0,
-            diff: LayoutMask::all(),
-        }
+    pub fn screen_ppi(&self) -> f32 {
+        self.screen_ppi
     }
 
-    /// Smallest dimension of the [`viewport_size`].
+    /// Sets the [`constrains`] to the value returned by `constrains`. The closure input is the current constrains.
     ///
-    /// [`viewport_size`]: Self::viewport_size
-    pub fn viewport_min(&self) -> Px {
-        self.viewport_size.width.min(self.viewport_size.height)
-    }
-
-    /// Largest dimension of the [`viewport_size`].
-    ///
-    /// [`viewport_size`]: Self::viewport_size
-    pub fn viewport_max(&self) -> Px {
-        self.viewport_size.width.max(self.viewport_size.height)
-    }
-
-    /// Computes the full diff mask of changes in a [`UiNode::measure`].
-    ///
-    /// Note that the node owner must store the previous available size, this
-    /// method updates the `prev_available_size` to the new `available_size` after the comparison.
-    ///
-    /// [`UiNode::measure`]: crate::UiNode::measure
-    pub fn measure_diff(
-        &self,
-        prev_available_size: &mut Option<AvailableSize>,
-        available_size: AvailableSize,
-        default_is_new: bool,
-    ) -> LayoutMask {
-        self.node_diff(prev_available_size, available_size, default_is_new)
-    }
-
-    /// Computes the full diff mask of changes in a [`UiNode::arrange`].
-    ///
-    /// Note that the node owner must store the previous final size, this method
-    /// updates the `prev_final_size` to the new `final_size` after the comparison.
-    ///
-    /// [`UiNode::arrange`]: crate::UiNode::arrange
-    pub fn arrange_diff(&self, prev_final_size: &mut Option<PxSize>, final_size: PxSize, default_is_new: bool) -> LayoutMask {
-        self.node_diff(prev_final_size, final_size, default_is_new)
-    }
-
-    fn node_diff<A: PartialEq>(&self, prev: &mut Option<A>, new: A, default_is_new: bool) -> LayoutMask {
-        let mut diff = self.diff;
-        if let Some(p) = prev {
-            if *p != new {
-                diff |= LayoutMask::AVAILABLE_SIZE;
-                *p = new;
-            }
-        } else {
-            diff |= LayoutMask::AVAILABLE_SIZE;
-            *prev = Some(new);
-        }
-        if default_is_new {
-            diff |= LayoutMask::DEFAULT_VALUE;
-        }
-        diff
+    /// [`constrains`]: Self::constrains
+    pub fn with_constrains(mut self, constrains: impl FnOnce(PxConstrains2d) -> PxConstrains2d) -> Self {
+        self.constrains = constrains(self.constrains);
+        self
     }
 
     /// Sets the [`font_size`].
@@ -1110,6 +1240,49 @@ impl LayoutMetrics {
     pub fn with_diff(mut self, diff: LayoutMask) -> Self {
         self.diff = diff;
         self
+    }
+
+    /// Sets the [`metrics_used`].
+    ///
+    /// [`metrics_used`]: Self::metrics_used
+    pub fn with_use(mut self, use_mask: LayoutMask) -> Self {
+        self.use_mask = Cell::new(use_mask);
+        self
+    }
+}
+
+/// Represents a [`LayoutMetrics`] with a selected dimension.
+#[derive(Clone, Copy, Debug)]
+pub struct Layout1dMetrics<'m> {
+    /// If the selected dimension is *width*, if not it is *height*.
+    pub is_width: bool,
+    /// The full metrics.
+    pub metrics: &'m LayoutMetrics,
+}
+impl<'m> Layout1dMetrics<'m> {
+    /// Length constrains in the selected dimension.
+    pub fn constrains(&self) -> PxConstrains {
+        if self.is_width {
+            self.metrics.constrains.x
+        } else {
+            self.metrics.constrains.y
+        }
+    }
+
+    /// Viewport length in the selected dimension.
+    pub fn viewport_length(&self) -> Px {
+        if self.is_width {
+            self.metrics.viewport_size().width
+        } else {
+            self.metrics.viewport_size().height
+        }
+    }
+}
+impl<'m> Deref for Layout1dMetrics<'m> {
+    type Target = LayoutMetrics;
+
+    fn deref(&self) -> &Self::Target {
+        &*self.metrics
     }
 }
 

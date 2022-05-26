@@ -3,8 +3,8 @@ use std::{fmt, ops};
 use crate::{context::LayoutMetrics, impl_from_and_into_var};
 
 use super::{
-    impl_length_comp_conversions, translate, AvailableSize, Dip, DipVector, Factor, Factor2d, FactorPercent, LayoutMask, Length,
-    LengthUnits, Point, Px, PxVector, Size, Transform,
+    impl_length_comp_conversions, translate, Dip, DipVector, Factor, Factor2d, FactorPercent, LayoutMask, Length, LengthUnits, Point, Px,
+    PxVector, Size, Transform,
 };
 
 /// 2D vector in [`Length`] units.
@@ -84,16 +84,16 @@ impl Vector {
     }
 
     /// Compute the vector in a layout context.
-    pub fn to_layout(&self, ctx: &LayoutMetrics, available_size: AvailableSize, default_value: PxVector) -> PxVector {
+    pub fn layout(&self, ctx: &LayoutMetrics, mut default_value: impl FnMut(&LayoutMetrics) -> PxVector) -> PxVector {
         PxVector::new(
-            self.x.to_layout(ctx, available_size.width, default_value.x),
-            self.y.to_layout(ctx, available_size.height, default_value.y),
+            self.x.layout(ctx.for_x(), |ctx| default_value(ctx.metrics).x),
+            self.y.layout(ctx.for_y(), |ctx| default_value(ctx.metrics).y),
         )
     }
 
-    /// Compute a [`LayoutMask`] that flags all contextual values that affect the result of [`to_layout`].
+    /// Compute a [`LayoutMask`] that flags all contextual values that affect the result of [`layout`].
     ///
-    /// [`to_layout`]: Self::to_layout
+    /// [`layout`]: Self::layout
     pub fn affect_mask(&self) -> LayoutMask {
         self.x.affect_mask() | self.y.affect_mask()
     }

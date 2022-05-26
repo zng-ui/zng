@@ -80,6 +80,7 @@ fn image() -> impl Widget {
         });
 
         content = text! {
+            align = Align::CENTER;
             text = "Hello World!";
             font_size = 72;
             font_family = ["Consolas", "monospace"];

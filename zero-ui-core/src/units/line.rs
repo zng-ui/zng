@@ -2,7 +2,7 @@ use std::fmt;
 
 use crate::{context::LayoutMetrics, impl_from_and_into_var};
 
-use super::{AvailableSize, LayoutMask, Length, Point, Px, PxPoint, PxRect, PxToWr};
+use super::{LayoutMask, Length, Point, Px, PxPoint, PxRect, PxToWr};
 
 /// 2D line in [`Length`] units.
 #[derive(Clone, Default, PartialEq)]
@@ -114,16 +114,16 @@ impl Line {
     }
 
     /// Compute the line in a layout context.
-    pub fn to_layout(&self, ctx: &LayoutMetrics, available_size: AvailableSize, default_value: PxLine) -> PxLine {
+    pub fn layout(&self, ctx: &LayoutMetrics, mut default_value: impl FnMut(&LayoutMetrics) -> PxLine) -> PxLine {
         PxLine {
-            start: self.start.to_layout(ctx, available_size, default_value.start),
-            end: self.end.to_layout(ctx, available_size, default_value.end),
+            start: self.start.layout(ctx, |ctx| default_value(ctx).start),
+            end: self.end.layout(ctx, |ctx| default_value(ctx).end),
         }
     }
 
-    /// Compute a [`LayoutMask`] that flags all contextual values that affect the result of [`to_layout`].
+    /// Compute a [`LayoutMask`] that flags all contextual values that affect the result of [`layout`].
     ///
-    /// [`to_layout`]: Self::to_layout
+    /// [`layout`]: Self::layout
     pub fn affect_mask(&self) -> LayoutMask {
         self.start.affect_mask() | self.end.affect_mask()
     }

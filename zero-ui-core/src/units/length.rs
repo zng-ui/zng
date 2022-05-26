@@ -1,7 +1,7 @@
-use super::{about_eq, AvailablePx, Dip, DipToPx, Factor, FactorPercent, FactorUnits, Px, EPSILON, EPSILON_100};
+use super::{about_eq, Dip, DipToPx, Factor, FactorPercent, FactorUnits, Px, EPSILON, EPSILON_100};
 use std::{fmt, mem, ops};
 
-use crate::{context::LayoutMetrics, impl_from_and_into_var};
+use crate::{context::Layout1dMetrics, impl_from_and_into_var};
 
 /// 1D length units.
 ///
@@ -26,7 +26,7 @@ pub enum Length {
     Px(Px),
     /// The exact length in font points.
     Pt(f32),
-    /// Relative to the available size.
+    /// Relative to the fill length.
     Relative(Factor),
     /// Relative to the font-size of the widget.
     Em(Factor),
@@ -367,27 +367,42 @@ impl Length {
     }
 
     /// Compute the length at a context.
-    pub fn to_layout(&self, ctx: &LayoutMetrics, available_size: AvailablePx, default_value: Px) -> Px {
+    ///
+    /// Note that the result is not clamped by the [constrains], they are only used to compute the `Relative` value.
+    ///
+    /// The `default_value` closure is evaluated for every [`Default`] value is request, it can be more then once for [`Expr`] lengths,
+    /// the closure value must not be expensive to produce, we only use a closure to avoid flagging layout dependencies in values that
+    /// are only used for [`Default`].
+    ///
+    /// [constrains]: Layout1dMetrics::constrains
+    /// [`Default`]: Length::Default
+    /// [`Expr`]: Length::Expr
+    pub fn layout(&self, ctx: Layout1dMetrics, default_value: impl FnMut(Layout1dMetrics) -> Px) -> Px {
+        #[cfg(dyn_closure)]
+        let default_value: Box<dyn FnMut(Layout1dMetrics) -> Px> = Box::new(default_value);
+        self.layout_impl(ctx, default_value)
+    }
+    fn layout_impl(&self, ctx: Layout1dMetrics, mut default_value: impl FnMut(Layout1dMetrics) -> Px) -> Px {
         use Length::*;
         match self {
-            Default => default_value,
-            Dip(l) => l.to_px(ctx.scale_factor.0),
+            Default => default_value(ctx),
+            Dip(l) => l.to_px(ctx.scale_factor().0),
             Px(l) => *l,
-            Pt(l) => Self::pt_to_px(*l, ctx.scale_factor),
-            Relative(f) => available_size.to_px() * f.0,
-            Em(f) => ctx.font_size * f.0,
-            RootEm(f) => ctx.root_font_size * f.0,
-            ViewportWidth(p) => ctx.viewport_size.width * *p,
-            ViewportHeight(p) => ctx.viewport_size.height * *p,
+            Pt(l) => Self::pt_to_px(*l, ctx.scale_factor()),
+            Relative(f) => ctx.constrains().fill() * f.0,
+            Em(f) => ctx.font_size() * f.0,
+            RootEm(f) => ctx.root_font_size() * f.0,
+            ViewportWidth(p) => ctx.viewport_size().width * *p,
+            ViewportHeight(p) => ctx.viewport_size().height * *p,
             ViewportMin(p) => ctx.viewport_min() * *p,
             ViewportMax(p) => ctx.viewport_max() * *p,
-            Expr(e) => e.to_layout(ctx, available_size, default_value),
+            Expr(e) => e.layout(ctx, default_value),
         }
     }
 
-    /// Compute a [`LayoutMask`] that flags all contextual values that affect the result of [`to_layout`].
+    /// Compute a [`LayoutMask`] that flags all contextual values that affect the result of [`layout`].
     ///
-    /// [`to_layout`]: Self::to_layout
+    /// [`layout`]: Self::layout
     pub fn affect_mask(&self) -> LayoutMask {
         use Length::*;
         match self {
@@ -395,7 +410,7 @@ impl Length {
             Dip(_) => LayoutMask::SCALE_FACTOR,
             Px(_) => LayoutMask::NONE,
             Pt(_) => LayoutMask::SCALE_FACTOR,
-            Relative(_) => LayoutMask::AVAILABLE_SIZE,
+            Relative(_) => LayoutMask::CONSTRAINS,
             Em(_) => LayoutMask::FONT_SIZE,
             RootEm(_) => LayoutMask::ROOT_FONT_SIZE,
             ViewportWidth(_) => LayoutMask::VIEWPORT_SIZE,
@@ -408,10 +423,10 @@ impl Length {
 
     /// If this length is zero in any finite layout context.
     ///
-    /// Returns `None` if the value depends on the input to [`to_layout`].
+    /// Returns `None` if the value depends on the input to [`layout`].
     ///
     /// [`Expr`]: Length::Expr
-    /// [`to_layout`]: Length::to_layout
+    /// [`layout`]: Length::layout
     pub fn is_zero(&self) -> Option<bool> {
         use Length::*;
         match self {
@@ -461,15 +476,15 @@ impl Length {
 }
 
 bitflags! {
-    /// Mask of values that can affect the [`Length::to_layout`] operation.
+    /// Mask of values that can affect the [`Length::layout`] operation.
     pub struct LayoutMask: u32 {
         /// Represents no value dependency or change.
         const NONE = 0;
 
         /// The `default_value`.
         const DEFAULT_VALUE = 1 << 31;
-        /// The `available_size`.
-        const AVAILABLE_SIZE = 1 << 30;
+        /// The `constrains`.
+        const CONSTRAINS = 1 << 30;
 
         /// The [`LayoutMetrics::font_size`].
         const FONT_SIZE = 1;
@@ -513,32 +528,32 @@ pub enum LengthExpr {
 }
 impl LengthExpr {
     /// Evaluate the expression at a layout context.
-    pub fn to_layout(&self, ctx: &LayoutMetrics, available_size: AvailablePx, default_value: Px) -> Px {
+    pub fn layout(&self, ctx: Layout1dMetrics, mut default_value: impl FnMut(Layout1dMetrics) -> Px) -> Px {
         use LengthExpr::*;
         match self {
-            Add(a, b) => a.to_layout(ctx, available_size, default_value) + b.to_layout(ctx, available_size, default_value),
-            Sub(a, b) => a.to_layout(ctx, available_size, default_value) - b.to_layout(ctx, available_size, default_value),
-            Mul(l, s) => l.to_layout(ctx, available_size, default_value) * s.0,
-            Div(l, s) => l.to_layout(ctx, available_size, default_value) / s.0,
+            Add(a, b) => a.layout(ctx, &mut default_value) + b.layout(ctx, default_value),
+            Sub(a, b) => a.layout(ctx, &mut default_value) - b.layout(ctx, default_value),
+            Mul(l, s) => l.layout(ctx, default_value) * s.0,
+            Div(l, s) => l.layout(ctx, default_value) / s.0,
             Max(a, b) => {
-                let a = a.to_layout(ctx, available_size, default_value);
-                let b = b.to_layout(ctx, available_size, default_value);
+                let a = a.layout(ctx, &mut default_value);
+                let b = b.layout(ctx, default_value);
                 a.max(b)
             }
             Min(a, b) => {
-                let a = a.to_layout(ctx, available_size, default_value);
-                let b = b.to_layout(ctx, available_size, default_value);
+                let a = a.layout(ctx, &mut default_value);
+                let b = b.layout(ctx, default_value);
                 a.min(b)
             }
-            Abs(e) => e.to_layout(ctx, available_size, default_value).abs(),
-            Neg(e) => -e.to_layout(ctx, available_size, default_value),
+            Abs(e) => e.layout(ctx, &mut default_value).abs(),
+            Neg(e) => -e.layout(ctx, default_value),
         }
     }
 
     /// Compute a [`LayoutMask`] that flags all contextual values that affect the result
-    /// of [`to_layout`] called for this length.
+    /// of [`layout`] called for this length.
     ///
-    /// [`to_layout`]: Self::to_layout
+    /// [`layout`]: Self::layout
     pub fn affect_mask(&self) -> LayoutMask {
         use LengthExpr::*;
         match self {
@@ -615,8 +630,8 @@ impl fmt::Display for LengthExpr {
 /// // other length units not provided by `LengthUnits`:
 ///
 /// let exact_size: Length = 500.into();
-/// let available_size: Length = 100.pct().into();// FactorUnits
-/// let available_size: Length = 1.0.fct().into();// FactorUnits
+/// let relative_size: Length = 100.pct().into();// FactorUnits
+/// let relative_size: Length = 1.0.fct().into();// FactorUnits
 /// ```
 pub trait LengthUnits {
     /// Exact size in device independent pixels.

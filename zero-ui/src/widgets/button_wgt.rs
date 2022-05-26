@@ -53,6 +53,9 @@ pub mod button {
         /// Content padding.
         padding = theme::PaddingVar;
 
+        /// Content align.
+        content_align = theme::ContentAlignVar;
+
         /// When the pointer device is over this button.
         when self.is_cap_hovered {
             background_color = theme::hovered::BackgroundColorVar;
@@ -129,6 +132,13 @@ pub mod theme {
         ///
         /// [`button::theme::text_color`]: fn@text_color
         pub struct TextColorVar: Rgba = colors::WHITE;
+
+        /// Button content align.
+        ///
+        /// Use the [`button::theme::content_align`] property to set.
+        ///
+        /// [`button::theme::content_align`]: fn@content_align
+        pub struct ContentAlignVar: Align = Align::CENTER;
     }
 
     /// Sets the [`BackgroundColorVar`] that affects all buttons inside the widget.
@@ -160,6 +170,12 @@ pub mod theme {
     #[property(context, default(TextColorVar))]
     pub fn text_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode {
         with_context_var(child, TextColorVar, color)
+    }
+
+    /// Sets the [`ContentAlignVar`] that affects all texts inside buttons inside the widget.
+    #[property(context, default(ContentAlignVar))]
+    pub fn content_align(child: impl UiNode, align: impl IntoVar<Align>) -> impl UiNode {
+        with_context_var(child, ContentAlignVar, align)
     }
 
     /// Pointer hovered values.

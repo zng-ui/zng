@@ -78,19 +78,12 @@ pub mod switch {
             subscriptions.var(ctx, &self.index);
         }
 
-        fn measure(&mut self, ctx: &mut LayoutContext, available_size: AvailableSize) -> PxSize {
+        fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
             let index = self.index.copy(ctx);
             if index < self.options.len() {
-                self.options.widget_measure(index, ctx, available_size)
+                self.options.widget_layout(index, ctx, wl)
             } else {
                 PxSize::zero()
-            }
-        }
-
-        fn arrange(&mut self, ctx: &mut LayoutContext, widget_layout: &mut WidgetLayout, final_size: PxSize) {
-            let index = self.index.copy(ctx);
-            if index < self.options.len() {
-                self.options.widget_arrange(index, ctx, widget_layout, final_size)
             }
         }
 
@@ -126,7 +119,6 @@ pub mod switch {
     }
 
     fn new_child(index: impl Var<usize>, options: impl UiNodeList) -> impl UiNode {
-        let child = self::new_node(index, options);
-        implicit_base::nodes::leaf_transform(child)
+        self::new_node(index, options)
     }
 }

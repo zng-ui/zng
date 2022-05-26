@@ -235,9 +235,9 @@ impl UpdatesTrace {
         tracing::trace_span!(target: UpdatesTrace::UPDATES_TARGET, "new_fn", name = %new_fn, %node_mtd).entered()
     }
 
-    /// Opens a custom tag span.
-    pub fn custom_span(tag: &str, node_mtd: &'static str) -> tracing::span::EnteredSpan {
-        tracing::trace_span!(target: UpdatesTrace::UPDATES_TARGET, "tag", %tag, %node_mtd).entered()
+    /// Opens a custom named span.
+    pub fn custom_span(name: &str, node_mtd: &'static str) -> tracing::span::EnteredSpan {
+        tracing::trace_span!(target: UpdatesTrace::UPDATES_TARGET, "tag", %name, %node_mtd).entered()
     }
 
     /// Log a direct update request.

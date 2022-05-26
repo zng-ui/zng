@@ -1,6 +1,3 @@
-#[allow(unused_imports)] // nightly
-use retain_mut::RetainMut;
-
 use std::{
     cell::{Cell, RefCell},
     mem,

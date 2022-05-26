@@ -9,6 +9,7 @@ fn main() {
         window! {
             title = "Hit-Test Example";
 
+            content_align = Align::CENTER;
             content = h_stack! {
                 spacing = 14;
                 items = widgets![

@@ -11,10 +11,9 @@ use crate::{
     render::{FrameBuilder, FrameId, FrameUpdate},
     ui_list::UiNodeVec,
     units::*,
-    widget_base::implicit_base,
-    widget_info::{UpdateMask, WidgetBorderInfo, WidgetInfoBuilder, WidgetLayoutInfo, WidgetRenderInfo, WidgetSubscriptions},
+    widget_info::{UpdateMask, WidgetBorderInfo, WidgetBoundsInfo, WidgetInfoBuilder, WidgetRenderInfo, WidgetSubscriptions},
     window::WindowId,
-    UiNode, UiNodeList, Widget, WidgetId,
+    UiNode, UiNodeList, Widget,
 };
 
 #[test]
@@ -90,19 +89,18 @@ pub fn default_delegate_iter() {
     })
 }
 fn test_trace(node: impl UiNode) {
-    let mut wgt = implicit_base::new(node, WidgetId::new_unique());
+    let mut wgt = util::test_wgt(node);
     let mut ctx = TestWidgetContext::new();
 
     wgt.test_init(&mut ctx);
     assert_only_traced!(wgt.state(), "init");
 
-    let l_size = AvailableSize::new(1000.into(), 800.into());
+    let l_size = PxSize::new(1000.into(), 800.into());
     let window_id = WindowId::new_unique();
     let mut info = WidgetInfoBuilder::new(
         window_id,
         ctx.root_id,
-        WidgetLayoutInfo::from_size(l_size.to_px()),
-        WidgetLayoutInfo::from_size(l_size.to_px()),
+        WidgetBoundsInfo::new_size(l_size, l_size),
         WidgetBorderInfo::new(),
         WidgetRenderInfo::new(),
         None,
@@ -118,11 +116,8 @@ fn test_trace(node: impl UiNode) {
     wgt.test_update(&mut ctx);
     assert_only_traced!(wgt.state(), "update");
 
-    wgt.test_measure(&mut ctx, l_size);
-    assert_only_traced!(wgt.state(), "measure");
-
-    wgt.test_arrange(&mut ctx, l_size.to_px());
-    assert_only_traced!(wgt.state(), "arrange");
+    wgt.test_layout(&mut ctx, PxConstrains2d::new_bounded_size(l_size).into());
+    assert_only_traced!(wgt.state(), "layout");
 
     let mut frame = FrameBuilder::new_renderless(FrameId::INVALID, ctx.root_id, 1.0.fct(), Default::default(), None);
     wgt.test_render(&mut ctx, &mut frame);
@@ -131,7 +126,7 @@ fn test_trace(node: impl UiNode) {
     TraceNode::notify_render_update(&mut wgt, &mut ctx);
     assert_only_traced!(wgt.state(), "event");
 
-    let mut update = FrameUpdate::new(FrameId::INVALID, None, RenderColor::BLACK, None);
+    let mut update = FrameUpdate::new(FrameId::INVALID, ctx.root_id, None, RenderColor::BLACK, None);
     wgt.test_render_update(&mut ctx, &mut update);
     assert_only_traced!(wgt.state(), "render_update");
 
@@ -163,7 +158,7 @@ pub fn allow_missing_delegate() {
     }
 
     fn test(node: impl UiNode) {
-        let mut wgt = implicit_base::new(node, WidgetId::new_unique());
+        let mut wgt = util::test_wgt(node);
         let mut ctx = TestWidgetContext::new();
 
         wgt.test_init(&mut ctx);
@@ -189,7 +184,7 @@ pub fn default_no_child() {
     #[impl_ui_node(none)]
     impl UiNode for Node {}
 
-    let mut wgt = implicit_base::new(Node, WidgetId::new_unique());
+    let mut wgt = util::test_wgt(Node);
     let mut ctx = TestWidgetContext::new();
 
     wgt.test_init(&mut ctx);
@@ -211,18 +206,18 @@ pub fn default_no_child() {
 
     wgt.test_init(&mut ctx);
 
-    let available_size = AvailableSize::new(1000.into(), 800.into());
+    // we expect default to fill or collapsed depending on the
+    let constrains = PxConstrains2d::new_unbounded()
+        .with_min(Px(1), Px(8))
+        .with_max(Px(100), Px(800))
+        .with_fill(true, true);
 
-    // we expect default to fill available space and collapse in infinite spaces.
-    let desired_size = wgt.test_measure(&mut ctx, available_size);
-    assert_eq!(desired_size, available_size.to_px());
+    let desired_size = wgt.test_layout(&mut ctx, constrains.into());
+    assert_eq!(desired_size, constrains.max_size().unwrap());
 
-    let available_size = AvailableSize::new(AvailablePx::Infinite, AvailablePx::Infinite);
-    let desired_size = wgt.test_measure(&mut ctx, available_size);
-    assert_eq!(desired_size, PxSize::zero());
-
-    // arrange does nothing, not really anything to test.
-    wgt.test_arrange(&mut ctx, desired_size);
+    let constrains = constrains.with_fill(false, false);
+    let desired_size = wgt.test_layout(&mut ctx, constrains.into());
+    assert_eq!(desired_size, constrains.min_size());
 
     // we expect default to not render anything (except a hit-rect for the window).
     let window_id = WindowId::new_unique();
@@ -231,8 +226,7 @@ pub fn default_no_child() {
     let mut info = WidgetInfoBuilder::new(
         window_id,
         ctx.root_id,
-        WidgetLayoutInfo::from_size(desired_size),
-        WidgetLayoutInfo::from_size(desired_size),
+        WidgetBoundsInfo::new_size(desired_size, desired_size),
         WidgetBorderInfo::new(),
         root_rendered.clone(),
         None,
@@ -254,10 +248,10 @@ pub fn default_no_child() {
     let (_, _) = frame.finalize(&root_rendered);
 
     // and not update render.
-    let mut update = FrameUpdate::new(FrameId::INVALID, None, RenderColor::BLACK, None);
+    let mut update = FrameUpdate::new(FrameId::INVALID, ctx.root_id, None, RenderColor::BLACK, None);
     wgt.test_render_update(&mut ctx, &mut update);
     let (update, _) = update.finalize();
-    assert!(update.bindings.transforms.is_empty());
+    assert!(!update.bindings.transforms.is_empty());
     assert!(update.bindings.floats.is_empty());
     assert!(update.bindings.colors.is_empty());
     assert!(update.scrolls.is_empty());
@@ -273,6 +267,7 @@ mod util {
         render::{FrameBuilder, FrameUpdate},
         state_key,
         units::*,
+        widget_base::implicit_base,
         widget_info::{EventMask, UpdateMask, WidgetInfoBuilder, WidgetLayout, WidgetSubscriptions},
         UiNode, Widget,
     };
@@ -372,13 +367,9 @@ mod util {
             }
         }
 
-        fn measure(&mut self, _: &mut LayoutContext, _: AvailableSize) -> PxSize {
-            self.trace("measure");
+        fn layout(&mut self, _: &mut LayoutContext, _: &mut WidgetLayout) -> PxSize {
+            self.trace("layout");
             PxSize::zero()
-        }
-
-        fn arrange(&mut self, _: &mut LayoutContext, _: &mut WidgetLayout, _: PxSize) {
-            self.trace("arrange");
         }
 
         fn render(&self, _: &mut RenderContext, _: &mut FrameBuilder) {
@@ -402,5 +393,10 @@ mod util {
 
     event! {
         RenderUpdateEvent: RenderUpdateArgs;
+    }
+
+    pub fn test_wgt(node: impl UiNode) -> impl Widget {
+        let node = implicit_base::nodes::inner(node);
+        implicit_base::nodes::widget(node, crate::WidgetId::new_unique())
     }
 }
