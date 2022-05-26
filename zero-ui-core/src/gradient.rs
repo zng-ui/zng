@@ -119,7 +119,7 @@ impl LinearGradientAxis {
             LinearGradientAxis::Line(line) => {
                 line.layout(ctx, |ctx| {
                     // default is 0º
-                    PxLine::new(PxPoint::new(Px(0), ctx.viewport_size().height), PxPoint::zero())
+                    PxLine::new(PxPoint::new(Px(0), ctx.viewport().height), PxPoint::zero())
                 })
             }
         }

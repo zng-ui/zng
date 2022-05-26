@@ -16,6 +16,7 @@ pub fn viewport(child: impl UiNode, mode: impl IntoVar<ScrollMode>) -> impl UiNo
         child: C,
         mode: M,
 
+        viewport_unit: PxSize,
         viewport_size: PxSize,
         content_size: PxSize,
         content_offset: PxVector,
@@ -48,9 +49,17 @@ pub fn viewport(child: impl UiNode, mode: impl IntoVar<ScrollMode>) -> impl UiNo
 
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
             let mode = self.mode.copy(ctx);
+
+            let constrains = ctx.constrains();
+            let viewport_unit = constrains.fill_size();
+            let define_vp_unit = *DefineViewportUnitVar::get(ctx) // requested
+                && viewport_unit.width > Px(0) // and has fill-size
+                && viewport_unit.height > Px(0)
+                && constrains.max_size() == Some(viewport_unit); // that is not just min size.
+
             let ct_size = ctx.with_constrains(
                 |mut c| {
-                    c = c.with_min_size(c.fill_size());
+                    c = c.with_min_size(viewport_unit);
                     if mode.contains(ScrollMode::VERTICAL) {
                         c = c.with_unbounded_y();
                     }
@@ -59,10 +68,19 @@ pub fn viewport(child: impl UiNode, mode: impl IntoVar<ScrollMode>) -> impl UiNo
                     }
                     c
                 },
-                |ctx| self.child.layout(ctx, wl),
+                |ctx| {
+                    if define_vp_unit {
+                        ctx.with_viewport(viewport_unit, self.viewport_unit != viewport_unit, |ctx| {
+                            self.viewport_unit = viewport_unit;
+                            self.child.layout(ctx, wl)
+                        })
+                    } else {
+                        self.child.layout(ctx, wl)
+                    }
+                },
             );
 
-            let viewport_size = ctx.constrains().fill_size_or(ct_size);
+            let viewport_size = constrains.fill_size_or(ct_size);
             if self.viewport_size != viewport_size {
                 self.viewport_size = viewport_size;
                 ScrollViewportSizeVar::set(ctx, viewport_size).unwrap();
@@ -124,6 +142,7 @@ pub fn viewport(child: impl UiNode, mode: impl IntoVar<ScrollMode>) -> impl UiNo
         scroll_id: ScrollId::new_unique(),
         mode: mode.into_var(),
         viewport_size: PxSize::zero(),
+        viewport_unit: PxSize::zero(),
         content_size: PxSize::zero(),
         content_offset: PxVector::zero(),
         info: ScrollableInfo::default(),

@@ -93,6 +93,14 @@ pub mod scrollable {
 
         /// Smooth scrolling configuration.
         smooth_scrolling;
+
+        /// If the viewport size is used as the [`LayoutMetrics::viewport`] for the scrollable content.
+        ///
+        /// Note that this is only applied if the viewport size can be computed before the content size and is non-zero in both dimensions,
+        /// this is the case in the normal usage where the scrollable fills the parent or when the scrollable has an exact size.
+        ///
+        /// This is enabled by default.
+        define_viewport_unit;
     }
 
     fn new_child(content: impl UiNode) -> impl UiNode {

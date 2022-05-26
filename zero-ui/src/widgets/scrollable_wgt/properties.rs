@@ -55,6 +55,11 @@ context_var! {
 
     /// Smooth scrolling config for an scrollable widget.
     pub struct SmoothScrollingVar: SmoothScrolling = SmoothScrolling::default();
+
+    /// If an scrollable widget defines its viewport size as the [`LayoutMetrics::viewport`] for the scrollable content.
+    ///
+    /// This is `true` by default.
+    pub struct DefineViewportUnitVar: bool = true;
 }
 
 fn default_scrollbar() -> ViewGenerator<ScrollBarArgs> {
@@ -102,7 +107,7 @@ pub fn scrollbar_view(child: impl UiNode, generator: impl IntoVar<ViewGenerator<
 ///
 /// [`ScrollUpCommand`]: crate::widgets::scrollable::commands::ScrollUpCommand
 /// [`ScrollDownCommand`]: crate::widgets::scrollable::commands::ScrollDownCommand
-#[property(context, default(VerticalLineUnitVar::default_value()))]
+#[property(context, default(VerticalLineUnitVar))]
 pub fn v_line_unit(child: impl UiNode, unit: impl IntoVar<Length>) -> impl UiNode {
     with_context_var(child, VerticalLineUnitVar, unit)
 }
@@ -113,7 +118,7 @@ pub fn v_line_unit(child: impl UiNode, unit: impl IntoVar<Length>) -> impl UiNod
 ///
 /// [`ScrollLeftCommand`]: crate::widgets::scrollable::commands::ScrollLeftCommand
 /// [`ScrollRightCommand`]: crate::widgets::scrollable::commands::ScrollRightCommand
-#[property(context, default(HorizontalLineUnitVar::default_value()))]
+#[property(context, default(HorizontalLineUnitVar))]
 pub fn h_line_unit(child: impl UiNode, unit: impl IntoVar<Length>) -> impl UiNode {
     with_context_var(child, HorizontalLineUnitVar, unit)
 }
@@ -124,14 +129,14 @@ pub fn h_line_unit(child: impl UiNode, unit: impl IntoVar<Length>) -> impl UiNod
 ///
 /// [`h_line_unit`]: fn@h_line_unit
 /// [`v_line_unit`]: fn@v_line_unit
-#[property(context, default(HorizontalLineUnitVar::default_value(), VerticalLineUnitVar::default_value()))]
+#[property(context, default(HorizontalLineUnitVar, VerticalLineUnitVar))]
 pub fn line_units(child: impl UiNode, horizontal: impl IntoVar<Length>, vertical: impl IntoVar<Length>) -> impl UiNode {
     let child = h_line_unit(child, horizontal);
     v_line_unit(child, vertical)
 }
 
 /// Scroll unit multiplier used when alternate scrolling.
-#[property(context, default(AltFactorVar::default_value()))]
+#[property(context, default(AltFactorVar))]
 pub fn alt_factor(child: impl UiNode, factor: impl IntoVar<Factor>) -> impl UiNode {
     with_context_var(child, AltFactorVar, factor)
 }
@@ -142,7 +147,7 @@ pub fn alt_factor(child: impl UiNode, factor: impl IntoVar<Factor>) -> impl UiNo
 ///
 /// [`PageUpCommand`]: crate::widgets::scrollable::commands::PageUpCommand
 /// [`PageDownCommand`]: crate::widgets::scrollable::commands::PageDownCommand
-#[property(context, default(VerticalPageUnitVar::default_value()))]
+#[property(context, default(VerticalPageUnitVar))]
 pub fn v_page_unit(child: impl UiNode, unit: impl IntoVar<Length>) -> impl UiNode {
     with_context_var(child, VerticalPageUnitVar, unit)
 }
@@ -153,7 +158,7 @@ pub fn v_page_unit(child: impl UiNode, unit: impl IntoVar<Length>) -> impl UiNod
 ///
 /// [`PageLeftCommand`]: crate::widgets::scrollable::commands::PageLeftCommand
 /// [`PageRightCommand`]: crate::widgets::scrollable::commands::PageRightCommand
-#[property(context, default(HorizontalPageUnitVar::default_value()))]
+#[property(context, default(HorizontalPageUnitVar))]
 pub fn h_page_unit(child: impl UiNode, unit: impl IntoVar<Length>) -> impl UiNode {
     with_context_var(child, HorizontalPageUnitVar, unit)
 }
@@ -164,16 +169,22 @@ pub fn h_page_unit(child: impl UiNode, unit: impl IntoVar<Length>) -> impl UiNod
 ///
 /// [`h_page_unit`]: fn@h_page_unit
 /// [`v_page_unit`]: fn@v_page_unit
-#[property(context, default(HorizontalPageUnitVar::default_value(), VerticalPageUnitVar::default_value()))]
+#[property(context, default(HorizontalPageUnitVar, VerticalPageUnitVar))]
 pub fn page_units(child: impl UiNode, horizontal: impl IntoVar<Length>, vertical: impl IntoVar<Length>) -> impl UiNode {
     let child = h_page_unit(child, horizontal);
     v_page_unit(child, vertical)
 }
 
 /// Smooth scrolling config.
-#[property(context, default(SmoothScrollingVar::default_value()))]
+#[property(context, default(SmoothScrollingVar))]
 pub fn smooth_scrolling(child: impl UiNode, config: impl IntoVar<SmoothScrolling>) -> impl UiNode {
     with_context_var(child, SmoothScrollingVar, config)
+}
+
+/// If the scrollable defines its viewport size as the [`LayoutMetrics::viewport`] for the scrollable content.
+#[property(context, default(DefineViewportUnitVar))]
+pub fn define_viewport_unit(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
+    with_context_var(child, DefineViewportUnitVar, enabled)
 }
 
 /// Arguments for scrollbar view generators.

@@ -880,6 +880,29 @@ impl<'a> LayoutContext<'a> {
         })
     }
 
+    /// Runs a function `f` in a layout context that has the new computed viewport.
+    ///
+    /// The `viewport_new` flag indicates if the `viewport` value changed from the previous layout call.
+    pub fn with_viewport<R>(&mut self, viewport: PxSize, viewport_new: bool, f: impl FnOnce(&mut LayoutContext) -> R) -> R {
+        let mut diff = self.metrics.diff;
+        diff.set(LayoutMask::VIEWPORT_SIZE, viewport_new);
+        f(&mut LayoutContext {
+            metrics: &self.metrics.clone().with_viewport(viewport).with_diff(diff),
+
+            path: self.path,
+
+            info_tree: self.info_tree,
+            widget_info: self.widget_info,
+            app_state: self.app_state,
+            window_state: self.window_state,
+            widget_state: self.widget_state,
+            update_state: self.update_state,
+
+            vars: self.vars,
+            updates: self.updates,
+        })
+    }
+
     /// Runs a function `f` in the layout context of a widget.
     ///
     /// Returns the closure `f` result and the updates requested by it.
@@ -1072,7 +1095,7 @@ pub struct LayoutMetrics {
     font_size: Px,
     root_font_size: Px,
     scale_factor: Factor,
-    viewport_size: PxSize,
+    viewport: PxSize,
     screen_ppi: f32,
     diff: LayoutMask,
 }
@@ -1083,14 +1106,14 @@ impl LayoutMetrics {
     /// [`with_screen_ppi`] to set a different value.
     ///
     /// [`with_screen_ppi`]: LayoutMetrics::with_screen_ppi
-    pub fn new(scale_factor: Factor, viewport_size: PxSize, font_size: Px) -> Self {
+    pub fn new(scale_factor: Factor, viewport: PxSize, font_size: Px) -> Self {
         LayoutMetrics {
             use_mask: Cell::new(LayoutMask::NONE),
-            constrains: PxConstrains2d::new_fill_size(viewport_size),
+            constrains: PxConstrains2d::new_fill_size(viewport),
             font_size,
             root_font_size: font_size,
             scale_factor,
-            viewport_size,
+            viewport,
             screen_ppi: 96.0,
             diff: LayoutMask::all(),
         }
@@ -1166,24 +1189,27 @@ impl LayoutMetrics {
         self.scale_factor
     }
 
-    /// Size of the window content.
-    pub fn viewport_size(&self) -> PxSize {
+    /// Computed size of the nearest viewport ancestor.
+    ///
+    /// This is usually the window content area size, but can be the scrollable viewport size or any other
+    /// value depending on the implementation of the context widgets.
+    pub fn viewport(&self) -> PxSize {
         self.register_use(LayoutMask::VIEWPORT_SIZE);
-        self.viewport_size
+        self.viewport
     }
 
-    /// Smallest dimension of the [`viewport_size`].
+    /// Smallest dimension of the [`viewport`].
     ///
-    /// [`viewport_size`]: Self::viewport_size
+    /// [`viewport`]: Self::viewport
     pub fn viewport_min(&self) -> Px {
-        self.viewport_size().width.min(self.viewport_size.height)
+        self.viewport().width.min(self.viewport.height)
     }
 
-    /// Largest dimension of the [`viewport_size`].
+    /// Largest dimension of the [`viewport`].
     ///
-    /// [`viewport_size`]: Self::viewport_size
+    /// [`viewport`]: Self::viewport
     pub fn viewport_max(&self) -> Px {
-        self.viewport_size().width.max(self.viewport_size.height)
+        self.viewport().width.max(self.viewport.height)
     }
 
     /// The current screen "pixels-per-inch" resolution.
@@ -1215,6 +1241,14 @@ impl LayoutMetrics {
     /// [`font_size`]: Self::font_size
     pub fn with_font_size(mut self, font_size: Px) -> Self {
         self.font_size = font_size;
+        self
+    }
+
+    /// Sets the [`viewport`].
+    ///
+    /// [`viewport`]: Self::viewport
+    pub fn with_viewport(mut self, viewport: PxSize) -> Self {
+        self.viewport = viewport;
         self
     }
 
@@ -1272,9 +1306,9 @@ impl<'m> Layout1dMetrics<'m> {
     /// Viewport length in the selected dimension.
     pub fn viewport_length(&self) -> Px {
         if self.is_width {
-            self.metrics.viewport_size().width
+            self.metrics.viewport().width
         } else {
-            self.metrics.viewport_size().height
+            self.metrics.viewport().height
         }
     }
 }
