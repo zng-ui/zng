@@ -205,33 +205,40 @@ fn img_window(title: impl IntoVar<Text>, content: impl UiNode) -> Window {
                 formatx!("loading{:.^dots_count$}", "")
             });
 
-            text! {
-                text = msg;
-                color = loading_color;
-                margin = 8;
-                align = Align::CENTER;
-                width = 80;
-                font_style = FontStyle::Italic;
-                drop_shadow = {
-                    offset: (0, 0),
-                    blur_radius: 4,
-                    color: loading_color.darken(5.pct()),
-                };
+            container! {
+                max_size = (100.vw(), 100.vh());// for the large images
+                content_align = Align::CENTER;
+                content = text! {
+                    text = msg;
+                    color = loading_color;
+                    margin = 8;
+                    width = 80;
+                    font_style = FontStyle::Italic;
+                    drop_shadow = {
+                        offset: (0, 0),
+                        blur_radius: 4,
+                        color: loading_color.darken(5.pct()),
+                    };
+                }
             }
         });
 
         // content shown by all images that failed to load.
         image_error_view = view_generator!(|_, args: ImageErrorArgs| {
-            text! {
-                text = args.error;
-                margin = 8;
-                align = Align::CENTER;
-                color = error_color;
-                drop_shadow = {
-                    offset: (0, 0),
-                    blur_radius: 4,
-                    color: error_color.darken(5.pct()),
-                };
+            container! {
+                max_size = (100.vw(), 100.vh());// for the large images
+                content_align = Align::CENTER;
+                content = text! {
+                    text = args.error;
+                    margin = 8;
+                    align = Align::CENTER;
+                    color = error_color;
+                    drop_shadow = {
+                        offset: (0, 0),
+                        blur_radius: 4,
+                        color: error_color.darken(5.pct()),
+                    };
+                }
             }
         });
 

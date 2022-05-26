@@ -1132,7 +1132,11 @@ pub mod prelude {
             text_transform, word_spacing,
         };
         #[doc(no_inline)]
-        pub use crate::widgets::{container, layouts::stack_nodes, view_generator, DataUpdate, ViewGenerator};
+        pub use crate::widgets::{
+            container,
+            layouts::{stack_nodes, stack_nodes_layout_by},
+            view_generator, DataUpdate, ViewGenerator,
+        };
     }
 }
 

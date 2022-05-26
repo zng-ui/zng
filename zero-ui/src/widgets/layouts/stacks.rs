@@ -542,8 +542,9 @@ pub fn z_stack(items: impl WidgetList) -> impl Widget {
     z_stack! { items; }
 }
 
-/// Creates a node that processes the `nodes` in the logical order they appear in the list, layouts for the largest node
-/// and renders then on on top of the other from back to front.
+/// Creates a node that updates and layouts the `nodes` in the logical order they appear in the list
+/// and renders then on on top of the other from back(0) to front(len-1). The layout size is the largest item width and height,
+/// the parent constrains are used for the layout of each item.
 ///
 /// This is the most simple *z-stack* implementation possible, it is a building block useful for quickly declaring
 /// overlaying effects composed of multiple nodes, it does not do any alignment layout or z-sorting render,
@@ -551,11 +552,85 @@ pub fn z_stack(items: impl WidgetList) -> impl Widget {
 ///
 /// [`z_stack`]: mod@z_stack
 pub fn stack_nodes(nodes: impl UiNodeList) -> impl UiNode {
-    struct NodesStackNode<C> {
+    struct StackNodesNode<C> {
         children: C,
     }
     #[impl_ui_node(children)]
-    impl<C: UiNodeList> NodesStackNode<C> {}
+    impl<C: UiNodeList> StackNodesNode<C> {}
 
-    NodesStackNode { children: nodes }.cfg_boxed()
+    StackNodesNode { children: nodes }.cfg_boxed()
+}
+
+/// Creates a node that updates the `nodes` in the logical order they appear, renders then on on top of the other from back(0) to front(len-1),
+/// but layouts the `index` item first and uses its size to get `constrains` for the other items.
+///
+/// The layout size is the largest item width and height.
+///
+/// If the `index` is out of range the node logs an error and behaves like [`stack_nodes`].
+pub fn stack_nodes_layout_by(
+    nodes: impl UiNodeList,
+    index: impl IntoVar<usize>,
+    constrains: impl FnMut(PxConstrains2d, usize, PxSize) -> PxConstrains2d + 'static,
+) -> impl UiNode {
+    struct StackNodesFillNode<C, I, P> {
+        children: C,
+        index: I,
+        constrains: P,
+    }
+    #[impl_ui_node(children)]
+    impl<C, I, P> UiNode for StackNodesFillNode<C, I, P>
+    where
+        C: UiNodeList,
+        I: Var<usize>,
+        P: FnMut(PxConstrains2d, usize, PxSize) -> PxConstrains2d + 'static,
+    {
+        fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
+            subs.var(ctx, &self.index);
+            self.children.subscriptions_all(ctx, subs);
+        }
+
+        fn update(&mut self, ctx: &mut WidgetContext) {
+            if self.index.is_new(ctx) {
+                ctx.updates.layout();
+            }
+            self.children.update_all(ctx, &mut ());
+        }
+
+        fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
+            let index = self.index.copy(ctx);
+            let len = self.children.len();
+            if index >= len {
+                tracing::error!(
+                    "index {} out of range for length {} in `{:?}#stack_nodes_fill`",
+                    index,
+                    len,
+                    ctx.path
+                );
+                let mut size = PxSize::zero();
+                self.children
+                    .layout_all(ctx, wl, |_, _, _| {}, |_, _, args| size = size.max(args.size));
+                size
+            } else {
+                let mut size = self.children.widget_layout(index, ctx, wl);
+                let constrains = (self.constrains)(ctx.peek(|m| m.constrains()), index, size);
+                ctx.with_constrains(
+                    |_| constrains,
+                    |ctx| {
+                        for i in 0..len {
+                            if i != index {
+                                size = size.max(self.children.widget_layout(i, ctx, wl));
+                            }
+                        }
+                    },
+                );
+                size
+            }
+        }
+    }
+    StackNodesFillNode {
+        children: nodes,
+        index: index.into_var(),
+        constrains,
+    }
+    .cfg_boxed()
 }

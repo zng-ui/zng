@@ -220,7 +220,13 @@ pub fn image_error_presenter(child: impl UiNode) -> impl UiNode {
         |view| with_context_var(view, InErrorViewVar, true),
     );
 
-    stack_nodes(nodes![view, child])
+    stack_nodes_layout_by(nodes![view, child], 1, |constrains, _, img_size| {
+        if img_size == PxSize::zero() {
+            constrains
+        } else {
+            PxConstrains2d::new_fill_size(img_size)
+        }
+    })
 }
 
 /// Presents the contextual [`ImageLoadingViewVar`] if the [`ContextImageVar`] is loading.
@@ -259,7 +265,13 @@ pub fn image_loading_presenter(child: impl UiNode) -> impl UiNode {
         |view| with_context_var(view, InLoadingViewVar, true),
     );
 
-    stack_nodes(nodes![view, child])
+    stack_nodes_layout_by(nodes![view, child], 1, |constrains, _, img_size| {
+        if img_size == PxSize::zero() {
+            constrains
+        } else {
+            PxConstrains2d::new_fill_size(img_size)
+        }
+    })
 }
 
 /// Renders the [`ContextImageVar`] if set.
