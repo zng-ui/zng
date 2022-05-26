@@ -1,7 +1,3 @@
-# Pre-Merge
-
-* Scroll alignment weird after not needing scrolling anymore.
-
 # After-Merge
 
 * Image example panorama loading is not centered, given the size of the image.

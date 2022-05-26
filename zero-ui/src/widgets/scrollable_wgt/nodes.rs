@@ -50,6 +50,7 @@ pub fn viewport(child: impl UiNode, mode: impl IntoVar<ScrollMode>) -> impl UiNo
             let mode = self.mode.copy(ctx);
             let ct_size = ctx.with_constrains(
                 |mut c| {
+                    c = c.with_min_size(c.fill_size());
                     if mode.contains(ScrollMode::VERTICAL) {
                         c = c.with_unbounded_y();
                     }
