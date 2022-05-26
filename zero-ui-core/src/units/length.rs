@@ -32,14 +32,14 @@ pub enum Length {
     Em(Factor),
     /// Relative to the font-size of the root widget.
     RootEm(Factor),
-    /// Relative to 1% of the width of the viewport.
-    ViewportWidth(f32),
-    /// Relative to 1% of the height of the viewport.
-    ViewportHeight(f32),
-    /// Relative to 1% of the smallest of the viewport's dimensions.
-    ViewportMin(f32),
-    /// Relative to 1% of the largest of the viewport's dimensions.
-    ViewportMax(f32),
+    /// Relative to the width of the nearest viewport ancestor.
+    ViewportWidth(Factor),
+    /// Relative to the height of the nearest viewport ancestor.
+    ViewportHeight(Factor),
+    /// Relative to the smallest of the nearest viewport ancestor's dimensions.
+    ViewportMin(Factor),
+    /// Relative to the smallest of the nearest viewport ancestor's dimensions.
+    ViewportMax(Factor),
     /// Unresolved expression.
     Expr(Box<LengthExpr>),
 }
@@ -110,10 +110,10 @@ impl<F: Into<Factor>> ops::Mul<F> for Length {
             Relative(r) => Relative(r * rhs),
             Em(e) => Em(e * rhs),
             RootEm(e) => RootEm(e * rhs),
-            ViewportWidth(w) => ViewportWidth(w * rhs.0),
-            ViewportHeight(h) => ViewportHeight(h * rhs.0),
-            ViewportMin(m) => ViewportMin(m * rhs.0),
-            ViewportMax(m) => ViewportMax(m * rhs.0),
+            ViewportWidth(w) => ViewportWidth(w * rhs),
+            ViewportHeight(h) => ViewportHeight(h * rhs),
+            ViewportMin(m) => ViewportMin(m * rhs),
+            ViewportMax(m) => ViewportMax(m * rhs),
             e => Expr(Box::new(LengthExpr::Mul(e, rhs))),
         }
     }
@@ -139,10 +139,10 @@ impl<F: Into<Factor>> ops::Div<F> for Length {
             Relative(r) => Relative(r / rhs),
             Em(e) => Em(e / rhs),
             RootEm(e) => RootEm(e / rhs),
-            ViewportWidth(w) => ViewportWidth(w / rhs.0),
-            ViewportHeight(h) => ViewportHeight(h / rhs.0),
-            ViewportMin(m) => ViewportMin(m / rhs.0),
-            ViewportMax(m) => ViewportMax(m / rhs.0),
+            ViewportWidth(w) => ViewportWidth(w / rhs),
+            ViewportHeight(h) => ViewportHeight(h / rhs),
+            ViewportMin(m) => ViewportMin(m / rhs),
+            ViewportMax(m) => ViewportMax(m / rhs),
             e => Expr(Box::new(LengthExpr::Mul(e, rhs))),
         }
     }
@@ -194,7 +194,7 @@ impl PartialEq for Length {
             (ViewportWidth(a), ViewportWidth(b))
             | (ViewportHeight(a), ViewportHeight(b))
             | (ViewportMin(a), ViewportMin(b))
-            | (ViewportMax(a), ViewportMax(b)) => about_eq(*a, *b, EPSILON),
+            | (ViewportMax(a), ViewportMax(b)) => about_eq(a.0, b.0, EPSILON),
 
             (Expr(a), Expr(b)) => a == b,
 
@@ -437,10 +437,10 @@ impl Length {
             Relative(f) => Some(f.0.abs() < EPSILON),
             Em(f) => Some(f.0.abs() < EPSILON),
             RootEm(f) => Some(f.0.abs() < EPSILON),
-            ViewportWidth(p) => Some(p.abs() < EPSILON),
-            ViewportHeight(p) => Some(p.abs() < EPSILON),
-            ViewportMin(p) => Some(p.abs() < EPSILON),
-            ViewportMax(p) => Some(p.abs() < EPSILON),
+            ViewportWidth(p) => Some(p.0.abs() < EPSILON),
+            ViewportHeight(p) => Some(p.0.abs() < EPSILON),
+            ViewportMin(p) => Some(p.0.abs() < EPSILON),
+            ViewportMax(p) => Some(p.0.abs() < EPSILON),
             Expr(_) => None,
         }
     }
@@ -649,32 +649,65 @@ pub trait LengthUnits {
     /// Returns [`Length::Pt`].
     fn pt(self) -> Length;
 
-    /// Relative to the font-size of the widget.
+    /// Factor of the font-size of the widget.
     ///
     /// Returns [`Length::Em`].
     fn em(self) -> Length;
-    /// Relative to the font-size of the root widget.
+
+    /// Percentage of the font-size of the widget.
+    ///
+    /// Returns [`Length::Em`].
+    fn em_pct(self) -> Length;
+
+    /// Factor of the font-size of the root widget.
     ///
     /// Returns [`Length::RootEm`].
     fn rem(self) -> Length;
 
-    /// Relative to 1% of the width of the viewport.
+    /// Percentage of the font-size of the root widget.
+    ///
+    /// Returns [`Length::RootEm`].
+    fn rem_pct(self) -> Length;
+
+    /// Factor of the width of the nearest viewport ancestor.
     ///
     /// Returns [`Length::ViewportWidth`].
     fn vw(self) -> Length;
-    /// Relative to 1% of the height of the viewport.
+
+    /// Percentage of the width of the nearest viewport ancestor.
+    ///
+    /// Returns [`Length::ViewportWidth`].
+    fn vw_pct(self) -> Length;
+
+    /// Factor of the height of the nearest viewport ancestor.
     ///
     /// Returns [`Length::ViewportHeight`].
     fn vh(self) -> Length;
 
-    /// Relative to 1% of the smallest of the viewport's dimensions.
+    /// Percentage of the height of the nearest viewport ancestor.
+    ///
+    /// Returns [`Length::ViewportHeight`].
+    fn vh_pct(self) -> Length;
+
+    /// Factor of the smallest of the nearest viewport's dimensions.
     ///
     /// Returns [`Length::ViewportMin`].
     fn vmin(self) -> Length;
-    /// Relative to 1% of the largest of the viewport's dimensions.
+
+    /// Percentage of the smallest of the nearest viewport's dimensions.
+    ///
+    /// Returns [`Length::ViewportMin`].
+    fn vmin_pct(self) -> Length;
+
+    /// Factor of the largest of the nearest viewport's dimensions.
     ///
     /// Returns [`Length::ViewportMax`].
     fn vmax(self) -> Length;
+
+    /// Percentage of the largest of the nearest viewport's dimensions.
+    ///
+    /// Returns [`Length::ViewportMax`].
+    fn vmax_pct(self) -> Length;
 }
 impl LengthUnits for f32 {
     fn dip(self) -> Length {
@@ -698,19 +731,43 @@ impl LengthUnits for f32 {
     }
 
     fn vw(self) -> Length {
-        Length::ViewportWidth(self)
+        Length::ViewportWidth(self.into())
     }
 
     fn vh(self) -> Length {
-        Length::ViewportHeight(self)
+        Length::ViewportHeight(self.into())
     }
 
     fn vmin(self) -> Length {
-        Length::ViewportMin(self)
+        Length::ViewportMin(self.into())
     }
 
     fn vmax(self) -> Length {
-        Length::ViewportMax(self)
+        Length::ViewportMax(self.into())
+    }
+
+    fn em_pct(self) -> Length {
+        Length::Em(self.pct().into())
+    }
+
+    fn rem_pct(self) -> Length {
+        Length::RootEm(self.pct().into())
+    }
+
+    fn vw_pct(self) -> Length {
+        Length::ViewportWidth(self.pct().into())
+    }
+
+    fn vh_pct(self) -> Length {
+        Length::ViewportHeight(self.pct().into())
+    }
+
+    fn vmin_pct(self) -> Length {
+        Length::ViewportMin(self.pct().into())
+    }
+
+    fn vmax_pct(self) -> Length {
+        Length::ViewportMax(self.pct().into())
     }
 }
 impl LengthUnits for i32 {
@@ -735,18 +792,42 @@ impl LengthUnits for i32 {
     }
 
     fn vw(self) -> Length {
-        Length::ViewportWidth(self as f32)
+        Length::ViewportWidth(self.fct())
     }
 
     fn vh(self) -> Length {
-        Length::ViewportHeight(self as f32)
+        Length::ViewportHeight(self.fct())
     }
 
     fn vmin(self) -> Length {
-        Length::ViewportMin(self as f32)
+        Length::ViewportMin(self.fct())
     }
 
     fn vmax(self) -> Length {
-        Length::ViewportMax(self as f32)
+        Length::ViewportMax(self.fct())
+    }
+
+    fn em_pct(self) -> Length {
+        Length::Em(self.pct().into())
+    }
+
+    fn rem_pct(self) -> Length {
+        Length::RootEm(self.pct().into())
+    }
+
+    fn vw_pct(self) -> Length {
+        Length::ViewportWidth(self.pct().into())
+    }
+
+    fn vh_pct(self) -> Length {
+        Length::ViewportHeight(self.pct().into())
+    }
+
+    fn vmin_pct(self) -> Length {
+        Length::ViewportMin(self.pct().into())
+    }
+
+    fn vmax_pct(self) -> Length {
+        Length::ViewportMax(self.pct().into())
     }
 }

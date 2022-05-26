@@ -2,8 +2,7 @@
    - smooth scroll to for `home` and `end` commands
 * Animation, see `Variables.md`.
 
-* Fix/test viewport units.
-    - Optional/default redefine viewport size to scrollable viewport size.
+* Redefine viewport size to scrollable viewport size.
 
 * Review layout double-pass of stacks.
 * Fix text final size, either clip or return accurate size.

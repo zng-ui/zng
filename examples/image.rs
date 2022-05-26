@@ -206,7 +206,7 @@ fn img_window(title: impl IntoVar<Text>, content: impl UiNode) -> Window {
             });
 
             container! {
-                max_size = (100.vw(), 100.vh());// for the large images
+                max_size = (1.vw(), 1.vh());// for the large images
                 content_align = Align::CENTER;
                 content = text! {
                     text = msg;
@@ -226,7 +226,7 @@ fn img_window(title: impl IntoVar<Text>, content: impl UiNode) -> Window {
         // content shown by all images that failed to load.
         image_error_view = view_generator!(|_, args: ImageErrorArgs| {
             container! {
-                max_size = (100.vw(), 100.vh());// for the large images
+                max_size = (1.vw(), 1.vh());
                 content_align = Align::CENTER;
                 content = text! {
                     text = args.error;
