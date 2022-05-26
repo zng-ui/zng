@@ -18,6 +18,7 @@ fn main() {
 fn app_main() {
     App::default().run_window(|_| {
         window! {
+            title = "Scrollable Example";
             content = z_stack(widgets![
                 scrollable! {
                     id = "scrollable";

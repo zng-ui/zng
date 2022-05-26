@@ -173,6 +173,7 @@ fn screenshot() -> impl Widget {
                         size = (500, 400);
                         background_color = colors::DARK_GREEN;
                         font_size = 72;
+                        content_align = Align::CENTER;
                         content = text("No Head!");
 
                         frame_capture_mode = FrameCaptureMode::Next;

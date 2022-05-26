@@ -76,6 +76,7 @@ fn app_main() {
                                     size = (180, 120);
                                     background_gradient = Line::to_bottom_left(), stops![hex!(#34753a), 40.pct(), hex!(#597d81)];
                                     font_size = 24;
+                                    content_align = Align::CENTER;
                                     content = text("Rendered!");
                                 })
                             }

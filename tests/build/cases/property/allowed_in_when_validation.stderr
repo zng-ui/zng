@@ -22,7 +22,7 @@ error[E0283]: type annotations needed
           - impl IntoVar<CaptureMode> for bool;
           - impl IntoVar<Factor> for bool;
           - impl IntoVar<FontFeatureState> for bool;
-          and 7 more
+          and 8 more
 
 error[E0277]: the trait bound `<impl invalid2_Args as invalid2_Args>::T_value: Clone` is not satisfied
    --> cases/property/allowed_in_when_validation.rs:12:44

@@ -1,11 +1,6 @@
 # Pre-Merge
 
-* Panorama fill does not change width when height change.
-    - Implement special image Fill for unconstrained again, or is this another kind of fit?
-
-* Fix all warnings.
-* Pass all tests.
-* Docs without warnings.
+* Scroll alignment weird after not needing scrolling anymore.
 
 # After-Merge
 
