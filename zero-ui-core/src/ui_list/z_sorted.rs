@@ -109,16 +109,16 @@ impl<W: WidgetList> UiNodeList for ZSortedWidgetList<W> {
         self.list.info_all(ctx, info)
     }
 
-    fn widget_info(&self, index: usize, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
-        self.list.widget_info(index, ctx, info)
+    fn item_info(&self, index: usize, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
+        self.list.item_info(index, ctx, info)
     }
 
     fn subscriptions_all(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
         self.list.subscriptions_all(ctx, subscriptions)
     }
 
-    fn widget_subscriptions(&self, index: usize, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
-        self.list.widget_subscriptions(index, ctx, subscriptions)
+    fn item_subscriptions(&self, index: usize, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
+        self.list.item_subscriptions(index, ctx, subscriptions)
     }
 
     fn init_all(&mut self, ctx: &mut WidgetContext) {
@@ -158,8 +158,8 @@ impl<W: WidgetList> UiNodeList for ZSortedWidgetList<W> {
         self.list.layout_all(ctx, wl, &mut pre_layout, &mut pos_layout)
     }
 
-    fn widget_layout(&mut self, index: usize, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
-        self.list.widget_layout(index, ctx, wl)
+    fn item_layout(&mut self, index: usize, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
+        self.list.item_layout(index, ctx, wl)
     }
 
     fn render_all(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
@@ -167,21 +167,21 @@ impl<W: WidgetList> UiNodeList for ZSortedWidgetList<W> {
             self.list.render_all(ctx, frame);
         } else {
             for &i in &self.lookup {
-                self.widget_render(i as usize, ctx, frame);
+                self.item_render(i as usize, ctx, frame);
             }
         }
     }
 
-    fn widget_render(&self, index: usize, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-        self.list.widget_render(index, ctx, frame)
+    fn item_render(&self, index: usize, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
+        self.list.item_render(index, ctx, frame)
     }
 
     fn render_update_all(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
         self.list.render_update_all(ctx, update)
     }
 
-    fn widget_render_update(&self, index: usize, ctx: &mut RenderContext, update: &mut FrameUpdate) {
-        self.list.widget_render_update(index, ctx, update)
+    fn item_render_update(&self, index: usize, ctx: &mut RenderContext, update: &mut FrameUpdate) {
+        self.list.item_render_update(index, ctx, update)
     }
 }
 impl<W: WidgetList> WidgetList for ZSortedWidgetList<W> {
@@ -237,7 +237,7 @@ impl<W: WidgetList> WidgetList for ZSortedWidgetList<W> {
                     state: self.widget_state(i),
                 };
                 if filter(args) {
-                    self.widget_render(i, ctx, frame);
+                    self.item_render(i, ctx, frame);
                 }
             }
         }

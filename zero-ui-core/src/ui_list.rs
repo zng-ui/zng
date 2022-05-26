@@ -54,14 +54,14 @@ pub trait UiNodeList: 'static {
     /// Calls [`UiNode::info`] in all widgets in the list, sequentially.
     fn info_all(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder);
 
-    /// Calls [`UiNode::info`] in only the `index` widget.
-    fn widget_info(&self, index: usize, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder);
+    /// Calls [`UiNode::info`] in only the `index` node or widget.
+    fn item_info(&self, index: usize, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder);
 
     /// Calls [`UiNode::subscriptions`] in all widgets in the list, sequentially.
     fn subscriptions_all(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions);
 
-    /// Calls [`UiNode::subscriptions`] in the `index` widget.
-    fn widget_subscriptions(&self, index: usize, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions);
+    /// Calls [`UiNode::subscriptions`] in the `index` node or widget.
+    fn item_subscriptions(&self, index: usize, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions);
 
     /// Calls [`UiNode::init`] in all widgets in the list, sequentially.
     fn init_all(&mut self, ctx: &mut WidgetContext);
@@ -84,7 +84,7 @@ pub trait UiNodeList: 'static {
 
     /// Calls [`UiNode::layout`] in all widgets in the list, sequentially.
     ///
-    /// Note that you can also layout specific children with [`widget_layout`], and if the list is a full [`WidgetList`]
+    /// Note that you can also layout specific children with [`item_layout`], and if the list is a full [`WidgetList`]
     /// you can use the [`widget_outer`] method to update each child transform without causing a second layout pass.
     ///
     /// # Pre-Layout
@@ -97,27 +97,27 @@ pub trait UiNodeList: 'static {
     /// The `pos_layout` closure is called after the layout call for each child, inside it the [`WidgetLayout`] still affects the
     /// child, you can also see the new child size in [`PosLayoutArgs`].
     ///
-    /// [`widget_layout`]: UiNodeList::widget_layout
+    /// [`item_layout`]: UiNodeList::item_layout
     /// [`widget_outer`]: WidgetList::widget_outer
     fn layout_all<C, D>(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout, pre_layout: C, pos_layout: D)
     where
         C: FnMut(&mut LayoutContext, &mut WidgetLayout, &mut PreLayoutArgs),
         D: FnMut(&mut LayoutContext, &mut WidgetLayout, PosLayoutArgs);
 
-    /// Calls [`UiNode::layout`] in only the `index` item.
-    fn widget_layout(&mut self, index: usize, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize;
+    /// Calls [`UiNode::layout`] in only the `index` node or widget.
+    fn item_layout(&mut self, index: usize, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize;
 
     /// Calls [`UiNode::render`] in all widgets in the list, sequentially.
     fn render_all(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder);
 
-    /// Calls [`UiNode::render`] in only the `index` item.
-    fn widget_render(&self, index: usize, ctx: &mut RenderContext, frame: &mut FrameBuilder);
+    /// Calls [`UiNode::render`] in only the `index` node or widget.
+    fn item_render(&self, index: usize, ctx: &mut RenderContext, frame: &mut FrameBuilder);
 
     /// Calls [`UiNode::render_update`] in all widgets in the list, sequentially.
     fn render_update_all(&self, ctx: &mut RenderContext, update: &mut FrameUpdate);
 
-    /// Calls [`UiNode::render_update`] in only the `index` item.
-    fn widget_render_update(&self, index: usize, ctx: &mut RenderContext, update: &mut FrameUpdate);
+    /// Calls [`UiNode::render_update`] in only the `index` node or widget.
+    fn item_render_update(&self, index: usize, ctx: &mut RenderContext, update: &mut FrameUpdate);
 }
 
 /// Arguments for the closure in [`UiNodeList::layout_all`] that runs before each child is layout.

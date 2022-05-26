@@ -4,7 +4,6 @@
 
 * Fix/test viewport units.
     - Optional/default redefine viewport size to scrollable viewport size.
-* Rename UiNodeList::widget_ to item_.
 
 * Review layout double-pass of stacks.
 * Fix text final size, either clip or return accurate size.

@@ -123,11 +123,11 @@ pub mod scrollable {
                 while layout > 0 {
                     let v_scroll = ctx.with_constrains(
                         |c| c.with_min_x(Px(0)).with_less_y(self.joiner.height).with_fill(false, true),
-                        |ctx| self.children.widget_layout(1, ctx, wl),
+                        |ctx| self.children.item_layout(1, ctx, wl),
                     );
                     let h_scroll = ctx.with_constrains(
                         |c| c.with_min_y(Px(0)).with_less_x(self.joiner.width).with_fill(true, false),
-                        |ctx| self.children.widget_layout(2, ctx, wl),
+                        |ctx| self.children.item_layout(2, ctx, wl),
                     );
 
                     let joiner = PxSize::new(v_scroll.width, h_scroll.height);
@@ -140,10 +140,10 @@ pub mod scrollable {
                     }
                 }
 
-                let _ = ctx.with_constrains(|c| c.with_max_size(self.joiner), |ctx| self.children.widget_layout(3, ctx, wl));
+                let _ = ctx.with_constrains(|c| c.with_max_size(self.joiner), |ctx| self.children.item_layout(3, ctx, wl));
 
                 // viewport
-                let mut viewport = ctx.with_constrains(|c| c.with_less_size(self.joiner), |ctx| self.children.widget_layout(0, ctx, wl));
+                let mut viewport = ctx.with_constrains(|c| c.with_less_size(self.joiner), |ctx| self.children.item_layout(0, ctx, wl));
 
                 // arrange
                 let final_size = viewport + self.joiner;
@@ -183,26 +183,26 @@ pub mod scrollable {
             }
 
             fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-                self.children.widget_render(0, ctx, frame);
+                self.children.item_render(0, ctx, frame);
 
                 if self.joiner.width > Px(0) {
                     let transform = RenderTransform::translation_px(PxVector::new(self.viewport.width, Px(0)));
                     frame.push_reference_frame_item(self.spatial_id, 1, FrameBinding::Value(transform), true, |frame| {
-                        self.children.widget_render(1, ctx, frame);
+                        self.children.item_render(1, ctx, frame);
                     });
                 }
 
                 if self.joiner.height > Px(0) {
                     let transform = RenderTransform::translation_px(PxVector::new(Px(0), self.viewport.height));
                     frame.push_reference_frame_item(self.spatial_id, 2, FrameBinding::Value(transform), true, |frame| {
-                        self.children.widget_render(2, ctx, frame);
+                        self.children.item_render(2, ctx, frame);
                     });
                 }
 
                 if self.joiner.width > Px(0) && self.joiner.height > Px(0) {
                     let transform = RenderTransform::translation_px(self.viewport.to_vector());
                     frame.push_reference_frame_item(self.spatial_id, 3, FrameBinding::Value(transform), true, |frame| {
-                        self.children.widget_render(3, ctx, frame);
+                        self.children.item_render(3, ctx, frame);
                     });
                 }
             }

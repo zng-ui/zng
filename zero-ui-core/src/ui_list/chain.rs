@@ -78,12 +78,12 @@ impl<A: WidgetList, B: WidgetList> UiNodeList for WidgetListChain<A, B> {
         );
     }
 
-    fn widget_layout(&mut self, index: usize, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
+    fn item_layout(&mut self, index: usize, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
         let a_len = self.0.len();
         if index < a_len {
-            self.0.widget_layout(index, ctx, wl)
+            self.0.item_layout(index, ctx, wl)
         } else {
-            self.1.widget_layout(index - a_len, ctx, wl)
+            self.1.item_layout(index - a_len, ctx, wl)
         }
     }
 
@@ -92,12 +92,12 @@ impl<A: WidgetList, B: WidgetList> UiNodeList for WidgetListChain<A, B> {
         self.1.info_all(ctx, info);
     }
 
-    fn widget_info(&self, index: usize, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
+    fn item_info(&self, index: usize, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
         let a_len = self.0.len();
         if index < a_len {
-            self.0.widget_info(index, ctx, info)
+            self.0.item_info(index, ctx, info)
         } else {
-            self.1.widget_info(index - a_len, ctx, info)
+            self.1.item_info(index - a_len, ctx, info)
         }
     }
 
@@ -106,12 +106,12 @@ impl<A: WidgetList, B: WidgetList> UiNodeList for WidgetListChain<A, B> {
         self.1.subscriptions_all(ctx, subscriptions);
     }
 
-    fn widget_subscriptions(&self, index: usize, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
+    fn item_subscriptions(&self, index: usize, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
         let a_len = self.0.len();
         if index < a_len {
-            self.0.widget_subscriptions(index, ctx, subscriptions);
+            self.0.item_subscriptions(index, ctx, subscriptions);
         } else {
-            self.1.widget_subscriptions(index - a_len, ctx, subscriptions);
+            self.1.item_subscriptions(index - a_len, ctx, subscriptions);
         }
     }
 
@@ -120,12 +120,12 @@ impl<A: WidgetList, B: WidgetList> UiNodeList for WidgetListChain<A, B> {
         self.1.render_all(ctx, frame);
     }
 
-    fn widget_render(&self, index: usize, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
+    fn item_render(&self, index: usize, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
         let a_len = self.0.len();
         if index < a_len {
-            self.0.widget_render(index, ctx, frame)
+            self.0.item_render(index, ctx, frame)
         } else {
-            self.1.widget_render(index - a_len, ctx, frame)
+            self.1.item_render(index - a_len, ctx, frame)
         }
     }
 
@@ -134,12 +134,12 @@ impl<A: WidgetList, B: WidgetList> UiNodeList for WidgetListChain<A, B> {
         self.1.render_update_all(ctx, update);
     }
 
-    fn widget_render_update(&self, index: usize, ctx: &mut RenderContext, update: &mut FrameUpdate) {
+    fn item_render_update(&self, index: usize, ctx: &mut RenderContext, update: &mut FrameUpdate) {
         let a_len = self.0.len();
         if index < a_len {
-            self.0.widget_render_update(index, ctx, update)
+            self.0.item_render_update(index, ctx, update)
         } else {
-            self.1.widget_render_update(index - a_len, ctx, update)
+            self.1.item_render_update(index - a_len, ctx, update)
         }
     }
 }
@@ -327,12 +327,12 @@ impl<A: UiNodeList, B: UiNodeList> UiNodeList for UiNodeListChain<A, B> {
         );
     }
 
-    fn widget_layout(&mut self, index: usize, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
+    fn item_layout(&mut self, index: usize, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
         let a_len = self.0.len();
         if index < a_len {
-            self.0.widget_layout(index, ctx, wl)
+            self.0.item_layout(index, ctx, wl)
         } else {
-            self.1.widget_layout(index - a_len, ctx, wl)
+            self.1.item_layout(index - a_len, ctx, wl)
         }
     }
 
@@ -341,12 +341,12 @@ impl<A: UiNodeList, B: UiNodeList> UiNodeList for UiNodeListChain<A, B> {
         self.1.info_all(ctx, info);
     }
 
-    fn widget_info(&self, index: usize, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
+    fn item_info(&self, index: usize, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
         let a_len = self.0.len();
         if index < a_len {
-            self.0.widget_info(index, ctx, info)
+            self.0.item_info(index, ctx, info)
         } else {
-            self.1.widget_info(index - a_len, ctx, info)
+            self.1.item_info(index - a_len, ctx, info)
         }
     }
 
@@ -355,12 +355,12 @@ impl<A: UiNodeList, B: UiNodeList> UiNodeList for UiNodeListChain<A, B> {
         self.1.subscriptions_all(ctx, subscriptions);
     }
 
-    fn widget_subscriptions(&self, index: usize, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
+    fn item_subscriptions(&self, index: usize, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
         let a_len = self.0.len();
         if index < a_len {
-            self.0.widget_subscriptions(index, ctx, subscriptions);
+            self.0.item_subscriptions(index, ctx, subscriptions);
         } else {
-            self.1.widget_subscriptions(index - a_len, ctx, subscriptions);
+            self.1.item_subscriptions(index - a_len, ctx, subscriptions);
         }
     }
 
@@ -369,12 +369,12 @@ impl<A: UiNodeList, B: UiNodeList> UiNodeList for UiNodeListChain<A, B> {
         self.1.render_all(ctx, frame);
     }
 
-    fn widget_render(&self, index: usize, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
+    fn item_render(&self, index: usize, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
         let a_len = self.0.len();
         if index < a_len {
-            self.0.widget_render(index, ctx, frame)
+            self.0.item_render(index, ctx, frame)
         } else {
-            self.1.widget_render(index - a_len, ctx, frame)
+            self.1.item_render(index - a_len, ctx, frame)
         }
     }
 
@@ -383,12 +383,12 @@ impl<A: UiNodeList, B: UiNodeList> UiNodeList for UiNodeListChain<A, B> {
         self.1.render_update_all(ctx, update);
     }
 
-    fn widget_render_update(&self, index: usize, ctx: &mut RenderContext, update: &mut FrameUpdate) {
+    fn item_render_update(&self, index: usize, ctx: &mut RenderContext, update: &mut FrameUpdate) {
         let a_len = self.0.len();
         if index < a_len {
-            self.0.widget_render_update(index, ctx, update)
+            self.0.item_render_update(index, ctx, update)
         } else {
-            self.1.widget_render_update(index - a_len, ctx, update)
+            self.1.item_render_update(index - a_len, ctx, update)
         }
     }
 }

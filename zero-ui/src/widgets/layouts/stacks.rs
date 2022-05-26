@@ -123,7 +123,7 @@ pub mod h_stack {
                                 // only need second pass for items that don't fill
                                 let (a_size, _) = wl.with_child(ctx, |ctx, wl| {
                                     wl.translate(PxVector::new(size.width, Px(0)));
-                                    self.children.widget_layout(i, ctx, wl)
+                                    self.children.item_layout(i, ctx, wl)
                                 });
 
                                 size.height = size.height.max(a_size.height);
@@ -307,7 +307,7 @@ pub mod v_stack {
                                 // only need second pass for items that don't fill
                                 let (a_size, _) = wl.with_child(ctx, |ctx, wl| {
                                     wl.translate(PxVector::new(Px(0), size.height));
-                                    self.children.widget_layout(i, ctx, wl)
+                                    self.children.item_layout(i, ctx, wl)
                                 });
 
                                 size.width = size.width.max(a_size.width);
@@ -611,14 +611,14 @@ pub fn stack_nodes_layout_by(
                     .layout_all(ctx, wl, |_, _, _| {}, |_, _, args| size = size.max(args.size));
                 size
             } else {
-                let mut size = self.children.widget_layout(index, ctx, wl);
+                let mut size = self.children.item_layout(index, ctx, wl);
                 let constrains = (self.constrains)(ctx.peek(|m| m.constrains()), index, size);
                 ctx.with_constrains(
                     |_| constrains,
                     |ctx| {
                         for i in 0..len {
                             if i != index {
-                                size = size.max(self.children.widget_layout(i, ctx, wl));
+                                size = size.max(self.children.item_layout(i, ctx, wl));
                             }
                         }
                     },

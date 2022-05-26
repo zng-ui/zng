@@ -40,12 +40,12 @@ pub fn background(child: impl UiNode, background: impl UiNode) -> impl UiNode {
     #[impl_ui_node(children)]
     impl<C: UiNodeList> UiNode for BackgroundNode<C> {
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
-            let size = self.children.widget_layout(1, ctx, wl);
+            let size = self.children.item_layout(1, ctx, wl);
             let size = ctx.constrains().fill_size_or(size);
             ctx.with_constrains(
                 |c| c.with_max_size(size).with_fill(true, true),
                 |ctx| {
-                    self.children.widget_layout(0, ctx, wl);
+                    self.children.item_layout(0, ctx, wl);
                 },
             );
             size
@@ -159,12 +159,12 @@ pub fn foreground(child: impl UiNode, foreground: impl UiNode) -> impl UiNode {
     #[impl_ui_node(children)]
     impl<C: UiNodeList> UiNode for ForegroundNode<C> {
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
-            let size = self.children.widget_layout(0, ctx, wl);
+            let size = self.children.item_layout(0, ctx, wl);
             let size = ctx.constrains().fill_size_or(size);
             ctx.with_constrains(
                 |c| c.with_max_size(size).with_fill(true, true),
                 |ctx| {
-                    self.children.widget_layout(1, ctx, wl);
+                    self.children.item_layout(1, ctx, wl);
                 },
             );
             size

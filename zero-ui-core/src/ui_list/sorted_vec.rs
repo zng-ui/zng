@@ -328,7 +328,7 @@ impl UiNodeList for SortedWidgetVec {
         }
     }
 
-    fn widget_layout(&mut self, index: usize, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
+    fn item_layout(&mut self, index: usize, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
         self.vec[index].layout(ctx, wl)
     }
 
@@ -338,7 +338,7 @@ impl UiNodeList for SortedWidgetVec {
         }
     }
 
-    fn widget_info(&self, index: usize, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
+    fn item_info(&self, index: usize, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
         self.vec[index].info(ctx, info);
     }
 
@@ -349,7 +349,7 @@ impl UiNodeList for SortedWidgetVec {
         }
     }
 
-    fn widget_subscriptions(&self, index: usize, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
+    fn item_subscriptions(&self, index: usize, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
         self.vec[index].subscriptions(ctx, subscriptions);
     }
 
@@ -359,7 +359,7 @@ impl UiNodeList for SortedWidgetVec {
         }
     }
 
-    fn widget_render(&self, index: usize, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
+    fn item_render(&self, index: usize, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
         self.vec[index].render(ctx, frame);
     }
 
@@ -369,7 +369,7 @@ impl UiNodeList for SortedWidgetVec {
         }
     }
 
-    fn widget_render_update(&self, index: usize, ctx: &mut RenderContext, update: &mut FrameUpdate) {
+    fn item_render_update(&self, index: usize, ctx: &mut RenderContext, update: &mut FrameUpdate) {
         self.vec[index].render_update(ctx, update);
     }
 }

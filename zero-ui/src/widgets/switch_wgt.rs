@@ -66,14 +66,14 @@ pub mod switch {
         fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
             let index = self.index.copy(ctx);
             if index < self.options.len() {
-                self.options.widget_info(index, ctx, info);
+                self.options.item_info(index, ctx, info);
             }
         }
 
         fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
             let index = self.index.copy(ctx);
             if index < self.options.len() {
-                self.options.widget_subscriptions(index, ctx, subscriptions);
+                self.options.item_subscriptions(index, ctx, subscriptions);
             }
             subscriptions.var(ctx, &self.index);
         }
@@ -81,7 +81,7 @@ pub mod switch {
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
             let index = self.index.copy(ctx);
             if index < self.options.len() {
-                self.options.widget_layout(index, ctx, wl)
+                self.options.item_layout(index, ctx, wl)
             } else {
                 PxSize::zero()
             }
@@ -90,13 +90,13 @@ pub mod switch {
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
             let index = self.index.copy(ctx);
             if index < self.options.len() {
-                self.options.widget_render(index, ctx, frame)
+                self.options.item_render(index, ctx, frame)
             }
         }
         fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
             let index = self.index.copy(ctx);
             if index < self.options.len() {
-                self.options.widget_render_update(index, ctx, update)
+                self.options.item_render_update(index, ctx, update)
             }
         }
     }

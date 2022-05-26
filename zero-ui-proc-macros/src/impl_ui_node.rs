@@ -566,7 +566,7 @@ impl<'a> DelegateValidator<'a> {
             DelegateValidator {
                 ident: &m.sig.ident,
                 list_variant: ident!("{}_all", m.sig.ident),
-                list_specific_variant: ident!("widget_{}", m.sig.ident),
+                list_specific_variant: ident!("item_{}", m.sig.ident),
                 args_count: (m.sig.inputs.len() - 1) as u8,
                 delegates: false,
             }

@@ -222,7 +222,7 @@ macro_rules! impl_tuples {
 
             $($layout_all)+
 
-            fn widget_layout(&mut self, index: usize, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
+            fn item_layout(&mut self, index: usize, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
                 match index {
                     $(
                         $n => self.items.$n.layout(ctx, wl),
@@ -237,7 +237,7 @@ macro_rules! impl_tuples {
                 )+
             }
 
-            fn widget_info(&self, index: usize, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
+            fn item_info(&self, index: usize, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
                 match index {
                     $(
                         $n => self.items.$n.info(ctx, info),
@@ -252,7 +252,7 @@ macro_rules! impl_tuples {
                 )+
             }
 
-            fn widget_subscriptions(&self, index: usize, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
+            fn item_subscriptions(&self, index: usize, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
                 match index {
                     $(
                         $n => self.items.$n.subscriptions(ctx, subscriptions),
@@ -267,7 +267,7 @@ macro_rules! impl_tuples {
                 )+
             }
 
-            fn widget_render(&self, index: usize, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
+            fn item_render(&self, index: usize, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
                 match index {
                     $(
                         $n => self.items.$n.render(ctx, frame),
@@ -280,7 +280,7 @@ macro_rules! impl_tuples {
                 $(self.items.$n.render_update(ctx, update);)+
             }
 
-            fn widget_render_update(&self, index: usize, ctx: &mut RenderContext, update: &mut FrameUpdate) {
+            fn item_render_update(&self, index: usize, ctx: &mut RenderContext, update: &mut FrameUpdate) {
                 match index {
                     $(
                         $n => self.items.$n.render_update(ctx, update),
@@ -359,33 +359,33 @@ macro_rules! empty_node_list {
                 D: FnMut(&mut LayoutContext, &mut WidgetLayout, PosLayoutArgs)
                 {}
 
-            fn widget_layout(&mut self, index: usize, _: &mut LayoutContext, _: &mut WidgetLayout) -> PxSize {
+            fn item_layout(&mut self, index: usize, _: &mut LayoutContext, _: &mut WidgetLayout) -> PxSize {
                 panic!("index {index} out of range for length 0")
             }
 
             fn info_all(&self, _: &mut InfoContext, _: &mut WidgetInfoBuilder) {
             }
 
-            fn widget_info(&self, index: usize, _: &mut InfoContext, _: &mut WidgetInfoBuilder) {
+            fn item_info(&self, index: usize, _: &mut InfoContext, _: &mut WidgetInfoBuilder) {
                 panic!("index {index} out of range for length 0")
             }
 
             fn subscriptions_all(&self, _: &mut InfoContext, _: &mut WidgetSubscriptions) {}
 
-            fn widget_subscriptions(&self, index: usize, _: &mut InfoContext, _: &mut WidgetSubscriptions) {
+            fn item_subscriptions(&self, index: usize, _: &mut InfoContext, _: &mut WidgetSubscriptions) {
                 panic!("index {index} out of range for length 0")
             }
 
             fn render_all(&self, _: &mut RenderContext, _: &mut FrameBuilder) {
             }
 
-            fn widget_render(&self, index: usize, _: &mut RenderContext, _: &mut FrameBuilder) {
+            fn item_render(&self, index: usize, _: &mut RenderContext, _: &mut FrameBuilder) {
                 panic!("index {index} out of range for length 0")
             }
 
             fn render_update_all(&self, _: &mut RenderContext, _: &mut FrameUpdate) {}
 
-            fn widget_render_update(&self, index: usize, _: &mut RenderContext, _: &mut FrameUpdate) {
+            fn item_render_update(&self, index: usize, _: &mut RenderContext, _: &mut FrameUpdate) {
                 panic!("index {index} out of range for length 0")
             }
         }

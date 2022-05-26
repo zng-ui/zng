@@ -815,14 +815,14 @@ pub fn border_node(child: impl UiNode, border_offsets: impl IntoVar<SideOffsets>
                 wl.translate(PxVector::new(offsets.left, offsets.top));
 
                 let taken_size = PxSize::new(offsets.horizontal(), offsets.vertical());
-                self.border_rect.size = ctx.with_sub_size(taken_size, |ctx| self.children.widget_layout(0, ctx, wl));
+                self.border_rect.size = ctx.with_sub_size(taken_size, |ctx| self.children.item_layout(0, ctx, wl));
 
                 // layout border visual
                 ctx.with_constrains(
                     |_| PxConstrains2d::new_exact_size(self.border_rect.size),
                     |ctx| {
                         ContextBorders::with_border_layout(ctx.vars, self.border_rect, offsets, || {
-                            self.children.widget_layout(1, ctx, wl);
+                            self.children.item_layout(1, ctx, wl);
                         });
                     },
                 );
@@ -832,17 +832,17 @@ pub fn border_node(child: impl UiNode, border_offsets: impl IntoVar<SideOffsets>
         }
 
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-            self.children.widget_render(0, ctx, frame);
+            self.children.item_render(0, ctx, frame);
             ContextBorders::with_border_layout(ctx.vars, self.border_rect, self.render_offsets, || {
-                self.children.widget_render(1, ctx, frame);
+                self.children.item_render(1, ctx, frame);
             });
         }
 
         fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
-            self.children.widget_render_update(0, ctx, update);
+            self.children.item_render_update(0, ctx, update);
 
             ContextBorders::with_border_layout(ctx.vars, self.border_rect, self.render_offsets, || {
-                self.children.widget_render_update(1, ctx, update);
+                self.children.item_render_update(1, ctx, update);
             })
         }
     }
