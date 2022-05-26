@@ -371,7 +371,7 @@ pub fn image_presenter() -> impl UiNode {
                 align.y = 1.fct();
             }
 
-            let wgt_size = ctx.constrains().fill_size_or(render_clip.size);
+            let wgt_size = ctx.constrains().fill_ratio(render_clip.size);
 
             let mut fit = *ImageFitVar::get(ctx);
             if let ImageFit::ScaleDown = fit {

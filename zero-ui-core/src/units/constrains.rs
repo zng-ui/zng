@@ -2,7 +2,7 @@ use std::fmt;
 
 use crate::impl_from_and_into_var;
 
-use super::{euclid, Px, PxSize};
+use super::{euclid, FactorUnits, Px, PxSize};
 
 pub use euclid::BoolVector2D;
 
@@ -181,12 +181,12 @@ impl PxConstrains {
         }
     }
 
-    /// Gets the maximum if fill is preferred and max is bounded, or `desired_length` clamped by the constrains.
-    pub fn fill_or(self, desired_length: Px) -> Px {
+    /// Gets the maximum if fill is preferred and max is bounded, or `length` clamped by the constrains.
+    pub fn fill_or(self, length: Px) -> Px {
         if self.fill && !self.is_unbounded() {
             self.max
         } else {
-            self.clamp(desired_length)
+            self.clamp(length)
         }
     }
 
@@ -196,6 +196,15 @@ impl PxConstrains {
             Some(self.max)
         } else {
             None
+        }
+    }
+
+    /// Gets the maximum length if bounded or `length` clamped by the constrains.
+    pub fn max_or(self, length: Px) -> Px {
+        if self.is_unbounded() {
+            self.clamp(length)
+        } else {
+            self.max
         }
     }
 }
@@ -520,14 +529,56 @@ impl PxConstrains2d {
         PxSize::new(self.x.fill(), self.y.fill())
     }
 
-    /// Gets the maximum if fill is preferred and max is bounded, or `desired_length` clamped by the constrains.
-    pub fn fill_size_or(self, desired_size: PxSize) -> PxSize {
-        PxSize::new(self.x.fill_or(desired_size.width), self.y.fill_or(desired_size.height))
+    /// Gets the maximum if fill is preferred and max is bounded, or `size` clamped by the constrains.
+    pub fn fill_size_or(self, size: PxSize) -> PxSize {
+        PxSize::new(self.x.fill_or(size.width), self.y.fill_or(size.height))
     }
 
     /// Gets the max size if is fill and has max bounds, or gets the exact size if min equals max.
     pub fn fill_or_exact(self) -> Option<PxSize> {
         Some(PxSize::new(self.x.fill_or_exact()?, self.y.fill_or_exact()?))
+    }
+
+    /// Gets the maximum size if bounded, or the `size` clamped by constrains.
+    pub fn max_size_or(self, size: PxSize) -> PxSize {
+        PxSize::new(self.x.max_or(size.width), self.y.max_or(size.height))
+    }
+
+    /// Gets the maximum fill size that preserves the `size` ratio.
+    pub fn fill_ratio(self, size: PxSize) -> PxSize {
+        if self.x.is_unbounded() {
+            if self.y.is_unbounded() {
+                // cover min
+                let container = size.max(self.min_size()).to_f32();
+                let content = size.to_f32();
+                let scale = (container.width / content.width).max(container.height / content.height).fct();
+                size * scale
+            } else {
+                // expand height
+                let height = self.y.fill_or(size.height.max(self.y.min));
+                let scale = (height.0 as f32 / size.height.0 as f32).fct();
+                PxSize::new(size.width * scale, height)
+            }
+        } else if self.y.is_unbounded() {
+            // expand width
+            let width = self.x.fill_or(size.width.max(self.x.min));
+            let scale = (width.0 as f32 / size.width.0 as f32).fct();
+            PxSize::new(width, size.height * scale)
+        } else if self.x.is_fill() || self.y.is_fill() {
+            // contain max & clamp min
+            let container = self.fill_size_or(size).to_f32();
+            let content = size.to_f32();
+            let scale = (container.width / content.width).min(container.height / content.height).fct();
+
+            (size * scale).max(self.min_size())
+        } else {
+            // cover min & clamp max
+            let container = self.min_size().to_f32();
+            let content = size.to_f32();
+            let scale = (container.width / content.width).max(container.height / content.height).fct();
+
+            (size * scale).min(PxSize::new(self.x.max, self.y.max))
+        }
     }
 }
 impl_from_and_into_var! {
@@ -555,5 +606,110 @@ impl_from_and_into_var! {
 impl Default for PxConstrains2d {
     fn default() -> Self {
         Self::new_unbounded()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn fill_ratio_unbounded_no_min() {
+        let constrains = PxConstrains2d::new_unbounded();
+
+        let size = PxSize::new(Px(400), Px(200));
+        let filled = constrains.fill_ratio(size);
+
+        assert_eq!(size, filled)
+    }
+
+    #[test]
+    fn fill_ratio_unbounded_with_min_x() {
+        let constrains = PxConstrains2d::new_unbounded().with_min_x(Px(800));
+
+        let size = PxSize::new(Px(400), Px(200));
+        let filled = constrains.fill_ratio(size);
+
+        assert_eq!(filled, PxSize::new(Px(800), Px(400)))
+    }
+
+    #[test]
+    fn fill_ratio_unbounded_with_min_y() {
+        let constrains = PxConstrains2d::new_unbounded().with_min_y(Px(400));
+
+        let size = PxSize::new(Px(400), Px(200));
+        let filled = constrains.fill_ratio(size);
+
+        assert_eq!(filled, PxSize::new(Px(800), Px(400)))
+    }
+
+    #[test]
+    fn fill_ratio_bounded_x() {
+        let constrains = PxConstrains2d::new_fill(Px(800), Px::MAX);
+
+        let size = PxSize::new(Px(400), Px(200));
+        let filled = constrains.fill_ratio(size);
+
+        assert_eq!(filled, PxSize::new(Px(800), Px(400)))
+    }
+
+    #[test]
+    fn fill_ratio_bounded_y() {
+        let constrains = PxConstrains2d::new_fill(Px::MAX, Px(400));
+
+        let size = PxSize::new(Px(400), Px(200));
+        let filled = constrains.fill_ratio(size);
+
+        assert_eq!(filled, PxSize::new(Px(800), Px(400)))
+    }
+
+    #[test]
+    fn fill_ratio_bounded1() {
+        let constrains = PxConstrains2d::new_fill(Px(800), Px(400));
+
+        let size = PxSize::new(Px(400), Px(200));
+        let filled = constrains.fill_ratio(size);
+
+        assert_eq!(filled, PxSize::new(Px(800), Px(400)))
+    }
+
+    #[test]
+    fn fill_ratio_bounded2() {
+        let constrains = PxConstrains2d::new_fill(Px(400), Px(400));
+
+        let size = PxSize::new(Px(400), Px(200));
+        let filled = constrains.fill_ratio(size);
+
+        assert_eq!(filled, PxSize::new(Px(400), Px(200)))
+    }
+
+    #[test]
+    fn fill_ratio_exact() {
+        let constrains = PxConstrains2d::new_exact(Px(123), Px(321));
+
+        let size = PxSize::new(Px(400), Px(200));
+        let filled = constrains.fill_ratio(size);
+
+        assert_eq!(filled, PxSize::new(Px(123), Px(321)))
+    }
+
+    #[test]
+    fn fill_ratio_no_fill_bounded_with_min_x() {
+        let constrains = PxConstrains2d::new_bounded(Px(1000), Px(1000)).with_min_x(Px(800));
+
+        let size = PxSize::new(Px(400), Px(200));
+        let filled = constrains.fill_ratio(size);
+
+        assert_eq!(filled, PxSize::new(Px(800), Px(400)))
+    }
+
+    #[test]
+    fn fill_ratio_no_fill_bounded_with_min_y() {
+        let constrains = PxConstrains2d::new_bounded(Px(1000), Px(1000)).with_min_y(Px(400));
+
+        let size = PxSize::new(Px(400), Px(200));
+        let filled = constrains.fill_ratio(size);
+
+        assert_eq!(filled, PxSize::new(Px(800), Px(400)))
     }
 }
