@@ -23,19 +23,14 @@
 * First render is also slow.
 * We block the app process waiting view-process startup.
 
-# Single Pass Layout
-
-* Test everything.
-
 # Cache Everything
 
 General idea, reuse computed data for `UiNode` info, layout and render at
 widget boundaries if the widget or inner widgets did not request an update of these types.
 
-## `UiNode::measure` and `UiNode::arrange`
+## `UiNode::layout`
 
 * Already started implementing this, see `LayoutMask`.
-* Await single pass layout rewrite.
 
 ## `UiNode::render`
 
