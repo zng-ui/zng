@@ -595,6 +595,7 @@ struct OnEventHandler {
 /// Drop all clones of this handle to drop the handler, or call [`unsubscribe`](Self::unsubscribe) to drop the handle
 /// without dropping the handler.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
+#[repr(transparent)]
 #[must_use = "the event handler unsubscribes if the handle is dropped"]
 pub struct OnEventHandle(Handle<()>);
 impl OnEventHandle {
@@ -604,7 +605,10 @@ impl OnEventHandle {
     }
 
     /// Create a handle to nothing, the handle always in the *unsubscribed* state.
+    ///
+    /// Note that `Option<OnEventHandle>` takes up the same space as `OnEventHandle` and avoids an allocation.
     pub fn dummy() -> Self {
+        assert_non_null!(OnEventHandle);
         OnEventHandle(Handle::dummy(()))
     }
 

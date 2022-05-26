@@ -13,6 +13,7 @@ use crate::crate_util::*;
 /// [`Vars`]: crate::var::Vars
 /// [`Var`]: crate::var::Var
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
+#[repr(transparent)]
 #[must_use = "the var binding is undone if the handle is dropped"]
 pub struct VarBindingHandle(Handle<()>);
 impl VarBindingHandle {
@@ -22,7 +23,10 @@ impl VarBindingHandle {
     }
 
     /// Create dummy handle that is always in the *unbound* state.
+    ///
+    /// Note that `Option<VarBindingHandle>` takes up the same space as `VarBindingHandle` and avoids an allocation.
     pub fn dummy() -> VarBindingHandle {
+        assert_non_null!(VarBindingHandle);
         VarBindingHandle(Handle::dummy(()))
     }
 

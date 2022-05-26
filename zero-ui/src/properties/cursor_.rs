@@ -23,7 +23,7 @@ pub fn cursor(child: impl UiNode, cursor: impl IntoVar<Option<CursorIcon>>) -> i
     struct CursorNode<T, C> {
         cursor: C,
         child: T,
-        hovered_binding: VarBindingHandle,
+        hovered_binding: Option<VarBindingHandle>,
     }
     #[impl_ui_node(child)]
     impl<T, C> UiNode for CursorNode<T, C>
@@ -48,20 +48,20 @@ pub fn cursor(child: impl UiNode, cursor: impl IntoVar<Option<CursorIcon>>) -> i
                         if args.target.as_ref().map(|t| t.contains(ctx.path.widget_id())).unwrap_or(false) {
                             // we can set
 
-                            if self.hovered_binding.is_unbound() {
+                            if self.hovered_binding.is_none() {
                                 // we are not already set, setup binding.
 
                                 let cursor = ctx.window_state.req(WindowVarsKey).cursor();
                                 cursor.set_ne(ctx.vars, self.cursor.copy(ctx.vars));
-                                self.hovered_binding = self.cursor.bind_into(ctx.vars, cursor);
+                                self.hovered_binding = Some(self.cursor.bind_into(ctx.vars, cursor));
                             }
 
                             // flag parent
                             ctx.update_state.set(CursorStateKey, CursorState::Set);
-                        } else if !self.hovered_binding.is_unbound() {
+                        } else if self.hovered_binding.is_some() {
                             // we are set, unbind.
 
-                            self.hovered_binding = VarBindingHandle::dummy();
+                            self.hovered_binding = None;
                             ctx.window_state
                                 .req(WindowVarsKey)
                                 .cursor()
@@ -71,7 +71,7 @@ pub fn cursor(child: impl UiNode, cursor: impl IntoVar<Option<CursorIcon>>) -> i
                     CursorState::Set => {
                         // child did set, unbind if we were bound.
 
-                        self.hovered_binding = VarBindingHandle::dummy();
+                        self.hovered_binding = None;
                     }
                 }
             } else {
@@ -82,7 +82,7 @@ pub fn cursor(child: impl UiNode, cursor: impl IntoVar<Option<CursorIcon>>) -> i
     CursorNode {
         cursor: cursor.into_var(),
         child,
-        hovered_binding: VarBindingHandle::dummy(),
+        hovered_binding: None,
     }
 }
 

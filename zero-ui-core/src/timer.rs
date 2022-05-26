@@ -427,6 +427,7 @@ pub type DeadlineVar = ReadOnlyRcVar<Deadline>;
 /// Drop all clones of this handle to cancel the timer, or call [`perm`](Self::perm) to drop the handle
 /// without cancelling the timer.
 #[derive(Clone, PartialEq, Eq, Hash)]
+#[repr(transparent)]
 #[must_use = "the timer is canceled if the handler is dropped"]
 pub struct DeadlineHandle(Handle<DeadlineState>);
 struct DeadlineState {
@@ -435,7 +436,10 @@ struct DeadlineState {
 }
 impl DeadlineHandle {
     /// Create a handle to nothing, the handle always in the *canceled* state.
+    ///
+    /// Note that `Option<DeadlineHandle>` takes up the same space as `DeadlineHandle` and avoids an allocation.
     pub fn dummy() -> DeadlineHandle {
+        assert_non_null!(DeadlineHandle);
         DeadlineHandle(Handle::dummy(DeadlineState {
             deadline: Instant::now(),
             executed: AtomicBool::new(false),
@@ -541,6 +545,7 @@ pub struct DeadlineArgs {
 /// Drop all clones of this handler to stop the timer, or call [`perm`](Self::perm) to drop the handler
 /// without cancelling the timer.
 #[derive(Clone, PartialEq, Eq, Hash)]
+#[repr(transparent)]
 #[must_use = "the timer is stopped if the handler is dropped"]
 pub struct TimerHandle(Handle<TimerState>);
 struct TimerState {
@@ -571,7 +576,10 @@ impl TimerHandle {
     }
 
     /// Create a handle to nothing, the handle is always in the *stopped* state.
+    ///
+    /// Note that `Option<TimerHandle>` takes up the same space as `TimerHandle` and avoids an allocation.
     pub fn dummy() -> TimerHandle {
+        assert_non_null!(TimerHandle);
         TimerHandle(Handle::dummy(TimerState {
             paused: AtomicBool::new(true),
             deadline: Mutex::new(TimerDeadline {

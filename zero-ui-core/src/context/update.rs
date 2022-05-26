@@ -18,6 +18,7 @@ use super::{AppContext, UpdatesTrace};
 /// Drop all clones of this handle to drop the binding, or call [`perm`](Self::perm) to drop the handle
 /// but keep the handler alive for the duration of the app.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
+#[repr(transparent)]
 #[must_use = "dropping the handle unsubscribes update handler"]
 pub struct OnUpdateHandle(Handle<()>);
 impl OnUpdateHandle {
@@ -27,7 +28,10 @@ impl OnUpdateHandle {
     }
 
     /// Create a handle to nothing, the handle always in the *unsubscribed* state.
+    ///
+    /// Note that `Option<OnUpdateHandle>` takes up the same space as `OnUpdateHandle` and avoids an allocation.
     pub fn dummy() -> Self {
+        assert_non_null!(OnUpdateHandle);
         OnUpdateHandle(Handle::dummy(()))
     }
 

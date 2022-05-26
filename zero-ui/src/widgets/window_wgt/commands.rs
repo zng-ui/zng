@@ -177,7 +177,7 @@ pub(super) fn window_control_node(child: impl UiNode) -> impl UiNode {
 
         state_var: Option<RcVar<WindowState>>,
 
-        allow_alt_f4_binding: VarBindingHandle,
+        allow_alt_f4_binding: Option<VarBindingHandle>,
     }
     impl<C> WindowControlNode<C> {
         fn update_state(&mut self, state: WindowState) {
@@ -224,10 +224,12 @@ pub(super) fn window_control_node(child: impl UiNode) -> impl UiNode {
                 // the view-process can block the key press and send a close event
                 // without the CloseCommand event ever firing.
                 let allow_alt_f4 = ctx.services.windows().vars(window_id).unwrap().allow_alt_f4();
-                self.allow_alt_f4_binding = CloseCommand
-                    .scoped(window_id)
-                    .shortcut()
-                    .bind_map(ctx.vars, allow_alt_f4, |_, s| s.contains(shortcut![ALT + F4]));
+                self.allow_alt_f4_binding = Some(
+                    CloseCommand
+                        .scoped(window_id)
+                        .shortcut()
+                        .bind_map(ctx.vars, allow_alt_f4, |_, s| s.contains(shortcut![ALT + F4])),
+                );
             }
 
             self.child.init(ctx);
@@ -244,7 +246,7 @@ pub(super) fn window_control_node(child: impl UiNode) -> impl UiNode {
             self.close_handle = CommandHandle::dummy();
             self.state_var = None;
 
-            self.allow_alt_f4_binding = VarBindingHandle::dummy();
+            self.allow_alt_f4_binding = None;
             self.child.deinit(ctx);
         }
 
@@ -340,7 +342,7 @@ pub(super) fn window_control_node(child: impl UiNode) -> impl UiNode {
 
         state_var: None,
 
-        allow_alt_f4_binding: VarBindingHandle::dummy(),
+        allow_alt_f4_binding: None,
     }
     .cfg_boxed()
 }

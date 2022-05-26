@@ -835,6 +835,7 @@ struct OnVarHandler {
 /// Drop all clones of this handle to drop the handler, or call [`unsubscribe`](Self::unsubscribe) to drop the handle
 /// without dropping the handler.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
+#[repr(transparent)]
 #[must_use = "the handler unsubscribes if the handle is dropped"]
 pub struct OnVarHandle(Handle<()>);
 impl OnVarHandle {
@@ -844,7 +845,10 @@ impl OnVarHandle {
     }
 
     /// Create a handle to nothing, the handle always in the *unsubscribed* state.
+    ///
+    /// Note that `Option<OnVarHandle>` takes up the same space as `OnVarHandle` and avoids an allocation.
     pub fn dummy() -> Self {
+        assert_non_null!(OnVarHandle);
         OnVarHandle(Handle::dummy(()))
     }
 

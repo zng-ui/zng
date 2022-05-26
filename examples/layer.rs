@@ -169,7 +169,7 @@ fn anchor_example() -> impl Widget {
 
     let anchor_mode = point.map(move |p| AnchorMode {
         transform: AnchorTransform::InnerOffset(p.clone()),
-        size: AnchorSize::Infinite,
+        size: AnchorSize::Unbounded,
         visibility: true,
         interaction: false,
         corner_radius: false,

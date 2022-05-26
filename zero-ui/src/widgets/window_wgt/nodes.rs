@@ -218,7 +218,7 @@ impl WindowLayers {
 
                         return ctx.with_constrains(
                             |c| match mode.size {
-                                AnchorSize::Infinite => PxConstrains2d::new_unbounded(),
+                                AnchorSize::Unbounded => PxConstrains2d::new_unbounded(),
                                 AnchorSize::Window => c,
                                 AnchorSize::InnerSize => PxConstrains2d::new_exact_size(bounds.inner_size()),
                                 AnchorSize::InnerBorder => PxConstrains2d::new_exact_size(border.inner_size(bounds)),
@@ -622,7 +622,7 @@ pub enum AnchorSize {
     ///
     /// Note that layered widgets do not affect the window size and a widget that overflows the content
     /// boundaries is clipped.
-    Infinite,
+    Unbounded,
     /// Widget does not copy any size from the anchor widget, the available size and final size
     /// are the window's root size.
     Window,
@@ -676,7 +676,7 @@ impl Default for AnchorMode {
     fn default() -> Self {
         AnchorMode {
             transform: AnchorTransform::InnerOffset(Point::top_left()),
-            size: AnchorSize::Infinite,
+            size: AnchorSize::Unbounded,
             visibility: true,
             interaction: false,
             corner_radius: true,

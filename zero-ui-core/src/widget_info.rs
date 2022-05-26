@@ -376,7 +376,7 @@ pub struct WidgetInfoBuilder {
     meta: OwnedStateMap,
 
     tree: Tree<WidgetInfoData>,
-    interaction_filter: Vec<Box<dyn Fn(&InteractiveFilterArgs) -> bool>>,
+    interaction_filters: InteractiveFilters,
 }
 impl WidgetInfoBuilder {
     /// Starts building a info tree with the root information.
@@ -396,6 +396,7 @@ impl WidgetInfoBuilder {
                 border_info: root_border_info,
                 render_info: root_render_info,
                 meta: Rc::new(OwnedStateMap::new()),
+                interaction_filters: vec![],
             },
             used_data.tree_capacity,
         );
@@ -405,7 +406,7 @@ impl WidgetInfoBuilder {
             window_id,
             node: root_node,
             tree,
-            interaction_filter: Vec::with_capacity(used_data.interactive_capacity),
+            interaction_filters: Vec::with_capacity(used_data.interactive_capacity),
             meta: OwnedStateMap::new(),
             widget_id: root_id,
         }
@@ -449,6 +450,7 @@ impl WidgetInfoBuilder {
                 border_info,
                 render_info,
                 meta: Rc::new(OwnedStateMap::new()),
+                interaction_filters: vec![],
             })
             .id();
 
@@ -461,7 +463,12 @@ impl WidgetInfoBuilder {
 
     /// Reuse the widget info branch from the previous tree.
     ///
+    /// All info state is preserved in the new info tree, all [interaction filters] registered by the widget also affect
+    /// the new info tree.
+    ///
     /// Only call this in widget node implementations that monitor the updates requested by their content.
+    ///
+    /// [interaction filters]: Self::push_interaction_filter
     pub fn push_widget_reuse(&mut self, ctx: &mut InfoContext) {
         let widget_id = ctx.path.widget_id();
 
@@ -475,22 +482,37 @@ impl WidgetInfoBuilder {
             .find(widget_id)
             .unwrap_or_else(|| panic!("cannot reuse `{:?}`, not found in previous tree", ctx.path));
 
-        Self::clone_append(wgt.node(), &mut self.node(self.node));
+        Self::clone_append(
+            wgt.node(),
+            &mut self.tree.get_mut(self.node).unwrap(),
+            &mut self.interaction_filters,
+        );
     }
-    fn clone_append(from: ego_tree::NodeRef<WidgetInfoData>, to: &mut ego_tree::NodeMut<WidgetInfoData>) {
+    fn clone_append(
+        from: ego_tree::NodeRef<WidgetInfoData>,
+        to: &mut ego_tree::NodeMut<WidgetInfoData>,
+        interaction_filters: &mut InteractiveFilters,
+    ) {
         let mut to = to.append(from.value().clone());
+        for filter in &from.value().interaction_filters {
+            interaction_filters.push(filter.clone());
+        }
         for from in from.children() {
-            Self::clone_append(from, &mut to);
+            Self::clone_append(from, &mut to, interaction_filters);
         }
     }
 
     /// Register a closure that returns `true` if the widget is interactive or `false` if it is not.
     ///
-    /// Widgets [`allow_interaction`] if all registered closures allow it.
+    /// Widgets [`allow_interaction`] if all registered closures allow it. Interaction filters are global to the
+    /// widget tree, an are re-registered for the tree if the current widget is [reused].
     ///
     /// [`allow_interaction`]: WidgetInfo::allow_interaction
+    /// [reused]: Self::push_widget_reuse
     pub fn push_interaction_filter(&mut self, filter: impl Fn(&InteractiveFilterArgs) -> bool + 'static) {
-        self.interaction_filter.push(Box::new(filter))
+        let filter = Rc::new(filter);
+        self.interaction_filters.push(filter.clone());
+        self.node(self.node).value().interaction_filters.push(filter);
     }
 
     /// Build the info tree.
@@ -523,7 +545,7 @@ impl WidgetInfoBuilder {
             window_id: self.window_id,
             lookup,
             tree: self.tree,
-            interaction_filter: self.interaction_filter,
+            interaction_filters: self.interaction_filters,
         }));
 
         if !repeats.is_empty() {
@@ -547,7 +569,7 @@ impl WidgetInfoBuilder {
 
         let cap = UsedWidgetInfoBuilder {
             tree_capacity: r.0.lookup.capacity(),
-            interactive_capacity: r.0.interaction_filter.len(),
+            interactive_capacity: r.0.interaction_filters.len(),
         };
 
         (r, cap)
@@ -583,7 +605,7 @@ struct WidgetInfoTreeInner {
     window_id: WindowId,
     tree: Tree<WidgetInfoData>,
     lookup: IdMap<WidgetId, ego_tree::NodeId>,
-    interaction_filter: Vec<Box<dyn Fn(&InteractiveFilterArgs) -> bool>>,
+    interaction_filters: InteractiveFilters,
 }
 impl WidgetInfoTree {
     /// Blank window that contains only the root widget taking no space.
@@ -1020,6 +1042,7 @@ struct WidgetInfoData {
     border_info: WidgetBorderInfo,
     render_info: WidgetRenderInfo,
     meta: Rc<OwnedStateMap>,
+    interaction_filters: InteractiveFilters,
 }
 
 /// Reference to a widget info in a [`WidgetInfoTree`].
@@ -1146,7 +1169,7 @@ impl<'a> WidgetInfo<'a> {
     /// [disabled]: fn@crate::widget_base::enabled
     /// [enabled]: fn@crate::widget_base::enabled
     pub fn allow_interaction(self) -> bool {
-        for filter in &self.tree.0.interaction_filter {
+        for filter in &self.tree.0.interaction_filters {
             if !filter(&InteractiveFilterArgs { info: self }) {
                 return false;
             }
@@ -1889,3 +1912,5 @@ impl<'a> InteractiveFilterArgs<'a> {
         Self { info }
     }
 }
+
+type InteractiveFilters = Vec<Rc<dyn Fn(&InteractiveFilterArgs) -> bool>>;

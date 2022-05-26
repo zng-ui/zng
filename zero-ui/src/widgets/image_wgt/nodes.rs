@@ -35,7 +35,7 @@ pub fn image_source(child: impl UiNode, source: impl IntoVar<ImageSource>) -> im
 
         img: ImageVar,
         ctx_img: RcVar<Image>,
-        ctx_binding: VarBindingHandle,
+        ctx_binding: Option<VarBindingHandle>,
     }
     #[impl_ui_node(child)]
     impl<C: UiNode, S: Var<ImageSource>> UiNode for ImageSourceNode<C, S> {
@@ -69,7 +69,7 @@ pub fn image_source(child: impl UiNode, source: impl IntoVar<ImageSource>) -> im
             self.img = ctx.services.images().get(source, mode, limits);
 
             self.ctx_img.set(ctx.vars, self.img.get_clone(ctx.vars));
-            self.ctx_binding = self.img.bind(ctx.vars, &self.ctx_img);
+            self.ctx_binding = Some(self.img.bind(ctx.vars, &self.ctx_img));
 
             self.child.init(ctx);
         }
@@ -78,7 +78,7 @@ pub fn image_source(child: impl UiNode, source: impl IntoVar<ImageSource>) -> im
             self.child.deinit(ctx);
             self.ctx_img.set(ctx, ContextImageVar::default_value());
             self.img = var(ContextImageVar::default_value()).into_read_only();
-            self.ctx_binding = VarBindingHandle::dummy();
+            self.ctx_binding = None;
             self.render_factor = None;
         }
 
@@ -112,7 +112,7 @@ pub fn image_source(child: impl UiNode, source: impl IntoVar<ImageSource>) -> im
                 self.img = ctx.services.images().get(source, mode, limits);
 
                 self.ctx_img.set(ctx.vars, self.img.get_clone(ctx.vars));
-                self.ctx_binding = self.img.bind(ctx.vars, &self.ctx_img);
+                self.ctx_binding = Some(self.img.bind(ctx.vars, &self.ctx_img));
             } else if let Some(enabled) = ImageCacheVar::clone_new(ctx) {
                 // cache-mode update:
                 let images = ctx.services.images();
@@ -132,7 +132,7 @@ pub fn image_source(child: impl UiNode, source: impl IntoVar<ImageSource>) -> im
                     };
 
                     self.ctx_img.set(ctx.vars, self.img.get_clone(ctx.vars));
-                    self.ctx_binding = self.img.bind(ctx.vars, &self.ctx_img);
+                    self.ctx_binding = Some(self.img.bind(ctx.vars, &self.ctx_img));
                 }
             } else if let Some(fct) = &self.render_factor {
                 if let Some(fct) = fct.copy_new(ctx) {
@@ -152,7 +152,7 @@ pub fn image_source(child: impl UiNode, source: impl IntoVar<ImageSource>) -> im
                     let img = ctx.services.images().get(source, mode, limits);
 
                     self.ctx_img.set(ctx.vars, img.get_clone(ctx.vars));
-                    self.ctx_binding = img.bind(ctx.vars, &self.ctx_img);
+                    self.ctx_binding = Some(img.bind(ctx.vars, &self.ctx_img));
                 }
             }
 
@@ -166,7 +166,7 @@ pub fn image_source(child: impl UiNode, source: impl IntoVar<ImageSource>) -> im
         child: with_context_var(child, ContextImageVar, ctx_img.clone().into_read_only()),
         img: var(Image::dummy(None)).into_read_only(),
         ctx_img,
-        ctx_binding: VarBindingHandle::dummy(),
+        ctx_binding: None,
         source: source.into_var(),
         render_factor: None,
     }

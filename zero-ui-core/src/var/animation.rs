@@ -148,6 +148,7 @@ impl fmt::Display for EasingFn {
 ///
 /// [`perm`]: AnimationHandle::perm
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
+#[repr(transparent)]
 #[must_use = "the animation stops if the handle is dropped"]
 pub struct AnimationHandle(Handle<()>);
 impl AnimationHandle {
@@ -157,7 +158,10 @@ impl AnimationHandle {
     }
 
     /// Create dummy handle that is always in the *stopped* state.
+    ///
+    /// Note that `Option<AnimationHandle>` takes up the same space as `AnimationHandle` and avoids an allocation.
     pub fn dummy() -> Self {
+        assert_non_null!(AnimationHandle);
         AnimationHandle(Handle::dummy(()))
     }
 

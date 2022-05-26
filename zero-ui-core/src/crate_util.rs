@@ -16,6 +16,22 @@ use std::{
     time::{Duration, Instant},
 };
 
+/// Asserts the `size_of` a type at compile time.
+#[allow(unused)]
+macro_rules! assert_size_of {
+    ($Type:ty, $n:tt) => {
+        const _ASSERT: [u8; $n] = [0; std::mem::size_of::<$Type>()];
+    };
+}
+
+/// Asserts the `size_of` an `Option<T>` is the same as the size of `T` a type at compile time.
+#[allow(unused)]
+macro_rules! assert_non_null {
+    ($Type:ty) => {
+        const _ASSERT: [u8; std::mem::size_of::<$Type>()] = [0; std::mem::size_of::<Option<$Type>>()];
+    };
+}
+
 /// Declare a new unique id type that is backed by a `NonZeroU32`.
 macro_rules! unique_id_32 {
     ($(#[$attrs:meta])* $vis:vis struct $Type:ident;) => {
@@ -298,6 +314,7 @@ impl<F: FnOnce()> Drop for RunOnDrop<F> {
 ///
 /// The parameter type `D` is any [`Sync`] data type that will be shared using the handle.
 #[must_use = "the resource id dropped if the handle is dropped"]
+#[repr(transparent)]
 pub(crate) struct Handle<D: Send + Sync>(Arc<HandleState<D>>);
 struct HandleState<D> {
     state: AtomicU8,
@@ -314,7 +331,10 @@ impl<D: Send + Sync> Handle<D> {
     }
 
     /// Create a handle to nothing, the handle always in the *dropped* state.
+    ///
+    /// Note that `Option<Handle<D>>` takes up the same space as `Handle<D>` and avoids an allocation.
     pub fn dummy(data: D) -> Self {
+        assert_non_null!(Handle<()>);
         Handle(Arc::new(HandleState {
             state: AtomicU8::new(FORCE_DROP),
             data,
@@ -1070,13 +1090,5 @@ macro_rules! share_generics {
         #[doc(hidden)]
         #[cfg(debug_assertions)]
         pub const _: *const () = (&$f) as *const _ as _;
-    };
-}
-
-/// Asserts the `size_of` a type at compile time.
-#[allow(unused)]
-macro_rules! assert_size_of {
-    ($Type:ty, $n:tt) => {
-        const _ASSERT: [u8; $n] = [0; std::mem::size_of::<$Type>()];
     };
 }
