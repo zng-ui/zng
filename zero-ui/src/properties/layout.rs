@@ -145,6 +145,8 @@ pub fn child_align(child: impl UiNode, alignment: impl IntoVar<Align>) -> impl U
 
 /// Widget layout offset.
 ///
+/// Relative values are computed of the parent fill size or the widget's size, whichever is greater.
+///
 /// # Examples
 ///
 /// ```
@@ -157,7 +159,7 @@ pub fn child_align(child: impl UiNode, alignment: impl IntoVar<Align>) -> impl U
 /// # ;
 /// ```
 ///
-/// In the example the button is offset 100 layout pixels to the right and 20% of its own height down.
+/// In the example the button is offset 100 layout pixels to the right and 20% of the fill height down.
 ///
 /// # `x` and `y`
 ///
@@ -185,7 +187,10 @@ pub fn position(child: impl UiNode, position: impl IntoVar<Point>) -> impl UiNod
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
             let size = self.child.layout(ctx, wl);
             let pos = ctx.with_constrains(
-                |_| PxConstrains2d::new_exact_size(size),
+                |c| {
+                    let size = c.fill_size().max(size);
+                    PxConstrains2d::new_exact_size(size)
+                },
                 |ctx| self.position.get(ctx.vars).layout(ctx.metrics, |_| PxPoint::zero()),
             );
             wl.translate(pos.to_vector());
@@ -200,7 +205,7 @@ pub fn position(child: impl UiNode, position: impl IntoVar<Point>) -> impl UiNod
 
 /// Offset on the ***x*** axis.
 ///
-/// Value is relative to the widget's width.
+/// Relative values are computed of the parent fill width or the widget's width, whichever is greater.
 ///
 /// # Examples
 ///
@@ -242,7 +247,10 @@ pub fn x(child: impl UiNode, x: impl IntoVar<Length>) -> impl UiNode {
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
             let size = self.child.layout(ctx, wl);
             let x = ctx.with_constrains(
-                |_| PxConstrains2d::new_exact_size(size),
+                |c| {
+                    let size = c.fill_size().max(size);
+                    PxConstrains2d::new_exact_size(size)
+                },
                 |ctx| self.x.get(ctx.vars).layout(ctx.metrics.for_x(), |_| Px(0)),
             );
             wl.translate(PxVector::new(x, Px(0)));
@@ -254,7 +262,7 @@ pub fn x(child: impl UiNode, x: impl IntoVar<Length>) -> impl UiNode {
 
 /// Offset on the ***y*** axis.
 ///
-/// Value is relative to the widget's height.
+/// Relative values are computed of the parent fill height or the widget's height, whichever is greater.
 ///
 /// # Examples
 ///
@@ -296,7 +304,10 @@ pub fn y(child: impl UiNode, y: impl IntoVar<Length>) -> impl UiNode {
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
             let size = self.child.layout(ctx, wl);
             let y = ctx.with_constrains(
-                |_| PxConstrains2d::new_exact_size(size),
+                |c| {
+                    let size = c.fill_size().max(size);
+                    PxConstrains2d::new_exact_size(size)
+                },
                 |ctx| self.y.get(ctx.vars).layout(ctx.metrics.for_y(), |_| Px(0)),
             );
             wl.translate(PxVector::new(Px(0), y));
@@ -308,7 +319,7 @@ pub fn y(child: impl UiNode, y: impl IntoVar<Length>) -> impl UiNode {
 
 /// Minimum size of the widget.
 ///
-/// The widget size can be larger then this but not smaller.
+/// The widget size can be larger then this but not smaller. Relative values are computed from the parent's fill size.
 ///
 /// # Examples
 ///
@@ -365,7 +376,7 @@ pub fn min_size(child: impl UiNode, min_size: impl IntoVar<Size>) -> impl UiNode
 
 /// Minimum width of the widget.
 ///
-/// The widget width can be larger then this but not smaller.
+/// The widget width can be larger then this but not smaller. Relative values are computed from the parent's fill width.
 ///
 /// # Examples
 ///
@@ -422,7 +433,7 @@ pub fn min_width(child: impl UiNode, min_width: impl IntoVar<Length>) -> impl Ui
 
 /// Minimum height of the widget.
 ///
-/// The widget height can be larger then this but not smaller.
+/// The widget height can be larger then this but not smaller. Relative values are computed from the parent's fill height.
 ///
 /// # Examples
 ///
@@ -479,7 +490,7 @@ pub fn min_height(child: impl UiNode, min_height: impl IntoVar<Length>) -> impl 
 
 /// Maximum size of the widget.
 ///
-/// The widget size can be smaller then this but not larger.
+/// The widget size can be smaller then this but not larger. Relative values are computed from the parent's fill size.
 ///
 /// # Examples
 ///
@@ -536,7 +547,7 @@ pub fn max_size(child: impl UiNode, max_size: impl IntoVar<Size>) -> impl UiNode
 
 /// Maximum width of the widget.
 ///
-/// The widget width can be smaller then this but not larger.
+/// The widget width can be smaller then this but not larger. Relative values are computed from the parent's fill width.
 ///
 /// # Examples
 ///
@@ -597,7 +608,7 @@ pub fn max_width(child: impl UiNode, max_width: impl IntoVar<Length>) -> impl Ui
 
 /// Maximum height of the widget.
 ///
-/// The widget height can be smaller then this but not larger.
+/// The widget height can be smaller then this but not larger. Relative values are computed from the parent's fill height.
 ///
 /// # Examples
 ///
@@ -659,6 +670,7 @@ pub fn max_height(child: impl UiNode, max_height: impl IntoVar<Length>) -> impl 
 /// Manually sets the size of the widget.
 ///
 /// When set the widget is sized with the given value, independent of the parent available size.
+/// Relative values are computed from the parent's fill size.
 ///
 /// # Examples
 ///
@@ -711,6 +723,8 @@ pub fn size(child: impl UiNode, size: impl IntoVar<Size>) -> impl UiNode {
 }
 
 /// Exact width of the widget.
+///
+/// Relative values are computed from the parent's fill width.
 ///
 /// # Examples
 ///
@@ -765,6 +779,8 @@ pub fn width(child: impl UiNode, width: impl IntoVar<Length>) -> impl UiNode {
 }
 
 /// Exact height of the widget.
+///
+/// Relative values are computed from the parent's fill height.
 ///
 /// # Examples
 ///
@@ -821,6 +837,8 @@ pub fn height(child: impl UiNode, height: impl IntoVar<Length>) -> impl UiNode {
 ///
 /// The `baseline` is a vertical offset from the bottom edge of the widget's inner bounds up, it defines the
 /// line where the widget naturally *sits*, some widgets like [`text!`] have a non-zero default baseline, most others leave it at zero.
+///
+/// Relative values are computed from the widget's height.
 ///
 /// [`text!`]: mod@crate::widgets::text
 #[property(border, default(Length::Default))]

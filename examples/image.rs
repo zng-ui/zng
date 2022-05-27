@@ -205,41 +205,33 @@ fn img_window(title: impl IntoVar<Text>, content: impl UiNode) -> Window {
                 formatx!("loading{:.^dots_count$}", "")
             });
 
-            container! {
-                max_size = (1.vw(), 1.vh());// for the large images
-                content_align = Align::CENTER;
-                content = text! {
-                    text = msg;
-                    color = loading_color;
-                    margin = 8;
-                    width = 80;
-                    font_style = FontStyle::Italic;
-                    drop_shadow = {
-                        offset: (0, 0),
-                        blur_radius: 4,
-                        color: loading_color.darken(5.pct()),
-                    };
-                }
-            }
+            center_viewport(text! {
+                text = msg;
+                color = loading_color;
+                margin = 8;
+                width = 80;
+                font_style = FontStyle::Italic;
+                drop_shadow = {
+                    offset: (0, 0),
+                    blur_radius: 4,
+                    color: loading_color.darken(5.pct()),
+                };
+            })
         });
 
         // content shown by all images that failed to load.
         image_error_view = view_generator!(|_, args: ImageErrorArgs| {
-            container! {
-                max_size = (1.vw(), 1.vh());
-                content_align = Align::CENTER;
-                content = text! {
-                    text = args.error;
-                    margin = 8;
-                    align = Align::CENTER;
-                    color = error_color;
-                    drop_shadow = {
-                        offset: (0, 0),
-                        blur_radius: 4,
-                        color: error_color.darken(5.pct()),
-                    };
-                }
-            }
+            center_viewport(text! {
+                text = args.error;
+                margin = 8;
+                align = Align::CENTER;
+                color = error_color;
+                drop_shadow = {
+                    offset: (0, 0),
+                    blur_radius: 4,
+                    color: error_color.darken(5.pct()),
+                };
+            })
         });
 
         button::theme::background_color = button_color.lighten(4.pct());
@@ -383,4 +375,20 @@ fn img_cache_mode(req: &task::http::Request) -> http::CacheMode {
         }
     }
     http::CacheMode::default()
+}
+
+fn center_viewport(msg: impl Widget) -> impl Widget {
+    container! {
+        // center the message on the scrollable viewport:
+        //
+        // the large images can take a moment to decode in debug builds, but the size
+        // is already known after read, so the "loading.." message ends-up off-screen
+        // because it is centered on the image.
+        x = zero_ui::widgets::scrollable::ScrollHorizontalOffsetVar::new().map(|&fct| Length::Relative(fct) - 1.vw() * fct);
+        y = zero_ui::widgets::scrollable::ScrollVerticalOffsetVar::new().map(|&fct| Length::Relative(fct) - 1.vh() * fct);
+        max_size = (1.vw(), 1.vh());
+        content_align = Align::CENTER;
+
+        content = msg;
+    }
 }
