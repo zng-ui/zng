@@ -521,7 +521,7 @@ impl WidgetList for SortedWidgetVec {
 
     fn outer_all<F>(&mut self, wl: &mut WidgetLayout, keep_previous: bool, mut transform: F)
     where
-        F: FnMut(&mut WidgetLayoutTranslation, PosLayoutArgs) ,
+        F: FnMut(&mut WidgetLayoutTranslation, PosLayoutArgs),
     {
         for (i, w) in self.vec.iter_mut().enumerate() {
             let size = w.bounds_info().outer_size();

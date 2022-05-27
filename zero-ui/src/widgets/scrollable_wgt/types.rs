@@ -233,6 +233,59 @@ impl ScrollContext {
         })
     }
 
+    pub fn scroll_to_top<Vw: WithVars>(vars: &Vw) {
+        vars.with_vars(|vars| {
+            let smooth = SmoothScrollingVar::get(vars);
+            if smooth.is_disabled() {
+                ScrollVerticalOffsetVar::new().set_ne(vars, 0.fct()).unwrap();
+            } else {
+                let ease = smooth.easing.clone();
+                ScrollVerticalOffsetVar::new()
+                    .ease_ne(vars, 0.fct(), smooth.duration, move |t| ease(t))
+                    .perm();
+            }
+        })
+    }
+    pub fn scroll_to_bottom<Vw: WithVars>(vars: &Vw) {
+        vars.with_vars(|vars| {
+            let smooth = SmoothScrollingVar::get(vars);
+            if smooth.is_disabled() {
+                ScrollVerticalOffsetVar::new().set_ne(vars, 1.fct()).unwrap();
+            } else {
+                let ease = smooth.easing.clone();
+                ScrollVerticalOffsetVar::new()
+                    .ease_ne(vars, 1.fct(), smooth.duration, move |t| ease(t))
+                    .perm();
+            }
+        })
+    }
+    pub fn scroll_to_leftmost<Vw: WithVars>(vars: &Vw) {
+        vars.with_vars(|vars| {
+            let smooth = SmoothScrollingVar::get(vars);
+            if smooth.is_disabled() {
+                ScrollHorizontalOffsetVar::new().set_ne(vars, 0.fct()).unwrap();
+            } else {
+                let ease = smooth.easing.clone();
+                ScrollHorizontalOffsetVar::new()
+                    .ease_ne(vars, 0.fct(), smooth.duration, move |t| ease(t))
+                    .perm();
+            }
+        })
+    }
+    pub fn scroll_to_rightmost<Vw: WithVars>(vars: &Vw) {
+        vars.with_vars(|vars| {
+            let smooth = SmoothScrollingVar::get(vars);
+            if smooth.is_disabled() {
+                ScrollHorizontalOffsetVar::new().set_ne(vars, 1.fct()).unwrap();
+            } else {
+                let ease = smooth.easing.clone();
+                ScrollHorizontalOffsetVar::new()
+                    .ease_ne(vars, 1.fct(), smooth.duration, move |t| ease(t))
+                    .perm();
+            }
+        })
+    }
+
     /// Returns `true` if the content height is greater then the viewport height.
     pub fn can_scroll_vertical<Vr: WithVarsRead>(vars: &Vr) -> bool {
         vars.with_vars_read(|vars| {
