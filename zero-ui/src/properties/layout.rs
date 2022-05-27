@@ -941,9 +941,9 @@ pub fn position(child: impl UiNode, position: impl IntoVar<Position>) -> impl Ui
             self.child.layout(ctx, wl)
         }
 
-        fn render(&mut self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
+        fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
             // see webrender define_sticky_frame
-            self.child.render(ctx, wl)
+            self.child.render(ctx, frame)
         }
     }
     PositionNode {
