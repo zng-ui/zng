@@ -142,10 +142,16 @@ pub trait UiNode: 'static {
     /// Called every time the set of variables and events monitored by the widget changes.
     fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions);
 
-    /// Called every time the node is plugged in an Ui tree.
+    /// Called every time the node is plugged into the UI tree.
+    /// 
+    /// The parent node that calls this method must make an info, subscriptions, layout and render update request, the initializing node it self
+    /// does not need to request these updates, it needs only to initialize self and descendants.
     fn init(&mut self, ctx: &mut WidgetContext);
 
-    /// Called every time the node is unplugged from an Ui tree.
+    /// Called every time the node is unplugged from the UI tree.
+    /// 
+    /// The parent node that calls this method must make an info, subscriptions, layout and render update request, the de-initializing node it self
+    /// does not need to request these updates, it needs only to de-initialize self and descendants.
     fn deinit(&mut self, ctx: &mut WidgetContext);
 
     /// Called every time an event updates.

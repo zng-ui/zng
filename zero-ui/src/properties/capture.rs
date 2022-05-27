@@ -1,8 +1,7 @@
-use crate::core::context::StateMapEntry;
 use crate::core::mouse::{CaptureMode, MouseExt, MouseInputEvent};
 use crate::prelude::new_property::*;
 
-use std::cell::Cell;
+use std::cell::RefCell;
 use std::rc::Rc;
 
 /// Capture mouse for the widget on mouse down.
@@ -114,28 +113,90 @@ pub fn modal(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
         child: C,
         enabled: E,
     }
-
     state_key! {
-        struct ModalWidget: Rc<Cell<WidgetId>>;
+        struct ModalWidgets: Rc<RefCell<ModalWidgetsData>>;
     }
+    #[derive(Default)]
+    struct ModalWidgetsData {
+        widgets: linear_map::set::LinearSet<WidgetId>,
+        last_in_tree: Option<WidgetId>,
+    }
+
     #[impl_ui_node(child)]
     impl<C: UiNode, E: Var<bool>> UiNode for ModalNode<C, E> {
         fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
-            if self.enabled.copy(ctx) {
-                let widget_id = ctx.path.widget_id();
+            let mws = ctx.window_state.get(ModalWidgets).unwrap();
 
-                match ctx.update_state.entry(ModalWidget) {
-                    StateMapEntry::Vacant(e) => {
-                        let widget = Rc::new(Cell::new(widget_id));
-                        e.insert(widget.clone());
-                        info.push_interaction_filter(move |a| a.info.self_and_ancestors().any(|w| w.widget_id() == widget.get()));
+            if self.enabled.copy(ctx) {
+                let insert_filter = {
+                    let mut mws = mws.borrow_mut();
+                    if mws.widgets.insert(ctx.path.widget_id()) {
+                        mws.last_in_tree = None;
+                        mws.widgets.len() == 1
+                    } else {
+                        false
                     }
-                    StateMapEntry::Occupied(e) => {
-                        e.get().set(widget_id);
-                    }
+                };
+                if insert_filter {
+                    // just registered and we are the first, insert the filter:
+
+                    info.push_interaction_filter(clone_move!(mws, |a| {
+                        let mut mws = mws.borrow_mut();
+
+                        if mws.last_in_tree.is_none() {
+                            match mws.widgets.len() {
+                                0 => unreachable!(),
+                                1 => {
+                                    mws.last_in_tree = mws.widgets.iter().next().copied();
+                                }
+                                _ => {
+                                    let mut found = 0;
+                                    for info in a.info.root().self_and_descendants() {
+                                        if mws.widgets.contains(&info.widget_id()) {
+                                            mws.last_in_tree = Some(info.widget_id());
+                                            found += 1;
+                                            if found == mws.widgets.len() {
+                                                break;
+                                            }
+                                        }
+                                    }
+                                }
+                            };
+                        }
+
+                        let modal = mws.last_in_tree.unwrap();
+                        a.info.self_and_ancestors().any(|w| w.widget_id() == modal)
+                    }));
+                }
+            } else {
+                // maybe unregister.
+                let mut mws = mws.borrow_mut();
+                let widget_id = ctx.path.widget_id();
+                if mws.widgets.remove(&widget_id) && mws.last_in_tree == Some(widget_id) {
+                    mws.last_in_tree = None;
                 }
             }
+
             self.child.info(ctx, info);
+        }
+
+        fn init(&mut self, ctx: &mut WidgetContext) {
+            ctx.window_state.entry(ModalWidgets).or_default(); // insert window state
+            self.child.init(ctx);
+        }
+
+        fn deinit(&mut self, ctx: &mut WidgetContext) {
+            {
+                let mws = ctx.window_state.get(ModalWidgets).unwrap();
+
+                // maybe unregister.
+                let mut mws = mws.borrow_mut();
+                let widget_id = ctx.path.widget_id();
+                if mws.widgets.remove(&widget_id) && mws.last_in_tree == Some(widget_id) {
+                    mws.last_in_tree = None;
+                }
+            }
+            self.child.deinit(ctx)
         }
 
         fn update(&mut self, ctx: &mut WidgetContext) {

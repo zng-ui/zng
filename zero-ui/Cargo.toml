@@ -78,6 +78,7 @@ zero-ui-core = { path = "../zero-ui-core", default-features = false }
 paste = "1"
 tracing = "0.1"
 bitflags = "1"
+linear-map = "1"
 
 [build-dependencies]
 zero-ui-docs =  { path = "../zero-ui-docs" }
