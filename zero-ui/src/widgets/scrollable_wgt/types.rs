@@ -153,33 +153,7 @@ impl ScrollContext {
 
             if new_scroll != curr_scroll {
                 let new_offset = new_scroll.0 as f32 / max_scroll.0 as f32;
-
-                //smooth scrolling
-                let smooth = SmoothScrollingVar::get(vars);
-                if smooth.is_disabled() {
-                    let _ = ScrollVerticalOffsetVar::set(vars, new_offset);
-                } else {
-                    let config = ScrollConfigVar::get(vars);
-                    let mut config = config.borrow_mut();
-
-                    match &config.vertical {
-                        Some(anim) if !anim.handle.is_stopped() => {
-                            let amount = amount.0 as f32 / max_scroll.0 as f32;
-                            anim.add(amount.fct());
-                        }
-                        _ => {
-                            let ease = smooth.easing.clone();
-                            let anim = ScrollVerticalOffsetVar::new().chase_bounded(
-                                vars,
-                                new_offset.fct(),
-                                smooth.duration,
-                                move |t| ease(t),
-                                0.fct()..=1.fct(),
-                            );
-                            config.vertical = Some(anim);
-                        }
-                    }
-                }
+                ScrollContext::chase_vertical(vars, new_offset.fct());
             }
         })
     }
@@ -202,86 +176,75 @@ impl ScrollContext {
 
             if new_scroll != curr_scroll {
                 let new_offset = new_scroll.0 as f32 / max_scroll.0 as f32;
+                ScrollContext::chase_horizontal(vars, new_offset.fct());
+            }
+        })
+    }
 
-                //smooth scrolling
-                let smooth = SmoothScrollingVar::get(vars);
-                if smooth.is_disabled() {
-                    let _ = ScrollHorizontalOffsetVar::set(vars, new_offset);
-                } else {
-                    let config = ScrollConfigVar::get(vars);
-                    let mut config = config.borrow_mut();
+    /// Set the [`ScrollVerticalOffsetVar`] to `offset`, blending into the active smooth scrolling chase animation, or starting a new one, or
+    /// just setting the var if smooth scrolling is disabled.
+    pub fn chase_vertical<Vw: WithVars, F: Into<Factor>>(vars: &Vw, new_offset: F) {
+        vars.with_vars(|vars| {
+            let new_offset = new_offset.into().clamp_range();
 
-                    match &config.horizontal {
-                        Some(anim) if !anim.handle.is_stopped() => {
-                            let amount = amount.0 as f32 / max_scroll.0 as f32;
-                            anim.add(amount.fct());
-                        }
-                        _ => {
-                            let ease = smooth.easing.clone();
-                            let anim = ScrollHorizontalOffsetVar::new().chase_bounded(
-                                vars,
-                                new_offset.fct(),
-                                smooth.duration,
-                                move |t| ease(t),
-                                0.fct()..=1.fct(),
-                            );
-                            config.horizontal = Some(anim);
-                        }
+            //smooth scrolling
+            let smooth = SmoothScrollingVar::get(vars);
+            if smooth.is_disabled() {
+                let _ = ScrollVerticalOffsetVar::set(vars, new_offset);
+            } else {
+                let config = ScrollConfigVar::get(vars);
+                let mut config = config.borrow_mut();
+
+                match &config.vertical {
+                    Some(anim) if !anim.handle.is_stopped() => {
+                        anim.add(new_offset - *ScrollVerticalOffsetVar::get(vars));
+                    }
+                    _ => {
+                        let ease = smooth.easing.clone();
+                        let anim = ScrollVerticalOffsetVar::new().chase_bounded(
+                            vars,
+                            new_offset,
+                            smooth.duration,
+                            move |t| ease(t),
+                            0.fct()..=1.fct(),
+                        );
+                        config.vertical = Some(anim);
                     }
                 }
             }
         })
     }
 
-    pub fn scroll_to_top<Vw: WithVars>(vars: &Vw) {
+    /// Set the [`ScrollHorizontalOffsetVar`] to `offset`, blending into the active smooth scrolling chase animation, or starting a new one, or
+    /// just setting the var if smooth scrolling is disabled.
+    pub fn chase_horizontal<Vw: WithVars, F: Into<Factor>>(vars: &Vw, new_offset: F) {
         vars.with_vars(|vars| {
+            let new_offset = new_offset.into().clamp_range();
+
+            //smooth scrolling
             let smooth = SmoothScrollingVar::get(vars);
             if smooth.is_disabled() {
-                ScrollVerticalOffsetVar::new().set_ne(vars, 0.fct()).unwrap();
+                let _ = ScrollHorizontalOffsetVar::set(vars, new_offset);
             } else {
-                let ease = smooth.easing.clone();
-                ScrollVerticalOffsetVar::new()
-                    .ease_ne(vars, 0.fct(), smooth.duration, move |t| ease(t))
-                    .perm();
-            }
-        })
-    }
-    pub fn scroll_to_bottom<Vw: WithVars>(vars: &Vw) {
-        vars.with_vars(|vars| {
-            let smooth = SmoothScrollingVar::get(vars);
-            if smooth.is_disabled() {
-                ScrollVerticalOffsetVar::new().set_ne(vars, 1.fct()).unwrap();
-            } else {
-                let ease = smooth.easing.clone();
-                ScrollVerticalOffsetVar::new()
-                    .ease_ne(vars, 1.fct(), smooth.duration, move |t| ease(t))
-                    .perm();
-            }
-        })
-    }
-    pub fn scroll_to_leftmost<Vw: WithVars>(vars: &Vw) {
-        vars.with_vars(|vars| {
-            let smooth = SmoothScrollingVar::get(vars);
-            if smooth.is_disabled() {
-                ScrollHorizontalOffsetVar::new().set_ne(vars, 0.fct()).unwrap();
-            } else {
-                let ease = smooth.easing.clone();
-                ScrollHorizontalOffsetVar::new()
-                    .ease_ne(vars, 0.fct(), smooth.duration, move |t| ease(t))
-                    .perm();
-            }
-        })
-    }
-    pub fn scroll_to_rightmost<Vw: WithVars>(vars: &Vw) {
-        vars.with_vars(|vars| {
-            let smooth = SmoothScrollingVar::get(vars);
-            if smooth.is_disabled() {
-                ScrollHorizontalOffsetVar::new().set_ne(vars, 1.fct()).unwrap();
-            } else {
-                let ease = smooth.easing.clone();
-                ScrollHorizontalOffsetVar::new()
-                    .ease_ne(vars, 1.fct(), smooth.duration, move |t| ease(t))
-                    .perm();
+                let config = ScrollConfigVar::get(vars);
+                let mut config = config.borrow_mut();
+
+                match &config.horizontal {
+                    Some(anim) if !anim.handle.is_stopped() => {
+                        anim.add(new_offset - *ScrollHorizontalOffsetVar::get(vars));
+                    }
+                    _ => {
+                        let ease = smooth.easing.clone();
+                        let anim = ScrollHorizontalOffsetVar::new().chase_bounded(
+                            vars,
+                            new_offset,
+                            smooth.duration,
+                            move |t| ease(t),
+                            0.fct()..=1.fct(),
+                        );
+                        config.horizontal = Some(anim);
+                    }
+                }
             }
         })
     }

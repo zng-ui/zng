@@ -537,25 +537,25 @@ pub fn scroll_to_edge_commands_node(child: impl UiNode) -> impl UiNode {
                 self.child.event(ctx, args);
 
                 args.handle(|_| {
-                    ScrollContext::scroll_to_top(ctx);
+                    ScrollContext::chase_vertical(ctx, 0.fct());
                 });
             } else if let Some(args) = ScrollToBottomCommand.scoped(scope).update(args) {
                 self.child.event(ctx, args);
 
                 args.handle(|_| {
-                    ScrollContext::scroll_to_bottom(ctx);
+                    ScrollContext::chase_vertical(ctx, 1.fct());
                 });
             } else if let Some(args) = ScrollToLeftmostCommand.scoped(scope).update(args) {
                 self.child.event(ctx, args);
 
                 args.handle(|_| {
-                    ScrollContext::scroll_to_leftmost(ctx);
+                    ScrollContext::chase_horizontal(ctx, 0.fct());
                 });
             } else if let Some(args) = ScrollToRightmostCommand.scoped(scope).update(args) {
                 self.child.event(ctx, args);
 
                 args.handle(|_| {
-                    ScrollContext::scroll_to_rightmost(ctx);
+                    ScrollContext::chase_horizontal(ctx, 1.fct());
                 });
             } else {
                 self.child.event(ctx, args);
