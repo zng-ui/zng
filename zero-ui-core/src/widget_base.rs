@@ -368,18 +368,6 @@ pub mod implicit_base {
                     }
                 }
 
-                fn update(&mut self, ctx: &mut WidgetContext) {
-                    #[cfg(debug_assertions)]
-                    if !self.inited {
-                        tracing::error!(target: "widget_base", "`UiNode::update` called in not inited widget {:?}", self.id);
-                    }
-
-                    if self.subscriptions.borrow().update_intersects(ctx.updates) {
-                        let (_, updates) = ctx.widget_context(self.id, &self.info, &mut self.state, |ctx| self.child.update(ctx));
-                        *self.pending_updates.get_mut() |= updates;
-                    }
-                }
-
                 fn event<EU: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &EU) {
                     #[cfg(debug_assertions)]
                     if !self.inited {
@@ -388,6 +376,18 @@ pub mod implicit_base {
 
                     if self.subscriptions.borrow().event_contains(args) {
                         let (_, updates) = ctx.widget_context(self.id, &self.info, &mut self.state, |ctx| self.child.event(ctx, args));
+                        *self.pending_updates.get_mut() |= updates;
+                    }
+                }
+
+                fn update(&mut self, ctx: &mut WidgetContext) {
+                    #[cfg(debug_assertions)]
+                    if !self.inited {
+                        tracing::error!(target: "widget_base", "`UiNode::update` called in not inited widget {:?}", self.id);
+                    }
+
+                    if self.subscriptions.borrow().update_intersects(ctx.updates) {
+                        let (_, updates) = ctx.widget_context(self.id, &self.info, &mut self.state, |ctx| self.child.update(ctx));
                         *self.pending_updates.get_mut() |= updates;
                     }
                 }
@@ -441,6 +441,41 @@ pub mod implicit_base {
                         })
                     }
                     // else, don't need to do anything, updates are additive.
+                }
+
+                fn is_widget(&self) -> bool {
+                    true
+                }
+
+                fn try_id(&self) -> Option<WidgetId> {
+                    Some(self.id())
+                }
+
+                fn try_state(&self) -> Option<&StateMap> {
+                    Some(self.state())
+                }
+
+                fn try_state_mut(&mut self) -> Option<&mut StateMap> {
+                    Some(self.state_mut())
+                }
+
+                fn try_bounds_info(&self) -> Option<&WidgetBoundsInfo> {
+                    Some(self.bounds_info())
+                }
+
+                fn try_border_info(&self) -> Option<&WidgetBorderInfo> {
+                    Some(self.border_info())
+                }
+
+                fn try_render_info(&self) -> Option<&WidgetRenderInfo> {
+                    Some(self.render_info())
+                }
+
+                fn into_widget(self) -> crate::BoxedWidget
+                where
+                    Self: Sized,
+                {
+                    self.boxed_wgt()
                 }
             }
             impl<T: UiNode> Widget for WidgetNode<T> {

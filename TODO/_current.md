@@ -4,4 +4,5 @@
 
 * Review layout double-pass of stacks.
 * Fix text final size, either clip or return accurate size.
-* Get Widget from UiNode (at least to avoid having to do custom reference frames in fill_node).
+
+* Test scroll to end when the height changes by scrolling.

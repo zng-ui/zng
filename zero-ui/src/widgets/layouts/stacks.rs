@@ -118,7 +118,7 @@ pub mod h_stack {
                     |ctx| {
                         size.width = Px(0);
                         for i in 0..self.children.len() {
-                            let o_size = self.children.widget_bounds_info(i).outer_size();
+                            let o_size = self.children.item_bounds_info(i).outer_size();
                             if Some(o_size.height) != ctx.constrains().y.max() {
                                 // only need second pass for items that don't fill
                                 let (a_size, _) = wl.with_child(ctx, |ctx, wl| {
@@ -133,7 +133,7 @@ pub mod h_stack {
                                 }
                             } else {
                                 // item already fills width, but may have moved due to sibling new fill size
-                                self.children.widget_outer(i, wl, false, |wlt, _| {
+                                self.children.item_outer(i, wl, false, |wlt, _| {
                                     wlt.translate(PxVector::new(size.width, Px(0)));
 
                                     if o_size.width > Px(0) {
@@ -302,7 +302,7 @@ pub mod v_stack {
                     |ctx| {
                         size.height = Px(0);
                         for i in 0..self.children.len() {
-                            let o_size = self.children.widget_bounds_info(i).outer_size();
+                            let o_size = self.children.item_bounds_info(i).outer_size();
                             if Some(o_size.width) != ctx.constrains().x.max() {
                                 // only need second pass for items that don't fill
                                 let (a_size, _) = wl.with_child(ctx, |ctx, wl| {
@@ -317,7 +317,7 @@ pub mod v_stack {
                                 }
                             } else {
                                 // item already fills width, but may have moved due to sibling new fill size
-                                self.children.widget_outer(i, wl, false, |wlt, _| {
+                                self.children.item_outer(i, wl, false, |wlt, _| {
                                     wlt.translate(PxVector::new(Px(0), size.height));
 
                                     if o_size.height > Px(0) {

@@ -14,7 +14,7 @@ use crate::{
     var::{Var, VarValue, VarsRead, WithVarsRead},
     widget_base::Visibility,
     window::WindowId,
-    Widget, WidgetId,
+    UiNode, Widget, WidgetId,
 };
 
 unique_id_64! {
@@ -233,17 +233,43 @@ impl WidgetLayout {
         keep_previous: bool,
         translate: impl FnOnce(&mut WidgetLayoutTranslation, &mut W) -> R,
     ) -> R {
-        let prev_outer = widget.bounds_info().outer_offset();
+        self.with_outer_impl(widget.bounds_info().clone(), widget, keep_previous, translate)
+    }
+
+    /// Applies [`with_outer`] to the `node` if it is a full widget.
+    ///
+    /// Returns `Some(_)` if `translate` was called, or `None` if the `node` was not a full widget.
+    ///
+    /// [`with_outer`]: Self::with_outer
+    pub fn try_with_outer<N: UiNode, R>(
+        &mut self,
+        node: &mut N,
+        keep_previous: bool,
+        translate: impl FnOnce(&mut WidgetLayoutTranslation, &mut N) -> R,
+    ) -> Option<R> {
+        node.try_bounds_info()
+            .cloned()
+            .map(|info| self.with_outer_impl(info, node, keep_previous, translate))
+    }
+
+    fn with_outer_impl<T, R>(
+        &mut self,
+        bounds: WidgetBoundsInfo,
+        target: &mut T,
+        keep_previous: bool,
+        translate: impl FnOnce(&mut WidgetLayoutTranslation, &mut T) -> R,
+    ) -> R {
+        let prev_outer = bounds.outer_offset();
 
         if !keep_previous {
-            widget.bounds_info().set_outer_offset(PxVector::zero());
+            bounds.set_outer_offset(PxVector::zero());
         }
 
         let mut wl = WidgetLayout {
             t: WidgetLayoutTranslation {
                 offset_buf: PxVector::zero(),
                 baseline: Px(0),
-                known: Some(widget.bounds_info().clone()),
+                known: Some(bounds),
                 known_target: KnownTarget::Outer,
             },
             known_prev_offsets: [PxVector::zero(); 3],
@@ -252,10 +278,12 @@ impl WidgetLayout {
             child_offset_changed: false,
         };
 
-        let size = translate(&mut wl, widget);
+        let size = translate(&mut wl, target);
 
-        if prev_outer != widget.bounds_info().outer_offset() {
-            widget.bounds_info().update_offsets_version();
+        let bounds = wl.t.known.unwrap();
+
+        if prev_outer != bounds.outer_offset() {
+            bounds.update_offsets_version();
             self.child_offset_changed = true;
         }
 

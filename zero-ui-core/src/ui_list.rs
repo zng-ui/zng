@@ -118,6 +118,54 @@ pub trait UiNodeList: 'static {
 
     /// Calls [`UiNode::render_update`] in only the `index` node or widget.
     fn item_render_update(&self, index: usize, ctx: &mut RenderContext, update: &mut FrameUpdate);
+
+    /// Gets the id of the widget at the `index` if the node is a full widget.
+    ///
+    /// The index is zero-based.
+    fn try_item_id(&self, index: usize) -> Option<WidgetId>;
+
+    /// Reference the state of the widget at the `index`.
+    fn try_item_state(&self, index: usize) -> Option<&StateMap>;
+
+    /// Exclusive reference the state of the widget at the `index`.
+    fn try_item_state_mut(&mut self, index: usize) -> Option<&mut StateMap>;
+
+    /// Gets the bounds layout info of the node at the `index` if it is a full widget.
+    ///
+    /// See [`Widget::bounds_info`] for more details.
+    fn try_item_bounds_info(&self, index: usize) -> Option<&WidgetBoundsInfo>;
+
+    /// Gets the border and corners info from the node at the `index` if it is a full widget.
+    ///
+    /// See [`Widget::border_info`] for more details.
+    fn try_item_border_info(&self, index: usize) -> Option<&WidgetBorderInfo>;
+
+    /// Gets the render info from the node at the `index` if it is a full widget.
+    ///
+    /// See [`Widget::render_info`] for more details.
+    fn try_item_render_info(&self, index: usize) -> Option<&WidgetRenderInfo>;
+
+    /// Calls [`UiNode::render`] in all nodes allowed by a `filter`, skips rendering the rest.
+    fn render_node_filtered<F>(&self, filter: F, ctx: &mut RenderContext, frame: &mut FrameBuilder)
+    where
+        F: FnMut(UiNodeFilterArgs) -> bool;
+
+    /// Calls [`WidgetLayout::try_with_outer`] in only the `index` node. The `transform` closure only runs if the node
+    /// is a full widget.
+    fn try_item_outer<F, R>(&mut self, index: usize, wl: &mut WidgetLayout, keep_previous: bool, transform: F) -> Option<R>
+    where
+        F: FnOnce(&mut WidgetLayoutTranslation, PosLayoutArgs) -> R;
+
+    /// Calls [`WidgetLayout::try_with_outer`] in all nodes on the list. The `transform` closures only runs for the nodes
+    /// that are full widgets.
+    fn try_outer_all<F>(&mut self, wl: &mut WidgetLayout, keep_previous: bool, transform: F)
+    where
+        F: FnMut(&mut WidgetLayoutTranslation, PosLayoutArgs);
+
+    /// Count nodes that pass the `filter`.
+    fn count_nodes<F>(&self, filter: F) -> usize
+    where
+        F: FnMut(UiNodeFilterArgs) -> bool;
 }
 
 /// Arguments for the closure in [`UiNodeList::layout_all`] that runs before each child is layout.
@@ -127,7 +175,7 @@ pub struct PreLayoutArgs<'a> {
 
     /// Mutable reference to the widget state.
     ///
-    /// Is `None` in lists that only implement [`UiNodeList`].
+    /// Can be `None` in [`UiNodeList`] for nodes that are not full widgets.
     pub state: Option<&'a mut StateMap>,
 
     /// Constrains overwrite just for this child.
@@ -151,10 +199,10 @@ pub struct PosLayoutArgs<'a> {
 
     /// Mutable reference to the widget state.
     ///
-    /// Is `None` in lists that only implement [`UiNodeList`].
+    /// Can be `None` in [`UiNodeList`] for nodes that are not full widgets.
     pub state: Option<&'a mut StateMap>,
 
-    /// The widget outer size.
+    /// The updated size.
     pub size: PxSize,
 }
 impl<'a> PosLayoutArgs<'a> {
@@ -196,18 +244,20 @@ fn default_ui_node_list_layout_all<N, C, D>(
     D: FnMut(&mut LayoutContext, &mut WidgetLayout, PosLayoutArgs),
 {
     let (size, _) = wl.with_child(ctx, |ctx, wl| {
-        let mut args = PreLayoutArgs::new(index, None);
+        let mut args = PreLayoutArgs::new(index, node.try_state_mut());
         pre_layout(ctx, wl, &mut args);
         ctx.with_constrains(|c| args.constrains.take().unwrap_or(c), |ctx| node.layout(ctx, wl))
     });
     pos_layout(ctx, wl, PosLayoutArgs::new(index, None, size));
 }
 
-/// All [`Widget`] accessible *info*.
+/// All [`Widget`] accessible info.
 pub struct WidgetFilterArgs<'a> {
     /// The widget index in the list.
     pub index: usize,
 
+    /// The [`Widget::id`].
+    pub id: WidgetId,
     /// The [`Widget::bounds_info`].
     pub bounds_info: &'a WidgetBoundsInfo,
     /// The [`Widget::border_info`].
@@ -222,10 +272,11 @@ impl<'a> WidgetFilterArgs<'a> {
     pub fn get(list: &'a impl WidgetList, index: usize) -> Self {
         WidgetFilterArgs {
             index,
-            bounds_info: list.widget_bounds_info(index),
-            border_info: list.widget_border_info(index),
-            render_info: list.widget_render_info(index),
-            state: list.widget_state(index),
+            id: list.item_id(index),
+            bounds_info: list.item_bounds_info(index),
+            border_info: list.item_border_info(index),
+            render_info: list.item_render_info(index),
+            state: list.item_state(index),
         }
     }
 
@@ -233,6 +284,7 @@ impl<'a> WidgetFilterArgs<'a> {
     pub fn new(index: usize, widget: &'a impl Widget) -> Self {
         WidgetFilterArgs {
             index,
+            id: widget.id(),
             bounds_info: widget.bounds_info(),
             border_info: widget.border_info(),
             render_info: widget.render_info(),
@@ -241,11 +293,53 @@ impl<'a> WidgetFilterArgs<'a> {
     }
 }
 
+/// All [`UiNode`] accessible widget info.
+pub struct UiNodeFilterArgs<'a> {
+    /// The node index in the list.
+    pub index: usize,
+
+    /// The [`UiNode::try_id`].
+    pub id: Option<WidgetId>,
+    /// The [`UiNode::try_bounds_info`].
+    pub bounds_info: Option<&'a WidgetBoundsInfo>,
+    /// The [`UiNode::try_border_info`].
+    pub border_info: Option<&'a WidgetBorderInfo>,
+    /// The [`UiNode::try_render_info`].
+    pub render_info: Option<&'a WidgetRenderInfo>,
+    /// The [`UiNode::try_state`].
+    pub state: Option<&'a StateMap>,
+}
+impl<'a> UiNodeFilterArgs<'a> {
+    /// Copy or borrow all info from a node list and index.
+    pub fn get(list: &'a impl UiNodeList, index: usize) -> Self {
+        UiNodeFilterArgs {
+            index,
+            id: list.try_item_id(index),
+            bounds_info: list.try_item_bounds_info(index),
+            border_info: list.try_item_border_info(index),
+            render_info: list.try_item_render_info(index),
+            state: list.try_item_state(index),
+        }
+    }
+
+    /// Copy or borrow all info from a node reference.
+    pub fn new(index: usize, node: &'a impl UiNode) -> Self {
+        UiNodeFilterArgs {
+            index,
+            id: node.try_id(),
+            bounds_info: node.try_bounds_info(),
+            border_info: node.try_border_info(),
+            render_info: node.try_render_info(),
+            state: node.try_state(),
+        }
+    }
+}
+
 /// A generic view over a list of [`Widget`] UI nodes.
 ///
 /// Layout widgets should use this to abstract the children list type if possible.
 pub trait WidgetList: UiNodeList {
-    /// Count widgets that pass filter using the widget state.
+    /// Count widgets that pass the `filter`.
     fn count<F>(&self, filter: F) -> usize
     where
         F: FnMut(WidgetFilterArgs) -> bool;
@@ -265,28 +359,28 @@ pub trait WidgetList: UiNodeList {
     /// Gets the id of the widget at the `index`.
     ///
     /// The index is zero-based.
-    fn widget_id(&self, index: usize) -> WidgetId;
+    fn item_id(&self, index: usize) -> WidgetId;
 
     /// Reference the state of the widget at the `index`.
-    fn widget_state(&self, index: usize) -> &StateMap;
+    fn item_state(&self, index: usize) -> &StateMap;
 
     /// Exclusive reference the state of the widget at the `index`.
-    fn widget_state_mut(&mut self, index: usize) -> &mut StateMap;
+    fn item_state_mut(&mut self, index: usize) -> &mut StateMap;
 
     /// Gets the bounds layout info of the widget at the `index`.
     ///
     /// See [`Widget::bounds_info`] for more details.
-    fn widget_bounds_info(&self, index: usize) -> &WidgetBoundsInfo;
+    fn item_bounds_info(&self, index: usize) -> &WidgetBoundsInfo;
 
     /// Gets the border and corners info of the widget at the `index`.
     ///
     /// See [`Widget::border_info`] for more details.
-    fn widget_border_info(&self, index: usize) -> &WidgetBorderInfo;
+    fn item_border_info(&self, index: usize) -> &WidgetBorderInfo;
 
     /// Gets the render info the widget at the `index`.
     ///
     /// See [`Widget::render_info`] for more details.
-    fn widget_render_info(&self, index: usize) -> &WidgetRenderInfo;
+    fn item_render_info(&self, index: usize) -> &WidgetRenderInfo;
 
     /// Calls [`UiNode::render`] in all widgets allowed by a `filter`, skips rendering the rest.
     fn render_filtered<F>(&self, filter: F, ctx: &mut RenderContext, frame: &mut FrameBuilder)
@@ -294,9 +388,9 @@ pub trait WidgetList: UiNodeList {
         F: FnMut(WidgetFilterArgs) -> bool;
 
     /// Calls [`WidgetLayout::with_outer`] in only the `index` widget.
-    fn widget_outer<F>(&mut self, index: usize, wl: &mut WidgetLayout, keep_previous: bool, transform: F)
+    fn item_outer<F, R>(&mut self, index: usize, wl: &mut WidgetLayout, keep_previous: bool, transform: F) -> R
     where
-        F: FnOnce(&mut WidgetLayoutTranslation, PosLayoutArgs);
+        F: FnOnce(&mut WidgetLayoutTranslation, PosLayoutArgs) -> R;
 
     /// Calls [`WidgetLayout::with_outer`] in all widgets on the list.
     fn outer_all<F>(&mut self, wl: &mut WidgetLayout, keep_previous: bool, transform: F)

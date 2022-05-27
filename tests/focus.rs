@@ -13,7 +13,7 @@ pub fn first_and_last_window_events() {
 
     let root_id = WidgetId::new_unique();
     let stack_id = WidgetId::new_unique();
-    let button_0_id = buttons.widget_id(0);
+    let button_0_id = buttons.item_id(0);
 
     let mut app = TestApp::new_w(window! {
         content = v_stack!(id = stack_id; items = buttons);
@@ -87,7 +87,7 @@ pub fn window_tab_cycle_index_auto() {
             button! { content = text("Button 2"); tab_index = tab_ids[2] },
         ];
         // we collect the widget_id values in the TAB navigation order.
-        let mut ids: Vec<_> = (0..3).map(|i| (buttons.widget_id(i), tab_ids[i])).collect();
+        let mut ids: Vec<_> = (0..3).map(|i| (buttons.item_id(i), tab_ids[i])).collect();
         ids.sort_by_key(|(_, ti)| *ti);
         let ids: Vec<_> = ids.into_iter().map(|(id, _)| id).collect();
 
@@ -132,7 +132,7 @@ pub fn window_tab_cycle_and_alt_scope() {
             button! { content = text("Button 0"); tab_index = tab_ids[0] },
             button! { content = text("Button 1"); tab_index = tab_ids[1] },
         ];
-        let mut ids: Vec<_> = (0..2).map(|i| (buttons.widget_id(i), tab_ids[i])).collect();
+        let mut ids: Vec<_> = (0..2).map(|i| (buttons.item_id(i), tab_ids[i])).collect();
         ids.sort_by_key(|(_, ti)| *ti);
         let ids: Vec<_> = ids.into_iter().map(|(id, _)| id).collect();
 
@@ -141,7 +141,7 @@ pub fn window_tab_cycle_and_alt_scope() {
             button! { content = text("Alt 1"); tab_index = tab_ids[3] },
             button! { content = text("Alt 2"); tab_index = tab_ids[4] },
         ];
-        let mut alt_ids: Vec<_> = (0..3).map(|i| (alt_buttons.widget_id(i), tab_ids[i + 2])).collect();
+        let mut alt_ids: Vec<_> = (0..3).map(|i| (alt_buttons.item_id(i), tab_ids[i + 2])).collect();
         alt_ids.sort_by_key(|(_, ti)| *ti);
         let alt_ids: Vec<_> = alt_ids.into_iter().map(|(id, _)| id).collect();
 
@@ -232,7 +232,7 @@ fn window_tab_contained_and_continue(tab_nav: TabNav) {
             button! { content = text("Button 2"); tab_index = tab_ids[2] },
         ];
         // we collect the widget_id values in the TAB navigation order.
-        let mut ids: Vec<_> = (0..3).map(|i| (buttons.widget_id(i), tab_ids[i])).collect();
+        let mut ids: Vec<_> = (0..3).map(|i| (buttons.item_id(i), tab_ids[i])).collect();
         ids.sort_by_key(|(_, ti)| *ti);
         let ids: Vec<_> = ids.into_iter().map(|(id, _)| id).collect();
 
@@ -285,7 +285,7 @@ fn window_tab_once_and_none(tab_nav: TabNav) {
             button! { content = text("Button 2"); tab_index = tab_ids[2] },
         ];
         // we collect the widget_id values in the TAB navigation order.
-        let mut ids: Vec<_> = (0..3).map(|i| (buttons.widget_id(i), tab_ids[i])).collect();
+        let mut ids: Vec<_> = (0..3).map(|i| (buttons.item_id(i), tab_ids[i])).collect();
         ids.sort_by_key(|(_, ti)| *ti);
         let ids: Vec<_> = ids.into_iter().map(|(id, _)| id).collect();
 
@@ -328,14 +328,14 @@ fn two_continue_scopes_or_containers_in_tab_cycle_window(focus_scope: bool) {
         button! { content = text("Button 1") },
         button! { content = text("Button 2") },
     ];
-    let ids_a: Vec<_> = (0..3).map(|i| buttons_a.widget_id(i)).collect();
+    let ids_a: Vec<_> = (0..3).map(|i| buttons_a.item_id(i)).collect();
 
     let buttons_b = widgets![
         button! { content = text("Button 0") },
         button! { content = text("Button 1") },
         button! { content = text("Button 2") },
     ];
-    let ids_b: Vec<_> = (0..3).map(|i| buttons_b.widget_id(i)).collect();
+    let ids_b: Vec<_> = (0..3).map(|i| buttons_b.item_id(i)).collect();
 
     let a = v_stack! {
         items = buttons_a;
@@ -409,14 +409,14 @@ pub fn two_continue_scopes_with_mixed_indexes() {
         button! { content = text("Button 2"); tab_index = 5; },
         button! { content = text("Button 1"); tab_index = 3; },
     ];
-    let ids_a: Vec<_> = (0..3).map(|i| buttons_a.widget_id(i)).collect();
+    let ids_a: Vec<_> = (0..3).map(|i| buttons_a.item_id(i)).collect();
 
     let buttons_b = widgets![
         button! { content = text("Button 3"); tab_index = 2; },
         button! { content = text("Button 4"); tab_index = 4; },
         button! { content = text("Button 5"); tab_index = 6; },
     ];
-    let ids_b: Vec<_> = (0..3).map(|i| buttons_b.widget_id(i)).collect();
+    let ids_b: Vec<_> = (0..3).map(|i| buttons_b.item_id(i)).collect();
 
     let a = v_stack! {
         items = buttons_a;
@@ -481,14 +481,14 @@ pub fn two_containers_with_mixed_indexes() {
         button! { content = text("Button 2"); tab_index = 5; },
         button! { content = text("Button 1"); tab_index = 3; },
     ];
-    let ids_a: Vec<_> = (0..3).map(|i| buttons_a.widget_id(i)).collect();
+    let ids_a: Vec<_> = (0..3).map(|i| buttons_a.item_id(i)).collect();
 
     let buttons_b = widgets![
         button! { content = text("Button 3"); tab_index = 2; },
         button! { content = text("Button 4"); tab_index = 4; },
         button! { content = text("Button 5"); tab_index = 6; },
     ];
-    let ids_b: Vec<_> = (0..3).map(|i| buttons_b.widget_id(i)).collect();
+    let ids_b: Vec<_> = (0..3).map(|i| buttons_b.item_id(i)).collect();
 
     let a = v_stack(buttons_a);
     let b = v_stack(buttons_b);
@@ -539,7 +539,7 @@ pub fn tab_index_skip() {
         button! { content = text("Button 1"); tab_index = TabIndex::SKIP; },
         button! { content = text("Button 2") },
     ];
-    let ids: Vec<_> = (0..3).map(|i| buttons.widget_id(i)).collect();
+    let ids: Vec<_> = (0..3).map(|i| buttons.item_id(i)).collect();
 
     let mut app = TestApp::new(v_stack(buttons));
 
@@ -562,13 +562,13 @@ pub fn tab_inner_container() {
     // sanity check for  `tab_skip_inner_container`.
 
     let inner_buttons = widgets![button! { content = text("Button 1") }, button! { content = text("Button 2") },];
-    let inner_ids: Vec<_> = (0..2).map(|i| inner_buttons.widget_id(i)).collect();
+    let inner_ids: Vec<_> = (0..2).map(|i| inner_buttons.item_id(i)).collect();
     let items = widgets![
         button! { content = text("Button 0") },
         v_stack(inner_buttons),
         button! { content = text("Button 3") },
     ];
-    let item_ids: Vec<_> = (0..3).map(|i| items.widget_id(i)).collect();
+    let item_ids: Vec<_> = (0..3).map(|i| items.item_id(i)).collect();
 
     let mut app = TestApp::new(v_stack(items));
 
@@ -595,7 +595,7 @@ pub fn tab_skip_inner_container() {
     // directly.
 
     let inner_buttons = widgets![button! { content = text("Button 1") }, button! { content = text("Button 2") },];
-    let inner_ids: Vec<_> = (0..2).map(|i| inner_buttons.widget_id(i)).collect();
+    let inner_ids: Vec<_> = (0..2).map(|i| inner_buttons.item_id(i)).collect();
     let items = widgets![
         button! { content = text("Button 0") },
         v_stack! {
@@ -604,7 +604,7 @@ pub fn tab_skip_inner_container() {
         },
         button! { content = text("Button 3") },
     ];
-    let item_ids: Vec<_> = (0..3).map(|i| items.widget_id(i)).collect();
+    let item_ids: Vec<_> = (0..3).map(|i| items.item_id(i)).collect();
 
     let mut app = TestApp::new(v_stack(items));
 
@@ -643,7 +643,7 @@ pub fn tab_inner_scope_continue() {
     // sanity check for `tab_skip_inner_scope_continue`.
 
     let inner_buttons = widgets![button! { content = text("Button 1") }, button! { content = text("Button 2") },];
-    let inner_ids: Vec<_> = (0..2).map(|i| inner_buttons.widget_id(i)).collect();
+    let inner_ids: Vec<_> = (0..2).map(|i| inner_buttons.item_id(i)).collect();
     let items = widgets![
         button! { content = text("Button 0") },
         v_stack! {
@@ -653,7 +653,7 @@ pub fn tab_inner_scope_continue() {
         },
         button! { content = text("Button 3") },
     ];
-    let item_ids: Vec<_> = (0..3).map(|i| items.widget_id(i)).collect();
+    let item_ids: Vec<_> = (0..3).map(|i| items.item_id(i)).collect();
 
     let mut app = TestApp::new(v_stack(items));
 
@@ -680,7 +680,7 @@ pub fn tab_skip_inner_scope_continue() {
     // directly.
 
     let inner_buttons = widgets![button! { content = text("Button 1") }, button! { content = text("Button 2") },];
-    let inner_ids: Vec<_> = (0..2).map(|i| inner_buttons.widget_id(i)).collect();
+    let inner_ids: Vec<_> = (0..2).map(|i| inner_buttons.item_id(i)).collect();
     let items = widgets![
         button! { content = text("Button 0") },
         v_stack! {
@@ -691,7 +691,7 @@ pub fn tab_skip_inner_scope_continue() {
         },
         button! { content = text("Button 3") },
     ];
-    let item_ids: Vec<_> = (0..3).map(|i| items.widget_id(i)).collect();
+    let item_ids: Vec<_> = (0..3).map(|i| items.item_id(i)).collect();
 
     let mut app = TestApp::new(v_stack(items));
 
@@ -730,7 +730,7 @@ pub fn tab_inner_scope_cycle() {
     // we expect tab navigation to enter the inner scope and get trapped in there.
 
     let inner_buttons = widgets![button! { content = text("Button 1") }, button! { content = text("Button 2") },];
-    let inner_ids: Vec<_> = (0..2).map(|i| inner_buttons.widget_id(i)).collect();
+    let inner_ids: Vec<_> = (0..2).map(|i| inner_buttons.item_id(i)).collect();
     let items = widgets![
         button! { content = text("Button 0") },
         v_stack! {
@@ -740,7 +740,7 @@ pub fn tab_inner_scope_cycle() {
         },
         button! { content = text("Button 3") },
     ];
-    let item_ids: Vec<_> = (0..3).map(|i| items.widget_id(i)).collect();
+    let item_ids: Vec<_> = (0..3).map(|i| items.item_id(i)).collect();
 
     let mut app = TestApp::new(v_stack(items));
 
@@ -772,7 +772,7 @@ pub fn tab_inner_scope_contained() {
     // we expect tab navigation to enter the inner scope and get trapped in there.
 
     let inner_buttons = widgets![button! { content = text("Button 1") }, button! { content = text("Button 2") },];
-    let inner_ids: Vec<_> = (0..2).map(|i| inner_buttons.widget_id(i)).collect();
+    let inner_ids: Vec<_> = (0..2).map(|i| inner_buttons.item_id(i)).collect();
     let items = widgets![
         button! { content = text("Button 0") },
         v_stack! {
@@ -782,7 +782,7 @@ pub fn tab_inner_scope_contained() {
         },
         button! { content = text("Button 3") },
     ];
-    let item_ids: Vec<_> = (0..3).map(|i| items.widget_id(i)).collect();
+    let item_ids: Vec<_> = (0..3).map(|i| items.item_id(i)).collect();
 
     let mut app = TestApp::new(v_stack(items));
 
@@ -814,7 +814,7 @@ pub fn tab_inner_scope_once() {
     // we expect tab navigation to enter the inner scope but then leave it.
 
     let inner_buttons = widgets![button! { content = text("Button 1") }, button! { content = text("Button 2") },];
-    let inner_ids: Vec<_> = (0..2).map(|i| inner_buttons.widget_id(i)).collect();
+    let inner_ids: Vec<_> = (0..2).map(|i| inner_buttons.item_id(i)).collect();
     let items = widgets![
         button! { content = text("Button 0") },
         v_stack! {
@@ -824,7 +824,7 @@ pub fn tab_inner_scope_once() {
         },
         button! { content = text("Button 3") },
     ];
-    let item_ids: Vec<_> = (0..3).map(|i| items.widget_id(i)).collect();
+    let item_ids: Vec<_> = (0..3).map(|i| items.item_id(i)).collect();
 
     let mut app = TestApp::new(v_stack(items));
 
@@ -850,7 +850,7 @@ pub fn tab_inner_scope_none() {
     // we expect tab navigation to enter the inner scope and then not move.
 
     let inner_buttons = widgets![button! { content = text("Button 1") }, button! { content = text("Button 2") },];
-    let inner_ids: Vec<_> = (0..2).map(|i| inner_buttons.widget_id(i)).collect();
+    let inner_ids: Vec<_> = (0..2).map(|i| inner_buttons.item_id(i)).collect();
     let items = widgets![
         button! { content = text("Button 0") },
         v_stack! {
@@ -860,7 +860,7 @@ pub fn tab_inner_scope_none() {
         },
         button! { content = text("Button 3") },
     ];
-    let item_ids: Vec<_> = (0..3).map(|i| items.widget_id(i)).collect();
+    let item_ids: Vec<_> = (0..3).map(|i| items.item_id(i)).collect();
 
     let mut app = TestApp::new(v_stack(items));
 
@@ -996,7 +996,7 @@ fn focused_removed_test(button1: impl Widget, set_var: impl FnOnce(&Vars)) {
         button1,
         button! { content = text("Button 2") },
     ];
-    let ids: Vec<_> = (0..3).map(|i| buttons.widget_id(i)).collect();
+    let ids: Vec<_> = (0..3).map(|i| buttons.item_id(i)).collect();
 
     let mut app = TestApp::new(v_stack(buttons));
 
@@ -1212,7 +1212,7 @@ pub fn directional_focus_up() {
         button! { content = text("Button 1") },
         button! { content = text("Button 2") },
     ];
-    let ids: Vec<_> = (0..3).map(|i| buttons.widget_id(i)).collect();
+    let ids: Vec<_> = (0..3).map(|i| buttons.item_id(i)).collect();
 
     let mut app = TestApp::new(v_stack(buttons));
 
@@ -1233,7 +1233,7 @@ pub fn directional_focus_down() {
         button! { content = text("Button 1") },
         button! { content = text("Button 2") },
     ];
-    let ids: Vec<_> = (0..3).map(|i| buttons.widget_id(i)).collect();
+    let ids: Vec<_> = (0..3).map(|i| buttons.item_id(i)).collect();
 
     let mut app = TestApp::new(v_stack(buttons));
 
@@ -1253,7 +1253,7 @@ pub fn directional_focus_left() {
         button! { content = text("Button 1") },
         button! { content = text("Button 2") },
     ];
-    let ids: Vec<_> = (0..3).map(|i| buttons.widget_id(i)).collect();
+    let ids: Vec<_> = (0..3).map(|i| buttons.item_id(i)).collect();
 
     let mut app = TestApp::new(h_stack(buttons));
 
@@ -1274,7 +1274,7 @@ pub fn directional_focus_right() {
         button! { content = text("Button 1") },
         button! { content = text("Button 2") },
     ];
-    let ids: Vec<_> = (0..3).map(|i| buttons.widget_id(i)).collect();
+    let ids: Vec<_> = (0..3).map(|i| buttons.item_id(i)).collect();
 
     let mut app = TestApp::new(h_stack(buttons));
 
@@ -1294,7 +1294,7 @@ pub fn directional_cycle_vertical() {
         button! { content = text("Button 1") },
         button! { content = text("Button 2") },
     ];
-    let ids: Vec<_> = (0..3).map(|i| buttons.widget_id(i)).collect();
+    let ids: Vec<_> = (0..3).map(|i| buttons.item_id(i)).collect();
 
     let mut app = TestApp::new_w(window! {
         directional_nav = DirectionalNav::Cycle;
@@ -1316,7 +1316,7 @@ pub fn directional_cycle_horizontal() {
         button! { content = text("Button 1") },
         button! { content = text("Button 2") },
     ];
-    let ids: Vec<_> = (0..3).map(|i| buttons.widget_id(i)).collect();
+    let ids: Vec<_> = (0..3).map(|i| buttons.item_id(i)).collect();
 
     let mut app = TestApp::new_w(window! {
         directional_nav = DirectionalNav::Cycle;
@@ -1338,7 +1338,7 @@ pub fn directional_contained_vertical() {
         button! { content = text("Button 1") },
         button! { content = text("Button 2") },
     ];
-    let ids: Vec<_> = (0..3).map(|i| buttons.widget_id(i)).collect();
+    let ids: Vec<_> = (0..3).map(|i| buttons.item_id(i)).collect();
 
     let mut app = TestApp::new_w(window! {
         directional_nav = DirectionalNav::Contained;
@@ -1360,7 +1360,7 @@ pub fn directional_contained_horizontal() {
         button! { content = text("Button 1") },
         button! { content = text("Button 2") },
     ];
-    let ids: Vec<_> = (0..3).map(|i| buttons.widget_id(i)).collect();
+    let ids: Vec<_> = (0..3).map(|i| buttons.item_id(i)).collect();
 
     let mut app = TestApp::new_w(window! {
         directional_nav = DirectionalNav::Contained;
@@ -1383,7 +1383,7 @@ pub fn directional_none() {
             button! { content = text("Button 1") },
             button! { content = text("Button 2") },
         ];
-        let ids: Vec<_> = (0..3).map(|i| buttons.widget_id(i)).collect();
+        let ids: Vec<_> = (0..3).map(|i| buttons.item_id(i)).collect();
 
         let mut app = TestApp::new_w(window! {
             directional_nav = DirectionalNav::None;
@@ -1417,7 +1417,7 @@ pub fn directional_continue_up() {
         },
         button! { content = text("Button 2") },
     ];
-    let ids: Vec<_> = (0..3).map(|i| buttons.widget_id(i)).collect();
+    let ids: Vec<_> = (0..3).map(|i| buttons.item_id(i)).collect();
 
     let mut app = TestApp::new(v_stack(buttons));
 
@@ -1442,7 +1442,7 @@ pub fn directional_continue_down() {
         },
         button! { content = text("Button 2") },
     ];
-    let ids: Vec<_> = (0..3).map(|i| buttons.widget_id(i)).collect();
+    let ids: Vec<_> = (0..3).map(|i| buttons.item_id(i)).collect();
 
     let mut app = TestApp::new(v_stack(buttons));
 
@@ -1467,7 +1467,7 @@ pub fn directional_continue_left() {
         },
         button! { content = text("Button 2") },
     ];
-    let ids: Vec<_> = (0..3).map(|i| buttons.widget_id(i)).collect();
+    let ids: Vec<_> = (0..3).map(|i| buttons.item_id(i)).collect();
 
     let mut app = TestApp::new(h_stack(buttons));
 
@@ -1492,7 +1492,7 @@ pub fn directional_continue_right() {
         },
         button! { content = text("Button 2") },
     ];
-    let ids: Vec<_> = (0..3).map(|i| buttons.widget_id(i)).collect();
+    let ids: Vec<_> = (0..3).map(|i| buttons.item_id(i)).collect();
 
     let mut app = TestApp::new(h_stack(buttons));
 

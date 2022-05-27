@@ -142,6 +142,115 @@ impl<A: WidgetList, B: WidgetList> UiNodeList for WidgetListChain<A, B> {
             self.1.item_render_update(index - a_len, ctx, update)
         }
     }
+
+    fn try_item_id(&self, index: usize) -> Option<WidgetId> {
+        let a_len = self.0.len();
+        if index < a_len {
+            self.0.try_item_id(index)
+        } else {
+            self.1.try_item_id(index - a_len)
+        }
+    }
+
+    fn try_item_state(&self, index: usize) -> Option<&StateMap> {
+        let a_len = self.0.len();
+        if index < a_len {
+            self.0.try_item_state(index)
+        } else {
+            self.1.try_item_state(index - a_len)
+        }
+    }
+
+    fn try_item_state_mut(&mut self, index: usize) -> Option<&mut StateMap> {
+        let a_len = self.0.len();
+        if index < a_len {
+            self.0.try_item_state_mut(index)
+        } else {
+            self.1.try_item_state_mut(index - a_len)
+        }
+    }
+
+    fn try_item_bounds_info(&self, index: usize) -> Option<&WidgetBoundsInfo> {
+        let a_len = self.0.len();
+        if index < a_len {
+            self.0.try_item_bounds_info(index)
+        } else {
+            self.1.try_item_bounds_info(index - a_len)
+        }
+    }
+
+    fn try_item_border_info(&self, index: usize) -> Option<&WidgetBorderInfo> {
+        let a_len = self.0.len();
+        if index < a_len {
+            self.0.try_item_border_info(index)
+        } else {
+            self.1.try_item_border_info(index - a_len)
+        }
+    }
+
+    fn try_item_render_info(&self, index: usize) -> Option<&WidgetRenderInfo> {
+        let a_len = self.0.len();
+        if index < a_len {
+            self.0.try_item_render_info(index)
+        } else {
+            self.1.try_item_render_info(index - a_len)
+        }
+    }
+
+    fn render_node_filtered<F>(&self, mut filter: F, ctx: &mut RenderContext, frame: &mut FrameBuilder)
+    where
+        F: FnMut(super::UiNodeFilterArgs) -> bool,
+    {
+        self.0.render_node_filtered(&mut filter, ctx, frame);
+        let offset = self.0.len();
+        self.1.render_node_filtered(
+            |mut a| {
+                a.index += offset;
+                filter(a)
+            },
+            ctx,
+            frame,
+        );
+    }
+
+    fn try_item_outer<F, R>(&mut self, index: usize, wl: &mut WidgetLayout, keep_previous: bool, transform: F) -> Option<R>
+    where
+        F: FnOnce(&mut WidgetLayoutTranslation, PosLayoutArgs) -> R,
+    {
+        let a_len = self.0.len();
+        if index < a_len {
+            self.0.try_item_outer(index, wl, keep_previous, transform)
+        } else {
+            self.1.try_item_outer(index - a_len, wl, keep_previous, transform)
+        }
+    }
+
+    fn try_outer_all<F>(&mut self, wl: &mut WidgetLayout, keep_previous: bool, mut transform: F)
+    where
+        F: FnMut(&mut WidgetLayoutTranslation, PosLayoutArgs),
+    {
+        self.0.try_outer_all(wl, keep_previous, &mut transform);
+        let offset = self.0.len();
+        self.1.try_outer_all(wl, keep_previous, |wlt, mut args| {
+            args.index += offset;
+            transform(wlt, args);
+        })
+    }
+
+    fn count_nodes<F>(&self, mut filter: F) -> usize
+    where
+        F: FnMut(super::UiNodeFilterArgs) -> bool,
+    {
+        let a_count = self.0.count_nodes(&mut filter);
+
+        let offset = self.0.len();
+        let b_count = self.1.count_nodes(|mut args| {
+            args.index += offset;
+            filter(args)
+        });
+
+        a_count + b_count
+    }
 }
 
 impl<A: WidgetList, B: WidgetList> WidgetList for WidgetListChain<A, B> {
@@ -183,69 +292,69 @@ impl<A: WidgetList, B: WidgetList> WidgetList for WidgetListChain<A, B> {
         );
     }
 
-    fn widget_id(&self, index: usize) -> WidgetId {
+    fn item_id(&self, index: usize) -> WidgetId {
         let a_len = self.0.len();
         if index < a_len {
-            self.0.widget_id(index)
+            self.0.item_id(index)
         } else {
-            self.1.widget_id(index - a_len)
+            self.1.item_id(index - a_len)
         }
     }
 
-    fn widget_state(&self, index: usize) -> &StateMap {
+    fn item_state(&self, index: usize) -> &StateMap {
         let a_len = self.0.len();
         if index < a_len {
-            self.0.widget_state(index)
+            self.0.item_state(index)
         } else {
-            self.1.widget_state(index - a_len)
+            self.1.item_state(index - a_len)
         }
     }
 
-    fn widget_state_mut(&mut self, index: usize) -> &mut StateMap {
+    fn item_state_mut(&mut self, index: usize) -> &mut StateMap {
         let a_len = self.0.len();
         if index < a_len {
-            self.0.widget_state_mut(index)
+            self.0.item_state_mut(index)
         } else {
-            self.1.widget_state_mut(index - a_len)
+            self.1.item_state_mut(index - a_len)
         }
     }
 
-    fn widget_bounds_info(&self, index: usize) -> &WidgetBoundsInfo {
+    fn item_bounds_info(&self, index: usize) -> &WidgetBoundsInfo {
         let a_len = self.0.len();
         if index < a_len {
-            self.0.widget_bounds_info(index)
+            self.0.item_bounds_info(index)
         } else {
-            self.1.widget_bounds_info(index - a_len)
+            self.1.item_bounds_info(index - a_len)
         }
     }
 
-    fn widget_border_info(&self, index: usize) -> &WidgetBorderInfo {
+    fn item_border_info(&self, index: usize) -> &WidgetBorderInfo {
         let a_len = self.0.len();
         if index < a_len {
-            self.0.widget_border_info(index)
+            self.0.item_border_info(index)
         } else {
-            self.1.widget_border_info(index - a_len)
+            self.1.item_border_info(index - a_len)
         }
     }
 
-    fn widget_render_info(&self, index: usize) -> &WidgetRenderInfo {
+    fn item_render_info(&self, index: usize) -> &WidgetRenderInfo {
         let a_len = self.0.len();
         if index < a_len {
-            self.0.widget_render_info(index)
+            self.0.item_render_info(index)
         } else {
-            self.1.widget_render_info(index - a_len)
+            self.1.item_render_info(index - a_len)
         }
     }
 
-    fn widget_outer<F>(&mut self, index: usize, wl: &mut WidgetLayout, keep_previous: bool, transform: F)
+    fn item_outer<F, R>(&mut self, index: usize, wl: &mut WidgetLayout, keep_previous: bool, transform: F) -> R
     where
-        F: FnOnce(&mut WidgetLayoutTranslation, PosLayoutArgs),
+        F: FnOnce(&mut WidgetLayoutTranslation, PosLayoutArgs) -> R,
     {
         let a_len = self.0.len();
         if index < a_len {
-            self.0.widget_outer(index, wl, keep_previous, transform);
+            self.0.item_outer(index, wl, keep_previous, transform)
         } else {
-            self.1.widget_outer(index - a_len, wl, keep_previous, transform);
+            self.1.item_outer(index - a_len, wl, keep_previous, transform)
         }
     }
 
@@ -390,5 +499,114 @@ impl<A: UiNodeList, B: UiNodeList> UiNodeList for UiNodeListChain<A, B> {
         } else {
             self.1.item_render_update(index - a_len, ctx, update)
         }
+    }
+
+    fn try_item_id(&self, index: usize) -> Option<WidgetId> {
+        let a_len = self.0.len();
+        if index < a_len {
+            self.0.try_item_id(index)
+        } else {
+            self.1.try_item_id(index - a_len)
+        }
+    }
+
+    fn try_item_state(&self, index: usize) -> Option<&StateMap> {
+        let a_len = self.0.len();
+        if index < a_len {
+            self.0.try_item_state(index)
+        } else {
+            self.1.try_item_state(index - a_len)
+        }
+    }
+
+    fn try_item_state_mut(&mut self, index: usize) -> Option<&mut StateMap> {
+        let a_len = self.0.len();
+        if index < a_len {
+            self.0.try_item_state_mut(index)
+        } else {
+            self.1.try_item_state_mut(index - a_len)
+        }
+    }
+
+    fn try_item_bounds_info(&self, index: usize) -> Option<&WidgetBoundsInfo> {
+        let a_len = self.0.len();
+        if index < a_len {
+            self.0.try_item_bounds_info(index)
+        } else {
+            self.1.try_item_bounds_info(index - a_len)
+        }
+    }
+
+    fn try_item_border_info(&self, index: usize) -> Option<&WidgetBorderInfo> {
+        let a_len = self.0.len();
+        if index < a_len {
+            self.0.try_item_border_info(index)
+        } else {
+            self.1.try_item_border_info(index - a_len)
+        }
+    }
+
+    fn try_item_render_info(&self, index: usize) -> Option<&WidgetRenderInfo> {
+        let a_len = self.0.len();
+        if index < a_len {
+            self.0.try_item_render_info(index)
+        } else {
+            self.1.try_item_render_info(index - a_len)
+        }
+    }
+
+    fn render_node_filtered<F>(&self, mut filter: F, ctx: &mut RenderContext, frame: &mut FrameBuilder)
+    where
+        F: FnMut(super::UiNodeFilterArgs) -> bool,
+    {
+        self.0.render_node_filtered(&mut filter, ctx, frame);
+        let offset = self.0.len();
+        self.1.render_node_filtered(
+            |mut a| {
+                a.index += offset;
+                filter(a)
+            },
+            ctx,
+            frame,
+        );
+    }
+
+    fn try_item_outer<F, R>(&mut self, index: usize, wl: &mut WidgetLayout, keep_previous: bool, transform: F) -> Option<R>
+    where
+        F: FnOnce(&mut WidgetLayoutTranslation, PosLayoutArgs) -> R,
+    {
+        let a_len = self.0.len();
+        if index < a_len {
+            self.0.try_item_outer(index, wl, keep_previous, transform)
+        } else {
+            self.1.try_item_outer(index - a_len, wl, keep_previous, transform)
+        }
+    }
+
+    fn try_outer_all<F>(&mut self, wl: &mut WidgetLayout, keep_previous: bool, mut transform: F)
+    where
+        F: FnMut(&mut WidgetLayoutTranslation, PosLayoutArgs),
+    {
+        self.0.try_outer_all(wl, keep_previous, &mut transform);
+        let offset = self.0.len();
+        self.1.try_outer_all(wl, keep_previous, |wlt, mut args| {
+            args.index += offset;
+            transform(wlt, args);
+        })
+    }
+
+    fn count_nodes<F>(&self, mut filter: F) -> usize
+    where
+        F: FnMut(super::UiNodeFilterArgs) -> bool,
+    {
+        let a_count = self.0.count_nodes(&mut filter);
+
+        let offset = self.0.len();
+        let b_count = self.1.count_nodes(|mut args| {
+            args.index += offset;
+            filter(args)
+        });
+
+        a_count + b_count
     }
 }

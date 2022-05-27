@@ -13,6 +13,8 @@ use crate::{
     BoxedWidget, UiNode, Widget, WidgetId,
 };
 
+use super::UiNodeFilterArgs;
+
 /// A vector of boxed [`Widget`] items that remains sorted.
 ///
 /// This type is a [`WidgetList`] that can be modified during runtime, and automatically remains sorted
@@ -372,6 +374,81 @@ impl UiNodeList for SortedWidgetVec {
     fn item_render_update(&self, index: usize, ctx: &mut RenderContext, update: &mut FrameUpdate) {
         self.vec[index].render_update(ctx, update);
     }
+
+    fn try_item_id(&self, index: usize) -> Option<WidgetId> {
+        self.vec[index].try_id()
+    }
+
+    fn try_item_state(&self, index: usize) -> Option<&StateMap> {
+        self.vec[index].try_state()
+    }
+
+    fn try_item_state_mut(&mut self, index: usize) -> Option<&mut StateMap> {
+        self.vec[index].try_state_mut()
+    }
+
+    fn try_item_bounds_info(&self, index: usize) -> Option<&WidgetBoundsInfo> {
+        self.vec[index].try_bounds_info()
+    }
+
+    fn try_item_border_info(&self, index: usize) -> Option<&WidgetBorderInfo> {
+        self.vec[index].try_border_info()
+    }
+
+    fn try_item_render_info(&self, index: usize) -> Option<&WidgetRenderInfo> {
+        self.vec[index].try_render_info()
+    }
+
+    fn render_node_filtered<F>(&self, mut filter: F, ctx: &mut RenderContext, frame: &mut FrameBuilder)
+    where
+        F: FnMut(UiNodeFilterArgs) -> bool,
+    {
+        for (i, w) in self.iter().enumerate() {
+            if filter(UiNodeFilterArgs::new(i, w)) {
+                w.render(ctx, frame);
+            }
+        }
+    }
+
+    fn try_item_outer<F, R>(&mut self, index: usize, wl: &mut WidgetLayout, keep_previous: bool, transform: F) -> Option<R>
+    where
+        F: FnOnce(&mut WidgetLayoutTranslation, PosLayoutArgs) -> R,
+    {
+        let w = &mut self.vec[index];
+        if let Some(size) = w.try_bounds_info().map(|i| i.outer_size()) {
+            wl.try_with_outer(w, keep_previous, |wlt, w| {
+                transform(wlt, PosLayoutArgs::new(index, w.try_state_mut(), size))
+            })
+        } else {
+            None
+        }
+    }
+
+    fn try_outer_all<F>(&mut self, wl: &mut WidgetLayout, keep_previous: bool, mut transform: F)
+    where
+        F: FnMut(&mut WidgetLayoutTranslation, PosLayoutArgs),
+    {
+        for (i, w) in self.vec.iter_mut().enumerate() {
+            if let Some(size) = w.try_bounds_info().map(|i| i.outer_size()) {
+                wl.try_with_outer(w, keep_previous, |wlt, w| {
+                    transform(wlt, PosLayoutArgs::new(i, w.try_state_mut(), size));
+                });
+            }
+        }
+    }
+
+    fn count_nodes<F>(&self, mut filter: F) -> usize
+    where
+        F: FnMut(UiNodeFilterArgs) -> bool,
+    {
+        let mut count = 0;
+        for (i, w) in self.iter().enumerate() {
+            if filter(UiNodeFilterArgs::new(i, w)) {
+                count += 1;
+            }
+        }
+        count
+    }
 }
 impl WidgetList for SortedWidgetVec {
     fn boxed_widget_all(mut self) -> WidgetVec {
@@ -381,27 +458,27 @@ impl WidgetList for SortedWidgetVec {
         }
     }
 
-    fn widget_id(&self, index: usize) -> WidgetId {
+    fn item_id(&self, index: usize) -> WidgetId {
         self.vec[index].id()
     }
 
-    fn widget_state(&self, index: usize) -> &StateMap {
+    fn item_state(&self, index: usize) -> &StateMap {
         self.vec[index].state()
     }
 
-    fn widget_state_mut(&mut self, index: usize) -> &mut StateMap {
+    fn item_state_mut(&mut self, index: usize) -> &mut StateMap {
         self.vec[index].state_mut()
     }
 
-    fn widget_bounds_info(&self, index: usize) -> &WidgetBoundsInfo {
+    fn item_bounds_info(&self, index: usize) -> &WidgetBoundsInfo {
         self.vec[index].bounds_info()
     }
 
-    fn widget_border_info(&self, index: usize) -> &WidgetBorderInfo {
+    fn item_border_info(&self, index: usize) -> &WidgetBorderInfo {
         self.vec[index].border_info()
     }
 
-    fn widget_render_info(&self, index: usize) -> &WidgetRenderInfo {
+    fn item_render_info(&self, index: usize) -> &WidgetRenderInfo {
         self.vec[index].render_info()
     }
 
@@ -431,26 +508,26 @@ impl WidgetList for SortedWidgetVec {
         count
     }
 
-    fn widget_outer<F>(&mut self, index: usize, wl: &mut WidgetLayout, keep_previous: bool, transform: F)
+    fn item_outer<F, R>(&mut self, index: usize, wl: &mut WidgetLayout, keep_previous: bool, transform: F) -> R
     where
-        F: FnOnce(&mut WidgetLayoutTranslation, PosLayoutArgs),
+        F: FnOnce(&mut WidgetLayoutTranslation, PosLayoutArgs) -> R,
     {
         let w = &mut self.vec[index];
         let size = w.bounds_info().outer_size();
         wl.with_outer(w, keep_previous, |wlt, w| {
-            transform(wlt, PosLayoutArgs::new(index, Some(w.state_mut()), size));
-        });
+            transform(wlt, PosLayoutArgs::new(index, Some(w.state_mut()), size))
+        })
     }
 
     fn outer_all<F>(&mut self, wl: &mut WidgetLayout, keep_previous: bool, mut transform: F)
     where
-        F: FnMut(&mut WidgetLayoutTranslation, PosLayoutArgs),
+        F: FnMut(&mut WidgetLayoutTranslation, PosLayoutArgs) ,
     {
         for (i, w) in self.vec.iter_mut().enumerate() {
             let size = w.bounds_info().outer_size();
             wl.with_outer(w, keep_previous, |wlt, w| {
                 transform(wlt, PosLayoutArgs::new(i, Some(w.state_mut()), size));
-            })
+            });
         }
     }
 }

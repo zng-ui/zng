@@ -272,6 +272,68 @@ pub trait UiNode: 'static {
     {
         self
     }
+
+    /// Gets if this node is a [`Widget`] implementer.
+    fn is_widget(&self) -> bool {
+        false
+    }
+
+    /// Gets the [`Widget::id`] if this node [`is_widget`].
+    ///
+    /// [`is_widget`]: UiNode::is_widget
+    fn try_id(&self) -> Option<WidgetId> {
+        None
+    }
+
+    /// Gets the [`Widget::state`] if this node [`is_widget`].
+    ///
+    /// [`is_widget`]: UiNode::is_widget
+    fn try_state(&self) -> Option<&StateMap> {
+        None
+    }
+
+    /// Gets the [`Widget::state_mut`] if this node [`is_widget`].
+    ///
+    /// [`is_widget`]: UiNode::is_widget
+    fn try_state_mut(&mut self) -> Option<&mut StateMap> {
+        None
+    }
+
+    /// Gets the [`Widget::bounds_info`] if this node [`is_widget`].
+    ///
+    /// [`is_widget`]: UiNode::is_widget
+    fn try_bounds_info(&self) -> Option<&WidgetBoundsInfo> {
+        None
+    }
+
+    /// Gets the [`Widget::border_info`] if this node [`is_widget`].
+    ///
+    /// [`is_widget`]: UiNode::is_widget
+    fn try_border_info(&self) -> Option<&WidgetBorderInfo> {
+        None
+    }
+
+    /// Gets the [`Widget::render_info`] if this node [`is_widget`].
+    ///
+    /// [`is_widget`]: UiNode::is_widget
+    fn try_render_info(&self) -> Option<&WidgetRenderInfo> {
+        None
+    }
+
+    /// Gets this node as a [`BoxedWidget`], if the node [`is_widget`] this is the same as
+    /// [`Widget::boxed_wgt`], otherwise a new widget is generated with the node as the *inner*.
+    ///
+    /// [`is_widget`]: Self::is_widget
+    fn into_widget(self) -> BoxedWidget
+    where
+        Self: Sized,
+    {
+        use crate::widget_base::implicit_base::nodes;
+
+        let node = nodes::inner(self.cfg_boxed());
+        let wgt = nodes::widget(node, WidgetId::new_unique());
+        wgt.boxed_wgt()
+    }
 }
 
 #[doc(hidden)]
@@ -285,6 +347,15 @@ pub trait UiNodeBoxed: 'static {
     fn layout_boxed(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize;
     fn render_boxed(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder);
     fn render_update_boxed(&self, ctx: &mut RenderContext, update: &mut FrameUpdate);
+
+    fn is_widget_boxed(&self) -> bool;
+    fn try_id_boxed(&self) -> Option<WidgetId>;
+    fn try_state_boxed(&self) -> Option<&StateMap>;
+    fn try_state_mut_boxed(&mut self) -> Option<&mut StateMap>;
+    fn try_bounds_info_boxed(&self) -> Option<&WidgetBoundsInfo>;
+    fn try_border_info_boxed(&self) -> Option<&WidgetBorderInfo>;
+    fn try_render_info_boxed(&self) -> Option<&WidgetRenderInfo>;
+    fn into_widget_boxed(self: Box<Self>) -> BoxedWidget;
 }
 
 impl<U: UiNode> UiNodeBoxed for U {
@@ -322,6 +393,38 @@ impl<U: UiNode> UiNodeBoxed for U {
 
     fn render_update_boxed(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
         self.render_update(ctx, update);
+    }
+
+    fn is_widget_boxed(&self) -> bool {
+        self.is_widget()
+    }
+
+    fn try_id_boxed(&self) -> Option<WidgetId> {
+        self.try_id()
+    }
+
+    fn try_state_boxed(&self) -> Option<&StateMap> {
+        self.try_state()
+    }
+
+    fn try_state_mut_boxed(&mut self) -> Option<&mut StateMap> {
+        self.try_state_mut()
+    }
+
+    fn try_bounds_info_boxed(&self) -> Option<&WidgetBoundsInfo> {
+        self.try_bounds_info()
+    }
+
+    fn try_border_info_boxed(&self) -> Option<&WidgetBorderInfo> {
+        self.try_border_info()
+    }
+
+    fn try_render_info_boxed(&self) -> Option<&WidgetRenderInfo> {
+        self.try_render_info()
+    }
+
+    fn into_widget_boxed(self: Box<Self>) -> BoxedWidget {
+        self.into_widget()
     }
 }
 
@@ -374,6 +477,41 @@ impl UiNode for BoxedUiNode {
         Self: Sized,
     {
         self
+    }
+
+    fn is_widget(&self) -> bool {
+        self.as_ref().is_widget_boxed()
+    }
+
+    fn try_id(&self) -> Option<WidgetId> {
+        self.as_ref().try_id_boxed()
+    }
+
+    fn try_state(&self) -> Option<&StateMap> {
+        self.as_ref().try_state_boxed()
+    }
+
+    fn try_state_mut(&mut self) -> Option<&mut StateMap> {
+        self.as_mut().try_state_mut_boxed()
+    }
+
+    fn try_bounds_info(&self) -> Option<&WidgetBoundsInfo> {
+        self.as_ref().try_bounds_info_boxed()
+    }
+
+    fn try_border_info(&self) -> Option<&WidgetBorderInfo> {
+        self.as_ref().try_border_info_boxed()
+    }
+
+    fn try_render_info(&self) -> Option<&WidgetRenderInfo> {
+        self.as_ref().try_render_info_boxed()
+    }
+
+    fn into_widget(self) -> BoxedWidget
+    where
+        Self: Sized,
+    {
+        self.into_widget_boxed()
     }
 }
 
@@ -431,6 +569,75 @@ impl<U: UiNode> UiNode for Option<U> {
     fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
         if let Some(node) = self {
             node.render_update(ctx, update);
+        }
+    }
+
+    fn boxed(self) -> BoxedUiNode
+    where
+        Self: Sized,
+    {
+        match self {
+            Some(node) => node.boxed(),
+            None => NilUiNode.boxed(),
+        }
+    }
+
+    fn is_widget(&self) -> bool {
+        match self {
+            Some(node) => node.is_widget(),
+            None => false,
+        }
+    }
+
+    fn try_id(&self) -> Option<WidgetId> {
+        match self {
+            Some(node) => node.try_id(),
+            None => None,
+        }
+    }
+
+    fn try_state(&self) -> Option<&StateMap> {
+        match self {
+            Some(node) => node.try_state(),
+            None => None,
+        }
+    }
+
+    fn try_state_mut(&mut self) -> Option<&mut StateMap> {
+        match self {
+            Some(node) => node.try_state_mut(),
+            None => None,
+        }
+    }
+
+    fn try_bounds_info(&self) -> Option<&WidgetBoundsInfo> {
+        match self {
+            Some(node) => node.try_bounds_info(),
+            None => None,
+        }
+    }
+
+    fn try_border_info(&self) -> Option<&WidgetBorderInfo> {
+        match self {
+            Some(node) => node.try_border_info(),
+            None => None,
+        }
+    }
+
+    fn try_render_info(&self) -> Option<&WidgetRenderInfo> {
+        match self {
+            Some(node) => node.try_render_info(),
+            None => None,
+        }
+    }
+
+    fn into_widget(self) -> BoxedWidget
+    where
+        Self: Sized,
+    {
+        match self {
+            Some(node) => node.into_widget(),
+            None => NilUiNode.into_widget(),
         }
     }
 }
@@ -657,6 +864,48 @@ impl UiNode for BoxedWidget {
     fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
         self.as_ref().render_update_boxed(ctx, update);
     }
+
+    fn boxed(self) -> BoxedUiNode
+    where
+        Self: Sized,
+    {
+        Box::new(self)
+    }
+
+    fn is_widget(&self) -> bool {
+        true
+    }
+
+    fn try_id(&self) -> Option<WidgetId> {
+        Some(self.id())
+    }
+
+    fn try_state(&self) -> Option<&StateMap> {
+        Some(self.state())
+    }
+
+    fn try_state_mut(&mut self) -> Option<&mut StateMap> {
+        Some(self.state_mut())
+    }
+
+    fn try_bounds_info(&self) -> Option<&WidgetBoundsInfo> {
+        Some(self.bounds_info())
+    }
+
+    fn try_border_info(&self) -> Option<&WidgetBorderInfo> {
+        Some(self.border_info())
+    }
+
+    fn try_render_info(&self) -> Option<&WidgetRenderInfo> {
+        Some(self.render_info())
+    }
+
+    fn into_widget(self) -> BoxedWidget
+    where
+        Self: Sized,
+    {
+        self
+    }
 }
 impl Widget for BoxedWidget {
     fn id(&self) -> WidgetId {
@@ -681,6 +930,13 @@ impl Widget for BoxedWidget {
 
     fn render_info(&self) -> &WidgetRenderInfo {
         self.as_ref().render_info_boxed()
+    }
+
+    fn boxed_wgt(self) -> BoxedWidget
+    where
+        Self: Sized,
+    {
+        self
     }
 }
 

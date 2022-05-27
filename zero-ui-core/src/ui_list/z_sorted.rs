@@ -183,6 +183,75 @@ impl<W: WidgetList> UiNodeList for ZSortedWidgetList<W> {
     fn item_render_update(&self, index: usize, ctx: &mut RenderContext, update: &mut FrameUpdate) {
         self.list.item_render_update(index, ctx, update)
     }
+
+    fn try_item_id(&self, index: usize) -> Option<WidgetId> {
+        self.list.try_item_id(index)
+    }
+
+    fn try_item_state(&self, index: usize) -> Option<&StateMap> {
+        self.list.try_item_state(index)
+    }
+
+    fn try_item_state_mut(&mut self, index: usize) -> Option<&mut StateMap> {
+        self.list.try_item_state_mut(index)
+    }
+
+    fn try_item_bounds_info(&self, index: usize) -> Option<&WidgetBoundsInfo> {
+        self.list.try_item_bounds_info(index)
+    }
+
+    fn try_item_border_info(&self, index: usize) -> Option<&WidgetBorderInfo> {
+        self.list.try_item_border_info(index)
+    }
+
+    fn try_item_render_info(&self, index: usize) -> Option<&WidgetRenderInfo> {
+        self.list.try_item_render_info(index)
+    }
+
+    fn render_node_filtered<F>(&self, mut filter: F, ctx: &mut RenderContext, frame: &mut FrameBuilder)
+    where
+        F: FnMut(UiNodeFilterArgs) -> bool,
+    {
+        if self.lookup.is_empty() {
+            self.list.render_node_filtered(filter, ctx, frame);
+        } else {
+            for &i in &self.lookup {
+                let i = i as usize;
+                let args = UiNodeFilterArgs {
+                    index: i,
+                    id: self.try_item_id(i),
+                    bounds_info: self.try_item_bounds_info(i),
+                    border_info: self.try_item_border_info(i),
+                    render_info: self.try_item_render_info(i),
+                    state: self.try_item_state(i),
+                };
+                if filter(args) {
+                    self.item_render(i, ctx, frame);
+                }
+            }
+        }
+    }
+
+    fn try_item_outer<F, R>(&mut self, index: usize, wl: &mut WidgetLayout, keep_previous: bool, transform: F) -> Option<R>
+    where
+        F: FnOnce(&mut WidgetLayoutTranslation, PosLayoutArgs) -> R,
+    {
+        self.list.try_item_outer(index, wl, keep_previous, transform)
+    }
+
+    fn try_outer_all<F>(&mut self, wl: &mut WidgetLayout, keep_previous: bool, transform: F)
+    where
+        F: FnMut(&mut WidgetLayoutTranslation, PosLayoutArgs),
+    {
+        self.list.try_outer_all(wl, keep_previous, transform)
+    }
+
+    fn count_nodes<F>(&self, filter: F) -> usize
+    where
+        F: FnMut(UiNodeFilterArgs) -> bool,
+    {
+        self.list.count_nodes(filter)
+    }
 }
 impl<W: WidgetList> WidgetList for ZSortedWidgetList<W> {
     fn count<F>(&self, filter: F) -> usize
@@ -196,28 +265,28 @@ impl<W: WidgetList> WidgetList for ZSortedWidgetList<W> {
         self.list.boxed_widget_all()
     }
 
-    fn widget_id(&self, index: usize) -> WidgetId {
-        self.list.widget_id(index)
+    fn item_id(&self, index: usize) -> WidgetId {
+        self.list.item_id(index)
     }
 
-    fn widget_state(&self, index: usize) -> &StateMap {
-        self.list.widget_state(index)
+    fn item_state(&self, index: usize) -> &StateMap {
+        self.list.item_state(index)
     }
 
-    fn widget_state_mut(&mut self, index: usize) -> &mut StateMap {
-        self.list.widget_state_mut(index)
+    fn item_state_mut(&mut self, index: usize) -> &mut StateMap {
+        self.list.item_state_mut(index)
     }
 
-    fn widget_bounds_info(&self, index: usize) -> &WidgetBoundsInfo {
-        self.list.widget_bounds_info(index)
+    fn item_bounds_info(&self, index: usize) -> &WidgetBoundsInfo {
+        self.list.item_bounds_info(index)
     }
 
-    fn widget_border_info(&self, index: usize) -> &WidgetBorderInfo {
-        self.list.widget_border_info(index)
+    fn item_border_info(&self, index: usize) -> &WidgetBorderInfo {
+        self.list.item_border_info(index)
     }
 
-    fn widget_render_info(&self, index: usize) -> &WidgetRenderInfo {
-        self.list.widget_render_info(index)
+    fn item_render_info(&self, index: usize) -> &WidgetRenderInfo {
+        self.list.item_render_info(index)
     }
 
     fn render_filtered<F>(&self, mut filter: F, ctx: &mut RenderContext, frame: &mut FrameBuilder)
@@ -231,10 +300,11 @@ impl<W: WidgetList> WidgetList for ZSortedWidgetList<W> {
                 let i = i as usize;
                 let args = WidgetFilterArgs {
                     index: i,
-                    bounds_info: self.widget_bounds_info(i),
-                    border_info: self.widget_border_info(i),
-                    render_info: self.widget_render_info(i),
-                    state: self.widget_state(i),
+                    id: self.item_id(i),
+                    bounds_info: self.item_bounds_info(i),
+                    border_info: self.item_border_info(i),
+                    render_info: self.item_render_info(i),
+                    state: self.item_state(i),
                 };
                 if filter(args) {
                     self.item_render(i, ctx, frame);
@@ -243,11 +313,11 @@ impl<W: WidgetList> WidgetList for ZSortedWidgetList<W> {
         }
     }
 
-    fn widget_outer<F>(&mut self, index: usize, wl: &mut WidgetLayout, keep_previous: bool, transform: F)
+    fn item_outer<F, R>(&mut self, index: usize, wl: &mut WidgetLayout, keep_previous: bool, transform: F) -> R
     where
-        F: FnOnce(&mut WidgetLayoutTranslation, PosLayoutArgs),
+        F: FnOnce(&mut WidgetLayoutTranslation, PosLayoutArgs) -> R,
     {
-        self.list.widget_outer(index, wl, keep_previous, transform)
+        self.list.item_outer(index, wl, keep_previous, transform)
     }
 
     fn outer_all<F>(&mut self, wl: &mut WidgetLayout, keep_previous: bool, transform: F)
@@ -467,7 +537,7 @@ pub trait WidgetListZIndexExt {
 }
 impl<L: WidgetList> WidgetListZIndexExt for L {
     fn widget_z_index(&self, index: usize) -> ZIndex {
-        self.widget_state(index).copy(ZIndexKey).unwrap_or_default()
+        self.item_state(index).copy(ZIndexKey).unwrap_or_default()
     }
 
     fn init_all_z(&mut self, ctx: &mut WidgetContext, sort_z: &mut bool) {

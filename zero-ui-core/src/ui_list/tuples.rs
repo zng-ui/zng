@@ -1,10 +1,11 @@
-use super::WidgetFilterArgs;
 use crate::{
     context::{InfoContext, LayoutContext, RenderContext, StateMap, WidgetContext},
     event::EventUpdateArgs,
     node_vec,
     render::{FrameBuilder, FrameUpdate},
-    ui_list::{PosLayoutArgs, PreLayoutArgs, UiListObserver, UiNodeList, UiNodeVec, WidgetList, WidgetVec},
+    ui_list::{
+        PosLayoutArgs, PreLayoutArgs, UiListObserver, UiNodeFilterArgs, UiNodeList, UiNodeVec, WidgetFilterArgs, WidgetList, WidgetVec,
+    },
     units::PxSize,
     widget_info::{
         WidgetBorderInfo, WidgetBoundsInfo, WidgetInfoBuilder, WidgetLayout, WidgetLayoutTranslation, WidgetRenderInfo, WidgetSubscriptions,
@@ -84,59 +85,59 @@ macro_rules! impl_tuples {
                 )+
             }
 
-            fn widget_id(&self, index: usize) -> WidgetId {
+            fn item_id(&self, index: usize) -> WidgetId {
                 match index {
                     $($n => self.items.$n.id(),)+
                     _ => panic!("index {index} out of range for length {}", self.len())
                 }
             }
 
-            fn widget_state(&self, index: usize) -> &StateMap {
+            fn item_state(&self, index: usize) -> &StateMap {
                 match index {
                     $($n => self.items.$n.state(),)+
                     _ => panic!("index {index} out of range for length {}", self.len())
                 }
             }
 
-            fn widget_state_mut(&mut self, index: usize) -> &mut StateMap {
+            fn item_state_mut(&mut self, index: usize) -> &mut StateMap {
                 match index {
                     $($n => self.items.$n.state_mut(),)+
                     _ => panic!("index {index} out of range for length {}", self.len())
                 }
             }
 
-            fn widget_bounds_info(&self, index: usize) -> &WidgetBoundsInfo {
+            fn item_bounds_info(&self, index: usize) -> &WidgetBoundsInfo {
                 match index {
                     $($n => self.items.$n.bounds_info(),)+
                     _ => panic!("index {index} out of range for length {}", self.len())
                 }
             }
 
-            fn widget_border_info(&self, index: usize) -> &WidgetBorderInfo {
+            fn item_border_info(&self, index: usize) -> &WidgetBorderInfo {
                 match index {
                     $($n => self.items.$n.border_info(),)+
                     _ => panic!("index {index} out of range for length {}", self.len())
                 }
             }
 
-            fn widget_render_info(&self, index: usize) -> &WidgetRenderInfo {
+            fn item_render_info(&self, index: usize) -> &WidgetRenderInfo {
                 match index {
                     $($n => self.items.$n.render_info(),)+
                     _ => panic!("index {index} out of range for length {}", self.len())
                 }
             }
 
-            fn widget_outer<F>(&mut self, index: usize, wl: &mut WidgetLayout, keep_previous: bool, transform: F)
+            fn item_outer<F, R>(&mut self, index: usize, wl: &mut WidgetLayout, keep_previous: bool, transform: F) -> R
             where
-            F: FnOnce(&mut WidgetLayoutTranslation, PosLayoutArgs),
+                F: FnOnce(&mut WidgetLayoutTranslation, PosLayoutArgs) -> R,
             {
                 match index {
                     $($n => {
                         let w = &mut self.items.$n;
                         let size = w.bounds_info().outer_size();
                         wl.with_outer(w, keep_previous, |wlt, w| {
-                            transform(wlt, PosLayoutArgs::new($n, Some(w.state_mut()), size));
-                        });
+                            transform(wlt, PosLayoutArgs::new($n, Some(w.state_mut()), size))
+                        })
                     })+
                     _ => panic!("index {index} out of range for length {}", self.len())
                 }
@@ -288,6 +289,117 @@ macro_rules! impl_tuples {
                     _ => panic!("index {index} out of range for length {}", self.len()),
                 }
             }
+
+            fn try_item_id(&self, index: usize) -> Option<WidgetId> {
+                match index {
+                    $(
+                        $n => self.items.$n.try_id(),
+                    )+
+                    _ => panic!("index {index} out of range for length {}", self.len()),
+                }
+            }
+
+            fn try_item_state(&self, index: usize) -> Option<&StateMap> {
+                match index {
+                    $(
+                        $n => self.items.$n.try_state(),
+                    )+
+                    _ => panic!("index {index} out of range for length {}", self.len()),
+                }
+            }
+
+            fn try_item_state_mut(&mut self, index: usize) -> Option<&mut StateMap> {
+                match index {
+                    $(
+                        $n => self.items.$n.try_state_mut(),
+                    )+
+                    _ => panic!("index {index} out of range for length {}", self.len()),
+                }
+            }
+
+            fn try_item_bounds_info(&self, index: usize) -> Option<&WidgetBoundsInfo> {
+                match index {
+                    $(
+                        $n => self.items.$n.try_bounds_info(),
+                    )+
+                    _ => panic!("index {index} out of range for length {}", self.len()),
+                }
+            }
+
+            fn try_item_border_info(&self, index: usize) -> Option<&WidgetBorderInfo> {
+                match index {
+                    $(
+                        $n => self.items.$n.try_border_info(),
+                    )+
+                    _ => panic!("index {index} out of range for length {}", self.len()),
+                }
+            }
+
+            fn try_item_render_info(&self, index: usize) -> Option<&WidgetRenderInfo> {
+                match index {
+                    $(
+                        $n => self.items.$n.try_render_info(),
+                    )+
+                    _ => panic!("index {index} out of range for length {}", self.len()),
+                }
+            }
+
+            fn render_node_filtered<F>(&self, mut filter: F, ctx: &mut RenderContext, frame: &mut FrameBuilder)
+            where
+                F: FnMut(super::UiNodeFilterArgs) -> bool,
+            {
+                $(
+                    if filter(UiNodeFilterArgs::new($n, &self.items.$n)) {
+                        self.items.$n.render(ctx, frame);
+                    }
+                )+
+            }
+
+            fn try_item_outer<F, R>(&mut self, index: usize, wl: &mut WidgetLayout, keep_previous: bool, transform: F) -> Option<R>
+            where
+                F: FnOnce(&mut WidgetLayoutTranslation, PosLayoutArgs) -> R,
+            {
+                match index {
+                    $($n => {
+                        let w = &mut self.items.$n;
+                        if let Some(size) = w.try_bounds_info().map(|i|i.outer_size()) {
+                            wl.try_with_outer(w, keep_previous, |wlt, w| {
+                                transform(wlt, PosLayoutArgs::new($n, w.try_state_mut(), size))
+                            })
+                        } else {
+                            None
+                        }
+                    })+
+                    _ => panic!("index {index} out of range for length {}", self.len())
+                }
+            }
+
+            fn try_outer_all<F>(&mut self, wl: &mut WidgetLayout, keep_previous: bool, mut transform: F)
+            where
+                F: FnMut(&mut WidgetLayoutTranslation, PosLayoutArgs),
+            {
+                $(
+                    let w = &mut self.items.$n;
+                    if let Some(size) = w.try_bounds_info().map(|i|i.outer_size()) {
+                        wl.try_with_outer(w, keep_previous, |wlt, w| {
+                            transform(wlt, PosLayoutArgs::new($n, w.try_state_mut(), size));
+                        });
+                    }
+                )*
+            }
+
+            fn count_nodes<F>(&self, mut filter: F) -> usize
+            where
+                F: FnMut(super::UiNodeFilterArgs) -> bool,
+            {
+                let mut count = 0;
+                $(
+                if filter(UiNodeFilterArgs::new($n, &self.items.$n)) {
+                    count += 1;
+                }
+                )+
+                count
+            }
         }
     };
 }
@@ -388,6 +500,56 @@ macro_rules! empty_node_list {
             fn item_render_update(&self, index: usize, _: &mut RenderContext, _: &mut FrameUpdate) {
                 panic!("index {index} out of range for length 0")
             }
+
+            fn try_item_id(&self, index: usize) -> Option<WidgetId> {
+                panic!("index {index} out of range for length 0")
+            }
+
+            fn try_item_state(&self, index: usize) -> Option<&StateMap> {
+                panic!("index {index} out of range for length 0")
+            }
+
+            fn try_item_state_mut(&mut self, index: usize) -> Option<&mut StateMap> {
+                panic!("index {index} out of range for length 0")
+            }
+
+            fn try_item_bounds_info(&self, index: usize) -> Option<&WidgetBoundsInfo> {
+                panic!("index {index} out of range for length 0")
+            }
+
+            fn try_item_border_info(&self, index: usize) -> Option<&WidgetBorderInfo> {
+                panic!("index {index} out of range for length 0")
+            }
+
+            fn try_item_render_info(&self, index: usize) -> Option<&WidgetRenderInfo> {
+                panic!("index {index} out of range for length 0")
+            }
+
+            fn render_node_filtered<F>(&self, _: F, _: &mut RenderContext, _: &mut FrameBuilder)
+            where
+                F: FnMut(super::UiNodeFilterArgs) -> bool,
+            {
+            }
+
+            fn try_item_outer<F, R>(&mut self, index: usize, _: &mut WidgetLayout, _: bool, _: F) -> Option<R>
+            where
+                F: FnOnce(&mut WidgetLayoutTranslation, PosLayoutArgs) -> R,
+            {
+                panic!("index {index} out of range for length 0")
+            }
+
+            fn try_outer_all<F>(&mut self, _: &mut WidgetLayout, _: bool, _: F)
+            where
+                F: FnMut(&mut WidgetLayoutTranslation, PosLayoutArgs),
+            {
+            }
+
+            fn count_nodes<F>(&self, _: F) -> usize
+            where
+                F: FnMut(super::UiNodeFilterArgs) -> bool,
+            {
+                0
+            }
         }
     )+}
 }
@@ -413,33 +575,33 @@ impl WidgetList for WidgetList0 {
     {
     }
 
-    fn widget_id(&self, index: usize) -> WidgetId {
+    fn item_id(&self, index: usize) -> WidgetId {
         panic!("index {index} out of range for length 0")
     }
 
-    fn widget_state(&self, index: usize) -> &StateMap {
+    fn item_state(&self, index: usize) -> &StateMap {
         panic!("index {index} out of range for length 0")
     }
 
-    fn widget_state_mut(&mut self, index: usize) -> &mut StateMap {
+    fn item_state_mut(&mut self, index: usize) -> &mut StateMap {
         panic!("index {index} out of range for length 0")
     }
 
-    fn widget_bounds_info(&self, index: usize) -> &WidgetBoundsInfo {
+    fn item_bounds_info(&self, index: usize) -> &WidgetBoundsInfo {
         panic!("index {index} out of range for length 0")
     }
 
-    fn widget_border_info(&self, index: usize) -> &WidgetBorderInfo {
+    fn item_border_info(&self, index: usize) -> &WidgetBorderInfo {
         panic!("index {index} out of range for length 0")
     }
 
-    fn widget_render_info(&self, index: usize) -> &WidgetRenderInfo {
+    fn item_render_info(&self, index: usize) -> &WidgetRenderInfo {
         panic!("index {index} out of range for length 0")
     }
 
-    fn widget_outer<F>(&mut self, index: usize, _: &mut WidgetLayout, _: bool, _: F)
+    fn item_outer<F, R>(&mut self, index: usize, _: &mut WidgetLayout, _: bool, _: F) -> R
     where
-        F: FnOnce(&mut WidgetLayoutTranslation, PosLayoutArgs),
+        F: FnOnce(&mut WidgetLayoutTranslation, PosLayoutArgs) -> R,
     {
         panic!("index {index} out of range for length 0")
     }
