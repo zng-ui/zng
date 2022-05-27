@@ -882,3 +882,73 @@ pub fn baseline(child: impl UiNode, baseline: impl IntoVar<Length>) -> impl UiNo
     }
     .cfg_boxed()
 }
+
+/// Defines how an widget layout translation is computed.
+/// 
+/// See the [`position`] property for more details.
+/// 
+/// [`position`]: fn@position
+#[derive(Debug, Clone)]
+pub enum Position {
+    /// Default, widget is positioned on the the parent transform.
+    Parent,
+    /// Widget is positioned on the transform of the nearest viewport ancestor.
+    Viewport,
+    /// Widget is positioned on the parent or the viewport depending on if it is fully visible on the parent or not.
+    Sticky {
+        /// Offsets from the viewport bounds that defines the inner start of the sticky region, when the
+        /// widget's edges touches this region by the parent, its position is fixed to the viewport.
+        inner: SideOffsets,
+        /// Offsets from the viewport bounds that defines outer end of region sticky region, when the
+        /// widget's original position on the parent moves out of this region, its position starts to be affected by the parent again.
+        outer: SideOffsets,
+    },
+}
+impl Default for Position {
+    fn default() -> Self {
+        Position::Parent
+    }
+}
+
+/// Defines how an widget translation is computed.
+/// 
+/// Note that in all the position modes the widget affects the size of the parent and has the z-index the parent gives it, 
+/// to fully remove the widget from the parent declare it in a layer instead, see [`WindowLayers`].
+/// 
+/// [`WindowLayers`]: crate::widgets::window::WindowLayers
+#[property(layout, default(Position::default()))]
+pub fn position(child: impl UiNode, position: impl IntoVar<Position>) -> impl UiNode {
+    struct PositionNode<C, P> {
+        child: C,
+        position: P,
+    }
+    #[impl_ui_node(child)]
+    impl<C: UiNode, P: Var<Position>> UiNode for PositionNode<C, P> {
+        fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
+            subs.var(ctx, &self.position);
+            self.child.subscriptions(ctx, subs);
+        }
+
+        fn update(&mut self, ctx: &mut WidgetContext) {
+            if self.position.is_new(ctx) {
+                ctx.updates.layout();
+            }
+            self.child.update(ctx);
+        }
+
+        fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
+            // TODO
+            self.child.layout(ctx, wl)
+        }
+
+        fn render(&mut self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
+            // see webrender define_sticky_frame
+            self.child.render(ctx, wl)
+        }
+    }
+    PositionNode {
+        child: child.cfg_boxed(),
+        position: position.into_var(),
+    }
+    .cfg_boxed()
+}
