@@ -20,7 +20,7 @@ use std::{
 #[allow(unused)]
 macro_rules! assert_size_of {
     ($Type:ty, $n:tt) => {
-        const _ASSERT: [u8; $n] = [0; std::mem::size_of::<$Type>()];
+        const _: () = assert!(std::mem::size_of::<$Type>() == $n);
     };
 }
 
@@ -28,7 +28,7 @@ macro_rules! assert_size_of {
 #[allow(unused)]
 macro_rules! assert_non_null {
     ($Type:ty) => {
-        const _ASSERT: [u8; std::mem::size_of::<$Type>()] = [0; std::mem::size_of::<Option<$Type>>()];
+        const _: () = assert!(std::mem::size_of::<$Type>() == std::mem::size_of::<Option<$Type>>());
     };
 }
 
