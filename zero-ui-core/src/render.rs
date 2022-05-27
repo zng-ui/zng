@@ -1357,9 +1357,6 @@ pub struct FrameUpdate {
     inner_transform: Option<RenderTransform>,
 }
 impl FrameUpdate {
-    // in case they add more dynamic property types.
-    assert_size_of!(DynamicProperties, 72);
-
     /// New frame update builder.
     ///
     /// * `frame_id` - Id of the frame that will be updated.
@@ -1374,6 +1371,9 @@ impl FrameUpdate {
         clear_color: RenderColor,
         used_data: Option<UsedFrameUpdate>,
     ) -> Self {
+        // in case they add more dynamic property types.
+        assert_size_of!(DynamicProperties, 72);
+
         let pipeline_id = renderer
             .as_ref()
             .and_then(|r| r.pipeline_id().ok())
