@@ -73,7 +73,7 @@ fn overlay(id: impl Into<WidgetId>, offset: i32) -> impl Widget {
         background_color = colors::GRAY.with_alpha(10.pct());
         content_align = Align::CENTER;
         content = container! {
-            position = (offset, offset);
+            offset = (offset, offset);
             focus_scope = true;
             tab_nav = TabNav::Cycle;
             directional_nav = DirectionalNav::Cycle;
@@ -197,7 +197,7 @@ fn anchor_example() -> impl Widget {
                 font_weight = FontWeight::BOLD;
                 background_color = colors::GREEN.darken(40.pct());
                 border = 1, colors::GREEN.darken(20.pct());
-                position = point.map(|p|p - &Vector::splat(100.pct()));
+                offset = point.map(|p|p.clone().as_vector() - Vector::splat(100.pct()));
                 margin = 2;
                 hit_test_mode = HitTestMode::Disabled;
             })

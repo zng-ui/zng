@@ -176,7 +176,7 @@ fn plot(easing: impl Fn(EasingTime) -> EasingStep + 'static) -> ImageSource {
                 let y = size.1 * (1.fct() - y_fct);
 
                 items.push(blank! {
-                    position = (x, y);
+                    offset = (x, y);
                     size = (3, 3);
                     corner_radius = 2;
                     translate = -1.5, -1.5;
@@ -192,14 +192,14 @@ fn plot(easing: impl Fn(EasingTime) -> EasingStep + 'static) -> ImageSource {
                 font_size = 12;
                 font_style = FontStyle::Italic;
                 color = meta_color;
-                position = (-3.dip() - 100.pct(), -3.dip());
+                offset = (-3.dip() - 100.pct(), -3.dip());
             });
             items.push(text! {
                 text = "t";
                 font_size = 12;
                 font_style = FontStyle::Italic;
                 color = meta_color;
-                position = (size.0.dip() - 100.pct() - 3.dip(), size.1 - 3);
+                offset = (size.0.dip() - 100.pct() - 3.dip(), size.1 - 3);
             });
             z_stack! {
                 items_align = Align::TOP_LEFT;

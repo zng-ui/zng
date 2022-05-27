@@ -165,20 +165,20 @@ pub fn child_align(child: impl UiNode, alignment: impl IntoVar<Align>) -> impl U
 ///
 /// You can use the [`x`](fn@x) and [`y`](fn@y) properties to only set the position in one dimension.
 #[property(layout, default((0, 0)))]
-pub fn position(child: impl UiNode, position: impl IntoVar<Point>) -> impl UiNode {
-    struct PositionNode<T: UiNode, P: Var<Point>> {
+pub fn offset(child: impl UiNode, offset: impl IntoVar<Vector>) -> impl UiNode {
+    struct OffsetNode<T: UiNode, O: Var<Vector>> {
         child: T,
-        position: P,
+        offset: O,
     }
     #[impl_ui_node(child)]
-    impl<T: UiNode, P: Var<Point>> UiNode for PositionNode<T, P> {
+    impl<T: UiNode, O: Var<Vector>> UiNode for OffsetNode<T, O> {
         fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
-            subscriptions.var(ctx, &self.position);
+            subscriptions.var(ctx, &self.offset);
             self.child.subscriptions(ctx, subscriptions);
         }
 
         fn update(&mut self, ctx: &mut WidgetContext) {
-            if self.position.is_new(ctx) {
+            if self.offset.is_new(ctx) {
                 ctx.updates.layout();
             }
             self.child.update(ctx);
@@ -186,20 +186,20 @@ pub fn position(child: impl UiNode, position: impl IntoVar<Point>) -> impl UiNod
 
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
             let size = self.child.layout(ctx, wl);
-            let pos = ctx.with_constrains(
+            let offset = ctx.with_constrains(
                 |c| {
                     let size = c.fill_size().max(size);
                     PxConstrains2d::new_exact_size(size)
                 },
-                |ctx| self.position.get(ctx.vars).layout(ctx.metrics, |_| PxPoint::zero()),
+                |ctx| self.offset.get(ctx.vars).layout(ctx.metrics, |_| PxVector::zero()),
             );
-            wl.translate(pos.to_vector());
+            wl.translate(offset);
             size
         }
     }
-    PositionNode {
+    OffsetNode {
         child,
-        position: position.into_var(),
+        offset: offset.into_var(),
     }
 }
 
@@ -219,7 +219,7 @@ pub fn position(child: impl UiNode, position: impl IntoVar<Point>) -> impl UiNod
 /// # ;
 /// ```
 ///
-/// In the example the button is moved 20 percent of its own width to the right.
+/// In the example the button is moved 20 percent of the fill width to the right.
 ///
 /// # `position`
 ///
@@ -276,7 +276,7 @@ pub fn x(child: impl UiNode, x: impl IntoVar<Length>) -> impl UiNode {
 /// # ;
 /// ```
 ///
-/// In the example the button is moved down 20 percent of its own height.
+/// In the example the button is moved down 20 percent of the fill height.
 ///
 /// # `position`
 ///

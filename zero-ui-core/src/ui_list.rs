@@ -85,7 +85,7 @@ pub trait UiNodeList: 'static {
     /// Calls [`UiNode::layout`] in all widgets in the list, sequentially.
     ///
     /// Note that you can also layout specific children with [`item_layout`], and if the list is a full [`WidgetList`]
-    /// you can use the [`widget_outer`] method to update each child transform without causing a second layout pass.
+    /// you can use the [`item_outer`] method to update each child transform without causing a second layout pass.
     ///
     /// # Pre-Layout
     ///
@@ -98,7 +98,7 @@ pub trait UiNodeList: 'static {
     /// child, you can also see the new child size in [`PosLayoutArgs`].
     ///
     /// [`item_layout`]: UiNodeList::item_layout
-    /// [`widget_outer`]: WidgetList::widget_outer
+    /// [`item_outer`]: WidgetList::item_outer
     fn layout_all<C, D>(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout, pre_layout: C, pos_layout: D)
     where
         C: FnMut(&mut LayoutContext, &mut WidgetLayout, &mut PreLayoutArgs),
