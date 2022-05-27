@@ -62,8 +62,8 @@ pub trait WidgetHandler<A: Clone + 'static>: 'static {
     /// Called every time the widget [`info`] is rebuild, register async handler waker update slot.
     ///
     /// [`info`]: crate::UiNode::info
-    fn subscribe(&self, widget_subscriptions: &mut WidgetSubscriptions) {
-        let _ = widget_subscriptions;
+    fn subscribe(&self, widget_subs: &mut WidgetSubscriptions) {
+        let _ = widget_subs;
     }
 
     /// Called every time the event happens in the widget context.
@@ -121,8 +121,8 @@ impl<A: Clone + 'static> WidgetHandler<A> for Box<dyn WidgetHandler<A>> {
         self.as_mut().event(ctx, args)
     }
 
-    fn subscribe(&self, widget_subscriptions: &mut WidgetSubscriptions) {
-        self.as_ref().subscribe(widget_subscriptions)
+    fn subscribe(&self, widget_subs: &mut WidgetSubscriptions) {
+        self.as_ref().subscribe(widget_subs)
     }
 
     fn update(&mut self, ctx: &mut WidgetContext) -> bool {
@@ -344,9 +344,9 @@ where
     F: Future<Output = ()> + 'static,
     H: FnMut(WidgetContextMut, A) -> F + 'static,
 {
-    fn subscribe(&self, widget_subscriptions: &mut WidgetSubscriptions) {
+    fn subscribe(&self, widget_subs: &mut WidgetSubscriptions) {
         for t in &self.tasks {
-            t.subscribe(widget_subscriptions);
+            t.subscribe(widget_subs);
         }
     }
 
@@ -506,9 +506,9 @@ where
     F: Future<Output = ()> + 'static,
     H: FnOnce(WidgetContextMut, A) -> F + 'static,
 {
-    fn subscribe(&self, widget_subscriptions: &mut WidgetSubscriptions) {
+    fn subscribe(&self, widget_subs: &mut WidgetSubscriptions) {
         if let AsyncFnOnceWhState::Pending(t) = &self.state {
-            t.subscribe(widget_subscriptions);
+            t.subscribe(widget_subs);
         }
     }
 

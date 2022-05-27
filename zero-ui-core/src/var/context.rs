@@ -671,10 +671,10 @@ mod properties {
                     });
             }
 
-            fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
+            fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
                 ctx.vars
                     .with_context_var(self.var, ContextVarData::in_vars_read(ctx.vars, &self.value), || {
-                        self.child.subscriptions(ctx, subscriptions)
+                        self.child.subscriptions(ctx, subs)
                     });
             }
 
@@ -791,9 +791,9 @@ mod tests {
                 self.handler.event(ctx, &());
             }
 
-            fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut widget_info::WidgetSubscriptions) {
-                subscriptions.handler(&self.handler);
-                self.child.subscriptions(ctx, subscriptions);
+            fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut widget_info::WidgetSubscriptions) {
+                subs.handler(&self.handler);
+                self.child.subscriptions(ctx, subs);
             }
 
             fn update(&mut self, ctx: &mut WidgetContext) {

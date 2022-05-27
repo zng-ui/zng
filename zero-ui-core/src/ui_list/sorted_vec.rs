@@ -344,15 +344,15 @@ impl UiNodeList for SortedWidgetVec {
         self.vec[index].info(ctx, info);
     }
 
-    fn subscriptions_all(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
-        subscriptions.update(self.ctrl.update_slot());
+    fn subscriptions_all(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
+        subs.update(self.ctrl.update_slot());
         for widget in &self.vec {
-            widget.subscriptions(ctx, subscriptions);
+            widget.subscriptions(ctx, subs);
         }
     }
 
-    fn item_subscriptions(&self, index: usize, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
-        self.vec[index].subscriptions(ctx, subscriptions);
+    fn item_subscriptions(&self, index: usize, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
+        self.vec[index].subscriptions(ctx, subs);
     }
 
     fn render_all(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {

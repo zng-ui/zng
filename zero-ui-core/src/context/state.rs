@@ -487,9 +487,9 @@ where
         V: Var<K::Type>,
         H: FnMut(&mut WidgetContext, &K::Type) + 'static,
     {
-        fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
-            subscriptions.var(ctx, &self.var);
-            self.child.subscriptions(ctx, subscriptions);
+        fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
+            subs.var(ctx, &self.var);
+            self.child.subscriptions(ctx, subs);
         }
 
         fn init(&mut self, ctx: &mut WidgetContext) {

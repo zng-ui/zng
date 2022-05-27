@@ -24,9 +24,9 @@ pub fn transform(child: impl UiNode, transform: impl IntoVar<Transform>) -> impl
         C: UiNode,
         T: Var<Transform>,
     {
-        fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
-            subscriptions.var(ctx, &self.transform);
-            self.child.subscriptions(ctx, subscriptions);
+        fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
+            subs.var(ctx, &self.transform);
+            self.child.subscriptions(ctx, subs);
         }
 
         fn update(&mut self, ctx: &mut WidgetContext) {

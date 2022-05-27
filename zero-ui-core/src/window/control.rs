@@ -1075,7 +1075,7 @@ struct ContentCtrl {
     used_frame_update: Option<UsedFrameUpdate>,
 
     inited: bool,
-    subscriptions: WidgetSubscriptions,
+    subs: WidgetSubscriptions,
     frame_id: FrameId,
     clear_color: RenderColor,
 
@@ -1103,7 +1103,7 @@ impl ContentCtrl {
             used_frame_update: None,
 
             inited: false,
-            subscriptions: WidgetSubscriptions::new(),
+            subs: WidgetSubscriptions::new(),
             frame_id: FrameId::INVALID,
             clear_color: RenderColor::BLACK,
 
@@ -1159,14 +1159,14 @@ impl ContentCtrl {
         }
 
         if updates.subscriptions {
-            self.subscriptions = ctx.info_context(&self.info_tree, &self.root_info, &self.root_state, |ctx| {
+            self.subs = ctx.info_context(&self.info_tree, &self.root_info, &self.root_state, |ctx| {
                 let mut subscriptions = WidgetSubscriptions::new();
                 self.root.subscriptions(ctx, &mut subscriptions);
                 subscriptions
             });
             ctx.services
                 .windows()
-                .set_subscriptions(self.info_tree.window_id(), self.subscriptions.clone());
+                .set_subscriptions(self.info_tree.window_id(), self.subs.clone());
         }
     }
 
@@ -1196,7 +1196,7 @@ impl ContentCtrl {
     pub fn ui_event<EV: EventUpdateArgs>(&mut self, ctx: &mut WindowContext, args: &EV) {
         debug_assert!(self.inited);
 
-        if self.subscriptions.event_contains(args) {
+        if self.subs.event_contains(args) {
             ctx.widget_context(&self.info_tree, &self.root_info, &mut self.root_state, |ctx| {
                 self.root.event(ctx, args);
             });

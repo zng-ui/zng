@@ -100,8 +100,8 @@ pub trait RcNodeTakeSignal: 'static {
     ///
     /// [`update_take`]: Self::update_take
     /// [`event_take`]: Self::event_take
-    fn subscribe(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
-        let _ = (ctx, subscriptions);
+    fn subscribe(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
+        let _ = (ctx, subs);
     }
 
     /// Returns `true` when the slot must take the node as its child.
@@ -120,8 +120,8 @@ impl<V> RcNodeTakeSignal for V
 where
     V: crate::var::Var<bool>,
 {
-    fn subscribe(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
-        subscriptions.var(ctx, self);
+    fn subscribe(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
+        subs.var(ctx, self);
     }
 
     /// Takes the widget when the var value is `true`.
@@ -227,12 +227,12 @@ impl<S: RcNodeTakeSignal, U: UiNode> UiNode for SlotNode<S, U> {
         }
     }
 
-    fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
-        subscriptions.update(self.update_slot);
-        self.take_signal.subscribe(ctx, subscriptions);
+    fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
+        subs.update(self.update_slot);
+        self.take_signal.subscribe(ctx, subs);
 
         if let SlotNodeState::Active(rc) = &self.state {
-            rc.node.borrow().subscriptions(ctx, subscriptions);
+            rc.node.borrow().subscriptions(ctx, subs);
         }
     }
 

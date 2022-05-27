@@ -138,9 +138,9 @@ where
         }
 
         #[UiNode]
-        fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
-            subscriptions.var(ctx, &self.data);
-            self.child.subscriptions(ctx, subscriptions);
+        fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
+            subs.var(ctx, &self.data);
+            self.child.subscriptions(ctx, subs);
         }
 
         #[UiNode]
@@ -304,10 +304,10 @@ impl<D> ViewGenerator<D> {
             M: FnMut(BoxedUiNode) -> V + 'static,
             V: UiNode,
         {
-            fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
-                subscriptions.var(ctx, &self.gen);
-                (self.subscribe)(ctx.vars, subscriptions);
-                self.child.subscriptions(ctx, subscriptions);
+            fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
+                subs.var(ctx, &self.gen);
+                (self.subscribe)(ctx.vars, subs);
+                self.child.subscriptions(ctx, subs);
             }
 
             fn init(&mut self, ctx: &mut WidgetContext) {

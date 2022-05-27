@@ -247,16 +247,16 @@ macro_rules! impl_tuples {
                 }
             }
 
-            fn subscriptions_all(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
+            fn subscriptions_all(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
                 $(
-                    self.items.$n.subscriptions(ctx, subscriptions);
+                    self.items.$n.subscriptions(ctx, subs);
                 )+
             }
 
-            fn item_subscriptions(&self, index: usize, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
+            fn item_subscriptions(&self, index: usize, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
                 match index {
                     $(
-                        $n => self.items.$n.subscriptions(ctx, subscriptions),
+                        $n => self.items.$n.subscriptions(ctx, subs),
                     )+
                     _ => panic!("index {index} out of range for length {}", self.len()),
                 }

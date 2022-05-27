@@ -39,13 +39,13 @@ pub fn image_source(child: impl UiNode, source: impl IntoVar<ImageSource>) -> im
     }
     #[impl_ui_node(child)]
     impl<C: UiNode, S: Var<ImageSource>> UiNode for ImageSourceNode<C, S> {
-        fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
-            subscriptions.var(ctx, &self.source);
+        fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
+            subs.var(ctx, &self.source);
             if let Some(fct) = &self.render_factor {
-                subscriptions.var(ctx, fct);
+                subs.var(ctx, fct);
             }
 
-            self.child.subscriptions(ctx, subscriptions);
+            self.child.subscriptions(ctx, subs);
         }
 
         fn init(&mut self, ctx: &mut WidgetContext) {
@@ -188,8 +188,8 @@ context_var! {
 pub fn image_error_presenter(child: impl UiNode) -> impl UiNode {
     let view = ViewGenerator::presenter_map(
         ImageErrorViewVar,
-        |vars, subscriptions| {
-            subscriptions.var(vars, &ContextImageVar::new());
+        |vars, subs| {
+            subs.var(vars, &ContextImageVar::new());
         },
         |ctx, is_new| {
             if *InErrorViewVar::get(ctx) {
@@ -237,8 +237,8 @@ pub fn image_error_presenter(child: impl UiNode) -> impl UiNode {
 pub fn image_loading_presenter(child: impl UiNode) -> impl UiNode {
     let view = ViewGenerator::presenter_map(
         ImageLoadingViewVar,
-        |vars, subscriptions| {
-            subscriptions.var(vars, &ContextImageVar::new());
+        |vars, subs| {
+            subs.var(vars, &ContextImageVar::new());
         },
         |ctx, is_new| {
             if *InLoadingViewVar::get(ctx) {
@@ -301,9 +301,8 @@ pub fn image_presenter() -> impl UiNode {
     }
     #[impl_ui_node(none)]
     impl UiNode for ImagePresenterNode {
-        fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
-            subscriptions
-                .vars(ctx)
+        fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
+            subs.vars(ctx)
                 .var(&ContextImageVar::new())
                 .var(&ImageFitVar::new())
                 .var(&ImageScaleVar::new())

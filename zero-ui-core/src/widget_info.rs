@@ -1866,7 +1866,7 @@ impl WidgetSubscriptions {
     pub fn vars<'s, 'v>(&'s mut self, vars: &'v impl AsRef<VarsRead>) -> WidgetVarSubscriptions<'v, 's> {
         WidgetVarSubscriptions {
             vars: vars.as_ref(),
-            subscriptions: self,
+            subs: self,
         }
     }
 
@@ -1914,13 +1914,13 @@ impl ops::BitOrAssign for WidgetSubscriptions {
 pub struct WidgetVarSubscriptions<'v, 's> {
     vars: &'v VarsRead,
     /// The main [`WidgetSubscriptions`].
-    pub subscriptions: &'s mut WidgetSubscriptions,
+    pub subs: &'s mut WidgetSubscriptions,
 }
 impl<'v, 's> WidgetVarSubscriptions<'v, 's> {
     /// Register a variable subscriptions.
     pub fn var<T: VarValue>(self, var: &impl Var<T>) -> Self {
         Self {
-            subscriptions: self.subscriptions.var(self.vars, var),
+            subs: self.subs.var(self.vars, var),
             vars: self.vars,
         }
     }

@@ -112,9 +112,8 @@ pub fn node() -> impl UiNode {
     }
     #[impl_ui_node(none)]
     impl UiNode for CheckerboardNode {
-        fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
-            subscriptions
-                .vars(ctx)
+        fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
+            subs.vars(ctx)
                 .var(&CheckerboardColor0Var::new())
                 .var(&CheckerboardColor1Var::new())
                 .var(&CheckerboardSizeVar::new())

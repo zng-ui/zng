@@ -60,9 +60,8 @@ pub mod rule_line {
         C: Var<Rgba>,
         S: Var<LineStyle>,
     {
-        fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
-            subscriptions
-                .vars(ctx)
+        fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
+            subs.vars(ctx)
                 .var(&self.stroke_thickness)
                 .var(&self.length)
                 .var(&self.orientation)

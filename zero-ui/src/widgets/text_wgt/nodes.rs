@@ -143,9 +143,9 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Text>) -> impl UiNode
             self.with(ctx.vars, |c| c.info(ctx, info))
         }
 
-        fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
-            TextContext::subscribe(ctx.vars, subscriptions.var(ctx.vars, &self.text));
-            self.with(ctx.vars, |c| c.subscriptions(ctx, subscriptions))
+        fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
+            TextContext::subscribe(ctx.vars, subs.var(ctx.vars, &self.text));
+            self.with(ctx.vars, |c| c.subscriptions(ctx, subs))
         }
 
         fn deinit(&mut self, ctx: &mut WidgetContext) {
@@ -309,11 +309,11 @@ pub fn layout_text(child: impl UiNode, padding: impl IntoVar<SideOffsets>) -> im
     }
     #[impl_ui_node(child)]
     impl<C: UiNode, P: Var<SideOffsets>> UiNode for LayoutTextNode<C, P> {
-        fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
-            subscriptions.var(ctx, &self.padding);
+        fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
+            subs.var(ctx, &self.padding);
             // other subscriptions are handled by the `resolve_text` node.
 
-            self.child.subscriptions(ctx, subscriptions)
+            self.child.subscriptions(ctx, subs)
         }
 
         fn deinit(&mut self, ctx: &mut WidgetContext) {

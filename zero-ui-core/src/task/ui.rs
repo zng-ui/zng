@@ -92,9 +92,9 @@ impl<R> UiTask<R> {
     }
 
     /// Register the waker update slot in the widget update mask if the task is pending.
-    pub fn subscribe(&self, subscriptions: &mut WidgetSubscriptions) {
+    pub fn subscribe(&self, subs: &mut WidgetSubscriptions) {
         if let UiTaskState::Pending { update_slot, .. } = &self.0 {
-            subscriptions.update(*update_slot);
+            subs.update(*update_slot);
         }
     }
 
@@ -178,8 +178,8 @@ impl<R> WidgetTask<R> {
     }
 
     /// Register the waker update slot in the widget update mask if the task is pending.
-    pub fn subscribe(&self, widget_subscriptions: &mut WidgetSubscriptions) {
-        self.task.subscribe(widget_subscriptions);
+    pub fn subscribe(&self, widget_subs: &mut WidgetSubscriptions) {
+        self.task.subscribe(widget_subs);
     }
 
     /// Polls the future if needed, returns a reference to the result if the task is done.

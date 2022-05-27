@@ -1484,13 +1484,12 @@ where
             self.child.info(ctx, widget_builder);
         }
 
-        fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
-            subscriptions
-                .event(self.command.expect("OnCommandNode not initialized"))
+        fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
+            subs.event(self.command.expect("OnCommandNode not initialized"))
                 .var(ctx, self.enabled.as_ref().unwrap())
                 .handler(&self.handler);
 
-            self.child.subscriptions(ctx, subscriptions);
+            self.child.subscriptions(ctx, subs);
         }
 
         fn init(&mut self, ctx: &mut WidgetContext) {
@@ -1594,13 +1593,12 @@ where
             self.child.info(ctx, widget_builder);
         }
 
-        fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
-            subscriptions
-                .event(self.command.expect("OnPreCommandNode not initialized"))
+        fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
+            subs.event(self.command.expect("OnPreCommandNode not initialized"))
                 .var(ctx, self.enabled.as_ref().unwrap())
                 .handler(&self.handler);
 
-            self.child.subscriptions(ctx, subscriptions);
+            self.child.subscriptions(ctx, subs);
         }
 
         fn event<A: crate::event::EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &A) {

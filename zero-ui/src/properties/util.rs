@@ -14,9 +14,9 @@ pub fn primitive_flags(child: impl UiNode, flags: impl IntoVar<PrimitiveFlags>) 
     }
     #[impl_ui_node(child)]
     impl<C: UiNode, F: Var<PrimitiveFlags>> UiNode for PrimitiveFlagsNode<C, F> {
-        fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
-            subscriptions.var(ctx, &self.flags);
-            self.child.subscriptions(ctx, subscriptions);
+        fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
+            subs.var(ctx, &self.flags);
+            self.child.subscriptions(ctx, subs);
         }
 
         fn update(&mut self, ctx: &mut WidgetContext) {
@@ -93,9 +93,9 @@ mod tests {
         }
         #[impl_ui_node(child)]
         impl<C: UiNode, V: Var<u8>> UiNode for TestVarProbeNode<C, V> {
-            fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
-                subscriptions.var(ctx, &TestVar::new());
-                self.child.subscriptions(ctx, subscriptions);
+            fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
+                subs.var(ctx, &TestVar::new());
+                self.child.subscriptions(ctx, subs);
             }
 
             fn init(&mut self, ctx: &mut WidgetContext) {

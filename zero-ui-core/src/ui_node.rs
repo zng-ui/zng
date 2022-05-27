@@ -140,16 +140,16 @@ pub trait UiNode: 'static {
     fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder);
 
     /// Called every time the set of variables and events monitored by the widget changes.
-    fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions);
+    fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions);
 
     /// Called every time the node is plugged into the UI tree.
-    /// 
+    ///
     /// The parent node that calls this method must make an info, subscriptions, layout and render update request, the initializing node it self
     /// does not need to request these updates, it needs only to initialize self and descendants.
     fn init(&mut self, ctx: &mut WidgetContext);
 
     /// Called every time the node is unplugged from the UI tree.
-    /// 
+    ///
     /// The parent node that calls this method must make an info, subscriptions, layout and render update request, the de-initializing node it self
     /// does not need to request these updates, it needs only to de-initialize self and descendants.
     fn deinit(&mut self, ctx: &mut WidgetContext);
@@ -345,7 +345,7 @@ pub trait UiNode: 'static {
 #[doc(hidden)]
 pub trait UiNodeBoxed: 'static {
     fn info_boxed(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder);
-    fn subscriptions_boxed(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions);
+    fn subscriptions_boxed(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions);
     fn init_boxed(&mut self, ctx: &mut WidgetContext);
     fn deinit_boxed(&mut self, ctx: &mut WidgetContext);
     fn update_boxed(&mut self, ctx: &mut WidgetContext);
@@ -369,8 +369,8 @@ impl<U: UiNode> UiNodeBoxed for U {
         self.info(ctx, info);
     }
 
-    fn subscriptions_boxed(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
-        self.subscriptions(ctx, subscriptions)
+    fn subscriptions_boxed(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
+        self.subscriptions(ctx, subs)
     }
 
     fn init_boxed(&mut self, ctx: &mut WidgetContext) {
@@ -442,8 +442,8 @@ impl UiNode for BoxedUiNode {
         self.as_ref().info_boxed(ctx, info);
     }
 
-    fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
-        self.as_ref().subscriptions_boxed(ctx, subscriptions);
+    fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
+        self.as_ref().subscriptions_boxed(ctx, subs);
     }
 
     fn init(&mut self, ctx: &mut WidgetContext) {
@@ -528,9 +528,9 @@ impl<U: UiNode> UiNode for Option<U> {
         }
     }
 
-    fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
+    fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
         if let Some(node) = self {
-            node.subscriptions(ctx, subscriptions);
+            node.subscriptions(ctx, subs);
         }
     }
 
@@ -764,8 +764,8 @@ pub trait Widget: UiNode {
     /// Run [`UiNode::subscriptions`] using the [`TestWidgetContext`].
     #[cfg(any(test, doc, feature = "test_util"))]
     #[cfg_attr(doc_nightly, doc(cfg(feature = "test_util")))]
-    fn test_subscriptions(&self, ctx: &mut TestWidgetContext, subscriptions: &mut WidgetSubscriptions) {
-        ctx.info_context(|ctx| self.subscriptions(ctx, subscriptions));
+    fn test_subscriptions(&self, ctx: &mut TestWidgetContext, subs: &mut WidgetSubscriptions) {
+        ctx.info_context(|ctx| self.subscriptions(ctx, subs));
     }
 
     /// Run [`UiNode::render`] using the [`TestWidgetContext`].
@@ -835,8 +835,8 @@ impl UiNode for BoxedWidget {
         self.as_ref().info_boxed(ctx, info);
     }
 
-    fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
-        self.as_ref().subscriptions_boxed(ctx, subscriptions);
+    fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
+        self.as_ref().subscriptions_boxed(ctx, subs);
     }
 
     fn init(&mut self, ctx: &mut WidgetContext) {
@@ -989,7 +989,7 @@ pub mod impl_ui_node_util {
     }
     pub trait IterImpl {
         fn info_all(self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder);
-        fn subscriptions_all(self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions);
+        fn subscriptions_all(self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions);
         fn render_all(self, ctx: &mut RenderContext, frame: &mut FrameBuilder);
         fn render_update_all(self, ctx: &mut RenderContext, update: &mut FrameUpdate);
     }
@@ -1035,9 +1035,9 @@ pub mod impl_ui_node_util {
             }
         }
 
-        fn subscriptions_all(self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
+        fn subscriptions_all(self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
             for child in self {
-                child.subscriptions(ctx, subscriptions);
+                child.subscriptions(ctx, subs);
             }
         }
 

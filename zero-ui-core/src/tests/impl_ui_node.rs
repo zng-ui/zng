@@ -237,10 +237,10 @@ pub fn default_no_child() {
     assert!(wgt_info.descendants().next().is_none());
     assert!(wgt_info.meta().is_empty());
 
-    let mut subscriptions = WidgetSubscriptions::new();
-    wgt.test_subscriptions(&mut ctx, &mut subscriptions);
-    assert!(subscriptions.update_mask().is_none());
-    assert!(subscriptions.event_mask().is_none());
+    let mut subs = WidgetSubscriptions::new();
+    wgt.test_subscriptions(&mut ctx, &mut subs);
+    assert!(subs.update_mask().is_none());
+    assert!(subs.event_mask().is_none());
 
     let mut frame = FrameBuilder::new_renderless(FrameId::INVALID, ctx.root_id, 1.0.fct(), Default::default(), None);
 

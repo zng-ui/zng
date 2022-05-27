@@ -318,7 +318,7 @@ pub mod implicit_base {
                     });
                 }
 
-                fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
+                fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
                     #[cfg(debug_assertions)]
                     if !self.inited {
                         tracing::error!(target: "widget_base", "`UiNode::subscriptions` called in not inited widget {:?}", self.id);
@@ -332,9 +332,9 @@ pub mod implicit_base {
                             self.child.subscriptions(ctx, &mut wgt_subs);
                         });
 
-                        subscriptions.extend(&wgt_subs);
+                        subs.extend(&wgt_subs);
                     } else {
-                        subscriptions.extend(&*self.subscriptions.borrow());
+                        subs.extend(&*self.subscriptions.borrow());
                     }
                 }
 
@@ -613,9 +613,9 @@ pub fn enabled(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
             self.child.info(ctx, info);
         }
 
-        fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
-            subscriptions.updates(&IsEnabled::update_mask(ctx));
-            self.child.subscriptions(ctx, subscriptions);
+        fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
+            subs.updates(&IsEnabled::update_mask(ctx));
+            self.child.subscriptions(ctx, subs);
         }
 
         fn update(&mut self, ctx: &mut WidgetContext) {
@@ -655,9 +655,9 @@ pub fn interactive(child: impl UiNode, interactive: impl IntoVar<bool>) -> impl 
             self.child.info(ctx, info);
         }
 
-        fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
-            subscriptions.var(ctx, &self.interactive);
-            self.child.subscriptions(ctx, subscriptions);
+        fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
+            subs.var(ctx, &self.interactive);
+            self.child.subscriptions(ctx, subs);
         }
 
         fn update(&mut self, ctx: &mut WidgetContext) {
@@ -695,9 +695,9 @@ impl<C: UiNode> UiNode for IsEnabledNode<C> {
         self.child.info(ctx, widget);
     }
 
-    fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
-        subscriptions.updates(&IsEnabled::update_mask(ctx));
-        self.child.subscriptions(ctx, subscriptions);
+    fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
+        subs.updates(&IsEnabled::update_mask(ctx));
+        self.child.subscriptions(ctx, subs);
     }
 
     fn update(&mut self, ctx: &mut WidgetContext) {
@@ -768,9 +768,9 @@ pub fn visibility(child: impl UiNode, visibility: impl IntoVar<Visibility>) -> i
             self.child.info(ctx, widget);
         }
 
-        fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
-            subscriptions.var(ctx, &self.visibility);
-            self.child.subscriptions(ctx, subscriptions);
+        fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
+            subs.var(ctx, &self.visibility);
+            self.child.subscriptions(ctx, subs);
         }
 
         fn init(&mut self, ctx: &mut WidgetContext) {
@@ -910,9 +910,9 @@ impl<C: UiNode> UiNode for IsVisibilityNode<C> {
         self.state.set_ne(ctx, vis != self.expected);
     }
 
-    fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
-        subscriptions.event(crate::window::FrameImageReadyEvent);
-        self.child.subscriptions(ctx, subscriptions);
+    fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
+        subs.event(crate::window::FrameImageReadyEvent);
+        self.child.subscriptions(ctx, subs);
     }
 
     fn event<A: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &A) {
@@ -1058,9 +1058,9 @@ pub fn hit_test_mode(child: impl UiNode, mode: impl IntoVar<HitTestMode>) -> imp
     }
     #[impl_ui_node(child)]
     impl<C: UiNode> UiNode for HitTestModeNode<C> {
-        fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
-            subscriptions.updates(&HitTestMode::update_mask(ctx));
-            self.child.subscriptions(ctx, subscriptions);
+        fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
+            subs.updates(&HitTestMode::update_mask(ctx));
+            self.child.subscriptions(ctx, subs);
         }
 
         fn update(&mut self, ctx: &mut WidgetContext) {
@@ -1117,9 +1117,9 @@ pub fn is_hit_testable(child: impl UiNode, state: StateVar) -> impl UiNode {
             self.update_state(ctx);
         }
 
-        fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
-            subscriptions.updates(&HitTestMode::update_mask(ctx));
-            self.child.subscriptions(ctx, subscriptions);
+        fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
+            subs.updates(&HitTestMode::update_mask(ctx));
+            self.child.subscriptions(ctx, subs);
         }
 
         fn update(&mut self, ctx: &mut WidgetContext) {

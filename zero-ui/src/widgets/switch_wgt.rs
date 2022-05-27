@@ -70,12 +70,12 @@ pub mod switch {
             }
         }
 
-        fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
+        fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
             let index = self.index.copy(ctx);
             if index < self.options.len() {
-                self.options.item_subscriptions(index, ctx, subscriptions);
+                self.options.item_subscriptions(index, ctx, subs);
             }
-            subscriptions.var(ctx, &self.index);
+            subs.var(ctx, &self.index);
         }
 
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {

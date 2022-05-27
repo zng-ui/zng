@@ -703,9 +703,9 @@ pub fn fill_node(content: impl UiNode) -> impl UiNode {
         delegate_mut = &mut self.content,
     )]
     impl<C: UiNode> UiNode for FillNodeNode<C> {
-        fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
-            subscriptions.var(ctx, &BorderAlignVar::new());
-            self.content.subscriptions(ctx, subscriptions);
+        fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
+            subs.var(ctx, &BorderAlignVar::new());
+            self.content.subscriptions(ctx, subs);
         }
 
         fn update(&mut self, ctx: &mut WidgetContext) {

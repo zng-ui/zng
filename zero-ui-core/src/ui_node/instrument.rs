@@ -36,9 +36,9 @@ where
         self.node.info(ctx, info);
     }
 
-    fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
+    fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
         let _span = (self.span)(ctx, "subscriptions");
-        self.node.subscriptions(ctx, subscriptions);
+        self.node.subscriptions(ctx, subs);
     }
 
     fn init(&mut self, ctx: &mut WidgetContext) {

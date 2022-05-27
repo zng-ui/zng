@@ -27,9 +27,9 @@ pub fn is_hovered(child: impl UiNode, state: StateVar) -> impl UiNode {
     }
     #[impl_ui_node(child)]
     impl<C: UiNode> UiNode for IsHoveredNode<C> {
-        fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
-            subscriptions.event(MouseHoveredEvent).event(WidgetInfoChangedEvent);
-            self.child.subscriptions(ctx, subscriptions);
+        fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
+            subs.event(MouseHoveredEvent).event(WidgetInfoChangedEvent);
+            self.child.subscriptions(ctx, subs);
         }
 
         fn init(&mut self, ctx: &mut WidgetContext) {
@@ -101,13 +101,10 @@ pub fn is_cap_hovered(child: impl UiNode, state: StateVar) -> impl UiNode {
     }
     #[impl_ui_node(child)]
     impl<C: UiNode> UiNode for IsCapHoveredNode<C> {
-        fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
-            subscriptions
-                .event(MouseHoveredEvent)
-                .event(MouseCaptureEvent)
-                .event(WidgetInfoChangedEvent);
+        fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
+            subs.event(MouseHoveredEvent).event(MouseCaptureEvent).event(WidgetInfoChangedEvent);
 
-            self.child.subscriptions(ctx, subscriptions);
+            self.child.subscriptions(ctx, subs);
         }
 
         fn init(&mut self, ctx: &mut WidgetContext) {
@@ -214,19 +211,18 @@ pub fn is_pressed(child: impl UiNode, state: StateVar) -> impl UiNode {
     }
     #[impl_ui_node(child)]
     impl<C: UiNode> UiNode for IsPressedNode<C> {
-        fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
-            subscriptions
-                .event(MouseHoveredEvent)
+        fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
+            subs.event(MouseHoveredEvent)
                 .event(MouseInputEvent)
                 .event(ClickEvent)
                 .event(WindowFocusChangedEvent)
                 .event(WidgetInfoChangedEvent);
 
             if let Some(s) = &self.shortcut_press {
-                subscriptions.var(ctx, s);
+                subs.var(ctx, s);
             }
 
-            self.child.subscriptions(ctx, subscriptions);
+            self.child.subscriptions(ctx, subs);
         }
 
         fn init(&mut self, ctx: &mut WidgetContext) {
@@ -377,18 +373,17 @@ pub fn is_cap_pressed(child: impl UiNode, state: StateVar) -> impl UiNode {
     }
     #[impl_ui_node(child)]
     impl<C: UiNode> UiNode for IsCapPressedNode<C> {
-        fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
-            subscriptions
-                .event(MouseInputEvent)
+        fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
+            subs.event(MouseInputEvent)
                 .event(MouseCaptureEvent)
                 .event(ClickEvent)
                 .event(WindowFocusChangedEvent)
                 .event(WidgetInfoChangedEvent);
 
             if let Some(s) = &self.shortcut_press {
-                subscriptions.var(ctx, s);
+                subs.var(ctx, s);
             }
-            self.child.subscriptions(ctx, subscriptions);
+            self.child.subscriptions(ctx, subs);
         }
 
         fn init(&mut self, ctx: &mut WidgetContext) {

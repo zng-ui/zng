@@ -12,8 +12,8 @@ pub fn fill_color(color: impl IntoVar<Rgba>) -> impl UiNode {
     }
     #[impl_ui_node(none)]
     impl<C: Var<Rgba>> UiNode for FillColorNode<C> {
-        fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
-            subscriptions.var(ctx, &self.color);
+        fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
+            subs.var(ctx, &self.color);
         }
 
         fn update(&mut self, ctx: &mut WidgetContext) {

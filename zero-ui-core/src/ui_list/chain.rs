@@ -101,17 +101,17 @@ impl<A: WidgetList, B: WidgetList> UiNodeList for WidgetListChain<A, B> {
         }
     }
 
-    fn subscriptions_all(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
-        self.0.subscriptions_all(ctx, subscriptions);
-        self.1.subscriptions_all(ctx, subscriptions);
+    fn subscriptions_all(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
+        self.0.subscriptions_all(ctx, subs);
+        self.1.subscriptions_all(ctx, subs);
     }
 
-    fn item_subscriptions(&self, index: usize, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
+    fn item_subscriptions(&self, index: usize, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
         let a_len = self.0.len();
         if index < a_len {
-            self.0.item_subscriptions(index, ctx, subscriptions);
+            self.0.item_subscriptions(index, ctx, subs);
         } else {
-            self.1.item_subscriptions(index - a_len, ctx, subscriptions);
+            self.1.item_subscriptions(index - a_len, ctx, subs);
         }
     }
 
@@ -459,17 +459,17 @@ impl<A: UiNodeList, B: UiNodeList> UiNodeList for UiNodeListChain<A, B> {
         }
     }
 
-    fn subscriptions_all(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
-        self.0.subscriptions_all(ctx, subscriptions);
-        self.1.subscriptions_all(ctx, subscriptions);
+    fn subscriptions_all(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
+        self.0.subscriptions_all(ctx, subs);
+        self.1.subscriptions_all(ctx, subs);
     }
 
-    fn item_subscriptions(&self, index: usize, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
+    fn item_subscriptions(&self, index: usize, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
         let a_len = self.0.len();
         if index < a_len {
-            self.0.item_subscriptions(index, ctx, subscriptions);
+            self.0.item_subscriptions(index, ctx, subs);
         } else {
-            self.1.item_subscriptions(index - a_len, ctx, subscriptions);
+            self.1.item_subscriptions(index - a_len, ctx, subs);
         }
     }
 

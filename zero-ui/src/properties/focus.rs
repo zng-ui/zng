@@ -25,9 +25,9 @@ pub fn focusable(child: impl UiNode, focusable: impl IntoVar<bool>) -> impl UiNo
             self.child.info(ctx, widget);
         }
 
-        fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
-            subscriptions.var(ctx, &self.is_focusable);
-            self.child.subscriptions(ctx, subscriptions);
+        fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
+            subs.var(ctx, &self.is_focusable);
+            self.child.subscriptions(ctx, subs);
         }
     }
     FocusableNode {
@@ -61,9 +61,9 @@ pub fn tab_index(child: impl UiNode, tab_index: impl IntoVar<TabIndex>) -> impl 
             self.child.info(ctx, widget);
         }
 
-        fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
-            subscriptions.var(ctx, &self.tab_index);
-            self.child.subscriptions(ctx, subscriptions);
+        fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
+            subs.var(ctx, &self.tab_index);
+            self.child.subscriptions(ctx, subs);
         }
     }
     TabIndexNode {
@@ -129,9 +129,9 @@ impl<C: UiNode, E: Var<bool>> UiNode for FocusScopeNode<C, E> {
         self.child.info(ctx, widget);
     }
 
-    fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
-        subscriptions.var(ctx, &self.is_focus_scope);
-        self.child.subscriptions(ctx, subscriptions);
+    fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
+        subs.var(ctx, &self.is_focus_scope);
+        self.child.subscriptions(ctx, subs);
     }
 }
 
@@ -160,9 +160,9 @@ pub fn focus_scope_behavior(child: impl UiNode, behavior: impl IntoVar<FocusScop
             self.child.info(ctx, widget);
         }
 
-        fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
-            subscriptions.var(ctx, &self.behavior);
-            self.child.subscriptions(ctx, subscriptions);
+        fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
+            subs.var(ctx, &self.behavior);
+            self.child.subscriptions(ctx, subs);
         }
     }
     FocusScopeBehaviorNode {
@@ -192,9 +192,9 @@ pub fn tab_nav(child: impl UiNode, tab_nav: impl IntoVar<TabNav>) -> impl UiNode
             self.child.info(ctx, widget);
         }
 
-        fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
-            subscriptions.var(ctx, &self.tab_nav);
-            self.child.subscriptions(ctx, subscriptions);
+        fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
+            subs.var(ctx, &self.tab_nav);
+            self.child.subscriptions(ctx, subs);
         }
     }
     TabNavNode {
@@ -224,9 +224,9 @@ pub fn directional_nav(child: impl UiNode, directional_nav: impl IntoVar<Directi
             self.child.info(ctx, widget);
         }
 
-        fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
-            subscriptions.var(ctx, &self.directional_nav);
-            self.child.subscriptions(ctx, subscriptions);
+        fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
+            subs.var(ctx, &self.directional_nav);
+            self.child.subscriptions(ctx, subs);
         }
     }
     DirectionalNavNode {
@@ -247,9 +247,9 @@ pub fn focus_shortcut(child: impl UiNode, shortcuts: impl IntoVar<Shortcuts>) ->
     }
     #[impl_ui_node(child)]
     impl<C: UiNode, S: Var<Shortcuts>> UiNode for FocusShortcutNode<C, S> {
-        fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
-            subscriptions.event(ShortcutEvent);
-            self.child.subscriptions(ctx, subscriptions);
+        fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
+            subs.event(ShortcutEvent);
+            self.child.subscriptions(ctx, subs);
         }
 
         fn event<EU: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &EU) {
@@ -299,9 +299,9 @@ pub fn skip_directional(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl
             self.child.info(ctx, widget);
         }
 
-        fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
-            subscriptions.var(ctx, &self.enabled);
-            self.child.subscriptions(ctx, subscriptions);
+        fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
+            subs.var(ctx, &self.enabled);
+            self.child.subscriptions(ctx, subs);
         }
     }
     SkipDirectionalNode {
@@ -380,9 +380,9 @@ pub fn is_focused(child: impl UiNode, state: StateVar) -> impl UiNode {
             self.state.set_ne(ctx.vars, false);
         }
 
-        fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
-            subscriptions.event(FocusChangedEvent);
-            self.child.subscriptions(ctx, subscriptions);
+        fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
+            subs.event(FocusChangedEvent);
+            self.child.subscriptions(ctx, subs);
         }
 
         fn event<EU: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &EU) {
@@ -425,9 +425,9 @@ pub fn is_focus_within(child: impl UiNode, state: StateVar) -> impl UiNode {
             self.state.set_ne(ctx.vars, false);
         }
 
-        fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
-            subscriptions.event(FocusChangedEvent);
-            self.child.subscriptions(ctx, subscriptions);
+        fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
+            subs.event(FocusChangedEvent);
+            self.child.subscriptions(ctx, subs);
         }
 
         fn event<EU: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &EU) {
@@ -474,9 +474,9 @@ pub fn is_focused_hgl(child: impl UiNode, state: StateVar) -> impl UiNode {
             self.child.deinit(ctx);
         }
 
-        fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
-            subscriptions.event(FocusChangedEvent);
-            self.child.subscriptions(ctx, subscriptions);
+        fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
+            subs.event(FocusChangedEvent);
+            self.child.subscriptions(ctx, subs);
         }
 
         fn event<EU: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &EU) {
@@ -520,9 +520,9 @@ pub fn is_focus_within_hgl(child: impl UiNode, state: StateVar) -> impl UiNode {
             self.child.deinit(ctx);
         }
 
-        fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
-            subscriptions.event(FocusChangedEvent);
-            self.child.subscriptions(ctx, subscriptions);
+        fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
+            subs.event(FocusChangedEvent);
+            self.child.subscriptions(ctx, subs);
         }
 
         fn event<EU: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &EU) {
@@ -574,9 +574,9 @@ pub fn is_return_focus(child: impl UiNode, state: StateVar) -> impl UiNode {
             self.child.deinit(ctx);
         }
 
-        fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
-            subscriptions.event(ReturnFocusChangedEvent);
-            self.child.subscriptions(ctx, subscriptions);
+        fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
+            subs.event(ReturnFocusChangedEvent);
+            self.child.subscriptions(ctx, subs);
         }
 
         fn event<EU: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &EU) {

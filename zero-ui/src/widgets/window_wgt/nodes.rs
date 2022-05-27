@@ -122,10 +122,10 @@ impl WindowLayers {
             M: Var<AnchorMode>,
             W: Widget,
         {
-            fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
-                subscriptions.event(WidgetInfoChangedEvent);
+            fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
+                subs.event(WidgetInfoChangedEvent);
 
-                self.widget.subscriptions(ctx, subscriptions)
+                self.widget.subscriptions(ctx, subs)
             }
 
             fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {

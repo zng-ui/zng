@@ -78,8 +78,8 @@ where
     }
 
     #[UiNode]
-    fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
-        subscriptions.vars(ctx).var(&self.axis).var(&self.stops).var(&self.extend_mode);
+    fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
+        subs.vars(ctx).var(&self.axis).var(&self.stops).var(&self.extend_mode);
     }
 
     #[UiNode]
@@ -148,9 +148,9 @@ where
     T: Var<Size>,
     TS: Var<Size>,
 {
-    fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
-        subscriptions.vars(ctx).var(&self.tile_size).var(&self.tile_spacing);
-        self.g.subscriptions(ctx, subscriptions);
+    fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
+        subs.vars(ctx).var(&self.tile_size).var(&self.tile_spacing);
+        self.g.subscriptions(ctx, subs);
     }
 
     fn update(&mut self, ctx: &mut WidgetContext) {

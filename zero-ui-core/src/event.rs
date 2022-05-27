@@ -1889,9 +1889,9 @@ where
             self.child.info(ctx, widget_info);
         }
 
-        fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
-            subscriptions.event(self.event).handler(&self.handler);
-            self.child.subscriptions(ctx, subscriptions);
+        fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
+            subs.event(self.event).handler(&self.handler);
+            self.child.subscriptions(ctx, subs);
         }
 
         fn event<EU: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &EU) {
@@ -1973,9 +1973,9 @@ where
             self.child.info(ctx, widget_info);
         }
 
-        fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
-            subscriptions.event(self.event).handler(&self.handler);
-            self.child.subscriptions(ctx, subscriptions);
+        fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
+            subs.event(self.event).handler(&self.handler);
+            self.child.subscriptions(ctx, subs);
         }
 
         fn event<EU: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &EU) {

@@ -59,9 +59,9 @@ pub fn on_init(child: impl UiNode, handler: impl WidgetHandler<OnInitArgs>) -> i
             self.handler.event(ctx, &OnInitArgs { count: self.count });
         }
 
-        fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
-            subscriptions.handler(&self.handler);
-            self.child.subscriptions(ctx, subscriptions);
+        fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
+            subs.handler(&self.handler);
+            self.child.subscriptions(ctx, subs);
         }
 
         fn update(&mut self, ctx: &mut WidgetContext) {
@@ -106,9 +106,9 @@ pub fn on_pre_init(child: impl UiNode, handler: impl WidgetHandler<OnInitArgs>) 
             self.child.init(ctx);
         }
 
-        fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
-            subscriptions.handler(&self.handler);
-            self.child.subscriptions(ctx, subscriptions);
+        fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
+            subs.handler(&self.handler);
+            self.child.subscriptions(ctx, subs);
         }
 
         fn update(&mut self, ctx: &mut WidgetContext) {
@@ -153,9 +153,9 @@ pub fn on_update(child: impl UiNode, handler: impl WidgetHandler<OnUpdateArgs> +
 
     #[impl_ui_node(child)]
     impl<C: UiNode, H: WidgetHandler<OnUpdateArgs>> UiNode for OnUpdateNode<C, H> {
-        fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
-            self.child.subscriptions(ctx, subscriptions);
-            subscriptions.handler(&self.handler);
+        fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
+            self.child.subscriptions(ctx, subs);
+            subs.handler(&self.handler);
         }
 
         fn update(&mut self, ctx: &mut WidgetContext) {
@@ -196,9 +196,9 @@ pub fn on_pre_update(child: impl UiNode, handler: impl WidgetHandler<OnUpdateArg
 
     #[impl_ui_node(child)]
     impl<C: UiNode, H: WidgetHandler<OnUpdateArgs>> UiNode for OnPreviewUpdateNode<C, H> {
-        fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
-            subscriptions.handler(&self.handler);
-            self.child.subscriptions(ctx, subscriptions);
+        fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
+            subs.handler(&self.handler);
+            self.child.subscriptions(ctx, subs);
         }
 
         fn update(&mut self, ctx: &mut WidgetContext) {
@@ -256,9 +256,9 @@ pub fn on_deinit(child: impl UiNode, handler: impl WidgetHandler<OnDeinitArgs> +
             self.handler.event(ctx, &OnDeinitArgs { count: self.count });
         }
 
-        fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
-            self.child.subscriptions(ctx, subscriptions);
-            subscriptions.handler(&self.handler);
+        fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
+            self.child.subscriptions(ctx, subs);
+            subs.handler(&self.handler);
         }
 
         fn update(&mut self, ctx: &mut WidgetContext) {
@@ -306,9 +306,9 @@ pub fn on_pre_deinit(child: impl UiNode, handler: impl WidgetHandler<OnDeinitArg
             self.child.deinit(ctx);
         }
 
-        fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
-            self.child.subscriptions(ctx, subscriptions);
-            subscriptions.handler(&self.handler);
+        fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
+            self.child.subscriptions(ctx, subs);
+            subs.handler(&self.handler);
         }
 
         fn update(&mut self, ctx: &mut WidgetContext) {

@@ -13,9 +13,9 @@ pub fn draggable(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode
     }
     #[impl_ui_node(child)]
     impl<C: UiNode, E: Var<bool>> UiNode for DraggableNode<C, E> {
-        fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
-            subscriptions.var(ctx, &self.enabled);
-            self.child.subscriptions(ctx, subscriptions);
+        fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
+            subs.var(ctx, &self.enabled);
+            self.child.subscriptions(ctx, subs);
         }
 
         fn update(&mut self, ctx: &mut WidgetContext) {

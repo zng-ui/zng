@@ -217,7 +217,7 @@ fn no_delegate_absents(crate_: TokenStream, user_mtds: HashSet<Ident>) -> Vec<Im
     make_absents! { user_mtds
         [fn info(&self, ctx: &mut #crate_::context::InfoContext, info: &mut #crate_::widget_info::WidgetInfoBuilder) { }]
 
-        [fn subscriptions(&self, ctx: &mut #crate_::context::InfoContext, subscriptions: &mut #crate_::widget_info::WidgetSubscriptions) { }]
+        [fn subscriptions(&self, ctx: &mut #crate_::context::InfoContext, subs: &mut #crate_::widget_info::WidgetSubscriptions) { }]
 
         [fn init(&mut self, ctx: &mut #crate_::context::WidgetContext) { }]
 
@@ -253,9 +253,9 @@ fn delegate_absents(crate_: TokenStream, user_mtds: HashSet<Ident>, borrow: Expr
             #crate_::UiNode::info(#deref, ctx, info);
         }]
 
-        [fn subscriptions(&self, ctx: &mut #crate_::context::InfoContext, subscriptions: &mut #crate_::widget_info::WidgetSubscriptions) {
+        [fn subscriptions(&self, ctx: &mut #crate_::context::InfoContext, subs: &mut #crate_::widget_info::WidgetSubscriptions) {
             let #child = {#borrow};
-            #crate_::UiNode::subscriptions(#deref, ctx, subscriptions);
+            #crate_::UiNode::subscriptions(#deref, ctx, subs);
         }]
 
         [fn init(&mut self, ctx: &mut #crate_::context::WidgetContext) {
@@ -310,9 +310,9 @@ fn delegate_list_absents(crate_: TokenStream, user_mtds: HashSet<Ident>, borrow:
             #crate_::UiNodeList::info_all(#deref, ctx, info);
         }]
 
-        [fn subscriptions(&self, ctx: &mut #crate_::context::InfoContext, subscriptions: &mut #crate_::widget_info::WidgetSubscriptions) {
+        [fn subscriptions(&self, ctx: &mut #crate_::context::InfoContext, subs: &mut #crate_::widget_info::WidgetSubscriptions) {
             let #children = {#borrow};
-            #crate_::UiNodeList::subscriptions_all(#deref, ctx, subscriptions);
+            #crate_::UiNodeList::subscriptions_all(#deref, ctx, subs);
         }]
 
         [fn init(&mut self, ctx: &mut #crate_::context::WidgetContext) {
@@ -377,9 +377,9 @@ fn delegate_iter_absents(crate_: TokenStream, user_mtds: HashSet<Ident>, iter: E
             #crate_::impl_ui_node_util::IterImpl::info_all(#children, ctx, info);
         }]
 
-        [fn subscriptions(&self, ctx: &mut #crate_::context::InfoContext, subscriptions: &mut #crate_::widget_info::WidgetSubscriptions) {
+        [fn subscriptions(&self, ctx: &mut #crate_::context::InfoContext, subs: &mut #crate_::widget_info::WidgetSubscriptions) {
             let #children = {#iter};
-            #crate_::impl_ui_node_util::IterImpl::subscriptions_all(#children, ctx, subscriptions);
+            #crate_::impl_ui_node_util::IterImpl::subscriptions_all(#children, ctx, subs);
         }]
 
         [fn init(&mut self, ctx: &mut #crate_::context::WidgetContext) {

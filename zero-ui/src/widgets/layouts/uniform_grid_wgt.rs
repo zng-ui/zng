@@ -141,15 +141,14 @@ pub mod uniform_grid {
         }
 
         #[UiNode]
-        fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
-            subscriptions
-                .vars(ctx)
+        fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
+            subs.vars(ctx)
                 .var(&self.columns)
                 .var(&self.rows)
                 .var(&self.first_column)
                 .var(&self.spacing);
 
-            self.children.subscriptions_all(ctx, subscriptions);
+            self.children.subscriptions_all(ctx, subs);
         }
 
         #[UiNode]

@@ -137,12 +137,9 @@ pub mod thumb {
         }
         #[impl_ui_node(child)]
         impl<C: UiNode> UiNode for DragNode<C> {
-            fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
-                subscriptions
-                    .event(MouseMoveEvent)
-                    .event(MouseInputEvent)
-                    .var(ctx, &ThumbOffsetVar::new());
-                self.child.subscriptions(ctx, subscriptions);
+            fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
+                subs.event(MouseMoveEvent).event(MouseInputEvent).var(ctx, &ThumbOffsetVar::new());
+                self.child.subscriptions(ctx, subs);
             }
 
             fn event<A: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &A) {

@@ -188,11 +188,10 @@ pub(super) fn window_control_node(child: impl UiNode) -> impl UiNode {
     }
     #[impl_ui_node(child)]
     impl<C: UiNode> UiNode for WindowControlNode<C> {
-        fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
+        fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
             let scope = ctx.path.window_id();
 
-            subscriptions
-                .event(MaximizeCommand.scoped(scope))
+            subs.event(MaximizeCommand.scoped(scope))
                 .event(MinimizeCommand.scoped(scope))
                 .event(FullscreenCommand.scoped(scope))
                 .event(ExclusiveFullscreenCommand.scoped(scope))
@@ -200,7 +199,7 @@ pub(super) fn window_control_node(child: impl UiNode) -> impl UiNode {
                 .event(CloseCommand.scoped(scope))
                 .var(ctx, self.state_var.as_ref().unwrap());
 
-            self.child.subscriptions(ctx, subscriptions);
+            self.child.subscriptions(ctx, subs);
         }
 
         fn init(&mut self, ctx: &mut WidgetContext) {

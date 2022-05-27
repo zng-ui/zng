@@ -69,9 +69,9 @@ pub mod h_stack {
     }
     #[impl_ui_node(children)]
     impl<C: WidgetList, S: Var<Length>, A: Var<Align>> UiNode for HStackNode<C, S, A> {
-        fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
-            self.children.subscriptions_all(ctx, subscriptions);
-            subscriptions.vars(ctx).var(&self.spacing).var(&self.align);
+        fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
+            self.children.subscriptions_all(ctx, subs);
+            subs.vars(ctx).var(&self.spacing).var(&self.align);
         }
 
         fn update(&mut self, ctx: &mut WidgetContext) {
@@ -253,9 +253,9 @@ pub mod v_stack {
     }
     #[impl_ui_node(children)]
     impl<C: WidgetList, S: Var<Length>, A: Var<Align>> UiNode for VStackNode<C, S, A> {
-        fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
-            subscriptions.vars(ctx).var(&self.spacing).var(&self.align);
-            self.children.subscriptions_all(ctx, subscriptions);
+        fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
+            subs.vars(ctx).var(&self.spacing).var(&self.align);
+            self.children.subscriptions_all(ctx, subs);
         }
 
         fn update(&mut self, ctx: &mut WidgetContext) {
@@ -482,9 +482,9 @@ pub mod z_stack {
     }
     #[impl_ui_node(children)]
     impl<I: UiNodeList, A: Var<Align>> UiNode for ZStackNode<I, A> {
-        fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
-            subscriptions.var(ctx, &self.align);
-            self.children.subscriptions_all(ctx, subscriptions);
+        fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
+            subs.var(ctx, &self.align);
+            self.children.subscriptions_all(ctx, subs);
         }
 
         fn update(&mut self, ctx: &mut WidgetContext) {

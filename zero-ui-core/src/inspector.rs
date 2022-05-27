@@ -614,10 +614,10 @@ impl UiNode for WidgetNewFnInfoNode {
         self.child.info(ctx, info);
     }
 
-    fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
+    fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
         let _scope = tracing::trace_span!("new_fn", name = %self.new_fn, node_mtd = "subscriptions").entered();
 
-        self.child.subscriptions(ctx, subscriptions);
+        self.child.subscriptions(ctx, subs);
     }
 
     fn init(&mut self, ctx: &mut WidgetContext) {
@@ -773,10 +773,10 @@ impl UiNode for WidgetInstanceInfoNode {
         self.child.info(ctx, info);
     }
 
-    fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
+    fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
         let _span = tracing::trace_span!("widget", id = ?ctx.path.widget_id(), raw_id = ctx.path.widget_id().get(), name = self.info.borrow().widget_name, node_mtd = "subscriptions").entered();
 
-        self.child.subscriptions(ctx, subscriptions);
+        self.child.subscriptions(ctx, subs);
     }
 
     fn init(&mut self, ctx: &mut WidgetContext) {
@@ -917,11 +917,11 @@ impl UiNode for PropertyInfoNode {
         info.count.info += 1;
     }
 
-    fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
+    fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
         let _span = tracing::trace_span!("property", name = self.info.borrow().property_name, node_mtd = "subscriptions").entered();
 
         let t = Instant::now();
-        self.child.subscriptions(ctx, subscriptions);
+        self.child.subscriptions(ctx, subs);
         let d = t.elapsed();
         let mut info = self.info.borrow_mut();
         info.duration.subscriptions = d;

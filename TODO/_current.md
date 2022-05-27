@@ -3,6 +3,8 @@
     - CSS has the "position" property, that has sticky, webrender has something for this that we can use?
     - Current idea, have a `layout_parent = LayoutParent::Viewport`.
 
+* Review render_update optimization, need to update children if parent transform changes.
+* Implement render optimization, see `Optimizations.md`.
 * Review layout double-pass of stacks.
 * Fix text final size, either clip or return accurate size.
 

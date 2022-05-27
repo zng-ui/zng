@@ -113,12 +113,12 @@ impl<W: WidgetList> UiNodeList for ZSortedWidgetList<W> {
         self.list.item_info(index, ctx, info)
     }
 
-    fn subscriptions_all(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
-        self.list.subscriptions_all(ctx, subscriptions)
+    fn subscriptions_all(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
+        self.list.subscriptions_all(ctx, subs)
     }
 
-    fn item_subscriptions(&self, index: usize, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
-        self.list.item_subscriptions(index, ctx, subscriptions)
+    fn item_subscriptions(&self, index: usize, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
+        self.list.item_subscriptions(index, ctx, subs)
     }
 
     fn init_all(&mut self, ctx: &mut WidgetContext) {
@@ -344,10 +344,10 @@ pub fn z_index(child: impl UiNode, index: impl IntoVar<ZIndex>) -> impl UiNode {
     }
     #[impl_ui_node(child)]
     impl<C: UiNode, I: Var<ZIndex>> UiNode for ZIndexNode<C, I> {
-        fn subscriptions(&self, ctx: &mut InfoContext, subscriptions: &mut WidgetSubscriptions) {
-            subscriptions.var(ctx, &self.index);
+        fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
+            subs.var(ctx, &self.index);
 
-            self.child.subscriptions(ctx, subscriptions);
+            self.child.subscriptions(ctx, subs);
         }
 
         fn init(&mut self, ctx: &mut WidgetContext) {
