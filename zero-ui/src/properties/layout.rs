@@ -153,7 +153,7 @@ pub fn child_align(child: impl UiNode, alignment: impl IntoVar<Align>) -> impl U
 /// use zero_ui::prelude::*;
 ///
 /// button! {
-///     position = (100, 20.pct());
+///     offset = (100, 20.pct());
 ///     content = text("Click Me!")
 /// }
 /// # ;
