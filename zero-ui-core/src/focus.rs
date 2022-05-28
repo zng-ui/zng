@@ -1094,7 +1094,7 @@ impl Focus {
         if self.focused != new_focus {
             let args = FocusChangedArgs::now(self.focused.take(), new_focus.clone(), self.is_highlighting, cause);
             self.focused = new_focus.clone();
-            self.focused_var.set_ne(vars, new_focus);
+            self.focused_var.set(vars, new_focus); // this can happen more than once per update, so we can't use set_ne.
             Some(args)
         } else if prev_highlight != highlight {
             Some(FocusChangedArgs::now(new_focus.clone(), new_focus, highlight, cause))
