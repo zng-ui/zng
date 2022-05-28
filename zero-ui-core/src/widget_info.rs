@@ -68,6 +68,9 @@ impl WidgetLayout {
         };
         let size = wl.with_widget(ctx, layout);
         wl.finish_known();
+        if wl.child_offset_changed {
+            ctx.updates.render_update();
+        }
         size
     }
 
