@@ -748,7 +748,7 @@ pub trait Widget: UiNode {
             |ctx| {
                 ctx.with_constrains(
                     |c| constrains.unwrap_or(c),
-                    |ctx| WidgetLayout::with_root_widget(ctx, |ctx, wl| wl.with_inner(ctx, |ctx, wl| self.layout(ctx, wl))),
+                    |ctx| WidgetLayout::with_root_widget(ctx, 0, |ctx, wl| wl.with_inner(ctx, |ctx, wl| self.layout(ctx, wl))),
                 )
             },
         )

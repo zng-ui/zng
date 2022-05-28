@@ -18,7 +18,7 @@ use crate::{
     text::Fonts,
     units::*,
     var::*,
-    widget_info::{UsedWidgetInfoBuilder, WidgetContextInfo, WidgetInfoBuilder, WidgetInfoTree, WidgetLayout, WidgetSubscriptions},
+    widget_info::{UsedWidgetInfoBuilder, WidgetContextInfo, WidgetInfoBuilder, WidgetInfoTree, WidgetLayout, WidgetSubscriptions, LayoutPassId},
     window::AutoSize,
     BoxedUiNode, UiNode, WidgetId,
 };
@@ -1069,6 +1069,7 @@ struct ContentCtrl {
     info_tree: WidgetInfoTree,
     root_info: WidgetContextInfo,
     used_info_builder: Option<UsedWidgetInfoBuilder>,
+    layout_pass: LayoutPassId,
 
     prev_metrics: Option<(Px, Factor, f32, PxSize)>,
     used_frame_builder: Option<UsedFrameBuilder>,
@@ -1097,6 +1098,7 @@ impl ContentCtrl {
             info_tree: WidgetInfoTree::blank(window_id, window.id),
             root_info: WidgetContextInfo::new(),
             used_info_builder: None,
+            layout_pass: 0,
 
             prev_metrics: None,
             used_frame_builder: None,
@@ -1286,6 +1288,8 @@ impl ContentCtrl {
         }
         self.prev_metrics = Some((base_font_size, scale_factor, screen_ppi, viewport_size));
 
+        self.layout_pass += 1;
+
         ctx.layout_context(
             base_font_size,
             scale_factor,
@@ -1308,7 +1312,7 @@ impl ContentCtrl {
                         }
                         c
                     },
-                    |ctx| WidgetLayout::with_root_widget(ctx, |ctx, wl| self.root.layout(ctx, wl)),
+                    |ctx| WidgetLayout::with_root_widget(ctx, self.layout_pass, |ctx, wl| self.root.layout(ctx, wl)),
                 );
 
                 let mut final_size = viewport_size;

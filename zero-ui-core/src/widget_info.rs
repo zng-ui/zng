@@ -53,9 +53,10 @@ impl WidgetLayout {
     /// Defines the root widget outer-bounds scope.
     ///
     /// The default window implementation calls this.
-    pub fn with_root_widget(ctx: &mut LayoutContext, layout: impl FnOnce(&mut LayoutContext, &mut Self) -> PxSize) -> PxSize {
+    pub fn with_root_widget(ctx: &mut LayoutContext, pass_id: LayoutPassId, layout: impl FnOnce(&mut LayoutContext, &mut Self) -> PxSize) -> PxSize {
         let mut wl = Self {
             t: WidgetLayoutTranslation {
+                pass_id,
                 offset_buf: PxVector::zero(),
                 baseline: Px(0),
                 known: None,
@@ -270,6 +271,7 @@ impl WidgetLayout {
 
         let mut wl = WidgetLayout {
             t: WidgetLayoutTranslation {
+                pass_id: self.pass_id,
                 offset_buf: PxVector::zero(),
                 baseline: Px(0),
                 known: Some(bounds),
@@ -339,10 +341,16 @@ enum KnownTarget {
     Child,
 }
 
+/// Identifies the layout pass of a window.
+/// 
+/// This value is different for each window layout, but the same for children of panels that do more then one layout pass.
+pub type LayoutPassId = usize;
+
 /// Mutable access to the offset of a widget bounds in [`WidgetLayout`].
 ///
 /// Note that [`WidgetLayout`] dereferences to this type.
 pub struct WidgetLayoutTranslation {
+    pass_id: LayoutPassId,
     offset_buf: PxVector,
     baseline: Px,
 
@@ -350,6 +358,13 @@ pub struct WidgetLayoutTranslation {
     known_target: KnownTarget,
 }
 impl WidgetLayoutTranslation {
+    /// Gets the current window layout pass.
+    /// 
+    /// Widgets can be layout more then once per window layout pass, you can use this ID to identify such cases.
+    pub fn pass_id(&self) -> LayoutPassId {
+        self.pass_id
+    }
+
     /// Adds the `offset` to the closest *inner* bounds offset.
     pub fn translate(&mut self, offset: PxVector) {
         if let Some(info) = &self.known {
