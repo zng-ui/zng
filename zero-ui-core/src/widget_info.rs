@@ -25,10 +25,9 @@ unique_id_64! {
 /// Represents the in-progress layout pass for an widget tree.
 pub struct WidgetLayout {
     t: WidgetLayoutTranslation,
-    known_prev_offsets: [PxVector; 3],
     known_collapsed: bool,
-    known_child_offset_changed: bool,
-    child_offset_changed: bool,
+    known_child_offset_changed: i32,
+    child_offset_changed: i32,
 }
 impl WidgetLayout {
     // # Requirements
@@ -53,7 +52,11 @@ impl WidgetLayout {
     /// Defines the root widget outer-bounds scope.
     ///
     /// The default window implementation calls this.
-    pub fn with_root_widget(ctx: &mut LayoutContext, pass_id: LayoutPassId, layout: impl FnOnce(&mut LayoutContext, &mut Self) -> PxSize) -> PxSize {
+    pub fn with_root_widget(
+        ctx: &mut LayoutContext,
+        pass_id: LayoutPassId,
+        layout: impl FnOnce(&mut LayoutContext, &mut Self) -> PxSize,
+    ) -> PxSize {
         let mut wl = Self {
             t: WidgetLayoutTranslation {
                 pass_id,
@@ -62,14 +65,13 @@ impl WidgetLayout {
                 known: None,
                 known_target: KnownTarget::Outer,
             },
-            known_prev_offsets: [PxVector::zero(); 3],
             known_collapsed: false,
-            known_child_offset_changed: false,
-            child_offset_changed: false,
+            known_child_offset_changed: 0,
+            child_offset_changed: 0,
         };
         let size = wl.with_widget(ctx, layout);
         wl.finish_known();
-        if wl.child_offset_changed {
+        if wl.child_offset_changed > 0 {
             ctx.updates.render_update();
         }
         size
@@ -78,14 +80,11 @@ impl WidgetLayout {
     fn finish_known(&mut self) {
         if let Some(bounds) = self.known.take() {
             if let KnownTarget::Outer = self.known_target {
-                let [outer, inner, child] = self.known_prev_offsets;
-                if mem::take(&mut self.known_child_offset_changed)
-                    || bounds.outer_offset() != outer
-                    || bounds.inner_offset() != inner
-                    || bounds.child_offset() != child
-                {
-                    self.child_offset_changed = true;
-                    bounds.update_offsets_version();
+                self.child_offset_changed += bounds.end_pass();
+                let childs_changed = mem::take(&mut self.known_child_offset_changed) > 0;
+                if childs_changed {
+                    self.child_offset_changed += 1;
+                    bounds.set_changed_child();
                 }
             }
         }
@@ -102,11 +101,7 @@ impl WidgetLayout {
         self.baseline = Px(0);
         let parent_child_offset_changed = mem::take(&mut self.child_offset_changed);
 
-        let prev_offsets = [
-            ctx.widget_info.bounds.outer_offset(),
-            ctx.widget_info.bounds.inner_offset(),
-            ctx.widget_info.bounds.child_offset(),
-        ];
+        ctx.widget_info.bounds.begin_pass(self.pass_id); // record prev state
 
         // drain preview translations.
         ctx.widget_info.bounds.set_outer_offset(mem::take(&mut self.offset_buf));
@@ -118,11 +113,10 @@ impl WidgetLayout {
         // setup returning translations target.
         self.finish_known();
         self.known = Some(ctx.widget_info.bounds.clone());
-        self.known_prev_offsets = prev_offsets;
         self.known_target = KnownTarget::Outer;
         self.known_child_offset_changed = self.child_offset_changed;
 
-        self.child_offset_changed |= parent_child_offset_changed; // when parent inner closes this the flag is for the parent not this
+        self.child_offset_changed += parent_child_offset_changed; // when parent inner closes this the flag is for the parent not this
 
         size
     }
@@ -263,7 +257,7 @@ impl WidgetLayout {
         keep_previous: bool,
         translate: impl FnOnce(&mut WidgetLayoutTranslation, &mut T) -> R,
     ) -> R {
-        let prev_outer = bounds.outer_offset();
+        bounds.begin_pass(self.pass_id);
 
         if !keep_previous {
             bounds.set_outer_offset(PxVector::zero());
@@ -277,20 +271,14 @@ impl WidgetLayout {
                 known: Some(bounds),
                 known_target: KnownTarget::Outer,
             },
-            known_prev_offsets: [PxVector::zero(); 3],
             known_collapsed: false,
-            known_child_offset_changed: false,
-            child_offset_changed: false,
+            known_child_offset_changed: 0,
+            child_offset_changed: 0,
         };
 
         let size = translate(&mut wl, target);
 
-        let bounds = wl.t.known.unwrap();
-
-        if prev_outer != bounds.outer_offset() {
-            bounds.update_offsets_version();
-            self.child_offset_changed = true;
-        }
+        self.child_offset_changed += wl.t.known.unwrap().end_pass();
 
         size
     }
@@ -342,9 +330,9 @@ enum KnownTarget {
 }
 
 /// Identifies the layout pass of a window.
-/// 
+///
 /// This value is different for each window layout, but the same for children of panels that do more then one layout pass.
-pub type LayoutPassId = usize;
+pub type LayoutPassId = u32;
 
 /// Mutable access to the offset of a widget bounds in [`WidgetLayout`].
 ///
@@ -359,7 +347,7 @@ pub struct WidgetLayoutTranslation {
 }
 impl WidgetLayoutTranslation {
     /// Gets the current window layout pass.
-    /// 
+    ///
     /// Widgets can be layout more then once per window layout pass, you can use this ID to identify such cases.
     pub fn pass_id(&self) -> LayoutPassId {
         self.pass_id
@@ -846,10 +834,18 @@ impl WidgetPath {
 
 #[derive(Default, Debug)]
 struct WidgetBoundsData {
+    prev_offsets_pass: Cell<LayoutPassId>,
+    prev_outer_offset: Cell<PxVector>,
+    prev_inner_offset: Cell<PxVector>,
+    prev_child_offset: Cell<PxVector>,
+    working_pass: Cell<LayoutPassId>,
+
     outer_offset: Cell<PxVector>,
     inner_offset: Cell<PxVector>,
     child_offset: Cell<PxVector>,
-    offsets_version: Cell<u32>,
+    offsets_pass: Cell<LayoutPassId>,
+
+    childs_changed: Cell<bool>,
 
     outer_size: Cell<PxSize>,
     inner_size: Cell<PxSize>,
@@ -923,15 +919,71 @@ impl WidgetBoundsInfo {
             .unwrap_or_default()
     }
 
-    /// Version of the offsets.
+    /// Last layout pass that updated the offsets or any of the descendant offsets.
     ///
     /// The version is different every time any of the offsets on the widget or descendants changes after a layout update.
     /// Widget implementers can use this version when optimizing `render` and `render_update`, the [`implicit_base::nodes::widget`]
     /// widget does this.
     ///
     /// [`implicit_base::nodes::widget`]: crate::widget_base::implicit_base::nodes::widget
-    pub fn offsets_version(&self) -> u32 {
-        self.0.offsets_version.get()
+    pub fn offsets_pass(&self) -> LayoutPassId {
+        if self.0.childs_changed.get() {
+            self.0.working_pass.get()
+        } else {
+            self.0.offsets_pass.get()
+        }
+    }
+
+    fn begin_pass(&self, pass: LayoutPassId) {
+        // Record current state as previous state on the first call of the `pass`, see `Self::end_pass`.
+
+        if self.0.working_pass.get() != pass {
+            self.0.working_pass.set(pass);
+            self.0.childs_changed.set(false);
+
+            self.0.prev_outer_offset.set(self.0.outer_offset.get());
+            self.0.prev_inner_offset.set(self.0.inner_offset.get());
+            self.0.prev_child_offset.set(self.0.child_offset.get());
+            self.0.prev_offsets_pass.set(self.0.offsets_pass.get());
+        }
+    }
+
+    fn end_pass(&self) -> i32 {
+        // Check for changes against the previously recorded values, returns an offset to add to the parent's
+        // changed child counter.
+        //
+        // How this works:
+        //
+        // Begin/end pass can be called multiple times in a "true" layout pass, due to intrinsic second passes or the
+        // usage of `with_outer`, so an end pass can detect an intermediary value change, and return +1 to add to the parent,
+        // then on the *intrinsic pass*, it detects that actually there was no change, and return -1 to fix the parent count.
+
+        // if actually changed from previous global pass
+        let changed = self.0.prev_outer_offset.get() != self.0.outer_offset.get()
+            || self.0.prev_inner_offset.get() != self.0.inner_offset.get()
+            || self.0.prev_child_offset.get() != self.0.child_offset.get();
+
+        // if already processed one end_pass request and returned +1
+        let believed_changed = self.0.offsets_pass.get() == self.0.working_pass.get();
+
+        if changed {
+            if believed_changed {
+                0 // already updated, no need to add to the parent counter.
+            } else {
+                //
+                self.0.offsets_pass.set(self.0.working_pass.get());
+                1
+            }
+        } else if believed_changed {
+            self.0.offsets_pass.set(self.0.prev_offsets_pass.get());
+            -1 // second intrinsic pass returned value to previous, need to remove one from the parent counter.
+        } else {
+            0 // did not update the parent incorrectly.
+        }
+    }
+
+    fn set_changed_child(&self) {
+        self.0.childs_changed.set(true);
     }
 
     fn set_outer_offset(&self, offset: PxVector) {
@@ -948,11 +1000,6 @@ impl WidgetBoundsInfo {
 
     fn set_child_offset(&self, offset: PxVector) {
         self.0.child_offset.set(offset);
-    }
-
-    fn update_offsets_version(&self) {
-        let version = self.offsets_version();
-        self.0.offsets_version.set(version.wrapping_add(1));
     }
 
     fn set_inner_size(&self, size: PxSize) {

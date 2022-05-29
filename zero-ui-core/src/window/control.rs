@@ -18,7 +18,9 @@ use crate::{
     text::Fonts,
     units::*,
     var::*,
-    widget_info::{UsedWidgetInfoBuilder, WidgetContextInfo, WidgetInfoBuilder, WidgetInfoTree, WidgetLayout, WidgetSubscriptions, LayoutPassId},
+    widget_info::{
+        LayoutPassId, UsedWidgetInfoBuilder, WidgetContextInfo, WidgetInfoBuilder, WidgetInfoTree, WidgetLayout, WidgetSubscriptions,
+    },
     window::AutoSize,
     BoxedUiNode, UiNode, WidgetId,
 };
