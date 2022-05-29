@@ -15,7 +15,7 @@ use webrender::{
     RenderApi, Renderer, RendererOptions, Transaction, UploadMethod, VertexUsageHint,
 };
 use zero_ui_view_api::{
-    units::*, CursorIcon, DeviceId, FocusRequest, FrameId, FrameRequest, FrameUpdateRequest, ImageId, ImageLoadedData, RenderMode,
+    units::*, CursorIcon, DeviceId, FocusIndicator, FrameId, FrameRequest, FrameUpdateRequest, ImageId, ImageLoadedData, RenderMode,
     VideoMode, ViewProcessGen, WindowId, WindowRequest, WindowState, WindowStateAll,
 };
 
@@ -89,7 +89,7 @@ pub(crate) struct Window {
     visible: bool,
     waiting_first_frame: bool,
     steal_init_focus: bool,
-    init_focus_request: Option<FocusRequest>,
+    init_focus_request: Option<FocusIndicator>,
 
     allow_alt_f4: Rc<Cell<bool>>,
     taskbar_visible: bool,
@@ -302,7 +302,7 @@ impl Window {
             resized: true,
             waiting_first_frame: true,
             steal_init_focus: req.focus,
-            init_focus_request: req.focus_request,
+            init_focus_request: req.focus_indicator,
             visible: req.visible,
             allow_alt_f4,
             taskbar_visible: true,
@@ -611,13 +611,13 @@ impl Window {
     }
 
     /// Sets the focus request indicator.
-    pub fn set_focus_request(&mut self, request: Option<FocusRequest>) {
+    pub fn set_focus_request(&mut self, request: Option<FocusIndicator>) {
         if self.waiting_first_frame {
             self.init_focus_request = request;
         } else {
             self.window.request_user_attention(request.map(|r| match r {
-                FocusRequest::Critical => glutin::window::UserAttentionType::Critical,
-                FocusRequest::Info => glutin::window::UserAttentionType::Informational,
+                FocusIndicator::Critical => glutin::window::UserAttentionType::Critical,
+                FocusIndicator::Info => glutin::window::UserAttentionType::Informational,
             }));
         }
     }

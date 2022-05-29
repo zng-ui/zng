@@ -17,7 +17,7 @@ use crate::{
     BoxedUiNode, UiNode, WidgetId,
 };
 
-pub use crate::app::view_process::{CursorIcon, EventCause, VideoMode, WindowState, WindowTheme};
+pub use crate::app::view_process::{CursorIcon, EventCause, FocusIndicator, VideoMode, WindowState, WindowTheme};
 
 use super::HeadlessMonitor;
 

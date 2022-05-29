@@ -1527,8 +1527,8 @@ pub struct WindowRequest {
     /// Render mode preference for this window.
     pub render_mode: RenderMode,
 
-    /// Focus request
-    pub focus_request: Option<FocusRequest>,
+    /// Focus request indicator on init.
+    pub focus_indicator: Option<FocusIndicator>,
 
     /// Ensures the window is focused after open, if not set the initial focus is decided by
     /// the windows manager, usually focusing the new window only if the process that causes the window has focus.
@@ -1959,7 +1959,7 @@ impl HeadlessOpenData {
 
 /// Represents a focus request indicator.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
-pub enum FocusRequest {
+pub enum FocusIndicator {
     /// Activate critical focus request.
     Critical,
     /// Activate informational focus request.

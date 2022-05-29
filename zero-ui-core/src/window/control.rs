@@ -588,7 +588,7 @@ impl HeadedCtrl {
             render_mode: self.render_mode.unwrap_or_else(|| ctx.services.windows().default_render_mode),
 
             focus: false, // !!: TODO
-            focus_request: None,
+            focus_indicator: None,
         };
 
         match ctx.services.view_process().open_window(request) {
@@ -695,7 +695,7 @@ impl HeadedCtrl {
             render_mode: self.render_mode.unwrap_or_else(|| ctx.services.windows().default_render_mode),
 
             focus: false, // !!: TODO
-            focus_request: None,
+            focus_indicator: None,
         };
 
         match ctx.services.view_process().open_window(request) {

@@ -24,9 +24,9 @@ use zero_ui_view_api::webrender_api::{
     ImageKey, PipelineId,
 };
 pub use zero_ui_view_api::{
-    bytes_channel, CursorIcon, Event, EventCause, FrameRequest, FrameUpdateRequest, FrameWaitId, HeadlessOpenData, HeadlessRequest,
-    ImageDataFormat, ImagePpi, IpcBytes, IpcBytesReceiver, IpcBytesSender, MonitorInfo, RenderMode, VideoMode, ViewProcessGen,
-    ViewProcessOffline, WindowRequest, WindowState, WindowStateAll, WindowTheme,
+    bytes_channel, CursorIcon, Event, EventCause, FocusIndicator, FrameRequest, FrameUpdateRequest, FrameWaitId, HeadlessOpenData,
+    HeadlessRequest, ImageDataFormat, ImagePpi, IpcBytes, IpcBytesReceiver, IpcBytesSender, MonitorInfo, RenderMode, VideoMode,
+    ViewProcessGen, ViewProcessOffline, WindowRequest, WindowState, WindowStateAll, WindowTheme,
 };
 use zero_ui_view_api::{Controller, DeviceId as ApiDeviceId, ImageId, ImageLoadedData, MonitorId as ApiMonitorId, WindowId as ApiWindowId};
 

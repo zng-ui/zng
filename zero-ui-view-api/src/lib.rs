@@ -314,7 +314,7 @@ declare_api! {
 
     /// Sets the user attention request indicator, the indicator is cleared when the window is focused or
     /// if canceled by setting to `None`.
-    pub fn set_focus_request(&mut self, id: WindowId, request: Option<FocusRequest>);
+    pub fn set_focus_indicator(&mut self, id: WindowId, indicator: Option<FocusIndicator>);
 
     /// Brings the window to the front and sets input focus.
     ///

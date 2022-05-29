@@ -1349,7 +1349,7 @@ impl Api for App {
         self.with_window(id, |w| w.set_icon(icon), || ())
     }
 
-    fn set_focus_request(&mut self, id: WindowId, request: Option<FocusRequest>) {
+    fn set_focus_indicator(&mut self, id: WindowId, request: Option<FocusIndicator>) {
         self.with_window(id, |w| w.set_focus_request(request), || ())
     }
 
