@@ -740,8 +740,8 @@ impl App {
             WindowEvent::HoveredFile(file) => self.notify(Event::HoveredFile { window: id, file }),
             WindowEvent::HoveredFileCancelled => self.notify(Event::HoveredFileCancelled(id)),
             WindowEvent::ReceivedCharacter(c) => self.notify(Event::ReceivedCharacter(id, c)),
-            WindowEvent::Focused(focused) => {
-                if self.windows[i].focused_changed(focused) {
+            WindowEvent::Focused(mut focused) => {
+                if self.windows[i].focused_changed(&mut focused) {
                     self.notify(Event::Focused { window: id, focused });
                 }
             }
@@ -1343,6 +1343,14 @@ impl Api for App {
     fn set_icon(&mut self, id: WindowId, icon: Option<ImageId>) {
         let icon = icon.and_then(|i| self.image_cache.get(i)).and_then(|i| i.icon());
         self.with_window(id, |w| w.set_icon(icon), || ())
+    }
+
+    fn set_focus_request(&mut self, id: WindowId, request: Option<FocusRequest>) {
+        self.with_window(id, |w| w.set_focus_request(request), || ())
+    }
+
+    fn focus_window(&mut self, id: WindowId) {
+        self.with_window(id, |w| w.focus(), || ())
     }
 
     fn set_cursor(&mut self, id: WindowId, icon: Option<CursorIcon>) {

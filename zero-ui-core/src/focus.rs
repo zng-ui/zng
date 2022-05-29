@@ -7,7 +7,7 @@
 //! # Keyboard Focus
 //!
 //! In a given program only a single widget can receive keyboard input at a time, this widget has the *keyboard focus*.
-//! This is an extension of the operating system own focus manager that controls which window is *focused*, receiving
+//! This is an extension of the windows manager own focus management that controls which window is *focused*, receiving
 //! keyboard input.
 //!
 //! You can track the focused widget by listening to the [`FocusChangedEvent`] event or by calling [`focused`](Focus::focused)

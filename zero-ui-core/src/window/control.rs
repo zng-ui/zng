@@ -586,6 +586,9 @@ impl HeadedCtrl {
             transparent: self.transparent,
             capture_mode: matches!(self.vars.frame_capture_mode().get(ctx), FrameCaptureMode::All),
             render_mode: self.render_mode.unwrap_or_else(|| ctx.services.windows().default_render_mode),
+
+            focus: false, // !!: TODO
+            focus_request: None,
         };
 
         match ctx.services.view_process().open_window(request) {
@@ -690,6 +693,9 @@ impl HeadedCtrl {
             transparent: self.transparent,
             capture_mode: matches!(self.vars.frame_capture_mode().get(ctx), FrameCaptureMode::All),
             render_mode: self.render_mode.unwrap_or_else(|| ctx.services.windows().default_render_mode),
+
+            focus: false, // !!: TODO
+            focus_request: None,
         };
 
         match ctx.services.view_process().open_window(request) {

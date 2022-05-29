@@ -312,6 +312,18 @@ declare_api! {
     /// Set the window cursor icon and visibility.
     pub fn set_cursor(&mut self, id: WindowId, icon: Option<CursorIcon>);
 
+    /// Sets the user attention request indicator, the indicator is cleared when the window is focused or
+    /// if canceled by setting to `None`.
+    pub fn set_focus_request(&mut self, id: WindowId, request: Option<FocusRequest>);
+
+    /// Brings the window to the front and sets input focus.
+    ///
+    /// Sends an [`Event::Focused`] if the window is focused, the request can be ignored by the window manager, or if the
+    /// window is not visible, minimized or already focused.
+    ///
+    /// This request can steal focus from other applications, be careful with it.
+    pub fn focus_window(&mut self, id: WindowId);
+
     /// Cache an image resource.
     ///
     /// The image is decoded asynchronously, the events [`Event::ImageMetadataLoaded`], [`Event::ImageLoaded`]

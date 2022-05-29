@@ -1525,6 +1525,13 @@ pub struct WindowRequest {
 
     /// Render mode preference for this window.
     pub render_mode: RenderMode,
+
+    /// Focus request
+    pub focus_request: Option<FocusRequest>,
+
+    /// Ensures the window is focused after open, if not set the initial focus is decided by
+    /// the windows manager, usually focusing the new window only if the process that causes the window has focus.
+    pub focus: bool,
 }
 impl WindowRequest {
     /// Corrects invalid values if [`kiosk`] is `true`.
@@ -1947,4 +1954,13 @@ impl HeadlessOpenData {
         let invalid = Self::invalid();
         self.document_id == invalid.document_id || self.pipeline_id == invalid.pipeline_id || self.id_namespace == invalid.id_namespace
     }
+}
+
+/// Represents a focus request indicator.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+pub enum FocusRequest {
+    /// Activate critical focus request.
+    Critical,
+    /// Activate informational focus request.
+    Info,
 }

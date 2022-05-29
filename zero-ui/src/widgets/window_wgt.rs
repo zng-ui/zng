@@ -255,7 +255,7 @@ pub mod window {
         /// In kiosk mode the only window states allowed are full-screen or full-screen exclusive, and
         /// all subsequent windows opened are child of the kiosk window.
         ///
-        /// Note that this does not configure the operating system window manager,
+        /// Note that this does not configure the windows manager,
         /// you still need to setup a kiosk environment, it does not block `ALT+TAB`. This just stops the
         /// app itself from accidentally exiting kiosk mode.
         #[allowed_in_when = false]

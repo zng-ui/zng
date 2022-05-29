@@ -15,8 +15,8 @@ use webrender::{
     RenderApi, Renderer, RendererOptions, Transaction, UploadMethod, VertexUsageHint,
 };
 use zero_ui_view_api::{
-    units::*, CursorIcon, DeviceId, FrameId, FrameRequest, FrameUpdateRequest, ImageId, ImageLoadedData, RenderMode, VideoMode,
-    ViewProcessGen, WindowId, WindowRequest, WindowState, WindowStateAll,
+    units::*, CursorIcon, DeviceId, FocusRequest, FrameId, FrameRequest, FrameUpdateRequest, ImageId, ImageLoadedData, RenderMode,
+    VideoMode, ViewProcessGen, WindowId, WindowRequest, WindowState, WindowStateAll,
 };
 
 #[cfg(windows)]
@@ -88,6 +88,8 @@ pub(crate) struct Window {
 
     visible: bool,
     waiting_first_frame: bool,
+    steal_init_focus: bool,
+    init_focus_request: Option<FocusRequest>,
 
     allow_alt_f4: Rc<Cell<bool>>,
     taskbar_visible: bool,
@@ -282,6 +284,8 @@ impl Window {
             pipeline_id,
             resized: true,
             waiting_first_frame: true,
+            steal_init_focus: req.focus,
+            init_focus_request: req.focus_request,
             visible: req.visible,
             allow_alt_f4,
             taskbar_visible: true,
@@ -372,7 +376,19 @@ impl Window {
     }
 
     /// Returns `true` if the previous focused status is different from `focused`.
-    pub fn focused_changed(&mut self, focused: bool) -> bool {
+    ///
+    /// Sets the `focused` to if the window is actually the foreground keyboard focused window.
+    pub fn focused_changed(&mut self, focused: &mut bool) -> bool {
+        #[cfg(windows)]
+        {
+            use glutin::platform::windows::WindowExtWindows;
+
+            let foreground = unsafe { windows::Win32::UI::WindowsAndMessaging::GetForegroundWindow() };
+            *focused = foreground.0 == self.window.hwnd() as _;
+        }
+
+        let focused = *focused;
+
         let changed = self.focused != focused;
         if changed {
             self.focused = focused;
@@ -572,6 +588,27 @@ impl Window {
             self.window.set_cursor_visible(true);
         } else {
             self.window.set_cursor_visible(false);
+        }
+    }
+
+    /// Sets the focus request indicator.
+    pub fn set_focus_request(&mut self, request: Option<FocusRequest>) {
+        if self.waiting_first_frame {
+            self.init_focus_request = request;
+        } else {
+            self.window.request_user_attention(request.map(|r| match r {
+                FocusRequest::Critical => glutin::window::UserAttentionType::Critical,
+                FocusRequest::Info => glutin::window::UserAttentionType::Informational,
+            }));
+        }
+    }
+
+    /// Steal input focus.
+    pub fn focus(&mut self) {
+        if self.waiting_first_frame {
+            self.steal_init_focus = true;
+        } else {
+            self.window.focus_window();
         }
     }
 
@@ -1026,6 +1063,13 @@ impl Window {
                 self.window.request_redraw();
             } else if self.visible {
                 self.set_visible(true);
+
+                if mem::take(&mut self.steal_init_focus) {
+                    self.window.focus_window();
+                }
+                if let Some(r) = self.init_focus_request.take() {
+                    self.set_focus_request(Some(r));
+                }
             }
         } else if msg.composite_needed {
             self.window.request_redraw();
