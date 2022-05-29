@@ -1,8 +1,7 @@
-* Test window initial focus change.
 * Implement `FocusWindowCommand` and focus request commands and var.
     - Plus demo in window example.
-* Send focus lost event for respawn that did not recover focus.
 * Request focus on init for respawn of previously focused window.
+* Can focus on the disabled restore button of the window example.
 
 * Layout context viewport.
     - The image example tries to do this manually, but there is some flickering due to Px rounding on the scroll vs on the offset.

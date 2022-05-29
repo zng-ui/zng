@@ -101,7 +101,7 @@ pub(crate) struct Window {
     cursor_over: bool,
     hit_tester: HitTester,
 
-    focused: bool,
+    focused: Option<bool>,
 
     render_mode: RenderMode,
 }
@@ -194,7 +194,8 @@ impl Window {
         let (context, winit_window) = gl_manager.create_headed(id, winit, window_target, render_mode);
         render_mode = context.render_mode();
 
-        // extend the winit Windows window to only block the Alt+F4 key press if we want it to.
+        // * Extend the winit Windows window to only block the Alt+F4 key press if we want it to.
+        // * Check if the window is actually keyboard focused until first focus.
         let allow_alt_f4 = Rc::new(Cell::new(req.allow_alt_f4));
         #[cfg(windows)]
         {
@@ -202,13 +203,29 @@ impl Window {
             let event_sender = event_sender.clone();
             use glutin::platform::windows::WindowExtWindows;
 
+            let mut first_focus = false;
+
+            let window_id = winit_window.id();
             let hwnd = windows::Win32::Foundation::HWND(winit_window.hwnd() as _);
             crate::util::set_raw_windows_event_handler(hwnd, u32::from_ne_bytes(*b"alf4") as _, move |_, msg, wparam, _| {
+                if !first_focus && unsafe { windows::Win32::UI::WindowsAndMessaging::GetForegroundWindow() } == hwnd {
+                    // Windows sends a `WM_SETFOCUS` when the window open, even if the user changed focus to something
+                    // else before the process opens the window so that the window title bar shows the unfocused visual and
+                    // we are not actually keyboard focused. We block this in `focused_changed` but then become out-of-sync
+                    // with the native window state, to recover from this we check the system wide foreground window at every
+                    // opportunity until we actually become the keyboard focus, at that point we can stop checking because we are in sync with
+                    // the native window state and the native window state is in sync with the system wide state.
+                    first_focus = true;
+                    let _ = event_sender.send(AppEvent::WinitFocused(window_id, true));
+                }
+
                 if msg == windows::Win32::UI::WindowsAndMessaging::WM_SYSKEYDOWN
                     && windows::Win32::UI::Input::KeyboardAndMouse::VIRTUAL_KEY(wparam.0 as u16)
                         == windows::Win32::UI::Input::KeyboardAndMouse::VK_F4
                     && allow_alt_f4.get()
                 {
+                    // winit always blocks ALT+F4 we want to allow it in some cases.
+
                     let device = 0; // TODO recover actual ID
 
                     let _ = event_sender.send(AppEvent::Notify(Event::KeyboardInput {
@@ -295,7 +312,7 @@ impl Window {
             cursor_pos: DipPoint::zero(),
             cursor_device: 0,
             cursor_over: false,
-            focused: false,
+            focused: None,
             hit_tester,
             render_mode,
         };
@@ -380,14 +397,16 @@ impl Window {
     /// Sets the `focused` to if the window is actually the foreground keyboard focused window.
     pub fn focused_changed(&mut self, focused: &mut bool) -> bool {
         #[cfg(windows)]
-        {
+        if self.focused.is_none() {
+            // See `Windows sends a `WM_SETFOCUS` when the window open..` comment in the constructor.
+
             use glutin::platform::windows::WindowExtWindows;
 
             let foreground = unsafe { windows::Win32::UI::WindowsAndMessaging::GetForegroundWindow() };
             *focused = foreground.0 == self.window.hwnd() as _;
         }
 
-        let focused = *focused;
+        let focused = Some(*focused);
 
         let changed = self.focused != focused;
         if changed {

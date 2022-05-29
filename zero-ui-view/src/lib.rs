@@ -423,6 +423,9 @@ impl App {
                     AppEvent::RefreshMonitors => {
                         panic!("no monitor info in headless mode")
                     }
+                    AppEvent::WinitFocused(_, _) => {
+                        panic!("no winit event loop in headless mode")
+                    }
                     AppEvent::ParentProcessExited => {
                         app.exited = true;
                         break 'app_loop;
@@ -505,6 +508,7 @@ impl App {
                             }
                         }
                         AppEvent::Notify(ev) => app.notify(ev),
+                        AppEvent::WinitFocused(window_id, focused) => app.on_window_event(window_id, WindowEvent::Focused(focused)),
                         AppEvent::RefreshMonitors => app.refresh_monitors(),
                         AppEvent::ParentProcessExited => {
                             app.exited = true;
@@ -1476,6 +1480,11 @@ pub(crate) enum AppEvent {
     /// Re-query available monitors and send update event.
     #[cfg_attr(not(windows), allow(unused))]
     RefreshMonitors,
+
+    /// Simulate winit window event Focused.
+    #[cfg_attr(not(windows), allow(unused))]
+    WinitFocused(glutin::window::WindowId, bool),
+
     /// Lost connection with app-process.
     ParentProcessExited,
 

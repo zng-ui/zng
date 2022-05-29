@@ -830,7 +830,8 @@ pub enum Event {
     ReceivedCharacter(WindowId, char),
     /// The window gained or lost focus.
     ///
-    /// The parameter is true if the window has gained focus, and false if it has lost focus.
+    /// The parameter is true if the window has gained focus, and false if it has lost focus. This event is send
+    /// once when the window opens, focused or not and once every time the focus changes.
     Focused {
         /// Window that gained or lost focus.
         window: WindowId,
