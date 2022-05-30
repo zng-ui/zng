@@ -89,12 +89,12 @@ macro_rules! unique_id_32 {
             }
 
             /// Creates an id from a [`sequential`] number.
-            /// 
+            ///
             /// # Safety
             ///
             /// The value must not be zero, panics in debug builds if it is, the value must have been provided by [`sequential`] otherwise
             /// the ID will not be unique, it may represent a random resource existing or future.
-            /// 
+            ///
             /// [`sequential`]: Self::sequential
             #[allow(dead_code)]
             pub unsafe fn from_sequential(num: u32) -> $Type {
@@ -162,12 +162,12 @@ macro_rules! unique_id_64 {
             }
 
             /// Creates an id from a [`sequential`] number.
-            /// 
+            ///
             /// # Safety
             ///
             /// The value must not be zero, panics in debug builds if it is, the value must have been provided by [`sequential`] otherwise
             /// the ID will not be unique, it may represent a random resource existing or future.
-            /// 
+            ///
             /// [`sequential`]: Self::sequential
             #[allow(dead_code)]
             pub unsafe fn from_sequential(num: u64) -> $Type {

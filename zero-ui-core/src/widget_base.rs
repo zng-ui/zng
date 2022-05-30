@@ -627,7 +627,10 @@ pub fn enabled(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
 
     let enabled = enabled.into_var();
     with_context_var(
-        EnabledNode { child, local_enabled: enabled.clone() },
+        EnabledNode {
+            child,
+            local_enabled: enabled.clone(),
+        },
         IsEnabledVar,
         merge_var!(IsEnabledVar::new(), enabled, |&a, &b| a && b),
     )
