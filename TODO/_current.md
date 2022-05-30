@@ -1,3 +1,5 @@
+* Background/foreground interaction filter only works for direct widget backgrounds, need to collect multiple inner backgrounds too.
+
 * Implement `Windows::focus` demo in window example.
 * Implement initial focus request.
     - Use it on respawn.
