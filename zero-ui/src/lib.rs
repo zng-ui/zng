@@ -1044,7 +1044,7 @@ pub mod prelude {
             impl_ui_node, node_vec, nodes, property,
             ui_list::{SortedWidgetVec, SortedWidgetVecRef, UiListObserver, UiNodeList, WidgetList, WidgetVec, WidgetVecRef},
             widget,
-            widget_base::Visibility,
+            widget_base::{Visibility, interactive_node},
             widget_info::{WidgetBorderInfo, WidgetBoundsInfo, WidgetInfoBuilder, WidgetLayout, WidgetRenderInfo, WidgetSubscriptions},
             widget_mixin, widget_vec, widgets, BoxedUiNode, BoxedWidget, FillUiNode, UiNode, Widget, WidgetId,
         };

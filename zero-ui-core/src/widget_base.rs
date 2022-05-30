@@ -641,6 +641,8 @@ pub fn enabled(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
 /// This property *enables* and *disables* interaction with the widget and its descendants without causing
 /// a visual change like [`enabled`].
 ///
+/// Note that this affects *contextual widget*, to disable interaction only in widgets inside `child` use the [`interactive_node`].
+///
 /// [`enabled`]: fn@enabled
 #[property(context, default(true))]
 pub fn interactive(child: impl UiNode, interactive: impl IntoVar<bool>) -> impl UiNode {
@@ -674,6 +676,62 @@ pub fn interactive(child: impl UiNode, interactive: impl IntoVar<bool>) -> impl 
         child,
         interactive: interactive.into_var(),
     }
+}
+
+/// Create a node that disables interaction for all widget inside `node`.
+pub fn interactive_node(child: impl UiNode, interactive: impl IntoVar<bool>) -> impl UiNode {
+    struct BlockInteractionNode<C, I> {
+        child: C,
+        interactive: I,
+    }
+    #[impl_ui_node(child)]
+    impl<C: UiNode, I: Var<bool>> UiNode for BlockInteractionNode<C, I> {
+        fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
+            if self.interactive.copy(ctx) {
+                self.child.info(ctx, info);
+            } else if let Some(id) = self.child.try_id() {
+                // child is an widget.
+                info.push_interaction_filter(move |args| args.info.self_and_ancestors().all(|w| w.widget_id() != id));
+                self.child.info(ctx, info);
+            } else {
+                let range = info.with_children_range(|info| self.child.info(ctx, info));
+                if !range.is_empty() {
+                    // has child widgets.
+
+                    let id = ctx.path.widget_id();
+                    info.push_interaction_filter(move |args| {
+                        // find child of `id` in ancestors.
+                        let mut child = args.info;
+                        for parent in args.info.ancestors() {
+                            if parent.widget_id() == id {
+                                // check child range
+                                for (i, item) in parent.children().enumerate() {
+                                    if item == child {
+                                        return range.contains(&i);
+                                    } else if i >= range.end {
+                                        return false;
+                                    }
+                                }
+                            } else {
+                                child = parent;
+                            }
+                        }
+                        true
+                    });
+                }
+            }
+        }
+
+        fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
+            subs.var(ctx, &self.interactive);
+            self.child.subscriptions(ctx, subs);
+        }
+    }
+    BlockInteractionNode {
+        child: child.cfg_boxed(),
+        interactive: interactive.into_var(),
+    }
+    .cfg_boxed()
 }
 
 struct IsEnabledNode<C: UiNode> {

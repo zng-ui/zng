@@ -1,7 +1,3 @@
-* Background/foreground interaction filter only works for direct widget backgrounds, need to collect multiple inner backgrounds too.
-    - Maybe we can have a children counter inside method type of thing, then we can use the count to define ranges on the children of
-      the widget id.
-
 * Implement `Windows::focus` demo in window example.
 * Implement initial focus request.
     - Use it on respawn.

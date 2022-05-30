@@ -550,7 +550,7 @@ impl WidgetInfoBuilder {
     }
 
     /// Calls the `info` closure and returns the range of children visited by it.
-    pub fn with_children_range(&mut self, info: impl Once(&mut Self)) -> ops::Range<usize> {
+    pub fn with_children_range(&mut self, info: impl FnOnce(&mut Self)) -> ops::Range<usize> {
         let before_count = self.tree.get(self.node).unwrap().children().count();
         info(self);
         before_count..self.tree.get(self.node).unwrap().children().count()
