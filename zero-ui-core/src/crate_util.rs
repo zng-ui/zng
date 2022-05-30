@@ -87,6 +87,20 @@ macro_rules! unique_id_32 {
                 debug_assert!(raw != 0);
                 $Type(std::num::NonZeroU32::new_unchecked(raw))
             }
+
+            /// Creates an id from a [`sequential`] number.
+            /// 
+            /// # Safety
+            ///
+            /// The value must not be zero, panics in debug builds if it is, the value must have been provided by [`sequential`] otherwise
+            /// the ID will not be unique, it may represent a random resource existing or future.
+            /// 
+            /// [`sequential`]: Self::sequential
+            #[allow(dead_code)]
+            pub unsafe fn from_sequential(num: u32) -> $Type {
+                debug_assert!(num != 0);
+                $Type(std::num::NonZeroU32::new_unchecked($crate::crate_util::hash32(num)))
+            }
         }
     }
 }
@@ -143,7 +157,22 @@ macro_rules! unique_id_64 {
             /// [`get`]: Self::get
             #[allow(dead_code)]
             pub unsafe fn from_raw(raw: u64) -> $Type {
+                debug_assert!(raw != 0);
                 $Type(std::num::NonZeroU64::new_unchecked(raw))
+            }
+
+            /// Creates an id from a [`sequential`] number.
+            /// 
+            /// # Safety
+            ///
+            /// The value must not be zero, panics in debug builds if it is, the value must have been provided by [`sequential`] otherwise
+            /// the ID will not be unique, it may represent a random resource existing or future.
+            /// 
+            /// [`sequential`]: Self::sequential
+            #[allow(dead_code)]
+            pub unsafe fn from_sequential(num: u64) -> $Type {
+                debug_assert!(num != 0);
+                $Type(std::num::NonZeroU64::new_unchecked($crate::crate_util::splitmix64(num)))
             }
         }
     };
@@ -182,7 +211,8 @@ pub fn next_id64(next: &'static AtomicU64) -> NonZeroU64 {
     }
 }
 
-fn hash32(n: u32) -> u32 {
+#[doc(hidden)]
+pub fn hash32(n: u32) -> u32 {
     use std::num::Wrapping as W;
 
     let mut z = W(n);
@@ -203,7 +233,8 @@ pub fn un_hash32(z: u32) -> u32 {
     n.0
 }
 
-fn splitmix64(n: u64) -> u64 {
+#[doc(hidden)]
+pub fn splitmix64(n: u64) -> u64 {
     use std::num::Wrapping as W;
 
     let mut z = W(n);
