@@ -679,7 +679,7 @@ pub fn interactive(child: impl UiNode, interactive: impl IntoVar<bool>) -> impl 
 }
 
 /// Create a node that disables interaction for all widget inside `node`.
-/// 
+///
 /// The node works for both if the `child` is a widget or if it contains widgets, the performance
 /// is slightly better if the `child` is a widget directly.
 pub fn interactive_node(child: impl UiNode, interactive: impl IntoVar<bool>) -> impl UiNode {

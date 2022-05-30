@@ -605,7 +605,8 @@ impl FrameBuilder {
             let outer_transform = RenderTransform::translation_px(ctx.widget_info.bounds.outer_offset()).then(&parent_transform);
             ctx.widget_info.render.set_outer_transform(outer_transform);
 
-            let mut inner_transform = RenderTransform::translation_px(ctx.widget_info.bounds.inner_offset() + ctx.widget_info.bounds.outer_offset());
+            let mut inner_transform =
+                RenderTransform::translation_px(ctx.widget_info.bounds.inner_offset() + ctx.widget_info.bounds.outer_offset());
             if data.has_transform {
                 inner_transform = data.transform.then(&inner_transform);
             }

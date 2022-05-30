@@ -864,6 +864,7 @@ extern crate self as zero_ui;
 #[doc(no_inline)]
 pub use zero_ui_core as core;
 
+pub(crate) mod crate_util;
 pub mod properties;
 pub mod widgets;
 

@@ -212,13 +212,6 @@ fn anchor_example() -> impl Widget {
 
 fn transform_anchor_example() -> impl Widget {
     let mut insert = true;
-    let anchor_mode = AnchorMode {
-        transform: AnchorTransform::InnerTransform,
-        size: AnchorSize::InnerSize,
-        visibility: true,
-        interaction: false,
-        corner_radius: true,
-    };
     button! {
         id = "t-anchor";
         content = text("Transform Anchored");
@@ -228,7 +221,7 @@ fn transform_anchor_example() -> impl Widget {
 
         on_click = hn!(|ctx, _| {
             if insert {
-                WindowLayers::insert_anchored(ctx, LayerIndex::ADORNER, "t-anchor", anchor_mode.clone(), container! {
+                WindowLayers::insert_anchored(ctx, LayerIndex::ADORNER, "t-anchor", AnchorMode::foreground(), container! {
                     id = "t-anchored";
                     content_align = Align::TOP_LEFT;
                     border = 1, colors::GREEN.lighten(30.pct());

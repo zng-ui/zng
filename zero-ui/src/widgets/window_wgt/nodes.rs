@@ -2,6 +2,10 @@
 
 use crate::prelude::new_property::*;
 
+use std::cell::Cell;
+
+use crate::crate_util::RunOnDrop;
+
 /// Windows layers.
 ///
 /// The window layers is z-order stacking panel that fills the window content area, widgets can be inserted
@@ -131,9 +135,14 @@ impl WindowLayers {
             fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
                 if self.interaction {
                     let anchor = self.anchor.copy(ctx);
-                    let widget = ctx.path.widget_id();
+                    let widget = self.widget.id();
+                    let querying = Cell::new(false);
                     info.push_interaction_filter(move |args| {
                         if args.info.self_and_ancestors().any(|w| w.widget_id() == widget) {
+                            if querying.replace(true) {
+                                return true; // avoid recursion.
+                            }
+                            let _q = RunOnDrop::new(|| querying.set(false));
                             args.info.tree().find(anchor).map(|a| a.allow_interaction()).unwrap_or(false)
                         } else {
                             true
@@ -435,7 +444,7 @@ state_key! {
 
 /// Wrap around the window outer-most event node to create the layers.
 ///
-/// This node is automatically included in the `window::new_event` constructor.
+/// This node is included in the `window::new_event` constructor.
 pub fn layers(child: impl UiNode) -> impl UiNode {
     struct LayersNode<C> {
         children: C,
@@ -679,7 +688,7 @@ impl AnchorMode {
             transform: AnchorTransform::InnerTransform,
             size: AnchorSize::InnerSize,
             visibility: true,
-            interaction: true,
+            interaction: false,
             corner_radius: true,
         }
     }
