@@ -1036,7 +1036,7 @@ pub mod prelude {
         #[doc(no_inline)]
         pub use crate::core::var::*;
         #[doc(no_inline)]
-        pub use crate::core::widget_base::{HitTestMode, IsEnabled, WidgetEnabledExt};
+        pub use crate::core::widget_base::{HitTestMode, IsEnabled, WidgetInfoEnabledExt};
         #[doc(no_inline)]
         pub use crate::core::window::{WidgetInfoChangedEvent, WindowId};
         #[doc(no_inline)]

@@ -53,7 +53,7 @@ pub fn background(child: impl UiNode, background: impl UiNode) -> impl UiNode {
     }
 
     let background = fill_node(background);
-    let background = interactive(background, false);
+    // let background = interactive(background, false); !!: TODO
 
     BackgroundNode {
         children: nodes![background, child],
@@ -173,7 +173,7 @@ pub fn foreground(child: impl UiNode, foreground: impl UiNode) -> impl UiNode {
 
     let foreground = fill_node(foreground);
     let foreground = hit_test_mode(foreground, HitTestMode::Disabled);
-    let foreground = interactive(foreground, false);
+    // let foreground = interactive(foreground, false); !!: TODO
 
     ForegroundNode {
         children: nodes![child, foreground],

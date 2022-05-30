@@ -521,7 +521,6 @@ pub mod implicit_base {
 
 state_key! {
     struct EnabledState: bool;
-    struct RegisteredDisabledFilter: ();
 }
 
 context_var! {
@@ -529,7 +528,7 @@ context_var! {
 }
 
 /// Extension method for accessing the [`enabled`](fn@enabled) state in [`WidgetInfo`].
-pub trait WidgetEnabledExt {
+pub trait WidgetInfoEnabledExt {
     /// Returns if the widget was enabled when the info tree was build.
     ///
     /// If `false` the widget does not [`allow_interaction`] and visually indicates this.
@@ -537,7 +536,7 @@ pub trait WidgetEnabledExt {
     /// [`allow_interaction`]: crate::widget_info::WidgetInfo::allow_interaction
     fn is_enabled(&self) -> bool;
 }
-impl<'a> WidgetEnabledExt for WidgetInfo<'a> {
+impl<'a> WidgetInfoEnabledExt for WidgetInfo<'a> {
     fn is_enabled(&self) -> bool {
         self.self_and_ancestors()
             .all(|w| w.meta().get(EnabledState).copied().unwrap_or(true))
@@ -597,39 +596,40 @@ impl IsEnabled {
 /// [`is_disabled`]: fn@is_disabled
 #[property(context, default(true))]
 pub fn enabled(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
-    struct EnabledNode<C> {
+    struct EnabledNode<C, E> {
         child: C,
+        local_enabled: E,
     }
     #[impl_ui_node(child)]
-    impl<C: UiNode> UiNode for EnabledNode<C> {
+    impl<C: UiNode, E: Var<bool>> UiNode for EnabledNode<C, E> {
         fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
-            if !IsEnabled::get(ctx) {
+            if !self.local_enabled.copy(ctx) {
                 info.meta().set(EnabledState, false);
 
-                if !ctx.update_state.flag(RegisteredDisabledFilter) {
-                    info.push_interaction_filter(move |args| args.info.is_enabled())
-                }
+                let id = ctx.path.widget_id();
+                info.push_interaction_filter(move |args| args.info.self_and_ancestors().all(|w| w.widget_id() != id));
             }
             self.child.info(ctx, info);
         }
 
         fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-            subs.updates(&IsEnabled::update_mask(ctx));
+            subs.var(ctx, &self.local_enabled);
             self.child.subscriptions(ctx, subs);
         }
 
         fn update(&mut self, ctx: &mut WidgetContext) {
-            if IsEnabled::get_new(ctx).is_some() {
+            if self.local_enabled.is_new(ctx) {
                 ctx.updates.info();
             }
             self.child.update(ctx);
         }
     }
 
+    let enabled = enabled.into_var();
     with_context_var(
-        EnabledNode { child },
+        EnabledNode { child, local_enabled: enabled.clone() },
         IsEnabledVar,
-        merge_var!(IsEnabledVar::new(), enabled.into_var(), |&a, &b| a && b),
+        merge_var!(IsEnabledVar::new(), enabled, |&a, &b| a && b),
     )
 }
 
@@ -648,7 +648,7 @@ pub fn interactive(child: impl UiNode, interactive: impl IntoVar<bool>) -> impl 
     #[impl_ui_node(child)]
     impl<C: UiNode, I: Var<bool>> UiNode for InteractiveNode<C, I> {
         fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
-            if self.interactive.copy(ctx) {
+            if !self.interactive.copy(ctx) {
                 let id = ctx.path.widget_id();
                 info.push_interaction_filter(move |args| args.info.self_and_ancestors().all(|w| w.widget_id() != id));
             }
@@ -689,10 +689,6 @@ impl<C: UiNode> UiNode for IsEnabledNode<C> {
     fn init(&mut self, ctx: &mut WidgetContext) {
         self.child.init(ctx);
         self.update_state(ctx);
-    }
-
-    fn info(&self, ctx: &mut InfoContext, widget: &mut WidgetInfoBuilder) {
-        self.child.info(ctx, widget);
     }
 
     fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {

@@ -1,4 +1,6 @@
-* Bug, can focus on the disabled restore button of the window example.
+* Fix interaction blocking in `background` and `foreground`.
+    - A fix to `interactive` revealed this bug.
+    - Need to block only "inner" widgets, with only a node as reference point.
 
 * Implement `Windows::focus` demo in window example.
 * Implement initial focus request.
