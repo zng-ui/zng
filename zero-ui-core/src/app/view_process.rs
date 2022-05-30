@@ -859,6 +859,19 @@ impl ViewWindow {
         self.0.call(|id, p| p.set_capture_mode(id, enabled))
     }
 
+    /// Brings the window to the front and sets input focus.
+    ///
+    /// This request can steal focus from other apps disrupting the user, be careful with it.
+    pub fn focus(&self) -> Result<()> {
+        self.0.call(|id, p| p.focus_window(id))
+    }
+
+    /// Sets the user attention request indicator, the indicator is cleared when the window is focused or
+    /// if canceled by setting to `None`.
+    pub fn set_focus_indicator(&self, indicator: Option<FocusIndicator>) -> Result<()> {
+        self.0.call(|id, p| p.set_focus_indicator(id, indicator))
+    }
+
     /// Drop `self`.
     pub fn close(self) {
         drop(self)

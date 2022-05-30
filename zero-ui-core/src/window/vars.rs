@@ -53,7 +53,6 @@ pub(super) struct WindowVarsData {
     allow_alt_f4: RcVar<bool>,
 
     pub(super) is_open: RcVar<bool>,
-    pub(super) is_focused: RcVar<bool>,
 
     frame_capture_mode: RcVar<FrameCaptureMode>,
     pub(super) render_mode: RcVar<RenderMode>,
@@ -119,7 +118,6 @@ impl WindowVars {
             allow_alt_f4: var(!cfg!(windows)),
 
             is_open: var(true),
-            is_focused: var(false),
 
             frame_capture_mode: var(FrameCaptureMode::Sporadic),
             render_mode: var(default_render_mode),
@@ -478,18 +476,15 @@ impl WindowVars {
         self.0.is_open.clone().into_read_only()
     }
 
-    /// If the window has keyboard focus.
-    ///
-    /// This is a read-only variable that reflects the current focus state, you can use the [`Windows::focus`] method
-    /// to try and force a window to be focused.
-    pub fn is_focused(&self) -> ReadOnlyRcVar<bool> {
-        self.0.is_focused.clone().into_read_only()
-    }
-
     /// The active user attention required indicator.
     ///
     /// This is usually a visual indication on the taskbar icon that prompts the user to focus on the window, it is automatically
     /// changed to `None` once the window receives focus or you can set it to `None` to cancel the indicator.
+    ///
+    /// Prefer using the [`Focus`] service and advanced [`FocusRequest`] configs instead of setting this variable directly.
+    ///
+    /// [`Focus`]: crate::focus::Focus
+    /// [`FocusRequest`]: crate::focus::FocusRequest
     pub fn focus_indicator(&self) -> &RcVar<Option<FocusIndicator>> {
         &self.0.focus_indicator
     }

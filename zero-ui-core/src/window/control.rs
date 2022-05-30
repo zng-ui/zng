@@ -716,6 +716,12 @@ impl HeadedCtrl {
         }
     }
 
+    pub fn focus(&mut self, _: &mut WindowContext) {
+        self.update_view(|view| {
+            let _ = view.focus();
+        });
+    }
+
     pub fn close(&mut self, ctx: &mut WindowContext) {
         self.content.close(ctx);
         self.window = None;
@@ -926,6 +932,11 @@ impl HeadlessWithRendererCtrl {
                 .render(ctx, Some(view.renderer()), self.headless_monitor.scale_factor, None);
         }
     }
+
+    pub fn focus(&mut self, ctx: &mut WindowContext) {
+        self.headless_simulator.focus(ctx);
+    }
+
     pub fn close(&mut self, ctx: &mut WindowContext) {
         self.content.close(ctx);
         self.surface = None;
@@ -1019,6 +1030,10 @@ impl HeadlessCtrl {
         self.content.render(ctx, None, self.headless_monitor.scale_factor, None);
     }
 
+    pub fn focus(&mut self, ctx: &mut WindowContext) {
+        self.headless_simulator.focus(ctx);
+    }
+
     pub fn close(&mut self, ctx: &mut WindowContext) {
         self.content.close(ctx);
     }
@@ -1063,6 +1078,10 @@ impl HeadlessSimulator {
             let args = RawWindowFocusArgs::new(timestamp, *ctx.window_id, true);
             RawWindowFocusEvent.notify(ctx.events, args)
         }
+    }
+
+    pub fn focus(&mut self, ctx: &mut WindowContext) {
+        RawWindowFocusEvent.notify(ctx.events, RawWindowFocusArgs::now(*ctx.window_id, true));
     }
 }
 
@@ -1528,6 +1547,14 @@ impl WindowCtrl {
             WindowCtrlMode::Headed(c) => c.render(ctx),
             WindowCtrlMode::Headless(c) => c.render(ctx),
             WindowCtrlMode::HeadlessWithRenderer(c) => c.render(ctx),
+        }
+    }
+
+    pub fn focus(&mut self, ctx: &mut WindowContext) {
+        match &mut self.0 {
+            WindowCtrlMode::Headed(c) => c.focus(ctx),
+            WindowCtrlMode::Headless(c) => c.focus(ctx),
+            WindowCtrlMode::HeadlessWithRenderer(c) => c.focus(ctx),
         }
     }
 

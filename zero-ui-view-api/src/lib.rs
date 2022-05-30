@@ -321,7 +321,7 @@ declare_api! {
     /// Sends an [`Event::Focused`] if the window is focused, the request can be ignored by the window manager, or if the
     /// window is not visible, minimized or already focused.
     ///
-    /// This request can steal focus from other applications, be careful with it.
+    /// This request can steal focus from other apps disrupting the user, be careful with it.
     pub fn focus_window(&mut self, id: WindowId);
 
     /// Cache an image resource.

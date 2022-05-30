@@ -1958,7 +1958,7 @@ impl HeadlessOpenData {
 }
 
 /// Represents a focus request indicator.
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 pub enum FocusIndicator {
     /// Activate critical focus request.
     Critical,

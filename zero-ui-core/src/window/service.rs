@@ -50,6 +50,8 @@ pub struct Windows {
     close_requests: LinearMap<WindowId, CloseWindowRequest>,
     pending_closes: LinearMap<CloseGroupId, PendingClose>,
 
+    focus_request: Option<WindowId>,
+
     frame_images: Vec<RcVar<Image>>,
 }
 impl Windows {
@@ -65,6 +67,8 @@ impl Windows {
             close_group_id: 1,
             close_requests: LinearMap::new(),
             pending_closes: LinearMap::new(),
+
+            focus_request: None,
 
             frame_images: vec![],
         }
@@ -189,7 +193,7 @@ impl Windows {
     ///
     /// [`Cancel`]: CloseWindowResult::Cancel
     pub fn close_all(&mut self) -> ResponseVar<CloseWindowResult> {
-        let set: Vec<_> = self.windows.keys().copied().collect();
+        let set: Vec<_> = self.windows_info.keys().copied().collect();
         self.close_together(set).unwrap()
     }
 
@@ -301,8 +305,28 @@ impl Windows {
         self.windows_info.contains_key(&window_id)
     }
 
-    fn take_requests(&mut self) -> (Vec<OpenWindowRequest>, LinearMap<WindowId, CloseWindowRequest>) {
-        (mem::take(&mut self.open_requests), mem::take(&mut self.close_requests))
+    /// Requests that the window be made the foreground keyboard focused window.
+    ///
+    /// Prefer using the [`Focus`] service and advanced [`FocusRequest`] configs instead of using this method directly.
+    ///
+    /// This operation can steal keyboard focus from other apps disrupting the user, be careful with it.
+    ///
+    /// [`Focus`]: crate::focus::Focus
+    /// [`FocusRequest`]: crate::focus::FocusRequest
+    pub fn focus(&mut self, window_id: WindowId) -> Result<(), WindowNotFound> {
+        if !self.is_focused(window_id)? {
+            self.focus_request = Some(window_id);
+            let _ = self.update_sender.send_ext_update();
+        }
+        Ok(())
+    }
+
+    fn take_requests(&mut self) -> (Vec<OpenWindowRequest>, LinearMap<WindowId, CloseWindowRequest>, Option<WindowId>) {
+        (
+            mem::take(&mut self.open_requests),
+            mem::take(&mut self.close_requests),
+            self.focus_request.take(),
+        )
     }
 
     /// Update the reference to the renderer associated with the window, we need
@@ -486,7 +510,7 @@ impl Windows {
             }
         }
 
-        let (open, close) = {
+        let (open, close, focus) = {
             let wns = ctx.services.windows();
             wns.take_requests()
         };
@@ -532,6 +556,15 @@ impl Windows {
                 })
                 .windows
                 .insert(w_id, None);
+        }
+
+        // fulfill focus request
+        if let Some(w_id) = focus {
+            Self::with_detached_windows(ctx, |ctx, windows| {
+                if let Some(w) = windows.get_mut(&w_id) {
+                    w.focus(ctx);
+                }
+            });
         }
     }
 
@@ -688,6 +721,10 @@ impl AppWindow {
 
     pub fn render(&mut self, ctx: &mut AppContext) {
         self.ctrl_in_ctx(ctx, |ctx, ctrl| ctrl.render(ctx));
+    }
+
+    pub fn focus(&mut self, ctx: &mut AppContext) {
+        self.ctrl_in_ctx(ctx, |ctx, ctrl| ctrl.focus(ctx));
     }
 
     pub fn close(mut self, ctx: &mut AppContext) {

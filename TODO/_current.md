@@ -1,13 +1,11 @@
 * Bug, can focus on the disabled restore button of the window example.
 
-* Implement `Windows::focus`.
-    - Use it in `FocusManager`.
-    - Demo in window example.
-* Implement init focus request.
+* Implement `Windows::focus` demo in window example.
+* Implement initial focus request.
     - Use it on respawn.
-* Implement `is_focused` var.
 * Implement `focus_indicator` var.
     - Is also init indicator.
+* Implement `FocusRequest` new force and indicator configs.
 
 * Layout context viewport.
     - The image example tries to do this manually, but there is some flickering due to Px rounding on the scroll vs on the offset.

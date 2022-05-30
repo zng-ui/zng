@@ -88,7 +88,7 @@ use crate::{
     var::{impl_from_and_into_var, var, RcVar, ReadOnlyRcVar, Var, Vars},
     widget_base::Visibility,
     widget_info::{DescendantFilter, WidgetInfo, WidgetInfoTree, WidgetPath},
-    window::{WidgetInfoChangedEvent, WindowFocusChangedEvent, WindowId, Windows},
+    window::{FocusIndicator, WidgetInfoChangedEvent, WindowFocusChangedEvent, WindowId, Windows},
     WidgetId,
 };
 use std::{
@@ -739,6 +739,8 @@ impl Focus {
     }
 
     /// Request a focus update.
+    ///
+    /// All other focus request methods call this method.
     pub fn focus(&mut self, request: FocusRequest) {
         self.request = Some(request);
         let _ = self.app_event_sender.send_ext_update();
@@ -748,6 +750,10 @@ impl Focus {
     ///
     /// If the widget is not focusable the focus does not move, in this case the highlight changes
     /// for the current focused widget.
+    ///
+    /// If the widget widget is in a window that is not focused, but is open and not minimized and the app
+    /// has keyboard focus in another window; the window is focused and the request processed when the focus event is received.
+    /// The [`FocusRequest`] type has other more advanced window focus configurations.
     ///
     /// This makes a [`focus`](Self::focus) request using [`FocusRequest::direct`].
     pub fn focus_widget(&mut self, widget_id: WidgetId, highlight: bool) {
@@ -1375,17 +1381,39 @@ impl Focus {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 /// Focus change request.
+///
+/// See [`Focus::focus`] for details.
 pub struct FocusRequest {
     /// Where to move the focus.
     pub target: FocusTarget,
-    /// If the widget should visually indicate that it is focused.
+    /// If the widget should visually indicate that it has keyboard focus.
     pub highlight: bool,
+
+    /// If the window should be focused even if another app has focus. By default the window
+    /// is only focused if the app has keyboard focus in any of the open windows, if this is enabled
+    /// a [`Windows::focus`] request is always made, potentially stealing keyboard focus from another app
+    /// and disrupting the user.
+    pub force_window_focus: bool,
+
+    /// Focus indicator to set on the target window if the app does not have keyboard focus and
+    /// `force_window_focus` is disabled.
+    ///
+    /// The [`focus_indicator`] of the window is set and the request is processed after the window receives focus,
+    /// or it is canceled if another focus request is made.
+    ///
+    /// [`focus_indicator`]: crate::window::WindowVars::focus_indicator
+    pub window_indicator: Option<FocusIndicator>,
 }
 
 impl FocusRequest {
     #[allow(missing_docs)]
     pub fn new(target: FocusTarget, highlight: bool) -> Self {
-        Self { target, highlight }
+        Self {
+            target,
+            highlight,
+            force_window_focus: false,
+            window_indicator: None,
+        }
     }
 
     /// New [`FocusTarget::Direct`] request.
@@ -1443,6 +1471,18 @@ impl FocusRequest {
     /// New [`FocusTarget::EscapeAlt`] request.
     pub fn escape_alt(highlight: bool) -> Self {
         Self::new(FocusTarget::EscapeAlt, highlight)
+    }
+
+    /// Sets [`FocusRequest::force_window_focus`] to `true`.
+    pub fn with_force_window_focus(mut self) -> Self {
+        self.force_window_focus = true;
+        self
+    }
+
+    /// Sets the [`FocusRequest::window_indicator`].
+    pub fn with_indicator(mut self, indicator: FocusIndicator) -> Self {
+        self.window_indicator = Some(indicator);
+        self
     }
 }
 
