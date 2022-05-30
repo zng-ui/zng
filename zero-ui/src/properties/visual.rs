@@ -52,8 +52,8 @@ pub fn background(child: impl UiNode, background: impl UiNode) -> impl UiNode {
         }
     }
 
-    let background = fill_node(background);
     let background = interactive_node(background, false);
+    let background = fill_node(background);
 
     BackgroundNode {
         children: nodes![background, child],
@@ -171,9 +171,9 @@ pub fn foreground(child: impl UiNode, foreground: impl UiNode) -> impl UiNode {
         }
     }
 
+    let foreground = interactive_node(foreground, false);
     let foreground = fill_node(foreground);
     let foreground = hit_test_mode(foreground, HitTestMode::Disabled);
-    let foreground = interactive_node(foreground, false);
 
     ForegroundNode {
         children: nodes![child, foreground],

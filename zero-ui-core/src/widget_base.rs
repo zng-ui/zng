@@ -679,6 +679,9 @@ pub fn interactive(child: impl UiNode, interactive: impl IntoVar<bool>) -> impl 
 }
 
 /// Create a node that disables interaction for all widget inside `node`.
+/// 
+/// The node works for both if the `child` is a widget or if it contains widgets, the performance
+/// is slightly better if the `child` is a widget directly.
 pub fn interactive_node(child: impl UiNode, interactive: impl IntoVar<bool>) -> impl UiNode {
     struct BlockInteractionNode<C, I> {
         child: C,
@@ -694,22 +697,22 @@ pub fn interactive_node(child: impl UiNode, interactive: impl IntoVar<bool>) -> 
                 info.push_interaction_filter(move |args| args.info.self_and_ancestors().all(|w| w.widget_id() != id));
                 self.child.info(ctx, info);
             } else {
-                let range = info.with_children_range(|info| self.child.info(ctx, info));
-                if !range.is_empty() {
+                let block_range = info.with_children_range(|info| self.child.info(ctx, info));
+                if !block_range.is_empty() {
                     // has child widgets.
 
                     let id = ctx.path.widget_id();
                     info.push_interaction_filter(move |args| {
                         // find child of `id` in ancestors.
                         let mut child = args.info;
-                        for parent in args.info.ancestors() {
+                        'ancestors: for parent in args.info.ancestors() {
                             if parent.widget_id() == id {
                                 // check child range
                                 for (i, item) in parent.children().enumerate() {
                                     if item == child {
-                                        return range.contains(&i);
-                                    } else if i >= range.end {
-                                        return false;
+                                        return !block_range.contains(&i);
+                                    } else if i >= block_range.end {
+                                        break 'ancestors;
                                     }
                                 }
                             } else {
