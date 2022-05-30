@@ -39,13 +39,6 @@ pub fn background(child: impl UiNode, background: impl UiNode) -> impl UiNode {
     }
     #[impl_ui_node(children)]
     impl<C: UiNodeList> UiNode for BackgroundNode<C> {
-        fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
-            if let Some(id) = self.children.try_item_id(0) {
-                info.push_interaction_filter(move |args| args.info.self_and_ancestors().all(|w| w.widget_id() != id));
-            }
-            self.children.info_all(ctx, info);
-        }
-
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
             let size = self.children.item_layout(1, ctx, wl);
             let size = ctx.constrains().fill_size_or(size);
@@ -60,10 +53,35 @@ pub fn background(child: impl UiNode, background: impl UiNode) -> impl UiNode {
     }
 
     let background = fill_node(background);
+    let background = block_interaction(background);
 
     BackgroundNode {
         children: nodes![background, child],
     }
+}
+
+/// Disable interaction with any widget inside `node`.
+pub fn block_interaction(node: impl UiNode) -> impl UiNode {
+    struct BlockInteractionNode<C> {
+        child: C,
+    }
+    #[impl_ui_node(child)]
+    impl<C: UiNode> UiNode for BlockInteractionNode<C> {
+        fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
+            if let Some(id) = self.children.try_item_id(0) {
+                info.push_interaction_filter(move |args| args.info.self_and_ancestors().all(|w| w.widget_id() != id));
+                self.child.info(ctx, info);
+            } else {
+                let range = info.with_children_count(|info| self.child.info(ctx, info));
+                if !range.is_empty() {
+                    let id = ctx.path.widget_id();
+                    todo!("!!:");
+                    info.push_interaction_filter(move || {});
+                }
+            }
+        }
+    }
+    BlockInteractionNode { child }
 }
 
 /// Custom background generated using a [`ViewGenerator<()>`].
@@ -164,13 +182,6 @@ pub fn foreground(child: impl UiNode, foreground: impl UiNode) -> impl UiNode {
     }
     #[impl_ui_node(children)]
     impl<C: UiNodeList> UiNode for ForegroundNode<C> {
-        fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
-            if let Some(id) = self.children.try_item_id(0) {
-                info.push_interaction_filter(move |args| args.info.self_and_ancestors().all(|w| w.widget_id() != id));
-            }
-            self.children.info_all(ctx, info);
-        }
-
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
             let size = self.children.item_layout(0, ctx, wl);
             let size = ctx.constrains().fill_size_or(size);
@@ -186,6 +197,7 @@ pub fn foreground(child: impl UiNode, foreground: impl UiNode) -> impl UiNode {
 
     let foreground = fill_node(foreground);
     let foreground = hit_test_mode(foreground, HitTestMode::Disabled);
+    let foreground = block_interaction(foreground);
 
     ForegroundNode {
         children: nodes![child, foreground],

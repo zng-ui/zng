@@ -549,6 +549,13 @@ impl WidgetInfoBuilder {
         self.node(self.node).value().interaction_filters.push(filter);
     }
 
+    /// Calls the `info` closure and returns the range of children visited by it.
+    pub fn with_children_range(&mut self, info: impl Once(&mut Self)) -> ops::Range<usize> {
+        let before_count = self.tree.get(self.node).unwrap().children().count();
+        info(self);
+        before_count..self.tree.get(self.node).unwrap().children().count()
+    }
+
     /// Build the info tree.
     pub fn finalize(mut self) -> (WidgetInfoTree, UsedWidgetInfoBuilder) {
         self.tree.root_mut().value().meta = Rc::new(self.meta);
