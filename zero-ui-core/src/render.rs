@@ -428,8 +428,6 @@ impl FrameBuilder {
             );
         }
 
-        ctx.widget_info.render.set_outer_transform(self.transform);
-
         let parent_rendered = mem::take(&mut self.widget_rendered);
         self.widget_data = Some(WidgetData {
             filter: vec![],
@@ -603,16 +601,15 @@ impl FrameBuilder {
         if let Some(mut data) = self.widget_data.take() {
             let parent_spatial_id = self.spatial_id;
 
-            let mut inner_transform =
-                RenderTransform::translation_px(ctx.widget_info.bounds.outer_offset() + ctx.widget_info.bounds.inner_offset());
+            let parent_transform = self.transform;
+            let outer_transform = RenderTransform::translation_px(ctx.widget_info.bounds.outer_offset()).then(&parent_transform);
+            ctx.widget_info.render.set_outer_transform(outer_transform);
 
+            let mut inner_transform = RenderTransform::translation_px(ctx.widget_info.bounds.inner_offset() + ctx.widget_info.bounds.outer_offset());
             if data.has_transform {
                 inner_transform = data.transform.then(&inner_transform);
             }
-
-            let parent_transform = self.transform;
             self.transform = inner_transform.then(&parent_transform);
-
             ctx.widget_info.render.set_inner_transform(self.transform);
 
             self.spatial_id = self.display_list.push_reference_frame(

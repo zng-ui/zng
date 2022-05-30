@@ -40,7 +40,7 @@ pub fn show_bounds(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNo
                     frame.push_border(
                         wgt.outer_bounds(),
                         PxSideOffsets::new_all_same(p),
-                        BorderSides::dotted(colors::GREEN),
+                        BorderSides::dotted(colors::PINK),
                         PxCornerRadius::zero(),
                     );
                 }
@@ -48,7 +48,7 @@ pub fn show_bounds(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNo
                 frame.push_border(
                     wgt.inner_bounds(),
                     PxSideOffsets::new_all_same(p),
-                    BorderSides::solid(colors::GREEN),
+                    BorderSides::solid(colors::ROYAL_BLUE),
                     PxCornerRadius::zero(),
                 );
             }

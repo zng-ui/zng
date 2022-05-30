@@ -11,7 +11,6 @@
 * Review layout double-pass of stacks.
     - What happens for nested stacks, quadratic?
 * Fix text final size, either clip or return accurate size.
-* Review `zero_ui::widgets::inspector::show_bounds`.
 
 * Scrolling, see `Scrolling.md`.
 * Animation, see `Variables.md`.
