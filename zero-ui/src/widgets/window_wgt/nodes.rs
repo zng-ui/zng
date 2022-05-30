@@ -670,6 +670,19 @@ impl AnchorMode {
             corner_radius: false,
         }
     }
+
+    /// Mode where the widget behaves like a [`foreground`] to the target widget.
+    ///
+    /// [`foreground`]: fn@foreground
+    pub fn foreground() -> Self {
+        AnchorMode {
+            transform: AnchorTransform::InnerTransform,
+            size: AnchorSize::InnerSize,
+            visibility: true,
+            interaction: true,
+            corner_radius: true,
+        }
+    }
 }
 impl Default for AnchorMode {
     /// Transform `InnerOffset` top-left, size infinite, copy visibility and corner-radius.
