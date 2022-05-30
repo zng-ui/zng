@@ -60,6 +60,7 @@ pub struct Window {
     pub(super) transparent: bool,
     pub(super) render_mode: Option<RenderMode>,
     pub(super) headless_monitor: HeadlessMonitor,
+    pub(super) start_focused: bool,
     pub(super) child: BoxedUiNode,
 }
 impl Window {
@@ -72,6 +73,7 @@ impl Window {
     /// * `transparent` - If the window should be created in a compositor mode that renders semi-transparent pixels as "see-through".
     /// * `render_mode` - Render mode preference overwrite for this window, note that the actual render mode selected can be different.
     /// * `headless_monitor` - "Monitor" configuration used in [headless mode](WindowMode::is_headless).
+    /// * `start_focused` - If the window is forced to be the foreground keyboard focus after opening.
     /// * `root` - The root widget's context priority node, the window uses this and the `root_id` to form the root widget.
     #[allow(clippy::too_many_arguments)]
     pub fn new_root(
@@ -81,6 +83,7 @@ impl Window {
         transparent: bool,
         render_mode: impl IntoValue<Option<RenderMode>>,
         headless_monitor: impl IntoValue<HeadlessMonitor>,
+        start_focused: bool,
         root: impl UiNode,
     ) -> Self {
         Window {
@@ -90,6 +93,7 @@ impl Window {
             transparent,
             render_mode: render_mode.into(),
             headless_monitor: headless_monitor.into(),
+            start_focused,
             child: root.boxed(),
         }
     }
@@ -104,6 +108,7 @@ impl Window {
     ///
     /// [`new_root`]: Self::new_root
     /// [`Widget`]: crate::Widget
+    #[allow(clippy::too_many_arguments)]
     pub fn new_container(
         root_id: impl IntoValue<WidgetId>,
         start_position: impl IntoValue<StartPosition>,
@@ -111,6 +116,7 @@ impl Window {
         transparent: bool,
         render_mode: impl IntoValue<Option<RenderMode>>,
         headless_monitor: impl IntoValue<HeadlessMonitor>,
+        start_focused: bool,
         child: impl UiNode,
     ) -> Self {
         Window::new_root(
@@ -120,6 +126,7 @@ impl Window {
             transparent,
             render_mode,
             headless_monitor,
+            start_focused,
             crate::widget_base::implicit_base::new_border(child),
         )
     }
@@ -134,6 +141,7 @@ impl Window {
             false,
             None,
             HeadlessMonitor::default(),
+            false,
             child,
         )
     }

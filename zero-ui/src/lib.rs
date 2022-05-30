@@ -940,8 +940,8 @@ pub mod prelude {
         widget_base::{HitTestMode, Visibility},
         widget_vec, widgets,
         window::{
-            AppRunWindowExt, AutoSize, CursorIcon, HeadlessAppWindowExt, MonitorId, MonitorQuery, MonitorsExt, StartPosition,
-            WidgetInfoChangedEvent, Window, WindowChangedArgs, WindowChrome, WindowCloseRequestedArgs, WindowIcon, WindowId,
+            AppRunWindowExt, AutoSize, CursorIcon, FocusIndicator, HeadlessAppWindowExt, MonitorId, MonitorQuery, MonitorsExt,
+            StartPosition, WidgetInfoChangedEvent, Window, WindowChangedArgs, WindowChrome, WindowCloseRequestedArgs, WindowIcon, WindowId,
             WindowOpenArgs, WindowState, WindowVarsKey, Windows, WindowsExt,
         },
         FillUiNode, NilUiNode, RcNode, UiNode, UiNodeList, Widget, WidgetId, WidgetList, WidgetPath,
@@ -1044,7 +1044,7 @@ pub mod prelude {
             impl_ui_node, node_vec, nodes, property,
             ui_list::{SortedWidgetVec, SortedWidgetVecRef, UiListObserver, UiNodeList, WidgetList, WidgetVec, WidgetVecRef},
             widget,
-            widget_base::{Visibility, interactive_node},
+            widget_base::{interactive_node, Visibility},
             widget_info::{WidgetBorderInfo, WidgetBoundsInfo, WidgetInfoBuilder, WidgetLayout, WidgetRenderInfo, WidgetSubscriptions},
             widget_mixin, widget_vec, widgets, BoxedUiNode, BoxedWidget, FillUiNode, UiNode, Widget, WidgetId,
         };

@@ -1,8 +1,3 @@
-* Implement `Windows::focus` demo in window example.
-* Implement initial focus request.
-    - Use it on respawn.
-* Implement `focus_indicator` var.
-    - Is also init indicator.
 * Implement `FocusRequest` new force and indicator configs.
 
 * Layout context viewport.

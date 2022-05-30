@@ -102,6 +102,7 @@ impl ImageManager {
                             true,
                             req.config.render_mode,
                             HeadlessMonitor::new_scale(req.config.scale_factor.unwrap_or_else(|| 1.fct())),
+                            false,
                             (req.node)(ctx),
                         );
 

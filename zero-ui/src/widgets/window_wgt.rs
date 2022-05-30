@@ -250,6 +250,14 @@ pub mod window {
         #[allowed_in_when = false]
         headless_monitor(impl IntoValue<HeadlessMonitor>) = HeadlessMonitor::default();
 
+        /// If the window is forced to be the foreground keyboard focus after opening.
+        ///
+        /// By default the windows manager decides if the window will receive focus after opening, usually it is focused
+        /// only if the process that started the window already has focus. Setting the property to `true` ensures that focus
+        /// is moved to the new window, potentially stealing the focus from other apps and disrupting the user.
+        #[allowed_in_when = false]
+        start_focused(bool) = false;
+
         /// Lock-in kiosk mode.
         ///
         /// In kiosk mode the only window states allowed are full-screen or full-screen exclusive, and
@@ -451,6 +459,7 @@ pub mod window {
         allow_transparency: bool,
         render_mode: impl IntoValue<Option<RenderMode>>,
         headless_monitor: impl IntoValue<HeadlessMonitor>,
+        start_focused: bool,
     ) -> Window {
         Window::new_root(
             root_id,
@@ -459,6 +468,7 @@ pub mod window {
             allow_transparency,
             render_mode,
             headless_monitor,
+            start_focused,
             child,
         )
     }

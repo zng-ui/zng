@@ -364,6 +364,10 @@ impl Windows {
 
                 window.is_focused = args.focused;
 
+                if window.is_focused {
+                    window.vars.focus_indicator().set_ne(ctx.vars, None);
+                }
+
                 let args = WindowFocusArgs::new(args.timestamp, args.window_id, window.is_focused, false);
                 WindowFocusChangedEvent.notify(ctx.events, args);
             }

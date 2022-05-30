@@ -43,6 +43,7 @@ struct HeadedCtrl {
 
     // init config.
     start_position: StartPosition,
+    start_focused: bool,
     kiosk: Option<WindowState>, // Some(enforced_fullscreen)
     transparent: bool,
     render_mode: Option<RenderMode>,
@@ -64,6 +65,7 @@ impl HeadedCtrl {
             delayed_view_updates: vec![],
 
             start_position: content.start_position,
+            start_focused: content.start_focused,
             kiosk: if content.kiosk { Some(WindowState::Fullscreen) } else { None },
             transparent: content.transparent,
             render_mode: content.render_mode,
@@ -339,6 +341,16 @@ impl HeadedCtrl {
                     }
                 }
             }
+
+            if let Some(indicator) = self.vars.focus_indicator().copy_new(ctx) {
+                if ctx.services.windows().is_focused(*ctx.window_id).unwrap_or(false) {
+                    self.vars.focus_indicator().set_ne(ctx, None);
+                } else if let Some(view) = &self.window {
+                    let _ = view.set_focus_indicator(indicator);
+                    // will be set to `None` once the window is focused.
+                }
+                // else indicator is send with init.
+            }
         }
 
         self.content.update(ctx);
@@ -587,8 +599,8 @@ impl HeadedCtrl {
             capture_mode: matches!(self.vars.frame_capture_mode().get(ctx), FrameCaptureMode::All),
             render_mode: self.render_mode.unwrap_or_else(|| ctx.services.windows().default_render_mode),
 
-            focus: false, // !!: TODO
-            focus_indicator: None,
+            focus: self.start_focused,
+            focus_indicator: self.vars.focus_indicator().copy(ctx),
         };
 
         match ctx.services.view_process().open_window(request) {
@@ -694,8 +706,8 @@ impl HeadedCtrl {
             capture_mode: matches!(self.vars.frame_capture_mode().get(ctx), FrameCaptureMode::All),
             render_mode: self.render_mode.unwrap_or_else(|| ctx.services.windows().default_render_mode),
 
-            focus: false, // !!: TODO
-            focus_indicator: None,
+            focus: ctx.services.windows().is_focused(self.window_id).unwrap_or(false),
+            focus_indicator: self.vars.focus_indicator().copy(ctx),
         };
 
         match ctx.services.view_process().open_window(request) {

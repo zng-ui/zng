@@ -46,7 +46,13 @@ fn main_window(ctx: &mut WindowContext) -> Window {
         content = h_stack! {
             spacing = 40;
             items = widgets![
-                state_commands(window_id),
+                v_stack! {
+                    spacing = 20;
+                    items = widgets![
+                        state_commands(window_id),
+                        focus_control(),
+                    ]
+                },
                 v_stack! {
                     spacing = 20;
                     items = widgets![
@@ -293,6 +299,55 @@ fn state_commands(window_id: WindowId) -> impl Widget {
             cmd_btn(CloseCommand.scoped(window_id)),
         ],
     )
+}
+
+fn focus_control() -> impl Widget {
+    let enabled = var(true);
+    let focus_btn = button! {
+        enabled = enabled.clone();
+        content = text("Focus in 5s");
+        on_click = async_hn!(enabled, |ctx, _| {
+            enabled.set(&ctx, false);
+            task::timeout(5.secs()).await;
+
+            ctx.with(|ctx| {
+                ctx.services.windows().focus(ctx.path.window_id()).unwrap();
+            });
+            enabled.set(&ctx, true);
+        });
+    };
+
+    let enabled = var(true);
+    let critical_btn = button! {
+        enabled = enabled.clone();
+        content = text("Critical Alert in 5s");
+        on_click = async_hn!(enabled, |ctx, _| {
+            enabled.set(&ctx, false);
+            task::timeout(5.secs()).await;
+
+            ctx.with(|ctx| {
+                ctx.window_state.req(WindowVarsKey).focus_indicator().set(ctx.vars, Some(FocusIndicator::Critical));
+            });
+            enabled.set(&ctx, true);
+        });
+    };
+
+    let enabled = var(true);
+    let info_btn = button! {
+        enabled = enabled.clone();
+        content = text("Info Alert in 5s");
+        on_click = async_hn!(enabled, |ctx, _| {
+            enabled.set(&ctx, false);
+            task::timeout(5.secs()).await;
+
+            ctx.with(|ctx| {
+                ctx.window_state.req(WindowVarsKey).focus_indicator().set(ctx.vars, Some(FocusIndicator::Info));
+            });
+            enabled.set(&ctx, true);
+        });
+    };
+
+    section("Focus", widgets![focus_btn, critical_btn, info_btn,])
 }
 
 fn state(window_vars: &WindowVars) -> impl Widget {
