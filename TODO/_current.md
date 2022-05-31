@@ -1,5 +1,4 @@
-* Continue implementing render_update, outer_bounds of container is zeroed after animation.
-
+* Focus highlight does not activate on click shortcut, should it?
 * Implement `FocusRequest` new force and indicator configs.
     - And demo in focus example.
 
