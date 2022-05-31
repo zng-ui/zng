@@ -1,4 +1,3 @@
-* Focus highlight does not activate on click shortcut, should it?
 * Implement `FocusRequest` new force and indicator configs.
     - And demo in focus example.
 
@@ -7,7 +6,6 @@
     - CSS has the "position" property, that has sticky, webrender has something for this that we can use?
     - Current idea, have a `layout_parent = LayoutParent::Viewport`.
 
-* Review render_update optimization, need to update children if parent transform changes.
 * Implement render optimization, see `Optimizations.md`.
 * Review layout double-pass of stacks.
     - What happens for nested stacks, quadratic?
