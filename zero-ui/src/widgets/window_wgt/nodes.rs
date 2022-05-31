@@ -692,6 +692,36 @@ impl AnchorMode {
             corner_radius: true,
         }
     }
+
+    /// Returns the mode with `transform` set.
+    pub fn with_transform(mut self, transform: impl Into<AnchorTransform>) -> Self {
+        self.transform = transform.into();
+        self
+    }
+
+    /// Returns the mode with `size` set.
+    pub fn with_size(mut self, size: impl Into<AnchorSize>) -> Self {
+        self.size = size.into();
+        self
+    }
+
+    /// Returns the mode with `visibility` set.
+    pub fn with_visibility(mut self, visibility: bool) -> Self {
+        self.visibility = visibility;
+        self
+    }
+
+    /// Returns the mode with `interaction` set.
+    pub fn with_interaction(mut self, interaction: bool) -> Self {
+        self.interaction = interaction;
+        self
+    }
+
+    /// Returns the mode with `corner_radius` set.
+    pub fn with_corner_radius(mut self, corner_radius: bool) -> Self {
+        self.corner_radius = corner_radius;
+        self
+    }
 }
 impl Default for AnchorMode {
     /// Transform `InnerOffset` top-left, size infinite, copy visibility and corner-radius.

@@ -1489,7 +1489,7 @@ impl FrameUpdate {
     }
 
     /// Calls `render_update` with [`can_reuse_widget`] set to `false`.
-    /// 
+    ///
     /// [`can_reuse_widget`]: Self::can_reuse_widget
     pub fn with_no_reuse(&mut self, render_update: impl FnOnce(&mut Self)) {
         let prev_can_reuse = self.can_reuse_widget;

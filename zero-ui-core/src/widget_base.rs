@@ -135,8 +135,9 @@ pub mod implicit_base {
                 }
                 fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
                     let transform = RenderTransform::translation_px(ctx.widget_info.bounds.child_offset());
-                    update.update_transform(self.translation_key.update(transform));
-                    self.panel.render_update(ctx, update);
+                    update.with_transform(self.translation_key.update(transform), |update| {
+                        self.panel.render_update(ctx, update);
+                    });
                 }
             }
             ChildrenLayoutNode {
@@ -188,9 +189,10 @@ pub mod implicit_base {
                 fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
                     if let Some((_, key)) = &self.id {
                         let transform = RenderTransform::translation_px(ctx.widget_info.bounds.child_offset());
-                        update.update_transform(key.update(transform));
+                        update.with_transform(key.update(transform), |update| self.child.render_update(ctx, update));
+                    } else {
+                        self.child.render_update(ctx, update);
                     }
-                    self.child.render_update(ctx, update);
                 }
             }
             ChildLayoutNode {
@@ -432,13 +434,13 @@ pub mod implicit_base {
                         tracing::error!(target: "widget_base", "`UiNode::render_update` called in not inited widget {:?}", self.id);
                     }
 
-                    let full = matches!(self.pending_updates.borrow_mut().render.take(), WindowRenderUpdate::RenderUpdate)
-                        || self.offsets_pass.get() != self.info.bounds.offsets_pass();
-                    if full {
+                    let reuse = !matches!(self.pending_updates.borrow_mut().render.take(), WindowRenderUpdate::RenderUpdate)
+                        && self.offsets_pass.get() == self.info.bounds.offsets_pass();
+                    if !reuse {
                         self.offsets_pass.set(self.info.bounds.offsets_pass());
                     }
                     ctx.with_widget(self.id, &self.info, &self.state, |ctx| {
-                        update.update_widget(ctx, !full, |ctx, update| self.child.render_update(ctx, update));
+                        update.update_widget(ctx, reuse, |ctx, update| self.child.render_update(ctx, update));
                     })
                 }
 
