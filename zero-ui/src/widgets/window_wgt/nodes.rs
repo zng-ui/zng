@@ -682,7 +682,7 @@ impl AnchorMode {
 
     /// Mode where the widget behaves like a [`foreground`] to the target widget.
     ///
-    /// [`foreground`]: fn@foreground
+    /// [`foreground`]: fn@crate::properties::foreground
     pub fn foreground() -> Self {
         AnchorMode {
             transform: AnchorTransform::InnerTransform,

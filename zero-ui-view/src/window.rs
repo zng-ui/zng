@@ -403,7 +403,7 @@ impl Window {
             use glutin::platform::windows::WindowExtWindows;
 
             let foreground = unsafe { windows::Win32::UI::WindowsAndMessaging::GetForegroundWindow() };
-            *focused = foreground.0 == self.window.hwnd() as _;
+            *focused = foreground.0 == self.window.hwnd() as isize;
         }
 
         let focused = Some(*focused);
