@@ -1353,6 +1353,7 @@ pub struct FrameUpdate {
     widget_id: WidgetId,
     transform: RenderTransform,
     inner_transform: Option<RenderTransform>,
+    can_reuse_widget: bool,
 }
 impl FrameUpdate {
     /// New frame update builder.
@@ -1405,6 +1406,7 @@ impl FrameUpdate {
 
             transform: RenderTransform::identity(),
             inner_transform: Some(RenderTransform::identity()),
+            can_reuse_widget: true,
         }
     }
 
@@ -1451,6 +1453,9 @@ impl FrameUpdate {
     pub fn with_transform(&mut self, new_value: FrameValue<RenderTransform>, render_update: impl FnOnce(&mut Self)) {
         let parent_transform = self.transform;
         self.transform = new_value.value.then(&parent_transform);
+
+        self.update_transform(new_value);
+
         render_update(self);
         self.transform = parent_transform;
     }
@@ -1476,14 +1481,60 @@ impl FrameUpdate {
         }
     }
 
+    /// If widget update can be *skipped* by setting reuse in [`update_widget`].
+    ///
+    /// [`update_widget`]: Self::update_widget
+    pub fn can_reuse_widget(&self) -> bool {
+        self.can_reuse_widget
+    }
+
+    /// Calls `render_update` with [`can_reuse_widget`] set to `false`.
+    /// 
+    /// [`can_reuse_widget`]: Self::can_reuse_widget
+    pub fn with_no_reuse(&mut self, render_update: impl FnOnce(&mut Self)) {
+        let prev_can_reuse = self.can_reuse_widget;
+        render_update(self);
+        self.can_reuse_widget = prev_can_reuse;
+    }
+
     /// Update the widget's outer transform.
-    pub fn update_widget(&mut self, ctx: &mut RenderContext, render_update: impl FnOnce(&mut RenderContext, &mut Self)) {
+    ///
+    /// If the widget did not request render-update you can set `reuse` to try and only update outer/inner transforms of descendants.
+    /// If the widget is reused the `render_update` is not called, the `reuse` flag can be ignored if [`can_reuse_widget`] does not allow
+    /// it or if the previous transform is not invertible.
+    ///
+    /// [`can_reuse_widget`]: Self::can_reuse_widget
+    pub fn update_widget(&mut self, ctx: &mut RenderContext, reuse: bool, render_update: impl FnOnce(&mut RenderContext, &mut Self)) {
         if self.inner_transform.is_some() {
             tracing::error!(
                 "called `update_widget` for `{}` without calling `update_inner` for the parent `{}`",
                 ctx.path.widget_id(),
                 self.widget_id
             );
+        }
+
+        let parent_can_reuse = self.can_reuse_widget;
+
+        if self.can_reuse_widget && reuse {
+            let prev_outer = ctx.widget_info.render.outer_transform();
+            if prev_outer != self.transform {
+                if let Some(undo_prev) = prev_outer.inverse() {
+                    let patch = undo_prev.then(&self.transform);
+
+                    for info in ctx.info_tree.find(ctx.path.widget_id()).unwrap().self_and_descendants() {
+                        let render = info.render_info();
+                        render.set_outer_transform(render.outer_transform().then(&patch));
+                        render.set_inner_transform(render.inner_transform().then(&patch));
+                    }
+
+                    return; // can reuse and patched.
+                }
+            } else {
+                return; // can reuse and no change.
+            }
+
+            // actually cannot reuse because cannot undo prev-transform.
+            self.can_reuse_widget = false;
         }
 
         ctx.widget_info.render.set_outer_transform(self.transform);
@@ -1493,6 +1544,21 @@ impl FrameUpdate {
         render_update(ctx, self);
         self.inner_transform = None;
         self.widget_id = parent_id;
+        self.can_reuse_widget = parent_can_reuse;
+    }
+
+    /// Update the info transforms of the widget and descendants.
+    ///
+    /// Widgets that did not request render-update can use this method to update only the outer and inner transforms
+    /// of itself and descendants as those values are global and the parent widget may have changed.
+    pub fn reuse_widget(&mut self, ctx: &mut RenderContext) {
+        if self.inner_transform.is_some() {
+            tracing::error!(
+                "called `reuse_widget` for `{}` without calling `update_inner` for the parent `{}`",
+                ctx.path.widget_id(),
+                self.widget_id
+            );
+        }
     }
 
     /// Update the widget's inner transform.

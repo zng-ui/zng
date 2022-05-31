@@ -432,15 +432,14 @@ pub mod implicit_base {
                         tracing::error!(target: "widget_base", "`UiNode::render_update` called in not inited widget {:?}", self.id);
                     }
 
-                    if matches!(self.pending_updates.borrow_mut().render.take(), WindowRenderUpdate::RenderUpdate)
-                        || self.offsets_pass.get() != self.info.bounds.offsets_pass()
-                    {
+                    let full = matches!(self.pending_updates.borrow_mut().render.take(), WindowRenderUpdate::RenderUpdate)
+                        || self.offsets_pass.get() != self.info.bounds.offsets_pass();
+                    if full {
                         self.offsets_pass.set(self.info.bounds.offsets_pass());
-                        ctx.with_widget(self.id, &self.info, &self.state, |ctx| {
-                            update.update_widget(ctx, |ctx, update| self.child.render_update(ctx, update));
-                        })
                     }
-                    // else, don't need to do anything, updates are additive.
+                    ctx.with_widget(self.id, &self.info, &self.state, |ctx| {
+                        update.update_widget(ctx, !full, |ctx, update| self.child.render_update(ctx, update));
+                    })
                 }
 
                 fn is_widget(&self) -> bool {
