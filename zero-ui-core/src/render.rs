@@ -1513,13 +1513,15 @@ impl FrameUpdate {
             );
         }
 
+        let outer_transform = self.transform.then_translate_px(ctx.widget_info.bounds.outer_offset());
+        
         let parent_can_reuse = self.can_reuse_widget;
 
         if self.can_reuse_widget && reuse {
             let prev_outer = ctx.widget_info.render.outer_transform();
-            if prev_outer != self.transform {
+            if prev_outer != outer_transform {
                 if let Some(undo_prev) = prev_outer.inverse() {
-                    let patch = undo_prev.then(&self.transform);
+                    let patch = undo_prev.then(&outer_transform);
 
                     for info in ctx.info_tree.find(ctx.path.widget_id()).unwrap().self_and_descendants() {
                         let render = info.render_info();
@@ -1537,7 +1539,7 @@ impl FrameUpdate {
             self.can_reuse_widget = false;
         }
 
-        ctx.widget_info.render.set_outer_transform(self.transform);
+        ctx.widget_info.render.set_outer_transform(outer_transform);
         self.inner_transform = Some(RenderTransform::identity());
         let parent_id = self.widget_id;
         self.widget_id = ctx.path.widget_id();
@@ -1570,8 +1572,7 @@ impl FrameUpdate {
     ) {
         if let Some(inner_transform) = self.inner_transform.take() {
             let translate = ctx.widget_info.bounds.inner_offset() + ctx.widget_info.bounds.outer_offset();
-            let translate = RenderTransform::translation_px(translate);
-            let inner_transform = inner_transform.then(&translate);
+            let inner_transform = inner_transform.then_translate_px(translate);
             self.update_transform(layout_translation_key.update(inner_transform));
             let parent_transform = self.transform;
 
