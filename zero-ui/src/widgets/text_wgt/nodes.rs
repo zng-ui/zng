@@ -1,6 +1,6 @@
 //! UI nodes used for building a text widget.
 
-use std::cell::Cell;
+use std::cell::{Cell, RefCell};
 
 use super::properties::*;
 use crate::core::text::*;
@@ -47,6 +47,9 @@ pub struct LayoutText {
 
     /// Layout text.
     pub shaped_text: ShapedText,
+
+    /// Version updated every time the `shaped_text` text changes.
+    pub shaped_text_version: u32,
 
     /// List of overline segments, defining origin and width of each line.
     ///
@@ -369,6 +372,7 @@ pub fn layout_text(child: impl UiNode, padding: impl IntoVar<SideOffsets>) -> im
                 let fonts = t.faces.sized(font_size, variations.finalize());
                 self.layout = Some(LayoutText {
                     shaped_text: ShapedText::new(fonts.best()),
+                    shaped_text_version: 0,
                     fonts,
                     overlines: vec![],
                     overline_thickness: Px(0),
@@ -464,6 +468,7 @@ pub fn layout_text(child: impl UiNode, padding: impl IntoVar<SideOffsets>) -> im
             */
             if self.pending.contains(Layout::RESHAPE) {
                 r.shaped_text = r.fonts.shape_text(&t.text, &self.shaping_args);
+                r.shaped_text_version = r.shaped_text_version.wrapping_add(1);
             }
             if self.pending.contains(Layout::PADDING) {
                 r.shaped_text.set_padding(padding);
@@ -701,7 +706,17 @@ pub fn render_overlines(child: impl UiNode) -> impl UiNode {
 ///
 /// This is the `text!` widget inner most leaf node, introduced in the `new_child` constructor.
 pub fn render_text() -> impl UiNode {
-    struct RenderTextNode;
+    #[derive(Clone, Copy, PartialEq)]
+    struct RenderedText {
+        version: u32,
+        synthesis: FontSynthesis,
+        color: Rgba,
+        aa: FontAntiAliasing,
+    }
+    struct RenderTextNode {
+        reuse: RefCell<ReuseGroup>,
+        rendered: Cell<Option<RenderedText>>,
+    }
     #[impl_ui_node(none)]
     impl UiNode for RenderTextNode {
         // subscriptions are handled by the `resolve_text` node.
@@ -716,14 +731,32 @@ pub fn render_text() -> impl UiNode {
             let t = LayoutText::get(ctx.vars).expect("expected `LayoutText` in `render_text`");
 
             let clip = PxRect::from_size(t.shaped_text.size());
-            let color = (*TextColorVar::get(ctx.vars)).into();
+            let color = *TextColorVar::get(ctx.vars);
 
             let aa = *FontAaVar::get(ctx.vars);
 
-            for (font, glyphs) in t.shaped_text.glyphs() {
-                frame.push_text(clip, glyphs, font, color, r.synthesis, aa);
+            let mut reuse = self.reuse.borrow_mut();
+
+            let rendered = Some(RenderedText {
+                version: t.shaped_text_version,
+                synthesis: r.synthesis,
+                color,
+                aa,
+            });
+            if self.rendered.get() != rendered {
+                self.rendered.set(rendered);
+                reuse.clear();
             }
+
+            frame.push_reuse_group(&mut reuse, |frame| {
+                for (font, glyphs) in t.shaped_text.glyphs() {
+                    frame.push_text(clip, glyphs, font, color.into(), r.synthesis, aa);
+                }
+            });
         }
     }
-    RenderTextNode
+    RenderTextNode {
+        reuse: RefCell::default(),
+        rendered: Cell::new(None),
+    }
 }

@@ -643,6 +643,11 @@ impl FrameBuilder {
                 self.display_list.push_reuse_items(key);
                 self.reuse_keys.reused(key);
             }
+
+            // register with parent that is not reusing.
+            if let Some(parent) = &mut self.groups_tracker {
+                parent.keys.extend(groups.keys());
+            }
         } else {
             self.with_reuse_groups(groups, generate);
         }
@@ -664,6 +669,10 @@ impl FrameBuilder {
         if let (true, Some(key)) = (self.can_reuse, group.key()) {
             self.display_list.push_reuse_items(key);
             self.reuse_keys.reused(key);
+
+            if let Some(parent) = &mut self.groups_tracker {
+                parent.keys.push(key);
+            }
         } else {
             let mut groups = ReuseGroups::new();
             groups.keys.reserve(1);
@@ -680,7 +689,7 @@ impl FrameBuilder {
         // * groups cannot nest, so we need "before" and "after" groups.
         // * open_group can be None at any time if the cache becomes full.
 
-        // close the parent's "before" group.
+        // finish the parent's "before" group.
         let mut parent_tracker = self.groups_tracker.take();
         if let (true, Some(parent)) = (mem::take(&mut self.group_rendered), &mut parent_tracker) {
             if let Some(key) = self.open_group {
@@ -692,13 +701,14 @@ impl FrameBuilder {
         // start our "first" group.
         if self.open_group.is_none() {
             self.open_group = self.reuse_keys.next();
-        }
-        if self.open_group.is_some() {
-            self.display_list.start_item_group();
-            self.groups_tracker = Some(mem::take(groups));
-        } else {
-            // ran out of keys.
-            self.can_reuse = false;
+
+            if self.open_group.is_some() {
+                self.display_list.start_item_group();
+                self.groups_tracker = Some(mem::take(groups));
+            } else {
+                // ran out of keys.
+                self.can_reuse = false;
+            }
         }
 
         generate(self);
