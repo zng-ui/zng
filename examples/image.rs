@@ -12,9 +12,9 @@ fn main() {
 
     // let rec = examples_util::record_profile("profile-image.json.gz", &[("example", &"image")], |_| true);
 
-    // zero_ui_view::run_same_process(app_main);
+    zero_ui_view::run_same_process(app_main);
 
-    app_main();
+    // app_main();
     // rec.finish();
 }
 

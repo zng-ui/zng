@@ -35,7 +35,9 @@ widget boundaries if the widget or inner widgets did not request an update of th
 ## `UiNode::render`
 
 * Already started implementing this, see `ReuseGroups`.
-
+  - Webrender reuse depends on space/clip ids and these invalidate all items after an insert remove.
+  - Worst, we can't cache creation of space/clips because it will just mess-up the id count for all subsequent items.
+  - Maybe we should stop using the webrender display list.
 
 # Image Render
 
