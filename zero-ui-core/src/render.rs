@@ -636,6 +636,7 @@ impl FrameBuilder {
         if let (true, Some(key)) = (self.can_reuse, group.key()) {
             self.display_list.push_reuse_items(key);
             self.reuse_keys.reused(key);
+            return;
         } else if self.can_reuse {
             self.open_group = self.reuse_keys.next();
             if self.open_group.is_some() {
