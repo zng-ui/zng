@@ -134,8 +134,6 @@ fn record_profile_impl(
     let worker = thread::Builder::new()
         .name("profiler".to_owned())
         .spawn(move || {
-            let mut spans = FxHashMap::<span::Id, Span>::default();
-
             struct Span {
                 count: usize,
                 name: &'static str,
@@ -147,6 +145,7 @@ fn record_profile_impl(
 
                 open: Vec<(u64, u64)>,
             }
+            let mut spans = FxHashMap::<span::Id, Span>::default();            
 
             let pid = std::process::id();
 
@@ -160,9 +159,10 @@ fn record_profile_impl(
                         target,
                         file: c_file,
                         line,
-                        args,
                         ts,
+                        args,
                     } => {
+                        let args = FxHashMap::from_iter(args);
                         if !filter(FilterArgs {
                             is_span: false,
                             level,
@@ -249,7 +249,6 @@ fn record_profile_impl(
                         target,
                         file,
                         line,
-                        args,
                     } => {
                         spans.insert(
                             id,
@@ -260,13 +259,13 @@ fn record_profile_impl(
                                 target,
                                 file,
                                 line,
-                                args,
+                                args: FxHashMap::default(),
                                 open: vec![],
                             },
                         );
                     }
-                    Msg::ExtendArgs { id, args } => {
-                        spans.get_mut(&id).unwrap().args.extend(args);
+                    Msg::InsertArgs { id, key, value } => {
+                        spans.get_mut(&id).unwrap().args.insert(key, value);
                     }
                     Msg::CloneSpan { id } => {
                         spans.get_mut(&id).unwrap().count += 1;
@@ -330,11 +329,11 @@ enum Msg {
         target: &'static str,
         file: Option<&'static str>,
         line: Option<u32>,
-        args: FxHashMap<&'static str, String>,
     },
-    ExtendArgs {
+    InsertArgs {
         id: span::Id,
-        args: FxHashMap<&'static str, String>,
+        key: &'static str,
+        value: String,
     },
     CloneSpan {
         id: span::Id,
@@ -343,6 +342,7 @@ enum Msg {
         id: span::Id,
     },
 
+    // trails implicit `InsertArgs` with the `0` index.
     Event {
         tid: u64,
         level: Level,
@@ -350,8 +350,8 @@ enum Msg {
         target: &'static str,
         file: Option<&'static str>,
         line: Option<u32>,
-        args: FxHashMap<&'static str, String>,
         ts: u64,
+        args: Vec<(&'static str, String)>,
     },
 
     Enter {
@@ -376,7 +376,7 @@ struct Profiler {
 impl Profiler {
     fn new(sender: flume::Sender<Msg>) -> Self {
         Profiler {
-            id: AtomicU64::new(1),
+            id: AtomicU64::new(1), // 0 is event
             tid: AtomicU64::new(1),
             sender,
         }
@@ -410,10 +410,7 @@ impl Subscriber for Profiler {
         let id = span::Id::from_u64(self.id.fetch_add(1, Ordering::Relaxed));
 
         let meta = span.metadata();
-
-        let mut args = FxHashMap::default();
-        span.record(&mut RecordVisitor(&mut args));
-
+       
         let _ = self.sender.send(Msg::NewSpan {
             id: id.clone(),
             level: *meta.level(),
@@ -421,8 +418,8 @@ impl Subscriber for Profiler {
             target: meta.target(),
             file: meta.file(),
             line: meta.line(),
-            args,
         });
+        span.record(&mut span_values_sender(&id, &self.sender));
 
         id
     }
@@ -438,9 +435,7 @@ impl Subscriber for Profiler {
     }
 
     fn record(&self, id: &span::Id, values: &span::Record<'_>) {
-        let mut args = FxHashMap::default();
-        values.record(&mut RecordVisitor(&mut args));
-        let _ = self.sender.send(Msg::ExtendArgs { id: id.clone(), args });
+        values.record(&mut span_values_sender(id, &self.sender));
     }
 
     fn record_follows_from(&self, span: &span::Id, follows: &span::Id) {
@@ -453,9 +448,8 @@ impl Subscriber for Profiler {
         let tid = self.thread_id();
         let meta = event.metadata();
 
-        let mut args = FxHashMap::default();
-        event.record(&mut RecordVisitor(&mut args));
-
+        let mut args = vec![];
+        event.record(&mut event_values_collector(&mut args));
         let _ = self.sender.send(Msg::Event {
             tid,
             level: *meta.level(),
@@ -463,8 +457,8 @@ impl Subscriber for Profiler {
             target: meta.target(),
             file: meta.file(),
             line: meta.line(),
-            args,
             ts,
+            args,
         });
     }
 
@@ -496,35 +490,51 @@ thread_local! {
     static THREAD_ID: Cell<Option<u64>> = Cell::new(None);
 }
 
-struct RecordVisitor<'a>(&'a mut FxHashMap<&'static str, String>);
-impl<'a> Visit for RecordVisitor<'a> {
+fn span_values_sender<'a>(id: &'a span::Id, sender: &'a flume::Sender<Msg>) -> RecordVisitor<impl FnMut(&'static str, String) + 'a> {
+    RecordVisitor(|key, value| {
+        let _ = sender.send(Msg::InsertArgs { id: id.clone(), key, value });
+    })
+}
+
+fn event_values_collector<'a>(args: &'a mut Vec<(&'static str, String)>) -> RecordVisitor<impl FnMut(&'static str, String) + 'a> {
+    RecordVisitor(|key, value| {
+        args.push((key, value));
+    })
+}
+
+struct RecordVisitor<F>(F);
+impl<F> RecordVisitor<F> {
+    
+}
+impl<F: FnMut(&'static str, String)> Visit for RecordVisitor<F> {
     fn record_debug(&mut self, field: &Field, value: &dyn fmt::Debug) {
         let value = format!("{value:?}");
         let value = escape(&value);
-        self.0.insert(field.name(), format!(r#""{value}""#));
+        (self.0)(field.name(), format!(r#""{value}""#));
     }
 
     fn record_f64(&mut self, field: &Field, value: f64) {
-        self.0.insert(field.name(), format!("{value}"));
+        (self.0)(field.name(), format!("{value}"));
     }
 
     fn record_i64(&mut self, field: &Field, value: i64) {
-        self.0.insert(field.name(), format!("{value}"));
+        (self.0)(field.name(), format!("{value}"));
     }
 
     fn record_u64(&mut self, field: &Field, value: u64) {
-        self.0.insert(field.name(), format!("{value}"));
+        (self.0)(field.name(), format!("{value}"));
     }
 
     fn record_bool(&mut self, field: &Field, value: bool) {
-        self.0.insert(field.name(), format!("{value}"));
+        (self.0)(field.name(), format!("{value}"));
     }
 
     fn record_str(&mut self, field: &Field, value: &str) {
         let value = escape(value);
-        self.0.insert(field.name(), format!(r#""{value}""#));
+        (self.0)(field.name(), format!(r#""{value}""#));
     }
 }
+
 
 struct NameDisplay<'a>(&'static str, &'a [&'static str], &'a FxHashMap<&'static str, String>);
 impl<'a> fmt::Display for NameDisplay<'a> {
