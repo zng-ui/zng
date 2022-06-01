@@ -728,10 +728,12 @@ impl FrameBuilder {
         }
 
         // start the parent's "next" group.
-        self.open_group = self.reuse_keys.next();
-        if self.open_group.is_some() {
-            self.display_list.start_item_group();
-            self.groups_tracker = parent_tracker;
+        if parent_tracker.is_some() {
+            self.open_group = self.reuse_keys.next();
+            if self.open_group.is_some() {
+                self.display_list.start_item_group();
+                self.groups_tracker = parent_tracker;
+            }
         }
     }
 
