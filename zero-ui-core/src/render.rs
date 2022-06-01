@@ -128,6 +128,142 @@ struct WidgetData {
     flags: PrimitiveFlags,
 }
 
+/// Represents multiple groups of display items in the renderer that can be reused by reference.
+///
+/// See [`FrameBuilder::push_reuse_groups`] for details.
+#[derive(Debug, PartialEq, Eq, Hash, Clone)]
+pub struct ReuseGroups {
+    pipeline_id: PipelineId,
+    keys: Vec<u16>,
+}
+impl Default for ReuseGroups {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+impl ReuseGroups {
+    /// New empty.
+    pub fn new() -> Self {
+        Self {
+            pipeline_id: PipelineId::dummy(),
+            keys: vec![],
+        }
+    }
+
+    /// Last pipeline tracked.
+    ///
+    /// The items are cleared if used on a different pipeline.
+    pub fn pipeline_id(&self) -> PipelineId {
+        self.pipeline_id
+    }
+
+    /// Display item groups.
+    pub fn keys(&self) -> &[u16] {
+        &self.keys
+    }
+
+    /// Discard item groups, next render will generate items.
+    pub fn clear(&mut self) {
+        self.keys.clear()
+    }
+
+    fn prepare_for(&mut self, pipeline_id: PipelineId) {
+        if self.pipeline_id != pipeline_id {
+            self.pipeline_id = pipeline_id;
+            self.clear();
+        }
+    }
+}
+
+/// Represents a group of display items in the renderer that can be reused by reference.
+///
+/// See [`FrameBuilder::push_reuse_group`] for details.
+pub struct ReuseGroup {
+    pipeline_id: PipelineId,
+    key: u16,
+}
+impl Default for ReuseGroup {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+impl ReuseGroup {
+    /// New empty.
+    pub fn new() -> Self {
+        Self {
+            pipeline_id: PipelineId::dummy(),
+            key: u16::MAX,
+        }
+    }
+
+    /// Last pipeline tracked.
+    ///
+    /// The group is cleared if used on a different pipeline.
+    pub fn pipeline_id(&self) -> PipelineId {
+        self.pipeline_id
+    }
+
+    /// Display item group.
+    pub fn key(&self) -> Option<u16> {
+        if self.key < u16::MAX {
+            Some(self.key)
+        } else {
+            None
+        }
+    }
+
+    /// Discard item group, next render will generate items.
+    pub fn clear(&mut self) {
+        self.key = u16::MAX
+    }
+
+    fn prepare_for(&mut self, pipeline_id: PipelineId) {
+        if self.pipeline_id != pipeline_id {
+            self.pipeline_id = pipeline_id;
+            self.clear();
+        }
+    }
+}
+
+// See the `webrender_api::DisplayItemCache` for the other side of this, the keys are direct indexes and
+// they never do any cleanup so its worthwhile tracking unused keys.
+#[derive(Default)]
+struct ReuseCacheKeys {
+    free: Vec<u16>,
+    slots: Vec<bool>,
+}
+impl ReuseCacheKeys {
+    pub fn end_frame(&mut self, display_list: &mut DisplayListBuilder) {
+        for (i, slot) in self.slots.iter_mut().enumerate() {
+            if !mem::take(slot) {
+                self.free.push(i as u16);
+            }
+        }
+        display_list.set_cache_size(self.slots.len());
+    }
+
+    pub fn next(&mut self) -> Option<u16> {
+        if let Some(key) = self.free.pop() {
+            self.slots[key as usize] = true;
+            Some(key)
+        } else {
+            let key = self.slots.len() as u16;
+            if key < u16::MAX {
+                // MAX is None
+                self.slots.push(true);
+                Some(key)
+            } else {
+                None
+            }
+        }
+    }
+
+    pub fn reused(&mut self, key: u16) {
+        let key = key as usize;
+        self.slots[key] = true;
+    }
+}
+
 /// A full frame builder.
 pub struct FrameBuilder {
     frame_id: FrameId,
@@ -149,6 +285,12 @@ pub struct FrameBuilder {
 
     widget_data: Option<WidgetData>,
     widget_rendered: bool,
+    can_reuse: bool,
+
+    reuse_keys: ReuseCacheKeys,
+    groups_tracker: Option<ReuseGroups>,
+    open_group: Option<u16>,
+    group_rendered: bool,
 
     clip_id: ClipId,
     spatial_id: SpatialId,
@@ -178,23 +320,27 @@ impl FrameBuilder {
             .and_then(|r| r.pipeline_id().ok())
             .unwrap_or_else(PipelineId::dummy);
 
-        let mut used = None;
+        let mut used_dl = None;
         let mut scrolls_capacity = 10;
+        let mut reuse_keys = None;
 
         if let Some(u) = used_data {
             if u.pipeline_id() == pipeline_id {
-                used = Some(u.display_list);
+                used_dl = Some(u.display_list);
                 scrolls_capacity = u.scrolls_capacity;
+                reuse_keys = Some(u.reuse_keys);
             }
         }
 
-        let mut display_list = if let Some(reuse) = used {
+        let mut display_list = if let Some(reuse) = used_dl {
             reuse
         } else {
             DisplayListBuilder::new(pipeline_id)
         };
 
         display_list.begin();
+
+        let reuse_keys = reuse_keys.unwrap_or_default();
 
         let spatial_id = SpatialId::root_reference_frame(pipeline_id);
         FrameBuilder {
@@ -220,6 +366,11 @@ impl FrameBuilder {
                 transform: RenderTransform::identity(),
             }),
             widget_rendered: false,
+            can_reuse: true,
+            reuse_keys,
+            groups_tracker: None,
+            open_group: None,
+            group_rendered: false,
 
             clip_id: ClipId::root(pipeline_id),
             spatial_id,
@@ -290,6 +441,7 @@ impl FrameBuilder {
     /// [`display_list`]: Self::display_list
     pub fn widget_rendered(&mut self) {
         self.widget_rendered = true;
+        self.group_rendered = true;
     }
 
     /// If is building a frame for a headless and renderless window.
@@ -417,15 +569,23 @@ impl FrameBuilder {
     /// during this period properties can configure the widget stacking context and actual rendering and transforms
     /// are discouraged.
     ///
+    /// If `reuse` is true and the widget has been rendered before  and [`can_reuse`] allows reuse, the `render`
+    /// closure is not called, an only a reference to the widget range in the previous frame is send.
+    ///
     /// [`is_outer`]: Self::is_outer
     /// [`push_inner`]: Self::push_inner
-    pub fn push_widget(&mut self, ctx: &mut RenderContext, render: impl FnOnce(&mut RenderContext, &mut Self)) {
+    /// [`can_reuse`]: Self::can_reuse
+    pub fn push_widget(&mut self, ctx: &mut RenderContext, reuse: bool, render: impl FnOnce(&mut RenderContext, &mut Self)) {
         if self.widget_data.is_some() {
             tracing::error!(
                 "called `push_widget` for `{}` without calling `push_inner` for the parent `{}`",
                 ctx.path.widget_id(),
                 self.widget_id
             );
+        }
+
+        if reuse {
+            // TODO
         }
 
         let parent_rendered = mem::take(&mut self.widget_rendered);
@@ -449,27 +609,120 @@ impl FrameBuilder {
     ///
     /// If `false` widgets must do a full render using [`push_widget`] even if they did not request a render.
     ///
-    /// # TODO
-    ///
-    /// Is always `false`, widget reuse is not implemented yet.
-    ///
     /// [`push_widget`]: Self::push_widget
-    pub fn can_reuse_widget(&self) -> bool {
-        // TODO
-        false
+    pub fn can_reuse(&self) -> bool {
+        self.can_reuse
     }
 
-    /// Reuse the display list items generated for the widget on the previous frame.
+    /// Calls `render` with [`can_reuse`] set to `false`.
+    ///
+    /// [`can_reuse`]: Self::can_reuse
+    pub fn with_no_reuse(&mut self, render: impl FnOnce(&mut Self)) {
+        let prev_can_reuse = self.can_reuse;
+        render(self);
+        self.can_reuse = prev_can_reuse;
+    }
+
+    /// If `items` is not empty and [`can_reuse`] a reference to the item groups is added, otherwise `generate` is called and
+    /// any item groups generated by it tracked by `items`.
+    ///
+    /// Note that [`push_widget`] already implements reuse optimizations on the widget level, this method is for nodes
+    /// that generate a large amount of display items and cannot ensure that `generate` will not recursively create reuse groups.
+    ///
+    /// Reuse groups are created by this methods, [`push_reuse_group`] and [`push_widget`], if you know that generate is not recursive,
+    /// use [`push_reuse_group`].
+    ///
+    /// [`can_reuse`]: Self::can_reuse
+    /// [`push_widget`]: Self::push_widget
+    /// [`push_reuse_group`]: Self::push_reuse_group
+    pub fn push_reuse_groups(&mut self, groups: &mut ReuseGroups, generate: impl FnOnce(&mut Self)) {
+        groups.prepare_for(self.pipeline_id);
+
+        if self.can_reuse && !groups.keys().is_empty() {
+            for &key in groups.keys() {
+                self.display_list.push_reuse_items(key);
+                self.reuse_keys.reused(key);
+            }
+        } else {
+            self.with_reuse_groups(groups, generate);
+        }
+    }
+
+    /// If `group` has a cache key and [`can_reuse`] a reference to the items is added, otherwise `generate` is called and
+    /// any display items generated by it are tracked in `group`.
     ///
     /// # Panics
     ///
-    /// Panics, if [`can_reuse_widget`] is `false`.
+    /// Panics if another group is started by `generate`, groups can be started by this method, [`push_reuse_groups`] and [`push_widget`].
     ///
-    /// [`can_reuse_widget`]: Self::can_reuse_widget
-    pub fn push_widget_reuse(&mut self) {
-        assert!(self.can_reuse_widget());
+    /// [`can_reuse`]: Self::can_reuse
+    /// [`push_widget`]: Self::push_widget
+    /// [`push_reuse_groups`]: Self::push_reuse_groups
+    pub fn push_reuse_group(&mut self, group: &mut ReuseGroup, generate: impl FnOnce(&mut Self)) {
+        group.prepare_for(self.pipeline_id);
 
-        todo!()
+        if let (true, Some(key)) = (self.can_reuse, group.key()) {
+            self.display_list.push_reuse_items(key);
+            self.reuse_keys.reused(key);
+        } else {
+            let mut groups = ReuseGroups::new();
+            groups.keys.reserve(1);
+            self.with_reuse_groups(&mut groups, generate);
+            match groups.keys.len() {
+                0 => group.clear(),
+                1 => group.key = groups.keys[0],
+                _ => panic!("reuse group does not allow recursion"),
+            }
+        }
+    }
+
+    fn with_reuse_groups(&mut self, groups: &mut ReuseGroups, generate: impl FnOnce(&mut Self)) {
+        // * groups cannot nest, so we need "before" and "after" groups.
+        // * open_group can be None at any time if the cache becomes full.
+
+        // close the parent's "before" group.
+        let mut parent_tracker = self.groups_tracker.take();
+        if let (true, Some(parent)) = (mem::take(&mut self.group_rendered), &mut parent_tracker) {
+            if let Some(key) = self.open_group {
+                self.display_list.finish_item_group(key);
+                parent.keys.push(key);
+            }
+        }
+
+        // start our "first" group.
+        if self.open_group.is_none() {
+            self.open_group = self.reuse_keys.next();
+        }
+        if self.open_group.is_some() {
+            self.display_list.start_item_group();
+            self.groups_tracker = Some(mem::take(groups));
+        } else {
+            // ran out of keys.
+            self.can_reuse = false;
+        }
+
+        generate(self);
+
+        // finish our "last" group.
+        if let Some(g) = self.groups_tracker.take() {
+            *groups = g;
+        }
+        if mem::take(&mut self.group_rendered) {
+            if let Some(key) = self.open_group.take() {
+                self.display_list.finish_item_group(key);
+                groups.keys.push(key);
+                if let Some(parent) = &mut parent_tracker {
+                    parent.keys.extend(&groups.keys);
+                }
+            }
+        }
+
+        // start the parent's "next" group.
+        self.open_group = self.reuse_keys.next();
+        if self.open_group.is_some() {
+            self.display_list.start_item_group();
+            self.groups_tracker = parent_tracker;
+        }
     }
 
     /// Register that all the current widget descendants are not rendered in this frame.
@@ -1269,6 +1522,8 @@ impl FrameBuilder {
     pub fn finalize(mut self, root_rendered: &WidgetRenderInfo) -> (BuiltFrame, UsedFrameBuilder) {
         root_rendered.set_rendered(self.widget_rendered);
 
+        self.reuse_keys.end_frame(&mut self.display_list);
+
         let (pipeline_id, display_list) = self.display_list.end();
         let (payload, descriptor) = display_list.into_data();
 
@@ -1277,6 +1532,7 @@ impl FrameBuilder {
         let reuse = UsedFrameBuilder {
             display_list: self.display_list,
             scrolls_capacity: self.scrolls.len(),
+            reuse_keys: self.reuse_keys,
         };
 
         let frame = BuiltFrame {
@@ -1309,6 +1565,7 @@ pub struct BuiltFrame {
 pub struct UsedFrameBuilder {
     display_list: DisplayListBuilder,
     scrolls_capacity: usize,
+    reuse_keys: ReuseCacheKeys,
 }
 impl UsedFrameBuilder {
     /// Pipeline where this frame builder can be reused.
@@ -1515,7 +1772,7 @@ impl FrameUpdate {
         }
 
         let outer_transform = RenderTransform::translation_px(ctx.widget_info.bounds.outer_offset()).then(&self.transform);
-        
+
         let parent_can_reuse = self.can_reuse_widget;
 
         if self.can_reuse_widget && reuse {

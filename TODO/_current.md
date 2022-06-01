@@ -1,3 +1,5 @@
+* Implement layout and render optimization, see `Optimizations.md`.
+
 * Implement `FocusRequest` new force and indicator configs.
     - And demo in focus example.
 
@@ -6,7 +8,6 @@
     - CSS has the "position" property, that has sticky, webrender has something for this that we can use?
     - Current idea, have a `layout_parent = LayoutParent::Viewport`.
 
-* Implement render optimization, see `Optimizations.md`.
 * Review layout double-pass of stacks.
     - What happens for nested stacks, quadratic?
 * Fix text final size, either clip or return accurate size.

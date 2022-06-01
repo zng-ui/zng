@@ -414,18 +414,15 @@ pub mod implicit_base {
                         tracing::error!(target: "widget_base", "`UiNode::render` called in not inited widget {:?}", self.id);
                     }
 
-                    if matches!(self.pending_updates.borrow_mut().render.take(), WindowRenderUpdate::Render)
-                        || !frame.can_reuse_widget()
-                        || self.offsets_pass.get() != self.info.bounds.offsets_pass()
-                    {
+                    let reuse = !matches!(self.pending_updates.borrow_mut().render.take(), WindowRenderUpdate::Render)
+                        && self.offsets_pass.get() == self.info.bounds.offsets_pass();
+                    if !reuse {
                         self.offsets_pass.set(self.info.bounds.offsets_pass());
-                        ctx.with_widget(self.id, &self.info, &self.state, |ctx| {
-                            frame.push_widget(ctx, |ctx, frame| self.child.render(ctx, frame));
-                        });
-                    } else {
-                        // can_reuse_widget is always `false`.
-                        todo!()
                     }
+
+                    ctx.with_widget(self.id, &self.info, &self.state, |ctx| {
+                        frame.push_widget(ctx, reuse, |ctx, frame| self.child.render(ctx, frame));
+                    });
                 }
 
                 fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
