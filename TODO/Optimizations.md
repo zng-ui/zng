@@ -23,6 +23,11 @@
 * First render is also slow.
 * We block the app process waiting view-process startup.
 
+# Event Route
+
+Limit events so only the affected widgets are visited in `UiNode::event`, right now all nodes that subscribe
+to the event type are affected, so common events almost visit the full tree.
+
 # Cache Everything
 
 General idea, reuse computed data for `UiNode` info, layout and render at
@@ -34,10 +39,12 @@ widget boundaries if the widget or inner widgets did not request an update of th
 
 ## `UiNode::render`
 
-* Already started implementing this, see `ReuseGroups`.
+* Already started implementing this, see `ReuseGroup`.
   - Webrender reuse depends on space/clip ids and these invalidate all items after an insert remove.
   - Worst, we can't cache creation of space/clips because it will just mess-up the id count for all subsequent items.
   - Maybe we should stop using the webrender display list.
+    - If we had more access to the display list internals we could save by ranges for each widget, then send range refs to
+      the previous display list bytes that is retained in the view-process.
 
 # Image Render
 
