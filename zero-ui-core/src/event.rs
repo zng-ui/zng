@@ -1111,9 +1111,9 @@ type Retain = bool;
 ///
 ///         ..
 ///
-///         /// If `ctx.path.widget_id()` is in the `self.target` path.
+///         /// If `target` starts with the current path.
 ///         fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
-///             self.target.contains(ctx.path.widget_id())
+///             ctx.path.is_start_of(&self.target)
 ///         }
 ///
 ///         /// Optional validation, if defined the generated `new` and `now` functions call it and unwrap the result.
@@ -1405,9 +1405,9 @@ pub use crate::event_args;
 ///
 ///         ..
 ///
-///         /// If `ctx.path.widget_id()` is in the `self.target` path.
+///         /// If `target` starts with the current path.
 ///         fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
-///             self.target.contains(ctx.path.widget_id())
+///             ctx.path.is_start_of(&self.target)
 ///         }
 ///
 ///         /// Optional validation, if defined the generated `new` and `now` functions call it and unwrap the result.

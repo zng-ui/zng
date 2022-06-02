@@ -1,6 +1,6 @@
 //! Context information for app extensions, windows and widgets.
 
-use crate::{WidgetPath, event::Events, service::Services, units::*, var::Vars, window::WindowId, WidgetId};
+use crate::{event::Events, service::Services, units::*, var::Vars, window::WindowId, WidgetId, WidgetPath};
 use std::cell::Cell;
 use std::{fmt, ops::Deref};
 

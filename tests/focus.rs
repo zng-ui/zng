@@ -42,7 +42,7 @@ pub fn first_and_last_window_events() {
 
     // the window remembers its previous focused descendant.
     assert!(events[0].prev_return.is_none());
-    assert_eq!(root_id, events[0].scope_id);
+    assert_eq!(root_id, events[0].scope.as_ref().map(|p| p.widget_id()).unwrap());
     assert_eq!(Some(button_0_path.clone()), events[0].new_return);
 
     /*

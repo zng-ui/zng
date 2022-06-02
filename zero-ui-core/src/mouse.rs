@@ -50,14 +50,11 @@ event_args! {
 
         ..
 
-        /// If the widget is in [`target`] and is [allowed] by the [`capture`].
+        /// If the [`target`] starts with the current path.
         ///
         /// [`target`]: Self::target
-        /// [allowed]: CaptureInfo::allows
-        /// [`capture`]: Self::capture
         fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
-            self.target.contains(ctx.path.widget_id())
-            && self.capture.as_ref().map(|c| c.allows(ctx.path)).unwrap_or(true)
+            ctx.path.is_start_of(&self.target)
         }
     }
 
@@ -92,15 +89,11 @@ event_args! {
 
         ..
 
-        /// If the widget is in [`target`], is interactive and is [allowed] by the [`capture`].
+        /// If the [`target`] starts with the current path.
         ///
         /// [`target`]: Self::target
-        /// [allowed]: CaptureInfo::allows
-        /// [`capture`]: Self::capture
         fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
-            self.target.contains(ctx.path.widget_id())
-            && self.capture.as_ref().map(|c|c.allows(ctx.path)).unwrap_or(true)
-            && ctx.info_tree.find(ctx.path.widget_id()).map(|w|w.allow_interaction()).unwrap_or(false)
+            ctx.path.is_start_of(&self.target)
         }
     }
 
@@ -147,12 +140,11 @@ event_args! {
 
         ..
 
-        /// If the widget is in [`target`] and is interactive.
+        /// If the  [`target`] starts with the current path.
         ///
         /// [`target`]: MouseClickArgs::target
         fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
-            self.target.contains(ctx.path.widget_id())
-            && ctx.info_tree.find(ctx.path.widget_id()).map(|w|w.allow_interaction()).unwrap_or(false)
+            ctx.path.is_start_of(&self.target)
         }
     }
 
@@ -189,19 +181,22 @@ event_args! {
 
         ..
 
-        /// If the widget is in [`target`] or [`prev_target`] and
-        /// if it is [allowed] by the [`capture`].
+        /// If the [`target`] or [`prev_target`] starts with the current path.
         ///
         /// [`target`]: Self::target
         /// [`prev_target`]: Self::prev_target
-        /// [allowed]: CaptureInfo::allows
-        /// [`capture`]: Self::capture
         fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
-            self.capture.as_ref().map(|c|c.allows(ctx.path)).unwrap_or(true)
-            && (
-                self.target.as_ref().map(|p| p.contains(ctx.path.widget_id())).unwrap_or(false) ||
-                self.prev_target.as_ref().map(|p|p.contains(ctx.path.widget_id())).unwrap_or(false)
-            )
+            if let Some(prev) = &self.prev_target {
+                if ctx.path.is_start_of(prev) {
+                    return true;
+                }
+            }
+            if let Some(new) = &self.target {
+                if ctx.path.is_start_of(new) {
+                    return true;
+                }
+            }
+            false
         }
     }
 
@@ -214,18 +209,16 @@ event_args! {
 
         ..
 
-        /// If the [`prev_capture`] or [`new_capture`] contains the widget.
+        /// If the [`prev_capture`] or [`new_capture`] paths start with the current path.
         ///
-        /// [`prev_capture`]: Self::prev_capture
-        /// [`new_capture`]: Self::new_capture
         fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
             if let Some(prev) = &self.prev_capture {
-                if prev.0.contains(ctx.path.widget_id()) {
+                if ctx.path.is_start_of(&prev.0) {
                     return true;
                 }
             }
             if let Some(new) = &self.new_capture {
-                if new.0.contains(ctx.path.widget_id()) {
+                if ctx.path.is_start_of(&new.0) {
                     return true;
                 }
             }
@@ -259,12 +252,11 @@ event_args! {
 
         ..
 
-        /// If the widget is in [`target`] and is interactive.
+        /// If the [`target`] starts with the current widget.
         ///
         /// [`target`]: MouseWheelArgs::target
         fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
-            self.target.contains(ctx.path.widget_id())
-            && ctx.info_tree.find(ctx.path.widget_id()).map(|w|w.allow_interaction()).unwrap_or(false)
+            ctx.path.is_start_of(&self.target)
         }
     }
 }

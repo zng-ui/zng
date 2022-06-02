@@ -1434,6 +1434,11 @@ crate::event_args! {
 
         ..
 
+        /// True for all widgets for [`CommandScope::App`].
+        ///
+        /// True for all widgets in the same window for [`CommandScope::Window`].
+        ///
+        /// True for the widget and ancestors for [`CommandScope::Widget`].
         fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
             match self.scope {
                 CommandScope::App => true,

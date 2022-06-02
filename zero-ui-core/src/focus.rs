@@ -118,18 +118,17 @@ event_args! {
 
         ..
 
-        /// If the widget is [`prev_focus`](Self::prev_focus) or
-        /// [`new_focus`](Self::new_focus).
+        /// If [`prev_focus`](Self::prev_focus) or [`new_focus`](Self::new_focus) starts with the current widget.
         fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
             if let Some(prev) = &self.prev_focus {
-                if prev.contains(ctx.path.widget_id()) {
-                    return true
+                if ctx.path.is_start_of(prev) {
+                    return true;
                 }
             }
 
             if let Some(new) = &self.new_focus {
-                if new.contains(ctx.path.widget_id()) {
-                    return true
+                if ctx.path.is_start_of(new) {
+                    return true;
                 }
             }
 
@@ -140,7 +139,9 @@ event_args! {
     /// [`ReturnFocusChangedEvent`] arguments.
     pub struct ReturnFocusChangedArgs {
         /// The scope that returns the focus when focused directly.
-        pub scope_id : WidgetId,
+        ///
+        /// Is `None` if the previous focus was the return focus of a scope that was removed.
+        pub scope : Option<WidgetPath>,
 
         /// Previous return focus of the widget.
         pub prev_return: Option<WidgetPath>,
@@ -150,22 +151,28 @@ event_args! {
 
         ..
 
-        /// If the widget is [`prev_return`](Self::prev_return), [`new_return`](Self::new_return)
-        /// or [`scope_id`](Self::scope_id).
+        /// If [`prev_return`](Self::prev_return), [`new_return`](Self::new_return)
+        /// or [`scope`](Self::scope) starts with the current widget.
         fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
             if let Some(prev) = &self.prev_return {
-                if prev.widget_id() == ctx.path.widget_id() {
-                    return true
+                if ctx.path.is_start_of(prev) {
+                    return true;
                 }
             }
 
             if let Some(new) = &self.new_return {
-                if new.widget_id() == ctx.path.widget_id() {
-                    return true
+                if ctx.path.is_start_of(new) {
+                    return true;
                 }
-
             }
-            self.scope_id == ctx.path.widget_id()
+
+            if let Some(scope) = &self.scope {
+                if ctx.path.is_start_of(scope) {
+                    return true;
+                }
+            }
+
+            false
         }
     }
 }
@@ -230,13 +237,17 @@ impl ReturnFocusChangedArgs {
         }
     }
 
-    /// If [`scope_id`](Self::scope_id) is an ALT scope and `prev_return` or `new_return` if the
+    /// If [`scope`](Self::scope) is an ALT scope and `prev_return` or `new_return` if the
     /// widget outside the scope that will be focused back when the user escapes the ALT scope.
     pub fn is_alt_return(&self) -> bool {
-        match (&self.prev_return, &self.new_return) {
-            (Some(prev), None) => !prev.contains(self.scope_id),
-            (None, Some(new)) => !new.contains(self.scope_id),
-            _ => false,
+        if let Some(scope) = &self.scope {
+            match (&self.prev_return, &self.new_return) {
+                (Some(prev), None) => !prev.contains(scope.widget_id()),
+                (None, Some(new)) => !new.contains(scope.widget_id()),
+                _ => false,
+            }
+        } else {
+            false
         }
     }
 }
@@ -670,7 +681,7 @@ pub struct Focus {
     return_focused: IdMap<WidgetId, WidgetPath>,
 
     alt_return_var: RcVar<Option<WidgetPath>>,
-    alt_return: Option<(WidgetId, WidgetPath)>,
+    alt_return: Option<(WidgetPath, WidgetPath)>,
 
     is_highlighting_var: RcVar<bool>,
     is_highlighting: bool,
@@ -1135,22 +1146,20 @@ impl Focus {
     fn update_returns(&mut self, vars: &Vars, prev_focus: Option<WidgetPath>, windows: &Windows) -> Vec<ReturnFocusChangedArgs> {
         let mut r = vec![];
 
-        if let Some((scope_id, _)) = &self.alt_return {
+        if let Some((scope, _)) = &self.alt_return {
             // if we have an `alt_return` check if is still inside the ALT.
-
-            let scope_id = *scope_id;
 
             let mut retain_alt = false;
             if let Some(new_focus) = &self.focused {
-                if new_focus.contains(scope_id) {
+                if new_focus.contains(scope.widget_id()) {
                     retain_alt = true; // just a focus move inside the ALT.
                 }
             }
 
             if !retain_alt {
-                let (scope_id, widget_path) = self.alt_return.take().unwrap();
+                let (scope, widget_path) = self.alt_return.take().unwrap();
                 self.alt_return_var.set_ne(vars, None);
-                r.push(ReturnFocusChangedArgs::now(scope_id, Some(widget_path), None));
+                r.push(ReturnFocusChangedArgs::now(scope, Some(widget_path), None));
             }
         } else if let Some(new_focus) = &self.focused {
             // if we don't have an `alt_return` but focused something, check if focus
@@ -1164,19 +1173,19 @@ impl Focus {
                         widget.scopes().find(|s| s.is_alt_scope())
                     };
                     if let Some(alt_scope) = alt_scope {
-                        let scope_id = alt_scope.info.widget_id();
+                        let scope = alt_scope.info.path();
                         // entered an alt_scope.
 
                         if let Some(prev) = &prev_focus {
                             // previous focus is the return.
-                            r.push(ReturnFocusChangedArgs::now(scope_id, None, Some(prev.clone())));
-                            self.alt_return = Some((scope_id, prev.clone()));
+                            r.push(ReturnFocusChangedArgs::now(scope.clone(), None, Some(prev.clone())));
+                            self.alt_return = Some((scope, prev.clone()));
                             self.alt_return_var.set(vars, prev.clone());
                         } else if let Some(parent) = alt_scope.parent() {
                             // no previous focus, ALT parent is the return.
                             let parent_path = parent.info.path();
-                            r.push(ReturnFocusChangedArgs::now(scope_id, None, Some(parent_path.clone())));
-                            self.alt_return = Some((scope_id, parent_path.clone()));
+                            r.push(ReturnFocusChangedArgs::now(scope.clone(), None, Some(parent_path.clone())));
+                            self.alt_return = Some((scope, parent_path.clone()));
                             self.alt_return_var.set(vars, parent_path);
                         }
                     }
@@ -1198,23 +1207,23 @@ impl Focus {
                             .scopes()
                             .filter(|s| s.focus_info().scope_on_focus() == FocusScopeOnFocus::LastFocused)
                         {
-                            let scope_id = scope.info.widget_id();
+                            let scope = scope.info.path();
                             let path = widget.info.path();
-                            if let Some(current) = self.return_focused.get_mut(&scope_id) {
+                            if let Some(current) = self.return_focused.get_mut(&scope.widget_id()) {
                                 if current != &path {
                                     let prev = std::mem::replace(current, path);
-                                    self.return_focused_var.get(&scope_id).unwrap().set(vars, current.clone());
-                                    r.push(ReturnFocusChangedArgs::now(scope_id, Some(prev), Some(current.clone())));
+                                    self.return_focused_var.get(&scope.widget_id()).unwrap().set(vars, current.clone());
+                                    r.push(ReturnFocusChangedArgs::now(scope, Some(prev), Some(current.clone())));
                                 }
                             } else {
-                                r.push(ReturnFocusChangedArgs::now(scope_id, None, Some(path.clone())));
-                                self.return_focused.insert(scope_id, path.clone());
-                                match self.return_focused_var.entry(scope_id) {
-                                    hash_map::Entry::Occupied(e) => e.get().set(vars, Some(path)),
+                                self.return_focused.insert(scope.widget_id(), path.clone());
+                                match self.return_focused_var.entry(scope.widget_id()) {
+                                    hash_map::Entry::Occupied(e) => e.get().set(vars, Some(path.clone())),
                                     hash_map::Entry::Vacant(e) => {
-                                        e.insert(var(Some(path)));
+                                        e.insert(var(Some(path.clone())));
                                     }
                                 }
+                                r.push(ReturnFocusChangedArgs::now(scope, None, Some(path)));
                             }
                         }
                     }
@@ -1250,7 +1259,11 @@ impl Focus {
                         let path = widget.info.path();
                         if &path != widget_path {
                             // widget moved inside scope.
-                            r.push(ReturnFocusChangedArgs::now(scope_id, Some(widget_path.clone()), Some(path.clone())));
+                            r.push(ReturnFocusChangedArgs::now(
+                                scope.info.path(),
+                                Some(widget_path.clone()),
+                                Some(path.clone()),
+                            ));
                             *widget_path = path;
                         }
                     }
@@ -1262,7 +1275,11 @@ impl Focus {
                             retain = true;
 
                             let path = first.info.path();
-                            r.push(ReturnFocusChangedArgs::now(scope_id, Some(widget_path.clone()), Some(path.clone())));
+                            r.push(ReturnFocusChangedArgs::now(
+                                scope.info.path(),
+                                Some(widget_path.clone()),
+                                Some(path.clone()),
+                            ));
                             *widget_path = path;
                         }
                     }
@@ -1275,54 +1292,70 @@ impl Focus {
                         retain = true;
 
                         let path = parent.info.path();
-                        r.push(ReturnFocusChangedArgs::now(scope_id, Some(widget_path.clone()), Some(path.clone())));
+                        r.push(ReturnFocusChangedArgs::now(
+                            scope.info.path(),
+                            Some(widget_path.clone()),
+                            Some(path.clone()),
+                        ));
                         *widget_path = path;
                     }
                 }
             }
 
             if !retain {
-                match self.return_focused_var.entry(scope_id) {
-                    hash_map::Entry::Occupied(e) => {
-                        if e.get().strong_count() == 1 {
-                            e.remove();
-                        } else {
-                            e.get().set(vars, None);
+                let scope_path = info.find(scope_id).map(|i| i.info.path());
+
+                if scope_path.is_some() {
+                    match self.return_focused_var.entry(scope_id) {
+                        hash_map::Entry::Occupied(e) => {
+                            if e.get().strong_count() == 1 {
+                                e.remove();
+                            } else {
+                                e.get().set(vars, None);
+                            }
                         }
+                        hash_map::Entry::Vacant(_) => {}
                     }
-                    hash_map::Entry::Vacant(_) => {}
+                } else if let Some(var) = self.return_focused_var.remove(&scope_id) {
+                    if var.strong_count() > 1 {
+                        var.set(vars, None);
+                    }
                 }
-                r.push(ReturnFocusChangedArgs::now(scope_id, Some(widget_path.clone()), None));
+
+                r.push(ReturnFocusChangedArgs::now(scope_path, Some(widget_path.clone()), None));
             }
             retain
         });
 
         let mut retain_alt = true;
-        if let Some((scope_id, widget_path)) = &mut self.alt_return {
-            let scope_id = *scope_id;
+        if let Some((scope, widget_path)) = &mut self.alt_return {
             if widget_path.window_id() == info.tree.window_id() {
-                // we needs to update alt_return
+                // we need to update alt_return
 
                 retain_alt = false; // will retain only if still valid
 
                 if let Some(widget) = info.get(widget_path) {
-                    if !widget.scopes().any(|s| s.info.widget_id() == scope_id) {
+                    if !widget.scopes().any(|s| s.info.widget_id() == scope.widget_id()) {
                         retain_alt = true; // retain, widget still exists outside of the ALT scope.
 
                         let path = widget.info.path();
                         if &path != widget_path {
                             // widget moved outside ALT scope.
-                            r.push(ReturnFocusChangedArgs::now(scope_id, Some(widget_path.clone()), Some(path)));
+                            r.push(ReturnFocusChangedArgs::now(scope.clone(), Some(widget_path.clone()), Some(path)));
                         }
                     }
                 } else if let Some(parent) = info.get_or_parent(widget_path) {
                     // widget not in window anymore, but a focusable parent is..
-                    if parent.scopes().any(|s| s.info.widget_id() == scope_id) {
+                    if !parent.scopes().any(|s| s.info.widget_id() == scope.widget_id()) {
                         // ..and the parent is not inside the ALT scope.
                         retain_alt = true;
 
                         let path = parent.info.path();
-                        r.push(ReturnFocusChangedArgs::now(scope_id, Some(widget_path.clone()), Some(path.clone())));
+                        r.push(ReturnFocusChangedArgs::now(
+                            scope.clone(),
+                            Some(widget_path.clone()),
+                            Some(path.clone()),
+                        ));
                         *widget_path = path.clone();
                         self.alt_return_var.set(vars, path)
                     }
@@ -1349,27 +1382,19 @@ impl Focus {
             .map(|(_, w)| w.window_id() == window_id)
             .unwrap_or_default()
         {
-            let (scope_id, widget_path) = self.alt_return.take().unwrap();
+            let (_, widget_path) = self.alt_return.take().unwrap();
             self.alt_return_var.set_ne(vars, None);
-            r.push(ReturnFocusChangedArgs::now(scope_id, Some(widget_path), None));
+            r.push(ReturnFocusChangedArgs::now(None, Some(widget_path), None));
         }
 
         self.return_focused.retain(|&scope_id, widget_path| {
             let retain = widget_path.window_id() != window_id;
 
             if !retain {
-                match self.return_focused_var.entry(scope_id) {
-                    hash_map::Entry::Occupied(e) => {
-                        if e.get().strong_count() == 1 {
-                            e.remove();
-                        } else {
-                            e.get().set(vars, None);
-                        }
-                    }
-                    hash_map::Entry::Vacant(_) => unreachable!(),
-                }
+                let var = self.return_focused_var.remove(&scope_id).unwrap();
+                var.set(vars, None);
 
-                r.push(ReturnFocusChangedArgs::now(scope_id, Some(widget_path.clone()), None));
+                r.push(ReturnFocusChangedArgs::now(None, Some(widget_path.clone()), None));
             }
 
             retain

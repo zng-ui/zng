@@ -48,9 +48,9 @@ event_args! {
 
         ..
 
-        /// Returns `true` if the widget is the [`target`](Self::target) or is a parent of the target.
+        /// If the [`target`](Self::target) starts with the current path.
         fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
-            self.target.contains(ctx.path.widget_id())
+            ctx.path.is_start_of(&self.target)
         }
     }
 
@@ -67,9 +67,9 @@ event_args! {
 
         ..
 
-        /// Returns `true` if the widget is the [`target`](Self::target) or is a parent of the target.
+        /// If the [`target`](Self::target) starts with the current path.
         fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
-            self.target.contains(ctx.path.widget_id())
+            ctx.path.is_start_of(&self.target)
         }
     }
 
@@ -83,7 +83,7 @@ event_args! {
 
         ..
 
-        /// Returns `true` for all widgets.
+        /// True for all widgets.
         fn concerns_widget(&self, _ctx: &mut WidgetContext) -> bool {
             true
         }
