@@ -1,6 +1,6 @@
 //! Context information for app extensions, windows and widgets.
 
-use crate::{event::Events, service::Services, units::*, var::Vars, window::WindowId, WidgetId};
+use crate::{WidgetPath, event::Events, service::Services, units::*, var::Vars, window::WindowId, WidgetId};
 use std::cell::Cell;
 use std::{fmt, ops::Deref};
 
@@ -742,6 +742,21 @@ impl WidgetContextPath {
     /// Returns `true` if the current widget is the window.
     pub fn is_root(&self) -> bool {
         self.widget_ids.len() == 1
+    }
+
+    /// If the `path` starts with the current path.
+    pub fn is_start_of(&self, path: &WidgetPath) -> bool {
+        let len = self.widget_ids.len();
+        if path.widgets_path().len() >= len {
+            for (cw, pw) in self.widget_ids.iter().rev().zip(path.widgets_path()[..len].iter().rev()) {
+                if cw != pw {
+                    return false;
+                }
+            }
+            self.window_id() == path.window_id()
+        } else {
+            false
+        }
     }
 }
 impl fmt::Debug for WidgetContextPath {

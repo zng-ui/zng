@@ -1438,7 +1438,30 @@ crate::event_args! {
             match self.scope {
                 CommandScope::App => true,
                 CommandScope::Window(id) => ctx.path.window_id() == id,
-                CommandScope::Widget(id) => ctx.path.contains(id),
+                CommandScope::Widget(id) => {
+                    let path_query = ctx.update_state.entry(CommandWidgetPathQuery).or_default();
+                    match &path_query {
+                        WidgetPathResult::Found(path) => {
+                            ctx.path.is_start_of(path)
+                        },
+                        WidgetPathResult::NotFound(win_id) if ctx.path.window_id() == *win_id => {
+                            false
+                        }
+                        _ => {
+                            if let Some(info) = ctx.info_tree.find(id) {
+                                let path = info.path();
+                                let concerns = ctx.path.is_start_of(&path);
+
+                                *path_query = WidgetPathResult::Found(path);
+
+                                concerns
+                            } else {
+                                *path_query = WidgetPathResult::NotFound(ctx.path.window_id());
+                                false
+                            }
+                        }
+                    }
+                },
                 CommandScope::Custom(_, _) => true,
             }
         }
@@ -1449,6 +1472,19 @@ impl CommandArgs {
     pub fn parameter<T: Any>(&self) -> Option<&T> {
         self.parameter.as_ref().and_then(|p| p.downcast_ref::<T>())
     }
+}
+enum WidgetPathResult {
+    NotQueried,
+    NotFound(WindowId),
+    Found(crate::WidgetPath),
+}
+impl Default for WidgetPathResult {
+    fn default() -> Self {
+        WidgetPathResult::NotQueried
+    }
+}
+state_key! {
+    struct CommandWidgetPathQuery: WidgetPathResult;
 }
 
 /// Helper for declaring command handlers.
