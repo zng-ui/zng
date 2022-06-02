@@ -4,6 +4,7 @@ Widget that need to be implemented.
 
 * Progress indicator.
 * Button (work button, default, primary, cancel, progress disabled).
+* Thumb, draggable.
 * Validation.
 * TextInput.
 * CheckInput.
