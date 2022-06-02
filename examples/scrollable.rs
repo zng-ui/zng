@@ -5,14 +5,14 @@ use zero_ui::widgets::scrollable::commands::ScrollToMode;
 use zero_ui_view_prebuilt as zero_ui_view;
 
 fn main() {
-    examples_util::print_info();
+    // examples_util::print_info();
     zero_ui_view::init();
 
-    // let rec = examples_util::record_profile("profile-scrollable.json.gz", &[("example", &"scrollable")], |_| true);
+    let rec = examples_util::record_profile("profile-scrollable.json.gz", &[("example", &"scrollable")], |_| true);
 
     app_main();
 
-    // rec.finish();
+    rec.finish();
 }
 
 fn app_main() {

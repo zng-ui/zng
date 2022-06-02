@@ -1,3 +1,5 @@
+mod mpsc;
+
 use std::{
     cell::Cell,
     fmt,
@@ -6,6 +8,7 @@ use std::{
     path::Path,
     sync::atomic::{AtomicU64, Ordering},
     thread,
+    time::Duration,
 };
 
 use rustc_hash::FxHashMap;
@@ -129,7 +132,7 @@ fn record_profile_impl(
     }
     write!(&mut file, r#"}},"traceEvents":["#).unwrap();
 
-    let (sender, recv) = flume::unbounded();
+    let (sender, mut recv) = mpsc::unbounded();
 
     let worker = thread::Builder::new()
         .name("profiler".to_owned())
@@ -145,13 +148,18 @@ fn record_profile_impl(
 
                 open: Vec<(u64, u64)>,
             }
-            let mut spans = FxHashMap::<span::Id, Span>::default();            
+            let mut spans = FxHashMap::<span::Id, Span>::default();
 
             let pid = std::process::id();
 
             let mut comma = "";
             loop {
-                match recv.recv().unwrap() {
+                let msg = recv.try_recv();
+                if msg.is_none() {
+                    thread::sleep(Duration::from_millis(10));
+                    continue;
+                }
+                match msg.unwrap() {
                     Msg::Event {
                         tid,
                         level,
@@ -305,17 +313,18 @@ fn record_profile_impl(
 
 /// A running recording operation.
 pub struct Recording {
-    sender: flume::Sender<Msg>,
+    sender: mpsc::Sender<Msg>,
     worker: thread::JoinHandle<()>,
 }
 impl Recording {
     /// Stop recording and wait flush.
     pub fn finish(self) {
-        self.sender.send(Msg::Finish).unwrap();
+        self.sender.send(Msg::Finish);
         self.worker.join().unwrap();
     }
 }
 
+#[derive(Debug)]
 enum Msg {
     ThreadInfo {
         id: u64,
@@ -371,10 +380,10 @@ enum Msg {
 struct Profiler {
     id: AtomicU64,
     tid: AtomicU64,
-    sender: flume::Sender<Msg>,
+    sender: mpsc::Sender<Msg>,
 }
 impl Profiler {
-    fn new(sender: flume::Sender<Msg>) -> Self {
+    fn new(sender: mpsc::Sender<Msg>) -> Self {
         Profiler {
             id: AtomicU64::new(1), // 0 is event
             tid: AtomicU64::new(1),
@@ -389,7 +398,7 @@ impl Profiler {
             } else {
                 let tid = self.tid.fetch_add(1, Ordering::Relaxed);
                 id.set(Some(tid));
-                let _ = self.sender.send(Msg::ThreadInfo {
+                self.sender.send(Msg::ThreadInfo {
                     id: tid,
                     name: thread::current()
                         .name()
@@ -410,8 +419,8 @@ impl Subscriber for Profiler {
         let id = span::Id::from_u64(self.id.fetch_add(1, Ordering::Relaxed));
 
         let meta = span.metadata();
-       
-        let _ = self.sender.send(Msg::NewSpan {
+
+        self.sender.send(Msg::NewSpan {
             id: id.clone(),
             level: *meta.level(),
             name: meta.name(),
@@ -425,12 +434,12 @@ impl Subscriber for Profiler {
     }
 
     fn clone_span(&self, id: &span::Id) -> span::Id {
-        let _ = self.sender.send(Msg::CloneSpan { id: id.clone() });
+        self.sender.send(Msg::CloneSpan { id: id.clone() });
         id.clone()
     }
 
     fn try_close(&self, id: span::Id) -> bool {
-        let _ = self.sender.send(Msg::DropSpan { id });
+        self.sender.send(Msg::DropSpan { id });
         true
     }
 
@@ -450,7 +459,7 @@ impl Subscriber for Profiler {
 
         let mut args = vec![];
         event.record(&mut event_values_collector(&mut args));
-        let _ = self.sender.send(Msg::Event {
+        self.sender.send(Msg::Event {
             tid,
             level: *meta.level(),
             name: meta.name(),
@@ -467,7 +476,7 @@ impl Subscriber for Profiler {
 
         let tid = self.thread_id();
 
-        let _ = self.sender.send(Msg::Enter { id: span.clone(), tid, ts });
+        self.sender.send(Msg::Enter { id: span.clone(), tid, ts });
     }
 
     fn exit(&self, span: &span::Id) {
@@ -475,7 +484,7 @@ impl Subscriber for Profiler {
 
         let tid = self.thread_id();
 
-        let _ = self.sender.send(Msg::Exit { id: span.clone(), tid, ts });
+        self.sender.send(Msg::Exit { id: span.clone(), tid, ts });
     }
 }
 
@@ -490,9 +499,13 @@ thread_local! {
     static THREAD_ID: Cell<Option<u64>> = Cell::new(None);
 }
 
-fn span_values_sender<'a>(id: &'a span::Id, sender: &'a flume::Sender<Msg>) -> RecordVisitor<impl FnMut(&'static str, String) + 'a> {
+fn span_values_sender<'a>(id: &'a span::Id, sender: &'a mpsc::Sender<Msg>) -> RecordVisitor<impl FnMut(&'static str, String) + 'a> {
     RecordVisitor(|key, value| {
-        let _ = sender.send(Msg::InsertArgs { id: id.clone(), key, value });
+        sender.send(Msg::InsertArgs {
+            id: id.clone(),
+            key,
+            value,
+        });
     })
 }
 
@@ -503,9 +516,7 @@ fn event_values_collector<'a>(args: &'a mut Vec<(&'static str, String)>) -> Reco
 }
 
 struct RecordVisitor<F>(F);
-impl<F> RecordVisitor<F> {
-    
-}
+impl<F> RecordVisitor<F> {}
 impl<F: FnMut(&'static str, String)> Visit for RecordVisitor<F> {
     fn record_debug(&mut self, field: &Field, value: &dyn fmt::Debug) {
         let value = format!("{value:?}");
@@ -534,7 +545,6 @@ impl<F: FnMut(&'static str, String)> Visit for RecordVisitor<F> {
         (self.0)(field.name(), format!(r#""{value}""#));
     }
 }
-
 
 struct NameDisplay<'a>(&'static str, &'a [&'static str], &'a FxHashMap<&'static str, String>);
 impl<'a> fmt::Display for NameDisplay<'a> {
