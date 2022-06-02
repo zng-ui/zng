@@ -377,7 +377,11 @@ pub mod implicit_base {
                     }
 
                     if self.subscriptions.borrow().event_contains(args) {
-                        let (_, updates) = ctx.widget_context(self.id, &self.info, &mut self.state, |ctx| self.child.event(ctx, args));
+                        let (_, updates) = ctx.widget_context(self.id, &self.info, &mut self.state, |ctx| {
+                            if args.concerns_widget(ctx) {
+                                self.child.event(ctx, args);
+                            }
+                        });
                         *self.pending_updates.get_mut() |= updates;
                     }
                 }

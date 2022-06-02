@@ -23,7 +23,10 @@ use std::{any::*, collections::VecDeque};
 pub trait EventArgs: Debug + Clone + 'static {
     /// Gets the instant this event happen.
     fn timestamp(&self) -> Instant;
-    /// If this event arguments is relevant to the widget context.
+
+    /// If this event arguments are relevant to the widget context or to a descendant of the widget.
+    ///
+    /// Ui tree branches are skipped if this returns `false`.
     fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool;
 
     /// Requests that subsequent handlers skip this event.
@@ -114,6 +117,8 @@ impl<E: Event> EventUpdate<E> {
             args: Box::new(self),
             debug_fmt: debug_fmt::<E>,
             debug_fmt_any: debug_fmt_any::<E>,
+            concerns_widget: concerns_widget::<E>,
+            concerns_widget_any: concerns_widget_any::<E>,
         }
     }
 
@@ -127,6 +132,8 @@ impl<E: Event> EventUpdate<E> {
             args: Box::new(self),
             debug_fmt: debug_fmt::<E>,
             debug_fmt_any: debug_fmt_any::<E>,
+            concerns_widget: concerns_widget::<E>,
+            concerns_widget_any: concerns_widget_any::<E>,
         }
     }
 
@@ -160,6 +167,12 @@ unsafe fn debug_fmt<E: Event>(args: &dyn UnsafeAny, f: &mut fmt::Formatter) -> f
     let args = args.downcast_ref_unchecked::<E::Args>();
     write!(f, "{}\n{:?}", type_name::<E>(), args)
 }
+/// Construct with [`concerns_widget`].
+type ConcernsWidgetFn = unsafe fn(&dyn UnsafeAny, ctx: &mut WidgetContext) -> bool;
+unsafe fn concerns_widget<E: Event>(args: &dyn UnsafeAny, ctx: &mut WidgetContext) -> bool {
+    let args = args.downcast_ref_unchecked::<E::Args>();
+    args.concerns_widget(ctx)
+}
 
 /// Boxed [`EventUpdateArgs`].
 pub struct BoxedEventUpdate {
@@ -168,6 +181,8 @@ pub struct BoxedEventUpdate {
     args: Box<dyn UnsafeAny>,
     debug_fmt: DebugFmtFn,
     debug_fmt_any: DebugFmtAnyFn,
+    concerns_widget: ConcernsWidgetFn,
+    concerns_widget_any: ConcernsWidgetAnyFn,
 }
 impl BoxedEventUpdate {
     /// Unbox the arguments for `Q` if the update is for `Q`.
@@ -186,7 +201,7 @@ impl crate::private::Sealed for BoxedEventUpdate {}
 impl fmt::Debug for BoxedEventUpdate {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "boxed ")?;
-        // SAFETY: we trust w e build the type correctly.
+        // SAFETY: only `EventUpdate<E>` can build and it is strongly typed.
         unsafe { (self.debug_fmt)(&*self.args, f) }
     }
 }
@@ -206,6 +221,7 @@ impl EventUpdateArgs for BoxedEventUpdate {
         AnyEventUpdate {
             event_type_id: self.event_type,
             debug_fmt: self.debug_fmt_any,
+            concerns_widget: self.concerns_widget_any,
             slot: self.slot,
             event_update_args: unsafe {
                 // SAFETY: no different then the EventUpdate::as_any()
@@ -217,6 +233,11 @@ impl EventUpdateArgs for BoxedEventUpdate {
     fn slot(&self) -> EventSlot {
         self.slot
     }
+
+    fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
+        // SAFETY: only `EventUpdate<E>` can build and it is strongly typed.
+        unsafe { (self.concerns_widget)(&*self.args, ctx) }
+    }
 }
 
 /// A [`BoxedEventUpdate`] that is [`Send`].
@@ -226,6 +247,8 @@ pub struct BoxedSendEventUpdate {
     args: Box<dyn UnsafeAny + Send>,
     debug_fmt: DebugFmtFn,
     debug_fmt_any: DebugFmtAnyFn,
+    concerns_widget: ConcernsWidgetFn,
+    concerns_widget_any: ConcernsWidgetAnyFn,
 }
 impl BoxedSendEventUpdate {
     /// Unbox the arguments for `Q` if the update is for `Q`.
@@ -251,6 +274,8 @@ impl BoxedSendEventUpdate {
             args: self.args,
             debug_fmt: self.debug_fmt,
             debug_fmt_any: self.debug_fmt_any,
+            concerns_widget: self.concerns_widget,
+            concerns_widget_any: self.concerns_widget_any,
         }
     }
 }
@@ -258,16 +283,22 @@ impl crate::private::Sealed for BoxedSendEventUpdate {}
 impl fmt::Debug for BoxedSendEventUpdate {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "boxed send")?;
-        // SAFETY: we trust w e build the type correctly.
+        // SAFETY: only `EventUpdate<E>` can build and it is strongly typed.
         unsafe { (self.debug_fmt)(&*self.args, f) }
     }
 }
 
 type DebugFmtAnyFn = unsafe fn(&(), &mut fmt::Formatter) -> fmt::Result;
+type ConcernsWidgetAnyFn = unsafe fn(&(), ctx: &mut WidgetContext) -> bool;
 
 unsafe fn debug_fmt_any<E: Event>(args: &(), f: &mut fmt::Formatter) -> fmt::Result {
     let args: &EventUpdate<E> = mem::transmute(args);
     write!(f, "{}\n{:?}", type_name::<E>(), args)
+}
+
+unsafe fn concerns_widget_any<E: Event>(args: &(), ctx: &mut WidgetContext) -> bool {
+    let args: &EventUpdate<E> = mem::transmute(args);
+    args.concerns_widget(ctx)
 }
 
 /// Type erased [`EventUpdateArgs`].
@@ -277,6 +308,7 @@ pub struct AnyEventUpdate<'a> {
     // this is a reference to a `EventUpdate<Q>`.
     event_update_args: &'a (),
     debug_fmt: DebugFmtAnyFn,
+    concerns_widget: ConcernsWidgetAnyFn,
 }
 impl<'a> AnyEventUpdate<'a> {
     /// Gets the [`TypeId`] of the event type represented by `self`.
@@ -287,7 +319,7 @@ impl<'a> AnyEventUpdate<'a> {
 impl<'a> fmt::Debug for AnyEventUpdate<'a> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "any")?;
-        // SAFETY: we trust w e build the type correctly.
+        // SAFETY: only `EventUpdate<E>` can build and it is strongly typed.
         unsafe { (self.debug_fmt)(self.event_update_args, f) }
     }
 }
@@ -311,11 +343,17 @@ impl<'a> EventUpdateArgs for AnyEventUpdate<'a> {
             slot: self.slot,
             event_update_args: self.event_update_args,
             debug_fmt: self.debug_fmt,
+            concerns_widget: self.concerns_widget,
         }
     }
 
     fn slot(&self) -> EventSlot {
         self.slot
+    }
+
+    fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
+        // SAFETY: only `EventUpdate<E>` can build and it is strongly typed.
+        unsafe { (self.concerns_widget)(self.event_update_args, ctx) }
     }
 }
 
@@ -329,6 +367,9 @@ pub trait EventUpdateArgs: fmt::Debug + crate::private::Sealed {
 
     /// Returns the [`EventSlot`] that represents the event type.
     fn slot(&self) -> EventSlot;
+
+    /// If this event update targets the widget or its descendants.
+    fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool;
 }
 impl<E: Event> EventUpdateArgs for EventUpdate<E> {
     fn args_for<Q: Event>(&self) -> Option<&EventUpdate<Q>> {
@@ -347,9 +388,10 @@ impl<E: Event> EventUpdateArgs for EventUpdate<E> {
         AnyEventUpdate {
             event_type_id: TypeId::of::<E>(),
             debug_fmt: debug_fmt_any::<E>,
+            concerns_widget: concerns_widget_any::<E>,
             slot: self.slot,
             event_update_args: unsafe {
-                // SAFETY: nothing will be done with it other then a validated restore in `args_for`.
+                // SAFETY: we validate all usages of this (args_for, concerns_widget, debug_fmt)
                 #[allow(clippy::transmute_ptr_to_ptr)]
                 mem::transmute(self)
             },
@@ -358,6 +400,10 @@ impl<E: Event> EventUpdateArgs for EventUpdate<E> {
 
     fn slot(&self) -> EventSlot {
         self.slot
+    }
+
+    fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
+        self.args.concerns_widget(ctx)
     }
 }
 
