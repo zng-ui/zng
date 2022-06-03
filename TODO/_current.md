@@ -7,6 +7,7 @@ allow interaction with "really not-interactable" widgets, such as those blocked 
 
 * Either we stop emitting disabled interactions or we expand the interaction filter to have levels of blockage?
 * See https://www.smashingmagazine.com/2021/08/frustrating-design-patterns-disabled-buttons/
+* Started implementing `Interaction` enum for filters.
 
 The args that removed default interaction filter where:
 

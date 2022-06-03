@@ -1,6 +1,6 @@
 //! Widget info tree.
 
-use std::{cell::Cell, fmt, mem, ops, rc::Rc};
+use std::{cell::Cell, fmt, mem, ops, rc::Rc, cmp};
 
 use ego_tree::Tree;
 
@@ -2014,3 +2014,58 @@ impl<'a> InteractiveFilterArgs<'a> {
 }
 
 type InteractiveFilters = Vec<Rc<dyn Fn(&InteractiveFilterArgs) -> bool>>;
+
+/// Represents the level of interaction allowed for an widget.
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum Interaction {
+    /// Normal interactions allowed.
+    /// 
+    /// This is the default value.
+    Enabled = 1,
+    /// Only "disabled" interaction allowed.
+    /// 
+    /// An example of disabled interaction is a tooltip that explains why a disabled button cannot be clicked.
+    Disabled,
+
+    /// No interaction allowed, the widget must behave like a background visual.
+    None,
+}
+impl Default for Interaction {
+    /// Enabled.
+    fn default() -> Self {
+        Interaction::Enabled
+    }
+}
+impl ops::BitOr for Interaction {
+    type Output = Interaction;
+
+    fn bitor(self, rhs: Self) -> Self::Output {
+        use Interaction::*;
+
+        match (self, rhs) {
+            (None, _) | (_, None) => None,
+            (Disabled, _) | (_, Disabled) => Disabled,
+            _ => Enabled
+        }
+    }
+}
+impl ops::BitOrAssign for Interaction {
+    fn bitor_assign(&mut self, rhs: Self) {
+        *self = *self | rhs;
+    }
+}
+impl cmp::PartialOrd for Interaction {
+    fn partial_cmp(&self, other: &Self) -> Option<cmp::Ordering> {
+        let a = *self as u8;
+        let b = *other as u8;
+        a.partial_cmp(&b)
+    }
+}
+impl cmp::Ord for Interaction {
+    fn cmp(&self, other: &Self) -> cmp::Ordering {
+        let a = *self as u8;
+        let b = *other as u8;
+        a.cmp(&b)
+    }
+}
