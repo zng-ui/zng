@@ -1240,7 +1240,9 @@ impl ContentCtrl {
         if self.subs.event_contains(args) {
             args.with_window(ctx, |ctx| {
                 ctx.widget_context(&self.info_tree, &self.root_info, &mut self.root_state, |ctx| {
-                    self.root.event(ctx, args);
+                    args.with_widget(ctx, |ctx| {
+                        self.root.event(ctx, args);
+                    });
                 });
             });
         }

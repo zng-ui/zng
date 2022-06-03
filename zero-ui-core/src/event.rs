@@ -274,7 +274,7 @@ impl EventDeliveryList {
             self.windows.get_mut().push(WindowDelivery {
                 id: widget_path.window_id(),
                 widgets: vec![widget_path.clone()],
-                all: true,
+                all: false,
             })
         }
         self
