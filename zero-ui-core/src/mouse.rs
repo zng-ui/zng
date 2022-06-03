@@ -11,7 +11,7 @@ use crate::{
     service::*,
     units::*,
     var::{impl_from_and_into_var, var, RcVar, ReadOnlyRcVar, Var},
-    widget_info::{WidgetInfoTree, WidgetPath},
+    widget_info::{InteractivityPath, WidgetInfoTree, WidgetPath},
     window::{WindowId, Windows, WindowsExt},
     WidgetId,
 };
@@ -43,7 +43,7 @@ event_args! {
         pub hits: FrameHitInfo,
 
         /// Full path to the top-most hit in [`hits`](MouseMoveArgs::hits).
-        pub target: WidgetPath,
+        pub target: InteractivityPath,
 
         /// Current mouse capture.
         pub capture: Option<CaptureInfo>,
@@ -163,7 +163,7 @@ event_args! {
         pub hits: FrameHitInfo,
 
         /// Previous top-most hit before the mouse moved.
-        pub prev_target: Option<WidgetPath>,
+        pub prev_target: Option<InteractivityPath>,
 
         /// Full path to the top-most hit in [`hits`].
         ///
@@ -171,7 +171,7 @@ event_args! {
         /// and there was a previous hovered widget.
         ///
         /// [`hits`]: MouseInputArgs::hits
-        pub target: Option<WidgetPath>,
+        pub target: Option<InteractivityPath>,
 
         /// Previous mouse capture.
         pub prev_capture: Option<CaptureInfo>,
@@ -186,7 +186,7 @@ event_args! {
         /// [`target`]: Self::target
         /// [`prev_target`]: Self::prev_target
         fn delivery_list(&self) -> EventDeliveryList {
-            EventDeliveryList::widgets_opt(&self.prev_target).with_widgets_opt(&self.target)
+            EventDeliveryList::widgets_opt(self.prev_target.as_deref()).with_widgets_opt(self.target.as_deref())
         }
     }
 
@@ -236,8 +236,9 @@ event_args! {
         /// Hit-test result for the mouse point in the window, at the moment the wheel event
         /// was generated.
         pub hits: FrameHitInfo,
+
         /// Full path to the widget that got scrolled.
-        pub target: WidgetPath,
+        pub target: InteractivityPath,
 
         ..
 
@@ -276,6 +277,26 @@ impl MouseHoverArgs {
         self.was_over(path) && !self.is_over(path)
     }
 
+    /// Returns `true` if the widget was not hovered or was disabled, but now is hovered and enabled.
+    pub fn is_mouse_enter_enabled(&self, path: &WidgetContextPath) -> bool {
+        (!self.was_over(path) || !self.was_enabled(path)) && self.is_over(path) && self.is_enabled(path)
+    }
+
+    /// Returns `true` if the widget as hovered and enabled, but now is not hovered or is disabled.
+    pub fn is_mouse_leave_enabled(&self, path: &WidgetContextPath) -> bool {
+        self.was_over(path) && self.was_enabled(path) && (!self.is_over(path) || !self.is_enabled(path))
+    }
+
+    /// Returns `true` if the widget was not hovered or was enabled, but now is hovered and disabled.
+    pub fn is_mouse_enter_disabled(&self, path: &WidgetContextPath) -> bool {
+        (!self.was_over(path) || self.was_enabled(path)) && self.is_over(path) && !self.is_enabled(path)
+    }
+
+    /// Returns `true` if the widget was hovered and disabled, but now is not hovered or is enabled.
+    pub fn is_mouse_leave_disabled(&self, path: &WidgetContextPath) -> bool {
+        self.was_over(path) && !self.was_enabled(path) && (!self.is_over(path) || self.is_enabled(path))
+    }
+
     /// Returns `true` if the widget is in [`prev_target`] and is allowed by the [`prev_capture`].
     ///
     /// [`prev_target`]: Self::prev_target
@@ -312,6 +333,28 @@ impl MouseHoverArgs {
         false
     }
 
+    /// Returns `true` if the widget was enabled in [`prev_target`].
+    ///
+    /// [`prev_target`]: Self::prev_target
+    pub fn was_enabled(&self, path: &WidgetContextPath) -> bool {
+        self.prev_target
+            .as_ref()
+            .and_then(|t| t.interactivity(path.widget_id()))
+            .map(|i| i.is_enabled())
+            .unwrap_or(false)
+    }
+
+    /// Returns `true` if the widget is enabled in [`target`].
+    ///
+    /// [`target`]: Self::target
+    pub fn is_enabled(&self, path: &WidgetContextPath) -> bool {
+        self.target
+            .as_ref()
+            .and_then(|t| t.interactivity(path.widget_id()))
+            .map(|i| i.is_enabled())
+            .unwrap_or(false)
+    }
+
     /// If the widget is in [`target`], [`prev_target`] or is the [`capture`] holder.
     ///
     /// [`target`]: Self::target
@@ -345,17 +388,7 @@ impl MouseInputArgs {
     /// [`target`]: Self::target
     /// [`capture`]: Self::capture
     pub fn concerns_capture(&self, ctx: &mut WidgetContext) -> bool {
-        (self.target.contains(ctx.path.widget_id())
-            && ctx
-                .info_tree
-                .find(ctx.path.widget_id())
-                .map(|w| w.interactivity())
-                .unwrap_or(false))
-            || self
-                .capture
-                .as_ref()
-                .map(|c| c.target.widget_id() == ctx.path.widget_id())
-                .unwrap_or(false)
+        todo!()
     }
 
     /// If the [`button`] is the primary.
@@ -581,7 +614,7 @@ pub struct MouseManager {
 
     capture_count: u8,
 
-    hovered: Option<WidgetPath>,
+    hovered: Option<InteractivityPath>,
 
     multi_click_config: RcVar<MultiClickConfig>,
 }
@@ -846,19 +879,20 @@ impl MouseManager {
             let hits = FrameHitInfo::new(window_id, hits_res.0, hits_res.1, &hits_res.2);
 
             let target = if let Some(t) = hits.target() {
-                frame_info.find(t.widget_id).map(|w| w.path()).unwrap_or_else(|| {
+                frame_info.find(t.widget_id).map(|w| w.interactivity_path()).unwrap_or_else(|| {
                     tracing::error!("hits target `{}` not found", t.widget_id);
-                    frame_info.root().path()
+                    frame_info.root().interactivity_path()
                 })
             } else {
-                frame_info.root().path()
-            };
+                frame_info.root().interactivity_path()
+            }
+            .unblocked();
 
             let capture = self.capture_info(ctx.services.mouse());
 
             // mouse_enter/mouse_leave.
-            let hovered_args = if self.hovered.as_ref().map(|h| h != &target).unwrap_or(true) {
-                let prev_target = mem::replace(&mut self.hovered, Some(target.clone()));
+            let hovered_args = if self.hovered != target {
+                let prev_target = mem::replace(&mut self.hovered, target.clone());
                 let args = MouseHoverArgs::now(
                     window_id,
                     device_id,
@@ -875,8 +909,10 @@ impl MouseManager {
             };
 
             // mouse_move
-            let args = MouseMoveArgs::now(window_id, device_id, self.modifiers, coalesced_pos, position, hits, target, capture);
-            MouseMoveEvent.notify(ctx.events, args);
+            if let Some(target) = target {
+                let args = MouseMoveArgs::now(window_id, device_id, self.modifiers, coalesced_pos, position, hits, target, capture);
+                MouseMoveEvent.notify(ctx.events, args);
+            }
 
             if let Some(args) = hovered_args {
                 MouseHoveredEvent.notify(ctx, args);
@@ -903,11 +939,13 @@ impl MouseManager {
 
         let target = hits
             .target()
-            .and_then(|t| frame_info.find(t.widget_id).map(|w| w.path()))
-            .unwrap_or_else(|| frame_info.root().path());
+            .and_then(|t| frame_info.find(t.widget_id).map(|w| w.interactivity_path()))
+            .unwrap_or_else(|| frame_info.root().interactivity_path());
 
-        let args = MouseWheelArgs::now(window_id, device_id, position, self.modifiers, delta, phase, hits, target);
-        MouseWheelEvent.notify(ctx.events, args);
+        if let Some(target) = target.unblocked() {
+            let args = MouseWheelArgs::now(window_id, device_id, position, self.modifiers, delta, phase, hits, target);
+            MouseWheelEvent.notify(ctx.events, args);
+        }
     }
 
     fn capture_info(&self, mouse: &mut Mouse) -> Option<CaptureInfo> {
@@ -976,7 +1014,7 @@ impl AppExtension for MouseManager {
                 let target = hits
                     .target()
                     .and_then(|t| windows.widget_tree(args.window_id).unwrap().find(t.widget_id))
-                    .map(|w| w.path());
+                    .and_then(|w| w.interactivity_path().unblocked());
 
                 self.pos_hits = (args.frame_id, args.cursor_hits.0, args.cursor_hits.1.clone());
 

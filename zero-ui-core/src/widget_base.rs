@@ -1,20 +1,19 @@
 //! The [`implicit_base`](mod@implicit_base) and properties used in all or most widgets.
 
-use std::{fmt, mem, ops};
+use std::{fmt, mem};
 
 use crate::{
-    context::{
-        state_key, InfoContext, LayoutContext, OwnedStateMap, RenderContext, StateMap, WidgetContext, WidgetUpdates, WindowRenderUpdate,
-    },
+    context::{InfoContext, LayoutContext, OwnedStateMap, RenderContext, StateMap, WidgetContext, WidgetUpdates, WindowRenderUpdate},
     event::EventUpdateArgs,
     impl_ui_node, property,
     render::{FrameBindingKey, FrameBuilder, FrameUpdate, SpatialFrameId},
     units::{PxCornerRadius, PxRect, PxSize, RenderTransform, RenderTransformExt},
     var::*,
     widget_info::{
-        LayoutPassId, UpdateMask, WidgetBorderInfo, WidgetBoundsInfo, WidgetContextInfo, WidgetInfo, WidgetInfoBuilder, WidgetLayout,
-        WidgetRenderInfo, WidgetSubscriptions,
+        Interactivity, LayoutPassId, UpdateMask, Visibility, WidgetBorderInfo, WidgetBoundsInfo, WidgetContextInfo, WidgetInfoBuilder,
+        WidgetLayout, WidgetRenderInfo, WidgetSubscriptions,
     },
+    window::WidgetInfoChangedEvent,
     FillUiNode, UiNode, Widget, WidgetId,
 };
 
@@ -525,55 +524,35 @@ context_var! {
     struct IsEnabledVar: bool = true;
 }
 
-/// Contextual [`enabled`](fn@enabled) accessor.
-pub struct IsEnabled;
-impl IsEnabled {
-    /// Gets the enabled state in the current `vars` context.
-    pub fn get<Vr: WithVarsRead>(vars: &Vr) -> bool {
-        vars.with_vars_read(|vars| *IsEnabledVar::get(vars))
-    }
-
-    /// Gets the new enabled state in the current `vars` context.
-    pub fn get_new<Vw: WithVars>(vars: &Vw) -> Option<bool> {
-        vars.with_vars(|vars| IsEnabledVar::get_new(vars).copied())
-    }
-
-    /// Gets the update mask for [`WidgetSubscriptions`].
-    ///
-    /// [`WidgetSubscriptions`]: crate::widget_info::WidgetSubscriptions
-    pub fn update_mask<Vr: WithVarsRead>(vars: &Vr) -> UpdateMask {
-        vars.with_vars_read(|vars| IsEnabledVar::new().update_mask(vars))
-    }
-}
-
-/// If interaction is allowed in the widget and its descendants.
+/// If default interaction is allowed in the widget and its descendants.
 ///
-/// This property sets the enabled state of the widget, to probe the enabled state in `when` clauses
-/// use [`is_enabled`] or [`is_disabled`]. To probe from inside the implementation of widgets use [`IsEnabled::get`].
-/// To probe the widget state use [`WidgetEnabledExt`].
+/// This property sets the interactivity of the widget to [`ENABLED`] or [`DISABLED`], to probe the enabled state in `when` clauses
+/// use [`is_enabled`] or [`is_disabled`]. To probe the a widget's state use [`interactivity`] value.
 ///
-/// # Interaction
+/// # Interactivity
 ///
-/// A widget allows interaction only if [`WidgetInfo::allow_interaction`] returns `true`, this property pushes an interaction
-/// filter that blocks interaction for the widget and all its descendants. Note that widgets can block interaction and
-/// still be *enabled*, meaning that it behaves like a *disabled* widget but looks like an idle enabled widget, this can happen,
-/// for example, when a *modal overlay* is open.
+/// Every widget has an [`interactivity`] value, it defines two *tiers* of disabled, the normal disabled blocks the default actions
+/// of the widget, but still allows some interactions, such as a different cursor on hover or event an error tool-tip on click, the
+/// second tier blocks all interaction with the widget. This property controls the *normal* disabled, to fully block interaction use
+/// the [`interactive`] property.
 ///
 /// # Disabled Visual
 ///
-/// Widgets that are expected to be interactive should visually indicate when they are not interactive, but **only** if interaction
-/// was disabled by this property, widgets visual should not try to use [`WidgetInfo::allow_interaction`] directly.
+/// Widgets that are interactive should visually indicate when the normal interactions are disabled, you can use the [`is_disabled`]
+/// state property in a when block to implement the *visually disabled* appearance of a widget.
 ///
 /// The visual cue for the disabled state is usually a reduced contrast from content and background by *graying-out* the text and applying a
-/// grayscale filter for image content.
+/// grayscale filter for image content. You should also consider adding *disabled interactions* that inform the user when the widget will be
+/// enabled.
 ///
 /// # Implicit
 ///
 /// This property is included in all widgets by default, you don't need to import it to use it.
 ///
-/// [`Event`]: crate:core::event::Event
-/// [`MouseDownEvent`]: crate::core::mouse::MouseDownEvent
-/// [`WidgetInfo::allow_interaction`]: crate::widget_info::WidgetInfo::allow_interaction
+/// [`ENABLED`]: crate::widget_info::Interactivity::ENABLED
+/// [`DISABLED`]: crate::widget_info::Interactivity::DISABLED
+/// [`interactivity`]: crate::widget_info::WidgetInfo::interactivity
+/// [`interactive`]: fn@interactive
 /// [`is_enabled`]: fn@is_enabled
 /// [`is_disabled`]: fn@is_disabled
 #[property(context, default(true))]
@@ -586,8 +565,6 @@ pub fn enabled(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
     impl<C: UiNode, E: Var<bool>> UiNode for EnabledNode<C, E> {
         fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
             if !self.local_enabled.copy(ctx) {
-                info.meta().set(EnabledState, false);
-
                 let id = ctx.path.widget_id();
                 info.push_interactivity_filter(move |args| {
                     if args.info.self_and_ancestors().all(|w| w.widget_id() != id) {
@@ -624,12 +601,18 @@ pub fn enabled(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
     )
 }
 
-/// If interaction is allowed in the widget and its descendants.
+/// If any interaction is allowed in the widget and its descendants.
+///
+/// This property sets the interactivity of the widget to [`BLOCKED`] when `false`, widgets with blocked interactivity do not
+/// receive any interaction event and behave like a background visual. To probe the widget state use [`interactivity`] value.
 ///
 /// This property *enables* and *disables* interaction with the widget and its descendants without causing
-/// a visual change like [`enabled`].
+/// a visual change like [`enabled`], it also blocks "disabled" interactions such as a different cursor or tool-tip for disabled buttons,
+/// its use cases are more advanced then [`enabled`], it is mostly used when large parts of the screen are "not ready", hopefully with a message
+/// explaining things to the user.
 ///
-/// Note that this affects *contextual widget*, to disable interaction only in widgets inside `child` use the [`interactive_node`].
+/// Note that this affects the widget where it is set and descendants, to disable interaction only in the widgets
+/// inside `child` use the [`interactive_node`].
 ///
 /// [`enabled`]: fn@enabled
 #[property(context, default(true))]
@@ -643,7 +626,13 @@ pub fn interactive(child: impl UiNode, interactive: impl IntoVar<bool>) -> impl 
         fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
             if !self.interactive.copy(ctx) {
                 let id = ctx.path.widget_id();
-                info.push_interactivity_filter(move |args| args.info.self_and_ancestors().all(|w| w.widget_id() != id));
+                info.push_interactivity_filter(move |args| {
+                    if args.info.self_and_ancestors().all(|w| w.widget_id() != id) {
+                        Interactivity::ENABLED
+                    } else {
+                        Interactivity::BLOCKED
+                    }
+                });
             }
             self.child.info(ctx, info);
         }
@@ -666,10 +655,15 @@ pub fn interactive(child: impl UiNode, interactive: impl IntoVar<bool>) -> impl 
     }
 }
 
-/// Create a node that disables interaction for all widget inside `node`.
+/// Create a node that disables interaction for all widget inside `node` using [`BLOCKED`].
+///
+/// Unlike the [`interactive`] property this does not apply to the contextual widget, only `child` and descendants.
 ///
 /// The node works for both if the `child` is a widget or if it contains widgets, the performance
 /// is slightly better if the `child` is a widget directly.
+///
+/// [`BLOCKED`]: Interactivity::BLOCKED
+/// [`interactive`]: fn@interactive
 pub fn interactive_node(child: impl UiNode, interactive: impl IntoVar<bool>) -> impl UiNode {
     struct BlockInteractionNode<C, I> {
         child: C,
@@ -682,7 +676,13 @@ pub fn interactive_node(child: impl UiNode, interactive: impl IntoVar<bool>) -> 
                 self.child.info(ctx, info);
             } else if let Some(id) = self.child.try_id() {
                 // child is an widget.
-                info.push_interactivity_filter(move |args| args.info.self_and_ancestors().all(|w| w.widget_id() != id));
+                info.push_interactivity_filter(move |args| {
+                    if args.info.self_and_ancestors().all(|w| w.widget_id() != id) {
+                        Interactivity::ENABLED
+                    } else {
+                        Interactivity::BLOCKED
+                    }
+                });
                 self.child.info(ctx, info);
             } else {
                 let block_range = info.with_children_range(|info| self.child.info(ctx, info));
@@ -698,7 +698,11 @@ pub fn interactive_node(child: impl UiNode, interactive: impl IntoVar<bool>) -> 
                                 // check child range
                                 for (i, item) in parent.children().enumerate() {
                                     if item == child {
-                                        return !block_range.contains(&i);
+                                        return if !block_range.contains(&i) {
+                                            Interactivity::ENABLED
+                                        } else {
+                                            Interactivity::BLOCKED
+                                        };
                                     } else if i >= block_range.end {
                                         break 'ancestors;
                                     }
@@ -707,7 +711,7 @@ pub fn interactive_node(child: impl UiNode, interactive: impl IntoVar<bool>) -> 
                                 child = parent;
                             }
                         }
-                        true
+                        Interactivity::ENABLED
                     });
                 }
             }
@@ -732,7 +736,13 @@ struct IsEnabledNode<C: UiNode> {
 }
 impl<C: UiNode> IsEnabledNode<C> {
     fn update_state(&self, ctx: &mut WidgetContext) {
-        let is_state = IsEnabled::get(ctx) == self.expected;
+        let is_state = ctx
+            .info_tree
+            .find(ctx.path.widget_id())
+            .unwrap()
+            .interactivity()
+            .is_visually_enabled()
+            == self.expected;
         self.state.set_ne(ctx.vars, is_state);
     }
 }
@@ -744,13 +754,17 @@ impl<C: UiNode> UiNode for IsEnabledNode<C> {
     }
 
     fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-        subs.updates(&IsEnabled::update_mask(ctx));
+        subs.event(WidgetInfoChangedEvent);
         self.child.subscriptions(ctx, subs);
     }
 
-    fn update(&mut self, ctx: &mut WidgetContext) {
-        self.child.update(ctx);
-        self.update_state(ctx);
+    fn event<A: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &A) {
+        if let Some(args) = WidgetInfoChangedEvent.update(args) {
+            self.update_state(ctx);
+            self.child.event(ctx, args);
+        } else {
+            self.child.event(ctx, args);
+        }
     }
 }
 
@@ -867,74 +881,6 @@ pub fn visibility(child: impl UiNode, visibility: impl IntoVar<Visibility>) -> i
         child,
         prev_vis: Visibility::Visible,
         visibility: visibility.into_var(),
-    }
-}
-
-/// Widget visibility.
-///
-/// The visibility status of a widget is computed from its outer-bounds in the last layout and if it rendered anything,
-/// the visibility of a parent widget affects all descendant widgets, you can inspect the visibility using the
-/// [`WidgetInfo::visibility`] method.
-///
-/// You can use  the [`visibility`] property to explicitly set the visibility of a widget, this property causes the widget to
-/// layout and render according to specified visibility.
-///
-/// [`WidgetInfo::visibility`]: crate::widget_info::WidgetInfo::visibility
-/// [`visibility`]: fn@visibility
-#[derive(Copy, Clone, Eq, PartialEq)]
-pub enum Visibility {
-    /// The widget is visible, this is default.
-    Visible,
-    /// The widget is not visible, but still affects layout.
-    ///
-    /// Hidden widgets measure and reserve space in their parent but are not rendered.
-    Hidden,
-    /// The widget is not visible and does not affect layout.
-    ///
-    /// Collapsed widgets always measure to zero and are not rendered.
-    Collapsed,
-}
-impl fmt::Debug for Visibility {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        if f.alternate() {
-            write!(f, "Visibility::")?;
-        }
-        match self {
-            Visibility::Visible => write!(f, "Visible"),
-            Visibility::Hidden => write!(f, "Hidden"),
-            Visibility::Collapsed => write!(f, "Collapsed"),
-        }
-    }
-}
-impl Default for Visibility {
-    /// [` Visibility::Visible`]
-    fn default() -> Self {
-        Visibility::Visible
-    }
-}
-impl ops::BitOr for Visibility {
-    type Output = Self;
-
-    /// `Collapsed` | `Hidden` | `Visible` short circuit from left to right.
-    fn bitor(self, rhs: Self) -> Self::Output {
-        use Visibility::*;
-        match (self, rhs) {
-            (Collapsed, _) | (_, Collapsed) => Collapsed,
-            (Hidden, _) | (_, Hidden) => Hidden,
-            _ => Visible,
-        }
-    }
-}
-impl ops::BitOrAssign for Visibility {
-    fn bitor_assign(&mut self, rhs: Self) {
-        *self = *self | rhs;
-    }
-}
-impl_from_and_into_var! {
-    /// * `true` -> `Visible`
-    /// * `false` -> `Collapsed`
-    fn from(visible: bool) -> Visibility {
-        if visible { Visibility::Visible } else { Visibility::Collapsed }
     }
 }
 

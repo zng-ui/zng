@@ -72,7 +72,7 @@ pub fn capture_mouse(child: impl UiNode, mode: impl IntoVar<CaptureMode>) -> imp
                 if ctx
                     .info_tree
                     .find(ctx.path.widget_id())
-                    .map(|w| w.interactivity())
+                    .map(|w| w.interactivity().is_enabled())
                     .unwrap_or(false)
                 {
                     let mouse = ctx.services.mouse();
@@ -165,7 +165,11 @@ pub fn modal(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
                         }
 
                         let modal = mws.last_in_tree.unwrap();
-                        a.info.self_and_ancestors().any(|w| w.widget_id() == modal)
+                        if a.info.self_and_ancestors().any(|w| w.widget_id() == modal) {
+                            Interactivity::ENABLED
+                        } else {
+                            Interactivity::DISABLED
+                        }
                     }));
                 }
             } else {

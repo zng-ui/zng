@@ -86,8 +86,7 @@ use crate::{
     service::Service,
     units::*,
     var::{impl_from_and_into_var, var, RcVar, ReadOnlyRcVar, Var, Vars},
-    widget_base::Visibility,
-    widget_info::{DescendantFilter, WidgetInfo, WidgetInfoTree, WidgetPath},
+    widget_info::{DescendantFilter, Visibility, WidgetInfo, WidgetInfoTree, WidgetPath},
     window::{FocusIndicator, WidgetInfoChangedEvent, WindowFocusChangedEvent, WindowId, Windows},
     WidgetId,
 };
@@ -120,7 +119,7 @@ event_args! {
 
         /// The [`prev_focus`](Self::prev_focus) and [`new_focus`](Self::new_focus).
         fn delivery_list(&self) -> EventDeliveryList {
-            EventDeliveryList::widgets_opt(&self.prev_focus).with_widgets_opt(&self.new_focus)
+            EventDeliveryList::widgets_opt(self.prev_focus.as_ref()).with_widgets_opt(self.new_focus.as_ref())
         }
     }
 
@@ -142,9 +141,9 @@ event_args! {
         /// The [`prev_return`](Self::prev_return), [`new_return`](Self::new_return)
         /// and [`scope`](Self::scope).
         fn delivery_list(&self) -> EventDeliveryList {
-            EventDeliveryList::widgets_opt(&self.scope)
-                .with_widgets_opt(&self.prev_return)
-                .with_widgets_opt(&self.new_return)
+            EventDeliveryList::widgets_opt(self.scope.as_ref())
+                .with_widgets_opt(self.prev_return.as_ref())
+                .with_widgets_opt(self.new_return.as_ref())
         }
     }
 }
@@ -1661,7 +1660,7 @@ impl<'a> WidgetFocusInfo<'a> {
 
     /// Widget focus metadata.
     pub fn focus_info(self) -> FocusInfo {
-        if self.info.visibility() != Visibility::Visible || !self.info.interactivity() {
+        if self.info.visibility() != Visibility::Visible || !self.info.interactivity().is_enabled() {
             FocusInfo::NotFocusable
         } else if let Some(builder) = self.info.meta().get(FocusInfoKey) {
             builder.build()

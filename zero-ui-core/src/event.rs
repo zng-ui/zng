@@ -228,7 +228,7 @@ impl EventDeliveryList {
     }
 
     /// All widgets in the path.
-    pub fn widgets_opt(widget_path: &Option<WidgetPath>) -> Self {
+    pub fn widgets_opt(widget_path: Option<&WidgetPath>) -> Self {
         Self::none().with_widgets_opt(widget_path)
     }
 
@@ -281,7 +281,7 @@ impl EventDeliveryList {
     }
 
     /// Add the widgets in the path if it is some.
-    pub fn with_widgets_opt(self, widget_path: &Option<WidgetPath>) -> Self {
+    pub fn with_widgets_opt(self, widget_path: Option<&WidgetPath>) -> Self {
         if let Some(path) = widget_path {
             self.with_widgets(path)
         } else {
@@ -2129,7 +2129,8 @@ macro_rules! __event_property {
 /// See [`on_event`] and [`on_pre_event`] for more information.
 ///
 /// If you don't provide a filter predicate the default always allows, so all app events targeting the widget and not already handled
-/// are allowed by default.
+/// are allowed by default.  Note that events that represent an *interaction* with the widget are send for both [`ENABLED`] and [`DISABLED`]
+/// targets, event properties should probably distinguish if they fire on normal interactions vs on *disabled* interactions.
 ///
 /// # Async
 ///
@@ -2139,6 +2140,8 @@ macro_rules! __event_property {
 /// [`on_pre_event`]: crate::event::on_pre_event
 /// [`on_event`]: crate::event::on_event
 /// [`stop_propagation`]: EventArgs::stop_propagation
+/// [`ENABLED`]: crate::widget_info::Interactivity::ENABLED
+/// [`DISABLED`]: crate::widget_info::Interactivity::DISABLED
 #[macro_export]
 macro_rules! event_property {
     ($(
@@ -2170,7 +2173,8 @@ pub use crate::event_property;
 ///
 /// The `filter` predicate is called if [`stop_propagation`] is not requested. It must return `true` if the event arguments are
 /// relevant in the context of the widget. If it returns `true` the `handler` closure is called. Note that events that represent
-/// an *interaction* with the widget must check that the widget [`allow_interaction`].
+/// an *interaction* with the widget are send for both [`ENABLED`] and [`DISABLED`] targets, event properties should probably distinguish
+/// if they fire on normal interactions vs on *disabled* interactions.
 ///
 /// # Route
 ///
@@ -2179,13 +2183,14 @@ pub use crate::event_property;
 ///
 /// # Async
 ///
-/// Async event handlers are called like normal, but code after the first `.await` only runs in subsequent event updates. This means
+/// Async event handlers are called like normal, but code after the first `.await` only runs in subsequent updates. This means
 /// that [`stop_propagation`] must be called before the first `.await`, otherwise you are only signaling
 /// other async tasks handling the same event, if they are monitoring the [`stop_propagation_requested`].
 ///
-/// [`allow_interaction`]: crate::widget_info::WidgetInfo::allow_interaction
 /// [`stop_propagation`]: EventArgs::stop_propagation
 /// [`stop_propagation_requested`]: EventArgs::stop_propagation_requested
+/// [`ENABLED`]: crate::widget_info::Interactivity::ENABLED
+/// [`DISABLED`]: crate::widget_info::Interactivity::DISABLED
 pub fn on_event<C, E, F, H>(child: C, event: E, filter: F, handler: H) -> impl UiNode
 where
     C: UiNode,
@@ -2254,7 +2259,8 @@ where
 ///
 /// The `filter` predicate is called if [`stop_propagation`] is not requested. It must return `true` if the event arguments are
 /// relevant in the context of the widget. If it returns `true` the `handler` closure is called. Note that events that represent
-/// an *interaction* with the widget must check that the widget [`allow_interaction`].
+/// an *interaction* with the widget are send for both [`ENABLED`] and [`DISABLED`] targets, event properties should probably distinguish
+/// if they fire on normal interactions vs on *disabled* interactions.
 ///
 /// # Route
 ///
@@ -2267,9 +2273,10 @@ where
 /// that [`stop_propagation`] must be called before the first `.await`, otherwise you are only signaling
 /// other async tasks handling the same event, if they are monitoring the [`stop_propagation_requested`].
 ///
-/// [`allow_interaction`]: crate::widget_info::WidgetInfo::allow_interaction
 /// [`stop_propagation`]: EventArgs::stop_propagation
 /// [`stop_propagation_requested`]: EventArgs::stop_propagation_requested
+/// [`ENABLED`]: crate::widget_info::Interactivity::ENABLED
+/// [`DISABLED`]: crate::widget_info::Interactivity::DISABLED
 pub fn on_pre_event<C, E, F, H>(child: C, event: E, filter: F, handler: H) -> impl UiNode
 where
     C: UiNode,

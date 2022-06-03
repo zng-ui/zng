@@ -9,8 +9,7 @@ use crate::{
     render::{FrameBuilder, FrameUpdate},
     units::*,
     var::{context_var, BoxedVar, ContextVarData, Var, VarVersion},
-    widget_base::Visibility,
-    widget_info::{WidgetInfo, WidgetInfoTree, WidgetLayout, WidgetSubscriptions},
+    widget_info::{Visibility, WidgetInfo, WidgetInfoTree, WidgetLayout, WidgetSubscriptions},
     UiNode,
 };
 use crate::{

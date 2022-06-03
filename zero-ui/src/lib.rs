@@ -938,7 +938,8 @@ pub mod prelude {
             animation, easing, merge_var, state_var, switch_var, var, var_default, var_from, IntoVar, RcVar, Var, VarReceiver, VarSender,
             Vars,
         },
-        widget_base::{HitTestMode, Visibility},
+        widget_base::HitTestMode,
+        widget_info::Visibility,
         widget_vec, widgets,
         window::{
             AppRunWindowExt, AutoSize, CursorIcon, FocusIndicator, HeadlessAppWindowExt, MonitorId, MonitorQuery, MonitorsExt,
@@ -1037,7 +1038,7 @@ pub mod prelude {
         #[doc(no_inline)]
         pub use crate::core::var::*;
         #[doc(no_inline)]
-        pub use crate::core::widget_base::{HitTestMode, IsEnabled, WidgetInfoEnabledExt};
+        pub use crate::core::widget_base::HitTestMode;
         #[doc(no_inline)]
         pub use crate::core::window::{WidgetInfoChangedEvent, WindowId};
         #[doc(no_inline)]
@@ -1045,8 +1046,11 @@ pub mod prelude {
             impl_ui_node, node_vec, nodes, property,
             ui_list::{SortedWidgetVec, SortedWidgetVecRef, UiListObserver, UiNodeList, WidgetList, WidgetVec, WidgetVecRef},
             widget,
-            widget_base::{interactive_node, Visibility},
-            widget_info::{WidgetBorderInfo, WidgetBoundsInfo, WidgetInfoBuilder, WidgetLayout, WidgetRenderInfo, WidgetSubscriptions},
+            widget_base::interactive_node,
+            widget_info::{
+                Interactivity, Visibility, WidgetBorderInfo, WidgetBoundsInfo, WidgetInfoBuilder, WidgetLayout, WidgetRenderInfo,
+                WidgetSubscriptions,
+            },
             widget_mixin, widget_vec, widgets, BoxedUiNode, BoxedWidget, FillUiNode, UiNode, Widget, WidgetId,
         };
         #[doc(no_inline)]
@@ -1105,9 +1109,10 @@ pub mod prelude {
                 ZSortedWidgetList,
             },
             widget,
-            widget_base::{implicit_base, HitTestMode, Visibility},
+            widget_base::{implicit_base, HitTestMode},
             widget_info::{
-                WidgetBorderInfo, WidgetBoundsInfo, WidgetInfo, WidgetInfoBuilder, WidgetLayout, WidgetRenderInfo, WidgetSubscriptions,
+                Interactivity, Visibility, WidgetBorderInfo, WidgetBoundsInfo, WidgetInfo, WidgetInfoBuilder, WidgetLayout,
+                WidgetRenderInfo, WidgetSubscriptions,
             },
             widget_mixin, widget_vec, widgets, BoxedUiNode, BoxedWidget, FillUiNode, UiNode, Widget, WidgetId,
         };

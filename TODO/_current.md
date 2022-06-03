@@ -18,6 +18,8 @@ The args that removed default interaction filter where:
 * Review mouse hover args.
 * Review mouse cap args.
 
+* Review all state properties, must of then can be declared using the new `event_state` and `bind_state` helpers.
+
 =======
 
 * Implement layout and render optimization, see `Optimizations.md`.

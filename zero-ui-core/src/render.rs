@@ -666,8 +666,8 @@ impl FrameBuilder {
     /// Nodes the set the visibility to the equivalent of [`Hidden`] or [`Collapsed`] must not call `render` and `render_update`
     /// for the descendant nodes and must call this method to update the rendered status of all descendant nodes.
     ///
-    /// [`Hidden`]: crate::widget_base::Visibility::Hidden
-    /// [`Collapsed`]: crate::widget_base::Visibility::Collapsed
+    /// [`Hidden`]: crate::widget_info::Visibility::Hidden
+    /// [`Collapsed`]: crate::widget_info::Visibility::Collapsed
     pub fn skip_render(&self, info_tree: &WidgetInfoTree) {
         if let Some(w) = info_tree.find(self.widget_id) {
             w.render_info().set_rendered(self.widget_rendered);

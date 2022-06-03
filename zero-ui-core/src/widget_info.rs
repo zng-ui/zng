@@ -13,7 +13,6 @@ use crate::{
     impl_from_and_into_var,
     units::*,
     var::{Var, VarValue, VarsRead, WithVarsRead},
-    widget_base::Visibility,
     window::WindowId,
     UiNode, Widget, WidgetId,
 };
@@ -725,6 +724,137 @@ impl fmt::Debug for WidgetInfoTree {
         )
     }
 }
+impl PartialEq for InteractivityPath {
+    /// Paths are equal if the are the same window, widgets and interactivity.
+    fn eq(&self, other: &Self) -> bool {
+        self.as_path() == other.as_path() && self.interactivity == other.interactivity
+    }
+}
+impl Eq for InteractivityPath {}
+impl fmt::Debug for InteractivityPath {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if f.alternate() {
+            f.debug_struct("InteractivityPath")
+                .field("window_id", &self.window_id)
+                .field("path", &self.path)
+                .field("interactivity", &self.interactivity)
+                .finish_non_exhaustive()
+        } else {
+            write!(f, "{self}")
+        }
+    }
+}
+impl fmt::Display for InteractivityPath {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.as_path())
+    }
+}
+/// Represents a [`WidgetPath`] with extra [`Interactivity`] for each widget.
+#[derive(Clone)]
+pub struct InteractivityPath {
+    path: WidgetPath,
+    interactivity: Box<[Interactivity]>,
+}
+impl InteractivityPath {
+    /// New custom interactivity path.
+    ///
+    /// The path is not guaranteed to have ever existed.
+    pub fn new<P: IntoIterator<Item = (WidgetId, Interactivity)>>(window_id: WindowId, path: P) -> InteractivityPath {
+        let iter = path.into_iter();
+        let mut path = Vec::with_capacity(iter.size_hint().0);
+        let mut interactivity = Vec::with_capacity(path.capacity());
+        for (w, i) in iter {
+            path.push(w);
+            interactivity.push(i);
+        }
+        InteractivityPath {
+            path: WidgetPath::new(window_id, path),
+            interactivity: interactivity.into_boxed_slice(),
+        }
+    }
+
+    /// Dereferences to the path.
+    pub fn as_path(&self) -> &WidgetPath {
+        &self.path
+    }
+
+    /// Interactivity for each widget, root first.
+    pub fn interactivity_path(&self) -> &[Interactivity] {
+        &self.interactivity
+    }
+
+    /// Search for the interactivity value associated with the widget in the path.
+    pub fn interactivity(&self, widget_id: WidgetId) -> Option<Interactivity> {
+        self.zip().find_map(|(w, i)| if w == widget_id { Some(i) } else { None })
+    }
+
+    /// Zip widgets and interactivity.
+    pub fn zip(&self) -> impl Iterator<Item = (WidgetId, Interactivity)> + '_ {
+        self.path.widgets_path().iter().copied().zip(self.interactivity.iter().copied())
+    }
+
+    /// Gets the [`ENABLED`] or [`DISABLED`] part of the path, or none if the widget is blocked at the root.
+    ///
+    /// [`ENABLED`]: Self::ENABLED
+    /// [`DISABLED`]: Self::DISABLED
+    pub fn unblocked(self) -> Option<InteractivityPath> {
+        if let Some(i) = self.interactivity.iter().position(|i| i.is_blocked()) {
+            if i == 0 {
+                None
+            } else {
+                let mut interactivity = Vec::from(self.interactivity);
+                interactivity.truncate(i);
+                let mut path = Vec::from(self.path.path);
+                path.truncate(i);
+
+                Some(InteractivityPath {
+                    path: WidgetPath {
+                        node_id: None,
+                        window_id: self.path.window_id,
+                        path: path.into(),
+                    },
+                    interactivity: interactivity.into(),
+                })
+            }
+        } else {
+            Some(self)
+        }
+    }
+
+    /// Gets the [`ENABLED`] part of the path, or none if the widget is not enabled at the root.
+    ///
+    /// [`ENABLED`]: Self::ENABLED
+    pub fn enabled(self) -> Option<WidgetPath> {
+        if let Some(i) = self.interactivity.iter().position(|i| !i.is_enabled()) {
+            if i == 0 {
+                None
+            } else {
+                let mut path = Vec::from(self.path.path);
+                path.truncate(i);
+
+                Some(WidgetPath {
+                    node_id: None,
+                    window_id: self.path.window_id,
+                    path: path.into(),
+                })
+            }
+        } else {
+            Some(self.path)
+        }
+    }
+}
+impl ops::Deref for InteractivityPath {
+    type Target = WidgetPath;
+
+    fn deref(&self) -> &Self::Target {
+        &self.path
+    }
+}
+impl From<InteractivityPath> for WidgetPath {
+    fn from(p: InteractivityPath) -> Self {
+        p.path
+    }
+}
 
 /// Full address of a widget in a specific [`WidgetInfoTree`].
 #[derive(Clone)]
@@ -1203,6 +1333,28 @@ impl<'a> WidgetInfo<'a> {
         }
     }
 
+    /// Full path to this widget with [`interactivity`] values.
+    ///
+    /// [`interactivity`]: Self::interactivity
+    pub fn interactivity_path(self) -> InteractivityPath {
+        let mut path = vec![];
+        let mut interactivity = vec![];
+
+        for w in self.self_and_ancestors() {
+            path.push(w.widget_id());
+            interactivity.push(w.interactivity());
+        }
+
+        InteractivityPath {
+            path: WidgetPath {
+                window_id: self.tree.0.window_id,
+                node_id: Some((self.tree.0.id, self.node_id)),
+                path: path.into(),
+            },
+            interactivity: interactivity.into(),
+        }
+    }
+
     /// Gets the [`path`](Self::path) if it is different from `old_path`.
     ///
     /// Only allocates a new path if needed.
@@ -1267,7 +1419,7 @@ impl<'a> WidgetInfo<'a> {
         for filter in &self.tree.0.interactivity_filters {
             interactivity |= filter(&InteractivityFilterArgs { info: self });
             if interactivity == Interactivity::BLOCKED_DISABLED {
-                return interactivity
+                return interactivity;
             }
         }
         interactivity
@@ -2011,7 +2163,7 @@ impl<'a> InteractivityFilterArgs<'a> {
 
 type InteractivityFilters = Vec<Rc<dyn Fn(&InteractivityFilterArgs) -> Interactivity>>;
 
-bitflags!{
+bitflags! {
     /// Represents the level of interaction allowed for an widget.
     pub struct Interactivity: u8 {
         /// Normal interactions allowed.
@@ -2025,11 +2177,11 @@ bitflags!{
         const DISABLED = 0b01;
 
         /// No interaction allowed, the widget must behave like a background visual.
-        /// 
+        ///
         /// Note that widgets with blocked interaction are still hit-testable, so they can still be "clicked"
         /// as a visual part of an interactive parent widget.
         const BLOCKED = 0b10;
-        
+
         /// `BLOCKED` with `DISABLED` visuals.
         const BLOCKED_DISABLED = Self::DISABLED.bits | Self::BLOCKED.bits;
     }
@@ -2038,6 +2190,11 @@ impl Interactivity {
     /// Normal interactions allowed.
     pub fn is_enabled(self) -> bool {
         self == Self::ENABLED
+    }
+
+    /// Enabled visuals, may still be blocked.
+    pub fn is_visually_enabled(self) -> bool {
+        (self & Self::BLOCKED).is_blocked()
     }
 
     /// Only "disabled" interactions allowed and disabled visuals.
@@ -2050,7 +2207,7 @@ impl Interactivity {
         self.contains(Self::DISABLED)
     }
 
-    /// No interaction allowed.
+    /// No interaction allowed, may still be visually enabled.
     pub fn is_blocked(self) -> bool {
         self.contains(Self::BLOCKED)
     }
@@ -2062,12 +2219,81 @@ impl Default for Interactivity {
     }
 }
 impl_from_and_into_var! {
-    /// `ENABLED` or `BLOCKED` values.
-    fn from(enabled_or_block: bool) -> Interactivity {
-        if enabled_or_block {
+    /// * `true` -> `ENABLED`
+    /// * `false` -> `DISABLED`
+    fn from(enabled: bool) -> Interactivity {
+        if enabled {
             Interactivity::ENABLED
         } else {
-            Interactivity::BLOCKED
+            Interactivity::DISABLED
         }
+    }
+}
+
+/// Widget visibility.
+///
+/// The visibility status of a widget is computed from its outer-bounds in the last layout and if it rendered anything,
+/// the visibility of a parent widget affects all descendant widgets, you can inspect the visibility using the
+/// [`WidgetInfo::visibility`] method.
+///
+/// You can use  the [`visibility`] property to explicitly set the visibility of a widget, this property causes the widget to
+/// layout and render according to specified visibility.
+///
+/// [`WidgetInfo::visibility`]: crate::widget_info::WidgetInfo::visibility
+/// [`visibility`]: fn@crate::widget_base::visibility
+#[derive(Copy, Clone, Eq, PartialEq)]
+pub enum Visibility {
+    /// The widget is visible, this is default.
+    Visible,
+    /// The widget is not visible, but still affects layout.
+    ///
+    /// Hidden widgets measure and reserve space in their parent but are not rendered.
+    Hidden,
+    /// The widget is not visible and does not affect layout.
+    ///
+    /// Collapsed widgets always measure to zero and are not rendered.
+    Collapsed,
+}
+impl fmt::Debug for Visibility {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if f.alternate() {
+            write!(f, "Visibility::")?;
+        }
+        match self {
+            Visibility::Visible => write!(f, "Visible"),
+            Visibility::Hidden => write!(f, "Hidden"),
+            Visibility::Collapsed => write!(f, "Collapsed"),
+        }
+    }
+}
+impl Default for Visibility {
+    /// [` Visibility::Visible`]
+    fn default() -> Self {
+        Visibility::Visible
+    }
+}
+impl ops::BitOr for Visibility {
+    type Output = Self;
+
+    /// `Collapsed` | `Hidden` | `Visible` short circuit from left to right.
+    fn bitor(self, rhs: Self) -> Self::Output {
+        use Visibility::*;
+        match (self, rhs) {
+            (Collapsed, _) | (_, Collapsed) => Collapsed,
+            (Hidden, _) | (_, Hidden) => Hidden,
+            _ => Visible,
+        }
+    }
+}
+impl ops::BitOrAssign for Visibility {
+    fn bitor_assign(&mut self, rhs: Self) {
+        *self = *self | rhs;
+    }
+}
+impl_from_and_into_var! {
+    /// * `true` -> `Visible`
+    /// * `false` -> `Collapsed`
+    fn from(visible: bool) -> Visibility {
+        if visible { Visibility::Visible } else { Visibility::Collapsed }
     }
 }

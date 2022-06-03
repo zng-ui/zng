@@ -140,12 +140,16 @@ impl WindowLayers {
                     info.push_interactivity_filter(move |args| {
                         if args.info.self_and_ancestors().any(|w| w.widget_id() == widget) {
                             if querying.replace(true) {
-                                return true; // avoid recursion.
+                                return Interactivity::ENABLED; // avoid recursion.
                             }
                             let _q = RunOnDrop::new(|| querying.set(false));
-                            args.info.tree().find(anchor).map(|a| a.interactivity()).unwrap_or(false)
+                            args.info
+                                .tree()
+                                .find(anchor)
+                                .map(|a| a.interactivity())
+                                .unwrap_or(Interactivity::BLOCKED)
                         } else {
-                            true
+                            Interactivity::ENABLED
                         }
                     });
                 }
@@ -655,9 +659,9 @@ pub struct AnchorMode {
     ///
     /// [`Collapsed`]: Visibility::Collapsed
     pub visibility: bool,
-    /// The widget only allows interaction if the anchor widget [`allow_interaction`].
+    /// The widget [`interactivity`] is set to the the same as the anchor widget.
     ///
-    /// [`allow_interaction`]: crate::core::widget_info::WidgetInfo::allow_interaction
+    /// [`interactivity`]: crate::core::widget_info::WidgetInfo::interactivity
     pub interaction: bool,
 
     /// The widget's corner radius is set for the layer.
