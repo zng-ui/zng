@@ -4,13 +4,14 @@ use unsafe_any::UnsafeAny;
 
 use crate::app::{AppEventSender, AppShutdown, RecvFut, TimeoutOrAppShutdown};
 use crate::command::AnyCommand;
-use crate::context::{AppContext, InfoContext, UpdatesTrace, WidgetContext};
+use crate::context::{AppContext, InfoContext, UpdatesTrace, WidgetContext, WindowContext};
 use crate::crate_util::{Handle, HandleOwner, WeakHandle};
 use crate::handler::{AppHandler, AppHandlerArgs, AppWeakHandle, WidgetHandler};
 use crate::var::Vars;
 use crate::widget_info::{EventSlot, WidgetInfoBuilder, WidgetSubscriptions};
-use crate::{impl_ui_node, UiNode};
-use std::cell::RefCell;
+use crate::window::WindowId;
+use crate::{impl_ui_node, UiNode, WidgetId, WidgetPath};
+use std::cell::{Cell, RefCell};
 use std::fmt::{self, Debug};
 use std::marker::PhantomData;
 use std::mem;
@@ -24,10 +25,8 @@ pub trait EventArgs: Debug + Clone + 'static {
     /// Gets the instant this event happen.
     fn timestamp(&self) -> Instant;
 
-    /// If this event arguments are relevant to the widget context or to a descendant of the widget.
-    ///
-    /// Ui tree branches are skipped if this returns `false`.
-    fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool;
+    /// Generate an [`EventDeliveryList`] that defines all targets of the event.
+    fn delivery_list(&self) -> EventDeliveryList;
 
     /// Requests that subsequent handlers skip this event.
     ///
@@ -97,11 +96,16 @@ pub trait Event: Debug + Clone + Copy + 'static {
 pub struct EventUpdate<E: Event> {
     args: E::Args,
     slot: EventSlot,
+    delivery_list: EventDeliveryList,
 }
 impl<E: Event> EventUpdate<E> {
     /// New event update.
     pub fn new(event: E, args: E::Args) -> Self {
-        EventUpdate { args, slot: event.slot() }
+        EventUpdate {
+            delivery_list: args.delivery_list(),
+            args,
+            slot: event.slot(),
+        }
     }
 
     /// Clone the arguments.
@@ -110,30 +114,28 @@ impl<E: Event> EventUpdate<E> {
         self.args.clone()
     }
 
-    pub(crate) fn boxed(self) -> BoxedEventUpdate {
+    pub(crate) fn boxed(mut self) -> BoxedEventUpdate {
         BoxedEventUpdate {
             event_type: TypeId::of::<E>(),
             slot: self.slot,
+            delivery_list: mem::take(&mut self.delivery_list),
             args: Box::new(self),
             debug_fmt: debug_fmt::<E>,
             debug_fmt_any: debug_fmt_any::<E>,
-            concerns_widget: concerns_widget::<E>,
-            concerns_widget_any: concerns_widget_any::<E>,
         }
     }
 
-    fn boxed_send(self) -> BoxedSendEventUpdate
+    fn boxed_send(mut self) -> BoxedSendEventUpdate
     where
         E::Args: Send,
     {
         BoxedSendEventUpdate {
             event_type: TypeId::of::<E>(),
             slot: self.slot,
+            delivery_list: mem::take(&mut self.delivery_list),
             args: Box::new(self),
             debug_fmt: debug_fmt::<E>,
             debug_fmt_any: debug_fmt_any::<E>,
-            concerns_widget: concerns_widget::<E>,
-            concerns_widget_any: concerns_widget_any::<E>,
         }
     }
 
@@ -167,30 +169,244 @@ unsafe fn debug_fmt<E: Event>(args: &dyn UnsafeAny, f: &mut fmt::Formatter) -> f
     let args = args.downcast_ref_unchecked::<E::Args>();
     write!(f, "{}\n{:?}", type_name::<E>(), args)
 }
-/// Construct with [`concerns_widget`].
-type ConcernsWidgetFn = unsafe fn(&dyn UnsafeAny, ctx: &mut WidgetContext) -> bool;
-unsafe fn concerns_widget<E: Event>(args: &dyn UnsafeAny, ctx: &mut WidgetContext) -> bool {
-    let args = args.downcast_ref_unchecked::<E::Args>();
-    args.concerns_widget(ctx)
+
+struct WindowDelivery {
+    id: WindowId,
+    widgets: Vec<WidgetPath>,
+    all: bool,
+}
+
+/// Delivery list for an [`EventArgs`].
+///
+/// Windows and widgets use this list to find all targets of the event.
+pub struct EventDeliveryList {
+    windows: RefCell<Vec<WindowDelivery>>,
+    all: bool,
+    window: Cell<usize>,
+    depth: Cell<usize>,
+
+    search: RefCell<Vec<WidgetId>>,
+}
+impl Default for EventDeliveryList {
+    /// None.
+    fn default() -> Self {
+        Self::none()
+    }
+}
+impl EventDeliveryList {
+    /// Target no widgets or windows.
+    ///
+    /// Only app extensions receive the event.
+    pub fn none() -> Self {
+        Self {
+            windows: RefCell::new(vec![]),
+            all: false,
+            window: Cell::new(0),
+            depth: Cell::new(0),
+
+            search: RefCell::new(vec![]),
+        }
+    }
+
+    /// Target all widgets and windows.
+    ///
+    /// The event is broadcast to everyone.
+    pub fn all() -> Self {
+        let mut s = Self::none();
+        s.all = true;
+        s
+    }
+
+    /// All widgets inside the window.
+    pub fn window(window_id: WindowId) -> Self {
+        Self::none().with_window(window_id)
+    }
+
+    /// All widgets in the path.
+    pub fn widgets(widget_path: &WidgetPath) -> Self {
+        Self::none().with_widgets(widget_path)
+    }
+
+    /// All widgets in the path.
+    pub fn widgets_opt(widget_path: &Option<WidgetPath>) -> Self {
+        Self::none().with_widgets_opt(widget_path)
+    }
+
+    /// A widget ID to be searched before send.
+    ///
+    /// The windows info trees are searched before the event is send for delivery.
+    pub fn find_widget(widget_id: WidgetId) -> Self {
+        Self::none().with_find_widget(widget_id)
+    }
+
+    /// Add all widgets inside the window for delivery.
+    ///
+    /// The event is broadcast inside the window.
+    pub fn with_window(mut self, window_id: WindowId) -> Self {
+        if self.all {
+            return self;
+        }
+
+        if let Some(w) = self.windows.get_mut().iter_mut().find(|w| w.id == window_id) {
+            w.widgets.clear();
+            w.all = true;
+        } else {
+            self.windows.get_mut().push(WindowDelivery {
+                id: window_id,
+                widgets: vec![],
+                all: true,
+            });
+        }
+        self
+    }
+
+    /// Add the widgets in the path to the delivery.
+    pub fn with_widgets(mut self, widget_path: &WidgetPath) -> Self {
+        if self.all {
+            return self;
+        }
+
+        if let Some(w) = self.windows.get_mut().iter_mut().find(|w| w.id == widget_path.window_id()) {
+            if !w.all {
+                w.widgets.push(widget_path.clone());
+            }
+        } else {
+            self.windows.get_mut().push(WindowDelivery {
+                id: widget_path.window_id(),
+                widgets: vec![widget_path.clone()],
+                all: true,
+            })
+        }
+        self
+    }
+
+    /// Add the widgets in the path if it is some.
+    pub fn with_widgets_opt(self, widget_path: &Option<WidgetPath>) -> Self {
+        if let Some(path) = widget_path {
+            self.with_widgets(path)
+        } else {
+            self
+        }
+    }
+
+    /// A widget ID to be searched before send.
+    ///
+    /// The windows info trees are searched before the event is send for delivery.
+    pub fn with_find_widget(mut self, widget_id: WidgetId) -> Self {
+        self.search.get_mut().push(widget_id);
+        self
+    }
+
+    /// Returns `true` if the event has target in the window.
+    pub fn enter_window(&self, ctx: &mut WindowContext) -> bool {
+        if self.all {
+            return true;
+        }
+
+        self.find_widgets(ctx);
+
+        let window_id = *ctx.window_id;
+
+        if let Some(i) = self.windows.borrow().iter().position(|w| w.id == window_id) {
+            self.window.set(i);
+            self.depth.set(0);
+            true
+        } else {
+            false
+        }
+    }
+
+    /// Returns `true` if the event has targets in the widget or targets the widget.
+    pub fn enter_widget(&self, widget_id: WidgetId) -> bool {
+        if self.all {
+            self.depth.set(self.depth.get() + 1);
+            return true;
+        }
+
+        let windows = self.windows.borrow();
+        let window = &windows[self.window.get()];
+        if window.all {
+            self.depth.set(self.depth.get() + 1);
+            true
+        } else {
+            for path in &window.widgets {
+                let path = path.widgets_path();
+                if path.len() > self.depth.get() && path[self.depth.get()] == widget_id {
+                    self.depth.set(self.depth.get() + 1);
+                    return true;
+                }
+            }
+            false
+        }
+    }
+
+    /// Must be called if [`enter_widget`] returned `true`.
+    ///
+    /// [`enter_widget`]: Self::enter_widget
+    pub fn exit_widget(&self) {
+        self.depth.set(self.depth.get() - 1);
+    }
+
+    /// Must be called if [`exit_window`] returned `true`.
+    ///
+    /// [`exit_window`]: Self::exit_window
+    pub fn exit_window(&self) {
+        self.depth.set(0);
+    }
+
+    /// Resolve `find_widget` pending queries.
+    fn find_widgets(&self, ctx: &mut WindowContext) {
+        let search = mem::take(&mut *self.search.borrow_mut());
+
+        if self.all || search.is_empty() {
+            return;
+        }
+
+        if let Some(windows) = ctx.services.get::<crate::window::Windows>() {
+            let mut self_windows = self.windows.borrow_mut();
+            'search: for wgt in search {
+                for win in windows.widget_trees() {
+                    if let Some(info) = win.find(wgt) {
+                        if let Some(w) = self_windows.iter_mut().find(|w| w.id == win.window_id()) {
+                            if !w.all {
+                                w.widgets.push(info.path());
+                            }
+                        } else {
+                            self_windows.push(WindowDelivery {
+                                id: win.window_id(),
+                                widgets: vec![info.path()],
+                                all: false,
+                            });
+                        }
+
+                        continue 'search;
+                    }
+                }
+            }
+        }
+    }
 }
 
 /// Boxed [`EventUpdateArgs`].
 pub struct BoxedEventUpdate {
     event_type: TypeId,
     slot: EventSlot,
+    delivery_list: EventDeliveryList,
     args: Box<dyn UnsafeAny>,
     debug_fmt: DebugFmtFn,
     debug_fmt_any: DebugFmtAnyFn,
-    concerns_widget: ConcernsWidgetFn,
-    concerns_widget_any: ConcernsWidgetAnyFn,
 }
 impl BoxedEventUpdate {
     /// Unbox the arguments for `Q` if the update is for `Q`.
-    pub fn unbox_for<Q: Event>(self) -> Result<Q::Args, Self> {
+    pub fn unbox_for<Q: Event>(self) -> Result<EventUpdate<Q>, Self> {
         if self.event_type == TypeId::of::<Q>() {
-            Ok(unsafe {
-                // SAFETY: its the same type
-                *self.args.downcast_unchecked()
+            Ok({
+                let mut update: EventUpdate<Q> = unsafe {
+                    // SAFETY: its the same type
+                    *self.args.downcast_unchecked()
+                };
+                update.delivery_list = self.delivery_list;
+                update
             })
         } else {
             Err(self)
@@ -221,7 +437,7 @@ impl EventUpdateArgs for BoxedEventUpdate {
         AnyEventUpdate {
             event_type_id: self.event_type,
             debug_fmt: self.debug_fmt_any,
-            concerns_widget: self.concerns_widget_any,
+            delivery_list: &self.delivery_list,
             slot: self.slot,
             event_update_args: unsafe {
                 // SAFETY: no different then the EventUpdate::as_any()
@@ -234,9 +450,24 @@ impl EventUpdateArgs for BoxedEventUpdate {
         self.slot
     }
 
-    fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
-        // SAFETY: only `EventUpdate<E>` can build and it is strongly typed.
-        unsafe { (self.concerns_widget)(&*self.args, ctx) }
+    fn with_window<H: FnOnce(&mut WindowContext) -> R, R>(&self, ctx: &mut WindowContext, handle: H) -> Option<R> {
+        if self.delivery_list.enter_window(ctx) {
+            let r = Some(handle(ctx));
+            self.delivery_list.exit_window();
+            r
+        } else {
+            None
+        }
+    }
+
+    fn with_widget<H: FnOnce(&mut WidgetContext) -> R, R>(&self, ctx: &mut WidgetContext, handle: H) -> Option<R> {
+        if self.delivery_list.enter_widget(ctx.path.widget_id()) {
+            let r = Some(handle(ctx));
+            self.delivery_list.exit_widget();
+            r
+        } else {
+            None
+        }
     }
 }
 
@@ -245,21 +476,24 @@ pub struct BoxedSendEventUpdate {
     event_type: TypeId,
     slot: EventSlot,
     args: Box<dyn UnsafeAny + Send>,
+    delivery_list: EventDeliveryList,
     debug_fmt: DebugFmtFn,
     debug_fmt_any: DebugFmtAnyFn,
-    concerns_widget: ConcernsWidgetFn,
-    concerns_widget_any: ConcernsWidgetAnyFn,
 }
 impl BoxedSendEventUpdate {
     /// Unbox the arguments for `Q` if the update is for `Q`.
-    pub fn unbox_for<Q: Event>(self) -> Result<Q::Args, Self>
+    pub fn unbox_for<Q: Event>(self) -> Result<EventUpdate<Q>, Self>
     where
         Q::Args: Send,
     {
         if self.event_type == TypeId::of::<Q>() {
-            Ok(unsafe {
-                // SAFETY: its the same type
-                *<dyn UnsafeAny>::downcast_unchecked(self.args)
+            Ok({
+                let mut update: EventUpdate<Q> = unsafe {
+                    // SAFETY: its the same type
+                    *<dyn UnsafeAny>::downcast_unchecked(self.args)
+                };
+                update.delivery_list = self.delivery_list;
+                update
             })
         } else {
             Err(self)
@@ -271,11 +505,10 @@ impl BoxedSendEventUpdate {
         BoxedEventUpdate {
             event_type: self.event_type,
             slot: self.slot,
+            delivery_list: self.delivery_list,
             args: self.args,
             debug_fmt: self.debug_fmt,
             debug_fmt_any: self.debug_fmt_any,
-            concerns_widget: self.concerns_widget,
-            concerns_widget_any: self.concerns_widget_any,
         }
     }
 }
@@ -289,26 +522,19 @@ impl fmt::Debug for BoxedSendEventUpdate {
 }
 
 type DebugFmtAnyFn = unsafe fn(&(), &mut fmt::Formatter) -> fmt::Result;
-type ConcernsWidgetAnyFn = unsafe fn(&(), ctx: &mut WidgetContext) -> bool;
-
 unsafe fn debug_fmt_any<E: Event>(args: &(), f: &mut fmt::Formatter) -> fmt::Result {
     let args: &EventUpdate<E> = mem::transmute(args);
     write!(f, "{}\n{:?}", type_name::<E>(), args)
-}
-
-unsafe fn concerns_widget_any<E: Event>(args: &(), ctx: &mut WidgetContext) -> bool {
-    let args: &EventUpdate<E> = mem::transmute(args);
-    args.concerns_widget(ctx)
 }
 
 /// Type erased [`EventUpdateArgs`].
 pub struct AnyEventUpdate<'a> {
     event_type_id: TypeId,
     slot: EventSlot,
+    delivery_list: &'a EventDeliveryList,
     // this is a reference to a `EventUpdate<Q>`.
     event_update_args: &'a (),
     debug_fmt: DebugFmtAnyFn,
-    concerns_widget: ConcernsWidgetAnyFn,
 }
 impl<'a> AnyEventUpdate<'a> {
     /// Gets the [`TypeId`] of the event type represented by `self`.
@@ -343,7 +569,7 @@ impl<'a> EventUpdateArgs for AnyEventUpdate<'a> {
             slot: self.slot,
             event_update_args: self.event_update_args,
             debug_fmt: self.debug_fmt,
-            concerns_widget: self.concerns_widget,
+            delivery_list: self.delivery_list,
         }
     }
 
@@ -351,9 +577,24 @@ impl<'a> EventUpdateArgs for AnyEventUpdate<'a> {
         self.slot
     }
 
-    fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
-        // SAFETY: only `EventUpdate<E>` can build and it is strongly typed.
-        unsafe { (self.concerns_widget)(self.event_update_args, ctx) }
+    fn with_window<H: FnOnce(&mut WindowContext) -> R, R>(&self, ctx: &mut WindowContext, handle: H) -> Option<R> {
+        if self.delivery_list.enter_window(ctx) {
+            let r = Some(handle(ctx));
+            self.delivery_list.exit_window();
+            r
+        } else {
+            None
+        }
+    }
+
+    fn with_widget<H: FnOnce(&mut WidgetContext) -> R, R>(&self, ctx: &mut WidgetContext, handle: H) -> Option<R> {
+        if self.delivery_list.enter_widget(ctx.path.widget_id()) {
+            let r = Some(handle(ctx));
+            self.delivery_list.exit_widget();
+            r
+        } else {
+            None
+        }
     }
 }
 
@@ -368,8 +609,15 @@ pub trait EventUpdateArgs: fmt::Debug + crate::private::Sealed {
     /// Returns the [`EventSlot`] that represents the event type.
     fn slot(&self) -> EventSlot;
 
-    /// If this event update targets the widget or its descendants.
-    fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool;
+    /// Calls `handle` if the event targets the window.
+    ///
+    /// Good window implementations should check if the window event subscriptions includes the event slot too before calling this.
+    fn with_window<H: FnOnce(&mut WindowContext) -> R, R>(&self, ctx: &mut WindowContext, handle: H) -> Option<R>;
+
+    /// Calls `handle` if the event targets the widget.
+    ///
+    /// Good widget implementations should check if the widget event subscriptions includes the event slot too before calling this.
+    fn with_widget<H: FnOnce(&mut WidgetContext) -> R, R>(&self, ctx: &mut WidgetContext, handle: H) -> Option<R>;
 }
 impl<E: Event> EventUpdateArgs for EventUpdate<E> {
     fn args_for<Q: Event>(&self) -> Option<&EventUpdate<Q>> {
@@ -388,10 +636,10 @@ impl<E: Event> EventUpdateArgs for EventUpdate<E> {
         AnyEventUpdate {
             event_type_id: TypeId::of::<E>(),
             debug_fmt: debug_fmt_any::<E>,
-            concerns_widget: concerns_widget_any::<E>,
+            delivery_list: &self.delivery_list,
             slot: self.slot,
             event_update_args: unsafe {
-                // SAFETY: we validate all usages of this (args_for, concerns_widget, debug_fmt)
+                // SAFETY: we validate all usages of this (args_for, debug_fmt)
                 #[allow(clippy::transmute_ptr_to_ptr)]
                 mem::transmute(self)
             },
@@ -402,8 +650,24 @@ impl<E: Event> EventUpdateArgs for EventUpdate<E> {
         self.slot
     }
 
-    fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
-        self.args.concerns_widget(ctx)
+    fn with_window<H: FnOnce(&mut WindowContext) -> R, R>(&self, ctx: &mut WindowContext, handle: H) -> Option<R> {
+        if self.delivery_list.enter_window(ctx) {
+            let r = Some(handle(ctx));
+            self.delivery_list.exit_window();
+            r
+        } else {
+            None
+        }
+    }
+
+    fn with_widget<H: FnOnce(&mut WidgetContext) -> R, R>(&self, ctx: &mut WidgetContext, handle: H) -> Option<R> {
+        if self.delivery_list.enter_widget(ctx.path.widget_id()) {
+            let r = Some(handle(ctx));
+            self.delivery_list.exit_widget();
+            r
+        } else {
+            None
+        }
     }
 }
 
@@ -502,10 +766,15 @@ where
     pub fn send(&self, args: E::Args) -> Result<(), AppShutdown<E::Args>> {
         UpdatesTrace::log_event::<E>();
 
-        let update = EventUpdate::<E> { args, slot: self.slot }.boxed_send();
+        let update = EventUpdate::<E> {
+            delivery_list: args.delivery_list(),
+            args,
+            slot: self.slot,
+        }
+        .boxed_send();
         self.sender.send_event(update).map_err(|e| {
             if let Ok(e) = e.0.unbox_for::<E>() {
-                AppShutdown(e)
+                AppShutdown(e.args)
             } else {
                 unreachable!()
             }
@@ -1030,7 +1299,7 @@ impl Events {
 ///
 /// ```
 /// # use zero_ui_core::{var::*, event::*, context::*};
-/// # event_args! { pub struct BarArgs { pub msg: &'static str, .. fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool { true } } }
+/// # event_args! { pub struct BarArgs { pub msg: &'static str, .. fn delivery_list(&self) -> EventDeliveryList { EventDeliveryList::all() } } }
 /// # event! { pub BarEvent: BarArgs; }
 /// # struct Foo { } impl Foo {
 /// fn update(&mut self, ctx: &mut WidgetContext) {
@@ -1112,8 +1381,8 @@ type Retain = bool;
 ///         ..
 ///
 ///         /// If `target` starts with the current path.
-///         fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
-///             ctx.path.is_start_of(&self.target)
+///         fn delivery_list(&self) -> EventDeliveryList {
+///             EventDeliveryList::widgets(&self.target)
 ///         }
 ///
 ///         /// Optional validation, if defined the generated `new` and `now` functions call it and unwrap the result.
@@ -1140,8 +1409,8 @@ macro_rules! event_args {
         $vis:vis struct $Args:ident {
             $($(#[$arg_outer:meta])* $arg_vis:vis $arg:ident : $arg_ty:ty,)*
             ..
-            $(#[$concerns_widget_outer:meta])*
-            fn concerns_widget(&$self:ident, $ctx:tt: &mut WidgetContext) -> bool { $($concerns_widget:tt)+ }
+            $(#[$delivery_list_outer:meta])*
+            fn delivery_list(&$self:ident) -> EventDeliveryList { $($delivery_list:tt)+ }
 
             $(
                 $(#[$validate_outer:meta])*
@@ -1156,8 +1425,8 @@ macro_rules! event_args {
 
                 ..
 
-                $(#[$concerns_widget_outer])*
-                fn concerns_widget(&$self, $ctx: &mut WidgetContext) -> bool { $($concerns_widget)+ }
+                $(#[$delivery_list_outer])*
+                fn delivery_list(&$self) -> EventDeliveryList { $($delivery_list)+ }
 
                 $(
                     $(#[$validate_outer])*
@@ -1176,8 +1445,8 @@ macro_rules! __event_args {
         $vis:vis struct $Args:ident {
             $($(#[$arg_outer:meta])* $arg_vis:vis $arg:ident : $arg_ty:ty,)*
             ..
-            $(#[$concerns_widget_outer:meta])*
-            fn concerns_widget(&$self:ident, $ctx:tt: &mut WidgetContext) -> bool { $($concerns_widget:tt)+ }
+            $(#[$delivery_list_outer:meta])*
+            fn delivery_list(&$self:ident) -> EventDeliveryList { $($delivery_list:tt)+ }
 
             $(#[$validate_outer:meta])*
             fn validate(&$self_v:ident) -> Result<(), $ValidationError:path> { $($validate:tt)+ }
@@ -1189,8 +1458,8 @@ macro_rules! __event_args {
             $vis struct $Args {
                 $($(#[$arg_outer])* $arg_vis $arg: $arg_ty,)*
                 ..
-                $(#[$concerns_widget_outer])*
-                fn concerns_widget(&$self, $ctx: &mut WidgetContext) -> bool { $($concerns_widget)+ }
+                $(#[$delivery_list_outer])*
+                fn delivery_list(&$self) -> $crate::event::EventDeliveryList { $($delivery_list)+ }
             }
         }
         impl $Args {
@@ -1265,8 +1534,8 @@ macro_rules! __event_args {
         $vis:vis struct $Args:ident {
             $($(#[$arg_outer:meta])* $arg_vis:vis $arg:ident : $arg_ty:ty,)*
             ..
-            $(#[$concerns_widget_outer:meta])*
-            fn concerns_widget(&$self:ident, $ctx:tt: &mut WidgetContext) -> bool { $($concerns_widget:tt)+ }
+            $(#[$delivery_list_outer:meta])*
+            fn delivery_list(&$self:ident) -> EventDeliveryList { $($delivery_list:tt)+ }
         }
     ) => {
         $crate::__event_args! {common=>
@@ -1275,8 +1544,8 @@ macro_rules! __event_args {
             $vis struct $Args {
                 $($(#[$arg_outer])* $arg_vis $arg: $arg_ty,)*
                 ..
-                $(#[$concerns_widget_outer])*
-                fn concerns_widget(&$self, $ctx: &mut WidgetContext) -> bool { $($concerns_widget)+ }
+                $(#[$delivery_list_outer])*
+                fn delivery_list(&$self) -> EventDeliveryList { $($delivery_list)+  }
             }
         }
 
@@ -1310,8 +1579,8 @@ macro_rules! __event_args {
         $vis:vis struct $Args:ident {
             $($(#[$arg_outer:meta])* $arg_vis:vis $arg:ident : $arg_ty:ty,)*
             ..
-            $(#[$concerns_widget_outer:meta])*
-            fn concerns_widget(&$self:ident, $ctx:tt: &mut WidgetContext) -> bool { $($concerns_widget:tt)+ }
+            $(#[$delivery_list_outer:meta])*
+            fn delivery_list(&$self:ident) -> EventDeliveryList { $($delivery_list:tt)+ }
         }
     ) => {
         $(#[$outer])*
@@ -1343,10 +1612,10 @@ macro_rules! __event_args {
                 <Self as $crate::event::EventArgs>::stop_propagation_requested(self)
             }
 
-            /// If the event described by these arguments is relevant in the given widget context.
+            $(#[$delivery_list_outer])*
             #[allow(unused)]
-            pub fn concerns_widget(&self, ctx: &mut $crate::context::WidgetContext) -> bool {
-                <Self as $crate::event::EventArgs>::concerns_widget(self, ctx)
+            pub fn delivery_list(&self) -> $crate::event::EventDeliveryList {
+                <Self as $crate::event::EventArgs>::delivery_list(self)
             }
 
             /// Calls `handler` and stops propagation if propagation is still allowed.
@@ -1367,9 +1636,11 @@ macro_rules! __event_args {
             }
 
 
-            $(#[$concerns_widget_outer])*
-            fn concerns_widget(&$self, $ctx: &mut $crate::context::WidgetContext) -> bool {
-                $($concerns_widget)+
+            $(#[$delivery_list_outer])*
+            fn delivery_list(&$self) -> $crate::event::EventDeliveryList {
+                use $crate::event::EventDeliveryList;
+
+                $($delivery_list)+
             }
 
 
@@ -1405,9 +1676,9 @@ pub use crate::event_args;
 ///
 ///         ..
 ///
-///         /// If `target` starts with the current path.
-///         fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
-///             ctx.path.is_start_of(&self.target)
+///         /// The target.
+///         fn delivery_list(&self) -> EventDeliveryList {
+///             EventDeliveryList::widgets(&self.target)
 ///         }
 ///
 ///         /// Optional validation, if defined the generated `new` and `now` functions call it and unwrap the result.
@@ -1434,8 +1705,8 @@ macro_rules! cancelable_event_args {
         $vis:vis struct $Args:ident {
             $($(#[$arg_outer:meta])* $arg_vis:vis $arg:ident : $arg_ty:ty,)*
             ..
-            $(#[$concerns_widget_outer:meta])*
-            fn concerns_widget(&$self:ident, $ctx:tt: &mut WidgetContext) -> bool { $($concerns_widget:tt)+ }
+            $(#[$delivery_list_outer:meta])*
+            fn delivery_list(&$self:ident) -> EventDeliveryList { $($delivery_list:tt)+ }
             $(
                 $(#[$validate_outer:meta])*
                 fn validate(&$self_v:ident) -> Result<(), $ValidationError:path> { $($validate:tt)+ }
@@ -1449,8 +1720,8 @@ macro_rules! cancelable_event_args {
 
                 ..
 
-                $(#[$concerns_widget_outer])*
-                fn concerns_widget(&$self, $ctx: &mut WidgetContext) -> bool { $($concerns_widget)+ }
+                $(#[$delivery_list_outer])*
+                fn delivery_list(&$self) -> EventDeliveryList { $($delivery_list)+ }
 
                 $(
                     $(#[$validate_outer])*
@@ -1469,8 +1740,8 @@ macro_rules! __cancelable_event_args {
         $vis:vis struct $Args:ident {
             $($(#[$arg_outer:meta])* $arg_vis:vis $arg:ident : $arg_ty:ty,)*
             ..
-            $(#[$concerns_widget_outer:meta])*
-            fn concerns_widget(&$self:ident, $ctx:tt: &mut WidgetContext) -> bool { $($concerns_widget:tt)+ }
+            $(#[$delivery_list_outer:meta])*
+            fn delivery_list(&$self:ident) -> EventDeliveryList { $($delivery_list:tt)+ }
 
             $(#[$validate_outer:meta])*
             fn validate(&$self_v:ident) -> Result<(), $ValidationError:path> { $($validate:tt)+ }
@@ -1482,8 +1753,8 @@ macro_rules! __cancelable_event_args {
             $vis struct $Args {
                 $($(#[$arg_outer])* $arg_vis $arg: $arg_ty,)*
                 ..
-                $(#[$concerns_widget_outer])*
-                fn concerns_widget(&$self, $ctx: &mut WidgetContext) -> bool { $($concerns_widget)+ }
+                $(#[$delivery_list_outer])*
+                fn delivery_list(&$self) -> EventDeliveryList { $($delivery_list)+ }
             }
         }
         impl $Args {
@@ -1560,8 +1831,8 @@ macro_rules! __cancelable_event_args {
         $vis:vis struct $Args:ident {
             $($(#[$arg_outer:meta])* $arg_vis:vis $arg:ident : $arg_ty:ty,)*
             ..
-            $(#[$concerns_widget_outer:meta])*
-            fn concerns_widget(&$self:ident, $ctx:tt: &mut WidgetContext) -> bool { $($concerns_widget:tt)+ }
+            $(#[$delivery_list_outer:meta])*
+            fn delivery_list(&$self:ident) -> EventDeliveryList { $($delivery_list:tt)+ }
         }
     ) => {
         $crate::__cancelable_event_args! {common=>
@@ -1570,8 +1841,8 @@ macro_rules! __cancelable_event_args {
             $vis struct $Args {
                 $($(#[$arg_outer])* $arg_vis $arg: $arg_ty,)*
                 ..
-                $(#[$concerns_widget_outer])*
-                fn concerns_widget(&$self, $ctx: &mut WidgetContext) -> bool { $($concerns_widget)+ }
+                $(#[$delivery_list_outer])*
+                fn delivery_list(&$self) -> EventDeliveryList { $($delivery_list)+ }
             }
         }
 
@@ -1606,8 +1877,8 @@ macro_rules! __cancelable_event_args {
         $vis:vis struct $Args:ident {
             $($(#[$arg_outer:meta])* $arg_vis:vis $arg:ident : $arg_ty:ty,)*
             ..
-            $(#[$concerns_widget_outer:meta])*
-            fn concerns_widget(&$self:ident, $ctx:tt: &mut WidgetContext) -> bool { $($concerns_widget:tt)+ }
+            $(#[$delivery_list_outer:meta])*
+            fn delivery_list(&$self:ident) -> EventDeliveryList { $($delivery_list:tt)+ }
         }
     ) => {
         $(#[$outer])*
@@ -1625,6 +1896,7 @@ macro_rules! __cancelable_event_args {
             /// Requests that subsequent handlers skip this event.
             ///
             /// Cloned arguments signal stop for all clones.
+            #[allow(unused)]
             pub fn stop_propagation(&self) {
                 <Self as $crate::event::EventArgs>::stop_propagation(self)
             }
@@ -1634,6 +1906,7 @@ macro_rules! __cancelable_event_args {
             /// Note that property level handlers don't need to check this, as those handlers are
             /// already not called when this is `true`. [`UiNode`](crate::UiNode) and
             /// [`AppExtension`](crate::app::AppExtension) implementers must check if this is `true`.
+            #[allow(unused)]
             pub fn stop_propagation_requested(&self) -> bool {
                 <Self as $crate::event::EventArgs>::stop_propagation_requested(self)
             }
@@ -1641,18 +1914,21 @@ macro_rules! __cancelable_event_args {
             /// Cancel the originating action.
             ///
             /// Cloned arguments signal cancel for all clones.
+            #[allow(unused)]
             pub fn cancel(&self) {
                 <Self as $crate::event::CancelableEventArgs>::cancel(self)
             }
 
             /// If the originating action must be canceled.
+            #[allow(unused)]
             pub fn cancel_requested(&self) -> bool {
                 <Self as $crate::event::CancelableEventArgs>::cancel_requested(self)
             }
 
-            /// If the event described by these arguments is relevant in the given widget context.
-            pub fn concerns_widget(&self, ctx: &mut $crate::context::WidgetContext) -> bool {
-                <Self as $crate::event::EventArgs>::concerns_widget(self, ctx)
+            $(#[$delivery_list_outer])*
+            #[allow(unused)]
+            pub fn delivery_list(&self) -> $crate::event::EventDeliveryList {
+                <Self as $crate::event::EventArgs>::delivery_list(self)
             }
         }
         impl $crate::event::EventArgs for $Args {
@@ -1662,9 +1938,11 @@ macro_rules! __cancelable_event_args {
             }
 
 
-            $(#[$concerns_widget_outer])*
-            fn concerns_widget(&$self, $ctx: &mut $crate::context::WidgetContext) -> bool {
-                $($concerns_widget)+
+            $(#[$delivery_list_outer])*
+            fn delivery_list(&$self) -> $crate::event::EventDeliveryList {
+                use $crate::event::EventDeliveryList;
+
+                $($delivery_list)+
             }
 
 
@@ -1808,7 +2086,7 @@ macro_rules! __event_property {
             $vis fn $event {
                 event: $Event,
                 args: $Args,
-                filter: |ctx, args| $crate::event::EventArgs::concerns_widget(args, ctx),
+                filter: |ctx, args| true,
             }
         }
     };
@@ -1829,30 +2107,29 @@ macro_rules! __event_property {
 ///     pub fn key_input {
 ///         event: KeyInputEvent,
 ///         args: KeyInputArgs,
-///         // default filter is |ctx, args| args.concerns_widget(ctx)
+///         // default filter is |ctx, args| true,
 ///     }
 ///
 ///     pub(crate) fn key_down {
 ///         event: KeyInputEvent,
 ///         args: KeyInputArgs,
 ///         // optional filter:
-///         filter: |ctx, args| args.state == KeyState::Pressed && args.concerns_widget(ctx),
+///         filter: |ctx, args| args.state == KeyState::Pressed,
 ///     }
 /// }
 /// ```
 ///
 /// # Filter
 ///
-/// App events can be listened from any `UiNode`. An event property must call the event handler only
-/// in contexts where the event is relevant. Some event properties can also specialize further on top
-/// of a more general app event. To implement this you can use a filter predicate.
+/// App events are delivered to all `UiNode` inside all widgets in the [`EventDeliveryList`], some event properties can
+/// also specialize further on top of a more general app event. To implement this you can use a filter predicate.
 ///
 /// The `filter` predicate is called if [`stop_propagation`] is not requested. It must return `true` if the event arguments
 /// are relevant in the context of the widget and event property. If it returns `true` the `handler` closure is called.
 /// See [`on_event`] and [`on_pre_event`] for more information.
 ///
-/// If you don't provide a filter predicate the default [`args.concerns_widget(ctx)`] is used.
-/// So if you want to extend the filter and not fully replace it you must call `args.concerns_widget(ctx)` in your custom filter.
+/// If you don't provide a filter predicate the default always allows, so all app events targeting the widget and not already handled
+/// are allowed by default.
 ///
 /// # Async
 ///
@@ -1862,7 +2139,6 @@ macro_rules! __event_property {
 /// [`on_pre_event`]: crate::event::on_pre_event
 /// [`on_event`]: crate::event::on_event
 /// [`stop_propagation`]: EventArgs::stop_propagation
-/// [`args.concerns_widget(ctx)`]: EventArgs::concerns_widget
 #[macro_export]
 macro_rules! event_property {
     ($(

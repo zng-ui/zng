@@ -25,14 +25,14 @@ event_property! {
     pub fn mouse_down {
         event: MouseInputEvent,
         args: MouseInputArgs,
-        filter: |ctx, args|  args.concerns_widget(ctx) && args.is_mouse_down(),
+        filter: |_, args| args.is_mouse_down(),
     }
 
     /// Mouse button released while the cursor if over the widget.
     pub fn mouse_up {
         event: MouseInputEvent,
         args: MouseInputArgs,
-        filter: |ctx, args|  args.concerns_widget(ctx) && args.is_mouse_up(),
+        filter: |_, args| args.is_mouse_up(),
     }
 
     /// Mouse clicked on the widget with any button and including double+ clicks.
@@ -45,63 +45,63 @@ event_property! {
     pub fn mouse_any_single_click {
         event: MouseClickEvent,
         args: MouseClickArgs,
-        filter: |ctx, args|  args.concerns_widget(ctx) && args.is_single(),
+        filter: |_, args| args.is_single(),
     }
 
     /// Mouse double clicked on the widget with any button.
     pub fn mouse_any_double_click {
         event: MouseClickEvent,
         args: MouseClickArgs,
-        filter: |ctx, args|  args.concerns_widget(ctx) && args.is_double(),
+        filter: |_, args| args.is_double(),
     }
 
     /// Mouse triple clicked on the widget with any button.
     pub fn mouse_any_triple_click {
         event: MouseClickEvent,
         args: MouseClickArgs,
-        filter: |ctx, args|  args.concerns_widget(ctx) && args.is_triple(),
+        filter: |_, args| args.is_triple(),
     }
 
     /// Mouse clicked on the widget with the primary button including double+ clicks.
     pub fn mouse_click {
         event: MouseClickEvent,
         args: MouseClickArgs,
-        filter: |ctx, args|args.concerns_widget(ctx) && args.is_primary(),
+        filter: |_, args| args.is_primary(),
     }
 
     /// Mouse clicked on the widget with the primary button excluding double+ clicks.
     pub fn mouse_single_click {
         event: MouseClickEvent,
         args: MouseClickArgs,
-        filter: |ctx, args|args.concerns_widget(ctx) && args.is_primary() && args.is_single(),
+        filter: |_, args| args.is_primary() && args.is_single(),
     }
 
     /// Mouse double clicked on the widget with the primary button.
     pub fn mouse_double_click {
         event: MouseClickEvent,
         args: MouseClickArgs,
-        filter: |ctx, args|args.concerns_widget(ctx) && args.is_primary() && args.is_double(),
+        filter: |_, args| args.is_primary() && args.is_double(),
     }
 
     /// Mouse triple clicked on the widget with the primary button.
     pub fn mouse_triple_click {
         event: MouseClickEvent,
         args: MouseClickArgs,
-        filter: |ctx, args|args.concerns_widget(ctx) && args.is_primary() && args.is_triple(),
+        filter: |_, args| args.is_primary() && args.is_triple(),
     }
 
     /// Mouse is now over the widget or a descendant widget.
     pub fn mouse_enter {
         event: MouseHoveredEvent,
         args: MouseHoverArgs,
-        filter: |ctx, args|args.is_mouse_enter(ctx.path),
+        filter: |ctx, args| args.is_mouse_enter(ctx.path),
     }
 
     /// Mouse is no longer over the widget or any descendant widget.
     pub fn mouse_leave {
         event: MouseHoveredEvent,
         args: MouseHoverArgs,
-        filter: |ctx, args|args.is_mouse_leave(ctx.path),
+        filter: |ctx, args| args.is_mouse_leave(ctx.path),
     }
 
     /// Mouse entered or left the widget and descendant widgets area.
@@ -145,13 +145,13 @@ event_property! {
     pub fn mouse_scroll {
         event: MouseWheelEvent,
         args: MouseWheelArgs,
-        filter: |ctx, args| args.is_scroll() && args.concerns_widget(ctx)
+        filter: |_, args| args.is_scroll()
     }
 
     /// Mouse wheel scrolled while pointer is hovering the widget and the pressed keyboard modifiers allow a zoom operation.
     pub fn mouse_zoom {
         event: MouseWheelEvent,
         args: MouseWheelArgs,
-        filter: |ctx, args| args.is_zoom() && args.concerns_widget(ctx)
+        filter: |_, args| args.is_zoom()
     }
 }

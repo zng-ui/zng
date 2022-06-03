@@ -171,7 +171,7 @@ pub mod thumb {
                         self.child.event(ctx, args);
                     }
                 } else if let Some(args) = MouseInputEvent.update(args) {
-                    if args.is_primary() && args.is_mouse_down() && args.concerns_widget(ctx) {
+                    if args.is_primary() && args.is_mouse_down() {
                         let a = match *ThumbOrientationVar::get(ctx) {
                             scrollbar::Orientation::Vertical => args.position.y,
                             scrollbar::Orientation::Horizontal => args.position.x,

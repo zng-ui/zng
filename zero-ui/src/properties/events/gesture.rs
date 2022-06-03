@@ -26,7 +26,7 @@ event_property! {
     pub fn any_single_click {
         event: ClickEvent,
         args: ClickArgs,
-        filter: |ctx, args| args.concerns_widget(ctx) && args.is_single(),
+        filter: |_, args| args.is_single(),
     }
 
     /// On widget click from any source but exclusive double-clicks.
@@ -36,7 +36,7 @@ event_property! {
     pub fn any_double_click {
         event: ClickEvent,
         args: ClickArgs,
-        filter: |ctx, args|  args.concerns_widget(ctx) && args.is_double(),
+        filter: |_, args| args.is_double(),
     }
 
     /// On widget click from any source but exclusive triple-clicks.
@@ -46,7 +46,7 @@ event_property! {
     pub fn any_triple_click {
         event: ClickEvent,
         args: ClickArgs,
-        filter: |ctx, args|  args.concerns_widget(ctx) && args.is_triple(),
+        filter: |_, args| args.is_triple(),
     }
 
     /// On widget click with the primary button and any click count.
@@ -57,7 +57,7 @@ event_property! {
     pub fn click {
         event: ClickEvent,
         args: ClickArgs,
-        filter: |ctx, args| args.concerns_widget(ctx) && args.is_primary(),
+        filter: |_, args| args.is_primary(),
     }
 
     /// On widget click with the primary button, excluding double/triple clicks.
@@ -67,7 +67,7 @@ event_property! {
     pub fn single_click {
         event: ClickEvent,
         args: ClickArgs,
-        filter: |ctx, args| args.concerns_widget(ctx) && args.is_primary() && args.is_single(),
+        filter: |_, args| args.is_primary() && args.is_single(),
     }
 
     /// On widget click with the primary button and exclusive double-clicks.
@@ -77,7 +77,7 @@ event_property! {
     pub fn double_click {
         event: ClickEvent,
         args: ClickArgs,
-        filter: |ctx, args| args.concerns_widget(ctx) && args.is_primary() && args.is_double(),
+        filter: |_, args| args.is_primary() && args.is_double(),
     }
 
     /// On widget click with the primary button and exclusive triple-clicks.
@@ -87,7 +87,7 @@ event_property! {
     pub fn triple_click {
         event: ClickEvent,
         args: ClickArgs,
-        filter: |ctx, args| args.concerns_widget(ctx) && args.is_primary() && args.is_triple(),
+        filter: |_, args| args.is_primary() && args.is_triple(),
     }
 
     /// On widget click with the secondary/context button.
@@ -96,7 +96,7 @@ event_property! {
     pub fn context_click {
         event: ClickEvent,
         args: ClickArgs,
-        filter: |ctx, args| args.concerns_widget(ctx) && args.is_context(),
+        filter: |_, args| args.is_context(),
     }
 
     /// On keyboard shortcut press when the widget is focused.

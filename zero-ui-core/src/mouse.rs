@@ -50,11 +50,11 @@ event_args! {
 
         ..
 
-        /// If the [`target`] starts with the current path.
+        /// The [`target`].
         ///
         /// [`target`]: Self::target
-        fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
-            ctx.path.is_start_of(&self.target)
+        fn delivery_list(&self) -> EventDeliveryList {
+            EventDeliveryList::widgets(&self.target)
         }
     }
 
@@ -89,11 +89,11 @@ event_args! {
 
         ..
 
-        /// If the [`target`] starts with the current path.
+        /// The [`target`].
         ///
         /// [`target`]: Self::target
-        fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
-            ctx.path.is_start_of(&self.target)
+        fn delivery_list(&self) -> EventDeliveryList {
+            EventDeliveryList::widgets(&self.target)
         }
     }
 
@@ -140,11 +140,11 @@ event_args! {
 
         ..
 
-        /// If the  [`target`] starts with the current path.
+        /// The [`target`].
         ///
         /// [`target`]: MouseClickArgs::target
-        fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
-            ctx.path.is_start_of(&self.target)
+        fn delivery_list(&self) -> EventDeliveryList {
+            EventDeliveryList::widgets(&self.target)
         }
     }
 
@@ -181,22 +181,12 @@ event_args! {
 
         ..
 
-        /// If the [`target`] or [`prev_target`] starts with the current path.
+        /// The [`target`] and [`prev_target`].
         ///
         /// [`target`]: Self::target
         /// [`prev_target`]: Self::prev_target
-        fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
-            if let Some(prev) = &self.prev_target {
-                if ctx.path.is_start_of(prev) {
-                    return true;
-                }
-            }
-            if let Some(new) = &self.target {
-                if ctx.path.is_start_of(new) {
-                    return true;
-                }
-            }
-            false
+        fn delivery_list(&self) -> EventDeliveryList {
+            EventDeliveryList::widgets_opt(&self.prev_target).with_widgets_opt(&self.target)
         }
     }
 
@@ -209,20 +199,19 @@ event_args! {
 
         ..
 
-        /// If the [`prev_capture`] or [`new_capture`] paths start with the current path.
+        /// The [`prev_capture`] and [`new_capture`] paths start with the current path.
         ///
-        fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
-            if let Some(prev) = &self.prev_capture {
-                if ctx.path.is_start_of(&prev.0) {
-                    return true;
-                }
+        /// [`prev_capture`]: Self::prev_capture
+        /// [`new_capture`]: Self::new_capture
+        fn delivery_list(&self) -> EventDeliveryList {
+            let mut list = EventDeliveryList::none();
+            if let Some((p, _)) = &self.prev_capture {
+                list = list.with_widgets(p);
             }
-            if let Some(new) = &self.new_capture {
-                if ctx.path.is_start_of(&new.0) {
-                    return true;
-                }
+            if let Some((p, _)) = &self.new_capture {
+                list = list.with_widgets(p);
             }
-            false
+            list
         }
     }
 
@@ -252,11 +241,11 @@ event_args! {
 
         ..
 
-        /// If the [`target`] starts with the current widget.
+        /// The [`target`].
         ///
         /// [`target`]: MouseWheelArgs::target
-        fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
-            ctx.path.is_start_of(&self.target)
+        fn delivery_list(&self) -> EventDeliveryList {
+            EventDeliveryList::widgets(&self.target)
         }
     }
 }

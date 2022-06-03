@@ -1238,10 +1238,11 @@ impl ContentCtrl {
         debug_assert!(self.inited);
 
         if self.subs.event_contains(args) {
-            ctx.widget_context(&self.info_tree, &self.root_info, &mut self.root_state, |ctx| {
-                self.root.event(ctx, args);
+            args.with_window(ctx, |ctx| {
+                ctx.widget_context(&self.info_tree, &self.root_info, &mut self.root_state, |ctx| {
+                    self.root.event(ctx, args);
+                });
             });
-        } else {
         }
     }
 

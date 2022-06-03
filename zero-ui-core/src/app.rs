@@ -502,9 +502,9 @@ cancelable_event_args! {
     /// Arguments for [`ShutdownRequestedEvent`].
     pub struct ShutdownRequestedArgs {
         ..
-        /// Always true.
-        fn concerns_widget(&self, _: &mut WidgetContext) -> bool {
-            true
+        /// Broadcast to all.
+        fn delivery_list(&self) -> EventDeliveryList {
+            EventDeliveryList::all()
         }
     }
 }
@@ -971,7 +971,7 @@ impl<E: AppExtension> RunningApp<E> {
         observer.event_preview(ctx, &update);
         let update = update.boxed();
         Events::on_pre_events(ctx, &update);
-        let update = EventUpdate::new(event, update.unbox_for::<Ev>().unwrap());
+        let update = update.unbox_for::<Ev>().unwrap();
 
         extensions.event_ui(ctx, &update);
         observer.event_ui(ctx, &update);

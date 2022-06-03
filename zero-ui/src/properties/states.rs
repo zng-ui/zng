@@ -61,14 +61,12 @@ pub fn is_hovered(child: impl UiNode, state: StateVar) -> impl UiNode {
                 }
                 self.child.event(ctx, args);
             } else if let Some(args) = WidgetInfoChangedEvent.update(args) {
-                if args.concerns_widget(ctx) {
-                    self.allow_interaction = ctx
-                        .info_tree
-                        .find(ctx.path.widget_id())
-                        .map(|w| w.allow_interaction())
-                        .unwrap_or(false);
-                    update = true;
-                }
+                self.allow_interaction = ctx
+                    .info_tree
+                    .find(ctx.path.widget_id())
+                    .map(|w| w.allow_interaction())
+                    .unwrap_or(false);
+                update = true;
                 self.child.event(ctx, args);
             } else {
                 self.child.event(ctx, args);
@@ -141,27 +139,23 @@ pub fn is_cap_hovered(child: impl UiNode, state: StateVar) -> impl UiNode {
             }
             // self.is_captured:
             else if let Some(args) = MouseCaptureEvent.update(args) {
-                if args.concerns_widget(ctx) {
-                    if args.is_got(ctx.path.widget_id()) {
-                        self.is_captured = true;
-                        update = true;
-                    } else if args.is_lost(ctx.path.widget_id()) {
-                        self.is_captured = false;
-                        update = true;
-                    }
+                if args.is_got(ctx.path.widget_id()) {
+                    self.is_captured = true;
+                    update = true;
+                } else if args.is_lost(ctx.path.widget_id()) {
+                    self.is_captured = false;
+                    update = true;
                 }
                 self.child.event(ctx, args);
             }
             // self.allow_interaction
             else if let Some(args) = WidgetInfoChangedEvent.update(args) {
-                if args.concerns_widget(ctx) {
-                    self.allow_interaction = ctx
-                        .info_tree
-                        .find(ctx.path.widget_id())
-                        .map(|w| w.allow_interaction())
-                        .unwrap_or(false);
-                    update = true;
-                }
+                self.allow_interaction = ctx
+                    .info_tree
+                    .find(ctx.path.widget_id())
+                    .map(|w| w.allow_interaction())
+                    .unwrap_or(false);
+                update = true;
                 self.child.event(ctx, args);
             } else {
                 self.child.event(ctx, args);
@@ -278,7 +272,7 @@ pub fn is_pressed(child: impl UiNode, state: StateVar) -> impl UiNode {
             }
             // self.shortcut_press:
             else if let Some(args) = ClickEvent.update(args) {
-                if args.shortcut().is_some() && args.concerns_widget(ctx) {
+                if args.shortcut().is_some() {
                     // if a shortcut click happened, we show pressed for the duration of `shortcut_pressed_duration`
                     // unless we where already doing that, then we just stop showing pressed, this causes
                     // a flickering effect when rapid clicks are happening.
@@ -298,7 +292,7 @@ pub fn is_pressed(child: impl UiNode, state: StateVar) -> impl UiNode {
             }
             // self.is_down = false;
             else if let Some(args) = WindowFocusChangedEvent.update(args) {
-                if !args.focused && args.concerns_widget(ctx) {
+                if !args.focused {
                     self.is_down = false;
                     update = true;
                 }
@@ -306,20 +300,18 @@ pub fn is_pressed(child: impl UiNode, state: StateVar) -> impl UiNode {
             }
             // self.allow_interaction
             else if let Some(args) = WidgetInfoChangedEvent.update(args) {
-                if args.concerns_widget(ctx) {
-                    self.allow_interaction = ctx
-                        .info_tree
-                        .find(ctx.path.widget_id())
-                        .map(|w| w.allow_interaction())
-                        .unwrap_or(false);
+                self.allow_interaction = ctx
+                    .info_tree
+                    .find(ctx.path.widget_id())
+                    .map(|w| w.allow_interaction())
+                    .unwrap_or(false);
 
-                    if !self.allow_interaction {
-                        self.is_down = false;
-                        self.shortcut_press = None;
-                    }
-
-                    update = true;
+                if !self.allow_interaction {
+                    self.is_down = false;
+                    self.shortcut_press = None;
                 }
+
+                update = true;
                 self.child.event(ctx, args);
             } else {
                 self.child.event(ctx, args);
@@ -428,15 +420,13 @@ pub fn is_cap_pressed(child: impl UiNode, state: StateVar) -> impl UiNode {
             }
             // self.is_captured:
             else if let Some(args) = MouseCaptureEvent.update(args) {
-                if args.concerns_widget(ctx) {
-                    self.is_captured = args.is_got(ctx.path.widget_id());
-                    update = true;
-                }
+                self.is_captured = args.is_got(ctx.path.widget_id());
+                update = true;
                 self.child.event(ctx, args);
             }
             // self.is_down = false;
             else if let Some(args) = WindowFocusChangedEvent.update(args) {
-                if !args.focused && args.concerns_widget(ctx) {
+                if !args.focused {
                     self.is_down = false;
                     update = true;
                 }
@@ -444,7 +434,7 @@ pub fn is_cap_pressed(child: impl UiNode, state: StateVar) -> impl UiNode {
             }
             // self.shortcut_press:
             else if let Some(args) = ClickEvent.update(args) {
-                if args.concerns_widget(ctx) && args.shortcut().is_some() {
+                if args.shortcut().is_some() {
                     // see `is_pressed` for details of what is happening here.
                     if self.shortcut_press.take().is_none() {
                         let duration = ctx.services.gestures().shortcut_pressed_duration;
@@ -462,20 +452,18 @@ pub fn is_cap_pressed(child: impl UiNode, state: StateVar) -> impl UiNode {
             }
             // self.allow_interaction
             else if let Some(args) = WidgetInfoChangedEvent.update(args) {
-                if args.concerns_widget(ctx) {
-                    self.allow_interaction = ctx
-                        .info_tree
-                        .find(ctx.path.widget_id())
-                        .map(|w| w.allow_interaction())
-                        .unwrap_or(false);
+                self.allow_interaction = ctx
+                    .info_tree
+                    .find(ctx.path.widget_id())
+                    .map(|w| w.allow_interaction())
+                    .unwrap_or(false);
 
-                    if !self.allow_interaction {
-                        self.is_down = false;
-                        self.shortcut_press = None;
-                    }
-
-                    update = true;
+                if !self.allow_interaction {
+                    self.is_down = false;
+                    self.shortcut_press = None;
                 }
+
+                update = true;
                 self.child.event(ctx, args);
             } else {
                 self.child.event(ctx, args);

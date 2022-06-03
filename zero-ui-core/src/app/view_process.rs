@@ -1149,9 +1149,9 @@ event_args! {
 
         ..
 
-        /// Concerns all widgets.
-        fn concerns_widget(&self, _ctx: &mut WidgetContext) -> bool {
-            true
+        /// Broadcast to all widgets.
+        fn delivery_list(&self) -> EventDeliveryList {
+            EventDeliveryList::all()
         }
     }
 }

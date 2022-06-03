@@ -385,8 +385,8 @@ mod util {
         struct RenderUpdateArgs {
             ..
 
-            fn concerns_widget(&self, _: &mut WidgetContext) -> bool {
-                true
+            fn delivery_list(&self) -> EventDeliveryList {
+                EventDeliveryList::all()
             }
         }
     }

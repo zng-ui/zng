@@ -499,9 +499,9 @@ event_args! {
 
         ..
 
-        /// If the widget is in the same window.
-        fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
-            ctx.path.window_id() == self.window_id
+        /// Broadcast to all widgets in the window.
+        fn delivery_list(&self) -> EventDeliveryList {
+            EventDeliveryList::window(self.window_id)
         }
     }
 
@@ -512,9 +512,9 @@ event_args! {
 
         ..
 
-        /// If the widget is in the same window.
-        fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
-            ctx.path.window_id() == self.window_id
+        /// Broadcast to all widgets in the window.
+        fn delivery_list(&self) -> EventDeliveryList {
+            EventDeliveryList::window(self.window_id)
         }
     }
 
@@ -537,9 +537,9 @@ event_args! {
 
         ..
 
-        /// Returns `true` for all widgets in the [window](Self::window_id).
-        fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
-            ctx.path.window_id() == self.window_id
+        /// Broadcast to all widgets in the window.
+        fn delivery_list(&self) -> EventDeliveryList {
+            EventDeliveryList::window(self.window_id)
         }
     }
 
@@ -556,9 +556,9 @@ event_args! {
 
         ..
 
-        /// If the widget is in the same window.
-        fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
-            ctx.path.window_id() == self.window_id
+        /// Broadcast to all widgets in the window.
+        fn delivery_list(&self) -> EventDeliveryList {
+            EventDeliveryList::window(self.window_id)
         }
     }
 
@@ -582,9 +582,9 @@ event_args! {
 
         ..
 
-        /// If the widget is in the same window.
-        fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
-            ctx.path.window_id() == self.window_id
+        /// Broadcast to all widgets in the window.
+        fn delivery_list(&self) -> EventDeliveryList {
+            EventDeliveryList::window(self.window_id)
         }
     }
 
@@ -603,9 +603,9 @@ event_args! {
 
         ..
 
-        /// If the widget is in the same window.
-        fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
-            ctx.path.window_id() == self.window_id
+        /// Broadcast to all widgets in the window.
+        fn delivery_list(&self) -> EventDeliveryList {
+            EventDeliveryList::window(self.window_id)
         }
     }
 }
@@ -693,9 +693,9 @@ cancelable_event_args! {
 
         ..
 
-        /// If the widget is in the same window.
-        fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
-            ctx.path.window_id() == self.window_id
+        /// Broadcast to all widgets in the window.
+        fn delivery_list(&self) -> EventDeliveryList {
+            EventDeliveryList::window(self.window_id)
         }
     }
 }

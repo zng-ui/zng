@@ -118,21 +118,9 @@ event_args! {
 
         ..
 
-        /// If [`prev_focus`](Self::prev_focus) or [`new_focus`](Self::new_focus) starts with the current widget.
-        fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
-            if let Some(prev) = &self.prev_focus {
-                if ctx.path.is_start_of(prev) {
-                    return true;
-                }
-            }
-
-            if let Some(new) = &self.new_focus {
-                if ctx.path.is_start_of(new) {
-                    return true;
-                }
-            }
-
-            false
+        /// The [`prev_focus`](Self::prev_focus) and [`new_focus`](Self::new_focus).
+        fn delivery_list(&self) -> EventDeliveryList {
+            EventDeliveryList::widgets_opt(&self.prev_focus).with_widgets_opt(&self.new_focus)
         }
     }
 
@@ -151,28 +139,12 @@ event_args! {
 
         ..
 
-        /// If [`prev_return`](Self::prev_return), [`new_return`](Self::new_return)
-        /// or [`scope`](Self::scope) starts with the current widget.
-        fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
-            if let Some(prev) = &self.prev_return {
-                if ctx.path.is_start_of(prev) {
-                    return true;
-                }
-            }
-
-            if let Some(new) = &self.new_return {
-                if ctx.path.is_start_of(new) {
-                    return true;
-                }
-            }
-
-            if let Some(scope) = &self.scope {
-                if ctx.path.is_start_of(scope) {
-                    return true;
-                }
-            }
-
-            false
+        /// The [`prev_return`](Self::prev_return), [`new_return`](Self::new_return)
+        /// and [`scope`](Self::scope).
+        fn delivery_list(&self) -> EventDeliveryList {
+            EventDeliveryList::widgets_opt(&self.scope)
+                .with_widgets_opt(&self.prev_return)
+                .with_widgets_opt(&self.new_return)
         }
     }
 }

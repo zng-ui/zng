@@ -87,11 +87,11 @@ event_args! {
 
         ..
 
-        /// If the [`target`] starts with the current path.
+        /// The[`target`].
         ///
         /// [`target`]: Self::target
-        fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
-            ctx.path.is_start_of(&self.target)
+        fn delivery_list(&self) -> EventDeliveryList {
+            EventDeliveryList::widgets(&self.target)
         }
     }
 
@@ -116,11 +116,11 @@ event_args! {
 
         ..
 
-        /// If the [`target`] starts with the current path.
+        /// The [`target`].
         ///
         /// [`target`]: Self::target
-        fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
-            ctx.path.is_start_of(&self.target)
+        fn delivery_list(&self) -> EventDeliveryList {
+            EventDeliveryList::widgets(&self.target)
         }
     }
 }

@@ -54,7 +54,7 @@ event_property! {
     pub fn key_down {
         event: KeyInputEvent,
         args: KeyInputArgs,
-        filter: |ctx, args| args.state == KeyState::Pressed && args.concerns_widget(ctx),
+        filter: |_, args| args.state == KeyState::Pressed,
     }
 
     /// Event fired when a keyboard key is released.
@@ -79,7 +79,7 @@ event_property! {
     pub fn key_up {
         event: KeyInputEvent,
         args: KeyInputArgs,
-        filter: |ctx, args| args.state == KeyState::Released && args.concerns_widget(ctx),
+        filter: |_, args| args.state == KeyState::Released,
     }
 
     pub fn char_input {

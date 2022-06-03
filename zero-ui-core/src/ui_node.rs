@@ -181,7 +181,7 @@ pub trait UiNode: 'static {
     /// impl<C: UiNode> UiNode for MyNode<C> {
     ///     fn event<A: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &A) {
     ///         if let Some(args) = ClickEvent.update(args) {
-    ///             if args.concerns_widget(ctx) && !args.stop_propagation_requested() {
+    ///             if !args.stop_propagation_requested() {
     ///                 self.click_count += 1;
     ///                 args.stop_propagation();
     ///                 println!("clicks blocked {}", self.click_count);
@@ -196,8 +196,8 @@ pub trait UiNode: 'static {
     /// ```
     ///
     /// In the example the `ClickEvent` event is handled in *preview* style (before child), but only if
-    /// the widget was clicked and stop propagation was not requested, the click arguments `concerns_widget` also
-    /// checks if the widget is enabled. The event is then propagated to the `child` node, `self.child.event` appears to be
+    /// the widget was clicked and stop propagation was not requested, the event is only received if the context widget is
+    /// in the arguments [`delivery_list`]. The event is then propagated to the `child` node, `self.child.event` appears to be
     /// duplicated, but the call inside the `if` block ensured that the descendant nodes will resolve the event statically,
     /// which may not be the case in the `else` block call where `A` can be the dynamic resolver.
     ///
@@ -205,6 +205,7 @@ pub trait UiNode: 'static {
     /// [`EventUpdate`]: crate::event::EventUpdate
     /// [`on_pre_event`]: crate::event::on_pre_event
     /// [`Event::update`]: crate::event::Event::update
+    /// [`delivery_list`]: crate::event::EventArgs::delivery_list
     fn event<A: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &A);
 
     /// Called every time an update is requested.

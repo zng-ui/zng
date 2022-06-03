@@ -54,9 +54,9 @@ event_args! {
 
         ..
 
-        /// Returns `true` for all widgets in the [window](Self::window_id).
-        fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
-            ctx.path.window_id() == self.window_id
+        /// Broadcast to all [window](Self::window_id) widgets.
+        fn delivery_list(&self) -> EventDeliveryList {
+            EventDeliveryList::window(self.window_id)
         }
     }
 
@@ -70,9 +70,9 @@ event_args! {
 
         ..
 
-        /// Returns `true` for all widgets in the [window](Self::window_id).
-        fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
-            ctx.path.window_id() == self.window_id
+        /// Broadcast to all [window](Self::window_id) widgets.
+        fn delivery_list(&self) -> EventDeliveryList {
+            EventDeliveryList::window(self.window_id)
         }
     }
 
@@ -86,9 +86,9 @@ event_args! {
 
         ..
 
-        /// Returns `true` for all widgets in the [window](Self::window_id).
-        fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
-            ctx.path.window_id() == self.window_id
+        /// Broadcast to all [window](Self::window_id) widgets.
+        fn delivery_list(&self) -> EventDeliveryList {
+            EventDeliveryList::window(self.window_id)
         }
     }
 
@@ -102,9 +102,9 @@ event_args! {
 
         ..
 
-        /// Returns `true` for all widgets in the [window](Self::window_id).
-        fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
-            ctx.path.window_id() == self.window_id
+        /// Broadcast to all [window](Self::window_id) widgets.
+        fn delivery_list(&self) -> EventDeliveryList {
+            EventDeliveryList::window(self.window_id)
         }
     }
 
@@ -124,9 +124,9 @@ event_args! {
 
         ..
 
-        /// Returns `true` for all widgets in the [window](Self::window_id).
-        fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
-            ctx.path.window_id() == self.window_id
+        /// Broadcast to all [window](Self::window_id) widgets.
+        fn delivery_list(&self) -> EventDeliveryList {
+            EventDeliveryList::window(self.window_id)
         }
     }
 
@@ -170,9 +170,9 @@ event_args! {
 
         ..
 
-        /// Returns `true` for all widgets in the [window](Self::window_id).
-        fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
-            ctx.path.window_id() == self.window_id
+        /// Broadcast to all [window](Self::window_id) widgets.
+        fn delivery_list(&self) -> EventDeliveryList {
+            EventDeliveryList::window(self.window_id)
         }
     }
 
@@ -189,9 +189,9 @@ event_args! {
 
         ..
 
-        /// Returns `true` for all widgets in the [window](Self::window_id).
-        fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
-            ctx.path.window_id() == self.window_id
+        /// Broadcast to all [window](Self::window_id) widgets.
+        fn delivery_list(&self) -> EventDeliveryList {
+            EventDeliveryList::window(self.window_id)
         }
     }
 
@@ -208,9 +208,9 @@ event_args! {
 
         ..
 
-        /// Returns `true` for all widgets in the [window](Self::window_id).
-        fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
-            ctx.path.window_id() == self.window_id
+        /// Broadcast to all [window](Self::window_id) widgets.
+        fn delivery_list(&self) -> EventDeliveryList {
+            EventDeliveryList::window(self.window_id)
         }
     }
 
@@ -221,9 +221,10 @@ event_args! {
         /// Error message from the view-process.
         pub error: String,
         ..
-        /// Returns `true` for all widgets in the [window](Self::window_id).
-        fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
-            ctx.path.window_id() == self.window_id
+
+        /// Broadcast to all [window](Self::window_id) widgets.
+        fn delivery_list(&self) -> EventDeliveryList {
+            EventDeliveryList::window(self.window_id)
         }
     }
 
@@ -234,9 +235,9 @@ event_args! {
 
         ..
 
-        /// Returns `true` for all widgets in the [window](Self::window_id).
-        fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
-            ctx.path.window_id() == self.window_id
+        /// Broadcast to all [window](Self::window_id) widgets.
+        fn delivery_list(&self) -> EventDeliveryList {
+            EventDeliveryList::window(self.window_id)
         }
     }
 
@@ -247,9 +248,9 @@ event_args! {
 
         ..
 
-        /// Returns `true` for all widgets.
-        fn concerns_widget(&self, _ctx: &mut WidgetContext) -> bool {
-            true
+        /// Broadcast to all [window](Self::window_id) widgets.
+        fn delivery_list(&self) -> EventDeliveryList {
+            EventDeliveryList::window(self.window_id)
         }
     }
 
@@ -263,9 +264,9 @@ event_args! {
 
         ..
 
-        /// Returns `true` for all widgets in the [window](Self::window_id).
-        fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
-            ctx.path.window_id() == self.window_id
+        /// Broadcast to all [window](Self::window_id) widgets.
+        fn delivery_list(&self) -> EventDeliveryList {
+            EventDeliveryList::window(self.window_id)
         }
     }
 
@@ -279,9 +280,9 @@ event_args! {
 
         ..
 
-        /// Returns `true` for all widgets in the [window](Self::window_id).
-        fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
-            ctx.path.window_id() == self.window_id
+        /// Broadcast to all [window](Self::window_id) widgets.
+        fn delivery_list(&self) -> EventDeliveryList {
+            EventDeliveryList::window(self.window_id)
         }
     }
 
@@ -296,9 +297,9 @@ event_args! {
 
         ..
 
-        /// Returns `true` for all widgets in the [window](Self::window_id).
-        fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
-            ctx.path.window_id() == self.window_id
+        /// Broadcast to all [window](Self::window_id) widgets.
+        fn delivery_list(&self) -> EventDeliveryList {
+            EventDeliveryList::window(self.window_id)
         }
     }
 
@@ -323,9 +324,9 @@ event_args! {
 
         ..
 
-        /// Returns `true` for all widgets in the [window](Self::window_id).
-        fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
-            ctx.path.window_id() == self.window_id
+        /// Broadcast to all [window](Self::window_id) widgets.
+        fn delivery_list(&self) -> EventDeliveryList {
+            EventDeliveryList::window(self.window_id)
         }
     }
 
@@ -339,9 +340,9 @@ event_args! {
 
         ..
 
-        /// Returns `true` for all widgets in the [window](Self::window_id).
-        fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
-            ctx.path.window_id() == self.window_id
+        /// Broadcast to all [window](Self::window_id) widgets.
+        fn delivery_list(&self) -> EventDeliveryList {
+            EventDeliveryList::window(self.window_id)
         }
     }
 
@@ -361,9 +362,9 @@ event_args! {
 
         ..
 
-        /// Returns `true` for all widgets in the [window](Self::window_id).
-        fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
-            ctx.path.window_id() == self.window_id
+        /// Broadcast to all [window](Self::window_id) widgets.
+        fn delivery_list(&self) -> EventDeliveryList {
+            EventDeliveryList::window(self.window_id)
         }
     }
 
@@ -383,9 +384,9 @@ event_args! {
 
         ..
 
-        /// Returns `true` for all widgets in the [window](Self::window_id).
-        fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
-            ctx.path.window_id() == self.window_id
+        /// Broadcast to all [window](Self::window_id) widgets.
+        fn delivery_list(&self) -> EventDeliveryList {
+            EventDeliveryList::window(self.window_id)
         }
     }
 
@@ -401,9 +402,9 @@ event_args! {
 
         ..
 
-        /// Returns `true` for all widgets in the [window](Self::window_id).
-        fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
-            ctx.path.window_id() == self.window_id
+        /// Broadcast to all [window](Self::window_id) widgets.
+        fn delivery_list(&self) -> EventDeliveryList {
+            EventDeliveryList::window(self.window_id)
         }
     }
 
@@ -423,9 +424,9 @@ event_args! {
 
         ..
 
-        /// Returns `true` for all widgets in the [window](Self::window_id).
-        fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
-            ctx.path.window_id() == self.window_id
+        /// Broadcast to all [window](Self::window_id) widgets.
+        fn delivery_list(&self) -> EventDeliveryList {
+            EventDeliveryList::window(self.window_id)
         }
     }
 
@@ -441,9 +442,9 @@ event_args! {
 
         ..
 
-        /// Returns `true` for all widgets in the [window](Self::window_id).
-        fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
-            ctx.path.window_id() == self.window_id
+        /// Broadcast to all [window](Self::window_id) widgets.
+        fn delivery_list(&self) -> EventDeliveryList {
+            EventDeliveryList::window(self.window_id)
         }
     }
 
@@ -460,10 +461,13 @@ event_args! {
 
         ..
 
-        /// Returns `true` for all widgets in any of the [`windows`](Self::windows).
-        fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
-            let window_id = ctx.path.window_id();
-            self.windows.iter().any(|&w| w == window_id)
+        /// Broadcast to all widgets in all [windows](Self::windows).
+        fn delivery_list(&self) -> EventDeliveryList {
+            let mut list = EventDeliveryList::none();
+            for window in &self.windows {
+                list = list.with_window(*window);
+            }
+            list
         }
     }
 
@@ -474,9 +478,9 @@ event_args! {
 
         ..
 
-        /// Concerns all widgets.
-        fn concerns_widget(&self, _ctx: &mut WidgetContext) -> bool {
-            true
+        /// Broadcast to all widgets.
+        fn delivery_list(&self) -> EventDeliveryList {
+            EventDeliveryList::all()
         }
     }
 
@@ -490,9 +494,9 @@ event_args! {
 
         ..
 
-        /// Returns `true` for all widgets in the [window](Self::window_id).
-        fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
-            ctx.path.window_id() == self.window_id
+        /// Broadcast to all [window](Self::window_id) widgets.
+        fn delivery_list(&self) -> EventDeliveryList {
+            EventDeliveryList::window(self.window_id)
         }
     }
 
@@ -503,9 +507,9 @@ event_args! {
 
         ..
 
-        /// Concerns all widgets.
-        fn concerns_widget(&self, _ctx: &mut WidgetContext) -> bool {
-            true
+        /// Broadcast to all widgets.
+        fn delivery_list(&self) -> EventDeliveryList {
+            EventDeliveryList::all()
         }
     }
 
@@ -525,9 +529,9 @@ event_args! {
 
         ..
 
-        /// Concerns all widgets.
-        fn concerns_widget(&self, _ctx: &mut WidgetContext) -> bool {
-            true
+        /// Broadcast to all widgets.
+        fn delivery_list(&self) -> EventDeliveryList {
+            EventDeliveryList::all()
         }
     }
 
@@ -535,9 +539,9 @@ event_args! {
     pub struct RawFontChangedArgs {
         ..
 
-        /// Concerns all widgets.
-        fn concerns_widget(&self, _ctx: &mut WidgetContext) -> bool {
-            true
+        /// Broadcast to all widgets.
+        fn delivery_list(&self) -> EventDeliveryList {
+            EventDeliveryList::all()
         }
     }
 
@@ -548,9 +552,9 @@ event_args! {
 
         ..
 
-        /// Concerns all widgets.
-        fn concerns_widget(&self, _ctx: &mut WidgetContext) -> bool {
-            true
+        /// Broadcast to all widgets.
+        fn delivery_list(&self) -> EventDeliveryList {
+            EventDeliveryList::all()
         }
     }
 
@@ -561,9 +565,9 @@ event_args! {
 
         ..
 
-        /// Concerns all widgets.
-        fn concerns_widget(&self, _ctx: &mut WidgetContext) -> bool {
-            true
+        /// Broadcast to all widgets.
+        fn delivery_list(&self) -> EventDeliveryList {
+            EventDeliveryList::all()
         }
     }
 
@@ -574,9 +578,9 @@ event_args! {
 
         ..
 
-        /// Concerns all widgets.
-        fn concerns_widget(&self, _ctx: &mut WidgetContext) -> bool {
-            true
+        /// Broadcast to all widgets.
+        fn delivery_list(&self) -> EventDeliveryList {
+            EventDeliveryList::all()
         }
     }
 
@@ -591,9 +595,9 @@ event_args! {
 
         ..
 
-        /// Concerns all widgets.
-        fn concerns_widget(&self, _ctx: &mut WidgetContext) -> bool {
-            true
+        /// Broadcast to all widgets.
+        fn delivery_list(&self) -> EventDeliveryList {
+            EventDeliveryList::all()
         }
     }
 }

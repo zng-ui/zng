@@ -732,23 +732,21 @@ pub fn scroll_wheel_node(child: impl UiNode) -> impl UiNode {
 
         fn event<A: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &A) {
             if let Some(args) = MouseWheelEvent.update(args) {
-                if args.concerns_widget(ctx) {
-                    if let Some(delta) = args.scroll_delta(*AltFactorVar::get(ctx)) {
-                        args.handle(|_| {
-                            match delta {
-                                MouseScrollDelta::LineDelta(x, y) => {
-                                    self.offset.x -= HorizontalLineUnitVar::get_clone(ctx) * x.fct();
-                                    self.offset.y -= VerticalLineUnitVar::get_clone(ctx) * y.fct();
-                                }
-                                MouseScrollDelta::PixelDelta(x, y) => {
-                                    self.offset.x -= x.px();
-                                    self.offset.y -= y.px();
-                                }
+                if let Some(delta) = args.scroll_delta(*AltFactorVar::get(ctx)) {
+                    args.handle(|_| {
+                        match delta {
+                            MouseScrollDelta::LineDelta(x, y) => {
+                                self.offset.x -= HorizontalLineUnitVar::get_clone(ctx) * x.fct();
+                                self.offset.y -= VerticalLineUnitVar::get_clone(ctx) * y.fct();
                             }
+                            MouseScrollDelta::PixelDelta(x, y) => {
+                                self.offset.x -= x.px();
+                                self.offset.y -= y.px();
+                            }
+                        }
 
-                            ctx.updates.layout();
-                        });
-                    }
+                        ctx.updates.layout();
+                    });
                 }
                 self.child.event(ctx, args);
             } else {

@@ -1,10 +1,9 @@
-* Review click args and allow_interaction, removed check from concerns_widget.
-* Review mouse move capture, removed check from concerns_widget.
+* Review click args and allow_interaction, removed check from args.
+* Review mouse move capture, removed check from args.
 * Review mouse input args, same removes.
 * Review mouse click args.
 * Review mouse hover args.
 * Review mouse cap args.
-* Document concerns_widget in the macro too.
 
 =======
 

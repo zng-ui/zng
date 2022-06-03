@@ -437,8 +437,8 @@
 //!
 //! Events are unit structs that implement [`Event`], they represent an action or occurrence such as a key press or an window opening.
 //! Events are naturally **broadcast**, every window and widget *receives* every event message. The event messages are
-//! structs that implement [`EventArgs`], and these *arguments* can be checked to see if the event is relevant in an widget context
-//! by calling [`concerns_widget`]. Early listeners can also use the [`EventArgs`] to signal later listeners that an event has ben
+//! structs that implement [`EventArgs`], and these *arguments* are delivered to all widgets in its [`delivery_list`].
+//! Early listeners can also use the [`EventArgs`] to signal later listeners that an event has ben
 //! handled by calling [`stop_propagation`].
 //!
 //! You usually don't setup an widget event handler directly, but instead use a property that does the message filtering and only
@@ -609,7 +609,7 @@
 //! ```
 //!
 //! The preview handlers are called before the widget content receives the event message and the main handlers are called after.
-//! Most event arguments implement their [`concerns_widget`] filter to apply to a target widget **and** its parent widgets. This
+//! Most event arguments provide a [`delivery_list`] that targets a widget **and** its parent widgets. This
 //! makes the event propagation follow a **route** in the UI tree. Starting from the window root, every widget all the way to the
 //! target widget gets to *preview* the event, if none stops the propagation the main handlers are called, first in the target
 //! widget and then all the way back to the window.
@@ -830,7 +830,7 @@
 //! [#impl_ui_node]: macro@crate::core::impl_ui_node
 //! [`Event`]: crate::core::event::Event
 //! [`EventArgs`]: crate::core::event::EventArgs
-//! [`concerns_widget`]: crate::core::event::EventArgs::concerns_widget
+//! [`delivery_list`]: crate::core::event::EventArgs::delivery_list
 //! [`stop_propagation`]: crate::core::event::EventArgs::stop_propagation
 //! [`WidgetHandler<T>`]: crate::core::handler::WidgetHandler
 //! [`hn!`]: macro@crate::core::handler::hn

@@ -46,7 +46,7 @@ pub fn capture_mouse(child: impl UiNode, mode: impl IntoVar<CaptureMode>) -> imp
 
         fn event<EU: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &EU) {
             if let Some(args) = MouseInputEvent.update(args) {
-                if args.is_mouse_down() && args.concerns_widget(ctx) {
+                if args.is_mouse_down() {
                     let mouse = ctx.services.mouse();
                     let widget_id = ctx.path.widget_id();
 

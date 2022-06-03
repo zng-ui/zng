@@ -48,9 +48,9 @@ event_args! {
 
         ..
 
-        /// If the [`target`](Self::target) starts with the current path.
-        fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
-            ctx.path.is_start_of(&self.target)
+        /// The [`target`](Self::target).
+        fn delivery_list(&self) -> EventDeliveryList {
+            EventDeliveryList::widgets(&self.target)
         }
     }
 
@@ -67,9 +67,9 @@ event_args! {
 
         ..
 
-        /// If the [`target`](Self::target) starts with the current path.
-        fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
-            ctx.path.is_start_of(&self.target)
+        /// The [`target`](Self::target).
+        fn delivery_list(&self) -> EventDeliveryList {
+            EventDeliveryList::widgets(&self.target)
         }
     }
 
@@ -83,9 +83,9 @@ event_args! {
 
         ..
 
-        /// True for all widgets.
-        fn concerns_widget(&self, _ctx: &mut WidgetContext) -> bool {
-            true
+        /// Broadcast to all.
+        fn delivery_list(&self) -> EventDeliveryList {
+            EventDeliveryList::all()
         }
     }
 }
