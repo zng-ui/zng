@@ -1,6 +1,6 @@
 //! Widget info tree.
 
-use std::{cell::Cell, fmt, mem, ops, rc::Rc, cmp};
+use std::{cell::Cell, cmp, fmt, mem, ops, rc::Rc};
 
 use ego_tree::Tree;
 
@@ -10,6 +10,7 @@ use crate::{
     crate_util::{IdMap, IdSet},
     event::EventUpdateArgs,
     handler::WidgetHandler,
+    impl_from_and_into_var,
     units::*,
     var::{Var, VarValue, VarsRead, WithVarsRead},
     widget_base::Visibility,
@@ -2020,11 +2021,11 @@ type InteractiveFilters = Vec<Rc<dyn Fn(&InteractiveFilterArgs) -> bool>>;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Interaction {
     /// Normal interactions allowed.
-    /// 
+    ///
     /// This is the default value.
     Enabled = 1,
     /// Only "disabled" interaction allowed.
-    /// 
+    ///
     /// An example of disabled interaction is a tooltip that explains why a disabled button cannot be clicked.
     Disabled,
 
@@ -2046,7 +2047,7 @@ impl ops::BitOr for Interaction {
         match (self, rhs) {
             (None, _) | (_, None) => None,
             (Disabled, _) | (_, Disabled) => Disabled,
-            _ => Enabled
+            _ => Enabled,
         }
     }
 }
@@ -2067,5 +2068,15 @@ impl cmp::Ord for Interaction {
         let a = *self as u8;
         let b = *other as u8;
         a.cmp(&b)
+    }
+}
+impl_from_and_into_var! {
+    /// `Enabled` or `None` values.
+    fn from(enabled_or_none: bool) -> Interaction {
+        if enabled_or_none {
+            Interaction::Enabled
+        } else {
+            Interaction::None
+        }
     }
 }
