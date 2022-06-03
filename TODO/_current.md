@@ -1,3 +1,14 @@
+We emit interaction events (except focus) without checking if interaction is enabled for the widget, the default
+`concerns_widget` then checked the interaction for each widget, the idea was to allows the creation of "disabled hovered"
+states, like a tooltip the says disabled?
+
+The interaction filter did not exist as a general thing when we made this, now if we send disabled events we may accidentally
+allow interaction with "really not-interactable" widgets, such as those blocked by a modal overlay.
+
+Either we stop emitting disabled interactions or we expand the interaction filter to have levels of blockage.
+
+The args that removed default interaction filter where:
+
 * Review click args and allow_interaction, removed check from args.
 * Review mouse move capture, removed check from args.
 * Review mouse input args, same removes.
