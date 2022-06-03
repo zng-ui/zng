@@ -5,7 +5,8 @@ states, like a tooltip the says disabled?
 The interaction filter did not exist as a general thing when we made this, now if we send disabled events we may accidentally
 allow interaction with "really not-interactable" widgets, such as those blocked by a modal overlay.
 
-Either we stop emitting disabled interactions or we expand the interaction filter to have levels of blockage.
+* Either we stop emitting disabled interactions or we expand the interaction filter to have levels of blockage?
+* See https://www.smashingmagazine.com/2021/08/frustrating-design-patterns-disabled-buttons/
 
 The args that removed default interaction filter where:
 
