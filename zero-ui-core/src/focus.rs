@@ -1661,7 +1661,7 @@ impl<'a> WidgetFocusInfo<'a> {
 
     /// Widget focus metadata.
     pub fn focus_info(self) -> FocusInfo {
-        if self.info.visibility() != Visibility::Visible || !self.info.allow_interaction() {
+        if self.info.visibility() != Visibility::Visible || !self.info.interactivity() {
             FocusInfo::NotFocusable
         } else if let Some(builder) = self.info.meta().get(FocusInfoKey) {
             builder.build()

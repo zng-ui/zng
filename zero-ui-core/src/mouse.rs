@@ -349,7 +349,7 @@ impl MouseInputArgs {
             && ctx
                 .info_tree
                 .find(ctx.path.widget_id())
-                .map(|w| w.allow_interaction())
+                .map(|w| w.interactivity())
                 .unwrap_or(false))
             || self
                 .capture

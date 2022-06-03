@@ -137,13 +137,13 @@ impl WindowLayers {
                     let anchor = self.anchor.copy(ctx);
                     let widget = self.widget.id();
                     let querying = Cell::new(false);
-                    info.push_interaction_filter(move |args| {
+                    info.push_interactivity_filter(move |args| {
                         if args.info.self_and_ancestors().any(|w| w.widget_id() == widget) {
                             if querying.replace(true) {
                                 return true; // avoid recursion.
                             }
                             let _q = RunOnDrop::new(|| querying.set(false));
-                            args.info.tree().find(anchor).map(|a| a.allow_interaction()).unwrap_or(false)
+                            args.info.tree().find(anchor).map(|a| a.interactivity()).unwrap_or(false)
                         } else {
                             true
                         }

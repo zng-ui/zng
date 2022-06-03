@@ -72,7 +72,7 @@ pub fn capture_mouse(child: impl UiNode, mode: impl IntoVar<CaptureMode>) -> imp
                 if ctx
                     .info_tree
                     .find(ctx.path.widget_id())
-                    .map(|w| w.allow_interaction())
+                    .map(|w| w.interactivity())
                     .unwrap_or(false)
                 {
                     let mouse = ctx.services.mouse();
@@ -140,7 +140,7 @@ pub fn modal(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
                 if insert_filter {
                     // just registered and we are the first, insert the filter:
 
-                    info.push_interaction_filter(clone_move!(mws, |a| {
+                    info.push_interactivity_filter(clone_move!(mws, |a| {
                         let mut mws = mws.borrow_mut();
 
                         if mws.last_in_tree.is_none() {

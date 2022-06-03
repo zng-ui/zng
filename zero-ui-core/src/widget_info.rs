@@ -1,6 +1,6 @@
 //! Widget info tree.
 
-use std::{cell::Cell, cmp, fmt, mem, ops, rc::Rc};
+use std::{cell::Cell, fmt, mem, ops, rc::Rc};
 
 use ego_tree::Tree;
 
@@ -411,7 +411,7 @@ pub struct WidgetInfoBuilder {
     meta: OwnedStateMap,
 
     tree: Tree<WidgetInfoData>,
-    interaction_filters: InteractiveFilters,
+    interactivity_filters: InteractivityFilters,
 }
 impl WidgetInfoBuilder {
     /// Starts building a info tree with the root information.
@@ -431,7 +431,7 @@ impl WidgetInfoBuilder {
                 border_info: root_border_info,
                 render_info: root_render_info,
                 meta: Rc::new(OwnedStateMap::new()),
-                interaction_filters: vec![],
+                interactivity_filters: vec![],
             },
             used_data.tree_capacity,
         );
@@ -441,7 +441,7 @@ impl WidgetInfoBuilder {
             window_id,
             node: root_node,
             tree,
-            interaction_filters: Vec::with_capacity(used_data.interactive_capacity),
+            interactivity_filters: Vec::with_capacity(used_data.interactivity_filters_capacity),
             meta: OwnedStateMap::new(),
             widget_id: root_id,
         }
@@ -485,7 +485,7 @@ impl WidgetInfoBuilder {
                 border_info,
                 render_info,
                 meta: Rc::new(OwnedStateMap::new()),
-                interaction_filters: vec![],
+                interactivity_filters: vec![],
             })
             .id();
 
@@ -498,12 +498,12 @@ impl WidgetInfoBuilder {
 
     /// Reuse the widget info branch from the previous tree.
     ///
-    /// All info state is preserved in the new info tree, all [interaction filters] registered by the widget also affect
+    /// All info state is preserved in the new info tree, all [interactivity filters] registered by the widget also affect
     /// the new info tree.
     ///
     /// Only call this in widget node implementations that monitor the updates requested by their content.
     ///
-    /// [interaction filters]: Self::push_interaction_filter
+    /// [interactivity filters]: Self::push_interactivity_filter
     pub fn push_widget_reuse(&mut self, ctx: &mut InfoContext) {
         let widget_id = ctx.path.widget_id();
 
@@ -520,34 +520,34 @@ impl WidgetInfoBuilder {
         Self::clone_append(
             wgt.node(),
             &mut self.tree.get_mut(self.node).unwrap(),
-            &mut self.interaction_filters,
+            &mut self.interactivity_filters,
         );
     }
     fn clone_append(
         from: ego_tree::NodeRef<WidgetInfoData>,
         to: &mut ego_tree::NodeMut<WidgetInfoData>,
-        interaction_filters: &mut InteractiveFilters,
+        interactivity_filters: &mut InteractivityFilters,
     ) {
         let mut to = to.append(from.value().clone());
-        for filter in &from.value().interaction_filters {
-            interaction_filters.push(filter.clone());
+        for filter in &from.value().interactivity_filters {
+            interactivity_filters.push(filter.clone());
         }
         for from in from.children() {
-            Self::clone_append(from, &mut to, interaction_filters);
+            Self::clone_append(from, &mut to, interactivity_filters);
         }
     }
 
-    /// Register a closure that returns `true` if the widget is interactive or `false` if it is not.
+    /// Register a closure that returns the [`Interactivity`] allowed for each widget.
     ///
-    /// Widgets [`allow_interaction`] if all registered closures allow it. Interaction filters are global to the
-    /// widget tree, an are re-registered for the tree if the current widget is [reused].
+    /// Widgets [`interactivity`] is computed from all interactivity filters. Interactivity filters are global to the
+    /// widget tree, and are re-registered for the tree if the current widget is [reused].
     ///
-    /// [`allow_interaction`]: WidgetInfo::allow_interaction
+    /// [`interactivity`]: WidgetInfo::interactivity
     /// [reused]: Self::push_widget_reuse
-    pub fn push_interaction_filter(&mut self, filter: impl Fn(&InteractiveFilterArgs) -> bool + 'static) {
+    pub fn push_interactivity_filter(&mut self, filter: impl Fn(&InteractivityFilterArgs) -> Interactivity + 'static) {
         let filter = Rc::new(filter);
-        self.interaction_filters.push(filter.clone());
-        self.node(self.node).value().interaction_filters.push(filter);
+        self.interactivity_filters.push(filter.clone());
+        self.node(self.node).value().interactivity_filters.push(filter);
     }
 
     /// Calls the `info` closure and returns the range of children visited by it.
@@ -587,7 +587,7 @@ impl WidgetInfoBuilder {
             window_id: self.window_id,
             lookup,
             tree: self.tree,
-            interaction_filters: self.interaction_filters,
+            interactivity_filters: self.interactivity_filters,
         }));
 
         if !repeats.is_empty() {
@@ -611,7 +611,7 @@ impl WidgetInfoBuilder {
 
         let cap = UsedWidgetInfoBuilder {
             tree_capacity: r.0.lookup.capacity(),
-            interactive_capacity: r.0.interaction_filters.len(),
+            interactivity_filters_capacity: r.0.interactivity_filters.len(),
         };
 
         (r, cap)
@@ -647,7 +647,7 @@ struct WidgetInfoTreeInner {
     window_id: WindowId,
     tree: Tree<WidgetInfoData>,
     lookup: IdMap<WidgetId, ego_tree::NodeId>,
-    interaction_filters: InteractiveFilters,
+    interactivity_filters: InteractivityFilters,
 }
 impl WidgetInfoTree {
     /// Blank window that contains only the root widget taking no space.
@@ -1143,7 +1143,7 @@ struct WidgetInfoData {
     border_info: WidgetBorderInfo,
     render_info: WidgetRenderInfo,
     meta: Rc<OwnedStateMap>,
-    interaction_filters: InteractiveFilters,
+    interactivity_filters: InteractivityFilters,
 }
 
 /// Reference to a widget info in a [`WidgetInfoTree`].
@@ -1259,23 +1259,18 @@ impl<'a> WidgetInfo<'a> {
         }
     }
 
-    /// Returns `true` if interaction with this widget is allowed by all interactive filters.
+    /// Compute the interactivity of the widget.
     ///
-    /// If `false` interaction behavior implementers must consider this widget *disabled*, disabled widgets do not receive keyboard
-    /// or pointer events but can block hit-test if rendered above others.
-    ///
-    /// Note that not only [disabled] widgets can return `false` here, but only [disabled] widgets visually indicate that they are disabled.
-    /// An example of a widget that is [enabled] but not interactive is one outside of a *modal overlay*.
-    ///
-    /// [disabled]: fn@crate::widget_base::enabled
-    /// [enabled]: fn@crate::widget_base::enabled
-    pub fn allow_interaction(self) -> bool {
-        for filter in &self.tree.0.interaction_filters {
-            if !filter(&InteractiveFilterArgs { info: self }) {
-                return false;
+    /// The interactivity of a widget is the combined result of all interactivity filters applied to it.
+    pub fn interactivity(self) -> Interactivity {
+        let mut interactivity = Interactivity::ENABLED;
+        for filter in &self.tree.0.interactivity_filters {
+            interactivity |= filter(&InteractivityFilterArgs { info: self });
+            if interactivity == Interactivity::BLOCKED_DISABLED {
+                return interactivity
             }
         }
-        true
+        interactivity
     }
 
     /// All the transforms introduced by this widget, starting from the outer info.
@@ -1666,13 +1661,13 @@ pub enum WidgetOrientation {
 /// Data from a previous [`WidgetInfoBuilder`], can be reused in the next rebuild for a performance boost.
 pub struct UsedWidgetInfoBuilder {
     tree_capacity: usize,
-    interactive_capacity: usize,
+    interactivity_filters_capacity: usize,
 }
 impl UsedWidgetInfoBuilder {
     fn fallback() -> Self {
         UsedWidgetInfoBuilder {
             tree_capacity: 100,
-            interactive_capacity: 30,
+            interactivity_filters_capacity: 30,
         }
     }
 }
@@ -1999,87 +1994,80 @@ impl<'v, 's> WidgetVarSubscriptions<'v, 's> {
     }
 }
 
-/// Argument for a interactive filter function.
+/// Argument for a interactivity filter function.
 ///
-/// See [WidgetInfoBuilder::push_interaction_filter].
+/// See [WidgetInfoBuilder::push_interactivity_filter].
 #[derive(Debug)]
-pub struct InteractiveFilterArgs<'a> {
+pub struct InteractivityFilterArgs<'a> {
     /// Widget being filtered.
     pub info: WidgetInfo<'a>,
 }
-impl<'a> InteractiveFilterArgs<'a> {
+impl<'a> InteractivityFilterArgs<'a> {
     /// New from `info`.
     pub fn new(info: WidgetInfo<'a>) -> Self {
         Self { info }
     }
 }
 
-type InteractiveFilters = Vec<Rc<dyn Fn(&InteractiveFilterArgs) -> bool>>;
+type InteractivityFilters = Vec<Rc<dyn Fn(&InteractivityFilterArgs) -> Interactivity>>;
 
-/// Represents the level of interaction allowed for an widget.
-#[repr(u8)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum Interaction {
+bitflags!{
+    /// Represents the level of interaction allowed for an widget.
+    pub struct Interactivity: u8 {
+        /// Normal interactions allowed.
+        ///
+        /// This is the default value.
+        const ENABLED = 0b00;
+
+        /// Only "disabled" interactions allowed and disabled visuals.
+        ///
+        /// An example of disabled interaction is a tooltip that explains why a disabled button cannot be clicked.
+        const DISABLED = 0b01;
+
+        /// No interaction allowed, the widget must behave like a background visual.
+        /// 
+        /// Note that widgets with blocked interaction are still hit-testable, so they can still be "clicked"
+        /// as a visual part of an interactive parent widget.
+        const BLOCKED = 0b10;
+        
+        /// `BLOCKED` with `DISABLED` visuals.
+        const BLOCKED_DISABLED = Self::DISABLED.bits | Self::BLOCKED.bits;
+    }
+}
+impl Interactivity {
     /// Normal interactions allowed.
-    ///
-    /// This is the default value.
-    Enabled = 1,
-    /// Only "disabled" interaction allowed.
-    ///
-    /// An example of disabled interaction is a tooltip that explains why a disabled button cannot be clicked.
-    Disabled,
+    pub fn is_enabled(self) -> bool {
+        self == Self::ENABLED
+    }
 
-    /// No interaction allowed, the widget must behave like a background visual.
-    /// 
-    /// Note that widgets with blocked interaction are still hit-testable, so they can still be "clicked"
-    /// as a visual part of an interactive parent widget.
-    Block,
+    /// Only "disabled" interactions allowed and disabled visuals.
+    pub fn is_disabled(self) -> bool {
+        self == Self::DISABLED
+    }
+
+    /// Disabled visuals, maybe also blocked.
+    pub fn is_visually_disabled(self) -> bool {
+        self.contains(Self::DISABLED)
+    }
+
+    /// No interaction allowed.
+    pub fn is_blocked(self) -> bool {
+        self.contains(Self::BLOCKED)
+    }
 }
-impl Default for Interaction {
-    /// Enabled.
+impl Default for Interactivity {
+    /// `ENABLED`.
     fn default() -> Self {
-        Interaction::Enabled
-    }
-}
-impl ops::BitOr for Interaction {
-    type Output = Interaction;
-
-    fn bitor(self, rhs: Self) -> Self::Output {
-        use Interaction::*;
-
-        match (self, rhs) {
-            (Block, _) | (_, Block) => Block,
-            (Disabled, _) | (_, Disabled) => Disabled,
-            _ => Enabled,
-        }
-    }
-}
-impl ops::BitOrAssign for Interaction {
-    fn bitor_assign(&mut self, rhs: Self) {
-        *self = *self | rhs;
-    }
-}
-impl cmp::PartialOrd for Interaction {
-    fn partial_cmp(&self, other: &Self) -> Option<cmp::Ordering> {
-        let a = *self as u8;
-        let b = *other as u8;
-        a.partial_cmp(&b)
-    }
-}
-impl cmp::Ord for Interaction {
-    fn cmp(&self, other: &Self) -> cmp::Ordering {
-        let a = *self as u8;
-        let b = *other as u8;
-        a.cmp(&b)
+        Interactivity::ENABLED
     }
 }
 impl_from_and_into_var! {
-    /// `Enabled` or `Block` values.
-    fn from(enabled_or_block: bool) -> Interaction {
+    /// `ENABLED` or `BLOCKED` values.
+    fn from(enabled_or_block: bool) -> Interactivity {
         if enabled_or_block {
-            Interaction::Enabled
+            Interactivity::ENABLED
         } else {
-            Interaction::Block
+            Interactivity::BLOCKED
         }
     }
 }

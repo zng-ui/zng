@@ -36,7 +36,7 @@ pub fn is_hovered(child: impl UiNode, state: StateVar) -> impl UiNode {
             self.allow_interaction = ctx
                 .info_tree
                 .find(ctx.path.widget_id())
-                .map(|w| w.allow_interaction())
+                .map(|w| w.interactivity())
                 .unwrap_or(false);
 
             self.child.init(ctx);
@@ -64,7 +64,7 @@ pub fn is_hovered(child: impl UiNode, state: StateVar) -> impl UiNode {
                 self.allow_interaction = ctx
                     .info_tree
                     .find(ctx.path.widget_id())
-                    .map(|w| w.allow_interaction())
+                    .map(|w| w.interactivity())
                     .unwrap_or(false);
                 update = true;
                 self.child.event(ctx, args);
@@ -109,7 +109,7 @@ pub fn is_cap_hovered(child: impl UiNode, state: StateVar) -> impl UiNode {
             self.allow_interaction = ctx
                 .info_tree
                 .find(ctx.path.widget_id())
-                .map(|w| w.allow_interaction())
+                .map(|w| w.interactivity())
                 .unwrap_or(false);
 
             self.child.init(ctx);
@@ -153,7 +153,7 @@ pub fn is_cap_hovered(child: impl UiNode, state: StateVar) -> impl UiNode {
                 self.allow_interaction = ctx
                     .info_tree
                     .find(ctx.path.widget_id())
-                    .map(|w| w.allow_interaction())
+                    .map(|w| w.interactivity())
                     .unwrap_or(false);
                 update = true;
                 self.child.event(ctx, args);
@@ -223,7 +223,7 @@ pub fn is_pressed(child: impl UiNode, state: StateVar) -> impl UiNode {
             self.allow_interaction = ctx
                 .info_tree
                 .find(ctx.path.widget_id())
-                .map(|w| w.allow_interaction())
+                .map(|w| w.interactivity())
                 .unwrap_or(false);
 
             self.child.init(ctx);
@@ -303,7 +303,7 @@ pub fn is_pressed(child: impl UiNode, state: StateVar) -> impl UiNode {
                 self.allow_interaction = ctx
                     .info_tree
                     .find(ctx.path.widget_id())
-                    .map(|w| w.allow_interaction())
+                    .map(|w| w.interactivity())
                     .unwrap_or(false);
 
                 if !self.allow_interaction {
@@ -382,7 +382,7 @@ pub fn is_cap_pressed(child: impl UiNode, state: StateVar) -> impl UiNode {
             self.allow_interaction = ctx
                 .info_tree
                 .find(ctx.path.widget_id())
-                .map(|w| w.allow_interaction())
+                .map(|w| w.interactivity())
                 .unwrap_or(false);
 
             self.child.init(ctx);
@@ -455,7 +455,7 @@ pub fn is_cap_pressed(child: impl UiNode, state: StateVar) -> impl UiNode {
                 self.allow_interaction = ctx
                     .info_tree
                     .find(ctx.path.widget_id())
-                    .map(|w| w.allow_interaction())
+                    .map(|w| w.interactivity())
                     .unwrap_or(false);
 
                 if !self.allow_interaction {
