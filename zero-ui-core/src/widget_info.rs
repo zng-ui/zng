@@ -2030,7 +2030,10 @@ pub enum Interaction {
     Disabled,
 
     /// No interaction allowed, the widget must behave like a background visual.
-    None,
+    /// 
+    /// Note that widgets with blocked interaction are still hit-testable, so they can still be "clicked"
+    /// as a visual part of an interactive parent widget.
+    Block,
 }
 impl Default for Interaction {
     /// Enabled.
@@ -2045,7 +2048,7 @@ impl ops::BitOr for Interaction {
         use Interaction::*;
 
         match (self, rhs) {
-            (None, _) | (_, None) => None,
+            (Block, _) | (_, Block) => Block,
             (Disabled, _) | (_, Disabled) => Disabled,
             _ => Enabled,
         }
@@ -2071,12 +2074,12 @@ impl cmp::Ord for Interaction {
     }
 }
 impl_from_and_into_var! {
-    /// `Enabled` or `None` values.
-    fn from(enabled_or_none: bool) -> Interaction {
-        if enabled_or_none {
+    /// `Enabled` or `Block` values.
+    fn from(enabled_or_block: bool) -> Interaction {
+        if enabled_or_block {
             Interaction::Enabled
         } else {
-            Interaction::None
+            Interaction::Block
         }
     }
 }

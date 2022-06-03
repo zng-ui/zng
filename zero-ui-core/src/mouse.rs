@@ -114,7 +114,7 @@ event_args! {
          /// What modifier keys where pressed when this event happened.
         pub modifiers: ModifiersState,
 
-        /// Sequential click count . Number `1` is single click, `2` is double click, etc.
+        /// Sequential click count. Number `1` is single click, `2` is double click, etc.
         pub click_count: NonZeroU8,
 
         /// Hit-test result for the mouse point in the window, at the moment the click event
