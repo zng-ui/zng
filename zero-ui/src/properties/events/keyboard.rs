@@ -8,13 +8,13 @@ use super::event_property;
 use crate::core::keyboard::*;
 
 event_property! {
-    /// Event fired when a keyboard key is pressed or released.
+    /// Event fired when a keyboard key is pressed or released and the widget is enabled.
     ///
     /// # Route
     ///
     /// The event is raised in the [keyboard focused](crate::properties::is_focused)
     /// widget and then each parent up to the root. If [`stop_propagation`](EventArgs::stop_propagation)
-    /// is requested the event is not notified further. If the widget is [disabled](IsEnabled) the event is not notified.
+    /// is requested the event is not notified further. If the widget is disabled or blocked the event is not notified.
     ///
     /// This route is also called *bubbling*.
     ///
@@ -30,15 +30,41 @@ event_property! {
     pub fn key_input {
         event: KeyInputEvent,
         args: KeyInputArgs,
+        filter: |ctx, args| args.is_enabled(ctx.path),
     }
 
-    /// Event fired when a keyboard key is pressed.
+    /// Event fired when a keyboard key is pressed or released and the widget is disabled.
     ///
     /// # Route
     ///
     /// The event is raised in the [keyboard focused](crate::properties::is_focused)
     /// widget and then each parent up to the root. If [`stop_propagation`](EventArgs::stop_propagation)
-    /// is requested the event is not notified further. If the widget is [disabled](IsEnabled) the event is not notified.
+    /// is requested the event is not notified further. If the widget is enabled or blocked the event is not notified.
+    ///
+    /// This route is also called *bubbling*.
+    ///
+    /// # Keys
+    ///
+    /// Any key press/release generates a key input event, including keys that don't map
+    /// to any virtual key, see [`KeyInputArgs`] for more details. To take text input use [`on_char_input`] instead.
+    /// For key combinations consider using [`on_shortcut`].
+    ///
+    /// # Underlying Event
+    ///
+    /// This event property uses the [`KeyInputEvent`] that is included in the default app.
+    pub fn disabled_key_input {
+        event: KeyInputEvent,
+        args: KeyInputArgs,
+        filter: |ctx, args| args.is_disabled(ctx.path),
+    }
+
+    /// Event fired when a keyboard key is pressed and the widget is enabled.
+    ///
+    /// # Route
+    ///
+    /// The event is raised in the [keyboard focused](crate::properties::is_focused)
+    /// widget and then each parent up to the root. If [`stop_propagation`](EventArgs::stop_propagation)
+    /// is requested the event is not notified further. If the widget is disabled or blocked the event is not notified.
     ///
     /// This route is also called *bubbling*.
     ///
@@ -54,16 +80,16 @@ event_property! {
     pub fn key_down {
         event: KeyInputEvent,
         args: KeyInputArgs,
-        filter: |_, args| args.state == KeyState::Pressed,
+        filter: |ctx, args| args.state == KeyState::Pressed && args.is_enabled(ctx.path),
     }
 
-    /// Event fired when a keyboard key is released.
+    /// Event fired when a keyboard key is released and the widget is enabled.
     ///
     /// # Route
     ///
     /// The event is raised in the [keyboard focused](crate::properties::is_focused)
     /// widget and then each parent up to the root. If [`stop_propagation`](EventArgs::stop_propagation)
-    /// is requested the event is not notified further. If the widget is [disabled](IsEnabled) the event is not notified.
+    /// is requested the event is not notified further. If the widget is disabled or blocked the event is not notified.
     ///
     /// This route is also called *bubbling*.
     ///
@@ -79,11 +105,44 @@ event_property! {
     pub fn key_up {
         event: KeyInputEvent,
         args: KeyInputArgs,
-        filter: |_, args| args.state == KeyState::Released,
+        filter: |ctx, args| args.state == KeyState::Released && args.is_enabled(ctx.path),
     }
 
+    /// Event fired when a text character is typed and the widget is enabled.
+    ///
+    /// # Route
+    ///
+    /// The event is raised in the [keyboard focused](crate::properties::is_focused)
+    /// widget and then each parent up to the root. If [`stop_propagation`](EventArgs::stop_propagation)
+    /// is requested the event is not notified further. If the widget is disabled or blocked the event is not notified.
+    ///
+    /// This route is also called *bubbling*.
+    ///
+    /// # Underlying Event
+    ///
+    /// This event property uses the [`CharInputEvent`] that is included in the default app.
     pub fn char_input {
         event: CharInputEvent,
         args: CharInputArgs,
+        filter: |ctx, args| args.is_enabled(ctx.path)
+    }
+
+    /// Event fired when a text character is typed and the widget is disabled.
+    ///
+    /// # Route
+    ///
+    /// The event is raised in the [keyboard focused](crate::properties::is_focused)
+    /// widget and then each parent up to the root. If [`stop_propagation`](EventArgs::stop_propagation)
+    /// is requested the event is not notified further. If the widget is enabled or blocked the event is not notified.
+    ///
+    /// This route is also called *bubbling*.
+    ///
+    /// # Underlying Event
+    ///
+    /// This event property uses the [`CharInputEvent`] that is included in the default app.
+    pub fn disabled_char_input {
+        event: CharInputEvent,
+        args: CharInputArgs,
+        filter: |ctx, args| args.is_disabled(ctx.path)
     }
 }

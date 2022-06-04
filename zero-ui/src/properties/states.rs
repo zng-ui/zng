@@ -114,7 +114,7 @@ pub fn is_pointer_pressed(child: impl UiNode, state: StateVar) -> impl UiNode {
             if input_args.is_primary() {
                 match input_args.state {
                     ButtonState::Pressed => {
-                        if input_args.concerns_capture(ctx) {
+                        if input_args.capture_allows(ctx.path) {
                             return Some(true);
                         }
                     }
@@ -142,7 +142,7 @@ pub fn is_cap_pointer_pressed(child: impl UiNode, state: StateVar) -> impl UiNod
             if input_args.is_primary() {
                 match input_args.state {
                     ButtonState::Pressed => {
-                        if input_args.concerns_capture(ctx) {
+                        if input_args.capture_allows(ctx.path) {
                             return Some(true);
                         }
                     }

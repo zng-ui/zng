@@ -14,7 +14,7 @@ use crate::focus::FocusExt;
 use crate::service::*;
 use crate::units::TimeUnits;
 use crate::var::{var, RcVar, ReadOnlyRcVar, Var, Vars};
-use crate::widget_info::WidgetPath;
+use crate::widget_info::InteractionPath;
 use crate::window::WindowId;
 
 pub use zero_ui_view_api::{Key, KeyState, ModifiersState, ScanCode};
@@ -44,7 +44,7 @@ event_args! {
         pub is_repeat: bool,
 
         /// The focused element at the time of the key input.
-        pub target: WidgetPath,
+        pub target: InteractionPath,
 
         ..
 
@@ -63,7 +63,7 @@ event_args! {
         pub character: char,
 
         /// The focused element at the time of the key input.
-        pub target: WidgetPath,
+        pub target: InteractionPath,
 
         ..
 
@@ -87,6 +87,48 @@ event_args! {
         fn delivery_list(&self) -> EventDeliveryList {
             EventDeliveryList::all()
         }
+    }
+}
+impl KeyInputArgs {
+    /// Returns `true` if the widget is enabled in [`target`].
+    ///
+    /// [`target`]: Self::target
+    pub fn is_enabled(&self, path: &WidgetContextPath) -> bool {
+        self.target
+            .interactivity_of(path.widget_id())
+            .map(|i| i.is_enabled())
+            .unwrap_or(false)
+    }
+
+    /// Returns `true` if the widget is disabled in [`target`].
+    ///
+    /// [`target`]: Self::target
+    pub fn is_disabled(&self, path: &WidgetContextPath) -> bool {
+        self.target
+            .interactivity_of(path.widget_id())
+            .map(|i| i.is_disabled())
+            .unwrap_or(false)
+    }
+}
+impl CharInputArgs {
+    /// Returns `true` if the widget is enabled in [`target`].
+    ///
+    /// [`target`]: Self::target
+    pub fn is_enabled(&self, path: &WidgetContextPath) -> bool {
+        self.target
+            .interactivity_of(path.widget_id())
+            .map(|i| i.is_enabled())
+            .unwrap_or(false)
+    }
+
+    /// Returns `true` if the widget is disabled in [`target`].
+    ///
+    /// [`target`]: Self::target
+    pub fn is_disabled(&self, path: &WidgetContextPath) -> bool {
+        self.target
+            .interactivity_of(path.widget_id())
+            .map(|i| i.is_disabled())
+            .unwrap_or(false)
     }
 }
 
@@ -227,7 +269,7 @@ impl Keyboard {
         }
     }
 
-    fn key_input(&mut self, events: &mut Events, vars: &Vars, args: &RawKeyInputArgs, focused: Option<WidgetPath>) {
+    fn key_input(&mut self, events: &mut Events, vars: &Vars, args: &RawKeyInputArgs, focused: Option<InteractionPath>) {
         let mut repeat = false;
 
         // update state and vars

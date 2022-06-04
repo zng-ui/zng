@@ -939,7 +939,7 @@ pub mod prelude {
             Vars,
         },
         widget_base::HitTestMode,
-        widget_info::Visibility,
+        widget_info::{Visibility, InteractionPath},
         widget_vec, widgets,
         window::{
             AppRunWindowExt, AutoSize, CursorIcon, FocusIndicator, HeadlessAppWindowExt, MonitorId, MonitorQuery, MonitorsExt,
@@ -1049,7 +1049,7 @@ pub mod prelude {
             widget_base::interactive_node,
             widget_info::{
                 Interactivity, Visibility, WidgetBorderInfo, WidgetBoundsInfo, WidgetInfoBuilder, WidgetLayout, WidgetRenderInfo,
-                WidgetSubscriptions,
+                WidgetSubscriptions, InteractionPath,
             },
             widget_mixin, widget_vec, widgets, BoxedUiNode, BoxedWidget, FillUiNode, UiNode, Widget, WidgetId,
         };
@@ -1112,7 +1112,7 @@ pub mod prelude {
             widget_base::{implicit_base, HitTestMode},
             widget_info::{
                 Interactivity, Visibility, WidgetBorderInfo, WidgetBoundsInfo, WidgetInfo, WidgetInfoBuilder, WidgetLayout,
-                WidgetRenderInfo, WidgetSubscriptions,
+                WidgetRenderInfo, WidgetSubscriptions, InteractionPath,
             },
             widget_mixin, widget_vec, widgets, BoxedUiNode, BoxedWidget, FillUiNode, UiNode, Widget, WidgetId,
         };

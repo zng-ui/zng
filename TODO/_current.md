@@ -1,26 +1,8 @@
-We emit interaction events (except focus) without checking if interaction is enabled for the widget, the default
-`concerns_widget` then checked the interaction for each widget, the idea was to allows the creation of "disabled hovered"
-states, like a tooltip the says disabled?
-
-The interaction filter did not exist as a general thing when we made this, now if we send disabled events we may accidentally
-allow interaction with "really not-interactable" widgets, such as those blocked by a modal overlay.
-
-* Either we stop emitting disabled interactions or we expand the interaction filter to have levels of blockage?
-* See https://www.smashingmagazine.com/2021/08/frustrating-design-patterns-disabled-buttons/
-* Started implementing `Interaction` enum for filters.
-
-The args that removed default interaction filter where:
-
-* Review click args and allow_interaction, removed check from args.
-* Review mouse move capture, removed check from args.
-* Review mouse input args, same removes.
-* Review mouse click args.
-* Review mouse hover args.
-* Review mouse cap args.
-
 * Review all state properties, must of then can be declared using the new `event_state` and `bind_state` helpers.
 
+* Fix `focused_removed_by_deleting`, removed widget receiving event?
 * Fix text reuse in button example when multiple buttons are added.
+* Optimize/fix interactivity, can we make parent interactivity affecting child a guaranteed?
 
 =======
 

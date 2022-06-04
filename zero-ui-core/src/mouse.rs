@@ -11,7 +11,7 @@ use crate::{
     service::*,
     units::*,
     var::{impl_from_and_into_var, var, RcVar, ReadOnlyRcVar, Var},
-    widget_info::{InteractivityPath, WidgetInfoTree, WidgetPath},
+    widget_info::{InteractionPath, WidgetInfoTree, WidgetPath},
     window::{WindowId, Windows, WindowsExt},
     WidgetId,
 };
@@ -44,18 +44,20 @@ event_args! {
         pub hits: FrameHitInfo,
 
         /// Full path to the top-most hit in [`hits`](MouseMoveArgs::hits).
-        pub target: InteractivityPath,
+        pub target: InteractionPath,
 
         /// Current mouse capture.
         pub capture: Option<CaptureInfo>,
 
         ..
 
-        /// The [`target`].
+        /// The [`target`] and [`capture`].
         ///
         /// [`target`]: Self::target
+        /// [`capture`]: Self::capture
         fn delivery_list(&self) -> EventDeliveryList {
             EventDeliveryList::widgets(&self.target)
+                .with_widgets_opt(self.capture.as_ref().map(|p|&p.target))
         }
     }
 
@@ -87,7 +89,7 @@ event_args! {
         /// Full path to the top-most hit in [`hits`].
         ///
         /// [`hits`]: Self::hits
-        pub target: InteractivityPath,
+        pub target: InteractionPath,
 
         /// Current mouse capture.
         pub capture: Option<CaptureInfo>,
@@ -96,17 +98,20 @@ event_args! {
         ///
         /// [`target`]: Self::target
         /// [`button`]: Self::button
-        /// [released]: Self::released
-        pub prev_pressed: Option<InteractivityPath>,
+        /// [released]: Self::state
+        pub prev_pressed: Option<InteractionPath>,
 
         ..
 
-        /// The [`target`] and [`prev_pressed`].
+        /// The [`target`], [`prev_pressed`] and [`capture`].
         ///
         /// [`target`]: Self::target
         /// [`prev_pressed`]: Self::prev_pressed
+        /// [`capture`]: Self::capture
         fn delivery_list(&self) -> EventDeliveryList {
-            EventDeliveryList::widgets(&self.target).with_widgets_opt(self.prev_pressed.as_deref())
+            EventDeliveryList::widgets(&self.target)
+                .with_widgets_opt(self.prev_pressed.as_deref())
+                .with_widgets_opt(self.capture.as_ref().map(|c| &c.target))
         }
     }
 
@@ -149,7 +154,7 @@ event_args! {
         /// [mouse down]: MouseInputArgs::is_mouse_down
         /// [mouse up]: MouseInputArgs::is_mouse_up
         /// [click_count]: (MouseClickArgs::click_count
-        pub target: InteractivityPath,
+        pub target: InteractionPath,
 
         ..
 
@@ -176,7 +181,7 @@ event_args! {
         pub hits: FrameHitInfo,
 
         /// Previous top-most hit before the mouse moved.
-        pub prev_target: Option<InteractivityPath>,
+        pub prev_target: Option<InteractionPath>,
 
         /// Full path to the top-most hit in [`hits`].
         ///
@@ -184,7 +189,7 @@ event_args! {
         /// and there was a previous hovered widget.
         ///
         /// [`hits`]: MouseInputArgs::hits
-        pub target: Option<InteractivityPath>,
+        pub target: Option<InteractionPath>,
 
         /// Previous mouse capture.
         pub prev_capture: Option<CaptureInfo>,
@@ -194,12 +199,15 @@ event_args! {
 
         ..
 
-        /// The [`target`] and [`prev_target`].
+        /// The [`target`], [`prev_target`] and [`capture`].
         ///
         /// [`target`]: Self::target
         /// [`prev_target`]: Self::prev_target
+        /// [`capture`]: Self::capture
         fn delivery_list(&self) -> EventDeliveryList {
-            EventDeliveryList::widgets_opt(self.prev_target.as_deref()).with_widgets_opt(self.target.as_deref())
+            EventDeliveryList::widgets_opt(self.prev_target.as_deref())
+                .with_widgets_opt(self.target.as_deref())
+                .with_widgets_opt(self.capture.as_ref().map(|c|&c.target))
         }
     }
 
@@ -251,7 +259,7 @@ event_args! {
         pub hits: FrameHitInfo,
 
         /// Full path to the widget that got scrolled.
-        pub target: InteractivityPath,
+        pub target: InteractionPath,
 
         ..
 
@@ -265,6 +273,14 @@ event_args! {
 }
 
 impl MouseHoverArgs {
+    /// If [`capture`] is `None` or [`allows`] the `path` to receive this event.
+    ///
+    /// [`capture`]: Self::capture
+    /// [`allows`]: CaptureInfo::allows
+    pub fn capture_allows(&self, path: &WidgetContextPath) -> bool {
+        self.capture.as_ref().map(|c| c.allows(path)).unwrap_or(true)
+    }
+
     /// Event caused by the mouse position moving over/out of the widget bounds.
     pub fn is_mouse_move(&self) -> bool {
         self.device_id.is_some()
@@ -389,50 +405,29 @@ impl MouseHoverArgs {
             .map(|itr| itr.is_disabled())
             .unwrap_or(false)
     }
-
-    /// If the widget is in [`target`], [`prev_target`] or is the [`capture`] holder.
-    ///
-    /// [`target`]: Self::target
-    /// [`prev_target`]: Self::prev_target
-    /// [`capture`]: Self::capture
-    pub fn concerns_capture(&self, ctx: &mut WidgetContext) -> bool {
-        self.capture
-            .as_ref()
-            .map(|c| c.target.widget_id() == ctx.path.widget_id())
-            .unwrap_or(false)
-            || self.target.as_ref().map(|p| p.contains(ctx.path.widget_id())).unwrap_or(false)
-            || self.prev_target.as_ref().map(|p| p.contains(ctx.path.widget_id())).unwrap_or(false)
-    }
 }
 
 impl MouseMoveArgs {
-    /// If the widget is in [`target`](Self::target) or is the [`capture`](Self::capture) holder.
-    pub fn concerns_capture(&self, ctx: &mut WidgetContext) -> bool {
-        self.target.contains(ctx.path.widget_id())
-            || self
-                .capture
-                .as_ref()
-                .map(|c| c.target.widget_id() == ctx.path.widget_id())
-                .unwrap_or(false)
+    /// If [`capture`] is `None` or [`allows`] the `path` to receive this event.
+    ///
+    /// [`capture`]: Self::capture
+    /// [`allows`]: CaptureInfo::allows
+    pub fn capture_allows(&self, path: &WidgetContextPath) -> bool {
+        self.capture.as_ref().map(|c| c.allows(path)).unwrap_or(true)
     }
 }
 
 impl MouseInputArgs {
-    /// If the widget is in [`target`] and allows interaction or is the [`capture`] holder.
+    /// If [`capture`] is `None` or [`allows`] the `path` to receive this event.
     ///
-    /// [`target`]: Self::target
     /// [`capture`]: Self::capture
-    pub fn concerns_capture(&self, ctx: &mut WidgetContext) -> bool {
-        self.target.contains(ctx.path.widget_id())
-            || self
-                .capture
-                .as_ref()
-                .map(|c| c.target.widget_id() == ctx.path.widget_id())
-                .unwrap_or(false)
+    /// [`allows`]: CaptureInfo::allows
+    pub fn capture_allows(&self, path: &WidgetContextPath) -> bool {
+        self.capture.as_ref().map(|c| c.allows(path)).unwrap_or(true)
     }
 
     /// If the `path` is in the [`target`].
-    /// 
+    ///
     /// [`target`]: Self::target
     pub fn is_over(&self, path: &WidgetContextPath) -> bool {
         self.target.contains(path.widget_id())
@@ -454,7 +449,6 @@ impl MouseInputArgs {
             .map(|i| i.is_enabled())
             .unwrap_or(false)
     }
-
 
     /// If the `path` in the [`target`] is disabled.
     ///
@@ -729,8 +723,8 @@ pub struct MouseManager {
 
     capture_count: u8,
 
-    hovered: Option<InteractivityPath>,
-    pressed: LinearMap<MouseButton, InteractivityPath>,
+    hovered: Option<InteractionPath>,
+    pressed: LinearMap<MouseButton, InteractionPath>,
 
     multi_click_config: RcVar<MultiClickConfig>,
 }
@@ -771,8 +765,8 @@ impl MouseManager {
 
         let target = hits
             .target()
-            .and_then(|t| frame_info.find(t.widget_id).map(|w| w.interactivity_path()))
-            .unwrap_or_else(|| frame_info.root().interactivity_path());
+            .and_then(|t| frame_info.find(t.widget_id).map(|w| w.interaction_path()))
+            .unwrap_or_else(|| frame_info.root().interaction_path());
 
         let target = match target.unblocked() {
             Some(t) => t,
@@ -1011,12 +1005,12 @@ impl MouseManager {
             let hits = FrameHitInfo::new(window_id, hits_res.0, hits_res.1, &hits_res.2);
 
             let target = if let Some(t) = hits.target() {
-                frame_info.find(t.widget_id).map(|w| w.interactivity_path()).unwrap_or_else(|| {
+                frame_info.find(t.widget_id).map(|w| w.interaction_path()).unwrap_or_else(|| {
                     tracing::error!("hits target `{}` not found", t.widget_id);
-                    frame_info.root().interactivity_path()
+                    frame_info.root().interaction_path()
                 })
             } else {
-                frame_info.root().interactivity_path()
+                frame_info.root().interaction_path()
             }
             .unblocked();
 
@@ -1071,8 +1065,8 @@ impl MouseManager {
 
         let target = hits
             .target()
-            .and_then(|t| frame_info.find(t.widget_id).map(|w| w.interactivity_path()))
-            .unwrap_or_else(|| frame_info.root().interactivity_path());
+            .and_then(|t| frame_info.find(t.widget_id).map(|w| w.interaction_path()))
+            .unwrap_or_else(|| frame_info.root().interaction_path());
 
         if let Some(target) = target.unblocked() {
             let args = MouseWheelArgs::now(window_id, device_id, position, self.modifiers, delta, phase, hits, target);
@@ -1146,7 +1140,7 @@ impl AppExtension for MouseManager {
                 let target = hits
                     .target()
                     .and_then(|t| windows.widget_tree(args.window_id).unwrap().find(t.widget_id))
-                    .and_then(|w| w.interactivity_path().unblocked());
+                    .and_then(|w| w.interaction_path().unblocked());
 
                 self.pos_hits = (args.frame_id, args.cursor_hits.0, args.cursor_hits.1.clone());
 
@@ -1257,7 +1251,7 @@ enum ClickState {
     None,
     /// Mouse pressed on a widget, if the next event
     /// is a release over the same widget a click event is generated.
-    Pressed { btn: MouseButton, press_tgt: InteractivityPath },
+    Pressed { btn: MouseButton, press_tgt: InteractionPath },
     /// At least one click completed, as long as subsequent presses happen
     /// within the window of time, widget and distance from the initial press
     /// multi-click events are generated.
@@ -1265,7 +1259,7 @@ enum ClickState {
         start_time: Instant,
         btn: MouseButton,
         pos: DipPoint,
-        start_tgt: InteractivityPath,
+        start_tgt: InteractionPath,
 
         count: u8,
     },
@@ -1441,7 +1435,7 @@ impl Mouse {
     }
 
     /// Call when the mouse starts pressing on the window.
-    fn start_window_capture(&mut self, mouse_down: InteractivityPath, events: &mut Events) {
+    fn start_window_capture(&mut self, mouse_down: InteractionPath, events: &mut Events) {
         self.release_requested = false;
 
         if let Some((target, mode)) = self.capture_request.take() {
@@ -1463,14 +1457,14 @@ impl Mouse {
                     // current window pressed
                     if let Some(widget) = windows.widget_tree(current_target.window_id()).unwrap().find(widget_id) {
                         // request valid
-                        self.set_capture(widget.interactivity_path(), mode, events);
+                        self.set_capture(widget.interaction_path(), mode, events);
                     }
                 }
             } else if mem::take(&mut self.release_requested) && *current_mode != CaptureMode::Window {
                 // release capture (back to default capture).
                 let target = current_target.root_path();
                 #[cfg_attr(not(doc_nightly), allow(mutable_borrow_reservation_conflict))] // warning will be removed (see #96268)
-                self.set_capture(InteractivityPath::from_enabled(target.into_owned()), CaptureMode::Window, events);
+                self.set_capture(InteractionPath::from_enabled(target.into_owned()), CaptureMode::Window, events);
             }
         }
     }
@@ -1481,14 +1475,14 @@ impl Mouse {
             if frame.window_id() == target.window_id() {
                 // is a frame from the capturing window.
                 if let Some(widget) = frame.get(target) {
-                    if let Some(new_path) = widget.new_interactivity_path(&InteractivityPath::from_enabled(target.clone())) {
+                    if let Some(new_path) = widget.new_interaction_path(&InteractionPath::from_enabled(target.clone())) {
                         // widget moved inside window tree.
                         let mode = *mode;
                         self.set_capture(new_path, mode, events);
                     }
                 } else {
                     // widget not found. Returns to default capture.
-                    self.set_capture(frame.root().interactivity_path(), CaptureMode::Window, events);
+                    self.set_capture(frame.root().interaction_path(), CaptureMode::Window, events);
                 }
             }
         }
@@ -1501,7 +1495,7 @@ impl Mouse {
         self.unset_capture(events);
     }
 
-    fn set_capture(&mut self, target: InteractivityPath, mode: CaptureMode, events: &mut Events) {
+    fn set_capture(&mut self, target: InteractionPath, mode: CaptureMode, events: &mut Events) {
         let new = target.enabled().map(|target| (target, mode));
         if new.is_none() {
             self.unset_capture(events);
@@ -1569,9 +1563,11 @@ impl_from_and_into_var! {
 /// Information about mouse capture in a mouse event argument.
 #[derive(Debug, Clone, PartialEq)]
 pub struct CaptureInfo {
-    /// Widget that is capturing all mouse events.
+    /// Widget that is capturing all mouse events. The widget and all ancestors are [`ENABLED`].
     ///
     /// This is the window root widget for capture mode `Window`.
+    ///
+    /// [`ENABLED`]: crate::widget_info::Interactivity::ENABLED
     pub target: WidgetPath,
     /// Capture mode, see [`allows`](Self::allows) for more details.
     pub mode: CaptureMode,

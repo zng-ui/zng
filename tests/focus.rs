@@ -19,8 +19,8 @@ pub fn first_and_last_window_events() {
         content = v_stack!(id = stack_id; items = buttons);
         root_id;
     });
-    let root_path = WidgetPath::new(app.window_id, [root_id]);
-    let button_0_path = WidgetPath::new(app.window_id, [root_id, stack_id, button_0_id]);
+    let root_path = InteractionPath::new_enabled(app.window_id, [root_id]);
+    let button_0_path = InteractionPath::new_enabled(app.window_id, [root_id, stack_id, button_0_id]);
 
     let events = app.take_focus_changed();
     assert_eq!(2, events.len());
@@ -963,10 +963,10 @@ pub fn window_blur_focus() {
 }
 
 #[test]
-pub fn focused_removed_by_disabling() {
-    let enabled = var(true);
-    focused_removed_test(button! { content = text("Button 1"); enabled = enabled.clone() }, |vars| {
-        enabled.set(vars, false)
+pub fn focused_removed_by_interacivity() {
+    let interactive = var(true);
+    focused_removed_test(button! { content = text("Button 1"); interactive = interactive.clone() }, |vars| {
+        interactive.set(vars, false)
     })
 }
 #[test]
@@ -1180,14 +1180,14 @@ pub fn focus_goes_to_parent_after_remove() {
     let parent_id = WidgetId::named("parent");
     let child_id = WidgetId::named("child");
 
-    let enabled = var(true);
+    let interactive = var(true);
 
     let mut app = TestApp::new(v_stack(widgets![container! {
         id = parent_id;
         focusable = true;
         content = button! {
             id = child_id;
-            enabled = enabled.clone();
+            interactive = interactive.clone();
             content = text( "item 'removed'")
         }
     }]));
@@ -1197,7 +1197,7 @@ pub fn focus_goes_to_parent_after_remove() {
     app.take_focus_changed();
 
     app.set_vars(|vars| {
-        enabled.set(vars, false);
+        interactive.set(vars, false);
     });
     assert_eq!(Some(parent_id), app.focused());
     let evs = app.take_focus_changed();

@@ -743,6 +743,11 @@ impl PartialEq for WidgetPath {
     }
 }
 impl Eq for WidgetPath {}
+impl PartialEq<InteractionPath> for WidgetPath {
+    fn eq(&self, other: &InteractionPath) -> bool {
+        other == self
+    }
+}
 impl fmt::Debug for WidgetPath {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if f.alternate() {
@@ -856,21 +861,27 @@ impl WidgetPath {
 
 /// Represents a [`WidgetPath`] with extra [`Interactivity`] for each widget.
 #[derive(Clone)]
-pub struct InteractivityPath {
+pub struct InteractionPath {
     path: WidgetPath,
     interactivity: Box<[Interactivity]>,
 }
-impl PartialEq for InteractivityPath {
+impl PartialEq for InteractionPath {
     /// Paths are equal if the are the same window, widgets and interactivity.
     fn eq(&self, other: &Self) -> bool {
         self.as_path() == other.as_path() && self.interactivity == other.interactivity
     }
 }
-impl Eq for InteractivityPath {}
-impl fmt::Debug for InteractivityPath {
+impl Eq for InteractionPath {}
+impl PartialEq<WidgetPath> for InteractionPath {
+    /// Paths are equal if the are the same window, widgets and interactivity.
+    fn eq(&self, other: &WidgetPath) -> bool {
+        self.as_path() == other
+    }
+}
+impl fmt::Debug for InteractionPath {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if f.alternate() {
-            f.debug_struct("InteractivityPath")
+            f.debug_struct("InteractionPath")
                 .field("window_id", &self.window_id)
                 .field("path", &self.path)
                 .field("interactivity", &self.interactivity)
@@ -880,16 +891,16 @@ impl fmt::Debug for InteractivityPath {
         }
     }
 }
-impl fmt::Display for InteractivityPath {
+impl fmt::Display for InteractionPath {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.as_path())
     }
 }
-impl InteractivityPath {
+impl InteractionPath {
     /// New custom interactivity path.
     ///
     /// The path is not guaranteed to have ever existed.
-    pub fn new<P: IntoIterator<Item = (WidgetId, Interactivity)>>(window_id: WindowId, path: P) -> InteractivityPath {
+    pub fn new<P: IntoIterator<Item = (WidgetId, Interactivity)>>(window_id: WindowId, path: P) -> InteractionPath {
         let iter = path.into_iter();
         let mut path = Vec::with_capacity(iter.size_hint().0);
         let mut interactivity = Vec::with_capacity(path.capacity());
@@ -897,15 +908,23 @@ impl InteractivityPath {
             path.push(w);
             interactivity.push(i);
         }
-        InteractivityPath {
+        InteractionPath {
             path: WidgetPath::new(window_id, path),
             interactivity: interactivity.into_boxed_slice(),
         }
     }
 
+    /// New custom widget path with all widgets enabled.
+    ///
+    /// The path is not guaranteed to have ever existed.
+    pub fn new_enabled<P: Into<Box<[WidgetId]>>>(window_id: WindowId, path: P) -> InteractionPath {
+        let path = WidgetPath::new(window_id, path);
+        Self::from_enabled(path)
+    }
+
     /// New custom interactivity path with all widgets enabled.
-    pub fn from_enabled(path: WidgetPath) -> InteractivityPath {
-        InteractivityPath {
+    pub fn from_enabled(path: WidgetPath) -> InteractionPath {
+        InteractionPath {
             interactivity: vec![Interactivity::ENABLED; path.widgets_path().len()].into(),
             path,
         }
@@ -917,7 +936,7 @@ impl InteractivityPath {
     }
 
     /// Interactivity for each widget, root first.
-    pub fn interactivity_path(&self) -> &[Interactivity] {
+    pub fn interaction_path(&self) -> &[Interactivity] {
         &self.interactivity
     }
 
@@ -940,7 +959,7 @@ impl InteractivityPath {
     ///
     /// [`ENABLED`]: Interactivity::ENABLED
     /// [`DISABLED`]: Interactivity::DISABLED
-    pub fn unblocked(self) -> Option<InteractivityPath> {
+    pub fn unblocked(self) -> Option<InteractionPath> {
         if let Some(i) = self.interactivity.iter().position(|i| i.is_blocked()) {
             if i == 0 {
                 None
@@ -950,7 +969,7 @@ impl InteractivityPath {
                 let mut path = Vec::from(self.path.path);
                 path.truncate(i);
 
-                Some(InteractivityPath {
+                Some(InteractionPath {
                     path: WidgetPath {
                         node_id: None,
                         window_id: self.path.window_id,
@@ -987,12 +1006,12 @@ impl InteractivityPath {
     }
 
     /// Make a path to an ancestor id that is contained in the current path.
-    pub fn ancestor_path(&self, ancestor_id: WidgetId) -> Option<Cow<InteractivityPath>> {
+    pub fn ancestor_path(&self, ancestor_id: WidgetId) -> Option<Cow<InteractionPath>> {
         self.widgets_path().iter().position(|&id| id == ancestor_id).map(|i| {
             if i == self.interactivity.len() - 1 {
                 Cow::Borrowed(self)
             } else {
-                Cow::Owned(InteractivityPath {
+                Cow::Owned(InteractionPath {
                     path: WidgetPath {
                         node_id: None,
                         window_id: self.window_id,
@@ -1005,7 +1024,7 @@ impl InteractivityPath {
     }
 
     /// Get the inner most widget parent shared by both `self` and `other` with the same interactivity.
-    pub fn shared_ancestor<'a>(&'a self, other: &'a InteractivityPath) -> Option<Cow<'a, InteractivityPath>> {
+    pub fn shared_ancestor<'a>(&'a self, other: &'a InteractionPath) -> Option<Cow<'a, InteractionPath>> {
         if self.window_id == other.window_id {
             if let Some(i) = self.zip().zip(other.zip()).position(|(a, b)| a != b) {
                 if i == 0 {
@@ -1013,7 +1032,7 @@ impl InteractivityPath {
                 } else {
                     let path = self.path.path[..i].to_vec().into_boxed_slice();
                     let interactivity = self.interactivity[..i].to_vec().into_boxed_slice();
-                    Some(Cow::Owned(InteractivityPath {
+                    Some(Cow::Owned(InteractionPath {
                         path: WidgetPath {
                             node_id: None,
                             window_id: self.window_id,
@@ -1033,11 +1052,11 @@ impl InteractivityPath {
     }
 
     /// Gets a path to the root widget of this path.
-    pub fn root_path(&self) -> Cow<InteractivityPath> {
+    pub fn root_path(&self) -> Cow<InteractionPath> {
         if self.interactivity.len() == 1 {
             Cow::Borrowed(self)
         } else {
-            Cow::Owned(InteractivityPath {
+            Cow::Owned(InteractionPath {
                 path: WidgetPath {
                     node_id: None,
                     window_id: self.window_id,
@@ -1048,15 +1067,15 @@ impl InteractivityPath {
         }
     }
 }
-impl ops::Deref for InteractivityPath {
+impl ops::Deref for InteractionPath {
     type Target = WidgetPath;
 
     fn deref(&self) -> &Self::Target {
         &self.path
     }
 }
-impl From<InteractivityPath> for WidgetPath {
-    fn from(p: InteractivityPath) -> Self {
+impl From<InteractionPath> for WidgetPath {
+    fn from(p: InteractionPath) -> Self {
         p.path
     }
 }
@@ -1428,7 +1447,7 @@ impl<'a> WidgetInfo<'a> {
     /// Full path to this widget with [`interactivity`] values.
     ///
     /// [`interactivity`]: Self::interactivity
-    pub fn interactivity_path(self) -> InteractivityPath {
+    pub fn interaction_path(self) -> InteractionPath {
         let mut path = vec![];
         let mut interactivity = vec![];
 
@@ -1439,7 +1458,7 @@ impl<'a> WidgetInfo<'a> {
         path.reverse();
         interactivity.reverse();
 
-        InteractivityPath {
+        InteractionPath {
             path: WidgetPath {
                 window_id: self.tree.0.window_id,
                 node_id: Some((self.tree.0.id, self.node_id)),
@@ -1471,7 +1490,7 @@ impl<'a> WidgetInfo<'a> {
         }
     }
 
-    /// Gets the [`interactivity_path`] if it is different from `old_path`.
+    /// Gets the [`interaction_path`] if it is different from `old_path`.
     ///
     /// Only allocates a new path if needed.
     ///
@@ -1479,8 +1498,8 @@ impl<'a> WidgetInfo<'a> {
     ///
     /// If `old_path` does not point to the same widget id as `self`.
     ///
-    /// [`interactivity_path`]: Self::interactivity_path
-    pub fn new_interactivity_path(self, old_path: &InteractivityPath) -> Option<InteractivityPath> {
+    /// [`interaction_path`]: Self::interaction_path
+    pub fn new_interaction_path(self, old_path: &InteractionPath) -> Option<InteractionPath> {
         assert_eq!(old_path.widget_id(), self.widget_id());
 
         if self.interactivity() != old_path.interactivity()
@@ -1489,7 +1508,7 @@ impl<'a> WidgetInfo<'a> {
                 .zip(old_path.zip())
                 .any(|(anc, (id, int))| anc.widget_id() != id || anc.interactivity() != int)
         {
-            Some(self.interactivity_path())
+            Some(self.interaction_path())
         } else {
             None
         }

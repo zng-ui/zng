@@ -86,7 +86,7 @@ use crate::{
     service::Service,
     units::*,
     var::{impl_from_and_into_var, var, RcVar, ReadOnlyRcVar, Var, Vars},
-    widget_info::{DescendantFilter, Visibility, WidgetInfo, WidgetInfoTree, WidgetPath},
+    widget_info::{DescendantFilter, InteractionPath, Interactivity, Visibility, WidgetInfo, WidgetInfoTree, WidgetPath},
     window::{FocusIndicator, WidgetInfoChangedEvent, WindowFocusChangedEvent, WindowId, Windows},
     WidgetId,
 };
@@ -100,10 +100,10 @@ event_args! {
     /// [`FocusChangedEvent`] arguments.
     pub struct FocusChangedArgs {
         /// Previously focused widget.
-        pub prev_focus: Option<WidgetPath>,
+        pub prev_focus: Option<InteractionPath>,
 
         /// Newly focused widget.
-        pub new_focus: Option<WidgetPath>,
+        pub new_focus: Option<InteractionPath>,
 
         /// If the focused widget should visually indicate that it is focused.
         ///
@@ -119,7 +119,7 @@ event_args! {
 
         /// The [`prev_focus`](Self::prev_focus) and [`new_focus`](Self::new_focus).
         fn delivery_list(&self) -> EventDeliveryList {
-            EventDeliveryList::widgets_opt(self.prev_focus.as_ref()).with_widgets_opt(self.new_focus.as_ref())
+            EventDeliveryList::widgets_opt(self.prev_focus.as_deref()).with_widgets_opt(self.new_focus.as_deref())
         }
     }
 
@@ -128,22 +128,22 @@ event_args! {
         /// The scope that returns the focus when focused directly.
         ///
         /// Is `None` if the previous focus was the return focus of a scope that was removed.
-        pub scope : Option<WidgetPath>,
+        pub scope : Option<InteractionPath>,
 
         /// Previous return focus of the widget.
-        pub prev_return: Option<WidgetPath>,
+        pub prev_return: Option<InteractionPath>,
 
         /// New return focus of the widget.
-        pub new_return: Option<WidgetPath>,
+        pub new_return: Option<InteractionPath>,
 
         ..
 
         /// The [`prev_return`](Self::prev_return), [`new_return`](Self::new_return)
         /// and [`scope`](Self::scope).
         fn delivery_list(&self) -> EventDeliveryList {
-            EventDeliveryList::widgets_opt(self.scope.as_ref())
-                .with_widgets_opt(self.prev_return.as_ref())
-                .with_widgets_opt(self.new_return.as_ref())
+            EventDeliveryList::widgets_opt(self.scope.as_deref())
+                .with_widgets_opt(self.prev_return.as_deref())
+                .with_widgets_opt(self.new_return.as_deref())
         }
     }
 }
@@ -629,7 +629,7 @@ impl FocusManager {
         self.notify(ctx.vars, ctx.events, focus, windows, args);
 
         // cleanup return focuses.
-        for args in focus.cleanup_returns(ctx.vars, FocusInfoTree::new(tree)) {
+        for args in focus.cleanup_returns(ctx.vars, FocusInfoTree::new(tree, focus.focus_disabled_widgets)) {
             ReturnFocusChangedEvent.notify(ctx.events, args);
         }
     }
@@ -642,17 +642,29 @@ impl FocusManager {
 /// This service is provided by the [`FocusManager`] extension.
 #[derive(Service)]
 pub struct Focus {
+    /// If [`DISABLED`] widgets can receive focus.
+    ///
+    /// This is `true` by default, allowing disabled widgets to receive focus can provide a better experience for users,
+    /// as the keyboard navigation stays the same, this is also of special interest for accessibility users, screen readers
+    /// tend to only vocalize the focused content.
+    ///
+    /// Widgets should use a different *focused* visual for disabled focus, it must be clear that the widget has the keyboard focus
+    /// only as a navigation waypoint and cannot provide its normal function.
+    ///
+    /// [`DISABLED`]: Interactivity::DISABLED
+    pub focus_disabled_widgets: bool,
+
     request: Option<FocusRequest>,
     app_event_sender: AppEventSender,
 
-    focused_var: RcVar<Option<WidgetPath>>,
-    focused: Option<WidgetPath>,
+    focused_var: RcVar<Option<InteractionPath>>,
+    focused: Option<InteractionPath>,
 
-    return_focused_var: IdMap<WidgetId, RcVar<Option<WidgetPath>>>,
-    return_focused: IdMap<WidgetId, WidgetPath>,
+    return_focused_var: IdMap<WidgetId, RcVar<Option<InteractionPath>>>,
+    return_focused: IdMap<WidgetId, InteractionPath>,
 
-    alt_return_var: RcVar<Option<WidgetPath>>,
-    alt_return: Option<(WidgetPath, WidgetPath)>,
+    alt_return_var: RcVar<Option<InteractionPath>>,
+    alt_return: Option<(InteractionPath, InteractionPath)>,
 
     is_highlighting_var: RcVar<bool>,
     is_highlighting: bool,
@@ -662,6 +674,8 @@ impl Focus {
     #[must_use]
     pub fn new(app_event_sender: AppEventSender) -> Self {
         Focus {
+            focus_disabled_widgets: true,
+
             request: None,
             app_event_sender,
 
@@ -681,13 +695,13 @@ impl Focus {
 
     /// Current focused widget.
     #[must_use]
-    pub fn focused(&self) -> ReadOnlyRcVar<Option<WidgetPath>> {
+    pub fn focused(&self) -> ReadOnlyRcVar<Option<InteractionPath>> {
         self.focused_var.clone().into_read_only()
     }
 
     /// Current return focus of a scope.
     #[must_use]
-    pub fn return_focused(&mut self, scope_id: WidgetId) -> ReadOnlyRcVar<Option<WidgetPath>> {
+    pub fn return_focused(&mut self, scope_id: WidgetId) -> ReadOnlyRcVar<Option<InteractionPath>> {
         self.return_focused_var
             .entry(scope_id)
             .or_insert_with(|| var(None))
@@ -704,7 +718,7 @@ impl Focus {
 
     /// Current ALT return focus.
     #[must_use]
-    pub fn alt_return(&self) -> ReadOnlyRcVar<Option<WidgetPath>> {
+    pub fn alt_return(&self) -> ReadOnlyRcVar<Option<InteractionPath>> {
         self.alt_return_var.clone().into_read_only()
     }
 
@@ -878,7 +892,7 @@ impl Focus {
             }
             (Some(prev), move_) => {
                 if let Ok(info) = windows.widget_tree(prev.window_id()) {
-                    let info = FocusInfoTree::new(info);
+                    let info = FocusInfoTree::new(info, self.focus_disabled_widgets);
                     if let Some(w) = info.find(prev.widget_id()) {
                         let mut can_only_highlight = true;
                         if let Some(new_focus) = match move_ {
@@ -919,7 +933,7 @@ impl Focus {
                             // found `new_focus`
                             self.move_focus(
                                 vars,
-                                Some(new_focus.info.path()),
+                                Some(new_focus.info.interaction_path()),
                                 request.highlight,
                                 FocusChangedCause::Request(request),
                             )
@@ -954,15 +968,25 @@ impl Focus {
         if let Some(focused) = &self.focused {
             if let Ok(true) = windows.is_focused(focused.window_id()) {
                 let info = windows.widget_tree(focused.window_id()).unwrap();
-                if let Some(widget) = info.find(focused.widget_id()).map(|w| w.as_focus_info()) {
+                if let Some(widget) = info.find(focused.widget_id()).map(|w| w.as_focus_info(self.focus_disabled_widgets)) {
                     if widget.is_focusable() {
                         // :-) probably in the same place, maybe moved inside same window.
-                        return self.move_focus(vars, Some(widget.info.path()), self.is_highlighting, FocusChangedCause::Recovery);
+                        return self.move_focus(
+                            vars,
+                            Some(widget.info.interaction_path()),
+                            self.is_highlighting,
+                            FocusChangedCause::Recovery,
+                        );
                     } else {
                         // widget no longer focusable
                         if let Some(parent) = widget.parent() {
                             // move to focusable parent
-                            return self.move_focus(vars, Some(parent.info.path()), self.is_highlighting, FocusChangedCause::Recovery);
+                            return self.move_focus(
+                                vars,
+                                Some(parent.info.interaction_path()),
+                                self.is_highlighting,
+                                FocusChangedCause::Recovery,
+                            );
                         } else {
                             // no focusable parent or root
                             return self.focus_focused_window(vars, windows, self.is_highlighting);
@@ -971,9 +995,14 @@ impl Focus {
                 } else {
                     // widget not found, move to focusable known parent
                     for &parent in focused.ancestors().iter().rev() {
-                        if let Some(parent) = info.find(parent).and_then(|w| w.as_focusable()) {
+                        if let Some(parent) = info.find(parent).and_then(|w| w.as_focusable(self.focus_disabled_widgets)) {
                             // move to focusable parent
-                            return self.move_focus(vars, Some(parent.info.path()), self.is_highlighting, FocusChangedCause::Recovery);
+                            return self.move_focus(
+                                vars,
+                                Some(parent.info.interaction_path()),
+                                self.is_highlighting,
+                                FocusChangedCause::Recovery,
+                            );
                         }
                     }
                 }
@@ -1016,16 +1045,31 @@ impl Focus {
         request: FocusRequest,
     ) -> Option<FocusChangedArgs> {
         for info in windows.widget_trees() {
-            if let Some(w) = info.find(widget_id).map(|w| w.as_focus_info()) {
+            if let Some(w) = info.find(widget_id).map(|w| w.as_focus_info(self.focus_disabled_widgets)) {
                 if w.is_focusable() {
-                    return self.move_focus(vars, Some(w.info.path()), highlight, FocusChangedCause::Request(request));
+                    return self.move_focus(
+                        vars,
+                        Some(w.info.interaction_path()),
+                        highlight,
+                        FocusChangedCause::Request(request),
+                    );
                 } else if fallback_to_childs {
                     if let Some(w) = w.descendants().next() {
-                        return self.move_focus(vars, Some(w.info.path()), highlight, FocusChangedCause::Request(request));
+                        return self.move_focus(
+                            vars,
+                            Some(w.info.interaction_path()),
+                            highlight,
+                            FocusChangedCause::Request(request),
+                        );
                     }
                 } else if fallback_to_parents {
                     if let Some(w) = w.parent() {
-                        return self.move_focus(vars, Some(w.info.path()), highlight, FocusChangedCause::Request(request));
+                        return self.move_focus(
+                            vars,
+                            Some(w.info.interaction_path()),
+                            highlight,
+                            FocusChangedCause::Request(request),
+                        );
                     }
                 }
                 break;
@@ -1054,10 +1098,10 @@ impl Focus {
     #[must_use]
     fn focus_focused_window(&mut self, vars: &Vars, windows: &Windows, highlight: bool) -> Option<FocusChangedArgs> {
         if let Some(info) = windows.focused_info() {
-            let info = FocusInfoTree::new(info);
+            let info = FocusInfoTree::new(info, self.focus_disabled_widgets);
             if let Some(root) = info.focusable_root() {
                 // found focused window and it is focusable.
-                self.move_focus(vars, Some(root.info.path()), highlight, FocusChangedCause::Recovery)
+                self.move_focus(vars, Some(root.info.interaction_path()), highlight, FocusChangedCause::Recovery)
             } else {
                 // has focused window but it is not focusable.
                 self.move_focus(vars, None, false, FocusChangedCause::Recovery)
@@ -1072,7 +1116,7 @@ impl Focus {
     fn move_focus(
         &mut self,
         vars: &Vars,
-        new_focus: Option<WidgetPath>,
+        new_focus: Option<InteractionPath>,
         highlight: bool,
         cause: FocusChangedCause,
     ) -> Option<FocusChangedArgs> {
@@ -1095,12 +1139,12 @@ impl Focus {
     fn move_after_focus(&mut self, vars: &Vars, windows: &Windows, reverse: bool) -> Option<FocusChangedArgs> {
         if let Some(focused) = &self.focused {
             if let Some(info) = windows.focused_info() {
-                if let Some(widget) = FocusInfoTree::new(info).get(focused) {
+                if let Some(widget) = FocusInfoTree::new(info, self.focus_disabled_widgets).get(focused) {
                     if widget.is_scope() {
-                        if let Some(widget) = widget.on_focus_scope_move(|id| self.return_focused.get(&id), reverse) {
+                        if let Some(widget) = widget.on_focus_scope_move(|id| self.return_focused.get(&id).map(|p| p.as_path()), reverse) {
                             return self.move_focus(
                                 vars,
-                                Some(widget.info.path()),
+                                Some(widget.info.interaction_path()),
                                 self.is_highlighting,
                                 FocusChangedCause::ScopeGotFocus(reverse),
                             );
@@ -1114,7 +1158,7 @@ impl Focus {
 
     /// Updates `return_focused` and `alt_return` after `focused` changed.
     #[must_use]
-    fn update_returns(&mut self, vars: &Vars, prev_focus: Option<WidgetPath>, windows: &Windows) -> Vec<ReturnFocusChangedArgs> {
+    fn update_returns(&mut self, vars: &Vars, prev_focus: Option<InteractionPath>, windows: &Windows) -> Vec<ReturnFocusChangedArgs> {
         let mut r = vec![];
 
         if let Some((scope, _)) = &self.alt_return {
@@ -1137,14 +1181,14 @@ impl Focus {
             // moved inside an ALT.
 
             if let Ok(info) = windows.widget_tree(new_focus.window_id()) {
-                if let Some(widget) = FocusInfoTree::new(info).get(new_focus) {
+                if let Some(widget) = FocusInfoTree::new(info, self.focus_disabled_widgets).get(new_focus) {
                     let alt_scope = if widget.is_alt_scope() {
                         Some(widget)
                     } else {
                         widget.scopes().find(|s| s.is_alt_scope())
                     };
                     if let Some(alt_scope) = alt_scope {
-                        let scope = alt_scope.info.path();
+                        let scope = alt_scope.info.interaction_path();
                         // entered an alt_scope.
 
                         if let Some(prev) = &prev_focus {
@@ -1154,7 +1198,7 @@ impl Focus {
                             self.alt_return_var.set(vars, prev.clone());
                         } else if let Some(parent) = alt_scope.parent() {
                             // no previous focus, ALT parent is the return.
-                            let parent_path = parent.info.path();
+                            let parent_path = parent.info.interaction_path();
                             r.push(ReturnFocusChangedArgs::now(scope.clone(), None, Some(parent_path.clone())));
                             self.alt_return = Some((scope, parent_path.clone()));
                             self.alt_return_var.set(vars, parent_path);
@@ -1170,7 +1214,7 @@ impl Focus {
 
         if let Some(new_focus) = &self.focused {
             if let Ok(info) = windows.widget_tree(new_focus.window_id()) {
-                if let Some(widget) = FocusInfoTree::new(info).get(new_focus) {
+                if let Some(widget) = FocusInfoTree::new(info, self.focus_disabled_widgets).get(new_focus) {
                     if widget.scopes().all(|s| !s.is_alt_scope()) {
                         // if not inside ALT, update return for each LastFocused parent scopes.
 
@@ -1178,8 +1222,8 @@ impl Focus {
                             .scopes()
                             .filter(|s| s.focus_info().scope_on_focus() == FocusScopeOnFocus::LastFocused)
                         {
-                            let scope = scope.info.path();
-                            let path = widget.info.path();
+                            let scope = scope.info.interaction_path();
+                            let path = widget.info.interaction_path();
                             if let Some(current) = self.return_focused.get_mut(&scope.widget_id()) {
                                 if current != &path {
                                     let prev = std::mem::replace(current, path);
@@ -1227,11 +1271,11 @@ impl Focus {
                     if scope.focus_info().scope_on_focus() == FocusScopeOnFocus::LastFocused {
                         retain = true; // retain, widget still exists in same scope and scope still is LastFocused.
 
-                        let path = widget.info.path();
+                        let path = widget.info.interaction_path();
                         if &path != widget_path {
                             // widget moved inside scope.
                             r.push(ReturnFocusChangedArgs::now(
-                                scope.info.path(),
+                                scope.info.interaction_path(),
                                 Some(widget_path.clone()),
                                 Some(path.clone()),
                             ));
@@ -1245,9 +1289,9 @@ impl Focus {
                             // LastFocused goes to the first descendant as fallback.
                             retain = true;
 
-                            let path = first.info.path();
+                            let path = first.info.interaction_path();
                             r.push(ReturnFocusChangedArgs::now(
-                                scope.info.path(),
+                                scope.info.interaction_path(),
                                 Some(widget_path.clone()),
                                 Some(path.clone()),
                             ));
@@ -1262,9 +1306,9 @@ impl Focus {
                         // ..and the parent is inside the scope, and the scope is still valid.
                         retain = true;
 
-                        let path = parent.info.path();
+                        let path = parent.info.interaction_path();
                         r.push(ReturnFocusChangedArgs::now(
-                            scope.info.path(),
+                            scope.info.interaction_path(),
                             Some(widget_path.clone()),
                             Some(path.clone()),
                         ));
@@ -1274,7 +1318,7 @@ impl Focus {
             }
 
             if !retain {
-                let scope_path = info.find(scope_id).map(|i| i.info.path());
+                let scope_path = info.find(scope_id).map(|i| i.info.interaction_path());
 
                 if scope_path.is_some() {
                     match self.return_focused_var.entry(scope_id) {
@@ -1309,7 +1353,7 @@ impl Focus {
                     if !widget.scopes().any(|s| s.info.widget_id() == scope.widget_id()) {
                         retain_alt = true; // retain, widget still exists outside of the ALT scope.
 
-                        let path = widget.info.path();
+                        let path = widget.info.interaction_path();
                         if &path != widget_path {
                             // widget moved outside ALT scope.
                             r.push(ReturnFocusChangedArgs::now(scope.clone(), Some(widget_path.clone()), Some(path)));
@@ -1321,7 +1365,7 @@ impl Focus {
                         // ..and the parent is not inside the ALT scope.
                         retain_alt = true;
 
-                        let path = parent.info.path();
+                        let path = parent.info.interaction_path();
                         r.push(ReturnFocusChangedArgs::now(
                             scope.clone(),
                             Some(widget_path.clone()),
@@ -1525,11 +1569,31 @@ pub enum FocusTarget {
 pub struct FocusInfoTree<'a> {
     /// Full widget info.
     pub tree: &'a WidgetInfoTree,
+    min_interactivity: Interactivity,
 }
 impl<'a> FocusInfoTree<'a> {
     /// Wrap a `widget_info` reference to enable focus info querying.
-    pub fn new(tree: &'a WidgetInfoTree) -> Self {
-        FocusInfoTree { tree }
+    ///
+    /// See the [`Focus::focus_disabled_widgets`] config for more details on the second parameter.
+    pub fn new(tree: &'a WidgetInfoTree, focus_disabled_widgets: bool) -> Self {
+        FocusInfoTree {
+            tree,
+            min_interactivity: if focus_disabled_widgets {
+                Interactivity::DISABLED
+            } else {
+                Interactivity::ENABLED
+            },
+        }
+    }
+
+    /// If [`DISABLED`] widgets are focusable in this tree.
+    ///
+    /// See the [`Focus::focus_disabled_widgets`] config for more details.
+    ///
+    /// [`DISABLED`]: Interactivity::DISABLED
+    /// [`focus_disabled_widgets`]: Focus::focus_disabled_widgets
+    pub fn focus_disabled_widgets(&self) -> bool {
+        self.min_interactivity.is_disabled()
     }
 
     /// Reference to the root widget in the tree.
@@ -1537,7 +1601,10 @@ impl<'a> FocusInfoTree<'a> {
     /// The root is usually a focusable focus scope but it may not be. This
     /// is the only method that returns a [`WidgetFocusInfo`] that may not be focusable.
     pub fn root(&self) -> WidgetFocusInfo {
-        WidgetFocusInfo::new(self.tree.root())
+        WidgetFocusInfo {
+            info: self.tree.root(),
+            min_interactivity: self.min_interactivity,
+        }
     }
 
     /// Reference the focusable widget closest to the window root.
@@ -1566,14 +1633,16 @@ impl<'a> FocusInfoTree<'a> {
 
     /// Reference to the widget in the tree, if it is present and is focusable.
     pub fn find(&self, widget_id: WidgetId) -> Option<WidgetFocusInfo> {
-        self.tree.find(widget_id).and_then(|i| i.as_focusable())
+        self.tree
+            .find(widget_id)
+            .and_then(|i| i.as_focusable(self.focus_disabled_widgets()))
     }
 
     /// Reference to the widget in the tree, if it is present and is focusable.
     ///
     /// Faster then [`find`](Self::find) if the widget path was generated by the same tree.
     pub fn get(&self, path: &WidgetPath) -> Option<WidgetFocusInfo> {
-        self.tree.get(path).and_then(|i| i.as_focusable())
+        self.tree.get(path).and_then(|i| i.as_focusable(self.focus_disabled_widgets()))
     }
 
     /// Reference to the first focusable widget or parent in the tree.
@@ -1591,19 +1660,23 @@ impl<'a> FocusInfoTree<'a> {
 /// [`WidgetInfo`] extensions that build a [`WidgetFocusInfo`].
 pub trait WidgetInfoFocusExt<'a> {
     /// Wraps the [`WidgetInfo`] in a [`WidgetFocusInfo`] even if it is not focusable.
+    ///
+    /// See the [`Focus::focus_disabled_widgets`] config for more details on the second parameter.
     #[allow(clippy::wrong_self_convention)] // WidgetFocusInfo is a reference wrapper.
-    fn as_focus_info(self) -> WidgetFocusInfo<'a>;
+    fn as_focus_info(self, focus_disabled_widgets: bool) -> WidgetFocusInfo<'a>;
 
     /// Returns a wrapped [`WidgetFocusInfo`] if the [`WidgetInfo`] is focusable.
+    ///
+    /// See the [`Focus::focus_disabled_widgets`] config for more details on the second parameter.
     #[allow(clippy::wrong_self_convention)] // WidgetFocusInfo is a reference wrapper.
-    fn as_focusable(self) -> Option<WidgetFocusInfo<'a>>;
+    fn as_focusable(self, focus_disabled_widgets: bool) -> Option<WidgetFocusInfo<'a>>;
 }
 impl<'a> WidgetInfoFocusExt<'a> for WidgetInfo<'a> {
-    fn as_focus_info(self) -> WidgetFocusInfo<'a> {
-        WidgetFocusInfo::new(self)
+    fn as_focus_info(self, focus_disabled_widgets: bool) -> WidgetFocusInfo<'a> {
+        WidgetFocusInfo::new(self, focus_disabled_widgets)
     }
-    fn as_focusable(self) -> Option<WidgetFocusInfo<'a>> {
-        let r = self.as_focus_info();
+    fn as_focusable(self, focus_disabled_widgets: bool) -> Option<WidgetFocusInfo<'a>> {
+        let r = self.as_focus_info(focus_disabled_widgets);
         if r.is_focusable() {
             Some(r)
         } else {
@@ -1617,6 +1690,7 @@ impl<'a> WidgetInfoFocusExt<'a> for WidgetInfo<'a> {
 pub struct WidgetFocusInfo<'a> {
     /// Full widget info.
     pub info: WidgetInfo<'a>,
+    min_interactivity: Interactivity,
 }
 macro_rules! DirectionFn {
     (impl) => { impl Fn(PxPoint, PxPoint) -> (Px, Px, Px, Px) };
@@ -1627,8 +1701,27 @@ macro_rules! DirectionFn {
 }
 impl<'a> WidgetFocusInfo<'a> {
     /// Wrap a `widget_info` reference to enable focus info querying.
-    pub fn new(widget_info: WidgetInfo<'a>) -> Self {
-        WidgetFocusInfo { info: widget_info }
+    ///
+    /// See the [`Focus::focus_disabled_widgets`] config for more details on the second parameter.
+    pub fn new(widget_info: WidgetInfo<'a>, focus_disabled_widgets: bool) -> Self {
+        WidgetFocusInfo {
+            info: widget_info,
+            min_interactivity: if focus_disabled_widgets {
+                Interactivity::DISABLED
+            } else {
+                Interactivity::ENABLED
+            },
+        }
+    }
+
+    /// If [`DISABLED`] widgets are focusable in this tree.
+    ///
+    /// See the [`Focus::focus_disabled_widgets`] config for more details.
+    ///
+    /// [`DISABLED`]: Interactivity::DISABLED
+    /// [`focus_disabled_widgets`]: Focus::focus_disabled_widgets
+    pub fn focus_disabled_widgets(&self) -> bool {
+        self.min_interactivity.is_disabled()
     }
 
     /// Root focusable.
@@ -1660,7 +1753,7 @@ impl<'a> WidgetFocusInfo<'a> {
 
     /// Widget focus metadata.
     pub fn focus_info(self) -> FocusInfo {
-        if self.info.visibility() != Visibility::Visible || !self.info.interactivity().is_enabled() {
+        if self.info.visibility() != Visibility::Visible || self.info.interactivity() > self.min_interactivity {
             FocusInfo::NotFocusable
         } else if let Some(builder) = self.info.meta().get(FocusInfoKey) {
             builder.build()
@@ -1671,13 +1764,13 @@ impl<'a> WidgetFocusInfo<'a> {
 
     /// Iterator over focusable parent -> grandparent -> .. -> root.
     pub fn ancestors(self) -> impl Iterator<Item = WidgetFocusInfo<'a>> {
-        self.info.ancestors().focusable()
+        self.info.ancestors().focusable(self.focus_disabled_widgets())
     }
 
     /// Iterator over focus scopes parent -> grandparent -> .. -> root.
     pub fn scopes(self) -> impl Iterator<Item = WidgetFocusInfo<'a>> {
-        self.info.ancestors().filter_map(|i| {
-            let i = i.as_focus_info();
+        self.info.ancestors().filter_map(move |i| {
+            let i = i.as_focus_info(self.focus_disabled_widgets());
             if i.is_scope() {
                 Some(i)
             } else {
@@ -1700,7 +1793,7 @@ impl<'a> WidgetFocusInfo<'a> {
     fn scope_with_path(self) -> Option<(WidgetFocusInfo<'a>, Vec<WidgetFocusInfo<'a>>)> {
         let mut path = vec![];
         for i in self.info.ancestors() {
-            let i = i.as_focus_info();
+            let i = i.as_focus_info(self.focus_disabled_widgets());
             if i.is_scope() {
                 path.reverse();
                 return Some((i, path));
@@ -1786,7 +1879,7 @@ impl<'a> WidgetFocusInfo<'a> {
                 }
                 FocusScopeOnFocus::LastFocused => last_focused(self.info.widget_id())
                     .and_then(|path| self.info.tree().get(path))
-                    .and_then(|w| w.as_focusable())
+                    .and_then(|w| w.as_focusable(self.focus_disabled_widgets()))
                     .and_then(|f| {
                         if f.ancestors().any(|a| a == self) {
                             Some(f) // valid last focused
@@ -1809,7 +1902,7 @@ impl<'a> WidgetFocusInfo<'a> {
 
     /// Iterator over the focusable widgets contained by this widget.
     pub fn descendants(self) -> impl Iterator<Item = WidgetFocusInfo<'a>> {
-        self.info.descendants().focusable()
+        self.info.descendants().focusable(self.focus_disabled_widgets())
     }
 
     /// Iterator over all focusable widgets contained by this widget filtered by the `filter` closure.
@@ -1821,13 +1914,13 @@ impl<'a> WidgetFocusInfo<'a> {
     ) -> impl Iterator<Item = WidgetFocusInfo<'a>> {
         self.info
             .filter_descendants(move |info| {
-                if let Some(focusable) = info.as_focusable() {
+                if let Some(focusable) = info.as_focusable(self.focus_disabled_widgets()) {
                     filter(focusable)
                 } else {
                     DescendantFilter::Skip
                 }
             })
-            .map(|info| info.as_focus_info())
+            .map(move |info| info.as_focus_info(self.focus_disabled_widgets()))
     }
 
     /// Descendants sorted by TAB index.
@@ -1895,7 +1988,7 @@ impl<'a> WidgetFocusInfo<'a> {
             return self
                 .info
                 .next_siblings()
-                .map(|s| s.as_focus_info())
+                .map(|s| s.as_focus_info(self.focus_disabled_widgets()))
                 .find(|s| s.focus_info().tab_index() != TabIndex::SKIP)
                 .ok_or(siblings);
         }
@@ -1998,7 +2091,7 @@ impl<'a> WidgetFocusInfo<'a> {
             return self
                 .info
                 .prev_siblings()
-                .map(|s| s.as_focus_info())
+                .map(|s| s.as_focus_info(self.focus_disabled_widgets()))
                 .find(|s| s.focus_info().tab_index() != TabIndex::SKIP)
                 .ok_or(siblings);
         }
@@ -2291,11 +2384,19 @@ impl<'a> WidgetFocusInfo<'a> {
 /// Filter-maps an iterator of [`WidgetInfo`] to [`WidgetFocusInfo`].
 pub trait IterFocusable<'a, I: Iterator<Item = WidgetInfo<'a>>> {
     /// Returns an iterator of only the focusable widgets.
-    fn focusable(self) -> std::iter::FilterMap<I, fn(WidgetInfo<'a>) -> Option<WidgetFocusInfo<'a>>>;
+    ///
+    /// See the [`Focus::focus_disabled_widgets`] config for more details on the second parameter.
+    fn focusable(
+        self,
+        focus_disabled_widgets: bool,
+    ) -> std::iter::FilterMap<I, Box<dyn FnMut(WidgetInfo<'a>) -> Option<WidgetFocusInfo<'a>>>>;
 }
 impl<'a, I: Iterator<Item = WidgetInfo<'a>>> IterFocusable<'a, I> for I {
-    fn focusable(self) -> std::iter::FilterMap<I, fn(WidgetInfo<'a>) -> Option<WidgetFocusInfo<'a>>> {
-        self.filter_map(|i| i.as_focusable())
+    fn focusable(
+        self,
+        focus_disabled_widgets: bool,
+    ) -> std::iter::FilterMap<I, Box<dyn FnMut(WidgetInfo<'a>) -> Option<WidgetFocusInfo<'a>>>> {
+        self.filter_map(Box::new(move |i| i.as_focusable(focus_disabled_widgets)))
     }
 }
 

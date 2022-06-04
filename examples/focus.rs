@@ -222,7 +222,7 @@ mod inspect {
     use zero_ui::core::focus::WidgetInfoFocusExt;
     use zero_ui::core::inspector::WidgetInspectorInfo;
 
-    pub fn focus(path: &Option<WidgetPath>, services: &mut Services) -> String {
+    pub fn focus(path: &Option<InteractionPath>, services: &mut Services) -> String {
         path.as_ref()
             .map(|p| {
                 let frame = if let Ok(w) = services.windows().widget_tree(p.window_id()) {
@@ -259,7 +259,7 @@ mod inspect {
                         .unwrap_or_default();
                     format!("window({title})")
                 } else {
-                    let focus_info = widget.as_focus_info();
+                    let focus_info = widget.as_focus_info(true);
                     if focus_info.is_alt_scope() {
                         format!("{}(is_alt_scope)", info.widget_name)
                     } else if focus_info.is_scope() {

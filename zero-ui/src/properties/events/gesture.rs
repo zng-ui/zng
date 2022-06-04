@@ -9,7 +9,7 @@ use crate::core::gesture::*;
 use crate::prelude::new_property::*;
 
 event_property! {
-    /// On widget click from any source and of any click count.
+    /// On widget click from any source and of any click count and the widget is enabled.
     ///
     /// This is the most general click handler, it raises for all possible sources of the [`ClickEvent`] and any number
     /// of consecutive clicks. Use [`click`](fn@click) to handle only primary button clicks or [`on_any_single_click`](fn@on_any_single_click)
@@ -17,39 +17,47 @@ event_property! {
     pub fn any_click {
         event: ClickEvent,
         args: ClickArgs,
+        filter: |ctx, args| args.is_enabled(ctx.path),
     }
 
-    /// On widget click from any source but excluding double/triple clicks.
+    /// On widget click from any source and of any click count and the widget is disabled.
+    pub fn disabled_click {
+        event: ClickEvent,
+        args: ClickArgs,
+        filter: |ctx, args| args.is_disabled(ctx.path),
+    }
+
+    /// On widget click from any source but excluding double/triple clicks and the widget is enabled.
     ///
     /// This raises for all possible sources of [`ClickEvent`], but only when the click count is one. Use
     /// [`on_single_click`](fn@on_single_click) to handle only primary button clicks.
     pub fn any_single_click {
         event: ClickEvent,
         args: ClickArgs,
-        filter: |_, args| args.is_single(),
+        filter: |ctx, args| args.is_single() && args.is_enabled(ctx.path),
     }
 
-    /// On widget click from any source but exclusive double-clicks.
+    /// On widget click from any source but exclusive double-clicks and the widget is enabled.
     ///
     /// This raises for all possible sources of [`ClickEvent`], but only when the click count is two. Use
     /// [`on_double_click`](fn@on_double_click) to handle only primary button clicks.
     pub fn any_double_click {
         event: ClickEvent,
         args: ClickArgs,
-        filter: |_, args| args.is_double(),
+        filter: |ctx, args| args.is_double() && args.is_enabled(ctx.path),
     }
 
-    /// On widget click from any source but exclusive triple-clicks.
+    /// On widget click from any source but exclusive triple-clicks and the widget is enabled.
     ///
     /// This raises for all possible sources of [`ClickEvent`], but only when the click count is three. Use
     /// [`on_triple_click`](fn@on_triple_click) to handle only primary button clicks.
     pub fn any_triple_click {
         event: ClickEvent,
         args: ClickArgs,
-        filter: |_, args| args.is_triple(),
+        filter: |ctx, args| args.is_triple() && args.is_enabled(ctx.path),
     }
 
-    /// On widget click with the primary button and any click count.
+    /// On widget click with the primary button and any click count and the widget is enabled.
     ///
     /// This raises only if the click [is primary](ClickArgs::is_primary), but raises for any click count (double/triple clicks).
     /// Use [`on_any_click`](fn@on_any_click) to handle clicks from any button or [`on_single_click`](fn@on_single_click) to not include
@@ -57,52 +65,60 @@ event_property! {
     pub fn click {
         event: ClickEvent,
         args: ClickArgs,
-        filter: |_, args| args.is_primary(),
+        filter: |ctx, args| args.is_primary() && args.is_enabled(ctx.path),
     }
 
-    /// On widget click with the primary button, excluding double/triple clicks.
+    /// On widget click with the primary button, excluding double/triple clicks and the widget is enabled.
     ///
     /// This raises only if the click [is primary](ClickArgs::is_primary) and the click count is one. Use
     /// [`on_any_single_click`](fn@on_any_single_click) to handle single clicks from any button.
     pub fn single_click {
         event: ClickEvent,
         args: ClickArgs,
-        filter: |_, args| args.is_primary() && args.is_single(),
+        filter: |ctx, args| args.is_primary() && args.is_single() && args.is_enabled(ctx.path),
     }
 
-    /// On widget click with the primary button and exclusive double-clicks.
+    /// On widget click with the primary button and exclusive double-clicks and the widget is enabled.
     ///
     /// This raises only if the click [is primary](ClickArgs::is_primary) and the click count is two. Use
     /// [`on_any_double_click`](fn@on_any_double_click) to handle double clicks from any button.
     pub fn double_click {
         event: ClickEvent,
         args: ClickArgs,
-        filter: |_, args| args.is_primary() && args.is_double(),
+        filter: |ctx, args| args.is_primary() && args.is_double() && args.is_enabled(ctx.path),
     }
 
-    /// On widget click with the primary button and exclusive triple-clicks.
+    /// On widget click with the primary button and exclusive triple-clicks and the widget is enabled.
     ///
     /// This raises only if the click [is primary](ClickArgs::is_primary) and the click count is three. Use
     /// [`on_any_double_click`](fn@on_any_double_click) to handle double clicks from any button.
     pub fn triple_click {
         event: ClickEvent,
         args: ClickArgs,
-        filter: |_, args| args.is_primary() && args.is_triple(),
+        filter: |ctx, args| args.is_primary() && args.is_triple() && args.is_enabled(ctx.path),
     }
 
-    /// On widget click with the secondary/context button.
+    /// On widget click with the secondary/context button and the widget is enabled.
     ///
     /// This raises only if the click [is context](ClickArgs::is_context).
     pub fn context_click {
         event: ClickEvent,
         args: ClickArgs,
-        filter: |_, args| args.is_context(),
+        filter: |ctx, args| args.is_context() && args.is_enabled(ctx.path),
     }
 
-    /// On keyboard shortcut press when the widget is focused.
+    /// On keyboard shortcut press when the widget is focused and enabled.
     pub fn shortcut {
         event: ShortcutEvent,
         args: ShortcutArgs,
+        filter: |ctx, args| args.is_enabled(ctx.path),
+    }
+
+    /// On keyboard shortcut press when the widget is focused and disabled.
+    pub fn disabled_shortcut {
+        event: ShortcutEvent,
+        args: ShortcutArgs,
+        filter: |ctx, args| args.is_enabled(ctx.path),
     }
 }
 
