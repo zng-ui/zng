@@ -208,61 +208,13 @@ pub fn image_limits(child: impl UiNode, limits: impl IntoVar<Option<ImageLimits>
 /// If the [`ContextImageVar`] is an error.
 #[property(layout)]
 pub fn is_error(child: impl UiNode, state: StateVar) -> impl UiNode {
-    struct IsErrorNode<C> {
-        child: C,
-        state: StateVar,
-    }
-    #[impl_ui_node(child)]
-    impl<C: UiNode> UiNode for IsErrorNode<C> {
-        fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-            subs.var(ctx, &ContextImageVar::new());
-
-            self.child.subscriptions(ctx, subs);
-        }
-
-        fn init(&mut self, ctx: &mut WidgetContext) {
-            self.state.set_ne(ctx.vars, ContextImageVar::get(ctx.vars).is_error());
-            self.child.init(ctx);
-        }
-
-        fn update(&mut self, ctx: &mut WidgetContext) {
-            if let Some(new_img) = ContextImageVar::get_new(ctx.vars) {
-                self.state.set_ne(ctx.vars, new_img.is_error());
-            }
-            self.child.update(ctx);
-        }
-    }
-    IsErrorNode { child, state }
+    bind_state(child, ContextImageVar::new().map(|m| m.is_error()), state)
 }
 
 /// If the [`ContextImageVar`] is a successfully loaded image.
 #[property(layout)]
 pub fn is_loaded(child: impl UiNode, state: StateVar) -> impl UiNode {
-    struct IsLoadedNode<C> {
-        child: C,
-        state: StateVar,
-    }
-    #[impl_ui_node(child)]
-    impl<C: UiNode> UiNode for IsLoadedNode<C> {
-        fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-            subs.var(ctx, &ContextImageVar::new());
-
-            self.child.subscriptions(ctx, subs);
-        }
-
-        fn init(&mut self, ctx: &mut WidgetContext) {
-            self.state.set_ne(ctx.vars, ContextImageVar::get(ctx.vars).is_loaded());
-            self.child.init(ctx);
-        }
-
-        fn update(&mut self, ctx: &mut WidgetContext) {
-            if let Some(new_img) = ContextImageVar::get_new(ctx.vars) {
-                self.state.set_ne(ctx.vars, new_img.is_loaded());
-            }
-            self.child.update(ctx);
-        }
-    }
-    IsLoadedNode { child, state }
+    bind_state(child, ContextImageVar::new().map(|m| m.is_loaded()), state)
 }
 
 /// Sets the [view generator] that is used to create a content for the error message.

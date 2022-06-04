@@ -1,5 +1,3 @@
-* Review all state properties, must of then can be declared using the new `event_state` and `bind_state` helpers.
-
 * Fix `focused_removed_by_deleting`, removed widget receiving event?
 * Fix text reuse in button example when multiple buttons are added.
 * Optimize/fix interactivity, can we make parent interactivity affecting child a guaranteed?

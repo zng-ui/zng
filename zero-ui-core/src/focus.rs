@@ -221,6 +221,42 @@ impl ReturnFocusChangedArgs {
             false
         }
     }
+
+    /// if the widget was in the [`prev_return`] and is not in the [`new_return`].
+    ///
+    /// [`prev_return`]: Self::prev_return
+    /// [`new_return`]: Self::new_return
+    pub fn lost_return_focus(&self, widget_id: WidgetId) -> bool {
+        self.prev_return.as_ref().map(|p| p.contains(widget_id)).unwrap_or(false)
+            && self.new_return.as_ref().map(|p| !p.contains(widget_id)).unwrap_or(true)
+    }
+
+    /// if the widget was not in the [`prev_return`] and is in the [`new_return`].
+    ///
+    /// [`prev_return`]: Self::prev_return
+    /// [`new_return`]: Self::new_return
+    pub fn got_return_focus(&self, widget_id: WidgetId) -> bool {
+        self.prev_return.as_ref().map(|p| !p.contains(widget_id)).unwrap_or(true)
+            && self.new_return.as_ref().map(|p| p.contains(widget_id)).unwrap_or(false)
+    }
+
+    /// if the widget was the [`prev_return`] and is the [`new_return`].
+    ///
+    /// [`prev_return`]: Self::prev_return
+    /// [`new_return`]: Self::new_return
+    pub fn was_return_focus(&self, widget_id: WidgetId) -> bool {
+        self.prev_return.as_ref().map(|p| p.widget_id() == widget_id).unwrap_or(false)
+            && self.new_return.as_ref().map(|p| p.widget_id() != widget_id).unwrap_or(true)
+    }
+
+    /// if the widget was not the [`prev_return`] and is the [`new_return`].
+    ///
+    /// [`prev_return`]: Self::prev_return
+    /// [`new_return`]: Self::new_return
+    pub fn is_return_focus(&self, widget_id: WidgetId) -> bool {
+        self.prev_return.as_ref().map(|p| p.widget_id() != widget_id).unwrap_or(true)
+            && self.new_return.as_ref().map(|p| p.widget_id() == widget_id).unwrap_or(false)
+    }
 }
 
 /// The cause of a [`FocusChangedEvent`].

@@ -729,36 +729,18 @@ pub fn interactive_node(child: impl UiNode, interactive: impl IntoVar<bool>) -> 
     .cfg_boxed()
 }
 
-struct IsEnabledNode<C: UiNode> {
-    child: C,
-    state: StateVar,
-    expected: bool,
+fn vis_enabled_eq_state(child: impl UiNode, state: StateVar, expected: bool) -> impl UiNode {
+    event_state(child, state, true, WidgetInfoChangedEvent, move |ctx, _| {
+        let is_enabled = ctx
+        .info_tree
+        .find(ctx.path.widget_id())
+        .unwrap()
+        .interactivity()
+        .is_visually_enabled();
+
+        Some(is_enabled == expected)
+    })
 }
-#[impl_ui_node(child)]
-impl<C: UiNode> UiNode for IsEnabledNode<C> {
-    fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-        subs.event(WidgetInfoChangedEvent);
-        self.child.subscriptions(ctx, subs);
-    }
-
-    fn event<A: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &A) {
-        if let Some(args) = WidgetInfoChangedEvent.update(args) {
-            let is_enabled = ctx
-                .info_tree
-                .find(ctx.path.widget_id())
-                .unwrap()
-                .interactivity()
-                .is_visually_enabled();
-
-            self.state.set_ne(ctx, is_enabled == self.expected);
-
-            self.child.event(ctx, args);
-        } else {
-            self.child.event(ctx, args);
-        }
-    }
-}
-
 /// If the widget is enabled for interaction.
 ///
 /// This property is used only for probing the state. You can set the state using
@@ -768,11 +750,7 @@ impl<C: UiNode> UiNode for IsEnabledNode<C> {
 /// [`WidgetInfo::allow_interaction`]: crate::widget_info::WidgetInfo::allow_interaction
 #[property(event)]
 pub fn is_enabled(child: impl UiNode, state: StateVar) -> impl UiNode {
-    IsEnabledNode {
-        child,
-        state,
-        expected: true,
-    }
+    vis_enabled_eq_state(child, state, true)
 }
 /// If the widget is disabled for interaction.
 ///
@@ -784,11 +762,7 @@ pub fn is_enabled(child: impl UiNode, state: StateVar) -> impl UiNode {
 /// [`enabled`]: fn@enabled
 #[property(event)]
 pub fn is_disabled(child: impl UiNode, state: StateVar) -> impl UiNode {
-    IsEnabledNode {
-        child,
-        state,
-        expected: false,
-    }
+    vis_enabled_eq_state(child, state, false)
 }
 
 /// Sets the widget visibility.
@@ -875,73 +849,37 @@ pub fn visibility(child: impl UiNode, visibility: impl IntoVar<Visibility>) -> i
     }
 }
 
-struct IsVisibilityNode<C: UiNode> {
-    child: C,
-    state: StateVar,
-    expected: Visibility,
-}
-fn current_vis(ctx: &mut WidgetContext) -> Visibility {
-    ctx.info_tree
-        .find(ctx.path.widget_id())
-        .map(|w| w.visibility())
-        .unwrap_or(Visibility::Visible)
-}
-#[impl_ui_node(child)]
-impl<C: UiNode> UiNode for IsVisibilityNode<C> {
-    fn init(&mut self, ctx: &mut WidgetContext) {
-        self.child.init(ctx);
+fn visibility_eq_state(child: impl UiNode, state: StateVar, expected: Visibility) -> impl UiNode {
+    event_state(
+        child,
+        state,
+        expected == Visibility::Visible,
+        crate::window::FrameImageReadyEvent,
+        move |ctx, _| {
+            let vis = ctx
+                .info_tree
+                .find(ctx.path.widget_id())
+                .map(|w| w.visibility())
+                .unwrap_or(Visibility::Visible);
 
-        let vis = current_vis(ctx);
-        self.state.set_ne(ctx, vis != self.expected);
-    }
-
-    fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-        subs.event(crate::window::FrameImageReadyEvent);
-        self.child.subscriptions(ctx, subs);
-    }
-
-    fn event<A: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &A) {
-        if let Some(args) = crate::window::FrameImageReadyEvent.update(args) {
-            let vis = current_vis(ctx);
-            self.state.set_ne(ctx, vis != self.expected);
-
-            self.child.event(ctx, args);
-        } else {
-            self.child.event(ctx, args);
-        }
-    }
-
-    fn deinit(&mut self, ctx: &mut WidgetContext) {
-        self.child.deinit(ctx);
-        self.state.set_ne(ctx, self.expected == Visibility::Collapsed);
-    }
+            Some(vis == expected)
+        },
+    )
 }
 /// If the widget is [`Visible`](Visibility::Visible).
 #[property(context)]
 pub fn is_visible(child: impl UiNode, state: StateVar) -> impl UiNode {
-    IsVisibilityNode {
-        child,
-        state,
-        expected: Visibility::Visible,
-    }
+    visibility_eq_state(child, state, Visibility::Visible)
 }
 /// If the widget is [`Hidden`](Visibility::Hidden).
 #[property(context)]
 pub fn is_hidden(child: impl UiNode, state: StateVar) -> impl UiNode {
-    IsVisibilityNode {
-        child,
-        state,
-        expected: Visibility::Hidden,
-    }
+    visibility_eq_state(child, state, Visibility::Hidden)
 }
 /// If the widget is [`Collapsed`](Visibility::Collapsed).
 #[property(context)]
 pub fn is_collapsed(child: impl UiNode, state: StateVar) -> impl UiNode {
-    IsVisibilityNode {
-        child,
-        state,
-        expected: Visibility::Collapsed,
-    }
+    visibility_eq_state(child, state, Visibility::Collapsed)
 }
 
 /// Defines if and how an widget is hit-tested.
@@ -1085,32 +1023,5 @@ pub fn hit_test_mode(child: impl UiNode, mode: impl IntoVar<HitTestMode>) -> imp
 /// [`hit_test_mode`]: fn@hit_test_mode
 #[property(event)]
 pub fn is_hit_testable(child: impl UiNode, state: StateVar) -> impl UiNode {
-    struct IsHitTestableNode<C: UiNode> {
-        child: C,
-        state: StateVar,
-    }
-    impl<C: UiNode> IsHitTestableNode<C> {
-        fn update_state(&self, ctx: &mut WidgetContext) {
-            let enabled = HitTestMode::get(ctx).is_hit_testable();
-            self.state.set_ne(ctx.vars, enabled);
-        }
-    }
-    #[impl_ui_node(child)]
-    impl<C: UiNode> UiNode for IsHitTestableNode<C> {
-        fn init(&mut self, ctx: &mut WidgetContext) {
-            self.child.init(ctx);
-            self.update_state(ctx);
-        }
-
-        fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-            subs.updates(&HitTestMode::update_mask(ctx));
-            self.child.subscriptions(ctx, subs);
-        }
-
-        fn update(&mut self, ctx: &mut WidgetContext) {
-            self.child.update(ctx);
-            self.update_state(ctx);
-        }
-    }
-    IsHitTestableNode { child, state }
+    bind_state(child, HitTestModeVar::new().map(|m| m.is_hit_testable()), state)
 }

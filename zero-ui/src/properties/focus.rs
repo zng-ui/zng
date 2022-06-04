@@ -369,39 +369,15 @@ event_property! {
 /// [`is_return_focus`]: fn@zero_ui::properties::focus::is_return_focus
 #[property(context)]
 pub fn is_focused(child: impl UiNode, state: StateVar) -> impl UiNode {
-    struct IsFocusedNode<C> {
-        child: C,
-        state: StateVar,
-    }
-    #[impl_ui_node(child)]
-    impl<C: UiNode> UiNode for IsFocusedNode<C> {
-        fn deinit(&mut self, ctx: &mut WidgetContext) {
-            self.child.deinit(ctx);
-            self.state.set_ne(ctx.vars, false);
+    event_state(child, state, false, FocusChangedEvent, |ctx, args| {
+        if args.is_focus(ctx.path.widget_id()) {
+            Some(true)
+        } else if args.is_blur(ctx.path.widget_id()) {
+            Some(false)
+        } else {
+            None
         }
-
-        fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-            subs.event(FocusChangedEvent);
-            self.child.subscriptions(ctx, subs);
-        }
-
-        fn event<EU: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &EU) {
-            if let Some(args) = FocusChangedEvent.update(args) {
-                let is_focused = args
-                    .new_focus
-                    .as_ref()
-                    .map(|p| p.widget_id() == ctx.path.widget_id())
-                    .unwrap_or_default();
-
-                self.state.set_ne(ctx, is_focused);
-
-                self.child.event(ctx, args);
-            } else {
-                self.child.event(ctx, args);
-            }
-        }
-    }
-    IsFocusedNode { child, state }
+    })
 }
 
 /// If the widget or one of its descendants has keyboard focus.
@@ -414,39 +390,15 @@ pub fn is_focused(child: impl UiNode, state: StateVar) -> impl UiNode {
 /// [`is_focus_within_hgl`]: fn@zero_ui::properties::focus::is_focus_within_hgl
 #[property(context)]
 pub fn is_focus_within(child: impl UiNode, state: StateVar) -> impl UiNode {
-    struct IsFocusWithinNode<C: UiNode> {
-        child: C,
-        state: StateVar,
-    }
-    #[impl_ui_node(child)]
-    impl<C: UiNode> UiNode for IsFocusWithinNode<C> {
-        fn deinit(&mut self, ctx: &mut WidgetContext) {
-            self.child.deinit(ctx);
-            self.state.set_ne(ctx.vars, false);
+    event_state(child, state, false, FocusChangedEvent, |ctx, args| {
+        if args.is_focus_enter(ctx.path.widget_id()) {
+            Some(true)
+        } else if args.is_focus_leave(ctx.path.widget_id()) {
+            Some(false)
+        } else {
+            None
         }
-
-        fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-            subs.event(FocusChangedEvent);
-            self.child.subscriptions(ctx, subs);
-        }
-
-        fn event<EU: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &EU) {
-            if let Some(args) = FocusChangedEvent.update(args) {
-                let is_focus_within = args
-                    .new_focus
-                    .as_ref()
-                    .map(|p| p.contains(ctx.path.widget_id()))
-                    .unwrap_or_default();
-
-                self.state.set_ne(ctx.vars, is_focus_within);
-
-                self.child.event(ctx, args);
-            } else {
-                self.child.event(ctx, args);
-            }
-        }
-    }
-    IsFocusWithinNode { child, state }
+    })
 }
 
 /// If the widget has keyboard focus and the user is using the keyboard to navigate.
@@ -463,40 +415,15 @@ pub fn is_focus_within(child: impl UiNode, state: StateVar) -> impl UiNode {
 /// [`is_focused`]: fn@zero_ui::properties::focus::is_focused
 #[property(context)]
 pub fn is_focused_hgl(child: impl UiNode, state: StateVar) -> impl UiNode {
-    struct IsFocusedHglNode<C> {
-        child: C,
-        state: StateVar,
-    }
-    #[impl_ui_node(child)]
-    impl<C: UiNode> UiNode for IsFocusedHglNode<C> {
-        fn deinit(&mut self, ctx: &mut WidgetContext) {
-            self.state.set_ne(ctx.vars, false);
-            self.child.deinit(ctx);
+    event_state(child, state, false, FocusChangedEvent, |ctx, args| {
+        if args.highlight && args.is_focus(ctx.path.widget_id()) {
+            Some(true)
+        } else if !args.highlight || args.is_blur(ctx.path.widget_id()) {
+            Some(false)
+        } else {
+            None
         }
-
-        fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-            subs.event(FocusChangedEvent);
-            self.child.subscriptions(ctx, subs);
-        }
-
-        fn event<EU: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &EU) {
-            if let Some(args) = FocusChangedEvent.update(args) {
-                let is_focused_hgl = args.highlight
-                    && args
-                        .new_focus
-                        .as_ref()
-                        .map(|p| p.widget_id() == ctx.path.widget_id())
-                        .unwrap_or_default();
-
-                self.state.set_ne(ctx.vars, is_focused_hgl);
-
-                self.child.event(ctx, args);
-            } else {
-                self.child.event(ctx, args);
-            }
-        }
-    }
-    IsFocusedHglNode { child, state }
+    })
 }
 
 /// If the widget or one of its descendants has keyboard focus and the user is using the keyboard to navigate.
@@ -509,40 +436,15 @@ pub fn is_focused_hgl(child: impl UiNode, state: StateVar) -> impl UiNode {
 /// [`is_focus_within`]: fn@zero_ui::properties::focus::is_focus_within
 #[property(context)]
 pub fn is_focus_within_hgl(child: impl UiNode, state: StateVar) -> impl UiNode {
-    struct IsFocusWithinHglNode<C: UiNode> {
-        child: C,
-        state: StateVar,
-    }
-    #[impl_ui_node(child)]
-    impl<C: UiNode> UiNode for IsFocusWithinHglNode<C> {
-        fn deinit(&mut self, ctx: &mut WidgetContext) {
-            self.state.set_ne(ctx.vars, false);
-            self.child.deinit(ctx);
+    event_state(child, state, false, FocusChangedEvent, |ctx, args| {
+        if args.highlight && args.is_focus_enter(ctx.path.widget_id()) {
+            Some(true)
+        } else if !args.highlight || args.is_focus_leave(ctx.path.widget_id()) {
+            Some(false)
+        } else {
+            None
         }
-
-        fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-            subs.event(FocusChangedEvent);
-            self.child.subscriptions(ctx, subs);
-        }
-
-        fn event<EU: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &EU) {
-            if let Some(args) = FocusChangedEvent.update(args) {
-                let is_focus_within_hgl = args.highlight
-                    && args
-                        .new_focus
-                        .as_ref()
-                        .map(|p| p.contains(ctx.path.widget_id()))
-                        .unwrap_or_default();
-
-                self.state.set_ne(ctx.vars, is_focus_within_hgl);
-
-                self.child.event(ctx, args);
-            } else {
-                self.child.event(ctx, args);
-            }
-        }
-    }
-    IsFocusWithinHglNode { child, state }
+    })
 }
 
 /// If the widget will be focused when a parent scope is focused.
@@ -563,44 +465,13 @@ pub fn is_focus_within_hgl(child: impl UiNode, state: StateVar) -> impl UiNode {
 /// [`is_focused_hgl`]: fn@zero_ui::properties::focus::is_focused_hgl
 #[property(context)]
 pub fn is_return_focus(child: impl UiNode, state: StateVar) -> impl UiNode {
-    struct IsReturnFocusNode<C: UiNode> {
-        child: C,
-        state: StateVar,
-    }
-    #[impl_ui_node(child)]
-    impl<C: UiNode> UiNode for IsReturnFocusNode<C> {
-        fn deinit(&mut self, ctx: &mut WidgetContext) {
-            self.state.set_ne(ctx.vars, false);
-            self.child.deinit(ctx);
+    event_state(child, state, false, ReturnFocusChangedEvent, |ctx, args| {
+        if args.is_return_focus(ctx.path.widget_id()) {
+            Some(true)
+        } else if args.was_return_focus(ctx.path.widget_id()) {
+            Some(false)
+        } else {
+            None
         }
-
-        fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-            subs.event(ReturnFocusChangedEvent);
-            self.child.subscriptions(ctx, subs);
-        }
-
-        fn event<EU: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &EU) {
-            if let Some(args) = ReturnFocusChangedEvent.update(args) {
-                if args
-                    .prev_return
-                    .as_ref()
-                    .map(|p| p.widget_id() == ctx.path.widget_id())
-                    .unwrap_or_default()
-                {
-                    self.state.set_ne(ctx.vars, false);
-                } else if args
-                    .new_return
-                    .as_ref()
-                    .map(|p| p.widget_id() == ctx.path.widget_id())
-                    .unwrap_or_default()
-                {
-                    self.state.set_ne(ctx.vars, true);
-                }
-                self.child.event(ctx, args);
-            } else {
-                self.child.event(ctx, args);
-            }
-        }
-    }
-    IsReturnFocusNode { child, state }
+    })
 }
