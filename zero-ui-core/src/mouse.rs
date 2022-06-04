@@ -17,6 +17,7 @@ use crate::{
 };
 use std::{fmt, mem, num::NonZeroU8, time::*};
 
+use linear_map::LinearMap;
 pub use zero_ui_view_api::{ButtonState, MouseButton, MouseScrollDelta, MultiClickConfig, TouchPhase};
 
 event_args! {
@@ -75,25 +76,37 @@ event_args! {
         /// What modifier keys where pressed when this event happened.
         pub modifiers: ModifiersState,
 
-        /// The state the [`button`](MouseInputArgs::button) was changed to.
+        /// The state the [`button`] was changed to.
+        ///
+        /// [`button`]: Self::button
         pub state: ButtonState,
 
         /// Hit-test result for the mouse point in the window.
         pub hits: FrameHitInfo,
 
-        /// Full path to the top-most hit in [`hits`](MouseInputArgs::hits).
+        /// Full path to the top-most hit in [`hits`].
+        ///
+        /// [`hits`]: Self::hits
         pub target: InteractivityPath,
 
         /// Current mouse capture.
         pub capture: Option<CaptureInfo>,
 
-        ..
-
-        /// The [`target`].
+        /// Last [`target`] pressed by the [`button`] that is now [released].
         ///
         /// [`target`]: Self::target
+        /// [`button`]: Self::button
+        /// [released]: Self::released
+        pub prev_pressed: Option<InteractivityPath>,
+
+        ..
+
+        /// The [`target`] and [`prev_pressed`].
+        ///
+        /// [`target`]: Self::target
+        /// [`prev_pressed`]: Self::prev_pressed
         fn delivery_list(&self) -> EventDeliveryList {
-            EventDeliveryList::widgets(&self.target)
+            EventDeliveryList::widgets(&self.target).with_widgets_opt(self.prev_pressed.as_deref())
         }
     }
 
@@ -418,6 +431,20 @@ impl MouseInputArgs {
                 .unwrap_or(false)
     }
 
+    /// If the `path` is in the [`target`].
+    /// 
+    /// [`target`]: Self::target
+    pub fn is_over(&self, path: &WidgetContextPath) -> bool {
+        self.target.contains(path.widget_id())
+    }
+
+    /// If the `path` is in the [`prev_pressed`].
+    ///
+    /// [`prev_pressed`]: Self::prev_pressed.
+    pub fn was_pressed(&self, path: &WidgetContextPath) -> bool {
+        self.prev_pressed.as_ref().map(|p| p.contains(path.widget_id())).unwrap_or(false)
+    }
+
     /// If the `path` in the [`target`] is enabled.
     ///
     /// [`target`]: Self::target
@@ -427,6 +454,7 @@ impl MouseInputArgs {
             .map(|i| i.is_enabled())
             .unwrap_or(false)
     }
+
 
     /// If the `path` in the [`target`] is disabled.
     ///
@@ -702,6 +730,7 @@ pub struct MouseManager {
     capture_count: u8,
 
     hovered: Option<InteractivityPath>,
+    pressed: LinearMap<MouseButton, InteractivityPath>,
 
     multi_click_config: RcVar<MultiClickConfig>,
 }
@@ -718,6 +747,7 @@ impl Default for MouseManager {
             click_state: ClickState::None,
 
             hovered: None,
+            pressed: LinearMap::default(),
 
             capture_count: 0,
 
@@ -749,6 +779,8 @@ impl MouseManager {
             None => return,
         };
 
+        let prev_pressed;
+
         if state == ButtonState::Pressed {
             self.capture_count += 1;
             if self.capture_count == 1 {
@@ -758,7 +790,10 @@ impl MouseManager {
             if !mouse.buttons.get(ctx.vars).contains(&button) {
                 mouse.buttons.modify(ctx.vars, move |mut btns| btns.push(button));
             }
+
+            prev_pressed = self.pressed.insert(button, target.clone());
         } else {
+            // ButtonState::Released
             self.capture_count = self.capture_count.saturating_sub(1);
             if self.capture_count == 0 {
                 mouse.end_window_capture(ctx.events);
@@ -771,6 +806,8 @@ impl MouseManager {
                     }
                 });
             }
+
+            prev_pressed = self.pressed.remove(&button);
         }
 
         let capture_info = if let Some((capture, mode)) = mouse.current_capture() {
@@ -792,6 +829,7 @@ impl MouseManager {
             hits.clone(),
             target.clone(),
             capture_info,
+            prev_pressed,
         );
 
         // on_mouse_input
@@ -801,7 +839,6 @@ impl MouseManager {
             ButtonState::Pressed => {
                 // on_mouse_down
 
-                let now = Instant::now();
                 match &mut self.click_state {
                     // maybe a click.
                     ClickState::None => {
@@ -821,6 +858,7 @@ impl MouseManager {
                         debug_assert!(*count >= 1);
 
                         let cfg = self.multi_click_config.get(ctx.vars);
+                        let now = Instant::now();
 
                         let is_multi_click =
                             // same button

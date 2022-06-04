@@ -1,3 +1,5 @@
+* Fix add button in button example is added with invisible text.
+
 We emit interaction events (except focus) without checking if interaction is enabled for the widget, the default
 `concerns_widget` then checked the interaction for each widget, the idea was to allows the creation of "disabled hovered"
 states, like a tooltip the says disabled?

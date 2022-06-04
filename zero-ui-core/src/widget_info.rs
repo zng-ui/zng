@@ -817,7 +817,7 @@ impl WidgetPath {
     }
 
     /// Get the inner most widget parent shared by both `self` and `other`.
-    pub fn shared_ancestor(&self, other: &WidgetPath) -> Option<Cow<WidgetPath>> {
+    pub fn shared_ancestor<'a>(&'a self, other: &'a WidgetPath) -> Option<Cow<'a, WidgetPath>> {
         if self.window_id == other.window_id {
             if let Some(i) = self.path.iter().zip(other.path.iter()).position(|(a, b)| a != b) {
                 if i == 0 {
@@ -830,8 +830,10 @@ impl WidgetPath {
                         path,
                     }))
                 }
-            } else {
+            } else if self.path.len() <= other.path.len() {
                 Some(Cow::Borrowed(self))
+            } else {
+                Some(Cow::Borrowed(other))
             }
         } else {
             None
@@ -1003,7 +1005,7 @@ impl InteractivityPath {
     }
 
     /// Get the inner most widget parent shared by both `self` and `other` with the same interactivity.
-    pub fn shared_ancestor(&self, other: &InteractivityPath) -> Option<Cow<InteractivityPath>> {
+    pub fn shared_ancestor<'a>(&'a self, other: &'a InteractivityPath) -> Option<Cow<'a, InteractivityPath>> {
         if self.window_id == other.window_id {
             if let Some(i) = self.zip().zip(other.zip()).position(|(a, b)| a != b) {
                 if i == 0 {
@@ -1020,8 +1022,10 @@ impl InteractivityPath {
                         interactivity,
                     }))
                 }
-            } else {
+            } else if self.interactivity.len() <= other.interactivity.len() {
                 Some(Cow::Borrowed(self))
+            } else {
+                Some(Cow::Borrowed(other))
             }
         } else {
             None
