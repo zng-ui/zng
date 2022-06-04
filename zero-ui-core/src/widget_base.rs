@@ -734,25 +734,8 @@ struct IsEnabledNode<C: UiNode> {
     state: StateVar,
     expected: bool,
 }
-impl<C: UiNode> IsEnabledNode<C> {
-    fn update_state(&self, ctx: &mut WidgetContext) {
-        let is_state = ctx
-            .info_tree
-            .find(ctx.path.widget_id())
-            .unwrap()
-            .interactivity()
-            .is_visually_enabled()
-            == self.expected;
-        self.state.set_ne(ctx.vars, is_state);
-    }
-}
 #[impl_ui_node(child)]
 impl<C: UiNode> UiNode for IsEnabledNode<C> {
-    fn init(&mut self, ctx: &mut WidgetContext) {
-        self.child.init(ctx);
-        self.update_state(ctx);
-    }
-
     fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
         subs.event(WidgetInfoChangedEvent);
         self.child.subscriptions(ctx, subs);
@@ -760,7 +743,15 @@ impl<C: UiNode> UiNode for IsEnabledNode<C> {
 
     fn event<A: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &A) {
         if let Some(args) = WidgetInfoChangedEvent.update(args) {
-            self.update_state(ctx);
+            let is_enabled = ctx
+                .info_tree
+                .find(ctx.path.widget_id())
+                .unwrap()
+                .interactivity()
+                .is_visually_enabled();
+
+            self.state.set_ne(ctx, is_enabled == self.expected);
+
             self.child.event(ctx, args);
         } else {
             self.child.event(ctx, args);

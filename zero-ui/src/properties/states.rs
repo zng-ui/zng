@@ -188,6 +188,9 @@ pub fn is_shortcut_pressed(child: impl UiNode, state: StateVar) -> impl UiNode {
         }
         fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
             subs.event(ClickEvent);
+            if let Some(timer) = &self.shortcut_press {
+                subs.var(ctx, timer);
+            }
             self.child.subscriptions(ctx, subs);
         }
         fn event<A: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &A) {
