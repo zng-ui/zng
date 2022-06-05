@@ -238,28 +238,10 @@ macro_rules! impl_tuples {
                 )+
             }
 
-            fn item_info(&self, index: usize, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
-                match index {
-                    $(
-                        $n => self.items.$n.info(ctx, info),
-                    )+
-                    _ => panic!("index {index} out of range for length {}", self.len()),
-                }
-            }
-
             fn subscriptions_all(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
                 $(
                     self.items.$n.subscriptions(ctx, subs);
                 )+
-            }
-
-            fn item_subscriptions(&self, index: usize, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-                match index {
-                    $(
-                        $n => self.items.$n.subscriptions(ctx, subs),
-                    )+
-                    _ => panic!("index {index} out of range for length {}", self.len()),
-                }
             }
 
             fn render_all(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
@@ -478,15 +460,7 @@ macro_rules! empty_node_list {
             fn info_all(&self, _: &mut InfoContext, _: &mut WidgetInfoBuilder) {
             }
 
-            fn item_info(&self, index: usize, _: &mut InfoContext, _: &mut WidgetInfoBuilder) {
-                panic!("index {index} out of range for length 0")
-            }
-
             fn subscriptions_all(&self, _: &mut InfoContext, _: &mut WidgetSubscriptions) {}
-
-            fn item_subscriptions(&self, index: usize, _: &mut InfoContext, _: &mut WidgetSubscriptions) {
-                panic!("index {index} out of range for length 0")
-            }
 
             fn render_all(&self, _: &mut RenderContext, _: &mut FrameBuilder) {
             }

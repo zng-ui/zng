@@ -19,8 +19,7 @@ pub mod slot {
         /// A closure that returns `true` when this slot should **take** the `node`.
         ///
         /// This property accepts any `bool` variable, you can also use [`take_on_init`] to
-        /// be the first slot to take the widget, [`take_on`] to take when an event listener updates or [`take_if`]
-        /// to use a custom delegate to signal.
+        /// be the first slot to take the widget, [`take_on`] to take when an event listener updates.
         ///
         /// See [`RcNode::slot`] for more details.
         #[allowed_in_when = false]
@@ -30,6 +29,8 @@ pub mod slot {
     fn new_child(node: RcNode<impl UiNode>, take_signal: impl RcNodeTakeSignal) -> impl UiNode {
         node.slot(take_signal)
     }
+
+    pub use crate::core::{take_on, take_on_init};
 }
 
 /// An [`RcNode`] slot widget.

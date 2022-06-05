@@ -355,19 +355,11 @@ impl UiNodeList for WidgetVec {
         }
     }
 
-    fn item_info(&self, index: usize, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
-        self.vec[index].info(ctx, info);
-    }
-
     fn subscriptions_all(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
         subs.update(self.ctrl.update_slot());
         for widget in &self.vec {
             widget.subscriptions(ctx, subs);
         }
-    }
-
-    fn item_subscriptions(&self, index: usize, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-        self.vec[index].subscriptions(ctx, subs);
     }
 
     fn render_all(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
@@ -881,18 +873,10 @@ impl UiNodeList for UiNodeVec {
         }
     }
 
-    fn item_info(&self, index: usize, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
-        self.vec[index].info(ctx, info);
-    }
-
     fn subscriptions_all(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
         for w in &self.vec {
             w.subscriptions(ctx, subs);
         }
-    }
-
-    fn item_subscriptions(&self, index: usize, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-        self.vec[index].subscriptions(ctx, subs);
     }
 
     fn render_all(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {

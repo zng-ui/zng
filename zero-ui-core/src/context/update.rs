@@ -170,6 +170,14 @@ impl Updates {
         self.update
     }
 
+    /// Schedules a info tree rebuild, subscriptions, layout and render.
+    pub fn info_subs_layout_and_render(&mut self) {
+        self.info();
+        self.subscriptions();
+        self.layout();
+        self.render();
+    }
+
     /// Schedules a info tree rebuild, layout and render.
     pub fn info_layout_and_render(&mut self) {
         self.info();

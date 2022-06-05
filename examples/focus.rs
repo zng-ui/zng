@@ -110,14 +110,14 @@ fn functions(window_enabled: RcVar<bool>) -> impl Widget {
                                 window! {
                                     title = "Detached Button";
                                     content_align = Align::CENTER;
-                                    content = slot(wwk.upgrade().unwrap(), take_on_init());
+                                    content = slot(wwk.upgrade().unwrap(), slot::take_on_init());
                                 }
                             });
                         });
                     };
                     btn.boxed()
                 });
-                slot(detach_focused, take_on_init())
+                slot(detach_focused, slot::take_on_init())
             },
             // Disable Window
             disable_window(window_enabled.clone()),

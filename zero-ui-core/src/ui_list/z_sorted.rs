@@ -109,16 +109,8 @@ impl<W: WidgetList> UiNodeList for ZSortedWidgetList<W> {
         self.list.info_all(ctx, info)
     }
 
-    fn item_info(&self, index: usize, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
-        self.list.item_info(index, ctx, info)
-    }
-
     fn subscriptions_all(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
         self.list.subscriptions_all(ctx, subs)
-    }
-
-    fn item_subscriptions(&self, index: usize, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-        self.list.item_subscriptions(index, ctx, subs)
     }
 
     fn init_all(&mut self, ctx: &mut WidgetContext) {

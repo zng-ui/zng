@@ -162,7 +162,7 @@ impl FocusChangedArgs {
         self.prev_focus == self.new_focus
     }
 
-    /// If `widget_id` is the new focus.
+    /// If `widget_id` is the new focus and was not before.
     pub fn is_focus(&self, widget_id: WidgetId) -> bool {
         match (&self.prev_focus, &self.new_focus) {
             (Some(prev), Some(new)) => prev.widget_id() != widget_id && new.widget_id() == widget_id,
@@ -171,7 +171,7 @@ impl FocusChangedArgs {
         }
     }
 
-    /// If `widget_id` is the previous focus.
+    /// If `widget_id` is the previous focus and was not before.
     pub fn is_blur(&self, widget_id: WidgetId) -> bool {
         match (&self.prev_focus, &self.new_focus) {
             (Some(prev), Some(new)) => prev.widget_id() == widget_id && new.widget_id() != widget_id,
@@ -196,6 +196,11 @@ impl FocusChangedArgs {
             (Some(prev), None) => prev.contains(widget_id),
             (None, _) => false,
         }
+    }
+
+    /// If the widget is the new focus.
+    pub fn is_focused(&self, widget_id: WidgetId) -> bool {
+        self.new_focus.as_ref().map(|p| p.widget_id() == widget_id).unwrap_or(false)
     }
 }
 

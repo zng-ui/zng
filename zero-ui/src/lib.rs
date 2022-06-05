@@ -918,7 +918,6 @@ pub mod prelude {
         node_vec, nodes,
         render::RenderMode,
         service::Services,
-        take_on, take_on_init,
         task::{self, rayon::prelude::*},
         text::{
             font_features::{

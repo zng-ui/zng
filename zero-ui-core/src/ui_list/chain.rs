@@ -92,27 +92,9 @@ impl<A: WidgetList, B: WidgetList> UiNodeList for WidgetListChain<A, B> {
         self.1.info_all(ctx, info);
     }
 
-    fn item_info(&self, index: usize, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
-        let a_len = self.0.len();
-        if index < a_len {
-            self.0.item_info(index, ctx, info)
-        } else {
-            self.1.item_info(index - a_len, ctx, info)
-        }
-    }
-
     fn subscriptions_all(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
         self.0.subscriptions_all(ctx, subs);
         self.1.subscriptions_all(ctx, subs);
-    }
-
-    fn item_subscriptions(&self, index: usize, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-        let a_len = self.0.len();
-        if index < a_len {
-            self.0.item_subscriptions(index, ctx, subs);
-        } else {
-            self.1.item_subscriptions(index - a_len, ctx, subs);
-        }
     }
 
     fn render_all(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
@@ -450,27 +432,9 @@ impl<A: UiNodeList, B: UiNodeList> UiNodeList for UiNodeListChain<A, B> {
         self.1.info_all(ctx, info);
     }
 
-    fn item_info(&self, index: usize, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
-        let a_len = self.0.len();
-        if index < a_len {
-            self.0.item_info(index, ctx, info)
-        } else {
-            self.1.item_info(index - a_len, ctx, info)
-        }
-    }
-
     fn subscriptions_all(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
         self.0.subscriptions_all(ctx, subs);
         self.1.subscriptions_all(ctx, subs);
-    }
-
-    fn item_subscriptions(&self, index: usize, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-        let a_len = self.0.len();
-        if index < a_len {
-            self.0.item_subscriptions(index, ctx, subs);
-        } else {
-            self.1.item_subscriptions(index - a_len, ctx, subs);
-        }
     }
 
     fn render_all(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {

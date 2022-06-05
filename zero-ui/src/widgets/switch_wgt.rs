@@ -1,17 +1,19 @@
 use crate::prelude::new_widget::*;
 
-/// Switch between children nodes using an index variable.
+use std::{cell::Cell, mem};
+
+/// Switch visibility of children nodes using an index variable.
 ///
 /// This is a shorthand call to [`switch!`](mod@switch).
 pub fn switch<I: Var<usize>, W: UiNodeList>(index: I, options: W) -> impl Widget {
     switch!(index; options)
 }
 
-/// Switch between children nodes using an index variable.
+/// Switch visibility of children nodes using an index variable.
 ///
-/// All children nodes are kept up-to-date, but only the indexed child is in the widget info, layout and render.
+/// All option nodes are children of the widget, but only the indexed child is layout and rendered.
 ///
-/// If the index is out of range no node is rendered and this widget takes no space.
+/// If the index is out of range all children, and the widget, are collapsed.
 #[widget($crate::widgets::switch)]
 pub mod switch {
     use super::*;
@@ -19,6 +21,8 @@ pub mod switch {
     struct SwitchNode<I, W> {
         index: I,
         options: W,
+        collapse: bool,
+        skip: Cell<bool>,
     }
     #[impl_ui_node(
         delegate_list = &self.options,
@@ -27,7 +31,8 @@ pub mod switch {
     impl<I: Var<usize>, W: UiNodeList> UiNode for SwitchNode<I, W> {
         fn update(&mut self, ctx: &mut WidgetContext) {
             if self.index.is_new(ctx) {
-                ctx.updates.info_layout_and_render();
+                ctx.updates.layout_and_render();
+                self.collapse = true;
 
                 self.options.update_all(ctx, &mut ());
             } else if self.options.is_fixed() {
@@ -59,26 +64,17 @@ pub mod switch {
 
                 if check.touched {
                     ctx.updates.layout_and_render();
+                    self.collapse = true;
                 }
             }
         }
 
-        fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
-            let index = self.index.copy(ctx);
-            if index < self.options.len() {
-                self.options.item_info(index, ctx, info);
-            }
-        }
-
-        fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-            let index = self.index.copy(ctx);
-            if index < self.options.len() {
-                self.options.item_subscriptions(index, ctx, subs);
-            }
-            subs.var(ctx, &self.index);
-        }
-
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
+            if mem::take(&mut self.collapse) {
+                wl.collapse_descendants(ctx);
+                *self.skip.get_mut() = true;
+            }
+
             let index = self.index.copy(ctx);
             if index < self.options.len() {
                 self.options.item_layout(index, ctx, wl)
@@ -88,6 +84,9 @@ pub mod switch {
         }
 
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
+            if self.skip.take() {
+                frame.skip_render_descendants(ctx.info_tree);
+            }
             let index = self.index.copy(ctx);
             if index < self.options.len() {
                 self.options.item_render(index, ctx, frame)
@@ -106,7 +105,7 @@ pub mod switch {
     /// This is the raw [`UiNode`] that implements the core `switch` functionality
     /// without defining a full widget.
     pub fn new_node(index: impl Var<usize>, options: impl UiNodeList) -> impl UiNode {
-        SwitchNode { index, options }.cfg_boxed()
+        SwitchNode { index, options, collapse: true, skip: Cell::new(true) }.cfg_boxed()
     }
 
     properties! {

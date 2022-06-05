@@ -54,14 +54,8 @@ pub trait UiNodeList: 'static {
     /// Calls [`UiNode::info`] in all widgets in the list, sequentially.
     fn info_all(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder);
 
-    /// Calls [`UiNode::info`] in only the `index` node or widget.
-    fn item_info(&self, index: usize, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder);
-
     /// Calls [`UiNode::subscriptions`] in all widgets in the list, sequentially.
     fn subscriptions_all(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions);
-
-    /// Calls [`UiNode::subscriptions`] in the `index` node or widget.
-    fn item_subscriptions(&self, index: usize, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions);
 
     /// Calls [`UiNode::init`] in all widgets in the list, sequentially.
     fn init_all(&mut self, ctx: &mut WidgetContext);

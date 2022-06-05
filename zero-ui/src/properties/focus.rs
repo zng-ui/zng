@@ -416,9 +416,9 @@ pub fn is_focus_within(child: impl UiNode, state: StateVar) -> impl UiNode {
 #[property(context)]
 pub fn is_focused_hgl(child: impl UiNode, state: StateVar) -> impl UiNode {
     event_state(child, state, false, FocusChangedEvent, |ctx, args| {
-        if args.highlight && args.is_focus(ctx.path.widget_id()) {
-            Some(true)
-        } else if !args.highlight || args.is_blur(ctx.path.widget_id()) {
+        if args.is_focus(ctx.path.widget_id()) {
+            Some(args.highlight)
+        } else if args.is_blur(ctx.path.widget_id()) {
             Some(false)
         } else {
             None

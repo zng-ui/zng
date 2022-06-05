@@ -1,3 +1,5 @@
+* Fix focus highlight in the detached button.
+* Fix focus not removed when overlay opens in focus example.
 * Fix `focused_removed_by_deleting`, removed widget receiving event?
 * Fix text reuse in button example when multiple buttons are added.
 * Optimize/fix interactivity, can we make parent interactivity affecting child a guaranteed?

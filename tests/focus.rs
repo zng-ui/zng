@@ -1010,15 +1010,19 @@ fn focused_removed_test(button1: impl Widget, set_var: impl FnOnce(&Vars)) {
 }
 #[test]
 pub fn focused_removed_by_deleting() {
-    let index = var(0);
+    let exist = var(true);
     let button1_id = WidgetId::new_unique();
+
     let buttons = widgets! {
         button! { content = text("Button 0") },
-        switch(
-            index.clone(),
-            widgets![button! { id = button1_id; content = text("Button 1") }, button! { content = text("Button Other") },],
-        ),
-        button! { content = text("Button 2") ,}
+        view(exist.clone(), NilUiNode.boxed(), move |ctx, exist| {
+            if exist.copy(ctx) {
+                View::Update(button! { id = button1_id; content = text("Button 1") }.boxed())
+            } else {
+                View::Update(NilUiNode.boxed())
+            }
+        }),
+        button! { content = text("Button 2") }
     };
 
     let mut app = TestApp::new(v_stack(buttons));
@@ -1027,7 +1031,7 @@ pub fn focused_removed_by_deleting() {
     assert_eq!(Some(button1_id), app.focused());
 
     app.set_vars(|vars| {
-        index.set(vars, 1usize);
+        exist.set(vars, false);
     });
 
     assert_ne!(Some(button1_id), app.focused());
@@ -1096,24 +1100,27 @@ pub fn focus_widget_or_child_goes_to_child() {
 
 #[test]
 pub fn focus_continued_after_widget_id_move() {
-    let id = WidgetId::named("switch id");
-    let index = var(0);
-    let button = switch(
-        index.clone(),
-        widgets![
-            button! { id; content = text("Button A") },
-            container! {
-                content = button! { id; content = text("Button B") }
-            },
-        ],
-    );
-    let mut app = TestApp::new(button);
+    let id = WidgetId::new_unique();
+
+    let do_move_id = var(false);
+
+    let mut app = TestApp::new(view(do_move_id.clone(), blank! { focusable = true; id; }.boxed(), move |ctx, do_move_id| {
+        if do_move_id.copy(ctx) {
+            View::Update({
+                container! {
+                    id = "some_other_place";
+                    content = button! { id; content = text("Button 1") };
+                }.boxed()
+            })
+        } else {
+            View::Same
+        }
+    }));
+
     assert_eq!(Some(id), app.focused());
     app.take_focus_changed();
+    app.set_vars(|vars| do_move_id.set(vars, true));
 
-    app.set_vars(|vars| {
-        index.set(vars, 1usize);
-    });
     assert_eq!(Some(id), app.focused());
     let evs = app.take_focus_changed();
     assert_eq!(1, evs.len());
@@ -1132,7 +1139,7 @@ pub fn focus_continued_after_widget_move_same_window() {
 
     let mut app = TestApp::new(v_stack(widgets![
         container! {
-            content = button.slot(take_on_init())
+            content = button.slot(slot::take_on_init())
         },
         container! {
             content = button.slot(do_move.clone())

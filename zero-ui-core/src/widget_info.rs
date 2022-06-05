@@ -309,6 +309,27 @@ impl WidgetLayout {
             tracing::error!("collapse did not find `{}` in the info tree", widget_id)
         }
     }
+
+    /// Collapse layout of all descendants, the size and offsets are set to zero.
+    /// 
+    /// Widgets that control the visibility of their children can use this method and then, in the same layout pass, layout
+    /// the children that should be visible.
+    pub fn collapse_descendants(&mut self, ctx: &mut LayoutContext) {
+        let widget_id = ctx.path.widget_id();
+        if let Some(w) = ctx.info_tree.find(widget_id) {
+            for w in w.descendants() {
+                let info = w.info();
+                info.bounds_info.set_outer_size(PxSize::zero());
+                info.bounds_info.set_inner_size(PxSize::zero());
+                info.bounds_info.set_baseline(Px(0));
+                info.bounds_info.set_outer_offset(PxVector::zero());
+                info.bounds_info.set_inner_offset(PxVector::zero());
+                info.bounds_info.set_child_offset(PxVector::zero());
+            }
+        } else {
+            tracing::error!("collapse_descendants did not find `{}` in the info tree", widget_id)
+        }
+    }
 }
 impl ops::Deref for WidgetLayout {
     type Target = WidgetLayoutTranslation;

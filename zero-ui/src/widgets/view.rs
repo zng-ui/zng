@@ -24,15 +24,17 @@ impl<U: UiNode> View<U> {
 /// Dynamically presents a data variable.
 ///
 /// # Arguments
+/// 
 /// * `data`: Data variable that is presented by this view.
 /// * `initial_ui`: UI shown before the first presenter call.
 /// * `presenter`: A function that generates an UI from `data`.
 ///
 /// # Usage
+/// 
 /// The `presenter` function is called on init and every time `data` changes, if it returns
 /// [`View::Update(#new_view)`](View::Update) the view child is replaced by `#new_view`.
 ///
-/// The the view container must be able to hold all the possible child UIs, you can use
+/// The view container must be able to hold all the possible child UIs, you can use
 /// [`UiNode::boxed`](crate::core::UiNode::boxed) to unify the types.
 ///
 /// # Examples

@@ -661,7 +661,7 @@ impl FrameBuilder {
         }
     }
 
-    /// Register that all the current widget descendants are not rendered in this frame.
+    /// Register that the current widget and descendants are not rendered in this frame.
     ///
     /// Nodes the set the visibility to the equivalent of [`Hidden`] or [`Collapsed`] must not call `render` and `render_update`
     /// for the descendant nodes and must call this method to update the rendered status of all descendant nodes.
@@ -676,6 +676,21 @@ impl FrameBuilder {
             }
         } else {
             tracing::error!("skip_render did not find widget `{}` in info tree", self.widget_id)
+        }
+    }
+
+    /// Register that all widget descendants are not rendered in this frame.
+    /// 
+    /// Widgets that control the visibility of their children can call this and then, in the same frame, render
+    /// only the children that should be visible.
+    pub fn skip_render_descendants(&self, info_tree: &WidgetInfoTree) {
+        if let Some(w) = info_tree.find(self.widget_id) {
+            w.render_info().set_rendered(self.widget_rendered);
+            for w in w.descendants() {
+                w.render_info().set_rendered(false);
+            }
+        } else {
+            tracing::error!("skip_render_descendants did not find widget `{}` in info tree", self.widget_id)
         }
     }
 
