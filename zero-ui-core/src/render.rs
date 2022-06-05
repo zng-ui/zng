@@ -680,7 +680,7 @@ impl FrameBuilder {
     }
 
     /// Register that all widget descendants are not rendered in this frame.
-    /// 
+    ///
     /// Widgets that control the visibility of their children can call this and then, in the same frame, render
     /// only the children that should be visible.
     pub fn skip_render_descendants(&self, info_tree: &WidgetInfoTree) {

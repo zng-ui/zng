@@ -172,7 +172,7 @@ pub trait UiNode: 'static {
     /// # Examples
     ///
     /// ```
-    /// # use zero_ui_core::{UiNode, impl_ui_node, context::WidgetContext, widget_base::IsEnabled, event::EventUpdateArgs, gesture::ClickEvent};
+    /// # use zero_ui_core::{UiNode, impl_ui_node, context::WidgetContext, event::EventUpdateArgs, gesture::ClickEvent};
     /// struct MyNode<C> {
     ///     child: C,
     ///     click_count: usize
@@ -181,7 +181,7 @@ pub trait UiNode: 'static {
     /// impl<C: UiNode> UiNode for MyNode<C> {
     ///     fn event<A: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &A) {
     ///         if let Some(args) = ClickEvent.update(args) {
-    ///             if !args.stop_propagation_requested() {
+    ///             if !args.stop_propagation_requested() && args.is_enabled(ctx.path) {
     ///                 self.click_count += 1;
     ///                 args.stop_propagation();
     ///                 println!("clicks blocked {}", self.click_count);

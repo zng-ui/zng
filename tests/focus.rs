@@ -1104,18 +1104,23 @@ pub fn focus_continued_after_widget_id_move() {
 
     let do_move_id = var(false);
 
-    let mut app = TestApp::new(view(do_move_id.clone(), blank! { focusable = true; id; }.boxed(), move |ctx, do_move_id| {
-        if do_move_id.copy(ctx) {
-            View::Update({
-                container! {
-                    id = "some_other_place";
-                    content = button! { id; content = text("Button 1") };
-                }.boxed()
-            })
-        } else {
-            View::Same
-        }
-    }));
+    let mut app = TestApp::new(view(
+        do_move_id.clone(),
+        blank! { focusable = true; id; }.boxed(),
+        move |ctx, do_move_id| {
+            if do_move_id.copy(ctx) {
+                View::Update({
+                    container! {
+                        id = "some_other_place";
+                        content = button! { id; content = text("Button 1") };
+                    }
+                    .boxed()
+                })
+            } else {
+                View::Same
+            }
+        },
+    ));
 
     assert_eq!(Some(id), app.focused());
     app.take_focus_changed();

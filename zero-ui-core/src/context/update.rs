@@ -218,7 +218,7 @@ impl Updates {
     ///
     /// The window will call [`UiNode::subscriptions`] as soon as the current UI node method finishes,
     /// requests outside windows are ignored.
-    /// 
+    ///
     /// Note that [`info`] updates already request this too.
     ///
     /// [`UiNode::subscriptions`]: crate::UiNode::subscriptions

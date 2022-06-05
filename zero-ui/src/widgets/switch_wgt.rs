@@ -105,7 +105,13 @@ pub mod switch {
     /// This is the raw [`UiNode`] that implements the core `switch` functionality
     /// without defining a full widget.
     pub fn new_node(index: impl Var<usize>, options: impl UiNodeList) -> impl UiNode {
-        SwitchNode { index, options, collapse: true, skip: Cell::new(true) }.cfg_boxed()
+        SwitchNode {
+            index,
+            options,
+            collapse: true,
+            skip: Cell::new(true),
+        }
+        .cfg_boxed()
     }
 
     properties! {

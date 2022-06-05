@@ -732,11 +732,11 @@ pub fn interactive_node(child: impl UiNode, interactive: impl IntoVar<bool>) -> 
 fn vis_enabled_eq_state(child: impl UiNode, state: StateVar, expected: bool) -> impl UiNode {
     event_state(child, state, true, WidgetInfoChangedEvent, move |ctx, _| {
         let is_enabled = ctx
-        .info_tree
-        .find(ctx.path.widget_id())
-        .unwrap()
-        .interactivity()
-        .is_visually_enabled();
+            .info_tree
+            .find(ctx.path.widget_id())
+            .unwrap()
+            .interactivity()
+            .is_visually_enabled();
 
         Some(is_enabled == expected)
     })

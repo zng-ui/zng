@@ -397,7 +397,7 @@ pub enum DataUpdate<D> {
 /// Define the content that is shown when an image fails to load, capturing another variable too.
 ///
 /// ```
-/// # use zero_ui::{widgets::{view_generator, image, image::properties::ImageErrorArgs, text}, core::{color::{Rgba, colors}, var::var, widget_base::Visibility}};
+/// # use zero_ui::{widgets::{view_generator, image, image::properties::ImageErrorArgs, text}, core::{color::{Rgba, colors}, var::var, widget_info::Visibility}};
 /// let img_error_vis = var(Visibility::Visible);
 /// # let _ =
 /// image! {

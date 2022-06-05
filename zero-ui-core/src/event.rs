@@ -1459,7 +1459,7 @@ macro_rules! __event_args {
                 $($(#[$arg_outer])* $arg_vis $arg: $arg_ty,)*
                 ..
                 $(#[$delivery_list_outer])*
-                fn delivery_list(&$self) -> $crate::event::EventDeliveryList { $($delivery_list)+ }
+                fn delivery_list(&$self) -> EventDeliveryList { $($delivery_list)+ }
             }
         }
         impl $Args {

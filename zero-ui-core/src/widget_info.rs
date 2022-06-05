@@ -311,7 +311,7 @@ impl WidgetLayout {
     }
 
     /// Collapse layout of all descendants, the size and offsets are set to zero.
-    /// 
+    ///
     /// Widgets that control the visibility of their children can use this method and then, in the same layout pass, layout
     /// the children that should be visible.
     pub fn collapse_descendants(&mut self, ctx: &mut LayoutContext) {
