@@ -149,10 +149,18 @@ event_args! {
 }
 
 impl FocusChangedArgs {
-    /// If the focus is still in the same widget but the widget path changed.
+    /// If the focus is still in the same widget, but the widget path changed.
     pub fn is_widget_move(&self) -> bool {
         match (&self.prev_focus, &self.new_focus) {
-            (Some(prev), Some(new)) => prev.widget_id() == new.widget_id() && prev != new,
+            (Some(prev), Some(new)) => prev.widget_id() == new.widget_id() && prev.as_path() != new.as_path(),
+            _ => false,
+        }
+    }
+
+    /// If the focus is still in the same widget path, but some or all interactivity has changed..
+    pub fn is_enabled_change(&self) -> bool {
+        match (&self.prev_focus, &self.new_focus) {
+            (Some(prev), Some(new)) => prev.as_path() == new.as_path() && prev.interaction_path() != new.interaction_path(),
             _ => false,
         }
     }

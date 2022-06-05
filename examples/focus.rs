@@ -204,6 +204,8 @@ fn trace_focus(events: &mut Events) {
                     println!("highlight: {}", args.highlight);
                 } else if args.is_widget_move() {
                     println!("focused {:?} moved", args.new_focus.as_ref().unwrap());
+                } else if args.is_enabled_change() {
+                    println!("focused {:?} enabled/disabled", args.new_focus.as_ref().unwrap());
                 } else {
                     println!(
                         "{} -> {}",

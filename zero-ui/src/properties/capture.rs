@@ -168,7 +168,7 @@ pub fn modal(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
                         if a.info.self_and_ancestors().any(|w| w.widget_id() == modal) {
                             Interactivity::ENABLED
                         } else {
-                            Interactivity::DISABLED
+                            Interactivity::BLOCKED
                         }
                     }));
                 }
