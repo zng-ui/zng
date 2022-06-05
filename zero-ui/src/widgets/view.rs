@@ -24,13 +24,13 @@ impl<U: UiNode> View<U> {
 /// Dynamically presents a data variable.
 ///
 /// # Arguments
-/// 
+///
 /// * `data`: Data variable that is presented by this view.
 /// * `initial_ui`: UI shown before the first presenter call.
 /// * `presenter`: A function that generates an UI from `data`.
 ///
 /// # Usage
-/// 
+///
 /// The `presenter` function is called on init and every time `data` changes, if it returns
 /// [`View::Update(#new_view)`](View::Update) the view child is replaced by `#new_view`.
 ///
@@ -104,7 +104,10 @@ where
     V: Var<D>,
     P: FnMut(&mut WidgetContext, &V) -> View<U> + 'static,
 {
-    crate::core::widget_base::implicit_base::new(view_node(data, initial_ui, presenter), WidgetId::new_unique())
+    use crate::core::widget_base::implicit_base::nodes;
+
+    let node = nodes::inner(view_node(data, initial_ui, presenter));
+    nodes::widget(node, WidgetId::new_unique()).cfg_boxed_wgt()
 }
 
 /// Node only [`view`].
@@ -125,36 +128,34 @@ where
         _d: std::marker::PhantomData<D>,
     }
     #[impl_ui_node(child)]
-    impl<D, U, V, P> ViewNode<D, U, V, P>
+    impl<D, U, V, P> UiNode for ViewNode<D, U, V, P>
     where
         D: VarValue,
         U: UiNode,
         V: Var<D>,
         P: FnMut(&mut WidgetContext, &V) -> View<U> + 'static,
     {
-        fn refresh_child(&mut self, ctx: &mut WidgetContext) {
-            if let View::Update(new_child) = (self.presenter)(ctx, &self.data) {
-                self.child = new_child;
-                ctx.updates.info_layout_and_render();
-            }
-        }
-
-        #[UiNode]
         fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
             subs.var(ctx, &self.data);
             self.child.subscriptions(ctx, subs);
         }
 
-        #[UiNode]
         fn init(&mut self, ctx: &mut WidgetContext) {
-            self.refresh_child(ctx);
+            if let View::Update(new_child) = (self.presenter)(ctx, &self.data) {
+                self.child = new_child;
+            }
+
             self.child.init(ctx);
         }
 
-        #[UiNode]
         fn update(&mut self, ctx: &mut WidgetContext) {
             if self.data.is_new(ctx) {
-                self.refresh_child(ctx);
+                if let View::Update(new_child) = (self.presenter)(ctx, &self.data) {
+                    self.child.deinit(ctx);
+                    self.child = new_child;
+                    self.child.init(ctx);
+                    ctx.updates.info_layout_and_render();
+                }
             }
             self.child.update(ctx);
         }

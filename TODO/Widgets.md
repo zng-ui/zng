@@ -2,6 +2,9 @@
 
 Widget that need to be implemented.
 
+* `view` as a full widget.
+  - Need to support generics in widget constructors?
+
 * Progress indicator.
 * Button (work button, default, primary, cancel, progress disabled).
 * Thumb, draggable.

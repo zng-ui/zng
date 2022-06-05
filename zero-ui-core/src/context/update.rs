@@ -170,14 +170,6 @@ impl Updates {
         self.update
     }
 
-    /// Schedules a info tree rebuild, subscriptions, layout and render.
-    pub fn info_subs_layout_and_render(&mut self) {
-        self.info();
-        self.subscriptions();
-        self.layout();
-        self.render();
-    }
-
     /// Schedules a info tree rebuild, layout and render.
     pub fn info_layout_and_render(&mut self) {
         self.info();
@@ -226,8 +218,11 @@ impl Updates {
     ///
     /// The window will call [`UiNode::subscriptions`] as soon as the current UI node method finishes,
     /// requests outside windows are ignored.
+    /// 
+    /// Note that [`info`] updates already request this too.
     ///
     /// [`UiNode::subscriptions`]: crate::UiNode::subscriptions
+    /// [`info`]: Self::info
     pub fn subscriptions(&mut self) {
         // tracing::trace!("requested `subscriptions`");
         self.l_updates.window_updates.subscriptions = true;

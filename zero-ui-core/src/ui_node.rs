@@ -131,17 +131,6 @@ crate::var::impl_from_and_into_var! {
 /// An Ui tree node.
 #[cfg_attr(doc_nightly, doc(notable_trait))]
 pub trait UiNode: 'static {
-    /// Called every time there are structural changes in the UI tree such as a node added or removed.
-    ///
-    /// # Arguments
-    ///
-    /// * `ctx`: Limited context access.
-    /// * `info`: Widget info tree builder.
-    fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder);
-
-    /// Called every time the set of variables and events monitored by the widget changes.
-    fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions);
-
     /// Called every time the node is plugged into the UI tree.
     ///
     /// The parent node that calls this method must make an info, subscriptions, layout and render update request, the initializing node it self
@@ -153,6 +142,17 @@ pub trait UiNode: 'static {
     /// The parent node that calls this method must make an info, subscriptions, layout and render update request, the de-initializing node it self
     /// does not need to request these updates, it needs only to de-initialize self and descendants.
     fn deinit(&mut self, ctx: &mut WidgetContext);
+
+    /// Called every time there are structural changes in the UI tree such as a node added or removed.
+    ///
+    /// # Arguments
+    ///
+    /// * `ctx`: Limited context access.
+    /// * `info`: Widget info tree builder.
+    fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder);
+
+    /// Called every time the set of variables and events monitored by the widget changes.
+    fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions);
 
     /// Called every time an event updates.
     ///

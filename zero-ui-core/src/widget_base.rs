@@ -298,6 +298,36 @@ pub mod implicit_base {
                 offsets_pass: Cell<LayoutPassId>,
             }
             impl<C: UiNode> UiNode for WidgetNode<C> {
+                fn init(&mut self, ctx: &mut WidgetContext) {
+                    #[cfg(debug_assertions)]
+                    if self.inited {
+                        tracing::error!(target: "widget_base", "`UiNode::init` called in already inited widget {:?}", self.id);
+                    }
+
+                    ctx.widget_context(self.id, &self.info, &mut self.state, |ctx| self.child.init(ctx));
+                    *self.pending_updates.get_mut() = WidgetUpdates::all();
+
+                    #[cfg(debug_assertions)]
+                    {
+                        self.inited = true;
+                    }
+                }
+
+                fn deinit(&mut self, ctx: &mut WidgetContext) {
+                    #[cfg(debug_assertions)]
+                    if !self.inited {
+                        tracing::error!(target: "widget_base", "`UiNode::deinit` called in not inited widget {:?}", self.id);
+                    }
+
+                    ctx.widget_context(self.id, &self.info, &mut self.state, |ctx| self.child.deinit(ctx));
+                    *self.pending_updates.get_mut() = WidgetUpdates::none();
+
+                    #[cfg(debug_assertions)]
+                    {
+                        self.inited = false;
+                    }
+                }
+
                 fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
                     #[cfg(debug_assertions)]
                     if !self.inited {
@@ -336,36 +366,6 @@ pub mod implicit_base {
                         subs.extend(&wgt_subs);
                     } else {
                         subs.extend(&*self.subscriptions.borrow());
-                    }
-                }
-
-                fn init(&mut self, ctx: &mut WidgetContext) {
-                    #[cfg(debug_assertions)]
-                    if self.inited {
-                        tracing::error!(target: "widget_base", "`UiNode::init` called in already inited widget {:?}", self.id);
-                    }
-
-                    ctx.widget_context(self.id, &self.info, &mut self.state, |ctx| self.child.init(ctx));
-                    *self.pending_updates.get_mut() = WidgetUpdates::all();
-
-                    #[cfg(debug_assertions)]
-                    {
-                        self.inited = true;
-                    }
-                }
-
-                fn deinit(&mut self, ctx: &mut WidgetContext) {
-                    #[cfg(debug_assertions)]
-                    if !self.inited {
-                        tracing::error!(target: "widget_base", "`UiNode::deinit` called in not inited widget {:?}", self.id);
-                    }
-
-                    ctx.widget_context(self.id, &self.info, &mut self.state, |ctx| self.child.deinit(ctx));
-                    *self.pending_updates.get_mut() = WidgetUpdates::none();
-
-                    #[cfg(debug_assertions)]
-                    {
-                        self.inited = false;
                     }
                 }
 
