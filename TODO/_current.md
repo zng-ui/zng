@@ -1,5 +1,6 @@
-* Fix focus highlight in the detached button.
 * Fix focus_shortcut only working when focus is already inside widget.
+
+* Better disabled visuals, disabled_cursor.
 * Fix text reuse in button example when multiple buttons are added.
 * Optimize/fix interactivity, can we make parent interactivity affecting child a guaranteed?
 
