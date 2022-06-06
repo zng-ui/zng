@@ -1091,7 +1091,8 @@ impl ShortcutActions {
 
         let mut cmd_focused_widget = None;
         let mut cmd_not_focused_widget = None;
-        let mut cmds_other = vec![];
+        let mut cmd_window = vec![];
+        let mut cmd_other = vec![];
 
         let mut focus_enabled = None;
         let mut focus_disabled = None;
@@ -1132,7 +1133,7 @@ impl ShortcutActions {
                     CommandScope::Window(w) => {
                         if let Some(f) = focused {
                             if f.window_id() == w {
-                                cmds_other.push(cmd);
+                                cmd_window.push(cmd);
                             }
                         }
                     }
@@ -1152,7 +1153,7 @@ impl ShortcutActions {
                             }
                         }
                     }
-                    CommandScope::App | CommandScope::Custom(_, _) => cmds_other.push(cmd),
+                    CommandScope::App | CommandScope::Custom(_, _) => cmd_other.push(cmd),
                 }
             }
         }
@@ -1241,10 +1242,12 @@ impl ShortcutActions {
             }
         }
 
-        let mut commands = cmds_other;
-        if let Some(cmd) = cmd_focused_widget.or(cmd_not_focused_widget) {
-            commands.insert(0, cmd);
-        }
+        let commands = cmd_focused_widget
+            .or(cmd_not_focused_widget)
+            .into_iter()
+            .chain(cmd_window)
+            .chain(cmd_other)
+            .collect();
 
         if cleanup {
             gestures.cleanup();
@@ -1712,7 +1715,8 @@ impl HeadlessAppGestureExt for HeadlessApp {
 /// Adds the [`shortcut`](Self::shortcut) metadata.
 ///
 /// If a command has a shortcut the [`GestureManager`] will invoke the command when the shortcut is pressed
-/// the command is enabled, if the command target is a window or widget it will be focused as well.
+/// the command is enabled, if the command target is a widget it will be focused as well. See the [`Gestures`]
+/// service documentation for details on how shortcuts are resolved.
 pub trait CommandShortcutExt {
     /// Gets a read-write variable that is zero-or-more shortcuts that invoke the command.
     fn shortcut(self) -> CommandMetaVar<Shortcuts>;

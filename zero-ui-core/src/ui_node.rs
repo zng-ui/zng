@@ -181,7 +181,7 @@ pub trait UiNode: 'static {
     /// impl<C: UiNode> UiNode for MyNode<C> {
     ///     fn event<A: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &A) {
     ///         if let Some(args) = ClickEvent.update(args) {
-    ///             if !args.propagation().is_stopped() && args.is_enabled(ctx.path) {
+    ///             if !args.propagation().is_stopped() && args.is_enabled(ctx.path.widget_id()) {
     ///                 self.click_count += 1;
     ///                 args.propagation().stop();
     ///                 println!("clicks blocked {}", self.click_count);

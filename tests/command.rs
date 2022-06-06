@@ -8,7 +8,7 @@ use zero_ui::prelude::*;
 #[test]
 fn notify() {
     let mut app = App::default().run_headless(false);
-    app.open_window(|_| listener_window());
+    app.open_window(|_| listener_window(false));
 
     let cmd = FooCommand;
     assert!(cmd.notify(&mut app, None));
@@ -16,18 +16,17 @@ fn notify() {
     let _ = app.update(false);
 
     let trace = app.ctx().app_state.req(TestTrace);
-    assert_eq!(1, trace.len());
-    assert!(trace.iter().any(|t| t == "no-scope / App"));
+    assert_eq!(trace, &vec!["no-scope / App".to_owned()]);
 
     let trace = app.ctx().app_state.req(TestTraceIgnorePropagation);
-    assert_eq!(1, trace.len());
-    assert!(trace.iter().any(|t| t == "no-scope / App"));
+    assert_eq!(trace, &vec!["no-scope / App".to_owned(), "no-scope / App".to_owned()]);
+    // two handlers
 }
 
 #[test]
 fn notify_scoped() {
     let mut app = App::default().run_headless(false);
-    let window_id = app.open_window(|_| listener_window());
+    let window_id = app.open_window(|_| listener_window(false));
 
     let cmd = FooCommand;
     let cmd_scoped = cmd.scoped(window_id);
@@ -37,36 +36,68 @@ fn notify_scoped() {
     let _ = app.update(false);
 
     let trace = app.ctx().app_state.req(TestTrace);
-    assert_eq!(1, trace.len());
-    assert!(trace.contains(&format!("scoped-win / Window({window_id:?})")));
+    assert_eq!(trace, &vec![format!("scoped-win / Window({window_id:?})")]);
 
     let trace = app.ctx().app_state.req(TestTraceIgnorePropagation);
-    assert_eq!(1, trace.len());
-    assert!(trace.contains(&format!("scoped-win / Window({window_id:?})")))
+    assert_eq!(
+        trace,
+        &vec![
+            format!("scoped-win / Window({window_id:?})"),
+            format!("scoped-win / Window({window_id:?})")
+        ]
+    );
 }
 
 #[test]
 fn shortcut() {
     let mut app = App::default().run_headless(false);
-    let window_id = app.open_window(|_| listener_window());
+    let window_id = app.open_window(|_| listener_window(false));
 
     FooCommand.shortcut().set(&app, shortcut!(F)).unwrap();
 
     app.press_key(window_id, Key::F);
 
     let trace = app.ctx().app_state.req(TestTrace);
-    assert_eq!(1, trace.len()); // because we stop propagation.
-    assert!(trace.iter().any(|t| t == "no-scope / App"));
+    let widget_id = WidgetId::named("test-widget");
+    // because we target the scoped first.
+    assert_eq!(trace, &vec![format!("scoped-wgt / Widget({widget_id:?})")]);
 
     let trace = app.ctx().app_state.req(TestTraceIgnorePropagation);
-    assert_eq!(3, trace.len());
-    let widget_id = WidgetId::named("test-widget");
     assert_eq!(
         trace,
         &vec![
-            "no-scope / App".to_owned(),
-            format!("scoped-win / Window({window_id:?})"),
-            format!("scoped-wgt / Widget({widget_id:?})")
+            format!("scoped-wgt / Widget({widget_id:?})"), // first scoped widget only
+            format!("scoped-win / Window({window_id:?})"), // then focused window
+            format!("scoped-win / Window({window_id:?})"), // two handlers
+            "no-scope / App".to_owned(),                   // then app
+            "no-scope / App".to_owned(),                   // two handlers
+        ]
+    );
+}
+
+#[test]
+fn shortcut_with_focused_scope() {
+    let mut app = App::default().run_headless(false);
+    let window_id = app.open_window(|_| listener_window(true));
+
+    FooCommand.shortcut().set(&app, shortcut!(F)).unwrap();
+
+    app.press_key(window_id, Key::F);
+
+    let trace = app.ctx().app_state.req(TestTrace);
+    let widget_id = WidgetId::named("other-widget");
+    assert_eq!(1, trace.len()); // because we target the focused first.
+    assert_eq!(&trace[0], &format!("scoped-wgt / Widget({widget_id:?})"));
+
+    let trace = app.ctx().app_state.req(TestTraceIgnorePropagation);
+    assert_eq!(
+        trace,
+        &vec![
+            format!("scoped-wgt / Widget({widget_id:?})"), // first focused widget only
+            format!("scoped-win / Window({window_id:?})"), // then focused window
+            format!("scoped-win / Window({window_id:?})"), // two handlers
+            "no-scope / App".to_owned(),                   // then app
+            "no-scope / App".to_owned(),                   // two handlers
         ]
     );
 }
@@ -74,7 +105,7 @@ fn shortcut() {
 #[test]
 fn shortcut_scoped() {
     let mut app = App::default().run_headless(false);
-    let window_id = app.open_window(|_| listener_window());
+    let window_id = app.open_window(|_| listener_window(false));
 
     FooCommand.shortcut().set(&app, shortcut!(F)).unwrap();
     FooCommand.scoped(window_id).shortcut().set(&app, shortcut!(G)).unwrap();
@@ -83,36 +114,38 @@ fn shortcut_scoped() {
 
     {
         let trace = app.ctx().app_state.req_mut(TestTrace);
-        assert_eq!(1, trace.len());
-        assert!(trace.contains(&format!("scoped-win / Window({window_id:?})")));
+        assert_eq!(trace, &vec![format!("scoped-win / Window({window_id:?})")]);
         trace.clear();
 
         let trace = app.ctx().app_state.req_mut(TestTraceIgnorePropagation);
-        assert_eq!(1, trace.len());
-        assert!(trace.contains(&format!("scoped-win / Window({window_id:?})")));
+        assert_eq!(
+            trace,
+            &vec![
+                format!("scoped-win / Window({window_id:?})"),
+                format!("scoped-win / Window({window_id:?})")
+            ]
+        );
         trace.clear();
     }
 
     app.press_key(window_id, Key::F);
 
     let trace = app.ctx().app_state.req(TestTrace);
-    assert_eq!(1, trace.len());
-    assert!(trace.iter().any(|t| t == "no-scope / App"));
+    let widget_id = WidgetId::named("test-widget");
+    assert_eq!(trace, &vec![format!("scoped-wgt / Widget({widget_id:?})")]);
 
     let trace = app.ctx().app_state.req(TestTraceIgnorePropagation);
-    assert_eq!(2, trace.len());
-    let widget_id = WidgetId::named("test-widget");
     assert_eq!(
         trace,
         &vec![
+            format!("scoped-wgt / Widget({widget_id:?})"),
             "no-scope / App".to_owned(),
-            // format!("scoped-win / Window({window_id:?})"),
-            format!("scoped-wgt / Widget({widget_id:?})")
+            "no-scope / App".to_owned()
         ]
     );
 }
 
-fn listener_window() -> Window {
+fn listener_window(focused_wgt: bool) -> Window {
     struct FooHandlerNode {
         handle: Option<CommandHandle>,
         handle_scoped: Option<CommandHandle>,
@@ -179,10 +212,17 @@ fn listener_window() -> Window {
     }
 
     window! {
-        content = container! {
-            id = "test-widget";
-            content = FooHandlerNode { handle: None, handle_scoped: None, handle_scoped_wgt: None };
-        }
+        content = v_stack(widgets![
+            container! {
+                id = "test-widget";
+                content = FooHandlerNode { handle: None, handle_scoped: None, handle_scoped_wgt: None };
+            },
+            container! {
+                id = "other-widget";
+                focusable = focused_wgt;
+                content = FooHandlerNode { handle: None, handle_scoped: None, handle_scoped_wgt: None };
+            }
+        ])
     }
 }
 
