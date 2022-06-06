@@ -359,7 +359,7 @@ pub(super) fn inspect_node(child: impl UiNode, can_inspect: impl var::IntoVar<bo
         |ctx| InspectCommand.scoped(ctx.path.window_id()),
         move |_| can_inspect.clone(),
         hn!(|ctx, args: &CommandArgs| {
-            args.stop_propagation();
+            args.propagation().stop();
 
             let mut buffer = vec![];
             write_tree(ctx.info_tree, &state, &mut buffer);

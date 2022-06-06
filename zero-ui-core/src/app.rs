@@ -6,7 +6,7 @@ pub mod view_process;
 
 use crate::context::*;
 use crate::crate_util::{PanicPayload, ReceiverExt};
-use crate::event::{cancelable_event_args, event, AnyEventUpdate, BoxedEventUpdate, EventUpdate, EventUpdateArgs, Events};
+use crate::event::{event, event_args, AnyEventUpdate, BoxedEventUpdate, EventUpdate, EventUpdateArgs, Events};
 use crate::image::ImageManager;
 use crate::timer::Timers;
 use crate::units::{Px, PxPoint};
@@ -498,8 +498,12 @@ impl<E: AppExtension> AppExtension for TraceAppExt<E> {
     }
 }
 
-cancelable_event_args! {
+event_args! {
     /// Arguments for [`ShutdownRequestedEvent`].
+    ///
+    /// Requesting [`propagation().stop()`] on this event cancels the shutdown.
+    ///
+    /// [`propagation().stop()`]: crate::event::EventPropagationHandle::stop
     pub struct ShutdownRequestedArgs {
         ..
         /// Broadcast to all.
@@ -516,7 +520,9 @@ event! {
     /// also request shutdown if some conditions are met, [`WindowManager`] requests shutdown
     /// after the last window is closed for example.
     ///
-    /// Shutdown can be cancelled using the [`ShutdownRequestedArgs::cancel`] method.
+    /// Requesting [`propagation().stop()`] on this event cancels the shutdown.
+    ///
+    /// [`propagation().stop()`]: crate::event::EventPropagationHandle::stop
     pub ShutdownRequestedEvent: ShutdownRequestedArgs;
 }
 
@@ -1559,10 +1565,10 @@ impl<E: AppExtension> RunningApp<E> {
 
                 Self::notify_event_(ctx, &mut self.extensions, ShutdownRequestedEvent, args.clone(), observer);
 
-                if args.cancel_requested() {
+                if args.propagation().is_stopped() {
                     r.respond(ctx.vars, ShutdownCancelled);
                 }
-                self.exiting = !args.cancel_requested();
+                self.exiting = !args.propagation().is_stopped();
             }
         }
     }

@@ -1,8 +1,8 @@
 //! Keyboard events, [`on_key_down`](fn@on_key_down), [`on_key_up`](fn@on_key_up), [`on_char_input`](fn@on_char_input) and more.
 //!
 //! These events are low level and directly tied to a keyboard device.
-//! Before using them review the [`gesture`](super::gesture) events, in particular
-//! the [`on_shortcut`](fn@super::gesture::on_shortcut) event.
+//! Before using them review the [`gesture`](super::gesture) properties, in particular
+//! the [`click_shortcut`](fn@super::gesture::click_shortcut) property.
 
 use super::event_property;
 use crate::core::keyboard::*;
@@ -13,7 +13,7 @@ event_property! {
     /// # Route
     ///
     /// The event is raised in the [keyboard focused](crate::properties::is_focused)
-    /// widget and then each parent up to the root. If [`stop_propagation`](EventArgs::stop_propagation)
+    /// widget and then each parent up to the root. If [`propagation`](EventArgs::propagation) stop
     /// is requested the event is not notified further. If the widget is disabled or blocked the event is not notified.
     ///
     /// This route is also called *bubbling*.
@@ -38,7 +38,7 @@ event_property! {
     /// # Route
     ///
     /// The event is raised in the [keyboard focused](crate::properties::is_focused)
-    /// widget and then each parent up to the root. If [`stop_propagation`](EventArgs::stop_propagation)
+    /// widget and then each parent up to the root. If [`propagation`](EventArgs::propagation) stop
     /// is requested the event is not notified further. If the widget is enabled or blocked the event is not notified.
     ///
     /// This route is also called *bubbling*.
@@ -63,7 +63,7 @@ event_property! {
     /// # Route
     ///
     /// The event is raised in the [keyboard focused](crate::properties::is_focused)
-    /// widget and then each parent up to the root. If [`stop_propagation`](EventArgs::stop_propagation)
+    /// widget and then each parent up to the root. If [`propagation`](EventArgs::propagation) stop
     /// is requested the event is not notified further. If the widget is disabled or blocked the event is not notified.
     ///
     /// This route is also called *bubbling*.
@@ -88,7 +88,7 @@ event_property! {
     /// # Route
     ///
     /// The event is raised in the [keyboard focused](crate::properties::is_focused)
-    /// widget and then each parent up to the root. If [`stop_propagation`](EventArgs::stop_propagation)
+    /// widget and then each parent up to the root. If [`propagation`](EventArgs::propagation) stop
     /// is requested the event is not notified further. If the widget is disabled or blocked the event is not notified.
     ///
     /// This route is also called *bubbling*.
@@ -113,7 +113,7 @@ event_property! {
     /// # Route
     ///
     /// The event is raised in the [keyboard focused](crate::properties::is_focused)
-    /// widget and then each parent up to the root. If [`stop_propagation`](EventArgs::stop_propagation)
+    /// widget and then each parent up to the root. If [`propagation`](EventArgs::propagation) stop
     /// is requested the event is not notified further. If the widget is disabled or blocked the event is not notified.
     ///
     /// This route is also called *bubbling*.
@@ -132,7 +132,7 @@ event_property! {
     /// # Route
     ///
     /// The event is raised in the [keyboard focused](crate::properties::is_focused)
-    /// widget and then each parent up to the root. If [`stop_propagation`](EventArgs::stop_propagation)
+    /// widget and then each parent up to the root. If [`propagation`](EventArgs::propagation) stop
     /// is requested the event is not notified further. If the widget is enabled or blocked the event is not notified.
     ///
     /// This route is also called *bubbling*.

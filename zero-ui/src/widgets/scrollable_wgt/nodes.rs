@@ -615,7 +615,7 @@ pub fn scroll_to_command_node(child: impl UiNode) -> impl UiNode {
                                 self.scroll_to = Some((bounds, render, mode));
                                 ctx.updates.layout();
 
-                                args.stop_propagation();
+                                args.propagation().stop();
                             }
                         }
                     }

@@ -1,4 +1,4 @@
-//! Gesture events, [`on_click`](fn@on_click), [`on_shortcut`](fn@on_shortcut), [`on_context_click`](fn@on_context_click) and more.
+//! Gesture events and control, [`on_click`](fn@on_click), [`click_shortcut`](fn@click_shortcut) and more.
 //!
 //! These events aggregate multiple lower-level events to represent a user interaction.
 //! Prefer using these events over the events directly tied to an input device.
@@ -106,50 +106,37 @@ event_property! {
         args: ClickArgs,
         filter: |ctx, args| args.is_context() && args.is_enabled(ctx.path),
     }
-
-    /// On keyboard shortcut press when the widget is focused and enabled.
-    pub fn shortcut {
-        event: ShortcutEvent,
-        args: ShortcutArgs,
-        filter: |ctx, args| args.is_enabled(ctx.path),
-    }
-
-    /// On keyboard shortcut press when the widget is focused and disabled.
-    pub fn disabled_shortcut {
-        event: ShortcutEvent,
-        args: ShortcutArgs,
-        filter: |ctx, args| args.is_enabled(ctx.path),
-    }
 }
 
 /// Keyboard shortcuts that focus and clicks this widget.
 ///
-/// When any of the `shortcuts` is pressed, focus and click this widget. The widget is only focused
-/// if the parent window is focused and the widget is focusable.
+/// When any of the `shortcuts` is pressed, focus and click this widget.
 #[property(context)]
 pub fn click_shortcut(child: impl UiNode, shortcuts: impl IntoVar<Shortcuts>) -> impl UiNode {
     ClickShortcutNode {
         child,
         shortcuts: shortcuts.into_var(),
         kind: ShortcutClick::Primary,
+        handle: None,
     }
 }
 /// Keyboard shortcuts that focus and [context clicks](fn@on_context_click) this widget.
 ///
-/// When any of the `shortcuts` is pressed, focus and context clicks this widget. The widget is only focused
-/// if the parent window is focused and the widget is focusable.
+/// When any of the `shortcuts` is pressed, focus and context clicks this widget.
 #[property(context)]
 pub fn context_click_shortcut(child: impl UiNode, shortcuts: impl IntoVar<Shortcuts>) -> impl UiNode {
     ClickShortcutNode {
         child,
         shortcuts: shortcuts.into_var(),
         kind: ShortcutClick::Context,
+        handle: None,
     }
 }
 struct ClickShortcutNode<C: UiNode, S: Var<Shortcuts>> {
     child: C,
     shortcuts: S,
     kind: ShortcutClick,
+    handle: Option<ShortcutsHandle>,
 }
 #[impl_ui_node(child)]
 impl<C, S> UiNode for ClickShortcutNode<C, S>
@@ -158,26 +145,21 @@ where
     S: Var<Shortcuts>,
 {
     fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-        subs.event(ShortcutEvent);
+        subs.var(ctx, &self.shortcuts);
         self.child.subscriptions(ctx, subs);
     }
 
-    fn event<EU: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &EU)
-    where
-        Self: Sized,
-    {
-        if let Some(args) = ShortcutEvent.update(args) {
-            self.child.event(ctx, args);
-            if !args.stop_propagation_requested() && self.shortcuts.get(ctx).contains(args.shortcut) {
-                // this request also focus the widget if the window is focused
-                // and the widget is focusable.
-                ctx.services
-                    .gestures()
-                    .click_shortcut(ctx.path.window_id(), ctx.path.widget_id(), self.kind, args.clone());
-                args.stop_propagation();
-            }
-        } else {
-            self.child.event(ctx, args);
+    fn init(&mut self, ctx: &mut WidgetContext) {
+        self.child.init(ctx);
+        let s = self.shortcuts.get_clone(ctx);
+        self.handle = Some(ctx.services.gestures().click_shortcut(s, self.kind, ctx.path.widget_id()));
+    }
+
+    fn update(&mut self, ctx: &mut WidgetContext) {
+        self.child.update(ctx);
+
+        if let Some(s) = self.shortcuts.clone_new(ctx) {
+            self.handle = Some(ctx.services.gestures().click_shortcut(s, self.kind, ctx.path.widget_id()));
         }
     }
 }

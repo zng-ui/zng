@@ -141,7 +141,7 @@ impl ImageManager {
                     if let Some(img_var) = a.image.upgrade() {
                         img_var.set(ctx.vars, img.clone());
                     }
-                    args.stop_propagation();
+                    args.propagation().stop();
                 }
             }
         }

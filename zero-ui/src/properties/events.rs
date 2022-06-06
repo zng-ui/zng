@@ -12,7 +12,7 @@
 //! is represented by the [`on_pre_click`](fn@gesture::on_pre_click) in the preview route and by [`on_click`](fn@gesture::on_click) in
 //! the main route. Usually you handle [`on_click`](fn@gesture::on_click) in the widget that is expected to be clicked, but you can
 //! use [`on_pre_click`](fn@gesture::on_pre_click) to *preview* the event in a parent widget and potentially stop it from being raised
-//! in the main event handler by calling [`stop_propagation`](EventArgs::stop_propagation).
+//! in the main event handler by calling [`propagation().stop()`](EventPropagationHandle::stop).
 //!
 //! # Handlers
 //!

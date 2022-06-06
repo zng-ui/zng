@@ -157,8 +157,8 @@ pub trait UiNode: 'static {
     /// Called every time an event updates.
     ///
     /// Every call to this method is for a single update of a single event type, you can listen to events
-    /// using the [`Event::update`] method. This method is called even if [`stop_propagation`]
-    /// was requested, or the widget is disabled, and it must always propagate to descendent nodes.
+    /// using the [`Event::update`] method. This method is called even if [`propagation`]
+    /// was stopped, or the widget is disabled, and it must always propagate to descendent nodes.
     ///
     /// Event propagation can be statically or dynamically typed, the way to listen to both is the same, `A` can be an
     /// [`AnyEventUpdate`] instance that is resolved dynamically or an [`EventUpdate`] instance
@@ -181,9 +181,9 @@ pub trait UiNode: 'static {
     /// impl<C: UiNode> UiNode for MyNode<C> {
     ///     fn event<A: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &A) {
     ///         if let Some(args) = ClickEvent.update(args) {
-    ///             if !args.stop_propagation_requested() && args.is_enabled(ctx.path) {
+    ///             if !args.propagation().is_stopped() && args.is_enabled(ctx.path) {
     ///                 self.click_count += 1;
-    ///                 args.stop_propagation();
+    ///                 args.propagation().stop();
     ///                 println!("clicks blocked {}", self.click_count);
     ///             }
     ///             self.child.event(ctx, args);
@@ -201,7 +201,7 @@ pub trait UiNode: 'static {
     /// duplicated, but the call inside the `if` block ensured that the descendant nodes will resolve the event statically,
     /// which may not be the case in the `else` block call where `A` can be the dynamic resolver.
     ///
-    /// [`stop_propagation`]: crate::event::EventArgs::stop_propagation
+    /// [`propagation`]: crate::event::EventArgs::propagation
     /// [`EventUpdate`]: crate::event::EventUpdate
     /// [`on_pre_event`]: crate::event::on_pre_event
     /// [`Event::update`]: crate::event::Event::update

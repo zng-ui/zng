@@ -987,8 +987,8 @@ where
 /// to update in [`on_pre_update`](crate::context::Updates::on_pre_update) or [`on_update`](crate::context::Updates::on_update) depending
 /// on if the handler was assigned to a *preview* event or not.
 ///
-/// Note that this means [`stop_propagation`](crate::event::EventArgs::stop_propagation) can only be meaningfully called before the
-/// first `.await`, after the event has already propagated.
+/// Note that this means [`propagation`](crate::event::EventArgs::propagation) can only be meaningfully stopped before the
+/// first `.await`, after, the event has already propagated.
 ///
 /// # Examples
 ///

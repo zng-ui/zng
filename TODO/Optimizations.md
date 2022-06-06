@@ -3,7 +3,7 @@
 * How much overhead needed to add `rayon` join support for UiNode methods?
     * Need to make every thing sync.
     * Vars are already *locked* for updates due to their delayed assign, is only reading from `Arc` slower then from `Rc`?
-    * Event `stop_propagation` becomes indeterministic.
+    * Event `propagation` becomes indeterministic.
     * Services must become sync.
     * State must become sync!
 * Maybe can always have an AppContext for each UI thread, with a copy of services and such, after each update they merge into

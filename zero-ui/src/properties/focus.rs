@@ -236,38 +236,38 @@ pub fn directional_nav(child: impl UiNode, directional_nav: impl IntoVar<Directi
 }
 
 /// Keyboard shortcuts that focus this widget or its first focusable descendant or its first focusable parent.
-///
-/// When any of the `shortcuts` is pressed, does a [`focus_widget_or_related`](Focus::focus_widget_or_related)
-/// request using the current widget ID and with highlight.
 #[property(context, default(Shortcuts::default()))]
 pub fn focus_shortcut(child: impl UiNode, shortcuts: impl IntoVar<Shortcuts>) -> impl UiNode {
     struct FocusShortcutNode<C, S> {
         child: C,
         shortcuts: S,
+        handle: Option<ShortcutsHandle>,
     }
     #[impl_ui_node(child)]
     impl<C: UiNode, S: Var<Shortcuts>> UiNode for FocusShortcutNode<C, S> {
         fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-            subs.event(ShortcutEvent);
+            subs.var(ctx, &self.shortcuts);
             self.child.subscriptions(ctx, subs);
         }
 
-        fn event<EU: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &EU) {
-            if let Some(args) = ShortcutEvent.update(args) {
-                self.child.event(ctx, args);
-                if !args.stop_propagation_requested() && self.shortcuts.get(ctx).contains(args.shortcut) {
-                    // focus on shortcut
-                    ctx.services.focus().focus_widget_or_related(ctx.path.widget_id(), true);
-                    args.stop_propagation();
-                }
-            } else {
-                self.child.event(ctx, args);
+        fn init(&mut self, ctx: &mut WidgetContext) {
+            self.child.init(ctx);
+            let s = self.shortcuts.get_clone(ctx);
+            self.handle = Some(ctx.services.gestures().focus_shortcut(s, ctx.path.widget_id()));
+        }
+
+        fn update(&mut self, ctx: &mut WidgetContext) {
+            self.child.update(ctx);
+
+            if let Some(s) = self.shortcuts.clone_new(ctx) {
+                self.handle = Some(ctx.services.gestures().focus_shortcut(s, ctx.path.widget_id()));
             }
         }
     }
     FocusShortcutNode {
         child,
         shortcuts: shortcuts.into_var(),
+        handle: None,
     }
 }
 

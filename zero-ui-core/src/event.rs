@@ -17,6 +17,8 @@ use std::marker::PhantomData;
 use std::mem;
 use std::ops::Deref;
 use std::rc::Rc;
+use std::sync::atomic::AtomicBool;
+use std::sync::Arc;
 use std::time::{Duration, Instant};
 use std::{any::*, collections::VecDeque};
 
@@ -28,20 +30,11 @@ pub trait EventArgs: Debug + Clone + 'static {
     /// Generate an [`EventDeliveryList`] that defines all targets of the event.
     fn delivery_list(&self) -> EventDeliveryList;
 
-    /// Requests that subsequent handlers skip this event.
+    /// Propagation handle associated with this event instance.
     ///
-    /// Cloned arguments signal stop for all clones.
-    fn stop_propagation(&self);
-
-    /// If the handler must skip this event.
-    ///
-    /// Note that property level handlers don't need to check this, as those handlers are
-    /// already not called when this is `true`. Direct event listeners in [`UiNode`] and [`AppExtension`]
-    /// must check if this is `true`.
-    ///
-    /// [`UiNode`]: crate::UiNode
-    /// [`AppExtension`]: crate::app::AppExtension
-    fn stop_propagation_requested(&self) -> bool;
+    /// Cloned arguments share the same handle, some arguments may also share the handle
+    /// of another event if they share the same cause.
+    fn propagation(&self) -> &EventPropagationHandle;
 
     /// Calls `handler` and stops propagation if propagation is still allowed.
     ///
@@ -50,24 +43,64 @@ pub trait EventArgs: Debug + Clone + 'static {
     where
         F: FnOnce(&Self) -> R,
     {
-        if self.stop_propagation_requested() {
+        if self.propagation().is_stopped() {
             None
         } else {
             let r = handler(self);
-            self.stop_propagation();
+            self.propagation().stop();
             Some(r)
         }
     }
 }
 
-/// [`Event`] arguments that can be canceled.
-pub trait CancelableEventArgs: EventArgs {
-    /// If the originating action must be canceled.
-    fn cancel_requested(&self) -> bool;
-    /// Cancel the originating action.
+/// Event propagation handle associated with one or multiple [`EventArgs`].
+///
+/// Event handlers can use this handle to signal subsequent handlers that they should skip handling the event.
+///
+/// You can get the propagation handle of any event argument by using the [`EventArgs::propagation`] method.
+#[derive(Debug, Clone)]
+pub struct EventPropagationHandle(Arc<AtomicBool>);
+impl EventPropagationHandle {
+    /// New in the not stopped default state.
+    pub fn new() -> Self {
+        EventPropagationHandle(Arc::new(AtomicBool::new(false)))
+    }
+
+    /// Signal subsequent handlers that the event is already handled.
+    pub fn stop(&self) {
+        // Is `Arc` to make `EventArgs` send, but stop handle is only useful in the UI thread, so
+        // we don't need any ordering.
+        self.0.store(true, std::sync::atomic::Ordering::Relaxed);
+    }
+
+    /// If the handler must skip this event instance.
     ///
-    /// Cloned arguments signal cancel for all clones.
-    fn cancel(&self);
+    /// Note that property level handlers don't need to check this, as those handlers are
+    /// not called when this is `true`. Direct event listeners in [`UiNode`] and [`AppExtension`]
+    /// must check if this is `true`.
+    ///
+    /// [`UiNode`]: crate::UiNode
+    /// [`AppExtension`]: crate::app::AppExtension
+    pub fn is_stopped(&self) -> bool {
+        self.0.load(std::sync::atomic::Ordering::Relaxed)
+    }
+}
+impl Default for EventPropagationHandle {
+    fn default() -> Self {
+        EventPropagationHandle::new()
+    }
+}
+impl PartialEq for EventPropagationHandle {
+    fn eq(&self, other: &Self) -> bool {
+        Arc::ptr_eq(&self.0, &other.0)
+    }
+}
+impl Eq for EventPropagationHandle {}
+impl std::hash::Hash for EventPropagationHandle {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        let ptr = Arc::as_ptr(&self.0) as usize;
+        std::hash::Hash::hash(&ptr, state);
+    }
 }
 
 /// Identifies an event type.
@@ -227,6 +260,11 @@ impl EventDeliveryList {
         Self::none().with_widgets(widget_path)
     }
 
+    /// All widgets in each path on the list.
+    pub fn widgets_list<'a>(list: impl IntoIterator<Item = &'a WidgetPath>) -> Self {
+        Self::none().with_widgets_list(list)
+    }
+
     /// All widgets in the path.
     pub fn widgets_opt(widget_path: Option<&WidgetPath>) -> Self {
         Self::none().with_widgets_opt(widget_path)
@@ -276,6 +314,14 @@ impl EventDeliveryList {
                 widgets: vec![widget_path.clone()],
                 all: false,
             })
+        }
+        self
+    }
+
+    /// All the widgets in each path on the list.
+    pub fn with_widgets_list<'a>(mut self, list: impl IntoIterator<Item = &'a WidgetPath>) -> Self {
+        for path in list {
+            self = self.with_widgets(path);
         }
         self
     }
@@ -669,19 +715,6 @@ impl<E: Event> EventUpdateArgs for EventUpdate<E> {
             None
         }
     }
-}
-
-/// Identifies an event type for an action that can be canceled.
-///
-/// # Auto-Implemented
-///
-/// This trait is auto-implemented for all events with cancellable arguments.
-pub trait CancelableEvent: Event + 'static {
-    /// Cancelable event arguments type.
-    type CancelableArgs: CancelableEventArgs;
-}
-impl<A: CancelableEventArgs, E: Event<Args = A>> CancelableEvent for E {
-    type CancelableArgs = A;
 }
 
 /// A buffered event listener.
@@ -1127,7 +1160,7 @@ impl Events {
 
     /// Creates a preview event handler.
     ///
-    /// The event `handler` is called for every update of `E` that are not marked [`stop_propagation`](EventArgs::stop_propagation).
+    /// The event `handler` is called for every update of `E` that has not stopped [`propagation`](EventArgs::propagation).
     /// The handler is called before UI handlers and [`on_event`](Self::on_event) handlers, it is called after all previous registered
     /// preview handlers.
     ///
@@ -1157,7 +1190,7 @@ impl Events {
     /// ## Async
     ///
     /// Note that for async handlers only the code before the first `.await` is called in the *preview* moment, code after runs in
-    /// subsequent event updates, after the event has already propagated, so calling [`stop_propagation`](EventArgs::stop_propagation)
+    /// subsequent event updates, after the event has already propagated, so stopping [`propagation`](EventArgs::propagation)
     /// only causes the desired effect before the first `.await`.
     ///
     /// [`app_hn!`]: crate::handler::app_hn!
@@ -1174,7 +1207,7 @@ impl Events {
 
     /// Creates an event handler.
     ///
-    /// The event `handler` is called for every update of `E` that are not marked [`stop_propagation`](EventArgs::stop_propagation).
+    /// The event `handler` is called for every update of `E` that has not stopped [`propagation`](EventArgs::propagation).
     /// The handler is called after all [`on_pre_event`],(Self::on_pre_event) all UI handlers and all [`on_event`](Self::on_event) handlers
     /// registered before this one.
     ///
@@ -1204,7 +1237,7 @@ impl Events {
     /// ## Async
     ///
     /// Note that for async handlers only the code before the first `.await` is called in the *preview* moment, code after runs in
-    /// subsequent event updates, after the event has already propagated, so calling [`stop_propagation`](EventArgs::stop_propagation)
+    /// subsequent event updates, after the event has already propagated, so stopping [`propagation`](EventArgs::propagation)
     /// only causes the desired effect before the first `.await`.
     ///
     /// [`app_hn!`]: crate::handler::app_hn!
@@ -1227,7 +1260,7 @@ impl Events {
         let (handle_owner, handle) = OnEventHandle::new();
         let handler = move |ctx: &mut AppContext, args: &BoxedEventUpdate, handle: &dyn AppWeakHandle| {
             if let Some(args) = event.update(args) {
-                if !args.stop_propagation_requested() {
+                if !args.propagation().is_stopped() {
                     handler.event(ctx, args, &AppHandlerArgs { handle, is_preview });
                 }
             }
@@ -1470,11 +1503,15 @@ macro_rules! __event_args {
             /// Panics if the arguments are invalid.
             #[track_caller]
             #[allow(clippy::too_many_arguments)]
-            pub fn new(timestamp: impl Into<std::time::Instant>, $($arg : impl Into<$arg_ty>),*) -> Self {
+            pub fn new(
+                timestamp: impl Into<std::time::Instant>,
+                propagation_handle: $crate::event::EventPropagationHandle,
+                $($arg : impl Into<$arg_ty>),*
+            ) -> Self {
                 let args = $Args {
                     timestamp: timestamp.into(),
                     $($arg: $arg.into(),)*
-                    stop_propagation: std::sync::Arc::default(),
+                    propagation_handle,
                 };
                 args.assert_valid();
                 args
@@ -1484,11 +1521,15 @@ macro_rules! __event_args {
             ///
             /// Returns an error if the constructed arguments are invalid.
             #[allow(clippy::too_many_arguments)]
-            pub fn try_new(timestamp: impl Into<std::time::Instant>, $($arg : impl Into<$arg_ty>),*) -> Result<Self, $ValidationError> {
+            pub fn try_new(
+                timestamp: impl Into<std::time::Instant>,
+                propagation_handle: $crate::event::EventPropagationHandle,
+                $($arg : impl Into<$arg_ty>),*
+            ) -> Result<Self, $ValidationError> {
                 let args = $Args {
                     timestamp: timestamp.into(),
                     $($arg: $arg.into(),)*
-                    stop_propagation: std::sync::Arc::default(),
+                    propagation_handle,
                 };
                 args.validate()?;
                 Ok(args)
@@ -1502,7 +1543,7 @@ macro_rules! __event_args {
             #[track_caller]
             #[allow(clippy::too_many_arguments)]
             pub fn now($($arg : impl Into<$arg_ty>),*) -> Self {
-                Self::new(std::time::Instant::now(), $($arg),*)
+                Self::new(std::time::Instant::now(), $crate::event::EventPropagationHandle::new(), $($arg),*)
             }
 
             /// Arguments for event that happened now (`Instant::now`).
@@ -1510,7 +1551,7 @@ macro_rules! __event_args {
             /// Returns an error if the constructed arguments are invalid.
             #[allow(clippy::too_many_arguments)]
             pub fn try_now($($arg : impl Into<$arg_ty>),*) -> Result<Self, $ValidationError> {
-                Self::try_new(std::time::Instant::now(), $($arg),*)
+                Self::try_new(std::time::Instant::now(), $crate::event::EventPropagationHandle::new(), $($arg),*)
             }
 
             $(#[$validate_outer])*
@@ -1552,22 +1593,22 @@ macro_rules! __event_args {
         impl $Args {
             /// New args from values that convert [into](Into) the argument types.
             #[allow(clippy::too_many_arguments)]
-            pub fn new(timestamp: impl Into<std::time::Instant>, $($arg : impl Into<$arg_ty>),*) -> Self {
+            pub fn new(
+                timestamp: impl Into<std::time::Instant>,
+                propagation_handle: $crate::event::EventPropagationHandle,
+                $($arg : impl Into<$arg_ty>),*
+            ) -> Self {
                 $Args {
                     timestamp: timestamp.into(),
                     $($arg: $arg.into(),)*
-                    stop_propagation: std::sync::Arc::default(),
+                    propagation_handle,
                 }
             }
 
             /// Arguments for event that happened now (`Instant::now`).
-            ///
-            /// # Panics
-            ///
-            /// Panics if the arguments are invalid.
             #[allow(clippy::too_many_arguments)]
             pub fn now($($arg : impl Into<$arg_ty>),*) -> Self {
-                Self::new(std::time::Instant::now(), $($arg),*)
+                Self::new(std::time::Instant::now(), $crate::event::EventPropagationHandle::new(), $($arg),*)
             }
         }
     };
@@ -1590,26 +1631,13 @@ macro_rules! __event_args {
             pub timestamp: std::time::Instant,
             $($(#[$arg_outer])* $arg_vis $arg : $arg_ty,)*
 
-            // Arc<AtomicBool> so we don't cause the $Args:!Send and block the user from creating event channels.
-            stop_propagation: std::sync::Arc<std::sync::atomic::AtomicBool>,
+            propagation_handle: $crate::event::EventPropagationHandle,
         }
         impl $Args {
-            /// Requests that subsequent handlers skip this event.
-            ///
-            /// Cloned arguments signal stop for all clones.
+            /// Propagation handle associated with this event instance.
             #[allow(unused)]
-            pub fn stop_propagation(&self) {
-                <Self as $crate::event::EventArgs>::stop_propagation(self)
-            }
-
-            /// If the handler must skip this event.
-            ///
-            /// Note that property level handlers don't need to check this, as those handlers are
-            /// already not called when this is `true`. [`UiNode`](crate::UiNode) and
-            /// [`AppExtension`](crate::app::AppExtension) implementers must check if this is `true`.
-            #[allow(unused)]
-            pub fn stop_propagation_requested(&self) -> bool {
-                <Self as $crate::event::EventArgs>::stop_propagation_requested(self)
+            pub fn propagation(&self) -> &$crate::event::EventPropagationHandle {
+                <Self as $crate::event::EventArgs>::propagation(self)
             }
 
             $(#[$delivery_list_outer])*
@@ -1644,333 +1672,14 @@ macro_rules! __event_args {
             }
 
 
-            fn stop_propagation(&self) {
-                self.stop_propagation.store(true, std::sync::atomic::Ordering::Relaxed);
-            }
-
-
-            fn stop_propagation_requested(&self) -> bool {
-                self.stop_propagation.load(std::sync::atomic::Ordering::Relaxed)
+            fn propagation(&self) -> &$crate::event::EventPropagationHandle {
+                &self.propagation_handle
             }
         }
     };
 }
 #[doc(inline)]
 pub use crate::event_args;
-
-///<span data-del-macro-root></span> Declares new [`CancelableEventArgs`] types.
-///
-/// Same syntax as [`event_args!`](macro.event_args.html) but the generated args is also cancelable.
-///
-/// # Examples
-///
-/// ```
-/// # use zero_ui_core::{event::cancelable_event_args, WidgetPath, text::*};
-/// cancelable_event_args! {
-///     /// My event arguments.
-///     pub struct MyEventArgs {
-///         /// My argument.
-///         pub arg: String,
-///         /// My event target.
-///         pub target: WidgetPath,
-///
-///         ..
-///
-///         /// The target.
-///         fn delivery_list(&self) -> EventDeliveryList {
-///             EventDeliveryList::widgets(&self.target)
-///         }
-///
-///         /// Optional validation, if defined the generated `new` and `now` functions call it and unwrap the result.
-///         ///
-///         /// The error type can be any type that implement `Debug`.
-///         fn validate(&self) -> Result<(), Text> {
-///             if self.arg.contains("error") {
-///                 return Err(formatx!("invalid arg `{}`", self.arg));
-///             }
-///             Ok(())
-///         }
-///     }
-///
-///     // multiple structs can be declared in the same call.
-///     // pub struct MyOtherEventArgs { /**/ }
-/// }
-/// ```
-///
-/// [`CancelableEventArgs`]: crate::event::CancelableEventArgs
-#[macro_export]
-macro_rules! cancelable_event_args {
-    ($(
-        $(#[$outer:meta])*
-        $vis:vis struct $Args:ident {
-            $($(#[$arg_outer:meta])* $arg_vis:vis $arg:ident : $arg_ty:ty,)*
-            ..
-            $(#[$delivery_list_outer:meta])*
-            fn delivery_list(&$self:ident) -> EventDeliveryList { $($delivery_list:tt)+ }
-            $(
-                $(#[$validate_outer:meta])*
-                fn validate(&$self_v:ident) -> Result<(), $ValidationError:path> { $($validate:tt)+ }
-            )?
-        }
-    )+) => {$(
-        $crate::__cancelable_event_args! {
-            $(#[$outer])*
-            $vis struct $Args {
-                $($(#[$arg_outer])* $arg_vis $arg: $arg_ty,)*
-
-                ..
-
-                $(#[$delivery_list_outer])*
-                fn delivery_list(&$self) -> EventDeliveryList { $($delivery_list)+ }
-
-                $(
-                    $(#[$validate_outer])*
-                    fn validate(&$self_v) -> Result<(), $ValidationError> { $($validate)+ }
-                )?
-            }
-        }
-    )+};
-}
-#[doc(hidden)]
-#[macro_export]
-macro_rules! __cancelable_event_args {
-    // match validate
-    (
-        $(#[$outer:meta])*
-        $vis:vis struct $Args:ident {
-            $($(#[$arg_outer:meta])* $arg_vis:vis $arg:ident : $arg_ty:ty,)*
-            ..
-            $(#[$delivery_list_outer:meta])*
-            fn delivery_list(&$self:ident) -> EventDeliveryList { $($delivery_list:tt)+ }
-
-            $(#[$validate_outer:meta])*
-            fn validate(&$self_v:ident) -> Result<(), $ValidationError:path> { $($validate:tt)+ }
-        }
-    ) => {
-        $crate::__cancelable_event_args! {common=>
-
-            $(#[$outer])*
-            $vis struct $Args {
-                $($(#[$arg_outer])* $arg_vis $arg: $arg_ty,)*
-                ..
-                $(#[$delivery_list_outer])*
-                fn delivery_list(&$self) -> EventDeliveryList { $($delivery_list)+ }
-            }
-        }
-        impl $Args {
-            /// New args from values that convert [into](Into) the argument types.
-            ///
-            /// # Panics
-            ///
-            /// Panics if the arguments are invalid.
-            #[track_caller]
-            #[allow(clippy::too_many_arguments)]
-            pub fn new(timestamp: impl Into<std::time::Instant>, $($arg : impl Into<$arg_ty>),*) -> Self {
-                let args = $Args {
-                    timestamp: timestamp.into(),
-                    $($arg: $arg.into(),)*
-                    stop_propagation: std::sync::Arc::default(),
-                    cancel: std::sync::Arc::default()
-                };
-                args.assert_valid();
-                args
-            }
-
-            /// New args from values that convert [into](Into) the argument types.
-            ///
-            /// Returns an error if the constructed arguments are invalid.
-            #[allow(clippy::too_many_arguments)]
-            pub fn try_new(timestamp: impl Into<std::time::Instant>, $($arg : impl Into<$arg_ty>),*) -> Result<Self, $ValidationError> {
-                let args = $Args {
-                    timestamp: timestamp.into(),
-                    $($arg: $arg.into(),)*
-                    stop_propagation: std::sync::Arc::default(),
-                    cancel: std::sync::Arc::default()
-                };
-                args.validate()?;
-                Ok(args)
-            }
-
-            /// Arguments for event that happened now (`Instant::now`).
-            ///
-            /// # Panics
-            ///
-            /// Panics if the arguments are invalid.
-            #[track_caller]
-            #[allow(clippy::too_many_arguments)]
-            pub fn now($($arg : impl Into<$arg_ty>),*) -> Self {
-                Self::new(std::time::Instant::now(), $($arg),*)
-            }
-
-            /// Arguments for event that happened now (`Instant::now`).
-            ///
-            /// Returns an error if the constructed arguments are invalid.
-            #[allow(clippy::too_many_arguments)]
-            pub fn try_now($($arg : impl Into<$arg_ty>),*) -> Result<Self, $ValidationError> {
-                Self::try_new(std::time::Instant::now(), $($arg),*)
-            }
-
-            $(#[$validate_outer])*
-            pub fn validate(&$self_v) -> Result<(), $ValidationError> {
-                $($validate)+
-            }
-
-            /// Panics if the arguments are invalid.
-            #[track_caller]
-            pub fn assert_valid(&self) {
-                if let Err(e) = self.validate() {
-                    panic!("invalid `{}`, {e:?}", stringify!($Args));
-                }
-            }
-        }
-    };
-
-    // match no validate
-    (
-        $(#[$outer:meta])*
-        $vis:vis struct $Args:ident {
-            $($(#[$arg_outer:meta])* $arg_vis:vis $arg:ident : $arg_ty:ty,)*
-            ..
-            $(#[$delivery_list_outer:meta])*
-            fn delivery_list(&$self:ident) -> EventDeliveryList { $($delivery_list:tt)+ }
-        }
-    ) => {
-        $crate::__cancelable_event_args! {common=>
-
-            $(#[$outer])*
-            $vis struct $Args {
-                $($(#[$arg_outer])* $arg_vis $arg: $arg_ty,)*
-                ..
-                $(#[$delivery_list_outer])*
-                fn delivery_list(&$self) -> EventDeliveryList { $($delivery_list)+ }
-            }
-        }
-
-        impl $Args {
-            /// New args from values that convert [into](Into) the argument types.
-            #[allow(clippy::too_many_arguments)]
-            pub fn new(timestamp: impl Into<std::time::Instant>, $($arg : impl Into<$arg_ty>),*) -> Self {
-                $Args {
-                    timestamp: timestamp.into(),
-                    $($arg: $arg.into(),)*
-                    stop_propagation: std::sync::Arc::default(),
-                    cancel: std::sync::Arc::default()
-                }
-            }
-
-            /// Arguments for event that happened now (`Instant::now`).
-            ///
-            /// # Panics
-            ///
-            /// Panics if the arguments are invalid.
-            #[allow(clippy::too_many_arguments)]
-            pub fn now($($arg : impl Into<$arg_ty>),*) -> Self {
-                Self::new(std::time::Instant::now(), $($arg),*)
-            }
-        }
-    };
-
-    // common code between validating and not.
-    (common=>
-
-        $(#[$outer:meta])*
-        $vis:vis struct $Args:ident {
-            $($(#[$arg_outer:meta])* $arg_vis:vis $arg:ident : $arg_ty:ty,)*
-            ..
-            $(#[$delivery_list_outer:meta])*
-            fn delivery_list(&$self:ident) -> EventDeliveryList { $($delivery_list:tt)+ }
-        }
-    ) => {
-        $(#[$outer])*
-        #[derive(Debug, Clone)]
-        $vis struct $Args {
-            /// When the event happened.
-            pub timestamp: std::time::Instant,
-            $($(#[$arg_outer])* $arg_vis $arg : $arg_ty,)*
-
-            // Arc<AtomicBool> so we don't cause the $Args:!Send and block the user from creating event channels.
-            stop_propagation: std::sync::Arc<std::sync::atomic::AtomicBool>,
-            cancel: std::sync::Arc<std::sync::atomic::AtomicBool>,
-        }
-        impl $Args {
-            /// Requests that subsequent handlers skip this event.
-            ///
-            /// Cloned arguments signal stop for all clones.
-            #[allow(unused)]
-            pub fn stop_propagation(&self) {
-                <Self as $crate::event::EventArgs>::stop_propagation(self)
-            }
-
-            /// If the handler must skip this event.
-            ///
-            /// Note that property level handlers don't need to check this, as those handlers are
-            /// already not called when this is `true`. [`UiNode`](crate::UiNode) and
-            /// [`AppExtension`](crate::app::AppExtension) implementers must check if this is `true`.
-            #[allow(unused)]
-            pub fn stop_propagation_requested(&self) -> bool {
-                <Self as $crate::event::EventArgs>::stop_propagation_requested(self)
-            }
-
-            /// Cancel the originating action.
-            ///
-            /// Cloned arguments signal cancel for all clones.
-            #[allow(unused)]
-            pub fn cancel(&self) {
-                <Self as $crate::event::CancelableEventArgs>::cancel(self)
-            }
-
-            /// If the originating action must be canceled.
-            #[allow(unused)]
-            pub fn cancel_requested(&self) -> bool {
-                <Self as $crate::event::CancelableEventArgs>::cancel_requested(self)
-            }
-
-            $(#[$delivery_list_outer])*
-            #[allow(unused)]
-            pub fn delivery_list(&self) -> $crate::event::EventDeliveryList {
-                <Self as $crate::event::EventArgs>::delivery_list(self)
-            }
-        }
-        impl $crate::event::EventArgs for $Args {
-
-            fn timestamp(&self) -> std::time::Instant {
-                self.timestamp
-            }
-
-
-            $(#[$delivery_list_outer])*
-            fn delivery_list(&$self) -> $crate::event::EventDeliveryList {
-                use $crate::event::EventDeliveryList;
-
-                $($delivery_list)+
-            }
-
-
-            fn stop_propagation(&self) {
-                self.stop_propagation.store(true, std::sync::atomic::Ordering::Relaxed);
-            }
-
-
-            fn stop_propagation_requested(&self) -> bool {
-                self.stop_propagation.load(std::sync::atomic::Ordering::Relaxed)
-            }
-        }
-        impl $crate::event::CancelableEventArgs for $Args {
-
-            fn cancel_requested(&self) -> bool {
-                self.cancel.load(std::sync::atomic::Ordering::Relaxed)
-            }
-
-
-            fn cancel(&self) {
-                self.cancel.store(true, std::sync::atomic::Ordering::Relaxed);
-            }
-        }
-    };
-}
-
-#[doc(inline)]
-pub use crate::cancelable_event_args;
 
 ///<span data-del-macro-root></span> Declares new [`Event`](crate::event::Event) types.
 ///
@@ -2124,7 +1833,7 @@ macro_rules! __event_property {
 /// App events are delivered to all `UiNode` inside all widgets in the [`EventDeliveryList`], some event properties can
 /// also specialize further on top of a more general app event. To implement this you can use a filter predicate.
 ///
-/// The `filter` predicate is called if [`stop_propagation`] is not requested. It must return `true` if the event arguments
+/// The `filter` predicate is called if [`propagation`] is not stopped. It must return `true` if the event arguments
 /// are relevant in the context of the widget and event property. If it returns `true` the `handler` closure is called.
 /// See [`on_event`] and [`on_pre_event`] for more information.
 ///
@@ -2139,7 +1848,7 @@ macro_rules! __event_property {
 ///
 /// [`on_pre_event`]: crate::event::on_pre_event
 /// [`on_event`]: crate::event::on_event
-/// [`stop_propagation`]: EventArgs::stop_propagation
+/// [`propagation`]: EventArgs::propagation
 /// [`ENABLED`]: crate::widget_info::Interactivity::ENABLED
 /// [`DISABLED`]: crate::widget_info::Interactivity::DISABLED
 #[macro_export]
@@ -2171,7 +1880,7 @@ pub use crate::event_property;
 ///
 /// # Filter
 ///
-/// The `filter` predicate is called if [`stop_propagation`] is not requested. It must return `true` if the event arguments are
+/// The `filter` predicate is called if [`propagation`] was not stopped. It must return `true` if the event arguments are
 /// relevant in the context of the widget. If it returns `true` the `handler` closure is called. Note that events that represent
 /// an *interaction* with the widget are send for both [`ENABLED`] and [`DISABLED`] targets, event properties should probably distinguish
 /// if they fire on normal interactions vs on *disabled* interactions.
@@ -2184,11 +1893,10 @@ pub use crate::event_property;
 /// # Async
 ///
 /// Async event handlers are called like normal, but code after the first `.await` only runs in subsequent updates. This means
-/// that [`stop_propagation`] must be called before the first `.await`, otherwise you are only signaling
-/// other async tasks handling the same event, if they are monitoring the [`stop_propagation_requested`].
+/// that [`propagation`] must be stopped before the first `.await`, otherwise you are only signaling
+/// other async tasks handling the same event, if they are monitoring the propagation handle.
 ///
-/// [`stop_propagation`]: EventArgs::stop_propagation
-/// [`stop_propagation_requested`]: EventArgs::stop_propagation_requested
+/// [`propagation`]: EventArgs::propagation
 /// [`ENABLED`]: crate::widget_info::Interactivity::ENABLED
 /// [`DISABLED`]: crate::widget_info::Interactivity::DISABLED
 pub fn on_event<C, E, F, H>(child: C, event: E, filter: F, handler: H) -> impl UiNode
@@ -2225,7 +1933,7 @@ where
             if let Some(args) = self.event.update(args) {
                 self.child.event(ctx, args);
 
-                if !args.stop_propagation_requested() && (self.filter)(ctx, args) {
+                if !args.propagation().is_stopped() && (self.filter)(ctx, args) {
                     self.handler.event(ctx, args);
                 }
             } else {
@@ -2257,7 +1965,7 @@ where
 ///
 /// # Filter
 ///
-/// The `filter` predicate is called if [`stop_propagation`] is not requested. It must return `true` if the event arguments are
+/// The `filter` predicate is called if [`propagation`] was not stopped. It must return `true` if the event arguments are
 /// relevant in the context of the widget. If it returns `true` the `handler` closure is called. Note that events that represent
 /// an *interaction* with the widget are send for both [`ENABLED`] and [`DISABLED`] targets, event properties should probably distinguish
 /// if they fire on normal interactions vs on *disabled* interactions.
@@ -2270,11 +1978,10 @@ where
 /// # Async
 ///
 /// Async event handlers are called like normal, but code after the first `.await` only runs in subsequent event updates. This means
-/// that [`stop_propagation`] must be called before the first `.await`, otherwise you are only signaling
-/// other async tasks handling the same event, if they are monitoring the [`stop_propagation_requested`].
+/// that [`propagation`] must be stopped before the first `.await`, otherwise you are only signaling
+/// other async tasks handling the same event, if they are monitoring the propagation handle.
 ///
-/// [`stop_propagation`]: EventArgs::stop_propagation
-/// [`stop_propagation_requested`]: EventArgs::stop_propagation_requested
+/// [`propagation`]: EventArgs::propagation
 /// [`ENABLED`]: crate::widget_info::Interactivity::ENABLED
 /// [`DISABLED`]: crate::widget_info::Interactivity::DISABLED
 pub fn on_pre_event<C, E, F, H>(child: C, event: E, filter: F, handler: H) -> impl UiNode
@@ -2309,7 +2016,7 @@ where
 
         fn event<EU: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &EU) {
             if let Some(args) = self.event.update(args) {
-                if !args.stop_propagation_requested() && (self.filter)(ctx, args) {
+                if !args.propagation().is_stopped() && (self.filter)(ctx, args) {
                     self.handler.event(ctx, args);
                 }
                 self.child.event(ctx, args);

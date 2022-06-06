@@ -16,7 +16,7 @@ fn main() {
 }
 
 fn app_main() {
-    App::default().run_window(|_| {
+    App::default().run_window(|ctx| {
         let shortcut_text = var(Text::empty());
         let keypress_text = var(Text::empty());
         let shortcut_color = var(TextColorVar::default_value());
@@ -25,6 +25,45 @@ fn app_main() {
         // examples_util::trace_var!(ctx, ?keypress_text);
         // examples_util::trace_var!(ctx, %shortcut_color);
 
+        ctx.events
+            .on_pre_event(
+                zero_ui::core::gesture::ShortcutEvent,
+                app_hn!(
+                    shortcut_text,
+                    shortcut_color,
+                    |ctx, args: &zero_ui::core::gesture::ShortcutArgs, _| {
+                        if args.is_repeat {
+                            return;
+                        }
+                        shortcut_text.set(ctx, args.shortcut.to_text());
+                        shortcut_color.set(ctx, TextColorVar::default_value());
+                    }
+                ),
+            )
+            .perm();
+        ctx.events
+            .on_pre_event(
+                zero_ui::core::keyboard::KeyInputEvent,
+                app_hn!(shortcut_text, keypress_text, shortcut_color, |ctx, args: &KeyInputArgs, _| {
+                    if args.is_repeat || args.state != KeyState::Pressed {
+                        return;
+                    }
+                    let mut new_shortcut_text = "not supported";
+                    if let Some(key) = args.key {
+                        if key.is_modifier() {
+                            new_shortcut_text = "";
+                        }
+                        keypress_text.set(ctx, formatx! {"{key:?}"})
+                    } else {
+                        keypress_text.set(ctx, formatx! {"Scan Code: {:?}", args.scan_code})
+                    }
+
+                    shortcut_text.set(ctx, new_shortcut_text);
+                    shortcut_color.set(ctx, colors::SALMON);
+                }),
+            )
+            .perm();
+
         window! {
             title = "Shortcuts Example";
             auto_size = true;
@@ -32,30 +71,7 @@ fn app_main() {
             auto_size_origin = Point::center();
             padding = 50;
             start_position = StartPosition::CenterMonitor;
-            on_shortcut = hn!(shortcut_text, shortcut_color, |ctx, args: &ShortcutArgs| {
-                if args.is_repeat {
-                    return;
-                }
-                shortcut_text.set(ctx.vars, args.shortcut.to_text());
-                shortcut_color.set(ctx.vars, TextColorVar::default_value());
-            });
-            on_key_down = hn!(keypress_text, shortcut_text, shortcut_color, |ctx, args: &KeyInputArgs| {
-                if args.is_repeat {
-                    return;
-                }
-                let mut new_shortcut_text = "not supported";
-                if let Some(key) = args.key {
-                    if key.is_modifier() {
-                        new_shortcut_text = "";
-                    }
-                    keypress_text.set(ctx.vars, formatx!{"{key:?}"})
-                } else {
-                    keypress_text.set(ctx.vars, formatx!{"Scan Code: {:?}", args.scan_code})
-                }
 
-                shortcut_text.set(ctx.vars, new_shortcut_text);
-                shortcut_color.set(ctx.vars, colors::SALMON);
-            });
             content_align = Align::CENTER;
             content = v_stack! {
                 items = widgets![

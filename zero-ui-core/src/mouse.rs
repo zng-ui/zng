@@ -873,6 +873,7 @@ impl MouseManager {
 
                             let args = MouseClickArgs::new(
                                 now,
+                                Default::default(),
                                 window_id,
                                 device_id,
                                 button,
@@ -914,6 +915,7 @@ impl MouseManager {
                                 let now = Instant::now();
                                 let args = MouseClickArgs::new(
                                     now,
+                                    Default::default(),
                                     window_id,
                                     device_id,
                                     button,

@@ -368,7 +368,7 @@ impl Windows {
                     window.vars.focus_indicator().set_ne(ctx.vars, None);
                 }
 
-                let args = WindowFocusArgs::new(args.timestamp, args.window_id, window.is_focused, false);
+                let args = WindowFocusArgs::new(args.timestamp, args.propagation().clone(), args.window_id, window.is_focused, false);
                 WindowFocusChangedEvent.notify(ctx.events, args);
             }
         } else if let Some(args) = RawWindowCloseRequestedEvent.update(args) {
@@ -376,7 +376,7 @@ impl Windows {
         } else if let Some(args) = RawWindowCloseEvent.update(args) {
             if ctx.services.windows().windows.contains_key(&args.window_id) {
                 tracing::error!("view-process closed window without request");
-                let args = WindowCloseArgs::new(args.timestamp, args.window_id);
+                let args = WindowCloseArgs::new(args.timestamp, args.propagation().clone(), args.window_id);
                 WindowCloseEvent.notify(ctx, args);
             }
         } else if ViewProcessInitedEvent.update(args).is_some() {
@@ -408,7 +408,7 @@ impl Windows {
                 linear_map::Entry::Occupied(mut e) => {
                     let caused_by_us = if let Some(canceled) = e.get_mut().windows.get_mut(&args.window_id) {
                         // caused by us, update the status for the window.
-                        *canceled = Some(args.cancel_requested());
+                        *canceled = Some(args.propagation().is_stopped());
                         true
                     } else {
                         // not us, window not in group

@@ -145,7 +145,7 @@ impl Monitors {
         }
 
         if !removed.is_empty() || !added.is_empty() || !changed.is_empty() {
-            let args = MonitorsChangedArgs::new(args.timestamp, removed, added, changed);
+            let args = MonitorsChangedArgs::new(args.timestamp, args.propagation().clone(), removed, added, changed);
             MonitorsChangedEvent.notify(events, args);
         }
     }
@@ -158,7 +158,7 @@ impl Monitors {
         } else if let Some(args) = RawMonitorsChangedEvent.update(args) {
             ctx.services.monitors().on_monitors_changed(ctx.events, ctx.vars, args);
         } else if let Some(args) = ViewProcessInitedEvent.update(args) {
-            let args = RawMonitorsChangedArgs::new(args.timestamp, args.available_monitors.clone());
+            let args = RawMonitorsChangedArgs::new(args.timestamp, args.propagation().clone(), args.available_monitors.clone());
             ctx.services.monitors().on_monitors_changed(ctx.events, ctx.vars, &args);
         }
     }

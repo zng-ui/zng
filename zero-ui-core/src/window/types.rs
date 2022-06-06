@@ -5,7 +5,6 @@ use std::{
 };
 
 use crate::{
-    cancelable_event_args,
     context::WindowContext,
     event, event_args,
     image::{Image, ImageDataFormat, ImageSource, ImageVar, RenderConfig},
@@ -608,6 +607,25 @@ event_args! {
             EventDeliveryList::window(self.window_id)
         }
     }
+
+    /// [`WindowCloseRequestedEvent`] args.
+    ///
+    /// Requesting [`propagation().stop()`] on this event cancels the window close.
+    ///
+    /// [`propagation().stop()`]: crate::event::EventPropagationHandle::stop
+    pub struct WindowCloseRequestedArgs {
+        /// Window ID.
+        pub window_id: WindowId,
+
+        pub(super) close_group: CloseGroupId,
+
+        ..
+
+        /// Broadcast to all widgets in the window.
+        fn delivery_list(&self) -> EventDeliveryList {
+            EventDeliveryList::window(self.window_id)
+        }
+    }
 }
 impl WindowChangedArgs {
     /// Returns `true` if this event represents a window state change.
@@ -683,22 +701,6 @@ impl WindowChangedArgs {
         self.size.is_some()
     }
 }
-cancelable_event_args! {
-    /// [`WindowCloseRequestedEvent`] args.
-    pub struct WindowCloseRequestedArgs {
-        /// Window ID.
-        pub window_id: WindowId,
-
-        pub(super) close_group: CloseGroupId,
-
-        ..
-
-        /// Broadcast to all widgets in the window.
-        fn delivery_list(&self) -> EventDeliveryList {
-            EventDeliveryList::window(self.window_id)
-        }
-    }
-}
 
 pub(super) type CloseGroupId = u32;
 
@@ -717,6 +719,10 @@ event! {
     pub WindowFocusChangedEvent: WindowFocusArgs;
 
     /// Closing window event.
+    ///
+    /// Requesting [`propagation().stop()`] on this event cancels the window close.
+    ///
+    /// [`propagation().stop()`]: crate::event::EventPropagationHandle::stop
     pub WindowCloseRequestedEvent: WindowCloseRequestedArgs;
 
     /// Close window event.

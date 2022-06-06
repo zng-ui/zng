@@ -1,4 +1,9 @@
-* Fix focus_shortcut only working when focus is already inside widget.
+* Finish refactoring shortcuts.
+    - Implement `click_shortcut` property.
+
+* Review usages `WidgetContextPath` in args, can they be `WidgetId`?
+* Review all examples.
+* Run all tests and merge.
 
 * Better disabled visuals, disabled_cursor.
 * Fix text reuse in button example when multiple buttons are added.
@@ -11,6 +16,9 @@
 * Implement `FocusRequest` new force and indicator configs.
     - And demo in focus example.
         - Focus shortcuts are perfect for this.
+
+* Gestures info, like last shortcut pressed, primed chord, list of shortcuts used.
+* Add window close cancel demo in window example.
 
 * Layout context viewport.
     - The image example tries to do this manually, but there is some flickering due to Px rounding on the scroll vs on the offset.

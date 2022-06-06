@@ -378,7 +378,7 @@ impl ScrollRequest {
     /// stop-propagation was not requested for the event.
     pub fn from_args(args: &CommandArgs) -> Option<Self> {
         if let Some(p) = &args.parameter {
-            if args.stop_propagation_requested() {
+            if args.propagation().is_stopped() {
                 None
             } else {
                 Self::from_parameter(p)
@@ -427,7 +427,7 @@ impl ScrollToRequest {
     /// stop-propagation was not requested for the event.
     pub fn from_args(args: &CommandArgs) -> Option<Self> {
         if let Some(p) = &args.parameter {
-            if args.stop_propagation_requested() {
+            if args.propagation().is_stopped() {
                 None
             } else {
                 Self::from_parameter(p)

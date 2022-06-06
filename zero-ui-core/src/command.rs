@@ -24,12 +24,13 @@ use std::{
     rc::Rc,
     sync::atomic::{AtomicUsize, Ordering},
     thread::LocalKey,
+    time::Instant,
 };
 
 use crate::{
     context::{state_key, InfoContext, OwnedStateMap, StateKey, StateMap, UpdatesTrace, WidgetContext, WidgetContextMut, WindowContext},
     crate_util::{Handle, HandleOwner},
-    event::{Event, Events, WithEvents},
+    event::{Event, EventPropagationHandle, Events, WithEvents},
     handler::WidgetHandler,
     impl_ui_node,
     text::{Text, ToText},
@@ -779,6 +780,28 @@ impl AnyCommand {
 
         enabled
     }
+
+    /// Schedule an event update if the command is enabled, linked with the external `propagation`.
+    pub fn notify_linked<Evs: WithEvents>(
+        self,
+        events: &mut Evs,
+        parameter: Option<CommandParam>,
+        propagation: &EventPropagationHandle,
+    ) -> bool {
+        let enabled = self.0.with(|c| c.enabled_value(self.1));
+
+        if enabled {
+            events.with_events(|events| {
+                Event::notify(
+                    self,
+                    events,
+                    CommandArgs::new(Instant::now(), propagation.clone(), parameter, self.1),
+                )
+            })
+        }
+
+        enabled
+    }
 }
 impl fmt::Debug for AnyCommand {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -1513,7 +1536,7 @@ where
             if let Some(args) = self.command.expect("OnCommandNode not initialized").update(args) {
                 self.child.event(ctx, args);
 
-                if !args.stop_propagation_requested() && self.enabled.as_ref().unwrap().copy(ctx) {
+                if !args.propagation().is_stopped() && self.enabled.as_ref().unwrap().copy(ctx) {
                     self.handler.event(ctx, args);
                 }
             } else {
@@ -1607,7 +1630,7 @@ where
 
         fn event<A: crate::event::EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &A) {
             if let Some(args) = self.command.expect("OnPreCommandNode not initialized").update(args) {
-                if !args.stop_propagation_requested() && self.enabled.as_ref().unwrap().copy(ctx) {
+                if !args.propagation().is_stopped() && self.enabled.as_ref().unwrap().copy(ctx) {
                     self.handler.event(ctx, args);
                 }
 

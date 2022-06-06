@@ -438,8 +438,8 @@
 //! Events are unit structs that implement [`Event`], they represent an action or occurrence such as a key press or an window opening.
 //! Events are naturally **broadcast**, every window and widget *receives* every event message. The event messages are
 //! structs that implement [`EventArgs`], and these *arguments* are delivered to all widgets in its [`delivery_list`].
-//! Early listeners can also use the [`EventArgs`] to signal later listeners that an event has ben
-//! handled by calling [`stop_propagation`].
+//! Early listeners can also use the [`EventArgs`] to signal later listeners that an event has been
+//! handled by calling [`propagation().stop()`].
 //!
 //! You usually don't setup an widget event handler directly, but instead use a property that does the message filtering and only
 //! calls your handler if the message is valid in the widget and not already handled. These *event properties* follow a common pattern,
@@ -495,7 +495,7 @@
 //! # use zero_ui::prelude::*;
 //! # button! {
 //! on_click = hn!(|ctx, args: &ClickArgs| {
-//!     args.stop_propagation();
+//!     args.propagation().stop();
 //!     println!("Click handled by {}", args.target);
 //! });
 //! #   content = text("Click Me!");
@@ -588,7 +588,7 @@
 //! ### Event Routes
 //!
 //! Event properties are usually declared in pairs, a *on_event* and a *on_pre_event*. The *pre* event is the **preview**, it is
-//! called before the main event and can be used to stop the main handler from seeing the event using [`stop_propagation`] method
+//! called before the main event and can be used to stop the main handler from seeing the event using [`propagation().stop()`] method
 //! that is available in all event arguments.
 //!
 //! ```
@@ -596,7 +596,7 @@
 //! button! {
 //!     on_pre_click = hn!(|_, a: &ClickArgs|{
 //!         if a.is_double() {
-//!             a.stop_propagation();
+//!             a.propagation().stop();
 //!         }
 //!     });
 //!     on_click = hn!(|_, a: &ClickArgs|{
@@ -831,7 +831,7 @@
 //! [`Event`]: crate::core::event::Event
 //! [`EventArgs`]: crate::core::event::EventArgs
 //! [`delivery_list`]: crate::core::event::EventArgs::delivery_list
-//! [`stop_propagation`]: crate::core::event::EventArgs::stop_propagation
+//! [`propagation().stop()`]: crate::core::event::EventPropagationHandle::stop
 //! [`WidgetHandler<T>`]: crate::core::handler::WidgetHandler
 //! [`hn!`]: macro@crate::core::handler::hn
 //! [`hn_once!`]: macro@crate::core::handler::hn_once

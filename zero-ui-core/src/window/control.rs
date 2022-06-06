@@ -419,7 +419,15 @@ impl HeadedCtrl {
                 }
 
                 if state_change.is_some() || pos_change.is_some() || size_change.is_some() {
-                    let args = WindowChangedArgs::new(args.timestamp, args.window_id, state_change, pos_change, size_change, args.cause);
+                    let args = WindowChangedArgs::new(
+                        args.timestamp,
+                        args.propagation().clone(),
+                        args.window_id,
+                        state_change,
+                        pos_change,
+                        size_change,
+                        args.cause,
+                    );
                     WindowChangedEvent.notify(ctx.events, args);
                 }
             }
@@ -1084,10 +1092,10 @@ impl HeadlessSimulator {
 
             // simulate focus:
             if let Some(prev_focus_id) = ctx.services.windows().focused_window_id() {
-                let args = RawWindowFocusArgs::new(timestamp, prev_focus_id, false);
+                let args = RawWindowFocusArgs::new(timestamp, Default::default(), prev_focus_id, false);
                 RawWindowFocusEvent.notify(ctx.events, args)
             }
-            let args = RawWindowFocusArgs::new(timestamp, *ctx.window_id, true);
+            let args = RawWindowFocusArgs::new(timestamp, Default::default(), *ctx.window_id, true);
             RawWindowFocusEvent.notify(ctx.events, args)
         }
     }
@@ -1228,7 +1236,7 @@ impl ContentCtrl {
                 }
 
                 let image = args.frame_image.as_ref().cloned().map(Image::new);
-                let args = FrameImageReadyArgs::new(args.timestamp, args.window_id, args.frame_id, image);
+                let args = FrameImageReadyArgs::new(args.timestamp, args.propagation().clone(), args.window_id, args.frame_id, image);
                 FrameImageReadyEvent.notify(ctx.events, args);
             }
         }
