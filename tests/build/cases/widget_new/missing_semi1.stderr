@@ -1,5 +1,5 @@
 error: expected `;`
- --> $DIR/missing_semi1.rs:9:9
+ --> cases/widget_new/missing_semi1.rs:9:9
   |
-9 |         draggable = true;
-  |         ^^^^^^^^^
+9 |         enabled = true;
+  |         ^^^^^^^

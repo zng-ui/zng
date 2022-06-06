@@ -1,5 +1,5 @@
 use zero_ui::core::window::CursorIcon;
-use zero_ui::properties::{cursor, drag_move::draggable, margin};
+use zero_ui::properties::{cursor, margin};
 use zero_ui::widgets::blank;
 
 fn main() {
@@ -7,7 +7,7 @@ fn main() {
     let _ = blank! {
         margin
         // we expect this properties to be used.
-        draggable = true;
+        enabled = true;
         cursor = CursorIcon::Hand;
     };
 }

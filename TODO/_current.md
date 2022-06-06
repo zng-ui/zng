@@ -1,6 +1,3 @@
-* Finish refactoring shortcuts.
-    - Implement `click_shortcut` property.
-
 * Review usages `WidgetContextPath` in args, can they be `WidgetId`?
 * Review all examples.
 * Run all tests and merge.

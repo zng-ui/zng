@@ -1,13 +1,13 @@
 error: expected `=` or `;`
-  --> $DIR/missing_semi2.rs:10:9
+  --> cases/widget_new/missing_semi2.rs:10:9
    |
-10 |         draggable = true;
-   |         ^^^^^^^^^
+10 |         enabled = true;
+   |         ^^^^^^^
 
 warning: unused import: `margin`
- --> $DIR/missing_semi2.rs:2:57
+ --> cases/widget_new/missing_semi2.rs:2:35
   |
-2 | use zero_ui::properties::{cursor, drag_move::draggable, margin};
-  |                                                         ^^^^^^
+2 | use zero_ui::properties::{cursor, margin};
+  |                                   ^^^^^^
   |
   = note: `#[warn(unused_imports)]` on by default

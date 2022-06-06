@@ -91,7 +91,7 @@ error[E0277]: the trait bound `bool: IntoVar<u32>` is not satisfied
              <bool as IntoVar<CaptureMode>>
              <bool as IntoVar<Factor>>
              <bool as IntoVar<FontFeatureState>>
-           and 7 others
+           and 8 others
 note: required by a bound in `invalid_default_args_types_u_2_ArgsImpl::<T_a, T_b>::new`
   --> cases/property/defaults.rs:40:90
    |
@@ -137,7 +137,7 @@ error[E0277]: the trait bound `bool: IntoVar<u32>` is not satisfied
              <bool as IntoVar<CaptureMode>>
              <bool as IntoVar<Factor>>
              <bool as IntoVar<FontFeatureState>>
-           and 7 others
+           and 8 others
 note: required by a bound in `invalid_default_args_types_n_2_ArgsImpl::<T_a, T_b>::new`
   --> cases/property/defaults.rs:46:90
    |
