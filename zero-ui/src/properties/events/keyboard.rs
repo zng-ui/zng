@@ -30,7 +30,7 @@ event_property! {
     pub fn key_input {
         event: KeyInputEvent,
         args: KeyInputArgs,
-        filter: |ctx, args| args.is_enabled(ctx.path),
+        filter: |ctx, args| args.is_enabled(ctx.path.widget_id()),
     }
 
     /// Event fired when a keyboard key is pressed or released and the widget is disabled.
@@ -55,7 +55,7 @@ event_property! {
     pub fn disabled_key_input {
         event: KeyInputEvent,
         args: KeyInputArgs,
-        filter: |ctx, args| args.is_disabled(ctx.path),
+        filter: |ctx, args| args.is_disabled(ctx.path.widget_id()),
     }
 
     /// Event fired when a keyboard key is pressed and the widget is enabled.
@@ -80,7 +80,7 @@ event_property! {
     pub fn key_down {
         event: KeyInputEvent,
         args: KeyInputArgs,
-        filter: |ctx, args| args.state == KeyState::Pressed && args.is_enabled(ctx.path),
+        filter: |ctx, args| args.state == KeyState::Pressed && args.is_enabled(ctx.path.widget_id()),
     }
 
     /// Event fired when a keyboard key is released and the widget is enabled.
@@ -105,7 +105,7 @@ event_property! {
     pub fn key_up {
         event: KeyInputEvent,
         args: KeyInputArgs,
-        filter: |ctx, args| args.state == KeyState::Released && args.is_enabled(ctx.path),
+        filter: |ctx, args| args.state == KeyState::Released && args.is_enabled(ctx.path.widget_id()),
     }
 
     /// Event fired when a text character is typed and the widget is enabled.
@@ -124,7 +124,7 @@ event_property! {
     pub fn char_input {
         event: CharInputEvent,
         args: CharInputArgs,
-        filter: |ctx, args| args.is_enabled(ctx.path)
+        filter: |ctx, args| args.is_enabled(ctx.path.widget_id())
     }
 
     /// Event fired when a text character is typed and the widget is disabled.
@@ -143,6 +143,6 @@ event_property! {
     pub fn disabled_char_input {
         event: CharInputEvent,
         args: CharInputArgs,
-        filter: |ctx, args| args.is_disabled(ctx.path)
+        filter: |ctx, args| args.is_disabled(ctx.path.widget_id())
     }
 }

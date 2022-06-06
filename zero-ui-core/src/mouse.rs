@@ -308,22 +308,22 @@ impl MouseHoverArgs {
 
     /// Returns `true` if the widget was not hovered or was disabled, but now is hovered and enabled.
     pub fn is_mouse_enter_enabled(&self, path: &WidgetContextPath) -> bool {
-        (!self.was_over(path) || self.was_disabled(path)) && self.is_over(path) && self.is_enabled(path)
+        (!self.was_over(path) || self.was_disabled(path.widget_id())) && self.is_over(path) && self.is_enabled(path.widget_id())
     }
 
     /// Returns `true` if the widget as hovered and enabled, but now is not hovered or is disabled.
     pub fn is_mouse_leave_enabled(&self, path: &WidgetContextPath) -> bool {
-        self.was_over(path) && self.was_enabled(path) && (!self.is_over(path) || self.is_disabled(path))
+        self.was_over(path) && self.was_enabled(path.widget_id()) && (!self.is_over(path) || self.is_disabled(path.widget_id()))
     }
 
     /// Returns `true` if the widget was not hovered or was enabled, but now is hovered and disabled.
     pub fn is_mouse_enter_disabled(&self, path: &WidgetContextPath) -> bool {
-        (!self.was_over(path) || self.was_enabled(path)) && self.is_over(path) && self.is_disabled(path)
+        (!self.was_over(path) || self.was_enabled(path.widget_id())) && self.is_over(path) && self.is_disabled(path.widget_id())
     }
 
     /// Returns `true` if the widget was hovered and disabled, but now is not hovered or is enabled.
     pub fn is_mouse_leave_disabled(&self, path: &WidgetContextPath) -> bool {
-        self.was_over(path) && self.was_disabled(path) && (!self.is_over(path) || self.is_enabled(path))
+        self.was_over(path) && self.was_disabled(path.widget_id()) && (!self.is_over(path) || self.is_enabled(path.widget_id()))
     }
 
     /// Returns `true` if the widget is in [`prev_target`] and is allowed by the [`prev_capture`].
@@ -365,10 +365,10 @@ impl MouseHoverArgs {
     /// Returns `true` if the widget was enabled in [`prev_target`].
     ///
     /// [`prev_target`]: Self::prev_target
-    pub fn was_enabled(&self, path: &WidgetContextPath) -> bool {
+    pub fn was_enabled(&self, widget_id: WidgetId) -> bool {
         self.prev_target
             .as_ref()
-            .and_then(|t| t.interactivity_of(path.widget_id()))
+            .and_then(|t| t.interactivity_of(widget_id))
             .map(|itr| itr.is_enabled())
             .unwrap_or(false)
     }
@@ -376,10 +376,10 @@ impl MouseHoverArgs {
     /// Returns `true` if the widget was disabled in [`prev_target`].
     ///
     /// [`prev_target`]: Self::prev_target
-    pub fn was_disabled(&self, path: &WidgetContextPath) -> bool {
+    pub fn was_disabled(&self, widget_id: WidgetId) -> bool {
         self.prev_target
             .as_ref()
-            .and_then(|t| t.interactivity_of(path.widget_id()))
+            .and_then(|t| t.interactivity_of(widget_id))
             .map(|itr| itr.is_disabled())
             .unwrap_or(false)
     }
@@ -387,10 +387,10 @@ impl MouseHoverArgs {
     /// Returns `true` if the widget is enabled in [`target`].
     ///
     /// [`target`]: Self::target
-    pub fn is_enabled(&self, path: &WidgetContextPath) -> bool {
+    pub fn is_enabled(&self, widget_id: WidgetId) -> bool {
         self.target
             .as_ref()
-            .and_then(|t| t.interactivity_of(path.widget_id()))
+            .and_then(|t| t.interactivity_of(widget_id))
             .map(|itr| itr.is_enabled())
             .unwrap_or(false)
     }
@@ -398,10 +398,10 @@ impl MouseHoverArgs {
     /// Returns `true` if the widget is disabled in [`target`].
     ///
     /// [`target`]: Self::target
-    pub fn is_disabled(&self, path: &WidgetContextPath) -> bool {
+    pub fn is_disabled(&self, widget_id: WidgetId) -> bool {
         self.target
             .as_ref()
-            .and_then(|t| t.interactivity_of(path.widget_id()))
+            .and_then(|t| t.interactivity_of(widget_id))
             .map(|itr| itr.is_disabled())
             .unwrap_or(false)
     }
@@ -429,35 +429,29 @@ impl MouseInputArgs {
     /// If the `path` is in the [`target`].
     ///
     /// [`target`]: Self::target
-    pub fn is_over(&self, path: &WidgetContextPath) -> bool {
-        self.target.contains(path.widget_id())
+    pub fn is_over(&self, widget_id: WidgetId) -> bool {
+        self.target.contains(widget_id)
     }
 
     /// If the `path` is in the [`prev_pressed`].
     ///
     /// [`prev_pressed`]: Self::prev_pressed.
-    pub fn was_pressed(&self, path: &WidgetContextPath) -> bool {
-        self.prev_pressed.as_ref().map(|p| p.contains(path.widget_id())).unwrap_or(false)
+    pub fn was_pressed(&self, widget_id: WidgetId) -> bool {
+        self.prev_pressed.as_ref().map(|p| p.contains(widget_id)).unwrap_or(false)
     }
 
     /// If the `path` in the [`target`] is enabled.
     ///
     /// [`target`]: Self::target
-    pub fn is_enabled(&self, path: &WidgetContextPath) -> bool {
-        self.target
-            .interactivity_of(path.widget_id())
-            .map(|i| i.is_enabled())
-            .unwrap_or(false)
+    pub fn is_enabled(&self, widget_id: WidgetId) -> bool {
+        self.target.interactivity_of(widget_id).map(|i| i.is_enabled()).unwrap_or(false)
     }
 
     /// If the `path` in the [`target`] is disabled.
     ///
     /// [`target`]: Self::target
-    pub fn is_disabled(&self, path: &WidgetContextPath) -> bool {
-        self.target
-            .interactivity_of(path.widget_id())
-            .map(|i| i.is_disabled())
-            .unwrap_or(false)
+    pub fn is_disabled(&self, widget_id: WidgetId) -> bool {
+        self.target.interactivity_of(widget_id).map(|i| i.is_disabled()).unwrap_or(false)
     }
 
     /// If the [`button`] is the primary.
@@ -491,21 +485,15 @@ impl MouseClickArgs {
     /// Returns `true` if the widget is enabled in [`target`].
     ///
     /// [`target`]: Self::target
-    pub fn is_enabled(&self, path: &WidgetContextPath) -> bool {
-        self.target
-            .interactivity_of(path.widget_id())
-            .map(|i| i.is_enabled())
-            .unwrap_or(false)
+    pub fn is_enabled(&self, widget_id: WidgetId) -> bool {
+        self.target.interactivity_of(widget_id).map(|i| i.is_enabled()).unwrap_or(false)
     }
 
     /// Returns `true` if the widget is disabled in [`target`].
     ///
     /// [`target`]: Self::target
-    pub fn is_disabled(&self, path: &WidgetContextPath) -> bool {
-        self.target
-            .interactivity_of(path.widget_id())
-            .map(|i| i.is_disabled())
-            .unwrap_or(false)
+    pub fn is_disabled(&self, widget_id: WidgetId) -> bool {
+        self.target.interactivity_of(widget_id).map(|i| i.is_disabled()).unwrap_or(false)
     }
 
     /// If the [`button`](Self::button) is the primary.
@@ -652,21 +640,15 @@ impl MouseWheelArgs {
     /// Returns `true` if the widget is enabled in [`target`].
     ///
     /// [`target`]: Self::target
-    pub fn is_enabled(&self, path: &WidgetContextPath) -> bool {
-        self.target
-            .interactivity_of(path.widget_id())
-            .map(|i| i.is_enabled())
-            .unwrap_or(false)
+    pub fn is_enabled(&self, widget_id: WidgetId) -> bool {
+        self.target.interactivity_of(widget_id).map(|i| i.is_enabled()).unwrap_or(false)
     }
 
     /// Returns `true` if the widget is disabled in [`target`].
     ///
     /// [`target`]: Self::target
-    pub fn is_disabled(&self, path: &WidgetContextPath) -> bool {
-        self.target
-            .interactivity_of(path.widget_id())
-            .map(|i| i.is_disabled())
-            .unwrap_or(false)
+    pub fn is_disabled(&self, widget_id: WidgetId) -> bool {
+        self.target.interactivity_of(widget_id).map(|i| i.is_disabled()).unwrap_or(false)
     }
 }
 

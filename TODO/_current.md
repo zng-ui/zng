@@ -1,5 +1,6 @@
-* Review usages `WidgetContextPath` in args, can they be `WidgetId`?
-* Review all examples.
+* Review commands, we are focusing and firing every command, what if the command is "scroll-down" and there are two
+  targets and the second target is focused? Right now we focus the first one and scroll down.
+
 * Run all tests and merge.
 
 * Better disabled visuals, disabled_cursor.

@@ -17,14 +17,14 @@ event_property! {
     pub fn any_click {
         event: ClickEvent,
         args: ClickArgs,
-        filter: |ctx, args| args.is_enabled(ctx.path),
+        filter: |ctx, args| args.is_enabled(ctx.path.widget_id()),
     }
 
     /// On widget click from any source and of any click count and the widget is disabled.
     pub fn disabled_click {
         event: ClickEvent,
         args: ClickArgs,
-        filter: |ctx, args| args.is_disabled(ctx.path),
+        filter: |ctx, args| args.is_disabled(ctx.path.widget_id()),
     }
 
     /// On widget click from any source but excluding double/triple clicks and the widget is enabled.
@@ -34,7 +34,7 @@ event_property! {
     pub fn any_single_click {
         event: ClickEvent,
         args: ClickArgs,
-        filter: |ctx, args| args.is_single() && args.is_enabled(ctx.path),
+        filter: |ctx, args| args.is_single() && args.is_enabled(ctx.path.widget_id()),
     }
 
     /// On widget click from any source but exclusive double-clicks and the widget is enabled.
@@ -44,7 +44,7 @@ event_property! {
     pub fn any_double_click {
         event: ClickEvent,
         args: ClickArgs,
-        filter: |ctx, args| args.is_double() && args.is_enabled(ctx.path),
+        filter: |ctx, args| args.is_double() && args.is_enabled(ctx.path.widget_id()),
     }
 
     /// On widget click from any source but exclusive triple-clicks and the widget is enabled.
@@ -54,7 +54,7 @@ event_property! {
     pub fn any_triple_click {
         event: ClickEvent,
         args: ClickArgs,
-        filter: |ctx, args| args.is_triple() && args.is_enabled(ctx.path),
+        filter: |ctx, args| args.is_triple() && args.is_enabled(ctx.path.widget_id()),
     }
 
     /// On widget click with the primary button and any click count and the widget is enabled.
@@ -65,7 +65,7 @@ event_property! {
     pub fn click {
         event: ClickEvent,
         args: ClickArgs,
-        filter: |ctx, args| args.is_primary() && args.is_enabled(ctx.path),
+        filter: |ctx, args| args.is_primary() && args.is_enabled(ctx.path.widget_id()),
     }
 
     /// On widget click with the primary button, excluding double/triple clicks and the widget is enabled.
@@ -75,7 +75,7 @@ event_property! {
     pub fn single_click {
         event: ClickEvent,
         args: ClickArgs,
-        filter: |ctx, args| args.is_primary() && args.is_single() && args.is_enabled(ctx.path),
+        filter: |ctx, args| args.is_primary() && args.is_single() && args.is_enabled(ctx.path.widget_id()),
     }
 
     /// On widget click with the primary button and exclusive double-clicks and the widget is enabled.
@@ -85,7 +85,7 @@ event_property! {
     pub fn double_click {
         event: ClickEvent,
         args: ClickArgs,
-        filter: |ctx, args| args.is_primary() && args.is_double() && args.is_enabled(ctx.path),
+        filter: |ctx, args| args.is_primary() && args.is_double() && args.is_enabled(ctx.path.widget_id()),
     }
 
     /// On widget click with the primary button and exclusive triple-clicks and the widget is enabled.
@@ -95,7 +95,7 @@ event_property! {
     pub fn triple_click {
         event: ClickEvent,
         args: ClickArgs,
-        filter: |ctx, args| args.is_primary() && args.is_triple() && args.is_enabled(ctx.path),
+        filter: |ctx, args| args.is_primary() && args.is_triple() && args.is_enabled(ctx.path.widget_id()),
     }
 
     /// On widget click with the secondary/context button and the widget is enabled.
@@ -104,7 +104,7 @@ event_property! {
     pub fn context_click {
         event: ClickEvent,
         args: ClickArgs,
-        filter: |ctx, args| args.is_context() && args.is_enabled(ctx.path),
+        filter: |ctx, args| args.is_context() && args.is_enabled(ctx.path.widget_id()),
     }
 }
 

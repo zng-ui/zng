@@ -147,21 +147,15 @@ impl ClickArgs {
     /// Returns `true` if the widget is enabled in [`target`].
     ///
     /// [`target`]: Self::target
-    pub fn is_enabled(&self, path: &WidgetContextPath) -> bool {
-        self.target
-            .interactivity_of(path.widget_id())
-            .map(|i| i.is_enabled())
-            .unwrap_or(false)
+    pub fn is_enabled(&self, widget_id: WidgetId) -> bool {
+        self.target.interactivity_of(widget_id).map(|i| i.is_enabled()).unwrap_or(false)
     }
 
     /// Returns `true` if the widget is disabled in [`target`].
     ///
     /// [`target`]: Self::target
-    pub fn is_disabled(&self, path: &WidgetContextPath) -> bool {
-        self.target
-            .interactivity_of(path.widget_id())
-            .map(|i| i.is_disabled())
-            .unwrap_or(false)
+    pub fn is_disabled(&self, widget_id: WidgetId) -> bool {
+        self.target.interactivity_of(widget_id).map(|i| i.is_disabled()).unwrap_or(false)
     }
 
     /// If the event counts as *primary* click.
