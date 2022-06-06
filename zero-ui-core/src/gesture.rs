@@ -773,16 +773,36 @@ impl AppExtension for GestureManager {
 ///
 /// The same shortcut can end-up registered for multiple targets, activation of a shortcut causes these effects in this order:
 ///
-/// 0 - If any [`KeyChord`] shortcut was primed and is now completed it becomes the shortcut pressed instead.
-/// 1 - The app level [`ShortcutEvent`] is fired, app extensions can handle it first in the [`event_preview`].
-/// 2 - Once the event reaches the [`GestureManager`] [`event_ui`] it matches click, command and focus associations:
-///     a - [`click_shortcut`] primary targets are searched in order of registry, the first that is found and is not [`BLOCKED`] receives a
-///          gesture [`ClickEvent`] and is focused. If no primary is found, does the same for context clicks.
-///     b - All command events associated with the shortcut are fired, in order of registry.
-///     c - [`focus_shortcut`] are focused if the shortcut has not matched any command or click.
-/// 3 - Once the event reaches the [`GestureManager`] [`event`] the [`click_focused`] or [`context_click_focused`]
+/// 0. If any [`KeyChord`] shortcut was primed and is now completed it becomes the shortcut pressed instead.
+/// 
+/// 1. The app level [`ShortcutEvent`] is fired, app extensions can handle it first in the [`event_preview`].
+/// 
+/// 2. Once the event reaches the [`event_ui`] in the [`GestureManager`] the click, command and focus shortcuts are resolved
+///    in this order, sending multiple events linked by the same [`propagation`] handle: 
+/// 
+///    **First exclusively**:
+///    
+///    * Primary [`click_shortcut`] targeting a widget that is enabled and focused.
+///    * Command scoped in a widget that is enabled and focused.
+///    * Contextual [`click_shortcut`] targeting a widget that is enabled and focused.
+///    * Primary [`click_shortcut`] targeting a widget that is enabled.
+///    * Command scoped in a widget that is enabled.
+///    * Contextual [`click_shortcut`] targeting a widget that is enabled.
+///    * [`focus_shortcut`] targeting a widget that is enabled.
+///    * The [`click_focused`] and [`context_click_focused`].
+///    * *Same as the above, but for disabled widgets*
+/// 
+///     **And then:**
+/// 
+///    a. All enabled commands targeting the focused window.
+/// 
+///    b. All enabled commands targeting the app.
+///    
+/// 
+/// 3. Once the event reaches the [`GestureManager`] [`event`] the [`click_focused`] or [`context_click_focused`]
 ///     are fired if none of the previous handlers has stopped propagation.
-/// 4 - If the shortcut is a [`KeyChord::starter`] for one of the registered shortcuts and is not claimed by
+/// 
+/// 4. If the shortcut is a [`KeyChord::starter`] for one of the registered shortcuts and is not claimed by
 ///     [`click_focused`] and [`context_click_focused`] and was not handled by any of the previous handlers the chord
 ///     shortcut is primed.
 ///
@@ -800,6 +820,7 @@ impl AppExtension for GestureManager {
 /// [`event_preview`]: AppExtension::event_preview
 /// [`event_ui`]: AppExtension::event_ui
 /// [`event`]: AppExtension::event
+/// [`propagation`]: EventArgs::propagation
 #[derive(Service)]
 pub struct Gestures {
     /// Shortcuts that generate a primary [`ClickEvent`] for the focused widget.
@@ -934,6 +955,10 @@ impl Gestures {
             source.is_repeat,
         );
         ShortcutEvent.notify(events, args);
+    }
+
+    fn on_ui_shortcut_correct(&mut self, vars: &Vars, events: &mut Events, windows: &mut Windows, focus: &mut Focus, args: &ShortcutArgs) {
+        todo!()
     }
 
     fn on_ui_shortcut(&mut self, vars: &Vars, events: &mut Events, windows: &mut Windows, focus: &mut Focus, args: &ShortcutArgs) {

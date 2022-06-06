@@ -1,5 +1,4 @@
-* Review commands, we are focusing and firing every command, what if the command is "scroll-down" and there are two
-  targets and the second target is focused? Right now we focus the first one and scroll down.
+* Reimplement Gestures shortcut resolution, see Shortcuts#Priority in the docs.
 
 * Run all tests and merge.
 
@@ -17,6 +16,7 @@
 
 * Gestures info, like last shortcut pressed, primed chord, list of shortcuts used.
 * Add window close cancel demo in window example.
+* Remove custom target in command?
 
 * Layout context viewport.
     - The image example tries to do this manually, but there is some flickering due to Px rounding on the scroll vs on the offset.
