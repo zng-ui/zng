@@ -1,5 +1,3 @@
-* Reimplement Gestures shortcut resolution, see Shortcuts#Priority in the docs.
-
 * Run all tests and merge.
 
 * Better disabled visuals, disabled_cursor.

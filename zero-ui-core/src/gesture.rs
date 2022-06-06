@@ -4,11 +4,11 @@ use linear_map::{set::LinearSet, LinearMap};
 
 use crate::{
     app::*,
-    command::{Command, CommandMetaVar},
+    command::{AnyCommand, Command, CommandMetaVar, CommandScope},
     context::*,
-    crate_util::{FxHashMap, Handle, HandleOwner, WeakHandle},
+    crate_util::{Handle, HandleOwner, WeakHandle},
     event::*,
-    focus::Focus,
+    focus::{Focus, FocusRequest, FocusTarget},
     keyboard::*,
     mouse::*,
     render::*,
@@ -26,7 +26,7 @@ use std::{
     mem,
     num::NonZeroU32,
     rc::Rc,
-    time::Duration,
+    time::{Duration, Instant},
 };
 
 /// Specific information from the source of a [`ClickArgs`].
@@ -752,10 +752,7 @@ impl AppExtension for GestureManager {
             }
         } else if let Some(args) = KeyInputEvent.update(args) {
             // Generate shortcut events from keyboard input.
-            ctx.services.gestures().on_preview_key_input(ctx.events, args);
-        } else if let Some(args) = ShortcutEvent.update(args) {
-            let (gestures, focus) = ctx.services.req_multi::<(Gestures, Focus)>();
-            gestures.on_shortcut(ctx.vars, ctx.events, focus, args);
+            ctx.services.gestures().on_key_input(ctx.events, args);
         }
     }
 }
@@ -774,12 +771,12 @@ impl AppExtension for GestureManager {
 /// The same shortcut can end-up registered for multiple targets, activation of a shortcut causes these effects in this order:
 ///
 /// 0. If any [`KeyChord`] shortcut was primed and is now completed it becomes the shortcut pressed instead.
-/// 
+///
 /// 1. The app level [`ShortcutEvent`] is fired, app extensions can handle it first in the [`event_preview`].
-/// 
+///
 /// 2. Once the event reaches the [`event_ui`] in the [`GestureManager`] the click, command and focus shortcuts are resolved
-///    in this order, sending multiple events linked by the same [`propagation`] handle: 
-/// 
+///    in this order, sending multiple events linked by the same [`propagation`] handle:
+///
 ///    **First exclusively**:
 ///    
 ///    * Primary [`click_shortcut`] targeting a widget that is enabled and focused.
@@ -791,17 +788,17 @@ impl AppExtension for GestureManager {
 ///    * [`focus_shortcut`] targeting a widget that is enabled.
 ///    * The [`click_focused`] and [`context_click_focused`].
 ///    * *Same as the above, but for disabled widgets*
-/// 
+///
 ///     **And then:**
-/// 
+///
 ///    a. All enabled commands targeting the focused window.
-/// 
+///
 ///    b. All enabled commands targeting the app.
 ///    
-/// 
+///
 /// 3. Once the event reaches the [`GestureManager`] [`event`] the [`click_focused`] or [`context_click_focused`]
 ///     are fired if none of the previous handlers has stopped propagation.
-/// 
+///
 /// 4. If the shortcut is a [`KeyChord::starter`] for one of the registered shortcuts and is not claimed by
 ///     [`click_focused`] and [`context_click_focused`] and was not handled by any of the previous handlers the chord
 ///     shortcut is primed.
@@ -848,13 +845,41 @@ pub struct Gestures {
     pressed_modifier: Option<ModifierGesture>,
     primed_starter: Option<KeyGesture>,
     chords: LinearMap<KeyGesture, LinearSet<KeyGesture>>,
-    shortcut_targets: FxHashMap<Shortcut, Vec<Rc<ShortcutTarget>>>,
+
+    primary_clicks: Vec<(Shortcut, Rc<ShortcutTarget>)>,
+    context_clicks: Vec<(Shortcut, Rc<ShortcutTarget>)>,
+    focus: Vec<(Shortcut, Rc<ShortcutTarget>)>,
 }
 struct ShortcutTarget {
     widget_id: WidgetId,
     last_found: RefCell<Option<WidgetPath>>,
     handle: HandleOwner<()>,
-    kind: Option<ShortcutClick>, // none is focus
+}
+impl ShortcutTarget {
+    fn resolve_path(&self, windows: &mut Windows) -> Option<InteractionPath> {
+        let mut found = self.last_found.borrow_mut();
+        if let Some(found) = &mut *found {
+            if let Ok(tree) = windows.widget_tree(found.window_id()) {
+                if let Some(w) = tree.get(found) {
+                    let path = w.interaction_path();
+                    *found = path.as_path().clone();
+
+                    return path.unblocked();
+                }
+            }
+        }
+
+        for tree in windows.widget_trees() {
+            if let Some(w) = tree.find(self.widget_id) {
+                let path = w.interaction_path();
+                *found = Some(path.as_path().clone());
+
+                return path.unblocked();
+            }
+        }
+
+        None
+    }
 }
 impl Gestures {
     fn new() -> Self {
@@ -866,7 +891,10 @@ impl Gestures {
             pressed_modifier: None,
             primed_starter: None,
             chords: LinearMap::new(),
-            shortcut_targets: FxHashMap::default(),
+
+            primary_clicks: vec![],
+            context_clicks: vec![],
+            focus: vec![],
         }
     }
 
@@ -892,19 +920,46 @@ impl Gestures {
             widget_id: target,
             last_found: RefCell::new(None),
             handle: owner,
-            kind,
         });
+
+        let collection = match kind {
+            Some(ShortcutClick::Primary) => &mut self.primary_clicks,
+            Some(ShortcutClick::Context) => &mut self.context_clicks,
+            None => &mut self.focus,
+        };
+
+        if collection.len() > 500 {
+            collection.retain(|(_, e)| !e.handle.is_dropped());
+        }
+
         for s in shortcuts.0 {
             if let Shortcut::Chord(c) = &s {
                 self.chords.entry(c.starter).or_insert_with(LinearSet::default).insert(c.complement);
             }
-            self.shortcut_targets.entry(s).or_default().push(target.clone());
+
+            collection.push((s, target.clone()));
         }
 
         handle
     }
 
-    fn on_preview_key_input(&mut self, events: &mut Events, args: &KeyInputArgs) {
+    /// Gets all the event notifications that are send if the `shortcut` was pressed at this moment.
+    ///
+    /// See the [struct] level docs for details of how shortcut targets are resolved.
+    ///
+    /// [struct]: Self
+    pub fn shortcut_actions(
+        &mut self,
+        vars: &Vars,
+        events: &mut Events,
+        focus: &mut Focus,
+        windows: &mut Windows,
+        shortcut: Shortcut,
+    ) -> ShortcutActions {
+        ShortcutActions::new(vars, events, self, focus, windows, shortcut, None, false)
+    }
+
+    fn on_key_input(&mut self, events: &mut Events, args: &KeyInputArgs) {
         if let (false, Some(key)) = (args.propagation().is_stopped(), args.key) {
             match args.state {
                 KeyState::Pressed => {
@@ -934,7 +989,6 @@ impl Gestures {
             self.pressed_modifier = None;
         }
     }
-
     fn notify_shortcut(&mut self, events: &mut Events, mut shortcut: Shortcut, source: &KeyInputArgs) {
         if let Some(starter) = self.primed_starter.take() {
             if let Shortcut::Gesture(g) = &shortcut {
@@ -957,152 +1011,316 @@ impl Gestures {
         ShortcutEvent.notify(events, args);
     }
 
-    fn on_ui_shortcut_correct(&mut self, vars: &Vars, events: &mut Events, windows: &mut Windows, focus: &mut Focus, args: &ShortcutArgs) {
-        todo!()
-    }
-
     fn on_ui_shortcut(&mut self, vars: &Vars, events: &mut Events, windows: &mut Windows, focus: &mut Focus, args: &ShortcutArgs) {
-        if args.propagation().is_stopped() {
-            self.pressed_modifier = None;
-            self.primed_starter = None;
-            return;
-        }
+        self.pressed_modifier = None;
+        self.primed_starter = None;
 
-        if let Some(targets) = self.shortcut_targets.get_mut(&args.shortcut) {
-            targets.retain(|t| !t.handle.is_dropped());
+        let actions = ShortcutActions::new(vars, events, self, focus, windows, args.shortcut, args.device_id, args.is_repeat);
 
-            let mut best_target = None;
-
-            for target in targets {
-                // get target interaction path, record the path to speed-up the next search.
-                let mut target_interaction = None;
-
-                // check previous path first:
-                let mut last_found = target.last_found.borrow_mut();
-                if let Some(path) = &*last_found {
-                    if let Ok(tree) = windows.widget_tree(path.window_id()) {
-                        if let Some(info) = tree.get(path) {
-                            target_interaction = Some(info.interaction_path());
-                        }
-                    }
-                }
-                // search all windows:
-                if target_interaction.is_none() {
-                    for tree in windows.widget_trees() {
-                        if let Some(info) = tree.find(target.widget_id) {
-                            let path = info.interaction_path();
-                            *last_found = Some(path.as_path().clone());
-                            target_interaction = Some(path);
-                            break;
-                        }
-                    }
-                }
-
-                // if we have a valid target:
-                //
-                // * Select best by, Primary > Context > Focus, with first registered getting the click.
-                if let Some(path) = target_interaction.and_then(|p| p.unblocked()) {
-                    if let Some(ShortcutClick::Primary) = target.kind {
-                        best_target = Some((path, Some(ShortcutClick::Primary)));
-                        break;
-                    }
-
-                    if let Some((best_path, best_kind)) = &mut best_target {
-                        if best_kind.is_none() && target.kind.is_some() {
-                            *best_path = path;
-                            *best_kind = target.kind;
-                        }
-                    } else {
-                        best_target = Some((path, target.kind));
-                    }
-                }
+        if actions.has_action() {
+            actions.run(events, focus, args.timestamp, args.propagation());
+        } else if let Shortcut::Gesture(k) = args.shortcut {
+            if self.chords.contains_key(&k) {
+                self.primed_starter = Some(k);
             }
-
-            // if we found a valid click or focus target:
-            if let Some((path, kind)) = best_target {
-                if let Some(click_kind) = kind {
-                    // Focus widget, if it is focusable.
-                    focus.focus_widget(path.widget_id(), true);
-
-                    let args = ClickArgs::new(
-                        args.timestamp,
-                        args.propagation().clone(),
-                        args.window_id,
-                        args.device_id,
-                        ClickArgsSource::Shortcut {
-                            shortcut: args.shortcut,
-                            is_repeat: args.is_repeat,
-                            kind: click_kind,
-                        },
-                        NonZeroU32::new(1).unwrap(),
-                        args.shortcut.modifiers_state(),
-                        path,
-                    );
-                    ClickEvent.notify(events, args);
-                } else {
-                    focus.focus_widget_or_related(path.widget_id(), true);
-                }
-            }
-        }
-
-        for command in events
-            .commands()
-            .filter(|c| c.shortcut_matches(vars, args.shortcut))
-            .collect::<Vec<_>>()
-        {
-            use crate::command::CommandScope::*;
-            match command.scope() {
-                Window(id) => {
-                    // If the window is not focused, focus first focusable child.
-                    if focus.focused().get(vars).as_ref().map(|p| p.window_id() != id).unwrap_or(true) {
-                        if let Ok(tree) = windows.widget_tree(id) {
-                            focus.focus_widget_or_enter(tree.root().widget_id(), true);
-                        }
-                    }
-                }
-                Widget(id) => focus.focus_widget(id, true),
-                _ => {}
-            }
-
-            command.notify_linked(events, None, args.propagation());
         }
     }
 
-    fn on_shortcut(&mut self, vars: &Vars, events: &mut Events, focus: &mut Focus, args: &ShortcutArgs) {
-        // Generate click on focused if shortcuts where not handled.
-        if !args.propagation().is_stopped() {
-            let click = if self.click_focused.contains(args.shortcut) {
-                Some(ShortcutClick::Primary)
-            } else if self.context_click_focused.contains(args.shortcut) {
-                Some(ShortcutClick::Context)
-            } else {
-                None
-            };
-            if let Some(kind) = click {
-                if let Some(focused) = focus.focused().get_clone(vars) {
-                    if !focus.is_highlighting().copy(vars) {
-                        focus.focus_widget(focused.widget_id(), true);
-                    }
+    fn cleanup(&mut self) {
+        self.primary_clicks.retain(|(_, e)| !e.handle.is_dropped());
+        self.context_clicks.retain(|(_, e)| !e.handle.is_dropped());
+        self.focus.retain(|(_, e)| !e.handle.is_dropped());
+    }
+}
 
-                    ClickEvent.notify(
-                        events,
-                        ClickArgs::new(
-                            args.timestamp,
-                            args.propagation().clone(),
-                            args.window_id,
-                            args.device_id,
-                            ClickArgsSource::Shortcut {
-                                shortcut: args.shortcut,
-                                kind,
-                                is_repeat: args.is_repeat,
-                            },
-                            NonZeroU32::new(1).unwrap(),
-                            args.shortcut.modifiers_state(),
-                            focused,
-                        ),
-                    );
+/// Represents the resolved targets for a shortcut at a time.
+///
+/// You can use the [`Gestures::shortcut_actions`] method to get a value of this.
+#[derive(Debug, Clone)]
+pub struct ShortcutActions {
+    shortcut: Shortcut,
+    device_id: Option<DeviceId>,
+    is_repeat: bool,
+
+    focus: Option<WidgetId>,
+    click: Option<(InteractionPath, ShortcutClick)>,
+    commands: Vec<AnyCommand>,
+}
+impl ShortcutActions {
+    #[allow(clippy::too_many_arguments)]
+    fn new(
+        vars: &Vars,
+        events: &mut Events,
+        gestures: &mut Gestures,
+        focus: &mut Focus,
+        windows: &mut Windows,
+        shortcut: Shortcut,
+        device_id: Option<DeviceId>,
+        is_repeat: bool,
+    ) -> ShortcutActions {
+        //    **First exclusively**:
+        //
+        //    * Primary [`click_shortcut`] targeting a widget that is enabled and focused.
+        //    * Command scoped in a widget that is enabled and focused.
+        //    * Contextual [`click_shortcut`] targeting a widget that is enabled and focused.
+        //    * Primary [`click_shortcut`] targeting a widget that is enabled.
+        //    * Command scoped in a widget that is enabled.
+        //    * Contextual [`click_shortcut`] targeting a widget that is enabled.
+        //    * [`focus_shortcut`] targeting a widget that is enabled.
+        //    * The [`click_focused`] and [`context_click_focused`].
+        //    * *Same as the above, but for disabled widgets*
+        //
+        //     **And then:**
+        //
+        //    a. All enabled commands targeting the focused window.
+        //
+        //    b. All enabled commands targeting the app.
+
+        let focused = focus.focused();
+        let focused = focused.get(vars);
+
+        let mut primary_click_focused = None;
+        let mut primary_click_not_focused = None;
+        let mut primary_click_disabled_focused = None;
+        let mut primary_click_disabled_not_focused = None;
+
+        let mut context_click_focused = None;
+        let mut context_click_not_focused = None;
+        let mut context_click_disabled_focused = None;
+        let mut context_click_disabled_not_focused = None;
+
+        let mut cmd_focused_widget = None;
+        let mut cmd_not_focused_widget = None;
+        let mut cmds_other = vec![];
+
+        let mut focus_enabled = None;
+        let mut focus_disabled = None;
+
+        let mut cleanup = true;
+
+        // primary click
+        for (s, entry) in &gestures.primary_clicks {
+            if shortcut == *s {
+                if entry.handle.is_dropped() {
+                    cleanup = true;
+                    continue;
+                }
+
+                if let Some(p) = entry.resolve_path(windows) {
+                    if focused.as_ref().map(|f| f.widget_id() == p.widget_id()).unwrap_or(false) {
+                        if p.interactivity().is_enabled() {
+                            primary_click_focused = Some(p);
+                            break;
+                        } else if primary_click_disabled_focused.is_none() {
+                            primary_click_disabled_focused = Some(p);
+                        }
+                    } else if p.interactivity().is_enabled() {
+                        if primary_click_not_focused.is_none() {
+                            primary_click_not_focused = Some(p);
+                        }
+                    } else if primary_click_disabled_not_focused.is_none() {
+                        primary_click_disabled_not_focused = Some(p);
+                    }
                 }
             }
+        }
+
+        // commands
+        for cmd in events.commands() {
+            if cmd.shortcut_matches(vars, shortcut) {
+                match cmd.scope() {
+                    CommandScope::Window(w) => {
+                        if let Some(f) = focused {
+                            if f.window_id() == w {
+                                cmds_other.push(cmd);
+                            }
+                        }
+                    }
+                    CommandScope::Widget(id) => {
+                        if primary_click_focused.is_none() && cmd_focused_widget.is_none() {
+                            if focused.as_ref().map(|f| f.widget_id() == id).unwrap_or(false) {
+                                cmd_focused_widget = Some(cmd);
+                            } else if cmd_not_focused_widget.is_none() {
+                                for tree in windows.widget_trees() {
+                                    if let Some(info) = tree.find(id) {
+                                        if info.interactivity().is_enabled() {
+                                            cmd_not_focused_widget = Some(cmd);
+                                        }
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    CommandScope::App | CommandScope::Custom(_, _) => cmds_other.push(cmd),
+                }
+            }
+        }
+
+        // context click
+        if primary_click_focused.is_none() && cmd_focused_widget.is_none() {
+            for (s, entry) in &gestures.context_clicks {
+                if shortcut == *s {
+                    if entry.handle.is_dropped() {
+                        cleanup = true;
+                        continue;
+                    }
+
+                    if let Some(p) = entry.resolve_path(windows) {
+                        if focused.as_ref().map(|f| f.widget_id() == p.widget_id()).unwrap_or(false) {
+                            if p.interactivity().is_enabled() {
+                                context_click_focused = Some(p);
+                                break;
+                            } else if context_click_disabled_focused.is_none() {
+                                context_click_disabled_focused = Some(p);
+                            }
+                        } else if p.interactivity().is_enabled() {
+                            if context_click_not_focused.is_none() {
+                                context_click_not_focused = Some(p);
+                            }
+                        } else if context_click_disabled_not_focused.is_none() {
+                            context_click_disabled_not_focused = Some(p);
+                        }
+                    }
+                }
+            }
+        }
+
+        // resolve click given the primary, context and command options.
+        #[allow(clippy::manual_map)]
+        let mut click = if let Some(p) = primary_click_focused {
+            cmd_focused_widget = None;
+            Some((p, ShortcutClick::Primary))
+        } else if cmd_focused_widget.is_some() {
+            None
+        } else if let Some(p) = context_click_focused {
+            Some((p, ShortcutClick::Context))
+        } else if let Some(p) = primary_click_not_focused {
+            cmd_not_focused_widget = None;
+            Some((p, ShortcutClick::Primary))
+        } else if cmd_not_focused_widget.is_some() {
+            None
+        } else if let Some(p) = context_click_not_focused {
+            Some((p, ShortcutClick::Context))
+        } else {
+            None
+        };
+
+        // focus shortcut
+        if click.is_none() {
+            for (s, entry) in &gestures.focus {
+                if shortcut == *s {
+                    if entry.handle.is_dropped() {
+                        cleanup = true;
+                        continue;
+                    }
+
+                    if let Some(p) = entry.resolve_path(windows) {
+                        if p.interactivity().is_enabled() {
+                            focus_enabled = Some(p.widget_id());
+                            break;
+                        } else if focus_disabled.is_none() {
+                            focus_disabled = Some(p.widget_id())
+                        }
+                    }
+                }
+            }
+        }
+        let focus = focus_enabled.or(focus_disabled);
+
+        // click focused if no click or focus request matched.
+        if click.is_none() && focus.is_none() {
+            if let Some(p) = focused {
+                click = if gestures.click_focused.contains(shortcut) {
+                    Some((p.clone(), ShortcutClick::Primary))
+                } else if gestures.context_click_focused.contains(shortcut) {
+                    Some((p.clone(), ShortcutClick::Context))
+                } else {
+                    None
+                };
+            }
+        }
+
+        let mut commands = cmds_other;
+        if let Some(cmd) = cmd_focused_widget.or(cmd_not_focused_widget) {
+            commands.insert(0, cmd);
+        }
+
+        if cleanup {
+            gestures.cleanup();
+        }
+
+        Self {
+            shortcut,
+            device_id,
+            is_repeat,
+            focus,
+            click,
+            commands,
+        }
+    }
+
+    /// The shortcut.
+    pub fn shortcut(&self) -> Shortcut {
+        self.shortcut
+    }
+
+    /// Focus target.
+    ///
+    /// If `click` is some, this is a direct focus request to it, or if the first command is scoped on a widget this
+    /// is a direct focus request on the scope, or if this is some it is a direct or related request to the focus shortcut target.
+    pub fn focus(&self) -> Option<FocusTarget> {
+        if let Some((p, _)) = &self.click {
+            return Some(FocusTarget::Direct(p.widget_id()));
+        } else if let Some(c) = self.commands.first() {
+            if let CommandScope::Widget(w) = c.scope() {
+                return Some(FocusTarget::Direct(w));
+            }
+        }
+        self.focus.map(FocusTarget::DirectOrRelated)
+    }
+
+    /// Click target and kind.
+    pub fn click(&self) -> Option<(&InteractionPath, ShortcutClick)> {
+        self.click.as_ref().map(|(p, k)| (p, *k))
+    }
+
+    /// Commands.
+    ///
+    /// Only the first command may be scoped in a widget, others are scoped on the focused window or app.
+    pub fn commands(&self) -> &[AnyCommand] {
+        &self.commands
+    }
+
+    /// If any action was found for the shortcut.
+    pub fn has_action(&self) -> bool {
+        self.click.is_some() || self.focus.is_some() || !self.commands.is_empty()
+    }
+
+    /// Send all events and focus request.
+    pub fn run(self, events: &mut Events, focus: &mut Focus, timestamp: Instant, propagation: &EventPropagationHandle) {
+        if let Some(target) = self.focus() {
+            focus.focus(FocusRequest::new(target, true));
+        }
+        if let Some((target, kind)) = self.click {
+            let args = ClickArgs::new(
+                timestamp,
+                propagation.clone(),
+                target.window_id(),
+                self.device_id,
+                ClickArgsSource::Shortcut {
+                    shortcut: self.shortcut,
+                    is_repeat: self.is_repeat,
+                    kind,
+                },
+                NonZeroU32::new(1).unwrap(),
+                self.shortcut.modifiers_state(),
+                target,
+            );
+            ClickEvent.notify(events, args);
+        }
+        for command in self.commands {
+            command.notify_linked(events, None, propagation);
         }
     }
 }
