@@ -18,6 +18,10 @@ fn notify() {
     let trace = app.ctx().app_state.req(TestTrace);
     assert_eq!(1, trace.len());
     assert!(trace.iter().any(|t| t == "no-scope / App"));
+
+    let trace = app.ctx().app_state.req(TestTraceIgnorePropagation);
+    assert_eq!(1, trace.len());
+    assert!(trace.iter().any(|t| t == "no-scope / App"));
 }
 
 #[test]
@@ -34,6 +38,10 @@ fn notify_scoped() {
 
     let trace = app.ctx().app_state.req(TestTrace);
     assert_eq!(1, trace.len());
+    assert!(trace.contains(&format!("scoped-win / Window({window_id:?})")));
+
+    let trace = app.ctx().app_state.req(TestTraceIgnorePropagation);
+    assert_eq!(1, trace.len());
     assert!(trace.contains(&format!("scoped-win / Window({window_id:?})")))
 }
 
@@ -47,8 +55,20 @@ fn shortcut() {
     app.press_key(window_id, Key::F);
 
     let trace = app.ctx().app_state.req(TestTrace);
-    assert_eq!(1, trace.len());
+    assert_eq!(1, trace.len()); // because we stop propagation.
     assert!(trace.iter().any(|t| t == "no-scope / App"));
+
+    let trace = app.ctx().app_state.req(TestTraceIgnorePropagation);
+    assert_eq!(3, trace.len());
+    let widget_id = WidgetId::named("test-widget");
+    assert_eq!(
+        trace,
+        &vec![
+            "no-scope / App".to_owned(),
+            format!("scoped-win / Window({window_id:?})"),
+            format!("scoped-wgt / Widget({widget_id:?})")
+        ]
+    );
 }
 
 #[test]
@@ -66,13 +86,30 @@ fn shortcut_scoped() {
         assert_eq!(1, trace.len());
         assert!(trace.contains(&format!("scoped-win / Window({window_id:?})")));
         trace.clear();
+
+        let trace = app.ctx().app_state.req_mut(TestTraceIgnorePropagation);
+        assert_eq!(1, trace.len());
+        assert!(trace.contains(&format!("scoped-win / Window({window_id:?})")));
+        trace.clear();
     }
 
     app.press_key(window_id, Key::F);
-    let trace = app.ctx().app_state.req(TestTrace);
 
+    let trace = app.ctx().app_state.req(TestTrace);
     assert_eq!(1, trace.len());
     assert!(trace.iter().any(|t| t == "no-scope / App"));
+
+    let trace = app.ctx().app_state.req(TestTraceIgnorePropagation);
+    assert_eq!(2, trace.len());
+    let widget_id = WidgetId::named("test-widget");
+    assert_eq!(
+        trace,
+        &vec![
+            "no-scope / App".to_owned(),
+            // format!("scoped-win / Window({window_id:?})"),
+            format!("scoped-wgt / Widget({widget_id:?})")
+        ]
+    );
 }
 
 fn listener_window() -> Window {
@@ -93,22 +130,43 @@ fn listener_window() -> Window {
         }
         fn event<A: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &A) {
             if let Some(args) = FooCommand.update(args) {
+                args.handle(|args| {
+                    ctx.app_state
+                        .entry(TestTrace)
+                        .or_default()
+                        .push(format!("no-scope / {:?}", args.scope));
+                });
+
                 ctx.app_state
-                    .entry(TestTrace)
+                    .entry(TestTraceIgnorePropagation)
                     .or_default()
                     .push(format!("no-scope / {:?}", args.scope));
             }
 
             if let Some(args) = FooCommand.scoped(ctx.path.window_id()).update(args) {
+                args.handle(|args| {
+                    ctx.app_state
+                        .entry(TestTrace)
+                        .or_default()
+                        .push(format!("scoped-win / {:?}", args.scope));
+                });
+
                 ctx.app_state
-                    .entry(TestTrace)
+                    .entry(TestTraceIgnorePropagation)
                     .or_default()
                     .push(format!("scoped-win / {:?}", args.scope));
             }
 
             if let Some(args) = FooCommand.scoped(ctx.path.widget_id()).update(args) {
+                args.handle(|args| {
+                    ctx.app_state
+                        .entry(TestTrace)
+                        .or_default()
+                        .push(format!("scoped-wgt / {:?}", args.scope));
+                });
+
                 ctx.app_state
-                    .entry(TestTrace)
+                    .entry(TestTraceIgnorePropagation)
                     .or_default()
                     .push(format!("scoped-wgt / {:?}", args.scope));
             }
@@ -122,6 +180,7 @@ fn listener_window() -> Window {
 
     window! {
         content = container! {
+            id = "test-widget";
             content = FooHandlerNode { handle: None, handle_scoped: None, handle_scoped_wgt: None };
         }
     }
@@ -133,4 +192,5 @@ command! {
 
 state_key! {
     struct TestTrace: Vec<String>;
+    struct TestTraceIgnorePropagation: Vec<String>;
 }
