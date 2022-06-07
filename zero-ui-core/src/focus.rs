@@ -585,7 +585,7 @@ impl AppExtension for FocusManager {
             }
         } else if let Some(args) = ShortcutEvent.update(args) {
             // keyboard
-            if !args.propagation().is_stopped() {
+            if !args.actions.has_actions() && !args.propagation().is_stopped() {
                 if args.shortcut == shortcut!(Tab) {
                     request = Some(FocusRequest::next(true))
                 } else if args.shortcut == shortcut!(SHIFT + Tab) {
