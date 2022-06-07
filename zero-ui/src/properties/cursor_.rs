@@ -53,7 +53,7 @@ pub fn cursor(child: impl UiNode, cursor: impl IntoVar<Option<CursorIcon>>) -> i
 
                                 let cursor = ctx.window_state.req(WindowVarsKey).cursor();
                                 cursor.set_ne(ctx.vars, self.cursor.copy(ctx.vars));
-                                self.hovered_binding = Some(self.cursor.bind_into(ctx.vars, cursor));
+                                self.hovered_binding = Some(self.cursor.bind(ctx.vars, cursor));
                             }
 
                             // flag parent

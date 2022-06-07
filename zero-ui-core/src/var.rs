@@ -782,8 +782,7 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + any::AnyVar + crate::private::S
     /// Create an animation that targets `self`.
     ///
     /// If the variable is [`always_read_only`] no animation is created, if the variable [`is_contextual`]
-    /// the animation is created for the current [`actual_var`]. The animation only holds a weak reference
-    /// to the variable, if it is dropped the animation is stopped.
+    /// the animation is created for the current [`actual_var`]. The animation is dropped the `self` is stopped.
     ///
     /// If the animation can be started `start` is called once with the current value of the variable, it can generate data to
     /// be used during the animation, or cancel by returning `None`. After starting the `animate` closure is called every frame
@@ -805,7 +804,31 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + any::AnyVar + crate::private::S
         if self.always_read_only() {
             AnimationHandle::dummy()
         } else if self.is_contextual() {
-            vars.with_vars(|vars| self.actual_var(vars).animate(vars, start, animate))
+            vars.with_vars(|vars| {
+                let actual_var = self.actual_var(vars);
+                if let Some(mut data) = start(actual_var.get(vars)) {
+                    let mut is_animating = false;
+                    let wk_var = BindActualWeak::new(self, actual_var);
+                    vars.animate(move |vars, args| {
+                        if let Some(var) = wk_var.upgrade() {
+                            if let Some(value) = animate(args, var.get(vars), &mut data) {
+                                let _ = var.set(vars, value);
+                                is_animating = true;
+                            }
+
+                            if !is_animating {
+                                is_animating = true;
+                                // ensure `Var::is_animating` is `true`.
+                                let _ = var.touch(vars);
+                            }
+                        } else {
+                            args.stop();
+                        }
+                    })
+                } else {
+                    AnimationHandle::dummy()
+                }
+            })
         } else {
             debug_assert!(self.is_rc());
             let wk_var = self.downgrade().unwrap();
@@ -1625,8 +1648,8 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + any::AnyVar + crate::private::S
     ///
     /// Note that the current value is **not** transferred just by creating a binding, only subsequent updates of `self` will
     /// assign `to_var`. No binding is set if `self` is not [`can_update`] or if `to_var` is [`always_read_only`]. If either
-    /// `self` or `to_var` are [`is_contextual`] the binding is set on the [`actual_var`] of both. The binding only holds weak
-    /// references to the vars, if any is dropped the binding is also dropped.
+    /// `self` or `to_var` are [`is_contextual`] the binding is set on the [`actual_var`] of both. The binding is dropped
+    /// if `self` or `to_var` are dropped.
     ///
     /// Returns a [`VarBindingHandle`]. See [`Vars::bind`] for more details about variable binding.
     ///
@@ -1644,7 +1667,29 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + any::AnyVar + crate::private::S
         if !self.can_update() || to_var.always_read_only() {
             VarBindingHandle::dummy()
         } else if self.is_contextual() || to_var.is_contextual() {
-            vars.with_vars(|vars| self.actual_var(vars).bind_map(vars, &to_var.actual_var(vars), map))
+            vars.with_vars(|vars| {
+                // bind the actual vars.
+
+                let actual_from = self.actual_var(vars);
+                let actual_to = to_var.actual_var(vars);
+
+                debug_assert!(actual_from.is_rc());
+                debug_assert!(actual_to.is_rc());
+
+                // ensure that `actual_var` remaps are not just dropped immediately.
+                let wk_from_var = BindActualWeak::new(self, actual_from);
+                let wk_to_var = BindActualWeak::new(to_var, actual_to);
+
+                vars.bind(move |vars, binding| match (wk_from_var.upgrade(), wk_to_var.upgrade()) {
+                    (Some(from), Some(to)) => {
+                        if let Some(new_value) = from.get_new(vars) {
+                            let new_value = map(binding, new_value);
+                            let _ = to.set(vars, new_value);
+                        }
+                    }
+                    _ => binding.unbind(),
+                })
+            })
         } else {
             // self can-update, to_var can be set and both are not contextual.
 
@@ -1716,8 +1761,8 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + any::AnyVar + crate::private::S
     ///
     /// Note that the current value is **not** transferred just by creating a binding, only subsequent updates will assigns variables.
     /// No binding is set if `self` or `other_var` are not [`can_update`] or are [`always_read_only`]. If either
-    /// `self` or `to_var` are [`is_contextual`] the binding is set on the [`actual_var`] of both. The binding only holds weak
-    /// references to the vars, if any is dropped the binding is also dropped.
+    /// `self` or `to_var` are [`is_contextual`] the binding is set on the [`actual_var`] of both. The binding is dropped
+    /// if `self` or `to_var` are dropped.
     ///
     /// Returns a [`VarBindingHandle`]. See [`Vars::bind`] for more details about variable binding.
     ///
@@ -1758,19 +1803,42 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + any::AnyVar + crate::private::S
 
         if self.is_contextual() || other_var.is_contextual() {
             return vars.with_vars(|vars| {
-                self.actual_var(vars)
-                    .bind_map_bidi(vars, &other_var.actual_var(vars), map, map_back)
+                // bind the actual vars.
+
+                let actual_self = self.actual_var(vars);
+                let actual_other = other_var.actual_var(vars);
+
+                debug_assert!(actual_self.is_rc());
+                debug_assert!(actual_other.is_rc());
+
+                // ensure that `actual_var` remaps are not just dropped immediately.
+                let wk_self_var = BindActualWeak::new(self, actual_self);
+                let wk_other_var = BindActualWeak::new(other_var, actual_other);
+
+                vars.bind(move |vars, binding| match (wk_self_var.upgrade(), wk_other_var.upgrade()) {
+                    (Some(self_var), Some(other_var)) => {
+                        if let Some(new_value) = self_var.get_new(vars) {
+                            let new_value = map(binding, new_value);
+                            let _ = other_var.set(vars, new_value);
+                        }
+                        if let Some(new_value) = other_var.get_new(vars) {
+                            let new_value = map_back(binding, new_value);
+                            let _ = self_var.set(vars, new_value);
+                        }
+                    }
+                    _ => binding.unbind(),
+                })
             });
         }
 
         debug_assert!(self.is_rc());
         debug_assert!(other_var.is_rc());
 
-        let wk_from_var = self.downgrade().unwrap();
-        let wk_to_var = other_var.downgrade().unwrap();
+        let wk_self_var = self.downgrade().unwrap();
+        let wk_other_var = other_var.downgrade().unwrap();
 
         vars.with_vars(|vars| {
-            vars.bind(move |vars, binding| match (wk_from_var.upgrade(), wk_to_var.upgrade()) {
+            vars.bind(move |vars, binding| match (wk_self_var.upgrade(), wk_other_var.upgrade()) {
                 (Some(from_var), Some(to_var)) => {
                     if let Some(new_value) = from_var.get_new(vars) {
                         let new_value = map(binding, new_value);
@@ -1839,7 +1907,30 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + any::AnyVar + crate::private::S
         if !self.can_update() || to_var.always_read_only() {
             VarBindingHandle::dummy()
         } else if self.is_contextual() || to_var.is_contextual() {
-            vars.with_vars(|vars| self.actual_var(vars).bind_filter(vars, &to_var.actual_var(vars), map))
+            vars.with_vars(|vars| {
+                // bind the actual vars.
+
+                let actual_from = self.actual_var(vars);
+                let actual_to = to_var.actual_var(vars);
+
+                debug_assert!(actual_from.is_rc());
+                debug_assert!(actual_to.is_rc());
+
+                // ensure that `actual_var` remaps are not just dropped immediately.
+                let wk_from_var = BindActualWeak::new(self, actual_from);
+                let wk_to_var = BindActualWeak::new(to_var, actual_to);
+
+                vars.bind(move |vars, binding| match (wk_from_var.upgrade(), wk_to_var.upgrade()) {
+                    (Some(from), Some(to)) => {
+                        if let Some(new_value) = from.get_new(vars) {
+                            if let Some(new_value) = map(binding, new_value) {
+                                let _ = to.set(vars, new_value);
+                            }
+                        }
+                    }
+                    _ => binding.unbind(),
+                })
+            })
         } else {
             // self can-update, to_var can be set and both are not contextual.
 
@@ -2018,28 +2109,55 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + any::AnyVar + crate::private::S
 
         if self.is_contextual() || other_var.is_contextual() {
             return vars.with_vars(|vars| {
-                self.actual_var(vars)
-                    .bind_filter_bidi(vars, &other_var.actual_var(vars), map, map_back)
+                // bind the actual vars.
+
+                let actual_self = self.actual_var(vars);
+                let actual_other = other_var.actual_var(vars);
+
+                debug_assert!(actual_self.is_rc());
+                debug_assert!(actual_other.is_rc());
+
+                // ensure that `actual_var` remaps are not just dropped immediately.
+                let wk_self_var = BindActualWeak::new(self, actual_self);
+                let wk_other_var = BindActualWeak::new(other_var, actual_other);
+
+                vars.with_vars(|vars| {
+                    vars.bind(move |vars, binding| match (wk_self_var.upgrade(), wk_other_var.upgrade()) {
+                        (Some(self_var), Some(other_var)) => {
+                            if let Some(new_value) = self_var.get_new(vars) {
+                                if let Some(new_value) = map(binding, new_value) {
+                                    let _ = other_var.set(vars, new_value);
+                                }
+                            }
+                            if let Some(new_value) = other_var.get_new(vars) {
+                                if let Some(new_value) = map_back(binding, new_value) {
+                                    let _ = self_var.set(vars, new_value);
+                                }
+                            }
+                        }
+                        _ => binding.unbind(),
+                    })
+                })
             });
         }
 
         debug_assert!(self.is_rc());
         debug_assert!(other_var.is_rc());
 
-        let wk_from_var = self.downgrade().unwrap();
-        let wk_to_var = other_var.downgrade().unwrap();
+        let wk_self_var = self.downgrade().unwrap();
+        let wk_other_var = other_var.downgrade().unwrap();
 
         vars.with_vars(|vars| {
-            vars.bind(move |vars, binding| match (wk_from_var.upgrade(), wk_to_var.upgrade()) {
-                (Some(from_var), Some(to_var)) => {
-                    if let Some(new_value) = from_var.get_new(vars) {
+            vars.bind(move |vars, binding| match (wk_self_var.upgrade(), wk_other_var.upgrade()) {
+                (Some(self_var), Some(other_var)) => {
+                    if let Some(new_value) = self_var.get_new(vars) {
                         if let Some(new_value) = map(binding, new_value) {
-                            let _ = to_var.set(vars, new_value);
+                            let _ = other_var.set(vars, new_value);
                         }
                     }
-                    if let Some(new_value) = to_var.get_new(vars) {
+                    if let Some(new_value) = other_var.get_new(vars) {
                         if let Some(new_value) = map_back(binding, new_value) {
-                            let _ = from_var.set(vars, new_value);
+                            let _ = self_var.set(vars, new_value);
                         }
                     }
                 }

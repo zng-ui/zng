@@ -677,7 +677,7 @@ impl Vars {
     ///
     /// The handler does not hold a strong reference to the `var`, if the variable is dropped the handler auto-unsubscribes.
     /// If [`can_update`] is `false` the `handler` is immediately dropped and the [`dummy`] handle is returned.
-    /// If [`is_contextual`] is `true` the handler is set for the [`actual_var`].
+    /// If [`is_contextual`] is `true` the handler is set for the [`actual_var`] and the handler is still dropped if `var` is dropped.
     ///
     /// # Examples
     ///
@@ -729,7 +729,7 @@ impl Vars {
     ///
     /// The handler does not hold a strong reference to the `var`, if the variable is dropped the handler auto-unsubscribes.
     /// If [`can_update`] is `false` the `handler` is immediately dropped and the [`dummy`] handle is returned.
-    /// If [`is_contextual`] is `true` the handler is set for the [`actual_var`].
+    /// If [`is_contextual`] is `true` the handler is set for the [`actual_var`] and the handler is still dropped if `var` is dropped.
     ///
     /// # Handlers
     ///
@@ -767,28 +767,41 @@ impl Vars {
         if !var.can_update() {
             return OnVarHandle::dummy();
         }
-        if var.is_contextual() {
-            return self.push_var_handler(handlers, is_preview, &var.actual_var(self), handler);
-        }
-
-        debug_assert!(var.is_rc());
-
-        let wk_var = var.downgrade().unwrap();
 
         let (handle_owner, handle) = OnVarHandle::new();
-        let handler = move |ctx: &mut AppContext, handle: &dyn AppWeakHandle| {
-            if let Some(var) = wk_var.upgrade() {
-                if let Some(new_value) = var.get_new(ctx.vars) {
-                    handler.event(ctx, new_value, &AppHandlerArgs { handle, is_preview });
+
+        let handler: Box<dyn FnMut(&mut AppContext, &dyn AppWeakHandle)> = if var.is_contextual() {
+            let actual_var = var.actual_var(self);
+            debug_assert!(var.is_rc());
+
+            let wk_var = BindActualWeak::new(var, actual_var);
+
+            Box::new(move |ctx: &mut AppContext, handle: &dyn AppWeakHandle| {
+                if let Some(var) = wk_var.upgrade() {
+                    if let Some(new_value) = var.get_new(ctx.vars) {
+                        handler.event(ctx, new_value, &AppHandlerArgs { handle, is_preview });
+                    }
+                } else {
+                    handle.unsubscribe();
                 }
-            } else {
-                handle.unsubscribe();
-            }
+            })
+        } else {
+            debug_assert!(var.is_rc());
+            let wk_var = var.downgrade().unwrap();
+            Box::new(move |ctx: &mut AppContext, handle: &dyn AppWeakHandle| {
+                if let Some(var) = wk_var.upgrade() {
+                    if let Some(new_value) = var.get_new(ctx.vars) {
+                        handler.event(ctx, new_value, &AppHandlerArgs { handle, is_preview });
+                    }
+                } else {
+                    handle.unsubscribe();
+                }
+            })
         };
 
         handlers.borrow_mut().push(OnVarHandler {
             handle: handle_owner,
-            handler: Box::new(handler),
+            handler,
         });
 
         handle
@@ -1394,6 +1407,39 @@ impl<T: VarValue + Send> ResponseSender<T> {
 pub fn response_channel<T: VarValue + Send, Vw: WithVars>(vars: &Vw) -> (ResponseSender<T>, ResponseVar<T>) {
     let (responder, response) = response_var();
     vars.with_vars(|vars| (responder.sender(vars), response))
+}
+
+/// Links the lifetime of an [`actual_var`] with its source if it is a "remapped" actual.
+pub(super) struct BindActualWeak<T: VarValue> {
+    weak: BoxedWeakVar<T>,
+    actual: Option<BoxedVar<T>>,
+}
+impl<T: VarValue> BindActualWeak<T> {
+    pub fn new(source: &impl Var<T>, actual: BoxedVar<T>) -> Self {
+        if actual.strong_count() == 1 && source.is_rc() {
+            BindActualWeak {
+                weak: source.downgrade().unwrap().boxed(),
+                actual: Some(actual),
+            }
+        } else {
+            BindActualWeak {
+                weak: actual.downgrade().unwrap(),
+                actual: None,
+            }
+        }
+    }
+
+    pub fn upgrade(&self) -> Option<BoxedVar<T>> {
+        if let Some(held) = &self.actual {
+            if self.weak.strong_count() > 0 {
+                Some(held.clone())
+            } else {
+                None
+            }
+        } else {
+            self.weak.upgrade()
+        }
+    }
 }
 
 #[cfg(test)]
