@@ -56,6 +56,9 @@ pub mod button {
         /// Content align.
         content_align = theme::ContentAlignVar;
 
+        /// Button cursor.
+        cursor = theme::CursorIconVar;
+
         /// When the pointer device is over this button.
         when self.is_cap_hovered {
             background_color = theme::hovered::BackgroundColorVar;
@@ -84,6 +87,7 @@ pub mod button {
                 sides: theme::disabled::BorderSidesVar,
             };
             text_color = theme::disabled::TextColorVar;
+            cursor = theme::disabled::CursorIconVar;
         }
     }
 }
@@ -139,6 +143,13 @@ pub mod theme {
         ///
         /// [`button::theme::content_align`]: fn@content_align
         pub struct ContentAlignVar: Align = Align::CENTER;
+
+        /// Button cursor icon.
+        /// 
+        /// Use the [`button::theme::cursor`] property to set.
+        /// 
+        /// Default is [`CursorIcon::Default`].
+        pub struct CursorIconVar: Option<CursorIcon> = Some(CursorIcon::Default);
     }
 
     /// Sets the [`BackgroundColorVar`] that affects all buttons inside the widget.
@@ -176,6 +187,12 @@ pub mod theme {
     #[property(context, default(ContentAlignVar))]
     pub fn content_align(child: impl UiNode, align: impl IntoVar<Align>) -> impl UiNode {
         with_context_var(child, ContentAlignVar, align)
+    }
+
+    /// Sets the [`CursorIconVar`] that affects all buttons inside the widget.
+    #[property(context, default(CursorIconVar))]
+    pub fn cursor(child: impl UiNode, align: impl IntoVar<Option<CursorIcon>>) -> impl UiNode {
+        with_context_var(child, CursorIconVar, align)
     }
 
     /// Pointer hovered values.
@@ -293,6 +310,13 @@ pub mod theme {
             ///
             /// [`button::theme::disabled::text_color`]: fn@text_color
             pub struct TextColorVar: Rgba = colors::WHITE.darken(40.pct());
+
+            /// Disabled button cursor icon.
+            /// 
+            /// Use the [`button::theme::disabled::cursor`] property to set.
+            /// 
+            /// Default is [`CursorIcon::NotAllowed`], meaning the parent cursor is used.
+            pub struct CursorIconVar: Option<CursorIcon> = Some(CursorIcon::NotAllowed);
         }
 
         /// Sets the disabled [`BackgroundColorVar`] that affects all buttons inside the widget.
@@ -311,6 +335,12 @@ pub mod theme {
         #[property(context, default(TextColorVar))]
         pub fn text_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode {
             with_context_var(child, TextColorVar, color)
+        }
+
+        /// Sets the disabled [`CursorIconVar`] that affects all buttons inside the widget.
+        #[property(context, default(CursorIconVar))]
+        pub fn cursor(child: impl UiNode, align: impl IntoVar<Option<CursorIcon>>) -> impl UiNode {
+            with_context_var(child, CursorIconVar, align)
         }
     }
 }

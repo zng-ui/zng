@@ -1099,7 +1099,7 @@ pub mod prelude {
         #[doc(no_inline)]
         pub use crate::core::var::*;
         #[doc(no_inline)]
-        pub use crate::core::window::{WidgetInfoChangedEvent, WindowId};
+        pub use crate::core::window::{WidgetInfoChangedEvent, WindowId, CursorIcon};
         #[doc(no_inline)]
         pub use crate::core::{
             impl_ui_node, node_vec, nodes, property,

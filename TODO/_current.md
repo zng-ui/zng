@@ -1,5 +1,6 @@
 * Optimize/fix interactivity, can we make parent interactivity affecting child a guaranteed?
-* Better disabled visuals, disabled_cursor.
+* Different visual for focused and disabled.
+* Cursor changed while hovering has not affect.
 
 =======
 
