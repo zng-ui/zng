@@ -135,7 +135,7 @@ struct WidgetData {
     flags: PrimitiveFlags,
 }
 
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 enum ReuseClipId {
     Clip(usize),
     ClipChain(u64),
@@ -144,6 +144,7 @@ enum ReuseClipId {
 /// Represents a group of display items in the renderer that can be reused by reference.
 ///
 /// See [`FrameBuilder::push_reuse_group`] for details.
+#[derive(Debug)]
 pub struct ReuseGroup {
     pipeline_id: PipelineId,
     key: u16,
@@ -162,7 +163,7 @@ impl ReuseGroup {
             pipeline_id: PipelineId::dummy(),
             key: u16::MAX,
             spatial_id: 0,
-            clip_id: ReuseClipId::Clip(0),
+            clip_id: ReuseClipId::Clip(!0), // ClipId::invalid
         }
     }
 
@@ -223,30 +224,27 @@ impl ReuseGroup {
 
 // See the `webrender_api::DisplayItemCache` for the other side of this, the keys are direct indexes and
 // they never do any cleanup so its worthwhile tracking unused keys.
-#[derive(Default)]
+#[derive(Default, Debug)]
 struct ReuseCacheKeys {
     free: Vec<u16>,
-    slots: Vec<bool>,
+    slots: Vec<ReuseSlotState>,
+}
+#[derive(Copy, Clone, Debug)]
+enum ReuseSlotState {
+    Free,
+    Marked,
+    Used,
 }
 impl ReuseCacheKeys {
-    pub fn end_frame(&mut self, display_list: &mut DisplayListBuilder) {
-        for (i, slot) in self.slots.iter_mut().enumerate() {
-            if !mem::take(slot) {
-                self.free.push(i as u16);
-            }
-        }
-        display_list.set_cache_size(self.slots.len());
-    }
-
     pub fn next(&mut self) -> Option<u16> {
         if let Some(key) = self.free.pop() {
-            self.slots[key as usize] = true;
+            self.slots[key as usize] = ReuseSlotState::Used;
             Some(key)
         } else {
             let key = self.slots.len() as u16;
             if key < u16::MAX {
                 // MAX is None
-                self.slots.push(true);
+                self.slots.push(ReuseSlotState::Used);
                 Some(key)
             } else {
                 None
@@ -256,7 +254,21 @@ impl ReuseCacheKeys {
 
     pub fn reused(&mut self, key: u16) {
         let key = key as usize;
-        self.slots[key] = true;
+        self.slots[key] = ReuseSlotState::Used;
+    }
+
+    pub fn end_frame(&mut self, display_list: &mut DisplayListBuilder) {
+        for (i, slot) in self.slots.iter_mut().enumerate() {
+            match *slot {
+                ReuseSlotState::Free => {}
+                ReuseSlotState::Marked => {
+                    self.free.push(i as u16);
+                    *slot = ReuseSlotState::Free;
+                }
+                ReuseSlotState::Used => *slot = ReuseSlotState::Marked,
+            }
+        }
+        display_list.set_cache_size(self.slots.len());
     }
 }
 
@@ -633,11 +645,13 @@ impl FrameBuilder {
 
         group.prepare_for(self.pipeline_id, self.spatial_id, self.clip_id);
 
-        if let (true, Some(key)) = (self.can_reuse, group.key()) {
-            self.display_list.push_reuse_items(key);
-            self.reuse_keys.reused(key);
-            return;
-        } else if self.can_reuse {
+        if self.can_reuse {
+            if let Some(key) = group.key() {
+                self.display_list.push_reuse_items(key);
+                self.reuse_keys.reused(key);
+                return;
+            }
+
             self.open_group = self.reuse_keys.next();
             if self.open_group.is_some() {
                 self.display_list.start_item_group();

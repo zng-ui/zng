@@ -1,4 +1,3 @@
-* Fix text reuse in button example when multiple buttons are added.
 * Optimize/fix interactivity, can we make parent interactivity affecting child a guaranteed?
 * Better disabled visuals, disabled_cursor.
 
