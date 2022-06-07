@@ -9,4 +9,3 @@ Commands core API is implemented, TODO implement extensions and test all use cas
     * Shutdown.
     * Window controls.
     * Respawn (reload)?
-* Turn command handle enabled into a variable?

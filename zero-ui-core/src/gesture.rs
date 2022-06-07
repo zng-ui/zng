@@ -1164,7 +1164,7 @@ impl ShortcutActions {
                             }
                         }
                     }
-                    CommandScope::App | CommandScope::Custom(_, _) => cmd_other.push(cmd),
+                    CommandScope::App => cmd_other.push(cmd),
                 }
             }
         }

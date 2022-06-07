@@ -11,7 +11,6 @@
 
 * Gestures info, like last shortcut pressed, primed chord, list of shortcuts used.
 * Add window close cancel demo in window example.
-* Remove custom target in command?
 
 * Layout context viewport.
     - The image example tries to do this manually, but there is some flickering due to Px rounding on the scroll vs on the offset.

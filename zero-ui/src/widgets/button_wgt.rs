@@ -145,9 +145,9 @@ pub mod theme {
         pub struct ContentAlignVar: Align = Align::CENTER;
 
         /// Button cursor icon.
-        /// 
+        ///
         /// Use the [`button::theme::cursor`] property to set.
-        /// 
+        ///
         /// Default is [`CursorIcon::Default`].
         pub struct CursorIconVar: Option<CursorIcon> = Some(CursorIcon::Default);
     }
@@ -312,9 +312,9 @@ pub mod theme {
             pub struct TextColorVar: Rgba = colors::WHITE.darken(40.pct());
 
             /// Disabled button cursor icon.
-            /// 
+            ///
             /// Use the [`button::theme::disabled::cursor`] property to set.
-            /// 
+            ///
             /// Default is [`CursorIcon::NotAllowed`], meaning the parent cursor is used.
             pub struct CursorIconVar: Option<CursorIcon> = Some(CursorIcon::NotAllowed);
         }

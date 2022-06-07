@@ -391,8 +391,6 @@ pub enum CommandScope {
     Window(WindowId),
     /// Scope of a widget.
     Widget(WidgetId),
-    /// Custom scope. The first value is *namespace* type, the second value is an unique id within the namespace.
-    Custom(TypeId, u64),
 }
 impl From<WidgetId> for CommandScope {
     fn from(id: WidgetId) -> Self {
@@ -1457,7 +1455,7 @@ crate::event_args! {
 
         ..
 
-        /// Broadcast to all for [`CommandScope::App`] and [`CommandScope::Custom`].
+        /// Broadcast to all widgets for [`CommandScope::App`].
         ///
         /// Broadcast to all widgets in the window for [`CommandScope::Window`].
         ///
