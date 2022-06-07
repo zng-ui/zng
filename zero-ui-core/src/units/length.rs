@@ -496,13 +496,6 @@ bitflags! {
         const VIEWPORT_SIZE = 1 << 3;
         /// The [`LayoutMetrics::screen_ppi`].
         const SCREEN_PPI = 1 << 4;
-
-        /// All the [`LayoutMetrics`] values.
-        const LAYOUT_METRICS = Self::FONT_SIZE.bits
-                             | Self::ROOT_FONT_SIZE.bits
-                             | Self::SCALE_FACTOR.bits
-                             | Self::VIEWPORT_SIZE.bits
-                             | Self::SCREEN_PPI.bits;
     }
 }
 

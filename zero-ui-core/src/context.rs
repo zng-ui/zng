@@ -262,7 +262,7 @@ impl<'a> WindowContext<'a> {
         scale_factor: Factor,
         screen_ppi: f32,
         viewport_size: PxSize,
-        metrics_diff: LayoutMask,
+        metrics_updates: LayoutMask,
         info_tree: &WidgetInfoTree,
         widget_info: &WidgetContextInfo,
         root_widget_state: &mut OwnedStateMap,
@@ -274,7 +274,7 @@ impl<'a> WindowContext<'a> {
         f(&mut LayoutContext {
             metrics: &LayoutMetrics::new(scale_factor, viewport_size, font_size)
                 .with_screen_ppi(screen_ppi)
-                .with_diff(metrics_diff),
+                .with_updates(metrics_updates),
 
             path: &mut WidgetContextPath::new(*self.window_id, widget_id),
 
@@ -504,14 +504,14 @@ impl TestWidgetContext {
         viewport_size: PxSize,
         scale_factor: Factor,
         screen_ppi: f32,
-        metrics_diff: LayoutMask,
+        metrics_updates: LayoutMask,
         action: impl FnOnce(&mut LayoutContext) -> R,
     ) -> R {
         action(&mut LayoutContext {
             metrics: &LayoutMetrics::new(scale_factor, viewport_size, root_font_size)
                 .with_font_size(font_size)
                 .with_screen_ppi(screen_ppi)
-                .with_diff(metrics_diff),
+                .with_updates(metrics_updates),
 
             path: &mut WidgetContextPath::new(self.window_id, self.root_id),
             info_tree: &self.info_tree,
@@ -876,10 +876,10 @@ impl<'a> LayoutContext<'a> {
     ///
     /// The `font_size_new` flag indicates if the `font_size` value changed from the previous layout call.
     pub fn with_font_size<R>(&mut self, font_size: Px, font_size_new: bool, f: impl FnOnce(&mut LayoutContext) -> R) -> R {
-        let mut diff = self.metrics.diff;
-        diff.set(LayoutMask::FONT_SIZE, font_size_new);
+        let mut updates = self.metrics.updates;
+        updates.set(LayoutMask::FONT_SIZE, font_size_new);
         f(&mut LayoutContext {
-            metrics: &self.metrics.clone().with_font_size(font_size).with_diff(diff),
+            metrics: &self.metrics.clone().with_font_size(font_size).with_updates(updates),
 
             path: self.path,
 
@@ -899,10 +899,10 @@ impl<'a> LayoutContext<'a> {
     ///
     /// The `viewport_new` flag indicates if the `viewport` value changed from the previous layout call.
     pub fn with_viewport<R>(&mut self, viewport: PxSize, viewport_new: bool, f: impl FnOnce(&mut LayoutContext) -> R) -> R {
-        let mut diff = self.metrics.diff;
-        diff.set(LayoutMask::VIEWPORT_SIZE, viewport_new);
+        let mut updates = self.metrics.updates;
+        updates.set(LayoutMask::VIEWPORT_SIZE, viewport_new);
         f(&mut LayoutContext {
-            metrics: &self.metrics.clone().with_viewport(viewport).with_diff(diff),
+            metrics: &self.metrics.clone().with_viewport(viewport).with_updates(updates),
 
             path: self.path,
 
@@ -920,7 +920,7 @@ impl<'a> LayoutContext<'a> {
 
     /// Runs a function `f` in the layout context of a widget.
     ///
-    /// Returns the closure `f` result and the updates requested by it.
+    /// Returns the closure `f` result, the updates requested by it and the layout metrics used by it.
     ///
     /// [`render_update`]: Updates::render_update
     pub fn with_widget<R>(
@@ -929,13 +929,14 @@ impl<'a> LayoutContext<'a> {
         widget_info: &WidgetContextInfo,
         widget_state: &mut OwnedStateMap,
         f: impl FnOnce(&mut LayoutContext) -> R,
-    ) -> (R, WidgetUpdates) {
+    ) -> (R, WidgetUpdates, LayoutMask) {
         #[cfg(not(inspector))]
         let _span = UpdatesTrace::widget_span(widget_id, "", "");
 
         self.path.push(widget_id);
 
         let prev_updates = self.updates.enter_widget_ctx();
+        let prev_uses = self.metrics.enter_widget_ctx();
 
         let r = self.vars.with_widget(widget_id, || {
             f(&mut LayoutContext {
@@ -957,7 +958,11 @@ impl<'a> LayoutContext<'a> {
 
         self.path.pop();
 
-        (r, self.updates.exit_widget_ctx(prev_updates))
+        (
+            r,
+            self.updates.exit_widget_ctx(prev_updates),
+            self.metrics.exit_widget_ctx(prev_uses),
+        )
     }
 
     /// Runs an [`InfoContext`] generated from `self`.
@@ -1112,7 +1117,7 @@ pub struct LayoutMetrics {
     scale_factor: Factor,
     viewport: PxSize,
     screen_ppi: f32,
-    diff: LayoutMask,
+    updates: LayoutMask,
 }
 impl LayoutMetrics {
     /// New root [`LayoutMetrics`].
@@ -1130,7 +1135,7 @@ impl LayoutMetrics {
             scale_factor,
             viewport,
             screen_ppi: 96.0,
-            diff: LayoutMask::all(),
+            updates: LayoutMask::all(),
         }
     }
 
@@ -1151,11 +1156,11 @@ impl LayoutMetrics {
     }
 
     /// What metrics changed from the last layout in the same context.
-    pub fn diff(&self) -> LayoutMask {
-        self.diff
+    pub fn updates(&self) -> LayoutMask {
+        self.updates
     }
 
-    /// What metrics where requested so far.
+    /// What metrics where requested so far in the widget or descendants.
     pub fn metrics_used(&self) -> LayoutMask {
         self.use_mask.get()
     }
@@ -1283,11 +1288,11 @@ impl LayoutMetrics {
         self
     }
 
-    /// Sets the [`diff`].
+    /// Sets the [`updates`].
     ///
-    /// [`diff`]: Self::diff
-    pub fn with_diff(mut self, diff: LayoutMask) -> Self {
-        self.diff = diff;
+    /// [`updates`]: Self::updates
+    pub fn with_updates(mut self, updates: LayoutMask) -> Self {
+        self.updates = updates;
         self
     }
 
@@ -1297,6 +1302,18 @@ impl LayoutMetrics {
     pub fn with_use(mut self, use_mask: LayoutMask) -> Self {
         self.use_mask = Cell::new(use_mask);
         self
+    }
+
+    fn enter_widget_ctx(&self) -> LayoutMask {
+        self.use_mask.replace(LayoutMask::NONE)
+    }
+
+    fn exit_widget_ctx(&self, prev_use: LayoutMask) -> LayoutMask {
+        let mut uses = self.use_mask.get();
+        let r = uses;
+        uses |= prev_use;
+        self.use_mask.set(uses);
+        r
     }
 }
 

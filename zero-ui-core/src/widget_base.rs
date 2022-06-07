@@ -7,7 +7,7 @@ use crate::{
     event::EventUpdateArgs,
     impl_ui_node, property,
     render::{FrameBindingKey, FrameBuilder, FrameUpdate, SpatialFrameId},
-    units::{PxCornerRadius, PxRect, PxSize, RenderTransform, RenderTransformExt},
+    units::{LayoutMask, PxCornerRadius, PxRect, PxSize, RenderTransform, RenderTransformExt},
     var::*,
     widget_info::{
         Interactivity, LayoutPassId, UpdateMask, Visibility, WidgetBorderInfo, WidgetBoundsInfo, WidgetContextInfo, WidgetInfoBuilder,
@@ -295,6 +295,8 @@ pub mod implicit_base {
                 #[cfg(debug_assertions)]
                 inited: bool,
                 pending_updates: RefCell<WidgetUpdates>,
+                layout_used: LayoutMask,
+                layout_size: PxSize,
                 offsets_pass: Cell<LayoutPassId>,
             }
             impl<C: UiNode> UiNode for WidgetNode<C> {
@@ -403,12 +405,17 @@ pub mod implicit_base {
                         tracing::error!(target: "widget_base", "`UiNode::layout` called in not inited widget {:?}", self.id);
                     }
 
-                    let (child_size, updates) = ctx.with_widget(self.id, &self.info, &mut self.state, |ctx| {
+                    let reuse =
+                        !mem::take(&mut self.pending_updates.get_mut().layout) && !self.layout_used.intersects(ctx.metrics.updates());
+
+                    let (child_size, updates, uses) = ctx.with_widget(self.id, &self.info, &mut self.state, |ctx| {
                         wl.with_widget(ctx, |ctx, wl| self.child.layout(ctx, wl))
                     });
                     *self.pending_updates.get_mut() |= updates;
+                    self.layout_used = uses;
+                    self.layout_size = child_size;
 
-                    child_size
+                    self.layout_size
                 }
 
                 fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
@@ -513,6 +520,8 @@ pub mod implicit_base {
                 #[cfg(debug_assertions)]
                 inited: false,
                 pending_updates: RefCell::default(),
+                layout_used: LayoutMask::NONE,
+                layout_size: PxSize::zero(),
                 offsets_pass: Cell::default(),
             }
             .cfg_boxed_wgt()

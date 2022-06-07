@@ -35,7 +35,8 @@ widget boundaries if the widget or inner widgets did not request an update of th
 
 ## `UiNode::layout`
 
-* Already started implementing this, see `LayoutMask`.
+* Signal `WidgetLayout` of reuse.
+  - What do we do with the outer, replace it?
 
 ## `UiNode::render`
 
