@@ -78,7 +78,7 @@ zero-ui-proc-macros = { path = "../zero-ui-proc-macros" }
 zero-ui-view-api = { path = "../zero-ui-view-api", default-features = false }
 
 # text
-font-kit = "0.10"
+font-kit = "0.11"
 unic-langid = "0.9"
 unicase = "2"
 harfbuzz_rs = "2"

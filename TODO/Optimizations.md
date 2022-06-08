@@ -33,7 +33,7 @@ to the event type are affected, so common events almost visit the full tree.
 General idea, reuse computed data for `UiNode` info, layout and render at
 widget boundaries if the widget or inner widgets did not request an update of these types.
 
-## `UiNode::layout`
+## Layout Passes
 
 * Review layout double-pass of stacks.
     - What happens for nested stacks, quadratic?
