@@ -151,7 +151,7 @@ pub fn node() -> impl UiNode {
                 offset.y /= self.tile_size.height;
             }
 
-            let mut center = self.tile_size.to_vector().to_point() / 2.0.fct();
+            let mut center = tile_size.to_vector().to_point() / 2.0.fct();
             center += offset;
 
             if self.tile_size != tile_size || self.center != center {
