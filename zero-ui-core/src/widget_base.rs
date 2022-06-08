@@ -296,7 +296,6 @@ pub mod implicit_base {
                 inited: bool,
                 pending_updates: RefCell<WidgetUpdates>,
                 layout_used: LayoutMask,
-                layout_size: PxSize,
                 offsets_pass: Cell<LayoutPassId>,
             }
             impl<C: UiNode> UiNode for WidgetNode<C> {
@@ -405,17 +404,22 @@ pub mod implicit_base {
                         tracing::error!(target: "widget_base", "`UiNode::layout` called in not inited widget {:?}", self.id);
                     }
 
+                    println!("!!: {}", ">".repeat(ctx.path.depth()));
+                    
                     let reuse =
                         !mem::take(&mut self.pending_updates.get_mut().layout) && !self.layout_used.intersects(ctx.metrics.updates());
 
                     let (child_size, updates, uses) = ctx.with_widget(self.id, &self.info, &mut self.state, |ctx| {
-                        wl.with_widget(ctx, |ctx, wl| self.child.layout(ctx, wl))
+                        wl.with_widget(ctx, reuse, |ctx, wl| self.child.layout(ctx, wl))
                     });
                     *self.pending_updates.get_mut() |= updates;
-                    self.layout_used = uses;
-                    self.layout_size = child_size;
+                    if reuse {
+                        self.layout_used = uses;
+                    }
 
-                    self.layout_size
+                    println!("!!: {}", "<".repeat(ctx.path.depth()));
+
+                    child_size
                 }
 
                 fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
@@ -521,7 +525,6 @@ pub mod implicit_base {
                 inited: false,
                 pending_updates: RefCell::default(),
                 layout_used: LayoutMask::NONE,
-                layout_size: PxSize::zero(),
                 offsets_pass: Cell::default(),
             }
             .cfg_boxed_wgt()

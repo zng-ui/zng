@@ -35,8 +35,8 @@ widget boundaries if the widget or inner widgets did not request an update of th
 
 ## `UiNode::layout`
 
-* Signal `WidgetLayout` of reuse.
-  - What do we do with the outer, replace it?
+* Can we takeover tracking context values in the info?
+  - Current method is error prone, specially for the constrains that get modified a lot, .
 
 ## `UiNode::render`
 

@@ -758,6 +758,11 @@ impl WidgetContextPath {
             false
         }
     }
+
+    /// Length of the current path.
+    pub fn depth(&self) -> usize {
+        self.widget_ids.len()
+    }
 }
 impl fmt::Debug for WidgetContextPath {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {

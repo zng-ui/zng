@@ -69,7 +69,7 @@ impl WidgetLayout {
             known_child_offset_changed: 0,
             child_offset_changed: 0,
         };
-        let size = wl.with_widget(ctx, layout);
+        let size = wl.with_widget(ctx, false, layout);
         wl.finish_known();
         if wl.child_offset_changed > 0 {
             ctx.updates.render_update();
@@ -96,7 +96,7 @@ impl WidgetLayout {
     /// The default widget constructor calls this, see [`implicit_base::nodes::widget`].
     ///
     /// [`implicit_base::nodes::widget`]: crate::widget_base::implicit_base::nodes::widget
-    pub fn with_widget(&mut self, ctx: &mut LayoutContext, layout: impl FnOnce(&mut LayoutContext, &mut Self) -> PxSize) -> PxSize {
+    pub fn with_widget(&mut self, ctx: &mut LayoutContext, reuse: bool, layout: impl FnOnce(&mut LayoutContext, &mut Self) -> PxSize) -> PxSize {
         self.finish_known(); // in case of WidgetList.
         self.baseline = Px(0);
         let parent_child_offset_changed = mem::take(&mut self.child_offset_changed);
@@ -106,9 +106,15 @@ impl WidgetLayout {
         // drain preview translations.
         ctx.widget_info.bounds.set_outer_offset(mem::take(&mut self.offset_buf));
 
-        let size = layout(ctx, self);
-
-        ctx.widget_info.bounds.set_outer_size(size);
+        let size = if reuse {
+            println!("!!: REUSE {:?}", ctx.path);
+            ctx.widget_info.bounds.outer_size()
+        } else {
+            println!("!!: LAYOUT {:?}", ctx.path);
+            let size = layout(ctx, self);
+            ctx.widget_info.bounds.set_outer_size(size);
+            size
+        };
 
         // setup returning translations target.
         self.finish_known();
