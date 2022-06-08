@@ -171,7 +171,7 @@ pub mod h_stack {
                     wlt.translate(PxVector::new(extra_x, y));
 
                     if is_baseline {
-                        wlt.translate_baseline(1.0);
+                        wlt.translate_baseline(true);
                     }
                 });
             } else if extra_x > Px(0) {
@@ -353,19 +353,19 @@ pub mod v_stack {
                     let x = (best_size.width - a.size.width) * align.x;
                     wlt.translate(PxVector::new(x, extra_y));
                     if is_baseline {
-                        wlt.translate_baseline(1.0);
+                        wlt.translate_baseline(true);
                     }
                 });
             } else if extra_y > Px(0) {
                 self.children.outer_all(wl, true, |wlt, _| {
                     wlt.translate(PxVector::new(Px(0), extra_y));
                     if is_baseline {
-                        wlt.translate_baseline(1.0);
+                        wlt.translate_baseline(true);
                     }
                 });
             } else if is_baseline {
                 self.children.outer_all(wl, true, |wlt, _| {
-                    wlt.translate_baseline(1.0);
+                    wlt.translate_baseline(true);
                 });
             }
 

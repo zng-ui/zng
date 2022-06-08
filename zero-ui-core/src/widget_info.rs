@@ -62,6 +62,7 @@ impl WidgetLayout {
                 pass_id,
                 offset_buf: PxVector::zero(),
                 baseline: Px(0),
+                offset_baseline: false,
                 known: None,
                 known_target: KnownTarget::Outer,
             },
@@ -107,6 +108,7 @@ impl WidgetLayout {
     ) -> PxSize {
         self.finish_known(); // in case of WidgetList.
         self.baseline = Px(0);
+        self.offset_baseline = false;
         let parent_child_offset_changed = mem::take(&mut self.child_offset_changed);
 
         ctx.widget_info.bounds.begin_pass(self.pass_id); // record prev state
@@ -158,6 +160,9 @@ impl WidgetLayout {
         // drain preview translations.
         ctx.widget_info.bounds.set_inner_offset(mem::take(&mut self.offset_buf));
         ctx.widget_info.bounds.set_baseline(mem::take(&mut self.baseline));
+        ctx.widget_info
+            .bounds
+            .set_inner_offset_baseline(mem::take(&mut self.offset_baseline));
 
         let size = ContextBorders::with_inner(ctx, |ctx| layout(ctx, self));
 
@@ -189,6 +194,9 @@ impl WidgetLayout {
         if self.known.is_none() && !collapse {
             ctx.widget_info.bounds.set_child_offset(mem::take(&mut self.offset_buf));
             ctx.widget_info.bounds.set_baseline(mem::take(&mut self.baseline));
+            ctx.widget_info
+                .bounds
+                .set_inner_offset_baseline(mem::take(&mut self.offset_baseline));
 
             // setup returning translations target.
             self.finish_known();
@@ -286,6 +294,7 @@ impl WidgetLayout {
             t: WidgetLayoutTranslation {
                 pass_id: self.pass_id,
                 offset_buf: PxVector::zero(),
+                offset_baseline: false,
                 baseline: Px(0),
                 known: Some(bounds),
                 known_target: KnownTarget::Outer,
@@ -320,6 +329,7 @@ impl WidgetLayout {
                 info.bounds_info.set_outer_size(PxSize::zero());
                 info.bounds_info.set_inner_size(PxSize::zero());
                 info.bounds_info.set_baseline(Px(0));
+                info.bounds_info.set_inner_offset_baseline(false);
                 info.bounds_info.set_outer_offset(PxVector::zero());
                 info.bounds_info.set_inner_offset(PxVector::zero());
                 info.bounds_info.set_child_offset(PxVector::zero());
@@ -342,9 +352,11 @@ impl WidgetLayout {
                 info.bounds_info.set_outer_size(PxSize::zero());
                 info.bounds_info.set_inner_size(PxSize::zero());
                 info.bounds_info.set_baseline(Px(0));
+                info.bounds_info.set_inner_offset_baseline(false);
                 info.bounds_info.set_outer_offset(PxVector::zero());
                 info.bounds_info.set_inner_offset(PxVector::zero());
                 info.bounds_info.set_child_offset(PxVector::zero());
+                info.bounds_info.set_metrics(None, LayoutMask::NONE);
             }
         } else {
             tracing::error!("collapse_descendants did not find `{}` in the info tree", widget_id)
@@ -382,6 +394,7 @@ pub struct WidgetLayoutTranslation {
     pass_id: LayoutPassId,
     offset_buf: PxVector,
     baseline: Px,
+    offset_baseline: bool,
 
     known: Option<WidgetBoundsInfo>,
     known_target: KnownTarget,
@@ -428,16 +441,12 @@ impl WidgetLayoutTranslation {
         }
     }
 
-    /// Pre-translate the inner transform of the last visited widget by its baseline multiplied by `amount` on the *y* axis.
-    ///
-    /// Does nothing in the preview route.
-    pub fn translate_baseline(&mut self, amount: f32) {
+    /// If the inner offset of the last visited widget is added by its baseline on the *y* axis.
+    pub fn translate_baseline(&mut self, enabled: bool) {
         if let Some(info) = &self.known {
-            let baseline = info.baseline() * amount;
-            if baseline != Px(0) {
-                let offset = info.inner_offset() + PxVector::new(Px(0), baseline);
-                info.set_inner_offset(offset);
-            }
+            info.set_inner_offset_baseline(enabled);
+        } else {
+            self.offset_baseline = enabled;
         }
     }
 }
@@ -1139,6 +1148,7 @@ struct WidgetBoundsData {
     outer_size: Cell<PxSize>,
     inner_size: Cell<PxSize>,
     baseline: Cell<Px>,
+    inner_offset_baseline: Cell<bool>,
 
     metrics: Cell<Option<LayoutMetricsSnapshot>>,
     metrics_used: Cell<LayoutMask>,
@@ -1174,8 +1184,25 @@ impl WidgetBoundsInfo {
     }
 
     /// Gets the widget's inner bounds offset inside the outer bounds.
+    ///
+    /// If [`inner_offset_baseline`] is `true` the [`baseline`] is added from this value.
+    ///
+    /// [`inner_offset_baseline`]: Self::baseline
+    /// [`baseline`]: Self::baseline
     pub fn inner_offset(&self) -> PxVector {
-        self.0.inner_offset.get()
+        let mut r = self.0.inner_offset.get();
+        if self.inner_offset_baseline() {
+            r.y += self.baseline();
+        }
+        r
+    }
+
+    /// If the [`baseline`] is added from the [`inner_offset`].
+    ///
+    /// [`baseline`]: Self::baseline
+    /// [`inner_offset`]: Self::inner_offset
+    pub fn inner_offset_baseline(&self) -> bool {
+        self.0.inner_offset_baseline.get()
     }
 
     /// Gets the widget's child offset inside the inner bounds.
@@ -1190,7 +1217,12 @@ impl WidgetBoundsInfo {
         self.0.inner_size.get()
     }
 
-    /// Gets the baseline offset up from the inner bounds bottom line.
+    /// The baseline offset up from the inner bounds bottom line.
+    ///
+    /// Note that if [`inner_offset_baseline`] is `true` the [`inner_offset`] is already added by the baseline.
+    ///
+    /// [`inner_offset_baseline`]: Self::inner_offset_baseline
+    /// [`inner_offset`]: Self::inner_offset
     pub fn baseline(&self) -> Px {
         self.0.baseline.get()
     }
@@ -1319,6 +1351,10 @@ impl WidgetBoundsInfo {
 
     fn set_baseline(&self, baseline: Px) {
         self.0.baseline.set(baseline);
+    }
+
+    fn set_inner_offset_baseline(&self, enabled: bool) {
+        self.0.inner_offset_baseline.set(enabled);
     }
 
     fn set_metrics(&self, metrics: Option<LayoutMetricsSnapshot>, used: LayoutMask) {

@@ -1,5 +1,4 @@
 * Reuse tracing spans when possible, should reduce allocations.
-* Review text baseline.
 * Optimize/fix interactivity, can we make parent interactivity affecting child a guaranteed?
 * Different visual for focused and disabled.
 
