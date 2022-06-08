@@ -35,8 +35,8 @@ widget boundaries if the widget or inner widgets did not request an update of th
 
 ## `UiNode::layout`
 
-* Can we takeover tracking context values in the info?
-  - Current method is error prone, specially for the constrains that get modified a lot, .
+* Review layout double-pass of stacks.
+    - What happens for nested stacks, quadratic?
 
 ## `UiNode::render`
 

@@ -1,3 +1,4 @@
+* Reuse tracing spans when possible, should reduce allocations.
 * Optimize/fix interactivity, can we make parent interactivity affecting child a guaranteed?
 * Different visual for focused and disabled.
 
@@ -17,8 +18,6 @@
     - CSS has the "position" property, that has sticky, webrender has something for this that we can use?
     - Current idea, have a `layout_parent = LayoutParent::Viewport`.
 
-* Review layout double-pass of stacks.
-    - What happens for nested stacks, quadratic?
 * Fix text final size, either clip or return accurate size.
 
 * Scrolling, see `Scrolling.md`.
