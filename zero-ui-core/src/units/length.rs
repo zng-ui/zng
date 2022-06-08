@@ -396,7 +396,7 @@ impl Length {
             ViewportHeight(p) => ctx.viewport().height * *p,
             ViewportMin(p) => ctx.viewport_min() * *p,
             ViewportMax(p) => ctx.viewport_max() * *p,
-            Expr(e) => e.layout(ctx, default_value),
+            Expr(e) => e.layout(ctx, &mut default_value),
         }
     }
 
@@ -527,7 +527,7 @@ pub enum LengthExpr {
 }
 impl LengthExpr {
     /// Evaluate the expression at a layout context.
-    pub fn layout(&self, ctx: Layout1dMetrics, mut default_value: impl FnMut(Layout1dMetrics) -> Px) -> Px {
+    pub fn layout(&self, ctx: Layout1dMetrics, mut default_value: &mut dyn FnMut(Layout1dMetrics) -> Px) -> Px {
         use LengthExpr::*;
         match self {
             Add(a, b) => a.layout(ctx, &mut default_value) + b.layout(ctx, default_value),
@@ -544,7 +544,7 @@ impl LengthExpr {
                 let b = b.layout(ctx, default_value);
                 a.min(b)
             }
-            Abs(e) => e.layout(ctx, &mut default_value).abs(),
+            Abs(e) => e.layout(ctx, default_value).abs(),
             Neg(e) => -e.layout(ctx, default_value),
         }
     }
