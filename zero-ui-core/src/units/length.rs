@@ -413,10 +413,10 @@ impl Length {
             Relative(_) => LayoutMask::CONSTRAINS,
             Em(_) => LayoutMask::FONT_SIZE,
             RootEm(_) => LayoutMask::ROOT_FONT_SIZE,
-            ViewportWidth(_) => LayoutMask::VIEWPORT_SIZE,
-            ViewportHeight(_) => LayoutMask::VIEWPORT_SIZE,
-            ViewportMin(_) => LayoutMask::VIEWPORT_SIZE,
-            ViewportMax(_) => LayoutMask::VIEWPORT_SIZE,
+            ViewportWidth(_) => LayoutMask::VIEWPORT,
+            ViewportHeight(_) => LayoutMask::VIEWPORT,
+            ViewportMin(_) => LayoutMask::VIEWPORT,
+            ViewportMax(_) => LayoutMask::VIEWPORT,
             Expr(e) => e.affect_mask(),
         }
     }
@@ -492,10 +492,16 @@ bitflags! {
         const ROOT_FONT_SIZE = 1 << 1;
         /// The [`LayoutMetrics::scale_factor`].
         const SCALE_FACTOR = 1 << 2;
-        /// The [`LayoutMetrics::viewport_size`].
-        const VIEWPORT_SIZE = 1 << 3;
+        /// The [`LayoutMetrics::viewport`].
+        const VIEWPORT = 1 << 3;
         /// The [`LayoutMetrics::screen_ppi`].
         const SCREEN_PPI = 1 << 4;
+    }
+}
+impl Default for LayoutMask {
+    /// `NONE`.
+    fn default() -> Self {
+        LayoutMask::NONE
     }
 }
 

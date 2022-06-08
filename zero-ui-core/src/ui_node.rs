@@ -739,20 +739,12 @@ pub trait Widget: UiNode {
     #[cfg_attr(doc_nightly, doc(cfg(feature = "test_util")))]
     fn test_layout(&mut self, ctx: &mut TestWidgetContext, constrains: Option<PxConstrains2d>) -> PxSize {
         let font_size = Length::pt_to_px(14.0, 1.0.fct());
-        ctx.layout_context(
-            font_size,
-            font_size,
-            self.bounds_info().outer_size(),
-            1.0.fct(),
-            96.0,
-            LayoutMask::all(),
-            |ctx| {
-                ctx.with_constrains(
-                    |c| constrains.unwrap_or(c),
-                    |ctx| WidgetLayout::with_root_widget(ctx, 0, |ctx, wl| wl.with_inner(ctx, |ctx, wl| self.layout(ctx, wl))),
-                )
-            },
-        )
+        ctx.layout_context(font_size, font_size, self.bounds_info().outer_size(), 1.0.fct(), 96.0, |ctx| {
+            ctx.with_constrains(
+                |c| constrains.unwrap_or(c),
+                |ctx| WidgetLayout::with_root_widget(ctx, 0, |ctx, wl| wl.with_inner(ctx, |ctx, wl| self.layout(ctx, wl))),
+            )
+        })
     }
 
     /// Run [`UiNode::info`] using the [`TestWidgetContext`].

@@ -262,7 +262,6 @@ impl<'a> WindowContext<'a> {
         scale_factor: Factor,
         screen_ppi: f32,
         viewport_size: PxSize,
-        metrics_updates: LayoutMask,
         info_tree: &WidgetInfoTree,
         widget_info: &WidgetContextInfo,
         root_widget_state: &mut OwnedStateMap,
@@ -272,9 +271,7 @@ impl<'a> WindowContext<'a> {
         #[cfg(not(inspector))]
         let _span = UpdatesTrace::widget_span(widget_id, "", "");
         f(&mut LayoutContext {
-            metrics: &LayoutMetrics::new(scale_factor, viewport_size, font_size)
-                .with_screen_ppi(screen_ppi)
-                .with_updates(metrics_updates),
+            metrics: &LayoutMetrics::new(scale_factor, viewport_size, font_size).with_screen_ppi(screen_ppi),
 
             path: &mut WidgetContextPath::new(*self.window_id, widget_id),
 
@@ -504,14 +501,12 @@ impl TestWidgetContext {
         viewport_size: PxSize,
         scale_factor: Factor,
         screen_ppi: f32,
-        metrics_updates: LayoutMask,
         action: impl FnOnce(&mut LayoutContext) -> R,
     ) -> R {
         action(&mut LayoutContext {
             metrics: &LayoutMetrics::new(scale_factor, viewport_size, root_font_size)
                 .with_font_size(font_size)
-                .with_screen_ppi(screen_ppi)
-                .with_updates(metrics_updates),
+                .with_screen_ppi(screen_ppi),
 
             path: &mut WidgetContextPath::new(self.window_id, self.root_id),
             info_tree: &self.info_tree,
@@ -880,11 +875,9 @@ impl<'a> LayoutContext<'a> {
     /// Runs a function `f` in a layout context that has the new computed font size.
     ///
     /// The `font_size_new` flag indicates if the `font_size` value changed from the previous layout call.
-    pub fn with_font_size<R>(&mut self, font_size: Px, font_size_new: bool, f: impl FnOnce(&mut LayoutContext) -> R) -> R {
-        let mut updates = self.metrics.updates;
-        updates.set(LayoutMask::FONT_SIZE, font_size_new);
+    pub fn with_font_size<R>(&mut self, font_size: Px, f: impl FnOnce(&mut LayoutContext) -> R) -> R {
         f(&mut LayoutContext {
-            metrics: &self.metrics.clone().with_font_size(font_size).with_updates(updates),
+            metrics: &self.metrics.clone().with_font_size(font_size),
 
             path: self.path,
 
@@ -903,11 +896,9 @@ impl<'a> LayoutContext<'a> {
     /// Runs a function `f` in a layout context that has the new computed viewport.
     ///
     /// The `viewport_new` flag indicates if the `viewport` value changed from the previous layout call.
-    pub fn with_viewport<R>(&mut self, viewport: PxSize, viewport_new: bool, f: impl FnOnce(&mut LayoutContext) -> R) -> R {
-        let mut updates = self.metrics.updates;
-        updates.set(LayoutMask::VIEWPORT_SIZE, viewport_new);
+    pub fn with_viewport<R>(&mut self, viewport: PxSize, f: impl FnOnce(&mut LayoutContext) -> R) -> R {
         f(&mut LayoutContext {
-            metrics: &self.metrics.clone().with_viewport(viewport).with_updates(updates),
+            metrics: &self.metrics.clone().with_viewport(viewport),
 
             path: self.path,
 
@@ -925,7 +916,7 @@ impl<'a> LayoutContext<'a> {
 
     /// Runs a function `f` in the layout context of a widget.
     ///
-    /// Returns the closure `f` result, the updates requested by it and the layout metrics used by it.
+    /// Returns the closure `f` result and the updates requested by it.
     ///
     /// [`render_update`]: Updates::render_update
     pub fn with_widget<R>(
@@ -934,14 +925,13 @@ impl<'a> LayoutContext<'a> {
         widget_info: &WidgetContextInfo,
         widget_state: &mut OwnedStateMap,
         f: impl FnOnce(&mut LayoutContext) -> R,
-    ) -> (R, WidgetUpdates, LayoutMask) {
+    ) -> (R, WidgetUpdates) {
         #[cfg(not(inspector))]
         let _span = UpdatesTrace::widget_span(widget_id, "", "");
 
         self.path.push(widget_id);
 
         let prev_updates = self.updates.enter_widget_ctx();
-        let prev_uses = self.metrics.enter_widget_ctx();
 
         let r = self.vars.with_widget(widget_id, || {
             f(&mut LayoutContext {
@@ -963,11 +953,7 @@ impl<'a> LayoutContext<'a> {
 
         self.path.pop();
 
-        (
-            r,
-            self.updates.exit_widget_ctx(prev_updates),
-            self.metrics.exit_widget_ctx(prev_uses),
-        )
+        (r, self.updates.exit_widget_ctx(prev_updates))
     }
 
     /// Runs an [`InfoContext`] generated from `self`.
@@ -1109,6 +1095,69 @@ impl<'a> InfoContext<'a> {
     }
 }
 
+/// Layout metrics snapshot.
+///
+/// A snapshot can be taken using the [`LayoutMetrics::snapshot`], you can also
+/// get the metrics used during the last layout of a widget using the [`WidgetBoundsInfo::metrics`] method.
+#[derive(Clone, Copy, Debug)]
+pub struct LayoutMetricsSnapshot {
+    /// The [`constrains`].
+    ///
+    /// [`constrains`]: LayoutMetrics::constrains
+    pub constrains: PxConstrains2d,
+    /// The [`font_size`].
+    ///
+    /// [`font_size`]: LayoutMetrics::font_size
+    pub font_size: Px,
+    /// The [`root_font_size`].
+    ///
+    /// [`root_font_size`]: LayoutMetrics::root_font_size
+    pub root_font_size: Px,
+    /// The [`scale_factor`].
+    ///
+    /// [`scale_factor`]: LayoutMetrics::scale_factor
+    pub scale_factor: Factor,
+    /// The [`viewport`].
+    ///
+    /// [`viewport`]: LayoutMetrics::viewport
+    pub viewport: PxSize,
+    /// The [`screen_ppi`].
+    ///
+    /// [`screen_ppi`]: LayoutMetrics::screen_ppi
+    pub screen_ppi: f32,
+}
+impl LayoutMetricsSnapshot {
+    /// Gets if all of the fields in `mask` are equal between `self` and `other`.
+    pub fn masked_eq(&self, other: &Self, mask: LayoutMask) -> bool {
+        (!mask.contains(LayoutMask::CONSTRAINS) || self.constrains == other.constrains)
+            && (!mask.contains(LayoutMask::FONT_SIZE) || self.font_size == other.font_size)
+            && (!mask.contains(LayoutMask::ROOT_FONT_SIZE) || self.root_font_size == other.root_font_size)
+            && (!mask.contains(LayoutMask::SCALE_FACTOR) || self.scale_factor == other.scale_factor)
+            && (!mask.contains(LayoutMask::VIEWPORT) || self.viewport == other.viewport)
+            && (!mask.contains(LayoutMask::SCREEN_PPI) || about_eq(self.screen_ppi, other.screen_ppi, 0.0001))
+    }
+}
+impl PartialEq for LayoutMetricsSnapshot {
+    fn eq(&self, other: &Self) -> bool {
+        self.constrains == other.constrains
+            && self.font_size == other.font_size
+            && self.root_font_size == other.root_font_size
+            && self.scale_factor == other.scale_factor
+            && self.viewport == other.viewport
+            && about_eq(self.screen_ppi, other.screen_ppi, 0.0001)
+    }
+}
+impl std::hash::Hash for LayoutMetricsSnapshot {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.constrains.hash(state);
+        self.font_size.hash(state);
+        self.root_font_size.hash(state);
+        self.scale_factor.hash(state);
+        self.viewport.hash(state);
+        about_eq_hash(self.screen_ppi, 0.0001, state);
+    }
+}
+
 /// Layout metrics in a [`LayoutContext`].
 ///
 /// The [`LayoutContext`] type dereferences to this one.
@@ -1116,13 +1165,7 @@ impl<'a> InfoContext<'a> {
 pub struct LayoutMetrics {
     use_mask: Cell<LayoutMask>,
 
-    constrains: PxConstrains2d,
-    font_size: Px,
-    root_font_size: Px,
-    scale_factor: Factor,
-    viewport: PxSize,
-    screen_ppi: f32,
-    updates: LayoutMask,
+    s: LayoutMetricsSnapshot,
 }
 impl LayoutMetrics {
     /// New root [`LayoutMetrics`].
@@ -1134,13 +1177,14 @@ impl LayoutMetrics {
     pub fn new(scale_factor: Factor, viewport: PxSize, font_size: Px) -> Self {
         LayoutMetrics {
             use_mask: Cell::new(LayoutMask::NONE),
-            constrains: PxConstrains2d::new_fill_size(viewport),
-            font_size,
-            root_font_size: font_size,
-            scale_factor,
-            viewport,
-            screen_ppi: 96.0,
-            updates: LayoutMask::all(),
+            s: LayoutMetricsSnapshot {
+                constrains: PxConstrains2d::new_fill_size(viewport),
+                font_size,
+                root_font_size: font_size,
+                scale_factor,
+                viewport,
+                screen_ppi: 96.0,
+            },
         }
     }
 
@@ -1158,11 +1202,6 @@ impl LayoutMetrics {
             is_width: false,
             metrics: self,
         }
-    }
-
-    /// What metrics changed from the last layout in the same context.
-    pub fn updates(&self) -> LayoutMask {
-        self.updates
     }
 
     /// What metrics where requested so far in the widget or descendants.
@@ -1193,25 +1232,25 @@ impl LayoutMetrics {
     /// Current size constrains.
     pub fn constrains(&self) -> PxConstrains2d {
         self.register_use(LayoutMask::CONSTRAINS);
-        self.constrains
+        self.s.constrains
     }
 
     /// Current computed font size.
     pub fn font_size(&self) -> Px {
         self.register_use(LayoutMask::FONT_SIZE);
-        self.font_size
+        self.s.font_size
     }
 
     /// Computed font size at the root widget.
     pub fn root_font_size(&self) -> Px {
         self.register_use(LayoutMask::ROOT_FONT_SIZE);
-        self.root_font_size
+        self.s.root_font_size
     }
 
     /// Pixel scale factor.
     pub fn scale_factor(&self) -> Factor {
         self.register_use(LayoutMask::SCALE_FACTOR);
-        self.scale_factor
+        self.s.scale_factor
     }
 
     /// Computed size of the nearest viewport ancestor.
@@ -1219,22 +1258,22 @@ impl LayoutMetrics {
     /// This is usually the window content area size, but can be the scrollable viewport size or any other
     /// value depending on the implementation of the context widgets.
     pub fn viewport(&self) -> PxSize {
-        self.register_use(LayoutMask::VIEWPORT_SIZE);
-        self.viewport
+        self.register_use(LayoutMask::VIEWPORT);
+        self.s.viewport
     }
 
     /// Smallest dimension of the [`viewport`].
     ///
     /// [`viewport`]: Self::viewport
     pub fn viewport_min(&self) -> Px {
-        self.viewport().width.min(self.viewport.height)
+        self.s.viewport.width.min(self.s.viewport.height)
     }
 
     /// Largest dimension of the [`viewport`].
     ///
     /// [`viewport`]: Self::viewport
     pub fn viewport_max(&self) -> Px {
-        self.viewport().width.max(self.viewport.height)
+        self.s.viewport.width.max(self.s.viewport.height)
     }
 
     /// The current screen "pixels-per-inch" resolution.
@@ -1250,14 +1289,14 @@ impl LayoutMetrics {
     /// [`Monitors`]: crate::window::Monitors
     /// [`scale_factor`]: LayoutMetrics::scale_factor
     pub fn screen_ppi(&self) -> f32 {
-        self.screen_ppi
+        self.s.screen_ppi
     }
 
     /// Sets the [`constrains`] to the value returned by `constrains`. The closure input is the current constrains.
     ///
     /// [`constrains`]: Self::constrains
     pub fn with_constrains(mut self, constrains: impl FnOnce(PxConstrains2d) -> PxConstrains2d) -> Self {
-        self.constrains = constrains(self.constrains);
+        self.s.constrains = constrains(self.s.constrains);
         self
     }
 
@@ -1265,7 +1304,7 @@ impl LayoutMetrics {
     ///
     /// [`font_size`]: Self::font_size
     pub fn with_font_size(mut self, font_size: Px) -> Self {
-        self.font_size = font_size;
+        self.s.font_size = font_size;
         self
     }
 
@@ -1273,7 +1312,7 @@ impl LayoutMetrics {
     ///
     /// [`viewport`]: Self::viewport
     pub fn with_viewport(mut self, viewport: PxSize) -> Self {
-        self.viewport = viewport;
+        self.s.viewport = viewport;
         self
     }
 
@@ -1281,7 +1320,7 @@ impl LayoutMetrics {
     ///
     /// [`scale_factor`]: Self::scale_factor
     pub fn with_scale_factor(mut self, scale_factor: Factor) -> Self {
-        self.scale_factor = scale_factor;
+        self.s.scale_factor = scale_factor;
         self
     }
 
@@ -1289,15 +1328,7 @@ impl LayoutMetrics {
     ///
     /// [`screen_ppi`]: Self::screen_ppi
     pub fn with_screen_ppi(mut self, screen_ppi: f32) -> Self {
-        self.screen_ppi = screen_ppi;
-        self
-    }
-
-    /// Sets the [`updates`].
-    ///
-    /// [`updates`]: Self::updates
-    pub fn with_updates(mut self, updates: LayoutMask) -> Self {
-        self.updates = updates;
+        self.s.screen_ppi = screen_ppi;
         self
     }
 
@@ -1309,11 +1340,18 @@ impl LayoutMetrics {
         self
     }
 
-    fn enter_widget_ctx(&self) -> LayoutMask {
+    /// Clones all current metrics into a [snapshot].
+    ///
+    /// [snapshot]: LayoutMetricsSnapshot
+    pub fn snapshot(&self) -> LayoutMetricsSnapshot {
+        self.s
+    }
+
+    pub(crate) fn enter_widget_ctx(&self) -> LayoutMask {
         self.use_mask.replace(LayoutMask::NONE)
     }
 
-    fn exit_widget_ctx(&self, prev_use: LayoutMask) -> LayoutMask {
+    pub(crate) fn exit_widget_ctx(&self, prev_use: LayoutMask) -> LayoutMask {
         let mut uses = self.use_mask.get();
         let r = uses;
         uses |= prev_use;
@@ -1334,18 +1372,18 @@ impl<'m> Layout1dMetrics<'m> {
     /// Length constrains in the selected dimension.
     pub fn constrains(&self) -> PxConstrains {
         if self.is_width {
-            self.metrics.constrains.x
+            self.metrics.s.constrains.x
         } else {
-            self.metrics.constrains.y
+            self.metrics.s.constrains.y
         }
     }
 
     /// Viewport length in the selected dimension.
     pub fn viewport_length(&self) -> Px {
         if self.is_width {
-            self.metrics.viewport().width
+            self.metrics.s.viewport.width
         } else {
-            self.metrics.viewport().height
+            self.metrics.s.viewport.height
         }
     }
 }

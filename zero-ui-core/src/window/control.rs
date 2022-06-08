@@ -661,7 +661,6 @@ impl HeadedCtrl {
                     scale_factor,
                     screen_ppi,
                     size,
-                    LayoutMask::all(),
                     &self.content.info_tree,
                     &self.content.root_info,
                     &mut self.content.root_state,
@@ -1118,7 +1117,6 @@ struct ContentCtrl {
     used_info_builder: Option<UsedWidgetInfoBuilder>,
     layout_pass: LayoutPassId,
 
-    prev_metrics: Option<(Px, Factor, f32, PxSize)>,
     used_frame_builder: Option<UsedFrameBuilder>,
     used_frame_update: Option<UsedFrameUpdate>,
 
@@ -1147,7 +1145,6 @@ impl ContentCtrl {
             used_info_builder: None,
             layout_pass: 0,
 
-            prev_metrics: None,
             used_frame_builder: None,
             used_frame_update: None,
 
@@ -1278,7 +1275,6 @@ impl ContentCtrl {
             scale_factor,
             screen_ppi,
             screen_size,
-            LayoutMask::all(),
             &self.info_tree,
             &self.root_info,
             &mut self.root_state,
@@ -1319,25 +1315,6 @@ impl ContentCtrl {
             }
         }
 
-        let mut changes = LayoutMask::NONE;
-        if let Some((prev_font_size, prev_scale_factor, prev_screen_ppi, prev_viewport_size)) = self.prev_metrics {
-            if prev_font_size != base_font_size {
-                changes |= LayoutMask::FONT_SIZE;
-            }
-            if prev_scale_factor != scale_factor {
-                changes |= LayoutMask::SCALE_FACTOR;
-            }
-            if !about_eq(prev_screen_ppi, screen_ppi, 0.001) {
-                changes |= LayoutMask::SCREEN_PPI;
-            }
-            if prev_viewport_size != viewport_size {
-                changes |= LayoutMask::VIEWPORT_SIZE;
-            }
-        } else {
-            changes = LayoutMask::FONT_SIZE | LayoutMask::SCALE_FACTOR | LayoutMask::SCREEN_PPI;
-        }
-        self.prev_metrics = Some((base_font_size, scale_factor, screen_ppi, viewport_size));
-
         self.layout_pass += 1;
 
         ctx.layout_context(
@@ -1345,7 +1322,6 @@ impl ContentCtrl {
             scale_factor,
             screen_ppi,
             viewport_size,
-            changes,
             &self.info_tree,
             &self.root_info,
             &mut self.root_state,

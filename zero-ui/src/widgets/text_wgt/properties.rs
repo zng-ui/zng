@@ -137,12 +137,10 @@ pub fn font_aa(child: impl UiNode, aa: impl IntoVar<FontAntiAliasing>) -> impl U
 pub fn font_size(child: impl UiNode, size: impl IntoVar<FontSize>) -> impl UiNode {
     struct FontSizeNode<C> {
         child: C,
-        size_new: bool,
     }
     #[impl_ui_node(child)]
     impl<C: UiNode> UiNode for FontSizeNode<C> {
         fn init(&mut self, ctx: &mut WidgetContext) {
-            self.size_new = true;
             self.child.init(ctx);
         }
 
@@ -153,7 +151,6 @@ pub fn font_size(child: impl UiNode, size: impl IntoVar<FontSize>) -> impl UiNod
 
         fn update(&mut self, ctx: &mut WidgetContext) {
             if FontSizeVar::is_new(ctx) {
-                self.size_new = true;
                 ctx.updates.layout();
             }
             self.child.update(ctx);
@@ -161,12 +158,10 @@ pub fn font_size(child: impl UiNode, size: impl IntoVar<FontSize>) -> impl UiNod
 
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
             let font_size = FontSizeVar::get(ctx.vars).layout(ctx.for_y(), |ctx| ctx.metrics.root_font_size());
-            let s = ctx.with_font_size(font_size, self.size_new, |ctx| self.child.layout(ctx, wl));
-            self.size_new = false;
-            s
+            ctx.with_font_size(font_size, |ctx| self.child.layout(ctx, wl))
         }
     }
-    let child = FontSizeNode { child, size_new: true };
+    let child = FontSizeNode { child };
     with_context_var(child, FontSizeVar, size)
 }
 

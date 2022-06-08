@@ -6,7 +6,7 @@ use ego_tree::Tree;
 
 use crate::{
     border::ContextBorders,
-    context::{InfoContext, LayoutContext, OwnedStateMap, StateMap, Updates},
+    context::{InfoContext, LayoutContext, LayoutMetricsSnapshot, OwnedStateMap, StateMap, Updates},
     crate_util::{IdMap, IdSet},
     event::EventUpdateArgs,
     handler::WidgetHandler,
@@ -93,10 +93,18 @@ impl WidgetLayout {
     /// Defines a widget outer-bounds scope, applies pending translations to the outer offset,
     /// calls `layout`, then sets the translation target to the outer bounds.
     ///
+    /// If `reuse` is `true` and none of the used metrics have changed skips calling `layout` and returns the current outer-size, the
+    /// outer transform is still updated.
+    ///
     /// The default widget constructor calls this, see [`implicit_base::nodes::widget`].
     ///
     /// [`implicit_base::nodes::widget`]: crate::widget_base::implicit_base::nodes::widget
-    pub fn with_widget(&mut self, ctx: &mut LayoutContext, reuse: bool, layout: impl FnOnce(&mut LayoutContext, &mut Self) -> PxSize) -> PxSize {
+    pub fn with_widget(
+        &mut self,
+        ctx: &mut LayoutContext,
+        reuse: bool,
+        layout: impl FnOnce(&mut LayoutContext, &mut Self) -> PxSize,
+    ) -> PxSize {
         self.finish_known(); // in case of WidgetList.
         self.baseline = Px(0);
         let parent_child_offset_changed = mem::take(&mut self.child_offset_changed);
@@ -106,15 +114,20 @@ impl WidgetLayout {
         // drain preview translations.
         ctx.widget_info.bounds.set_outer_offset(mem::take(&mut self.offset_buf));
 
-        let size = if reuse {
-            println!("!!: REUSE {:?}", ctx.path);
-            ctx.widget_info.bounds.outer_size()
+        let snap = ctx.metrics.snapshot();
+        let mut uses = ctx.widget_info.bounds.metrics_used();
+        let size;
+
+        if reuse && ctx.widget_info.bounds.metrics().map(|m| m.masked_eq(&snap, uses)).unwrap_or(false) {
+            size = ctx.widget_info.bounds.outer_size();
         } else {
-            println!("!!: LAYOUT {:?}", ctx.path);
-            let size = layout(ctx, self);
+            let prev_uses = ctx.metrics.enter_widget_ctx();
+            size = layout(ctx, self);
+            uses = ctx.metrics.exit_widget_ctx(prev_uses);
+
             ctx.widget_info.bounds.set_outer_size(size);
-            size
         };
+        ctx.widget_info.bounds.set_metrics(Some(snap), uses);
 
         // setup returning translations target.
         self.finish_known();
@@ -310,6 +323,7 @@ impl WidgetLayout {
                 info.bounds_info.set_outer_offset(PxVector::zero());
                 info.bounds_info.set_inner_offset(PxVector::zero());
                 info.bounds_info.set_child_offset(PxVector::zero());
+                info.bounds_info.set_metrics(None, LayoutMask::NONE);
             }
         } else {
             tracing::error!("collapse did not find `{}` in the info tree", widget_id)
@@ -1125,6 +1139,9 @@ struct WidgetBoundsData {
     outer_size: Cell<PxSize>,
     inner_size: Cell<PxSize>,
     baseline: Cell<Px>,
+
+    metrics: Cell<Option<LayoutMetricsSnapshot>>,
+    metrics_used: Cell<LayoutMask>,
 }
 
 /// Shared reference to layout size and offsets of a widget.
@@ -1209,6 +1226,25 @@ impl WidgetBoundsInfo {
         }
     }
 
+    /// Snapshot of the [`LayoutMetrics`] on the last layout.
+    ///
+    /// The [`metrics_used`] value indicates what fields where actually used in the last layout.
+    ///
+    /// Is `None` if the widget is collapsed.
+    ///
+    /// [`LayoutMetrics`]: crate::context::LayoutMetrics
+    /// [`metrics_used`]: Self::metrics_used
+    pub fn metrics(&self) -> Option<LayoutMetricsSnapshot> {
+        self.0.metrics.get()
+    }
+
+    /// All [`metrics`] fields used by the widget or descendants on the last layout.
+    ///
+    /// [`metrics`]: Self::metrics
+    pub fn metrics_used(&self) -> LayoutMask {
+        self.0.metrics_used.get()
+    }
+
     fn begin_pass(&self, pass: LayoutPassId) {
         // Record current state as previous state on the first call of the `pass`, see `Self::end_pass`.
 
@@ -1283,6 +1319,11 @@ impl WidgetBoundsInfo {
 
     fn set_baseline(&self, baseline: Px) {
         self.0.baseline.set(baseline);
+    }
+
+    fn set_metrics(&self, metrics: Option<LayoutMetricsSnapshot>, used: LayoutMask) {
+        self.0.metrics.set(metrics);
+        self.0.metrics_used.set(used);
     }
 }
 

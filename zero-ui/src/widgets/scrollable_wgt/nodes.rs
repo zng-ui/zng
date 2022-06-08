@@ -69,7 +69,7 @@ pub fn viewport(child: impl UiNode, mode: impl IntoVar<ScrollMode>) -> impl UiNo
                 },
                 |ctx| {
                     if define_vp_unit {
-                        ctx.with_viewport(viewport_unit, self.viewport_unit != viewport_unit, |ctx| {
+                        ctx.with_viewport(viewport_unit, |ctx| {
                             self.viewport_unit = viewport_unit;
                             self.child.layout(ctx, wl)
                         })

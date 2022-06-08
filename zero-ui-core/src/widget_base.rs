@@ -7,7 +7,7 @@ use crate::{
     event::EventUpdateArgs,
     impl_ui_node, property,
     render::{FrameBindingKey, FrameBuilder, FrameUpdate, SpatialFrameId},
-    units::{LayoutMask, PxCornerRadius, PxRect, PxSize, RenderTransform, RenderTransformExt},
+    units::{PxCornerRadius, PxRect, PxSize, RenderTransform, RenderTransformExt},
     var::*,
     widget_info::{
         Interactivity, LayoutPassId, UpdateMask, Visibility, WidgetBorderInfo, WidgetBoundsInfo, WidgetContextInfo, WidgetInfoBuilder,
@@ -295,7 +295,6 @@ pub mod implicit_base {
                 #[cfg(debug_assertions)]
                 inited: bool,
                 pending_updates: RefCell<WidgetUpdates>,
-                layout_used: LayoutMask,
                 offsets_pass: Cell<LayoutPassId>,
             }
             impl<C: UiNode> UiNode for WidgetNode<C> {
@@ -404,20 +403,12 @@ pub mod implicit_base {
                         tracing::error!(target: "widget_base", "`UiNode::layout` called in not inited widget {:?}", self.id);
                     }
 
-                    println!("!!: {}", ">".repeat(ctx.path.depth()));
-                    
-                    let reuse =
-                        !mem::take(&mut self.pending_updates.get_mut().layout) && !self.layout_used.intersects(ctx.metrics.updates());
+                    let reuse = !mem::take(&mut self.pending_updates.get_mut().layout);
 
-                    let (child_size, updates, uses) = ctx.with_widget(self.id, &self.info, &mut self.state, |ctx| {
+                    let (child_size, updates) = ctx.with_widget(self.id, &self.info, &mut self.state, |ctx| {
                         wl.with_widget(ctx, reuse, |ctx, wl| self.child.layout(ctx, wl))
                     });
                     *self.pending_updates.get_mut() |= updates;
-                    if reuse {
-                        self.layout_used = uses;
-                    }
-
-                    println!("!!: {}", "<".repeat(ctx.path.depth()));
 
                     child_size
                 }
@@ -524,7 +515,6 @@ pub mod implicit_base {
                 #[cfg(debug_assertions)]
                 inited: false,
                 pending_updates: RefCell::default(),
-                layout_used: LayoutMask::NONE,
                 offsets_pass: Cell::default(),
             }
             .cfg_boxed_wgt()
