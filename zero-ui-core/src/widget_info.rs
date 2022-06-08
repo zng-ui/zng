@@ -122,8 +122,11 @@ impl WidgetLayout {
             size = ctx.widget_info.bounds.outer_size();
         } else {
             let prev_uses = ctx.metrics.enter_widget_ctx();
+            println!("!!: ENTER {:?}, {prev_uses:?}", ctx.path);
             size = layout(ctx, self);
+            println!("!!: EXIT {:?} {:?}", ctx.path, ctx.metrics.metrics_used());
             uses = ctx.metrics.exit_widget_ctx(prev_uses);
+            println!("!!: AFTER {:?} {:?}", ctx.path, ctx.metrics.metrics_used());
 
             ctx.widget_info.bounds.set_outer_size(size);
         };
