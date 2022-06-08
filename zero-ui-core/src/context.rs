@@ -2,6 +2,7 @@
 
 use crate::{event::Events, service::Services, units::*, var::Vars, window::WindowId, WidgetId, WidgetPath};
 use std::cell::Cell;
+use std::rc::Rc;
 use std::{fmt, ops::Deref};
 
 use crate::app::{AppEventSender, LoopTimer};
@@ -1163,7 +1164,7 @@ impl std::hash::Hash for LayoutMetricsSnapshot {
 /// The [`LayoutContext`] type dereferences to this one.
 #[derive(Debug, Clone)]
 pub struct LayoutMetrics {
-    use_mask: Cell<LayoutMask>,
+    use_mask: Rc<Cell<LayoutMask>>,
 
     s: LayoutMetricsSnapshot,
 }
@@ -1176,7 +1177,7 @@ impl LayoutMetrics {
     /// [`with_screen_ppi`]: LayoutMetrics::with_screen_ppi
     pub fn new(scale_factor: Factor, viewport: PxSize, font_size: Px) -> Self {
         LayoutMetrics {
-            use_mask: Cell::new(LayoutMask::NONE),
+            use_mask: Rc::new(Cell::new(LayoutMask::NONE)),
             s: LayoutMetricsSnapshot {
                 constrains: PxConstrains2d::new_fill_size(viewport),
                 font_size,
@@ -1332,14 +1333,6 @@ impl LayoutMetrics {
         self
     }
 
-    /// Sets the [`metrics_used`].
-    ///
-    /// [`metrics_used`]: Self::metrics_used
-    pub fn with_use(mut self, use_mask: LayoutMask) -> Self {
-        self.use_mask = Cell::new(use_mask);
-        self
-    }
-
     /// Clones all current metrics into a [snapshot].
     ///
     /// [snapshot]: LayoutMetricsSnapshot
@@ -1351,12 +1344,10 @@ impl LayoutMetrics {
         self.use_mask.replace(LayoutMask::NONE)
     }
 
-    pub(crate) fn exit_widget_ctx(&self, prev_use: LayoutMask) -> LayoutMask {
-        let mut uses = self.use_mask.get();
-        let r = uses;
-        uses |= prev_use;
-        self.use_mask.set(uses);
-        r
+    pub(crate) fn exit_widget_ctx(&self, parent_use: LayoutMask) -> LayoutMask {
+        let wgt_use = self.use_mask.get();
+        self.use_mask.set(parent_use | wgt_use);
+        wgt_use
     }
 }
 
@@ -1371,6 +1362,7 @@ pub struct Layout1dMetrics<'m> {
 impl<'m> Layout1dMetrics<'m> {
     /// Length constrains in the selected dimension.
     pub fn constrains(&self) -> PxConstrains {
+        self.metrics.register_use(LayoutMask::CONSTRAINS);
         if self.is_width {
             self.metrics.s.constrains.x
         } else {
@@ -1380,6 +1372,7 @@ impl<'m> Layout1dMetrics<'m> {
 
     /// Viewport length in the selected dimension.
     pub fn viewport_length(&self) -> Px {
+        self.metrics.register_use(LayoutMask::VIEWPORT);
         if self.is_width {
             self.metrics.s.viewport.width
         } else {

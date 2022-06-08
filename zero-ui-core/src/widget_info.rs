@@ -121,12 +121,9 @@ impl WidgetLayout {
         if reuse && ctx.widget_info.bounds.metrics().map(|m| m.masked_eq(&snap, uses)).unwrap_or(false) {
             size = ctx.widget_info.bounds.outer_size();
         } else {
-            let prev_uses = ctx.metrics.enter_widget_ctx();
-            println!("!!: ENTER {:?}, {prev_uses:?}", ctx.path);
+            let parent_uses = ctx.metrics.enter_widget_ctx();
             size = layout(ctx, self);
-            println!("!!: EXIT {:?} {:?}", ctx.path, ctx.metrics.metrics_used());
-            uses = ctx.metrics.exit_widget_ctx(prev_uses);
-            println!("!!: AFTER {:?} {:?}", ctx.path, ctx.metrics.metrics_used());
+            uses = ctx.metrics.exit_widget_ctx(parent_uses);
 
             ctx.widget_info.bounds.set_outer_size(size);
         };
