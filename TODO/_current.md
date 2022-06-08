@@ -1,4 +1,3 @@
-* Reuse tracing spans when possible, should reduce allocations.
 * Optimize/fix interactivity, can we make parent interactivity affecting child a guaranteed?
 * Different visual for focused and disabled.
 
