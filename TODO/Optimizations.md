@@ -68,6 +68,22 @@
   - It cannot write to `self` or request any kind of updates, is like an `InfoContext` with metrics.
   - If only computes sizes, not positioning of anything.
   - Cannot be auto-implemented if `UiNode::layout` is custom.
+  - Can call it `UiNode::measure(&self, ctx: &mut MeasureContext, wm: &mut WidgetMeasure) -> PxSize`?
+    - Is different from the older `measure/arrange`, but we can only confuse ourselves..
+  - Is any parent going to need the align of children too?
+    - They can still do two full layout passes.
+  - Can we reduce the `LayoutMetrics`?
+    - No, font sizes can depend on the viewport for example.
+  - How does the cache works?
+    - Cache last layout and last measure.
+    - Measure also hits cache if matches the layout (and is not pending a layout).
+  - What if the widget is measured after it requests layout?
+    - It will have to potentially create temporary stuff, like a shaped text just for measure?
+  - Is the `WidgetMeasure` only for symmetry?
+    - We can do the use/reuse thing in the `MeasureContext`.
+    - Only very advanced users (writing fully custom widgets) will ever need to thing about this.
+  - Final design `UiNode::measure(&self, ctx: &mut MeasureContext) -> PxSize`.
+    - And the context is just an `InfoContext` with extra `LayoutMetrics`.
 
 # Better render reuse
 
