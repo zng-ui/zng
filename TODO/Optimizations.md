@@ -9,10 +9,6 @@
 * Maybe can always have an AppContext for each UI thread, with a copy of services and such, after each update they merge into
   the main AppContext.
 
-# Mouse Move Interest
-
-* Let widgets define what sort of mouse event they want, use the hit-test tag, filter events in the view-process?
-
 # Update Mask
 
 * Sub-divide UiNodeList masks.
@@ -23,22 +19,57 @@
 * First render is also slow.
 * We block the app process waiting view-process startup.
 
-# Event Route
+# Layout Passes
 
-Limit events so only the affected widgets are visited in `UiNode::event`, right now all nodes that subscribe
-to the event type are affected, so common events almost visit the full tree.
+* Right now we need multiple passes to do things like define the size of cells in the uniform grid depending on
+  the constrains on the panel, maybe we can reduce these to one pass somehow?
+   - We need to know the size a widget would be like given a constrain, and them call layout and give the widget
+     our preferred constrain.
+   - We can't have the widget respond to multiple constrains at the same time, because widgets may generate different
+     content depending on their size.
 
-# Cache Everything
+* Multiple passes cancels out layout reuse of everything that depends on the constrains, maybe we can at least
+  signal the children that a layout pass is "experimental".
+    - This still causes an "experimental" pass for each panel that contains a single child that requested layout.
 
-General idea, reuse computed data for `UiNode` info, layout and render at
-widget boundaries if the widget or inner widgets did not request an update of these types.
+* We can cache multiple layout sizes in widgets, then reuse if any matches?
+  - No, reused widget will still try to render the last size observed.
+  - We can cache the "experimental" marked result and the actual result.
 
-## Layout Passes
+* What are the "experimental" results that panels need:
+  - `uniform_grid`:
+    * Min size (not fill) to select the minimal uniform cell size when the panel is not fill or fixed size.
+  - `v_stack`:
+    * Min width (not fill) to select the panel width when it is not fill-width or fixed-width.
+    * Min height, to determinate the extra fill size when items fill-height.
+  - `grid`:
+    * Similar to uniform, but cells only affect their row and column.
+  - Any future takers on the max_size, or is it just the min?
+    * Can widgets know their min_size before layout?
+      - No, they need to compute lengths.
 
-* Review layout double-pass of stacks.
-    - What happens for nested stacks, quadratic?
+* Can we know what child has requested layout and only do two passes in it, unless it defines the cell size?
+  - Needs to insert widget info in `Updates` but it is possible.
 
-## `UiNode::render`
+* We can let users define the "mold" widget that is used to compute the others, this needs only one pass then.
+  - Lets do this if we fail to optimize to one pass.
+  - Needs a better name.
+
+* If we make an `experimental` flag in LayoutContext:
+  - Can cache two different results.
+  - Widgets can avoid requesting render for experimental.
+  - Downside, all widgets need to be layout twice, because they will not record changes for experimental.
+  - Downside, widgets **must not** save anything in the experimental pass, because we want to reuse in the actual after experimental.
+  - Review leaf widgets like `image` and `text` first, can they actually handle this without recording state?
+    - `image`, no problem, can even cut some of the computation.
+    - `text`, need rewrite, the experimental pass can easily cause a reshape, and that gets saved as we compute right now.
+
+* Add an `UiNode::layout_query(&self, ctx: &mut LayoutQueryContext, wl: &mut WidgetLayoutQuery) -> PxSize`?
+  - It cannot write to `self` or request any kind of updates, is like an `InfoContext` with metrics.
+  - If only computes sizes, not positioning of anything.
+  - Cannot be auto-implemented if `UiNode::layout` is custom.
+
+# Better render reuse
 
 * Already started implementing this, see `ReuseGroup`.
   - Webrender reuse depends on space/clip ids and these invalidate all items after an insert remove.
