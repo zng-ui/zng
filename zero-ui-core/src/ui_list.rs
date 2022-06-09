@@ -1,7 +1,7 @@
 //! UI node and widget lists abstraction.
 
 use crate::{
-    context::{InfoContext, LayoutContext, RenderContext, StateMap, WidgetContext},
+    context::{InfoContext, LayoutContext, MeasureContext, RenderContext, StateMap, WidgetContext},
     event::EventUpdateArgs,
     render::{FrameBuilder, FrameUpdate},
     units::{PxConstrains2d, PxSize},
@@ -75,6 +75,28 @@ pub trait UiNodeList: 'static {
 
     /// Calls [`UiNode::event`] in all widgets in the list, sequentially.
     fn event_all<EU: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &EU);
+
+    /// Calls [`UiNode::measure`] in all widgets in the list, sequentially.
+    ///
+    /// Note that you can also measure specific children with [`item_measure`].
+    ///
+    /// # Pre-Measure
+    ///
+    /// The `pre_measure` closure is called just before the measure call for each child, you can use the [`PreMeasureArgs`]
+    /// to configure the constrains used to measure the child.
+    ///
+    /// # Pos-Measure
+    ///
+    /// The `pos_measure` closure is called after the measure call for each child, you can see the measured size in the [`PosMeasureArgs`].
+    ///
+    /// [`item_measure`]: Self::item_measure
+    fn measure_all<C, D>(&self, ctx: &mut MeasureContext, pre_measure: C, pos_measure: D)
+    where
+        C: FnMut(&mut MeasureContext, &mut PreMeasureArgs),
+        D: FnMut(&mut MeasureContext, PosMeasureArgs);
+
+    /// Calls [`UiNode::measure`] in only the `index` node or widget.
+    fn item_measure(&self, index: usize, ctx: &mut MeasureContext) -> PxSize;
 
     /// Calls [`UiNode::layout`] in all widgets in the list, sequentially.
     ///
@@ -162,6 +184,50 @@ pub trait UiNodeList: 'static {
         F: FnMut(UiNodeFilterArgs) -> bool;
 }
 
+/// Arguments for the closure in [`UiNodeList::measure_all`] that runs before each child is measured.
+pub struct PreMeasureArgs<'a> {
+    /// The widget/node index in the list.
+    pub index: usize,
+
+    /// Reference to the widget state.
+    ///
+    /// Can be `None` in [`UiNodeList`] for nodes that are not full widgets.
+    pub state: Option<&'a StateMap>,
+
+    /// Constrains overwrite just for this child.
+    pub constrains: Option<PxConstrains2d>,
+}
+impl<'a> PreMeasureArgs<'a> {
+    /// New args for item.
+    pub fn new(index: usize, state: Option<&'a StateMap>) -> Self {
+        PreMeasureArgs {
+            index,
+            state,
+            constrains: None,
+        }
+    }
+}
+
+/// Arguments for the closure in [`UiNodeList::measure_all`] that runs after each child is measured.
+pub struct PosMeasureArgs<'a> {
+    /// The widget/node index in the list.
+    pub index: usize,
+
+    /// Reference to the widget state.
+    ///
+    /// Can be `None` in [`UiNodeList`] for nodes that are not full widgets.
+    pub state: Option<&'a StateMap>,
+
+    /// The measured size.
+    pub size: PxSize,
+}
+impl<'a> PosMeasureArgs<'a> {
+    /// New args for item.
+    pub fn new(index: usize, state: Option<&'a StateMap>, size: PxSize) -> Self {
+        PosMeasureArgs { index, state, size }
+    }
+}
+
 /// Arguments for the closure in [`UiNodeList::layout_all`] that runs before each child is layout.
 pub struct PreLayoutArgs<'a> {
     /// The widget/node index in the list.
@@ -206,6 +272,29 @@ impl<'a> PosLayoutArgs<'a> {
     }
 }
 
+fn default_widget_list_measure_all<W, C, D>(index: usize, widget: &W, ctx: &mut MeasureContext, mut pre_measure: C, mut pos_measure: D)
+where
+    W: Widget,
+    C: FnMut(&mut MeasureContext, &mut PreMeasureArgs),
+    D: FnMut(&mut MeasureContext, PosMeasureArgs),
+{
+    let mut args = PreMeasureArgs::new(index, Some(widget.state()));
+    pre_measure(ctx, &mut args);
+    let size = ctx.with_constrains(|c| args.constrains.take().unwrap_or(c), |ctx| widget.measure(ctx));
+    pos_measure(ctx, PosMeasureArgs::new(index, Some(widget.state()), size));
+}
+fn default_ui_node_list_measure_all<N, C, D>(index: usize, node: &N, ctx: &mut MeasureContext, mut pre_measure: C, mut pos_measure: D)
+where
+    N: UiNode,
+    C: FnMut(&mut MeasureContext, &mut PreMeasureArgs),
+    D: FnMut(&mut MeasureContext, PosMeasureArgs),
+{
+    let mut args = PreMeasureArgs::new(index, node.try_state());
+    pre_measure(ctx, &mut args);
+    let size = ctx.with_constrains(|c| args.constrains.take().unwrap_or(c), |ctx| node.measure(ctx));
+    pos_measure(ctx, PosMeasureArgs::new(index, node.try_state(), size));
+}
+
 fn default_widget_list_layout_all<W, C, D>(
     index: usize,
     widget: &mut W,
@@ -242,7 +331,7 @@ fn default_ui_node_list_layout_all<N, C, D>(
         pre_layout(ctx, wl, &mut args);
         ctx.with_constrains(|c| args.constrains.take().unwrap_or(c), |ctx| node.layout(ctx, wl))
     });
-    pos_layout(ctx, wl, PosLayoutArgs::new(index, None, size));
+    pos_layout(ctx, wl, PosLayoutArgs::new(index, node.try_state_mut(), size));
 }
 
 /// All [`Widget`] accessible info.

@@ -706,6 +706,13 @@ mod properties {
                     });
             }
 
+            fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
+                ctx.vars
+                    .with_context_var(self.var, ContextVarData::in_vars_read(ctx.vars, &self.value), || {
+                        self.child.measure(ctx)
+                    })
+            }
+
             fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
                 ctx.vars
                     .with_context_var(self.var, ContextVarData::in_vars(ctx.vars, &self.value, false), || {

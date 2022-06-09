@@ -1,7 +1,7 @@
 use std::{cell::RefCell, cmp, mem, ops::Deref, rc::Rc};
 
 use crate::{
-    context::{InfoContext, LayoutContext, RenderContext, StateMap, WidgetContext, WithUpdates},
+    context::{InfoContext, LayoutContext, MeasureContext, RenderContext, StateMap, WidgetContext, WithUpdates},
     event::EventUpdateArgs,
     render::{FrameBuilder, FrameUpdate},
     ui_list::{PosLayoutArgs, PreLayoutArgs, UiListObserver, UiNodeList, UiNodeVec, WidgetFilterArgs, WidgetList, WidgetVec, WidgetVecRef},
@@ -318,6 +318,20 @@ impl UiNodeList for SortedWidgetVec {
         for widget in &mut self.vec {
             widget.event(ctx, args);
         }
+    }
+
+    fn measure_all<C, D>(&self, ctx: &mut MeasureContext, mut pre_measure: C, mut pos_measure: D)
+    where
+        C: FnMut(&mut MeasureContext, &mut super::PreMeasureArgs),
+        D: FnMut(&mut MeasureContext, super::PosMeasureArgs),
+    {
+        for (i, w) in self.vec.iter().enumerate() {
+            super::default_widget_list_measure_all(i, w, ctx, &mut pre_measure, &mut pos_measure)
+        }
+    }
+
+    fn item_measure(&self, index: usize, ctx: &mut MeasureContext) -> PxSize {
+        self.vec[index].measure(ctx)
     }
 
     fn layout_all<C, D>(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout, mut pre_layout: C, mut pos_layout: D)

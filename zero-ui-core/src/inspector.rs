@@ -4,15 +4,6 @@
 //! Helper types for debugging an UI tree.
 
 use crate::{
-    context::LayoutContext,
-    context::{state_key, InfoContext, UpdatesTrace, WidgetContext},
-    render::{FrameBuilder, FrameUpdate},
-    units::*,
-    var::{context_var, BoxedVar, ContextVarData, Var, VarVersion},
-    widget_info::{Visibility, WidgetInfo, WidgetInfoTree, WidgetLayout, WidgetSubscriptions},
-    UiNode,
-};
-use crate::{
     context::RenderContext,
     crate_util::IdMap,
     event::EventUpdateArgs,
@@ -20,6 +11,15 @@ use crate::{
     text::{Text, ToText},
     widget_info::WidgetInfoBuilder,
     BoxedUiNode,
+};
+use crate::{
+    context::{state_key, InfoContext, UpdatesTrace, WidgetContext},
+    context::{LayoutContext, MeasureContext},
+    render::{FrameBuilder, FrameUpdate},
+    units::*,
+    var::{context_var, BoxedVar, ContextVarData, Var, VarVersion},
+    widget_info::{Visibility, WidgetInfo, WidgetInfoTree, WidgetLayout, WidgetSubscriptions},
+    UiNode,
 };
 
 use std::{
@@ -322,6 +322,8 @@ pub struct UiNodeDurations {
     pub deinit: Duration,
     /// Duration of [`UiNode::update`] call.
     pub update: Duration,
+    /// Duration of [`UiNode::measure`] call.
+    pub measure: Duration,
     /// Duration of [`UiNode::layout`] call.
     pub layout: Duration,
     /// Duration of [`UiNode::render`] call.
@@ -345,6 +347,8 @@ pub struct UiNodeCounts {
     pub deinit: usize,
     /// Count of calls to [`UiNode::update`].
     pub update: usize,
+    /// Count of calls to [`UiNode::measure`].
+    pub measure: usize,
     /// Count of calls to [`UiNode::layout`].
     pub layout: usize,
     /// Count of calls to [`UiNode::render`].
@@ -677,6 +681,12 @@ impl UiNode for WidgetNewFnInfoNode {
         }
     }
 
+    fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
+        let _span = UpdatesTrace::new_fn_span(self.new_fn, "measure");
+
+        self.child.measure(ctx)
+    }
+
     fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
         let _span = UpdatesTrace::new_fn_span(self.new_fn, "layout");
 
@@ -820,6 +830,12 @@ impl UiNode for WidgetInstanceInfoNode {
                 when.condition_version = var.version(ctx);
             }
         }
+    }
+
+    fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
+        let _span = UpdatesTrace::widget_span(ctx.path.widget_id(), self.info.borrow().widget_name, "measure");
+
+        self.child.measure(ctx)
     }
 
     fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
@@ -986,6 +1002,19 @@ impl UiNode for PropertyInfoNode {
 
         // TODO measure time and count
         self.child.event(ctx, args);
+    }
+
+    fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
+        let _span = UpdatesTrace::property_span(self.info.borrow().property_name, "measure");
+
+        let t = Instant::now();
+        let r = self.child.measure(ctx);
+
+        let d = t.elapsed();
+        let mut info = self.info.borrow_mut();
+        info.duration.measure = d;
+        info.count.measure += 1;
+        r
     }
 
     fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {

@@ -3,7 +3,10 @@
 use std::{fmt, mem};
 
 use crate::{
-    context::{InfoContext, LayoutContext, OwnedStateMap, RenderContext, StateMap, WidgetContext, WidgetUpdates, WindowRenderUpdate},
+    context::{
+        InfoContext, LayoutContext, MeasureContext, OwnedStateMap, RenderContext, StateMap, WidgetContext, WidgetUpdates,
+        WindowRenderUpdate,
+    },
     event::EventUpdateArgs,
     impl_ui_node, property,
     render::{FrameBindingKey, FrameBuilder, FrameUpdate, SpatialFrameId},
@@ -395,6 +398,17 @@ pub mod implicit_base {
                         let (_, updates) = ctx.widget_context(self.id, &self.info, &mut self.state, |ctx| self.child.update(ctx));
                         *self.pending_updates.get_mut() |= updates;
                     }
+                }
+
+                fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
+                    #[cfg(debug_assertions)]
+                    if !self.inited {
+                        tracing::error!(target: "widget_base", "`UiNode::measure` called in not inited widget {:?}", self.id);
+                    }
+
+                    let reuse = self.pending_updates.borrow().layout;
+
+                    ctx.with_widget(self.id, &self.info, &self.state, reuse, |ctx| self.child.measure(ctx))
                 }
 
                 fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {

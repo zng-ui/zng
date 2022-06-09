@@ -667,7 +667,7 @@ impl<'a> WidgetContext<'a> {
         (r, self.updates.exit_widget_ctx(prev_updates))
     }
 
-    /// Runs an [`InfoContext`] generated from `self`.
+    /// Returns an [`InfoContext`] generated from `self`.
     pub fn as_info(&mut self) -> InfoContext {
         InfoContext {
             path: self.path,
@@ -783,6 +783,175 @@ impl fmt::Display for WidgetContextPath {
     }
 }
 
+/// A widget measure context.
+pub struct MeasureContext<'a> {
+    /// Contextual layout metrics.
+    pub metrics: &'a LayoutMetrics,
+
+    /// Current widget path.
+    pub path: &'a mut WidgetContextPath,
+
+    /// Last build widget info tree of the parent window.
+    pub info_tree: &'a WidgetInfoTree,
+
+    /// Current widget's outer, inner, border and render info.
+    pub widget_info: &'a WidgetContextInfo,
+
+    /// Read-only access to the state that lives for the duration of the application.
+    pub app_state: &'a StateMap,
+
+    /// Read-only access to the state that lives for the duration of the window.
+    pub window_state: &'a StateMap,
+
+    /// Read-only access to the state that lives for the duration of the widget.
+    pub widget_state: &'a StateMap,
+
+    /// State that lives for the duration of the node tree measure call.
+    pub update_state: &'a mut StateMap,
+
+    /// Read-only access to variables.
+    pub vars: &'a VarsRead,
+}
+impl<'a> Deref for MeasureContext<'a> {
+    type Target = LayoutMetrics;
+
+    fn deref(&self) -> &Self::Target {
+        self.metrics
+    }
+}
+impl<'a> MeasureContext<'a> {
+    /// Runs a function `f` in a measure context that has the new or modified constrains.
+    ///
+    /// The `constrains` closure is called to produce the new constrains, the input is the current constrains.
+    pub fn with_constrains<R>(
+        &mut self,
+        constrains: impl FnOnce(PxConstrains2d) -> PxConstrains2d,
+        f: impl FnOnce(&mut MeasureContext) -> R,
+    ) -> R {
+        f(&mut MeasureContext {
+            metrics: &self.metrics.clone().with_constrains(constrains),
+
+            path: self.path,
+
+            info_tree: self.info_tree,
+            widget_info: self.widget_info,
+            app_state: self.app_state,
+            window_state: self.window_state,
+            widget_state: self.widget_state,
+            update_state: self.update_state,
+
+            vars: self.vars,
+        })
+    }
+
+    /// Runs a function `f` in a measure context that has its max size subtracted by `removed` and its final size added by `removed`.
+    pub fn with_sub_size(&mut self, removed: PxSize, f: impl FnOnce(&mut MeasureContext) -> PxSize) -> PxSize {
+        self.with_constrains(|c| c.with_less_size(removed), f) + removed
+    }
+
+    /// Runs a function `f` in a layout context that has its max size added by `added` and its final size subtracted by `added`.
+    pub fn with_add_size(&mut self, added: PxSize, f: impl FnOnce(&mut MeasureContext) -> PxSize) -> PxSize {
+        self.with_constrains(|c| c.with_more_size(added), f) - added
+    }
+
+    /// Runs a function `f` in a measure context that has the new computed font size.
+    pub fn with_font_size<R>(&mut self, font_size: Px, f: impl FnOnce(&mut MeasureContext) -> R) -> R {
+        f(&mut MeasureContext {
+            metrics: &self.metrics.clone().with_font_size(font_size),
+
+            path: self.path,
+
+            info_tree: self.info_tree,
+            widget_info: self.widget_info,
+            app_state: self.app_state,
+            window_state: self.window_state,
+            widget_state: self.widget_state,
+            update_state: self.update_state,
+
+            vars: self.vars,
+        })
+    }
+
+    /// Runs a function `f` in a measure context that has the new computed viewport.
+    pub fn with_viewport<R>(&mut self, viewport: PxSize, f: impl FnOnce(&mut MeasureContext) -> R) -> R {
+        f(&mut MeasureContext {
+            metrics: &self.metrics.clone().with_viewport(viewport),
+
+            path: self.path,
+
+            info_tree: self.info_tree,
+            widget_info: self.widget_info,
+            app_state: self.app_state,
+            window_state: self.window_state,
+            widget_state: self.widget_state,
+            update_state: self.update_state,
+
+            vars: self.vars,
+        })
+    }
+
+    /// Runs a function `f` in the measure context of a widget.
+    ///
+    /// The `reuse` flag indicates if the cached measure or layout size can be returned instead of calling `f`. It should
+    /// only be `false` if the widget has a pending layout request.
+    ///
+    /// Returns the closure `f` result and the updates requested by it.
+    ///
+    /// [`render_update`]: Updates::render_update
+    pub fn with_widget<R>(
+        &mut self,
+        widget_id: WidgetId,
+        widget_info: &WidgetContextInfo,
+        widget_state: &OwnedStateMap,
+        reuse: bool,
+        f: impl FnOnce(&mut MeasureContext) -> R,
+    ) -> R {
+        #[cfg(not(inspector))]
+        let _span = UpdatesTrace::widget_span(widget_id, "", "");
+
+        if reuse {
+            todo!()
+        }
+
+        self.path.push(widget_id);
+
+        let r = self.vars.with_widget(widget_id, || {
+            f(&mut MeasureContext {
+                metrics: self.metrics,
+
+                path: self.path,
+
+                info_tree: self.info_tree,
+                widget_info,
+                app_state: self.app_state,
+                window_state: self.window_state,
+                widget_state: &widget_state.0,
+                update_state: self.update_state,
+
+                vars: self.vars,
+            })
+        });
+
+        self.path.pop();
+
+        r
+    }
+
+    /// Returns an [`InfoContext`] generated from `self`.
+    pub fn as_info(&mut self) -> InfoContext {
+        InfoContext {
+            path: self.path,
+            info_tree: self.info_tree,
+            widget_info: self.widget_info,
+            app_state: self.app_state,
+            window_state: self.window_state,
+            widget_state: self.widget_state,
+            update_state: self.update_state,
+            vars: self.vars,
+        }
+    }
+}
+
 /// A widget layout context.
 ///
 /// This type dereferences to [`LayoutMetrics`].
@@ -874,8 +1043,6 @@ impl<'a> LayoutContext<'a> {
     }
 
     /// Runs a function `f` in a layout context that has the new computed font size.
-    ///
-    /// The `font_size_new` flag indicates if the `font_size` value changed from the previous layout call.
     pub fn with_font_size<R>(&mut self, font_size: Px, f: impl FnOnce(&mut LayoutContext) -> R) -> R {
         f(&mut LayoutContext {
             metrics: &self.metrics.clone().with_font_size(font_size),
@@ -895,8 +1062,6 @@ impl<'a> LayoutContext<'a> {
     }
 
     /// Runs a function `f` in a layout context that has the new computed viewport.
-    ///
-    /// The `viewport_new` flag indicates if the `viewport` value changed from the previous layout call.
     pub fn with_viewport<R>(&mut self, viewport: PxSize, f: impl FnOnce(&mut LayoutContext) -> R) -> R {
         f(&mut LayoutContext {
             metrics: &self.metrics.clone().with_viewport(viewport),
@@ -957,9 +1122,24 @@ impl<'a> LayoutContext<'a> {
         (r, self.updates.exit_widget_ctx(prev_updates))
     }
 
-    /// Runs an [`InfoContext`] generated from `self`.
+    /// Returns an [`InfoContext`] generated from `self`.
     pub fn as_info(&mut self) -> InfoContext {
         InfoContext {
+            path: self.path,
+            info_tree: self.info_tree,
+            widget_info: self.widget_info,
+            app_state: self.app_state,
+            window_state: self.window_state,
+            widget_state: self.widget_state,
+            update_state: self.update_state,
+            vars: self.vars,
+        }
+    }
+
+    /// Returns a [`MeasureContext`] generated from `self`.
+    pub fn as_measure(&mut self) -> MeasureContext {
+        MeasureContext {
+            metrics: self.metrics,
             path: self.path,
             info_tree: self.info_tree,
             widget_info: self.widget_info,
@@ -1026,7 +1206,7 @@ impl<'a> RenderContext<'a> {
         r
     }
 
-    /// Runs an [`InfoContext`] generated from `self`.
+    /// Returns an [`InfoContext`] generated from `self`.
     pub fn as_info(&mut self) -> InfoContext {
         InfoContext {
             path: self.path,

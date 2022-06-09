@@ -1,10 +1,11 @@
 use crate::{
-    context::{InfoContext, LayoutContext, RenderContext, StateMap, WidgetContext},
+    context::{InfoContext, LayoutContext, MeasureContext, RenderContext, StateMap, WidgetContext},
     event::EventUpdateArgs,
     node_vec,
     render::{FrameBuilder, FrameUpdate},
     ui_list::{
-        PosLayoutArgs, PreLayoutArgs, UiListObserver, UiNodeFilterArgs, UiNodeList, UiNodeVec, WidgetFilterArgs, WidgetList, WidgetVec,
+        PosLayoutArgs, PosMeasureArgs, PreLayoutArgs, PreMeasureArgs, UiListObserver, UiNodeFilterArgs, UiNodeList, UiNodeVec,
+        WidgetFilterArgs, WidgetList, WidgetVec,
     },
     units::PxSize,
     widget_info::{
@@ -28,6 +29,14 @@ macro_rules! impl_tuples {
             items { $($n = $W),+ }
 
             layout {
+                fn measure_all<C, D>(&self, ctx: &mut MeasureContext, mut pre_measure: C, mut pos_measure: D)
+                where
+                    C: FnMut(&mut MeasureContext, &mut PreMeasureArgs),
+                    D: FnMut(&mut MeasureContext, PosMeasureArgs)
+                {$(
+                    super::default_ui_node_list_measure_all($n, &self.items.$n, ctx, &mut pre_measure, &mut pos_measure);
+                )+}
+
                 fn layout_all<C, D>(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout, mut pre_layout: C, mut pos_layout: D)
                 where
                     C: FnMut(&mut LayoutContext, &mut WidgetLayout, &mut PreLayoutArgs),
@@ -45,6 +54,14 @@ macro_rules! impl_tuples {
             items { $($n = $W),+ }
 
             layout {
+                fn measure_all<C, D>(&self, ctx: &mut MeasureContext, mut pre_measure: C, mut pos_measure: D)
+                where
+                    C: FnMut(&mut MeasureContext, &mut PreMeasureArgs),
+                    D: FnMut(&mut MeasureContext, PosMeasureArgs)
+                {$(
+                    super::default_widget_list_measure_all($n, &self.items.$n, ctx, &mut pre_measure, &mut pos_measure);
+                )+}
+
                 fn layout_all<C, D>(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout, mut pre_layout: C, mut pos_layout: D)
                 where
                     C: FnMut(&mut LayoutContext, &mut WidgetLayout, &mut PreLayoutArgs),
@@ -222,6 +239,15 @@ macro_rules! impl_tuples {
             }
 
             $($layout_all)+
+
+            fn item_measure(&self, index: usize, ctx: &mut MeasureContext) -> PxSize {
+                match index {
+                    $(
+                        $n => self.items.$n.measure(ctx),
+                    )+
+                    _ => panic!("index {index} out of range for length {}", self.len()),
+                }
+            }
 
             fn item_layout(&mut self, index: usize, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
                 match index {
@@ -447,12 +473,21 @@ macro_rules! empty_node_list {
 
             fn event_all<EU: EventUpdateArgs>(&mut self, _: &mut WidgetContext, _: &EU) {}
 
+            fn measure_all<C, D>(&self, _: &mut MeasureContext, _: C, _: D)
+            where
+                C: FnMut(&mut MeasureContext, &mut PreMeasureArgs),
+                D: FnMut(&mut MeasureContext, PosMeasureArgs)
+                {}
+
             fn layout_all<C, D>(&mut self, _: &mut LayoutContext, _: &mut WidgetLayout, _: C, _: D)
             where
                 C: FnMut(&mut LayoutContext, &mut WidgetLayout, &mut PreLayoutArgs),
                 D: FnMut(&mut LayoutContext, &mut WidgetLayout, PosLayoutArgs)
                 {}
 
+            fn item_measure(&self, index: usize, _: &mut MeasureContext) -> PxSize {
+                panic!("index {index} out of range for length 0")
+            }
             fn item_layout(&mut self, index: usize, _: &mut LayoutContext, _: &mut WidgetLayout) -> PxSize {
                 panic!("index {index} out of range for length 0")
             }

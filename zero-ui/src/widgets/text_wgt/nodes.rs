@@ -112,7 +112,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Text>) -> impl UiNode
         fn with_mut<R>(&mut self, vars: &Vars, f: impl FnOnce(&mut C) -> R) -> R {
             vars.with_context_var(ResolvedTextVar, ContextVarData::fixed(&self.resolved), || f(&mut self.child))
         }
-        fn with(&self, vars: &VarsRead, f: impl FnOnce(&C)) {
+        fn with<R>(&self, vars: &VarsRead, f: impl FnOnce(&C) -> R) -> R {
             vars.with_context_var(ResolvedTextVar, ContextVarData::fixed(&self.resolved), || f(&self.child))
         }
     }
@@ -257,6 +257,10 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Text>) -> impl UiNode
             }
 
             self.with_mut(ctx.vars, |c| c.update(ctx))
+        }
+
+        fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
+            self.with(ctx.vars, |c| c.measure(ctx))
         }
 
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {

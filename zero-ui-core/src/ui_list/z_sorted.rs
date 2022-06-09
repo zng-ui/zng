@@ -142,12 +142,24 @@ impl<W: WidgetList> UiNodeList for ZSortedWidgetList<W> {
         self.list.event_all(ctx, args)
     }
 
-    fn layout_all<C, D>(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout, mut pre_layout: C, mut pos_layout: D)
+    fn measure_all<C, D>(&self, ctx: &mut MeasureContext, pre_measure: C, pos_measure: D)
+    where
+        C: FnMut(&mut MeasureContext, &mut PreMeasureArgs),
+        D: FnMut(&mut MeasureContext, PosMeasureArgs),
+    {
+        self.list.measure_all(ctx, pre_measure, pos_measure)
+    }
+
+    fn item_measure(&self, index: usize, ctx: &mut MeasureContext) -> PxSize {
+        self.list.item_measure(index, ctx)
+    }
+
+    fn layout_all<C, D>(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout, pre_layout: C, pos_layout: D)
     where
         C: FnMut(&mut LayoutContext, &mut WidgetLayout, &mut PreLayoutArgs),
         D: FnMut(&mut LayoutContext, &mut WidgetLayout, PosLayoutArgs),
     {
-        self.list.layout_all(ctx, wl, &mut pre_layout, &mut pos_layout)
+        self.list.layout_all(ctx, wl, pre_layout, pos_layout)
     }
 
     fn item_layout(&mut self, index: usize, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
