@@ -472,53 +472,57 @@ fn confirm_close() -> impl WidgetHandler<WindowCloseRequestedArgs> {
                 args.propagation().stop();
                 state.set(ctx, CloseState::Asking);
 
-                WindowLayers::insert(ctx, LayerIndex::TOP_MOST, container! {
-                    id = "close-dialog";
-                    modal = true;
-                    background_color = colors::WHITE.with_alpha(10.pct());
-                    content_align = Align::CENTER;
-                    content = container! {
-                        background_color = colors::BLACK.with_alpha(90.pct());
-                        focus_scope = true;
-                        tab_nav = TabNav::Cycle;
-                        directional_nav = DirectionalNav::Cycle;
-                        button::theme::corner_radius = 0;
-                        drop_shadow = (0, 0), 4, colors::BLACK;
-                        padding = 4;
-                        content = v_stack! {
-                            items_align = Align::RIGHT;
-                            items = widgets![
-                                text! {
-                                    text = "Example close confirmation?";
-                                    margin = 15;
-                                },
-                                h_stack! {
-                                    spacing = 4;
-                                    items = widgets![
-                                        button! {
-                                            content = strong("Close");
-                                            on_click = hn!(state, |ctx, _| {
-                                                state.set(ctx, CloseState::Close);
-                                                ctx.services.windows().close(ctx.path.window_id()).unwrap();
-                                            })
-                                        },
-                                        button! {
-                                            content = text("Cancel");
-                                            on_click = hn!(state, |ctx, _| {
-                                                state.set(ctx, CloseState::Ask);
-                                                WindowLayers::remove(ctx, "close-dialog");
-                                            });
-                                        },                                        
-                                    ]
-                                }
-                            ]
+                WindowLayers::insert(
+                    ctx,
+                    LayerIndex::TOP_MOST,
+                    container! {
+                        id = "close-dialog";
+                        modal = true;
+                        background_color = colors::WHITE.with_alpha(10.pct());
+                        content_align = Align::CENTER;
+                        content = container! {
+                            background_color = colors::BLACK.with_alpha(90.pct());
+                            focus_scope = true;
+                            tab_nav = TabNav::Cycle;
+                            directional_nav = DirectionalNav::Cycle;
+                            button::theme::corner_radius = 0;
+                            drop_shadow = (0, 0), 4, colors::BLACK;
+                            padding = 4;
+                            content = v_stack! {
+                                items_align = Align::RIGHT;
+                                items = widgets![
+                                    text! {
+                                        text = "Example close confirmation?";
+                                        margin = 15;
+                                    },
+                                    h_stack! {
+                                        spacing = 4;
+                                        items = widgets![
+                                            button! {
+                                                content = strong("Close");
+                                                on_click = hn!(state, |ctx, _| {
+                                                    state.set(ctx, CloseState::Close);
+                                                    ctx.services.windows().close(ctx.path.window_id()).unwrap();
+                                                })
+                                            },
+                                            button! {
+                                                content = text("Cancel");
+                                                on_click = hn!(state, |ctx, _| {
+                                                    state.set(ctx, CloseState::Ask);
+                                                    WindowLayers::remove(ctx, "close-dialog");
+                                                });
+                                            },
+                                        ]
+                                    }
+                                ]
+                            }
                         }
-                    }
-                })
-            },
+                    },
+                )
+            }
             CloseState::Asking => args.propagation().stop(),
-            CloseState::Close => { }
-        }      
+            CloseState::Close => {}
+        }
     })
 }
 

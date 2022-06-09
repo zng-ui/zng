@@ -98,7 +98,7 @@ pub fn capture_mouse(child: impl UiNode, mode: impl IntoVar<CaptureMode>) -> imp
     }
 }
 
-/// Only allow interaction inside the widget and descendants.
+/// Only allow interaction inside the widget, descendants and ancestors.
 ///
 /// When modal mode is enabled in a widget only it and widget descendants [`allow_interaction`], all other widgets behave as if disabled, but
 /// without the visual indication of disabled. This property is a building block for modal overlay widgets.
@@ -165,7 +165,9 @@ pub fn modal(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
                         }
 
                         let modal = mws.last_in_tree.unwrap();
-                        if a.info.self_and_ancestors().any(|w| w.widget_id() == modal) {
+                        if a.info.self_and_ancestors().any(|w| w.widget_id() == modal)
+                            || a.info.self_and_descendants().any(|w| w.widget_id() == modal)
+                        {
                             Interactivity::ENABLED
                         } else {
                             Interactivity::BLOCKED

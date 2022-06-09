@@ -738,7 +738,6 @@ impl MouseManager {
         } else {
             DipPoint::default()
         };
-
         let (windows, mouse) = ctx.services.req_multi::<(Windows, Mouse)>();
 
         let hits = FrameHitInfo::new(window_id, self.pos_hits.0, self.pos_hits.1, &self.pos_hits.2);
