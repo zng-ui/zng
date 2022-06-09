@@ -684,7 +684,7 @@ impl FactorSideOffsets {
     }
 
     /// Same scale applied to parallel offsets.
-    pub fn new_dimension(top_bottom: impl Into<Factor>, left_right: impl Into<Factor>) -> Self {
+    pub fn new_vh(top_bottom: impl Into<Factor>, left_right: impl Into<Factor>) -> Self {
         let tb = top_bottom.into();
         let lr = left_right.into();
 
@@ -794,7 +794,7 @@ impl_from_and_into_var! {
             (top_bottom, left_right): (TB, LR)
         )
         -> FactorSideOffsets {
-        FactorSideOffsets::new_dimension(top_bottom, left_right)
+        FactorSideOffsets::new_vh(top_bottom, left_right)
     }
 
     /// New top, right, bottom, left.

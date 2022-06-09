@@ -412,7 +412,7 @@ impl BorderSides {
     }
 
     /// Top-bottom and left-right equal.
-    pub fn new_dimension<TB: Into<BorderSide>, LR: Into<BorderSide>>(top_bottom: TB, left_right: LR) -> Self {
+    pub fn new_vh<TB: Into<BorderSide>, LR: Into<BorderSide>>(top_bottom: TB, left_right: LR) -> Self {
         let top_bottom = top_bottom.into();
         let left_right = left_right.into();
         BorderSides {
@@ -554,7 +554,7 @@ impl_from_and_into_var! {
     /// (top-bottom-color, left-right-color, style) sides.
     fn from<TB: Into<Rgba> + Clone, LR: Into<Rgba> + Clone, S: Into<BorderStyle> + Clone>((top_bottom, left_right, style): (TB, LR, S)) -> BorderSides {
         let style = style.into();
-        BorderSides::new_dimension((top_bottom, style), (left_right, style))
+        BorderSides::new_vh((top_bottom, style), (left_right, style))
     }
 
     /// (top-color, right-color, bottom-color, left-color, style) sides.

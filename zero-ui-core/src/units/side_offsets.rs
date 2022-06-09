@@ -48,7 +48,7 @@ impl SideOffsets {
     }
 
     /// Top-bottom and left-right equal. From any [`Length`] type.
-    pub fn new_dimension<TB: Into<Length>, LR: Into<Length>>(top_bottom: TB, left_right: LR) -> Self {
+    pub fn new_vh<TB: Into<Length>, LR: Into<Length>>(top_bottom: TB, left_right: LR) -> Self {
         let top_bottom = top_bottom.into();
         let left_right = left_right.into();
         SideOffsets {
@@ -136,7 +136,7 @@ impl_from_and_into_var! {
 impl_length_comp_conversions! {
     /// (top-bottom, left-right)
     fn from(top_bottom: TB, left_right: LR) -> SideOffsets {
-        SideOffsets::new_dimension(top_bottom,left_right)
+        SideOffsets::new_vh(top_bottom,left_right)
     }
 
     /// (top, right, bottom, left)
