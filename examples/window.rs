@@ -42,6 +42,7 @@ fn main_window(ctx: &mut WindowContext) -> Window {
         on_state_changed = hn!(|_, args: &WindowChangedArgs| {
             println!("state: {:?}", args.new_state().unwrap());
         });
+        on_close_requested = confirm_close();
         content_align = Align::CENTER;
         content = h_stack! {
             spacing = 40;
@@ -452,6 +453,73 @@ fn misc(window_id: WindowId, window_vars: &WindowVars) -> impl Widget {
             }
         ],
     )
+}
+
+fn confirm_close() -> impl WidgetHandler<WindowCloseRequestedArgs> {
+    use zero_ui::widgets::window::*;
+
+    #[derive(Debug, Clone, Copy)]
+    enum CloseState {
+        Ask,
+        Asking,
+        Close,
+    }
+
+    let state = var(CloseState::Ask);
+    hn!(|ctx, args: &WindowCloseRequestedArgs| {
+        match state.copy(ctx) {
+            CloseState::Ask => {
+                args.propagation().stop();
+                state.set(ctx, CloseState::Asking);
+
+                WindowLayers::insert(ctx, LayerIndex::TOP_MOST, container! {
+                    id = "close-dialog";
+                    modal = true;
+                    background_color = colors::WHITE.with_alpha(10.pct());
+                    content_align = Align::CENTER;
+                    content = container! {
+                        background_color = colors::BLACK.with_alpha(90.pct());
+                        focus_scope = true;
+                        tab_nav = TabNav::Cycle;
+                        directional_nav = DirectionalNav::Cycle;
+                        button::theme::corner_radius = 0;
+                        drop_shadow = (0, 0), 4, colors::BLACK;
+                        padding = 4;
+                        content = v_stack! {
+                            items_align = Align::RIGHT;
+                            items = widgets![
+                                text! {
+                                    text = "Example close confirmation?";
+                                    margin = 15;
+                                },
+                                h_stack! {
+                                    spacing = 4;
+                                    items = widgets![
+                                        button! {
+                                            content = strong("Close");
+                                            on_click = hn!(state, |ctx, _| {
+                                                state.set(ctx, CloseState::Close);
+                                                ctx.services.windows().close(ctx.path.window_id()).unwrap();
+                                            })
+                                        },
+                                        button! {
+                                            content = text("Cancel");
+                                            on_click = hn!(state, |ctx, _| {
+                                                state.set(ctx, CloseState::Ask);
+                                                WindowLayers::remove(ctx, "close-dialog");
+                                            });
+                                        },                                        
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                })
+            },
+            CloseState::Asking => args.propagation().stop(),
+            CloseState::Close => { }
+        }      
+    })
 }
 
 fn cmd_btn(cmd: impl Command) -> impl Widget {
