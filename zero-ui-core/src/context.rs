@@ -898,24 +898,45 @@ impl<'a> MeasureContext<'a> {
     /// Returns the closure `f` result and the updates requested by it.
     ///
     /// [`render_update`]: Updates::render_update
-    pub fn with_widget<R>(
+    pub fn with_widget(
         &mut self,
         widget_id: WidgetId,
         widget_info: &WidgetContextInfo,
         widget_state: &OwnedStateMap,
         reuse: bool,
-        f: impl FnOnce(&mut MeasureContext) -> R,
-    ) -> R {
+        f: impl FnOnce(&mut MeasureContext) -> PxSize,
+    ) -> PxSize {
         #[cfg(not(inspector))]
         let _span = UpdatesTrace::widget_span(widget_id, "", "");
 
+        let snap = self.metrics.snapshot();
         if reuse {
-            todo!()
+            let measure_uses = widget_info.bounds.measure_metrics_used();
+            if widget_info
+                .bounds
+                .measure_metrics()
+                .map(|m| m.masked_eq(&snap, measure_uses))
+                .unwrap_or(false)
+            {
+                return widget_info.bounds.measure_outer_size();
+            }
+
+            let layout_uses = widget_info.bounds.metrics_used();
+            if widget_info
+                .bounds
+                .metrics()
+                .map(|m| m.masked_eq(&snap, layout_uses))
+                .unwrap_or(false)
+            {
+                return widget_info.bounds.outer_size();
+            }
         }
 
         self.path.push(widget_id);
 
-        let r = self.vars.with_widget(widget_id, || {
+        let parent_uses = self.metrics.enter_widget_ctx();
+
+        let size = self.vars.with_widget(widget_id, || {
             f(&mut MeasureContext {
                 metrics: self.metrics,
 
@@ -932,9 +953,13 @@ impl<'a> MeasureContext<'a> {
             })
         });
 
+        let measure_uses = self.metrics.exit_widget_ctx(parent_uses);
+        widget_info.bounds.set_measure_metrics(Some(snap), measure_uses);
+        widget_info.bounds.set_measure_outer_size(size);
+
         self.path.pop();
 
-        r
+        size
     }
 
     /// Returns an [`InfoContext`] generated from `self`.

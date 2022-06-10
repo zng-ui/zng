@@ -127,32 +127,40 @@ pub mod scrollable {
             // +-----------------+---+
 
             fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
-                todo!("!!: measure and refactor layout to use measure of children")
+                let constrains = ctx.constrains();
+                if constrains.is_fill_max().all() {
+                    return constrains.fill_size();
+                }
+                let size = self.children.item_measure(0, ctx);
+                constrains.clamp_size(size)
             }
             fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
-                // scroll-bars
-                let mut layout = 2;
-                while layout > 0 {
-                    let v_scroll = ctx.with_constrains(
-                        |c| c.with_min_x(Px(0)).with_less_y(self.joiner.height).with_fill(false, true),
-                        |ctx| self.children.item_layout(1, ctx, wl),
+                // scrollbars
+                {
+                    let mut ctx = ctx.as_measure();
+                    self.joiner.width = ctx.with_constrains(
+                        |c| c.with_min_x(Px(0)).with_fill_x(false),
+                        |ctx| self.children.item_measure(1, ctx).width,
                     );
-                    let h_scroll = ctx.with_constrains(
-                        |c| c.with_min_y(Px(0)).with_less_x(self.joiner.width).with_fill(true, false),
-                        |ctx| self.children.item_layout(2, ctx, wl),
+                    self.joiner.height = ctx.with_constrains(
+                        |c| c.with_min_y(Px(0)).with_fill_y(false),
+                        |ctx| self.children.item_measure(2, ctx).height,
                     );
-
-                    let joiner = PxSize::new(v_scroll.width, h_scroll.height);
-
-                    if joiner != self.joiner {
-                        self.joiner = joiner;
-                        layout -= 1;
-                    } else {
-                        break;
-                    }
                 }
+                self.joiner.width = ctx.with_constrains(
+                    |c| c.with_min_x(Px(0)).with_fill_x(false).with_less_y(self.joiner.height),
+                    |ctx| self.children.item_layout(1, ctx, wl).width,
+                );
+                self.joiner.height = ctx.with_constrains(
+                    |c| c.with_min_y(Px(0)).with_fill_y(false).with_less_x(self.joiner.width),
+                    |ctx| self.children.item_layout(2, ctx, wl).height,
+                );
 
-                let _ = ctx.with_constrains(|c| c.with_max_size(self.joiner), |ctx| self.children.item_layout(3, ctx, wl));
+                // joiner
+                let _ = ctx.with_constrains(
+                    |_| PxConstrains2d::new_fill_size(self.joiner),
+                    |ctx| self.children.item_layout(3, ctx, wl),
+                );
 
                 // viewport
                 let mut viewport = ctx.with_constrains(|c| c.with_less_size(self.joiner), |ctx| self.children.item_layout(0, ctx, wl));

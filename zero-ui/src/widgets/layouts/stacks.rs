@@ -84,7 +84,33 @@ pub mod h_stack {
         }
 
         fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
-            todo!("!!: impl measure and reimplement layout to use measure of children");
+            let spacing = self.spacing.get(ctx.vars).layout(ctx.for_x(), |_| Px(0));
+            let align = self.align.copy(ctx);
+
+            let mut size = PxSize::zero();
+
+            ctx.with_constrains(
+                |c| align.child_constrains(c).with_unbounded_x(),
+                |ctx| {
+                    self.children.measure_all(
+                        ctx,
+                        |_, _| {},
+                        |_, a| {
+                            size.height = size.height.max(a.size.height);
+                            if a.size.width > Px(0) {
+                                // only add spacing for visible items.
+                                size.width += a.size.width + spacing;
+                            }
+                        }
+                    )
+                }
+            );
+            if size.width > Px(0) {
+                // spacing is only in between items.
+                size.width -= spacing;
+            }
+
+            size
         }
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
             let spacing = self.spacing.get(ctx.vars).layout(ctx.for_x(), |_| Px(0));
@@ -114,7 +140,7 @@ pub mod h_stack {
             );
 
             let c = ctx.constrains();
-            if align.is_fill_y() && !c.y.is_fill_max() && !c.y.is_exact() {
+            if align.is_fill_y() && !c.y.is_fill_pref() && !c.y.is_exact() {
                 // panel is not fill-y but items are, so we need to fill to the widest item.
                 ctx.with_constrains(
                     move |c| c.with_max_y(c.y.clamp(size.height)).with_fill_x(true).with_unbounded_x(),
@@ -271,7 +297,33 @@ pub mod v_stack {
         }
 
         fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
-            todo!("!!: impl measure and reimplement layout to use measure of children");
+            let spacing = self.spacing.get(ctx.vars).layout(ctx.for_y(), |_| Px(0));
+            let align = self.align.copy(ctx);
+
+            let mut size = PxSize::zero();
+
+            ctx.with_constrains(
+                |c| align.child_constrains(c).with_unbounded_y(),
+                |ctx| {
+                    self.children.measure_all(
+                        ctx,
+                        |_, _| {},
+                        |_, a| {
+                            size.width = size.width.max(a.size.width);
+                            if a.size.height > Px(0) {
+                                // only add spacing for visible items.
+                                size.height += a.size.height + spacing;
+                            }
+                        }
+                    )
+                }
+            );
+            if size.height > Px(0) {
+                // spacing is only in between items.
+                size.height -= spacing;
+            }
+
+            size
         }
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
             let spacing = self.spacing.get(ctx.vars).layout(ctx.for_y(), |_| Px(0));

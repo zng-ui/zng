@@ -48,7 +48,7 @@ pub fn viewport(child: impl UiNode, mode: impl IntoVar<ScrollMode>) -> impl UiNo
 
         fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
             let constrains = ctx.constrains();
-            if constrains.is_fill().all() {
+            if constrains.is_fill_max().all() {
                 return constrains.fill_size();
             }
 
@@ -73,9 +73,7 @@ pub fn viewport(child: impl UiNode, mode: impl IntoVar<ScrollMode>) -> impl UiNo
                 },
                 |ctx| {
                     if define_vp_unit {
-                        ctx.with_viewport(viewport_unit, |ctx| {
-                            self.child.measure(ctx)
-                        })
+                        ctx.with_viewport(viewport_unit, |ctx| self.child.measure(ctx))
                     } else {
                         self.child.measure(ctx)
                     }
