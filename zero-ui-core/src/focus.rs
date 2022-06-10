@@ -927,7 +927,7 @@ impl Focus {
     }
 
     #[must_use]
-    fn fulfill_request(&mut self, vars: &Vars, windows: &Windows, request: FocusRequest) -> Option<FocusChangedArgs> {
+    fn fulfill_request(&mut self, vars: &Vars, windows: &mut Windows, request: FocusRequest) -> Option<FocusChangedArgs> {
         match (&self.focused, request.target) {
             (_, FocusTarget::Direct(widget_id)) => self.focus_direct(vars, windows, widget_id, request.highlight, false, false, request),
             (_, FocusTarget::DirectOrExit(widget_id)) => {
@@ -1086,43 +1086,33 @@ impl Focus {
     fn focus_direct(
         &mut self,
         vars: &Vars,
-        windows: &Windows,
+        windows: &mut Windows,
         widget_id: WidgetId,
         highlight: bool,
         fallback_to_childs: bool,
         fallback_to_parents: bool,
         request: FocusRequest,
     ) -> Option<FocusChangedArgs> {
-        for info in windows.widget_trees() {
-            if let Some(w) = info.find(widget_id).map(|w| w.as_focus_info(self.focus_disabled_widgets)) {
-                if w.is_focusable() {
-                    return self.move_focus(
-                        vars,
-                        Some(w.info.interaction_path()),
-                        highlight,
-                        FocusChangedCause::Request(request),
-                    );
-                } else if fallback_to_childs {
-                    if let Some(w) = w.descendants().next() {
-                        return self.move_focus(
-                            vars,
-                            Some(w.info.interaction_path()),
-                            highlight,
-                            FocusChangedCause::Request(request),
-                        );
-                    }
-                } else if fallback_to_parents {
-                    if let Some(w) = w.parent() {
-                        return self.move_focus(
-                            vars,
-                            Some(w.info.interaction_path()),
-                            highlight,
-                            FocusChangedCause::Request(request),
-                        );
-                    }
+        let mut target = None;
+        if let Some(w) = windows
+            .widget_trees()
+            .find_map(|info| info.find(widget_id))
+            .map(|w| w.as_focus_info(self.focus_disabled_widgets))
+        {
+            if w.is_focusable() {
+                target = Some(w.info.interaction_path());
+            } else if fallback_to_childs {
+                if let Some(w) = w.descendants().next() {
+                    target = Some(w.info.interaction_path());
                 }
-                break;
+            } else if fallback_to_parents {
+                if let Some(w) = w.parent() {
+                    target = Some(w.info.interaction_path());
+                }
             }
+        }
+        if target.is_some() {
+            return self.maybe_move_focus(vars, windows, target, highlight, FocusChangedCause::Request(request));
         }
 
         self.change_highlight(vars, highlight, request)
@@ -1182,6 +1172,23 @@ impl Focus {
         } else {
             None
         }
+    }
+
+    fn maybe_move_focus(
+        &mut self,
+        vars: &Vars,
+        windows: &mut Windows,
+        new_focus: Option<InteractionPath>,
+        highlight: bool,
+        cause: FocusChangedCause,
+    ) -> Option<FocusChangedArgs> {
+        if let Some(focus) = &new_focus {
+            if let Ok(false) = windows.is_focused(focus.window_id()) {
+                windows.focus(focus.window_id()).unwrap();
+                return None;
+            }
+        }
+        self.move_focus(vars, new_focus, highlight, cause)
     }
 
     #[must_use]

@@ -8,9 +8,11 @@
 * Implement `FocusRequest` new force and indicator configs.
     - And demo in focus example.
         - Focus shortcuts are perfect for this.
+        - Also need an example of focus stealing.
 
 * Gestures info, like last shortcut pressed, primed chord, list of shortcuts used.
-* Test window close cancel when OS is shutting down.
+* Implement window close cancel when OS is shutting down.
+    - Apparently this is implemented with the winapi function `ShutdownBlockReasonCreate`
 
 * Layout context viewport.
     - The image example tries to do this manually, but there is some flickering due to Px rounding on the scroll vs on the offset.
