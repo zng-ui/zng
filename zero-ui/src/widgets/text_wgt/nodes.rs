@@ -262,7 +262,6 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Text>) -> impl UiNode
         fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
             self.with(ctx.vars, |c| c.measure(ctx))
         }
-
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
             let size = self.with_mut(ctx.vars, |c| c.layout(ctx, wl));
             self.resolved.as_mut().unwrap().reshape = false;
@@ -356,6 +355,14 @@ pub fn layout_text(child: impl UiNode, padding: impl IntoVar<SideOffsets>) -> im
             self.child.update(ctx);
         }
 
+        fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
+            let constrains = ctx.constrains();
+            if constrains.is_fill().all() {
+                return constrains.fill_size();
+            }
+
+            todo!("!!: impl, need desired size?, we have a TODO for text clipping, review it first")
+        }
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
             let t = ResolvedText::get(ctx.vars).expect("expected `ResolvedText` in `layout_text`");
 

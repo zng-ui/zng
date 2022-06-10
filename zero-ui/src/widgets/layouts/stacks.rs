@@ -83,6 +83,9 @@ pub mod h_stack {
             }
         }
 
+        fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
+            todo!("!!: impl measure and reimplement layout to use measure of children");
+        }
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
             let spacing = self.spacing.get(ctx.vars).layout(ctx.for_x(), |_| Px(0));
             let align = self.align.copy(ctx);
@@ -267,6 +270,9 @@ pub mod v_stack {
             }
         }
 
+        fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
+            todo!("!!: impl measure and reimplement layout to use measure of children");
+        }
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
             let spacing = self.spacing.get(ctx.vars).layout(ctx.for_y(), |_| Px(0));
             let align = self.align.copy(ctx);
@@ -496,6 +502,28 @@ pub mod z_stack {
             }
         }
 
+        fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
+            let mut size = PxSize::zero();
+            let align = self.align.copy(ctx);
+
+            let parent_constrains = ctx.constrains();
+
+            ctx.with_constrains(
+                |c| align.child_constrains(c),
+                |ctx| {
+                    self.children.measure_all(
+                        ctx,
+                        |_, _| {},
+                        |_, args| {
+                            let child_size = align.measure(args.size, parent_constrains);
+                            size = size.max(child_size);
+                        },
+                    );
+                },
+            );
+
+            parent_constrains.clamp_size(size)
+        }
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
             let mut size = PxSize::zero();
             let align = self.align.copy(ctx);
@@ -596,12 +624,29 @@ pub fn stack_nodes_layout_by(
             self.children.update_all(ctx, &mut ());
         }
 
+        fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
+            let index = self.index.copy(ctx);
+            let len = self.children.len();
+            if index >= len {
+                tracing::error!(
+                    "index {} out of range for length {} in `{:?}#stack_nodes_layout_by`",
+                    index,
+                    len,
+                    ctx.path
+                );
+                let mut size = PxSize::zero();
+                self.children.measure_all(ctx, |_, _| {}, |_, args| size = size.max(args.size));
+                size
+            } else {
+                self.children.item_measure(index, ctx)
+            }
+        }
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
             let index = self.index.copy(ctx);
             let len = self.children.len();
             if index >= len {
                 tracing::error!(
-                    "index {} out of range for length {} in `{:?}#stack_nodes_fill`",
+                    "index {} out of range for length {} in `{:?}#stack_nodes_layout_by`",
                     index,
                     len,
                     ctx.path

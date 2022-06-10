@@ -138,6 +138,9 @@ pub fn node() -> impl UiNode {
             }
         }
 
+        fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
+            ctx.constrains().fill_size()
+        }
         fn layout(&mut self, ctx: &mut LayoutContext, _: &mut WidgetLayout) -> PxSize {
             self.final_size = ctx.constrains().fill_size();
 

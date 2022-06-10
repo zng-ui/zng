@@ -124,7 +124,11 @@ pub mod scrollable {
             // |                 |   |
             // +-----------------+---+
             // | 2 - h_scrollbar | 3 | - scrollbar_joiner
-            ///+-----------------+---+
+            // +-----------------+---+
+
+            fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
+                todo!("!!: measure and refactor layout to use measure of children")
+            }
             fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
                 // scroll-bars
                 let mut layout = 2;

@@ -36,6 +36,9 @@ pub fn transform(child: impl UiNode, transform: impl IntoVar<Transform>) -> impl
             }
         }
 
+        fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
+            self.child.measure(ctx)
+        }
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
             let size = self.child.layout(ctx, wl);
 

@@ -686,7 +686,6 @@ impl UiNode for WidgetNewFnInfoNode {
 
         self.child.measure(ctx)
     }
-
     fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
         let _span = UpdatesTrace::new_fn_span(self.new_fn, "layout");
 
@@ -837,7 +836,6 @@ impl UiNode for WidgetInstanceInfoNode {
 
         self.child.measure(ctx)
     }
-
     fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
         let _span = UpdatesTrace::widget_span(ctx.path.widget_id(), self.info.borrow().widget_name, "layout");
 
@@ -1016,7 +1014,6 @@ impl UiNode for PropertyInfoNode {
         info.count.measure += 1;
         r
     }
-
     fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
         let _span = UpdatesTrace::property_span(self.info.borrow().property_name, "layout");
 

@@ -98,6 +98,23 @@ pub(crate) fn gen_impl_ui_node(args: proc_macro::TokenStream, input: proc_macro:
 
     let mut validate_manual_delegate = true;
 
+    // validate layout/measure pair
+    if let Some(layout) = &node_item_names.get(&ident!("layout")) {
+        if !node_item_names.contains(&ident!("measure")) {
+            errors.push(
+                "`layout` is manual impl, but `measure` is auto impl, both must be auto or manual",
+                layout.span(),
+            );
+        }
+    } else if let Some(measure) = &node_item_names.get(&ident!("measure")) {
+        if !node_item_names.contains(&ident!("measure")) {
+            errors.push(
+                "`measure` is manual impl, but `layout` is auto impl, both must be auto or manual",
+                measure.span(),
+            );
+        }
+    }
+
     // collect default methods needed.
     let default_ui_items = match args {
         Args::NoDelegate => {
@@ -116,7 +133,7 @@ pub(crate) fn gen_impl_ui_node(args: proc_macro::TokenStream, input: proc_macro:
     };
 
     if validate_manual_delegate {
-        let skip = vec![ident!("boxed")];
+        let skip = vec![ident!("boxed"), ident!("measure")];
 
         // validate that manually implemented UiNode methods call the expected method in the struct child or children.
 
@@ -133,7 +150,7 @@ pub(crate) fn gen_impl_ui_node(args: proc_macro::TokenStream, input: proc_macro:
                 let ident = validator.ident;
                 errors.push(
                     format_args!(
-                        "auto impl delegates call to `{ident}` but this manual impl does not\n `#[{missing_delegate_level}(zero_ui::missing_delegate)]` is on",
+                        "auto impl delegates call to `{ident}`, but this manual impl does not\n `#[{missing_delegate_level}(zero_ui::missing_delegate)]` is on",
                     ),
                     {
                         match manual_impl {

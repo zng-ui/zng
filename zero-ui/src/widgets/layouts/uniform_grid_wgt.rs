@@ -162,6 +162,10 @@ pub mod uniform_grid {
         }
 
         #[UiNode]
+        fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
+            todo!("!!: impl measure and implement layout to use measure on children")
+        }
+        #[UiNode]
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
             let spacing = self.spacing.get(ctx.vars).layout(ctx.metrics, |_| PxGridSpacing::zero());
 

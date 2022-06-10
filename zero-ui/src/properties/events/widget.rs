@@ -9,7 +9,7 @@ use crate::core::units::*;
 use crate::core::widget_info::{WidgetLayout, WidgetSubscriptions};
 use crate::core::*;
 use crate::core::{
-    context::{InfoContext, LayoutContext, RenderContext, WidgetContext},
+    context::{InfoContext, LayoutContext, MeasureContext, RenderContext, WidgetContext},
     render::FrameUpdate,
 };
 
@@ -320,6 +320,65 @@ pub fn on_pre_deinit(child: impl UiNode, handler: impl WidgetHandler<OnDeinitArg
     OnPreviewDeinitNode { child, handler, count: 0 }
 }
 
+/// Arguments of the [`on_measure`](fn@on_measure) event.
+pub struct OnMeasureArgs {
+    /// The measured size for the widget's outer bounds.
+    pub size: PxSize,
+}
+
+/// Event fired during the widget [`measure`](UiNode::measure).
+///
+/// The `handler` is called after the [preview event](fn@on_pre_measure) and after the widget children.
+/// The inputs are the measure context and [`OnMeasureArgs`].
+///
+/// The `handler` is called even if the widget has [`Interactivity::BLOCK`].
+#[property(event, default(|_, _|{}))]
+pub fn on_measure(child: impl UiNode, handler: impl Fn(&mut MeasureContext, OnMeasureArgs) + 'static) -> impl UiNode {
+    struct OnMeasureNode<C, F> {
+        child: C,
+        handler: F,
+    }
+    #[impl_ui_node(child)]
+    impl<C: UiNode, F: Fn(&mut MeasureContext, OnMeasureArgs) + 'static> UiNode for OnMeasureNode<C, F> {
+        fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
+            let size = self.child.measure(ctx);
+            (self.handler)(ctx, OnMeasureArgs { size });
+            size
+        }
+        fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
+            self.child.layout(ctx, wl)
+        }
+    }
+    OnMeasureNode { child, handler }
+}
+
+/// Preview [`on_measure`] event.
+///
+/// The `handler` is called before the main event and before the widget children. The input is the measure context.
+///
+/// The `handler` is called every time, independent of the widget's interactivity.
+///
+/// [disabled]: crate::core::widget_base::IsEnabled
+/// [`on_layout`]: fn@on_layout
+#[property(event, default(|_|{}))]
+pub fn on_pre_measure(child: impl UiNode, handler: impl Fn(&mut MeasureContext) + 'static) -> impl UiNode {
+    struct OnMeasureNode<C, F> {
+        child: C,
+        handler: F,
+    }
+    #[impl_ui_node(child)]
+    impl<C: UiNode, F: Fn(&mut MeasureContext) + 'static> UiNode for OnMeasureNode<C, F> {
+        fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
+            (self.handler)(ctx);
+            self.child.measure(ctx)
+        }
+        fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
+            self.child.layout(ctx, wl)
+        }
+    }
+    OnMeasureNode { child, handler }
+}
+
 /// Arguments of the [`on_layout`](fn@on_layout) event.
 pub struct OnLayoutArgs<'a> {
     /// The layout builder.
@@ -329,14 +388,12 @@ pub struct OnLayoutArgs<'a> {
     pub size: PxSize,
 }
 
-/// Event fired during the widget [`layout`](UiNode::layout) layout.
+/// Event fired during the widget [`layout`](UiNode::layout).
 ///
 /// The `handler` is called after the [preview event](fn@on_pre_layout) and after the widget children.
 /// The inputs are layout context and [`OnLayoutArgs`].
 ///
-/// The `handler` is called even when the widget is [disabled].
-///
-/// [disabled]: crate::core::widget_base::IsEnabled
+/// The `handler` is called even if the widget has [`Interactivity::BLOCK`].
 #[property(event, default(|_, _|{}))]
 pub fn on_layout(child: impl UiNode, handler: impl FnMut(&mut LayoutContext, OnLayoutArgs) + 'static) -> impl UiNode {
     struct OnLayoutNode<C, F> {
@@ -345,6 +402,9 @@ pub fn on_layout(child: impl UiNode, handler: impl FnMut(&mut LayoutContext, OnL
     }
     #[impl_ui_node(child)]
     impl<C: UiNode, F: FnMut(&mut LayoutContext, OnLayoutArgs) + 'static> UiNode for OnLayoutNode<C, F> {
+        fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
+            self.child.measure(ctx)
+        }
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
             let size = self.child.layout(ctx, wl);
             (self.handler)(ctx, OnLayoutArgs { wl, size });
@@ -359,7 +419,7 @@ pub fn on_layout(child: impl UiNode, handler: impl FnMut(&mut LayoutContext, OnL
 /// The `handler` is called before the main event and before the widget children. The inputs are the layout context
 /// and layout builder.
 ///
-/// The `handler` is called even when the widget is [disabled].
+/// The `handler` is called every time, independent of the widget's interactivity.
 ///
 /// [disabled]: crate::core::widget_base::IsEnabled
 /// [`on_layout`]: fn@on_layout
@@ -371,6 +431,9 @@ pub fn on_pre_layout(child: impl UiNode, handler: impl FnMut(&mut LayoutContext,
     }
     #[impl_ui_node(child)]
     impl<C: UiNode, F: FnMut(&mut LayoutContext, &mut WidgetLayout) + 'static> UiNode for OnPreviewLayoutNode<C, F> {
+        fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
+            self.child.measure(ctx)
+        }
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
             (self.handler)(ctx, wl);
             self.child.layout(ctx, wl)
@@ -384,7 +447,7 @@ pub fn on_pre_layout(child: impl UiNode, handler: impl FnMut(&mut LayoutContext,
 /// The `handler` is called after the [preview event](fn@on_pre_render) and after the widget children. That means that
 /// display items added by the `handler` are rendered on top of the widget visual.
 ///
-/// The `handler` is called even when the widget is [disabled].
+/// The `handler` is called every time, independent of the widget's interactivity.
 ///
 /// [disabled]: crate::core::widget_base::IsEnabled
 #[property(event, default(|_, _|{}))]
@@ -407,7 +470,7 @@ pub fn on_render(child: impl UiNode, handler: impl Fn(&mut RenderContext, &mut F
 /// The `handler` is called before the main event and before the widget children. That means that
 /// display items added by the `handler` are rendered as background of the widget visual.
 ///
-/// The `handler` is called even when the widget is [disabled].
+/// The `handler` is called every time, independent of the widget's interactivity.
 ///
 /// [disabled]: crate::core::widget_base::IsEnabled
 /// [`on_render`]: fn@on_render
@@ -431,7 +494,7 @@ pub fn on_pre_render(child: impl UiNode, handler: impl Fn(&mut RenderContext, &m
 ///
 /// The `handler` is called after the [preview event](fn@on_pre_render_update) and after the widget children.
 ///
-/// The `handler` is called even when the widget is [disabled].
+/// The `handler` is called every time, independent of the widget's interactivity.
 ///
 /// [disabled]: crate::core::widget_base::IsEnabled
 #[property(event, default(|_, _|{}))]

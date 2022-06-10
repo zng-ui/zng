@@ -1081,6 +1081,14 @@ impl WithVarsRead for crate::context::WidgetContextMut {
         self.with(move |ctx| action(ctx.vars))
     }
 }
+impl<'a> WithVarsRead for crate::context::MeasureContext<'a> {
+    fn with_vars_read<R, A>(&self, action: A) -> R
+    where
+        A: FnOnce(&VarsRead) -> R,
+    {
+        action(self.vars)
+    }
+}
 impl<'a> WithVarsRead for crate::context::LayoutContext<'a> {
     fn with_vars_read<R, A>(&self, action: A) -> R
     where
@@ -1144,6 +1152,11 @@ impl<'a> AsRef<VarsRead> for crate::context::WindowContext<'a> {
     }
 }
 impl<'a> AsRef<VarsRead> for crate::context::WidgetContext<'a> {
+    fn as_ref(&self) -> &VarsRead {
+        self.vars
+    }
+}
+impl<'a> AsRef<VarsRead> for crate::context::MeasureContext<'a> {
     fn as_ref(&self) -> &VarsRead {
         self.vars
     }

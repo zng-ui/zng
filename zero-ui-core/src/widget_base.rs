@@ -126,6 +126,9 @@ pub mod implicit_base {
                 delegate_mut = &mut self.panel,
             )]
             impl<P: UiNode> UiNode for ChildrenLayoutNode<P> {
+                fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
+                    self.panel.measure(ctx)
+                }
                 fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
                     wl.with_children(ctx, |ctx, wl| self.panel.layout(ctx, wl))
                 }
@@ -165,6 +168,9 @@ pub mod implicit_base {
             }
             #[impl_ui_node(child)]
             impl<C: UiNode> UiNode for ChildLayoutNode<C> {
+                fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
+                    self.child.measure(ctx)
+                }
                 fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
                     let (size, needed) = wl.with_child(ctx, |ctx, wl| self.child.layout(ctx, wl));
                     if self.id.is_none() {
@@ -231,6 +237,9 @@ pub mod implicit_base {
                     self.child.update(ctx);
                 }
 
+                fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
+                    self.child.measure(ctx)
+                }
                 fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
                     let size = wl.with_inner(ctx, |ctx, wl| self.child.layout(ctx, wl));
 
@@ -835,6 +844,13 @@ pub fn visibility(child: impl UiNode, visibility: impl IntoVar<Visibility>) -> i
             self.child.update(ctx);
         }
 
+        fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
+            if Visibility::Collapsed != self.visibility.copy(ctx) {
+                self.child.measure(ctx)
+            } else {
+                PxSize::zero()
+            }
+        }
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
             if Visibility::Collapsed != self.visibility.copy(ctx) {
                 self.child.layout(ctx, wl)

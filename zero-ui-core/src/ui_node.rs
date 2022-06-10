@@ -214,9 +214,9 @@ pub trait UiNode: 'static {
     /// when variables update and any other context or service structure that can be observed updates.
     fn update(&mut self, ctx: &mut WidgetContext);
 
-    /// Estimate the widget size given the context.
+    /// Compute the widget size given the contextual layout metrics.
     ///
-    /// Implementers must return the same size [`layout`] would have returned for the given [`LayoutMetrics`] without
+    /// Implementers must return the same size [`layout`] returns for the given [`LayoutMetrics`], without
     /// updating the widget state.
     ///
     /// # Arguments
@@ -983,6 +983,10 @@ impl Widget for BoxedWidget {
 pub struct NilUiNode;
 #[impl_ui_node(none)]
 impl UiNode for NilUiNode {
+    fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
+        ctx.constrains().min_size()
+    }
+
     fn layout(&mut self, ctx: &mut LayoutContext, _: &mut WidgetLayout) -> PxSize {
         ctx.constrains().min_size()
     }
