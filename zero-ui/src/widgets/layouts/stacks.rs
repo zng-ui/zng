@@ -143,7 +143,13 @@ pub mod h_stack {
 
             if let Some(panel_height) = panel_height {
                 let mut x = Px(0);
-                let align_y = if align.is_fill_y() { 0.fct() } else { align.y };
+                let align_y = if align_baseline {
+                    1.fct()
+                } else if align.is_fill_y() {
+                    0.fct()
+                } else {
+                    align.y
+                };
                 ctx.with_constrains(
                     |c| {
                         align
@@ -174,7 +180,7 @@ pub mod h_stack {
 
                 let panel_width = constrains.x.fill_or(x);
 
-                let align_x = if align_baseline || align.is_fill_x() { 0.fct() } else { align.x };
+                let align_x = if align.is_fill_x() { 0.fct() } else { align.x };
                 let extra_x = (panel_width - x) * align_x;
 
                 if extra_x != Px(0) {
@@ -215,10 +221,16 @@ pub mod h_stack {
                 }
                 let panel_width = constrains.x.fill_or(x);
 
-                let align_x = if align_baseline || align.is_fill_x() { 0.fct() } else { align.x };
+                let align_x = if align.is_fill_x() { 0.fct() } else { align.x };
                 let extra_x = (panel_width - x) * align_x;
 
-                let align_y = if align.is_fill_y() { 0.fct() } else { align.y };
+                let align_y = if align_baseline {
+                    1.fct()
+                } else if align.is_fill_y() {
+                    0.fct()
+                } else {
+                    align.y
+                };
 
                 self.children.outer_all(wl, true, |wlt, a| {
                     let y = (panel_height - a.size.height) * align_y;
@@ -405,7 +417,13 @@ pub mod v_stack {
 
                 let panel_height = constrains.y.fill_or(y);
 
-                let align_y = if align_baseline || align.is_fill_y() { 0.fct() } else { align.y };
+                let align_y = if align_baseline {
+                    1.fct()
+                } else if align.is_fill_y() {
+                    0.fct()
+                } else {
+                    align.y
+                };
                 let extra_y = (panel_height - y) * align_y;
 
                 if extra_y != Px(0) {
@@ -446,7 +464,13 @@ pub mod v_stack {
                 }
                 let panel_height = constrains.y.fill_or(y);
 
-                let align_y = if align_baseline || align.is_fill_y() { 0.fct() } else { align.y };
+                let align_y = if align_baseline {
+                    1.fct()
+                } else if align.is_fill_y() {
+                    0.fct()
+                } else {
+                    align.y
+                };
                 let extra_y = (panel_height - y) * align_y;
 
                 let align_x = if align.is_fill_x() { 0.fct() } else { align.x };

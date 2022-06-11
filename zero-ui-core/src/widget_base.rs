@@ -415,7 +415,7 @@ pub mod implicit_base {
                         tracing::error!(target: "widget_base", "`UiNode::measure` called in not inited widget {:?}", self.id);
                     }
 
-                    let reuse = self.pending_updates.borrow().layout;
+                    let reuse = !self.pending_updates.borrow().layout;
 
                     ctx.with_widget(self.id, &self.info, &self.state, reuse, |ctx| self.child.measure(ctx))
                 }
