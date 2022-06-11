@@ -704,7 +704,7 @@ pub fn stack_nodes(nodes: impl UiNodeList) -> impl UiNode {
 pub fn stack_nodes_layout_by(
     nodes: impl UiNodeList,
     index: impl IntoVar<usize>,
-    constrains: impl FnMut(PxConstrains2d, usize, PxSize) -> PxConstrains2d + 'static,
+    constrains: impl Fn(PxConstrains2d, usize, PxSize) -> PxConstrains2d + 'static,
 ) -> impl UiNode {
     struct StackNodesFillNode<C, I, P> {
         children: C,
@@ -716,7 +716,7 @@ pub fn stack_nodes_layout_by(
     where
         C: UiNodeList,
         I: Var<usize>,
-        P: FnMut(PxConstrains2d, usize, PxSize) -> PxConstrains2d + 'static,
+        P: Fn(PxConstrains2d, usize, PxSize) -> PxConstrains2d + 'static,
     {
         fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
             subs.var(ctx, &self.index);
@@ -744,7 +744,19 @@ pub fn stack_nodes_layout_by(
                 self.children.measure_all(ctx, |_, _| {}, |_, args| size = size.max(args.size));
                 size
             } else {
-                self.children.item_measure(index, ctx)
+                let mut size = self.children.item_measure(index, ctx);
+                let constrains = (self.constrains)(ctx.peek(|m| m.constrains()), index, size);
+                ctx.with_constrains(
+                    |_| constrains,
+                    |ctx| {
+                        for i in 0..len {
+                            if i != index {
+                                size = size.max(self.children.item_measure(i, ctx));
+                            }
+                        }
+                    },
+                );
+                size
             }
         }
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {

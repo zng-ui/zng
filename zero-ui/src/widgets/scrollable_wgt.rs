@@ -139,20 +139,20 @@ pub mod scrollable {
                 {
                     let mut ctx = ctx.as_measure();
                     self.joiner.width = ctx.with_constrains(
-                        |c| c.with_min_x(Px(0)).with_fill_x(false),
+                        |c| c.with_min_x(Px(0)).with_fill(false, true),
                         |ctx| self.children.item_measure(1, ctx).width,
                     );
                     self.joiner.height = ctx.with_constrains(
-                        |c| c.with_min_y(Px(0)).with_fill_y(false),
+                        |c| c.with_min_y(Px(0)).with_fill(true, false),
                         |ctx| self.children.item_measure(2, ctx).height,
                     );
                 }
                 self.joiner.width = ctx.with_constrains(
-                    |c| c.with_min_x(Px(0)).with_fill_x(false).with_less_y(self.joiner.height),
+                    |c| c.with_min_x(Px(0)).with_fill(false, true).with_less_y(self.joiner.height),
                     |ctx| self.children.item_layout(1, ctx, wl).width,
                 );
                 self.joiner.height = ctx.with_constrains(
-                    |c| c.with_min_y(Px(0)).with_fill_y(false).with_less_x(self.joiner.width),
+                    |c| c.with_min_y(Px(0)).with_fill(true, false).with_less_x(self.joiner.width),
                     |ctx| self.children.item_layout(2, ctx, wl).height,
                 );
 
