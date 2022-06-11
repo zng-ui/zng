@@ -3,7 +3,10 @@
 use std::{fmt, mem};
 
 use crate::{
-    context::{InfoContext, LayoutContext, OwnedStateMap, RenderContext, StateMap, WidgetContext, WidgetUpdates, WindowRenderUpdate},
+    context::{
+        InfoContext, LayoutContext, MeasureContext, OwnedStateMap, RenderContext, StateMap, WidgetContext, WidgetUpdates,
+        WindowRenderUpdate,
+    },
     event::EventUpdateArgs,
     impl_ui_node, property,
     render::{FrameBindingKey, FrameBuilder, FrameUpdate, SpatialFrameId},
@@ -123,6 +126,9 @@ pub mod implicit_base {
                 delegate_mut = &mut self.panel,
             )]
             impl<P: UiNode> UiNode for ChildrenLayoutNode<P> {
+                fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
+                    self.panel.measure(ctx)
+                }
                 fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
                     wl.with_children(ctx, |ctx, wl| self.panel.layout(ctx, wl))
                 }
@@ -162,6 +168,9 @@ pub mod implicit_base {
             }
             #[impl_ui_node(child)]
             impl<C: UiNode> UiNode for ChildLayoutNode<C> {
+                fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
+                    self.child.measure(ctx)
+                }
                 fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
                     let (size, needed) = wl.with_child(ctx, |ctx, wl| self.child.layout(ctx, wl));
                     if self.id.is_none() {
@@ -228,6 +237,9 @@ pub mod implicit_base {
                     self.child.update(ctx);
                 }
 
+                fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
+                    self.child.measure(ctx)
+                }
                 fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
                     let size = wl.with_inner(ctx, |ctx, wl| self.child.layout(ctx, wl));
 
@@ -395,6 +407,17 @@ pub mod implicit_base {
                         let (_, updates) = ctx.widget_context(self.id, &self.info, &mut self.state, |ctx| self.child.update(ctx));
                         *self.pending_updates.get_mut() |= updates;
                     }
+                }
+
+                fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
+                    #[cfg(debug_assertions)]
+                    if !self.inited {
+                        tracing::error!(target: "widget_base", "`UiNode::measure` called in not inited widget {:?}", self.id);
+                    }
+
+                    let reuse = !self.pending_updates.borrow().layout;
+
+                    ctx.with_widget(self.id, &self.info, &self.state, reuse, |ctx| self.child.measure(ctx))
                 }
 
                 fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
@@ -821,6 +844,13 @@ pub fn visibility(child: impl UiNode, visibility: impl IntoVar<Visibility>) -> i
             self.child.update(ctx);
         }
 
+        fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
+            if Visibility::Collapsed != self.visibility.copy(ctx) {
+                self.child.measure(ctx)
+            } else {
+                PxSize::zero()
+            }
+        }
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
             if Visibility::Collapsed != self.visibility.copy(ctx) {
                 self.child.layout(ctx, wl)

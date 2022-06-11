@@ -39,6 +39,9 @@ pub fn background(child: impl UiNode, background: impl UiNode) -> impl UiNode {
     }
     #[impl_ui_node(children)]
     impl<C: UiNodeList> UiNode for BackgroundNode<C> {
+        fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
+            self.children.item_measure(1, ctx)
+        }
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
             let size = self.children.item_layout(1, ctx, wl);
             let size = ctx.constrains().fill_size_or(size);
@@ -158,6 +161,9 @@ pub fn foreground(child: impl UiNode, foreground: impl UiNode) -> impl UiNode {
     }
     #[impl_ui_node(children)]
     impl<C: UiNodeList> UiNode for ForegroundNode<C> {
+        fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
+            self.children.item_measure(0, ctx)
+        }
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
             let size = self.children.item_layout(0, ctx, wl);
             let size = ctx.constrains().fill_size_or(size);
@@ -234,6 +240,9 @@ pub fn foreground_highlight(
             self.child.update(ctx);
         }
 
+        fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
+            self.child.measure(ctx)
+        }
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
             let size = self.child.layout(ctx, wl);
 
@@ -390,6 +399,9 @@ pub fn clip_to_bounds(child: impl UiNode, clip: impl IntoVar<bool>) -> impl UiNo
             self.child.update(ctx);
         }
 
+        fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
+            self.child.measure(ctx)
+        }
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
             let bounds = self.child.layout(ctx, wl);
 

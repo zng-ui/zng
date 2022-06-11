@@ -83,26 +83,26 @@ pub mod h_stack {
             }
         }
 
-        fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
+        fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
             let spacing = self.spacing.get(ctx.vars).layout(ctx.for_x(), |_| Px(0));
             let align = self.align.copy(ctx);
+
+            let constrains = ctx.constrains();
+            if let Some(known) = constrains.fill_or_exact() {
+                return known;
+            }
 
             let mut size = PxSize::zero();
 
             ctx.with_constrains(
                 |c| align.child_constrains(c).with_unbounded_x(),
                 |ctx| {
-                    self.children.layout_all(
+                    self.children.measure_all(
                         ctx,
-                        wl,
-                        |_, _, _| {},
-                        |_, wl, a| {
-                            wl.translate(PxVector::new(size.width, Px(0)));
-
+                        |_, _| {},
+                        |_, a| {
                             size.height = size.height.max(a.size.height);
-
                             if a.size.width > Px(0) {
-                                // only add spacing for visible items.
                                 size.width += a.size.width + spacing;
                             }
                         },
@@ -110,77 +110,135 @@ pub mod h_stack {
                 },
             );
 
-            let c = ctx.constrains();
-            if align.is_fill_y() && !c.y.is_fill_max() && !c.y.is_exact() {
-                // panel is not fill-y but items are, so we need to fill to the widest item.
-                ctx.with_constrains(
-                    move |c| c.with_max_y(c.y.clamp(size.height)).with_fill_x(true).with_unbounded_x(),
+            constrains.fill_size_or(size)
+        }
+        fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
+            let spacing = self.spacing.get(ctx.vars).layout(ctx.for_x(), |_| Px(0));
+            let align = self.align.copy(ctx);
+            let align_baseline = align.is_baseline();
+
+            let constrains = ctx.constrains();
+            let mut panel_height = None;
+
+            if let Some(known) = constrains.y.fill_or_exact() {
+                panel_height = Some(known);
+            } else if align.is_fill_y() {
+                // need width before layout because children fill and widest child define width.
+
+                let mut max_h = Px(0);
+                ctx.as_measure().with_constrains(
+                    |c| PxConstrains2d::new_unbounded().with_min_y(c.y.min()),
                     |ctx| {
-                        size.width = Px(0);
-                        for i in 0..self.children.len() {
-                            let o_size = self.children.item_bounds_info(i).outer_size();
-                            if Some(o_size.height) != ctx.constrains().y.max() {
-                                // only need second pass for items that don't fill
-                                let (a_size, _) = wl.with_child(ctx, |ctx, wl| {
-                                    wl.translate(PxVector::new(size.width, Px(0)));
-                                    self.children.item_layout(i, ctx, wl)
-                                });
-
-                                size.height = size.height.max(a_size.height);
-
-                                if a_size.width > Px(0) {
-                                    size.width += a_size.width + spacing;
-                                }
-                            } else {
-                                // item already fills width, but may have moved due to sibling new fill size
-                                self.children.item_outer(i, wl, false, |wlt, _| {
-                                    wlt.translate(PxVector::new(size.width, Px(0)));
-
-                                    if o_size.width > Px(0) {
-                                        size.width += o_size.width + spacing;
-                                    }
-                                });
-                            }
-                        }
+                        self.children.measure_all(
+                            ctx,
+                            |_, _| {},
+                            |_, a| {
+                                max_h = max_h.max(a.size.height);
+                            },
+                        );
                     },
                 );
+                panel_height = Some(constrains.y.fill_or(max_h));
             }
 
-            if size.width > Px(0) {
-                // spacing is only in between items.
-                size.width -= spacing;
-            }
-            let best_size = ctx.constrains().fill_size_or(size);
-            let extra_width = best_size.width - size.width;
-            let mut extra_x = Px(0);
+            if let Some(panel_height) = panel_height {
+                let mut x = Px(0);
+                let align_y = if align_baseline {
+                    1.fct()
+                } else if align.is_fill_y() {
+                    0.fct()
+                } else {
+                    align.y
+                };
+                ctx.with_constrains(
+                    |c| {
+                        align
+                            .child_constrains(c.with_fill_y(true).with_max_y(panel_height))
+                            .with_unbounded_x()
+                    },
+                    |ctx| {
+                        self.children.layout_all(
+                            ctx,
+                            wl,
+                            |_, _, _| {},
+                            |_, wl, a| {
+                                let y = (panel_height - a.size.height) * align_y;
+                                wl.translate(PxVector::new(x, y));
+                                wl.translate_baseline(align_baseline);
 
-            if align.is_fill_x() {
-                if extra_width != Px(0) {
-                    // TODO distribute/take width
+                                if a.size.width > Px(0) {
+                                    x += a.size.width + spacing;
+                                }
+                            },
+                        );
+                    },
+                );
+
+                if x > Px(0) {
+                    x -= spacing;
                 }
-            } else if extra_width > Px(0) {
-                extra_x = extra_width * align.x;
-            }
 
-            let is_baseline = align.is_baseline();
-            if !align.is_fill_y() && (is_baseline || align.y > 0.fct()) {
-                let y = if is_baseline { 1.fct() } else { align.y };
+                let panel_width = constrains.x.fill_or(x);
+
+                let align_x = if align.is_fill_x() { 0.fct() } else { align.x };
+                let extra_x = (panel_width - x) * align_x;
+
+                if extra_x != Px(0) {
+                    self.children.outer_all(wl, true, |wlt, _| {
+                        wlt.translate(PxVector::new(extra_x, Px(0)));
+                    });
+                }
+
+                PxSize::new(panel_width, panel_height)
+            } else {
+                let mut max_height = Px(0);
+                let mut x = Px(0);
+                ctx.with_constrains(
+                    |c| c.with_unbounded_x(),
+                    |ctx| {
+                        self.children.layout_all(
+                            ctx,
+                            wl,
+                            |_, _, _| {},
+                            |_, wl, a| {
+                                wl.translate(PxVector::new(x, Px(0)));
+                                wl.translate_baseline(align_baseline);
+
+                                max_height = max_height.max(a.size.height);
+
+                                if a.size.width > Px(0) {
+                                    x += a.size.width + spacing;
+                                }
+                            },
+                        )
+                    },
+                );
+
+                let panel_height = constrains.y.clamp(max_height);
+
+                if x > Px(0) {
+                    x -= spacing;
+                }
+                let panel_width = constrains.x.fill_or(x);
+
+                let align_x = if align.is_fill_x() { 0.fct() } else { align.x };
+                let extra_x = (panel_width - x) * align_x;
+
+                let align_y = if align_baseline {
+                    1.fct()
+                } else if align.is_fill_y() {
+                    0.fct()
+                } else {
+                    align.y
+                };
 
                 self.children.outer_all(wl, true, |wlt, a| {
-                    let y = (best_size.height - a.size.height) * y;
+                    let y = (panel_height - a.size.height) * align_y;
                     wlt.translate(PxVector::new(extra_x, y));
+                });
 
-                    if is_baseline {
-                        wlt.translate_baseline(true);
-                    }
-                });
-            } else if extra_x > Px(0) {
-                self.children.outer_all(wl, true, |wlt, _| {
-                    wlt.translate(PxVector::new(extra_x, Px(0)));
-                });
+                PxSize::new(panel_width, panel_height)
             }
-
-            best_size.max(size)
         }
     }
 }
@@ -267,26 +325,26 @@ pub mod v_stack {
             }
         }
 
-        fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
+        fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
             let spacing = self.spacing.get(ctx.vars).layout(ctx.for_y(), |_| Px(0));
             let align = self.align.copy(ctx);
+
+            let constrains = ctx.constrains();
+            if let Some(known) = constrains.fill_or_exact() {
+                return known;
+            }
 
             let mut size = PxSize::zero();
 
             ctx.with_constrains(
                 |c| align.child_constrains(c).with_unbounded_y(),
                 |ctx| {
-                    self.children.layout_all(
+                    self.children.measure_all(
                         ctx,
-                        wl,
-                        |_, _, _| {},
-                        |_, wl, a| {
-                            wl.translate(PxVector::new(Px(0), size.height));
-
+                        |_, _| {},
+                        |_, a| {
                             size.width = size.width.max(a.size.width);
-
                             if a.size.height > Px(0) {
-                                // only add spacing for visible items.
                                 size.height += a.size.height + spacing;
                             }
                         },
@@ -294,82 +352,136 @@ pub mod v_stack {
                 },
             );
 
-            let c = ctx.constrains();
-            if align.is_fill_x() && !c.x.is_fill_max() && !c.x.is_exact() {
-                // panel is not fill-x but items are, so we need to fill to the widest item.
-                ctx.with_constrains(
-                    move |c| c.with_max_x(c.x.clamp(size.width)).with_fill_x(true).with_unbounded_y(),
+            constrains.fill_size_or(size)
+        }
+
+        fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
+            let spacing = self.spacing.get(ctx.vars).layout(ctx.for_y(), |_| Px(0));
+            let align = self.align.copy(ctx);
+            let align_baseline = align.is_baseline();
+
+            let constrains = ctx.constrains();
+            let mut panel_width = None;
+
+            if let Some(known) = constrains.x.fill_or_exact() {
+                panel_width = Some(known);
+            } else if align.is_fill_x() {
+                // need width before layout because children fill and widest child define width.
+
+                let mut max_w = Px(0);
+                ctx.as_measure().with_constrains(
+                    |c| PxConstrains2d::new_unbounded().with_min_x(c.x.min()),
                     |ctx| {
-                        size.height = Px(0);
-                        for i in 0..self.children.len() {
-                            let o_size = self.children.item_bounds_info(i).outer_size();
-                            if Some(o_size.width) != ctx.constrains().x.max() {
-                                // only need second pass for items that don't fill
-                                let (a_size, _) = wl.with_child(ctx, |ctx, wl| {
-                                    wl.translate(PxVector::new(Px(0), size.height));
-                                    self.children.item_layout(i, ctx, wl)
-                                });
-
-                                size.width = size.width.max(a_size.width);
-
-                                if a_size.height > Px(0) {
-                                    size.height += a_size.height + spacing;
-                                }
-                            } else {
-                                // item already fills width, but may have moved due to sibling new fill size
-                                self.children.item_outer(i, wl, false, |wlt, _| {
-                                    wlt.translate(PxVector::new(Px(0), size.height));
-
-                                    if o_size.height > Px(0) {
-                                        size.height += o_size.height + spacing;
-                                    }
-                                });
-                            }
-                        }
+                        self.children.measure_all(
+                            ctx,
+                            |_, _| {},
+                            |_, a| {
+                                max_w = max_w.max(a.size.width);
+                            },
+                        );
                     },
                 );
+                panel_width = Some(constrains.x.fill_or(max_w));
             }
 
-            if size.height > Px(0) {
-                // spacing is only in between items.
-                size.height -= spacing;
-            }
-            let best_size = ctx.constrains().fill_size_or(size);
-            let extra_height = best_size.height - size.height;
-            let mut extra_y = Px(0);
+            if let Some(panel_width) = panel_width {
+                let mut y = Px(0);
+                let align_x = if align.is_fill_x() { 0.fct() } else { align.x };
+                ctx.with_constrains(
+                    |c| {
+                        align
+                            .child_constrains(c.with_fill_x(true).with_max_x(panel_width))
+                            .with_unbounded_y()
+                    },
+                    |ctx| {
+                        self.children.layout_all(
+                            ctx,
+                            wl,
+                            |_, _, _| {},
+                            |_, wl, a| {
+                                let x = (panel_width - a.size.width) * align_x;
+                                wl.translate(PxVector::new(x, y));
+                                wl.translate_baseline(align_baseline);
 
-            let is_baseline = align.is_baseline();
+                                if a.size.height > Px(0) {
+                                    y += a.size.height + spacing;
+                                }
+                            },
+                        );
+                    },
+                );
 
-            if align.is_fill_y() {
-                if extra_height != Px(0) {
-                    // TODO distribute/take height
+                if y > Px(0) {
+                    y -= spacing;
                 }
-            } else if extra_height > Px(0) {
-                let y = if is_baseline { 1.fct() } else { align.y };
-                extra_y = extra_height * y;
-            }
-            if !align.is_fill_x() && align.x > 0.fct() {
-                self.children.outer_all(wl, true, |wlt, a| {
-                    let x = (best_size.width - a.size.width) * align.x;
-                    wlt.translate(PxVector::new(x, extra_y));
-                    if is_baseline {
-                        wlt.translate_baseline(true);
-                    }
-                });
-            } else if extra_y > Px(0) {
-                self.children.outer_all(wl, true, |wlt, _| {
-                    wlt.translate(PxVector::new(Px(0), extra_y));
-                    if is_baseline {
-                        wlt.translate_baseline(true);
-                    }
-                });
-            } else if is_baseline {
-                self.children.outer_all(wl, true, |wlt, _| {
-                    wlt.translate_baseline(true);
-                });
-            }
 
-            best_size.max(size)
+                let panel_height = constrains.y.fill_or(y);
+
+                let align_y = if align_baseline {
+                    1.fct()
+                } else if align.is_fill_y() {
+                    0.fct()
+                } else {
+                    align.y
+                };
+                let extra_y = (panel_height - y) * align_y;
+
+                if extra_y != Px(0) {
+                    self.children.outer_all(wl, true, |wlt, _| {
+                        wlt.translate(PxVector::new(Px(0), extra_y));
+                    });
+                }
+
+                PxSize::new(panel_width, panel_height)
+            } else {
+                let mut max_width = Px(0);
+                let mut y = Px(0);
+                ctx.with_constrains(
+                    |c| c.with_unbounded_y(),
+                    |ctx| {
+                        self.children.layout_all(
+                            ctx,
+                            wl,
+                            |_, _, _| {},
+                            |_, wl, a| {
+                                wl.translate(PxVector::new(Px(0), y));
+                                wl.translate_baseline(align_baseline);
+
+                                max_width = max_width.max(a.size.width);
+
+                                if a.size.height > Px(0) {
+                                    y += a.size.height + spacing;
+                                }
+                            },
+                        )
+                    },
+                );
+
+                let panel_width = constrains.x.clamp(max_width);
+
+                if y > Px(0) {
+                    y -= spacing;
+                }
+                let panel_height = constrains.y.fill_or(y);
+
+                let align_y = if align_baseline {
+                    1.fct()
+                } else if align.is_fill_y() {
+                    0.fct()
+                } else {
+                    align.y
+                };
+                let extra_y = (panel_height - y) * align_y;
+
+                let align_x = if align.is_fill_x() { 0.fct() } else { align.x };
+
+                self.children.outer_all(wl, true, |wlt, a| {
+                    let x = (panel_width - a.size.width) * align_x;
+                    wlt.translate(PxVector::new(x, extra_y));
+                });
+
+                PxSize::new(panel_width, panel_height)
+            }
         }
     }
 }
@@ -496,6 +608,28 @@ pub mod z_stack {
             }
         }
 
+        fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
+            let mut size = PxSize::zero();
+            let align = self.align.copy(ctx);
+
+            let parent_constrains = ctx.constrains();
+
+            ctx.with_constrains(
+                |c| align.child_constrains(c),
+                |ctx| {
+                    self.children.measure_all(
+                        ctx,
+                        |_, _| {},
+                        |_, args| {
+                            let child_size = align.measure(args.size, parent_constrains);
+                            size = size.max(child_size);
+                        },
+                    );
+                },
+            );
+
+            parent_constrains.clamp_size(size)
+        }
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
             let mut size = PxSize::zero();
             let align = self.align.copy(ctx);
@@ -570,7 +704,7 @@ pub fn stack_nodes(nodes: impl UiNodeList) -> impl UiNode {
 pub fn stack_nodes_layout_by(
     nodes: impl UiNodeList,
     index: impl IntoVar<usize>,
-    constrains: impl FnMut(PxConstrains2d, usize, PxSize) -> PxConstrains2d + 'static,
+    constrains: impl Fn(PxConstrains2d, usize, PxSize) -> PxConstrains2d + 'static,
 ) -> impl UiNode {
     struct StackNodesFillNode<C, I, P> {
         children: C,
@@ -582,7 +716,7 @@ pub fn stack_nodes_layout_by(
     where
         C: UiNodeList,
         I: Var<usize>,
-        P: FnMut(PxConstrains2d, usize, PxSize) -> PxConstrains2d + 'static,
+        P: Fn(PxConstrains2d, usize, PxSize) -> PxConstrains2d + 'static,
     {
         fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
             subs.var(ctx, &self.index);
@@ -596,12 +730,41 @@ pub fn stack_nodes_layout_by(
             self.children.update_all(ctx, &mut ());
         }
 
+        fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
+            let index = self.index.copy(ctx);
+            let len = self.children.len();
+            if index >= len {
+                tracing::error!(
+                    "index {} out of range for length {} in `{:?}#stack_nodes_layout_by`",
+                    index,
+                    len,
+                    ctx.path
+                );
+                let mut size = PxSize::zero();
+                self.children.measure_all(ctx, |_, _| {}, |_, args| size = size.max(args.size));
+                size
+            } else {
+                let mut size = self.children.item_measure(index, ctx);
+                let constrains = (self.constrains)(ctx.peek(|m| m.constrains()), index, size);
+                ctx.with_constrains(
+                    |_| constrains,
+                    |ctx| {
+                        for i in 0..len {
+                            if i != index {
+                                size = size.max(self.children.item_measure(i, ctx));
+                            }
+                        }
+                    },
+                );
+                size
+            }
+        }
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
             let index = self.index.copy(ctx);
             let len = self.children.len();
             if index >= len {
                 tracing::error!(
-                    "index {} out of range for length {} in `{:?}#stack_nodes_fill`",
+                    "index {} out of range for length {} in `{:?}#stack_nodes_layout_by`",
                     index,
                     len,
                     ctx.path

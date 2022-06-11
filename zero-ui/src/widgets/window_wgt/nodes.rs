@@ -206,6 +206,26 @@ impl WindowLayers {
                 self.widget.update(ctx);
             }
 
+            fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
+                if let Some((bounds, border, _)) = &self.anchor_info {
+                    let mode = self.mode.get(ctx.vars);
+
+                    if !mode.visibility || bounds.inner_size() != PxSize::zero() {
+                        return ctx.with_constrains(
+                            |c| match mode.size {
+                                AnchorSize::Unbounded => PxConstrains2d::new_unbounded(),
+                                AnchorSize::Window => c,
+                                AnchorSize::InnerSize => PxConstrains2d::new_exact_size(bounds.inner_size()),
+                                AnchorSize::InnerBorder => PxConstrains2d::new_exact_size(border.inner_size(bounds)),
+                                AnchorSize::OuterSize => PxConstrains2d::new_exact_size(bounds.outer_size()),
+                            },
+                            |ctx| self.widget.measure(ctx),
+                        );
+                    }
+                }
+
+                PxSize::zero()
+            }
             fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
                 if let Some((bounds, border, _)) = &self.anchor_info {
                     let mode = self.mode.get(ctx.vars);
@@ -477,6 +497,9 @@ pub fn layers(child: impl UiNode) -> impl UiNode {
             }
         }
 
+        fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
+            self.children.item_measure(0, ctx)
+        }
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
             let mut size = PxSize::zero();
             self.children.layout_all(

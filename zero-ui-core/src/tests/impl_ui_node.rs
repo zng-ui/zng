@@ -262,7 +262,7 @@ mod util {
     use std::{cell::RefCell, rc::Rc};
 
     use crate::{
-        context::{InfoContext, LayoutContext, RenderContext, TestWidgetContext, WidgetContext},
+        context::{InfoContext, LayoutContext, MeasureContext, RenderContext, TestWidgetContext, WidgetContext},
         event::{event, event_args, EventUpdate, EventUpdateArgs},
         render::{FrameBuilder, FrameUpdate},
         state_key,
@@ -365,6 +365,11 @@ mod util {
             if RenderUpdateEvent.update(args).is_some() {
                 ctx.updates.render_update();
             }
+        }
+
+        fn measure(&self, _: &mut MeasureContext) -> PxSize {
+            self.trace("measure");
+            PxSize::zero()
         }
 
         fn layout(&mut self, _: &mut LayoutContext, _: &mut WidgetLayout) -> PxSize {

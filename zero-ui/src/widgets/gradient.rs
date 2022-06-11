@@ -90,6 +90,10 @@ where
         }
     }
     #[UiNode]
+    fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
+        ctx.constrains().fill_size()
+    }
+    #[UiNode]
     fn layout(&mut self, ctx: &mut LayoutContext, _: &mut WidgetLayout) -> PxSize {
         let final_size = ctx.constrains().fill_size();
         if self.do_layout || self.final_size != final_size {
@@ -161,6 +165,9 @@ where
         }
     }
 
+    fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
+        ctx.constrains().fill_size()
+    }
     fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
         let final_size = ctx.constrains().fill_size();
 

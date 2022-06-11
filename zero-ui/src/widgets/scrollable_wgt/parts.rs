@@ -192,6 +192,9 @@ pub mod thumb {
                 self.child.update(ctx);
             }
 
+            fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
+                self.child.measure(ctx)
+            }
             fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
                 let final_size = ctx.constrains().fill_size();
 

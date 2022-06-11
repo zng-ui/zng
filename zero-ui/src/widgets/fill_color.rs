@@ -22,6 +22,9 @@ pub fn fill_color(color: impl IntoVar<Rgba>) -> impl UiNode {
                 self.requested_update.set(true);
             }
         }
+        fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
+            ctx.constrains().fill_size()
+        }
         fn layout(&mut self, ctx: &mut LayoutContext, _: &mut WidgetLayout) -> PxSize {
             let final_size = ctx.constrains().fill_size();
             if self.final_size != final_size {

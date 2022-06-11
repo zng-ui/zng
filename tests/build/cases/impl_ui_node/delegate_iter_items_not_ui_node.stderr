@@ -1,29 +1,29 @@
 error[E0277]: the trait bound `NotUiNode: UiNode` is not satisfied
-   --> cases/impl_ui_node/delegate_iter_items_not_ui_node.rs:9:32
-    |
-9   | #[impl_ui_node(delegate_iter = self.inner.iter(), delegate_iter_mut = self.inner.iter_mut())]
-    | -------------------------------^^^^^^^^^^^^^^^^^---------------------------------------------
-    | |                              |
-    | |                              the trait `UiNode` is not implemented for `NotUiNode`
-    | required by a bound introduced by this call
-    |
+    --> cases/impl_ui_node/delegate_iter_items_not_ui_node.rs:9:32
+     |
+9    | #[impl_ui_node(delegate_iter = self.inner.iter(), delegate_iter_mut = self.inner.iter_mut())]
+     | -------------------------------^^^^^^^^^^^^^^^^^---------------------------------------------
+     | |                              |
+     | |                              the trait `UiNode` is not implemented for `NotUiNode`
+     | required by a bound introduced by this call
+     |
 note: required by a bound in `delegate_iter`
-   --> $WORKSPACE/zero-ui-core/src/ui_node.rs
-    |
-    |     pub fn delegate_iter<'a>(d: impl IntoIterator<Item = &'a impl UiNode>) -> impl IterImpl {
-    |                                                                   ^^^^^^ required by this bound in `delegate_iter`
+    --> $WORKSPACE/zero-ui-core/src/ui_node.rs
+     |
+     |     pub fn delegate_iter<'a>(d: impl IntoIterator<Item = &'a impl UiNode>) -> impl IterImpl {
+     |                                                                   ^^^^^^ required by this bound in `delegate_iter`
 
 error[E0277]: the trait bound `NotUiNode: UiNode` is not satisfied
-   --> cases/impl_ui_node/delegate_iter_items_not_ui_node.rs:9:71
-    |
-9   | #[impl_ui_node(delegate_iter = self.inner.iter(), delegate_iter_mut = self.inner.iter_mut())]
-    | ----------------------------------------------------------------------^^^^^^^^^^^^^^^^^^^^^--
-    | |                                                                     |
-    | |                                                                     the trait `UiNode` is not implemented for `NotUiNode`
-    | required by a bound introduced by this call
-    |
+    --> cases/impl_ui_node/delegate_iter_items_not_ui_node.rs:9:71
+     |
+9    | #[impl_ui_node(delegate_iter = self.inner.iter(), delegate_iter_mut = self.inner.iter_mut())]
+     | ----------------------------------------------------------------------^^^^^^^^^^^^^^^^^^^^^--
+     | |                                                                     |
+     | |                                                                     the trait `UiNode` is not implemented for `NotUiNode`
+     | required by a bound introduced by this call
+     |
 note: required by a bound in `delegate_iter_mut`
-   --> $WORKSPACE/zero-ui-core/src/ui_node.rs
-    |
-    |     pub fn delegate_iter_mut<'a>(d: impl IntoIterator<Item = &'a mut impl UiNode>) -> impl IterMutImpl {
-    |                                                                           ^^^^^^ required by this bound in `delegate_iter_mut`
+    --> $WORKSPACE/zero-ui-core/src/ui_node.rs
+     |
+     |     pub fn delegate_iter_mut<'a>(d: impl IntoIterator<Item = &'a mut impl UiNode>) -> impl IterMutImpl {
+     |                                                                           ^^^^^^ required by this bound in `delegate_iter_mut`

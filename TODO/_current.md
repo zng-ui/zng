@@ -21,5 +21,7 @@
 
 * Fix text final size, either clip or return accurate size.
 
+* Implement reverse `UiNodeList`.
+
 * Scrolling, see `Scrolling.md`.
 * Animation, see `Variables.md`.

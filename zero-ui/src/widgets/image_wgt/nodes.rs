@@ -347,6 +347,29 @@ pub fn image_presenter() -> impl UiNode {
             }
         }
 
+        fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
+            // Similar to `layout` Part 1.
+
+            let mut scale = *ImageScaleVar::get(ctx);
+            if *ImageScalePpiVar::get(ctx) {
+                let img = ContextImageVar::get(ctx.vars);
+                let sppi = ctx.metrics.screen_ppi();
+                let (ippi_x, ippi_y) = img.ppi().unwrap_or((sppi, sppi));
+                scale *= Factor2d::new(sppi / ippi_x, sppi / ippi_y);
+            }
+            if *ImageScaleFactorVar::get(ctx) {
+                scale *= ctx.scale_factor();
+            }
+
+            let img_rect = PxRect::from_size(self.img_size);
+            let crop = ctx.with_constrains(
+                |c| c.with_max_size(self.img_size).with_fill(true, true),
+                |ctx| ImageCropVar::get(ctx.vars).layout(ctx.metrics, |_| img_rect),
+            );
+            let render_clip = img_rect.intersection(&crop).unwrap_or_default() * scale;
+
+            ctx.constrains().fill_ratio(render_clip.size)
+        }
         fn layout(&mut self, ctx: &mut LayoutContext, _: &mut WidgetLayout) -> PxSize {
             // Part 1 - Scale & Crop
             // - Starting from the image pixel size, apply scaling then crop.

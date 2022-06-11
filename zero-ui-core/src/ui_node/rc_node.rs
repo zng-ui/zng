@@ -5,7 +5,7 @@ use std::{
 };
 
 use crate::{
-    context::{InfoContext, LayoutContext, RenderContext, WidgetContext},
+    context::{InfoContext, LayoutContext, MeasureContext, RenderContext, WidgetContext},
     event::{Event, EventUpdateArgs},
     render::{FrameBuilder, FrameUpdate},
     units::PxSize,
@@ -385,6 +385,14 @@ impl<S: RcNodeTakeSignal, U: UiNode> UiNode for SlotNode<S, U> {
                 panic!("`SlotNode` in `TakeOnInit` state on update")
             }
             SlotNodeState::Dropped => {}
+        }
+    }
+
+    fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
+        if let SlotNodeState::Active(rc) = &self.state {
+            rc.node.borrow().measure(ctx)
+        } else {
+            PxSize::zero()
         }
     }
 

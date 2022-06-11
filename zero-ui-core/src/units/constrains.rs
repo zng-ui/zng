@@ -131,7 +131,7 @@ impl PxConstrains {
     /// Gets if the context prefers the maximum length over the minimum.
     ///
     /// Note that if the constrains are unbounded there is not maximum length, in this case the fill length is the minimum.
-    pub fn is_fill(self) -> bool {
+    pub fn is_fill_pref(self) -> bool {
         self.fill
     }
 
@@ -485,10 +485,10 @@ impl PxConstrains2d {
     /// Gets if the context prefers the maximum length over the minimum.
     ///
     /// Note that if the constrains are unbounded there is not maximum length, in this case the fill length is the minimum.
-    pub fn is_fill(self) -> BoolVector2D {
+    pub fn is_fill_pref(self) -> BoolVector2D {
         BoolVector2D {
-            x: self.x.is_fill(),
-            y: self.y.is_fill(),
+            x: self.x.is_fill_pref(),
+            y: self.y.is_fill_pref(),
         }
     }
 
@@ -564,7 +564,7 @@ impl PxConstrains2d {
             let width = self.x.fill_or(size.width.max(self.x.min));
             let scale = (width.0 as f32 / size.width.0 as f32).fct();
             PxSize::new(width, size.height * scale)
-        } else if self.x.is_fill() || self.y.is_fill() {
+        } else if self.x.is_fill_pref() || self.y.is_fill_pref() {
             // contain max & clamp min
             let container = self.fill_size_or(size).to_f32();
             let content = size.to_f32();

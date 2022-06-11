@@ -112,7 +112,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Text>) -> impl UiNode
         fn with_mut<R>(&mut self, vars: &Vars, f: impl FnOnce(&mut C) -> R) -> R {
             vars.with_context_var(ResolvedTextVar, ContextVarData::fixed(&self.resolved), || f(&mut self.child))
         }
-        fn with(&self, vars: &VarsRead, f: impl FnOnce(&C)) {
+        fn with<R>(&self, vars: &VarsRead, f: impl FnOnce(&C) -> R) -> R {
             vars.with_context_var(ResolvedTextVar, ContextVarData::fixed(&self.resolved), || f(&self.child))
         }
     }
@@ -259,6 +259,9 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Text>) -> impl UiNode
             self.with_mut(ctx.vars, |c| c.update(ctx))
         }
 
+        fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
+            self.with(ctx.vars, |c| c.measure(ctx))
+        }
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
             let size = self.with_mut(ctx.vars, |c| c.layout(ctx, wl));
             self.resolved.as_mut().unwrap().reshape = false;
@@ -295,78 +298,31 @@ pub fn layout_text(child: impl UiNode, padding: impl IntoVar<SideOffsets>) -> im
             const RESHAPE       = 0b0001_1111;
         }
     }
-    struct LayoutTextNode<C, P> {
-        child: C,
-        padding: P,
+    struct FinalText {
         layout: Option<LayoutText>,
         shaping_args: TextShapingArgs,
-        pending: Layout,
     }
-    impl<C: UiNode, P> LayoutTextNode<C, P> {
-        fn with_mut<R>(&mut self, vars: &Vars, f: impl FnOnce(&mut C) -> R) -> R {
-            vars.with_context_var(LayoutTextVar, ContextVarData::fixed(&self.layout), || f(&mut self.child))
-        }
-        fn with(&self, vars: &VarsRead, f: impl FnOnce(&C)) {
-            vars.with_context_var(LayoutTextVar, ContextVarData::fixed(&self.layout), || f(&self.child))
-        }
-    }
-    #[impl_ui_node(child)]
-    impl<C: UiNode, P: Var<SideOffsets>> UiNode for LayoutTextNode<C, P> {
-        fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-            subs.var(ctx, &self.padding);
-            // other subscriptions are handled by the `resolve_text` node.
-
-            self.child.subscriptions(ctx, subs)
-        }
-
-        fn deinit(&mut self, ctx: &mut WidgetContext) {
-            self.child.deinit(ctx);
-            self.layout = None;
-        }
-
-        fn update(&mut self, ctx: &mut WidgetContext) {
-            if TextContext::font_update(ctx).is_some() {
-                self.pending.insert(Layout::RESHAPE);
-                ctx.updates.layout();
-            }
-
-            if let Some((_, _, _, _, _, lang)) = TextContext::shaping_update(ctx.vars) {
-                self.shaping_args.lang = lang.clone();
-                self.pending.insert(Layout::RESHAPE);
-                ctx.updates.layout();
-            }
-
-            if UnderlinePositionVar::is_new(ctx) || UnderlineSkipVar::is_new(ctx) {
-                self.pending.insert(Layout::UNDERLINE);
-                ctx.updates.layout();
-            }
-
-            if OverlineThicknessVar::is_new(ctx)
-                || StrikethroughThicknessVar::is_new(ctx)
-                || UnderlineThicknessVar::is_new(ctx)
-                || self.padding.is_new(ctx)
-            {
-                ctx.updates.layout();
-            }
-
-            self.child.update(ctx);
-        }
-
-        fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
-            let t = ResolvedText::get(ctx.vars).expect("expected `ResolvedText` in `layout_text`");
-
+    impl FinalText {
+        fn layout(
+            &mut self,
+            vars: &VarsRead,
+            metrics: &LayoutMetrics,
+            padding: &SideOffsets,
+            t: &ResolvedText,
+            pending: &mut Layout,
+        ) -> PxSize {
             if t.reshape {
-                self.pending.insert(Layout::RESHAPE);
+                pending.insert(Layout::RESHAPE);
             }
 
-            let padding = self.padding.get(ctx.vars).layout(ctx, |_| PxSideOffsets::zero());
+            let padding = padding.layout(metrics, |_| PxSideOffsets::zero());
 
-            let (font_size, variations) = TextContext::font(ctx.vars);
+            let (font_size, variations) = TextContext::font(vars);
 
-            let font_size = ctx.with_constrains(
-                |c| c.with_less_y(padding.vertical()),
-                |ctx| font_size.layout(ctx.for_y(), |ctx| ctx.metrics.root_font_size()),
-            );
+            let font_size = {
+                let m = metrics.clone().with_constrains(|c| c.with_less_y(padding.vertical()));
+                font_size.layout(m.for_y(), |m| m.metrics.root_font_size())
+            };
 
             if self.layout.is_none() {
                 let fonts = t.faces.sized(font_size, variations.finalize());
@@ -381,55 +337,57 @@ pub fn layout_text(child: impl UiNode, padding: impl IntoVar<SideOffsets>) -> im
                     underlines: vec![],
                     underline_thickness: Px(0),
                 });
-                self.pending.insert(Layout::RESHAPE);
+                pending.insert(Layout::RESHAPE);
             }
 
             let r = self.layout.as_mut().unwrap();
 
             if font_size != r.fonts.requested_size() {
                 r.fonts = t.faces.sized(font_size, variations.finalize());
-                self.pending.insert(Layout::RESHAPE);
+                pending.insert(Layout::RESHAPE);
             }
 
-            if !self.pending.contains(Layout::PADDING) && r.shaped_text.padding() != padding {
-                self.pending.insert(Layout::PADDING);
+            if !pending.contains(Layout::PADDING) && r.shaped_text.padding() != padding {
+                pending.insert(Layout::PADDING);
             }
 
             let font = r.fonts.best();
 
-            let (letter_spacing, word_spacing, line_spacing, line_height, tab_length, _) = TextContext::shaping(ctx.vars);
+            let (letter_spacing, word_spacing, line_spacing, line_height, tab_length, _) = TextContext::shaping(vars);
             let space_len = font.space_x_advance();
             let dft_tab_len = space_len * 3;
 
-            let (letter_spacing, word_spacing, tab_length) = ctx.with_constrains(
-                |_| PxConstrains2d::new_exact(space_len, space_len),
-                |ctx| {
-                    (
-                        letter_spacing.layout(ctx.for_x(), |_| Px(0)),
-                        word_spacing.layout(ctx.for_x(), |_| Px(0)),
-                        tab_length.layout(ctx.for_x(), |_| dft_tab_len),
-                    )
-                },
-            );
+            let (letter_spacing, word_spacing, tab_length) = {
+                let m = metrics.clone().with_constrains(|_| PxConstrains2d::new_exact(space_len, space_len));
+                (
+                    letter_spacing.layout(m.for_x(), |_| Px(0)),
+                    word_spacing.layout(m.for_x(), |_| Px(0)),
+                    tab_length.layout(m.for_x(), |_| dft_tab_len),
+                )
+            };
 
             let dft_line_height = font.metrics().line_height();
-            let line_height = ctx.with_constrains(
-                |_| PxConstrains2d::new_exact(dft_line_height, dft_line_height),
-                |ctx| line_height.layout(ctx.for_y(), |_| dft_line_height),
-            );
-            let line_spacing = ctx.with_constrains(
-                |_| PxConstrains2d::new_exact(line_height, line_height),
-                |ctx| line_spacing.layout(ctx.for_y(), |_| Px(0)),
-            );
+            let line_height = {
+                let m = metrics
+                    .clone()
+                    .with_constrains(|_| PxConstrains2d::new_exact(dft_line_height, dft_line_height));
+                line_height.layout(m.for_y(), |_| dft_line_height)
+            };
+            let line_spacing = {
+                let m = metrics
+                    .clone()
+                    .with_constrains(|_| PxConstrains2d::new_exact(line_height, line_height));
+                line_spacing.layout(m.for_y(), |_| Px(0))
+            };
 
-            if !self.pending.contains(Layout::RESHAPE)
+            if !pending.contains(Layout::RESHAPE)
                 && (letter_spacing != self.shaping_args.letter_spacing
                     || word_spacing != self.shaping_args.word_spacing
                     || tab_length != self.shaping_args.tab_x_advance
                     || line_spacing != self.shaping_args.line_spacing
                     || line_height != self.shaping_args.line_height)
             {
-                self.pending.insert(Layout::RESHAPE);
+                pending.insert(Layout::RESHAPE);
             }
 
             self.shaping_args.letter_spacing = letter_spacing;
@@ -439,25 +397,25 @@ pub fn layout_text(child: impl UiNode, padding: impl IntoVar<SideOffsets>) -> im
             self.shaping_args.line_spacing = line_spacing;
 
             let dft_thickness = font.metrics().underline_thickness;
-            let (overline, strikethrough, underline) = ctx.with_constrains(
-                |_| PxConstrains2d::new_exact(line_height, line_height),
-                |ctx| {
-                    (
-                        OverlineThicknessVar::get(ctx.vars).layout(ctx.for_y(), |_| dft_thickness),
-                        StrikethroughThicknessVar::get(ctx.vars).layout(ctx.for_y(), |_| dft_thickness),
-                        UnderlineThicknessVar::get(ctx.vars).layout(ctx.for_y(), |_| dft_thickness),
-                    )
-                },
-            );
+            let (overline, strikethrough, underline) = {
+                let m = metrics
+                    .clone()
+                    .with_constrains(|_| PxConstrains2d::new_exact(line_height, line_height));
+                (
+                    OverlineThicknessVar::get(vars).layout(m.for_y(), |_| dft_thickness),
+                    StrikethroughThicknessVar::get(vars).layout(m.for_y(), |_| dft_thickness),
+                    UnderlineThicknessVar::get(vars).layout(m.for_y(), |_| dft_thickness),
+                )
+            };
 
-            if !self.pending.contains(Layout::OVERLINE) && (r.overline_thickness == Px(0) && overline > Px(0)) {
-                self.pending.insert(Layout::OVERLINE);
+            if !pending.contains(Layout::OVERLINE) && (r.overline_thickness == Px(0) && overline > Px(0)) {
+                pending.insert(Layout::OVERLINE);
             }
-            if !self.pending.contains(Layout::STRIKETHROUGH) && (r.strikethrough_thickness == Px(0) && strikethrough > Px(0)) {
-                self.pending.insert(Layout::STRIKETHROUGH);
+            if !pending.contains(Layout::STRIKETHROUGH) && (r.strikethrough_thickness == Px(0) && strikethrough > Px(0)) {
+                pending.insert(Layout::STRIKETHROUGH);
             }
-            if !self.pending.contains(Layout::UNDERLINE) && (r.underline_thickness == Px(0) && underline > Px(0)) {
-                self.pending.insert(Layout::UNDERLINE);
+            if !pending.contains(Layout::UNDERLINE) && (r.underline_thickness == Px(0) && underline > Px(0)) {
+                pending.insert(Layout::UNDERLINE);
             }
             r.overline_thickness = overline;
             r.strikethrough_thickness = strikethrough;
@@ -466,34 +424,34 @@ pub fn layout_text(child: impl UiNode, padding: impl IntoVar<SideOffsets>) -> im
             /*
                 APPLY
             */
-            if self.pending.contains(Layout::RESHAPE) {
+            if pending.contains(Layout::RESHAPE) {
                 r.shaped_text = r.fonts.shape_text(&t.text, &self.shaping_args);
                 r.shaped_text_version = r.shaped_text_version.wrapping_add(1);
             }
-            if self.pending.contains(Layout::PADDING) {
+            if pending.contains(Layout::PADDING) {
                 r.shaped_text.set_padding(padding);
 
                 let baseline = r.shaped_text.box_baseline() + padding.bottom;
                 t.baseline.set(baseline);
             }
-            if self.pending.contains(Layout::OVERLINE) {
+            if pending.contains(Layout::OVERLINE) {
                 if r.overline_thickness > Px(0) {
                     r.overlines = r.shaped_text.lines().map(|l| l.overline()).collect();
                 } else {
                     r.overlines = vec![];
                 }
             }
-            if self.pending.contains(Layout::STRIKETHROUGH) {
+            if pending.contains(Layout::STRIKETHROUGH) {
                 if r.strikethrough_thickness > Px(0) {
                     r.strikethroughs = r.shaped_text.lines().map(|l| l.strikethrough()).collect();
                 } else {
                     r.strikethroughs = vec![];
                 }
             }
-            if self.pending.contains(Layout::UNDERLINE) {
+            if pending.contains(Layout::UNDERLINE) {
                 if r.underline_thickness > Px(0) {
-                    let skip = *UnderlineSkipVar::get(ctx);
-                    match *UnderlinePositionVar::get(ctx) {
+                    let skip = *UnderlineSkipVar::get(vars);
+                    match *UnderlinePositionVar::get(vars) {
                         UnderlinePosition::Font => {
                             if skip == UnderlineSkip::GLYPHS | UnderlineSkip::SPACES {
                                 r.underlines = r
@@ -527,14 +485,88 @@ pub fn layout_text(child: impl UiNode, padding: impl IntoVar<SideOffsets>) -> im
                 }
             }
 
+            let desired_size = r.shaped_text.size();
+
+            metrics.constrains().fill_size_or(desired_size)
+        }
+    }
+    struct LayoutTextNode<C, P> {
+        child: C,
+        padding: P,
+        txt: RefCell<FinalText>,
+        pending: Layout,
+    }
+    impl<C: UiNode, P> LayoutTextNode<C, P> {
+        fn with_mut<R>(&mut self, vars: &Vars, f: impl FnOnce(&mut C) -> R) -> R {
+            let txt = self.txt.borrow();
+            vars.with_context_var(LayoutTextVar, ContextVarData::fixed(&txt.layout), || f(&mut self.child))
+        }
+        fn with(&self, vars: &VarsRead, f: impl FnOnce(&C)) {
+            let txt = self.txt.borrow();
+            vars.with_context_var(LayoutTextVar, ContextVarData::fixed(&txt.layout), || f(&self.child))
+        }
+    }
+    #[impl_ui_node(child)]
+    impl<C: UiNode, P: Var<SideOffsets>> UiNode for LayoutTextNode<C, P> {
+        fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
+            subs.var(ctx, &self.padding);
+            // other subscriptions are handled by the `resolve_text` node.
+
+            self.child.subscriptions(ctx, subs)
+        }
+
+        fn deinit(&mut self, ctx: &mut WidgetContext) {
+            self.child.deinit(ctx);
+            self.txt.get_mut().layout = None;
+        }
+
+        fn update(&mut self, ctx: &mut WidgetContext) {
+            if TextContext::font_update(ctx).is_some() {
+                self.pending.insert(Layout::RESHAPE);
+                ctx.updates.layout();
+            }
+
+            if let Some((_, _, _, _, _, lang)) = TextContext::shaping_update(ctx.vars) {
+                self.txt.get_mut().shaping_args.lang = lang.clone();
+                self.pending.insert(Layout::RESHAPE);
+                ctx.updates.layout();
+            }
+
+            if UnderlinePositionVar::is_new(ctx) || UnderlineSkipVar::is_new(ctx) {
+                self.pending.insert(Layout::UNDERLINE);
+                ctx.updates.layout();
+            }
+
+            if OverlineThicknessVar::is_new(ctx)
+                || StrikethroughThicknessVar::is_new(ctx)
+                || UnderlineThicknessVar::is_new(ctx)
+                || self.padding.is_new(ctx)
+            {
+                ctx.updates.layout();
+            }
+
+            self.child.update(ctx);
+        }
+
+        fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
+            let t = ResolvedText::get(ctx.vars).expect("expected `ResolvedText` in `measure`");
+            let mut pending = self.pending;
+            self.txt
+                .borrow_mut()
+                .layout(ctx.vars, ctx.metrics, self.padding.get(ctx.vars), t, &mut pending)
+        }
+        fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
+            let t = ResolvedText::get(ctx.vars).expect("expected `ResolvedText` in `layout`");
+
+            let size = self
+                .txt
+                .get_mut()
+                .layout(ctx.vars, ctx.metrics, self.padding.get(ctx.vars), t, &mut self.pending);
+
             if self.pending != Layout::empty() {
                 ctx.updates.render();
                 self.pending = Layout::empty();
             }
-
-            let desired_size = r.shaped_text.size();
-
-            let size = ctx.constrains().fill_size_or(desired_size);
 
             wl.set_baseline(t.baseline.get());
 
@@ -558,8 +590,10 @@ pub fn layout_text(child: impl UiNode, padding: impl IntoVar<SideOffsets>) -> im
     LayoutTextNode {
         child: child.cfg_boxed(),
         padding: padding.into_var(),
-        layout: None,
-        shaping_args: TextShapingArgs::default(),
+        txt: RefCell::new(FinalText {
+            layout: None,
+            shaping_args: TextShapingArgs::default(),
+        }),
         pending: Layout::empty(),
     }
     .cfg_boxed()

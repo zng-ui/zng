@@ -1,5 +1,5 @@
 use crate::{
-    context::{InfoContext, LayoutContext, RenderContext, StateMap, WidgetContext},
+    context::{InfoContext, LayoutContext, MeasureContext, RenderContext, StateMap, WidgetContext},
     event::EventUpdateArgs,
     render::{FrameBuilder, FrameUpdate},
     ui_list::{
@@ -54,6 +54,36 @@ impl<A: WidgetList, B: WidgetList> UiNodeList for WidgetListChain<A, B> {
     fn event_all<EU: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &EU) {
         self.0.event_all(ctx, args);
         self.1.event_all(ctx, args);
+    }
+
+    fn measure_all<C, D>(&self, ctx: &mut MeasureContext, mut pre_measure: C, mut pos_measure: D)
+    where
+        C: FnMut(&mut MeasureContext, &mut super::PreMeasureArgs),
+        D: FnMut(&mut MeasureContext, super::PosMeasureArgs),
+    {
+        self.0.measure_all(ctx, &mut pre_measure, &mut pos_measure);
+        let offset = self.0.len();
+        self.1.measure_all(
+            ctx,
+            |ctx, args| {
+                args.index += offset;
+                pre_measure(ctx, args);
+                args.index -= offset;
+            },
+            |ctx, mut args| {
+                args.index += offset;
+                pos_measure(ctx, args);
+            },
+        )
+    }
+
+    fn item_measure(&self, index: usize, ctx: &mut MeasureContext) -> PxSize {
+        let a_len = self.0.len();
+        if index < a_len {
+            self.0.item_measure(index, ctx)
+        } else {
+            self.1.item_measure(index - a_len, ctx)
+        }
     }
 
     fn layout_all<C, D>(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout, mut pre_layout: C, mut pos_layout: D)
@@ -395,6 +425,36 @@ impl<A: UiNodeList, B: UiNodeList> UiNodeList for UiNodeListChain<A, B> {
     fn event_all<EU: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &EU) {
         self.0.event_all(ctx, args);
         self.1.event_all(ctx, args);
+    }
+
+    fn measure_all<C, D>(&self, ctx: &mut MeasureContext, mut pre_measure: C, mut pos_measure: D)
+    where
+        C: FnMut(&mut MeasureContext, &mut super::PreMeasureArgs),
+        D: FnMut(&mut MeasureContext, super::PosMeasureArgs),
+    {
+        self.0.measure_all(ctx, &mut pre_measure, &mut pos_measure);
+        let offset = self.0.len();
+        self.1.measure_all(
+            ctx,
+            |ctx, args| {
+                args.index += offset;
+                pre_measure(ctx, args);
+                args.index -= offset;
+            },
+            |ctx, mut args| {
+                args.index += offset;
+                pos_measure(ctx, args);
+            },
+        )
+    }
+
+    fn item_measure(&self, index: usize, ctx: &mut MeasureContext) -> PxSize {
+        let a_len = self.0.len();
+        if index < a_len {
+            self.0.item_measure(index, ctx)
+        } else {
+            self.1.item_measure(index - a_len, ctx)
+        }
     }
 
     fn layout_all<C, D>(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout, mut pre_layout: C, mut pos_layout: D)

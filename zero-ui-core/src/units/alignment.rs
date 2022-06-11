@@ -80,6 +80,14 @@ impl Align {
             .with_fill_and(self.is_fill_x(), self.is_fill_y())
     }
 
+    /// Computes the size returned by [`layout`] for the given child size and constrains.
+    ///
+    /// [`layout`]: Self::layout
+    pub fn measure(self, child_size: PxSize, parent_constrains: PxConstrains2d) -> PxSize {
+        let size = parent_constrains.fill_size().max(child_size);
+        parent_constrains.clamp_size(size)
+    }
+
     /// Applies the alignment transform to `wl` and returns the size of the parent align node.
     pub fn layout(self, child_size: PxSize, parent_constrains: PxConstrains2d, wl: &mut WidgetLayoutTranslation) -> PxSize {
         let size = parent_constrains.fill_size().max(child_size);
@@ -199,6 +207,9 @@ impl Align {
         FILL_BOTTOM = (f32::INFINITY, 1.0);
         FILL_RIGHT = (1.0, f32::INFINITY);
         FILL_LEFT = (0.0, f32::INFINITY);
+
+        FILL_X = (f32::INFINITY, 0.5);
+        FILL_Y = (0.5, f32::INFINITY);
 
         FILL = (f32::INFINITY, f32::INFINITY);
 

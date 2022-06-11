@@ -98,6 +98,23 @@ pub(crate) fn gen_impl_ui_node(args: proc_macro::TokenStream, input: proc_macro:
 
     let mut validate_manual_delegate = true;
 
+    // validate layout/measure pair
+    if let Some(layout) = &node_item_names.get(&ident!("layout")) {
+        if !node_item_names.contains(&ident!("measure")) {
+            errors.push(
+                "`layout` is manual impl, but `measure` is auto impl, both must be auto or manual",
+                layout.span(),
+            );
+        }
+    } else if let Some(measure) = &node_item_names.get(&ident!("measure")) {
+        if !node_item_names.contains(&ident!("measure")) {
+            errors.push(
+                "`measure` is manual impl, but `layout` is auto impl, both must be auto or manual",
+                measure.span(),
+            );
+        }
+    }
+
     // collect default methods needed.
     let default_ui_items = match args {
         Args::NoDelegate => {
@@ -116,7 +133,7 @@ pub(crate) fn gen_impl_ui_node(args: proc_macro::TokenStream, input: proc_macro:
     };
 
     if validate_manual_delegate {
-        let skip = vec![ident!("boxed")];
+        let skip = vec![ident!("boxed"), ident!("measure")];
 
         // validate that manually implemented UiNode methods call the expected method in the struct child or children.
 
@@ -133,7 +150,7 @@ pub(crate) fn gen_impl_ui_node(args: proc_macro::TokenStream, input: proc_macro:
                 let ident = validator.ident;
                 errors.push(
                     format_args!(
-                        "auto impl delegates call to `{ident}` but this manual impl does not\n `#[{missing_delegate_level}(zero_ui::missing_delegate)]` is on",
+                        "auto impl delegates call to `{ident}`, but this manual impl does not\n `#[{missing_delegate_level}(zero_ui::missing_delegate)]` is on",
                     ),
                     {
                         match manual_impl {
@@ -227,6 +244,10 @@ fn no_delegate_absents(crate_: TokenStream, user_mtds: HashSet<Ident>) -> Vec<Im
 
         [fn event<__EU: #crate_::event::EventUpdateArgs>(&mut self, ctx: &mut #crate_::context::WidgetContext, args: &__EU) { }]
 
+        [fn measure(&self, ctx: &mut #crate_::context::MeasureContext) -> #crate_::units::PxSize {
+            ctx.metrics.constrains().fill_size()
+        }]
+
         [fn layout(&mut self, ctx: &mut #crate_::context::LayoutContext, wl: &mut #crate_::widget_info::WidgetLayout) -> #crate_::units::PxSize {
             ctx.metrics.constrains().fill_size()
         }]
@@ -276,6 +297,11 @@ fn delegate_absents(crate_: TokenStream, user_mtds: HashSet<Ident>, borrow: Expr
         [fn event<__EU: #crate_::event::EventUpdateArgs>(&mut self, ctx: &mut #crate_::context::WidgetContext, args: &__EU) {
             let mut #child_mut = {#borrow_mut};
             #crate_::UiNode::event::<__EU>(#deref_mut, ctx, args);
+        }]
+
+        [fn measure(&self, ctx: &mut #crate_::context::MeasureContext) -> #crate_::units::PxSize {
+            let mut #child = {#borrow};
+            #crate_::UiNode::measure(#deref, ctx)
         }]
 
         [fn layout(&mut self, ctx: &mut #crate_::context::LayoutContext, wl: &mut #crate_::widget_info::WidgetLayout) -> #crate_::units::PxSize {
@@ -339,6 +365,15 @@ fn delegate_list_absents(crate_: TokenStream, user_mtds: HashSet<Ident>, borrow:
             #crate_::UiNodeList::event_all::<__EU>(#deref_mut, ctx, args);
         }]
 
+        [fn measure(&self, ctx: &mut #crate_::context::MeasureContext) -> #crate_::units::PxSize {
+            let #children = {#borrow};
+            let mut size = #crate_::units::PxSize::zero();
+            #crate_::UiNodeList::measure_all(#deref, ctx, |ctx, _|{}, |_, args| {
+                size = size.max(args.size);
+            });
+            size
+        }]
+
         [fn layout(&mut self, ctx: &mut #crate_::context::LayoutContext, wl: &mut #crate_::widget_info::WidgetLayout) -> #crate_::units::PxSize {
             let #children_mut = {#borrow_mut};
             let mut size = #crate_::units::PxSize::zero();
@@ -400,6 +435,11 @@ fn delegate_iter_absents(crate_: TokenStream, user_mtds: HashSet<Ident>, iter: E
         [fn event<__EU: #crate_::event::EventUpdateArgs>(&mut self, ctx: &mut #crate_::context::WidgetContext, args: &__EU) {
             let #children_mut = {#iter_mut};
             #crate_::impl_ui_node_util::IterMutImpl::event_all::<__EU>(#children_mut, ctx, args);
+        }]
+
+        [fn measure(&self, ctx: &mut #crate_::context::MeasureContext) -> #crate_::units::PxSize {
+            let #children = {#iter};
+            #crate_::impl_ui_node_util::IterImpl::measure_all(#children, ctx)
         }]
 
         [fn layout(&mut self, ctx: &mut #crate_::context::LayoutContext, wl: &mut #crate_::widget_info::WidgetLayout) -> #crate_::units::PxSize  {

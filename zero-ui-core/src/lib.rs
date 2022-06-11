@@ -182,7 +182,7 @@ pub use zero_ui_proc_macros::{property_new, static_list, widget_declare, widget_
 /// impl UiNode for MyNode { }
 /// ```
 ///
-/// The generated [`layout`] code returns the fill size.
+/// The generated [`measure`] and [`layout`] code returns the fill size.
 ///
 /// The other generated methods are empty.
 ///
@@ -192,6 +192,9 @@ pub use zero_ui_proc_macros::{property_new, static_list, widget_declare, widget_
 /// you get the error ``"auto impl delegates call to `{}` but this manual impl does not"``.
 ///
 /// To disable this error use `#[allow_(zero_ui::missing_delegate)]` in the method or in the `impl` block.
+///
+/// The [`measure`] method is an exception to this and will not show the error, its ideal implementation
+/// is one where the entire sub-tree is skipped from the the computation.
 ///
 /// # Mixing Methods
 ///
@@ -230,6 +233,7 @@ pub use zero_ui_proc_macros::{property_new, static_list, widget_declare, widget_
 /// [`UiNode`]: crate::UiNode
 /// [`UiNodeList`]: crate::UiNodeList
 /// [`into_iter`]: std::iter::IntoIterator::into_iter
+/// [`measure`]: crate::UiNode::measure
 /// [`layout`]: crate::UiNode::layout
 /// [`render`]: crate::UiNode::render
 ///

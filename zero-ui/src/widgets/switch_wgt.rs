@@ -69,6 +69,14 @@ pub mod switch {
             }
         }
 
+        fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
+            let index = self.index.copy(ctx);
+            if index < self.options.len() {
+                self.options.item_measure(index, ctx)
+            } else {
+                PxSize::zero()
+            }
+        }
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
             if mem::take(&mut self.collapse) {
                 wl.collapse_descendants(ctx);

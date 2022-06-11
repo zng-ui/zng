@@ -1,5 +1,5 @@
 use crate::{
-    context::{InfoContext, LayoutContext, RenderContext, WidgetContext},
+    context::{InfoContext, LayoutContext, MeasureContext, RenderContext, WidgetContext},
     render::{FrameBuilder, FrameUpdate},
     units::*,
     widget_info::{WidgetInfoBuilder, WidgetLayout, WidgetSubscriptions},
@@ -59,6 +59,11 @@ where
     fn update(&mut self, ctx: &mut WidgetContext) {
         let _span = (self.span)(&mut ctx.as_info(), "update");
         self.node.update(ctx);
+    }
+
+    fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
+        let _span = (self.span)(&mut ctx.as_info(), "measure");
+        self.node.measure(ctx)
     }
 
     fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {

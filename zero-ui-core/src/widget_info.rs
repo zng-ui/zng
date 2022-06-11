@@ -333,6 +333,7 @@ impl WidgetLayout {
                 info.bounds_info.set_outer_offset(PxVector::zero());
                 info.bounds_info.set_inner_offset(PxVector::zero());
                 info.bounds_info.set_child_offset(PxVector::zero());
+                info.bounds_info.set_measure_metrics(None, LayoutMask::NONE);
                 info.bounds_info.set_metrics(None, LayoutMask::NONE);
             }
         } else {
@@ -356,6 +357,7 @@ impl WidgetLayout {
                 info.bounds_info.set_outer_offset(PxVector::zero());
                 info.bounds_info.set_inner_offset(PxVector::zero());
                 info.bounds_info.set_child_offset(PxVector::zero());
+                info.bounds_info.set_measure_metrics(None, LayoutMask::NONE);
                 info.bounds_info.set_metrics(None, LayoutMask::NONE);
             }
         } else {
@@ -1145,11 +1147,14 @@ struct WidgetBoundsData {
 
     childs_changed: Cell<bool>,
 
+    measure_outer_size: Cell<PxSize>,
     outer_size: Cell<PxSize>,
     inner_size: Cell<PxSize>,
     baseline: Cell<Px>,
     inner_offset_baseline: Cell<bool>,
 
+    measure_metrics: Cell<Option<LayoutMetricsSnapshot>>,
+    measure_metrics_used: Cell<LayoutMask>,
     metrics: Cell<Option<LayoutMetricsSnapshot>>,
     metrics_used: Cell<LayoutMask>,
 }
@@ -1176,6 +1181,10 @@ impl WidgetBoundsInfo {
     /// Gets the widget's outer bounds offset inside the parent widget.
     pub fn outer_offset(&self) -> PxVector {
         self.0.outer_offset.get()
+    }
+
+    pub(crate) fn measure_outer_size(&self) -> PxSize {
+        self.0.measure_outer_size.get()
     }
 
     /// Gets the widget's outer bounds size.
@@ -1277,6 +1286,13 @@ impl WidgetBoundsInfo {
         self.0.metrics_used.get()
     }
 
+    pub(crate) fn measure_metrics(&self) -> Option<LayoutMetricsSnapshot> {
+        self.0.measure_metrics.get()
+    }
+    pub(crate) fn measure_metrics_used(&self) -> LayoutMask {
+        self.0.measure_metrics_used.get()
+    }
+
     fn begin_pass(&self, pass: LayoutPassId) {
         // Record current state as previous state on the first call of the `pass`, see `Self::end_pass`.
 
@@ -1337,6 +1353,10 @@ impl WidgetBoundsInfo {
         self.0.outer_size.set(size);
     }
 
+    pub(crate) fn set_measure_outer_size(&self, size: PxSize) {
+        self.0.measure_outer_size.set(size);
+    }
+
     fn set_inner_offset(&self, offset: PxVector) {
         self.0.inner_offset.set(offset);
     }
@@ -1360,6 +1380,11 @@ impl WidgetBoundsInfo {
     fn set_metrics(&self, metrics: Option<LayoutMetricsSnapshot>, used: LayoutMask) {
         self.0.metrics.set(metrics);
         self.0.metrics_used.set(used);
+    }
+
+    pub(crate) fn set_measure_metrics(&self, metrics: Option<LayoutMetricsSnapshot>, used: LayoutMask) {
+        self.0.measure_metrics.set(metrics);
+        self.0.measure_metrics_used.set(used);
     }
 }
 

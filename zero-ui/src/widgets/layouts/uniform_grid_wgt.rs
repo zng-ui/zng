@@ -1,7 +1,5 @@
 use crate::prelude::new_widget::*;
 
-use std::mem;
-
 /// Grid layout where all cells are the same size.
 ///
 /// # Z-Index
@@ -45,13 +43,16 @@ pub mod uniform_grid {
 
         /// Number of columns.
         ///
-        /// Set to zero (`0`) for auto TODO.
+        /// Set to zero (`0`) for auto.
         columns(impl IntoVar<u32>) = 0;
         /// Number of rows.
+        ///
+        /// Set to zero (`0`) for auto.
         rows(impl IntoVar<u32>) = 0;
         /// Number of empty cells in the first row.
         ///
-        /// Value is ignored if is `>= columns`.
+        /// Value clamped to `columns` if `columns` is not auto and `first_column >= columns`. If `rows` is not
+        /// auto the `first_column` is clamped to the number of empty cells to the end, so that the last cell is filled.
         ///
         /// # Examples
         ///
@@ -118,10 +119,12 @@ pub mod uniform_grid {
         FC: Var<u32>,
         S: Var<GridSpacing>,
     {
-        /// (columns, rows)
-        fn grid_len(&self, vars: &VarsRead, cells_count: usize) -> (i32, i32) {
-            let mut columns = *self.columns.get(vars) as i32;
-            let mut rows = *self.rows.get(vars) as i32;
+        /// (columns, rows, first_column)
+        fn grid_len(&self, vars: &VarsRead, cells_count: usize) -> (i32, i32, i32) {
+            let mut columns = self.columns.copy(vars) as i32;
+            let mut rows = self.rows.copy(vars) as i32;
+            let mut first_column = self.first_column.copy(vars) as i32;
+            let rows_is_bound = rows > 0;
 
             if columns == 0 {
                 if rows == 0 {
@@ -137,7 +140,21 @@ pub mod uniform_grid {
                 rows = (cells_count as f32 / columns as f32).ceil() as i32;
             }
 
-            (columns, rows)
+            if first_column > 0 {
+                if first_column > columns {
+                    first_column = columns;
+                }
+
+                let cells_count = cells_count as i32;
+                let extra = (columns * rows) - cells_count;
+                if rows_is_bound {
+                    first_column = first_column.min(extra);
+                } else if extra < first_column {
+                    rows += 1;
+                }
+            }
+
+            (columns, rows, first_column)
         }
 
         #[UiNode]
@@ -162,52 +179,71 @@ pub mod uniform_grid {
         }
 
         #[UiNode]
-        fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
-            let spacing = self.spacing.get(ctx.vars).layout(ctx.metrics, |_| PxGridSpacing::zero());
-
-            // we don't assign cells for collapsed widgets, if the widget has not changed
-            // from the previous layout everything is done in one pass, otherwise we do
-            // a second pass with the updated count.
-            let mut count = self.children.count(|c| c.bounds_info.outer_size() != PxSize::zero());
-            if count == 0 {
-                count = self.children.len();
-            }
-            let mut count_final = false;
-
-            let (mut columns, mut rows) = self.grid_len(ctx.vars, count);
-            let mut cell_size = PxSize::zero();
-            let mut size_final = false;
-
-            let mut panel_size = PxSize::zero();
-
+        fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
             let constrains = ctx.constrains();
 
             if let Some(size) = constrains.fill_or_exact() {
-                if size.width == Px(0) || size.height == Px(0) {
-                    return size;
-                }
+                return size;
+            }
 
-                panel_size = size;
-                size_final = true;
+            let mut count = 0;
+            let mut cell_size = PxSize::zero();
+            self.children.measure_all(
+                ctx,
+                |_, _| {},
+                |_, a| {
+                    if a.size != PxSize::zero() {
+                        count += 1;
+                        cell_size = cell_size.max(a.size);
+                    }
+                },
+            );
 
-                cell_size = PxSize::new(
+            if count == 0 {
+                return constrains.min_size();
+            }
+
+            let (columns, rows, _) = self.grid_len(ctx.vars, count);
+
+            let spacing = self.spacing.get(ctx.vars).layout(ctx.metrics, |_| PxGridSpacing::zero());
+
+            let panel_size = PxSize::new(
+                (cell_size.width + spacing.column) * Px(columns) - spacing.column,
+                (cell_size.height + spacing.row) * Px(rows) - spacing.row,
+            );
+
+            constrains.fill_size_or(panel_size)
+        }
+
+        #[UiNode]
+        fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
+            let constrains = ctx.constrains();
+            let spacing = self.spacing.get(ctx.vars).layout(ctx.metrics, |_| PxGridSpacing::zero());
+
+            let final_panel_size;
+            let final_cell_size;
+            let final_columns;
+            let final_first_column;
+
+            if let Some(panel_size) = constrains.fill_or_exact() {
+                // panel size not defined by cells
+
+                final_panel_size = panel_size;
+
+                let count = match self.children.count(|c| c.bounds_info.outer_size() != PxSize::zero()) {
+                    0 => self.children.len(),
+                    n => n,
+                };
+
+                let (columns, rows, first_column) = self.grid_len(ctx.vars, count);
+                let cell_size = PxSize::new(
                     (panel_size.width + spacing.column) / Px(columns) - spacing.column,
                     (panel_size.height + spacing.row) / Px(rows) - spacing.row,
                 );
-            }
 
-            let mut layout = true;
-            while mem::take(&mut layout) {
                 let mut actual_count = 0;
-
                 ctx.with_constrains(
-                    move |c| {
-                        if size_final {
-                            c.with_max_size(cell_size).with_fill(true, true)
-                        } else {
-                            c
-                        }
-                    },
+                    |_| PxConstrains2d::new_fill_size(cell_size),
                     |ctx| {
                         self.children.layout_all(
                             ctx,
@@ -216,61 +252,83 @@ pub mod uniform_grid {
                             |_, _, a| {
                                 if a.size != PxSize::zero() {
                                     actual_count += 1;
-                                    if !size_final {
-                                        cell_size = cell_size.max(a.size);
-                                    }
                                 }
                             },
                         );
                     },
                 );
 
-                if actual_count == 0 {
-                    // no children or all collapsed.
-                    return ctx.constrains().min_size();
-                }
+                if actual_count == count {
+                    final_cell_size = cell_size;
+                    final_columns = columns;
+                    final_first_column = first_column;
+                } else {
+                    // visibility of a child changed
 
-                if !count_final {
-                    count_final = true;
-
-                    if actual_count != count {
-                        count = actual_count;
-                        let (n_columns, n_rows) = self.grid_len(ctx.vars, actual_count);
-                        if n_columns != columns || n_rows != rows {
-                            columns = n_columns;
-                            rows = n_rows;
-                            layout = true;
-                        }
+                    if actual_count == 0 {
+                        return constrains.min_size();
                     }
-                }
 
-                if !size_final {
-                    size_final = true;
-
-                    panel_size = PxSize::new(
-                        (cell_size.width + spacing.column) * Px(columns) - spacing.column,
-                        (cell_size.height + spacing.row) * Px(rows) - spacing.row,
+                    let (columns, rows, first_column) = self.grid_len(ctx.vars, actual_count);
+                    final_columns = columns;
+                    final_first_column = first_column;
+                    final_cell_size = PxSize::new(
+                        (panel_size.width + spacing.column) / Px(columns) - spacing.column,
+                        (panel_size.height + spacing.row) / Px(rows) - spacing.row,
                     );
-                    let clamped = constrains.fill_size_or(panel_size);
-                    if clamped != panel_size {
-                        panel_size = clamped;
 
-                        cell_size = PxSize::new(
-                            (panel_size.width + spacing.column) / Px(columns) - spacing.column,
-                            (panel_size.height + spacing.row) / Px(rows) - spacing.row,
+                    if final_cell_size != cell_size {
+                        ctx.with_constrains(
+                            |_| PxConstrains2d::new_fill_size(final_cell_size),
+                            |ctx| self.children.layout_all(ctx, wl, |_, _, _| {}, |_, _, _| {}),
                         );
                     }
-
-                    layout = true;
                 }
-            }
+            } else {
+                // panel size (partially) defined by cells.
 
-            let mut first_column = self.first_column.copy(ctx);
-            if first_column as i32 >= columns {
-                first_column = 0;
-            }
+                let mut count = 0;
+                let mut cell_size = PxSize::zero();
+                self.children.measure_all(
+                    &mut ctx.as_measure(),
+                    |_, _| {},
+                    |_, a| {
+                        if a.size != PxSize::zero() {
+                            count += 1;
+                            cell_size = cell_size.max(a.size);
+                        }
+                    },
+                );
 
-            let mut cells = CellsIter::new(cell_size, columns, first_column as i32, spacing);
+                if count == 0 {
+                    return constrains.min_size();
+                }
+
+                let (columns, rows, first_column) = self.grid_len(ctx.vars, count);
+                final_columns = columns;
+                final_first_column = first_column;
+                let panel_size = PxSize::new(
+                    (cell_size.width + spacing.column) * Px(columns) - spacing.column,
+                    (cell_size.height + spacing.row) * Px(rows) - spacing.row,
+                );
+
+                final_panel_size = constrains.fill_size_or(panel_size);
+
+                if final_panel_size != panel_size {
+                    cell_size = PxSize::new(
+                        (final_panel_size.width + spacing.column) / Px(columns) - spacing.column,
+                        (final_panel_size.height + spacing.row) / Px(rows) - spacing.row,
+                    );
+                }
+
+                final_cell_size = cell_size;
+
+                ctx.with_constrains(
+                    |_| PxConstrains2d::new_fill_size(final_cell_size),
+                    |ctx| self.children.layout_all(ctx, wl, |_, _, _| {}, |_, _, _| {}),
+                );
+            }
+            let mut cells = CellsIter::new(final_cell_size, final_columns, final_first_column, spacing);
 
             self.children.outer_all(wl, false, |wlt, a| {
                 if a.size != PxSize::zero() {
@@ -280,7 +338,7 @@ pub mod uniform_grid {
                 }
             });
 
-            panel_size
+            final_panel_size
         }
     }
     #[derive(Clone, Default)]
