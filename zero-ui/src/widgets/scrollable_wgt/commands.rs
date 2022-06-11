@@ -238,7 +238,7 @@ command! {
     /// |--------------|--------------------------------------------------------|
     /// | [`name`]     | "Scroll to Top"                                        |
     /// | [`info`]     | "Scroll up to the content top."                        |
-    /// | [`shortcut`] | `CTRL+Home`                                            |
+    /// | [`shortcut`] | `Home`, `CTRL+Home`                                    |
     ///
     /// [`name`]: CommandNameExt
     /// [`info`]: CommandInfoExt
@@ -246,7 +246,7 @@ command! {
     pub ScrollToTopCommand
         .init_name("Scroll to Top")
         .init_info("Scroll up to the content top.")
-        .init_shortcut([shortcut!(CTRL+Home)]);
+        .init_shortcut([shortcut!(Home), shortcut!(CTRL+Home)]);
 
     /// Represents the scrollable **scroll to bottom** action.
     ///
@@ -258,7 +258,7 @@ command! {
     /// |--------------|--------------------------------------------------------|
     /// | [`name`]     | "Scroll to Bottom"                                     |
     /// | [`info`]     | "Scroll down to the content bottom."                   |
-    /// | [`shortcut`] | `CTRL+End`                                             |
+    /// | [`shortcut`] | `End`, `CTRL+End`                                      |
     ///
     /// [`name`]: CommandNameExt
     /// [`info`]: CommandInfoExt
@@ -266,7 +266,7 @@ command! {
     pub ScrollToBottomCommand
         .init_name("Scroll to Bottom")
         .init_info("Scroll down to the content bottom.")
-        .init_shortcut([shortcut!(CTRL+End)]);
+        .init_shortcut([shortcut!(End), shortcut!(CTRL+End)]);
 
     /// Represents the scrollable **scroll to leftmost** action.
     ///
@@ -274,11 +274,11 @@ command! {
     ///
     /// This command initializes with the following metadata:
     ///
-    /// | metadata     | value                                                  |
-    /// |--------------|--------------------------------------------------------|
-    /// | [`name`]     | "Scroll to Leftmost"                                   |
-    /// | [`info`]     | "Scroll left to the content left edge."                |
-    /// | [`shortcut`] | `CTRL+Home`, <code>CTRL&#124;SHIFT+Home</code>         |
+    /// | metadata     | value                                                                |
+    /// |--------------|----------------------------------------------------------------------|
+    /// | [`name`]     | "Scroll to Leftmost"                                                 |
+    /// | [`info`]     | "Scroll left to the content left edge."                              |
+    /// | [`shortcut`] | `Home`, `CTRL+Home`, `SHIFT+Home`, <code>CTRL&#124;SHIFT+Home</code> |
     ///
     /// [`name`]: CommandNameExt
     /// [`info`]: CommandInfoExt
@@ -286,7 +286,7 @@ command! {
     pub ScrollToLeftmostCommand
         .init_name("Scroll to Leftmost")
         .init_info("Scroll left to the content left edge.")
-        .init_shortcut([shortcut!(CTRL+Home), shortcut!(CTRL|SHIFT+Home)]);
+        .init_shortcut([shortcut!(Home), shortcut!(CTRL+Home), shortcut!(SHIFT+Home), shortcut!(CTRL|SHIFT+Home)]);
 
     /// Represents the scrollable **scroll to rightmost** action.
     ///
@@ -294,11 +294,11 @@ command! {
     ///
     /// This command initializes with the following metadata:
     ///
-    /// | metadata     | value                                                  |
-    /// |--------------|--------------------------------------------------------|
-    /// | [`name`]     | "Scroll to Rightmost"                                   |
-    /// | [`info`]     | "Scroll right to the content right edge."              |
-    /// | [`shortcut`] | `CTRL+End`, <code>CTRL&#124;SHIFT+End</code>           |
+    /// | metadata     | value                                                             |
+    /// |--------------|-------------------------------------------------------------------|
+    /// | [`name`]     | "Scroll to Rightmost"                                             |
+    /// | [`info`]     | "Scroll right to the content right edge."                         |
+    /// | [`shortcut`] | `End`, `CTRL+End`, `SHIFT+Home`, <code>CTRL&#124;SHIFT+End</code> |
     ///
     /// [`name`]: CommandNameExt
     /// [`info`]: CommandInfoExt
@@ -306,7 +306,7 @@ command! {
     pub ScrollToRightmostCommand
         .init_name("Scroll to Righmost")
         .init_info("Scroll right to the content right edge.")
-        .init_shortcut([shortcut!(CTRL+End), shortcut!(CTRL|SHIFT+End)]);
+        .init_shortcut([shortcut!(End), shortcut!(CTRL+End), shortcut!(SHIFT+Home), shortcut!(CTRL|SHIFT+End)]);
 
     /// Represents the action of scrolling until a child widget is fully visible.
     ///
