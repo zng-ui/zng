@@ -1429,27 +1429,38 @@ impl<E: AppExtension> RunningApp<E> {
         let mut disconnected = false;
 
         if wait_app_event {
-            let idle = tracing::debug_span!("<idle>").entered();
+            let idle = tracing::debug_span!("<idle>", ended_by = tracing::field::Empty).entered();
 
-            if let Some(time) = self.loop_timer.poll() {
+            let timer = if self.view_is_rendering() { None } else { self.loop_timer.poll() };
+            if let Some(time) = timer {
                 match self.receiver.recv_deadline_sp(time) {
                     Ok(ev) => {
+                        idle.record("ended-by", &"event");
                         drop(idle);
                         self.push_coalesce(ev, observer)
                     }
                     Err(e) => match e {
-                        flume::RecvTimeoutError::Timeout => {}
-                        flume::RecvTimeoutError::Disconnected => disconnected = true,
+                        flume::RecvTimeoutError::Timeout => {
+                            idle.record("ended_by", &"timeout");
+                        }
+                        flume::RecvTimeoutError::Disconnected => {
+                            idle.record("ended_by", &"disconnected");
+                            disconnected = true
+                        }
                     },
                 }
             } else {
                 match self.receiver.recv() {
                     Ok(ev) => {
+                        idle.record("ended_by", &"event");
                         drop(idle);
                         self.push_coalesce(ev, observer)
                     }
                     Err(e) => match e {
-                        flume::RecvError::Disconnected => disconnected = true,
+                        flume::RecvError::Disconnected => {
+                            idle.record("ended_by", &"disconnected");
+                            disconnected = true
+                        }
                     },
                 }
             }

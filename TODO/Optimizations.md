@@ -28,6 +28,11 @@
     - If we had more access to the display list internals we could save by ranges for each widget, then send range refs to
       the previous display list bytes that is retained in the view-process.
 
+
+# Webrender frame update
+
+* Very slow frame update for large text? Do a scroll-to-end in the example to see.
+
 # Image Render
 
 * Try reusing renderer.

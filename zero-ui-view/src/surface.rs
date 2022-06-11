@@ -2,6 +2,7 @@ use std::{collections::VecDeque, fmt};
 
 use glutin::event_loop::EventLoopWindowTarget;
 
+use tracing::span::EnteredSpan;
 use webrender::{
     api::{
         BuiltDisplayList, ColorF, DisplayListPayload, DocumentId, DynamicProperties, FontInstanceKey, FontInstanceOptions,
@@ -32,7 +33,7 @@ pub(crate) struct Surface {
     renderer: Option<Renderer>,
     image_use: ImageUseMap,
 
-    pending_frames: VecDeque<(FrameId, bool)>,
+    pending_frames: VecDeque<(FrameId, bool, Option<EnteredSpan>)>,
     rendered_frame_id: FrameId,
     resized: bool,
 }
@@ -206,7 +207,6 @@ impl Surface {
     pub fn render(&mut self, frame: FrameRequest) {
         let render_reasons = frame.render_reasons();
 
-        self.pending_frames.push_back((frame.id, frame.capture_image));
         self.renderer.as_mut().unwrap().set_clear_color(frame.clear_color);
 
         let mut txn = Transaction::new();
@@ -248,6 +248,11 @@ impl Surface {
         self.push_resize(&mut txn);
 
         txn.generate_frame(frame.id.get(), render_reasons);
+
+        let frame_scope =
+            tracing::trace_span!("<frame>", ?frame.id, capture_image = ?frame.capture_image, thread = "<webrender>").entered();
+        self.pending_frames.push_back((frame.id, frame.capture_image, Some(frame_scope)));
+
         self.api.send_transaction(self.document_id(), txn);
     }
 
@@ -275,6 +280,11 @@ impl Surface {
         self.push_resize(&mut txn);
 
         txn.generate_frame(self.frame_id().get(), render_reasons);
+
+        let frame_scope =
+            tracing::trace_span!("<frame-update>", ?frame.id, capture_image = ?frame.capture_image, thread = "<webrender>").entered();
+        self.pending_frames.push_back((frame.id, false, Some(frame_scope)));
+
         self.api.send_transaction(self.document_id(), txn);
     }
 
@@ -285,7 +295,7 @@ impl Surface {
             todo!("document rendering is not implemented in WR");
         }
 
-        let (frame_id, capture) = self.pending_frames.pop_front().unwrap_or((self.rendered_frame_id, false));
+        let (frame_id, capture, _) = self.pending_frames.pop_front().unwrap_or((self.rendered_frame_id, false, None));
         self.rendered_frame_id = frame_id;
 
         let mut captured_data = None;

@@ -219,6 +219,7 @@ impl UpdatesTrace {
     }
 
     /// Opens a widget span.
+    #[cfg(inspector)]
     pub fn widget_span(id: WidgetId, name: &'static str, node_mtd: &'static str) -> tracing::span::EnteredSpan {
         tracing::trace_span!(target: UpdatesTrace::UPDATES_TARGET, "widget", %id, raw_id = id.get(), name, %node_mtd).entered()
     }

@@ -9,7 +9,7 @@ fn main() {
     zero_ui_view::init();
 
     // let rec = examples_util::record_profile("profile-scrollable.json.gz", &[("example", &"scrollable")], |_| true);
-
+    // zero_ui_view::run_same_process(app_main);
     app_main();
 
     // rec.finish();

@@ -213,8 +213,6 @@ impl<'a> WindowContext<'a> {
     ) -> R {
         let widget_id = info_tree.root().widget_id();
 
-        #[cfg(not(inspector))]
-        let _span = UpdatesTrace::widget_span(widget_id, "", "");
         f(&mut WidgetContext {
             path: &mut WidgetContextPath::new(*self.window_id, widget_id),
 
@@ -269,8 +267,6 @@ impl<'a> WindowContext<'a> {
         f: impl FnOnce(&mut LayoutContext) -> R,
     ) -> R {
         let widget_id = info_tree.root().widget_id();
-        #[cfg(not(inspector))]
-        let _span = UpdatesTrace::widget_span(widget_id, "", "");
         f(&mut LayoutContext {
             metrics: &LayoutMetrics::new(scale_factor, viewport_size, font_size).with_screen_ppi(screen_ppi),
 
@@ -440,8 +436,6 @@ impl TestWidgetContext {
 
     /// Calls `action` in a fake widget context.
     pub fn widget_context<R>(&mut self, action: impl FnOnce(&mut WidgetContext) -> R) -> R {
-        #[cfg(not(inspector))]
-        let _span = UpdatesTrace::widget_span(self.root_id, "", "");
         action(&mut WidgetContext {
             path: &mut WidgetContextPath::new(self.window_id, self.root_id),
             info_tree: &self.info_tree,
@@ -634,9 +628,6 @@ impl<'a> WidgetContext<'a> {
         widget_state: &mut OwnedStateMap,
         f: impl FnOnce(&mut WidgetContext) -> R,
     ) -> (R, WidgetUpdates) {
-        #[cfg(not(inspector))]
-        let _span = UpdatesTrace::widget_span(widget_id, "", "");
-
         self.path.push(widget_id);
 
         let prev_updates = self.updates.enter_widget_ctx();
@@ -906,9 +897,6 @@ impl<'a> MeasureContext<'a> {
         reuse: bool,
         f: impl FnOnce(&mut MeasureContext) -> PxSize,
     ) -> PxSize {
-        #[cfg(not(inspector))]
-        let _span = UpdatesTrace::widget_span(widget_id, "", "");
-
         let snap = self.metrics.snapshot();
         if reuse {
             let measure_uses = widget_info.bounds.measure_metrics_used();
@@ -1117,9 +1105,6 @@ impl<'a> LayoutContext<'a> {
         widget_state: &mut OwnedStateMap,
         f: impl FnOnce(&mut LayoutContext) -> R,
     ) -> (R, WidgetUpdates) {
-        #[cfg(not(inspector))]
-        let _span = UpdatesTrace::widget_span(widget_id, "", "");
-
         self.path.push(widget_id);
 
         let prev_updates = self.updates.enter_widget_ctx();

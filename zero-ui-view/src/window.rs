@@ -1056,6 +1056,11 @@ impl Window {
         self.push_resize(&mut txn);
 
         txn.generate_frame(self.frame_id().get(), render_reasons);
+
+        let frame_scope =
+            tracing::trace_span!("<frame-update>", ?frame.id, capture_image = ?frame.capture_image, thread = "<webrender>").entered();
+        self.pending_frames.push_back((frame.id, false, Some(frame_scope)));
+
         self.api.send_transaction(self.document_id, txn);
     }
 
