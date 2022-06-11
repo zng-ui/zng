@@ -46,7 +46,7 @@ pub mod uniform_grid {
         /// Set to zero (`0`) for auto.
         columns(impl IntoVar<u32>) = 0;
         /// Number of rows.
-        /// 
+        ///
         /// Set to zero (`0`) for auto.
         rows(impl IntoVar<u32>) = 0;
         /// Number of empty cells in the first row.
@@ -144,7 +144,7 @@ pub mod uniform_grid {
                 if first_column > columns {
                     first_column = columns;
                 }
-                
+
                 let cells_count = cells_count as i32;
                 let extra = (columns * rows) - cells_count;
                 if rows_is_bound {
