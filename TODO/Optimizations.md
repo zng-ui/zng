@@ -41,3 +41,8 @@
       everything to a thread.
     - gleam uses a `Rc<dyn Gl>` for the OpenGL functions.
     - There are obscure bugs with sending OpenGL contexts across threads, maybe review using `surfman` again.
+
+# Debug Profiler
+
+* Tracing is very slow, investigate how to fix.
+  - Can we use the inspector collected metadata to batch generate tracing spans after the frame is send?
