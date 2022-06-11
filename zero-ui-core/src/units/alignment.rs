@@ -208,6 +208,9 @@ impl Align {
         FILL_RIGHT = (1.0, f32::INFINITY);
         FILL_LEFT = (0.0, f32::INFINITY);
 
+        FILL_X = (f32::INFINITY, 0.5);
+        FILL_Y = (0.5, f32::INFINITY);
+
         FILL = (f32::INFINITY, f32::INFINITY);
 
         BASELINE_LEFT = (0.0, f32::NEG_INFINITY);
