@@ -277,7 +277,6 @@ impl ReuseCacheKeys {
             }
         }
         display_list.set_cache_size(self.slots.len());
-        println! {"{self:?}"}
     }
 }
 
