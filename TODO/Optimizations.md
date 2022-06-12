@@ -50,4 +50,6 @@
 # Debug Profiler
 
 * Tracing is very slow, investigate how to fix.
+  - Comparison of release mode with/out "inspector" and profiler shows that a 7ms frame turns into a 13ms frame.
+  - Some of it is due to all the boxing enabled by "inspector.
   - Can we use the inspector collected metadata to batch generate tracing spans after the frame is send?

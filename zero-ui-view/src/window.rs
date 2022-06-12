@@ -1041,6 +1041,7 @@ impl Window {
 
         let mut txn = Transaction::new();
 
+        // txn.skip_scene_builder();
         txn.set_root_pipeline(self.pipeline_id);
         txn.append_dynamic_properties(frame.updates);
         for (scroll_id, offset) in frame.scroll_updates {
@@ -1128,16 +1129,20 @@ impl Window {
     }
 
     pub fn redraw(&mut self) {
-        let _s = tracing::trace_span!("Window.redraw").entered();
+        let _s = tracing::trace_span!("Window.redraw", stats = tracing::field::Empty).entered();
 
         self.context.make_current();
 
         let renderer = self.renderer.as_mut().unwrap();
         renderer.update();
         let s = self.window.inner_size();
-        renderer.render(s.to_px().to_wr_device(), 0).unwrap();
-        let _ = renderer.flush_pipeline_info();
 
+        let render_span = tracing::trace_span!("render").entered();
+        let r = renderer.render(s.to_px().to_wr_device(), 0).unwrap();
+        render_span.record("stats", &tracing::field::debug(&r.stats));
+        drop(render_span);
+
+        let _ = renderer.flush_pipeline_info();
         self.context.swap_buffers();
     }
 

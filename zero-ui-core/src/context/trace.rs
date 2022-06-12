@@ -16,6 +16,8 @@ use super::InfoContext;
 ///
 /// You can also use [`updates_trace_span`] to define a custom scope inside a node, and [`updates_trace_event`]
 /// to log a custom entry.
+///
+/// Note that traces are only recorded if the "inspector" feature is active and a tracing subscriber is installed.
 pub trait UpdatesTraceUiNodeExt {
     /// Defines a custom span.
     #[allow(clippy::type_complexity)]
@@ -31,8 +33,16 @@ impl<U: UiNode> UpdatesTraceUiNodeExt for U {
         self,
         tag: S,
     ) -> InstrumentedNode<Self, Box<dyn Fn(&mut InfoContext, &'static str) -> tracing::span::EnteredSpan>> {
-        let tag = tag.into();
-        InstrumentedNode::new(self, Box::new(move |_ctx, node_mtd| UpdatesTrace::custom_span(&tag, node_mtd)))
+        #[cfg(inspector)]
+        {
+            let tag = tag.into();
+            InstrumentedNode::new(self, Box::new(move |_ctx, node_mtd| UpdatesTrace::custom_span(&tag, node_mtd)))
+        }
+        #[cfg(not(inspector))]
+        {
+            let _ = tag;
+            InstrumentedNode::new(self, Box::new(|_, _| tracing::Span::none().entered()))
+        }
     }
 }
 
@@ -238,7 +248,15 @@ impl UpdatesTrace {
 
     /// Opens a custom named span.
     pub fn custom_span(name: &str, node_mtd: &'static str) -> tracing::span::EnteredSpan {
-        tracing::trace_span!(target: UpdatesTrace::UPDATES_TARGET, "tag", %name, %node_mtd).entered()
+        #[cfg(inspector)]
+        {
+            tracing::trace_span!(target: UpdatesTrace::UPDATES_TARGET, "tag", %name, %node_mtd).entered()
+        }
+        #[cfg(not(inspector))]
+        {
+            let _ = (name, node_mtd);
+            tracing::Span::none().entered()
+        }
     }
 
     /// Log a direct update request.
