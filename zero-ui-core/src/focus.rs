@@ -610,7 +610,11 @@ impl AppExtension for FocusManager {
         } else if let Some(args) = WindowFocusChangedEvent.update(args) {
             // foreground window maybe changed
             let (focus, windows) = ctx.services.req_multi::<(Focus, Windows)>();
-            if let Some(mut args) = focus.continue_focus(ctx.vars, windows) {
+            if let Some((window_id, widget_id, highlight)) = focus.pending_window_focus.take() {
+                if args.focused && window_id == args.window_id {
+                    request = Some(FocusRequest::direct(widget_id, highlight));
+                }
+            } else if let Some(mut args) = focus.continue_focus(ctx.vars, windows) {
                 if !args.highlight && args.new_focus.is_some() && (Instant::now() - self.last_keyboard_event) < Duration::from_millis(300) {
                     // window probably focused using keyboard.
                     args.highlight = true;
@@ -717,6 +721,8 @@ pub struct Focus {
 
     is_highlighting_var: RcVar<bool>,
     is_highlighting: bool,
+
+    pending_window_focus: Option<(WindowId, WidgetId, bool)>,
 }
 impl Focus {
     /// New focus service, the `update_sender` is used to flag an update after a focus change request.
@@ -739,6 +745,8 @@ impl Focus {
 
             is_highlighting_var: var(false),
             is_highlighting: false,
+
+            pending_window_focus: None,
         }
     }
 
@@ -787,6 +795,7 @@ impl Focus {
     ///
     /// All other focus request methods call this method.
     pub fn focus(&mut self, request: FocusRequest) {
+        self.pending_window_focus = None;
         self.request = Some(request);
         let _ = self.app_event_sender.send_ext_update();
     }
@@ -1111,11 +1120,18 @@ impl Focus {
                 }
             }
         }
-        if target.is_some() {
-            return self.maybe_move_focus(vars, windows, target, highlight, FocusChangedCause::Request(request));
-        }
 
-        self.change_highlight(vars, highlight, request)
+        if let Some(target) = target {
+            if let Ok(false) = windows.is_focused(target.window_id()) {
+                windows.focus(target.window_id()).unwrap();
+                self.pending_window_focus = Some((target.window_id(), target.widget_id(), highlight));
+                None
+            } else {
+                self.move_focus(vars, Some(target), highlight, FocusChangedCause::Request(request))
+            }
+        } else {
+            self.change_highlight(vars, highlight, request)
+        }
     }
 
     #[must_use]
@@ -1172,23 +1188,6 @@ impl Focus {
         } else {
             None
         }
-    }
-
-    fn maybe_move_focus(
-        &mut self,
-        vars: &Vars,
-        windows: &mut Windows,
-        new_focus: Option<InteractionPath>,
-        highlight: bool,
-        cause: FocusChangedCause,
-    ) -> Option<FocusChangedArgs> {
-        if let Some(focus) = &new_focus {
-            if let Ok(false) = windows.is_focused(focus.window_id()) {
-                windows.focus(focus.window_id()).unwrap();
-                return None;
-            }
-        }
-        self.move_focus(vars, new_focus, highlight, cause)
     }
 
     #[must_use]

@@ -9,6 +9,7 @@
     - And demo in focus example.
         - Focus shortcuts are perfect for this.
         - Also need an example of focus stealing.
+        - Unify `WindowFocusChangedEvent` to include the previous and new focused window.
 
 * Gestures info, like last shortcut pressed, primed chord, list of shortcuts used.
 * Implement window close cancel when OS is shutting down.
