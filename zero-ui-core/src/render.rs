@@ -252,9 +252,17 @@ impl ReuseCacheKeys {
         }
     }
 
-    pub fn reused(&mut self, key: u16) {
+    pub fn try_reuse(&mut self, key: u16) -> bool {
         let key = key as usize;
-        self.slots[key] = ReuseSlotState::Used;
+        // only can reuse if the slot was not reassigned
+        match &mut self.slots[key] {
+            slot @ ReuseSlotState::Marked => {
+                *slot = ReuseSlotState::Used;
+                true
+            }
+            // slot already freed or assigned to another
+            ReuseSlotState::Free | ReuseSlotState::Used => false,
+        }
     }
 
     pub fn end_frame(&mut self, display_list: &mut DisplayListBuilder) {
@@ -269,6 +277,7 @@ impl ReuseCacheKeys {
             }
         }
         display_list.set_cache_size(self.slots.len());
+        println! {"{self:?}"}
     }
 }
 
@@ -647,9 +656,10 @@ impl FrameBuilder {
 
         if self.can_reuse {
             if let Some(key) = group.key() {
-                self.display_list.push_reuse_items(key);
-                self.reuse_keys.reused(key);
-                return;
+                if self.reuse_keys.try_reuse(key) {
+                    self.display_list.push_reuse_items(key);
+                    return;
+                }
             }
 
             self.open_group = self.reuse_keys.next();
