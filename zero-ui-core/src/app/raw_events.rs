@@ -26,7 +26,7 @@ use super::{
 };
 use crate::{
     event::*,
-    keyboard::{Key, KeyState, ModifiersState, ScanCode},
+    keyboard::{Key, KeyState, ScanCode},
     mouse::{ButtonState, MouseButton, MouseScrollDelta, MultiClickConfig, TouchPhase},
     render::FrameId,
     text::FontAntiAliasing,
@@ -60,22 +60,6 @@ event_args! {
         }
     }
 
-    /// Arguments for the [`RawModifiersChangedEvent`].
-    pub struct RawModifiersChangedArgs {
-        /// Window that received the event.
-        pub window_id: WindowId,
-
-        /// New modifiers state.
-        pub modifiers: ModifiersState,
-
-        ..
-
-        /// Broadcast to all [window](Self::window_id) widgets.
-        fn delivery_list(&self) -> EventDeliveryList {
-            EventDeliveryList::window(self.window_id)
-        }
-    }
-
     /// Arguments for the [`RawCharInputEvent`].
     pub struct RawCharInputArgs {
         /// Window that received the event.
@@ -94,17 +78,17 @@ event_args! {
 
     /// Arguments for the [`RawWindowFocusEvent`].
     pub struct RawWindowFocusArgs {
-        /// Window that was focuses/blurred.
-        pub window_id: WindowId,
+        /// Window that load focus.
+        pub prev_focus: Option<WindowId>,
 
-        /// If the window received focus.
-        pub focused: bool,
+        /// Window that got focus.
+        pub new_focus: Option<WindowId>,
 
         ..
 
-        /// Broadcast to all [window](Self::window_id) widgets.
+        /// Broadcast to all widgets in the new and previous focused window.
         fn delivery_list(&self) -> EventDeliveryList {
-            EventDeliveryList::window(self.window_id)
+            EventDeliveryList::window_opt(self.new_focus).with_window_opt(self.prev_focus)
         }
     }
 
@@ -613,16 +597,6 @@ event! {
     /// [`KeyboardManager`]: crate::keyboard::KeyboardManager
     /// [`KeyInputEvent`]: crate::keyboard::KeyInputEvent
     pub RawKeyInputEvent: RawKeyInputArgs;
-
-    /// A modifier key press or release updated the state of the modifier keys.
-    ///
-    /// This event represents a key input directly from the operating system. It is processed
-    /// by [`KeyboardManager`] to generate the keyboard events that are used in general.
-    ///
-    /// *See also the [module level documentation](self) for details of how you can fake this event*
-    ///
-    /// [`KeyboardManager`]: crate::keyboard::KeyboardManager
-    pub RawModifiersChangedEvent: RawModifiersChangedArgs;
 
     /// A window received an Unicode character.
     pub RawCharInputEvent: RawCharInputArgs;

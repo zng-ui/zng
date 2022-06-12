@@ -746,26 +746,30 @@ impl App {
             WindowEvent::ReceivedCharacter(c) => self.notify(Event::ReceivedCharacter(id, c)),
             WindowEvent::Focused(mut focused) => {
                 if self.windows[i].focused_changed(&mut focused) {
-                    self.notify(Event::Focused { window: id, focused });
+                    if focused {
+                        self.notify(Event::FocusChanged { prev: None, new: Some(id) });
+                    } else {
+                        self.notify(Event::FocusChanged { prev: Some(id), new: None });
+                    }
                 }
             }
-            WindowEvent::KeyboardInput { device_id, input, .. } => {
-                let d_id = self.device_id(device_id);
-                self.notify(Event::KeyboardInput {
-                    window: id,
-                    device: d_id,
-                    scan_code: input.scancode,
-                    state: util::element_state_to_key_state(input.state),
-                    key: input.virtual_keycode.map(util::v_key_to_key),
-                });
+            WindowEvent::KeyboardInput {
+                device_id,
+                input,
+                is_synthetic,
+            } => {
+                if !is_synthetic {
+                    let d_id = self.device_id(device_id);
+                    self.notify(Event::KeyboardInput {
+                        window: id,
+                        device: d_id,
+                        scan_code: input.scancode,
+                        state: util::element_state_to_key_state(input.state),
+                        key: input.virtual_keycode.map(util::v_key_to_key),
+                    });
+                }
             }
-            WindowEvent::ModifiersChanged(m) => {
-                self.refresh_monitors();
-                self.notify(Event::ModifiersChanged {
-                    window: id,
-                    state: util::winit_modifiers_state_to_zui(m),
-                });
-            }
+            WindowEvent::ModifiersChanged(_) => {}
             WindowEvent::CursorMoved { device_id, position, .. } => {
                 let px_p = position.to_px();
                 let p = px_p.to_dip(scale_factor);

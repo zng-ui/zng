@@ -1076,8 +1076,8 @@ impl<E: AppExtension> RunningApp<E> {
                 let args = RawCharInputArgs::now(window_id(w_id), c);
                 self.notify_event(RawCharInputEvent, args, observer);
             }
-            Event::Focused { window: w_id, focused } => {
-                let args = RawWindowFocusArgs::now(window_id(w_id), focused);
+            Event::FocusChanged { prev, new } => {
+                let args = RawWindowFocusArgs::now(prev.map(window_id), new.map(window_id));
                 self.notify_event(RawWindowFocusEvent, args, observer);
             }
             Event::KeyboardInput {
@@ -1089,10 +1089,6 @@ impl<E: AppExtension> RunningApp<E> {
             } => {
                 let args = RawKeyInputArgs::now(window_id(w_id), self.device_id(d_id), scan_code, state, key);
                 self.notify_event(RawKeyInputEvent, args, observer);
-            }
-            Event::ModifiersChanged { window: w_id, state } => {
-                let args = RawModifiersChangedArgs::now(window_id(w_id), state);
-                self.notify_event(RawModifiersChangedEvent, args, observer);
             }
 
             Event::MouseWheel {

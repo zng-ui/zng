@@ -255,6 +255,11 @@ impl EventDeliveryList {
         Self::none().with_window(window_id)
     }
 
+    /// All widgets inside the window.
+    pub fn window_opt(window_id: Option<WindowId>) -> Self {
+        Self::none().with_window_opt(window_id)
+    }
+
     /// All widgets in the path.
     pub fn widgets(widget_path: &WidgetPath) -> Self {
         Self::none().with_widgets(widget_path)
@@ -296,6 +301,15 @@ impl EventDeliveryList {
             });
         }
         self
+    }
+
+    /// All the widgets in the window if it is some.
+    pub fn with_window_opt(self, window_id: Option<WindowId>) -> Self {
+        if let Some(window_id) = window_id {
+            self.with_window(window_id)
+        } else {
+            self
+        }
     }
 
     /// Add the widgets in the path to the delivery.

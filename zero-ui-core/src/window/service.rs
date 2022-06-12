@@ -357,18 +357,39 @@ impl Windows {
     pub(super) fn on_pre_event<EV: EventUpdateArgs>(ctx: &mut AppContext, args: &EV) {
         if let Some(args) = RawWindowFocusEvent.update(args) {
             let wns = ctx.services.windows();
-            if let Some(window) = wns.windows_info.get_mut(&args.window_id) {
-                if window.is_focused == args.focused {
-                    return;
+
+            let mut prev = None;
+            let mut new = None;
+
+            if let Some(prev_focus) = args.prev_focus {
+                if let Some(window) = wns.windows_info.get_mut(&prev_focus) {
+                    if window.is_focused {
+                        window.is_focused = false;
+                        prev = Some(prev_focus);
+                    }
+                }
+            }
+            if let Some(new_focus) = args.new_focus {
+                if prev.is_none() {
+                    if let Some((&id, window)) = wns.windows_info.iter_mut().find(|w| w.1.is_focused) {
+                        if new_focus != id {
+                            window.is_focused = false;
+                            prev = Some(id);
+                        }
+                    }
                 }
 
-                window.is_focused = args.focused;
-
-                if window.is_focused {
-                    window.vars.focus_indicator().set_ne(ctx.vars, None);
+                if let Some(window) = wns.windows_info.get_mut(&new_focus) {
+                    if !window.is_focused {
+                        window.is_focused = true;
+                        window.vars.focus_indicator().set_ne(ctx.vars, None);
+                        new = Some(new_focus);
+                    }
                 }
+            }
 
-                let args = WindowFocusArgs::new(args.timestamp, args.propagation().clone(), args.window_id, window.is_focused, false);
+            if prev.is_some() || new.is_some() {
+                let args = WindowFocusChangedArgs::new(args.timestamp, args.propagation().clone(), prev, new, false);
                 WindowFocusChangedEvent.notify(ctx.events, args);
             }
         } else if let Some(args) = RawWindowCloseRequestedEvent.update(args) {
@@ -485,7 +506,7 @@ impl Windows {
                 }
 
                 if info.is_focused {
-                    let args = WindowFocusArgs::now(info.id, false, true);
+                    let args = WindowFocusChangedArgs::now(Some(info.id), None, true);
                     WindowFocusChangedEvent.notify(ctx.events, args)
                 }
             }

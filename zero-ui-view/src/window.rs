@@ -398,8 +398,6 @@ impl Window {
     pub fn focused_changed(&mut self, focused: &mut bool) -> bool {
         #[cfg(windows)]
         if self.focused.is_none() {
-            // See `Windows sends a `WM_SETFOCUS` when the window open..` comment in the constructor.
-
             use glutin::platform::windows::WindowExtWindows;
 
             let foreground = unsafe { windows::Win32::UI::WindowsAndMessaging::GetForegroundWindow() };

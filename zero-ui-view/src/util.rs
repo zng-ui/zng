@@ -2,8 +2,7 @@ use std::cell::Cell;
 
 use glutin::{event::ElementState, monitor::MonitorHandle};
 use zero_ui_view_api::{
-    units::*, ButtonState, CursorIcon, Force, Key, KeyState, ModifiersState, MonitorInfo, MouseButton, MouseScrollDelta, TouchPhase,
-    VideoMode, WindowTheme,
+    units::*, ButtonState, CursorIcon, Force, Key, KeyState, MonitorInfo, MouseButton, MouseScrollDelta, TouchPhase, VideoMode, WindowTheme,
 };
 
 /// Sets a window subclass that calls a raw event handler.
@@ -302,10 +301,6 @@ pub(crate) fn element_state_to_button_state(s: ElementState) -> ButtonState {
     }
 }
 
-pub(crate) fn winit_modifiers_state_to_zui(s: glutin::event::ModifiersState) -> ModifiersState {
-    ModifiersState::from_bits(s.bits()).unwrap()
-}
-
 pub(crate) fn winit_mouse_wheel_delta_to_zui(w: glutin::event::MouseScrollDelta) -> MouseScrollDelta {
     match w {
         glutin::event::MouseScrollDelta::LineDelta(x, y) => MouseScrollDelta::LineDelta(x, y),
@@ -495,7 +490,7 @@ pub(crate) fn v_key_to_key(v_key: VKey) -> Key {
         VKey::PrevTrack => Key::PrevTrack,
         VKey::RAlt => Key::RAlt,
         VKey::RBracket => Key::RBracket,
-        VKey::RControl => Key::RControl,
+        VKey::RControl => Key::RCtrl,
         VKey::RShift => Key::RShift,
         VKey::RWin => Key::RLogo,
         VKey::Semicolon => Key::Semicolon,

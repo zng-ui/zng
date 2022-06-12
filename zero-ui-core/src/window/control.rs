@@ -1,6 +1,6 @@
 //! This module implements Management of window content and synchronization of WindowVars and View-Process.
 
-use std::{mem, time::Instant};
+use std::mem;
 
 use crate::{
     app::{
@@ -1086,21 +1086,17 @@ impl HeadlessSimulator {
     pub fn layout(&mut self, ctx: &mut WindowContext) {
         if self.enabled(ctx) && !self.is_open {
             self.is_open = true;
-
-            let timestamp = Instant::now();
-
-            // simulate focus:
-            if let Some(prev_focus_id) = ctx.services.windows().focused_window_id() {
-                let args = RawWindowFocusArgs::new(timestamp, Default::default(), prev_focus_id, false);
-                RawWindowFocusEvent.notify(ctx.events, args)
-            }
-            let args = RawWindowFocusArgs::new(timestamp, Default::default(), *ctx.window_id, true);
-            RawWindowFocusEvent.notify(ctx.events, args)
+            self.focus(ctx);
         }
     }
 
     pub fn focus(&mut self, ctx: &mut WindowContext) {
-        RawWindowFocusEvent.notify(ctx.events, RawWindowFocusArgs::now(*ctx.window_id, true));
+        let mut prev = None;
+        if let Some(id) = ctx.services.windows().focused_window_id() {
+            prev = Some(id);
+        }
+        let args = RawWindowFocusArgs::now(prev, Some(*ctx.window_id));
+        RawWindowFocusEvent.notify(ctx.events, args);
     }
 }
 

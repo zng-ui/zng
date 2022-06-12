@@ -17,7 +17,8 @@ use crate::widget_info::InteractionPath;
 use crate::window::WindowId;
 use crate::{context::*, WidgetId};
 
-pub use zero_ui_view_api::{Key, KeyState, ModifiersState, ScanCode};
+use linear_map::set::LinearSet;
+pub use zero_ui_view_api::{Key, KeyState, ScanCode};
 
 event_args! {
     /// Arguments for [`KeyInputEvent`].
@@ -185,12 +186,10 @@ impl AppExtension for KeyboardManager {
 
     fn event_preview<EV: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {
         if let Some(args) = RawKeyInputEvent.update(args) {
+            println!("!!: {:?}", args);
             let focused = ctx.services.focus().focused().get_clone(ctx);
             let keyboard = ctx.services.keyboard();
             keyboard.key_input(ctx.events, ctx.vars, args, focused);
-        } else if let Some(args) = RawModifiersChangedEvent.update(args) {
-            let keyboard = ctx.services.keyboard();
-            keyboard.set_modifiers(ctx.events, ctx.vars, args.modifiers);
         } else if let Some(args) = RawCharInputEvent.update(args) {
             let focused = ctx.services.focus().focused().get_clone(ctx);
             if let Some(target) = focused {
@@ -202,12 +201,24 @@ impl AppExtension for KeyboardManager {
             let kb = ctx.services.keyboard();
             kb.repeat_delay.set_ne(ctx.vars, args.delay);
             kb.last_key_down = None;
+        } else if let Some(args) = RawWindowFocusEvent.update(args) {
+            if args.new_focus.is_none() {
+                let kb = ctx.services.keyboard();
+
+                kb.modifiers.set_ne(ctx.vars, ModifiersState::empty());
+                kb.current_modifiers.clear();
+                kb.codes.set_ne(ctx.vars, vec![]);
+                kb.keys.set_ne(ctx.vars, vec![]);
+
+                kb.last_key_down = None;
+            }
         } else if let Some(args) = ViewProcessInitedEvent.update(args) {
             let kb = ctx.services.keyboard();
             kb.repeat_delay.set_ne(ctx.vars, args.key_repeat_delay);
 
             if args.is_respawn {
                 kb.modifiers.set_ne(ctx.vars, ModifiersState::empty());
+                kb.current_modifiers.clear();
                 kb.codes.set_ne(ctx.vars, vec![]);
                 kb.keys.set_ne(ctx.vars, vec![]);
 
@@ -224,9 +235,8 @@ impl AppExtension for KeyboardManager {
 /// This service is provided by the [`KeyboardManager`] extension.
 #[derive(Service)]
 pub struct Keyboard {
-    // the `modifiers` variable only updates after a burst of raw events
-    // we need the most current modifiers immediately.
-    current_modifiers: ModifiersState,
+    current_modifiers: LinearSet<Key>,
+
     modifiers: RcVar<ModifiersState>,
     codes: RcVar<Vec<ScanCode>>,
     keys: RcVar<Vec<Key>>,
@@ -237,23 +247,12 @@ pub struct Keyboard {
 impl Keyboard {
     fn new() -> Self {
         Keyboard {
-            current_modifiers: ModifiersState::empty(),
+            current_modifiers: LinearSet::new(),
             modifiers: var(ModifiersState::empty()),
             codes: var(vec![]),
             keys: var(vec![]),
             repeat_delay: var(600.ms()),
             last_key_down: None,
-        }
-    }
-
-    fn set_modifiers(&mut self, events: &mut Events, vars: &Vars, modifiers: ModifiersState) {
-        if self.current_modifiers != modifiers {
-            self.modifiers.set(vars, modifiers);
-
-            let prev_modifiers = self.current_modifiers;
-            self.current_modifiers = modifiers;
-
-            ModifiersChangedEvent.notify(events, ModifiersChangedArgs::now(prev_modifiers, modifiers));
         }
     }
 
@@ -289,6 +288,10 @@ impl Keyboard {
                             ks.push(key);
                         });
                     }
+
+                    if key.is_modifier() {
+                        self.set_modifiers(events, vars, key, true);
+                    }
                 }
             }
             KeyState::Released => {
@@ -311,6 +314,10 @@ impl Keyboard {
                             }
                         });
                     }
+
+                    if key.is_modifier() {
+                        self.set_modifiers(events, vars, key, false);
+                    }
                 }
             }
         }
@@ -324,7 +331,7 @@ impl Keyboard {
                     args.scan_code,
                     args.state,
                     args.key,
-                    self.current_modifiers,
+                    self.current_modifiers(),
                     repeat,
                     target,
                 );
@@ -332,8 +339,32 @@ impl Keyboard {
             }
         }
     }
+    fn set_modifiers(&mut self, events: &mut Events, vars: &Vars, key: Key, pressed: bool) {
+        let prev_modifiers = self.current_modifiers();
 
-    /// Returns a read-only variable  that tracks the currently pressed modifier keys.
+        if pressed {
+            self.current_modifiers.insert(key);
+        } else {
+            self.current_modifiers.remove(&key);
+        }
+
+        let new_modifiers = self.current_modifiers();
+
+        if prev_modifiers != new_modifiers {
+            self.modifiers.set(vars, new_modifiers);
+            ModifiersChangedEvent.notify(events, ModifiersChangedArgs::now(prev_modifiers, new_modifiers));
+        }
+    }
+
+    fn current_modifiers(&self) -> ModifiersState {
+        let mut state = ModifiersState::empty();
+        for key in &self.current_modifiers {
+            state |= ModifiersState::from_key(*key);
+        }
+        state
+    }
+
+    /// Returns a read-only variable that tracks the currently pressed modifier keys.
     pub fn modifiers(&self) -> ReadOnlyRcVar<ModifiersState> {
         self.modifiers.clone().into_read_only()
     }
@@ -367,9 +398,6 @@ pub trait HeadlessAppKeyboardExt {
     /// Does a keyboard input event.
     fn on_keyboard_input(&mut self, window_id: WindowId, key: Key, state: KeyState);
 
-    /// Does a keyboard modifiers changed event.
-    fn on_modifiers_changed(&mut self, window_id: WindowId, modifiers: ModifiersState);
-
     /// Does a key-down, key-up and updates.
     fn press_key(&mut self, window_id: WindowId, key: Key);
 
@@ -382,13 +410,6 @@ impl HeadlessAppKeyboardExt for HeadlessApp {
 
         let args = RawKeyInputArgs::now(window_id, DeviceId::virtual_keyboard(), key as u32, state, Some(key));
         RawKeyInputEvent.notify(self.ctx().events, args);
-    }
-
-    fn on_modifiers_changed(&mut self, window_id: WindowId, modifiers: ModifiersState) {
-        use crate::app::raw_events::*;
-
-        let args = RawModifiersChangedArgs::now(window_id, modifiers);
-        RawModifiersChangedEvent.notify(self.ctx().events, args);
     }
 
     fn press_key(&mut self, window_id: WindowId, key: Key) {
@@ -413,7 +434,6 @@ impl HeadlessAppKeyboardExt for HeadlessApp {
             if modifiers.alt() {
                 self.on_keyboard_input(window_id, Key::LAlt, KeyState::Pressed);
             }
-            self.on_modifiers_changed(window_id, modifiers);
 
             // pressed the modifiers.
             let _ = self.update(false);
@@ -424,7 +444,6 @@ impl HeadlessAppKeyboardExt for HeadlessApp {
             // pressed the key.
             let _ = self.update(false);
 
-            self.on_modifiers_changed(window_id, ModifiersState::default());
             if modifiers.logo() {
                 self.on_keyboard_input(window_id, Key::LLogo, KeyState::Released);
             }
@@ -440,6 +459,106 @@ impl HeadlessAppKeyboardExt for HeadlessApp {
 
             // released the modifiers.
             let _ = self.update(false);
+        }
+    }
+}
+
+bitflags! {
+    /// Represents the current state of the keyboard modifiers.
+    ///
+    /// Each flag represents a modifier and is set if this modifier is active.
+    #[derive(Default)]
+    pub struct ModifiersState: u8 {
+        /// The left "shift" key.
+        const L_SHIFT = 0b0000_0001;
+        /// The right "shift" key.
+        const R_SHIFT = 0b0000_0010;
+        /// Any "shift" key.
+        const SHIFT   = 0b0000_0011;
+
+        /// The left "control" key.
+        const CTRL_L = 0b0000_0100;
+        /// The right "control" key.
+        const CTRL_R = 0b0000_1000;
+        /// Any "control" key.
+        const CTRL   = 0b0000_1100;
+
+        /// The left "alt" key.
+        const L_ALT = 0b0001_0000;
+        /// The right "alt" key.
+        const R_ALT = 0b0010_0000;
+        /// Any "alt" key.
+        const ALT   = 0b0011_0000;
+
+        /// The left "logo" key.
+        const L_LOGO = 0b0100_0000;
+        /// The right "logo" key.
+        const R_LOGO = 0b1000_0000;
+        /// Any "logo" key.
+        ///
+        /// This is the "windows" key on PC and "command" key on Mac.
+        const LOGO   = 0b1100_0000;
+    }
+}
+impl ModifiersState {
+    /// Returns `true` if the shift key is pressed.
+    pub fn shift(&self) -> bool {
+        self.intersects(Self::SHIFT)
+    }
+    /// Returns `true` if the control key is pressed.
+    pub fn ctrl(&self) -> bool {
+        self.intersects(Self::CTRL)
+    }
+    /// Returns `true` if the alt key is pressed.
+    pub fn alt(&self) -> bool {
+        self.intersects(Self::ALT)
+    }
+    /// Returns `true` if the logo key is pressed.
+    pub fn logo(&self) -> bool {
+        self.intersects(Self::LOGO)
+    }
+
+    /// Removes `part` and returns if it was removed.
+    pub fn take(&mut self, part: ModifiersState) -> bool {
+        let r = self.intersects(part);
+        if r {
+            self.remove(part);
+        }
+        r
+    }
+
+    /// Removes `SHIFT` and returns if it was removed.
+    pub fn take_shift(&mut self) -> bool {
+        self.take(ModifiersState::SHIFT)
+    }
+
+    /// Removes `CTRL` and returns if it was removed.
+    pub fn take_ctrl(&mut self) -> bool {
+        self.take(ModifiersState::CTRL)
+    }
+
+    /// Removes `ALT` and returns if it was removed.
+    pub fn take_alt(&mut self) -> bool {
+        self.take(ModifiersState::ALT)
+    }
+
+    /// Removes `LOGO` and returns if it was removed.
+    pub fn take_logo(&mut self) -> bool {
+        self.take(ModifiersState::LOGO)
+    }
+
+    /// Modifier from `key`, returns empty if the key is not a modifier.
+    pub fn from_key(key: Key) -> ModifiersState {
+        match key {
+            Key::LAlt => Self::L_ALT,
+            Key::RAlt => Self::R_ALT,
+            Key::LCtrl => Self::CTRL_L,
+            Key::RCtrl => Self::CTRL_R,
+            Key::LShift => Self::L_SHIFT,
+            Key::RShift => Self::R_SHIFT,
+            Key::LLogo => Self::L_LOGO,
+            Key::RLogo => Self::R_LOGO,
+            _ => Self::empty(),
         }
     }
 }

@@ -174,13 +174,13 @@ impl HeadlessAppWindowExt for HeadlessApp {
     }
 
     fn focus_window(&mut self, window_id: WindowId) {
-        let args = RawWindowFocusArgs::now(window_id, true);
+        let args = RawWindowFocusArgs::now(None, Some(window_id));
         RawWindowFocusEvent.notify(self.ctx().events, args);
         let _ = self.update(false);
     }
 
     fn blur_window(&mut self, window_id: WindowId) {
-        let args = RawWindowFocusArgs::now(window_id, false);
+        let args = RawWindowFocusArgs::now(Some(window_id), None);
         RawWindowFocusEvent.notify(self.ctx().events, args);
         let _ = self.update(false);
     }

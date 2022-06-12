@@ -120,7 +120,6 @@ impl fmt::Display for WidgetId {
         }
     }
 }
-
 crate::var::impl_from_and_into_var! {
     /// Calls [`WidgetId::named`].
     fn from(name: &'static str) -> WidgetId {

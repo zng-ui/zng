@@ -4,8 +4,11 @@ use std::{
     sync::Arc,
 };
 
+use parking_lot::Mutex;
+
 use crate::{
     context::WindowContext,
+    crate_util::NameIdMap,
     event, event_args,
     image::{Image, ImageDataFormat, ImageSource, ImageVar, RenderConfig},
     render::{FrameId, RenderMode},
@@ -13,7 +16,7 @@ use crate::{
     units::*,
     var::*,
     widget_info::WidgetInfoTree,
-    BoxedUiNode, UiNode, WidgetId,
+    BoxedUiNode, IdNameError, UiNode, WidgetId,
 };
 
 pub use crate::app::view_process::{CursorIcon, EventCause, FocusIndicator, VideoMode, WindowState, WindowTheme};
@@ -29,13 +32,79 @@ unique_id_32! {
     /// [`WidgetContext::path`]: crate::context::WidgetContext::path
     pub struct WindowId;
 }
+impl WindowId {
+    fn name_map() -> parking_lot::MappedMutexGuard<'static, NameIdMap<Self>> {
+        static NAME_MAP: Mutex<Option<NameIdMap<WindowId>>> = parking_lot::const_mutex(None);
+        parking_lot::MutexGuard::map(NAME_MAP.lock(), |m| m.get_or_insert_with(NameIdMap::new))
+    }
+
+    /// Get or generate an id with associated name.
+    ///
+    /// If the `name` is already associated with an id, returns it.
+    /// If the `name` is new, generates a new id and associated it with the name.
+    /// If `name` is an empty string just returns a new id.
+    pub fn named(name: &'static str) -> Self {
+        Self::name_map().get_id_or_insert(name, Self::new_unique)
+    }
+
+    /// Calls [`named`] in a debug build and [`new_unique`] in a release build.
+    ///
+    /// The [`named`] function causes a hash-map lookup, but if you are only naming a window to find
+    /// it in the Inspector you don't need that lookup in a release build, so you can set the [`id`]
+    /// to this function call instead.
+    ///
+    /// [`named`]: WidgetId::named
+    /// [`new_unique`]: WidgetId::new_unique
+    /// [`id`]: mod@crate::widget_base::implicit_base#wp-id
+    pub fn debug_named(name: &'static str) -> Self {
+        #[cfg(debug_assertions)]
+        return Self::named(name);
+
+        #[cfg(not(debug_assertions))]
+        {
+            let _ = name;
+            Self::new_unique()
+        }
+    }
+
+    /// Generate a new id with associated name.
+    ///
+    /// If the `name` is already associated with an id, returns the [`NameUsed`] error.
+    /// If the `name` is an empty string just returns a new id.
+    ///
+    /// [`NameUsed`]: IdNameError::NameUsed
+    pub fn named_new(name: &'static str) -> Result<Self, IdNameError<Self>> {
+        Self::name_map().new_named(name, Self::new_unique)
+    }
+
+    /// Returns the name associated with the id or `""`.
+    pub fn name(self) -> &'static str {
+        Self::name_map().get_name(self)
+    }
+
+    /// Associate a `name` with the id, if it is not named.
+    ///
+    /// If the `name` is already associated with a different id, returns the [`NameUsed`] error.
+    /// If the id is already named, with a name different from `name`, returns the [`AlreadyNamed`] error.
+    /// If the `name` is an empty string or already is the name of the id, does nothing.
+    ///
+    /// [`NameUsed`]: IdNameError::NameUsed
+    /// [`AlreadyNamed`]: IdNameError::AlreadyNamed
+    pub fn set_name(self, name: &'static str) -> Result<(), IdNameError<Self>> {
+        Self::name_map().set(name, self)
+    }
+}
 impl fmt::Debug for WindowId {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let name = self.name();
         if f.alternate() {
             f.debug_struct("WindowId")
                 .field("id", &self.get())
                 .field("sequential", &self.sequential())
+                .field("name", &name)
                 .finish()
+        } else if !name.is_empty() {
+            write!(f, "WindowId({name:?})")
         } else {
             write!(f, "WindowId({})", self.sequential())
         }
@@ -43,7 +112,18 @@ impl fmt::Debug for WindowId {
 }
 impl fmt::Display for WindowId {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "WinId({})", self.sequential())
+        let name = self.name();
+        if !name.is_empty() {
+            write!(f, "{name}")
+        } else {
+            write!(f, "WindowId({})", self.sequential())
+        }
+    }
+}
+crate::var::impl_from_and_into_var! {
+    /// Calls [`WindowId::named`].
+    fn from(name: &'static str) -> WindowId {
+        WindowId::named(name)
     }
 }
 
@@ -543,21 +623,21 @@ event_args! {
     }
 
     /// [`WindowFocusChangedEvent`] args.
-    pub struct WindowFocusArgs {
-        /// Id of window that got or lost keyboard focus.
-        pub window_id: WindowId,
+    pub struct WindowFocusChangedArgs {
+        /// Previously focused window.
+        pub prev_focus: Option<WindowId>,
 
-        /// `true` if the window got focus, `false` if the window lost focus (blur).
-        pub focused: bool,
+        /// Newly focused window.
+        pub new_focus: Option<WindowId>,
 
-        /// If the focused window was closed.
+        /// If the focus changed because the previously focused window closed.
         pub closed: bool,
 
         ..
 
-        /// Broadcast to all widgets in the window.
+        /// Broadcast to all widgets in the previous and new focused window.
         fn delivery_list(&self) -> EventDeliveryList {
-            EventDeliveryList::window(self.window_id)
+            EventDeliveryList::window_opt(self.prev_focus).with_window_opt(self.new_focus)
         }
     }
 
@@ -701,6 +781,31 @@ impl WindowChangedArgs {
         self.size.is_some()
     }
 }
+impl WindowFocusChangedArgs {
+    /// If `window_id` got focus.
+    pub fn is_focus(&self, window_id: WindowId) -> bool {
+        self.new_focus == Some(window_id)
+    }
+
+    /// If `window_id` lost focus.
+    pub fn is_blur(&self, window_id: WindowId) -> bool {
+        self.prev_focus == Some(window_id)
+    }
+
+    /// If `window_id` lost focus because it was closed.
+    pub fn is_close(&self, window_id: WindowId) -> bool {
+        self.closed && self.is_blur(window_id)
+    }
+
+    /// Gets the previous focused window if it was closed.
+    pub fn closed(&self) -> Option<WindowId> {
+        if self.closed {
+            self.prev_focus
+        } else {
+            None
+        }
+    }
+}
 
 pub(super) type CloseGroupId = u32;
 
@@ -716,7 +821,7 @@ event! {
     pub WindowOpenEvent: WindowOpenArgs;
 
     /// Window focus/blur event.
-    pub WindowFocusChangedEvent: WindowFocusArgs;
+    pub WindowFocusChangedEvent: WindowFocusChangedArgs;
 
     /// Closing window event.
     ///

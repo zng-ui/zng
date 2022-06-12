@@ -6,7 +6,7 @@ use crate::{
     app::{raw_events::*, view_process::ViewProcessInitedEvent, *},
     context::*,
     event::*,
-    keyboard::ModifiersState,
+    keyboard::{ModifiersChangedEvent, ModifiersState},
     render::{webrender_api::HitTestResult, *},
     service::*,
     units::*,
@@ -1154,13 +1154,13 @@ impl AppExtension for MouseManager {
             self.on_scroll(args.window_id, args.device_id, args.delta, args.phase, ctx);
         } else if let Some(args) = RawMouseInputEvent.update(args) {
             self.on_mouse_input(args.window_id, args.device_id, args.state, args.button, ctx);
-        } else if let Some(args) = RawModifiersChangedEvent.update(args) {
+        } else if let Some(args) = ModifiersChangedEvent.update(args) {
             self.modifiers = args.modifiers;
         } else if let Some(args) = RawCursorLeftEvent.update(args) {
             self.on_cursor_left_window(args.window_id, args.device_id, ctx);
         } else if let Some(args) = RawWindowFocusEvent.update(args) {
-            if !args.focused {
-                self.on_window_blur(args.window_id, ctx);
+            if let Some(window_id) = args.prev_focus {
+                self.on_window_blur(window_id, ctx);
             }
         } else if let Some(args) = RawWindowCloseEvent.update(args) {
             self.on_window_closed(args.window_id, ctx);

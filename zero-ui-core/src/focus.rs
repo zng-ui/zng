@@ -611,7 +611,7 @@ impl AppExtension for FocusManager {
             // foreground window maybe changed
             let (focus, windows) = ctx.services.req_multi::<(Focus, Windows)>();
             if let Some((window_id, widget_id, highlight)) = focus.pending_window_focus.take() {
-                if args.focused && window_id == args.window_id {
+                if args.is_focus(window_id) {
                     request = Some(FocusRequest::direct(widget_id, highlight));
                 }
             } else if let Some(mut args) = focus.continue_focus(ctx.vars, windows) {
@@ -624,8 +624,8 @@ impl AppExtension for FocusManager {
                 // TODO alt scope focused just before ALT+TAB clears the focus.
             }
 
-            if args.closed {
-                for args in focus.cleanup_returns_win_closed(ctx.vars, args.window_id) {
+            if let Some(window_id) = args.closed() {
+                for args in focus.cleanup_returns_win_closed(ctx.vars, window_id) {
                     ReturnFocusChangedEvent.notify(ctx.events, args);
                 }
             }

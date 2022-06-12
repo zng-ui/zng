@@ -3,22 +3,24 @@ use zero_ui::core::focus::FocusChangedEvent;
 use zero_ui::prelude::*;
 use zero_ui::widgets::window::{LayerIndex, WindowLayers};
 
-use zero_ui_view_prebuilt as zero_ui_view;
+// use zero_ui_view_prebuilt as zero_ui_view;
 
 fn main() {
-    // examples_util::print_info();
+    examples_util::print_info();
     zero_ui_view::init();
 
-    let rec = examples_util::record_profile("profile-focus.json.gz", &[("example", &"focus")], |_| true);
+    // let rec = examples_util::record_profile("profile-focus.json.gz", &[("example", &"focus")], |_| true);
 
-    // zero_ui_view::run_same_process(app_main);
-    app_main();
+    zero_ui_view::run_same_process(app_main);
+    // app_main();
 
-    rec.finish();
+    // rec.finish();
 }
 
 fn app_main() {
     App::default().run_window(|ctx| {
+        ctx.window_id.set_name("main").unwrap();
+
         trace_focus(ctx.events);
         let window_enabled = var(true);
         window! {
@@ -81,21 +83,24 @@ fn functions(window_enabled: RcVar<bool>) -> impl Widget {
             button! {
                 content = text("New Window");
                 on_click = hn!(|ctx, _| {
-                    ctx.services.windows().open(|_|window! {
-                        title = "Other Window";
-                        focus_shortcut = shortcut!(W);
-                        content = v_stack! {
-                            align = Align::CENTER;
-                            spacing = 5;
-                            items = widgets![
-                                title("Other Window (W)"),
-                                button("Button B5", 5),
-                                button("Button B4", 3),
-                                button("Button B3", 2),
-                                button("Button B1", 0),
-                                button("Button B2", 0),
-                            ]
-                        };
+                    ctx.services.windows().open(|ctx| {
+                        ctx.window_id.set_name("other").unwrap();
+                        window! {
+                            title = "Other Window";
+                            focus_shortcut = shortcut!(W);
+                            content = v_stack! {
+                                align = Align::CENTER;
+                                spacing = 5;
+                                items = widgets![
+                                    title("Other Window (W)"),
+                                    button("Button B5", 5),
+                                    button("Button B4", 3),
+                                    button("Button B3", 2),
+                                    button("Button B1", 0),
+                                    button("Button B2", 0),
+                                ]
+                            };
+                        }
                     });
                 });
             },

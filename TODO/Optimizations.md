@@ -27,6 +27,8 @@
   - Maybe we should stop using the webrender display list.
     - If we had more access to the display list internals we could save by ranges for each widget, then send range refs to
       the previous display list bytes that is retained in the view-process.
+  - Investigate why the space/clip ids are generated in the client side.
+    - Its so you can push items to parent spaces out-of-order, like position absolute?
 
 
 # Webrender frame update

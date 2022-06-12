@@ -117,80 +117,6 @@ pub enum ButtonState {
     Released,
 }
 
-bitflags! {
-    /// Represents the current state of the keyboard modifiers.
-    ///
-    /// Each flag represents a modifier and is set if this modifier is active.
-    #[derive(Default, Serialize, Deserialize)]
-    pub struct ModifiersState: u32 {
-        // left and right modifiers are currently commented out, but we should be able to support
-        // them in a future release
-        /// The "shift" key.
-        const SHIFT = 0b100;
-        // const LSHIFT = 0b010 << 0;
-        // const RSHIFT = 0b001 << 0;
-        /// The "control" key.
-        const CTRL = 0b100 << 3;
-        // const LCTRL = 0b010 << 3;
-        // const RCTRL = 0b001 << 3;
-        /// The "alt" key.
-        const ALT = 0b100 << 6;
-        // const LALT = 0b010 << 6;
-        // const RALT = 0b001 << 6;
-        /// This is the "windows" key on PC and "command" key on Mac.
-        const LOGO = 0b100 << 9;
-        // const LLOGO = 0b010 << 9;
-        // const RLOGO = 0b001 << 9;
-    }
-}
-impl ModifiersState {
-    /// Returns `true` if the shift key is pressed.
-    pub fn shift(&self) -> bool {
-        self.intersects(Self::SHIFT)
-    }
-    /// Returns `true` if the control key is pressed.
-    pub fn ctrl(&self) -> bool {
-        self.intersects(Self::CTRL)
-    }
-    /// Returns `true` if the alt key is pressed.
-    pub fn alt(&self) -> bool {
-        self.intersects(Self::ALT)
-    }
-    /// Returns `true` if the logo key is pressed.
-    pub fn logo(&self) -> bool {
-        self.intersects(Self::LOGO)
-    }
-
-    /// Removes `part` and returns if it was removed.
-    pub fn take(&mut self, part: ModifiersState) -> bool {
-        let r = self.intersects(part);
-        if r {
-            self.remove(part);
-        }
-        r
-    }
-
-    /// Removes `SHIFT` and returns if it was removed.
-    pub fn take_shift(&mut self) -> bool {
-        self.take(ModifiersState::SHIFT)
-    }
-
-    /// Removes `CTRL` and returns if it was removed.
-    pub fn take_ctrl(&mut self) -> bool {
-        self.take(ModifiersState::CTRL)
-    }
-
-    /// Removes `ALT` and returns if it was removed.
-    pub fn take_alt(&mut self) -> bool {
-        self.take(ModifiersState::ALT)
-    }
-
-    /// Removes `LOGO` and returns if it was removed.
-    pub fn take_logo(&mut self) -> bool {
-        self.take(ModifiersState::LOGO)
-    }
-}
-
 /// Describes a button of a mouse controller.
 #[derive(Debug, Hash, PartialEq, Eq, Clone, Copy, Serialize, Deserialize)]
 pub enum MouseButton {
@@ -414,7 +340,7 @@ pub enum Key {
     /// Right Alt.
     RAlt,
     RBracket,
-    RControl,
+    RCtrl,
     RShift,
     RLogo,
     Semicolon,
@@ -445,7 +371,7 @@ impl Key {
     pub fn is_modifier(self) -> bool {
         matches!(
             self,
-            Key::LAlt | Key::LCtrl | Key::LShift | Key::LLogo | Key::RAlt | Key::RControl | Key::RShift | Key::RLogo
+            Key::LAlt | Key::LCtrl | Key::LShift | Key::LLogo | Key::RAlt | Key::RCtrl | Key::RShift | Key::RLogo
         )
     }
 
@@ -456,7 +382,7 @@ impl Key {
 
     /// If the key is left ctrl or right ctrl.
     pub fn is_ctrl(self) -> bool {
-        matches!(self, Key::LCtrl | Key::RControl)
+        matches!(self, Key::LCtrl | Key::RCtrl)
     }
 
     /// If the key is left shift or right shift.
@@ -828,15 +754,12 @@ pub enum Event {
     HoveredFileCancelled(WindowId),
     /// The window received a Unicode character.
     ReceivedCharacter(WindowId, char),
-    /// The window gained or lost focus.
-    ///
-    /// The parameter is true if the window has gained focus, and false if it has lost focus. This event is send
-    /// once when the window opens, focused or not and once every time the focus changes.
-    Focused {
-        /// Window that gained or lost focus.
-        window: WindowId,
-        /// If the window is now focused.
-        focused: bool,
+    /// App window(s) focus changed.
+    FocusChanged {
+        /// Window that lost focus.
+        prev: Option<WindowId>,
+        /// Window that got focus.
+        new: Option<WindowId>,
     },
     /// An event from the keyboard has been received.
     KeyboardInput {
@@ -850,13 +773,6 @@ pub enum Event {
         state: KeyState,
         /// Device independent key code, if the code was identified.
         key: Option<Key>,
-    },
-    /// The keyboard modifiers have changed.
-    ModifiersChanged {
-        /// Window that received press or release of a modifier key.
-        window: WindowId,
-        /// New modifier keys state.
-        state: ModifiersState,
     },
     /// The cursor has moved on the window.
     ///
@@ -1199,6 +1115,12 @@ impl Event {
                 }
 
                 change.frame_wait_id = n_change.frame_wait_id;
+            }
+            // window focus changed.
+            (FocusChanged { prev, new }, FocusChanged { prev: n_prev, new: n_new })
+                if prev.is_some() && new.is_none() && n_prev.is_none() && n_new.is_some() =>
+            {
+                *new = n_new;
             }
             // scale factor.
             (
