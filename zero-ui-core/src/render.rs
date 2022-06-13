@@ -646,14 +646,17 @@ impl FrameBuilder {
     ///
     /// Panics if a spatial id or clip id is created inside `generate`, reuse group must only contain simple leaf items.
     ///
+    /// Panics in the renderer process if [`widget_rendered`] is called inside `generate` without pushing any display items.
+    ///
     /// [`can_reuse`]: Self::can_reuse
     /// [`push_widget`]: Self::push_widget
+    /// [`widget_rendered`]: Self::widget_rendered
     pub fn push_reuse_group(&mut self, group: &mut ReuseGroup, generate: impl FnOnce(&mut Self)) {
         expect_no_group!(self.push_reuse_group);
 
-        group.prepare_for(self.pipeline_id, self.spatial_id, self.clip_id);
-
         if self.can_reuse {
+            group.prepare_for(self.pipeline_id, self.spatial_id, self.clip_id);
+
             if let Some(key) = group.key() {
                 if self.reuse_keys.try_reuse(key) {
                     self.display_list.push_reuse_items(key);
@@ -907,7 +910,7 @@ impl FrameBuilder {
     pub fn push_hit_test(&mut self, rect: PxRect) {
         expect_inner!(self.push_hit_test);
 
-        if self.is_hit_testable {
+        if self.is_hit_testable && rect.size != PxSize::zero() {
             let common_item_ps = self.common_item_ps(rect);
             self.display_list.push_hit_test(&common_item_ps, self.item_tag());
         }
@@ -1118,7 +1121,8 @@ impl FrameBuilder {
 
     /// Pushes a composite hit-test for a border.
     pub fn push_border_hit_test(&mut self, bounds: PxRect, widths: PxSideOffsets, radius: PxCornerRadius) {
-        expect_inner!(self.push_border);
+        expect_inner!(self.push_border_hit_test);
+        expect_no_group!(self.push_border_hit_test);
 
         if !self.is_hit_testable() {
             return;
@@ -1192,21 +1196,23 @@ impl FrameBuilder {
         expect_inner!(self.push_text);
 
         if let Some(r) = &self.renderer {
-            let (instance_key, flags) = font.instance_key(r, synthesis);
+            if !glyphs.is_empty() {
+                let (instance_key, flags) = font.instance_key(r, synthesis);
 
-            let item = self.common_item_ps(clip_rect);
+                let item = self.common_item_ps(clip_rect);
 
-            let opts = GlyphOptions {
-                render_mode: match aa {
-                    FontAntiAliasing::Default => self.default_font_aa,
-                    FontAntiAliasing::Subpixel => FontRenderMode::Subpixel,
-                    FontAntiAliasing::Alpha => FontRenderMode::Alpha,
-                    FontAntiAliasing::Mono => FontRenderMode::Mono,
-                },
-                flags,
-            };
-            self.display_list
-                .push_text(&item, clip_rect.to_wr(), glyphs, instance_key, color, Some(opts));
+                let opts = GlyphOptions {
+                    render_mode: match aa {
+                        FontAntiAliasing::Default => self.default_font_aa,
+                        FontAntiAliasing::Subpixel => FontRenderMode::Subpixel,
+                        FontAntiAliasing::Alpha => FontRenderMode::Alpha,
+                        FontAntiAliasing::Mono => FontRenderMode::Mono,
+                    },
+                    flags,
+                };
+                self.display_list
+                    .push_text(&item, clip_rect.to_wr(), glyphs, instance_key, color, Some(opts));
+            }
 
             if self.auto_hit_test {
                 self.push_hit_test(clip_rect);
@@ -1284,17 +1290,19 @@ impl FrameBuilder {
 
         expect_inner!(self.push_linear_gradient);
 
-        let item = self.common_item_ps(rect);
+        if !stops.is_empty() {
+            let item = self.common_item_ps(rect);
 
-        self.display_list.push_stops(stops);
+            self.display_list.push_stops(stops);
 
-        let gradient = Gradient {
-            start_point: line.start.to_wr(),
-            end_point: line.end.to_wr(),
-            extend_mode,
-        };
-        self.display_list
-            .push_gradient(&item, rect.to_wr(), gradient, tile_size.to_wr(), tile_spacing.to_wr());
+            let gradient = Gradient {
+                start_point: line.start.to_wr(),
+                end_point: line.end.to_wr(),
+                extend_mode,
+            };
+            self.display_list
+                .push_gradient(&item, rect.to_wr(), gradient, tile_size.to_wr(), tile_spacing.to_wr());
+        }
 
         if self.auto_hit_test {
             self.push_hit_test(rect);
@@ -1333,19 +1341,21 @@ impl FrameBuilder {
 
         expect_inner!(self.push_radial_gradient);
 
-        let item = self.common_item_ps(rect);
+        if !stops.is_empty() {
+            let item = self.common_item_ps(rect);
 
-        self.display_list.push_stops(stops);
+            self.display_list.push_stops(stops);
 
-        let gradient = RadialGradient {
-            center: center.to_wr(),
-            radius: radius.to_wr(),
-            start_offset: 0.0, // TODO expose this?
-            end_offset: 1.0,
-            extend_mode,
-        };
-        self.display_list
-            .push_radial_gradient(&item, rect.to_wr(), gradient, tile_size.to_wr(), tile_spacing.to_wr());
+            let gradient = RadialGradient {
+                center: center.to_wr(),
+                radius: radius.to_wr(),
+                start_offset: 0.0, // TODO expose this?
+                end_offset: 1.0,
+                extend_mode,
+            };
+            self.display_list
+                .push_radial_gradient(&item, rect.to_wr(), gradient, tile_size.to_wr(), tile_spacing.to_wr());
+        }
 
         if self.auto_hit_test {
             self.push_hit_test(rect);
@@ -1381,21 +1391,23 @@ impl FrameBuilder {
 
         expect_inner!(self.push_conic_gradient);
 
-        let item = self.common_item_ps(rect);
+        if !stops.is_empty() {
+            let item = self.common_item_ps(rect);
 
-        self.display_list.push_stops(stops);
+            self.display_list.push_stops(stops);
 
-        GradientBuilder::new();
+            GradientBuilder::new();
 
-        let gradient = ConicGradient {
-            center: center.to_wr(),
-            angle: angle.0,
-            start_offset: 0.0, // TODO expose this?
-            end_offset: 1.0,
-            extend_mode,
-        };
-        self.display_list
-            .push_conic_gradient(&item, rect.to_wr(), gradient, tile_size.to_wr(), tile_spacing.to_wr());
+            let gradient = ConicGradient {
+                center: center.to_wr(),
+                angle: angle.0,
+                start_offset: 0.0, // TODO expose this?
+                end_offset: 1.0,
+                extend_mode,
+            };
+            self.display_list
+                .push_conic_gradient(&item, rect.to_wr(), gradient, tile_size.to_wr(), tile_spacing.to_wr());
+        }
 
         if self.auto_hit_test {
             self.push_hit_test(rect);
