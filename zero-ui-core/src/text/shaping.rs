@@ -5,8 +5,8 @@ use std::{
 };
 
 use super::{
-    font_features::RFontFeatures, lang, Font, FontList, FontRef, GlyphIndex, GlyphInstance, InternedStr, Lang, SegmentedText, TextSegment,
-    TextSegmentKind,
+    font_features::RFontFeatures, lang, Font, FontList, FontRef, GlyphIndex, GlyphInstance, InternedStr, Lang, SegmentedText, TextAlign,
+    TextSegment, TextSegmentKind,
 };
 use crate::{
     crate_util::{f32_cmp, IndexRange},
@@ -77,6 +77,8 @@ struct LineRange {
     end: usize,
     /// Pixel width of the line.
     width: f32,
+    /// Applied align offset to the right.
+    x_offset: f32,
 }
 
 /// Defines the font of a range of glyphs in a [`ShapedText`].
@@ -284,6 +286,9 @@ pub struct ShapedText {
     size: PxSize,
     line_height: Px,
     line_spacing: Px,
+    
+    og_line_height: Px,
+    og_line_spacing: Px,
 
     // offsets from the line_height bottom
     baseline: Px,
@@ -291,6 +296,11 @@ pub struct ShapedText {
     strikethrough: Px,
     underline: Px,
     underline_descent: Px,
+
+    /// vertical align offset applied.
+    y_offset: f32,
+    align_box: PxRect,
+    align: TextAlign,
 }
 impl ShapedText {
     /// Alloc for shaping, value is invalid, see `Font::shape_text`.
@@ -304,11 +314,16 @@ impl ShapedText {
             size: Default::default(),
             line_height: Default::default(),
             line_spacing: Default::default(),
+            og_line_height: Default::default(),
+            og_line_spacing: Default::default(),
             baseline: Default::default(),
             overline: Default::default(),
             strikethrough: Default::default(),
             underline: Default::default(),
             underline_descent: Default::default(),
+            y_offset: 0.0,
+            align_box: PxRect::zero(),
+            align: TextAlign::LEFT,
         }
     }
 
@@ -375,27 +390,55 @@ impl ShapedText {
         self.padding
     }
 
-    /// Reshape text to have the new `padding`.
+    /// Last applied alignment box.
+    pub fn align_box(&self) -> PxRect {
+        self.align_box
+    }
+
+    /// Last applied alignment.
+    pub fn align(&self) -> TextAlign {
+        self.align
+    }
+
+    /// Reshape text.
     ///
-    /// The padding offsets all glyphs and increases the [`size`].
+    /// Glyphs are moved, including the `align_box.origin`, the [`size`] only changes to envelop the glyphs plus `padding`.
     /// 
+    /// Re-wrap is not implemented TODO.
+    ///
     /// [`size`]: Self::size
-    pub fn set_padding(&mut self, padding: PxSideOffsets) {
-        if self.padding == padding {
-            return;
+    pub fn reshape(&mut self, align_box: PxRect, align: TextAlign, padding: PxSideOffsets, line_height: Px, line_spacing: Px) {
+        let mut global_offset = euclid::vec2(0.0f32, 0.0f32);
+
+        if self.padding != padding {
+            global_offset.x = (self.padding.left - padding.left).0 as f32;
+            global_offset.y = (self.padding.top - padding.top).0 as f32;
+        }
+        if self.align_box.origin != align_box.origin {
+            global_offset.x += (self.align_box.origin.x * Px(-1) + align_box.origin.x).0 as f32;
+            global_offset.y += (self.align_box.origin.y * Px(-1) + align_box.origin.y).0 as f32;
         }
 
-        let p = padding + self.padding * Px(-1); // no Sub impl
+        if global_offset != euclid::vec2(0.0, 0.0) {
+            for g in &mut self.glyphs {
+                g.point += global_offset;
+            }
 
-        let offset = PxVector::new(p.left, p.top);
-        let offset_f32 = euclid::vec2(offset.x.0 as f32, offset.y.0 as f32);
-        for g in &mut self.glyphs {
-            g.point += offset_f32;
+            self.size.width += self.padding.horizontal() - padding.horizontal();
+            self.size.height += self.padding.vertical() - padding.vertical();
+
+            self.padding = padding;
+            self.align_box.origin = align_box.origin;
         }
 
-        self.size.width += p.horizontal();
-        self.size.height += p.vertical();
-        self.padding = padding;
+        
+
+        // TODO !!: align
+    }
+
+    /// Restore text to initial shape.
+    pub fn clear_reshape(&mut self) {
+        self.reshape(PxRect::zero(), TextAlign::LEFT, PxSideOffsets::zero(), self.og_line_height, self.og_line_spacing);
     }
 
     /// Height of a single line.
@@ -525,32 +568,41 @@ impl ShapedText {
         ShapedText {
             glyphs: vec![],
             segments: TextSegmentVec(vec![]),
-            lines: LineRangeVec(vec![LineRange { end: 0, width: 0.0 }]),
+            lines: LineRangeVec(vec![LineRange {
+                end: 0,
+                width: 0.0,
+                x_offset: 0.0,
+            }]),
             fonts: FontRangeVec(vec![FontRange {
                 font: self.fonts.font(0).clone(),
                 end: 0,
             }]),
             padding: PxSideOffsets::zero(),
             size: PxSize::zero(),
-            line_height: self.line_height,
-            line_spacing: self.line_spacing,
+            og_line_height: self.og_line_height,
+            og_line_spacing: self.og_line_spacing,
+            line_height: self.og_line_height,
+            line_spacing: self.og_line_spacing,
             baseline: self.baseline,
             overline: self.overline,
             strikethrough: self.strikethrough,
             underline: self.underline,
             underline_descent: self.underline_descent,
+            y_offset: 0.0,
+            align_box: PxRect::zero(),
+            align: TextAlign::LEFT,
         }
     }
 
     /// Split the shaped text in two. The text is split at a `segment` that becomes the first segment of the second text.
     ///
-    /// Padding is not included in the result, any padding set is removed before split.
+    /// Reshape is cleared before split.
     ///
     /// # Panics
     ///
     /// Panics if `segment` is out of the range.
     pub fn split(mut self, segment: usize) -> (ShapedText, ShapedText) {
-        self.set_padding(self.padding * -Px(1));
+        self.clear_reshape();
 
         if segment == 0 {
             let a = self.empty();
@@ -569,19 +621,25 @@ impl ShapedText {
                 fonts: FontRangeVec(self.fonts.0.drain(f_end..).collect()),
                 padding: PxSideOffsets::zero(),
                 size: PxSize::zero(),
-                line_height: self.line_height,
-                line_spacing: self.line_spacing,
+                og_line_height: self.og_line_height,
+                og_line_spacing: self.og_line_spacing,
+                line_height: self.og_line_height,
+                line_spacing: self.og_line_spacing,
                 baseline: self.baseline,
                 overline: self.overline,
                 strikethrough: self.strikethrough,
                 underline: self.underline,
                 underline_descent: self.underline_descent,
+                y_offset: 0.0,
+                align_box: PxRect::zero(),
+                align: TextAlign::LEFT,
             };
 
             if self.lines.0.is_empty() || self.lines.last().end <= self.segments.0.len() {
                 self.lines.0.push(LineRange {
                     end: self.segments.0.len(),
                     width: 0.0,
+                    x_offset: 0.0,
                 });
             }
 
@@ -702,7 +760,7 @@ impl ShapedText {
     ///
     /// Line height and spacing of `self` is applied to `text`, aligning by baseline.
     ///
-    /// If `text` has padding it is removed before pushing, if `self` has padding it is used.
+    /// Any reshape in `text` is cleared, if `self`
     pub fn extend(&mut self, mut text: ShapedText) {
         if text.is_empty() {
             return;
@@ -1369,6 +1427,8 @@ impl Font {
 
         let metrics = self.metrics();
 
+        out.og_line_height = config.line_height;
+        out.og_line_spacing = config.line_spacing;
         out.line_height = config.line_height;
         out.line_spacing = config.line_spacing;
 
@@ -1434,6 +1494,7 @@ impl Font {
                     out.lines.0.push(LineRange {
                         end: out.segments.0.len() + 1, // segment is pushed after match
                         width: origin.x,
+                        x_offset: 0.0,
                     });
 
                     max_line_x = origin.x.max(max_line_x);
@@ -1451,6 +1512,7 @@ impl Font {
         out.lines.0.push(LineRange {
             end: out.segments.0.len(),
             width: origin.x,
+            x_offset: 0.0,
         });
 
         // longest line width X line heights.

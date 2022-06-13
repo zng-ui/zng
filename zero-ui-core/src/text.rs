@@ -315,7 +315,7 @@ impl fmt::Debug for WordBreak {
 }
 
 /// Text alignment config.
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, PartialEq)]
 pub struct TextAlign {
     /// *x* alignment in a `[0.0..=1.0]` range.
     ///
