@@ -1,5 +1,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
-use zero_ui::core::focus::FocusChangedEvent;
+use zero_ui::core::focus::{FocusChangedEvent, FocusRequest, FocusTarget};
 use zero_ui::prelude::*;
 use zero_ui::widgets::window::{LayerIndex, WindowLayers};
 
@@ -35,7 +35,8 @@ fn app_main() {
                         spacing = 10;
                         items = widgets![
                             tab_index(),
-                            functions(window_enabled)
+                            functions(window_enabled),
+                            delayed_focus(),
                         ]
                     }
                 ];
@@ -132,7 +133,7 @@ fn functions(window_enabled: RcVar<bool>) -> impl Widget {
                 on_click = hn!(|ctx, _| {
                     WindowLayers::insert(ctx, LayerIndex::TOP_MOST, overlay(window_enabled.clone()));
                 });
-            }
+            },
         ]
     }
 }
@@ -181,6 +182,74 @@ fn overlay(window_enabled: RcVar<bool>) -> impl Widget {
                 ]
             }
         }
+    }
+}
+
+fn delayed_focus() -> impl Widget {
+    v_stack! {
+        spacing = 5;
+        focus_shortcut = shortcut!(D);
+        items = widgets![
+            title("Delayed 4s (D)"),
+
+            delayed_btn("Force Focus", |ctx| {
+                ctx.services.focus().focus(FocusRequest {
+                    target: FocusTarget::Direct(WidgetId::named("target")),
+                    highlight: true,
+                    force_window_focus: true,
+                    window_indicator: None,
+                });
+            }),
+            delayed_btn("Info Indicator", |ctx| {
+                ctx.services.focus().focus(FocusRequest {
+                    target: FocusTarget::Direct(WidgetId::named("target")),
+                    highlight: true,
+                    force_window_focus: false,
+                    window_indicator: Some(FocusIndicator::Info),
+                });
+            }),
+            delayed_btn("Critical Indicator", |ctx| {
+                ctx.services.focus().focus(FocusRequest {
+                    target: FocusTarget::Direct(WidgetId::named("target")),
+                    highlight: true,
+                    force_window_focus: false,
+                    window_indicator: Some(FocusIndicator::Critical),
+                });
+            }),
+
+            text! {
+                id = "target";
+                padding = zero_ui::widgets::button::theme::PaddingVar;
+                corner_radius = zero_ui::widgets::button::theme::CornerRadiusVar;
+                text = "delayed target";
+                font_style = FontStyle::Italic;
+                text_align = TextAlign::Center;
+                background_color = rgb(30, 30, 30);
+
+                focusable = true;
+                when self.is_focused {
+                    text = "focused";
+                    background_color = colors::DARK_GREEN;
+                }
+            },
+        ]
+    }
+}
+fn delayed_btn(content: impl Into<Text>, on_timeout: impl FnMut(&mut WidgetContext) + 'static) -> impl Widget {
+    let on_timeout = std::rc::Rc::new(std::cell::RefCell::new(Box::new(on_timeout)));
+    let enabled = var(true);
+    button! {
+        content = text(content.into());
+        on_click = async_hn!(enabled, on_timeout, |ctx, _| {
+            enabled.set(&ctx, false);
+            task::timeout(4.secs()).await;
+            ctx.with(|ctx| {
+                let mut on_timeout = on_timeout.borrow_mut();
+                on_timeout(ctx);
+            });
+            enabled.set(&ctx, true);
+        });
+        enabled;
     }
 }
 

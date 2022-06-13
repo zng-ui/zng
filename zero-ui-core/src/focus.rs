@@ -1123,8 +1123,26 @@ impl Focus {
 
         if let Some(target) = target {
             if let Ok(false) = windows.is_focused(target.window_id()) {
-                windows.focus(target.window_id()).unwrap();
-                self.pending_window_focus = Some((target.window_id(), target.widget_id(), highlight));
+                let requested_win_focus;
+                if request.force_window_focus || windows.focused_window_id().is_some() {
+                    // if can steal focus from other apps or focus is already in another window of the app.
+                    windows.focus(target.window_id()).unwrap();
+                    requested_win_focus = true;
+                } else if request.window_indicator.is_some() {
+                    // if app does not have focus, focus stealing is not allowed, but a request indicator can be set.
+                    windows
+                        .vars(target.window_id())
+                        .unwrap()
+                        .focus_indicator()
+                        .set(vars, request.window_indicator);
+                    requested_win_focus = true;
+                } else {
+                    requested_win_focus = false;
+                }
+
+                if requested_win_focus {
+                    self.pending_window_focus = Some((target.window_id(), target.widget_id(), highlight));
+                }
                 None
             } else {
                 self.move_focus(vars, Some(target), highlight, FocusChangedCause::Request(request))

@@ -49,6 +49,9 @@ pub mod text {
         /// The text color. If not set inherits the `text_color` from the parent widget.
         properties::text_color as color;
 
+        /// The text alignment.
+        properties::text_align;
+
         /// Extra spacing added in between text letters. If not set inherits the `letter_spacing` from the parent widget.
         ///
         /// Letter spacing is computed using the font data, this unit represents
