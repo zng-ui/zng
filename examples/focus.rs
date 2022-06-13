@@ -3,7 +3,7 @@ use zero_ui::core::focus::FocusChangedEvent;
 use zero_ui::prelude::*;
 use zero_ui::widgets::window::{LayerIndex, WindowLayers};
 
-// use zero_ui_view_prebuilt as zero_ui_view;
+use zero_ui_view_prebuilt as zero_ui_view;
 
 fn main() {
     examples_util::print_info();
@@ -11,8 +11,8 @@ fn main() {
 
     // let rec = examples_util::record_profile("profile-focus.json.gz", &[("example", &"focus")], |_| true);
 
-    zero_ui_view::run_same_process(app_main);
-    // app_main();
+    // zero_ui_view::run_same_process(app_main);
+    app_main();
 
     // rec.finish();
 }
