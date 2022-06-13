@@ -394,7 +394,9 @@ impl Keyboard {
 
 /// Extension trait that adds keyboard simulation methods to [`HeadlessApp`].
 pub trait HeadlessAppKeyboardExt {
-    /// Does a keyboard input event.
+    /// Notifies keyboard input event.
+    ///
+    /// Note that the app is not updated so the event is pending after this call.
     fn on_keyboard_input(&mut self, window_id: WindowId, key: Key, state: KeyState);
 
     /// Does a key-down, key-up and updates.
@@ -421,17 +423,9 @@ impl HeadlessAppKeyboardExt for HeadlessApp {
         if modifiers.is_empty() {
             self.press_key(window_id, key);
         } else {
-            if modifiers.logo() {
-                self.on_keyboard_input(window_id, Key::LLogo, KeyState::Pressed);
-            }
-            if modifiers.ctrl() {
-                self.on_keyboard_input(window_id, Key::LCtrl, KeyState::Pressed);
-            }
-            if modifiers.shift() {
-                self.on_keyboard_input(window_id, Key::LShift, KeyState::Pressed);
-            }
-            if modifiers.alt() {
-                self.on_keyboard_input(window_id, Key::LAlt, KeyState::Pressed);
+            let modifiers = modifiers.keys();
+            for &key in &modifiers {
+                self.on_keyboard_input(window_id, key, KeyState::Pressed);
             }
 
             // pressed the modifiers.
@@ -443,17 +437,8 @@ impl HeadlessAppKeyboardExt for HeadlessApp {
             // pressed the key.
             let _ = self.update(false);
 
-            if modifiers.logo() {
-                self.on_keyboard_input(window_id, Key::LLogo, KeyState::Released);
-            }
-            if modifiers.ctrl() {
-                self.on_keyboard_input(window_id, Key::LCtrl, KeyState::Released);
-            }
-            if modifiers.shift() {
-                self.on_keyboard_input(window_id, Key::LShift, KeyState::Released);
-            }
-            if modifiers.alt() {
-                self.on_keyboard_input(window_id, Key::LAlt, KeyState::Released);
+            for key in modifiers {
+                self.on_keyboard_input(window_id, key, KeyState::Released);
             }
 
             // released the modifiers.
@@ -476,9 +461,9 @@ bitflags! {
         const SHIFT   = 0b0000_0011;
 
         /// The left "control" key.
-        const CTRL_L = 0b0000_0100;
+        const L_CTRL = 0b0000_0100;
         /// The right "control" key.
-        const CTRL_R = 0b0000_1000;
+        const R_CTRL = 0b0000_1000;
         /// Any "control" key.
         const CTRL   = 0b0000_1100;
 
@@ -547,7 +532,7 @@ impl ModifiersState {
     }
 
     /// Returns modifiers that set both left and right flags if any side is set in `self`.
-    pub fn ambi(self) -> Self {
+    pub fn ambit(self) -> Self {
         let mut r = Self::empty();
         if self.alt() {
             r |= Self::ALT;
@@ -589,13 +574,48 @@ impl ModifiersState {
         match key {
             Key::LAlt => Self::L_ALT,
             Key::RAlt => Self::R_ALT,
-            Key::LCtrl => Self::CTRL_L,
-            Key::RCtrl => Self::CTRL_R,
+            Key::LCtrl => Self::L_CTRL,
+            Key::RCtrl => Self::R_CTRL,
             Key::LShift => Self::L_SHIFT,
             Key::RShift => Self::R_SHIFT,
             Key::LLogo => Self::L_LOGO,
             Key::RLogo => Self::R_LOGO,
             _ => Self::empty(),
         }
+    }
+
+    /// All keys that when pressed form the modifiers state.
+    ///
+    /// In case of multiple keys the order is `LOGO`, `CTRL`, `SHIFT`, `ALT`.
+    ///
+    /// In case both left and right keys are flagged for a modifier, the left key is used.
+    pub fn keys(self) -> Vec<Key> {
+        let mut r = vec![];
+
+        if self.contains(Self::L_LOGO) {
+            r.push(Key::LLogo);
+        } else if self.contains(Self::R_LOGO) {
+            r.push(Key::RLogo);
+        }
+
+        if self.contains(Self::L_CTRL) {
+            r.push(Key::LCtrl);
+        } else if self.contains(Self::R_CTRL) {
+            r.push(Key::RCtrl);
+        }
+
+        if self.contains(Self::L_SHIFT) {
+            r.push(Key::LShift);
+        } else if self.contains(Self::R_SHIFT) {
+            r.push(Key::RShift);
+        }
+
+        if self.contains(Self::L_ALT) {
+            r.push(Key::LAlt);
+        } else if self.contains(Self::R_ALT) {
+            r.push(Key::RAlt);
+        }
+
+        r
     }
 }

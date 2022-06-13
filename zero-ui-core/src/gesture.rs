@@ -237,12 +237,29 @@ impl ClickArgs {
 }
 
 /// A keyboard combination.
-#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy)]
 pub struct KeyGesture {
     /// The key modifiers.
+    ///
+    /// Equality of key gestures matches the [`ambit`] modifiers, so a `L_CTRL` is equal to a `R_CTRL` in a key gesture,
+    /// the actual bit flag is preserved in the state and can be extracted from the shortcut.
+    ///
+    /// [`ambit`]: ModifiersState::ambit
     pub modifiers: ModifiersState,
     /// The key.
     pub key: GestureKey,
+}
+impl PartialEq for KeyGesture {
+    fn eq(&self, other: &Self) -> bool {
+        self.modifiers.ambit() == other.modifiers.ambit() && self.key == other.key
+    }
+}
+impl Eq for KeyGesture {}
+impl std::hash::Hash for KeyGesture {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.modifiers.ambit().hash(state);
+        self.key.hash(state);
+    }
 }
 impl KeyGesture {
     #[allow(missing_docs)]
