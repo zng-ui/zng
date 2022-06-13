@@ -318,7 +318,7 @@ declare_api! {
 
     /// Brings the window to the front and sets input focus.
     ///
-    /// Sends an [`Event::Focused`] if the window is focused, the request can be ignored by the window manager, or if the
+    /// Sends an [`Event::FocusChanged`] if the window is focused, the request can be ignored by the window manager, or if the
     /// window is not visible, minimized or already focused.
     ///
     /// This request can steal focus from other apps disrupting the user, be careful with it.

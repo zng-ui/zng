@@ -1,3 +1,5 @@
+* Fix bug in text reuse. Run `shortcuts` and press `CTRL|SHIFT` to cause.
+
 * Optimize/fix interactivity, can we make parent interactivity affecting child a guarantee?
 * Different visual for focused and disabled.
 
