@@ -1,5 +1,3 @@
-* Fix bug in text reuse. Run `shortcuts` and press `CTRL|SHIFT` to cause.
-
 * Optimize/fix interactivity, can we make parent interactivity affecting child a guarantee?
 * Different visual for focused and disabled.
 
@@ -8,6 +6,7 @@
 * Implement render optimization, see `Optimizations.md`.
 * Implement `FocusRequest` window indicator + example.
 * Add example of focus request that steals focus from other app.
+
 
 * Gestures info, like last shortcut pressed, primed chord, list of shortcuts used.
 * Implement window close cancel when OS is shutting down.

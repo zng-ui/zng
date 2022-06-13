@@ -859,7 +859,7 @@ pub struct Gestures {
     /// Initial value is `50ms`, set to to `0` to deactivate this type of indication.
     pub shortcut_pressed_duration: Duration,
 
-    pressed_modifier: Option<ModifierGesture>,
+    pressed_modifier: Option<(WindowId, ModifierGesture)>,
     primed_starter: Option<KeyGesture>,
     chords: LinearMap<KeyGesture, LinearSet<KeyGesture>>,
 
@@ -992,7 +992,7 @@ impl Gestures {
                         self.pressed_modifier = None;
                     } else if let Ok(mod_gesture) = ModifierGesture::try_from(key) {
                         if !args.is_repeat {
-                            self.pressed_modifier = Some(mod_gesture);
+                            self.pressed_modifier = Some((args.target.window_id(), mod_gesture));
                         }
                     } else {
                         self.pressed_modifier = None;
@@ -1001,8 +1001,10 @@ impl Gestures {
                 }
                 KeyState::Released => {
                     if let Ok(mod_gesture) = ModifierGesture::try_from(key) {
-                        if Some(mod_gesture) == self.pressed_modifier.take() && args.modifiers.is_empty() {
-                            self.on_shortcut_pressed(vars, events, focus, windows, Shortcut::Modifier(mod_gesture), args)
+                        if let (Some((window_id, gesture)), true) = (self.pressed_modifier.take(), args.modifiers.is_empty()) {
+                            if window_id == args.target.window_id() && mod_gesture == gesture {
+                                self.on_shortcut_pressed(vars, events, focus, windows, Shortcut::Modifier(mod_gesture), args);
+                            }
                         }
                     }
                 }
