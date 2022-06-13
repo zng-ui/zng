@@ -314,60 +314,226 @@ impl fmt::Debug for WordBreak {
     }
 }
 
-/// Text alignment.
+/// Text alignment config.
 #[derive(Copy, Clone)]
-pub enum TextAlign {
-    /// `Left` in LTR or `Right` in RTL.
-    Start,
-    /// `Right` in LTR or `Left` in RTL.
-    End,
-
-    /// Left visually, independent of LTR/RTL.
-    Left,
-
-    /// Center visually.
-    Center,
-
-    /// Right visually, independent of LTR/RTL.
-    Right,
-
-    /// Adjust spacing to fill the available width.
+pub struct TextAlign {
+    /// *x* alignment in a `[0.0..=1.0]` range.
     ///
-    /// The justify spacing can be configured using [`Justify`].
-    Justify(Justify),
+    /// This positions each line in the horizontal inside the outer box of the container,
+    ///
+    /// for `0.fct()` the first glyph of each line touches the left edge, for `1.fct()` the last character of each
+    /// line touches the right edge.
+    pub x: Factor,
+
+    /// If `x` is multiplied by `-1.fct()` for lines that start with right-to-left script.
+    pub x_rtl_aware: bool,
+
+    /// Algorithm used if `x` is [`JUSTIFY`].
+    ///
+    /// [`JUSTIFY`]: Self::JUSTIFY.
+    pub x_justify: Justify,
+
+    /// *y* alignment in a `[0.0..=1.0]` range.
+    ///
+    /// This positions all shaped text lines as a box inside the outer box of the container, for `0.fct()` the first line touches
+    /// the top edge, for `1.fct()` the last line touches the bottom edge.
+    pub y: Factor,
 }
 impl TextAlign {
-    /// Justify Auto.
-    pub fn justify() -> Self {
-        TextAlign::Justify(Justify::Auto)
+    /// `LEFT` when script is "left-to-right" or `RIGHT` when script is "right-to-left".
+    pub const START: TextAlign = TextAlign {
+        x: Factor(0.0),
+        x_rtl_aware: true,
+        x_justify: Justify::Auto,
+        y: Factor(0.0),
+    };
+
+    /// `RIGHT` when script is "left-to-right" or `LEFT` when script is "right-to-left".
+    pub const END: TextAlign = TextAlign {
+        x: Factor(1.0),
+        x_rtl_aware: true,
+        x_justify: Justify::Auto,
+        y: Factor(0.0),
+    };
+
+    /// Visually left, even if script is "right-to-left".
+    pub const LEFT: TextAlign = TextAlign {
+        x: Factor(0.0),
+        x_rtl_aware: false,
+        x_justify: Justify::Auto,
+        y: Factor(0.0),
+    };
+
+    /// Visually right, event if script is "right-to-left".
+    pub const RIGHT: TextAlign = TextAlign {
+        x: Factor(1.0),
+        x_rtl_aware: false,
+        x_justify: Justify::Auto,
+        y: Factor(0.0),
+    };
+
+    /// Visually center.
+    pub const CENTER: TextAlign = TextAlign {
+        x: Factor(0.5),
+        x_rtl_aware: true,
+        x_justify: Justify::Auto,
+        y: Factor(0.0),
+    };
+
+    /// Apply the [`x_justify`] algorithm.
+    ///
+    /// [`x_justify`]: Self::x_justify
+    pub const JUSTIFY: TextAlign = TextAlign {
+        x: Factor(f32::INFINITY),
+        x_rtl_aware: true,
+        x_justify: Justify::Auto,
+        y: Factor(0.0),
+    };
+
+    /// `START` and vertically align all lines to center the parent box.
+    pub const START_MIDDLE: TextAlign = TextAlign {
+        x: Factor(0.0),
+        x_rtl_aware: true,
+        x_justify: Justify::Auto,
+        y: Factor(0.5),
+    };
+
+    /// `END` and vertically align all lines to center the parent box.
+    pub const END_MIDDLE: TextAlign = TextAlign {
+        x: Factor(1.0),
+        x_rtl_aware: true,
+        x_justify: Justify::Auto,
+        y: Factor(0.5),
+    };
+
+    /// Visually center on the horizontal and vertical.
+    pub const CENTER_MIDDLE: TextAlign = TextAlign {
+        x: Factor(0.5),
+        x_rtl_aware: true,
+        x_justify: Justify::Auto,
+        y: Factor(0.5),
+    };
+
+    /// `START` and vertically align all lines to the bottom of the parent box.
+    pub const START_BOTTOM: TextAlign = TextAlign {
+        x: Factor(0.0),
+        x_rtl_aware: true,
+        x_justify: Justify::Auto,
+        y: Factor(0.5),
+    };
+
+    /// `END` and vertically align all lines to the bottom of the parent box.
+    pub const END_BOTTOM: TextAlign = TextAlign {
+        x: Factor(1.0),
+        x_rtl_aware: true,
+        x_justify: Justify::Auto,
+        y: Factor(0.5),
+    };
+
+    /// Visually center on the horizontal and to the bottom on the vertical.
+    pub const CENTER_BOTTOM: TextAlign = TextAlign {
+        x: Factor(0.5),
+        x_rtl_aware: true,
+        x_justify: Justify::Auto,
+        y: Factor(1.0),
+    };
+
+    /// Returns a copy of the align with the vertical alignment set to `y`.
+    pub fn with_y(mut self, y: impl Into<Factor>) -> Self {
+        self.y = y.into();
+        self
     }
 }
 impl Default for TextAlign {
-    /// [`TextAlign::Start`].
+    /// [`TextAlign::START`].
     fn default() -> Self {
-        TextAlign::Start
+        TextAlign::START
+    }
+}
+impl_from_and_into_var! {
+    /// Converts `x` directly, fill is justify.
+    ///
+    /// Converts `y` baseline to "bottom" and `y` fill to "top" and other values directly.
+    ///
+    /// The result is RTL aware and has the default justify algorithm.
+    fn from(align: Align) -> TextAlign {
+        let mut r = TextAlign::START;
+        r.x = align.x; // fill is justify
+        if !align.is_fill_y() {
+            if align.is_baseline() {
+                r.y = 1.fct();
+            } else {
+                r.y = align.y;
+            }
+        }
+        r
     }
 }
 impl fmt::Debug for TextAlign {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if f.alternate() {
-            write!(f, "TextAlign::")?;
+            f.debug_struct("TextAlign")
+                .field("x", &self.x)
+                .field("x_rtl_aware", &self.x_rtl_aware)
+                .field("x_justify", &self.x_justify)
+                .field("y", &self.y)
+                .finish()
+        } else {
+            write!(f, "TextAlign {{ {self} }}")
         }
-        match self {
-            TextAlign::Start => write!(f, "Start"),
-            TextAlign::End => write!(f, "End"),
-            TextAlign::Left => write!(f, "Left"),
-            TextAlign::Center => write!(f, "Center"),
-            TextAlign::Right => write!(f, "Right"),
-            TextAlign::Justify(j) => f.debug_tuple("Justify").field(j).finish(),
+    }
+}
+impl fmt::Display for TextAlign {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut write_vertial_names = true;
+        if self.x == Self::LEFT.x {
+            if self.x_rtl_aware {
+                write!(f, "START")?;
+            } else {
+                write!(f, "LEFT")?;
+            }
+        } else if self.x == Self::CENTER.x {
+            write!(f, "CENTER")?;
+        } else if self.x == Self::RIGHT.x {
+            if self.x_rtl_aware {
+                write!(f, "END")?;
+            } else {
+                write!(f, "RIGHT")?;
+            }
+        } else if self.x == Self::JUSTIFY.x {
+            write!(f, "JUSTIFY")?;
+            if self.x_justify != Justify::Auto {
+                write!(f, ", {:?}", self.x_justify)?;
+            }
+            write_vertial_names = false;
+        } else {
+            write!(f, "x: {}, rtl: {}", self.x.pct(), self.x_rtl_aware)?;
+            write_vertial_names = false;
         }
+
+        if self.y != 0.fct() {
+            if write_vertial_names {
+                if self.y == 0.5.fct() {
+                    write!(f, "_MIDDLE")?;
+                } else if self.y == 1.fct() {
+                    write!(f, "_BOTTOM")?;
+                } else {
+                    write!(f, ", y: {}", self.y.pct())?;
+                }
+            } else {
+                write!(f, ", y: {}", self.y.pct())?;
+            }
+        }
+
+        Ok(())
     }
 }
 
 /// Text alignment justification mode.
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, PartialEq, Eq)]
 pub enum Justify {
     /// Selects the justification mode based on the language.
+    ///
     /// For Chinese/Japanese/Korean uses `InterLetter` for the others uses `InterWord`.
     Auto,
     /// The text is justified by adding space between words.

@@ -223,7 +223,7 @@ fn delayed_focus() -> impl Widget {
                 corner_radius = zero_ui::widgets::button::theme::CornerRadiusVar;
                 text = "delayed target";
                 font_style = FontStyle::Italic;
-                text_align = TextAlign::Center;
+                text_align = TextAlign::CENTER_MIDDLE;
                 background_color = rgb(30, 30, 30);
 
                 focusable = true;

@@ -377,7 +377,9 @@ impl ShapedText {
 
     /// Reshape text to have the new `padding`.
     ///
-    /// The padding
+    /// The padding offsets all glyphs and increases the [`size`].
+    /// 
+    /// [`size`]: Self::size
     pub fn set_padding(&mut self, padding: PxSideOffsets) {
         if self.padding == padding {
             return;

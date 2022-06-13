@@ -53,7 +53,7 @@ context_var! {
     pub struct LineBreakVar: LineBreak = LineBreak::Auto;
 
     /// Text line alignment in a text block.
-    pub struct TextAlignVar: TextAlign = TextAlign::Start;
+    pub struct TextAlignVar: TextAlign = TextAlign::START;
 
     /// Length of the `TAB` space.
     pub struct TabLengthVar: TabLength = 400.pct().into();
