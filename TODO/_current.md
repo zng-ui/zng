@@ -3,13 +3,9 @@
 
 =======
 
-* Implement layout and render optimization, see `Optimizations.md`.
-
-* Implement `FocusRequest` new force and indicator configs.
-    - And demo in focus example.
-        - Focus shortcuts are perfect for this.
-        - Also need an example of focus stealing.
-        - Unify `WindowFocusChangedEvent` to include the previous and new focused window.
+* Implement render optimization, see `Optimizations.md`.
+* Implement `FocusRequest` window indicator + example.
+* Add example of focus request that steals focus from other app.
 
 * Gestures info, like last shortcut pressed, primed chord, list of shortcuts used.
 * Implement window close cancel when OS is shutting down.
