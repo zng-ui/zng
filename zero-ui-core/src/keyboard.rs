@@ -186,7 +186,6 @@ impl AppExtension for KeyboardManager {
 
     fn event_preview<EV: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {
         if let Some(args) = RawKeyInputEvent.update(args) {
-            println!("!!: {:?}", args);
             let focused = ctx.services.focus().focused().get_clone(ctx);
             let keyboard = ctx.services.keyboard();
             keyboard.key_input(ctx.events, ctx.vars, args, focused);
@@ -502,19 +501,19 @@ bitflags! {
 }
 impl ModifiersState {
     /// Returns `true` if the shift key is pressed.
-    pub fn shift(&self) -> bool {
+    pub fn shift(self) -> bool {
         self.intersects(Self::SHIFT)
     }
     /// Returns `true` if the control key is pressed.
-    pub fn ctrl(&self) -> bool {
+    pub fn ctrl(self) -> bool {
         self.intersects(Self::CTRL)
     }
     /// Returns `true` if the alt key is pressed.
-    pub fn alt(&self) -> bool {
+    pub fn alt(self) -> bool {
         self.intersects(Self::ALT)
     }
     /// Returns `true` if the logo key is pressed.
-    pub fn logo(&self) -> bool {
+    pub fn logo(self) -> bool {
         self.intersects(Self::LOGO)
     }
 
@@ -545,6 +544,44 @@ impl ModifiersState {
     /// Removes `LOGO` and returns if it was removed.
     pub fn take_logo(&mut self) -> bool {
         self.take(ModifiersState::LOGO)
+    }
+
+    /// Returns modifiers that set both left and right flags if any side is set in `self`.
+    pub fn ambi(self) -> Self {
+        let mut r = Self::empty();
+        if self.alt() {
+            r |= Self::ALT;
+        }
+        if self.ctrl() {
+            r |= Self::CTRL;
+        }
+        if self.shift() {
+            r |= Self::SHIFT;
+        }
+        if self.logo() {
+            r |= Self::LOGO;
+        }
+        r
+    }
+
+    /// Only the "alt" flags.
+    pub fn alt_only(self) -> Self {
+        self & Self::ALT
+    }
+
+    /// Only the "control" flags.
+    pub fn ctrl_only(self) -> Self {
+        self & Self::CTRL
+    }
+
+    /// Only the "shift" flags.
+    pub fn shift_only(self) -> Self {
+        self & Self::SHIFT
+    }
+
+    /// Only the "logo" flags.
+    pub fn logo_only(self) -> Self {
+        self & Self::LOGO
     }
 
     /// Modifier from `key`, returns empty if the key is not a modifier.

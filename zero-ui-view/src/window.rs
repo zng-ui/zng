@@ -392,16 +392,21 @@ impl Window {
         moved && self.cursor_over
     }
 
+    #[cfg(windows)]
+    fn windows_is_foreground(&self) -> bool {
+        use glutin::platform::windows::WindowExtWindows;
+
+        let foreground = unsafe { windows::Win32::UI::WindowsAndMessaging::GetForegroundWindow() };
+        foreground.0 == self.window.hwnd() as isize
+    }
+
     /// Returns `true` if the previous focused status is different from `focused`.
     ///
     /// Sets the `focused` to if the window is actually the foreground keyboard focused window.
     pub fn focused_changed(&mut self, focused: &mut bool) -> bool {
         #[cfg(windows)]
         if self.focused.is_none() {
-            use glutin::platform::windows::WindowExtWindows;
-
-            let foreground = unsafe { windows::Win32::UI::WindowsAndMessaging::GetForegroundWindow() };
-            *focused = foreground.0 == self.window.hwnd() as isize;
+            *focused = self.windows_is_foreground();
         }
 
         let focused = Some(*focused);
@@ -621,11 +626,30 @@ impl Window {
     }
 
     /// Steal input focus.
+    #[cfg(not(windows))]
     pub fn focus(&mut self) {
         if self.waiting_first_frame {
             self.steal_init_focus = true;
         } else {
             self.window.focus_window();
+        }
+    }
+
+    /// Steal input focus.
+    ///
+    /// Returns if the next `RAlt` press and release key inputs must be ignored.
+    #[cfg(windows)]
+    #[must_use]
+    pub fn focus(&mut self) -> bool {
+        if self.waiting_first_frame {
+            self.steal_init_focus = true;
+            false
+        } else if !self.windows_is_foreground() {
+            // winit uses a hack to steal focus that causes a `RAlt` key press.
+            self.window.focus_window();
+            self.windows_is_foreground()
+        } else {
+            false
         }
     }
 

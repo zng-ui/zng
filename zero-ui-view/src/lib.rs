@@ -345,6 +345,9 @@ pub(crate) struct App {
     // MainEventsCleared.
     cursor_entered_expect_move: Vec<WindowId>,
 
+    #[cfg(windows)]
+    skip_ralt: bool,
+
     exited: bool,
 }
 impl fmt::Debug for App {
@@ -522,7 +525,11 @@ impl App {
                     GEvent::Resumed => {}
                     GEvent::MainEventsCleared => {
                         app.finish_cursor_entered_move();
-                        app.flush_coalesced()
+                        app.flush_coalesced();
+                        #[cfg(windows)]
+                        {
+                            app.skip_ralt = false;
+                        }
                     }
                     GEvent::RedrawRequested(w_id) => app.on_redraw(w_id),
                     GEvent::RedrawEventsCleared => {}
@@ -564,6 +571,8 @@ impl App {
             coalescing_event: None,
             cursor_entered_expect_move: Vec::with_capacity(1),
             exited: false,
+            #[cfg(windows)]
+            skip_ralt: false,
         }
     }
 
@@ -759,6 +768,13 @@ impl App {
                 is_synthetic,
             } => {
                 if !is_synthetic {
+                    #[cfg(windows)]
+                    if self.skip_ralt {
+                        // see the Window::focus comments.
+                        if let Some(glutin::event::VirtualKeyCode::RAlt) = input.virtual_keycode {
+                            return;
+                        }
+                    }
                     let d_id = self.device_id(device_id);
                     self.notify(Event::KeyboardInput {
                         window: id,
@@ -1358,7 +1374,15 @@ impl Api for App {
     }
 
     fn focus_window(&mut self, id: WindowId) {
-        self.with_window(id, |w| w.focus(), || ())
+        #[cfg(windows)]
+        {
+            self.skip_ralt = self.with_window(id, |w| w.focus(), || false);
+        }
+
+        #[cfg(not(windows))]
+        {
+            self.with_window(id, |w| w.focus(), || ());
+        }
     }
 
     fn set_cursor(&mut self, id: WindowId, icon: Option<CursorIcon>) {
