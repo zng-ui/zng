@@ -388,7 +388,7 @@ impl ShapedText {
     }
 
     /// Gets the [`size`] plus the [`padding`].
-    /// 
+    ///
     /// [`size`]: Self::size
     /// [`padding`]: Self::padding
     pub fn size_with_padding(&self) -> PxSize {
@@ -472,10 +472,10 @@ impl ShapedText {
             global_offset.y += (align_box.height() - padding.vertical() - self.size.height).0 as f32 * align.y();
 
             let y_transform = global_offset.y - self.y_offset;
-            
+
             let max_line_w = self.size.width.0 as f32;
             let empty_x = (align_box.width() - padding.horizontal() - self.size.width).0 as f32;
-            
+
             let mut line_start = 0;
             for line in &mut self.lines.0 {
                 let x_align = align.x(false); // TODO RTL per line.
@@ -483,7 +483,7 @@ impl ShapedText {
 
                 let x_transform = x_offset - line.x_offset;
 
-                let glyphs = self.segments.glyphs_range(IndexRange(line_start, line.end));                
+                let glyphs = self.segments.glyphs_range(IndexRange(line_start, line.end));
                 for g in &mut self.glyphs[glyphs.iter()] {
                     g.point.x += x_transform;
                     g.point.y += y_transform;

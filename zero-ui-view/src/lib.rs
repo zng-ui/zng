@@ -347,6 +347,8 @@ pub(crate) struct App {
 
     #[cfg(windows)]
     skip_ralt: bool,
+    #[cfg(windows)]
+    shift_pressed: (bool, bool),
 
     exited: bool,
 }
@@ -573,6 +575,8 @@ impl App {
             exited: false,
             #[cfg(windows)]
             skip_ralt: false,
+            #[cfg(windows)]
+            shift_pressed: (false, false),
         }
     }
 
@@ -769,12 +773,57 @@ impl App {
             } => {
                 if !is_synthetic {
                     #[cfg(windows)]
-                    if self.skip_ralt {
-                        // see the Window::focus comments.
-                        if let Some(glutin::event::VirtualKeyCode::RAlt) = input.virtual_keycode {
-                            return;
+                    {
+                        use glutin::event::ElementState;
+                        use glutin::event::VirtualKeyCode;
+
+                        if self.skip_ralt {
+                            // see the Window::focus comments.
+                            if let Some(glutin::event::VirtualKeyCode::RAlt) = input.virtual_keycode {
+                                return;
+                            }
+                        }
+
+                        // Windows eats a key up if both shifts are pressed and released.
+                        //
+                        // Pressing +LShift +RShift -LShift -RShift generates +LShift +RShift -RShift, notice the missing -LShift.
+                        match input.state {
+                            ElementState::Pressed => {
+                                self.shift_pressed.0 = input.virtual_keycode == Some(VirtualKeyCode::LShift);
+                                self.shift_pressed.1 = input.virtual_keycode == Some(VirtualKeyCode::RShift);
+                            }
+                            ElementState::Released => {
+                                if input.virtual_keycode == Some(VirtualKeyCode::LShift) {
+                                    self.shift_pressed.0 = false;
+                                    if self.shift_pressed.1 {
+                                        self.shift_pressed.1 = false;
+                                        let d_id = self.device_id(device_id);
+                                        self.notify(Event::KeyboardInput {
+                                            window: id,
+                                            device: d_id,
+                                            scan_code: 0x36,
+                                            state: KeyState::Released,
+                                            key: Some(Key::RShift),
+                                        });
+                                    }
+                                } else if input.virtual_keycode == Some(VirtualKeyCode::RShift) {
+                                    self.shift_pressed.1 = false;
+                                    if self.shift_pressed {
+                                        self.shift_pressed.0 = false;
+                                        let d_id = self.device_id(device_id);
+                                        self.notify(Event::KeyboardInput {
+                                            window: id,
+                                            device: d_id,
+                                            scan_code: 0x2a,
+                                            state: KeyState::Released,
+                                            key: Some(Key::LShift),
+                                        });
+                                    }
+                                }
+                            }
                         }
                     }
+
                     let d_id = self.device_id(device_id);
                     self.notify(Event::KeyboardInput {
                         window: id,
