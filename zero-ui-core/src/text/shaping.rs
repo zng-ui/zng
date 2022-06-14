@@ -391,7 +391,7 @@ impl ShapedText {
     ///
     /// [`size`]: Self::size
     /// [`padding`]: Self::padding
-    pub fn size_with_padding(&self) -> PxSize {
+    pub fn box_size(&self) -> PxSize {
         self.size() + PxSize::new(self.padding.horizontal(), self.padding.vertical())
     }
 
@@ -412,12 +412,23 @@ impl ShapedText {
 
     /// Reshape text.
     ///
+    /// The `align_box` closure is called with the up-to-date [`box_size`] to produce the the container rect where the
+    /// text is aligned.
+    ///
     /// Glyphs are moved, including the `align_box.origin`, the [`size`] only changes for rewrap.
     ///
     /// Re-wrap is not implemented TODO.
     ///
     /// [`size`]: Self::size
-    pub fn reshape(&mut self, align_box: PxRect, align: TextAlign, padding: PxSideOffsets, line_height: Px, line_spacing: Px) {
+    /// [`box_size`]: Self::box_size
+    pub fn reshape(
+        &mut self,
+        padding: PxSideOffsets,
+        line_height: Px,
+        line_spacing: Px,
+        align_box: impl FnOnce(PxSize) -> PxRect,
+        align: TextAlign,
+    ) {
         //
         // Line Height & Spacing
         //
@@ -460,6 +471,8 @@ impl ShapedText {
         if update_height {
             self.update_height();
         }
+
+        let align_box = align_box(self.size + PxSize::new(padding.horizontal(), padding.vertical()));
 
         //
         // Offset & Align
@@ -508,11 +521,11 @@ impl ShapedText {
     /// Restore text to initial shape.
     pub fn clear_reshape(&mut self) {
         self.reshape(
-            PxRect::zero(),
-            TextAlign::LEFT,
             PxSideOffsets::zero(),
             self.og_line_height,
             self.og_line_spacing,
+            |_| PxRect::zero(),
+            TextAlign::LEFT,
         );
     }
 
@@ -784,11 +797,11 @@ impl ShapedText {
         }
 
         text.reshape(
-            PxRect::zero(),
-            TextAlign::LEFT,
             PxSideOffsets::zero(),
             self.line_height,
             self.line_spacing,
+            |_| PxRect::zero(),
+            TextAlign::LEFT,
         );
 
         if self.is_empty() {
@@ -1829,7 +1842,8 @@ mod tests {
         let expected = font.shape_text(&text, &config);
 
         assert_eq!(from, test.line_spacing());
-        test.reshape(test.align_box(), test.align(), test.padding(), test.line_height(), to);
+        let align_box = test.align_box();
+        test.reshape(test.padding(), test.line_height(), to, |_| align_box, test.align());
         assert_eq!(to, test.line_spacing());
 
         for (i, (g0, g1)) in test.glyphs.iter().zip(expected.glyphs.iter()).enumerate() {
@@ -1864,7 +1878,8 @@ mod tests {
         let expected = font.shape_text(&text, &config);
 
         assert_eq!(from, test.line_height());
-        test.reshape(test.align_box(), test.align(), test.padding(), to, test.line_spacing());
+        let align_box = test.align_box();
+        test.reshape(test.padding(), to, test.line_spacing(), |_| align_box, test.align());
         assert_eq!(to, test.line_height());
 
         for (i, (g0, g1)) in test.glyphs.iter().zip(expected.glyphs.iter()).enumerate() {

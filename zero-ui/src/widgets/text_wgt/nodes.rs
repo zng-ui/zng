@@ -294,8 +294,8 @@ pub fn layout_text(child: impl UiNode, padding: impl IntoVar<SideOffsets>) -> im
             const UNDERLINE     = 0b0000_0001;
             const STRIKETHROUGH = 0b0000_0010;
             const OVERLINE      = 0b0000_0100;
-            const PADDING       = 0b0000_1111;
-            const RESHAPE       = 0b0001_1111;
+            const QUICK_RESHAPE = 0b0001_1111;
+            const RESHAPE       = 0b0011_1111;
         }
     }
     struct FinalText {
@@ -347,8 +347,8 @@ pub fn layout_text(child: impl UiNode, padding: impl IntoVar<SideOffsets>) -> im
                 pending.insert(Layout::RESHAPE);
             }
 
-            if !pending.contains(Layout::PADDING) && r.shaped_text.padding() != padding {
-                pending.insert(Layout::PADDING);
+            if !pending.contains(Layout::QUICK_RESHAPE) && r.shaped_text.padding() != padding {
+                pending.insert(Layout::QUICK_RESHAPE);
             }
 
             let font = r.fonts.best();
@@ -383,11 +383,14 @@ pub fn layout_text(child: impl UiNode, padding: impl IntoVar<SideOffsets>) -> im
             if !pending.contains(Layout::RESHAPE)
                 && (letter_spacing != self.shaping_args.letter_spacing
                     || word_spacing != self.shaping_args.word_spacing
-                    || tab_length != self.shaping_args.tab_x_advance
-                    || line_spacing != self.shaping_args.line_spacing
-                    || line_height != self.shaping_args.line_height)
+                    || tab_length != self.shaping_args.tab_x_advance)
             {
                 pending.insert(Layout::RESHAPE);
+            }
+            if !pending.contains(Layout::QUICK_RESHAPE)
+                && (line_spacing != self.shaping_args.line_spacing || line_height != self.shaping_args.line_height)
+            {
+                pending.insert(Layout::QUICK_RESHAPE);
             }
 
             self.shaping_args.letter_spacing = letter_spacing;
@@ -421,20 +424,32 @@ pub fn layout_text(child: impl UiNode, padding: impl IntoVar<SideOffsets>) -> im
             r.strikethrough_thickness = strikethrough;
             r.underline_thickness = underline;
 
+            let align = *TextAlignVar::get(vars);
+            if !pending.contains(Layout::QUICK_RESHAPE) && align != r.shaped_text.align() {
+                pending.insert(Layout::QUICK_RESHAPE);
+            }
+
             /*
                 APPLY
             */
+            let prev_final_size = r.shaped_text.box_size();
+
             if pending.contains(Layout::RESHAPE) {
                 r.shaped_text = r.fonts.shape_text(&t.text, &self.shaping_args);
                 r.shaped_text_version = r.shaped_text_version.wrapping_add(1);
             }
-            if pending.contains(Layout::PADDING) {
+
+            if !pending.contains(Layout::QUICK_RESHAPE) && prev_final_size != metrics.constrains().fill_size_or(r.shaped_text.box_size()) {
+                pending.insert(Layout::QUICK_RESHAPE);
+            }
+
+            if pending.contains(Layout::QUICK_RESHAPE) {
                 r.shaped_text.reshape(
-                    r.shaped_text.align_box(),
-                    r.shaped_text.align(),
                     padding,
-                    r.shaped_text.line_height(),
-                    r.shaped_text.line_spacing(),
+                    line_height,
+                    line_spacing,
+                    |size| PxRect::from_size(metrics.constrains().fill_size_or(size)),
+                    align,
                 );
 
                 let baseline = r.shaped_text.box_baseline() + padding.bottom;
@@ -491,9 +506,7 @@ pub fn layout_text(child: impl UiNode, padding: impl IntoVar<SideOffsets>) -> im
                 }
             }
 
-            let desired_size = r.shaped_text.size_with_padding();
-
-            metrics.constrains().fill_size_or(desired_size)
+            r.shaped_text.align_box().size
         }
     }
     struct LayoutTextNode<C, P> {
@@ -770,7 +783,7 @@ pub fn render_text() -> impl UiNode {
             let r = ResolvedText::get(ctx.vars).expect("expected `ResolvedText` in `render_text`");
             let t = LayoutText::get(ctx.vars).expect("expected `LayoutText` in `render_text`");
 
-            let clip = PxRect::from_size(t.shaped_text.size_with_padding());
+            let clip = t.shaped_text.align_box();
             let color = *TextColorVar::get(ctx.vars);
 
             let aa = *FontAaVar::get(ctx.vars);

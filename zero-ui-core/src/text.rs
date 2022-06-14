@@ -406,6 +406,22 @@ impl TextAlign {
         y: Factor(0.5),
     };
 
+    /// `LEFT` and vertically align all lines to center the parent box.
+    pub const LEFT_MIDDLE: TextAlign = TextAlign {
+        x: Factor(0.0),
+        x_rtl_aware: false,
+        x_justify: Justify::Auto,
+        y: Factor(0.5),
+    };
+
+    /// `RIGHT` and vertically align all lines to center the parent box.
+    pub const RIGHT_MIDDLE: TextAlign = TextAlign {
+        x: Factor(1.0),
+        x_rtl_aware: false,
+        x_justify: Justify::Auto,
+        y: Factor(0.5),
+    };
+
     /// Visually center on the horizontal and vertical.
     pub const CENTER_MIDDLE: TextAlign = TextAlign {
         x: Factor(0.5),
@@ -419,7 +435,7 @@ impl TextAlign {
         x: Factor(0.0),
         x_rtl_aware: true,
         x_justify: Justify::Auto,
-        y: Factor(0.5),
+        y: Factor(1.0),
     };
 
     /// `END` and vertically align all lines to the bottom of the parent box.
@@ -427,7 +443,23 @@ impl TextAlign {
         x: Factor(1.0),
         x_rtl_aware: true,
         x_justify: Justify::Auto,
-        y: Factor(0.5),
+        y: Factor(1.0),
+    };
+
+    /// `LEFT` and vertically align all lines to the bottom of the parent box.
+    pub const LEFT_BOTTOM: TextAlign = TextAlign {
+        x: Factor(0.0),
+        x_rtl_aware: false,
+        x_justify: Justify::Auto,
+        y: Factor(1.0),
+    };
+
+    /// `RIGHT` and vertically align all lines to the bottom of the parent box.
+    pub const RIGHT_BOTTOM: TextAlign = TextAlign {
+        x: Factor(1.0),
+        x_rtl_aware: false,
+        x_justify: Justify::Auto,
+        y: Factor(1.0),
     };
 
     /// Visually center on the horizontal and to the bottom on the vertical.
@@ -467,7 +499,7 @@ impl TextAlign {
         };
 
         if self.x_rtl_aware && rtl {
-            r * -1.fct()
+            r * -(1.fct())
         } else {
             r
         }
