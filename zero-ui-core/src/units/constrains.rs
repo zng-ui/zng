@@ -39,12 +39,12 @@ impl PxConstrains {
         }
     }
 
-    /// New bounded to only allow the `length`.
+    /// New bounded to only allow the `length` and fill.
     pub fn new_exact(length: Px) -> Self {
         PxConstrains {
             max: length,
             min: length,
-            fill: false,
+            fill: true,
         }
     }
 
@@ -223,7 +223,7 @@ impl PxConstrains {
     }
 }
 impl_from_and_into_var! {
-    /// New fixed.
+    /// New exact.
     fn from(length: Px) -> PxConstrains {
         PxConstrains::new_exact(length)
     }
@@ -276,7 +276,7 @@ impl PxConstrains2d {
         Self::new_bounded(max.width, max.height)
     }
 
-    /// New bounded to only allow the *size*.
+    /// New bounded to only allow the *size* and fill.
     ///
     /// The type [`PxSize`] can also be converted into fixed constrains.
     pub fn new_exact(x: Px, y: Px) -> Self {
@@ -286,7 +286,7 @@ impl PxConstrains2d {
         }
     }
 
-    /// New bounded to only allow the `size`.
+    /// New bounded to only allow the `size` and fill.
     pub fn new_exact_size(size: PxSize) -> Self {
         Self::new_exact(size.width, size.height)
     }
@@ -609,7 +609,7 @@ impl PxConstrains2d {
     }
 }
 impl_from_and_into_var! {
-    /// New fixed.
+    /// New exact.
     fn from(size: PxSize) -> PxConstrains2d {
         PxConstrains2d::new_exact(size.width, size.height)
     }
