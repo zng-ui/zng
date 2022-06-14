@@ -97,7 +97,7 @@ use std::{
 
 use gl::GlContextManager;
 use glutin::{
-    event::{DeviceEvent, WindowEvent},
+    event::{DeviceEvent, ModifiersState, WindowEvent},
     event_loop::{ControlFlow, EventLoop, EventLoopProxy, EventLoopWindowTarget},
     monitor::MonitorHandle,
     platform::run_return::EventLoopExtRunReturn,
@@ -347,8 +347,9 @@ pub(crate) struct App {
 
     #[cfg(windows)]
     skip_ralt: bool,
-    #[cfg(windows)]
-    shift_pressed: (bool, bool),
+
+    pressed_modifiers: linear_map::LinearMap<Key, (DeviceId, ScanCode)>,
+    pending_modifiers_update: Option<ModifiersState>,
 
     exited: bool,
 }
@@ -527,6 +528,7 @@ impl App {
                     GEvent::Resumed => {}
                     GEvent::MainEventsCleared => {
                         app.finish_cursor_entered_move();
+                        app.update_modifiers();
                         app.flush_coalesced();
                         #[cfg(windows)]
                         {
@@ -575,8 +577,8 @@ impl App {
             exited: false,
             #[cfg(windows)]
             skip_ralt: false,
-            #[cfg(windows)]
-            shift_pressed: (false, false),
+            pressed_modifiers: linear_map::LinearMap::new(),
+            pending_modifiers_update: None,
         }
     }
 
@@ -771,70 +773,48 @@ impl App {
                 input,
                 is_synthetic,
             } => {
-                if !is_synthetic {
+                if !is_synthetic && self.windows[i].is_focused() {
                     #[cfg(windows)]
-                    {
-                        use glutin::event::ElementState;
-                        use glutin::event::VirtualKeyCode;
-
-                        if self.skip_ralt {
-                            // see the Window::focus comments.
-                            if let Some(glutin::event::VirtualKeyCode::RAlt) = input.virtual_keycode {
-                                return;
-                            }
+                    if self.skip_ralt {
+                        // see the Window::focus comments.
+                        if let Some(glutin::event::VirtualKeyCode::RAlt) = input.virtual_keycode {
+                            return;
                         }
+                    }
 
-                        // Windows eats a key up if both shifts are pressed and released.
-                        //
-                        // Pressing +LShift +RShift -LShift -RShift generates +LShift +RShift -RShift, notice the missing -LShift.
-                        match input.state {
-                            ElementState::Pressed => {
-                                self.shift_pressed.0 = input.virtual_keycode == Some(VirtualKeyCode::LShift);
-                                self.shift_pressed.1 = input.virtual_keycode == Some(VirtualKeyCode::RShift);
-                            }
-                            ElementState::Released => {
-                                if input.virtual_keycode == Some(VirtualKeyCode::LShift) {
-                                    self.shift_pressed.0 = false;
-                                    if self.shift_pressed.1 {
-                                        self.shift_pressed.1 = false;
-                                        let d_id = self.device_id(device_id);
-                                        self.notify(Event::KeyboardInput {
-                                            window: id,
-                                            device: d_id,
-                                            scan_code: 0x36,
-                                            state: KeyState::Released,
-                                            key: Some(Key::RShift),
-                                        });
-                                    }
-                                } else if input.virtual_keycode == Some(VirtualKeyCode::RShift) {
-                                    self.shift_pressed.1 = false;
-                                    if self.shift_pressed {
-                                        self.shift_pressed.0 = false;
-                                        let d_id = self.device_id(device_id);
-                                        self.notify(Event::KeyboardInput {
-                                            window: id,
-                                            device: d_id,
-                                            scan_code: 0x2a,
-                                            state: KeyState::Released,
-                                            key: Some(Key::LShift),
-                                        });
-                                    }
+                    let state = util::element_state_to_key_state(input.state);
+                    let key = input.virtual_keycode.map(util::v_key_to_key);
+                    let d_id = self.device_id(device_id);
+
+                    let mut send_event = true;
+
+                    if let Some(key) = key {
+                        if key.is_modifier() {
+                            match state {
+                                KeyState::Pressed => {
+                                    send_event = self.pressed_modifiers.insert(key, (d_id, input.scancode)).is_none();
                                 }
+                                KeyState::Released => send_event = self.pressed_modifiers.remove(&key).is_some(),
                             }
                         }
                     }
 
-                    let d_id = self.device_id(device_id);
-                    self.notify(Event::KeyboardInput {
-                        window: id,
-                        device: d_id,
-                        scan_code: input.scancode,
-                        state: util::element_state_to_key_state(input.state),
-                        key: input.virtual_keycode.map(util::v_key_to_key),
-                    });
+                    if send_event {
+                        self.notify(Event::KeyboardInput {
+                            window: id,
+                            device: d_id,
+                            scan_code: input.scancode,
+                            state,
+                            key,
+                        });
+                    }
                 }
             }
-            WindowEvent::ModifiersChanged(_) => {}
+            WindowEvent::ModifiersChanged(m) => {
+                if self.windows[i].is_focused() {
+                    self.pending_modifiers_update = Some(m);
+                }
+            }
             WindowEvent::CursorMoved { device_id, position, .. } => {
                 let px_p = position.to_px();
                 let p = px_p.to_dip(scale_factor);
@@ -969,6 +949,68 @@ impl App {
                 *id
             } else {
                 0
+            }
+        }
+    }
+
+    fn update_modifiers(&mut self) {
+        // Winit monitors the modifiers keys directly, so this generates events
+        // that are not send to the window by the operating system.
+        //
+        // An Example:
+        // In Windows +LShift +RShift -LShift -RShift only generates +LShift +RShift -RShift, notice the missing -LShift.
+
+        if let Some(m) = self.pending_modifiers_update.take() {
+            if let Some(id) = self.windows.iter().find(|w| w.is_focused()).map(|w| w.id()) {
+                let mut notify = vec![];
+                self.pressed_modifiers.retain(|key, (d_id, s_code)| {
+                    let mut retain = true;
+                    if key.is_logo() && !m.logo() {
+                        retain = false;
+                        notify.push(Event::KeyboardInput {
+                            window: id,
+                            device: *d_id,
+                            scan_code: *s_code,
+                            state: KeyState::Released,
+                            key: Some(*key),
+                        });
+                    }
+                    if key.is_shift() && !m.shift() {
+                        retain = false;
+                        notify.push(Event::KeyboardInput {
+                            window: id,
+                            device: *d_id,
+                            scan_code: *s_code,
+                            state: KeyState::Released,
+                            key: Some(*key),
+                        });
+                    }
+                    if key.is_alt() && !m.alt() {
+                        retain = false;
+                        notify.push(Event::KeyboardInput {
+                            window: id,
+                            device: *d_id,
+                            scan_code: *s_code,
+                            state: KeyState::Released,
+                            key: Some(*key),
+                        });
+                    }
+                    if key.is_ctrl() && !m.ctrl() {
+                        retain = false;
+                        notify.push(Event::KeyboardInput {
+                            window: id,
+                            device: *d_id,
+                            scan_code: *s_code,
+                            state: KeyState::Released,
+                            key: Some(*key),
+                        });
+                    }
+                    retain
+                });
+
+                for ev in notify {
+                    self.notify(ev);
+                }
             }
         }
     }

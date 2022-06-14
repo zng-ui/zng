@@ -762,6 +762,13 @@ pub enum Event {
         new: Option<WindowId>,
     },
     /// An event from the keyboard has been received.
+    ///
+    /// This event is only send if the window is focused, all pressed keys should be considered released
+    /// after [`FocusChanged`] to `None`. Modifier keys receive special treatment, after they are pressed,
+    /// the modifier key state is monitored directly so that the `Released` event is always send, unless the
+    /// focus changed to none.
+    ///
+    /// [`FocusChanged`]: Self::FocusChanged
     KeyboardInput {
         /// Window that received the key event.
         window: WindowId,

@@ -400,6 +400,10 @@ impl Window {
         foreground.0 == self.window.hwnd() as isize
     }
 
+    pub fn is_focused(&self) -> bool {
+        self.focused.unwrap_or(false)
+    }
+
     /// Returns `true` if the previous focused status is different from `focused`.
     ///
     /// Sets the `focused` to if the window is actually the foreground keyboard focused window.
