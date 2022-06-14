@@ -118,6 +118,11 @@ impl PxConstrains {
         self
     }
 
+    /// Gets if the constrains have an upper bound.
+    pub fn is_bounded(self) -> bool {
+        self.max != Px::MAX
+    }
+
     /// Gets if the constrains have no upper bound.
     pub fn is_unbounded(self) -> bool {
         self.max == Px::MAX
@@ -165,6 +170,15 @@ impl PxConstrains {
     /// The minimum is inclusive.
     pub fn min(self) -> Px {
         self.min
+    }
+
+    /// Gets the maximum length if it is bounded, or the minimum if not.
+    pub fn max_bounded(self) -> Px {
+        if self.max < Px::MAX {
+            self.max
+        } else {
+            self.min
+        }
     }
 
     /// Clamp the `px` by min and max.
@@ -466,6 +480,14 @@ impl PxConstrains2d {
         self
     }
 
+    /// Gets if the constrains have an upper bound.
+    pub fn is_bounded(self) -> BoolVector2D {
+        BoolVector2D {
+            x: self.x.is_bounded(),
+            y: self.y.is_bounded(),
+        }
+    }
+
     /// Gets if the constrains have no upper bound.
     pub fn is_unbounded(self) -> BoolVector2D {
         BoolVector2D {
@@ -542,6 +564,11 @@ impl PxConstrains2d {
     /// Gets the maximum size if bounded, or the `size` clamped by constrains.
     pub fn max_size_or(self, size: PxSize) -> PxSize {
         PxSize::new(self.x.max_or(size.width), self.y.max_or(size.height))
+    }
+
+    /// Gets the maximum size if bounded, or the minimum if not.
+    pub fn max_bounded_size(self) -> PxSize {
+        PxSize::new(self.x.max_bounded(), self.y.max_bounded())
     }
 
     /// Gets the maximum fill size that preserves the `size` ratio.

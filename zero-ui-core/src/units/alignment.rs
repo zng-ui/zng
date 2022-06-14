@@ -2,7 +2,7 @@ use std::fmt::{self, Write};
 
 use crate::{impl_from_and_into_var, widget_info::WidgetLayoutTranslation};
 
-use super::{Factor, FactorPercent, Point, Px, PxConstrains2d, PxSize, PxVector};
+use super::{Factor, FactorPercent, Point, PxConstrains2d, PxSize, PxVector};
 
 /// `x` and `y` alignment.
 ///
@@ -75,9 +75,7 @@ impl Align {
 
     /// Constrains that must be used to layout a child node with the alignment.
     pub fn child_constrains(self, parent_constrains: PxConstrains2d) -> PxConstrains2d {
-        parent_constrains
-            .with_min(Px(0), Px(0))
-            .with_fill_and(self.is_fill_x(), self.is_fill_y())
+        parent_constrains.with_fill_and(self.is_fill_x(), self.is_fill_y())
     }
 
     /// Computes the size returned by [`layout`] for the given child size and constrains.

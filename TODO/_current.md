@@ -8,9 +8,7 @@
     - Current idea, have a `layout_parent = LayoutParent::Viewport`.
 
 * Fix text final size, either clip or return accurate size.
-* Use `ShapedText::reshape` for more things.
-    - Align.
-    - Line spacing & height.
+* Finish testing text align, move demo to example.
 
 * Implement reverse `UiNodeList`.
 
