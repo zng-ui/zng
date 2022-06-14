@@ -117,6 +117,10 @@ impl TextSegmentVec {
     fn glyphs_range(&self, range: IndexRange) -> IndexRange {
         let IndexRange(start, end) = range;
 
+        if end == 0 {
+            return IndexRange(0, 0);
+        }
+
         let start = if start == 0 { 0 } else { self.0[start - 1].end };
         let end = self.0[end - 1].end;
 
@@ -286,7 +290,7 @@ pub struct ShapedText {
     size: PxSize,
     line_height: Px,
     line_spacing: Px,
-    
+
     og_line_height: Px,
     og_line_spacing: Px,
 
@@ -383,9 +387,15 @@ impl ShapedText {
         self.size
     }
 
-    /// Current applied offsets around the text block.
-    ///
-    /// Note this padding is already computed in all other values.
+    /// Gets the [`size`] plus the [`padding`].
+    /// 
+    /// [`size`]: Self::size
+    /// [`padding`]: Self::padding
+    pub fn size_with_padding(&self) -> PxSize {
+        self.size() + PxSize::new(self.padding.horizontal(), self.padding.vertical())
+    }
+
+    /// Last applied padding.
     pub fn padding(&self) -> PxSideOffsets {
         self.padding
     }
@@ -402,43 +412,108 @@ impl ShapedText {
 
     /// Reshape text.
     ///
-    /// Glyphs are moved, including the `align_box.origin`, the [`size`] only changes to envelop the glyphs plus `padding`.
-    /// 
+    /// Glyphs are moved, including the `align_box.origin`, the [`size`] only changes for rewrap.
+    ///
     /// Re-wrap is not implemented TODO.
     ///
     /// [`size`]: Self::size
     pub fn reshape(&mut self, align_box: PxRect, align: TextAlign, padding: PxSideOffsets, line_height: Px, line_spacing: Px) {
-        let mut global_offset = euclid::vec2(0.0f32, 0.0f32);
+        //
+        // Line Height & Spacing
+        //
+        let mut update_height = false;
+        if self.line_height != line_height {
+            let offset_y = (line_height - self.line_height).0 as f32;
+            let mut offset = 0.0;
+            let center = offset_y / 2.0;
 
-        if self.padding != padding {
-            global_offset.x = (self.padding.left - padding.left).0 as f32;
-            global_offset.y = (self.padding.top - padding.top).0 as f32;
-        }
-        if self.align_box.origin != align_box.origin {
-            global_offset.x += (self.align_box.origin.x * Px(-1) + align_box.origin.x).0 as f32;
-            global_offset.y += (self.align_box.origin.y * Px(-1) + align_box.origin.y).0 as f32;
-        }
+            for (_, r) in self.lines.iter_segs() {
+                let r = self.segments.glyphs_range(r);
+                for g in &mut self.glyphs[r.iter()] {
+                    g.point.y += offset + center;
+                }
 
-        if global_offset != euclid::vec2(0.0, 0.0) {
-            for g in &mut self.glyphs {
-                g.point += global_offset;
+                offset += offset_y;
             }
 
-            self.size.width += self.padding.horizontal() - padding.horizontal();
-            self.size.height += self.padding.vertical() - padding.vertical();
+            self.line_height = line_height;
+            update_height = true;
+        }
+        if self.line_spacing != line_spacing {
+            if self.lines.is_multi() {
+                let offset_y = (line_spacing - self.line_spacing).0 as f32;
+                let mut offset = offset_y;
 
-            self.padding = padding;
-            self.align_box.origin = align_box.origin;
+                for (_, r) in self.lines.iter_segs_skip(1) {
+                    let r = self.segments.glyphs_range(r);
+
+                    for g in &mut self.glyphs[r.iter()] {
+                        g.point.y += offset;
+                    }
+
+                    offset += offset_y;
+                }
+                update_height = true;
+            }
+            self.line_spacing = line_spacing;
+        }
+        if update_height {
+            self.update_height();
         }
 
-        
+        //
+        // Offset & Align
+        //
+        if self.padding != padding || self.align_box != align_box || self.align != align {
+            let mut global_offset = euclid::vec2::<f32, ()>(
+                (padding.left + align_box.origin.x).0 as f32,
+                (padding.top + align_box.origin.y).0 as f32,
+            );
+            global_offset.y += (align_box.height() - padding.vertical() - self.size.height).0 as f32 * align.y();
 
-        // TODO !!: align
+            let y_transform = global_offset.y - self.y_offset;
+            
+            let max_line_w = self.size.width.0 as f32;
+            let empty_x = (align_box.width() - padding.horizontal() - self.size.width).0 as f32;
+            
+            let mut line_start = 0;
+            for line in &mut self.lines.0 {
+                let x_align = align.x(false); // TODO RTL per line.
+                let x_offset = global_offset.x + (max_line_w - line.width) * x_align + empty_x * x_align;
+
+                let x_transform = x_offset - line.x_offset;
+
+                let glyphs = self.segments.glyphs_range(IndexRange(line_start, line.end));                
+                for g in &mut self.glyphs[glyphs.iter()] {
+                    g.point.x += x_transform;
+                    g.point.y += y_transform;
+                }
+
+                line.x_offset = x_offset;
+
+                line_start = line.end;
+            }
+
+            self.y_offset = global_offset.y;
+            self.padding = padding;
+            self.align_box = align_box;
+            self.align = align;
+        }
+    }
+    fn update_height(&mut self) {
+        let lines = Px(self.lines.0.len() as i32);
+        self.size.height = self.line_height * lines + self.line_spacing * (lines - Px(1));
     }
 
     /// Restore text to initial shape.
     pub fn clear_reshape(&mut self) {
-        self.reshape(PxRect::zero(), TextAlign::LEFT, PxSideOffsets::zero(), self.og_line_height, self.og_line_spacing);
+        self.reshape(
+            PxRect::zero(),
+            TextAlign::LEFT,
+            PxSideOffsets::zero(),
+            self.og_line_height,
+            self.og_line_spacing,
+        );
     }
 
     /// Height of a single line.
@@ -446,65 +521,9 @@ impl ShapedText {
         self.line_height
     }
 
-    /// Set the line height, reposition glyphs if needed.
-    pub fn set_line_height(&mut self, line_height: Px) {
-        let diff = line_height - self.line_height;
-        if diff == Px(0) {
-            return;
-        }
-
-        if !self.is_empty() {
-            let line_diff = diff.0 as f32;
-            let mut diff = 0.0;
-            let center = line_diff / 2.0;
-
-            for (_, r) in self.lines.iter_segs() {
-                let r = self.segments.glyphs_range(r);
-                for g in &mut self.glyphs[r.iter()] {
-                    g.point.y += diff + center;
-                }
-
-                diff += line_diff;
-            }
-        }
-
-        self.line_height = line_height;
-        self.update_height();
-    }
-    fn update_height(&mut self) {
-        let lines = Px(self.lines.0.len() as i32);
-        self.size.height = self.line_height * lines + self.line_spacing * (lines - Px(1));
-    }
-
     /// Vertical spacing in between lines.
     pub fn line_spacing(&self) -> Px {
         self.line_spacing
-    }
-
-    /// Set the line spacing, reposition glyphs if needed.
-    pub fn set_line_spacing(&mut self, line_spacing: Px) {
-        let diff = line_spacing - self.line_spacing;
-        if diff == Px(0) {
-            return;
-        }
-
-        if self.lines.is_multi() {
-            let mut diff = diff.0 as f32;
-            let line_diff = diff;
-
-            for (_, r) in self.lines.iter_segs_skip(1) {
-                let r = self.segments.glyphs_range(r);
-
-                for g in &mut self.glyphs[r.iter()] {
-                    g.point.y += diff;
-                }
-
-                diff += line_diff;
-            }
-        }
-
-        self.line_spacing = line_spacing;
-        self.update_height();
     }
 
     /// Vertical offset from the line bottom up that is the text baseline.
@@ -728,9 +747,7 @@ impl ShapedText {
         }
 
         if self.segments.0.len() == 1 {
-            let padding = self.padding();
             *self = self.empty();
-            self.set_padding(padding);
         } else {
             if self.segments.last().kind == TextSegmentKind::LineBreak {
                 self.lines.0.pop();
@@ -758,20 +775,23 @@ impl ShapedText {
 
     /// Appends the `text` to the end of `self`.
     ///
-    /// Line height and spacing of `self` is applied to `text`, aligning by baseline.
-    ///
-    /// Any reshape in `text` is cleared, if `self`
+    /// Any reshape in `self` and `text` is cleared.
     pub fn extend(&mut self, mut text: ShapedText) {
+        self.clear_reshape();
+
         if text.is_empty() {
             return;
         }
 
-        text.set_padding(text.padding * -Px(1));
-        text.set_line_height(self.line_height);
-        text.set_line_spacing(self.line_spacing);
+        text.reshape(
+            PxRect::zero(),
+            TextAlign::LEFT,
+            PxSideOffsets::zero(),
+            self.line_height,
+            self.line_spacing,
+        );
 
         if self.is_empty() {
-            text.set_padding(self.padding);
             *self = text;
             return;
         }
@@ -1809,7 +1829,7 @@ mod tests {
         let expected = font.shape_text(&text, &config);
 
         assert_eq!(from, test.line_spacing());
-        test.set_line_spacing(to);
+        test.reshape(test.align_box(), test.align(), test.padding(), test.line_height(), to);
         assert_eq!(to, test.line_spacing());
 
         for (i, (g0, g1)) in test.glyphs.iter().zip(expected.glyphs.iter()).enumerate() {
@@ -1844,7 +1864,7 @@ mod tests {
         let expected = font.shape_text(&text, &config);
 
         assert_eq!(from, test.line_height());
-        test.set_line_height(to);
+        test.reshape(test.align_box(), test.align(), test.padding(), to, test.line_spacing());
         assert_eq!(to, test.line_height());
 
         for (i, (g0, g1)) in test.glyphs.iter().zip(expected.glyphs.iter()).enumerate() {

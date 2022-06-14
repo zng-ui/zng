@@ -429,7 +429,13 @@ pub fn layout_text(child: impl UiNode, padding: impl IntoVar<SideOffsets>) -> im
                 r.shaped_text_version = r.shaped_text_version.wrapping_add(1);
             }
             if pending.contains(Layout::PADDING) {
-                r.shaped_text.set_padding(padding);
+                r.shaped_text.reshape(
+                    r.shaped_text.align_box(),
+                    r.shaped_text.align(),
+                    padding,
+                    r.shaped_text.line_height(),
+                    r.shaped_text.line_spacing(),
+                );
 
                 let baseline = r.shaped_text.box_baseline() + padding.bottom;
                 t.baseline.set(baseline);
@@ -485,7 +491,7 @@ pub fn layout_text(child: impl UiNode, padding: impl IntoVar<SideOffsets>) -> im
                 }
             }
 
-            let desired_size = r.shaped_text.size();
+            let desired_size = r.shaped_text.size_with_padding();
 
             metrics.constrains().fill_size_or(desired_size)
         }
@@ -764,7 +770,7 @@ pub fn render_text() -> impl UiNode {
             let r = ResolvedText::get(ctx.vars).expect("expected `ResolvedText` in `render_text`");
             let t = LayoutText::get(ctx.vars).expect("expected `LayoutText` in `render_text`");
 
-            let clip = PxRect::from_size(t.shaped_text.size());
+            let clip = PxRect::from_size(t.shaped_text.size_with_padding());
             let color = *TextColorVar::get(ctx.vars);
 
             let aa = *FontAaVar::get(ctx.vars);

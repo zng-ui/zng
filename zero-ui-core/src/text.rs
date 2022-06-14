@@ -443,6 +443,48 @@ impl TextAlign {
         self.y = y.into();
         self
     }
+
+    /// Returns `true` if [`x`] is a special value that indicates the [`justify`] algorithm should be applied.
+    ///
+    /// [`x`]: Self::x
+    /// [`justify`]: Self::justify
+    pub fn is_justify(&self) -> bool {
+        self.x.0.is_infinite() && self.x.0.is_sign_positive()
+    }
+
+    /// Gets the actual [`x`] align value.
+    ///
+    /// [`x`]: Self::x
+    pub fn x(&self, rtl: bool) -> Factor {
+        let r = if self.x.0.is_finite() {
+            self.x
+        } else if self.is_justify() {
+            0.fct()
+        } else {
+            #[cfg(debug_assertions)]
+            tracing::error!("invalid horizontal text align {:?} ignored", self.x);
+            0.fct()
+        };
+
+        if self.x_rtl_aware && rtl {
+            r * -1.fct()
+        } else {
+            r
+        }
+    }
+
+    /// Gets the actual [`y`] align value.
+    ///
+    /// [`y`]: Self::y
+    pub fn y(&self) -> Factor {
+        if self.y.0.is_finite() {
+            self.y
+        } else {
+            #[cfg(debug_assertions)]
+            tracing::error!("invalid vertical text align {:?} ignored", self.y);
+            0.fct()
+        }
+    }
 }
 impl Default for TextAlign {
     /// [`TextAlign::START`].
