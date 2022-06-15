@@ -346,7 +346,7 @@ pub fn layout_text(child: impl UiNode, padding: impl IntoVar<SideOffsets>) -> im
 
             let r = self.layout.as_mut().unwrap();
 
-            if font_size != r.fonts.requested_size() {
+            if font_size != r.fonts.requested_size() || !r.fonts.is_sized_from(&t.faces) {
                 r.fonts = t.faces.sized(font_size, variations.finalize());
                 pending.insert(Layout::RESHAPE);
             }

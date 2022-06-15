@@ -1,5 +1,7 @@
 # Scrolling TODO
 
+* Auto-scroll to focused.
+
 * Parallax scrolling.
     - Test access to the scroll offset inside the content.
 
