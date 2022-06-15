@@ -444,7 +444,6 @@ pub fn layout_text(child: impl UiNode, padding: impl IntoVar<SideOffsets>) -> im
 
             if !pending.contains(Layout::QUICK_RESHAPE) && prev_final_size != metrics.constrains().fill_size_or(r.shaped_text.box_size()) {
                 pending.insert(Layout::QUICK_RESHAPE);
-                r.shaped_text_version = r.shaped_text_version.wrapping_add(1);
             }
 
             if pending.contains(Layout::QUICK_RESHAPE) {
@@ -455,6 +454,7 @@ pub fn layout_text(child: impl UiNode, padding: impl IntoVar<SideOffsets>) -> im
                     |size| PxRect::from_size(metrics.constrains().fill_size_or(size)),
                     align,
                 );
+                r.shaped_text_version = r.shaped_text_version.wrapping_add(1);
 
                 let baseline = r.shaped_text.box_baseline() + padding.bottom;
                 t.baseline.set(baseline);
@@ -579,9 +579,7 @@ pub fn layout_text(child: impl UiNode, padding: impl IntoVar<SideOffsets>) -> im
             } else {
                 let t = ResolvedText::get(ctx.vars).expect("expected `ResolvedText` in `measure`");
                 let mut pending = self.pending;
-                self.txt
-                    .borrow_mut()
-                    .layout(ctx.vars, ctx.metrics, self.padding.get(ctx.vars), t, &mut pending)
+                txt.layout(ctx.vars, ctx.metrics, self.padding.get(ctx.vars), t, &mut pending)
             }
         }
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
