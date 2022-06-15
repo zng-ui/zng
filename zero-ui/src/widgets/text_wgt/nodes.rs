@@ -303,6 +303,10 @@ pub fn layout_text(child: impl UiNode, padding: impl IntoVar<SideOffsets>) -> im
         shaping_args: TextShapingArgs,
     }
     impl FinalText {
+        fn measure(&mut self, ctx: &mut MeasureContext) -> Option<PxSize> {
+            ctx.constrains().fill_or_exact()
+        }
+
         fn layout(
             &mut self,
             vars: &VarsRead,
@@ -436,11 +440,11 @@ pub fn layout_text(child: impl UiNode, padding: impl IntoVar<SideOffsets>) -> im
 
             if pending.contains(Layout::RESHAPE) {
                 r.shaped_text = r.fonts.shape_text(&t.text, &self.shaping_args);
-                r.shaped_text_version = r.shaped_text_version.wrapping_add(1);
             }
 
             if !pending.contains(Layout::QUICK_RESHAPE) && prev_final_size != metrics.constrains().fill_size_or(r.shaped_text.box_size()) {
                 pending.insert(Layout::QUICK_RESHAPE);
+                r.shaped_text_version = r.shaped_text_version.wrapping_add(1);
             }
 
             if pending.contains(Layout::QUICK_RESHAPE) {
@@ -568,11 +572,17 @@ pub fn layout_text(child: impl UiNode, padding: impl IntoVar<SideOffsets>) -> im
         }
 
         fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
-            let t = ResolvedText::get(ctx.vars).expect("expected `ResolvedText` in `measure`");
-            let mut pending = self.pending;
-            self.txt
-                .borrow_mut()
-                .layout(ctx.vars, ctx.metrics, self.padding.get(ctx.vars), t, &mut pending)
+            let mut txt = self.txt.borrow_mut();
+
+            if let Some(size) = txt.measure(ctx) {
+                size
+            } else {
+                let t = ResolvedText::get(ctx.vars).expect("expected `ResolvedText` in `measure`");
+                let mut pending = self.pending;
+                self.txt
+                    .borrow_mut()
+                    .layout(ctx.vars, ctx.metrics, self.padding.get(ctx.vars), t, &mut pending)
+            }
         }
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
             let t = ResolvedText::get(ctx.vars).expect("expected `ResolvedText` in `layout`");
