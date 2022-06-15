@@ -583,10 +583,11 @@ pub mod z_stack {
     }
 
     fn new_child(items: impl WidgetList, items_align: impl IntoVar<Align>) -> impl UiNode {
-        ZStackNode {
+        let node = ZStackNode {
             children: ZSortedWidgetList::new(items),
             align: items_align.into_var(),
-        }
+        };
+        implicit_base::nodes::children_layout(node)
     }
     struct ZStackNode<C, A> {
         children: C,
