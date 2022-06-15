@@ -476,10 +476,10 @@ impl TextAlign {
         self
     }
 
-    /// Returns `true` if [`x`] is a special value that indicates the [`justify`] algorithm should be applied.
+    /// Returns `true` if [`x`] is a special value that indicates the [`x_justify`] algorithm should be applied.
     ///
     /// [`x`]: Self::x
-    /// [`justify`]: Self::justify
+    /// [`x_justify`]: Self::x_justify
     pub fn is_justify(&self) -> bool {
         self.x.0.is_infinite() && self.x.0.is_sign_positive()
     }
