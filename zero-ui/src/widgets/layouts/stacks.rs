@@ -110,6 +110,10 @@ pub mod h_stack {
                 },
             );
 
+            if size.width > Px(0) {
+                size.width -= spacing;
+            }
+
             constrains.fill_size_or(size)
         }
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
@@ -351,6 +355,10 @@ pub mod v_stack {
                     );
                 },
             );
+
+            if size.height > Px(0) {
+                size.height -= spacing;
+            }
 
             constrains.fill_size_or(size)
         }

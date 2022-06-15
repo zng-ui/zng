@@ -45,7 +45,7 @@ pub fn background(child: impl UiNode, background: impl UiNode) -> impl UiNode {
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
             let size = self.children.item_layout(1, ctx, wl);
             ctx.with_constrains(
-                |_| PxConstrains2d::new_exact_size(size),
+                |c| PxConstrains2d::new_exact_size(c.fill_size_or(size)),
                 |ctx| {
                     self.children.item_layout(0, ctx, wl);
                 },
@@ -166,7 +166,7 @@ pub fn foreground(child: impl UiNode, foreground: impl UiNode) -> impl UiNode {
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
             let size = self.children.item_layout(0, ctx, wl);
             ctx.with_constrains(
-                |_| PxConstrains2d::new_exact_size(size),
+                |c| PxConstrains2d::new_exact_size(c.fill_size_or(size)),
                 |ctx| {
                     self.children.item_layout(1, ctx, wl);
                 },
@@ -255,7 +255,7 @@ pub fn foreground_highlight(
             );
 
             let widths = ctx.with_constrains(
-                |_| PxConstrains2d::new_exact_size(size),
+                |c| PxConstrains2d::new_exact_size(c.fill_size_or(size)),
                 |ctx| self.widths.get(ctx.vars).layout(ctx.metrics, |_| PxSideOffsets::zero()),
             );
 
