@@ -1,4 +1,7 @@
 use crate::prelude::new_widget::*;
+use crate::widgets::text;
+
+use std::fmt;
 
 /// Render icons defined as glyphs in an icon font.
 ///
@@ -21,6 +24,11 @@ pub mod icon {
         /// Icon color.
         theme::icon_color as color;
 
+        /// Spacing in between the icon and background edges or border.
+        ///
+        /// Set to `0` by default.
+        padding = 0;
+
         // TODO, this panics in the `#[widget]`
         // /// Disabled color.
         // when self.is_disabled {
@@ -28,168 +36,31 @@ pub mod icon {
         // }
     }
 
-    fn new_child(icon: impl IntoVar<GlyphIcon>) -> impl UiNode {
-        nodes::icon(icon)
+    fn new_child() -> impl UiNode {
+        text::nodes::render_text()
     }
 
-    /// Nodes that implement the icon rendering.
-    pub mod nodes {
-        use super::*;
-        use theme::{IconColorVar, IconSizeVar};
+    fn new_fill(child: impl UiNode, padding: impl IntoVar<SideOffsets>) -> impl UiNode {
+        text::nodes::layout_text(child, padding)
+    }
 
-        use std::cell::RefCell;
-
-        /// Renders the `icon` using the contextual [`theme::IconSizeVar`] and [`theme::IconColorVar`].
-        pub fn icon(icon: impl IntoVar<GlyphIcon>) -> impl UiNode {
-            #[derive(Default)]
-            struct ShapedIcon {
-                face: Option<FontFaceRef>,
-                font: Option<FontRef>,
-
-                glyph: GlyphInstance,
-                baseline: Px,
-                bounds: PxSize,
-            }
-
-            impl ShapedIcon {
-                fn update_glyph(&mut self, glyph: &GlyphSource) {
-                    self.glyph.index = 0;
-                    self.bounds = PxSize::zero();
-                    self.baseline = Px(0);
-
-                    if let Some(face) = &self.face {
-                        match glyph {
-                            GlyphSource::Glyph(id) => {
-                                self.glyph.index = *id;
-                            }
-                            GlyphSource::Code(c) => {
-                                if let Some(id) = face.glyph_for_char(*c) {
-                                    self.glyph.index = id;
-                                }
-                            }
-                            GlyphSource::Ligature(c) => todo!(),
-                        }
-                    }
-                }
-
-                fn layout(&mut self, vars: &VarsRead, metrics: &LayoutMetrics) -> PxSize {
-                    if let Some(face) = &self.face {
-                        let size = IconSizeVar::get(vars).layout(metrics.for_x(), |m| IconSizeVar::default_value().layout(m, |_| Px(24)));
-
-                        if self.font.as_ref().map(|f| f.size() != size).unwrap_or(true) {
-                            self.font = Some(face.sized(size, vec![]));
-                        }
-
-                        if let Some(font) = &self.font {
-                            if self.glyph.index != 0 && self.bounds == PxSize::zero() {
-                                if let Ok(shape_glyph) = font.shape_glyph(self.glyph.index) {
-                                    (self.glyph, self.bounds, self.baseline) = shape_glyph;
-                                } else {
-                                    self.glyph.index = 0;
-                                }
-                            }
-                        }
-                    }
-                    self.bounds
-                }
-            }
-            struct IconNode<I> {
-                icon: I,
-                shaped: RefCell<ShapedIcon>,
-            }
-            #[impl_ui_node(none)]
-            impl<I: Var<GlyphIcon>> UiNode for IconNode<I> {
-                fn init(&mut self, ctx: &mut WidgetContext) {
-                    let s = self.shaped.get_mut();
-                    let icon = self.icon.get(ctx.vars);
-                    s.face = ctx.services.fonts().get_normal(&icon.font, &lang!(und));
-                    s.update_glyph(&icon.glyph);
-                }
-
-                fn deinit(&mut self, _: &mut WidgetContext) {
-                    let s = self.shaped.get_mut();
-                    s.face = None;
-                    s.font = None;
-                }
-
-                fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-                    subs.vars(ctx).var(&self.icon).var(&IconSizeVar::new()).var(&IconColorVar::new());
-                }
-
-                fn update(&mut self, ctx: &mut WidgetContext) {
-                    if let Some(ico) = self.icon.get_new(ctx.vars) {
-                        let s = self.shaped.get_mut();
-
-                        if let Some(face) = &s.face {
-                            if face.family_name() != &ico.font {
-                                s.face = ctx.services.fonts().get_normal(&ico.font, &lang!(und));
-                                s.font = None;
-                            }
-                        }
-
-                        s.update_glyph(&self.icon.get(ctx.vars).glyph);
-
-                        ctx.updates.layout_and_render();
-                    }
-
-                    if IconSizeVar::is_new(ctx) {
-                        self.shaped.get_mut().font = None;
-                        ctx.updates.layout();
-                    }
-                    if IconColorVar::is_new(ctx) {
-                        ctx.updates.render();
-                    }
-                }
-
-                fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
-                    self.shaped.borrow_mut().layout(ctx.vars, ctx.metrics)
-                }
-
-                fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
-                    let s = self.shaped.get_mut();
-                    let r = s.layout(ctx.vars, ctx.metrics);
-                    wl.set_baseline(s.baseline);
-                    r
-                }
-
-                fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-                    let s = self.shaped.borrow();
-                    if s.glyph.index != 0 {
-                        if let Some(font) = &s.font {
-                            let color = *IconColorVar::get(ctx);
-                            frame.push_text(
-                                PxRect::from_size(s.bounds),
-                                &[s.glyph],
-                                font,
-                                color.into(),
-                                FontSynthesis::DISABLED,
-                                FontAntiAliasing::Default,
-                            );
-                        }
-                    }
-                }
-            }
-            IconNode {
-                icon: icon.into_var(),
-                shaped: RefCell::default(),
-            }
-        }
+    fn new_event(child: impl UiNode, icon: impl IntoVar<GlyphIcon>) -> impl UiNode {
+        let icon = icon.into_var();
+        let node = text::nodes::resolve_text(child, icon.map(|i| i.glyph.clone().into()));
+        let node = text::properties::font_family(node, icon.map(|i| i.font.clone().into()));
+        let node = text::properties::font_size(node, theme::IconSizeVar);
+        text::properties::text_color(node, theme::IconColorVar)
     }
 
     /// Identifies an icon glyph in the font set.
-    #[derive(Clone, PartialEq, Eq, Hash, Debug)]
+    #[derive(Clone, PartialEq, Eq, Hash)]
     pub enum GlyphSource {
-        /// Direct reference to the glyph.
-        Glyph(GlyphIndex),
         /// Code "char" that is mapped to the glyph.
         Code(char),
         /// String that resolves to the glyph due to the default ligature config of the font.
         Ligature(Text),
     }
     impl_from_and_into_var! {
-        fn from(id: GlyphIndex) -> GlyphSource {
-            GlyphSource::Glyph(id)
-        }
         fn from(code: char) -> GlyphSource {
             GlyphSource::Code(code)
         }
@@ -198,6 +69,31 @@ pub mod icon {
         }
         fn from(ligature: Text) -> GlyphSource {
             GlyphSource::Ligature(ligature)
+        }
+        fn from(source: GlyphSource) -> Text {
+            match source {
+                GlyphSource::Code(c) => Text::from_char(c),
+                GlyphSource::Ligature(l) => l,
+            }
+        }
+    }
+    impl fmt::Debug for GlyphSource {
+        fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+            if f.alternate() {
+                write!(f, "GlyphSource::")?;
+            }
+            match self {
+                GlyphSource::Code(c) => write!(f, "Code({c:?})"),
+                GlyphSource::Ligature(l) => write!(f, "Ligature({l:?})"),
+            }
+        }
+    }
+    impl fmt::Display for GlyphSource {
+        fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+            match self {
+                GlyphSource::Code(c) => write!(f, "{c}"),
+                GlyphSource::Ligature(l) => write!(f, "{l}"),
+            }
         }
     }
 

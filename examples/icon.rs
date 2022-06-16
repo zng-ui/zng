@@ -46,7 +46,6 @@ fn icon_btn(ico: icons::MaterialIcon) -> impl Widget {
             items = widgets![
                 icon! {
                     icon = ico.clone();
-                    background_color = colors::RED;
                 },
                 text! {
                     text = formatx!("{ico}");
@@ -86,7 +85,7 @@ fn expanded_icon(ico: icons::MaterialIcon) -> impl Widget {
                     items_align = Align::TOP_LEFT;
                     items = widgets![
                         title(formatx!("{ico}")),
-    
+
                         sub_title("Using `icon!`:"),
                         h_stack! {
                             spacing = 5;
@@ -108,14 +107,14 @@ fn expanded_icon(ico: icons::MaterialIcon) -> impl Widget {
                                 }.boxed_wgt()
                             })).collect::<WidgetVec>()
                         },
-    
+
                         sub_title("Using `text!`:"),
                         h_stack! {
                             spacing = 5;
                             items_align = Align::TOP_LEFT;
                             items = [64, 48, 32, 24, 16].into_iter().map(clone_move!(ico, |size| {
                                 v_stack! {
-                                    spacing = 3;                                
+                                    spacing = 3;
                                     items = widgets![
                                         size_label(formatx!("{size}")),
                                         text! {

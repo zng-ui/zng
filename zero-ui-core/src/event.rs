@@ -384,12 +384,12 @@ impl EventDeliveryList {
         }
 
         let windows = self.windows.borrow();
-        
+
         if windows.is_empty() {
             self.depth.set(self.depth.get() + 1);
             return false;
         }
-        
+
         let window = &windows[self.window.get()];
         if window.all {
             self.depth.set(self.depth.get() + 1);
