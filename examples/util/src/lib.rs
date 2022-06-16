@@ -18,7 +18,7 @@ pub fn print_trace() {
 fn tracing_print(max: Level) {
     tracing_subscriber::registry()
         .with(FilterLayer(max))
-        .with(tracing_subscriber::fmt::layer().without_time().pretty())
+        .with(tracing_subscriber::fmt::layer().without_time())
         .init();
 }
 

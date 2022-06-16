@@ -76,7 +76,7 @@ pub mod icon {
                     if let Some(face) = &self.face {
                         let size = IconSizeVar::get(vars).layout(metrics.for_x(), |m| IconSizeVar::default_value().layout(m, |_| Px(24)));
 
-                        if self.font.as_ref().map(|f| f.size() != size).unwrap_or(false) {
+                        if self.font.as_ref().map(|f| f.size() != size).unwrap_or(true) {
                             self.font = Some(face.sized(size, vec![]));
                         }
 

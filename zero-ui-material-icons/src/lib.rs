@@ -11,7 +11,7 @@
 #![warn(missing_docs)]
 #![cfg_attr(doc_nightly, feature(doc_cfg))]
 
-use std::fmt;
+use std::{fmt, mem};
 
 use zero_ui::{
     core::{
@@ -64,6 +64,12 @@ pub struct MaterialIcon {
     /// Codepoint.
     pub code: char,
 }
+impl MaterialIcon {
+    /// Format the name for display.
+    pub fn display_name(&self) -> String {
+        format!("{self}")
+    }
+}
 impl_from_and_into_var! {
     fn from(icon: MaterialIcon) -> GlyphIcon {
         GlyphIcon {
@@ -74,7 +80,33 @@ impl_from_and_into_var! {
 }
 impl fmt::Display for MaterialIcon {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.name)
+        let mut chars = self.name.chars();
+        if let Some(n) = chars.next() {
+            // skip N if followed by number.
+            if n == 'N' {
+                if let Some(q) = chars.next() {
+                    if !q.is_digit(10) {
+                        write!(f, "{n}")?;
+                    }
+                    write!(f, "{q}")?;
+                }
+            } else {
+                write!(f, "{n}")?;
+            }
+        }
+        let mut is_cap = false;
+        for c in chars {
+            if c == '_' {
+                write!(f, " ")?;
+                is_cap = true;
+            } else if mem::take(&mut is_cap) {
+                write!(f, "{c}")?;
+            } else {
+                write!(f, "{}", c.to_lowercase())?;
+            }
+        }
+
+        Ok(())
     }
 }
 

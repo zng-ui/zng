@@ -994,6 +994,8 @@ struct FontFaceLoader {
     custom_fonts: HashMap<FontName, Vec<FontFaceRef>>,
     system_fonts: font_kit::source::SystemSource,
     system_fonts_cache: HashMap<FontName, Vec<SystemFontFace>>,
+    #[cfg(debug_assertions)]
+    not_found_names: linear_map::set::LinearSet<FontName>,
 }
 enum SystemFontFace {
     /// Properties queried and face returned by system.
@@ -1007,6 +1009,8 @@ impl FontFaceLoader {
             custom_fonts: HashMap::new(),
             system_fonts: font_kit::source::SystemSource::new(),
             system_fonts_cache: HashMap::new(),
+            #[cfg(debug_assertions)]
+            not_found_names: linear_map::set::LinearSet::new(),
         }
     }
 
@@ -1172,6 +1176,11 @@ impl FontFaceLoader {
             }
         } else {
             sys_family.push(SystemFontFace::NotFound(style, weight, stretch));
+        }
+
+        #[cfg(debug_assertions)]
+        if self.not_found_names.insert(font_name.clone()) {
+            tracing::warn!(r#"font "{font_name}" not found"#);
         }
 
         None // no new match
