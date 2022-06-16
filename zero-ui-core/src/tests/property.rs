@@ -205,6 +205,12 @@ fn generic_name_collision() {
 mod generics {
     use crate::{property, var::*, UiNode};
 
+    #[derive(Debug, Clone)]
+    pub enum Value {
+        A,
+        B,
+    }
+
     #[property(context, allowed_in_when = false)]
     pub fn unbounded<A>(child: impl UiNode, a: A) -> impl UiNode {
         let _a = unbounded::ArgsImpl::new(a);
@@ -238,23 +244,23 @@ mod generics {
 fn generics() {
     use generics::*;
 
-    let _ = unbounded(NilUiNode, 'a');
-    let args = unbounded::ArgsImpl::new('a');
+    let _ = unbounded(NilUiNode, Value::A);
+    let args = unbounded::ArgsImpl::new(Value::B);
     let _ = unbounded::set(args, NilUiNode);
 
-    fn value() -> impl Into<char> {
-        'a'
+    fn value() -> impl Into<Value> {
+        Value::A
     }
     let _ = unbounded_phantom(NilUiNode, value());
     let args = unbounded_phantom::ArgsImpl::new(value());
     let _ = unbounded_phantom::set(args, NilUiNode);
 
-    let _ = generic_child(NilUiNode, 'a');
-    let args = generic_child::ArgsImpl::new('a');
+    let _ = generic_child(NilUiNode, Value::A);
+    let args = generic_child::ArgsImpl::new(Value::B);
     let _ = generic_child::set(args, NilUiNode);
 
-    let _ = where_bounds(NilUiNode, 'a', 'b');
-    let args = where_bounds::ArgsImpl::new('a', 'b');
+    let _ = where_bounds(NilUiNode, Value::A, Value::B);
+    let args = where_bounds::ArgsImpl::new(Value::A, Value::B);
     let _ = where_bounds::set(args, NilUiNode);
 }
 
@@ -289,6 +295,12 @@ fn not_into_var_inputs() {
 mod phantom_type {
     use crate::{property, var::*, UiNode};
 
+    #[derive(Debug, Clone)]
+    pub enum Value {
+        A,
+        B,
+    }
+
     #[property(context)]
     pub fn phantom_generated<A: VarValue>(child: impl UiNode, a: impl IntoVar<A>, b: impl IntoVar<A>) -> impl UiNode {
         let _args = phantom_generated::ArgsImpl {
@@ -309,8 +321,8 @@ mod phantom_type {
 fn phantom_type() {
     use phantom_type::*;
 
-    let _ = phantom_generated(NilUiNode, 'a', 'a');
-    let args = phantom_generated::ArgsImpl::new('a', 'a');
+    let _ = phantom_generated(NilUiNode, Value::A, Value::B);
+    let args = phantom_generated::ArgsImpl::new(Value::A, Value::B);
     let _ = phantom_generated::set(args, NilUiNode);
 
     let _ = no_phantom_generated(NilUiNode, vec![]);

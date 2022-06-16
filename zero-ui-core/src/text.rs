@@ -1434,6 +1434,17 @@ impl Text {
         Text(TextData::Owned(s))
     }
 
+    /// New text that is an inlined `char`.
+    pub fn from_char(c: char) -> Text {
+        #[allow(clippy::assertions_on_constants)]
+        const _: () = assert!(4 <= INLINE_MAX, "cannot inline char");
+
+        let mut buf = [0u8; 4];
+        let s = c.encode_utf8(&mut buf);
+
+        Text(TextData::Inline(str_to_inline(s)))
+    }
+
     /// New text that is a interned string or a more efficient representation.
     ///
     /// If `s` byte length is larger then the `size_of::<String>()` the string is lookup
@@ -1703,6 +1714,9 @@ impl_from_and_into_var! {
             Cow::Borrowed(s) => Text(TextData::Static(s)),
             Cow::Owned(s) => Text(TextData::Owned(s))
         }
+    }
+    fn from(c: char) -> Text {
+        Text::from_char(c)
     }
     fn from(t: Text) -> String {
         t.into_owned()

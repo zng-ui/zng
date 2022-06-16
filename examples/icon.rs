@@ -44,7 +44,10 @@ fn icon_btn(ico: icons::MaterialIcon) -> impl Widget {
             spacing = 2;
             items_align = Align::CENTER;
             items = widgets![
-                icon(ico.clone()),
+                icon! {
+                    icon = ico.clone();
+                    background_color = colors::RED;
+                },
                 text! {
                     text = formatx!("{ico}");
                     font_size = 10;
@@ -71,26 +74,96 @@ fn expanded_icon(ico: icons::MaterialIcon) -> impl Widget {
             WindowLayers::remove(ctx, "expanded-icon");
         });
         content = container! {
-            background_color = colors::BLACK.with_alpha(90.pct());
+            background_color = rgb(0.1, 0.1, 0.1);
             focus_scope = true;
             tab_nav = TabNav::Cycle;
             directional_nav = DirectionalNav::Cycle;
             drop_shadow = (0, 0), 4, colors::BLACK;
             padding = 10;
-            content = v_stack! {
-                spacing = 5;
-                items_align = Align::TOP_LEFT;
-                items = widgets![
-                    text! {
-                        text = formatx!("{ico}");
-                        font_size = 24;
-                    },
-                    icon! {
-                        icon = ico;
-                        size = 64;
-                    }
-                ]
-            }
+            content = z_stack(widgets![
+                v_stack! {
+                    spacing = 5;
+                    items_align = Align::TOP_LEFT;
+                    items = widgets![
+                        title(formatx!("{ico}")),
+    
+                        sub_title("Using `icon!`:"),
+                        h_stack! {
+                            spacing = 5;
+                            items_align = Align::TOP_LEFT;
+                            items = [64, 48, 32, 24, 16].into_iter().map(clone_move!(ico, |size| {
+                                v_stack! {
+                                    spacing = 3;
+                                    items = widgets![
+                                        size_label(formatx!("{size}")),
+                                        icon! {
+                                            icon = ico.clone();
+                                            size;
+
+                                            background_color = rgb(0.15, 0.15, 0.15);
+                                            corner_radius = 4;
+                                            padding = 2;
+                                        }
+                                    ]
+                                }.boxed_wgt()
+                            })).collect::<WidgetVec>()
+                        },
+    
+                        sub_title("Using `text!`:"),
+                        h_stack! {
+                            spacing = 5;
+                            items_align = Align::TOP_LEFT;
+                            items = [64, 48, 32, 24, 16].into_iter().map(clone_move!(ico, |size| {
+                                v_stack! {
+                                    spacing = 3;                                
+                                    items = widgets![
+                                        size_label(formatx!("{size}")),
+                                        text! {
+                                            text = ico.code;
+                                            font_family = ico.font.clone();
+                                            font_size = size;
+
+                                            background_color = rgb(0.15, 0.15, 0.15);
+                                            corner_radius = 4;
+                                            padding = 2;
+                                        }
+                                    ]
+                                }.boxed_wgt()
+                            })).collect::<WidgetVec>()
+                        }
+                    ]
+                },
+                button! {
+                    content = icon(icons::filled::CLOSE);
+                    align = Align::TOP_RIGHT;
+                    padding = 2;
+                    margin = 4;
+                    on_click = hn!(|ctx, _| {
+                        WindowLayers::remove(ctx, "expanded-icon");
+                    });
+                }
+            ])
         }
+    }
+}
+
+fn title(title: Text) -> impl Widget {
+    text! {
+        text = title;
+        font_size = 24;
+        text_align = TextAlign::CENTER;
+    }
+}
+fn sub_title(title: impl Into<Text>) -> impl Widget {
+    text! {
+        text = title.into();
+        font_size = 16;
+    }
+}
+fn size_label(size: Text) -> impl Widget {
+    text! {
+        text = size;
+        font_size = 10;
+        text_align = TextAlign::CENTER;
     }
 }

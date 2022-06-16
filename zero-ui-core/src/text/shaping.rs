@@ -1469,15 +1469,16 @@ impl Font {
             .map(|v| LayoutVector2D::new(v.x(), v.y()) * self.metrics().size_scale)
     }
 
-    /// Gets the glyph instance, bounds and baseline.
+    /// Gets the glyph instance, bounds and baseline for a glyph as if it was shaped as the only glyph of a text.
     pub fn shape_glyph(&self, index: GlyphIndex) -> Result<(GlyphInstance, PxSize, Px), GlyphLoadingError> {
         let instance = GlyphInstance {
             index,
             point: self.origin(index)?.to_point(),
         };
-        let bounds = self.typographic_bounds(index)?.size;
-        let bounds = PxSize::new(Px(bounds.width.round() as i32), Px(bounds.height.round() as i32));
         let metrics = self.metrics();
+
+        let advance = self.advance(index)?.x;
+        let bounds = PxSize::new(Px(advance.round() as i32), self.metrics().line_height());
 
         let baseline = metrics.ascent + metrics.line_gap / 2.0;
         let baseline = bounds.height - baseline;

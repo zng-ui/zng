@@ -980,7 +980,7 @@ pub mod prelude {
     #[doc(no_inline)]
     pub use crate::widgets::scrollable::ScrollMode;
     #[doc(no_inline)]
-    pub use crate::widgets::window::{WindowLayers, LayerIndex};
+    pub use crate::widgets::window::{LayerIndex, WindowLayers};
 
     /// All the types you need to declare a new property.
     ///
