@@ -28,6 +28,10 @@ mod image_wgt;
 #[doc(inline)]
 pub use image_wgt::image;
 
+mod icon_wgt;
+#[doc(inline)]
+pub use icon_wgt::icon;
+
 mod rule_line_wgt;
 #[doc(inline)]
 pub use rule_line_wgt::{hr, rule_line};

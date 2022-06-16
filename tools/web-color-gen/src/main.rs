@@ -3,14 +3,32 @@
 use serde::Deserialize;
 
 fn main() {
-    let colors: Vec<WebColor> = serde_json::from_str(JSON).unwrap();
+    println!("{}", generate().unwrap());
+}
+
+fn generate() -> Result<String, Box<dyn std::error::Error>> {
+    let colors: Vec<WebColor> = serde_json::from_str(JSON)?;
+
+    let mut s = String::new();
+
     for color in colors {
-        println! {}
-        println! {"/// {} (`#{}`)", color.doc_name(), color.hex}
-        println! {"///"}
-        println! {"/// `rgb({}, {}, {})`", color.rgb.r, color.rgb.g, color.rgb.b}
-        println! {"pub const {}: Color = rgb!({}, {}, {});", color.const_name(), color.rgb.r, color.rgb.g, color.rgb.b}
+        use std::fmt::Write;
+
+        writeln!(&mut s)?;
+        writeln!(&mut s, "/// {} (`#{}`)", color.doc_name(), color.hex)?;
+        writeln!(&mut s, "///")?;
+        writeln!(&mut s, "/// `rgb({}, {}, {})`", color.rgb.r, color.rgb.g, color.rgb.b)?;
+        writeln!(
+            &mut s,
+            "pub const {}: Color = rgb!({}, {}, {});",
+            color.const_name(),
+            color.rgb.r,
+            color.rgb.g,
+            color.rgb.b
+        )?;
     }
+
+    Ok(s)
 }
 
 // credits to https://gist.github.com/raineorshine/10394189

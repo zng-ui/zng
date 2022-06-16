@@ -16,7 +16,9 @@
         "rust"
     ],
     "explorer.fileNesting.patterns": {
-        "*.rs": "${capture}.stderr"
+        "*.rs": "${capture}.stderr",
+        "*.otf": "${capture}.codepoints",
+        "*.ttf": "${capture}.codepoints",
     },
     "rust-analyzer.runnables.command": "cargo do rust_analyzer_run",
 }

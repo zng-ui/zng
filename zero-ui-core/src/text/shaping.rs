@@ -14,6 +14,7 @@ use crate::{
 };
 
 pub use font_kit::error::GlyphLoadingError;
+use zero_ui_view_api::webrender_api::units::LayoutVector2D;
 
 /// Extra configuration for [`shape_text`](Font::shape_text).
 #[derive(Debug, Clone)]
@@ -1430,7 +1431,7 @@ impl Font {
         }
     }
 
-    /// Glyph index for the space `' ' ` character.
+    /// Glyph index for the space `' '` character.
     pub fn space_index(&self) -> GlyphIndex {
         self.font.get_nominal_glyph(' ').unwrap_or(0)
     }
@@ -1450,6 +1451,13 @@ impl Font {
         );
 
         Px(adv as i32)
+    }
+
+    /// Gets the distance from the origin of the glyph with the given ID to the next.
+    pub fn advance(&self, index: GlyphIndex) -> Result<LayoutVector2D, GlyphLoadingError> {
+        self.face().font_kit().advance(index).map(|v| {
+            todo!()
+        })
     }
 
     /// Calculates a [`ShapedText`].

@@ -19,14 +19,13 @@ fn main() -> Result<(), Box<dyn Error>> {
         let file = entry.path();
 
         if file.extension().map(|e| e == "js").unwrap_or_default() {
+            let js_str = fs::read_to_string(&file)?;
+
             let out_file = out_dir.join(file.file_name().unwrap());
+            let out_file = fs::File::create(out_file)?;
+            js::minify(&js_str).write(out_file)?;
 
             println!("cargo:rerun-if-changed={}", file.display());
-
-            let js_str = fs::read_to_string(&file)?;
-            let js_str = js::minify(&js_str);
-
-            fs::write(out_file, js_str)?;
         }
     }
 

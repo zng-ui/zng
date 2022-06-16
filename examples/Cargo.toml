@@ -10,6 +10,7 @@ tracing = "0.1"
 lipsum = "0.8.0"
 
 zero-ui = { path = "../zero-ui", features = ["test_util"] }
+zero-ui-material-icons = { path = "../zero-ui-material-icons" }
 zero-ui-view = { path = "../zero-ui-view" }
 zero-ui-view-prebuilt = { path = "../zero-ui-view-prebuilt" }
 examples-util = { path = "util" }
@@ -53,6 +54,10 @@ path = "headless.rs"
 [[example]]
 name = "hit_test"
 path = "hit_test.rs"
+
+[[example]]
+name = "icon"
+path = "icon.rs"
 
 [[example]]
 name = "image"

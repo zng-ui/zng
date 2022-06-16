@@ -1,0 +1,42 @@
+[package]
+name = "zero-ui-material-icons"
+version = "0.1.0"
+authors = ["Samuel Guerra <sam.rodr.g@gmail.com>", "Well <well-r@hotmail.com>"]
+edition = "2021"
+license = "Apache-2.0"
+
+[features]
+default = ["embedded", "outlined", "filled", "rounded", "sharp", "two_tone"]
+
+# Embedded font files.
+embedded = []
+
+# Outlined icon set.
+outlined = []
+
+# Filled icon set.
+filled = []
+
+# Rounded icon set.
+rounded = []
+
+# Sharp icon set.
+sharp = []
+
+# Two-tone icon set.
+two_tone = []
+
+# # Other Features
+#
+# ## `doc_nightly`
+#
+# Activates nightly only `rustdoc` features. The crate is already configured to use this feature
+# in "docs.rs" and `do doc`.
+# 
+# Use `#![cfg_attr(doc_nightly, feature(doc_foo))]` in the `lib.rs` to activate a `rustdoc` feature. Then
+# use `#[cfg_attr(doc_nightly, doc(foo))]` in an item.
+# 
+# Use `RUSTDOCFLAGS="--cfg doc_nightly" cargo +nightly doc` to run `cargo doc` without using `do`.
+
+[dependencies]
+zero-ui= { path = "../zero-ui" }

@@ -886,6 +886,14 @@ impl FontName {
         }
     }
 
+    /// New font name from `&'static str`.
+    pub const fn from_static(name: &'static str) -> Self {
+        FontName {
+            text: Text::from_static(name),
+            is_ascii: false, // TODO, need const is_ascii
+        }
+    }
+
     /// New font name.
     ///
     /// Note that the inner name value is a [`Text`] so you can define a font name using `&'static str` or `String`.

@@ -19,4 +19,4 @@ regex = { version = "1", optional = true }
 pathdiff = { version = "0.2", optional = true }
 
 [build-dependencies]
-minifier = "0.0.43"
+minifier = "0.2.1"
