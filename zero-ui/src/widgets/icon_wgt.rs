@@ -82,8 +82,8 @@ pub mod icon {
 
                         if let Some(font) = &self.font {
                             if self.glyph.index != 0 && self.bounds == PxSize::zero() {
-                                if let Ok(info) = font.typographic_bounds(self.glyph.index) {
-                                    self.baseline = font.metrics().baseline;
+                                if let Ok(shape_glyph) = font.shape_glyph(self.glyph.index) {
+                                    (self.glyph, self.bounds, self.baseline) = shape_glyph;
                                 } else {
                                     self.glyph.index = 0;
                                 }

@@ -2,7 +2,7 @@
 //!
 //! The constants are defined in a module for each font. The font files are embedded
 //! and can be registered using the [`MaterialFonts`] app extension.
-//! 
+//!
 //! The icons are from the [Material Design Icons] project.
 //!
 //! [`icon!`]: mod@zero_ui::widgets::icon
@@ -17,7 +17,7 @@ use zero_ui::{
     core::{
         app::AppExtension,
         impl_from_and_into_var,
-        text::{FontName, Fonts, FontsExt, CustomFont, FontDataRef},
+        text::{CustomFont, FontDataRef, FontName, Fonts, FontsExt},
     },
     widgets::icon::GlyphIcon,
 };

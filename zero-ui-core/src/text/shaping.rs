@@ -1455,9 +1455,34 @@ impl Font {
 
     /// Gets the distance from the origin of the glyph with the given ID to the next.
     pub fn advance(&self, index: GlyphIndex) -> Result<LayoutVector2D, GlyphLoadingError> {
-        self.face().font_kit().advance(index).map(|v| {
-            todo!()
-        })
+        self.face()
+            .font_kit()
+            .advance(index)
+            .map(|v| LayoutVector2D::new(v.x(), v.y()) * self.metrics().size_scale)
+    }
+
+    /// Gets the amount that the given glyph should be displaced from the origin.
+    pub fn origin(&self, index: GlyphIndex) -> Result<LayoutVector2D, GlyphLoadingError> {
+        self.face()
+            .font_kit()
+            .origin(index)
+            .map(|v| LayoutVector2D::new(v.x(), v.y()) * self.metrics().size_scale)
+    }
+
+    /// Gets the glyph instance, bounds and baseline.
+    pub fn shape_glyph(&self, index: GlyphIndex) -> Result<(GlyphInstance, PxSize, Px), GlyphLoadingError> {
+        let instance = GlyphInstance {
+            index,
+            point: self.origin(index)?.to_point(),
+        };
+        let bounds = self.typographic_bounds(index)?.size;
+        let bounds = PxSize::new(Px(bounds.width.round() as i32), Px(bounds.height.round() as i32));
+        let metrics = self.metrics();
+
+        let baseline = metrics.ascent + metrics.line_gap / 2.0;
+        let baseline = bounds.height - baseline;
+
+        Ok((instance, bounds, baseline))
     }
 
     /// Calculates a [`ShapedText`].
