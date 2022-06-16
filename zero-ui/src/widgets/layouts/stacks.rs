@@ -602,7 +602,7 @@ pub mod z_stack {
         align: A,
     }
     #[impl_ui_node(children)]
-    impl<I: UiNodeList, A: Var<Align>> UiNode for ZStackNode<I, A> {
+    impl<I: WidgetList, A: Var<Align>> UiNode for ZStackNode<I, A> {
         fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
             subs.var(ctx, &self.align);
             self.children.subscriptions_all(ctx, subs);
@@ -618,11 +618,13 @@ pub mod z_stack {
         }
 
         fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
-            let mut size = PxSize::zero();
+            let constrains = ctx.constrains();
+            if let Some(known) = constrains.fill_or_exact() {
+                return known;
+            }
+
             let align = self.align.copy(ctx);
-
-            let parent_constrains = ctx.constrains();
-
+            let mut size = PxSize::zero();
             ctx.with_constrains(
                 |c| align.child_constrains(c),
                 |ctx| {
@@ -630,37 +632,95 @@ pub mod z_stack {
                         ctx,
                         |_, _| {},
                         |_, args| {
-                            let child_size = align.measure(args.size, parent_constrains);
+                            let child_size = align.measure(args.size, constrains);
                             size = size.max(child_size);
                         },
                     );
                 },
             );
 
-            parent_constrains.clamp_size(size)
+            constrains.fill_size_or(size)
         }
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
-            let mut size = PxSize::zero();
             let align = self.align.copy(ctx);
 
-            let parent_constrains = ctx.constrains();
+            let constrains = ctx.constrains();
+            let mut size = None;
 
-            ctx.with_constrains(
-                |c| align.child_constrains(c),
-                |ctx| {
-                    self.children.layout_all(
-                        ctx,
-                        wl,
-                        |_, _, _| {},
-                        |_, wl, args| {
-                            let child_size = align.layout(args.size, parent_constrains, wl);
-                            size = size.max(child_size);
-                        },
-                    );
-                },
-            );
+            if let Some(known) = constrains.fill_or_exact() {
+                size = Some(known)
+            } else if align.is_fill_x() || align.is_fill_y() {
+                // need size before layout because children fill and largest child defines size.
 
-            parent_constrains.clamp_size(size)
+                let mut max_size = PxSize::zero();
+                ctx.as_measure().with_constrains(
+                    |c| PxConstrains2d::new_unbounded().with_min_size(c.min_size()),
+                    |ctx| {
+                        self.children.measure_all(
+                            ctx,
+                            |_, _| {},
+                            |_, a| {
+                                max_size = max_size.max(a.size);
+                            },
+                        );
+                    },
+                );
+
+                size = Some(constrains.fill_size_or(max_size));
+            }
+
+            if let Some(size) = size {
+                ctx.with_constrains(
+                    |_| align.child_constrains(PxConstrains2d::new_fill_size(size)),
+                    |ctx| {
+                        self.children.layout_all(
+                            ctx,
+                            wl,
+                            |_, _, _| {},
+                            |_, wl, args| {
+                                align.layout(args.size, constrains, wl);
+                            },
+                        );
+                    },
+                );
+
+                size
+            } else {
+                let mut size = PxSize::zero();
+                ctx.with_constrains(
+                    |c| align.child_constrains(c),
+                    |ctx| {
+                        self.children.layout_all(
+                            ctx,
+                            wl,
+                            |_, _, _| {},
+                            |_, wl, args| {
+                                let child_size = align.layout(args.size, constrains, wl);
+                                size = size.max(child_size);
+                            },
+                        );
+                    },
+                );
+
+                let size = constrains.fill_size_or(size);
+
+                let align_x = if align.is_fill_x() { 0.fct() } else { align.x };
+                let align_y = if align.is_baseline() {
+                    1.fct()
+                } else if align.is_fill_y() {
+                    0.fct()
+                } else {
+                    align.y
+                };
+
+                self.children.outer_all(wl, false, |wlt, a| {
+                    let x = (size.width - a.size.width) * align_x;
+                    let y = (size.height - a.size.height) * align_y;
+                    wlt.translate(PxVector::new(x, y));
+                });
+
+                size
+            }
         }
     }
 }

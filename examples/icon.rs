@@ -78,14 +78,19 @@ fn expanded_icon(ico: icons::MaterialIcon) -> impl Widget {
             tab_nav = TabNav::Cycle;
             directional_nav = DirectionalNav::Cycle;
             drop_shadow = (0, 0), 4, colors::BLACK;
-            padding = 10;
             content = z_stack(widgets![
                 v_stack! {
                     spacing = 5;
+                    padding = 10;
                     items_align = Align::TOP_LEFT;
                     items = widgets![
                         title(formatx!("{ico}")),
-
+                        text! {
+                            text = ico.name;
+                            font_family = FontName::monospace();
+                            font_size = 18;
+                            color = colors::WHITE.darken(4.pct());
+                        },
                         sub_title("Using `icon!`:"),
                         h_stack! {
                             spacing = 5;
@@ -97,7 +102,7 @@ fn expanded_icon(ico: icons::MaterialIcon) -> impl Widget {
                                         size_label(formatx!("{size}")),
                                         icon! {
                                             icon = ico.clone();
-                                            size;
+                                            icon_size = size;
 
                                             background_color = rgb(0.15, 0.15, 0.15);
                                             corner_radius = 4;
@@ -133,6 +138,7 @@ fn expanded_icon(ico: icons::MaterialIcon) -> impl Widget {
                     ]
                 },
                 button! {
+                    icon::theme::icon_size = 14;
                     content = icon(icons::filled::CLOSE);
                     align = Align::TOP_RIGHT;
                     padding = 2;

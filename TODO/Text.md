@@ -3,6 +3,8 @@
 * Implement split/join segments.
 * Implement wrapping, text align and justify.
 * Implement font-features.
+* Padding affects the baseline incorrectly.
+    - Baseline in general is not tracked correctly?
 * Review TODOs in code.
 * Copy Chromium font fallback selection https://github.com/chromium/chromium/blob/0e41e52f5a91bb812f1f35a94a379ee3655129b0/third_party/blink/renderer/platform/fonts/win/font_fallback_win.cc#L104
 
