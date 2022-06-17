@@ -1026,15 +1026,15 @@ impl FontNames {
         // https://github.com/microsoft/vscode/blob/6825c886700ac11d07f7646d8d8119c9cdd9d288/src/vs/code/electron-sandbox/processExplorer/media/processExplorer.css
 
         if lang!("zh-Hans").matches(&lang, true, false) {
-            ["Segoe WPC", "Segoe UI", "Microsoft YaHei", "sans-serif"].into()
+            ["Segoe UI", "Microsoft YaHei", "sans-serif"].into()
         } else if lang!("zh-Hant").matches(&lang, true, false) {
-            ["Segoe WPC", "Segoe UI", "Microsoft Jhenghei", "sans-serif"].into()
+            ["Segoe UI", "Microsoft Jhenghei", "sans-serif"].into()
         } else if lang!(ja).matches(&lang, true, false) {
-            ["Segoe WP", "Segoe UI", "Yu Gothic UI", "Meiryo UI", "sans-serif"].into()
+            ["Segoe UI", "Yu Gothic UI", "Meiryo UI", "sans-serif"].into()
         } else if lang!(ko).matches(&lang, true, false) {
-            ["Segoe WPC", "Segoe UI", "Malgun Gothic", "Dotom", "sans-serif"].into()
+            ["Segoe UI", "Malgun Gothic", "Dotom", "sans-serif"].into()
         } else {
-            ["Segoe WP", "Segoe UI", "sans-serif"].into()
+            ["Segoe UI", "sans-serif"].into()
         }
     }
 

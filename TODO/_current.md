@@ -1,4 +1,6 @@
 * Weird glitch in image example on open.
+* Implement wrap panel and use it in the icon example.
+* Optimize using the icon example with fully loaded icons.
 * Move update skipping optimization to context, like in MeasureContext.
 * Optimize/fix interactivity, can we make parent interactivity affecting child a guarantee?
 
