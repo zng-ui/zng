@@ -76,7 +76,7 @@ impl Align {
     /// Constrains that must be used to layout a child node with the alignment.
     pub fn child_constrains(self, parent_constrains: PxConstrains2d) -> PxConstrains2d {
         parent_constrains
-            .with_min(Px(0), Px(0))
+            .with_new_min(Px(0), Px(0))
             .with_fill_and(self.is_fill_x(), self.is_fill_y())
     }
 

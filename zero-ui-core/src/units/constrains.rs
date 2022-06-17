@@ -69,17 +69,54 @@ impl PxConstrains {
     }
 
     /// Returns a copy of the current constrains that has `min` as the lower bound and max adjusted to be >= `min`.
-    pub fn with_min(mut self, min: Px) -> Self {
+    pub fn with_new_min(mut self, min: Px) -> Self {
         self.min = min;
         self.max = self.max.max(self.min);
         self
     }
 
+    /// Returns a copy [`with_new_min`] if `min` is greater then the current minimum.
+    ///
+    /// [`with_new_min`]: Self::with_new_min
+    pub fn with_min(self, min: Px) -> Self {
+        if min > self.min {
+            self.with_new_min(min)
+        } else {
+            self
+        }
+    }
+
     /// Returns a copy of the current constrains that has `max` as the upper bound and min adjusted to be <= `max`.
-    pub fn with_max(mut self, max: Px) -> Self {
+    pub fn with_new_max(mut self, max: Px) -> Self {
         self.max = max;
         self.min = self.min.min(self.max);
         self
+    }
+
+    /// Returns a copy [`with_new_max`] if `max` is less then the current maximum or the current maximum is unbounded.
+    ///
+    /// [`with_new_max`]: Self::with_new_max
+    pub fn with_max(self, max: Px) -> Self {
+        if max < self.max {
+            self.with_new_max(max)
+        } else {
+            self
+        }
+    }
+
+    /// Returns a copy of the current constrains that has max and min set to `len` and fill enabled.
+    pub fn with_new_exact(mut self, len: Px) -> Self {
+        self.max = len;
+        self.min = len;
+        self.fill = true;
+        self
+    }
+
+    /// Returns a copy [`with_new_exact`] if the new length clamped by the current constrains.
+    ///
+    /// [`with_new_exact`]: Self::with_new_exact
+    pub fn with_exact(self, len: Px) -> Self {
+        self.with_new_exact(self.clamp(len))
     }
 
     /// Returns a copy of the current constrains that sets the `fill` preference.
@@ -318,51 +355,165 @@ impl PxConstrains2d {
         }
     }
 
-    /// Returns a copy of the current constrains that has `min_x` and `min_y` as the lower bound and max adjusted to be >= min in both axis.
+    /// Returns a copy of the current constrains that has `min_x` and `min_y` as the lower
+    /// bound and max adjusted to be >= min in both axis.
+    pub fn with_new_min(mut self, min_x: Px, min_y: Px) -> Self {
+        self.x = self.x.with_new_min(min_x);
+        self.y = self.y.with_new_min(min_y);
+        self
+    }
+
+    /// Returns a copy of the current constrains that has `min_x` and `min_y` as the lower
+    /// bound and max adjusted to be >= min in both axis if the new min is greater then the current min.
     pub fn with_min(mut self, min_x: Px, min_y: Px) -> Self {
         self.x = self.x.with_min(min_x);
         self.y = self.y.with_min(min_y);
         self
     }
 
-    /// Returns a copy of the current constrains that has `min` as the lower bound and max adjusted to be >= min in both axis.
+    /// Returns a copy of the current constrains that has `min` as the lower
+    /// bound and max adjusted to be >= min in both axis.
+    pub fn with_new_min_size(self, min: PxSize) -> Self {
+        self.with_new_min(min.width, min.height)
+    }
+
+    /// Returns a copy of the current constrains that has `min` as the lower
+    /// bound and max adjusted to be >= min in both axis if the new min is greater then the current min.
     pub fn with_min_size(self, min: PxSize) -> Self {
         self.with_min(min.width, min.height)
     }
 
-    /// Returns a copy of the current constrains that has `min_x` as the lower bound and max adjusted to be >= min in the **x** axis.
+    /// Returns a copy of the current constrains that has `min_x` as the lower
+    /// bound and max adjusted to be >= min in the **x** axis.
+    pub fn with_new_min_x(mut self, min_x: Px) -> Self {
+        self.x = self.x.with_new_min(min_x);
+        self
+    }
+
+    /// Returns a copy of the current constrains that has `min_y` as the lower
+    /// bound and max adjusted to be >= min in the **y** axis.
+    pub fn with_new_min_y(mut self, min_y: Px) -> Self {
+        self.y = self.y.with_new_min(min_y);
+        self
+    }
+
+    /// Returns a copy of the current constrains that has `min_x` as the lower
+    /// bound and max adjusted to be >= min in the **x** axis if the new min is greater then the current min.
     pub fn with_min_x(mut self, min_x: Px) -> Self {
         self.x = self.x.with_min(min_x);
         self
     }
 
-    /// Returns a copy of the current constrains that has `min_y` as the lower bound and max adjusted to be >= min in the **y** axis.
+    /// Returns a copy of the current constrains that has `min_y` as the lower
+    /// bound and max adjusted to be >= min in the **y** axis if the new min is greater then the current min.
     pub fn with_min_y(mut self, min_y: Px) -> Self {
         self.y = self.y.with_min(min_y);
         self
     }
 
-    /// Returns a copy of the current constrains that has `max_x` and `max_y` as the upper bound and min adjusted to be <= max in both axis.
+    /// Returns a copy of the current constrains that has `max_x` and `max_y` as the upper
+    /// bound and min adjusted to be <= max in both axis.
+    pub fn with_new_max(mut self, max_x: Px, max_y: Px) -> Self {
+        self.x = self.x.with_new_max(max_x);
+        self.y = self.y.with_new_max(max_y);
+        self
+    }
+
+    /// Returns a copy of the current constrains that has `max_x` and `max_y` as the upper
+    /// bound and min adjusted to be <= max in both axis if the new max if less then the current max.
     pub fn with_max(mut self, max_x: Px, max_y: Px) -> Self {
         self.x = self.x.with_max(max_x);
         self.y = self.y.with_max(max_y);
         self
     }
 
-    /// Returns a copy of the current constrains that has `max` as the upper bound and min adjusted to be <= max in both axis.
+    /// Returns a copy of the current constrains that has `max` as the upper
+    /// bound and min adjusted to be <= max in both axis.
+    pub fn with_new_max_size(self, max: PxSize) -> Self {
+        self.with_new_max(max.width, max.height)
+    }
+
+    /// Returns a copy of the current constrains that has `max` as the upper
+    /// bound and min adjusted to be <= max in both axis if the new max if less then the current max.
     pub fn with_max_size(self, max: PxSize) -> Self {
         self.with_max(max.width, max.height)
     }
 
-    /// Returns a copy of the current constrains that has `min_x` as the lower bound and max adjusted to be << max in the **x** axis.
+    /// Returns a copy of the current constrains that has `min_x` as the lower
+    /// bound and max adjusted to be << max in the **x** axis.
+    pub fn with_new_max_x(mut self, max_x: Px) -> Self {
+        self.x = self.x.with_new_max(max_x);
+        self
+    }
+
+    /// Returns a copy of the current constrains that has `max_y` as the lower
+    /// bound and min adjusted to be <= max in the **y** axis.
+    pub fn with_new_max_y(mut self, max_y: Px) -> Self {
+        self.y = self.y.with_new_max(max_y);
+        self
+    }
+
+    /// Returns a copy of the current constrains that has `min_x` as the lower
+    /// bound and max adjusted to be << max in the **x** axis if the new max if less then the current max.
     pub fn with_max_x(mut self, max_x: Px) -> Self {
         self.x = self.x.with_max(max_x);
         self
     }
 
-    /// Returns a copy of the current constrains that has `max_y` as the lower bound and min adjusted to be <= max in the **y** axis.
+    /// Returns a copy of the current constrains that has `max_y` as the lower
+    /// bound and min adjusted to be <= max in the **y** axis if the new max if less then the current max.
     pub fn with_max_y(mut self, max_y: Px) -> Self {
         self.y = self.y.with_max(max_y);
+        self
+    }
+
+    /// Returns a copy with min and max bounds set to `x` and `y`.
+    pub fn with_new_exact(mut self, x: Px, y: Px) -> Self {
+        self.x = self.x.with_new_exact(x);
+        self.y = self.y.with_new_exact(y);
+        self
+    }
+
+    /// Returns a copy with min and max bounds set to `x` and `y` clamped by the current constrains.
+    pub fn with_exact(mut self, x: Px, y: Px) -> Self {
+        self.x = self.x.with_exact(x);
+        self.y = self.y.with_exact(y);
+        self
+    }
+
+    /// Returns a copy with min and max bounds set to `size`.
+    pub fn with_new_exact_size(self, size: PxSize) -> Self {
+        self.with_new_exact(size.width, size.height)
+    }
+
+    /// Returns a copy with min and max bounds set to `size` clamped by the current constrains.
+    pub fn with_exact_size(self, size: PxSize) -> Self {
+        self.with_exact(size.width, size.height)
+    }
+
+    /// Returns a copy of the current constrains with the **x** maximum and minimum set to `x`.
+    pub fn with_new_exact_x(mut self, x: Px) -> Self {
+        self.x = self.x.with_new_exact(x);
+        self
+    }
+
+    /// Returns a copy of the current constrains with the **y** maximum and minimum set to `y`.
+    pub fn with_new_exact_y(mut self, y: Px) -> Self {
+        self.y = self.y.with_new_exact(y);
+        self
+    }
+
+    /// Returns a copy of the current constrains with the **x** maximum and minimum set to `x`
+    /// clamped by the  current constrains.
+    pub fn with_exact_x(mut self, x: Px) -> Self {
+        self.x = self.x.with_exact(x);
+        self
+    }
+
+    /// Returns a copy of the current constrains with the **y** maximum and minimum set to `y`
+    /// clamped by the  current constrains.
+    pub fn with_exact_y(mut self, y: Px) -> Self {
+        self.y = self.y.with_exact(y);
         self
     }
 

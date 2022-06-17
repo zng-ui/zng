@@ -339,6 +339,9 @@ pub fn y(child: impl UiNode, y: impl IntoVar<Length>) -> impl UiNode {
 /// The widget size can be larger then this but not smaller.
 /// Relative values are computed from the constrains maximum bounded size.
 ///
+/// This property does not force the minimum constrained size, the `min_size` is only used
+/// in a dimension if it is greater then the constrained minimum.
+///
 /// # Examples
 ///
 /// ```
@@ -407,6 +410,9 @@ pub fn min_size(child: impl UiNode, min_size: impl IntoVar<Size>) -> impl UiNode
 ///
 /// The widget width can be larger then this but not smaller.
 /// Relative values are computed from the constrains maximum bounded width.
+///
+/// This property does not force the minimum constrained width, the `min_width` is only used
+/// if it is greater then the constrained minimum.
 ///
 /// # Examples
 ///
@@ -478,6 +484,9 @@ pub fn min_width(child: impl UiNode, min_width: impl IntoVar<Length>) -> impl Ui
 /// The widget height can be larger then this but not smaller.
 /// Relative values are computed from the constrains maximum bounded height.
 ///
+/// This property does not force the minimum constrained height, the `min_height` is only used
+/// if it is greater then the constrained minimum.
+///
 /// # Examples
 ///
 /// ```
@@ -545,8 +554,11 @@ pub fn min_height(child: impl UiNode, min_height: impl IntoVar<Length>) -> impl 
 
 /// Maximum size of the widget.
 ///
-/// The widget size can be smaller then this but not larger.
-///  Relative values are computed from the constrains maximum bounded size.
+/// The widget size can be smaller then this but not larger. Relative values are computed from the
+/// constrains maximum bounded size.
+///
+/// This property does not force the maximum constrained size, the `max_size` is only used
+/// in a dimension if it is less then the constrained maximum, or the maximum was not constrained.
 ///
 /// # Examples
 ///
@@ -616,6 +628,9 @@ pub fn max_size(child: impl UiNode, max_size: impl IntoVar<Size>) -> impl UiNode
 ///
 /// The widget width can be smaller then this but not larger.
 /// Relative values are computed from the constrains maximum bounded width.
+///
+/// This property does not force the maximum constrained width, the `max_width` is only used
+/// if it is less then the constrained maximum, or the maximum was not constrained.
 ///
 /// # Examples
 ///
@@ -697,6 +712,9 @@ pub fn max_width(child: impl UiNode, max_width: impl IntoVar<Length>) -> impl Ui
 /// The widget height can be smaller then this but not larger.
 /// Relative values are computed from the constrains maximum bounded height.
 ///
+/// This property does not force the maximum constrained height, the `max_height` is only used
+/// if it is less then the constrained maximum, or the maximum was not constrained.
+///
 /// # Examples
 ///
 /// ```
@@ -772,10 +790,12 @@ pub fn max_height(child: impl UiNode, max_height: impl IntoVar<Length>) -> impl 
     }
 }
 
-/// Manually sets the size of the widget.
+/// Exact size of the widget.
 ///
 /// When set the widget is sized with the given value, independent of the layout constrains.
 /// Relative values are computed from the constrains maximum bounded size.
+///
+/// To only set a preferred size that respects the layout constrains use the [`min_size`] and [`max_size`] instead.
 ///
 /// # Examples
 ///
@@ -793,7 +813,12 @@ pub fn max_height(child: impl UiNode, max_height: impl IntoVar<Length>) -> impl 
 ///
 /// # `width` and `height`
 ///
-/// You can use the [`width`](fn@width) and [`height`](fn@height) properties to only set the size of one dimension.
+/// You can use the [`width`] and [`height`] properties to only set the size of one dimension.
+///
+/// [`min_size`]: fn@min_size
+/// [`max_size`]: fn@max_size
+/// [`width`]: fn@width
+/// [`height`]: fn@height
 #[property(size)]
 pub fn size(child: impl UiNode, size: impl IntoVar<Size>) -> impl UiNode {
     struct SizeNode<T: UiNode, S: Var<Size>> {
@@ -838,7 +863,10 @@ pub fn size(child: impl UiNode, size: impl IntoVar<Size>) -> impl UiNode {
 
 /// Exact width of the widget.
 ///
+/// When set the widget width is sized with the given value, independent of the layout constrains.
 /// Relative values are computed from the constrains maximum bounded width.
+///
+/// To only set a preferred width that respects the layout constrains use the [`min_width`] and [`max_width`] instead.
 ///
 /// # Examples
 ///
@@ -857,6 +885,9 @@ pub fn size(child: impl UiNode, size: impl IntoVar<Size>) -> impl UiNode {
 /// # `size`
 ///
 /// You can set both `width` and `height` at the same time using the [`size`](fn@size) property.
+///
+/// [`min_width`]: fn@min_width
+/// [`max_width`]: fn@max_width
 #[property(size)]
 pub fn width(child: impl UiNode, width: impl IntoVar<Length>) -> impl UiNode {
     struct WidthNode<T: UiNode, W: Var<Length>> {
@@ -884,7 +915,7 @@ pub fn width(child: impl UiNode, width: impl IntoVar<Length>) -> impl UiNode {
                 |ctx| self.width.get(ctx.vars).layout(ctx.metrics.for_x(), |ctx| ctx.constrains().fill()),
             );
 
-            let mut size = ctx.with_constrains(|c| c.with_max_x(width).with_min_x(width), |ctx| self.child.measure(ctx));
+            let mut size = ctx.with_constrains(|c| c.with_new_exact_x(width), |ctx| self.child.measure(ctx));
             size.width = width;
             size
         }
@@ -894,7 +925,7 @@ pub fn width(child: impl UiNode, width: impl IntoVar<Length>) -> impl UiNode {
                 |ctx| self.width.get(ctx.vars).layout(ctx.metrics.for_x(), |ctx| ctx.constrains().fill()),
             );
 
-            let mut size = ctx.with_constrains(|c| c.with_max_x(width).with_min_x(width), |ctx| self.child.layout(ctx, wl));
+            let mut size = ctx.with_constrains(|c| c.with_new_exact_x(width), |ctx| self.child.layout(ctx, wl));
             size.width = width;
             size
         }
@@ -907,7 +938,10 @@ pub fn width(child: impl UiNode, width: impl IntoVar<Length>) -> impl UiNode {
 
 /// Exact height of the widget.
 ///
+/// When set the widget height is sized with the given value, independent of the layout constrains.
 /// Relative values are computed from the constrains maximum bounded height.
+///
+/// To only set a preferred height that respects the layout constrains use the [`min_height`] and [`max_height`] instead.
 ///
 /// # Examples
 ///
@@ -926,6 +960,9 @@ pub fn width(child: impl UiNode, width: impl IntoVar<Length>) -> impl UiNode {
 /// # `size`
 ///
 /// You can set both `width` and `height` at the same time using the [`size`](fn@size) property.
+///
+/// [`min_height`]: fn@min_height
+/// [`max_height`]: fn@max_height
 #[property(size)]
 pub fn height(child: impl UiNode, height: impl IntoVar<Length>) -> impl UiNode {
     struct HeightNode<T: UiNode, H: Var<Length>> {
@@ -952,7 +989,7 @@ pub fn height(child: impl UiNode, height: impl IntoVar<Length>) -> impl UiNode {
                 |c| c.with_fill_vector(c.is_bounded()),
                 |ctx| self.height.get(ctx.vars).layout(ctx.metrics.for_y(), |ctx| ctx.constrains().fill()),
             );
-            let mut size = ctx.with_constrains(|c| c.with_max_y(height).with_min_y(height), |ctx| self.child.measure(ctx));
+            let mut size = ctx.with_constrains(|c| c.with_new_exact_y(height), |ctx| self.child.measure(ctx));
             size.height = height;
             size
         }
@@ -961,7 +998,7 @@ pub fn height(child: impl UiNode, height: impl IntoVar<Length>) -> impl UiNode {
                 |c| c.with_fill_vector(c.is_bounded()),
                 |ctx| self.height.get(ctx.vars).layout(ctx.metrics.for_y(), |ctx| ctx.constrains().fill()),
             );
-            let mut size = ctx.with_constrains(|c| c.with_max_y(height).with_min_y(height), |ctx| self.child.layout(ctx, wl));
+            let mut size = ctx.with_constrains(|c| c.with_new_exact_y(height), |ctx| self.child.layout(ctx, wl));
             size.height = height;
             size
         }

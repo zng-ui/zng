@@ -347,7 +347,7 @@ pub fn scroll_commands_node(child: impl UiNode) -> impl UiNode {
 
             let viewport = *ScrollViewportSizeVar::get(ctx);
             ctx.with_constrains(
-                |c| c.with_max_size(viewport).with_fill(true, true),
+                |_| PxConstrains2d::new_fill_size(viewport),
                 |ctx| {
                     self.layout_line = PxVector::new(
                         HorizontalLineUnitVar::get(ctx.vars).layout(ctx.metrics.for_x(), |_| Px(20)),
@@ -491,7 +491,7 @@ pub fn page_commands_node(child: impl UiNode) -> impl UiNode {
 
             let viewport = *ScrollViewportSizeVar::get(ctx);
             ctx.with_constrains(
-                |c| c.with_max_size(viewport).with_fill(true, true),
+                |_| PxConstrains2d::new_fill_size(viewport),
                 |ctx| {
                     self.layout_page = PxVector::new(
                         HorizontalPageUnitVar::get(ctx.vars).layout(ctx.metrics.for_x(), |_| Px(20)),
@@ -688,7 +688,7 @@ pub fn scroll_to_command_node(child: impl UiNode) -> impl UiNode {
                     match mode {
                         ScrollToMode::Minimal { margin } => {
                             let margin = ctx.with_constrains(
-                                |c| c.with_max_size(target_bounds.size).with_fill(true, true),
+                                |_| PxConstrains2d::new_fill_size(target_bounds.size),
                                 |ctx| margin.layout(ctx, |_| PxSideOffsets::zero()),
                             );
                             let mut target_bounds = target_bounds;
@@ -734,13 +734,13 @@ pub fn scroll_to_command_node(child: impl UiNode) -> impl UiNode {
                         } => {
                             let default = (target_bounds.size / Px(2)).to_vector().to_point();
                             let widget_point = ctx.with_constrains(
-                                |c| c.with_max_size(target_bounds.size).with_fill(true, true),
+                                |_| PxConstrains2d::new_fill_size(target_bounds.size),
                                 |ctx| widget_point.layout(ctx, |_| default),
                             );
 
                             let default = (viewport_bounds.size / Px(2)).to_vector().to_point();
                             let scrollable_point = ctx.with_constrains(
-                                |c| c.with_max_size(viewport_bounds.size).with_fill(true, true),
+                                |_| PxConstrains2d::new_fill_size(viewport_bounds.size),
                                 |ctx| scrollable_point.layout(ctx, |_| default),
                             );
 
@@ -815,7 +815,7 @@ pub fn scroll_wheel_node(child: impl UiNode) -> impl UiNode {
             let viewport = *ScrollViewportSizeVar::get(ctx);
 
             ctx.with_constrains(
-                |c| c.with_max_size(viewport).with_fill(true, true),
+                |_| PxConstrains2d::new_fill_size(viewport),
                 |ctx| {
                     let offset = self.offset.layout(ctx, |_| viewport.to_vector());
                     self.offset = Vector::zero();

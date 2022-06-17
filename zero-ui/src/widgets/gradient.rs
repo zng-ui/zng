@@ -105,7 +105,7 @@ where
             let length = self.render_line.length();
 
             ctx.with_constrains(
-                |c| c.with_max_x(length).with_fill_x(true),
+                |c| c.with_new_exact_x(length),
                 |ctx| {
                     self.stops.get(ctx).layout_linear(
                         ctx.for_x(),

@@ -131,7 +131,7 @@ pub mod h_stack {
 
                 let mut max_h = Px(0);
                 ctx.as_measure().with_constrains(
-                    |c| PxConstrains2d::new_unbounded().with_min_y(c.y.min()),
+                    |c| align.child_constrains(c).with_unbounded_x(),
                     |ctx| {
                         self.children.measure_all(
                             ctx,
@@ -378,7 +378,7 @@ pub mod v_stack {
 
                 let mut max_w = Px(0);
                 ctx.as_measure().with_constrains(
-                    |c| PxConstrains2d::new_unbounded().with_min_x(c.x.min()),
+                    |c| align.child_constrains(c).with_unbounded_y(),
                     |ctx| {
                         self.children.measure_all(
                             ctx,
@@ -654,7 +654,7 @@ pub mod z_stack {
 
                 let mut max_size = PxSize::zero();
                 ctx.as_measure().with_constrains(
-                    |c| PxConstrains2d::new_unbounded().with_min_size(c.min_size()),
+                    |c| align.child_constrains(c),
                     |ctx| {
                         self.children.measure_all(
                             ctx,

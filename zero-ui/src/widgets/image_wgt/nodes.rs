@@ -363,7 +363,7 @@ pub fn image_presenter() -> impl UiNode {
 
             let img_rect = PxRect::from_size(self.img_size);
             let crop = ctx.with_constrains(
-                |c| c.with_max_size(self.img_size).with_fill(true, true),
+                |_| PxConstrains2d::new_fill_size(self.img_size),
                 |ctx| ImageCropVar::get(ctx.vars).layout(ctx.metrics, |_| img_rect),
             );
             let render_clip = img_rect.intersection(&crop).unwrap_or_default() * scale;
@@ -391,7 +391,7 @@ pub fn image_presenter() -> impl UiNode {
             // crop is relative to the unscaled pixel size, then applied scaled as the clip.
             let img_rect = PxRect::from_size(self.img_size);
             let crop = ctx.with_constrains(
-                |c| c.with_max_size(self.img_size).with_fill(true, true),
+                |_| PxConstrains2d::new_fill_size(self.img_size),
                 |ctx| ImageCropVar::get(ctx.vars).layout(ctx.metrics, |_| img_rect),
             );
             let mut render_clip = img_rect.intersection(&crop).unwrap_or_default() * scale;
@@ -472,7 +472,7 @@ pub fn image_presenter() -> impl UiNode {
 
             // Part 3 - Custom Offset and Update
             let offset = ctx.with_constrains(
-                |c| c.with_max_size(wgt_size).with_fill(true, true),
+                |_| PxConstrains2d::new_fill_size(wgt_size),
                 |ctx| ImageOffsetVar::get(ctx.vars).layout(ctx.metrics, |_| PxVector::zero()),
             );
             if offset != PxVector::zero() {

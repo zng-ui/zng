@@ -703,7 +703,7 @@ impl GradientStops {
                     let ctx = ctx
                         .metrics
                         .clone()
-                        .with_constrains(|c| c.with_max_y(Px(length as i32)).with_fill_y(true));
+                        .with_constrains(|c| c.with_new_max_y(Px(length as i32)).with_fill_y(true));
                     let mut offset = offset.layout(ctx.for_y(), |_| Px(0)).to_wr().get();
                     if is_positional(offset) {
                         offset = length / 2.0;

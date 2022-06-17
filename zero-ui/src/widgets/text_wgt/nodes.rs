@@ -598,7 +598,7 @@ pub fn layout_text(child: impl UiNode, padding: impl IntoVar<SideOffsets>) -> im
             wl.set_baseline(t.baseline.get());
 
             ctx.with_constrains(
-                |c| c.with_max_size(size).with_fill(true, true),
+                |_| PxConstrains2d::new_fill_size(size),
                 |ctx| {
                     self.with_mut(ctx.vars, |c| c.layout(ctx, wl));
                 },
