@@ -791,14 +791,20 @@ pub fn border_node(child: impl UiNode, border_offsets: impl IntoVar<SideOffsets>
     struct BorderNode<C, O> {
         children: C,
         offsets: O,
+        layout_offsets: SideOffsets,
         render_offsets: PxSideOffsets,
 
         border_rect: PxRect,
     }
     #[impl_ui_node(children)]
     impl<C: UiNodeList, O: Var<SideOffsets>> UiNode for BorderNode<C, O> {
+        fn init(&mut self, ctx: &mut WidgetContext) {
+            self.layout_offsets = self.offsets.get_clone(ctx);
+            self.children.init_all(ctx);
+        }
+
         fn update(&mut self, ctx: &mut WidgetContext) {
-            if self.offsets.is_new(ctx) {
+            if self.offsets.clone_new_ne(ctx, &mut self.layout_offsets) {
                 ctx.updates.layout();
             }
             self.children.update_all(ctx, &mut ());
@@ -819,7 +825,7 @@ pub fn border_node(child: impl UiNode, border_offsets: impl IntoVar<SideOffsets>
             // `wl` is targeting the child transform, child nodes are naturally inside borders, so we
             // need to add to the offset and take the size, fill_nodes optionally cancel this transform.
 
-            let offsets = self.offsets.get(ctx.vars).layout(ctx.metrics, |_| PxSideOffsets::zero());
+            let offsets = self.layout_offsets.layout(ctx.metrics, |_| PxSideOffsets::zero());
             if self.render_offsets != offsets {
                 self.render_offsets = offsets;
                 ctx.updates.render();
@@ -871,6 +877,7 @@ pub fn border_node(child: impl UiNode, border_offsets: impl IntoVar<SideOffsets>
     BorderNode {
         children: nodes![child, border_visual],
         offsets: border_offsets.into_var(),
+        layout_offsets: SideOffsets::zero(),
         render_offsets: PxSideOffsets::zero(),
         border_rect: PxRect::zero(),
     }

@@ -450,6 +450,22 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + any::AnyVar + crate::private::S
         vars.with_vars_read(|v| self.get(v).clone())
     }
 
+    /// If the current value is not equal to the `output`, clones the value and set `output`.
+    fn get_clone_ne<Vr: WithVarsRead>(&self, vars: &Vr, output: &mut T) -> bool
+    where
+        T: PartialEq,
+    {
+        let mut ne = false;
+        vars.with_vars_read(|vars| {
+            let value = self.get(vars);
+            if value != output {
+                ne = true;
+                *output = value.clone();
+            }
+        });
+        ne
+    }
+
     /// References the value if [`is_new`](Self::is_new).
     fn get_new<'a, Vw: AsRef<Vars>>(&'a self, vars: &'a Vw) -> Option<&'a T>;
 
@@ -509,6 +525,23 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + any::AnyVar + crate::private::S
     /// Clone the value if [`is_new`](Self::is_new).
     fn clone_new<Vw: WithVars>(&self, vars: &Vw) -> Option<T> {
         vars.with_vars(|v| self.get_new(v).cloned())
+    }
+
+    /// If the current value is new and not equal to the current `output` it is cloned and set on the `output`.
+    fn clone_new_ne<Vw: WithVars>(&self, vars: &Vw, output: &mut T) -> bool
+    where
+        T: PartialEq,
+    {
+        let mut ne = false;
+        vars.with_vars(|vars| {
+            if let Some(value) = self.get_new(vars) {
+                if value != output {
+                    ne = true;
+                    *output = value.clone();
+                }
+            }
+        });
+        ne
     }
 
     /// Returns a future that awaits for [`clone_new`](Var::clone_new) after the current update.
