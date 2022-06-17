@@ -87,6 +87,7 @@ fn background_color(color: impl Var<Rgba>) -> impl Widget {
         button! {
             content = h_stack! {
                 spacing = 4;
+                items_align = Align::LEFT;
                 items = widgets![
                     blank! {
                         background_color = c;
