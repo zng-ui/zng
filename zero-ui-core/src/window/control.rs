@@ -1408,7 +1408,6 @@ impl ContentCtrl {
                                 descriptor,
                             )
                         },
-                        scrolls: frame.scrolls,
                         capture_image,
                         wait_id,
                     });
@@ -1453,7 +1452,6 @@ impl ContentCtrl {
                     let _: Ignore = renderer.render_update(FrameUpdateRequest {
                         id: self.frame_id,
                         updates: update.bindings,
-                        scroll_updates: update.scrolls,
                         clear_color: update.clear_color,
                         capture_image,
                         wait_id,

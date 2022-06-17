@@ -10,7 +10,6 @@ use webrender::{
     api::{
         ApiHitTester, BuiltDisplayList, ColorF, DisplayListPayload, DocumentId, DynamicProperties, FontInstanceKey, FontInstanceOptions,
         FontInstancePlatformOptions, FontKey, FontVariation, HitTestResult, HitTesterRequest, IdNamespace, ImageKey, PipelineId,
-        SampledScrollOffset,
     },
     RenderApi, Renderer, RendererOptions, Transaction, UploadMethod, VertexUsageHint,
 };
@@ -1039,16 +1038,6 @@ impl Window {
             (frame.pipeline_id, display_list),
         );
 
-        for (scroll_id, offset) in frame.scrolls {
-            txn.set_scroll_offsets(
-                scroll_id,
-                vec![SampledScrollOffset {
-                    offset: offset.to_wr(),
-                    generation: 0,
-                }],
-            );
-        }
-
         let frame_scope =
             tracing::trace_span!("<frame>", ?frame.id, capture_image = ?frame.capture_image, thread = "<webrender>").entered();
 
@@ -1070,15 +1059,6 @@ impl Window {
         // txn.skip_scene_builder();
         txn.set_root_pipeline(self.pipeline_id);
         txn.append_dynamic_properties(frame.updates);
-        for (scroll_id, offset) in frame.scroll_updates {
-            txn.set_scroll_offsets(
-                scroll_id,
-                vec![SampledScrollOffset {
-                    offset: offset.to_wr(),
-                    generation: 0,
-                }],
-            );
-        }
 
         self.push_resize(&mut txn);
 

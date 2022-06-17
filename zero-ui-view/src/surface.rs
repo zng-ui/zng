@@ -6,7 +6,7 @@ use tracing::span::EnteredSpan;
 use webrender::{
     api::{
         BuiltDisplayList, ColorF, DisplayListPayload, DocumentId, DynamicProperties, FontInstanceKey, FontInstanceOptions,
-        FontInstancePlatformOptions, FontKey, FontVariation, HitTestResult, IdNamespace, ImageKey, PipelineId, SampledScrollOffset,
+        FontInstancePlatformOptions, FontKey, FontVariation, HitTestResult, IdNamespace, ImageKey, PipelineId,
     },
     RenderApi, Renderer, RendererOptions, Transaction,
 };
@@ -233,16 +233,6 @@ impl Surface {
             (frame.pipeline_id, display_list),
         );
 
-        for (scroll_id, offset) in frame.scrolls {
-            txn.set_scroll_offsets(
-                scroll_id,
-                vec![SampledScrollOffset {
-                    offset: offset.to_wr(),
-                    generation: 0,
-                }],
-            );
-        }
-
         txn.set_root_pipeline(self.pipeline_id);
 
         self.push_resize(&mut txn);
@@ -267,15 +257,6 @@ impl Surface {
         txn.set_root_pipeline(self.pipeline_id);
 
         txn.append_dynamic_properties(frame.updates);
-        for (scroll_id, offset) in frame.scroll_updates {
-            txn.set_scroll_offsets(
-                scroll_id,
-                vec![SampledScrollOffset {
-                    offset: offset.to_wr(),
-                    generation: 0,
-                }],
-            );
-        }
 
         self.push_resize(&mut txn);
 

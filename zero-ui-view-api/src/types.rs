@@ -1284,9 +1284,6 @@ pub struct FrameRequest {
     /// Display list, split in serializable parts.
     pub display_list: (IpcBytes, IpcBytes, IpcBytes, BuiltDisplayListDescriptor),
 
-    /// Scroll offsets.
-    pub scrolls: Vec<(ExternalScrollId, PxVector)>,
-
     /// Automatically create an image from this rendered frame.
     ///
     /// The [`Event::FrameImageReady`] is sent with the image.
@@ -1328,9 +1325,6 @@ pub struct FrameUpdateRequest {
     /// Binding updates.
     pub updates: DynamicProperties,
 
-    /// Scroll frame updates.
-    pub scroll_updates: Vec<(ExternalScrollId, PxVector)>,
-
     /// New clear color.
     pub clear_color: Option<ColorF>,
     /// Automatically create an image from this rendered frame.
@@ -1351,7 +1345,6 @@ impl FrameUpdateRequest {
                 floats: vec![],
                 colors: vec![],
             },
-            scroll_updates: vec![],
             clear_color: None,
             capture_image: false,
             wait_id: None,
@@ -1366,7 +1359,7 @@ impl FrameUpdateRequest {
     /// If this request does not do anything, apart from notifying
     /// a new frame if send to the renderer.
     pub fn is_empty(&self) -> bool {
-        !self.has_properties() && self.scroll_updates.is_empty() && self.clear_color.is_none() && !self.capture_image
+        !self.has_properties() && self.clear_color.is_none() && !self.capture_image
     }
 
     /// Compute webrender analysis info.
@@ -1393,7 +1386,6 @@ impl fmt::Debug for FrameUpdateRequest {
         f.debug_struct("FrameUpdateRequest")
             .field("id", &self.id)
             .field("updates", &self.updates)
-            .field("scroll_updates", &self.scroll_updates)
             .field("clear_color", &self.clear_color)
             .field("capture_image", &self.capture_image)
             .finish()

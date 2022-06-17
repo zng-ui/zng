@@ -254,7 +254,6 @@ pub fn default_no_child() {
     assert!(!update.bindings.transforms.is_empty());
     assert!(update.bindings.floats.is_empty());
     assert!(update.bindings.colors.is_empty());
-    assert!(update.scrolls.is_empty());
     assert!(update.clear_color.is_none());
 }
 

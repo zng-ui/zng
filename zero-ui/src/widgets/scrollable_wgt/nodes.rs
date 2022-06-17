@@ -12,7 +12,6 @@ use super::types::*;
 /// The actual content presenter.
 pub fn viewport(child: impl UiNode, mode: impl IntoVar<ScrollMode>) -> impl UiNode {
     struct ViewportNode<C, M> {
-        scroll_id: ScrollId,
         child: C,
         mode: M,
 
@@ -180,7 +179,6 @@ pub fn viewport(child: impl UiNode, mode: impl IntoVar<ScrollMode>) -> impl UiNo
     }
     ViewportNode {
         child: child.cfg_boxed(),
-        scroll_id: ScrollId::new_unique(),
         mode: mode.into_var(),
         viewport_size: PxSize::zero(),
         viewport_unit: PxSize::zero(),

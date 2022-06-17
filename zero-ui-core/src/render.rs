@@ -294,7 +294,6 @@ pub struct FrameBuilder {
     scale_factor: Factor,
 
     display_list: DisplayListBuilder,
-    scrolls: Vec<(ExternalScrollId, PxVector)>,
 
     is_hit_testable: bool,
     auto_hit_test: bool,
@@ -336,13 +335,11 @@ impl FrameBuilder {
             .unwrap_or_else(PipelineId::dummy);
 
         let mut used_dl = None;
-        let mut scrolls_capacity = 10;
         let mut reuse_keys = None;
 
         if let Some(u) = used_data {
             if u.pipeline_id() == pipeline_id {
                 used_dl = Some(u.display_list);
-                scrolls_capacity = u.scrolls_capacity;
                 reuse_keys = Some(u.reuse_keys);
             }
         }
@@ -371,7 +368,6 @@ impl FrameBuilder {
             renderer,
             scale_factor,
             display_list,
-            scrolls: Vec::with_capacity(scrolls_capacity),
             is_hit_testable: true,
             auto_hit_test: false,
             widget_data: Some(WidgetData {
@@ -966,46 +962,6 @@ impl FrameBuilder {
         self.clip_id = parent_clip_id;
     }
 
-    /// Calls `f` inside a scroll viewport space.
-    pub fn push_scroll_frame(
-        &mut self,
-        scroll_id: ScrollId,
-        viewport_size: PxSize,
-        content_rect: PxRect,
-        f: impl FnOnce(&mut FrameBuilder),
-    ) {
-        expect_inner!(self.push_scroll_frame);
-        expect_no_group!(self.push_scroll_frame);
-
-        let parent_spatial_id = self.spatial_id;
-        let scroll_id_wr = scroll_id.to_wr(self.pipeline_id);
-
-        self.spatial_id = self.display_list.define_scroll_frame(
-            parent_spatial_id,
-            scroll_id_wr,
-            PxRect::from_size(content_rect.size).to_wr(),
-            PxRect::from_size(viewport_size).to_wr(),
-            PxVector::zero().to_wr(),
-            0,
-            HasScrollLinkedEffect::No,
-            SpatialFrameId::scroll_id_to_wr(scroll_id, self.pipeline_id),
-        );
-
-        // offset can only be set using transaction `set_scroll_offsets` so we send then separate for the view-process.
-        let offset = content_rect.origin.to_vector();
-
-        // offset in our API is the content translate inside the viewport, in webrender this is inverted for some reason.
-        self.scrolls.push((scroll_id_wr, -offset));
-
-        let parent_transform = self.transform;
-        self.transform = RenderTransform::translation_px(offset).then(&self.transform);
-
-        f(self);
-
-        self.transform = parent_transform;
-        self.spatial_id = parent_spatial_id;
-    }
-
     /// Calls `f` inside a new reference frame transformed by `transform`.
     ///
     /// Note that properties that use this method must also register the custom transform with the widget info, so that the widget
@@ -1524,7 +1480,6 @@ impl FrameBuilder {
 
         let reuse = UsedFrameBuilder {
             display_list: self.display_list,
-            scrolls_capacity: self.scrolls.len(),
             reuse_keys: self.reuse_keys,
         };
 
@@ -1532,7 +1487,6 @@ impl FrameBuilder {
             id: self.frame_id,
             pipeline_id,
             display_list: (payload, descriptor),
-            scrolls: self.scrolls,
             clear_color,
         };
 
@@ -1548,8 +1502,6 @@ pub struct BuiltFrame {
     pub pipeline_id: PipelineId,
     /// Built display list.
     pub display_list: (DisplayListPayload, BuiltDisplayListDescriptor),
-    /// Scroll offsets.
-    pub scrolls: Vec<(ExternalScrollId, PxVector)>,
     /// Clear color selected for the frame.
     pub clear_color: RenderColor,
 }
@@ -1557,7 +1509,6 @@ pub struct BuiltFrame {
 /// Data from a previous [`FrameBuilder`], can be reuse in the next frame for a performance boost.
 pub struct UsedFrameBuilder {
     display_list: DisplayListBuilder,
-    scrolls_capacity: usize,
     reuse_keys: ReuseCacheKeys,
 }
 impl UsedFrameBuilder {
@@ -1598,7 +1549,6 @@ pub struct FrameUpdate {
     bindings: DynamicProperties,
     current_clear_color: RenderColor,
     clear_color: Option<RenderColor>,
-    scrolls: Vec<(ExternalScrollId, PxVector)>,
     frame_id: FrameId,
 
     widget_id: WidgetId,
@@ -1637,7 +1587,6 @@ impl FrameUpdate {
         }
         let hint = hint.unwrap_or(UsedFrameUpdate {
             pipeline_id,
-            scrolls_capacity: 10,
             transforms_capacity: 100,
             floats_capacity: 100,
             colors_capacity: 100,
@@ -1650,7 +1599,6 @@ impl FrameUpdate {
                 floats: Vec::with_capacity(hint.floats_capacity),
                 colors: Vec::with_capacity(hint.colors_capacity),
             },
-            scrolls: Vec::with_capacity(hint.scrolls_capacity),
             clear_color: None,
             frame_id,
             current_clear_color: clear_color,
@@ -1848,34 +1796,9 @@ impl FrameUpdate {
         self.bindings.colors.push(new_value)
     }
 
-    /// Update a scroll frame offset.
-    ///
-    /// The `offset` replaces the previous offset set for `id`, it represents the translation of the content in the viewport space.
-    ///
-    /// Use [`with_scroll`] to update scrolls that may contain widget bounds.
-    ///
-    /// [`with_scroll`]: Self::with_scroll
-    pub fn update_scroll(&mut self, id: ScrollId, offset: PxVector) {
-        self.scrolls.push((id.to_wr(self.pipeline_id), -offset))
-    }
-
-    /// Update a scroll frame offset for scroll content that may contain widgets.
-    ///
-    /// The [`transform`] is updated to include this space for the call to the `render_update` closure. The closure
-    /// must call render update on the scroll content.
-    ///
-    /// [`transform`]: Self::transform
-    pub fn with_scroll(&mut self, id: ScrollId, offset: PxVector, render_update: impl FnOnce(&mut Self)) {
-        let parent_transform = self.transform;
-        self.transform = RenderTransform::translation_px(offset).then(&parent_transform);
-        self.update_scroll(id, offset);
-        render_update(self);
-        self.transform = parent_transform;
-    }
-
     /// Finalize the update.
     ///
-    /// Returns the property updates, scroll updates and the new clear color if any was set.
+    /// Returns the property updates and the new clear color if any was set.
     pub fn finalize(mut self) -> (BuiltFrameUpdate, UsedFrameUpdate) {
         if self.clear_color == Some(self.current_clear_color) {
             self.clear_color = None;
@@ -1883,7 +1806,6 @@ impl FrameUpdate {
 
         let used = UsedFrameUpdate {
             pipeline_id: self.pipeline_id,
-            scrolls_capacity: self.scrolls.len(),
             transforms_capacity: self.bindings.transforms.len(),
             floats_capacity: self.bindings.floats.len(),
             colors_capacity: self.bindings.colors.len(),
@@ -1891,7 +1813,6 @@ impl FrameUpdate {
 
         let update = BuiltFrameUpdate {
             bindings: self.bindings,
-            scrolls: self.scrolls,
             clear_color: self.clear_color,
         };
 
@@ -1903,10 +1824,6 @@ impl FrameUpdate {
 pub struct BuiltFrameUpdate {
     /// Webrender frame properties updates.
     pub bindings: DynamicProperties,
-    /// Scroll updates.
-    ///
-    /// Note that scroll offsets are negated here, this is a requirement of `webrender`.
-    pub scrolls: Vec<(ExternalScrollId, PxVector)>,
     /// New clear color.
     pub clear_color: Option<RenderColor>,
 }
@@ -1915,7 +1832,6 @@ pub struct BuiltFrameUpdate {
 #[derive(Clone, Copy)]
 pub struct UsedFrameUpdate {
     pipeline_id: PipelineId,
-    scrolls_capacity: usize,
     transforms_capacity: usize,
     floats_capacity: usize,
     colors_capacity: usize,
@@ -1944,35 +1860,13 @@ unique_id_64! {
     struct FrameBindingKeyId;
 }
 
-unique_id_64! {
-    /// Unique ID of a scroll viewport.
-    #[derive(Debug)]
-    pub struct ScrollId;
-}
 unique_id_32! {
     /// Unique ID of a reference frame.
     #[derive(Debug)]
     pub struct SpatialFrameId;
 }
-
-impl ScrollId {
-    /// Id of the implicit scroll ID at the root of all frames.
-    ///
-    /// This [`ExternalScrollId`] cannot be represented by [`ScrollId`] because
-    /// it is the zero value.
-    pub fn wr_root(pipeline_id: PipelineId) -> ExternalScrollId {
-        ExternalScrollId(0, pipeline_id)
-    }
-
-    /// To webrender [`ExternalScrollId`].
-    pub fn to_wr(self, pipeline_id: PipelineId) -> ExternalScrollId {
-        ExternalScrollId(self.get(), pipeline_id)
-    }
-}
-
 impl SpatialFrameId {
-    const WIDGET_ID_FLAG: u64 = 1 << 63;
-    const SCROLL_ID_FLAG: u64 = 1 << 62;
+    const WIDGET_ID_FLAG: u64 = 1 << 62;
     const LIST_ID_FLAG: u64 = 1 << 61;
 
     /// Make a [`SpatialTreeItemKey`] from a [`WidgetId`], there is no collision
@@ -1981,12 +1875,6 @@ impl SpatialFrameId {
     /// This is the spatial id used for the widget's inner bounds offset.
     pub fn widget_id_to_wr(self_: WidgetId, pipeline_id: PipelineId) -> SpatialTreeItemKey {
         SpatialTreeItemKey::new(pipeline_id.0 as u64 | Self::WIDGET_ID_FLAG, self_.get())
-    }
-
-    /// Make a [`SpatialTreeItemKey`] from a [`ScrollId`], there is no collision
-    /// with other keys generated.
-    pub fn scroll_id_to_wr(self_: ScrollId, pipeline_id: PipelineId) -> SpatialTreeItemKey {
-        SpatialTreeItemKey::new(pipeline_id.0 as u64 | Self::SCROLL_ID_FLAG, self_.get())
     }
 
     /// To webrender [`SpatialTreeItemKey`].
