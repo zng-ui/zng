@@ -1,4 +1,4 @@
-* Fix bug, scrolling a button causes incorrect hit-tests?
+* Weird glitch in image example on open.
 * Move update skipping optimization to context, like in MeasureContext.
 * Optimize/fix interactivity, can we make parent interactivity affecting child a guarantee?
 

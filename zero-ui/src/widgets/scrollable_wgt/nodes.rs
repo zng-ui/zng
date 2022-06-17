@@ -21,6 +21,9 @@ pub fn viewport(child: impl UiNode, mode: impl IntoVar<ScrollMode>) -> impl UiNo
         content_size: PxSize,
         content_offset: PxVector,
 
+        spatial_id: SpatialFrameId,
+        binding_key: FrameBindingKey<RenderTransform>,
+
         info: ScrollableInfo,
     }
     #[impl_ui_node(child)]
@@ -156,20 +159,23 @@ pub fn viewport(child: impl UiNode, mode: impl IntoVar<ScrollMode>) -> impl UiNo
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
             self.info.set_viewport_transform(*frame.transform());
 
-            frame.push_scroll_frame(
-                self.scroll_id,
-                self.viewport_size,
-                PxRect::new(self.content_offset.to_point(), self.content_size),
+            frame.push_reference_frame(
+                self.spatial_id,
+                self.binding_key.bind(RenderTransform::translation_px(self.content_offset)),
+                true,
                 |frame| {
                     self.child.render(ctx, frame);
                 },
-            )
+            );
         }
 
         fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
             self.info.set_viewport_transform(*update.transform());
 
-            update.with_scroll(self.scroll_id, self.content_offset, |update| self.child.render_update(ctx, update));
+            update.with_transform(
+                self.binding_key.update(RenderTransform::translation_px(self.content_offset)),
+                |update| self.child.render_update(ctx, update),
+            );
         }
     }
     ViewportNode {
@@ -181,6 +187,9 @@ pub fn viewport(child: impl UiNode, mode: impl IntoVar<ScrollMode>) -> impl UiNo
         content_size: PxSize::zero(),
         content_offset: PxVector::zero(),
         info: ScrollableInfo::default(),
+
+        spatial_id: SpatialFrameId::new_unique(),
+        binding_key: FrameBindingKey::new_unique(),
     }
     .cfg_boxed()
 }
