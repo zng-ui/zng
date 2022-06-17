@@ -170,7 +170,7 @@ pub mod icon {
 
 /// Short form [`icon!`].
 ///
-/// [`icon!`]: mod::icon;
+/// [`icon!`]: mod@icon
 pub fn icon(ico: impl IntoVar<icon::GlyphIcon>) -> impl Widget {
     icon!(icon = ico)
 }
