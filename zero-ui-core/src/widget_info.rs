@@ -484,6 +484,7 @@ impl WidgetInfoBuilder {
                 meta: Rc::new(OwnedStateMap::new()),
                 interactivity_filters: vec![],
                 interactivity_cache: Cell::new(None),
+                local_interactivity: Cell::new(Interactivity::ENABLED),
             },
             used_data.tree_capacity,
         );
@@ -539,6 +540,7 @@ impl WidgetInfoBuilder {
                 meta: Rc::new(OwnedStateMap::new()),
                 interactivity_filters: vec![],
                 interactivity_cache: Cell::new(None),
+                local_interactivity: Cell::new(Interactivity::ENABLED),
             })
             .id();
 
@@ -592,12 +594,27 @@ impl WidgetInfoBuilder {
         }
     }
 
+    /// Add the `interactivity` bits to the current widget's interactivity, it will affect the widget and all descendants.
+    ///
+    /// Also see [`push_interactivity_filter`] to affect the interactivity of widgets outside the current one.
+    ///
+    /// [`push_interactivity_filter`]: Self::push_interactivity_filter
+    pub fn push_interactivity(&mut self, interactivity: Interactivity) {
+        let mut node = self.node(self.node);
+        let v = node.value();
+        *v.local_interactivity.get_mut() |= interactivity;
+    }
+
     /// Register a closure that returns the [`Interactivity`] allowed for each widget.
     ///
-    /// Widgets [`interactivity`] is computed from all interactivity filters. Interactivity filters are global to the
+    /// Widgets [`interactivity`] is computed from all interactivity filters and parents. Interactivity filters are global to the
     /// widget tree, and are re-registered for the tree if the current widget is [reused].
     ///
+    /// Note that the filter can make the assumption that parent widgets affect all descendants and if the filter is intended to
+    /// affect only the current widget and descendants you can use [`push_interactivity`] instead.
+    ///
     /// [`interactivity`]: WidgetInfo::interactivity
+    /// [`push_interactivity`]: Self::push_interactivity
     /// [reused]: Self::push_widget_reuse
     pub fn push_interactivity_filter(&mut self, filter: impl Fn(&InteractivityFilterArgs) -> Interactivity + 'static) {
         let filter = Rc::new(filter);
@@ -1586,6 +1603,7 @@ struct WidgetInfoData {
     meta: Rc<OwnedStateMap>,
     interactivity_filters: InteractivityFilters,
     interactivity_cache: Cell<Option<Interactivity>>,
+    local_interactivity: Cell<Interactivity>,
 }
 
 /// Reference to a widget info in a [`WidgetInfoTree`].
@@ -1770,15 +1788,20 @@ impl<'a> WidgetInfo<'a> {
         if let Some(cache) = self.info().interactivity_cache.get() {
             cache
         } else {
-            let mut interactivity = self.parent().map(|n| n.interactivity()).unwrap_or(Interactivity::ENABLED);
+            let mut interactivity = self.info().local_interactivity.get();
+
             if interactivity != Interactivity::BLOCKED_DISABLED {
-                for filter in &self.tree.0.interactivity_filters {
-                    interactivity |= filter(&InteractivityFilterArgs { info: self });
-                    if interactivity == Interactivity::BLOCKED_DISABLED {
-                        break;
+                interactivity |= self.parent().map(|n| n.interactivity()).unwrap_or(Interactivity::ENABLED);
+                if interactivity != Interactivity::BLOCKED_DISABLED {
+                    for filter in &self.tree.0.interactivity_filters {
+                        interactivity |= filter(&InteractivityFilterArgs { info: self });
+                        if interactivity == Interactivity::BLOCKED_DISABLED {
+                            break;
+                        }
                     }
                 }
             }
+
             self.info().interactivity_cache.set(Some(interactivity));
             interactivity
         }

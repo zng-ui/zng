@@ -590,14 +590,7 @@ pub fn enabled(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
     impl<C: UiNode, E: Var<bool>> UiNode for EnabledNode<C, E> {
         fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
             if !self.local_enabled.copy(ctx) {
-                let id = ctx.path.widget_id();
-                info.push_interactivity_filter(move |args| {
-                    if args.info.self_and_ancestors().all(|w| w.widget_id() != id) {
-                        Interactivity::ENABLED
-                    } else {
-                        Interactivity::DISABLED
-                    }
-                });
+                info.push_interactivity(Interactivity::DISABLED);
             }
             self.child.info(ctx, info);
         }
@@ -650,14 +643,7 @@ pub fn interactive(child: impl UiNode, interactive: impl IntoVar<bool>) -> impl 
     impl<C: UiNode, I: Var<bool>> UiNode for InteractiveNode<C, I> {
         fn info(&self, ctx: &mut InfoContext, info: &mut WidgetInfoBuilder) {
             if !self.interactive.copy(ctx) {
-                let id = ctx.path.widget_id();
-                info.push_interactivity_filter(move |args| {
-                    if args.info.self_and_ancestors().all(|w| w.widget_id() != id) {
-                        Interactivity::ENABLED
-                    } else {
-                        Interactivity::BLOCKED
-                    }
-                });
+                info.push_interactivity(Interactivity::BLOCKED);
             }
             self.child.info(ctx, info);
         }
@@ -702,10 +688,10 @@ pub fn interactive_node(child: impl UiNode, interactive: impl IntoVar<bool>) -> 
             } else if let Some(id) = self.child.try_id() {
                 // child is an widget.
                 info.push_interactivity_filter(move |args| {
-                    if args.info.self_and_ancestors().all(|w| w.widget_id() != id) {
-                        Interactivity::ENABLED
-                    } else {
+                    if args.info.widget_id() == id {
                         Interactivity::BLOCKED
+                    } else {
+                        Interactivity::ENABLED
                     }
                 });
                 self.child.info(ctx, info);
@@ -716,24 +702,20 @@ pub fn interactive_node(child: impl UiNode, interactive: impl IntoVar<bool>) -> 
 
                     let id = ctx.path.widget_id();
                     info.push_interactivity_filter(move |args| {
-                        // find child of `id` in ancestors.
-                        let mut child = args.info;
-                        'ancestors: for parent in args.info.ancestors() {
+                        if let Some(parent) = args.info.parent() {
                             if parent.widget_id() == id {
                                 // check child range
                                 for (i, item) in parent.children().enumerate() {
-                                    if item == child {
+                                    if item == args.info {
                                         return if !block_range.contains(&i) {
                                             Interactivity::ENABLED
                                         } else {
                                             Interactivity::BLOCKED
                                         };
                                     } else if i >= block_range.end {
-                                        break 'ancestors;
+                                        break;
                                     }
                                 }
-                            } else {
-                                child = parent;
                             }
                         }
                         Interactivity::ENABLED

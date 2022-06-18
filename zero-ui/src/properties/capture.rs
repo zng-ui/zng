@@ -143,13 +143,16 @@ pub fn modal(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
                     info.push_interactivity_filter(clone_move!(mws, |a| {
                         let mut mws = mws.borrow_mut();
 
+                        // caches the top-most modal.
                         if mws.last_in_tree.is_none() {
                             match mws.widgets.len() {
                                 0 => unreachable!(),
                                 1 => {
+                                    // only one modal
                                     mws.last_in_tree = mws.widgets.iter().next().copied();
                                 }
                                 _ => {
+                                    // multiple modals, find the *top* one.
                                     let mut found = 0;
                                     for info in a.info.root().self_and_descendants() {
                                         if mws.widgets.contains(&info.widget_id()) {
@@ -164,6 +167,7 @@ pub fn modal(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
                             };
                         }
 
+                        // filter, only allows inside self inclusive, and ancestors.
                         let modal = mws.last_in_tree.unwrap();
                         if a.info.self_and_ancestors().any(|w| w.widget_id() == modal)
                             || a.info.self_and_descendants().any(|w| w.widget_id() == modal)

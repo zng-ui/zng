@@ -138,7 +138,7 @@ impl WindowLayers {
                     let widget = self.widget.id();
                     let querying = Cell::new(false);
                     info.push_interactivity_filter(move |args| {
-                        if args.info.self_and_ancestors().any(|w| w.widget_id() == widget) {
+                        if args.info.widget_id() == widget {
                             if querying.replace(true) {
                                 return Interactivity::ENABLED; // avoid recursion.
                             }
