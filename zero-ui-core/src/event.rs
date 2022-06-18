@@ -147,28 +147,26 @@ impl<E: Event> EventUpdate<E> {
         self.args.clone()
     }
 
-    pub(crate) fn boxed(mut self) -> BoxedEventUpdate {
+    pub(crate) fn boxed(self) -> BoxedEventUpdate {
         BoxedEventUpdate {
             event_type: TypeId::of::<E>(),
             slot: self.slot,
-            delivery_list: mem::take(&mut self.delivery_list),
-            args: Box::new(self),
+            event_update_args: Box::new(self),
+            delivery_list_deref: delivery_list_deref::<E>,
             debug_fmt: debug_fmt::<E>,
-            debug_fmt_any: debug_fmt_any::<E>,
         }
     }
 
-    fn boxed_send(mut self) -> BoxedSendEventUpdate
+    fn boxed_send(self) -> BoxedSendEventUpdate
     where
         E::Args: Send,
     {
         BoxedSendEventUpdate {
             event_type: TypeId::of::<E>(),
             slot: self.slot,
-            delivery_list: mem::take(&mut self.delivery_list),
-            args: Box::new(self),
+            event_update_args: Box::new(self),
+            delivery_list_deref: delivery_list_deref::<E>,
             debug_fmt: debug_fmt::<E>,
-            debug_fmt_any: debug_fmt_any::<E>,
         }
     }
 
@@ -181,11 +179,11 @@ impl<E: Event> EventUpdate<E> {
 impl<E: Event> crate::private::Sealed for EventUpdate<E> {}
 impl<E: Event> fmt::Debug for EventUpdate<E> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        if f.alternate() {
-            write!(f, "EventUpdate<{}>({:#?})", type_name::<E>(), self.args)
-        } else {
-            write!(f, "EventUpdate<{}>({:?})", type_name::<E>(), self.args)
-        }
+        write!(f, "EventUpdate<{}>", type_name::<E>())?;
+        f.debug_struct("")
+            .field("args", &self.args)
+            .field("delivery_list", &self.delivery_list)
+            .finish_non_exhaustive()
     }
 }
 impl<E: Event> Deref for EventUpdate<E> {
@@ -199,10 +197,18 @@ impl<E: Event> Deref for EventUpdate<E> {
 /// Construct with [`debug_fmt`].
 type DebugFmtFn = unsafe fn(&dyn UnsafeAny, &mut fmt::Formatter) -> fmt::Result;
 unsafe fn debug_fmt<E: Event>(args: &dyn UnsafeAny, f: &mut fmt::Formatter) -> fmt::Result {
-    let args = args.downcast_ref_unchecked::<E::Args>();
-    write!(f, "{}\n{:?}", type_name::<E>(), args)
+    let args = args.downcast_ref_unchecked::<EventUpdate<E>>();
+    fmt::Debug::fmt(args, f)
 }
 
+/// Construct with [`delivery_list_deref`].
+type DeliveryListDerefFn = unsafe fn(&dyn UnsafeAny) -> &EventDeliveryList;
+unsafe fn delivery_list_deref<E: Event>(args: &dyn UnsafeAny) -> &EventDeliveryList {
+    let args = args.downcast_ref_unchecked::<EventUpdate<E>>();
+    &args.delivery_list
+}
+
+#[derive(Debug)]
 struct WindowDelivery {
     id: WindowId,
     widgets: Vec<WidgetPath>,
@@ -212,6 +218,7 @@ struct WindowDelivery {
 /// Delivery list for an [`EventArgs`].
 ///
 /// Windows and widgets use this list to find all targets of the event.
+#[derive(Debug)]
 pub struct EventDeliveryList {
     windows: RefCell<Vec<WindowDelivery>>,
     all: bool,
@@ -457,25 +464,27 @@ impl EventDeliveryList {
 pub struct BoxedEventUpdate {
     event_type: TypeId,
     slot: EventSlot,
-    delivery_list: EventDeliveryList,
-    args: Box<dyn UnsafeAny>,
+    event_update_args: Box<dyn UnsafeAny>,
+    delivery_list_deref: DeliveryListDerefFn,
     debug_fmt: DebugFmtFn,
-    debug_fmt_any: DebugFmtAnyFn,
 }
 impl BoxedEventUpdate {
     /// Unbox the arguments for `Q` if the update is for `Q`.
     pub fn unbox_for<Q: Event>(self) -> Result<EventUpdate<Q>, Self> {
         if self.event_type == TypeId::of::<Q>() {
-            Ok({
-                let mut update: EventUpdate<Q> = unsafe {
-                    // SAFETY: its the same type
-                    *self.args.downcast_unchecked()
-                };
-                update.delivery_list = self.delivery_list;
-                update
+            Ok(unsafe {
+                // SAFETY: its the same type
+                *self.event_update_args.downcast_unchecked()
             })
         } else {
             Err(self)
+        }
+    }
+
+    fn delivery_list(&self) -> &EventDeliveryList {
+        unsafe {
+            // SAFETY: only `EventUpdate<E>` can build and it is strongly typed.
+            (self.delivery_list_deref)(&*self.event_update_args)
         }
     }
 }
@@ -484,7 +493,7 @@ impl fmt::Debug for BoxedEventUpdate {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "boxed ")?;
         // SAFETY: only `EventUpdate<E>` can build and it is strongly typed.
-        unsafe { (self.debug_fmt)(&*self.args, f) }
+        unsafe { (self.debug_fmt)(&*self.event_update_args, f) }
     }
 }
 impl EventUpdateArgs for BoxedEventUpdate {
@@ -492,7 +501,7 @@ impl EventUpdateArgs for BoxedEventUpdate {
         if self.event_type == TypeId::of::<Q>() {
             Some(unsafe {
                 // SAFETY: its the same type
-                self.args.downcast_ref_unchecked()
+                self.event_update_args.downcast_ref_unchecked()
             })
         } else {
             None
@@ -502,13 +511,10 @@ impl EventUpdateArgs for BoxedEventUpdate {
     fn as_any(&self) -> AnyEventUpdate {
         AnyEventUpdate {
             event_type_id: self.event_type,
-            debug_fmt: self.debug_fmt_any,
-            delivery_list: &self.delivery_list,
+            delivery_list_deref: self.delivery_list_deref,
+            debug_fmt: self.debug_fmt,
             slot: self.slot,
-            event_update_args: unsafe {
-                // SAFETY: no different then the EventUpdate::as_any()
-                self.args.downcast_ref_unchecked()
-            },
+            event_update_args: &*self.event_update_args,
         }
     }
 
@@ -517,9 +523,9 @@ impl EventUpdateArgs for BoxedEventUpdate {
     }
 
     fn with_window<H: FnOnce(&mut WindowContext) -> R, R>(&self, ctx: &mut WindowContext, handle: H) -> Option<R> {
-        if self.delivery_list.enter_window(ctx) {
+        if self.delivery_list().enter_window(ctx) {
             let r = Some(handle(ctx));
-            self.delivery_list.exit_window();
+            self.delivery_list().exit_window();
             r
         } else {
             None
@@ -527,9 +533,9 @@ impl EventUpdateArgs for BoxedEventUpdate {
     }
 
     fn with_widget<H: FnOnce(&mut WidgetContext) -> R, R>(&self, ctx: &mut WidgetContext, handle: H) -> Option<R> {
-        if self.delivery_list.enter_widget(ctx.path.widget_id()) {
+        if self.delivery_list().enter_widget(ctx.path.widget_id()) {
             let r = Some(handle(ctx));
-            self.delivery_list.exit_widget();
+            self.delivery_list().exit_widget();
             r
         } else {
             None
@@ -541,10 +547,13 @@ impl EventUpdateArgs for BoxedEventUpdate {
 pub struct BoxedSendEventUpdate {
     event_type: TypeId,
     slot: EventSlot,
-    args: Box<dyn UnsafeAny + Send>,
-    delivery_list: EventDeliveryList,
+    event_update_args: Box<dyn UnsafeAny + Send>,
+    delivery_list_deref: DeliveryListDerefFn,
     debug_fmt: DebugFmtFn,
-    debug_fmt_any: DebugFmtAnyFn,
+}
+#[cfg(debug_assertions)]
+fn _assert_is_send(args: BoxedSendEventUpdate) -> impl Send {
+    args
 }
 impl BoxedSendEventUpdate {
     /// Unbox the arguments for `Q` if the update is for `Q`.
@@ -553,13 +562,9 @@ impl BoxedSendEventUpdate {
         Q::Args: Send,
     {
         if self.event_type == TypeId::of::<Q>() {
-            Ok({
-                let mut update: EventUpdate<Q> = unsafe {
-                    // SAFETY: its the same type
-                    *<dyn UnsafeAny>::downcast_unchecked(self.args)
-                };
-                update.delivery_list = self.delivery_list;
-                update
+            Ok(unsafe {
+                // SAFETY: its the same type
+                *<dyn UnsafeAny>::downcast_unchecked(self.event_update_args)
             })
         } else {
             Err(self)
@@ -571,46 +576,46 @@ impl BoxedSendEventUpdate {
         BoxedEventUpdate {
             event_type: self.event_type,
             slot: self.slot,
-            delivery_list: self.delivery_list,
-            args: self.args,
+            event_update_args: self.event_update_args,
+            delivery_list_deref: self.delivery_list_deref,
             debug_fmt: self.debug_fmt,
-            debug_fmt_any: self.debug_fmt_any,
         }
     }
 }
 impl crate::private::Sealed for BoxedSendEventUpdate {}
 impl fmt::Debug for BoxedSendEventUpdate {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "boxed send")?;
+        write!(f, "boxed send ")?;
         // SAFETY: only `EventUpdate<E>` can build and it is strongly typed.
-        unsafe { (self.debug_fmt)(&*self.args, f) }
+        unsafe { (self.debug_fmt)(&*self.event_update_args, f) }
     }
-}
-
-type DebugFmtAnyFn = unsafe fn(&(), &mut fmt::Formatter) -> fmt::Result;
-unsafe fn debug_fmt_any<E: Event>(args: &(), f: &mut fmt::Formatter) -> fmt::Result {
-    let args: &EventUpdate<E> = mem::transmute(args);
-    write!(f, "{}\n{:?}", type_name::<E>(), args)
 }
 
 /// Type erased [`EventUpdateArgs`].
 pub struct AnyEventUpdate<'a> {
     event_type_id: TypeId,
     slot: EventSlot,
-    delivery_list: &'a EventDeliveryList,
     // this is a reference to a `EventUpdate<Q>`.
-    event_update_args: &'a (),
-    debug_fmt: DebugFmtAnyFn,
+    event_update_args: &'a dyn UnsafeAny,
+    delivery_list_deref: DeliveryListDerefFn,
+    debug_fmt: DebugFmtFn,
 }
 impl<'a> AnyEventUpdate<'a> {
     /// Gets the [`TypeId`] of the event type represented by `self`.
     pub fn event_type_id(&self) -> TypeId {
         self.event_type_id
     }
+
+    fn delivery_list(&self) -> &EventDeliveryList {
+        unsafe {
+            // SAFETY: only `EventUpdate<E>` can build and it is strongly typed.
+            (self.delivery_list_deref)(&*self.event_update_args)
+        }
+    }
 }
 impl<'a> fmt::Debug for AnyEventUpdate<'a> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "any")?;
+        write!(f, "any ")?;
         // SAFETY: only `EventUpdate<E>` can build and it is strongly typed.
         unsafe { (self.debug_fmt)(self.event_update_args, f) }
     }
@@ -622,7 +627,7 @@ impl<'a> EventUpdateArgs for AnyEventUpdate<'a> {
             Some(unsafe {
                 // SAFETY: its the same type.
                 #[allow(clippy::transmute_ptr_to_ptr)]
-                mem::transmute(self.event_update_args)
+                self.event_update_args.downcast_ref_unchecked()
             })
         } else {
             None
@@ -634,8 +639,8 @@ impl<'a> EventUpdateArgs for AnyEventUpdate<'a> {
             event_type_id: self.event_type_id,
             slot: self.slot,
             event_update_args: self.event_update_args,
+            delivery_list_deref: self.delivery_list_deref,
             debug_fmt: self.debug_fmt,
-            delivery_list: self.delivery_list,
         }
     }
 
@@ -644,9 +649,9 @@ impl<'a> EventUpdateArgs for AnyEventUpdate<'a> {
     }
 
     fn with_window<H: FnOnce(&mut WindowContext) -> R, R>(&self, ctx: &mut WindowContext, handle: H) -> Option<R> {
-        if self.delivery_list.enter_window(ctx) {
+        if self.delivery_list().enter_window(ctx) {
             let r = Some(handle(ctx));
-            self.delivery_list.exit_window();
+            self.delivery_list().exit_window();
             r
         } else {
             None
@@ -654,9 +659,9 @@ impl<'a> EventUpdateArgs for AnyEventUpdate<'a> {
     }
 
     fn with_widget<H: FnOnce(&mut WidgetContext) -> R, R>(&self, ctx: &mut WidgetContext, handle: H) -> Option<R> {
-        if self.delivery_list.enter_widget(ctx.path.widget_id()) {
+        if self.delivery_list().enter_widget(ctx.path.widget_id()) {
             let r = Some(handle(ctx));
-            self.delivery_list.exit_widget();
+            self.delivery_list().exit_widget();
             r
         } else {
             None
@@ -701,14 +706,10 @@ impl<E: Event> EventUpdateArgs for EventUpdate<E> {
     fn as_any(&self) -> AnyEventUpdate {
         AnyEventUpdate {
             event_type_id: TypeId::of::<E>(),
-            debug_fmt: debug_fmt_any::<E>,
-            delivery_list: &self.delivery_list,
+            debug_fmt: debug_fmt::<E>,
+            delivery_list_deref: delivery_list_deref::<E>,
             slot: self.slot,
-            event_update_args: unsafe {
-                // SAFETY: we validate all usages of this (args_for, debug_fmt)
-                #[allow(clippy::transmute_ptr_to_ptr)]
-                mem::transmute(self)
-            },
+            event_update_args: self,
         }
     }
 
@@ -717,9 +718,9 @@ impl<E: Event> EventUpdateArgs for EventUpdate<E> {
     }
 
     fn with_window<H: FnOnce(&mut WindowContext) -> R, R>(&self, ctx: &mut WindowContext, handle: H) -> Option<R> {
-        if self.delivery_list.enter_window(ctx) {
+        if self.delivery_list().enter_window(ctx) {
             let r = Some(handle(ctx));
-            self.delivery_list.exit_window();
+            self.delivery_list().exit_window();
             r
         } else {
             None
@@ -727,9 +728,9 @@ impl<E: Event> EventUpdateArgs for EventUpdate<E> {
     }
 
     fn with_widget<H: FnOnce(&mut WidgetContext) -> R, R>(&self, ctx: &mut WidgetContext, handle: H) -> Option<R> {
-        if self.delivery_list.enter_widget(ctx.path.widget_id()) {
+        if self.delivery_list().enter_widget(ctx.path.widget_id()) {
             let r = Some(handle(ctx));
-            self.delivery_list.exit_widget();
+            self.delivery_list().exit_widget();
             r
         } else {
             None

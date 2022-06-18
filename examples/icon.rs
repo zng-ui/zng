@@ -2,7 +2,7 @@
 use zero_ui::prelude::*;
 
 use zero_ui_material_icons as icons;
-//use zero_ui_view_prebuilt as zero_ui_view;
+use zero_ui_view_prebuilt as zero_ui_view;
 
 fn main() {
     examples_util::print_info();
@@ -31,7 +31,7 @@ fn app_main() {
                     padding = 10;
                     spacing = 5;
                     icon::theme::icon_size = 48;
-                    items = icons::outlined::all().into_iter()//.take(100)
+                    items = icons::outlined::all().into_iter().take(100)
                             .map(|i| icon_btn(i).boxed_wgt())
                             .collect::<WidgetVec>(),
                 }
@@ -73,10 +73,14 @@ fn expanded_icon(ico: icons::MaterialIcon) -> impl Widget {
         modal = true;
         background_color = colors::WHITE.with_alpha(10.pct());
         content_align = Align::CENTER;
-        on_click = hn!(|ctx, _| {
-            WindowLayers::remove(ctx, "expanded-icon");
+        on_click = hn!(|ctx, args: &ClickArgs| {
+            if ctx.path.widget_id() == args.target.widget_id() {
+                WindowLayers::remove(ctx, "expanded-icon");
+                args.propagation().stop();
+            }
         });
         content = container! {
+            id = "panel";
             background_color = rgb(0.1, 0.1, 0.1);
             focus_scope = true;
             tab_nav = TabNav::Cycle;
@@ -142,13 +146,15 @@ fn expanded_icon(ico: icons::MaterialIcon) -> impl Widget {
                     ]
                 },
                 button! {
+                    id = "close-btn";
                     icon::theme::icon_size = 14;
                     content = icon(icons::filled::CLOSE);
                     align = Align::TOP_RIGHT;
                     padding = 2;
                     margin = 4;
-                    on_click = hn!(|ctx, _| {
+                    on_click = hn!(|ctx, args: &ClickArgs| {
                         WindowLayers::remove(ctx, "expanded-icon");
+                        args.propagation().stop();
                     });
                 }
             ])
