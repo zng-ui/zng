@@ -38,11 +38,15 @@ Widget that need to be implemented.
 
 Layout widgets.
 
-* Z-Index?
-
-* Grid.
-* WrapPanel.
-* DockPanel.
+* Refactor `v_stack/h_stack/z_stack` to `column/row/stack`.
+* Refactor `wrap` to `row_wrap` and implement `column_wrap`.
+* Implement properties that work with any panel to draw lines in between items.
+  - Also backgrounds and foregrounds for each item.
+  - Cell borders that don't affect size.
+  - Selection borders, backgrounds.
+* Implement `grid`, that works like overlapping row/columns.
+* Implement reverse `UiNodeList` and other ops in the lists directly.
+  - Like sorting and the z-index has worked well, other auto-updating "iterator inspired" helpers are probably pretty cool.
 
 ## Virtualizing Widgets
 

@@ -12,6 +12,10 @@
 # Update Mask
 
 * Sub-divide UiNodeList masks.
+* Review the icon example with all icon to see what happens with lots of false positives.
+  - Maybe we need a better distribution or a linear search after the flag matches?
+  - Can we have delivery lists for vars?
+* Move update skipping optimization to context, right now the `Widget` implementer handles some parts of it.
 
 # Startup
 
@@ -30,10 +34,17 @@
   - Investigate why the space/clip ids are generated in the client side.
     - Its so you can push items to parent spaces out-of-order, like position absolute?
 
+* Optimize using the icon example with fully loaded icons.
+  - Display list building is slow.
+  - Webrender rendering is very slow!, Firefox is much better, are we missing on some culling in Firefox code?
 
 # Webrender frame update
 
 * Very slow frame update for large text? Do a scroll-to-end in the example to see.
+
+# Layout
+
+* Add property for selecting the "sample" child in panels that need to measure.
 
 # Image Render
 
