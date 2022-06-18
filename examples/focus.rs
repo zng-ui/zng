@@ -85,7 +85,7 @@ fn functions(window_enabled: RcVar<bool>) -> impl Widget {
                 content = text("New Window");
                 on_click = hn!(|ctx, _| {
                     ctx.services.windows().open(|ctx| {
-                        ctx.window_id.set_name("other").unwrap();
+                        let _ = ctx.window_id.set_name("other");
                         window! {
                             title = "Other Window";
                             focus_shortcut = shortcut!(W);

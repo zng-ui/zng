@@ -915,12 +915,13 @@ impl WidgetPath {
 #[derive(Clone)]
 pub struct InteractionPath {
     path: WidgetPath,
-    interactivity: Box<[Interactivity]>,
+    blocked: usize,
+    disabled: usize,
 }
 impl PartialEq for InteractionPath {
     /// Paths are equal if the are the same window, widgets and interactivity.
     fn eq(&self, other: &Self) -> bool {
-        self.as_path() == other.as_path() && self.interactivity == other.interactivity
+        self.as_path() == other.as_path() && self.blocked == other.blocked && self.disabled == other.disabled
     }
 }
 impl Eq for InteractionPath {}
@@ -936,7 +937,8 @@ impl fmt::Debug for InteractionPath {
             f.debug_struct("InteractionPath")
                 .field("window_id", &self.window_id)
                 .field("path", &self.path)
-                .field("interactivity", &self.interactivity)
+                .field("blocked", &self.blocked_index())
+                .field("disabled", &self.disabled_index())
                 .finish_non_exhaustive()
         } else {
             write!(f, "{self}")
@@ -955,14 +957,22 @@ impl InteractionPath {
     pub fn new<P: IntoIterator<Item = (WidgetId, Interactivity)>>(window_id: WindowId, path: P) -> InteractionPath {
         let iter = path.into_iter();
         let mut path = Vec::with_capacity(iter.size_hint().0);
-        let mut interactivity = Vec::with_capacity(path.capacity());
-        for (w, i) in iter {
+        let mut blocked = None;
+        let mut disabled = None;
+        for (i, (w, intera)) in iter.enumerate() {
             path.push(w);
-            interactivity.push(i);
+            if blocked.is_none() && intera.contains(Interactivity::BLOCKED) {
+                blocked = Some(i);
+            }
+            if disabled.is_none() && intera.contains(Interactivity::DISABLED) {
+                disabled = Some(i);
+            }
         }
+        let len = path.len();
         InteractionPath {
             path: WidgetPath::new(window_id, path),
-            interactivity: interactivity.into_boxed_slice(),
+            blocked: blocked.unwrap_or(len),
+            disabled: disabled.unwrap_or(len),
         }
     }
 
@@ -976,9 +986,11 @@ impl InteractionPath {
 
     /// New custom interactivity path with all widgets enabled.
     pub fn from_enabled(path: WidgetPath) -> InteractionPath {
+        let len = path.path.len();
         InteractionPath {
-            interactivity: vec![Interactivity::ENABLED; path.widgets_path().len()].into(),
             path,
+            blocked: len,
+            disabled: len,
         }
     }
 
@@ -987,24 +999,88 @@ impl InteractionPath {
         &self.path
     }
 
+    /// Index of first [`BLOCKED`].
+    ///
+    /// [`BLOCKED`]: Interactivity::BLOCKED
+    pub fn blocked_index(&self) -> Option<usize> {
+        if self.blocked < self.path.path.len() {
+            Some(self.blocked)
+        } else {
+            None
+        }
+    }
+    /// Index of first [`DISABLED`].
+    ///
+    /// [`DISABLED`]: Interactivity::DISABLED
+    pub fn disabled_index(&self) -> Option<usize> {
+        if self.disabled < self.path.path.len() {
+            Some(self.disabled)
+        } else {
+            None
+        }
+    }
+
     /// Interactivity for each widget, root first.
-    pub fn interaction_path(&self) -> &[Interactivity] {
-        &self.interactivity
+    pub fn interaction_path(&self) -> impl Iterator<Item = Interactivity> {
+        struct InteractivityIter {
+            range: ops::Range<usize>,
+            blocked: usize,
+            disabled: usize,
+        }
+        impl Iterator for InteractivityIter {
+            type Item = Interactivity;
+
+            fn next(&mut self) -> Option<Self::Item> {
+                self.range.next().map(|i| {
+                    let mut intera = Interactivity::ENABLED;
+                    if self.blocked <= i {
+                        intera |= Interactivity::BLOCKED;
+                    }
+                    if self.disabled <= i {
+                        intera |= Interactivity::DISABLED;
+                    }
+                    intera
+                })
+            }
+        }
+
+        InteractivityIter {
+            range: 0..self.path.path.len(),
+            blocked: self.blocked,
+            disabled: self.disabled,
+        }
     }
 
     /// Search for the interactivity value associated with the widget in the path.
     pub fn interactivity_of(&self, widget_id: WidgetId) -> Option<Interactivity> {
-        self.zip().find_map(|(w, intera)| if w == widget_id { Some(intera) } else { None })
+        self.path.widgets_path().iter().position(|&w| w == widget_id).map(|i| {
+            let mut intera = Interactivity::ENABLED;
+            if self.blocked <= i {
+                intera |= Interactivity::BLOCKED;
+            }
+            if self.disabled <= i {
+                intera |= Interactivity::DISABLED;
+            }
+            intera
+        })
     }
 
     /// Interactivity of the widget.
     pub fn interactivity(&self) -> Interactivity {
-        self.interactivity[self.interactivity.len() - 1]
+        let mut intera = Interactivity::ENABLED;
+        let len = self.path.path.len();
+        if self.blocked < len {
+            intera |= Interactivity::BLOCKED;
+        }
+        if self.disabled < len {
+            intera |= Interactivity::DISABLED;
+        }
+        intera
     }
 
     /// Zip widgets and interactivity.
     pub fn zip(&self) -> impl Iterator<Item = (WidgetId, Interactivity)> + '_ {
-        self.path.widgets_path().iter().copied().zip(self.interactivity.iter().copied())
+        self.path.widgets_path().iter().copied().zip(self.interaction_path())
     }
 
     /// Gets the [`ENABLED`] or [`DISABLED`] part of the path, or none if the widget is blocked at the root.
@@ -1012,24 +1088,20 @@ impl InteractionPath {
     /// [`ENABLED`]: Interactivity::ENABLED
     /// [`DISABLED`]: Interactivity::DISABLED
     pub fn unblocked(self) -> Option<InteractionPath> {
-        if let Some(i) = self.interactivity.iter().position(|i| i.is_blocked()) {
-            if i == 0 {
-                None
-            } else {
-                let mut interactivity = Vec::from(self.interactivity);
-                interactivity.truncate(i);
-                let mut path = Vec::from(self.path.path);
-                path.truncate(i);
-
-                Some(InteractionPath {
-                    path: WidgetPath {
-                        node_id: None,
-                        window_id: self.path.window_id,
-                        path: path.into(),
-                    },
-                    interactivity: interactivity.into(),
-                })
+        if self.blocked < self.path.path.len() {
+            if self.blocked == 0 {
+                return None;
             }
+            let blocked = self.blocked - 1;
+            Some(InteractionPath {
+                path: WidgetPath {
+                    node_id: None,
+                    window_id: self.path.window_id,
+                    path: self.path.path[blocked..].to_vec().into_boxed_slice(),
+                },
+                blocked,
+                disabled: self.disabled,
+            })
         } else {
             Some(self)
         }
@@ -1039,19 +1111,17 @@ impl InteractionPath {
     ///
     /// [`ENABLED`]: Interactivity::ENABLED
     pub fn enabled(self) -> Option<WidgetPath> {
-        if let Some(i) = self.interactivity.iter().position(|i| !i.is_enabled()) {
-            if i == 0 {
-                None
-            } else {
-                let mut path = Vec::from(self.path.path);
-                path.truncate(i);
+        let enabled_end = self.blocked.min(self.disabled);
 
-                Some(WidgetPath {
-                    node_id: None,
-                    window_id: self.path.window_id,
-                    path: path.into(),
-                })
+        if enabled_end < self.path.path.len() {
+            if enabled_end == 0 {
+                return None;
             }
+            Some(WidgetPath {
+                node_id: None,
+                window_id: self.path.window_id,
+                path: self.path.path[..enabled_end].to_vec().into_boxed_slice(),
+            })
         } else {
             Some(self.path)
         }
@@ -1060,7 +1130,7 @@ impl InteractionPath {
     /// Make a path to an ancestor id that is contained in the current path.
     pub fn ancestor_path(&self, ancestor_id: WidgetId) -> Option<Cow<InteractionPath>> {
         self.widgets_path().iter().position(|&id| id == ancestor_id).map(|i| {
-            if i == self.interactivity.len() - 1 {
+            if i == self.path.path.len() - 1 {
                 Cow::Borrowed(self)
             } else {
                 Cow::Owned(InteractionPath {
@@ -1069,7 +1139,8 @@ impl InteractionPath {
                         window_id: self.window_id,
                         path: self.path.path[..i].to_vec().into_boxed_slice(),
                     },
-                    interactivity: self.interactivity[..i].to_vec().into_boxed_slice(),
+                    blocked: self.blocked,
+                    disabled: self.disabled,
                 })
             }
         })
@@ -1083,17 +1154,17 @@ impl InteractionPath {
                     None
                 } else {
                     let path = self.path.path[..i].to_vec().into_boxed_slice();
-                    let interactivity = self.interactivity[..i].to_vec().into_boxed_slice();
                     Some(Cow::Owned(InteractionPath {
                         path: WidgetPath {
                             node_id: None,
                             window_id: self.window_id,
                             path,
                         },
-                        interactivity,
+                        blocked: self.blocked,
+                        disabled: self.disabled,
                     }))
                 }
-            } else if self.interactivity.len() <= other.interactivity.len() {
+            } else if self.path.path.len() <= other.path.path.len() {
                 Some(Cow::Borrowed(self))
             } else {
                 Some(Cow::Borrowed(other))
@@ -1105,7 +1176,7 @@ impl InteractionPath {
 
     /// Gets a path to the root widget of this path.
     pub fn root_path(&self) -> Cow<InteractionPath> {
-        if self.interactivity.len() == 1 {
+        if self.path.path.len() == 1 {
             Cow::Borrowed(self)
         } else {
             Cow::Owned(InteractionPath {
@@ -1114,7 +1185,8 @@ impl InteractionPath {
                     window_id: self.window_id,
                     path: Box::new([self.path.path[0]]),
                 },
-                interactivity: Box::new([self.interactivity[0]]),
+                blocked: self.blocked,
+                disabled: self.disabled,
             })
         }
     }
@@ -1578,14 +1650,24 @@ impl<'a> WidgetInfo<'a> {
     /// [`interactivity`]: Self::interactivity
     pub fn interaction_path(self) -> InteractionPath {
         let mut path = vec![];
-        let mut interactivity = vec![];
+
+        let mut blocked = None;
+        let mut disabled = None;
 
         for w in self.self_and_ancestors() {
+            let intera = w.interactivity();
+            if intera.contains(Interactivity::BLOCKED) {
+                blocked = Some(path.len());
+            }
+            if intera.contains(Interactivity::DISABLED) {
+                disabled = Some(path.len());
+            }
+
             path.push(w.widget_id());
-            interactivity.push(w.interactivity());
         }
         path.reverse();
-        interactivity.reverse();
+
+        let len = path.len();
 
         InteractionPath {
             path: WidgetPath {
@@ -1593,7 +1675,8 @@ impl<'a> WidgetInfo<'a> {
                 node_id: Some((self.tree.0.id, self.node_id)),
                 path: path.into(),
             },
-            interactivity: interactivity.into(),
+            blocked: blocked.map(|i| len - i - 1).unwrap_or(len),
+            disabled: disabled.map(|i| len - i - 1).unwrap_or(len),
         }
     }
 
@@ -1679,18 +1762,21 @@ impl<'a> WidgetInfo<'a> {
         }
     }
 
-    /// Compute the interactivity of the widget.
+    /// Get or compute the interactivity of the widget.
     ///
-    /// The interactivity of a widget is the combined result of all interactivity filters applied to it.
+    /// The interactivity of a widget is the combined result of all interactivity filters applied to it and its ancestors.
+    /// If a parent is blocked this is blocked, same for disabled.
     pub fn interactivity(self) -> Interactivity {
         if let Some(cache) = self.info().interactivity_cache.get() {
             cache
         } else {
-            let mut interactivity = Interactivity::ENABLED;
-            for filter in &self.tree.0.interactivity_filters {
-                interactivity |= filter(&InteractivityFilterArgs { info: self });
-                if interactivity == Interactivity::BLOCKED_DISABLED {
-                    break;
+            let mut interactivity = self.parent().map(|n| n.interactivity()).unwrap_or(Interactivity::ENABLED);
+            if interactivity != Interactivity::BLOCKED_DISABLED {
+                for filter in &self.tree.0.interactivity_filters {
+                    interactivity |= filter(&InteractivityFilterArgs { info: self });
+                    if interactivity == Interactivity::BLOCKED_DISABLED {
+                        break;
+                    }
                 }
             }
             self.info().interactivity_cache.set(Some(interactivity));
