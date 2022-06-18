@@ -118,9 +118,11 @@ pub mod wrap {
                                 }
                                 panel_size.width = panel_size.width.max(row_size.width);
                                 panel_size.height += row_size.height + spacing.row;
-                                row_size = PxSize::zero();
 
-                                wl.translate(PxVector::new(Px(0), row_size.height));
+                                row_size = a.size;
+                                row_size.width += spacing.column;
+
+                                wl.translate(PxVector::new(Px(0), panel_size.height));
                             }
                         },
                     );
