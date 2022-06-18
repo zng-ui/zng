@@ -244,7 +244,7 @@ mod tests {
         let r = l.layout(metrics.for_y(), |_| Px(0));
         assert_eq!(r.0, 100);
 
-        let metrics = metrics.with_constrains(|c| c.with_max_x(Px(550)));
+        let metrics = metrics.with_constrains(|c| c.with_new_max_x(Px(550)));
         let r = l.layout(metrics.for_x(), |_| Px(0));
         assert_eq!(r.0, 500);
     }
