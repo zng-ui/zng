@@ -585,7 +585,7 @@ impl AppExtension for FocusManager {
             }
         } else if let Some(args) = ShortcutEvent.update(args) {
             // keyboard
-            if !args.actions.has_actions() && !args.propagation().is_stopped() {
+            if /* !args.actions.has_actions() && */ !args.propagation().is_stopped() {
                 if args.shortcut == shortcut!(Tab) {
                     request = Some(FocusRequest::next(true))
                 } else if args.shortcut == shortcut!(SHIFT + Tab) {
@@ -604,7 +604,12 @@ impl AppExtension for FocusManager {
                     request = Some(FocusRequest::left(true))
                 }
                 if request.is_some() {
-                    args.propagation().stop()
+                    if !args.actions.has_actions() || ctx.services.focus().is_highlighting {
+                        args.propagation().stop()
+                    } else {
+                        todo!("rethink how keyboard focus navigation should be implemented and integrated with scrollable/other gestures");
+                        request = None;
+                    }
                 }
             }
         } else if let Some(args) = WindowFocusChangedEvent.update(args) {
