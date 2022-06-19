@@ -24,7 +24,7 @@ pub(crate) const MODE_VAR: &str = "ZERO_UI_VIEW_MODE";
 
 /// View Process controller, used in the App Process.
 ///
-/// # Shutdown
+/// # Exit
 ///
 /// The View Process is [killed] when the controller is dropped, if the app is running in same process mode
 /// then the current process [exits] with code 0 on drop.

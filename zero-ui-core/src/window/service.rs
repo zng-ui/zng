@@ -28,11 +28,11 @@ use crate::{units::*, WidgetId};
 /// This service is provided by the [`WindowManager`].
 #[derive(Service)]
 pub struct Windows {
-    /// If shutdown is requested when a window closes and there are no more windows open, `true` by default.
+    /// If app process exit is requested when a window closes and there are no more windows open, `true` by default.
     ///
-    /// This setting is ignored in headless apps, in headed apps the shutdown happens when all headed windows
+    /// This setting is ignored in headless apps, in headed apps the exit happens when all headed windows
     /// are closed, headless windows are ignored.
-    pub shutdown_on_last_close: bool,
+    pub exit_on_last_close: bool,
 
     /// Default render mode of windows opened by this service, the initial value is [`RenderMode::default`].
     ///
@@ -57,7 +57,7 @@ pub struct Windows {
 impl Windows {
     pub(super) fn new(update_sender: AppEventSender) -> Self {
         Windows {
-            shutdown_on_last_close: true,
+            exit_on_last_close: true,
             default_render_mode: RenderMode::default(),
             windows: LinearMap::with_capacity(1),
             windows_info: LinearMap::with_capacity(1),
@@ -491,9 +491,9 @@ impl Windows {
 
                 info.vars.0.is_open.set(ctx.vars, false);
 
-                // if set to shutdown on last headed window close in a headed app,
+                // if set to exit on last headed window close in a headed app,
                 // AND there is no more open headed window OR request for opening a headed window.
-                if wns.shutdown_on_last_close
+                if wns.exit_on_last_close
                     && !is_headless_app
                     && !wns.windows.values().any(|w| matches!(w.mode, WindowMode::Headed))
                     && !wns
@@ -501,8 +501,8 @@ impl Windows {
                         .iter()
                         .any(|w| matches!(w.force_headless, None | Some(WindowMode::Headed)))
                 {
-                    // fulfill `shutdown_on_last_close`
-                    ctx.services.app_process().shutdown();
+                    // fulfill `exit_on_last_close`
+                    ctx.services.app_process().exit();
                 }
 
                 if info.is_focused {

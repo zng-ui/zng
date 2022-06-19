@@ -1,3 +1,7 @@
+* Fix app exit request not causing window close requests, just closes everything.
+* Move window commands to core.
+* Re-implement focus navigation using commands.
+
 * Layout context viewport.
     - The image example tries to do this manually, but there is some flickering due to Px rounding on the scroll vs on the offset.
     - CSS has the "position" property, that has sticky, webrender has something for this that we can use?

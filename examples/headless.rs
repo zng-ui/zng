@@ -46,7 +46,7 @@ fn headless_example() {
 
                 println!("done");
 
-                // and close the window, causing the app to shutdown.
+                // and close the window, causing the app to exit.
                 ctx.with(|ctx|ctx.services.windows().close(ctx.path.window_id())).unwrap();
             });
         }

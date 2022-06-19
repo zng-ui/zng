@@ -173,7 +173,7 @@ impl AnimationHandle {
     }
 
     /// If another handle has called [`perm`](Self::perm).
-    /// If `true` the animation will stay active until the app shutdown, unless [`stop`](Self::stop) is called.
+    /// If `true` the animation will stay active until the app exits, unless [`stop`](Self::stop) is called.
     pub fn is_permanent(&self) -> bool {
         self.0.is_permanent()
     }

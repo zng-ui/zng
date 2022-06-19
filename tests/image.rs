@@ -10,7 +10,7 @@ fn main() {
     zero_ui_view::run_same_process(|| {
         let mut app = App::default().run_headless(true);
         get_before_view_init(&mut app);
-        app.shutdown();
+        app.exit();
     });
 }
 

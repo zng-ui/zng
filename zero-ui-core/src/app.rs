@@ -1,8 +1,11 @@
 //! App startup and app extension API.
 
+mod intrinsic;
 pub mod raw_device_events;
 pub mod raw_events;
 pub mod view_process;
+
+pub use intrinsic::*;
 
 use crate::context::*;
 use crate::crate_util::{PanicPayload, ReceiverExt};
@@ -10,7 +13,7 @@ use crate::event::{event, event_args, AnyEventUpdate, BoxedEventUpdate, EventUpd
 use crate::image::ImageManager;
 use crate::timer::Timers;
 use crate::units::{Px, PxPoint};
-use crate::var::{response_var, ResponderVar, ResponseVar, Vars};
+use crate::var::Vars;
 use crate::widget_info::{UpdateMask, UpdateSlot};
 use crate::window::WindowMode;
 use crate::{
@@ -18,7 +21,6 @@ use crate::{
     gesture::GestureManager,
     keyboard::KeyboardManager,
     mouse::MouseManager,
-    service::Service,
     text::FontManager,
     window::{WindowId, WindowManager},
 };
@@ -36,67 +38,67 @@ use std::{
     time::Instant,
 };
 
-/// Error when the app connected to a sender/receiver channel has shutdown.
+/// Error when the app connected to a sender/receiver channel has disconnected.
 ///
 /// Contains the value that could not be send or `()` for receiver errors.
-pub struct AppShutdown<T>(pub T);
-impl From<flume::RecvError> for AppShutdown<()> {
+pub struct AppDisconnected<T>(pub T);
+impl From<flume::RecvError> for AppDisconnected<()> {
     fn from(_: flume::RecvError) -> Self {
-        AppShutdown(())
+        AppDisconnected(())
     }
 }
-impl<T> From<flume::SendError<T>> for AppShutdown<T> {
+impl<T> From<flume::SendError<T>> for AppDisconnected<T> {
     fn from(e: flume::SendError<T>) -> Self {
-        AppShutdown(e.0)
+        AppDisconnected(e.0)
     }
 }
-impl<T> fmt::Debug for AppShutdown<T> {
+impl<T> fmt::Debug for AppDisconnected<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "AppHasShutdown<{}>", type_name::<T>())
+        write!(f, "AppDisconnected<{}>", type_name::<T>())
     }
 }
-impl<T> fmt::Display for AppShutdown<T> {
+impl<T> fmt::Display for AppDisconnected<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "cannot send/receive because the app has shutdown")
+        write!(f, "cannot send/receive because the app has disconnected")
     }
 }
-impl<T> std::error::Error for AppShutdown<T> {}
+impl<T> std::error::Error for AppDisconnected<T> {}
 
-/// Error when the app connected to a sender channel has shutdown or taken to long to respond.
-pub enum TimeoutOrAppShutdown {
+/// Error when the app connected to a sender channel has disconnected or taken to long to respond.
+pub enum TimeoutOrAppDisconnected {
     /// Connected app has not responded.
     Timeout,
-    /// Connected app has shutdown.
-    AppShutdown,
+    /// Connected app has disconnected.
+    AppDisconnected,
 }
-impl From<flume::RecvTimeoutError> for TimeoutOrAppShutdown {
+impl From<flume::RecvTimeoutError> for TimeoutOrAppDisconnected {
     fn from(e: flume::RecvTimeoutError) -> Self {
         match e {
-            flume::RecvTimeoutError::Timeout => TimeoutOrAppShutdown::Timeout,
-            flume::RecvTimeoutError::Disconnected => TimeoutOrAppShutdown::AppShutdown,
+            flume::RecvTimeoutError::Timeout => TimeoutOrAppDisconnected::Timeout,
+            flume::RecvTimeoutError::Disconnected => TimeoutOrAppDisconnected::AppDisconnected,
         }
     }
 }
-impl fmt::Debug for TimeoutOrAppShutdown {
+impl fmt::Debug for TimeoutOrAppDisconnected {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if f.alternate() {
-            write!(f, "AppHasNotRespondedOrShutdown::")?;
+            write!(f, "TimeoutOrAppDisconnected::")?;
         }
         match self {
-            TimeoutOrAppShutdown::Timeout => write!(f, "Timeout"),
-            TimeoutOrAppShutdown::AppShutdown => write!(f, "AppShutdown"),
+            TimeoutOrAppDisconnected::Timeout => write!(f, "Timeout"),
+            TimeoutOrAppDisconnected::AppDisconnected => write!(f, "AppDisconnected"),
         }
     }
 }
-impl fmt::Display for TimeoutOrAppShutdown {
+impl fmt::Display for TimeoutOrAppDisconnected {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            TimeoutOrAppShutdown::Timeout => write!(f, "failed send, timeout"),
-            TimeoutOrAppShutdown::AppShutdown => write!(f, "cannot send because the app has shutdown"),
+            TimeoutOrAppDisconnected::Timeout => write!(f, "failed send, timeout"),
+            TimeoutOrAppDisconnected::AppDisconnected => write!(f, "cannot send because the app has disconnected"),
         }
     }
 }
-impl std::error::Error for TimeoutOrAppShutdown {}
+impl std::error::Error for TimeoutOrAppDisconnected {}
 
 /// A future that receives a single message from a running [app](App).
 pub struct RecvFut<'a, M>(flume::r#async::RecvFut<'a, M>);
@@ -106,11 +108,11 @@ impl<'a, M> From<flume::r#async::RecvFut<'a, M>> for RecvFut<'a, M> {
     }
 }
 impl<'a, M> Future for RecvFut<'a, M> {
-    type Output = Result<M, AppShutdown<()>>;
+    type Output = Result<M, AppDisconnected<()>>;
 
     fn poll(mut self: std::pin::Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> std::task::Poll<Self::Output> {
         match std::pin::Pin::new(&mut self.0).poll(cx) {
-            std::task::Poll::Ready(r) => std::task::Poll::Ready(r.map_err(|_| AppShutdown(()))),
+            std::task::Poll::Ready(r) => std::task::Poll::Ready(r.map_err(|_| AppDisconnected(()))),
             std::task::Poll::Pending => std::task::Poll::Pending,
         }
     }
@@ -155,8 +157,8 @@ impl<'a, M> Future for RecvFut<'a, M> {
 ///
 /// ## 6 - Deinit
 ///
-/// The [`deinit`] method is called once after a shutdown was requested and not cancelled. Shutdowns are
-/// requested using the [`AppProcess`] service, it causes a [`ShutdownRequestedEvent`] that can be cancelled, if it
+/// The [`deinit`] method is called once after an exit was requested and not cancelled. Exit is
+/// requested using the [`AppProcess`] service, it causes an [`ExitRequestedEvent`] that can be cancelled, if it
 /// is not cancelled the extensions are deinited and then dropped.
 ///
 /// Deinit happens from the last inited extension first, so in reverse of init order, the [drop] happens in undefined order. Deinit is not called
@@ -275,7 +277,7 @@ pub trait AppExtension: 'static {
         let _ = ctx;
     }
 
-    /// Called when the application is shutdown.
+    /// Called when the application is exiting.
     ///
     /// Update requests and event notifications generated during this call are ignored,
     /// the extensions will be dropped after every extension received this call.
@@ -499,12 +501,12 @@ impl<E: AppExtension> AppExtension for TraceAppExt<E> {
 }
 
 event_args! {
-    /// Arguments for [`ShutdownRequestedEvent`].
+    /// Arguments for [`ExitRequestedEvent`].
     ///
-    /// Requesting [`propagation().stop()`] on this event cancels the shutdown.
+    /// Requesting [`propagation().stop()`] on this event cancels the exit.
     ///
     /// [`propagation().stop()`]: crate::event::EventPropagationHandle::stop
-    pub struct ShutdownRequestedArgs {
+    pub struct ExitRequestedArgs {
         ..
         /// Broadcast to all.
         fn delivery_list(&self) -> EventDeliveryList {
@@ -514,16 +516,16 @@ event_args! {
 }
 
 event! {
-    /// Cancellable event raised when app shutdown is requested.
+    /// Cancellable event raised when app process exit is requested.
     ///
-    /// App shutdown can be requested using the [`AppProcess`] service, some extensions
-    /// also request shutdown if some conditions are met, [`WindowManager`] requests shutdown
-    /// after the last window is closed for example.
+    /// App exit can be requested using the [`AppProcess`] service or the [`ExitCommand`], some extensions
+    /// also request exit if some conditions are met, [`WindowManager`] requests it after the last window
+    /// is closed for example.
     ///
-    /// Requesting [`propagation().stop()`] on this event cancels the shutdown.
+    /// Requesting [`propagation().stop()`] on this event cancels the exit.
     ///
     /// [`propagation().stop()`]: crate::event::EventPropagationHandle::stop
-    pub ShutdownRequestedEvent: ShutdownRequestedArgs;
+    pub ExitRequestedEvent: ExitRequestedArgs;
 }
 
 /// Defines and runs an application.
@@ -652,55 +654,6 @@ pub struct AppExtended<E: AppExtension> {
     view_process_exe: Option<PathBuf>,
 }
 
-/// Cancellation message of a [shutdown request].
-///
-/// [shutdown request]: AppProcess::shutdown
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct ShutdownCancelled;
-impl fmt::Display for ShutdownCancelled {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "shutdown cancelled")
-    }
-}
-
-/// Service for managing the application process.
-///
-/// This service is registered for all apps.
-#[derive(Service)]
-pub struct AppProcess {
-    shutdown_requests: Option<ResponderVar<ShutdownCancelled>>,
-    update_sender: AppEventSender,
-}
-impl AppProcess {
-    fn new(update_sender: AppEventSender) -> Self {
-        AppProcess {
-            shutdown_requests: None,
-            update_sender,
-        }
-    }
-
-    /// Register a request for process shutdown in the next update.
-    ///
-    /// The [`ShutdownRequestedEvent`] will be raised, and if not cancelled the app will shutdown.
-    ///
-    /// Returns a response variable that is updated once with the unit value [`ShutdownCancelled`]
-    /// if the shutdown operation is cancelled.
-    pub fn shutdown(&mut self) -> ResponseVar<ShutdownCancelled> {
-        if let Some(r) = &self.shutdown_requests {
-            r.response_var()
-        } else {
-            let (responder, response) = response_var();
-            self.shutdown_requests = Some(responder);
-            let _ = self.update_sender.send_ext_update();
-            response
-        }
-    }
-
-    fn take_requests(&mut self) -> Option<ResponderVar<ShutdownCancelled>> {
-        self.shutdown_requests.take()
-    }
-}
-
 #[cfg(dyn_app_extension)]
 impl AppExtended<Vec<Box<dyn AppExtensionBoxed>>> {
     /// Includes an application extension.
@@ -790,7 +743,7 @@ impl<E: AppExtension> AppExtended<E> {
 
     /// Runs the application calling `start` once at the beginning.
     ///
-    /// This method only returns when the app has shutdown.
+    /// This method only returns when the app has exited.
     ///
     /// # Panics
     ///
@@ -822,7 +775,8 @@ impl<E: AppExtension> AppExtended<E> {
 
 /// Represents a running app controlled by an external event loop.
 struct RunningApp<E: AppExtension> {
-    extensions: E,
+    extensions: (AppIntrinsic, E),
+
     device_events: bool,
     owned_ctx: OwnedAppContext,
     receiver: flume::Receiver<AppEvent>,
@@ -835,9 +789,6 @@ struct RunningApp<E: AppExtension> {
     pending_app_events: Vec<BoxedEventUpdate>,
     pending_layout: bool,
     pending_render: bool,
-
-    // shutdown was requested.
-    exiting: bool,
 }
 impl<E: AppExtension> RunningApp<E> {
     fn start(mut extensions: E, is_headed: bool, with_renderer: bool, view_process_exe: Option<PathBuf>) -> Self {
@@ -854,27 +805,10 @@ impl<E: AppExtension> RunningApp<E> {
         let (sender, receiver) = AppEventSender::new();
 
         let mut owned_ctx = OwnedAppContext::instance(sender);
-
         let mut ctx = owned_ctx.borrow();
-        ctx.services.register(AppProcess::new(ctx.updates.sender()));
 
         let device_events = extensions.enable_device_events();
-
-        if is_headed {
-            debug_assert!(with_renderer);
-
-            let view_evs_sender = ctx.updates.sender();
-            let view_app = ViewProcess::start(view_process_exe, device_events, false, move |ev| {
-                let _ = view_evs_sender.send_view_event(ev);
-            });
-            ctx.services.register(view_app);
-        } else if with_renderer {
-            let view_evs_sender = ctx.updates.sender();
-            let renderer = ViewProcess::start(view_process_exe, false, true, move |ev| {
-                let _ = view_evs_sender.send_view_event(ev);
-            });
-            ctx.services.register(renderer);
-        }
+        let process = AppIntrinsic::pre_init(&mut ctx, is_headed, with_renderer, view_process_exe, device_events);
 
         {
             let _s = tracing::debug_span!("extensions.init").entered();
@@ -882,8 +816,9 @@ impl<E: AppExtension> RunningApp<E> {
         }
 
         RunningApp {
+            extensions: (process, extensions),
+
             device_events,
-            extensions,
             owned_ctx,
             receiver,
 
@@ -895,7 +830,6 @@ impl<E: AppExtension> RunningApp<E> {
             pending_app_events: Vec::with_capacity(100),
             pending_layout: false,
             pending_render: false,
-            exiting: false,
         }
     }
 
@@ -922,7 +856,7 @@ impl<E: AppExtension> RunningApp<E> {
     #[cfg(dyn_app_extension)]
     fn notify_event_<Ev: crate::event::Event, O: AppEventObserver>(
         ctx: &mut AppContext,
-        extensions: &mut E,
+        extensions: &mut (AppIntrinsic, E),
         event: Ev,
         args: Ev::Args,
         observer: &mut O,
@@ -938,7 +872,7 @@ impl<E: AppExtension> RunningApp<E> {
     #[cfg(dyn_app_extension)]
     fn notify_event_impl(
         ctx: &mut AppContext,
-        extensions: &mut E,
+        extensions: &mut (AppIntrinsic, E),
         name: &'static str,
         update: BoxedEventUpdate,
         observer: &mut impl AppEventObserver,
@@ -972,6 +906,9 @@ impl<E: AppExtension> RunningApp<E> {
 
         let update = EventUpdate::new(event, args);
 
+        if ExitCommand.update(&update).is_some() {
+            ctx.services.app_process().exit();
+        }
         extensions.event_preview(ctx, &update);
         Vars::event_preview(ctx, &update);
         observer.event_preview(ctx, &update);
@@ -1509,10 +1446,9 @@ impl<E: AppExtension> RunningApp<E> {
 
         self.finish_frame(observer);
 
-        // TODO: can we optimize this?
         self.owned_ctx.next_deadline(&mut self.loop_timer);
 
-        if self.exiting {
+        if self.extensions.0.exit(self.owned_ctx.vars()) {
             ControlFlow::Exit
         } else if self.has_pending_updates() {
             ControlFlow::Poll
@@ -1559,24 +1495,6 @@ impl<E: AppExtension> RunningApp<E> {
 
                 true
             });
-        }
-
-        // check shutdown.
-        if !self.exiting {
-            let ctx = &mut self.owned_ctx.borrow();
-
-            if let Some(r) = ctx.services.app_process().take_requests() {
-                let _s = tracing::debug_span!("shutdown_requested").entered();
-
-                let args = ShutdownRequestedArgs::now();
-
-                Self::notify_event_(ctx, &mut self.extensions, ShutdownRequestedEvent, args.clone(), observer);
-
-                if args.propagation().is_stopped() {
-                    r.respond(ctx.vars, ShutdownCancelled);
-                }
-                self.exiting = !args.propagation().is_stopped();
-            }
         }
     }
 
@@ -1952,12 +1870,12 @@ impl HeadlessApp {
         None
     }
 
-    /// Requests and wait for app shutdown.
+    /// Requests and wait for app exit.
     ///
-    /// Forces deinit if shutdown is cancelled.
-    pub fn shutdown(mut self) {
+    /// Forces deinit if exit is cancelled.
+    pub fn exit(mut self) {
         self.run_task(|ctx| async move {
-            let req = ctx.with(|ctx| ctx.services.app_process().shutdown());
+            let req = ctx.with(|ctx| ctx.services.app_process().exit());
             req.wait_rsp(&ctx).await;
         });
     }
@@ -2283,20 +2201,20 @@ impl AppEventSender {
         (Self(sender), receiver)
     }
 
-    fn send_app_event(&self, event: AppEvent) -> Result<(), AppShutdown<AppEvent>> {
+    fn send_app_event(&self, event: AppEvent) -> Result<(), AppDisconnected<AppEvent>> {
         self.0.send(event)?;
         Ok(())
     }
 
-    fn send_view_event(&self, event: zero_ui_view_api::Event) -> Result<(), AppShutdown<AppEvent>> {
+    fn send_view_event(&self, event: zero_ui_view_api::Event) -> Result<(), AppDisconnected<AppEvent>> {
         self.0.send(AppEvent::ViewEvent(event))?;
         Ok(())
     }
 
     /// Causes an update cycle to happen in the app.
-    pub fn send_update(&self, mask: UpdateMask) -> Result<(), AppShutdown<()>> {
+    pub fn send_update(&self, mask: UpdateMask) -> Result<(), AppDisconnected<()>> {
         UpdatesTrace::log_update();
-        self.send_app_event(AppEvent::Update(mask)).map_err(|_| AppShutdown(()))
+        self.send_app_event(AppEvent::Update(mask)).map_err(|_| AppDisconnected(()))
     }
 
     /// Causes an update cycle that only affects app extensions to happen in the app.
@@ -2304,31 +2222,31 @@ impl AppEventSender {
     /// This is the equivalent of calling [`send_update`] with [`UpdateMask::none`].
     ///
     /// [`send_update`]: Self::send_update
-    pub fn send_ext_update(&self) -> Result<(), AppShutdown<()>> {
+    pub fn send_ext_update(&self) -> Result<(), AppDisconnected<()>> {
         UpdatesTrace::log_update();
         self.send_update(UpdateMask::none())
     }
 
     /// [`VarSender`](crate::var::VarSender) util.
-    pub(crate) fn send_var(&self) -> Result<(), AppShutdown<()>> {
-        self.send_app_event(AppEvent::Var).map_err(|_| AppShutdown(()))
+    pub(crate) fn send_var(&self) -> Result<(), AppDisconnected<()>> {
+        self.send_app_event(AppEvent::Var).map_err(|_| AppDisconnected(()))
     }
 
     /// [`EventSender`](crate::event::EventSender) util.
     pub(crate) fn send_event(
         &self,
         event: crate::event::BoxedSendEventUpdate,
-    ) -> Result<(), AppShutdown<crate::event::BoxedSendEventUpdate>> {
+    ) -> Result<(), AppDisconnected<crate::event::BoxedSendEventUpdate>> {
         self.send_app_event(AppEvent::Event(event)).map_err(|e| match e.0 {
-            AppEvent::Event(ev) => AppShutdown(ev),
+            AppEvent::Event(ev) => AppDisconnected(ev),
             _ => unreachable!(),
         })
     }
 
     /// Resume a panic in the app thread.
-    pub fn send_resume_unwind(&self, payload: PanicPayload) -> Result<(), AppShutdown<PanicPayload>> {
+    pub fn send_resume_unwind(&self, payload: PanicPayload) -> Result<(), AppDisconnected<PanicPayload>> {
         self.send_app_event(AppEvent::ResumeUnwind(payload)).map_err(|e| match e.0 {
-            AppEvent::ResumeUnwind(p) => AppShutdown(p),
+            AppEvent::ResumeUnwind(p) => AppDisconnected(p),
             _ => unreachable!(),
         })
     }

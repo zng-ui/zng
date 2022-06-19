@@ -4,8 +4,8 @@ use super::{
 };
 use crate::{
     app::{
-        raw_events::RawAnimationsEnabledChangedEvent, view_process::ViewProcessInitedEvent, AppEventSender, AppShutdown, LoopTimer,
-        RecvFut, TimeoutOrAppShutdown,
+        raw_events::RawAnimationsEnabledChangedEvent, view_process::ViewProcessInitedEvent, AppDisconnected, AppEventSender, LoopTimer,
+        RecvFut, TimeoutOrAppDisconnected,
     },
     context::{AppContext, Updates, UpdatesTrace},
     crate_util::{Handle, HandleOwner, PanicPayload, RunOnDrop, WeakHandle},
@@ -873,7 +873,7 @@ impl OnVarHandle {
     }
 
     /// If another handle has called [`perm`](Self::perm).
-    /// If `true` the var binding will stay active until the app shutdown, unless [`unsubscribe`](Self::unsubscribe) is called.
+    /// If `true` the var binding will stay active until the app exits, unless [`unsubscribe`](Self::unsubscribe) is called.
     pub fn is_permanent(&self) -> bool {
         self.0.is_permanent()
     }
@@ -1239,28 +1239,28 @@ impl<T: VarValue + Send> fmt::Debug for VarReceiver<T> {
 }
 impl<T: VarValue + Send> VarReceiver<T> {
     /// Receives the oldest sent update not received, blocks until the variable updates.
-    pub fn recv(&self) -> Result<T, AppShutdown<()>> {
-        self.receiver.recv().map_err(|_| AppShutdown(()))
+    pub fn recv(&self) -> Result<T, AppDisconnected<()>> {
+        self.receiver.recv().map_err(|_| AppDisconnected(()))
     }
 
     /// Tries to receive the oldest sent update, returns `Ok(args)` if there was at least
-    /// one update, or returns `Err(None)` if there was no update or returns `Err(AppHasShutdown)` if the connected
-    /// app has shutdown.
-    pub fn try_recv(&self) -> Result<T, Option<AppShutdown<()>>> {
+    /// one update, or returns `Err(None)` if there was no update or returns `Err(AppDisconnected)` if the connected
+    /// app has exited.
+    pub fn try_recv(&self) -> Result<T, Option<AppDisconnected<()>>> {
         self.receiver.try_recv().map_err(|e| match e {
             flume::TryRecvError::Empty => None,
-            flume::TryRecvError::Disconnected => Some(AppShutdown(())),
+            flume::TryRecvError::Disconnected => Some(AppDisconnected(())),
         })
     }
 
     /// Receives the oldest sent update, blocks until the event updates or until the `deadline` is reached.
-    pub fn recv_deadline(&self, deadline: Instant) -> Result<T, TimeoutOrAppShutdown> {
-        self.receiver.recv_deadline(deadline).map_err(TimeoutOrAppShutdown::from)
+    pub fn recv_deadline(&self, deadline: Instant) -> Result<T, TimeoutOrAppDisconnected> {
+        self.receiver.recv_deadline(deadline).map_err(TimeoutOrAppDisconnected::from)
     }
 
     /// Receives the oldest sent update, blocks until the event updates or until timeout.
-    pub fn recv_timeout(&self, dur: Duration) -> Result<T, TimeoutOrAppShutdown> {
-        self.receiver.recv_timeout(dur).map_err(TimeoutOrAppShutdown::from)
+    pub fn recv_timeout(&self, dur: Duration) -> Result<T, TimeoutOrAppDisconnected> {
+        self.receiver.recv_timeout(dur).map_err(TimeoutOrAppDisconnected::from)
     }
 
     /// Returns a future that receives the oldest sent update, awaits until an event update occurs.
@@ -1336,19 +1336,19 @@ impl<T> VarSender<T>
 where
     T: VarValue + Send,
 {
-    /// Sends a new value for the variable, unless the connected app has shutdown.
+    /// Sends a new value for the variable, unless the connected app has exited.
     ///
     /// If the variable is read-only when the `new_value` is received it is silently dropped, if more then one
     /// value is sent before the app can process then, only the last value shows as an update in the UI thread.
-    pub fn send(&self, new_value: T) -> Result<(), AppShutdown<T>> {
+    pub fn send(&self, new_value: T) -> Result<(), AppDisconnected<T>> {
         UpdatesTrace::log_var::<T>();
-        self.sender.send(new_value).map_err(AppShutdown::from)?;
+        self.sender.send(new_value).map_err(AppDisconnected::from)?;
         let _ = self.wake.send_var();
         Ok(())
     }
 
     /// Resume a panic in the app thread.
-    pub fn send_resume_unwind(&self, payload: PanicPayload) -> Result<(), AppShutdown<PanicPayload>> {
+    pub fn send_resume_unwind(&self, payload: PanicPayload) -> Result<(), AppDisconnected<PanicPayload>> {
         self.wake.send_resume_unwind(payload)
     }
 }
@@ -1380,21 +1380,21 @@ impl<T> VarModifySender<T>
 where
     T: VarValue,
 {
-    /// Sends a modification for the variable, unless the connected app has shutdown.
+    /// Sends a modification for the variable, unless the connected app has exited.
     ///
     /// If the variable is read-only when the `modify` is received it is silently dropped, if more then one
     /// modification is sent before the app can process then, they all are applied in order sent.
-    pub fn send<F>(&self, modify: F) -> Result<(), AppShutdown<()>>
+    pub fn send<F>(&self, modify: F) -> Result<(), AppDisconnected<()>>
     where
         F: FnOnce(VarModify<T>) + Send + 'static,
     {
-        self.sender.send(Box::new(modify)).map_err(|_| AppShutdown(()))?;
+        self.sender.send(Box::new(modify)).map_err(|_| AppDisconnected(()))?;
         let _ = self.wake.send_var();
         Ok(())
     }
 
     /// Resume a panic in the app thread.
-    pub fn send_resume_unwind(&self, payload: PanicPayload) -> Result<(), AppShutdown<PanicPayload>> {
+    pub fn send_resume_unwind(&self, payload: PanicPayload) -> Result<(), AppDisconnected<PanicPayload>> {
         self.wake.send_resume_unwind(payload)
     }
 }
@@ -1405,10 +1405,10 @@ where
 pub type ResponseSender<T> = VarSender<Response<T>>;
 impl<T: VarValue + Send> ResponseSender<T> {
     /// Send the one time response.
-    pub fn send_response(&self, response: T) -> Result<(), AppShutdown<T>> {
+    pub fn send_response(&self, response: T) -> Result<(), AppDisconnected<T>> {
         self.send(Response::Done(response)).map_err(|e| {
             if let Response::Done(r) = e.0 {
-                AppShutdown(r)
+                AppDisconnected(r)
             } else {
                 unreachable!()
             }

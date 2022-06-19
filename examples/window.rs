@@ -1,4 +1,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+use zero_ui::core::app::ExitCommand;
 use zero_ui::core::units::{DipPoint, DipSize};
 use zero_ui::core::window::WindowVars;
 use zero_ui::prelude::*;
@@ -25,7 +26,7 @@ fn main_window(ctx: &mut WindowContext) -> Window {
     let window_vars = ctx.window_state.req(WindowVarsKey);
     let window_id = *ctx.window_id;
 
-    //ctx.services.windows().shutdown_on_last_close = false;
+    //ctx.services.windows().exit_on_last_close = false;
 
     let title = merge_var!(
         window_vars.actual_position(),
@@ -299,6 +300,7 @@ fn state_commands(window_id: WindowId) -> impl Widget {
             cmd_btn(ExclusiveFullscreenCommand.scoped(window_id)),
             separator(),
             cmd_btn(CloseCommand.scoped(window_id)),
+            cmd_btn(ExitCommand),
         ],
     )
 }

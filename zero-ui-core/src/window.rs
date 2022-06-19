@@ -93,7 +93,7 @@ pub trait AppRunWindowExt {
     ///
     /// The `new_window` argument is the [`WindowContext`] of the new window.
     ///
-    /// This method only returns when the app has shutdown.
+    /// This method only returns when the app has exited.
     ///
     /// # Examples
     ///

@@ -256,7 +256,7 @@ declare_api! {
     /// Other methods may only be called after this event.
     fn init(&mut self, gen: ViewProcessGen, is_respawn: bool, device_events: bool, headless: bool);
 
-    /// Called once after shutdown, if running in a managed external process it will be killed after this call.
+    /// Called once after exit, if running in a managed external process it will be killed after this call.
     fn exit(&mut self);
 
     /// Open a window.

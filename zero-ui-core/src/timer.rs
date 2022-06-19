@@ -456,13 +456,13 @@ impl DeadlineHandle {
 
     /// Drops the handle but does **not** drop the handler closure.
     ///
-    /// The handler closure will be dropped after it is executed or when the app shutdown.
+    /// The handler closure will be dropped after it is executed or when the app exits.
     pub fn perm(self) {
         self.0.perm();
     }
 
     /// If [`perm`](Self::perm) was called in another handle.
-    /// If `true` the closure will be dropped when it executes, when the app shutdown or if [`cancel`](Self::cancel) is called.
+    /// If `true` the closure will be dropped when it executes, when the app exits or if [`cancel`](Self::cancel) is called.
     pub fn is_permanent(&self) -> bool {
         self.0.is_permanent()
     }
@@ -592,13 +592,13 @@ impl TimerHandle {
 
     /// Drops the handle but does **not** drop the handler closure.
     ///
-    /// The handler closure will be dropped when the app shutdown or if it is stopped from the inside or using another handle.
+    /// The handler closure will be dropped when the app exits or if it is stopped from the inside or using another handle.
     pub fn perm(self) {
         self.0.perm();
     }
 
     /// If [`perm`](Self::perm) was called in another handle.
-    /// If `true` the closure will keep being called until the app shutdown or the timer is stopped from the inside or using
+    /// If `true` the closure will keep being called until the app exits or the timer is stopped from the inside or using
     /// another handle.
     pub fn is_permanent(&self) -> bool {
         self.0.is_permanent()

@@ -38,7 +38,7 @@ impl VarBindingHandle {
     }
 
     /// If another handle has called [`perm`](Self::perm).
-    /// If `true` the var binding will stay active until the app shutdown, unless [`unbind`](Self::unbind) is called.
+    /// If `true` the var binding will stay active until the app exits, unless [`unbind`](Self::unbind) is called.
     pub fn is_permanent(&self) -> bool {
         self.0.is_permanent()
     }

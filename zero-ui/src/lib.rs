@@ -714,7 +714,7 @@
 //! A service is a type with an instance registered in [`Services`]. The [`Services`] collection is available in most context structs,
 //! and service instances are usually registered during the app initialization by the app extensions, so services are singletons that
 //! represent a set of operations and states, it is a very generalized concept, for example, the [`Windows`] service is used to open
-//! and close windows, list the open windows and control if the app is shutdown when all windows are closed.
+//! and close windows, list the open windows and control if the app is exited when all windows are closed.
 //!
 //! ```
 //! use zero_ui::prelude::*;

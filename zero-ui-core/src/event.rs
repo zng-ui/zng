@@ -2,7 +2,7 @@
 
 use unsafe_any::UnsafeAny;
 
-use crate::app::{AppEventSender, AppShutdown, RecvFut, TimeoutOrAppShutdown};
+use crate::app::{AppDisconnected, AppEventSender, RecvFut, TimeoutOrAppDisconnected};
 use crate::command::AnyCommand;
 use crate::context::{AppContext, InfoContext, UpdatesTrace, WidgetContext, WindowContext};
 use crate::crate_util::{Handle, HandleOwner, WeakHandle};
@@ -817,7 +817,7 @@ where
     E::Args: Send,
 {
     /// Send an event update.
-    pub fn send(&self, args: E::Args) -> Result<(), AppShutdown<E::Args>> {
+    pub fn send(&self, args: E::Args) -> Result<(), AppDisconnected<E::Args>> {
         UpdatesTrace::log_event::<E>();
 
         let update = EventUpdate::<E> {
@@ -828,7 +828,7 @@ where
         .boxed_send();
         self.sender.send_event(update).map_err(|e| {
             if let Ok(e) = e.0.unbox_for::<E>() {
-                AppShutdown(e.args)
+                AppDisconnected(e.args)
             } else {
                 unreachable!()
             }
@@ -872,28 +872,28 @@ where
     E::Args: Send,
 {
     /// Receives the oldest send update, blocks until the event updates.
-    pub fn recv(&self) -> Result<E::Args, AppShutdown<()>> {
-        self.receiver.recv().map_err(|_| AppShutdown(()))
+    pub fn recv(&self) -> Result<E::Args, AppDisconnected<()>> {
+        self.receiver.recv().map_err(|_| AppDisconnected(()))
     }
 
     /// Tries to receive the oldest sent update not received, returns `Ok(args)` if there was at least
-    /// one update, or returns `Err(None)` if there was no update or returns `Err(AppHasShutdown)` if the connected
-    /// app has shutdown.
-    pub fn try_recv(&self) -> Result<E::Args, Option<AppShutdown<()>>> {
+    /// one update, or returns `Err(None)` if there was no update or returns `Err(AppDisconnected)` if the connected
+    /// app has exited.
+    pub fn try_recv(&self) -> Result<E::Args, Option<AppDisconnected<()>>> {
         self.receiver.try_recv().map_err(|e| match e {
             flume::TryRecvError::Empty => None,
-            flume::TryRecvError::Disconnected => Some(AppShutdown(())),
+            flume::TryRecvError::Disconnected => Some(AppDisconnected(())),
         })
     }
 
     /// Receives the oldest send update, blocks until the event updates or until the `deadline` is reached.
-    pub fn recv_deadline(&self, deadline: Instant) -> Result<E::Args, TimeoutOrAppShutdown> {
-        self.receiver.recv_deadline(deadline).map_err(TimeoutOrAppShutdown::from)
+    pub fn recv_deadline(&self, deadline: Instant) -> Result<E::Args, TimeoutOrAppDisconnected> {
+        self.receiver.recv_deadline(deadline).map_err(TimeoutOrAppDisconnected::from)
     }
 
     /// Receives the oldest send update, blocks until the event updates or until timeout.
-    pub fn recv_timeout(&self, dur: Duration) -> Result<E::Args, TimeoutOrAppShutdown> {
-        self.receiver.recv_timeout(dur).map_err(TimeoutOrAppShutdown::from)
+    pub fn recv_timeout(&self, dur: Duration) -> Result<E::Args, TimeoutOrAppDisconnected> {
+        self.receiver.recv_timeout(dur).map_err(TimeoutOrAppDisconnected::from)
     }
 
     /// Returns a future that receives the oldest send update, awaits until an event update occurs.
@@ -989,7 +989,7 @@ impl OnEventHandle {
     }
 
     /// If another handle has called [`perm`](Self::perm).
-    /// If `true` the var binding will stay active until the app shutdown, unless [`unsubscribe`](Self::unsubscribe) is called.
+    /// If `true` the var binding will stay active until the app exits, unless [`unsubscribe`](Self::unsubscribe) is called.
     pub fn is_permanent(&self) -> bool {
         self.0.is_permanent()
     }

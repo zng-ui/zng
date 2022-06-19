@@ -1403,7 +1403,7 @@ impl ShortcutsHandle {
 
     /// If another handle has called [`perm`](Self::perm).
     ///
-    /// If `true` the claim will stay active until the app shutdown, unless [`release`](Self::release) is called.
+    /// If `true` the claim will stay active until the app exits, unless [`release`](Self::release) is called.
     pub fn is_permanent(&self) -> bool {
         self.0.is_permanent()
     }
