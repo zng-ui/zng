@@ -847,12 +847,6 @@ impl ViewWindow {
         ViewRenderer(Rc::downgrade(&self.0))
     }
 
-    /// In Windows stops the system from requesting a window close on `ALT+F4` and sends a key
-    /// press for F4 instead.
-    pub fn set_allow_alt_f4(&self, allow: bool) -> Result<()> {
-        self.0.call(|id, p| p.set_allow_alt_f4(id, allow))
-    }
-
     /// Sets if the headed window is in *capture-mode*. If `true` the resources used to capture
     /// a screenshot are kept in memory to be reused in the next screenshot capture.
     pub fn set_capture_mode(&self, enabled: bool) -> Result<()> {

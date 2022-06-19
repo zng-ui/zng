@@ -132,7 +132,7 @@ command! {
     /// | [`name`]     | "Exit"                                                |
     /// | [`info`]     | "Close all windows and exit."                         |
     ///
-    /// [`exit`]: AppProcess:exit
+    /// [`exit`]: AppProcess::exit
     /// [`name`]: CommandNameExt
     /// [`info`]: CommandInfoExt
     pub ExitCommand

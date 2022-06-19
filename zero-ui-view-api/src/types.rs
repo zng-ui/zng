@@ -1424,8 +1424,6 @@ pub struct WindowRequest {
     pub visible: bool,
     /// Window taskbar icon visibility.
     pub taskbar_visible: bool,
-    /// In Windows, if `Alt+F4` does **not** causes a close request and instead causes a key-press event.
-    pub allow_alt_f4: bool,
     /// If the window is "top-most".
     pub always_on_top: bool,
     /// If the user can move the window.

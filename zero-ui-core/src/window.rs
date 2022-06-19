@@ -15,6 +15,8 @@ pub use vars::*;
 mod service;
 pub use service::*;
 
+pub mod commands;
+
 use crate::{
     app::{
         self,

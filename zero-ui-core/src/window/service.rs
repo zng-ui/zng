@@ -2,6 +2,7 @@ use std::mem;
 
 use linear_map::LinearMap;
 
+use super::commands::WindowCommands;
 use super::*;
 use crate::app::view_process::{ViewProcess, ViewProcessInitedEvent, ViewProcessOffline};
 use crate::context::OwnedStateMap;
@@ -711,8 +712,10 @@ impl AppWindow {
             vars.0.scale_factor.set_ne(ctx, window.headless_monitor.scale_factor);
         }
 
+        let commands = WindowCommands::new(id, ctx.events);
+
         let root_id = window.id;
-        let ctrl = WindowCtrl::new(id, &vars, mode, window);
+        let ctrl = WindowCtrl::new(id, &vars, commands, mode, window);
 
         let window = Self { ctrl, id, mode, state };
         let info = AppWindowInfo::new(id, root_id, mode, vars);

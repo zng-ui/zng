@@ -421,9 +421,6 @@ declare_api! {
     /// Delete a font instance.
     pub fn delete_font_instance(&mut self, id: WindowId, instance_key: FontInstanceKey);
 
-    /// In Windows, set if the `Alt+F4` should not cause a window close request and instead generate a key-press event.
-    pub fn set_allow_alt_f4(&mut self, id: WindowId, allow: bool);
-
     /// Sets if the headed window is in *capture-mode*. If `true` the resources used to capture
     /// a screenshot are kept in memory to be reused in the next screenshot capture.
     ///

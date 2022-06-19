@@ -443,10 +443,8 @@ pub mod window {
     }
 
     fn new_event(child: impl UiNode, #[cfg(inspector)] can_inspect: impl IntoVar<bool>) -> impl UiNode {
-        let child = commands::window_control_node(child);
         #[cfg(inspector)]
         let child = commands::inspect_node(child, can_inspect);
-
         nodes::layers(child)
     }
 

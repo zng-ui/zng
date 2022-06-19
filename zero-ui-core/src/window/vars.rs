@@ -50,8 +50,6 @@ pub(super) struct WindowVarsData {
     parent: RcVar<Option<WindowId>>,
     modal: RcVar<bool>,
 
-    allow_alt_f4: RcVar<bool>,
-
     pub(super) is_open: RcVar<bool>,
 
     frame_capture_mode: RcVar<FrameCaptureMode>,
@@ -114,8 +112,6 @@ impl WindowVars {
 
             parent: var(None),
             modal: var(false),
-
-            allow_alt_f4: var(!cfg!(windows)),
 
             is_open: var(true),
 
@@ -459,13 +455,6 @@ impl WindowVars {
     /// The default value is `false`.
     pub fn modal(&self) -> &RcVar<bool> {
         &self.0.modal
-    }
-
-    /// In Windows the `Alt+F4` shortcut is intercepted by the system and causes a window close request,
-    /// if this variable is set to `true` this default behavior is disabled and a key-press event is generated
-    /// instead.
-    pub fn allow_alt_f4(&self) -> &RcVar<bool> {
-        &self.0.allow_alt_f4
     }
 
     /// If the window is open.

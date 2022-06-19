@@ -1,4 +1,4 @@
-use std::{cell::Cell, collections::VecDeque, fmt, mem, rc::Rc, sync::Arc};
+use std::{collections::VecDeque, fmt, mem, sync::Arc};
 
 use glutin::{
     event_loop::EventLoopWindowTarget,
@@ -90,7 +90,6 @@ pub(crate) struct Window {
     steal_init_focus: bool,
     init_focus_request: Option<FocusIndicator>,
 
-    allow_alt_f4: Rc<Cell<bool>>,
     taskbar_visible: bool,
 
     movable: bool, // TODO
@@ -193,12 +192,10 @@ impl Window {
         let (context, winit_window) = gl_manager.create_headed(id, winit, window_target, render_mode);
         render_mode = context.render_mode();
 
-        // * Extend the winit Windows window to only block the Alt+F4 key press if we want it to.
+        // * Extend the winit Windows window to not block the Alt+F4 key press.
         // * Check if the window is actually keyboard focused until first focus.
-        let allow_alt_f4 = Rc::new(Cell::new(req.allow_alt_f4));
         #[cfg(windows)]
         {
-            let allow_alt_f4 = allow_alt_f4.clone();
             let event_sender = event_sender.clone();
             use glutin::platform::windows::WindowExtWindows;
 
@@ -221,9 +218,8 @@ impl Window {
                 if msg == windows::Win32::UI::WindowsAndMessaging::WM_SYSKEYDOWN
                     && windows::Win32::UI::Input::KeyboardAndMouse::VIRTUAL_KEY(wparam.0 as u16)
                         == windows::Win32::UI::Input::KeyboardAndMouse::VK_F4
-                    && allow_alt_f4.get()
                 {
-                    // winit always blocks ALT+F4 we want to allow it in some cases.
+                    // winit always blocks ALT+F4 we want to allow it so that the shortcut is handled in the same way as other commands.
 
                     let device = 0; // TODO recover actual ID
 
@@ -303,7 +299,6 @@ impl Window {
             steal_init_focus: req.focus,
             init_focus_request: req.focus_indicator,
             visible: req.visible,
-            allow_alt_f4,
             taskbar_visible: true,
             movable: req.movable,
             pending_frames: VecDeque::new(),
@@ -992,10 +987,6 @@ impl Window {
         let mut txn = webrender::Transaction::new();
         txn.delete_font_instance(instance_key);
         self.api.send_transaction(self.document_id, txn);
-    }
-
-    pub fn set_allow_alt_f4(&mut self, allow: bool) {
-        self.allow_alt_f4.set(allow);
     }
 
     pub fn set_capture_mode(&mut self, enabled: bool) {

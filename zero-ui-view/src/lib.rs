@@ -1551,10 +1551,6 @@ impl Api for App {
         with_window_or_surface!(self, id, |w| w.delete_font_instance(instance_key), || ())
     }
 
-    fn set_allow_alt_f4(&mut self, id: WindowId, allow: bool) {
-        self.with_window(id, |w| w.set_allow_alt_f4(allow), || ())
-    }
-
     fn set_capture_mode(&mut self, id: WindowId, enabled: bool) {
         self.with_window(id, |w| w.set_capture_mode(enabled), || ())
     }

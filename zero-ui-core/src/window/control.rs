@@ -26,8 +26,9 @@ use crate::{
 };
 
 use super::{
-    FrameCaptureMode, FrameImageReadyArgs, FrameImageReadyEvent, HeadlessMonitor, MonitorInfo, MonitorsChangedEvent, MonitorsExt,
-    StartPosition, Window, WindowChangedArgs, WindowChangedEvent, WindowChrome, WindowIcon, WindowId, WindowMode, WindowVars, WindowsExt,
+    commands::WindowCommands, FrameCaptureMode, FrameImageReadyArgs, FrameImageReadyEvent, HeadlessMonitor, MonitorInfo,
+    MonitorsChangedEvent, MonitorsExt, StartPosition, Window, WindowChangedArgs, WindowChangedEvent, WindowChrome, WindowIcon, WindowId,
+    WindowMode, WindowVars, WindowsExt,
 };
 
 /// Implementer of `App <-> View` sync in a headed window.
@@ -57,7 +58,7 @@ struct HeadedCtrl {
     actual_state: Option<WindowState>, // for WindowChangedEvent
 }
 impl HeadedCtrl {
-    pub fn new(window_id: WindowId, vars: &WindowVars, content: Window) -> Self {
+    pub fn new(window_id: WindowId, vars: &WindowVars, commands: WindowCommands, content: Window) -> Self {
         Self {
             window_id,
             window: None,
@@ -70,7 +71,7 @@ impl HeadedCtrl {
             transparent: content.transparent,
             render_mode: content.render_mode,
 
-            content: ContentCtrl::new(window_id, vars.clone(), content),
+            content: ContentCtrl::new(window_id, vars.clone(), commands, content),
             vars: vars.clone(),
             respawned: false,
 
@@ -313,12 +314,6 @@ impl HeadedCtrl {
             if let Some(mode) = self.vars.frame_capture_mode().copy_new(ctx.vars) {
                 self.update_view(move |view| {
                     let _: Ignore = view.set_capture_mode(matches!(mode, FrameCaptureMode::All));
-                });
-            }
-
-            if let Some(allow) = self.vars.allow_alt_f4().copy_new(ctx) {
-                self.update_view(move |view| {
-                    let _: Ignore = view.set_allow_alt_f4(allow);
                 });
             }
 
@@ -597,7 +592,6 @@ impl HeadedCtrl {
             video_mode: self.vars.video_mode().copy(ctx),
             visible: self.vars.visible().copy(ctx),
             taskbar_visible: self.vars.taskbar_visible().copy(ctx),
-            allow_alt_f4: self.vars.allow_alt_f4().copy(ctx),
             always_on_top: self.vars.always_on_top().copy(ctx),
             movable: self.vars.movable().copy(ctx),
             resizable: self.vars.resizable().copy(ctx),
@@ -703,7 +697,6 @@ impl HeadedCtrl {
             video_mode: self.vars.video_mode().copy(ctx),
             visible: self.vars.visible().copy(ctx),
             taskbar_visible: self.vars.taskbar_visible().copy(ctx),
-            allow_alt_f4: self.vars.allow_alt_f4().copy(ctx),
             always_on_top: self.vars.always_on_top().copy(ctx),
             movable: self.vars.movable().copy(ctx),
             resizable: self.vars.resizable().copy(ctx),
@@ -792,7 +785,7 @@ struct HeadlessWithRendererCtrl {
     size: DipSize,
 }
 impl HeadlessWithRendererCtrl {
-    pub fn new(window_id: WindowId, vars: &WindowVars, content: Window) -> Self {
+    pub fn new(window_id: WindowId, vars: &WindowVars, commands: WindowCommands, content: Window) -> Self {
         Self {
             window_id,
             surface: None,
@@ -804,7 +797,7 @@ impl HeadlessWithRendererCtrl {
             headless_monitor: content.headless_monitor,
             headless_simulator: HeadlessSimulator::new(),
 
-            content: ContentCtrl::new(window_id, vars.clone(), content),
+            content: ContentCtrl::new(window_id, vars.clone(), commands, content),
 
             size: DipSize::zero(),
         }
@@ -971,11 +964,11 @@ struct HeadlessCtrl {
     headless_simulator: HeadlessSimulator,
 }
 impl HeadlessCtrl {
-    pub fn new(window_id: WindowId, vars: &WindowVars, content: Window) -> Self {
+    pub fn new(window_id: WindowId, vars: &WindowVars, commands: WindowCommands, content: Window) -> Self {
         Self {
             vars: vars.clone(),
             headless_monitor: content.headless_monitor,
-            content: ContentCtrl::new(window_id, vars.clone(), content),
+            content: ContentCtrl::new(window_id, vars.clone(), commands, content),
             headless_simulator: HeadlessSimulator::new(),
         }
     }
@@ -1103,6 +1096,7 @@ impl HeadlessSimulator {
 /// Implementer of window UI node tree initialization and management.
 struct ContentCtrl {
     vars: WindowVars,
+    commands: WindowCommands,
 
     root_id: WidgetId,
     root_state: OwnedStateMap,
@@ -1128,9 +1122,10 @@ struct ContentCtrl {
     render_requested: WindowRenderUpdate,
 }
 impl ContentCtrl {
-    pub fn new(window_id: WindowId, vars: WindowVars, window: Window) -> Self {
+    pub fn new(window_id: WindowId, vars: WindowVars, commands: WindowCommands, window: Window) -> Self {
         Self {
             vars,
+            commands,
 
             root_id: window.id,
             root_state: OwnedStateMap::new(),
@@ -1159,6 +1154,7 @@ impl ContentCtrl {
 
     pub fn update(&mut self, ctx: &mut WindowContext) {
         if !self.inited {
+            self.commands.init(ctx.vars, &self.vars);
             ctx.widget_context(&self.info_tree, &self.root_info, &mut self.root_state, |ctx| {
                 self.root.init(ctx);
 
@@ -1167,6 +1163,7 @@ impl ContentCtrl {
             });
             self.inited = true;
         } else {
+            self.commands.update(ctx.vars, &self.vars);
             ctx.widget_context(&self.info_tree, &self.root_info, &mut self.root_state, |ctx| {
                 self.root.update(ctx);
             })
@@ -1232,6 +1229,8 @@ impl ContentCtrl {
                 let args = FrameImageReadyArgs::new(args.timestamp, args.propagation().clone(), args.window_id, args.frame_id, image);
                 FrameImageReadyEvent.notify(ctx.events, args);
             }
+        } else {
+            self.commands.event(ctx, &self.vars, args);
         }
     }
 
@@ -1485,12 +1484,12 @@ enum WindowCtrlMode {
     HeadlessWithRenderer(HeadlessWithRendererCtrl),
 }
 impl WindowCtrl {
-    pub fn new(window_id: WindowId, vars: &WindowVars, mode: WindowMode, content: Window) -> Self {
+    pub fn new(window_id: WindowId, vars: &WindowVars, commands: WindowCommands, mode: WindowMode, content: Window) -> Self {
         WindowCtrl(match mode {
-            WindowMode::Headed => WindowCtrlMode::Headed(HeadedCtrl::new(window_id, vars, content)),
-            WindowMode::Headless => WindowCtrlMode::Headless(HeadlessCtrl::new(window_id, vars, content)),
+            WindowMode::Headed => WindowCtrlMode::Headed(HeadedCtrl::new(window_id, vars, commands, content)),
+            WindowMode::Headless => WindowCtrlMode::Headless(HeadlessCtrl::new(window_id, vars, commands, content)),
             WindowMode::HeadlessWithRenderer => {
-                WindowCtrlMode::HeadlessWithRenderer(HeadlessWithRendererCtrl::new(window_id, vars, content))
+                WindowCtrlMode::HeadlessWithRenderer(HeadlessWithRendererCtrl::new(window_id, vars, commands, content))
             }
         })
     }
