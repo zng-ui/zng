@@ -119,6 +119,11 @@ event_args! {
         /// What caused this event.
         pub cause: FocusChangedCause,
 
+        /// Focus navigation actions that can move the focus away from the [`new_focus`].
+        ///
+        /// [`new_focus`]: Self::new_focus
+        pub enabled_nav: FocusNavAction,
+
         ..
 
         /// The [`prev_focus`](Self::prev_focus) and [`new_focus`](Self::new_focus).
@@ -483,12 +488,16 @@ impl FocusManager {
                 }
             }
 
+            let commands = self.commands.as_mut().unwrap();
+            commands.update_enabled(args.enabled_nav);
+
             let reverse = args.cause.is_prev_request();
             let prev_focus = args.prev_focus.clone();
             FocusChangedEvent.notify(events, args);
 
             // may have focused scope.
             while let Some(after_args) = focus.move_after_focus(vars, windows, reverse) {
+                commands.update_enabled(after_args.enabled_nav);
                 FocusChangedEvent.notify(events, after_args);
             }
 
@@ -915,6 +924,7 @@ impl Focus {
                 self.focused.clone(),
                 highlight,
                 FocusChangedCause::Recovery,
+                FocusNavAction::all(),
             ))
         } else {
             None
@@ -993,6 +1003,7 @@ impl Focus {
                 self.focused.clone(),
                 highlight,
                 FocusChangedCause::Request(request),
+                FocusNavAction::all(),
             ))
         } else {
             None
@@ -1028,12 +1039,24 @@ impl Focus {
         self.is_highlighting_var.set_ne(vars, highlight);
 
         if self.focused != new_focus {
-            let args = FocusChangedArgs::now(self.focused.take(), new_focus.clone(), self.is_highlighting, cause);
+            let args = FocusChangedArgs::now(
+                self.focused.take(),
+                new_focus.clone(),
+                self.is_highlighting,
+                cause,
+                FocusNavAction::all(),
+            );
             self.focused = new_focus.clone();
             self.focused_var.set(vars, new_focus); // this can happen more than once per update, so we can't use set_ne.
             Some(args)
         } else if prev_highlight != highlight {
-            Some(FocusChangedArgs::now(new_focus.clone(), new_focus, highlight, cause))
+            Some(FocusChangedArgs::now(
+                new_focus.clone(),
+                new_focus,
+                highlight,
+                cause,
+                FocusNavAction::all(),
+            ))
         } else {
             None
         }

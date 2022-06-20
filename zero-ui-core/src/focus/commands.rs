@@ -226,27 +226,44 @@ pub(super) struct FocusCommands {
     parent_handle: CommandHandle,
     child_handle: CommandHandle,
 
+    #[allow(dead_code)]
     focus_handle: CommandHandle,
 }
 impl FocusCommands {
     pub fn new(events: &mut Events) -> Self {
         Self {
-            next_handle: FocusNextCommand.new_handle(events, true),
-            prev_handle: FocusPrevCommand.new_handle(events, true),
+            next_handle: FocusNextCommand.new_handle(events, false),
+            prev_handle: FocusPrevCommand.new_handle(events, false),
 
-            alt_handle: FocusAltCommand.new_handle(events, true),
-            esc_handle: EscapeAltCommand.new_handle(events, true),
+            alt_handle: FocusAltCommand.new_handle(events, false),
+            esc_handle: EscapeAltCommand.new_handle(events, false),
 
-            up_handle: FocusUpCommand.new_handle(events, true),
-            down_handle: FocusDownCommand.new_handle(events, true),
-            left_handle: FocusLeftCommand.new_handle(events, true),
-            right_handle: FocusRightCommand.new_handle(events, true),
+            up_handle: FocusUpCommand.new_handle(events, false),
+            down_handle: FocusDownCommand.new_handle(events, false),
+            left_handle: FocusLeftCommand.new_handle(events, false),
+            right_handle: FocusRightCommand.new_handle(events, false),
 
-            parent_handle: FocusParentCommand.new_handle(events, true),
-            child_handle: FocusChildCommand.new_handle(events, true),
+            parent_handle: FocusParentCommand.new_handle(events, false),
+            child_handle: FocusChildCommand.new_handle(events, false),
 
             focus_handle: FocusCommand.new_handle(events, true),
         }
+    }
+
+    pub fn update_enabled(&mut self, nav: FocusNavAction) {
+        self.next_handle.set_enabled(nav.contains(FocusNavAction::NEXT));
+        self.prev_handle.set_enabled(nav.contains(FocusNavAction::PREV));
+
+        self.alt_handle.set_enabled(nav.contains(FocusNavAction::ALT));
+        self.esc_handle.set_enabled(nav.contains(FocusNavAction::ESCAPE_ALT));
+
+        self.up_handle.set_enabled(nav.contains(FocusNavAction::UP));
+        self.down_handle.set_enabled(nav.contains(FocusNavAction::DOWN));
+        self.left_handle.set_enabled(nav.contains(FocusNavAction::LEFT));
+        self.right_handle.set_enabled(nav.contains(FocusNavAction::RIGHT));
+
+        self.parent_handle.set_enabled(nav.contains(FocusNavAction::PARENT));
+        self.child_handle.set_enabled(nav.contains(FocusNavAction::CHILD));
     }
 
     pub fn event_preview<EV: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {

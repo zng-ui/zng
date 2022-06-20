@@ -318,6 +318,35 @@ pub enum FocusTarget {
     EscapeAlt,
 }
 
+bitflags! {
+    /// Represents the [`FocusTarget`] actions that move focus from the current focused widget.
+    pub struct FocusNavAction: u16 {
+        /// [`FocusTarget::Child`]
+        const CHILD =      0b0000_0000_0001;
+        /// [`FocusTarget::Parent`]
+        const PARENT =     0b0000_0000_0010;
+
+        /// [`FocusTarget::Next`]
+        const NEXT =       0b0000_0000_0100;
+        /// [`FocusTarget::Prev`]
+        const PREV =       0b0000_0000_1000;
+
+        /// [`FocusTarget::Up`]
+        const UP =         0b0000_0001_0000;
+        /// [`FocusTarget::Right`]
+        const RIGHT =      0b0000_0010_0000;
+        /// [`FocusTarget::Down`]
+        const DOWN =       0b0000_0100_0000;
+        /// [`FocusTarget::Left`]
+        const LEFT =       0b0000_1000_0000;
+
+        /// [`FocusTarget::Alt`]
+        const ALT =        0b0001_0000_0000;
+        /// [`FocusTarget::EscapeAlt`]
+        const ESCAPE_ALT = 0b0010_0000_0000;
+    }
+}
+
 /// A [`WidgetInfoTree`] wrapper for querying focus info out of the widget tree.
 #[derive(Copy, Clone, Debug)]
 pub struct FocusInfoTree<'a> {
