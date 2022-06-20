@@ -109,7 +109,7 @@ command! {
     ///
     /// # Behavior
     ///
-    /// This command is about the *exclusive* fullscreen state ([`WindowSTate::Exclusive`]),
+    /// This command is about the *exclusive* fullscreen state ([`WindowState::Exclusive`]),
     /// use the [`FullscreenCommand`] to toggle *windowed* fullscreen.
     ///
     /// [`name`]: CommandNameExt

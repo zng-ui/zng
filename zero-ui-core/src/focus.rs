@@ -355,6 +355,7 @@ event! {
 /// focus concepts implemented by this app extension.
 ///
 /// [`App::default`]: crate::app::App::default
+/// [`ShortcutEvent`]: crate::gesture::ShortcutEvent
 pub struct FocusManager {
     last_keyboard_event: Instant,
     pending_layout: Option<WidgetInfoTree>,
@@ -543,7 +544,7 @@ pub struct Focus {
     /// Widgets should use a different *focused* visual for disabled focus, it must be clear that the widget has the keyboard focus
     /// only as a navigation waypoint and cannot provide its normal function.
     ///
-    /// [`DISABLED`]: Interactivity::DISABLED
+    /// [`DISABLED`]: crate::widget_info::Interactivity::DISABLED
     pub focus_disabled_widgets: bool,
 
     request: Option<FocusRequest>,

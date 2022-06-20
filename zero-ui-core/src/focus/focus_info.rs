@@ -176,7 +176,9 @@ impl fmt::Debug for DirectionalNav {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 /// Focus change request.
 ///
-/// See [`Focus::focus`] for details.
+/// See [`Focus`] for details.
+/// 
+/// [`Focus`]: crate::focus::Focus::focus
 pub struct FocusRequest {
     /// Where to move the focus.
     pub target: FocusTarget,
@@ -187,6 +189,8 @@ pub struct FocusRequest {
     /// is only focused if the app has keyboard focus in any of the open windows, if this is enabled
     /// a [`Windows::focus`] request is always made, potentially stealing keyboard focus from another app
     /// and disrupting the user.
+    /// 
+    /// [`Windows::focus`]: crate::window::Windows::focus
     pub force_window_focus: bool,
 
     /// Focus indicator to set on the target window if the app does not have keyboard focus and
@@ -358,6 +362,8 @@ impl<'a> FocusInfoTree<'a> {
     /// Wrap a `widget_info` reference to enable focus info querying.
     ///
     /// See the [`Focus::focus_disabled_widgets`] config for more details on the second parameter.
+    /// 
+    /// [`Focus::focus_disabled_widgets`]: crate::focus::Focus::focus_disabled_widgets
     pub fn new(tree: &'a WidgetInfoTree, focus_disabled_widgets: bool) -> Self {
         FocusInfoTree {
             tree,
@@ -374,7 +380,7 @@ impl<'a> FocusInfoTree<'a> {
     /// See the [`Focus::focus_disabled_widgets`] config for more details.
     ///
     /// [`DISABLED`]: Interactivity::DISABLED
-    /// [`focus_disabled_widgets`]: Focus::focus_disabled_widgets
+    /// [`Focus::focus_disabled_widgets`]: crate::focus::Focus::focus_disabled_widgets
     pub fn focus_disabled_widgets(&self) -> bool {
         self.min_interactivity.is_disabled()
     }
@@ -445,12 +451,16 @@ pub trait WidgetInfoFocusExt<'a> {
     /// Wraps the [`WidgetInfo`] in a [`WidgetFocusInfo`] even if it is not focusable.
     ///
     /// See the [`Focus::focus_disabled_widgets`] config for more details on the second parameter.
+    /// 
+    /// [`Focus::focus_disabled_widgets`]: crate::focus::Focus::focus_disabled_widgets
     #[allow(clippy::wrong_self_convention)] // WidgetFocusInfo is a reference wrapper.
     fn as_focus_info(self, focus_disabled_widgets: bool) -> WidgetFocusInfo<'a>;
 
     /// Returns a wrapped [`WidgetFocusInfo`] if the [`WidgetInfo`] is focusable.
     ///
     /// See the [`Focus::focus_disabled_widgets`] config for more details on the second parameter.
+    /// 
+    /// [`Focus::focus_disabled_widgets`]: crate::focus::Focus::focus_disabled_widgets
     #[allow(clippy::wrong_self_convention)] // WidgetFocusInfo is a reference wrapper.
     fn as_focusable(self, focus_disabled_widgets: bool) -> Option<WidgetFocusInfo<'a>>;
 }
@@ -486,6 +496,8 @@ impl<'a> WidgetFocusInfo<'a> {
     /// Wrap a `widget_info` reference to enable focus info querying.
     ///
     /// See the [`Focus::focus_disabled_widgets`] config for more details on the second parameter.
+    /// 
+    /// [`Focus::focus_disabled_widgets`]:  crate::focus::Focus::focus_disabled_widgets
     pub fn new(widget_info: WidgetInfo<'a>, focus_disabled_widgets: bool) -> Self {
         WidgetFocusInfo {
             info: widget_info,
@@ -501,8 +513,8 @@ impl<'a> WidgetFocusInfo<'a> {
     ///
     /// See the [`Focus::focus_disabled_widgets`] config for more details.
     ///
-    /// [`DISABLED`]: Interactivity::DISABLED
-    /// [`focus_disabled_widgets`]: Focus::focus_disabled_widgets
+    /// [`DISABLED`]: crate::widget_info::Interactivity::DISABLED
+    /// [`Focus::focus_disabled_widgets`]: crate::focus::Focus::focus_disabled_widgets
     pub fn focus_disabled_widgets(&self) -> bool {
         self.min_interactivity.is_disabled()
     }
@@ -1189,6 +1201,8 @@ pub trait IterFocusable<'a, I: Iterator<Item = WidgetInfo<'a>>> {
     /// Returns an iterator of only the focusable widgets.
     ///
     /// See the [`Focus::focus_disabled_widgets`] config for more details on the second parameter.
+    /// 
+    /// [`Focus::focus_disabled_widgets`]: crate::focus::Focus::focus_disabled_widgets
     fn focusable(
         self,
         focus_disabled_widgets: bool,
