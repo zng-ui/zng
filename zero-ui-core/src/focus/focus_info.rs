@@ -603,9 +603,9 @@ impl<'a> WidgetFocusInfo<'a> {
     ///
     /// # Closest Alt Scope
     ///
-    /// a - If `self` is already an ALT scope or is in one, moves to a sibling ALT scope, nested ALT scopes are ignored.
-    /// b - If `self` is a normal scope, moves to the first descendant ALT scope, otherwise..
-    /// c - Recursively searches for an ALT scope sibling up the scope tree.
+    /// - If `self` is already an ALT scope or is in one, moves to a sibling ALT scope, nested ALT scopes are ignored.
+    /// - If `self` is a normal scope, moves to the first descendant ALT scope, otherwise..
+    /// - Recursively searches for an ALT scope sibling up the scope tree.
     pub fn alt_scope(self) -> Option<WidgetFocusInfo<'a>> {
         if self.in_alt_scope() {
             // We do not allow nested alt scopes, search for sibling focus scope.
@@ -720,7 +720,7 @@ impl<'a> WidgetFocusInfo<'a> {
 
     /// Descendants sorted by TAB index.
     ///
-    /// [`SKIP`](TabIndex::SKIP) focusable items and its descendants are not included.
+    /// Focusable items set to [`TabIndex::SKIP`] and its descendants are not included.
     pub fn tab_descendants(self) -> Vec<WidgetFocusInfo<'a>> {
         self.filter_tab_descendants(|f| {
             if f.focus_info().tab_index().is_skip() {
@@ -765,7 +765,7 @@ impl<'a> WidgetFocusInfo<'a> {
 
     /// Next focusable in the same scope after this widget respecting the TAB index.
     ///
-    /// If `self` is `TabIndex::SKIP`returns the next non-skip focusable in the same scope after this widget.
+    /// If `self` is set to [`TabIndex::SKIP`] returns the next non-skip focusable in the same scope after this widget.
     ///
     /// If `skip_self` is `true`, does not include widgets inside `self`.
     ///
@@ -872,7 +872,7 @@ impl<'a> WidgetFocusInfo<'a> {
 
     /// Previous focusable in the same scope before this widget respecting the TAB index.
     ///
-    /// If `self` is `TabIndex::SKIP` or `skip_self` is set returns the previous non-skip
+    /// If `self` is set to [`TabIndex::SKIP`] or `skip_self` is set returns the previous non-skip
     /// focusable in the same scope before this widget.
     ///
     /// If `self` is the first item in scope returns the sorted descendants of the parent scope.

@@ -75,7 +75,7 @@ command! {
     /// |--------------|-------------------------------------------------------|
     /// | [`name`]     | "Escape Alt"                                          |
     /// | [`info`]     | "Escape alt scope."                                   |
-    /// | [`shortcut`] | `Escape`                                              |
+    /// | [`shortcut`] | `Escape`, `Alt`                                       |
     ///
     /// [`name`]: CommandNameExt
     /// [`info`]: CommandInfoExt
@@ -83,7 +83,7 @@ command! {
     pub EscapeAltCommand
         .init_name("Escape Alt")
         .init_info("Escape alt scope.")
-        .init_shortcut([shortcut!(Escape)]);
+        .init_shortcut([shortcut!(Escape), shortcut!(Alt)]);
 
     /// Represents the **focus child** action.
     ///

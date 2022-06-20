@@ -589,7 +589,7 @@ impl Focus {
             is_highlighting_var: var(false),
             is_highlighting: false,
 
-            enabled_nav: FocusNavAction::all(),
+            enabled_nav: FocusNavAction::empty(),
 
             pending_window_focus: None,
         }
@@ -834,6 +834,7 @@ impl Focus {
                             }
                         } {
                             // found `new_focus`
+                            self.enabled_nav = new_focus.enabled_nav();
                             self.move_focus(
                                 vars,
                                 Some(new_focus.info.interaction_path()),
@@ -874,6 +875,7 @@ impl Focus {
                 if let Some(widget) = info.find(focused.widget_id()).map(|w| w.as_focus_info(self.focus_disabled_widgets)) {
                     if widget.is_focusable() {
                         // :-) probably in the same place, maybe moved inside same window.
+                        self.enabled_nav = widget.enabled_nav();
                         return self.move_focus(
                             vars,
                             Some(widget.info.interaction_path()),
@@ -884,6 +886,7 @@ impl Focus {
                         // widget no longer focusable
                         if let Some(parent) = widget.parent() {
                             // move to focusable parent
+                            self.enabled_nav = widget.enabled_nav();
                             return self.move_focus(
                                 vars,
                                 Some(parent.info.interaction_path()),
@@ -900,6 +903,7 @@ impl Focus {
                     for &parent in focused.ancestors().iter().rev() {
                         if let Some(parent) = info.find(parent).and_then(|w| w.as_focusable(self.focus_disabled_widgets)) {
                             // move to focusable parent
+                            self.enabled_nav = parent.enabled_nav();
                             return self.move_focus(
                                 vars,
                                 Some(parent.info.interaction_path()),
@@ -1021,13 +1025,16 @@ impl Focus {
             let info = FocusInfoTree::new(info, self.focus_disabled_widgets);
             if let Some(root) = info.focusable_root() {
                 // found focused window and it is focusable.
+                self.enabled_nav = root.enabled_nav();
                 self.move_focus(vars, Some(root.info.interaction_path()), highlight, FocusChangedCause::Recovery)
             } else {
                 // has focused window but it is not focusable.
+                self.enabled_nav = FocusNavAction::empty();
                 self.move_focus(vars, None, false, FocusChangedCause::Recovery)
             }
         } else {
             // no focused window
+            self.enabled_nav = FocusNavAction::empty();
             self.move_focus(vars, None, false, FocusChangedCause::Recovery)
         }
     }
@@ -1074,6 +1081,7 @@ impl Focus {
                 if let Some(widget) = FocusInfoTree::new(info, self.focus_disabled_widgets).get(focused) {
                     if widget.is_scope() {
                         if let Some(widget) = widget.on_focus_scope_move(|id| self.return_focused.get(&id).map(|p| p.as_path()), reverse) {
+                            self.enabled_nav = widget.enabled_nav();
                             return self.move_focus(
                                 vars,
                                 Some(widget.info.interaction_path()),
