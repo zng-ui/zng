@@ -2006,19 +2006,19 @@ impl<'a> WidgetInfo<'a> {
         unreachable!()
     }
 
-    ///Iterator over all parent children except this widget with orientation in relation
+    ///Iterator over all the parent's children except this widget with orientation in relation
     /// to this widget center.
     pub fn oriented_siblings(self) -> impl Iterator<Item = (WidgetInfo<'a>, WidgetOrientation)> {
         let c = self.center();
         self.siblings().map(move |s| (s, s.orientation_from(c)))
     }
 
-    /// All parent children except this widget, sorted by closest first.
+    /// All the parent's children except this widget, sorted by closest first.
     pub fn closest_siblings(self) -> Vec<WidgetInfo<'a>> {
         self.closest_first(self.siblings())
     }
 
-    /// All parent children except this widget, sorted by closest first and with orientation in
+    /// All the parent's children except this widget, sorted by closest first and with orientation in
     /// relation to this widget center.
     pub fn closest_oriented_siblings(self) -> Vec<(WidgetInfo<'a>, WidgetOrientation)> {
         let mut vec: Vec<_> = self.oriented_siblings().collect();
@@ -2043,7 +2043,7 @@ impl<'a> WidgetInfo<'a> {
         })
     }
 
-    /// Unordered siblings to the above of this widget.
+    /// Unordered siblings above this widget.
     pub fn un_above_siblings(self) -> impl Iterator<Item = WidgetInfo<'a>> {
         self.oriented_siblings().filter_map(|(s, o)| match o {
             WidgetOrientation::Above => Some(s),
@@ -2051,7 +2051,7 @@ impl<'a> WidgetInfo<'a> {
         })
     }
 
-    /// Unordered siblings to the below of this widget.
+    /// Unordered siblings below this widget.
     pub fn un_below_siblings(self) -> impl Iterator<Item = WidgetInfo<'a>> {
         self.oriented_siblings().filter_map(|(s, o)| match o {
             WidgetOrientation::Below => Some(s),
