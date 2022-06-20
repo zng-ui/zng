@@ -1162,6 +1162,26 @@ impl<'a> WidgetFocusInfo<'a> {
             None
         }
     }
+
+    /// Focus navigation actions that can move the focus away from this item.
+    pub fn enabled_nav(self) -> FocusNavAction {
+        let mut actions = FocusNavAction::empty();
+        actions.set(FocusNavAction::PARENT, self.parent().is_some());
+        actions.set(FocusNavAction::CHILD, self.descendants().next().is_some());
+
+        actions.set(FocusNavAction::NEXT, self.next_tab(false).is_some());
+        actions.set(FocusNavAction::PREV, self.prev_tab(false).is_some());
+
+        actions.set(FocusNavAction::UP, self.next_up().is_some());
+        actions.set(FocusNavAction::RIGHT, self.next_right().is_some());
+        actions.set(FocusNavAction::DOWN, self.next_down().is_some());
+        actions.set(FocusNavAction::LEFT, self.next_left().is_some());
+
+        actions.set(FocusNavAction::ALT, self.alt_scope().is_some());
+        actions.set(FocusNavAction::ESCAPE_ALT, self.in_alt_scope());
+
+        actions
+    }
 }
 
 /// Filter-maps an iterator of [`WidgetInfo`] to [`WidgetFocusInfo`].

@@ -26,6 +26,7 @@ fn app_main() {
         window! {
             title = "Focus Example";
             enabled = window_enabled.clone();
+            background = commands();
             content = v_stack! {
                 items = widgets![
                     alt_scope(),
@@ -266,6 +267,43 @@ fn button(content: impl Into<Text>, tab_index: impl Into<TabIndex>) -> impl Widg
         on_click = hn!(|_, _| {
             println!("Clicked {content} {tab_index:?}")
         });
+    }
+}
+
+fn commands() -> impl Widget {
+    use zero_ui::core::focus::commands::*;
+
+    let cmds = [
+        FocusNextCommand.as_any(),
+        FocusPrevCommand.as_any(),
+        FocusUpCommand.as_any(),
+        FocusRightCommand.as_any(),
+        FocusDownCommand.as_any(),
+        FocusLeftCommand.as_any(),
+        FocusAltCommand.as_any(),
+        EscapeAltCommand.as_any(),
+        FocusChildCommand.as_any(),
+        FocusParentCommand.as_any(),
+    ];
+
+    v_stack! {
+        align = Align::BOTTOM_RIGHT;
+        padding = 10;
+        spacing = 8;
+        items_align = Align::RIGHT;
+
+        font_family = FontName::monospace();
+        text_color = colors::GRAY;
+
+        items = cmds.into_iter().map(|cmd| {
+            text! {
+                text = cmd.name_with_shortcut();
+
+                when *#{cmd.enabled()} {
+                    color = colors::WHITE;
+                }
+            }.boxed_wgt()
+        }).collect::<WidgetVec>();
     }
 }
 

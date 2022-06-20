@@ -551,16 +551,18 @@ pub struct Focus {
 
     focused_var: RcVar<Option<InteractionPath>>,
     focused: Option<InteractionPath>,
-
+    
     return_focused_var: IdMap<WidgetId, RcVar<Option<InteractionPath>>>,
     return_focused: IdMap<WidgetId, InteractionPath>,
-
+    
     alt_return_var: RcVar<Option<InteractionPath>>,
     alt_return: Option<(InteractionPath, InteractionPath)>,
-
+    
     is_highlighting_var: RcVar<bool>,
     is_highlighting: bool,
 
+    enabled_nav: FocusNavAction,
+    
     pending_window_focus: Option<(WindowId, WidgetId, bool)>,
 }
 impl Focus {
@@ -585,6 +587,8 @@ impl Focus {
 
             is_highlighting_var: var(false),
             is_highlighting: false,
+
+            enabled_nav: FocusNavAction::all(),
 
             pending_window_focus: None,
         }
@@ -924,7 +928,7 @@ impl Focus {
                 self.focused.clone(),
                 highlight,
                 FocusChangedCause::Recovery,
-                FocusNavAction::all(),
+                self.enabled_nav,
             ))
         } else {
             None
@@ -1003,7 +1007,7 @@ impl Focus {
                 self.focused.clone(),
                 highlight,
                 FocusChangedCause::Request(request),
-                FocusNavAction::all(),
+                self.enabled_nav,
             ))
         } else {
             None
@@ -1044,7 +1048,7 @@ impl Focus {
                 new_focus.clone(),
                 self.is_highlighting,
                 cause,
-                FocusNavAction::all(),
+                self.enabled_nav,
             );
             self.focused = new_focus.clone();
             self.focused_var.set(vars, new_focus); // this can happen more than once per update, so we can't use set_ne.
@@ -1055,7 +1059,7 @@ impl Focus {
                 new_focus,
                 highlight,
                 cause,
-                FocusNavAction::all(),
+                self.enabled_nav,
             ))
         } else {
             None

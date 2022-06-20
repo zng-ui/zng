@@ -1,7 +1,5 @@
 * Fix app exit request not causing window close requests, just closes everything.
-* Add focus commands visualization to focus example.
-    - Background text for each that indicates when the command is enabled?
-    - Implement `FocusNavAction` to properly toggle the commands.
+* Use `enabled_nav` to properly toggle the commands.
 
 * Layout context viewport.
     - The image example tries to do this manually, but there is some flickering due to Px rounding on the scroll vs on the offset.
