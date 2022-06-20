@@ -268,6 +268,7 @@ impl FocusCommands {
             FocusUpCommand => focus_up,
             FocusDownCommand => focus_down,
             FocusLeftCommand => focus_left,
+            FocusRightCommand => focus_right,
             FocusChildCommand => focus_child,
             FocusParentCommand => focus_parent,
         }

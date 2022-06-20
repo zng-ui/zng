@@ -80,15 +80,16 @@ mod focus_info;
 pub use focus_info::*;
 
 pub mod commands;
+use commands::FocusCommands;
 
 use crate::{
     app::{AppEventSender, AppExtension},
     context::*,
     crate_util::IdMap,
     event::*,
-    gesture::{shortcut, ShortcutEvent},
     mouse::MouseInputEvent,
     service::Service,
+    units::TimeUnits,
     var::{var, RcVar, ReadOnlyRcVar, Var, Vars},
     widget_info::{InteractionPath, WidgetInfoTree},
     window::{WidgetInfoChangedEvent, WindowFocusChangedEvent, WindowId, Windows},
@@ -353,6 +354,7 @@ pub struct FocusManager {
     last_keyboard_event: Instant,
     pending_layout: Option<WidgetInfoTree>,
     pending_render: Option<WidgetInfoTree>,
+    commands: Option<FocusCommands>,
 }
 impl Default for FocusManager {
     fn default() -> Self {
@@ -360,12 +362,14 @@ impl Default for FocusManager {
             last_keyboard_event: Instant::now() - Duration::from_secs(10),
             pending_layout: None,
             pending_render: None,
+            commands: None,
         }
     }
 }
 impl AppExtension for FocusManager {
     fn init(&mut self, ctx: &mut AppContext) {
         ctx.services.register(Focus::new(ctx.updates.sender()));
+        self.commands = Some(FocusCommands::new(ctx.events));
     }
 
     fn event_preview<EV: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {
@@ -393,6 +397,8 @@ impl AppExtension for FocusManager {
                     self.on_info_tree_update(&args.tree, ctx);
                 }
             }
+        } else {
+            self.commands.as_mut().unwrap().event_preview(ctx, args);
         }
     }
 
@@ -421,37 +427,6 @@ impl AppExtension for FocusManager {
                 // click
                 request = Some(FocusRequest::direct_or_exit(args.target.widget_id(), false));
             }
-        } else if let Some(args) = ShortcutEvent.update(args) {
-            // keyboard
-            if
-            /* !args.actions.has_actions() && */
-            !args.propagation().is_stopped() {
-                if args.shortcut == shortcut!(Tab) {
-                    request = Some(FocusRequest::next(true))
-                } else if args.shortcut == shortcut!(SHIFT + Tab) {
-                    request = Some(FocusRequest::prev(true))
-                } else if args.shortcut == shortcut!(Alt) {
-                    request = Some(FocusRequest::alt(true))
-                } else if args.shortcut == shortcut!(Escape) {
-                    request = Some(FocusRequest::escape_alt(true))
-                } else if args.shortcut == shortcut!(Up) {
-                    request = Some(FocusRequest::up(true))
-                } else if args.shortcut == shortcut!(Right) {
-                    request = Some(FocusRequest::right(true))
-                } else if args.shortcut == shortcut!(Down) {
-                    request = Some(FocusRequest::down(true))
-                } else if args.shortcut == shortcut!(Left) {
-                    request = Some(FocusRequest::left(true))
-                }
-                if request.is_some() {
-                    if !args.actions.has_actions() || ctx.services.focus().is_highlighting {
-                        args.propagation().stop()
-                    } else {
-                        // todo!("rethink how keyboard focus navigation should be implemented and integrated with scrollable/other gestures");
-                        request = None;
-                    }
-                }
-            }
         } else if let Some(args) = WindowFocusChangedEvent.update(args) {
             // foreground window maybe changed
             let (focus, windows) = ctx.services.req_multi::<(Focus, Windows)>();
@@ -459,14 +434,8 @@ impl AppExtension for FocusManager {
                 if args.is_focus(window_id) {
                     request = Some(FocusRequest::direct(widget_id, highlight));
                 }
-            } else if let Some(mut args) = focus.continue_focus(ctx.vars, windows) {
-                if !args.highlight && args.new_focus.is_some() && (Instant::now() - self.last_keyboard_event) < Duration::from_millis(300) {
-                    // window probably focused using keyboard.
-                    args.highlight = true;
-                    focus.is_highlighting = true;
-                }
+            } else if let Some(args) = focus.continue_focus(ctx.vars, windows) {
                 self.notify(ctx.vars, ctx.events, focus, windows, Some(args));
-                // TODO alt scope focused just before ALT+TAB clears the focus.
             }
 
             if let Some(window_id) = args.closed() {
@@ -474,7 +443,7 @@ impl AppExtension for FocusManager {
                     ReturnFocusChangedEvent.notify(ctx.events, args);
                 }
             }
-        } else if let Some(args) = crate::app::raw_device_events::KeyEvent.update(args) {
+        } else if let Some(args) = crate::app::raw_events::RawKeyInputEvent.update(args) {
             self.last_keyboard_event = args.timestamp;
         }
 
@@ -503,7 +472,17 @@ impl AppExtension for FocusManager {
 }
 impl FocusManager {
     fn notify(&mut self, vars: &Vars, events: &mut Events, focus: &mut Focus, windows: &mut Windows, args: Option<FocusChangedArgs>) {
-        if let Some(args) = args {
+        if let Some(mut args) = args {
+            if !args.highlight && args.new_focus.is_some() {
+                if let Some(dur) = focus.auto_highlight {
+                    if args.timestamp.duration_since(self.last_keyboard_event) <= dur {
+                        args.highlight = true;
+                        focus.is_highlighting = true;
+                        focus.is_highlighting_var.set_ne(vars, true);
+                    }
+                }
+            }
+
             let reverse = args.cause.is_prev_request();
             let prev_focus = args.prev_focus.clone();
             FocusChangedEvent.notify(events, args);
@@ -540,6 +519,12 @@ impl FocusManager {
 /// This service is provided by the [`FocusManager`] extension.
 #[derive(Service)]
 pub struct Focus {
+    /// If set to a duration, starts highlighting focus when a focus change happen within the duration of
+    /// a keyboard input event.
+    ///
+    /// Default is `300.ms()`.
+    pub auto_highlight: Option<Duration>,
+
     /// If [`DISABLED`] widgets can receive focus.
     ///
     /// This is `true` by default, allowing disabled widgets to receive focus can provide a better experience for users,
@@ -575,6 +560,7 @@ impl Focus {
     pub fn new(app_event_sender: AppEventSender) -> Self {
         Focus {
             focus_disabled_widgets: true,
+            auto_highlight: Some(300.ms()),
 
             request: None,
             app_event_sender,
