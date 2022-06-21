@@ -79,7 +79,22 @@ impl Windows {
     /// available in the `new_window` argument already, the window is only available in this service after
     /// the returned variable updates.
     pub fn open(&mut self, new_window: impl FnOnce(&mut WindowContext) -> Window + 'static) -> ResponseVar<WindowOpenArgs> {
-        self.open_impl(new_window, None)
+        self.open_impl(WindowId::new_unique(), new_window, None)
+    }
+
+    /// Requests a new window with pre-defined ID.
+    ///
+    /// # Panics
+    ///
+    /// if the `window_id` is already assigned to an open or opening window.
+    pub fn open_id(
+        &mut self,
+        window_id: impl Into<WindowId>,
+        new_window: impl FnOnce(&mut WindowContext) -> Window + 'static,
+    ) -> ResponseVar<WindowOpenArgs> {
+        let window_id = window_id.into();
+        self.assert_id_unused(window_id);
+        self.open_impl(window_id, new_window, None)
     }
 
     /// Requests a new headless window.
@@ -96,6 +111,7 @@ impl Windows {
         with_renderer: bool,
     ) -> ResponseVar<WindowOpenArgs> {
         self.open_impl(
+            WindowId::new_unique(),
             new_window,
             Some(if with_renderer {
                 WindowMode::HeadlessWithRenderer
@@ -105,13 +121,45 @@ impl Windows {
         )
     }
 
+    /// Requests a new headless window with pre-defined ID.
+    ///
+    /// # Panics
+    ///
+    /// if the `window_id` is already assigned to an open or opening window.
+    pub fn open_headless_id(
+        &mut self,
+        window_id: impl Into<WindowId>,
+        new_window: impl FnOnce(&mut WindowContext) -> Window + 'static,
+        with_renderer: bool,
+    ) -> ResponseVar<WindowOpenArgs> {
+        let window_id = window_id.into();
+        self.assert_id_unused(window_id);
+        self.open_impl(
+            window_id,
+            new_window,
+            Some(if with_renderer {
+                WindowMode::HeadlessWithRenderer
+            } else {
+                WindowMode::Headless
+            }),
+        )
+    }
+
+    fn assert_id_unused(&self, id: WindowId) {
+        if self.windows_info.contains_key(&id) || self.open_requests.iter().any(|r| r.id == id) {
+            panic!("window id `{id:?}` is already in use")
+        }
+    }
+
     fn open_impl(
         &mut self,
+        id: WindowId,
         new_window: impl FnOnce(&mut WindowContext) -> Window + 'static,
         force_headless: Option<WindowMode>,
     ) -> ResponseVar<WindowOpenArgs> {
         let (responder, response) = response_var();
         let request = OpenWindowRequest {
+            id,
             new: Box::new(new_window),
             force_headless,
             responder,
@@ -126,7 +174,12 @@ impl Windows {
     /// [`WindowCloseRequestedEvent`].
     ///
     /// Returns a response var that will update once with the result of the operation.
-    pub fn close(&mut self, window_id: WindowId) -> Result<ResponseVar<CloseWindowResult>, WindowNotFound> {
+    ///
+    /// Returns [`WindowNotFound`] if the `window_id` is not one of the open windows or is only an open request.
+    pub fn close(&mut self, window_id: impl Into<WindowId>) -> Result<ResponseVar<CloseWindowResult>, WindowNotFound> {
+        self.close_impl(window_id.into())
+    }
+    fn close_impl(&mut self, window_id: WindowId) -> Result<ResponseVar<CloseWindowResult>, WindowNotFound> {
         if self.windows_info.contains_key(&window_id) {
             for req in &self.close_requests {
                 if req.windows.contains(&window_id) {
@@ -153,6 +206,8 @@ impl Windows {
     /// Returns a response var that will update once with the result of the operation. Returns
     /// [`Cancel`] if `windows` is empty or only contained windows that already requested close
     /// during this update.
+    ///
+    /// Returns [`WindowNotFound`] if any of the IDs is not one of the open windows or is only an open request.
     ///
     /// [`Cancel`]: CloseWindowResult::Cancel
     pub fn close_together(
@@ -198,13 +253,19 @@ impl Windows {
     ///
     /// This value indicates if the window is headless or not.
     ///
+    /// Returns [`WindowNotFound`] if the `window_id` is not one of the open windows or is only an open request.
+    ///
     /// [mode]: WindowMode
-    pub fn mode(&self, window_id: WindowId) -> Result<WindowMode, WindowNotFound> {
+    pub fn mode(&self, window_id: impl Into<WindowId>) -> Result<WindowMode, WindowNotFound> {
+        let window_id = window_id.into();
         self.windows_info.get(&window_id).map(|w| w.mode).ok_or(WindowNotFound(window_id))
     }
 
     /// Reference the metadata about the window's widgets.
-    pub fn widget_tree(&self, window_id: WindowId) -> Result<&WidgetInfoTree, WindowNotFound> {
+    ///
+    /// Returns [`WindowNotFound`] if the `window_id` is not one of the open windows or is only an open request.
+    pub fn widget_tree(&self, window_id: impl Into<WindowId>) -> Result<&WidgetInfoTree, WindowNotFound> {
+        let window_id = window_id.into();
         self.windows_info
             .get(&window_id)
             .map(|w| &w.widget_tree)
@@ -212,7 +273,10 @@ impl Windows {
     }
 
     /// Reference the current window's subscriptions.
-    pub fn subscriptions(&self, window_id: WindowId) -> Result<&WidgetSubscriptions, WindowNotFound> {
+    ///
+    /// Returns [`WindowNotFound`] if the `window_id` is not one of the open windows or is only an open request.
+    pub fn subscriptions(&self, window_id: impl Into<WindowId>) -> Result<&WidgetSubscriptions, WindowNotFound> {
+        let window_id = window_id.into();
         self.windows_info
             .get(&window_id)
             .map(|w| &w.subscriptions)
@@ -224,8 +288,8 @@ impl Windows {
     /// The image is not loaded at the moment of return, it will update when it is loaded.
     ///
     /// If the window is not found the error is reported in the image error.
-    pub fn frame_image(&mut self, window_id: WindowId) -> ImageVar {
-        self.frame_image_impl(window_id, |vr| vr.frame_image())
+    pub fn frame_image(&mut self, window_id: impl Into<WindowId>) -> ImageVar {
+        self.frame_image_impl(window_id.into(), |vr| vr.frame_image())
     }
 
     /// Generate an image from a selection of the current rendered frame of the window.
@@ -233,8 +297,8 @@ impl Windows {
     /// The image is not loaded at the moment of return, it will update when it is loaded.
     ///
     /// If the window is not found the error is reported in the image error.
-    pub fn frame_image_rect(&mut self, window_id: WindowId, rect: PxRect) -> ImageVar {
-        self.frame_image_impl(window_id, |vr| vr.frame_image_rect(rect))
+    pub fn frame_image_rect(&mut self, window_id: impl Into<WindowId>, rect: PxRect) -> ImageVar {
+        self.frame_image_impl(window_id.into(), |vr| vr.frame_image_rect(rect))
     }
 
     fn frame_image_impl(
@@ -262,12 +326,18 @@ impl Windows {
     }
 
     /// Reference the [`WindowVars`] for the window.
-    pub fn vars(&self, window_id: WindowId) -> Result<&WindowVars, WindowNotFound> {
+    ///
+    /// Returns [`WindowNotFound`] if the `window_id` is not one of the open windows or is only an open request.
+    pub fn vars(&self, window_id: impl Into<WindowId>) -> Result<&WindowVars, WindowNotFound> {
+        let window_id = window_id.into();
         self.windows_info.get(&window_id).map(|w| &w.vars).ok_or(WindowNotFound(window_id))
     }
 
     /// Hit-test the latest window frame.
-    pub fn hit_test(&self, window_id: WindowId, point: DipPoint) -> Result<FrameHitInfo, WindowNotFound> {
+    ///
+    /// Returns [`WindowNotFound`] if the `window_id` is not one of the open windows or is only an open request.
+    pub fn hit_test(&self, window_id: impl Into<WindowId>, point: DipPoint) -> Result<FrameHitInfo, WindowNotFound> {
+        let window_id = window_id.into();
         self.windows_info
             .get(&window_id)
             .map(|w| w.hit_test(point))
@@ -275,11 +345,18 @@ impl Windows {
     }
 
     /// Gets if the window is focused in the OS.
-    pub fn is_focused(&self, window_id: WindowId) -> Result<bool, WindowNotFound> {
-        self.windows_info
-            .get(&window_id)
-            .map(|w| w.is_focused)
-            .ok_or(WindowNotFound(window_id))
+    ///
+    /// Returns [`WindowNotFound`] if the `window_id` is not one of the open windows, returns `false` if the `window_id` is
+    /// one of the open requests.
+    pub fn is_focused(&self, window_id: impl Into<WindowId>) -> Result<bool, WindowNotFound> {
+        let window_id = window_id.into();
+        if let Some(w) = self.windows_info.get(&window_id) {
+            Ok(w.is_focused)
+        } else if self.open_requests.iter().any(|r| r.id == window_id) {
+            Ok(false)
+        } else {
+            Err(WindowNotFound(window_id))
+        }
     }
 
     /// Iterate over the widget trees of each open window.
@@ -297,9 +374,17 @@ impl Windows {
         self.windows_info.values().find(|w| w.is_focused).map(|w| &w.widget_tree)
     }
 
-    /// Returns `true` if the window is found.
-    pub fn is_open(&self, window_id: WindowId) -> bool {
-        self.windows_info.contains_key(&window_id)
+    /// Returns `true` if the window is open.
+    pub fn is_open(&self, window_id: impl Into<WindowId>) -> bool {
+        self.windows_info.contains_key(&window_id.into())
+    }
+
+    /// Returns `true` if a pending window open request is associated with the ID.
+    ///
+    /// Window open requests are processed after each update.
+    pub fn is_open_request(&self, window_id: impl Into<WindowId>) -> bool {
+        let window_id = window_id.into();
+        self.open_requests.iter().any(|r| r.id == window_id)
     }
 
     /// Requests that the window be made the foreground keyboard focused window.
@@ -308,14 +393,33 @@ impl Windows {
     ///
     /// This operation can steal keyboard focus from other apps disrupting the user, be careful with it.
     ///
+    /// If the `window_id` is only associated with an open request it is modified to focus the window on open.
+    ///
     /// [`Focus`]: crate::focus::Focus
     /// [`FocusRequest`]: crate::focus::FocusRequest
-    pub fn focus(&mut self, window_id: WindowId) -> Result<(), WindowNotFound> {
+    pub fn focus(&mut self, window_id: impl Into<WindowId>) -> Result<(), WindowNotFound> {
+        let window_id = window_id.into();
         if !self.is_focused(window_id)? {
             self.focus_request = Some(window_id);
             let _ = self.update_sender.send_ext_update();
         }
         Ok(())
+    }
+
+    /// Focus a window if it is open or opening, otherwise opens it focused.
+    pub fn focus_or_open(
+        &mut self,
+        window_id: impl Into<WindowId>,
+        open: impl FnOnce(&mut WindowContext) -> Window + 'static,
+    ) -> Option<ResponseVar<WindowOpenArgs>> {
+        let window_id = window_id.into();
+        if self.focus(window_id).is_ok() {
+            None
+        } else {
+            let r = self.open_id(window_id, open);
+            self.focus_request = Some(window_id);
+            Some(r)
+        }
     }
 
     fn take_requests(&mut self) -> (Vec<OpenWindowRequest>, Vec<CloseWindowRequest>, Option<WindowId>) {
@@ -519,12 +623,15 @@ impl Windows {
                 (mode, _) => mode,
             };
 
-            let (window, info) = AppWindow::new(ctx, window_mode, r.new);
+            let (window, info) = AppWindow::new(ctx, r.id, window_mode, r.new);
 
             let args = WindowOpenArgs::now(window.id);
             {
                 let wns = ctx.services.windows();
-                wns.windows.insert(window.id, window);
+                if wns.windows.insert(window.id, window).is_some() {
+                    // id conflict resolved on request.
+                    unreachable!();
+                }
                 wns.windows_info.insert(info.id, info);
             }
 
@@ -623,6 +730,7 @@ impl AppWindowInfo {
     }
 }
 struct OpenWindowRequest {
+    id: WindowId,
     new: Box<dyn FnOnce(&mut WindowContext) -> Window>,
     force_headless: Option<WindowMode>,
     responder: ResponderVar<WindowOpenArgs>,
@@ -641,8 +749,12 @@ struct AppWindow {
     state: OwnedStateMap,
 }
 impl AppWindow {
-    pub fn new(ctx: &mut AppContext, mode: WindowMode, new: Box<dyn FnOnce(&mut WindowContext) -> Window>) -> (Self, AppWindowInfo) {
-        let id = WindowId::new_unique();
+    pub fn new(
+        ctx: &mut AppContext,
+        id: WindowId,
+        mode: WindowMode,
+        new: Box<dyn FnOnce(&mut WindowContext) -> Window>,
+    ) -> (Self, AppWindowInfo) {
         let primary_scale_factor = ctx
             .services
             .monitors()
