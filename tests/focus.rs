@@ -82,9 +82,9 @@ pub fn window_tab_cycle_index_auto() {
         let tab_ids: Vec<_> = (0..3).map(make_index).collect();
 
         let buttons = widgets![
-            button! { content = text("Button 0"); tab_index = tab_ids[0] },
-            button! { content = text("Button 1"); tab_index = tab_ids[1] },
-            button! { content = text("Button 2"); tab_index = tab_ids[2] },
+            button! { id = "btn-0"; content = text("Button 0"); tab_index = tab_ids[0] },
+            button! { id = "btn-1"; content = text("Button 1"); tab_index = tab_ids[1] },
+            button! { id = "btn-2"; content = text("Button 2"); tab_index = tab_ids[2] },
         ];
         // we collect the widget_id values in the TAB navigation order.
         let mut ids: Vec<_> = (0..3).map(|i| (buttons.item_id(i), tab_ids[i])).collect();
@@ -95,6 +95,7 @@ pub fn window_tab_cycle_index_auto() {
 
         // advance normally.
         assert_eq!(Some(ids[0]), app.focused());
+        assert!(app.can_tab());
         app.press_tab();
         assert_eq!(Some(ids[1]), app.focused());
         app.press_tab();
@@ -129,17 +130,17 @@ pub fn window_tab_cycle_and_alt_scope() {
         let tab_ids: Vec<_> = (0..5).map(make_index).collect();
 
         let buttons = widgets![
-            button! { content = text("Button 0"); tab_index = tab_ids[0] },
-            button! { content = text("Button 1"); tab_index = tab_ids[1] },
+            button! { id = "btn-0"; content = text("Button 0"); tab_index = tab_ids[0] },
+            button! { id = "btn-1"; content = text("Button 1"); tab_index = tab_ids[1] },
         ];
         let mut ids: Vec<_> = (0..2).map(|i| (buttons.item_id(i), tab_ids[i])).collect();
         ids.sort_by_key(|(_, ti)| *ti);
         let ids: Vec<_> = ids.into_iter().map(|(id, _)| id).collect();
 
         let alt_buttons = widgets![
-            button! { content = text("Alt 0"); tab_index = tab_ids[2] },
-            button! { content = text("Alt 1"); tab_index = tab_ids[3] },
-            button! { content = text("Alt 2"); tab_index = tab_ids[4] },
+            button! { id = "alt-0"; content = text("Alt 0"); tab_index = tab_ids[2] },
+            button! { id = "alt-1"; content = text("Alt 1"); tab_index = tab_ids[3] },
+            button! { id = "alt-2"; content = text("Alt 2"); tab_index = tab_ids[4] },
         ];
         let mut alt_ids: Vec<_> = (0..3).map(|i| (alt_buttons.item_id(i), tab_ids[i + 2])).collect();
         alt_ids.sort_by_key(|(_, ti)| *ti);
@@ -1583,6 +1584,10 @@ impl TestApp {
     pub fn focused(&mut self) -> Option<WidgetId> {
         let ctx = self.app.ctx();
         ctx.services.focus().focused().get(ctx.vars).as_ref().map(|w| w.widget_id())
+    }
+
+    pub fn can_tab(&self) -> bool {
+        zero_ui::core::focus::commands::FocusNextCommand.enabled_value()
     }
 
     pub fn press_tab(&mut self) {

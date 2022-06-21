@@ -98,7 +98,7 @@ use crate::{
 /// }
 /// ```
 ///
-/// The initialization uses the [command extensions] pattern.
+/// The initialization uses the [command extensions] pattern and runs once for each app, so usually just once.
 ///
 /// [`Command`]: crate::command::Command
 /// [`CommandArgs`]: crate::command::CommandArgs
@@ -742,6 +742,10 @@ impl AnyCommand {
         self.0.with(|c| c.update_state(vars, scope))
     }
 
+    pub(crate) fn on_exit(&self) {
+        self.0.with(|c| c.on_exit());
+    }
+
     /// Gets the [`TypeId`] of the command represented by `self`.
     pub fn command_type_id(self) -> TypeId {
         self.0.with(|c| c.command_type_id)
@@ -1278,14 +1282,15 @@ pub struct CommandValue {
 
     meta: RefCell<OwnedStateMap>,
 
-    meta_init: Cell<Option<Box<dyn FnOnce()>>>,
+    meta_init: Box<dyn Fn()>,
+    pending_init: Cell<bool>,
     registered: Cell<bool>,
 
     notify: Box<dyn Fn(&mut Events, CommandArgs)>,
 }
 #[allow(missing_docs)] // this is all hidden
 impl CommandValue {
-    pub fn init<C: Command, I: FnOnce() + 'static>(command: C, meta_init: I) -> Self {
+    pub fn init<C: Command, I: Fn() + 'static>(command: C, meta_init: I) -> Self {
         CommandValue {
             command_type_id: TypeId::of::<C>(),
             command_type_name: type_name::<C>(),
@@ -1294,7 +1299,8 @@ impl CommandValue {
             enabled: var(false),
             has_handlers: var(false),
             meta: RefCell::default(),
-            meta_init: Cell::new(Some(Box::new(meta_init))),
+            meta_init: Box::new(meta_init),
+            pending_init: Cell::new(true),
             registered: Cell::new(false),
             slot: EventSlot::next(),
             notify: Box::new(move |events, args| events.notify(command, args)),
@@ -1318,6 +1324,13 @@ impl CommandValue {
             scope.has_handlers.set_ne(vars, has_handlers);
             scope.enabled.set_ne(vars, enabled);
         }
+    }
+
+    pub fn on_exit(&self) {
+        self.registered.set(false);
+        self.scopes.borrow_mut().clear();
+        self.meta.borrow_mut().clear();
+        self.pending_init.set(true);
     }
 
     pub fn new_handle<Evs: WithEvents>(
@@ -1424,8 +1437,8 @@ impl CommandValue {
     where
         F: FnOnce(&mut CommandMeta) -> R,
     {
-        if let Some(init) = self.meta_init.take() {
-            init()
+        if self.pending_init.take() {
+            (self.meta_init)()
         }
 
         if let CommandScope::App = scope {
