@@ -1,10 +1,11 @@
-use std::fmt;
+use std::{fmt, borrow::Cow};
 
 use parking_lot::Mutex;
 
 use crate::{
     context::*,
     event::AnyEventUpdate,
+    var::impl_from_and_into_var,
     widget_info::{WidgetBorderInfo, WidgetBoundsInfo, WidgetInfoBuilder, WidgetLayout, WidgetRenderInfo, WidgetSubscriptions},
     IdNameError,
 };
@@ -13,6 +14,7 @@ use crate::{
     event::EventUpdateArgs,
     impl_ui_node,
     render::{FrameBuilder, FrameUpdate},
+    text::Text,
 };
 
 mod rc_node;
@@ -43,8 +45,8 @@ impl WidgetId {
     /// If the `name` is already associated with an id, returns it.
     /// If the `name` is new, generates a new id and associated it with the name.
     /// If `name` is an empty string just returns a new id.
-    pub fn named(name: &'static str) -> Self {
-        Self::name_map().get_id_or_insert(name, Self::new_unique)
+    pub fn named(name: impl Into<Text>) -> Self {
+        Self::name_map().get_id_or_insert(name.into(), Self::new_unique)
     }
 
     /// Calls [`named`] in a debug build and [`new_unique`] in a release build.
@@ -56,7 +58,7 @@ impl WidgetId {
     /// [`named`]: WidgetId::named
     /// [`new_unique`]: WidgetId::new_unique
     /// [`id`]: mod@crate::widget_base::implicit_base#wp-id
-    pub fn debug_named(name: &'static str) -> Self {
+    pub fn debug_named(name: impl Into<Text>) -> Self {
         #[cfg(debug_assertions)]
         return Self::named(name);
 
@@ -73,12 +75,12 @@ impl WidgetId {
     /// If the `name` is an empty string just returns a new id.
     ///
     /// [`NameUsed`]: IdNameError::NameUsed
-    pub fn named_new(name: &'static str) -> Result<Self, IdNameError<Self>> {
-        Self::name_map().new_named(name, Self::new_unique)
+    pub fn named_new(name: impl Into<Text>) -> Result<Self, IdNameError<Self>> {
+        Self::name_map().new_named(name.into(), Self::new_unique)
     }
 
     /// Returns the name associated with the id or `""`.
-    pub fn name(self) -> &'static str {
+    pub fn name(self) -> Text {
         Self::name_map().get_name(self)
     }
 
@@ -90,8 +92,8 @@ impl WidgetId {
     ///
     /// [`NameUsed`]: IdNameError::NameUsed
     /// [`AlreadyNamed`]: IdNameError::AlreadyNamed
-    pub fn set_name(self, name: &'static str) -> Result<(), IdNameError<Self>> {
-        Self::name_map().set(name, self)
+    pub fn set_name(self, name: impl Into<Text>) -> Result<(), IdNameError<Self>> {
+        Self::name_map().set(name.into(), self)
     }
 }
 impl fmt::Debug for WidgetId {
@@ -120,9 +122,25 @@ impl fmt::Display for WidgetId {
         }
     }
 }
-crate::var::impl_from_and_into_var! {
+impl_from_and_into_var! {
     /// Calls [`WidgetId::named`].
     fn from(name: &'static str) -> WidgetId {
+        WidgetId::named(name)
+    }
+    /// Calls [`WidgetId::named`].
+    fn from(name: String) -> WidgetId {
+        WidgetId::named(name)
+    }
+    /// Calls [`WidgetId::named`].
+    fn from(name: Cow<'static, str>) -> WidgetId {
+        WidgetId::named(name)
+    }
+    /// Calls [`WidgetId::named`].
+    fn from(name: char) -> WidgetId {
+        WidgetId::named(name)
+    }
+    /// Calls [`WidgetId::named`].
+    fn from(name: Text) -> WidgetId {
         WidgetId::named(name)
     }
 }
