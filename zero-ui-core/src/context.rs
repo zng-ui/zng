@@ -92,6 +92,11 @@ impl OwnedAppContext {
         }
     }
 
+    /// Drops variables held only because they updated.
+    pub fn applied_updates(&mut self) {
+        self.vars.applied_updates();
+    }
+
     /// Returns next timer or animation tick time.
     pub fn next_deadline(&mut self, timer: &mut LoopTimer) {
         self.timers.next_deadline(&self.vars, timer);

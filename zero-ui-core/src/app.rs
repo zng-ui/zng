@@ -1493,6 +1493,8 @@ impl<E: AppExtension> RunningApp<E> {
                 Vars::on_vars(ctx);
                 Updates::on_updates(ctx);
 
+                self.owned_ctx.applied_updates();
+
                 true
             });
         }

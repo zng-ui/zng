@@ -4,6 +4,7 @@ use std::{
     sync::Arc,
 };
 
+use linear_map::set::LinearSet;
 use parking_lot::Mutex;
 
 use crate::{
@@ -586,14 +587,20 @@ event_args! {
 
     /// [`WindowCloseEvent`] args.
     pub struct WindowCloseArgs {
-        /// Id of window that was opened or closed.
-        pub window_id: WindowId,
+        /// Id of windows that were closed.
+        ///
+        ///  This is at least one window, is multiple if the close operation was requested as group.
+        pub windows: LinearSet<WindowId>,
 
         ..
 
         /// Broadcast to all widgets in the window.
         fn delivery_list(&self) -> EventDeliveryList {
-            EventDeliveryList::window(self.window_id)
+            let mut list = EventDeliveryList::none();
+            for w in self.windows.iter() {
+                list = list.with_window(*w);
+            }
+            list
         }
     }
 
@@ -694,16 +701,21 @@ event_args! {
     ///
     /// [`propagation().stop()`]: crate::event::EventPropagationHandle::stop
     pub struct WindowCloseRequestedArgs {
-        /// Window ID.
-        pub window_id: WindowId,
-
-        pub(super) close_group: CloseGroupId,
+        /// Windows closing.
+        ///
+        /// This is at least one window, is multiple if the close operation was requested as group, cancelling the request
+        /// cancels close for all windows .
+        pub windows: LinearSet<WindowId>,
 
         ..
 
-        /// Broadcast to all widgets in the window.
+        /// Broadcast to all widgets in the windows.
         fn delivery_list(&self) -> EventDeliveryList {
-            EventDeliveryList::window(self.window_id)
+            let mut list = EventDeliveryList::none();
+            for w in self.windows.iter() {
+                list = list.with_window(*w);
+            }
+            list
         }
     }
 }
@@ -806,8 +818,6 @@ impl WindowFocusChangedArgs {
         }
     }
 }
-
-pub(super) type CloseGroupId = u32;
 
 event! {
     /// Window moved, resized or has a state change.

@@ -229,7 +229,10 @@ impl VarsRead {
 }
 
 /// Applies pending update and returns the var update mask if it updated, otherwise returns `UpdateMask::none`.
-type PendingUpdate = Box<dyn FnOnce(u32) -> UpdateMask>;
+///
+/// The closure must to hold a strong reference to the variable, the closure it self will be held for the next update
+/// in case the variable was dropped after assign, gives one last chance for weak listeners to receive an update.
+type PendingUpdate = Box<dyn FnMut(u32) -> UpdateMask>;
 
 /// Read-write access to variables.
 ///
@@ -294,6 +297,7 @@ pub struct Vars {
     bindings: RefCell<Vec<VarBindingFn>>,
 
     pending: RefCell<Vec<PendingUpdate>>,
+    updating: Vec<PendingUpdate>,
 
     pre_handlers: RefCell<Vec<OnVarHandler>>,
     pos_handlers: RefCell<Vec<OnVarHandler>>,
@@ -329,6 +333,7 @@ impl Vars {
             bindings: RefCell::default(),
 
             pending: Default::default(),
+            updating: vec![],
             pre_handlers: RefCell::default(),
             pos_handlers: RefCell::default(),
         }
@@ -340,9 +345,13 @@ impl Vars {
     }
 
     /// Schedule set/modify.
-    pub(super) fn push_change<T: VarValue>(&self, change: PendingUpdate) {
+    pub(super) fn push_change<T: VarValue, V: Var<T>>(&self, var: V, apply: impl FnOnce(&V, u32) -> UpdateMask + 'static) {
         UpdatesTrace::log_var::<T>();
-        self.pending.borrow_mut().push(change);
+        let mut apply = Some(apply);
+        self.pending.borrow_mut().push(Box::new(move |id| {
+            let apply = apply.take().unwrap();
+            apply(&var, id)
+        }));
     }
 
     pub(crate) fn has_pending_updates(&mut self) -> bool {
@@ -366,11 +375,14 @@ impl Vars {
         self.read.update_id = self.update_id.wrapping_add(1);
         self.ans.animation_start_time.set(None);
 
+        self.updating.clear();
+
         let pending = self.pending.get_mut();
         if !pending.is_empty() {
             let mut mask = UpdateMask::none();
-            for f in pending.drain(..) {
+            for mut f in pending.drain(..) {
                 mask |= f(self.read.update_id);
+                self.updating.push(f); // hold var alive for one update.
             }
 
             if !mask.is_none() {
@@ -385,8 +397,9 @@ impl Vars {
                         if pending.is_empty() {
                             break;
                         }
-                        for f in pending.drain(..) {
+                        for mut f in pending.drain(..) {
                             mask |= f(self.read.update_id);
+                            self.updating.push(f);
                         }
                     }
                 }
@@ -751,10 +764,6 @@ impl Vars {
         V: Var<T>,
         H: AppHandler<T>,
     {
-        if !var.can_update() {
-            return OnVarHandle::dummy();
-        }
-
         self.push_var_handler(&self.pos_handlers, false, var, handler)
     }
 
@@ -828,6 +837,10 @@ impl Vars {
         let mut new = handlers.borrow_mut();
         current.extend(std::mem::take(&mut *new));
         *new = current;
+    }
+
+    pub(crate) fn applied_updates(&mut self) {
+        self.updating.clear();
     }
 }
 impl Deref for Vars {

@@ -752,6 +752,8 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + any::AnyVar + crate::private::S
     /// The variable is marked as *new* only if the closure input is dereferenced as `mut`, and if
     /// it is marked  as new then the same behavior of [`set`] applies.
     ///
+    /// A strong reference to the variable is held for the duration of the *new* update.
+    ///
     /// [`set`]: Var::set
     fn modify<Vw, M>(&self, vars: &Vw, modify: M) -> Result<(), VarIsReadOnly>
     where
@@ -763,6 +765,8 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + any::AnyVar + crate::private::S
     /// The variable will get a new [`version`] and report that it [`is_new`] but the value
     /// will not actually change.
     ///
+    /// A strong reference to the variable is held for the duration of the *new* update.
+    ///
     /// [`version`]: Var::version
     /// [`is_new`]: Var::is_new
     fn touch<Vw: WithVars>(&self, vars: &Vw) -> Result<(), VarIsReadOnly> {
@@ -773,6 +777,8 @@ pub trait Var<T: VarValue>: Clone + IntoVar<T> + any::AnyVar + crate::private::S
     ///
     /// After the current app update finishes the `new_value` will be set, the variable will have
     /// a new [`version`] and [`is_new`] will be `true` for the next app update.
+    ///
+    /// A strong reference to the variable is held for the duration of the *new* update.
     ///
     /// [`version`]: Var::version
     /// [`is_new`]: Var::is_new

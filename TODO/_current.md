@@ -1,4 +1,4 @@
-* Fix app exit request not causing window close requests, just closes everything.
+* Review focus parent/child.
 
 * Layout context viewport.
     - The image example tries to do this manually, but there is some flickering due to Px rounding on the scroll vs on the offset.

@@ -552,18 +552,18 @@ pub struct Focus {
 
     focused_var: RcVar<Option<InteractionPath>>,
     focused: Option<InteractionPath>,
-    
+
     return_focused_var: IdMap<WidgetId, RcVar<Option<InteractionPath>>>,
     return_focused: IdMap<WidgetId, InteractionPath>,
-    
+
     alt_return_var: RcVar<Option<InteractionPath>>,
     alt_return: Option<(InteractionPath, InteractionPath)>,
-    
+
     is_highlighting_var: RcVar<bool>,
     is_highlighting: bool,
 
     enabled_nav: FocusNavAction,
-    
+
     pending_window_focus: Option<(WindowId, WidgetId, bool)>,
 }
 impl Focus {

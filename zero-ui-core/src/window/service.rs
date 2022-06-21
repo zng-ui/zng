@@ -1,10 +1,12 @@
 use std::mem;
 
+use linear_map::set::LinearSet;
 use linear_map::LinearMap;
 
 use super::commands::WindowCommands;
 use super::*;
 use crate::app::view_process::{ViewProcess, ViewProcessInitedEvent, ViewProcessOffline};
+use crate::app::ExitRequestedEvent;
 use crate::context::OwnedStateMap;
 use crate::event::EventUpdateArgs;
 use crate::image::{Image, ImageVar};
@@ -33,6 +35,9 @@ pub struct Windows {
     ///
     /// This setting is ignored in headless apps, in headed apps the exit happens when all headed windows
     /// are closed, headless windows are ignored.
+    ///
+    /// If app exit is requested directly and there are headed windows open the exit op is canceled, the windows request close
+    /// and this is set to `true` so that another exit request is made after the windows close.
     pub exit_on_last_close: bool,
 
     /// Default render mode of windows opened by this service, the initial value is [`RenderMode::default`].
@@ -43,16 +48,11 @@ pub struct Windows {
 
     windows: LinearMap<WindowId, AppWindow>,
     windows_info: LinearMap<WindowId, AppWindowInfo>,
-
     open_requests: Vec<OpenWindowRequest>,
     update_sender: AppEventSender,
-
-    close_group_id: CloseGroupId,
-    close_requests: LinearMap<WindowId, CloseWindowRequest>,
-    pending_closes: LinearMap<CloseGroupId, PendingClose>,
-
+    close_requests: Vec<CloseWindowRequest>,
+    close_responders: LinearMap<WindowId, ResponderVar<CloseWindowResult>>,
     focus_request: Option<WindowId>,
-
     frame_images: Vec<RcVar<Image>>,
 }
 impl Windows {
@@ -63,14 +63,10 @@ impl Windows {
             windows: LinearMap::with_capacity(1),
             windows_info: LinearMap::with_capacity(1),
             open_requests: Vec::with_capacity(1),
+            close_responders: LinearMap::with_capacity(1),
             update_sender,
-
-            close_group_id: 1,
-            close_requests: LinearMap::new(),
-            pending_closes: LinearMap::new(),
-
+            close_requests: vec![],
             focus_request: None,
-
             frame_images: vec![],
         }
     }
@@ -132,12 +128,17 @@ impl Windows {
     /// Returns a response var that will update once with the result of the operation.
     pub fn close(&mut self, window_id: WindowId) -> Result<ResponseVar<CloseWindowResult>, WindowNotFound> {
         if self.windows_info.contains_key(&window_id) {
+            for req in &self.close_requests {
+                if req.windows.contains(&window_id) {
+                    return Ok(req.responder.response_var());
+                }
+            }
+
             let (responder, response) = response_var();
-
-            let group = self.close_group_id.wrapping_add(1);
-            self.close_group_id = group;
-
-            self.close_requests.insert(window_id, CloseWindowRequest { responder, group });
+            self.close_requests.push(CloseWindowRequest {
+                responder,
+                windows: [window_id].into_iter().collect(),
+            });
             let _ = self.update_sender.send_ext_update();
 
             Ok(response)
@@ -150,7 +151,7 @@ impl Windows {
     /// [`WindowCloseRequestedEvent`]. If canceled none of the windows are closed.
     ///
     /// Returns a response var that will update once with the result of the operation. Returns
-    /// [`Cancel`] if `windows` is empty or contains a window that already requested close
+    /// [`Cancel`] if `windows` is empty or only contained windows that already requested close
     /// during this update.
     ///
     /// [`Cancel`]: CloseWindowResult::Cancel
@@ -158,29 +159,24 @@ impl Windows {
         &mut self,
         windows: impl IntoIterator<Item = WindowId>,
     ) -> Result<ResponseVar<CloseWindowResult>, WindowNotFound> {
-        let windows = windows.into_iter();
-        let mut requests = LinearMap::with_capacity(windows.size_hint().0);
+        let mut group = LinearSet::new();
 
-        let group = self.close_group_id.wrapping_add(1);
-        self.close_group_id = group;
-
-        let (responder, response) = response_var();
-
-        for window in windows {
-            if !self.windows_info.contains_key(&window) {
-                return Err(WindowNotFound(window));
+        for w in windows {
+            if !self.windows_info.contains_key(&w) {
+                return Err(WindowNotFound(w));
             }
 
-            requests.insert(
-                window,
-                CloseWindowRequest {
-                    responder: responder.clone(),
-                    group,
-                },
-            );
+            if !self.close_requests.iter().any(|r| r.windows.contains(&w)) {
+                group.insert(w);
+            }
         }
 
-        self.close_requests.extend(requests);
+        if group.is_empty() {
+            return Ok(response_done_var(CloseWindowResult::Cancel));
+        }
+
+        let (responder, response) = response_var();
+        self.close_requests.push(CloseWindowRequest { responder, windows: group });
         let _ = self.update_sender.send_ext_update();
 
         Ok(response)
@@ -190,7 +186,7 @@ impl Windows {
     /// the [`WindowCloseRequestedEvent`]. If canceled none of the windows are closed.
     ///
     /// Returns a response var that will update once with the result of the operation, Returns
-    /// [`Cancel`] if no window is open or if close was already requested to one of the windows.
+    /// [`Cancel`] if no window is open or if close was already requested to all of the windows.
     ///
     /// [`Cancel`]: CloseWindowResult::Cancel
     pub fn close_all(&mut self) -> ResponseVar<CloseWindowResult> {
@@ -322,7 +318,7 @@ impl Windows {
         Ok(())
     }
 
-    fn take_requests(&mut self) -> (Vec<OpenWindowRequest>, LinearMap<WindowId, CloseWindowRequest>, Option<WindowId>) {
+    fn take_requests(&mut self) -> (Vec<OpenWindowRequest>, Vec<CloseWindowRequest>, Option<WindowId>) {
         (
             mem::take(&mut self.open_requests),
             mem::take(&mut self.close_requests),
@@ -398,7 +394,9 @@ impl Windows {
         } else if let Some(args) = RawWindowCloseEvent.update(args) {
             if ctx.services.windows().windows.contains_key(&args.window_id) {
                 tracing::error!("view-process closed window without request");
-                let args = WindowCloseArgs::new(args.timestamp, args.propagation().clone(), args.window_id);
+                let mut windows = LinearSet::with_capacity(1);
+                windows.insert(args.window_id);
+                let args = WindowCloseArgs::new(args.timestamp, args.propagation().clone(), windows);
                 WindowCloseEvent.notify(ctx, args);
             }
         } else if ViewProcessInitedEvent.update(args).is_some() {
@@ -423,92 +421,60 @@ impl Windows {
 
     pub(super) fn on_event<EV: EventUpdateArgs>(ctx: &mut AppContext, args: &EV) {
         if let Some(args) = WindowCloseRequestedEvent.update(args) {
-            let wns = ctx.services.windows();
-
-            // If we caused this event, fulfill the close request.
-            match wns.pending_closes.entry(args.close_group) {
-                linear_map::Entry::Occupied(mut e) => {
-                    let caused_by_us = if let Some(canceled) = e.get_mut().windows.get_mut(&args.window_id) {
-                        // caused by us, update the status for the window.
-                        *canceled = Some(args.propagation().is_stopped());
-                        true
-                    } else {
-                        // not us, window not in group
-                        false
-                    };
-
-                    if caused_by_us {
-                        // check if this is the last window in the group
-                        let mut all_some = true;
-                        // and if any cancelled we cancel all, otherwise close all.
-                        let mut cancel = false;
-
-                        for cancel_flag in e.get().windows.values() {
-                            if let Some(c) = cancel_flag {
-                                cancel |= c;
-                            } else {
-                                all_some = false;
-                                break;
-                            }
-                        }
-
-                        if all_some {
-                            // if the last window in the group, no longer pending
-                            let e = e.remove();
-
-                            if cancel {
-                                // respond to all windows in the group.
-                                e.responder.respond(ctx.vars, CloseWindowResult::Cancel);
-                            } else {
-                                e.responder.respond(ctx.vars, CloseWindowResult::Closed);
-
-                                // notify close, but does not remove then yet, this
-                                // lets the window content handle the close event,
-                                // we deinit the window when we handle our own close event.
-                                for (w, _) in e.windows {
-                                    if wns.windows.contains_key(&w) {
-                                        WindowCloseEvent.notify(ctx.events, WindowCloseArgs::now(w));
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-                linear_map::Entry::Vacant(_) => {
-                    // Not us, no pending entry.
+            let key = args.windows.iter().next().unwrap();
+            if let Some(rsp) = ctx.services.windows().close_responders.remove(key) {
+                if !args.propagation().is_stopped() {
+                    // close requested by us and not canceled.
+                    WindowCloseEvent.notify(ctx.events, WindowCloseArgs::now(args.windows.clone()));
+                    rsp.respond(ctx, CloseWindowResult::Closed);
+                } else {
+                    rsp.respond(ctx, CloseWindowResult::Cancel);
                 }
             }
         } else if let Some(args) = WindowCloseEvent.update(args) {
             // finish close, this notifies  `UiNode::deinit` and drops the window
             // causing the ViewWindow to drop and close.
 
-            if let Some(w) = ctx.services.windows().windows.remove(&args.window_id) {
-                w.close(ctx);
+            for w in &args.windows {
+                if let Some(w) = ctx.services.windows().windows.remove(w) {
+                    let id = w.id;
+                    w.close(ctx);
 
-                let is_headless_app = app::App::window_mode(ctx.services).is_headless();
+                    let wns = ctx.services.windows();
+                    let info = wns.windows_info.remove(&id).unwrap();
 
-                let wns = ctx.services.windows();
-                let info = wns.windows_info.remove(&args.window_id).unwrap();
+                    info.vars.0.is_open.set(ctx.vars, false);
 
-                info.vars.0.is_open.set(ctx.vars, false);
-
-                // if set to exit on last headed window close in a headed app,
-                // AND there is no more open headed window OR request for opening a headed window.
-                if wns.exit_on_last_close
-                    && !is_headless_app
-                    && !wns.windows.values().any(|w| matches!(w.mode, WindowMode::Headed))
-                    && !wns
-                        .open_requests
-                        .iter()
-                        .any(|w| matches!(w.force_headless, None | Some(WindowMode::Headed)))
-                {
-                    // fulfill `exit_on_last_close`
-                    ctx.services.app_process().exit();
+                    if info.is_focused {
+                        let args = WindowFocusChangedArgs::now(Some(info.id), None, true);
+                        WindowFocusChangedEvent.notify(ctx.events, args)
+                    }
                 }
+            }
 
-                if info.is_focused {
-                    let args = WindowFocusChangedArgs::now(Some(info.id), None, true);
-                    WindowFocusChangedEvent.notify(ctx.events, args)
+            let is_headless_app = app::App::window_mode(ctx.services).is_headless();
+            let wns = ctx.services.windows();
+
+            // if set to exit on last headed window close in a headed app,
+            // AND there is no more open headed window OR request for opening a headed window.
+            if wns.exit_on_last_close
+                && !is_headless_app
+                && !wns.windows.values().any(|w| matches!(w.mode, WindowMode::Headed))
+                && !wns
+                    .open_requests
+                    .iter()
+                    .any(|w| matches!(w.force_headless, None | Some(WindowMode::Headed)))
+            {
+                // fulfill `exit_on_last_close`
+                ctx.services.app_process().exit();
+            }
+        } else if let Some(args) = ExitRequestedEvent.update(args) {
+            if !args.propagation().is_stopped() {
+                let windows = ctx.services.windows();
+                if windows.windows_info.values().any(|w| w.mode == WindowMode::Headed) {
+                    args.propagation().stop();
+                    windows.exit_on_last_close = true;
+                    windows.close_all();
                 }
             }
         }
@@ -570,18 +536,11 @@ impl Windows {
 
         // notify close requests, the request is fulfilled or canceled
         // in the `event` handler.
-        for (w_id, r) in close {
-            let args = WindowCloseRequestedArgs::now(w_id, r.group);
-            WindowCloseRequestedEvent.notify(ctx.events, args);
+        for r in close {
+            wns.close_responders.insert(*r.windows.iter().next().unwrap(), r.responder);
 
-            wns.pending_closes
-                .entry(r.group)
-                .or_insert_with(|| PendingClose {
-                    responder: r.responder,
-                    windows: LinearMap::with_capacity(1),
-                })
-                .windows
-                .insert(w_id, None);
+            let args = WindowCloseRequestedArgs::now(r.windows);
+            WindowCloseRequestedEvent.notify(ctx.events, args);
         }
 
         // fulfill focus request
@@ -670,11 +629,7 @@ struct OpenWindowRequest {
 }
 struct CloseWindowRequest {
     responder: ResponderVar<CloseWindowResult>,
-    group: CloseGroupId,
-}
-struct PendingClose {
-    windows: LinearMap<WindowId, Option<bool>>,
-    responder: ResponderVar<CloseWindowResult>,
+    windows: LinearSet<WindowId>,
 }
 
 /// Window context owner.

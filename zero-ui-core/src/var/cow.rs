@@ -279,7 +279,7 @@ impl<T: VarValue, V: Var<T>> Var<T> for RcCowVar<T, V> {
 
             let self_ = self.clone();
             let (animation, started_in) = vars.current_animation();
-            vars.push_change::<T>(Box::new(move |update_id| {
+            vars.push_change(self_, move |self_, update_id| {
                 let mut prev_animation = self_.0.animation.borrow_mut();
 
                 if prev_animation.1 > started_in {
@@ -309,7 +309,7 @@ impl<T: VarValue, V: Var<T>> Var<T> for RcCowVar<T, V> {
                 } else {
                     UpdateMask::none()
                 }
-            }));
+            });
 
             Ok(())
         })

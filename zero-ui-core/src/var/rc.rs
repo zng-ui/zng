@@ -59,7 +59,7 @@ impl<T: VarValue> RcVar<T> {
         vars.with_vars(|vars| {
             let self_ = self.clone();
             let (animation, started_in) = vars.current_animation();
-            vars.push_change::<T>(Box::new(move |update_id| {
+            vars.push_change(self_, move |self_, update_id| {
                 let mut prev_animation = self_.0.animation.borrow_mut();
 
                 if prev_animation.1 > started_in {
@@ -84,7 +84,7 @@ impl<T: VarValue> RcVar<T> {
                 } else {
                     UpdateMask::none()
                 }
-            }));
+            });
         })
     }
 
@@ -444,6 +444,74 @@ impl<T: VarValue> ResponseVar<T> {
             }
             self.wait_new(vars).await;
         }
+    }
+
+    /// Add a `handler` that is called once when the response is received,
+    /// the handler is called before all other UI updates.
+    ///
+    /// If the variable is already [`responded`] it is [touched] to cause the handler to run on the next update.
+    ///
+    /// [touched]: Var::touch
+    /// [`responded`]: Self::responded
+    pub fn on_pre_rsp<Vw, H>(&self, vars: &Vw, mut handler: H) -> OnVarHandle
+    where
+        Vw: WithVars,
+        H: AppHandler<T> + crate::handler::marker::OnceHn,
+    {
+        vars.with_vars(move |vars| {
+            if self.responded(vars) {
+                let _ = self.touch(vars);
+            }
+            self.on_pre_new(
+                vars,
+                app_hn!(|ctx, args, handler_args| {
+                    if let Response::Done(value) = args {
+                        handler.event(
+                            ctx,
+                            value,
+                            &crate::handler::AppHandlerArgs {
+                                handle: handler_args,
+                                is_preview: true,
+                            },
+                        )
+                    }
+                }),
+            )
+        })
+    }
+
+    /// Add a `handler` that is called once when the response is received,
+    /// the handler is called after all other UI updates.
+    ///
+    /// If the variable is already [`responded`] it is [touched] to cause the handler to run on the next update.
+    ///
+    /// [touched]: Var::touch
+    /// [`responded`]: Self::responded
+    pub fn on_rsp<Vw, H>(&self, vars: &Vw, mut handler: H) -> OnVarHandle
+    where
+        Vw: WithVars,
+        H: AppHandler<T> + crate::handler::marker::OnceHn,
+    {
+        vars.with_vars(move |vars| {
+            if self.responded(vars) {
+                let _ = self.touch(vars);
+            }
+            self.on_new(
+                vars,
+                app_hn!(|ctx, args, handler_args| {
+                    if let Response::Done(value) = args {
+                        handler.event(
+                            ctx,
+                            value,
+                            &crate::handler::AppHandlerArgs {
+                                handle: handler_args,
+                                is_preview: false,
+                            },
+                        )
+                    }
+                }),
+            )
+        })
     }
 
     /// Clone the response value if a response was set.
