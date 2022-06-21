@@ -341,8 +341,8 @@ fn nested_focusables() -> impl Widget {
                 window! {
                     title = "Focus Example - Nested Focusables";
                     // zero_ui::widgets::inspector::show_center_points = true;
+                    content_align = Align::CENTER;
                     content = v_stack! {
-                        margin = (30, 0, 0, 0);
                         spacing = 10;
                         items = widgets![
                             nested_focusables_group('a'),
@@ -382,9 +382,13 @@ fn nested_focusable(g: char, column: u8, row: u8) -> impl Widget {
         focusable = true;
 
         corner_radius = 5;
+        border = 1, colors::RED.with_alpha(30.pct());
         background_color = colors::RED.with_alpha(20.pct());
         when self.is_focused {
             background_color = colors::GREEN;
+        }
+        when self.is_focused || self.is_return_focus {
+            border = 1, colors::LIME_GREEN;
         }
     }
 }
