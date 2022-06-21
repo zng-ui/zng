@@ -271,6 +271,10 @@ impl Hasher for IdHasher {
         unreachable!("`only `write_u64` is supported");
     }
 
+    fn write_u32(&mut self, id: u32) {
+        self.0 = id as u64;
+    }
+
     fn write_u64(&mut self, id: u64) {
         self.0 = id;
     }

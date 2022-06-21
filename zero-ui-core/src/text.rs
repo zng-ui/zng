@@ -1376,11 +1376,15 @@ enum TextData {
 }
 impl fmt::Debug for TextData {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::Static(s) => write!(f, "Static({s:?})"),
-            Self::Inline(d) => write!(f, "Inline({:?})", inline_to_str(d)),
-            Self::Interned(s, _, _) => write!(f, "Interned({:?})", s.as_ref()),
-            Self::Owned(s) => write!(f, "Owned({s:?})"),
+        if f.alternate() {
+            match self {
+                Self::Static(s) => write!(f, "Static({s:?})"),
+                Self::Inline(d) => write!(f, "Inline({:?})", inline_to_str(d)),
+                Self::Interned(s, _, _) => write!(f, "Interned({:?})", s.as_ref()),
+                Self::Owned(s) => write!(f, "Owned({s:?})"),
+            }
+        } else {
+            write!(f, "{:?}", self.deref())
         }
     }
 }

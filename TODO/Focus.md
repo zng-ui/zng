@@ -1,12 +1,5 @@
 # Focus TODO
 
-* Improve directional nav by hitting more points, not just the center?
-
-* Review focus parent/child.
-   - Refactor directional to skip focusable content, only enter goes in?
-   - Directional can escape?
-   - Review focusable scopes.
-
 * Restore focus from `modal` focus scope to button that opened it. 
 * Restore focus to nearest sibling when focused is removed.
 * Support more then one ALT scopes?

@@ -135,13 +135,14 @@ fn functions(window_enabled: RcVar<bool>) -> impl Widget {
                     WindowLayers::insert(ctx, LayerIndex::TOP_MOST, overlay(window_enabled.clone()));
                 });
             },
+            nested_focusables(),
         ]
     }
 }
 fn disable_window(window_enabled: RcVar<bool>) -> impl Widget {
     button! {
         content = text(window_enabled.map(|&e| if e { "Disable Window" } else { "Enabling in 1s..." }.into()));
-        width = 140;
+        min_width = 140;
         on_click = async_hn!(window_enabled, |ctx, _| {
             window_enabled.set(&ctx, false);
             task::timeout(1.secs()).await;
@@ -330,6 +331,75 @@ fn trace_focus(events: &mut Events) {
         .perm();
 }
 
+fn nested_focusables() -> impl Widget {
+    let opening = var(false);
+    button! {
+        content = text("Nested Focusables");
+        enabled = opening.map(|&o|!o);
+
+        on_click = hn!(|ctx, args: &ClickArgs| {
+            args.propagation().stop();
+
+            let windows = ctx.services.windows();
+            if windows.focus("nested-focusables".into()).is_err() {
+                opening.set(ctx.vars, true);
+                windows.open(clone_move!(opening, |ctx| {
+                    // ctx.window_id.set_name("nested-focusables").unwrap();
+
+                    window! {
+                        title = "Focus Example - Nested Focusables";
+                        on_open = hn!(|ctx, _| opening.set(ctx, false));
+
+                        // zero_ui::widgets::inspector::show_center_points = true;
+                        content = v_stack! {
+                            margin = (30, 0, 0, 0);
+                            spacing = 10;
+                            items = widgets![
+                                nested_focusables_group('a'),
+                                nested_focusables_group('b'),
+                            ];
+                        };
+                    }
+                }));
+            }
+        })
+    }
+}
+fn nested_focusables_group(g: char) -> impl Widget {
+    h_stack! {
+        align = Align::TOP;
+        spacing = 10;
+        items = (0..5).map(|n| nested_focusable(g, n, 0).boxed_wgt()).collect::<WidgetVec>()
+    }
+}
+fn nested_focusable(g: char, column: u8, row: u8) -> impl Widget {
+    let nested = text! {
+        text = format!("Focusable {column}, {row}");
+        margin = 5;
+    };
+    v_stack! {
+        id = formatx!("focusable{g}-{column}-{row}");
+        padding = 2;
+
+        items = if row == 5 {
+            widget_vec![nested]
+        } else {
+            widget_vec![
+                nested,
+                nested_focusable(g, column, row + 1),
+            ]
+        };
+
+        focusable = true;
+
+        corner_radius = 5;
+        background_color = colors::RED.with_alpha(20.pct());
+        when self.is_focused {
+            background_color = colors::GREEN;
+        }
+    }
+}
+
 #[cfg(debug_assertions)]
 mod inspect {
     use super::*;
@@ -379,7 +449,7 @@ mod inspect {
                     } else if focus_info.is_scope() {
                         format!("{}(is_scope)", info.widget_name)
                     } else {
-                        info.widget_name.to_owned()
+                        format!("{}({})", info.widget_name, p.widget_id())
                     }
                 }
             })

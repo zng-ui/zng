@@ -1,3 +1,4 @@
+* How to give named ids for new windows?
 * Focus, see `Focus.md`.
 
 * Layout context viewport.

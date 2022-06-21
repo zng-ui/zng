@@ -1029,17 +1029,17 @@ impl<'a> WidgetFocusInfo<'a> {
 
                 // for 'up' this is:
                 // is above line?
-                if a <= b {
+                if a < b {
                     // is to the right?
-                    if c >= d {
+                    if c > d {
                         // is in the 45º 'frustum'
                         // │?╱
                         // │╱__
-                        is_in_direction = c <= d + (b - a);
+                        is_in_direction = c < d + (b - a);
                     } else {
                         //  ╲?│
                         // __╲│
-                        is_in_direction = c >= d - (b - a);
+                        is_in_direction = c > d - (b - a);
                     }
                 }
 
@@ -1058,7 +1058,7 @@ impl<'a> WidgetFocusInfo<'a> {
 
     fn directional_next(self, direction_vals: DirectionFn![impl]) -> Option<WidgetFocusInfo<'a>> {
         self.scope()
-            .and_then(|s| self.directional_from_pt(s, self.info.center(), direction_vals, true))
+            .and_then(|s| self.directional_from_pt(s, self.info.center(), direction_vals, false))
     }
 
     /// Closest focusable in the same scope above this widget.
@@ -1097,7 +1097,7 @@ impl<'a> WidgetFocusInfo<'a> {
                         // next up from the same X but from the bottom segment of scope.
                         let mut from_pt = point;
                         from_pt.y = scope.info.inner_bounds().max().y;
-                        self.directional_from_pt(scope, from_pt, DirectionFn![up], false)
+                        self.directional_from_pt(scope, from_pt, DirectionFn![up], true)
                     })
                 }
             }
@@ -1121,7 +1121,7 @@ impl<'a> WidgetFocusInfo<'a> {
                     // next right from the same Y but from the left segment of scope.
                     let mut from_pt = point;
                     from_pt.x = scope.info.inner_bounds().min().x;
-                    self.directional_from_pt(scope, from_pt, DirectionFn![right], false)
+                    self.directional_from_pt(scope, from_pt, DirectionFn![right], true)
                 }),
             }
         } else {
@@ -1144,7 +1144,7 @@ impl<'a> WidgetFocusInfo<'a> {
                     // next down from the same X but from the top segment of scope.
                     let mut from_pt = point;
                     from_pt.y = scope.info.inner_bounds().min().y;
-                    self.directional_from_pt(scope, from_pt, DirectionFn![down], false)
+                    self.directional_from_pt(scope, from_pt, DirectionFn![down], true)
                 }),
             }
         } else {
@@ -1167,7 +1167,7 @@ impl<'a> WidgetFocusInfo<'a> {
                     // next left from the same Y but from the right segment of scope.
                     let mut from_pt = point;
                     from_pt.x = scope.info.inner_bounds().max().x;
-                    self.directional_from_pt(scope, from_pt, DirectionFn![left], false)
+                    self.directional_from_pt(scope, from_pt, DirectionFn![left], true)
                 }),
             }
         } else {
