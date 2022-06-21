@@ -106,7 +106,7 @@ impl fmt::Debug for WindowId {
                 .field("name", &name)
                 .finish()
         } else if !name.is_empty() {
-            write!(f, "WindowId({name:?})")
+            write!(f, r#"WindowId("{name}")"#)
         } else {
             write!(f, "WindowId({})", self.sequential())
         }

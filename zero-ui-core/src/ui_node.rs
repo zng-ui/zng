@@ -106,7 +106,7 @@ impl fmt::Debug for WidgetId {
                 .field("name", &name)
                 .finish()
         } else if !name.is_empty() {
-            write!(f, "WidgetId({name:?})")
+            write!(f, r#"WidgetId("{name}")"#)
         } else {
             write!(f, "WidgetId({})", self.sequential())
         }
