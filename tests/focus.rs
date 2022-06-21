@@ -850,16 +850,20 @@ pub fn tab_inner_scope_once() {
 pub fn tab_inner_scope_none() {
     // we expect tab navigation to enter the inner scope and then not move.
 
-    let inner_buttons = widgets![button! { content = text("Button 1") }, button! { content = text("Button 2") },];
+    let inner_buttons = widgets![
+        button! { id = "btn-1"; content = text("Button 1") },
+        button! { id = "btn-2"; content = text("Button 2") },
+    ];
     let inner_ids: Vec<_> = (0..2).map(|i| inner_buttons.item_id(i)).collect();
     let items = widgets![
-        button! { content = text("Button 0") },
+        button! { id = "btn-0"; content = text("Button 0") },
         v_stack! {
+            id = "v-stack";
             items = inner_buttons;
             focus_scope = true;
             tab_nav = TabNav::None;
         },
-        button! { content = text("Button 3") },
+        button! { id = "btn-3"; content = text("Button 3") },
     ];
     let item_ids: Vec<_> = (0..3).map(|i| items.item_id(i)).collect();
 
@@ -867,6 +871,7 @@ pub fn tab_inner_scope_none() {
 
     // focus starts outside of inner scope.
     assert_eq!(Some(item_ids[0]), app.focused());
+    assert!(app.can_tab());
     app.press_tab();
 
     // focus enters the inner scope.
@@ -874,13 +879,16 @@ pub fn tab_inner_scope_none() {
     app.press_tab();
     // and we did not move.
     assert_eq!(Some(inner_ids[0]), app.focused());
+    assert!(!app.can_tab());
 
     // same in reverse.
     app.focus(item_ids[2]);
     assert_eq!(Some(item_ids[2]), app.focused());
+    assert!(app.can_shift_tab());
     app.press_shift_tab();
     assert_eq!(Some(inner_ids[1]), app.focused());
     app.press_shift_tab();
+    assert!(!app.can_shift_tab());
     assert_eq!(Some(inner_ids[1]), app.focused());
 }
 
@@ -1588,6 +1596,9 @@ impl TestApp {
 
     pub fn can_tab(&self) -> bool {
         zero_ui::core::focus::commands::FocusNextCommand.enabled_value()
+    }
+    pub fn can_shift_tab(&self) -> bool {
+        zero_ui::core::focus::commands::FocusPrevCommand.enabled_value()
     }
 
     pub fn press_tab(&mut self) {

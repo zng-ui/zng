@@ -959,19 +959,19 @@ impl Focus {
             .map(|w| w.as_focus_info(self.focus_disabled_widgets))
         {
             if w.is_focusable() {
-                target = Some(w.info.interaction_path());
+                target = Some((w.info.interaction_path(), w.enabled_nav()));
             } else if fallback_to_childs {
                 if let Some(w) = w.descendants().next() {
-                    target = Some(w.info.interaction_path());
+                    target = Some((w.info.interaction_path(), w.enabled_nav()));
                 }
             } else if fallback_to_parents {
                 if let Some(w) = w.parent() {
-                    target = Some(w.info.interaction_path());
+                    target = Some((w.info.interaction_path(), w.enabled_nav()));
                 }
             }
         }
 
-        if let Some(target) = target {
+        if let Some((target, enabled_nav)) = target {
             if let Ok(false) = windows.is_focused(target.window_id()) {
                 let requested_win_focus;
                 if request.force_window_focus || windows.focused_window_id().is_some() {
@@ -995,6 +995,7 @@ impl Focus {
                 }
                 None
             } else {
+                self.enabled_nav = enabled_nav;
                 self.move_focus(vars, Some(target), highlight, FocusChangedCause::Request(request))
             }
         } else {
