@@ -1017,8 +1017,10 @@ impl<'a> WidgetFocusInfo<'a> {
             a + b
         };
 
-        let mut candidate_dist = i32::MAX;
-        let mut candidate = None;
+        let mut candidate1_dist = i32::MAX;
+        let mut candidate1 = None;
+        let mut candidate2_dist = i32::MAX;
+        let mut candidate2 = None;
 
         for w in scope.descendants_skip_directional(if skip_descendants { Some(self) } else { None }) {
             if w.info.widget_id() != skip_id {
@@ -1046,15 +1048,39 @@ impl<'a> WidgetFocusInfo<'a> {
 
                 if is_in_direction {
                     let dist = distance(candidate_center);
-                    if dist <= candidate_dist {
-                        candidate = Some(w);
-                        candidate_dist = dist;
+
+                    if dist <= candidate1_dist {
+                        if candidate1_dist <= candidate2_dist {
+                            candidate2 = candidate1;
+                            candidate2_dist = candidate1_dist;
+                        }
+
+                        candidate1 = Some(w);
+                        candidate1_dist = dist;
+                    } else if dist <= candidate2_dist {
+                        candidate2 = Some(w);
+                        candidate2_dist = dist;
                     }
                 }
             }
         }
 
-        candidate
+        // prefer sibling over parent
+        if !skip_descendants {
+            if let Some(c2) = candidate2 {
+                let c1 = candidate1.unwrap();
+
+                if self.ancestors().any(|w| w == c1) {
+                    if let Some(p) = self.parent() {
+                        if c2.ancestors().any(|w| w == p) {
+                            return Some(c2);
+                        }
+                    }
+                }
+            }
+        }
+
+        candidate1
     }
 
     fn directional_next(self, direction_vals: DirectionFn![impl]) -> Option<WidgetFocusInfo<'a>> {
@@ -1178,7 +1204,7 @@ impl<'a> WidgetFocusInfo<'a> {
 
     /// Focus navigation actions that can move the focus away from this item.
     pub fn enabled_nav(self) -> FocusNavAction {
-        let mut actions = FocusNavAction::empty();
+        let mut actions = FocusNavAction::all();
         actions.set(FocusNavAction::PARENT, self.parent().is_some());
         actions.set(FocusNavAction::CHILD, self.descendants().next().is_some());
 
