@@ -563,7 +563,7 @@ impl MouseWheelArgs {
     ///
     /// [`modifiers`]: Self::modifiers
     pub fn shifted_delta(&self) -> MouseScrollDelta {
-        if self.modifiers.shift() {
+        if self.modifiers.has_shift() {
             match self.delta {
                 MouseScrollDelta::LineDelta(x, y) => MouseScrollDelta::LineDelta(y, x),
                 MouseScrollDelta::PixelDelta(x, y) => MouseScrollDelta::PixelDelta(y, x),
@@ -580,10 +580,7 @@ impl MouseWheelArgs {
     ///
     /// [`scroll_delta`]: Self::scroll_delta
     pub fn is_scroll(&self) -> bool {
-        self.modifiers.is_empty()
-            || self.modifiers == ModifiersState::SHIFT
-            || self.modifiers == ModifiersState::ALT
-            || self.modifiers == ModifiersState::SHIFT | ModifiersState::ALT
+        self.modifiers.is_empty() || self.modifiers.is_only(ModifiersState::SHIFT | ModifiersState::ALT)
     }
 
     /// Returns the delta for a scrolling operation, depending on the [`modifiers`].
@@ -605,7 +602,7 @@ impl MouseWheelArgs {
 
         if modifiers.is_empty() {
             Some(delta)
-        } else if modifiers == ModifiersState::SHIFT {
+        } else if modifiers.is_only_shift() {
             Some(match delta {
                 MouseScrollDelta::LineDelta(x, y) => MouseScrollDelta::LineDelta(y, x),
                 MouseScrollDelta::PixelDelta(x, y) => MouseScrollDelta::PixelDelta(y, x),
@@ -621,7 +618,7 @@ impl MouseWheelArgs {
     ///
     /// [`zoom_delta`]: Self::zoom_delta
     pub fn is_zoom(&self) -> bool {
-        self.modifiers == ModifiersState::CTRL
+        self.modifiers.is_only_ctrl()
     }
 
     /// Returns the delta for a zoom-in/out operation, depending on the [`modifiers`].
@@ -630,7 +627,7 @@ impl MouseWheelArgs {
     ///
     /// [`modifiers`]: Self::modifiers
     pub fn zoom_delta(&self) -> Option<MouseScrollDelta> {
-        if self.modifiers == ModifiersState::CTRL {
+        if self.is_zoom() {
             Some(self.delta)
         } else {
             None

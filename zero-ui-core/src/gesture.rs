@@ -289,16 +289,16 @@ impl fmt::Debug for KeyGesture {
 }
 impl Display for KeyGesture {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        if self.modifiers.logo() {
+        if self.modifiers.has_logo() {
             write!(f, "Logo+")?
         }
-        if self.modifiers.ctrl() {
+        if self.modifiers.has_ctrl() {
             write!(f, "Ctrl+")?
         }
-        if self.modifiers.shift() {
+        if self.modifiers.has_shift() {
             write!(f, "Shift+")?
         }
-        if self.modifiers.alt() {
+        if self.modifiers.has_alt() {
             write!(f, "Alt+")?
         }
 

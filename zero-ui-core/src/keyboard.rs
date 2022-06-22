@@ -485,21 +485,43 @@ bitflags! {
     }
 }
 impl ModifiersState {
-    /// Returns `true` if the shift key is pressed.
-    pub fn shift(self) -> bool {
+    /// Returns `true` if any shift key is pressed.
+    pub fn has_shift(self) -> bool {
         self.intersects(Self::SHIFT)
     }
-    /// Returns `true` if the control key is pressed.
-    pub fn ctrl(self) -> bool {
+    /// Returns `true` if any control key is pressed.
+    pub fn has_ctrl(self) -> bool {
         self.intersects(Self::CTRL)
     }
-    /// Returns `true` if the alt key is pressed.
-    pub fn alt(self) -> bool {
+    /// Returns `true` if any alt key is pressed.
+    pub fn has_alt(self) -> bool {
         self.intersects(Self::ALT)
     }
-    /// Returns `true` if the logo key is pressed.
-    pub fn logo(self) -> bool {
+    /// Returns `true` if any logo key is pressed.
+    pub fn has_logo(self) -> bool {
         self.intersects(Self::LOGO)
+    }
+
+    /// Returns `true` if only any flag in `part` is pressed.
+    pub fn is_only(self, part: ModifiersState) -> bool {
+        !self.is_empty() && (self - part).is_empty()
+    }
+
+    /// Returns `true` if only any shift key is pressed.
+    pub fn is_only_shift(self) -> bool {
+        self.is_only(ModifiersState::SHIFT)
+    }
+    /// Returns `true` if only any control key is pressed.
+    pub fn is_only_ctrl(self) -> bool {
+        self.is_only(ModifiersState::CTRL)
+    }
+    /// Returns `true` if only any alt key is pressed.
+    pub fn is_only_alt(self) -> bool {
+        self.is_only(ModifiersState::ALT)
+    }
+    /// Returns `true` if only any logo key is pressed.
+    pub fn is_only_logo(self) -> bool {
+        self.is_only(ModifiersState::LOGO)
     }
 
     /// Removes `part` and returns if it was removed.
@@ -534,38 +556,38 @@ impl ModifiersState {
     /// Returns modifiers that set both left and right flags if any side is set in `self`.
     pub fn ambit(self) -> Self {
         let mut r = Self::empty();
-        if self.alt() {
+        if self.has_alt() {
             r |= Self::ALT;
         }
-        if self.ctrl() {
+        if self.has_ctrl() {
             r |= Self::CTRL;
         }
-        if self.shift() {
+        if self.has_shift() {
             r |= Self::SHIFT;
         }
-        if self.logo() {
+        if self.has_logo() {
             r |= Self::LOGO;
         }
         r
     }
 
-    /// Only the "alt" flags.
-    pub fn alt_only(self) -> Self {
+    /// Returns only the alt flags in `self`.
+    pub fn into_alt(self) -> Self {
         self & Self::ALT
     }
 
-    /// Only the "control" flags.
-    pub fn ctrl_only(self) -> Self {
+    /// Returns only the control flags in `self`.
+    pub fn into_ctrl(self) -> Self {
         self & Self::CTRL
     }
 
-    /// Only the "shift" flags.
-    pub fn shift_only(self) -> Self {
+    /// Returns only the shift flags in `self`.
+    pub fn into_shift(self) -> Self {
         self & Self::SHIFT
     }
 
-    /// Only the "logo" flags.
-    pub fn logo_only(self) -> Self {
+    /// Returns only the logo flags in `self`.
+    pub fn into_logo(self) -> Self {
         self & Self::LOGO
     }
 
