@@ -1017,13 +1017,8 @@ impl<'a> WidgetFocusInfo<'a> {
             a + b
         };
 
-        let self_bounds = self.info.inner_bounds();
-
         let mut candidate_dist = i32::MAX;
-        let mut candidate_overlap = Px::MAX;
         let mut candidate = None;
-
-        println!("!!: SEARCH =========");
 
         for w in scope.descendants_skip_directional(if skip_descendants { Some(self) } else { None }) {
             if w.info.widget_id() != skip_id {
@@ -1051,11 +1046,8 @@ impl<'a> WidgetFocusInfo<'a> {
 
                 if is_in_direction {
                     let dist = distance(candidate_center);
-                    let overlap = candidate_bounds.intersection(&self_bounds).map(|r| r.area()).unwrap_or(Px(0));
-                    println!("!!: opt {:?}", (overlap, dist));
-                    if overlap <= candidate_overlap && dist <= candidate_dist {
+                    if dist <= candidate_dist {
                         candidate = Some(w);
-                        candidate_overlap = overlap;
                         candidate_dist = dist;
                     }
                 }

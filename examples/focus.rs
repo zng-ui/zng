@@ -367,7 +367,7 @@ fn nested_focusable(g: char, column: u8, row: u8) -> impl Widget {
         margin = 5;
     };
     v_stack! {
-        id = formatx!("focusable{g}-{column}-{row}");
+        id = formatx!("focusable-{g}-{column}-{row}");
         padding = 2;
 
         items = if row == 5 {
