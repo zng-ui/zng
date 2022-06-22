@@ -6,6 +6,8 @@
 * Test directional navigation.
    * Including layout transformed widgets.
 * Mnemonics.
+* Include depth distance in directional focus logic?
+   * Prefer navigation to siblings over ancestors?
 
 ## Icon Example
 
