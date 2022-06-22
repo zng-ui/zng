@@ -721,6 +721,12 @@ struct WidgetInfoTreeInner {
     lookup: IdMap<WidgetId, ego_tree::NodeId>,
     interactivity_filters: InteractivityFilters,
 }
+impl PartialEq for WidgetInfoTree {
+    fn eq(&self, other: &Self) -> bool {
+        self.0.id == other.0.id
+    }
+}
+impl Eq for WidgetInfoTree {}
 impl WidgetInfoTree {
     /// Blank window that contains only the root widget taking no space.
     pub fn blank(window_id: WindowId, root_id: WidgetId) -> Self {
@@ -2093,6 +2099,43 @@ impl<'a> WidgetInfo<'a> {
         let origin = self.center();
         vec.sort_by_cached_key(|n| n.distance_key(origin));
         vec
+    }
+
+    /// Count of ancestors.
+    pub fn depth(self) -> usize {
+        self.ancestors().count()
+    }
+
+    /// First ancestor of `self` and `other`.
+    ///
+    /// Returns `None` if `other` is not from the same tree.
+    pub fn shared_ancestor(self, other: Self) -> Option<WidgetInfo<'a>> {
+        if self.tree == other.tree {
+            let a = self.path();
+            let b = other.path();
+            let shared = a.shared_ancestor(&b).unwrap();
+            self.tree.get(&*shared)
+        } else {
+            None
+        }
+    }
+
+    /// Sum of the count to the shared ancestor between `self` an `other`.
+    ///
+    /// Returns `None` if `other` is not from the same tree.
+    pub fn depth_distance(self, other: Self) -> Option<usize> {
+        if self.tree == other.tree {
+            let a = self.path();
+            let b = other.path();
+            let i = a.path.iter().zip(b.path.iter()).position(|(a, b)| a == b).unwrap();
+
+            let a_depth = a.path.len() - i;
+            let b_depth = b.path.len() - i;
+
+            Some(a_depth + b_depth)
+        } else {
+            None
+        }
     }
 }
 
