@@ -387,7 +387,7 @@ fn nested_focusable(g: char, column: u8, row: u8) -> impl Widget {
         when self.is_focused {
             background_color = colors::GREEN;
         }
-        when self.is_focused || self.is_return_focus {
+        when self.is_return_focus {
             border = 1, colors::LIME_GREEN;
         }
     }

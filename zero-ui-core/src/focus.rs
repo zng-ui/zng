@@ -279,6 +279,24 @@ impl ReturnFocusChangedArgs {
         self.prev_return.as_ref().map(|p| p.widget_id() != widget_id).unwrap_or(true)
             && self.new_return.as_ref().map(|p| p.widget_id() == widget_id).unwrap_or(false)
     }
+
+    /// If `widget_id` is the new return focus or a parent of the new return and was not a parent of the previous return.
+    pub fn is_return_focus_enter(&self, widget_id: WidgetId) -> bool {
+        match (&self.prev_return, &self.new_return) {
+            (Some(prev), Some(new)) => !prev.contains(widget_id) && new.contains(widget_id),
+            (None, Some(new)) => new.contains(widget_id),
+            (_, None) => false,
+        }
+    }
+
+    /// If `widget_id` is the previous return focus or a parent of the previous return and is not a parent of the new return.
+    pub fn is_return_focus_leave(&self, widget_id: WidgetId) -> bool {
+        match (&self.prev_return, &self.new_return) {
+            (Some(prev), Some(new)) => prev.contains(widget_id) && !new.contains(widget_id),
+            (Some(prev), None) => prev.contains(widget_id),
+            (None, _) => false,
+        }
+    }
 }
 
 /// The cause of a [`FocusChangedEvent`].

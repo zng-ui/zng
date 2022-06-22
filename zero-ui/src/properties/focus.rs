@@ -485,3 +485,21 @@ pub fn is_return_focus(child: impl UiNode, state: StateVar) -> impl UiNode {
         }
     })
 }
+
+/// If the widget or one of its descendants will be focused when a focus scope is focused.
+///
+/// To check if only the widget is the return focus use [`is_return_focus`].
+///
+/// [`is_return_focus`]: fn@zero_ui::properties::focus::is_return_focus
+#[property(context)]
+pub fn is_return_focus_within(child: impl UiNode, state: StateVar) -> impl UiNode {
+    event_state(child, state, false, ReturnFocusChangedEvent, |ctx, args| {
+        if args.is_return_focus_enter(ctx.path.widget_id()) {
+            Some(true)
+        } else if args.is_return_focus_leave(ctx.path.widget_id()) {
+            Some(false)
+        } else {
+            None
+        }
+    })
+}
