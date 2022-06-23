@@ -587,20 +587,34 @@ impl<C: Command> ScopedCommand<C> {
         <Self as Command>::new_handle(self, events, enabled)
     }
 
-    /// Schedule an event update if the command is enabled.
+    /// Schedule an event update if the command has handlers, enabled or disabled.
     ///
     /// The event type notified is the `C` type, not `Self`. The scope is passed in the [`CommandArgs`].
     ///
     /// The `parameter` is an optional value for the command handler.
     ///
-    /// Returns `true` if notified, only notifies if the command is enabled.
+    /// Returns `true` if notified.
     pub fn notify<Evs: WithEvents>(self, events: &mut Evs, parameter: Option<CommandParam>) -> bool {
         let scope = self.scope();
-        let enabled = self.thread_local_value().with(move |c| c.enabled_value(scope));
-        if enabled {
-            events.with_events(|evs| evs.notify(self.command, CommandArgs::now(parameter, self.scope)));
+        if let Some(enabled) = self.thread_local_value().with(move |c| c.enabled_value(scope)) {
+            events.with_events(|evs| evs.notify(self.command, CommandArgs::now(parameter, self.scope, enabled)));
+            true
+        } else {
+            false
         }
-        enabled
+    }
+
+    pub fn notify_e<Evs: WithEvents>(self, events: &mut Evs, parameter: Option<CommandParam>, enabled: bool) -> bool {
+        let scope = self.scope();
+        if let Some(e) = self.thread_local_value().with(move |c| c.enabled_value(scope)) {
+            let nofify = enabled == e;
+            if notify {
+                events.with_events(|evs| evs.notify(self.command, CommandArgs::now(parameter, self.scope, enabled)));
+            }
+            notify
+        } else {
+            false
+        }
     }
 
     /// Gets the event arguments if the update is for this command type and scope.
@@ -1404,13 +1418,21 @@ impl CommandValue {
         }
     }
 
-    pub fn enabled_value(&self, scope: CommandScope) -> bool {
+    pub fn enabled_value(&self, scope: CommandScope) -> Option<bool> {
         if let CommandScope::App = scope {
-            !self.handle.is_dropped() && self.handle.data().enabled_count.load(Ordering::Relaxed) > 0
+            if self.handle.is_dropped() {
+                None
+            } else {
+                Some(self.handle.data().enabled_count.load(Ordering::Relaxed) > 0)
+            }
         } else if let Some(value) = self.scopes.borrow().get(&scope) {
-            !value.handle.is_dropped() && value.handle.data().enabled_count.load(Ordering::Relaxed) > 0
+            if value.handle.is_dropped() {
+                None
+            } else {
+                Some(value.handle.data().enabled_count.load(Ordering::Relaxed) > 0)
+            }
         } else {
-            false
+            None
         }
     }
 
@@ -1461,10 +1483,16 @@ crate::event_args! {
     /// Event args for command events.
     pub struct CommandArgs {
         /// Optional parameter for the command handler.
-        pub parameter: Option<CommandParam>,
+        pub param: Option<CommandParam>,
 
         /// Scope of command that notified.
         pub scope: CommandScope,
+
+        /// If the command handle was enabled when the command notified.
+        /// 
+        /// If `false` the command primary action must not run, but a secondary "disabled interaction"
+        /// that indicates what conditions enable the command is recommended.
+        pub enabled: bool,
 
         ..
 
@@ -1484,9 +1512,31 @@ crate::event_args! {
 }
 impl CommandArgs {
     /// Returns a reference to a parameter of `T` if [`parameter`](#structfield.parameter) is set to a value of `T`.
-    pub fn parameter<T: Any>(&self) -> Option<&T> {
-        self.parameter.as_ref().and_then(|p| p.downcast_ref::<T>())
+    pub fn param<T: Any>(&self) -> Option<&T> {
+        self.param.as_ref().and_then(|p| p.downcast_ref::<T>())
     }
+
+    /// Returns [`param`] if is enabled interaction.
+    /// 
+    /// [`param`]: Self::param()
+    pub fn enabled_param<T: Any>(&self) -> Option<&T> {
+        if self.enabled {
+            self.param::<T>()
+        } else {
+            None
+        }
+    }
+
+    /// Returns [`param`] if is disabled interaction.
+    /// 
+    /// [`param`]: Self::param()
+    pub fn disabled_param<T: Any>(&self) -> Option<&T> {
+        if !self.enabled {
+            self.param::<T>()
+        } else {
+            None
+        }
+    } 
 }
 
 /// Helper for declaring command handlers.
