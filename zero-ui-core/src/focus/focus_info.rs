@@ -230,13 +230,13 @@ impl FocusRequest {
     pub fn direct_or_related(widget_id: WidgetId, highlight: bool) -> Self {
         Self::new(FocusTarget::DirectOrRelated(widget_id), highlight)
     }
-    /// New [`FocusTarget::Child`] request.
-    pub fn child(highlight: bool) -> Self {
-        Self::new(FocusTarget::Child, highlight)
+    /// New [`FocusTarget::Enter`] request.
+    pub fn enter(highlight: bool) -> Self {
+        Self::new(FocusTarget::Enter, highlight)
     }
-    /// New [`FocusTarget::Parent`] request.
-    pub fn parent(highlight: bool) -> Self {
-        Self::new(FocusTarget::Parent, highlight)
+    /// New [`FocusTarget::Exit`] request.
+    pub fn exit(highlight: bool) -> Self {
+        Self::new(FocusTarget::Exit, highlight)
     }
     /// New [`FocusTarget::Next`] request.
     pub fn next(highlight: bool) -> Self {
@@ -266,10 +266,6 @@ impl FocusRequest {
     pub fn alt(highlight: bool) -> Self {
         Self::new(FocusTarget::Alt, highlight)
     }
-    /// New [`FocusTarget::EscapeAlt`] request.
-    pub fn escape_alt(highlight: bool) -> Self {
-        Self::new(FocusTarget::EscapeAlt, highlight)
-    }
 
     /// Sets [`FocusRequest::force_window_focus`] to `true`.
     pub fn with_force_window_focus(mut self) -> Self {
@@ -298,9 +294,9 @@ pub enum FocusTarget {
     DirectOrRelated(WidgetId),
 
     /// Move focus to the first focusable descendant of the current focus, or to first in screen.
-    Child,
-    /// Move focus to the first focusable ancestor of the current focus, or to first in screen.
-    Parent,
+    Enter,
+    /// Move focus to the first focusable ancestor of the current focus, or to first in screen, or the return focus from ALT scopes.
+    Exit,
 
     /// Move focus to next from current in screen, or to first in screen.
     Next,
@@ -316,19 +312,17 @@ pub enum FocusTarget {
     /// Move focus to the left of current.
     Left,
 
-    /// Move focus to the current widget ALT scope.
+    /// Move focus to the current widget ALT scope or out of it.
     Alt,
-    /// Move focus back from ALT scope.
-    EscapeAlt,
 }
 
 bitflags! {
     /// Represents the [`FocusTarget`] actions that move focus from the current focused widget.
     pub struct FocusNavAction: u16 {
-        /// [`FocusTarget::Child`]
-        const CHILD =      0b0000_0000_0001;
-        /// [`FocusTarget::Parent`]
-        const PARENT =     0b0000_0000_0010;
+        /// [`FocusTarget::Enter`]
+        const ENTER =      0b0000_0000_0001;
+        /// [`FocusTarget::Exit`]
+        const EXIT =     0b0000_0000_0010;
 
         /// [`FocusTarget::Next`]
         const NEXT =       0b0000_0000_0100;
@@ -346,8 +340,6 @@ bitflags! {
 
         /// [`FocusTarget::Alt`]
         const ALT =        0b0001_0000_0000;
-        /// [`FocusTarget::EscapeAlt`]
-        const ESCAPE_ALT = 0b0010_0000_0000;
     }
 }
 
@@ -1208,8 +1200,8 @@ impl<'a> WidgetFocusInfo<'a> {
     /// Focus navigation actions that can move the focus away from this item.
     pub fn enabled_nav(self) -> FocusNavAction {
         let mut actions = FocusNavAction::all();
-        actions.set(FocusNavAction::PARENT, self.parent().is_some());
-        actions.set(FocusNavAction::CHILD, self.descendants().next().is_some());
+        actions.set(FocusNavAction::EXIT, self.parent().is_some() || self.is_alt_scope());
+        actions.set(FocusNavAction::ENTER, self.descendants().next().is_some());
 
         actions.set(FocusNavAction::NEXT, self.next_tab(false).is_some());
         actions.set(FocusNavAction::PREV, self.prev_tab(false).is_some());
@@ -1219,8 +1211,7 @@ impl<'a> WidgetFocusInfo<'a> {
         actions.set(FocusNavAction::DOWN, self.next_down().is_some());
         actions.set(FocusNavAction::LEFT, self.next_left().is_some());
 
-        actions.set(FocusNavAction::ALT, self.alt_scope().is_some());
-        actions.set(FocusNavAction::ESCAPE_ALT, self.in_alt_scope());
+        actions.set(FocusNavAction::ALT, self.alt_scope().is_some() || self.in_alt_scope());
 
         actions
     }

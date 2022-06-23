@@ -45,7 +45,7 @@ command! {
         .init_info("Focus previous focusable.")
         .init_shortcut([shortcut!(SHIFT+Tab)]);
 
-    /// Represents the **focus alt** action.
+    /// Represents the **focus/escape alt** action.
     ///
     /// # Metadata
     ///
@@ -65,7 +65,7 @@ command! {
         .init_info("Focus alt scope.")
         .init_shortcut([shortcut!(Alt)]);
 
-    /// Represents the **escape alt** action.
+    /// Represents the **focus enter** action.
     ///
     /// # Metadata
     ///
@@ -73,39 +73,19 @@ command! {
     ///
     /// | metadata     | value                                                 |
     /// |--------------|-------------------------------------------------------|
-    /// | [`name`]     | "Escape Alt"                                          |
-    /// | [`info`]     | "Escape alt scope."                                   |
-    /// | [`shortcut`] | `Escape`, `Alt`                                       |
-    ///
-    /// [`name`]: CommandNameExt
-    /// [`info`]: CommandInfoExt
-    /// [`shortcut`]: CommandShortcutExt
-    pub EscapeAltCommand
-        .init_name("Escape Alt")
-        .init_info("Escape alt scope.")
-        .init_shortcut([shortcut!(Escape), shortcut!(Alt)]);
-
-    /// Represents the **focus child** action.
-    ///
-    /// # Metadata
-    ///
-    /// This command initializes with the following metadata:
-    ///
-    /// | metadata     | value                                                 |
-    /// |--------------|-------------------------------------------------------|
-    /// | [`name`]     | "Focus Child"                                         |
-    /// | [`info`]     | "Focus child focusable"                               |
+    /// | [`name`]     | "Focus Enter"                                         |
+    /// | [`info`]     | "Focus child focusable."                              |
     /// | [`shortcut`] | `Enter`, `ALT+Enter`                                  |
     ///
     /// [`name`]: CommandNameExt
     /// [`info`]: CommandInfoExt
     /// [`shortcut`]: CommandShortcutExt
-    pub FocusChildCommand
-        .init_name("Focus Child")
-        .init_info("Focus Child focusable.")
+    pub FocusEnterCommand
+        .init_name("Focus Enter")
+        .init_info("Focus child focusable.")
         .init_shortcut([shortcut!(Enter), shortcut!(ALT+Enter)]);
 
-    /// Represents the **focus parent** action.
+    /// Represents the **focus exit** action.
     ///
     /// # Metadata
     ///
@@ -113,16 +93,16 @@ command! {
     ///
     /// | metadata     | value                                                 |
     /// |--------------|-------------------------------------------------------|
-    /// | [`name`]     | "Focus Parent"                                        |
-    /// | [`info`]     | "Focus parent focusable"                              |
+    /// | [`name`]     | "Focus Exit"                                          |
+    /// | [`info`]     | "Focus parent focusable, or return focus."            |
     /// | [`shortcut`] | `Escape`, `ALT+Escape`                                |
     ///
     /// [`name`]: CommandNameExt
     /// [`info`]: CommandInfoExt
     /// [`shortcut`]: CommandShortcutExt
-    pub FocusParentCommand
-        .init_name("Focus Parent")
-        .init_info("Focus parent focusable.")
+    pub FocusExitCommand
+        .init_name("Focus Exit")
+        .init_info("Focus parent focusable, or return focus.")
         .init_shortcut([shortcut!(Escape), shortcut!(ALT+Escape)]);
 
     /// Represents the **focus up** action.
@@ -216,15 +196,14 @@ pub(super) struct FocusCommands {
     prev_handle: CommandHandle,
 
     alt_handle: CommandHandle,
-    esc_handle: CommandHandle,
 
     up_handle: CommandHandle,
     down_handle: CommandHandle,
     left_handle: CommandHandle,
     right_handle: CommandHandle,
 
-    parent_handle: CommandHandle,
-    child_handle: CommandHandle,
+    exit_handle: CommandHandle,
+    enter_handle: CommandHandle,
 
     #[allow(dead_code)]
     focus_handle: CommandHandle,
@@ -236,15 +215,14 @@ impl FocusCommands {
             prev_handle: FocusPrevCommand.new_handle(events, false),
 
             alt_handle: FocusAltCommand.new_handle(events, false),
-            esc_handle: EscapeAltCommand.new_handle(events, false),
 
             up_handle: FocusUpCommand.new_handle(events, false),
             down_handle: FocusDownCommand.new_handle(events, false),
             left_handle: FocusLeftCommand.new_handle(events, false),
             right_handle: FocusRightCommand.new_handle(events, false),
 
-            parent_handle: FocusParentCommand.new_handle(events, false),
-            child_handle: FocusChildCommand.new_handle(events, false),
+            exit_handle: FocusExitCommand.new_handle(events, false),
+            enter_handle: FocusEnterCommand.new_handle(events, false),
 
             focus_handle: FocusCommand.new_handle(events, true),
         }
@@ -255,23 +233,26 @@ impl FocusCommands {
         self.prev_handle.set_enabled(nav.contains(FocusNavAction::PREV));
 
         self.alt_handle.set_enabled(nav.contains(FocusNavAction::ALT));
-        self.esc_handle.set_enabled(nav.contains(FocusNavAction::ESCAPE_ALT));
 
         self.up_handle.set_enabled(nav.contains(FocusNavAction::UP));
         self.down_handle.set_enabled(nav.contains(FocusNavAction::DOWN));
         self.left_handle.set_enabled(nav.contains(FocusNavAction::LEFT));
         self.right_handle.set_enabled(nav.contains(FocusNavAction::RIGHT));
 
-        self.parent_handle.set_enabled(nav.contains(FocusNavAction::PARENT));
-        self.child_handle.set_enabled(nav.contains(FocusNavAction::CHILD));
+        self.exit_handle.set_enabled(nav.contains(FocusNavAction::EXIT));
+        self.enter_handle.set_enabled(nav.contains(FocusNavAction::ENTER));
     }
 
     pub fn event_preview<EV: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {
         macro_rules! handle {
             ($($Command:ident($handle:ident) => $method:ident,)+) => {$(
                 if let Some(args) = $Command.update(args) {
-                    args.handle_enabled(&self.$handle, |_| {
-                        ctx.services.focus().$method();
+                    args.handle(|args| {
+                        if args.enabled && self.$handle.is_enabled() {
+                            ctx.services.focus().$method();
+                        } else {
+                            ctx.services.focus().on_disabled_cmd();
+                        }
                     });
                     return;
                 }
@@ -281,13 +262,12 @@ impl FocusCommands {
             FocusNextCommand(next_handle) => focus_next,
             FocusPrevCommand(prev_handle) => focus_prev,
             FocusAltCommand(alt_handle) => focus_alt,
-            EscapeAltCommand(esc_handle) => escape_alt,
             FocusUpCommand(up_handle) => focus_up,
             FocusDownCommand(down_handle) => focus_down,
             FocusLeftCommand(left_handle) => focus_left,
             FocusRightCommand(right_handle) => focus_right,
-            FocusChildCommand(child_handle) => focus_child,
-            FocusParentCommand(parent_handle) => focus_parent,
+            FocusEnterCommand(enter_handle) => focus_enter,
+            FocusExitCommand(exit_handle) => focus_exit,
         }
 
         if let Some(args) = FocusCommand.update(args) {

@@ -282,9 +282,8 @@ fn commands() -> impl Widget {
         FocusDownCommand.as_any(),
         FocusLeftCommand.as_any(),
         FocusAltCommand.as_any(),
-        EscapeAltCommand.as_any(),
-        FocusChildCommand.as_any(),
-        FocusParentCommand.as_any(),
+        FocusEnterCommand.as_any(),
+        FocusExitCommand.as_any(),
     ];
 
     v_stack! {

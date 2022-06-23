@@ -48,8 +48,8 @@
 //! key is pressed or [`focus_alt`](Focus::focus_alt) is called in the [`Focus`] service. The alt scope of a widget
 //! is selected by [`WidgetFocusInfo::alt_scope`].
 //!
-//! Alt scopes remember the previously focused widget as a [return focus](#return-focus). The focus returns to the widget
-//! when the `ESC` key is pressed, or [`escape_alt`](Focus::escape_alt) is called in the [`Focus`] service.
+//! Alt scopes remember the previously focused widget as a [return focus](#return-focus). The focus returns ALT is pressed again,
+//! or [`focus_exit`](Focus::focus_exit) is called in the [`Focus`] service and the parent is the focus scope.
 //!
 //! ### Return Focus
 //!
@@ -97,6 +97,7 @@ use crate::{
 };
 use std::{
     collections::hash_map,
+    mem,
     time::{Duration, Instant},
 };
 
@@ -474,23 +475,20 @@ impl AppExtension for FocusManager {
 
         if let Some(request) = request {
             let (focus, windows) = ctx.services.req_multi::<(Focus, Windows)>();
+            focus.pending_highlight = false;
             let args = focus.fulfill_request(ctx.vars, windows, request);
             self.notify(ctx.vars, ctx.events, focus, windows, args);
         }
     }
 
     fn update(&mut self, ctx: &mut AppContext) {
-        let mut request = None;
-
-        let focus = ctx.services.focus();
-        if let Some(req) = focus.request.take() {
-            // custom
-            request = Some(req);
-        }
-
-        if let Some(request) = request {
-            let (focus, windows) = ctx.services.req_multi::<(Focus, Windows)>();
+        let (focus, windows) = ctx.services.req_multi::<(Focus, Windows)>();
+        if let Some(request) = focus.request.take() {
+            focus.pending_highlight = false;
             let args = focus.fulfill_request(ctx.vars, windows, request);
+            self.notify(ctx.vars, ctx.events, focus, windows, args);
+        } else if mem::take(&mut focus.pending_highlight) {
+            let args = focus.continue_focus_highlight(ctx.vars, windows, true);
             self.notify(ctx.vars, ctx.events, focus, windows, args);
         }
     }
@@ -585,6 +583,7 @@ pub struct Focus {
     enabled_nav: FocusNavAction,
 
     pending_window_focus: Option<(WindowId, WidgetId, bool)>,
+    pending_highlight: bool,
 }
 impl Focus {
     /// New focus service, the `update_sender` is used to flag an update after a focus change request.
@@ -612,6 +611,7 @@ impl Focus {
             enabled_nav: FocusNavAction::empty(),
 
             pending_window_focus: None,
+            pending_highlight: false,
         }
     }
 
@@ -665,6 +665,21 @@ impl Focus {
         let _ = self.app_event_sender.send_ext_update();
     }
 
+    /// Enables focus highlight for the current focus if the key-press allows it.
+    fn on_disabled_cmd(&mut self) {
+        if self.auto_highlight.is_some() && !self.is_highlighting {
+            self.highlight();
+        }
+    }
+
+    /// Schedules enabling of [`is_highlighting`] for next update.
+    ///
+    /// [`is_highlighting`]: Self::is_highlighting
+    pub fn highlight(&mut self) {
+        self.pending_highlight = true;
+        let _ = self.app_event_sender.send_ext_update();
+    }
+
     /// Focus the widget if it is focusable and change the highlight.
     ///
     /// If the widget is not focusable the focus does not move, in this case the highlight changes
@@ -714,18 +729,18 @@ impl Focus {
     ///
     /// Does nothing if no widget is focused. Continues highlighting the new focus if the current is highlighted.
     ///
-    /// This is makes a [`focus`](Self::focus) request using [`FocusRequest::child`].
-    pub fn focus_child(&mut self) {
-        self.focus(FocusRequest::child(self.is_highlighting))
+    /// This is makes a [`focus`](Self::focus) request using [`FocusRequest::enter`].
+    pub fn focus_enter(&mut self) {
+        self.focus(FocusRequest::enter(self.is_highlighting))
     }
 
-    /// Focus the first logical ancestor that is focusable from the current focus.
+    /// Focus the first logical ancestor that is focusable from the current focus or the return focus from ALT scopes.
     ///
     /// Does nothing if no widget is focused. Continues highlighting the new focus if the current is highlighted.
     ///
-    /// This is makes a [`focus`](Self::focus) request using [`FocusRequest::parent`].
-    pub fn focus_parent(&mut self) {
-        self.focus(FocusRequest::parent(self.is_highlighting))
+    /// This is makes a [`focus`](Self::focus) request using [`FocusRequest::exit`].
+    pub fn focus_exit(&mut self) {
+        self.focus(FocusRequest::exit(self.is_highlighting))
     }
 
     /// Focus the logical next widget from the current focus.
@@ -782,22 +797,13 @@ impl Focus {
         self.focus(FocusRequest::left(self.is_highlighting));
     }
 
-    /// Focus the ALT scope from the current focused widget.
+    /// Focus the ALT scope from the current focused widget or escapes the current ALT scope.
     ///
     /// Does nothing if no widget is focused. Continues highlighting the new focus if the current is highlighted.
     ///
     /// This is makes a [`focus`](Self::focus) request using [`FocusRequest::alt`].
     pub fn focus_alt(&mut self) {
         self.focus(FocusRequest::alt(self.is_highlighting));
-    }
-
-    /// Focus the previous focused widget before the focus was moved to the ALT scope.
-    ///
-    /// Does nothing if no widget is focused. Continues highlighting the new focus if the current is highlighted.
-    ///
-    /// This is makes a [`focus`](Self::focus) request using [`FocusRequest::escape_alt`].
-    pub fn escape_alt(&mut self) {
-        self.focus(FocusRequest::escape_alt(self.is_highlighting));
     }
 
     #[must_use]
@@ -817,13 +823,19 @@ impl Focus {
                 if let Ok(info) = windows.widget_tree(prev.path.window_id()) {
                     let info = FocusInfoTree::new(info, self.focus_disabled_widgets);
                     if let Some(w) = info.find(prev.path.widget_id()) {
-                        let mut can_only_highlight = true;
                         if let Some(new_focus) = match move_ {
                             // tabular
                             FocusTarget::Next => w.next_tab(false),
                             FocusTarget::Prev => w.prev_tab(false),
-                            FocusTarget::Child => w.tab_descendants().first().copied(),
-                            FocusTarget::Parent => w.ancestors().next(),
+                            FocusTarget::Enter => w.tab_descendants().first().copied(),
+                            FocusTarget::Exit => {
+                                if self.alt_return.is_some() && (w.is_alt_scope() || w.parent().map(|w| w.is_alt_scope()).unwrap_or(false))
+                                {
+                                    info.get_or_parent(&self.alt_return.as_ref().unwrap().1)
+                                } else {
+                                    w.ancestors().next()
+                                }
+                            }
                             // directional
                             FocusTarget::Up => w.next_up(),
                             FocusTarget::Right => w.next_right(),
@@ -833,17 +845,12 @@ impl Focus {
                             FocusTarget::Alt => {
                                 if let Some(alt) = w.alt_scope() {
                                     Some(alt)
-                                } else if self.alt_return.is_some() {
+                                } else if let Some((_, p)) = &self.alt_return {
                                     // Alt toggles when there is no alt scope.
-                                    return self.fulfill_request(vars, windows, FocusRequest::escape_alt(request.highlight));
+                                    info.get_or_parent(p)
                                 } else {
                                     None
                                 }
-                            }
-                            FocusTarget::EscapeAlt => {
-                                // Esc does not enable highlight without moving focus.
-                                can_only_highlight = false;
-                                self.alt_return.as_ref().and_then(|(_, p)| info.get_or_parent(p))
                             }
                             // cases covered by parent match
                             FocusTarget::Direct { .. }
@@ -863,15 +870,7 @@ impl Focus {
                             )
                         } else {
                             // no `new_focus`, maybe update highlight and widget path.
-                            self.continue_focus_highlight(
-                                vars,
-                                windows,
-                                if can_only_highlight {
-                                    request.highlight
-                                } else {
-                                    self.is_highlighting
-                                },
-                            )
+                            self.continue_focus_highlight(vars, windows, request.highlight)
                         }
                     } else {
                         // widget not found
