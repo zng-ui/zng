@@ -1010,6 +1010,7 @@ impl<'a> WidgetFocusInfo<'a> {
         skip_self: bool,
     ) -> Option<WidgetFocusInfo<'a>> {
         let skip_id = self.info.widget_id();
+        let parent_id = self.parent().map(|w| w.info.widget_id()).unwrap_or_else(|| skip_id);
 
         let distance = move |other_pt: PxPoint| {
             let a = (other_pt.x - from_pt.x).0.pow(2);
@@ -1017,10 +1018,12 @@ impl<'a> WidgetFocusInfo<'a> {
             a + b
         };
 
-        let mut candidate1_dist = i32::MAX;
-        let mut candidate1 = None;
-        let mut candidate2_dist = i32::MAX;
-        let mut candidate2 = None;
+        let mut parent_dist = i32::MAX;
+        let mut parent = None;
+        let mut sibling_dist = i32::MAX;
+        let mut sibling = None;
+        let mut other_dist = i32::MAX;
+        let mut other = None;
 
         for w in scope.descendants_skip_directional(None) {
             if !skip_self || w.info.widget_id() != skip_id {
@@ -1049,40 +1052,38 @@ impl<'a> WidgetFocusInfo<'a> {
                 if is_in_direction {
                     let dist = distance(candidate_center);
 
-                    if dist <= candidate1_dist {
-                        if candidate1_dist <= candidate2_dist {
-                            candidate2 = candidate1;
-                            candidate2_dist = candidate1_dist;
-                        }
+                    let candidate_id = w.info.widget_id();
+                    let mut is_parent = None;
+                    let mut is_parent = || *is_parent.get_or_insert_with(|| self.ancestors().any(|a| a.info.widget_id() == candidate_id));
 
-                        candidate1 = Some(w);
-                        candidate1_dist = dist;
-                    } else if dist <= candidate2_dist {
-                        candidate2 = Some(w);
-                        candidate2_dist = dist;
+                    let mut is_sibling = None;
+                    let mut is_sibing = || *is_sibling.get_or_insert_with(|| w.ancestors().any(|a| a.info.widget_id() == parent_id));
+
+                    if dist <= parent_dist && is_parent() {
+                        parent_dist = dist;
+                        parent = Some(w);
+                    } else if dist <= sibling_dist && is_sibing() {
+                        sibling_dist = dist;
+                        sibling = Some(w);
+                    } else if dist <= other_dist && !is_parent() && !is_sibing() {
+                        other_dist = dist;
+                        other = Some(w);
                     }
                 }
             }
         }
 
-        // prefer sibling over parent
-        if skip_self {
-            if let Some(c2) = candidate2 {
-                let c1 = candidate1.unwrap();
-
-                if self.ancestors().any(|w| w == c1) {
-                    if let Some(p) = self.parent() {
-                        if c2.ancestors().any(|w| w == p) {
-                            return Some(c2);
-                        }
-                    }
-                }
+        if other_dist <= parent_dist && other_dist <= sibling_dist {
+            other
+        } else if let Some(sibling) = sibling {
+            if skip_self || sibling.info.widget_id() != skip_id {
+                Some(sibling)
+            } else {
+                None
             }
-        } else if let Some(c1) = candidate1 {
-            return if c1 != self { Some(c1) } else { None };
+        } else {
+            parent
         }
-
-        candidate1
     }
 
     fn directional_next(self, direction_vals: DirectionFn![impl]) -> Option<WidgetFocusInfo<'a>> {
