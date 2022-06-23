@@ -331,7 +331,7 @@ macro_rules! impl_notify_alt {
                 self.notify(events, if alternate {
                     Some(ScrollRequest {
                         alternate,
-                    }.to_parameter())
+                    }.to_param())
                 } else {
                     None
                 })
@@ -361,12 +361,12 @@ pub struct ScrollRequest {
 }
 impl ScrollRequest {
     /// Pack the request into a command parameter.
-    pub fn to_parameter(self) -> CommandParam {
+    pub fn to_param(self) -> CommandParam {
         CommandParam::new(self)
     }
 
     /// Extract a clone of the request from the command parameter if it is of a compatible type.
-    pub fn from_parameter(p: &CommandParam) -> Option<Self> {
+    pub fn from_param(p: &CommandParam) -> Option<Self> {
         if let Some(req) = p.downcast_ref::<Self>() {
             Some(req.clone())
         } else {
@@ -377,11 +377,11 @@ impl ScrollRequest {
     /// Extract a clone of the request from [`CommandArgs::parameter`] if it is set to a compatible type and
     /// stop-propagation was not requested for the event.
     pub fn from_args(args: &CommandArgs) -> Option<Self> {
-        if let Some(p) = &args.parameter {
+        if let Some(p) = &args.param {
             if args.propagation().is_stopped() {
                 None
             } else {
-                Self::from_parameter(p)
+                Self::from_param(p)
             }
         } else {
             None
@@ -407,12 +407,12 @@ pub struct ScrollToRequest {
 }
 impl ScrollToRequest {
     /// Pack the request into a command parameter.
-    pub fn to_parameter(self) -> CommandParam {
+    pub fn to_param(self) -> CommandParam {
         CommandParam::new(self)
     }
 
     /// Extract a clone of the request from the command parameter if it is of a compatible type.
-    pub fn from_parameter(p: &CommandParam) -> Option<Self> {
+    pub fn from_param(p: &CommandParam) -> Option<Self> {
         if let Some(req) = p.downcast_ref::<Self>() {
             Some(req.clone())
         } else {
@@ -426,11 +426,11 @@ impl ScrollToRequest {
     /// Extract a clone of the request from [`CommandArgs::parameter`] if it is set to a compatible type and
     /// stop-propagation was not requested for the event.
     pub fn from_args(args: &CommandArgs) -> Option<Self> {
-        if let Some(p) = &args.parameter {
+        if let Some(p) = &args.param {
             if args.propagation().is_stopped() {
                 None
             } else {
-                Self::from_parameter(p)
+                Self::from_param(p)
             }
         } else {
             None
@@ -507,7 +507,7 @@ pub fn scroll_to<Evs: WithEvents>(events: &mut Evs, scrollable_id: WidgetId, chi
                 widget_id: child_id,
                 mode: mode.into(),
             }
-            .to_parameter(),
+            .to_param(),
         ),
     );
 }

@@ -1595,10 +1595,10 @@ impl TestApp {
     }
 
     pub fn can_tab(&self) -> bool {
-        zero_ui::core::focus::commands::FocusNextCommand.enabled_value()
+        zero_ui::core::focus::commands::FocusNextCommand.enabled_value().unwrap_or(true)
     }
     pub fn can_shift_tab(&self) -> bool {
-        zero_ui::core::focus::commands::FocusPrevCommand.enabled_value()
+        zero_ui::core::focus::commands::FocusPrevCommand.enabled_value().unwrap_or(true)
     }
 
     pub fn press_tab(&mut self) {
