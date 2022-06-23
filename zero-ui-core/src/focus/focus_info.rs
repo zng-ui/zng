@@ -1038,11 +1038,11 @@ impl<'a> WidgetFocusInfo<'a> {
                         // is in the 45º 'frustum'
                         // │?╱
                         // │╱__
-                        is_in_direction = c < d + (b - a);
+                        is_in_direction = c <= d + (b - a);
                     } else {
                         //  ╲?│
                         // __╲│
-                        is_in_direction = c > d - (b - a);
+                        is_in_direction = c >= d - (b - a);
                     }
                 }
 
