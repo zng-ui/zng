@@ -2119,24 +2119,6 @@ impl<'a> WidgetInfo<'a> {
             None
         }
     }
-
-    /// Sum of the count to the shared ancestor between `self` an `other`.
-    ///
-    /// Returns `None` if `other` is not from the same tree.
-    pub fn depth_distance(self, other: Self) -> Option<usize> {
-        if self.tree == other.tree {
-            let a = self.path();
-            let b = other.path();
-            let i = a.path.iter().zip(b.path.iter()).position(|(a, b)| a == b).unwrap();
-
-            let a_depth = a.path.len() - i;
-            let b_depth = b.path.len() - i;
-
-            Some(a_depth + b_depth)
-        } else {
-            None
-        }
-    }
 }
 
 /// Widget tree filter result.

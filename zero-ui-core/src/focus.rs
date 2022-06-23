@@ -89,9 +89,9 @@ use crate::{
     event::*,
     mouse::MouseInputEvent,
     service::Service,
-    units::TimeUnits,
+    units::{PxPoint, PxRect, TimeUnits},
     var::{var, RcVar, ReadOnlyRcVar, Var, Vars},
-    widget_info::{InteractionPath, WidgetInfoTree},
+    widget_info::{InteractionPath, WidgetBoundsInfo, WidgetInfoTree, WidgetRenderInfo},
     window::{WidgetInfoChangedEvent, WindowFocusChangedEvent, WindowId, Windows},
     WidgetId,
 };
@@ -403,7 +403,7 @@ impl AppExtension for FocusManager {
                 .focus()
                 .focused
                 .as_ref()
-                .map(|f| f.window_id() == args.window_id)
+                .map(|f| f.path.window_id() == args.window_id)
                 .unwrap_or_default()
             {
                 // we need up-to-date visibility and that is affected by both layout and render.
@@ -436,6 +436,7 @@ impl AppExtension for FocusManager {
             self.on_info_tree_update(&tree, ctx);
         } else {
             let (focus, windows) = ctx.services.req_multi::<(Focus, Windows)>();
+            focus.update_focused_center();
 
             // widgets may have changed visibility.
             let args = focus.continue_focus(ctx.vars, windows);
@@ -528,6 +529,7 @@ impl FocusManager {
 
     fn on_info_tree_update(&mut self, tree: &WidgetInfoTree, ctx: &mut AppContext) {
         let (focus, windows) = ctx.services.req_multi::<(Focus, Windows)>();
+        focus.update_focused_center();
 
         // widget tree rebuilt, check if focus is still valid
         let args = focus.continue_focus(ctx.vars, windows);
@@ -569,7 +571,7 @@ pub struct Focus {
     app_event_sender: AppEventSender,
 
     focused_var: RcVar<Option<InteractionPath>>,
-    focused: Option<InteractionPath>,
+    focused: Option<FocusedInfo>,
 
     return_focused_var: IdMap<WidgetId, RcVar<Option<InteractionPath>>>,
     return_focused: IdMap<WidgetId, InteractionPath>,
@@ -812,9 +814,9 @@ impl Focus {
                 self.focus_direct(vars, windows, widget_id, request.highlight, true, true, request)
             }
             (Some(prev), move_) => {
-                if let Ok(info) = windows.widget_tree(prev.window_id()) {
+                if let Ok(info) = windows.widget_tree(prev.path.window_id()) {
                     let info = FocusInfoTree::new(info, self.focus_disabled_widgets);
-                    if let Some(w) = info.find(prev.widget_id()) {
+                    if let Some(w) = info.find(prev.path.widget_id()) {
                         let mut can_only_highlight = true;
                         if let Some(new_focus) = match move_ {
                             // tabular
@@ -855,7 +857,7 @@ impl Focus {
                             self.enabled_nav = new_focus.enabled_nav();
                             self.move_focus(
                                 vars,
-                                Some(new_focus.info.interaction_path()),
+                                Some(FocusedInfo::new(new_focus)),
                                 request.highlight,
                                 FocusChangedCause::Request(request),
                             )
@@ -888,26 +890,30 @@ impl Focus {
     #[must_use]
     fn continue_focus(&mut self, vars: &Vars, windows: &Windows) -> Option<FocusChangedArgs> {
         if let Some(focused) = &self.focused {
-            if let Ok(true) = windows.is_focused(focused.window_id()) {
-                let info = windows.widget_tree(focused.window_id()).unwrap();
-                if let Some(widget) = info.find(focused.widget_id()).map(|w| w.as_focus_info(self.focus_disabled_widgets)) {
+            if let Ok(true) = windows.is_focused(focused.path.window_id()) {
+                let info = windows.widget_tree(focused.path.window_id()).unwrap();
+                if let Some(widget) = info
+                    .find(focused.path.widget_id())
+                    .map(|w| w.as_focus_info(self.focus_disabled_widgets))
+                {
                     if widget.is_focusable() {
                         // :-) probably in the same place, maybe moved inside same window.
                         self.enabled_nav = widget.enabled_nav();
                         return self.move_focus(
                             vars,
-                            Some(widget.info.interaction_path()),
+                            Some(FocusedInfo::new(widget)),
                             self.is_highlighting,
                             FocusChangedCause::Recovery,
                         );
                     } else {
                         // widget no longer focusable
                         if let Some(parent) = widget.parent() {
-                            // move to focusable parent
-                            self.enabled_nav = widget.enabled_nav();
+                            // move to closest inside focusable parent, or parent
+                            let new_focus = parent.closest_descendant(focused.center).unwrap_or(parent);
+                            self.enabled_nav = new_focus.enabled_nav();
                             return self.move_focus(
                                 vars,
-                                Some(parent.info.interaction_path()),
+                                Some(FocusedInfo::new(new_focus)),
                                 self.is_highlighting,
                                 FocusChangedCause::Recovery,
                             );
@@ -918,13 +924,14 @@ impl Focus {
                     }
                 } else {
                     // widget not found, move to focusable known parent
-                    for &parent in focused.ancestors().iter().rev() {
+                    for &parent in focused.path.ancestors().iter().rev() {
                         if let Some(parent) = info.find(parent).and_then(|w| w.as_focusable(self.focus_disabled_widgets)) {
-                            // move to focusable parent
-                            self.enabled_nav = parent.enabled_nav();
+                            // move to closest inside focusable parent, or parent
+                            let new_focus = parent.closest_descendant(focused.center).unwrap_or(parent);
+                            self.enabled_nav = new_focus.enabled_nav();
                             return self.move_focus(
                                 vars,
-                                Some(parent.info.interaction_path()),
+                                Some(FocusedInfo::new(new_focus)),
                                 self.is_highlighting,
                                 FocusChangedCause::Recovery,
                             );
@@ -946,9 +953,10 @@ impl Focus {
         } else if self.is_highlighting != highlight {
             self.is_highlighting = highlight;
             self.is_highlighting_var.set_ne(vars, highlight);
+            let focused = self.focused.as_ref().map(|p| p.path.clone());
             Some(FocusChangedArgs::now(
-                self.focused.clone(),
-                self.focused.clone(),
+                focused.clone(),
+                focused,
                 highlight,
                 FocusChangedCause::Recovery,
                 self.enabled_nav,
@@ -977,29 +985,29 @@ impl Focus {
             .map(|w| w.as_focus_info(self.focus_disabled_widgets))
         {
             if w.is_focusable() {
-                target = Some((w.info.interaction_path(), w.enabled_nav()));
+                target = Some((FocusedInfo::new(w), w.enabled_nav()));
             } else if fallback_to_childs {
                 if let Some(w) = w.descendants().next() {
-                    target = Some((w.info.interaction_path(), w.enabled_nav()));
+                    target = Some((FocusedInfo::new(w), w.enabled_nav()));
                 }
             } else if fallback_to_parents {
                 if let Some(w) = w.parent() {
-                    target = Some((w.info.interaction_path(), w.enabled_nav()));
+                    target = Some((FocusedInfo::new(w), w.enabled_nav()));
                 }
             }
         }
 
         if let Some((target, enabled_nav)) = target {
-            if let Ok(false) = windows.is_focused(target.window_id()) {
+            if let Ok(false) = windows.is_focused(target.path.window_id()) {
                 let requested_win_focus;
                 if request.force_window_focus || windows.focused_window_id().is_some() {
                     // if can steal focus from other apps or focus is already in another window of the app.
-                    windows.focus(target.window_id()).unwrap();
+                    windows.focus(target.path.window_id()).unwrap();
                     requested_win_focus = true;
                 } else if request.window_indicator.is_some() {
                     // if app does not have focus, focus stealing is not allowed, but a request indicator can be set.
                     windows
-                        .vars(target.window_id())
+                        .vars(target.path.window_id())
                         .unwrap()
                         .focus_indicator()
                         .set(vars, request.window_indicator);
@@ -1009,7 +1017,7 @@ impl Focus {
                 }
 
                 if requested_win_focus {
-                    self.pending_window_focus = Some((target.window_id(), target.widget_id(), highlight));
+                    self.pending_window_focus = Some((target.path.window_id(), target.path.widget_id(), highlight));
                 }
                 None
             } else {
@@ -1026,9 +1034,10 @@ impl Focus {
         if self.is_highlighting != highlight {
             self.is_highlighting = highlight;
             self.is_highlighting_var.set_ne(vars, highlight);
+            let focused = self.focused.as_ref().map(|p| p.path.clone());
             Some(FocusChangedArgs::now(
-                self.focused.clone(),
-                self.focused.clone(),
+                focused.clone(),
+                focused,
                 highlight,
                 FocusChangedCause::Request(request),
                 self.enabled_nav,
@@ -1045,7 +1054,7 @@ impl Focus {
             if let Some(root) = info.focusable_root() {
                 // found focused window and it is focusable.
                 self.enabled_nav = root.enabled_nav();
-                self.move_focus(vars, Some(root.info.interaction_path()), highlight, FocusChangedCause::Recovery)
+                self.move_focus(vars, Some(FocusedInfo::new(root)), highlight, FocusChangedCause::Recovery)
             } else {
                 // has focused window but it is not focusable.
                 self.enabled_nav = FocusNavAction::empty();
@@ -1062,25 +1071,26 @@ impl Focus {
     fn move_focus(
         &mut self,
         vars: &Vars,
-        new_focus: Option<InteractionPath>,
+        new_focus: Option<FocusedInfo>,
         highlight: bool,
         cause: FocusChangedCause,
     ) -> Option<FocusChangedArgs> {
         let prev_highlight = std::mem::replace(&mut self.is_highlighting, highlight);
         self.is_highlighting_var.set_ne(vars, highlight);
 
-        if self.focused != new_focus {
+        let r = if self.focused.as_ref().map(|p| &p.path) != new_focus.as_ref().map(|p| &p.path) {
+            let new_focus = new_focus.as_ref().map(|p| p.path.clone());
             let args = FocusChangedArgs::now(
-                self.focused.take(),
+                self.focused.take().map(|p| p.path),
                 new_focus.clone(),
                 self.is_highlighting,
                 cause,
                 self.enabled_nav,
             );
-            self.focused = new_focus.clone();
             self.focused_var.set(vars, new_focus); // this can happen more than once per update, so we can't use set_ne.
             Some(args)
         } else if prev_highlight != highlight {
+            let new_focus = new_focus.as_ref().map(|p| p.path.clone());
             Some(FocusChangedArgs::now(
                 new_focus.clone(),
                 new_focus,
@@ -1090,20 +1100,25 @@ impl Focus {
             ))
         } else {
             None
-        }
+        };
+
+        // can be just a center update.
+        self.focused = new_focus;
+
+        r
     }
 
     #[must_use]
     fn move_after_focus(&mut self, vars: &Vars, windows: &Windows, reverse: bool) -> Option<FocusChangedArgs> {
         if let Some(focused) = &self.focused {
             if let Some(info) = windows.focused_info() {
-                if let Some(widget) = FocusInfoTree::new(info, self.focus_disabled_widgets).get(focused) {
+                if let Some(widget) = FocusInfoTree::new(info, self.focus_disabled_widgets).get(&focused.path) {
                     if widget.is_scope() {
                         if let Some(widget) = widget.on_focus_scope_move(|id| self.return_focused.get(&id).map(|p| p.as_path()), reverse) {
                             self.enabled_nav = widget.enabled_nav();
                             return self.move_focus(
                                 vars,
-                                Some(widget.info.interaction_path()),
+                                Some(FocusedInfo::new(widget)),
                                 self.is_highlighting,
                                 FocusChangedCause::ScopeGotFocus(reverse),
                             );
@@ -1125,7 +1140,7 @@ impl Focus {
 
             let mut retain_alt = false;
             if let Some(new_focus) = &self.focused {
-                if new_focus.contains(scope.widget_id()) {
+                if new_focus.path.contains(scope.widget_id()) {
                     retain_alt = true; // just a focus move inside the ALT.
                 }
             }
@@ -1139,8 +1154,8 @@ impl Focus {
             // if we don't have an `alt_return` but focused something, check if focus
             // moved inside an ALT.
 
-            if let Ok(info) = windows.widget_tree(new_focus.window_id()) {
-                if let Some(widget) = FocusInfoTree::new(info, self.focus_disabled_widgets).get(new_focus) {
+            if let Ok(info) = windows.widget_tree(new_focus.path.window_id()) {
+                if let Some(widget) = FocusInfoTree::new(info, self.focus_disabled_widgets).get(&new_focus.path) {
                     let alt_scope = if widget.is_alt_scope() {
                         Some(widget)
                     } else {
@@ -1172,8 +1187,8 @@ impl Focus {
          */
 
         if let Some(new_focus) = &self.focused {
-            if let Ok(info) = windows.widget_tree(new_focus.window_id()) {
-                if let Some(widget) = FocusInfoTree::new(info, self.focus_disabled_widgets).get(new_focus) {
+            if let Ok(info) = windows.widget_tree(new_focus.path.window_id()) {
+                if let Some(widget) = FocusInfoTree::new(info, self.focus_disabled_widgets).get(&new_focus.path) {
                     if widget.scopes().all(|s| !s.is_alt_scope()) {
                         // if not inside ALT, update return for each LastFocused parent scopes.
 
@@ -1375,5 +1390,31 @@ impl Focus {
         });
 
         r
+    }
+
+    fn update_focused_center(&mut self) {
+        if let Some(f) = &mut self.focused {
+            let bounds = f.bounds_info.inner_bounds(&f.render_info);
+            if bounds != PxRect::zero() {
+                f.center = bounds.center();
+            }
+        }
+    }
+}
+
+struct FocusedInfo {
+    path: InteractionPath,
+    bounds_info: WidgetBoundsInfo,
+    render_info: WidgetRenderInfo,
+    center: PxPoint,
+}
+impl FocusedInfo {
+    pub fn new(focusable: WidgetFocusInfo) -> Self {
+        FocusedInfo {
+            path: focusable.info.interaction_path(),
+            bounds_info: focusable.info.bounds_info(),
+            render_info: focusable.info.render_info(),
+            center: focusable.info.center(),
+        }
     }
 }

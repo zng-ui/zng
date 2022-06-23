@@ -1079,11 +1079,7 @@ impl<'a> WidgetFocusInfo<'a> {
                 }
             }
         } else if let Some(c1) = candidate1 {
-            return if c1 != self {
-                Some(c1)
-            } else {
-                None
-            };
+            return if c1 != self { Some(c1) } else { None };
         }
 
         candidate1
@@ -1226,6 +1222,28 @@ impl<'a> WidgetFocusInfo<'a> {
         actions.set(FocusNavAction::ESCAPE_ALT, self.in_alt_scope());
 
         actions
+    }
+
+    /// Gets the focusable descendant with center closest to `from_pt`.
+    pub fn closest_descendant(self, from_pt: PxPoint) -> Option<WidgetFocusInfo<'a>> {
+        let distance = move |other_pt: PxPoint| {
+            let a = (other_pt.x - from_pt.x).0.pow(2);
+            let b = (other_pt.y - from_pt.y).0.pow(2);
+            a + b
+        };
+
+        let mut candidate_dist = i32::MAX;
+        let mut candidate = None;
+
+        for c in self.descendants() {
+            let dist = distance(c.info.center());
+            if dist <= candidate_dist {
+                candidate_dist = dist;
+                candidate = Some(c);
+            }
+        }
+
+        candidate
     }
 }
 

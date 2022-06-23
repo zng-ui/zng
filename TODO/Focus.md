@@ -1,7 +1,6 @@
 # Focus TODO
 
 * Restore focus from `modal` focus scope to button that opened it. 
-* Restore focus to nearest sibling when focused is removed.
 * Support more then one ALT scopes?
 * Test directional navigation.
    * Including layout transformed widgets.
