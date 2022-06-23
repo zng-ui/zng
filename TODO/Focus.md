@@ -2,8 +2,6 @@
 
 * Restore focus from `modal` focus scope to button that opened it. 
 * Support more then one ALT scopes?
-* Test directional navigation.
-   * Including layout transformed widgets.
 * Mnemonics.
 
 ## Icon Example
