@@ -6,7 +6,7 @@
 
 use crate::widgets::fill_color;
 
-use super::{parts::*, types::*, *};
+use super::{commands::ScrollToMode, parts::*, types::*, *};
 
 context_var! {
     /// View generator for creating the vertical scrollbar of an scroll widget.
@@ -60,6 +60,13 @@ context_var! {
     ///
     /// This is `true` by default.
     pub struct DefineViewportUnitVar: bool = true;
+
+    /// Scroll to mode used by scroll widgets when scrolling to make the focused child visible.
+    ///
+    /// Default is minimal 0dip on all sides.
+    pub struct ScrollToFocusedModeVar: ScrollToMode = ScrollToMode::Minimal {
+        margin: SideOffsets::new_all(0.dip())
+    };
 }
 
 fn default_scrollbar() -> ViewGenerator<ScrollBarArgs> {
@@ -185,6 +192,12 @@ pub fn smooth_scrolling(child: impl UiNode, config: impl IntoVar<SmoothScrolling
 #[property(context, default(DefineViewportUnitVar))]
 pub fn define_viewport_unit(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
     with_context_var(child, DefineViewportUnitVar, enabled)
+}
+
+/// Scroll to mode used by scroll widgets when scrolling to make the focused child visible.
+#[property(context, default(ScrollToFocusedModeVar))]
+pub fn scroll_to_focused_mode(child: impl UiNode, mode: impl IntoVar<ScrollToMode>) -> impl UiNode {
+    with_context_var(child, ScrollToFocusedModeVar, mode)
 }
 
 /// Arguments for scrollbar view generators.

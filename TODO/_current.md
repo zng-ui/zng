@@ -1,4 +1,4 @@
-* Review scroll commands with the same shortcut.
+* Holding the tab key pressed does not scroll to focused.
 
 * Layout context viewport.
     - The image example tries to do this manually, but there is some flickering due to Px rounding on the scroll vs on the offset.

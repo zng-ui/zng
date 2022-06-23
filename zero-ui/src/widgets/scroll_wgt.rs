@@ -246,7 +246,7 @@ pub mod scroll {
     }
 
     fn new_event(child: impl UiNode) -> impl UiNode {
-        let child = nodes::scroll_to_command_node(child);
+        let child = nodes::scroll_to_node(child);
         let child = nodes::scroll_commands_node(child);
         let child = nodes::page_commands_node(child);
         let child = nodes::scroll_to_edge_commands_node(child);

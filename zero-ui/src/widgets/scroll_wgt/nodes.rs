@@ -2,7 +2,10 @@
 //!
 use crate::prelude::new_widget::*;
 
-use crate::core::mouse::{MouseScrollDelta, MouseWheelEvent};
+use crate::core::{
+    focus::FocusChangedEvent,
+    mouse::{MouseScrollDelta, MouseWheelEvent},
+};
 
 use super::commands::*;
 use super::parts::*;
@@ -618,8 +621,8 @@ pub fn scroll_to_edge_commands_node(child: impl UiNode) -> impl UiNode {
     .cfg_boxed()
 }
 
-/// Create a node that implements [`ScrollToCommand`] scoped on the widget.
-pub fn scroll_to_command_node(child: impl UiNode) -> impl UiNode {
+/// Create a node that implements [`ScrollToCommand`] scoped on the widget and scroll to focused.
+pub fn scroll_to_node(child: impl UiNode) -> impl UiNode {
     struct ScrollToCommandNode<C> {
         child: C,
 
@@ -645,7 +648,31 @@ pub fn scroll_to_command_node(child: impl UiNode) -> impl UiNode {
 
         fn event<A: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &A) {
             let self_id = ctx.path.widget_id();
-            if let Some(args) = ScrollToCommand.scoped(self_id).update(args) {
+            if let Some(args) = FocusChangedEvent.update(args) {
+                if let Some(path) = &args.new_focus {
+                    if path.contains(self_id) && path.widget_id() != self_id {
+                        // probable focus move inside.
+                        if let Some(target) = ctx.info_tree.get(path) {
+                            // target exits
+                            if let Some(us) = target.ancestors().find(|w| w.widget_id() == self_id) {
+                                // confirmed, target is descendant
+                                if us.is_scroll() {
+                                    // we are a scroll.
+
+                                    let bounds = target.bounds_info();
+                                    let render = target.render_info();
+                                    let mode = ScrollToFocusedModeVar::get_clone(ctx.vars);
+
+                                    self.scroll_to = Some((bounds, render, mode));
+                                    ctx.updates.layout();
+                                }
+                            }
+                        }
+                    }
+                }
+
+                self.child.event(ctx, args);
+            } else if let Some(args) = ScrollToCommand.scoped(self_id).update(args) {
                 // event send to us and enabled
                 if let Some(request) = ScrollToRequest::from_args(args) {
                     // has unhandled request
