@@ -2,15 +2,6 @@
 //!
 //! The scrollable widget implements all of this commands scoped to its widget ID.
 //!
-//! # Duplicate Shortcuts
-//!
-//! Some commands like [`ScrollToTopCommand`] and [`ScrollToLeftmostCommand`] have duplicate shortcuts,
-//! with the command operating on the horizontal axis having and extra alternate shortcut. Command
-//! implementers must handle the vertical axis commands first and then handle the
-//! horizontal axis commands, this way if the content only scrolls on the horizontal axis the primary
-//! shortcuts still work, but if the content scrolls in both axis the primary shortcuts operate the
-//! vertical scrolling and the alternate shortcuts operate the horizontal scrolling.
-//!
 //! [`ScrollToTopCommand`]: crate::widgets::scrollable::commands::ScrollToTopCommand
 //! [`ScrollToLeftmostCommand`]: crate::widgets::scrollable::commands::ScrollToLeftmostCommand
 
@@ -185,7 +176,7 @@ command! {
     /// |--------------|--------------------------------------------------------|
     /// | [`name`]     | "Page Left"                                            |
     /// | [`info`]     | "Scroll the focused scrollable LEFT by one page unit." |
-    /// | [`shortcut`] | `PageUp`, `SHIFT+PageUp`                               |
+    /// | [`shortcut`] | ``SHIFT+PageUp`                                        |
     ///
     ///
     /// # Parameter
@@ -200,7 +191,7 @@ command! {
     pub PageLeftCommand
         .init_name("Page Left")
         .init_info("Scroll the focused scrollable LEFT by one page unit.")
-        .init_shortcut([shortcut!(PageUp), shortcut!(SHIFT+PageUp)]);
+        .init_shortcut([shortcut!(SHIFT+PageUp)]);
 
     /// Represents the scrollable **page right** by one [`h_page_unit`] action.
     ///
@@ -212,7 +203,7 @@ command! {
     /// |--------------|---------------------------------------------------------|
     /// | [`name`]     | "Page Right"                                            |
     /// | [`info`]     | "Scroll the focused scrollable RIGHT by one page unit." |
-    /// | [`shortcut`] | `PageDown`, `SHIFT+PageDown`                            |
+    /// | [`shortcut`] | `SHIFT+PageDown`                                        |
     ///
     /// # Parameter
     ///
@@ -226,7 +217,7 @@ command! {
     pub PageRightCommand
         .init_name("Page Right")
         .init_info("Scroll the focused scrollable RIGHT by one page unit.")
-        .init_shortcut([shortcut!(PageDown), shortcut!(SHIFT+PageDown)]);
+        .init_shortcut([shortcut!(SHIFT+PageDown)]);
 
     /// Represents the scrollable **scroll to top** action.
     ///
@@ -278,7 +269,7 @@ command! {
     /// |--------------|----------------------------------------------------------------------|
     /// | [`name`]     | "Scroll to Leftmost"                                                 |
     /// | [`info`]     | "Scroll left to the content left edge."                              |
-    /// | [`shortcut`] | `Home`, `CTRL+Home`, `SHIFT+Home`, <code>CTRL&#124;SHIFT+Home</code> |
+    /// | [`shortcut`] | `SHIFT+Home`, <code>CTRL&#124;SHIFT+Home</code>                      |
     ///
     /// [`name`]: CommandNameExt
     /// [`info`]: CommandInfoExt
@@ -286,7 +277,7 @@ command! {
     pub ScrollToLeftmostCommand
         .init_name("Scroll to Leftmost")
         .init_info("Scroll left to the content left edge.")
-        .init_shortcut([shortcut!(Home), shortcut!(CTRL+Home), shortcut!(SHIFT+Home), shortcut!(CTRL|SHIFT+Home)]);
+        .init_shortcut([shortcut!(SHIFT+Home), shortcut!(CTRL|SHIFT+Home)]);
 
     /// Represents the scrollable **scroll to rightmost** action.
     ///
@@ -298,7 +289,7 @@ command! {
     /// |--------------|-------------------------------------------------------------------|
     /// | [`name`]     | "Scroll to Rightmost"                                             |
     /// | [`info`]     | "Scroll right to the content right edge."                         |
-    /// | [`shortcut`] | `End`, `CTRL+End`, `SHIFT+Home`, <code>CTRL&#124;SHIFT+End</code> |
+    /// | [`shortcut`] | `SHIFT+End`, <code>CTRL&#124;SHIFT+End</code>                     |
     ///
     /// [`name`]: CommandNameExt
     /// [`info`]: CommandInfoExt
@@ -306,7 +297,7 @@ command! {
     pub ScrollToRightmostCommand
         .init_name("Scroll to Righmost")
         .init_info("Scroll right to the content right edge.")
-        .init_shortcut([shortcut!(End), shortcut!(CTRL+End), shortcut!(SHIFT+Home), shortcut!(CTRL|SHIFT+End)]);
+        .init_shortcut([shortcut!(SHIFT+End), shortcut!(CTRL|SHIFT+End)]);
 
     /// Represents the action of scrolling until a child widget is fully visible.
     ///
