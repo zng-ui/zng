@@ -1,15 +1,15 @@
-//! Commands that control the scoped scrollable widget.
+//! Commands that control the scoped scroll widget.
 //!
-//! The scrollable widget implements all of this commands scoped to its widget ID.
+//! The scroll widget implements all of this commands scoped to its widget ID.
 //!
-//! [`ScrollToTopCommand`]: crate::widgets::scrollable::commands::ScrollToTopCommand
-//! [`ScrollToLeftmostCommand`]: crate::widgets::scrollable::commands::ScrollToLeftmostCommand
+//! [`ScrollToTopCommand`]: crate::widgets::scroll::commands::ScrollToTopCommand
+//! [`ScrollToLeftmostCommand`]: crate::widgets::scroll::commands::ScrollToLeftmostCommand
 
 use super::*;
 use zero_ui::core::gesture::*;
 
 command! {
-    /// Represents the scrollable **scroll up** by one [`v_line_unit`] action.
+    /// Represents the **scroll up** by one [`v_line_unit`] action.
     ///
     /// # Metadata
     ///
@@ -18,7 +18,7 @@ command! {
     /// | metadata     | value                                                  |
     /// |--------------|--------------------------------------------------------|
     /// | [`name`]     | "Scroll Up"                                            |
-    /// | [`info`]     | "Scroll the focused scrollable UP by one scroll unit." |
+    /// | [`info`]     | "Scroll Up by one scroll unit."                        |
     /// | [`shortcut`] | `Up`                                                   |
     ///
     /// # Parameter
@@ -32,10 +32,10 @@ command! {
     /// [`v_line_unit`]: fn@super::properties::v_line_unit
     pub ScrollUpCommand
         .init_name("Scroll Up")
-        .init_info("Scroll the focused scrollable UP by one scroll unit.")
+        .init_info("Scroll Up by one scroll unit.")
         .init_shortcut([shortcut!(Up)]);
 
-    /// Represents the scrollable **scroll down** by one [`v_line_unit`] action.
+    /// Represents the **scroll down** by one [`v_line_unit`] action.
     ///
     /// # Metadata
     ///
@@ -44,7 +44,7 @@ command! {
     /// | metadata     | value                                                    |
     /// |--------------|----------------------------------------------------------|
     /// | [`name`]     | "Scroll Down"                                            |
-    /// | [`info`]     | "Scroll the focused scrollable DOWN by one scroll unit." |
+    /// | [`info`]     | "Scroll Down by one scroll unit."                        |
     /// | [`shortcut`] | `Down`                                                   |
     ///
     /// # Parameter
@@ -58,10 +58,10 @@ command! {
     /// [`v_line_unit`]: fn@super::properties::v_line_unit
     pub ScrollDownCommand
         .init_name("Scroll Down")
-        .init_info("Scroll the focused scrollable DOWN by one scroll unit.")
+        .init_info("Scroll Down by one scroll unit.")
         .init_shortcut([shortcut!(Down)]);
 
-    /// Represents the scrollable **scroll left** by one [`h_line_unit`] action.
+    /// Represents the **scroll left** by one [`h_line_unit`] action.
     ///
     /// # Metadata
     ///
@@ -70,7 +70,7 @@ command! {
     /// | metadata     | value                                                    |
     /// |--------------|----------------------------------------------------------|
     /// | [`name`]     | "Scroll Left"                                            |
-    /// | [`info`]     | "Scroll the focused scrollable LEFT by one scroll unit." |
+    /// | [`info`]     | "Scroll Left by one scroll unit."                        |
     /// | [`shortcut`] | `Left`                                                   |
     ///
     /// # Parameter
@@ -84,10 +84,10 @@ command! {
     /// [`h_line_unit`]: fn@super::properties::h_line_unit
     pub ScrollLeftCommand
         .init_name("Scroll Left")
-        .init_info("Scroll the focused scrollable LEFT by one scroll unit.")
+        .init_info("Scroll Left by one scroll unit.")
         .init_shortcut([shortcut!(Left)]);
 
-    /// Represents the scrollable **scroll right** by one [`h_line_unit`] action.
+    /// Represents the **scroll right** by one [`h_line_unit`] action.
     ///
     /// # Metadata
     ///
@@ -96,7 +96,7 @@ command! {
     /// | metadata     | value                                                     |
     /// |--------------|-----------------------------------------------------------|
     /// | [`name`]     | "Scroll Right"                                            |
-    /// | [`info`]     | "Scroll the focused scrollable RIGHT by one scroll unit." |
+    /// | [`info`]     | "Scroll Right by one scroll unit."                        |
     /// | [`shortcut`] | `Down`                                                    |
     ///
     /// # Parameter
@@ -110,11 +110,11 @@ command! {
     /// [`h_line_unit`]: fn@super::properties::h_line_unit
     pub ScrollRightCommand
         .init_name("Scroll Right")
-        .init_info("Scroll the focused scrollable RIGHT by one scroll unit.")
+        .init_info("Scroll Right by one scroll unit.")
         .init_shortcut([shortcut!(Right)]);
 
 
-    /// Represents the scrollable **page up** by one [`v_page_unit`] action.
+    /// Represents the **page up** by one [`v_page_unit`] action.
     ///
     /// # Metadata
     ///
@@ -123,7 +123,7 @@ command! {
     /// | metadata     | value                                                 |
     /// |--------------|-------------------------------------------------------|
     /// | [`name`]     | "Page Up"                                             |
-    /// | [`info`]     | "Scroll the focused scrollable UP by one page unit."  |
+    /// | [`info`]     | "Scroll Up by one page unit."                         |
     /// | [`shortcut`] | `PageUp`                                              |
     ///
     /// # Parameter
@@ -137,10 +137,10 @@ command! {
     /// [`v_page_unit`]: fn@super::properties::v_page_unit
     pub PageUpCommand
         .init_name("Page Up")
-        .init_info("Scroll the focused scrollable UP by one page unit.")
+        .init_info("Scroll Up by one page unit.")
         .init_shortcut([shortcut!(PageUp)]);
 
-    /// Represents the scrollable **page down** by one [`v_page_unit`] action.
+    /// Represents the **page down** by one [`v_page_unit`] action.
     ///
     /// # Metadata
     ///
@@ -149,7 +149,7 @@ command! {
     /// | metadata     | value                                                   |
     /// |--------------|---------------------------------------------------------|
     /// | [`name`]     | "Page Down"                                             |
-    /// | [`info`]     | "Scroll the focused scrollable DOWN by one page unit."  |
+    /// | [`info`]     | "Scroll Down by one page unit."                         |
     /// | [`shortcut`] | `PageDown`                                              |
     ///
     /// # Parameter
@@ -163,10 +163,10 @@ command! {
     /// [`v_page_unit`]: fn@super::properties::v_page_unit
     pub PageDownCommand
         .init_name("Page Down")
-        .init_info("Scroll the focused scrollable DOWN by one page unit.")
+        .init_info("Scroll down by one page unit.")
         .init_shortcut([shortcut!(PageDown)]);
 
-    /// Represents the scrollable **page left** by one [`h_page_unit`] action.
+    /// Represents the **page left** by one [`h_page_unit`] action.
     ///
     /// # Metadata
     ///
@@ -175,7 +175,7 @@ command! {
     /// | metadata     | value                                                  |
     /// |--------------|--------------------------------------------------------|
     /// | [`name`]     | "Page Left"                                            |
-    /// | [`info`]     | "Scroll the focused scrollable LEFT by one page unit." |
+    /// | [`info`]     | "Scroll Left by one page unit."                        |
     /// | [`shortcut`] | ``SHIFT+PageUp`                                        |
     ///
     ///
@@ -190,10 +190,10 @@ command! {
     /// [`h_line_unit`]: fn@super::properties::h_line_unit
     pub PageLeftCommand
         .init_name("Page Left")
-        .init_info("Scroll the focused scrollable LEFT by one page unit.")
+        .init_info("Scroll Left by one page unit.")
         .init_shortcut([shortcut!(SHIFT+PageUp)]);
 
-    /// Represents the scrollable **page right** by one [`h_page_unit`] action.
+    /// Represents the **page right** by one [`h_page_unit`] action.
     ///
     /// # Metadata
     ///
@@ -202,7 +202,7 @@ command! {
     /// | metadata     | value                                                   |
     /// |--------------|---------------------------------------------------------|
     /// | [`name`]     | "Page Right"                                            |
-    /// | [`info`]     | "Scroll the focused scrollable RIGHT by one page unit." |
+    /// | [`info`]     | "Scroll Right by one page unit."                        |
     /// | [`shortcut`] | `SHIFT+PageDown`                                        |
     ///
     /// # Parameter
@@ -216,10 +216,10 @@ command! {
     /// [`h_page_unit`]: fn@super::properties::h_page_unit
     pub PageRightCommand
         .init_name("Page Right")
-        .init_info("Scroll the focused scrollable RIGHT by one page unit.")
+        .init_info("Scroll Right by one page unit.")
         .init_shortcut([shortcut!(SHIFT+PageDown)]);
 
-    /// Represents the scrollable **scroll to top** action.
+    /// Represents the **scroll to top** action.
     ///
     /// # Metadata
     ///
@@ -239,7 +239,7 @@ command! {
         .init_info("Scroll up to the content top.")
         .init_shortcut([shortcut!(Home), shortcut!(CTRL+Home)]);
 
-    /// Represents the scrollable **scroll to bottom** action.
+    /// Represents the **scroll to bottom** action.
     ///
     /// # Metadata
     ///
@@ -259,7 +259,7 @@ command! {
         .init_info("Scroll down to the content bottom.")
         .init_shortcut([shortcut!(End), shortcut!(CTRL+End)]);
 
-    /// Represents the scrollable **scroll to leftmost** action.
+    /// Represents the **scroll to leftmost** action.
     ///
     /// # Metadata
     ///
@@ -279,7 +279,7 @@ command! {
         .init_info("Scroll left to the content left edge.")
         .init_shortcut([shortcut!(SHIFT+Home), shortcut!(CTRL|SHIFT+Home)]);
 
-    /// Represents the scrollable **scroll to rightmost** action.
+    /// Represents the **scroll to rightmost** action.
     ///
     /// # Metadata
     ///
@@ -443,16 +443,16 @@ pub enum ScrollToMode {
     /// Scroll will change only just enough so that the widget inner rect is fully visible with the optional
     /// extra margin offsets.
     Minimal {
-        /// Extra margin added so that the widget is touching the scrollable edge.
+        /// Extra margin added so that the widget is touching the scroll edge.
         margin: SideOffsets,
     },
     /// Scroll so that the point relative to the widget inner rectangle is at the same screen point on
-    /// the scrollable viewport.
+    /// the scroll viewport.
     Center {
         /// A point relative to the target widget inner size.
         widget_point: Point,
-        /// A point relative to the scrollable viewport.
-        scrollable_point: Point,
+        /// A point relative to the scroll viewport.
+        scroll_point: Point,
     },
 }
 impl ScrollToMode {
@@ -466,14 +466,14 @@ impl ScrollToMode {
     /// New [`Center`] mode.
     ///
     /// [`Center`]: Self::Center
-    pub fn center_points(widget_point: impl Into<Point>, scrollable_point: impl Into<Point>) -> Self {
+    pub fn center_points(widget_point: impl Into<Point>, scroll_point: impl Into<Point>) -> Self {
         ScrollToMode::Center {
             widget_point: widget_point.into(),
-            scrollable_point: scrollable_point.into(),
+            scroll_point: scroll_point.into(),
         }
     }
 
-    /// New [`Center`] mode using the center points of widget and scrollable.
+    /// New [`Center`] mode using the center points of widget and scroll.
     ///
     /// [`Center`]: Self::Center
     pub fn center() -> Self {
@@ -487,11 +487,11 @@ impl Default for ScrollToMode {
     }
 }
 
-/// Scroll the scrollable widget so that the child widget is fully visible.
+/// Scroll the scroll widget so that the child widget is fully visible.
 ///
 /// This function is a helper for firing a [`ScrollToCommand`].
-pub fn scroll_to<Evs: WithEvents>(events: &mut Evs, scrollable_id: WidgetId, child_id: WidgetId, mode: impl Into<ScrollToMode>) {
-    ScrollToCommand.scoped(scrollable_id).notify(
+pub fn scroll_to<Evs: WithEvents>(events: &mut Evs, scroll_id: WidgetId, child_id: WidgetId, mode: impl Into<ScrollToMode>) {
+    ScrollToCommand.scoped(scroll_id).notify(
         events,
         Some(
             ScrollToRequest {

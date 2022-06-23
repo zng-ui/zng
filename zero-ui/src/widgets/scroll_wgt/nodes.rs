@@ -1,4 +1,4 @@
-//! UI nodes used for building the scrollable widget.
+//! UI nodes used for building the scroll widget.
 //!
 use crate::prelude::new_widget::*;
 
@@ -23,12 +23,12 @@ pub fn viewport(child: impl UiNode, mode: impl IntoVar<ScrollMode>) -> impl UiNo
         spatial_id: SpatialFrameId,
         binding_key: FrameBindingKey<RenderTransform>,
 
-        info: ScrollableInfo,
+        info: ScrollInfo,
     }
     #[impl_ui_node(child)]
     impl<C: UiNode, M: Var<ScrollMode>> UiNode for ViewportNode<C, M> {
         fn info(&self, ctx: &mut InfoContext, builder: &mut WidgetInfoBuilder) {
-            builder.meta().set(ScrollableInfoKey, self.info.clone());
+            builder.meta().set(ScrollInfoKey, self.info.clone());
             self.child.info(ctx, builder);
         }
 
@@ -184,7 +184,7 @@ pub fn viewport(child: impl UiNode, mode: impl IntoVar<ScrollMode>) -> impl UiNo
         viewport_unit: PxSize::zero(),
         content_size: PxSize::zero(),
         content_offset: PxVector::zero(),
-        info: ScrollableInfo::default(),
+        info: ScrollInfo::default(),
 
         spatial_id: SpatialFrameId::new_unique(),
         binding_key: FrameBindingKey::new_unique(),
@@ -653,8 +653,8 @@ pub fn scroll_to_command_node(child: impl UiNode) -> impl UiNode {
                         // target exists
                         if let Some(us) = target.ancestors().find(|w| w.widget_id() == self_id) {
                             // target is descendant
-                            if us.is_scrollable() {
-                                // we are a scrollable.
+                            if us.is_scroll() {
+                                // we are a scroll.
 
                                 let bounds = target.bounds_info();
                                 let render = target.render_info();
@@ -730,7 +730,7 @@ pub fn scroll_to_command_node(child: impl UiNode) -> impl UiNode {
                         }
                         ScrollToMode::Center {
                             widget_point,
-                            scrollable_point,
+                            scroll_point,
                         } => {
                             let default = (target_bounds.size / Px(2)).to_vector().to_point();
                             let widget_point = ctx.with_constrains(
@@ -739,15 +739,15 @@ pub fn scroll_to_command_node(child: impl UiNode) -> impl UiNode {
                             );
 
                             let default = (viewport_bounds.size / Px(2)).to_vector().to_point();
-                            let scrollable_point = ctx.with_constrains(
+                            let scroll_point = ctx.with_constrains(
                                 |_| PxConstrains2d::new_fill_size(viewport_bounds.size),
-                                |ctx| scrollable_point.layout(ctx, |_| default),
+                                |ctx| scroll_point.layout(ctx, |_| default),
                             );
 
                             let widget_point = widget_point + target_bounds.origin.to_vector();
-                            let scrollable_point = scrollable_point + viewport_bounds.origin.to_vector(); // TODO origin non-zero?
+                            let scroll_point = scroll_point + viewport_bounds.origin.to_vector(); // TODO origin non-zero?
 
-                            let diff = widget_point - scrollable_point;
+                            let diff = widget_point - scroll_point;
 
                             ScrollContext::scroll_vertical(ctx, diff.y);
                             ScrollContext::scroll_horizontal(ctx, diff.x);

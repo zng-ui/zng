@@ -1,18 +1,18 @@
-//! Properties that configure [`scrollable!`] widgets from parent widgets.
+//! Properties that configure [`scroll!`] widgets from parent widgets.
 //!
-//! Note that this properties are already available in the [`scrollable!`] widget directly.
+//! Note that this properties are already available in the [`scroll!`] widget directly.
 //!
-//! [`scrollable!`]: mod@crate::widgets::scrollable
+//! [`scroll!`]: mod@crate::widgets::scroll
 
 use crate::widgets::fill_color;
 
 use super::{parts::*, types::*, *};
 
 context_var! {
-    /// View generator for creating the vertical scrollbar of an scrollable widget.
+    /// View generator for creating the vertical scrollbar of an scroll widget.
     pub struct VerticalScrollBarViewVar: ViewGenerator<ScrollBarArgs> = default_scrollbar();
 
-    /// View generator for creating the vertical scrollbar of an scrollable widget.
+    /// View generator for creating the vertical scrollbar of an scroll widget.
     pub struct HorizontalScrollBarViewVar: ViewGenerator<ScrollBarArgs> = default_scrollbar();
 
     /// View generator for the little square that joins the two scrollbars when both are visible.
@@ -22,41 +22,41 @@ context_var! {
     ///
     /// Relative lengths are relative to the viewport height, default value is `1.3.em()`.
     ///
-    /// [`ScrollDownCommand`]: crate::widgets::scrollable::commands::ScrollDownCommand
-    /// [`ScrollUpCommand`]: crate::widgets::scrollable::commands::ScrollUpCommand
+    /// [`ScrollDownCommand`]: crate::widgets::scroll::commands::ScrollDownCommand
+    /// [`ScrollUpCommand`]: crate::widgets::scroll::commands::ScrollUpCommand
     pub struct VerticalLineUnitVar: Length = 1.3.em();
 
     /// Horizontal offset added when the [`ScrollRightCommand`] runs and removed when the [`ScrollLeftCommand`] runs.
     ///
     /// Relative lengths are relative to the viewport width, default value is `1.3.em()`.
     ///
-    /// [`ScrollLeftCommand`]: crate::widgets::scrollable::commands::ScrollLeftCommand
-    /// [`ScrollRightCommand`]: crate::widgets::scrollable::commands::ScrollRightCommand
+    /// [`ScrollLeftCommand`]: crate::widgets::scroll::commands::ScrollLeftCommand
+    /// [`ScrollRightCommand`]: crate::widgets::scroll::commands::ScrollRightCommand
     pub struct HorizontalLineUnitVar: Length = 1.3.em();
 
     /// Vertical offset added when the [`PageDownCommand`] runs and removed when the [`PageUpCommand`] runs.
     ///
     /// Relative lengths are relative to the viewport height, default value is `100.pct()`.
     ///
-    /// [`ScrollDownCommand`]: crate::widgets::scrollable::commands::ScrollDownCommand
-    /// [`ScrollUpCommand`]: crate::widgets::scrollable::commands::ScrollUpCommand
+    /// [`ScrollDownCommand`]: crate::widgets::scroll::commands::ScrollDownCommand
+    /// [`ScrollUpCommand`]: crate::widgets::scroll::commands::ScrollUpCommand
     pub struct VerticalPageUnitVar: Length = 100.pct().into();
 
     /// Horizontal offset added when the [`PageRightCommand`] runs and removed when the [`PageLeftCommand`] runs.
     ///
     /// Relative lengths are relative to the viewport width, default value is `100.pct()`.
     ///
-    /// [`PageLeftCommand`]: crate::widgets::scrollable::commands::PageLeftCommand
-    /// [`PageRightCommand`]: crate::widgets::scrollable::commands::PageRightCommand
+    /// [`PageLeftCommand`]: crate::widgets::scroll::commands::PageLeftCommand
+    /// [`PageRightCommand`]: crate::widgets::scroll::commands::PageRightCommand
     pub struct HorizontalPageUnitVar: Length = 100.pct().into();
 
     /// Scroll unit multiplier used when alternate scrolling.
     pub struct AltFactorVar: Factor = 3.fct();
 
-    /// Smooth scrolling config for an scrollable widget.
+    /// Smooth scrolling config for an scroll widget.
     pub struct SmoothScrollingVar: SmoothScrolling = SmoothScrolling::default();
 
-    /// If an scrollable widget defines its viewport size as the [`LayoutMetrics::viewport`] for the scrollable content.
+    /// If a scroll widget defines its viewport size as the [`LayoutMetrics::viewport`] for the scroll content.
     ///
     /// This is `true` by default.
     pub struct DefineViewportUnitVar: bool = true;
@@ -76,19 +76,19 @@ fn default_scrollbar() -> ViewGenerator<ScrollBarArgs> {
     })
 }
 
-/// Vertical scrollbar generator for all scrollable widget descendants.
+/// Vertical scrollbar generator for all scroll widget descendants.
 #[property(context, default(default_scrollbar()))]
 pub fn v_scrollbar_view(child: impl UiNode, generator: impl IntoVar<ViewGenerator<ScrollBarArgs>>) -> impl UiNode {
     with_context_var(child, VerticalScrollBarViewVar, generator)
 }
 
-/// Horizontal scrollbar generator for all scrollable widget descendants.
+/// Horizontal scrollbar generator for all scroll widget descendants.
 #[property(context, default(default_scrollbar()))]
 pub fn h_scrollbar_view(child: impl UiNode, generator: impl IntoVar<ViewGenerator<ScrollBarArgs>>) -> impl UiNode {
     with_context_var(child, HorizontalScrollBarViewVar, generator)
 }
 
-/// Scrollbar generator for both orientations applicable to all scrollable widget descendants.
+/// Scrollbar generator for both orientations applicable to all scroll widget descendants.
 ///
 /// This property sets both [`v_scrollbar_view`] and [`h_scrollbar_view`] to the same `generator`.
 ///
@@ -105,8 +105,8 @@ pub fn scrollbar_view(child: impl UiNode, generator: impl IntoVar<ViewGenerator<
 ///
 /// Relative lengths are relative to the viewport height.
 ///
-/// [`ScrollUpCommand`]: crate::widgets::scrollable::commands::ScrollUpCommand
-/// [`ScrollDownCommand`]: crate::widgets::scrollable::commands::ScrollDownCommand
+/// [`ScrollUpCommand`]: crate::widgets::scroll::commands::ScrollUpCommand
+/// [`ScrollDownCommand`]: crate::widgets::scroll::commands::ScrollDownCommand
 #[property(context, default(VerticalLineUnitVar))]
 pub fn v_line_unit(child: impl UiNode, unit: impl IntoVar<Length>) -> impl UiNode {
     with_context_var(child, VerticalLineUnitVar, unit)
@@ -116,8 +116,8 @@ pub fn v_line_unit(child: impl UiNode, unit: impl IntoVar<Length>) -> impl UiNod
 ///
 /// Relative lengths are relative to the viewport width.
 ///
-/// [`ScrollLeftCommand`]: crate::widgets::scrollable::commands::ScrollLeftCommand
-/// [`ScrollRightCommand`]: crate::widgets::scrollable::commands::ScrollRightCommand
+/// [`ScrollLeftCommand`]: crate::widgets::scroll::commands::ScrollLeftCommand
+/// [`ScrollRightCommand`]: crate::widgets::scroll::commands::ScrollRightCommand
 #[property(context, default(HorizontalLineUnitVar))]
 pub fn h_line_unit(child: impl UiNode, unit: impl IntoVar<Length>) -> impl UiNode {
     with_context_var(child, HorizontalLineUnitVar, unit)
@@ -145,8 +145,8 @@ pub fn alt_factor(child: impl UiNode, factor: impl IntoVar<Factor>) -> impl UiNo
 ///
 /// Relative lengths are relative to the viewport height.
 ///
-/// [`PageUpCommand`]: crate::widgets::scrollable::commands::PageUpCommand
-/// [`PageDownCommand`]: crate::widgets::scrollable::commands::PageDownCommand
+/// [`PageUpCommand`]: crate::widgets::scroll::commands::PageUpCommand
+/// [`PageDownCommand`]: crate::widgets::scroll::commands::PageDownCommand
 #[property(context, default(VerticalPageUnitVar))]
 pub fn v_page_unit(child: impl UiNode, unit: impl IntoVar<Length>) -> impl UiNode {
     with_context_var(child, VerticalPageUnitVar, unit)
@@ -156,8 +156,8 @@ pub fn v_page_unit(child: impl UiNode, unit: impl IntoVar<Length>) -> impl UiNod
 ///
 /// Relative lengths are relative to the viewport width.
 ///
-/// [`PageLeftCommand`]: crate::widgets::scrollable::commands::PageLeftCommand
-/// [`PageRightCommand`]: crate::widgets::scrollable::commands::PageRightCommand
+/// [`PageLeftCommand`]: crate::widgets::scroll::commands::PageLeftCommand
+/// [`PageRightCommand`]: crate::widgets::scroll::commands::PageRightCommand
 #[property(context, default(HorizontalPageUnitVar))]
 pub fn h_page_unit(child: impl UiNode, unit: impl IntoVar<Length>) -> impl UiNode {
     with_context_var(child, HorizontalPageUnitVar, unit)
@@ -181,7 +181,7 @@ pub fn smooth_scrolling(child: impl UiNode, config: impl IntoVar<SmoothScrolling
     with_context_var(child, SmoothScrollingVar, config)
 }
 
-/// If the scrollable defines its viewport size as the [`LayoutMetrics::viewport`] for the scrollable content.
+/// If the scroll defines its viewport size as the [`LayoutMetrics::viewport`] for the scroll content.
 #[property(context, default(DefineViewportUnitVar))]
 pub fn define_viewport_unit(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
     with_context_var(child, DefineViewportUnitVar, enabled)

@@ -8,8 +8,8 @@ mod parts;
 mod types;
 
 /// A single content container that can be larger on the inside.
-#[widget($crate::widgets::scrollable)]
-pub mod scrollable {
+#[widget($crate::widgets::scroll)]
+pub mod scroll {
     use super::*;
     use properties::*;
 
@@ -78,7 +78,7 @@ pub mod scrollable {
         /// This value is used, for example, when `ALT` is pressed during an scroll-wheel event,
         alt_factor;
 
-        /// Clip content to only be visible within the scrollable bounds, including under scrollbars.
+        /// Clip content to only be visible within the scroll bounds, including under scrollbars.
         ///
         /// Enabled by default.
         clip_to_bounds = true;
@@ -97,7 +97,7 @@ pub mod scrollable {
         /// If the viewport size is used as the [`LayoutMetrics::viewport`] for the scrollable content.
         ///
         /// Note that this is only applied if the viewport size can be computed before the content size and is non-zero in both dimensions,
-        /// this is the case in the normal usage where the scrollable fills the parent or when the scrollable has an exact size.
+        /// this is the case in the normal usage where the scroll fills the parent or when it has an exact size.
         ///
         /// This is enabled by default.
         define_viewport_unit;
@@ -108,14 +108,14 @@ pub mod scrollable {
     }
 
     fn new_child_context(child: impl UiNode, mode: impl IntoVar<ScrollMode>, clip_to_viewport: impl IntoVar<bool>) -> impl UiNode {
-        struct ScrollableNode<N> {
+        struct ScrollNode<N> {
             children: N,
             viewport: PxSize,
             joiner: PxSize,
             spatial_id: SpatialFrameId,
         }
         #[impl_ui_node(children)]
-        impl<N: UiNodeList> UiNode for ScrollableNode<N> {
+        impl<N: UiNodeList> UiNode for ScrollNode<N> {
             // # Layout
             //
             // +-----------------+---+
@@ -229,7 +229,7 @@ pub mod scrollable {
         }
 
         use crate::core::context::UpdatesTraceUiNodeExt;
-        ScrollableNode {
+        ScrollNode {
             children: nodes![
                 clip_to_bounds(
                     nodes::viewport(child, mode.into_var()).instrument("viewport"),
@@ -270,9 +270,9 @@ pub mod scrollable {
     }
 }
 
-/// Shorthand [`scrollable!`] with default properties.
+/// Shorthand [`scroll!`] with default properties.
 ///
-/// [`scrollable!`]: mod@scrollable
-pub fn scrollable(content: impl UiNode) -> impl Widget {
-    scrollable!(content)
+/// [`scroll!`]: mod@scroll
+pub fn scroll(content: impl UiNode) -> impl Widget {
+    scroll!(content)
 }

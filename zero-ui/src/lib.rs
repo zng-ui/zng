@@ -978,7 +978,7 @@ pub mod prelude {
     #[doc(no_inline)]
     pub use crate::widgets::layouts::*;
     #[doc(no_inline)]
-    pub use crate::widgets::scrollable::ScrollMode;
+    pub use crate::widgets::scroll::ScrollMode;
     #[doc(no_inline)]
     pub use crate::widgets::window::{LayerIndex, WindowLayers};
 

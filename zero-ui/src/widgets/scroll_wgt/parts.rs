@@ -1,7 +1,7 @@
 use crate::prelude::new_widget::*;
 
 /// Scrollbar widget.
-#[widget($crate::widgets::scrollable::scrollbar)]
+#[widget($crate::widgets::scroll::scrollbar)]
 pub mod scrollbar {
     use super::*;
     use crate::core::render::webrender_api::PrimitiveFlags;
@@ -69,7 +69,7 @@ pub mod scrollbar {
 }
 
 /// Scrollbar thumb widget.
-#[widget($crate::widgets::scrollable::scrollbar::thumb)]
+#[widget($crate::widgets::scroll::scrollbar::thumb)]
 pub mod thumb {
     use super::*;
     use crate::core::{mouse::*, render::webrender_api::PrimitiveFlags};

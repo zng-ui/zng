@@ -25,7 +25,7 @@ fn app_main() {
                 color = colors::YELLOW;
                 drop_shadow = (0, 0), 3, colors::WHITE;
             });
-            content = scrollable! {
+            content = scroll! {
                 mode = ScrollMode::VERTICAL;
                 content = wrap! {
                     padding = 10;

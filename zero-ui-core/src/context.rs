@@ -1451,7 +1451,7 @@ impl LayoutMetrics {
 
     /// Computed size of the nearest viewport ancestor.
     ///
-    /// This is usually the window content area size, but can be the scrollable viewport size or any other
+    /// This is usually the window content area size, but can be the scroll viewport size or any other
     /// value depending on the implementation of the context widgets.
     pub fn viewport(&self) -> PxSize {
         self.register_use(LayoutMask::VIEWPORT);

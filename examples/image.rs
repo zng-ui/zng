@@ -314,7 +314,7 @@ fn panorama_image() -> impl Widget {
         on_click = hn!(|ctx, _| {
             ctx.services.windows().open(|_|img_window(
                 "Wikimedia - Along the River During the Qingming Festival - 56,531 × 1,700 pixels, file size: 99.32 MB",
-                scrollable! {
+                scroll! {
                     mode = ScrollMode::HORIZONTAL;
                     content = image! {
                         fit = ImageFit::Fill;
@@ -379,13 +379,13 @@ fn img_cache_mode(req: &task::http::Request) -> http::CacheMode {
 
 fn center_viewport(msg: impl Widget) -> impl Widget {
     container! {
-        // center the message on the scrollable viewport:
+        // center the message on the scroll viewport:
         //
         // the large images can take a moment to decode in debug builds, but the size
         // is already known after read, so the "loading.." message ends-up off-screen
         // because it is centered on the image.
-        x = zero_ui::widgets::scrollable::ScrollHorizontalOffsetVar::new().map(|&fct| Length::Relative(fct) - 1.vw() * fct);
-        y = zero_ui::widgets::scrollable::ScrollVerticalOffsetVar::new().map(|&fct| Length::Relative(fct) - 1.vh() * fct);
+        x = zero_ui::widgets::scroll::ScrollHorizontalOffsetVar::new().map(|&fct| Length::Relative(fct) - 1.vw() * fct);
+        y = zero_ui::widgets::scroll::ScrollVerticalOffsetVar::new().map(|&fct| Length::Relative(fct) - 1.vh() * fct);
         max_size = (1.vw(), 1.vh());
         content_align = Align::CENTER;
 

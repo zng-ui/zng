@@ -1527,10 +1527,10 @@ impl CommandArgs {
     }
 
     /// Stops propagation and call `handler` if the command and local handler are enabled and was not handled.
-    /// 
+    ///
     /// This is the default behavior of commands, when a command has a handler it is *relevant* in the context, and overwrites
     /// lower priority handlers, but if the handler is disabled the command primary action is not run.
-    /// 
+    ///
     /// Returns the `handler` result if it was called.
     #[allow(unused)]
     pub fn handle_enabled<F, R>(&self, local_handle: &CommandHandle, handler: F) -> Option<R>

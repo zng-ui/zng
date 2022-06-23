@@ -72,8 +72,8 @@ name = "respawn"
 path = "respawn.rs"
 
 [[example]]
-name = "scrollable"
-path = "scrollable.rs"
+name = "scroll"
+path = "scroll.rs"
 
 [[example]]
 name = "shortcuts"

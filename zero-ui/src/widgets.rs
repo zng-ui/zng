@@ -36,9 +36,9 @@ mod rule_line_wgt;
 #[doc(inline)]
 pub use rule_line_wgt::{hr, rule_line};
 
-mod scrollable_wgt;
+mod scroll_wgt;
 #[doc(inline)]
-pub use scrollable_wgt::scrollable;
+pub use scroll_wgt::scroll;
 
 mod slot_wgt;
 #[doc(inline)]

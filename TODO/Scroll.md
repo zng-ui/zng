@@ -1,4 +1,4 @@
-# Scrolling TODO
+# Scroll TODO
 
 * Auto-scroll to focused.
 

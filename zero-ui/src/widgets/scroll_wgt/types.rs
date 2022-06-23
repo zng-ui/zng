@@ -15,7 +15,7 @@ use crate::core::{
 use bitflags::bitflags;
 use zero_ui_core::var::animation::ChaseAnimation;
 
-use super::scrollable::properties::SmoothScrollingVar;
+use super::scroll::properties::SmoothScrollingVar;
 
 bitflags! {
     /// What dimensions are scrollable in an widget.
@@ -75,10 +75,10 @@ context_var! {
     /// If the horizontal scrollbar should be visible.
     pub(super) struct ScrollHorizontalContentOverflowsVar: bool = false;
 
-    /// Latest computed viewport size of the parent scrollable.
+    /// Latest computed viewport size of the parent scroll.
     pub(super) struct ScrollViewportSizeVar: PxSize = PxSize::zero();
 
-    /// Latest computed content size of the parent scrollable.
+    /// Latest computed content size of the parent scroll.
     pub(super) struct ScrollContentSizeVar: PxSize = PxSize::zero();
 
     struct ScrollConfigVar: RefCell<ScrollConfig> = RefCell::default();
@@ -90,14 +90,14 @@ struct ScrollConfig {
     vertical: Option<ChaseAnimation<Factor>>,
 }
 
-/// Controls the parent scrollable.
+/// Controls the parent scroll.
 ///
 /// Also see [`ScrollVerticalOffsetVar`] and [`ScrollHorizontalOffsetVar`] for controlling the scroll offset.
 pub struct ScrollContext {}
 impl ScrollContext {
     /// New node that holds data for the [`ScrollContext`] operation.
     ///
-    /// Scrollable implementers must add this node to their context.
+    /// Scroll implementers must add this node to their context.
     pub fn config_node(child: impl UiNode) -> impl UiNode {
         with_context_var(child, ScrollConfigVar, RefCell::default())
     }
@@ -125,12 +125,12 @@ impl ScrollContext {
         ScrollHorizontalContentOverflowsVar::new().into_read_only()
     }
 
-    /// Latest computed viewport size of the parent scrollable.
+    /// Latest computed viewport size of the parent scroll.
     pub fn viewport_size() -> impl Var<PxSize> {
         ScrollViewportSizeVar::new().into_read_only()
     }
 
-    /// Latest computed content size of the parent scrollable.
+    /// Latest computed content size of the parent scroll.
     pub fn content_size() -> impl Var<PxSize> {
         ScrollContentSizeVar::new().into_read_only()
     }
@@ -314,44 +314,44 @@ impl ScrollContext {
     }
 }
 
-/// Scrollable extensions for [`WidgetInfo`].
+/// Scroll extensions for [`WidgetInfo`].
 pub trait WidgetInfoExt {
-    /// Returns `true` if the widget is a [`scrollable!`](mod@super::scrollable).
+    /// Returns `true` if the widget is a [`scroll!`](mod@super::scroll).
     #[allow(clippy::wrong_self_convention)] // WidgetInfo is a reference.
-    fn is_scrollable(self) -> bool;
+    fn is_scroll(self) -> bool;
 
-    /// Returns a reference to the viewport bounds if the widget is a [`scrollable!`](mod@super::scrollable).
-    fn scrollable_info(self) -> Option<ScrollableInfo>;
+    /// Returns a reference to the viewport bounds if the widget is a [`scroll!`](mod@super::scroll).
+    fn scroll_info(self) -> Option<ScrollInfo>;
 
-    /// Gets the viewport bounds relative to the scrollable widget inner bounds.
+    /// Gets the viewport bounds relative to the scroll widget inner bounds.
     ///
     /// The value is updated every layout and render, without requiring an info rebuild.
     fn viewport(self) -> Option<PxRect>;
 }
 impl<'a> WidgetInfoExt for WidgetInfo<'a> {
-    fn is_scrollable(self) -> bool {
-        self.meta().get(ScrollableInfoKey).is_some()
+    fn is_scroll(self) -> bool {
+        self.meta().get(ScrollInfoKey).is_some()
     }
 
-    fn scrollable_info(self) -> Option<ScrollableInfo> {
-        self.meta().get(ScrollableInfoKey).cloned()
+    fn scroll_info(self) -> Option<ScrollInfo> {
+        self.meta().get(ScrollInfoKey).cloned()
     }
 
     fn viewport(self) -> Option<PxRect> {
-        self.meta().get(ScrollableInfoKey).map(|r| r.viewport())
+        self.meta().get(ScrollInfoKey).map(|r| r.viewport())
     }
 }
 
 #[derive(Debug, Default)]
-struct ScrollableData {
+struct ScrollData {
     viewport_transform: Cell<RenderTransform>,
     viewport_size: Cell<PxSize>,
 }
 
-/// Shared reference to the viewport bounds of a scrollable.
+/// Shared reference to the viewport bounds of a scroll.
 #[derive(Clone, Default, Debug)]
-pub struct ScrollableInfo(Rc<ScrollableData>);
-impl ScrollableInfo {
+pub struct ScrollInfo(Rc<ScrollData>);
+impl ScrollInfo {
     /// Gets the viewport bounds in the window space.
     pub fn viewport(&self) -> PxRect {
         self.viewport_transform()
@@ -379,7 +379,7 @@ impl ScrollableInfo {
 }
 
 state_key! {
-    pub(super) struct ScrollableInfoKey: ScrollableInfo;
+    pub(super) struct ScrollInfoKey: ScrollInfo;
 }
 
 /// Smooth scrolling config.

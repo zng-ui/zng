@@ -1,6 +1,6 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 use zero_ui::prelude::*;
-use zero_ui::widgets::scrollable::commands::ScrollToMode;
+use zero_ui::widgets::scroll::commands::ScrollToMode;
 
 use zero_ui_view_prebuilt as zero_ui_view;
 
@@ -8,7 +8,7 @@ fn main() {
     examples_util::print_info();
     zero_ui_view::init();
 
-    // let rec = examples_util::record_profile("profile-scrollable.json.gz", &[("example", &"scrollable")], |_| true);
+    // let rec = examples_util::record_profile("profile-scroll.json.gz", &[("example", &"scroll")], |_| true);
     // zero_ui_view::run_same_process(app_main);
     app_main();
 
@@ -18,10 +18,10 @@ fn main() {
 fn app_main() {
     App::default().run_window(|_| {
         window! {
-            title = "Scrollable Example";
+            title = "Scroll Example";
             content = z_stack(widgets![
-                scrollable! {
-                    id = "scrollable";
+                scroll! {
+                    id = "scroll";
                     padding = 20;
                     background_color = hex!(#245E81);
                     // smooth_scrolling = false;
@@ -50,7 +50,7 @@ fn app_main() {
 }
 
 fn commands() -> impl Widget {
-    use zero_ui::widgets::scrollable::commands::*;
+    use zero_ui::widgets::scroll::commands::*;
 
     let show = var(false);
 
@@ -101,7 +101,7 @@ fn commands() -> impl Widget {
     }
 }
 fn cmd_btn(cmd: impl Command) -> impl Widget {
-    let cmd = cmd.scoped(WidgetId::named("scrollable"));
+    let cmd = cmd.scoped(WidgetId::named("scroll"));
     button! {
         content = text(cmd.name_with_shortcut());
         enabled = cmd.enabled();
@@ -112,15 +112,15 @@ fn cmd_btn(cmd: impl Command) -> impl Widget {
     }
 }
 fn scroll_to_btn(target: WidgetId, mode: ScrollToMode) -> impl Widget {
-    use zero_ui::widgets::scrollable::commands;
+    use zero_ui::widgets::scroll::commands;
 
-    let scrollable = WidgetId::named("scrollable");
-    let cmd = commands::ScrollToCommand.scoped(scrollable);
+    let scroll = WidgetId::named("scroll");
+    let cmd = commands::ScrollToCommand.scoped(scroll);
     button! {
         content = text(formatx!("Scroll To {} {}", target, if let ScrollToMode::Minimal{..} = &mode { "(minimal)" } else { "(center)" }));
         enabled = cmd.enabled();
         on_click = hn!(|ctx, _| {
-            commands::scroll_to(ctx, scrollable, target, mode.clone());
+            commands::scroll_to(ctx, scroll, target, mode.clone());
         });
     }
 }
