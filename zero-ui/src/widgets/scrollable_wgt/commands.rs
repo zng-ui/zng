@@ -374,7 +374,7 @@ impl ScrollRequest {
         }
     }
 
-    /// Extract a clone of the request from [`CommandArgs::parameter`] if it is set to a compatible type and
+    /// Extract a clone of the request from [`CommandArgs::param`] if it is set to a compatible type and
     /// stop-propagation was not requested for the event.
     pub fn from_args(args: &CommandArgs) -> Option<Self> {
         if let Some(p) = &args.param {
@@ -423,11 +423,11 @@ impl ScrollToRequest {
         }
     }
 
-    /// Extract a clone of the request from [`CommandArgs::parameter`] if it is set to a compatible type and
-    /// stop-propagation was not requested for the event.
+    /// Extract a clone of the request from [`CommandArgs::param`] if it is set to a compatible type and
+    /// stop-propagation was not requested for the event and the command was enabled when it was send.
     pub fn from_args(args: &CommandArgs) -> Option<Self> {
         if let Some(p) = &args.param {
-            if args.propagation().is_stopped() {
+            if !args.enabled || args.propagation().is_stopped() {
                 None
             } else {
                 Self::from_param(p)

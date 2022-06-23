@@ -268,9 +268,9 @@ impl FocusCommands {
 
     pub fn event_preview<EV: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {
         macro_rules! handle {
-            ($($Command:ident => $method:ident,)+) => {$(
+            ($($Command:ident($handle:ident) => $method:ident,)+) => {$(
                 if let Some(args) = $Command.update(args) {
-                    args.handle(|_| {
+                    args.handle_enabled(&self.$handle, |_| {
                         ctx.services.focus().$method();
                     });
                     return;
@@ -278,21 +278,21 @@ impl FocusCommands {
             )+};
         }
         handle! {
-            FocusNextCommand => focus_next,
-            FocusPrevCommand => focus_prev,
-            FocusAltCommand => focus_alt,
-            EscapeAltCommand => escape_alt,
-            FocusUpCommand => focus_up,
-            FocusDownCommand => focus_down,
-            FocusLeftCommand => focus_left,
-            FocusRightCommand => focus_right,
-            FocusChildCommand => focus_child,
-            FocusParentCommand => focus_parent,
+            FocusNextCommand(next_handle) => focus_next,
+            FocusPrevCommand(prev_handle) => focus_prev,
+            FocusAltCommand(alt_handle) => focus_alt,
+            EscapeAltCommand(esc_handle) => escape_alt,
+            FocusUpCommand(up_handle) => focus_up,
+            FocusDownCommand(down_handle) => focus_down,
+            FocusLeftCommand(left_handle) => focus_left,
+            FocusRightCommand(right_handle) => focus_right,
+            FocusChildCommand(child_handle) => focus_child,
+            FocusParentCommand(parent_handle) => focus_parent,
         }
 
         if let Some(args) = FocusCommand.update(args) {
             if let Some(req) = args.param::<FocusRequest>() {
-                args.handle(|_| {
+                args.handle_enabled(&self.focus_handle, |_| {
                     ctx.services.focus().focus(*req);
                 });
             }

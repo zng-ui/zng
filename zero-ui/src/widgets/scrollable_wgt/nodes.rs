@@ -297,7 +297,7 @@ pub fn scroll_commands_node(child: impl UiNode) -> impl UiNode {
             if let Some(args) = ScrollUpCommand.scoped(scope).update(args) {
                 self.child.event(ctx, args);
 
-                args.handle(|_| {
+                args.handle_enabled(&self.up, |_| {
                     let mut offset = -self.layout_line.y;
                     if ScrollRequest::from_args(args).map(|f| f.alternate).unwrap_or(false) {
                         offset *= AltFactorVar::get_clone(ctx);
@@ -307,7 +307,7 @@ pub fn scroll_commands_node(child: impl UiNode) -> impl UiNode {
             } else if let Some(args) = ScrollDownCommand.scoped(scope).update(args) {
                 self.child.event(ctx, args);
 
-                args.handle(|_| {
+                args.handle_enabled(&self.down, |_| {
                     let mut offset = self.layout_line.y;
                     if ScrollRequest::from_args(args).map(|f| f.alternate).unwrap_or(false) {
                         offset *= AltFactorVar::get_clone(ctx);
@@ -317,7 +317,7 @@ pub fn scroll_commands_node(child: impl UiNode) -> impl UiNode {
             } else if let Some(args) = ScrollLeftCommand.scoped(scope).update(args) {
                 self.child.event(ctx, args);
 
-                args.handle(|_| {
+                args.handle_enabled(&self.left, |_| {
                     let mut offset = -self.layout_line.x;
                     if ScrollRequest::from_args(args).map(|f| f.alternate).unwrap_or(false) {
                         offset *= AltFactorVar::get_clone(ctx);
@@ -327,7 +327,7 @@ pub fn scroll_commands_node(child: impl UiNode) -> impl UiNode {
             } else if let Some(args) = ScrollRightCommand.scoped(scope).update(args) {
                 self.child.event(ctx, args);
 
-                args.handle(|_| {
+                args.handle_enabled(&self.right, |_| {
                     let mut offset = self.layout_line.x;
                     if ScrollRequest::from_args(args).map(|f| f.alternate).unwrap_or(false) {
                         offset *= AltFactorVar::get_clone(ctx);
@@ -441,7 +441,7 @@ pub fn page_commands_node(child: impl UiNode) -> impl UiNode {
             if let Some(args) = PageUpCommand.scoped(scope).update(args) {
                 self.child.event(ctx, args);
 
-                args.handle(|_| {
+                args.handle_enabled(&self.up, |_| {
                     let mut offset = -self.layout_page.y;
                     if ScrollRequest::from_args(args).map(|f| f.alternate).unwrap_or(false) {
                         offset *= AltFactorVar::get_clone(ctx);
@@ -451,7 +451,7 @@ pub fn page_commands_node(child: impl UiNode) -> impl UiNode {
             } else if let Some(args) = PageDownCommand.scoped(scope).update(args) {
                 self.child.event(ctx, args);
 
-                args.handle(|_| {
+                args.handle_enabled(&self.down, |_| {
                     let mut offset = self.layout_page.y;
                     if ScrollRequest::from_args(args).map(|f| f.alternate).unwrap_or(false) {
                         offset *= AltFactorVar::get_clone(ctx);
@@ -461,7 +461,7 @@ pub fn page_commands_node(child: impl UiNode) -> impl UiNode {
             } else if let Some(args) = PageLeftCommand.scoped(scope).update(args) {
                 self.child.event(ctx, args);
 
-                args.handle(|_| {
+                args.handle_enabled(&self.left, |_| {
                     let mut offset = -self.layout_page.x;
                     if ScrollRequest::from_args(args).map(|f| f.alternate).unwrap_or(false) {
                         offset *= AltFactorVar::get_clone(ctx);
@@ -471,7 +471,7 @@ pub fn page_commands_node(child: impl UiNode) -> impl UiNode {
             } else if let Some(args) = PageRightCommand.scoped(scope).update(args) {
                 self.child.event(ctx, args);
 
-                args.handle(|_| {
+                args.handle_enabled(&self.right, |_| {
                     let mut offset = self.layout_page.x;
                     if ScrollRequest::from_args(args).map(|f| f.alternate).unwrap_or(false) {
                         offset *= AltFactorVar::get_clone(ctx);
@@ -581,25 +581,25 @@ pub fn scroll_to_edge_commands_node(child: impl UiNode) -> impl UiNode {
             if let Some(args) = ScrollToTopCommand.scoped(scope).update(args) {
                 self.child.event(ctx, args);
 
-                args.handle(|_| {
+                args.handle_enabled(&self.top, |_| {
                     ScrollContext::chase_vertical(ctx, 0.fct());
                 });
             } else if let Some(args) = ScrollToBottomCommand.scoped(scope).update(args) {
                 self.child.event(ctx, args);
 
-                args.handle(|_| {
+                args.handle_enabled(&self.bottom, |_| {
                     ScrollContext::chase_vertical(ctx, 1.fct());
                 });
             } else if let Some(args) = ScrollToLeftmostCommand.scoped(scope).update(args) {
                 self.child.event(ctx, args);
 
-                args.handle(|_| {
+                args.handle_enabled(&self.leftmost, |_| {
                     ScrollContext::chase_horizontal(ctx, 0.fct());
                 });
             } else if let Some(args) = ScrollToRightmostCommand.scoped(scope).update(args) {
                 self.child.event(ctx, args);
 
-                args.handle(|_| {
+                args.handle_enabled(&self.rightmost, |_| {
                     ScrollContext::chase_horizontal(ctx, 1.fct());
                 });
             } else {
@@ -646,7 +646,7 @@ pub fn scroll_to_command_node(child: impl UiNode) -> impl UiNode {
         fn event<A: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &A) {
             let self_id = ctx.path.widget_id();
             if let Some(args) = ScrollToCommand.scoped(self_id).update(args) {
-                // event send to us
+                // event send to us and enabled
                 if let Some(request) = ScrollToRequest::from_args(args) {
                     // has unhandled request
                     if let Some(target) = ctx.info_tree.find(request.widget_id) {

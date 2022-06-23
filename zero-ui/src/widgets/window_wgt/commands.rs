@@ -39,6 +39,10 @@ pub(super) fn inspect_node(child: impl UiNode, can_inspect: impl var::IntoVar<bo
         |ctx| InspectCommand.scoped(ctx.path.window_id()),
         move |_| can_inspect.clone(),
         hn!(|ctx, args: &CommandArgs| {
+            if !args.enabled {
+                return;
+            }
+
             args.propagation().stop();
 
             let mut buffer = vec![];

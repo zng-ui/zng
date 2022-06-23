@@ -163,39 +163,38 @@ impl WindowCommands {
 
     pub fn event<A: EventUpdateArgs>(&mut self, ctx: &mut WindowContext, window_vars: &WindowVars, args: &A) {
         let scope = *ctx.window_id;
-        if MaximizeCommand.scoped(scope).update(args).is_some() {
-            if self.maximize_handle.is_enabled() {
+        if let Some(args) = MaximizeCommand.scoped(scope).update(args) {
+            args.handle_enabled(&self.maximize_handle, |_| {
                 window_vars.state().set_ne(ctx, WindowState::Maximized);
-            }
-        } else if MinimizeCommand.scoped(scope).update(args).is_some() {
-            if self.minimize_handle.is_enabled() {
+            });
+        } else if let Some(args) = MinimizeCommand.scoped(scope).update(args) {
+            args.handle_enabled(&self.minimize_handle, |_| {
                 window_vars.state().set_ne(ctx, WindowState::Minimized);
-            }
-        } else if RestoreCommand.scoped(scope).update(args).is_some() {
-            if self.restore_handle.is_enabled() {
+            });
+        } else if let Some(args) = RestoreCommand.scoped(scope).update(args) {
+            args.handle_enabled(&self.restore_handle, |_| {
                 window_vars.state().set_ne(ctx.vars, window_vars.restore_state().copy(ctx.vars));
-            }
-        } else if CloseCommand.scoped(scope).update(args).is_some() {
-            if self.close_handle.is_enabled() {
+            });
+        } else if let Some(args) = CloseCommand.scoped(scope).update(args) {
+            args.handle_enabled(&self.close_handle, |_| {
                 let _ = ctx.services.windows().close(scope);
-            }
-        } else if FullscreenCommand.scoped(scope).update(args).is_some() {
-            if self.fullscreen_handle.is_enabled() {
+            });
+        } else if let Some(args) = FullscreenCommand.scoped(scope).update(args) {
+            args.handle_enabled(&self.fullscreen_handle, |_| {
                 if let WindowState::Fullscreen = window_vars.state().copy(ctx) {
                     window_vars.state().set(ctx.vars, window_vars.restore_state().copy(ctx.vars));
                 } else {
                     window_vars.state().set(ctx.vars, WindowState::Fullscreen);
                 }
-            }
-        } else if ExclusiveFullscreenCommand.scoped(scope).update(args).is_some() {
-            //
-            if self.exclusive_handle.is_enabled() {
+            });
+        } else if let Some(args) = ExclusiveFullscreenCommand.scoped(scope).update(args) {
+            args.handle_enabled(&self.exclusive_handle, |_| {
                 if let WindowState::Exclusive = window_vars.state().copy(ctx) {
                     window_vars.state().set(ctx.vars, window_vars.restore_state().copy(ctx.vars));
                 } else {
                     window_vars.state().set(ctx, WindowState::Exclusive);
                 }
-            }
+            });
         }
     }
 

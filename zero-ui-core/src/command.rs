@@ -270,7 +270,7 @@ pub use crate::command;
 ///
 /// # Handles
 ///
-/// Unlike other events, commands only notify if there is at least one handler enabled, handlers
+/// Unlike other events, commands only notify if it has at least one handler, handlers
 /// must call [`new_handle`] to indicate that the command is relevant to the current app state and
 /// [set its enabled] flag to indicate that the handler can fulfill command requests.
 ///
@@ -374,11 +374,11 @@ pub trait Command: Event<Args = CommandArgs> {
     /// See [`ScopedCommand`] for details.
     fn scoped<S: Into<CommandScope>>(self, scope: S) -> ScopedCommand<Self::AppScopeCommand>;
 
-    /// Schedule an event update if the command is enabled.
+    /// Schedule an event update if the command has handlers, enabled or disabled.
     ///
     /// The `parameter` is an optional value for the command handler.
     ///
-    /// Returns `true` if notified, only notifies if the command is enabled.
+    /// Returns `true` if notified.
     fn notify_cmd<Evs: WithEvents>(self, events: &mut Evs, parameter: Option<CommandParam>) -> bool;
 }
 
@@ -523,7 +523,7 @@ impl<'a> From<&'a WidgetContextMut> for CommandScope {
 /// # }  
 /// ```
 ///
-/// In the example above `notified` is `true` only if there are any enabled handlers for the same scope.
+/// In the example above `notified` is `true` only if there are any handlers for the same scope.
 ///
 /// # Update
 ///
@@ -547,8 +547,8 @@ impl<'a> From<&'a WidgetContextMut> for CommandScope {
 ///
 /// # App Scope
 ///
-/// It is is possible to create a scoped command using the [`App`] scope. In this
-/// case the scoped command struct behaves exactly like a default command type.
+/// It is possible to create a scoped command using the [`App`] scope. In this
+/// case the scoped command behaves exactly like a default command type.
 ///
 /// [`enabled`]: ScopedCommand::enabled
 /// [`notify`]: ScopedCommand::notify
@@ -1186,7 +1186,7 @@ impl<C: Command> CommandInfoExt for C {
 /// A handle to a [`Command`].
 ///
 /// Holding the command handle indicates that the command is relevant in the current app state.
-/// The handle needs to be enabled to indicate that the command can be issued.
+/// The handle needs to be enabled to indicate that the command primary action can be executed.
 ///
 /// You can use the [`Command::new_handle`] method in a command type to create a handle.
 pub struct CommandHandle {
@@ -1525,6 +1525,26 @@ impl CommandArgs {
             None
         }
     }
+
+    /// Stops propagation and call `handler` if the command and local handler are enabled and was not handled.
+    /// 
+    /// This is the default behavior of commands, when a command has a handler it is *relevant* in the context, and overwrites
+    /// lower priority handlers, but if the handler is disabled the command primary action is not run.
+    /// 
+    /// Returns the `handler` result if it was called.
+    #[allow(unused)]
+    pub fn handle_enabled<F, R>(&self, local_handle: &CommandHandle, handler: F) -> Option<R>
+    where
+        F: FnOnce(&Self) -> R,
+    {
+        let mut result = None;
+        self.handle(|args| {
+            if args.enabled && local_handle.is_enabled() {
+                result = Some(handler(args));
+            }
+        });
+        result
+    }
 }
 
 /// Helper for declaring command handlers.
@@ -1585,7 +1605,7 @@ where
             if let Some(args) = self.command.expect("OnCommandNode not initialized").update(args) {
                 self.child.event(ctx, args);
 
-                if !args.propagation().is_stopped() && self.enabled.as_ref().unwrap().copy(ctx) {
+                if !args.propagation().is_stopped() {
                     self.handler.event(ctx, args);
                 }
             } else {
@@ -1679,7 +1699,7 @@ where
 
         fn event<A: crate::event::EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &A) {
             if let Some(args) = self.command.expect("OnPreCommandNode not initialized").update(args) {
-                if !args.propagation().is_stopped() && self.enabled.as_ref().unwrap().copy(ctx) {
+                if !args.propagation().is_stopped() {
                     self.handler.event(ctx, args);
                 }
 

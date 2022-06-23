@@ -906,9 +906,6 @@ impl<E: AppExtension> RunningApp<E> {
 
         let update = EventUpdate::new(event, args);
 
-        if ExitCommand.update(&update).is_some() {
-            ctx.services.app_process().exit();
-        }
         extensions.event_preview(ctx, &update);
         Vars::event_preview(ctx, &update);
         observer.event_preview(ctx, &update);
