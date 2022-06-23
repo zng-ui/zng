@@ -151,21 +151,23 @@ macro_rules! command {
                 args.args_for::<Self>()
             }
 
-            /// Schedule an event update if the command is enabled.
+            /// Schedule an event update if the command has handlers, enabled or disabled.
             ///
             /// The `parameter` is an optional value for the command handler.
             ///
-            /// Returns `true` if notified, only notifies if the command is enabled.
+            /// Returns `true` if notified.
             #[allow(unused)]
             pub fn notify<Evs: $crate::event::WithEvents>(self, events: &mut Evs, parameter: Option<$crate::command::CommandParam>) -> bool {
                 let scope = $crate::command::Command::scope(self);
-                let enabled = Self::COMMAND.with(move |c| c.enabled_value(scope));
-                if enabled {
+                if let Some(enabled) = Self::COMMAND.with(move |c| c.enabled_value(scope)) {
                     events.with_events(|evs| {
-                        evs.notify($Command, $crate::command::CommandArgs::now(parameter, $crate::command::Command::scope(self)))
+                        evs.notify($Command, $crate::command::CommandArgs::now(parameter, $crate::command::Command::scope(self), enabled))
                     });
+
+                    true
+                } else {
+                    false
                 }
-                enabled
             }
 
             /// Gets a read-only variable that indicates if the command has at least one enabled handler.
@@ -208,7 +210,7 @@ macro_rules! command {
 
             fn notify<Evs: $crate::event::WithEvents>(self, events: &mut Evs, args: Self::Args) {
                 let scope = $crate::command::Command::scope(self);
-                if Self::COMMAND.with(move |c| c.enabled_value(scope)) {
+                if Self::COMMAND.with(move |c| c.enabled_value(scope).is_some()) {
                     events.with_events(|evs| evs.notify($Command, args));
                 }
             }
@@ -321,8 +323,8 @@ pub trait Command: Event<Args = CommandArgs> {
         self.thread_local_value().with(move |c| c.enabled(scope))
     }
 
-    /// Gets if the command has at least one enabled handler.
-    fn enabled_value(self) -> bool {
+    /// Gets if the command has at least one handler, enabled or disabled.
+    fn enabled_value(self) -> Option<bool> {
         let scope = self.scope();
         self.thread_local_value().with(move |c| c.enabled_value(scope))
     }
@@ -587,20 +589,21 @@ impl<C: Command> ScopedCommand<C> {
         <Self as Command>::new_handle(self, events, enabled)
     }
 
-    /// Schedule an event update if the command is enabled.
+    /// Schedule an event update if the command has handlers, enabled or disabled.
     ///
     /// The event type notified is the `C` type, not `Self`. The scope is passed in the [`CommandArgs`].
     ///
     /// The `parameter` is an optional value for the command handler.
     ///
-    /// Returns `true` if notified, only notifies if the command is enabled.
+    /// Returns `true` if notified.
     pub fn notify<Evs: WithEvents>(self, events: &mut Evs, parameter: Option<CommandParam>) -> bool {
         let scope = self.scope();
-        let enabled = self.thread_local_value().with(move |c| c.enabled_value(scope));
-        if enabled {
-            events.with_events(|evs| evs.notify(self.command, CommandArgs::now(parameter, self.scope)));
+        if let Some(enabled) = self.thread_local_value().with(move |c| c.enabled_value(scope)) {
+            events.with_events(|evs| evs.notify(self.command, CommandArgs::now(parameter, self.scope, enabled)));
+            true
+        } else {
+            false
         }
-        enabled
     }
 
     /// Gets the event arguments if the update is for this command type and scope.
@@ -622,7 +625,7 @@ impl<C: Command> Event for ScopedCommand<C> {
     type Args = CommandArgs;
 
     fn notify<Evs: WithEvents>(self, events: &mut Evs, args: Self::Args) {
-        if self.enabled_value() {
+        if self.enabled_value().is_some() {
             events.with_events(|events| events.notify(self.command, args));
         }
     }
@@ -655,7 +658,7 @@ impl<C: Command> Command for ScopedCommand<C> {
         self.command.thread_local_value().with(move |c| c.enabled(scope))
     }
 
-    fn enabled_value(self) -> bool {
+    fn enabled_value(self) -> Option<bool> {
         let scope = self.scope;
         self.command.thread_local_value().with(move |c| c.enabled_value(scope))
     }
@@ -766,21 +769,20 @@ impl AnyCommand {
         self.command_type_id() == TypeId::of::<C>()
     }
 
-    /// Schedule an event update if the command is enabled.
+    /// Schedule an event update if the command has handlers, enabled or disabled.
     ///
     /// The event type notified is the inner command type, the scope is passed in the [`CommandArgs`].
     ///
     /// The `parameter` is an optional value for the command handler.
     ///
-    /// Returns `true` if notified, only notifies if the command is enabled.
+    /// Returns `true` if notified.
     pub fn notify<Evs: WithEvents>(self, events: &mut Evs, parameter: Option<CommandParam>) -> bool {
-        let enabled = self.0.with(|c| c.enabled_value(self.1));
-
-        if enabled {
-            events.with_events(|events| Event::notify(self, events, CommandArgs::now(parameter, self.1)))
+        if let Some(enabled) = self.0.with(|c| c.enabled_value(self.1)) {
+            events.with_events(|events| Event::notify(self, events, CommandArgs::now(parameter, self.1, enabled)));
+            true
+        } else {
+            false
         }
-
-        enabled
     }
 
     /// Schedule an event update if the command is enabled, linked with the external `propagation`.
@@ -790,19 +792,19 @@ impl AnyCommand {
         parameter: Option<CommandParam>,
         propagation: &EventPropagationHandle,
     ) -> bool {
-        let enabled = self.0.with(|c| c.enabled_value(self.1));
-
-        if enabled {
+        if let Some(enabled) = self.0.with(|c| c.enabled_value(self.1)) {
             events.with_events(|events| {
                 Event::notify(
                     self,
                     events,
-                    CommandArgs::new(Instant::now(), propagation.clone(), parameter, self.1),
+                    CommandArgs::new(Instant::now(), propagation.clone(), parameter, self.1, enabled),
                 )
-            })
-        }
+            });
 
-        enabled
+            true
+        } else {
+            false
+        }
     }
 }
 impl fmt::Debug for AnyCommand {
@@ -816,7 +818,7 @@ impl Event for AnyCommand {
     fn notify<Evs: WithEvents>(self, events: &mut Evs, args: Self::Args) {
         let scope = self.1;
         self.0.with(move |c| {
-            if c.enabled_value(scope) {
+            if c.enabled_value(scope).is_some() {
                 events.with_events(|e| (c.notify)(e, args))
             }
         });
@@ -851,7 +853,7 @@ impl Command for AnyCommand {
         self.0.with(move |c| c.enabled(scope))
     }
 
-    fn enabled_value(self) -> bool {
+    fn enabled_value(self) -> Option<bool> {
         let scope = self.1;
         self.0.with(move |c| c.enabled_value(scope))
     }
@@ -1310,7 +1312,7 @@ impl CommandValue {
     fn update_state(&self, vars: &Vars, scope: CommandScope) {
         if let CommandScope::App = scope {
             self.has_handlers.set_ne(vars, self.has_handlers_value(scope));
-            self.enabled.set_ne(vars, self.enabled_value(scope));
+            self.enabled.set_ne(vars, self.enabled_value(scope).unwrap_or(false));
         } else {
             let mut has_handlers = false;
             let mut enabled = false;
@@ -1404,13 +1406,21 @@ impl CommandValue {
         }
     }
 
-    pub fn enabled_value(&self, scope: CommandScope) -> bool {
+    pub fn enabled_value(&self, scope: CommandScope) -> Option<bool> {
         if let CommandScope::App = scope {
-            !self.handle.is_dropped() && self.handle.data().enabled_count.load(Ordering::Relaxed) > 0
+            if self.handle.is_dropped() {
+                None
+            } else {
+                Some(self.handle.data().enabled_count.load(Ordering::Relaxed) > 0)
+            }
         } else if let Some(value) = self.scopes.borrow().get(&scope) {
-            !value.handle.is_dropped() && value.handle.data().enabled_count.load(Ordering::Relaxed) > 0
+            if value.handle.is_dropped() {
+                None
+            } else {
+                Some(value.handle.data().enabled_count.load(Ordering::Relaxed) > 0)
+            }
         } else {
-            false
+            None
         }
     }
 
@@ -1461,10 +1471,16 @@ crate::event_args! {
     /// Event args for command events.
     pub struct CommandArgs {
         /// Optional parameter for the command handler.
-        pub parameter: Option<CommandParam>,
+        pub param: Option<CommandParam>,
 
         /// Scope of command that notified.
         pub scope: CommandScope,
+
+        /// If the command handle was enabled when the command notified.
+        ///
+        /// If `false` the command primary action must not run, but a secondary "disabled interaction"
+        /// that indicates what conditions enable the command is recommended.
+        pub enabled: bool,
 
         ..
 
@@ -1484,8 +1500,30 @@ crate::event_args! {
 }
 impl CommandArgs {
     /// Returns a reference to a parameter of `T` if [`parameter`](#structfield.parameter) is set to a value of `T`.
-    pub fn parameter<T: Any>(&self) -> Option<&T> {
-        self.parameter.as_ref().and_then(|p| p.downcast_ref::<T>())
+    pub fn param<T: Any>(&self) -> Option<&T> {
+        self.param.as_ref().and_then(|p| p.downcast_ref::<T>())
+    }
+
+    /// Returns [`param`] if is enabled interaction.
+    ///
+    /// [`param`]: Self::param()
+    pub fn enabled_param<T: Any>(&self) -> Option<&T> {
+        if self.enabled {
+            self.param::<T>()
+        } else {
+            None
+        }
+    }
+
+    /// Returns [`param`] if is disabled interaction.
+    ///
+    /// [`param`]: Self::param()
+    pub fn disabled_param<T: Any>(&self) -> Option<&T> {
+        if !self.enabled {
+            self.param::<T>()
+        } else {
+            None
+        }
     }
 }
 
@@ -1693,25 +1731,25 @@ mod tests {
 
     #[test]
     fn parameter_none() {
-        let _ = CommandArgs::now(None, CommandScope::App);
+        let _ = CommandArgs::now(None, CommandScope::App, true);
     }
 
     #[test]
     fn enabled() {
         let mut ctx = TestWidgetContext::new();
-        assert!(!FooCommand.enabled_value());
+        assert!(FooCommand.enabled_value().is_none());
 
         let handle = FooCommand.new_handle(&mut ctx, true);
-        assert!(FooCommand.enabled_value());
+        assert_eq!(Some(true), FooCommand.enabled_value());
 
         handle.set_enabled(false);
-        assert!(!FooCommand.enabled_value());
+        assert_eq!(Some(false), FooCommand.enabled_value());
 
         handle.set_enabled(true);
-        assert!(FooCommand.enabled_value());
+        assert_eq!(Some(true), FooCommand.enabled_value());
 
         drop(handle);
-        assert!(!FooCommand.enabled_value());
+        assert!(FooCommand.enabled_value().is_none());
     }
 
     #[test]
@@ -1720,24 +1758,24 @@ mod tests {
 
         let cmd = FooCommand;
         let cmd_scoped = FooCommand.scoped(ctx.window_id);
-        assert!(!cmd.enabled_value());
-        assert!(!cmd_scoped.enabled_value());
+        assert!(cmd.enabled_value().is_none());
+        assert!(cmd_scoped.enabled_value().is_none());
 
         let handle_scoped = cmd_scoped.new_handle(&mut ctx, true);
-        assert!(!cmd.enabled_value());
-        assert!(cmd_scoped.enabled_value());
+        assert!(cmd.enabled_value().is_none());
+        assert_eq!(Some(true), cmd_scoped.enabled_value());
 
         handle_scoped.set_enabled(false);
-        assert!(!cmd.enabled_value());
-        assert!(!cmd_scoped.enabled_value());
+        assert!(cmd.enabled_value().is_none());
+        assert_eq!(Some(false), cmd_scoped.enabled_value());
 
         handle_scoped.set_enabled(true);
-        assert!(!cmd.enabled_value());
-        assert!(cmd_scoped.enabled_value());
+        assert!(cmd.enabled_value().is_none());
+        assert_eq!(Some(true), cmd_scoped.enabled_value());
 
         drop(handle_scoped);
-        assert!(!cmd.enabled_value());
-        assert!(!cmd_scoped.enabled_value());
+        assert!(cmd.enabled_value().is_none());
+        assert!(cmd_scoped.enabled_value().is_none());
     }
 
     #[test]

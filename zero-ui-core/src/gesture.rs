@@ -1761,7 +1761,7 @@ pub trait CommandShortcutExt {
     /// Sets the initial shortcuts.
     fn init_shortcut(self, shortcut: impl Into<Shortcuts>) -> Self;
 
-    /// Returns `true` if the command is enabled and the shortcut if one of the command shortcuts.
+    /// Returns `true` if the command has handlers, enabled or disabled, and the shortcut if one of the command shortcuts.
     ///
     /// [`App`]: crate::command::CommandScope::App
     /// [`Custom`]: crate::command::CommandScope::Custom
@@ -1778,7 +1778,7 @@ impl<C: Command> CommandShortcutExt for C {
     }
 
     fn shortcut_matches<Vr: WithVarsRead>(self, vars: &Vr, shortcut: Shortcut) -> bool {
-        self.enabled_value() && vars.with_vars_read(|vars| self.shortcut().get(vars).contains(shortcut))
+        self.enabled_value().is_some() && vars.with_vars_read(|vars| self.shortcut().get(vars).contains(shortcut))
     }
 }
 state_key! {

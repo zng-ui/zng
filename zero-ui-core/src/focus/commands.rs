@@ -291,7 +291,7 @@ impl FocusCommands {
         }
 
         if let Some(args) = FocusCommand.update(args) {
-            if let Some(req) = args.parameter::<FocusRequest>() {
+            if let Some(req) = args.param::<FocusRequest>() {
                 args.handle(|_| {
                     ctx.services.focus().focus(*req);
                 });
