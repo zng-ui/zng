@@ -40,7 +40,19 @@ pub enum Length {
     ViewportMin(Factor),
     /// Relative to the smallest of the nearest viewport ancestor's dimensions.
     ViewportMax(Factor),
-    /// Unresolved expression.
+
+    /// The exact length in device independent units, defined using a `f32` value.
+    ///
+    /// This value will be rounded to the nearest pixel after layout,
+    /// but it will be used as is in the evaluation of length expressions.
+    DipF32(f32),
+    /// The exact length in device pixel units, defined using a `f32` value.
+    ///
+    /// This value will be rounded to the nearest pixel after layout,
+    /// but it will be used as is in the evaluation of length expressions.
+    PxF32(f32),
+
+    /// Expression.
     Expr(Box<LengthExpr>),
 }
 impl<L: Into<Length>> ops::Add<L> for Length {
@@ -60,6 +72,8 @@ impl<L: Into<Length>> ops::Add<L> for Length {
             (ViewportHeight(a), ViewportHeight(b)) => ViewportHeight(a + b),
             (ViewportMin(a), ViewportMin(b)) => ViewportMin(a + b),
             (ViewportMax(a), ViewportMax(b)) => ViewportMax(a + b),
+            (PxF32(a), PxF32(b)) => PxF32(a + b),
+            (DipF32(a), DipF32(b)) => DipF32(a + b),
             (a, b) => Length::Expr(Box::new(LengthExpr::Add(a, b))),
         }
     }
@@ -87,6 +101,8 @@ impl<L: Into<Length>> ops::Sub<L> for Length {
             (ViewportHeight(a), ViewportHeight(b)) => ViewportHeight(a - b),
             (ViewportMin(a), ViewportMin(b)) => ViewportMin(a - b),
             (ViewportMax(a), ViewportMax(b)) => ViewportMax(a - b),
+            (PxF32(a), PxF32(b)) => PxF32(a - b),
+            (DipF32(a), DipF32(b)) => DipF32(a - b),
             (a, b) => Length::Expr(Box::new(LengthExpr::Sub(a, b))),
         }
     }
@@ -104,8 +120,8 @@ impl<F: Into<Factor>> ops::Mul<F> for Length {
         use Length::*;
         let rhs = rhs.into();
         match self {
-            Dip(e) => Dip(e * rhs.0),
-            Px(e) => Px(e * rhs.0),
+            Dip(e) => DipF32(e.to_f32() * rhs.0),
+            Px(e) => PxF32(e.0 as f32 * rhs.0),
             Pt(e) => Pt(e * rhs.0),
             Relative(r) => Relative(r * rhs),
             Em(e) => Em(e * rhs),
@@ -114,6 +130,8 @@ impl<F: Into<Factor>> ops::Mul<F> for Length {
             ViewportHeight(h) => ViewportHeight(h * rhs),
             ViewportMin(m) => ViewportMin(m * rhs),
             ViewportMax(m) => ViewportMax(m * rhs),
+            DipF32(e) => DipF32(e * rhs.0),
+            PxF32(e) => PxF32(e * rhs.0),
             e => Expr(Box::new(LengthExpr::Mul(e, rhs))),
         }
     }
@@ -133,8 +151,8 @@ impl<F: Into<Factor>> ops::Div<F> for Length {
         let rhs = rhs.into();
 
         match self {
-            Dip(e) => Dip(e / rhs.0),
-            Px(e) => Px(e / rhs.0),
+            Dip(e) => DipF32(e.to_f32() / rhs.0),
+            Px(e) => PxF32(e.0 as f32 / rhs.0),
             Pt(e) => Pt(e / rhs.0),
             Relative(r) => Relative(r / rhs),
             Em(e) => Em(e / rhs),
@@ -143,6 +161,8 @@ impl<F: Into<Factor>> ops::Div<F> for Length {
             ViewportHeight(h) => ViewportHeight(h / rhs),
             ViewportMin(m) => ViewportMin(m / rhs),
             ViewportMax(m) => ViewportMax(m / rhs),
+            DipF32(e) => DipF32(e / rhs.0),
+            PxF32(e) => PxF32(e / rhs.0),
             e => Expr(Box::new(LengthExpr::Mul(e, rhs))),
         }
     }
@@ -169,6 +189,8 @@ impl ops::Neg for Length {
             Length::ViewportHeight(e) => Length::ViewportHeight(-e),
             Length::ViewportMin(e) => Length::ViewportMin(-e),
             Length::ViewportMax(e) => Length::ViewportMax(-e),
+            Length::DipF32(e) => Length::DipF32(-e),
+            Length::PxF32(e) => Length::PxF32(-e),
             Length::Expr(e) => Length::Expr(Box::new(LengthExpr::Neg(Length::Expr(e)))),
         }
     }
@@ -218,6 +240,8 @@ impl fmt::Debug for Length {
                 ViewportHeight(e) => f.debug_tuple("Length::ViewportHeight").field(e).finish(),
                 ViewportMin(e) => f.debug_tuple("Length::ViewportMin").field(e).finish(),
                 ViewportMax(e) => f.debug_tuple("Length::ViewportMax").field(e).finish(),
+                DipF32(e) => f.debug_tuple("Length::DipF32").field(e).finish(),
+                PxF32(e) => f.debug_tuple("Length::PxF32").field(e).finish(),
                 Expr(e) => f.debug_tuple("Length::Expr").field(e).finish(),
             }
         } else {
@@ -233,6 +257,8 @@ impl fmt::Debug for Length {
                 ViewportHeight(e) => write!(f, "{e}.vh()"),
                 ViewportMin(e) => write!(f, "{e}.vmin()"),
                 ViewportMax(e) => write!(f, "{e}.vmax()"),
+                DipF32(e) => write!(f, "{}.dip()", e),
+                PxF32(e) => write!(f, "{}.px()", e),
                 Expr(e) => write!(f, "{e}"),
             }
         }
@@ -253,6 +279,8 @@ impl fmt::Display for Length {
             ViewportHeight(vh) => write!(f, "{vh}vh"),
             ViewportMin(vmin) => write!(f, "{vmin}vmin"),
             ViewportMax(vmax) => write!(f, "{vmax}vmax"),
+            DipF32(l) => write!(f, "{l}"),
+            PxF32(l) => write!(f, "{l}px"),
             Expr(e) => write!(f, "{e}"),
         }
     }
@@ -268,9 +296,9 @@ impl_from_and_into_var! {
         Length::Relative(norm)
     }
 
-    /// Conversion to [`Length::Dip`]
+    /// Conversion to [`Length::DipF32`]
     fn from(f: f32) -> Length {
-        Length::Dip(Dip::new_f32(f))
+        Length::DipF32(f)
     }
 
     /// Conversion to [`Length::Dip`]
@@ -319,6 +347,8 @@ impl Length {
             (ViewportHeight(a), ViewportHeight(b)) => ViewportHeight(a.max(b)),
             (ViewportMin(a), ViewportMin(b)) => ViewportMin(a.max(b)),
             (ViewportMax(a), ViewportMax(b)) => ViewportMax(a.max(b)),
+            (DipF32(a), DipF32(b)) => DipF32(a.max(b)),
+            (PxF32(a), PxF32(b)) => PxF32(a.max(b)),
             (a, b) => Expr(Box::new(LengthExpr::Max(a, b))),
         }
     }
@@ -338,6 +368,8 @@ impl Length {
             (ViewportHeight(a), ViewportHeight(b)) => ViewportHeight(a.min(b)),
             (ViewportMin(a), ViewportMin(b)) => ViewportMin(a.min(b)),
             (ViewportMax(a), ViewportMax(b)) => ViewportMax(a.min(b)),
+            (DipF32(a), DipF32(b)) => DipF32(a.min(b)),
+            (PxF32(a), PxF32(b)) => PxF32(a.min(b)),
             (a, b) => Expr(Box::new(LengthExpr::Min(a, b))),
         }
     }
@@ -362,6 +394,8 @@ impl Length {
             ViewportHeight(h) => ViewportHeight(h.abs()),
             ViewportMin(m) => ViewportMin(m.abs()),
             ViewportMax(m) => ViewportMax(m.abs()),
+            DipF32(e) => DipF32(e.abs()),
+            PxF32(e) => PxF32(e.abs()),
             Expr(e) => Expr(Box::new(LengthExpr::Abs(Length::Expr(e.clone())))),
         }
     }
@@ -396,6 +430,8 @@ impl Length {
             ViewportHeight(p) => ctx.viewport().height * *p,
             ViewportMin(p) => ctx.viewport_min() * *p,
             ViewportMax(p) => ctx.viewport_max() * *p,
+            DipF32(l) => self::Px((l * ctx.scale_factor().0).round() as i32),
+            PxF32(l) => self::Px(l.round() as i32),
             Expr(e) => e.layout(ctx, &mut default_value),
         }
     }
@@ -423,6 +459,8 @@ impl Length {
             ViewportHeight(p) => ctx.viewport().height.0 as f32 * *p,
             ViewportMin(p) => ctx.viewport_min().0 as f32 * *p,
             ViewportMax(p) => ctx.viewport_max().0 as f32 * *p,
+            DipF32(l) => *l * ctx.scale_factor().0,
+            PxF32(l) => *l,
             Expr(e) => e.layout_f32(ctx, &mut default_value),
         }
     }
@@ -444,6 +482,8 @@ impl Length {
             ViewportHeight(_) => LayoutMask::VIEWPORT,
             ViewportMin(_) => LayoutMask::VIEWPORT,
             ViewportMax(_) => LayoutMask::VIEWPORT,
+            DipF32(_) => LayoutMask::SCALE_FACTOR,
+            PxF32(_) => LayoutMask::NONE,
             Expr(e) => e.affect_mask(),
         }
     }
@@ -468,6 +508,8 @@ impl Length {
             ViewportHeight(p) => Some(p.0.abs() < EPSILON),
             ViewportMin(p) => Some(p.0.abs() < EPSILON),
             ViewportMax(p) => Some(p.0.abs() < EPSILON),
+            DipF32(l) => Some(about_eq(*l, 0.0, EPSILON_100)),
+            PxF32(l) => Some(about_eq(*l, 0.0, EPSILON_100)),
             Expr(_) => None,
         }
     }
@@ -502,6 +544,20 @@ impl Length {
     pub fn replace_default(&mut self, overwrite: &Length) {
         if self.is_default() {
             *self = overwrite.clone();
+        }
+    }
+
+    /// Convert [`PxF32`] to [`Px`] and [`DipF32`] to [`Dip`].
+    ///
+    /// [`PxF32`]: Self::PxF32
+    /// [`Px`]: Self::Px
+    /// [`DipF32`]: Self::DipF32
+    /// [`Dip`]: Self::Dip
+    pub fn round_exact(&mut self) {
+        match self {
+            Length::PxF32(l) => *self = Length::Px(Px(l.round() as i32)),
+            Length::DipF32(l) => *self = Length::Dip(Dip::new_f32(*l)),
+            _ => {}
         }
     }
 
@@ -752,11 +808,11 @@ pub trait LengthUnits {
 }
 impl LengthUnits for f32 {
     fn dip(self) -> Length {
-        Length::Dip(Dip::new_f32(self))
+        Length::DipF32(self)
     }
 
     fn px(self) -> Length {
-        Length::Px(Px(self.round() as i32))
+        Length::PxF32(self)
     }
 
     fn pt(self) -> Length {
