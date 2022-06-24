@@ -5,7 +5,7 @@ use crate::prelude::new_widget::*;
 /// # Z-Index
 ///
 /// By default the widgets are layout without overlap, but you can use properties like [`transform`] to cause
-/// an widget overlap, in this case the widget will be rendered above its previous sibling and below its next sibling,
+/// a widget overlap, in this case the widget will be rendered above its previous sibling and below its next sibling,
 /// you can change this by setting the [`z_index`] property in the item widget.
 ///
 /// # Examples
@@ -252,7 +252,7 @@ pub mod h_stack {
 /// # Z-Index
 ///
 /// By default the widgets are layout without overlap, but you can use properties like [`transform`] to cause
-/// an widget overlap, in this case the widget will be rendered above its previous sibling and below its next sibling,
+/// a widget overlap, in this case the widget will be rendered above its previous sibling and below its next sibling,
 /// you can change this by setting the [`z_index`] property in the item widget.
 ///
 /// # Examples

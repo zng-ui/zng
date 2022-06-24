@@ -391,7 +391,7 @@ pub use zero_ui_proc_macros::impl_ui_node;
 /// ## State Probing
 ///
 /// Properties with the `is_` prefix are special, they output information about the widget instead of shaping it. They are automatically set
-/// to a new [`StateVar`] when used in an widget when condition expression.
+/// to a new [`StateVar`] when used in a widget when condition expression.
 ///
 /// # Default
 ///
@@ -793,7 +793,7 @@ pub use zero_ui_proc_macros::property;
 ///
 /// #### Reference Property
 ///
-/// Use `self.<property>` to reference to an widget property, the value resolves to the variable value of the first member of the property,
+/// Use `self.<property>` to reference to a widget property, the value resolves to the variable value of the first member of the property,
 /// if the property has a default value it does not need to be defined in the widget before usage.
 ///
 /// ```

@@ -22,7 +22,7 @@ unique_id_64! {
     struct WidgetInfoTreeId;
 }
 
-/// Represents the in-progress layout pass for an widget tree.
+/// Represents the in-progress layout pass for a widget tree.
 pub struct WidgetLayout {
     t: WidgetLayoutTranslation,
     known_collapsed: bool,
@@ -2421,7 +2421,7 @@ update_mask! {
     pub struct EventMask <- EventSlot;
 }
 
-/// Represents all event and update subscriptions of an widget.
+/// Represents all event and update subscriptions of a widget.
 ///
 /// Properties must register their interest in events and variables here otherwise a call to [`UiNode::event`] or
 /// [`UiNode::update`] can end-up skipped due to optimizations.
@@ -2571,7 +2571,7 @@ impl<'a> InteractivityFilterArgs<'a> {
 type InteractivityFilters = Vec<Rc<dyn Fn(&InteractivityFilterArgs) -> Interactivity>>;
 
 bitflags! {
-    /// Represents the level of interaction allowed for an widget.
+    /// Represents the level of interaction allowed for a widget.
     pub struct Interactivity: u8 {
         /// Normal interactions allowed.
         ///

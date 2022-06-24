@@ -332,7 +332,7 @@ impl<W: WidgetList> WidgetList for ZSortedWidgetList<W> {
     }
 }
 
-/// Defines the render order of an widget in a layout panel.
+/// Defines the render order of a widget in a layout panel.
 ///
 /// When set the widget will still update and layout according to their *logical* position in the list but
 /// they will render according to the order defined by the [`ZIndex`] value.
@@ -530,7 +530,7 @@ pub trait WidgetListZIndexExt {
     /// [`init_all`]: UiNodeList::init_all
     fn init_all_z(&mut self, ctx: &mut WidgetContext, sort_z: &mut bool);
 
-    /// Does an [`update_all`], sets `resort_z` if the z-index changed for any widget or an widget was inited (inserted) with
+    /// Does an [`update_all`], sets `resort_z` if the z-index changed for any widget or a widget was inited (inserted) with
     /// a non-default index.
     ///
     /// Note that if the list is already sorting or has observed a non-default index it must also resort for any change

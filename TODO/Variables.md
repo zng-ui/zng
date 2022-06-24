@@ -1,8 +1,5 @@
 # Variables TODO
 
-* `Var::chase`, a transition animation that can update its final value, reset time.
-    - Make a `ChaseAnimationHandle` that can change the target value.
-
 * Changes to enable [# Widget Property Transition]:
     - "Easing-map", a variable that eases between changes in a source variable, like a map that clones and transitions.
     - "Ease-switch", a `switch_var!` that eases between changes (probably just as good as an "easing-map").
@@ -15,7 +12,7 @@
 
 # Widget Property Transition
 
-* How do we define a transition that gets applied to an widget's property?
+* How do we define a transition that gets applied to a widget's property?
     - Use a *fake* attribute, `#[ease(..)]`.
 * How do we apply the ease attribute?
     - Use the `ChaserVar` on the `switch_var!` just before passing it to the property?
@@ -31,7 +28,7 @@ Attribute that configures the transition of a property changed by `when`.
 ```rust
 // in widget-decl
 properties! {
-    #[transition(150.ms(), easing::linear)]// ease applied in the when generated switch_var!.
+    #[transition(150.ms(), easing::linear)]// ease applied in the when-generated switch_var!.
     background_color = colors::RED;
 
     #[transition(150.ms(), easing::linear)]// ease applied to all switch_vars of this property, (error is not all transitionable).

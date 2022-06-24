@@ -634,7 +634,7 @@ impl WidgetVecRef {
         })
     }
 
-    /// Request an widget remove and re-insert.
+    /// Request a widget remove and re-insert.
     ///
     /// If the `remove_index` is out of bounds nothing happens, if the `insert_index` is out-of-bounds
     /// the widget is pushed to the end of the vector, if `remove_index` and `insert_index` are equal nothing happens.
@@ -650,7 +650,7 @@ impl WidgetVecRef {
         }
     }
 
-    /// Request an widget move, the widget is searched by `id`, if found `get_move_to` id called with the index of the widget and length
+    /// Request a widget move, the widget is searched by `id`, if found `get_move_to` id called with the index of the widget and length
     /// of the vector, it must return the index the widget is inserted after it is removed.
     ///
     /// If the widget is not found nothing happens, if the returned index is the same nothing happens, if the returned index

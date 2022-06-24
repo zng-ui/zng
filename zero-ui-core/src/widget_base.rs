@@ -686,7 +686,7 @@ pub fn interactive_node(child: impl UiNode, interactive: impl IntoVar<bool>) -> 
             if self.interactive.copy(ctx) {
                 self.child.info(ctx, info);
             } else if let Some(id) = self.child.try_id() {
-                // child is an widget.
+                // child is a widget.
                 info.push_interactivity_filter(move |args| {
                     if args.info.widget_id() == id {
                         Interactivity::BLOCKED
@@ -778,7 +778,7 @@ pub fn is_disabled(child: impl UiNode, state: StateVar) -> impl UiNode {
 /// widgets that don't render anything are considered `Hidden` even if the visibility property is not set, this property
 /// only forces the widget to layout and render according to the specified visibility.
 ///
-/// To probe the visibility state of an widget in `when` clauses use [`is_visible`], [`is_hidden`] or [`is_collapsed`] in `when` clauses,
+/// To probe the visibility state of a widget in `when` clauses use [`is_visible`], [`is_hidden`] or [`is_collapsed`] in `when` clauses,
 /// to probe a widget state use [`Widget::render_info`] or [`WidgetInfo::visibility`].
 ///
 /// # Implicit
@@ -896,7 +896,7 @@ pub fn is_collapsed(child: impl UiNode, state: StateVar) -> impl UiNode {
     visibility_eq_state(child, state, Visibility::Collapsed)
 }
 
-/// Defines if and how an widget is hit-tested.
+/// Defines if and how a widget is hit-tested.
 ///
 /// See [`hit_test_mode`](fn@hit_test_mode) for more details.
 #[derive(Copy, Clone, PartialEq, Eq)]

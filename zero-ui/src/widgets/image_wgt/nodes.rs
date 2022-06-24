@@ -23,7 +23,7 @@ context_var! {
 ///
 /// The image is not rendered by this property, the [`image_presenter`] renders the image in [`ContextImageVar`].
 ///
-/// In an widget this should be placed inside context properties and before event properties.
+/// In a widget this should be placed inside context properties and before event properties.
 ///
 /// [`Images`]: crate::core::image::Images
 /// [`image_cache`]: mod@crate::widgets::image::properties::image_cache

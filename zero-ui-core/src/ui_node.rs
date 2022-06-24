@@ -719,7 +719,7 @@ macro_rules! declare_widget_test_calls {
     })+};
 }
 
-/// Represents an widget [`UiNode`].
+/// Represents a widget [`UiNode`].
 #[cfg_attr(doc_nightly, doc(notable_trait))]
 pub trait Widget: UiNode {
     /// Id of the widget.

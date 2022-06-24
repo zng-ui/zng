@@ -18,7 +18,7 @@ use zero_ui_core::var::animation::ChaseAnimation;
 use super::scroll::properties::SmoothScrollingVar;
 
 bitflags! {
-    /// What dimensions are scrollable in an widget.
+    /// What dimensions are scrollable in a widget.
     ///
     /// If a dimension is scrollable the content can be any size in that dimension, if the size
     /// is more then available scrolling is enabled for that dimension.

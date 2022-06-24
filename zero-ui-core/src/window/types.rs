@@ -198,7 +198,7 @@ impl Window {
     /// New window from a `child` node that becomes the child of the window root widget.
     ///
     /// The `child` parameter is a node that is the window's content, if it is an [`Widget`] the `root_id` is the id of
-    /// an internal container widget that is the parent of `child`, if it is not an widget it will still be placed in the inner
+    /// an internal container widget that is the parent of `child`, if it is not a widget it will still be placed in the inner
     /// priority of the root widget.
     ///
     /// See [`new_root`] for other parameters.

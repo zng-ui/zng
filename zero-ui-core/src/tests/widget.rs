@@ -1617,7 +1617,7 @@ mod util {
     pub fn is_state(child: impl UiNode, state: StateVar) -> impl UiNode {
         IsStateNode { child, state }
     }
-    /// Sets the [`is_state`] of an widget.
+    /// Sets the [`is_state`] of a widget.
     ///
     /// Note only applies after update.
     pub fn set_state(ctx: &mut TestWidgetContext, wgt: &mut impl Widget, state: bool) {

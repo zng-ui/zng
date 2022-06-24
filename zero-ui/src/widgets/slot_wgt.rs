@@ -5,7 +5,7 @@ use crate::prelude::new_widget::*;
 ///
 /// ## `slot()`
 ///
-/// If you only want to create a slot as an widget there is a [`slot`](fn@slot) shortcut function.
+/// If you only want to create a slot as a widget there is a [`slot`](fn@slot) shortcut function.
 #[widget($crate::widgets::slot)]
 pub mod slot {
 

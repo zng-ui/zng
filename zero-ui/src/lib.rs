@@ -193,7 +193,7 @@
 //! ```
 //!
 //! Some property kinds can be identified using the prefix of their names, `on_foo` indicates that the property setups an event handler,
-//! `is_foo` indicates a property that reports an widget state.
+//! `is_foo` indicates a property that reports a widget state.
 //!
 //! ### Declaring Properties
 //!
@@ -441,7 +441,7 @@
 //! Early listeners can also use the [`EventArgs`] to signal later listeners that an event has been
 //! handled by calling [`propagation().stop()`].
 //!
-//! You usually don't setup an widget event handler directly, but instead use a property that does the message filtering and only
+//! You usually don't setup a widget event handler directly, but instead use a property that does the message filtering and only
 //! calls your handler if the message is valid in the widget and not already handled. These *event properties* follow a common pattern,
 //! each is named with the `on_` prefix and each receive an [`WidgetHandler<T>`] as input. The handler is essentially a closure that
 //! takes the [`WidgetContext`] and event arguments as input, the handler trait allows properties to receive both **mut** and **once**
@@ -645,7 +645,7 @@
 //! ```
 //!
 //! The preview route is sometimes called *tunneling* or *capturing* and the main route is sometimes called *bubbling*. Not
-//! all event properties exist in these two routes, some events are *direct*, meaning they exist in the scope of an widget only,
+//! all event properties exist in these two routes, some events are *direct*, meaning they exist in the scope of a widget only,
 //! the preview handler is called and then the main handler, but only in the same widget. And finally some rare events are
 //! unfiltered and visible in all widgets, this is a *broadcast* event, each window receives the event, *oldest-first*, and in
 //! each window every widget receives the event, *depth-first*, the preview handlers in this case only preview their branch

@@ -78,7 +78,7 @@ pub fn margin(child: impl UiNode, margin: impl IntoVar<SideOffsets>) -> impl UiN
     }
 }
 
-/// Margin space around the *content* of an widget.
+/// Margin space around the *content* of a widget.
 ///
 /// This property is [`margin`](fn@margin) with priority `child_layout`.
 #[property(child_layout, default(0))]
@@ -1062,7 +1062,7 @@ pub fn baseline(child: impl UiNode, baseline: impl IntoVar<Length>) -> impl UiNo
     .cfg_boxed()
 }
 
-/// Defines how an widget layout translation is computed.
+/// Defines how a widget layout translation is computed.
 ///
 /// See the [`position`] property for more details.
 ///
@@ -1089,7 +1089,7 @@ impl Default for Position {
     }
 }
 
-/// Defines how an widget translation is computed.
+/// Defines how a widget translation is computed.
 ///
 /// Note that in all the position modes the widget affects the size of the parent and has the z-index the parent gives it,
 /// to fully remove the widget from the parent declare it in a layer instead, see [`WindowLayers`].

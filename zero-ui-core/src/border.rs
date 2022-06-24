@@ -645,7 +645,7 @@ pub fn corner_radius_fit(child: impl UiNode, fit: impl IntoVar<CornerRadiusFit>)
     with_context_var(child, CornerRadiusFitVar, fit)
 }
 
-/// Position of an widget borders in relation to the widget fill.
+/// Position of a widget borders in relation to the widget fill.
 ///
 /// This property defines how much the widget's border offsets affect the layout of the fill content, by default
 /// (0%) the fill content stretchers *under* the borders and is clipped by the [`corner_radius`], in the other end
@@ -664,7 +664,7 @@ pub fn border_align(child: impl UiNode, align: impl IntoVar<FactorSideOffsets>) 
 }
 
 context_var! {
-    /// How much an widget's border offsets affects the widget's fill content.
+    /// How much a widget's border offsets affects the widget's fill content.
     ///
     /// See [`border_align`](fn@border_align) for more details.
     pub struct BorderAlignVar: FactorSideOffsets = FactorSideOffsets::zero();

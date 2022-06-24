@@ -2474,7 +2474,7 @@ impl<'a, T: VarValue> DerefMut for VarModify<'a, T> {
 /// # Examples
 ///
 /// The example declares an `enum` that represents the values possible in a property `foo` and
-/// then implements conversions from literals the user may want to type in an widget:
+/// then implements conversions from literals the user may want to type in a widget:
 ///
 /// ```
 /// # use zero_ui_core::var::impl_from_and_into_var;
