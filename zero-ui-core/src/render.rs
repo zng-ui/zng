@@ -286,6 +286,7 @@ pub struct FrameBuilder {
     pipeline_id: PipelineId,
     widget_id: WidgetId,
     transform: RenderTransform,
+    viewport_transform: RenderTransform,
 
     default_font_aa: FontRenderMode,
 
@@ -308,6 +309,9 @@ pub struct FrameBuilder {
 
     clip_id: ClipId,
     spatial_id: SpatialId,
+
+    viewport_clip_id: ClipId,
+    viewport_spatial_id: SpatialId,
 
     clear_color: Option<RenderColor>,
 }
@@ -355,11 +359,14 @@ impl FrameBuilder {
         let reuse_keys = reuse_keys.unwrap_or_default();
 
         let spatial_id = SpatialId::root_reference_frame(pipeline_id);
+        let clip_id = ClipId::root(pipeline_id);
+
         FrameBuilder {
             frame_id,
             pipeline_id,
             widget_id: root_id,
             transform: RenderTransform::identity(),
+            viewport_transform: RenderTransform::identity(),
             default_font_aa: match default_font_aa {
                 FontAntiAliasing::Default | FontAntiAliasing::Subpixel => FontRenderMode::Subpixel,
                 FontAntiAliasing::Alpha => FontRenderMode::Alpha,
@@ -382,8 +389,11 @@ impl FrameBuilder {
             open_group: None,
             group_rendered: false,
 
-            clip_id: ClipId::root(pipeline_id),
+            clip_id,
             spatial_id,
+
+            viewport_clip_id: clip_id,
+            viewport_spatial_id: spatial_id,
 
             clear_color: None,
         }
@@ -508,6 +518,16 @@ impl FrameBuilder {
         self.spatial_id
     }
 
+    /// Current viewport clipping node.
+    pub fn viewport_clip_id(&self) -> ClipId {
+        self.viewport_clip_id
+    }
+
+    /// Current viewport spatial node.
+    pub fn viewport_spatial_id(&self) -> SpatialId {
+        self.viewport_spatial_id
+    }
+
     /// Current widget [`ItemTag`]. The first number is the raw [`widget_id`], the second number is reserved.
     ///
     /// For more details on how the ItemTag is used see [`FrameHitInfo::new`].
@@ -520,6 +540,11 @@ impl FrameBuilder {
     /// Current transform.
     pub fn transform(&self) -> &RenderTransform {
         &self.transform
+    }
+
+    /// Current viewport transform.
+    pub fn viewport_transform(&self) -> &RenderTransform {
+        &self.viewport_transform
     }
 
     /// Common item properties given a `clip_rect` and the current context.
@@ -556,22 +581,22 @@ impl FrameBuilder {
         self.auto_hit_test
     }
 
-    /// Runs `f` while hit-tests are disabled, inside `f` [`is_hit_testable`] is `false`, after
+    /// Runs `render` while hit-tests are disabled, inside `render` [`is_hit_testable`] is `false`, after
     /// it is the current value.
     ///
     /// [`is_hit_testable`]: Self::is_hit_testable
-    pub fn with_hit_tests_disabled(&mut self, f: impl FnOnce(&mut Self)) {
+    pub fn with_hit_tests_disabled(&mut self, render: impl FnOnce(&mut Self)) {
         let prev = mem::replace(&mut self.is_hit_testable, false);
-        f(self);
+        render(self);
         self.is_hit_testable = prev;
     }
 
-    /// Runs `f` while [`auto_hit_test`] is set to a value.
+    /// Runs `render` while [`auto_hit_test`] is set to a value.
     ///
     /// [`auto_hit_test`]: Self::auto_hit_test
-    pub fn with_auto_hit_test(&mut self, auto_hit_test: bool, f: impl FnOnce(&mut Self)) {
+    pub fn with_auto_hit_test(&mut self, auto_hit_test: bool, render: impl FnOnce(&mut Self)) {
         let prev = mem::replace(&mut self.auto_hit_test, auto_hit_test);
-        f(self);
+        render(self);
         self.auto_hit_test = prev;
     }
 
@@ -817,7 +842,7 @@ impl FrameBuilder {
         }
     }
 
-    /// Push the widget reference frame and stacking context then call `f` inside of it.
+    /// Push the widget reference frame and stacking context then call `render` inside of it.
     pub fn push_inner(
         &mut self,
         ctx: &mut RenderContext,
@@ -912,10 +937,10 @@ impl FrameBuilder {
         }
     }
 
-    /// Calls `f` with a new [`clip_id`] that clips to `rect`.
+    /// Calls `render` with a new [`clip_id`] that clips to `rect`.
     ///
     /// [`clip_id`]: FrameBuilder::clip_id
-    pub fn push_clip_rect(&mut self, rect: PxRect, f: impl FnOnce(&mut FrameBuilder)) {
+    pub fn push_clip_rect(&mut self, rect: PxRect, render: impl FnOnce(&mut FrameBuilder)) {
         expect_inner!(self.push_clip_rect);
         expect_no_group!(self.push_clip_rect);
 
@@ -929,17 +954,23 @@ impl FrameBuilder {
             rect.to_wr(),
         );
 
-        f(self);
+        render(self);
 
         self.clip_id = parent_clip_id;
     }
 
-    /// Calls `f` with a new [`clip_id`] that clips to `rect` and `corners`.
+    /// Calls `render` with a new [`clip_id`] that clips to `rect` and `corners`.
     ///
     /// If `clip_out` is `true` only pixels outside the rounded rect are visible.
     ///
     /// [`clip_id`]: FrameBuilder::clip_id
-    pub fn push_clip_rounded_rect(&mut self, rect: PxRect, corners: PxCornerRadius, clip_out: bool, f: impl FnOnce(&mut FrameBuilder)) {
+    pub fn push_clip_rounded_rect(
+        &mut self,
+        rect: PxRect,
+        corners: PxCornerRadius,
+        clip_out: bool,
+        render: impl FnOnce(&mut FrameBuilder),
+    ) {
         expect_inner!(self.push_clip_rounded_rect);
         expect_no_group!(self.push_clip_rounded_rect);
 
@@ -957,12 +988,12 @@ impl FrameBuilder {
             },
         );
 
-        f(self);
+        render(self);
 
         self.clip_id = parent_clip_id;
     }
 
-    /// Calls `f` inside a new reference frame transformed by `transform`.
+    /// Calls `render` inside a new reference frame transformed by `transform`.
     ///
     /// Note that properties that use this method must also register the custom transform with the widget info, so that the widget
     /// can be found by decorator overlays or other features that depend on the info tree position.
@@ -977,9 +1008,9 @@ impl FrameBuilder {
         id: SpatialFrameId,
         transform: FrameBinding<RenderTransform>,
         is_2d_scale_translation: bool,
-        f: impl FnOnce(&mut Self),
+        render: impl FnOnce(&mut Self),
     ) {
-        self.push_reference_frame_impl(id.to_wr(self.pipeline_id), transform, is_2d_scale_translation, f)
+        self.push_reference_frame_impl(id.to_wr(self.pipeline_id), transform, is_2d_scale_translation, render)
     }
 
     /// Pushes a custom `push_reference_frame` with an item [`SpatialFrameId`].
@@ -989,16 +1020,16 @@ impl FrameBuilder {
         item: usize,
         transform: FrameBinding<RenderTransform>,
         is_2d_scale_translation: bool,
-        f: impl FnOnce(&mut Self),
+        render: impl FnOnce(&mut Self),
     ) {
-        self.push_reference_frame_impl(id.item_to_wr(item, self.pipeline_id), transform, is_2d_scale_translation, f)
+        self.push_reference_frame_impl(id.item_to_wr(item, self.pipeline_id), transform, is_2d_scale_translation, render)
     }
     fn push_reference_frame_impl(
         &mut self,
         id: SpatialTreeItemKey,
         transform: FrameBinding<RenderTransform>,
         is_2d_scale_translation: bool,
-        f: impl FnOnce(&mut Self),
+        render: impl FnOnce(&mut Self),
     ) {
         expect_no_group!(self.push_reference_frame);
 
@@ -1022,20 +1053,62 @@ impl FrameBuilder {
             id,
         );
 
-        f(self);
+        render(self);
 
         self.display_list.pop_reference_frame();
         self.spatial_id = parent_spatial_id;
         self.transform = parent_transform;
     }
 
-    /// Calls `f` with added `filter` stacking context.
+    /// Calls `render` with the [`viewport_transform`], [`viewport_spatial_id`]
+    /// and [`viewport_clip_id`] set to the current [`transform`], [`spatial_id`] and [`clip_id`].
+    ///
+    /// [`transform`]: Self::transform
+    /// [`spatial_id`]: Self::spatial_id
+    /// [`clip_id`]: Self::clip_id
+    /// [`viewport_transform`]: Self::viewport_transform
+    /// [`viewport_spatial_id`]: Self::viewport_spatial_id
+    /// [`viewport_clip_id`]: Self::viewport_clip_id
+    pub fn push_viewport(&mut self, render: impl FnOnce(&mut Self)) {
+        let parent_vp_clip = mem::replace(&mut self.viewport_clip_id, self.clip_id);
+        let parent_vp_spatial = mem::replace(&mut self.viewport_spatial_id, self.spatial_id);
+        let parent_vp_transform = mem::replace(&mut self.viewport_transform, self.transform);
+
+        render(self);
+
+        self.viewport_clip_id = parent_vp_clip;
+        self.viewport_spatial_id = parent_vp_spatial;
+        self.viewport_transform = parent_vp_transform;
+    }
+
+    /// Calls `render` with [`transform`], [`spatial_id`] and [`clip_id`] set to the current [`viewport_transform`],
+    /// [`viewport_spatial_id`] and [`viewport_clip_id`].
+    ///
+    /// [`transform`]: Self::transform
+    /// [`spatial_id`]: Self::spatial_id
+    /// [`clip_id`]: Self::clip_id
+    /// [`viewport_transform`]: Self::viewport_transform
+    /// [`viewport_spatial_id`]: Self::viewport_spatial_id
+    /// [`viewport_clip_id`]: Self::viewport_clip_id
+    pub fn push_viewport_parent(&mut self, render: impl FnOnce(&mut Self)) {
+        let parent_clip = mem::replace(&mut self.clip_id, self.viewport_clip_id);
+        let parent_spatial = mem::replace(&mut self.spatial_id, self.viewport_spatial_id);
+        let parent_transform = mem::replace(&mut self.transform, self.viewport_transform);
+
+        render(self);
+
+        self.clip_id = parent_clip;
+        self.spatial_id = parent_spatial;
+        self.transform = parent_transform;
+    }
+
+    /// Calls `render` with added `filter` stacking context.
     ///
     /// Note that this introduces a new stacking context, you can use the [`push_inner_filter`] method to
     /// add to the widget stacking context.
     ///
     /// [`push_inner_filter`]: Self::push_inner_filter
-    pub fn push_filter(&mut self, filter: &RenderFilter, f: impl FnOnce(&mut Self)) {
+    pub fn push_filter(&mut self, filter: &RenderFilter, render: impl FnOnce(&mut Self)) {
         expect_inner!(self.push_filter);
 
         self.display_list.push_simple_stacking_context_with_filters(
@@ -1047,7 +1120,7 @@ impl FrameBuilder {
             &[],
         );
 
-        f(self);
+        render(self);
 
         self.display_list.pop_stacking_context();
     }
@@ -1553,6 +1626,7 @@ pub struct FrameUpdate {
 
     widget_id: WidgetId,
     transform: RenderTransform,
+    viewport_transform: RenderTransform,
     inner_transform: Option<RenderTransform>,
     can_reuse_widget: bool,
 }
@@ -1604,6 +1678,7 @@ impl FrameUpdate {
             current_clear_color: clear_color,
 
             transform: RenderTransform::identity(),
+            viewport_transform: RenderTransform::identity(),
             inner_transform: Some(RenderTransform::identity()),
             can_reuse_widget: true,
         }
@@ -1627,6 +1702,11 @@ impl FrameUpdate {
     /// Current transform.
     pub fn transform(&self) -> &RenderTransform {
         &self.transform
+    }
+
+    /// Current viewport transform.
+    pub fn viewport_transform(&self) -> &RenderTransform {
+        &self.viewport_transform
     }
 
     /// Change the color used to clear the pixel buffer when redrawing the frame.
@@ -1656,6 +1736,30 @@ impl FrameUpdate {
         self.update_transform(new_value);
 
         render_update(self);
+        self.transform = parent_transform;
+    }
+
+    /// Calls `render_update` with [`viewport_transform`] set to the current [`transform`].
+    ///
+    /// [`transform`]: Self::transform
+    /// [`viewport_transform`]: Self::viewport_transform
+    pub fn with_viewport(&mut self, render_update: impl FnOnce(&mut Self)) {
+        let parent_vp_transform = mem::replace(&mut self.viewport_transform, self.transform);
+
+        render_update(self);
+
+        self.viewport_transform = parent_vp_transform;
+    }
+
+    /// Calls `render_update` with [`transform`] set to the current [`viewport_transform`].
+    ///
+    /// [`transform`]: Self::transform
+    /// [`viewport_transform`]: Self::viewport_transform
+    pub fn with_viewport_parent(&mut self, render_update: impl FnOnce(&mut Self)) {
+        let parent_transform = mem::replace(&mut self.transform, self.viewport_transform);
+
+        render_update(self);
+
         self.transform = parent_transform;
     }
 

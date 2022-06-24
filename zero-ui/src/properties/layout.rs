@@ -1062,7 +1062,7 @@ pub fn baseline(child: impl UiNode, baseline: impl IntoVar<Length>) -> impl UiNo
     .cfg_boxed()
 }
 
-/// Defines how a widget layout translation is computed.
+/// Defines the contextual transform of a widget.
 ///
 /// See the [`position`] property for more details.
 ///
@@ -1073,15 +1073,25 @@ pub enum Position {
     Parent,
     /// Widget is positioned on the transform of the nearest viewport ancestor.
     Viewport,
-    /// Widget is positioned on the parent or the viewport depending on if it is fully visible on the parent or not.
+    /// Widget is positioned on the parent or the viewport depending on the position it would be in the parent in relation to the viewport.
     Sticky {
-        /// Offsets from the viewport bounds that defines the inner start of the sticky region, when the
-        /// widget's edges touches this region by the parent, its position is fixed to the viewport.
+        /// Offsets from the viewport bounds that defines the inner start of the sticky region. When the
+        /// widget, positioned on the parent, touches these offsets, its position is fixed to the viewport.
         inner: SideOffsets,
-        /// Offsets from the viewport bounds that defines outer end of region sticky region, when the
-        /// widget's original position on the parent moves out of this region, its position starts to be affected by the parent again.
+        /// Offsets from the viewport bounds that defines outer end of the sticky region, When the
+        /// widget position in the parent starts leaving the these offsets the parent transform starts applying to
+        /// the widget again.
         outer: SideOffsets,
     },
+}
+impl Position {
+    /// Sticky from inner and outer bounds.
+    pub fn sticky(inner: impl Into<SideOffsets>, outer: impl Into<SideOffsets>) -> Self {
+        Position::Sticky {
+            inner: inner.into(),
+            outer: outer.into(),
+        }
+    }
 }
 impl Default for Position {
     fn default() -> Self {
@@ -1116,25 +1126,33 @@ pub fn position(child: impl UiNode, position: impl IntoVar<Position>) -> impl Ui
         }
 
         fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
-            match self.position.get(ctx.vars) {
-                Position::Parent => self.child.measure(ctx),
-                Position::Viewport => todo!(),
-                Position::Sticky{..} => todo!(),
-            }
+            self.child.measure(ctx)
         }
+
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
             match self.position.get(ctx.vars) {
-                Position::Parent => self.child.layout(ctx, wl),
-                Position::Viewport => todo!(),
-                Position::Sticky{..} => todo!(),
+                Position::Parent | Position::Viewport => self.child.layout(ctx, wl),
+                Position::Sticky { inner, outer } => {
+                    let inner = inner.layout(ctx, |_| PxSideOffsets::zero());
+                    let outer = outer.layout(ctx, |_| PxSideOffsets::zero());
+                    todo!()
+                }
             }
         }
 
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
             match self.position.get(ctx.vars) {
-                Position::Parent =>  self.child.render(ctx, frame),
-                Position::Viewport => todo!(),
-                Position::Sticky{..} => todo!(),
+                Position::Parent => self.child.render(ctx, frame),
+                Position::Viewport => frame.push_viewport_parent(|frame| self.child.render(ctx, frame)),
+                Position::Sticky { .. } => todo!(),
+            }
+        }
+
+        fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
+            match self.position.get(ctx.vars) {
+                Position::Parent => self.child.render_update(ctx, update),
+                Position::Viewport => update.with_viewport_parent(|update| self.child.render_update(ctx, update)),
+                Position::Sticky { .. } => todo!(),
             }
         }
     }
