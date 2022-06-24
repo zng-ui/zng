@@ -1116,16 +1116,26 @@ pub fn position(child: impl UiNode, position: impl IntoVar<Position>) -> impl Ui
         }
 
         fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
-            self.child.measure(ctx)
+            match self.position.get(ctx.vars) {
+                Position::Parent => self.child.measure(ctx),
+                Position::Viewport => todo!(),
+                Position::Sticky{..} => todo!(),
+            }
         }
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
-            // TODO
-            self.child.layout(ctx, wl)
+            match self.position.get(ctx.vars) {
+                Position::Parent => self.child.layout(ctx, wl),
+                Position::Viewport => todo!(),
+                Position::Sticky{..} => todo!(),
+            }
         }
 
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-            // see webrender define_sticky_frame
-            self.child.render(ctx, frame)
+            match self.position.get(ctx.vars) {
+                Position::Parent =>  self.child.render(ctx, frame),
+                Position::Viewport => todo!(),
+                Position::Sticky{..} => todo!(),
+            }
         }
     }
     PositionNode {
