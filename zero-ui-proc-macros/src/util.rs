@@ -29,6 +29,12 @@ macro_rules! ident {
     };
 }
 
+pub fn parse_braces<'a>(input: &syn::parse::ParseBuffer<'a>) -> syn::Result<(syn::token::Brace, syn::parse::ParseBuffer<'a>)> {
+    let r;
+    let b = syn::braced!(r in input);
+    Ok((b, r))
+}
+
 /// Return `$crate::core` where `$crate` is the zero-ui
 /// crate name in the crate using our proc-macros. Or, returns `$crate` where `$crate`
 /// is the zero-ui-core crate if the crate using our proc-macros does not use the main zero-ui crate.

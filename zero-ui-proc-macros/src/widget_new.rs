@@ -1372,9 +1372,7 @@ impl When {
         let condition_expr = crate::expr_var::parse_without_eager_brace(input);
 
         let (brace_token, assigns) = if input.peek(syn::token::Brace) {
-            let brace = syn::group::parse_braces(input).unwrap();
-            let inner = brace.content;
-            let brace = brace.token;
+            let (brace, inner) = util::parse_braces(input).unwrap();
             let mut assigns = vec![];
             while !inner.is_empty() {
                 let attrs = parse_outer_attrs(&inner, errors);
