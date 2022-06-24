@@ -897,7 +897,7 @@ impl<E: AppExtension> RunningApp<E> {
     #[cfg(not(dyn_app_extension))]
     fn notify_event_<Ev: crate::event::Event, O: AppEventObserver>(
         ctx: &mut AppContext,
-        extensions: &mut E,
+        extensions: &mut (AppIntrinsic, E),
         event: Ev,
         args: Ev::Args,
         observer: &mut O,

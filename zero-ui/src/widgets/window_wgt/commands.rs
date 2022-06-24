@@ -1,6 +1,6 @@
 //! Commands that control the scoped window.
 
-use crate::core::{command::*, gesture::*, *};
+use crate::core::{command::*, gesture::*};
 
 pub use crate::core::window::commands::*;
 
@@ -27,8 +27,9 @@ command! {
 }
 
 #[cfg(inspector)]
-pub(super) fn inspect_node(child: impl UiNode, can_inspect: impl var::IntoVar<bool>) -> impl UiNode {
+pub(super) fn inspect_node(child: impl crate::core::UiNode, can_inspect: impl crate::core::var::IntoVar<bool>) -> impl crate::core::UiNode {
     use crate::core::inspector::{write_tree, WriteTreeState};
+    use crate::core::{handler::hn, task};
 
     let mut state = WriteTreeState::none();
 
