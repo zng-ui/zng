@@ -13,3 +13,4 @@
 * Implement direct-composition to support effects like semi-transparent blur the pixels "behind" the window.
         See: https://github.com/servo/webrender/blob/master/example-compositor/compositor/src/main.rs
 * Force close windows after view-process killed by signal/Task Manager, to let app handle shutdown of app-process.
+* Opening a window maximized shows two icons in taskbar (Windows 10).
