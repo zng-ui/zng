@@ -400,6 +400,33 @@ impl Length {
         }
     }
 
+    /// Same operation as [`layout`] but without rounding to nearest pixel.
+    ///
+    /// [`layout`]: Self::layout
+    pub fn layout_f32(&self, ctx: Layout1dMetrics, default_value: impl FnMut(Layout1dMetrics) -> f32) -> f32 {
+        #[cfg(dyn_closure)]
+        let default_value: Box<dyn FnMut(Layout1dMetrics) -> f32> = Box::new(default_value);
+        self.layout_f32_impl(ctx, default_value)
+    }
+
+    fn layout_f32_impl(&self, ctx: Layout1dMetrics, mut default_value: impl FnMut(Layout1dMetrics) -> f32) -> f32 {
+        use Length::*;
+        match self {
+            Default => default_value(ctx),
+            Dip(l) => l.to_f32() * ctx.scale_factor().0,
+            Px(l) => l.0 as f32,
+            Pt(l) => Self::pt_to_px_f32(*l, ctx.scale_factor()),
+            Relative(f) => ctx.constrains().fill().0 as f32 * f.0,
+            Em(f) => ctx.font_size().0 as f32 * f.0,
+            RootEm(f) => ctx.root_font_size().0 as f32 * f.0,
+            ViewportWidth(p) => ctx.viewport().width.0 as f32 * *p,
+            ViewportHeight(p) => ctx.viewport().height.0 as f32 * *p,
+            ViewportMin(p) => ctx.viewport_min().0 as f32 * *p,
+            ViewportMax(p) => ctx.viewport_max().0 as f32 * *p,
+            Expr(e) => e.layout_f32(ctx, &mut default_value),
+        }
+    }
+
     /// Compute a [`LayoutMask`] that flags all contextual values that affect the result of [`layout`].
     ///
     /// [`layout`]: Self::layout
@@ -447,8 +474,15 @@ impl Length {
 
     /// Convert a `pt` unit value to [`Px`] given a `scale_factor`.
     pub fn pt_to_px(pt: f32, scale_factor: Factor) -> Px {
-        let px = pt * Self::PT_TO_DIP * scale_factor.0;
+        let px = Self::pt_to_px_f32(pt, scale_factor);
         Px(px.round() as i32)
+    }
+
+    /// Same operation as [`pt_to_px`] but without rounding to nearest pixel.
+    ///
+    /// [`pt_to_px`]: Self::pt_to_px
+    pub fn pt_to_px_f32(pt: f32, scale_factor: Factor) -> f32 {
+        pt * Self::PT_TO_DIP * scale_factor.0
     }
 
     /// Convert a [`Px`] unit value to a `Pt` value given a `scale_factor`.
@@ -527,25 +561,33 @@ pub enum LengthExpr {
 }
 impl LengthExpr {
     /// Evaluate the expression at a layout context.
-    pub fn layout(&self, ctx: Layout1dMetrics, mut default_value: &mut dyn FnMut(Layout1dMetrics) -> Px) -> Px {
+    pub fn layout(&self, ctx: Layout1dMetrics, default_value: &mut dyn FnMut(Layout1dMetrics) -> Px) -> Px {
+        let l = self.layout_f32(ctx, &mut |ctx| default_value(ctx).0 as f32);
+        Px(l.round() as i32)
+    }
+
+    /// Same operation as [`layout`] but without rounding to nearest pixel.
+    ///
+    /// [`layout`]: Self::layout
+    pub fn layout_f32(&self, ctx: Layout1dMetrics, mut default_value: &mut dyn FnMut(Layout1dMetrics) -> f32) -> f32 {
         use LengthExpr::*;
         match self {
-            Add(a, b) => a.layout(ctx, &mut default_value) + b.layout(ctx, default_value),
-            Sub(a, b) => a.layout(ctx, &mut default_value) - b.layout(ctx, default_value),
-            Mul(l, s) => l.layout(ctx, default_value) * s.0,
-            Div(l, s) => l.layout(ctx, default_value) / s.0,
+            Add(a, b) => a.layout_f32(ctx, &mut default_value) + b.layout_f32(ctx, default_value),
+            Sub(a, b) => a.layout_f32(ctx, &mut default_value) - b.layout_f32(ctx, default_value),
+            Mul(l, s) => l.layout_f32(ctx, default_value) * s.0,
+            Div(l, s) => l.layout_f32(ctx, default_value) / s.0,
             Max(a, b) => {
-                let a = a.layout(ctx, &mut default_value);
-                let b = b.layout(ctx, default_value);
+                let a = a.layout_f32(ctx, &mut default_value);
+                let b = b.layout_f32(ctx, default_value);
                 a.max(b)
             }
             Min(a, b) => {
-                let a = a.layout(ctx, &mut default_value);
-                let b = b.layout(ctx, default_value);
+                let a = a.layout_f32(ctx, &mut default_value);
+                let b = b.layout_f32(ctx, default_value);
                 a.min(b)
             }
-            Abs(e) => e.layout(ctx, default_value).abs(),
-            Neg(e) => -e.layout(ctx, default_value),
+            Abs(e) => e.layout_f32(ctx, default_value).abs(),
+            Neg(e) => -e.layout_f32(ctx, default_value),
         }
     }
 
