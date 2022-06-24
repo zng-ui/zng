@@ -18,7 +18,7 @@ use crate::{context::Layout1dMetrics, impl_from_and_into_var};
 pub enum Length {
     /// The default (initial) value.
     ///
-    /// This is equal to `0.px()`, unless the property matches this and uses their own default value.
+    /// This is usually `0.px()`, unless the property redefines it.
     Default,
     /// The exact length in device independent units.
     Dip(Dip),

@@ -1077,10 +1077,18 @@ pub enum Position {
     Sticky {
         /// Offsets from the viewport bounds that defines the inner start of the sticky region. When the
         /// widget, positioned on the parent, touches these offsets, its position is fixed to the viewport.
+        ///
+        /// [`Default`] values mean the widget does not stick on that side.
+        ///
+        /// [`Default`]: Length::Default
         inner: SideOffsets,
         /// Offsets from the viewport bounds that defines outer end of the sticky region, When the
         /// widget position in the parent starts leaving the these offsets the parent transform starts applying to
         /// the widget again.
+        ///
+        /// [`Default`] values mean infinite.
+        ///
+        /// [`Default`]: Length::Default
         outer: SideOffsets,
     },
 }
@@ -1090,6 +1098,14 @@ impl Position {
         Position::Sticky {
             inner: inner.into(),
             outer: outer.into(),
+        }
+    }
+
+    /// Always stick. Widget is positioned on the viewport with a transform that places it on its original position before scrolling.
+    pub fn fixed() -> Self {
+        Position::Sticky {
+            inner: 100.pct().into(),
+            outer: SideOffsets::default(),
         }
     }
 }
@@ -1110,6 +1126,11 @@ pub fn position(child: impl UiNode, position: impl IntoVar<Position>) -> impl Ui
     struct PositionNode<C, P> {
         child: C,
         position: P,
+        sticky: RenderSticky,
+    }
+    struct RenderSticky {
+        inner: PxSideOffsets,
+        outer: PxSideOffsets,
     }
     #[impl_ui_node(child)]
     impl<C: UiNode, P: Var<Position>> UiNode for PositionNode<C, P> {
@@ -1133,9 +1154,10 @@ pub fn position(child: impl UiNode, position: impl IntoVar<Position>) -> impl Ui
             match self.position.get(ctx.vars) {
                 Position::Parent | Position::Viewport => self.child.layout(ctx, wl),
                 Position::Sticky { inner, outer } => {
-                    let inner = inner.layout(ctx, |_| PxSideOffsets::zero());
-                    let outer = outer.layout(ctx, |_| PxSideOffsets::zero());
-                    todo!()
+                    let d = RenderSticky::default();
+                    self.sticky.inner = inner.layout(ctx, |_| d.inner);
+                    self.sticky.outer = outer.layout(ctx, |_| d.outer);
+                    self.child.layout(ctx, wl)
                 }
             }
         }
@@ -1144,7 +1166,16 @@ pub fn position(child: impl UiNode, position: impl IntoVar<Position>) -> impl Ui
             match self.position.get(ctx.vars) {
                 Position::Parent => self.child.render(ctx, frame),
                 Position::Viewport => frame.push_viewport_parent(|frame| self.child.render(ctx, frame)),
-                Position::Sticky { .. } => todo!(),
+                Position::Sticky { .. } => {
+                    if self
+                        .sticky
+                        .place_in_viewport(&ctx.widget_info.bounds, frame.viewport_transform(), frame.transform())
+                    {
+                        frame.push_viewport_parent(|frame| self.child.render(ctx, frame));
+                    } else {
+                        self.child.render(ctx, frame);
+                    }
+                }
             }
         }
 
@@ -1152,13 +1183,42 @@ pub fn position(child: impl UiNode, position: impl IntoVar<Position>) -> impl Ui
             match self.position.get(ctx.vars) {
                 Position::Parent => self.child.render_update(ctx, update),
                 Position::Viewport => update.with_viewport_parent(|update| self.child.render_update(ctx, update)),
-                Position::Sticky { .. } => todo!(),
+                Position::Sticky { .. } => {
+                    if self
+                        .sticky
+                        .place_in_viewport(&ctx.widget_info.bounds, update.viewport_transform(), update.transform())
+                    {
+                        update.with_viewport_parent(|update| self.child.render_update(ctx, update));
+                    } else {
+                        self.child.render_update(ctx, update);
+                    }
+                }
             }
         }
     }
+    impl Default for RenderSticky {
+        fn default() -> Self {
+            Self {
+                inner: PxSideOffsets::new(Px::MIN, Px::MIN, Px::MIN, Px::MIN),
+                outer: PxSideOffsets::new(Px::MAX, Px::MAX, Px::MAX, Px::MAX),
+            }
+        }
+    }
+    impl RenderSticky {
+        fn place_in_viewport(&self, bounds: &WidgetBoundsInfo, viewport: &RenderTransform, parent: &RenderTransform) -> bool {
+            // render
+            // .inner_transform()
+            // .outer_transformed_px(PxRect::from_size(self.inner_size()))
+            // .unwrap_or_default()
+
+            todo!()
+        }
+    }
+
     PositionNode {
         child: child.cfg_boxed(),
         position: position.into_var(),
+        sticky: RenderSticky::default(),
     }
     .cfg_boxed()
 }
