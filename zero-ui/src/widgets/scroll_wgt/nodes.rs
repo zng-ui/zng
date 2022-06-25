@@ -161,41 +161,25 @@ pub fn viewport(child: impl UiNode, mode: impl IntoVar<ScrollMode>) -> impl UiNo
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
             self.info.set_viewport_transform(*frame.transform());
 
-            let render_child = |ctx, frame: &mut FrameBuilder| {
-                frame.push_reference_frame(
-                    self.spatial_id,
-                    self.binding_key.bind(RenderTransform::translation_px(self.content_offset)),
-                    true,
-                    |frame| {
-                        self.child.render(ctx, frame);
-                    },
-                );
-            };
-
-            if *DefineViewportUnitVar::get(ctx) {
-                frame.push_viewport(|frame| render_child(ctx, frame));
-            } else {
-                render_child(ctx, frame);
-            }
+            frame.push_reference_frame(
+                self.spatial_id,
+                self.binding_key.bind(RenderTransform::translation_px(self.content_offset)),
+                true,
+                |frame| {
+                    self.child.render(ctx, frame);
+                },
+            );
         }
 
         fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
             self.info.set_viewport_transform(*update.transform());
 
-            let update_child = |ctx, update: &mut FrameUpdate| {
-                update.with_transform(
-                    self.binding_key.update(RenderTransform::translation_px(self.content_offset)),
-                    |update| {
-                        self.child.render_update(ctx, update);
-                    },
-                );
-            };
-
-            if *DefineViewportUnitVar::get(ctx) {
-                update.with_viewport(|update| update_child(ctx, update));
-            } else {
-                update_child(ctx, update);
-            }
+            update.with_transform(
+                self.binding_key.update(RenderTransform::translation_px(self.content_offset)),
+                |update| {
+                    self.child.render_update(ctx, update);
+                },
+            );
         }
     }
     ViewportNode {

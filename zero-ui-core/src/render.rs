@@ -286,7 +286,6 @@ pub struct FrameBuilder {
     pipeline_id: PipelineId,
     widget_id: WidgetId,
     transform: RenderTransform,
-    viewport_transform: RenderTransform,
 
     default_font_aa: FontRenderMode,
 
@@ -309,9 +308,6 @@ pub struct FrameBuilder {
 
     clip_id: ClipId,
     spatial_id: SpatialId,
-
-    viewport_clip_id: ClipId,
-    viewport_spatial_id: SpatialId,
 
     clear_color: Option<RenderColor>,
 }
@@ -366,7 +362,6 @@ impl FrameBuilder {
             pipeline_id,
             widget_id: root_id,
             transform: RenderTransform::identity(),
-            viewport_transform: RenderTransform::identity(),
             default_font_aa: match default_font_aa {
                 FontAntiAliasing::Default | FontAntiAliasing::Subpixel => FontRenderMode::Subpixel,
                 FontAntiAliasing::Alpha => FontRenderMode::Alpha,
@@ -391,9 +386,6 @@ impl FrameBuilder {
 
             clip_id,
             spatial_id,
-
-            viewport_clip_id: clip_id,
-            viewport_spatial_id: spatial_id,
 
             clear_color: None,
         }
@@ -518,16 +510,6 @@ impl FrameBuilder {
         self.spatial_id
     }
 
-    /// Current viewport clipping node.
-    pub fn viewport_clip_id(&self) -> ClipId {
-        self.viewport_clip_id
-    }
-
-    /// Current viewport spatial node.
-    pub fn viewport_spatial_id(&self) -> SpatialId {
-        self.viewport_spatial_id
-    }
-
     /// Current widget [`ItemTag`]. The first number is the raw [`widget_id`], the second number is reserved.
     ///
     /// For more details on how the ItemTag is used see [`FrameHitInfo::new`].
@@ -540,11 +522,6 @@ impl FrameBuilder {
     /// Current transform.
     pub fn transform(&self) -> &RenderTransform {
         &self.transform
-    }
-
-    /// Current viewport transform.
-    pub fn viewport_transform(&self) -> &RenderTransform {
-        &self.viewport_transform
     }
 
     /// Common item properties given a `clip_rect` and the current context.
@@ -1057,48 +1034,6 @@ impl FrameBuilder {
 
         self.display_list.pop_reference_frame();
         self.spatial_id = parent_spatial_id;
-        self.transform = parent_transform;
-    }
-
-    /// Calls `render` with the [`viewport_transform`], [`viewport_spatial_id`]
-    /// and [`viewport_clip_id`] set to the current [`transform`], [`spatial_id`] and [`clip_id`].
-    ///
-    /// [`transform`]: Self::transform
-    /// [`spatial_id`]: Self::spatial_id
-    /// [`clip_id`]: Self::clip_id
-    /// [`viewport_transform`]: Self::viewport_transform
-    /// [`viewport_spatial_id`]: Self::viewport_spatial_id
-    /// [`viewport_clip_id`]: Self::viewport_clip_id
-    pub fn push_viewport(&mut self, render: impl FnOnce(&mut Self)) {
-        let parent_vp_clip = mem::replace(&mut self.viewport_clip_id, self.clip_id);
-        let parent_vp_spatial = mem::replace(&mut self.viewport_spatial_id, self.spatial_id);
-        let parent_vp_transform = mem::replace(&mut self.viewport_transform, self.transform);
-
-        render(self);
-
-        self.viewport_clip_id = parent_vp_clip;
-        self.viewport_spatial_id = parent_vp_spatial;
-        self.viewport_transform = parent_vp_transform;
-    }
-
-    /// Calls `render` with [`transform`], [`spatial_id`] and [`clip_id`] set to the current [`viewport_transform`],
-    /// [`viewport_spatial_id`] and [`viewport_clip_id`].
-    ///
-    /// [`transform`]: Self::transform
-    /// [`spatial_id`]: Self::spatial_id
-    /// [`clip_id`]: Self::clip_id
-    /// [`viewport_transform`]: Self::viewport_transform
-    /// [`viewport_spatial_id`]: Self::viewport_spatial_id
-    /// [`viewport_clip_id`]: Self::viewport_clip_id
-    pub fn push_viewport_parent(&mut self, render: impl FnOnce(&mut Self)) {
-        let parent_clip = mem::replace(&mut self.clip_id, self.viewport_clip_id);
-        let parent_spatial = mem::replace(&mut self.spatial_id, self.viewport_spatial_id);
-        let parent_transform = mem::replace(&mut self.transform, self.viewport_transform);
-
-        render(self);
-
-        self.clip_id = parent_clip;
-        self.spatial_id = parent_spatial;
         self.transform = parent_transform;
     }
 
@@ -1626,7 +1561,6 @@ pub struct FrameUpdate {
 
     widget_id: WidgetId,
     transform: RenderTransform,
-    viewport_transform: RenderTransform,
     inner_transform: Option<RenderTransform>,
     can_reuse_widget: bool,
 }
@@ -1678,7 +1612,6 @@ impl FrameUpdate {
             current_clear_color: clear_color,
 
             transform: RenderTransform::identity(),
-            viewport_transform: RenderTransform::identity(),
             inner_transform: Some(RenderTransform::identity()),
             can_reuse_widget: true,
         }
@@ -1702,11 +1635,6 @@ impl FrameUpdate {
     /// Current transform.
     pub fn transform(&self) -> &RenderTransform {
         &self.transform
-    }
-
-    /// Current viewport transform.
-    pub fn viewport_transform(&self) -> &RenderTransform {
-        &self.viewport_transform
     }
 
     /// Change the color used to clear the pixel buffer when redrawing the frame.
@@ -1736,30 +1664,6 @@ impl FrameUpdate {
         self.update_transform(new_value);
 
         render_update(self);
-        self.transform = parent_transform;
-    }
-
-    /// Calls `render_update` with [`viewport_transform`] set to the current [`transform`].
-    ///
-    /// [`transform`]: Self::transform
-    /// [`viewport_transform`]: Self::viewport_transform
-    pub fn with_viewport(&mut self, render_update: impl FnOnce(&mut Self)) {
-        let parent_vp_transform = mem::replace(&mut self.viewport_transform, self.transform);
-
-        render_update(self);
-
-        self.viewport_transform = parent_vp_transform;
-    }
-
-    /// Calls `render_update` with [`transform`] set to the current [`viewport_transform`].
-    ///
-    /// [`transform`]: Self::transform
-    /// [`viewport_transform`]: Self::viewport_transform
-    pub fn with_viewport_parent(&mut self, render_update: impl FnOnce(&mut Self)) {
-        let parent_transform = mem::replace(&mut self.transform, self.viewport_transform);
-
-        render_update(self);
-
         self.transform = parent_transform;
     }
 
