@@ -130,10 +130,12 @@ pub mod thumb {
     fn new_layout(child: impl UiNode) -> impl UiNode {
         struct DragNode<C> {
             child: C,
-            viewport_length: Dip,
-            thumb_length: Dip,
+            content_length: Px,
+            viewport_length: Px,
+            thumb_length: Px,
+            scale_factor: Factor,
 
-            mouse_down: Option<(Dip, Factor)>,
+            mouse_down: Option<(Px, Factor)>,
         }
         #[impl_ui_node(child)]
         impl<C: UiNode> UiNode for DragNode<C> {
@@ -146,15 +148,20 @@ pub mod thumb {
                 if let Some((mouse_down, start_offset)) = self.mouse_down {
                     if let Some(args) = MouseMoveEvent.update(args) {
                         let offset = match *ThumbOrientationVar::get(ctx) {
-                            scrollbar::Orientation::Vertical => args.position.y,
-                            scrollbar::Orientation::Horizontal => args.position.x,
+                            scrollbar::Orientation::Vertical => args.position.y.to_px(self.scale_factor.0),
+                            scrollbar::Orientation::Horizontal => args.position.x.to_px(self.scale_factor.0),
                         } - mouse_down;
 
                         let max_length = self.viewport_length - self.thumb_length;
                         let start_offset = max_length * start_offset.0;
 
                         let offset = offset + start_offset;
-                        let offset = (offset.to_f32() / max_length.to_f32()).max(0.0).min(1.0);
+                        let offset = (offset.0 as f32 / max_length.0 as f32).max(0.0).min(1.0);
+
+                        // snap to pixel
+                        let max_length = self.viewport_length - self.content_length;
+                        let offset = max_length * offset;
+                        let offset = offset.0 as f32 / max_length.0 as f32;
 
                         ThumbOffsetVar::new()
                             .set_ne(ctx.vars, Factor(offset))
@@ -173,8 +180,8 @@ pub mod thumb {
                 } else if let Some(args) = MouseInputEvent.update(args) {
                     if args.is_primary() && args.is_mouse_down() {
                         let a = match *ThumbOrientationVar::get(ctx) {
-                            scrollbar::Orientation::Vertical => args.position.y,
-                            scrollbar::Orientation::Horizontal => args.position.x,
+                            scrollbar::Orientation::Vertical => args.position.y.to_px(self.scale_factor.0),
+                            scrollbar::Orientation::Horizontal => args.position.x.to_px(self.scale_factor.0),
                         };
                         self.mouse_down = Some((a, *ThumbOffsetVar::get(ctx.vars)));
                     }
@@ -208,9 +215,10 @@ pub mod thumb {
                 let px_tb_length = px_vp_length * ratio;
                 *final_offset_d = (px_vp_length - px_tb_length) * ThumbOffsetVar::get_clone(ctx.vars);
 
-                let fct = ctx.metrics.scale_factor().0;
-                self.viewport_length = px_vp_length.to_dip(fct);
-                self.thumb_length = px_tb_length.to_dip(fct);
+                self.scale_factor = ctx.metrics.scale_factor();
+                self.content_length = px_vp_length / ratio;
+                self.viewport_length = px_vp_length;
+                self.thumb_length = px_tb_length;
 
                 wl.translate(final_offset);
 
@@ -219,8 +227,10 @@ pub mod thumb {
         }
         DragNode {
             child,
-            viewport_length: Dip::new(0),
-            thumb_length: Dip::new(0),
+            content_length: Px(0),
+            viewport_length: Px(0),
+            thumb_length: Px(0),
+            scale_factor: 1.fct(),
 
             mouse_down: None,
         }
