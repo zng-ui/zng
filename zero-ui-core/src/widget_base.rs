@@ -267,10 +267,10 @@ pub mod implicit_base {
                         match HitTestMode::get(ctx.vars) {
                             HitTestMode::RoundedBounds => {
                                 let rect = PxRect::from_size(self.hits_clip.0);
-                                frame.push_clip_rounded_rect(rect, self.hits_clip.1, false, |f| f.push_hit_test(rect));
+                                frame.push_clip_rounded_rect(rect, self.hits_clip.1, false, |f| f.push_hit_test_rect(rect));
                             }
                             HitTestMode::Bounds => {
-                                frame.push_hit_test(PxRect::from_size(self.hits_clip.0));
+                                frame.push_hit_test_rect(PxRect::from_size(self.hits_clip.0));
                             }
                             _ => {}
                         }

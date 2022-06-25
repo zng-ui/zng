@@ -16,9 +16,12 @@ use crate::{
 
 use std::{marker::PhantomData, mem};
 
-pub use zero_ui_view_api::{webrender_api, FrameId, RenderMode};
-
-use webrender_api::*;
+use webrender_api::{FontRenderMode, PipelineId};
+pub use zero_ui_view_api::{webrender_api, DisplayListBuilder, FrameId, RenderMode};
+use zero_ui_view_api::{
+    webrender_api::{GlyphInstance, GlyphOptions, HitTestResult, ItemTag, MixBlendMode, SpatialTreeItemKey},
+    DisplayList, FilterOp, PropertyBinding, ReuseRange, ReuseStart,
+};
 
 /// A text font.
 ///
@@ -120,164 +123,11 @@ macro_rules! expect_inner {
         }
     };
 }
-macro_rules! expect_no_group {
-    ($self:ident.$fn_name:ident) => {
-        if $self.open_group.is_some() {
-            tracing::error!("called `{}` in reuse group of `{}`", stringify!($fn_name), $self.widget_id);
-        }
-    };
-}
 
 struct WidgetData {
     has_transform: bool,
     transform: RenderTransform,
     filter: RenderFilter,
-    flags: PrimitiveFlags,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq)]
-enum ReuseClipId {
-    Clip(usize),
-    ClipChain(u64),
-}
-
-/// Represents a group of display items in the renderer that can be reused by reference.
-///
-/// See [`FrameBuilder::push_reuse_group`] for details.
-#[derive(Debug)]
-pub struct ReuseGroup {
-    pipeline_id: PipelineId,
-    key: u16,
-    spatial_id: usize,
-    clip_id: ReuseClipId,
-}
-impl Default for ReuseGroup {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-impl ReuseGroup {
-    /// New empty.
-    pub fn new() -> Self {
-        Self {
-            pipeline_id: PipelineId::dummy(),
-            key: u16::MAX,
-            spatial_id: 0,
-            clip_id: ReuseClipId::Clip(!0), // ClipId::invalid
-        }
-    }
-
-    /// Last pipeline rendered.
-    ///
-    /// The group items must be re-generated for different pipelines.
-    pub fn pipeline_id(&self) -> PipelineId {
-        self.pipeline_id
-    }
-
-    /// Last parent space rendered.
-    ///
-    /// The group items must share the same space and must re-generate if the space changes.
-    pub fn spatial_id(&self) -> SpatialId {
-        SpatialId::new(self.spatial_id, self.pipeline_id)
-    }
-
-    /// Last parent clip rendered.
-    ///
-    /// The group items must share the same clip and must re-generate if clip changes.
-    pub fn clip_id(&self) -> ClipId {
-        match self.clip_id {
-            ReuseClipId::Clip(id) => ClipId::Clip(id, self.pipeline_id),
-            ReuseClipId::ClipChain(id) => ClipId::ClipChain(ClipChainId(id, self.pipeline_id)),
-        }
-    }
-
-    /// Display item group.
-    ///
-    /// Is `None` if the item must re-generate.
-    pub fn key(&self) -> Option<u16> {
-        if self.key < u16::MAX {
-            Some(self.key)
-        } else {
-            None
-        }
-    }
-
-    /// Discard item group, next render will generate items.
-    pub fn clear(&mut self) {
-        self.key = u16::MAX
-    }
-
-    fn prepare_for(&mut self, pipeline_id: PipelineId, spatial_id: SpatialId, clip_id: ClipId) {
-        let clip_id = match clip_id {
-            ClipId::Clip(id, _) => ReuseClipId::Clip(id),
-            ClipId::ClipChain(ClipChainId(id, _)) => ReuseClipId::ClipChain(id),
-        };
-
-        if self.pipeline_id != pipeline_id || self.spatial_id != spatial_id.0 || self.clip_id != clip_id {
-            self.pipeline_id = pipeline_id;
-            self.spatial_id = spatial_id.0;
-            self.clip_id = clip_id;
-            self.clear();
-        }
-    }
-}
-
-// See the `webrender_api::DisplayItemCache` for the other side of this, the keys are direct indexes and
-// they never do any cleanup so its worthwhile tracking unused keys.
-#[derive(Default, Debug)]
-struct ReuseCacheKeys {
-    free: Vec<u16>,
-    slots: Vec<ReuseSlotState>,
-}
-#[derive(Copy, Clone, Debug)]
-enum ReuseSlotState {
-    Free,
-    Marked,
-    Used,
-}
-impl ReuseCacheKeys {
-    pub fn next(&mut self) -> Option<u16> {
-        if let Some(key) = self.free.pop() {
-            self.slots[key as usize] = ReuseSlotState::Used;
-            Some(key)
-        } else {
-            let key = self.slots.len() as u16;
-            if key < u16::MAX {
-                // MAX is None
-                self.slots.push(ReuseSlotState::Used);
-                Some(key)
-            } else {
-                None
-            }
-        }
-    }
-
-    pub fn try_reuse(&mut self, key: u16) -> bool {
-        let key = key as usize;
-        // only can reuse if the slot was not reassigned
-        match &mut self.slots[key] {
-            slot @ ReuseSlotState::Marked => {
-                *slot = ReuseSlotState::Used;
-                true
-            }
-            // slot already freed or assigned to another
-            ReuseSlotState::Free | ReuseSlotState::Used => false,
-        }
-    }
-
-    pub fn end_frame(&mut self, display_list: &mut DisplayListBuilder) {
-        for (i, slot) in self.slots.iter_mut().enumerate() {
-            match *slot {
-                ReuseSlotState::Free => {}
-                ReuseSlotState::Marked => {
-                    self.free.push(i as u16);
-                    *slot = ReuseSlotState::Free;
-                }
-                ReuseSlotState::Used => *slot = ReuseSlotState::Marked,
-            }
-        }
-        display_list.set_cache_size(self.slots.len());
-    }
 }
 
 /// A full frame builder.
@@ -300,14 +150,9 @@ pub struct FrameBuilder {
 
     widget_data: Option<WidgetData>,
     widget_rendered: bool,
+
     can_reuse: bool,
-
-    reuse_keys: ReuseCacheKeys,
-    open_group: Option<u16>,
-    group_rendered: bool,
-
-    clip_id: ClipId,
-    spatial_id: SpatialId,
+    open_reuse: Option<ReuseStart>,
 
     clear_color: Option<RenderColor>,
 }
@@ -335,27 +180,18 @@ impl FrameBuilder {
             .unwrap_or_else(PipelineId::dummy);
 
         let mut used_dl = None;
-        let mut reuse_keys = None;
 
         if let Some(u) = used_data {
             if u.pipeline_id() == pipeline_id {
                 used_dl = Some(u.display_list);
-                reuse_keys = Some(u.reuse_keys);
             }
         }
 
         let mut display_list = if let Some(reuse) = used_dl {
-            reuse
+            DisplayListBuilder::with_capacity(pipeline_id, frame_id, reuse)
         } else {
-            DisplayListBuilder::new(pipeline_id)
+            DisplayListBuilder::new(pipeline_id, frame_id)
         };
-
-        display_list.begin();
-
-        let reuse_keys = reuse_keys.unwrap_or_default();
-
-        let spatial_id = SpatialId::root_reference_frame(pipeline_id);
-        let clip_id = ClipId::root(pipeline_id);
 
         FrameBuilder {
             frame_id,
@@ -374,18 +210,12 @@ impl FrameBuilder {
             auto_hit_test: false,
             widget_data: Some(WidgetData {
                 filter: vec![],
-                flags: PrimitiveFlags::empty(),
                 has_transform: false,
                 transform: RenderTransform::identity(),
             }),
             widget_rendered: false,
             can_reuse: true,
-            reuse_keys,
-            open_group: None,
-            group_rendered: false,
-
-            clip_id,
-            spatial_id,
+            open_reuse: None,
 
             clear_color: None,
         }
@@ -409,58 +239,9 @@ impl FrameBuilder {
         self.scale_factor
     }
 
-    /// Direct access to the current layer display list builder.
-    ///
-    /// # Careful
-    ///
-    /// This provides direct access to the underlying WebRender display list builder, modifying it
-    /// can interfere with the working of the [`FrameBuilder`].
-    ///
-    /// * Study the [`FrameBuilder`] source code before modifying the display list.
-    ///
-    /// * Don't try to render using the [`FrameBuilder`] methods inside a custom clip or space, the methods will still
-    /// use the [`clip_id`] and [`spatial_id`]. Custom items added to the display list should be self-contained and completely custom.
-    ///
-    /// * Call [`widget_rendered`] if you push anything to the display list.
-    ///
-    /// * Only push hit-tests if [`is_hit_testable`] is `true`.
-    ///
-    /// * If you push custom transforms update the [`WidgetLayout`] to match.
-    ///
-    /// # WebRender
-    ///
-    /// The [`webrender`] crate used in the renderer is re-exported in `zero_ui_core::render::webrender`, and the
-    /// [`webrender_api`] is re-exported in `webrender::api`.
-    ///
-    /// [`open_widget_display`]: Self::open_widget_display
-    /// [`clip_id`]: Self::clip_id
-    /// [`spatial_id`]: Self::spatial_id
-    /// [`is_hit_testable`]: Self::is_hit_testable
-    /// [`is_cancelling_widget`]: Self::is_cancelling_widget
-    /// [`widget_rendered`]: Self::widget_rendered
-    /// [`WidgetLayout`]: crate::widget_info::WidgetLayout
-    /// [`webrender`]: https://docs.rs/webrender
-    /// [`webrender_api`]: https://docs.rs/webrender_api
-    pub fn display_list(&mut self) -> &mut DisplayListBuilder {
-        &mut self.display_list
-    }
-
-    /// Indicates that something was rendered to [`display_list`].
-    ///
-    /// Note that only direct modification of [`display_list`] requires this method being called,
-    /// the other rendering methods of this builder already flag this.
-    ///
-    /// [`display_list`]: Self::display_list
-    pub fn widget_rendered(&mut self) {
-        self.widget_rendered = true;
-        self.group_rendered = true;
-    }
-
     /// If is building a frame for a headless and renderless window.
     ///
-    /// In this mode only the meta and layout information will be used as a *frame*. Methods still
-    /// push to the [`display_list`](Self::display_list) when possible, custom methods should ignore this
-    /// unless they need access to the [`renderer`](Self::renderer).
+    /// In this mode only the meta and layout information will be used as a *frame*.
     pub fn is_renderless(&self) -> bool {
         self.renderer.is_none()
     }
@@ -493,23 +274,6 @@ impl FrameBuilder {
         self.widget_id
     }
 
-    /// Renderer pipeline ID or [`dummy`].
-    ///
-    /// [`dummy`]: PipelineId::dummy
-    pub fn pipeline_id(&self) -> PipelineId {
-        self.pipeline_id
-    }
-
-    /// Current clipping node.
-    pub fn clip_id(&self) -> ClipId {
-        self.clip_id
-    }
-
-    /// Current spatial node.
-    pub fn spatial_id(&self) -> SpatialId {
-        self.spatial_id
-    }
-
     /// Current widget [`ItemTag`]. The first number is the raw [`widget_id`], the second number is reserved.
     ///
     /// For more details on how the ItemTag is used see [`FrameHitInfo::new`].
@@ -519,24 +283,16 @@ impl FrameBuilder {
         (self.widget_id.get(), 0)
     }
 
+    /// Renderer pipeline ID or [`dummy`].
+    ///
+    /// [`dummy`]: PipelineId::dummy
+    pub fn pipeline_id(&self) -> PipelineId {
+        self.pipeline_id
+    }
+
     /// Current transform.
     pub fn transform(&self) -> &RenderTransform {
         &self.transform
-    }
-
-    /// Common item properties given a `clip_rect` and the current context.
-    ///
-    /// This is a common case helper, it also calls [`widget_rendered`].
-    ///
-    /// [`widget_rendered`]: Self::widget_rendered
-    pub fn common_item_ps(&mut self, clip_rect: PxRect) -> CommonItemProperties {
-        self.widget_rendered();
-        CommonItemProperties {
-            clip_rect: clip_rect.to_wr(),
-            clip_id: self.clip_id,
-            spatial_id: self.spatial_id,
-            flags: PrimitiveFlags::empty(),
-        }
     }
 
     /// Returns `true` if hit-testing is enabled in the widget context, if `false` methods that push
@@ -603,7 +359,6 @@ impl FrameBuilder {
         let parent_rendered = mem::take(&mut self.widget_rendered);
         self.widget_data = Some(WidgetData {
             filter: vec![],
-            flags: PrimitiveFlags::empty(),
             has_transform: false,
             transform: RenderTransform::identity(),
         });
@@ -635,53 +390,32 @@ impl FrameBuilder {
         self.can_reuse = prev_can_reuse;
     }
 
-    /// If `group` has a cache key and [`can_reuse`] a reference to the items is added, otherwise `generate` is called and
+    /// If `group` has a range and [`can_reuse`] a reference to the items is added, otherwise `generate` is called and
     /// any display items generated by it are tracked in `group`.
-    ///
-    /// # Panics
-    ///
-    /// Panics if another group is started by `generate`, groups cannot be recursive.
-    ///
-    /// Panics if a spatial id or clip id is created inside `generate`, reuse group must only contain simple leaf items.
-    ///
-    /// Panics in the renderer process if [`widget_rendered`] is called inside `generate` without pushing any display items.
     ///
     /// [`can_reuse`]: Self::can_reuse
     /// [`push_widget`]: Self::push_widget
     /// [`widget_rendered`]: Self::widget_rendered
-    pub fn push_reuse_group(&mut self, group: &mut ReuseGroup, generate: impl FnOnce(&mut Self)) {
-        expect_no_group!(self.push_reuse_group);
+    pub fn push_reuse_group(&mut self, group: &mut Option<ReuseRange>, generate: impl FnOnce(&mut Self)) {
+        let mut parent_group = None;
 
         if self.can_reuse {
-            group.prepare_for(self.pipeline_id, self.spatial_id, self.clip_id);
-
-            if let Some(key) = group.key() {
-                if self.reuse_keys.try_reuse(key) {
-                    self.display_list.push_reuse_items(key);
-                    return;
-                }
+            if let Some(g) = &group {
+                self.display_list.push_reuse_range(g);
+                return;
             }
 
-            self.open_group = self.reuse_keys.next();
-            if self.open_group.is_some() {
-                self.display_list.start_item_group();
-                self.group_rendered = false;
-            } else {
-                // reuse cache full.
-                self.can_reuse = false;
-            }
+            parent_group = self.open_reuse.replace(self.display_list.start_reuse_range());
         }
+
+        *group = None;
 
         generate(self);
 
-        if let Some(key) = self.open_group.take() {
-            if self.group_rendered {
-                self.display_list.finish_item_group(key);
-                group.key = key;
-            } else {
-                self.display_list.cancel_item_group(true);
-                group.clear();
-            }
+        if let Some(start) = self.open_reuse.take() {
+            let range = self.display_list.finish_reuse_range(start);
+            *group = Some(range);
+            self.open_reuse = parent_group;
         }
     }
 
@@ -774,24 +508,6 @@ impl FrameBuilder {
         }
     }
 
-    /// Include the `flags` on the widget stacking context flags.
-    ///
-    /// This is valid only when [`is_outer`].
-    ///
-    /// When [`push_inner`] is called a stacking context is created for the widget that includes the `flags`.
-    ///
-    /// [`is_outer`]: Self::is_outer
-    /// [`push_inner`]: Self::push_inner
-    pub fn push_inner_flags(&mut self, flags: PrimitiveFlags, render: impl FnOnce(&mut Self)) {
-        if let Some(data) = self.widget_data.as_mut() {
-            data.flags |= flags;
-            render(self);
-        } else {
-            tracing::error!("called `push_inner_flags` inside inner context of `{}`", self.widget_id);
-            render(self);
-        }
-    }
-
     /// Include the `transform` on the widget inner reference frame.
     ///
     /// This is valid only when [`is_outer`].
@@ -826,11 +542,7 @@ impl FrameBuilder {
         layout_translation_key: FrameBindingKey<RenderTransform>,
         render: impl FnOnce(&mut RenderContext, &mut Self),
     ) {
-        expect_no_group!(self.push_inner);
-
         if let Some(mut data) = self.widget_data.take() {
-            let parent_spatial_id = self.spatial_id;
-
             let parent_transform = self.transform;
             let outer_transform = RenderTransform::translation_px(ctx.widget_info.bounds.outer_offset()).then(&parent_transform);
             ctx.widget_info.render.set_outer_transform(outer_transform);
@@ -844,20 +556,13 @@ impl FrameBuilder {
             self.transform = inner_transform.then(&parent_transform);
             ctx.widget_info.render.set_inner_transform(self.transform);
 
-            self.spatial_id = self.display_list.push_reference_frame(
-                PxPoint::zero().to_wr(),
-                self.spatial_id,
-                TransformStyle::Flat,
-                layout_translation_key.bind(inner_transform),
-                ReferenceFrameKind::Transform {
-                    is_2d_scale_translation: !data.has_transform,
-                    should_snap: false,
-                    paired_with_perspective: false,
-                },
+            self.display_list.push_reference_frame(
                 SpatialFrameId::widget_id_to_wr(self.widget_id, self.pipeline_id),
+                layout_translation_key.bind(inner_transform),
+                !data.has_transform,
             );
 
-            let has_stacking_ctx = !data.filter.is_empty() || !data.flags.is_empty();
+            let has_stacking_ctx = !data.filter.is_empty();
             if has_stacking_ctx {
                 // we want to apply filters in the top-to-bottom, left-to-right order they appear in
                 // the widget declaration, but the widget declaration expands to have the top property
@@ -867,14 +572,8 @@ impl FrameBuilder {
                 // so they get reversed again here and everything ends up in order.
                 data.filter.reverse();
 
-                self.display_list.push_simple_stacking_context_with_filters(
-                    PxPoint::zero().to_wr(),
-                    self.spatial_id,
-                    data.flags,
-                    &data.filter,
-                    &[],
-                    &[],
-                );
+                self.display_list
+                    .push_stacking_context(MixBlendMode::Normal, &data.filter, &[], &[]);
             }
 
             render(ctx, self);
@@ -884,7 +583,6 @@ impl FrameBuilder {
             }
             self.display_list.pop_reference_frame();
 
-            self.spatial_id = parent_spatial_id;
             self.transform = parent_transform;
         } else {
             tracing::error!("called `push_inner` more then once for `{}`", self.widget_id);
@@ -902,38 +600,25 @@ impl FrameBuilder {
         self.widget_data.is_none()
     }
 
-    /// Push a hit-test `rect` using [`common_item_ps`] if hit-testing is enable.
-    ///
-    /// [`common_item_ps`]: FrameBuilder::common_item_ps
-    pub fn push_hit_test(&mut self, rect: PxRect) {
-        expect_inner!(self.push_hit_test);
+    /// Push a hit-test `rect` for the widget if hit-testing is enable.
+    pub fn push_hit_test_rect(&mut self, rect: PxRect) {
+        expect_inner!(self.push_hit_test_rect);
 
         if self.is_hit_testable && rect.size != PxSize::zero() {
-            let common_item_ps = self.common_item_ps(rect);
-            self.display_list.push_hit_test(&common_item_ps, self.item_tag());
+            self.widget_rendered = true;
+            self.display_list.push_hit_test_rect(rect, self.item_tag());
         }
     }
 
-    /// Calls `render` with a new [`clip_id`] that clips to `rect`.
-    ///
-    /// [`clip_id`]: FrameBuilder::clip_id
-    pub fn push_clip_rect(&mut self, rect: PxRect, render: impl FnOnce(&mut FrameBuilder)) {
+    /// Calls `render` with a new clip context that clips to `rect` and parent clips.
+    pub fn push_clip_rect(&mut self, clip_rect: PxRect, render: impl FnOnce(&mut FrameBuilder)) {
         expect_inner!(self.push_clip_rect);
-        expect_no_group!(self.push_clip_rect);
 
-        let parent_clip_id = self.clip_id;
-
-        self.clip_id = self.display_list.define_clip_rect(
-            &SpaceAndClipInfo {
-                spatial_id: self.spatial_id,
-                clip_id: self.clip_id,
-            },
-            rect.to_wr(),
-        );
+        self.display_list.push_clip_rect(clip_rect);
 
         render(self);
 
-        self.clip_id = parent_clip_id;
+        self.display_list.pop_clip();
     }
 
     /// Calls `render` with a new [`clip_id`] that clips to `rect` and `corners`.
@@ -943,31 +628,18 @@ impl FrameBuilder {
     /// [`clip_id`]: FrameBuilder::clip_id
     pub fn push_clip_rounded_rect(
         &mut self,
-        rect: PxRect,
+        clip_rect: PxRect,
         corners: PxCornerRadius,
         clip_out: bool,
         render: impl FnOnce(&mut FrameBuilder),
     ) {
         expect_inner!(self.push_clip_rounded_rect);
-        expect_no_group!(self.push_clip_rounded_rect);
 
-        let parent_clip_id = self.clip_id;
-
-        self.clip_id = self.display_list.define_clip_rounded_rect(
-            &SpaceAndClipInfo {
-                spatial_id: self.spatial_id,
-                clip_id: self.clip_id,
-            },
-            ComplexClipRegion {
-                rect: rect.to_wr(),
-                radii: corners.to_wr(),
-                mode: if clip_out { ClipMode::ClipOut } else { ClipMode::Clip },
-            },
-        );
+        self.display_list.push_clip_rounded_rect(clip_rect, corners, clip_out);
 
         render(self);
 
-        self.clip_id = parent_clip_id;
+        self.display_list.pop_clip();
     }
 
     /// Calls `render` inside a new reference frame transformed by `transform`.
@@ -1008,32 +680,17 @@ impl FrameBuilder {
         is_2d_scale_translation: bool,
         render: impl FnOnce(&mut Self),
     ) {
-        expect_no_group!(self.push_reference_frame);
-
-        let parent_spatial_id = self.spatial_id;
         let parent_transform = self.transform;
         self.transform = match transform {
             PropertyBinding::Value(value) | PropertyBinding::Binding(_, value) => value,
         }
         .then(&parent_transform);
 
-        self.spatial_id = self.display_list.push_reference_frame(
-            PxPoint::zero().to_wr(),
-            parent_spatial_id,
-            TransformStyle::Flat,
-            transform,
-            ReferenceFrameKind::Transform {
-                is_2d_scale_translation,
-                should_snap: false,
-                paired_with_perspective: false,
-            },
-            id,
-        );
+        self.display_list.push_reference_frame(id, transform, is_2d_scale_translation);
 
         render(self);
 
         self.display_list.pop_reference_frame();
-        self.spatial_id = parent_spatial_id;
         self.transform = parent_transform;
     }
 
@@ -1043,106 +700,44 @@ impl FrameBuilder {
     /// add to the widget stacking context.
     ///
     /// [`push_inner_filter`]: Self::push_inner_filter
-    pub fn push_filter(&mut self, filter: &RenderFilter, render: impl FnOnce(&mut Self)) {
+    pub fn push_filter(&mut self, blend_mode: MixBlendMode, filter: &RenderFilter, render: impl FnOnce(&mut Self)) {
         expect_inner!(self.push_filter);
 
-        self.display_list.push_simple_stacking_context_with_filters(
-            PxPoint::zero().to_wr(),
-            self.spatial_id,
-            PrimitiveFlags::empty(),
-            filter,
-            &[],
-            &[],
-        );
+        self.display_list.push_stacking_context(blend_mode, filter, &[], &[]);
 
         render(self);
 
         self.display_list.pop_stacking_context();
     }
 
-    /// Push a border using [`common_item_ps`].
-    ///
-    /// [`common_item_ps`]: FrameBuilder::common_item_ps
+    /// Push a border.
     pub fn push_border(&mut self, bounds: PxRect, widths: PxSideOffsets, sides: BorderSides, radius: PxCornerRadius) {
         expect_inner!(self.push_border);
 
-        let details = BorderDetails::Normal(NormalBorder {
-            left: sides.left.into(),
-            right: sides.right.into(),
-            top: sides.top.into(),
-            bottom: sides.bottom.into(),
-            radius: radius.to_wr(),
-            do_aa: true,
-        });
-
-        let info = self.common_item_ps(bounds);
-        self.display_list.push_border(&info, bounds.to_wr(), widths.to_wr(), details);
+        self.display_list.push_border(
+            bounds,
+            widths,
+            sides.top.into(),
+            sides.right.into(),
+            sides.bottom.into(),
+            sides.bottom.into(),
+            radius,
+        );
 
         if self.auto_hit_test {
-            self.push_border_hit_test(bounds, widths, radius);
+            self.push_hit_test_border(bounds, widths, radius);
         }
     }
 
-    /// Pushes a composite hit-test for a border.
-    pub fn push_border_hit_test(&mut self, bounds: PxRect, widths: PxSideOffsets, radius: PxCornerRadius) {
-        expect_inner!(self.push_border_hit_test);
-        expect_no_group!(self.push_border_hit_test);
+    /// Pushes a composite hit-test for the widget if hit-testing is enable.
+    pub fn push_hit_test_border(&mut self, bounds: PxRect, widths: PxSideOffsets, radius: PxCornerRadius) {
+        expect_inner!(self.push_hit_test_border);
 
         if !self.is_hit_testable() {
             return;
         }
 
-        let parent_space_and_clip = SpaceAndClipInfo {
-            spatial_id: self.spatial_id,
-            clip_id: self.clip_id,
-        };
-
-        let mut inner_bounds = bounds;
-        inner_bounds.origin.x += widths.left;
-        inner_bounds.origin.y += widths.top;
-        inner_bounds.size.width -= widths.horizontal();
-        inner_bounds.size.height -= widths.vertical();
-
-        let outer_clip;
-        let inner_clip;
-
-        if radius == PxCornerRadius::zero() {
-            outer_clip = self.display_list.define_clip_rect(&parent_space_and_clip, bounds.to_wr());
-            inner_clip = self.display_list.define_clip_rounded_rect(
-                &parent_space_and_clip,
-                ComplexClipRegion {
-                    rect: inner_bounds.to_wr(),
-                    radii: BorderRadius::zero(),
-                    mode: ClipMode::ClipOut,
-                },
-            );
-        } else {
-            outer_clip = self.display_list.define_clip_rounded_rect(
-                &parent_space_and_clip,
-                ComplexClipRegion {
-                    rect: bounds.to_wr(),
-                    radii: radius.to_wr(),
-                    mode: ClipMode::Clip,
-                },
-            );
-
-            let inner_radius = radius.deflate(widths);
-
-            inner_clip = self.display_list.define_clip_rounded_rect(
-                &parent_space_and_clip,
-                ComplexClipRegion {
-                    rect: inner_bounds.to_wr(),
-                    radii: inner_radius.to_wr(),
-                    mode: ClipMode::ClipOut,
-                },
-            );
-        }
-
-        let mut info = self.common_item_ps(bounds);
-        let clip_chain_id = self.display_list.define_clip_chain(None, vec![outer_clip, inner_clip]);
-        info.clip_id = ClipId::ClipChain(clip_chain_id);
-
-        self.display_list.push_hit_test(&info, self.item_tag());
+        self.display_list.push_hit_test_border(bounds, widths, radius, self.item_tag());
     }
 
     /// Push a text run using [`common_item_ps`].
@@ -1153,7 +748,7 @@ impl FrameBuilder {
         clip_rect: PxRect,
         glyphs: &[GlyphInstance],
         font: &impl Font,
-        color: ColorF,
+        color: RenderColor,
         synthesis: FontSynthesis,
         aa: FontAntiAliasing,
     ) {
@@ -1162,8 +757,6 @@ impl FrameBuilder {
         if let Some(r) = &self.renderer {
             if !glyphs.is_empty() {
                 let (instance_key, flags) = font.instance_key(r, synthesis);
-
-                let item = self.common_item_ps(clip_rect);
 
                 let opts = GlyphOptions {
                     render_mode: match aa {
@@ -1174,15 +767,14 @@ impl FrameBuilder {
                     },
                     flags,
                 };
-                self.display_list
-                    .push_text(&item, clip_rect.to_wr(), glyphs, instance_key, color, Some(opts));
+                self.display_list.push_text(clip_rect, instance_key, glyphs, color, opts);
             }
 
             if self.auto_hit_test {
-                self.push_hit_test(clip_rect);
+                self.push_hit_test_rect(clip_rect);
             }
         } else {
-            self.widget_rendered();
+            self.widget_rendered = true;
         }
     }
 
@@ -1194,18 +786,11 @@ impl FrameBuilder {
 
         if let Some(r) = &self.renderer {
             let image_key = image.image_key(r);
-            let item = self.common_item_ps(clip_rect);
-            self.display_list.push_image(
-                &item,
-                PxRect::from_size(img_size).to_wr(),
-                rendering.into(),
-                image.alpha_type(),
-                image_key,
-                RenderColor::WHITE,
-            );
+            self.display_list
+                .push_image(clip_rect, image_key, rendering.into(), image.alpha_type());
 
             if self.auto_hit_test {
-                self.push_hit_test(clip_rect);
+                self.push_hit_test_rect(clip_rect);
             }
         } else {
             self.widget_rendered();
@@ -1222,7 +807,7 @@ impl FrameBuilder {
         self.display_list.push_rect_with_animation(&item, rect.to_wr(), color);
 
         if self.auto_hit_test {
-            self.push_hit_test(rect);
+            self.push_hit_test_rect(rect);
         }
     }
 
@@ -1269,7 +854,7 @@ impl FrameBuilder {
         }
 
         if self.auto_hit_test {
-            self.push_hit_test(rect);
+            self.push_hit_test_rect(rect);
         }
     }
 
@@ -1322,7 +907,7 @@ impl FrameBuilder {
         }
 
         if self.auto_hit_test {
-            self.push_hit_test(rect);
+            self.push_hit_test_rect(rect);
         }
     }
 
@@ -1374,7 +959,7 @@ impl FrameBuilder {
         }
 
         if self.auto_hit_test {
-            self.push_hit_test(rect);
+            self.push_hit_test_rect(rect);
         }
     }
 
@@ -1401,27 +986,26 @@ impl FrameBuilder {
                     LO::Vertical => PxSideOffsets::new(Px(0), Px(0), Px(0), bounds.width()),
                     LO::Horizontal => PxSideOffsets::new(bounds.height(), Px(0), Px(0), Px(0)),
                 };
-                let details = BorderDetails::Normal(NormalBorder {
-                    left: BorderSide { color, style },
-                    right: BorderSide {
+                self.display_list.push_border(
+                    bounds,
+                    widths.to_wr(),
+                    BorderSide { color, style },
+                    BorderSide {
                         color: RenderColor::TRANSPARENT,
                         style: BorderStyle::Hidden,
                     },
-                    top: BorderSide { color, style },
-                    bottom: BorderSide {
+                    BorderSide {
                         color: RenderColor::TRANSPARENT,
                         style: BorderStyle::Hidden,
                     },
-                    radius: BorderRadius::uniform(0.0),
-                    do_aa: true, // needed to avoid a `debug_assert!` in webrender.
-                });
-
-                self.display_list.push_border(&item, bounds.to_wr(), widths.to_wr(), details);
+                    BorderSide { color, style },
+                    PxCornerRadius::zero(),
+                );
             }
         }
 
         if self.auto_hit_test {
-            self.push_hit_test(bounds);
+            self.push_hit_test_rect(bounds);
         }
     }
 
@@ -1479,24 +1063,17 @@ impl FrameBuilder {
     pub fn finalize(mut self, root_rendered: &WidgetRenderInfo) -> (BuiltFrame, UsedFrameBuilder) {
         root_rendered.set_rendered(self.widget_rendered);
 
-        self.reuse_keys.end_frame(&mut self.display_list);
-
-        let (pipeline_id, display_list) = self.display_list.end();
+        let (display_list, capacity) = self.display_list.finalize();
         let (payload, descriptor) = display_list.into_data();
 
         let clear_color = self.clear_color.unwrap_or(RenderColor::WHITE);
 
         let reuse = UsedFrameBuilder {
-            display_list: self.display_list,
-            reuse_keys: self.reuse_keys,
+            pipeline_id: display_list.pipeline_id(),
+            display_list: capacity,
         };
 
-        let frame = BuiltFrame {
-            id: self.frame_id,
-            pipeline_id,
-            display_list: (payload, descriptor),
-            clear_color,
-        };
+        let frame = BuiltFrame { display_list, clear_color };
 
         (frame, reuse)
     }
@@ -1504,25 +1081,21 @@ impl FrameBuilder {
 
 /// Output of a [`FrameBuilder`].
 pub struct BuiltFrame {
-    /// Frame id.
-    pub id: FrameId,
-    /// Pipeline.
-    pub pipeline_id: PipelineId,
     /// Built display list.
-    pub display_list: (DisplayListPayload, BuiltDisplayListDescriptor),
+    pub display_list: DisplayList,
     /// Clear color selected for the frame.
     pub clear_color: RenderColor,
 }
 
 /// Data from a previous [`FrameBuilder`], can be reuse in the next frame for a performance boost.
 pub struct UsedFrameBuilder {
-    display_list: DisplayListBuilder,
-    reuse_keys: ReuseCacheKeys,
+    pipeline_id: PipelineId,
+    display_list: usize,
 }
 impl UsedFrameBuilder {
     /// Pipeline where this frame builder can be reused.
     pub fn pipeline_id(&self) -> PipelineId {
-        self.display_list.pipeline_id
+        self.pipeline_id
     }
 }
 enum RenderLineCommand {
