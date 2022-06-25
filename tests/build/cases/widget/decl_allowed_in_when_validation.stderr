@@ -17,9 +17,9 @@ error[E0283]: type annotations needed
 9 |         foo(&'static str) = "";
   |             ^ cannot infer type for type parameter `T` declared on the trait `IntoVar`
   |
-  = note: multiple `impl`s satisfying `&str: IntoVar<_>` found in the `zero_ui_core` crate:
+  = note: multiple `impl`s satisfying `&str: IntoVar<_>` found in the following crates: `zero_ui_core`, `zero_ui`:
           - impl IntoVar<FontName> for &'static str;
           - impl IntoVar<FontNames> for &'static str;
+          - impl IntoVar<GlyphSource> for &'static str;
           - impl IntoVar<WidgetId> for &'static str;
-          - impl IntoVar<zero_ui::prelude::Text> for &'static str;
-          and 3 more
+          and 5 more
