@@ -1393,20 +1393,12 @@ impl ContentCtrl {
                 if let Some(renderer) = renderer {
                     let _: Ignore = renderer.render(FrameRequest {
                         id: self.frame_id,
-                        pipeline_id: frame.pipeline_id,
+                        pipeline_id: frame.display_list.pipeline_id(),
                         document_id: renderer
                             .document_id()
                             .unwrap_or(zero_ui_view_api::webrender_api::DocumentId::INVALID),
                         clear_color: self.clear_color,
-                        display_list: {
-                            let (payload, descriptor) = frame.display_list;
-                            (
-                                IpcBytes::from_vec(payload.items_data),
-                                IpcBytes::from_vec(payload.cache_data),
-                                IpcBytes::from_vec(payload.spatial_tree),
-                                descriptor,
-                            )
-                        },
+                        display_list: frame.display_list,
                         capture_image,
                         wait_id,
                     });

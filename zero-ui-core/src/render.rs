@@ -17,10 +17,13 @@ use crate::{
 use std::{marker::PhantomData, mem};
 
 use webrender_api::{FontRenderMode, PipelineId};
-pub use zero_ui_view_api::{webrender_api, DisplayListBuilder, FrameId, RenderMode};
+pub use zero_ui_view_api::{webrender_api, DisplayListBuilder, FrameId, RenderMode, ReuseRange};
 use zero_ui_view_api::{
-    webrender_api::{GlyphInstance, GlyphOptions, HitTestResult, ItemTag, MixBlendMode, SpatialTreeItemKey},
-    DisplayList, FilterOp, PropertyBinding, ReuseRange, ReuseStart,
+    webrender_api::{
+        DynamicProperties, FilterOp, GlyphInstance, GlyphOptions, HitTestResult, ItemTag, MixBlendMode, PropertyBinding,
+        PropertyBindingKey, PropertyValue, SpatialTreeItemKey,
+    },
+    DisplayList, ReuseStart,
 };
 
 /// A text font.
@@ -187,7 +190,7 @@ impl FrameBuilder {
             }
         }
 
-        let mut display_list = if let Some(reuse) = used_dl {
+        let display_list = if let Some(reuse) = used_dl {
             DisplayListBuilder::with_capacity(pipeline_id, frame_id, reuse)
         } else {
             DisplayListBuilder::new(pipeline_id, frame_id)
@@ -396,18 +399,17 @@ impl FrameBuilder {
     /// [`can_reuse`]: Self::can_reuse
     /// [`push_widget`]: Self::push_widget
     /// [`widget_rendered`]: Self::widget_rendered
-    pub fn push_reuse_group(&mut self, group: &mut Option<ReuseRange>, generate: impl FnOnce(&mut Self)) {
-        let mut parent_group = None;
-
-        if self.can_reuse {
+    pub fn push_reuse(&mut self, group: &mut Option<ReuseRange>, generate: impl FnOnce(&mut Self)) {
+        let parent_group = if self.can_reuse {
             if let Some(g) = &group {
                 self.display_list.push_reuse_range(g);
                 return;
             }
 
-            parent_group = self.open_reuse.replace(self.display_list.start_reuse_range());
-        }
-
+            self.open_reuse.replace(self.display_list.start_reuse_range())
+        } else {
+            None
+        };
         *group = None;
 
         generate(self);
@@ -610,7 +612,7 @@ impl FrameBuilder {
         }
     }
 
-    /// Calls `render` with a new clip context that clips to `rect` and parent clips.
+    /// Calls `render` with a new clip context that clips the rectangle and parent clips.
     pub fn push_clip_rect(&mut self, clip_rect: PxRect, render: impl FnOnce(&mut FrameBuilder)) {
         expect_inner!(self.push_clip_rect);
 
@@ -621,11 +623,9 @@ impl FrameBuilder {
         self.display_list.pop_clip();
     }
 
-    /// Calls `render` with a new [`clip_id`] that clips to `rect` and `corners`.
+    /// Calls `render` with a new clip context that clips the rectangle and parent clips.
     ///
     /// If `clip_out` is `true` only pixels outside the rounded rect are visible.
-    ///
-    /// [`clip_id`]: FrameBuilder::clip_id
     pub fn push_clip_rounded_rect(
         &mut self,
         clip_rect: PxRect,
@@ -740,9 +740,7 @@ impl FrameBuilder {
         self.display_list.push_hit_test_border(bounds, widths, radius, self.item_tag());
     }
 
-    /// Push a text run using [`common_item_ps`].
-    ///
-    /// [`common_item_ps`]: FrameBuilder::common_item_ps
+    /// Push a text run.
     pub fn push_text(
         &mut self,
         clip_rect: PxRect,
@@ -778,52 +776,45 @@ impl FrameBuilder {
         }
     }
 
-    /// Push an image using [`common_item_ps`].
-    ///
-    /// [`common_item_ps`]: FrameBuilder::common_item_ps
+    /// Push an image.
     pub fn push_image(&mut self, clip_rect: PxRect, img_size: PxSize, image: &impl Image, rendering: ImageRendering) {
         expect_inner!(self.push_image);
 
         if let Some(r) = &self.renderer {
             let image_key = image.image_key(r);
             self.display_list
-                .push_image(clip_rect, image_key, rendering.into(), image.alpha_type());
+                .push_image(clip_rect, image_key, img_size, rendering.into(), image.alpha_type());
 
             if self.auto_hit_test {
                 self.push_hit_test_rect(clip_rect);
             }
         } else {
-            self.widget_rendered();
+            self.widget_rendered = true;
         }
     }
 
-    /// Push a color rectangle using [`common_item_ps`].
-    ///
-    /// [`common_item_ps`]: FrameBuilder::common_item_ps
-    pub fn push_color(&mut self, rect: PxRect, color: FrameBinding<RenderColor>) {
+    /// Push a color rectangle.
+    pub fn push_color(&mut self, clip_rect: PxRect, color: FrameBinding<RenderColor>) {
         expect_inner!(self.push_color);
 
-        let item = self.common_item_ps(rect);
-        self.display_list.push_rect_with_animation(&item, rect.to_wr(), color);
+        self.display_list.push_color(clip_rect, color);
 
         if self.auto_hit_test {
-            self.push_hit_test_rect(rect);
+            self.push_hit_test_rect(clip_rect);
         }
     }
 
-    /// Push a repeating linear gradient rectangle using [`common_item_ps`].
+    /// Push a repeating linear gradient rectangle.
     ///
     /// The gradient fills the `tile_size`, the tile is repeated to fill the `rect`.
     /// The `extend_mode` controls how the gradient fills the tile after the last color stop is reached.
     ///
     /// The gradient `stops` must be normalized, first stop at 0.0 and last stop at 1.0, this
     /// is asserted in debug builds.
-    ///
-    /// [`common_item_ps`]: FrameBuilder::common_item_ps
     #[allow(clippy::too_many_arguments)]
     pub fn push_linear_gradient(
         &mut self,
-        rect: PxRect,
+        clip_rect: PxRect,
         line: PxLine,
         stops: &[RenderGradientStop],
         extend_mode: RenderExtendMode,
@@ -840,25 +831,25 @@ impl FrameBuilder {
         expect_inner!(self.push_linear_gradient);
 
         if !stops.is_empty() {
-            let item = self.common_item_ps(rect);
-
-            self.display_list.push_stops(stops);
-
-            let gradient = Gradient {
-                start_point: line.start.to_wr(),
-                end_point: line.end.to_wr(),
-                extend_mode,
-            };
-            self.display_list
-                .push_gradient(&item, rect.to_wr(), gradient, tile_size.to_wr(), tile_spacing.to_wr());
+            self.display_list.push_linear_gradient(
+                clip_rect,
+                webrender_api::Gradient {
+                    start_point: line.start.to_wr(),
+                    end_point: line.end.to_wr(),
+                    extend_mode,
+                },
+                stops,
+                tile_size,
+                tile_spacing,
+            );
         }
 
         if self.auto_hit_test {
-            self.push_hit_test_rect(rect);
+            self.push_hit_test_rect(clip_rect);
         }
     }
 
-    /// Push a repeating radial gradient rectangle using [`common_item_ps`].
+    /// Push a repeating radial gradient rectangle.
     ///
     /// The gradient fills the `tile_size`, the tile is repeated to fill the `rect`.
     /// The  `extend_mode` controls how the gradient fills the tile after the last color stop is reached.
@@ -868,12 +859,10 @@ impl FrameBuilder {
     ///
     /// The gradient `stops` must be normalized, first stop at 0.0 and last stop at 1.0, this
     /// is asserted in debug builds.
-    ///
-    /// [`common_item_ps`]: FrameBuilder::common_item_ps
     #[allow(clippy::too_many_arguments)]
     pub fn push_radial_gradient(
         &mut self,
-        rect: PxRect,
+        clip_rect: PxRect,
         center: PxPoint,
         radius: PxSize,
         stops: &[RenderGradientStop],
@@ -891,39 +880,37 @@ impl FrameBuilder {
         expect_inner!(self.push_radial_gradient);
 
         if !stops.is_empty() {
-            let item = self.common_item_ps(rect);
-
-            self.display_list.push_stops(stops);
-
-            let gradient = RadialGradient {
-                center: center.to_wr(),
-                radius: radius.to_wr(),
-                start_offset: 0.0, // TODO expose this?
-                end_offset: 1.0,
-                extend_mode,
-            };
-            self.display_list
-                .push_radial_gradient(&item, rect.to_wr(), gradient, tile_size.to_wr(), tile_spacing.to_wr());
+            self.display_list.push_radial_gradient(
+                clip_rect,
+                webrender_api::RadialGradient {
+                    center: center.to_wr(),
+                    radius: radius.to_wr(),
+                    start_offset: 0.0, // TODO expose this?
+                    end_offset: 1.0,
+                    extend_mode,
+                },
+                stops,
+                tile_size,
+                tile_spacing,
+            );
         }
 
         if self.auto_hit_test {
-            self.push_hit_test_rect(rect);
+            self.push_hit_test_rect(clip_rect);
         }
     }
 
-    /// Push a repeating conic gradient rectangle using [`common_item_ps`].
+    /// Push a repeating conic gradient rectangle.
     ///
     /// The gradient fills the `tile_size`, the tile is repeated to fill the `rect`.
     /// The  `extend_mode` controls how the gradient fills the tile after the last color stop is reached.
     ///
     /// The gradient `stops` must be normalized, first stop at 0.0 and last stop at 1.0, this
     /// is asserted in debug builds.
-    ///
-    /// [`common_item_ps`]: FrameBuilder::common_item_ps
     #[allow(clippy::too_many_arguments)]
     pub fn push_conic_gradient(
         &mut self,
-        rect: PxRect,
+        clip_rect: PxRect,
         center: PxPoint,
         angle: AngleRadian,
         stops: &[RenderGradientStop],
@@ -941,86 +928,80 @@ impl FrameBuilder {
         expect_inner!(self.push_conic_gradient);
 
         if !stops.is_empty() {
-            let item = self.common_item_ps(rect);
-
-            self.display_list.push_stops(stops);
-
-            GradientBuilder::new();
-
-            let gradient = ConicGradient {
-                center: center.to_wr(),
-                angle: angle.0,
-                start_offset: 0.0, // TODO expose this?
-                end_offset: 1.0,
-                extend_mode,
-            };
-            self.display_list
-                .push_conic_gradient(&item, rect.to_wr(), gradient, tile_size.to_wr(), tile_spacing.to_wr());
+            self.display_list.push_conic_gradient(
+                clip_rect,
+                webrender_api::ConicGradient {
+                    center: center.to_wr(),
+                    angle: angle.0,
+                    start_offset: 0.0, // TODO expose this?
+                    end_offset: 1.0,
+                    extend_mode,
+                },
+                stops,
+                tile_size,
+                tile_spacing,
+            );
         }
 
         if self.auto_hit_test {
-            self.push_hit_test_rect(rect);
+            self.push_hit_test_rect(clip_rect);
         }
     }
 
     /// Push a styled vertical or horizontal line.
     pub fn push_line(
         &mut self,
-        bounds: PxRect,
+        clip_rect: PxRect,
         orientation: crate::border::LineOrientation,
         color: RenderColor,
         style: crate::border::LineStyle,
     ) {
         expect_inner!(self.push_line);
 
-        let item = self.common_item_ps(bounds);
-
         match style.render_command() {
             RenderLineCommand::Line(style, wavy_thickness) => {
                 self.display_list
-                    .push_line(&item, &bounds.to_wr(), wavy_thickness, orientation.into(), &color, style)
+                    .push_line(clip_rect, color, style, wavy_thickness, orientation.into());
             }
             RenderLineCommand::Border(style) => {
                 use crate::border::LineOrientation as LO;
                 let widths = match orientation {
-                    LO::Vertical => PxSideOffsets::new(Px(0), Px(0), Px(0), bounds.width()),
-                    LO::Horizontal => PxSideOffsets::new(bounds.height(), Px(0), Px(0), Px(0)),
+                    LO::Vertical => PxSideOffsets::new(Px(0), Px(0), Px(0), clip_rect.width()),
+                    LO::Horizontal => PxSideOffsets::new(clip_rect.height(), Px(0), Px(0), Px(0)),
                 };
                 self.display_list.push_border(
-                    bounds,
-                    widths.to_wr(),
-                    BorderSide { color, style },
-                    BorderSide {
+                    clip_rect,
+                    widths,
+                    webrender_api::BorderSide { color, style },
+                    webrender_api::BorderSide {
                         color: RenderColor::TRANSPARENT,
-                        style: BorderStyle::Hidden,
+                        style: webrender_api::BorderStyle::Hidden,
                     },
-                    BorderSide {
+                    webrender_api::BorderSide {
                         color: RenderColor::TRANSPARENT,
-                        style: BorderStyle::Hidden,
+                        style: webrender_api::BorderStyle::Hidden,
                     },
-                    BorderSide { color, style },
+                    webrender_api::BorderSide { color, style },
                     PxCornerRadius::zero(),
                 );
             }
         }
 
         if self.auto_hit_test {
-            self.push_hit_test_rect(bounds);
+            self.push_hit_test_rect(clip_rect);
         }
     }
 
-    /// Push a `color` dot to mark the `offset` using [`common_item_ps`].
+    /// Push a `color` dot to mark the `offset`.
     ///
     /// The *dot* is a circle of the `color` highlighted by an white outline and shadow.
-    ///
-    /// [`common_item_ps`]: Self::common_item_ps
     pub fn push_debug_dot(&mut self, offset: PxPoint, color: impl Into<RenderColor>) {
         let scale = self.scale_factor();
 
         let radius = PxSize::splat(Px(6)) * scale;
         let color = color.into();
 
-        let mut builder = GradientBuilder::new();
+        let mut builder = webrender_api::GradientBuilder::new();
         builder.push(RenderGradientStop { offset: 0.0, color });
         builder.push(RenderGradientStop { offset: 0.5, color });
         builder.push(RenderGradientStop {
@@ -1048,23 +1029,15 @@ impl FrameBuilder {
 
         let offset = offset - radius.to_vector();
 
-        let common_item_ps = self.common_item_ps(PxRect::new(offset, bounds));
-        self.display_list.push_stops(&stops);
-        self.display_list.push_radial_gradient(
-            &common_item_ps,
-            PxRect::new(offset, bounds).to_wr(),
-            gradient,
-            bounds.to_wr(),
-            PxSize::zero().to_wr(),
-        )
+        self.display_list
+            .push_radial_gradient(PxRect::new(offset, bounds), gradient, &stops, bounds, PxSize::zero());
     }
 
     /// Finalizes the build.
-    pub fn finalize(mut self, root_rendered: &WidgetRenderInfo) -> (BuiltFrame, UsedFrameBuilder) {
+    pub fn finalize(self, root_rendered: &WidgetRenderInfo) -> (BuiltFrame, UsedFrameBuilder) {
         root_rendered.set_rendered(self.widget_rendered);
 
         let (display_list, capacity) = self.display_list.finalize();
-        let (payload, descriptor) = display_list.into_data();
 
         let clear_color = self.clear_color.unwrap_or(RenderColor::WHITE);
 
@@ -1099,22 +1072,22 @@ impl UsedFrameBuilder {
     }
 }
 enum RenderLineCommand {
-    Line(LineStyle, f32),
-    Border(BorderStyle),
+    Line(webrender_api::LineStyle, f32),
+    Border(webrender_api::BorderStyle),
 }
 impl crate::border::LineStyle {
     fn render_command(self) -> RenderLineCommand {
         use crate::border::LineStyle as LS;
         use RenderLineCommand::*;
         match self {
-            LS::Solid => Line(LineStyle::Solid, 0.0),
-            LS::Double => Border(BorderStyle::Double),
-            LS::Dotted => Line(LineStyle::Dotted, 0.0),
-            LS::Dashed => Line(LineStyle::Dashed, 0.0),
-            LS::Groove => Border(BorderStyle::Groove),
-            LS::Ridge => Border(BorderStyle::Ridge),
-            LS::Wavy(thickness) => Line(LineStyle::Wavy, thickness),
-            LS::Hidden => Border(BorderStyle::Hidden),
+            LS::Solid => Line(webrender_api::LineStyle::Solid, 0.0),
+            LS::Double => Border(webrender_api::BorderStyle::Double),
+            LS::Dotted => Line(webrender_api::LineStyle::Dotted, 0.0),
+            LS::Dashed => Line(webrender_api::LineStyle::Dashed, 0.0),
+            LS::Groove => Border(webrender_api::BorderStyle::Groove),
+            LS::Ridge => Border(webrender_api::BorderStyle::Ridge),
+            LS::Wavy(thickness) => Line(webrender_api::LineStyle::Wavy, thickness),
+            LS::Hidden => Border(webrender_api::BorderStyle::Hidden),
         }
     }
 }

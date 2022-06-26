@@ -4,7 +4,6 @@ use crate::prelude::new_widget::*;
 #[widget($crate::widgets::scroll::scrollbar)]
 pub mod scrollbar {
     use super::*;
-    use crate::core::render::webrender_api::PrimitiveFlags;
 
     #[doc(inline)]
     pub use super::thumb;
@@ -44,10 +43,6 @@ pub mod scrollbar {
         )
     }
 
-    fn new_context(child: impl UiNode) -> impl UiNode {
-        primitive_flags(child, PrimitiveFlags::IS_SCROLLBAR_CONTAINER)
-    }
-
     /// Theme variables and properties.
     pub mod theme {
         use crate::prelude::new_property::*;
@@ -72,7 +67,7 @@ pub mod scrollbar {
 #[widget($crate::widgets::scroll::scrollbar::thumb)]
 pub mod thumb {
     use super::*;
-    use crate::core::{mouse::*, render::webrender_api::PrimitiveFlags};
+    use crate::core::mouse::*;
 
     properties! {
         /// Scrollbar orientation.
@@ -244,8 +239,7 @@ pub mod thumb {
     ) -> impl UiNode {
         let child = with_context_var(child, ThumbOrientationVar, orientation);
         let child = with_context_var(child, ThumbViewportRatioVar, viewport_ratio);
-        let child = with_context_var(child, ThumbOffsetVar, offset);
-        primitive_flags(child, PrimitiveFlags::IS_SCROLLBAR_THUMB)
+        with_context_var(child, ThumbOffsetVar, offset)
     }
 
     context_var! {

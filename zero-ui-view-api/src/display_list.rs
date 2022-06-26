@@ -136,7 +136,7 @@ impl DisplayListBuilder {
 
     /// Start a new filters context, must be paired with a call to [`pop_stacking_context`].
     ///
-    /// [`pop_reference_frame`]: Self::pop_reference_frame
+    /// [`pop_stacking_context`]: Self::pop_stacking_context
     pub fn push_stacking_context(
         &mut self,
         blend_mode: wr::MixBlendMode,
@@ -248,12 +248,97 @@ impl DisplayListBuilder {
     }
 
     /// Push an image.
-    pub fn push_image(&mut self, clip_rect: PxRect, image_key: wr::ImageKey, rendering: wr::ImageRendering, alpha_type: wr::AlphaType) {
+    pub fn push_image(
+        &mut self,
+        clip_rect: PxRect,
+        image_key: wr::ImageKey,
+        image_size: PxSize,
+        rendering: wr::ImageRendering,
+        alpha_type: wr::AlphaType,
+    ) {
         self.list.push(DisplayItem::Image {
             clip_rect,
             image_key,
+            image_size,
             rendering,
             alpha_type,
+        })
+    }
+
+    /// Push a color rectangle.
+    pub fn push_color(&mut self, clip_rect: PxRect, color: wr::PropertyBinding<wr::ColorF>) {
+        self.list.push(DisplayItem::Color { clip_rect, color })
+    }
+
+    /// Push a linear gradient rectangle.
+    pub fn push_linear_gradient(
+        &mut self,
+        clip_rect: PxRect,
+        gradient: wr::Gradient,
+        stops: &[wr::GradientStop],
+        tile_size: PxSize,
+        tile_spacing: PxSize,
+    ) {
+        self.list.push(DisplayItem::LinearGradient {
+            clip_rect,
+            gradient,
+            stops: stops.to_vec().into_boxed_slice(),
+            tile_size,
+            tile_spacing,
+        })
+    }
+
+    /// Push a radial gradient rectangle.
+    pub fn push_radial_gradient(
+        &mut self,
+        clip_rect: PxRect,
+        gradient: wr::RadialGradient,
+        stops: &[wr::GradientStop],
+        tile_size: PxSize,
+        tile_spacing: PxSize,
+    ) {
+        self.list.push(DisplayItem::RadialGradient {
+            clip_rect,
+            gradient,
+            stops: stops.to_vec().into_boxed_slice(),
+            tile_size,
+            tile_spacing,
+        });
+    }
+
+    /// Push a conic gradient rectangle.
+    pub fn push_conic_gradient(
+        &mut self,
+        clip_rect: PxRect,
+        gradient: wr::ConicGradient,
+        stops: &[wr::GradientStop],
+        tile_size: PxSize,
+        tile_spacing: PxSize,
+    ) {
+        self.list.push(DisplayItem::ConicGradient {
+            clip_rect,
+            gradient,
+            stops: stops.to_vec().into_boxed_slice(),
+            tile_size,
+            tile_spacing,
+        });
+    }
+
+    /// Push a styled vertical or horizontal line.
+    pub fn push_line(
+        &mut self,
+        clip_rect: PxRect,
+        color: wr::ColorF,
+        style: wr::LineStyle,
+        wavy_line_thickness: f32,
+        orientation: wr::LineOrientation,
+    ) {
+        self.list.push(DisplayItem::Line {
+            clip_rect,
+            color,
+            style,
+            wavy_line_thickness,
+            orientation,
         })
     }
 
@@ -308,7 +393,7 @@ impl ReuseRange {
 /// Represents a finalized display list.
 ///
 /// See [`DisplayListBuilder::finalize`] for more details.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DisplayList {
     pipeline_id: PipelineId,
     frame_id: FrameId,
@@ -398,7 +483,7 @@ impl DisplayListCache {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 enum DisplayItem {
     Reuse {
         frame_id: FrameId,
@@ -460,8 +545,44 @@ enum DisplayItem {
     Image {
         clip_rect: PxRect,
         image_key: wr::ImageKey,
+        image_size: PxSize,
         rendering: wr::ImageRendering,
         alpha_type: wr::AlphaType,
+    },
+
+    Color {
+        clip_rect: PxRect,
+        color: wr::PropertyBinding<wr::ColorF>,
+    },
+
+    LinearGradient {
+        clip_rect: PxRect,
+        gradient: wr::Gradient,
+        stops: Box<[wr::GradientStop]>,
+        tile_size: PxSize,
+        tile_spacing: PxSize,
+    },
+    RadialGradient {
+        clip_rect: PxRect,
+        gradient: wr::RadialGradient,
+        stops: Box<[wr::GradientStop]>,
+        tile_size: PxSize,
+        tile_spacing: PxSize,
+    },
+    ConicGradient {
+        clip_rect: PxRect,
+        gradient: wr::ConicGradient,
+        stops: Box<[wr::GradientStop]>,
+        tile_size: PxSize,
+        tile_spacing: PxSize,
+    },
+
+    Line {
+        clip_rect: PxRect,
+        color: wr::ColorF,
+        style: wr::LineStyle,
+        wavy_line_thickness: f32,
+        orientation: wr::LineOrientation,
     },
 }
 impl DisplayItem {
@@ -568,6 +689,20 @@ impl DisplayItem {
                 );
             }
 
+            DisplayItem::Color { clip_rect, color } => {
+                let bounds = clip_rect.to_wr();
+                wr_list.push_rect_with_animation(
+                    &wr::CommonItemProperties {
+                        clip_rect: bounds,
+                        clip_id: sc.clip_id(),
+                        spatial_id: sc.spatial_id(),
+                        flags: wr::PrimitiveFlags::empty(),
+                    },
+                    bounds,
+                    *color,
+                )
+            }
+
             DisplayItem::Border {
                 bounds,
                 widths,
@@ -655,9 +790,11 @@ impl DisplayItem {
                     *tag,
                 );
             }
+
             DisplayItem::Image {
                 clip_rect,
                 image_key,
+                image_size,
                 rendering,
                 alpha_type,
             } => {
@@ -669,11 +806,100 @@ impl DisplayItem {
                         spatial_id: sc.spatial_id(),
                         flags: wr::PrimitiveFlags::empty(),
                     },
-                    bounds,
+                    PxRect::from_size(*image_size).to_wr(),
                     *rendering,
                     *alpha_type,
                     *image_key,
                     wr::ColorF::WHITE,
+                );
+            }
+
+            DisplayItem::LinearGradient {
+                clip_rect,
+                gradient,
+                stops,
+                tile_size,
+                tile_spacing,
+            } => {
+                wr_list.push_stops(stops);
+                let bounds = clip_rect.to_wr();
+                wr_list.push_gradient(
+                    &wr::CommonItemProperties {
+                        clip_rect: bounds,
+                        clip_id: sc.clip_id(),
+                        spatial_id: sc.spatial_id(),
+                        flags: wr::PrimitiveFlags::empty(),
+                    },
+                    bounds,
+                    *gradient,
+                    tile_size.to_wr(),
+                    tile_spacing.to_wr(),
+                )
+            }
+            DisplayItem::RadialGradient {
+                clip_rect,
+                gradient,
+                stops,
+                tile_size,
+                tile_spacing,
+            } => {
+                wr_list.push_stops(stops);
+                let bounds = clip_rect.to_wr();
+                wr_list.push_radial_gradient(
+                    &wr::CommonItemProperties {
+                        clip_rect: bounds,
+                        clip_id: sc.clip_id(),
+                        spatial_id: sc.spatial_id(),
+                        flags: wr::PrimitiveFlags::empty(),
+                    },
+                    bounds,
+                    *gradient,
+                    tile_size.to_wr(),
+                    tile_spacing.to_wr(),
+                )
+            }
+            DisplayItem::ConicGradient {
+                clip_rect,
+                gradient,
+                stops,
+                tile_size,
+                tile_spacing,
+            } => {
+                wr_list.push_stops(stops);
+                let bounds = clip_rect.to_wr();
+                wr_list.push_conic_gradient(
+                    &wr::CommonItemProperties {
+                        clip_rect: bounds,
+                        clip_id: sc.clip_id(),
+                        spatial_id: sc.spatial_id(),
+                        flags: wr::PrimitiveFlags::empty(),
+                    },
+                    bounds,
+                    *gradient,
+                    tile_size.to_wr(),
+                    tile_spacing.to_wr(),
+                )
+            }
+            DisplayItem::Line {
+                clip_rect,
+                color,
+                style,
+                wavy_line_thickness,
+                orientation,
+            } => {
+                let bounds = clip_rect.to_wr();
+                wr_list.push_line(
+                    &wr::CommonItemProperties {
+                        clip_rect: bounds,
+                        clip_id: sc.clip_id(),
+                        spatial_id: sc.spatial_id(),
+                        flags: wr::PrimitiveFlags::empty(),
+                    },
+                    &bounds,
+                    *wavy_line_thickness,
+                    *orientation,
+                    color,
+                    *style,
                 );
             }
         }
@@ -718,7 +944,7 @@ impl SpaceAndClip {
     }
 }
 
-macro_rules! notes {
+macro_rules! _notes {
     (old_reuse_code) => {
         #[derive(Debug, Clone, Copy, PartialEq)]
         enum ReuseClipId {

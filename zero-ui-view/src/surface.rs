@@ -5,13 +5,14 @@ use glutin::event_loop::EventLoopWindowTarget;
 use tracing::span::EnteredSpan;
 use webrender::{
     api::{
-        BuiltDisplayList, ColorF, DisplayListPayload, DocumentId, DynamicProperties, FontInstanceKey, FontInstanceOptions,
-        FontInstancePlatformOptions, FontKey, FontVariation, HitTestResult, IdNamespace, ImageKey, PipelineId,
+        ColorF, DocumentId, DynamicProperties, FontInstanceKey, FontInstanceOptions, FontInstancePlatformOptions, FontKey, FontVariation,
+        HitTestResult, IdNamespace, ImageKey, PipelineId,
     },
     RenderApi, Renderer, RendererOptions, Transaction,
 };
 use zero_ui_view_api::{
-    units::*, FrameId, FrameRequest, FrameUpdateRequest, HeadlessRequest, ImageId, ImageLoadedData, RenderMode, ViewProcessGen, WindowId,
+    units::*, DisplayListCache, FrameId, FrameRequest, FrameUpdateRequest, HeadlessRequest, ImageId, ImageLoadedData, RenderMode,
+    ViewProcessGen, WindowId,
 };
 
 use crate::{
@@ -32,6 +33,8 @@ pub(crate) struct Surface {
     context: GlContext,
     renderer: Option<Renderer>,
     image_use: ImageUseMap,
+
+    display_list_cache: DisplayListCache,
 
     pending_frames: VecDeque<(FrameId, bool, Option<EnteredSpan>)>,
     rendered_frame_id: FrameId,
@@ -102,6 +105,8 @@ impl Surface {
             context,
             renderer: Some(renderer),
             image_use: ImageUseMap::default(),
+
+            display_list_cache: DisplayListCache::new(pipeline_id),
 
             pending_frames: VecDeque::new(),
             rendered_frame_id: FrameId::INVALID,
@@ -217,14 +222,8 @@ impl Surface {
             colors: vec![],
         });
 
-        let display_list = BuiltDisplayList::from_data(
-            DisplayListPayload {
-                items_data: frame.display_list.0.to_vec(),
-                cache_data: frame.display_list.1.to_vec(),
-                spatial_tree: frame.display_list.2.to_vec(),
-            },
-            frame.display_list.3,
-        );
+        let display_list = frame.display_list.to_webrender(&mut self.display_list_cache);
+
         let viewport_size = self.size.to_px(self.scale_factor).to_wr();
         txn.set_display_list(
             frame.id.epoch(),

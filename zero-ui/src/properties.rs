@@ -1,9 +1,5 @@
 //! Common widget properties.
 
-mod util;
-#[doc(inline)]
-pub use util::*;
-
 mod layout;
 #[doc(inline)]
 pub use layout::*;

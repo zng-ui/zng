@@ -1,4 +1,5 @@
 use crate::units::*;
+use crate::DisplayList;
 use crate::IpcBytes;
 use bitflags::*;
 use serde::{Deserialize, Serialize};
@@ -1269,7 +1270,7 @@ impl std::error::Error for ViewProcessOffline {}
 pub(crate) type VpResult<T> = std::result::Result<T, ViewProcessOffline>;
 
 /// Data for rendering a new frame.
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FrameRequest {
     /// ID of the new frame.
     pub id: FrameId,
@@ -1281,8 +1282,8 @@ pub struct FrameRequest {
     /// Frame clear color.
     pub clear_color: ColorF,
 
-    /// Display list, split in serializable parts.
-    pub display_list: (IpcBytes, IpcBytes, IpcBytes, BuiltDisplayListDescriptor),
+    /// Display list.
+    pub display_list: DisplayList,
 
     /// Automatically create an image from this rendered frame.
     ///
@@ -1291,17 +1292,6 @@ pub struct FrameRequest {
 
     /// Identifies this frame as the response to the [`WindowChanged`] resized frame request.
     pub wait_id: Option<FrameWaitId>,
-}
-impl fmt::Debug for FrameRequest {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("FrameRequest")
-            .field("id", &self.id)
-            .field("pipeline_id", &self.pipeline_id)
-            .field("document_id", &self.document_id)
-            .field("capture_image", &self.pipeline_id)
-            .field("wait_id", &self.wait_id)
-            .finish_non_exhaustive()
-    }
 }
 impl FrameRequest {
     /// Compute webrender analysis info.

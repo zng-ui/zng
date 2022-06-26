@@ -775,7 +775,7 @@ pub fn render_text() -> impl UiNode {
         aa: FontAntiAliasing,
     }
     struct RenderTextNode {
-        reuse: RefCell<ReuseGroup>,
+        reuse: RefCell<Option<ReuseRange>>,
         rendered: Cell<Option<RenderedText>>,
     }
     #[impl_ui_node(none)]
@@ -806,10 +806,10 @@ pub fn render_text() -> impl UiNode {
             });
             if self.rendered.get() != rendered {
                 self.rendered.set(rendered);
-                reuse.clear();
+                *reuse = None;
             }
 
-            frame.push_reuse_group(&mut reuse, |frame| {
+            frame.push_reuse(&mut reuse, |frame| {
                 for (font, glyphs) in t.shaped_text.glyphs() {
                     frame.push_text(clip, glyphs, font, color.into(), r.synthesis, aa);
                 }

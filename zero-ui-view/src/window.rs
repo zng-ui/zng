@@ -8,14 +8,14 @@ use glutin::{
 use tracing::span::EnteredSpan;
 use webrender::{
     api::{
-        ApiHitTester, BuiltDisplayList, ColorF, DisplayListPayload, DocumentId, DynamicProperties, FontInstanceKey, FontInstanceOptions,
-        FontInstancePlatformOptions, FontKey, FontVariation, HitTestResult, HitTesterRequest, IdNamespace, ImageKey, PipelineId,
+        ApiHitTester, ColorF, DocumentId, DynamicProperties, FontInstanceKey, FontInstanceOptions, FontInstancePlatformOptions, FontKey,
+        FontVariation, HitTestResult, HitTesterRequest, IdNamespace, ImageKey, PipelineId,
     },
     RenderApi, Renderer, RendererOptions, Transaction, UploadMethod, VertexUsageHint,
 };
 use zero_ui_view_api::{
-    units::*, CursorIcon, DeviceId, FocusIndicator, FrameId, FrameRequest, FrameUpdateRequest, ImageId, ImageLoadedData, RenderMode,
-    VideoMode, ViewProcessGen, WindowId, WindowRequest, WindowState, WindowStateAll,
+    units::*, CursorIcon, DeviceId, DisplayListCache, FocusIndicator, FrameId, FrameRequest, FrameUpdateRequest, ImageId, ImageLoadedData,
+    RenderMode, VideoMode, ViewProcessGen, WindowId, WindowRequest, WindowState, WindowStateAll,
 };
 
 #[cfg(windows)]
@@ -64,6 +64,8 @@ pub(crate) struct Window {
 
     api: RenderApi,
     image_use: ImageUseMap,
+
+    display_list_cache: DisplayListCache,
 
     window: GWindow,
     context: GlContext,
@@ -295,6 +297,7 @@ impl Window {
             document_id,
             pipeline_id,
             resized: true,
+            display_list_cache: DisplayListCache::new(pipeline_id),
             waiting_first_frame: true,
             steal_init_focus: req.focus,
             init_focus_request: req.focus_indicator,
@@ -1007,14 +1010,7 @@ impl Window {
         self.push_resize(&mut txn);
         txn.generate_frame(frame.id.get(), frame.render_reasons());
 
-        let display_list = BuiltDisplayList::from_data(
-            DisplayListPayload {
-                items_data: frame.display_list.0.to_vec(),
-                cache_data: frame.display_list.1.to_vec(),
-                spatial_tree: frame.display_list.2.to_vec(),
-            },
-            frame.display_list.3,
-        );
+        let display_list = frame.display_list.to_webrender(&mut self.display_list_cache);
         txn.reset_dynamic_properties();
         txn.append_dynamic_properties(DynamicProperties {
             transforms: vec![],
