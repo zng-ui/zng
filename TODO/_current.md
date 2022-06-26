@@ -1,5 +1,3 @@
-* Background color update not working, check the animation example.
-    - It works in some of the window example buttons.
 * Button example did not navigate to right direction after adding button.
 * Layer does not update after target widget move.
 

@@ -5,7 +5,6 @@ use std::{fmt, mem};
 use crate::{
     context::{
         InfoContext, LayoutContext, MeasureContext, OwnedStateMap, RenderContext, StateMap, WidgetContext, WidgetUpdates,
-        WindowRenderUpdate,
     },
     event::EventUpdateArgs,
     impl_ui_node, property,
@@ -445,10 +444,10 @@ pub mod implicit_base {
                     }
 
                     let mut reuse_range = self.reuse.borrow_mut();
-
-                    let reuse = !matches!(self.pending_updates.borrow_mut().render.take(), WindowRenderUpdate::Render)
-                        && self.offsets_pass.get() == self.info.bounds.offsets_pass();
-                    if !reuse {
+                    if !self.pending_updates.borrow_mut().render.take().is_none()
+                        || self.offsets_pass.get() != self.info.bounds.offsets_pass()
+                    {
+                        // cannot reuse.
                         *reuse_range = None;
                         self.offsets_pass.set(self.info.bounds.offsets_pass());
                     }
@@ -464,15 +463,19 @@ pub mod implicit_base {
                         tracing::error!(target: "widget_base", "`UiNode::render_update` called in not inited widget {:?}", self.id);
                     }
 
-                    let reuse = !matches!(self.pending_updates.borrow_mut().render.take(), WindowRenderUpdate::RenderUpdate)
-                        && self.offsets_pass.get() == self.info.bounds.offsets_pass();
-                    if !reuse {
-                        *self.reuse.borrow_mut() = None;
+                    let mut reuse_range = self.reuse.borrow_mut();
+                    let mut reuse = true;
+                    if !self.pending_updates.borrow_mut().render.take().is_none()
+                        || self.offsets_pass.get() != self.info.bounds.offsets_pass()
+                    {
+                        reuse = false;
+                        *reuse_range = None;
                         self.offsets_pass.set(self.info.bounds.offsets_pass());
                     }
+
                     ctx.with_widget(self.id, &self.info, &self.state, |ctx| {
                         update.update_widget(ctx, reuse, |ctx, update| self.child.render_update(ctx, update));
-                    })
+                    });
                 }
 
                 fn is_widget(&self) -> bool {
