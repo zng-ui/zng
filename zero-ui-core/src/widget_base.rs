@@ -9,7 +9,7 @@ use crate::{
     },
     event::EventUpdateArgs,
     impl_ui_node, property,
-    render::{FrameBindingKey, FrameBuilder, FrameUpdate, SpatialFrameId},
+    render::{FrameBindingKey, FrameBuilder, FrameUpdate, ReuseRange, SpatialFrameId},
     units::{PxCornerRadius, PxRect, PxSize, RenderTransform, RenderTransformExt},
     var::*,
     widget_info::{
@@ -308,6 +308,8 @@ pub mod implicit_base {
                 inited: bool,
                 pending_updates: RefCell<WidgetUpdates>,
                 offsets_pass: Cell<LayoutPassId>,
+
+                reuse: RefCell<Option<ReuseRange>>,
             }
             impl<C: UiNode> UiNode for WidgetNode<C> {
                 fn init(&mut self, ctx: &mut WidgetContext) {
@@ -442,14 +444,17 @@ pub mod implicit_base {
                         tracing::error!(target: "widget_base", "`UiNode::render` called in not inited widget {:?}", self.id);
                     }
 
+                    let mut reuse_range = self.reuse.borrow_mut();
+
                     let reuse = !matches!(self.pending_updates.borrow_mut().render.take(), WindowRenderUpdate::Render)
                         && self.offsets_pass.get() == self.info.bounds.offsets_pass();
                     if !reuse {
+                        *reuse_range = None;
                         self.offsets_pass.set(self.info.bounds.offsets_pass());
                     }
 
                     ctx.with_widget(self.id, &self.info, &self.state, |ctx| {
-                        frame.push_widget(ctx, reuse, |ctx, frame| self.child.render(ctx, frame));
+                        frame.push_widget(ctx, &mut *reuse_range, |ctx, frame| self.child.render(ctx, frame));
                     });
                 }
 
@@ -539,6 +544,7 @@ pub mod implicit_base {
                 inited: false,
                 pending_updates: RefCell::default(),
                 offsets_pass: Cell::default(),
+                reuse: RefCell::default(),
             }
             .cfg_boxed_wgt()
         }

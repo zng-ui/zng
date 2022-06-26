@@ -340,13 +340,18 @@ impl FrameBuilder {
     /// during this period properties can configure the widget stacking context and actual rendering and transforms
     /// are discouraged.
     ///
-    /// If `reuse` is true and the widget has been rendered before  and [`can_reuse`] allows reuse, the `render`
+    /// If `reuse` is `Some` and the widget has been rendered before  and [`can_reuse`] allows reuse, the `render`
     /// closure is not called, an only a reference to the widget range in the previous frame is send.
     ///
     /// [`is_outer`]: Self::is_outer
     /// [`push_inner`]: Self::push_inner
     /// [`can_reuse`]: Self::can_reuse
-    pub fn push_widget(&mut self, ctx: &mut RenderContext, reuse: bool, render: impl FnOnce(&mut RenderContext, &mut Self)) {
+    pub fn push_widget(
+        &mut self,
+        ctx: &mut RenderContext,
+        reuse: &mut Option<ReuseRange>,
+        render: impl FnOnce(&mut RenderContext, &mut Self),
+    ) {
         if self.widget_data.is_some() {
             tracing::error!(
                 "called `push_widget` for `{}` without calling `push_inner` for the parent `{}`",
@@ -355,22 +360,23 @@ impl FrameBuilder {
             );
         }
 
-        if reuse {
-            // TODO
-        }
-
         let parent_rendered = mem::take(&mut self.widget_rendered);
-        self.widget_data = Some(WidgetData {
-            filter: vec![],
-            has_transform: false,
-            transform: RenderTransform::identity(),
+
+        self.push_reuse(reuse, |frame| {
+            frame.widget_data = Some(WidgetData {
+                filter: vec![],
+                has_transform: false,
+                transform: RenderTransform::identity(),
+            });
+            let parent_widget = mem::replace(&mut frame.widget_id, ctx.path.widget_id());
+
+            render(ctx, frame);
+
+            frame.widget_id = parent_widget;
+            frame.widget_data = None;
         });
-        let parent_widget = mem::replace(&mut self.widget_id, ctx.path.widget_id());
 
-        render(ctx, self);
-
-        self.widget_id = parent_widget;
-        self.widget_data = None;
+        self.widget_rendered |= !reuse.as_ref().unwrap().is_empty();
         ctx.widget_info.render.set_rendered(self.widget_rendered);
         self.widget_rendered |= parent_rendered;
     }
@@ -400,27 +406,23 @@ impl FrameBuilder {
     /// [`push_widget`]: Self::push_widget
     /// [`widget_rendered`]: Self::widget_rendered
     pub fn push_reuse(&mut self, group: &mut Option<ReuseRange>, generate: impl FnOnce(&mut Self)) {
-        let parent_group = if self.can_reuse {
+        if self.can_reuse {
             if let Some(g) = &group {
-                if g.pipeline_id() == dbg!(self.pipeline_id) {
+                if g.pipeline_id() == self.pipeline_id {
                     self.display_list.push_reuse_range(g);
                     return;
                 }
             }
-
-            self.open_reuse.replace(self.display_list.start_reuse_range())
-        } else {
-            None
-        };
+        }
         *group = None;
+        let parent_group = self.open_reuse.replace(self.display_list.start_reuse_range());
 
         generate(self);
 
-        if let Some(start) = self.open_reuse.take() {
-            let range = self.display_list.finish_reuse_range(start);
-            *group = Some(range);
-            self.open_reuse = parent_group;
-        }
+        let start = self.open_reuse.take().unwrap();
+        let range = self.display_list.finish_reuse_range(start);
+        *group = Some(range);
+        self.open_reuse = parent_group;
     }
 
     /// Register that the current widget and descendants are not rendered in this frame.
