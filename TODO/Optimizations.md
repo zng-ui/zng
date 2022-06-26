@@ -25,10 +25,10 @@
 
 # Better render reuse
 
-* Optimize using the icon example with fully loaded icons.
-  - Display list building is slow.
-    - Implement reuse at the widget level.
-  - Webrender rendering is very slow!, Firefox is much better, are we missing on some culling in Firefox code?
+* Render updated does not patch reuse, so a widget needs to render for requests after update.
+  - We could search for the display item using the property binding key and update it.
+  - Send the reuse range for updates so that the property binding can be searched for and updated?
+* Webrender rendering is very slow!, Firefox is much better, are we missing on some culling in Firefox code?
 
 # Webrender frame update
 

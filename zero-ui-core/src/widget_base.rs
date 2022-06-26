@@ -467,6 +467,7 @@ pub mod implicit_base {
                     let reuse = !matches!(self.pending_updates.borrow_mut().render.take(), WindowRenderUpdate::RenderUpdate)
                         && self.offsets_pass.get() == self.info.bounds.offsets_pass();
                     if !reuse {
+                        *self.reuse.borrow_mut() = None;
                         self.offsets_pass.set(self.info.bounds.offsets_pass());
                     }
                     ctx.with_widget(self.id, &self.info, &self.state, |ctx| {
