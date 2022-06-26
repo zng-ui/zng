@@ -25,17 +25,9 @@
 
 # Better render reuse
 
-* Already started implementing this, see `ReuseGroup`.
-  - Webrender reuse depends on space/clip ids and these invalidate all items after an insert remove.
-  - Worst, we can't cache creation of space/clips because it will just mess-up the id count for all subsequent items.
-  - Maybe we should stop using the webrender display list.
-    - If we had more access to the display list internals we could save by ranges for each widget, then send range refs to
-      the previous display list bytes that is retained in the view-process.
-  - Investigate why the space/clip ids are generated in the client side.
-    - Its so you can push items to parent spaces out-of-order, like position absolute?
-
 * Optimize using the icon example with fully loaded icons.
   - Display list building is slow.
+    - Implement reuse at the widget level.
   - Webrender rendering is very slow!, Firefox is much better, are we missing on some culling in Firefox code?
 
 # Webrender frame update

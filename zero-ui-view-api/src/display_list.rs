@@ -415,6 +415,8 @@ impl DisplayList {
         assert_eq!(self.pipeline_id, cache.pipeline_id);
 
         let mut wr_list = wr::DisplayListBuilder::new(self.pipeline_id);
+        wr_list.begin();
+
         let mut sc = cache.take_space_and_clip();
 
         for item in &self.list {

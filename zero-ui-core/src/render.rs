@@ -402,8 +402,10 @@ impl FrameBuilder {
     pub fn push_reuse(&mut self, group: &mut Option<ReuseRange>, generate: impl FnOnce(&mut Self)) {
         let parent_group = if self.can_reuse {
             if let Some(g) = &group {
-                self.display_list.push_reuse_range(g);
-                return;
+                if g.pipeline_id() == dbg!(self.pipeline_id) {
+                    self.display_list.push_reuse_range(g);
+                    return;
+                }
             }
 
             self.open_reuse.replace(self.display_list.start_reuse_range())
