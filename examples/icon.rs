@@ -31,7 +31,7 @@ fn app_main() {
                     padding = 10;
                     spacing = 5;
                     icon::theme::icon_size = 48;
-                    items = icons::outlined::all().into_iter().take(100)
+                    items = icons::outlined::all().into_iter()
                             .map(|i| icon_btn(i).boxed_wgt())
                             .collect::<WidgetVec>(),
                 }
