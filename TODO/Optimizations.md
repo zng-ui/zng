@@ -23,7 +23,7 @@
 * First render is also slow.
 * We block the app process waiting view-process startup.
 
-# Better render reuse
+# Integrate frame reuse with frame update
 
 * Render updated does not patch reuse, so a widget needs to render for requests after update.
   - We could search for the display item using the property binding key and update it.
