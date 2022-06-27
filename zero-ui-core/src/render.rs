@@ -362,7 +362,24 @@ impl FrameBuilder {
 
         let parent_rendered = mem::take(&mut self.widget_rendered);
 
+        let outer_transform = RenderTransform::translation_px(ctx.widget_info.bounds.outer_offset()).then(&self.transform);
+        let mut undo_prev_outer_transform = None;
+        if reuse.is_some() {
+            // will try to reuse, but only if we can patch the widget transforms.
+
+            let prev_outer = ctx.widget_info.render.outer_transform();
+            if prev_outer != outer_transform {
+                if let Some(undo_prev) = prev_outer.inverse() {
+                    undo_prev_outer_transform = Some(undo_prev);
+                } else {
+                    *reuse = None; // cannot reuse because cannot undo prev-transform.
+                }
+            }
+        }
+
         self.push_reuse(reuse, |frame| {
+            undo_prev_outer_transform = None; // no need, have reused
+
             frame.widget_data = Some(WidgetData {
                 filter: vec![],
                 has_transform: false,
@@ -375,6 +392,16 @@ impl FrameBuilder {
             frame.widget_id = parent_widget;
             frame.widget_data = None;
         });
+
+        if let Some(undo_prev) = undo_prev_outer_transform {
+            let patch = undo_prev.then(&outer_transform);
+
+            for info in ctx.info_tree.find(ctx.path.widget_id()).unwrap().self_and_descendants() {
+                let render = info.render_info();
+                render.set_outer_transform(render.outer_transform().then(&patch));
+                render.set_inner_transform(render.inner_transform().then(&patch));
+            }
+        }
 
         self.widget_rendered |= !reuse.as_ref().unwrap().is_empty();
         ctx.widget_info.render.set_rendered(self.widget_rendered);

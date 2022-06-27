@@ -3,9 +3,7 @@
 use std::{fmt, mem};
 
 use crate::{
-    context::{
-        InfoContext, LayoutContext, MeasureContext, OwnedStateMap, RenderContext, StateMap, WidgetContext, WidgetUpdates,
-    },
+    context::{InfoContext, LayoutContext, MeasureContext, OwnedStateMap, RenderContext, StateMap, WidgetContext, WidgetUpdates},
     event::EventUpdateArgs,
     impl_ui_node, property,
     render::{FrameBindingKey, FrameBuilder, FrameUpdate, ReuseRange, SpatialFrameId},
