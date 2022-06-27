@@ -1967,12 +1967,28 @@ impl<'a> WidgetInfo<'a> {
     where
         F: FnMut(WidgetInfo<'a>) -> DescendantFilter,
     {
-        let mut traverse = self.node().traverse();
-        traverse.next(); // skip self.
+        let node = self.node();
         FilterDescendants {
-            traverse,
             filter,
             tree: self.tree,
+
+            root: node,
+            state: FilterIterState::Enter(node),
+        }
+    }
+
+    /// Iterator over the widget and all widgets contained by it filtered by the `filter` closure.
+    pub fn filter_self_and_descendants<F>(self, filter: F) -> FilterDescendants<'a, F>
+    where
+        F: FnMut(WidgetInfo<'a>) -> DescendantFilter,
+    {
+        let node = self.node();
+        FilterDescendants {
+            filter,
+            tree: self.tree,
+
+            root: node,
+            state: FilterIterState::Filter(node),
         }
     }
 
@@ -2123,7 +2139,10 @@ impl<'a> WidgetInfo<'a> {
 
 /// Widget tree filter result.
 ///
-/// This `enum` is used by the [`filter_descendants`](WidgetInfo::filter_descendants) method on [`WidgetInfo`]. See its documentation for more.
+/// This `enum` is used by the [`filter_descendants`] and [`filter_self_and_descendants`] methods on [`WidgetInfo`]. See its documentation for more.
+///
+/// [`filter_descendants`]: WidgetInfo::filter_descendants
+/// [`filter_self_and_descendants`]: WidgetInfo::filter_self_and_descendants
 #[derive(Clone, Debug, Copy, PartialEq, Eq)]
 pub enum DescendantFilter {
     /// Include the descendant and continue filtering its descendants.
@@ -2138,48 +2157,78 @@ pub enum DescendantFilter {
 
 /// An iterator that filters a widget tree.
 ///
-/// This `struct` is created by the [`filter_descendants`](WidgetInfo::filter_descendants) method on [`WidgetInfo`]. See its documentation for more.
+/// This `struct` is created by the [`filter_descendants`] and [`filter_self_and_descendants`] methods on [`WidgetInfo`]. See its documentation for more.
+///
+/// [`filter_descendants`]: WidgetInfo::filter_descendants
+/// [`filter_self_and_descendants`]: WidgetInfo::filter_self_and_descendants
 pub struct FilterDescendants<'a, F: FnMut(WidgetInfo<'a>) -> DescendantFilter> {
-    traverse: ego_tree::iter::Traverse<'a, WidgetInfoData>,
     filter: F,
     tree: &'a WidgetInfoTree,
+
+    root: ego_tree::NodeRef<'a, WidgetInfoData>,
+    state: FilterIterState<'a>,
 }
-impl<'a, F: FnMut(WidgetInfo<'a>) -> DescendantFilter> Iterator for FilterDescendants<'a, F> {
+enum FilterIterState<'a> {
+    Filter(ego_tree::NodeRef<'a, WidgetInfoData>),
+    Enter(ego_tree::NodeRef<'a, WidgetInfoData>),
+    Exit(ego_tree::NodeRef<'a, WidgetInfoData>),
+}
+impl<'a, F> Iterator for FilterDescendants<'a, F>
+where
+    F: FnMut(WidgetInfo<'a>) -> DescendantFilter,
+{
     type Item = WidgetInfo<'a>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        use ego_tree::iter::Edge;
-        #[allow(clippy::while_let_on_iterator)] // false positive https://github.com/rust-lang/rust-clippy/issues/7510
-        while let Some(edge) = self.traverse.next() {
-            if let Edge::Open(node) = edge {
-                let widget = WidgetInfo::new(self.tree, node.id());
-                match (self.filter)(widget) {
-                    DescendantFilter::Include => return Some(widget),
-                    DescendantFilter::Skip => continue,
-                    DescendantFilter::SkipAll => {
-                        for edge in &mut self.traverse {
-                            if let Edge::Close(node2) = edge {
-                                if node2 == node {
-                                    break; // skip to close node.
-                                }
-                            }
+        loop {
+            match self.state {
+                FilterIterState::Filter(node) => {
+                    let wgt = WidgetInfo::new(self.tree, node.id());
+
+                    match (self.filter)(wgt) {
+                        DescendantFilter::Include => {
+                            self.state = FilterIterState::Enter(node);
+                            return Some(wgt);
                         }
-                        continue;
+                        DescendantFilter::Skip => {
+                            self.state = FilterIterState::Enter(node);
+                            continue;
+                        }
+                        DescendantFilter::SkipAll => {
+                            self.state = FilterIterState::Exit(node);
+                            continue;
+                        }
+                        DescendantFilter::SkipDescendants => {
+                            self.state = FilterIterState::Exit(node);
+                            return Some(wgt);
+                        }
                     }
-                    DescendantFilter::SkipDescendants => {
-                        for edge in &mut self.traverse {
-                            if let Edge::Close(node2) = edge {
-                                if node2 == node {
-                                    break; // skip to close node.
-                                }
-                            }
-                        }
-                        return Some(widget);
+                }
+                FilterIterState::Enter(node) => {
+                    if let Some(first_child) = node.first_child() {
+                        self.state = FilterIterState::Filter(first_child);
+                        continue;
+                    } else {
+                        self.state = FilterIterState::Exit(node);
+                    }
+                }
+                FilterIterState::Exit(node) => {
+                    if node == self.root {
+                        self.state = FilterIterState::Exit(node);
+                        return None;
+                    } else if let Some(next_sibling) = node.next_sibling() {
+                        self.state = FilterIterState::Filter(next_sibling);
+                        continue;
+                    } else if let Some(parent) = node.parent() {
+                        self.state = FilterIterState::Exit(parent);
+                        continue;
+                    } else {
+                        // node is not our root but is a tree root?
+                        unreachable!()
                     }
                 }
             }
         }
-        None
     }
 }
 
