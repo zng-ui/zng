@@ -237,13 +237,31 @@ pub struct FilterDescendants<'a, F: FnMut(WidgetInfo<'a>) -> TreeFilter> {
 
     next_is_prev: bool,
 }
-#[derive(Clone, Copy)]
+impl<'a, F> fmt::Debug for FilterDescendants<'a, F>
+where
+    F: FnMut(WidgetInfo<'a>) -> TreeFilter,
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("FilterDescendants")
+            .field("root", &self.root.value().widget_id.to_string())
+            .field("front", &self.front.value().widget_id.to_string())
+            .field("front_state", &self.front_state)
+            .field("back", &self.back.value().widget_id.to_string())
+            .field("back_state", &self.back_state)
+            .field("next_is_prev", &self.next_is_prev)
+            .finish_non_exhaustive()
+    }
+}
+#[derive(Debug, Clone, Copy)]
 enum FilterDescendantsState {
     Filter,
     Enter,
     Exit,
 }
-impl<'a, F: FnMut(WidgetInfo<'a>) -> TreeFilter> FilterDescendants<'a, F> {
+impl<'a, F> FilterDescendants<'a, F>
+where
+    F: FnMut(WidgetInfo<'a>) -> TreeFilter,
+{
     fn actual_next(&mut self) -> Option<WidgetInfo<'a>> {
         loop {
             // DoubleEndedIterator contract
@@ -301,8 +319,8 @@ impl<'a, F: FnMut(WidgetInfo<'a>) -> TreeFilter> FilterDescendants<'a, F> {
                         self.front_state = FilterDescendantsState::Exit;
                         continue;
                     } else {
-                        // did not find our root, but found a tree root?
-                        unreachable!()
+                        self.front = self.root;
+                        return None;
                     }
                 }
             }
@@ -321,53 +339,53 @@ impl<'a, F: FnMut(WidgetInfo<'a>) -> TreeFilter> FilterDescendants<'a, F> {
                 }
             }
 
-            match self.front_state {
+            match self.back_state {
                 FilterDescendantsState::Filter => {
-                    let wgt = WidgetInfo::new(self.tree, self.front.id());
+                    let wgt = WidgetInfo::new(self.tree, self.back.id());
 
                     match (self.filter)(wgt) {
                         TreeFilter::Include => {
-                            self.front_state = FilterDescendantsState::Enter;
+                            self.back_state = FilterDescendantsState::Enter;
                             return Some(wgt);
                         }
                         TreeFilter::Skip => {
-                            self.front_state = FilterDescendantsState::Enter;
+                            self.back_state = FilterDescendantsState::Enter;
                             continue;
                         }
                         TreeFilter::SkipAll => {
-                            self.front_state = FilterDescendantsState::Exit;
+                            self.back_state = FilterDescendantsState::Exit;
                             continue;
                         }
                         TreeFilter::SkipDescendants => {
-                            self.front_state = FilterDescendantsState::Exit;
+                            self.back_state = FilterDescendantsState::Exit;
                             return Some(wgt);
                         }
                     }
                 }
                 FilterDescendantsState::Enter => {
-                    if let Some(child) = self.front.last_child() {
-                        self.front = child;
-                        self.front_state = FilterDescendantsState::Filter;
+                    if let Some(child) = self.back.last_child() {
+                        self.back = child;
+                        self.back_state = FilterDescendantsState::Filter;
                         continue;
                     } else {
-                        self.front_state = FilterDescendantsState::Exit;
+                        self.back_state = FilterDescendantsState::Exit;
                         continue;
                     }
                 }
                 FilterDescendantsState::Exit => {
-                    if self.front == self.root {
+                    if self.back == self.root {
                         return None;
-                    } else if let Some(s) = self.front.prev_sibling() {
-                        self.front = s;
-                        self.front_state = FilterDescendantsState::Filter;
+                    } else if let Some(s) = self.back.prev_sibling() {
+                        self.back = s;
+                        self.back_state = FilterDescendantsState::Filter;
                         continue;
-                    } else if let Some(p) = self.front.parent() {
-                        self.front = p;
-                        self.front_state = FilterDescendantsState::Exit;
+                    } else if let Some(p) = self.back.parent() {
+                        self.back = p;
+                        self.back_state = FilterDescendantsState::Exit;
                         continue;
                     } else {
-                        // did not find our root, but found a tree root?
-                        unreachable!()
+                        self.back = self.root;
+                        return None;
                     }
                 }
             }

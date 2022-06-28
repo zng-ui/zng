@@ -2,7 +2,7 @@ use crate::{
     context::*,
     units::*,
     var::impl_from_and_into_var,
-    widget_info::{TreeFilter, Interactivity, Visibility, WidgetInfo, WidgetInfoTree, WidgetPath},
+    widget_info::{Interactivity, TreeFilter, Visibility, WidgetInfo, WidgetInfoTree, WidgetPath},
     window::FocusIndicator,
     WidgetId,
 };
@@ -606,13 +606,7 @@ impl<'a> WidgetFocusInfo<'a> {
             // search for an ALT scope in our previous scope siblings.
             scope
                 .descendants()
-                .filter(|w| {
-                    if w == skip {
-                        TreeFilter::SkipAll
-                    } else {
-                        TreeFilter::Include
-                    }
-                })
+                .filter(|w| if w == skip { TreeFilter::SkipAll } else { TreeFilter::Include })
                 .find(|w| w.focus_info().is_alt_scope())
                 // if found no sibling ALT scope, do the same search for our scope.
                 .or_else(|| scope.alt_scope_query(skip))
