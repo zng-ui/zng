@@ -6,10 +6,7 @@ use super::*;
 
 /// Widget tree filter result.
 ///
-/// This `enum` is used by the [`filter_descendants`] and [`filter_self_and_descendants`] methods on [`WidgetInfo`]. See its documentation for more.
-///
-/// [`filter_descendants`]: WidgetInfo::filter_descendants
-/// [`filter_self_and_descendants`]: WidgetInfo::filter_self_and_descendants
+/// This `enum` is used by the [`Descendants::filter`] method.
 #[derive(Clone, Debug, Copy, PartialEq, Eq)]
 pub enum TreeFilter {
     /// Include the descendant and continue filtering its descendants.
@@ -24,7 +21,7 @@ pub enum TreeFilter {
 
 /// Iterator over all items in a branch of the widget tree.
 ///
-/// This `struct` is created by the [`descendants`] and [`self_and_descendants`] methods on [`WidgetInfo`]. See its documentation for more.
+/// This `struct` is created by the [`descendants`] and [`self_and_descendants`] methods on [`WidgetInfo`].
 ///
 /// [`descendants`]: WidgetInfo::descendants
 /// [`self_and_descendants`]: WidgetInfo::self_and_descendants
@@ -225,7 +222,7 @@ impl<'a> DoubleEndedIterator for Descendants<'a> {
 
 /// An iterator that filters a widget tree.
 ///
-/// This `struct` is created by the [`Descendants::filter`] method. See its documentation for more.
+/// This `struct` is created by the [`Descendants::filter`] method.
 pub struct FilterDescendants<'a, F: FnMut(WidgetInfo<'a>) -> TreeFilter> {
     filter: F,
     tree: &'a WidgetInfoTree,
