@@ -1694,6 +1694,14 @@ impl Text {
     pub fn as_str(&self) -> &str {
         self.0.deref()
     }
+
+    /// Copy the inner static `str` if this text represents one.
+    pub fn as_static_str(&self) -> Option<&'static str> {
+        match self.0 {
+            TextData::Static(s) => Some(s),
+            _ => None,
+        }
+    }
 }
 impl fmt::Debug for Text {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {

@@ -24,7 +24,7 @@ mod builder;
 pub use builder::*;
 
 pub mod iter;
-pub use iter::DescendantFilter;
+pub use iter::TreeFilter;
 
 unique_id_64! {
     /// Identifies a [`WidgetInfoTree`] snapshot, can be use for more speedy [`WidgetPath`] resolution.
@@ -529,6 +529,13 @@ struct WidgetInfoData {
     interactivity_cache: Cell<Option<Interactivity>>,
     local_interactivity: Cell<Interactivity>,
 }
+impl fmt::Debug for WidgetInfoData {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("WidgetInfoData")
+            .field("widget_id", &self.widget_id)
+            .finish_non_exhaustive()
+    }
+}
 
 /// Reference to a widget info in a [`WidgetInfoTree`].
 #[derive(Clone, Copy)]
@@ -552,7 +559,7 @@ impl<'a> std::fmt::Debug for WidgetInfo<'a> {
         f.debug_struct("WidgetInfo")
             .field("[path]", &self.path().to_string())
             .field("[meta]", self.meta())
-            .finish()
+            .finish_non_exhaustive()
     }
 }
 
@@ -911,6 +918,7 @@ impl<'a> WidgetInfo<'a> {
     pub fn prev_siblings_in(self, ancestor: WidgetInfo<'a>) -> iter::Descendants<'a> {
         let mut r = self.self_and_prev_siblings_in(ancestor);
         r.next();
+        r.next_back();
         r
     }
 
@@ -927,6 +935,7 @@ impl<'a> WidgetInfo<'a> {
     pub fn next_siblings_in(self, ancestor: WidgetInfo<'a>) -> iter::Descendants<'a> {
         let mut r = self.self_and_next_siblings_in(ancestor);
         r.next();
+        r.next_back();
         r
     }
 

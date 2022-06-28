@@ -82,16 +82,16 @@ impl<'a> FocusableDescendants<'a> {
     }
 
     /// Filter out entire branches of descendants at a time.
-    pub fn filter<F>(self, mut filter: F) -> FocusableFilterDescendants<'a, impl FnMut(WidgetInfo<'a>) -> w_iter::DescendantFilter>
+    pub fn filter<F>(self, mut filter: F) -> FocusableFilterDescendants<'a, impl FnMut(WidgetInfo<'a>) -> w_iter::TreeFilter>
     where
-        F: FnMut(WidgetFocusInfo<'a>) -> w_iter::DescendantFilter,
+        F: FnMut(WidgetFocusInfo<'a>) -> w_iter::TreeFilter,
     {
         FocusableFilterDescendants {
             iter: self.iter.filter(move |w| {
                 if let Some(f) = w.as_focusable(self.focus_disabled_widgets) {
                     filter(f)
                 } else {
-                    w_iter::DescendantFilter::Skip
+                    w_iter::TreeFilter::Skip
                 }
             }),
             focus_disabled_widgets: self.focus_disabled_widgets,
@@ -124,13 +124,13 @@ impl<'a> DoubleEndedIterator for FocusableDescendants<'a> {
 /// An iterator that filters a focusable widget tree.
 ///
 /// This `struct` is created by the [`FocusableDescendants::filter`] method. See its documentation for more.
-pub struct FocusableFilterDescendants<'a, F: FnMut(WidgetInfo<'a>) -> w_iter::DescendantFilter> {
+pub struct FocusableFilterDescendants<'a, F: FnMut(WidgetInfo<'a>) -> w_iter::TreeFilter> {
     iter: w_iter::FilterDescendants<'a, F>,
     focus_disabled_widgets: bool,
 }
 impl<'a, F> Iterator for FocusableFilterDescendants<'a, F>
 where
-    F: FnMut(WidgetInfo<'a>) -> w_iter::DescendantFilter,
+    F: FnMut(WidgetInfo<'a>) -> w_iter::TreeFilter,
 {
     type Item = WidgetFocusInfo<'a>;
 
@@ -140,7 +140,7 @@ where
 }
 impl<'a, F> DoubleEndedIterator for FocusableFilterDescendants<'a, F>
 where
-    F: FnMut(WidgetInfo<'a>) -> w_iter::DescendantFilter,
+    F: FnMut(WidgetInfo<'a>) -> w_iter::TreeFilter,
 {
     fn next_back(&mut self) -> Option<Self::Item> {
         self.iter.next_back().map(|w| w.as_focus_info(self.focus_disabled_widgets))

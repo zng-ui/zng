@@ -2,7 +2,7 @@ use crate::{
     context::*,
     units::*,
     var::impl_from_and_into_var,
-    widget_info::{DescendantFilter, Interactivity, Visibility, WidgetInfo, WidgetInfoTree, WidgetPath},
+    widget_info::{TreeFilter, Interactivity, Visibility, WidgetInfo, WidgetInfoTree, WidgetPath},
     window::FocusIndicator,
     WidgetId,
 };
@@ -403,7 +403,7 @@ impl<'a> FocusInfoTree<'a> {
         let mut candidate = None;
         let mut candidate_weight = usize::MAX;
 
-        for w in root.descendants().filter(|_| DescendantFilter::SkipDescendants) {
+        for w in root.descendants().filter(|_| TreeFilter::SkipDescendants) {
             let weight = w.info.prev_siblings().count() + w.info.ancestors().count();
             if weight < candidate_weight {
                 candidate = Some(w);
@@ -608,9 +608,9 @@ impl<'a> WidgetFocusInfo<'a> {
                 .descendants()
                 .filter(|w| {
                     if w == skip {
-                        DescendantFilter::SkipAll
+                        TreeFilter::SkipAll
                     } else {
-                        DescendantFilter::Include
+                        TreeFilter::Include
                     }
                 })
                 .find(|w| w.focus_info().is_alt_scope())
@@ -692,15 +692,15 @@ impl<'a> WidgetFocusInfo<'a> {
     pub fn tab_descendants(self) -> Vec<WidgetFocusInfo<'a>> {
         self.filter_tab_descendants(|f| {
             if f.focus_info().tab_index().is_skip() {
-                DescendantFilter::SkipAll
+                TreeFilter::SkipAll
             } else {
-                DescendantFilter::Include
+                TreeFilter::Include
             }
         })
     }
 
     /// Like [`tab_descendants`](Self::tab_descendants) but you can customize what items are skipped.
-    pub fn filter_tab_descendants(self, filter: impl Fn(WidgetFocusInfo<'a>) -> DescendantFilter + 'a) -> Vec<WidgetFocusInfo<'a>> {
+    pub fn filter_tab_descendants(self, filter: impl Fn(WidgetFocusInfo<'a>) -> TreeFilter + 'a) -> Vec<WidgetFocusInfo<'a>> {
         let mut vec: Vec<_> = self.descendants().filter(filter).collect();
         vec.sort_by_key(|f| f.focus_info().tab_index());
         vec
@@ -758,11 +758,11 @@ impl<'a> WidgetFocusInfo<'a> {
         self.next_focusables().next()
     }
 
-    fn filter_tab_skip(w: WidgetFocusInfo<'a>) -> DescendantFilter {
+    fn filter_tab_skip(w: WidgetFocusInfo<'a>) -> TreeFilter {
         if w.focus_info().tab_index().is_skip() {
-            DescendantFilter::SkipAll
+            TreeFilter::SkipAll
         } else {
-            DescendantFilter::Include
+            TreeFilter::Include
         }
     }
 
@@ -930,9 +930,9 @@ impl<'a> WidgetFocusInfo<'a> {
     fn descendants_skip_directional(self, also_skip: Option<WidgetFocusInfo<'a>>) -> impl Iterator<Item = WidgetFocusInfo<'a>> {
         self.descendants().filter(move |f| {
             if also_skip == Some(f) || f.focus_info().skip_directional() {
-                DescendantFilter::SkipAll
+                TreeFilter::SkipAll
             } else {
-                DescendantFilter::Include
+                TreeFilter::Include
             }
         })
     }
@@ -1147,6 +1147,7 @@ impl<'a> WidgetFocusInfo<'a> {
     /// Focus navigation actions that can move the focus away from this item.
     pub fn enabled_nav(self) -> FocusNavAction {
         let mut actions = FocusNavAction::all();
+
         actions.set(FocusNavAction::EXIT, self.parent().is_some() || self.is_alt_scope());
         actions.set(FocusNavAction::ENTER, self.descendants().next().is_some());
 
