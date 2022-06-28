@@ -76,6 +76,8 @@
 //! Focus information exists as metadata associated with a window widget tree. This metadata can be manually queried by
 //! creating a [`FocusInfoTree`] or directly from a widget info by using the [`WidgetInfoFocusExt`] extension methods.
 
+pub mod iter;
+
 mod focus_info;
 pub use focus_info::*;
 
