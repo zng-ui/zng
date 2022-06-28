@@ -37,6 +37,8 @@ pub struct Descendants<'a> {
 
     back: NodeRef<'a, WidgetInfoData>,
     back_state: DescendantsState,
+
+    next_is_prev: bool,
 }
 #[derive(Clone, Copy)]
 enum DescendantsState {
@@ -52,10 +54,16 @@ impl<'a> Descendants<'a> {
             front_state: DescendantsState::Enter,
             back: root,
             back_state: DescendantsState::Enter,
+            next_is_prev: false,
         }
     }
 
-    pub(super) fn new_in(tree: &'a WidgetInfoTree, root: NodeRef<'a, WidgetInfoData>, item: NodeRef<'a, WidgetInfoData>) -> Self {
+    pub(super) fn new_in(
+        tree: &'a WidgetInfoTree,
+        root: NodeRef<'a, WidgetInfoData>,
+        item: NodeRef<'a, WidgetInfoData>,
+        next_is_prev: bool,
+    ) -> Self {
         Self {
             tree,
             root,
@@ -63,6 +71,7 @@ impl<'a> Descendants<'a> {
             front_state: DescendantsState::Enter,
             back: item,
             back_state: DescendantsState::Enter,
+            next_is_prev,
         }
     }
 
@@ -88,11 +97,8 @@ impl<'a> Descendants<'a> {
             },
         }
     }
-}
-impl<'a> Iterator for Descendants<'a> {
-    type Item = WidgetInfo<'a>;
 
-    fn next(&mut self) -> Option<Self::Item> {
+    fn actual_next(&mut self) -> Option<WidgetInfo<'a>> {
         loop {
             // DoubleEndedIterator contract
             if self.front == self.back {
@@ -133,9 +139,8 @@ impl<'a> Iterator for Descendants<'a> {
             }
         }
     }
-}
-impl<'a> DoubleEndedIterator for Descendants<'a> {
-    fn next_back(&mut self) -> Option<Self::Item> {
+
+    fn actual_next_back(&mut self) -> Option<WidgetInfo<'a>> {
         loop {
             // DoubleEndedIterator contract
             if self.front == self.back {
@@ -174,6 +179,26 @@ impl<'a> DoubleEndedIterator for Descendants<'a> {
                     }
                 }
             }
+        }
+    }
+}
+impl<'a> Iterator for Descendants<'a> {
+    type Item = WidgetInfo<'a>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.next_is_prev {
+            self.actual_next_back()
+        } else {
+            self.actual_next()
+        }
+    }
+}
+impl<'a> DoubleEndedIterator for Descendants<'a> {
+    fn next_back(&mut self) -> Option<Self::Item> {
+        if self.next_is_prev {
+            self.actual_next()
+        } else {
+            self.actual_next_back()
         }
     }
 }

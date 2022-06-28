@@ -2,7 +2,7 @@
 
 use std::{borrow::Cow, cell::Cell, fmt, mem, ops, rc::Rc};
 
-use ego_tree::{iter::Descendants, Tree};
+use ego_tree::Tree;
 
 use crate::{
     border::ContextBorders,
@@ -908,7 +908,7 @@ impl<'a> WidgetInfo<'a> {
     /// Iterator over all previous widgets within the same `ancestor`.
     ///
     /// If `ancestor` is not actually an ancestor iterates to the root.
-    pub fn prev_siblings_in(self, ancestor: WidgetInfo<'a>) -> impl Iterator<Item = WidgetInfo<'a>> {
+    pub fn prev_siblings_in(self, ancestor: WidgetInfo<'a>) -> iter::Descendants<'a> {
         let mut r = self.self_and_prev_siblings_in(ancestor);
         r.next();
         r
@@ -917,8 +917,8 @@ impl<'a> WidgetInfo<'a> {
     /// Iterator over self and all previous widgets within the same `ancestor`.
     ///
     /// If `ancestor` is not actually an ancestor iterates to the root.
-    pub fn self_and_prev_siblings_in(self, ancestor: WidgetInfo<'a>) -> std::iter::Rev<iter::Descendants<'a>> {
-        iter::Descendants::new_in(self.tree, ancestor.node(), self.node()).rev()
+    pub fn self_and_prev_siblings_in(self, ancestor: WidgetInfo<'a>) -> iter::Descendants<'a> {
+        iter::Descendants::new_in(self.tree, ancestor.node(), self.node(), true)
     }
 
     /// Iterator over all next widgets within the same `ancestor`.
@@ -934,7 +934,7 @@ impl<'a> WidgetInfo<'a> {
     ///
     /// If `ancestor` is not actually an ancestor iterates to the root.
     pub fn self_and_next_siblings_in(self, ancestor: WidgetInfo<'a>) -> iter::Descendants<'a> {
-        iter::Descendants::new_in(self.tree, ancestor.node(), self.node())
+        iter::Descendants::new_in(self.tree, ancestor.node(), self.node(), false)
     }
 
     /// This widgets [`center`](Self::center) orientation in relation to a `origin`.

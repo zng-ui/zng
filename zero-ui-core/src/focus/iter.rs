@@ -71,24 +71,31 @@ where
 /// [`self_and_descendants`]: WidgetFocusInfo::self_and_descendants
 pub struct FocusableDescendants<'a> {
     iter: w_iter::Descendants<'a>,
+    focus_disabled_widgets: bool,
 }
 impl<'a> FocusableDescendants<'a> {
-    pub(super) fn new(iter: w_iter::Descendants<'a>) -> Self {
-        Self { iter }
+    pub(super) fn new(iter: w_iter::Descendants<'a>, focus_disabled_widgets: bool) -> Self {
+        Self {
+            iter,
+            focus_disabled_widgets,
+        }
     }
 
     /// Filter out entire branches of descendants at a time.
-    pub fn filter<F>(self, mut filter: F) -> w_iter::FilterDescendants<'a, impl FnMut(WidgetInfo<'a>) -> w_iter::DescendantFilter>
+    pub fn filter<F>(self, mut filter: F) -> FocusableFilterDescendants<'a, impl FnMut(WidgetInfo<'a>) -> w_iter::DescendantFilter>
     where
         F: FnMut(WidgetFocusInfo<'a>) -> w_iter::DescendantFilter,
     {
-        self.iter.filter(move |w| {
-            if let Some(f) = w.focusable() {
-                filter(f)
-            } else {
-                w_iter::DescendantFilter::Skip
-            }
-        })
+        FocusableFilterDescendants {
+            iter: self.iter.filter(move |w| {
+                if let Some(f) = w.as_focusable(self.focus_disabled_widgets) {
+                    filter(f)
+                } else {
+                    w_iter::DescendantFilter::Skip
+                }
+            }),
+            focus_disabled_widgets: self.focus_disabled_widgets,
+        }
     }
 }
 impl<'a> Iterator for FocusableDescendants<'a> {
@@ -101,5 +108,41 @@ impl<'a> Iterator for FocusableDescendants<'a> {
             }
         }
         None
+    }
+}
+impl<'a> DoubleEndedIterator for FocusableDescendants<'a> {
+    fn next_back(&mut self) -> Option<Self::Item> {
+        while let Some(next) = self.iter.next_back() {
+            if let Some(next) = next.as_focusable(self.focus_disabled_widgets) {
+                return Some(next);
+            }
+        }
+        None
+    }
+}
+
+/// An iterator that filters a focusable widget tree.
+///
+/// This `struct` is created by the [`FocusableDescendants::filter`] method. See its documentation for more.
+pub struct FocusableFilterDescendants<'a, F: FnMut(WidgetInfo<'a>) -> w_iter::DescendantFilter> {
+    iter: w_iter::FilterDescendants<'a, F>,
+    focus_disabled_widgets: bool,
+}
+impl<'a, F> Iterator for FocusableFilterDescendants<'a, F>
+where
+    F: FnMut(WidgetInfo<'a>) -> w_iter::DescendantFilter,
+{
+    type Item = WidgetFocusInfo<'a>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.iter.next().map(|w| w.as_focus_info(self.focus_disabled_widgets))
+    }
+}
+impl<'a, F> DoubleEndedIterator for FocusableFilterDescendants<'a, F>
+where
+    F: FnMut(WidgetInfo<'a>) -> w_iter::DescendantFilter,
+{
+    fn next_back(&mut self) -> Option<Self::Item> {
+        self.iter.next_back().map(|w| w.as_focus_info(self.focus_disabled_widgets))
     }
 }
