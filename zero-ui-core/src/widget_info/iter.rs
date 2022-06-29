@@ -81,7 +81,7 @@ impl<'a> Descendants<'a> {
                 front_state: DescendantsState::Enter,
                 back: item,
                 back_state: DescendantsState::Enter,
-                next_is_prev: false,
+                next_is_prev: true,
             }
         } else {
             Self {
@@ -91,7 +91,7 @@ impl<'a> Descendants<'a> {
                 front_state: DescendantsState::Enter,
                 back: root,
                 back_state: DescendantsState::Enter,
-                next_is_prev: true,
+                next_is_prev: false,
             }
         }
     }

@@ -704,7 +704,7 @@ impl<'a> WidgetFocusInfo<'a> {
     pub fn first_tab_descendant(self) -> Option<WidgetFocusInfo<'a>> {
         let mut best = (TabIndex::SKIP, self);
 
-        for d in self.descendants() {
+        for d in self.descendants().filter(Self::filter_tab_skip) {
             let idx = d.focus_info().tab_index();
 
             if idx < best.0 {
@@ -723,7 +723,7 @@ impl<'a> WidgetFocusInfo<'a> {
     pub fn last_tab_descendant(self) -> Option<WidgetFocusInfo<'a>> {
         let mut best = (-1i64, self);
 
-        for d in self.descendants().rev() {
+        for d in self.descendants().filter(Self::filter_tab_skip).rev() {
             let idx = d.focus_info().tab_index().0 as i64;
 
             if idx > best.0 {
@@ -800,7 +800,7 @@ impl<'a> WidgetFocusInfo<'a> {
         for s in self.prev_focusables().filter(Self::filter_tab_skip) {
             let idx = s.focus_info().tab_index();
 
-            if idx < best.0 && idx > self_index {
+            if idx <= best.0 && idx > self_index {
                 best = (idx, s);
             }
         }
@@ -867,7 +867,7 @@ impl<'a> WidgetFocusInfo<'a> {
         for s in self.next_focusables().filter(Self::filter_tab_skip) {
             let idx = s.focus_info().tab_index().0 as i64;
 
-            if idx > best.0 && idx < self_index {
+            if idx >= best.0 && idx < self_index {
                 best = (idx, s);
             }
         }
