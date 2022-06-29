@@ -927,8 +927,6 @@ impl<E: AppExtension> RunningApp<E> {
 
     /// Process a View Process event.
     fn on_view_event<O: AppEventObserver>(&mut self, ev: zero_ui_view_api::Event, observer: &mut O) {
-        let _s = tracing::debug_span!("view_event", ?ev).entered();
-
         use raw_device_events::*;
         use raw_events::*;
         use zero_ui_view_api::Event;
