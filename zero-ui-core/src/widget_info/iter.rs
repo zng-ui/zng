@@ -18,6 +18,19 @@ pub enum TreeFilter {
     /// Include the descendant but skips its descendants.
     SkipDescendants,
 }
+impl_from_and_into_var! {
+    /// Returns [`Include`] for `true` and [`Skip`] for `false`.
+    ///
+    /// [`Include`]: TreeFilter::Include
+    /// [`Skip`]: TreeFilter::Skip
+    fn from(include: bool) -> TreeFilter {
+        if include {
+            TreeFilter::Include
+        } else {
+            TreeFilter::Skip
+        }
+    }
+}
 
 /// Iterator over all items in a branch of the widget tree.
 ///
@@ -97,11 +110,34 @@ impl<'a> Descendants<'a> {
     }
 
     /// Filter out entire branches of descendants at a time.
+    ///
+    /// Note that you can convert `bool` into [`TreeFilter`] to use this method just like the iterator default.
     pub fn filter<F>(self, filter: F) -> FilterDescendants<'a, F>
     where
         F: FnMut(WidgetInfo<'a>) -> TreeFilter,
     {
         FilterDescendants { filter, iter: self }
+    }
+
+    /// Returns the first widget included by `filter`.
+    ///
+    /// Note that you can convert `bool` into [`TreeFilter`] to use this method just like the iterator default.
+    pub fn find<F>(self, filter: F) -> Option<WidgetInfo<'a>>
+    where
+        F: FnMut(WidgetInfo<'a>) -> TreeFilter,
+    {
+        #[allow(clippy::filter_next)]
+        self.filter(filter).next()
+    }
+
+    /// Returns if the `filter` allows any widget.
+    ///
+    /// Note that you can convert `bool` into [`TreeFilter`] to use this method just like the iterator default.
+    pub fn any<F>(self, filter: F) -> bool
+    where
+        F: FnMut(WidgetInfo<'a>) -> TreeFilter,
+    {
+        self.find(filter).is_some()
     }
 
     fn actual_next(&mut self) -> Option<WidgetInfo<'a>> {

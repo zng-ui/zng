@@ -170,7 +170,7 @@ pub fn modal(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
                         // filter, only allows inside self inclusive, and ancestors.
                         let modal = mws.last_in_tree.unwrap();
                         if a.info.self_and_ancestors().any(|w| w.widget_id() == modal)
-                            || a.info.self_and_descendants().any(|w| w.widget_id() == modal)
+                            || a.info.self_and_descendants().any(|w| (w.widget_id() == modal).into())
                         {
                             Interactivity::ENABLED
                         } else {

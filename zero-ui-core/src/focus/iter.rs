@@ -82,6 +82,10 @@ impl<'a> FocusableDescendants<'a> {
     }
 
     /// Filter out entire branches of descendants at a time.
+    ///
+    /// Note that you can convert `bool` into [`TreeFilter`] to use this method just like the iterator default.
+    ///
+    /// [`TreeFilter`]: w_iter::TreeFilter
     pub fn filter<F>(self, mut filter: F) -> FocusableFilterDescendants<'a, impl FnMut(WidgetInfo<'a>) -> w_iter::TreeFilter>
     where
         F: FnMut(WidgetFocusInfo<'a>) -> w_iter::TreeFilter,
@@ -96,6 +100,31 @@ impl<'a> FocusableDescendants<'a> {
             }),
             focus_disabled_widgets: self.focus_disabled_widgets,
         }
+    }
+
+    /// Returns the first focusable included by `filter`.
+    ///
+    /// Note that you can convert `bool` into [`TreeFilter`] to use this method just like the iterator default.
+    ///
+    /// [`TreeFilter`]: w_iter::TreeFilter
+    pub fn find<F>(self, filter: F) -> Option<WidgetFocusInfo<'a>>
+    where
+        F: FnMut(WidgetFocusInfo<'a>) -> w_iter::TreeFilter,
+    {
+        #[allow(clippy::filter_next)]
+        self.filter(filter).next()
+    }
+
+    /// Returns if the `filter` allows any focusable.
+    ///
+    /// Note that you can convert `bool` into [`TreeFilter`] to use this method just like the iterator default.
+    ///
+    /// [`TreeFilter`]: w_iter::TreeFilter
+    pub fn any<F>(self, filter: F) -> bool
+    where
+        F: FnMut(WidgetFocusInfo<'a>) -> w_iter::TreeFilter,
+    {
+        self.find(filter).is_some()
     }
 }
 impl<'a> Iterator for FocusableDescendants<'a> {

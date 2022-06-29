@@ -829,7 +829,7 @@ impl Focus {
                             // tabular
                             FocusTarget::Next => w.next_tab(false),
                             FocusTarget::Prev => w.prev_tab(false),
-                            FocusTarget::Enter => w.tab_descendants().first().copied(),
+                            FocusTarget::Enter => w.first_tab_descendant(),
                             FocusTarget::Exit => {
                                 if self.alt_return.is_some() && (w.is_alt_scope() || w.parent().map(|w| w.is_alt_scope()).unwrap_or(false))
                                 {
