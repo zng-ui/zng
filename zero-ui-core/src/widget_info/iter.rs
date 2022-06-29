@@ -89,24 +89,7 @@ impl<'a> Descendants<'a> {
     where
         F: FnMut(WidgetInfo<'a>) -> TreeFilter,
     {
-        FilterDescendants {
-            filter,
-            tree: self.tree,
-            root: self.root,
-
-            front: self.front,
-            front_state: match self.front_state {
-                DescendantsState::Enter => FilterDescendantsState::Filter,
-                DescendantsState::Exit => FilterDescendantsState::Exit,
-            },
-            back: self.back,
-            back_state: match self.back_state {
-                DescendantsState::Enter => FilterDescendantsState::Filter,
-                DescendantsState::Exit => FilterDescendantsState::Exit,
-            },
-
-            next_is_prev: self.next_is_prev,
-        }
+        FilterDescendants { filter, iter: self }
     }
 
     fn actual_next(&mut self) -> Option<WidgetInfo<'a>> {
@@ -225,17 +208,7 @@ impl<'a> DoubleEndedIterator for Descendants<'a> {
 /// This `struct` is created by the [`Descendants::filter`] method.
 pub struct FilterDescendants<'a, F: FnMut(WidgetInfo<'a>) -> TreeFilter> {
     filter: F,
-    tree: &'a WidgetInfoTree,
-
-    root: NodeRef<'a, WidgetInfoData>,
-
-    front: NodeRef<'a, WidgetInfoData>,
-    front_state: FilterDescendantsState,
-
-    back: NodeRef<'a, WidgetInfoData>,
-    back_state: FilterDescendantsState,
-
-    next_is_prev: bool,
+    iter: Descendants<'a>,
 }
 impl<'a, F> fmt::Debug for FilterDescendants<'a, F>
 where
@@ -243,151 +216,39 @@ where
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("FilterDescendants")
-            .field("root", &self.root.value().widget_id.to_string())
-            .field("front", &self.front.value().widget_id.to_string())
-            .field("front_state", &self.front_state)
-            .field("back", &self.back.value().widget_id.to_string())
-            .field("back_state", &self.back_state)
-            .field("next_is_prev", &self.next_is_prev)
+            .field("iter", &self.iter)
             .finish_non_exhaustive()
     }
-}
-#[derive(Debug, Clone, Copy)]
-enum FilterDescendantsState {
-    Filter,
-    Enter,
-    Exit,
 }
 impl<'a, F> FilterDescendants<'a, F>
 where
     F: FnMut(WidgetInfo<'a>) -> TreeFilter,
 {
-    fn actual_next(&mut self) -> Option<WidgetInfo<'a>> {
+    fn advance(&mut self, pull: impl Fn(&mut Descendants<'a>) -> Option<WidgetInfo<'a>>, is_front: bool) -> Option<WidgetInfo<'a>> {
         loop {
-            // DoubleEndedIterator contract
-            if self.front == self.back {
-                if let FilterDescendantsState::Exit = self.front_state {
-                    return None;
-                }
-                if let FilterDescendantsState::Exit = self.back_state {
-                    return None;
-                }
-            }
-
-            match self.front_state {
-                FilterDescendantsState::Filter => {
-                    let wgt = WidgetInfo::new(self.tree, self.front.id());
-
-                    match (self.filter)(wgt) {
-                        TreeFilter::Include => {
-                            self.front_state = FilterDescendantsState::Enter;
-                            return Some(wgt);
+            if let Some(wgt) = pull(&mut self.iter) {
+                match (self.filter)(wgt) {
+                    TreeFilter::Include => return Some(wgt),
+                    TreeFilter::Skip => continue,
+                    TreeFilter::SkipAll => {
+                        if is_front {
+                            self.iter.front_state = DescendantsState::Exit;
+                        } else {
+                            self.iter.back_state = DescendantsState::Exit;
                         }
-                        TreeFilter::Skip => {
-                            self.front_state = FilterDescendantsState::Enter;
-                            continue;
-                        }
-                        TreeFilter::SkipAll => {
-                            self.front_state = FilterDescendantsState::Exit;
-                            continue;
-                        }
-                        TreeFilter::SkipDescendants => {
-                            self.front_state = FilterDescendantsState::Exit;
-                            return Some(wgt);
-                        }
-                    }
-                }
-                FilterDescendantsState::Enter => {
-                    if let Some(child) = self.front.first_child() {
-                        self.front = child;
-                        self.front_state = FilterDescendantsState::Filter;
-                        continue;
-                    } else {
-                        self.front_state = FilterDescendantsState::Exit;
                         continue;
                     }
-                }
-                FilterDescendantsState::Exit => {
-                    if self.front == self.root {
-                        return None;
-                    } else if let Some(s) = self.front.next_sibling() {
-                        self.front = s;
-                        self.front_state = FilterDescendantsState::Filter;
-                        continue;
-                    } else if let Some(p) = self.front.parent() {
-                        self.front = p;
-                        self.front_state = FilterDescendantsState::Exit;
-                        continue;
-                    } else {
-                        self.front = self.root;
-                        return None;
+                    TreeFilter::SkipDescendants => {
+                        if is_front {
+                            self.iter.front_state = DescendantsState::Exit;
+                        } else {
+                            self.iter.back_state = DescendantsState::Exit;
+                        }
+                        return Some(wgt);
                     }
                 }
-            }
-        }
-    }
-
-    fn actual_next_back(&mut self) -> Option<WidgetInfo<'a>> {
-        loop {
-            // DoubleEndedIterator contract
-            if self.front == self.back {
-                if let FilterDescendantsState::Exit = self.front_state {
-                    return None;
-                }
-                if let FilterDescendantsState::Exit = self.back_state {
-                    return None;
-                }
-            }
-
-            match self.back_state {
-                FilterDescendantsState::Filter => {
-                    let wgt = WidgetInfo::new(self.tree, self.back.id());
-
-                    match (self.filter)(wgt) {
-                        TreeFilter::Include => {
-                            self.back_state = FilterDescendantsState::Enter;
-                            return Some(wgt);
-                        }
-                        TreeFilter::Skip => {
-                            self.back_state = FilterDescendantsState::Enter;
-                            continue;
-                        }
-                        TreeFilter::SkipAll => {
-                            self.back_state = FilterDescendantsState::Exit;
-                            continue;
-                        }
-                        TreeFilter::SkipDescendants => {
-                            self.back_state = FilterDescendantsState::Exit;
-                            return Some(wgt);
-                        }
-                    }
-                }
-                FilterDescendantsState::Enter => {
-                    if let Some(child) = self.back.last_child() {
-                        self.back = child;
-                        self.back_state = FilterDescendantsState::Filter;
-                        continue;
-                    } else {
-                        self.back_state = FilterDescendantsState::Exit;
-                        continue;
-                    }
-                }
-                FilterDescendantsState::Exit => {
-                    if self.back == self.root {
-                        return None;
-                    } else if let Some(s) = self.back.prev_sibling() {
-                        self.back = s;
-                        self.back_state = FilterDescendantsState::Filter;
-                        continue;
-                    } else if let Some(p) = self.back.parent() {
-                        self.back = p;
-                        self.back_state = FilterDescendantsState::Exit;
-                        continue;
-                    } else {
-                        self.back = self.root;
-                        return None;
-                    }
-                }
+            } else {
+                return None;
             }
         }
     }
@@ -399,11 +260,7 @@ where
     type Item = WidgetInfo<'a>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.next_is_prev {
-            self.actual_next_back()
-        } else {
-            self.actual_next()
-        }
+        self.advance(|d| d.next(), !self.iter.next_is_prev)
     }
 }
 impl<'a, F> DoubleEndedIterator for FilterDescendants<'a, F>
@@ -411,11 +268,7 @@ where
     F: FnMut(WidgetInfo<'a>) -> TreeFilter,
 {
     fn next_back(&mut self) -> Option<Self::Item> {
-        if self.next_is_prev {
-            self.actual_next()
-        } else {
-            self.actual_next_back()
-        }
+        self.advance(|d| d.next_back(), self.iter.next_is_prev)
     }
 }
 
