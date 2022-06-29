@@ -71,16 +71,28 @@ impl<'a> Descendants<'a> {
         tree: &'a WidgetInfoTree,
         root: NodeRef<'a, WidgetInfoData>,
         item: NodeRef<'a, WidgetInfoData>,
-        next_is_prev: bool,
+        is_prev: bool,
     ) -> Self {
-        Self {
-            tree,
-            root,
-            front: item,
-            front_state: DescendantsState::Enter,
-            back: item,
-            back_state: DescendantsState::Enter,
-            next_is_prev,
+        if is_prev {
+            Self {
+                tree,
+                root,
+                front: root,
+                front_state: DescendantsState::Enter,
+                back: item,
+                back_state: DescendantsState::Enter,
+                next_is_prev: false,
+            }
+        } else {
+            Self {
+                tree,
+                root,
+                front: item,
+                front_state: DescendantsState::Enter,
+                back: root,
+                back_state: DescendantsState::Enter,
+                next_is_prev: true,
+            }
         }
     }
 
