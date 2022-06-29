@@ -109,6 +109,26 @@ impl<'a> Descendants<'a> {
         }
     }
 
+    pub(super) fn new_in_after(
+        tree: &'a WidgetInfoTree,
+        root: NodeRef<'a, WidgetInfoData>,
+        item: NodeRef<'a, WidgetInfoData>,
+        is_prev: bool,
+    ) -> Self {
+        let mut r = Self::new_in(tree, root, item, is_prev);
+        if let Some(n) = r.front.next_sibling() {
+            r.front = n;
+        } else {
+            r.front_state = DescendantsState::Exit;
+        }
+        if let Some(n) = r.back.prev_sibling() {
+            r.back = n;
+        } else {
+            r.back_state = DescendantsState::Exit;
+        }
+        r
+    }
+
     /// Filter out entire branches of descendants at a time.
     ///
     /// Note that you can convert `bool` into [`TreeFilter`] to use this method just like the iterator default.
@@ -849,17 +869,16 @@ mod tests {
     }
 
     #[test]
-    fn next_siblings_in() {
+    fn self_and_next_siblings_in() {
         let tree = data_nested();
 
         let root = tree.find("c-1").unwrap();
         let item = tree.find("c-1-1").unwrap();
 
-        let result: Vec<_> = item.next_siblings_in(root).map(|w| w.test_name()).collect();
+        let result: Vec<_> = item.self_and_next_siblings_in(root).map(|w| w.test_name()).collect();
         let expected: Vec<_> = root
             .descendants()
             .skip_while(|w| w.widget_id() != WidgetId::named("c-1-1"))
-            .skip(1)
             .map(|w| w.test_name())
             .collect();
 
@@ -867,18 +886,52 @@ mod tests {
     }
 
     #[test]
-    fn prev_siblings_in() {
+    fn self_and_prev_siblings_in() {
         let tree = data_nested();
 
         let root = tree.find("c-1").unwrap();
         let item = tree.find("c-1-1").unwrap();
 
-        let result: Vec<_> = item.prev_siblings_in(root).map(|w| w.test_name()).collect();
+        let result: Vec<_> = item.self_and_prev_siblings_in(root).map(|w| w.test_name()).collect();
         let expected: Vec<_> = root
             .descendants()
             .rev()
             .skip_while(|w| w.widget_id() != WidgetId::named("c-1-1"))
-            .skip(1)
+            .map(|w| w.test_name())
+            .collect();
+
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn self_and_next_siblings_in_root() {
+        let tree = data_nested();
+
+        let root = tree.root();
+        let item = tree.find("c-1-1").unwrap();
+
+        let result: Vec<_> = item.self_and_next_siblings_in(root).map(|w| w.test_name()).collect();
+        let expected: Vec<_> = root
+            .descendants()
+            .skip_while(|w| w.widget_id() != WidgetId::named("c-1-1"))
+            .map(|w| w.test_name())
+            .collect();
+
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn self_and_prev_siblings_in_root() {
+        let tree = data_nested();
+
+        let root = tree.root();
+        let item = tree.find("c-1-1").unwrap();
+
+        let result: Vec<_> = item.self_and_prev_siblings_in(root).map(|w| w.test_name()).collect();
+        let expected: Vec<_> = root
+            .descendants()
+            .rev()
+            .skip_while(|w| w.widget_id() != WidgetId::named("c-1-1"))
             .map(|w| w.test_name())
             .collect();
 
@@ -890,12 +943,12 @@ mod tests {
         let tree = data_nested();
 
         let root = tree.root();
-        let item = tree.find("c-1-1").unwrap();
+        let item = tree.find("c-1-1-0").unwrap();
 
         let result: Vec<_> = item.next_siblings_in(root).map(|w| w.test_name()).collect();
         let expected: Vec<_> = root
             .descendants()
-            .skip_while(|w| w.widget_id() != WidgetId::named("c-1-1"))
+            .skip_while(|w| w.widget_id() != WidgetId::named("c-1-1-0"))
             .skip(1)
             .map(|w| w.test_name())
             .collect();
@@ -904,17 +957,17 @@ mod tests {
     }
 
     #[test]
-    fn prev_siblings_in_root() {
+    fn and_prev_siblings_in_root() {
         let tree = data_nested();
 
         let root = tree.root();
-        let item = tree.find("c-1-1").unwrap();
+        let item = tree.find("c-1-1-0").unwrap();
 
         let result: Vec<_> = item.prev_siblings_in(root).map(|w| w.test_name()).collect();
         let expected: Vec<_> = root
             .descendants()
             .rev()
-            .skip_while(|w| w.widget_id() != WidgetId::named("c-1-1"))
+            .skip_while(|w| w.widget_id() != WidgetId::named("c-1-1-0"))
             .skip(1)
             .map(|w| w.test_name())
             .collect();

@@ -912,34 +912,28 @@ impl<'a> WidgetInfo<'a> {
         [self].into_iter().chain(self.next_siblings())
     }
 
-    /// Iterator over all previous widgets within the same `ancestor`.
+    /// Iterator over all previous widgets within the same `ancestor`, including descendants of siblings.
     ///
     /// If `ancestor` is not actually an ancestor iterates to the root.
     pub fn prev_siblings_in(self, ancestor: WidgetInfo<'a>) -> iter::Descendants<'a> {
-        let mut r = self.self_and_prev_siblings_in(ancestor);
-        r.next();
-        r.next_back();
-        r
+        iter::Descendants::new_in_after(self.tree, ancestor.node(), self.node(), true)
     }
 
-    /// Iterator over self and all previous widgets within the same `ancestor`.
+    /// Iterator over self, descendants and all previous widgets within the same `ancestor`.
     ///
     /// If `ancestor` is not actually an ancestor iterates to the root.
     pub fn self_and_prev_siblings_in(self, ancestor: WidgetInfo<'a>) -> iter::Descendants<'a> {
         iter::Descendants::new_in(self.tree, ancestor.node(), self.node(), true)
     }
 
-    /// Iterator over all next widgets within the same `ancestor`.
+    /// Iterator over all next widgets within the same `ancestor`, including descendants of siblings.
     ///
     /// If `ancestor` is not actually an ancestor iterates to the root.
     pub fn next_siblings_in(self, ancestor: WidgetInfo<'a>) -> iter::Descendants<'a> {
-        let mut r = self.self_and_next_siblings_in(ancestor);
-        r.next();
-        r.next_back();
-        r
+        iter::Descendants::new_in_after(self.tree, ancestor.node(), self.node(), false)
     }
 
-    /// Iterator over self all next widgets within the same `ancestor`.
+    /// Iterator over self, descendants and all next widgets within the same `ancestor`.
     ///
     /// If `ancestor` is not actually an ancestor iterates to the root.
     pub fn self_and_next_siblings_in(self, ancestor: WidgetInfo<'a>) -> iter::Descendants<'a> {

@@ -894,10 +894,11 @@ pub fn tab_inner_scope_none() {
 
 #[test]
 pub fn tab_inner_scope_continue_to_non_focusable_siblings_focusable_child() {
-    let btn1 = WidgetId::new_unique();
-    let btn2 = WidgetId::new_unique();
+    let btn1 = WidgetId::named("btn-1");
+    let btn2 = WidgetId::named("btn-2");
     let mut app = TestApp::new(h_stack(widgets![
         v_stack! {
+            id = "initial-scope";
             focus_scope = true;
             tab_nav = TabNav::Continue;
             items = widgets![button! { id = btn1; content = text("Btn 1"); }];
