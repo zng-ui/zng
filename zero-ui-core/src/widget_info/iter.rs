@@ -799,4 +799,78 @@ mod tests {
             ]
         );
     }
+
+    #[test]
+    fn next_siblings_in() {
+        let tree = data_nested();
+
+        let root = tree.find("c-1").unwrap();
+        let item = tree.find("c-1-1").unwrap();
+
+        let result: Vec<_> = item.next_siblings_in(root).map(|w| w.test_name()).collect();
+        let expected: Vec<_> = root
+            .descendants()
+            .skip_while(|w| w.widget_id() != WidgetId::named("c-1-1"))
+            .skip(1)
+            .map(|w| w.test_name())
+            .collect();
+
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn prev_siblings_in() {
+        let tree = data_nested();
+
+        let root = tree.find("c-1").unwrap();
+        let item = tree.find("c-1-1").unwrap();
+
+        let result: Vec<_> = item.prev_siblings_in(root).map(|w| w.test_name()).collect();
+        let expected: Vec<_> = root
+            .descendants()
+            .rev()
+            .skip_while(|w| w.widget_id() != WidgetId::named("c-1-1"))
+            .skip(1)
+            .map(|w| w.test_name())
+            .collect();
+
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn next_siblings_in_root() {
+        let tree = data_nested();
+
+        let root = tree.root();
+        let item = tree.find("c-1-1").unwrap();
+
+        let result: Vec<_> = item.next_siblings_in(root).map(|w| w.test_name()).collect();
+        let expected: Vec<_> = root
+            .descendants()
+            .skip_while(|w| w.widget_id() != WidgetId::named("c-1-1"))
+            .skip(1)
+            .map(|w| w.test_name())
+            .collect();
+
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn prev_siblings_in_root() {
+        let tree = data_nested();
+
+        let root = tree.root();
+        let item = tree.find("c-1-1").unwrap();
+
+        let result: Vec<_> = item.prev_siblings_in(root).map(|w| w.test_name()).collect();
+        let expected: Vec<_> = root
+            .descendants()
+            .rev()
+            .skip_while(|w| w.widget_id() != WidgetId::named("c-1-1"))
+            .skip(1)
+            .map(|w| w.test_name())
+            .collect();
+
+        assert_eq!(result, expected);
+    }
 }

@@ -99,16 +99,16 @@ impl WidgetInfoTree {
     }
 
     /// Reference to the widget in the tree, if it is present.
-    pub fn find(&self, widget_id: WidgetId) -> Option<WidgetInfo> {
+    pub fn find(&self, widget_id: impl Into<WidgetId>) -> Option<WidgetInfo> {
         self.0
             .lookup
-            .get(&widget_id)
+            .get(&widget_id.into())
             .and_then(|i| self.0.tree.get(*i).map(|n| WidgetInfo::new(self, n.id())))
     }
 
     /// If the tree contains the widget.
-    pub fn contains(&self, widget_id: WidgetId) -> bool {
-        self.0.lookup.contains_key(&widget_id)
+    pub fn contains(&self, widget_id: impl Into<WidgetId>) -> bool {
+        self.0.lookup.contains_key(&widget_id.into())
     }
 
     /// Reference to the widget in the tree, if it is present.
