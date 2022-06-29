@@ -227,23 +227,25 @@ where
     fn advance(&mut self, pull: impl Fn(&mut Descendants<'a>) -> Option<WidgetInfo<'a>>, is_front: bool) -> Option<WidgetInfo<'a>> {
         loop {
             if let Some(wgt) = pull(&mut self.iter) {
+                let mut skip = || {
+                    if is_front {
+                        self.iter.front = wgt.node();
+                        self.iter.front_state = DescendantsState::Exit;
+                    } else {
+                        self.iter.back = wgt.node();
+                        self.iter.back_state = DescendantsState::Exit;
+                    }
+                };
+
                 match (self.filter)(wgt) {
                     TreeFilter::Include => return Some(wgt),
                     TreeFilter::Skip => continue,
                     TreeFilter::SkipAll => {
-                        if is_front {
-                            self.iter.front_state = DescendantsState::Exit;
-                        } else {
-                            self.iter.back_state = DescendantsState::Exit;
-                        }
+                        skip();
                         continue;
                     }
                     TreeFilter::SkipDescendants => {
-                        if is_front {
-                            self.iter.front_state = DescendantsState::Exit;
-                        } else {
-                            self.iter.back_state = DescendantsState::Exit;
-                        }
+                        skip();
                         return Some(wgt);
                     }
                 }
@@ -491,51 +493,10 @@ mod tests {
     }
 
     #[test]
-    fn descendants_nested_filter_noop() {
-        let tree = data_nested();
-
-        let result: Vec<_> = tree
-            .root()
-            .descendants()
-            .filter(|_| TreeFilter::Include)
-            .map(|w| w.test_name())
-            .collect();
-
-        assert_eq!(
-            result,
-            vec![
-                "c-0", "c-0-0", "c-0-1", "c-0-2", "c-1", "c-1-0", "c-1-1", "c-1-1-0", "c-1-1-1", "c-2", "c-2-0", "c-2-1", "c-2-2",
-                "c-2-2-0",
-            ]
-        );
-    }
-
-    #[test]
     fn descendants_nested_rev() {
         let tree = data_nested();
 
         let result: Vec<_> = tree.root().descendants().rev().map(|w| w.test_name()).collect();
-
-        assert_eq!(
-            result,
-            vec![
-                "c-2", "c-2-2", "c-2-2-0", "c-2-1", "c-2-0", "c-1", "c-1-1", "c-1-1-1", "c-1-1-0", "c-1-0", "c-0", "c-0-2", "c-0-1",
-                "c-0-0",
-            ]
-        );
-    }
-
-    #[test]
-    fn descendants_nested_filter_noop_rev() {
-        let tree = data_nested();
-
-        let result: Vec<_> = tree
-            .root()
-            .descendants()
-            .filter(|_| TreeFilter::Include)
-            .rev()
-            .map(|w| w.test_name())
-            .collect();
 
         assert_eq!(
             result,
@@ -562,50 +523,10 @@ mod tests {
     }
 
     #[test]
-    fn self_and_descendants_nested_filter_noop() {
-        let tree = data_nested();
-
-        let result: Vec<_> = tree
-            .root()
-            .self_and_descendants()
-            .filter(|_| TreeFilter::Include)
-            .map(|w| w.test_name())
-            .collect();
-
-        assert_eq!(
-            result,
-            vec![
-                "w", "c-0", "c-0-0", "c-0-1", "c-0-2", "c-1", "c-1-0", "c-1-1", "c-1-1-0", "c-1-1-1", "c-2", "c-2-0", "c-2-1", "c-2-2",
-                "c-2-2-0",
-            ]
-        );
-    }
-
-    #[test]
     fn self_and_descendants_nested_rev() {
         let tree = data_nested();
 
         let result: Vec<_> = tree.root().self_and_descendants().rev().map(|w| w.test_name()).collect();
-        assert_eq!(
-            result,
-            vec![
-                "w", "c-2", "c-2-2", "c-2-2-0", "c-2-1", "c-2-0", "c-1", "c-1-1", "c-1-1-1", "c-1-1-0", "c-1-0", "c-0", "c-0-2", "c-0-1",
-                "c-0-0",
-            ]
-        );
-    }
-
-    #[test]
-    fn self_and_descendants_nested_filter_noop_rev() {
-        let tree = data_nested();
-
-        let result: Vec<_> = tree
-            .root()
-            .self_and_descendants()
-            .filter(|_| TreeFilter::Include)
-            .rev()
-            .map(|w| w.test_name())
-            .collect();
         assert_eq!(
             result,
             vec![
@@ -634,43 +555,9 @@ mod tests {
     }
 
     #[test]
-    fn descendants_double_nested_filter_noop_entering_ok() {
-        let tree = data_nested();
-        let mut iter = tree.root().descendants().filter(|_| TreeFilter::Include);
-
-        assert_eq!(iter.next().map(|w| w.test_name()), Some("c-0"));
-
-        let result: Vec<_> = iter.rev().map(|w| w.test_name()).collect();
-
-        assert_eq!(
-            result,
-            vec![
-                "c-2", "c-2-2", "c-2-2-0", "c-2-1", "c-2-0", "c-1", "c-1-1", "c-1-1-1", "c-1-1-0", "c-1-0", "c-0", "c-0-2", "c-0-1",
-                "c-0-0",
-            ]
-        );
-    }
-
-    #[test]
     fn descendants_double_nested() {
         let tree = data_nested();
         let mut iter = tree.root().descendants();
-
-        assert_eq!(iter.next().map(|w| w.test_name()), Some("c-0"));
-        assert_eq!(iter.next().map(|w| w.test_name()), Some("c-0-0"));
-
-        let result: Vec<_> = iter.rev().map(|w| w.test_name()).collect();
-
-        assert_eq!(
-            result,
-            vec!["c-2", "c-2-2", "c-2-2-0", "c-2-1", "c-2-0", "c-1", "c-1-1", "c-1-1-1", "c-1-1-0", "c-1-0", "c-0", "c-0-2", "c-0-1",]
-        );
-    }
-
-    #[test]
-    fn descendants_double_nested_filter_noop() {
-        let tree = data_nested();
-        let mut iter = tree.root().descendants().filter(|_| TreeFilter::Include);
 
         assert_eq!(iter.next().map(|w| w.test_name()), Some("c-0"));
         assert_eq!(iter.next().map(|w| w.test_name()), Some("c-0-0"));
@@ -715,36 +602,9 @@ mod tests {
     }
 
     #[test]
-    fn descendants_deep_filter_noop() {
-        let tree = data_deep();
-        let result: Vec<_> = tree
-            .root()
-            .descendants()
-            .filter(|_| TreeFilter::Include)
-            .map(|w| w.test_name())
-            .collect();
-
-        assert_eq!(result, vec!["d-0", "d-1", "d-2", "d-3", "d-4", "d-5"])
-    }
-
-    #[test]
     fn descendants_deep_rev() {
         let tree = data_deep();
         let result: Vec<_> = tree.root().descendants().rev().map(|w| w.test_name()).collect();
-
-        assert_eq!(result, vec!["d-0", "d-1", "d-2", "d-3", "d-4", "d-5"])
-    }
-
-    #[test]
-    fn descendants_deep_filter_noop_rev() {
-        let tree = data_deep();
-        let result: Vec<_> = tree
-            .root()
-            .descendants()
-            .filter(|_| TreeFilter::Include)
-            .rev()
-            .map(|w| w.test_name())
-            .collect();
 
         assert_eq!(result, vec!["d-0", "d-1", "d-2", "d-3", "d-4", "d-5"])
     }
@@ -762,19 +622,181 @@ mod tests {
     }
 
     #[test]
-    fn descendants_deep_double_filter_noop() {
-        let tree = data_deep();
+    fn descendants_filter_include() {
+        let tree = data_nested();
 
-        let mut iter = tree
+        let result: Vec<_> = tree
             .root()
             .descendants()
             .filter(|_| TreeFilter::Include)
+            .map(|w| w.test_name())
+            .collect();
+
+        assert_eq!(
+            result,
+            vec![
+                "c-0", "c-0-0", "c-0-1", "c-0-2", "c-1", "c-1-0", "c-1-1", "c-1-1-0", "c-1-1-1", "c-2", "c-2-0", "c-2-1", "c-2-2",
+                "c-2-2-0",
+            ]
+        );
+    }
+
+    #[test]
+    fn descendants_filter_skip() {
+        let tree = data_nested();
+
+        let result: Vec<_> = tree
+            .root()
+            .descendants()
+            .filter(|w| {
+                if w.widget_id() == WidgetId::named("c-1") {
+                    TreeFilter::Skip
+                } else {
+                    TreeFilter::Include
+                }
+            })
+            .map(|w| w.test_name())
+            .collect();
+
+        assert_eq!(
+            result,
+            vec![
+                "c-0", "c-0-0", "c-0-1", "c-0-2", /* "c-1", */
+                "c-1-0", "c-1-1", "c-1-1-0", "c-1-1-1", "c-2", "c-2-0", "c-2-1", "c-2-2", "c-2-2-0",
+            ]
+        );
+    }
+
+    #[test]
+    fn descendants_filter_skip_rev() {
+        let tree = data_nested();
+
+        let result: Vec<_> = tree
+            .root()
+            .descendants()
+            .filter(|w| {
+                if w.widget_id() == WidgetId::named("c-1") {
+                    TreeFilter::Skip
+                } else {
+                    TreeFilter::Include
+                }
+            })
             .rev()
-            .map(|w| w.test_name());
-        iter.next();
+            .map(|w| w.test_name())
+            .collect();
 
-        let result: Vec<_> = iter.collect();
+        assert_eq!(
+            result,
+            vec![
+                "c-2", "c-2-2", "c-2-2-0", "c-2-1", "c-2-0", /* "c-1", */
+                "c-1-1", "c-1-1-1", "c-1-1-0", "c-1-0", "c-0", "c-0-2", "c-0-1", "c-0-0",
+            ]
+        );
+    }
 
-        assert_eq!(result, vec!["d-1", "d-2", "d-3", "d-4", "d-5"])
+    #[test]
+    fn descendants_filter_skip_all() {
+        let tree = data_nested();
+
+        let result: Vec<_> = tree
+            .root()
+            .descendants()
+            .filter(|w| {
+                if w.widget_id() == WidgetId::named("c-1") {
+                    TreeFilter::SkipAll
+                } else {
+                    TreeFilter::Include
+                }
+            })
+            .map(|w| w.test_name())
+            .collect();
+
+        assert_eq!(
+            result,
+            vec![
+                "c-0", "c-0-0", "c-0-1", "c-0-2", /* "c-1", "c-1-0", "c-1-1", "c-1-1-0", "c-1-1-1", */
+                "c-2", "c-2-0", "c-2-1", "c-2-2", "c-2-2-0",
+            ]
+        );
+    }
+
+    #[test]
+    fn descendants_filter_skip_all_rev() {
+        let tree = data_nested();
+
+        let result: Vec<_> = tree
+            .root()
+            .descendants()
+            .filter(|w| {
+                if w.widget_id() == WidgetId::named("c-1") {
+                    TreeFilter::SkipAll
+                } else {
+                    TreeFilter::Include
+                }
+            })
+            .rev()
+            .map(|w| w.test_name())
+            .collect();
+
+        assert_eq!(
+            result,
+            vec![
+                "c-2", "c-2-2", "c-2-2-0", "c-2-1", "c-2-0", /* "c-1, c-1-1", "c-1-1-1", "c-1-1-0", "c-1-0", */ "c-0", "c-0-2",
+                "c-0-1", "c-0-0",
+            ]
+        );
+    }
+
+    #[test]
+    fn descendants_filter_skip_desc() {
+        let tree = data_nested();
+
+        let result: Vec<_> = tree
+            .root()
+            .descendants()
+            .filter(|w| {
+                if w.widget_id() == WidgetId::named("c-1") {
+                    TreeFilter::SkipDescendants
+                } else {
+                    TreeFilter::Include
+                }
+            })
+            .map(|w| w.test_name())
+            .collect();
+
+        assert_eq!(
+            result,
+            vec![
+                "c-0", "c-0-0", "c-0-1", "c-0-2", "c-1", /* "c-1-0", "c-1-1", "c-1-1-0", "c-1-1-1", */
+                "c-2", "c-2-0", "c-2-1", "c-2-2", "c-2-2-0",
+            ]
+        );
+    }
+
+    #[test]
+    fn descendants_filter_skip_desc_rev() {
+        let tree = data_nested();
+
+        let result: Vec<_> = tree
+            .root()
+            .descendants()
+            .filter(|w| {
+                if w.widget_id() == WidgetId::named("c-1") {
+                    TreeFilter::SkipDescendants
+                } else {
+                    TreeFilter::Include
+                }
+            })
+            .rev()
+            .map(|w| w.test_name())
+            .collect();
+
+        assert_eq!(
+            result,
+            vec![
+                "c-2", "c-2-2", "c-2-2-0", "c-2-1", "c-2-0", "c-1", /* c-1-1", "c-1-1-1", "c-1-1-0", "c-1-0", */ "c-0", "c-0-2",
+                "c-0-1", "c-0-0",
+            ]
+        );
     }
 }
