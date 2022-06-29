@@ -324,7 +324,7 @@ bitflags! {
         /// [`FocusTarget::Enter`]
         const ENTER =      0b0000_0000_0001;
         /// [`FocusTarget::Exit`]
-        const EXIT =     0b0000_0000_0010;
+        const EXIT =       0b0000_0000_0010;
 
         /// [`FocusTarget::Next`]
         const NEXT =       0b0000_0000_0100;
@@ -1271,7 +1271,7 @@ impl<'a> WidgetFocusInfo<'a> {
     pub fn enabled_nav(self) -> FocusNavAction {
         let _span = tracing::trace_span!("enabled_nav").entered();
 
-        let mut actions = FocusNavAction::all();
+        let mut actions = FocusNavAction::empty();
 
         actions.set(FocusNavAction::EXIT, self.parent().is_some() || self.is_alt_scope());
         actions.set(FocusNavAction::ENTER, self.descendants().next().is_some());
