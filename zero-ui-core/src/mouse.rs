@@ -1443,7 +1443,6 @@ impl Mouse {
             } else if mem::take(&mut self.release_requested) && *current_mode != CaptureMode::Window {
                 // release capture (back to default capture).
                 let target = current_target.root_path();
-                #[cfg_attr(not(doc_nightly), allow(mutable_borrow_reservation_conflict))] // warning will be removed (see #96268)
                 self.set_capture(InteractionPath::from_enabled(target.into_owned()), CaptureMode::Window, events);
             }
         }

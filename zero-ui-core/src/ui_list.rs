@@ -676,7 +676,11 @@ impl<'o, O: UiListObserver> UiListObserver for OffsetUiListObserver<'o, O> {
     }
 }
 
-impl<'o, 't, O: UiListObserver, T: UiListObserver> UiListObserver for (&mut O, &mut T) {
+impl<O, T> UiListObserver for (&mut O, &mut T)
+where
+    O: UiListObserver,
+    T: UiListObserver,
+{
     fn reseted(&mut self) {
         self.0.reseted();
         self.1.reseted();

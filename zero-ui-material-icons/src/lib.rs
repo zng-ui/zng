@@ -85,7 +85,7 @@ impl fmt::Display for MaterialIcon {
             // skip N if followed by number.
             if n == 'N' {
                 if let Some(q) = chars.next() {
-                    if !q.is_digit(10) {
+                    if !q.is_ascii_digit() {
                         write!(f, "{n}")?;
                     }
                     write!(f, "{q}")?;

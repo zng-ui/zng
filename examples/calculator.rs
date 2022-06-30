@@ -142,7 +142,7 @@ impl Calculator {
     }
 
     fn char_is_valid(c: char) -> bool {
-        c.is_digit(10) || ['.', '+', '-', '*', '/'].contains(&c)
+        c.is_ascii_digit() || ['.', '+', '-', '*', '/'].contains(&c)
     }
 
     pub fn push(&mut self, c: char) {
@@ -155,12 +155,12 @@ impl Calculator {
             self.error = false;
         }
 
-        if self.buffer.is_empty() && !c.is_digit(10) && c != '-' {
+        if self.buffer.is_empty() && !c.is_ascii_digit() && c != '-' {
             let b = self.buffer.to_mut();
             b.push('0');
             b.push(c);
         } else {
-            if !c.is_digit(10) && self.trailing_op() {
+            if !c.is_ascii_digit() && self.trailing_op() {
                 self.buffer.to_mut().pop();
             }
 
@@ -169,7 +169,7 @@ impl Calculator {
     }
 
     fn trailing_op(&self) -> bool {
-        self.buffer.chars().last().map(|c| !c.is_digit(10) && c != ')').unwrap_or(false)
+        self.buffer.chars().last().map(|c| !c.is_ascii_digit() && c != ')').unwrap_or(false)
     }
 
     pub fn clear(&mut self) {

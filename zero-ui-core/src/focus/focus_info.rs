@@ -934,16 +934,6 @@ impl<'a> WidgetFocusInfo<'a> {
         }
     }
 
-    fn descendants_skip_directional(self) -> impl Iterator<Item = WidgetFocusInfo<'a>> {
-        self.descendants().filter(move |f| {
-            if f.focus_info().skip_directional() {
-                TreeFilter::SkipAll
-            } else {
-                TreeFilter::Include
-            }
-        })
-    }
-
     fn is_in_direction(from_pt: PxPoint, center: PxPoint, direction: DirectionFn![impl]) -> bool {
         let (a, b, c, d) = direction(from_pt, center);
         let mut is_in_direction = false;
@@ -975,8 +965,8 @@ impl<'a> WidgetFocusInfo<'a> {
         skip_self: bool,
         any: bool,
     ) -> Option<WidgetFocusInfo<'a>> {
-        let skip_id = self.info.widget_id();
-        let parent_id = self.parent().map(|w| w.info.widget_id()).unwrap_or_else(|| skip_id);
+        let self_id = self.info.widget_id();
+        let parent_id = self.parent().map(|w| w.info.widget_id()).unwrap_or_else(|| self_id);
 
         let distance = move |other_pt: PxPoint| {
             let a = (other_pt.x - from_pt.x).0.pow(2);
@@ -984,58 +974,64 @@ impl<'a> WidgetFocusInfo<'a> {
             a + b
         };
 
-        let mut parent_dist = i32::MAX;
-        let mut parent = None;
+        let mut ancestor_dist = i32::MAX;
+        let mut ancestor = None;
         let mut sibling_dist = i32::MAX;
         let mut sibling = None;
         let mut other_dist = i32::MAX;
         let mut other = None;
 
-        for w in scope.descendants_skip_directional() {
-            if !skip_self || w.info.widget_id() != skip_id {
-                let candidate_bounds = w.info.inner_bounds();
-                let candidate_center = candidate_bounds.center();
+        let candidates = scope.descendants().filter(move |f| {
+            if f.focus_info().skip_directional() || (skip_self && f.info.widget_id() == self_id) {
+                TreeFilter::SkipAll
+            } else {
+                TreeFilter::Include
+            }
+        });
+        for w in candidates {
+            let center = w.info.center();
 
-                if Self::is_in_direction(from_pt, candidate_center, &direction) {
-                    let dist = distance(candidate_center);
+            if Self::is_in_direction(from_pt, center, &direction) {
+                let candidate_id = w.info.widget_id();
+                if candidate_id == self_id {
+                    continue;
+                }
 
-                    let candidate_id = w.info.widget_id();
-                    let mut is_parent = None;
-                    let mut is_parent = || *is_parent.get_or_insert_with(|| self.ancestors().any(|a| a.info.widget_id() == candidate_id));
+                if any {
+                    return Some(w);
+                }
 
-                    let mut is_sibling = None;
-                    let mut is_sibing = || *is_sibling.get_or_insert_with(|| w.ancestors().any(|a| a.info.widget_id() == parent_id));
+                let dist = distance(center);
 
-                    if dist <= parent_dist && is_parent() {
-                        parent_dist = dist;
-                        parent = Some(w);
-                    } else if dist <= sibling_dist && is_sibing() {
-                        sibling_dist = dist;
-                        sibling = Some(w);
-                    } else if dist <= other_dist && !is_parent() && !is_sibing() {
-                        other_dist = dist;
-                        other = Some(w);
-                    }
+                let mut is_ancestor = None;
+                let mut is_ancestor = || *is_ancestor.get_or_insert_with(|| self.ancestors().any(|a| a.info.widget_id() == candidate_id));
+
+                let mut is_sibling = None;
+                let mut is_sibing = || *is_sibling.get_or_insert_with(|| w.ancestors().any(|a| a.info.widget_id() == parent_id));
+
+                if dist <= ancestor_dist && is_ancestor() {
+                    ancestor_dist = dist;
+                    ancestor = Some(w);
+                } else if dist <= sibling_dist && is_sibing() {
+                    sibling_dist = dist;
+                    sibling = Some(w);
+                } else if dist <= other_dist && !is_ancestor() && !is_sibing() {
+                    other_dist = dist;
+                    other = Some(w);
                 }
             }
         }
 
-        if other_dist <= parent_dist && other_dist <= sibling_dist {
+        if other_dist <= ancestor_dist && other_dist <= sibling_dist {
             other
-        } else if let Some(sibling) = sibling {
-            if skip_self || sibling.info.widget_id() != skip_id {
-                Some(sibling)
-            } else {
-                None
-            }
         } else {
-            parent
+            sibling.or(ancestor)
         }
     }
 
     fn directional_next(self, direction_vals: DirectionFn![impl]) -> Option<WidgetFocusInfo<'a>> {
         self.scope()
-            .and_then(|s| self.directional_from_pt(s, self.info.center(), direction_vals, true, false))
+            .and_then(|s| self.directional_from_pt(s, self.info.center(), direction_vals, false, false))
     }
 
     /// Closest focusable in the same scope above this widget.
@@ -1075,7 +1071,7 @@ impl<'a> WidgetFocusInfo<'a> {
                         // next up from the same X but from the bottom segment of scope.
                         let mut from_pt = point;
                         from_pt.y = scope.info.inner_bounds().max().y;
-                        self.directional_from_pt(scope, from_pt, DirectionFn![up], false, false)
+                        self.directional_from_pt(scope, from_pt, DirectionFn![up], true, false)
                     })
                 }
             }
@@ -1100,7 +1096,7 @@ impl<'a> WidgetFocusInfo<'a> {
                     // next right from the same Y but from the left segment of scope.
                     let mut from_pt = point;
                     from_pt.x = scope.info.inner_bounds().min().x;
-                    self.directional_from_pt(scope, from_pt, DirectionFn![right], false, false)
+                    self.directional_from_pt(scope, from_pt, DirectionFn![right], true, false)
                 }),
             }
         } else {
@@ -1124,7 +1120,7 @@ impl<'a> WidgetFocusInfo<'a> {
                     // next down from the same X but from the top segment of scope.
                     let mut from_pt = point;
                     from_pt.y = scope.info.inner_bounds().min().y;
-                    self.directional_from_pt(scope, from_pt, DirectionFn![down], false, false)
+                    self.directional_from_pt(scope, from_pt, DirectionFn![down], true, false)
                 }),
             }
         } else {
@@ -1148,7 +1144,7 @@ impl<'a> WidgetFocusInfo<'a> {
                     // next left from the same Y but from the right segment of scope.
                     let mut from_pt = point;
                     from_pt.x = scope.info.inner_bounds().max().x;
-                    self.directional_from_pt(scope, from_pt, DirectionFn![left], false, false)
+                    self.directional_from_pt(scope, from_pt, DirectionFn![left], true, false)
                 }),
             }
         } else {
@@ -1252,29 +1248,32 @@ impl<'a> WidgetFocusInfo<'a> {
                     }
                 }
                 DirectionalNav::Cycle => {
-                    let mut from_pt = from_pt;
                     let scope_bounds = scope.info.inner_bounds();
                     if !nav.contains(FocusNavAction::UP) {
+                        let mut from_pt = from_pt;
                         from_pt.y = scope_bounds.max().y;
-                        if self.directional_from_pt(scope, from_pt, DirectionFn![up], false, true).is_some() {
+                        if self.directional_from_pt(scope, from_pt, DirectionFn![up], true, true).is_some() {
                             nav |= FocusNavAction::UP;
                         }
                     }
                     if !nav.contains(FocusNavAction::RIGHT) {
+                        let mut from_pt = from_pt;
                         from_pt.x = scope_bounds.min().x;
-                        if self.directional_from_pt(scope, from_pt, DirectionFn![right], false, true).is_some() {
+                        if self.directional_from_pt(scope, from_pt, DirectionFn![right], true, true).is_some() {
                             nav |= FocusNavAction::RIGHT;
                         }
                     }
                     if !nav.contains(FocusNavAction::DOWN) {
+                        let mut from_pt = from_pt;
                         from_pt.y = scope_bounds.min().y;
-                        if self.directional_from_pt(scope, from_pt, DirectionFn![down], false, true).is_some() {
+                        if self.directional_from_pt(scope, from_pt, DirectionFn![down], true, true).is_some() {
                             nav |= FocusNavAction::DOWN;
                         }
                     }
                     if !nav.contains(FocusNavAction::LEFT) {
+                        let mut from_pt = from_pt;
                         from_pt.x = scope_bounds.max().x;
-                        if self.directional_from_pt(scope, from_pt, DirectionFn![left], false, true).is_some() {
+                        if self.directional_from_pt(scope, from_pt, DirectionFn![left], true, true).is_some() {
                             nav |= FocusNavAction::LEFT;
                         }
                     }

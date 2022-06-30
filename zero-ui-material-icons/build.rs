@@ -33,7 +33,7 @@ fn generate(codepoints: &str) -> Result<String, Box<dyn Error>> {
                 return Err("invalid codepoints file".into());
             }
 
-            let name = if name.chars().next().unwrap().is_digit(10) {
+            let name = if name.chars().next().unwrap().is_ascii_digit() {
                 format!("N{name}").to_uppercase()
             } else {
                 name.to_uppercase()
