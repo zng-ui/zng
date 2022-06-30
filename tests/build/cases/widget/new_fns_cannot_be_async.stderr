@@ -19,6 +19,16 @@ error[E0277]: the trait bound `impl Future<Output = NilUiNode>: UiNode` is not s
 10 |     async fn new_child() -> NilUiNode {
    |                             ^^^^^^^^^ the trait `UiNode` is not implemented for `impl Future<Output = NilUiNode>`
    |
+   = help: the following other types implement trait `UiNode`:
+             Box<(dyn UiNodeBoxed + 'static)>
+             Box<(dyn WidgetBoxed + 'static)>
+             FillUiNode
+             InstrumentedNode<N, S>
+             NilUiNode
+             Option<U>
+             PropertyInfoNode
+             ViewGenerator<D>::presenter_map::ViewGenVarPresenter<G, S, U, M, V>
+           and 116 others
 note: required by a bound in `test_widget::__new_child::box_fix`
   --> cases/widget/new_fns_cannot_be_async.rs:3:1
    |
@@ -31,3 +41,14 @@ error[E0277]: the trait bound `impl Future<Output = impl UiNode>: UiNode` is not
   |
 7 |     async fn new(child: impl UiNode, id: impl IntoValue<WidgetId>) -> impl UiNode {
   |                                                                       ^^^^^^^^^^^ the trait `UiNode` is not implemented for `impl Future<Output = impl UiNode>`
+  |
+  = help: the following other types implement trait `UiNode`:
+            Box<(dyn UiNodeBoxed + 'static)>
+            Box<(dyn WidgetBoxed + 'static)>
+            FillUiNode
+            InstrumentedNode<N, S>
+            NilUiNode
+            Option<U>
+            PropertyInfoNode
+            ViewGenerator<D>::presenter_map::ViewGenVarPresenter<G, S, U, M, V>
+          and 116 others

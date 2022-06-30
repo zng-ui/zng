@@ -6,3 +6,14 @@ error[E0277]: the trait bound `NotANodeList: UiNodeList` is not satisfied
   | |              |
   | |              the trait `UiNodeList` is not implemented for `NotANodeList`
   | required by a bound introduced by this call
+  |
+  = help: the following other types implement trait `UiNodeList`:
+            SortedWidgetVec
+            UiNodeList0
+            UiNodeList1<W0>
+            UiNodeList2<W0, W1>
+            UiNodeList3<W0, W1, W2>
+            UiNodeList4<W0, W1, W2, W3>
+            UiNodeList5<W0, W1, W2, W3, W4>
+            UiNodeList6<W0, W1, W2, W3, W4, W5>
+          and 16 others

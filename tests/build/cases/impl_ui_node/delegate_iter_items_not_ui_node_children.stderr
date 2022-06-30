@@ -7,6 +7,16 @@ error[E0277]: the trait bound `NotUiNode: UiNode` is not satisfied
      | |              the trait `UiNode` is not implemented for `NotUiNode`
      | required by a bound introduced by this call
      |
+     = help: the following other types implement trait `UiNode`:
+               Box<(dyn UiNodeBoxed + 'static)>
+               Box<(dyn WidgetBoxed + 'static)>
+               FillUiNode
+               InstrumentedNode<N, S>
+               MyNode
+               NilUiNode
+               Option<U>
+               PropertyInfoNode
+             and 117 others
 note: required by a bound in `delegate_iter`
     --> $WORKSPACE/zero-ui-core/src/ui_node.rs
      |
@@ -22,6 +32,16 @@ error[E0277]: the trait bound `NotUiNode: UiNode` is not satisfied
      | |              the trait `UiNode` is not implemented for `NotUiNode`
      | required by a bound introduced by this call
      |
+     = help: the following other types implement trait `UiNode`:
+               Box<(dyn UiNodeBoxed + 'static)>
+               Box<(dyn WidgetBoxed + 'static)>
+               FillUiNode
+               InstrumentedNode<N, S>
+               MyNode
+               NilUiNode
+               Option<U>
+               PropertyInfoNode
+             and 117 others
 note: required by a bound in `delegate_iter_mut`
     --> $WORKSPACE/zero-ui-core/src/ui_node.rs
      |
