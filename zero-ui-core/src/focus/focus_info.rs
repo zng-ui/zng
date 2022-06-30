@@ -754,6 +754,9 @@ impl<'a> WidgetFocusInfo<'a> {
     ///
     /// If `skip_self` is `true`, does not include widgets inside `self`.
     pub fn next_tab_focusable(self, skip_self: bool) -> Option<WidgetFocusInfo<'a>> {
+        self.next_tab_focusable_impl(skip_self, false)
+    }
+    fn next_tab_focusable_impl(self, skip_self: bool, any: bool) -> Option<WidgetFocusInfo<'a>> {
         let self_index = self.focus_info().tab_index();
 
         if self_index == TabIndex::SKIP {
@@ -770,6 +773,9 @@ impl<'a> WidgetFocusInfo<'a> {
                 if idx == self_index {
                     return Some(d);
                 } else if idx < best.0 && idx > self_index {
+                    if any {
+                        return Some(d);
+                    }
                     best = (idx, d);
                 }
             }
@@ -781,6 +787,9 @@ impl<'a> WidgetFocusInfo<'a> {
             if idx == self_index {
                 return Some(s);
             } else if idx < best.0 && idx > self_index {
+                if any {
+                    return Some(s);
+                }
                 best = (idx, s);
             }
         }
@@ -789,6 +798,9 @@ impl<'a> WidgetFocusInfo<'a> {
             let idx = s.focus_info().tab_index();
 
             if idx <= best.0 && idx > self_index {
+                if any {
+                    return Some(s);
+                }
                 best = (idx, s);
             }
         }
@@ -798,8 +810,6 @@ impl<'a> WidgetFocusInfo<'a> {
         } else {
             Some(best.1)
         }
-
-        // Note: if you change this method you also need to change `enabled_tab_nav_in_scope`
     }
 
     /// Iterator over all focusable widgets in the same scope before this widget in reverse.
@@ -822,6 +832,9 @@ impl<'a> WidgetFocusInfo<'a> {
     ///
     /// If `skip_self` is `true`, does not include widgets inside `self`.
     pub fn prev_tab_focusable(self, skip_self: bool) -> Option<WidgetFocusInfo<'a>> {
+        self.prev_tab_focusable_impl(skip_self, false)
+    }
+    fn prev_tab_focusable_impl(self, skip_self: bool, any: bool) -> Option<WidgetFocusInfo<'a>> {
         let self_index = self.focus_info().tab_index();
 
         if self_index == TabIndex::SKIP {
@@ -839,6 +852,9 @@ impl<'a> WidgetFocusInfo<'a> {
                 if idx == self_index {
                     return Some(d);
                 } else if idx > best.0 && idx < self_index {
+                    if any {
+                        return Some(d);
+                    }
                     best = (idx, d);
                 }
             }
@@ -850,6 +866,9 @@ impl<'a> WidgetFocusInfo<'a> {
             if idx == self_index {
                 return Some(s);
             } else if idx > best.0 && idx < self_index {
+                if any {
+                    return Some(s);
+                }
                 best = (idx, s);
             }
         }
@@ -858,6 +877,9 @@ impl<'a> WidgetFocusInfo<'a> {
             let idx = s.focus_info().tab_index().0 as i64;
 
             if idx >= best.0 && idx < self_index {
+                if any {
+                    return Some(s);
+                }
                 best = (idx, s);
             }
         }
@@ -867,8 +889,6 @@ impl<'a> WidgetFocusInfo<'a> {
         } else {
             Some(best.1)
         }
-
-        // Note: if you change this method you also need to change `enabled_tab_nav_in_scope`
     }
 
     /// Widget to focus when pressing TAB from this widget.
@@ -878,6 +898,7 @@ impl<'a> WidgetFocusInfo<'a> {
     /// Returns `None` if the focus does not move to another widget.
     pub fn next_tab(self, skip_self: bool) -> Option<WidgetFocusInfo<'a>> {
         let _span = tracing::trace_span!("next_tab").entered();
+
         if let Some(scope) = self.scope() {
             let scope_info = scope.focus_info();
             match scope_info.tab_nav() {
@@ -952,6 +973,7 @@ impl<'a> WidgetFocusInfo<'a> {
         from_pt: PxPoint,
         direction: DirectionFn![impl],
         skip_self: bool,
+        any: bool,
     ) -> Option<WidgetFocusInfo<'a>> {
         let skip_id = self.info.widget_id();
         let parent_id = self.parent().map(|w| w.info.widget_id()).unwrap_or_else(|| skip_id);
@@ -1013,7 +1035,7 @@ impl<'a> WidgetFocusInfo<'a> {
 
     fn directional_next(self, direction_vals: DirectionFn![impl]) -> Option<WidgetFocusInfo<'a>> {
         self.scope()
-            .and_then(|s| self.directional_from_pt(s, self.info.center(), direction_vals, true))
+            .and_then(|s| self.directional_from_pt(s, self.info.center(), direction_vals, true, false))
     }
 
     /// Closest focusable in the same scope above this widget.
@@ -1053,7 +1075,7 @@ impl<'a> WidgetFocusInfo<'a> {
                         // next up from the same X but from the bottom segment of scope.
                         let mut from_pt = point;
                         from_pt.y = scope.info.inner_bounds().max().y;
-                        self.directional_from_pt(scope, from_pt, DirectionFn![up], false)
+                        self.directional_from_pt(scope, from_pt, DirectionFn![up], false, false)
                     })
                 }
             }
@@ -1078,7 +1100,7 @@ impl<'a> WidgetFocusInfo<'a> {
                     // next right from the same Y but from the left segment of scope.
                     let mut from_pt = point;
                     from_pt.x = scope.info.inner_bounds().min().x;
-                    self.directional_from_pt(scope, from_pt, DirectionFn![right], false)
+                    self.directional_from_pt(scope, from_pt, DirectionFn![right], false, false)
                 }),
             }
         } else {
@@ -1102,7 +1124,7 @@ impl<'a> WidgetFocusInfo<'a> {
                     // next down from the same X but from the top segment of scope.
                     let mut from_pt = point;
                     from_pt.y = scope.info.inner_bounds().min().y;
-                    self.directional_from_pt(scope, from_pt, DirectionFn![down], false)
+                    self.directional_from_pt(scope, from_pt, DirectionFn![down], false, false)
                 }),
             }
         } else {
@@ -1126,7 +1148,7 @@ impl<'a> WidgetFocusInfo<'a> {
                     // next left from the same Y but from the right segment of scope.
                     let mut from_pt = point;
                     from_pt.x = scope.info.inner_bounds().max().x;
-                    self.directional_from_pt(scope, from_pt, DirectionFn![left], false)
+                    self.directional_from_pt(scope, from_pt, DirectionFn![left], false, false)
                 }),
             }
         } else {
@@ -1134,182 +1156,130 @@ impl<'a> WidgetFocusInfo<'a> {
         }
     }
 
-    fn enabled_tab_nav_in_scope(self) -> FocusNavAction {
-        // see `prev_tab_focusable` and `next_tab_focusable`
+    fn enabled_tab_nav(
+        self,
+        scope: WidgetFocusInfo<'a>,
+        scope_info: FocusInfo,
+        skip_self: bool,
+        already_found: FocusNavAction,
+    ) -> FocusNavAction {
+        match scope_info.tab_nav() {
+            TabNav::None => FocusNavAction::empty(),
+            tab_nav @ (TabNav::Continue | TabNav::Contained) => {
+                let mut nav = already_found;
 
-        let both = FocusNavAction::PREV | FocusNavAction::NEXT;
-
-        if self.descendants().any(Self::filter_tab_skip) {
-            // can enter
-            both
-        } else {
-            // has next if has logical next with index >= self or has logical prev with index > self.
-            // has prev if has logical prev with index <= self or has logical next with index < self.
-
-            let mut nav = FocusNavAction::empty();
-
-            let self_idx = self.focus_info().tab_index();
-            for d in self.next_focusables().filter(Self::filter_tab_skip) {
-                let idx = d.focus_info().tab_index();
-
-                if idx >= self_idx {
-                    nav |= FocusNavAction::NEXT;
-                } else {
+                if !nav.contains(FocusNavAction::PREV) && self.prev_tab_focusable_impl(skip_self, true).is_some() {
                     nav |= FocusNavAction::PREV;
                 }
-
-                if nav.contains(both) {
-                    break;
+                if !nav.contains(FocusNavAction::NEXT) && self.next_tab_focusable_impl(skip_self, true).is_some() {
+                    nav |= FocusNavAction::NEXT;
                 }
-            }
 
-            if !nav.contains(both) {
-                for d in self.prev_focusables().filter(Self::filter_tab_skip) {
-                    let idx = d.focus_info().tab_index();
-
-                    if idx <= self_idx {
-                        nav |= FocusNavAction::PREV;
-                    } else {
-                        nav |= FocusNavAction::NEXT;
-                    }
-
-                    if nav.contains(both) {
-                        break;
+                if !nav.contains(FocusNavAction::PREV | FocusNavAction::NEXT) && tab_nav == TabNav::Continue {
+                    if let Some(p_scope) = scope.scope() {
+                        nav |= scope.enabled_tab_nav(p_scope, p_scope.focus_info(), true, nav)
                     }
                 }
+                nav
             }
-
-            nav
+            TabNav::Cycle => {
+                if scope.descendants().filter(Self::filter_tab_skip).any(|w| w != self) {
+                    FocusNavAction::PREV | FocusNavAction::NEXT
+                } else {
+                    FocusNavAction::empty()
+                }
+            }
+            TabNav::Once => {
+                if let Some(p_scope) = scope.scope() {
+                    scope.enabled_tab_nav(p_scope, p_scope.focus_info(), true, already_found)
+                } else {
+                    FocusNavAction::empty()
+                }
+            }
         }
     }
 
-    fn enabled_tab_nav(self) -> FocusNavAction {
-        let _span = tracing::trace_span!("enabled_tab_nav").entered();
+    fn enabled_directional_nav(
+        self,
+        scope: WidgetFocusInfo,
+        scope_info: FocusInfo,
+        skip_self: bool,
+        already_found: FocusNavAction,
+    ) -> FocusNavAction {
+        let directional_nav = scope_info.directional_nav();
 
-        let mut nav = FocusNavAction::empty();
-
-        if let Some(scope) = self.scope() {
-            let scope_info = scope.focus_info();
-            match scope_info.tab_nav() {
-                TabNav::None => {}
-                TabNav::Continue => {
-                    nav = self.enabled_tab_nav_in_scope();
-                    if !nav.contains(FocusNavAction::PREV | FocusNavAction::NEXT) {
-                        nav |= scope.enabled_tab_nav();
-                    }
-                }
-                TabNav::Contained => nav = self.enabled_tab_nav_in_scope(),
-                TabNav::Cycle => {
-                    if scope.descendants().filter(Self::filter_tab_skip).any(|w| w != self) {
-                        nav = FocusNavAction::PREV | FocusNavAction::NEXT;
-                    }
-                }
-                TabNav::Once => nav = scope.enabled_tab_nav(),
-            }
+        if directional_nav == DirectionalNav::None {
+            return FocusNavAction::empty();
         }
-
-        nav
-    }
-
-    fn enabled_directional_nav_in_scope(self, scope: WidgetFocusInfo, from_pt: PxPoint, already_found: FocusNavAction) -> FocusNavAction {
-        let mut nav = already_found;
-
-        let self_id = self.info.widget_id();
-
-        for sibling in scope.descendants_skip_directional() {
-            if sibling.info.widget_id() == self_id {
-                continue;
-            }
-
-            let center = sibling.info.center();
-
-            if !nav.contains(FocusNavAction::UP) && Self::is_in_direction(from_pt, center, DirectionFn![up]) {
-                nav |= FocusNavAction::UP;
-            }
-            if !nav.contains(FocusNavAction::RIGHT) && Self::is_in_direction(from_pt, center, DirectionFn![right]) {
-                nav |= FocusNavAction::RIGHT;
-            }
-            if !nav.contains(FocusNavAction::DOWN) && Self::is_in_direction(from_pt, center, DirectionFn![down]) {
-                nav |= FocusNavAction::DOWN;
-            }
-            if !nav.contains(FocusNavAction::LEFT) && Self::is_in_direction(from_pt, center, DirectionFn![left]) {
-                nav |= FocusNavAction::LEFT;
-            }
-
-            if nav.contains(FocusNavAction::DIRECTIONAL) {
-                break;
-            }
-        }
-
-        nav
-    }
-
-    fn enabled_directional_nav(self, already_found: FocusNavAction) -> FocusNavAction {
-        let _span = tracing::trace_span!("enabled_directional_nav").entered();
 
         let mut nav = already_found;
+        let from_pt = self.info.center();
 
-        if let Some(scope) = self.scope() {
-            let scope_info = scope.focus_info();
+        if !nav.contains(FocusNavAction::UP)
+            && self
+                .directional_from_pt(scope, from_pt, DirectionFn![up], skip_self, true)
+                .is_some()
+        {
+            nav |= FocusNavAction::UP;
+        }
+        if !nav.contains(FocusNavAction::RIGHT)
+            && self
+                .directional_from_pt(scope, from_pt, DirectionFn![right], skip_self, true)
+                .is_some()
+        {
+            nav |= FocusNavAction::RIGHT;
+        }
+        if !nav.contains(FocusNavAction::DOWN)
+            && self
+                .directional_from_pt(scope, from_pt, DirectionFn![down], skip_self, true)
+                .is_some()
+        {
+            nav |= FocusNavAction::DOWN;
+        }
+        if !nav.contains(FocusNavAction::LEFT)
+            && self
+                .directional_from_pt(scope, from_pt, DirectionFn![left], skip_self, true)
+                .is_some()
+        {
+            nav |= FocusNavAction::LEFT;
+        }
 
-            match scope_info.directional_nav() {
-                DirectionalNav::None => {}
+        if !nav.contains(FocusNavAction::DIRECTIONAL) {
+            match directional_nav {
                 DirectionalNav::Continue => {
-                    nav = self.enabled_directional_nav_in_scope(scope, self.info.center(), nav);
-                    if !nav.contains(FocusNavAction::DIRECTIONAL) {
-                        nav |= scope.enabled_directional_nav(nav)
+                    if let Some(p_scope) = scope.scope() {
+                        nav |= scope.enabled_directional_nav(p_scope, p_scope.focus_info(), true, nav);
                     }
                 }
-                DirectionalNav::Contained => nav = self.enabled_directional_nav_in_scope(scope, self.info.center(), nav),
                 DirectionalNav::Cycle => {
-                    let center = self.info.center();
-                    nav = self.enabled_directional_nav_in_scope(scope, center, nav);
-
-                    let self_id = self.info.widget_id();
-
-                    if !nav.contains(FocusNavAction::DIRECTIONAL) {
-                        let bounds = scope.info.inner_bounds();
-
-                        let mut up_pt = center;
-                        up_pt.y = bounds.max().y;
-
-                        let mut right_pt = center;
-                        right_pt.x = bounds.min().x;
-
-                        let mut down_pt = center;
-                        down_pt.y = bounds.min().y;
-
-                        let mut left_pt = center;
-                        left_pt.x = bounds.max().x;
-
-                        for sibling in scope.descendants_skip_directional() {
-                            if sibling.info.widget_id() == self_id {
-                                continue;
-                            }
-
-                            let c = sibling.info.center();
-
-                            if !nav.contains(FocusNavAction::UP) && Self::is_in_direction(up_pt, c, DirectionFn![up]) {
-                                nav |= FocusNavAction::UP;
-                            }
-
-                            if !nav.contains(FocusNavAction::RIGHT) && Self::is_in_direction(right_pt, c, DirectionFn![right]) {
-                                nav |= FocusNavAction::RIGHT;
-                            }
-
-                            if !nav.contains(FocusNavAction::DOWN) && Self::is_in_direction(down_pt, c, DirectionFn![down]) {
-                                nav |= FocusNavAction::DOWN;
-                            }
-                            if !nav.contains(FocusNavAction::LEFT) && Self::is_in_direction(left_pt, c, DirectionFn![left]) {
-                                nav |= FocusNavAction::LEFT;
-                            }
-
-                            if nav.contains(FocusNavAction::DIRECTIONAL) {
-                                break;
-                            }
+                    let mut from_pt = from_pt;
+                    let scope_bounds = scope.info.inner_bounds();
+                    if !nav.contains(FocusNavAction::UP) {
+                        from_pt.y = scope_bounds.max().y;
+                        if self.directional_from_pt(scope, from_pt, DirectionFn![up], false, true).is_some() {
+                            nav |= FocusNavAction::UP;
+                        }
+                    }
+                    if !nav.contains(FocusNavAction::RIGHT) {
+                        from_pt.x = scope_bounds.min().x;
+                        if self.directional_from_pt(scope, from_pt, DirectionFn![right], false, true).is_some() {
+                            nav |= FocusNavAction::RIGHT;
+                        }
+                    }
+                    if !nav.contains(FocusNavAction::DOWN) {
+                        from_pt.y = scope_bounds.min().y;
+                        if self.directional_from_pt(scope, from_pt, DirectionFn![down], false, true).is_some() {
+                            nav |= FocusNavAction::DOWN;
+                        }
+                    }
+                    if !nav.contains(FocusNavAction::LEFT) {
+                        from_pt.x = scope_bounds.max().x;
+                        if self.directional_from_pt(scope, from_pt, DirectionFn![left], false, true).is_some() {
+                            nav |= FocusNavAction::LEFT;
                         }
                     }
                 }
+                _ => {}
             }
         }
 
@@ -1320,17 +1290,21 @@ impl<'a> WidgetFocusInfo<'a> {
     pub fn enabled_nav(self) -> FocusNavAction {
         let _span = tracing::trace_span!("enabled_nav").entered();
 
-        let mut actions = FocusNavAction::empty();
+        let mut nav = FocusNavAction::empty();
 
-        actions.set(FocusNavAction::EXIT, self.parent().is_some() || self.is_alt_scope());
-        actions.set(FocusNavAction::ENTER, self.descendants().next().is_some());
+        if let Some(scope) = self.scope() {
+            nav |= FocusNavAction::EXIT;
+            nav.set(FocusNavAction::ENTER, self.descendants().next().is_some());
 
-        actions |= self.enabled_tab_nav();
-        actions |= self.enabled_directional_nav(FocusNavAction::empty());
+            let scope_info = scope.focus_info();
 
-        actions.set(FocusNavAction::ALT, self.in_alt_scope() || self.alt_scope().is_some());
+            nav |= self.enabled_tab_nav(scope, scope_info, false, FocusNavAction::empty());
+            nav |= self.enabled_directional_nav(scope, scope_info, false, FocusNavAction::empty());
 
-        actions
+            nav.set(FocusNavAction::ALT, self.in_alt_scope() || self.alt_scope().is_some());
+        }
+
+        nav
     }
 
     /// Gets the focusable descendant with center closest to `from_pt`.
