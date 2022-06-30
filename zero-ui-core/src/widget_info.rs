@@ -183,6 +183,21 @@ impl WidgetBoundsInfo {
         Self::default()
     }
 
+    /// Constructor for tests.
+    #[cfg(test)]
+    #[cfg_attr(doc_nightly, doc(cfg(test)))]
+    pub fn new_test(inner: PxRect, outer: Option<PxRect>) -> Self {
+        let r = Self::default();
+        r.set_inner_offset(inner.origin.to_vector());
+        r.set_inner_size(inner.size);
+
+        if let Some(outer) = outer {
+            r.set_outer_offset(outer.origin.to_vector());
+            r.set_outer_size(outer.size);
+        }
+        r
+    }
+
     /// New info with bound sizes known.
     pub fn new_size(outer: PxSize, inner: PxSize) -> Self {
         let me = Self::new();
@@ -416,6 +431,16 @@ impl WidgetBorderInfo {
         Self::default()
     }
 
+    /// Constructor for tests.
+    #[cfg(test)]
+    #[cfg_attr(doc_nightly, doc(cfg(test)))]
+    pub fn new_test(offsets: PxSideOffsets, corner_radius: PxCornerRadius) -> Self {
+        let r = Self::default();
+        r.set_offsets(offsets);
+        r.set_corner_radius(corner_radius);
+        r
+    }
+
     /// Sum of the widths of all borders set on the widget.
     pub fn offsets(&self) -> PxSideOffsets {
         self.0.offsets.get()
@@ -487,6 +512,23 @@ impl WidgetRenderInfo {
     /// New default.
     pub fn new() -> Self {
         Self::default()
+    }
+
+    /// Constructor for tests, sets `rendered` to `true`, `None` is identity.
+    #[cfg(test)]
+    #[cfg_attr(doc_nightly, doc(cfg(test)))]
+    pub fn new_test(outer_transform: Option<RenderTransform>, inner_transform: Option<RenderTransform>) -> Self {
+        let r = Self::default();
+
+        r.set_rendered(true);
+
+        if let Some(outer) = outer_transform {
+            r.set_outer_transform(outer);
+        }
+        if let Some(inner) = inner_transform {
+            r.set_inner_transform(inner);
+        }
+        r
     }
 
     /// Gets the global transform of the widget's outer bounds during the last render or render update.

@@ -84,6 +84,9 @@ pub use focus_info::*;
 pub mod commands;
 use commands::FocusCommands;
 
+#[cfg(test)]
+mod tests;
+
 use crate::{
     app::{AppEventSender, AppExtension},
     context::*,
@@ -97,6 +100,7 @@ use crate::{
     window::{WidgetInfoChangedEvent, WindowFocusChangedEvent, WindowId, Windows},
     WidgetId,
 };
+
 use std::{
     collections::hash_map,
     mem,

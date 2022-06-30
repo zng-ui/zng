@@ -418,7 +418,7 @@ impl<'a> FocusInfoTree<'a> {
     }
 
     /// Reference to the widget in the tree, if it is present and is focusable.
-    pub fn find(&self, widget_id: WidgetId) -> Option<WidgetFocusInfo> {
+    pub fn find(&self, widget_id: impl Into<WidgetId>) -> Option<WidgetFocusInfo> {
         self.tree
             .find(widget_id)
             .and_then(|i| i.as_focusable(self.focus_disabled_widgets()))
@@ -438,7 +438,7 @@ impl<'a> FocusInfoTree<'a> {
     }
 
     /// If the tree info contains the widget and it is focusable.
-    pub fn contains(&self, widget_id: WidgetId) -> bool {
+    pub fn contains(&self, widget_id: impl Into<WidgetId>) -> bool {
         self.find(widget_id).is_some()
     }
 }
