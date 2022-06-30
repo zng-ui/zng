@@ -1211,24 +1211,28 @@ impl<'a> WidgetFocusInfo<'a> {
         nav
     }
 
-    fn enabled_directional_nav_in_scope(self, scope: WidgetFocusInfo, already_found: FocusNavAction) -> FocusNavAction {
+    fn enabled_directional_nav_in_scope(self, scope: WidgetFocusInfo, from_pt: PxPoint, already_found: FocusNavAction) -> FocusNavAction {
         let mut nav = already_found;
 
-        let center = self.info.center();
+        let self_id = self.info.widget_id();
 
         for sibling in scope.descendants_skip_directional() {
-            let c = sibling.info.center();
+            if sibling.info.widget_id() == self_id {
+                continue;
+            }
 
-            if !nav.contains(FocusNavAction::UP) && Self::is_in_direction(center, c, DirectionFn![up]) {
+            let center = sibling.info.center();
+
+            if !nav.contains(FocusNavAction::UP) && Self::is_in_direction(from_pt, center, DirectionFn![up]) {
                 nav |= FocusNavAction::UP;
             }
-            if !nav.contains(FocusNavAction::RIGHT) && Self::is_in_direction(center, c, DirectionFn![right]) {
+            if !nav.contains(FocusNavAction::RIGHT) && Self::is_in_direction(from_pt, center, DirectionFn![right]) {
                 nav |= FocusNavAction::RIGHT;
             }
-            if !nav.contains(FocusNavAction::DOWN) && Self::is_in_direction(center, c, DirectionFn![down]) {
+            if !nav.contains(FocusNavAction::DOWN) && Self::is_in_direction(from_pt, center, DirectionFn![down]) {
                 nav |= FocusNavAction::DOWN;
             }
-            if !nav.contains(FocusNavAction::LEFT) && Self::is_in_direction(center, c, DirectionFn![left]) {
+            if !nav.contains(FocusNavAction::LEFT) && Self::is_in_direction(from_pt, center, DirectionFn![left]) {
                 nav |= FocusNavAction::LEFT;
             }
 
@@ -1239,6 +1243,7 @@ impl<'a> WidgetFocusInfo<'a> {
 
         nav
     }
+
     fn enabled_directional_nav(self, already_found: FocusNavAction) -> FocusNavAction {
         let _span = tracing::trace_span!("enabled_directional_nav").entered();
 
@@ -1250,15 +1255,59 @@ impl<'a> WidgetFocusInfo<'a> {
             match scope_info.directional_nav() {
                 DirectionalNav::None => {}
                 DirectionalNav::Continue => {
-                    nav = self.enabled_directional_nav_in_scope(scope, nav);
+                    nav = self.enabled_directional_nav_in_scope(scope, self.info.center(), nav);
                     if !nav.contains(FocusNavAction::DIRECTIONAL) {
                         nav |= scope.enabled_directional_nav(nav)
                     }
                 }
-                DirectionalNav::Contained => nav = self.enabled_directional_nav_in_scope(scope, nav),
+                DirectionalNav::Contained => nav = self.enabled_directional_nav_in_scope(scope, self.info.center(), nav),
                 DirectionalNav::Cycle => {
-                    if scope.descendants_skip_directional().any(|w| w != self) {
-                        nav = FocusNavAction::DIRECTIONAL;
+                    let center = self.info.center();
+                    nav = self.enabled_directional_nav_in_scope(scope, center, nav);
+
+                    let self_id = self.info.widget_id();
+
+                    if !nav.contains(FocusNavAction::DIRECTIONAL) {
+                        let bounds = scope.info.inner_bounds();
+
+                        let mut up_pt = center;
+                        up_pt.y = bounds.max().y;
+
+                        let mut right_pt = center;
+                        right_pt.x = bounds.min().x;
+
+                        let mut down_pt = center;
+                        down_pt.y = bounds.min().y;
+
+                        let mut left_pt = center;
+                        left_pt.x = bounds.max().x;
+
+                        for sibling in scope.descendants_skip_directional() {
+                            if sibling.info.widget_id() == self_id {
+                                continue;
+                            }
+
+                            let c = sibling.info.center();
+
+                            if !nav.contains(FocusNavAction::UP) && Self::is_in_direction(up_pt, c, DirectionFn![up]) {
+                                nav |= FocusNavAction::UP;
+                            }
+
+                            if !nav.contains(FocusNavAction::RIGHT) && Self::is_in_direction(right_pt, c, DirectionFn![right]) {
+                                nav |= FocusNavAction::RIGHT;
+                            }
+
+                            if !nav.contains(FocusNavAction::DOWN) && Self::is_in_direction(down_pt, c, DirectionFn![down]) {
+                                nav |= FocusNavAction::DOWN;
+                            }
+                            if !nav.contains(FocusNavAction::LEFT) && Self::is_in_direction(left_pt, c, DirectionFn![left]) {
+                                nav |= FocusNavAction::LEFT;
+                            }
+
+                            if nav.contains(FocusNavAction::DIRECTIONAL) {
+                                break;
+                            }
+                        }
                     }
                 }
             }

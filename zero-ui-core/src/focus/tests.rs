@@ -5,20 +5,20 @@ use super::*;
 use pretty_assertions::assert_eq;
 
 trait WidgetInfoBuilderExt {
-    fn push_test_widget<F>(&mut self, name: &'static str, focus: FocusInfo, offset: PxVector, inner: F)
+    fn push_test_widget<F>(&mut self, name: &'static str, focus: FocusInfo, rect: PxRect, inner: F)
     where
         F: FnMut(&mut Self);
 }
 impl WidgetInfoBuilderExt for WidgetInfoBuilder {
-    fn push_test_widget<F>(&mut self, name: &'static str, focus: FocusInfo, offset: PxVector, mut inner: F)
+    fn push_test_widget<F>(&mut self, name: &'static str, focus: FocusInfo, rect: PxRect, mut inner: F)
     where
         F: FnMut(&mut Self),
     {
         self.push_widget(
             WidgetId::named(name),
-            WidgetBoundsInfo::new_test(PxRect::new(offset.to_point(), PxSize::new(Px(1), Px(1))), None),
+            WidgetBoundsInfo::new_test(rect, None),
             WidgetBorderInfo::new(),
-            WidgetRenderInfo::new_test(None, None),
+            WidgetRenderInfo::new_test(None, Some(RenderTransform::translation_px(rect.origin.to_vector()))),
             |builder| {
                 let meta = builder.meta().entry(FocusInfoKey).or_default();
                 match focus {
@@ -87,15 +87,31 @@ impl<'a> WidgetFocusInfoExt for WidgetFocusInfo<'a> {
     }
 }
 
-fn scope(tab_nav: TabNav, directional_nav: DirectionalNav, mut offset: impl FnMut() -> PxVector) -> WidgetInfoTree {
+fn scope(tab_nav: TabNav, directional_nav: DirectionalNav, horizontal: bool) -> WidgetInfoTree {
     let mut builder = WidgetInfoBuilder::new(
         WindowId::named("w"),
         WidgetId::named("w"),
-        WidgetBoundsInfo::new_test(PxRect::new(PxPoint::zero(), PxSize::new(Px(20), Px(20))), None),
+        WidgetBoundsInfo::new_test(PxRect::from_size(PxSize::new(Px(800), Px(600))), None),
         WidgetBorderInfo::new(),
         WidgetRenderInfo::new_test(None, None),
         None,
     );
+    let window_scope = builder.meta().entry(FocusInfoKey).or_default();
+    window_scope.scope = Some(true);
+    window_scope.tab_nav = Some(TabNav::Cycle);
+    window_scope.directional_nav = Some(DirectionalNav::Cycle);
+
+    let mut v = PxVector::zero();
+    let mut rect = move || {
+        let point = v.to_point();
+        if horizontal {
+            v.x += Px(25);
+        } else {
+            v.y += Px(25);
+        }
+        PxRect::new(point, PxSize::new(Px(20), Px(20)))
+    };
+
     builder.push_test_widget(
         "scope",
         FocusInfo::FocusScope {
@@ -106,7 +122,14 @@ fn scope(tab_nav: TabNav, directional_nav: DirectionalNav, mut offset: impl FnMu
             on_focus: FocusScopeOnFocus::Widget,
             alt: false,
         },
-        PxVector::zero(),
+        PxRect::new(
+            PxPoint::new(Px(100), Px(100)),
+            if horizontal {
+                PxSize::new(Px(25 * 3), Px(20))
+            } else {
+                PxSize::new(Px(20), Px(25 * 3))
+            },
+        ),
         |builder| {
             builder.push_test_widget(
                 "item-0",
@@ -114,7 +137,7 @@ fn scope(tab_nav: TabNav, directional_nav: DirectionalNav, mut offset: impl FnMu
                     tab_index: TabIndex::AUTO,
                     skip_directional: false,
                 },
-                offset(),
+                rect(),
                 |_| {},
             );
             builder.push_test_widget(
@@ -123,7 +146,7 @@ fn scope(tab_nav: TabNav, directional_nav: DirectionalNav, mut offset: impl FnMu
                     tab_index: TabIndex::AUTO,
                     skip_directional: false,
                 },
-                offset(),
+                rect(),
                 |_| {},
             );
             builder.push_test_widget(
@@ -132,7 +155,7 @@ fn scope(tab_nav: TabNav, directional_nav: DirectionalNav, mut offset: impl FnMu
                     tab_index: TabIndex::AUTO,
                     skip_directional: false,
                 },
-                offset(),
+                rect(),
                 |_| {},
             );
         },
@@ -140,25 +163,9 @@ fn scope(tab_nav: TabNav, directional_nav: DirectionalNav, mut offset: impl FnMu
     builder.finalize().0
 }
 
-fn horizontal_offsets() -> impl FnMut() -> PxVector {
-    let mut v = PxVector::zero();
-    move || {
-        v.x += Px(1);
-        v
-    }
-}
-
-fn vertical_offsets() -> impl FnMut() -> PxVector {
-    let mut v = PxVector::zero();
-    move || {
-        v.x += Px(1);
-        v
-    }
-}
-
 #[test]
-pub fn enabled_nav_cycle_0() {
-    let tree = scope(TabNav::Cycle, DirectionalNav::Cycle, horizontal_offsets());
+pub fn enabled_nav_cycle_0_horizontal() {
+    let tree = scope(TabNav::Cycle, DirectionalNav::Cycle, true);
     let tree = FocusInfoTree::new(&tree, true);
 
     let item = tree.find("item-0").unwrap();
@@ -171,7 +178,7 @@ pub fn enabled_nav_cycle_0() {
 
 #[test]
 pub fn enabled_nav_cycle_0_vertical() {
-    let tree = scope(TabNav::Cycle, DirectionalNav::Cycle, vertical_offsets());
+    let tree = scope(TabNav::Cycle, DirectionalNav::Cycle, false);
     let tree = FocusInfoTree::new(&tree, true);
 
     let item = tree.find("item-0").unwrap();
@@ -183,8 +190,8 @@ pub fn enabled_nav_cycle_0_vertical() {
 }
 
 #[test]
-pub fn enabled_nav_cycle_1() {
-    let tree = scope(TabNav::Cycle, DirectionalNav::Cycle, horizontal_offsets());
+pub fn enabled_nav_cycle_1_horizontal() {
+    let tree = scope(TabNav::Cycle, DirectionalNav::Cycle, true);
     let tree = FocusInfoTree::new(&tree, true);
 
     let item = tree.find("item-1").unwrap();
@@ -197,7 +204,7 @@ pub fn enabled_nav_cycle_1() {
 
 #[test]
 pub fn enabled_nav_cycle_1_vertical() {
-    let tree = scope(TabNav::Cycle, DirectionalNav::Cycle, vertical_offsets());
+    let tree = scope(TabNav::Cycle, DirectionalNav::Cycle, false);
     let tree = FocusInfoTree::new(&tree, true);
 
     let item = tree.find("item-1").unwrap();
@@ -209,8 +216,8 @@ pub fn enabled_nav_cycle_1_vertical() {
 }
 
 #[test]
-pub fn enabled_nav_cycle_2() {
-    let tree = scope(TabNav::Cycle, DirectionalNav::Cycle, horizontal_offsets());
+pub fn enabled_nav_cycle_2_horizontal() {
+    let tree = scope(TabNav::Cycle, DirectionalNav::Cycle, true);
     let tree = FocusInfoTree::new(&tree, true);
 
     let item = tree.find("item-2").unwrap();
@@ -223,7 +230,7 @@ pub fn enabled_nav_cycle_2() {
 
 #[test]
 pub fn enabled_nav_cycle_2_vertical() {
-    let tree = scope(TabNav::Cycle, DirectionalNav::Cycle, vertical_offsets());
+    let tree = scope(TabNav::Cycle, DirectionalNav::Cycle, false);
     let tree = FocusInfoTree::new(&tree, true);
 
     let item = tree.find("item-2").unwrap();
@@ -235,8 +242,8 @@ pub fn enabled_nav_cycle_2_vertical() {
 }
 
 #[test]
-pub fn enabled_nav_contained_0() {
-    let tree = scope(TabNav::Contained, DirectionalNav::Contained, horizontal_offsets());
+pub fn enabled_nav_contained_0_horizontal() {
+    let tree = scope(TabNav::Contained, DirectionalNav::Contained, true);
     let tree = FocusInfoTree::new(&tree, true);
 
     let item = tree.find("item-0").unwrap();
@@ -249,7 +256,7 @@ pub fn enabled_nav_contained_0() {
 
 #[test]
 pub fn enabled_nav_contained_0_vertical() {
-    let tree = scope(TabNav::Contained, DirectionalNav::Contained, vertical_offsets());
+    let tree = scope(TabNav::Contained, DirectionalNav::Contained, false);
     let tree = FocusInfoTree::new(&tree, true);
 
     let item = tree.find("item-0").unwrap();
@@ -261,8 +268,8 @@ pub fn enabled_nav_contained_0_vertical() {
 }
 
 #[test]
-pub fn enabled_nav_contained_1() {
-    let tree = scope(TabNav::Contained, DirectionalNav::Contained, horizontal_offsets());
+pub fn enabled_nav_contained_1_horizontal() {
+    let tree = scope(TabNav::Contained, DirectionalNav::Contained, true);
     let tree = FocusInfoTree::new(&tree, true);
 
     let item = tree.find("item-1").unwrap();
@@ -275,7 +282,7 @@ pub fn enabled_nav_contained_1() {
 
 #[test]
 pub fn enabled_nav_contained_1_vertical() {
-    let tree = scope(TabNav::Contained, DirectionalNav::Contained, vertical_offsets());
+    let tree = scope(TabNav::Contained, DirectionalNav::Contained, false);
     let tree = FocusInfoTree::new(&tree, true);
 
     let item = tree.find("item-1").unwrap();
@@ -287,8 +294,8 @@ pub fn enabled_nav_contained_1_vertical() {
 }
 
 #[test]
-pub fn enabled_nav_contained_2() {
-    let tree = scope(TabNav::Contained, DirectionalNav::Contained, horizontal_offsets());
+pub fn enabled_nav_contained_2_horizontal() {
+    let tree = scope(TabNav::Contained, DirectionalNav::Contained, true);
     let tree = FocusInfoTree::new(&tree, true);
 
     let item = tree.find("item-2").unwrap();
@@ -301,7 +308,7 @@ pub fn enabled_nav_contained_2() {
 
 #[test]
 pub fn enabled_nav_contained_2_vertical() {
-    let tree = scope(TabNav::Contained, DirectionalNav::Contained, vertical_offsets());
+    let tree = scope(TabNav::Contained, DirectionalNav::Contained, false);
     let tree = FocusInfoTree::new(&tree, true);
 
     let item = tree.find("item-2").unwrap();
@@ -314,7 +321,7 @@ pub fn enabled_nav_contained_2_vertical() {
 
 #[test]
 pub fn enabled_nav_none_0() {
-    let tree = scope(TabNav::None, DirectionalNav::None, horizontal_offsets());
+    let tree = scope(TabNav::None, DirectionalNav::None, true);
     let tree = FocusInfoTree::new(&tree, true);
 
     let item = tree.find("item-0").unwrap();
@@ -327,7 +334,7 @@ pub fn enabled_nav_none_0() {
 
 #[test]
 pub fn enabled_nav_none_1() {
-    let tree = scope(TabNav::None, DirectionalNav::None, horizontal_offsets());
+    let tree = scope(TabNav::None, DirectionalNav::None, true);
     let tree = FocusInfoTree::new(&tree, true);
 
     let item = tree.find("item-1").unwrap();
@@ -340,7 +347,7 @@ pub fn enabled_nav_none_1() {
 
 #[test]
 pub fn enabled_nav_none_2() {
-    let tree = scope(TabNav::None, DirectionalNav::None, horizontal_offsets());
+    let tree = scope(TabNav::None, DirectionalNav::None, true);
     let tree = FocusInfoTree::new(&tree, true);
 
     let item = tree.find("item-2").unwrap();
