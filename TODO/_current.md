@@ -1,4 +1,3 @@
-* Update webrender.
 * Add a "version" value in the WidgetInfoTree that increments for every render that updates any widget bounds.
    - Only update focus enabled_nav if this version changes.
 
