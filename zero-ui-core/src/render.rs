@@ -396,16 +396,23 @@ impl FrameBuilder {
         if let Some(undo_prev) = undo_prev_outer_transform {
             let patch = undo_prev.then(&outer_transform);
 
-            for info in ctx.info_tree.find(ctx.path.widget_id()).unwrap().self_and_descendants() {
-                let render = info.render_info();
-                render.set_outer_transform(render.outer_transform().then(&patch));
-                render.set_inner_transform(render.inner_transform().then(&patch));
+            if patch != RenderTransform::identity() {
+                for info in ctx.info_tree.find(ctx.path.widget_id()).unwrap().self_and_descendants() {
+                    let render = info.render_info();
+                    let changed_outer = render.set_outer_transform(render.outer_transform().then(&patch));
+                    let changed_inner = render.set_inner_transform(render.inner_transform().then(&patch));
+                }
             }
         }
 
         self.widget_rendered |= !reuse.as_ref().unwrap().is_empty();
-        ctx.widget_info.render.set_rendered(self.widget_rendered);
+        let rendered_changed = ctx.widget_info.render.set_rendered(self.widget_rendered);
         self.widget_rendered |= parent_rendered;
+    }
+
+    /// Mark the widget as rendered even if it does not push any display item.
+    pub fn widget_rendered(&mut self) {
+        self.widget_rendered = true;
     }
 
     /// If previously generated display list items are available for reuse.

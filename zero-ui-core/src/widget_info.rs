@@ -170,6 +170,9 @@ struct WidgetBoundsData {
     measure_metrics_used: Cell<LayoutMask>,
     metrics: Cell<Option<LayoutMetricsSnapshot>>,
     metrics_used: Cell<LayoutMask>,
+
+    outer_bounds: Cell<PxRect>,
+    inner_bounds: Cell<PxRect>,
 }
 
 /// Shared reference to layout size and offsets of a widget.
@@ -264,20 +267,38 @@ impl WidgetBoundsInfo {
         self.0.baseline.get()
     }
 
-    /// Calculate the bounding box that envelops the actual size and position of the inner bounds last rendered.
-    pub fn outer_bounds(&self, render: &WidgetRenderInfo) -> PxRect {
-        render
+    /// Outer bounding box, updated after every render.
+    pub fn outer_bounds(&self) -> PxRect {
+        self.0.outer_bounds.get()
+    }
+
+    pub(crate) fn update_outer_bounds(&self, render_info: &WidgetRenderInfo) -> bool {
+        let bounds = render_info
             .outer_transform()
             .outer_transformed_px(PxRect::from_size(self.outer_size()))
-            .unwrap_or_default()
+            .unwrap_or_default();
+
+        let changed = self.outer_bounds() != bounds;
+        self.0.outer_bounds.set(bounds);
+
+        changed
     }
 
     /// Calculate the bounding box that envelops the actual size and position of the inner bounds last rendered.
-    pub fn inner_bounds(&self, render: &WidgetRenderInfo) -> PxRect {
-        render
+    pub fn inner_bounds(&self) -> PxRect {
+        self.0.inner_bounds.get()
+    }
+
+    pub(crate) fn update_inner_bounds(&self, render_info: &WidgetRenderInfo) -> bool {
+        let bounds = render_info
             .inner_transform()
             .outer_transformed_px(PxRect::from_size(self.inner_size()))
-            .unwrap_or_default()
+            .unwrap_or_default();
+
+        let changed = self.inner_bounds() != bounds;
+        self.0.inner_bounds.set(bounds);
+
+        changed
     }
 
     /// Last layout pass that updated the offsets or any of the descendant offsets.
@@ -547,16 +568,22 @@ impl WidgetRenderInfo {
     }
 
     /// Set if the widget or child widgets rendered.
-    pub(super) fn set_rendered(&self, rendered: bool) {
+    pub(super) fn set_rendered(&self, rendered: bool) -> bool {
+        let changed = self.rendered() != rendered;
         self.0.rendered.set(rendered);
+        changed
     }
 
-    pub(super) fn set_outer_transform(&self, transform: RenderTransform) {
+    pub(super) fn set_outer_transform(&self, transform: RenderTransform) -> bool {
+        let changed = self.outer_transform() != transform;
         self.0.outer_transform.set(transform);
+        changed
     }
 
-    pub(super) fn set_inner_transform(&self, transform: RenderTransform) {
+    pub(super) fn set_inner_transform(&self, transform: RenderTransform) -> bool {
+        let changed = self.inner_transform() != transform;
         self.0.inner_transform.set(transform);
+        changed
     }
 }
 
@@ -833,7 +860,7 @@ impl<'a> WidgetInfo<'a> {
     /// Returns an up-to-date rect, the bounds are updated every render or render update without causing a tree rebuild.
     pub fn outer_bounds(self) -> PxRect {
         let info = self.info();
-        info.bounds_info.outer_bounds(&info.render_info)
+        info.bounds_info.outer_bounds()
     }
 
     /// Widget inner rectangle in the window space.
@@ -841,7 +868,7 @@ impl<'a> WidgetInfo<'a> {
     /// Returns an up-to-date rect, the bounds are updated every render or render update without causing a tree rebuild.
     pub fn inner_bounds(self) -> PxRect {
         let info = self.info();
-        info.bounds_info.inner_bounds(&info.render_info)
+        info.bounds_info.inner_bounds()
     }
 
     /// Widget inner bounds center in the window space.
