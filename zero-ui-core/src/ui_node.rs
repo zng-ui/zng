@@ -6,7 +6,7 @@ use crate::{
     context::*,
     event::AnyEventUpdate,
     var::impl_from_and_into_var,
-    widget_info::{WidgetBorderInfo, WidgetBoundsInfo, WidgetInfoBuilder, WidgetLayout, WidgetRenderInfo, WidgetSubscriptions},
+    widget_info::{WidgetBorderInfo, WidgetBoundsInfo, WidgetInfoBuilder, WidgetLayout, WidgetSubscriptions},
     IdNameError,
 };
 use crate::{crate_util::NameIdMap, units::*};
@@ -356,13 +356,6 @@ pub trait UiNode: 'static {
         None
     }
 
-    /// Gets the [`Widget::render_info`] if this node [`is_widget`].
-    ///
-    /// [`is_widget`]: UiNode::is_widget
-    fn try_render_info(&self) -> Option<&WidgetRenderInfo> {
-        None
-    }
-
     /// Gets this node as a [`BoxedWidget`], if the node [`is_widget`] this is the same as
     /// [`Widget::boxed_wgt`], otherwise a new widget is generated with the node as the *inner*.
     ///
@@ -398,7 +391,6 @@ pub trait UiNodeBoxed: 'static {
     fn try_state_mut_boxed(&mut self) -> Option<&mut StateMap>;
     fn try_bounds_info_boxed(&self) -> Option<&WidgetBoundsInfo>;
     fn try_border_info_boxed(&self) -> Option<&WidgetBorderInfo>;
-    fn try_render_info_boxed(&self) -> Option<&WidgetRenderInfo>;
     fn into_widget_boxed(self: Box<Self>) -> BoxedWidget;
 }
 
@@ -465,10 +457,6 @@ impl<U: UiNode> UiNodeBoxed for U {
 
     fn try_border_info_boxed(&self) -> Option<&WidgetBorderInfo> {
         self.try_border_info()
-    }
-
-    fn try_render_info_boxed(&self) -> Option<&WidgetRenderInfo> {
-        self.try_render_info()
     }
 
     fn into_widget_boxed(self: Box<Self>) -> BoxedWidget {
@@ -553,10 +541,6 @@ impl UiNode for BoxedUiNode {
 
     fn try_border_info(&self) -> Option<&WidgetBorderInfo> {
         self.as_ref().try_border_info_boxed()
-    }
-
-    fn try_render_info(&self) -> Option<&WidgetRenderInfo> {
-        self.as_ref().try_render_info_boxed()
     }
 
     fn into_widget(self) -> BoxedWidget
@@ -684,13 +668,6 @@ impl<U: UiNode> UiNode for Option<U> {
         }
     }
 
-    fn try_render_info(&self) -> Option<&WidgetRenderInfo> {
-        match self {
-            Some(node) => node.try_render_info(),
-            None => None,
-        }
-    }
-
     fn into_widget(self) -> BoxedWidget
     where
         Self: Sized,
@@ -739,11 +716,6 @@ pub trait Widget: UiNode {
     ///
     /// The information is kept up-to-date, updating every arrange.
     fn border_info(&self) -> &WidgetBorderInfo;
-
-    /// Render information.
-    ///
-    /// The information is kept up-to-date, updating every render
-    fn render_info(&self) -> &WidgetRenderInfo;
 
     /// Box this widget node, unless it is already `BoxedWidget`.
     fn boxed_wgt(self) -> BoxedWidget
@@ -845,7 +817,6 @@ pub trait WidgetBoxed: UiNodeBoxed {
     fn state_mut_boxed(&mut self) -> &mut StateMap;
     fn bounds_info_boxed(&self) -> &WidgetBoundsInfo;
     fn border_info_boxed(&self) -> &WidgetBorderInfo;
-    fn render_info_boxed(&self) -> &WidgetRenderInfo;
 }
 impl<W: Widget> WidgetBoxed for W {
     fn id_boxed(&self) -> WidgetId {
@@ -866,10 +837,6 @@ impl<W: Widget> WidgetBoxed for W {
 
     fn border_info_boxed(&self) -> &WidgetBorderInfo {
         self.border_info()
-    }
-
-    fn render_info_boxed(&self) -> &WidgetRenderInfo {
-        self.render_info()
     }
 }
 
@@ -952,10 +919,6 @@ impl UiNode for BoxedWidget {
         Some(self.border_info())
     }
 
-    fn try_render_info(&self) -> Option<&WidgetRenderInfo> {
-        Some(self.render_info())
-    }
-
     fn into_widget(self) -> BoxedWidget
     where
         Self: Sized,
@@ -982,10 +945,6 @@ impl Widget for BoxedWidget {
 
     fn border_info(&self) -> &WidgetBorderInfo {
         self.as_ref().border_info_boxed()
-    }
-
-    fn render_info(&self) -> &WidgetRenderInfo {
-        self.as_ref().render_info_boxed()
     }
 
     fn boxed_wgt(self) -> BoxedWidget

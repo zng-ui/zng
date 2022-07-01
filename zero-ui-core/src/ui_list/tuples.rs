@@ -8,9 +8,7 @@ use crate::{
         WidgetFilterArgs, WidgetList, WidgetVec,
     },
     units::PxSize,
-    widget_info::{
-        WidgetBorderInfo, WidgetBoundsInfo, WidgetInfoBuilder, WidgetLayout, WidgetLayoutTranslation, WidgetRenderInfo, WidgetSubscriptions,
-    },
+    widget_info::{WidgetBorderInfo, WidgetBoundsInfo, WidgetInfoBuilder, WidgetLayout, WidgetLayoutTranslation, WidgetSubscriptions},
     widget_vec, UiNode, Widget, WidgetId,
 };
 
@@ -133,13 +131,6 @@ macro_rules! impl_tuples {
             fn item_border_info(&self, index: usize) -> &WidgetBorderInfo {
                 match index {
                     $($n => self.items.$n.border_info(),)+
-                    _ => panic!("index {index} out of range for length {}", self.len())
-                }
-            }
-
-            fn item_render_info(&self, index: usize) -> &WidgetRenderInfo {
-                match index {
-                    $($n => self.items.$n.render_info(),)+
                     _ => panic!("index {index} out of range for length {}", self.len())
                 }
             }
@@ -343,15 +334,6 @@ macro_rules! impl_tuples {
                 }
             }
 
-            fn try_item_render_info(&self, index: usize) -> Option<&WidgetRenderInfo> {
-                match index {
-                    $(
-                        $n => self.items.$n.try_render_info(),
-                    )+
-                    _ => panic!("index {index} out of range for length {}", self.len()),
-                }
-            }
-
             fn render_node_filtered<F>(&self, mut filter: F, ctx: &mut RenderContext, frame: &mut FrameBuilder)
             where
                 F: FnMut(super::UiNodeFilterArgs) -> bool,
@@ -530,10 +512,6 @@ macro_rules! empty_node_list {
                 panic!("index {index} out of range for length 0")
             }
 
-            fn try_item_render_info(&self, index: usize) -> Option<&WidgetRenderInfo> {
-                panic!("index {index} out of range for length 0")
-            }
-
             fn render_node_filtered<F>(&self, _: F, _: &mut RenderContext, _: &mut FrameBuilder)
             where
                 F: FnMut(super::UiNodeFilterArgs) -> bool,
@@ -601,10 +579,6 @@ impl WidgetList for WidgetList0 {
     }
 
     fn item_border_info(&self, index: usize) -> &WidgetBorderInfo {
-        panic!("index {index} out of range for length 0")
-    }
-
-    fn item_render_info(&self, index: usize) -> &WidgetRenderInfo {
         panic!("index {index} out of range for length 0")
     }
 

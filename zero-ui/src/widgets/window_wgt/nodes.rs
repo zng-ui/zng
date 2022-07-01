@@ -17,7 +17,7 @@ use crate::crate_util::RunOnDrop;
 /// Layered widgets are measured and arranged using the same constrains as the window root widget, the desired
 /// size is discarded, only the root widget desired size can affect the window size. Layered widgets are all layout
 /// and rendered after the window content and from the bottom layer up to the top-most, this means that the [`WidgetBoundsInfo`]
-/// and [`WidgetRenderInfo`] of normal widgets are always up-to-date when the layered widget is arranged and rendered, so if you
+/// of normal widgets are always up-to-date when the layered widget is arranged and rendered, so if you
 /// implement custom layouts that align the layered widget with a normal widget using the info values it will always be in sync with
 /// a single layout pass, see [`insert_anchored`] for more details.
 ///
@@ -74,10 +74,6 @@ impl WindowLayers {
             fn border_info(&self) -> &WidgetBorderInfo {
                 self.widget.border_info()
             }
-
-            fn render_info(&self) -> &WidgetRenderInfo {
-                self.widget.render_info()
-            }
         }
 
         ctx.window_state.req(WindowLayersKey).items.insert(
@@ -109,7 +105,7 @@ impl WindowLayers {
             mode: M,
             widget: W,
 
-            anchor_info: Option<(WidgetBoundsInfo, WidgetBorderInfo, WidgetRenderInfo)>,
+            anchor_info: Option<(WidgetBoundsInfo, WidgetBorderInfo)>,
             offset_point: PxPoint,
             interaction: bool,
 
@@ -158,7 +154,7 @@ impl WindowLayers {
 
             fn init(&mut self, ctx: &mut WidgetContext) {
                 if let Some(w) = ctx.info_tree.find(self.anchor.copy(ctx.vars)) {
-                    self.anchor_info = Some((w.bounds_info(), w.border_info(), w.render_info()));
+                    self.anchor_info = Some((w.bounds_info(), w.border_info()));
                 }
 
                 self.interaction = self.mode.get(ctx).interaction;
@@ -177,7 +173,7 @@ impl WindowLayers {
                         self.anchor_info = ctx
                             .info_tree
                             .find(self.anchor.copy(ctx.vars))
-                            .map(|w| (w.bounds_info(), w.border_info(), w.render_info()));
+                            .map(|w| (w.bounds_info(), w.border_info()));
                     }
                     self.widget.event(ctx, args);
                 } else {
@@ -187,10 +183,7 @@ impl WindowLayers {
 
             fn update(&mut self, ctx: &mut WidgetContext) {
                 if let Some(anchor) = self.anchor.copy_new(ctx) {
-                    self.anchor_info = ctx
-                        .info_tree
-                        .find(anchor)
-                        .map(|w| (w.bounds_info(), w.border_info(), w.render_info()));
+                    self.anchor_info = ctx.info_tree.find(anchor).map(|w| (w.bounds_info(), w.border_info()));
                     if self.mode.get(ctx).interaction {
                         ctx.updates.info();
                     }
@@ -207,7 +200,7 @@ impl WindowLayers {
             }
 
             fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
-                if let Some((bounds, border, _)) = &self.anchor_info {
+                if let Some((bounds, border)) = &self.anchor_info {
                     let mode = self.mode.get(ctx.vars);
 
                     if !mode.visibility || bounds.inner_size() != PxSize::zero() {
@@ -227,7 +220,7 @@ impl WindowLayers {
                 PxSize::zero()
             }
             fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
-                if let Some((bounds, border, _)) = &self.anchor_info {
+                if let Some((bounds, border)) = &self.anchor_info {
                     let mode = self.mode.get(ctx.vars);
 
                     if !mode.visibility || bounds.inner_size() != PxSize::zero() {
@@ -279,12 +272,12 @@ impl WindowLayers {
             }
 
             fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-                if let Some((_, border_info, render_info)) = &self.anchor_info {
+                if let Some((bounds_info, border_info)) = &self.anchor_info {
                     let mode = &self.mode.get(ctx.vars);
-                    if !self.mode.get(ctx).visibility || render_info.rendered() {
+                    if !self.mode.get(ctx).visibility || bounds_info.rendered() {
                         match &mode.transform {
                             AnchorTransform::InnerOffset(_) => {
-                                let point_in_window = render_info
+                                let point_in_window = bounds_info
                                     .inner_transform()
                                     .transform_px_point(self.offset_point)
                                     .unwrap_or_default();
@@ -299,7 +292,7 @@ impl WindowLayers {
                             }
                             AnchorTransform::InnerBorderOffset(_) => {
                                 let point_in_window = border_info
-                                    .inner_transform(render_info)
+                                    .inner_transform(bounds_info)
                                     .transform_px_point(self.offset_point)
                                     .unwrap_or_default();
                                 frame.push_reference_frame(
@@ -311,7 +304,7 @@ impl WindowLayers {
                                 )
                             }
                             AnchorTransform::OuterOffset(_) => {
-                                let point_in_window = render_info
+                                let point_in_window = bounds_info
                                     .outer_transform()
                                     .transform_px_point(self.offset_point)
                                     .unwrap_or_default();
@@ -325,19 +318,19 @@ impl WindowLayers {
                             }
                             AnchorTransform::InnerTransform => frame.push_reference_frame(
                                 self.spatial_id,
-                                self.transform_key.bind(render_info.inner_transform()),
+                                self.transform_key.bind(bounds_info.inner_transform()),
                                 false,
                                 |frame| self.widget.render(ctx, frame),
                             ),
                             AnchorTransform::InnerBorderTransform => frame.push_reference_frame(
                                 self.spatial_id,
-                                self.transform_key.bind(border_info.inner_transform(render_info)),
+                                self.transform_key.bind(border_info.inner_transform(bounds_info)),
                                 false,
                                 |frame| self.widget.render(ctx, frame),
                             ),
                             AnchorTransform::OuterTransform => frame.push_reference_frame(
                                 self.spatial_id,
-                                self.transform_key.bind(render_info.outer_transform()),
+                                self.transform_key.bind(bounds_info.outer_transform()),
                                 false,
                                 |frame| self.widget.render(ctx, frame),
                             ),
@@ -351,12 +344,12 @@ impl WindowLayers {
             }
 
             fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
-                if let Some((_, border_info, render_info)) = &self.anchor_info {
+                if let Some((bounds_info, border_info)) = &self.anchor_info {
                     let mode = &self.mode.get(ctx.vars);
-                    if !mode.visibility || render_info.rendered() {
+                    if !mode.visibility || bounds_info.rendered() {
                         match &mode.transform {
                             AnchorTransform::InnerOffset(_) => {
-                                let point_in_window = render_info
+                                let point_in_window = bounds_info
                                     .inner_transform()
                                     .transform_px_point(self.offset_point)
                                     .unwrap_or_default();
@@ -368,7 +361,7 @@ impl WindowLayers {
                             }
                             AnchorTransform::InnerBorderOffset(_) => {
                                 let point_in_window = border_info
-                                    .inner_transform(render_info)
+                                    .inner_transform(bounds_info)
                                     .transform_px_point(self.offset_point)
                                     .unwrap_or_default();
                                 update.with_transform(
@@ -378,7 +371,7 @@ impl WindowLayers {
                                 )
                             }
                             AnchorTransform::OuterOffset(_) => {
-                                let point_in_window = render_info
+                                let point_in_window = bounds_info
                                     .outer_transform()
                                     .transform_px_point(self.offset_point)
                                     .unwrap_or_default();
@@ -389,17 +382,17 @@ impl WindowLayers {
                                 )
                             }
                             AnchorTransform::InnerTransform => {
-                                update.with_transform(self.transform_key.update(render_info.inner_transform()), |update| {
+                                update.with_transform(self.transform_key.update(bounds_info.inner_transform()), |update| {
                                     self.widget.render_update(ctx, update)
                                 });
                             }
                             AnchorTransform::InnerBorderTransform => {
-                                update.with_transform(self.transform_key.update(border_info.inner_transform(render_info)), |update| {
+                                update.with_transform(self.transform_key.update(border_info.inner_transform(bounds_info)), |update| {
                                     self.widget.render_update(ctx, update)
                                 });
                             }
                             AnchorTransform::OuterTransform => {
-                                update.with_transform(self.transform_key.update(render_info.outer_transform()), |update| {
+                                update.with_transform(self.transform_key.update(bounds_info.outer_transform()), |update| {
                                     self.widget.render_update(ctx, update)
                                 });
                             }
@@ -428,10 +421,6 @@ impl WindowLayers {
 
             fn border_info(&self) -> &WidgetBorderInfo {
                 self.widget.border_info()
-            }
-
-            fn render_info(&self) -> &WidgetRenderInfo {
-                self.widget.render_info()
             }
         }
 

@@ -20,7 +20,6 @@ impl WidgetInfoBuilder {
         root_id: WidgetId,
         root_bounds_info: WidgetBoundsInfo,
         root_border_info: WidgetBorderInfo,
-        root_render_info: WidgetRenderInfo,
         used_data: Option<UsedWidgetInfoBuilder>,
     ) -> Self {
         let used_data = used_data.unwrap_or_else(UsedWidgetInfoBuilder::fallback);
@@ -29,7 +28,6 @@ impl WidgetInfoBuilder {
                 widget_id: root_id,
                 bounds_info: root_bounds_info,
                 border_info: root_border_info,
-                render_info: root_render_info,
                 meta: Rc::new(OwnedStateMap::new()),
                 interactivity_filters: vec![],
                 interactivity_cache: Cell::new(None),
@@ -66,14 +64,7 @@ impl WidgetInfoBuilder {
     /// Calls `f` in a new widget context.
     ///
     /// Only call this in widget node implementations.
-    pub fn push_widget(
-        &mut self,
-        id: WidgetId,
-        bounds_info: WidgetBoundsInfo,
-        border_info: WidgetBorderInfo,
-        render_info: WidgetRenderInfo,
-        f: impl FnOnce(&mut Self),
-    ) {
+    pub fn push_widget(&mut self, id: WidgetId, bounds_info: WidgetBoundsInfo, border_info: WidgetBorderInfo, f: impl FnOnce(&mut Self)) {
         let parent_node = self.node;
         let parent_widget_id = self.widget_id;
         let parent_meta = mem::take(&mut self.meta);
@@ -85,7 +76,6 @@ impl WidgetInfoBuilder {
                 widget_id: id,
                 bounds_info,
                 border_info,
-                render_info,
                 meta: Rc::new(OwnedStateMap::new()),
                 interactivity_filters: vec![],
                 interactivity_cache: Cell::new(None),

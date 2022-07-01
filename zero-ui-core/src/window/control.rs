@@ -1180,7 +1180,6 @@ impl ContentCtrl {
                 self.root_id,
                 self.root_info.bounds.clone(),
                 self.root_info.border.clone(),
-                self.root_info.render.clone(),
                 self.used_info_builder.take(),
             );
 
@@ -1381,7 +1380,7 @@ impl ContentCtrl {
 
                 let (frame, used) = ctx.render_context(self.root_id, &self.root_state, &self.info_tree, &self.root_info, |ctx| {
                     self.root.render(ctx, &mut frame);
-                    frame.finalize(&self.root_info.render)
+                    frame.finalize(&self.root_info.bounds)
                 });
 
                 self.used_frame_builder = Some(used);

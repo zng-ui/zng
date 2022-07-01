@@ -1050,7 +1050,7 @@ pub mod prelude {
             widget_base::interactive_node,
             widget_info::{
                 InteractionPath, Interactivity, Visibility, WidgetBorderInfo, WidgetBoundsInfo, WidgetInfoBuilder, WidgetLayout,
-                WidgetRenderInfo, WidgetSubscriptions,
+                WidgetSubscriptions,
             },
             widget_mixin, widget_vec, widgets, BoxedUiNode, BoxedWidget, FillUiNode, UiNode, Widget, WidgetId,
         };
@@ -1113,7 +1113,7 @@ pub mod prelude {
             widget_base::{implicit_base, HitTestMode},
             widget_info::{
                 InteractionPath, Interactivity, Visibility, WidgetBorderInfo, WidgetBoundsInfo, WidgetInfo, WidgetInfoBuilder,
-                WidgetLayout, WidgetRenderInfo, WidgetSubscriptions,
+                WidgetLayout, WidgetSubscriptions,
             },
             widget_mixin, widget_vec, widgets, BoxedUiNode, BoxedWidget, FillUiNode, UiNode, Widget, WidgetId,
         };

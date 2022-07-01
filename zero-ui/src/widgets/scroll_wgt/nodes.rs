@@ -629,7 +629,7 @@ pub fn scroll_to_node(child: impl UiNode) -> impl UiNode {
         child: C,
 
         handle: CommandHandle,
-        scroll_to: Option<(WidgetBoundsInfo, WidgetRenderInfo, ScrollToMode)>,
+        scroll_to: Option<(WidgetBoundsInfo, ScrollToMode)>,
     }
     #[impl_ui_node(child)]
     impl<C: UiNode> UiNode for ScrollToCommandNode<C> {
@@ -662,10 +662,9 @@ pub fn scroll_to_node(child: impl UiNode) -> impl UiNode {
                                     // we are a scroll.
 
                                     let bounds = target.bounds_info();
-                                    let render = target.render_info();
                                     let mode = ScrollToFocusedModeVar::get_clone(ctx.vars);
 
-                                    self.scroll_to = Some((bounds, render, mode));
+                                    self.scroll_to = Some((bounds, mode));
                                     ctx.updates.layout();
                                 }
                             }
@@ -686,11 +685,10 @@ pub fn scroll_to_node(child: impl UiNode) -> impl UiNode {
                                 // we are a scroll.
 
                                 let bounds = target.bounds_info();
-                                let render = target.render_info();
                                 let mode = request.mode;
 
                                 // will scroll on the next arrange.
-                                self.scroll_to = Some((bounds, render, mode));
+                                self.scroll_to = Some((bounds, mode));
                                 ctx.updates.layout();
 
                                 args.propagation().stop();
@@ -710,10 +708,10 @@ pub fn scroll_to_node(child: impl UiNode) -> impl UiNode {
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
             let r = self.child.layout(ctx, wl);
 
-            if let Some((bounds, render, mode)) = self.scroll_to.take() {
+            if let Some((bounds, mode)) = self.scroll_to.take() {
                 let us = ctx.info_tree.find(ctx.path.widget_id()).unwrap();
                 if let Some(viewport_bounds) = us.viewport() {
-                    let target_bounds = bounds.inner_bounds(&render);
+                    let target_bounds = bounds.inner_bounds();
                     match mode {
                         ScrollToMode::Minimal { margin } => {
                             let margin = ctx.with_constrains(

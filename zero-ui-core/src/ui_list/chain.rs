@@ -6,9 +6,7 @@ use crate::{
         OffsetUiListObserver, PosLayoutArgs, PreLayoutArgs, UiListObserver, UiNodeList, UiNodeVec, WidgetFilterArgs, WidgetList, WidgetVec,
     },
     units::PxSize,
-    widget_info::{
-        WidgetBorderInfo, WidgetBoundsInfo, WidgetInfoBuilder, WidgetLayout, WidgetLayoutTranslation, WidgetRenderInfo, WidgetSubscriptions,
-    },
+    widget_info::{WidgetBorderInfo, WidgetBoundsInfo, WidgetInfoBuilder, WidgetLayout, WidgetLayoutTranslation, WidgetSubscriptions},
     WidgetId,
 };
 
@@ -200,15 +198,6 @@ impl<A: WidgetList, B: WidgetList> UiNodeList for WidgetListChain<A, B> {
         }
     }
 
-    fn try_item_render_info(&self, index: usize) -> Option<&WidgetRenderInfo> {
-        let a_len = self.0.len();
-        if index < a_len {
-            self.0.try_item_render_info(index)
-        } else {
-            self.1.try_item_render_info(index - a_len)
-        }
-    }
-
     fn render_node_filtered<F>(&self, mut filter: F, ctx: &mut RenderContext, frame: &mut FrameBuilder)
     where
         F: FnMut(super::UiNodeFilterArgs) -> bool,
@@ -346,15 +335,6 @@ impl<A: WidgetList, B: WidgetList> WidgetList for WidgetListChain<A, B> {
             self.0.item_border_info(index)
         } else {
             self.1.item_border_info(index - a_len)
-        }
-    }
-
-    fn item_render_info(&self, index: usize) -> &WidgetRenderInfo {
-        let a_len = self.0.len();
-        if index < a_len {
-            self.0.item_render_info(index)
-        } else {
-            self.1.item_render_info(index - a_len)
         }
     }
 
@@ -567,15 +547,6 @@ impl<A: UiNodeList, B: UiNodeList> UiNodeList for UiNodeListChain<A, B> {
             self.0.try_item_border_info(index)
         } else {
             self.1.try_item_border_info(index - a_len)
-        }
-    }
-
-    fn try_item_render_info(&self, index: usize) -> Option<&WidgetRenderInfo> {
-        let a_len = self.0.len();
-        if index < a_len {
-            self.0.try_item_render_info(index)
-        } else {
-            self.1.try_item_render_info(index - a_len)
         }
     }
 

@@ -208,10 +208,6 @@ impl<W: WidgetList> UiNodeList for ZSortedWidgetList<W> {
         self.list.try_item_border_info(index)
     }
 
-    fn try_item_render_info(&self, index: usize) -> Option<&WidgetRenderInfo> {
-        self.list.try_item_render_info(index)
-    }
-
     fn render_node_filtered<F>(&self, mut filter: F, ctx: &mut RenderContext, frame: &mut FrameBuilder)
     where
         F: FnMut(UiNodeFilterArgs) -> bool,
@@ -226,7 +222,6 @@ impl<W: WidgetList> UiNodeList for ZSortedWidgetList<W> {
                     id: self.try_item_id(i),
                     bounds_info: self.try_item_bounds_info(i),
                     border_info: self.try_item_border_info(i),
-                    render_info: self.try_item_render_info(i),
                     state: self.try_item_state(i),
                 };
                 if filter(args) {
@@ -289,10 +284,6 @@ impl<W: WidgetList> WidgetList for ZSortedWidgetList<W> {
         self.list.item_border_info(index)
     }
 
-    fn item_render_info(&self, index: usize) -> &WidgetRenderInfo {
-        self.list.item_render_info(index)
-    }
-
     fn render_filtered<F>(&self, mut filter: F, ctx: &mut RenderContext, frame: &mut FrameBuilder)
     where
         F: FnMut(WidgetFilterArgs) -> bool,
@@ -307,7 +298,6 @@ impl<W: WidgetList> WidgetList for ZSortedWidgetList<W> {
                     id: self.item_id(i),
                     bounds_info: self.item_bounds_info(i),
                     border_info: self.item_border_info(i),
-                    render_info: self.item_render_info(i),
                     state: self.item_state(i),
                 };
                 if filter(args) {

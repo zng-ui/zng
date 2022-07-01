@@ -16,9 +16,8 @@ impl WidgetInfoBuilderExt for WidgetInfoBuilder {
     {
         self.push_widget(
             WidgetId::named(name),
-            WidgetBoundsInfo::new_test(rect, None),
+            WidgetBoundsInfo::new_test(rect, None, None, Some(RenderTransform::translation_px(rect.origin.to_vector()))),
             WidgetBorderInfo::new(),
-            WidgetRenderInfo::new_test(None, Some(RenderTransform::translation_px(rect.origin.to_vector()))),
             |builder| {
                 let meta = builder.meta().entry(FocusInfoKey).or_default();
                 match focus {
@@ -91,9 +90,8 @@ fn scope(tab_nav: TabNav, directional_nav: DirectionalNav, horizontal: bool) -> 
     let mut builder = WidgetInfoBuilder::new(
         WindowId::named("w"),
         WidgetId::named("w"),
-        WidgetBoundsInfo::new_test(PxRect::from_size(PxSize::new(Px(800), Px(600))), None),
+        WidgetBoundsInfo::new_test(PxRect::from_size(PxSize::new(Px(800), Px(600))), None, None, None),
         WidgetBorderInfo::new(),
-        WidgetRenderInfo::new_test(None, None),
         None,
     );
     let window_scope = builder.meta().entry(FocusInfoKey).or_default();

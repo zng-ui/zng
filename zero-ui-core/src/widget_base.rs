@@ -11,7 +11,7 @@ use crate::{
     var::*,
     widget_info::{
         Interactivity, LayoutPassId, UpdateMask, Visibility, WidgetBorderInfo, WidgetBoundsInfo, WidgetContextInfo, WidgetInfoBuilder,
-        WidgetLayout, WidgetRenderInfo, WidgetSubscriptions,
+        WidgetLayout, WidgetSubscriptions,
     },
     window::WidgetInfoChangedEvent,
     FillUiNode, UiNode, Widget, WidgetId,
@@ -347,13 +347,9 @@ pub mod implicit_base {
 
                     ctx.with_widget(self.id, &self.info, &self.state, |ctx| {
                         if mem::take(&mut self.pending_updates.borrow_mut().info) {
-                            info.push_widget(
-                                self.id,
-                                self.info.bounds.clone(),
-                                self.info.border.clone(),
-                                self.info.render.clone(),
-                                |info| self.child.info(ctx, info),
-                            );
+                            info.push_widget(self.id, self.info.bounds.clone(), self.info.border.clone(), |info| {
+                                self.child.info(ctx, info)
+                            });
                         } else {
                             info.push_widget_reuse(ctx);
                         }
@@ -500,10 +496,6 @@ pub mod implicit_base {
                     Some(self.border_info())
                 }
 
-                fn try_render_info(&self) -> Option<&WidgetRenderInfo> {
-                    Some(self.render_info())
-                }
-
                 fn into_widget(self) -> crate::BoxedWidget
                 where
                     Self: Sized,
@@ -530,10 +522,6 @@ pub mod implicit_base {
 
                 fn border_info(&self) -> &WidgetBorderInfo {
                     &self.info.border
-                }
-
-                fn render_info(&self) -> &WidgetRenderInfo {
-                    &self.info.render
                 }
             }
             WidgetNode {

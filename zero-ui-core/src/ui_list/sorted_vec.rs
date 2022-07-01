@@ -7,8 +7,7 @@ use crate::{
     ui_list::{PosLayoutArgs, PreLayoutArgs, UiListObserver, UiNodeList, UiNodeVec, WidgetFilterArgs, WidgetList, WidgetVec, WidgetVecRef},
     units::PxSize,
     widget_info::{
-        UpdateSlot, WidgetBorderInfo, WidgetBoundsInfo, WidgetInfoBuilder, WidgetLayout, WidgetLayoutTranslation, WidgetRenderInfo,
-        WidgetSubscriptions,
+        UpdateSlot, WidgetBorderInfo, WidgetBoundsInfo, WidgetInfoBuilder, WidgetLayout, WidgetLayoutTranslation, WidgetSubscriptions,
     },
     BoxedWidget, UiNode, Widget, WidgetId,
 };
@@ -401,10 +400,6 @@ impl UiNodeList for SortedWidgetVec {
         self.vec[index].try_border_info()
     }
 
-    fn try_item_render_info(&self, index: usize) -> Option<&WidgetRenderInfo> {
-        self.vec[index].try_render_info()
-    }
-
     fn render_node_filtered<F>(&self, mut filter: F, ctx: &mut RenderContext, frame: &mut FrameBuilder)
     where
         F: FnMut(UiNodeFilterArgs) -> bool,
@@ -482,10 +477,6 @@ impl WidgetList for SortedWidgetVec {
 
     fn item_border_info(&self, index: usize) -> &WidgetBorderInfo {
         self.vec[index].border_info()
-    }
-
-    fn item_render_info(&self, index: usize) -> &WidgetRenderInfo {
-        self.vec[index].render_info()
     }
 
     fn render_filtered<F>(&self, mut filter: F, ctx: &mut RenderContext, frame: &mut FrameBuilder)

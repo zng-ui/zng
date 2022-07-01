@@ -345,7 +345,7 @@ where
 #[cfg(test)]
 mod tests {
     use crate::{
-        widget_info::{TreeFilter, WidgetBorderInfo, WidgetBoundsInfo, WidgetInfo, WidgetInfoBuilder, WidgetInfoTree, WidgetRenderInfo},
+        widget_info::{TreeFilter, WidgetBorderInfo, WidgetBoundsInfo, WidgetInfo, WidgetInfoBuilder, WidgetInfoTree},
         window::WindowId,
         WidgetId,
     };
@@ -362,13 +362,7 @@ mod tests {
         where
             F: FnMut(&mut Self),
         {
-            self.push_widget(
-                WidgetId::named(name),
-                WidgetBoundsInfo::new(),
-                WidgetBorderInfo::new(),
-                WidgetRenderInfo::new(),
-                inner,
-            )
+            self.push_widget(WidgetId::named(name), WidgetBoundsInfo::new(), WidgetBorderInfo::new(), inner)
         }
     }
 
@@ -387,7 +381,6 @@ mod tests {
             WidgetId::named("w"),
             WidgetBoundsInfo::new(),
             WidgetBorderInfo::new(),
-            WidgetRenderInfo::new(),
             None,
         );
         builder.push_test_widget("c-0", |_| {});
@@ -520,7 +513,6 @@ mod tests {
             WidgetId::named("w"),
             WidgetBoundsInfo::new(),
             WidgetBorderInfo::new(),
-            WidgetRenderInfo::new(),
             None,
         );
         builder.push_test_widget("c-0", |builder| {
@@ -644,7 +636,6 @@ mod tests {
             WidgetId::named("w"),
             WidgetBoundsInfo::new(),
             WidgetBorderInfo::new(),
-            WidgetRenderInfo::new(),
             None,
         );
         builder.push_test_widget("d-0", |builder| {

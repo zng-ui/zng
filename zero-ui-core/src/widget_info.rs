@@ -38,8 +38,6 @@ pub struct WidgetContextInfo {
     pub bounds: WidgetBoundsInfo,
     /// Border and corners info.
     pub border: WidgetBorderInfo,
-    /// Render visibility info.
-    pub render: WidgetRenderInfo,
 }
 impl WidgetContextInfo {
     /// New default.
@@ -71,16 +69,9 @@ impl Eq for WidgetInfoTree {}
 impl WidgetInfoTree {
     /// Blank window that contains only the root widget taking no space.
     pub fn blank(window_id: WindowId, root_id: WidgetId) -> Self {
-        WidgetInfoBuilder::new(
-            window_id,
-            root_id,
-            WidgetBoundsInfo::new(),
-            WidgetBorderInfo::new(),
-            WidgetRenderInfo::new(),
-            None,
-        )
-        .finalize()
-        .0
+        WidgetInfoBuilder::new(window_id, root_id, WidgetBoundsInfo::new(), WidgetBorderInfo::new(), None)
+            .finalize()
+            .0
     }
 
     /// Reference to the root widget in the tree.
@@ -171,11 +162,15 @@ struct WidgetBoundsData {
     metrics: Cell<Option<LayoutMetricsSnapshot>>,
     metrics_used: Cell<LayoutMask>,
 
+    outer_transform: Cell<RenderTransform>,
+    inner_transform: Cell<RenderTransform>,
+    rendered: Cell<bool>,
+
     outer_bounds: Cell<PxRect>,
     inner_bounds: Cell<PxRect>,
 }
 
-/// Shared reference to layout size and offsets of a widget.
+/// Shared reference to layout size and offsets of a widget and rendered transforms and bounds.
 ///
 /// Can be retrieved in the [`WidgetContextInfo`] and [`WidgetInfo`].
 #[derive(Default, Clone, Debug)]
@@ -189,7 +184,12 @@ impl WidgetBoundsInfo {
     /// Constructor for tests.
     #[cfg(test)]
     #[cfg_attr(doc_nightly, doc(cfg(test)))]
-    pub fn new_test(inner: PxRect, outer: Option<PxRect>) -> Self {
+    pub fn new_test(
+        inner: PxRect,
+        outer: Option<PxRect>,
+        outer_transform: Option<RenderTransform>,
+        inner_transform: Option<RenderTransform>,
+    ) -> Self {
         let r = Self::default();
         r.set_inner_offset(inner.origin.to_vector());
         r.set_inner_size(inner.size);
@@ -198,6 +198,16 @@ impl WidgetBoundsInfo {
             r.set_outer_offset(outer.origin.to_vector());
             r.set_outer_size(outer.size);
         }
+
+        if let Some(transform) = outer_transform {
+            r.set_outer_transform(transform);
+        }
+        if let Some(transform) = inner_transform {
+            r.set_inner_transform(transform);
+        }
+
+        r.set_rendered(true);
+
         r
     }
 
@@ -267,38 +277,52 @@ impl WidgetBoundsInfo {
         self.0.baseline.get()
     }
 
+    /// Gets the global transform of the widget's outer bounds during the last render or render update.
+    pub fn outer_transform(&self) -> RenderTransform {
+        self.0.outer_transform.get()
+    }
+
+    /// Gets the global transform of the widget's inner bounds during the last render or render update.
+    pub fn inner_transform(&self) -> RenderTransform {
+        self.0.inner_transform.get()
+    }
+
+    /// Get if the widget or descendant widgets rendered in the latest window frame.
+    pub fn rendered(&self) -> bool {
+        self.0.rendered.get()
+    }
+
+    /// Set if the widget or child widgets rendered.
+    pub(super) fn set_rendered(&self, rendered: bool) {
+        self.0.rendered.set(rendered);
+    }
+
+    pub(super) fn set_outer_transform(&self, transform: RenderTransform) {
+        let bounds = transform
+            .outer_transformed_px(PxRect::from_size(self.outer_size()))
+            .unwrap_or_default();
+
+        self.0.outer_bounds.set(bounds);
+        self.0.outer_transform.set(transform);
+    }
+
+    pub(super) fn set_inner_transform(&self, transform: RenderTransform) {
+        let bounds = transform
+            .outer_transformed_px(PxRect::from_size(self.inner_size()))
+            .unwrap_or_default();
+
+        self.0.inner_bounds.set(bounds);
+        self.0.inner_transform.set(transform);
+    }
+
     /// Outer bounding box, updated after every render.
     pub fn outer_bounds(&self) -> PxRect {
         self.0.outer_bounds.get()
     }
 
-    pub(crate) fn update_outer_bounds(&self, render_info: &WidgetRenderInfo) -> bool {
-        let bounds = render_info
-            .outer_transform()
-            .outer_transformed_px(PxRect::from_size(self.outer_size()))
-            .unwrap_or_default();
-
-        let changed = self.outer_bounds() != bounds;
-        self.0.outer_bounds.set(bounds);
-
-        changed
-    }
-
     /// Calculate the bounding box that envelops the actual size and position of the inner bounds last rendered.
     pub fn inner_bounds(&self) -> PxRect {
         self.0.inner_bounds.get()
-    }
-
-    pub(crate) fn update_inner_bounds(&self, render_info: &WidgetRenderInfo) -> bool {
-        let bounds = render_info
-            .inner_transform()
-            .outer_transformed_px(PxRect::from_size(self.inner_size()))
-            .unwrap_or_default();
-
-        let changed = self.inner_bounds() != bounds;
-        self.0.inner_bounds.set(bounds);
-
-        changed
     }
 
     /// Last layout pass that updated the offsets or any of the descendant offsets.
@@ -500,10 +524,10 @@ impl WidgetBorderInfo {
     /// Compute the inner transform offset by the [`offsets`].
     ///
     /// [`offsets`]: Self::offsets
-    pub fn inner_transform(&self, render: &WidgetRenderInfo) -> RenderTransform {
+    pub fn inner_transform(&self, bounds: &WidgetBoundsInfo) -> RenderTransform {
         let o = self.offsets();
         let o = PxVector::new(o.left, o.top);
-        render.inner_transform().pre_translate_px(o)
+        bounds.inner_transform().pre_translate_px(o)
     }
 
     pub(super) fn set_offsets(&self, widths: PxSideOffsets) {
@@ -515,84 +539,11 @@ impl WidgetBorderInfo {
     }
 }
 
-#[derive(Default, Debug)]
-struct WidgetRenderData {
-    outer_transform: Cell<RenderTransform>,
-    inner_transform: Cell<RenderTransform>,
-    rendered: Cell<bool>,
-}
-
-/// Shared reference to the latest render information of a [`WidgetInfo`].
-///
-/// This status is updated every [`render`] without causing a tree rebuild.
-///
-/// [`render`]: crate::UiNode::render
-#[derive(Default, Clone, Debug)]
-pub struct WidgetRenderInfo(Rc<WidgetRenderData>);
-impl WidgetRenderInfo {
-    /// New default.
-    pub fn new() -> Self {
-        Self::default()
-    }
-
-    /// Constructor for tests, sets `rendered` to `true`, `None` is identity.
-    #[cfg(test)]
-    #[cfg_attr(doc_nightly, doc(cfg(test)))]
-    pub fn new_test(outer_transform: Option<RenderTransform>, inner_transform: Option<RenderTransform>) -> Self {
-        let r = Self::default();
-
-        r.set_rendered(true);
-
-        if let Some(outer) = outer_transform {
-            r.set_outer_transform(outer);
-        }
-        if let Some(inner) = inner_transform {
-            r.set_inner_transform(inner);
-        }
-        r
-    }
-
-    /// Gets the global transform of the widget's outer bounds during the last render or render update.
-    pub fn outer_transform(&self) -> RenderTransform {
-        self.0.outer_transform.get()
-    }
-
-    /// Gets the global transform of the widget's inner bounds during the last render or render update.
-    pub fn inner_transform(&self) -> RenderTransform {
-        self.0.inner_transform.get()
-    }
-
-    /// Get if the widget or descendant widgets rendered in the latest window frame.
-    pub fn rendered(&self) -> bool {
-        self.0.rendered.get()
-    }
-
-    /// Set if the widget or child widgets rendered.
-    pub(super) fn set_rendered(&self, rendered: bool) -> bool {
-        let changed = self.rendered() != rendered;
-        self.0.rendered.set(rendered);
-        changed
-    }
-
-    pub(super) fn set_outer_transform(&self, transform: RenderTransform) -> bool {
-        let changed = self.outer_transform() != transform;
-        self.0.outer_transform.set(transform);
-        changed
-    }
-
-    pub(super) fn set_inner_transform(&self, transform: RenderTransform) -> bool {
-        let changed = self.inner_transform() != transform;
-        self.0.inner_transform.set(transform);
-        changed
-    }
-}
-
 #[derive(Clone)]
 struct WidgetInfoData {
     widget_id: WidgetId,
     bounds_info: WidgetBoundsInfo,
     border_info: WidgetBorderInfo,
-    render_info: WidgetRenderInfo,
     meta: Rc<OwnedStateMap>,
     interactivity_filters: InteractivityFilters,
     interactivity_cache: Cell<Option<Interactivity>>,
@@ -743,14 +694,7 @@ impl<'a> WidgetInfo<'a> {
     ///
     /// [`render`]: crate::UiNode::render
     pub fn rendered(self) -> bool {
-        self.info().render_info.rendered()
-    }
-
-    /// Clone a reference to the widget latest render information.
-    ///
-    /// This information is up-to-date, it is updated every render without causing a tree rebuild.
-    pub fn render_info(self) -> WidgetRenderInfo {
-        self.info().render_info.clone()
+        self.info().bounds_info.rendered()
     }
 
     /// Compute the visibility of the widget or the widget's descendants.
@@ -802,7 +746,7 @@ impl<'a> WidgetInfo<'a> {
 
     /// All the transforms introduced by this widget, starting from the outer info.
     ///
-    /// This information is up-to-date, it is updated every layout without causing a tree rebuild.
+    /// This information is up-to-date, it is updated every layout and render without causing a tree rebuild.
     pub fn bounds_info(self) -> WidgetBoundsInfo {
         self.info().bounds_info.clone()
     }
@@ -845,14 +789,14 @@ impl<'a> WidgetInfo<'a> {
     ///
     /// Returns an up-to-date transform, the transform is updated every render or render update without causing a tree rebuild.
     pub fn outer_transform(self) -> RenderTransform {
-        self.info().render_info.outer_transform()
+        self.info().bounds_info.outer_transform()
     }
 
     /// Widget inner transform in the window space.
     ///
     /// Returns an up-to-date transform, the transform is updated every render or render update without causing a tree rebuild.
     pub fn inner_transform(self) -> RenderTransform {
-        self.info().render_info.inner_transform()
+        self.info().bounds_info.inner_transform()
     }
 
     /// Widget outer rectangle in the window space.

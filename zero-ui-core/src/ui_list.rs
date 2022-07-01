@@ -5,9 +5,7 @@ use crate::{
     event::EventUpdateArgs,
     render::{FrameBuilder, FrameUpdate},
     units::{PxConstrains2d, PxSize},
-    widget_info::{
-        WidgetBorderInfo, WidgetBoundsInfo, WidgetInfoBuilder, WidgetLayout, WidgetLayoutTranslation, WidgetRenderInfo, WidgetSubscriptions,
-    },
+    widget_info::{WidgetBorderInfo, WidgetBoundsInfo, WidgetInfoBuilder, WidgetLayout, WidgetLayoutTranslation, WidgetSubscriptions},
     WidgetId,
 };
 #[allow(unused)] // used in docs.
@@ -155,11 +153,6 @@ pub trait UiNodeList: 'static {
     ///
     /// See [`Widget::border_info`] for more details.
     fn try_item_border_info(&self, index: usize) -> Option<&WidgetBorderInfo>;
-
-    /// Gets the render info from the node at the `index` if it is a full widget.
-    ///
-    /// See [`Widget::render_info`] for more details.
-    fn try_item_render_info(&self, index: usize) -> Option<&WidgetRenderInfo>;
 
     /// Calls [`UiNode::render`] in all nodes allowed by a `filter`, skips rendering the rest.
     fn render_node_filtered<F>(&self, filter: F, ctx: &mut RenderContext, frame: &mut FrameBuilder)
@@ -345,8 +338,6 @@ pub struct WidgetFilterArgs<'a> {
     pub bounds_info: &'a WidgetBoundsInfo,
     /// The [`Widget::border_info`].
     pub border_info: &'a WidgetBorderInfo,
-    /// The [`Widget::render_info`].
-    pub render_info: &'a WidgetRenderInfo,
     /// The [`Widget::state`].
     pub state: &'a StateMap,
 }
@@ -358,7 +349,6 @@ impl<'a> WidgetFilterArgs<'a> {
             id: list.item_id(index),
             bounds_info: list.item_bounds_info(index),
             border_info: list.item_border_info(index),
-            render_info: list.item_render_info(index),
             state: list.item_state(index),
         }
     }
@@ -370,7 +360,6 @@ impl<'a> WidgetFilterArgs<'a> {
             id: widget.id(),
             bounds_info: widget.bounds_info(),
             border_info: widget.border_info(),
-            render_info: widget.render_info(),
             state: widget.state(),
         }
     }
@@ -387,8 +376,6 @@ pub struct UiNodeFilterArgs<'a> {
     pub bounds_info: Option<&'a WidgetBoundsInfo>,
     /// The [`UiNode::try_border_info`].
     pub border_info: Option<&'a WidgetBorderInfo>,
-    /// The [`UiNode::try_render_info`].
-    pub render_info: Option<&'a WidgetRenderInfo>,
     /// The [`UiNode::try_state`].
     pub state: Option<&'a StateMap>,
 }
@@ -400,7 +387,6 @@ impl<'a> UiNodeFilterArgs<'a> {
             id: list.try_item_id(index),
             bounds_info: list.try_item_bounds_info(index),
             border_info: list.try_item_border_info(index),
-            render_info: list.try_item_render_info(index),
             state: list.try_item_state(index),
         }
     }
@@ -412,7 +398,6 @@ impl<'a> UiNodeFilterArgs<'a> {
             id: node.try_id(),
             bounds_info: node.try_bounds_info(),
             border_info: node.try_border_info(),
-            render_info: node.try_render_info(),
             state: node.try_state(),
         }
     }
@@ -459,11 +444,6 @@ pub trait WidgetList: UiNodeList {
     ///
     /// See [`Widget::border_info`] for more details.
     fn item_border_info(&self, index: usize) -> &WidgetBorderInfo;
-
-    /// Gets the render info the widget at the `index`.
-    ///
-    /// See [`Widget::render_info`] for more details.
-    fn item_render_info(&self, index: usize) -> &WidgetRenderInfo;
 
     /// Calls [`UiNode::render`] in all widgets allowed by a `filter`, skips rendering the rest.
     fn render_filtered<F>(&self, filter: F, ctx: &mut RenderContext, frame: &mut FrameBuilder)

@@ -11,7 +11,7 @@ use crate::{
     render::{FrameBuilder, FrameUpdate},
     ui_list::{PosLayoutArgs, PreLayoutArgs, SortedWidgetVec, UiListObserver, WidgetFilterArgs, WidgetLayoutTranslation, WidgetList},
     units::PxSize,
-    widget_info::{UpdateSlot, WidgetBorderInfo, WidgetBoundsInfo, WidgetInfoBuilder, WidgetLayout, WidgetRenderInfo, WidgetSubscriptions},
+    widget_info::{UpdateSlot, WidgetBorderInfo, WidgetBoundsInfo, WidgetInfoBuilder, WidgetLayout, WidgetSubscriptions},
     BoxedUiNode, BoxedWidget, UiNode, UiNodeList, Widget, WidgetId,
 };
 
@@ -416,10 +416,6 @@ impl UiNodeList for WidgetVec {
         self.vec[index].try_border_info()
     }
 
-    fn try_item_render_info(&self, index: usize) -> Option<&WidgetRenderInfo> {
-        self.vec[index].try_render_info()
-    }
-
     fn render_node_filtered<F>(&self, mut filter: F, ctx: &mut RenderContext, frame: &mut FrameBuilder)
     where
         F: FnMut(UiNodeFilterArgs) -> bool,
@@ -494,10 +490,6 @@ impl WidgetList for WidgetVec {
 
     fn item_border_info(&self, index: usize) -> &WidgetBorderInfo {
         self.vec[index].border_info()
-    }
-
-    fn item_render_info(&self, index: usize) -> &WidgetRenderInfo {
-        self.vec[index].render_info()
     }
 
     fn render_filtered<F>(&self, mut filter: F, ctx: &mut RenderContext, frame: &mut FrameBuilder)
@@ -945,10 +937,6 @@ impl UiNodeList for UiNodeVec {
 
     fn try_item_border_info(&self, index: usize) -> Option<&WidgetBorderInfo> {
         self.vec[index].try_border_info()
-    }
-
-    fn try_item_render_info(&self, index: usize) -> Option<&WidgetRenderInfo> {
-        self.vec[index].try_render_info()
     }
 
     fn render_node_filtered<F>(&self, mut filter: F, ctx: &mut RenderContext, frame: &mut FrameBuilder)

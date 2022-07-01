@@ -11,7 +11,7 @@ use crate::{
     render::{FrameBuilder, FrameId, FrameUpdate},
     ui_list::UiNodeVec,
     units::*,
-    widget_info::{UpdateMask, WidgetBorderInfo, WidgetBoundsInfo, WidgetInfoBuilder, WidgetRenderInfo, WidgetSubscriptions},
+    widget_info::{UpdateMask, WidgetBorderInfo, WidgetBoundsInfo, WidgetInfoBuilder, WidgetSubscriptions},
     window::WindowId,
     UiNode, UiNodeList, Widget,
 };
@@ -102,7 +102,6 @@ fn test_trace(node: impl UiNode) {
         ctx.root_id,
         WidgetBoundsInfo::new_size(l_size, l_size),
         WidgetBorderInfo::new(),
-        WidgetRenderInfo::new(),
         None,
     );
 
@@ -221,16 +220,9 @@ pub fn default_no_child() {
 
     // we expect default to not render anything (except a hit-rect for the window).
     let window_id = WindowId::new_unique();
-    let root_rendered = WidgetRenderInfo::new();
+    let root_bounds = WidgetBoundsInfo::new_size(desired_size, desired_size);
 
-    let mut info = WidgetInfoBuilder::new(
-        window_id,
-        ctx.root_id,
-        WidgetBoundsInfo::new_size(desired_size, desired_size),
-        WidgetBorderInfo::new(),
-        root_rendered.clone(),
-        None,
-    );
+    let mut info = WidgetInfoBuilder::new(window_id, ctx.root_id, root_bounds.clone(), WidgetBorderInfo::new(), None);
     wgt.test_info(&mut ctx, &mut info);
     let (build_info, _) = info.finalize();
     let wgt_info = build_info.find(wgt.id()).unwrap();
@@ -245,7 +237,7 @@ pub fn default_no_child() {
     let mut frame = FrameBuilder::new_renderless(FrameId::INVALID, ctx.root_id, 1.0.fct(), Default::default(), None);
 
     wgt.test_render(&mut ctx, &mut frame);
-    let (_, _) = frame.finalize(&root_rendered);
+    let (_, _) = frame.finalize(&root_bounds);
 
     // and not update render.
     let mut update = FrameUpdate::new(FrameId::INVALID, ctx.root_id, None, RenderColor::BLACK, None);

@@ -9,7 +9,7 @@ use crate::{
     text::FontAntiAliasing,
     units::*,
     var::impl_from_and_into_var,
-    widget_info::{WidgetInfoTree, WidgetRenderInfo},
+    widget_info::{WidgetBoundsInfo, WidgetInfoTree},
     window::WindowId,
     WidgetId,
 };
@@ -367,7 +367,7 @@ impl FrameBuilder {
         if reuse.is_some() {
             // will try to reuse, but only if we can patch the widget transforms.
 
-            let prev_outer = ctx.widget_info.render.outer_transform();
+            let prev_outer = ctx.widget_info.bounds.outer_transform();
             if prev_outer != outer_transform {
                 if let Some(undo_prev) = prev_outer.inverse() {
                     undo_prev_outer_transform = Some(undo_prev);
@@ -398,15 +398,15 @@ impl FrameBuilder {
 
             if patch != RenderTransform::identity() {
                 for info in ctx.info_tree.find(ctx.path.widget_id()).unwrap().self_and_descendants() {
-                    let render = info.render_info();
-                    let changed_outer = render.set_outer_transform(render.outer_transform().then(&patch));
-                    let changed_inner = render.set_inner_transform(render.inner_transform().then(&patch));
+                    let bounds = info.bounds_info();
+                    bounds.set_outer_transform(bounds.outer_transform().then(&patch));
+                    bounds.set_inner_transform(bounds.inner_transform().then(&patch));
                 }
             }
         }
 
         self.widget_rendered |= !reuse.as_ref().unwrap().is_empty();
-        let rendered_changed = ctx.widget_info.render.set_rendered(self.widget_rendered);
+        ctx.widget_info.bounds.set_rendered(self.widget_rendered);
         self.widget_rendered |= parent_rendered;
     }
 
@@ -468,9 +468,9 @@ impl FrameBuilder {
     /// [`Collapsed`]: crate::widget_info::Visibility::Collapsed
     pub fn skip_render(&self, info_tree: &WidgetInfoTree) {
         if let Some(w) = info_tree.find(self.widget_id) {
-            w.render_info().set_rendered(self.widget_rendered);
+            w.bounds_info().set_rendered(self.widget_rendered);
             for w in w.descendants() {
-                w.render_info().set_rendered(false);
+                w.bounds_info().set_rendered(false);
             }
         } else {
             tracing::error!("skip_render did not find widget `{}` in info tree", self.widget_id)
@@ -483,9 +483,9 @@ impl FrameBuilder {
     /// only the children that should be visible.
     pub fn skip_render_descendants(&self, info_tree: &WidgetInfoTree) {
         if let Some(w) = info_tree.find(self.widget_id) {
-            w.render_info().set_rendered(self.widget_rendered);
+            w.bounds_info().set_rendered(self.widget_rendered);
             for w in w.descendants() {
-                w.render_info().set_rendered(false);
+                w.bounds_info().set_rendered(false);
             }
         } else {
             tracing::error!("skip_render_descendants did not find widget `{}` in info tree", self.widget_id)
@@ -585,7 +585,7 @@ impl FrameBuilder {
         if let Some(mut data) = self.widget_data.take() {
             let parent_transform = self.transform;
             let outer_transform = RenderTransform::translation_px(ctx.widget_info.bounds.outer_offset()).then(&parent_transform);
-            ctx.widget_info.render.set_outer_transform(outer_transform);
+            ctx.widget_info.bounds.set_outer_transform(outer_transform);
 
             let translate = ctx.widget_info.bounds.inner_offset() + ctx.widget_info.bounds.outer_offset();
             let inner_transform = if data.has_transform {
@@ -594,7 +594,7 @@ impl FrameBuilder {
                 RenderTransform::translation_px(translate)
             };
             self.transform = inner_transform.then(&parent_transform);
-            ctx.widget_info.render.set_inner_transform(self.transform);
+            ctx.widget_info.bounds.set_inner_transform(self.transform);
 
             self.display_list.push_reference_frame(
                 SpatialFrameId::widget_id_to_wr(self.widget_id, self.pipeline_id),
@@ -1072,8 +1072,8 @@ impl FrameBuilder {
     }
 
     /// Finalizes the build.
-    pub fn finalize(self, root_rendered: &WidgetRenderInfo) -> (BuiltFrame, UsedFrameBuilder) {
-        root_rendered.set_rendered(self.widget_rendered);
+    pub fn finalize(self, root_bounds: &WidgetBoundsInfo) -> (BuiltFrame, UsedFrameBuilder) {
+        root_bounds.set_rendered(self.widget_rendered);
 
         let (display_list, capacity) = self.display_list.finalize();
 
@@ -1309,15 +1309,15 @@ impl FrameUpdate {
         let parent_can_reuse = self.can_reuse_widget;
 
         if self.can_reuse_widget && reuse {
-            let prev_outer = ctx.widget_info.render.outer_transform();
+            let prev_outer = ctx.widget_info.bounds.outer_transform();
             if prev_outer != outer_transform {
                 if let Some(undo_prev) = prev_outer.inverse() {
                     let patch = undo_prev.then(&outer_transform);
 
                     for info in ctx.info_tree.find(ctx.path.widget_id()).unwrap().self_and_descendants() {
-                        let render = info.render_info();
-                        render.set_outer_transform(render.outer_transform().then(&patch));
-                        render.set_inner_transform(render.inner_transform().then(&patch));
+                        let bounds = info.bounds_info();
+                        bounds.set_outer_transform(bounds.outer_transform().then(&patch));
+                        bounds.set_inner_transform(bounds.inner_transform().then(&patch));
                     }
 
                     return; // can reuse and patched.
@@ -1330,7 +1330,7 @@ impl FrameUpdate {
             self.can_reuse_widget = false;
         }
 
-        ctx.widget_info.render.set_outer_transform(outer_transform);
+        ctx.widget_info.bounds.set_outer_transform(outer_transform);
         self.inner_transform = Some(RenderTransform::identity());
         let parent_id = self.widget_id;
         self.widget_id = ctx.path.widget_id();
@@ -1368,7 +1368,7 @@ impl FrameUpdate {
             let parent_transform = self.transform;
 
             self.transform = inner_transform.then(&parent_transform);
-            ctx.widget_info.render.set_inner_transform(self.transform);
+            ctx.widget_info.bounds.set_inner_transform(self.transform);
 
             render_update(ctx, self);
             self.transform = parent_transform;

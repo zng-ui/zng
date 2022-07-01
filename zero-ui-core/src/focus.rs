@@ -96,7 +96,7 @@ use crate::{
     service::Service,
     units::{PxPoint, PxRect, TimeUnits},
     var::{var, RcVar, ReadOnlyRcVar, Var, Vars},
-    widget_info::{InteractionPath, WidgetBoundsInfo, WidgetInfoTree, WidgetRenderInfo},
+    widget_info::{InteractionPath, WidgetBoundsInfo, WidgetInfoTree},
     window::{WidgetInfoChangedEvent, WindowFocusChangedEvent, WindowId, Windows},
     WidgetId,
 };
@@ -1399,7 +1399,7 @@ impl Focus {
 
     fn update_focused_center(&mut self) {
         if let Some(f) = &mut self.focused {
-            let bounds = f.bounds_info.inner_bounds(&f.render_info);
+            let bounds = f.bounds_info.inner_bounds();
             if bounds != PxRect::zero() {
                 f.center = bounds.center();
             }
@@ -1410,7 +1410,6 @@ impl Focus {
 struct FocusedInfo {
     path: InteractionPath,
     bounds_info: WidgetBoundsInfo,
-    render_info: WidgetRenderInfo,
     center: PxPoint,
 }
 impl FocusedInfo {
@@ -1418,7 +1417,6 @@ impl FocusedInfo {
         FocusedInfo {
             path: focusable.info.interaction_path(),
             bounds_info: focusable.info.bounds_info(),
-            render_info: focusable.info.render_info(),
             center: focusable.info.center(),
         }
     }
