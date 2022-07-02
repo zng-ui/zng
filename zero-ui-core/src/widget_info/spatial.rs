@@ -2,7 +2,33 @@ use std::{mem, ops::ControlFlow};
 
 use crate::units::*;
 
-const MIN_LENGTH: Px = Px(20);
+const MIN_QUAD: Px = Px(20);
+const MAX_DEPTH: u8 = 8;
+
+/// Items can be inserted in multiple quads, but only of the same level or greater.
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+struct QLevel(u8);
+impl QLevel {
+    fn from_size(size: PxSize) -> Self {
+        Self::from_length(size.width.max(size.height))
+    }
+
+    fn from_length(length: Px) -> Self {
+        if length > Px(500) {
+            QLevel(0)
+        } else if length > Px(100) {
+            QLevel(1)
+        } else if length > Px(80) {
+            QLevel(2)
+        } else if length > Px(40) {
+            QLevel(3)
+        } else if length > Px(20) {
+            QLevel(4)
+        } else {
+            QLevel(5)
+        }
+    }
+}
 
 #[derive(Clone, Copy)]
 struct PxSquare {
@@ -19,7 +45,7 @@ pub(super) struct QuadTree {
 impl QuadTree {
     pub(super) fn new(root_size: PxSize) -> Self {
         let mut length = root_size.width.max(root_size.height);
-        if length < MIN_LENGTH {
+        if length < MIN_QUAD {
             length = Px(1000);
         }
         Self {
@@ -31,9 +57,12 @@ impl QuadTree {
         }
     }
 
-    pub(super) fn insert(&mut self, item: ego_tree::NodeId, item_bounds: PxBox) {
+    pub(super) fn insert(&mut self, item: ego_tree::NodeId, item_bounds: PxRect) {
+        let item_level = QLevel::from_size(item_bounds.size);
+        let item_bounds = item_bounds.to_box2d();
+
         if self.root_bounds.contains(item_bounds) {
-            self.root.insert(self.root_bounds, item, item_bounds);
+            self.root.insert(self.root_bounds, 0, item, item_bounds, item_level);
         } else {
             let grow_up = item_bounds.min.y < self.root_bounds.origin.y;
             let grow_left = item_bounds.min.x < self.root_bounds.origin.x;
@@ -60,12 +89,14 @@ impl QuadTree {
             }
             self.root.inner = Some(root_inner);
 
-            self.insert(item, item_bounds);
+            self.insert(item, item_bounds.to_rect());
         }
     }
 
-    pub(super) fn remove(&mut self, item: ego_tree::NodeId, item_bounds: PxBox) {
-        self.root.remove(self.root_bounds, item, item_bounds);
+    pub(super) fn remove(&mut self, item: ego_tree::NodeId, item_bounds: PxRect) {
+        let item_level = QLevel::from_size(item_bounds.size);
+        let item_bounds = item_bounds.to_box2d();
+        self.root.remove(self.root_bounds, 0, item, item_bounds, item_level);
     }
 
     pub(super) fn visit<B>(
@@ -94,24 +125,37 @@ struct QuadNode {
     items: Vec<ego_tree::NodeId>,
 }
 impl QuadNode {
-    fn insert(&mut self, self_bounds: PxSquare, item: ego_tree::NodeId, item_bounds: PxBox) {
-        if let Some(q) = self_bounds.split() {
-            if let Some(i) = q.into_iter().position(|b| b.contains(item_bounds)) {
-                self.inner.get_or_insert_with(Self::inner_defaults)[i].insert(q[i], item, item_bounds);
-                return;
+    fn insert(&mut self, self_bounds: PxSquare, self_depth: u8, item: ego_tree::NodeId, item_bounds: PxBox, item_level: QLevel) {
+        if self_depth < MAX_DEPTH {
+            if let Some(q) = self_bounds.split() {
+                let q_level = QLevel::from_length(q[0].length);
+                if q_level <= item_level {
+                    let q_depth = self_depth + 1;
+                    for (quad, q_bounds) in self.inner.get_or_insert_with(Self::inner_defaults).iter_mut().zip(q) {
+                        if q_bounds.intersects(item_bounds) {
+                            quad.insert(q_bounds, q_depth, item, item_bounds, item_level);
+                        }
+                    }
+                    return;
+                }
             }
         }
         self.items.push(item);
     }
 
-    fn remove(&mut self, self_bounds: PxSquare, item: ego_tree::NodeId, item_bounds: PxBox) {
-        if let Some(q) = self_bounds.split() {
-            if let Some(i) = q.into_iter().position(|b| b.contains(item_bounds)) {
-                self.inner.as_mut().unwrap()[i].remove(q[i], item, item_bounds);
-                if self.is_inner_empty() {
-                    self.inner = None;
+    fn remove(&mut self, self_bounds: PxSquare, self_depth: u8, item: ego_tree::NodeId, item_bounds: PxBox, item_level: QLevel) {
+        if self_depth < MAX_DEPTH {
+            if let Some(q) = self_bounds.split() {
+                let q_level = QLevel::from_length(q[0].length);
+                if q_level <= item_level {
+                    let q_depth = self_depth + 1;
+                    for (quad, q_bounds) in self.inner.as_mut().unwrap().iter_mut().zip(q) {
+                        if q_bounds.intersects(item_bounds) {
+                            quad.remove(q_bounds, q_depth, item, item_bounds, item_level);
+                        }
+                    }
+                    return;
                 }
-                return;
             }
         }
 
@@ -158,7 +202,7 @@ impl PxSquare {
     fn split(mut self) -> Option<[Self; 4]> {
         self.length /= Px(2);
 
-        if self.length >= MIN_LENGTH {
+        if self.length >= MIN_QUAD {
             let mut r = [self; 4];
             r[1].origin.x += self.length;
             r[2].origin.y += self.length;
@@ -172,6 +216,10 @@ impl PxSquare {
     fn to_box(self) -> PxBox {
         let max = self.origin + PxVector::splat(self.length);
         PxBox::new(self.origin, max)
+    }
+
+    fn intersects(self, b: PxBox) -> bool {
+        self.to_box().intersects(&b)
     }
 
     fn contains(self, b: PxBox) -> bool {

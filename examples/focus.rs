@@ -44,8 +44,8 @@ fn app_main() {
             };
             // zero_ui::widgets::inspector::show_center_points = true;
             // zero_ui::widgets::inspector::show_bounds = true;
-            zero_ui::widgets::inspector::show_quad_tree_hits = true;
-            zero_ui::widgets::inspector::show_quad_tree = true;
+            // zero_ui::widgets::inspector::show_quad_tree_hits = true;
+            // zero_ui::widgets::inspector::show_quad_tree = true;
         }
     })
 }

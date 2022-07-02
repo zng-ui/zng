@@ -231,7 +231,7 @@ pub fn show_quad_tree_hits(child: impl UiNode, enabled: impl IntoVar<bool>) -> i
 
             if self.valid && self.enabled.copy(ctx) {
                 let widths = PxSideOffsets::new_all_same(Px(1));
-                let quad_sides = BorderSides::solid(colors::WHITE);
+                let quad_sides = BorderSides::solid(colors::YELLOW);
                 let fail_sides = BorderSides::solid(colors::RED);
                 let hits_sides = BorderSides::solid(colors::LIME_GREEN);
 

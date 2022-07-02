@@ -234,7 +234,7 @@ impl WidgetInfoTree {
         quad_tree.clear();
         if quad_tree.is_empty() {
             for node in self.0.tree.nodes() {
-                quad_tree.insert(node.id(), node.value().bounds_info.inner_bounds().to_box2d());
+                quad_tree.insert(node.id(), node.value().bounds_info.inner_bounds());
             }
         }
     }
