@@ -182,7 +182,6 @@ pub fn show_quad_tree_hits(child: impl UiNode, enabled: impl IntoVar<bool>) -> i
 
                     // TODO, actual factor
                     let pt = args.position.to_px(1.5);
-
                     ctx.info_tree.visit_quads(
                         |quad| {
                             let include = quad.contains(pt);
@@ -202,6 +201,29 @@ pub fn show_quad_tree_hits(child: impl UiNode, enabled: impl IntoVar<bool>) -> i
                             std::ops::ControlFlow::<(), ()>::Continue(())
                         },
                     );
+                    // debug point algorithm.
+                    #[cfg(debug_assertions)]
+                    {
+                        let q_fails = fails.clone();
+                        let q_hits = hits.clone();
+                        fails.clear();
+                        hits.clear();
+
+                        ctx.info_tree.visit_point(pt, |wgt| {
+                            let bounds = wgt.inner_bounds();
+                            if bounds.contains(pt) {
+                                hits.push(bounds);
+                            } else {
+                                fails.push(bounds);
+                            }
+
+                            std::ops::ControlFlow::<(), ()>::Continue(())
+                        });
+
+                        if q_fails != fails || q_hits != hits {
+                            tracing::error!("quad and points hits did not match");
+                        }
+                    }
 
                     if self.quads != quads || self.fails != fails || self.hits != hits {
                         self.quads = quads;

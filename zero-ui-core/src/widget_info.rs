@@ -141,7 +141,7 @@ impl WidgetInfoTree {
     /// Only widgets inside the areas allowed by `include_quad` are visited, the `visit` closure is called for every widget contained by the
     /// allowed quads and can either continue visiting or break early with a result. Each widget can be visited multiple times if more then one
     /// parallel quad is allowed, if only nested quads are allowed (like in a point hit-test) then widgets are only visited once. You can use
-    /// [`visit_quads_dedup`] to make ensure that widgets are only visited once.
+    /// [`visit_quads_dedup`] to ensure that widgets are only visited once.
     ///
     /// Note that no widget is visited before the first render as the quad-tree is only build after the first render, you can check if the tree is
     /// rendered using [`is_rendered`].
@@ -174,6 +174,18 @@ impl WidgetInfoTree {
             .visit_dedup(include_quad, move |node_id| visit(WidgetInfo::new(self, node_id)))
     }
 
+    /// Visit all widgets in quads that contain the `point`.
+    ///
+    /// Note that this is slightly faster then [`visit_quads`] and there are naturally no repeated widgets for single point queries.
+    ///
+    /// [`visit_quads`]: Self::visit_quads
+    pub fn visit_point<B>(&self, point: PxPoint, mut visit: impl FnMut(WidgetInfo) -> ControlFlow<B>) -> ControlFlow<B> {
+        self.0
+            .inner_bounds_tree
+            .borrow()
+            .visit_point(point, move |node_id| visit(WidgetInfo::new(self, node_id)))
+    }
+
     fn visit_area_op<B>(
         &self,
         area: PxRect,
@@ -203,15 +215,12 @@ impl WidgetInfoTree {
     ///
     /// [`inner_bounds`]: WidgetInfo::inner_bounds
     pub fn visit_contains<B>(&self, point: PxPoint, mut visit: impl FnMut(WidgetInfo) -> ControlFlow<B>) -> ControlFlow<B> {
-        self.visit_quads(
-            |q| q.contains(point),
-            |wgt| {
-                if wgt.inner_bounds().contains(point) {
-                    return visit(wgt);
-                }
-                ControlFlow::Continue(())
-            },
-        )
+        self.visit_point(point, |wgt| {
+            if wgt.inner_bounds().contains(point) {
+                return visit(wgt);
+            }
+            ControlFlow::Continue(())
+        })
     }
 
     /// Visit all widgets with [`inner_bounds`] that are fully inside the `area`, widgets are only visited once.

@@ -3,12 +3,12 @@ use std::ops::ControlFlow;
 use crate::{crate_util::FxHashSet, units::*};
 
 // The QuadTree is implemented as a grid of 2048px squares that is each an actual quad-tree, the grid cell "trees" are
-// sparsely allocated and loosely matched in a linear search for visits, items belong to the first grid cell that intersects.
+// lazily allocated and matched in a linear search for visits.
 //
 // The actual quad-trees can have any number of "leaves" in each level, depending on the `QLevel`.
 
 const MIN_QUAD: Px = Px(128);
-const ROOT_QUAD: Px = Px(2024);
+const ROOT_QUAD: Px = Px(2048);
 
 /// Items can be inserted in multiple quads, but only of the same level or larger.
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -56,7 +56,7 @@ impl QuadTree {
         let item_bounds = item_bounds.to_box2d();
 
         for r in &mut self.grid {
-            if r.root_bounds.contains(item_bounds) {
+            if r.root_bounds.contains_box(item_bounds) {
                 r.insert(item, item_bounds, item_level);
                 return;
             }
@@ -88,7 +88,7 @@ impl QuadTree {
         let item_bounds = item_bounds.to_box2d();
 
         self.grid.retain_mut(|r| {
-            if r.loose_bounds.contains_box(&item_bounds) {
+            if r.root_bounds.contains_box(item_bounds) {
                 r.remove(item, item_bounds, item_level);
                 !r.is_empty()
             } else {
@@ -103,7 +103,7 @@ impl QuadTree {
         mut visit: impl FnMut(ego_tree::NodeId) -> ControlFlow<B>,
     ) -> ControlFlow<B> {
         for r in &self.grid {
-            if include(r.loose_bounds) {
+            if include(r.root_bounds.to_box()) {
                 r.root.visit(r.root_bounds, &mut include, &mut visit)?;
             }
         }
@@ -116,7 +116,7 @@ impl QuadTree {
         mut visit: impl FnMut(ego_tree::NodeId) -> ControlFlow<B>,
     ) -> ControlFlow<B> {
         for r in &self.grid {
-            if include(r.loose_bounds) {
+            if include(r.root_bounds.to_box()) {
                 let mut visited = FxHashSet::default();
                 let mut visit = |id| {
                     if visited.insert(id) {
@@ -127,6 +127,15 @@ impl QuadTree {
                 };
 
                 r.root.visit(r.root_bounds, &mut include, &mut visit)?;
+            }
+        }
+        ControlFlow::Continue(())
+    }
+
+    pub(super) fn visit_point<B>(&self, point: PxPoint, mut visit: impl FnMut(ego_tree::NodeId) -> ControlFlow<B>) -> ControlFlow<B> {
+        for r in &self.grid {
+            if r.root_bounds.contains(point) {
+                return r.root.visit_point(r.root_bounds, point, &mut visit);
             }
         }
         ControlFlow::Continue(())
@@ -144,7 +153,6 @@ impl QuadTree {
 struct QuadRoot {
     root_bounds: PxSquare,
     root: QuadNode,
-    loose_bounds: PxBox,
     len: usize,
 }
 impl QuadRoot {
@@ -155,19 +163,11 @@ impl QuadRoot {
                 origin: grid_origin,
                 length: ROOT_QUAD,
             },
-            loose_bounds: PxBox::zero(),
             len: 0,
         }
     }
 
     fn insert(&mut self, item: ego_tree::NodeId, item_bounds: PxBox, item_level: QLevel) {
-        if self.is_empty() {
-            self.loose_bounds = item_bounds;
-        } else {
-            self.loose_bounds.min = self.loose_bounds.min.min(item_bounds.min);
-            self.loose_bounds.max = self.loose_bounds.max.max(item_bounds.max);
-        }
-
         self.root.insert(self.root_bounds, item, item_bounds, item_level);
         self.len += 1;
     }
@@ -245,6 +245,42 @@ impl QuadNode {
         ControlFlow::Continue(())
     }
 
+    fn visit_point<B>(
+        &self,
+        self_bounds: PxSquare,
+        point: PxPoint,
+        visit: &mut impl FnMut(ego_tree::NodeId) -> ControlFlow<B>,
+    ) -> ControlFlow<B> {
+        for item in &self.items {
+            visit(*item)?;
+        }
+
+        if let Some(inner) = &self.inner {
+            if let Some((middle, length)) = self_bounds.middle() {
+                let mut bounds = PxSquare {
+                    origin: self_bounds.origin,
+                    length,
+                };
+                return if point.x < middle.x {
+                    if point.y < middle.y {
+                        inner[0].visit_point(bounds, point, visit)
+                    } else {
+                        bounds.origin.y += length;
+                        inner[2].visit_point(bounds, point, visit)
+                    }
+                } else if point.y < middle.y {
+                    bounds.origin.x += length;
+                    inner[1].visit_point(bounds, point, visit)
+                } else {
+                    bounds.origin.x += length;
+                    bounds.origin.y += length;
+                    inner[3].visit_point(bounds, point, visit)
+                };
+            }
+        }
+        ControlFlow::Continue(())
+    }
+
     fn is_inner_empty(&self) -> bool {
         self.inner.as_ref().map(|i| i.iter().all(|a| a.is_empty())).unwrap_or(true)
     }
@@ -273,6 +309,16 @@ impl PxSquare {
         }
     }
 
+    fn middle(mut self) -> Option<(PxPoint, Px)> {
+        self.length /= Px(2);
+
+        if self.length >= MIN_QUAD {
+            Some((self.origin + PxVector::new(self.length, self.length), self.length))
+        } else {
+            None
+        }
+    }
+
     fn to_box(self) -> PxBox {
         let max = self.origin + PxVector::splat(self.length);
         PxBox::new(self.origin, max)
@@ -282,7 +328,11 @@ impl PxSquare {
         self.to_box().intersects(&b)
     }
 
-    fn contains(self, b: PxBox) -> bool {
+    fn contains_box(self, b: PxBox) -> bool {
         self.to_box().contains_box(&b)
+    }
+
+    fn contains(self, p: PxPoint) -> bool {
+        self.to_box().contains(p)
     }
 }
