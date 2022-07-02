@@ -82,6 +82,10 @@ impl QuadTree {
     pub(super) fn is_empty(&self) -> bool {
         self.root.is_empty()
     }
+
+    pub(super) fn clear(&mut self) {
+        self.root = QuadNode::default();
+    }
 }
 
 #[derive(Default)]
@@ -168,10 +172,6 @@ impl PxSquare {
     fn to_box(self) -> PxBox {
         let max = self.origin + PxVector::splat(self.length);
         PxBox::new(self.origin, max)
-    }
-
-    fn intersects(self, b: PxBox) -> bool {
-        self.to_box().intersects(&b)
     }
 
     fn contains(self, b: PxBox) -> bool {

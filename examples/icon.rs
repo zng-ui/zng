@@ -36,6 +36,7 @@ fn app_main() {
                             .collect::<WidgetVec>(),
                 }
             };
+            zero_ui::widgets::inspector::show_quad_tree = true;
         }
     })
 }

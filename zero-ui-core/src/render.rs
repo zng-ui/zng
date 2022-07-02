@@ -9,7 +9,7 @@ use crate::{
     text::FontAntiAliasing,
     units::*,
     var::impl_from_and_into_var,
-    widget_info::{WidgetInfoTree},
+    widget_info::WidgetInfoTree,
     window::WindowId,
     WidgetId,
 };

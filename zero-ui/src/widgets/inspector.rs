@@ -1,6 +1,6 @@
 //! Inspector widgets.
 
-use crate::core::{widget_info::*, window::WidgetInfoChangedEvent};
+use crate::core::{mouse::MouseMoveEvent, widget_info::*};
 use crate::prelude::new_property::*;
 
 /// Draws a debug dot in every widget [center point] in the window.
@@ -12,7 +12,7 @@ use crate::prelude::new_property::*;
 /// [center point]: crate::core::widget_info::WidgetInfo::center
 #[property(context)]
 pub fn show_center_points(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
-    render_widget_tree(
+    show_widget_tree(
         child,
         |tree, frame| {
             for wgt in tree.all_widgets() {
@@ -30,7 +30,7 @@ pub fn show_center_points(child: impl UiNode, enabled: impl IntoVar<bool>) -> im
 /// This property only works if set in a window, if set in another widget it will log an error and don't render any debug dot.
 #[property(context)]
 pub fn show_bounds(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
-    render_widget_tree(
+    show_widget_tree(
         child,
         |tree, frame| {
             let p = Dip::new(1).to_px(frame.scale_factor().0);
@@ -57,13 +57,33 @@ pub fn show_bounds(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNo
     )
 }
 
-/// Calls the `render` closure once every frame after rendering the window contents.
+/// Draws the widget inner bounds quad-tree.
 ///
 /// # Window Only
 ///
-/// This property only works if set in a window, if set in another widget it will log an error and never call `render`.
-#[property(context, allowed_in_when = false)]
-pub fn render_widget_tree(
+/// This property only works if set in a window, if set in another widget it will log an error and don't render any debug dot.
+#[property(context)]
+pub fn show_quad_tree(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
+    show_widget_tree(
+        child,
+        |tree, frame| {
+            let widths = PxSideOffsets::new_all_same(Px(1));
+            let sides = BorderSides::solid(colors::GRAY);
+
+            // TODO: render the up-to-date quads.
+            tree.visit_quads(
+                |quad| {
+                    frame.push_border(quad.to_rect(), widths, sides, PxCornerRadius::zero());
+                    true
+                },
+                |_| std::ops::ControlFlow::<(), ()>::Continue(()),
+            );
+        },
+        enabled,
+    )
+}
+
+fn show_widget_tree(
     child: impl UiNode,
     render: impl Fn(&WidgetInfoTree, &mut FrameBuilder) + 'static,
     enabled: impl IntoVar<bool>,
@@ -73,56 +93,27 @@ pub fn render_widget_tree(
         render: R,
         enabled: E,
 
-        tree: Option<WidgetInfoTree>,
         valid: bool,
     }
     #[impl_ui_node(child)]
     impl<C: UiNode, R: Fn(&WidgetInfoTree, &mut FrameBuilder) + 'static, E: Var<bool>> UiNode for RenderWidgetTreeNode<C, R, E> {
-        fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
-            subs.var(ctx, &self.enabled).event(WidgetInfoChangedEvent);
-            self.child.subscriptions(ctx, subs);
-        }
-
         fn init(&mut self, ctx: &mut WidgetContext) {
             self.valid = ctx.path.is_root();
             if !self.valid {
                 tracing::error!("properties that render widget info are only valid in a window");
             }
 
-            if self.valid && self.enabled.copy(ctx) {
-                self.tree = Some(ctx.info_tree.clone());
-            }
             self.child.init(ctx);
         }
 
-        fn deinit(&mut self, ctx: &mut WidgetContext) {
-            self.tree = None;
-            self.child.deinit(ctx);
-        }
-
-        fn event<A: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &A) {
-            if let Some(args) = WidgetInfoChangedEvent.update(args) {
-                if args.window_id == ctx.path.window_id() {
-                    self.tree = Some(args.tree.clone());
-                    ctx.updates.render();
-                }
-                self.child.event(ctx, args);
-            } else {
-                self.child.event(ctx, args);
-            }
+        fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
+            subs.var(ctx, &self.enabled);
+            self.child.subscriptions(ctx, subs);
         }
 
         fn update(&mut self, ctx: &mut WidgetContext) {
-            if self.valid {
-                if let Some(enabled) = self.enabled.copy_new(ctx) {
-                    if enabled {
-                        self.tree = Some(ctx.info_tree.clone());
-                    } else {
-                        self.tree = None;
-                    }
-
-                    ctx.updates.render();
-                }
+            if self.enabled.is_new(ctx) {
+                ctx.updates.render();
             }
             self.child.update(ctx);
         }
@@ -130,12 +121,10 @@ pub fn render_widget_tree(
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
             self.child.render(ctx, frame);
 
-            if self.valid {
-                if let Some(tree) = &self.tree {
-                    frame.with_hit_tests_disabled(|frame| {
-                        (self.render)(tree, frame);
-                    });
-                }
+            if self.valid && self.enabled.copy(ctx) {
+                frame.with_hit_tests_disabled(|frame| {
+                    (self.render)(ctx.info_tree, frame);
+                });
             }
         }
     }
@@ -144,7 +133,130 @@ pub fn render_widget_tree(
         render,
         enabled: enabled.into_var(),
 
-        tree: None,
         valid: false,
+    }
+}
+
+/// Draws the inner bounds that where tested for the mouse point and the quadrants visited.
+///
+/// # Window Only
+///
+/// This property only works if set in a window, if set in another widget it will log an error and don't render any debug dot.
+#[property(context)]
+pub fn show_quad_tree_hits(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
+    struct ShowQuadTreeHitsNode<C, E> {
+        child: C,
+        enabled: E,
+
+        valid: bool,
+
+        quads: Vec<PxRect>,
+        fails: Vec<PxRect>,
+        hits: Vec<PxRect>,
+    }
+    #[impl_ui_node(child)]
+    impl<C: UiNode, E: Var<bool>> UiNode for ShowQuadTreeHitsNode<C, E> {
+        fn init(&mut self, ctx: &mut WidgetContext) {
+            self.valid = ctx.path.is_root();
+            if !self.valid {
+                tracing::error!("properties that render widget info are only valid in a window");
+            }
+
+            self.child.init(ctx);
+        }
+
+        fn subscriptions(&self, ctx: &mut InfoContext, subs: &mut WidgetSubscriptions) {
+            subs.var(ctx, &self.enabled);
+            if self.enabled.copy(ctx.vars) {
+                subs.event(MouseMoveEvent);
+            }
+            self.child.subscriptions(ctx, subs);
+        }
+
+        fn event<A: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &A) {
+            if let Some(args) = MouseMoveEvent.update(args) {
+                if self.valid && self.enabled.copy(ctx) {
+                    let mut quads = Vec::with_capacity(self.quads.len());
+                    let mut fails = Vec::with_capacity(self.fails.len());
+                    let mut hits = Vec::with_capacity(self.hits.len());
+
+                    // TODO, actual factor
+                    let pt = args.position.to_px(1.5);
+
+                    ctx.info_tree.visit_quads(
+                        |quad| {
+                            let include = quad.contains(pt);
+                            if include {
+                                quads.push(quad.to_rect());
+                            }
+                            include
+                        },
+                        |wgt| {
+                            let bounds = wgt.inner_bounds();
+                            if bounds.contains(pt) {
+                                hits.push(bounds);
+                            } else {
+                                fails.push(bounds);
+                            }
+
+                            std::ops::ControlFlow::<(), ()>::Continue(())
+                        },
+                    );
+
+                    if self.quads != quads || self.fails != fails || self.hits != hits {
+                        self.quads = quads;
+                        self.fails = fails;
+                        self.hits = hits;
+
+                        ctx.updates.render();
+                    }
+                }
+
+                self.child.event(ctx, args);
+            } else {
+                self.child.event(ctx, args);
+            }
+        }
+
+        fn update(&mut self, ctx: &mut WidgetContext) {
+            if self.enabled.is_new(ctx) {
+                ctx.updates.subscriptions();
+                ctx.updates.render();
+            }
+            self.child.update(ctx);
+        }
+
+        fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
+            self.child.render(ctx, frame);
+
+            if self.valid && self.enabled.copy(ctx) {
+                let widths = PxSideOffsets::new_all_same(Px(1));
+                let quad_sides = BorderSides::solid(colors::WHITE);
+                let fail_sides = BorderSides::solid(colors::RED);
+                let hits_sides = BorderSides::solid(colors::LIME_GREEN);
+
+                frame.with_hit_tests_disabled(|frame| {
+                    for quad in &self.quads {
+                        frame.push_border(*quad, widths, quad_sides, PxCornerRadius::zero());
+                    }
+
+                    for fail in &self.fails {
+                        frame.push_border(*fail, widths, fail_sides, PxCornerRadius::zero());
+                    }
+
+                    for hit in &self.hits {
+                        frame.push_border(*hit, widths, hits_sides, PxCornerRadius::zero());
+                    }
+                });
+            }
+        }
+    }
+    ShowQuadTreeHitsNode {
+        child,
+        enabled: enabled.into_var(),
+        valid: false,
+        quads: vec![],
+        fails: vec![],
+        hits: vec![],
     }
 }
