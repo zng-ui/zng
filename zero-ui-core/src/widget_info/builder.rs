@@ -193,15 +193,13 @@ impl WidgetInfoBuilder {
             }
         }
 
-        let quad_size = self.tree.root().value().bounds_info.outer_bounds().size;
-
         let r = WidgetInfoTree(Rc::new(WidgetInfoTreeInner {
             id: WidgetInfoTreeId::new_unique(),
             window_id: self.window_id,
             lookup,
             tree: self.tree,
             interactivity_filters: self.interactivity_filters,
-            inner_bounds_tree: RefCell::new(super::spatial::QuadTree::new(quad_size)),
+            inner_bounds_tree: RefCell::new(super::spatial::QuadTree::new()),
         }));
 
         if !repeats.is_empty() {

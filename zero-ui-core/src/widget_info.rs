@@ -139,13 +139,16 @@ impl WidgetInfoTree {
     /// Visit widgets by the [`inner_bounds`] quad-tree.
     ///
     /// Only widgets inside the areas allowed by `include_quad` are visited, the `visit` closure is called for every widget contained by the
-    /// allowed quads and can either continue visiting or break early with a result. Each widget is only visited zero or one times in no particular order.
+    /// allowed quads and can either continue visiting or break early with a result. Each widget can be visited multiple times if more then one
+    /// parallel quad is allowed, if only nested quads are allowed (like in a point hit-test) then widgets are only visited once. You can use
+    /// [`visit_quads_dedup`] to make ensure that widgets are only visited once.
     ///
     /// Note that no widget is visited before the first render as the quad-tree is only build after the first render, you can check if the tree is
     /// rendered using [`is_rendered`].
     ///
     /// [`inner_bounds`]: WidgetInfo::inner_bounds
     /// [`is_rendered`]: Self::is_rendered
+    /// [`visit_quads_dedup`]: Self::visit_quads_dedup
     pub fn visit_quads<B>(
         &self,
         include_quad: impl FnMut(euclid::Box2D<Px, ()>) -> bool,
@@ -157,6 +160,20 @@ impl WidgetInfoTree {
             .visit(include_quad, move |node_id| visit(WidgetInfo::new(self, node_id)))
     }
 
+    /// Like [`visit_quads`], but ensures that widgets are only visited once.
+    ///
+    /// [`visit_quads`]: Self::visit_quads
+    pub fn visit_quads_dedup<B>(
+        &self,
+        include_quad: impl FnMut(euclid::Box2D<Px, ()>) -> bool,
+        mut visit: impl FnMut(WidgetInfo) -> ControlFlow<B>,
+    ) -> ControlFlow<B> {
+        self.0
+            .inner_bounds_tree
+            .borrow()
+            .visit_dedup(include_quad, move |node_id| visit(WidgetInfo::new(self, node_id)))
+    }
+
     fn visit_area_op<B>(
         &self,
         area: PxRect,
@@ -164,7 +181,7 @@ impl WidgetInfoTree {
         mut visit: impl FnMut(WidgetInfo) -> ControlFlow<B>,
     ) -> ControlFlow<B> {
         let area = area.to_box2d();
-        self.visit_quads(
+        self.visit_quads_dedup(
             |q| op(area, q),
             |wgt| {
                 if op(area, wgt.inner_bounds().to_box2d()) {
@@ -175,14 +192,14 @@ impl WidgetInfoTree {
         )
     }
 
-    /// Visit all widgets with [`inner_bounds`] that intersect the `area`.
+    /// Visit all widgets with [`inner_bounds`] that intersect the `area`, widgets are only visited once.
     ///
     /// [`inner_bounds`]: WidgetInfo::inner_bounds
     pub fn visit_intersects<B>(&self, area: PxRect, visit: impl FnMut(WidgetInfo) -> ControlFlow<B>) -> ControlFlow<B> {
         self.visit_area_op(area, |area, q| area.intersects(&q), visit)
     }
 
-    /// Visit all widgets with [`inner_bounds`] that contains the `point`.
+    /// Visit all widgets with [`inner_bounds`] that contains the `point`, widgets are only visited once.
     ///
     /// [`inner_bounds`]: WidgetInfo::inner_bounds
     pub fn visit_contains<B>(&self, point: PxPoint, mut visit: impl FnMut(WidgetInfo) -> ControlFlow<B>) -> ControlFlow<B> {
@@ -197,26 +214,26 @@ impl WidgetInfoTree {
         )
     }
 
-    /// Visit all widgets with [`inner_bounds`] that are fully inside the `area`.
+    /// Visit all widgets with [`inner_bounds`] that are fully inside the `area`, widgets are only visited once.
     ///
     /// [`inner_bounds`]: WidgetInfo::inner_bounds
     pub fn visit_contained<B>(&self, area: PxRect, visit: impl FnMut(WidgetInfo) -> ControlFlow<B>) -> ControlFlow<B> {
         self.visit_area_op(area, |area, q| area.contains_box(&q), visit)
     }
 
-    /// Visit all widgets with [`inner_bounds`] that fully envelops the `area`.
+    /// Visit all widgets with [`inner_bounds`] that fully envelops the `area`, widgets are only visited once.
     ///
     /// [`inner_bounds`]: WidgetInfo::inner_bounds
     pub fn visit_contains_area<B>(&self, area: PxRect, visit: impl FnMut(WidgetInfo) -> ControlFlow<B>) -> ControlFlow<B> {
         self.visit_area_op(area, |area, q| q.contains_box(&area), visit)
     }
 
-    /// Visit all widgets with [`center`] inside the `area`.
+    /// Visit all widgets with [`center`] inside the `area`, widgets are only visited once.
     ///
     /// [`center`]: WidgetInfo::center
     pub fn visit_center_contained<B>(&self, area: PxRect, mut visit: impl FnMut(WidgetInfo) -> ControlFlow<B>) -> ControlFlow<B> {
         let area = area.to_box2d();
-        self.visit_quads(
+        self.visit_quads_dedup(
             |q| q.intersects(&area),
             |wgt| {
                 if area.contains(wgt.center()) {
