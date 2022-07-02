@@ -1,30 +1,34 @@
-use std::{mem, ops::ControlFlow};
+use std::ops::ControlFlow;
 
 use crate::{crate_util::FxHashSet, units::*};
 
-const MIN_QUAD: Px = Px(20);
+// The QuadTree is implemented as a grid of 2048px squares that is each an actual quad-tree, the grid cell "trees" are
+// sparsely allocated and loosely matched in a linear search for visits, items belong to the first grid cell that intersects.
+//
+// The actual quad-trees can have any number of "leaves" in each level, depending on the `QLevel`.
 
-/// Items can be inserted in multiple quads, but only of the same level or greater.
+const MIN_QUAD: Px = Px(128);
+const ROOT_QUAD: Px = Px(2024);
+
+/// Items can be inserted in multiple quads, but only of the same level or larger.
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 struct QLevel(u8);
 impl QLevel {
     fn from_size(size: PxSize) -> Self {
-        Self::from_length(size.width.max(size.height))
+        Self::from_length(size.width.min(size.height))
     }
 
     fn from_length(length: Px) -> Self {
-        if length > Px(500) {
-            QLevel(0)
-        } else if length > Px(100) {
-            QLevel(1)
-        } else if length > Px(80) {
-            QLevel(2)
-        } else if length > Px(40) {
-            QLevel(3)
-        } else if length > Px(20) {
-            QLevel(4)
+        if length <= MIN_QUAD {
+            QLevel(250)
+        } else if length <= Px(256) {
+            QLevel(251)
+        } else if length <= Px(512) {
+            QLevel(253)
+        } else if length <= Px(1024) {
+            QLevel(254)
         } else {
-            QLevel(5)
+            QLevel(255)
         }
     }
 }
@@ -38,19 +42,12 @@ struct PxSquare {
 type PxBox = euclid::Box2D<Px, ()>;
 
 pub(super) struct QuadTree {
-    root: QuadNode,
-    root_bounds: PxSquare,
-    max_depth: u32,
+    grid: Vec<QuadRoot>,
 }
 impl QuadTree {
     pub(super) fn new() -> Self {
         Self {
-            root: QuadNode::default(),
-            root_bounds: PxSquare {
-                origin: PxPoint::zero(),
-                length: Px(1000),
-            },
-            max_depth: 8,
+            grid: Vec::with_capacity(1),
         }
     }
 
@@ -58,47 +55,46 @@ impl QuadTree {
         let item_level = QLevel::from_size(item_bounds.size);
         let item_bounds = item_bounds.to_box2d();
 
-        if self.root_bounds.contains(item_bounds) {
-            self.root.insert(self.root_bounds, self.max_depth, item, item_bounds, item_level);
-        } else {
-            let grow_up = item_bounds.min.y < self.root_bounds.origin.y;
-            let grow_left = item_bounds.min.x < self.root_bounds.origin.x;
-
-            if grow_up {
-                self.root_bounds.origin.y -= self.root_bounds.length;
+        for r in &mut self.grid {
+            if r.root_bounds.contains(item_bounds) {
+                r.insert(item, item_bounds, item_level);
+                return;
             }
-            if grow_left {
-                self.root_bounds.origin.x -= self.root_bounds.length;
+        }
+
+        let q = ROOT_QUAD.0;
+        let min = (item_bounds.min.x.0 / q, item_bounds.min.y.0 / q);
+        let max = (item_bounds.max.x.0 / q, item_bounds.max.y.0 / q);
+        for cell_x in min.0..=max.0 {
+            'next_cell: for cell_y in min.1..=max.1 {
+                let root_origin = PxPoint::new(Px(cell_x * q), Px(cell_y * q));
+
+                for r in &mut self.grid {
+                    if r.root_bounds.origin == root_origin {
+                        r.insert(item, item_bounds, item_level);
+                        continue 'next_cell;
+                    }
+                }
+
+                let mut root = QuadRoot::new(root_origin);
+                root.insert(item, item_bounds, item_level);
+                self.grid.push(root);
             }
-
-            self.root_bounds.length *= Px(2);
-            self.max_depth += 1;
-
-            let mut root_inner = QuadNode::inner_defaults();
-            let old_root = mem::take(&mut self.root);
-            if grow_up && grow_left {
-                root_inner[3] = old_root;
-            } else if grow_up {
-                root_inner[2] = old_root;
-            } else if grow_left {
-                root_inner[1] = old_root;
-            } else {
-                root_inner[0] = old_root;
-            }
-            self.root.inner = Some(root_inner);
-
-            self.insert(item, item_bounds.to_rect());
         }
     }
 
     pub(super) fn remove(&mut self, item: ego_tree::NodeId, item_bounds: PxRect) {
         let item_level = QLevel::from_size(item_bounds.size);
         let item_bounds = item_bounds.to_box2d();
-        self.root.remove(self.root_bounds, 0, item, item_bounds, item_level);
 
-        if self.root.is_empty() {
-            self.clear();
-        }
+        self.grid.retain_mut(|r| {
+            if r.loose_bounds.contains_box(&item_bounds) {
+                r.remove(item, item_bounds, item_level);
+                !r.is_empty()
+            } else {
+                true
+            }
+        });
     }
 
     pub(super) fn visit<B>(
@@ -106,8 +102,10 @@ impl QuadTree {
         mut include: impl FnMut(PxBox) -> bool,
         mut visit: impl FnMut(ego_tree::NodeId) -> ControlFlow<B>,
     ) -> ControlFlow<B> {
-        if include(self.root_bounds.to_box()) {
-            self.root.visit(self.root_bounds, &mut include, &mut visit)?;
+        for r in &self.grid {
+            if include(r.loose_bounds) {
+                r.root.visit(r.root_bounds, &mut include, &mut visit)?;
+            }
         }
         ControlFlow::Continue(())
     }
@@ -117,16 +115,70 @@ impl QuadTree {
         mut include: impl FnMut(PxBox) -> bool,
         mut visit: impl FnMut(ego_tree::NodeId) -> ControlFlow<B>,
     ) -> ControlFlow<B> {
-        let mut visited = FxHashSet::default();
-        self.visit(include, |id| if visited.insert(id) { visit(id) } else { ControlFlow::Continue(()) })
+        for r in &self.grid {
+            if include(r.loose_bounds) {
+                let mut visited = FxHashSet::default();
+                let mut visit = |id| {
+                    if visited.insert(id) {
+                        visit(id)
+                    } else {
+                        ControlFlow::Continue(())
+                    }
+                };
+
+                r.root.visit(r.root_bounds, &mut include, &mut visit)?;
+            }
+        }
+        ControlFlow::Continue(())
     }
 
     pub(super) fn is_empty(&self) -> bool {
-        self.root.is_empty()
+        self.grid.is_empty()
     }
 
     pub(super) fn clear(&mut self) {
-        *self = Self::new();
+        self.grid.clear();
+    }
+}
+
+struct QuadRoot {
+    root_bounds: PxSquare,
+    root: QuadNode,
+    loose_bounds: PxBox,
+    len: usize,
+}
+impl QuadRoot {
+    pub(super) fn new(grid_origin: PxPoint) -> Self {
+        Self {
+            root: QuadNode::default(),
+            root_bounds: PxSquare {
+                origin: grid_origin,
+                length: ROOT_QUAD,
+            },
+            loose_bounds: PxBox::zero(),
+            len: 0,
+        }
+    }
+
+    fn insert(&mut self, item: ego_tree::NodeId, item_bounds: PxBox, item_level: QLevel) {
+        if self.is_empty() {
+            self.loose_bounds = item_bounds;
+        } else {
+            self.loose_bounds.min = self.loose_bounds.min.min(item_bounds.min);
+            self.loose_bounds.max = self.loose_bounds.max.max(item_bounds.max);
+        }
+
+        self.root.insert(self.root_bounds, item, item_bounds, item_level);
+        self.len += 1;
+    }
+
+    fn remove(&mut self, item: ego_tree::NodeId, item_bounds: PxBox, item_level: QLevel) {
+        self.root.remove(self.root_bounds, item, item_bounds, item_level);
+        self.len -= 1;
+    }
+
+    fn is_empty(&self) -> bool {
+        self.len == 0
     }
 }
 
@@ -136,40 +188,34 @@ struct QuadNode {
     items: Vec<ego_tree::NodeId>,
 }
 impl QuadNode {
-    fn insert(&mut self, self_bounds: PxSquare, self_depth: u32, item: ego_tree::NodeId, item_bounds: PxBox, item_level: QLevel) {
-        if self_depth > 0 {
-            if let Some(q) = self_bounds.split() {
-                let q_level = QLevel::from_length(q[0].length);
-                if q_level <= item_level {
-                    let q_depth = self_depth - 1;
-                    for (quad, q_bounds) in self.inner.get_or_insert_with(Self::inner_defaults).iter_mut().zip(q) {
-                        if q_bounds.intersects(item_bounds) {
-                            quad.insert(q_bounds, q_depth, item, item_bounds, item_level);
-                        }
+    fn insert(&mut self, self_bounds: PxSquare, item: ego_tree::NodeId, item_bounds: PxBox, item_level: QLevel) {
+        if let Some(q) = self_bounds.split() {
+            let q_level = QLevel::from_length(q[0].length);
+            if q_level >= item_level {
+                for (quad, q_bounds) in self.inner.get_or_insert_with(Self::inner_defaults).iter_mut().zip(q) {
+                    if q_bounds.intersects(item_bounds) {
+                        quad.insert(q_bounds, item, item_bounds, item_level);
                     }
-                    return;
                 }
+                return;
             }
         }
         self.items.push(item);
     }
 
-    fn remove(&mut self, self_bounds: PxSquare, self_depth: u32, item: ego_tree::NodeId, item_bounds: PxBox, item_level: QLevel) {
-        if self_depth > 0 {
-            if let Some(q) = self_bounds.split() {
-                let q_level = QLevel::from_length(q[0].length);
-                if q_level <= item_level {
-                    let q_depth = self_depth + 1;
-                    for (quad, q_bounds) in self.inner.as_mut().unwrap().iter_mut().zip(q) {
-                        if q_bounds.intersects(item_bounds) {
-                            quad.remove(q_bounds, q_depth, item, item_bounds, item_level);
-                        }
+    fn remove(&mut self, self_bounds: PxSquare, item: ego_tree::NodeId, item_bounds: PxBox, item_level: QLevel) {
+        if let Some(q) = self_bounds.split() {
+            let q_level = QLevel::from_length(q[0].length);
+            if q_level >= item_level {
+                for (quad, q_bounds) in self.inner.as_mut().unwrap().iter_mut().zip(q) {
+                    if q_bounds.intersects(item_bounds) {
+                        quad.remove(q_bounds, item, item_bounds, item_level);
                     }
-                    if self.is_inner_empty() {
-                        self.inner = None;
-                    }
-                    return;
                 }
+                if self.is_inner_empty() {
+                    self.inner = None;
+                }
+                return;
             }
         }
 
