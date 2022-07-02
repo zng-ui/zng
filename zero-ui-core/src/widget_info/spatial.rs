@@ -1,0 +1,180 @@
+use std::{mem, ops::ControlFlow};
+
+use crate::units::*;
+
+const MIN_LENGTH: Px = Px(20);
+
+#[derive(Clone, Copy)]
+struct PxSquare {
+    origin: PxPoint,
+    length: Px,
+}
+
+type PxBox = euclid::Box2D<Px, ()>;
+
+pub(super) struct QuadTree {
+    root: QuadNode,
+    root_bounds: PxSquare,
+}
+impl QuadTree {
+    pub(super) fn new(root_size: PxSize) -> Self {
+        let mut length = root_size.width.max(root_size.height);
+        if length < MIN_LENGTH {
+            length = Px(1000);
+        }
+        Self {
+            root: QuadNode::default(),
+            root_bounds: PxSquare {
+                origin: PxPoint::zero(),
+                length,
+            },
+        }
+    }
+
+    pub(super) fn insert(&mut self, item: ego_tree::NodeId, item_bounds: PxBox) {
+        if self.root_bounds.contains(item_bounds) {
+            self.root.insert(self.root_bounds, item, item_bounds);
+        } else {
+            let grow_up = item_bounds.min.y < self.root_bounds.origin.y;
+            let grow_left = item_bounds.min.x < self.root_bounds.origin.x;
+
+            if grow_up {
+                self.root_bounds.origin.y -= self.root_bounds.length;
+            }
+            if grow_left {
+                self.root_bounds.origin.x -= self.root_bounds.length;
+            }
+
+            self.root_bounds.length *= Px(2);
+
+            let mut root_inner = QuadNode::inner_defaults();
+            let old_root = mem::take(&mut self.root);
+            if grow_up && grow_left {
+                root_inner[3] = old_root;
+            } else if grow_up {
+                root_inner[2] = old_root;
+            } else if grow_left {
+                root_inner[1] = old_root;
+            } else {
+                root_inner[0] = old_root;
+            }
+            self.root.inner = Some(root_inner);
+
+            self.insert(item, item_bounds);
+        }
+    }
+
+    pub(super) fn remove(&mut self, item: ego_tree::NodeId, item_bounds: PxBox) {
+        self.root.remove(self.root_bounds, item, item_bounds);
+    }
+
+    pub(super) fn visit<B>(
+        &self,
+        mut include: impl FnMut(PxBox) -> bool,
+        mut visit: impl FnMut(ego_tree::NodeId) -> ControlFlow<B>,
+    ) -> ControlFlow<B> {
+        if include(self.root_bounds.to_box()) {
+            self.root.visit(self.root_bounds, &mut include, &mut visit)?;
+        }
+        ControlFlow::Continue(())
+    }
+
+    pub(super) fn is_empty(&self) -> bool {
+        self.root.is_empty()
+    }
+}
+
+#[derive(Default)]
+struct QuadNode {
+    inner: Option<Box<[QuadNode; 4]>>,
+    items: Vec<ego_tree::NodeId>,
+}
+impl QuadNode {
+    fn insert(&mut self, self_bounds: PxSquare, item: ego_tree::NodeId, item_bounds: PxBox) {
+        if let Some(q) = self_bounds.split() {
+            if let Some(i) = q.into_iter().position(|b| b.contains(item_bounds)) {
+                self.inner.get_or_insert_with(Self::inner_defaults)[i].insert(q[i], item, item_bounds);
+                return;
+            }
+        }
+        self.items.push(item);
+    }
+
+    fn remove(&mut self, self_bounds: PxSquare, item: ego_tree::NodeId, item_bounds: PxBox) {
+        if let Some(q) = self_bounds.split() {
+            if let Some(i) = q.into_iter().position(|b| b.contains(item_bounds)) {
+                self.inner.as_mut().unwrap()[i].remove(q[i], item, item_bounds);
+                if self.is_inner_empty() {
+                    self.inner = None;
+                }
+                return;
+            }
+        }
+
+        if let Some(i) = self.items.iter().position(|i| *i == item) {
+            self.items.remove(i);
+        }
+    }
+
+    fn visit<B>(
+        &self,
+        self_bounds: PxSquare,
+        include: &mut impl FnMut(PxBox) -> bool,
+        visit: &mut impl FnMut(ego_tree::NodeId) -> ControlFlow<B>,
+    ) -> ControlFlow<B> {
+        for item in &self.items {
+            visit(*item)?;
+        }
+
+        if let Some(inner) = &self.inner {
+            for (inner, bounds) in inner.iter().zip(self_bounds.split().unwrap()) {
+                if include(bounds.to_box()) {
+                    inner.visit(bounds, include, visit)?;
+                }
+            }
+        }
+
+        ControlFlow::Continue(())
+    }
+
+    fn is_inner_empty(&self) -> bool {
+        self.inner.as_ref().map(|i| i.iter().all(|a| a.is_empty())).unwrap_or(true)
+    }
+
+    fn is_empty(&self) -> bool {
+        self.items.is_empty() && self.is_inner_empty()
+    }
+
+    fn inner_defaults() -> Box<[QuadNode; 4]> {
+        Box::new([QuadNode::default(), QuadNode::default(), QuadNode::default(), QuadNode::default()])
+    }
+}
+
+impl PxSquare {
+    fn split(mut self) -> Option<[Self; 4]> {
+        self.length /= Px(2);
+
+        if self.length >= MIN_LENGTH {
+            let mut r = [self; 4];
+            r[1].origin.x += self.length;
+            r[2].origin.y += self.length;
+            r[3].origin += PxVector::splat(self.length);
+            Some(r)
+        } else {
+            None
+        }
+    }
+
+    fn to_box(self) -> PxBox {
+        let max = self.origin + PxVector::splat(self.length);
+        PxBox::new(self.origin, max)
+    }
+
+    fn intersects(self, b: PxBox) -> bool {
+        self.to_box().intersects(&b)
+    }
+
+    fn contains(self, b: PxBox) -> bool {
+        self.to_box().contains_box(&b)
+    }
+}

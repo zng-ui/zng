@@ -1,6 +1,12 @@
 //! Widget info tree.
 
-use std::{borrow::Cow, cell::Cell, fmt, mem, ops, rc::Rc};
+use std::{
+    borrow::Cow,
+    cell::{Cell, RefCell},
+    fmt, mem,
+    ops::{self, ControlFlow},
+    rc::Rc,
+};
 
 use ego_tree::Tree;
 
@@ -25,6 +31,8 @@ pub use builder::*;
 
 pub mod iter;
 pub use iter::TreeFilter;
+
+mod spatial;
 
 unique_id_64! {
     /// Identifies a [`WidgetInfoTree`] snapshot, can be use for more speedy [`WidgetPath`] resolution.
@@ -57,6 +65,7 @@ struct WidgetInfoTreeInner {
     id: WidgetInfoTreeId,
     window_id: WindowId,
     tree: Tree<WidgetInfoData>,
+    inner_bounds_tree: RefCell<spatial::QuadTree>,
     lookup: IdMap<WidgetId, ego_tree::NodeId>,
     interactivity_filters: InteractivityFilters,
 }
@@ -119,6 +128,114 @@ impl WidgetInfoTree {
     pub fn get_or_parent(&self, path: &WidgetPath) -> Option<WidgetInfo> {
         self.get(path)
             .or_else(|| path.ancestors().iter().rev().find_map(|&id| self.find(id)))
+    }
+
+    /// If the widgets in this tree have been rendered at least once, after the first render the widget bounds info are always up-to-date
+    /// and spatial queries can be made on the widgets.
+    pub fn is_rendered(&self) -> bool {
+        !self.0.inner_bounds_tree.borrow().is_empty()
+    }
+
+    /// Visit widgets by the [`inner_bounds`] quad-tree.
+    ///
+    /// Only widgets inside the areas allowed by `include_quad` are visited, the `visit` closure is called for every widget contained by the
+    /// allowed quads and can either continue visiting or break early with a result. Each widget is only visited zero or one times in no particular order.
+    ///
+    /// Note that no widget is visited before the first render as the quad-tree is only build after the first render, you can check if the tree is
+    /// rendered using [`is_rendered`].
+    ///
+    /// [`inner_bounds`]: WidgetInfo::inner_bounds
+    /// [`is_rendered`]: Self::is_rendered
+    pub fn visit_quads<B>(
+        &self,
+        include_quad: impl FnMut(euclid::Box2D<Px, ()>) -> bool,
+        mut visit: impl FnMut(WidgetInfo) -> ControlFlow<B>,
+    ) -> ControlFlow<B> {
+        self.0
+            .inner_bounds_tree
+            .borrow()
+            .visit(include_quad, move |node_id| visit(WidgetInfo::new(self, node_id)))
+    }
+
+    fn visit_area_op<B>(
+        &self,
+        area: PxRect,
+        op: impl Fn(euclid::Box2D<Px, ()>, euclid::Box2D<Px, ()>) -> bool,
+        mut visit: impl FnMut(WidgetInfo) -> ControlFlow<B>,
+    ) -> ControlFlow<B> {
+        let area = area.to_box2d();
+        self.visit_quads(
+            |q| op(area, q),
+            |wgt| {
+                if op(area, wgt.inner_bounds().to_box2d()) {
+                    return visit(wgt);
+                }
+                ControlFlow::Continue(())
+            },
+        )
+    }
+
+    /// Visit all widgets with [`inner_bounds`] that intersect the `area`.
+    ///
+    /// [`inner_bounds`]: WidgetInfo::inner_bounds
+    pub fn visit_intersects<B>(&self, area: PxRect, visit: impl FnMut(WidgetInfo) -> ControlFlow<B>) -> ControlFlow<B> {
+        self.visit_area_op(area, |area, q| area.intersects(&q), visit)
+    }
+
+    /// Visit all widgets with [`inner_bounds`] that contains the `point`.
+    ///
+    /// [`inner_bounds`]: WidgetInfo::inner_bounds
+    pub fn visit_contains<B>(&self, point: PxPoint, mut visit: impl FnMut(WidgetInfo) -> ControlFlow<B>) -> ControlFlow<B> {
+        self.visit_quads(
+            |q| q.contains(point),
+            |wgt| {
+                if wgt.inner_bounds().contains(point) {
+                    return visit(wgt);
+                }
+                ControlFlow::Continue(())
+            },
+        )
+    }
+
+    /// Visit all widgets with [`inner_bounds`] that are fully inside the `area`.
+    ///
+    /// [`inner_bounds`]: WidgetInfo::inner_bounds
+    pub fn visit_contained<B>(&self, area: PxRect, visit: impl FnMut(WidgetInfo) -> ControlFlow<B>) -> ControlFlow<B> {
+        self.visit_area_op(area, |area, q| area.contains_box(&q), visit)
+    }
+
+    /// Visit all widgets with [`inner_bounds`] that fully envelops the `area`.
+    ///
+    /// [`inner_bounds`]: WidgetInfo::inner_bounds
+    pub fn visit_contains_area<B>(&self, area: PxRect, visit: impl FnMut(WidgetInfo) -> ControlFlow<B>) -> ControlFlow<B> {
+        self.visit_area_op(area, |area, q| q.contains_box(&area), visit)
+    }
+
+    /// Visit all widgets with [`center`] inside the `area`.
+    ///
+    /// [`center`]: WidgetInfo::center
+    pub fn visit_center_contained<B>(&self, area: PxRect, mut visit: impl FnMut(WidgetInfo) -> ControlFlow<B>) -> ControlFlow<B> {
+        let area = area.to_box2d();
+        self.visit_quads(
+            |q| q.intersects(&area),
+            |wgt| {
+                if area.contains(wgt.center()) {
+                    return visit(wgt);
+                }
+                ControlFlow::Continue(())
+            },
+        )
+    }
+
+    pub(crate) fn after_render(&self) {
+        let _span = tracing::trace_span!("info_after_render").entered();
+
+        let mut quad_tree = self.0.inner_bounds_tree.borrow_mut();
+        if quad_tree.is_empty() {
+            for node in self.0.tree.nodes() {
+                quad_tree.insert(node.id(), node.value().bounds_info.inner_bounds().to_box2d());
+            }
+        }
     }
 }
 impl fmt::Debug for WidgetInfoTree {

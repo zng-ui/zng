@@ -9,7 +9,7 @@ use crate::{
     text::FontAntiAliasing,
     units::*,
     var::impl_from_and_into_var,
-    widget_info::{WidgetBoundsInfo, WidgetInfoTree},
+    widget_info::{WidgetInfoTree},
     window::WindowId,
     WidgetId,
 };
@@ -1072,8 +1072,9 @@ impl FrameBuilder {
     }
 
     /// Finalizes the build.
-    pub fn finalize(self, root_bounds: &WidgetBoundsInfo) -> (BuiltFrame, UsedFrameBuilder) {
-        root_bounds.set_rendered(self.widget_rendered);
+    pub fn finalize(self, info_tree: &WidgetInfoTree) -> (BuiltFrame, UsedFrameBuilder) {
+        info_tree.root().bounds_info().set_rendered(self.widget_rendered);
+        info_tree.after_render();
 
         let (display_list, capacity) = self.display_list.finalize();
 
