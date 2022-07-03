@@ -1,4 +1,4 @@
-//! Inspector widgets.
+//! Debug inspection properties.
 
 use crate::core::{mouse::MouseMoveEvent, widget_info::*};
 use crate::prelude::new_property::*;
@@ -180,8 +180,13 @@ pub fn show_quad_tree_hits(child: impl UiNode, enabled: impl IntoVar<bool>) -> i
                     let mut fails = Vec::with_capacity(self.fails.len());
                     let mut hits = Vec::with_capacity(self.hits.len());
 
-                    // TODO, actual factor
-                    let pt = args.position.to_px(1.5);
+                    let factor = ctx
+                        .window_state
+                        .req(zero_ui::core::window::WindowVarsKey)
+                        .scale_factor()
+                        .copy(ctx.vars);
+
+                    let pt = args.position.to_px(factor.0);
                     ctx.info_tree.visit_quads(
                         |quad| {
                             let include = quad.contains(pt);

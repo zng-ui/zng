@@ -1,5 +1,7 @@
 //! Common widget properties.
 
+pub mod inspector;
+
 mod layout;
 #[doc(inline)]
 pub use layout::*;

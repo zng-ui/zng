@@ -24,7 +24,7 @@ fn app_main() {
         let calc = var(Calculator::default());
         window! {
             title = "Calculator";
-            // zero_ui::widgets::inspector::show_bounds = true;
+            // zero_ui::properties::inspector::show_bounds = true;
             resizable = false;
             auto_size = true;
             padding = 5;

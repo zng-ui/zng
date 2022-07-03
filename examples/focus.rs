@@ -42,10 +42,10 @@ fn app_main() {
                     }
                 ];
             };
-            // zero_ui::widgets::inspector::show_center_points = true;
-            // zero_ui::widgets::inspector::show_bounds = true;
-            // zero_ui::widgets::inspector::show_quad_tree_hits = true;
-            // zero_ui::widgets::inspector::show_quad_tree = true;
+            // zero_ui::properties::inspector::show_center_points = true;
+            // zero_ui::properties::inspector::show_bounds = true;
+            // zero_ui::properties::inspector::show_quad_tree_hits = true;
+            // zero_ui::properties::inspector::show_quad_tree = true;
         }
     })
 }
@@ -341,7 +341,7 @@ fn nested_focusables() -> impl Widget {
             ctx.services.windows().focus_or_open("nested-focusables", |_| {
                 window! {
                     title = "Focus Example - Nested Focusables";
-                    // zero_ui::widgets::inspector::show_center_points = true;
+                    // zero_ui::properties::inspector::show_center_points = true;
                     content_align = Align::CENTER;
                     content = v_stack! {
                         spacing = 10;
