@@ -1131,3 +1131,30 @@ macro_rules! share_generics {
         pub const _: *const () = (&$f) as *const _ as _;
     };
 }
+
+#[doc(hidden)]
+pub(crate) struct MeasureTime {
+    msg: &'static str,
+    started: std::time::Instant,
+}
+impl MeasureTime {
+    pub(crate) fn start(msg: &'static str) -> Self {
+        MeasureTime {
+            msg,
+            started: std::time::Instant::now(),
+        }
+    }
+}
+impl Drop for MeasureTime {
+    fn drop(&mut self) {
+        println!("{}: {:?}", self.msg, self.started.elapsed());
+    }
+}
+
+/// Time an operation, time elapsed is printed on drop.
+#[allow(unused)]
+macro_rules! measure_time {
+    ($msg:tt) => {
+        $crate::crate_util::MeasureTime::start($msg)
+    }
+}

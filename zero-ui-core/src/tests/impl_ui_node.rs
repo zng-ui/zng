@@ -247,7 +247,7 @@ pub fn default_no_child() {
     // and not update render.
     let mut update = FrameUpdate::new(FrameId::INVALID, ctx.root_id, None, RenderColor::BLACK, None);
     wgt.test_render_update(&mut ctx, &mut update);
-    let (update, _) = update.finalize();
+    let (update, _) = update.finalize(&ctx.info_tree);
     assert!(!update.bindings.transforms.is_empty());
     assert!(update.bindings.floats.is_empty());
     assert!(update.bindings.colors.is_empty());

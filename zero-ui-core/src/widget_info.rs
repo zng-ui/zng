@@ -315,13 +315,12 @@ impl WidgetInfoTree {
 
     pub(crate) fn after_render(&self) {
         let _span = tracing::trace_span!("info_after_render").entered();
+        let _time = measure_time!("quad-tree rebuild");
 
         let mut quad_tree = self.0.inner_bounds_tree.borrow_mut();
         quad_tree.clear();
-        if quad_tree.is_empty() {
-            for node in self.0.tree.nodes() {
-                quad_tree.insert(node.id(), node.value().bounds_info.inner_bounds());
-            }
+        for node in self.0.tree.nodes() {
+            quad_tree.insert(node.id(), node.value().bounds_info.inner_bounds());
         }
     }
 
