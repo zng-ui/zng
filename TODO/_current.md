@@ -1,3 +1,4 @@
+* Implement logical tree, based on the ego-tree, but with u32 indexes.
 * Implement quad-tree updating.
    - Do update after the frame is send, not in finalize.
    - Almost every widget is moved in the `icon` example after every scroll, rebuilding the quad-tree from zero for every render_update is pretty bad.

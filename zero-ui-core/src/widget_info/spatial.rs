@@ -1,4 +1,4 @@
-use std::{num::NonZeroUsize, ops::ControlFlow};
+use std::{num::NonZeroU32, ops::ControlFlow};
 
 use crate::{crate_util::FxHashSet, units::*};
 
@@ -160,7 +160,7 @@ struct QuadRoot {
 }
 
 #[derive(Clone, Copy)]
-struct QuadNode(usize);
+struct QuadNode(u32);
 
 impl QuadRoot {
     pub(super) fn new(grid_origin: PxPoint) -> Self {
@@ -319,22 +319,22 @@ impl QuadStorage {
         r
     }
 
-    fn split(&mut self, node: usize) -> impl Iterator<Item = usize> {
-        if let Some(c) = self.nodes[node].children {
+    fn split(&mut self, node: u32) -> impl Iterator<Item = u32> {
+        if let Some(c) = self.nodes[node as usize].children {
             let c = c.get() - 1;
             c..c + 4
         } else {
-            let c = self.nodes.len();
+            let c = self.nodes.len() as u32;
             for _ in 0..4 {
                 self.nodes.push(QuadNodeData::default());
             }
-            self.nodes[node].children = NonZeroUsize::new(c + 1);
+            self.nodes[node as usize].children = NonZeroU32::new(c + 1);
             c..c + 4
         }
     }
 
-    fn children(&self, node: usize) -> std::ops::Range<usize> {
-        if let Some(c) = self.nodes[node].children {
+    fn children(&self, node: u32) -> std::ops::Range<u32> {
+        if let Some(c) = self.nodes[node as usize].children {
             let c = c.get() - 1;
             c..c + 4
         } else {
@@ -342,17 +342,17 @@ impl QuadStorage {
         }
     }
 
-    fn items(&self, node: usize) -> impl Iterator<Item = ego_tree::NodeId> + '_ {
+    fn items(&self, node: u32) -> impl Iterator<Item = ego_tree::NodeId> + '_ {
         struct ItemsIter<'a> {
             items: &'a Vec<QuadItemData>,
-            next: Option<NonZeroUsize>,
+            next: Option<NonZeroU32>,
         }
         impl<'a> Iterator for ItemsIter<'a> {
             type Item = ego_tree::NodeId;
 
             fn next(&mut self) -> Option<Self::Item> {
                 if let Some(i) = self.next {
-                    let r = &self.items[i.get() - 1];
+                    let r = &self.items[(i.get() - 1) as usize];
                     self.next = r.next;
                     Some(r.item)
                 } else {
@@ -362,31 +362,31 @@ impl QuadStorage {
         }
         ItemsIter {
             items: &self.items,
-            next: self.nodes[node].items,
+            next: self.nodes[node as usize].items,
         }
     }
 
-    fn push_item(&mut self, node: usize, item: ego_tree::NodeId) {
-        let item_i = NonZeroUsize::new(self.items.len() + 1);
+    fn push_item(&mut self, node: u32, item: ego_tree::NodeId) {
+        let item_i = NonZeroU32::new(self.items.len() as u32 + 1);
         self.items.push(QuadItemData { item, next: None });
 
-        if let Some(ii) = self.nodes[node].items {
+        if let Some(ii) = self.nodes[node as usize].items {
             let mut i = ii.get() - 1;
-            while let Some(ii) = self.items[i].next {
+            while let Some(ii) = self.items[i as usize].next {
                 i = ii.get() - 1;
             }
-            self.items[i].next = item_i;
+            self.items[i as usize].next = item_i;
         } else {
-            self.nodes[node].items = item_i;
+            self.nodes[node as usize].items = item_i;
         }
     }
 }
 #[derive(Default)]
 struct QuadNodeData {
-    children: Option<NonZeroUsize>,
-    items: Option<NonZeroUsize>,
+    children: Option<NonZeroU32>,
+    items: Option<NonZeroU32>,
 }
 struct QuadItemData {
     item: ego_tree::NodeId,
-    next: Option<NonZeroUsize>,
+    next: Option<NonZeroU32>,
 }

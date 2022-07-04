@@ -1156,5 +1156,5 @@ impl Drop for MeasureTime {
 macro_rules! measure_time {
     ($msg:tt) => {
         $crate::crate_util::MeasureTime::start($msg)
-    }
+    };
 }
