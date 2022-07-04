@@ -1392,7 +1392,9 @@ impl FrameUpdate {
     /// Finalize the update.
     ///
     /// Returns the property updates and the new clear color if any was set.
-    pub fn finalize(mut self) -> (BuiltFrameUpdate, UsedFrameUpdate) {
+    pub fn finalize(mut self, info_tree: &WidgetInfoTree) -> (BuiltFrameUpdate, UsedFrameUpdate) {
+        info_tree.after_render_update();
+
         if self.clear_color == Some(self.current_clear_color) {
             self.clear_color = None;
         }

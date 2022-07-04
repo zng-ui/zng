@@ -342,6 +342,67 @@ where
     }
 }
 
+/// Bounds for oriented spatial queries.
+pub(super) struct DirectionSearchBounds {
+    origin: PxPoint,
+    length: Px,
+    limit: Px,
+    orientation: WidgetOrientation,
+}
+impl DirectionSearchBounds {
+    pub(super) fn new(orientation: WidgetOrientation, origin: PxPoint, max_distance: Px) -> Self {
+        Self {
+            origin,
+            length: Px(128),
+            limit: max_distance,
+            orientation,
+        }
+    }
+}
+impl Iterator for DirectionSearchBounds {
+    type Item = PxRect;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.limit > Px(0) {
+            self.limit -= self.length;
+
+            let half_length = self.length / Px(2);
+            let mut origin = self.origin;
+
+            match self.orientation {
+                WidgetOrientation::Above => {
+                    origin.x -= half_length;
+                    self.origin.y -= self.length;
+                    origin.y -= self.length + Px(1);
+                }
+                WidgetOrientation::Right => {
+                    origin.y -= half_length;
+                    self.origin.x += self.length;
+                    origin.x += Px(1);
+                }
+                WidgetOrientation::Below => {
+                    origin.x -= half_length;
+                    self.origin.y += self.length;
+                    origin.y += Px(1);
+                }
+                WidgetOrientation::Left => {
+                    origin.y -= half_length;
+                    self.origin.x -= self.length;
+                    origin.x -= self.length + Px(1);
+                }
+            }
+
+            let r = PxRect::new(origin, PxSize::splat(self.length));
+
+            self.length *= Px(2);
+
+            Some(r)
+        } else {
+            None
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use crate::{

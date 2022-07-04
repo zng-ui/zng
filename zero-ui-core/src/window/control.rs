@@ -1425,11 +1425,11 @@ impl ContentCtrl {
                     self.used_frame_update.take(),
                 );
 
-                ctx.render_context(self.root_id, &self.root_state, &self.info_tree, &self.root_info, |ctx| {
+                let (update, used) = ctx.render_context(self.root_id, &self.root_state, &self.info_tree, &self.root_info, |ctx| {
                     self.root.render_update(ctx, &mut update);
+                    update.finalize(ctx.info_tree)
                 });
 
-                let (update, used) = update.finalize();
                 self.used_frame_update = Some(used);
 
                 if let Some(c) = update.clear_color {

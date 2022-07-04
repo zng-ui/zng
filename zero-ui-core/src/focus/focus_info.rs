@@ -2,7 +2,7 @@ use crate::{
     context::*,
     units::*,
     var::impl_from_and_into_var,
-    widget_info::{Interactivity, TreeFilter, Visibility, WidgetInfo, WidgetInfoTree, WidgetPath},
+    widget_info::{Interactivity, TreeFilter, Visibility, WidgetInfo, WidgetInfoTree, WidgetOrientation, WidgetPath},
     window::FocusIndicator,
     WidgetId,
 };
@@ -475,66 +475,6 @@ impl<'a> WidgetInfoFocusExt<'a> for WidgetInfo<'a> {
     }
 }
 
-#[derive(Clone, Copy)]
-enum Direction {
-    Up,
-    Right,
-    Down,
-    Left,
-}
-impl Direction {
-    fn is_in_direction(self, from_pt: PxPoint, cand_c: PxPoint) -> bool {
-        let (a, b, c, d) = match self {
-            Direction::Up => (cand_c.y, from_pt.y, cand_c.x, from_pt.x),
-            Direction::Right => (from_pt.x, cand_c.x, cand_c.y, from_pt.y),
-            Direction::Down => (from_pt.y, cand_c.y, cand_c.x, from_pt.x),
-            Direction::Left => (cand_c.x, from_pt.x, cand_c.y, from_pt.y),
-        };
-
-        let mut is_in_direction = false;
-
-        // for 'up' this is:
-        // is above line?
-        if a < b {
-            // is to the right?
-            if c > d {
-                // is in the 45º 'frustum'
-                // │?╱
-                // │╱__
-                is_in_direction = c <= d + (b - a);
-            } else {
-                //  ╲?│
-                // __╲│
-                is_in_direction = c >= d - (b - a);
-            }
-        }
-
-        is_in_direction
-    }
-
-    fn search_bounds(self, mut from_pt: PxPoint) -> PxRect {
-        match self {
-            Direction::Up => {
-                from_pt.x -= Px(50);
-                from_pt.y -= Px(101); // rect size + 1
-            }
-            Direction::Right => {
-                from_pt.x += Px(1);
-                from_pt.y -= Px(50);
-            }
-            Direction::Down => {
-                from_pt.x -= Px(50);
-                from_pt.y += Px(1);
-            }
-            Direction::Left => {
-                from_pt.x -= Px(101); // rect size + 1
-                from_pt.y -= Px(50);
-            }
-        }
-        PxRect::new(from_pt, PxSize::splat(Px(100)))
-    }
-}
-
 /// [`WidgetInfo`] wrapper that adds focus information for each widget.
 #[derive(Clone, Copy, Eq, PartialEq, Hash, Debug)]
 pub struct WidgetFocusInfo<'a> {
@@ -610,6 +550,11 @@ impl<'a> WidgetFocusInfo<'a> {
     /// Iterator over focusable parent -> grandparent -> .. -> root.
     pub fn ancestors(self) -> impl Iterator<Item = WidgetFocusInfo<'a>> {
         self.info.ancestors().focusable(self.focus_disabled_widgets())
+    }
+
+    /// Iterator over self -> focusable parent -> grandparent -> .. -> root.
+    pub fn self_and_ancestors(self) -> impl Iterator<Item = WidgetFocusInfo<'a>> {
+        [self].into_iter().chain(self.ancestors())
     }
 
     /// Iterator over focus scopes parent -> grandparent -> .. -> root.
@@ -987,57 +932,134 @@ impl<'a> WidgetFocusInfo<'a> {
         }
     }
 
-    fn directional_from_pt(
+    /// Visit all focusable descendants with [`center`] in the direction defined by `orientation` from the `origin` and within the `distance`.
+    ///
+    /// Note that you can use [`Px::MAX`] on the distance to visit all widgets in the direction.
+    ///
+    /// The first parameter of `visit` is the current search quadrant, each subsequent quadrants is double in size and further away
+    /// from the `origin` by the length of the previous search quadrant, this means that every time the search quadrant changes all
+    /// visited widgets are further away from `origin` than previous widgets.
+    ///
+    /// If the widget has only a small amount of descendants a linear search is done instead, in this case the search quadrant has size zero.
+    ///
+    /// [`center`]: WidgetInfo::center
+    pub fn visit_oriented<B>(
+        self,
+        origin: PxPoint,
+        distance: Px,
+        orientation: WidgetOrientation,
+        mut visit: impl FnMut(PxRect, WidgetFocusInfo<'a>) -> ControlFlow<B>,
+    ) -> ControlFlow<B> {
+        self.info.visit_oriented(origin, distance, orientation, |q, w| {
+            if let Some(w) = w.as_focusable(self.focus_disabled_widgets()) {
+                visit(q, w)
+            } else {
+                ControlFlow::Continue(())
+            }
+        })
+    }
+
+    /// First focusable descendant in the direction.
+    pub fn first_oriented(self, origin: PxPoint, distance: Px, orientation: WidgetOrientation) -> Option<WidgetFocusInfo<'a>> {
+        let cast = |w: WidgetInfo<'a>| w.as_focus_info(self.focus_disabled_widgets());
+        self.info
+            .find_oriented(origin, distance, orientation, |w| cast(w).is_focusable())
+            .map(cast)
+    }
+
+    /// Find any focusable descendant in the direction that is allowed by `filter`.
+    pub fn find_oriented(
+        self,
+        origin: PxPoint,
+        distance: Px,
+        orientation: WidgetOrientation,
+        mut filter: impl FnMut(WidgetFocusInfo<'a>) -> bool,
+    ) -> Option<WidgetFocusInfo<'a>> {
+        let cast = |w: WidgetInfo<'a>| w.as_focus_info(self.focus_disabled_widgets());
+
+        self.info
+            .find_oriented(origin, distance, orientation, |w| {
+                let w = cast(w);
+                w.is_focusable() && filter(w)
+            })
+            .map(cast)
+    }
+
+    /// Closest focusable descendant in the direction within the `distance`.
+    pub fn closest_oriented(self, origin: PxPoint, distance: Px, orientation: WidgetOrientation) -> Option<WidgetFocusInfo<'a>> {
+        let cast = |w: WidgetInfo<'a>| w.as_focus_info(self.focus_disabled_widgets());
+
+        self.info
+            .find_closest_oriented(origin, distance, orientation, |w| cast(w).is_focusable())
+            .map(cast)
+    }
+
+    /// Closest focusable descendant in the direction within the `distance` allowed by filter.
+    pub fn find_closest_oriented(
+        self,
+        origin: PxPoint,
+        distance: Px,
+        orientation: WidgetOrientation,
+        mut filter: impl FnMut(WidgetFocusInfo<'a>) -> bool,
+    ) -> Option<WidgetFocusInfo<'a>> {
+        let cast = |w: WidgetInfo<'a>| w.as_focus_info(self.focus_disabled_widgets());
+
+        self.info
+            .find_closest_oriented(origin, distance, orientation, |w| {
+                let w = cast(w);
+                w.is_focusable() && filter(w)
+            })
+            .map(cast)
+    }
+
+    fn directional_from(
         self,
         scope: WidgetFocusInfo<'a>,
-        from_pt: PxPoint,
-        direction: Direction,
+        origin: PxPoint,
+        orientation: WidgetOrientation,
         skip_self: bool,
         any: bool,
     ) -> Option<WidgetFocusInfo<'a>> {
         let self_id = self.info.widget_id();
-        let parent_id = self.parent().map(|w| w.info.widget_id()).unwrap_or_else(|| self_id);
+        let scope_id = scope.info.widget_id();
 
-        let distance = move |other_pt: PxPoint| {
-            let a = (other_pt.x - from_pt.x).0.pow(2);
-            let b = (other_pt.y - from_pt.y).0.pow(2);
-            a + b
+        let filter = |w: WidgetFocusInfo<'a>| {
+            let mut up_to_scope = w.self_and_ancestors().take_while(|w| w.info.widget_id() != scope_id);
+            if skip_self {
+                up_to_scope.all(|w| w.info.widget_id() != self_id && !w.focus_info().skip_directional())
+            } else {
+                up_to_scope.all(|w| !w.focus_info().skip_directional())
+            }
         };
 
-        let mut ancestor_dist = i32::MAX;
+        if any {
+            return scope.find_oriented(origin, Px::MAX, orientation, filter);
+        }
+
+        let parent_id = self.parent().map(|w| w.info.widget_id()).unwrap_or_else(|| self_id);
+
+        let mut ancestor_dist = usize::MAX;
         let mut ancestor = None;
-        let mut sibling_dist = i32::MAX;
+        let mut sibling_dist = usize::MAX;
         let mut sibling = None;
-        let mut other_dist = i32::MAX;
+        let mut other_dist = usize::MAX;
         let mut other = None;
 
-        let candidates = scope.descendants().filter(move |f| {
-            if f.focus_info().skip_directional() || (skip_self && f.info.widget_id() == self_id) {
-                TreeFilter::SkipAll
-            } else {
-                TreeFilter::Include
+        let mut search_quad = PxRect::zero();
+
+        scope.visit_oriented(origin, Px::MAX, orientation, |q, w| {
+            if q != search_quad {
+                if search_quad.size.width == Px(0) {
+                    search_quad = q;
+                } else if sibling.is_some() || other.is_some() {
+                    // subsequent search quads are guaranteed to only yield items further away.
+                    return ControlFlow::Break(());
+                }
             }
-        });
 
-        let search_bounds = direction.search_bounds(from_pt);
-        self.info.tree().visit_center_contained(search_bounds, |_w| {
-            // TODO: check if the widget is a valid candidate
-            ControlFlow::<()>::Continue(())
-        });
-        for w in candidates {
-            let center = w.info.center();
-
-            if direction.is_in_direction(from_pt, center) {
+            if filter(w) {
                 let candidate_id = w.info.widget_id();
-                if candidate_id == self_id {
-                    continue;
-                }
-
-                if any {
-                    return Some(w);
-                }
-
-                let dist = distance(center);
+                let dist = w.info.distance_key(origin);
 
                 let mut is_ancestor = None;
                 let mut is_ancestor = || *is_ancestor.get_or_insert_with(|| self.ancestors().any(|a| a.info.widget_id() == candidate_id));
@@ -1056,7 +1078,8 @@ impl<'a> WidgetFocusInfo<'a> {
                     other = Some(w);
                 }
             }
-        }
+            ControlFlow::<()>::Continue(())
+        });
 
         if other_dist <= ancestor_dist && other_dist <= sibling_dist {
             other
@@ -1065,29 +1088,29 @@ impl<'a> WidgetFocusInfo<'a> {
         }
     }
 
-    fn directional_next(self, direction_vals: Direction) -> Option<WidgetFocusInfo<'a>> {
+    fn directional_next(self, direction_vals: WidgetOrientation) -> Option<WidgetFocusInfo<'a>> {
         self.scope()
-            .and_then(|s| self.directional_from_pt(s, self.info.center(), direction_vals, false, false))
+            .and_then(|s| self.directional_from(s, self.info.center(), direction_vals, false, false))
     }
 
     /// Closest focusable in the same scope above this widget.
     pub fn focusable_up(self) -> Option<WidgetFocusInfo<'a>> {
-        self.directional_next(Direction::Up)
+        self.directional_next(WidgetOrientation::Above)
     }
 
     /// Closest focusable in the same scope below this widget.
     pub fn focusable_down(self) -> Option<WidgetFocusInfo<'a>> {
-        self.directional_next(Direction::Down)
+        self.directional_next(WidgetOrientation::Below)
     }
 
     /// Closest focusable in the same scope to the left of this widget.
     pub fn focusable_left(self) -> Option<WidgetFocusInfo<'a>> {
-        self.directional_next(Direction::Left)
+        self.directional_next(WidgetOrientation::Left)
     }
 
     /// Closest focusable in the same scope to the right of this widget.
     pub fn focusable_right(self) -> Option<WidgetFocusInfo<'a>> {
-        self.directional_next(Direction::Right)
+        self.directional_next(WidgetOrientation::Right)
     }
 
     /// Widget to focus when pressing the arrow up key from this widget.
@@ -1107,7 +1130,7 @@ impl<'a> WidgetFocusInfo<'a> {
                         // next up from the same X but from the bottom segment of scope.
                         let mut from_pt = point;
                         from_pt.y = scope.info.inner_bounds().max().y;
-                        self.directional_from_pt(scope, from_pt, Direction::Up, true, false)
+                        self.directional_from(scope, from_pt, WidgetOrientation::Above, true, false)
                     })
                 }
             }
@@ -1132,7 +1155,7 @@ impl<'a> WidgetFocusInfo<'a> {
                     // next right from the same Y but from the left segment of scope.
                     let mut from_pt = point;
                     from_pt.x = scope.info.inner_bounds().min().x;
-                    self.directional_from_pt(scope, from_pt, Direction::Right, true, false)
+                    self.directional_from(scope, from_pt, WidgetOrientation::Right, true, false)
                 }),
             }
         } else {
@@ -1156,7 +1179,7 @@ impl<'a> WidgetFocusInfo<'a> {
                     // next down from the same X but from the top segment of scope.
                     let mut from_pt = point;
                     from_pt.y = scope.info.inner_bounds().min().y;
-                    self.directional_from_pt(scope, from_pt, Direction::Down, true, false)
+                    self.directional_from(scope, from_pt, WidgetOrientation::Below, true, false)
                 }),
             }
         } else {
@@ -1180,7 +1203,7 @@ impl<'a> WidgetFocusInfo<'a> {
                     // next left from the same Y but from the right segment of scope.
                     let mut from_pt = point;
                     from_pt.x = scope.info.inner_bounds().max().x;
-                    self.directional_from_pt(scope, from_pt, Direction::Left, true, false)
+                    self.directional_from(scope, from_pt, WidgetOrientation::Left, true, false)
                 }),
             }
         } else {
@@ -1247,20 +1270,32 @@ impl<'a> WidgetFocusInfo<'a> {
         let mut nav = already_found;
         let from_pt = self.info.center();
 
-        if !nav.contains(FocusNavAction::UP) && self.directional_from_pt(scope, from_pt, Direction::Up, skip_self, true).is_some() {
+        if !nav.contains(FocusNavAction::UP)
+            && self
+                .directional_from(scope, from_pt, WidgetOrientation::Above, skip_self, true)
+                .is_some()
+        {
             nav |= FocusNavAction::UP;
         }
         if !nav.contains(FocusNavAction::RIGHT)
             && self
-                .directional_from_pt(scope, from_pt, Direction::Right, skip_self, true)
+                .directional_from(scope, from_pt, WidgetOrientation::Right, skip_self, true)
                 .is_some()
         {
             nav |= FocusNavAction::RIGHT;
         }
-        if !nav.contains(FocusNavAction::DOWN) && self.directional_from_pt(scope, from_pt, Direction::Down, skip_self, true).is_some() {
+        if !nav.contains(FocusNavAction::DOWN)
+            && self
+                .directional_from(scope, from_pt, WidgetOrientation::Below, skip_self, true)
+                .is_some()
+        {
             nav |= FocusNavAction::DOWN;
         }
-        if !nav.contains(FocusNavAction::LEFT) && self.directional_from_pt(scope, from_pt, Direction::Left, skip_self, true).is_some() {
+        if !nav.contains(FocusNavAction::LEFT)
+            && self
+                .directional_from(scope, from_pt, WidgetOrientation::Left, skip_self, true)
+                .is_some()
+        {
             nav |= FocusNavAction::LEFT;
         }
 
@@ -1276,28 +1311,37 @@ impl<'a> WidgetFocusInfo<'a> {
                     if !nav.contains(FocusNavAction::UP) {
                         let mut from_pt = from_pt;
                         from_pt.y = scope_bounds.max().y;
-                        if self.directional_from_pt(scope, from_pt, Direction::Up, true, true).is_some() {
+                        if self
+                            .directional_from(scope, from_pt, WidgetOrientation::Above, true, true)
+                            .is_some()
+                        {
                             nav |= FocusNavAction::UP;
                         }
                     }
                     if !nav.contains(FocusNavAction::RIGHT) {
                         let mut from_pt = from_pt;
                         from_pt.x = scope_bounds.min().x;
-                        if self.directional_from_pt(scope, from_pt, Direction::Right, true, true).is_some() {
+                        if self
+                            .directional_from(scope, from_pt, WidgetOrientation::Right, true, true)
+                            .is_some()
+                        {
                             nav |= FocusNavAction::RIGHT;
                         }
                     }
                     if !nav.contains(FocusNavAction::DOWN) {
                         let mut from_pt = from_pt;
                         from_pt.y = scope_bounds.min().y;
-                        if self.directional_from_pt(scope, from_pt, Direction::Down, true, true).is_some() {
+                        if self
+                            .directional_from(scope, from_pt, WidgetOrientation::Below, true, true)
+                            .is_some()
+                        {
                             nav |= FocusNavAction::DOWN;
                         }
                     }
                     if !nav.contains(FocusNavAction::LEFT) {
                         let mut from_pt = from_pt;
                         from_pt.x = scope_bounds.max().x;
-                        if self.directional_from_pt(scope, from_pt, Direction::Left, true, true).is_some() {
+                        if self.directional_from(scope, from_pt, WidgetOrientation::Left, true, true).is_some() {
                             nav |= FocusNavAction::LEFT;
                         }
                     }

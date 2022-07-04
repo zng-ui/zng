@@ -136,6 +136,11 @@ impl WidgetInfoTree {
         !self.0.inner_bounds_tree.borrow().is_empty()
     }
 
+    /// Enveloping bounds of all inner bounds rendered in this tree, visitors outside these bounds never find any widget.
+    pub fn visit_bounds(&self) -> euclid::Box2D<Px, ()> {
+        self.0.inner_bounds_tree.borrow().bounds()
+    }
+
     /// Visit widgets by the [`inner_bounds`] quad-tree.
     ///
     /// Only widgets inside the areas allowed by `include_quad` are visited, the `visit` closure is called for every widget contained by the
@@ -149,10 +154,10 @@ impl WidgetInfoTree {
     /// [`inner_bounds`]: WidgetInfo::inner_bounds
     /// [`is_rendered`]: Self::is_rendered
     /// [`visit_quads_dedup`]: Self::visit_quads_dedup
-    pub fn visit_quads<B>(
-        &self,
+    pub fn visit_quads<'a, B>(
+        &'a self,
         include_quad: impl FnMut(euclid::Box2D<Px, ()>) -> bool,
-        mut visit: impl FnMut(WidgetInfo) -> ControlFlow<B>,
+        mut visit: impl FnMut(WidgetInfo<'a>) -> ControlFlow<B>,
     ) -> ControlFlow<B> {
         self.0
             .inner_bounds_tree
@@ -163,10 +168,10 @@ impl WidgetInfoTree {
     /// Like [`visit_quads`], but ensures that widgets are only visited once.
     ///
     /// [`visit_quads`]: Self::visit_quads
-    pub fn visit_quads_dedup<B>(
-        &self,
+    pub fn visit_quads_dedup<'a, B>(
+        &'a self,
         include_quad: impl FnMut(euclid::Box2D<Px, ()>) -> bool,
-        mut visit: impl FnMut(WidgetInfo) -> ControlFlow<B>,
+        mut visit: impl FnMut(WidgetInfo<'a>) -> ControlFlow<B>,
     ) -> ControlFlow<B> {
         self.0
             .inner_bounds_tree
@@ -179,18 +184,18 @@ impl WidgetInfoTree {
     /// Note that this is slightly faster then [`visit_quads`] and there are naturally no repeated widgets for single point queries.
     ///
     /// [`visit_quads`]: Self::visit_quads
-    pub fn visit_point<B>(&self, point: PxPoint, mut visit: impl FnMut(WidgetInfo) -> ControlFlow<B>) -> ControlFlow<B> {
+    pub fn visit_point<'a, B>(&'a self, point: PxPoint, mut visit: impl FnMut(WidgetInfo<'a>) -> ControlFlow<B>) -> ControlFlow<B> {
         self.0
             .inner_bounds_tree
             .borrow()
             .visit_point(point, move |node_id| visit(WidgetInfo::new(self, node_id)))
     }
 
-    fn visit_area_op<B>(
-        &self,
+    fn visit_area_op<'a, B>(
+        &'a self,
         area: PxRect,
         op: impl Fn(euclid::Box2D<Px, ()>, euclid::Box2D<Px, ()>) -> bool,
-        mut visit: impl FnMut(WidgetInfo) -> ControlFlow<B>,
+        mut visit: impl FnMut(WidgetInfo<'a>) -> ControlFlow<B>,
     ) -> ControlFlow<B> {
         let area = area.to_box2d();
         self.visit_quads_dedup(
@@ -207,14 +212,14 @@ impl WidgetInfoTree {
     /// Visit all widgets with [`inner_bounds`] that intersect the `area`, widgets are only visited once.
     ///
     /// [`inner_bounds`]: WidgetInfo::inner_bounds
-    pub fn visit_intersects<B>(&self, area: PxRect, visit: impl FnMut(WidgetInfo) -> ControlFlow<B>) -> ControlFlow<B> {
+    pub fn visit_intersects<'a, B>(&'a self, area: PxRect, visit: impl FnMut(WidgetInfo<'a>) -> ControlFlow<B>) -> ControlFlow<B> {
         self.visit_area_op(area, |area, q| area.intersects(&q), visit)
     }
 
     /// Visit all widgets with [`inner_bounds`] that contains the `point`, widgets are only visited once.
     ///
     /// [`inner_bounds`]: WidgetInfo::inner_bounds
-    pub fn visit_contains<B>(&self, point: PxPoint, mut visit: impl FnMut(WidgetInfo) -> ControlFlow<B>) -> ControlFlow<B> {
+    pub fn visit_contains<'a, B>(&'a self, point: PxPoint, mut visit: impl FnMut(WidgetInfo<'a>) -> ControlFlow<B>) -> ControlFlow<B> {
         self.visit_point(point, |wgt| {
             if wgt.inner_bounds().contains(point) {
                 return visit(wgt);
@@ -226,21 +231,25 @@ impl WidgetInfoTree {
     /// Visit all widgets with [`inner_bounds`] that are fully inside the `area`, widgets are only visited once.
     ///
     /// [`inner_bounds`]: WidgetInfo::inner_bounds
-    pub fn visit_contained<B>(&self, area: PxRect, visit: impl FnMut(WidgetInfo) -> ControlFlow<B>) -> ControlFlow<B> {
+    pub fn visit_contained<'a, B>(&'a self, area: PxRect, visit: impl FnMut(WidgetInfo<'a>) -> ControlFlow<B>) -> ControlFlow<B> {
         self.visit_area_op(area, |area, q| area.contains_box(&q), visit)
     }
 
     /// Visit all widgets with [`inner_bounds`] that fully envelops the `area`, widgets are only visited once.
     ///
     /// [`inner_bounds`]: WidgetInfo::inner_bounds
-    pub fn visit_contains_area<B>(&self, area: PxRect, visit: impl FnMut(WidgetInfo) -> ControlFlow<B>) -> ControlFlow<B> {
+    pub fn visit_contains_area<'a, B>(&'a self, area: PxRect, visit: impl FnMut(WidgetInfo<'a>) -> ControlFlow<B>) -> ControlFlow<B> {
         self.visit_area_op(area, |area, q| q.contains_box(&area), visit)
     }
 
     /// Visit all widgets with [`center`] inside the `area`, widgets are only visited once.
     ///
     /// [`center`]: WidgetInfo::center
-    pub fn visit_center_contained<B>(&self, area: PxRect, mut visit: impl FnMut(WidgetInfo) -> ControlFlow<B>) -> ControlFlow<B> {
+    pub fn visit_center_contained<'a, B>(
+        &'a self,
+        area: PxRect,
+        mut visit: impl FnMut(WidgetInfo<'a>) -> ControlFlow<B>,
+    ) -> ControlFlow<B> {
         let area = area.to_box2d();
         self.visit_quads_dedup(
             |q| q.intersects(&area),
@@ -253,6 +262,57 @@ impl WidgetInfoTree {
         )
     }
 
+    /// Visit all widgets with [`center`] in the direction defined by `orientation` and within the `distance`, widgets are only visited once
+    /// and the distance is clipped by the [`visit_bounds`], use [`Px::MAX`] on the distance to visit all widgets in the direction.
+    ///
+    /// The first parameter of `visit` is the current search quadrant, each subsequent quadrants is double in size and further away
+    /// from the `origin` by the length of the previous search quadrant, this means that every time the search quadrant changes all
+    /// visited widgets are further away from `origin` then all widgets from the previous quadrant.
+    ///
+    /// [`center`]: WidgetInfo::center
+    /// [`visit_bounds`]: Self::visit_bounds
+    pub fn visit_oriented<'a, B>(
+        &'a self,
+        origin: PxPoint,
+        distance: Px,
+        orientation: WidgetOrientation,
+        mut visit: impl FnMut(PxRect, WidgetInfo<'a>) -> ControlFlow<B>,
+    ) -> ControlFlow<B> {
+        let limit = self.visit_bounds();
+        let limit = match orientation {
+            WidgetOrientation::Above => origin.y - limit.min.y,
+            WidgetOrientation::Right => limit.max.x - origin.x,
+            WidgetOrientation::Below => limit.max.y - origin.y,
+            WidgetOrientation::Left => origin.x - limit.min.x,
+        };
+        let actual_distance = distance.min(limit);
+
+        if distance < Px::MAX {
+            let ds_max = distance.0 as f32;
+            let ds_origin = origin.to_f32();
+            for r in orientation.search_bounds(origin, actual_distance) {
+                self.visit_center_contained(r, |w| {
+                    let center = w.center();
+                    if orientation.is(origin, center) && ds_origin.distance_to(center.to_f32()) <= ds_max {
+                        visit(r, w)?;
+                    }
+                    ControlFlow::Continue(())
+                })?;
+            }
+        } else {
+            for r in orientation.search_bounds(origin, actual_distance) {
+                self.visit_center_contained(r, |w| {
+                    if orientation.is(origin, w.center()) {
+                        visit(r, w)?;
+                    }
+                    ControlFlow::Continue(())
+                })?;
+            }
+        }
+
+        ControlFlow::Continue(())
+    }
+
     pub(crate) fn after_render(&self) {
         let _span = tracing::trace_span!("info_after_render").entered();
 
@@ -263,6 +323,10 @@ impl WidgetInfoTree {
                 quad_tree.insert(node.id(), node.value().bounds_info.inner_bounds());
             }
         }
+    }
+
+    pub(crate) fn after_render_update(&self) {
+        self.after_render();
     }
 }
 impl fmt::Debug for WidgetInfoTree {
@@ -1097,109 +1161,42 @@ impl<'a> WidgetInfo<'a> {
         iter::Descendants::new_in(self.tree, ancestor.node(), self.node(), false)
     }
 
-    /// This widgets [`center`](Self::center) orientation in relation to a `origin`.
-    pub fn orientation_from(self, origin: PxPoint) -> WidgetOrientation {
+    /// The [`center`] orientation in relation to a `origin`.
+    ///
+    /// Returns `None` if the `origin` is the center.
+    ///
+    /// [`center`]: Self::center
+    pub fn orientation_from(self, origin: PxPoint) -> Option<WidgetOrientation> {
         let o = self.center();
         for &d in &[
-            WidgetOrientation::Left,
-            WidgetOrientation::Right,
             WidgetOrientation::Above,
+            WidgetOrientation::Right,
             WidgetOrientation::Below,
+            WidgetOrientation::Left,
         ] {
-            if is_in_direction(d, origin, o) {
-                return d;
+            if d.is(origin, o) {
+                return Some(d);
             }
         }
-        unreachable!()
+        None
     }
 
-    ///Iterator over all the parent's children except this widget with orientation in relation
-    /// to this widget center.
-    pub fn oriented_siblings(self) -> impl Iterator<Item = (WidgetInfo<'a>, WidgetOrientation)> {
-        let c = self.center();
-        self.siblings().map(move |s| (s, s.orientation_from(c)))
-    }
-
-    /// All the parent's children except this widget, sorted by closest first.
+    /// All the parent's children except this widget, sorted by the [`distance_key`] to this widget's center.
+    ///
+    /// [`distance_key`]: Self::distance_key
     pub fn closest_siblings(self) -> Vec<WidgetInfo<'a>> {
-        self.closest_first(self.siblings())
-    }
-
-    /// All the parent's children except this widget, sorted by closest first and with orientation in
-    /// relation to this widget center.
-    pub fn closest_oriented_siblings(self) -> Vec<(WidgetInfo<'a>, WidgetOrientation)> {
-        let mut vec: Vec<_> = self.oriented_siblings().collect();
+        let mut vec: Vec<_> = self.siblings().collect();
         let origin = self.center();
-        vec.sort_by_cached_key(|n| n.0.distance_key(origin));
+        vec.sort_by_key(|w| w.distance_key(origin));
         vec
     }
 
-    /// Unordered siblings to the left of this widget.
-    pub fn un_left_siblings(self) -> impl Iterator<Item = WidgetInfo<'a>> {
-        self.oriented_siblings().filter_map(|(s, o)| match o {
-            WidgetOrientation::Left => Some(s),
-            _ => None,
-        })
-    }
-
-    /// Unordered siblings to the right of this widget.
-    pub fn un_right_siblings(self) -> impl Iterator<Item = WidgetInfo<'a>> {
-        self.oriented_siblings().filter_map(|(s, o)| match o {
-            WidgetOrientation::Right => Some(s),
-            _ => None,
-        })
-    }
-
-    /// Unordered siblings above this widget.
-    pub fn un_above_siblings(self) -> impl Iterator<Item = WidgetInfo<'a>> {
-        self.oriented_siblings().filter_map(|(s, o)| match o {
-            WidgetOrientation::Above => Some(s),
-            _ => None,
-        })
-    }
-
-    /// Unordered siblings below this widget.
-    pub fn un_below_siblings(self) -> impl Iterator<Item = WidgetInfo<'a>> {
-        self.oriented_siblings().filter_map(|(s, o)| match o {
-            WidgetOrientation::Below => Some(s),
-            _ => None,
-        })
-    }
-
-    /// Siblings to the left of this widget sorted by closest first.
-    pub fn left_siblings(self) -> Vec<WidgetInfo<'a>> {
-        self.closest_first(self.un_left_siblings())
-    }
-
-    /// Siblings to the right of this widget sorted by closest first.
-    pub fn right_siblings(self) -> Vec<WidgetInfo<'a>> {
-        self.closest_first(self.un_right_siblings())
-    }
-
-    /// Siblings to the above of this widget sorted by closest first.
-    pub fn above_siblings(self) -> Vec<WidgetInfo<'a>> {
-        self.closest_first(self.un_above_siblings())
-    }
-
-    /// Siblings to the below of this widget sorted by closest first.
-    pub fn below_siblings(self) -> Vec<WidgetInfo<'a>> {
-        self.closest_first(self.un_below_siblings())
-    }
-
-    /// Value that indicates the distance between this widget center
-    /// and `origin`.
+    /// Value that indicates the distance between this widget center and `origin`.
     pub fn distance_key(self, origin: PxPoint) -> usize {
         let o = self.center();
         let a = (o.x - origin.x).0.pow(2);
         let b = (o.y - origin.y).0.pow(2);
         (a + b) as usize
-    }
-
-    fn closest_first(self, iter: impl Iterator<Item = WidgetInfo<'a>>) -> Vec<WidgetInfo<'a>> {
-        let mut vec: Vec<_> = iter.collect();
-        let origin = self.center();
-        vec.sort_by_cached_key(|n| n.distance_key(origin));
-        vec
     }
 
     /// Count of ancestors.
@@ -1220,40 +1217,308 @@ impl<'a> WidgetInfo<'a> {
             None
         }
     }
-}
 
-fn is_in_direction(direction: WidgetOrientation, origin: PxPoint, candidate: PxPoint) -> bool {
-    let (a, b, c, d) = match direction {
-        WidgetOrientation::Left => (candidate.x, origin.x, candidate.y, origin.y),
-        WidgetOrientation::Right => (origin.x, candidate.x, candidate.y, origin.y),
-        WidgetOrientation::Above => (candidate.y, origin.y, candidate.x, origin.x),
-        WidgetOrientation::Below => (origin.y, candidate.y, candidate.x, origin.x),
-    };
-
-    // checks if the candidate point is in between two imaginary perpendicular lines parting from the
-    // origin point in the focus direction
-    if a <= b {
-        if c >= d {
-            return c <= d + (b - a);
-        } else {
-            return c >= d - (b - a);
+    fn prefer_linear_spatial_search(self) -> bool {
+        let mut count = 0;
+        for _ in self.descendants() {
+            count += 1;
+            if count > 8 {
+                return false;
+            }
         }
+        true
     }
 
-    false
+    /// Visit all descendants with [`inner_bounds`] that intersect the `area`.
+    ///
+    /// [`inner_bounds`]: WidgetInfo::inner_bounds
+    pub fn visit_intersects<B>(self, area: PxRect, mut visit: impl FnMut(WidgetInfo<'a>) -> ControlFlow<B>) -> ControlFlow<B> {
+        if self.prefer_linear_spatial_search() {
+            let area = area.to_box2d();
+            for d in self.descendants() {
+                if d.inner_bounds().to_box2d().intersects(&area) {
+                    visit(d)?;
+                }
+            }
+            return ControlFlow::Continue(());
+        }
+
+        self.tree().visit_intersects(area, |w| {
+            if w.ancestors().any(|w| w == self) {
+                visit(w)
+            } else {
+                ControlFlow::Continue(())
+            }
+        })
+    }
+
+    /// Visit all descendants with [`inner_bounds`] that contains the `point`.
+    ///
+    /// [`inner_bounds`]: WidgetInfo::inner_bounds
+    pub fn visit_contains<B>(self, point: PxPoint, mut visit: impl FnMut(WidgetInfo<'a>) -> ControlFlow<B>) -> ControlFlow<B> {
+        if self.prefer_linear_spatial_search() {
+            for d in self.descendants() {
+                if d.inner_bounds().contains(point) {
+                    visit(d)?;
+                }
+            }
+            return ControlFlow::Continue(());
+        }
+
+        self.tree().visit_contains(point, |w| {
+            if w.ancestors().any(|w| w == self) {
+                visit(w)
+            } else {
+                ControlFlow::Continue(())
+            }
+        })
+    }
+
+    /// Visit all descendants with [`inner_bounds`] that are fully inside the `area`.
+    ///
+    /// [`inner_bounds`]: WidgetInfo::inner_bounds
+    pub fn visit_contained<B>(self, area: PxRect, mut visit: impl FnMut(WidgetInfo<'a>) -> ControlFlow<B>) -> ControlFlow<B> {
+        if self.prefer_linear_spatial_search() {
+            let area = area.to_box2d();
+            for d in self.descendants() {
+                if area.contains_box(&d.inner_bounds().to_box2d()) {
+                    visit(d)?
+                }
+            }
+            return ControlFlow::Continue(());
+        }
+        self.tree().visit_contained(area, |w| {
+            if w.ancestors().any(|w| w == self) {
+                visit(w)
+            } else {
+                ControlFlow::Continue(())
+            }
+        })
+    }
+
+    /// Visit all descendants with [`inner_bounds`] that fully envelops the `area`.
+    ///
+    /// [`inner_bounds`]: WidgetInfo::inner_bounds
+    pub fn visit_contains_area<B>(self, area: PxRect, mut visit: impl FnMut(WidgetInfo<'a>) -> ControlFlow<B>) -> ControlFlow<B> {
+        if self.prefer_linear_spatial_search() {
+            let area = area.to_box2d();
+            for d in self.descendants() {
+                if d.inner_bounds().to_box2d().contains_box(&area) {
+                    visit(d)?;
+                }
+            }
+            return ControlFlow::Continue(());
+        }
+        self.tree().visit_contains_area(area, |w| {
+            if w.ancestors().any(|w| w == self) {
+                visit(w)
+            } else {
+                ControlFlow::Continue(())
+            }
+        })
+    }
+
+    /// Visit all descendants with [`center`] inside the `area`.
+    ///
+    /// [`center`]: WidgetInfo::center
+    pub fn visit_center_contained<B>(self, area: PxRect, mut visit: impl FnMut(WidgetInfo<'a>) -> ControlFlow<B>) -> ControlFlow<B> {
+        if self.prefer_linear_spatial_search() {
+            let area = area.to_box2d();
+            for d in self.descendants() {
+                if area.contains(d.center()) {
+                    visit(d)?;
+                }
+            }
+            return ControlFlow::Continue(());
+        }
+
+        self.tree().visit_center_contained(area, |w| {
+            if w.ancestors().any(|w| w == self) {
+                visit(w)
+            } else {
+                ControlFlow::Continue(())
+            }
+        })
+    }
+
+    /// Visit all descendants with [`center`] in the direction defined by `orientation` from the `origin` and within the `distance`.
+    ///
+    /// Note that you can use [`Px::MAX`] on the distance to visit all widgets in the direction.
+    ///
+    /// The first parameter of `visit` is the current search quadrant, each subsequent quadrants is double in size and further away
+    /// from the `origin` by the length of the previous search quadrant, this means that every time the search quadrant changes all
+    /// visited widgets are further away from `origin` than previous widgets.
+    ///
+    /// If the widget has only a small amount of descendants a linear search is done instead, in this case the search quadrant has size zero.
+    ///
+    /// [`center`]: WidgetInfo::center
+    pub fn visit_oriented<B>(
+        self,
+        origin: PxPoint,
+        distance: Px,
+        orientation: WidgetOrientation,
+        mut visit: impl FnMut(PxRect, WidgetInfo<'a>) -> ControlFlow<B>,
+    ) -> ControlFlow<B> {
+        if self.prefer_linear_spatial_search() {
+            let none_search_quad = PxRect::new(origin, PxSize::zero());
+            for d in self.descendants() {
+                if d.orientation_from(origin) == Some(orientation) {
+                    visit(none_search_quad, d)?;
+                }
+            }
+            return ControlFlow::Continue(());
+        }
+
+        self.tree().visit_oriented(origin, distance, orientation, visit)
+    }
+
+    /// First descendant found in the direction, within `distance` but at any distance, this is the fastest check for if there
+    /// are any descendants in the direction.
+    pub fn first_oriented(self, origin: PxPoint, distance: Px, orientation: WidgetOrientation) -> Option<WidgetInfo<'a>> {
+        let mut result = None;
+        self.visit_oriented(origin, distance, orientation, |_, w| {
+            result = Some(w);
+            ControlFlow::Break(())
+        });
+        result
+    }
+
+    /// Find any descendant in the direction within the `distance` that is allowed by the `filter`.
+    pub fn find_oriented(
+        self,
+        origin: PxPoint,
+        distance: Px,
+        orientation: WidgetOrientation,
+        mut filter: impl FnMut(WidgetInfo<'a>) -> bool,
+    ) -> Option<WidgetInfo<'a>> {
+        let mut result = None;
+        self.visit_oriented(origin, distance, orientation, |_, w| {
+            if filter(w) {
+                result = Some(w);
+                ControlFlow::Break(())
+            } else {
+                ControlFlow::Continue(())
+            }
+        });
+        result
+    }
+
+    /// Closest descendant in the direction within the `distance`.
+    pub fn closest_oriented(self, origin: PxPoint, distance: Px, orientation: WidgetOrientation) -> Option<WidgetInfo<'a>> {
+        let mut closest_key = usize::MAX;
+        let mut closest = None;
+        let mut search_quad = PxRect::zero();
+
+        self.visit_oriented(origin, distance, orientation, |q, w| {
+            if q != search_quad {
+                if search_quad.size.width == Px(0) || closest.is_none() {
+                    search_quad = q;
+                } else {
+                    // subsequent search quads are guaranteed to only yield items further away.
+                    return ControlFlow::Break(());
+                }
+            }
+
+            let key = w.distance_key(origin);
+            if key < closest_key {
+                closest_key = key;
+                closest = Some(w);
+            }
+
+            ControlFlow::<()>::Continue(())
+        });
+
+        closest
+    }
+
+    /// Find closest descendant in the direction within the `distance` that is allowed by the `filter`.
+    pub fn find_closest_oriented(
+        self,
+        origin: PxPoint,
+        distance: Px,
+        orientation: WidgetOrientation,
+        mut filter: impl FnMut(WidgetInfo<'a>) -> bool,
+    ) -> Option<WidgetInfo<'a>> {
+        let mut closest_key = usize::MAX;
+        let mut closest = None;
+        let mut search_quad = PxRect::zero();
+
+        self.visit_oriented(origin, distance, orientation, |q, w| {
+            if q != search_quad {
+                if search_quad.size.width == Px(0) || closest.is_none() {
+                    search_quad = q;
+                } else {
+                    // subsequent search quads are guaranteed to only yield items further away.
+                    return ControlFlow::Break(());
+                }
+            }
+
+            if filter(w) {
+                let key = w.distance_key(origin);
+                if key < closest_key {
+                    closest_key = key;
+                    closest = Some(w);
+                }
+            }
+
+            ControlFlow::<()>::Continue(())
+        });
+
+        closest
+    }
 }
 
 /// Orientation of a [`WidgetInfo`] relative to another point.
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum WidgetOrientation {
-    /// Widget is to the left of the reference point.
-    Left,
-    /// Widget is to the right of the reference point.
-    Right,
     /// Widget is above the reference point.
     Above,
+    /// Widget is to the right of the reference point.
+    Right,
     /// Widget is below the reference point.
     Below,
+    /// Widget is to the left of the reference point.
+    Left,
+}
+impl WidgetOrientation {
+    /// Check if `center` orientation from `origin` matches `self`.
+    pub fn is(self, origin: PxPoint, center: PxPoint) -> bool {
+        let (a, b, c, d) = match self {
+            WidgetOrientation::Above => (center.y, origin.y, center.x, origin.x),
+            WidgetOrientation::Right => (origin.x, center.x, center.y, origin.y),
+            WidgetOrientation::Below => (origin.y, center.y, center.x, origin.x),
+            WidgetOrientation::Left => (center.x, origin.x, center.y, origin.y),
+        };
+
+        let mut is_in_direction = false;
+
+        // for 'Above' this is:
+        // is above line?
+        if a < b {
+            // is to the right?
+            if c > d {
+                // is in the 45º 'frustum'
+                // │?╱
+                // │╱__
+                is_in_direction = c <= d + (b - a);
+            } else {
+                //  ╲?│
+                // __╲│
+                is_in_direction = c >= d - (b - a);
+            }
+        }
+
+        is_in_direction
+    }
+
+    /// Suggested areas for spatial visitors looking for points in the orientation from `origin`.
+    ///
+    /// The rectangles must be used for visited and [`is_in_direction`] called for every widget visited.
+    ///
+    /// [`is_in_direction`]: Self::is_in_direction
+    pub fn search_bounds(self, origin: PxPoint, max_distance: Px) -> impl Iterator<Item = PxRect> {
+        iter::DirectionSearchBounds::new(self, origin, max_distance)
+    }
 }
 
 /// Data from a previous [`WidgetInfoBuilder`], can be reused in the next rebuild for a performance boost.

@@ -43,17 +43,30 @@ type PxBox = euclid::Box2D<Px, ()>;
 
 pub(super) struct QuadTree {
     grid: Vec<QuadRoot>,
+    bounds: PxBox,
 }
 impl QuadTree {
     pub(super) fn new() -> Self {
         Self {
             grid: Vec::with_capacity(1),
+            bounds: PxBox::zero(),
         }
+    }
+
+    pub(super) fn bounds(&self) -> PxBox {
+        self.bounds
     }
 
     pub(super) fn insert(&mut self, item: ego_tree::NodeId, item_bounds: PxRect) {
         let item_level = QLevel::from_size(item_bounds.size);
         let item_bounds = item_bounds.to_box2d();
+
+        if self.is_empty() {
+            self.bounds = item_bounds;
+        } else {
+            self.bounds.min = self.bounds.min.min(item_bounds.min);
+            self.bounds.max = self.bounds.max.max(item_bounds.max);
+        }
 
         for r in &mut self.grid {
             if r.root_bounds.contains_box(item_bounds) {
@@ -147,6 +160,7 @@ impl QuadTree {
 
     pub(super) fn clear(&mut self) {
         self.grid.clear();
+        self.bounds = PxBox::zero();
     }
 }
 
