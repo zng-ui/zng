@@ -104,7 +104,7 @@ impl QuadTree {
         include: impl FnMut(PxBox) -> bool + 'a,
     ) -> impl Iterator<Item = ego_tree::NodeId> + 'a {
         let mut visited = FxHashSet::default();
-        self.quad_query(include).filter(move |n| !visited.insert(*n))
+        self.quad_query(include).filter(move |n| visited.insert(*n))
     }
 
     pub(super) fn is_empty(&self) -> bool {
@@ -158,7 +158,6 @@ impl QuadNode {
                 }
                 return;
             }
-            return;
         }
         storage.push_item(self.0, item);
     }
@@ -298,7 +297,8 @@ impl<Q: FnMut(PxBox) -> bool> Iterator for QuadQueryIter<Q> {
                 if node.items.is_some() {
                     // next quad items.
                     self.item = node.items;
-                } else if node.children.is_some() {
+                }
+                if node.children.is_some() {
                     // next inner quad.
                     self.node_stack.push(self.node.clone());
                     self.node = self.tree.grid[self.cell].storage.children(q).zip(q_bounds.split().unwrap());
@@ -307,7 +307,7 @@ impl<Q: FnMut(PxBox) -> bool> Iterator for QuadQueryIter<Q> {
 
             self.next()
         } else if let Some(q) = self.node_stack.pop() {
-            // return to parent node.
+            // return to parent nodes.
             self.node = q;
             self.next()
         } else if self.cell < self.tree.grid.len() - 1 || self.cell == usize::MAX {

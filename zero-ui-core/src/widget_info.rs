@@ -250,7 +250,7 @@ impl WidgetInfoTree {
 
     pub(crate) fn after_render(&self) {
         let _span = tracing::trace_span!("info_after_render").entered();
-        let _time = measure_time!("quad-tree rebuild");
+        // let _time = measure_time!("quad-tree rebuild");
 
         let mut quad_tree = spatial::QuadTree::new();
         for node in self.0.tree.nodes() {

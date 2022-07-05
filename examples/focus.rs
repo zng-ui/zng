@@ -343,6 +343,7 @@ fn nested_focusables() -> impl Widget {
                 window! {
                     title = "Focus Example - Nested Focusables";
                     // zero_ui::properties::inspector::show_center_points = true;
+                    // zero_ui::properties::inspector::show_quad_tree = true;
                     content_align = Align::CENTER;
                     content = v_stack! {
                         spacing = 10;
