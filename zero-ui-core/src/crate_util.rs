@@ -20,7 +20,7 @@ use std::{
 /// Asserts the `size_of` a type at compile time.
 #[allow(unused)]
 macro_rules! assert_size_of {
-    ($Type:ty, $n:tt) => {
+    ($Type:ty, $n:expr) => {
         const _: () = assert!(std::mem::size_of::<$Type>() == $n);
     };
 }
@@ -1132,12 +1132,14 @@ macro_rules! share_generics {
     };
 }
 
+#[allow(unused)]
 #[doc(hidden)]
 pub(crate) struct MeasureTime {
     msg: &'static str,
     started: std::time::Instant,
 }
 impl MeasureTime {
+    #[allow(unused)]
     pub(crate) fn start(msg: &'static str) -> Self {
         MeasureTime {
             msg,

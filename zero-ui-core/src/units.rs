@@ -156,6 +156,98 @@ pub fn about_eq_ord(a: f32, b: f32, epsilon: f32) -> std::cmp::Ordering {
     }
 }
 
+/// Comparable key that represents the distance between two pixel points.
+///
+/// Computing the actual distance only for comparison is expensive, this key avoids the conversion to float and square-root operation.
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct DistanceKey(i32);
+impl DistanceKey {
+    /// Value that is always greater than any valid distance key.
+    pub const NONE_MAX: DistanceKey = DistanceKey(i32::MAX);
+
+    /// Value that is always smaller than any valid distance key.
+    pub const NONE_MIN: DistanceKey = DistanceKey(-1);
+
+    /// New distance key computed from two points.
+    pub fn from_points(a: PxPoint, b: PxPoint) -> Self {
+        let pa = (a.x - b.x).0.pow(2);
+        let pb = (a.y - b.y).0.pow(2);
+        Self(pa + pb)
+    }
+
+    /// New distance key from already computed actual distance.
+    ///
+    /// Note that computing the actual distance is slower then using [`from_points`] to compute just the distance key.
+    ///
+    /// [`from_points`]: Self::from_points
+    pub fn from_distance(d: Px) -> Self {
+        Self(d.0.pow(2))
+    }
+
+    /// If the key is the [`NONE_MAX`] or [`NONE_MIN`].
+    ///
+    /// [`NONE_MAX`]: Self::NONE_MAX
+    /// [`NONE_MIN`]: Self::NONE_MIN
+    pub fn is_none(self) -> bool {
+        self == Self::NONE_MAX || self == Self::NONE_MIN
+    }
+
+    /// Completes the distance calculation.
+    pub fn distance(self) -> Option<Px> {
+        if self.is_none() {
+            None
+        } else {
+            Some(Px((self.0 as f32).sqrt().round() as i32))
+        }
+    }
+}
+
+/// Orientation of two 2D items.
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+pub enum Orientation2D {
+    /// Point is above the origin.
+    Above,
+    /// Point is to the right of the origin.
+    Right,
+    /// Point is below the origin.
+    Below,
+    /// Point is to the left of the origin.
+    Left,
+}
+impl Orientation2D {
+    /// Check if `center` is orientation from `origin`.
+    ///
+    /// #
+    pub fn is(self, origin: PxPoint, center: PxPoint) -> bool {
+        let (a, b, c, d) = match self {
+            Orientation2D::Above => (center.y, origin.y, center.x, origin.x),
+            Orientation2D::Right => (origin.x, center.x, center.y, origin.y),
+            Orientation2D::Below => (origin.y, center.y, center.x, origin.x),
+            Orientation2D::Left => (center.x, origin.x, center.y, origin.y),
+        };
+
+        let mut is = false;
+
+        // for 'Above' this is:
+        // is above line?
+        if a < b {
+            // is to the right?
+            if c > d {
+                // is in the 45º 'frustum'
+                // │?╱
+                // │╱__
+                is = c <= d + (b - a);
+            } else {
+                //  ╲?│
+                // __╲│
+                is = c >= d - (b - a);
+            }
+        }
+
+        is
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::f32::consts::{PI, TAU};

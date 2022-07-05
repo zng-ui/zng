@@ -275,7 +275,7 @@ pub fn show_quad_tree_hits(child: impl UiNode, enabled: impl IntoVar<bool>) -> i
 ///
 /// This property only works if set in a window, if set in another widget it will log an error and don't render anything.
 #[property(context)]
-pub fn show_directional_query(child: impl UiNode, orientation: impl IntoVar<Option<WidgetOrientation>>) -> impl UiNode {
+pub fn show_directional_query(child: impl UiNode, orientation: impl IntoVar<Option<Orientation2D>>) -> impl UiNode {
     struct ShowDirectionalQueryNode<C, E> {
         child: C,
         orientation: E,
@@ -285,7 +285,7 @@ pub fn show_directional_query(child: impl UiNode, orientation: impl IntoVar<Opti
         search_quads: Vec<PxRect>,
     }
     #[impl_ui_node(child)]
-    impl<C: UiNode, E: Var<Option<WidgetOrientation>>> UiNode for ShowDirectionalQueryNode<C, E> {
+    impl<C: UiNode, E: Var<Option<Orientation2D>>> UiNode for ShowDirectionalQueryNode<C, E> {
         fn init(&mut self, ctx: &mut WidgetContext) {
             self.valid = ctx.path.is_root();
             if !self.valid {
@@ -309,22 +309,7 @@ pub fn show_directional_query(child: impl UiNode, orientation: impl IntoVar<Opti
                     let mut none = true;
                     if let Some(target) = &args.target {
                         for w_id in target.widgets_path().iter().rev() {
-                            if let Some(info) = ctx.info_tree.find(*w_id) {
-                                if info.as_focusable(true).is_some() {
-                                    none = false;
-
-                                    let quads: Vec<_> = orientation
-                                        .search_bounds(info.center(), ctx.info_tree.root().outer_bounds().height() * Px(2))
-                                        .collect();
-
-                                    if quads != self.search_quads {
-                                        self.search_quads = quads;
-                                        ctx.updates.render();
-                                    }
-
-                                    break;
-                                }
-                            }
+                           
                         }
                     }
 

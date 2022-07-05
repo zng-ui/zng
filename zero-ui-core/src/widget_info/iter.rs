@@ -344,16 +344,38 @@ where
 
 /// Bounds for oriented spatial queries.
 pub(super) struct DirectionSearchBounds {
-    origin: PxPoint,
-    length: Px,
+    rect: PxRect,
     limit: Px,
-    orientation: WidgetOrientation,
+    orientation: Orientation2D,
 }
+
+const BASE_LENGTH: Px = Px(128);
+
 impl DirectionSearchBounds {
-    pub(super) fn new(orientation: WidgetOrientation, origin: PxPoint, max_distance: Px) -> Self {
+    pub(super) fn new(orientation: Orientation2D, origin: PxPoint, max_distance: Px) -> Self {
+        let mut rect = PxRect::new(origin, PxSize::splat(BASE_LENGTH));
+        match orientation {
+            Orientation2D::Above => {
+                rect.origin.x -= BASE_LENGTH;
+                rect.size.width += BASE_LENGTH;
+                rect.origin.y -= rect.size.height;
+            }
+            Orientation2D::Right => {
+                rect.origin.y -= BASE_LENGTH;
+                rect.size.height += BASE_LENGTH;
+            }
+            Orientation2D::Below => {
+                rect.origin.x -= BASE_LENGTH;
+                rect.size.width += BASE_LENGTH;
+            }
+            Orientation2D::Left => {
+                rect.origin.y -= BASE_LENGTH;
+                rect.size.height += BASE_LENGTH;
+                rect.origin.x -= rect.size.width;
+            }
+        }
         Self {
-            origin,
-            length: Px(128),
+            rect,
             limit: max_distance,
             orientation,
         }
@@ -364,39 +386,34 @@ impl Iterator for DirectionSearchBounds {
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.limit > Px(0) {
-            self.limit -= self.length;
+            self.limit -= BASE_LENGTH;
 
-            let half_length = self.length / Px(2);
-            let mut origin = self.origin;
+            let r = Some(self.rect);
 
             match self.orientation {
-                WidgetOrientation::Above => {
-                    origin.x -= half_length;
-                    self.origin.y -= self.length;
-                    origin.y -= self.length + Px(1);
+                Orientation2D::Above => {
+                    self.rect.origin.y -= BASE_LENGTH;
+                    self.rect.origin.x -= BASE_LENGTH;
+                    self.rect.size.width += BASE_LENGTH * Px(2);
                 }
-                WidgetOrientation::Right => {
-                    origin.y -= half_length;
-                    self.origin.x += self.length;
-                    origin.x += Px(1);
+                Orientation2D::Right => {
+                    self.rect.origin.x += BASE_LENGTH;
+                    self.rect.origin.y -= BASE_LENGTH;
+                    self.rect.size.height += BASE_LENGTH * Px(2);
                 }
-                WidgetOrientation::Below => {
-                    origin.x -= half_length;
-                    self.origin.y += self.length;
-                    origin.y += Px(1);
+                Orientation2D::Below => {
+                    self.rect.origin.y += BASE_LENGTH;
+                    self.rect.origin.x -= BASE_LENGTH;
+                    self.rect.size.width += BASE_LENGTH * Px(2);
                 }
-                WidgetOrientation::Left => {
-                    origin.y -= half_length;
-                    self.origin.x -= self.length;
-                    origin.x -= self.length + Px(1);
+                Orientation2D::Left => {
+                    self.rect.origin.x -= BASE_LENGTH;
+                    self.rect.origin.y -= BASE_LENGTH;
+                    self.rect.size.height += BASE_LENGTH * Px(2);
                 }
             }
 
-            let r = PxRect::new(origin, PxSize::splat(self.length));
-
-            self.length *= Px(2);
-
-            Some(r)
+            r
         } else {
             None
         }
