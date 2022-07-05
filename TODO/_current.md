@@ -1,6 +1,6 @@
-* Implement logical tree, based on the ego-tree, but with u32 indexes.
 * Implement quad-tree updating.
    - Do update after the frame is send, not in finalize.
+   - Maybe we can separate widgets that move a lot to a "dynamic" list, instead of rebuilding the quad-tree.
    - Almost every widget is moved in the `icon` example after every scroll, rebuilding the quad-tree from zero for every render_update is pretty bad.
       - Can we scroll the tree?
          - Not really, the logical hierarchy is not represented in the quad-tree.
@@ -30,3 +30,4 @@
 * A frame is generated for the dummy pipeline just after respawn.
 * Integrate frame reuse with frame update, see `Optimizations.md`.
 * Finish state API, see `State.md`.
+* Implement logical tree, based on the ego-tree, but with u32 indexes.

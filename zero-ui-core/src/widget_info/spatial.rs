@@ -1,4 +1,4 @@
-use std::{num::NonZeroU32, ops::ControlFlow};
+use std::{num::NonZeroU32, rc::Rc};
 
 use crate::{crate_util::FxHashSet, units::*};
 
@@ -47,7 +47,7 @@ pub(super) struct QuadTree {
 impl QuadTree {
     pub(super) fn new() -> Self {
         Self {
-            grid: Vec::with_capacity(1),
+            grid: vec![QuadRoot::new(PxPoint::zero())],
             bounds: PxBox::zero(),
         }
     }
@@ -95,57 +95,20 @@ impl QuadTree {
         }
     }
 
-    pub(super) fn visit<B>(
-        &self,
-        mut include: impl FnMut(PxBox) -> bool,
-        mut visit: impl FnMut(ego_tree::NodeId) -> ControlFlow<B>,
-    ) -> ControlFlow<B> {
-        for r in &self.grid {
-            if include(r.root_bounds().to_box()) {
-                QuadNode(0).visit(&r.storage, r.root_bounds(), &mut include, &mut visit)?;
-            }
-        }
-        ControlFlow::Continue(())
+    pub(super) fn quad_query<'a>(self: Rc<Self>, include: impl FnMut(PxBox) -> bool + 'a) -> impl Iterator<Item = ego_tree::NodeId> + 'a {
+        QuadQueryIter::new(include, self)
     }
 
-    pub(super) fn visit_dedup<B>(
-        &self,
-        mut include: impl FnMut(PxBox) -> bool,
-        mut visit: impl FnMut(ego_tree::NodeId) -> ControlFlow<B>,
-    ) -> ControlFlow<B> {
-        for r in &self.grid {
-            if include(r.root_bounds().to_box()) {
-                let mut visited = FxHashSet::default();
-                let mut visit = |id| {
-                    if visited.insert(id) {
-                        visit(id)
-                    } else {
-                        ControlFlow::Continue(())
-                    }
-                };
-
-                QuadNode(0).visit(&r.storage, r.root_bounds(), &mut include, &mut visit)?;
-            }
-        }
-        ControlFlow::Continue(())
-    }
-
-    pub(super) fn visit_point<B>(&self, point: PxPoint, mut visit: impl FnMut(ego_tree::NodeId) -> ControlFlow<B>) -> ControlFlow<B> {
-        for r in &self.grid {
-            if r.root_bounds().contains(point) {
-                return QuadNode(0).visit_point(&r.storage, r.root_bounds(), point, &mut visit);
-            }
-        }
-        ControlFlow::Continue(())
+    pub(super) fn quad_query_dedup<'a>(
+        self: Rc<Self>,
+        include: impl FnMut(PxBox) -> bool + 'a,
+    ) -> impl Iterator<Item = ego_tree::NodeId> + 'a {
+        let mut visited = FxHashSet::default();
+        self.quad_query(include).filter(move |n| !visited.insert(*n))
     }
 
     pub(super) fn is_empty(&self) -> bool {
         self.grid.is_empty()
-    }
-
-    pub(super) fn clear(&mut self) {
-        self.grid.clear();
-        self.bounds = PxBox::zero();
     }
 }
 
@@ -199,68 +162,6 @@ impl QuadNode {
         }
         storage.push_item(self.0, item);
     }
-
-    fn visit<B>(
-        self,
-        storage: &QuadStorage,
-        self_bounds: PxSquare,
-        include: &mut impl FnMut(PxBox) -> bool,
-        visit: &mut impl FnMut(ego_tree::NodeId) -> ControlFlow<B>,
-    ) -> ControlFlow<B> {
-        for item in storage.items(self.0) {
-            visit(item)?;
-        }
-
-        let children = storage.children(self.0);
-        if !children.is_empty() {
-            for (child, bounds) in children.zip(self_bounds.split().unwrap()) {
-                if include(bounds.to_box()) {
-                    QuadNode(child).visit(storage, bounds, include, visit)?;
-                }
-            }
-        }
-
-        ControlFlow::Continue(())
-    }
-
-    fn visit_point<B>(
-        self,
-        storage: &QuadStorage,
-        self_bounds: PxSquare,
-        point: PxPoint,
-        visit: &mut impl FnMut(ego_tree::NodeId) -> ControlFlow<B>,
-    ) -> ControlFlow<B> {
-        for item in storage.items(self.0) {
-            visit(item)?;
-        }
-
-        let children = storage.children(self.0);
-        if !children.is_empty() {
-            if let Some((middle, length)) = self_bounds.middle() {
-                let mut bounds = PxSquare {
-                    origin: self_bounds.origin,
-                    length,
-                };
-                let c = children.start;
-                return if point.x < middle.x {
-                    if point.y < middle.y {
-                        QuadNode(c).visit_point(storage, bounds, point, visit)
-                    } else {
-                        bounds.origin.y += length;
-                        QuadNode(c + 2).visit_point(storage, bounds, point, visit)
-                    }
-                } else if point.y < middle.y {
-                    bounds.origin.x += length;
-                    QuadNode(c + 1).visit_point(storage, bounds, point, visit)
-                } else {
-                    bounds.origin.x += length;
-                    bounds.origin.y += length;
-                    QuadNode(c + 3).visit_point(storage, bounds, point, visit)
-                };
-            }
-        }
-        ControlFlow::Continue(())
-    }
 }
 
 impl PxSquare {
@@ -278,16 +179,6 @@ impl PxSquare {
         }
     }
 
-    fn middle(mut self) -> Option<(PxPoint, Px)> {
-        self.length /= Px(2);
-
-        if self.length >= MIN_QUAD {
-            Some((self.origin + PxVector::new(self.length, self.length), self.length))
-        } else {
-            None
-        }
-    }
-
     fn to_box(self) -> PxBox {
         let max = self.origin + PxVector::splat(self.length);
         PxBox::new(self.origin, max)
@@ -299,10 +190,6 @@ impl PxSquare {
 
     fn contains_box(self, b: PxBox) -> bool {
         self.to_box().contains_box(&b)
-    }
-
-    fn contains(self, p: PxPoint) -> bool {
-        self.to_box().contains(p)
     }
 }
 
@@ -342,30 +229,6 @@ impl QuadStorage {
         }
     }
 
-    fn items(&self, node: u32) -> impl Iterator<Item = ego_tree::NodeId> + '_ {
-        struct ItemsIter<'a> {
-            items: &'a Vec<QuadItemData>,
-            next: Option<NonZeroU32>,
-        }
-        impl<'a> Iterator for ItemsIter<'a> {
-            type Item = ego_tree::NodeId;
-
-            fn next(&mut self) -> Option<Self::Item> {
-                if let Some(i) = self.next {
-                    let r = &self.items[(i.get() - 1) as usize];
-                    self.next = r.next;
-                    Some(r.item)
-                } else {
-                    None
-                }
-            }
-        }
-        ItemsIter {
-            items: &self.items,
-            next: self.nodes[node as usize].items,
-        }
-    }
-
     fn push_item(&mut self, node: u32, item: ego_tree::NodeId) {
         let item_i = NonZeroU32::new(self.items.len() as u32 + 1);
         self.items.push(QuadItemData { item, next: None });
@@ -389,4 +252,77 @@ struct QuadNodeData {
 struct QuadItemData {
     item: ego_tree::NodeId,
     next: Option<NonZeroU32>,
+}
+
+type NodeZipQuadIter = std::iter::Zip<std::ops::Range<u32>, std::array::IntoIter<PxSquare, 4>>;
+
+struct QuadQueryIter<Q> {
+    query: Q,
+
+    tree: Rc<QuadTree>,
+    cell: usize,
+    node_stack: Vec<NodeZipQuadIter>,
+    node: NodeZipQuadIter,
+    item: Option<NonZeroU32>,
+}
+impl<Q: FnMut(PxBox) -> bool> QuadQueryIter<Q> {
+    fn new(query: Q, tree: Rc<QuadTree>) -> Self {
+        Self {
+            query,
+            tree,
+            cell: usize::MAX,
+            node_stack: Vec::with_capacity(8),
+            node: (0u32..0u32).zip(
+                [PxSquare {
+                    origin: PxPoint::zero(),
+                    length: Px(0),
+                }; 4],
+            ),
+            item: None,
+        }
+    }
+}
+impl<Q: FnMut(PxBox) -> bool> Iterator for QuadQueryIter<Q> {
+    type Item = ego_tree::NodeId;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if let Some(i) = self.item {
+            // next item.
+            let item = &self.tree.grid[self.cell].storage.items[(i.get() - 1) as usize];
+            self.item = item.next;
+            Some(item.item)
+        } else if let Some((q, q_bounds)) = self.node.next() {
+            // next quad:
+            if (self.query)(q_bounds.to_box()) {
+                let node = &self.tree.grid[self.cell].storage.nodes[q as usize];
+                if node.items.is_some() {
+                    // next quad items.
+                    self.item = node.items;
+                } else if node.children.is_some() {
+                    // next inner quad.
+                    self.node_stack.push(self.node.clone());
+                    self.node = self.tree.grid[self.cell].storage.children(q).zip(q_bounds.split().unwrap());
+                }
+            }
+
+            self.next()
+        } else if let Some(q) = self.node_stack.pop() {
+            // return to parent node.
+            self.node = q;
+            self.next()
+        } else if self.cell < self.tree.grid.len() - 1 || self.cell == usize::MAX {
+            // next quad-tree.
+
+            self.cell = self.cell.wrapping_add(1);
+
+            let r = &self.tree.grid[self.cell];
+            if (self.query)(r.root_bounds().to_box()) {
+                self.node = r.storage.children(0).zip(r.root_bounds().split().unwrap());
+            }
+
+            self.next()
+        } else {
+            None
+        }
+    }
 }

@@ -6,7 +6,7 @@ use crate::{
     window::FocusIndicator,
     WidgetId,
 };
-use std::{fmt, ops::ControlFlow};
+use std::fmt;
 
 use super::iter::IterFocusableExt;
 
@@ -932,63 +932,23 @@ impl<'a> WidgetFocusInfo<'a> {
         }
     }
 
-    /// Visit all focusable descendants with [`center`] in the direction defined by `orientation` from the `origin` and within the `distance`.
+    /// Spatial iterator over all focusable descendants with center in the direction defined by `orientation` and within the `distance`.
     ///
-    /// Note that you can use [`Px::MAX`] on the distance to visit all widgets in the direction.
-    ///
-    /// The first parameter of `visit` is the current search quadrant, each subsequent quadrants is double in size and further away
-    /// from the `origin` by the length of the previous search quadrant, this means that every time the search quadrant changes all
-    /// visited widgets are further away from `origin` than previous widgets.
-    ///
-    /// If the widget has only a small amount of descendants a linear search is done instead, in this case the search quadrant has size zero.
-    ///
-    /// [`center`]: WidgetInfo::center
-    pub fn visit_oriented<B>(
+    /// The search bounds is yielded with each matched descendant, see the [`WidgetInfoTree::oriented`] method for more details.
+    pub fn oriented(
         self,
         origin: PxPoint,
         distance: Px,
         orientation: WidgetOrientation,
-        mut visit: impl FnMut(PxRect, WidgetFocusInfo<'a>) -> ControlFlow<B>,
-    ) -> ControlFlow<B> {
-        self.info.visit_oriented(origin, distance, orientation, |q, w| {
-            if let Some(w) = w.as_focusable(self.focus_disabled_widgets()) {
-                visit(q, w)
-            } else {
-                ControlFlow::Continue(())
-            }
-        })
-    }
-
-    /// First focusable descendant in the direction.
-    pub fn first_oriented(self, origin: PxPoint, distance: Px, orientation: WidgetOrientation) -> Option<WidgetFocusInfo<'a>> {
-        let cast = |w: WidgetInfo<'a>| w.as_focus_info(self.focus_disabled_widgets());
+    ) -> impl Iterator<Item = (PxRect, WidgetFocusInfo<'a>)> + 'a {
         self.info
-            .find_oriented(origin, distance, orientation, |w| cast(w).is_focusable())
-            .map(cast)
-    }
-
-    /// Find any focusable descendant in the direction that is allowed by `filter`.
-    pub fn find_oriented(
-        self,
-        origin: PxPoint,
-        distance: Px,
-        orientation: WidgetOrientation,
-        mut filter: impl FnMut(WidgetFocusInfo<'a>) -> bool,
-    ) -> Option<WidgetFocusInfo<'a>> {
-        let cast = |w: WidgetInfo<'a>| w.as_focus_info(self.focus_disabled_widgets());
-
-        self.info
-            .find_oriented(origin, distance, orientation, |w| {
-                let w = cast(w);
-                w.is_focusable() && filter(w)
-            })
-            .map(cast)
+            .oriented(origin, distance, orientation)
+            .filter_map(move |(r, w)| w.as_focusable(self.focus_disabled_widgets()).map(move |f| (r, f)))
     }
 
     /// Closest focusable descendant in the direction within the `distance`.
     pub fn closest_oriented(self, origin: PxPoint, distance: Px, orientation: WidgetOrientation) -> Option<WidgetFocusInfo<'a>> {
         let cast = |w: WidgetInfo<'a>| w.as_focus_info(self.focus_disabled_widgets());
-
         self.info
             .find_closest_oriented(origin, distance, orientation, |w| cast(w).is_focusable())
             .map(cast)
@@ -1033,7 +993,7 @@ impl<'a> WidgetFocusInfo<'a> {
         };
 
         if any {
-            return scope.find_oriented(origin, Px::MAX, orientation, filter);
+            return scope.oriented(origin, Px::MAX, orientation).map(|(_, f)| f).find(|f| filter(*f));
         }
 
         let parent_id = self.parent().map(|w| w.info.widget_id()).unwrap_or_else(|| self_id);
@@ -1047,13 +1007,13 @@ impl<'a> WidgetFocusInfo<'a> {
 
         let mut search_quad = PxRect::zero();
 
-        scope.visit_oriented(origin, Px::MAX, orientation, |q, w| {
+        for (q, w) in scope.oriented(origin, Px::MAX, orientation) {
             if q != search_quad {
                 if search_quad.size.width == Px(0) {
                     search_quad = q;
                 } else if sibling.is_some() || other.is_some() {
                     // subsequent search quads are guaranteed to only yield items further away.
-                    return ControlFlow::Break(());
+                    break;
                 }
             }
 
@@ -1078,8 +1038,7 @@ impl<'a> WidgetFocusInfo<'a> {
                     other = Some(w);
                 }
             }
-            ControlFlow::<()>::Continue(())
-        });
+        }
 
         if other_dist <= ancestor_dist && other_dist <= sibling_dist {
             other

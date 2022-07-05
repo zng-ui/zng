@@ -1,7 +1,5 @@
 //! Debug inspection properties.
 
-use std::ops::ControlFlow;
-
 use crate::core::{
     focus::*,
     mouse::{MouseHoveredEvent, MouseMoveEvent},
@@ -76,14 +74,10 @@ pub fn show_quad_tree(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl U
             let widths = PxSideOffsets::new_all_same(Px(1));
             let sides = BorderSides::solid(colors::GRAY);
 
-            // TODO: render the up-to-date quads.
-            tree.visit_quads(
-                |quad| {
-                    frame.push_border(quad.to_rect(), widths, sides, PxCornerRadius::zero());
-                    true
-                },
-                |_| ControlFlow::<(), ()>::Continue(()),
-            );
+            for _ in tree.quad_query(|quad| {
+                frame.push_border(quad.to_rect(), widths, sides, PxCornerRadius::zero());
+                true
+            }) {}
         },
         enabled,
     )
@@ -193,46 +187,18 @@ pub fn show_quad_tree_hits(child: impl UiNode, enabled: impl IntoVar<bool>) -> i
                         .copy(ctx.vars);
 
                     let pt = args.position.to_px(factor.0);
-                    ctx.info_tree.visit_quads(
-                        |quad| {
-                            let include = quad.contains(pt);
-                            if include {
-                                quads.push(quad.to_rect());
-                            }
-                            include
-                        },
-                        |wgt| {
-                            let bounds = wgt.inner_bounds();
-                            if bounds.contains(pt) {
-                                hits.push(bounds);
-                            } else {
-                                fails.push(bounds);
-                            }
-
-                            ControlFlow::<(), ()>::Continue(())
-                        },
-                    );
-                    // debug point algorithm.
-                    #[cfg(debug_assertions)]
-                    {
-                        let q_fails = fails.clone();
-                        let q_hits = hits.clone();
-                        fails.clear();
-                        hits.clear();
-
-                        ctx.info_tree.visit_point(pt, |wgt| {
-                            let bounds = wgt.inner_bounds();
-                            if bounds.contains(pt) {
-                                hits.push(bounds);
-                            } else {
-                                fails.push(bounds);
-                            }
-
-                            ControlFlow::<(), ()>::Continue(())
-                        });
-
-                        if q_fails != fails || q_hits != hits {
-                            tracing::error!("quad and points hits did not match");
+                    for wgt in ctx.info_tree.quad_query(|quad| {
+                        let include = quad.contains(pt);
+                        if include {
+                            quads.push(quad.to_rect());
+                        }
+                        include
+                    }) {
+                        let bounds = wgt.inner_bounds();
+                        if bounds.contains(pt) {
+                            hits.push(bounds);
+                        } else {
+                            fails.push(bounds);
                         }
                     }
 

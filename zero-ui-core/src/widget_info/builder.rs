@@ -199,7 +199,7 @@ impl WidgetInfoBuilder {
             lookup,
             tree: self.tree,
             interactivity_filters: self.interactivity_filters,
-            inner_bounds_tree: RefCell::new(super::spatial::QuadTree::new()),
+            inner_bounds_tree: RefCell::new(Rc::new(super::spatial::QuadTree::new())),
         }));
 
         if !repeats.is_empty() {
