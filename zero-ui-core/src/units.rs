@@ -156,23 +156,30 @@ pub fn about_eq_ord(a: f32, b: f32, epsilon: f32) -> std::cmp::Ordering {
     }
 }
 
-/// Comparable key that represents the distance between two pixel points.
+/// Comparable key that represents the absolute distance between two pixel points.
 ///
 /// Computing the actual distance only for comparison is expensive, this key avoids the conversion to float and square-root operation.
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct DistanceKey(i32);
+pub struct DistanceKey(u64);
 impl DistanceKey {
-    /// Value that is always greater than any valid distance key.
-    pub const NONE_MAX: DistanceKey = DistanceKey(i32::MAX);
+    /// Value that is always greater than any distance key.
+    pub const NONE_MAX: DistanceKey = DistanceKey(u64::MAX);
 
-    /// Value that is always smaller than any valid distance key.
-    pub const NONE_MIN: DistanceKey = DistanceKey(-1);
+    /// Value that is always smaller than any distance key.
+    pub const NONE_MIN: DistanceKey = DistanceKey(0);
+
+    /// Maximum distance.
+    pub const MAX: DistanceKey = DistanceKey((Px::MAX.0 as u64).pow(2));
+
+    /// Minimum distance.
+    pub const MIN: DistanceKey = DistanceKey(1);
 
     /// New distance key computed from two points.
     pub fn from_points(a: PxPoint, b: PxPoint) -> Self {
-        let pa = (a.x - b.x).0.pow(2);
-        let pb = (a.y - b.y).0.pow(2);
-        Self(pa + pb)
+        let pa = ((a.x - b.x).0.abs() as u64).pow(2);
+        let pb = ((a.y - b.y).0.abs() as u64).pow(2);
+
+        Self((pa + pb) + 1)
     }
 
     /// New distance key from already computed actual distance.
@@ -181,7 +188,8 @@ impl DistanceKey {
     ///
     /// [`from_points`]: Self::from_points
     pub fn from_distance(d: Px) -> Self {
-        Self(d.0.pow(2))
+        let p = (d.0.abs() as u64).pow(2);
+        Self(p + 1)
     }
 
     /// If the key is the [`NONE_MAX`] or [`NONE_MIN`].
@@ -197,7 +205,10 @@ impl DistanceKey {
         if self.is_none() {
             None
         } else {
-            Some(Px((self.0 as f32).sqrt().round() as i32))
+            let p = self.0 - 1;
+            let d = (p as f64).sqrt();
+
+            Some(Px(d.round() as i32))
         }
     }
 }

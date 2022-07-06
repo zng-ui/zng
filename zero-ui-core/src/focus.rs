@@ -94,7 +94,7 @@ use crate::{
     event::*,
     mouse::MouseInputEvent,
     service::Service,
-    units::{PxPoint, PxRect, TimeUnits, Px},
+    units::{Px, PxPoint, PxRect, TimeUnits},
     var::{var, RcVar, ReadOnlyRcVar, Var, Vars},
     widget_info::{InteractionPath, WidgetBoundsInfo, WidgetInfoTree},
     window::{WidgetInfoChangedEvent, WindowFocusChangedEvent, WindowId, Windows},

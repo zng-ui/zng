@@ -259,7 +259,13 @@ impl WidgetInfoTree {
         }
 
         let max_diameter = max_radius * Px(2);
-        let mut dist = DistanceKey::from_distance(max_radius + Px(1));
+
+        let mut dist = if max_radius != Px::MAX {
+            DistanceKey::from_distance(max_radius + Px(1))
+        } else {
+            DistanceKey::NONE_MAX
+        };
+
         let mut nearest = None;
         loop {
             for w in self.centered_no_dedup(search_quad) {
