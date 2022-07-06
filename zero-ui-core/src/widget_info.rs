@@ -264,6 +264,7 @@ impl WidgetInfoTree {
             return None;
         }
 
+        let max_diameter = max_radius * Px(2);
         let mut dist = DistanceKey::from_distance(max_radius + Px(1));
         let mut nearest = None;
         loop {
@@ -275,11 +276,12 @@ impl WidgetInfoTree {
                 }
             }
 
-            if nearest.is_some() || source_quad.width() >= max_radius {
+            let source_width = source_quad.width();
+            if nearest.is_some() || source_width >= max_diameter {
                 break;
             } else {
-                source_quad = source_quad.inflate(source_quad.width(), source_quad.width());
-                let new_search = search_quad.intersection_unchecked(&max_quad);
+                source_quad = source_quad.inflate(source_width, source_width);
+                let new_search = source_quad.intersection_unchecked(&max_quad);
                 if new_search == search_quad || new_search.is_empty() {
                     break; // filled bounds
                 }
@@ -295,7 +297,7 @@ impl WidgetInfoTree {
 
             for w in self.centered_no_dedup(quad) {
                 let w_dist = w.distance_key(origin);
-                if w_dist < dist {
+                if w_dist < dist && filter(w) {
                     dist = w_dist;
                     nearest = Some(w);
                 }
@@ -315,24 +317,26 @@ impl WidgetInfoTree {
     /// on the distance to visit all widgets in the direction.
     ///
     /// [`spatial_bounds`]: Self::spatial_bounds
-    pub fn oriented(&self, origin: PxPoint, max_radius: Px, orientation: Orientation2D) -> impl Iterator<Item = WidgetInfo> + '_ {
-        let limit = self.spatial_bounds();
-        let limit = match orientation {
-            Orientation2D::Above => origin.y - limit.min.y,
-            Orientation2D::Right => limit.max.x - origin.x,
-            Orientation2D::Below => limit.max.y - origin.y,
-            Orientation2D::Left => origin.x - limit.min.x,
+    pub fn oriented(&self, origin: PxPoint, max_distance: Px, orientation: Orientation2D) -> impl Iterator<Item = WidgetInfo> + '_ {
+        let distance_bounded = max_distance != Px::MAX;
+        let distance_key = if distance_bounded {
+            DistanceKey::from_distance(max_distance)
+        } else {
+            DistanceKey::NONE_MAX
         };
-        let actual_distance = max_radius.min(limit);
-
-        let ds_max = max_radius.0 as f32;
-        let ds_origin = origin.to_f32();
-        iter::DirectionSearchBounds::new(orientation, origin, actual_distance).flat_map(move |r| {
-            self.center_contained(r).filter(move |w| {
+        Self::oriented_search_bounds(origin, max_distance, self.spatial_bounds(), orientation)
+            .flat_map(move |sq| self.quad_query_dedup(move |q| q.intersects(&sq)).map(move |w| (sq, w)))
+            .filter_map(move |(sq, w)| {
                 let center = w.center();
-                orientation.is(origin, center) && ds_origin.distance_to(center.to_f32()) <= ds_max
+                if sq.contains(center)
+                    && orientation.is(origin, center)
+                    && (!distance_bounded || DistanceKey::from_points(origin, center) <= distance_key)
+                {
+                    Some(w)
+                } else {
+                    None
+                }
             })
-        })
     }
 
     /// Find the widget with center point nearest of `origin` within the `max_distance` and with `orientation` to origin.
@@ -344,18 +348,12 @@ impl WidgetInfoTree {
         self.nearest_oriented_filtered(origin, max_distance, orientation, |_| true)
     }
 
-    /// Find the widget with center point nearest of `origin` within the `max_distance` and with `orientation` to origin, and approved by the `filter` closure.
-    ///
-    /// This method is faster than using sorting the result of [`oriented`], but is slower if any point in distance and orientation is acceptable.
-    ///
-    /// [`oriented`]: Self::oriented
-    pub fn nearest_oriented_filtered<'a>(
-        &'a self,
+    pub(crate) fn oriented_search_bounds(
         origin: PxPoint,
         max_distance: Px,
+        spatial_bounds: euclid::Box2D<Px, ()>,
         orientation: Orientation2D,
-        mut filter: impl FnMut(WidgetInfo<'a>) -> bool,
-    ) -> Option<WidgetInfo<'a>> {
+    ) -> impl Iterator<Item = euclid::Box2D<Px, ()>> {
         let mut bounds = PxRect::new(origin, PxSize::splat(max_distance));
         match orientation {
             Orientation2D::Above => {
@@ -370,7 +368,130 @@ impl WidgetInfoTree {
             }
         }
 
-        self.nearest_bounded_filtered(origin, max_distance, bounds, |w| orientation.is(origin, w.center()) && filter(w))
+        // oriented search is a 45º square in the direction specified, so we grow and cut the search quadrant like
+        // in the "nearest with bounds" algorithm, but then cut again to only the part that fully overlaps the 45º
+        // square, points found are then matched with the `Orientation2D::is` method.
+
+        let max_quad = spatial_bounds.intersection_unchecked(&bounds.to_box2d());
+        let mut is_none = max_quad.is_empty();
+
+        let mut source_quad = PxRect::new(origin - PxVector::splat(Px(64)), PxSize::splat(Px(128))).to_box2d();
+        let mut search_quad = source_quad.intersection_unchecked(&max_quad);
+        is_none |= search_quad.is_empty();
+
+        let max_diameter = max_distance * Px(2);
+
+        let mut is_first = true;
+
+        std::iter::from_fn(move || {
+            let source_width = source_quad.width();
+            if is_none {
+                None
+            } else if is_first {
+                is_first = false;
+                Some(search_quad)
+            } else if source_width >= max_diameter {
+                is_none = true;
+                None
+            } else {
+                source_quad = source_quad.inflate(source_width, source_width);
+                let mut new_search = source_quad.intersection_unchecked(&max_quad);
+                if new_search == source_quad || new_search.is_empty() {
+                    is_none = true; // filled bounds
+                    return None;
+                }
+
+                match orientation {
+                    Orientation2D::Above => {
+                        new_search.max.y = search_quad.min.y;
+                    }
+                    Orientation2D::Right => {
+                        new_search.min.x = search_quad.max.x;
+                    }
+                    Orientation2D::Below => {
+                        new_search.min.y = search_quad.max.y;
+                    }
+                    Orientation2D::Left => {
+                        new_search.max.x = search_quad.min.x;
+                    }
+                }
+
+                search_quad = new_search;
+
+                Some(search_quad)
+            }
+        })
+    }
+
+    /// Find the widget with center point nearest of `origin` within the `max_distance` and with `orientation` to origin, and approved by the `filter` closure.
+    ///
+    /// This method is faster than using sorting the result of [`oriented`], but is slower if any point in distance and orientation is acceptable.
+    ///
+    /// [`oriented`]: Self::oriented
+    pub fn nearest_oriented_filtered<'a>(
+        &'a self,
+        origin: PxPoint,
+        max_distance: Px,
+        orientation: Orientation2D,
+        mut filter: impl FnMut(WidgetInfo<'a>) -> bool,
+    ) -> Option<WidgetInfo<'a>> {
+        let mut dist = DistanceKey::from_distance(max_distance + Px(1));
+        let mut nearest = None;
+        let mut last_quad = euclid::Box2D::zero();
+
+        for search_quad in Self::oriented_search_bounds(origin, max_distance, self.spatial_bounds(), orientation) {
+            for w in self.centered_no_dedup(search_quad) {
+                if orientation.is(origin, w.center()) {
+                    let w_dist = w.distance_key(origin);
+                    if w_dist < dist && filter(w) {
+                        dist = w_dist;
+                        nearest = Some(w);
+                    }
+                }
+            }
+
+            if nearest.is_some() {
+                last_quad = search_quad;
+                break;
+            }
+        }
+
+        if nearest.is_some() {
+            // ensure that we are not skipping a closer widget because the nearest was in a corner of the search quad.
+
+            match orientation {
+                Orientation2D::Above => {
+                    let extra = last_quad.height() / Px(2);
+                    last_quad.max.y = last_quad.min.y;
+                    last_quad.min.y -= extra;
+                }
+                Orientation2D::Right => {
+                    let extra = last_quad.width() / Px(2);
+                    last_quad.min.x = last_quad.max.x;
+                    last_quad.max.x += extra;
+                }
+                Orientation2D::Below => {
+                    let extra = last_quad.height() / Px(2);
+                    last_quad.min.y = last_quad.max.y;
+                    last_quad.max.y += extra;
+                }
+                Orientation2D::Left => {
+                    let extra = last_quad.width() / Px(2);
+                    last_quad.max.x = last_quad.min.x;
+                    last_quad.min.x -= extra;
+                }
+            }
+
+            for w in self.centered_no_dedup(last_quad) {
+                let w_dist = w.distance_key(origin);
+                if w_dist < dist && filter(w) {
+                    dist = w_dist;
+                    nearest = Some(w);
+                }
+            }
+        }
+
+        nearest
     }
 
     pub(crate) fn after_render(&self) {

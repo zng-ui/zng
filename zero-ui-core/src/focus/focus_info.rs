@@ -1029,7 +1029,6 @@ impl<'a> WidgetFocusInfo<'a> {
 
         let parent_id = self.parent().map(|w| w.info.widget_id()).unwrap_or_else(|| self_id);
 
-        // TODO !!: refactor this to use the nearest queries, at least for sibling and other.
         let mut ancestor_dist = DistanceKey::NONE_MAX;
         let mut ancestor = None;
         let mut sibling_dist = DistanceKey::NONE_MAX;

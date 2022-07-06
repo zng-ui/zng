@@ -1,3 +1,8 @@
+* Implement logical tree, based on the ego-tree, but with u32 indexes.
+   - After, try to optimize node representation, we build the tree in a way that should let us check if a widget belongs to an ancestor only
+     by knowing the ancestor index and its descendant count.
+
+
 * Implement quad-tree updating.
    - Do update after the frame is send, not in finalize.
    - Maybe we can separate widgets that move a lot to a "dynamic" list, instead of rebuilding the quad-tree.
@@ -18,6 +23,7 @@
    - Expand `rendered` to have an index of render, so we can z-sort.
 * Track what widgets are "definitely fully clipped".
 * Track what widgets are close to becoming visible due to scrolling.
+* Use `nearest_oriented` in `directional_from`.
 
 * Add a "version" value in the WidgetInfoTree that increments for every render that updates any widget bounds.
    - Review this after widget events, we may be able to just use those.
@@ -30,4 +36,3 @@
 * A frame is generated for the dummy pipeline just after respawn.
 * Integrate frame reuse with frame update, see `Optimizations.md`.
 * Finish state API, see `State.md`.
-* Implement logical tree, based on the ego-tree, but with u32 indexes.

@@ -216,8 +216,6 @@ pub enum Orientation2D {
 }
 impl Orientation2D {
     /// Check if `center` is orientation from `origin`.
-    ///
-    /// #
     pub fn is(self, origin: PxPoint, center: PxPoint) -> bool {
         let (a, b, c, d) = match self {
             Orientation2D::Above => (center.y, origin.y, center.x, origin.x),
@@ -245,6 +243,17 @@ impl Orientation2D {
         }
 
         is
+    }
+
+    /// Iterator that yields quadrants for efficient search in a quad-tree, if a point is inside a quadrant and
+    /// passes the [`Orientation2D::is`] check it is in the orientation, them if it is within the `max_distance` it is valid.
+    pub fn search_bounds(
+        self,
+        origin: PxPoint,
+        max_distance: Px,
+        spatial_bounds: euclid::Box2D<Px, ()>,
+    ) -> impl Iterator<Item = euclid::Box2D<Px, ()>> {
+        crate::widget_info::WidgetInfoTree::oriented_search_bounds(origin, max_distance, spatial_bounds, self)
     }
 }
 
