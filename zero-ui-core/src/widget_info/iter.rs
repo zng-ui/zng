@@ -36,6 +36,7 @@ impl_from_and_into_var! {
 ///
 /// [`children`]: WidgetInfo::children
 /// [`self_and_children`]: WidgetInfo::self_and_children
+#[derive(Debug)]
 pub struct Children<'a> {
     front_enter: bool,
     front: Option<WidgetInfo<'a>>,
@@ -58,17 +59,17 @@ impl<'a> Iterator for Children<'a> {
     type Item = WidgetInfo<'a>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if let Some(n) = self.front {
-            self.front = if mem::take(&mut self.front_enter) {
-                n.first_child()
-            } else {
-                n.next_sibling()
-            };
-            if self.front == self.back {
-                self.front = None;
-                self.back = None;
-            }
-            Some(n)
+        if mem::take(&mut self.front_enter) {
+            let next = self.front.take();
+            self.front = next.unwrap().first_child();
+            next
+        } else if self.front == self.back {
+            let next = self.front.take();
+            self.back = None;
+            next
+        } else if let Some(next) = self.front {
+            self.front = next.next_sibling();
+            Some(next)
         } else {
             None
         }
@@ -76,17 +77,17 @@ impl<'a> Iterator for Children<'a> {
 }
 impl<'a> DoubleEndedIterator for Children<'a> {
     fn next_back(&mut self) -> Option<Self::Item> {
-        if let Some(n) = self.back {
-            self.back = if mem::take(&mut self.back_enter) {
-                n.last_child()
-            } else {
-                n.prev_sibling()
-            };
-            if self.front == self.back {
-                self.front = None;
-                self.back = None;
-            }
-            Some(n)
+        if mem::take(&mut self.back_enter) {
+            let next = self.back.take();
+            self.back = next.unwrap().last_child();
+            next
+        } else if self.front == self.back {
+            let next = self.back.take();
+            self.front = None;
+            next
+        } else if let Some(next) = self.back {
+            self.back = next.prev_sibling();
+            Some(next)
         } else {
             None
         }

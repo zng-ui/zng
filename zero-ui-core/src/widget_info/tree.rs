@@ -1,4 +1,4 @@
-use std::num::NonZeroU32;
+use std::{fmt, num::NonZeroU32};
 
 #[repr(transparent)]
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
@@ -13,6 +13,11 @@ impl NodeId {
 
     fn get(self) -> usize {
         (self.0.get() - 1) as usize
+    }
+}
+impl fmt::Debug for NodeId {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "NodeId({})", self.get())
     }
 }
 
@@ -72,6 +77,11 @@ impl<T> Tree<T> {
         })
     }
 }
+impl<T> fmt::Debug for Tree<T> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Tree").field("nodes", &self.nodes).finish()
+    }
+}
 
 struct Node<T> {
     parent: Option<NodeId>,
@@ -81,6 +91,16 @@ struct Node<T> {
     value: T,
 }
 assert_size_of!(Node<()>, 5 * 4); // non-null works for the `children` field too.
+impl<T> fmt::Debug for Node<T> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Node")
+            .field("parent", &self.parent)
+            .field("prev_sibling", &self.prev_sibling)
+            .field("next_sibling", &self.next_sibling)
+            .field("children", &self.children)
+            .finish_non_exhaustive()
+    }
+}
 
 pub(super) struct NodeRef<'a, T> {
     tree: &'a Tree<T>,
@@ -170,7 +190,7 @@ impl<'a, T> NodeMut<'a, T> {
     }
 
     pub fn push_child(&mut self, value: T) -> NodeMut<T> {
-        let index = NodeId::new(self.tree.nodes.len());
+        let new_id = NodeId::new(self.tree.nodes.len());
 
         let self_node = &mut self.tree.nodes[self.id.get()];
         let mut new_node = Node {
@@ -184,17 +204,17 @@ impl<'a, T> NodeMut<'a, T> {
         if let Some((_, last)) = &mut self_node.children {
             let prev_last = *last;
             new_node.prev_sibling = Some(prev_last);
-            *last = index;
-            self.tree.nodes[prev_last.get()].next_sibling = Some(index);
+            *last = new_id;
+            self.tree.nodes[prev_last.get()].next_sibling = Some(new_id);
         } else {
-            self_node.children = Some((index, index));
+            self_node.children = Some((new_id, new_id));
         }
 
         self.tree.nodes.push(new_node);
 
         NodeMut {
             tree: self.tree,
-            id: index,
+            id: new_id,
         }
     }
 
@@ -205,11 +225,12 @@ impl<'a, T> NodeMut<'a, T> {
             id: clone.id,
         });
 
-        if let Some(child) = child.first_child() {
+        if let Some(mut child) = child.first_child() {
             clone.push_reuse(child, reuse, inspect);
 
-            while let Some(child) = child.next_sibling() {
-                clone.push_reuse(child, reuse, inspect);
+            while let Some(c) = child.next_sibling() {
+                child = c;
+                clone.push_reuse(c, reuse, inspect);
             }
         }
         clone
