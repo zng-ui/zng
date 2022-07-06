@@ -186,8 +186,6 @@ impl WidgetInfoBuilder {
     pub fn finalize(mut self) -> (WidgetInfoTree, UsedWidgetInfoBuilder) {
         self.tree.root_mut().value().meta = Rc::new(self.meta);
 
-        // we build a WidgetId => NodeId lookup
-
         let r = WidgetInfoTree(Rc::new(WidgetInfoTreeInner {
             window_id: self.window_id,
             lookup: self.lookup,
