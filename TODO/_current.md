@@ -1,6 +1,5 @@
-* Implement logical tree, based on the ego-tree, but with u32 indexes.
-   - After, try to optimize node representation, we build the tree in a way that should let us check if a widget belongs to an ancestor only
-     by knowing the ancestor index and its descendant count.
+* Try to optimize logical tree node representation, we build the tree in a way that should let us check if a widget belongs to an ancestor only
+  by knowing the ancestor index and its descendant count.
 
 
 * Implement quad-tree updating.
