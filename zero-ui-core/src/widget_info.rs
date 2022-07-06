@@ -291,9 +291,9 @@ impl WidgetInfoTree {
 
         if let Some(ne) = nearest {
             // ensure that we are not skipping a closer widget because the nearest was in a corner of the search quad.
+            let distance = PxVector::splat(Px(2) * dist.distance());
 
-            let mut quad = euclid::Box2D::from_points([origin, ne.center()]);
-            quad = quad.inflate(quad.width(), quad.height()).intersection_unchecked(&max_quad);
+            let mut quad = euclid::Box2D::new(origin - distance, origin + distance).intersection_unchecked(&max_quad);
 
             for w in self.centered_no_dedup(quad) {
                 let w_dist = w.distance_key(origin);
