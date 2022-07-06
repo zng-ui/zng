@@ -20,10 +20,6 @@ pub(super) struct Tree<T> {
     nodes: Vec<Node<T>>,
 }
 impl<T> Tree<T> {
-    pub(super) fn new(root: T) -> Self {
-        Self::with_capacity(root, 1)
-    }
-
     pub(super) fn with_capacity(root: T, capacity: usize) -> Self {
         let mut nodes = Vec::with_capacity(capacity);
         nodes.push(Node {
@@ -37,16 +33,24 @@ impl<T> Tree<T> {
         Tree { nodes }
     }
 
-    pub fn index(&self, index: NodeId) -> NodeRef<T> {
+    pub fn index(&self, id: NodeId) -> NodeRef<T> {
         #[cfg(debug_assertions)]
-        let _ = self.nodes[index.get()];
-        NodeRef { tree: self, id: index }
+        let _ = self.nodes[id.get()];
+        NodeRef { tree: self, id }
     }
 
-    pub fn index_mut(&mut self, index: NodeId) -> NodeMut<T> {
+    pub fn get(&self, id: NodeId) -> Option<NodeRef<T>> {
+        if self.nodes.len() < id.get() {
+            Some(NodeRef { tree: self, id })
+        } else {
+            None
+        }
+    }
+
+    pub fn index_mut(&mut self, id: NodeId) -> NodeMut<T> {
         #[cfg(debug_assertions)]
-        let _ = self.nodes[index.get()];
-        NodeMut { tree: self, id: index }
+        let _ = self.nodes[id.get()];
+        NodeMut { tree: self, id }
     }
 
     pub fn root(&self) -> NodeRef<T> {
@@ -82,13 +86,18 @@ pub(super) struct NodeRef<'a, T> {
     tree: &'a Tree<T>,
     id: NodeId,
 }
+impl<'a, T> Clone for NodeRef<'a, T> {
+    fn clone(&self) -> Self {
+        Self {
+            tree: self.tree,
+            id: self.id,
+        }
+    }
+}
+impl<'a, T> Copy for NodeRef<'a, T> {}
 impl<'a, T> NodeRef<'a, T> {
     pub fn id(&self) -> NodeId {
         self.id
-    }
-
-    pub fn tree(&self) -> &'a Tree<T> {
-        self.tree
     }
 
     pub fn parent(&self) -> Option<NodeRef<'a, T>> {
@@ -107,6 +116,11 @@ impl<'a, T> NodeRef<'a, T> {
             .map(|p| NodeRef { tree: self.tree, id: p })
     }
 
+    pub fn has_siblings(&self) -> bool {
+        let node = &self.tree.nodes[self.id.get()];
+        node.prev_sibling.is_some() || node.next_sibling.is_some()
+    }
+
     pub fn first_child(&self) -> Option<NodeRef<'a, T>> {
         self.tree.nodes[self.id.get()]
             .children
@@ -117,6 +131,23 @@ impl<'a, T> NodeRef<'a, T> {
         self.tree.nodes[self.id.get()]
             .children
             .map(|(_, p)| NodeRef { tree: self.tree, id: p })
+    }
+
+    pub fn has_children(&self) -> bool {
+        self.tree.nodes[self.id.get()].children.is_some()
+    }
+
+    pub fn children_count(&self) -> usize {
+        let mut r = 0;
+        if let Some(mut c) = self.first_child() {
+            r += 1;
+
+            while let Some(n) = c.next_sibling() {
+                c = n;
+                r += 1;
+            }
+        }
+        r
     }
 
     pub fn value(&self) -> &'a T {
@@ -138,7 +169,7 @@ impl<'a, T> NodeMut<'a, T> {
         self.id
     }
 
-    pub fn append(self, value: T) -> NodeMut<'a, T> {
+    pub fn push_child(&mut self, value: T) -> NodeMut<T> {
         let index = NodeId::new(self.tree.nodes.len());
 
         let self_node = &mut self.tree.nodes[self.id.get()];
@@ -165,6 +196,18 @@ impl<'a, T> NodeMut<'a, T> {
             tree: self.tree,
             id: index,
         }
+    }
+
+    pub fn push_reuse(&mut self, child: NodeRef<T>, reuse: &mut impl FnMut(&T) -> T) -> NodeMut<T> {
+        let mut clone = self.push_child(reuse(child.value()));
+        if let Some(child) = child.first_child() {
+            clone.push_reuse(child, reuse);
+
+            while let Some(child) = child.next_sibling() {
+                clone.push_reuse(child, reuse);
+            }
+        }
+        clone
     }
 
     pub fn value(&mut self) -> &mut T {

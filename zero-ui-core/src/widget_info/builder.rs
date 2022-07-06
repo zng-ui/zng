@@ -72,7 +72,7 @@ impl WidgetInfoBuilder {
         self.widget_id = id;
         self.node = self
             .node(parent_node)
-            .append(WidgetInfoData {
+            .push_child(WidgetInfoData {
                 widget_id: id,
                 bounds_info,
                 border_info,
@@ -111,22 +111,14 @@ impl WidgetInfoBuilder {
             .find(widget_id)
             .unwrap_or_else(|| panic!("cannot reuse `{:?}`, not found in previous tree", ctx.path));
 
-        Self::clone_append(wgt.node(), &mut self.tree.index_mut(self.node), &mut self.interactivity_filters);
-    }
-    fn clone_append(
-        from: tree::NodeRef<WidgetInfoData>,
-        to: &mut tree::NodeMut<WidgetInfoData>,
-        interactivity_filters: &mut InteractivityFilters,
-    ) {
-        let node = from.value().clone();
-        node.interactivity_cache.set(None);
-        let mut to = to.append(node);
-        for filter in &from.value().interactivity_filters {
-            interactivity_filters.push(filter.clone());
-        }
-        for from in from.children() {
-            Self::clone_append(from, &mut to, interactivity_filters);
-        }
+        self.tree.index_mut(self.node).push_reuse(wgt.node(), &mut |w| {
+            let r = w.clone();
+            r.interactivity_cache.set(None);
+            for filter in &r.interactivity_filters {
+                self.interactivity_filters.push(filter.clone());
+            }
+            r
+        });
     }
 
     /// Add the `interactivity` bits to the current widget's interactivity, it will affect the widget and all descendants.
@@ -157,27 +149,20 @@ impl WidgetInfoBuilder {
         self.node(self.node).value().interactivity_filters.push(filter);
     }
 
-    /// Calls the `info` closure and returns the range of children visited by it.
+    /// Calls the `info` closure and returns the range of children inserted by it.
     pub fn with_children_range(&mut self, info: impl FnOnce(&mut Self)) -> ops::Range<usize> {
-        let before_count = self.tree.index(self.node).children().count();
+        let before_count = self.tree.index(self.node).children_count();
         info(self);
-        before_count..self.tree.index(self.node).children().count()
+        before_count..self.tree.index(self.node).children_count()
     }
 
     /// Build the info tree.
     pub fn finalize(mut self) -> (WidgetInfoTree, UsedWidgetInfoBuilder) {
         self.tree.root_mut().value().meta = Rc::new(self.meta);
-        let root_id = self.tree.root().id();
 
         // we build a WidgetId => NodeId lookup
         //
         // in debug mode we validate that the same WidgetId is not repeated
-        //
-        let valid_nodes = self
-            .tree
-            .nodes()
-            .filter(|n| n.parent().is_some() || n.id() == root_id)
-            .map(|n| (n.value().widget_id, n.id()));
 
         let mut lookup = IdMap::default();
         let mut repeats = IdSet::default();
@@ -190,7 +175,6 @@ impl WidgetInfoBuilder {
         }
 
         let r = WidgetInfoTree(Rc::new(WidgetInfoTreeInner {
-            id: WidgetInfoTreeId::new_unique(),
             window_id: self.window_id,
             lookup,
             tree: self.tree,

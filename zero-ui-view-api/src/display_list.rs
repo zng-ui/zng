@@ -461,7 +461,11 @@ impl DisplayListCache {
         if let Some(l) = self.lists.get(&frame_id) {
             l.used.set(true);
 
-            for item in &l.list[start..end] {
+            let range = l.list.get(start..end).unwrap_or_else(|| {
+                tracing::error!("invalid reuse range ({start}..{end}), ignored");
+                &[]
+            });
+            for item in range {
                 item.to_webrender(wr_list, sc, self);
             }
         } else {

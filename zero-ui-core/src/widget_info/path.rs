@@ -3,7 +3,7 @@ use super::*;
 /// Full address of a widget in a specific [`WidgetInfoTree`].
 #[derive(Clone)]
 pub struct WidgetPath {
-    pub(super) node_id: Option<(WidgetInfoTreeId, tree::NodeId)>,
+    pub(super) node_id: Option<tree::NodeId>,
     window_id: WindowId,
     path: Box<[WidgetId]>,
 }
@@ -41,9 +41,9 @@ impl fmt::Display for WidgetPath {
     }
 }
 impl WidgetPath {
-    pub(super) fn new_internal(window_id: WindowId, path: Box<[WidgetId]>, tree_id: WidgetInfoTreeId, node_id: tree::NodeId) -> Self {
+    pub(super) fn new_internal(window_id: WindowId, path: Box<[WidgetId]>, node_id: tree::NodeId) -> Self {
         Self {
-            node_id: Some((tree_id, node_id)),
+            node_id: Some(node_id),
             window_id,
             path,
         }

@@ -1,7 +1,5 @@
 //! Widget info tree iterators.
 
-use tree::NodeRef;
-
 use super::*;
 
 /// Widget tree filter result.
@@ -32,20 +30,163 @@ impl_from_and_into_var! {
     }
 }
 
+/// Iterator over all children of a widget.
+///
+/// This `struct` is created by the [`children`] and [`self_and_children`] methods in [`WidgetInfo`].
+///
+/// [`children`]: WidgetInfo::children
+/// [`self_and_children`]: WidgetInfo::self_and_children
+pub struct Children<'a> {
+    front_enter: bool,
+    front: Option<WidgetInfo<'a>>,
+
+    back_enter: bool,
+    back: Option<WidgetInfo<'a>>,
+}
+impl<'a> Children<'a> {
+    pub(super) fn new(parent: WidgetInfo<'a>) -> Self {
+        Children {
+            front_enter: true,
+            front: Some(parent),
+
+            back_enter: true,
+            back: Some(parent),
+        }
+    }
+}
+impl<'a> Iterator for Children<'a> {
+    type Item = WidgetInfo<'a>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if let Some(n) = self.front {
+            self.front = if mem::take(&mut self.front_enter) {
+                n.first_child()
+            } else {
+                n.next_sibling()
+            };
+            if self.front == self.back {
+                self.front = None;
+                self.back = None;
+            }
+            Some(n)
+        } else {
+            None
+        }
+    }
+}
+impl<'a> DoubleEndedIterator for Children<'a> {
+    fn next_back(&mut self) -> Option<Self::Item> {
+        if let Some(n) = self.back {
+            self.back = if mem::take(&mut self.back_enter) {
+                n.last_child()
+            } else {
+                n.prev_sibling()
+            };
+            if self.front == self.back {
+                self.front = None;
+                self.back = None;
+            }
+            Some(n)
+        } else {
+            None
+        }
+    }
+}
+
+/// Iterator over all next siblings of a widget.
+///
+/// This `struct` is created by the [`prev_siblings`] and [`self_and_prev_siblings`] methods in [`WidgetInfo`].
+///
+/// [`prev_siblings`]: WidgetInfo::prev_siblings
+/// [`self_and_prev_siblings`]: WidgetInfo::self_and_prev_siblings
+pub struct PrevSiblings<'a> {
+    node: Option<WidgetInfo<'a>>,
+}
+impl<'a> PrevSiblings<'a> {
+    pub(super) fn new(node: WidgetInfo<'a>) -> Self {
+        Self { node: Some(node) }
+    }
+}
+impl<'a> Iterator for PrevSiblings<'a> {
+    type Item = WidgetInfo<'a>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if let Some(n) = self.node {
+            self.node = n.prev_sibling();
+            Some(n)
+        } else {
+            None
+        }
+    }
+}
+
+/// Iterator over all next siblings of a widget.
+///
+/// This `struct` is created by the [`next_siblings`] and [`self_and_next_siblings`] methods in [`WidgetInfo`].
+///
+/// [`next_siblings`]: WidgetInfo::next_siblings
+/// [`self_and_next_siblings`]: WidgetInfo::self_and_next_siblings
+pub struct NextSiblings<'a> {
+    node: Option<WidgetInfo<'a>>,
+}
+impl<'a> NextSiblings<'a> {
+    pub(super) fn new(node: WidgetInfo<'a>) -> Self {
+        Self { node: Some(node) }
+    }
+}
+impl<'a> Iterator for NextSiblings<'a> {
+    type Item = WidgetInfo<'a>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if let Some(n) = self.node {
+            self.node = n.next_sibling();
+            Some(n)
+        } else {
+            None
+        }
+    }
+}
+
+/// Iterator over all ancestors of a widget.
+///
+/// This `struct` is created by the [`ancestors`] and [`self_and_ancestors`] methods in [`WidgetInfo`].
+///
+/// [`ancestors`]: WidgetInfo::ancestors
+/// [`self_and_ancestors`]: WidgetInfo::self_and_ancestors
+pub struct Ancestors<'a> {
+    node: Option<WidgetInfo<'a>>,
+}
+impl<'a> Ancestors<'a> {
+    pub(super) fn new(node: WidgetInfo<'a>) -> Self {
+        Ancestors { node: Some(node) }
+    }
+}
+impl<'a> Iterator for Ancestors<'a> {
+    type Item = WidgetInfo<'a>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if let Some(n) = self.node {
+            self.node = n.parent();
+            Some(n)
+        } else {
+            None
+        }
+    }
+}
+
 /// Iterator over all items in a branch of the widget tree.
 ///
-/// This `struct` is created by the [`descendants`] and [`self_and_descendants`] methods on [`WidgetInfo`].
+/// This `struct` is created by the [`descendants`] and [`self_and_descendants`] methods in [`WidgetInfo`].
 ///
 /// [`descendants`]: WidgetInfo::descendants
 /// [`self_and_descendants`]: WidgetInfo::self_and_descendants
 pub struct Descendants<'a> {
-    tree: &'a WidgetInfoTree,
-    root: NodeRef<'a, WidgetInfoData>,
+    root: WidgetInfo<'a>,
 
-    front: NodeRef<'a, WidgetInfoData>,
+    front: WidgetInfo<'a>,
     front_state: DescendantsState,
 
-    back: NodeRef<'a, WidgetInfoData>,
+    back: WidgetInfo<'a>,
     back_state: DescendantsState,
 
     next_is_prev: bool,
@@ -53,10 +194,10 @@ pub struct Descendants<'a> {
 impl<'a> fmt::Debug for Descendants<'a> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("Descendants")
-            .field("root", &self.root.value().widget_id.to_string())
-            .field("front", &self.front.value().widget_id.to_string())
+            .field("root", &self.root.widget_id().to_string())
+            .field("front", &self.front.widget_id().to_string())
             .field("front_state", &self.front_state)
-            .field("back", &self.back.value().widget_id.to_string())
+            .field("back", &self.back.widget_id().to_string())
             .field("back_state", &self.back_state)
             .field("next_is_prev", &self.next_is_prev)
             .finish_non_exhaustive()
@@ -68,9 +209,8 @@ enum DescendantsState {
     Exit,
 }
 impl<'a> Descendants<'a> {
-    pub(super) fn new(tree: &'a WidgetInfoTree, root: NodeRef<'a, WidgetInfoData>) -> Self {
+    pub(super) fn new(root: WidgetInfo<'a>) -> Self {
         Self {
-            tree,
             root,
             front: root,
             front_state: DescendantsState::Enter,
@@ -80,15 +220,9 @@ impl<'a> Descendants<'a> {
         }
     }
 
-    pub(super) fn new_in(
-        tree: &'a WidgetInfoTree,
-        root: NodeRef<'a, WidgetInfoData>,
-        item: NodeRef<'a, WidgetInfoData>,
-        is_prev: bool,
-    ) -> Self {
+    pub(super) fn new_in(root: WidgetInfo<'a>, item: WidgetInfo<'a>, is_prev: bool) -> Self {
         if is_prev {
             Self {
-                tree,
                 root,
                 front: root,
                 front_state: DescendantsState::Enter,
@@ -98,7 +232,6 @@ impl<'a> Descendants<'a> {
             }
         } else {
             Self {
-                tree,
                 root,
                 front: item,
                 front_state: DescendantsState::Enter,
@@ -109,13 +242,8 @@ impl<'a> Descendants<'a> {
         }
     }
 
-    pub(super) fn new_in_after(
-        tree: &'a WidgetInfoTree,
-        root: NodeRef<'a, WidgetInfoData>,
-        item: NodeRef<'a, WidgetInfoData>,
-        is_prev: bool,
-    ) -> Self {
-        let mut r = Self::new_in(tree, root, item, is_prev);
+    pub(super) fn new_in_after(root: WidgetInfo<'a>, item: WidgetInfo<'a>, is_prev: bool) -> Self {
+        let mut r = Self::new_in(root, item, is_prev);
         if let Some(n) = r.front.next_sibling() {
             r.front = n;
         } else {
@@ -174,7 +302,7 @@ impl<'a> Descendants<'a> {
 
             match self.front_state {
                 DescendantsState::Enter => {
-                    let next = Some(WidgetInfo::new(self.tree, self.front.id()));
+                    let next = Some(self.front);
 
                     if let Some(child) = self.front.first_child() {
                         self.front = child;
@@ -219,7 +347,7 @@ impl<'a> Descendants<'a> {
 
             match self.back_state {
                 DescendantsState::Enter => {
-                    let next = Some(WidgetInfo::new(self.tree, self.back.id()));
+                    let next = Some(self.back);
 
                     if let Some(child) = self.back.last_child() {
                         self.back = child;
@@ -297,10 +425,10 @@ where
             if let Some(wgt) = pull(&mut self.iter) {
                 let mut skip = || {
                     if is_front {
-                        self.iter.front = wgt.node();
+                        self.iter.front = wgt;
                         self.iter.front_state = DescendantsState::Exit;
                     } else {
-                        self.iter.back = wgt.node();
+                        self.iter.back = wgt;
                         self.iter.back_state = DescendantsState::Exit;
                     }
                 };
