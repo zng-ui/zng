@@ -227,9 +227,9 @@ impl WidgetInfoTree {
 
     /// Find the widget with center point nearest of `origin` within the `max_radius`.
     ///
-    /// This method is faster than using sorting the result of [`centered_in_distance`], but is slower if any point in distance is acceptable.
+    /// This method is faster than using sorting the result of [`center_in_distance`], but is slower if any point in distance is acceptable.
     ///
-    /// [`centered_in_distance`]: Self::centered_in_distance
+    /// [`center_in_distance`]: Self::center_in_distance
     pub fn nearest(&self, origin: PxPoint, max_radius: Px) -> Option<WidgetInfo> {
         self.nearest_filtered(origin, max_radius, |_| true)
     }
@@ -1437,9 +1437,9 @@ impl<'a> WidgetInfo<'a> {
 
     /// Find the descendant with center point nearest of `origin` within the `max_radius`.
     ///
-    /// This method is faster than using sorting the result of [`centered_in_distance`], but is slower if any point in distance is acceptable.
+    /// This method is faster than using sorting the result of [`center_in_distance`], but is slower if any point in distance is acceptable.
     ///
-    /// [`centered_in_distance`]: Self::centered_in_distance
+    /// [`center_in_distance`]: Self::center_in_distance
     pub fn nearest(self, origin: PxPoint, max_radius: Px) -> Option<WidgetInfo<'a>> {
         self.tree()
             .nearest_filtered(origin, max_radius, move |w| w.ancestors().any(|a| a == self))

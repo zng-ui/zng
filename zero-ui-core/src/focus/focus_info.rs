@@ -926,10 +926,6 @@ impl<'a> WidgetFocusInfo<'a> {
     }
 
     /// Find the focusable descendant with center point nearest of `origin` within the `max_radius`.
-    ///
-    /// This method is faster than using sorting the result of [`centered_in_distance`], but is slower if any point in distance is acceptable.
-    ///
-    /// [`centered_in_distance`]: Self::centered_in_distance
     pub fn nearest(self, origin: PxPoint, max_radius: Px) -> Option<WidgetFocusInfo<'a>> {
         let cast = |w: WidgetInfo<'a>| w.as_focus_info(self.focus_disabled_widgets());
         self.info.nearest_filtered(origin, max_radius, |w| cast(w).is_focusable()).map(cast)
