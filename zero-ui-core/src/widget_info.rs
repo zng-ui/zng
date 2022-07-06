@@ -10,7 +10,7 @@ use std::{
 use crate::{
     border::ContextBorders,
     context::{InfoContext, LayoutContext, LayoutMetricsSnapshot, OwnedStateMap, StateMap, Updates},
-    crate_util::{IdMap, IdSet},
+    crate_util::IdMap,
     event::EventUpdateArgs,
     handler::WidgetHandler,
     impl_from_and_into_var,

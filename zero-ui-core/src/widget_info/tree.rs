@@ -198,13 +198,18 @@ impl<'a, T> NodeMut<'a, T> {
         }
     }
 
-    pub fn push_reuse(&mut self, child: NodeRef<T>, reuse: &mut impl FnMut(&T) -> T) -> NodeMut<T> {
+    pub fn push_reuse(&mut self, child: NodeRef<T>, reuse: &mut impl FnMut(&T) -> T, inspect: &mut impl FnMut(NodeRef<T>)) -> NodeMut<T> {
         let mut clone = self.push_child(reuse(child.value()));
+        inspect(NodeRef {
+            tree: clone.tree,
+            id: clone.id,
+        });
+
         if let Some(child) = child.first_child() {
-            clone.push_reuse(child, reuse);
+            clone.push_reuse(child, reuse, inspect);
 
             while let Some(child) = child.next_sibling() {
-                clone.push_reuse(child, reuse);
+                clone.push_reuse(child, reuse, inspect);
             }
         }
         clone

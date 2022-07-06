@@ -11,6 +11,7 @@ pub struct WidgetInfoBuilder {
     meta: OwnedStateMap,
 
     tree: Tree<WidgetInfoData>,
+    lookup: IdMap<WidgetId, tree::NodeId>,
     interactivity_filters: InteractivityFilters,
 }
 impl WidgetInfoBuilder {
@@ -35,13 +36,17 @@ impl WidgetInfoBuilder {
             },
             used_data.tree_capacity,
         );
-
+        let mut lookup = IdMap::default();
+        lookup.reserve(used_data.tree_capacity);
         let root_node = tree.root().id();
+        lookup.insert(root_id, root_node);
+
         WidgetInfoBuilder {
             window_id,
             node: root_node,
             tree,
             interactivity_filters: Vec::with_capacity(used_data.interactivity_filters_capacity),
+            lookup,
             meta: OwnedStateMap::new(),
             widget_id: root_id,
         }
@@ -64,6 +69,10 @@ impl WidgetInfoBuilder {
     /// Calls `f` in a new widget context.
     ///
     /// Only call this in widget node implementations.
+    ///
+    /// # Panics
+    ///
+    /// If the `id` was already pushed or reused in this builder.
     pub fn push_widget(&mut self, id: WidgetId, bounds_info: WidgetBoundsInfo, border_info: WidgetBorderInfo, f: impl FnOnce(&mut Self)) {
         let parent_node = self.node;
         let parent_widget_id = self.widget_id;
@@ -83,6 +92,10 @@ impl WidgetInfoBuilder {
             })
             .id();
 
+        if self.lookup.insert(id, self.node).is_some() {
+            panic!("pushed widget `{id:?}` was already pushed or reused");
+        }
+
         f(self);
 
         self.node(self.node).value().meta = Rc::new(mem::replace(&mut self.meta, parent_meta));
@@ -96,6 +109,10 @@ impl WidgetInfoBuilder {
     /// the new info tree.
     ///
     /// Only call this in widget node implementations that monitor the updates requested by their content.
+    ///
+    /// # Panics
+    ///
+    /// If the `ctx.path.widget_id()` was already pushed or reused in this builder.
     ///
     /// [interactivity filters]: Self::push_interactivity_filter
     pub fn push_widget_reuse(&mut self, ctx: &mut InfoContext) {
@@ -111,14 +128,23 @@ impl WidgetInfoBuilder {
             .find(widget_id)
             .unwrap_or_else(|| panic!("cannot reuse `{:?}`, not found in previous tree", ctx.path));
 
-        self.tree.index_mut(self.node).push_reuse(wgt.node(), &mut |w| {
-            let r = w.clone();
-            r.interactivity_cache.set(None);
-            for filter in &r.interactivity_filters {
-                self.interactivity_filters.push(filter.clone());
-            }
-            r
-        });
+        self.tree.index_mut(self.node).push_reuse(
+            wgt.node(),
+            &mut |old_data| {
+                let r = old_data.clone();
+                r.interactivity_cache.set(None);
+                for filter in &r.interactivity_filters {
+                    self.interactivity_filters.push(filter.clone());
+                }
+                r
+            },
+            &mut |new_node| {
+                let wgt_id = new_node.value().widget_id;
+                if self.lookup.insert(wgt_id, new_node.id()).is_some() {
+                    panic!("reused widget `{wgt_id:?}` was already pushed or reused");
+                }
+            },
+        );
     }
 
     /// Add the `interactivity` bits to the current widget's interactivity, it will affect the widget and all descendants.
@@ -161,48 +187,17 @@ impl WidgetInfoBuilder {
         self.tree.root_mut().value().meta = Rc::new(self.meta);
 
         // we build a WidgetId => NodeId lookup
-        //
-        // in debug mode we validate that the same WidgetId is not repeated
-
-        let mut lookup = IdMap::default();
-        let mut repeats = IdSet::default();
-
-        lookup.reserve(self.tree.len());
-        for n in self.tree.nodes() {
-            if lookup.insert(n.value().widget_id, n.id()).is_some() {
-                repeats.insert(n.value().widget_id);
-            }
-        }
 
         let r = WidgetInfoTree(Rc::new(WidgetInfoTreeInner {
             window_id: self.window_id,
-            lookup,
+            lookup: self.lookup,
             tree: self.tree,
             interactivity_filters: self.interactivity_filters,
             inner_bounds_tree: RefCell::new(Rc::new(super::spatial::QuadTree::new())),
         }));
 
-        if !repeats.is_empty() {
-            // Panic if widget ID is seen in more than one place. If we don't panic here we will
-            // probably panic in the view-process due to spatial IDs generated from widget IDs.
-
-            let mut places = String::new();
-            for repeated in repeats {
-                use std::fmt::Write;
-
-                let _ = writeln!(&mut places);
-                for w in r.all_widgets() {
-                    if w.widget_id() == repeated {
-                        let _ = writeln!(&mut places, "    {}", w.path());
-                    }
-                }
-            }
-
-            panic!("repeated widget ID in `{:?}`:\n{places}\n", self.window_id);
-        }
-
         let cap = UsedWidgetInfoBuilder {
-            tree_capacity: r.0.lookup.capacity(),
+            tree_capacity: r.0.tree.len(),
             interactivity_filters_capacity: r.0.interactivity_filters.len(),
         };
 

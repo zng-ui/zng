@@ -259,6 +259,7 @@ pub fn un_splitmix64(z: u64) -> u64 {
 /// Ideal map type for key types generated using [`unique_id!`].
 pub type IdMap<K, V> = HashMap<K, V, BuildHasherDefault<IdHasher>>;
 /// Ideal set type for key types generated using [`unique_id!`].
+#[allow(unused)]
 pub type IdSet<K> = HashSet<K, BuildHasherDefault<IdHasher>>;
 
 /// Entry in [`IdMap`].
