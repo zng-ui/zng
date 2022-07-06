@@ -7,8 +7,6 @@ use std::{
     rc::Rc,
 };
 
-use ego_tree::Tree;
-
 use crate::{
     border::ContextBorders,
     context::{InfoContext, LayoutContext, LayoutMetricsSnapshot, OwnedStateMap, StateMap, Updates},
@@ -22,6 +20,9 @@ use crate::{
     UiNode, Widget, WidgetId,
 };
 
+mod tree;
+use tree::Tree;
+
 mod path;
 pub use path::*;
 
@@ -34,7 +35,7 @@ pub use iter::TreeFilter;
 mod spatial;
 
 unique_id_64! {
-    /// Identifies a [`WidgetInfoTree`] snapshot, can be use for more speedy [`WidgetPath`] resolution.
+    /// Identifies a [`WidgetInfoTree`] snapshot, can be used for more speedy [`WidgetPath`] resolutions.
     struct WidgetInfoTreeId;
 }
 
@@ -65,7 +66,7 @@ struct WidgetInfoTreeInner {
     window_id: WindowId,
     tree: Tree<WidgetInfoData>,
     inner_bounds_tree: RefCell<Rc<spatial::QuadTree>>,
-    lookup: IdMap<WidgetId, ego_tree::NodeId>,
+    lookup: IdMap<WidgetId, tree::NodeId>,
     interactivity_filters: InteractivityFilters,
 }
 impl PartialEq for WidgetInfoTree {
@@ -949,7 +950,7 @@ impl fmt::Debug for WidgetInfoData {
 #[derive(Clone, Copy)]
 pub struct WidgetInfo<'a> {
     tree: &'a WidgetInfoTree,
-    node_id: ego_tree::NodeId,
+    node_id: tree::NodeId,
 }
 impl<'a> PartialEq for WidgetInfo<'a> {
     fn eq(&self, other: &Self) -> bool {
@@ -972,11 +973,11 @@ impl<'a> std::fmt::Debug for WidgetInfo<'a> {
 }
 
 impl<'a> WidgetInfo<'a> {
-    fn new(tree: &'a WidgetInfoTree, node_id: ego_tree::NodeId) -> Self {
+    fn new(tree: &'a WidgetInfoTree, node_id: tree::NodeId) -> Self {
         Self { tree, node_id }
     }
 
-    fn node(&self) -> ego_tree::NodeRef<'a, WidgetInfoData> {
+    fn node(&self) -> tree::NodeRef<'a, WidgetInfoData> {
         unsafe { self.tree.0.tree.get_unchecked(self.node_id) }
     }
 

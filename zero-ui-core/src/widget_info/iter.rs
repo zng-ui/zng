@@ -1,6 +1,6 @@
 //! Widget info tree iterators.
 
-use ego_tree::NodeRef;
+use tree::NodeRef;
 
 use super::*;
 

@@ -1,5 +1,6 @@
 use std::{num::NonZeroU32, rc::Rc};
 
+use super::tree;
 use crate::{crate_util::FxHashSet, units::*};
 
 // The QuadTree is implemented as a grid of 2048px squares that is each an actual quad-tree.
@@ -56,7 +57,7 @@ impl QuadTree {
         self.bounds
     }
 
-    pub(super) fn insert(&mut self, item: ego_tree::NodeId, item_bounds: PxRect) {
+    pub(super) fn insert(&mut self, item: tree::NodeId, item_bounds: PxRect) {
         let item_level = QLevel::from_size(item_bounds.size);
         let item_bounds = item_bounds.to_box2d();
 
@@ -95,14 +96,11 @@ impl QuadTree {
         }
     }
 
-    pub(super) fn quad_query<'a>(self: Rc<Self>, include: impl FnMut(PxBox) -> bool + 'a) -> impl Iterator<Item = ego_tree::NodeId> + 'a {
+    pub(super) fn quad_query<'a>(self: Rc<Self>, include: impl FnMut(PxBox) -> bool + 'a) -> impl Iterator<Item = tree::NodeId> + 'a {
         QuadQueryIter::new(include, self)
     }
 
-    pub(super) fn quad_query_dedup<'a>(
-        self: Rc<Self>,
-        include: impl FnMut(PxBox) -> bool + 'a,
-    ) -> impl Iterator<Item = ego_tree::NodeId> + 'a {
+    pub(super) fn quad_query_dedup<'a>(self: Rc<Self>, include: impl FnMut(PxBox) -> bool + 'a) -> impl Iterator<Item = tree::NodeId> + 'a {
         let mut visited = FxHashSet::default();
         self.quad_query(include).filter(move |n| visited.insert(*n))
     }
@@ -140,14 +138,14 @@ impl QuadRoot {
         }
     }
 
-    fn insert(&mut self, item: ego_tree::NodeId, item_bounds: PxBox, item_level: QLevel) {
+    fn insert(&mut self, item: tree::NodeId, item_bounds: PxBox, item_level: QLevel) {
         let root_bounds = self.root_bounds();
         QuadNode(0).insert(&mut self.storage, root_bounds, item, item_bounds, item_level);
     }
 }
 
 impl QuadNode {
-    fn insert(self, storage: &mut QuadStorage, self_bounds: PxSquare, item: ego_tree::NodeId, item_bounds: PxBox, item_level: QLevel) {
+    fn insert(self, storage: &mut QuadStorage, self_bounds: PxSquare, item: tree::NodeId, item_bounds: PxBox, item_level: QLevel) {
         if let Some(q) = self_bounds.split() {
             let q_level = QLevel::from_length(q[0].length);
             if q_level >= item_level {
@@ -228,7 +226,7 @@ impl QuadStorage {
         }
     }
 
-    fn push_item(&mut self, node: u32, item: ego_tree::NodeId) {
+    fn push_item(&mut self, node: u32, item: tree::NodeId) {
         let item_i = NonZeroU32::new(self.items.len() as u32 + 1);
         self.items.push(QuadItemData { item, next: None });
 
@@ -249,7 +247,7 @@ struct QuadNodeData {
     items: Option<NonZeroU32>,
 }
 struct QuadItemData {
-    item: ego_tree::NodeId,
+    item: tree::NodeId,
     next: Option<NonZeroU32>,
 }
 
@@ -282,7 +280,7 @@ impl<Q: FnMut(PxBox) -> bool> QuadQueryIter<Q> {
     }
 }
 impl<Q: FnMut(PxBox) -> bool> Iterator for QuadQueryIter<Q> {
-    type Item = ego_tree::NodeId;
+    type Item = tree::NodeId;
 
     fn next(&mut self) -> Option<Self::Item> {
         if let Some(i) = self.item {

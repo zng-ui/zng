@@ -6,7 +6,7 @@ use super::*;
 pub struct WidgetInfoBuilder {
     window_id: WindowId,
 
-    node: ego_tree::NodeId,
+    node: tree::NodeId,
     widget_id: WidgetId,
     meta: OwnedStateMap,
 
@@ -47,8 +47,8 @@ impl WidgetInfoBuilder {
         }
     }
 
-    fn node(&mut self, id: ego_tree::NodeId) -> ego_tree::NodeMut<WidgetInfoData> {
-        self.tree.get_mut(id).unwrap()
+    fn node(&mut self, id: tree::NodeId) -> tree::NodeMut<WidgetInfoData> {
+        self.tree.index_mut(id)
     }
 
     /// Current widget id.
@@ -111,15 +111,11 @@ impl WidgetInfoBuilder {
             .find(widget_id)
             .unwrap_or_else(|| panic!("cannot reuse `{:?}`, not found in previous tree", ctx.path));
 
-        Self::clone_append(
-            wgt.node(),
-            &mut self.tree.get_mut(self.node).unwrap(),
-            &mut self.interactivity_filters,
-        );
+        Self::clone_append(wgt.node(), &mut self.tree.index_mut(self.node), &mut self.interactivity_filters);
     }
     fn clone_append(
-        from: ego_tree::NodeRef<WidgetInfoData>,
-        to: &mut ego_tree::NodeMut<WidgetInfoData>,
+        from: tree::NodeRef<WidgetInfoData>,
+        to: &mut tree::NodeMut<WidgetInfoData>,
         interactivity_filters: &mut InteractivityFilters,
     ) {
         let node = from.value().clone();
@@ -163,9 +159,9 @@ impl WidgetInfoBuilder {
 
     /// Calls the `info` closure and returns the range of children visited by it.
     pub fn with_children_range(&mut self, info: impl FnOnce(&mut Self)) -> ops::Range<usize> {
-        let before_count = self.tree.get(self.node).unwrap().children().count();
+        let before_count = self.tree.index(self.node).children().count();
         info(self);
-        before_count..self.tree.get(self.node).unwrap().children().count()
+        before_count..self.tree.index(self.node).children().count()
     }
 
     /// Build the info tree.
@@ -186,10 +182,10 @@ impl WidgetInfoBuilder {
         let mut lookup = IdMap::default();
         let mut repeats = IdSet::default();
 
-        lookup.reserve(self.tree.nodes().len());
-        for (w, n) in valid_nodes.clone() {
-            if lookup.insert(w, n).is_some() {
-                repeats.insert(w);
+        lookup.reserve(self.tree.len());
+        for n in self.tree.nodes() {
+            if lookup.insert(n.value().widget_id, n.id()).is_some() {
+                repeats.insert(n.value().widget_id);
             }
         }
 
