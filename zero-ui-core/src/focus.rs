@@ -94,7 +94,7 @@ use crate::{
     event::*,
     mouse::MouseInputEvent,
     service::Service,
-    units::{PxPoint, PxRect, TimeUnits},
+    units::{PxPoint, PxRect, TimeUnits, Px},
     var::{var, RcVar, ReadOnlyRcVar, Var, Vars},
     widget_info::{InteractionPath, WidgetBoundsInfo, WidgetInfoTree},
     window::{WidgetInfoChangedEvent, WindowFocusChangedEvent, WindowId, Windows},
@@ -767,7 +767,7 @@ impl Focus {
         self.focus(FocusRequest::prev(self.is_highlighting));
     }
 
-    /// Focus the closest upward widget from the current focus.
+    /// Focus the nearest upward widget from the current focus.
     ///
     /// Does nothing if no widget is focused. Continues highlighting the new focus if the current is highlighted.
     ///
@@ -776,7 +776,7 @@ impl Focus {
         self.focus(FocusRequest::up(self.is_highlighting));
     }
 
-    /// Focus the closest widget to the right of the current focus.
+    /// Focus the nearest widget to the right of the current focus.
     ///
     /// Does nothing if no widget is focused. Continues highlighting the new focus if the current is highlighted.
     ///
@@ -785,7 +785,7 @@ impl Focus {
         self.focus(FocusRequest::right(self.is_highlighting));
     }
 
-    /// Focus the closest downward widget from the current focus.
+    /// Focus the nearest downward widget from the current focus.
     ///
     /// Does nothing if no widget is focused. Continues highlighting the new focus if the current is highlighted.
     ///
@@ -794,7 +794,7 @@ impl Focus {
         self.focus(FocusRequest::down(self.is_highlighting));
     }
 
-    /// Focus the closest widget to the left of the current focus.
+    /// Focus the nearest widget to the left of the current focus.
     ///
     /// Does nothing if no widget is focused. Continues highlighting the new focus if the current is highlighted.
     ///
@@ -913,8 +913,8 @@ impl Focus {
                     } else {
                         // widget no longer focusable
                         if let Some(parent) = widget.parent() {
-                            // move to closest inside focusable parent, or parent
-                            let new_focus = parent.closest_descendant(focused.center).unwrap_or(parent);
+                            // move to nearest inside focusable parent, or parent
+                            let new_focus = parent.nearest(focused.center, Px::MAX).unwrap_or(parent);
                             self.enabled_nav = new_focus.enabled_nav();
                             return self.move_focus(
                                 vars,
@@ -931,8 +931,8 @@ impl Focus {
                     // widget not found, move to focusable known parent
                     for &parent in focused.path.ancestors().iter().rev() {
                         if let Some(parent) = info.find(parent).and_then(|w| w.as_focusable(self.focus_disabled_widgets)) {
-                            // move to closest inside focusable parent, or parent
-                            let new_focus = parent.closest_descendant(focused.center).unwrap_or(parent);
+                            // move to nearest inside focusable parent, or parent
+                            let new_focus = parent.nearest(focused.center, Px::MAX).unwrap_or(parent);
                             self.enabled_nav = new_focus.enabled_nav();
                             return self.move_focus(
                                 vars,
