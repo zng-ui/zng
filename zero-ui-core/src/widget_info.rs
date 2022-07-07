@@ -1275,7 +1275,7 @@ impl<'a> WidgetInfo<'a> {
     }
 
     /// Count of [`children`].
-    /// 
+    ///
     /// [`children`]: Self::children
     pub fn children_count(self) -> usize {
         self.node().children_count()
@@ -1295,7 +1295,7 @@ impl<'a> WidgetInfo<'a> {
     }
 
     /// Count of [`descendants`].
-    /// 
+    ///
     /// [`descendants`]: Self::descendants
     pub fn descendants_count(self) -> usize {
         self.node().descendants_range().len()

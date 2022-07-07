@@ -1,13 +1,17 @@
-use std::{fs, path::PathBuf};
+use std::{fs, io::Write, path::PathBuf};
 
 use tracing::{Level, Subscriber};
 use tracing_subscriber::{layer::Layer, prelude::*};
 
 pub use profile_util::*;
 
-/// Prints `tracing` and `log` events of levels INFO, WARN and ERROR.
+/// Prints `tracing` and `log` events of levels INFO, WARN and ERROR in debug builds, logs errors to `example_name.error.log` in release builds.
 pub fn print_info() {
-    tracing_print(Level::INFO)
+    if cfg!(debug_assertions) {
+        tracing_print(Level::INFO)
+    } else {
+        tracing_error(Level::INFO)
+    }
 }
 
 /// Prints `tracing` and `log` events of all levels.
@@ -20,6 +24,39 @@ fn tracing_print(max: Level) {
         .with(FilterLayer(max))
         .with(tracing_subscriber::fmt::layer().without_time())
         .init();
+}
+
+fn tracing_error(max: Level) {
+    tracing_subscriber::registry()
+        .with(FilterLayer(max))
+        .with(tracing_subscriber::fmt::layer().with_ansi(false).with_writer(ErrorLogFile::default))
+        .init();
+}
+
+#[derive(Default)]
+struct ErrorLogFile(Option<std::fs::File>);
+impl ErrorLogFile {
+    fn open(&mut self) -> std::io::Result<&mut std::fs::File> {
+        if self.0.is_none() {
+            let mut file = std::env::current_exe()?;
+            file.set_extension(".error.log");
+            let file = std::fs::File::options().create(true).write(true).open(file)?;
+            self.0 = Some(file);
+        }
+        Ok(self.0.as_mut().unwrap())
+    }
+}
+impl Write for ErrorLogFile {
+    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+        self.open()?.write(buf)
+    }
+
+    fn flush(&mut self) -> std::io::Result<()> {
+        if let Some(f) = self.0.as_mut() {
+            f.flush()?;
+        }
+        Ok(())
+    }
 }
 
 struct FilterLayer(Level);
