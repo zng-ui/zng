@@ -5,12 +5,12 @@ use tracing_subscriber::{layer::Layer, prelude::*};
 
 pub use profile_util::*;
 
-/// Prints `tracing` and `log` events of levels INFO, WARN and ERROR in debug builds, logs errors to `example_name.error.log` in release builds.
+/// Prints `tracing` and `log` events of levels INFO, WARN and ERROR in debug builds, logs to `example_name.error.log` in release builds.
 pub fn print_info() {
     if cfg!(debug_assertions) {
         tracing_print(Level::INFO)
     } else {
-        tracing_error(Level::INFO)
+        tracing_write(Level::ERROR)
     }
 }
 
@@ -26,7 +26,7 @@ fn tracing_print(max: Level) {
         .init();
 }
 
-fn tracing_error(max: Level) {
+fn tracing_write(max: Level) {
     tracing_subscriber::registry()
         .with(FilterLayer(max))
         .with(tracing_subscriber::fmt::layer().with_ansi(false).with_writer(ErrorLogFile::default))
@@ -38,8 +38,15 @@ struct ErrorLogFile(Option<std::fs::File>);
 impl ErrorLogFile {
     fn open(&mut self) -> std::io::Result<&mut std::fs::File> {
         if self.0.is_none() {
-            let mut file = std::env::current_exe()?;
+            let exe = std::env::current_exe()?;
+            let mut i = 0;
+            let mut file = exe.clone();
             file.set_extension(".error.log");
+            while file.exists() {
+                i += 1;
+                file = exe.clone();
+                file.set_extension(format!(".error.{i}.log"));
+            }
             let file = std::fs::File::options().create(true).write(true).open(file)?;
             self.0 = Some(file);
         }
