@@ -3,7 +3,9 @@
 use std::{
     borrow::Cow,
     cell::{Cell, RefCell},
-    fmt, mem, ops,
+    fmt,
+    marker::PhantomData,
+    mem, ops,
     rc::Rc,
 };
 
@@ -1272,6 +1274,13 @@ impl<'a> WidgetInfo<'a> {
         r
     }
 
+    /// Count of [`children`].
+    /// 
+    /// [`children`]: Self::children
+    pub fn children_count(self) -> usize {
+        self.node().children_count()
+    }
+
     /// Iterator over the widget and the direct descendants of the widget.
     pub fn self_and_children(self) -> iter::Children<'a> {
         iter::Children::new(self)
@@ -1285,6 +1294,13 @@ impl<'a> WidgetInfo<'a> {
         d
     }
 
+    /// Count of [`descendants`].
+    /// 
+    /// [`descendants`]: Self::descendants
+    pub fn descendants_count(self) -> usize {
+        self.node().descendants_range().len()
+    }
+
     /// Iterator over the widget and all widgets contained by it.
     pub fn self_and_descendants(self) -> iter::Descendants<'a> {
         iter::Descendants::new(self)
@@ -1295,6 +1311,24 @@ impl<'a> WidgetInfo<'a> {
         let mut r = self.self_and_ancestors();
         r.next();
         r
+    }
+
+    /// Create an object that can check if widgets are descendant of `self` in O(1) time.
+    pub fn descendants_range(self) -> WidgetDescendantsRange<'a> {
+        WidgetDescendantsRange {
+            _tree: PhantomData,
+            range: self.node().descendants_range(),
+        }
+    }
+
+    /// If `self` is an ancestor of `maybe_descendant`.
+    pub fn is_ancestor(self, maybe_descendant: WidgetInfo<'a>) -> bool {
+        maybe_descendant.is_descendant(self)
+    }
+
+    /// If `self` is inside `maybe_ancestor`.
+    pub fn is_descendant(self, maybe_ancestor: WidgetInfo<'a>) -> bool {
+        self.node().is_descendent(maybe_ancestor.node())
     }
 
     /// Iterator over self -> parent -> grandparent -> .. -> root.
@@ -1412,40 +1446,46 @@ impl<'a> WidgetInfo<'a> {
     ///
     /// [`inner_bounds`]: WidgetInfo::inner_bounds
     pub fn intersects(self, area: PxRect) -> impl Iterator<Item = WidgetInfo<'a>> + 'a {
-        self.tree().intersects(area).filter(move |w| w.ancestors().any(|w| w == self))
+        let range = self.descendants_range();
+        self.tree().intersects(area).filter(move |w| range.contains(*w))
     }
 
     /// Spatial iterator over all descendants with [`inner_bounds`] that contains the `point`.
     ///
     /// [`inner_bounds`]: WidgetInfo::inner_bounds
     pub fn contains_point(self, point: PxPoint) -> impl Iterator<Item = WidgetInfo<'a>> + 'a {
-        self.tree().contains_point(point).filter(move |w| w.ancestors().any(|w| w == self))
+        let range = self.descendants_range();
+        self.tree().contains_point(point).filter(move |w| range.contains(*w))
     }
 
     /// Spatial iterator over all descendants with [`inner_bounds`] that fully envelops the `rect`.
     ///
     /// [`inner_bounds`]: WidgetInfo::inner_bounds
     pub fn contains_rect(self, rect: PxRect) -> impl Iterator<Item = WidgetInfo<'a>> + 'a {
-        self.tree().contains_rect(rect).filter(move |w| w.ancestors().any(|w| w == self))
+        let range = self.descendants_range();
+        self.tree().contains_rect(rect).filter(move |w| range.contains(*w))
     }
 
     /// Spatial iterator over all descendants with [`inner_bounds`] fully inside the `area`.
     ///
     /// [`inner_bounds`]: WidgetInfo::inner_bounds
     pub fn contained(self, area: PxRect) -> impl Iterator<Item = WidgetInfo<'a>> + 'a {
-        self.tree().contained(area).filter(move |w| w.ancestors().any(|w| w == self))
+        let range = self.descendants_range();
+        self.tree().contained(area).filter(move |w| range.contains(*w))
     }
 
     /// Spatial iterator over all descendants with center point inside the `area`.
     pub fn center_contained(self, area: PxRect) -> impl Iterator<Item = WidgetInfo<'a>> + 'a {
-        self.tree().center_contained(area).filter(move |w| w.ancestors().any(|w| w == self))
+        let range = self.descendants_range();
+        self.tree().center_contained(area).filter(move |w| range.contains(*w))
     }
 
-    /// Spatial iterator over all widgets with center point within the `max_radius` of the `origin`.
+    /// Spatial iterator over all descendants with center point within the `max_radius` of the `origin`.
     pub fn center_in_distance(self, origin: PxPoint, max_radius: Px) -> impl Iterator<Item = WidgetInfo<'a>> + 'a {
+        let range = self.descendants_range();
         self.tree()
             .center_in_distance(origin, max_radius)
-            .filter(move |w| w.ancestors().any(|w| w == self))
+            .filter(move |w| range.contains(*w))
     }
 
     /// Find the descendant with center point nearest of `origin` within the `max_radius`.
@@ -1454,8 +1494,8 @@ impl<'a> WidgetInfo<'a> {
     ///
     /// [`center_in_distance`]: Self::center_in_distance
     pub fn nearest(self, origin: PxPoint, max_radius: Px) -> Option<WidgetInfo<'a>> {
-        self.tree()
-            .nearest_filtered(origin, max_radius, move |w| w.ancestors().any(|a| a == self))
+        let range = self.descendants_range();
+        self.tree().nearest_filtered(origin, max_radius, move |w| range.contains(w))
     }
 
     /// Find the descendant with center point nearest of `origin` within the `max_radius` and approved by the `filter` closure.
@@ -1465,8 +1505,9 @@ impl<'a> WidgetInfo<'a> {
         max_radius: Px,
         mut filter: impl FnMut(WidgetInfo<'a>) -> bool,
     ) -> Option<WidgetInfo<'a>> {
+        let range = self.descendants_range();
         self.tree()
-            .nearest_filtered(origin, max_radius, move |w| w.ancestors().any(|a| a == self) && filter(w))
+            .nearest_filtered(origin, max_radius, move |w| range.contains(w) && filter(w))
     }
 
     /// Find the descendant with center point nearest of `origin` within the `max_radius` and inside `bounds`; and approved by the `filter` closure.
@@ -1477,15 +1518,17 @@ impl<'a> WidgetInfo<'a> {
         bounds: PxRect,
         mut filter: impl FnMut(WidgetInfo<'a>) -> bool,
     ) -> Option<WidgetInfo<'a>> {
+        let range = self.descendants_range();
         self.tree()
-            .nearest_bounded_filtered(origin, max_radius, bounds, move |w| w.ancestors().any(|a| a == self) && filter(w))
+            .nearest_bounded_filtered(origin, max_radius, bounds, move |w| range.contains(w) && filter(w))
     }
 
     /// Spatial iterator over all descendants with center in the direction defined by `orientation` and within the `distance`.
     pub fn oriented(self, origin: PxPoint, distance: Px, orientation: Orientation2D) -> impl Iterator<Item = WidgetInfo<'a>> + 'a {
+        let range = self.descendants_range();
         self.tree()
             .oriented(origin, distance, orientation)
-            .filter(move |w| w.ancestors().any(|w| w == self))
+            .filter(move |w| range.contains(*w))
     }
 
     /// Find the descendant with center point nearest of `origin` within the `max_distance` and with `orientation` to origin.
@@ -1494,8 +1537,9 @@ impl<'a> WidgetInfo<'a> {
     ///
     /// [`oriented`]: Self::oriented
     pub fn nearest_oriented(self, origin: PxPoint, max_distance: Px, orientation: Orientation2D) -> Option<WidgetInfo<'a>> {
+        let range = self.descendants_range();
         self.tree()
-            .nearest_oriented_filtered(origin, max_distance, orientation, move |w| w.ancestors().any(|w| w == self))
+            .nearest_oriented_filtered(origin, max_distance, orientation, move |w| range.contains(w))
     }
 
     /// Find the descendant with center point nearest of `origin` within the `max_distance` and with `orientation` to origin,
@@ -1511,9 +1555,9 @@ impl<'a> WidgetInfo<'a> {
         orientation: Orientation2D,
         mut filter: impl FnMut(WidgetInfo<'a>) -> bool,
     ) -> Option<WidgetInfo<'a>> {
-        self.tree().nearest_oriented_filtered(origin, max_distance, orientation, move |w| {
-            w.ancestors().any(|w| w == self) && filter(w)
-        })
+        let range = self.descendants_range();
+        self.tree()
+            .nearest_oriented_filtered(origin, max_distance, orientation, move |w| range.contains(w) && filter(w))
     }
 }
 
@@ -2002,5 +2046,27 @@ impl_from_and_into_var! {
     /// * `false` -> `Collapsed`
     fn from(visible: bool) -> Visibility {
         if visible { Visibility::Visible } else { Visibility::Collapsed }
+    }
+}
+
+/// Represents the descendants of a widget, allows checking if widgets are descendant with O(1) time.
+#[derive(Clone, PartialEq, Eq)]
+pub struct WidgetDescendantsRange<'a> {
+    _tree: PhantomData<&'a WidgetInfoTree>,
+    range: std::ops::Range<usize>,
+}
+impl<'a> WidgetDescendantsRange<'a> {
+    /// If the widget is a descendant.
+    pub fn contains(&self, wgt: WidgetInfo<'a>) -> bool {
+        self.range.contains(&wgt.node_id.get())
+    }
+}
+impl<'a> Default for WidgetDescendantsRange<'a> {
+    /// Empty range.
+    fn default() -> Self {
+        Self {
+            _tree: PhantomData,
+            range: 0..0,
+        }
     }
 }

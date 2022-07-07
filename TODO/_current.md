@@ -1,7 +1,3 @@
-* Try to optimize logical tree node representation, we build the tree in a way that should let us check if a widget belongs to an ancestor only
-  by knowing the ancestor index and its descendant count.
-
-
 * Implement quad-tree updating.
    - Do update after the frame is send, not in finalize.
    - Maybe we can separate widgets that move a lot to a "dynamic" list, instead of rebuilding the quad-tree.

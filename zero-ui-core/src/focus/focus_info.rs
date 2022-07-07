@@ -645,7 +645,7 @@ impl<'a> WidgetFocusInfo<'a> {
                     .and_then(|path| self.info.tree().get(path))
                     .and_then(|w| w.as_focusable(self.focus_disabled_widgets()))
                     .and_then(|f| {
-                        if f.ancestors().any(|a| a == self) {
+                        if f.info.is_descendant(self.info) {
                             Some(f) // valid last focused
                         } else {
                             None
@@ -1023,7 +1023,7 @@ impl<'a> WidgetFocusInfo<'a> {
             return scope.oriented(origin, Px::MAX, orientation).find(|f| filter(*f));
         }
 
-        let parent_id = self.parent().map(|w| w.info.widget_id()).unwrap_or_else(|| self_id);
+        let parent_range = self.parent().map(|w| w.info.descendants_range()).unwrap_or_default();
 
         let mut ancestor_dist = DistanceKey::NONE_MAX;
         let mut ancestor = None;
@@ -1034,14 +1034,13 @@ impl<'a> WidgetFocusInfo<'a> {
 
         for w in scope.oriented(origin, Px::MAX, orientation) {
             if filter(w) {
-                let candidate_id = w.info.widget_id();
                 let dist = w.info.distance_key(origin);
 
                 let mut is_ancestor = None;
-                let mut is_ancestor = || *is_ancestor.get_or_insert_with(|| self.ancestors().any(|a| a.info.widget_id() == candidate_id));
+                let mut is_ancestor = || *is_ancestor.get_or_insert_with(|| w.info.is_ancestor(self.info));
 
                 let mut is_sibling = None;
-                let mut is_sibing = || *is_sibling.get_or_insert_with(|| w.ancestors().any(|a| a.info.widget_id() == parent_id));
+                let mut is_sibing = || *is_sibling.get_or_insert_with(|| parent_range.contains(w.info));
 
                 if dist <= ancestor_dist && is_ancestor() {
                     ancestor_dist = dist;

@@ -1,7 +1,7 @@
 use std::{fmt, num::NonZeroU32};
 
 #[repr(transparent)]
-#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub(super) struct NodeId(NonZeroU32);
 assert_non_null!(NodeId);
 impl NodeId {
@@ -11,7 +11,7 @@ impl NodeId {
         Self(unsafe { NonZeroU32::new_unchecked((i + 1) as u32) })
     }
 
-    fn get(self) -> usize {
+    pub fn get(self) -> usize {
         (self.0.get() - 1) as usize
     }
 }
@@ -168,6 +168,55 @@ impl<'a, T> NodeRef<'a, T> {
             }
         }
         r
+    }
+
+    pub fn descendants_range(self) -> std::ops::Range<usize> {
+        let start = self.id.get() + 1;
+        if let Some(next) = self.next_sibling() {
+            // descendants are only pushed directly after ancestors.
+            let end = next.id.get();
+            start..end
+        } else {
+            let mut p = self;
+            while let Some(n) = p.parent() {
+                if let Some(next) = n.next_sibling() {
+                    let end = next.id.get();
+                    return start..end;
+                }
+                p = n;
+            }
+
+            start..self.tree.len()
+        }
+    }
+
+    pub fn is_descendent(self, maybe_ancestor: NodeRef<'a, T>) -> bool {
+        let start = maybe_ancestor.id.get() + 1;
+
+        let search_id = self.id.get();
+
+        if search_id <= start {
+            return false;
+        }
+
+        if let Some(next) = maybe_ancestor.next_sibling() {
+            let end = next.id.get();
+
+            return search_id < end;
+        }
+
+        let mut p = maybe_ancestor;
+        while let Some(n) = p.parent() {
+            if let Some(next) = n.next_sibling() {
+                let end = next.id.get();
+
+                return search_id < end;
+            }
+            p = n;
+        }
+
+        // tree.len
+        true
     }
 
     pub fn value(&self) -> &'a T {

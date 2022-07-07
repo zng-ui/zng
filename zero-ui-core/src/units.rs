@@ -176,8 +176,8 @@ impl DistanceKey {
 
     /// New distance key computed from two points.
     pub fn from_points(a: PxPoint, b: PxPoint) -> Self {
-        let pa = ((a.x - b.x).0.abs() as u64).pow(2);
-        let pb = ((a.y - b.y).0.abs() as u64).pow(2);
+        let pa = ((a.x - b.x).0.unsigned_abs() as u64).pow(2);
+        let pb = ((a.y - b.y).0.unsigned_abs() as u64).pow(2);
 
         Self((pa + pb) + 1)
     }
@@ -188,7 +188,7 @@ impl DistanceKey {
     ///
     /// [`from_points`]: Self::from_points
     pub fn from_distance(d: Px) -> Self {
-        let p = (d.0.abs() as u64).pow(2);
+        let p = (d.0.unsigned_abs() as u64).pow(2);
         Self(p + 1)
     }
 
