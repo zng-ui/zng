@@ -378,4 +378,10 @@ mod tests {
         assert_eq!(turn, AngleTurn::from(grad));
         assert_eq!(turn, AngleTurn::from(deg));
     }
+
+    #[test]
+    fn distance_bounds() {
+        assert_eq!(DistanceKey::MAX.distance(), Some(Px::MAX));
+        assert_eq!(DistanceKey::MIN.distance(), Some(Px(0)));
+    }
 }
