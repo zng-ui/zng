@@ -223,6 +223,7 @@ impl Controller {
                     .env(SERVER_NAME_VAR, init.name())
                     .env(MODE_VAR, if headless { "headless" } else { "headed" })
                     .env("RUST_BACKTRACE", "full")
+                    .stdin_null()
                     .stdout_capture()
                     .stderr_capture()
                     .unchecked()

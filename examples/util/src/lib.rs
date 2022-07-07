@@ -1,4 +1,8 @@
-use std::{fs, io::Write, path::PathBuf};
+use std::{
+    fs,
+    io::Write,
+    path::{Path, PathBuf},
+};
 
 use tracing::{Level, Subscriber};
 use tracing_subscriber::{layer::Layer, prelude::*};
@@ -86,4 +90,39 @@ pub fn temp_dir(example: &str) -> PathBuf {
         .join(example);
     fs::create_dir_all(&path).unwrap();
     path.canonicalize().unwrap()
+}
+
+/// Sets a panic hook that writes the panic backtrace to a log file, the panic is also written to std-err.
+pub fn write_panic(log_file: impl AsRef<Path>) {
+    let log_file = log_file.as_ref().to_owned();
+    std::panic::set_hook(Box::new(move |info: &std::panic::PanicInfo| {
+        // see `default_hook` in https://doc.rust-lang.org/src/std/panicking.rs.html#182
+
+        let current_thread = std::thread::current();
+        let name = current_thread.name().unwrap_or("<unnamed>");
+
+        let (file, line, column) = if let Some(l) = info.location() {
+            (l.file(), l.line(), l.column())
+        } else {
+            ("<unknown>", 0, 0)
+        };
+
+        let msg = panic_msg(info.payload());
+
+        let backtrace = backtrace::Backtrace::new();
+
+        let msg = format!("thread '{name}' panicked at '{msg}', {file}:{line}:{column}\n{backtrace:?}");
+        std::fs::write(&log_file, msg).ok();
+
+        std::process::exit(101) // Rust panic exit code.
+    }));
+}
+fn panic_msg(payload: &dyn std::any::Any) -> &str {
+    match payload.downcast_ref::<&'static str>() {
+        Some(s) => *s,
+        None => match payload.downcast_ref::<String>() {
+            Some(s) => &s[..],
+            None => "Box<dyn Any>",
+        },
+    }
 }

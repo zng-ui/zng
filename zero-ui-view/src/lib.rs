@@ -304,7 +304,7 @@ fn panic_hook(info: &std::panic::PanicInfo, details: &str) {
 
     let backtrace = backtrace::Backtrace::new();
 
-    eprintln!("thread '{name}' panicked at '{msg}', {file}:{line}:{column}\n {details}\n{backtrace:?}",);
+    eprintln!("thread '{name}' panicked at '{msg}', {file}:{line}:{column}\n {details}\n{backtrace:?}");
     std::process::exit(101) // Rust panic exit code.
 }
 
