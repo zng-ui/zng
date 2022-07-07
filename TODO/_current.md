@@ -1,8 +1,5 @@
 * Use `nearest_oriented` in `directional_from`.
-* Add a "version" value in the WidgetInfoTree that increments for every render that updates any widget bounds.
-   - Or maybe the last frame-id that updated.
-   - Only update focus enabled_nav if this version changes.
-      - Speedup the alt focus query, it is the slowest now.
+* Speedup the alt focus query, it is the slowest now.
 
 * Rethink spatial partitoning, the quad-tree is a bad fit for the problem:
    - Most widgets are fully contained by the parent bounds.

@@ -191,7 +191,10 @@ impl WidgetInfoBuilder {
             lookup: self.lookup,
             tree: self.tree,
             interactivity_filters: self.interactivity_filters,
-            inner_bounds_tree: RefCell::new(Rc::new(super::spatial::QuadTree::new())),
+            inner_bounds_tree: RefCell::new(Some(Rc::new(spatial::QuadTree::new()))),
+            frame_id: Cell::new(None),
+            last_changed_frame: Cell::new(None),
+            bounds_changed: Cell::new(true),
         }));
 
         let cap = UsedWidgetInfoBuilder {

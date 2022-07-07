@@ -400,7 +400,7 @@ impl FrameBuilder {
                 for info in ctx.info_tree.find(ctx.path.widget_id()).unwrap().self_and_descendants() {
                     let bounds = info.bounds_info();
                     bounds.set_outer_transform(bounds.outer_transform().then(&patch));
-                    bounds.set_inner_transform(bounds.inner_transform().then(&patch));
+                    bounds.set_inner_transform(bounds.inner_transform().then(&patch), ctx.info_tree);
                 }
             }
         }
@@ -594,7 +594,7 @@ impl FrameBuilder {
                 RenderTransform::translation_px(translate)
             };
             self.transform = inner_transform.then(&parent_transform);
-            ctx.widget_info.bounds.set_inner_transform(self.transform);
+            ctx.widget_info.bounds.set_inner_transform(self.transform, ctx.info_tree);
 
             self.display_list.push_reference_frame(
                 SpatialFrameId::widget_id_to_wr(self.widget_id, self.pipeline_id),
@@ -1074,7 +1074,7 @@ impl FrameBuilder {
     /// Finalizes the build.
     pub fn finalize(self, info_tree: &WidgetInfoTree) -> (BuiltFrame, UsedFrameBuilder) {
         info_tree.root().bounds_info().set_rendered(self.widget_rendered);
-        info_tree.after_render();
+        info_tree.after_render(self.frame_id);
 
         let (display_list, capacity) = self.display_list.finalize();
 
@@ -1318,7 +1318,7 @@ impl FrameUpdate {
                     for info in ctx.info_tree.find(ctx.path.widget_id()).unwrap().self_and_descendants() {
                         let bounds = info.bounds_info();
                         bounds.set_outer_transform(bounds.outer_transform().then(&patch));
-                        bounds.set_inner_transform(bounds.inner_transform().then(&patch));
+                        bounds.set_inner_transform(bounds.inner_transform().then(&patch), ctx.info_tree);
                     }
 
                     return; // can reuse and patched.
@@ -1369,7 +1369,7 @@ impl FrameUpdate {
             let parent_transform = self.transform;
 
             self.transform = inner_transform.then(&parent_transform);
-            ctx.widget_info.bounds.set_inner_transform(self.transform);
+            ctx.widget_info.bounds.set_inner_transform(self.transform, ctx.info_tree);
 
             render_update(ctx, self);
             self.transform = parent_transform;
@@ -1393,7 +1393,7 @@ impl FrameUpdate {
     ///
     /// Returns the property updates and the new clear color if any was set.
     pub fn finalize(mut self, info_tree: &WidgetInfoTree) -> (BuiltFrameUpdate, UsedFrameUpdate) {
-        info_tree.after_render_update();
+        info_tree.after_render_update(self.frame_id);
 
         if self.clear_color == Some(self.current_clear_color) {
             self.clear_color = None;

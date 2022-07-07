@@ -16,6 +16,7 @@ use crate::{
     event::EventUpdateArgs,
     handler::WidgetHandler,
     impl_from_and_into_var,
+    render::FrameId,
     units::*,
     var::{Var, VarValue, VarsRead, WithVarsRead},
     window::WindowId,
@@ -61,9 +62,13 @@ pub struct WidgetInfoTree(Rc<WidgetInfoTreeInner>);
 struct WidgetInfoTreeInner {
     window_id: WindowId,
     tree: Tree<WidgetInfoData>,
-    inner_bounds_tree: RefCell<Rc<spatial::QuadTree>>,
+    inner_bounds_tree: RefCell<Option<Rc<spatial::QuadTree>>>,
     lookup: IdMap<WidgetId, tree::NodeId>,
     interactivity_filters: InteractivityFilters,
+
+    frame_id: Cell<Option<FrameId>>,
+    last_changed_frame: Cell<Option<FrameId>>,
+    bounds_changed: Cell<bool>, // temporary, if `true` will set `last_changed_frame`.
 }
 impl PartialEq for WidgetInfoTree {
     fn eq(&self, other: &Self) -> bool {
@@ -92,6 +97,16 @@ impl WidgetInfoTree {
     /// Id of the window that owns all widgets represented in the tree.
     pub fn window_id(&self) -> WindowId {
         self.0.window_id
+    }
+
+    /// Last window frame rendered after this tree was created.
+    pub fn frame_id(&self) -> Option<FrameId> {
+        self.0.frame_id.get()
+    }
+
+    /// Last window frame rendered after this tree updated that caused some widget bounds to change.
+    pub fn last_changed_frame(&self) -> Option<FrameId> {
+        self.0.frame_id.get()
     }
 
     /// Reference to the widget in the tree, if it is present.
@@ -128,12 +143,12 @@ impl WidgetInfoTree {
     /// If the widgets in this tree have been rendered at least once, after the first render the widget bounds info are always up-to-date
     /// and spatial queries can be made on the widgets.
     pub fn is_rendered(&self) -> bool {
-        !self.0.inner_bounds_tree.borrow().is_empty()
+        self.frame_id().is_some()
     }
 
     /// Enveloping bounds of all inner bounds rendered in this tree, visitors outside these bounds never find any widget.
     pub fn spatial_bounds(&self) -> euclid::Box2D<Px, ()> {
-        self.0.inner_bounds_tree.borrow().bounds()
+        self.inner_bounds_tree().bounds()
     }
 
     /// Spatial iterator using the quad-tree generated from widget inner bounds.
@@ -147,10 +162,7 @@ impl WidgetInfoTree {
         &'a self,
         include_quad: impl FnMut(euclid::Box2D<Px, ()>) -> bool + 'a,
     ) -> impl Iterator<Item = WidgetInfo<'a>> + 'a {
-        self.0
-            .inner_bounds_tree
-            .borrow()
-            .clone()
+        self.inner_bounds_tree()
             .quad_query(include_quad)
             .map(move |n| WidgetInfo::new(self, n))
     }
@@ -164,10 +176,7 @@ impl WidgetInfoTree {
         &'a self,
         include_quad: impl FnMut(euclid::Box2D<Px, ()>) -> bool + 'a,
     ) -> impl Iterator<Item = WidgetInfo<'a>> + 'a {
-        self.0
-            .inner_bounds_tree
-            .borrow()
-            .clone()
+        self.inner_bounds_tree()
             .quad_query_dedup(include_quad)
             .map(move |n| WidgetInfo::new(self, n))
     }
@@ -496,19 +505,38 @@ impl WidgetInfoTree {
         nearest
     }
 
-    pub(crate) fn after_render(&self) {
-        let _span = tracing::trace_span!("info_after_render").entered();
-        // let _time = measure_time!("quad-tree rebuild");
+    fn bounds_changed(&self) {
+        self.0.bounds_changed.set(true);
+    }
+
+    fn inner_bounds_tree(&self) -> Rc<spatial::QuadTree> {
+        if let Some(quad_tree) = self.0.inner_bounds_tree.borrow().clone() {
+            return quad_tree;
+        }
+
+        let _span = tracing::trace_span!("quad-tree-build").entered();
 
         let mut quad_tree = spatial::QuadTree::new();
+
         for node in self.0.tree.nodes() {
             quad_tree.insert(node.id(), node.value().bounds_info.inner_bounds());
         }
-        *self.0.inner_bounds_tree.borrow_mut() = Rc::new(quad_tree);
+
+        let quad_tree = Rc::new(quad_tree);
+        *self.0.inner_bounds_tree.borrow_mut() = Some(quad_tree.clone());
+        quad_tree
     }
 
-    pub(crate) fn after_render_update(&self) {
-        self.after_render();
+    pub(crate) fn after_render(&self, frame_id: FrameId) {
+        self.0.frame_id.set(Some(frame_id));
+        if self.0.bounds_changed.take() {
+            self.0.last_changed_frame.set(Some(frame_id));
+            *self.0.inner_bounds_tree.borrow_mut() = None;
+        }
+    }
+
+    pub(crate) fn after_render_update(&self, frame_id: FrameId) {
+        self.after_render(frame_id);
     }
 }
 impl fmt::Debug for WidgetInfoTree {
@@ -592,7 +620,7 @@ impl WidgetBoundsInfo {
             r.set_outer_transform(transform);
         }
         if let Some(transform) = inner_transform {
-            r.set_inner_transform(transform);
+            r.init_inner_transform(transform);
         }
 
         r.set_rendered(true);
@@ -695,7 +723,21 @@ impl WidgetBoundsInfo {
         self.0.outer_transform.set(transform);
     }
 
-    pub(super) fn set_inner_transform(&self, transform: RenderTransform) {
+    pub(super) fn set_inner_transform(&self, transform: RenderTransform, info: &WidgetInfoTree) {
+        let bounds = transform
+            .outer_transformed_px(PxRect::from_size(self.inner_size()))
+            .unwrap_or_default();
+
+        if self.0.inner_bounds.get() != bounds {
+            info.bounds_changed();
+        }
+
+        self.0.inner_bounds.set(bounds);
+        self.0.inner_transform.set(transform);
+    }
+
+    #[cfg(test)]
+    fn init_inner_transform(&self, transform: RenderTransform) {
         let bounds = transform
             .outer_transformed_px(PxRect::from_size(self.inner_size()))
             .unwrap_or_default();

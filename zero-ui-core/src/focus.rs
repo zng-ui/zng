@@ -93,6 +93,7 @@ use crate::{
     crate_util::IdMap,
     event::*,
     mouse::MouseInputEvent,
+    render::FrameId,
     service::Service,
     units::{Px, PxPoint, PxRect, TimeUnits},
     var::{var, RcVar, ReadOnlyRcVar, Var, Vars},
@@ -586,7 +587,7 @@ pub struct Focus {
     is_highlighting_var: RcVar<bool>,
     is_highlighting: bool,
 
-    enabled_nav: FocusNavAction,
+    enabled_nav: (FocusNavAction, FrameId),
 
     pending_window_focus: Option<(WindowId, WidgetId, bool)>,
     pending_highlight: bool,
@@ -614,7 +615,7 @@ impl Focus {
             is_highlighting_var: var(false),
             is_highlighting: false,
 
-            enabled_nav: FocusNavAction::empty(),
+            enabled_nav: (FocusNavAction::empty(), FrameId::INVALID),
 
             pending_window_focus: None,
             pending_highlight: false,
@@ -867,7 +868,7 @@ impl Focus {
                             }
                         } {
                             // found `new_focus`
-                            self.enabled_nav = new_focus.enabled_nav();
+                            self.enabled_nav = new_focus.enabled_nav_with_frame();
                             self.move_focus(
                                 vars,
                                 Some(FocusedInfo::new(new_focus)),
@@ -903,7 +904,7 @@ impl Focus {
                 {
                     if widget.is_focusable() {
                         // :-) probably in the same place, maybe moved inside same window.
-                        self.enabled_nav = widget.enabled_nav();
+                        self.enabled_nav = widget.enabled_nav_with_frame();
                         return self.move_focus(
                             vars,
                             Some(FocusedInfo::new(widget)),
@@ -915,7 +916,7 @@ impl Focus {
                         if let Some(parent) = widget.parent() {
                             // move to nearest inside focusable parent, or parent
                             let new_focus = parent.nearest(focused.center, Px::MAX).unwrap_or(parent);
-                            self.enabled_nav = new_focus.enabled_nav();
+                            self.enabled_nav = new_focus.enabled_nav_with_frame();
                             return self.move_focus(
                                 vars,
                                 Some(FocusedInfo::new(new_focus)),
@@ -933,7 +934,7 @@ impl Focus {
                         if let Some(parent) = info.find(parent).and_then(|w| w.as_focusable(self.focus_disabled_widgets)) {
                             // move to nearest inside focusable parent, or parent
                             let new_focus = parent.nearest(focused.center, Px::MAX).unwrap_or(parent);
-                            self.enabled_nav = new_focus.enabled_nav();
+                            self.enabled_nav = new_focus.enabled_nav_with_frame();
                             return self.move_focus(
                                 vars,
                                 Some(FocusedInfo::new(new_focus)),
@@ -964,7 +965,7 @@ impl Focus {
                 focused,
                 highlight,
                 FocusChangedCause::Recovery,
-                self.enabled_nav,
+                self.enabled_nav.0,
             ))
         } else {
             None
@@ -990,14 +991,14 @@ impl Focus {
             .map(|w| w.as_focus_info(self.focus_disabled_widgets))
         {
             if w.is_focusable() {
-                target = Some((FocusedInfo::new(w), w.enabled_nav()));
+                target = Some((FocusedInfo::new(w), w.enabled_nav_with_frame()));
             } else if fallback_to_childs {
                 if let Some(w) = w.descendants().next() {
-                    target = Some((FocusedInfo::new(w), w.enabled_nav()));
+                    target = Some((FocusedInfo::new(w), w.enabled_nav_with_frame()));
                 }
             } else if fallback_to_parents {
                 if let Some(w) = w.parent() {
-                    target = Some((FocusedInfo::new(w), w.enabled_nav()));
+                    target = Some((FocusedInfo::new(w), w.enabled_nav_with_frame()));
                 }
             }
         }
@@ -1045,7 +1046,7 @@ impl Focus {
                 focused,
                 highlight,
                 FocusChangedCause::Request(request),
-                self.enabled_nav,
+                self.enabled_nav.0,
             ))
         } else {
             None
@@ -1058,16 +1059,16 @@ impl Focus {
             let info = FocusInfoTree::new(info, self.focus_disabled_widgets);
             if let Some(root) = info.focusable_root() {
                 // found focused window and it is focusable.
-                self.enabled_nav = root.enabled_nav();
+                self.enabled_nav = root.enabled_nav_with_frame();
                 self.move_focus(vars, Some(FocusedInfo::new(root)), highlight, FocusChangedCause::Recovery)
             } else {
                 // has focused window but it is not focusable.
-                self.enabled_nav = FocusNavAction::empty();
+                self.enabled_nav = (FocusNavAction::empty(), FrameId::INVALID);
                 self.move_focus(vars, None, false, FocusChangedCause::Recovery)
             }
         } else {
             // no focused window
-            self.enabled_nav = FocusNavAction::empty();
+            self.enabled_nav = (FocusNavAction::empty(), FrameId::INVALID);
             self.move_focus(vars, None, false, FocusChangedCause::Recovery)
         }
     }
@@ -1090,7 +1091,7 @@ impl Focus {
                 new_focus.clone(),
                 self.is_highlighting,
                 cause,
-                self.enabled_nav,
+                self.enabled_nav.0,
             );
             self.focused_var.set(vars, new_focus); // this can happen more than once per update, so we can't use set_ne.
             Some(args)
@@ -1101,7 +1102,7 @@ impl Focus {
                 new_focus,
                 highlight,
                 cause,
-                self.enabled_nav,
+                self.enabled_nav.0,
             ))
         } else {
             None
@@ -1120,7 +1121,7 @@ impl Focus {
                 if let Some(widget) = FocusInfoTree::new(info, self.focus_disabled_widgets).get(&focused.path) {
                     if widget.is_scope() {
                         if let Some(widget) = widget.on_focus_scope_move(|id| self.return_focused.get(&id).map(|p| p.as_path()), reverse) {
-                            self.enabled_nav = widget.enabled_nav();
+                            self.enabled_nav = widget.enabled_nav_with_frame();
                             return self.move_focus(
                                 vars,
                                 Some(FocusedInfo::new(widget)),
@@ -1419,5 +1420,16 @@ impl FocusedInfo {
             bounds_info: focusable.info.bounds_info(),
             center: focusable.info.center(),
         }
+    }
+}
+
+trait EnabledNavWithFrame {
+    fn enabled_nav_with_frame(self) -> (FocusNavAction, FrameId);
+}
+impl<'a> EnabledNavWithFrame for WidgetFocusInfo<'a> {
+    fn enabled_nav_with_frame(self) -> (FocusNavAction, FrameId) {
+        let nav = self.enabled_nav();
+        let frame = self.info.tree().frame_id().unwrap_or(FrameId::INVALID);
+        (nav, frame)
     }
 }
