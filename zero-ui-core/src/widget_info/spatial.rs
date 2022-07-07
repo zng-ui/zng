@@ -283,44 +283,47 @@ impl<Q: FnMut(PxBox) -> bool> Iterator for QuadQueryIter<Q> {
     type Item = tree::NodeId;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if let Some(i) = self.item {
-            // next item.
-            let item = &self.tree.grid[self.cell].storage.items[(i.get() - 1) as usize];
-            self.item = item.next;
-            Some(item.item)
-        } else if let Some((q, q_bounds)) = self.node.next() {
-            // next quad:
-            if (self.query)(q_bounds.to_box()) {
-                let node = &self.tree.grid[self.cell].storage.nodes[q as usize];
-                if node.items.is_some() {
-                    // next quad items.
-                    self.item = node.items;
+        loop {
+            if let Some(i) = self.item {
+                // next item.
+                let item = &self.tree.grid[self.cell].storage.items[(i.get() - 1) as usize];
+                self.item = item.next;
+                return Some(item.item);
+            } else if let Some((q, q_bounds)) = self.node.next() {
+                // next quad:
+                if (self.query)(q_bounds.to_box()) {
+                    let node = &self.tree.grid[self.cell].storage.nodes[q as usize];
+                    if node.items.is_some() {
+                        // next quad items.
+                        self.item = node.items;
+                    }
+                    if node.children.is_some() {
+                        // next inner quad.
+                        self.node_stack.push(self.node.clone());
+                        self.node = self.tree.grid[self.cell].storage.children(q).zip(q_bounds.split().unwrap());
+                    }
                 }
-                if node.children.is_some() {
-                    // next inner quad.
-                    self.node_stack.push(self.node.clone());
-                    self.node = self.tree.grid[self.cell].storage.children(q).zip(q_bounds.split().unwrap());
+
+                continue;
+            } else if let Some(q) = self.node_stack.pop() {
+                // return to parent nodes.
+                self.node = q;
+
+                continue;
+            } else if self.cell < self.tree.grid.len() - 1 || self.cell == usize::MAX {
+                // next quad-tree.
+
+                self.cell = self.cell.wrapping_add(1);
+
+                let r = &self.tree.grid[self.cell];
+                if (self.query)(r.root_bounds().to_box()) {
+                    self.node = r.storage.children(0).zip(r.root_bounds().split().unwrap());
                 }
+
+                continue;
+            } else {
+                return None;
             }
-
-            self.next()
-        } else if let Some(q) = self.node_stack.pop() {
-            // return to parent nodes.
-            self.node = q;
-            self.next()
-        } else if self.cell < self.tree.grid.len() - 1 || self.cell == usize::MAX {
-            // next quad-tree.
-
-            self.cell = self.cell.wrapping_add(1);
-
-            let r = &self.tree.grid[self.cell];
-            if (self.query)(r.root_bounds().to_box()) {
-                self.node = r.storage.children(0).zip(r.root_bounds().split().unwrap());
-            }
-
-            self.next()
-        } else {
-            None
         }
     }
 }
