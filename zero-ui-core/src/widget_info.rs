@@ -106,7 +106,7 @@ impl WidgetInfoTree {
 
     /// Last window frame rendered after this tree updated that caused some widget bounds to change.
     pub fn last_changed_frame(&self) -> Option<FrameId> {
-        self.0.frame_id.get()
+        self.0.last_changed_frame.get()
     }
 
     /// Reference to the widget in the tree, if it is present.

@@ -97,8 +97,8 @@ use crate::{
     service::Service,
     units::{Px, PxPoint, PxRect, TimeUnits},
     var::{var, RcVar, ReadOnlyRcVar, Var, Vars},
-    widget_info::{InteractionPath, WidgetBoundsInfo, WidgetInfoTree},
-    window::{WidgetInfoChangedEvent, WindowFocusChangedEvent, WindowId, Windows},
+    widget_info::{InteractionPath, WidgetBoundsInfo},
+    window::{WindowFocusChangedEvent, WindowId, Windows},
     WidgetId,
 };
 
@@ -384,16 +384,12 @@ event! {
 /// [`ShortcutEvent`]: crate::gesture::ShortcutEvent
 pub struct FocusManager {
     last_keyboard_event: Instant,
-    pending_layout: Option<WidgetInfoTree>,
-    pending_render: Option<WidgetInfoTree>,
     commands: Option<FocusCommands>,
 }
 impl Default for FocusManager {
     fn default() -> Self {
         Self {
             last_keyboard_event: Instant::now() - Duration::from_secs(10),
-            pending_layout: None,
-            pending_render: None,
             commands: None,
         }
     }
@@ -405,50 +401,34 @@ impl AppExtension for FocusManager {
     }
 
     fn event_preview<EV: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {
-        if let Some(args) = WidgetInfoChangedEvent.update(args) {
-            if ctx
-                .services
-                .focus()
-                .focused
-                .as_ref()
-                .map(|f| f.path.window_id() == args.window_id)
-                .unwrap_or_default()
-            {
-                // we need up-to-date visibility and that is affected by both layout and render.
-                // so we delay responding to the event if a render or layout was requested when
-                // the tree was invalidated.
-                if args.pending_render {
-                    self.pending_render = Some(args.tree.clone());
-                    self.pending_layout = None;
-                } else if args.pending_layout {
-                    self.pending_render = None;
-                    self.pending_layout = Some(args.tree.clone());
-                } else {
-                    self.pending_render = None;
-                    self.pending_layout = None;
-                    self.on_info_tree_update(&args.tree, ctx);
+        self.commands.as_mut().unwrap().event_preview(ctx, args);
+    }
+
+    fn render(&mut self, ctx: &mut AppContext) {
+        let (focus, windows) = ctx.services.req_multi::<(Focus, Windows)>();
+        if let Some(f) = &focus.focused {
+            let w_id = f.path.window_id();
+            if let Ok(tree) = windows.widget_tree(w_id) {
+                if tree.last_changed_frame().unwrap_or(FrameId::INVALID) == focus.enabled_nav.1 {
+                    return;
                 }
             }
-        } else {
-            self.commands.as_mut().unwrap().event_preview(ctx, args);
         }
-    }
 
-    fn layout(&mut self, ctx: &mut AppContext) {
-        if let Some(tree) = self.pending_layout.take() {
-            self.on_info_tree_update(&tree, ctx);
-        }
-    }
-    fn render(&mut self, ctx: &mut AppContext) {
-        if let Some(tree) = self.pending_render.take() {
-            self.on_info_tree_update(&tree, ctx);
-        } else {
-            let (focus, windows) = ctx.services.req_multi::<(Focus, Windows)>();
-            focus.update_focused_center();
+        focus.update_focused_center();
 
-            // widgets may have changed visibility.
-            let args = focus.continue_focus(ctx.vars, windows);
-            self.notify(ctx.vars, ctx.events, focus, windows, args);
+        // widgets may have changed visibility.
+        let args = focus.continue_focus(ctx.vars, windows);
+        let w_id = args.as_ref().and_then(|a| a.new_focus.as_ref().map(|p| p.window_id()));
+
+        self.notify(ctx.vars, ctx.events, focus, windows, args);
+
+        // cleanup return focuses.
+        if let Some(w_id) = w_id {
+            let tree = windows.widget_tree(w_id).unwrap();
+            for args in focus.cleanup_returns(ctx.vars, FocusInfoTree::new(tree, focus.focus_disabled_widgets)) {
+                ReturnFocusChangedEvent.notify(ctx.events, args);
+            }
         }
     }
 
@@ -529,20 +509,6 @@ impl FocusManager {
             for return_args in focus.update_returns(vars, prev_focus, windows) {
                 ReturnFocusChangedEvent.notify(events, return_args);
             }
-        }
-    }
-
-    fn on_info_tree_update(&mut self, tree: &WidgetInfoTree, ctx: &mut AppContext) {
-        let (focus, windows) = ctx.services.req_multi::<(Focus, Windows)>();
-        focus.update_focused_center();
-
-        // widget tree rebuilt, check if focus is still valid
-        let args = focus.continue_focus(ctx.vars, windows);
-        self.notify(ctx.vars, ctx.events, focus, windows, args);
-
-        // cleanup return focuses.
-        for args in focus.cleanup_returns(ctx.vars, FocusInfoTree::new(tree, focus.focus_disabled_widgets)) {
-            ReturnFocusChangedEvent.notify(ctx.events, args);
         }
     }
 }
@@ -1429,7 +1395,7 @@ trait EnabledNavWithFrame {
 impl<'a> EnabledNavWithFrame for WidgetFocusInfo<'a> {
     fn enabled_nav_with_frame(self) -> (FocusNavAction, FrameId) {
         let nav = self.enabled_nav();
-        let frame = self.info.tree().frame_id().unwrap_or(FrameId::INVALID);
+        let frame = self.info.tree().last_changed_frame().unwrap_or(FrameId::INVALID);
         (nav, frame)
     }
 }
