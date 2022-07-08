@@ -1009,7 +1009,7 @@ impl<'a> WidgetFocusInfo<'a> {
                 up_to_scope.all(|w| !w.focus_info().skip_directional())
             }
         };
-        
+
         if any {
             return scope.oriented(origin, Px::MAX, orientation).find(|f| filter(*f));
         }

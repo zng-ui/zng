@@ -524,16 +524,12 @@ impl FocusManager {
                 }
             }
 
-            let commands = self.commands.as_mut().unwrap();
-            commands.update_enabled(args.enabled_nav);
-
             let reverse = args.cause.is_prev_request();
             let prev_focus = args.prev_focus.clone();
             FocusChangedEvent.notify(events, args);
 
             // may have focused scope.
             while let Some(after_args) = focus.move_after_focus(vars, windows, reverse) {
-                commands.update_enabled(after_args.enabled_nav);
                 FocusChangedEvent.notify(events, after_args);
             }
 
@@ -541,6 +537,9 @@ impl FocusManager {
                 ReturnFocusChangedEvent.notify(events, return_args);
             }
         }
+
+        let commands = self.commands.as_mut().unwrap();
+        commands.update_enabled(focus.enabled_nav.0);
     }
 }
 
