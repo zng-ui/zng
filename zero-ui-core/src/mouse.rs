@@ -1208,6 +1208,12 @@ impl AppExtension for MouseManager {
                 }
                 mouse.capture_request = None;
                 mouse.release_requested = false;
+                self.click_state = ClickState::None;
+                self.capture_count = 0;
+                self.pressed.clear();
+                self.pos_device = None;
+                self.pos_window = None;
+                self.pos_hits = (FrameId::INVALID, PxPoint::new(Px(-1), Px(-1)), HitTestResult::default());
             }
         }
     }
