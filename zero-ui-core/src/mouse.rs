@@ -67,7 +67,7 @@ event_args! {
         pub window_id: WindowId,
 
         /// Id of device that generated the event.
-        pub device_id: DeviceId,
+        pub device_id: Option<DeviceId>,
 
         /// Which mouse button generated the event.
         pub button: MouseButton,
@@ -1172,6 +1172,23 @@ impl AppExtension for MouseManager {
 
                 if let Some(window_id) = self.pos_window.take() {
                     if let Some(path) = self.hovered.take() {
+                        if mouse.buttons.set_ne(ctx.vars, vec![]) {
+                            for btn in mouse.buttons.get(ctx.vars) {
+                                let args = MouseInputArgs::now(
+                                    window_id,
+                                    None,
+                                    *btn,
+                                    DipPoint::new(Dip::new(-1), Dip::new(-1)),
+                                    ModifiersState::empty(),
+                                    ButtonState::Released,
+                                    FrameHitInfo::no_hits(window_id),
+                                    path.clone(),
+                                    None,
+                                    None,
+                                );
+                                MouseInputEvent.notify(ctx.events, args);
+                            }
+                        }
                         let args = MouseHoverArgs::now(
                             window_id,
                             None,
@@ -1185,10 +1202,12 @@ impl AppExtension for MouseManager {
                         MouseHoveredEvent.notify(ctx.events, args);
                     }
                 }
-                mouse.current_capture = None;
+                if let Some(cap) = mouse.current_capture.take() {
+                    let args = MouseCaptureArgs::now(Some(cap), None);
+                    MouseCaptureEvent.notify(ctx.events, args);
+                }
                 mouse.capture_request = None;
                 mouse.release_requested = false;
-                mouse.buttons.set_ne(ctx.vars, vec![]);
             }
         }
     }

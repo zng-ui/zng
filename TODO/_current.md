@@ -1,7 +1,7 @@
 * Use `nearest_oriented` in `directional_from`.
 * Speedup the alt focus query, it is the slowest now.
 
-* Rethink spatial partitoning, the quad-tree is a bad fit for the problem:
+* Rethink spatial partitioning, the quad-tree is a bad fit for the problem:
    - Most widgets are fully contained by the parent bounds.
    - Most panel widgets can naturally calculate a fixed grid that perfectly fits its content, for all items that are not transformed.
    - We can use a sparse spatial hash map for all widgets that don't fit in the parent.
