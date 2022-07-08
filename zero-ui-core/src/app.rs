@@ -1359,11 +1359,11 @@ impl<E: AppExtension> RunningApp<E> {
         if wait_app_event {
             let idle = tracing::debug_span!("<idle>", ended_by = tracing::field::Empty).entered();
 
-            let timer = if self.view_is_rendering() { None } else { self.loop_timer.poll() };
+            let timer = if self.view_is_busy() { None } else { self.loop_timer.poll() };
             if let Some(time) = timer {
                 match self.receiver.recv_deadline_sp(time) {
                     Ok(ev) => {
-                        idle.record("ended-by", &"event");
+                        idle.record("ended_by", &"event");
                         drop(idle);
                         self.push_coalesce(ev, observer)
                     }
@@ -1409,7 +1409,7 @@ impl<E: AppExtension> RunningApp<E> {
             panic!("app events channel disconnected");
         }
 
-        if self.view_is_rendering() {
+        if self.view_is_busy() {
             return ControlFlow::Wait;
         }
 
@@ -1437,6 +1437,10 @@ impl<E: AppExtension> RunningApp<E> {
         if self.has_pending_updates() {
             self.apply_updates(observer);
             self.apply_update_events(observer);
+        }
+
+        if self.view_is_busy() {
+            return ControlFlow::Wait;
         }
 
         self.finish_frame(observer);
@@ -1528,18 +1532,18 @@ impl<E: AppExtension> RunningApp<E> {
         }
     }
 
-    fn view_is_rendering(&mut self) -> bool {
+    fn view_is_busy(&mut self) -> bool {
         self.owned_ctx
             .borrow()
             .services
             .get::<ViewProcess>()
-            .map(|vp| vp.pending_frames() > 0)
+            .map(|vp| !vp.online() || vp.pending_frames() > 0)
             .unwrap_or(false)
     }
 
     // apply pending layout & render if the view-process is not already rendering.
     fn finish_frame<O: AppEventObserver>(&mut self, observer: &mut O) {
-        debug_assert!(!self.view_is_rendering());
+        debug_assert!(!self.view_is_busy());
 
         while mem::take(&mut self.pending_layout) {
             let _s = tracing::debug_span!("apply_layout").entered();

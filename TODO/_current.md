@@ -22,6 +22,7 @@
 * Icon example, holding ALT+Down for a bit and releasing causes the focus scroll to only go to one row above the focused item.
 * Arrow key scroll in the panorama image is not as smooth as mouse move scroll.
 
-* A frame is generated for the dummy pipeline just after respawn.
+* Press LMB in a button in respawn, press F5, release LMB outside of the window => first click on a button does not work.
+  => Releasing LMB on the same button causes it to click!
 * Integrate frame reuse with frame update, see `Optimizations.md`.
 * Finish state API, see `State.md`.

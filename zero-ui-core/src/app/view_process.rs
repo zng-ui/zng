@@ -98,7 +98,7 @@ impl ViewProcess {
         })))
     }
 
-    /// View-process connected and ready to respond.
+    /// View-process connected and ready.
     pub fn online(&self) -> bool {
         self.0.borrow().process.online()
     }
