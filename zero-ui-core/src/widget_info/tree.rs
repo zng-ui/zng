@@ -44,14 +44,6 @@ impl<T> Tree<T> {
         NodeRef { tree: self, id }
     }
 
-    pub fn get(&self, id: NodeId) -> Option<NodeRef<T>> {
-        if self.nodes.len() < id.get() {
-            Some(NodeRef { tree: self, id })
-        } else {
-            None
-        }
-    }
-
     pub fn index_mut(&mut self, id: NodeId) -> NodeMut<T> {
         #[cfg(debug_assertions)]
         let _ = self.nodes[id.get()];

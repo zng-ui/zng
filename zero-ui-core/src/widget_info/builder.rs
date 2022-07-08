@@ -125,7 +125,7 @@ impl WidgetInfoBuilder {
 
         let wgt = ctx
             .info_tree
-            .find(widget_id)
+            .get(widget_id)
             .unwrap_or_else(|| panic!("cannot reuse `{:?}`, not found in previous tree", ctx.path));
 
         self.tree.index_mut(self.node).push_reuse(
@@ -193,7 +193,7 @@ impl WidgetInfoBuilder {
             interactivity_filters: self.interactivity_filters,
             inner_bounds_tree: RefCell::new(Some(Rc::new(spatial::QuadTree::new()))),
             frame_id: Cell::new(None),
-            last_changed_frame: Cell::new(None),
+            spatial_frame_id: Cell::new(None),
             bounds_changed: Cell::new(true),
         }));
 
@@ -507,7 +507,7 @@ impl WidgetLayout {
         self.known_collapsed = true;
 
         let widget_id = ctx.path.widget_id();
-        if let Some(w) = ctx.info_tree.find(widget_id) {
+        if let Some(w) = ctx.info_tree.get(widget_id) {
             for w in w.self_and_descendants() {
                 let info = w.info();
                 info.bounds_info.set_outer_size(PxSize::zero());
@@ -531,7 +531,7 @@ impl WidgetLayout {
     /// the children that should be visible.
     pub fn collapse_descendants(&mut self, ctx: &mut LayoutContext) {
         let widget_id = ctx.path.widget_id();
-        if let Some(w) = ctx.info_tree.find(widget_id) {
+        if let Some(w) = ctx.info_tree.get(widget_id) {
             for w in w.descendants() {
                 let info = w.info();
                 info.bounds_info.set_outer_size(PxSize::zero());

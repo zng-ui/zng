@@ -1,3 +1,5 @@
+* Directional navigation is disabling when focused is disabled.
+
 * Use `nearest_oriented` in `directional_from`.
 * Speedup the alt focus query, it is the slowest now.
 

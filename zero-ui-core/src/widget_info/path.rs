@@ -1,9 +1,8 @@
 use super::*;
 
-/// Full address of a widget in a specific [`WidgetInfoTree`].
+/// Full address of a widget.
 #[derive(Clone)]
 pub struct WidgetPath {
-    pub(super) node_id: Option<tree::NodeId>,
     window_id: WindowId,
     path: Box<[WidgetId]>,
 }
@@ -41,20 +40,11 @@ impl fmt::Display for WidgetPath {
     }
 }
 impl WidgetPath {
-    pub(super) fn new_internal(window_id: WindowId, path: Box<[WidgetId]>, node_id: tree::NodeId) -> Self {
-        Self {
-            node_id: Some(node_id),
-            window_id,
-            path,
-        }
-    }
-
     /// New custom widget path.
     ///
     /// The path is not guaranteed to have ever existed.
     pub fn new<P: Into<Box<[WidgetId]>>>(window_id: WindowId, path: P) -> WidgetPath {
         WidgetPath {
-            node_id: None,
             window_id,
             path: path.into(),
         }
@@ -92,7 +82,6 @@ impl WidgetPath {
                 Cow::Borrowed(self)
             } else {
                 Cow::Owned(WidgetPath {
-                    node_id: None,
                     window_id: self.window_id,
                     path: self.path[..i].to_vec().into_boxed_slice(),
                 })
@@ -109,7 +98,6 @@ impl WidgetPath {
                 } else {
                     let path = self.path[..i].to_vec().into_boxed_slice();
                     Some(Cow::Owned(WidgetPath {
-                        node_id: None,
                         window_id: self.window_id,
                         path,
                     }))
@@ -130,7 +118,6 @@ impl WidgetPath {
             Cow::Borrowed(self)
         } else {
             Cow::Owned(WidgetPath {
-                node_id: None,
                 window_id: self.window_id,
                 path: Box::new([self.path[0]]),
             })
@@ -326,7 +313,6 @@ impl InteractionPath {
             let blocked = self.blocked - 1;
             Some(InteractionPath {
                 path: WidgetPath {
-                    node_id: None,
                     window_id: self.path.window_id,
                     path: self.path.path[blocked..].to_vec().into_boxed_slice(),
                 },
@@ -349,7 +335,6 @@ impl InteractionPath {
                 return None;
             }
             Some(WidgetPath {
-                node_id: None,
                 window_id: self.path.window_id,
                 path: self.path.path[..enabled_end].to_vec().into_boxed_slice(),
             })
@@ -366,7 +351,6 @@ impl InteractionPath {
             } else {
                 Cow::Owned(InteractionPath {
                     path: WidgetPath {
-                        node_id: None,
                         window_id: self.window_id,
                         path: self.path.path[..i].to_vec().into_boxed_slice(),
                     },
@@ -387,7 +371,6 @@ impl InteractionPath {
                     let path = self.path.path[..i].to_vec().into_boxed_slice();
                     Some(Cow::Owned(InteractionPath {
                         path: WidgetPath {
-                            node_id: None,
                             window_id: self.window_id,
                             path,
                         },
@@ -412,7 +395,6 @@ impl InteractionPath {
         } else {
             Cow::Owned(InteractionPath {
                 path: WidgetPath {
-                    node_id: None,
                     window_id: self.window_id,
                     path: Box::new([self.path.path[0]]),
                 },

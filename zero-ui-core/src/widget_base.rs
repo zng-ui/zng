@@ -736,7 +736,7 @@ fn vis_enabled_eq_state(child: impl UiNode, state: StateVar, expected: bool) -> 
     event_state(child, state, true, WidgetInfoChangedEvent, move |ctx, _| {
         let is_enabled = ctx
             .info_tree
-            .find(ctx.path.widget_id())
+            .get(ctx.path.widget_id())
             .unwrap()
             .interactivity()
             .is_visually_enabled();
@@ -868,7 +868,7 @@ fn visibility_eq_state(child: impl UiNode, state: StateVar, expected: Visibility
         move |ctx, _| {
             let vis = ctx
                 .info_tree
-                .find(ctx.path.widget_id())
+                .get(ctx.path.widget_id())
                 .map(|w| w.visibility())
                 .unwrap_or(Visibility::Visible);
 

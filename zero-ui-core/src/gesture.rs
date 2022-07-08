@@ -877,7 +877,7 @@ impl ShortcutTarget {
         let mut found = self.last_found.borrow_mut();
         if let Some(found) = &mut *found {
             if let Ok(tree) = windows.widget_tree(found.window_id()) {
-                if let Some(w) = tree.get(found) {
+                if let Some(w) = tree.get(found.widget_id()) {
                     let path = w.interaction_path();
                     *found = path.as_path().clone();
 
@@ -887,7 +887,7 @@ impl ShortcutTarget {
         }
 
         for tree in windows.widget_trees() {
-            if let Some(w) = tree.find(self.widget_id) {
+            if let Some(w) = tree.get(self.widget_id) {
                 let path = w.interaction_path();
                 *found = Some(path.as_path().clone());
 
@@ -1173,7 +1173,7 @@ impl ShortcutActions {
                                 cmd_focused_widget = Some(cmd);
                             } else if cmd_not_focused_widget.is_none() {
                                 for tree in windows.widget_trees() {
-                                    if let Some(info) = tree.find(id) {
+                                    if let Some(info) = tree.get(id) {
                                         if info.interactivity().is_enabled() {
                                             cmd_not_focused_widget = Some(cmd);
                                         }

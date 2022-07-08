@@ -97,8 +97,8 @@ use crate::{
     service::Service,
     units::{Px, PxPoint, PxRect, TimeUnits},
     var::{var, RcVar, ReadOnlyRcVar, Var, Vars},
-    widget_info::{InteractionPath, WidgetBoundsInfo},
-    window::{WindowFocusChangedEvent, WindowId, Windows},
+    widget_info::{InteractionPath, WidgetBoundsInfo, WidgetInfoTree},
+    window::{WidgetInfoChangedEvent, WindowFocusChangedEvent, WindowId, Windows},
     WidgetId,
 };
 
@@ -370,7 +370,7 @@ event! {
 ///
 /// This extension requires the [`Windows`] service.
 ///
-/// This extension listens to the [`MouseInputEvent`], [`ShortcutEvent`] and [`WindowFocusChangedEvent`].
+/// This extension listens to the [`MouseInputEvent`], [`ShortcutEvent`] [`WindowFocusChangedEvent`] and [`WidgetInfoChangedEvent`].
 ///
 /// To work properly it should be added to the app after the windows manager extension.
 ///
@@ -384,12 +384,14 @@ event! {
 pub struct FocusManager {
     last_keyboard_event: Instant,
     commands: Option<FocusCommands>,
+    pending_render: Option<WidgetInfoTree>,
 }
 impl Default for FocusManager {
     fn default() -> Self {
         Self {
             last_keyboard_event: Instant::now() - Duration::from_secs(10),
             commands: None,
+            pending_render: None,
         }
     }
 }
@@ -400,33 +402,49 @@ impl AppExtension for FocusManager {
     }
 
     fn event_preview<EV: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {
-        self.commands.as_mut().unwrap().event_preview(ctx, args);
+        if let Some(args) = WidgetInfoChangedEvent.update(args) {
+            if ctx
+                .services
+                .focus()
+                .focused
+                .as_ref()
+                .map(|f| f.path.window_id() == args.window_id)
+                .unwrap_or_default()
+            {
+                // we need up-to-date due to visibility or spatial movement and that is affected by both layout and render.
+                // so we delay responding to the event if a render or layout was requested when the tree was invalidated.
+                if args.pending_render {
+                    self.pending_render = Some(args.tree.clone());
+                } else {
+                    // no visual change, update interactivity changes.
+                    self.pending_render = None;
+                    self.on_info_tree_update(&args.tree, ctx);
+                }
+            }
+        } else {
+            self.commands.as_mut().unwrap().event_preview(ctx, args);
+        }
     }
 
     fn render(&mut self, ctx: &mut AppContext) {
-        let (focus, windows) = ctx.services.req_multi::<(Focus, Windows)>();
-        if let Some(f) = &focus.focused {
-            let w_id = f.path.window_id();
-            if let Ok(tree) = windows.widget_tree(w_id) {
-                if tree.last_changed_frame().unwrap_or(FrameId::INVALID) == focus.enabled_nav.1 {
-                    return;
+        if let Some(tree) = self.pending_render.take() {
+            self.on_info_tree_update(&tree, ctx);
+        } else {
+            // update visibility or enabled commands, they may have changed if the `spatial_frame_id` changed.
+            let (focus, windows) = ctx.services.req_multi::<(Focus, Windows)>();
+            let mut invalidated_cmds_or_focused = None;
+
+            if let Some(f) = &focus.focused {
+                let w_id = f.path.window_id();
+                if let Ok(tree) = windows.widget_tree(w_id) {
+                    if tree.spatial_frame_id().unwrap_or(FrameId::INVALID) != focus.enabled_nav.1 {
+                        invalidated_cmds_or_focused = Some(tree.clone());
+                    }
                 }
             }
-        }
 
-        focus.update_focused_center();
-
-        // widgets may have changed visibility.
-        let args = focus.continue_focus(ctx.vars, windows);
-        let w_id = args.as_ref().and_then(|a| a.new_focus.as_ref().map(|p| p.window_id()));
-
-        self.notify(ctx.vars, ctx.events, focus, windows, args);
-
-        // cleanup return focuses.
-        if let Some(w_id) = w_id {
-            let tree = windows.widget_tree(w_id).unwrap();
-            for args in focus.cleanup_returns(ctx.vars, FocusInfoTree::new(tree, focus.focus_disabled_widgets)) {
-                ReturnFocusChangedEvent.notify(ctx.events, args);
+            if let Some(tree) = invalidated_cmds_or_focused {
+                self.on_info_tree_update(&tree, ctx);
             }
         }
     }
@@ -480,6 +498,20 @@ impl AppExtension for FocusManager {
     }
 }
 impl FocusManager {
+    fn on_info_tree_update(&mut self, tree: &WidgetInfoTree, ctx: &mut AppContext) {
+        let (focus, windows) = ctx.services.req_multi::<(Focus, Windows)>();
+        focus.update_focused_center();
+
+        // widget tree rebuilt or visibility may have changed, check if focus is still valid
+        let args = focus.continue_focus(ctx.vars, windows);
+        self.notify(ctx.vars, ctx.events, focus, windows, args);
+
+        // cleanup return focuses.
+        for args in focus.cleanup_returns(ctx.vars, FocusInfoTree::new(tree, focus.focus_disabled_widgets)) {
+            ReturnFocusChangedEvent.notify(ctx.events, args);
+        }
+    }
+
     fn notify(&mut self, vars: &Vars, events: &mut Events, focus: &mut Focus, windows: &mut Windows, args: Option<FocusChangedArgs>) {
         if let Some(mut args) = args {
             if !args.highlight && args.new_focus.is_some() {
@@ -794,7 +826,7 @@ impl Focus {
             (Some(prev), move_) => {
                 if let Ok(info) = windows.widget_tree(prev.path.window_id()) {
                     let info = FocusInfoTree::new(info, self.focus_disabled_widgets);
-                    if let Some(w) = info.find(prev.path.widget_id()) {
+                    if let Some(w) = info.get(prev.path.widget_id()) {
                         if let Some(new_focus) = match move_ {
                             // tabular
                             FocusTarget::Next => w.next_tab(false),
@@ -864,7 +896,7 @@ impl Focus {
             if let Ok(true) = windows.is_focused(focused.path.window_id()) {
                 let info = windows.widget_tree(focused.path.window_id()).unwrap();
                 if let Some(widget) = info
-                    .find(focused.path.widget_id())
+                    .get(focused.path.widget_id())
                     .map(|w| w.as_focus_info(self.focus_disabled_widgets))
                 {
                     if widget.is_focusable() {
@@ -896,7 +928,7 @@ impl Focus {
                 } else {
                     // widget not found, move to focusable known parent
                     for &parent in focused.path.ancestors().iter().rev() {
-                        if let Some(parent) = info.find(parent).and_then(|w| w.as_focusable(self.focus_disabled_widgets)) {
+                        if let Some(parent) = info.get(parent).and_then(|w| w.as_focusable(self.focus_disabled_widgets)) {
                             // move to nearest inside focusable parent, or parent
                             let new_focus = parent.nearest(focused.center, Px::MAX).unwrap_or(parent);
                             self.enabled_nav = new_focus.enabled_nav_with_frame();
@@ -952,7 +984,7 @@ impl Focus {
         let mut target = None;
         if let Some(w) = windows
             .widget_trees()
-            .find_map(|info| info.find(widget_id))
+            .find_map(|info| info.get(widget_id))
             .map(|w| w.as_focus_info(self.focus_disabled_widgets))
         {
             if w.is_focusable() {
@@ -1083,7 +1115,7 @@ impl Focus {
     fn move_after_focus(&mut self, vars: &Vars, windows: &Windows, reverse: bool) -> Option<FocusChangedArgs> {
         if let Some(focused) = &self.focused {
             if let Some(info) = windows.focused_info() {
-                if let Some(widget) = FocusInfoTree::new(info, self.focus_disabled_widgets).get(&focused.path) {
+                if let Some(widget) = FocusInfoTree::new(info, self.focus_disabled_widgets).get(focused.path.widget_id()) {
                     if widget.is_scope() {
                         if let Some(widget) = widget.on_focus_scope_move(|id| self.return_focused.get(&id).map(|p| p.as_path()), reverse) {
                             self.enabled_nav = widget.enabled_nav_with_frame();
@@ -1126,7 +1158,7 @@ impl Focus {
             // moved inside an ALT.
 
             if let Ok(info) = windows.widget_tree(new_focus.path.window_id()) {
-                if let Some(widget) = FocusInfoTree::new(info, self.focus_disabled_widgets).get(&new_focus.path) {
+                if let Some(widget) = FocusInfoTree::new(info, self.focus_disabled_widgets).get(new_focus.path.widget_id()) {
                     let alt_scope = if widget.is_alt_scope() {
                         Some(widget)
                     } else {
@@ -1159,7 +1191,7 @@ impl Focus {
 
         if let Some(new_focus) = &self.focused {
             if let Ok(info) = windows.widget_tree(new_focus.path.window_id()) {
-                if let Some(widget) = FocusInfoTree::new(info, self.focus_disabled_widgets).get(&new_focus.path) {
+                if let Some(widget) = FocusInfoTree::new(info, self.focus_disabled_widgets).get(new_focus.path.widget_id()) {
                     if widget.scopes().all(|s| !s.is_alt_scope()) {
                         // if not inside ALT, update return for each LastFocused parent scopes.
 
@@ -1211,7 +1243,7 @@ impl Focus {
 
             let mut retain = false;
 
-            if let Some(widget) = info.get(widget_path) {
+            if let Some(widget) = info.get(widget_path.widget_id()) {
                 if let Some(scope) = widget.scopes().find(|s| s.info.widget_id() == scope_id) {
                     if scope.focus_info().scope_on_focus() == FocusScopeOnFocus::LastFocused {
                         retain = true; // retain, widget still exists in same scope and scope still is LastFocused.
@@ -1227,7 +1259,7 @@ impl Focus {
                             *widget_path = path;
                         }
                     }
-                } else if let Some(scope) = info.find(scope_id) {
+                } else if let Some(scope) = info.get(scope_id) {
                     if scope.focus_info().scope_on_focus() == FocusScopeOnFocus::LastFocused {
                         // widget not inside scope anymore, but scope still exists and is valid.
                         if let Some(first) = scope.first_tab_descendant() {
@@ -1263,7 +1295,7 @@ impl Focus {
             }
 
             if !retain {
-                let scope_path = info.find(scope_id).map(|i| i.info.interaction_path());
+                let scope_path = info.get(scope_id).map(|i| i.info.interaction_path());
 
                 if scope_path.is_some() {
                     match self.return_focused_var.entry(scope_id) {
@@ -1294,7 +1326,7 @@ impl Focus {
 
                 retain_alt = false; // will retain only if still valid
 
-                if let Some(widget) = info.get(widget_path) {
+                if let Some(widget) = info.get(widget_path.widget_id()) {
                     if !widget.scopes().any(|s| s.info.widget_id() == scope.widget_id()) {
                         retain_alt = true; // retain, widget still exists outside of the ALT scope.
 
@@ -1373,6 +1405,7 @@ impl Focus {
     }
 }
 
+#[derive(Debug)]
 struct FocusedInfo {
     path: InteractionPath,
     bounds_info: WidgetBoundsInfo,
@@ -1394,7 +1427,7 @@ trait EnabledNavWithFrame {
 impl<'a> EnabledNavWithFrame for WidgetFocusInfo<'a> {
     fn enabled_nav_with_frame(self) -> (FocusNavAction, FrameId) {
         let nav = self.enabled_nav();
-        let frame = self.info.tree().last_changed_frame().unwrap_or(FrameId::INVALID);
+        let frame = self.info.tree().spatial_frame_id().unwrap_or(FrameId::INVALID);
         (nav, frame)
     }
 }

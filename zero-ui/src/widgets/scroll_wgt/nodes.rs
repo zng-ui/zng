@@ -654,7 +654,7 @@ pub fn scroll_to_node(child: impl UiNode) -> impl UiNode {
                 if let Some(path) = &args.new_focus {
                     if path.contains(self_id) && path.widget_id() != self_id {
                         // probable focus move inside.
-                        if let Some(target) = ctx.info_tree.get(path) {
+                        if let Some(target) = ctx.info_tree.get(path.widget_id()) {
                             // target exits
                             if let Some(us) = target.ancestors().find(|w| w.widget_id() == self_id) {
                                 // confirmed, target is descendant
@@ -677,7 +677,7 @@ pub fn scroll_to_node(child: impl UiNode) -> impl UiNode {
                 // event send to us and enabled
                 if let Some(request) = ScrollToRequest::from_args(args) {
                     // has unhandled request
-                    if let Some(target) = ctx.info_tree.find(request.widget_id) {
+                    if let Some(target) = ctx.info_tree.get(request.widget_id) {
                         // target exists
                         if let Some(us) = target.ancestors().find(|w| w.widget_id() == self_id) {
                             // target is descendant
@@ -709,7 +709,7 @@ pub fn scroll_to_node(child: impl UiNode) -> impl UiNode {
             let r = self.child.layout(ctx, wl);
 
             if let Some((bounds, mode)) = self.scroll_to.take() {
-                let us = ctx.info_tree.find(ctx.path.widget_id()).unwrap();
+                let us = ctx.info_tree.get(ctx.path.widget_id()).unwrap();
                 if let Some(viewport_bounds) = us.viewport() {
                     let target_bounds = bounds.inner_bounds();
                     match mode {

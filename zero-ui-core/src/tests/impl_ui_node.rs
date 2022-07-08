@@ -230,7 +230,7 @@ pub fn default_no_child() {
     );
     wgt.test_info(&mut ctx, &mut info);
     let (build_info, _) = info.finalize();
-    let wgt_info = build_info.find(wgt.id()).unwrap();
+    let wgt_info = build_info.get(wgt.id()).unwrap();
     assert!(wgt_info.descendants().next().is_none());
     assert!(wgt_info.meta().is_empty());
 

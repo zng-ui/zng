@@ -141,7 +141,7 @@ impl WindowLayers {
                             let _q = RunOnDrop::new(|| querying.set(false));
                             args.info
                                 .tree()
-                                .find(anchor)
+                                .get(anchor)
                                 .map(|a| a.interactivity())
                                 .unwrap_or(Interactivity::BLOCKED)
                         } else {
@@ -153,7 +153,7 @@ impl WindowLayers {
             }
 
             fn init(&mut self, ctx: &mut WidgetContext) {
-                if let Some(w) = ctx.info_tree.find(self.anchor.copy(ctx.vars)) {
+                if let Some(w) = ctx.info_tree.get(self.anchor.copy(ctx.vars)) {
                     self.anchor_info = Some((w.bounds_info(), w.border_info()));
                 }
 
@@ -172,7 +172,7 @@ impl WindowLayers {
                     if args.window_id == ctx.path.window_id() {
                         self.anchor_info = ctx
                             .info_tree
-                            .find(self.anchor.copy(ctx.vars))
+                            .get(self.anchor.copy(ctx.vars))
                             .map(|w| (w.bounds_info(), w.border_info()));
                     }
                     self.widget.event(ctx, args);
@@ -183,7 +183,7 @@ impl WindowLayers {
 
             fn update(&mut self, ctx: &mut WidgetContext) {
                 if let Some(anchor) = self.anchor.copy_new(ctx) {
-                    self.anchor_info = ctx.info_tree.find(anchor).map(|w| (w.bounds_info(), w.border_info()));
+                    self.anchor_info = ctx.info_tree.get(anchor).map(|w| (w.bounds_info(), w.border_info()));
                     if self.mode.get(ctx).interaction {
                         ctx.updates.info();
                     }

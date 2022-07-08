@@ -743,7 +743,7 @@ impl MouseManager {
 
         let target = hits
             .target()
-            .and_then(|t| frame_info.find(t.widget_id).map(|w| w.interaction_path()))
+            .and_then(|t| frame_info.get(t.widget_id).map(|w| w.interaction_path()))
             .unwrap_or_else(|| frame_info.root().interaction_path());
 
         let target = match target.unblocked() {
@@ -985,7 +985,7 @@ impl MouseManager {
             let hits = FrameHitInfo::new(window_id, hits_res.0, hits_res.1, &hits_res.2);
 
             let target = if let Some(t) = hits.target() {
-                frame_info.find(t.widget_id).map(|w| w.interaction_path()).unwrap_or_else(|| {
+                frame_info.get(t.widget_id).map(|w| w.interaction_path()).unwrap_or_else(|| {
                     tracing::error!("hits target `{}` not found", t.widget_id);
                     frame_info.root().interaction_path()
                 })
@@ -1045,7 +1045,7 @@ impl MouseManager {
 
         let target = hits
             .target()
-            .and_then(|t| frame_info.find(t.widget_id).map(|w| w.interaction_path()))
+            .and_then(|t| frame_info.get(t.widget_id).map(|w| w.interaction_path()))
             .unwrap_or_else(|| frame_info.root().interaction_path());
 
         if let Some(target) = target.unblocked() {
@@ -1119,7 +1119,7 @@ impl AppExtension for MouseManager {
                 let hits = FrameHitInfo::new(args.window_id, args.frame_id, args.cursor_hits.0, &args.cursor_hits.1);
                 let target = hits
                     .target()
-                    .and_then(|t| windows.widget_tree(args.window_id).unwrap().find(t.widget_id))
+                    .and_then(|t| windows.widget_tree(args.window_id).unwrap().get(t.widget_id))
                     .and_then(|w| w.interaction_path().unblocked());
 
                 self.pos_hits = (args.frame_id, args.cursor_hits.0, args.cursor_hits.1.clone());
@@ -1460,7 +1460,7 @@ impl Mouse {
             if let Some((widget_id, mode)) = self.capture_request.take() {
                 if let Ok(true) = windows.is_focused(current_target.window_id()) {
                     // current window pressed
-                    if let Some(widget) = windows.widget_tree(current_target.window_id()).unwrap().find(widget_id) {
+                    if let Some(widget) = windows.widget_tree(current_target.window_id()).unwrap().get(widget_id) {
                         // request valid
                         self.set_capture(widget.interaction_path(), mode, events);
                     }
@@ -1478,7 +1478,7 @@ impl Mouse {
         if let Some((target, mode)) = &self.current_capture {
             if frame.window_id() == target.window_id() {
                 // is a frame from the capturing window.
-                if let Some(widget) = frame.get(target) {
+                if let Some(widget) = frame.get(target.widget_id()) {
                     if let Some(new_path) = widget.new_interaction_path(&InteractionPath::from_enabled(target.clone())) {
                         // widget moved inside window tree.
                         let mode = *mode;

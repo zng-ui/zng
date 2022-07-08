@@ -1218,6 +1218,7 @@ pub fn focus_goes_to_parent_after_remove() {
     assert_eq!(Some(child_id), app.focused());
     app.take_focus_changed();
 
+    println!("!!: JUST BEFORE INTERACTIVE BLOCKED");
     app.set_vars(|vars| {
         interactive.set(vars, false);
     });

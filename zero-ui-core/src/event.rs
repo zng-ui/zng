@@ -439,7 +439,7 @@ impl EventDeliveryList {
             let mut self_windows = self.windows.borrow_mut();
             'search: for wgt in search {
                 for win in windows.widget_trees() {
-                    if let Some(info) = win.find(wgt) {
+                    if let Some(info) = win.get(wgt) {
                         if let Some(w) = self_windows.iter_mut().find(|w| w.id == win.window_id()) {
                             if !w.all {
                                 w.widgets.push(info.path());

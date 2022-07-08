@@ -397,7 +397,7 @@ impl FrameBuilder {
             let patch = undo_prev.then(&outer_transform);
 
             if patch != RenderTransform::identity() {
-                for info in ctx.info_tree.find(ctx.path.widget_id()).unwrap().self_and_descendants() {
+                for info in ctx.info_tree.get(ctx.path.widget_id()).unwrap().self_and_descendants() {
                     let bounds = info.bounds_info();
                     bounds.set_outer_transform(bounds.outer_transform().then(&patch));
                     bounds.set_inner_transform(bounds.inner_transform().then(&patch), ctx.info_tree);
@@ -467,7 +467,7 @@ impl FrameBuilder {
     /// [`Hidden`]: crate::widget_info::Visibility::Hidden
     /// [`Collapsed`]: crate::widget_info::Visibility::Collapsed
     pub fn skip_render(&self, info_tree: &WidgetInfoTree) {
-        if let Some(w) = info_tree.find(self.widget_id) {
+        if let Some(w) = info_tree.get(self.widget_id) {
             w.bounds_info().set_rendered(self.widget_rendered);
             for w in w.descendants() {
                 w.bounds_info().set_rendered(false);
@@ -482,7 +482,7 @@ impl FrameBuilder {
     /// Widgets that control the visibility of their children can call this and then, in the same frame, render
     /// only the children that should be visible.
     pub fn skip_render_descendants(&self, info_tree: &WidgetInfoTree) {
-        if let Some(w) = info_tree.find(self.widget_id) {
+        if let Some(w) = info_tree.get(self.widget_id) {
             w.bounds_info().set_rendered(self.widget_rendered);
             for w in w.descendants() {
                 w.bounds_info().set_rendered(false);
@@ -1315,7 +1315,7 @@ impl FrameUpdate {
                 if let Some(undo_prev) = prev_outer.inverse() {
                     let patch = undo_prev.then(&outer_transform);
 
-                    for info in ctx.info_tree.find(ctx.path.widget_id()).unwrap().self_and_descendants() {
+                    for info in ctx.info_tree.get(ctx.path.widget_id()).unwrap().self_and_descendants() {
                         let bounds = info.bounds_info();
                         bounds.set_outer_transform(bounds.outer_transform().then(&patch));
                         bounds.set_inner_transform(bounds.inner_transform().then(&patch), ctx.info_tree);

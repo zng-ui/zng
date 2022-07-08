@@ -992,8 +992,8 @@ mod tests {
     fn self_and_next_siblings_in() {
         let tree = data_nested();
 
-        let root = tree.find("c-1").unwrap();
-        let item = tree.find("c-1-1").unwrap();
+        let root = tree.get("c-1").unwrap();
+        let item = tree.get("c-1-1").unwrap();
 
         let result: Vec<_> = item.self_and_next_siblings_in(root).map(|w| w.test_name()).collect();
         let expected: Vec<_> = root
@@ -1009,8 +1009,8 @@ mod tests {
     fn self_and_prev_siblings_in() {
         let tree = data_nested();
 
-        let root = tree.find("c-1").unwrap();
-        let item = tree.find("c-1-1").unwrap();
+        let root = tree.get("c-1").unwrap();
+        let item = tree.get("c-1-1").unwrap();
 
         let result: Vec<_> = item.self_and_prev_siblings_in(root).map(|w| w.test_name()).collect();
         let expected: Vec<_> = root
@@ -1028,7 +1028,7 @@ mod tests {
         let tree = data_nested();
 
         let root = tree.root();
-        let item = tree.find("c-1-1").unwrap();
+        let item = tree.get("c-1-1").unwrap();
 
         let result: Vec<_> = item.self_and_next_siblings_in(root).map(|w| w.test_name()).collect();
         let expected: Vec<_> = root
@@ -1045,7 +1045,7 @@ mod tests {
         let tree = data_nested();
 
         let root = tree.root();
-        let item = tree.find("c-1-1").unwrap();
+        let item = tree.get("c-1-1").unwrap();
 
         let result: Vec<_> = item.self_and_prev_siblings_in(root).map(|w| w.test_name()).collect();
         let expected: Vec<_> = root
@@ -1063,7 +1063,7 @@ mod tests {
         let tree = data_nested();
 
         let root = tree.root();
-        let item = tree.find("c-1-1-0").unwrap();
+        let item = tree.get("c-1-1-0").unwrap();
 
         let result: Vec<_> = item.next_siblings_in(root).map(|w| w.test_name()).collect();
         let expected: Vec<_> = root
@@ -1081,7 +1081,7 @@ mod tests {
         let tree = data_nested();
 
         let root = tree.root();
-        let item = tree.find("c-1-1-0").unwrap();
+        let item = tree.get("c-1-1-0").unwrap();
 
         let result: Vec<_> = item.prev_siblings_in(root).map(|w| w.test_name()).collect();
         let expected: Vec<_> = root

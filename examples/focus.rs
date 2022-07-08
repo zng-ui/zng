@@ -410,7 +410,7 @@ mod inspect {
                 } else {
                     return format!("<{p}>");
                 };
-                let widget = if let Some(w) = frame.get(p) {
+                let widget = if let Some(w) = frame.get(p.widget_id()) {
                     w
                 } else {
                     return format!("<{p}>");

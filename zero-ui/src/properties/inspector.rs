@@ -309,7 +309,7 @@ pub fn show_directional_query(child: impl UiNode, orientation: impl IntoVar<Opti
                     let mut none = true;
                     if let Some(target) = &args.target {
                         for w_id in target.widgets_path().iter().rev() {
-                            if let Some(w) = ctx.info_tree.find(*w_id) {
+                            if let Some(w) = ctx.info_tree.get(*w_id) {
                                 if let Some(w) = w.as_focusable(true) {
                                     let search_quads: Vec<_> = orientation
                                         .search_bounds(w.info.center(), Px::MAX, ctx.info_tree.spatial_bounds())
