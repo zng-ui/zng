@@ -370,8 +370,7 @@ event! {
 ///
 /// This extension requires the [`Windows`] service.
 ///
-/// This extension listens to the [`MouseInputEvent`], [`ShortcutEvent`], [`WindowFocusChangedEvent`]
-/// and [`WidgetInfoChangedEvent`] events.
+/// This extension listens to the [`MouseInputEvent`], [`ShortcutEvent`] and [`WindowFocusChangedEvent`].
 ///
 /// To work properly it should be added to the app after the windows manager extension.
 ///
