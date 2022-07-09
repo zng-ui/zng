@@ -61,9 +61,6 @@ pub struct WidgetInfoTreeStats {
     /// Duration of the [`UiNode::info`] call for the window content.
     pub build_time: Duration,
 
-    /// Count of widget infos that where not reused.
-    pub new_widgets: u32,
-
     /// Count of widgets that where reused from a previous tree.
     pub reused_widgets: u32,
 
@@ -82,10 +79,9 @@ pub struct WidgetInfoTreeStats {
     pub visibility_updated_frame: FrameId,
 }
 impl WidgetInfoTreeStats {
-    fn new(build_start: Instant, new_widgets: u32, reused_widgets: u32) -> Self {
+    fn new(build_start: Instant, reused_widgets: u32) -> Self {
         Self {
             build_time: build_start.elapsed(),
-            new_widgets,
             reused_widgets,
             last_frame: FrameId::INVALID,
             bounds_updated_frame: FrameId::INVALID,

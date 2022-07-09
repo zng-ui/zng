@@ -15,7 +15,7 @@ pub struct WidgetInfoBuilder {
     interactivity_filters: InteractivityFilters,
 
     build_start: Instant,
-    new_widgets: u32,
+    pushed_widgets: u32,
 }
 impl WidgetInfoBuilder {
     /// Starts building a info tree with the root information.
@@ -53,7 +53,7 @@ impl WidgetInfoBuilder {
             meta: OwnedStateMap::new(),
             widget_id: root_id,
             build_start: Instant::now(),
-            new_widgets: 0,
+            pushed_widgets: 1, // root is always new.
         }
     }
 
@@ -101,6 +101,8 @@ impl WidgetInfoBuilder {
                 local_interactivity: Cell::new(Interactivity::ENABLED),
             })
             .id();
+
+        self.pushed_widgets += 1;
 
         if self.lookup.insert(id, self.node).is_some() {
             panic!("pushed widget `{id:?}` was already pushed or reused");
@@ -201,8 +203,7 @@ impl WidgetInfoBuilder {
             lookup: self.lookup,
             stats: RefCell::new(WidgetInfoTreeStats::new(
                 self.build_start,
-                self.new_widgets,
-                self.tree.len() as u32 - self.new_widgets,
+                self.tree.len() as u32 - self.pushed_widgets,
             )),
             tree: self.tree,
             interactivity_filters: self.interactivity_filters,
