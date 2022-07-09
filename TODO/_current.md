@@ -1,6 +1,3 @@
-* Getting invalid frame in `AppExtension::render` in the focus manager, it should be happening after the windows manager, so why are we not getting the rendered frame?
-
-* Use `nearest_oriented` in `directional_from`.
 * Speedup the alt focus query, it is the slowest now.
 
 * Rethink spatial partitioning, the quad-tree is a bad fit for the problem:
