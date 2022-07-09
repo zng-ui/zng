@@ -8,6 +8,7 @@ pub struct WidgetInfoBuilder {
 
     node: tree::NodeId,
     widget_id: WidgetId,
+    tree_meta: OwnedStateMap,
     meta: OwnedStateMap,
 
     tree: Tree<WidgetInfoData>,
@@ -47,6 +48,7 @@ impl WidgetInfoBuilder {
             tree,
             interactivity_filters: Vec::with_capacity(used_data.interactivity_filters_capacity),
             lookup,
+            tree_meta: OwnedStateMap::new(),
             meta: OwnedStateMap::new(),
             widget_id: root_id,
         }
@@ -59,6 +61,11 @@ impl WidgetInfoBuilder {
     /// Current widget id.
     pub fn widget_id(&self) -> WidgetId {
         self.widget_id
+    }
+
+    /// Widget tree metadata.
+    pub fn tree_meta(&mut self) -> &mut StateMap {
+        &mut self.meta.0
     }
 
     /// Current widget metadata.
