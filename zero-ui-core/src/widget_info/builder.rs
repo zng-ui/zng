@@ -194,7 +194,9 @@ impl WidgetInfoBuilder {
             inner_bounds_tree: RefCell::new(Some(Rc::new(spatial::QuadTree::new()))),
             frame_id: Cell::new(None),
             spatial_frame_id: Cell::new(None),
+            visibility_frame_id: Cell::new(None),
             bounds_changed: Cell::new(true),
+            visibility_changed: Cell::new(true),
         }));
 
         let cap = UsedWidgetInfoBuilder {

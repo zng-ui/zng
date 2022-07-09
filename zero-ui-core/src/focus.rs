@@ -437,7 +437,7 @@ impl AppExtension for FocusManager {
             if let Some(f) = &focus.focused {
                 let w_id = f.path.window_id();
                 if let Ok(tree) = windows.widget_tree(w_id) {
-                    if tree.spatial_frame_id().unwrap_or(FrameId::INVALID) != focus.enabled_nav.1 {
+                    if focus.enabled_nav.needs_refresh(tree) {
                         invalidated_cmds_or_focused = Some(tree.clone());
                     }
                 }
@@ -539,7 +539,7 @@ impl FocusManager {
         }
 
         let commands = self.commands.as_mut().unwrap();
-        commands.update_enabled(focus.enabled_nav.0);
+        commands.update_enabled(focus.enabled_nav.nav);
     }
 }
 
@@ -583,7 +583,7 @@ pub struct Focus {
     is_highlighting_var: RcVar<bool>,
     is_highlighting: bool,
 
-    enabled_nav: (FocusNavAction, FrameId),
+    enabled_nav: EnabledNavWithFrame,
 
     pending_window_focus: Option<(WindowId, WidgetId, bool)>,
     pending_highlight: bool,
@@ -611,7 +611,7 @@ impl Focus {
             is_highlighting_var: var(false),
             is_highlighting: false,
 
-            enabled_nav: (FocusNavAction::empty(), FrameId::INVALID),
+            enabled_nav: EnabledNavWithFrame::invalid(),
 
             pending_window_focus: None,
             pending_highlight: false,
@@ -961,7 +961,7 @@ impl Focus {
                 focused,
                 highlight,
                 FocusChangedCause::Recovery,
-                self.enabled_nav.0,
+                self.enabled_nav.nav,
             ))
         } else {
             None
@@ -1042,7 +1042,7 @@ impl Focus {
                 focused,
                 highlight,
                 FocusChangedCause::Request(request),
-                self.enabled_nav.0,
+                self.enabled_nav.nav,
             ))
         } else {
             None
@@ -1059,12 +1059,12 @@ impl Focus {
                 self.move_focus(vars, Some(FocusedInfo::new(root)), highlight, FocusChangedCause::Recovery)
             } else {
                 // has focused window but it is not focusable.
-                self.enabled_nav = (FocusNavAction::empty(), FrameId::INVALID);
+                self.enabled_nav = EnabledNavWithFrame::invalid();
                 self.move_focus(vars, None, false, FocusChangedCause::Recovery)
             }
         } else {
             // no focused window
-            self.enabled_nav = (FocusNavAction::empty(), FrameId::INVALID);
+            self.enabled_nav = EnabledNavWithFrame::invalid();
             self.move_focus(vars, None, false, FocusChangedCause::Recovery)
         }
     }
@@ -1087,7 +1087,7 @@ impl Focus {
                 new_focus.clone(),
                 self.is_highlighting,
                 cause,
-                self.enabled_nav.0,
+                self.enabled_nav.nav,
             );
             self.focused_var.set(vars, new_focus); // this can happen more than once per update, so we can't use set_ne.
             Some(args)
@@ -1098,7 +1098,7 @@ impl Focus {
                 new_focus,
                 highlight,
                 cause,
-                self.enabled_nav.0,
+                self.enabled_nav.nav,
             ))
         } else {
             None
@@ -1420,13 +1420,33 @@ impl FocusedInfo {
     }
 }
 
-trait EnabledNavWithFrame {
-    fn enabled_nav_with_frame(self) -> (FocusNavAction, FrameId);
+struct EnabledNavWithFrame {
+    nav: FocusNavAction,
+    spatial_frame_id: FrameId,
+    visibility_id: FrameId,
 }
-impl<'a> EnabledNavWithFrame for WidgetFocusInfo<'a> {
-    fn enabled_nav_with_frame(self) -> (FocusNavAction, FrameId) {
-        let nav = self.enabled_nav();
-        let frame = self.info.tree().spatial_frame_id().unwrap_or(FrameId::INVALID);
-        (nav, frame)
+impl EnabledNavWithFrame {
+    fn invalid() -> Self {
+        Self {
+            nav: FocusNavAction::empty(),
+            spatial_frame_id: FrameId::INVALID,
+            visibility_id: FrameId::INVALID,
+        }
+    }
+    fn needs_refresh(&self, tree: &WidgetInfoTree) -> bool {
+        tree.spatial_frame_id().unwrap_or(FrameId::INVALID) != self.spatial_frame_id
+            || tree.visibility_frame_id().unwrap_or(FrameId::INVALID) != self.visibility_id
+    }
+}
+trait EnabledNavWithFrameExt {
+    fn enabled_nav_with_frame(self) -> EnabledNavWithFrame;
+}
+impl<'a> EnabledNavWithFrameExt for WidgetFocusInfo<'a> {
+    fn enabled_nav_with_frame(self) -> EnabledNavWithFrame {
+        EnabledNavWithFrame {
+            nav: self.enabled_nav(),
+            spatial_frame_id: self.info.tree().spatial_frame_id().unwrap_or(FrameId::INVALID),
+            visibility_id: self.info.tree().visibility_frame_id().unwrap_or(FrameId::INVALID),
+        }
     }
 }

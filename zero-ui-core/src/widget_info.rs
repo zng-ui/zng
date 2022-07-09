@@ -68,7 +68,9 @@ struct WidgetInfoTreeInner {
 
     frame_id: Cell<Option<FrameId>>,
     spatial_frame_id: Cell<Option<FrameId>>,
-    bounds_changed: Cell<bool>, // temporary, if `true` will set `spatial_frame_id`.
+    visibility_frame_id: Cell<Option<FrameId>>,
+    bounds_changed: Cell<bool>,     // temporary, if `true` will set `spatial_frame_id`.
+    visibility_changed: Cell<bool>, // temporary, if `true` will set `visibility_frame_id`.
 }
 impl PartialEq for WidgetInfoTree {
     fn eq(&self, other: &Self) -> bool {
@@ -107,6 +109,11 @@ impl WidgetInfoTree {
     /// Last window frame rendered where some widget's where resized or moved.
     pub fn spatial_frame_id(&self) -> Option<FrameId> {
         self.0.spatial_frame_id.get()
+    }
+
+    /// Last window frame rendered where some widge'ts visibility changed.
+    pub fn visibility_frame_id(&self) -> Option<FrameId> {
+        self.0.visibility_frame_id.get()
     }
 
     /// Reference to the widget in the tree, if it is present.
@@ -494,6 +501,10 @@ impl WidgetInfoTree {
         self.0.bounds_changed.set(true);
     }
 
+    fn visibility_changed(&self) {
+        self.0.bounds_changed.set(true);
+    }
+
     fn inner_bounds_tree(&self) -> Rc<spatial::QuadTree> {
         if let Some(quad_tree) = self.0.inner_bounds_tree.borrow().clone() {
             return quad_tree;
@@ -517,6 +528,9 @@ impl WidgetInfoTree {
         if self.0.bounds_changed.take() {
             self.0.spatial_frame_id.set(Some(frame_id));
             *self.0.inner_bounds_tree.borrow_mut() = None;
+        }
+        if self.0.visibility_changed.take() {
+            self.0.visibility_frame_id.set(Some(frame_id));
         }
     }
 
@@ -602,13 +616,13 @@ impl WidgetBoundsInfo {
         }
 
         if let Some(transform) = outer_transform {
-            r.set_outer_transform(transform);
+            r.init_outer_transform(transform);
         }
         if let Some(transform) = inner_transform {
             r.init_inner_transform(transform);
         }
 
-        r.set_rendered(true);
+        r.init_rendered(true);
 
         r
     }
@@ -695,11 +709,31 @@ impl WidgetBoundsInfo {
     }
 
     /// Set if the widget or child widgets rendered.
-    pub(super) fn set_rendered(&self, rendered: bool) {
+    pub(super) fn set_rendered(&self, rendered: bool, info: &WidgetInfoTree) {
+        if self.0.rendered.get() != rendered {
+            self.0.rendered.set(rendered);
+            info.visibility_changed();
+        }
+    }
+    #[cfg(test)]
+    fn init_rendered(&self, rendered: bool) {
         self.0.rendered.set(rendered);
     }
 
-    pub(super) fn set_outer_transform(&self, transform: RenderTransform) {
+    pub(super) fn set_outer_transform(&self, transform: RenderTransform, info: &WidgetInfoTree) {
+        let bounds = transform
+            .outer_transformed_px(PxRect::from_size(self.outer_size()))
+            .unwrap_or_default();
+
+        if self.0.outer_bounds.get().size.is_empty() != bounds.size.is_empty() {
+            info.visibility_changed();
+        }
+
+        self.0.outer_bounds.set(bounds);
+        self.0.outer_transform.set(transform);
+    }
+    #[cfg(test)]
+    fn init_outer_transform(&self, transform: RenderTransform) {
         let bounds = transform
             .outer_transformed_px(PxRect::from_size(self.outer_size()))
             .unwrap_or_default();

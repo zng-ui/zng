@@ -1,6 +1,4 @@
 * Getting invalid frame in `AppExtension::render` in the focus manager, it should be happening after the windows manager, so why are we not getting the rendered frame?
-* Visibility change to hidden did not trigger a focus update.
-* Refactor `rendered` to have an index of render, so we can z-sort inner-bounds.
 
 * Use `nearest_oriented` in `directional_from`.
 * Speedup the alt focus query, it is the slowest now.
@@ -18,6 +16,9 @@
 * Do hit-test in info, having to use IPC to hit-test is pretty bad and now we already have the quad-tree.
    - Review webrender hit-test, it looks like a linear tree walk?, they have 3 clip types, rectangle, rounded rectangle and polygon,
      all supporting transforms, code looks simple to adapt, maybe hardest part is tracking clip chains.
+  - Refactor `rendered` to have an index of render, so we can z-sort inner-bounds.
+    - Impossible?, widgets can render under and over descendants.
+    - Z-index needs to be by clip shape?
 
 * Track what widgets are "definitely fully clipped".
 * Track what widgets are close to becoming visible due to scrolling.

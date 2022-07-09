@@ -399,14 +399,14 @@ impl FrameBuilder {
             if patch != RenderTransform::identity() {
                 for info in ctx.info_tree.get(ctx.path.widget_id()).unwrap().self_and_descendants() {
                     let bounds = info.bounds_info();
-                    bounds.set_outer_transform(bounds.outer_transform().then(&patch));
+                    bounds.set_outer_transform(bounds.outer_transform().then(&patch), ctx.info_tree);
                     bounds.set_inner_transform(bounds.inner_transform().then(&patch), ctx.info_tree);
                 }
             }
         }
 
         self.widget_rendered |= !reuse.as_ref().unwrap().is_empty();
-        ctx.widget_info.bounds.set_rendered(self.widget_rendered);
+        ctx.widget_info.bounds.set_rendered(self.widget_rendered, ctx.info_tree);
         self.widget_rendered |= parent_rendered;
     }
 
@@ -468,9 +468,9 @@ impl FrameBuilder {
     /// [`Collapsed`]: crate::widget_info::Visibility::Collapsed
     pub fn skip_render(&self, info_tree: &WidgetInfoTree) {
         if let Some(w) = info_tree.get(self.widget_id) {
-            w.bounds_info().set_rendered(self.widget_rendered);
+            w.bounds_info().set_rendered(self.widget_rendered, info_tree);
             for w in w.descendants() {
-                w.bounds_info().set_rendered(false);
+                w.bounds_info().set_rendered(false, info_tree);
             }
         } else {
             tracing::error!("skip_render did not find widget `{}` in info tree", self.widget_id)
@@ -483,9 +483,8 @@ impl FrameBuilder {
     /// only the children that should be visible.
     pub fn skip_render_descendants(&self, info_tree: &WidgetInfoTree) {
         if let Some(w) = info_tree.get(self.widget_id) {
-            w.bounds_info().set_rendered(self.widget_rendered);
             for w in w.descendants() {
-                w.bounds_info().set_rendered(false);
+                w.bounds_info().set_rendered(false, info_tree);
             }
         } else {
             tracing::error!("skip_render_descendants did not find widget `{}` in info tree", self.widget_id)
@@ -585,7 +584,7 @@ impl FrameBuilder {
         if let Some(mut data) = self.widget_data.take() {
             let parent_transform = self.transform;
             let outer_transform = RenderTransform::translation_px(ctx.widget_info.bounds.outer_offset()).then(&parent_transform);
-            ctx.widget_info.bounds.set_outer_transform(outer_transform);
+            ctx.widget_info.bounds.set_outer_transform(outer_transform, ctx.info_tree);
 
             let translate = ctx.widget_info.bounds.inner_offset() + ctx.widget_info.bounds.outer_offset();
             let inner_transform = if data.has_transform {
@@ -1073,7 +1072,7 @@ impl FrameBuilder {
 
     /// Finalizes the build.
     pub fn finalize(self, info_tree: &WidgetInfoTree) -> (BuiltFrame, UsedFrameBuilder) {
-        info_tree.root().bounds_info().set_rendered(self.widget_rendered);
+        info_tree.root().bounds_info().set_rendered(self.widget_rendered, info_tree);
         info_tree.after_render(self.frame_id);
 
         let (display_list, capacity) = self.display_list.finalize();
@@ -1317,7 +1316,7 @@ impl FrameUpdate {
 
                     for info in ctx.info_tree.get(ctx.path.widget_id()).unwrap().self_and_descendants() {
                         let bounds = info.bounds_info();
-                        bounds.set_outer_transform(bounds.outer_transform().then(&patch));
+                        bounds.set_outer_transform(bounds.outer_transform().then(&patch), ctx.info_tree);
                         bounds.set_inner_transform(bounds.inner_transform().then(&patch), ctx.info_tree);
                     }
 
@@ -1331,7 +1330,7 @@ impl FrameUpdate {
             self.can_reuse_widget = false;
         }
 
-        ctx.widget_info.bounds.set_outer_transform(outer_transform);
+        ctx.widget_info.bounds.set_outer_transform(outer_transform, ctx.info_tree);
         self.inner_transform = Some(RenderTransform::identity());
         let parent_id = self.widget_id;
         self.widget_id = ctx.path.widget_id();
