@@ -106,7 +106,7 @@ impl WidgetInfoTree {
         self.0.frame_id.get()
     }
 
-    /// Last window frame rendered where some widget's where resized or moved.
+    /// Last window frame rendered where some widget's were resized or moved.
     pub fn spatial_frame_id(&self) -> Option<FrameId> {
         self.0.spatial_frame_id.get()
     }
@@ -502,7 +502,7 @@ impl WidgetInfoTree {
     }
 
     fn visibility_changed(&self) {
-        self.0.bounds_changed.set(true);
+        self.0.visibility_changed.set(true);
     }
 
     fn inner_bounds_tree(&self) -> Rc<spatial::QuadTree> {
