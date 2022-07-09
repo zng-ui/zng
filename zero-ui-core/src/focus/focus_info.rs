@@ -3,11 +3,6 @@ use std::fmt;
 
 use super::iter::IterFocusableExt;
 
-state_key! {
-    /// Reference to the [`FocusInfoBuilder`] in the widget state.
-    pub struct FocusInfoKey: FocusInfoBuilder;
-}
-
 /// Widget tab navigation position within a focus scope.
 ///
 /// The index is zero based, zero first.
@@ -1484,68 +1479,25 @@ impl FocusInfo {
     }
 }
 
-/// Builder for [`FocusInfo`] accessible in a [`WidgetInfoBuilder`].
-///
-/// Use the [`FocusInfoKey`] to access the builder for the widget state in a widget info.
-///
-/// [`WidgetInfoBuilder`]: crate::widget_info::WidgetInfoBuilder
-#[derive(Default)]
-pub struct FocusInfoBuilder {
-    /// If the widget is focusable and the value was explicitly set.
-    pub focusable: Option<bool>,
-
-    /// If the widget is a focus scope and the value was explicitly set.
-    pub scope: Option<bool>,
-    /// If the widget is an ALT focus scope when it is a focus scope.
-    pub alt_scope: bool,
-    /// When the widget is a focus scope, its behavior on receiving direct focus.
-    pub on_focus: FocusScopeOnFocus,
-
-    /// Widget TAB index and if the index was explicitly set.
-    pub tab_index: Option<TabIndex>,
-
-    /// TAB navigation within this widget, if set turns the widget into a focus scope.
-    pub tab_nav: Option<TabNav>,
-    /// Directional navigation within this widget, if set turns the widget into a focus scope.
-    pub directional_nav: Option<DirectionalNav>,
-
-    /// If directional navigation skips over this widget.
-    pub skip_directional: Option<bool>,
+state_key! {
+    struct FocusInfoKey: FocusInfoData;
 }
-impl FocusInfoBuilder {
+
+#[derive(Default)]
+struct FocusInfoData {
+    focusable: Option<bool>,
+    scope: Option<bool>,
+    alt_scope: bool,
+    on_focus: FocusScopeOnFocus,
+    tab_index: Option<TabIndex>,
+    tab_nav: Option<TabNav>,
+    directional_nav: Option<DirectionalNav>,
+    skip_directional: Option<bool>,
+}
+impl FocusInfoData {
     /// Build a [`FocusInfo`] from the collected configuration in `self`.
     ///
-    /// The widget is not focusable nor a focus scope if it set [`focusable`](Self::focusable) to `false`.
-    ///
-    /// The widget is a *focus scope* if it set [`scope`](Self::scope) to `true` **or** if it set [`tab_nav`](Self::tab_nav) or
-    /// [`directional_nav`](Self::directional_nav) and did not set [`scope`](Self::scope) to `false`.
-    ///
-    /// The widget is *focusable* if it set [`focusable`](Self::focusable) to `true` **or** if it set the [`tab_index`](Self::tab_index).
-    ///
-    /// The widget is not focusable if it did not set any of the members mentioned.
-    ///
-    /// ## Tab Index
-    ///
-    /// If the [`tab_index`](Self::tab_index) was not set but the widget is focusable or a focus scope, the [`TabIndex::AUTO`]
-    /// is used for the widget.
-    ///
-    /// ## Skip Directional
-    ///
-    /// If the [`skip_directional`](Self::skip_directional) was not set but the widget is focusable or a focus scope, it is
-    /// set to `false` for the widget.
-    ///
-    /// ## Focus Scope
-    ///
-    /// If the widget is a focus scope, it is configured using [`alt_scope`](Self::alt_scope) and [`on_focus`](Self::on_focus).
-    /// If the widget is not a scope these members are ignored.
-    ///
-    /// ### Tab Navigation
-    ///
-    /// If [`tab_nav`](Self::tab_nav) is not set but the widget is a focus scope, [`TabNav::Continue`] is used.
-    ///
-    /// ### Directional Navigation
-    ///
-    /// If [`directional_nav`](Self::directional_nav) is not set but the widget is a focus scope, [`DirectionalNav::Continue`] is used.
+    /// See [`FocusInfoBuilder`] for a review of the algorithm.
     pub fn build(&self) -> FocusInfo {
         match (self.focusable, self.scope, self.tab_index, self.tab_nav, self.directional_nav) {
             // Set as not focusable.
@@ -1574,5 +1526,128 @@ impl FocusInfoBuilder {
 
             _ => FocusInfo::NotFocusable,
         }
+    }
+}
+
+/// Builder for [`FocusInfo`] accessible in a [`WidgetInfoBuilder`].
+///
+/// Use the [`get`] method to start a builder.
+///
+/// # Rules
+///
+/// The widget is not focusable nor a focus scope if it set [`focusable`](Self::focusable) to `false`.
+///
+/// The widget is a *focus scope* if it set [`scope`](Self::scope) to `true` **or** if it set [`tab_nav`](Self::tab_nav) or
+/// [`directional_nav`](Self::directional_nav) and did not set [`scope`](Self::scope) to `false`.
+///
+/// The widget is *focusable* if it set [`focusable`](Self::focusable) to `true` **or** if it set the [`tab_index`](Self::tab_index).
+///
+/// The widget is not focusable if it did not set any of the members mentioned.
+///
+/// ## Tab Index
+///
+/// If the [`tab_index`](Self::tab_index) was not set but the widget is focusable or a focus scope, the [`TabIndex::AUTO`]
+/// is used for the widget.
+///
+/// ## Skip Directional
+///
+/// If the [`skip_directional`](Self::skip_directional) was not set but the widget is focusable or a focus scope, it is
+/// set to `false` for the widget.
+///
+/// ## Focus Scope
+///
+/// If the widget is a focus scope, it is configured using [`alt_scope`](Self::alt_scope) and [`on_focus`](Self::on_focus).
+/// If the widget is not a scope these members are ignored.
+///
+/// ### Tab Navigation
+///
+/// If [`tab_nav`](Self::tab_nav) is not set but the widget is a focus scope, [`TabNav::Continue`] is used.
+///
+/// ### Directional Navigation
+///
+/// If [`directional_nav`](Self::directional_nav) is not set but the widget is a focus scope, [`DirectionalNav::Continue`] is used.
+///
+/// [`WidgetInfoBuilder`]: crate::widget_info::WidgetInfoBuilder
+/// [`get`]: Self::get
+pub struct FocusInfoBuilder<'a>(&'a mut WidgetInfoBuilder);
+impl<'a> FocusInfoBuilder<'a> {
+    /// Get the builder.
+    pub fn get(builder: &'a mut WidgetInfoBuilder) -> Self {
+        Self(builder)
+    }
+
+    fn data(&mut self) -> &mut FocusInfoData {
+        self.0.meta().entry(FocusInfoKey).or_default()
+    }
+
+    /// If the widget is definitely focusable or not.
+    pub fn focusable(&mut self, is_focusable: bool) -> &mut Self {
+        let data = self.data();
+        data.focusable = Some(is_focusable);
+        self
+    }
+
+    /// If the widget is definitely a focus scope or not.
+    pub fn scope(&mut self, is_focus_scope: bool) -> &mut Self {
+        let data = self.data();
+        data.scope = Some(is_focus_scope);
+        self
+    }
+
+    /// If the widget is definitely an ALT focus scope or not.
+    ///
+    /// If `true` this also sets `TabIndex::SKIP`, `skip_directional_nav`, `TabNav::Cycle` and `DirectionalNav::Cycle` as default.
+    pub fn alt_scope(&mut self, is_alt_focus_scope: bool) -> &mut Self {
+        let data = self.data();
+        data.alt_scope = is_alt_focus_scope;
+
+        if data.tab_index == None {
+            data.tab_index = Some(TabIndex::SKIP);
+        }
+        if data.tab_nav == None {
+            data.tab_nav = Some(TabNav::Cycle);
+        }
+        if data.directional_nav == None {
+            data.directional_nav = Some(DirectionalNav::Cycle);
+        }
+        if data.skip_directional == None {
+            data.skip_directional = Some(true);
+        }
+
+        self
+    }
+
+    /// When the widget is a focus scope, its behavior on receiving direct focus.
+    pub fn on_focus(&mut self, as_focus_scope_on_focus: FocusScopeOnFocus) -> &mut Self {
+        let data = self.data();
+        data.on_focus = as_focus_scope_on_focus;
+        self
+    }
+
+    /// Widget TAB index.
+    pub fn tab_index(&mut self, tab_index: TabIndex) -> &mut Self {
+        let data = self.data();
+        data.tab_index = Some(tab_index);
+        self
+    }
+
+    /// TAB navigation within this widget, if set turns the widget into a focus scope.
+    pub fn tab_nav(&mut self, scope_tab_nav: TabNav) -> &mut Self {
+        let data = self.data();
+        data.tab_nav = Some(scope_tab_nav);
+        self
+    }
+
+    /// Directional navigation within this widget, if set turns the widget into a focus scope.
+    pub fn directional_nav(&mut self, scope_directional_nav: DirectionalNav) -> &mut Self {
+        let data = self.data();
+        data.directional_nav = Some(scope_directional_nav);
+        self
+    }
+    /// If directional navigation skips over this widget.
+    pub fn skip_directional(&mut self, skip: bool) -> &mut Self {
+        let data = self.data();
+        data.skip_directional = Some(skip);
+        self
     }
 }

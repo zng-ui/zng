@@ -64,9 +64,8 @@
 //!
 //! # Configuring Widgets
 //!
-//! Focusable configuration is set as render metadata using the [`FocusInfoKey`] that is of a value
-//! [`FocusInfoBuilder`]. You can use this type to make a widget focusable or a focus scope and customize
-//! how the focus manager interacts with the widget.
+//! Focusable configuration is set as render metadata using the [`FocusInfoBuilder`]. You can use this type to make a widget
+//! focusable or a focus scope and customize how the focus manager interacts with the widget.
 //!
 //! Note that the main crate already provides properties for configuring focus in widgets, you only need to
 //! set the [`FocusInfoKey`] directly if you are developing your own focus defining properties.

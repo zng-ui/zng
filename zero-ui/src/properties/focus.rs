@@ -21,7 +21,7 @@ pub fn focusable(child: impl UiNode, focusable: impl IntoVar<bool>) -> impl UiNo
         }
 
         fn info(&self, ctx: &mut InfoContext, widget: &mut WidgetInfoBuilder) {
-            widget.meta().entry(FocusInfoKey).or_default().focusable = Some(*self.is_focusable.get(ctx));
+            FocusInfoBuilder::get(widget).focusable(*self.is_focusable.get(ctx));
             self.child.info(ctx, widget);
         }
 
@@ -57,7 +57,7 @@ pub fn tab_index(child: impl UiNode, tab_index: impl IntoVar<TabIndex>) -> impl 
         }
 
         fn info(&self, ctx: &mut InfoContext, widget: &mut WidgetInfoBuilder) {
-            widget.meta().entry(FocusInfoKey).or_default().tab_index = Some(*self.tab_index.get(ctx));
+            FocusInfoBuilder::get(widget).tab_index(*self.tab_index.get(ctx));
             self.child.info(ctx, widget);
         }
 
@@ -107,23 +107,11 @@ impl<C: UiNode, E: Var<bool>> UiNode for FocusScopeNode<C, E> {
     }
 
     fn info(&self, ctx: &mut InfoContext, widget: &mut WidgetInfoBuilder) {
-        let info = widget.meta().entry(FocusInfoKey).or_default();
-        info.scope = Some(self.is_focus_scope.copy(ctx));
+        let mut info = FocusInfoBuilder::get(widget);
         if self.is_alt {
-            info.alt_scope = true;
-
-            if info.tab_index == None {
-                info.tab_index = Some(TabIndex::SKIP);
-            }
-            if info.tab_nav == None {
-                info.tab_nav = Some(TabNav::Cycle);
-            }
-            if info.directional_nav == None {
-                info.directional_nav = Some(DirectionalNav::Cycle);
-            }
-            if info.skip_directional == None {
-                info.skip_directional = Some(true);
-            }
+            info.alt_scope(self.is_focus_scope.copy(ctx));
+        } else {
+            info.scope(self.is_focus_scope.copy(ctx));
         }
 
         self.child.info(ctx, widget);
@@ -152,11 +140,8 @@ pub fn focus_scope_behavior(child: impl UiNode, behavior: impl IntoVar<FocusScop
         }
 
         fn info(&self, ctx: &mut InfoContext, widget: &mut WidgetInfoBuilder) {
-            let info = widget.meta().entry(FocusInfoKey).or_default();
-            info.on_focus = self.behavior.copy(ctx);
-            if info.scope.is_none() {
-                info.scope = Some(true);
-            }
+            let mut info = FocusInfoBuilder::get(widget);
+            info.on_focus(self.behavior.copy(ctx));
             self.child.info(ctx, widget);
         }
 
@@ -188,7 +173,7 @@ pub fn tab_nav(child: impl UiNode, tab_nav: impl IntoVar<TabNav>) -> impl UiNode
         }
 
         fn info(&self, ctx: &mut InfoContext, widget: &mut WidgetInfoBuilder) {
-            widget.meta().entry(FocusInfoKey).or_default().tab_nav = Some(self.tab_nav.copy(ctx));
+            FocusInfoBuilder::get(widget).tab_nav(self.tab_nav.copy(ctx));
             self.child.info(ctx, widget);
         }
 
@@ -220,7 +205,7 @@ pub fn directional_nav(child: impl UiNode, directional_nav: impl IntoVar<Directi
         }
 
         fn info(&self, ctx: &mut InfoContext, widget: &mut WidgetInfoBuilder) {
-            widget.meta().entry(FocusInfoKey).or_default().directional_nav = Some(self.directional_nav.copy(ctx));
+            FocusInfoBuilder::get(widget).directional_nav(self.directional_nav.copy(ctx));
             self.child.info(ctx, widget);
         }
 
@@ -294,7 +279,7 @@ pub fn skip_directional(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl
         }
 
         fn info(&self, ctx: &mut InfoContext, widget: &mut WidgetInfoBuilder) {
-            widget.meta().entry(FocusInfoKey).or_default().skip_directional = Some(self.enabled.copy(ctx));
+            FocusInfoBuilder::get(widget).skip_directional(self.enabled.copy(ctx));
 
             self.child.info(ctx, widget);
         }

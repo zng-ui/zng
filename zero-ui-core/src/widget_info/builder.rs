@@ -66,11 +66,6 @@ impl WidgetInfoBuilder {
         self.widget_id
     }
 
-    /// Widget tree metadata.
-    pub fn tree_meta(&mut self) -> &mut StateMap {
-        &mut self.meta.0
-    }
-
     /// Current widget metadata.
     pub fn meta(&mut self) -> &mut StateMap {
         &mut self.meta.0

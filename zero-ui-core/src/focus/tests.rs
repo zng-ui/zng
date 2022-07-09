@@ -19,15 +19,15 @@ impl WidgetInfoBuilderExt for WidgetInfoBuilder {
             WidgetBoundsInfo::new_test(rect, None, None, Some(RenderTransform::translation_px(rect.origin.to_vector()))),
             WidgetBorderInfo::new(),
             |builder| {
-                let meta = builder.meta().entry(FocusInfoKey).or_default();
+                let mut meta = FocusInfoBuilder::get(builder);
                 match focus {
                     FocusInfo::NotFocusable => {}
                     FocusInfo::Focusable {
                         tab_index,
                         skip_directional,
                     } => {
-                        meta.tab_index = Some(tab_index);
-                        meta.skip_directional = Some(skip_directional);
+                        meta.tab_index(tab_index);
+                        meta.skip_directional(skip_directional);
                     }
                     FocusInfo::FocusScope {
                         tab_index,
@@ -37,13 +37,13 @@ impl WidgetInfoBuilderExt for WidgetInfoBuilder {
                         on_focus,
                         alt,
                     } => {
-                        meta.scope = Some(true);
-                        meta.tab_index = Some(tab_index);
-                        meta.skip_directional = Some(skip_directional);
-                        meta.tab_nav = Some(tab_nav);
-                        meta.directional_nav = Some(directional_nav);
-                        meta.on_focus = on_focus;
-                        meta.alt_scope = alt;
+                        meta.scope(true);
+                        meta.tab_index(tab_index);
+                        meta.skip_directional(skip_directional);
+                        meta.tab_nav(tab_nav);
+                        meta.directional_nav(directional_nav);
+                        meta.on_focus(on_focus);
+                        meta.alt_scope(alt);
                     }
                 }
                 inner(builder);
@@ -94,10 +94,10 @@ fn scope(tab_nav: TabNav, directional_nav: DirectionalNav, horizontal: bool) -> 
         WidgetBorderInfo::new(),
         None,
     );
-    let window_scope = builder.meta().entry(FocusInfoKey).or_default();
-    window_scope.scope = Some(true);
-    window_scope.tab_nav = Some(TabNav::Cycle);
-    window_scope.directional_nav = Some(DirectionalNav::Cycle);
+    FocusInfoBuilder::get(&mut builder)
+        .scope(true)
+        .tab_nav(TabNav::Cycle)
+        .directional_nav(DirectionalNav::Cycle);
 
     let mut v = PxVector::zero();
     let mut rect = move || {
