@@ -1443,6 +1443,7 @@ trait EnabledNavWithFrameExt {
 impl<'a> EnabledNavWithFrameExt for WidgetFocusInfo<'a> {
     fn enabled_nav_with_frame(self) -> EnabledNavWithFrame {
         let stats = self.info.tree().stats();
+        println!("!!: ENABLED_NAV, {:?}", stats.last_frame);
         EnabledNavWithFrame {
             nav: self.enabled_nav(),
             spatial_frame_id: stats.bounds_updated_frame,
