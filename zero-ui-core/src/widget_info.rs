@@ -7,6 +7,7 @@ use std::{
     marker::PhantomData,
     mem, ops,
     rc::Rc,
+    time::{Duration, Instant},
 };
 
 use crate::{
@@ -52,6 +53,72 @@ impl WidgetContextInfo {
     }
 }
 
+/// Stats over the lifetime of a widget info tree.
+///
+/// The stats for a tree are available in [`WidgetInfoTree::stats`].
+#[derive(Debug, Clone)]
+pub struct WidgetInfoTreeStats {
+    /// Duration of the [`UiNode::info`] call for the window content.
+    pub build_time: Duration,
+
+    /// Count of widget infos that where not reused.
+    pub new_widgets: u32,
+
+    /// Count of widgets that where reused from a previous tree.
+    pub reused_widgets: u32,
+
+    /// Last window frame that touched this tree.
+    ///
+    /// Before the first render this is [`FrameId::INVALID`].
+    pub last_frame: FrameId,
+
+    /// Last window frame that moved or resized the inner bounds of widgets.
+    pub bounds_updated_frame: FrameId,
+
+    /// Count of moved or resized widgets in the last `bounds_updated_frame`.
+    pub bounds_updated: u32,
+
+    /// Last windwo frame that changed visibility of widgets.
+    pub visibility_updated_frame: FrameId,
+}
+impl WidgetInfoTreeStats {
+    fn new(build_start: Instant, new_widgets: u32, reused_widgets: u32) -> Self {
+        Self {
+            build_time: build_start.elapsed(),
+            new_widgets,
+            reused_widgets,
+            last_frame: FrameId::INVALID,
+            bounds_updated_frame: FrameId::INVALID,
+            bounds_updated: 0,
+            visibility_updated_frame: FrameId::INVALID,
+        }
+    }
+
+    fn update(&mut self, frame: FrameId, update: WidgetInfoTreeStatsUpdate) {
+        self.last_frame = frame;
+
+        if update.bounds_updated > 0 {
+            self.bounds_updated = update.bounds_updated;
+            self.bounds_updated_frame = frame;
+        }
+
+        // can double count if changed to collapsed from visible, so we don't show this stat.
+        if update.visibility_updated > 0 {
+            self.visibility_updated_frame = frame;
+        }
+    }
+}
+#[derive(Default)]
+struct WidgetInfoTreeStatsUpdate {
+    bounds_updated: u32,
+    visibility_updated: u32,
+}
+impl WidgetInfoTreeStatsUpdate {
+    fn take(&mut self) -> Self {
+        mem::take(self)
+    }
+}
+
 /// A tree of [`WidgetInfo`].
 ///
 /// The tree is behind an `Rc` pointer so cloning and storing this type is very cheap.
@@ -65,12 +132,8 @@ struct WidgetInfoTreeInner {
     inner_bounds_tree: RefCell<Option<Rc<spatial::QuadTree>>>,
     lookup: IdMap<WidgetId, tree::NodeId>,
     interactivity_filters: InteractivityFilters,
-
-    frame_id: Cell<Option<FrameId>>,
-    spatial_frame_id: Cell<Option<FrameId>>,
-    visibility_frame_id: Cell<Option<FrameId>>,
-    bounds_changed: Cell<bool>,     // temporary, if `true` will set `spatial_frame_id`.
-    visibility_changed: Cell<bool>, // temporary, if `true` will set `visibility_frame_id`.
+    stats: RefCell<WidgetInfoTreeStats>,
+    stats_update: RefCell<WidgetInfoTreeStatsUpdate>,
 }
 impl PartialEq for WidgetInfoTree {
     fn eq(&self, other: &Self) -> bool {
@@ -86,6 +149,11 @@ impl WidgetInfoTree {
             .0
     }
 
+    /// Statistics abound the info tree.
+    pub fn stats(&self) -> WidgetInfoTreeStats {
+        self.0.stats.borrow().clone()
+    }
+
     /// Reference to the root widget in the tree.
     pub fn root(&self) -> WidgetInfo {
         WidgetInfo::new(self, self.0.tree.root().id())
@@ -99,21 +167,6 @@ impl WidgetInfoTree {
     /// Id of the window that owns all widgets represented in the tree.
     pub fn window_id(&self) -> WindowId {
         self.0.window_id
-    }
-
-    /// Last window frame rendered after this tree was created.
-    pub fn frame_id(&self) -> Option<FrameId> {
-        self.0.frame_id.get()
-    }
-
-    /// Last window frame rendered where some widget's were resized or moved.
-    pub fn spatial_frame_id(&self) -> Option<FrameId> {
-        self.0.spatial_frame_id.get()
-    }
-
-    /// Last window frame rendered where some widge'ts visibility changed.
-    pub fn visibility_frame_id(&self) -> Option<FrameId> {
-        self.0.visibility_frame_id.get()
     }
 
     /// Reference to the widget in the tree, if it is present.
@@ -135,7 +188,7 @@ impl WidgetInfoTree {
     /// If the widgets in this tree have been rendered at least once, after the first render the widget bounds info are always up-to-date
     /// and spatial queries can be made on the widgets.
     pub fn is_rendered(&self) -> bool {
-        self.frame_id().is_some()
+        self.0.stats.borrow().last_frame != FrameId::INVALID
     }
 
     /// Enveloping bounds of all inner bounds rendered in this tree, visitors outside these bounds never find any widget.
@@ -498,11 +551,11 @@ impl WidgetInfoTree {
     }
 
     fn bounds_changed(&self) {
-        self.0.bounds_changed.set(true);
+        self.0.stats_update.borrow_mut().bounds_updated += 1;
     }
 
     fn visibility_changed(&self) {
-        self.0.visibility_changed.set(true);
+        self.0.stats_update.borrow_mut().visibility_updated += 1;
     }
 
     fn inner_bounds_tree(&self) -> Rc<spatial::QuadTree> {
@@ -524,13 +577,11 @@ impl WidgetInfoTree {
     }
 
     pub(crate) fn after_render(&self, frame_id: FrameId) {
-        self.0.frame_id.set(Some(frame_id));
-        if self.0.bounds_changed.take() {
-            self.0.spatial_frame_id.set(Some(frame_id));
+        let mut stats = self.0.stats.borrow_mut();
+        stats.update(frame_id, self.0.stats_update.borrow_mut().take());
+
+        if stats.bounds_updated_frame == frame_id {
             *self.0.inner_bounds_tree.borrow_mut() = None;
-        }
-        if self.0.visibility_changed.take() {
-            self.0.visibility_frame_id.set(Some(frame_id));
         }
     }
 

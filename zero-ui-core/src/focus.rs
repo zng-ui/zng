@@ -1434,8 +1434,8 @@ impl EnabledNavWithFrame {
         }
     }
     fn needs_refresh(&self, tree: &WidgetInfoTree) -> bool {
-        tree.spatial_frame_id().unwrap_or(FrameId::INVALID) != self.spatial_frame_id
-            || tree.visibility_frame_id().unwrap_or(FrameId::INVALID) != self.visibility_id
+        let stats = tree.stats();
+        stats.bounds_updated_frame != self.spatial_frame_id || stats.visibility_updated_frame != self.visibility_id
     }
 }
 trait EnabledNavWithFrameExt {
@@ -1443,10 +1443,11 @@ trait EnabledNavWithFrameExt {
 }
 impl<'a> EnabledNavWithFrameExt for WidgetFocusInfo<'a> {
     fn enabled_nav_with_frame(self) -> EnabledNavWithFrame {
+        let stats = self.info.tree().stats();
         EnabledNavWithFrame {
             nav: self.enabled_nav(),
-            spatial_frame_id: self.info.tree().spatial_frame_id().unwrap_or(FrameId::INVALID),
-            visibility_id: self.info.tree().visibility_frame_id().unwrap_or(FrameId::INVALID),
+            spatial_frame_id: stats.bounds_updated_frame,
+            visibility_id: stats.visibility_updated_frame,
         }
     }
 }

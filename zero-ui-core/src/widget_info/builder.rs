@@ -8,12 +8,14 @@ pub struct WidgetInfoBuilder {
 
     node: tree::NodeId,
     widget_id: WidgetId,
-    tree_meta: OwnedStateMap,
     meta: OwnedStateMap,
 
     tree: Tree<WidgetInfoData>,
     lookup: IdMap<WidgetId, tree::NodeId>,
     interactivity_filters: InteractivityFilters,
+
+    build_start: Instant,
+    new_widgets: u32,
 }
 impl WidgetInfoBuilder {
     /// Starts building a info tree with the root information.
@@ -48,9 +50,10 @@ impl WidgetInfoBuilder {
             tree,
             interactivity_filters: Vec::with_capacity(used_data.interactivity_filters_capacity),
             lookup,
-            tree_meta: OwnedStateMap::new(),
             meta: OwnedStateMap::new(),
             widget_id: root_id,
+            build_start: Instant::now(),
+            new_widgets: 0,
         }
     }
 
@@ -196,14 +199,15 @@ impl WidgetInfoBuilder {
         let r = WidgetInfoTree(Rc::new(WidgetInfoTreeInner {
             window_id: self.window_id,
             lookup: self.lookup,
+            stats: RefCell::new(WidgetInfoTreeStats::new(
+                self.build_start,
+                self.new_widgets,
+                self.tree.len() as u32 - self.new_widgets,
+            )),
             tree: self.tree,
             interactivity_filters: self.interactivity_filters,
             inner_bounds_tree: RefCell::new(Some(Rc::new(spatial::QuadTree::new()))),
-            frame_id: Cell::new(None),
-            spatial_frame_id: Cell::new(None),
-            visibility_frame_id: Cell::new(None),
-            bounds_changed: Cell::new(true),
-            visibility_changed: Cell::new(true),
+            stats_update: Default::default(),
         }));
 
         let cap = UsedWidgetInfoBuilder {
