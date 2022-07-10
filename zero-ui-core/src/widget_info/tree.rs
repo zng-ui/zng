@@ -39,6 +39,7 @@ impl<T> Tree<T> {
             prev_sibling: None,
             next_sibling: None,
             last_child: None,
+            descendants_end: 1,
             value: root,
         });
 
@@ -87,9 +88,11 @@ struct Node<T> {
     prev_sibling: Option<NodeId>,
     next_sibling: Option<NodeId>,
     last_child: Option<NodeId>,
+    descendants_end: u32,
     value: T,
 }
-assert_size_of!(Node<()>, 4 * 4);
+assert_size_of!(Node<()>, 5 * 4);
+
 impl<T> fmt::Debug for Node<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("Node")
@@ -97,6 +100,7 @@ impl<T> fmt::Debug for Node<T> {
             .field("prev_sibling", &self.prev_sibling)
             .field("next_sibling", &self.next_sibling)
             .field("last_child", &self.last_child)
+            .field("descendant_end", &self.descendants_end)
             .finish_non_exhaustive()
     }
 }
@@ -143,7 +147,7 @@ impl<'a, T> NodeRef<'a, T> {
     pub fn first_child(&self) -> Option<NodeRef<'a, T>> {
         self.tree.nodes[self.id.get()].last_child.map(|_| NodeRef {
             tree: self.tree,
-            id: self.id.next(),// if we have a last child, we have a first one, just after `self`
+            id: self.id.next(), // if we have a last child, we have a first one, just after `self`
         })
     }
 
@@ -171,52 +175,10 @@ impl<'a, T> NodeRef<'a, T> {
     }
 
     pub fn descendants_range(self) -> std::ops::Range<usize> {
-        let start = self.id.get() + 1;
-        if let Some(next) = self.next_sibling() {
-            // descendants are only pushed directly after ancestors.
-            let end = next.id.get();
-            start..end
-        } else {
-            let mut p = self;
-            while let Some(n) = p.parent() {
-                if let Some(next) = n.next_sibling() {
-                    let end = next.id.get();
-                    return start..end;
-                }
-                p = n;
-            }
-
-            start..self.tree.len()
-        }
-    }
-
-    pub fn is_descendent(self, maybe_ancestor: NodeRef<'a, T>) -> bool {
-        let start = maybe_ancestor.id.get() + 1;
-
-        let search_id = self.id.get();
-
-        if search_id <= start {
-            return false;
-        }
-
-        if let Some(next) = maybe_ancestor.next_sibling() {
-            let end = next.id.get();
-
-            return search_id < end;
-        }
-
-        let mut p = maybe_ancestor;
-        while let Some(n) = p.parent() {
-            if let Some(next) = n.next_sibling() {
-                let end = next.id.get();
-
-                return search_id < end;
-            }
-            p = n;
-        }
-
-        // tree.len
-        true
+        let self_i = self.id.get();
+        let start = self_i + 1;
+        let end = self.tree.nodes[self_i].descendants_end as usize;
+        start..end
     }
 
     pub fn value(&self) -> &'a T {
@@ -239,7 +201,8 @@ impl<'a, T> NodeMut<'a, T> {
     }
 
     pub fn push_child(&mut self, value: T) -> NodeMut<T> {
-        let new_id = NodeId::new(self.tree.nodes.len());
+        let len = self.tree.nodes.len();
+        let new_id = NodeId::new(len);
 
         let self_node = &mut self.tree.nodes[self.id.get()];
         let mut new_node = Node {
@@ -247,6 +210,7 @@ impl<'a, T> NodeMut<'a, T> {
             prev_sibling: None,
             next_sibling: None,
             last_child: None,
+            descendants_end: len as u32 + 1,
             value,
         };
 
@@ -267,7 +231,7 @@ impl<'a, T> NodeMut<'a, T> {
         }
     }
 
-    pub fn push_reuse(&mut self, child: NodeRef<T>, reuse: &mut impl FnMut(&T) -> T, inspect: &mut impl FnMut(NodeRef<T>)) -> NodeMut<T> {
+    pub fn push_reuse(&mut self, child: NodeRef<T>, reuse: &mut impl FnMut(&T) -> T, inspect: &mut impl FnMut(NodeRef<T>)) {
         let mut clone = self.push_child(reuse(child.value()));
         inspect(NodeRef {
             tree: clone.tree,
@@ -282,7 +246,13 @@ impl<'a, T> NodeMut<'a, T> {
                 clone.push_reuse(c, reuse, inspect);
             }
         }
-        clone
+
+        clone.close();
+    }
+
+    pub fn close(self) {
+        let len = self.tree.len();
+        self.tree.nodes[self.id.get()].descendants_end = len as u32;
     }
 
     pub fn value(&mut self) -> &mut T {

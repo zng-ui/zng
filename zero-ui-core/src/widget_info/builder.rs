@@ -105,7 +105,11 @@ impl WidgetInfoBuilder {
 
         f(self);
 
-        self.node(self.node).value().meta = Rc::new(mem::replace(&mut self.meta, parent_meta));
+        let meta = Rc::new(mem::replace(&mut self.meta, parent_meta));
+        let mut node = self.node(self.node);
+        node.value().meta = meta;
+        node.close();
+
         self.node = parent_node;
         self.widget_id = parent_widget_id;
     }
@@ -191,7 +195,10 @@ impl WidgetInfoBuilder {
 
     /// Build the info tree.
     pub fn finalize(mut self) -> (WidgetInfoTree, UsedWidgetInfoBuilder) {
-        self.tree.root_mut().value().meta = Rc::new(self.meta);
+        let mut node = self.tree.root_mut();
+        let meta = Rc::new(self.meta);
+        node.value().meta = meta;
+        node.close();
 
         let r = WidgetInfoTree(Rc::new(WidgetInfoTreeInner {
             window_id: self.window_id,

@@ -1433,12 +1433,12 @@ impl<'a> WidgetInfo<'a> {
 
     /// If `self` is an ancestor of `maybe_descendant`.
     pub fn is_ancestor(self, maybe_descendant: WidgetInfo<'a>) -> bool {
-        maybe_descendant.is_descendant(self)
+        self.descendants_range().contains(maybe_descendant)
     }
 
     /// If `self` is inside `maybe_ancestor`.
     pub fn is_descendant(self, maybe_ancestor: WidgetInfo<'a>) -> bool {
-        self.node().is_descendent(maybe_ancestor.node())
+        maybe_ancestor.descendants_range().contains(self)
     }
 
     /// Iterator over self -> parent -> grandparent -> .. -> root.

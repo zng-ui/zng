@@ -68,7 +68,7 @@
 //! focusable or a focus scope and customize how the focus manager interacts with the widget.
 //!
 //! Note that the main crate already provides properties for configuring focus in widgets, you only need to
-//! set the [`FocusInfoKey`] directly if you are developing your own focus defining properties.
+//! set the [`FocusInfoBuilder`] directly if you are developing your own focus defining properties.
 //!
 //! # Querying
 //!
