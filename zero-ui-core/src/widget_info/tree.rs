@@ -14,6 +14,13 @@ impl NodeId {
     pub fn get(self) -> usize {
         (self.0.get() - 1) as usize
     }
+
+    pub fn next(self) -> Self {
+        let mut id = self.0.get();
+        id = id.saturating_add(1);
+        // SAFETY: sat +1
+        Self(unsafe { NonZeroU32::new_unchecked(id) })
+    }
 }
 impl fmt::Debug for NodeId {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -31,7 +38,7 @@ impl<T> Tree<T> {
             parent: None,
             prev_sibling: None,
             next_sibling: None,
-            children: None,
+            last_child: None,
             value: root,
         });
 
@@ -79,17 +86,17 @@ struct Node<T> {
     parent: Option<NodeId>,
     prev_sibling: Option<NodeId>,
     next_sibling: Option<NodeId>,
-    children: Option<(NodeId, NodeId)>,
+    last_child: Option<NodeId>,
     value: T,
 }
-assert_size_of!(Node<()>, 5 * 4); // non-null works for the `children` field too.
+assert_size_of!(Node<()>, 4 * 4);
 impl<T> fmt::Debug for Node<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("Node")
             .field("parent", &self.parent)
             .field("prev_sibling", &self.prev_sibling)
             .field("next_sibling", &self.next_sibling)
-            .field("children", &self.children)
+            .field("last_child", &self.last_child)
             .finish_non_exhaustive()
     }
 }
@@ -134,19 +141,20 @@ impl<'a, T> NodeRef<'a, T> {
     }
 
     pub fn first_child(&self) -> Option<NodeRef<'a, T>> {
-        self.tree.nodes[self.id.get()]
-            .children
-            .map(|(p, _)| NodeRef { tree: self.tree, id: p })
+        self.tree.nodes[self.id.get()].last_child.map(|_| NodeRef {
+            tree: self.tree,
+            id: self.id.next(),// if we have a last child, we have a first one, just after `self`
+        })
     }
 
     pub fn last_child(&self) -> Option<NodeRef<'a, T>> {
         self.tree.nodes[self.id.get()]
-            .children
-            .map(|(_, p)| NodeRef { tree: self.tree, id: p })
+            .last_child
+            .map(|p| NodeRef { tree: self.tree, id: p })
     }
 
     pub fn has_children(&self) -> bool {
-        self.tree.nodes[self.id.get()].children.is_some()
+        self.tree.nodes[self.id.get()].last_child.is_some()
     }
 
     pub fn children_count(&self) -> usize {
@@ -238,17 +246,17 @@ impl<'a, T> NodeMut<'a, T> {
             parent: Some(self.id),
             prev_sibling: None,
             next_sibling: None,
-            children: None,
+            last_child: None,
             value,
         };
 
-        if let Some((_, last)) = &mut self_node.children {
+        if let Some(last) = &mut self_node.last_child {
             let prev_last = *last;
             new_node.prev_sibling = Some(prev_last);
             *last = new_id;
             self.tree.nodes[prev_last.get()].next_sibling = Some(new_id);
         } else {
-            self_node.children = Some((new_id, new_id));
+            self_node.last_child = Some(new_id);
         }
 
         self.tree.nodes.push(new_node);
