@@ -101,9 +101,7 @@ impl WidgetInfoTreeStats {
         }
 
         // can double count if changed to collapsed from visible, so we don't show this stat.
-        if update.visibility_updated > 0 {
-            self.visibility_updated_frame = frame;
-        } else if self.visibility_updated_frame == FrameId::INVALID {
+        if update.visibility_updated > 0 || self.visibility_updated_frame == FrameId::INVALID {
             self.visibility_updated_frame = frame;
         }
     }
