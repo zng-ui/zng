@@ -1,5 +1,7 @@
 //! Widget info tree iterators.
 
+use std::iter::FusedIterator;
+
 use super::*;
 
 /// Widget tree filter result.
@@ -175,306 +177,247 @@ impl<'a> Iterator for Ancestors<'a> {
     }
 }
 
-/// Iterator over all items in a branch of the widget tree.
-///
-/// This `struct` is created by the [`descendants`] and [`self_and_descendants`] methods in [`WidgetInfo`].
-///
-/// [`descendants`]: WidgetInfo::descendants
-/// [`self_and_descendants`]: WidgetInfo::self_and_descendants
-pub struct Descendants<'a> {
-    root: WidgetInfo<'a>,
-
-    front: WidgetInfo<'a>,
-    front_state: DescendantsState,
-
-    back: WidgetInfo<'a>,
-    back_state: DescendantsState,
-
-    next_is_prev: bool,
-}
-impl<'a> fmt::Debug for Descendants<'a> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("Descendants")
-            .field("root", &self.root.widget_id().to_string())
-            .field("front", &self.front.widget_id().to_string())
-            .field("front_state", &self.front_state)
-            .field("back", &self.back.widget_id().to_string())
-            .field("back_state", &self.back_state)
-            .field("next_is_prev", &self.next_is_prev)
-            .finish_non_exhaustive()
+mod internal {
+    pub trait InternalTreeIterator {
+        fn skip_all(&mut self, widget: super::WidgetInfo, rev: bool);
     }
 }
-#[derive(Debug, Clone, Copy)]
-enum DescendantsState {
-    Enter,
-    Exit,
+
+/// Iterator that traverses the branches of a widget tree.
+pub trait TreeIterator<'a>: internal::InternalTreeIterator + Iterator<Item = WidgetInfo<'a>> + DoubleEndedIterator + FusedIterator {
+    /// Reverse tree iterator direction.
+    ///
+    /// Yields the same widgets as [`Iterator::rev`], but is also a [`TreeIterator`] so can be filtered.
+    fn tree_rev(self) -> RevTreeIter<'a, Self>
+    where
+        Self: Sized,
+    {
+        RevTreeIter {
+            _lt: PhantomData,
+            iter: self,
+        }
+    }
+
+    /// Creates an iterator which uses a closure to filter items or branches at a time.
+    ///
+    /// See [`TreeFilter`] for details.
+    fn tree_filter<F: FnMut(WidgetInfo<'a>) -> TreeFilter>(self, filter: F) -> TreeFilterIter<'a, Self, F>
+    where
+        Self: Sized,
+    {
+        TreeFilterIter {
+            _lt: PhantomData,
+            iter: self,
+            filter,
+        }
+    }
+
+    /// Gets the first item not filtered out by a [`TreeFilter`] closure.
+    fn tree_find<F: FnMut(WidgetInfo<'a>) -> TreeFilter>(self, filter: F) -> Option<WidgetInfo<'a>>
+    where
+        Self: Sized,
+    {
+        self.tree_filter(filter).next()
+    }
+
+    /// Check if any item is not filtered out by a [`TreeFilter`] closure.
+    fn tree_any<F: FnMut(WidgetInfo<'a>) -> TreeFilter>(self, filter: F) -> bool
+    where
+        Self: Sized,
+    {
+        self.tree_find(filter).is_some()
+    }
 }
-impl<'a> Descendants<'a> {
-    pub(super) fn new(root: WidgetInfo<'a>) -> Self {
+
+/// Primary implementer of [`TreeIterator`].
+pub struct TreeIter<'a> {
+    tree: &'a WidgetInfoTree,
+    iter: tree::TreeIter,
+}
+impl<'a> TreeIter<'a> {
+    pub(super) fn self_and_descendants(wgt: WidgetInfo<'a>) -> Self {
         Self {
-            root,
-            front: root,
-            front_state: DescendantsState::Enter,
-            back: root,
-            back_state: DescendantsState::Enter,
-            next_is_prev: false,
+            tree: wgt.tree(),
+            iter: wgt.node().self_and_descendants(),
         }
     }
 
-    pub(super) fn new_in(root: WidgetInfo<'a>, item: WidgetInfo<'a>, is_prev: bool) -> Self {
-        if is_prev {
-            Self {
-                root,
-                front: root,
-                front_state: DescendantsState::Enter,
-                back: item,
-                back_state: DescendantsState::Enter,
-                next_is_prev: true,
-            }
+    pub(super) fn self_and_prev_siblings_in(wgt: WidgetInfo<'a>, ancestor: WidgetInfo<'a>) -> RevTreeIter<'a, Self> {
+        let mut iter = ancestor.node().self_and_descendants();
+        iter.skip_back_to(wgt.node_id);
+        Self { tree: wgt.tree(), iter }.tree_rev()
+    }
+
+    pub(super) fn self_and_next_siblings_in(wgt: WidgetInfo<'a>, ancestor: WidgetInfo<'a>) -> Self {
+        let mut iter = ancestor.node().self_and_descendants();
+        iter.skip_to(wgt.node_id);
+        Self { tree: wgt.tree(), iter }
+    }
+}
+impl<'a> internal::InternalTreeIterator for TreeIter<'a> {
+    fn skip_all(&mut self, widget: WidgetInfo, rev: bool) {
+        if rev {
+            self.iter.close_back(&self.tree.0.tree, widget.node_id)
         } else {
-            Self {
-                root,
-                front: item,
-                front_state: DescendantsState::Enter,
-                back: root,
-                back_state: DescendantsState::Enter,
-                next_is_prev: false,
-            }
-        }
-    }
-
-    pub(super) fn new_in_after(root: WidgetInfo<'a>, item: WidgetInfo<'a>, is_prev: bool) -> Self {
-        let mut r = Self::new_in(root, item, is_prev);
-        if let Some(n) = r.front.next_sibling() {
-            r.front = n;
-        } else {
-            r.front_state = DescendantsState::Exit;
-        }
-        if let Some(n) = r.back.prev_sibling() {
-            r.back = n;
-        } else {
-            r.back_state = DescendantsState::Exit;
-        }
-        r
-    }
-
-    /// Filter out entire branches of descendants at a time.
-    ///
-    /// Note that you can convert `bool` into [`TreeFilter`] to use this method just like the iterator default.
-    pub fn filter<F>(self, filter: F) -> FilterDescendants<'a, F>
-    where
-        F: FnMut(WidgetInfo<'a>) -> TreeFilter,
-    {
-        FilterDescendants { filter, iter: self }
-    }
-
-    /// Returns the first widget included by `filter`.
-    ///
-    /// Note that you can convert `bool` into [`TreeFilter`] to use this method just like the iterator default.
-    pub fn find<F>(self, filter: F) -> Option<WidgetInfo<'a>>
-    where
-        F: FnMut(WidgetInfo<'a>) -> TreeFilter,
-    {
-        #[allow(clippy::filter_next)]
-        self.filter(filter).next()
-    }
-
-    /// Returns if the `filter` allows any widget.
-    ///
-    /// Note that you can convert `bool` into [`TreeFilter`] to use this method just like the iterator default.
-    pub fn any<F>(self, filter: F) -> bool
-    where
-        F: FnMut(WidgetInfo<'a>) -> TreeFilter,
-    {
-        self.find(filter).is_some()
-    }
-
-    fn actual_next(&mut self) -> Option<WidgetInfo<'a>> {
-        loop {
-            // DoubleEndedIterator contract
-            if self.front == self.back {
-                if let DescendantsState::Exit = self.front_state {
-                    return None;
-                }
-                if let DescendantsState::Exit = self.back_state {
-                    return None;
-                }
-            }
-
-            match self.front_state {
-                DescendantsState::Enter => {
-                    let next = Some(self.front);
-
-                    if let Some(child) = self.front.first_child() {
-                        self.front = child;
-                        self.front_state = DescendantsState::Enter;
-                    } else {
-                        self.front_state = DescendantsState::Exit;
-                    }
-
-                    return next;
-                }
-                DescendantsState::Exit => {
-                    if self.front == self.root {
-                        return None;
-                    } else if let Some(s) = self.front.next_sibling() {
-                        self.front = s;
-                        self.front_state = DescendantsState::Enter;
-                        continue;
-                    } else if let Some(p) = self.front.parent() {
-                        self.front = p;
-                        self.front_state = DescendantsState::Exit;
-                        continue;
-                    } else {
-                        self.front = self.root;
-                        return None;
-                    }
-                }
-            }
-        }
-    }
-
-    fn actual_next_back(&mut self) -> Option<WidgetInfo<'a>> {
-        loop {
-            // DoubleEndedIterator contract
-            if self.front == self.back {
-                if let DescendantsState::Exit = self.front_state {
-                    return None;
-                }
-                if let DescendantsState::Exit = self.back_state {
-                    return None;
-                }
-            }
-
-            match self.back_state {
-                DescendantsState::Enter => {
-                    let next = Some(self.back);
-
-                    if let Some(child) = self.back.last_child() {
-                        self.back = child;
-                        self.back_state = DescendantsState::Enter;
-                    } else {
-                        self.back_state = DescendantsState::Exit;
-                    }
-
-                    return next;
-                }
-                DescendantsState::Exit => {
-                    if self.back == self.root {
-                        return None;
-                    } else if let Some(s) = self.back.prev_sibling() {
-                        self.back = s;
-                        self.back_state = DescendantsState::Enter;
-                        continue;
-                    } else if let Some(p) = self.back.parent() {
-                        self.back = p;
-                        self.back_state = DescendantsState::Exit;
-                        continue;
-                    } else {
-                        self.back = self.root;
-                        return None;
-                    }
-                }
-            }
+            self.iter.close(&self.tree.0.tree, widget.node_id)
         }
     }
 }
-impl<'a> Iterator for Descendants<'a> {
+impl<'a> Iterator for TreeIter<'a> {
     type Item = WidgetInfo<'a>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.next_is_prev {
-            self.actual_next_back()
-        } else {
-            self.actual_next()
-        }
+        self.iter.next().map(|id| WidgetInfo::new(self.tree, id))
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let len = self.iter.len();
+        (len, Some(len))
     }
 }
-impl<'a> DoubleEndedIterator for Descendants<'a> {
+impl<'a> DoubleEndedIterator for TreeIter<'a> {
     fn next_back(&mut self) -> Option<Self::Item> {
-        if self.next_is_prev {
-            self.actual_next()
-        } else {
-            self.actual_next_back()
-        }
+        self.iter.next_back(&self.tree.0.tree).map(|id| WidgetInfo::new(self.tree, id))
     }
 }
+impl<'a> ExactSizeIterator for TreeIter<'a> {
+    fn len(&self) -> usize {
+        self.iter.len()
+    }
+}
+impl<'a> FusedIterator for TreeIter<'a> {}
+impl<'a> TreeIterator<'a> for TreeIter<'a> {}
 
-/// An iterator that filters a widget tree.
+/// Reversing tree iterator.
 ///
-/// This `struct` is created by the [`Descendants::filter`] method.
-pub struct FilterDescendants<'a, F: FnMut(WidgetInfo<'a>) -> TreeFilter> {
-    filter: F,
-    iter: Descendants<'a>,
+/// This struct is created by the [`TreeIterator::tree_rev`] method.
+pub struct RevTreeIter<'a, I: TreeIterator<'a>> {
+    _lt: PhantomData<&'a WidgetInfoTree>,
+    iter: I,
 }
-impl<'a, F> fmt::Debug for FilterDescendants<'a, F>
+impl<'a, I> internal::InternalTreeIterator for RevTreeIter<'a, I>
 where
-    F: FnMut(WidgetInfo<'a>) -> TreeFilter,
+    I: TreeIterator<'a>,
 {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("FilterDescendants")
-            .field("iter", &self.iter)
-            .finish_non_exhaustive()
+    fn skip_all(&mut self, widget: WidgetInfo, rev: bool) {
+        self.iter.skip_all(widget, !rev)
     }
 }
-impl<'a, F> FilterDescendants<'a, F>
+impl<'a, I> Iterator for RevTreeIter<'a, I>
 where
+    I: TreeIterator<'a>,
+{
+    type Item = WidgetInfo<'a>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.iter.next_back()
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.iter.size_hint()
+    }
+}
+impl<'a, I> DoubleEndedIterator for RevTreeIter<'a, I>
+where
+    I: TreeIterator<'a>,
+{
+    fn next_back(&mut self) -> Option<Self::Item> {
+        self.iter.next()
+    }
+}
+impl<'a, I> ExactSizeIterator for RevTreeIter<'a, I>
+where
+    I: TreeIterator<'a> + ExactSizeIterator,
+{
+    fn len(&self) -> usize {
+        self.iter.len()
+    }
+}
+impl<'a, I> FusedIterator for RevTreeIter<'a, I> where I: TreeIterator<'a> {}
+impl<'a, I> TreeIterator<'a> for RevTreeIter<'a, I> where I: TreeIterator<'a> {}
+
+/// Filtering tree iterator.
+///
+/// This struct is created by the [`TreeIterator::tree_filter`] method.
+pub struct TreeFilterIter<'a, I: TreeIterator<'a>, F: FnMut(WidgetInfo<'a>) -> TreeFilter> {
+    _lt: PhantomData<&'a WidgetInfoTree>,
+    iter: I,
+    filter: F,
+}
+impl<'a, I: TreeIterator<'a>, F: FnMut(WidgetInfo<'a>) -> TreeFilter> internal::InternalTreeIterator for TreeFilterIter<'a, I, F> {
+    fn skip_all(&mut self, widget: WidgetInfo, rev: bool) {
+        self.iter.skip_all(widget, rev)
+    }
+}
+impl<'a, I, F> Iterator for TreeFilterIter<'a, I, F>
+where
+    I: TreeIterator<'a>,
     F: FnMut(WidgetInfo<'a>) -> TreeFilter,
 {
-    fn advance(&mut self, pull: impl Fn(&mut Descendants<'a>) -> Option<WidgetInfo<'a>>, is_front: bool) -> Option<WidgetInfo<'a>> {
-        loop {
-            if let Some(wgt) = pull(&mut self.iter) {
-                let mut skip = || {
-                    if is_front {
-                        self.iter.front = wgt;
-                        self.iter.front_state = DescendantsState::Exit;
-                    } else {
-                        self.iter.back = wgt;
-                        self.iter.back_state = DescendantsState::Exit;
-                    }
-                };
+    type Item = WidgetInfo<'a>;
 
-                match (self.filter)(wgt) {
+    fn next(&mut self) -> Option<Self::Item> {
+        loop {
+            match self.iter.next() {
+                Some(wgt) => match (self.filter)(wgt) {
                     TreeFilter::Include => return Some(wgt),
                     TreeFilter::Skip => continue,
                     TreeFilter::SkipAll => {
-                        skip();
+                        self.iter.skip_all(wgt, false);
                         continue;
                     }
                     TreeFilter::SkipDescendants => {
-                        skip();
+                        self.iter.skip_all(wgt, false);
                         return Some(wgt);
                     }
-                }
-            } else {
-                return None;
+                },
+                None => return None,
             }
         }
     }
 }
-impl<'a, F> Iterator for FilterDescendants<'a, F>
+impl<'a, I, F> DoubleEndedIterator for TreeFilterIter<'a, I, F>
 where
-    F: FnMut(WidgetInfo<'a>) -> TreeFilter,
-{
-    type Item = WidgetInfo<'a>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        self.advance(|d| d.next(), !self.iter.next_is_prev)
-    }
-}
-impl<'a, F> DoubleEndedIterator for FilterDescendants<'a, F>
-where
+    I: TreeIterator<'a>,
     F: FnMut(WidgetInfo<'a>) -> TreeFilter,
 {
     fn next_back(&mut self) -> Option<Self::Item> {
-        self.advance(|d| d.next_back(), self.iter.next_is_prev)
+        loop {
+            match self.iter.next_back() {
+                Some(wgt) => match (self.filter)(wgt) {
+                    TreeFilter::Include => return Some(wgt),
+                    TreeFilter::Skip => continue,
+                    TreeFilter::SkipAll => {
+                        self.iter.skip_all(wgt, true);
+                        continue;
+                    }
+                    TreeFilter::SkipDescendants => {
+                        self.iter.skip_all(wgt, true);
+                        return Some(wgt);
+                    }
+                },
+                None => return None,
+            }
+        }
     }
+}
+impl<'a, I, F> FusedIterator for TreeFilterIter<'a, I, F>
+where
+    I: TreeIterator<'a>,
+    F: FnMut(WidgetInfo<'a>) -> TreeFilter,
+{
+}
+impl<'a, I, F> TreeIterator<'a> for TreeFilterIter<'a, I, F>
+where
+    I: TreeIterator<'a>,
+    F: FnMut(WidgetInfo<'a>) -> TreeFilter,
+{
 }
 
 #[cfg(test)]
 mod tests {
     use crate::{
-        widget_info::{TreeFilter, WidgetBorderInfo, WidgetBoundsInfo, WidgetInfo, WidgetInfoBuilder, WidgetInfoTree},
+        widget_info::{iter::TreeIterator, TreeFilter, WidgetBorderInfo, WidgetBoundsInfo, WidgetInfo, WidgetInfoBuilder, WidgetInfoTree},
         window::WindowId,
         WidgetId,
     };
@@ -534,7 +477,7 @@ mod tests {
         let result: Vec<_> = tree
             .root()
             .descendants()
-            .filter(|_| TreeFilter::Include)
+            .tree_filter(|_| TreeFilter::Include)
             .map(|w| w.test_name())
             .collect();
 
@@ -545,7 +488,7 @@ mod tests {
     fn descendants_rev() {
         let tree = data();
 
-        let result: Vec<_> = tree.root().descendants().rev().map(|w| w.test_name()).collect();
+        let result: Vec<_> = tree.root().descendants().tree_rev().map(|w| w.test_name()).collect();
 
         assert_eq!(result, vec!["c-2", "c-1", "c-0"]);
     }
@@ -557,8 +500,8 @@ mod tests {
         let result: Vec<_> = tree
             .root()
             .descendants()
-            .filter(|_| TreeFilter::Include)
-            .rev()
+            .tree_filter(|_| TreeFilter::Include)
+            .tree_rev()
             .map(|w| w.test_name())
             .collect();
 
@@ -581,7 +524,7 @@ mod tests {
         let result: Vec<_> = tree
             .root()
             .self_and_descendants()
-            .filter(|_| TreeFilter::Include)
+            .tree_filter(|_| TreeFilter::Include)
             .map(|w| w.test_name())
             .collect();
 
@@ -592,7 +535,7 @@ mod tests {
     fn self_and_descendants_rev() {
         let tree = data();
 
-        let result: Vec<_> = tree.root().self_and_descendants().rev().map(|w| w.test_name()).collect();
+        let result: Vec<_> = tree.root().self_and_descendants().tree_rev().map(|w| w.test_name()).collect();
 
         assert_eq!(result, vec!["w", "c-2", "c-1", "c-0",]);
     }
@@ -604,8 +547,8 @@ mod tests {
         let result: Vec<_> = tree
             .root()
             .self_and_descendants()
-            .filter(|_| TreeFilter::Include)
-            .rev()
+            .tree_filter(|_| TreeFilter::Include)
+            .tree_rev()
             .map(|w| w.test_name())
             .collect();
 
@@ -619,7 +562,7 @@ mod tests {
 
         assert_eq!(iter.next().map(|w| w.test_name()), Some("c-0"));
 
-        let result: Vec<_> = iter.rev().map(|w| w.test_name()).collect();
+        let result: Vec<_> = iter.tree_rev().map(|w| w.test_name()).collect();
 
         assert_eq!(result, vec!["c-2", "c-1"]);
     }
@@ -627,11 +570,11 @@ mod tests {
     #[test]
     fn descendants_double_filter_noop() {
         let tree = data();
-        let mut iter = tree.root().descendants().filter(|_| TreeFilter::Include);
+        let mut iter = tree.root().descendants().tree_filter(|_| TreeFilter::Include);
 
         assert_eq!(iter.next().map(|w| w.test_name()), Some("c-0"));
 
-        let result: Vec<_> = iter.rev().map(|w| w.test_name()).collect();
+        let result: Vec<_> = iter.tree_rev().map(|w| w.test_name()).collect();
 
         assert_eq!(result, vec!["c-2", "c-1"]);
     }
@@ -685,7 +628,7 @@ mod tests {
     fn descendants_nested_rev() {
         let tree = data_nested();
 
-        let result: Vec<_> = tree.root().descendants().rev().map(|w| w.test_name()).collect();
+        let result: Vec<_> = tree.root().descendants().tree_rev().map(|w| w.test_name()).collect();
 
         assert_eq!(
             result,
@@ -715,7 +658,7 @@ mod tests {
     fn self_and_descendants_nested_rev() {
         let tree = data_nested();
 
-        let result: Vec<_> = tree.root().self_and_descendants().rev().map(|w| w.test_name()).collect();
+        let result: Vec<_> = tree.root().self_and_descendants().tree_rev().map(|w| w.test_name()).collect();
         assert_eq!(
             result,
             vec![
@@ -732,7 +675,7 @@ mod tests {
 
         assert_eq!(iter.next().map(|w| w.test_name()), Some("c-0"));
 
-        let result: Vec<_> = iter.rev().map(|w| w.test_name()).collect();
+        let result: Vec<_> = iter.tree_rev().map(|w| w.test_name()).collect();
 
         assert_eq!(
             result,
@@ -751,7 +694,7 @@ mod tests {
         assert_eq!(iter.next().map(|w| w.test_name()), Some("c-0"));
         assert_eq!(iter.next().map(|w| w.test_name()), Some("c-0-0"));
 
-        let result: Vec<_> = iter.rev().map(|w| w.test_name()).collect();
+        let result: Vec<_> = iter.tree_rev().map(|w| w.test_name()).collect();
 
         assert_eq!(
             result,
@@ -792,7 +735,7 @@ mod tests {
     #[test]
     fn descendants_deep_rev() {
         let tree = data_deep();
-        let result: Vec<_> = tree.root().descendants().rev().map(|w| w.test_name()).collect();
+        let result: Vec<_> = tree.root().descendants().tree_rev().map(|w| w.test_name()).collect();
 
         assert_eq!(result, vec!["d-0", "d-1", "d-2", "d-3", "d-4", "d-5"])
     }
@@ -801,7 +744,7 @@ mod tests {
     fn descendants_deep_double() {
         let tree = data_deep();
 
-        let mut iter = tree.root().descendants().rev().map(|w| w.test_name());
+        let mut iter = tree.root().descendants().tree_rev().map(|w| w.test_name());
         iter.next();
 
         let result: Vec<_> = iter.collect();
@@ -816,7 +759,7 @@ mod tests {
         let result: Vec<_> = tree
             .root()
             .descendants()
-            .filter(|_| TreeFilter::Include)
+            .tree_filter(|_| TreeFilter::Include)
             .map(|w| w.test_name())
             .collect();
 
@@ -836,7 +779,7 @@ mod tests {
         let result: Vec<_> = tree
             .root()
             .descendants()
-            .filter(|w| {
+            .tree_filter(|w| {
                 if w.widget_id() == WidgetId::named("c-1") {
                     TreeFilter::Skip
                 } else {
@@ -862,14 +805,14 @@ mod tests {
         let result: Vec<_> = tree
             .root()
             .descendants()
-            .filter(|w| {
+            .tree_filter(|w| {
                 if w.widget_id() == WidgetId::named("c-1") {
                     TreeFilter::Skip
                 } else {
                     TreeFilter::Include
                 }
             })
-            .rev()
+            .tree_rev()
             .map(|w| w.test_name())
             .collect();
 
@@ -889,7 +832,7 @@ mod tests {
         let result: Vec<_> = tree
             .root()
             .descendants()
-            .filter(|w| {
+            .tree_filter(|w| {
                 if w.widget_id() == WidgetId::named("c-1") {
                     TreeFilter::SkipAll
                 } else {
@@ -915,14 +858,14 @@ mod tests {
         let result: Vec<_> = tree
             .root()
             .descendants()
-            .filter(|w| {
+            .tree_filter(|w| {
                 if w.widget_id() == WidgetId::named("c-1") {
                     TreeFilter::SkipAll
                 } else {
                     TreeFilter::Include
                 }
             })
-            .rev()
+            .tree_rev()
             .map(|w| w.test_name())
             .collect();
 
@@ -942,7 +885,7 @@ mod tests {
         let result: Vec<_> = tree
             .root()
             .descendants()
-            .filter(|w| {
+            .tree_filter(|w| {
                 if w.widget_id() == WidgetId::named("c-1") {
                     TreeFilter::SkipDescendants
                 } else {
@@ -968,14 +911,14 @@ mod tests {
         let result: Vec<_> = tree
             .root()
             .descendants()
-            .filter(|w| {
+            .tree_filter(|w| {
                 if w.widget_id() == WidgetId::named("c-1") {
                     TreeFilter::SkipDescendants
                 } else {
                     TreeFilter::Include
                 }
             })
-            .rev()
+            .tree_rev()
             .map(|w| w.test_name())
             .collect();
 
@@ -1015,7 +958,7 @@ mod tests {
         let result: Vec<_> = item.self_and_prev_siblings_in(root).map(|w| w.test_name()).collect();
         let expected: Vec<_> = root
             .descendants()
-            .rev()
+            .tree_rev()
             .skip_while(|w| w.widget_id() != WidgetId::named("c-1-1"))
             .map(|w| w.test_name())
             .collect();
@@ -1050,7 +993,7 @@ mod tests {
         let result: Vec<_> = item.self_and_prev_siblings_in(root).map(|w| w.test_name()).collect();
         let expected: Vec<_> = root
             .descendants()
-            .rev()
+            .tree_rev()
             .skip_while(|w| w.widget_id() != WidgetId::named("c-1-1"))
             .map(|w| w.test_name())
             .collect();
@@ -1077,7 +1020,7 @@ mod tests {
     }
 
     #[test]
-    fn and_prev_siblings_in_root() {
+    fn prev_siblings_in_root() {
         let tree = data_nested();
 
         let root = tree.root();
@@ -1086,7 +1029,7 @@ mod tests {
         let result: Vec<_> = item.prev_siblings_in(root).map(|w| w.test_name()).collect();
         let expected: Vec<_> = root
             .descendants()
-            .rev()
+            .tree_rev()
             .skip_while(|w| w.widget_id() != WidgetId::named("c-1-1-0"))
             .skip(1)
             .map(|w| w.test_name())
