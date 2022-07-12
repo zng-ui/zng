@@ -291,9 +291,6 @@ impl TreeIter {
     /// for a tree (a(a.a, a.b, a.c), b)
     /// yield [b, a, a.c, a.b, a.a]
     pub fn next_back<T>(&mut self, tree: &Tree<T>) -> Option<NodeId> {
-        // * Can we make this happen without adding branching in `next`?
-        // * Update `end` After each `prev_sibling`?
-
         if self.next < self.end {
             let next = NodeId::new(self.next_back);
 
@@ -555,5 +552,55 @@ mod tests {
         }
 
         assert_eq!(r, vec!["r", "b", "a", "a.c", "a.b", "a.b.b"]);
+    }
+
+    #[test]
+    fn skip_to() {
+        let tree = iter_tree();
+
+        let mut iter = tree.root().self_and_descendants();
+        let mut all = vec![];
+        while let Some(id) = iter.next() {
+            all.push(id);
+        }
+
+        for (i, id) in all.iter().enumerate() {
+            let mut iter = tree.root().self_and_descendants();
+            iter.skip_to(*id);
+
+            let mut result = vec![];
+            while let Some(id) = iter.next() {
+                result.push(tree.nodes[id.get()].value);
+            }
+
+            let expected: Vec<_> = all[i..].iter().map(|id| tree.nodes[id.get()].value).collect();
+        
+            assert_eq!(expected, result);
+        }
+    }
+
+    #[test]
+    fn skip_back_to() {
+        let tree = iter_tree();
+
+        let mut iter = tree.root().self_and_descendants();
+        let mut all = vec![];
+        while let Some(id) = iter.next_back(&tree) {
+            all.push(id);
+        }
+
+        for (i, id) in all.iter().enumerate() {
+            let mut iter = tree.root().self_and_descendants();
+            iter.skip_back_to(*id);
+
+            let mut result = vec![];
+            while let Some(id) = iter.next_back(&tree) {
+                result.push(tree.nodes[id.get()].value);
+            }
+
+            let expected: Vec<_> = all[i..].iter().map(|id| tree.nodes[id.get()].value).collect();
+        
+            assert_eq!(expected, result);
+        }
     }
 }
