@@ -370,13 +370,13 @@ impl TreeIter {
         }
     }
 
-    pub fn skip_back_to(&mut self, node: NodeId) {
+    pub fn skip_back_to<T>(&mut self, node: NodeId, tree: &Tree<T>) {
         let node = node.get() as usize;
         if node > self.next {
             if node > self.end {
-                self.next = self.end;
+                self.end = self.next;
             } else {
-                self.end = node;
+                self.end = tree.nodes[node].descendants_end as usize;
                 self.next_back = node;
             }
         }
@@ -457,6 +457,36 @@ mod tests {
         }
 
         assert_eq!(r, vec!["a", "a.c", "a.b", "a.b.b", "a.b.a", "a.a"]);
+    }
+
+    #[test]
+    fn iter_next_descendants() {
+        let tree = iter_tree();
+        let mut iter = tree.root().first_child().unwrap().self_and_descendants();
+        iter.next();
+        iter.next_back(&tree);
+
+        let mut r = vec![];
+        while let Some(id) = iter.next() {
+            r.push(*tree.index(id).value());
+        }
+
+        assert_eq!(r, vec!["a.a", "a.b", "a.b.a", "a.b.b", "a.c"]);
+    }
+
+    #[test]
+    fn iter_prev_descendants() {
+        let tree = iter_tree();
+        let mut iter = tree.root().first_child().unwrap().self_and_descendants();
+        iter.next();
+        iter.next_back(&tree);
+
+        let mut r = vec![];
+        while let Some(id) = iter.next_back(&tree) {
+            r.push(*tree.index(id).value());
+        }
+
+        assert_eq!(r, vec!["a.c", "a.b", "a.b.b", "a.b.a", "a.a"]);
     }
 
     #[test]
@@ -574,7 +604,7 @@ mod tests {
             }
 
             let expected: Vec<_> = all[i..].iter().map(|id| tree.nodes[id.get()].value).collect();
-        
+
             assert_eq!(expected, result);
         }
     }
@@ -591,7 +621,7 @@ mod tests {
 
         for (i, id) in all.iter().enumerate() {
             let mut iter = tree.root().self_and_descendants();
-            iter.skip_back_to(*id);
+            iter.skip_back_to(*id, &tree);
 
             let mut result = vec![];
             while let Some(id) = iter.next_back(&tree) {
@@ -599,7 +629,6 @@ mod tests {
             }
 
             let expected: Vec<_> = all[i..].iter().map(|id| tree.nodes[id.get()].value).collect();
-        
             assert_eq!(expected, result);
         }
     }

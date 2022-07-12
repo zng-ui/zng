@@ -244,7 +244,7 @@ impl<'a> TreeIter<'a> {
 
     pub(super) fn self_and_prev_siblings_in(wgt: WidgetInfo<'a>, ancestor: WidgetInfo<'a>) -> RevTreeIter<'a, Self> {
         let mut iter = ancestor.node().self_and_descendants();
-        iter.skip_back_to(wgt.node_id);
+        iter.skip_back_to(wgt.node_id, &wgt.tree.0.tree);
         Self { tree: wgt.tree(), iter }.tree_rev()
     }
 
@@ -698,7 +698,10 @@ mod tests {
 
         assert_eq!(
             result,
-            vec!["c-2", "c-2-2", "c-2-2-0", "c-2-1", "c-2-0", "c-1", "c-1-1", "c-1-1-1", "c-1-1-0", "c-1-0", "c-0", "c-0-2", "c-0-1",]
+            vec![
+                "c-2", "c-2-2", "c-2-2-0", "c-2-1", "c-2-0", "c-1", "c-1-1", "c-1-1-1", "c-1-1-0", "c-1-0", "c-0", "c-0-2", "c-0-1",
+                "c-0-0"
+            ]
         );
     }
 
