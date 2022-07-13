@@ -37,6 +37,18 @@ fn cmd_impl(cmd: &str, default_args: &[&str], user_args: &[&str], envs: &[(&str,
         cmd.env_remove(remove);
     }
 
+    // rustup 1.25 sets these, breaks cargo +nightly
+    {
+        cmd.env_remove("RUSTC");
+        cmd.env_remove("RUSTDOC");
+
+        let orig_path = env::var_os("PATH").unwrap_or_default();
+        let modified_split_paths =
+            env::split_paths(&orig_path).filter(|path| !path.components().any(|component| component.as_os_str() == ".rustup"));
+        let modified_path = env::join_paths(modified_split_paths).expect("invalid PATH");
+        cmd.env("PATH", modified_path);
+    }
+
     if info.dump {
         if let Some(stdout) = info.stdout_dump() {
             cmd.stdout(Stdio::from(stdout));
