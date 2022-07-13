@@ -236,20 +236,58 @@ impl<'a> TreeIter<'a> {
 
         RevTreeIter { tree: wgt.tree, iter }
     }
+    pub(super) fn prev_siblings_in(wgt: WidgetInfo<'a>, ancestor: WidgetInfo<'a>) -> RevTreeIter<'a> {
+        if let Some(wgt) = wgt.prev_sibling() {
+            Self::self_and_prev_siblings_in(wgt, ancestor)
+        } else if let Some(parent) = wgt.parent() {
+            if parent != ancestor {
+                Self::prev_siblings_in(parent, ancestor)
+            } else {
+                RevTreeIter {
+                    tree: wgt.tree,
+                    iter: tree::RevTreeIter::empty(),
+                }
+            }
+        } else {
+            RevTreeIter {
+                tree: wgt.tree,
+                iter: tree::RevTreeIter::empty(),
+            }
+        }
+    }
 
     pub(super) fn self_and_next_siblings_in(wgt: WidgetInfo<'a>, ancestor: WidgetInfo<'a>) -> Self {
         let mut iter = ancestor.node().self_and_descendants();
         iter.skip_to(wgt.node_id);
         Self { tree: wgt.tree(), iter }
     }
+    pub(super) fn next_siblings_in(wgt: WidgetInfo<'a>, ancestor: WidgetInfo<'a>) -> Self {
+        if let Some(wgt) = wgt.next_sibling() {
+            Self::self_and_next_siblings_in(wgt, ancestor)
+        } else if let Some(parent) = wgt.parent() {
+            if parent != ancestor {
+                Self::next_siblings_in(parent, ancestor)
+            } else {
+                TreeIter {
+                    tree: wgt.tree,
+                    iter: tree::TreeIter::empty(),
+                }
+            }
+        } else {
+            TreeIter {
+                tree: wgt.tree,
+                iter: tree::TreeIter::empty(),
+            }
+        }
+    }
 
     /// Creates a reverse tree iterator.
     ///
     /// Yields widgets in the `parent -> last_child -> prev_sibling` order. The reverse iterator is pre-advanced by the same count
     /// of widgets already yielded by this iterator. In practice this is best used immediatly after getting the iterator from
-    /// [`self_descendants`] or [`descendants`], with the intention of skipping to the last child from the starting widget.
-    /// 
-    /// [`self_descendants`]: WidgetInfo::self_descendants
+    /// [`self_and_descendants`] or [`descendants`], with the intention of skipping to the last child from the starting widget.
+    ///
+    /// [`self_and_descendants`]: WidgetInfo::self_and_descendants
     /// [`descendants`]: WidgetInfo::descendants
     pub fn tree_rev(self) -> RevTreeIter<'a>
     where
@@ -288,7 +326,7 @@ impl<'a> TreeIterator<'a> for TreeIter<'a> {}
 
 /// Reversing tree iterator.
 ///
-/// This struct is created by the [`TreeIterator::tree_rev`] method.
+/// This struct is created by the [`TreeIter::tree_rev`] method.
 pub struct RevTreeIter<'a> {
     tree: &'a WidgetInfoTree,
     iter: tree::RevTreeIter,
@@ -626,10 +664,7 @@ mod tests {
 
         assert_eq!(
             result,
-            vec![
-                "c-2-2", "c-2-2-0", "c-2-1", "c-2-0", "c-1", "c-1-1", "c-1-1-1", "c-1-1-0", "c-1-0", "c-0", "c-0-2", "c-0-1",
-                "c-0-0",
-            ]
+            vec!["c-2-2", "c-2-2-0", "c-2-1", "c-2-0", "c-1", "c-1-1", "c-1-1-1", "c-1-1-0", "c-1-0", "c-0", "c-0-2", "c-0-1", "c-0-0",]
         );
     }
 

@@ -1473,9 +1473,7 @@ impl<'a> WidgetInfo<'a> {
     ///
     /// If `ancestor` is not actually an ancestor iterates to the root.
     pub fn prev_siblings_in(self, ancestor: WidgetInfo<'a>) -> iter::RevTreeIter<'a> {
-        let mut r = self.self_and_prev_siblings_in(ancestor);
-        r.next();
-        r
+        iter::TreeIter::prev_siblings_in(self, ancestor)
     }
 
     /// Iterator over self, descendants and all previous widgets within the same `ancestor`.
@@ -1489,9 +1487,7 @@ impl<'a> WidgetInfo<'a> {
     ///
     /// If `ancestor` is not actually an ancestor iterates to the root.
     pub fn next_siblings_in(self, ancestor: WidgetInfo<'a>) -> iter::TreeIter<'a> {
-        let mut r = self.self_and_next_siblings_in(ancestor);
-        r.next();
-        r
+        iter::TreeIter::next_siblings_in(self, ancestor)
     }
 
     /// Iterator over self, descendants and all next widgets within the same `ancestor`.

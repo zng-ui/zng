@@ -536,9 +536,9 @@ pub fn two_containers_with_mixed_indexes() {
 #[test]
 pub fn tab_index_skip() {
     let buttons = widgets![
-        button! { content = text("Button 0") },
-        button! { content = text("Button 1"); tab_index = TabIndex::SKIP; },
-        button! { content = text("Button 2") },
+        button! { id = "Button 0"; content = text("Button 0") },
+        button! { id = "Button 1"; content = text("Button 1"); tab_index = TabIndex::SKIP; },
+        button! { id = "Button 2"; content = text("Button 2") },
     ];
     let ids: Vec<_> = (0..3).map(|i| buttons.item_id(i)).collect();
 
@@ -643,11 +643,15 @@ pub fn tab_skip_inner_container() {
 pub fn tab_inner_scope_continue() {
     // sanity check for `tab_skip_inner_scope_continue`.
 
-    let inner_buttons = widgets![button! { id = "Button 1"; content = text("Button 1") }, button! { id = "Button 2"; content = text("Button 2") },];
+    let inner_buttons = widgets![
+        button! { id = "Button 1"; content = text("Button 1") },
+        button! { id = "Button 2"; content = text("Button 2") },
+    ];
     let inner_ids: Vec<_> = (0..2).map(|i| inner_buttons.item_id(i)).collect();
     let items = widgets![
         button! { id = "Button 0";  content = text("Button 0") },
         v_stack! {
+            id = "Scope Continue";
             items = inner_buttons;
             focus_scope = true;
             tab_nav = TabNav::Continue;
@@ -680,7 +684,10 @@ pub fn tab_skip_inner_scope_continue() {
     // but that the items inside will still tab navigate if focused
     // directly.
 
-    let inner_buttons = widgets![button! { id = "Button 1"; content = text("Button 1") }, button! { id = "Button 2"; content = text("Button 2") },];
+    let inner_buttons = widgets![
+        button! { id = "Button 1"; content = text("Button 1") },
+        button! { id = "Button 2"; content = text("Button 2") },
+    ];
     let inner_ids: Vec<_> = (0..2).map(|i| inner_buttons.item_id(i)).collect();
     let items = widgets![
         button! { id = "Button 0"; content = text("Button 0") },

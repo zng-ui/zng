@@ -332,6 +332,10 @@ impl TreeIter {
 
         iter
     }
+
+    pub fn empty() -> Self {
+        Self { node: 0, next: 0, end: 0 }
+    }
 }
 
 pub(super) struct RevTreeIter {
@@ -412,6 +416,14 @@ impl RevTreeIter {
                 self.next = node;
                 self.started = true;
             }
+        }
+    }
+
+    pub fn empty() -> Self {
+        Self {
+            next: 0,
+            end: 0,
+            started: true,
         }
     }
 }
