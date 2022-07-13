@@ -643,16 +643,16 @@ pub fn tab_skip_inner_container() {
 pub fn tab_inner_scope_continue() {
     // sanity check for `tab_skip_inner_scope_continue`.
 
-    let inner_buttons = widgets![button! { content = text("Button 1") }, button! { content = text("Button 2") },];
+    let inner_buttons = widgets![button! { id = "Button 1"; content = text("Button 1") }, button! { id = "Button 2"; content = text("Button 2") },];
     let inner_ids: Vec<_> = (0..2).map(|i| inner_buttons.item_id(i)).collect();
     let items = widgets![
-        button! { content = text("Button 0") },
+        button! { id = "Button 0";  content = text("Button 0") },
         v_stack! {
             items = inner_buttons;
             focus_scope = true;
             tab_nav = TabNav::Continue;
         },
-        button! { content = text("Button 3") },
+        button! { id = "Button 3"; content = text("Button 3") },
     ];
     let item_ids: Vec<_> = (0..3).map(|i| items.item_id(i)).collect();
 
@@ -680,17 +680,18 @@ pub fn tab_skip_inner_scope_continue() {
     // but that the items inside will still tab navigate if focused
     // directly.
 
-    let inner_buttons = widgets![button! { content = text("Button 1") }, button! { content = text("Button 2") },];
+    let inner_buttons = widgets![button! { id = "Button 1"; content = text("Button 1") }, button! { id = "Button 2"; content = text("Button 2") },];
     let inner_ids: Vec<_> = (0..2).map(|i| inner_buttons.item_id(i)).collect();
     let items = widgets![
-        button! { content = text("Button 0") },
+        button! { id = "Button 0"; content = text("Button 0") },
         v_stack! {
+            id = "v_stack";
             items = inner_buttons;
             focus_scope = true;
             tab_nav = TabNav::Continue;
             tab_index = TabIndex::SKIP;
         },
-        button! { content = text("Button 3") },
+        button! { id = "Button 3"; content = text("Button 3") },
     ];
     let item_ids: Vec<_> = (0..3).map(|i| items.item_id(i)).collect();
 
