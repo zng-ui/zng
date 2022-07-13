@@ -187,6 +187,7 @@ impl<'a, T> NodeRef<'a, T> {
             next: node,
             next_back: node,
             end: self.tree.nodes[self.id.get()].descendants_end as usize,
+            back_advance: 0,
         }
     }
 
@@ -274,6 +275,7 @@ pub(super) struct TreeIter {
     end: usize,
 
     next_back: usize,
+    back_advance: usize, // number of nodes back entered
 }
 impl TreeIter {
     /// for a tree (a(a.a, a.b, a.c), b)
@@ -297,13 +299,21 @@ impl TreeIter {
             let node = &tree.nodes[self.next_back];
             if let Some(last_child) = node.last_child {
                 self.next_back = last_child.get();
+                self.back_advance += 1;
             } else if let Some(prev_sibling) = node.prev_sibling {
                 self.next_back = prev_sibling.get();
                 self.end -= 1;
             } else {
                 let mut node = node;
-                loop {
+                while self.next < self.end {
                     if let Some(parent) = node.parent {
+                        self.end -= 1;
+                        if self.end == self.next {
+                            self.back_advance = 0;
+                            break;
+                        }
+
+                        self.back_advance -= 1;
                         node = &tree.nodes[parent.get()];
                         if let Some(prev_sibling) = node.prev_sibling {
                             self.next_back = prev_sibling.get();
@@ -312,6 +322,7 @@ impl TreeIter {
                         }
                     } else {
                         self.end = self.next;
+                        self.back_advance = 0;
                         break;
                     }
                 }
@@ -346,9 +357,10 @@ impl TreeIter {
             let mut node = node;
             while let Some(parent) = node.parent {
                 node = &tree.nodes[parent.get()];
+                self.back_advance -= 1;
                 if let Some(prev_sibling) = node.prev_sibling {
                     self.next_back = self.next.max(prev_sibling.get() as usize);
-                    todo!("update front to match");
+                    self.end = tree.nodes[prev_sibling.get()].descendants_end as usize;
                     return;
                 }
             }
@@ -375,15 +387,27 @@ impl TreeIter {
         if node > self.next {
             if node > self.end {
                 self.end = self.next;
+                self.back_advance = 0;
             } else {
-                self.end = tree.nodes[node].descendants_end as usize;
+                let node_ref = &tree.nodes[node];
+                let mut exit = node_ref;
+                self.back_advance = 0;
+                while let Some(p) = exit.parent {
+                    self.back_advance += 1;
+                    exit = &tree.nodes[p.get()];
+                    if exit.descendants_end as usize >= self.end {
+                        break;
+                    }
+                }
+
+                self.end = node_ref.descendants_end as usize;
                 self.next_back = node;
             }
         }
     }
 
     pub fn len(&self) -> usize {
-        self.end - self.next
+        self.end - self.next + self.back_advance
     }
 }
 
