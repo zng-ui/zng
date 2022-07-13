@@ -74,7 +74,7 @@ where
 ///
 /// [`descendants`]: WidgetFocusInfo::descendants
 /// [`self_and_descendants`]: WidgetFocusInfo::self_and_descendants
-pub struct FocusableDescendants<'a, I>
+pub struct FocusTreeIter<'a, I>
 where
     I: TreeIterator<'a>,
 {
@@ -82,7 +82,7 @@ where
     iter: I,
     focus_disabled_widgets: bool,
 }
-impl<'a, I> FocusableDescendants<'a, I>
+impl<'a, I> FocusTreeIter<'a, I>
 where
     I: TreeIterator<'a>,
 {
@@ -99,11 +99,11 @@ where
     /// Note that you can convert `bool` into [`TreeFilter`] to use this method just like the iterator default.
     ///
     /// [`TreeFilter`]: w_iter::TreeFilter
-    pub fn tree_filter<F>(self, mut filter: F) -> FocusableFilterDescendants<'a, I, impl FnMut(WidgetInfo<'a>) -> w_iter::TreeFilter>
+    pub fn tree_filter<F>(self, mut filter: F) -> FocusTreeFilterIter<'a, I, impl FnMut(WidgetInfo<'a>) -> w_iter::TreeFilter>
     where
         F: FnMut(WidgetFocusInfo<'a>) -> w_iter::TreeFilter,
     {
-        FocusableFilterDescendants {
+        FocusTreeFilterIter {
             iter: self.iter.tree_filter(move |w| {
                 if let Some(f) = w.as_focusable(self.focus_disabled_widgets) {
                     filter(f)
@@ -140,7 +140,14 @@ where
         self.tree_find(filter).is_some()
     }
 }
-impl<'a, I> Iterator for FocusableDescendants<'a, I>
+impl<'a> FocusTreeIter<'a, w_iter::TreeIter<'a>> {
+    /// Creates a reverse tree iterator.
+    pub fn tree_rev(self) -> FocusTreeIter<'a, w_iter::RevTreeIter<'a>> {
+        FocusTreeIter::new(self.iter.tree_rev(), self.focus_disabled_widgets)
+    }
+}
+
+impl<'a, I> Iterator for FocusTreeIter<'a, I>
 where
     I: TreeIterator<'a>,
 {
@@ -155,24 +162,11 @@ where
         None
     }
 }
-impl<'a, I> DoubleEndedIterator for FocusableDescendants<'a, I>
-where
-    I: TreeIterator<'a>,
-{
-    fn next_back(&mut self) -> Option<Self::Item> {
-        while let Some(next) = self.iter.next_back() {
-            if let Some(next) = next.as_focusable(self.focus_disabled_widgets) {
-                return Some(next);
-            }
-        }
-        None
-    }
-}
 
 /// An iterator that filters a focusable widget tree.
 ///
-/// This `struct` is created by the [`FocusableDescendants::tree_filter`] method. See its documentation for more.
-pub struct FocusableFilterDescendants<'a, I, F>
+/// This `struct` is created by the [`FocusTreeIter::tree_filter`] method. See its documentation for more.
+pub struct FocusTreeFilterIter<'a, I, F>
 where
     I: TreeIterator<'a>,
     F: FnMut(WidgetInfo<'a>) -> w_iter::TreeFilter,
@@ -180,7 +174,7 @@ where
     iter: w_iter::TreeFilterIter<'a, I, F>,
     focus_disabled_widgets: bool,
 }
-impl<'a, I, F> Iterator for FocusableFilterDescendants<'a, I, F>
+impl<'a, I, F> Iterator for FocusTreeFilterIter<'a, I, F>
 where
     F: FnMut(WidgetInfo<'a>) -> w_iter::TreeFilter,
     I: TreeIterator<'a>,
@@ -189,14 +183,5 @@ where
 
     fn next(&mut self) -> Option<Self::Item> {
         self.iter.next().map(|w| w.as_focus_info(self.focus_disabled_widgets))
-    }
-}
-impl<'a, I, F> DoubleEndedIterator for FocusableFilterDescendants<'a, I, F>
-where
-    F: FnMut(WidgetInfo<'a>) -> w_iter::TreeFilter,
-    I: TreeIterator<'a>,
-{
-    fn next_back(&mut self) -> Option<Self::Item> {
-        self.iter.next_back().map(|w| w.as_focus_info(self.focus_disabled_widgets))
     }
 }

@@ -184,10 +184,9 @@ impl<'a, T> NodeRef<'a, T> {
     pub fn self_and_descendants(self) -> TreeIter {
         let node = self.id.get();
         TreeIter {
+            node,
             next: node,
-            next_back: node,
             end: self.tree.nodes[self.id.get()].descendants_end as usize,
-            back_advance: 0,
         }
     }
 
@@ -271,11 +270,10 @@ impl<'a, T> NodeMut<'a, T> {
 }
 
 pub(super) struct TreeIter {
+    node: usize, // used for creating reverse iterator.
+
     next: usize,
     end: usize,
-
-    next_back: usize,
-    back_advance: usize, // number of nodes back entered
 }
 impl TreeIter {
     /// for a tree (a(a.a, a.b, a.c), b)
@@ -284,50 +282,6 @@ impl TreeIter {
         if self.next < self.end {
             let next = NodeId::new(self.next);
             self.next += 1;
-            Some(next)
-        } else {
-            None
-        }
-    }
-
-    /// for a tree (a(a.a, a.b, a.c), b)
-    /// yield [b, a, a.c, a.b, a.a]
-    pub fn next_back<T>(&mut self, tree: &Tree<T>) -> Option<NodeId> {
-        if self.next < self.end {
-            let next = NodeId::new(self.next_back);
-
-            let node = &tree.nodes[self.next_back];
-            if let Some(last_child) = node.last_child {
-                self.next_back = last_child.get();
-                self.back_advance += 1;
-            } else if let Some(prev_sibling) = node.prev_sibling {
-                self.next_back = prev_sibling.get();
-                self.end -= 1;
-            } else {
-                let mut node = node;
-                while self.next < self.end {
-                    if let Some(parent) = node.parent {
-                        self.end -= 1;
-                        if self.end == self.next {
-                            self.back_advance = 0;
-                            break;
-                        }
-
-                        self.back_advance -= 1;
-                        node = &tree.nodes[parent.get()];
-                        if let Some(prev_sibling) = node.prev_sibling {
-                            self.next_back = prev_sibling.get();
-                            self.end -= 1;
-                            break;
-                        }
-                    } else {
-                        self.end = self.next;
-                        self.back_advance = 0;
-                        break;
-                    }
-                }
-            }
-
             Some(next)
         } else {
             None
@@ -347,30 +301,6 @@ impl TreeIter {
         }
     }
 
-    /// Skip to the prev sibling of the node last yielded by `next_back`.
-    pub fn close_back<T>(&mut self, tree: &Tree<T>, yielded: NodeId) {
-        let node = &tree.nodes[yielded.get()];
-        if let Some(prev_sibling) = node.prev_sibling {
-            self.next_back = prev_sibling.get();
-            self.end = tree.nodes[self.next_back].descendants_end as usize;
-        } else {
-            let mut node = node;
-            while let Some(parent) = node.parent {
-                node = &tree.nodes[parent.get()];
-                self.back_advance -= 1;
-                if let Some(prev_sibling) = node.prev_sibling {
-                    self.next_back = self.next.max(prev_sibling.get() as usize);
-                    self.end = tree.nodes[prev_sibling.get()].descendants_end as usize;
-                    return;
-                }
-            }
-
-            // else
-            self.end = self.next;
-            self.next_back = self.next;
-        }
-    }
-
     pub fn skip_to(&mut self, node: NodeId) {
         let node = node.get() as usize;
         if node > self.next {
@@ -382,32 +312,107 @@ impl TreeIter {
         }
     }
 
-    pub fn skip_back_to<T>(&mut self, node: NodeId, tree: &Tree<T>) {
-        let node = node.get() as usize;
-        if node > self.next {
-            if node > self.end {
-                self.end = self.next;
-                self.back_advance = 0;
+    pub fn len(&self) -> usize {
+        self.end - self.next
+    }
+
+    pub fn rev<T>(self, tree: &Tree<T>) -> RevTreeIter {
+        let mut count = self.next - self.node;
+
+        let mut iter = RevTreeIter {
+            next: self.node,
+            end: self.node,
+            started: false,
+        };
+
+        while count > 0 {
+            count -= 1;
+            iter.next(tree);
+        }
+
+        iter
+    }
+}
+
+pub(super) struct RevTreeIter {
+    next: usize,
+    end: usize,
+    started: bool,
+}
+impl RevTreeIter {
+    /// for a tree (a(a.a, a.b, a.c), b)
+    /// yield [b, a, a.c, a.b, a.a]
+    pub fn next<T>(&mut self, tree: &Tree<T>) -> Option<NodeId> {
+        if self.next != self.end || !self.started {
+            self.started = true;
+
+            let next = NodeId::new(self.next);
+            let node = &tree.nodes[self.next];
+
+            if let Some(last_child) = node.last_child {
+                self.next = last_child.get();
+            } else if let Some(prev) = node.prev_sibling {
+                self.next = prev.get();
             } else {
-                let node_ref = &tree.nodes[node];
-                let mut exit = node_ref;
-                self.back_advance = 0;
-                while let Some(p) = exit.parent {
-                    self.back_advance += 1;
-                    exit = &tree.nodes[p.get()];
-                    if exit.descendants_end as usize >= self.end {
+                let mut node = node;
+                while let Some(parent) = node.parent {
+                    let parent = parent.get();
+                    if parent == self.end {
+                        self.next = self.end;
+                        break;
+                    }
+
+                    node = &tree.nodes[parent];
+
+                    if let Some(prev) = node.prev_sibling {
+                        self.next = prev.get();
                         break;
                     }
                 }
+            }
 
-                self.end = node_ref.descendants_end as usize;
-                self.next_back = node;
+            Some(next)
+        } else {
+            None
+        }
+    }
+
+    /// Skip to the next sibling of the node last yielded by `next`.
+    pub fn close<T>(&mut self, tree: &Tree<T>, yielded: NodeId) {
+        let mut node = &tree.nodes[yielded.get()];
+
+        if let Some(prev) = node.prev_sibling {
+            self.next = prev.get();
+        } else {
+            while let Some(parent) = node.parent {
+                let parent = parent.get();
+
+                if parent == self.end {
+                    self.next = self.end;
+                    break;
+                }
+
+                node = &tree.nodes[parent];
+
+                if let Some(prev) = node.prev_sibling {
+                    self.next = prev.get();
+                    break;
+                }
             }
         }
     }
 
-    pub fn len(&self) -> usize {
-        self.end - self.next + self.back_advance
+    pub fn skip_to<T>(&mut self, tree: &Tree<T>, node: NodeId) {
+        let node = node.get();
+        if node > self.end {
+            let root = &tree.nodes[self.end];
+            if node >= root.descendants_end as usize {
+                self.next = self.end;
+            } else {
+                self.next = node;
+                self.started = true;
+            }
+        }
     }
 }
 
@@ -445,12 +450,12 @@ mod tests {
     }
 
     #[test]
-    fn iter_prev() {
+    fn iter_rev() {
         let tree = iter_tree();
-        let mut iter = tree.root().self_and_descendants();
+        let mut iter = tree.root().self_and_descendants().rev(&tree);
 
         let mut r = vec![];
-        while let Some(id) = iter.next_back(&tree) {
+        while let Some(id) = iter.next(&tree) {
             r.push(*tree.index(id).value());
         }
 
@@ -458,7 +463,7 @@ mod tests {
     }
 
     #[test]
-    fn iter_next_not_root() {
+    fn iter_not_root() {
         let tree = iter_tree();
         let mut iter = tree.root().first_child().unwrap().self_and_descendants();
 
@@ -471,12 +476,12 @@ mod tests {
     }
 
     #[test]
-    fn iter_prev_not_root() {
+    fn iter_rev_not_root() {
         let tree = iter_tree();
-        let mut iter = tree.root().first_child().unwrap().self_and_descendants();
+        let mut iter = tree.root().first_child().unwrap().self_and_descendants().rev(&tree);
 
         let mut r = vec![];
-        while let Some(id) = iter.next_back(&tree) {
+        while let Some(id) = iter.next(&tree) {
             r.push(*tree.index(id).value());
         }
 
@@ -484,11 +489,10 @@ mod tests {
     }
 
     #[test]
-    fn iter_next_descendants() {
+    fn iter_descendants() {
         let tree = iter_tree();
         let mut iter = tree.root().first_child().unwrap().self_and_descendants();
         iter.next();
-        iter.next_back(&tree);
 
         let mut r = vec![];
         while let Some(id) = iter.next() {
@@ -499,14 +503,13 @@ mod tests {
     }
 
     #[test]
-    fn iter_prev_descendants() {
+    fn iter_rev_descendants() {
         let tree = iter_tree();
-        let mut iter = tree.root().first_child().unwrap().self_and_descendants();
-        iter.next();
-        iter.next_back(&tree);
+        let mut iter = tree.root().first_child().unwrap().self_and_descendants().rev(&tree);
+        iter.next(&tree);
 
         let mut r = vec![];
-        while let Some(id) = iter.next_back(&tree) {
+        while let Some(id) = iter.next(&tree) {
             r.push(*tree.index(id).value());
         }
 
@@ -532,17 +535,17 @@ mod tests {
     }
 
     #[test]
-    fn iter_close_back() {
+    fn iter_rev_close() {
         let tree = iter_tree();
-        let mut iter = tree.root().self_and_descendants();
+        let mut iter = tree.root().self_and_descendants().rev(&tree);
 
-        iter.next_back(&tree).unwrap(); // r
-        let b = iter.next_back(&tree).unwrap();
+        iter.next(&tree).unwrap(); // r
+        let b = iter.next(&tree).unwrap();
 
-        iter.close_back(&tree, b);
+        iter.close(&tree, b);
 
         let mut r = vec![];
-        while let Some(id) = iter.next_back(&tree) {
+        while let Some(id) = iter.next(&tree) {
             r.push(*tree.index(id).value());
         }
 
@@ -550,66 +553,7 @@ mod tests {
     }
 
     #[test]
-    fn iter_both_ends() {
-        let tree = iter_tree();
-        let mut iter = tree.root().self_and_descendants();
-        let r_start = iter.next().unwrap();
-        let r_end = iter.next_back(&tree).unwrap();
-
-        assert_eq!(tree.index(r_start).value(), tree.index(r_end).value());
-    }
-
-    #[test]
-    fn iter_both_ends_closed_back() {
-        let tree = iter_tree();
-        let mut iter = tree.root().self_and_descendants();
-        iter.next_back(&tree).unwrap(); // r
-        iter.next_back(&tree).unwrap(); // b
-
-        let mut r = vec![];
-        while let Some(id) = iter.next() {
-            r.push(*tree.index(id).value());
-        }
-
-        assert_eq!(r, vec!["r", "a", "a.a", "a.b", "a.b.a", "a.b.b", "a.c"]);
-    }
-
-    #[test]
-    fn iter_both_ends_closed_front() {
-        let tree = iter_tree();
-
-        let mut iter = tree.root().self_and_descendants();
-        for _ in 0..["r", "a", "a.a", "a.b", "a.b.a", "a.b.b", "a.c"].len() {
-            iter.next().unwrap();
-        }
-
-        let mut r = vec![];
-        while let Some(id) = iter.next_back(&tree) {
-            r.push(*tree.index(id).value());
-        }
-
-        assert_eq!(r, vec!["r", "b"]);
-    }
-
-    #[test]
-    fn iter_both_ends_closed_front2() {
-        let tree = iter_tree();
-
-        let mut iter = tree.root().self_and_descendants();
-        for _ in 0..["r", "a", "a.a", "a.b", "a.b.a"].len() {
-            iter.next().unwrap();
-        }
-
-        let mut r = vec![];
-        while let Some(id) = iter.next_back(&tree) {
-            r.push(*tree.index(id).value());
-        }
-
-        assert_eq!(r, vec!["r", "b", "a", "a.c", "a.b", "a.b.b"]);
-    }
-
-    #[test]
-    fn skip_to() {
+    fn iter_skip_to() {
         let tree = iter_tree();
 
         let mut iter = tree.root().self_and_descendants();
@@ -634,21 +578,21 @@ mod tests {
     }
 
     #[test]
-    fn skip_back_to() {
+    fn iter_rev_skip_to() {
         let tree = iter_tree();
 
-        let mut iter = tree.root().self_and_descendants();
+        let mut iter = tree.root().self_and_descendants().rev(&tree);
         let mut all = vec![];
-        while let Some(id) = iter.next_back(&tree) {
+        while let Some(id) = iter.next(&tree) {
             all.push(id);
         }
 
         for (i, id) in all.iter().enumerate() {
-            let mut iter = tree.root().self_and_descendants();
-            iter.skip_back_to(*id, &tree);
+            let mut iter = tree.root().self_and_descendants().rev(&tree);
+            iter.skip_to(&tree, *id);
 
             let mut result = vec![];
-            while let Some(id) = iter.next_back(&tree) {
+            while let Some(id) = iter.next(&tree) {
                 result.push(tree.nodes[id.get()].value);
             }
 

@@ -651,13 +651,13 @@ impl<'a> WidgetFocusInfo<'a> {
     }
 
     /// Iterator over the focusable widgets contained by this widget.
-    pub fn descendants(self) -> super::iter::FocusableDescendants<'a, iter::TreeIter<'a>> {
-        super::iter::FocusableDescendants::new(self.info.descendants(), self.focus_disabled_widgets())
+    pub fn descendants(self) -> super::iter::FocusTreeIter<'a, iter::TreeIter<'a>> {
+        super::iter::FocusTreeIter::new(self.info.descendants(), self.focus_disabled_widgets())
     }
 
     /// Iterator over self and the focusable widgets contained by it.
-    pub fn self_and_descendants(self) -> super::iter::FocusableDescendants<'a, iter::TreeIter<'a>> {
-        super::iter::FocusableDescendants::new(self.info.self_and_descendants(), self.focus_disabled_widgets())
+    pub fn self_and_descendants(self) -> super::iter::FocusTreeIter<'a, iter::TreeIter<'a>> {
+        super::iter::FocusTreeIter::new(self.info.self_and_descendants(), self.focus_disabled_widgets())
     }
 
     /// If the focusable has any focusable descendant that is not [`TabIndex::SKIP`]
@@ -688,7 +688,7 @@ impl<'a> WidgetFocusInfo<'a> {
     pub fn last_tab_descendant(self) -> Option<WidgetFocusInfo<'a>> {
         let mut best = (-1i64, self);
 
-        for d in self.descendants().tree_filter(Self::filter_tab_skip).rev() {
+        for d in self.descendants().tree_rev().tree_filter(Self::filter_tab_skip) {
             let idx = d.focus_info().tab_index().0 as i64;
 
             if idx > best.0 {
@@ -704,12 +704,12 @@ impl<'a> WidgetFocusInfo<'a> {
     }
 
     /// Iterator over all focusable widgets in the same scope after this widget.
-    pub fn next_focusables(self) -> super::iter::FocusableDescendants<'a, iter::TreeIter<'a>> {
+    pub fn next_focusables(self) -> super::iter::FocusTreeIter<'a, iter::TreeIter<'a>> {
         if let Some(scope) = self.scope() {
-            super::iter::FocusableDescendants::new(self.info.next_siblings_in(scope.info), self.focus_disabled_widgets())
+            super::iter::FocusTreeIter::new(self.info.next_siblings_in(scope.info), self.focus_disabled_widgets())
         } else {
             // empty
-            super::iter::FocusableDescendants::new(self.info.next_siblings_in(self.info), self.focus_disabled_widgets())
+            super::iter::FocusTreeIter::new(self.info.next_siblings_in(self.info), self.focus_disabled_widgets())
         }
     }
 
@@ -791,12 +791,12 @@ impl<'a> WidgetFocusInfo<'a> {
     }
 
     /// Iterator over all focusable widgets in the same scope before this widget in reverse.
-    pub fn prev_focusables(self) -> super::iter::FocusableDescendants<'a, iter::RevTreeIter<'a, iter::TreeIter<'a>>> {
+    pub fn prev_focusables(self) -> super::iter::FocusTreeIter<'a, iter::RevTreeIter<'a>> {
         if let Some(scope) = self.scope() {
-            super::iter::FocusableDescendants::new(self.info.prev_siblings_in(scope.info), self.focus_disabled_widgets())
+            super::iter::FocusTreeIter::new(self.info.prev_siblings_in(scope.info), self.focus_disabled_widgets())
         } else {
             // empty
-            super::iter::FocusableDescendants::new(self.info.prev_siblings_in(self.info), self.focus_disabled_widgets())
+            super::iter::FocusTreeIter::new(self.info.prev_siblings_in(self.info), self.focus_disabled_widgets())
         }
     }
 
@@ -825,7 +825,7 @@ impl<'a> WidgetFocusInfo<'a> {
         let mut best = (-1i64, self);
 
         if !skip_self {
-            for d in self.descendants().tree_filter(Self::filter_tab_skip).rev() {
+            for d in self.descendants().tree_rev().tree_filter(Self::filter_tab_skip) {
                 let idx = d.focus_info().tab_index().0 as i64;
 
                 if idx == self_index {
