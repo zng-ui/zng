@@ -1,6 +1,5 @@
 * Speedup the alt focus query, it is the slowest now.
-  - Add tree_meta and signal that alt scope exists in it (or the alt scope ids).
-  - How do we reuse tree-meta from reused widgets?
+  - Add an alt scope cache for each scope item?
 
 * Rethink spatial partitioning, the quad-tree is a bad fit for the problem:
    - Most widgets are fully contained by the parent bounds.
