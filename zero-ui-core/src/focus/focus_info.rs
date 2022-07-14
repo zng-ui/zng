@@ -568,12 +568,20 @@ impl<'a> WidgetFocusInfo<'a> {
     pub fn alt_scope(self) -> Option<WidgetFocusInfo<'a>> {
         if self.in_alt_scope() {
             // We do not allow nested alt scopes, search for sibling focus scope.
-            self.scopes().find(|s| !s.is_alt_scope()).and_then(|s| s.inner_alt_scope())
+            let mut alt_scope = self;
+            for scope in self.scopes() {
+                if scope.is_alt_scope() {
+                    alt_scope = scope;
+                } else {
+                    return scope.inner_alt_scope_skip(alt_scope);
+                }
+            }
+            None
         } else if self.is_scope() {
             // if we are a normal scope, try for an inner ALT scope descendant first.
             self.inner_alt_scope()
         } else if let Some(scope) = self.scope() {
-            scope.inner_alt_scope()
+            scope.inner_alt_scope_skip(self)
         } else {
             // we reached root, no ALT found.
             None
@@ -586,6 +594,14 @@ impl<'a> WidgetFocusInfo<'a> {
                 if wgt.is_alt_scope() && wgt.info.is_descendant(self.info) {
                     return Some(wgt);
                 }
+            }
+        }
+        None
+    }
+    fn inner_alt_scope_skip(self, skip: WidgetFocusInfo<'a>) -> Option<WidgetFocusInfo<'a>> {
+        if let Some(alt) = self.inner_alt_scope() {
+            if !alt.info.is_descendant(skip.info) && alt.info != skip.info {
+                return Some(alt);
             }
         }
         None
@@ -1486,7 +1502,7 @@ pub(super) struct FocusTreeData {
     alt_scopes: IdSet<WidgetId>,
 }
 impl FocusTreeData {
-    pub(super) fn consolidate_alt_scopes(prev_tree: &WidgetInfoTree, new_tree: &WidgetInfoTree, focus_disabled_widgets: bool) {
+    pub(super) fn consolidate_alt_scopes(prev_tree: &WidgetInfoTree, new_tree: &WidgetInfoTree) {
         // reused widgets don't insert build-meta, so we add the previous ALT scopes and validate everything.
 
         let prev = prev_tree
@@ -1502,12 +1518,15 @@ impl FocusTreeData {
 
         alt_scopes.retain(|id| {
             if let Some(wgt) = new_tree.get(*id) {
-                println!("!!: {:?}", wgt.meta().get(FocusInfoKey).clone().unwrap().build());
-                println!("!!: {:?}", wgt.as_focus_info(focus_disabled_widgets).is_focusable());
-                if let Some(wgt) = wgt.as_focusable(focus_disabled_widgets) {
-                    if wgt.is_alt_scope() {
-                        if let Some(scope) = wgt.scope() {
-                            scope.info.meta().get(FocusInfoKey).unwrap().inner_alt.set(Some(*id));
+                if let Some(info) = wgt.meta().get(FocusInfoKey) {
+                    if info.build().is_alt_scope() {
+                        for parent in wgt.ancestors() {
+                            if let Some(info) = parent.meta().get(FocusInfoKey) {
+                                if info.build().is_scope() {
+                                    info.inner_alt.set(Some(*id));
+                                    break;
+                                }
+                            }
                         }
 
                         return true;

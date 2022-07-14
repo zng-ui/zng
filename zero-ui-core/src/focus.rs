@@ -402,8 +402,9 @@ impl AppExtension for FocusManager {
 
     fn event_preview<EV: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {
         if let Some(args) = WidgetInfoChangedEvent.update(args) {
-            let focus = ctx.services.focus();
-            if focus
+            if ctx
+                .services
+                .focus()
                 .focused
                 .as_ref()
                 .map(|f| f.path.window_id() == args.window_id)
@@ -418,12 +419,8 @@ impl AppExtension for FocusManager {
                     self.pending_render = None;
                     self.on_info_tree_update(&args.tree, ctx);
                 }
-
-                let focus = ctx.services.focus();
-                focus_info::FocusTreeData::consolidate_alt_scopes(&args.prev_tree, &args.tree, focus.focus_disabled_widgets);
-            } else {
-                focus_info::FocusTreeData::consolidate_alt_scopes(&args.prev_tree, &args.tree, focus.focus_disabled_widgets);
             }
+            focus_info::FocusTreeData::consolidate_alt_scopes(&args.prev_tree, &args.tree);
         } else {
             self.commands.as_mut().unwrap().event_preview(ctx, args);
         }
