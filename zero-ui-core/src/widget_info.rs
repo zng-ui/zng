@@ -18,6 +18,7 @@ use crate::{
     handler::WidgetHandler,
     impl_from_and_into_var,
     render::FrameId,
+    ui_list::ZIndex,
     units::*,
     var::{Var, VarValue, VarsRead, WithVarsRead},
     window::WindowId,
@@ -37,6 +38,7 @@ pub mod iter;
 pub use iter::TreeFilter;
 
 mod spatial;
+pub use spatial::{Clip, ClipMode, ComplexClip};
 
 /// Bundle of widget info data from the current widget.
 #[derive(Clone, Default)]
@@ -75,7 +77,7 @@ pub struct WidgetInfoTreeStats {
     /// Count of moved or resized widgets in the last `bounds_updated_frame`.
     pub bounds_updated: u32,
 
-    /// Last windwo frame that changed visibility of widgets.
+    /// Last window frame that changed visibility of widgets.
     pub visibility_updated_frame: FrameId,
 }
 impl WidgetInfoTreeStats {
@@ -247,6 +249,18 @@ impl WidgetInfoTree {
     /// Spatial iterator over all widgets with inner bounds that contain the `point`. Widgets are yielded once or none times.
     pub fn contains_point(&self, point: PxPoint) -> impl Iterator<Item = WidgetInfo> + '_ {
         self.point_query(point).filter(move |w| w.inner_bounds().contains(point))
+    }
+
+    /// Gets the interactivity paths of all widgets hit by a `point`, sorted by z-index of the hit, front to back.
+    pub fn hit_test(&self, point: PxPoint) -> Vec<(InteractionPath, ZIndex)> {
+        let mut r: Vec<_> = self
+            .contains_point(point)
+            .filter_map(|w| w.hit_test_z(point).map(|z| (w.interaction_path(), z)))
+            .collect();
+
+        r.sort_unstable_by(|(_, za), (_, zb)| zb.cmp(za));
+
+        r
     }
 
     /// Spatial iterator over all widgets with inner bounds that fully envelops the `rect`. Widgets are yielded once or none times.
@@ -641,6 +655,8 @@ struct WidgetBoundsData {
 
     outer_bounds: Cell<PxRect>,
     inner_bounds: Cell<PxRect>,
+
+    hit_clips: RefCell<Vec<(ComplexClip, ZIndex)>>,
 }
 
 /// Shared reference to layout size and offsets of a widget and rendered transforms and bounds.
@@ -866,6 +882,34 @@ impl WidgetBoundsInfo {
         self.0.metrics_used.get()
     }
 
+    /// Gets the top-most (front) hit of `point` against the [`hit_clips`].
+    ///
+    /// [`hit_clips`]: Self::hit_clips
+    pub fn hit_test_z(&self, point: PxPoint) -> Option<ZIndex> {
+        let clips = self.0.hit_clips.borrow();
+        let mut z_index = ZIndex::BACK;
+        let mut any = false;
+        for (clip, z) in clips.iter().rev() {
+            let z = *z;
+            if (z > z_index || !any && z == z_index) && clip.contains(point) {
+                any = true;
+                z_index = z;
+            }
+        }
+        if any {
+            Some(z_index)
+        } else {
+            None
+        }
+    }
+
+    /// Clone all the clip shapes that affect hit-test for this widget.
+    ///
+    /// The clips are sorted by "front" last.
+    pub fn hit_clips(&self) -> Vec<(ComplexClip, ZIndex)> {
+        self.0.hit_clips.borrow().clone()
+    }
+
     pub(crate) fn measure_metrics(&self) -> Option<LayoutMetricsSnapshot> {
         self.0.measure_metrics.get()
     }
@@ -965,6 +1009,28 @@ impl WidgetBoundsInfo {
     pub(crate) fn set_measure_metrics(&self, metrics: Option<LayoutMetricsSnapshot>, used: LayoutMask) {
         self.0.measure_metrics.set(metrics);
         self.0.measure_metrics_used.set(used);
+    }
+
+    pub(crate) fn clear_clips(&self) {
+        self.0.hit_clips.borrow_mut().clear();
+    }
+
+    pub(crate) fn push_clip(&self, clip: Clip, mode: ClipMode, z_index: ZIndex) {
+        let mut clips = self.0.hit_clips.borrow_mut();
+        if let Some((last, z)) = clips.last_mut() {
+            if *z == z_index {
+                last.push(clip, mode);
+                return;
+            }
+        }
+
+        let mut complex = ComplexClip::default();
+        complex.push(clip, mode);
+        clips.push((complex, z_index));
+    }
+
+    pub(crate) fn push_complex_clip(&self, clip: ComplexClip, z_index: ZIndex) {
+        self.0.hit_clips.borrow_mut().push((clip, z_index))
     }
 }
 
@@ -1573,6 +1639,11 @@ impl<'a> WidgetInfo<'a> {
     pub fn contains_point(self, point: PxPoint) -> impl Iterator<Item = WidgetInfo<'a>> + 'a {
         let range = self.descendants_range();
         self.tree().contains_point(point).filter(move |w| range.contains(*w))
+    }
+
+    /// Gets the global z-index for a hit-test of `point` considering all the clips that affect this widget.
+    fn hit_test_z(self, point: PxPoint) -> Option<ZIndex> {
+        self.info().bounds_info.hit_test_z(point)
     }
 
     /// Spatial iterator over all descendants with [`inner_bounds`] that fully envelops the `rect`.

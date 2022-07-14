@@ -1,5 +1,7 @@
 use std::{num::NonZeroU32, rc::Rc};
 
+pub use zero_ui_view_api::webrender_api::ClipMode;
+
 use super::tree;
 use crate::{crate_util::FxHashSet, units::*};
 
@@ -325,5 +327,159 @@ impl<Q: FnMut(PxBox) -> bool> Iterator for QuadQueryIter<Q> {
                 return None;
             }
         }
+    }
+}
+
+/// Represents a clip shape.
+#[derive(Default, Debug, Clone)]
+pub enum Clip {
+    /// Contains any point inside the inner bounds.
+    #[default]
+    All,
+    /// Contains any point inside the box.
+    Rect(euclid::Box2D<Px, ()>),
+    /// Contains any bound inside the box and corner curves.
+    RoundedRect(euclid::Box2D<Px, ()>, PxCornerRadius),
+    /// Does not contain any point.
+    None,
+}
+impl Clip {
+    /// If the clip contains the `point`, assuming it is already contained by the inner-bounds.
+    pub fn contains(&self, point: PxPoint) -> bool {
+        match self {
+            Clip::All => true,
+            Clip::Rect(rect) => rect.contains(point),
+            Clip::RoundedRect(rect, radii) => {
+                if !rect.contains(point) {
+                    return false;
+                }
+
+                let top_left_center = rect.min + radii.top_left.to_vector();
+                if top_left_center.x > point.x
+                    && top_left_center.y > point.y
+                    && !ellipse_contains(radii.top_left, point - top_left_center.to_vector())
+                {
+                    return false;
+                }
+
+                let bottom_right_center = rect.max - radii.bottom_right.to_vector();
+                if bottom_right_center.x < point.x
+                    && bottom_right_center.y < point.y
+                    && !ellipse_contains(radii.bottom_right, point - bottom_right_center.to_vector())
+                {
+                    return false;
+                }
+
+                let top_right = PxPoint::new(rect.max.x, rect.min.y);
+                let top_right_center = top_right + PxVector::new(-radii.top_right.width, radii.top_right.height);
+                if top_right_center.x < point.x
+                    && top_right_center.y > point.y
+                    && !ellipse_contains(radii.top_right, point - top_right_center.to_vector())
+                {
+                    return false;
+                }
+
+                let bottom_left = PxPoint::new(rect.min.x, rect.max.y);
+                let bottom_left_center = bottom_left + PxVector::new(radii.bottom_left.width, -radii.bottom_left.height);
+                if bottom_left_center.x > point.x
+                    && bottom_left_center.y < point.y
+                    && !ellipse_contains(radii.bottom_left, point - bottom_left_center.to_vector())
+                {
+                    return false;
+                }
+
+                true
+            }
+            Clip::None => false,
+        }
+    }
+
+    /// Returns the intersection clip of `self` and `other`, or both clips if both must be checked.
+    pub fn merge(self, other: Clip) -> Result<Clip, (Clip, Clip)> {
+        match (&self, &other) {
+            (Clip::All, c) | (c, Clip::All) => Ok(c.clone()),
+            (Clip::None, _) | (_, Clip::None) => Ok(Clip::None),
+            (Clip::Rect(a), Clip::Rect(b)) => {
+                if let Some(r) = a.intersection(b) {
+                    Ok(Clip::Rect(r))
+                } else {
+                    Ok(Clip::None)
+                }
+            }
+            (Clip::Rect(rect), Clip::RoundedRect(r_rect, radii)) | (Clip::RoundedRect(r_rect, radii), Clip::Rect(rect)) => {
+                if let Some(r) = rect.intersection(r_rect) {
+                    if &r == r_rect {
+                        Ok(Clip::RoundedRect(*r_rect, *radii))
+                    } else {
+                        // could still check corners?
+                        Err((self, other))
+                    }
+                } else {
+                    Ok(Clip::None)
+                }
+            }
+            (Clip::RoundedRect(a, _a_radii), Clip::RoundedRect(b, _b_radii)) => {
+                if a.intersects(b) {
+                    // could still check corners?
+                    Err((self, other))
+                } else {
+                    Ok(Clip::None)
+                }
+            } // (_, _) => Err((self, other)),
+        }
+    }
+}
+
+fn ellipse_contains(e: PxSize, p: PxPoint) -> bool {
+    let center_x = e.width.0 as f64 / 2.0;
+    let center_y = e.height.0 as f64 / 2.0;
+    let x = p.x.0 as f64;
+    let y = p.y.0 as f64;
+
+    (x * x) / (center_x * center_x) + (y * y) / (center_y * center_y) <= 1.0
+}
+
+/// Represents a composite clip shape, made from multiple clips.
+#[derive(Default, Debug, Clone)]
+pub struct ComplexClip {
+    clips: Vec<(Clip, ClipMode)>,
+}
+impl ComplexClip {
+    /// Push a clip.
+    pub fn push(&mut self, clip: Clip, mode: ClipMode) {
+        if let Some((c, m)) = self.clips.pop() {
+            if m == mode {
+                match c.merge(clip) {
+                    Ok(c) => self.clips.push((c, mode)),
+                    Err((a, b)) => {
+                        self.clips.push((a, mode));
+                        self.clips.push((b, mode));
+                    }
+                }
+            } else {
+                self.clips.push((c, m));
+                self.clips.push((clip, mode));
+            }
+        } else {
+            self.clips.push((clip, mode))
+        }
+    }
+
+    /// Returns `true` if the `point` represents a hit in the inner bounds.
+    pub fn contains(&self, point: PxPoint) -> bool {
+        for (clip, mode) in self.clips.iter().rev() {
+            if clip.contains(point) {
+                match mode {
+                    ClipMode::Clip => continue,
+                    ClipMode::ClipOut => return false,
+                }
+            } else {
+                match mode {
+                    ClipMode::Clip => return false,
+                    ClipMode::ClipOut => continue,
+                }
+            }
+        }
+        true
     }
 }
