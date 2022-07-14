@@ -130,6 +130,7 @@ struct WidgetInfoTreeInner {
     inner_bounds_tree: RefCell<Option<Rc<spatial::QuadTree>>>,
     lookup: IdMap<WidgetId, tree::NodeId>,
     interactivity_filters: InteractivityFilters,
+    build_meta: Rc<OwnedStateMap>,
     stats: RefCell<WidgetInfoTreeStats>,
     stats_update: RefCell<WidgetInfoTreeStatsUpdate>,
 }
@@ -150,6 +151,13 @@ impl WidgetInfoTree {
     /// Statistics abound the info tree.
     pub fn stats(&self) -> WidgetInfoTreeStats {
         self.0.stats.borrow().clone()
+    }
+
+    /// Custom metadata associated with the tree during info build.
+    ///
+    /// Any widget (that was not reused) can have inserted metadata.
+    pub fn build_meta(&self) -> &StateMap {
+        &self.0.build_meta.0
     }
 
     /// Reference to the root widget in the tree.
@@ -1319,7 +1327,7 @@ impl<'a> WidgetInfo<'a> {
         self.inner_bounds().center()
     }
 
-    /// Metadata associated with the widget during render.
+    /// Custom metadata associated with the widget during info build.
     pub fn meta(self) -> &'a StateMap {
         &self.info().meta.0
     }

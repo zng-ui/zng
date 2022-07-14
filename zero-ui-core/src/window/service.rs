@@ -441,9 +441,10 @@ impl Windows {
     /// Update widget info tree associated with the window.
     pub(super) fn set_widget_tree(&mut self, events: &mut Events, info_tree: WidgetInfoTree, pending_layout: bool, pending_render: bool) {
         if let Some(info) = self.windows_info.get_mut(&info_tree.window_id()) {
+            let prev_tree = info.widget_tree.clone();
             info.widget_tree = info_tree.clone();
 
-            let args = WidgetInfoChangedArgs::now(info_tree.window_id(), info_tree, pending_layout, pending_render);
+            let args = WidgetInfoChangedArgs::now(info_tree.window_id(), prev_tree, info_tree, pending_layout, pending_render);
             WidgetInfoChangedEvent.notify(events, args);
         }
     }

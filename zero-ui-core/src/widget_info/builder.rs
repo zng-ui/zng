@@ -14,6 +14,8 @@ pub struct WidgetInfoBuilder {
     lookup: IdMap<WidgetId, tree::NodeId>,
     interactivity_filters: InteractivityFilters,
 
+    build_meta: OwnedStateMap,
+
     build_start: Instant,
     pushed_widgets: u32,
 }
@@ -52,6 +54,7 @@ impl WidgetInfoBuilder {
             lookup,
             meta: OwnedStateMap::new(),
             widget_id: root_id,
+            build_meta: OwnedStateMap::new(),
             build_start: Instant::now(),
             pushed_widgets: 1, // root is always new.
         }
@@ -64,6 +67,13 @@ impl WidgetInfoBuilder {
     /// Current widget id.
     pub fn widget_id(&self) -> WidgetId {
         self.widget_id
+    }
+
+    /// Widget tree build metadata.
+    ///
+    /// This metadata can be modified only by pushed widgets, **not** by the reused widgets.
+    pub fn build_meta(&mut self) -> &mut StateMap {
+        &mut self.build_meta.0
     }
 
     /// Current widget metadata.
@@ -211,6 +221,7 @@ impl WidgetInfoBuilder {
             interactivity_filters: self.interactivity_filters,
             inner_bounds_tree: RefCell::new(Some(Rc::new(spatial::QuadTree::new()))),
             stats_update: Default::default(),
+            build_meta: Rc::new(self.build_meta),
         }));
 
         let cap = UsedWidgetInfoBuilder {

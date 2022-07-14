@@ -1,5 +1,5 @@
-use crate::{context::*, units::*, var::impl_from_and_into_var, widget_info::*, window::FocusIndicator, WidgetId};
-use std::fmt;
+use crate::{context::*, crate_util::IdSet, units::*, var::impl_from_and_into_var, widget_info::*, window::FocusIndicator, WidgetId};
+use std::{cell::Cell, fmt};
 
 use super::iter::IterFocusableExt;
 
@@ -566,34 +566,29 @@ impl<'a> WidgetFocusInfo<'a> {
     /// - If `self` is a normal scope, moves to the first descendant ALT scope, otherwise..
     /// - Recursively searches for an ALT scope sibling up the scope tree.
     pub fn alt_scope(self) -> Option<WidgetFocusInfo<'a>> {
-        let _span = tracing::trace_span!("alt_scope").entered();
         if self.in_alt_scope() {
             // We do not allow nested alt scopes, search for sibling focus scope.
-            return self.scopes().find(|s| !s.is_alt_scope()).and_then(|s| s.alt_scope_query(s));
+            self.scopes().find(|s| !s.is_alt_scope()).and_then(|s| s.inner_alt_scope())
         } else if self.is_scope() {
-            // if we are a normal scope, search for an inner ALT scope first.
-            let r = self.descendants().tree_find(|w| w.focus_info().is_alt_scope().into());
-            if r.is_some() {
-                return r;
-            }
-        }
-
-        // search for a sibling alt scope and up the scopes tree.
-        self.alt_scope_query(self)
-    }
-    fn alt_scope_query(self, skip: WidgetFocusInfo<'a>) -> Option<WidgetFocusInfo<'a>> {
-        if let Some(scope) = self.scope() {
-            // search for an ALT scope in our previous scope siblings.
-            scope
-                .descendants()
-                .tree_filter(|w| if w == skip { TreeFilter::SkipAll } else { TreeFilter::Include })
-                .find(|w| w.focus_info().is_alt_scope())
-                // if found no sibling ALT scope, do the same search for our scope.
-                .or_else(|| scope.alt_scope_query(skip))
+            // if we are a normal scope, try for an inner ALT scope descendant first.
+            self.inner_alt_scope()
+        } else if let Some(scope) = self.scope() {
+            scope.inner_alt_scope()
         } else {
             // we reached root, no ALT found.
             None
         }
+    }
+    fn inner_alt_scope(self) -> Option<WidgetFocusInfo<'a>> {
+        if let Some(id) = self.info.meta().get(FocusInfoKey).unwrap().inner_alt.get() {
+            if let Some(wgt) = self.info.tree().get(id) {
+                let wgt = wgt.as_focus_info(self.focus_disabled_widgets());
+                if wgt.is_alt_scope() && wgt.info.is_descendant(self.info) {
+                    return Some(wgt);
+                }
+            }
+        }
+        None
     }
 
     /// Widget is in a ALT scope or is an ALT scope.
@@ -1483,9 +1478,48 @@ impl FocusInfo {
 
 state_key! {
     struct FocusInfoKey: FocusInfoData;
+    struct FocusTreeKey: FocusTreeData;
 }
 
 #[derive(Default)]
+pub(super) struct FocusTreeData {
+    alt_scopes: IdSet<WidgetId>,
+}
+impl FocusTreeData {
+    pub(super) fn consolidate_alt_scopes(prev_tree: &WidgetInfoTree, new_tree: &WidgetInfoTree, focus_disabled_widgets: bool) {
+        // reused widgets don't insert build-meta, so we add the previous ALT scopes and validate everything.
+
+        let prev = prev_tree
+            .build_meta()
+            .get(FocusTreeKey)
+            .map(|d| d.alt_scopes.clone())
+            .unwrap_or_default();
+
+        let mut alt_scopes = prev;
+        if let Some(data) = new_tree.build_meta().get(FocusTreeKey) {
+            alt_scopes.extend(&data.alt_scopes);
+        }
+
+        alt_scopes.retain(|id| {
+            if let Some(wgt) = new_tree.get(*id) {
+                println!("!!: {:?}", wgt.meta().get(FocusInfoKey).clone().unwrap().build());
+                println!("!!: {:?}", wgt.as_focus_info(focus_disabled_widgets).is_focusable());
+                if let Some(wgt) = wgt.as_focusable(focus_disabled_widgets) {
+                    if wgt.is_alt_scope() {
+                        if let Some(scope) = wgt.scope() {
+                            scope.info.meta().get(FocusInfoKey).unwrap().inner_alt.set(Some(*id));
+                        }
+
+                        return true;
+                    }
+                }
+            }
+            false
+        });
+    }
+}
+
+#[derive(Default, Debug)]
 struct FocusInfoData {
     focusable: Option<bool>,
     scope: Option<bool>,
@@ -1495,6 +1529,8 @@ struct FocusInfoData {
     tab_nav: Option<TabNav>,
     directional_nav: Option<DirectionalNav>,
     skip_directional: Option<bool>,
+
+    inner_alt: Cell<Option<WidgetId>>,
 }
 impl FocusInfoData {
     /// Build a [`FocusInfo`] from the collected configuration in `self`.
@@ -1582,6 +1618,10 @@ impl<'a> FocusInfoBuilder<'a> {
         self.0.meta().entry(FocusInfoKey).or_default()
     }
 
+    fn tree_data(&mut self) -> &mut FocusTreeData {
+        self.0.build_meta().entry(FocusTreeKey).or_default()
+    }
+
     /// If the widget is definitely focusable or not.
     pub fn focusable(&mut self, is_focusable: bool) -> &mut Self {
         let data = self.data();
@@ -1601,19 +1641,26 @@ impl<'a> FocusInfoBuilder<'a> {
     /// If `true` this also sets `TabIndex::SKIP`, `skip_directional_nav`, `TabNav::Cycle` and `DirectionalNav::Cycle` as default.
     pub fn alt_scope(&mut self, is_alt_focus_scope: bool) -> &mut Self {
         let data = self.data();
-        data.alt_scope = is_alt_focus_scope;
 
-        if data.tab_index == None {
-            data.tab_index = Some(TabIndex::SKIP);
-        }
-        if data.tab_nav == None {
-            data.tab_nav = Some(TabNav::Cycle);
-        }
-        if data.directional_nav == None {
-            data.directional_nav = Some(DirectionalNav::Cycle);
-        }
-        if data.skip_directional == None {
-            data.skip_directional = Some(true);
+        data.alt_scope = is_alt_focus_scope;
+        if is_alt_focus_scope {
+            data.scope = Some(true);
+
+            if data.tab_index == None {
+                data.tab_index = Some(TabIndex::SKIP);
+            }
+            if data.tab_nav == None {
+                data.tab_nav = Some(TabNav::Cycle);
+            }
+            if data.directional_nav == None {
+                data.directional_nav = Some(DirectionalNav::Cycle);
+            }
+            if data.skip_directional == None {
+                data.skip_directional = Some(true);
+            }
+
+            let wgt_id = self.0.widget_id();
+            self.tree_data().alt_scopes.insert(wgt_id);
         }
 
         self

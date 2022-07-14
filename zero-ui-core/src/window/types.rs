@@ -670,6 +670,11 @@ event_args! {
         /// Window ID.
         pub window_id: WindowId,
 
+        /// Previous widget tree.
+        ///
+        /// This is an empty tree before the first tree build.
+        pub prev_tree: WidgetInfoTree,
+
         /// New widget tree.
         pub tree: WidgetInfoTree,
 
