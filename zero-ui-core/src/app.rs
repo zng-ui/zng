@@ -12,7 +12,6 @@ use crate::crate_util::{PanicPayload, ReceiverExt};
 use crate::event::{event, event_args, AnyEventUpdate, BoxedEventUpdate, EventUpdate, EventUpdateArgs, Events};
 use crate::image::ImageManager;
 use crate::timer::Timers;
-use crate::units::{Px, PxPoint};
 use crate::var::Vars;
 use crate::widget_info::{UpdateMask, UpdateSlot};
 use crate::window::WindowMode;
@@ -942,24 +941,7 @@ impl<E: AppExtension> RunningApp<E> {
                 coalesced_pos,
                 position,
             } => {
-                let hits = match self.pending_view_frame_events.iter().rfind(|e| e.window == w_id) {
-                    Some(ev) => {
-                        let (p, r) = ev.cursor_hits.clone();
-                        (ev.frame, p, r)
-                    }
-                    _ => {
-                        let _trace = tracing::trace_span!("hit_test").entered();
-                        let view = self.ctx().services.view_process();
-                        view.hit_test(w_id, position).unwrap_or_else(|_| {
-                            (
-                                zero_ui_view_api::FrameId::INVALID,
-                                PxPoint::new(Px(-1), Px(-1)),
-                                crate::render::webrender_api::HitTestResult::default(),
-                            )
-                        })
-                    }
-                };
-                let args = RawCursorMovedArgs::now(window_id(w_id), self.device_id(d_id), coalesced_pos, position, hits);
+                let args = RawCursorMovedArgs::now(window_id(w_id), self.device_id(d_id), coalesced_pos, position);
                 self.notify_event(RawCursorMovedEvent, args, observer);
             }
             Event::CursorEntered {
@@ -1241,7 +1223,7 @@ impl<E: AppExtension> RunningApp<E> {
         let view = self.ctx().services.view_process();
         // view.on_frame_rendered(window_id); // already called in push_coalesce
         let image = ev.frame_image.map(|img| view.on_frame_image(img));
-        let args = raw_events::RawFrameRenderedArgs::now(window_id, ev.frame, image, ev.cursor_hits);
+        let args = raw_events::RawFrameRenderedArgs::now(window_id, ev.frame, image);
         self.notify_event(raw_events::RawFrameRenderedEvent, args, observer);
     }
 

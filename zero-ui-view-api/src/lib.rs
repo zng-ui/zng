@@ -23,7 +23,7 @@
 
 use std::fmt;
 
-use units::{DipPoint, DipSize, Px, PxPoint, PxRect};
+use units::{DipSize, Px, PxRect};
 #[doc(inline)]
 pub use webrender_api;
 
@@ -51,7 +51,7 @@ pub use app_process::*;
 mod view_process;
 pub use view_process::*;
 
-use webrender_api::{DocumentId, FontInstanceKey, FontKey, HitTestResult, ImageKey};
+use webrender_api::{DocumentId, FontInstanceKey, FontKey, ImageKey};
 
 /// Packaged API request.
 #[derive(Debug)]
@@ -441,11 +441,6 @@ declare_api! {
     /// Returns immediately if an [`Event::FrameImageReady`] will be send when the image is ready.
     /// Returns `0` if the window is not found.
     pub fn frame_image_rect(&mut self, id: WindowId, rect: PxRect) -> ImageId;
-
-    /// Get display items of the last rendered frame that intercept the `point`.
-    ///
-    /// Returns the frame ID, the actual pixel point tested and all hits from front-to-back.
-    pub fn hit_test(&mut self, id: WindowId, point: DipPoint) -> (FrameId, PxPoint, HitTestResult);
 
     /// Set the video mode used when the window is in exclusive fullscreen.
     pub fn set_video_mode(&mut self, id: WindowId, mode: VideoMode);

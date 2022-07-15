@@ -7,10 +7,10 @@ use crate::{
     context::RenderContext,
     gradient::{RenderExtendMode, RenderGradientStop},
     text::FontAntiAliasing,
+    ui_list::ZIndex,
     units::*,
     var::impl_from_and_into_var,
-    widget_info::WidgetInfoTree,
-    window::WindowId,
+    widget_info::{HitTestClips, WidgetInfoTree},
     WidgetId,
 };
 
@@ -20,8 +20,8 @@ use webrender_api::{FontRenderMode, PipelineId};
 pub use zero_ui_view_api::{webrender_api, DisplayListBuilder, FrameId, RenderMode, ReuseRange};
 use zero_ui_view_api::{
     webrender_api::{
-        DynamicProperties, FilterOp, GlyphInstance, GlyphOptions, HitTestResult, ItemTag, MixBlendMode, PropertyBinding,
-        PropertyBindingKey, PropertyValue, SpatialTreeItemKey,
+        DynamicProperties, FilterOp, GlyphInstance, GlyphOptions, MixBlendMode, PropertyBinding, PropertyBindingKey, PropertyValue,
+        SpatialTreeItemKey,
     },
     DisplayList, ReuseStart,
 };
@@ -150,6 +150,7 @@ pub struct FrameBuilder {
 
     is_hit_testable: bool,
     auto_hit_test: bool,
+    hit_clips: HitTestClips,
 
     widget_data: Option<WidgetData>,
     widget_rendered: bool,
@@ -211,6 +212,7 @@ impl FrameBuilder {
             display_list,
             is_hit_testable: true,
             auto_hit_test: false,
+            hit_clips: HitTestClips::default(),
             widget_data: Some(WidgetData {
                 filter: vec![],
                 has_transform: false,
@@ -277,20 +279,17 @@ impl FrameBuilder {
         self.widget_id
     }
 
-    /// Current widget [`ItemTag`]. The first number is the raw [`widget_id`], the second number is reserved.
-    ///
-    /// For more details on how the ItemTag is used see [`FrameHitInfo::new`].
-    ///
-    /// [`widget_id`]: Self::widget_id
-    pub fn item_tag(&self) -> ItemTag {
-        (self.widget_id.get(), 0)
-    }
-
     /// Renderer pipeline ID or [`dummy`].
     ///
     /// [`dummy`]: PipelineId::dummy
     pub fn pipeline_id(&self) -> PipelineId {
         self.pipeline_id
+    }
+
+    /// Z-index of the last pushed display item.
+    pub fn z_index(&self) -> ZIndex {
+        let i = self.display_list.len() as u32;
+        ZIndex(i)
     }
 
     /// Current transform.
@@ -583,6 +582,8 @@ impl FrameBuilder {
     ) {
         if let Some(mut data) = self.widget_data.take() {
             let parent_transform = self.transform;
+            let parent_hit_clips = mem::take(&mut self.hit_clips);
+
             let outer_transform = RenderTransform::translation_px(ctx.widget_info.bounds.outer_offset()).then(&parent_transform);
             ctx.widget_info.bounds.set_outer_transform(outer_transform, ctx.info_tree);
 
@@ -623,6 +624,8 @@ impl FrameBuilder {
             self.display_list.pop_reference_frame();
 
             self.transform = parent_transform;
+            let hit_clips = mem::replace(&mut self.hit_clips, parent_hit_clips);
+            ctx.widget_info.bounds.set_hit_clips(hit_clips);
         } else {
             tracing::error!("called `push_inner` more then once for `{}`", self.widget_id);
             render(ctx, self)
@@ -640,12 +643,34 @@ impl FrameBuilder {
     }
 
     /// Push a hit-test `rect` for the widget if hit-testing is enable.
-    pub fn push_hit_test_rect(&mut self, rect: PxRect) {
+    ///
+    /// If `clip_out` is `true` the widget is hit if the point is not contained by the `rect`.
+    pub fn push_hit_test_rect(&mut self, rect: PxRect, clip_out: bool) {
         expect_inner!(self.push_hit_test_rect);
 
         if self.is_hit_testable && rect.size != PxSize::zero() {
             self.widget_rendered = true;
-            self.display_list.push_hit_test_rect(rect, self.item_tag());
+            self.hit_clips.push_rect(self.z_index(), rect.to_box2d(), clip_out);
+        }
+    }
+
+    /// Push a hit-test `rect` with rounded `corners` for the widget if hit-testing is enable.
+    pub fn push_hit_test_rounded_rect(&mut self, rect: PxRect, corners: PxCornerRadius, clip_out: bool) {
+        expect_inner!(self.push_hit_test_rounded_rect);
+
+        if self.is_hit_testable && rect.size != PxSize::zero() {
+            self.widget_rendered = true;
+            self.hit_clips.push_rounded_rect(self.z_index(), rect.to_box2d(), corners, clip_out);
+        }
+    }
+
+    /// Push a hit-test ellipse.
+    pub fn push_hit_test_ellipse(&mut self, radii: PxSize, clip_out: bool) {
+        expect_inner!(self.push_hit_test_ellipse);
+
+        if self.is_hit_testable && radii != PxSize::zero() {
+            self.widget_rendered = true;
+            self.hit_clips.push_ellipse(self.z_index(), radii, clip_out);
         }
     }
 
@@ -774,7 +799,8 @@ impl FrameBuilder {
             return;
         }
 
-        self.display_list.push_hit_test_border(bounds, widths, radius, self.item_tag());
+        let z = self.z_index();
+        self.hit_clips.push_border(z, bounds, widths, radius);
     }
 
     /// Push a text run.
@@ -806,7 +832,7 @@ impl FrameBuilder {
             }
 
             if self.auto_hit_test {
-                self.push_hit_test_rect(clip_rect);
+                self.push_hit_test_rect(clip_rect, false);
             }
         } else {
             self.widget_rendered = true;
@@ -823,7 +849,7 @@ impl FrameBuilder {
                 .push_image(clip_rect, image_key, img_size, rendering.into(), image.alpha_type());
 
             if self.auto_hit_test {
-                self.push_hit_test_rect(clip_rect);
+                self.push_hit_test_rect(clip_rect, false);
             }
         } else {
             self.widget_rendered = true;
@@ -837,7 +863,7 @@ impl FrameBuilder {
         self.display_list.push_color(clip_rect, color);
 
         if self.auto_hit_test {
-            self.push_hit_test_rect(clip_rect);
+            self.push_hit_test_rect(clip_rect, false);
         }
     }
 
@@ -882,7 +908,7 @@ impl FrameBuilder {
         }
 
         if self.auto_hit_test {
-            self.push_hit_test_rect(clip_rect);
+            self.push_hit_test_rect(clip_rect, false);
         }
     }
 
@@ -933,7 +959,7 @@ impl FrameBuilder {
         }
 
         if self.auto_hit_test {
-            self.push_hit_test_rect(clip_rect);
+            self.push_hit_test_rect(clip_rect, false);
         }
     }
 
@@ -981,7 +1007,7 @@ impl FrameBuilder {
         }
 
         if self.auto_hit_test {
-            self.push_hit_test_rect(clip_rect);
+            self.push_hit_test_rect(clip_rect, false);
         }
     }
 
@@ -1025,7 +1051,7 @@ impl FrameBuilder {
         }
 
         if self.auto_hit_test {
-            self.push_hit_test_rect(clip_rect);
+            self.push_hit_test_rect(clip_rect, false);
         }
     }
 
@@ -1516,107 +1542,6 @@ impl<T> FrameBindingKey<T> {
         FrameValue {
             key: self.property_key(),
             value,
-        }
-    }
-}
-
-/// A hit-test hit.
-#[derive(Clone, Debug)]
-pub struct HitInfo {
-    /// ID of widget hit.
-    pub widget_id: WidgetId,
-}
-
-/// A hit-test result.
-#[derive(Clone, Debug)]
-pub struct FrameHitInfo {
-    window_id: WindowId,
-    frame_id: FrameId,
-    point: PxPoint,
-    hits: Vec<HitInfo>,
-}
-impl FrameHitInfo {
-    /// Initializes from a Webrender hit-test result.
-    ///
-    /// Only item tags produced by [`FrameBuilder`] are expected.
-    ///
-    /// The tag format is:
-    ///
-    /// * `u64`: Raw [`WidgetId`].
-    /// * `u16`: Zero, reserved.
-    pub fn new(window_id: WindowId, frame_id: FrameId, point: PxPoint, hits: &HitTestResult) -> Self {
-        let hits = hits
-            .items
-            .iter()
-            .filter_map(|h| {
-                if h.tag.0 == 0 || h.tag.1 != 0 {
-                    None
-                } else {
-                    // SAFETY: we skip zero so the value is memory safe.
-                    let widget_id = unsafe { WidgetId::from_raw(h.tag.0) };
-                    Some(HitInfo { widget_id })
-                }
-            })
-            .collect();
-
-        FrameHitInfo {
-            window_id,
-            frame_id,
-            point,
-            hits,
-        }
-    }
-
-    /// No hits info
-    pub fn no_hits(window_id: WindowId) -> Self {
-        FrameHitInfo::new(window_id, FrameId::INVALID, PxPoint::new(Px(-1), Px(-1)), &HitTestResult::default())
-    }
-
-    /// The window that was hit-tested.
-    pub fn window_id(&self) -> WindowId {
-        self.window_id
-    }
-
-    /// The window frame that was hit-tested.
-    pub fn frame_id(&self) -> FrameId {
-        self.frame_id
-    }
-
-    /// The point in the window that was hit-tested.
-    pub fn point(&self) -> PxPoint {
-        self.point
-    }
-
-    /// All hits, from top-most.
-    pub fn hits(&self) -> &[HitInfo] {
-        &self.hits
-    }
-
-    /// The top hit.
-    pub fn target(&self) -> Option<&HitInfo> {
-        self.hits.first()
-    }
-
-    /// Finds the widget in the hit-test result if it was hit.
-    pub fn find(&self, widget_id: WidgetId) -> Option<&HitInfo> {
-        self.hits.iter().find(|h| h.widget_id == widget_id)
-    }
-
-    /// If the widget is in was hit.
-    pub fn contains(&self, widget_id: WidgetId) -> bool {
-        self.hits.iter().any(|h| h.widget_id == widget_id)
-    }
-
-    /// Gets a clone of `self` that only contains the hits that also happen in `other`.
-    pub fn intersection(&self, other: &FrameHitInfo) -> FrameHitInfo {
-        let mut hits: Vec<_> = self.hits.iter().filter(|h| other.contains(h.widget_id)).cloned().collect();
-        hits.shrink_to_fit();
-
-        FrameHitInfo {
-            window_id: self.window_id,
-            frame_id: self.frame_id,
-            point: self.point,
-            hits,
         }
     }
 }

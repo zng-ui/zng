@@ -6,7 +6,7 @@ use tracing::span::EnteredSpan;
 use webrender::{
     api::{
         ColorF, DocumentId, DynamicProperties, FontInstanceKey, FontInstanceOptions, FontInstancePlatformOptions, FontKey, FontVariation,
-        HitTestResult, IdNamespace, ImageKey, PipelineId,
+        IdNamespace, ImageKey, PipelineId,
     },
     RenderApi, Renderer, RendererOptions, Transaction,
 };
@@ -321,16 +321,6 @@ impl Surface {
             self.id,
             self.rendered_frame_id,
             self.scale_factor,
-        )
-    }
-
-    pub fn hit_test(&mut self, point: DipPoint) -> (FrameId, PxPoint, HitTestResult) {
-        let _p = tracing::trace_span!("hit_test").entered();
-        let point = point.to_px(self.scale_factor);
-        (
-            self.rendered_frame_id,
-            point,
-            self.api.hit_test(self.document_id(), point.to_wr_world()),
         )
     }
 }

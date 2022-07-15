@@ -12,16 +12,15 @@ use once_cell::unsync::OnceCell;
 
 use super::DeviceId;
 use crate::mouse::MultiClickConfig;
-use crate::render::FrameId;
 use crate::service::Service;
 use crate::task::SignalOnce;
 use crate::text::FontAntiAliasing;
-use crate::units::{DipPoint, DipSize, Factor, Px, PxPoint, PxRect, PxSize};
+use crate::units::{DipPoint, DipSize, Factor, Px, PxRect, PxSize};
 use crate::window::{MonitorId, WindowId};
 use crate::{event, event_args};
 use zero_ui_view_api::webrender_api::{
-    DocumentId, FontInstanceKey, FontInstanceOptions, FontInstancePlatformOptions, FontKey, FontVariation, HitTestResult, IdNamespace,
-    ImageKey, PipelineId,
+    DocumentId, FontInstanceKey, FontInstanceOptions, FontInstancePlatformOptions, FontKey, FontVariation, IdNamespace, ImageKey,
+    PipelineId,
 };
 pub use zero_ui_view_api::{
     bytes_channel, CursorIcon, Event, EventCause, FocusIndicator, FrameRequest, FrameUpdateRequest, FrameWaitId, HeadlessOpenData,
@@ -282,13 +281,6 @@ impl ViewProcess {
     /// This is the sum of pending frames for all renderers.
     pub fn pending_frames(&self) -> usize {
         self.0.borrow().pending_frames
-    }
-
-    /// Get display items of the last rendered of window frame that intercept the `point`.
-    ///
-    /// Returns all hits from front-to-back.
-    pub fn hit_test(&self, window: u32, point: DipPoint) -> Result<(FrameId, PxPoint, HitTestResult)> {
-        self.0.borrow_mut().process.hit_test(window, point)
     }
 
     fn loading_image_index(&self, id: ImageId) -> Option<usize> {
@@ -870,13 +862,6 @@ impl ViewWindow {
     pub fn close(self) {
         drop(self)
     }
-
-    /// Get display items of the last rendered frame that intercept the `point`.
-    ///
-    /// Returns all hits from front-to-back.
-    pub fn hit_test(&self, point: DipPoint) -> Result<(FrameId, PxPoint, HitTestResult)> {
-        self.0.call(|id, p| p.hit_test(id, point))
-    }
 }
 
 /// Connection to a headless surface/document open in the View Process.
@@ -1078,13 +1063,6 @@ impl ViewRenderer {
 
             img
         }
-    }
-
-    /// Get display items of the last rendered frame that intercept the `point`.
-    ///
-    /// Returns all hits from front-to-back.
-    pub fn hit_test(&self, point: DipPoint) -> Result<(FrameId, PxPoint, HitTestResult)> {
-        self.call(|id, p| p.hit_test(id, point))
     }
 
     /// Render a new frame.

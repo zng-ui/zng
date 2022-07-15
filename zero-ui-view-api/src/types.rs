@@ -566,8 +566,6 @@ pub struct EventFrameRendered {
     pub frame: FrameId,
     /// Frame image, if one was requested with the frame request.
     pub frame_image: Option<ImageLoadedData>,
-    /// Hit-test at the cursor position.
-    pub cursor_hits: (PxPoint, HitTestResult),
 }
 
 /// Identifies a frame request for collaborative resize in [`WindowChanged`].

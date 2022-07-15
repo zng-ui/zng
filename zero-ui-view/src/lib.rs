@@ -413,7 +413,6 @@ impl App {
                                             window: id,
                                             frame: frame_id,
                                             frame_image: image,
-                                            cursor_hits: (PxPoint::new(Px(-1), Px(-1)), HitTestResult::default()),
                                         }));
                                     }
                                 }
@@ -1065,7 +1064,6 @@ impl App {
                 window: window_id,
                 frame: r.frame_id,
                 frame_image: r.image,
-                cursor_hits: r.cursor_hits,
             }));
 
             if r.first_frame {
@@ -1079,7 +1077,6 @@ impl App {
                 window: window_id,
                 frame: frame_id,
                 frame_image: image,
-                cursor_hits: (PxPoint::new(Px(-1), Px(-1)), HitTestResult::default()),
             }))
         }
     }
@@ -1561,14 +1558,6 @@ impl Api for App {
 
     fn frame_image_rect(&mut self, id: WindowId, rect: PxRect) -> ImageId {
         with_window_or_surface!(self, id, |w| w.frame_image_rect(&mut self.image_cache, rect), || 0)
-    }
-
-    fn hit_test(&mut self, id: WindowId, point: DipPoint) -> (FrameId, PxPoint, HitTestResult) {
-        with_window_or_surface!(self, id, |w| w.hit_test(point), || (
-            FrameId::INVALID,
-            PxPoint::new(Px(-1), Px(-1)),
-            HitTestResult::default()
-        ))
     }
 
     fn render(&mut self, id: WindowId, frame: FrameRequest) {

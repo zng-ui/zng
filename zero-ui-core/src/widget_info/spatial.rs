@@ -1,9 +1,7 @@
 use std::{num::NonZeroU32, rc::Rc};
 
-pub use zero_ui_view_api::webrender_api::ClipMode;
-
 use super::tree;
-use crate::{crate_util::FxHashSet, units::*};
+use crate::{crate_util::FxHashSet, ui_list::ZIndex, units::*};
 
 // The QuadTree is implemented as a grid of 2048px squares that is each an actual quad-tree.
 //
@@ -330,106 +328,229 @@ impl<Q: FnMut(PxBox) -> bool> Iterator for QuadQueryIter<Q> {
     }
 }
 
-/// Represents a clip shape.
-#[derive(Default, Debug, Clone)]
-pub enum Clip {
-    /// Contains any point inside the inner bounds.
-    #[default]
-    All,
-    /// Contains any point inside the box.
-    Rect(euclid::Box2D<Px, ()>),
-    /// Contains any bound inside the box and corner curves.
-    RoundedRect(euclid::Box2D<Px, ()>, PxCornerRadius),
-    /// Does not contain any point.
-    None,
+/// Represents hit-test regions of a widget inner.
+#[derive(Debug, Clone, Default)]
+pub(crate) struct HitTestClips {
+    items: Vec<HitTestItem>,
 }
-impl Clip {
-    /// If the clip contains the `point`, assuming it is already contained by the inner-bounds.
-    pub fn contains(&self, point: PxPoint) -> bool {
-        match self {
-            Clip::All => true,
-            Clip::Rect(rect) => rect.contains(point),
-            Clip::RoundedRect(rect, radii) => {
-                if !rect.contains(point) {
-                    return false;
-                }
+impl HitTestClips {
+    /// Returns `true` if any hit-test clip is registered for this widget.
+    pub fn is_hit_testable(&self) -> bool {
+        !self.items.is_empty()
+    }
 
-                let top_left_center = rect.min + radii.top_left.to_vector();
-                if top_left_center.x > point.x
-                    && top_left_center.y > point.y
-                    && !ellipse_contains(radii.top_left, point - top_left_center.to_vector())
-                {
-                    return false;
-                }
+    /// Push hit-test rectangle, relative to the widget's inner transform or last pushed transform.
+    pub fn push_rect(&mut self, z: ZIndex, rect: euclid::Box2D<Px, ()>, clip_out: bool) {
+        self.items.push(if clip_out {
+            HitTestItem::RectOut(z, rect)
+        } else {
+            HitTestItem::Rect(z, rect)
+        });
+    }
 
-                let bottom_right_center = rect.max - radii.bottom_right.to_vector();
-                if bottom_right_center.x < point.x
-                    && bottom_right_center.y < point.y
-                    && !ellipse_contains(radii.bottom_right, point - bottom_right_center.to_vector())
-                {
-                    return false;
-                }
-
-                let top_right = PxPoint::new(rect.max.x, rect.min.y);
-                let top_right_center = top_right + PxVector::new(-radii.top_right.width, radii.top_right.height);
-                if top_right_center.x < point.x
-                    && top_right_center.y > point.y
-                    && !ellipse_contains(radii.top_right, point - top_right_center.to_vector())
-                {
-                    return false;
-                }
-
-                let bottom_left = PxPoint::new(rect.min.x, rect.max.y);
-                let bottom_left_center = bottom_left + PxVector::new(radii.bottom_left.width, -radii.bottom_left.height);
-                if bottom_left_center.x > point.x
-                    && bottom_left_center.y < point.y
-                    && !ellipse_contains(radii.bottom_left, point - bottom_left_center.to_vector())
-                {
-                    return false;
-                }
-
-                true
-            }
-            Clip::None => false,
+    /// Push hit-test rectangle with rounded corners, relative to the widget's inner transform or last pushed transform.
+    pub fn push_rounded_rect(&mut self, z: ZIndex, rect: euclid::Box2D<Px, ()>, radii: PxCornerRadius, clip_out: bool) {
+        if radii == PxCornerRadius::zero() {
+            self.push_rect(z, rect, clip_out);
+        } else if clip_out {
+            self.items.push(HitTestItem::RoundedRectOut(z, rect, radii));
+        } else {
+            self.items.push(HitTestItem::RoundedRect(z, rect, radii));
         }
     }
 
-    /// Returns the intersection clip of `self` and `other`, or both clips if both must be checked.
-    pub fn merge(self, other: Clip) -> Result<Clip, (Clip, Clip)> {
-        match (&self, &other) {
-            (Clip::All, c) | (c, Clip::All) => Ok(c.clone()),
-            (Clip::None, _) | (_, Clip::None) => Ok(Clip::None),
-            (Clip::Rect(a), Clip::Rect(b)) => {
-                if let Some(r) = a.intersection(b) {
-                    Ok(Clip::Rect(r))
+    /// Push hit-test ellipse.
+    pub fn push_ellipse(&mut self, z: ZIndex, ellipse: PxSize, clip_out: bool) {
+        if clip_out {
+            self.items.push(HitTestItem::EllipseOut(z, ellipse))
+        } else {
+            self.items.push(HitTestItem::Ellipse(z, ellipse))
+        }
+    }
+
+    /// Push clips to allow only a border.
+    pub fn push_border(&mut self, z: ZIndex, bounds: PxRect, widths: PxSideOffsets, radius: PxCornerRadius) {
+        // TODO !!: need to pop clips? the inner exclusion should apply only for the outer inclusion.
+
+        /*
+
+                        let parent_space_and_clip = sc.info();
+
+                let mut inner_bounds = *bounds;
+                inner_bounds.origin.x += widths.left;
+                inner_bounds.origin.y += widths.top;
+                inner_bounds.size.width -= widths.horizontal();
+                inner_bounds.size.height -= widths.vertical();
+
+                let outer_clip;
+                let inner_clip;
+
+                if *radius == PxCornerRadius::zero() {
+                    outer_clip = wr_list.define_clip_rect(&parent_space_and_clip, bounds.to_wr());
+                    inner_clip = wr_list.define_clip_rounded_rect(
+                        &parent_space_and_clip,
+                        wr::ComplexClipRegion {
+                            rect: inner_bounds.to_wr(),
+                            radii: wr::BorderRadius::zero(),
+                            mode: wr::ClipMode::ClipOut,
+                        },
+                    );
                 } else {
-                    Ok(Clip::None)
+                    outer_clip = wr_list.define_clip_rounded_rect(
+                        &parent_space_and_clip,
+                        wr::ComplexClipRegion {
+                            rect: bounds.to_wr(),
+                            radii: radius.to_wr(),
+                            mode: wr::ClipMode::Clip,
+                        },
+                    );
+
+                    let inner_radius = radius.deflate(*widths);
+
+                    inner_clip = wr_list.define_clip_rounded_rect(
+                        &parent_space_and_clip,
+                        wr::ComplexClipRegion {
+                            rect: inner_bounds.to_wr(),
+                            radii: inner_radius.to_wr(),
+                            mode: wr::ClipMode::ClipOut,
+                        },
+                    );
                 }
-            }
-            (Clip::Rect(rect), Clip::RoundedRect(r_rect, radii)) | (Clip::RoundedRect(r_rect, radii), Clip::Rect(rect)) => {
-                if let Some(r) = rect.intersection(r_rect) {
-                    if &r == r_rect {
-                        Ok(Clip::RoundedRect(*r_rect, *radii))
-                    } else {
-                        // could still check corners?
-                        Err((self, other))
+
+                let clip_chain_id = wr_list.define_clip_chain(None, vec![outer_clip, inner_clip]);
+                wr_list.push_hit_test(
+                    &wr::CommonItemProperties {
+                        clip_rect: bounds.to_wr(),
+                        clip_id: wr::ClipId::ClipChain(clip_chain_id),
+                        spatial_id: sc.spatial_id(),
+                        flags: wr::PrimitiveFlags::empty(),
+                    },
+                    *tag,
+                );
+
+        */
+    }
+
+    /// Push new space, subsequent items are relative to the `transform`.
+    pub fn push_transform(&mut self, transform: RenderTransform) {
+        self.items.push(HitTestItem::Transform(transform))
+    }
+
+    /// Pop space, subsequent items are relative to the parent transform or widget's inner transform.
+    pub fn pop_transform(&mut self) {
+        self.items.push(HitTestItem::PopTransform);
+    }
+
+    /// Hit-test the `point` against the items, returns the Z-index for the hit.
+    pub fn hit_test_z(&self, inner_transform: &RenderTransform, point: PxPoint) -> Option<ZIndex> {
+        let mut transform_stack = vec![];
+        let mut current_transform = inner_transform;
+        let mut z = ZIndex(0);
+
+        for item in &self.items {
+            match item {
+                HitTestItem::Rect(iz, r) => {
+                    if !r.contains(point) {
+                        return None;
                     }
-                } else {
-                    Ok(Clip::None)
+                    z = z.max(*iz);
+                }
+                HitTestItem::RectOut(iz, r) => {
+                    if r.contains(point) {
+                        return None;
+                    }
+                    z = z.max(*iz);
+                }
+                HitTestItem::RoundedRect(iz, r, radii) => {
+                    if !rounded_rect_contains(r, radii, point) {
+                        return None;
+                    }
+                    z = z.max(*iz);
+                }
+                HitTestItem::RoundedRectOut(iz, r, radii) => {
+                    if rounded_rect_contains(r, radii, point) {
+                        return None;
+                    }
+                    z = z.max(*iz);
+                }
+                HitTestItem::Ellipse(iz, e) => {
+                    if !ellipse_contains(*e, point) {
+                        return None;
+                    }
+                    z = z.max(*iz);
+                }
+                HitTestItem::EllipseOut(iz, e) => {
+                    if ellipse_contains(*e, point) {
+                        return None;
+                    }
+                    z = z.max(*iz);
+                }
+                HitTestItem::Transform(t) => {
+                    // TODO transform point
+                    transform_stack.push(current_transform);
+                    current_transform = t;
+                }
+                HitTestItem::PopTransform => {
+                    current_transform = transform_stack.pop().unwrap();
                 }
             }
-            (Clip::RoundedRect(a, _a_radii), Clip::RoundedRect(b, _b_radii)) => {
-                if a.intersects(b) {
-                    // could still check corners?
-                    Err((self, other))
-                } else {
-                    Ok(Clip::None)
-                }
-            } // (_, _) => Err((self, other)),
         }
+
+        Some(z)
     }
 }
 
+#[derive(Debug, Clone)]
+enum HitTestItem {
+    Rect(ZIndex, euclid::Box2D<Px, ()>),
+    RectOut(ZIndex, euclid::Box2D<Px, ()>),
+    RoundedRect(ZIndex, euclid::Box2D<Px, ()>, PxCornerRadius),
+    RoundedRectOut(ZIndex, euclid::Box2D<Px, ()>, PxCornerRadius),
+    Ellipse(ZIndex, PxSize),
+    EllipseOut(ZIndex, PxSize),
+    Transform(RenderTransform),
+    PopTransform,
+}
+
+fn rounded_rect_contains(rect: &euclid::Box2D<Px, ()>, radii: &PxCornerRadius, point: PxPoint) -> bool {
+    if !rect.contains(point) {
+        return false;
+    }
+
+    let top_left_center = rect.min + radii.top_left.to_vector();
+    if top_left_center.x > point.x && top_left_center.y > point.y && !ellipse_contains(radii.top_left, point - top_left_center.to_vector())
+    {
+        return false;
+    }
+
+    let bottom_right_center = rect.max - radii.bottom_right.to_vector();
+    if bottom_right_center.x < point.x
+        && bottom_right_center.y < point.y
+        && !ellipse_contains(radii.bottom_right, point - bottom_right_center.to_vector())
+    {
+        return false;
+    }
+
+    let top_right = PxPoint::new(rect.max.x, rect.min.y);
+    let top_right_center = top_right + PxVector::new(-radii.top_right.width, radii.top_right.height);
+    if top_right_center.x < point.x
+        && top_right_center.y > point.y
+        && !ellipse_contains(radii.top_right, point - top_right_center.to_vector())
+    {
+        return false;
+    }
+
+    let bottom_left = PxPoint::new(rect.min.x, rect.max.y);
+    let bottom_left_center = bottom_left + PxVector::new(radii.bottom_left.width, -radii.bottom_left.height);
+    if bottom_left_center.x > point.x
+        && bottom_left_center.y < point.y
+        && !ellipse_contains(radii.bottom_left, point - bottom_left_center.to_vector())
+    {
+        return false;
+    }
+
+    true
+}
 fn ellipse_contains(e: PxSize, p: PxPoint) -> bool {
     let center_x = e.width.0 as f64 / 2.0;
     let center_y = e.height.0 as f64 / 2.0;
@@ -437,49 +558,4 @@ fn ellipse_contains(e: PxSize, p: PxPoint) -> bool {
     let y = p.y.0 as f64;
 
     (x * x) / (center_x * center_x) + (y * y) / (center_y * center_y) <= 1.0
-}
-
-/// Represents a composite clip shape, made from multiple clips.
-#[derive(Default, Debug, Clone)]
-pub struct ComplexClip {
-    clips: Vec<(Clip, ClipMode)>,
-}
-impl ComplexClip {
-    /// Push a clip.
-    pub fn push(&mut self, clip: Clip, mode: ClipMode) {
-        if let Some((c, m)) = self.clips.pop() {
-            if m == mode {
-                match c.merge(clip) {
-                    Ok(c) => self.clips.push((c, mode)),
-                    Err((a, b)) => {
-                        self.clips.push((a, mode));
-                        self.clips.push((b, mode));
-                    }
-                }
-            } else {
-                self.clips.push((c, m));
-                self.clips.push((clip, mode));
-            }
-        } else {
-            self.clips.push((clip, mode))
-        }
-    }
-
-    /// Returns `true` if the `point` represents a hit in the inner bounds.
-    pub fn contains(&self, point: PxPoint) -> bool {
-        for (clip, mode) in self.clips.iter().rev() {
-            if clip.contains(point) {
-                match mode {
-                    ClipMode::Clip => continue,
-                    ClipMode::ClipOut => return false,
-                }
-            } else {
-                match mode {
-                    ClipMode::Clip => return false,
-                    ClipMode::ClipOut => continue,
-                }
-            }
-        }
-        true
-    }
 }
