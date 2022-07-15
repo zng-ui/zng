@@ -642,35 +642,15 @@ impl FrameBuilder {
         self.widget_data.is_none()
     }
 
-    /// Push a hit-test `rect` for the widget if hit-testing is enable.
-    ///
-    /// If `clip_out` is `true` the widget is hit if the point is not contained by the `rect`.
-    pub fn push_hit_test_rect(&mut self, rect: PxRect, clip_out: bool) {
-        expect_inner!(self.push_hit_test_rect);
+    /// Gets the inner-bounds hit-test shape builder.
+    pub fn hit_test(&mut self) -> HitTestBuilder {
+        expect_inner!(self.hit_test);
 
-        if self.is_hit_testable && rect.size != PxSize::zero() {
-            self.widget_rendered = true;
-            self.hit_clips.push_rect(self.z_index(), rect.to_box2d(), clip_out);
-        }
-    }
-
-    /// Push a hit-test `rect` with rounded `corners` for the widget if hit-testing is enable.
-    pub fn push_hit_test_rounded_rect(&mut self, rect: PxRect, corners: PxCornerRadius, clip_out: bool) {
-        expect_inner!(self.push_hit_test_rounded_rect);
-
-        if self.is_hit_testable && rect.size != PxSize::zero() {
-            self.widget_rendered = true;
-            self.hit_clips.push_rounded_rect(self.z_index(), rect.to_box2d(), corners, clip_out);
-        }
-    }
-
-    /// Push a hit-test ellipse.
-    pub fn push_hit_test_ellipse(&mut self, center: PxPoint, radii: PxSize, clip_out: bool) {
-        expect_inner!(self.push_hit_test_ellipse);
-
-        if self.is_hit_testable && radii != PxSize::zero() {
-            self.widget_rendered = true;
-            self.hit_clips.push_ellipse(self.z_index(), center, radii, clip_out);
+        HitTestBuilder {
+            z_index: self.z_index(),
+            hit_clips: &mut self.hit_clips,
+            is_hit_testable: self.is_hit_testable,
+            widget_rendered: &mut self.widget_rendered,
         }
     }
 
@@ -787,20 +767,8 @@ impl FrameBuilder {
         );
 
         if self.auto_hit_test {
-            self.push_hit_test_border(bounds, widths, radius);
+            self.hit_test().push_border(bounds, widths, radius);
         }
-    }
-
-    /// Pushes a composite hit-test for the widget if hit-testing is enable.
-    pub fn push_hit_test_border(&mut self, bounds: PxRect, widths: PxSideOffsets, radius: PxCornerRadius) {
-        expect_inner!(self.push_hit_test_border);
-
-        if !self.is_hit_testable() {
-            return;
-        }
-
-        let z = self.z_index();
-        self.hit_clips.push_border(z, bounds.to_box2d(), widths, radius);
     }
 
     /// Push a text run.
@@ -832,7 +800,7 @@ impl FrameBuilder {
             }
 
             if self.auto_hit_test {
-                self.push_hit_test_rect(clip_rect, false);
+                self.hit_test().push_rect(clip_rect, false);
             }
         } else {
             self.widget_rendered = true;
@@ -849,7 +817,7 @@ impl FrameBuilder {
                 .push_image(clip_rect, image_key, img_size, rendering.into(), image.alpha_type());
 
             if self.auto_hit_test {
-                self.push_hit_test_rect(clip_rect, false);
+                self.hit_test().push_rect(clip_rect, false);
             }
         } else {
             self.widget_rendered = true;
@@ -863,7 +831,7 @@ impl FrameBuilder {
         self.display_list.push_color(clip_rect, color);
 
         if self.auto_hit_test {
-            self.push_hit_test_rect(clip_rect, false);
+            self.hit_test().push_rect(clip_rect, false);
         }
     }
 
@@ -908,7 +876,7 @@ impl FrameBuilder {
         }
 
         if self.auto_hit_test {
-            self.push_hit_test_rect(clip_rect, false);
+            self.hit_test().push_rect(clip_rect, false);
         }
     }
 
@@ -959,7 +927,7 @@ impl FrameBuilder {
         }
 
         if self.auto_hit_test {
-            self.push_hit_test_rect(clip_rect, false);
+            self.hit_test().push_rect(clip_rect, false);
         }
     }
 
@@ -1007,7 +975,7 @@ impl FrameBuilder {
         }
 
         if self.auto_hit_test {
-            self.push_hit_test_rect(clip_rect, false);
+            self.hit_test().push_rect(clip_rect, false);
         }
     }
 
@@ -1051,7 +1019,7 @@ impl FrameBuilder {
         }
 
         if self.auto_hit_test {
-            self.push_hit_test_rect(clip_rect, false);
+            self.hit_test().push_rect(clip_rect, false);
         }
     }
 
@@ -1113,6 +1081,79 @@ impl FrameBuilder {
         let frame = BuiltFrame { display_list, clear_color };
 
         (frame, reuse)
+    }
+}
+
+/// Builder for the hit-testable shape of the inner-bounds of a widget.
+///
+/// This builder is available in [`FrameBuilder::hit_test`] inside the inner-bounds of the rendering widget.
+///
+/// A widget is hit if the hit point is contained by at least one of the hit-testable shapes and is not excluded by any of the other ones.
+/// If a shape is `clip_out` it excludes hits *inside*, otherwise it excludes hits *outside*.
+pub struct HitTestBuilder<'a> {
+    hit_clips: &'a mut HitTestClips,
+    z_index: ZIndex,
+    is_hit_testable: bool,
+    widget_rendered: &'a mut bool,
+}
+impl<'a> HitTestBuilder<'a> {
+    /// If the widget is hit-testable, if this is `false` all hit-test push methods are ignored.
+    pub fn is_hit_testable(&self) -> bool {
+        self.is_hit_testable
+    }
+
+    /// Z-index that will be assigned to all hit-test regions pushed by this builder.
+    ///
+    /// The z-index is the [`FrameBuilder::z_index`] at the moment the builder is requested.
+    pub fn z_index(&self) -> ZIndex {
+        self.z_index
+    }
+
+    /// Push a hit-test `rect` for the widget if hit-testing is enable.
+    pub fn push_rect(&mut self, rect: PxRect, clip_out: bool) {
+        if self.is_hit_testable && rect.size != PxSize::zero() {
+            *self.widget_rendered = true;
+            self.hit_clips.push_rect(self.z_index(), rect.to_box2d(), clip_out);
+        }
+    }
+
+    /// Push a hit-test `rect` with rounded `corners` for the widget if hit-testing is enable.
+    pub fn push_rounded_rect(&mut self, rect: PxRect, corners: PxCornerRadius, clip_out: bool) {
+        if self.is_hit_testable && rect.size != PxSize::zero() {
+            *self.widget_rendered = true;
+            self.hit_clips.push_rounded_rect(self.z_index(), rect.to_box2d(), corners, clip_out);
+        }
+    }
+
+    /// Push a hit-test ellipse.
+    pub fn push_ellipse(&mut self, center: PxPoint, radii: PxSize, clip_out: bool) {
+        if self.is_hit_testable && radii != PxSize::zero() {
+            *self.widget_rendered = true;
+            self.hit_clips.push_ellipse(self.z_index(), center, radii, clip_out);
+        }
+    }
+
+    /// Pushes a composite hit-test for the widget if hit-testing is enable.
+    pub fn push_border(&mut self, bounds: PxRect, widths: PxSideOffsets, radius: PxCornerRadius) {
+        if !self.is_hit_testable {
+            return;
+        }
+
+        let z = self.z_index();
+        self.hit_clips.push_border(z, bounds.to_box2d(), widths, radius);
+    }
+
+    ///
+    pub fn push_transform(&mut self, transform: RenderTransform, inner_hit_tests: impl FnOnce(&mut Self)) {
+        if !self.is_hit_testable {
+            return;
+        }
+
+        self.hit_clips.push_transform(transform);
+
+        inner_hit_tests(self);
+
+        self.hit_clips.pop_transform();
     }
 }
 
