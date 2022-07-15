@@ -369,66 +369,27 @@ impl HitTestClips {
     }
 
     /// Push clips to allow only a border.
-    pub fn push_border(&mut self, z: ZIndex, bounds: PxRect, widths: PxSideOffsets, radius: PxCornerRadius) {
-        // TODO !!: need to pop clips? the inner exclusion should apply only for the outer inclusion.
+    pub fn push_border(&mut self, z: ZIndex, bounds: euclid::Box2D<Px, ()>, widths: PxSideOffsets, radii: PxCornerRadius) {
+        let mut inner_bounds = bounds;
+        inner_bounds.min.x += widths.left;
+        inner_bounds.min.y += widths.top;
+        inner_bounds.max.x -= widths.right;
+        inner_bounds.max.y -= widths.bottom;
 
-        /*
+        if inner_bounds.is_negative() {
+            return self.push_rounded_rect(z, bounds, radii, false);
+        }
 
-                        let parent_space_and_clip = sc.info();
+        if radii == PxCornerRadius::zero() {
+            // TODO !!: turn this into a single item.
+            self.push_rect(z, bounds, false);
+            self.push_rect(z, inner_bounds, true);
+        } else {
+            let inner_radii = radii.deflate(widths);
 
-                let mut inner_bounds = *bounds;
-                inner_bounds.origin.x += widths.left;
-                inner_bounds.origin.y += widths.top;
-                inner_bounds.size.width -= widths.horizontal();
-                inner_bounds.size.height -= widths.vertical();
-
-                let outer_clip;
-                let inner_clip;
-
-                if *radius == PxCornerRadius::zero() {
-                    outer_clip = wr_list.define_clip_rect(&parent_space_and_clip, bounds.to_wr());
-                    inner_clip = wr_list.define_clip_rounded_rect(
-                        &parent_space_and_clip,
-                        wr::ComplexClipRegion {
-                            rect: inner_bounds.to_wr(),
-                            radii: wr::BorderRadius::zero(),
-                            mode: wr::ClipMode::ClipOut,
-                        },
-                    );
-                } else {
-                    outer_clip = wr_list.define_clip_rounded_rect(
-                        &parent_space_and_clip,
-                        wr::ComplexClipRegion {
-                            rect: bounds.to_wr(),
-                            radii: radius.to_wr(),
-                            mode: wr::ClipMode::Clip,
-                        },
-                    );
-
-                    let inner_radius = radius.deflate(*widths);
-
-                    inner_clip = wr_list.define_clip_rounded_rect(
-                        &parent_space_and_clip,
-                        wr::ComplexClipRegion {
-                            rect: inner_bounds.to_wr(),
-                            radii: inner_radius.to_wr(),
-                            mode: wr::ClipMode::ClipOut,
-                        },
-                    );
-                }
-
-                let clip_chain_id = wr_list.define_clip_chain(None, vec![outer_clip, inner_clip]);
-                wr_list.push_hit_test(
-                    &wr::CommonItemProperties {
-                        clip_rect: bounds.to_wr(),
-                        clip_id: wr::ClipId::ClipChain(clip_chain_id),
-                        spatial_id: sc.spatial_id(),
-                        flags: wr::PrimitiveFlags::empty(),
-                    },
-                    *tag,
-                );
-
-        */
+            self.push_rounded_rect(z, bounds, radii, false);
+            self.push_rounded_rect(z, inner_bounds, inner_radii, true);
+        }
     }
 
     /// Push new space, subsequent items are relative to the `transform`.

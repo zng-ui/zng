@@ -800,7 +800,7 @@ impl FrameBuilder {
         }
 
         let z = self.z_index();
-        self.hit_clips.push_border(z, bounds, widths, radius);
+        self.hit_clips.push_border(z, bounds.to_box2d(), widths, radius);
     }
 
     /// Push a text run.
