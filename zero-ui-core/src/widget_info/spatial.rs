@@ -329,7 +329,7 @@ impl<Q: FnMut(PxBox) -> bool> Iterator for QuadQueryIter<Q> {
 }
 
 /// Represents hit-test regions of a widget inner.
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Default)]
 pub(crate) struct HitTestClips {
     items: Vec<HitTestItem>,
 }
@@ -450,7 +450,7 @@ impl HitTestClips {
         for item in &self.items {
             match item {
                 HitTestItem::Rect(iz, r) => {
-                    if !r.contains(point) {
+                    if !dbg!(r).contains(point) {
                         return None;
                     }
                     z = z.max(*iz);
@@ -500,7 +500,7 @@ impl HitTestClips {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 enum HitTestItem {
     Rect(ZIndex, euclid::Box2D<Px, ()>),
     RectOut(ZIndex, euclid::Box2D<Px, ()>),

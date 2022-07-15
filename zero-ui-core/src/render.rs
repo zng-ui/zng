@@ -1099,7 +1099,7 @@ impl FrameBuilder {
     /// Finalizes the build.
     pub fn finalize(self, info_tree: &WidgetInfoTree) -> (BuiltFrame, UsedFrameBuilder) {
         info_tree.root().bounds_info().set_rendered(self.widget_rendered, info_tree);
-        info_tree.after_render(self.frame_id);
+        info_tree.after_render(self.frame_id, self.scale_factor);
 
         let (display_list, capacity) = self.display_list.finalize();
 

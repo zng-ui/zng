@@ -92,6 +92,7 @@ fn scope(tab_nav: TabNav, directional_nav: DirectionalNav, horizontal: bool) -> 
         WidgetId::named("w"),
         WidgetBoundsInfo::new_test(PxRect::from_size(PxSize::new(Px(800), Px(600))), None, None, None),
         WidgetBorderInfo::new(),
+        1.fct(),
         None,
     );
     FocusInfoBuilder::get(&mut builder)

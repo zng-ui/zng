@@ -17,7 +17,7 @@ fn main() {
                     example(HitTestMode::RoundedBounds),
                     example(HitTestMode::Bounds),
                 ]
-            }
+            };
         }
     })
 }

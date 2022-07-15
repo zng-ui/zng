@@ -1180,6 +1180,7 @@ impl ContentCtrl {
                 self.root_id,
                 self.root_info.bounds.clone(),
                 self.root_info.border.clone(),
+                self.vars.0.scale_factor.copy(ctx),
                 self.used_info_builder.take(),
             );
 

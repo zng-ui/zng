@@ -7,7 +7,6 @@ use crate::{
     context::*,
     event::*,
     keyboard::{ModifiersChangedEvent, ModifiersState},
-    render::{webrender_api::HitTestResult, *},
     service::*,
     units::*,
     var::{impl_from_and_into_var, var, RcVar, ReadOnlyRcVar, Var},
@@ -981,9 +980,9 @@ impl MouseManager {
                 }
             };
 
-            let hits = frame_info.hit_test(position.to_px(frame_info.scale_factor().0));
+            self.pos_hits = frame_info.hit_test(position.to_px(frame_info.scale_factor().0));
 
-            let target = if let Some(t) = hits.target() {
+            let target = if let Some(t) = self.pos_hits.target() {
                 frame_info.get(t.widget_id).map(|w| w.interaction_path()).unwrap_or_else(|| {
                     tracing::error!("hits target `{}` not found", t.widget_id);
                     frame_info.root().interaction_path()
@@ -1002,7 +1001,7 @@ impl MouseManager {
                     window_id,
                     device_id,
                     position,
-                    hits.clone(),
+                    self.pos_hits.clone(),
                     prev_target,
                     target.clone(),
                     capture.clone(),
@@ -1015,7 +1014,16 @@ impl MouseManager {
 
             // mouse_move
             if let Some(target) = target {
-                let args = MouseMoveArgs::now(window_id, device_id, self.modifiers, coalesced_pos, position, hits, target, capture);
+                let args = MouseMoveArgs::now(
+                    window_id,
+                    device_id,
+                    self.modifiers,
+                    coalesced_pos,
+                    position,
+                    self.pos_hits.clone(),
+                    target,
+                    capture,
+                );
                 MouseMoveEvent.notify(ctx.events, args);
             }
 
@@ -1025,8 +1033,6 @@ impl MouseManager {
         } else if coalesced_pos.is_empty() {
             tracing::warn!("RawCursorMoved did not actually move")
         }
-
-        self.pos_hits = hits_res;
     }
 
     fn on_scroll(&self, window_id: WindowId, device_id: DeviceId, delta: MouseScrollDelta, phase: TouchPhase, ctx: &mut AppContext) {
@@ -1038,7 +1044,7 @@ impl MouseManager {
 
         let windows = ctx.services.windows();
 
-        let hits = HitTestInfo::new(window_id, self.pos_hits.0, self.pos_hits.1, &self.pos_hits.2);
+        let hits = self.pos_hits.clone();
 
         let frame_info = windows.widget_tree(window_id).unwrap();
 
@@ -1115,18 +1121,27 @@ impl AppExtension for MouseManager {
             // update hovered
             if self.pos_window == Some(args.window_id) {
                 let (windows, mouse) = ctx.services.req_multi::<(Windows, Mouse)>();
-                let hits = HitTestInfo::new(args.window_id, args.frame_id, args.cursor_hits.0, &args.cursor_hits.1);
-                let target = hits
+                let frame_info = windows.widget_tree(args.window_id).unwrap();
+                self.pos_hits = frame_info.hit_test(self.pos.to_px(frame_info.scale_factor().0));
+                let target = self
+                    .pos_hits
                     .target()
-                    .and_then(|t| windows.widget_tree(args.window_id).unwrap().get(t.widget_id))
+                    .and_then(|t| frame_info.get(t.widget_id))
                     .and_then(|w| w.interaction_path().unblocked());
-
-                self.pos_hits = (args.frame_id, args.cursor_hits.0, args.cursor_hits.1.clone());
 
                 if self.hovered != target {
                     let capture = self.capture_info(mouse);
                     let prev = mem::replace(&mut self.hovered, target.clone());
-                    let args = MouseHoverArgs::now(args.window_id, None, self.pos, hits, prev, target, capture.clone(), capture);
+                    let args = MouseHoverArgs::now(
+                        args.window_id,
+                        None,
+                        self.pos,
+                        self.pos_hits.clone(),
+                        prev,
+                        target,
+                        capture.clone(),
+                        capture,
+                    );
                     MouseHoveredEvent.notify(ctx.events, args);
                 }
             }

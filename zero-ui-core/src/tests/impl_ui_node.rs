@@ -102,6 +102,7 @@ fn test_trace(node: impl UiNode) {
         ctx.root_id,
         WidgetBoundsInfo::new_size(l_size, l_size),
         WidgetBorderInfo::new(),
+        1.fct(),
         None,
     );
 
@@ -226,6 +227,7 @@ pub fn default_no_child() {
         ctx.root_id,
         WidgetBoundsInfo::new_size(desired_size, desired_size),
         WidgetBorderInfo::new(),
+        1.fct(),
         None,
     );
     wgt.test_info(&mut ctx, &mut info);

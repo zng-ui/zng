@@ -284,7 +284,7 @@ impl<'a> TreeIter<'a> {
     /// Creates a reverse tree iterator.
     ///
     /// Yields widgets in the `parent -> last_child -> prev_sibling` order. The reverse iterator is pre-advanced by the same count
-    /// of widgets already yielded by this iterator. In practice this is best used immediatly after getting the iterator from
+    /// of widgets already yielded by this iterator. In practice this is best used immediately after getting the iterator from
     /// [`self_and_descendants`] or [`descendants`], with the intention of skipping to the last child from the starting widget.
     ///
     /// [`self_and_descendants`]: WidgetInfo::self_and_descendants
@@ -402,6 +402,7 @@ where
 #[cfg(test)]
 mod tests {
     use crate::{
+        units::FactorUnits,
         widget_info::{iter::TreeIterator, TreeFilter, WidgetBorderInfo, WidgetBoundsInfo, WidgetInfo, WidgetInfoBuilder, WidgetInfoTree},
         window::WindowId,
         WidgetId,
@@ -438,6 +439,7 @@ mod tests {
             WidgetId::named("w"),
             WidgetBoundsInfo::new(),
             WidgetBorderInfo::new(),
+            1.fct(),
             None,
         );
         builder.push_test_widget("c-0", |_| {});
@@ -570,6 +572,7 @@ mod tests {
             WidgetId::named("w"),
             WidgetBoundsInfo::new(),
             WidgetBorderInfo::new(),
+            1.fct(),
             None,
         );
         builder.push_test_widget("c-0", |builder| {
@@ -690,6 +693,7 @@ mod tests {
             WidgetId::named("w"),
             WidgetBoundsInfo::new(),
             WidgetBorderInfo::new(),
+            1.fct(),
             None,
         );
         builder.push_test_widget("d-0", |builder| {

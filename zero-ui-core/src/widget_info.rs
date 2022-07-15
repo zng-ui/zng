@@ -146,7 +146,7 @@ impl Eq for WidgetInfoTree {}
 impl WidgetInfoTree {
     /// Blank window that contains only the root widget taking no space.
     pub fn blank(window_id: WindowId, root_id: WidgetId) -> Self {
-        WidgetInfoBuilder::new(window_id, root_id, WidgetBoundsInfo::new(), WidgetBorderInfo::new(), None)
+        WidgetInfoBuilder::new(window_id, root_id, WidgetBoundsInfo::new(), WidgetBorderInfo::new(), 1.fct(), None)
             .finalize()
             .0
     }
@@ -623,8 +623,8 @@ impl WidgetInfoTree {
         self.0.scale_factor.set(scale_factor);
     }
 
-    pub(crate) fn after_render_update(&self, frame_id: FrameId, scale_factor: Factor) {
-        self.after_render(frame_id, scale_factor);
+    pub(crate) fn after_render_update(&self, frame_id: FrameId) {
+        self.after_render(frame_id, self.0.scale_factor.get());
     }
 }
 impl fmt::Debug for WidgetInfoTree {
