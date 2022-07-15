@@ -1,3 +1,5 @@
+* Review implementing context_var using https://crates.io/crates/scoped_tls
+
 * Rethink spatial partitioning, the quad-tree is a bad fit for the problem:
    - Most widgets are fully contained by the parent bounds.
    - Most panel widgets can naturally calculate a fixed grid that perfectly fits its content, for all items that are not transformed.
