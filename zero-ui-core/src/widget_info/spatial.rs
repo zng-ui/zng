@@ -360,11 +360,11 @@ impl HitTestClips {
     }
 
     /// Push hit-test ellipse.
-    pub fn push_ellipse(&mut self, z: ZIndex, ellipse: PxSize, clip_out: bool) {
+    pub fn push_ellipse(&mut self, z: ZIndex, center: PxPoint, radii: PxSize, clip_out: bool) {
         if clip_out {
-            self.items.push(HitTestItem::EllipseOut(z, ellipse))
+            self.items.push(HitTestItem::EllipseOut(z, center, radii))
         } else {
-            self.items.push(HitTestItem::Ellipse(z, ellipse))
+            self.items.push(HitTestItem::Ellipse(z, center, radii))
         }
     }
 
@@ -474,14 +474,14 @@ impl HitTestClips {
                     }
                     z = z.max(*iz);
                 }
-                HitTestItem::Ellipse(iz, e) => {
-                    if !ellipse_contains(*e, local_point) {
+                HitTestItem::Ellipse(iz, c, radii) => {
+                    if !ellipse_contains(*radii, *c, local_point) {
                         return None;
                     }
                     z = z.max(*iz);
                 }
-                HitTestItem::EllipseOut(iz, e) => {
-                    if ellipse_contains(*e, local_point) {
+                HitTestItem::EllipseOut(iz, c, radii) => {
+                    if ellipse_contains(*radii, *c, local_point) {
                         return None;
                     }
                     z = z.max(*iz);
@@ -507,8 +507,8 @@ enum HitTestItem {
     RectOut(ZIndex, euclid::Box2D<Px, ()>),
     RoundedRect(ZIndex, euclid::Box2D<Px, ()>, PxCornerRadius),
     RoundedRectOut(ZIndex, euclid::Box2D<Px, ()>, PxCornerRadius),
-    Ellipse(ZIndex, PxSize),
-    EllipseOut(ZIndex, PxSize),
+    Ellipse(ZIndex, PxPoint, PxSize),
+    EllipseOut(ZIndex, PxPoint, PxSize),
     Transform(RenderTransform),
     PopTransform,
 }
@@ -519,44 +519,44 @@ fn rounded_rect_contains(rect: &euclid::Box2D<Px, ()>, radii: &PxCornerRadius, p
     }
 
     let top_left_center = rect.min + radii.top_left.to_vector();
-    if top_left_center.x > point.x && top_left_center.y > point.y && !ellipse_contains(radii.top_left, point - top_left_center.to_vector())
-    {
+    if top_left_center.x > point.x && top_left_center.y > point.y && !ellipse_contains(radii.top_left, top_left_center, point) {
         return false;
     }
 
     let bottom_right_center = rect.max - radii.bottom_right.to_vector();
     if bottom_right_center.x < point.x
         && bottom_right_center.y < point.y
-        && !ellipse_contains(radii.bottom_right, point - bottom_right_center.to_vector())
+        && !ellipse_contains(radii.bottom_right, bottom_right_center, point)
     {
         return false;
     }
 
     let top_right = PxPoint::new(rect.max.x, rect.min.y);
     let top_right_center = top_right + PxVector::new(-radii.top_right.width, radii.top_right.height);
-    if top_right_center.x < point.x
-        && top_right_center.y > point.y
-        && !ellipse_contains(radii.top_right, point - top_right_center.to_vector())
-    {
+    if top_right_center.x < point.x && top_right_center.y > point.y && !ellipse_contains(radii.top_right, top_right_center, point) {
         return false;
     }
 
     let bottom_left = PxPoint::new(rect.min.x, rect.max.y);
     let bottom_left_center = bottom_left + PxVector::new(radii.bottom_left.width, -radii.bottom_left.height);
-    if bottom_left_center.x > point.x
-        && bottom_left_center.y < point.y
-        && !ellipse_contains(radii.bottom_left, point - bottom_left_center.to_vector())
-    {
+    if bottom_left_center.x > point.x && bottom_left_center.y < point.y && !ellipse_contains(radii.bottom_left, bottom_left_center, point) {
         return false;
     }
 
     true
 }
-fn ellipse_contains(e: PxSize, p: PxPoint) -> bool {
-    let center_x = e.width.0 as f64 / 2.0;
-    let center_y = e.height.0 as f64 / 2.0;
-    let x = p.x.0 as f64;
-    let y = p.y.0 as f64;
 
-    (x * x) / (center_x * center_x) + (y * y) / (center_y * center_y) <= 1.0
+fn ellipse_contains(radii: PxSize, center: PxPoint, point: PxPoint) -> bool {
+    let h = center.x.0 as f64;
+    let k = center.y.0 as f64;
+
+    let a = radii.width.0 as f64;
+    let b = radii.height.0 as f64;
+
+    let x = point.x.0 as f64;
+    let y = point.y.0 as f64;
+
+    let p = ((x - h).powi(2) / a.powi(2)) + ((y - k).powi(2) / b.powi(2));
+
+    p <= 1.0
 }

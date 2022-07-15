@@ -665,12 +665,12 @@ impl FrameBuilder {
     }
 
     /// Push a hit-test ellipse.
-    pub fn push_hit_test_ellipse(&mut self, radii: PxSize, clip_out: bool) {
+    pub fn push_hit_test_ellipse(&mut self, center: PxPoint, radii: PxSize, clip_out: bool) {
         expect_inner!(self.push_hit_test_ellipse);
 
         if self.is_hit_testable && radii != PxSize::zero() {
             self.widget_rendered = true;
-            self.hit_clips.push_ellipse(self.z_index(), radii, clip_out);
+            self.hit_clips.push_ellipse(self.z_index(), center, radii, clip_out);
         }
     }
 

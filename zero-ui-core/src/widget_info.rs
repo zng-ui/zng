@@ -259,6 +259,8 @@ impl WidgetInfoTree {
 
     /// Gets all widgets hit by a `point`, sorted by z-index of the hit, front to back.
     pub fn hit_test(&self, point: PxPoint) -> HitTestInfo {
+        let _span = tracing::trace_span!("hit_test").entered();
+
         let mut hits: Vec<_> = self
             .quad_query_dedup(move |q| q.contains(point))
             .filter_map(|w| {
