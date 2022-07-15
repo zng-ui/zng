@@ -768,7 +768,7 @@ pub fn fill_node(content: impl UiNode) -> impl UiNode {
                     if self.clip_corners != PxCornerRadius::zero() {
                         frame.push_clip_rounded_rect(bounds, self.clip_corners, false, |f| self.content.render(ctx, f))
                     } else {
-                        frame.push_clip_rect(bounds, |f| self.content.render(ctx, f))
+                        frame.push_clip_rect(bounds, false, |f| self.content.render(ctx, f))
                     }
                 },
             );

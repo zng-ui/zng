@@ -339,114 +339,98 @@ impl HitTestClips {
         !self.items.is_empty()
     }
 
-    /// Push hit-test rectangle, relative to the widget's inner transform or last pushed transform.
-    pub fn push_rect(&mut self, z: ZIndex, rect: euclid::Box2D<Px, ()>, clip_out: bool) {
-        self.items.push(if clip_out {
-            HitTestItem::RectOut(z, rect)
-        } else {
-            HitTestItem::Rect(z, rect)
-        });
+    pub fn push_rect(&mut self, z: ZIndex, rect: euclid::Box2D<Px, ()>) {
+        self.items.push(HitTestItem::Hit(z, HitTestPrimitive::Rect(rect)));
     }
 
-    /// Push hit-test rectangle with rounded corners, relative to the widget's inner transform or last pushed transform.
-    pub fn push_rounded_rect(&mut self, z: ZIndex, rect: euclid::Box2D<Px, ()>, radii: PxCornerRadius, clip_out: bool) {
+    pub fn push_clip_rect(&mut self, rect: euclid::Box2D<Px, ()>, clip_out: bool) {
+        self.items.push(HitTestItem::Clip(HitTestPrimitive::Rect(rect), clip_out));
+    }
+
+    pub fn push_rounded_rect(&mut self, z: ZIndex, rect: euclid::Box2D<Px, ()>, radii: PxCornerRadius) {
         if radii == PxCornerRadius::zero() {
-            self.push_rect(z, rect, clip_out);
-        } else if clip_out {
-            self.items.push(HitTestItem::RoundedRectOut(z, rect, radii));
+            self.push_rect(z, rect);
         } else {
-            self.items.push(HitTestItem::RoundedRect(z, rect, radii));
+            self.items.push(HitTestItem::Hit(z, HitTestPrimitive::RoundedRect(rect, radii)));
         }
     }
 
-    /// Push hit-test ellipse.
-    pub fn push_ellipse(&mut self, z: ZIndex, center: PxPoint, radii: PxSize, clip_out: bool) {
-        if clip_out {
-            self.items.push(HitTestItem::EllipseOut(z, center, radii))
-        } else {
-            self.items.push(HitTestItem::Ellipse(z, center, radii))
-        }
-    }
-
-    /// Push clips to allow only a border.
-    pub fn push_border(&mut self, z: ZIndex, bounds: euclid::Box2D<Px, ()>, widths: PxSideOffsets, radii: PxCornerRadius) {
-        let mut inner_bounds = bounds;
-        inner_bounds.min.x += widths.left;
-        inner_bounds.min.y += widths.top;
-        inner_bounds.max.x -= widths.right;
-        inner_bounds.max.y -= widths.bottom;
-
-        if inner_bounds.is_negative() {
-            return self.push_rounded_rect(z, bounds, radii, false);
-        }
-
+    pub fn push_clip_rounded_rect(&mut self, rect: euclid::Box2D<Px, ()>, radii: PxCornerRadius, clip_out: bool) {
         if radii == PxCornerRadius::zero() {
-            // TODO !!: turn this into a single item.
-            self.push_rect(z, bounds, false);
-            self.push_rect(z, inner_bounds, true);
+            self.push_clip_rect(rect, clip_out);
         } else {
-            let inner_radii = radii.deflate(widths);
-
-            self.push_rounded_rect(z, bounds, radii, false);
-            self.push_rounded_rect(z, inner_bounds, inner_radii, true);
+            self.items
+                .push(HitTestItem::Clip(HitTestPrimitive::RoundedRect(rect, radii), clip_out));
         }
     }
 
-    /// Push new space, subsequent items are relative to the `transform`.
+    pub fn push_ellipse(&mut self, z: ZIndex, center: PxPoint, radii: PxSize) {
+        self.items.push(HitTestItem::Hit(z, HitTestPrimitive::Ellipse(center, radii)));
+    }
+
+    pub fn push_clip_ellipse(&mut self, center: PxPoint, radii: PxSize, clip_out: bool) {
+        self.items
+            .push(HitTestItem::Clip(HitTestPrimitive::Ellipse(center, radii), clip_out));
+    }
+
+    pub fn pop_clip(&mut self) {
+        self.items.push(HitTestItem::PopClip);
+    }
+
     pub fn push_transform(&mut self, transform: RenderTransform) {
         self.items.push(HitTestItem::Transform(transform))
     }
 
-    /// Pop space, subsequent items are relative to the parent transform or widget's inner transform.
     pub fn pop_transform(&mut self) {
         self.items.push(HitTestItem::PopTransform);
     }
 
     /// Hit-test the `point` against the items, returns the Z-index for the hit.
     pub fn hit_test_z(&self, inner_transform: &RenderTransform, window_point: PxPoint) -> Option<ZIndex> {
+        let mut z = ZIndex(0);
+        let mut hit = false;
+
         let mut transform_stack = vec![];
         let mut current_transform = inner_transform;
-        let mut z = ZIndex(0);
         let mut local_point = current_transform.inverse()?.transform_px_point(window_point)?;
 
-        for item in &self.items {
+        let mut items = self.items.iter();
+
+        'hit_test: while let Some(item) = items.next() {
             match item {
-                HitTestItem::Rect(iz, r) => {
-                    if !r.contains(local_point) {
-                        return None;
+                HitTestItem::Hit(pz, prim) => {
+                    if prim.contains(local_point) {
+                        z = z.max(*pz);
+                        hit = true;
                     }
-                    z = z.max(*iz);
                 }
-                HitTestItem::RectOut(iz, r) => {
-                    if r.contains(local_point) {
-                        return None;
+
+                HitTestItem::Clip(prim, clip_out) => {
+                    let skip = match clip_out {
+                        true => prim.contains(local_point),
+                        false => !prim.contains(local_point),
+                    };
+
+                    if skip {
+                        let mut clip_depth = 0;
+                        'skip: for item in items.by_ref() {
+                            match item {
+                                HitTestItem::Clip(_, _) => {
+                                    clip_depth += 1;
+                                }
+                                HitTestItem::PopClip => {
+                                    if clip_depth == 0 {
+                                        continue 'hit_test;
+                                    }
+                                    clip_depth -= 1;
+                                }
+                                _ => continue 'skip,
+                            }
+                        }
                     }
-                    z = z.max(*iz);
                 }
-                HitTestItem::RoundedRect(iz, r, radii) => {
-                    if !rounded_rect_contains(r, radii, local_point) {
-                        return None;
-                    }
-                    z = z.max(*iz);
-                }
-                HitTestItem::RoundedRectOut(iz, r, radii) => {
-                    if rounded_rect_contains(r, radii, local_point) {
-                        return None;
-                    }
-                    z = z.max(*iz);
-                }
-                HitTestItem::Ellipse(iz, c, radii) => {
-                    if !ellipse_contains(*radii, *c, local_point) {
-                        return None;
-                    }
-                    z = z.max(*iz);
-                }
-                HitTestItem::EllipseOut(iz, c, radii) => {
-                    if ellipse_contains(*radii, *c, local_point) {
-                        return None;
-                    }
-                    z = z.max(*iz);
-                }
+                HitTestItem::PopClip => continue 'hit_test,
+
                 HitTestItem::Transform(t) => {
                     transform_stack.push((current_transform, local_point));
                     current_transform = t;
@@ -458,18 +442,36 @@ impl HitTestClips {
             }
         }
 
-        Some(z)
+        if hit {
+            Some(z)
+        } else {
+            None
+        }
     }
 }
 
 #[derive(Debug)]
+enum HitTestPrimitive {
+    Rect(euclid::Box2D<Px, ()>),
+    RoundedRect(euclid::Box2D<Px, ()>, PxCornerRadius),
+    Ellipse(PxPoint, PxSize),
+}
+impl HitTestPrimitive {
+    fn contains(&self, point: PxPoint) -> bool {
+        match self {
+            HitTestPrimitive::Rect(r) => r.contains(point),
+            HitTestPrimitive::RoundedRect(rect, radii) => rounded_rect_contains(rect, radii, point),
+            HitTestPrimitive::Ellipse(center, radii) => ellipse_contains(*radii, *center, point),
+        }
+    }
+}
+#[derive(Debug)]
 enum HitTestItem {
-    Rect(ZIndex, euclid::Box2D<Px, ()>),
-    RectOut(ZIndex, euclid::Box2D<Px, ()>),
-    RoundedRect(ZIndex, euclid::Box2D<Px, ()>, PxCornerRadius),
-    RoundedRectOut(ZIndex, euclid::Box2D<Px, ()>, PxCornerRadius),
-    Ellipse(ZIndex, PxPoint, PxSize),
-    EllipseOut(ZIndex, PxPoint, PxSize),
+    Hit(ZIndex, HitTestPrimitive),
+
+    Clip(HitTestPrimitive, bool),
+    PopClip,
+
     Transform(RenderTransform),
     PopTransform,
 }

@@ -422,7 +422,7 @@ pub fn clip_to_bounds(child: impl UiNode, clip: impl IntoVar<bool>) -> impl UiNo
                 if self.corners != PxCornerRadius::zero() {
                     frame.push_clip_rounded_rect(bounds, self.corners, false, |f| self.child.render(ctx, f));
                 } else {
-                    frame.push_clip_rect(bounds, |f| self.child.render(ctx, f));
+                    frame.push_clip_rect(bounds, false, |f| self.child.render(ctx, f));
                 }
             } else {
                 self.child.render(ctx, frame);

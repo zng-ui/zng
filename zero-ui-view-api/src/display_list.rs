@@ -165,9 +165,9 @@ impl DisplayListBuilder {
     /// Push a rectangular clip that will affect all pushed items until a paired call to [`pop_clip`].
     ///
     /// [`pop_clip`]: Self::pop_clip
-    pub fn push_clip_rect(&mut self, clip_rect: PxRect) {
+    pub fn push_clip_rect(&mut self, clip_rect: PxRect, clip_out: bool) {
         self.clip_len += 1;
-        self.list.push(DisplayItem::PushClipRect { clip_rect });
+        self.list.push(DisplayItem::PushClipRect { clip_rect, clip_out });
     }
 
     /// Push a rectangular clip with rounded corners that will affect all pushed items until a paired call to [`pop_clip`].
@@ -508,6 +508,7 @@ enum DisplayItem {
 
     PushClipRect {
         clip_rect: PxRect,
+        clip_out: bool,
     },
     PushClipRoundedRect {
         clip_rect: PxRect,
@@ -623,8 +624,16 @@ impl DisplayItem {
             ),
             DisplayItem::PopStackingContext => wr_list.pop_stacking_context(),
 
-            DisplayItem::PushClipRect { clip_rect } => {
-                let clip_id = wr_list.define_clip_rect(&sc.info(), clip_rect.to_wr());
+            DisplayItem::PushClipRect { clip_rect, clip_out } => {
+                let clip_id = if *clip_out {
+                    wr_list.define_clip_rounded_rect(
+                        &sc.info(),
+                        wr::ComplexClipRegion::new(clip_rect.to_wr(), PxCornerRadius::zero().to_wr(), wr::ClipMode::ClipOut),
+                    )
+                } else {
+                    wr_list.define_clip_rect(&sc.info(), clip_rect.to_wr())
+                };
+
                 sc.clip.push(clip_id);
             }
             DisplayItem::PushClipRoundedRect {

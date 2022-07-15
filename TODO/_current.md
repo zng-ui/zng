@@ -1,19 +1,11 @@
-* Do hit-test in info, having to use IPC to hit-test is pretty bad and now we already have the quad-tree.
-   - Review webrender hit-test, it looks like a linear tree walk?, they have 3 clip types, rectangle, rounded rectangle and polygon,
-     all supporting transforms, code looks simple to adapt, maybe hardest part is tracking clip chains.
-  - Refactor `rendered` to have an index of render, so we can z-sort inner-bounds.
-    - Impossible?, widgets can render under and over descendants.
-    - Z-index needs to be by clip shape?
+# Hit Test
 
-* Track what widgets are "definitely fully clipped".
+* Review how parent hit-tests affect children.
+* Implement auto_hit_test for clip & space.
+* Test everything.
+* Merge.
+
 * Track what widgets are close to becoming visible due to scrolling.
-
-* Icon example, holding ALT+Down for a bit and releasing causes the focus scroll to only go to one row above the focused item.
-* Arrow key scroll in the panorama image is not as smooth as mouse move scroll.
-
-* Integrate frame reuse with frame update, see `Optimizations.md`.
-* Use something like the `FastTransform` from webrender internals in our own transforms.
-* Finish state API, see `State.md`.
 
 # Quad-Tree
 
@@ -25,3 +17,12 @@
      in the hash map.
    - The sparse spatial hash map is much faster to update then the quad-tree, the downside is that it is a grid not a tree, so a large widget can
      be inserted many times, but if we restrict it to only widgets that are transformed out of the expected bounds, those tend to be smaller in number and size.
+
+# Other
+
+* Icon example, holding ALT+Down for a bit and releasing causes the focus scroll to only go to one row above the focused item.
+* Arrow key scroll in the panorama image is not as smooth as mouse move scroll.
+
+* Integrate frame reuse with frame update, see `Optimizations.md`.
+* Use something like the `FastTransform` from webrender internals in our own transforms.
+* Finish state API, see `State.md`.

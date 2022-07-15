@@ -655,10 +655,10 @@ impl FrameBuilder {
     }
 
     /// Calls `render` with a new clip context that clips the rectangle and parent clips.
-    pub fn push_clip_rect(&mut self, clip_rect: PxRect, render: impl FnOnce(&mut FrameBuilder)) {
+    pub fn push_clip_rect(&mut self, clip_rect: PxRect, clip_out: bool, render: impl FnOnce(&mut FrameBuilder)) {
         expect_inner!(self.push_clip_rect);
 
-        self.display_list.push_clip_rect(clip_rect);
+        self.display_list.push_clip_rect(clip_rect, clip_out);
 
         render(self);
 
@@ -800,7 +800,7 @@ impl FrameBuilder {
             }
 
             if self.auto_hit_test {
-                self.hit_test().push_rect(clip_rect, false);
+                self.hit_test().push_rect(clip_rect);
             }
         } else {
             self.widget_rendered = true;
@@ -817,7 +817,7 @@ impl FrameBuilder {
                 .push_image(clip_rect, image_key, img_size, rendering.into(), image.alpha_type());
 
             if self.auto_hit_test {
-                self.hit_test().push_rect(clip_rect, false);
+                self.hit_test().push_rect(clip_rect);
             }
         } else {
             self.widget_rendered = true;
@@ -831,7 +831,7 @@ impl FrameBuilder {
         self.display_list.push_color(clip_rect, color);
 
         if self.auto_hit_test {
-            self.hit_test().push_rect(clip_rect, false);
+            self.hit_test().push_rect(clip_rect);
         }
     }
 
@@ -876,7 +876,7 @@ impl FrameBuilder {
         }
 
         if self.auto_hit_test {
-            self.hit_test().push_rect(clip_rect, false);
+            self.hit_test().push_rect(clip_rect);
         }
     }
 
@@ -927,7 +927,7 @@ impl FrameBuilder {
         }
 
         if self.auto_hit_test {
-            self.hit_test().push_rect(clip_rect, false);
+            self.hit_test().push_rect(clip_rect);
         }
     }
 
@@ -975,7 +975,7 @@ impl FrameBuilder {
         }
 
         if self.auto_hit_test {
-            self.hit_test().push_rect(clip_rect, false);
+            self.hit_test().push_rect(clip_rect);
         }
     }
 
@@ -1019,7 +1019,7 @@ impl FrameBuilder {
         }
 
         if self.auto_hit_test {
-            self.hit_test().push_rect(clip_rect, false);
+            self.hit_test().push_rect(clip_rect);
         }
     }
 
@@ -1087,9 +1087,6 @@ impl FrameBuilder {
 /// Builder for the hit-testable shape of the inner-bounds of a widget.
 ///
 /// This builder is available in [`FrameBuilder::hit_test`] inside the inner-bounds of the rendering widget.
-///
-/// A widget is hit if the hit point is contained by at least one of the hit-testable shapes and is not excluded by any of the other ones.
-/// If a shape is `clip_out` it excludes hits *inside*, otherwise it excludes hits *outside*.
 pub struct HitTestBuilder<'a> {
     hit_clips: &'a mut HitTestClips,
     z_index: ZIndex,
@@ -1109,51 +1106,112 @@ impl<'a> HitTestBuilder<'a> {
         self.z_index
     }
 
-    /// Push a hit-test `rect` for the widget if hit-testing is enable.
-    pub fn push_rect(&mut self, rect: PxRect, clip_out: bool) {
+    /// Push a hit-test `rect`.
+    pub fn push_rect(&mut self, rect: PxRect) {
         if self.is_hit_testable && rect.size != PxSize::zero() {
             *self.widget_rendered = true;
-            self.hit_clips.push_rect(self.z_index(), rect.to_box2d(), clip_out);
+            self.hit_clips.push_rect(self.z_index(), rect.to_box2d());
         }
     }
 
-    /// Push a hit-test `rect` with rounded `corners` for the widget if hit-testing is enable.
-    pub fn push_rounded_rect(&mut self, rect: PxRect, corners: PxCornerRadius, clip_out: bool) {
+    /// Push a hit-test `rect` with rounded `corners`.
+    pub fn push_rounded_rect(&mut self, rect: PxRect, corners: PxCornerRadius) {
         if self.is_hit_testable && rect.size != PxSize::zero() {
             *self.widget_rendered = true;
-            self.hit_clips.push_rounded_rect(self.z_index(), rect.to_box2d(), corners, clip_out);
+            self.hit_clips.push_rounded_rect(self.z_index(), rect.to_box2d(), corners);
         }
     }
 
     /// Push a hit-test ellipse.
-    pub fn push_ellipse(&mut self, center: PxPoint, radii: PxSize, clip_out: bool) {
+    pub fn push_ellipse(&mut self, center: PxPoint, radii: PxSize) {
         if self.is_hit_testable && radii != PxSize::zero() {
             *self.widget_rendered = true;
-            self.hit_clips.push_ellipse(self.z_index(), center, radii, clip_out);
+            self.hit_clips.push_ellipse(self.z_index(), center, radii);
         }
     }
 
-    /// Pushes a composite hit-test for the widget if hit-testing is enable.
-    pub fn push_border(&mut self, bounds: PxRect, widths: PxSideOffsets, radius: PxCornerRadius) {
+    /// Push a clip `rect` that affects the `inner_hit_test`.
+    pub fn push_clip_rect(&mut self, rect: PxRect, clip_out: bool, inner_hit_test: impl FnOnce(&mut Self)) {
         if !self.is_hit_testable {
             return;
         }
 
-        let z = self.z_index();
-        self.hit_clips.push_border(z, bounds.to_box2d(), widths, radius);
+        self.hit_clips.push_clip_rect(rect.to_box2d(), clip_out);
+
+        inner_hit_test(self);
+
+        self.hit_clips.pop_clip();
     }
 
-    ///
-    pub fn push_transform(&mut self, transform: RenderTransform, inner_hit_tests: impl FnOnce(&mut Self)) {
+    /// Push a clip `rect` with rounded `corners` that affects the `inner_hit_test`.
+    pub fn push_clip_rounded_rect(
+        &mut self,
+        rect: PxRect,
+        corners: PxCornerRadius,
+        clip_out: bool,
+        inner_hit_test: impl FnOnce(&mut Self),
+    ) {
+        if !self.is_hit_testable {
+            return;
+        }
+
+        self.hit_clips.push_clip_rounded_rect(rect.to_box2d(), corners, clip_out);
+
+        inner_hit_test(self);
+
+        self.hit_clips.pop_clip();
+    }
+
+    /// Push a clip ellipse that affects the `inner_hit_test`.
+    pub fn push_clip_ellipse(&mut self, center: PxPoint, radii: PxSize, clip_out: bool, inner_hit_test: impl FnOnce(&mut Self)) {
+        if self.is_hit_testable && radii != PxSize::zero() {
+            self.hit_clips.push_clip_ellipse(center, radii, clip_out);
+
+            inner_hit_test(self);
+
+            self.hit_clips.pop_clip();
+        }
+    }
+
+    /// Pushes a transform that affects the `inner_hit_test`.
+    pub fn push_transform(&mut self, transform: RenderTransform, inner_hit_test: impl FnOnce(&mut Self)) {
         if !self.is_hit_testable {
             return;
         }
 
         self.hit_clips.push_transform(transform);
 
-        inner_hit_tests(self);
+        inner_hit_test(self);
 
         self.hit_clips.pop_transform();
+    }
+
+    /// Pushes a composite hit-test that defines a border.
+    pub fn push_border(&mut self, bounds: PxRect, widths: PxSideOffsets, corners: PxCornerRadius) {
+        if !self.is_hit_testable {
+            return;
+        }
+
+        let bounds = bounds.to_box2d();
+        let mut inner_bounds = bounds;
+        inner_bounds.min.x += widths.left;
+        inner_bounds.min.y += widths.top;
+        inner_bounds.max.x -= widths.right;
+        inner_bounds.max.y -= widths.bottom;
+
+        if inner_bounds.is_negative() {
+            self.hit_clips.push_rounded_rect(self.z_index, bounds, corners);
+        } else if corners == PxCornerRadius::zero() {
+            self.hit_clips.push_clip_rect(inner_bounds, true);
+            self.hit_clips.push_rect(self.z_index, bounds);
+            self.hit_clips.pop_clip();
+        } else {
+            let inner_radii = corners.deflate(widths);
+
+            self.hit_clips.push_clip_rounded_rect(inner_bounds, inner_radii, true);
+            self.hit_clips.push_rounded_rect(self.z_index, bounds, corners);
+            self.hit_clips.pop_clip();
+        }
     }
 }
 
