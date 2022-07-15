@@ -442,56 +442,57 @@ impl HitTestClips {
     }
 
     /// Hit-test the `point` against the items, returns the Z-index for the hit.
-    pub fn hit_test_z(&self, inner_transform: &RenderTransform, point: PxPoint) -> Option<ZIndex> {
+    pub fn hit_test_z(&self, inner_transform: &RenderTransform, window_point: PxPoint) -> Option<ZIndex> {
         let mut transform_stack = vec![];
         let mut current_transform = inner_transform;
         let mut z = ZIndex(0);
+        let mut local_point = current_transform.inverse()?.transform_px_point(window_point)?;
 
         for item in &self.items {
             match item {
                 HitTestItem::Rect(iz, r) => {
-                    if !dbg!(r).contains(point) {
+                    if !r.contains(local_point) {
                         return None;
                     }
                     z = z.max(*iz);
                 }
                 HitTestItem::RectOut(iz, r) => {
-                    if r.contains(point) {
+                    if r.contains(local_point) {
                         return None;
                     }
                     z = z.max(*iz);
                 }
                 HitTestItem::RoundedRect(iz, r, radii) => {
-                    if !rounded_rect_contains(r, radii, point) {
+                    if !rounded_rect_contains(r, radii, local_point) {
                         return None;
                     }
                     z = z.max(*iz);
                 }
                 HitTestItem::RoundedRectOut(iz, r, radii) => {
-                    if rounded_rect_contains(r, radii, point) {
+                    if rounded_rect_contains(r, radii, local_point) {
                         return None;
                     }
                     z = z.max(*iz);
                 }
                 HitTestItem::Ellipse(iz, e) => {
-                    if !ellipse_contains(*e, point) {
+                    if !ellipse_contains(*e, local_point) {
                         return None;
                     }
                     z = z.max(*iz);
                 }
                 HitTestItem::EllipseOut(iz, e) => {
-                    if ellipse_contains(*e, point) {
+                    if ellipse_contains(*e, local_point) {
                         return None;
                     }
                     z = z.max(*iz);
                 }
                 HitTestItem::Transform(t) => {
-                    // TODO transform point
-                    transform_stack.push(current_transform);
+                    transform_stack.push((current_transform, local_point));
                     current_transform = t;
+                    local_point = current_transform.transform_px_point(local_point)?;
                 }
                 HitTestItem::PopTransform => {
-                    current_transform = transform_stack.pop().unwrap();
+                    (current_transform, local_point) = transform_stack.pop().unwrap();
                 }
             }
         }

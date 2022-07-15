@@ -12,6 +12,7 @@
 * Arrow key scroll in the panorama image is not as smooth as mouse move scroll.
 
 * Integrate frame reuse with frame update, see `Optimizations.md`.
+* Use something like the `FastTransform` from webrender internals in our own transforms.
 * Finish state API, see `State.md`.
 
 # Quad-Tree
