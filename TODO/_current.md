@@ -1,6 +1,49 @@
 # Hit Test
 
 * Z-index gets out of order due to widget reuse.
+  - Try `HitTestItem::Inner` for marking the point where the hit items have the z-index after content.
+  - Each widget has two z-index, back and front, front is after all z-indexes for descendants.
+    - Does not work for panels that draw in between each item.
+  - Try `HitTestItem::Inner(u32)` for marking each point where hit items are after a descendant.
+
+```text
+button-0
+    text-0
+    text-0
+button-0
+
+button-1
+    text-1
+
+button-2
+    text-2
+
+button-3
+    text-3
+
+stack-0
+    text-0
+stack-0
+    text-1
+stack-0
+    text-2
+stack-0
+
+stack-0
+    text-0
+stack-0
+    stack-1
+        text-0
+    stack-1
+        text-1
+    stack-1
+        text-2
+    stack-1
+stack-0
+    text-2
+stack-0
+```
+
 * Review how parent hit-test clips affect children.
 * Implement auto_hit_test for clip & space.
 * Test everything.
