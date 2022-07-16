@@ -1,7 +1,7 @@
 use std::{num::NonZeroU32, rc::Rc};
 
 use super::tree;
-use crate::{crate_util::FxHashSet, ui_list::ZIndex, units::*};
+use crate::{crate_util::FxHashSet, units::*, WidgetId};
 
 // The QuadTree is implemented as a grid of 2048px squares that is each an actual quad-tree.
 //
@@ -339,19 +339,19 @@ impl HitTestClips {
         !self.items.is_empty()
     }
 
-    pub fn push_rect(&mut self, z: ZIndex, rect: euclid::Box2D<Px, ()>) {
-        self.items.push(HitTestItem::Hit(z, HitTestPrimitive::Rect(rect)));
+    pub fn push_rect(&mut self, rect: euclid::Box2D<Px, ()>) {
+        self.items.push(HitTestItem::Hit(HitTestPrimitive::Rect(rect)));
     }
 
     pub fn push_clip_rect(&mut self, rect: euclid::Box2D<Px, ()>, clip_out: bool) {
         self.items.push(HitTestItem::Clip(HitTestPrimitive::Rect(rect), clip_out));
     }
 
-    pub fn push_rounded_rect(&mut self, z: ZIndex, rect: euclid::Box2D<Px, ()>, radii: PxCornerRadius) {
+    pub fn push_rounded_rect(&mut self, rect: euclid::Box2D<Px, ()>, radii: PxCornerRadius) {
         if radii == PxCornerRadius::zero() {
-            self.push_rect(z, rect);
+            self.push_rect(rect);
         } else {
-            self.items.push(HitTestItem::Hit(z, HitTestPrimitive::RoundedRect(rect, radii)));
+            self.items.push(HitTestItem::Hit(HitTestPrimitive::RoundedRect(rect, radii)));
         }
     }
 
@@ -364,8 +364,8 @@ impl HitTestClips {
         }
     }
 
-    pub fn push_ellipse(&mut self, z: ZIndex, center: PxPoint, radii: PxSize) {
-        self.items.push(HitTestItem::Hit(z, HitTestPrimitive::Ellipse(center, radii)));
+    pub fn push_ellipse(&mut self, center: PxPoint, radii: PxSize) {
+        self.items.push(HitTestItem::Hit(HitTestPrimitive::Ellipse(center, radii)));
     }
 
     pub fn push_clip_ellipse(&mut self, center: PxPoint, radii: PxSize, clip_out: bool) {
@@ -385,32 +385,33 @@ impl HitTestClips {
         self.items.push(HitTestItem::PopTransform);
     }
 
-    pub fn update_zs(&mut self, z: &mut ZIndex) {
-        for item in &mut self.items {
-            if let HitTestItem::Hit(pz, _) = item {
-                *pz = *z;
-                *z = ZIndex(z.0 + 1);
-            }
-        }
+    pub fn push_child(&mut self, widget: WidgetId) {
+        self.items.push(HitTestItem::Child(widget));
     }
 
-    /// Hit-test the `point` against the items, returns the Z-index for the hit.
-    pub fn hit_test_z(&self, inner_transform: &RenderTransform, window_point: PxPoint) -> Option<ZIndex> {
-        let mut z = ZIndex(0);
-        let mut hit = false;
+    /// Hit-test the `point` against the items, returns the relative Z of the hit.
+    pub fn hit_test_z(&self, inner_transform: &RenderTransform, window_point: PxPoint) -> RelativeHitZ {
+        let mut z = RelativeHitZ::NoHit;
+        let mut child = None;
 
         let mut transform_stack = vec![];
         let mut current_transform = inner_transform;
-        let mut local_point = current_transform.inverse()?.transform_px_point(window_point)?;
+        let mut local_point = match inv_transform_point(current_transform, window_point) {
+            Some(p) => p,
+            None => return RelativeHitZ::NoHit,
+        };
 
         let mut items = self.items.iter();
 
         'hit_test: while let Some(item) = items.next() {
             match item {
-                HitTestItem::Hit(pz, prim) => {
+                HitTestItem::Hit(prim) => {
                     if prim.contains(local_point) {
-                        z = z.max(*pz);
-                        hit = true;
+                        z = if let Some(inner) = child {
+                            RelativeHitZ::HitOver(inner)
+                        } else {
+                            RelativeHitZ::HitUnderDescendants
+                        };
                     }
                 }
 
@@ -421,8 +422,9 @@ impl HitTestClips {
                     };
 
                     if skip {
+                        // clip excluded point, skip all clipped shapes.
                         let mut clip_depth = 0;
-                        'skip: for item in items.by_ref() {
+                        'skip_clipped: for item in items.by_ref() {
                             match item {
                                 HitTestItem::Clip(_, _) => {
                                     clip_depth += 1;
@@ -433,7 +435,11 @@ impl HitTestClips {
                                     }
                                     clip_depth -= 1;
                                 }
-                                _ => continue 'skip,
+                                HitTestItem::Child(w) => {
+                                    child = Some(*w);
+                                    continue 'skip_clipped;
+                                }
+                                _ => continue 'skip_clipped,
                             }
                         }
                     }
@@ -441,22 +447,60 @@ impl HitTestClips {
                 HitTestItem::PopClip => continue 'hit_test,
 
                 HitTestItem::Transform(t) => {
-                    transform_stack.push((current_transform, local_point));
-                    current_transform = t;
-                    local_point = current_transform.transform_px_point(local_point)?;
+                    match inv_transform_point(t, local_point) {
+                        Some(p) => {
+                            // transform is valid, push previous transform and replace the local point.
+                            transform_stack.push((current_transform, local_point));
+                            current_transform = t;
+                            local_point = p;
+                        }
+                        None => {
+                            // non-invertible transform, skip all transformed shapes.
+                            let mut transform_depth = 0;
+                            'skip_transformed: for item in items.by_ref() {
+                                match item {
+                                    HitTestItem::Transform(_) => {
+                                        transform_depth += 1;
+                                    }
+                                    HitTestItem::PopTransform => {
+                                        if transform_depth == 0 {
+                                            continue 'hit_test;
+                                        }
+                                        transform_depth -= 1;
+                                    }
+                                    HitTestItem::Child(w) => {
+                                        child = Some(*w);
+                                        continue 'skip_transformed;
+                                    }
+                                    _ => continue 'skip_transformed,
+                                }
+                            }
+                        }
+                    }
                 }
                 HitTestItem::PopTransform => {
                     (current_transform, local_point) = transform_stack.pop().unwrap();
                 }
+
+                HitTestItem::Child(w) => {
+                    child = Some(*w);
+                }
             }
         }
 
-        if hit {
-            Some(z)
-        } else {
-            None
-        }
+        z
     }
+}
+
+/// Hit-test result on a widget relative to it's descendants.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RelativeHitZ {
+    /// Widget was not hit.
+    NoHit,
+    /// Widget was hit on a hit-test shape rendered before the widget descendants.
+    HitUnderDescendants,
+    /// Widget was hit on a hit-test shape rendered after the child.
+    HitOver(WidgetId),
 }
 
 #[derive(Debug)]
@@ -476,13 +520,15 @@ impl HitTestPrimitive {
 }
 #[derive(Debug)]
 enum HitTestItem {
-    Hit(ZIndex, HitTestPrimitive),
+    Hit(HitTestPrimitive),
 
     Clip(HitTestPrimitive, bool),
     PopClip,
 
     Transform(RenderTransform),
     PopTransform,
+
+    Child(WidgetId),
 }
 
 fn rounded_rect_contains(rect: &euclid::Box2D<Px, ()>, radii: &PxCornerRadius, point: PxPoint) -> bool {
@@ -531,4 +577,8 @@ fn ellipse_contains(radii: PxSize, center: PxPoint, point: PxPoint) -> bool {
     let p = ((x - h).powi(2) / a.powi(2)) + ((y - k).powi(2) / b.powi(2));
 
     p <= 1.0
+}
+
+fn inv_transform_point(t: &RenderTransform, point: PxPoint) -> Option<PxPoint> {
+    t.inverse()?.transform_px_point(point)
 }

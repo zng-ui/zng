@@ -1,8 +1,9 @@
 # Hit Test
 
 * Fix z-index reuse.
-    - Need to mark z before inner and after for each widget.
-    - Cannot use z counting even if recomputed for reuse because the logical order may not be the render order of items.
+    - Implement render index for each widget, that is the index of `push_widget` or reuse, before descendants.
+    - Use this index to convert `RelativeHitZ` to a global index for hit tests.
+
 * Review how parent hit-test clips affect children.
 * Implement auto_hit_test for clip & space.
 * Test everything.

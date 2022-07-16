@@ -7,7 +7,6 @@ use crate::{
     context::RenderContext,
     gradient::{RenderExtendMode, RenderGradientStop},
     text::FontAntiAliasing,
-    ui_list::ZIndex,
     units::*,
     var::impl_from_and_into_var,
     widget_info::{HitTestClips, WidgetInfoTree},
@@ -151,7 +150,6 @@ pub struct FrameBuilder {
     is_hit_testable: bool,
     auto_hit_test: bool,
     hit_clips: HitTestClips,
-    hit_z_index: ZIndex,
 
     widget_data: Option<WidgetData>,
     widget_rendered: bool,
@@ -214,7 +212,6 @@ impl FrameBuilder {
             is_hit_testable: true,
             auto_hit_test: false,
             hit_clips: HitTestClips::default(),
-            hit_z_index: ZIndex(1),
             widget_data: Some(WidgetData {
                 filter: vec![],
                 has_transform: false,
@@ -372,6 +369,8 @@ impl FrameBuilder {
             }
         }
 
+        self.hit_clips.push_child(ctx.path.widget_id());
+
         self.push_reuse(reuse, |frame| {
             undo_prev_outer_transform = None; // no need, have reused
 
@@ -396,19 +395,7 @@ impl FrameBuilder {
                     let bounds = info.bounds_info();
                     bounds.set_outer_transform(bounds.outer_transform().then(&patch), ctx.info_tree);
                     bounds.set_inner_transform(bounds.inner_transform().then(&patch), ctx.info_tree);
-                    bounds.update_hit_zs(&mut self.hit_z_index);
                 }
-            } else if let Some((back, front)) = ctx.widget_info.bounds.back_and_front_hit_zs() {
-                if back == self.hit_z_index {
-                    self.hit_z_index = front;
-                } else {
-                    for info in ctx.info_tree.get(ctx.path.widget_id()).unwrap().self_and_ancestors() {
-                        let bounds = info.bounds_info();
-                        bounds.update_hit_zs(&mut self.hit_z_index);
-                    }
-                }
-            } else {
-                debug_assert!(!self.is_hit_testable);
             }
         }
 
@@ -629,8 +616,6 @@ impl FrameBuilder {
                     .push_stacking_context(MixBlendMode::Normal, &data.filter, &[], &[]);
             }
 
-            let back_hit_z = self.hit_z_index;
-
             render(ctx, self);
 
             if has_stacking_ctx {
@@ -642,11 +627,6 @@ impl FrameBuilder {
 
             let hit_clips = mem::replace(&mut self.hit_clips, parent_hit_clips);
             ctx.widget_info.bounds.set_hit_clips(hit_clips);
-            ctx.widget_info.bounds.set_back_and_front_hit_zs(if self.is_hit_testable {
-                Some((back_hit_z, self.hit_z_index))
-            } else {
-                None
-            });
         } else {
             tracing::error!("called `push_inner` more then once for `{}`", self.widget_id);
             render(ctx, self)
@@ -667,10 +647,7 @@ impl FrameBuilder {
     pub fn hit_test(&mut self) -> HitTestBuilder {
         expect_inner!(self.hit_test);
 
-        let z_index = self.hit_z_index;
-        self.hit_z_index = ZIndex(z_index.0 + 1);
         HitTestBuilder {
-            z_index,
             hit_clips: &mut self.hit_clips,
             is_hit_testable: self.is_hit_testable,
             widget_rendered: &mut self.widget_rendered,
@@ -1112,7 +1089,6 @@ impl FrameBuilder {
 /// This builder is available in [`FrameBuilder::hit_test`] inside the inner-bounds of the rendering widget.
 pub struct HitTestBuilder<'a> {
     hit_clips: &'a mut HitTestClips,
-    z_index: ZIndex,
     is_hit_testable: bool,
     widget_rendered: &'a mut bool,
 }
@@ -1122,18 +1098,11 @@ impl<'a> HitTestBuilder<'a> {
         self.is_hit_testable
     }
 
-    /// Z-index that will be assigned to all hit-test regions pushed by this builder.
-    ///
-    /// The z-index is the [`FrameBuilder::z_index`] at the moment the builder is requested.
-    pub fn z_index(&self) -> ZIndex {
-        self.z_index
-    }
-
     /// Push a hit-test `rect`.
     pub fn push_rect(&mut self, rect: PxRect) {
         if self.is_hit_testable && rect.size != PxSize::zero() {
             *self.widget_rendered = true;
-            self.hit_clips.push_rect(self.z_index(), rect.to_box2d());
+            self.hit_clips.push_rect(rect.to_box2d());
         }
     }
 
@@ -1141,7 +1110,7 @@ impl<'a> HitTestBuilder<'a> {
     pub fn push_rounded_rect(&mut self, rect: PxRect, corners: PxCornerRadius) {
         if self.is_hit_testable && rect.size != PxSize::zero() {
             *self.widget_rendered = true;
-            self.hit_clips.push_rounded_rect(self.z_index(), rect.to_box2d(), corners);
+            self.hit_clips.push_rounded_rect(rect.to_box2d(), corners);
         }
     }
 
@@ -1149,7 +1118,7 @@ impl<'a> HitTestBuilder<'a> {
     pub fn push_ellipse(&mut self, center: PxPoint, radii: PxSize) {
         if self.is_hit_testable && radii != PxSize::zero() {
             *self.widget_rendered = true;
-            self.hit_clips.push_ellipse(self.z_index(), center, radii);
+            self.hit_clips.push_ellipse(center, radii);
         }
     }
 
@@ -1223,16 +1192,16 @@ impl<'a> HitTestBuilder<'a> {
         inner_bounds.max.y -= widths.bottom;
 
         if inner_bounds.is_negative() {
-            self.hit_clips.push_rounded_rect(self.z_index, bounds, corners);
+            self.hit_clips.push_rounded_rect(bounds, corners);
         } else if corners == PxCornerRadius::zero() {
             self.hit_clips.push_clip_rect(inner_bounds, true);
-            self.hit_clips.push_rect(self.z_index, bounds);
+            self.hit_clips.push_rect(bounds);
             self.hit_clips.pop_clip();
         } else {
             let inner_radii = corners.deflate(widths);
 
             self.hit_clips.push_clip_rounded_rect(inner_bounds, inner_radii, true);
-            self.hit_clips.push_rounded_rect(self.z_index, bounds, corners);
+            self.hit_clips.push_rounded_rect(bounds, corners);
             self.hit_clips.pop_clip();
         }
     }

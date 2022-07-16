@@ -18,7 +18,6 @@ use crate::{
     handler::WidgetHandler,
     impl_from_and_into_var,
     render::FrameId,
-    ui_list::ZIndex,
     units::*,
     var::{Var, VarValue, VarsRead, WithVarsRead},
     window::WindowId,
@@ -39,6 +38,8 @@ pub use iter::TreeFilter;
 
 mod spatial;
 pub(crate) use spatial::HitTestClips;
+
+pub use self::spatial::RelativeHitZ;
 
 /// Bundle of widget info data from the current widget.
 #[derive(Clone, Default)]
@@ -264,14 +265,23 @@ impl WidgetInfoTree {
         let mut hits: Vec<_> = self
             .quad_query_dedup(move |q| q.contains(point))
             .filter_map(|w| {
-                w.hit_test_z(point).map(|z| HitInfo {
+                let z = w.hit_test_z(point);
+                match z {
+                    RelativeHitZ::NoHit => return None,
+                    RelativeHitZ::HitUnderDescendants => {}
+                    RelativeHitZ::HitOver(_) => {
+                        // !!: TODO
+                    }
+                }
+
+                Some(HitInfo {
                     widget_id: w.widget_id(),
                     z_index: z,
                 })
             })
             .collect();
 
-        hits.sort_unstable_by(|a, b| b.z_index.cmp(&a.z_index));
+        hits.reverse();
 
         HitTestInfo {
             window_id: self.0.window_id,
@@ -677,7 +687,6 @@ struct WidgetBoundsData {
     inner_bounds: Cell<PxRect>,
 
     hit_clips: RefCell<HitTestClips>,
-    back_and_front_z: Cell<Option<(ZIndex, ZIndex)>>,
 }
 
 /// Shared reference to layout size and offsets of a widget and rendered transforms and bounds.
@@ -903,15 +912,13 @@ impl WidgetBoundsInfo {
         self.0.metrics_used.get()
     }
 
-    /// Gets the top-most (front) hit of `point` against the [`hit_clips`].
-    ///
-    /// [`hit_clips`]: Self::hit_clips
-    pub fn hit_test_z(&self, point: PxPoint) -> Option<ZIndex> {
+    /// Gets the relative hit-test Z for `point` against the hit-test shapes rendered for the widget.
+    pub fn hit_test_z(&self, point: PxPoint) -> RelativeHitZ {
         let hit_clips = self.0.hit_clips.borrow();
         if hit_clips.is_hit_testable() {
             hit_clips.hit_test_z(&self.0.inner_transform.get(), point)
         } else {
-            None
+            RelativeHitZ::NoHit
         }
     }
 
@@ -1018,21 +1025,6 @@ impl WidgetBoundsInfo {
 
     pub(crate) fn set_hit_clips(&self, clips: HitTestClips) {
         *self.0.hit_clips.borrow_mut() = clips;
-    }
-
-    pub(crate) fn update_hit_zs(&self, z: &mut ZIndex) {
-        let back_z = *z;
-        self.0.hit_clips.borrow_mut().update_zs(z);
-        let front_z = *z;
-        self.set_back_and_front_hit_zs(Some((back_z, front_z)));
-    }
-
-    pub(crate) fn back_and_front_hit_zs(&self) -> Option<(ZIndex, ZIndex)> {
-        self.0.back_and_front_z.get()
-    }
-
-    pub(crate) fn set_back_and_front_hit_zs(&self, hit_testable: Option<(ZIndex, ZIndex)>) {
-        self.0.back_and_front_z.set(hit_testable)
     }
 }
 
@@ -1643,18 +1635,17 @@ impl<'a> WidgetInfo<'a> {
         self.tree().contains_point(point).filter(move |w| range.contains(*w))
     }
 
-    /// Gets the global z-index for a hit-test of `point` against the hit-test clips rendered for this widget and all ancestors.
+    /// Gets the relative Z of a hit-test of `point` against the hit-test shapes rendered for this widget.
     ///
     /// A hit happens if the point is inside [`inner_bounds`] and at least one hit-test shape rendered for the widget contains the point.
     ///
     /// [`inner_bounds`]: WidgetInfo::inner_bounds
-    fn hit_test_z(self, point: PxPoint) -> Option<ZIndex> {
+    fn hit_test_z(self, point: PxPoint) -> RelativeHitZ {
         if self.inner_bounds().contains(point) {
-            if let Some(z) = self.info().bounds_info.hit_test_z(point) {
-                return Some(z);
-            }
+            self.info().bounds_info.hit_test_z(point)
+        } else {
+            RelativeHitZ::NoHit
         }
-        None
     }
 
     /// Spatial iterator over all descendants with [`inner_bounds`] that fully envelops the `rect`.
@@ -2276,8 +2267,8 @@ pub struct HitInfo {
     /// ID of widget hit.
     pub widget_id: WidgetId,
 
-    /// Z-index of the hit in the context of the frame.
-    pub z_index: ZIndex,
+    /// Z-index of the hit in the context widget immediate descendants.
+    pub z_index: RelativeHitZ,
 }
 
 /// A hit-test result.
