@@ -385,6 +385,15 @@ impl HitTestClips {
         self.items.push(HitTestItem::PopTransform);
     }
 
+    pub fn update_zs(&mut self, z: &mut ZIndex) {
+        for item in &mut self.items {
+            if let HitTestItem::Hit(pz, _) = item {
+                *pz = *z;
+                *z = ZIndex(z.0 + 1);
+            }
+        }
+    }
+
     /// Hit-test the `point` against the items, returns the Z-index for the hit.
     pub fn hit_test_z(&self, inner_transform: &RenderTransform, window_point: PxPoint) -> Option<ZIndex> {
         let mut z = ZIndex(0);

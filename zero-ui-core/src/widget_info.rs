@@ -677,6 +677,7 @@ struct WidgetBoundsData {
     inner_bounds: Cell<PxRect>,
 
     hit_clips: RefCell<HitTestClips>,
+    back_and_front_z: Cell<Option<(ZIndex, ZIndex)>>,
 }
 
 /// Shared reference to layout size and offsets of a widget and rendered transforms and bounds.
@@ -1017,6 +1018,21 @@ impl WidgetBoundsInfo {
 
     pub(crate) fn set_hit_clips(&self, clips: HitTestClips) {
         *self.0.hit_clips.borrow_mut() = clips;
+    }
+
+    pub(crate) fn update_hit_zs(&self, z: &mut ZIndex) {
+        let back_z = *z;
+        self.0.hit_clips.borrow_mut().update_zs(z);
+        let front_z = *z;
+        self.set_back_and_front_hit_zs(Some((back_z, front_z)));
+    }
+
+    pub(crate) fn back_and_front_hit_zs(&self) -> Option<(ZIndex, ZIndex)> {
+        self.0.back_and_front_z.get()
+    }
+
+    pub(crate) fn set_back_and_front_hit_zs(&self, hit_testable: Option<(ZIndex, ZIndex)>) {
+        self.0.back_and_front_z.set(hit_testable)
     }
 }
 
