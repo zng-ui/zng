@@ -1629,18 +1629,12 @@ impl<'a> WidgetInfo<'a> {
 
     /// Gets the global z-index for a hit-test of `point` against the hit-test clips rendered for this widget and all ancestors.
     ///
-    /// A hit happens if it the point is inside [`inner_bounds`] and at least one hit-test clip primitive was rendered for the widget and
-    /// not hit-test clip clips-out the point and the same happens for all ancestors of the widget.
+    /// A hit happens if the point is inside [`inner_bounds`] and at least one hit-test shape rendered for the widget contains the point.
     ///
     /// [`inner_bounds`]: WidgetInfo::inner_bounds
     fn hit_test_z(self, point: PxPoint) -> Option<ZIndex> {
         if self.inner_bounds().contains(point) {
             if let Some(z) = self.info().bounds_info.hit_test_z(point) {
-                for ancestor in self.ancestors() {
-                    if !ancestor.inner_bounds().contains(point) || ancestor.info().bounds_info.hit_test_z(point).is_none() {
-                        return None;
-                    }
-                }
                 return Some(z);
             }
         }

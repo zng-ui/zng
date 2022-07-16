@@ -1,6 +1,7 @@
 # Hit Test
 
-* Review how parent hit-tests affect children.
+* Z-index gets out of order due to widget reuse.
+* Review how parent hit-test clips affect children.
 * Implement auto_hit_test for clip & space.
 * Test everything.
 * Merge.
