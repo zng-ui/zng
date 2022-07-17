@@ -472,7 +472,7 @@ impl FrameBuilder {
                     .set_rendered(Some((widget_z, self.render_index)), ctx.info_tree);
             } else {
                 ctx.widget_info.bounds.set_rendered(None, ctx.info_tree);
-                self.render_index.0 = 1;
+                self.render_index.0 -= 1;
             }
         }
 

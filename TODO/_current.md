@@ -1,9 +1,5 @@
 # Hit Test
 
-* Fix z-index reuse.
-  - Example layer still does not work (open all TOP_MOST dialogs).
-  - Caused by widget with visibility collapsed.
-
 * Review how parent hit-test clips affect children.
 * Implement auto_hit_test for clip & space.
 * Test everything.
