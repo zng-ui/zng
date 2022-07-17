@@ -378,7 +378,10 @@ impl FrameBuilder {
 
         self.hit_clips.push_child(ctx.path.widget_id());
 
+        // try to reuse, or calls the closure and saves the reuse range.
         self.push_reuse(reuse, |frame| {
+            // did not reuse, render widget.
+
             undo_prev_outer_transform = None;
 
             frame.widget_data = Some(WidgetData {
@@ -394,30 +397,54 @@ impl FrameBuilder {
             frame.widget_data = None;
         });
 
+        // if did reuse, patch transforms and z-indexes.
         if let Some(undo_prev) = undo_prev_outer_transform {
-            let patch = undo_prev.then(&outer_transform);
+            let transform_patch = undo_prev.then(&outer_transform);
+            let z_patch = ctx
+                .widget_info
+                .bounds
+                .rendered()
+                .map(|(old_back, _)| widget_z.0 as i64 - old_back.0 as i64)
+                .unwrap_or(0);
 
-            if patch != RenderTransform::identity() {
+            let update_transforms = transform_patch != RenderTransform::identity();
+            let update_z = z_patch != 0;
+
+            // apply patches, only iterates over descendants once.
+            if update_transforms && update_z {
                 for info in ctx.info_tree.get(ctx.path.widget_id()).unwrap().self_and_descendants() {
                     let bounds = info.bounds_info();
-                    bounds.set_outer_transform(bounds.outer_transform().then(&patch), ctx.info_tree);
-                    bounds.set_inner_transform(bounds.inner_transform().then(&patch), ctx.info_tree);
-                }
-            }
-            if let Some((old_back, old_front)) = ctx.widget_info.bounds.rendered() {
-                let difference = widget_z.0 as i64 - old_back.0 as i64;
-                if difference != 0 {
-                    for info in ctx.info_tree.get(ctx.path.widget_id()).unwrap().self_and_descendants() {
-                        let bounds = info.bounds_info();
-                        if let Some((back, front)) = bounds.rendered() {
-                            let back = back.0 as i64 + difference;
-                            let front = front.0 as i64 + difference;
-                            bounds.set_rendered(Some((ZIndex(back as u32), ZIndex(front as u32))), ctx.info_tree);
-                        }
+
+                    bounds.set_outer_transform(bounds.outer_transform().then(&transform_patch), ctx.info_tree);
+                    bounds.set_inner_transform(bounds.inner_transform().then(&transform_patch), ctx.info_tree);
+
+                    if let Some((back, front)) = bounds.rendered() {
+                        let back = back.0 as i64 + z_patch;
+                        let front = front.0 as i64 + z_patch;
+                        bounds.set_rendered(Some((ZIndex(back as u32), ZIndex(front as u32))), ctx.info_tree);
                     }
-                    self.render_index = ZIndex((old_front.0 as i64 + difference) as u32);
+                }
+            } else if update_transforms {
+                for info in ctx.info_tree.get(ctx.path.widget_id()).unwrap().self_and_descendants() {
+                    let bounds = info.bounds_info();
+
+                    bounds.set_outer_transform(bounds.outer_transform().then(&transform_patch), ctx.info_tree);
+                    bounds.set_inner_transform(bounds.inner_transform().then(&transform_patch), ctx.info_tree);
+                }
+            } else if update_z {
+                for info in ctx.info_tree.get(ctx.path.widget_id()).unwrap().self_and_descendants() {
+                    let bounds = info.bounds_info();
+
+                    if let Some((back, front)) = bounds.rendered() {
+                        let back = back.0 as i64 + z_patch;
+                        let front = front.0 as i64 + z_patch;
+                        bounds.set_rendered(Some((ZIndex(back as u32), ZIndex(front as u32))), ctx.info_tree);
+                    }
                 }
             }
+
+            // increment by reused
+            self.render_index = ctx.widget_info.bounds.rendered().map(|(_, f)| f).unwrap_or(self.render_index);
         }
 
         self.widget_rendered |= !reuse.as_ref().unwrap().is_empty();
