@@ -263,8 +263,6 @@ impl WidgetInfoTree {
     pub fn hit_test(&self, point: PxPoint) -> HitTestInfo {
         let _span = tracing::trace_span!("hit_test").entered();
 
-        let mut needs_sort = false;
-
         let mut hits: Vec<_> = self
             .quad_query_dedup(move |q| q.contains(point))
             .filter_map(|w| {
@@ -272,7 +270,6 @@ impl WidgetInfoTree {
                     RelativeHitZ::NoHit => None,
                     RelativeHitZ::Back => w.rendered().map(|(b, _)| b),
                     RelativeHitZ::Over(w) => {
-                        needs_sort = true;
                         self.get(w).and_then(WidgetInfo::rendered).map(|(_, f)| f)
                     },
                 };
@@ -285,9 +282,7 @@ impl WidgetInfoTree {
             .collect();
 
         hits.reverse();// TODO !!: change quad-tree yield items depth first?
-        if needs_sort {
-            hits.sort_by_key(|h| h.z_index);
-        }
+        hits.sort_by(|a, b| b.z_index.cmp(&a.z_index));
 
         HitTestInfo {
             window_id: self.0.window_id,

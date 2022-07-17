@@ -379,7 +379,7 @@ impl FrameBuilder {
         self.hit_clips.push_child(ctx.path.widget_id());
 
         self.push_reuse(reuse, |frame| {
-            undo_prev_outer_transform = None; // no need, have reused
+            undo_prev_outer_transform = None;
 
             frame.widget_data = Some(WidgetData {
                 filter: vec![],
@@ -404,7 +404,21 @@ impl FrameBuilder {
                     bounds.set_inner_transform(bounds.inner_transform().then(&patch), ctx.info_tree);
                 }
             }
-        }
+            if let Some((old_back, old_front)) = ctx.widget_info.bounds.rendered() {
+                let difference = widget_z.0 as i64 - old_back.0 as i64;
+                if difference != 0 {
+                    for info in ctx.info_tree.get(ctx.path.widget_id()).unwrap().self_and_descendants() {
+                        let bounds = info.bounds_info();
+                        if let Some((back, front)) = bounds.rendered() {
+                            let back = back.0 as i64 + difference;
+                            let front = front.0 as i64 + difference;
+                            bounds.set_rendered(Some((ZIndex(back as u32), ZIndex(front as u32))), ctx.info_tree);
+                        }
+                    }
+                    self.render_index = ZIndex((old_front.0 as i64 + difference) as u32);
+                }
+            }
+        } 
 
         self.widget_rendered |= !reuse.as_ref().unwrap().is_empty();
 
