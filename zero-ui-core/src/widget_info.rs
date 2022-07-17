@@ -266,22 +266,13 @@ impl WidgetInfoTree {
         let mut hits: Vec<_> = self
             .quad_query_dedup(move |q| q.contains(point))
             .filter_map(|w| {
-                let z = match w.hit_test_z(point) {
-                    RelativeHitZ::NoHit => None,
-                    RelativeHitZ::Back => w.rendered().map(|(b, _)| b),
-                    RelativeHitZ::Over(w) => {
-                        self.get(w).and_then(WidgetInfo::rendered).map(|(_, f)| f)
-                    },
-                };
-
-                z.map(|z| HitInfo {
+                w.hit_test_z(point).map(|z| HitInfo {
                     widget_id: w.widget_id(),
                     z_index: z,
                 })
             })
             .collect();
 
-        hits.reverse();// TODO !!: change quad-tree yield items depth first?
         hits.sort_by(|a, b| b.z_index.cmp(&a.z_index));
 
         HitTestInfo {
@@ -1643,16 +1634,22 @@ impl<'a> WidgetInfo<'a> {
         self.tree().contains_point(point).filter(move |w| range.contains(*w))
     }
 
-    /// Gets the relative Z of a hit-test of `point` against the hit-test shapes rendered for this widget.
+    /// Gets Z-index a hit-test of `point` against the hit-test shapes rendered for this widget.
     ///
     /// A hit happens if the point is inside [`inner_bounds`] and at least one hit-test shape rendered for the widget contains the point.
     ///
     /// [`inner_bounds`]: WidgetInfo::inner_bounds
-    fn hit_test_z(self, point: PxPoint) -> RelativeHitZ {
-        if self.inner_bounds().contains(point) {
-            self.info().bounds_info.hit_test_z(point)
+    fn hit_test_z(self, point: PxPoint) -> Option<ZIndex> {
+        let bounds = &self.info().bounds_info;
+        if bounds.inner_bounds().contains(point) {
+            match bounds.hit_test_z(point) {
+                RelativeHitZ::NoHit => None,
+                RelativeHitZ::Back => bounds.rendered().map(|(b, _)| b),
+                RelativeHitZ::Over(w) => self.tree.get(w).and_then(|w| w.info().bounds_info.rendered()).map(|(_, f)| f),
+                RelativeHitZ::Front => bounds.rendered().map(|(_, f)| f),
+            }
         } else {
-            RelativeHitZ::NoHit
+            None
         }
     }
 

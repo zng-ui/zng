@@ -488,6 +488,11 @@ impl HitTestClips {
             }
         }
 
+        if let (RelativeHitZ::Over(w), Some(c)) = (z, child) {
+            if w == c {
+                return RelativeHitZ::Front;
+            }
+        }
         z
     }
 }
@@ -501,6 +506,8 @@ pub enum RelativeHitZ {
     Back,
     /// Widget was hit on a hit-test shape rendered after the child.
     Over(WidgetId),
+    /// Widget was hit on a hit-test shape rendered after the widget descendants.
+    Front,
 }
 
 #[derive(Debug)]
