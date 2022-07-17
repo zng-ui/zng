@@ -378,10 +378,13 @@ impl FrameBuilder {
 
         self.hit_clips.push_child(ctx.path.widget_id());
 
+        let mut reused = true;
+
         // try to reuse, or calls the closure and saves the reuse range.
         self.push_reuse(reuse, |frame| {
             // did not reuse, render widget.
 
+            reused = false;
             undo_prev_outer_transform = None;
 
             frame.widget_data = Some(WidgetData {
@@ -397,9 +400,17 @@ impl FrameBuilder {
             frame.widget_data = None;
         });
 
-        // if did reuse, patch transforms and z-indexes.
-        if let Some(undo_prev) = undo_prev_outer_transform {
-            let transform_patch = undo_prev.then(&outer_transform);
+        if reused {
+            // if did reuse, patch transforms and z-indexes.
+
+            let transform_patch = undo_prev_outer_transform.and_then(|t| {
+                let t = t.then(&outer_transform);
+                if t != RenderTransform::identity() {
+                    Some(t)
+                } else {
+                    None
+                }
+            });
             let z_patch = ctx
                 .widget_info
                 .bounds
@@ -407,11 +418,13 @@ impl FrameBuilder {
                 .map(|(old_back, _)| widget_z.0 as i64 - old_back.0 as i64)
                 .unwrap_or(0);
 
-            let update_transforms = transform_patch != RenderTransform::identity();
+            let update_transforms = transform_patch.is_some();
             let update_z = z_patch != 0;
 
             // apply patches, only iterates over descendants once.
             if update_transforms && update_z {
+                let transform_patch = transform_patch.unwrap();
+
                 for info in ctx.info_tree.get(ctx.path.widget_id()).unwrap().self_and_descendants() {
                     let bounds = info.bounds_info();
 
@@ -425,6 +438,8 @@ impl FrameBuilder {
                     }
                 }
             } else if update_transforms {
+                let transform_patch = transform_patch.unwrap();
+
                 for info in ctx.info_tree.get(ctx.path.widget_id()).unwrap().self_and_descendants() {
                     let bounds = info.bounds_info();
 
@@ -445,17 +460,20 @@ impl FrameBuilder {
 
             // increment by reused
             self.render_index = ctx.widget_info.bounds.rendered().map(|(_, f)| f).unwrap_or(self.render_index);
-        }
-
-        self.widget_rendered |= !reuse.as_ref().unwrap().is_empty();
-
-        if self.widget_rendered {
-            ctx.widget_info
-                .bounds
-                .set_rendered(Some((widget_z, self.render_index)), ctx.info_tree);
         } else {
-            ctx.widget_info.bounds.set_rendered(None, ctx.info_tree);
-            self.render_index.0 -= 1;
+            // if did not reuse
+
+            // ensure  that if any item was pushed the widget is marked as rendered.
+            self.widget_rendered |= !reuse.as_ref().unwrap().is_empty();
+
+            if self.widget_rendered {
+                ctx.widget_info
+                    .bounds
+                    .set_rendered(Some((widget_z, self.render_index)), ctx.info_tree);
+            } else {
+                ctx.widget_info.bounds.set_rendered(None, ctx.info_tree);
+                self.render_index.0 = 1;
+            }
         }
 
         self.widget_rendered |= parent_rendered;
