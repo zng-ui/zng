@@ -1,11 +1,8 @@
 # Hit Test
 
 * Fix z-index reuse.
-    - Implement render index for each widget, that is the index of `push_widget` or reuse, before descendants.
-      - Reuse is updated in logical order, but need to update z in render order, calculate diff and apply?
-    - Use this index to convert `RelativeHitZ` to a global index for hit tests.
-      - `RelativeHitZ::Over` needs the z-index of the next item, otherwise it is only over the child back.
-      - Store first and last z-index for each widget?
+  - Example layer still does not work (open all TOP_MOST dialogs).
+  - Caused by widget with visibility collapsed.
 
 * Review how parent hit-test clips affect children.
 * Implement auto_hit_test for clip & space.

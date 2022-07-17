@@ -803,6 +803,8 @@ impl WidgetBoundsInfo {
     ///
     /// Note that widgets can render in the back and front of each descendant, these indexes are the *back-most* index, the moment
     /// the [`FrameBuilder::push_widget`] was called for the widget and the *front-most* index, the moment the `push_widget` finishes.
+    /// 
+    /// [`FrameBuilder::push_widget`]: crate::render::FrameBuilder::push_widget
     pub fn rendered(&self) -> Option<(ZIndex, ZIndex)> {
         self.0.rendered.get()
     }
