@@ -408,9 +408,9 @@ impl HitTestClips {
                 HitTestItem::Hit(prim) => {
                     if prim.contains(local_point) {
                         z = if let Some(inner) = child {
-                            RelativeHitZ::HitOver(inner)
+                            RelativeHitZ::Over(inner)
                         } else {
-                            RelativeHitZ::HitUnderDescendants
+                            RelativeHitZ::Back
                         };
                     }
                 }
@@ -498,9 +498,9 @@ pub enum RelativeHitZ {
     /// Widget was not hit.
     NoHit,
     /// Widget was hit on a hit-test shape rendered before the widget descendants.
-    HitUnderDescendants,
+    Back,
     /// Widget was hit on a hit-test shape rendered after the child.
-    HitOver(WidgetId),
+    Over(WidgetId),
 }
 
 #[derive(Debug)]

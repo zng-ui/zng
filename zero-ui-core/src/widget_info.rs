@@ -18,6 +18,7 @@ use crate::{
     handler::WidgetHandler,
     impl_from_and_into_var,
     render::FrameId,
+    ui_list::ZIndex,
     units::*,
     var::{Var, VarValue, VarsRead, WithVarsRead},
     window::WindowId,
@@ -265,16 +266,13 @@ impl WidgetInfoTree {
         let mut hits: Vec<_> = self
             .quad_query_dedup(move |q| q.contains(point))
             .filter_map(|w| {
-                let z = w.hit_test_z(point);
-                match z {
-                    RelativeHitZ::NoHit => return None,
-                    RelativeHitZ::HitUnderDescendants => {}
-                    RelativeHitZ::HitOver(_) => {
-                        // !!: TODO
-                    }
-                }
+                let z = match w.hit_test_z(point) {
+                    RelativeHitZ::NoHit => None,
+                    RelativeHitZ::Back => w.rendered(),
+                    RelativeHitZ::Over(w) => self.get(w).and_then(WidgetInfo::rendered), // TODO!!: This is not right, need to be the index of the next descendant?
+                };
 
-                Some(HitInfo {
+                z.map(|z| HitInfo {
                     widget_id: w.widget_id(),
                     z_index: z,
                 })
@@ -282,6 +280,7 @@ impl WidgetInfoTree {
             .collect();
 
         hits.reverse();
+        // TODO !!: sort
 
         HitTestInfo {
             window_id: self.0.window_id,
@@ -681,7 +680,7 @@ struct WidgetBoundsData {
 
     outer_transform: Cell<RenderTransform>,
     inner_transform: Cell<RenderTransform>,
-    rendered: Cell<bool>,
+    rendered: Cell<Option<ZIndex>>,
 
     outer_bounds: Cell<PxRect>,
     inner_bounds: Cell<PxRect>,
@@ -708,6 +707,7 @@ impl WidgetBoundsInfo {
         outer: Option<PxRect>,
         outer_transform: Option<RenderTransform>,
         inner_transform: Option<RenderTransform>,
+        rendered: Option<ZIndex>,
     ) -> Self {
         let r = Self::default();
         r.set_inner_offset(inner.origin.to_vector());
@@ -725,7 +725,7 @@ impl WidgetBoundsInfo {
             r.init_inner_transform(transform);
         }
 
-        r.init_rendered(true);
+        r.init_rendered(rendered);
 
         r
     }
@@ -806,20 +806,23 @@ impl WidgetBoundsInfo {
         self.0.inner_transform.get()
     }
 
-    /// Get if the widget or descendant widgets rendered in the latest window frame.
-    pub fn rendered(&self) -> bool {
+    /// Get the index of the widget in the latest window frame if it was rendered.
+    ///
+    /// Note that widgets can render in the back and front of each descendant, this index is the *back-most* index, the moment
+    /// the [`FrameBuilder::push_widget`] was called for the widget.
+    pub fn rendered(&self) -> Option<ZIndex> {
         self.0.rendered.get()
     }
 
     /// Set if the widget or child widgets rendered.
-    pub(super) fn set_rendered(&self, rendered: bool, info: &WidgetInfoTree) {
+    pub(super) fn set_rendered(&self, rendered: Option<ZIndex>, info: &WidgetInfoTree) {
         if self.0.rendered.get() != rendered {
             self.0.rendered.set(rendered);
             info.visibility_changed();
         }
     }
     #[cfg(test)]
-    fn init_rendered(&self, rendered: bool) {
+    fn init_rendered(&self, rendered: Option<ZIndex>) {
         self.0.rendered.set(rendered);
     }
 
@@ -1255,12 +1258,15 @@ impl<'a> WidgetInfo<'a> {
         }
     }
 
-    /// Returns `true` if the widget or the widget's descendants rendered in the last frame.
+    /// Get the z-index of the widget in the latest window frame if it was rendered.
+    ///
+    /// Note that widgets can render in the back and front of each descendant, this index is the *back-most* index, the moment
+    /// the widget starts rendering.
     ///
     /// This value is updated every [`render`] without causing a tree rebuild.
     ///
     /// [`render`]: crate::UiNode::render
-    pub fn rendered(self) -> bool {
+    pub fn rendered(self) -> Option<ZIndex> {
         self.info().bounds_info.rendered()
     }
 
@@ -1275,7 +1281,7 @@ impl<'a> WidgetInfo<'a> {
     /// [`Collapsed`]: Visibility::Collapsed
     /// [`Hidden`]: Visibility::Hidden
     pub fn visibility(self) -> Visibility {
-        if self.rendered() {
+        if self.rendered().is_some() {
             Visibility::Visible
         } else if self.info().bounds_info.outer_size() == PxSize::zero() {
             Visibility::Collapsed
@@ -2267,8 +2273,8 @@ pub struct HitInfo {
     /// ID of widget hit.
     pub widget_id: WidgetId,
 
-    /// Z-index of the hit in the context widget immediate descendants.
-    pub z_index: RelativeHitZ,
+    /// Z-index of the hit. TODO !!:
+    pub z_index: ZIndex,
 }
 
 /// A hit-test result.

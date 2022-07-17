@@ -274,7 +274,7 @@ impl WindowLayers {
             fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
                 if let Some((bounds_info, border_info)) = &self.anchor_info {
                     let mode = &self.mode.get(ctx.vars);
-                    if !self.mode.get(ctx).visibility || bounds_info.rendered() {
+                    if !self.mode.get(ctx).visibility || bounds_info.rendered().is_some() {
                         match &mode.transform {
                             AnchorTransform::InnerOffset(_) => {
                                 let point_in_window = bounds_info
@@ -346,7 +346,7 @@ impl WindowLayers {
             fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
                 if let Some((bounds_info, border_info)) = &self.anchor_info {
                     let mode = &self.mode.get(ctx.vars);
-                    if !mode.visibility || bounds_info.rendered() {
+                    if !mode.visibility || bounds_info.rendered().is_some() {
                         match &mode.transform {
                             AnchorTransform::InnerOffset(_) => {
                                 let point_in_window = bounds_info

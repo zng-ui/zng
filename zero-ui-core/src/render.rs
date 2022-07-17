@@ -7,6 +7,7 @@ use crate::{
     context::RenderContext,
     gradient::{RenderExtendMode, RenderGradientStop},
     text::FontAntiAliasing,
+    ui_list::ZIndex,
     units::*,
     var::impl_from_and_into_var,
     widget_info::{HitTestClips, WidgetInfoTree},
@@ -158,6 +159,8 @@ pub struct FrameBuilder {
     open_reuse: Option<ReuseStart>,
 
     clear_color: Option<RenderColor>,
+
+    render_index: ZIndex,
 }
 impl FrameBuilder {
     /// New builder.
@@ -220,6 +223,8 @@ impl FrameBuilder {
             widget_rendered: false,
             can_reuse: true,
             open_reuse: None,
+
+            render_index: ZIndex(0),
 
             clear_color: None,
         }
@@ -353,6 +358,8 @@ impl FrameBuilder {
         }
 
         let parent_rendered = mem::take(&mut self.widget_rendered);
+        let widget_z = self.render_index;
+        self.render_index.0 += 1;
 
         let outer_transform = RenderTransform::translation_px(ctx.widget_info.bounds.outer_offset()).then(&self.transform);
         let mut undo_prev_outer_transform = None;
@@ -400,7 +407,14 @@ impl FrameBuilder {
         }
 
         self.widget_rendered |= !reuse.as_ref().unwrap().is_empty();
-        ctx.widget_info.bounds.set_rendered(self.widget_rendered, ctx.info_tree);
+
+        if self.widget_rendered {
+            ctx.widget_info.bounds.set_rendered(Some(widget_z), ctx.info_tree);
+        } else {
+            ctx.widget_info.bounds.set_rendered(None, ctx.info_tree);
+            self.render_index.0 -= 1;
+        }
+
         self.widget_rendered |= parent_rendered;
     }
 
@@ -465,11 +479,12 @@ impl FrameBuilder {
     ///
     /// [`Hidden`]: crate::widget_info::Visibility::Hidden
     /// [`Collapsed`]: crate::widget_info::Visibility::Collapsed
-    pub fn skip_render(&self, info_tree: &WidgetInfoTree) {
+    pub fn skip_render(&mut self, info_tree: &WidgetInfoTree) {
         if let Some(w) = info_tree.get(self.widget_id) {
-            w.bounds_info().set_rendered(self.widget_rendered, info_tree);
+            w.bounds_info().set_rendered(None, info_tree);
+            self.widget_rendered = false;
             for w in w.descendants() {
-                w.bounds_info().set_rendered(false, info_tree);
+                w.bounds_info().set_rendered(None, info_tree);
             }
         } else {
             tracing::error!("skip_render did not find widget `{}` in info tree", self.widget_id)
@@ -483,7 +498,7 @@ impl FrameBuilder {
     pub fn skip_render_descendants(&self, info_tree: &WidgetInfoTree) {
         if let Some(w) = info_tree.get(self.widget_id) {
             for w in w.descendants() {
-                w.bounds_info().set_rendered(false, info_tree);
+                w.bounds_info().set_rendered(None, info_tree);
             }
         } else {
             tracing::error!("skip_render_descendants did not find widget `{}` in info tree", self.widget_id)
@@ -1066,7 +1081,10 @@ impl FrameBuilder {
 
     /// Finalizes the build.
     pub fn finalize(self, info_tree: &WidgetInfoTree) -> (BuiltFrame, UsedFrameBuilder) {
-        info_tree.root().bounds_info().set_rendered(self.widget_rendered, info_tree);
+        info_tree
+            .root()
+            .bounds_info()
+            .set_rendered(if self.widget_rendered { Some(ZIndex(0)) } else { None }, info_tree);
         info_tree.after_render(self.frame_id, self.scale_factor);
 
         let (display_list, capacity) = self.display_list.finalize();
