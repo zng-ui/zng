@@ -409,7 +409,7 @@ impl FrameBuilder {
         self.widget_rendered |= !reuse.as_ref().unwrap().is_empty();
 
         if self.widget_rendered {
-            ctx.widget_info.bounds.set_rendered(Some(widget_z), ctx.info_tree);
+            ctx.widget_info.bounds.set_rendered(Some((widget_z, self.render_index)), ctx.info_tree);
         } else {
             ctx.widget_info.bounds.set_rendered(None, ctx.info_tree);
             self.render_index.0 -= 1;
@@ -1084,7 +1084,7 @@ impl FrameBuilder {
         info_tree
             .root()
             .bounds_info()
-            .set_rendered(if self.widget_rendered { Some(ZIndex(0)) } else { None }, info_tree);
+            .set_rendered(if self.widget_rendered { Some((ZIndex(0), self.render_index)) } else { None }, info_tree);
         info_tree.after_render(self.frame_id, self.scale_factor);
 
         let (display_list, capacity) = self.display_list.finalize();

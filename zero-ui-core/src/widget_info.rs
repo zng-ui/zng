@@ -263,13 +263,18 @@ impl WidgetInfoTree {
     pub fn hit_test(&self, point: PxPoint) -> HitTestInfo {
         let _span = tracing::trace_span!("hit_test").entered();
 
+        let mut needs_sort = false;
+
         let mut hits: Vec<_> = self
             .quad_query_dedup(move |q| q.contains(point))
             .filter_map(|w| {
                 let z = match w.hit_test_z(point) {
                     RelativeHitZ::NoHit => None,
-                    RelativeHitZ::Back => w.rendered(),
-                    RelativeHitZ::Over(w) => self.get(w).and_then(WidgetInfo::rendered), // TODO!!: This is not right, need to be the index of the next descendant?
+                    RelativeHitZ::Back => w.rendered().map(|(b, _)| b),
+                    RelativeHitZ::Over(w) => {
+                        needs_sort = true;
+                        self.get(w).and_then(WidgetInfo::rendered).map(|(_, f)| f)
+                    },
                 };
 
                 z.map(|z| HitInfo {
@@ -279,8 +284,10 @@ impl WidgetInfoTree {
             })
             .collect();
 
-        hits.reverse();
-        // TODO !!: sort
+        hits.reverse();// TODO !!: change quad-tree yield items depth first?
+        if needs_sort {
+            hits.sort_by_key(|h| h.z_index);
+        }
 
         HitTestInfo {
             window_id: self.0.window_id,
@@ -680,7 +687,7 @@ struct WidgetBoundsData {
 
     outer_transform: Cell<RenderTransform>,
     inner_transform: Cell<RenderTransform>,
-    rendered: Cell<Option<ZIndex>>,
+    rendered: Cell<Option<(ZIndex, ZIndex)>>,
 
     outer_bounds: Cell<PxRect>,
     inner_bounds: Cell<PxRect>,
@@ -806,16 +813,16 @@ impl WidgetBoundsInfo {
         self.0.inner_transform.get()
     }
 
-    /// Get the index of the widget in the latest window frame if it was rendered.
+    /// Get the z-index of the widget in the latest window frame if it was rendered.
     ///
-    /// Note that widgets can render in the back and front of each descendant, this index is the *back-most* index, the moment
-    /// the [`FrameBuilder::push_widget`] was called for the widget.
-    pub fn rendered(&self) -> Option<ZIndex> {
+    /// Note that widgets can render in the back and front of each descendant, these indexes are the *back-most* index, the moment
+    /// the [`FrameBuilder::push_widget`] was called for the widget and the *front-most* index, the moment the `push_widget` finishes.
+    pub fn rendered(&self) -> Option<(ZIndex, ZIndex)> {
         self.0.rendered.get()
     }
 
     /// Set if the widget or child widgets rendered.
-    pub(super) fn set_rendered(&self, rendered: Option<ZIndex>, info: &WidgetInfoTree) {
+    pub(super) fn set_rendered(&self, rendered: Option<(ZIndex, ZIndex)>, info: &WidgetInfoTree) {
         if self.0.rendered.get() != rendered {
             self.0.rendered.set(rendered);
             info.visibility_changed();
@@ -823,7 +830,7 @@ impl WidgetBoundsInfo {
     }
     #[cfg(test)]
     fn init_rendered(&self, rendered: Option<ZIndex>) {
-        self.0.rendered.set(rendered);
+        self.0.rendered.set(rendered.map(|i| (i, i)));
     }
 
     pub(super) fn set_outer_transform(&self, transform: RenderTransform, info: &WidgetInfoTree) {
@@ -1260,13 +1267,13 @@ impl<'a> WidgetInfo<'a> {
 
     /// Get the z-index of the widget in the latest window frame if it was rendered.
     ///
-    /// Note that widgets can render in the back and front of each descendant, this index is the *back-most* index, the moment
-    /// the widget starts rendering.
+    /// Note that widgets can render in the back and front of each descendant, these indexes are the *back-most* index, the moment
+    /// the widget starts rendering and the *front-most* index at the moment the widget and all contents finishes rendering.
     ///
     /// This value is updated every [`render`] without causing a tree rebuild.
     ///
     /// [`render`]: crate::UiNode::render
-    pub fn rendered(self) -> Option<ZIndex> {
+    pub fn rendered(self) -> Option<(ZIndex, ZIndex)> {
         self.info().bounds_info.rendered()
     }
 
