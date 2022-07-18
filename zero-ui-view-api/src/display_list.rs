@@ -367,6 +367,7 @@ pub struct ReuseStart {
 /// Represents a display list reuse range.
 ///
 /// See [`DisplayListBuilder::push_reuse_range`] for more details.
+#[derive(Debug)]
 pub struct ReuseRange {
     pipeline_id: PipelineId,
     frame_id: FrameId,
@@ -377,6 +378,11 @@ impl ReuseRange {
     /// Pipeline where the items can be reused.
     pub fn pipeline_id(&self) -> PipelineId {
         self.pipeline_id
+    }
+
+    /// Frame that owns the reused items selected by this range.
+    pub fn frame_id(&self) -> FrameId {
+        self.frame_id
     }
 
     /// If the reuse range did not capture any display item.
@@ -464,7 +470,7 @@ impl DisplayListCache {
                 item.to_webrender(wr_list, sc, self);
             }
         } else {
-            panic!("did not find reuse frame {frame_id:?}");
+            tracing::error!("did not find reuse frame {frame_id:?}");
         }
     }
 

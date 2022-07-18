@@ -479,7 +479,7 @@ impl FrameBuilder {
         self.widget_rendered |= parent_rendered;
     }
 
-    /// Mark the widget as rendered even if it does not push any display item.
+    /// Mark the widget as rendered even if it does not push any display or hit item.
     pub fn widget_rendered(&mut self) {
         self.widget_rendered = true;
     }
@@ -498,6 +498,7 @@ impl FrameBuilder {
     /// [`can_reuse`]: Self::can_reuse
     pub fn with_no_reuse(&mut self, render: impl FnOnce(&mut Self)) {
         let prev_can_reuse = self.can_reuse;
+        self.can_reuse = false;
         render(self);
         self.can_reuse = prev_can_reuse;
     }
@@ -538,8 +539,12 @@ impl FrameBuilder {
     /// Nodes the set the visibility to the equivalent of [`Hidden`] or [`Collapsed`] must not call `render` and `render_update`
     /// for the descendant nodes and must call this method to update the rendered status of all descendant nodes.
     ///
+    /// After calling this once, the next frame that is visible again must be render descendants using [`with_no_reuse`] to ensure that
+    /// old invalid reuse ranges are discarded.
+    ///
     /// [`Hidden`]: crate::widget_info::Visibility::Hidden
     /// [`Collapsed`]: crate::widget_info::Visibility::Collapsed
+    /// [`with_no_reuse`]: Self::with_no_reuse
     pub fn skip_render(&mut self, info_tree: &WidgetInfoTree) {
         if let Some(w) = info_tree.get(self.widget_id) {
             w.bounds_info().set_rendered(None, info_tree);
@@ -730,7 +735,9 @@ impl FrameBuilder {
         }
     }
 
-    /// Calls `render` with a new clip context that clips the rectangle and parent clips.
+    /// Calls `render` with a new clip context that adds the `clip_rect`.
+    ///
+    /// If `clip_out` is `true` only pixels outside the rect are visible.
     pub fn push_clip_rect(&mut self, clip_rect: PxRect, clip_out: bool, render: impl FnOnce(&mut FrameBuilder)) {
         expect_inner!(self.push_clip_rect);
 
@@ -741,7 +748,7 @@ impl FrameBuilder {
         self.display_list.pop_clip();
     }
 
-    /// Calls `render` with a new clip context that clips the rectangle and parent clips.
+    /// Calls `render` with a new clip context that adds  the `clip_rect` with rounded `corners`.
     ///
     /// If `clip_out` is `true` only pixels outside the rounded rect are visible.
     pub fn push_clip_rounded_rect(
@@ -1484,6 +1491,7 @@ impl FrameUpdate {
     /// [`can_reuse_widget`]: Self::can_reuse_widget
     pub fn with_no_reuse(&mut self, render_update: impl FnOnce(&mut Self)) {
         let prev_can_reuse = self.can_reuse_widget;
+        self.can_reuse_widget = false;
         render_update(self);
         self.can_reuse_widget = prev_can_reuse;
     }

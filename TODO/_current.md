@@ -1,5 +1,7 @@
 # Hit Test
 
+* Can't click on scrollbars after first hover.
+
 * Review how parent hit-test clips affect children.
 * Implement auto_hit_test for clip & space.
 * Test everything.
