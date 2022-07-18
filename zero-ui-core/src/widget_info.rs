@@ -809,12 +809,11 @@ impl WidgetBoundsInfo {
         self.0.rendered.get()
     }
 
-    /// Set if the widget or child widgets rendered.
     pub(super) fn set_rendered(&self, rendered: Option<(ZIndex, ZIndex)>, info: &WidgetInfoTree) {
-        if self.0.rendered.get() != rendered {
-            self.0.rendered.set(rendered);
+        if self.0.rendered.get().is_some() != rendered.is_some() {
             info.visibility_changed();
         }
+        self.0.rendered.set(rendered);
     }
     #[cfg(test)]
     fn init_rendered(&self, rendered: Option<ZIndex>) {

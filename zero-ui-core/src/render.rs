@@ -358,20 +358,27 @@ impl FrameBuilder {
         }
 
         let parent_rendered = mem::take(&mut self.widget_rendered);
+        // cannot reuse if the widget was not rendered in the previous frame (clear stale reuse ranges in descendants).
+        let parent_can_reuse = mem::replace(&mut self.can_reuse, ctx.widget_info.bounds.rendered().is_some());
+
         let widget_z = self.render_index;
         self.render_index.0 += 1;
 
         let outer_transform = RenderTransform::translation_px(ctx.widget_info.bounds.outer_offset()).then(&self.transform);
         let mut undo_prev_outer_transform = None;
         if reuse.is_some() {
-            // will try to reuse, but only if we can patch the widget transforms.
+            // check if is possible to reuse.
 
-            let prev_outer = ctx.widget_info.bounds.outer_transform();
-            if prev_outer != outer_transform {
-                if let Some(undo_prev) = prev_outer.inverse() {
-                    undo_prev_outer_transform = Some(undo_prev);
-                } else {
-                    *reuse = None; // cannot reuse because cannot undo prev-transform.
+            if !self.can_reuse {
+                *reuse = None; // reuse is stale because the widget was previously not rendered, or is disabled by user.
+            } else {
+                let prev_outer = ctx.widget_info.bounds.outer_transform();
+                if prev_outer != outer_transform {
+                    if let Some(undo_prev) = prev_outer.inverse() {
+                        undo_prev_outer_transform = Some(undo_prev);
+                    } else {
+                        *reuse = None; // cannot reuse because cannot undo prev-transform.
+                    }
                 }
             }
         }
@@ -476,6 +483,7 @@ impl FrameBuilder {
             }
         }
 
+        self.can_reuse = parent_can_reuse;
         self.widget_rendered |= parent_rendered;
     }
 
@@ -539,18 +547,17 @@ impl FrameBuilder {
     /// Nodes the set the visibility to the equivalent of [`Hidden`] or [`Collapsed`] must not call `render` and `render_update`
     /// for the descendant nodes and must call this method to update the rendered status of all descendant nodes.
     ///
-    /// After calling this once, the next frame that is visible again must be render descendants using [`with_no_reuse`] to ensure that
-    /// old invalid reuse ranges are discarded.
-    ///
     /// [`Hidden`]: crate::widget_info::Visibility::Hidden
     /// [`Collapsed`]: crate::widget_info::Visibility::Collapsed
-    /// [`with_no_reuse`]: Self::with_no_reuse
     pub fn skip_render(&mut self, info_tree: &WidgetInfoTree) {
         if let Some(w) = info_tree.get(self.widget_id) {
-            w.bounds_info().set_rendered(None, info_tree);
             self.widget_rendered = false;
-            for w in w.descendants() {
+            for w in w.self_and_descendants() {
                 w.bounds_info().set_rendered(None, info_tree);
+
+                if w.path().contains(WidgetId::named("commands-stack")) {
+                    println!("!! SK {:?}, {:?}", w.path(), w.bounds_info().rendered().is_some());
+                }
             }
         } else {
             tracing::error!("skip_render did not find widget `{}` in info tree", self.widget_id)

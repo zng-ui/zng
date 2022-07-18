@@ -1,6 +1,6 @@
 //! The [`implicit_base`](mod@implicit_base) and properties used in all or most widgets.
 
-use std::{cell::Cell, fmt, mem};
+use std::{fmt, mem};
 
 use crate::{
     context::{InfoContext, LayoutContext, MeasureContext, OwnedStateMap, RenderContext, StateMap, WidgetContext, WidgetUpdates},
@@ -791,7 +791,6 @@ pub fn visibility(child: impl UiNode, visibility: impl IntoVar<Visibility>) -> i
         child: C,
         prev_vis: Visibility,
         visibility: V,
-        next_render_no_reuse: Cell<bool>,
     }
     #[impl_ui_node(child)]
     impl<C: UiNode, V: Var<Visibility>> UiNode for VisibilityNode<C, V> {
@@ -841,14 +840,8 @@ pub fn visibility(child: impl UiNode, visibility: impl IntoVar<Visibility>) -> i
 
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
             if let Visibility::Visible = self.visibility.get(ctx) {
-                if self.next_render_no_reuse.take() {
-                    // ensure that descendant widgets refresh.
-                    frame.with_no_reuse(|frame| self.child.render(ctx, frame));
-                } else {
-                    self.child.render(ctx, frame);
-                }
+                self.child.render(ctx, frame);
             } else {
-                self.next_render_no_reuse.set(true);
                 frame.skip_render(ctx.info_tree);
             }
         }
@@ -863,7 +856,6 @@ pub fn visibility(child: impl UiNode, visibility: impl IntoVar<Visibility>) -> i
         child,
         prev_vis: Visibility::Visible,
         visibility: visibility.into_var(),
-        next_render_no_reuse: Cell::new(false),
     }
 }
 
