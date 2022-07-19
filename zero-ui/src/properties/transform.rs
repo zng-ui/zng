@@ -68,9 +68,13 @@ pub fn transform(child: impl UiNode, transform: impl IntoVar<Transform>) -> impl
             if frame.is_outer() {
                 frame.push_inner_transform(&self.render_transform, |frame| self.child.render(ctx, frame));
             } else {
-                frame.push_reference_frame(self.spatial_id, self.binding_key.bind(self.render_transform), false, |frame| {
-                    self.child.render(ctx, frame)
-                });
+                frame.push_reference_frame(
+                    self.spatial_id,
+                    self.binding_key.bind(self.render_transform),
+                    false,
+                    false,
+                    |frame| self.child.render(ctx, frame),
+                );
             }
         }
 

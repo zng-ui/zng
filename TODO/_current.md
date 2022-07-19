@@ -1,6 +1,14 @@
 # Hit Test
 
 * Implement auto_hit_test for clip & space.
+  - Need to support render_update.
+
+* Webrender keeps all clips in a single array, each item references a range of clips that affect it, can we do the same for hit-test?
+  - This avoids needing to search for the child widget in every parent.
+  - How do we update this vec, rebuild from scratch with reuse copy?
+  - Each hit-test item references a clip range and is associated with the widget.
+  - If we are visiting everything to reuse ranges, can we just set a z-index too?
+  - How do we deal with transformed clips?
 
 * Review how parent hit-test clips affect children.
 * An HitTestItem::Child item is inserted for each child, even is in most cases we are not making special clips for each child.

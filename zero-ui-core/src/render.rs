@@ -812,16 +812,22 @@ impl FrameBuilder {
     /// The `is_2d_scale_translation` flag optionally marks the `transform` as only ever having a simple 2D scale or translation,
     /// allowing for webrender optimizations.
     ///
+    /// If `hit_test` is `true` the hit-test shapes rendered inside `render` for the same widget are also transformed.
+    ///
+    /// Note that [`auto_hit_test`] overwrites `hit_test` if it is `true`.
+    ///
     /// [`push_inner`]: Self::push_inner
     /// [`WidgetLayout`]: crate::widget_info::WidgetLayout
+    /// [`auto_hit_test`]: Self::auto_hit_test
     pub fn push_reference_frame(
         &mut self,
         id: SpatialFrameId,
         transform: FrameBinding<RenderTransform>,
         is_2d_scale_translation: bool,
+        hit_test: bool,
         render: impl FnOnce(&mut Self),
     ) {
-        self.push_reference_frame_impl(id.to_wr(self.pipeline_id), transform, is_2d_scale_translation, render)
+        self.push_reference_frame_impl(id.to_wr(self.pipeline_id), transform, is_2d_scale_translation, hit_test, render)
     }
 
     /// Pushes a custom `push_reference_frame` with an item [`SpatialFrameId`].
@@ -831,29 +837,48 @@ impl FrameBuilder {
         item: usize,
         transform: FrameBinding<RenderTransform>,
         is_2d_scale_translation: bool,
+        hit_test: bool,
         render: impl FnOnce(&mut Self),
     ) {
-        self.push_reference_frame_impl(id.item_to_wr(item, self.pipeline_id), transform, is_2d_scale_translation, render)
+        self.push_reference_frame_impl(
+            id.item_to_wr(item, self.pipeline_id),
+            transform,
+            is_2d_scale_translation,
+            hit_test,
+            render,
+        )
     }
     fn push_reference_frame_impl(
         &mut self,
         id: SpatialTreeItemKey,
         transform: FrameBinding<RenderTransform>,
         is_2d_scale_translation: bool,
+        mut hit_test: bool,
         render: impl FnOnce(&mut Self),
     ) {
-        let parent_transform = self.transform;
-        self.transform = match transform {
+        let transform_value = match transform {
             PropertyBinding::Value(value) | PropertyBinding::Binding(_, value) => value,
-        }
-        .then(&parent_transform);
+        };
+
+        let parent_transform = self.transform;
+        self.transform = transform_value.then(&parent_transform);
 
         self.display_list.push_reference_frame(id, transform, is_2d_scale_translation);
+
+        hit_test |= self.auto_hit_test;
+
+        if hit_test {
+            self.hit_clips.push_transform(transform_value);
+        }
 
         render(self);
 
         self.display_list.pop_reference_frame();
         self.transform = parent_transform;
+
+        if hit_test {
+            self.hit_clips.pop_transform();
+        }
     }
 
     /// Calls `render` with added `filter` stacking context.

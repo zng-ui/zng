@@ -763,6 +763,7 @@ pub fn fill_node(content: impl UiNode) -> impl UiNode {
                 self.offset_id,
                 FrameBinding::Value(RenderTransform::translation_px(self.offset)),
                 true,
+                false,
                 |frame| {
                     let bounds = PxRect::from_size(self.clip_bounds);
                     if self.clip_corners != PxCornerRadius::zero() {

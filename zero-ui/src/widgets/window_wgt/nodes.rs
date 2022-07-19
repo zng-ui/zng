@@ -287,6 +287,7 @@ impl WindowLayers {
                                     self.transform_key
                                         .bind(RenderTransform::translation_px(point_in_window.to_vector())),
                                     true,
+                                    false,
                                     |frame| self.widget.render(ctx, frame),
                                 )
                             }
@@ -300,6 +301,7 @@ impl WindowLayers {
                                     self.transform_key
                                         .bind(RenderTransform::translation_px(point_in_window.to_vector())),
                                     true,
+                                    false,
                                     |frame| self.widget.render(ctx, frame),
                                 )
                             }
@@ -313,6 +315,7 @@ impl WindowLayers {
                                     self.transform_key
                                         .bind(RenderTransform::translation_px(point_in_window.to_vector())),
                                     true,
+                                    false,
                                     |frame| self.widget.render(ctx, frame),
                                 )
                             }
@@ -320,17 +323,20 @@ impl WindowLayers {
                                 self.spatial_id,
                                 self.transform_key.bind(bounds_info.inner_transform()),
                                 false,
+                                false,
                                 |frame| self.widget.render(ctx, frame),
                             ),
                             AnchorTransform::InnerBorderTransform => frame.push_reference_frame(
                                 self.spatial_id,
                                 self.transform_key.bind(border_info.inner_transform(bounds_info)),
                                 false,
+                                false,
                                 |frame| self.widget.render(ctx, frame),
                             ),
                             AnchorTransform::OuterTransform => frame.push_reference_frame(
                                 self.spatial_id,
                                 self.transform_key.bind(bounds_info.outer_transform()),
+                                false,
                                 false,
                                 |frame| self.widget.render(ctx, frame),
                             ),

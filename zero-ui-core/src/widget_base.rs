@@ -131,7 +131,7 @@ pub mod implicit_base {
                 }
                 fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
                     let transform = RenderTransform::translation_px(ctx.widget_info.bounds.child_offset());
-                    frame.push_reference_frame(self.spatial_id, self.translation_key.bind(transform), true, |frame| {
+                    frame.push_reference_frame(self.spatial_id, self.translation_key.bind(transform), true, false, |frame| {
                         self.panel.render(ctx, frame)
                     });
                 }
@@ -185,7 +185,7 @@ pub mod implicit_base {
                 fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
                     if let Some((id, key)) = &self.id {
                         let transform = RenderTransform::translation_px(ctx.widget_info.bounds.child_offset());
-                        frame.push_reference_frame(*id, key.bind(transform), true, |frame| self.child.render(ctx, frame));
+                        frame.push_reference_frame(*id, key.bind(transform), true, false, |frame| self.child.render(ctx, frame));
                     } else {
                         self.child.render(ctx, frame);
                     }

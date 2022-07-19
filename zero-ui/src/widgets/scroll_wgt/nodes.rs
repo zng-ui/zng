@@ -165,6 +165,7 @@ pub fn viewport(child: impl UiNode, mode: impl IntoVar<ScrollMode>) -> impl UiNo
                 self.spatial_id,
                 self.binding_key.bind(RenderTransform::translation_px(self.content_offset)),
                 true,
+                false,
                 |frame| {
                     self.child.render(ctx, frame);
                 },
