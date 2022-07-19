@@ -1458,10 +1458,18 @@ impl FrameUpdate {
     ///
     /// [`transform`]: Self::transform
     pub fn with_transform(&mut self, new_value: FrameValue<RenderTransform>, render_update: impl FnOnce(&mut Self)) {
-        let parent_transform = self.transform;
-        self.transform = new_value.value.then(&parent_transform);
-
+        self.with_transform_value(&new_value.value, render_update);
         self.update_transform(new_value);
+    }
+
+    /// Calls `render_update` while the [`transform`] is updated to include the `value` space.
+    ///
+    /// This is useful for cases where the inner transforms are affected by a `value` that is only rendered, never updated.
+    ///
+    /// [`transform`]: Self::transform
+    pub fn with_transform_value(&mut self, value: &RenderTransform, render_update: impl FnOnce(&mut Self)) {
+        let parent_transform = self.transform;
+        self.transform = value.then(&parent_transform);
 
         render_update(self);
         self.transform = parent_transform;

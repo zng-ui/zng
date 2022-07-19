@@ -1,8 +1,5 @@
 # Hit Test
 
-* Can't click on scrollbars after first hover.
-  - Bug caused by inner-transform update having no translate.
-
 * Review how parent hit-test clips affect children.
 * Implement auto_hit_test for clip & space.
 * Test everything.
