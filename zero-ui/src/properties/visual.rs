@@ -349,9 +349,6 @@ pub fn foreground_gradient(child: impl UiNode, axis: impl IntoVar<LinearGradient
 /// Any content rendered outside the widget inner bounds is clipped. The clip is
 /// rectangular and can have rounded corners if [`corner_radius`] is set.
 ///
-/// Note that this property has `fill` priority, but it is usually marked as a *child* property in
-/// container widgets so it applies only to the inner widgets.
-///
 /// # Examples
 ///
 /// ```
@@ -378,7 +375,6 @@ pub fn clip_to_bounds(child: impl UiNode, clip: impl IntoVar<bool>) -> impl UiNo
     struct ClipToBoundsNode<T, S> {
         child: T,
         clip: S,
-        bounds: PxSize,
         corners: PxCornerRadius,
     }
 
@@ -405,8 +401,7 @@ pub fn clip_to_bounds(child: impl UiNode, clip: impl IntoVar<bool>) -> impl UiNo
 
             if self.clip.copy(ctx) {
                 let corners = ContextBorders::border_radius(ctx);
-                if bounds != self.bounds || corners != self.corners {
-                    self.bounds = bounds;
+                if  corners != self.corners {
                     self.corners = corners;
                     ctx.updates.render();
                 }
@@ -417,7 +412,7 @@ pub fn clip_to_bounds(child: impl UiNode, clip: impl IntoVar<bool>) -> impl UiNo
 
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
             if self.clip.copy(ctx) {
-                let bounds = PxRect::from_size(self.bounds);
+                let bounds = PxRect::from_size(ctx.widget_info.bounds.inner_size());
 
                 if self.corners != PxCornerRadius::zero() {
                     frame.push_clip_rounded_rect(bounds, self.corners, false, |f| self.child.render(ctx, f));
@@ -432,7 +427,6 @@ pub fn clip_to_bounds(child: impl UiNode, clip: impl IntoVar<bool>) -> impl UiNo
     ClipToBoundsNode {
         child,
         clip: clip.into_var(),
-        bounds: PxSize::zero(),
         corners: PxCornerRadius::zero(),
     }
 }
