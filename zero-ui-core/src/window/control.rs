@@ -1421,6 +1421,7 @@ impl ContentCtrl {
                 let mut update = FrameUpdate::new(
                     self.frame_id,
                     self.root_id,
+                    self.root_info.bounds.clone(),
                     renderer.as_ref(),
                     self.clear_color,
                     self.used_frame_update.take(),

@@ -17,7 +17,7 @@ use crate::{
     event::EventUpdateArgs,
     handler::WidgetHandler,
     impl_from_and_into_var,
-    render::FrameId,
+    render::{FrameId, FrameValue},
     ui_list::ZIndex,
     units::*,
     var::{Var, VarValue, VarsRead, WithVarsRead},
@@ -927,6 +927,10 @@ impl WidgetBoundsInfo {
         } else {
             false
         }
+    }
+
+    pub(crate) fn update_hit_test_transform(&self, value: FrameValue<RenderTransform>) {
+        self.0.hit_clips.borrow_mut().update_transform(value);
     }
 
     pub(crate) fn measure_metrics(&self) -> Option<LayoutMetricsSnapshot> {

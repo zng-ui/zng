@@ -82,7 +82,7 @@ pub fn transform(child: impl UiNode, transform: impl IntoVar<Transform>) -> impl
             if update.is_outer() {
                 update.with_inner_transform(&self.render_transform, |update| self.child.render_update(ctx, update));
             } else {
-                update.with_transform(self.binding_key.update(self.render_transform), |update| {
+                update.with_transform(self.binding_key.update(self.render_transform), false, |update| {
                     self.child.render_update(ctx, update)
                 })
             }

@@ -1,7 +1,12 @@
 use std::{num::NonZeroU32, rc::Rc};
 
 use super::tree;
-use crate::{crate_util::FxHashSet, units::*, WidgetId};
+use crate::{
+    crate_util::FxHashSet,
+    render::{FrameBinding, FrameValue},
+    units::*,
+    WidgetId,
+};
 
 // The QuadTree is implemented as a grid of 2048px squares that is each an actual quad-tree.
 //
@@ -377,7 +382,7 @@ impl HitTestClips {
         self.items.push(HitTestItem::PopClip);
     }
 
-    pub fn push_transform(&mut self, transform: RenderTransform) {
+    pub fn push_transform(&mut self, transform: FrameBinding<RenderTransform>) {
         self.items.push(HitTestItem::Transform(transform))
     }
 
@@ -447,6 +452,9 @@ impl HitTestClips {
                 HitTestItem::PopClip => continue 'hit_test,
 
                 HitTestItem::Transform(t) => {
+                    let t = match t {
+                        FrameBinding::Value(t) | FrameBinding::Binding(_, t) => t,
+                    };
                     match inv_transform_point(t, local_point) {
                         Some(p) => {
                             // transform is valid, push previous transform and replace the local point.
@@ -496,6 +504,17 @@ impl HitTestClips {
         z
     }
 
+    pub fn update_transform(&mut self, value: FrameValue<RenderTransform>) {
+        for item in &mut self.items {
+            if let HitTestItem::Transform(FrameBinding::Binding(key, t)) = item {
+                if *key == value.key {
+                    *t = value.value;
+                    break;
+                }
+            }
+        }
+    }
+
     /// Returns `true` if a clip that affects the `child` clips out the `window_point`.
     pub fn clip_child(&self, child: WidgetId, inner_transform: &RenderTransform, window_point: PxPoint) -> bool {
         false
@@ -537,7 +556,7 @@ enum HitTestItem {
     Clip(HitTestPrimitive, bool),
     PopClip,
 
-    Transform(RenderTransform),
+    Transform(FrameBinding<RenderTransform>),
     PopTransform,
 
     Child(WidgetId),

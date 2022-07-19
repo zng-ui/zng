@@ -362,6 +362,7 @@ impl WindowLayers {
                                 update.with_transform(
                                     self.transform_key
                                         .update(RenderTransform::translation_px(point_in_window.to_vector())),
+                                        false,
                                     |update| self.widget.render_update(ctx, update),
                                 )
                             }
@@ -373,6 +374,7 @@ impl WindowLayers {
                                 update.with_transform(
                                     self.transform_key
                                         .update(RenderTransform::translation_px(point_in_window.to_vector())),
+                                        false,
                                     |update| self.widget.render_update(ctx, update),
                                 )
                             }
@@ -384,21 +386,22 @@ impl WindowLayers {
                                 update.with_transform(
                                     self.transform_key
                                         .update(RenderTransform::translation_px(point_in_window.to_vector())),
+                                        false,
                                     |update| self.widget.render_update(ctx, update),
                                 )
                             }
                             AnchorTransform::InnerTransform => {
-                                update.with_transform(self.transform_key.update(bounds_info.inner_transform()), |update| {
+                                update.with_transform(self.transform_key.update(bounds_info.inner_transform()), false, |update| {
                                     self.widget.render_update(ctx, update)
                                 });
                             }
                             AnchorTransform::InnerBorderTransform => {
-                                update.with_transform(self.transform_key.update(border_info.inner_transform(bounds_info)), |update| {
+                                update.with_transform(self.transform_key.update(border_info.inner_transform(bounds_info)), false, |update| {
                                     self.widget.render_update(ctx, update)
                                 });
                             }
                             AnchorTransform::OuterTransform => {
-                                update.with_transform(self.transform_key.update(bounds_info.outer_transform()), |update| {
+                                update.with_transform(self.transform_key.update(bounds_info.outer_transform()), false, |update| {
                                     self.widget.render_update(ctx, update)
                                 });
                             }

@@ -10,7 +10,7 @@ use crate::{
     ui_list::ZIndex,
     units::*,
     var::impl_from_and_into_var,
-    widget_info::{HitTestClips, WidgetInfoTree},
+    widget_info::{HitTestClips, WidgetBoundsInfo, WidgetInfoTree},
     WidgetId,
 };
 
@@ -326,6 +326,8 @@ impl FrameBuilder {
 
     /// Runs `render` with [`auto_hit_test`] set to a value, inside `render` auto hit-test is `auto_hit_test`, after
     /// it is the current value.
+    ///
+    /// If this is used, [`FrameUpdate::with_auto_hit_test`] must also be used.
     ///
     /// [`auto_hit_test`]: Self::auto_hit_test
     pub fn with_auto_hit_test(&mut self, auto_hit_test: bool, render: impl FnOnce(&mut Self)) {
@@ -868,7 +870,7 @@ impl FrameBuilder {
         hit_test |= self.auto_hit_test;
 
         if hit_test {
-            self.hit_clips.push_transform(transform_value);
+            self.hit_clips.push_transform(transform);
         }
 
         render(self);
@@ -1323,7 +1325,7 @@ impl<'a> HitTestBuilder<'a> {
             return;
         }
 
-        self.hit_clips.push_transform(transform);
+        self.hit_clips.push_transform(FrameBinding::Value(transform));
 
         inner_hit_test(self);
 
@@ -1416,6 +1418,9 @@ pub struct FrameUpdate {
     transform: RenderTransform,
     inner_transform: Option<RenderTransform>,
     can_reuse_widget: bool,
+    widget_bounds: WidgetBoundsInfo,
+
+    auto_hit_test: bool,
 }
 impl FrameUpdate {
     /// New frame update builder.
@@ -1428,6 +1433,7 @@ impl FrameUpdate {
     pub fn new(
         frame_id: FrameId,
         root_id: WidgetId,
+        root_bounds: WidgetBoundsInfo,
         renderer: Option<&ViewRenderer>,
         clear_color: RenderColor,
         used_data: Option<UsedFrameUpdate>,
@@ -1455,6 +1461,7 @@ impl FrameUpdate {
         FrameUpdate {
             pipeline_id,
             widget_id: root_id,
+            widget_bounds: root_bounds,
             bindings: DynamicProperties {
                 transforms: Vec::with_capacity(hint.transforms_capacity),
                 floats: Vec::with_capacity(hint.floats_capacity),
@@ -1467,6 +1474,8 @@ impl FrameUpdate {
             transform: RenderTransform::identity(),
             inner_transform: Some(RenderTransform::identity()),
             can_reuse_widget: true,
+
+            auto_hit_test: false,
         }
     }
 
@@ -1495,13 +1504,33 @@ impl FrameUpdate {
         self.clear_color = Some(color);
     }
 
+    /// Returns `true` if all transform updates are also applied to hit-test transforms.
+    pub fn auto_hit_test(&self) -> bool {
+        self.auto_hit_test
+    }
+    /// Runs `render_update` with [`auto_hit_test`] set to a value, inside `render` auto hit-test is `auto_hit_test`, after
+    /// it is the current value.
+    ///
+    /// [`auto_hit_test`]: Self::auto_hit_test
+    pub fn with_auto_hit_test(&mut self, auto_hit_test: bool, render_update: impl FnOnce(&mut Self)) {
+        let prev = mem::replace(&mut self.auto_hit_test, auto_hit_test);
+        render_update(self);
+        self.auto_hit_test = prev;
+    }
+
     /// Update a transform value that does not potentially affect widget bounds.
     ///
     /// Use [`with_transform`] to update transforms that affect widget bounds.
     ///
+    /// If `hit_test` is `true` the hit-test transform is also updated.
+    ///
     /// [`with_transform`]: Self::with_transform
-    pub fn update_transform(&mut self, new_value: FrameValue<RenderTransform>) {
+    pub fn update_transform(&mut self, new_value: FrameValue<RenderTransform>, hit_test: bool) {
         self.bindings.transforms.push(new_value);
+
+        if hit_test || self.auto_hit_test {
+            self.widget_bounds.update_hit_test_transform(new_value);
+        }
     }
 
     /// Update a transform that potentially affects widget bounds.
@@ -1509,10 +1538,12 @@ impl FrameUpdate {
     /// The [`transform`] is updated to include this space for the call to the `render_update` closure. The closure
     /// must call render update on child nodes.
     ///
+    /// If `hit_test` is `true` the hit-test transform is also updated.
+    ///
     /// [`transform`]: Self::transform
-    pub fn with_transform(&mut self, new_value: FrameValue<RenderTransform>, render_update: impl FnOnce(&mut Self)) {
+    pub fn with_transform(&mut self, new_value: FrameValue<RenderTransform>, hit_test: bool, render_update: impl FnOnce(&mut Self)) {
         self.with_transform_value(&new_value.value, render_update);
-        self.update_transform(new_value);
+        self.update_transform(new_value, hit_test);
     }
 
     /// Calls `render_update` while the [`transform`] is updated to include the `value` space.
@@ -1585,6 +1616,7 @@ impl FrameUpdate {
         let outer_transform = RenderTransform::translation_px(ctx.widget_info.bounds.outer_offset()).then(&self.transform);
 
         let parent_can_reuse = self.can_reuse_widget;
+        let parent_bounds = mem::replace(&mut self.widget_bounds, ctx.widget_info.bounds.clone());
 
         if self.can_reuse_widget && reuse {
             let prev_outer = ctx.widget_info.bounds.outer_transform();
@@ -1616,6 +1648,7 @@ impl FrameUpdate {
         self.inner_transform = None;
         self.widget_id = parent_id;
         self.can_reuse_widget = parent_can_reuse;
+        self.widget_bounds = parent_bounds;
     }
 
     /// Update the info transforms of the widget and descendants.
@@ -1642,7 +1675,7 @@ impl FrameUpdate {
         if let Some(inner_transform) = self.inner_transform.take() {
             let translate = ctx.widget_info.bounds.inner_offset() + ctx.widget_info.bounds.outer_offset();
             let inner_transform = inner_transform.then_translate_px(translate);
-            self.update_transform(layout_translation_key.update(inner_transform));
+            self.update_transform(layout_translation_key.update(inner_transform), false);
             let parent_transform = self.transform;
 
             self.transform = inner_transform.then(&parent_transform);

@@ -177,6 +177,7 @@ pub fn viewport(child: impl UiNode, mode: impl IntoVar<ScrollMode>) -> impl UiNo
 
             update.with_transform(
                 self.binding_key.update(RenderTransform::translation_px(self.content_offset)),
+                false,
                 |update| {
                     self.child.render_update(ctx, update);
                 },
