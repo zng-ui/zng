@@ -1265,7 +1265,7 @@ pub use crate::async_app_hn_once;
 ///
 /// let bar = Rc::new("Cool!".to_string());
 /// foo(clone_move!(mut *bar, |p| {
-///     bar.push_str("!!");
+///     bar.push_str("!");
 ///     if p { println!("cloned String not Rc: {bar}") }
 /// }));
 ///
@@ -1284,7 +1284,7 @@ pub use crate::async_app_hn_once;
 /// foo({
 ///     let mut bar = (*bar).clone();
 ///     move |p| {
-///         bar.push_str("!!");
+///         bar.push_str("!");
 ///         if p { println!("cloned String not Rc: {bar}") }
 ///     }
 ///});

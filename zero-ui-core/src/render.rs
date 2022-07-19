@@ -556,10 +556,6 @@ impl FrameBuilder {
             self.widget_rendered = false;
             for w in w.self_and_descendants() {
                 w.bounds_info().set_rendered(None, info_tree);
-
-                if w.path().contains(WidgetId::named("commands-stack")) {
-                    println!("!! SK {:?}, {:?}", w.path(), w.bounds_info().rendered().is_some());
-                }
             }
         } else {
             tracing::error!("skip_render did not find widget `{}` in info tree", self.widget_id)
