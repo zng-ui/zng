@@ -364,7 +364,7 @@ impl FrameBuilder {
         let widget_z = self.render_index;
         self.render_index.0 += 1;
 
-        let outer_transform = RenderTransform::translation_px(ctx.widget_info.bounds.outer_offset()).then(&self.transform);
+        let mut outer_transform = RenderTransform::identity();
         let mut undo_prev_outer_transform = None;
         if reuse.is_some() {
             // check if is possible to reuse.
@@ -372,6 +372,8 @@ impl FrameBuilder {
             if !self.can_reuse {
                 *reuse = None; // reuse is stale because the widget was previously not rendered, or is disabled by user.
             } else {
+                outer_transform = RenderTransform::translation_px(ctx.widget_info.bounds.outer_offset()).then(&self.transform);
+
                 let prev_outer = ctx.widget_info.bounds.outer_transform();
                 if prev_outer != outer_transform {
                     if let Some(undo_prev) = prev_outer.inverse() {
