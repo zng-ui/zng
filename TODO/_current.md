@@ -1,25 +1,16 @@
 # Hit Test
 
 * Review how parent hit-test clips affect children.
-* An HitTestItem::Child item is inserted for each child, even is in most cases we are not making special clips for each child.
+
+How to find the space&clip that affect a child?
+
+* Can we store the parent clip range in the child?
+  - It's not always the same, if the child gets reused it needs updating, but is only the child.
+  - Can just be the index of the child in the parent hit-test items.
+    - The index that can be returned by `push_child`.
+
 * Test everything.
 * Merge.
-
-```text
-
-hit-clips:
-[shape, shape, shape, shape, ..]
-hit-spaces:
-[?] space is normalized after each inner-transform, shapes are not
-
-widget:
-[
-  hit { shape, clips: [3..4] },
-  hit { shape, clips: [2..5] },
-]
-
-```
-
 * Track what widgets are close to becoming visible due to scrolling.
 
 # Quad-Tree

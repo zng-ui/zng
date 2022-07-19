@@ -391,7 +391,11 @@ impl HitTestClips {
     }
 
     pub fn push_child(&mut self, widget: WidgetId) {
-        self.items.push(HitTestItem::Child(widget));
+        if let Some(HitTestItem::Child(c)) = self.items.last_mut() {
+            *c = widget;
+        } else {
+            self.items.push(HitTestItem::Child(widget));
+        }
     }
 
     /// Hit-test the `point` against the items, returns the relative Z of the hit.
