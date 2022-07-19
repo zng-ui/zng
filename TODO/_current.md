@@ -1,7 +1,9 @@
 # Hit Test
 
 * Implement auto_hit_test for clip & space.
+
 * Review how parent hit-test clips affect children.
+* An HitTestItem::Child item is inserted for each child, even is in most cases we are not making special clips for each child.
 * Test everything.
 * Merge.
 

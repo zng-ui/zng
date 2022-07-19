@@ -495,6 +495,11 @@ impl HitTestClips {
         }
         z
     }
+
+    /// Returns `true` if a clip that affects the `child` clips out the `window_point`.
+    pub fn clip_child(&self, child: WidgetId, inner_transform: &RenderTransform, window_point: PxPoint) -> bool {
+        false
+    }
 }
 
 /// Hit-test result on a widget relative to it's descendants.

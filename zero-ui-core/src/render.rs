@@ -775,6 +775,8 @@ impl FrameBuilder {
     /// rendered inside `render` are also clipped.
     ///
     /// Note that [`auto_hit_test`] overwrites `hit_test` if it is `true`.
+    ///
+    /// [`auto_hit_test`]: Self::auto_hit_test
     pub fn push_clip_rounded_rect(
         &mut self,
         clip_rect: PxRect,

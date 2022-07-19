@@ -909,13 +909,23 @@ impl WidgetBoundsInfo {
         self.0.metrics_used.get()
     }
 
-    /// Gets the relative hit-test Z for `point` against the hit-test shapes rendered for the widget.
-    pub fn hit_test_z(&self, point: PxPoint) -> RelativeHitZ {
+    /// Gets the relative hit-test Z for `window_point` against the hit-test shapes rendered for the widget.
+    pub fn hit_test_z(&self, window_point: PxPoint) -> RelativeHitZ {
         let hit_clips = self.0.hit_clips.borrow();
         if hit_clips.is_hit_testable() {
-            hit_clips.hit_test_z(&self.0.inner_transform.get(), point)
+            hit_clips.hit_test_z(&self.0.inner_transform.get(), window_point)
         } else {
             RelativeHitZ::NoHit
+        }
+    }
+
+    /// Returns `true` if a hit-test clip that affects the `child` removes the `window_point` hit on the child.
+    pub fn hit_test_clip_child(&self, child: WidgetId, window_point: PxPoint) -> bool {
+        let hit_clips = self.0.hit_clips.borrow();
+        if hit_clips.is_hit_testable() {
+            hit_clips.clip_child(child, &self.0.inner_transform.get(), window_point)
+        } else {
+            false
         }
     }
 
@@ -1635,7 +1645,7 @@ impl<'a> WidgetInfo<'a> {
         self.tree().contains_point(point).filter(move |w| range.contains(*w))
     }
 
-    /// Gets Z-index a hit-test of `point` against the hit-test shapes rendered for this widget.
+    /// Gets Z-index a hit-test of `point` against the hit-test shapes rendered for this widget and hit-test clips of parent widgets.
     ///
     /// A hit happens if the point is inside [`inner_bounds`] and at least one hit-test shape rendered for the widget contains the point.
     ///
@@ -1643,12 +1653,28 @@ impl<'a> WidgetInfo<'a> {
     fn hit_test_z(self, point: PxPoint) -> Option<ZIndex> {
         let bounds = &self.info().bounds_info;
         if bounds.inner_bounds().contains(point) {
-            match bounds.hit_test_z(point) {
+            let z = match bounds.hit_test_z(point) {
                 RelativeHitZ::NoHit => None,
                 RelativeHitZ::Back => bounds.rendered().map(|(b, _)| b),
                 RelativeHitZ::Over(w) => self.tree.get(w).and_then(|w| w.info().bounds_info.rendered()).map(|(_, f)| f),
                 RelativeHitZ::Front => bounds.rendered().map(|(_, f)| f),
+            };
+
+            if z.is_some() {
+                let mut parent = self.parent();
+                let mut child = self.widget_id();
+
+                while let Some(p) = parent {
+                    if p.info().bounds_info.hit_test_clip_child(child, point) {
+                        return None;
+                    }
+
+                    parent = p.parent();
+                    child = p.widget_id();
+                }
             }
+
+            z
         } else {
             None
         }
