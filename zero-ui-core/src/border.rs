@@ -766,9 +766,9 @@ pub fn fill_node(content: impl UiNode) -> impl UiNode {
                 |frame| {
                     let bounds = PxRect::from_size(self.clip_bounds);
                     if self.clip_corners != PxCornerRadius::zero() {
-                        frame.push_clip_rounded_rect(bounds, self.clip_corners, false, |f| self.content.render(ctx, f))
+                        frame.push_clip_rounded_rect(bounds, self.clip_corners, false, false, |f| self.content.render(ctx, f))
                     } else {
-                        frame.push_clip_rect(bounds, false, |f| self.content.render(ctx, f))
+                        frame.push_clip_rect(bounds, false, false, |f| self.content.render(ctx, f))
                     }
                 },
             );

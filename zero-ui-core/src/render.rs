@@ -314,7 +314,7 @@ impl FrameBuilder {
         self.auto_hit_test
     }
 
-    /// Runs `render` while hit-tests are disabled, inside `render` [`is_hit_testable`] is `false`, after
+    /// Runs `render` with hit-tests disabled, inside `render` [`is_hit_testable`] is `false`, after
     /// it is the current value.
     ///
     /// [`is_hit_testable`]: Self::is_hit_testable
@@ -324,7 +324,8 @@ impl FrameBuilder {
         self.is_hit_testable = prev;
     }
 
-    /// Runs `render` while [`auto_hit_test`] is set to a value.
+    /// Runs `render` with [`auto_hit_test`] set to a value, inside `render` auto hit-test is `auto_hit_test`, after
+    /// it is the current value.
     ///
     /// [`auto_hit_test`]: Self::auto_hit_test
     pub fn with_auto_hit_test(&mut self, auto_hit_test: bool, render: impl FnOnce(&mut Self)) {
@@ -742,34 +743,63 @@ impl FrameBuilder {
 
     /// Calls `render` with a new clip context that adds the `clip_rect`.
     ///
-    /// If `clip_out` is `true` only pixels outside the rect are visible.
-    pub fn push_clip_rect(&mut self, clip_rect: PxRect, clip_out: bool, render: impl FnOnce(&mut FrameBuilder)) {
+    /// If `clip_out` is `true` only pixels outside the rect are visible. If `hit_test` is `true` the hit-test shapes
+    /// rendered inside `render` are also clipped.
+    ///
+    /// Note that [`auto_hit_test`] overwrites `hit_test` if it is `true`.
+    ///
+    /// [`auto_hit_test`]: Self::auto_hit_test
+    pub fn push_clip_rect(&mut self, clip_rect: PxRect, clip_out: bool, mut hit_test: bool, render: impl FnOnce(&mut FrameBuilder)) {
         expect_inner!(self.push_clip_rect);
 
         self.display_list.push_clip_rect(clip_rect, clip_out);
 
+        hit_test |= self.auto_hit_test;
+
+        if hit_test {
+            self.hit_clips.push_clip_rect(clip_rect.to_box2d(), clip_out);
+        }
+
         render(self);
 
         self.display_list.pop_clip();
+
+        if hit_test {
+            self.hit_clips.pop_clip();
+        }
     }
 
     /// Calls `render` with a new clip context that adds  the `clip_rect` with rounded `corners`.
     ///
-    /// If `clip_out` is `true` only pixels outside the rounded rect are visible.
+    /// If `clip_out` is `true` only pixels outside the rounded rect are visible. If `hit_test` is `true` the hit-test shapes
+    /// rendered inside `render` are also clipped.
+    ///
+    /// Note that [`auto_hit_test`] overwrites `hit_test` if it is `true`.
     pub fn push_clip_rounded_rect(
         &mut self,
         clip_rect: PxRect,
         corners: PxCornerRadius,
         clip_out: bool,
+        mut hit_test: bool,
         render: impl FnOnce(&mut FrameBuilder),
     ) {
         expect_inner!(self.push_clip_rounded_rect);
 
         self.display_list.push_clip_rounded_rect(clip_rect, corners, clip_out);
 
+        hit_test |= self.auto_hit_test;
+
+        if hit_test {
+            self.hit_clips.push_clip_rounded_rect(clip_rect.to_box2d(), corners, clip_out);
+        }
+
         render(self);
 
         self.display_list.pop_clip();
+
+        if hit_test {
+            self.hit_clips.pop_clip();
+        }
     }
 
     /// Calls `render` inside a new reference frame transformed by `transform`.

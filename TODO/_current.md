@@ -1,7 +1,7 @@
 # Hit Test
 
-* Review how parent hit-test clips affect children.
 * Implement auto_hit_test for clip & space.
+* Review how parent hit-test clips affect children.
 * Test everything.
 * Merge.
 

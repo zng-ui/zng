@@ -343,8 +343,8 @@ impl HitTestClips {
         self.items.push(HitTestItem::Hit(HitTestPrimitive::Rect(rect)));
     }
 
-    pub fn push_clip_rect(&mut self, rect: euclid::Box2D<Px, ()>, clip_out: bool) {
-        self.items.push(HitTestItem::Clip(HitTestPrimitive::Rect(rect), clip_out));
+    pub fn push_clip_rect(&mut self, clip_rect: euclid::Box2D<Px, ()>, clip_out: bool) {
+        self.items.push(HitTestItem::Clip(HitTestPrimitive::Rect(clip_rect), clip_out));
     }
 
     pub fn push_rounded_rect(&mut self, rect: euclid::Box2D<Px, ()>, radii: PxCornerRadius) {
@@ -355,12 +355,12 @@ impl HitTestClips {
         }
     }
 
-    pub fn push_clip_rounded_rect(&mut self, rect: euclid::Box2D<Px, ()>, radii: PxCornerRadius, clip_out: bool) {
+    pub fn push_clip_rounded_rect(&mut self, clip_rect: euclid::Box2D<Px, ()>, radii: PxCornerRadius, clip_out: bool) {
         if radii == PxCornerRadius::zero() {
-            self.push_clip_rect(rect, clip_out);
+            self.push_clip_rect(clip_rect, clip_out);
         } else {
             self.items
-                .push(HitTestItem::Clip(HitTestPrimitive::RoundedRect(rect, radii), clip_out));
+                .push(HitTestItem::Clip(HitTestPrimitive::RoundedRect(clip_rect, radii), clip_out));
         }
     }
 
