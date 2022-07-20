@@ -390,12 +390,14 @@ impl HitTestClips {
         self.items.push(HitTestItem::PopTransform);
     }
 
-    pub fn push_child(&mut self, widget: WidgetId) {
+    #[must_use]
+    pub fn push_child(&mut self, widget: WidgetId) -> usize {
         if let Some(HitTestItem::Child(c)) = self.items.last_mut() {
             *c = widget;
         } else {
             self.items.push(HitTestItem::Child(widget));
         }
+        self.items.len() - 1
     }
 
     /// Hit-test the `point` against the items, returns the relative Z of the hit.
@@ -520,8 +522,81 @@ impl HitTestClips {
     }
 
     /// Returns `true` if a clip that affects the `child` clips out the `window_point`.
-    pub fn clip_child(&self, child: WidgetId, inner_transform: &RenderTransform, window_point: PxPoint) -> bool {
-        false
+    pub fn clip_child(&self, child: usize, inner_transform: &RenderTransform, window_point: PxPoint) -> bool {
+        let mut transform_stack = vec![];
+        let mut current_transform = inner_transform;
+        let mut local_point = match inv_transform_point(current_transform, window_point) {
+            Some(p) => p,
+            None => return false,
+        };
+
+        let mut items = self.items[..child].iter();
+        let mut clip = false;
+
+        'clip: while let Some(item) = items.next() {
+            match item {
+                HitTestItem::Clip(prim, clip_out) => {
+                    clip = match clip_out {
+                        true => prim.contains(local_point),
+                        false => !prim.contains(local_point),
+                    };
+                    if clip {
+                        let mut clip_depth = 0;
+                        'close_clip: for item in items.by_ref() {
+                            match item {
+                                HitTestItem::Clip(_, _) => clip_depth += 1,
+                                HitTestItem::PopClip => {
+                                    if clip_depth == 0 {
+                                        clip = false; // was not a clip that covers the child.
+                                        continue 'clip;
+                                    }
+                                    clip_depth -= 1;
+                                }
+                                _ => continue 'close_clip,
+                            }
+                        }
+                    }
+                }
+                HitTestItem::PopClip => continue 'clip,
+                HitTestItem::Transform(t) => {
+                    let t = match t {
+                        FrameBinding::Value(t) | FrameBinding::Binding(_, t) => t,
+                    };
+                    match inv_transform_point(t, local_point) {
+                        Some(p) => {
+                            // transform is valid, push previous transform and replace the local point.
+                            transform_stack.push((current_transform, local_point));
+                            current_transform = t;
+                            local_point = p;
+                        }
+                        None => {
+                            // non-invertible transform, skip all transformed shapes.
+                            let mut transform_depth = 0;
+                            'skip_transformed: for item in items.by_ref() {
+                                match item {
+                                    HitTestItem::Transform(_) => {
+                                        transform_depth += 1;
+                                    }
+                                    HitTestItem::PopTransform => {
+                                        if transform_depth == 0 {
+                                            continue 'clip;
+                                        }
+                                        transform_depth -= 1;
+                                    }
+                                    _ => continue 'skip_transformed,
+                                }
+                            }
+                        }
+                    }
+                }
+                HitTestItem::PopTransform => {
+                    (current_transform, local_point) = transform_stack.pop().unwrap();
+                }
+                _ => continue 'clip,
+            }
+        }
+
+        clip
     }
 }
 

@@ -126,7 +126,14 @@ fn test_trace(node: impl UiNode) {
     TraceNode::notify_render_update(&mut wgt, &mut ctx);
     assert_only_traced!(wgt.state(), "event");
 
-    let mut update = FrameUpdate::new(FrameId::INVALID, ctx.root_id, wgt.bounds_info().clone(), None, RenderColor::BLACK, None);
+    let mut update = FrameUpdate::new(
+        FrameId::INVALID,
+        ctx.root_id,
+        wgt.bounds_info().clone(),
+        None,
+        RenderColor::BLACK,
+        None,
+    );
     wgt.test_render_update(&mut ctx, &mut update);
     assert_only_traced!(wgt.state(), "render_update");
 
@@ -247,7 +254,14 @@ pub fn default_no_child() {
     let (_, _) = frame.finalize(&ctx.info_tree);
 
     // and not update render.
-    let mut update = FrameUpdate::new(FrameId::INVALID, ctx.root_id, wgt.bounds_info().clone(), None, RenderColor::BLACK, None);
+    let mut update = FrameUpdate::new(
+        FrameId::INVALID,
+        ctx.root_id,
+        wgt.bounds_info().clone(),
+        None,
+        RenderColor::BLACK,
+        None,
+    );
     wgt.test_render_update(&mut ctx, &mut update);
     let (update, _) = update.finalize(&ctx.info_tree);
     assert!(!update.bindings.transforms.is_empty());

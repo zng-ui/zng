@@ -1,14 +1,5 @@
 # Hit Test
 
-* Review how parent hit-test clips affect children.
-
-How to find the space&clip that affect a child?
-
-* Can we store the parent clip range in the child?
-  - It's not always the same, if the child gets reused it needs updating, but is only the child.
-  - Can just be the index of the child in the parent hit-test items.
-    - The index that can be returned by `push_child`.
-
 * Test everything.
 * Merge.
 * Track what widgets are close to becoming visible due to scrolling.

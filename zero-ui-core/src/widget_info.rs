@@ -679,6 +679,7 @@ struct WidgetBoundsData {
     inner_bounds: Cell<PxRect>,
 
     hit_clips: RefCell<HitTestClips>,
+    hit_index: Cell<u32>,
 }
 
 /// Shared reference to layout size and offsets of a widget and rendered transforms and bounds.
@@ -919,11 +920,16 @@ impl WidgetBoundsInfo {
         }
     }
 
+    /// Index of this widget in the parent hit-test items.
+    fn hit_test_index(&self) -> usize {
+        self.0.hit_index.get() as usize
+    }
+
     /// Returns `true` if a hit-test clip that affects the `child` removes the `window_point` hit on the child.
-    pub fn hit_test_clip_child(&self, child: WidgetId, window_point: PxPoint) -> bool {
+    pub fn hit_test_clip_child(&self, child: WidgetInfo, window_point: PxPoint) -> bool {
         let hit_clips = self.0.hit_clips.borrow();
         if hit_clips.is_hit_testable() {
-            hit_clips.clip_child(child, &self.0.inner_transform.get(), window_point)
+            hit_clips.clip_child(child.bounds_info().hit_test_index(), &self.0.inner_transform.get(), window_point)
         } else {
             false
         }
@@ -1036,6 +1042,10 @@ impl WidgetBoundsInfo {
 
     pub(crate) fn set_hit_clips(&self, clips: HitTestClips) {
         *self.0.hit_clips.borrow_mut() = clips;
+    }
+
+    pub(crate) fn set_hit_index(&self, index: usize) {
+        self.0.hit_index.set(index as u32);
     }
 }
 
@@ -1666,7 +1676,7 @@ impl<'a> WidgetInfo<'a> {
 
             if z.is_some() {
                 let mut parent = self.parent();
-                let mut child = self.widget_id();
+                let mut child = self;
 
                 while let Some(p) = parent {
                     if p.info().bounds_info.hit_test_clip_child(child, point) {
@@ -1674,7 +1684,7 @@ impl<'a> WidgetInfo<'a> {
                     }
 
                     parent = p.parent();
-                    child = p.widget_id();
+                    child = p;
                 }
             }
 

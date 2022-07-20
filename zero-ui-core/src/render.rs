@@ -388,7 +388,8 @@ impl FrameBuilder {
             }
         }
 
-        self.hit_clips.push_child(ctx.path.widget_id());
+        let index = self.hit_clips.push_child(ctx.path.widget_id());
+        ctx.widget_info.bounds.set_hit_index(index);
 
         let mut reused = true;
 
