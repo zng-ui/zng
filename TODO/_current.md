@@ -1,9 +1,5 @@
-* Review implementing context_var using https://crates.io/crates/scoped_tls
-
 # Hit Test
 
-* Test everything.
-* Merge.
 * Track what widgets are close to becoming visible due to scrolling.
 
 # Quad-Tree
