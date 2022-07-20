@@ -26,6 +26,7 @@ use crate::{
 };
 
 mod tree;
+use either::Either;
 use tree::Tree;
 
 mod path;
@@ -1495,10 +1496,10 @@ impl<'a> WidgetInfo<'a> {
         d
     }
 
-    /// Count of [`descendants`].
+    /// Total number of [`descendants`].
     ///
     /// [`descendants`]: Self::descendants
-    pub fn descendants_count(self) -> usize {
+    pub fn descendants_len(self) -> usize {
         self.node().descendants_range().len()
     }
 
@@ -1678,74 +1679,108 @@ impl<'a> WidgetInfo<'a> {
         }
     }
 
+    fn prefer_linear_bounds_search(self) -> bool {
+        self.descendants_len() <= 16
+    }
+
     /// Spatial iterator over all descendants with [`inner_bounds`] that intersect the `area`.
     ///
     /// [`inner_bounds`]: WidgetInfo::inner_bounds
     pub fn intersects(self, area: PxRect) -> impl Iterator<Item = WidgetInfo<'a>> + 'a {
-        let range = self.descendants_range();
-        self.tree().intersects(area).filter(move |w| range.contains(*w))
-    }
-    fn intersects_linear(self, area: PxRect) -> impl Iterator<Item = WidgetInfo<'a>> + 'a {
-        let area = area.to_box2d();
-        self.descendants().filter(move |d| d.inner_bounds().to_box2d().intersects(&area))
+        if self.prefer_linear_bounds_search() {
+            let area = area.to_box2d();
+            let iter = self.descendants().filter(move |d| d.inner_bounds().to_box2d().intersects(&area));
+
+            Either::Right(iter)
+        } else {
+            let range = self.descendants_range();
+            let iter = self.tree().intersects(area).filter(move |w| range.contains(*w));
+
+            Either::Left(iter)
+        }
     }
 
     /// Spatial iterator over all descendants with [`inner_bounds`] that contains the `point`.
     ///
     /// [`inner_bounds`]: WidgetInfo::inner_bounds
     pub fn contains_point(self, point: PxPoint) -> impl Iterator<Item = WidgetInfo<'a>> + 'a {
-        let range = self.descendants_range();
-        self.tree().contains_point(point).filter(move |w| range.contains(*w))
-    }
-    fn contains_point_linear(self, point: PxPoint) -> impl Iterator<Item = WidgetInfo<'a>> + 'a {
-        self.descendants().filter(move |d| d.inner_bounds().contains(point))
+        if self.prefer_linear_bounds_search() {
+            let iter = self.descendants().filter(move |d| d.inner_bounds().contains(point));
+
+            Either::Right(iter)
+        } else {
+            let range = self.descendants_range();
+            let iter = self.tree().contains_point(point).filter(move |w| range.contains(*w));
+
+            Either::Left(iter)
+        }
     }
 
     /// Spatial iterator over all descendants with [`inner_bounds`] that fully envelops the `rect`.
     ///
     /// [`inner_bounds`]: WidgetInfo::inner_bounds
     pub fn contains_rect(self, rect: PxRect) -> impl Iterator<Item = WidgetInfo<'a>> + 'a {
-        let range = self.descendants_range();
-        self.tree().contains_rect(rect).filter(move |w| range.contains(*w))
-    }
-    fn contains_rect_linear(self, rect: PxRect) -> impl Iterator<Item = WidgetInfo<'a>> + 'a {
-        let rect = rect.to_box2d();
-        self.descendants().filter(move |d| d.inner_bounds().to_box2d().contains_box(&rect))
+        if self.prefer_linear_bounds_search() {
+            let rect = rect.to_box2d();
+            let iter = self.descendants().filter(move |d| d.inner_bounds().to_box2d().contains_box(&rect));
+
+            Either::Right(iter)
+        } else {
+            let range = self.descendants_range();
+            let iter = self.tree().contains_rect(rect).filter(move |w| range.contains(*w));
+
+            Either::Left(iter)
+        }
     }
 
     /// Spatial iterator over all descendants with [`inner_bounds`] fully inside the `area`.
     ///
     /// [`inner_bounds`]: WidgetInfo::inner_bounds
     pub fn contained(self, area: PxRect) -> impl Iterator<Item = WidgetInfo<'a>> + 'a {
-        let range = self.descendants_range();
-        self.tree().contained(area).filter(move |w| range.contains(*w))
-    }
-    fn contained_linear(self, area: PxRect) -> impl Iterator<Item = WidgetInfo<'a>> + 'a {
-        let area = area.to_box2d();
-        self.descendants().filter(move |d| area.contains_box(&d.inner_bounds().to_box2d()))
+        if self.prefer_linear_bounds_search() {
+            let area = area.to_box2d();
+            let iter = self.descendants().filter(move |d| area.contains_box(&d.inner_bounds().to_box2d()));
+
+            Either::Right(iter)
+        } else {
+            let range = self.descendants_range();
+            let iter = self.tree().contained(area).filter(move |w| range.contains(*w));
+
+            Either::Left(iter)
+        }
     }
 
     /// Spatial iterator over all descendants with center point inside the `area`.
     pub fn center_contained(self, area: PxRect) -> impl Iterator<Item = WidgetInfo<'a>> + 'a {
-        let range = self.descendants_range();
-        self.tree().center_contained(area).filter(move |w| range.contains(*w))
-    }
-    fn center_contained_linear(self, area: PxRect) -> impl Iterator<Item = WidgetInfo<'a>> + 'a {
-        let area = area.to_box2d();
-        self.descendants().filter(move |d| area.contains(d.center()))
+        if self.prefer_linear_bounds_search() {
+            let area = area.to_box2d();
+            let iter = self.descendants().filter(move |d| area.contains(d.center()));
+
+            Either::Right(iter)
+        } else {
+            let range = self.descendants_range();
+            let iter = self.tree().center_contained(area).filter(move |w| range.contains(*w));
+
+            Either::Left(iter)
+        }
     }
 
     /// Spatial iterator over all descendants with center point within the `max_radius` of the `origin`.
     pub fn center_in_distance(self, origin: PxPoint, max_radius: Px) -> impl Iterator<Item = WidgetInfo<'a>> + 'a {
-        let range = self.descendants_range();
-        self.tree()
-            .center_in_distance(origin, max_radius)
-            .filter(move |w| range.contains(*w))
-    }
-    fn center_in_distance_linear(self, origin: PxPoint, max_radius: Px) -> impl Iterator<Item = WidgetInfo<'a>> + 'a {
-        let distance_key = DistanceKey::from_distance(max_radius);
+        if self.prefer_linear_bounds_search() {
+            let distance_key = DistanceKey::from_distance(max_radius);
+            let iter = self.descendants().filter(move |w| w.distance_key(origin) <= distance_key);
 
-        self.descendants().filter(move |w| w.distance_key(origin) <= distance_key)
+            Either::Right(iter)
+        } else {
+            let range = self.descendants_range();
+            let iter = self
+                .tree()
+                .center_in_distance(origin, max_radius)
+                .filter(move |w| range.contains(*w));
+
+            Either::Left(iter)
+        }
     }
 
     /// Find the descendant with center point nearest of `origin` within the `max_radius`.
@@ -1754,23 +1789,7 @@ impl<'a> WidgetInfo<'a> {
     ///
     /// [`center_in_distance`]: Self::center_in_distance
     pub fn nearest(self, origin: PxPoint, max_radius: Px) -> Option<WidgetInfo<'a>> {
-        let range = self.descendants_range();
-        self.tree().nearest_filtered(origin, max_radius, move |w| range.contains(w))
-    }
-    fn nearest_linear(self, origin: PxPoint, max_radius: Px) -> Option<WidgetInfo<'a>> {
-        let dist = if max_radius != Px::MAX {
-            DistanceKey::from_distance(max_radius + Px(1))
-        } else {
-            DistanceKey::NONE_MAX
-        };
-
-        let mut r = None;
-        for d in self.descendants() {
-            if d.distance_key(origin) < dist {
-                r = Some(d)
-            }
-        }
-        r
+        self.nearest_filtered(origin, max_radius, |_| true)
     }
 
     /// Find the descendant with center point nearest of `origin` within the `max_radius` and approved by the `filter` closure.
@@ -1780,9 +1799,25 @@ impl<'a> WidgetInfo<'a> {
         max_radius: Px,
         mut filter: impl FnMut(WidgetInfo<'a>) -> bool,
     ) -> Option<WidgetInfo<'a>> {
-        let range = self.descendants_range();
-        self.tree()
-            .nearest_filtered(origin, max_radius, move |w| range.contains(w) && filter(w))
+        if self.prefer_linear_bounds_search() {
+            let dist = if max_radius != Px::MAX {
+                DistanceKey::from_distance(max_radius + Px(1))
+            } else {
+                DistanceKey::NONE_MAX
+            };
+
+            let mut r = None;
+            for d in self.descendants() {
+                if d.distance_key(origin) < dist && filter(d) {
+                    r = Some(d)
+                }
+            }
+            r
+        } else {
+            let range = self.descendants_range();
+            self.tree()
+                .nearest_filtered(origin, max_radius, move |w| range.contains(w) && filter(w))
+        }
     }
 
     /// Find the descendant with center point nearest of `origin` within the `max_radius` and inside `bounds`; and approved by the `filter` closure.
@@ -1793,17 +1828,54 @@ impl<'a> WidgetInfo<'a> {
         bounds: PxRect,
         mut filter: impl FnMut(WidgetInfo<'a>) -> bool,
     ) -> Option<WidgetInfo<'a>> {
-        let range = self.descendants_range();
-        self.tree()
-            .nearest_bounded_filtered(origin, max_radius, bounds, move |w| range.contains(w) && filter(w))
+        if self.prefer_linear_bounds_search() {
+            let bounds = bounds.to_box2d();
+
+            let dist = if max_radius != Px::MAX {
+                DistanceKey::from_distance(max_radius + Px(1))
+            } else {
+                DistanceKey::NONE_MAX
+            };
+
+            let mut r = None;
+            for d in self.descendants() {
+                if d.distance_key(origin) < dist && bounds.contains(d.center()) && filter(d) {
+                    r = Some(d)
+                }
+            }
+            r
+        } else {
+            let range = self.descendants_range();
+            self.tree()
+                .nearest_bounded_filtered(origin, max_radius, bounds, move |w| range.contains(w) && filter(w))
+        }
     }
 
     /// Spatial iterator over all descendants with center in the direction defined by `orientation` and within the `distance`.
-    pub fn oriented(self, origin: PxPoint, distance: Px, orientation: Orientation2D) -> impl Iterator<Item = WidgetInfo<'a>> + 'a {
-        let range = self.descendants_range();
-        self.tree()
-            .oriented(origin, distance, orientation)
-            .filter(move |w| range.contains(*w))
+    pub fn oriented(self, origin: PxPoint, max_distance: Px, orientation: Orientation2D) -> impl Iterator<Item = WidgetInfo<'a>> + 'a {
+        if self.prefer_linear_bounds_search() {
+            let distance_bounded = max_distance != Px::MAX;
+            let distance_key = if distance_bounded {
+                DistanceKey::from_distance(max_distance)
+            } else {
+                DistanceKey::NONE_MAX
+            };
+
+            let iter = self.descendants().filter(move |d| {
+                let center = d.center();
+                orientation.is(origin, center) && (!distance_bounded || DistanceKey::from_points(origin, center) <= distance_key)
+            });
+
+            Either::Right(iter)
+        } else {
+            let range = self.descendants_range();
+            let iter = self
+                .tree()
+                .oriented(origin, max_distance, orientation)
+                .filter(move |w| range.contains(*w));
+
+            Either::Left(iter)
+        }
     }
 
     /// Find the descendant with center point nearest of `origin` within the `max_distance` and with `orientation` to origin.
@@ -1812,9 +1884,7 @@ impl<'a> WidgetInfo<'a> {
     ///
     /// [`oriented`]: Self::oriented
     pub fn nearest_oriented(self, origin: PxPoint, max_distance: Px, orientation: Orientation2D) -> Option<WidgetInfo<'a>> {
-        let range = self.descendants_range();
-        self.tree()
-            .nearest_oriented_filtered(origin, max_distance, orientation, move |w| range.contains(w))
+        self.nearest_oriented_filtered(origin, max_distance, orientation, |_| true)
     }
 
     /// Find the descendant with center point nearest of `origin` within the `max_distance` and with `orientation` to origin,
@@ -1830,9 +1900,29 @@ impl<'a> WidgetInfo<'a> {
         orientation: Orientation2D,
         mut filter: impl FnMut(WidgetInfo<'a>) -> bool,
     ) -> Option<WidgetInfo<'a>> {
-        let range = self.descendants_range();
-        self.tree()
-            .nearest_oriented_filtered(origin, max_distance, orientation, move |w| range.contains(w) && filter(w))
+        if self.prefer_linear_bounds_search() {
+            let mut r_dist = if max_distance != Px::MAX {
+                DistanceKey::from_distance(max_distance)
+            } else {
+                DistanceKey::NONE_MAX
+            };
+            let mut r = None;
+
+            for d in self.descendants() {
+                let center = d.center();
+                let dist = DistanceKey::from_points(origin, center);
+                if dist < r_dist && orientation.is(origin, center) && filter(d) {
+                    r_dist = dist;
+                    r = Some(d);
+                } 
+            }
+
+            r
+        } else {
+            let range = self.descendants_range();
+            self.tree()
+                .nearest_oriented_filtered(origin, max_distance, orientation, move |w| range.contains(w) && filter(w))
+        }
     }
 }
 
