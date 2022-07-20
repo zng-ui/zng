@@ -1914,7 +1914,7 @@ impl<'a> WidgetInfo<'a> {
                 if dist < r_dist && orientation.is(origin, center) && filter(d) {
                     r_dist = dist;
                     r = Some(d);
-                } 
+                }
             }
 
             r

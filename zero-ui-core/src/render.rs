@@ -416,6 +416,8 @@ impl FrameBuilder {
         if reused {
             // if did reuse, patch transforms and z-indexes.
 
+            let _span = tracing::trace_span!("reuse-descendants", id=?ctx.path.widget_id()).entered();
+
             let transform_patch = undo_prev_outer_transform.and_then(|t| {
                 let t = t.then(&outer_transform);
                 if t != RenderTransform::identity() {
@@ -1620,6 +1622,8 @@ impl FrameUpdate {
         let parent_bounds = mem::replace(&mut self.widget_bounds, ctx.widget_info.bounds.clone());
 
         if self.can_reuse_widget && reuse {
+            let _span = tracing::trace_span!("reuse-descendants", id=?self.widget_id).entered();
+
             let prev_outer = ctx.widget_info.bounds.outer_transform();
             if prev_outer != outer_transform {
                 if let Some(undo_prev) = prev_outer.inverse() {
@@ -1645,6 +1649,7 @@ impl FrameUpdate {
         self.inner_transform = Some(RenderTransform::identity());
         let parent_id = self.widget_id;
         self.widget_id = ctx.path.widget_id();
+
         render_update(ctx, self);
         self.inner_transform = None;
         self.widget_id = parent_id;
