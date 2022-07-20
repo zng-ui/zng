@@ -1643,22 +1643,6 @@ impl<'a> WidgetInfo<'a> {
         }
     }
 
-    /// Spatial iterator over all descendants with [`inner_bounds`] that intersect the `area`.
-    ///
-    /// [`inner_bounds`]: WidgetInfo::inner_bounds
-    pub fn intersects(self, area: PxRect) -> impl Iterator<Item = WidgetInfo<'a>> + 'a {
-        let range = self.descendants_range();
-        self.tree().intersects(area).filter(move |w| range.contains(*w))
-    }
-
-    /// Spatial iterator over all descendants with [`inner_bounds`] that contains the `point`.
-    ///
-    /// [`inner_bounds`]: WidgetInfo::inner_bounds
-    pub fn contains_point(self, point: PxPoint) -> impl Iterator<Item = WidgetInfo<'a>> + 'a {
-        let range = self.descendants_range();
-        self.tree().contains_point(point).filter(move |w| range.contains(*w))
-    }
-
     /// Gets Z-index a hit-test of `point` against the hit-test shapes rendered for this widget and hit-test clips of parent widgets.
     ///
     /// A hit happens if the point is inside [`inner_bounds`] and at least one hit-test shape rendered for the widget contains the point.
@@ -1694,12 +1678,39 @@ impl<'a> WidgetInfo<'a> {
         }
     }
 
+    /// Spatial iterator over all descendants with [`inner_bounds`] that intersect the `area`.
+    ///
+    /// [`inner_bounds`]: WidgetInfo::inner_bounds
+    pub fn intersects(self, area: PxRect) -> impl Iterator<Item = WidgetInfo<'a>> + 'a {
+        let range = self.descendants_range();
+        self.tree().intersects(area).filter(move |w| range.contains(*w))
+    }
+    fn intersects_linear(self, area: PxRect) -> impl Iterator<Item = WidgetInfo<'a>> + 'a {
+        let area = area.to_box2d();
+        self.descendants().filter(move |d| d.inner_bounds().to_box2d().intersects(&area))
+    }
+
+    /// Spatial iterator over all descendants with [`inner_bounds`] that contains the `point`.
+    ///
+    /// [`inner_bounds`]: WidgetInfo::inner_bounds
+    pub fn contains_point(self, point: PxPoint) -> impl Iterator<Item = WidgetInfo<'a>> + 'a {
+        let range = self.descendants_range();
+        self.tree().contains_point(point).filter(move |w| range.contains(*w))
+    }
+    fn contains_point_linear(self, point: PxPoint) -> impl Iterator<Item = WidgetInfo<'a>> + 'a {
+        self.descendants().filter(move |d| d.inner_bounds().contains(point))
+    }
+
     /// Spatial iterator over all descendants with [`inner_bounds`] that fully envelops the `rect`.
     ///
     /// [`inner_bounds`]: WidgetInfo::inner_bounds
     pub fn contains_rect(self, rect: PxRect) -> impl Iterator<Item = WidgetInfo<'a>> + 'a {
         let range = self.descendants_range();
         self.tree().contains_rect(rect).filter(move |w| range.contains(*w))
+    }
+    fn contains_rect_linear(self, rect: PxRect) -> impl Iterator<Item = WidgetInfo<'a>> + 'a {
+        let rect = rect.to_box2d();
+        self.descendants().filter(move |d| d.inner_bounds().to_box2d().contains_box(&rect))
     }
 
     /// Spatial iterator over all descendants with [`inner_bounds`] fully inside the `area`.
@@ -1709,11 +1720,19 @@ impl<'a> WidgetInfo<'a> {
         let range = self.descendants_range();
         self.tree().contained(area).filter(move |w| range.contains(*w))
     }
+    fn contained_linear(self, area: PxRect) -> impl Iterator<Item = WidgetInfo<'a>> + 'a {
+        let area = area.to_box2d();
+        self.descendants().filter(move |d| area.contains_box(&d.inner_bounds().to_box2d()))
+    }
 
     /// Spatial iterator over all descendants with center point inside the `area`.
     pub fn center_contained(self, area: PxRect) -> impl Iterator<Item = WidgetInfo<'a>> + 'a {
         let range = self.descendants_range();
         self.tree().center_contained(area).filter(move |w| range.contains(*w))
+    }
+    fn center_contained_linear(self, area: PxRect) -> impl Iterator<Item = WidgetInfo<'a>> + 'a {
+        let area = area.to_box2d();
+        self.descendants().filter(move |d| area.contains(d.center()))
     }
 
     /// Spatial iterator over all descendants with center point within the `max_radius` of the `origin`.
@@ -1722,6 +1741,11 @@ impl<'a> WidgetInfo<'a> {
         self.tree()
             .center_in_distance(origin, max_radius)
             .filter(move |w| range.contains(*w))
+    }
+    fn center_in_distance_linear(self, origin: PxPoint, max_radius: Px) -> impl Iterator<Item = WidgetInfo<'a>> + 'a {
+        let distance_key = DistanceKey::from_distance(max_radius);
+
+        self.descendants().filter(move |w| w.distance_key(origin) <= distance_key)
     }
 
     /// Find the descendant with center point nearest of `origin` within the `max_radius`.
@@ -1732,6 +1756,21 @@ impl<'a> WidgetInfo<'a> {
     pub fn nearest(self, origin: PxPoint, max_radius: Px) -> Option<WidgetInfo<'a>> {
         let range = self.descendants_range();
         self.tree().nearest_filtered(origin, max_radius, move |w| range.contains(w))
+    }
+    fn nearest_linear(self, origin: PxPoint, max_radius: Px) -> Option<WidgetInfo<'a>> {
+        let dist = if max_radius != Px::MAX {
+            DistanceKey::from_distance(max_radius + Px(1))
+        } else {
+            DistanceKey::NONE_MAX
+        };
+
+        let mut r = None;
+        for d in self.descendants() {
+            if d.distance_key(origin) < dist {
+                r = Some(d)
+            }
+        }
+        r
     }
 
     /// Find the descendant with center point nearest of `origin` within the `max_radius` and approved by the `filter` closure.
