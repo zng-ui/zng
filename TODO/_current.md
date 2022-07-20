@@ -1,5 +1,15 @@
 * Review implementing context_var using https://crates.io/crates/scoped_tls
 
+# Hit Test
+
+* Test everything.
+* Merge.
+* Track what widgets are close to becoming visible due to scrolling.
+
+# Quad-Tree
+
+* Avoid quad-tree for small amount of items.
+    - Implement linear search of inner-bounds for less then 8 or 16?
 * Rethink spatial partitioning, the quad-tree is a bad fit for the problem:
    - Most widgets are fully contained by the parent bounds.
    - Most panel widgets can naturally calculate a fixed grid that perfectly fits its content, for all items that are not transformed.
@@ -9,19 +19,13 @@
    - The sparse spatial hash map is much faster to update then the quad-tree, the downside is that it is a grid not a tree, so a large widget can
      be inserted many times, but if we restrict it to only widgets that are transformed out of the expected bounds, those tend to be smaller in number and size.
 
-
-* Do hit-test in info, having to use IPC to hit-test is pretty bad and now we already have the quad-tree.
-   - Review webrender hit-test, it looks like a linear tree walk?, they have 3 clip types, rectangle, rounded rectangle and polygon,
-     all supporting transforms, code looks simple to adapt, maybe hardest part is tracking clip chains.
-  - Refactor `rendered` to have an index of render, so we can z-sort inner-bounds.
-    - Impossible?, widgets can render under and over descendants.
-    - Z-index needs to be by clip shape?
-
-* Track what widgets are "definitely fully clipped".
-* Track what widgets are close to becoming visible due to scrolling.
+# Other
 
 * Icon example, holding ALT+Down for a bit and releasing causes the focus scroll to only go to one row above the focused item.
 * Arrow key scroll in the panorama image is not as smooth as mouse move scroll.
 
 * Integrate frame reuse with frame update, see `Optimizations.md`.
+* Use something like the `FastTransform` from webrender internals in our own transforms.
+* Avoid property binding when value is not animating, webrender invalidates cache if is bound, see `prepare_interned_prim_for_render`.
 * Finish state API, see `State.md`.
+* Don't generate scrollbars when they are not a part of `mode`.

@@ -17,7 +17,8 @@ use crate::{
     event::EventUpdateArgs,
     handler::WidgetHandler,
     impl_from_and_into_var,
-    render::FrameId,
+    render::{FrameId, FrameValue},
+    ui_list::ZIndex,
     units::*,
     var::{Var, VarValue, VarsRead, WithVarsRead},
     window::WindowId,
@@ -37,6 +38,9 @@ pub mod iter;
 pub use iter::TreeFilter;
 
 mod spatial;
+pub(crate) use spatial::HitTestClips;
+
+pub use self::spatial::RelativeHitZ;
 
 /// Bundle of widget info data from the current widget.
 #[derive(Clone, Default)]
@@ -75,7 +79,7 @@ pub struct WidgetInfoTreeStats {
     /// Count of moved or resized widgets in the last `bounds_updated_frame`.
     pub bounds_updated: u32,
 
-    /// Last windwo frame that changed visibility of widgets.
+    /// Last window frame that changed visibility of widgets.
     pub visibility_updated_frame: FrameId,
 }
 impl WidgetInfoTreeStats {
@@ -133,6 +137,7 @@ struct WidgetInfoTreeInner {
     build_meta: Rc<OwnedStateMap>,
     stats: RefCell<WidgetInfoTreeStats>,
     stats_update: RefCell<WidgetInfoTreeStatsUpdate>,
+    scale_factor: Cell<Factor>,
 }
 impl PartialEq for WidgetInfoTree {
     fn eq(&self, other: &Self) -> bool {
@@ -143,7 +148,7 @@ impl Eq for WidgetInfoTree {}
 impl WidgetInfoTree {
     /// Blank window that contains only the root widget taking no space.
     pub fn blank(window_id: WindowId, root_id: WidgetId) -> Self {
-        WidgetInfoBuilder::new(window_id, root_id, WidgetBoundsInfo::new(), WidgetBorderInfo::new(), None)
+        WidgetInfoBuilder::new(window_id, root_id, WidgetBoundsInfo::new(), WidgetBorderInfo::new(), 1.fct(), None)
             .finalize()
             .0
     }
@@ -151,6 +156,11 @@ impl WidgetInfoTree {
     /// Statistics abound the info tree.
     pub fn stats(&self) -> WidgetInfoTreeStats {
         self.0.stats.borrow().clone()
+    }
+
+    /// Scale factor of the last rendered frame.
+    pub fn scale_factor(&self) -> Factor {
+        self.0.scale_factor.get()
     }
 
     /// Custom metadata associated with the tree during info build.
@@ -247,6 +257,30 @@ impl WidgetInfoTree {
     /// Spatial iterator over all widgets with inner bounds that contain the `point`. Widgets are yielded once or none times.
     pub fn contains_point(&self, point: PxPoint) -> impl Iterator<Item = WidgetInfo> + '_ {
         self.point_query(point).filter(move |w| w.inner_bounds().contains(point))
+    }
+
+    /// Gets all widgets hit by a `point`, sorted by z-index of the hit, front to back.
+    pub fn hit_test(&self, point: PxPoint) -> HitTestInfo {
+        let _span = tracing::trace_span!("hit_test").entered();
+
+        let mut hits: Vec<_> = self
+            .quad_query_dedup(move |q| q.contains(point))
+            .filter_map(|w| {
+                w.hit_test_z(point).map(|z| HitInfo {
+                    widget_id: w.widget_id(),
+                    z_index: z,
+                })
+            })
+            .collect();
+
+        hits.sort_by(|a, b| b.z_index.cmp(&a.z_index));
+
+        HitTestInfo {
+            window_id: self.0.window_id,
+            frame_id: self.0.stats.borrow().last_frame,
+            point,
+            hits,
+        }
     }
 
     /// Spatial iterator over all widgets with inner bounds that fully envelops the `rect`. Widgets are yielded once or none times.
@@ -582,17 +616,19 @@ impl WidgetInfoTree {
         quad_tree
     }
 
-    pub(crate) fn after_render(&self, frame_id: FrameId) {
+    pub(crate) fn after_render(&self, frame_id: FrameId, scale_factor: Factor) {
         let mut stats = self.0.stats.borrow_mut();
         stats.update(frame_id, self.0.stats_update.borrow_mut().take());
 
         if stats.bounds_updated_frame == frame_id {
             *self.0.inner_bounds_tree.borrow_mut() = None;
         }
+
+        self.0.scale_factor.set(scale_factor);
     }
 
     pub(crate) fn after_render_update(&self, frame_id: FrameId) {
-        self.after_render(frame_id);
+        self.after_render(frame_id, self.0.scale_factor.get());
     }
 }
 impl fmt::Debug for WidgetInfoTree {
@@ -637,10 +673,13 @@ struct WidgetBoundsData {
 
     outer_transform: Cell<RenderTransform>,
     inner_transform: Cell<RenderTransform>,
-    rendered: Cell<bool>,
+    rendered: Cell<Option<(ZIndex, ZIndex)>>,
 
     outer_bounds: Cell<PxRect>,
     inner_bounds: Cell<PxRect>,
+
+    hit_clips: RefCell<HitTestClips>,
+    hit_index: Cell<u32>,
 }
 
 /// Shared reference to layout size and offsets of a widget and rendered transforms and bounds.
@@ -662,6 +701,7 @@ impl WidgetBoundsInfo {
         outer: Option<PxRect>,
         outer_transform: Option<RenderTransform>,
         inner_transform: Option<RenderTransform>,
+        rendered: Option<ZIndex>,
     ) -> Self {
         let r = Self::default();
         r.set_inner_offset(inner.origin.to_vector());
@@ -679,7 +719,7 @@ impl WidgetBoundsInfo {
             r.init_inner_transform(transform);
         }
 
-        r.init_rendered(true);
+        r.init_rendered(rendered);
 
         r
     }
@@ -760,21 +800,25 @@ impl WidgetBoundsInfo {
         self.0.inner_transform.get()
     }
 
-    /// Get if the widget or descendant widgets rendered in the latest window frame.
-    pub fn rendered(&self) -> bool {
+    /// Get the z-index of the widget in the latest window frame if it was rendered.
+    ///
+    /// Note that widgets can render in the back and front of each descendant, these indexes are the *back-most* index, the moment
+    /// the [`FrameBuilder::push_widget`] was called for the widget and the *front-most* index, the moment the `push_widget` finishes.
+    ///
+    /// [`FrameBuilder::push_widget`]: crate::render::FrameBuilder::push_widget
+    pub fn rendered(&self) -> Option<(ZIndex, ZIndex)> {
         self.0.rendered.get()
     }
 
-    /// Set if the widget or child widgets rendered.
-    pub(super) fn set_rendered(&self, rendered: bool, info: &WidgetInfoTree) {
-        if self.0.rendered.get() != rendered {
-            self.0.rendered.set(rendered);
+    pub(super) fn set_rendered(&self, rendered: Option<(ZIndex, ZIndex)>, info: &WidgetInfoTree) {
+        if self.0.rendered.get().is_some() != rendered.is_some() {
             info.visibility_changed();
         }
+        self.0.rendered.set(rendered);
     }
     #[cfg(test)]
-    fn init_rendered(&self, rendered: bool) {
-        self.0.rendered.set(rendered);
+    fn init_rendered(&self, rendered: Option<ZIndex>) {
+        self.0.rendered.set(rendered.map(|i| (i, i)));
     }
 
     pub(super) fn set_outer_transform(&self, transform: RenderTransform, info: &WidgetInfoTree) {
@@ -864,6 +908,35 @@ impl WidgetBoundsInfo {
     /// [`metrics`]: Self::metrics
     pub fn metrics_used(&self) -> LayoutMask {
         self.0.metrics_used.get()
+    }
+
+    /// Gets the relative hit-test Z for `window_point` against the hit-test shapes rendered for the widget.
+    pub fn hit_test_z(&self, window_point: PxPoint) -> RelativeHitZ {
+        let hit_clips = self.0.hit_clips.borrow();
+        if hit_clips.is_hit_testable() {
+            hit_clips.hit_test_z(&self.0.inner_transform.get(), window_point)
+        } else {
+            RelativeHitZ::NoHit
+        }
+    }
+
+    /// Index of this widget in the parent hit-test items.
+    fn hit_test_index(&self) -> usize {
+        self.0.hit_index.get() as usize
+    }
+
+    /// Returns `true` if a hit-test clip that affects the `child` removes the `window_point` hit on the child.
+    pub fn hit_test_clip_child(&self, child: WidgetInfo, window_point: PxPoint) -> bool {
+        let hit_clips = self.0.hit_clips.borrow();
+        if hit_clips.is_hit_testable() {
+            hit_clips.clip_child(child.bounds_info().hit_test_index(), &self.0.inner_transform.get(), window_point)
+        } else {
+            false
+        }
+    }
+
+    pub(crate) fn update_hit_test_transform(&self, value: FrameValue<RenderTransform>) {
+        self.0.hit_clips.borrow_mut().update_transform(value);
     }
 
     pub(crate) fn measure_metrics(&self) -> Option<LayoutMetricsSnapshot> {
@@ -965,6 +1038,14 @@ impl WidgetBoundsInfo {
     pub(crate) fn set_measure_metrics(&self, metrics: Option<LayoutMetricsSnapshot>, used: LayoutMask) {
         self.0.measure_metrics.set(metrics);
         self.0.measure_metrics_used.set(used);
+    }
+
+    pub(crate) fn set_hit_clips(&self, clips: HitTestClips) {
+        *self.0.hit_clips.borrow_mut() = clips;
+    }
+
+    pub(crate) fn set_hit_index(&self, index: usize) {
+        self.0.hit_index.set(index as u32);
     }
 }
 
@@ -1195,12 +1276,15 @@ impl<'a> WidgetInfo<'a> {
         }
     }
 
-    /// Returns `true` if the widget or the widget's descendants rendered in the last frame.
+    /// Get the z-index of the widget in the latest window frame if it was rendered.
+    ///
+    /// Note that widgets can render in the back and front of each descendant, these indexes are the *back-most* index, the moment
+    /// the widget starts rendering and the *front-most* index at the moment the widget and all contents finishes rendering.
     ///
     /// This value is updated every [`render`] without causing a tree rebuild.
     ///
     /// [`render`]: crate::UiNode::render
-    pub fn rendered(self) -> bool {
+    pub fn rendered(self) -> Option<(ZIndex, ZIndex)> {
         self.info().bounds_info.rendered()
     }
 
@@ -1215,7 +1299,7 @@ impl<'a> WidgetInfo<'a> {
     /// [`Collapsed`]: Visibility::Collapsed
     /// [`Hidden`]: Visibility::Hidden
     pub fn visibility(self) -> Visibility {
-        if self.rendered() {
+        if self.rendered().is_some() {
             Visibility::Visible
         } else if self.info().bounds_info.outer_size() == PxSize::zero() {
             Visibility::Collapsed
@@ -1573,6 +1657,41 @@ impl<'a> WidgetInfo<'a> {
     pub fn contains_point(self, point: PxPoint) -> impl Iterator<Item = WidgetInfo<'a>> + 'a {
         let range = self.descendants_range();
         self.tree().contains_point(point).filter(move |w| range.contains(*w))
+    }
+
+    /// Gets Z-index a hit-test of `point` against the hit-test shapes rendered for this widget and hit-test clips of parent widgets.
+    ///
+    /// A hit happens if the point is inside [`inner_bounds`] and at least one hit-test shape rendered for the widget contains the point.
+    ///
+    /// [`inner_bounds`]: WidgetInfo::inner_bounds
+    fn hit_test_z(self, point: PxPoint) -> Option<ZIndex> {
+        let bounds = &self.info().bounds_info;
+        if bounds.inner_bounds().contains(point) {
+            let z = match bounds.hit_test_z(point) {
+                RelativeHitZ::NoHit => None,
+                RelativeHitZ::Back => bounds.rendered().map(|(b, _)| b),
+                RelativeHitZ::Over(w) => self.tree.get(w).and_then(|w| w.info().bounds_info.rendered()).map(|(_, f)| f),
+                RelativeHitZ::Front => bounds.rendered().map(|(_, f)| f),
+            };
+
+            if z.is_some() {
+                let mut parent = self.parent();
+                let mut child = self;
+
+                while let Some(p) = parent {
+                    if p.info().bounds_info.hit_test_clip_child(child, point) {
+                        return None;
+                    }
+
+                    parent = p.parent();
+                    child = p;
+                }
+            }
+
+            z
+        } else {
+            None
+        }
     }
 
     /// Spatial iterator over all descendants with [`inner_bounds`] that fully envelops the `rect`.
@@ -2184,6 +2303,84 @@ impl<'a> Default for WidgetDescendantsRange<'a> {
         Self {
             _tree: PhantomData,
             range: 0..0,
+        }
+    }
+}
+
+/// A hit-test hit.
+#[derive(Clone, Debug)]
+pub struct HitInfo {
+    /// ID of widget hit.
+    pub widget_id: WidgetId,
+
+    /// Z-index of the hit.
+    pub z_index: ZIndex,
+}
+
+/// A hit-test result.
+#[derive(Clone, Debug)]
+pub struct HitTestInfo {
+    window_id: WindowId,
+    frame_id: FrameId,
+    point: PxPoint,
+    hits: Vec<HitInfo>,
+}
+impl HitTestInfo {
+    /// No hits info
+    pub fn no_hits(window_id: WindowId) -> Self {
+        HitTestInfo {
+            window_id,
+            frame_id: FrameId::INVALID,
+            point: PxPoint::new(Px(-1), Px(-1)),
+            hits: vec![],
+        }
+    }
+
+    /// The window that was hit-tested.
+    pub fn window_id(&self) -> WindowId {
+        self.window_id
+    }
+
+    /// The window frame that was hit-tested.
+    pub fn frame_id(&self) -> FrameId {
+        self.frame_id
+    }
+
+    /// The point in the window that was hit-tested.
+    pub fn point(&self) -> PxPoint {
+        self.point
+    }
+
+    /// All hits, from top-most.
+    pub fn hits(&self) -> &[HitInfo] {
+        &self.hits
+    }
+
+    /// The top hit.
+    pub fn target(&self) -> Option<&HitInfo> {
+        self.hits.first()
+    }
+
+    /// Finds the widget in the hit-test result if it was hit.
+    pub fn find(&self, widget_id: WidgetId) -> Option<&HitInfo> {
+        self.hits.iter().find(|h| h.widget_id == widget_id)
+    }
+
+    /// If the widget is in was hit.
+    pub fn contains(&self, widget_id: WidgetId) -> bool {
+        self.hits.iter().any(|h| h.widget_id == widget_id)
+    }
+
+    /// Gets a clone of `self` that only contains the hits that also happen in `other`.
+    pub fn intersection(&self, other: &HitTestInfo) -> HitTestInfo {
+        let mut hits: Vec<_> = self.hits.iter().filter(|h| other.contains(h.widget_id)).cloned().collect();
+        hits.shrink_to_fit();
+
+        HitTestInfo {
+            window_id: self.window_id,
+            frame_id: self.frame_id,
+            point: self.point,
+            hits,
         }
     }
 }

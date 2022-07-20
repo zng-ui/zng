@@ -1,4 +1,4 @@
-use std::{collections::VecDeque, fmt, mem, sync::Arc};
+use std::{collections::VecDeque, fmt, mem};
 
 use glutin::{
     event_loop::EventLoopWindowTarget,
@@ -8,8 +8,8 @@ use glutin::{
 use tracing::span::EnteredSpan;
 use webrender::{
     api::{
-        ApiHitTester, ColorF, DocumentId, DynamicProperties, FontInstanceKey, FontInstanceOptions, FontInstancePlatformOptions, FontKey,
-        FontVariation, HitTestResult, HitTesterRequest, IdNamespace, ImageKey, PipelineId,
+        ColorF, DocumentId, DynamicProperties, FontInstanceKey, FontInstanceOptions, FontInstancePlatformOptions, FontKey, FontVariation,
+        IdNamespace, ImageKey, PipelineId,
     },
     RenderApi, Renderer, RendererOptions, Transaction, UploadMethod, VertexUsageHint,
 };
@@ -27,34 +27,6 @@ use crate::{
     util::{CursorToWinit, DipToWinit, WinitToDip, WinitToPx},
     AppEvent, AppEventSender, FrameReadyMsg, WrNotifier,
 };
-
-enum HitTester {
-    Ready(Arc<dyn ApiHitTester>),
-    Request(HitTesterRequest),
-    Busy,
-}
-impl HitTester {
-    pub fn new(api: &RenderApi, document_id: DocumentId) -> Self {
-        HitTester::Request(api.request_hit_tester(document_id))
-    }
-
-    pub fn hit_test(&mut self, point: PxPoint) -> HitTestResult {
-        match mem::replace(self, HitTester::Busy) {
-            HitTester::Ready(tester) => {
-                let result = tester.hit_test(point.to_wr_world());
-                *self = HitTester::Ready(tester);
-                result
-            }
-            HitTester::Request(request) => {
-                let tester = request.resolve();
-                let result = tester.hit_test(point.to_wr_world());
-                *self = HitTester::Ready(tester);
-                result
-            }
-            HitTester::Busy => panic!("hit-test must be synchronous"),
-        }
-    }
-}
 
 /// A headed window.
 pub(crate) struct Window {
@@ -99,7 +71,6 @@ pub(crate) struct Window {
     cursor_pos: DipPoint,
     cursor_device: DeviceId,
     cursor_over: bool,
-    hit_tester: HitTester,
 
     focused: Option<bool>,
 
@@ -278,8 +249,6 @@ impl Window {
 
         let pipeline_id = webrender::api::PipelineId(gen, id);
 
-        let hit_tester = HitTester::new(&api, document_id);
-
         let mut win = Self {
             id,
             image_use: ImageUseMap::default(),
@@ -310,7 +279,6 @@ impl Window {
             cursor_device: 0,
             cursor_over: false,
             focused: None,
-            hit_tester,
             render_mode,
         };
 
@@ -1106,17 +1074,9 @@ impl Window {
             None
         };
 
-        let cursor_hits = if self.cursor_over {
-            let pos = self.cursor_pos.to_px(scale_factor);
-            (pos, self.hit_tester.hit_test(pos))
-        } else {
-            (PxPoint::new(Px(-1), Px(-1)), HitTestResult::default())
-        };
-
         FrameReadyResult {
             frame_id,
             image,
-            cursor_hits,
             first_frame,
         }
     }
@@ -1200,15 +1160,6 @@ impl Window {
         self.window.scale_factor() as f32
     }
 
-    /// Does a hit-test on the current frame.
-    ///
-    /// Returns all hits from front-to-back.
-    pub fn hit_test(&mut self, point: DipPoint) -> (FrameId, PxPoint, HitTestResult) {
-        let _p = tracing::trace_span!("hit_test").entered();
-        let point = point.to_px(self.scale_factor());
-        (self.rendered_frame_id, point, self.hit_tester.hit_test(point))
-    }
-
     /// Window actual render mode.
     pub fn render_mode(&self) -> RenderMode {
         self.render_mode
@@ -1233,6 +1184,5 @@ impl Drop for Window {
 pub(crate) struct FrameReadyResult {
     pub frame_id: FrameId,
     pub image: Option<ImageLoadedData>,
-    pub cursor_hits: (PxPoint, HitTestResult),
     pub first_frame: bool,
 }

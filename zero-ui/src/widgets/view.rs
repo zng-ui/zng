@@ -87,7 +87,7 @@ impl<U: UiNode> View<U> {
 ///                     text! {
 ///                         color = rgb(0, 128, 0);
 ///                         font_size = 18;
-///                         text = "Congratulations!!";
+///                         text = "Congratulations!";
 ///                     }
 ///                     .boxed(),
 ///                 )

@@ -30,7 +30,7 @@ use crate::{
     mouse::{ButtonState, MouseButton, MouseScrollDelta, MultiClickConfig, TouchPhase},
     render::FrameId,
     text::FontAntiAliasing,
-    units::{DipPoint, DipSize, Factor, PxPoint, PxRect},
+    units::{DipPoint, DipSize, Factor, PxRect},
     window::{EventCause, MonitorId, WindowId, WindowTheme},
 };
 
@@ -102,9 +102,6 @@ event_args! {
 
         /// The frame pixels if it was requested when the frame request was sent to the view process.
         pub frame_image: Option<ViewImage>,
-
-        /// Hit-test at the cursor position.
-        pub cursor_hits: (PxPoint, crate::render::webrender_api::HitTestResult),
 
         ..
 
@@ -302,9 +299,6 @@ event_args! {
 
         /// Position of the cursor over the window, (0, 0) is the top-left.
         pub position: DipPoint,
-
-        /// Hit-test results for `position`.
-        pub hits: (FrameId, PxPoint, crate::render::webrender_api::HitTestResult),
 
         ..
 

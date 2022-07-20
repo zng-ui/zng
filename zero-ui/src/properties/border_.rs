@@ -7,7 +7,7 @@ use crate::core::border::{border_node, ContextBorders};
 /// Widget border.
 ///
 /// Defines a widget border, it coordinates with any other border in the widget, meaning this property can be safely set
-/// more the nonce for a single widget, it also works with the [`corner_radius`] property drawing round corners if configured.
+/// more than once for a single widget, it also works with the [`corner_radius`] property drawing round corners if configured.
 ///
 /// [`corner_radius`]: fn@corner_radius
 #[property(border, default(0, BorderStyle::Hidden))]

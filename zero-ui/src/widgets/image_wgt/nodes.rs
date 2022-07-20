@@ -498,7 +498,7 @@ pub fn image_presenter() -> impl UiNode {
             if img.is_loaded() && !self.img_size.is_empty() && !self.render_clip.is_empty() {
                 if self.render_offset != PxVector::zero() {
                     let transform = RenderTransform::translation_px(self.render_offset);
-                    frame.push_reference_frame(self.spatial_id, FrameBinding::Value(transform), true, |frame| {
+                    frame.push_reference_frame(self.spatial_id, FrameBinding::Value(transform), true, false, |frame| {
                         frame.push_image(self.render_clip, self.render_img_size, img, *ImageRenderingVar::get(ctx.vars))
                     });
                 } else {

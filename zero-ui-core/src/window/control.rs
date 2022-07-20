@@ -1180,6 +1180,7 @@ impl ContentCtrl {
                 self.root_id,
                 self.root_info.bounds.clone(),
                 self.root_info.border.clone(),
+                self.vars.0.scale_factor.copy(ctx),
                 self.used_info_builder.take(),
             );
 
@@ -1420,6 +1421,7 @@ impl ContentCtrl {
                 let mut update = FrameUpdate::new(
                     self.frame_id,
                     self.root_id,
+                    self.root_info.bounds.clone(),
                     renderer.as_ref(),
                     self.clear_color,
                     self.used_frame_update.take(),

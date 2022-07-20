@@ -131,13 +131,13 @@ pub mod implicit_base {
                 }
                 fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
                     let transform = RenderTransform::translation_px(ctx.widget_info.bounds.child_offset());
-                    frame.push_reference_frame(self.spatial_id, self.translation_key.bind(transform), true, |frame| {
+                    frame.push_reference_frame(self.spatial_id, self.translation_key.bind(transform), true, false, |frame| {
                         self.panel.render(ctx, frame)
                     });
                 }
                 fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
                     let transform = RenderTransform::translation_px(ctx.widget_info.bounds.child_offset());
-                    update.with_transform(self.translation_key.update(transform), |update| {
+                    update.with_transform(self.translation_key.update(transform), false, |update| {
                         self.panel.render_update(ctx, update);
                     });
                 }
@@ -185,7 +185,7 @@ pub mod implicit_base {
                 fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
                     if let Some((id, key)) = &self.id {
                         let transform = RenderTransform::translation_px(ctx.widget_info.bounds.child_offset());
-                        frame.push_reference_frame(*id, key.bind(transform), true, |frame| self.child.render(ctx, frame));
+                        frame.push_reference_frame(*id, key.bind(transform), true, false, |frame| self.child.render(ctx, frame));
                     } else {
                         self.child.render(ctx, frame);
                     }
@@ -194,7 +194,7 @@ pub mod implicit_base {
                 fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
                     if let Some((_, key)) = &self.id {
                         let transform = RenderTransform::translation_px(ctx.widget_info.bounds.child_offset());
-                        update.with_transform(key.update(transform), |update| self.child.render_update(ctx, update));
+                        update.with_transform(key.update(transform), false, |update| self.child.render_update(ctx, update));
                     } else {
                         self.child.render_update(ctx, update);
                     }
@@ -264,10 +264,10 @@ pub mod implicit_base {
                         match HitTestMode::get(ctx.vars) {
                             HitTestMode::RoundedBounds => {
                                 let rect = PxRect::from_size(self.hits_clip.0);
-                                frame.push_clip_rounded_rect(rect, self.hits_clip.1, false, |f| f.push_hit_test_rect(rect));
+                                frame.hit_test().push_rounded_rect(rect, self.hits_clip.1);
                             }
                             HitTestMode::Bounds => {
-                                frame.push_hit_test_rect(PxRect::from_size(self.hits_clip.0));
+                                frame.hit_test().push_rect(PxRect::from_size(self.hits_clip.0));
                             }
                             _ => {}
                         }
@@ -1011,6 +1011,12 @@ pub fn hit_test_mode(child: impl UiNode, mode: impl IntoVar<HitTestMode>) -> imp
                 HitTestMode::Visual => frame.with_auto_hit_test(true, |frame| self.child.render(ctx, frame)),
                 _ => frame.with_auto_hit_test(false, |frame| self.child.render(ctx, frame)),
             }
+        }
+
+        fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
+            update.with_auto_hit_test(matches!(HitTestMode::get(ctx.vars), HitTestMode::Visual), |update| {
+                self.child.render_update(ctx, update)
+            });
         }
     }
 

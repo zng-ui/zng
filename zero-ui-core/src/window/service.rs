@@ -5,12 +5,12 @@ use linear_map::LinearMap;
 
 use super::commands::WindowCommands;
 use super::*;
-use crate::app::view_process::{ViewProcess, ViewProcessInitedEvent, ViewProcessOffline};
+use crate::app::view_process::{ViewProcess, ViewProcessInitedEvent};
 use crate::app::ExitRequestedEvent;
 use crate::context::OwnedStateMap;
 use crate::event::EventUpdateArgs;
 use crate::image::{Image, ImageVar};
-use crate::render::{FrameHitInfo, RenderMode};
+use crate::render::RenderMode;
 use crate::service::Service;
 use crate::var::*;
 use crate::widget_info::{WidgetInfoTree, WidgetSubscriptions};
@@ -331,17 +331,6 @@ impl Windows {
     pub fn vars(&self, window_id: impl Into<WindowId>) -> Result<&WindowVars, WindowNotFound> {
         let window_id = window_id.into();
         self.windows_info.get(&window_id).map(|w| &w.vars).ok_or(WindowNotFound(window_id))
-    }
-
-    /// Hit-test the latest window frame.
-    ///
-    /// Returns [`WindowNotFound`] if the `window_id` is not one of the open windows or is only an open request.
-    pub fn hit_test(&self, window_id: impl Into<WindowId>, point: DipPoint) -> Result<FrameHitInfo, WindowNotFound> {
-        let window_id = window_id.into();
-        self.windows_info
-            .get(&window_id)
-            .map(|w| w.hit_test(point))
-            .ok_or(WindowNotFound(window_id))
     }
 
     /// Gets if the window is focused in the OS.
@@ -713,21 +702,6 @@ impl AppWindowInfo {
             subscriptions: WidgetSubscriptions::new(),
             is_focused: false,
         }
-    }
-
-    fn hit_test(&self, point: DipPoint) -> FrameHitInfo {
-        let _scope = tracing::trace_span!("hit_test", window = %self.id.sequential(), ?point).entered();
-
-        if let Some(r) = &self.renderer {
-            match r.hit_test(point) {
-                Ok((frame_id, px_pt, hit_test)) => {
-                    return FrameHitInfo::new(self.id, frame_id, px_pt, &hit_test);
-                }
-                Err(ViewProcessOffline) => tracing::debug!("respawned calling `hit_test`, will return `no_hits`"),
-            }
-        }
-
-        FrameHitInfo::no_hits(self.id)
     }
 }
 struct OpenWindowRequest {

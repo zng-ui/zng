@@ -162,17 +162,12 @@ impl DisplayListBuilder {
         self.list.push(DisplayItem::PopStackingContext);
     }
 
-    /// Push a hit-test area.
-    pub fn push_hit_test_rect(&mut self, rect: PxRect, tag: wr::ItemTag) {
-        self.list.push(DisplayItem::HitTestRect { rect, tag })
-    }
-
     /// Push a rectangular clip that will affect all pushed items until a paired call to [`pop_clip`].
     ///
     /// [`pop_clip`]: Self::pop_clip
-    pub fn push_clip_rect(&mut self, clip_rect: PxRect) {
+    pub fn push_clip_rect(&mut self, clip_rect: PxRect, clip_out: bool) {
         self.clip_len += 1;
-        self.list.push(DisplayItem::PushClipRect { clip_rect });
+        self.list.push(DisplayItem::PushClipRect { clip_rect, clip_out });
     }
 
     /// Push a rectangular clip with rounded corners that will affect all pushed items until a paired call to [`pop_clip`].
@@ -216,16 +211,6 @@ impl DisplayListBuilder {
             widths,
             sides: [top, right, bottom, left],
             radius,
-        })
-    }
-
-    /// Push a composite hit-test for a border.
-    pub fn push_hit_test_border(&mut self, bounds: PxRect, widths: PxSideOffsets, radius: PxCornerRadius, tag: wr::ItemTag) {
-        self.list.push(DisplayItem::HitTestBorder {
-            bounds,
-            widths,
-            radius,
-            tag,
         })
     }
 
@@ -342,6 +327,16 @@ impl DisplayListBuilder {
         })
     }
 
+    /// Number of display items.
+    pub fn len(&self) -> usize {
+        self.list.len()
+    }
+
+    /// Returns `true` if the list has no display items.
+    pub fn is_empty(&self) -> bool {
+        self.list.is_empty()
+    }
+
     /// Returns the display list an capacity suggestion for the next frame.
     pub fn finalize(self) -> (DisplayList, usize) {
         let cap = self.list.len();
@@ -372,6 +367,7 @@ pub struct ReuseStart {
 /// Represents a display list reuse range.
 ///
 /// See [`DisplayListBuilder::push_reuse_range`] for more details.
+#[derive(Debug)]
 pub struct ReuseRange {
     pipeline_id: PipelineId,
     frame_id: FrameId,
@@ -382,6 +378,11 @@ impl ReuseRange {
     /// Pipeline where the items can be reused.
     pub fn pipeline_id(&self) -> PipelineId {
         self.pipeline_id
+    }
+
+    /// Frame that owns the reused items selected by this range.
+    pub fn frame_id(&self) -> FrameId {
+        self.frame_id
     }
 
     /// If the reuse range did not capture any display item.
@@ -469,7 +470,7 @@ impl DisplayListCache {
                 item.to_webrender(wr_list, sc, self);
             }
         } else {
-            panic!("did not find reuse frame {frame_id:?}");
+            tracing::error!("did not find reuse frame {frame_id:?}");
         }
     }
 
@@ -511,13 +512,9 @@ enum DisplayItem {
     },
     PopStackingContext,
 
-    HitTestRect {
-        rect: PxRect,
-        tag: wr::ItemTag,
-    },
-
     PushClipRect {
         clip_rect: PxRect,
+        clip_out: bool,
     },
     PushClipRoundedRect {
         clip_rect: PxRect,
@@ -531,13 +528,6 @@ enum DisplayItem {
         widths: PxSideOffsets,
         sides: [wr::BorderSide; 4],
         radius: PxCornerRadius,
-    },
-
-    HitTestBorder {
-        bounds: PxRect,
-        widths: PxSideOffsets,
-        radius: PxCornerRadius,
-        tag: wr::ItemTag,
     },
 
     Text {
@@ -640,19 +630,16 @@ impl DisplayItem {
             ),
             DisplayItem::PopStackingContext => wr_list.pop_stacking_context(),
 
-            DisplayItem::HitTestRect { rect, tag } => {
-                wr_list.push_hit_test(
-                    &wr::CommonItemProperties {
-                        clip_rect: rect.to_wr(),
-                        clip_id: sc.clip_id(),
-                        spatial_id: sc.spatial_id(),
-                        flags: wr::PrimitiveFlags::empty(),
-                    },
-                    *tag,
-                );
-            }
-            DisplayItem::PushClipRect { clip_rect } => {
-                let clip_id = wr_list.define_clip_rect(&sc.info(), clip_rect.to_wr());
+            DisplayItem::PushClipRect { clip_rect, clip_out } => {
+                let clip_id = if *clip_out {
+                    wr_list.define_clip_rounded_rect(
+                        &sc.info(),
+                        wr::ComplexClipRegion::new(clip_rect.to_wr(), PxCornerRadius::zero().to_wr(), wr::ClipMode::ClipOut),
+                    )
+                } else {
+                    wr_list.define_clip_rect(&sc.info(), clip_rect.to_wr())
+                };
+
                 sc.clip.push(clip_id);
             }
             DisplayItem::PushClipRoundedRect {
@@ -733,67 +720,6 @@ impl DisplayItem {
                         radius: radius.to_wr(),
                         do_aa: true,
                     }),
-                );
-            }
-
-            DisplayItem::HitTestBorder {
-                bounds,
-                widths,
-                radius,
-                tag,
-            } => {
-                let parent_space_and_clip = sc.info();
-
-                let mut inner_bounds = *bounds;
-                inner_bounds.origin.x += widths.left;
-                inner_bounds.origin.y += widths.top;
-                inner_bounds.size.width -= widths.horizontal();
-                inner_bounds.size.height -= widths.vertical();
-
-                let outer_clip;
-                let inner_clip;
-
-                if *radius == PxCornerRadius::zero() {
-                    outer_clip = wr_list.define_clip_rect(&parent_space_and_clip, bounds.to_wr());
-                    inner_clip = wr_list.define_clip_rounded_rect(
-                        &parent_space_and_clip,
-                        wr::ComplexClipRegion {
-                            rect: inner_bounds.to_wr(),
-                            radii: wr::BorderRadius::zero(),
-                            mode: wr::ClipMode::ClipOut,
-                        },
-                    );
-                } else {
-                    outer_clip = wr_list.define_clip_rounded_rect(
-                        &parent_space_and_clip,
-                        wr::ComplexClipRegion {
-                            rect: bounds.to_wr(),
-                            radii: radius.to_wr(),
-                            mode: wr::ClipMode::Clip,
-                        },
-                    );
-
-                    let inner_radius = radius.deflate(*widths);
-
-                    inner_clip = wr_list.define_clip_rounded_rect(
-                        &parent_space_and_clip,
-                        wr::ComplexClipRegion {
-                            rect: inner_bounds.to_wr(),
-                            radii: inner_radius.to_wr(),
-                            mode: wr::ClipMode::ClipOut,
-                        },
-                    );
-                }
-
-                let clip_chain_id = wr_list.define_clip_chain(None, vec![outer_clip, inner_clip]);
-                wr_list.push_hit_test(
-                    &wr::CommonItemProperties {
-                        clip_rect: bounds.to_wr(),
-                        clip_id: wr::ClipId::ClipChain(clip_chain_id),
-                        spatial_id: sc.spatial_id(),
-                        flags: wr::PrimitiveFlags::empty(),
-                    },
-                    *tag,
                 );
             }
 

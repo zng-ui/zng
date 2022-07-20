@@ -14,6 +14,8 @@ pub struct WidgetInfoBuilder {
     lookup: IdMap<WidgetId, tree::NodeId>,
     interactivity_filters: InteractivityFilters,
 
+    scale_factor: Factor,
+
     build_meta: OwnedStateMap,
 
     build_start: Instant,
@@ -26,6 +28,7 @@ impl WidgetInfoBuilder {
         root_id: WidgetId,
         root_bounds_info: WidgetBoundsInfo,
         root_border_info: WidgetBorderInfo,
+        scale_factor: Factor,
         used_data: Option<UsedWidgetInfoBuilder>,
     ) -> Self {
         let used_data = used_data.unwrap_or_else(UsedWidgetInfoBuilder::fallback);
@@ -54,6 +57,7 @@ impl WidgetInfoBuilder {
             lookup,
             meta: OwnedStateMap::new(),
             widget_id: root_id,
+            scale_factor,
             build_meta: OwnedStateMap::new(),
             build_start: Instant::now(),
             pushed_widgets: 1, // root is always new.
@@ -221,6 +225,7 @@ impl WidgetInfoBuilder {
             interactivity_filters: self.interactivity_filters,
             inner_bounds_tree: RefCell::new(Some(Rc::new(spatial::QuadTree::new()))),
             stats_update: Default::default(),
+            scale_factor: Cell::new(self.scale_factor),
             build_meta: Rc::new(self.build_meta),
         }));
 

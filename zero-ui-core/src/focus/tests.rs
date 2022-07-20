@@ -1,4 +1,4 @@
-use crate::{units::*, widget_info::*, window::WindowId};
+use crate::{ui_list::ZIndex, units::*, widget_info::*, window::WindowId};
 
 use super::*;
 
@@ -16,7 +16,13 @@ impl WidgetInfoBuilderExt for WidgetInfoBuilder {
     {
         self.push_widget(
             WidgetId::named(name),
-            WidgetBoundsInfo::new_test(rect, None, None, Some(RenderTransform::translation_px(rect.origin.to_vector()))),
+            WidgetBoundsInfo::new_test(
+                rect,
+                None,
+                None,
+                Some(RenderTransform::translation_px(rect.origin.to_vector())),
+                Some(ZIndex::BACK),
+            ),
             WidgetBorderInfo::new(),
             |builder| {
                 let mut meta = FocusInfoBuilder::get(builder);
@@ -90,8 +96,15 @@ fn scope(tab_nav: TabNav, directional_nav: DirectionalNav, horizontal: bool) -> 
     let mut builder = WidgetInfoBuilder::new(
         WindowId::named("w"),
         WidgetId::named("w"),
-        WidgetBoundsInfo::new_test(PxRect::from_size(PxSize::new(Px(800), Px(600))), None, None, None),
+        WidgetBoundsInfo::new_test(
+            PxRect::from_size(PxSize::new(Px(800), Px(600))),
+            None,
+            None,
+            None,
+            Some(ZIndex::BACK),
+        ),
         WidgetBorderInfo::new(),
+        1.fct(),
         None,
     );
     FocusInfoBuilder::get(&mut builder)

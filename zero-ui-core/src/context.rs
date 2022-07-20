@@ -476,9 +476,10 @@ impl TestWidgetContext {
         &mut self,
         root_bounds_info: WidgetBoundsInfo,
         root_border_info: crate::widget_info::WidgetBorderInfo,
+        scale_factor: Factor,
         action: impl FnOnce(&mut InfoContext, &mut WidgetInfoBuilder) -> R,
     ) -> (WidgetInfoTree, R) {
-        let mut builder = WidgetInfoBuilder::new(self.window_id, self.root_id, root_bounds_info, root_border_info, None);
+        let mut builder = WidgetInfoBuilder::new(self.window_id, self.root_id, root_bounds_info, root_border_info, scale_factor, None);
         let r = self.info_context(|ctx| action(ctx, &mut builder));
         let (t, _) = builder.finalize();
         (t, r)
