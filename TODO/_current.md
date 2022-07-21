@@ -1,6 +1,6 @@
 # Hit Test
 
-* Icon `wrap!` panel inner-bounds is not found by spatial query.
+* Scroll does not hit-test directly.
 
 * Track what widgets are close to becoming visible due to scrolling.
 
