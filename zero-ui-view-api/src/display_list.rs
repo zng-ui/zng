@@ -114,7 +114,7 @@ impl DisplayListBuilder {
     pub fn push_reference_frame(
         &mut self,
         key: wr::SpatialTreeItemKey,
-        transform: wr::PropertyBinding<wr::units::LayoutTransform>,
+        transform: wr::PropertyBinding<PxTransform>,
         is_2d_scale_translation: bool,
     ) {
         self.space_len += 1;
@@ -499,7 +499,7 @@ enum DisplayItem {
     },
     PushReferenceFrame {
         key: wr::SpatialTreeItemKey,
-        transform: wr::PropertyBinding<wr::units::LayoutTransform>,
+        transform: wr::PropertyBinding<PxTransform>,
         is_2d_scale_translation: bool,
     },
     PopReferenceFrame,
@@ -595,7 +595,7 @@ impl DisplayItem {
                     wr::units::LayoutPoint::zero(),
                     sc.spatial_id(),
                     wr::TransformStyle::Flat,
-                    *transform,
+                    transform_binding_to_wr(*transform),
                     wr::ReferenceFrameKind::Transform {
                         is_2d_scale_translation: *is_2d_scale_translation,
                         should_snap: false,

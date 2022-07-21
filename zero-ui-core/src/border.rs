@@ -759,20 +759,14 @@ pub fn fill_node(content: impl UiNode) -> impl UiNode {
 
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
             // TODO avoid this if content is a widget.
-            frame.push_reference_frame(
-                self.offset_id,
-                FrameBinding::Value(RenderTransform::translation_px(self.offset)),
-                true,
-                false,
-                |frame| {
-                    let bounds = PxRect::from_size(self.clip_bounds);
-                    if self.clip_corners != PxCornerRadius::zero() {
-                        frame.push_clip_rounded_rect(bounds, self.clip_corners, false, false, |f| self.content.render(ctx, f))
-                    } else {
-                        frame.push_clip_rect(bounds, false, false, |f| self.content.render(ctx, f))
-                    }
-                },
-            );
+            frame.push_reference_frame(self.offset_id, FrameBinding::Value(self.offset.into()), true, false, |frame| {
+                let bounds = PxRect::from_size(self.clip_bounds);
+                if self.clip_corners != PxCornerRadius::zero() {
+                    frame.push_clip_rounded_rect(bounds, self.clip_corners, false, false, |f| self.content.render(ctx, f))
+                } else {
+                    frame.push_clip_rect(bounds, false, false, |f| self.content.render(ctx, f))
+                }
+            });
         }
     }
 

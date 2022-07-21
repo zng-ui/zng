@@ -1443,7 +1443,9 @@ impl ContentCtrl {
                 if let Some(renderer) = renderer {
                     let _: Ignore = renderer.render_update(FrameUpdateRequest {
                         id: self.frame_id,
-                        updates: update.bindings,
+                        transforms: update.transforms,
+                        floats: update.floats,
+                        colors: update.colors,
                         clear_color: update.clear_color,
                         capture_image,
                         wait_id,

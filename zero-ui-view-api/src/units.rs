@@ -487,33 +487,39 @@ impl num_traits::Num for Dip {
 }
 
 /// A point in device pixels.
-pub type PxPoint = euclid::Point2D<Px, ()>;
+pub type PxPoint = euclid::Point2D<Px, Px>;
 
 /// A point in device independent pixels.
-pub type DipPoint = euclid::Point2D<Dip, ()>;
+pub type DipPoint = euclid::Point2D<Dip, Dip>;
 
 /// A vector in device pixels.
-pub type PxVector = euclid::Vector2D<Px, ()>;
+pub type PxVector = euclid::Vector2D<Px, Px>;
 
 /// A vector in device independent pixels.
-pub type DipVector = euclid::Vector2D<Dip, ()>;
+pub type DipVector = euclid::Vector2D<Dip, Dip>;
 
 /// A size in device pixels.
-pub type PxSize = euclid::Size2D<Px, ()>;
+pub type PxSize = euclid::Size2D<Px, Px>;
 
 /// A size in device pixels.
-pub type DipSize = euclid::Size2D<Dip, ()>;
+pub type DipSize = euclid::Size2D<Dip, Dip>;
 
 /// A rectangle in device pixels.
-pub type PxRect = euclid::Rect<Px, ()>;
+pub type PxRect = euclid::Rect<Px, Px>;
+
+/// A rectangle box in device pixels.
+pub type PxBox = euclid::Box2D<Px, Px>;
 
 /// A rectangle in device independent pixels.
-pub type DipRect = euclid::Rect<Dip, ()>;
+pub type DipRect = euclid::Rect<Dip, Dip>;
+
+/// A rectangle box in device independent pixels.
+pub type DipBox = euclid::Box2D<Dip, Dip>;
 
 /// Side-offsets in device pixels.
-pub type PxSideOffsets = euclid::SideOffsets2D<Px, ()>;
+pub type PxSideOffsets = euclid::SideOffsets2D<Px, Px>;
 /// Side-offsets in device independent pixels.
-pub type DipSideOffsets = euclid::SideOffsets2D<Dip, ()>;
+pub type DipSideOffsets = euclid::SideOffsets2D<Dip, Dip>;
 
 /// Ellipses that define the radius of the four corners of a 2D box.
 #[derive(Serialize, Deserialize)]
@@ -672,10 +678,10 @@ impl<T: PartialEq, U> PartialEq for CornerRadius2D<T, U> {
 impl<T: Eq, U> Eq for CornerRadius2D<T, U> {}
 
 /// Corner-radius in device pixels.
-pub type PxCornerRadius = CornerRadius2D<Px, ()>;
+pub type PxCornerRadius = CornerRadius2D<Px, Px>;
 
 /// Corner-radius in device independent pixels.
-pub type DipCornerRadius = CornerRadius2D<Dip, ()>;
+pub type DipCornerRadius = CornerRadius2D<Dip, Dip>;
 
 /// Conversion from [`Px`] to [`Dip`] units.
 pub trait PxToDip {
@@ -930,6 +936,40 @@ impl DipToPx for DipRect {
     }
 }
 
+impl PxToDip for PxBox {
+    type AsDip = DipBox;
+
+    fn to_dip(self, scale_factor: f32) -> Self::AsDip {
+        DipBox::new(self.min.to_dip(scale_factor), self.max.to_dip(scale_factor))
+    }
+}
+impl PxToWr for PxBox {
+    type AsDevice = wr::DeviceBox2D;
+
+    type AsLayout = wr::LayoutRect;
+
+    type AsWorld = euclid::Box2D<f32, wr::WorldPixel>;
+
+    fn to_wr_device(self) -> Self::AsDevice {
+        wr::DeviceBox2D::new(self.min.to_wr_device().cast(), self.max.to_wr_device().cast())
+    }
+
+    fn to_wr_world(self) -> Self::AsWorld {
+        euclid::Box2D::new(self.min.to_wr_world(), self.max.to_wr_world())
+    }
+
+    fn to_wr(self) -> Self::AsLayout {
+        wr::LayoutRect::new(self.min.to_wr(), self.max.to_wr())
+    }
+}
+impl DipToPx for DipBox {
+    type AsPx = PxBox;
+
+    fn to_px(self, scale_factor: f32) -> Self::AsPx {
+        PxBox::new(self.min.to_px(scale_factor), self.max.to_px(scale_factor))
+    }
+}
+
 impl DipToPx for DipSideOffsets {
     type AsPx = PxSideOffsets;
 
@@ -1017,6 +1057,237 @@ impl PxCornerRadius {
             bottom_left: self.bottom_left.to_wr(),
             bottom_right: self.bottom_right.to_wr(),
         }
+    }
+}
+
+/// A transform in device pixels.
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub enum PxTransform {
+    /// Simple offset.
+    Offset(euclid::Vector2D<f32, Px>),
+    /// Full transform.
+    Transform(euclid::Transform3D<f32, Px, Px>),
+}
+impl Default for PxTransform {
+    /// Identity.
+    fn default() -> Self {
+        Self::identity()
+    }
+}
+impl PxTransform {
+    /// Identity transform.
+    pub fn identity() -> Self {
+        PxTransform::Offset(euclid::vec2(0.0, 0.0))
+    }
+
+    /// New simple 2D translation.
+    pub fn translation(x: f32, y: f32) -> Self {
+        PxTransform::Offset(euclid::vec2(x, y))
+    }
+
+    /// New 2D rotation.
+    pub fn rotation(x: f32, y: f32, theta: euclid::Angle<f32>) -> Self {
+        PxTransform::Transform(euclid::Transform3D::rotation(x, y, -1.0, theta))
+    }
+
+    /// New 3D rotation.
+    pub fn rotation_3d(x: f32, y: f32, z: f32, theta: euclid::Angle<f32>) -> Self {
+        PxTransform::Transform(euclid::Transform3D::rotation(x, y, z, theta))
+    }
+
+    /// New 2D skew.
+    pub fn skew(alpha: euclid::Angle<f32>, beta: euclid::Angle<f32>) -> Self {
+        PxTransform::Transform(euclid::Transform3D::skew(alpha, beta))
+    }
+
+    /// New 2D scale.
+    pub fn scale(x: f32, y: f32) -> Self {
+        PxTransform::Transform(euclid::Transform3D::scale(x, y, 1.0))
+    }
+
+    /// New 3D scale.
+    pub fn scale_3d(x: f32, y: f32, z: f32) -> Self {
+        PxTransform::Transform(euclid::Transform3D::scale(x, y, z))
+    }
+
+    /// To full transform.
+    pub fn to_transform(self) -> euclid::Transform3D<f32, Px, Px> {
+        match self {
+            PxTransform::Offset(v) => euclid::Transform3D::translation(v.x, v.y, 0.0),
+            PxTransform::Transform(t) => t,
+        }
+    }
+
+    /// Returns `true` is is the identity transform.
+    pub fn is_identity(&self) -> bool {
+        match self {
+            PxTransform::Offset(offset) => offset == &euclid::Vector2D::zero(),
+            PxTransform::Transform(transform) => transform == &euclid::Transform3D::identity(),
+        }
+    }
+
+    /// Returns the multiplication of the two matrices such that mat's transformation
+    /// applies after self's transformation.
+    #[must_use]
+    pub fn then(&self, other: &PxTransform) -> PxTransform {
+        match (self, other) {
+            (PxTransform::Offset(a), PxTransform::Offset(b)) => PxTransform::Offset(*a + *b),
+            (PxTransform::Offset(a), PxTransform::Transform(b)) => {
+                PxTransform::Transform(euclid::Transform3D::translation(a.x, a.y, 0.0).then(b))
+            }
+            (PxTransform::Transform(a), PxTransform::Offset(b)) => PxTransform::Transform(a.then_translate(b.to_3d())),
+            (PxTransform::Transform(a), PxTransform::Transform(b)) => PxTransform::Transform(a.then(b)),
+        }
+    }
+
+    /// Returns a transform with a translation applied after self's transformation.
+    #[must_use]
+    pub fn then_translate(&self, offset: euclid::Vector2D<f32, Px>) -> PxTransform {
+        match self {
+            PxTransform::Offset(a) => PxTransform::Offset(*a + offset),
+            PxTransform::Transform(a) => PxTransform::Transform(a.then_translate(offset.to_3d())),
+        }
+    }
+
+    /// Returns a transform with a translation applied before self's transformation.
+    #[must_use]
+    pub fn pre_translate(&self, offset: euclid::Vector2D<f32, Px>) -> PxTransform {
+        match self {
+            PxTransform::Offset(b) => PxTransform::Offset(offset + *b),
+            PxTransform::Transform(b) => PxTransform::Transform(euclid::Transform3D::translation(offset.x, offset.y, 0.0).then(b)),
+        }
+    }
+
+    /// Returns whether it is possible to compute the inverse transform.
+    pub fn is_invertible(&self) -> bool {
+        match self {
+            PxTransform::Offset(_) => true,
+            PxTransform::Transform(t) => t.is_invertible(),
+        }
+    }
+
+    /// Returns the inverse transform if possible.
+    pub fn inverse(&self) -> Option<PxTransform> {
+        match self {
+            PxTransform::Offset(v) => Some(PxTransform::Offset(-*v)),
+            PxTransform::Transform(t) => t.inverse().map(PxTransform::Transform),
+        }
+    }
+
+    /// Returns `true` if this transform can be represented with a `Transform2D`.
+    pub fn is_2d(&self) -> bool {
+        match self {
+            PxTransform::Offset(_) => true,
+            PxTransform::Transform(t) => t.is_2d(),
+        }
+    }
+
+    /// Transform the pixel point.
+    pub fn transform_point(&self, point: PxPoint) -> Option<PxPoint> {
+        self.transform_point_f32(point.cast()).map(|p| p.cast())
+    }
+
+    /// Transform the pixel point.
+    pub fn transform_point_f32(&self, point: euclid::Point2D<f32, Px>) -> Option<euclid::Point2D<f32, Px>> {
+        match self {
+            PxTransform::Offset(v) => Some(point + *v),
+            PxTransform::Transform(t) => t.transform_point2d(point),
+        }
+    }
+
+    /// Transform the pixel vector.
+    pub fn transform_vector(&self, vector: PxVector) -> PxVector {
+        self.transform_vector_f32(vector.cast()).cast()
+    }
+
+    /// Transform the pixel vector.
+    pub fn transform_vector_f32(&self, vector: euclid::Vector2D<f32, Px>) -> euclid::Vector2D<f32, Px> {
+        match self {
+            PxTransform::Offset(v) => vector + *v,
+            PxTransform::Transform(t) => t.transform_vector2d(vector),
+        }
+    }
+
+    /// Returns a 2D box that encompasses the result of transforming the given box by this
+    /// transform, if the transform makes sense for it, or `None` otherwise.
+    pub fn outer_transformed(&self, px_box: PxBox) -> Option<PxBox> {
+        self.outer_transformed_f32(px_box.cast()).map(|p| p.cast())
+    }
+
+    /// Returns a 2D box that encompasses the result of transforming the given box by this
+    /// transform, if the transform makes sense for it, or `None` otherwise.
+    pub fn outer_transformed_f32(&self, px_box: euclid::Box2D<f32, Px>) -> Option<euclid::Box2D<f32, Px>> {
+        match self {
+            PxTransform::Offset(v) => {
+                let v = *v;
+                let mut r = px_box;
+                r.min += v;
+                r.max += v;
+                Some(r)
+            }
+            PxTransform::Transform(t) => t.outer_transformed_box2d(&px_box),
+        }
+    }
+}
+impl PxToWr for PxTransform {
+    type AsDevice = euclid::Transform3D<f32, wr::DevicePixel, wr::DevicePixel>;
+
+    type AsLayout = wr::LayoutTransform;
+
+    type AsWorld = euclid::Transform3D<f32, wr::WorldPixel, wr::WorldPixel>;
+
+    fn to_wr_device(self) -> Self::AsDevice {
+        self.to_transform().with_source().with_destination()
+    }
+
+    fn to_wr_world(self) -> Self::AsWorld {
+        self.to_transform().with_source().with_destination()
+    }
+
+    fn to_wr(self) -> Self::AsLayout {
+        self.to_transform().with_source().with_destination()
+    }
+}
+impl From<euclid::Vector2D<f32, Px>> for PxTransform {
+    fn from(offset: euclid::Vector2D<f32, Px>) -> Self {
+        PxTransform::Offset(offset)
+    }
+}
+impl From<PxVector> for PxTransform {
+    fn from(offset: PxVector) -> Self {
+        PxTransform::Offset(offset.cast())
+    }
+}
+impl From<euclid::Transform3D<f32, Px, Px>> for PxTransform {
+    fn from(transform: euclid::Transform3D<f32, Px, Px>) -> Self {
+        PxTransform::Transform(transform)
+    }
+}
+
+/// Convert a webrender frame binding value from `PxTransform` to `LayoutTransform`.
+pub fn transform_binding_to_wr(
+    binding: webrender_api::PropertyBinding<PxTransform>,
+) -> webrender_api::PropertyBinding<wr::LayoutTransform> {
+    match binding {
+        webrender_api::PropertyBinding::Value(v) => webrender_api::PropertyBinding::Value(v.to_wr()),
+        webrender_api::PropertyBinding::Binding(key, v) => webrender_api::PropertyBinding::Binding(
+            webrender_api::PropertyBindingKey {
+                id: key.id,
+                _phantom: std::marker::PhantomData,
+            },
+            v.to_wr(),
+        ),
+    }
+}
+
+/// Convert a webrender frame binding update value from `PxTransform` to `LayoutTransform`.
+pub fn transform_value_to_wr(value: webrender_api::PropertyValue<PxTransform>) -> webrender_api::PropertyValue<wr::LayoutTransform> {
+    webrender_api::PropertyValue {
+        key: webrender_api::PropertyBindingKey {
+            id: value.key.id,
+            _phantom: std::marker::PhantomData,
+        },
+        value: value.value.to_wr(),
     }
 }
 

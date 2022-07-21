@@ -1310,11 +1310,16 @@ pub struct FrameUpdateRequest {
     /// ID of the new frame.
     pub id: FrameId,
 
-    /// Binding updates.
-    pub updates: DynamicProperties,
+    /// Bound transforms.
+    pub transforms: Vec<PropertyValue<PxTransform>>,
+    /// Bound floats.
+    pub floats: Vec<PropertyValue<f32>>,
+    /// Bound colors.
+    pub colors: Vec<PropertyValue<ColorF>>,
 
     /// New clear color.
     pub clear_color: Option<ColorF>,
+
     /// Automatically create an image from this rendered frame.
     ///
     /// The [`Event::FrameImageReady`] is send with the image.
@@ -1328,11 +1333,9 @@ impl FrameUpdateRequest {
     pub fn empty(id: FrameId) -> FrameUpdateRequest {
         FrameUpdateRequest {
             id,
-            updates: DynamicProperties {
-                transforms: vec![],
-                floats: vec![],
-                colors: vec![],
-            },
+            transforms: vec![],
+            floats: vec![],
+            colors: vec![],
             clear_color: None,
             capture_image: false,
             wait_id: None,
@@ -1340,21 +1343,21 @@ impl FrameUpdateRequest {
     }
 
     /// If some property updates are requested.
-    pub fn has_properties(&self) -> bool {
-        !(self.updates.transforms.is_empty() && self.updates.floats.is_empty() && self.updates.colors.is_empty())
+    pub fn has_bounds(&self) -> bool {
+        !(self.transforms.is_empty() && self.floats.is_empty() && self.colors.is_empty())
     }
 
     /// If this request does not do anything, apart from notifying
     /// a new frame if send to the renderer.
     pub fn is_empty(&self) -> bool {
-        !self.has_properties() && self.clear_color.is_none() && !self.capture_image
+        !self.has_bounds() && self.clear_color.is_none() && !self.capture_image
     }
 
     /// Compute webrender analysis info.
     pub fn render_reasons(&self) -> RenderReasons {
         let mut reasons = RenderReasons::empty();
 
-        if self.has_properties() {
+        if self.has_bounds() {
             reasons |= RenderReasons::ANIMATED_PROPERTY;
         }
 
@@ -1373,7 +1376,9 @@ impl fmt::Debug for FrameUpdateRequest {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("FrameUpdateRequest")
             .field("id", &self.id)
-            .field("updates", &self.updates)
+            .field("transforms", &self.transforms)
+            .field("floats", &self.floats)
+            .field("colors", &self.colors)
             .field("clear_color", &self.clear_color)
             .field("capture_image", &self.capture_image)
             .finish()

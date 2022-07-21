@@ -393,7 +393,7 @@ pub struct TestWidgetContext {
     /// TODO testable timers.
     pub timers: Timers,
 
-    pub(crate) root_translation_key: crate::render::FrameBindingKey<RenderTransform>,
+    pub(crate) root_translation_key: crate::render::FrameBindingKey<PxTransform>,
     receiver: flume::Receiver<crate::app::AppEvent>,
     loop_timer: crate::app::LoopTimer,
 }

@@ -206,21 +206,21 @@ pub mod scroll {
                 self.children.item_render(0, ctx, frame);
 
                 if self.joiner.width > Px(0) {
-                    let transform = RenderTransform::translation_px(PxVector::new(self.viewport.width, Px(0)));
+                    let transform = PxTransform::from(PxVector::new(self.viewport.width, Px(0)));
                     frame.push_reference_frame_item(self.spatial_id, 1, FrameBinding::Value(transform), true, false, |frame| {
                         self.children.item_render(1, ctx, frame);
                     });
                 }
 
                 if self.joiner.height > Px(0) {
-                    let transform = RenderTransform::translation_px(PxVector::new(Px(0), self.viewport.height));
+                    let transform = PxTransform::from(PxVector::new(Px(0), self.viewport.height));
                     frame.push_reference_frame_item(self.spatial_id, 2, FrameBinding::Value(transform), true, false, |frame| {
                         self.children.item_render(2, ctx, frame);
                     });
                 }
 
                 if self.joiner.width > Px(0) && self.joiner.height > Px(0) {
-                    let transform = RenderTransform::translation_px(self.viewport.to_vector());
+                    let transform = PxTransform::from(self.viewport.to_vector());
                     frame.push_reference_frame_item(self.spatial_id, 3, FrameBinding::Value(transform), true, false, |frame| {
                         self.children.item_render(3, ctx, frame);
                     });
@@ -231,21 +231,21 @@ pub mod scroll {
                 self.children.item_render_update(0, ctx, update);
 
                 if self.joiner.width > Px(0) {
-                    let transform = RenderTransform::translation_px(PxVector::new(self.viewport.width, Px(0)));
+                    let transform = PxTransform::from(PxVector::new(self.viewport.width, Px(0)));
                     update.with_transform_value(&transform, |update| {
                         self.children.item_render_update(1, ctx, update);
                     });
                 }
 
                 if self.joiner.height > Px(0) {
-                    let transform = RenderTransform::translation_px(PxVector::new(Px(0), self.viewport.height));
+                    let transform = PxTransform::from(PxVector::new(Px(0), self.viewport.height));
                     update.with_transform_value(&transform, |update| {
                         self.children.item_render_update(2, ctx, update);
                     });
                 }
 
                 if self.joiner.width > Px(0) && self.joiner.height > Px(0) {
-                    let transform = RenderTransform::translation_px(self.viewport.to_vector());
+                    let transform = PxTransform::from(self.viewport.to_vector());
                     update.with_transform_value(&transform, |update| {
                         self.children.item_render_update(3, ctx, update);
                     });

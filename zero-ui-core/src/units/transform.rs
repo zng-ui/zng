@@ -1,67 +1,6 @@
-use zero_ui_view_api::webrender_api;
-
 use crate::context::LayoutMetrics;
 
-use super::{euclid, AngleRadian, AngleUnits, Factor, Length, Px, PxPoint, PxRect, PxToWr, PxVector, WrToPx};
-
-/// Computed [`Transform`].
-///
-/// See also [`webrender_api::units::LayoutTransform`] and [`RenderTransformExt`].
-pub type RenderTransform = webrender_api::units::LayoutTransform;
-
-/// Extension methods for [`RenderTransform`].
-pub trait RenderTransformExt {
-    /// New translation transform from a pixel vector.
-    fn translation_px(offset: PxVector) -> RenderTransform;
-
-    /// Returns a transform with a translation applied before `self`, the translation is defined from a pixel vector.
-    fn pre_translate_px(&self, offset: PxVector) -> RenderTransform;
-
-    ///  Returns a transform with a translation applied after `self`, the translation is defined from a pixel vector.
-    fn then_translate_px(&self, offset: PxVector) -> RenderTransform;
-
-    /// Returns the given [`PxPoint`] transformed by this transform, if the transform makes sense,
-    /// or `None` otherwise.
-    fn transform_px_point(&self, point: PxPoint) -> Option<PxPoint>;
-
-    /// Returns the given [`PxVector`] transformed by this transform.
-    fn transform_px_vector(&self, vector: PxVector) -> PxVector;
-
-    /// Returns a [`PxRect`] that encompasses the result of transforming the `rect` by this transform, if the transform makes sense,
-    /// or `None` otherwise.
-    fn outer_transformed_px(&self, rect: PxRect) -> Option<PxRect>;
-}
-impl RenderTransformExt for RenderTransform {
-    fn translation_px(offset: PxVector) -> RenderTransform {
-        RenderTransform::translation(offset.x.0 as f32, offset.y.0 as f32, 0.0)
-    }
-
-    fn pre_translate_px(&self, offset: PxVector) -> RenderTransform {
-        self.pre_translate(euclid::vec3(offset.x.0 as f32, offset.y.0 as f32, 0.0))
-    }
-
-    fn then_translate_px(&self, offset: PxVector) -> RenderTransform {
-        self.then_translate(euclid::vec3(offset.x.0 as f32, offset.y.0 as f32, 0.0))
-    }
-
-    fn transform_px_point(&self, point: PxPoint) -> Option<PxPoint> {
-        let point = euclid::point2(point.x.0 as f32, point.y.0 as f32);
-        let point = self.transform_point2d(point)?;
-        Some(PxPoint::new(Px(point.x as i32), Px(point.y as i32)))
-    }
-
-    fn transform_px_vector(&self, vector: PxVector) -> PxVector {
-        let vector = euclid::vec2(vector.x.0 as f32, vector.y.0 as f32);
-        let vector = self.transform_vector2d(vector);
-        PxVector::new(Px(vector.x as i32), Px(vector.y as i32))
-    }
-
-    fn outer_transformed_px(&self, rect: PxRect) -> Option<PxRect> {
-        let rect = rect.to_wr();
-        let bounds = self.outer_transformed_box2d(&rect)?;
-        Some(bounds.to_px())
-    }
-}
+use super::{AngleRadian, AngleUnits, Factor, Length, Px, PxToWr, PxTransform};
 
 /// A transform builder type.
 ///
@@ -87,7 +26,7 @@ pub struct Transform {
 }
 #[derive(Clone, Debug)]
 enum TransformPart {
-    Computed(RenderTransform),
+    Computed(PxTransform),
     Translate(Length, Length),
 }
 impl Transform {
@@ -124,7 +63,7 @@ impl Transform {
         self
     }
 
-    fn then_transform(&mut self, transform: RenderTransform) {
+    fn then_transform(&mut self, transform: PxTransform) {
         if let Some(TransformPart::Computed(last)) = self.parts.last_mut() {
             *last = last.then(&transform);
         } else {
@@ -134,7 +73,7 @@ impl Transform {
 
     /// Change `self` to apply a 2d rotation after its transformation.
     pub fn rotate<A: Into<AngleRadian>>(mut self, angle: A) -> Self {
-        self.then_transform(RenderTransform::rotation(0.0, 0.0, -1.0, angle.into().layout()));
+        self.then_transform(PxTransform::rotation(0.0, 0.0, angle.into().layout()));
         self
     }
 
@@ -155,7 +94,7 @@ impl Transform {
 
     /// Change `self` to apply a 2d skew after its transformation.
     pub fn skew<X: Into<AngleRadian>, Y: Into<AngleRadian>>(mut self, x: X, y: Y) -> Self {
-        self.then_transform(RenderTransform::skew(x.into().layout(), y.into().layout()));
+        self.then_transform(PxTransform::skew(x.into().layout(), y.into().layout()));
         self
     }
     /// Change `self` to apply a ***x*** skew after its transformation.
@@ -169,7 +108,7 @@ impl Transform {
 
     /// Change `self` to apply a 2d scale after its transformation.
     pub fn scale_xy<X: Into<Factor>, Y: Into<Factor>>(mut self, x: X, y: Y) -> Self {
-        self.then_transform(RenderTransform::scale(x.into().0, y.into().0, 1.0));
+        self.then_transform(PxTransform::scale(x.into().0, y.into().0));
         self
     }
     /// Change `self` to apply a ***x*** scale after its transformation.
@@ -186,29 +125,28 @@ impl Transform {
         self.scale_xy(s, s)
     }
 
-    /// Compute a [`RenderTransform`].
-    pub fn layout(&self, ctx: &LayoutMetrics) -> RenderTransform {
-        let mut r = RenderTransform::identity();
+    /// Compute a [`PxTransform`].
+    pub fn layout(&self, ctx: &LayoutMetrics) -> PxTransform {
+        let mut r = PxTransform::identity();
         for step in &self.parts {
             r = match step {
                 TransformPart::Computed(m) => r.then(m),
-                TransformPart::Translate(x, y) => r.then(&RenderTransform::translation(
+                TransformPart::Translate(x, y) => r.then(&PxTransform::translation(
                     x.layout(ctx.for_x(), |_| Px(0)).to_wr().get(),
                     y.layout(ctx.for_y(), |_| Px(0)).to_wr().get(),
-                    0.0,
                 )),
             };
         }
         r
     }
 
-    /// Compute a [`RenderTransform`] if it is not affected by the layout context.
-    pub fn try_render(&self) -> Option<RenderTransform> {
+    /// Compute a [`PxTransform`] if it is not affected by the layout context.
+    pub fn try_layout(&self) -> Option<PxTransform> {
         if self.needs_layout {
             return None;
         }
 
-        let mut r = RenderTransform::identity();
+        let mut r = PxTransform::identity();
         for step in &self.parts {
             r = match step {
                 TransformPart::Computed(m) => r.then(m),
@@ -218,7 +156,7 @@ impl Transform {
         Some(r)
     }
 
-    /// Returns `true` if this filter is affected by the layout context where it is evaluated.
+    /// Returns `true` if this transform is affected by the layout context where it is evaluated.
     pub fn needs_layout(&self) -> bool {
         self.needs_layout
     }

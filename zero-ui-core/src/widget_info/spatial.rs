@@ -44,8 +44,6 @@ struct PxSquare {
     length: Px,
 }
 
-type PxBox = euclid::Box2D<Px, ()>;
-
 pub(super) struct QuadTree {
     grid: Vec<QuadRoot>,
     bounds: PxBox,
@@ -344,15 +342,15 @@ impl HitTestClips {
         !self.items.is_empty()
     }
 
-    pub fn push_rect(&mut self, rect: euclid::Box2D<Px, ()>) {
+    pub fn push_rect(&mut self, rect: PxBox) {
         self.items.push(HitTestItem::Hit(HitTestPrimitive::Rect(rect)));
     }
 
-    pub fn push_clip_rect(&mut self, clip_rect: euclid::Box2D<Px, ()>, clip_out: bool) {
+    pub fn push_clip_rect(&mut self, clip_rect: PxBox, clip_out: bool) {
         self.items.push(HitTestItem::Clip(HitTestPrimitive::Rect(clip_rect), clip_out));
     }
 
-    pub fn push_rounded_rect(&mut self, rect: euclid::Box2D<Px, ()>, radii: PxCornerRadius) {
+    pub fn push_rounded_rect(&mut self, rect: PxBox, radii: PxCornerRadius) {
         if radii == PxCornerRadius::zero() {
             self.push_rect(rect);
         } else {
@@ -360,7 +358,7 @@ impl HitTestClips {
         }
     }
 
-    pub fn push_clip_rounded_rect(&mut self, clip_rect: euclid::Box2D<Px, ()>, radii: PxCornerRadius, clip_out: bool) {
+    pub fn push_clip_rounded_rect(&mut self, clip_rect: PxBox, radii: PxCornerRadius, clip_out: bool) {
         if radii == PxCornerRadius::zero() {
             self.push_clip_rect(clip_rect, clip_out);
         } else {
@@ -382,7 +380,7 @@ impl HitTestClips {
         self.items.push(HitTestItem::PopClip);
     }
 
-    pub fn push_transform(&mut self, transform: FrameBinding<RenderTransform>) {
+    pub fn push_transform(&mut self, transform: FrameBinding<PxTransform>) {
         self.items.push(HitTestItem::Transform(transform))
     }
 
@@ -401,7 +399,7 @@ impl HitTestClips {
     }
 
     /// Hit-test the `point` against the items, returns the relative Z of the hit.
-    pub fn hit_test_z(&self, inner_transform: &RenderTransform, window_point: PxPoint) -> RelativeHitZ {
+    pub fn hit_test_z(&self, inner_transform: &PxTransform, window_point: PxPoint) -> RelativeHitZ {
         let mut z = RelativeHitZ::NoHit;
         let mut child = None;
 
@@ -510,7 +508,7 @@ impl HitTestClips {
         z
     }
 
-    pub fn update_transform(&mut self, value: FrameValue<RenderTransform>) {
+    pub fn update_transform(&mut self, value: FrameValue<PxTransform>) {
         for item in &mut self.items {
             if let HitTestItem::Transform(FrameBinding::Binding(key, t)) = item {
                 if *key == value.key {
@@ -522,7 +520,7 @@ impl HitTestClips {
     }
 
     /// Returns `true` if a clip that affects the `child` clips out the `window_point`.
-    pub fn clip_child(&self, child: usize, inner_transform: &RenderTransform, window_point: PxPoint) -> bool {
+    pub fn clip_child(&self, child: usize, inner_transform: &PxTransform, window_point: PxPoint) -> bool {
         let mut transform_stack = vec![];
         let mut current_transform = inner_transform;
         let mut local_point = match inv_transform_point(current_transform, window_point) {
@@ -615,8 +613,8 @@ pub enum RelativeHitZ {
 
 #[derive(Debug)]
 enum HitTestPrimitive {
-    Rect(euclid::Box2D<Px, ()>),
-    RoundedRect(euclid::Box2D<Px, ()>, PxCornerRadius),
+    Rect(PxBox),
+    RoundedRect(PxBox, PxCornerRadius),
     Ellipse(PxPoint, PxSize),
 }
 impl HitTestPrimitive {
@@ -635,13 +633,13 @@ enum HitTestItem {
     Clip(HitTestPrimitive, bool),
     PopClip,
 
-    Transform(FrameBinding<RenderTransform>),
+    Transform(FrameBinding<PxTransform>),
     PopTransform,
 
     Child(WidgetId),
 }
 
-fn rounded_rect_contains(rect: &euclid::Box2D<Px, ()>, radii: &PxCornerRadius, point: PxPoint) -> bool {
+fn rounded_rect_contains(rect: &PxBox, radii: &PxCornerRadius, point: PxPoint) -> bool {
     if !rect.contains(point) {
         return false;
     }
@@ -689,6 +687,6 @@ fn ellipse_contains(radii: PxSize, center: PxPoint, point: PxPoint) -> bool {
     p <= 1.0
 }
 
-fn inv_transform_point(t: &RenderTransform, point: PxPoint) -> Option<PxPoint> {
-    t.inverse()?.transform_px_point(point)
+fn inv_transform_point(t: &PxTransform, point: PxPoint) -> Option<PxPoint> {
+    t.inverse()?.transform_point(point)
 }

@@ -19,7 +19,6 @@
 * Arrow key scroll in the panorama image is not as smooth as mouse move scroll.
 
 * Integrate frame reuse with frame update, see `Optimizations.md`.
-* Use something like the `FastTransform` from webrender internals in our own transforms.
 * Avoid property binding when value is not animating, webrender invalidates cache if is bound, see `prepare_interned_prim_for_render`.
 * Finish state API, see `State.md`.
 * Don't generate scrollbars when they are not a part of `mode`.

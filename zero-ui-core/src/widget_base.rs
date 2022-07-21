@@ -7,7 +7,7 @@ use crate::{
     event::EventUpdateArgs,
     impl_ui_node, property,
     render::{FrameBindingKey, FrameBuilder, FrameUpdate, ReuseRange, SpatialFrameId},
-    units::{PxCornerRadius, PxRect, PxSize, RenderTransform, RenderTransformExt},
+    units::{PxCornerRadius, PxRect, PxSize, PxTransform},
     var::*,
     widget_info::{
         Interactivity, LayoutPassId, UpdateMask, Visibility, WidgetBorderInfo, WidgetBoundsInfo, WidgetContextInfo, WidgetInfoBuilder,
@@ -116,7 +116,7 @@ pub mod implicit_base {
             struct ChildrenLayoutNode<P> {
                 panel: P,
                 spatial_id: SpatialFrameId,
-                translation_key: FrameBindingKey<RenderTransform>,
+                translation_key: FrameBindingKey<PxTransform>,
             }
             #[impl_ui_node(
                 delegate = &self.panel,
@@ -130,13 +130,13 @@ pub mod implicit_base {
                     wl.with_children(ctx, |ctx, wl| self.panel.layout(ctx, wl))
                 }
                 fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-                    let transform = RenderTransform::translation_px(ctx.widget_info.bounds.child_offset());
+                    let transform = PxTransform::from(ctx.widget_info.bounds.child_offset());
                     frame.push_reference_frame(self.spatial_id, self.translation_key.bind(transform), true, false, |frame| {
                         self.panel.render(ctx, frame)
                     });
                 }
                 fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
-                    let transform = RenderTransform::translation_px(ctx.widget_info.bounds.child_offset());
+                    let transform = PxTransform::from(ctx.widget_info.bounds.child_offset());
                     update.with_transform(self.translation_key.update(transform), false, |update| {
                         self.panel.render_update(ctx, update);
                     });
@@ -161,7 +161,7 @@ pub mod implicit_base {
         pub fn child_layout(child: impl UiNode) -> impl UiNode {
             struct ChildLayoutNode<C> {
                 child: C,
-                id: Option<(SpatialFrameId, FrameBindingKey<RenderTransform>)>,
+                id: Option<(SpatialFrameId, FrameBindingKey<PxTransform>)>,
             }
             #[impl_ui_node(child)]
             impl<C: UiNode> UiNode for ChildLayoutNode<C> {
@@ -184,7 +184,7 @@ pub mod implicit_base {
                 }
                 fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
                     if let Some((id, key)) = &self.id {
-                        let transform = RenderTransform::translation_px(ctx.widget_info.bounds.child_offset());
+                        let transform = PxTransform::from(ctx.widget_info.bounds.child_offset());
                         frame.push_reference_frame(*id, key.bind(transform), true, false, |frame| self.child.render(ctx, frame));
                     } else {
                         self.child.render(ctx, frame);
@@ -193,7 +193,7 @@ pub mod implicit_base {
 
                 fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
                     if let Some((_, key)) = &self.id {
-                        let transform = RenderTransform::translation_px(ctx.widget_info.bounds.child_offset());
+                        let transform = PxTransform::from(ctx.widget_info.bounds.child_offset());
                         update.with_transform(key.update(transform), false, |update| self.child.render_update(ctx, update));
                     } else {
                         self.child.render_update(ctx, update);
@@ -217,7 +217,7 @@ pub mod implicit_base {
         pub fn inner(child: impl UiNode) -> impl UiNode {
             struct InnerNode<C> {
                 child: C,
-                transform_key: FrameBindingKey<RenderTransform>,
+                transform_key: FrameBindingKey<PxTransform>,
                 hits_clip: (PxSize, PxCornerRadius),
             }
             #[impl_ui_node(child)]

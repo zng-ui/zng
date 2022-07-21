@@ -16,13 +16,7 @@ impl WidgetInfoBuilderExt for WidgetInfoBuilder {
     {
         self.push_widget(
             WidgetId::named(name),
-            WidgetBoundsInfo::new_test(
-                rect,
-                None,
-                None,
-                Some(RenderTransform::translation_px(rect.origin.to_vector())),
-                Some(ZIndex::BACK),
-            ),
+            WidgetBoundsInfo::new_test(rect, None, None, Some(rect.origin.to_vector().into()), Some(ZIndex::BACK)),
             WidgetBorderInfo::new(),
             |builder| {
                 let mut meta = FocusInfoBuilder::get(builder);

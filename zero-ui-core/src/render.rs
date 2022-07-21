@@ -129,7 +129,7 @@ macro_rules! expect_inner {
 
 struct WidgetData {
     has_transform: bool,
-    transform: RenderTransform,
+    transform: PxTransform,
     filter: RenderFilter,
 }
 
@@ -138,7 +138,7 @@ pub struct FrameBuilder {
     frame_id: FrameId,
     pipeline_id: PipelineId,
     widget_id: WidgetId,
-    transform: RenderTransform,
+    transform: PxTransform,
 
     default_font_aa: FontRenderMode,
 
@@ -203,7 +203,7 @@ impl FrameBuilder {
             frame_id,
             pipeline_id,
             widget_id: root_id,
-            transform: RenderTransform::identity(),
+            transform: PxTransform::identity(),
             default_font_aa: match default_font_aa {
                 FontAntiAliasing::Default | FontAntiAliasing::Subpixel => FontRenderMode::Subpixel,
                 FontAntiAliasing::Alpha => FontRenderMode::Alpha,
@@ -218,7 +218,7 @@ impl FrameBuilder {
             widget_data: Some(WidgetData {
                 filter: vec![],
                 has_transform: false,
-                transform: RenderTransform::identity(),
+                transform: PxTransform::identity(),
             }),
             widget_rendered: false,
             can_reuse: true,
@@ -291,7 +291,7 @@ impl FrameBuilder {
     }
 
     /// Current transform.
-    pub fn transform(&self) -> &RenderTransform {
+    pub fn transform(&self) -> &PxTransform {
         &self.transform
     }
 
@@ -367,7 +367,7 @@ impl FrameBuilder {
         let widget_z = self.render_index;
         self.render_index.0 += 1;
 
-        let mut outer_transform = RenderTransform::identity();
+        let mut outer_transform = PxTransform::identity();
         let mut undo_prev_outer_transform = None;
         if reuse.is_some() {
             // check if is possible to reuse.
@@ -375,7 +375,7 @@ impl FrameBuilder {
             if !self.can_reuse {
                 *reuse = None; // reuse is stale because the widget was previously not rendered, or is disabled by user.
             } else {
-                outer_transform = RenderTransform::translation_px(ctx.widget_info.bounds.outer_offset()).then(&self.transform);
+                outer_transform = PxTransform::from(ctx.widget_info.bounds.outer_offset()).then(&self.transform);
 
                 let prev_outer = ctx.widget_info.bounds.outer_transform();
                 if prev_outer != outer_transform {
@@ -403,7 +403,7 @@ impl FrameBuilder {
             frame.widget_data = Some(WidgetData {
                 filter: vec![],
                 has_transform: false,
-                transform: RenderTransform::identity(),
+                transform: PxTransform::identity(),
             });
             let parent_widget = mem::replace(&mut frame.widget_id, ctx.path.widget_id());
 
@@ -420,7 +420,7 @@ impl FrameBuilder {
 
             let transform_patch = undo_prev_outer_transform.and_then(|t| {
                 let t = t.then(&outer_transform);
-                if t != RenderTransform::identity() {
+                if t != PxTransform::identity() {
                     Some(t)
                 } else {
                     None
@@ -646,7 +646,7 @@ impl FrameBuilder {
     ///
     /// [`is_outer`]: Self::is_outer
     /// [`push_inner`]: Self::push_inner
-    pub fn push_inner_transform(&mut self, transform: &RenderTransform, render: impl FnOnce(&mut Self)) {
+    pub fn push_inner_transform(&mut self, transform: &PxTransform, render: impl FnOnce(&mut Self)) {
         if let Some(data) = &mut self.widget_data {
             let parent_has_transform = data.has_transform;
             let parent_transform = data.transform;
@@ -669,21 +669,21 @@ impl FrameBuilder {
     pub fn push_inner(
         &mut self,
         ctx: &mut RenderContext,
-        layout_translation_key: FrameBindingKey<RenderTransform>,
+        layout_translation_key: FrameBindingKey<PxTransform>,
         render: impl FnOnce(&mut RenderContext, &mut Self),
     ) {
         if let Some(mut data) = self.widget_data.take() {
             let parent_transform = self.transform;
             let parent_hit_clips = mem::take(&mut self.hit_clips);
 
-            let outer_transform = RenderTransform::translation_px(ctx.widget_info.bounds.outer_offset()).then(&parent_transform);
+            let outer_transform = PxTransform::from(ctx.widget_info.bounds.outer_offset()).then(&parent_transform);
             ctx.widget_info.bounds.set_outer_transform(outer_transform, ctx.info_tree);
 
             let translate = ctx.widget_info.bounds.inner_offset() + ctx.widget_info.bounds.outer_offset();
             let inner_transform = if data.has_transform {
-                data.transform.then_translate_px(translate)
+                data.transform.then_translate(translate.cast())
             } else {
-                RenderTransform::translation_px(translate)
+                PxTransform::from(translate)
             };
             self.transform = inner_transform.then(&parent_transform);
             ctx.widget_info.bounds.set_inner_transform(self.transform, ctx.info_tree);
@@ -827,7 +827,7 @@ impl FrameBuilder {
     pub fn push_reference_frame(
         &mut self,
         id: SpatialFrameId,
-        transform: FrameBinding<RenderTransform>,
+        transform: FrameBinding<PxTransform>,
         is_2d_scale_translation: bool,
         hit_test: bool,
         render: impl FnOnce(&mut Self),
@@ -840,7 +840,7 @@ impl FrameBuilder {
         &mut self,
         id: SpatialFrameId,
         item: usize,
-        transform: FrameBinding<RenderTransform>,
+        transform: FrameBinding<PxTransform>,
         is_2d_scale_translation: bool,
         hit_test: bool,
         render: impl FnOnce(&mut Self),
@@ -856,7 +856,7 @@ impl FrameBuilder {
     fn push_reference_frame_impl(
         &mut self,
         id: SpatialTreeItemKey,
-        transform: FrameBinding<RenderTransform>,
+        transform: FrameBinding<PxTransform>,
         is_2d_scale_translation: bool,
         mut hit_test: bool,
         render: impl FnOnce(&mut Self),
@@ -1323,7 +1323,7 @@ impl<'a> HitTestBuilder<'a> {
     }
 
     /// Pushes a transform that affects the `inner_hit_test`.
-    pub fn push_transform(&mut self, transform: RenderTransform, inner_hit_test: impl FnOnce(&mut Self)) {
+    pub fn push_transform(&mut self, transform: PxTransform, inner_hit_test: impl FnOnce(&mut Self)) {
         if !self.is_hit_testable {
             return;
         }
@@ -1412,14 +1412,18 @@ impl crate::border::LineStyle {
 /// Any [`FrameBindingKey`] used in the creation of the frame can be used for updating the frame.
 pub struct FrameUpdate {
     pipeline_id: PipelineId,
-    bindings: DynamicProperties,
+
+    transforms: Vec<PropertyValue<PxTransform>>,
+    floats: Vec<PropertyValue<f32>>,
+    colors: Vec<PropertyValue<RenderColor>>,
+
     current_clear_color: RenderColor,
     clear_color: Option<RenderColor>,
     frame_id: FrameId,
 
     widget_id: WidgetId,
-    transform: RenderTransform,
-    inner_transform: Option<RenderTransform>,
+    transform: PxTransform,
+    inner_transform: Option<PxTransform>,
     can_reuse_widget: bool,
     widget_bounds: WidgetBoundsInfo,
 
@@ -1465,17 +1469,15 @@ impl FrameUpdate {
             pipeline_id,
             widget_id: root_id,
             widget_bounds: root_bounds,
-            bindings: DynamicProperties {
-                transforms: Vec::with_capacity(hint.transforms_capacity),
-                floats: Vec::with_capacity(hint.floats_capacity),
-                colors: Vec::with_capacity(hint.colors_capacity),
-            },
+            transforms: Vec::with_capacity(hint.transforms_capacity),
+            floats: Vec::with_capacity(hint.floats_capacity),
+            colors: Vec::with_capacity(hint.colors_capacity),
             clear_color: None,
             frame_id,
             current_clear_color: clear_color,
 
-            transform: RenderTransform::identity(),
-            inner_transform: Some(RenderTransform::identity()),
+            transform: PxTransform::identity(),
+            inner_transform: Some(PxTransform::identity()),
             can_reuse_widget: true,
 
             auto_hit_test: false,
@@ -1498,7 +1500,7 @@ impl FrameUpdate {
     }
 
     /// Current transform.
-    pub fn transform(&self) -> &RenderTransform {
+    pub fn transform(&self) -> &PxTransform {
         &self.transform
     }
 
@@ -1528,8 +1530,8 @@ impl FrameUpdate {
     /// If `hit_test` is `true` the hit-test transform is also updated.
     ///
     /// [`with_transform`]: Self::with_transform
-    pub fn update_transform(&mut self, new_value: FrameValue<RenderTransform>, hit_test: bool) {
-        self.bindings.transforms.push(new_value);
+    pub fn update_transform(&mut self, new_value: FrameValue<PxTransform>, hit_test: bool) {
+        self.transforms.push(new_value);
 
         if hit_test || self.auto_hit_test {
             self.widget_bounds.update_hit_test_transform(new_value);
@@ -1544,7 +1546,7 @@ impl FrameUpdate {
     /// If `hit_test` is `true` the hit-test transform is also updated.
     ///
     /// [`transform`]: Self::transform
-    pub fn with_transform(&mut self, new_value: FrameValue<RenderTransform>, hit_test: bool, render_update: impl FnOnce(&mut Self)) {
+    pub fn with_transform(&mut self, new_value: FrameValue<PxTransform>, hit_test: bool, render_update: impl FnOnce(&mut Self)) {
         self.with_transform_value(&new_value.value, render_update);
         self.update_transform(new_value, hit_test);
     }
@@ -1554,7 +1556,7 @@ impl FrameUpdate {
     /// This is useful for cases where the inner transforms are affected by a `value` that is only rendered, never updated.
     ///
     /// [`transform`]: Self::transform
-    pub fn with_transform_value(&mut self, value: &RenderTransform, render_update: impl FnOnce(&mut Self)) {
+    pub fn with_transform_value(&mut self, value: &PxTransform, render_update: impl FnOnce(&mut Self)) {
         let parent_transform = self.transform;
         self.transform = value.then(&parent_transform);
 
@@ -1567,7 +1569,7 @@ impl FrameUpdate {
     /// This is only valid if [`is_outer`].
     ///
     /// [`is_outer`]: Self::is_outer
-    pub fn with_inner_transform(&mut self, transform: &RenderTransform, render_update: impl FnOnce(&mut Self)) {
+    pub fn with_inner_transform(&mut self, transform: &PxTransform, render_update: impl FnOnce(&mut Self)) {
         if let Some(inner_transform) = &mut self.inner_transform {
             let parent = *inner_transform;
             *inner_transform = inner_transform.then(transform);
@@ -1616,7 +1618,7 @@ impl FrameUpdate {
             );
         }
 
-        let outer_transform = RenderTransform::translation_px(ctx.widget_info.bounds.outer_offset()).then(&self.transform);
+        let outer_transform = PxTransform::from(ctx.widget_info.bounds.outer_offset()).then(&self.transform);
 
         let parent_can_reuse = self.can_reuse_widget;
         let parent_bounds = mem::replace(&mut self.widget_bounds, ctx.widget_info.bounds.clone());
@@ -1646,7 +1648,7 @@ impl FrameUpdate {
         }
 
         ctx.widget_info.bounds.set_outer_transform(outer_transform, ctx.info_tree);
-        self.inner_transform = Some(RenderTransform::identity());
+        self.inner_transform = Some(PxTransform::identity());
         let parent_id = self.widget_id;
         self.widget_id = ctx.path.widget_id();
 
@@ -1675,12 +1677,12 @@ impl FrameUpdate {
     pub fn update_inner(
         &mut self,
         ctx: &mut RenderContext,
-        layout_translation_key: FrameBindingKey<RenderTransform>,
+        layout_translation_key: FrameBindingKey<PxTransform>,
         render_update: impl FnOnce(&mut RenderContext, &mut Self),
     ) {
         if let Some(inner_transform) = self.inner_transform.take() {
             let translate = ctx.widget_info.bounds.inner_offset() + ctx.widget_info.bounds.outer_offset();
-            let inner_transform = inner_transform.then_translate_px(translate);
+            let inner_transform = inner_transform.then_translate(translate.cast());
             self.update_transform(layout_translation_key.update(inner_transform), false);
             let parent_transform = self.transform;
 
@@ -1697,12 +1699,12 @@ impl FrameUpdate {
 
     /// Update a float value.
     pub fn update_f32(&mut self, new_value: FrameValue<f32>) {
-        self.bindings.floats.push(new_value);
+        self.floats.push(new_value);
     }
 
     /// Update a color value.
     pub fn update_color(&mut self, new_value: FrameValue<RenderColor>) {
-        self.bindings.colors.push(new_value)
+        self.colors.push(new_value)
     }
 
     /// Finalize the update.
@@ -1717,14 +1719,16 @@ impl FrameUpdate {
 
         let used = UsedFrameUpdate {
             pipeline_id: self.pipeline_id,
-            transforms_capacity: self.bindings.transforms.len(),
-            floats_capacity: self.bindings.floats.len(),
-            colors_capacity: self.bindings.colors.len(),
+            transforms_capacity: self.transforms.len(),
+            floats_capacity: self.floats.len(),
+            colors_capacity: self.colors.len(),
         };
 
         let update = BuiltFrameUpdate {
-            bindings: self.bindings,
             clear_color: self.clear_color,
+            transforms: self.transforms,
+            floats: self.floats,
+            colors: self.colors,
         };
 
         (update, used)
@@ -1733,8 +1737,12 @@ impl FrameUpdate {
 
 /// Output of a [`FrameBuilder`].
 pub struct BuiltFrameUpdate {
-    /// Webrender frame properties updates.
-    pub bindings: DynamicProperties,
+    /// Bound transforms update.
+    pub transforms: Vec<PropertyValue<PxTransform>>,
+    /// Bound floats update.
+    pub floats: Vec<PropertyValue<f32>>,
+    /// Bound colors update.
+    pub colors: Vec<PropertyValue<RenderColor>>,
     /// New clear color.
     pub clear_color: Option<RenderColor>,
 }

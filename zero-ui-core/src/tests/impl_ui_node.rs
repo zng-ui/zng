@@ -264,9 +264,9 @@ pub fn default_no_child() {
     );
     wgt.test_render_update(&mut ctx, &mut update);
     let (update, _) = update.finalize(&ctx.info_tree);
-    assert!(!update.bindings.transforms.is_empty());
-    assert!(update.bindings.floats.is_empty());
-    assert!(update.bindings.colors.is_empty());
+    assert!(!update.transforms.is_empty());
+    assert!(update.floats.is_empty());
+    assert!(update.colors.is_empty());
     assert!(update.clear_color.is_none());
 }
 

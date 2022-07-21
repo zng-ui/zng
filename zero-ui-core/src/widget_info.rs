@@ -209,7 +209,7 @@ impl WidgetInfoTree {
     }
 
     /// Enveloping bounds of all inner bounds rendered in this tree, visitors outside these bounds never find any widget.
-    pub fn spatial_bounds(&self) -> euclid::Box2D<Px, ()> {
+    pub fn spatial_bounds(&self) -> PxBox {
         self.inner_bounds_tree().bounds()
     }
 
@@ -220,10 +220,7 @@ impl WidgetInfoTree {
     /// only nested quadrants can be included in that case.
     ///
     /// Note that the quad-tree is only build after the first render, so no widgets are yielded before that.
-    pub fn quad_query<'a>(
-        &'a self,
-        include_quad: impl FnMut(euclid::Box2D<Px, ()>) -> bool + 'a,
-    ) -> impl Iterator<Item = WidgetInfo<'a>> + 'a {
+    pub fn quad_query<'a>(&'a self, include_quad: impl FnMut(PxBox) -> bool + 'a) -> impl Iterator<Item = WidgetInfo<'a>> + 'a {
         self.inner_bounds_tree()
             .quad_query(include_quad)
             .map(move |n| WidgetInfo::new(self, n))
@@ -234,10 +231,7 @@ impl WidgetInfoTree {
     /// Note that point queries are naturally deduplicated, only area queries can find a widget more then once.
     ///
     /// [`quad_query`]: Self::quad_query
-    pub fn quad_query_dedup<'a>(
-        &'a self,
-        include_quad: impl FnMut(euclid::Box2D<Px, ()>) -> bool + 'a,
-    ) -> impl Iterator<Item = WidgetInfo<'a>> + 'a {
+    pub fn quad_query_dedup<'a>(&'a self, include_quad: impl FnMut(PxBox) -> bool + 'a) -> impl Iterator<Item = WidgetInfo<'a>> + 'a {
         self.inner_bounds_tree()
             .quad_query_dedup(include_quad)
             .map(move |n| WidgetInfo::new(self, n))
@@ -404,7 +398,7 @@ impl WidgetInfoTree {
         nearest
     }
 
-    fn centered_no_dedup(&self, area: euclid::Box2D<Px, ()>) -> impl Iterator<Item = WidgetInfo> + '_ {
+    fn centered_no_dedup(&self, area: PxBox) -> impl Iterator<Item = WidgetInfo> + '_ {
         self.quad_query(move |q| q.intersects(&area))
             .filter(move |w| area.contains(w.center()))
     }
@@ -448,9 +442,9 @@ impl WidgetInfoTree {
     pub(crate) fn oriented_search_bounds(
         origin: PxPoint,
         max_distance: Px,
-        spatial_bounds: euclid::Box2D<Px, ()>,
+        spatial_bounds: PxBox,
         orientation: Orientation2D,
-    ) -> impl Iterator<Item = euclid::Box2D<Px, ()>> {
+    ) -> impl Iterator<Item = PxBox> {
         let mut bounds = PxRect::new(origin, PxSize::splat(max_distance));
         match orientation {
             Orientation2D::Above => {
@@ -672,8 +666,8 @@ struct WidgetBoundsData {
     metrics: Cell<Option<LayoutMetricsSnapshot>>,
     metrics_used: Cell<LayoutMask>,
 
-    outer_transform: Cell<RenderTransform>,
-    inner_transform: Cell<RenderTransform>,
+    outer_transform: Cell<PxTransform>,
+    inner_transform: Cell<PxTransform>,
     rendered: Cell<Option<(ZIndex, ZIndex)>>,
 
     outer_bounds: Cell<PxRect>,
@@ -700,8 +694,8 @@ impl WidgetBoundsInfo {
     pub fn new_test(
         inner: PxRect,
         outer: Option<PxRect>,
-        outer_transform: Option<RenderTransform>,
-        inner_transform: Option<RenderTransform>,
+        outer_transform: Option<PxTransform>,
+        inner_transform: Option<PxTransform>,
         rendered: Option<ZIndex>,
     ) -> Self {
         let r = Self::default();
@@ -792,12 +786,12 @@ impl WidgetBoundsInfo {
     }
 
     /// Gets the global transform of the widget's outer bounds during the last render or render update.
-    pub fn outer_transform(&self) -> RenderTransform {
+    pub fn outer_transform(&self) -> PxTransform {
         self.0.outer_transform.get()
     }
 
     /// Gets the global transform of the widget's inner bounds during the last render or render update.
-    pub fn inner_transform(&self) -> RenderTransform {
+    pub fn inner_transform(&self) -> PxTransform {
         self.0.inner_transform.get()
     }
 
@@ -822,10 +816,11 @@ impl WidgetBoundsInfo {
         self.0.rendered.set(rendered.map(|i| (i, i)));
     }
 
-    pub(super) fn set_outer_transform(&self, transform: RenderTransform, info: &WidgetInfoTree) {
+    pub(super) fn set_outer_transform(&self, transform: PxTransform, info: &WidgetInfoTree) {
         let bounds = transform
-            .outer_transformed_px(PxRect::from_size(self.outer_size()))
-            .unwrap_or_default();
+            .outer_transformed(PxBox::from_size(self.outer_size()))
+            .unwrap_or_default()
+            .to_rect();
 
         if self.0.outer_bounds.get().size.is_empty() != bounds.size.is_empty() {
             info.visibility_changed();
@@ -835,19 +830,21 @@ impl WidgetBoundsInfo {
         self.0.outer_transform.set(transform);
     }
     #[cfg(test)]
-    fn init_outer_transform(&self, transform: RenderTransform) {
+    fn init_outer_transform(&self, transform: PxTransform) {
         let bounds = transform
-            .outer_transformed_px(PxRect::from_size(self.outer_size()))
-            .unwrap_or_default();
+            .outer_transformed(PxBox::from_size(self.outer_size()))
+            .unwrap_or_default()
+            .to_rect();
 
         self.0.outer_bounds.set(bounds);
         self.0.outer_transform.set(transform);
     }
 
-    pub(super) fn set_inner_transform(&self, transform: RenderTransform, info: &WidgetInfoTree) {
+    pub(super) fn set_inner_transform(&self, transform: PxTransform, info: &WidgetInfoTree) {
         let bounds = transform
-            .outer_transformed_px(PxRect::from_size(self.inner_size()))
-            .unwrap_or_default();
+            .outer_transformed(PxBox::from_size(self.inner_size()))
+            .unwrap_or_default()
+            .to_rect();
 
         if self.0.inner_bounds.get() != bounds {
             info.bounds_changed();
@@ -858,10 +855,11 @@ impl WidgetBoundsInfo {
     }
 
     #[cfg(test)]
-    fn init_inner_transform(&self, transform: RenderTransform) {
+    fn init_inner_transform(&self, transform: PxTransform) {
         let bounds = transform
-            .outer_transformed_px(PxRect::from_size(self.inner_size()))
-            .unwrap_or_default();
+            .outer_transformed(PxBox::from_size(self.inner_size()))
+            .unwrap_or_default()
+            .to_rect();
 
         self.0.inner_bounds.set(bounds);
         self.0.inner_transform.set(transform);
@@ -936,7 +934,7 @@ impl WidgetBoundsInfo {
         }
     }
 
-    pub(crate) fn update_hit_test_transform(&self, value: FrameValue<RenderTransform>) {
+    pub(crate) fn update_hit_test_transform(&self, value: FrameValue<PxTransform>) {
         self.0.hit_clips.borrow_mut().update_transform(value);
     }
 
@@ -1113,10 +1111,10 @@ impl WidgetBorderInfo {
     /// Compute the inner transform offset by the [`offsets`].
     ///
     /// [`offsets`]: Self::offsets
-    pub fn inner_transform(&self, bounds: &WidgetBoundsInfo) -> RenderTransform {
+    pub fn inner_transform(&self, bounds: &WidgetBoundsInfo) -> PxTransform {
         let o = self.offsets();
         let o = PxVector::new(o.left, o.top);
-        bounds.inner_transform().pre_translate_px(o)
+        bounds.inner_transform().pre_translate(o.cast())
     }
 
     pub(super) fn set_offsets(&self, widths: PxSideOffsets) {
@@ -1380,14 +1378,14 @@ impl<'a> WidgetInfo<'a> {
     /// Widget outer transform in window space.
     ///
     /// Returns an up-to-date transform, the transform is updated every render or render update without causing a tree rebuild.
-    pub fn outer_transform(self) -> RenderTransform {
+    pub fn outer_transform(self) -> PxTransform {
         self.info().bounds_info.outer_transform()
     }
 
     /// Widget inner transform in the window space.
     ///
     /// Returns an up-to-date transform, the transform is updated every render or render update without causing a tree rebuild.
-    pub fn inner_transform(self) -> RenderTransform {
+    pub fn inner_transform(self) -> PxTransform {
         self.info().bounds_info.inner_transform()
     }
 

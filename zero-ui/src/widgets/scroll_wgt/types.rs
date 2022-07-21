@@ -344,7 +344,7 @@ impl<'a> WidgetInfoExt for WidgetInfo<'a> {
 
 #[derive(Debug, Default)]
 struct ScrollData {
-    viewport_transform: Cell<RenderTransform>,
+    viewport_transform: Cell<PxTransform>,
     viewport_size: Cell<PxSize>,
 }
 
@@ -355,8 +355,9 @@ impl ScrollInfo {
     /// Gets the viewport bounds in the window space.
     pub fn viewport(&self) -> PxRect {
         self.viewport_transform()
-            .outer_transformed_px(PxRect::from_size(self.viewport_size()))
+            .outer_transformed(PxBox::from_size(self.viewport_size()))
             .unwrap_or_default()
+            .to_rect()
     }
 
     /// Gets the layout size of the viewport.
@@ -365,7 +366,7 @@ impl ScrollInfo {
     }
 
     /// Gets the render transform of the viewport.
-    pub fn viewport_transform(&self) -> RenderTransform {
+    pub fn viewport_transform(&self) -> PxTransform {
         self.0.viewport_transform.get()
     }
 
@@ -373,7 +374,7 @@ impl ScrollInfo {
         self.0.viewport_size.set(size)
     }
 
-    pub(super) fn set_viewport_transform(&self, transform: RenderTransform) {
+    pub(super) fn set_viewport_transform(&self, transform: PxTransform) {
         self.0.viewport_transform.set(transform)
     }
 }

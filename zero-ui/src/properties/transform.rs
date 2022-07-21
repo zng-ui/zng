@@ -14,9 +14,9 @@ pub fn transform(child: impl UiNode, transform: impl IntoVar<Transform>) -> impl
         child: C,
         transform: T,
 
-        render_transform: RenderTransform,
+        render_transform: PxTransform,
         spatial_id: SpatialFrameId,
-        binding_key: FrameBindingKey<RenderTransform>,
+        binding_key: FrameBindingKey<PxTransform>,
     }
     #[impl_ui_node(child)]
     impl<C, T> UiNode for TransformNode<C, T>
@@ -52,9 +52,7 @@ pub fn transform(child: impl UiNode, transform: impl IntoVar<Transform>) -> impl
 
             let x = origin.x.0 as f32;
             let y = origin.y.0 as f32;
-            let transform = RenderTransform::translation(-x, -y, 0.0)
-                .then(&transform)
-                .then_translate(euclid::vec3(x, y, 0.0));
+            let transform = PxTransform::translation(-x, -y).then(&transform).then_translate(euclid::vec2(x, y));
 
             if transform != self.render_transform {
                 self.render_transform = transform;
@@ -92,7 +90,7 @@ pub fn transform(child: impl UiNode, transform: impl IntoVar<Transform>) -> impl
         child: child.cfg_boxed(),
         transform: transform.into_var(),
 
-        render_transform: RenderTransform::identity(),
+        render_transform: PxTransform::identity(),
         spatial_id: SpatialFrameId::new_unique(),
         binding_key: FrameBindingKey::new_unique(),
     }

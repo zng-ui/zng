@@ -255,7 +255,11 @@ impl Surface {
         let mut txn = Transaction::new();
         txn.set_root_pipeline(self.pipeline_id);
 
-        txn.append_dynamic_properties(frame.updates);
+        txn.append_dynamic_properties(DynamicProperties {
+            transforms: frame.transforms.into_iter().map(transform_value_to_wr).collect(),
+            floats: frame.floats,
+            colors: frame.colors,
+        });
 
         self.push_resize(&mut txn);
 
