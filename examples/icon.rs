@@ -28,15 +28,16 @@ fn app_main() {
             content = scroll! {
                 mode = ScrollMode::VERTICAL;
                 content = wrap! {
+                    background_color = hex!(#245E81);
                     padding = 10;
                     spacing = 5;
                     icon::theme::icon_size = 48;
-                    items = icons::outlined::all().into_iter()
+                    items = icons::outlined::all().into_iter().take(100)
                             .map(|i| icon_btn(i).boxed_wgt())
                             .collect::<WidgetVec>(),
                 }
             };
-            // zero_ui::properties::inspector::show_quad_tree_hits = true;
+            zero_ui::properties::inspector::show_quad_tree_hits = true;
             // zero_ui::properties::inspector::show_quad_tree = true;
         }
     })

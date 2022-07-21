@@ -1,5 +1,7 @@
 # Hit Test
 
+* Icon `wrap!` panel inner-bounds is not found by spatial query.
+
 * Track what widgets are close to becoming visible due to scrolling.
 
 # Quad-Tree
