@@ -72,15 +72,17 @@ impl PxSquare {
 
 type QuadItems = SmallVec<[tree::NodeId; 8]>;
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub(super) struct QuadTree {
     quads: FxHashMap<PxSquare, QuadItems>,
     bounds: PxBox,
 }
 impl QuadTree {
-    pub(super) fn new() -> Self {
+    pub(super) fn with_capacity(cap: usize) -> Self {
+        let mut quads = FxHashMap::default();
+        quads.reserve(cap);
         Self {
-            quads: FxHashMap::default(),
+            quads,
             bounds: PxBox::zero(),
         }
     }
@@ -89,8 +91,17 @@ impl QuadTree {
         self.bounds
     }
 
+    pub(super) fn len(&self) -> usize {
+        self.quads.len()
+    }
+
     pub(super) fn is_empty(&self) -> bool {
         self.quads.is_empty()
+    }
+
+    pub(super) fn clear(&mut self) {
+        self.quads.clear();
+        self.bounds = PxBox::zero();
     }
 
     pub(super) fn insert(&mut self, item: tree::NodeId, item_bounds: PxRect) {

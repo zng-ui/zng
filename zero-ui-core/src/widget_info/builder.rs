@@ -223,7 +223,7 @@ impl WidgetInfoBuilder {
             )),
             tree: self.tree,
             interactivity_filters: self.interactivity_filters,
-            inner_bounds_tree: RefCell::new(Some(Rc::new(spatial::QuadTree::new()))),
+            inner_bounds_tree: Default::default(),
             stats_update: Default::default(),
             scale_factor: Cell::new(self.scale_factor),
             build_meta: Rc::new(self.build_meta),

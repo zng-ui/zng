@@ -132,7 +132,7 @@ pub struct WidgetInfoTree(Rc<WidgetInfoTreeInner>);
 struct WidgetInfoTreeInner {
     window_id: WindowId,
     tree: Tree<WidgetInfoData>,
-    inner_bounds_tree: RefCell<Option<Rc<spatial::QuadTree>>>,
+    inner_bounds_tree: RefCell<Rc<spatial::QuadTree>>,
     lookup: IdMap<WidgetId, tree::NodeId>,
     interactivity_filters: InteractivityFilters,
     build_meta: Rc<OwnedStateMap>,
@@ -601,21 +601,23 @@ impl WidgetInfoTree {
     }
 
     fn inner_bounds_tree(&self) -> Rc<spatial::QuadTree> {
-        if let Some(quad_tree) = self.0.inner_bounds_tree.borrow().clone() {
-            return quad_tree;
+        let mut quad_tree_rc = self.0.inner_bounds_tree.borrow_mut();
+        if !quad_tree_rc.is_empty() || !self.is_rendered() {
+            return quad_tree_rc.clone();
         }
 
         let _span = tracing::trace_span!("quad-tree-build").entered();
 
-        let mut quad_tree = spatial::QuadTree::new();
+        // `after_render` ensured that this is a new `Rc` so we can unwrap.
+        let mut quad_tree = Rc::try_unwrap(mem::take(&mut *quad_tree_rc)).unwrap();
 
         for node in self.0.tree.nodes() {
             quad_tree.insert(node.id(), node.value().bounds_info.inner_bounds());
         }
 
-        let quad_tree = Rc::new(quad_tree);
-        *self.0.inner_bounds_tree.borrow_mut() = Some(quad_tree.clone());
-        quad_tree
+        *quad_tree_rc = Rc::new(quad_tree);
+
+        quad_tree_rc.clone()
     }
 
     pub(crate) fn after_render(&self, frame_id: FrameId, scale_factor: Factor) {
@@ -623,7 +625,16 @@ impl WidgetInfoTree {
         stats.update(frame_id, self.0.stats_update.borrow_mut().take());
 
         if stats.bounds_updated_frame == frame_id {
-            *self.0.inner_bounds_tree.borrow_mut() = None;
+            // invalidate quad-tree, reuse the same memory if the quad-tree is not in use.
+
+            let mut quad_tree = self.0.inner_bounds_tree.borrow_mut();
+            *quad_tree = match Rc::try_unwrap(mem::take(&mut *quad_tree)) {
+                Ok(mut t) => {
+                    t.clear();
+                    Rc::new(t)
+                }
+                Err(t) => Rc::new(spatial::QuadTree::with_capacity(t.len())),
+            };
         }
 
         self.0.scale_factor.set(scale_factor);
