@@ -1,5 +1,7 @@
 use std::rc::Rc;
 
+use smallvec::SmallVec;
+
 use super::tree;
 use crate::{
     crate_util::{FxHashMap, FxHashSet},
@@ -68,9 +70,11 @@ impl PxSquare {
     }
 }
 
+type QuadItems = SmallVec<[tree::NodeId; 8]>;
+
 #[derive(Debug)]
 pub(super) struct QuadTree {
-    quads: FxHashMap<PxSquare, Vec<tree::NodeId>>,
+    quads: FxHashMap<PxSquare, QuadItems>,
     bounds: PxBox,
 }
 impl QuadTree {
@@ -122,60 +126,62 @@ impl QuadTree {
         self.quads.entry(quad).or_default().push(item);
     }
 
-    pub(super) fn quad_query<'a>(self: Rc<Self>, include: impl FnMut(PxBox) -> bool + 'a) -> impl Iterator<Item = tree::NodeId> + 'a {
-        struct Iter<F, Q> {
-            include: F,
-            tree: Rc<QuadTree>,
-
-            roots: Q,
-            root: Vec<std::array::IntoIter<PxSquare, 4>>,
-            items: Option<std::vec::IntoIter<tree::NodeId>>,
-        }
-        impl<F: FnMut(PxBox) -> bool, Q: Iterator<Item = PxSquare>> Iterator for Iter<F, Q> {
-            type Item = tree::NodeId;
-
-            fn next(&mut self) -> Option<Self::Item> {
-                loop {
-                    if let Some(items) = &mut self.items {
-                        match items.next() {
-                            Some(r) => return Some(r),
-                            None => self.items = None,
-                        }
-                    } else if let Some(root) = self.root.last_mut() {
-                        match root.next() {
-                            Some(q) => {
-                                if (self.include)(q.to_box()) {
-                                    self.items = self.tree.quads.get(&q).map(|r| r.clone().into_iter());
-                                    if let Some(q) = q.split() {
-                                        self.root.push(q.into_iter());
-                                    }
-                                }
+    fn quad_query_quads(&self, mut include: impl FnMut(PxBox) -> bool) -> impl Iterator<Item = PxSquare> {
+        let mut roots = self.root_quads(self.bounds);
+        let mut current_tree: SmallVec<[std::array::IntoIter<PxSquare, 4>; 5]> = Default::default();
+        std::iter::from_fn(move || loop {
+            if let Some(quads) = current_tree.last_mut() {
+                match quads.next() {
+                    Some(quad) => {
+                        if include(quad.to_box()) {
+                            if let Some(inner) = quad.split() {
+                                current_tree.push(inner.into_iter());
                             }
-                            None => {
-                                self.root.pop();
-                            }
+
+                            return Some(quad);
                         }
-                    } else if let Some(quad) = self.roots.next() {
-                        if (self.include)(quad.to_box()) {
-                            self.root.push(quad.split().unwrap().into_iter());
-                            self.items = self.tree.quads.get(&quad).map(|r| r.clone().into_iter());
-                        }
-                    } else {
-                        return None;
+                    }
+                    None => {
+                        current_tree.pop();
                     }
                 }
+            } else if let Some(root) = roots.next() {
+                if include(root.to_box()) {
+                    current_tree.push(root.split().unwrap().into_iter());
+
+                    return Some(root);
+                }
+            } else {
+                return None;
             }
-        }
-        Iter {
-            include,
-            roots: self.root_quads(self.bounds),
-            tree: self,
-            root: vec![],
-            items: None,
-        }
+        })
     }
 
-    pub(super) fn quad_query_dedup<'a>(self: Rc<Self>, include: impl FnMut(PxBox) -> bool + 'a) -> impl Iterator<Item = tree::NodeId> + 'a {
+    pub(super) fn quad_query_debug(self: Rc<Self>, include: impl FnMut(PxBox) -> bool) -> impl Iterator<Item = PxBox> {
+        self.quad_query_quads(include)
+            .filter_map(move |q| if self.quads.contains_key(&q) { Some(q.to_box()) } else { None })
+    }
+
+    pub(super) fn quad_query(self: Rc<Self>, include: impl FnMut(PxBox) -> bool) -> impl Iterator<Item = tree::NodeId> {
+        let mut quads = self.quad_query_quads(include);
+        let mut items: Option<smallvec::IntoIter<[tree::NodeId; 8]>> = None;
+        std::iter::from_fn(move || loop {
+            if let Some(r) = &mut items {
+                match r.next() {
+                    Some(n) => return Some(n),
+                    None => items = None,
+                }
+            } else if let Some(q) = quads.next() {
+                if let Some(r) = self.quads.get(&q) {
+                    items = Some(r.clone().into_iter());
+                }
+            } else {
+                return None;
+            }
+        })
+    }
+
+    pub(super) fn quad_query_dedup(self: Rc<Self>, include: impl FnMut(PxBox) -> bool) -> impl Iterator<Item = tree::NodeId> {
         let mut visited = FxHashSet::default();
         self.quad_query(include).filter(move |n| visited.insert(*n))
     }

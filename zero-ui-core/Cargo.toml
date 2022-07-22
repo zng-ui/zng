@@ -118,6 +118,7 @@ remove_dir_all = "0.7"
 async-trait = "0.1"
 async-recursion = "1"
 either = "1"
+smallvec = "1"
 
 # serde
 serde = "1"

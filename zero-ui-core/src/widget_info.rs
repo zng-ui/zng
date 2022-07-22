@@ -221,9 +221,7 @@ impl WidgetInfoTree {
     ///
     /// Note that the quad-tree is only build after the first render, so no widgets are yielded before that.
     pub fn quad_query<'a>(&'a self, include_quad: impl FnMut(PxBox) -> bool + 'a) -> impl Iterator<Item = WidgetInfo<'a>> + 'a {
-        self.inner_bounds_tree()
-            .quad_query(include_quad)
-            .map(move |n| WidgetInfo::new(self, n))
+        self.inner_bounds_tree().quad_query(include_quad).map(|n| WidgetInfo::new(self, n))
     }
 
     /// Like [`quad_query`], but ensures that widgets are only yielded once.
@@ -235,6 +233,15 @@ impl WidgetInfoTree {
         self.inner_bounds_tree()
             .quad_query_dedup(include_quad)
             .map(move |n| WidgetInfo::new(self, n))
+    }
+
+    /// Spatial iterator over all quads with at least one widget.
+    ///
+    /// This is a debug access point to visualize a [`quad_query`].
+    ///
+    /// [`quad_query`]: Self::quad_query
+    pub fn quad_query_debug(&self, include_quad: impl FnMut(PxBox) -> bool) -> impl Iterator<Item = PxBox> {
+        self.inner_bounds_tree().quad_query_debug(include_quad)
     }
 
     /// Spatial iterator over all widgets with inner bounds in the quadrants that contain the `point`.

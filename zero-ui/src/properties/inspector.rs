@@ -74,10 +74,9 @@ pub fn show_quad_tree(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl U
             let widths = PxSideOffsets::new_all_same(Px(1));
             let sides = BorderSides::solid(colors::GRAY);
 
-            for _ in tree.quad_query(|quad| {
+            for quad in tree.quad_query_debug(|_| true) {
                 frame.push_border(quad.to_rect(), widths, sides, PxCornerRadius::zero());
-                true
-            }) {}
+            }
         },
         enabled,
     )
