@@ -364,8 +364,8 @@ impl FrameBuilder {
         // cannot reuse if the widget was not rendered in the previous frame (clear stale reuse ranges in descendants).
         let parent_can_reuse = mem::replace(&mut self.can_reuse, ctx.widget_info.bounds.rendered().is_some());
 
-        let widget_z = self.render_index;
         self.render_index.0 += 1;
+        let widget_z = self.render_index;
 
         let mut outer_transform = PxTransform::identity();
         let mut undo_prev_outer_transform = None;
