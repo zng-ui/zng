@@ -1,6 +1,7 @@
 # Hit Test
 
 * Scroll does not hit-test directly.
+  - Only if is direct child of root, review z-index tracking in render.
 
 * Track what widgets are close to becoming visible due to scrolling.
 
