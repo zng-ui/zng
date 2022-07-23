@@ -74,7 +74,8 @@ pub fn show_quad_tree(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl U
             let widths = PxSideOffsets::new_all_same(Px(1));
             let sides = BorderSides::solid(colors::GRAY);
 
-            for quad in tree.quad_query_debug(|_| true) {
+            let spatial = tree.spatial();
+            for quad in spatial.query_debug(|_| true) {
                 frame.push_border(quad.to_rect(), widths, sides, PxCornerRadius::zero());
             }
         },
@@ -175,24 +176,20 @@ pub fn show_quad_tree_hits(child: impl UiNode, enabled: impl IntoVar<bool>) -> i
         fn event<A: EventUpdateArgs>(&mut self, ctx: &mut WidgetContext, args: &A) {
             if let Some(args) = MouseMoveEvent.update(args) {
                 if self.valid && self.enabled.copy(ctx) {
-                    let mut quads = Vec::with_capacity(self.quads.len());
-                    let mut fails = Vec::with_capacity(self.fails.len());
-                    let mut hits = Vec::with_capacity(self.hits.len());
-
                     let factor = ctx
                         .window_state
                         .req(zero_ui::core::window::WindowVarsKey)
                         .scale_factor()
                         .copy(ctx.vars);
-
                     let pt = args.position.to_px(factor.0);
-                    for wgt in ctx.info_tree.quad_query(|quad| {
-                        let include = quad.contains(pt);
-                        if include {
-                            quads.push(quad.to_rect());
-                        }
-                        include
-                    }) {
+
+                    let spatial = ctx.info_tree.spatial();
+
+                    let quads: Vec<_> = spatial.query_debug(move |q| q.contains(pt)).map(|q| q.to_rect()).collect();
+                    let mut fails = Vec::with_capacity(self.fails.len());
+                    let mut hits = Vec::with_capacity(self.hits.len());
+
+                    for wgt in spatial.query(move |q| q.contains(pt)) {
                         let bounds = wgt.inner_bounds();
                         if bounds.contains(pt) {
                             hits.push(bounds);
@@ -311,7 +308,7 @@ pub fn show_directional_query(child: impl UiNode, orientation: impl IntoVar<Opti
                             if let Some(w) = ctx.info_tree.get(*w_id) {
                                 if let Some(w) = w.as_focusable(true) {
                                     let search_quads: Vec<_> = orientation
-                                        .search_bounds(w.info.center(), Px::MAX, ctx.info_tree.spatial_bounds())
+                                        .search_bounds(w.info.center(), Px::MAX, ctx.info_tree.spatial().bounds())
                                         .map(|q| q.to_rect())
                                         .collect();
 

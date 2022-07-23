@@ -980,7 +980,7 @@ impl MouseManager {
                 }
             };
 
-            self.pos_hits = frame_info.hit_test(position.to_px(frame_info.scale_factor().0));
+            self.pos_hits = frame_info.spatial().hit_test(position.to_px(frame_info.scale_factor().0));
 
             let target = if let Some(t) = self.pos_hits.target() {
                 frame_info.get(t.widget_id).map(|w| w.interaction_path()).unwrap_or_else(|| {
@@ -1122,7 +1122,7 @@ impl AppExtension for MouseManager {
             if self.pos_window == Some(args.window_id) {
                 let (windows, mouse) = ctx.services.req_multi::<(Windows, Mouse)>();
                 let frame_info = windows.widget_tree(args.window_id).unwrap();
-                self.pos_hits = frame_info.hit_test(self.pos.to_px(frame_info.scale_factor().0));
+                self.pos_hits = frame_info.spatial().hit_test(self.pos.to_px(frame_info.scale_factor().0));
                 let target = self
                     .pos_hits
                     .target()

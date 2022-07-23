@@ -927,7 +927,10 @@ impl<'a> WidgetFocusInfo<'a> {
     /// Find the focusable descendant with center point nearest of `origin` within the `max_radius`.
     pub fn nearest(self, origin: PxPoint, max_radius: Px) -> Option<WidgetFocusInfo<'a>> {
         let cast = |w: WidgetInfo<'a>| w.as_focus_info(self.focus_disabled_widgets());
-        self.info.nearest_filtered(origin, max_radius, |w| cast(w).is_focusable()).map(cast)
+        self.info
+            .spatial()
+            .nearest_filtered(origin, max_radius, |w| cast(w).is_focusable())
+            .map(cast)
     }
 
     /// Find the descendant with center point nearest of `origin` within the `max_radius` and approved by the `filter` closure.
@@ -939,6 +942,7 @@ impl<'a> WidgetFocusInfo<'a> {
     ) -> Option<WidgetFocusInfo<'a>> {
         let cast = |w: WidgetInfo<'a>| w.as_focus_info(self.focus_disabled_widgets());
         self.info
+            .spatial()
             .nearest_filtered(origin, max_radius, |w| {
                 let w = cast(w);
                 w.is_focusable() && filter(w)
@@ -956,6 +960,7 @@ impl<'a> WidgetFocusInfo<'a> {
     ) -> Option<WidgetFocusInfo<'a>> {
         let cast = |w: WidgetInfo<'a>| w.as_focus_info(self.focus_disabled_widgets());
         self.info
+            .spatial()
             .nearest_bounded_filtered(origin, max_radius, bounds, move |w| {
                 let w = cast(w);
                 w.is_focusable() && filter(w)
@@ -963,19 +968,11 @@ impl<'a> WidgetFocusInfo<'a> {
             .map(cast)
     }
 
-    /// Spatial iterator over all focusable descendants with center in the direction defined by `orientation` and within the `distance`.
-    ///
-    /// The search bounds is yielded with each matched descendant, see the [`WidgetInfoTree::oriented`] method for more details.
-    pub fn oriented(self, origin: PxPoint, distance: Px, orientation: Orientation2D) -> impl Iterator<Item = WidgetFocusInfo<'a>> + 'a {
-        self.info
-            .oriented(origin, distance, orientation)
-            .filter_map(move |w| w.as_focusable(self.focus_disabled_widgets()))
-    }
-
     /// Find the focusable descendant with center point nearest of `origin` within the `max_distance` and with `orientation` to origin.
     pub fn nearest_oriented(self, origin: PxPoint, max_distance: Px, orientation: Orientation2D) -> Option<WidgetFocusInfo<'a>> {
         let cast = |w: WidgetInfo<'a>| w.as_focus_info(self.focus_disabled_widgets());
         self.info
+            .spatial()
             .nearest_oriented_filtered(origin, max_distance, orientation, |w| cast(w).is_focusable())
             .map(cast)
     }
@@ -991,6 +988,7 @@ impl<'a> WidgetFocusInfo<'a> {
     ) -> Option<WidgetFocusInfo<'a>> {
         let cast = |w: WidgetInfo<'a>| w.as_focus_info(self.focus_disabled_widgets());
         self.info
+            .spatial()
             .nearest_oriented_filtered(origin, max_distance, orientation, |w| {
                 let w = cast(w);
                 w.is_focusable() && filter(w)
@@ -1018,8 +1016,13 @@ impl<'a> WidgetFocusInfo<'a> {
             }
         };
 
+        let scope_spatial = scope.info.spatial();
+        let mut oriented = scope_spatial
+            .oriented(origin, Px::MAX, orientation)
+            .focusable(self.focus_disabled_widgets());
+
         if any {
-            return scope.oriented(origin, Px::MAX, orientation).find(|f| filter(*f));
+            return oriented.find(|f| filter(*f));
         }
 
         let parent_range = self.parent().map(|w| w.info.descendants_range()).unwrap_or_default();
@@ -1031,7 +1034,7 @@ impl<'a> WidgetFocusInfo<'a> {
         let mut other_dist = DistanceKey::NONE_MAX;
         let mut other = None;
 
-        for w in scope.oriented(origin, Px::MAX, orientation) {
+        for w in oriented {
             if filter(w) {
                 let dist = w.info.distance_key(origin);
 
