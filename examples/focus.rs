@@ -44,8 +44,7 @@ fn app_main() {
             };
             // zero_ui::properties::inspector::show_center_points = true;
             // zero_ui::properties::inspector::show_bounds = true;
-            // zero_ui::properties::inspector::show_quad_tree_hits = true;
-            // zero_ui::properties::inspector::show_quad_tree = true;
+            // zero_ui::properties::inspector::show_hit_test = true;
             // zero_ui::properties::inspector::show_directional_query = Some(zero_ui::core::units::Orientation2D::Below);
         }
     })
@@ -343,7 +342,6 @@ fn nested_focusables() -> impl Widget {
                 window! {
                     title = "Focus Example - Nested Focusables";
                     // zero_ui::properties::inspector::show_center_points = true;
-                    // zero_ui::properties::inspector::show_quad_tree = true;
                     content_align = Align::CENTER;
                     content = v_stack! {
                         spacing = 10;

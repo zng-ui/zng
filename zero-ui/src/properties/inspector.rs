@@ -1,5 +1,7 @@
 //! Debug inspection properties.
 
+use std::{cell::RefCell, rc::Rc};
+
 use crate::core::{
     focus::*,
     mouse::{MouseHoveredEvent, MouseMoveEvent},
@@ -61,28 +63,6 @@ pub fn show_bounds(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNo
     )
 }
 
-/// Draws the widget inner bounds quad-tree.
-///
-/// # Window Only
-///
-/// This property only works if set in a window, if set in another widget it will log an error and don't render anything.
-#[property(context)]
-pub fn show_quad_tree(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
-    show_widget_tree(
-        child,
-        |tree, frame| {
-            let widths = PxSideOffsets::new_all_same(Px(1));
-            let sides = BorderSides::solid(colors::GRAY);
-
-            let spatial = tree.spatial();
-            for quad in spatial.query_debug(|_| true) {
-                frame.push_border(quad.to_rect(), widths, sides, PxCornerRadius::zero());
-            }
-        },
-        enabled,
-    )
-}
-
 fn show_widget_tree(
     child: impl UiNode,
     render: impl Fn(&WidgetInfoTree, &mut FrameBuilder) + 'static,
@@ -137,25 +117,24 @@ fn show_widget_tree(
     }
 }
 
-/// Draws the inner bounds that where tested for the mouse point and the quadrants visited.
+/// Draws the inner bounds that where tested for the mouse point.
 ///
 /// # Window Only
 ///
 /// This property only works if set in a window, if set in another widget it will log an error and don't render anything.
 #[property(context)]
-pub fn show_quad_tree_hits(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
-    struct ShowQuadTreeHitsNode<C, E> {
+pub fn show_hit_test(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
+    struct ShowHitTestNode<C, E> {
         child: C,
         enabled: E,
 
         valid: bool,
 
-        quads: Vec<PxRect>,
         fails: Vec<PxRect>,
         hits: Vec<PxRect>,
     }
     #[impl_ui_node(child)]
-    impl<C: UiNode, E: Var<bool>> UiNode for ShowQuadTreeHitsNode<C, E> {
+    impl<C: UiNode, E: Var<bool>> UiNode for ShowHitTestNode<C, E> {
         fn init(&mut self, ctx: &mut WidgetContext) {
             self.valid = ctx.path.is_root();
             if !self.valid {
@@ -183,23 +162,28 @@ pub fn show_quad_tree_hits(child: impl UiNode, enabled: impl IntoVar<bool>) -> i
                         .copy(ctx.vars);
                     let pt = args.position.to_px(factor.0);
 
-                    let spatial = ctx.info_tree.spatial();
+                    let fails = Rc::new(RefCell::new(vec![]));
+                    let hits = Rc::new(RefCell::new(vec![]));
 
-                    let quads: Vec<_> = spatial.query_debug(move |q| q.contains(pt)).map(|q| q.to_rect()).collect();
-                    let mut fails = Vec::with_capacity(self.fails.len());
-                    let mut hits = Vec::with_capacity(self.hits.len());
+                    let _ = ctx
+                        .info_tree
+                        .root()
+                        .spatial_iter(clone_move!(fails, hits, |w| {
+                            let bounds = w.inner_bounds();
+                            let hit = bounds.contains(pt);
+                            if hit {
+                                hits.borrow_mut().push(bounds);
+                            } else {
+                                fails.borrow_mut().push(bounds);
+                            }
+                            hit
+                        }))
+                        .count();
 
-                    for wgt in spatial.query(move |q| q.contains(pt)) {
-                        let bounds = wgt.inner_bounds();
-                        if bounds.contains(pt) {
-                            hits.push(bounds);
-                        } else {
-                            fails.push(bounds);
-                        }
-                    }
+                    let fails = Rc::try_unwrap(fails).unwrap().into_inner();
+                    let hits = Rc::try_unwrap(hits).unwrap().into_inner();
 
-                    if self.quads != quads || self.fails != fails || self.hits != hits {
-                        self.quads = quads;
+                    if self.fails != fails || self.hits != hits {
                         self.fails = fails;
                         self.hits = hits;
 
@@ -209,8 +193,7 @@ pub fn show_quad_tree_hits(child: impl UiNode, enabled: impl IntoVar<bool>) -> i
 
                 self.child.event(ctx, args);
             } else if let Some(args) = MouseHoveredEvent.update(args) {
-                if args.target.is_none() && !self.quads.is_empty() {
-                    self.quads.clear();
+                if args.target.is_none() && !self.fails.is_empty() && !self.hits.is_empty() {
                     self.fails.clear();
                     self.hits.clear();
 
@@ -235,15 +218,10 @@ pub fn show_quad_tree_hits(child: impl UiNode, enabled: impl IntoVar<bool>) -> i
 
             if self.valid && self.enabled.copy(ctx) {
                 let widths = PxSideOffsets::new_all_same(Px(1));
-                let quad_sides = BorderSides::solid(colors::YELLOW);
                 let fail_sides = BorderSides::solid(colors::RED);
                 let hits_sides = BorderSides::solid(colors::LIME_GREEN);
 
                 frame.with_hit_tests_disabled(|frame| {
-                    for quad in &self.quads {
-                        frame.push_border(*quad, widths, quad_sides, PxCornerRadius::zero());
-                    }
-
                     for fail in &self.fails {
                         frame.push_border(*fail, widths, fail_sides, PxCornerRadius::zero());
                     }
@@ -255,11 +233,10 @@ pub fn show_quad_tree_hits(child: impl UiNode, enabled: impl IntoVar<bool>) -> i
             }
         }
     }
-    ShowQuadTreeHitsNode {
+    ShowHitTestNode {
         child,
         enabled: enabled.into_var(),
         valid: false,
-        quads: vec![],
         fails: vec![],
         hits: vec![],
     }
@@ -308,7 +285,7 @@ pub fn show_directional_query(child: impl UiNode, orientation: impl IntoVar<Opti
                             if let Some(w) = ctx.info_tree.get(*w_id) {
                                 if let Some(w) = w.as_focusable(true) {
                                     let search_quads: Vec<_> = orientation
-                                        .search_bounds(w.info.center(), Px::MAX, ctx.info_tree.spatial().bounds())
+                                        .search_bounds(w.info.center(), Px::MAX, ctx.info_tree.spatial_bounds().to_box2d())
                                         .map(|q| q.to_rect())
                                         .collect();
 

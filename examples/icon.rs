@@ -36,8 +36,7 @@ fn app_main() {
                             .collect::<WidgetVec>(),
                 }
             };
-            // zero_ui::properties::inspector::show_quad_tree_hits = true;
-            // zero_ui::properties::inspector::show_quad_tree = true;
+            // zero_ui::properties::inspector::show_hit_test = true;
         }
     })
 }

@@ -5,8 +5,7 @@ use std::{
     cell::{Cell, RefCell},
     fmt,
     marker::PhantomData,
-    mem,
-    ops::{self, ControlFlow},
+    mem, ops,
     rc::Rc,
     time::{Duration, Instant},
 };
@@ -27,7 +26,6 @@ use crate::{
 };
 
 mod tree;
-use either::Either;
 use tree::Tree;
 
 mod path;
@@ -39,10 +37,11 @@ pub use builder::*;
 pub mod iter;
 pub use iter::TreeFilter;
 
-mod spatial;
-pub(crate) use spatial::HitTestClips;
+mod hit;
+pub(crate) use hit::HitTestClips;
 
-pub use self::spatial::RelativeHitZ;
+pub use self::hit::RelativeHitZ;
+use self::iter::TreeIterator;
 
 /// Bundle of widget info data from the current widget.
 #[derive(Clone, Default)]
@@ -123,749 +122,6 @@ impl WidgetInfoTreeStatsUpdate {
     }
 }
 
-/// Represents a quad-tree build from the inner bounds of all widgets in a [`WidgetInfoTree`].
-///
-/// The spatial tree structure is rebuild after each render that changed it, to avoid borrow checker problems this
-/// `struct` owns a snapshot of the spatial tree that can be referenced independent from the original that may be changed
-/// while the query is still iterating.
-#[derive(Debug, Clone)]
-pub struct SpatialTree<'a> {
-    info_tree: &'a WidgetInfoTree,
-    quad_tree: Rc<spatial::QuadTree>,
-}
-impl<'a> SpatialTree<'a> {
-    /// The parent info tree.
-    pub fn info_tree(&self) -> &'a WidgetInfoTree {
-        self.info_tree
-    }
-
-    /// Enveloping bounds of all inner bounds rendered in this tree, visitors outside these bounds never find any widget.
-    pub fn bounds(&self) -> PxBox {
-        self.quad_tree.bounds()
-    }
-
-    /// Spatial iterator over a custom query.
-    ///
-    /// Only widgets inside the quads allowed by `include_quad` are yielded. Each widget can be yielded multiple times if its inner
-    /// bounds happen to occupy more then one parallel quadrant included in the query, no widget is repeated for point queries, as
-    /// only nested quadrants can be included in that case.
-    pub fn query(&self, include_quad: impl Fn(PxBox) -> bool + 'static + Copy) -> impl Iterator<Item = WidgetInfo<'a>> + '_ {
-        self.quad_tree.query(include_quad).map(|n| WidgetInfo::new(self.info_tree, n))
-    }
-
-    /// Iterator over all quads included by the custom query that have at least one widget in it.
-    pub fn query_debug(&self, include_quad: impl Fn(PxBox) -> bool + 'static + Copy) -> impl Iterator<Item = PxBox> + '_ {
-        self.quad_tree.query_debug(include_quad)
-    }
-
-    /// Spatial iterator over a custom query.
-    ///
-    /// Each widget is returned once or none times, a hash-set is used to track already returned widgets, note that
-    /// point queries using [`query`] are already unique and do not need to allocate a hash-set.
-    ///
-    /// [`query`]: Self::query
-    pub fn query_unique(&self, include_quad: impl Fn(PxBox) -> bool + 'static + Copy) -> impl Iterator<Item = WidgetInfo<'a>> + '_ {
-        self.quad_tree
-            .query_unique(include_quad)
-            .map(|n| WidgetInfo::new(self.info_tree, n))
-    }
-
-    /// Visit all widgets in quads selected by `include_quad`.
-    ///
-    /// This is slightly faster than [`query`].
-    ///
-    /// [`query`]: Self::query
-    pub fn visit(
-        &self,
-        include_quad: impl FnMut(PxBox) -> bool,
-        mut visit: impl FnMut(WidgetInfo<'a>) -> ControlFlow<()>,
-    ) -> ControlFlow<()> {
-        self.quad_tree
-            .visit(include_quad, move |n| visit(WidgetInfo::new(self.info_tree(), n)))
-    }
-
-    /// Visit all widgets in quads selected by `include_quad`.
-    ///
-    /// This is slightly faster than [`query_unique`].
-    ///
-    /// [`query_unique`]: Self::query_unique
-    pub fn visit_unique(
-        &self,
-        include_quad: impl FnMut(PxBox) -> bool,
-        mut visit: impl FnMut(WidgetInfo<'a>) -> ControlFlow<()>,
-    ) -> ControlFlow<()> {
-        self.quad_tree
-            .visit_unique(include_quad, move |n| visit(WidgetInfo::new(self.info_tree(), n)))
-    }
-}
-
-/// Represents a [`SpatialTree`] that only returns widgets that are descendants of a "scope".
-///
-/// Note that if the widget has no more than 16 descendants the quad-tree is not used and linear searches are done instead.
-#[derive(Debug, Clone)]
-pub struct ScopedSpatialTree<'a> {
-    scope: WidgetInfo<'a>,
-    quad_tree: Option<Rc<spatial::QuadTree>>,
-}
-impl<'a> ScopedSpatialTree<'a> {
-    /// The parent info tree.
-    pub fn info_tree(&self) -> &'a WidgetInfoTree {
-        self.scope.tree
-    }
-
-    /// The parent widget.
-    pub fn scope(&self) -> WidgetInfo<'a> {
-        self.scope
-    }
-
-    /// If the queries do not use the quad-tree, this is `true` if the parent scope widget has no more than 16 descendants.
-    pub fn is_linear(&self) -> bool {
-        self.quad_tree.is_none()
-    }
-
-    /// Spatial iterator over a custom query.
-    ///
-    /// Only widgets inside the quads allowed by `include_quad` and descendant of [`scope`] are yielded. If  the search
-    /// [`is_linear`] all descendants are yielded.
-    ///
-    /// [`scope`]: Self::scope
-    /// [`is_linear`]: Self::is_linear
-    pub fn query(&self, include_quad: impl Fn(PxBox) -> bool + 'static + Copy) -> impl Iterator<Item = WidgetInfo<'a>> + '_ {
-        if let Some(quad_tree) = &self.quad_tree {
-            let range = self.scope.descendants_range();
-            let iter = quad_tree.query(include_quad).filter_map(move |n| {
-                let w = WidgetInfo::new(self.scope.tree, n);
-                if range.contains(w) {
-                    Some(w)
-                } else {
-                    None
-                }
-            });
-            Either::Left(iter)
-        } else {
-            Either::Right(self.scope.descendants())
-        }
-    }
-
-    /// Spatial iterator over a custom query.
-    ///
-    /// Only widgets inside the quads allowed by `include_quad` and descendant of [`scope`] are yielded. If  the search
-    /// [`is_linear`] all descendants are yielded. Descendants are yielded only once or none times a hash-set is used to
-    /// track already returned widgets if the query is not linear, note that point queries using [`query`] are already unique
-    /// and never allocate a hash-set.
-    ///
-    /// [`scope`]: Self::scope
-    /// [`is_linear`]: Self::is_linear
-    /// [`query`]: Self::query
-    pub fn query_unique(&self, include_quad: impl Fn(PxBox) -> bool + 'static + Copy) -> impl Iterator<Item = WidgetInfo<'a>> + '_ {
-        if let Some(quad_tree) = &self.quad_tree {
-            let range = self.scope.descendants_range();
-            let iter = quad_tree.query_unique(include_quad).filter_map(move |n| {
-                let w = WidgetInfo::new(self.scope.tree, n);
-                if range.contains(w) {
-                    Some(w)
-                } else {
-                    None
-                }
-            });
-            Either::Left(iter)
-        } else {
-            Either::Right(self.scope.descendants())
-        }
-    }
-
-    /// Visit all widgets in quads selected by `include_quad`.
-    ///
-    /// This is slightly faster than [`query`].
-    ///
-    /// [`query`]: Self::query
-    pub fn visit(
-        &self,
-        include_quad: impl FnMut(PxBox) -> bool,
-        mut visit: impl FnMut(WidgetInfo<'a>) -> ControlFlow<()>,
-    ) -> ControlFlow<()> {
-        if let Some(quad_tree) = &self.quad_tree {
-            let range = self.scope.descendants_range();
-            quad_tree.visit(include_quad, move |n| {
-                let w = WidgetInfo::new(self.info_tree(), n);
-                if range.contains(w) {
-                    visit(w)
-                } else {
-                    ControlFlow::Continue(())
-                }
-            })
-        } else {
-            for d in self.scope.descendants() {
-                visit(d)?;
-            }
-            ControlFlow::Continue(())
-        }
-    }
-
-    /// Visit all widgets in quads selected by `include_quad`.
-    ///
-    /// This is slightly faster than [`query_unique`].
-    ///
-    /// [`query_unique`]: Self::query_unique
-    pub fn visit_unique(
-        &self,
-        include_quad: impl FnMut(PxBox) -> bool,
-        mut visit: impl FnMut(WidgetInfo<'a>) -> ControlFlow<()>,
-    ) -> ControlFlow<()> {
-        if let Some(quad_tree) = &self.quad_tree {
-            let range = self.scope.descendants_range();
-            quad_tree.visit_unique(include_quad, move |n| {
-                let w = WidgetInfo::new(self.info_tree(), n);
-                if range.contains(w) {
-                    visit(w)
-                } else {
-                    ControlFlow::Continue(())
-                }
-            })
-        } else {
-            for d in self.scope.descendants() {
-                visit(d)?;
-            }
-            ControlFlow::Continue(())
-        }
-    }
-}
-macro_rules! impl_spatial_queries {
-    ($SpatialTree:ident) => {
-        impl<'a> $SpatialTree<'a> {
-            /// Spatial iterator over all widgets in quads that contains the `point`.
-            ///
-            /// The widgets are yielded once or none times.
-            pub fn query_point(&self, point: PxPoint) -> impl Iterator<Item = WidgetInfo<'a>> + '_ {
-                self.query(move |q| q.contains(point))
-            }
-
-            /// Spatial iterator over all widgets with inner bounds that intersect the `area`. Widgets are yielded once or none times.
-            pub fn intersects(&self, area: PxRect) -> impl Iterator<Item = WidgetInfo<'a>> + '_ {
-                let area = area.to_box2d();
-                self.query_unique(move |q| q.intersects(&area))
-                    .filter(move |w| w.inner_bounds().to_box2d().intersects(&area))
-            }
-
-            /// Spatial iterator over all widgets with inner bounds that contain the `point`. Widgets are yielded once or none times.
-            pub fn contains_point(&self, point: PxPoint) -> impl Iterator<Item = WidgetInfo<'a>> + '_ {
-                self.query_point(point).filter(move |w| w.inner_bounds().contains(point))
-            }
-
-            /// Gets all widgets hit by a `point`, sorted by z-index of the hit, front to back.
-            pub fn hit_test(&self, point: PxPoint) -> HitTestInfo {
-                let _span = tracing::trace_span!("hit_test").entered();
-
-                let mut hits = Vec::with_capacity(8);
-
-                self.visit_unique(
-                    move |q| q.contains(point),
-                    |w| {
-                        if let Some(z) = w.hit_test_z(point) {
-                            hits.push(HitInfo {
-                                widget_id: w.widget_id(),
-                                z_index: z,
-                            });
-                        }
-                        ControlFlow::Continue(())
-                    },
-                );
-
-                hits.sort_by(|a, b| b.z_index.cmp(&a.z_index));
-
-                HitTestInfo {
-                    window_id: self.info_tree().0.window_id,
-                    frame_id: self.info_tree().0.stats.borrow().last_frame,
-                    point,
-                    hits,
-                }
-            }
-
-            /// Spatial iterator over all widgets with inner bounds that fully envelops the `rect`. Widgets are yielded once or none times.
-            pub fn contains_rect(&self, rect: PxRect) -> impl Iterator<Item = WidgetInfo<'a>> + '_ {
-                let rect = rect.to_box2d();
-                self.query_unique(move |q| rect.intersects(&q))
-                    .filter(move |w| w.inner_bounds().to_box2d().contains_box(&rect))
-            }
-
-            /// Spatial iterator over all widgets with inner bounds fully inside `area`. Widgets are yielded once or none times.
-            pub fn contained(&self, area: PxRect) -> impl Iterator<Item = WidgetInfo<'a>> + '_ {
-                let area = area.to_box2d();
-                self.query_unique(move |q| area.intersects(&q))
-                    .filter(move |w| area.contains_box(&w.inner_bounds().to_box2d()))
-            }
-
-            /// Spatial iterator over all widgets with center point inside the `area`. Widgets are yielded once or none times.
-            pub fn center_contained(&self, area: PxRect) -> impl Iterator<Item = WidgetInfo<'a>> + '_ {
-                let area = area.to_box2d();
-                self.query_unique(move |q| q.intersects(&area))
-                    .filter(move |w| area.contains(w.center()))
-            }
-
-            /// Spatial iterator over all widgets with center point within the `max_radius` of the `origin`.
-            pub fn center_in_distance(&self, origin: PxPoint, max_radius: Px) -> impl Iterator<Item = WidgetInfo<'a>> + '_ {
-                let area = PxRect::new(origin, PxSize::splat(max_radius))
-                    .inflate(max_radius, max_radius)
-                    .to_box2d();
-
-                let distance_key = DistanceKey::from_distance(max_radius);
-                self.query_unique(move |q| q.intersects(&area))
-                    .filter(move |w| w.distance_key(origin) <= distance_key)
-            }
-        }
-    };
-}
-impl_spatial_queries!(SpatialTree);
-impl_spatial_queries!(ScopedSpatialTree);
-
-impl<'a> SpatialTree<'a> {
-    /// Find the widget with center point nearest of `origin` within the `max_radius`.
-    ///
-    /// This method is faster than using sorting the result of [`center_in_distance`], but is slower if any point in distance is acceptable.
-    ///
-    /// [`center_in_distance`]: Self::center_in_distance
-    pub fn nearest(&self, origin: PxPoint, max_radius: Px) -> Option<WidgetInfo<'a>> {
-        self.nearest_filtered(origin, max_radius, |_| true)
-    }
-
-    /// Find the widget with center point nearest of `origin` within the `max_radius` and approved by the `filter` closure.
-    pub fn nearest_filtered(&self, origin: PxPoint, max_radius: Px, filter: impl FnMut(WidgetInfo<'a>) -> bool) -> Option<WidgetInfo<'a>> {
-        self.nearest_bounded_filtered(origin, max_radius, self.bounds().to_rect(), filter)
-    }
-
-    /// Find the widget with center point nearest of `origin` within the `max_radius` and inside `bounds`; and approved by the `filter` closure.
-    pub fn nearest_bounded_filtered(
-        &self,
-        origin: PxPoint,
-        max_radius: Px,
-        bounds: PxRect,
-        mut filter: impl FnMut(WidgetInfo<'a>) -> bool,
-    ) -> Option<WidgetInfo<'a>> {
-        // search quadrants of `128` -> `256` -> .. until one quadrant finds at least a widget centered in it,
-        // the nearest widget centered in the smallest quadrant is selected.
-        let max_quad = self.bounds().intersection_unchecked(&bounds.to_box2d());
-        if max_quad.is_empty() {
-            return None;
-        }
-        let mut source_quad = PxRect::new(origin - PxVector::splat(Px(64)), PxSize::splat(Px(128))).to_box2d();
-        let mut search_quad = source_quad.intersection_unchecked(&max_quad);
-        if search_quad.is_empty() {
-            return None;
-        }
-
-        let max_diameter = max_radius * Px(2);
-
-        let mut dist = if max_radius != Px::MAX {
-            DistanceKey::from_distance(max_radius + Px(1))
-        } else {
-            DistanceKey::NONE_MAX
-        };
-
-        let mut nearest = None;
-        loop {
-            for w in self.centered_no_dedup(search_quad) {
-                let w_dist = w.distance_key(origin);
-                if w_dist < dist && filter(w) {
-                    dist = w_dist;
-                    nearest = Some(w);
-                }
-            }
-
-            let source_width = source_quad.width();
-            if nearest.is_some() || source_width >= max_diameter {
-                break;
-            } else {
-                source_quad = source_quad.inflate(source_width, source_width);
-                let new_search = source_quad.intersection_unchecked(&max_quad);
-                if new_search == search_quad || new_search.is_empty() {
-                    break; // filled bounds
-                }
-                search_quad = new_search;
-            }
-        }
-
-        if nearest.is_some() {
-            // ensure that we are not skipping a closer widget because the nearest was in a corner of the search quad.
-            let distance = PxVector::splat(Px(2) * dist.distance().unwrap_or(Px(0)));
-
-            let quad = euclid::Box2D::new(origin - distance, origin + distance).intersection_unchecked(&max_quad);
-
-            for w in self.centered_no_dedup(quad) {
-                let w_dist = w.distance_key(origin);
-                if w_dist < dist && filter(w) {
-                    dist = w_dist;
-                    nearest = Some(w);
-                }
-            }
-        }
-
-        nearest
-    }
-
-    fn centered_no_dedup(&self, area: PxBox) -> impl Iterator<Item = WidgetInfo<'a>> + '_ {
-        self.query(move |q| q.intersects(&area)).filter(move |w| area.contains(w.center()))
-    }
-
-    /// Spatial iterator over all widgets with center in the direction defined by `orientation` and within `max_radius` of  the `origin`,
-    /// widgets are only visited once and the distance is clipped by the [`bounds`], use [`Px::MAX`]
-    /// on the distance to visit all widgets in the direction.
-    ///
-    /// [`bounds`]: Self::bounds
-    pub fn oriented(&self, origin: PxPoint, max_distance: Px, orientation: Orientation2D) -> impl Iterator<Item = WidgetInfo<'a>> + '_ {
-        let distance_bounded = max_distance != Px::MAX;
-        let distance_key = if distance_bounded {
-            DistanceKey::from_distance(max_distance)
-        } else {
-            DistanceKey::NONE_MAX
-        };
-        Self::oriented_search_bounds(origin, max_distance, self.bounds(), orientation)
-            .flat_map(move |sq| self.query_unique(move |q| q.intersects(&sq)).map(move |w| (sq, w)))
-            .filter_map(move |(sq, w)| {
-                let center = w.center();
-                if sq.contains(center)
-                    && orientation.is(origin, center)
-                    && (!distance_bounded || DistanceKey::from_points(origin, center) <= distance_key)
-                {
-                    Some(w)
-                } else {
-                    None
-                }
-            })
-    }
-
-    /// Find the widget with center point nearest of `origin` within the `max_distance` and with `orientation` to origin.
-    ///
-    /// This method is faster than using sorting the result of [`oriented`], but is slower if any point in distance and orientation is acceptable.
-    ///
-    /// [`oriented`]: Self::oriented
-    pub fn nearest_oriented(&self, origin: PxPoint, max_distance: Px, orientation: Orientation2D) -> Option<WidgetInfo<'a>> {
-        self.nearest_oriented_filtered(origin, max_distance, orientation, |_| true)
-    }
-
-    pub(crate) fn oriented_search_bounds(
-        origin: PxPoint,
-        max_distance: Px,
-        spatial_bounds: PxBox,
-        orientation: Orientation2D,
-    ) -> impl Iterator<Item = PxBox> {
-        let mut bounds = PxRect::new(origin, PxSize::splat(max_distance));
-        match orientation {
-            Orientation2D::Above => {
-                bounds.origin.x -= max_distance / Px(2);
-                bounds.origin.y -= max_distance;
-            }
-            Orientation2D::Right => bounds.origin.y -= max_distance / Px(2),
-            Orientation2D::Below => bounds.origin.x -= max_distance / Px(2),
-            Orientation2D::Left => {
-                bounds.origin.y -= max_distance / Px(2);
-                bounds.origin.x -= max_distance;
-            }
-        }
-
-        // oriented search is a 45º square in the direction specified, so we grow and cut the search quadrant like
-        // in the "nearest with bounds" algorithm, but then cut again to only the part that fully overlaps the 45º
-        // square, points found are then matched with the `Orientation2D::is` method.
-
-        let max_quad = spatial_bounds.intersection_unchecked(&bounds.to_box2d());
-        let mut is_none = max_quad.is_empty();
-
-        let mut source_quad = PxRect::new(origin - PxVector::splat(Px(64)), PxSize::splat(Px(128))).to_box2d();
-        let mut search_quad = source_quad.intersection_unchecked(&max_quad);
-        is_none |= search_quad.is_empty();
-
-        let max_diameter = max_distance * Px(2);
-
-        let mut is_first = true;
-
-        std::iter::from_fn(move || {
-            let source_width = source_quad.width();
-            if is_none {
-                None
-            } else if is_first {
-                is_first = false;
-                Some(search_quad)
-            } else if source_width >= max_diameter {
-                is_none = true;
-                None
-            } else {
-                source_quad = source_quad.inflate(source_width, source_width);
-                let mut new_search = source_quad.intersection_unchecked(&max_quad);
-                if new_search == source_quad || new_search.is_empty() {
-                    is_none = true; // filled bounds
-                    return None;
-                }
-
-                match orientation {
-                    Orientation2D::Above => {
-                        new_search.max.y = search_quad.min.y;
-                    }
-                    Orientation2D::Right => {
-                        new_search.min.x = search_quad.max.x;
-                    }
-                    Orientation2D::Below => {
-                        new_search.min.y = search_quad.max.y;
-                    }
-                    Orientation2D::Left => {
-                        new_search.max.x = search_quad.min.x;
-                    }
-                }
-
-                search_quad = new_search;
-
-                Some(search_quad)
-            }
-        })
-    }
-
-    /// Find the widget with center point nearest of `origin` within the `max_distance` and with `orientation` to origin, and approved by the `filter` closure.
-    ///
-    /// This method is faster than using sorting the result of [`oriented`], but is slower if any point in distance and orientation is acceptable.
-    ///
-    /// [`oriented`]: Self::oriented
-    pub fn nearest_oriented_filtered(
-        &self,
-        origin: PxPoint,
-        max_distance: Px,
-        orientation: Orientation2D,
-        mut filter: impl FnMut(WidgetInfo<'a>) -> bool,
-    ) -> Option<WidgetInfo<'a>> {
-        let mut dist = DistanceKey::from_distance(max_distance + Px(1));
-        let mut nearest = None;
-        let mut last_quad = euclid::Box2D::zero();
-
-        for search_quad in Self::oriented_search_bounds(origin, max_distance, self.bounds(), orientation) {
-            for w in self.centered_no_dedup(search_quad) {
-                if orientation.is(origin, w.center()) {
-                    let w_dist = w.distance_key(origin);
-                    if w_dist < dist && filter(w) {
-                        dist = w_dist;
-                        nearest = Some(w);
-                    }
-                }
-            }
-
-            if nearest.is_some() {
-                last_quad = search_quad;
-                break;
-            }
-        }
-
-        if nearest.is_some() {
-            // ensure that we are not skipping a closer widget because the nearest was in a corner of the search quad.
-
-            match orientation {
-                Orientation2D::Above => {
-                    let extra = last_quad.height() / Px(2);
-                    last_quad.max.y = last_quad.min.y;
-                    last_quad.min.y -= extra;
-                }
-                Orientation2D::Right => {
-                    let extra = last_quad.width() / Px(2);
-                    last_quad.min.x = last_quad.max.x;
-                    last_quad.max.x += extra;
-                }
-                Orientation2D::Below => {
-                    let extra = last_quad.height() / Px(2);
-                    last_quad.min.y = last_quad.max.y;
-                    last_quad.max.y += extra;
-                }
-                Orientation2D::Left => {
-                    let extra = last_quad.width() / Px(2);
-                    last_quad.max.x = last_quad.min.x;
-                    last_quad.min.x -= extra;
-                }
-            }
-
-            for w in self.centered_no_dedup(last_quad) {
-                let w_dist = w.distance_key(origin);
-                if w_dist < dist && filter(w) {
-                    dist = w_dist;
-                    nearest = Some(w);
-                }
-            }
-        }
-
-        nearest
-    }
-}
-impl<'a> ScopedSpatialTree<'a> {
-    /// Find the descendant with center point nearest of `origin` within the `max_radius`.
-    ///
-    /// This method is faster than using sorting the result of [`center_in_distance`], but is slower if any point in distance is acceptable.
-    ///
-    /// [`center_in_distance`]: Self::center_in_distance
-    pub fn nearest(&self, origin: PxPoint, max_radius: Px) -> Option<WidgetInfo<'a>> {
-        self.nearest_filtered(origin, max_radius, |_| true)
-    }
-
-    /// Find the descendant with center point nearest of `origin` within the `max_radius` and approved by the `filter` closure.
-    pub fn nearest_filtered(
-        &self,
-        origin: PxPoint,
-        max_radius: Px,
-        mut filter: impl FnMut(WidgetInfo<'a>) -> bool,
-    ) -> Option<WidgetInfo<'a>> {
-        if let Some(quad_tree) = &self.quad_tree {
-            let range = self.scope.descendants_range();
-            let tree = SpatialTree {
-                info_tree: self.info_tree(),
-                quad_tree: quad_tree.clone(),
-            };
-            tree.nearest_filtered(origin, max_radius, move |w| range.contains(w) && filter(w))
-        } else {
-            let dist = if max_radius != Px::MAX {
-                DistanceKey::from_distance(max_radius + Px(1))
-            } else {
-                DistanceKey::NONE_MAX
-            };
-
-            let mut r = None;
-            for d in self.scope.descendants() {
-                if d.distance_key(origin) < dist && filter(d) {
-                    r = Some(d)
-                }
-            }
-            r
-        }
-    }
-
-    /// Find the descendant with center point nearest of `origin` within the `max_radius` and inside `bounds`; and approved by the `filter` closure.
-    pub fn nearest_bounded_filtered(
-        &self,
-        origin: PxPoint,
-        max_radius: Px,
-        bounds: PxRect,
-        mut filter: impl FnMut(WidgetInfo<'a>) -> bool,
-    ) -> Option<WidgetInfo<'a>> {
-        if let Some(quad_tree) = &self.quad_tree {
-            let range = self.scope.descendants_range();
-            let tree = SpatialTree {
-                info_tree: self.info_tree(),
-                quad_tree: quad_tree.clone(),
-            };
-            tree.nearest_bounded_filtered(origin, max_radius, bounds, move |w| range.contains(w) && filter(w))
-        } else {
-            let bounds = bounds.to_box2d();
-
-            let dist = if max_radius != Px::MAX {
-                DistanceKey::from_distance(max_radius + Px(1))
-            } else {
-                DistanceKey::NONE_MAX
-            };
-
-            let mut r = None;
-            for d in self.scope.descendants() {
-                if d.distance_key(origin) < dist && bounds.contains(d.center()) && filter(d) {
-                    r = Some(d)
-                }
-            }
-            r
-        }
-    }
-
-    /// Spatial iterator over all descendants with center in the direction defined by `orientation` and within the `distance`.
-    pub fn oriented(&self, origin: PxPoint, max_distance: Px, orientation: Orientation2D) -> impl Iterator<Item = WidgetInfo<'a>> + '_ {
-        if let Some(quad_tree) = &self.quad_tree {
-            let range = self.scope.descendants_range();
-
-            let iter = {
-                let distance_bounded = max_distance != Px::MAX;
-                let distance_key = if distance_bounded {
-                    DistanceKey::from_distance(max_distance)
-                } else {
-                    DistanceKey::NONE_MAX
-                };
-                let info_tree = self.info_tree();
-                SpatialTree::oriented_search_bounds(origin, max_distance, quad_tree.bounds(), orientation)
-                    .flat_map(move |sq| {
-                        quad_tree
-                            .query_unique(move |q| q.intersects(&sq))
-                            .map(move |w| (sq, WidgetInfo::new(info_tree, w)))
-                    })
-                    .filter_map(move |(sq, w)| {
-                        let center = w.center();
-                        if range.contains(w)
-                            && sq.contains(center)
-                            && orientation.is(origin, center)
-                            && (!distance_bounded || DistanceKey::from_points(origin, center) <= distance_key)
-                        {
-                            Some(w)
-                        } else {
-                            None
-                        }
-                    })
-            };
-
-            Either::Left(iter)
-        } else {
-            let distance_bounded = max_distance != Px::MAX;
-            let distance_key = if distance_bounded {
-                DistanceKey::from_distance(max_distance)
-            } else {
-                DistanceKey::NONE_MAX
-            };
-
-            let iter = self.scope.descendants().filter(move |d| {
-                let center = d.center();
-                orientation.is(origin, center) && (!distance_bounded || DistanceKey::from_points(origin, center) <= distance_key)
-            });
-
-            Either::Right(iter)
-        }
-    }
-
-    /// Find the descendant with center point nearest of `origin` within the `max_distance` and with `orientation` to origin.
-    ///
-    /// This method is faster than using sorting the result of [`oriented`], but is slower if any point in distance and orientation is acceptable.
-    ///
-    /// [`oriented`]: Self::oriented
-    pub fn nearest_oriented(&self, origin: PxPoint, max_distance: Px, orientation: Orientation2D) -> Option<WidgetInfo<'a>> {
-        self.nearest_oriented_filtered(origin, max_distance, orientation, |_| true)
-    }
-
-    /// Find the descendant with center point nearest of `origin` within the `max_distance` and with `orientation` to origin,
-    /// and approved by the `filter` closure.
-    ///
-    /// This method is faster than using sorting the result of [`oriented`], but is slower if any point in distance and orientation is acceptable.
-    ///
-    /// [`oriented`]: Self::oriented
-    pub fn nearest_oriented_filtered(
-        &self,
-        origin: PxPoint,
-        max_distance: Px,
-        orientation: Orientation2D,
-        mut filter: impl FnMut(WidgetInfo<'a>) -> bool,
-    ) -> Option<WidgetInfo<'a>> {
-        if let Some(quad_tree) = &self.quad_tree {
-            let range = self.scope.descendants_range();
-
-            let tree = SpatialTree {
-                info_tree: self.info_tree(),
-                quad_tree: quad_tree.clone(),
-            };
-            tree.nearest_oriented_filtered(origin, max_distance, orientation, move |w| range.contains(w) && filter(w))
-        } else {
-            let mut r_dist = if max_distance != Px::MAX {
-                DistanceKey::from_distance(max_distance)
-            } else {
-                DistanceKey::NONE_MAX
-            };
-            let mut r = None;
-
-            for d in self.scope.descendants() {
-                let center = d.center();
-                let dist = DistanceKey::from_points(origin, center);
-                if dist < r_dist && orientation.is(origin, center) && filter(d) {
-                    r_dist = dist;
-                    r = Some(d);
-                }
-            }
-
-            r
-        }
-    }
-}
-
 /// A tree of [`WidgetInfo`].
 ///
 /// The tree is behind an `Rc` pointer so cloning and storing this type is very cheap.
@@ -876,9 +132,10 @@ pub struct WidgetInfoTree(Rc<WidgetInfoTreeInner>);
 struct WidgetInfoTreeInner {
     window_id: WindowId,
     tree: Tree<WidgetInfoData>,
-    inner_bounds_tree: RefCell<Rc<spatial::QuadTree>>,
     lookup: IdMap<WidgetId, tree::NodeId>,
     interactivity_filters: InteractivityFilters,
+    out_of_bounds: Vec<tree::NodeId>,
+    spatial_bounds: PxRect,
     build_meta: Rc<OwnedStateMap>,
     stats: RefCell<WidgetInfoTreeStats>,
     stats_update: RefCell<WidgetInfoTreeStatsUpdate>,
@@ -952,17 +209,14 @@ impl WidgetInfoTree {
         self.0.stats.borrow().last_frame != FrameId::INVALID
     }
 
-    /// Create a snapshot of the spatial tree.
-    ///
-    /// This is a lightweight pointer clone operation, unless the tree needs to be rebuild. The spatial tree is invalidated
-    /// after each render that moves at least one widget. The spatial tree is empty before the first render.
-    ///
-    /// See [`SpatialTree`] for more details.
-    pub fn spatial(&self) -> SpatialTree {
-        SpatialTree {
-            info_tree: self,
-            quad_tree: self.inner_bounds_tree(),
-        }
+    /// Iterator over all widgets with inner-bounds not fully contained by their parent inner bounds.
+    pub fn out_of_bounds(&self) -> impl std::iter::ExactSizeIterator<Item = WidgetInfo> {
+        self.0.out_of_bounds.iter().map(|n| WidgetInfo::new(self, *n))
+    }
+
+    /// Gets the bounds box that envelops all widgets, including the out-of-bounds widgets.
+    pub fn spatial_bounds(&self) -> PxRect {
+        self.0.spatial_bounds
     }
 
     fn bounds_changed(&self) {
@@ -973,41 +227,12 @@ impl WidgetInfoTree {
         self.0.stats_update.borrow_mut().visibility_updated += 1;
     }
 
-    fn inner_bounds_tree(&self) -> Rc<spatial::QuadTree> {
-        let mut quad_tree_rc = self.0.inner_bounds_tree.borrow_mut();
-        if !quad_tree_rc.is_empty() || !self.is_rendered() {
-            return quad_tree_rc.clone();
-        }
-
-        let _span = tracing::trace_span!("quad-tree-build").entered();
-
-        // `after_render` ensured that this is a new `Rc` so we can unwrap.
-        let mut quad_tree = Rc::try_unwrap(mem::take(&mut *quad_tree_rc)).unwrap();
-
-        for node in self.0.tree.nodes() {
-            quad_tree.insert(node.id(), node.value().bounds_info.inner_bounds());
-        }
-
-        *quad_tree_rc = Rc::new(quad_tree);
-
-        quad_tree_rc.clone()
-    }
-
     pub(crate) fn after_render(&self, frame_id: FrameId, scale_factor: Factor) {
         let mut stats = self.0.stats.borrow_mut();
         stats.update(frame_id, self.0.stats_update.borrow_mut().take());
 
         if stats.bounds_updated_frame == frame_id {
-            // invalidate quad-tree, reuse the same memory if the quad-tree is not in use.
-
-            let mut quad_tree = self.0.inner_bounds_tree.borrow_mut();
-            *quad_tree = match Rc::try_unwrap(mem::take(&mut *quad_tree)) {
-                Ok(mut t) => {
-                    t.clear();
-                    Rc::new(t)
-                }
-                Err(_) => Rc::new(spatial::QuadTree::default()),
-            };
+            // !!: TODO
         }
 
         self.0.scale_factor.set(scale_factor);
@@ -2068,18 +1293,294 @@ impl<'a> WidgetInfo<'a> {
         }
     }
 
-    /// Gets a spatial tree scoped on this widget, so that all spatial queries only return descendant widgets.
+    /// Returns `true` if this widget's inner bounds are fully contained by the parent inner bounds.
+    pub fn is_in_bounds(self) -> bool {
+        true // !!: TODO
+    }
+
+    /// Iterator over all descendants with inner bounds not fully contained by their parent inner bounds.
+    pub fn out_of_bounds(self) -> impl Iterator<Item = WidgetInfo<'a>> {
+        let range = self.descendants_range();
+        self.tree.out_of_bounds().filter(move |w| range.contains(*w))
+    }
+
+    /// Iterator over self and descendants, first all in-bounds descendants, then all out-of-bounds.
     ///
-    /// Note that if the widget has no more than 16 descendants the quad-tree is not used and linear searches are done instead.
-    pub fn spatial(self) -> ScopedSpatialTree<'a> {
-        ScopedSpatialTree {
-            scope: self,
-            quad_tree: if self.descendants_len() > 16 {
-                Some(self.tree.inner_bounds_tree())
-            } else {
-                None
-            },
+    /// If the `filter` returns `false` the widget and all it's in-bounds descendants are skipped, otherwise they are yielded. After
+    /// all in-bounds descendants reachable from `self` and filtered the iterator changes to each out-of-bounds descendants and their
+    /// in-bounds descendants.
+    pub fn spatial_iter(self, filter: impl Fn(WidgetInfo<'a>) -> bool + Clone + 'a) -> impl Iterator<Item = WidgetInfo<'a>> {
+        self.self_and_descendants()
+            .tree_filter(clone_move!(filter, |w| {
+                if w.is_in_bounds() && filter(w) {
+                    TreeFilter::Include
+                } else {
+                    TreeFilter::SkipAll
+                }
+            }))
+            .chain(self.out_of_bounds().flat_map(clone_move!(filter, |w| {
+                let self_id = w.widget_id();
+                w.self_and_descendants().tree_filter(clone_move!(filter, |w| {
+                    if (w.is_in_bounds() || w.widget_id() == self_id) && filter(w) {
+                        TreeFilter::Include
+                    } else {
+                        TreeFilter::SkipAll
+                    }
+                }))
+            })))
+    }
+
+    /// Iterator over self and all descendants with inner bounds that contain the `point`.
+    pub fn inner_contains(self, point: PxPoint) -> impl Iterator<Item = WidgetInfo<'a>> {
+        self.spatial_iter(move |w| w.inner_bounds().contains(point))
+    }
+
+    /// Spatial iterator over self and descendants with inner bounds that intersects the `rect`.
+    pub fn inner_intersects(self, rect: PxRect) -> impl Iterator<Item = WidgetInfo<'a>> {
+        let rect = rect.to_box2d();
+        self.spatial_iter(move |w| w.inner_bounds().to_box2d().intersects(&rect))
+    }
+
+    /// Spatial iterator over self and descendants with inner bounds that fully envelops the `rect`.
+    pub fn inner_contains_rect(self, rect: PxRect) -> impl Iterator<Item = WidgetInfo<'a>> {
+        let rect = rect.to_box2d();
+        self.spatial_iter(move |w| w.inner_bounds().to_box2d().contains_box(&rect))
+    }
+
+    /// Spatial iterator over self and descendants with inner bounds that are fully inside the `rect`.
+    pub fn inner_contained(self, rect: PxRect) -> impl Iterator<Item = WidgetInfo<'a>> {
+        let rect = rect.to_box2d();
+        self.spatial_iter(move |w| rect.contains_box(&w.inner_bounds().to_box2d()))
+    }
+
+    /// Spatial iterator over self and descendants with center point inside the `area`.
+    pub fn center_contained(&self, area: PxRect) -> impl Iterator<Item = WidgetInfo<'a>> {
+        let area = area.to_box2d();
+        self.spatial_iter(move |w| w.inner_bounds().to_box2d().intersects(&area))
+            .filter(move |w| area.contains(w.center()))
+    }
+
+    /// Spatial iterator over self and descendants with center point within the `max_radius` of the `origin`.
+    pub fn center_in_distance(&self, origin: PxPoint, max_radius: Px) -> impl Iterator<Item = WidgetInfo<'a>> + '_ {
+        let area = PxRect::new(origin, PxSize::splat(max_radius))
+            .inflate(max_radius, max_radius)
+            .to_box2d();
+
+        let distance_key = DistanceKey::from_distance(max_radius);
+
+        self.spatial_iter(move |w| w.inner_bounds().to_box2d().intersects(&area))
+            .filter(move |w| w.distance_key(origin) <= distance_key)
+    }
+
+    /// Gets all widgets of self and descendants hit by a `point`, sorted by z-index of the hit, front to back.
+    pub fn hit_test(self, point: PxPoint) -> HitTestInfo {
+        let _span = tracing::trace_span!("hit_test").entered();
+
+        let mut hits: Vec<_> = self
+            .inner_contains(point)
+            .filter_map(|w| {
+                w.hit_test_z(point).map(|z| HitInfo {
+                    widget_id: w.widget_id(),
+                    z_index: z,
+                })
+            })
+            .collect();
+
+        hits.sort_by(|a, b| b.z_index.cmp(&a.z_index));
+
+        HitTestInfo {
+            window_id: self.tree.0.window_id,
+            frame_id: self.tree.0.stats.borrow().last_frame,
+            point,
+            hits,
         }
+    }
+
+    /// Find the descendant with center point nearest of `origin` within the `max_radius`.
+    ///
+    /// This method is faster than using sorting the result of [`center_in_distance`], but is slower if any point in distance is acceptable.
+    ///
+    /// [`center_in_distance`]: Self::center_in_distance
+    pub fn nearest(self, origin: PxPoint, max_radius: Px) -> Option<WidgetInfo<'a>> {
+        self.nearest_filtered(origin, max_radius, |_| true)
+    }
+
+    /// Find the widget, self or descendant, with center point nearest of `origin` within the `max_radius` and approved by the `filter` closure.
+    pub fn nearest_filtered(self, origin: PxPoint, max_radius: Px, filter: impl FnMut(WidgetInfo<'a>) -> bool) -> Option<WidgetInfo<'a>> {
+        self.nearest_bounded_filtered(origin, max_radius, self.tree.spatial_bounds(), filter)
+    }
+
+    /// Find the widget, self or descendant, with center point nearest of `origin` within the `max_radius` and inside `bounds`;
+    /// and approved by the `filter` closure.
+    pub fn nearest_bounded_filtered(
+        self,
+        origin: PxPoint,
+        max_radius: Px,
+        bounds: PxRect,
+        mut filter: impl FnMut(WidgetInfo<'a>) -> bool,
+    ) -> Option<WidgetInfo<'a>> {
+        // search quadrants of `128` -> `256` -> .. until one quadrant finds at least a widget centered in it,
+        // the nearest widget centered in the smallest quadrant is selected.
+        let max_quad = self.tree.spatial_bounds().intersection(&bounds)?;
+
+        let mut source_quad = PxRect::new(origin - PxVector::splat(Px(64)), PxSize::splat(Px(128)));
+        let mut search_quad = source_quad.intersection(&max_quad)?;
+
+        let max_diameter = max_radius * Px(2);
+
+        let mut dist = if max_radius != Px::MAX {
+            DistanceKey::from_distance(max_radius + Px(1))
+        } else {
+            DistanceKey::NONE_MAX
+        };
+
+        let mut nearest = None;
+        loop {
+            for w in self.center_contained(search_quad) {
+                let w_dist = w.distance_key(origin);
+                if w_dist < dist && filter(w) {
+                    dist = w_dist;
+                    nearest = Some(w);
+                }
+            }
+
+            let source_width = source_quad.width();
+            if nearest.is_some() || source_width >= max_diameter {
+                break;
+            } else {
+                source_quad = source_quad.inflate(source_width, source_width);
+                let new_search = match source_quad.intersection(&max_quad) {
+                    Some(b) if b != search_quad => b,
+                    _ => break, // filled bounds
+                };
+                search_quad = new_search;
+            }
+        }
+
+        if nearest.is_some() {
+            // ensure that we are not skipping a closer widget because the nearest was in a corner of the search quad.
+            let distance = PxVector::splat(Px(2) * dist.distance().unwrap_or(Px(0)));
+
+            let quad = euclid::Box2D::new(origin - distance, origin + distance).intersection_unchecked(&max_quad.to_box2d());
+
+            for w in self.center_contained(quad.to_rect()) {
+                let w_dist = w.distance_key(origin);
+                if w_dist < dist && filter(w) {
+                    dist = w_dist;
+                    nearest = Some(w);
+                }
+            }
+        }
+
+        nearest
+    }
+
+    /// Spatial iterator over all widgets, self and descendants, with center in the direction defined by `orientation` and
+    /// within `max_radius` of  the `origin`, widgets are only visited once and the distance is clipped by the [`bounds`], use [`Px::MAX`]
+    /// on the distance to visit all widgets in the direction.
+    ///
+    /// [`bounds`]: Self::bounds
+    pub fn oriented(self, origin: PxPoint, max_distance: Px, orientation: Orientation2D) -> impl Iterator<Item = WidgetInfo<'a>> {
+        let distance_bounded = max_distance != Px::MAX;
+        let distance_key = if distance_bounded {
+            DistanceKey::from_distance(max_distance)
+        } else {
+            DistanceKey::NONE_MAX
+        };
+        orientation
+            .search_bounds(origin, max_distance, self.tree.spatial_bounds().to_box2d())
+            .flat_map(move |sq| self.inner_intersects(sq.to_rect()).map(move |w| (sq, w)))
+            .filter_map(move |(sq, w)| {
+                let center = w.center();
+                if sq.contains(center)
+                    && orientation.is(origin, center)
+                    && (!distance_bounded || DistanceKey::from_points(origin, center) <= distance_key)
+                {
+                    Some(w)
+                } else {
+                    None
+                }
+            })
+    }
+
+    /// Find the widget with center point nearest of `origin` within the `max_distance` and with `orientation` to origin.
+    ///
+    /// This method is faster than using sorting the result of [`oriented`], but is slower if any point in distance and orientation is acceptable.
+    ///
+    /// [`oriented`]: Self::oriented
+    pub fn nearest_oriented(self, origin: PxPoint, max_distance: Px, orientation: Orientation2D) -> Option<WidgetInfo<'a>> {
+        self.nearest_oriented_filtered(origin, max_distance, orientation, |_| true)
+    }
+
+    /// Find the widget with center point nearest of `origin` within the `max_distance` and with `orientation` to origin, and approved by the `filter` closure.
+    ///
+    /// This method is faster than using sorting the result of [`oriented`], but is slower if any point in distance and orientation is acceptable.
+    ///
+    /// [`oriented`]: Self::oriented
+    pub fn nearest_oriented_filtered(
+        self,
+        origin: PxPoint,
+        max_distance: Px,
+        orientation: Orientation2D,
+        mut filter: impl FnMut(WidgetInfo<'a>) -> bool,
+    ) -> Option<WidgetInfo<'a>> {
+        let mut dist = DistanceKey::from_distance(max_distance + Px(1));
+        let mut nearest = None;
+        let mut last_quad = euclid::Box2D::zero();
+
+        for search_quad in orientation.search_bounds(origin, max_distance, self.tree.spatial_bounds().to_box2d()) {
+            for w in self.center_contained(search_quad.to_rect()) {
+                if orientation.is(origin, w.center()) {
+                    let w_dist = w.distance_key(origin);
+                    if w_dist < dist && filter(w) {
+                        dist = w_dist;
+                        nearest = Some(w);
+                    }
+                }
+            }
+
+            if nearest.is_some() {
+                last_quad = search_quad;
+                break;
+            }
+        }
+
+        if nearest.is_some() {
+            // ensure that we are not skipping a closer widget because the nearest was in a corner of the search quad.
+
+            match orientation {
+                Orientation2D::Above => {
+                    let extra = last_quad.height() / Px(2);
+                    last_quad.max.y = last_quad.min.y;
+                    last_quad.min.y -= extra;
+                }
+                Orientation2D::Right => {
+                    let extra = last_quad.width() / Px(2);
+                    last_quad.min.x = last_quad.max.x;
+                    last_quad.max.x += extra;
+                }
+                Orientation2D::Below => {
+                    let extra = last_quad.height() / Px(2);
+                    last_quad.min.y = last_quad.max.y;
+                    last_quad.max.y += extra;
+                }
+                Orientation2D::Left => {
+                    let extra = last_quad.width() / Px(2);
+                    last_quad.max.x = last_quad.min.x;
+                    last_quad.min.x -= extra;
+                }
+            }
+
+            for w in self.center_contained(last_quad.to_rect()) {
+                let w_dist = w.distance_key(origin);
+                if w_dist < dist && filter(w) {
+                    dist = w_dist;
+                    nearest = Some(w);
+                }
+            }
+        }
+
+        nearest
     }
 }
 

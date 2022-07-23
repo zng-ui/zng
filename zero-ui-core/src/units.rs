@@ -259,7 +259,73 @@ impl Orientation2D {
     /// Iterator that yields quadrants for efficient search in a quad-tree, if a point is inside a quadrant and
     /// passes the [`Orientation2D::is`] check it is in the orientation, them if it is within the `max_distance` it is valid.
     pub fn search_bounds(self, origin: PxPoint, max_distance: Px, spatial_bounds: PxBox) -> impl Iterator<Item = PxBox> {
-        crate::widget_info::SpatialTree::oriented_search_bounds(origin, max_distance, spatial_bounds, self)
+        let mut bounds = PxRect::new(origin, PxSize::splat(max_distance));
+        match self {
+            Orientation2D::Above => {
+                bounds.origin.x -= max_distance / Px(2);
+                bounds.origin.y -= max_distance;
+            }
+            Orientation2D::Right => bounds.origin.y -= max_distance / Px(2),
+            Orientation2D::Below => bounds.origin.x -= max_distance / Px(2),
+            Orientation2D::Left => {
+                bounds.origin.y -= max_distance / Px(2);
+                bounds.origin.x -= max_distance;
+            }
+        }
+
+        // oriented search is a 45º square in the direction specified, so we grow and cut the search quadrant like
+        // in the "nearest with bounds" algorithm, but then cut again to only the part that fully overlaps the 45º
+        // square, points found are then matched with the `Orientation2D::is` method.
+
+        let max_quad = spatial_bounds.intersection_unchecked(&bounds.to_box2d());
+        let mut is_none = max_quad.is_empty();
+
+        let mut source_quad = PxRect::new(origin - PxVector::splat(Px(64)), PxSize::splat(Px(128))).to_box2d();
+        let mut search_quad = source_quad.intersection_unchecked(&max_quad);
+        is_none |= search_quad.is_empty();
+
+        let max_diameter = max_distance * Px(2);
+
+        let mut is_first = true;
+
+        std::iter::from_fn(move || {
+            let source_width = source_quad.width();
+            if is_none {
+                None
+            } else if is_first {
+                is_first = false;
+                Some(search_quad)
+            } else if source_width >= max_diameter {
+                is_none = true;
+                None
+            } else {
+                source_quad = source_quad.inflate(source_width, source_width);
+                let mut new_search = source_quad.intersection_unchecked(&max_quad);
+                if new_search == source_quad || new_search.is_empty() {
+                    is_none = true; // filled bounds
+                    return None;
+                }
+
+                match self {
+                    Orientation2D::Above => {
+                        new_search.max.y = search_quad.min.y;
+                    }
+                    Orientation2D::Right => {
+                        new_search.min.x = search_quad.max.x;
+                    }
+                    Orientation2D::Below => {
+                        new_search.min.y = search_quad.max.y;
+                    }
+                    Orientation2D::Left => {
+                        new_search.max.x = search_quad.min.x;
+                    }
+                }
+
+                search_quad = new_search;
+
+                Some(search_quad)
+            }
+        })
     }
 }
 

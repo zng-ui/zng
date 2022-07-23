@@ -28,7 +28,7 @@ fn app_main() {
             title = "Layer Example";
 
             // zero_ui::properties::inspector::show_bounds = true;
-            // zero_ui::properties::inspector::show_quad_tree = true;
+            // zero_ui::properties::inspector::show_hit_test = true;
 
             // you can use the pre-init to insert layered widgets
             // before the first render.

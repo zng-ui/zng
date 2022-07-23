@@ -927,10 +927,7 @@ impl<'a> WidgetFocusInfo<'a> {
     /// Find the focusable descendant with center point nearest of `origin` within the `max_radius`.
     pub fn nearest(self, origin: PxPoint, max_radius: Px) -> Option<WidgetFocusInfo<'a>> {
         let cast = |w: WidgetInfo<'a>| w.as_focus_info(self.focus_disabled_widgets());
-        self.info
-            .spatial()
-            .nearest_filtered(origin, max_radius, |w| cast(w).is_focusable())
-            .map(cast)
+        self.info.nearest_filtered(origin, max_radius, |w| cast(w).is_focusable()).map(cast)
     }
 
     /// Find the descendant with center point nearest of `origin` within the `max_radius` and approved by the `filter` closure.
@@ -942,7 +939,6 @@ impl<'a> WidgetFocusInfo<'a> {
     ) -> Option<WidgetFocusInfo<'a>> {
         let cast = |w: WidgetInfo<'a>| w.as_focus_info(self.focus_disabled_widgets());
         self.info
-            .spatial()
             .nearest_filtered(origin, max_radius, |w| {
                 let w = cast(w);
                 w.is_focusable() && filter(w)
@@ -960,7 +956,6 @@ impl<'a> WidgetFocusInfo<'a> {
     ) -> Option<WidgetFocusInfo<'a>> {
         let cast = |w: WidgetInfo<'a>| w.as_focus_info(self.focus_disabled_widgets());
         self.info
-            .spatial()
             .nearest_bounded_filtered(origin, max_radius, bounds, move |w| {
                 let w = cast(w);
                 w.is_focusable() && filter(w)
@@ -972,7 +967,6 @@ impl<'a> WidgetFocusInfo<'a> {
     pub fn nearest_oriented(self, origin: PxPoint, max_distance: Px, orientation: Orientation2D) -> Option<WidgetFocusInfo<'a>> {
         let cast = |w: WidgetInfo<'a>| w.as_focus_info(self.focus_disabled_widgets());
         self.info
-            .spatial()
             .nearest_oriented_filtered(origin, max_distance, orientation, |w| cast(w).is_focusable())
             .map(cast)
     }
@@ -988,7 +982,6 @@ impl<'a> WidgetFocusInfo<'a> {
     ) -> Option<WidgetFocusInfo<'a>> {
         let cast = |w: WidgetInfo<'a>| w.as_focus_info(self.focus_disabled_widgets());
         self.info
-            .spatial()
             .nearest_oriented_filtered(origin, max_distance, orientation, |w| {
                 let w = cast(w);
                 w.is_focusable() && filter(w)
@@ -1016,8 +1009,8 @@ impl<'a> WidgetFocusInfo<'a> {
             }
         };
 
-        let scope_spatial = scope.info.spatial();
-        let mut oriented = scope_spatial
+        let mut oriented = scope
+            .info
             .oriented(origin, Px::MAX, orientation)
             .focusable(self.focus_disabled_widgets());
 

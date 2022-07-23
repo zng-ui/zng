@@ -69,13 +69,6 @@ impl<T> Tree<T> {
     pub fn len(&self) -> usize {
         self.nodes.len()
     }
-
-    pub fn nodes(&self) -> impl std::iter::Iterator<Item = NodeRef<T>> + '_ {
-        (0..self.len()).map(|i| NodeRef {
-            tree: self,
-            id: NodeId::new(i),
-        })
-    }
 }
 impl<T> fmt::Debug for Tree<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
