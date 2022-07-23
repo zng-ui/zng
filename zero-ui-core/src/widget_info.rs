@@ -1813,7 +1813,7 @@ impl<'a> WidgetInfo<'a> {
 
     /// Reference to the root widget.
     pub fn root(self) -> Self {
-        self.ancestors().last().unwrap_or(self)
+        self.tree.root()
     }
 
     /// Reference to the widget that contains this widget.
