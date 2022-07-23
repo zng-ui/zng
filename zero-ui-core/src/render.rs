@@ -154,6 +154,7 @@ pub struct FrameBuilder {
 
     widget_data: Option<WidgetData>,
     widget_rendered: bool,
+    parent_inner_bounds: Option<PxRect>,
 
     can_reuse: bool,
     open_reuse: Option<ReuseStart>,
@@ -221,6 +222,7 @@ impl FrameBuilder {
                 transform: PxTransform::identity(),
             }),
             widget_rendered: false,
+            parent_inner_bounds: None,
             can_reuse: true,
             open_reuse: None,
 
@@ -444,7 +446,12 @@ impl FrameBuilder {
                     let bounds = info.bounds_info();
 
                     bounds.set_outer_transform(bounds.outer_transform().then(&transform_patch), ctx.info_tree);
-                    bounds.set_inner_transform(bounds.inner_transform().then(&transform_patch), ctx.info_tree);
+                    bounds.set_inner_transform(
+                        bounds.inner_transform().then(&transform_patch),
+                        ctx.info_tree,
+                        info.widget_id(),
+                        info.parent().map(|p| p.inner_bounds()),
+                    );
 
                     if let Some((back, front)) = bounds.rendered() {
                         let back = back.0 as i64 + z_patch;
@@ -459,7 +466,12 @@ impl FrameBuilder {
                     let bounds = info.bounds_info();
 
                     bounds.set_outer_transform(bounds.outer_transform().then(&transform_patch), ctx.info_tree);
-                    bounds.set_inner_transform(bounds.inner_transform().then(&transform_patch), ctx.info_tree);
+                    bounds.set_inner_transform(
+                        bounds.inner_transform().then(&transform_patch),
+                        ctx.info_tree,
+                        info.widget_id(),
+                        info.parent().map(|p| p.inner_bounds()),
+                    );
                 }
             } else if update_z {
                 for info in ctx.info_tree.get(ctx.path.widget_id()).unwrap().self_and_descendants() {
@@ -686,7 +698,11 @@ impl FrameBuilder {
                 PxTransform::from(translate)
             };
             self.transform = inner_transform.then(&parent_transform);
-            ctx.widget_info.bounds.set_inner_transform(self.transform, ctx.info_tree);
+            ctx.widget_info
+                .bounds
+                .set_inner_transform(self.transform, ctx.info_tree, ctx.path.widget_id(), self.parent_inner_bounds);
+
+            let parent_inner_bounds = mem::replace(&mut self.parent_inner_bounds, Some(ctx.widget_info.bounds.inner_bounds()));
 
             self.display_list.push_reference_frame(
                 SpatialFrameId::widget_id_to_wr(self.widget_id, self.pipeline_id),
@@ -716,6 +732,7 @@ impl FrameBuilder {
             self.display_list.pop_reference_frame();
 
             self.transform = parent_transform;
+            self.parent_inner_bounds = parent_inner_bounds;
 
             let hit_clips = mem::replace(&mut self.hit_clips, parent_hit_clips);
             ctx.widget_info.bounds.set_hit_clips(hit_clips);
@@ -1426,6 +1443,7 @@ pub struct FrameUpdate {
     inner_transform: Option<PxTransform>,
     can_reuse_widget: bool,
     widget_bounds: WidgetBoundsInfo,
+    parent_inner_bounds: Option<PxRect>,
 
     auto_hit_test: bool,
 }
@@ -1481,6 +1499,7 @@ impl FrameUpdate {
             can_reuse_widget: true,
 
             auto_hit_test: false,
+            parent_inner_bounds: None,
         }
     }
 
@@ -1634,7 +1653,12 @@ impl FrameUpdate {
                     for info in ctx.info_tree.get(ctx.path.widget_id()).unwrap().self_and_descendants() {
                         let bounds = info.bounds_info();
                         bounds.set_outer_transform(bounds.outer_transform().then(&patch), ctx.info_tree);
-                        bounds.set_inner_transform(bounds.inner_transform().then(&patch), ctx.info_tree);
+                        bounds.set_inner_transform(
+                            bounds.inner_transform().then(&patch),
+                            ctx.info_tree,
+                            info.widget_id(),
+                            info.parent().map(|p| p.inner_bounds()),
+                        );
                     }
 
                     return; // can reuse and patched.
@@ -1687,10 +1711,15 @@ impl FrameUpdate {
             let parent_transform = self.transform;
 
             self.transform = inner_transform.then(&parent_transform);
-            ctx.widget_info.bounds.set_inner_transform(self.transform, ctx.info_tree);
+            ctx.widget_info
+                .bounds
+                .set_inner_transform(self.transform, ctx.info_tree, ctx.path.widget_id(), self.parent_inner_bounds);
+            let parent_inner_bounds = mem::replace(&mut self.parent_inner_bounds, Some(ctx.widget_info.bounds.inner_bounds()));
 
             render_update(ctx, self);
+
             self.transform = parent_transform;
+            self.parent_inner_bounds = parent_inner_bounds;
         } else {
             tracing::error!("called `update_inner` more then once for `{}`", self.widget_id);
             render_update(ctx, self)

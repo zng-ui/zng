@@ -134,11 +134,12 @@ struct WidgetInfoTreeInner {
     tree: Tree<WidgetInfoData>,
     lookup: IdMap<WidgetId, tree::NodeId>,
     interactivity_filters: InteractivityFilters,
-    out_of_bounds: Vec<tree::NodeId>,
-    spatial_bounds: PxRect,
+    out_of_bounds: RefCell<Rc<Vec<tree::NodeId>>>,
+    spatial_bounds: PxBox,
     build_meta: Rc<OwnedStateMap>,
     stats: RefCell<WidgetInfoTreeStats>,
     stats_update: RefCell<WidgetInfoTreeStatsUpdate>,
+    out_of_bounds_update: RefCell<Vec<(tree::NodeId, bool)>>,
     scale_factor: Cell<Factor>,
 }
 impl PartialEq for WidgetInfoTree {
@@ -211,16 +212,22 @@ impl WidgetInfoTree {
 
     /// Iterator over all widgets with inner-bounds not fully contained by their parent inner bounds.
     pub fn out_of_bounds(&self) -> impl std::iter::ExactSizeIterator<Item = WidgetInfo> {
-        self.0.out_of_bounds.iter().map(|n| WidgetInfo::new(self, *n))
+        let out = self.0.out_of_bounds.borrow().clone();
+        (0..out.len()).map(move |i| WidgetInfo::new(self, out[i]))
     }
 
     /// Gets the bounds box that envelops all widgets, including the out-of-bounds widgets.
     pub fn spatial_bounds(&self) -> PxRect {
-        self.0.spatial_bounds
+        self.0.spatial_bounds.to_rect()
     }
 
     fn bounds_changed(&self) {
         self.0.stats_update.borrow_mut().bounds_updated += 1;
+    }
+
+    fn in_bounds_changed(&self, widget_id: WidgetId, in_bounds: bool) {
+        let id = *self.0.lookup.get(&widget_id).unwrap();
+        self.0.out_of_bounds_update.borrow_mut().push((id, in_bounds));
     }
 
     fn visibility_changed(&self) {
@@ -231,8 +238,23 @@ impl WidgetInfoTree {
         let mut stats = self.0.stats.borrow_mut();
         stats.update(frame_id, self.0.stats_update.borrow_mut().take());
 
-        if stats.bounds_updated_frame == frame_id {
-            // !!: TODO
+        let mut out_of_bounds_update = self.0.out_of_bounds_update.borrow_mut();
+
+        if !out_of_bounds_update.is_empty() {
+            // update out-of-bounds list, reuses the same vec most of the time,
+            // unless a spatial iter was generated and not dropped before render.
+
+            let mut out_of_bounds_mut = self.0.out_of_bounds.borrow_mut();
+            let mut out_of_bounds = Rc::try_unwrap(mem::take(&mut *out_of_bounds_mut)).unwrap_or_else(|rc| (*rc).clone());
+
+            for (id, insert) in out_of_bounds_update.drain(..) {
+                if insert {
+                    out_of_bounds.push(id);
+                } else if let Some(i) = out_of_bounds.iter().position(|i| *i == id) {
+                    out_of_bounds.swap_remove(i);
+                }
+            }
+            *out_of_bounds_mut = Rc::new(out_of_bounds);
         }
 
         self.0.scale_factor.set(scale_factor);
@@ -291,6 +313,8 @@ struct WidgetBoundsData {
 
     hit_clips: RefCell<HitTestClips>,
     hit_index: Cell<u32>,
+
+    is_in_bounds: Cell<bool>,
 }
 
 /// Shared reference to layout size and offsets of a widget and rendered transforms and bounds.
@@ -421,6 +445,13 @@ impl WidgetBoundsInfo {
         self.0.rendered.get()
     }
 
+    /// Gets if the [`inner_bounds`] are fully inside the parent inner bounds.
+    ///
+    /// [`inner_bounds`]: Self::inner_bounds
+    pub fn is_in_bounds(&self) -> bool {
+        self.0.is_in_bounds.get()
+    }
+
     pub(super) fn set_rendered(&self, rendered: Option<(ZIndex, ZIndex)>, info: &WidgetInfoTree) {
         if self.0.rendered.get().is_some() != rendered.is_some() {
             info.visibility_changed();
@@ -456,17 +487,28 @@ impl WidgetBoundsInfo {
         self.0.outer_transform.set(transform);
     }
 
-    pub(super) fn set_inner_transform(&self, transform: PxTransform, info: &WidgetInfoTree) {
+    pub(super) fn set_inner_transform(
+        &self,
+        transform: PxTransform,
+        info: &WidgetInfoTree,
+        widget_id: WidgetId,
+        parent_inner: Option<PxRect>,
+    ) {
         let bounds = transform
             .outer_transformed(PxBox::from_size(self.inner_size()))
             .unwrap_or_default()
             .to_rect();
 
         if self.0.inner_bounds.get() != bounds {
+            self.0.inner_bounds.set(bounds);
             info.bounds_changed();
         }
+        let in_bounds = parent_inner.map(|r| r.contains_rect(&bounds)).unwrap_or(true);
+        if self.0.is_in_bounds.get() != in_bounds {
+            self.0.is_in_bounds.set(in_bounds);
+            info.in_bounds_changed(widget_id, in_bounds);
+        }
 
-        self.0.inner_bounds.set(bounds);
         self.0.inner_transform.set(transform);
     }
 
@@ -1295,7 +1337,7 @@ impl<'a> WidgetInfo<'a> {
 
     /// Returns `true` if this widget's inner bounds are fully contained by the parent inner bounds.
     pub fn is_in_bounds(self) -> bool {
-        true // !!: TODO
+        self.info().bounds_info.is_in_bounds()
     }
 
     /// Iterator over all descendants with inner bounds not fully contained by their parent inner bounds.

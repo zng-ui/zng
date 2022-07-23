@@ -224,10 +224,11 @@ impl WidgetInfoBuilder {
             tree: self.tree,
             interactivity_filters: self.interactivity_filters,
             stats_update: Default::default(),
+            out_of_bounds_update: Default::default(),
             scale_factor: Cell::new(self.scale_factor),
             build_meta: Rc::new(self.build_meta),
-            out_of_bounds: vec![],
-            spatial_bounds: PxRect::zero(),
+            out_of_bounds: Default::default(),
+            spatial_bounds: PxBox::zero(),
         }));
 
         let cap = UsedWidgetInfoBuilder {
