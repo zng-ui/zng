@@ -5,7 +5,8 @@ use std::{
     cell::{Cell, RefCell},
     fmt,
     marker::PhantomData,
-    mem, ops,
+    mem,
+    ops::{self, ControlFlow},
     rc::Rc,
     time::{Duration, Instant},
 };
@@ -168,6 +169,34 @@ impl<'a> SpatialTree<'a> {
             .query_unique(include_quad)
             .map(|n| WidgetInfo::new(self.info_tree, n))
     }
+
+    /// Visit all widgets in quads selected by `include_quad`.
+    ///
+    /// This is slightly faster than [`query`].
+    ///
+    /// [`query`]: Self::query
+    pub fn visit(
+        &self,
+        include_quad: impl FnMut(PxBox) -> bool,
+        mut visit: impl FnMut(WidgetInfo<'a>) -> ControlFlow<()>,
+    ) -> ControlFlow<()> {
+        self.quad_tree
+            .visit(include_quad, move |n| visit(WidgetInfo::new(self.info_tree(), n)))
+    }
+
+    /// Visit all widgets in quads selected by `include_quad`.
+    ///
+    /// This is slightly faster than [`query_unique`].
+    ///
+    /// [`query_unique`]: Self::query_unique
+    pub fn visit_unique(
+        &self,
+        include_quad: impl FnMut(PxBox) -> bool,
+        mut visit: impl FnMut(WidgetInfo<'a>) -> ControlFlow<()>,
+    ) -> ControlFlow<()> {
+        self.quad_tree
+            .visit_unique(include_quad, move |n| visit(WidgetInfo::new(self.info_tree(), n)))
+    }
 }
 
 /// Represents a [`SpatialTree`] that only returns widgets that are descendants of a "scope".
@@ -244,6 +273,62 @@ impl<'a> ScopedSpatialTree<'a> {
             Either::Right(self.scope.descendants())
         }
     }
+
+    /// Visit all widgets in quads selected by `include_quad`.
+    ///
+    /// This is slightly faster than [`query`].
+    ///
+    /// [`query`]: Self::query
+    pub fn visit(
+        &self,
+        include_quad: impl FnMut(PxBox) -> bool,
+        mut visit: impl FnMut(WidgetInfo<'a>) -> ControlFlow<()>,
+    ) -> ControlFlow<()> {
+        if let Some(quad_tree) = &self.quad_tree {
+            let range = self.scope.descendants_range();
+            quad_tree.visit(include_quad, move |n| {
+                let w = WidgetInfo::new(self.info_tree(), n);
+                if range.contains(w) {
+                    visit(w)
+                } else {
+                    ControlFlow::Continue(())
+                }
+            })
+        } else {
+            for d in self.scope.descendants() {
+                visit(d)?;
+            }
+            ControlFlow::Continue(())
+        }
+    }
+
+    /// Visit all widgets in quads selected by `include_quad`.
+    ///
+    /// This is slightly faster than [`query_unique`].
+    ///
+    /// [`query_unique`]: Self::query_unique
+    pub fn visit_unique(
+        &self,
+        include_quad: impl FnMut(PxBox) -> bool,
+        mut visit: impl FnMut(WidgetInfo<'a>) -> ControlFlow<()>,
+    ) -> ControlFlow<()> {
+        if let Some(quad_tree) = &self.quad_tree {
+            let range = self.scope.descendants_range();
+            quad_tree.visit_unique(include_quad, move |n| {
+                let w = WidgetInfo::new(self.info_tree(), n);
+                if range.contains(w) {
+                    visit(w)
+                } else {
+                    ControlFlow::Continue(())
+                }
+            })
+        } else {
+            for d in self.scope.descendants() {
+                visit(d)?;
+            }
+            ControlFlow::Continue(())
+        }
+    }
 }
 macro_rules! impl_spatial_queries {
     ($SpatialTree:ident) => {
@@ -271,15 +356,20 @@ macro_rules! impl_spatial_queries {
             pub fn hit_test(&self, point: PxPoint) -> HitTestInfo {
                 let _span = tracing::trace_span!("hit_test").entered();
 
-                let mut hits: Vec<_> = self
-                    .query_unique(move |q| q.contains(point))
-                    .filter_map(|w| {
-                        w.hit_test_z(point).map(|z| HitInfo {
-                            widget_id: w.widget_id(),
-                            z_index: z,
-                        })
-                    })
-                    .collect();
+                let mut hits = Vec::with_capacity(8);
+
+                self.visit_unique(
+                    move |q| q.contains(point),
+                    |w| {
+                        if let Some(z) = w.hit_test_z(point) {
+                            hits.push(HitInfo {
+                                widget_id: w.widget_id(),
+                                z_index: z,
+                            });
+                        }
+                        ControlFlow::Continue(())
+                    },
+                );
 
                 hits.sort_by(|a, b| b.z_index.cmp(&a.z_index));
 

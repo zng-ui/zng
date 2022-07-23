@@ -1,4 +1,4 @@
-use std::fmt;
+use std::{fmt, ops::ControlFlow};
 
 use linear_map::LinearMap;
 use smallvec::SmallVec;
@@ -170,6 +170,24 @@ macro_rules! impl_quad {
                 self_r.into_iter().chain(inner)
             }
 
+            fn visit(
+                &self,
+                self_bounds: PxSquare,
+                include: &mut impl FnMut(PxBox) -> bool,
+                visit: &mut impl FnMut(tree::NodeId) -> ControlFlow<()>,
+            ) -> ControlFlow<()> {
+                for item in &self.items {
+                    visit(*item)?;
+                }
+
+                for (inner, inner_bounds) in self.nodes.iter().zip(self_bounds.split().unwrap()) {
+                    if include(inner_bounds.to_box()) {
+                        inner.visit(inner_bounds, include, visit)?;
+                    }
+                }
+                ControlFlow::Continue(())
+            }
+
             fn clear(&mut self) {
                 self.items.clear();
                 for n in &mut self.nodes {
@@ -180,15 +198,7 @@ macro_rules! impl_quad {
     };
 }
 impl Quad128 {
-    fn level(&self) -> QLevel {
-        QLevel::from_length(Px(128))
-    }
-
-    fn insert(&mut self, self_bounds: PxSquare, item: tree::NodeId, item_bounds: PxBox, item_level: QLevel) {
-        debug_assert_eq!(self.level(), item_level);
-        debug_assert_eq!(self_bounds.length, MIN_QUAD);
-        debug_assert!(self_bounds.intersects(item_bounds));
-
+    fn insert(&mut self, _: PxSquare, item: tree::NodeId, _: PxBox, _: QLevel) {
         self.items.push(item);
     }
 
@@ -198,6 +208,18 @@ impl Quad128 {
 
     fn query_debug(&self, self_bounds: PxSquare, _: impl Fn(PxBox) -> bool + Copy + 'static) -> impl Iterator<Item = PxBox> + '_ {
         if self.items.is_empty() { None } else { Some(self_bounds.to_box()) }.into_iter()
+    }
+
+    fn visit(
+        &self,
+        _: PxSquare,
+        _: &mut impl FnMut(PxBox) -> bool,
+        visit: &mut impl FnMut(tree::NodeId) -> ControlFlow<()>,
+    ) -> ControlFlow<()> {
+        for item in &self.items {
+            visit(*item)?;
+        }
+        ControlFlow::Continue(())
     }
 
     fn clear(&mut self) {
@@ -310,6 +332,36 @@ impl QuadTree {
     pub(super) fn query_unique(&self, include: impl Fn(PxBox) -> bool + Copy + 'static) -> impl Iterator<Item = tree::NodeId> + '_ {
         let mut visited = FxHashSet::default();
         self.query(include).filter(move |n| visited.insert(*n))
+    }
+
+    pub(super) fn visit(
+        &self,
+        mut include: impl FnMut(PxBox) -> bool,
+        mut visit: impl FnMut(tree::NodeId) -> ControlFlow<()>,
+    ) -> ControlFlow<()> {
+        for (origin, quad) in &self.quads {
+            let bounds = PxSquare {
+                origin: *origin,
+                length: ROOT_QUAD,
+            };
+            if include(bounds.to_box()) {
+                for item in &quad.items {
+                    visit(*item)?;
+                }
+
+                quad.visit(bounds, &mut include, &mut visit)?;
+            }
+        }
+        ControlFlow::Continue(())
+    }
+
+    pub(super) fn visit_unique(
+        &self,
+        include: impl FnMut(PxBox) -> bool,
+        mut visit: impl FnMut(tree::NodeId) -> ControlFlow<()>,
+    ) -> ControlFlow<()> {
+        let mut visited = FxHashSet::default();
+        self.visit(include, |n| if visited.insert(n) { visit(n) } else { ControlFlow::Continue(()) })
     }
 }
 
