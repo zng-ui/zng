@@ -1,6 +1,5 @@
 # Mixed Space
 
-* Fix directional queries.
 * Test everything.
 * Implement "auto splitting/grid" for widgets with many children.
     - The `icon` example would be faster if the buttons where split into groups, this idea is to 

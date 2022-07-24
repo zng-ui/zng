@@ -1012,7 +1012,8 @@ impl<'a> WidgetFocusInfo<'a> {
         let mut oriented = scope
             .info
             .oriented(origin, Px::MAX, orientation)
-            .focusable(self.focus_disabled_widgets());
+            .focusable(self.focus_disabled_widgets())
+            .filter(|w| w.info.widget_id() != scope_id);
 
         if any {
             return oriented.find(|f| filter(*f));
