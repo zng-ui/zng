@@ -247,11 +247,13 @@ impl WidgetInfoTree {
             let mut out_of_bounds_mut = self.0.out_of_bounds.borrow_mut();
             let mut out_of_bounds = Rc::try_unwrap(mem::take(&mut *out_of_bounds_mut)).unwrap_or_else(|rc| (*rc).clone());
 
-            for (id, insert) in out_of_bounds_update.drain(..) {
-                if insert {
+            for (id, remove) in out_of_bounds_update.drain(..) {
+                if remove {
+                    if let Some(i) = out_of_bounds.iter().position(|i| *i == id) {
+                        out_of_bounds.swap_remove(i);
+                    }
+                } else {
                     out_of_bounds.push(id);
-                } else if let Some(i) = out_of_bounds.iter().position(|i| *i == id) {
-                    out_of_bounds.swap_remove(i);
                 }
             }
             *out_of_bounds_mut = Rc::new(out_of_bounds);
@@ -314,7 +316,7 @@ struct WidgetBoundsData {
     hit_clips: RefCell<HitTestClips>,
     hit_index: Cell<u32>,
 
-    is_in_bounds: Cell<bool>,
+    is_in_bounds: Cell<Option<bool>>,
 }
 
 /// Shared reference to layout size and offsets of a widget and rendered transforms and bounds.
@@ -449,7 +451,7 @@ impl WidgetBoundsInfo {
     ///
     /// [`inner_bounds`]: Self::inner_bounds
     pub fn is_in_bounds(&self) -> bool {
-        self.0.is_in_bounds.get()
+        self.0.is_in_bounds.get().unwrap_or(false)
     }
 
     pub(super) fn set_rendered(&self, rendered: Option<(ZIndex, ZIndex)>, info: &WidgetInfoTree) {
@@ -504,9 +506,16 @@ impl WidgetBoundsInfo {
             info.bounds_changed();
         }
         let in_bounds = parent_inner.map(|r| r.contains_rect(&bounds)).unwrap_or(true);
-        if self.0.is_in_bounds.get() != in_bounds {
-            self.0.is_in_bounds.set(in_bounds);
-            info.in_bounds_changed(widget_id, in_bounds);
+        if let Some(prev) = self.0.is_in_bounds.get() {
+            if prev != in_bounds {
+                self.0.is_in_bounds.set(Some(in_bounds));
+                info.in_bounds_changed(widget_id, in_bounds);
+            }
+        } else {
+            self.0.is_in_bounds.set(Some(in_bounds));
+            if !in_bounds {
+                info.in_bounds_changed(widget_id, in_bounds);
+            }
         }
 
         self.0.inner_transform.set(transform);
