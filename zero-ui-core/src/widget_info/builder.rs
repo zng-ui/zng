@@ -228,7 +228,7 @@ impl WidgetInfoBuilder {
             scale_factor: Cell::new(self.scale_factor),
             build_meta: Rc::new(self.build_meta),
             out_of_bounds: Default::default(),
-            spatial_bounds: PxBox::zero(),
+            spatial_bounds: Cell::new(PxBox::zero()),
         }));
 
         let cap = UsedWidgetInfoBuilder {

@@ -135,7 +135,7 @@ struct WidgetInfoTreeInner {
     lookup: IdMap<WidgetId, tree::NodeId>,
     interactivity_filters: InteractivityFilters,
     out_of_bounds: RefCell<Rc<Vec<tree::NodeId>>>,
-    spatial_bounds: PxBox,
+    spatial_bounds: Cell<PxBox>,
     build_meta: Rc<OwnedStateMap>,
     stats: RefCell<WidgetInfoTreeStats>,
     stats_update: RefCell<WidgetInfoTreeStatsUpdate>,
@@ -218,7 +218,7 @@ impl WidgetInfoTree {
 
     /// Gets the bounds box that envelops all widgets, including the out-of-bounds widgets.
     pub fn spatial_bounds(&self) -> PxRect {
-        self.0.spatial_bounds.to_rect()
+        self.0.spatial_bounds.get().to_rect()
     }
 
     fn bounds_changed(&self) {
@@ -258,6 +258,14 @@ impl WidgetInfoTree {
             }
             *out_of_bounds_mut = Rc::new(out_of_bounds);
         }
+
+        let mut spatial_bounds = self.root().outer_bounds().to_box2d();
+        for out in self.0.out_of_bounds.borrow().iter() {
+            let b = WidgetInfo::new(self, *out).inner_bounds().to_box2d();
+            spatial_bounds.min = spatial_bounds.min.min(b.min);
+            spatial_bounds.max = spatial_bounds.max.max(b.max);
+        }
+        self.0.spatial_bounds.set(spatial_bounds);
 
         self.0.scale_factor.set(scale_factor);
     }
