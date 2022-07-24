@@ -20,6 +20,8 @@ pub struct WidgetInfoBuilder {
 
     build_start: Instant,
     pushed_widgets: u32,
+
+    out_of_bounds: Vec<tree::NodeId>,
 }
 impl WidgetInfoBuilder {
     /// Starts building a info tree with the root information.
@@ -54,6 +56,7 @@ impl WidgetInfoBuilder {
             node: root_node,
             tree,
             interactivity_filters: Vec::with_capacity(used_data.interactivity_filters_capacity),
+            out_of_bounds: Vec::with_capacity(used_data.out_of_bounds_capacity),
             lookup,
             meta: OwnedStateMap::new(),
             widget_id: root_id,
@@ -97,6 +100,8 @@ impl WidgetInfoBuilder {
         let parent_widget_id = self.widget_id;
         let parent_meta = mem::take(&mut self.meta);
 
+        let was_out_of_bounds = bounds_info.is_actually_out_of_bounds();
+
         self.widget_id = id;
         self.node = self
             .node(parent_node)
@@ -110,6 +115,10 @@ impl WidgetInfoBuilder {
                 local_interactivity: Cell::new(Interactivity::ENABLED),
             })
             .id();
+
+        if was_out_of_bounds {
+            self.out_of_bounds.push(self.node);
+        }
 
         self.pushed_widgets += 1;
 
@@ -167,6 +176,9 @@ impl WidgetInfoBuilder {
                 let wgt_id = new_node.value().widget_id;
                 if self.lookup.insert(wgt_id, new_node.id()).is_some() {
                     panic!("reused widget `{wgt_id:?}` was already pushed or reused");
+                }
+                if new_node.value().bounds_info.is_actually_out_of_bounds() {
+                    self.out_of_bounds.push(new_node.id());
                 }
             },
         );
@@ -227,13 +239,14 @@ impl WidgetInfoBuilder {
             out_of_bounds_update: Default::default(),
             scale_factor: Cell::new(self.scale_factor),
             build_meta: Rc::new(self.build_meta),
-            out_of_bounds: Default::default(),
+            out_of_bounds: RefCell::new(Rc::new(self.out_of_bounds)),
             spatial_bounds: Cell::new(PxBox::zero()),
         }));
 
         let cap = UsedWidgetInfoBuilder {
             tree_capacity: r.0.tree.len(),
             interactivity_filters_capacity: r.0.interactivity_filters.len(),
+            out_of_bounds_capacity: r.0.out_of_bounds.borrow().len(),
         };
 
         (r, cap)

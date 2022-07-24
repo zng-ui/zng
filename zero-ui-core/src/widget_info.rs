@@ -462,6 +462,10 @@ impl WidgetBoundsInfo {
         self.0.is_in_bounds.get().unwrap_or(false)
     }
 
+    pub(super) fn is_actually_out_of_bounds(&self) -> bool {
+        self.0.is_in_bounds.get().map(|is| !is).unwrap_or(false)
+    }
+
     pub(super) fn set_rendered(&self, rendered: Option<(ZIndex, ZIndex)>, info: &WidgetInfoTree) {
         if self.0.rendered.get().is_some() != rendered.is_some() {
             info.visibility_changed();
@@ -1637,12 +1641,14 @@ impl<'a> WidgetInfo<'a> {
 pub struct UsedWidgetInfoBuilder {
     tree_capacity: usize,
     interactivity_filters_capacity: usize,
+    out_of_bounds_capacity: usize,
 }
 impl UsedWidgetInfoBuilder {
     fn fallback() -> Self {
         UsedWidgetInfoBuilder {
             tree_capacity: 100,
             interactivity_filters_capacity: 30,
+            out_of_bounds_capacity: 10,
         }
     }
 }

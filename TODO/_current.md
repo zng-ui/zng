@@ -1,4 +1,3 @@
-* Icons are not clickable after scroll.
 * Merge.
 
 * Integrate frame reuse with frame update, see `Optimizations.md`.
