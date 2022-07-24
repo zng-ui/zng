@@ -1275,16 +1275,6 @@ impl<'a> WidgetInfo<'a> {
         None
     }
 
-    /// All the parent's children except this widget, sorted by the [`distance_key`] to this widget's center.
-    ///
-    /// [`distance_key`]: Self::distance_key
-    pub fn closest_siblings(self) -> Vec<WidgetInfo<'a>> {
-        let mut vec: Vec<_> = self.siblings().collect();
-        let origin = self.center();
-        vec.sort_by_key(|w| w.distance_key(origin));
-        vec
-    }
-
     /// Value that indicates the distance between this widget center and `origin`.
     pub fn distance_key(self, origin: PxPoint) -> DistanceKey {
         DistanceKey::from_points(origin, self.center())
@@ -1527,10 +1517,10 @@ impl<'a> WidgetInfo<'a> {
     }
 
     /// Spatial iterator over all widgets, self and descendants, with center in the direction defined by `orientation` and
-    /// within `max_radius` of  the `origin`, widgets are only visited once and the distance is clipped by the [`bounds`], use [`Px::MAX`]
+    /// within `max_radius` of  the `origin`, widgets are only visited once and the distance is clipped by the [`spatial_bounds`], use [`Px::MAX`]
     /// on the distance to visit all widgets in the direction.
     ///
-    /// [`bounds`]: Self::bounds
+    /// [`spatial_bounds`]: WidgetInfoTree::spatial_bounds
     pub fn oriented(self, origin: PxPoint, max_distance: Px, orientation: Orientation2D) -> impl Iterator<Item = WidgetInfo<'a>> {
         let distance_bounded = max_distance != Px::MAX;
         let distance_key = if distance_bounded {
