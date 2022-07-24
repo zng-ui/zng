@@ -28,15 +28,18 @@
 * Render updated does not patch reuse, so a widget needs to render for requests after update.
   - We could search for the display item using the property binding key and update it.
   - Send the reuse range for updates so that the property binding can be searched for and updated?
-* Webrender rendering is very slow!, Firefox is much better, are we missing on some culling in Firefox code?
 
-# Webrender frame update
+# Render
 
+* Auto-virtualization of widgets, auto avoid rendering widgets that are not close to scroll borders.
 * Very slow frame update for large text? Do a scroll-to-end in the example to see.
 
 # Layout
 
 * Add property for selecting the "sample" child in panels that need to measure.
+* Implement "auto splitting/grid" for widgets with many children.
+    - The `icon` example would be faster if the buttons where split into groups, this idea is to 
+        do this splitting automatically internally, without asking the user.
 
 # Image Render
 
