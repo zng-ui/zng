@@ -1417,7 +1417,7 @@ impl crate::border::LineStyle {
 /// A frame update causes a frame render without needing to fully rebuild the display list. It
 /// is a more performant but also more limited way of generating a frame.
 ///
-/// Any [`FrameBindingKey`] used in the creation of the frame can be used for updating the frame.
+/// Any [`FrameValueKey`] used in the creation of the frame can be used for updating the frame.
 pub struct FrameUpdate {
     pipeline_id: PipelineId,
 
