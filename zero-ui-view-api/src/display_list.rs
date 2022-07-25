@@ -1,6 +1,7 @@
 use std::{cell::Cell, mem};
 
 use linear_map::LinearMap;
+use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use webrender_api::{self as wr, PipelineId};
 
@@ -410,16 +411,22 @@ impl DisplayList {
     pub fn to_webrender(self, cache: &mut DisplayListCache) -> wr::BuiltDisplayList {
         assert_eq!(self.pipeline_id, cache.pipeline_id);
 
-        let mut wr_list = wr::DisplayListBuilder::new(self.pipeline_id);
+        let (r, sc) = Self::build(&self.list, cache);
+        cache.insert(self, sc);
+
+        r
+    }
+    fn build(list: &[DisplayItem], cache: &mut DisplayListCache) -> (wr::BuiltDisplayList, SpaceAndClip) {
+        let mut wr_list = wr::DisplayListBuilder::new(cache.pipeline_id);
         wr_list.begin();
 
         let mut sc = cache.take_space_and_clip();
 
-        for item in &self.list {
+        for item in list {
             item.to_webrender(&mut wr_list, &mut sc, cache);
         }
-        cache.insert(self, sc);
-        wr_list.end().1
+
+        (wr_list.end().1, sc)
     }
 }
 
@@ -532,6 +539,9 @@ pub struct DisplayListCache {
     pipeline_id: PipelineId,
     lists: LinearMap<FrameId, CachedDisplayList>,
     space_and_clip: SpaceAndClip,
+
+    latest_frame: FrameId,
+    bindings: FxHashMap<wr::PropertyBindingId, (FrameId, usize)>,
 }
 impl DisplayListCache {
     /// New empty.
@@ -539,7 +549,9 @@ impl DisplayListCache {
         DisplayListCache {
             pipeline_id,
             lists: LinearMap::new(),
+            latest_frame: FrameId::INVALID,
             space_and_clip: SpaceAndClip::new(pipeline_id),
+            bindings: FxHashMap::default(),
         }
     }
 
@@ -574,6 +586,12 @@ impl DisplayListCache {
         self.space_and_clip = sc;
 
         self.lists.retain(|_, l| l.used.take());
+
+        for (i, item) in list.list.iter().enumerate() {
+            item.register_bindings(&mut self.bindings, (list.frame_id, i));
+        }
+
+        self.latest_frame = list.frame_id;
         self.lists.insert(
             list.frame_id,
             CachedDisplayList {
@@ -581,6 +599,59 @@ impl DisplayListCache {
                 used: Cell::new(false),
             },
         );
+    }
+
+    fn get_update_target(&mut self, id: wr::PropertyBindingId) -> Option<&mut DisplayItem> {
+        if let Some((frame_id, i)) = self.bindings.get(&id) {
+            if let Some(list) = self.lists.get_mut(frame_id) {
+                if let Some(item) = list.list.get_mut(*i) {
+                    return Some(item);
+                }
+            }
+        }
+        None
+    }
+
+    /// Apply updates, returns the webrender update if the renderer can also be updated, or returns a new frame if a new frame must be rendered.
+    pub fn update(
+        &mut self,
+        transforms: Vec<FrameValueUpdate<PxTransform>>,
+        floats: Vec<FrameValueUpdate<f32>>,
+        colors: Vec<FrameValueUpdate<wr::ColorF>>,
+    ) -> Result<wr::DynamicProperties, wr::BuiltDisplayList> {
+        let mut new_frame = false;
+
+        for t in &transforms {
+            if let Some(item) = self.get_update_target(t.key.id) {
+                new_frame |= item.update_transform(t);
+            }
+        }
+        for t in &floats {
+            if let Some(item) = self.get_update_target(t.key.id) {
+                new_frame |= item.update_float(t);
+            }
+        }
+        for t in &colors {
+            if let Some(item) = self.get_update_target(t.key.id) {
+                new_frame |= item.update_color(t);
+            }
+        }
+
+        if new_frame {
+            let list = self.lists.get_mut(&self.latest_frame).expect("no frame to update");
+            let list = mem::take(&mut list.list);
+            let (r, sc) = DisplayList::build(&list, self);
+            self.space_and_clip = sc;
+            self.lists.get_mut(&self.latest_frame).unwrap().list = list;
+
+            Err(r)
+        } else {
+            Ok(wr::DynamicProperties {
+                transforms: transforms.into_iter().map(FrameValueUpdate::into_wr).collect(),
+                floats: floats.into_iter().map(FrameValueUpdate::into_wr).collect(),
+                colors: colors.into_iter().map(FrameValueUpdate::into_wr).collect(),
+            })
+        }
     }
 }
 
@@ -928,6 +999,83 @@ impl DisplayItem {
                     *style,
                 );
             }
+        }
+    }
+
+    fn register_bindings(&self, bindings: &mut FxHashMap<wr::PropertyBindingId, (FrameId, usize)>, value: (FrameId, usize)) {
+        match self {
+            DisplayItem::PushReferenceFrame {
+                transform: FrameValue::Bind { key, .. },
+                ..
+            } => {
+                bindings.insert(key.id, value);
+            }
+            DisplayItem::PushStackingContext { filters, .. } => {
+                for filter in filters.iter() {
+                    if let wr::FilterOp::Opacity(wr::PropertyBinding::Binding(key, _), _) = filter {
+                        bindings.insert(key.id, value);
+                    }
+                }
+            }
+            DisplayItem::Color {
+                color: FrameValue::Bind { key, .. },
+                ..
+            } => {
+                bindings.insert(key.id, value);
+            }
+            _ => {}
+        }
+    }
+
+    /// Update the value and returns if a new full frame must be rendered.
+    fn update_transform(&mut self, t: &FrameValueUpdate<PxTransform>) -> bool {
+        match self {
+            DisplayItem::PushReferenceFrame {
+                transform: FrameValue::Bind { key, value, is_animating },
+                ..
+            } if *key == t.key => {
+                let new_frame = !*is_animating;
+
+                *value = t.value;
+                *is_animating = t.is_animating;
+
+                new_frame
+            }
+            _ => false,
+        }
+    }
+    fn update_float(&mut self, t: &FrameValueUpdate<f32>) -> bool {
+        match self {
+            DisplayItem::PushStackingContext { filters, .. } => {
+                for filter in filters.iter_mut() {
+                    match filter {
+                        wr::FilterOp::Opacity(wr::PropertyBinding::Binding(key, value), value_copy) if *key == t.key => {
+                            *value = t.value;
+                            *value_copy = t.value;
+                        }
+                        _ => {}
+                    }
+                }
+
+                false
+            }
+            _ => false,
+        }
+    }
+    fn update_color(&mut self, t: &FrameValueUpdate<wr::ColorF>) -> bool {
+        match self {
+            DisplayItem::Color {
+                color: FrameValue::Bind { key, value, is_animating },
+                ..
+            } if *key == t.key => {
+                let new_frame = !*is_animating;
+
+                *value = t.value;
+                *is_animating = t.is_animating;
+
+                new_frame
+            }
+            _ => false,
         }
     }
 }

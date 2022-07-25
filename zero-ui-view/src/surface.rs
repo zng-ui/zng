@@ -11,8 +11,8 @@ use webrender::{
     RenderApi, Renderer, RendererOptions, Transaction,
 };
 use zero_ui_view_api::{
-    units::*, DisplayListCache, FrameId, FrameRequest, FrameUpdateRequest, FrameValueUpdate, HeadlessRequest, ImageId, ImageLoadedData,
-    RenderMode, ViewProcessGen, WindowId,
+    units::*, DisplayListCache, FrameId, FrameRequest, FrameUpdateRequest, HeadlessRequest, ImageId, ImageLoadedData, RenderMode,
+    ViewProcessGen, WindowId,
 };
 
 use crate::{
@@ -35,6 +35,7 @@ pub(crate) struct Surface {
     image_use: ImageUseMap,
 
     display_list_cache: DisplayListCache,
+    clear_color: Option<ColorF>,
 
     pending_frames: VecDeque<(FrameId, bool, Option<EnteredSpan>)>,
     rendered_frame_id: FrameId,
@@ -107,6 +108,7 @@ impl Surface {
             image_use: ImageUseMap::default(),
 
             display_list_cache: DisplayListCache::new(pipeline_id),
+            clear_color: None,
 
             pending_frames: VecDeque::new(),
             rendered_frame_id: FrameId::INVALID,
@@ -224,6 +226,8 @@ impl Surface {
 
         let display_list = frame.display_list.to_webrender(&mut self.display_list_cache);
 
+        self.clear_color = Some(frame.clear_color);
+
         let viewport_size = self.size.to_px(self.scale_factor).to_wr();
         txn.set_display_list(
             frame.id.epoch(),
@@ -249,17 +253,26 @@ impl Surface {
         let render_reasons = frame.render_reasons();
 
         if let Some(color) = frame.clear_color {
+            self.clear_color = Some(color);
             self.renderer.as_mut().unwrap().set_clear_color(color);
         }
 
         let mut txn = Transaction::new();
         txn.set_root_pipeline(self.pipeline_id);
 
-        txn.append_dynamic_properties(DynamicProperties {
-            transforms: frame.transforms.into_iter().map(FrameValueUpdate::into_wr).collect(),
-            floats: frame.floats.into_iter().map(FrameValueUpdate::into_wr).collect(),
-            colors: frame.colors.into_iter().map(FrameValueUpdate::into_wr).collect(),
-        });
+        match self.display_list_cache.update(frame.transforms, frame.floats, frame.colors) {
+            Ok(p) => txn.append_dynamic_properties(p),
+            Err(d) => {
+                let viewport_size = self.size.to_px(self.scale_factor).to_wr();
+
+                txn.set_display_list(
+                    frame.id.epoch(),
+                    frame.clear_color.or(self.clear_color),
+                    viewport_size,
+                    (self.pipeline_id, d),
+                )
+            }
+        }
 
         self.push_resize(&mut txn);
 

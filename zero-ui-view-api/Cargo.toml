@@ -25,6 +25,7 @@ tracing = "0.1"
 flume = { version = "0.10", default-features  = false }
 bitflags = "1"
 num-traits = "0.2"
+rustc-hash = "1"
 
 [package.metadata.docs.rs]
 all-features = true

@@ -14,8 +14,8 @@ use webrender::{
     RenderApi, Renderer, RendererOptions, Transaction, UploadMethod, VertexUsageHint,
 };
 use zero_ui_view_api::{
-    units::*, CursorIcon, DeviceId, DisplayListCache, FocusIndicator, FrameId, FrameRequest, FrameUpdateRequest, FrameValueUpdate, ImageId,
-    ImageLoadedData, RenderMode, VideoMode, ViewProcessGen, WindowId, WindowRequest, WindowState, WindowStateAll,
+    units::*, CursorIcon, DeviceId, DisplayListCache, FocusIndicator, FrameId, FrameRequest, FrameUpdateRequest, ImageId, ImageLoadedData,
+    RenderMode, VideoMode, ViewProcessGen, WindowId, WindowRequest, WindowState, WindowStateAll,
 };
 
 #[cfg(windows)]
@@ -38,6 +38,7 @@ pub(crate) struct Window {
     image_use: ImageUseMap,
 
     display_list_cache: DisplayListCache,
+    clear_color: Option<ColorF>,
 
     window: GWindow,
     context: GlContext,
@@ -278,6 +279,7 @@ impl Window {
             cursor_pos: DipPoint::zero(),
             cursor_device: 0,
             cursor_over: false,
+            clear_color: None,
             focused: None,
             render_mode,
         };
@@ -986,6 +988,8 @@ impl Window {
             colors: vec![],
         });
 
+        self.clear_color = Some(frame.clear_color);
+
         txn.set_display_list(
             frame.id.epoch(),
             Some(frame.clear_color),
@@ -1006,6 +1010,7 @@ impl Window {
         let render_reasons = frame.render_reasons();
 
         if let Some(color) = frame.clear_color {
+            self.clear_color = Some(color);
             self.renderer.as_mut().unwrap().set_clear_color(color);
         }
 
@@ -1013,11 +1018,21 @@ impl Window {
 
         // txn.skip_scene_builder();
         txn.set_root_pipeline(self.pipeline_id);
-        txn.append_dynamic_properties(DynamicProperties {
-            transforms: frame.transforms.into_iter().map(FrameValueUpdate::into_wr).collect(),
-            floats: frame.floats.into_iter().map(FrameValueUpdate::into_wr).collect(),
-            colors: frame.colors.into_iter().map(FrameValueUpdate::into_wr).collect(),
-        });
+
+        match self.display_list_cache.update(frame.transforms, frame.floats, frame.colors) {
+            Ok(p) => txn.append_dynamic_properties(p),
+            Err(d) => {
+                let size = self.window.inner_size();
+                let viewport_size = size.to_px().to_wr();
+
+                txn.set_display_list(
+                    frame.id.epoch(),
+                    frame.clear_color.or(self.clear_color),
+                    viewport_size,
+                    (self.pipeline_id, d),
+                )
+            }
+        }
 
         self.push_resize(&mut txn);
 
