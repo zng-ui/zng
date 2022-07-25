@@ -998,7 +998,8 @@ impl Window {
         );
 
         let frame_scope =
-            tracing::trace_span!("<frame>", ?frame.id, capture_image = ?frame.capture_image, thread = "<webrender>").entered();
+            tracing::trace_span!("<frame>", ?frame.id, capture_image = ?frame.capture_image, from_update = false, thread = "<webrender>")
+                .entered();
 
         self.pending_frames.push_back((frame.id, frame.capture_image, Some(frame_scope)));
 
@@ -1019,8 +1020,11 @@ impl Window {
         // txn.skip_scene_builder();
         txn.set_root_pipeline(self.pipeline_id);
 
-        match self.display_list_cache.update(frame.transforms, frame.floats, frame.colors) {
-            Ok(p) => txn.append_dynamic_properties(p),
+        let frame_scope = match self.display_list_cache.update(frame.transforms, frame.floats, frame.colors) {
+            Ok(p) => {
+                txn.append_dynamic_properties(p);
+                tracing::trace_span!("<frame-update>", ?frame.id, capture_image = ?frame.capture_image, thread = "<webrender>")
+            }
             Err(d) => {
                 let size = self.window.inner_size();
                 let viewport_size = size.to_px().to_wr();
@@ -1030,17 +1034,16 @@ impl Window {
                     frame.clear_color.or(self.clear_color),
                     viewport_size,
                     (self.pipeline_id, d),
-                )
+                );
+                tracing::trace_span!("<frame>", ?frame.id, capture_image = ?frame.capture_image, from_update = true, thread = "<webrender>")
             }
-        }
+        };
 
         self.push_resize(&mut txn);
 
         txn.generate_frame(self.frame_id().get(), render_reasons);
 
-        let frame_scope =
-            tracing::trace_span!("<frame-update>", ?frame.id, capture_image = ?frame.capture_image, thread = "<webrender>").entered();
-        self.pending_frames.push_back((frame.id, false, Some(frame_scope)));
+        self.pending_frames.push_back((frame.id, false, Some(frame_scope.entered())));
 
         self.api.send_transaction(self.document_id, txn);
     }
