@@ -1263,31 +1263,9 @@ impl From<euclid::Transform3D<f32, Px, Px>> for PxTransform {
         PxTransform::Transform(transform)
     }
 }
-
-/// Convert a webrender frame binding value from `PxTransform` to `LayoutTransform`.
-pub fn transform_binding_to_wr(
-    binding: webrender_api::PropertyBinding<PxTransform>,
-) -> webrender_api::PropertyBinding<wr::LayoutTransform> {
-    match binding {
-        webrender_api::PropertyBinding::Value(v) => webrender_api::PropertyBinding::Value(v.to_wr()),
-        webrender_api::PropertyBinding::Binding(key, v) => webrender_api::PropertyBinding::Binding(
-            webrender_api::PropertyBindingKey {
-                id: key.id,
-                _phantom: std::marker::PhantomData,
-            },
-            v.to_wr(),
-        ),
-    }
-}
-
-/// Convert a webrender frame binding update value from `PxTransform` to `LayoutTransform`.
-pub fn transform_value_to_wr(value: webrender_api::PropertyValue<PxTransform>) -> webrender_api::PropertyValue<wr::LayoutTransform> {
-    webrender_api::PropertyValue {
-        key: webrender_api::PropertyBindingKey {
-            id: value.key.id,
-            _phantom: std::marker::PhantomData,
-        },
-        value: value.value.to_wr(),
+impl From<PxTransform> for wr::LayoutTransform {
+    fn from(t: PxTransform) -> Self {
+        t.to_wr()
     }
 }
 

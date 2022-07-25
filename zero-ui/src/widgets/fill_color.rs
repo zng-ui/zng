@@ -6,7 +6,7 @@ use crate::prelude::new_widget::*;
 pub fn fill_color(color: impl IntoVar<Rgba>) -> impl UiNode {
     struct FillColorNode<C> {
         color: C,
-        frame_key: Option<FrameBindingKey<RenderColor>>,
+        frame_key: Option<FrameValueKey<RenderColor>>,
         final_size: PxSize,
         requested_update: Cell<bool>,
     }
@@ -38,9 +38,9 @@ pub fn fill_color(color: impl IntoVar<Rgba>) -> impl UiNode {
             self.requested_update.set(false);
             let color = self.color.copy(ctx).into();
             let color = if let Some(key) = self.frame_key {
-                key.bind(color)
+                key.bind(color, self.color.is_animating(ctx))
             } else {
-                FrameBinding::Value(color)
+                FrameValue::Value(color)
             };
             frame.push_color(PxRect::from_size(self.final_size), color);
         }
@@ -48,7 +48,7 @@ pub fn fill_color(color: impl IntoVar<Rgba>) -> impl UiNode {
         fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
             if let Some(key) = self.frame_key {
                 if self.requested_update.take() {
-                    let color = key.update(self.color.copy(ctx).into());
+                    let color = key.update(self.color.copy(ctx).into(), self.color.is_animating(ctx));
                     update.update_color(color);
                 }
             }
@@ -57,7 +57,7 @@ pub fn fill_color(color: impl IntoVar<Rgba>) -> impl UiNode {
 
     let color = color.into_var();
     let frame_key = if color.can_update() {
-        Some(FrameBindingKey::new_unique())
+        Some(FrameValueKey::new_unique())
     } else {
         None
     };

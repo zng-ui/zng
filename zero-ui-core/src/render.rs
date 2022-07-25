@@ -17,12 +17,9 @@ use crate::{
 use std::{marker::PhantomData, mem};
 
 use webrender_api::{FontRenderMode, PipelineId};
-pub use zero_ui_view_api::{webrender_api, DisplayListBuilder, FrameId, RenderMode, ReuseRange};
+pub use zero_ui_view_api::{webrender_api, DisplayListBuilder, FrameId, FrameValue, FrameValueUpdate, RenderMode, ReuseRange};
 use zero_ui_view_api::{
-    webrender_api::{
-        DynamicProperties, FilterOp, GlyphInstance, GlyphOptions, MixBlendMode, PropertyBinding, PropertyBindingKey, PropertyValue,
-        SpatialTreeItemKey,
-    },
+    webrender_api::{DynamicProperties, FilterOp, GlyphInstance, GlyphOptions, MixBlendMode, SpatialTreeItemKey},
     DisplayList, ReuseStart,
 };
 
@@ -633,14 +630,10 @@ impl FrameBuilder {
     ///
     /// [`is_outer`]: Self::is_outer
     /// [`push_inner`]: Self::push_inner
-    pub fn push_inner_opacity(&mut self, bind: FrameBinding<f32>, render: impl FnOnce(&mut Self)) {
+    pub fn push_inner_opacity(&mut self, bind: FrameValue<f32>, render: impl FnOnce(&mut Self)) {
         if let Some(data) = self.widget_data.as_mut() {
-            let value = match &bind {
-                PropertyBinding::Value(v) => *v,
-                PropertyBinding::Binding(_, v) => *v,
-            };
-
-            let filter = vec![FilterOp::Opacity(bind, value)];
+            let value = *bind.value();
+            let filter = vec![FilterOp::Opacity(bind.into_wr(), value)]; // !!: TODO, replace filter to use FrameValue?
             data.filter.push(filter[0]);
 
             render(self);
@@ -681,7 +674,7 @@ impl FrameBuilder {
     pub fn push_inner(
         &mut self,
         ctx: &mut RenderContext,
-        layout_translation_key: FrameBindingKey<PxTransform>,
+        layout_translation_key: FrameValueKey<PxTransform>,
         render: impl FnOnce(&mut RenderContext, &mut Self),
     ) {
         if let Some(mut data) = self.widget_data.take() {
@@ -706,7 +699,7 @@ impl FrameBuilder {
 
             self.display_list.push_reference_frame(
                 SpatialFrameId::widget_id_to_wr(self.widget_id, self.pipeline_id),
-                layout_translation_key.bind(inner_transform),
+                layout_translation_key.bind(inner_transform, false),
                 !data.has_transform,
             );
 
@@ -844,7 +837,7 @@ impl FrameBuilder {
     pub fn push_reference_frame(
         &mut self,
         id: SpatialFrameId,
-        transform: FrameBinding<PxTransform>,
+        transform: FrameValue<PxTransform>,
         is_2d_scale_translation: bool,
         hit_test: bool,
         render: impl FnOnce(&mut Self),
@@ -857,7 +850,7 @@ impl FrameBuilder {
         &mut self,
         id: SpatialFrameId,
         item: usize,
-        transform: FrameBinding<PxTransform>,
+        transform: FrameValue<PxTransform>,
         is_2d_scale_translation: bool,
         hit_test: bool,
         render: impl FnOnce(&mut Self),
@@ -873,14 +866,12 @@ impl FrameBuilder {
     fn push_reference_frame_impl(
         &mut self,
         id: SpatialTreeItemKey,
-        transform: FrameBinding<PxTransform>,
+        transform: FrameValue<PxTransform>,
         is_2d_scale_translation: bool,
         mut hit_test: bool,
         render: impl FnOnce(&mut Self),
     ) {
-        let transform_value = match transform {
-            PropertyBinding::Value(value) | PropertyBinding::Binding(_, value) => value,
-        };
+        let transform_value = transform.value();
 
         let parent_transform = self.transform;
         self.transform = transform_value.then(&parent_transform);
@@ -992,7 +983,7 @@ impl FrameBuilder {
     }
 
     /// Push a color rectangle.
-    pub fn push_color(&mut self, clip_rect: PxRect, color: FrameBinding<RenderColor>) {
+    pub fn push_color(&mut self, clip_rect: PxRect, color: FrameValue<RenderColor>) {
         expect_inner!(self.push_color);
 
         self.display_list.push_color(clip_rect, color);
@@ -1345,7 +1336,7 @@ impl<'a> HitTestBuilder<'a> {
             return;
         }
 
-        self.hit_clips.push_transform(FrameBinding::Value(transform));
+        self.hit_clips.push_transform(FrameValue::Value(transform));
 
         inner_hit_test(self);
 
@@ -1430,9 +1421,9 @@ impl crate::border::LineStyle {
 pub struct FrameUpdate {
     pipeline_id: PipelineId,
 
-    transforms: Vec<PropertyValue<PxTransform>>,
-    floats: Vec<PropertyValue<f32>>,
-    colors: Vec<PropertyValue<RenderColor>>,
+    transforms: Vec<FrameValueUpdate<PxTransform>>,
+    floats: Vec<FrameValueUpdate<f32>>,
+    colors: Vec<FrameValueUpdate<RenderColor>>,
 
     current_clear_color: RenderColor,
     clear_color: Option<RenderColor>,
@@ -1549,7 +1540,7 @@ impl FrameUpdate {
     /// If `hit_test` is `true` the hit-test transform is also updated.
     ///
     /// [`with_transform`]: Self::with_transform
-    pub fn update_transform(&mut self, new_value: FrameValue<PxTransform>, hit_test: bool) {
+    pub fn update_transform(&mut self, new_value: FrameValueUpdate<PxTransform>, hit_test: bool) {
         self.transforms.push(new_value);
 
         if hit_test || self.auto_hit_test {
@@ -1565,7 +1556,7 @@ impl FrameUpdate {
     /// If `hit_test` is `true` the hit-test transform is also updated.
     ///
     /// [`transform`]: Self::transform
-    pub fn with_transform(&mut self, new_value: FrameValue<PxTransform>, hit_test: bool, render_update: impl FnOnce(&mut Self)) {
+    pub fn with_transform(&mut self, new_value: FrameValueUpdate<PxTransform>, hit_test: bool, render_update: impl FnOnce(&mut Self)) {
         self.with_transform_value(&new_value.value, render_update);
         self.update_transform(new_value, hit_test);
     }
@@ -1701,13 +1692,13 @@ impl FrameUpdate {
     pub fn update_inner(
         &mut self,
         ctx: &mut RenderContext,
-        layout_translation_key: FrameBindingKey<PxTransform>,
+        layout_translation_key: FrameValueKey<PxTransform>,
         render_update: impl FnOnce(&mut RenderContext, &mut Self),
     ) {
         if let Some(inner_transform) = self.inner_transform.take() {
             let translate = ctx.widget_info.bounds.inner_offset() + ctx.widget_info.bounds.outer_offset();
             let inner_transform = inner_transform.then_translate(translate.cast());
-            self.update_transform(layout_translation_key.update(inner_transform), false);
+            self.update_transform(layout_translation_key.update(inner_transform, false), false);
             let parent_transform = self.transform;
 
             self.transform = inner_transform.then(&parent_transform);
@@ -1727,12 +1718,12 @@ impl FrameUpdate {
     }
 
     /// Update a float value.
-    pub fn update_f32(&mut self, new_value: FrameValue<f32>) {
+    pub fn update_f32(&mut self, new_value: FrameValueUpdate<f32>) {
         self.floats.push(new_value);
     }
 
     /// Update a color value.
-    pub fn update_color(&mut self, new_value: FrameValue<RenderColor>) {
+    pub fn update_color(&mut self, new_value: FrameValueUpdate<RenderColor>) {
         self.colors.push(new_value)
     }
 
@@ -1767,11 +1758,11 @@ impl FrameUpdate {
 /// Output of a [`FrameBuilder`].
 pub struct BuiltFrameUpdate {
     /// Bound transforms update.
-    pub transforms: Vec<PropertyValue<PxTransform>>,
+    pub transforms: Vec<FrameValueUpdate<PxTransform>>,
     /// Bound floats update.
-    pub floats: Vec<PropertyValue<f32>>,
+    pub floats: Vec<FrameValueUpdate<f32>>,
     /// Bound colors update.
-    pub colors: Vec<PropertyValue<RenderColor>>,
+    pub colors: Vec<FrameValueUpdate<RenderColor>>,
     /// New clear color.
     pub clear_color: Option<RenderColor>,
 }
@@ -1790,18 +1781,6 @@ impl UsedFrameUpdate {
         self.pipeline_id
     }
 }
-
-/// A frame value that can be updated without regenerating the full frame.
-///
-/// Use `FrameBinding::Value(value)` to not use the quick update feature.
-///
-/// Create a [`FrameBindingKey`] and use its [`bind`] method to setup a frame binding.
-///
-/// [`bind`]: FrameBindingKey::bind
-pub type FrameBinding<T> = PropertyBinding<T>; // we rename this to not conflict with the zero_ui property terminology.
-
-/// A frame value update.
-pub type FrameValue<T> = PropertyValue<T>;
 
 unique_id_64! {
     #[derive(Debug)]
@@ -1838,38 +1817,41 @@ impl SpatialFrameId {
     }
 }
 
-/// Unique key of a [`FrameBinding`] value.
+/// Unique key of an updatable value in the view-process frame.
 #[derive(Clone, Copy, Debug, PartialEq)]
-pub struct FrameBindingKey<T> {
+pub struct FrameValueKey<T> {
     id: FrameBindingKeyId,
     _type: PhantomData<T>,
 }
-impl<T> FrameBindingKey<T> {
+impl<T> FrameValueKey<T> {
     /// Generates a new unique ID.
-    ///
-    /// # Panics
-    /// Panics if called more then `u64::MAX` times.
     pub fn new_unique() -> Self {
-        FrameBindingKey {
+        FrameValueKey {
             id: FrameBindingKeyId::new_unique(),
             _type: PhantomData,
         }
     }
 
-    fn property_key(&self) -> PropertyBindingKey<T> {
-        PropertyBindingKey::new(self.id.get())
+    /// To view key.
+    pub fn view_key(&self) -> zero_ui_view_api::FrameValueKey<T> {
+        zero_ui_view_api::FrameValueKey::new(self.id.get())
     }
 
     /// Create a binding with this key.
-    pub fn bind(self, value: T) -> FrameBinding<T> {
-        FrameBinding::Binding(self.property_key(), value)
+    pub fn bind(self, value: T, is_animating: bool) -> FrameValue<T> {
+        FrameValue::Bind {
+            key: self.view_key(),
+            value,
+            is_animating,
+        }
     }
 
     /// Create a value update with this key.
-    pub fn update(self, value: T) -> FrameValue<T> {
-        FrameValue {
-            key: self.property_key(),
+    pub fn update(self, value: T, is_animating: bool) -> FrameValueUpdate<T> {
+        FrameValueUpdate {
+            key: self.view_key(),
             value,
+            is_animating,
         }
     }
 }

@@ -110,7 +110,7 @@ impl WindowLayers {
             interaction: bool,
 
             spatial_id: SpatialFrameId,
-            transform_key: FrameBindingKey<PxTransform>,
+            transform_key: FrameValueKey<PxTransform>,
         }
         #[impl_ui_node(
                 delegate = &self.widget,
@@ -281,7 +281,7 @@ impl WindowLayers {
 
                                 frame.push_reference_frame(
                                     self.spatial_id,
-                                    self.transform_key.bind(PxTransform::from(point_in_window.to_vector())),
+                                    self.transform_key.bind(PxTransform::from(point_in_window.to_vector()), false),
                                     true,
                                     false,
                                     |frame| self.widget.render(ctx, frame),
@@ -294,7 +294,7 @@ impl WindowLayers {
                                     .unwrap_or_default();
                                 frame.push_reference_frame(
                                     self.spatial_id,
-                                    self.transform_key.bind(PxTransform::from(point_in_window.to_vector())),
+                                    self.transform_key.bind(PxTransform::from(point_in_window.to_vector()), false),
                                     true,
                                     false,
                                     |frame| self.widget.render(ctx, frame),
@@ -304,7 +304,7 @@ impl WindowLayers {
                                 let point_in_window = bounds_info.outer_transform().transform_point(self.offset_point).unwrap_or_default();
                                 frame.push_reference_frame(
                                     self.spatial_id,
-                                    self.transform_key.bind(PxTransform::from(point_in_window.to_vector())),
+                                    self.transform_key.bind(PxTransform::from(point_in_window.to_vector()), false),
                                     true,
                                     false,
                                     |frame| self.widget.render(ctx, frame),
@@ -312,21 +312,21 @@ impl WindowLayers {
                             }
                             AnchorTransform::InnerTransform => frame.push_reference_frame(
                                 self.spatial_id,
-                                self.transform_key.bind(bounds_info.inner_transform()),
+                                self.transform_key.bind(bounds_info.inner_transform(), false),
                                 false,
                                 false,
                                 |frame| self.widget.render(ctx, frame),
                             ),
                             AnchorTransform::InnerBorderTransform => frame.push_reference_frame(
                                 self.spatial_id,
-                                self.transform_key.bind(border_info.inner_transform(bounds_info)),
+                                self.transform_key.bind(border_info.inner_transform(bounds_info), false),
                                 false,
                                 false,
                                 |frame| self.widget.render(ctx, frame),
                             ),
                             AnchorTransform::OuterTransform => frame.push_reference_frame(
                                 self.spatial_id,
-                                self.transform_key.bind(bounds_info.outer_transform()),
+                                self.transform_key.bind(bounds_info.outer_transform(), false),
                                 false,
                                 false,
                                 |frame| self.widget.render(ctx, frame),
@@ -348,7 +348,7 @@ impl WindowLayers {
                             AnchorTransform::InnerOffset(_) => {
                                 let point_in_window = bounds_info.inner_transform().transform_point(self.offset_point).unwrap_or_default();
                                 update.with_transform(
-                                    self.transform_key.update(PxTransform::from(point_in_window.to_vector())),
+                                    self.transform_key.update(PxTransform::from(point_in_window.to_vector()), false),
                                     false,
                                     |update| self.widget.render_update(ctx, update),
                                 )
@@ -359,7 +359,7 @@ impl WindowLayers {
                                     .transform_point(self.offset_point)
                                     .unwrap_or_default();
                                 update.with_transform(
-                                    self.transform_key.update(PxTransform::from(point_in_window.to_vector())),
+                                    self.transform_key.update(PxTransform::from(point_in_window.to_vector()), false),
                                     false,
                                     |update| self.widget.render_update(ctx, update),
                                 )
@@ -367,25 +367,25 @@ impl WindowLayers {
                             AnchorTransform::OuterOffset(_) => {
                                 let point_in_window = bounds_info.outer_transform().transform_point(self.offset_point).unwrap_or_default();
                                 update.with_transform(
-                                    self.transform_key.update(PxTransform::from(point_in_window.to_vector())),
+                                    self.transform_key.update(PxTransform::from(point_in_window.to_vector()), false),
                                     false,
                                     |update| self.widget.render_update(ctx, update),
                                 )
                             }
                             AnchorTransform::InnerTransform => {
-                                update.with_transform(self.transform_key.update(bounds_info.inner_transform()), false, |update| {
+                                update.with_transform(self.transform_key.update(bounds_info.inner_transform(), false), false, |update| {
                                     self.widget.render_update(ctx, update)
                                 });
                             }
                             AnchorTransform::InnerBorderTransform => {
                                 update.with_transform(
-                                    self.transform_key.update(border_info.inner_transform(bounds_info)),
+                                    self.transform_key.update(border_info.inner_transform(bounds_info), false),
                                     false,
                                     |update| self.widget.render_update(ctx, update),
                                 );
                             }
                             AnchorTransform::OuterTransform => {
-                                update.with_transform(self.transform_key.update(bounds_info.outer_transform()), false, |update| {
+                                update.with_transform(self.transform_key.update(bounds_info.outer_transform(), false), false, |update| {
                                     self.widget.render_update(ctx, update)
                                 });
                             }
@@ -429,7 +429,7 @@ impl WindowLayers {
                 offset_point: PxPoint::zero(),
                 interaction: false,
 
-                transform_key: FrameBindingKey::new_unique(),
+                transform_key: FrameValueKey::new_unique(),
                 spatial_id: SpatialFrameId::new_unique(),
             },
         );

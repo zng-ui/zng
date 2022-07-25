@@ -1,5 +1,5 @@
 use crate::{
-    render::{FrameBinding, FrameValue},
+    render::{FrameValue, FrameValueUpdate},
     units::*,
     WidgetId,
 };
@@ -53,7 +53,7 @@ impl HitTestClips {
         self.items.push(HitTestItem::PopClip);
     }
 
-    pub fn push_transform(&mut self, transform: FrameBinding<PxTransform>) {
+    pub fn push_transform(&mut self, transform: FrameValue<PxTransform>) {
         self.items.push(HitTestItem::Transform(transform))
     }
 
@@ -129,9 +129,7 @@ impl HitTestClips {
                 HitTestItem::PopClip => continue 'hit_test,
 
                 HitTestItem::Transform(t) => {
-                    let t = match t {
-                        FrameBinding::Value(t) | FrameBinding::Binding(_, t) => t,
-                    };
+                    let t = t.value();
                     match inv_transform_point(t, local_point) {
                         Some(p) => {
                             // transform is valid, push previous transform and replace the local point.
@@ -181,9 +179,9 @@ impl HitTestClips {
         z
     }
 
-    pub fn update_transform(&mut self, value: FrameValue<PxTransform>) {
+    pub fn update_transform(&mut self, value: FrameValueUpdate<PxTransform>) {
         for item in &mut self.items {
-            if let HitTestItem::Transform(FrameBinding::Binding(key, t)) = item {
+            if let HitTestItem::Transform(FrameValue::Bind { key, value: t, .. }) = item {
                 if *key == value.key {
                     *t = value.value;
                     break;
@@ -230,9 +228,7 @@ impl HitTestClips {
                 }
                 HitTestItem::PopClip => continue 'clip,
                 HitTestItem::Transform(t) => {
-                    let t = match t {
-                        FrameBinding::Value(t) | FrameBinding::Binding(_, t) => t,
-                    };
+                    let t = t.value();
                     match inv_transform_point(t, local_point) {
                         Some(p) => {
                             // transform is valid, push previous transform and replace the local point.
@@ -306,7 +302,7 @@ enum HitTestItem {
     Clip(HitTestPrimitive, bool),
     PopClip,
 
-    Transform(FrameBinding<PxTransform>),
+    Transform(FrameValue<PxTransform>),
     PopTransform,
 
     Child(WidgetId),

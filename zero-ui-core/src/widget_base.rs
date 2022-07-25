@@ -6,7 +6,7 @@ use crate::{
     context::{InfoContext, LayoutContext, MeasureContext, OwnedStateMap, RenderContext, StateMap, WidgetContext, WidgetUpdates},
     event::EventUpdateArgs,
     impl_ui_node, property,
-    render::{FrameBindingKey, FrameBuilder, FrameUpdate, ReuseRange, SpatialFrameId},
+    render::{FrameBuilder, FrameUpdate, FrameValueKey, ReuseRange, SpatialFrameId},
     units::{PxCornerRadius, PxRect, PxSize, PxTransform},
     var::*,
     widget_info::{
@@ -116,7 +116,7 @@ pub mod implicit_base {
             struct ChildrenLayoutNode<P> {
                 panel: P,
                 spatial_id: SpatialFrameId,
-                translation_key: FrameBindingKey<PxTransform>,
+                translation_key: FrameValueKey<PxTransform>,
             }
             #[impl_ui_node(
                 delegate = &self.panel,
@@ -131,13 +131,13 @@ pub mod implicit_base {
                 }
                 fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
                     let transform = PxTransform::from(ctx.widget_info.bounds.child_offset());
-                    frame.push_reference_frame(self.spatial_id, self.translation_key.bind(transform), true, false, |frame| {
+                    frame.push_reference_frame(self.spatial_id, self.translation_key.bind(transform, false), true, false, |frame| {
                         self.panel.render(ctx, frame)
                     });
                 }
                 fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
                     let transform = PxTransform::from(ctx.widget_info.bounds.child_offset());
-                    update.with_transform(self.translation_key.update(transform), false, |update| {
+                    update.with_transform(self.translation_key.update(transform, false), false, |update| {
                         self.panel.render_update(ctx, update);
                     });
                 }
@@ -145,7 +145,7 @@ pub mod implicit_base {
             ChildrenLayoutNode {
                 panel: panel.cfg_boxed(),
                 spatial_id: SpatialFrameId::new_unique(),
-                translation_key: FrameBindingKey::new_unique(),
+                translation_key: FrameValueKey::new_unique(),
             }
             .cfg_boxed()
         }
@@ -161,7 +161,7 @@ pub mod implicit_base {
         pub fn child_layout(child: impl UiNode) -> impl UiNode {
             struct ChildLayoutNode<C> {
                 child: C,
-                id: Option<(SpatialFrameId, FrameBindingKey<PxTransform>)>,
+                id: Option<(SpatialFrameId, FrameValueKey<PxTransform>)>,
             }
             #[impl_ui_node(child)]
             impl<C: UiNode> UiNode for ChildLayoutNode<C> {
@@ -173,7 +173,7 @@ pub mod implicit_base {
                     if self.id.is_none() {
                         if needed {
                             // start rendering.
-                            self.id = Some((SpatialFrameId::new_unique(), FrameBindingKey::new_unique()));
+                            self.id = Some((SpatialFrameId::new_unique(), FrameValueKey::new_unique()));
                             ctx.updates.render();
                         }
                     } else if !needed {
@@ -185,7 +185,7 @@ pub mod implicit_base {
                 fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
                     if let Some((id, key)) = &self.id {
                         let transform = PxTransform::from(ctx.widget_info.bounds.child_offset());
-                        frame.push_reference_frame(*id, key.bind(transform), true, false, |frame| self.child.render(ctx, frame));
+                        frame.push_reference_frame(*id, key.bind(transform, false), true, false, |frame| self.child.render(ctx, frame));
                     } else {
                         self.child.render(ctx, frame);
                     }
@@ -194,7 +194,7 @@ pub mod implicit_base {
                 fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
                     if let Some((_, key)) = &self.id {
                         let transform = PxTransform::from(ctx.widget_info.bounds.child_offset());
-                        update.with_transform(key.update(transform), false, |update| self.child.render_update(ctx, update));
+                        update.with_transform(key.update(transform, false), false, |update| self.child.render_update(ctx, update));
                     } else {
                         self.child.render_update(ctx, update);
                     }
@@ -217,7 +217,7 @@ pub mod implicit_base {
         pub fn inner(child: impl UiNode) -> impl UiNode {
             struct InnerNode<C> {
                 child: C,
-                transform_key: FrameBindingKey<PxTransform>,
+                transform_key: FrameValueKey<PxTransform>,
                 hits_clip: (PxSize, PxCornerRadius),
             }
             #[impl_ui_node(child)]
@@ -280,7 +280,7 @@ pub mod implicit_base {
             }
             InnerNode {
                 child: child.cfg_boxed(),
-                transform_key: FrameBindingKey::new_unique(),
+                transform_key: FrameValueKey::new_unique(),
                 hits_clip: (PxSize::zero(), PxCornerRadius::zero()),
             }
             .cfg_boxed()

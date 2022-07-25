@@ -111,12 +111,7 @@ impl DisplayListBuilder {
     /// Start a new spatial context, must be paired with a call to [`pop_reference_frame`].
     ///
     /// [`pop_reference_frame`]: Self::pop_reference_frame
-    pub fn push_reference_frame(
-        &mut self,
-        key: wr::SpatialTreeItemKey,
-        transform: wr::PropertyBinding<PxTransform>,
-        is_2d_scale_translation: bool,
-    ) {
+    pub fn push_reference_frame(&mut self, key: wr::SpatialTreeItemKey, transform: FrameValue<PxTransform>, is_2d_scale_translation: bool) {
         self.space_len += 1;
         self.list.push(DisplayItem::PushReferenceFrame {
             key,
@@ -251,7 +246,7 @@ impl DisplayListBuilder {
     }
 
     /// Push a color rectangle.
-    pub fn push_color(&mut self, clip_rect: PxRect, color: wr::PropertyBinding<wr::ColorF>) {
+    pub fn push_color(&mut self, clip_rect: PxRect, color: FrameValue<wr::ColorF>) {
         self.list.push(DisplayItem::Color { clip_rect, color })
     }
 
@@ -428,6 +423,105 @@ impl DisplayList {
     }
 }
 
+/// Frame value binding key.
+///
+/// See [`FrameValue`] for more details.
+pub type FrameValueKey<T> = webrender_api::PropertyBindingKey<T>;
+
+/// Represents a frame value that may be updated.
+///
+/// This value is send in a full frame request, after frame updates may be send targeting the key.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+pub enum FrameValue<T> {
+    /// Value that is updated with frame update requests.
+    Bind {
+        /// Key that will be used to update the value.
+        key: FrameValueKey<T>,
+        /// Initial value.
+        value: T,
+        /// If many updates are expected for this value.
+        ///
+        /// If `true` webrender frame updates are setup for the binding, this causes less caching, and for transform values, causes
+        /// webrender to assume the transform may stop being only 2D at any moment.
+        ///
+        /// If `false` webrender full frames are requested internally, but webrender caches better.
+        is_animating: bool,
+    },
+    /// Value is not updated, a new frame must be send to change this value.
+    Value(T),
+}
+impl<T> FrameValue<T> {
+    /// Reference the (initial) value.
+    pub fn value(&self) -> &T {
+        match self {
+            FrameValue::Bind { value, .. } | FrameValue::Value(value) => value,
+        }
+    }
+
+    /// Into the (initial) value.
+    pub fn into_value(self) -> T {
+        match self {
+            FrameValue::Bind { value, .. } | FrameValue::Value(value) => value,
+        }
+    }
+
+    /// Convert to webrender binding.
+    pub fn into_wr<U>(self) -> wr::PropertyBinding<U>
+    where
+        U: From<T>,
+    {
+        match self {
+            FrameValue::Bind {
+                key,
+                value,
+                is_animating: true,
+            } => wr::PropertyBinding::Binding(
+                wr::PropertyBindingKey {
+                    id: key.id,
+                    _phantom: std::marker::PhantomData,
+                },
+                value.into(),
+            ),
+            FrameValue::Bind {
+                value,
+                is_animating: false,
+                ..
+            }
+            | FrameValue::Value(value) => wr::PropertyBinding::Value(value.into()),
+        }
+    }
+}
+
+/// Represents an update targeting a previously setup [`FrameValue`].
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+pub struct FrameValueUpdate<T> {
+    /// Value key.
+    pub key: FrameValueKey<T>,
+    /// New value.
+    pub value: T,
+    /// If many other updates are expected for this value.
+    ///
+    /// If changed to `true` a new webrender full frame is generated that setups an actual binding, subsequent updates then use the webrender binding.
+    ///
+    /// If changed to `false` the previous binding is still used to change the value, but subsequent full frame requests causes the binding to drop.
+    pub is_animating: bool,
+}
+impl<T> FrameValueUpdate<T> {
+    /// Convert to webrender binding update.
+    pub fn into_wr<U>(self) -> wr::PropertyValue<U>
+    where
+        U: From<T>,
+    {
+        wr::PropertyValue {
+            key: wr::PropertyBindingKey {
+                id: self.key.id,
+                _phantom: std::marker::PhantomData,
+            },
+            value: self.value.into(),
+        }
+    }
+}
+
 struct CachedDisplayList {
     list: Vec<DisplayItem>,
     used: Cell<bool>,
@@ -499,7 +593,7 @@ enum DisplayItem {
     },
     PushReferenceFrame {
         key: wr::SpatialTreeItemKey,
-        transform: wr::PropertyBinding<PxTransform>,
+        transform: FrameValue<PxTransform>,
         is_2d_scale_translation: bool,
     },
     PopReferenceFrame,
@@ -548,7 +642,7 @@ enum DisplayItem {
 
     Color {
         clip_rect: PxRect,
-        color: wr::PropertyBinding<wr::ColorF>,
+        color: FrameValue<wr::ColorF>,
     },
 
     LinearGradient {
@@ -595,7 +689,7 @@ impl DisplayItem {
                     wr::units::LayoutPoint::zero(),
                     sc.spatial_id(),
                     wr::TransformStyle::Flat,
-                    transform_binding_to_wr(*transform),
+                    transform.into_wr(),
                     wr::ReferenceFrameKind::Transform {
                         is_2d_scale_translation: *is_2d_scale_translation,
                         should_snap: false,
@@ -692,7 +786,7 @@ impl DisplayItem {
                         flags: wr::PrimitiveFlags::empty(),
                     },
                     bounds,
-                    *color,
+                    color.into_wr(),
                 )
             }
 

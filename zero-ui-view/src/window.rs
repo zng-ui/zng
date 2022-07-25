@@ -14,8 +14,8 @@ use webrender::{
     RenderApi, Renderer, RendererOptions, Transaction, UploadMethod, VertexUsageHint,
 };
 use zero_ui_view_api::{
-    units::*, CursorIcon, DeviceId, DisplayListCache, FocusIndicator, FrameId, FrameRequest, FrameUpdateRequest, ImageId, ImageLoadedData,
-    RenderMode, VideoMode, ViewProcessGen, WindowId, WindowRequest, WindowState, WindowStateAll,
+    units::*, CursorIcon, DeviceId, DisplayListCache, FocusIndicator, FrameId, FrameRequest, FrameUpdateRequest, FrameValueUpdate, ImageId,
+    ImageLoadedData, RenderMode, VideoMode, ViewProcessGen, WindowId, WindowRequest, WindowState, WindowStateAll,
 };
 
 #[cfg(windows)]
@@ -1014,9 +1014,9 @@ impl Window {
         // txn.skip_scene_builder();
         txn.set_root_pipeline(self.pipeline_id);
         txn.append_dynamic_properties(DynamicProperties {
-            transforms: frame.transforms.into_iter().map(transform_value_to_wr).collect(),
-            floats: frame.floats,
-            colors: frame.colors,
+            transforms: frame.transforms.into_iter().map(FrameValueUpdate::into_wr).collect(),
+            floats: frame.floats.into_iter().map(FrameValueUpdate::into_wr).collect(),
+            colors: frame.colors.into_iter().map(FrameValueUpdate::into_wr).collect(),
         });
 
         self.push_resize(&mut txn);

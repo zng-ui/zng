@@ -11,8 +11,8 @@ use webrender::{
     RenderApi, Renderer, RendererOptions, Transaction,
 };
 use zero_ui_view_api::{
-    units::*, DisplayListCache, FrameId, FrameRequest, FrameUpdateRequest, HeadlessRequest, ImageId, ImageLoadedData, RenderMode,
-    ViewProcessGen, WindowId,
+    units::*, DisplayListCache, FrameId, FrameRequest, FrameUpdateRequest, FrameValueUpdate, HeadlessRequest, ImageId, ImageLoadedData,
+    RenderMode, ViewProcessGen, WindowId,
 };
 
 use crate::{
@@ -256,9 +256,9 @@ impl Surface {
         txn.set_root_pipeline(self.pipeline_id);
 
         txn.append_dynamic_properties(DynamicProperties {
-            transforms: frame.transforms.into_iter().map(transform_value_to_wr).collect(),
-            floats: frame.floats,
-            colors: frame.colors,
+            transforms: frame.transforms.into_iter().map(FrameValueUpdate::into_wr).collect(),
+            floats: frame.floats.into_iter().map(FrameValueUpdate::into_wr).collect(),
+            colors: frame.colors.into_iter().map(FrameValueUpdate::into_wr).collect(),
         });
 
         self.push_resize(&mut txn);

@@ -16,7 +16,7 @@ pub fn transform(child: impl UiNode, transform: impl IntoVar<Transform>) -> impl
 
         render_transform: PxTransform,
         spatial_id: SpatialFrameId,
-        binding_key: FrameBindingKey<PxTransform>,
+        binding_key: FrameValueKey<PxTransform>,
     }
     #[impl_ui_node(child)]
     impl<C, T> UiNode for TransformNode<C, T>
@@ -63,12 +63,13 @@ pub fn transform(child: impl UiNode, transform: impl IntoVar<Transform>) -> impl
         }
 
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
+            // !!: TODO, review is_animating.
             if frame.is_outer() {
                 frame.push_inner_transform(&self.render_transform, |frame| self.child.render(ctx, frame));
             } else {
                 frame.push_reference_frame(
                     self.spatial_id,
-                    self.binding_key.bind(self.render_transform),
+                    self.binding_key.bind(self.render_transform, self.transform.is_animating(ctx)),
                     false,
                     false,
                     |frame| self.child.render(ctx, frame),
@@ -80,9 +81,11 @@ pub fn transform(child: impl UiNode, transform: impl IntoVar<Transform>) -> impl
             if update.is_outer() {
                 update.with_inner_transform(&self.render_transform, |update| self.child.render_update(ctx, update));
             } else {
-                update.with_transform(self.binding_key.update(self.render_transform), false, |update| {
-                    self.child.render_update(ctx, update)
-                })
+                update.with_transform(
+                    self.binding_key.update(self.render_transform, self.transform.is_animating(ctx)),
+                    false,
+                    |update| self.child.render_update(ctx, update),
+                )
             }
         }
     }
@@ -92,7 +95,7 @@ pub fn transform(child: impl UiNode, transform: impl IntoVar<Transform>) -> impl
 
         render_transform: PxTransform::identity(),
         spatial_id: SpatialFrameId::new_unique(),
-        binding_key: FrameBindingKey::new_unique(),
+        binding_key: FrameValueKey::new_unique(),
     }
     .cfg_boxed()
 }

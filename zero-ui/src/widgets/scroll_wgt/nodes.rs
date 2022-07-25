@@ -24,7 +24,7 @@ pub fn viewport(child: impl UiNode, mode: impl IntoVar<ScrollMode>) -> impl UiNo
         content_offset: PxVector,
 
         spatial_id: SpatialFrameId,
-        binding_key: FrameBindingKey<PxTransform>,
+        binding_key: FrameValueKey<PxTransform>,
 
         info: ScrollInfo,
     }
@@ -163,7 +163,7 @@ pub fn viewport(child: impl UiNode, mode: impl IntoVar<ScrollMode>) -> impl UiNo
 
             frame.push_reference_frame(
                 self.spatial_id,
-                self.binding_key.bind(self.content_offset.into()),
+                self.binding_key.bind(self.content_offset.into(), true),
                 true,
                 false,
                 |frame| {
@@ -175,7 +175,7 @@ pub fn viewport(child: impl UiNode, mode: impl IntoVar<ScrollMode>) -> impl UiNo
         fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
             self.info.set_viewport_transform(*update.transform());
 
-            update.with_transform(self.binding_key.update(self.content_offset.into()), false, |update| {
+            update.with_transform(self.binding_key.update(self.content_offset.into(), true), false, |update| {
                 self.child.render_update(ctx, update);
             });
         }
@@ -190,7 +190,7 @@ pub fn viewport(child: impl UiNode, mode: impl IntoVar<ScrollMode>) -> impl UiNo
         info: ScrollInfo::default(),
 
         spatial_id: SpatialFrameId::new_unique(),
-        binding_key: FrameBindingKey::new_unique(),
+        binding_key: FrameValueKey::new_unique(),
     }
     .cfg_boxed()
 }

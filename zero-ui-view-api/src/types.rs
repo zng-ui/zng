@@ -1,5 +1,6 @@
 use crate::units::*;
 use crate::DisplayList;
+use crate::FrameValueUpdate;
 use crate::IpcBytes;
 use bitflags::*;
 use serde::{Deserialize, Serialize};
@@ -1311,11 +1312,11 @@ pub struct FrameUpdateRequest {
     pub id: FrameId,
 
     /// Bound transforms.
-    pub transforms: Vec<PropertyValue<PxTransform>>,
+    pub transforms: Vec<FrameValueUpdate<PxTransform>>,
     /// Bound floats.
-    pub floats: Vec<PropertyValue<f32>>,
+    pub floats: Vec<FrameValueUpdate<f32>>,
     /// Bound colors.
-    pub colors: Vec<PropertyValue<ColorF>>,
+    pub colors: Vec<FrameValueUpdate<ColorF>>,
 
     /// New clear color.
     pub clear_color: Option<ColorF>,

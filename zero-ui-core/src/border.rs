@@ -3,7 +3,7 @@
 use std::{fmt, mem};
 
 use crate::context::{MeasureContext, RenderContext};
-use crate::render::{webrender_api as w_api, FrameBinding, FrameBuilder, FrameUpdate, SpatialFrameId};
+use crate::render::{webrender_api as w_api, FrameBuilder, FrameUpdate, FrameValue, SpatialFrameId};
 use crate::widget_info::WidgetBorderInfo;
 use crate::{nodes, UiNodeList, WidgetId};
 
@@ -759,7 +759,7 @@ pub fn fill_node(content: impl UiNode) -> impl UiNode {
 
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
             // TODO avoid this if content is a widget.
-            frame.push_reference_frame(self.offset_id, FrameBinding::Value(self.offset.into()), true, false, |frame| {
+            frame.push_reference_frame(self.offset_id, FrameValue::Value(self.offset.into()), true, false, |frame| {
                 let bounds = PxRect::from_size(self.clip_bounds);
                 if self.clip_corners != PxCornerRadius::zero() {
                     frame.push_clip_rounded_rect(bounds, self.clip_corners, false, false, |f| self.content.render(ctx, f))
