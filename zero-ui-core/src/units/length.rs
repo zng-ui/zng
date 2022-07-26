@@ -211,6 +211,8 @@ impl PartialEq for Length {
             (Px(a), Px(b)) => a == b,
             (Pt(a), Pt(b)) => about_eq(*a, *b, EPSILON_100),
 
+            (DipF32(a), DipF32(b)) | (PxF32(a), PxF32(b)) => about_eq(*a, *b, EPSILON_100),
+
             (Relative(a), Relative(b)) | (Em(a), Em(b)) | (RootEm(a), RootEm(b)) => a == b,
 
             (ViewportWidth(a), ViewportWidth(b))
@@ -219,6 +221,9 @@ impl PartialEq for Length {
             | (ViewportMax(a), ViewportMax(b)) => about_eq(a.0, b.0, EPSILON),
 
             (Expr(a), Expr(b)) => a == b,
+
+            (Dip(a), DipF32(b)) | (DipF32(b), Dip(a)) => about_eq(a.to_f32(), *b, EPSILON_100),
+            (Px(a), PxF32(b)) | (PxF32(b), Px(a)) => about_eq(a.0 as f32, *b, EPSILON_100),
 
             _ => false,
         }

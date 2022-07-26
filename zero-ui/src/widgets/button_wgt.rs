@@ -109,7 +109,7 @@ pub mod theme {
         /// Use the [`button::theme::border`] property to set.
         ///
         /// [`button::theme::border`]: fn@border
-        pub struct BorderWidthsVar: SideOffsets = SideOffsets::new_all(1.0);
+        pub struct BorderWidthsVar: SideOffsets = SideOffsets::new_all(1);
         /// Button border sides.
         ///
         /// Use the [`button::theme::border`] property to set.
@@ -128,7 +128,7 @@ pub mod theme {
         /// Use the [`button::theme::padding`] property to set.
         ///
         /// [`button::theme::border`]: fn@border
-        pub struct PaddingVar: SideOffsets = SideOffsets::new(7.0, 15.0, 7.0, 15.0);
+        pub struct PaddingVar: SideOffsets = SideOffsets::new(7, 15, 7, 15);
 
         /// Button text color.
         ///
