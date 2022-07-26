@@ -136,7 +136,7 @@ impl DisplayListBuilder {
     pub fn push_stacking_context(
         &mut self,
         blend_mode: wr::MixBlendMode,
-        filters: &[wr::FilterOp],
+        filters: &[FilterOp],
         filter_datas: &[wr::FilterData],
         filter_primitives: &[wr::FilterPrimitive],
     ) {
@@ -674,6 +674,67 @@ impl DisplayListCache {
     }
 }
 
+/// Represents one of the filters applied to a stacking context.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+pub enum FilterOp {
+    /// Blur, width and height in pixels.
+    Blur(f32, f32),
+    /// Brightness, in [0..=1] range.
+    Brightness(f32),
+    /// Contrast, in [0..=1] range.
+    Contrast(f32),
+    /// Grayscale, in [0..=1] range.
+    Grayscale(f32),
+    /// Hue shift, in degrees.
+    HueRotate(f32),
+    /// Invert, in [0..=1] range.
+    Invert(f32),
+    /// Opacity, in [0..=1] range, can be bound.
+    Opacity(FrameValue<f32>),
+    /// Saturation, in [0..=1] range.
+    Saturate(f32),
+    /// Sepia, in [0..=1] range.
+    Sepia(f32),
+    /// Pixel perfect shadow.
+    DropShadow(wr::Shadow),
+    /// Custom filter.
+    ///
+    /// The color matrix is in the format of SVG color matrix, [0..5] is the first matrix row.
+    ColorMatrix([f32; 20]),
+    /// sRGB to linear RGB, as defined by SVG.
+    SrgbToLinear,
+    /// Linear RGB to sRGB, as defined by SVG.
+    LinearToSrgb,
+
+    /// SVG component transfer, the functions are defined in the stacking context `filter_data` parameter.
+    ComponentTransfer,
+
+    /// Fill with color.
+    Flood(wr::ColorF),
+}
+impl FilterOp {
+    /// To webrender filter-op.
+    pub fn to_wr(self) -> wr::FilterOp {
+        match self {
+            FilterOp::Blur(w, h) => wr::FilterOp::Blur(w, h),
+            FilterOp::Brightness(b) => wr::FilterOp::Brightness(b),
+            FilterOp::Contrast(c) => wr::FilterOp::Contrast(c),
+            FilterOp::Grayscale(g) => wr::FilterOp::Grayscale(g),
+            FilterOp::HueRotate(h) => wr::FilterOp::HueRotate(h),
+            FilterOp::Invert(i) => wr::FilterOp::Invert(i),
+            FilterOp::Opacity(o) => wr::FilterOp::Opacity(o.into_wr(), *o.value()),
+            FilterOp::Saturate(s) => wr::FilterOp::Saturate(s),
+            FilterOp::Sepia(s) => wr::FilterOp::Sepia(s),
+            FilterOp::DropShadow(d) => wr::FilterOp::DropShadow(d),
+            FilterOp::ColorMatrix(m) => wr::FilterOp::ColorMatrix(m),
+            FilterOp::SrgbToLinear => wr::FilterOp::SrgbToLinear,
+            FilterOp::LinearToSrgb => wr::FilterOp::LinearToSrgb,
+            FilterOp::ComponentTransfer => wr::FilterOp::ComponentTransfer,
+            FilterOp::Flood(c) => wr::FilterOp::Flood(c),
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 enum DisplayItem {
     Reuse {
@@ -690,7 +751,7 @@ enum DisplayItem {
 
     PushStackingContext {
         blend_mode: wr::MixBlendMode,
-        filters: Box<[wr::FilterOp]>,
+        filters: Box<[FilterOp]>,
         filter_datas: Box<[wr::FilterData]>,
         filter_primitives: Box<[wr::FilterPrimitive]>,
     },
@@ -806,7 +867,7 @@ impl DisplayItem {
                 Some(sc.clip_id()),
                 wr::TransformStyle::Flat,
                 *blend_mode,
-                filters,
+                &filters.iter().map(|f| f.to_wr()).collect::<Vec<_>>(),
                 filter_datas,
                 filter_primitives,
                 wr::RasterSpace::Screen,
@@ -1031,7 +1092,7 @@ impl DisplayItem {
             }
             DisplayItem::PushStackingContext { filters, .. } => {
                 for filter in filters.iter() {
-                    if let wr::FilterOp::Opacity(wr::PropertyBinding::Binding(key, _), _) = filter {
+                    if let FilterOp::Opacity(FrameValue::Bind { key, .. }) = filter {
                         bindings.insert(key.id, value);
                     }
                 }
@@ -1059,17 +1120,16 @@ impl DisplayItem {
     fn update_float(&mut self, t: &FrameValueUpdate<f32>) -> bool {
         match self {
             DisplayItem::PushStackingContext { filters, .. } => {
+                let mut new_frame = false;
                 for filter in filters.iter_mut() {
                     match filter {
-                        wr::FilterOp::Opacity(wr::PropertyBinding::Binding(key, value), value_copy) if *key == t.key => {
-                            *value = t.value;
-                            *value_copy = t.value;
+                        FilterOp::Opacity(FrameValue::Bind { key, value, is_animating }) if *key == t.key => {
+                            new_frame |= FrameValue::update(value, is_animating, t);
                         }
                         _ => {}
                     }
                 }
-
-                false
+                new_frame
             }
             _ => false,
         }

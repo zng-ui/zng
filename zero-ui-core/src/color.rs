@@ -1,6 +1,6 @@
 //! Color types, functions and macros, [`Rgba`], [`Filter`], [`hex!`](crate::color::hex), [`opacity`] and more.
 
-use crate::render::webrender_api::{self as wr, FilterOp};
+use crate::render::{webrender_api as wr, FilterOp};
 use crate::{context::LayoutMetrics, render::FrameValue, units::*, var::impl_from_and_into_var};
 use std::{fmt, ops};
 
@@ -1194,7 +1194,7 @@ impl Filter {
     /// Add an opacity adjustment to the filter, zero is fully transparent, one is the input transparency.
     pub fn opacity<A: Into<Factor>>(self, alpha: A) -> Self {
         let alpha_value = alpha.into().0;
-        self.op(FilterOp::Opacity(FrameValue::Value(alpha_value).into_wr(), alpha_value))
+        self.op(FilterOp::Opacity(FrameValue::Value(alpha_value)))
     }
 
     /// Add a color inversion filter, zero does not invert, one fully inverts.
@@ -1309,14 +1309,13 @@ impl fmt::Debug for FilterData {
             }
             match self {
                 FilterData::Op(op) => match op {
-                    FilterOp::Identity => todo!(),
                     FilterOp::Blur(w, _) => write!(f, "blur({w})"),
                     FilterOp::Brightness(b) => write!(f, "brightness({}.pct())", b * 100.0),
                     FilterOp::Contrast(c) => write!(f, "brightness({}.pct())", c * 100.0),
                     FilterOp::Grayscale(c) => bool_or_pct("grayscale", *c, f),
                     FilterOp::HueRotate(d) => write!(f, "hue_rotate({d}.deg())"),
                     FilterOp::Invert(i) => bool_or_pct("invert", *i, f),
-                    FilterOp::Opacity(_, a) => write!(f, "opacity({}.pct())", a * 100.0),
+                    FilterOp::Opacity(o) => write!(f, "opacity({}.pct())", *o.value() * 100.0),
                     FilterOp::Saturate(s) => write!(f, "saturate({}.pct())", s * 100.0),
                     FilterOp::Sepia(s) => bool_or_pct("sepia", *s, f),
                     FilterOp::DropShadow(s) => write!(

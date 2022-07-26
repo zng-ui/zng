@@ -17,9 +17,9 @@ use crate::{
 use std::{marker::PhantomData, mem};
 
 use webrender_api::{FontRenderMode, PipelineId};
-pub use zero_ui_view_api::{webrender_api, DisplayListBuilder, FrameId, FrameValue, FrameValueUpdate, RenderMode, ReuseRange};
+pub use zero_ui_view_api::{webrender_api, DisplayListBuilder, FilterOp, FrameId, FrameValue, FrameValueUpdate, RenderMode, ReuseRange};
 use zero_ui_view_api::{
-    webrender_api::{DynamicProperties, FilterOp, GlyphInstance, GlyphOptions, MixBlendMode, SpatialTreeItemKey},
+    webrender_api::{DynamicProperties, GlyphInstance, GlyphOptions, MixBlendMode, SpatialTreeItemKey},
     DisplayList, ReuseStart,
 };
 
@@ -632,9 +632,7 @@ impl FrameBuilder {
     /// [`push_inner`]: Self::push_inner
     pub fn push_inner_opacity(&mut self, bind: FrameValue<f32>, render: impl FnOnce(&mut Self)) {
         if let Some(data) = self.widget_data.as_mut() {
-            let value = *bind.value();
-            let filter = vec![FilterOp::Opacity(bind.into_wr(), value)]; // !!: TODO, replace filter to use FrameValue?
-            data.filter.push(filter[0]);
+            data.filter.push(FilterOp::Opacity(bind));
 
             render(self);
         } else {
