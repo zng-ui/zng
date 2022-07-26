@@ -216,7 +216,7 @@ impl DisplayListBuilder {
         clip_rect: PxRect,
         font_key: wr::FontInstanceKey,
         glyphs: &[wr::GlyphInstance],
-        color: wr::ColorF,
+        color: FrameValue<wr::ColorF>,
         options: wr::GlyphOptions,
     ) {
         self.list.push(DisplayItem::Text {
@@ -499,7 +499,7 @@ impl<T> FrameValue<T> {
     }
 
     /// Returns `true` if a new frame must be generated.
-    fn update(value: &mut T, is_animating: &mut bool, update: &FrameValueUpdate<T>) -> bool
+    fn update_bindable(value: &mut T, is_animating: &mut bool, update: &FrameValueUpdate<T>) -> bool
     where
         T: PartialEq + Copy,
     {
@@ -513,6 +513,19 @@ impl<T> FrameValue<T> {
         } else {
             *is_animating = update.is_animating;
 
+            false
+        }
+    }
+
+    /// Returns `true` if a new frame must be generated.
+    fn update_value(value: &mut T, update: &FrameValueUpdate<T>) -> bool
+    where
+        T: PartialEq + Copy,
+    {
+        if value != &update.value {
+            *value = update.value;
+            true
+        } else {
             false
         }
     }
@@ -779,7 +792,7 @@ enum DisplayItem {
         clip_rect: PxRect,
         font_key: wr::FontInstanceKey,
         glyphs: Box<[wr::GlyphInstance]>,
-        color: wr::ColorF,
+        color: FrameValue<wr::ColorF>,
         options: wr::GlyphOptions,
     },
 
@@ -922,7 +935,7 @@ impl DisplayItem {
                     bounds,
                     glyphs,
                     *font_key,
-                    *color,
+                    color.into_value(),
                     Some(*options),
                 );
             }
@@ -1103,6 +1116,12 @@ impl DisplayItem {
             } => {
                 bindings.insert(key.id, value);
             }
+            DisplayItem::Text {
+                color: FrameValue::Bind { key, .. },
+                ..
+            } => {
+                bindings.insert(key.id, value);
+            }
             _ => {}
         }
     }
@@ -1113,7 +1132,7 @@ impl DisplayItem {
             DisplayItem::PushReferenceFrame {
                 transform: FrameValue::Bind { key, value, is_animating },
                 ..
-            } if *key == t.key => FrameValue::update(value, is_animating, t),
+            } if *key == t.key => FrameValue::update_bindable(value, is_animating, t),
             _ => false,
         }
     }
@@ -1124,7 +1143,7 @@ impl DisplayItem {
                 for filter in filters.iter_mut() {
                     match filter {
                         FilterOp::Opacity(FrameValue::Bind { key, value, is_animating }) if *key == t.key => {
-                            new_frame |= FrameValue::update(value, is_animating, t);
+                            new_frame |= FrameValue::update_bindable(value, is_animating, t);
                         }
                         _ => {}
                     }
@@ -1139,7 +1158,11 @@ impl DisplayItem {
             DisplayItem::Color {
                 color: FrameValue::Bind { key, value, is_animating },
                 ..
-            } if *key == t.key => FrameValue::update(value, is_animating, t),
+            } if *key == t.key => FrameValue::update_bindable(value, is_animating, t),
+            DisplayItem::Text {
+                color: FrameValue::Bind { key, value, .. },
+                ..
+            } if *key == t.key => FrameValue::update_value(value, t),
             _ => false,
         }
     }

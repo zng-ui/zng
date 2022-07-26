@@ -113,6 +113,10 @@ fn basic() -> impl Widget {
             text! {
                 color = colors::LIGHT_GREEN;
                 text = "Colored Text";
+
+                when self.is_hovered {
+                    color = colors::YELLOW;
+                }
             },
         ],
     )

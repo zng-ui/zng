@@ -933,7 +933,7 @@ impl FrameBuilder {
         clip_rect: PxRect,
         glyphs: &[GlyphInstance],
         font: &impl Font,
-        color: RenderColor,
+        color: FrameValue<RenderColor>,
         synthesis: FontSynthesis,
         aa: FontAntiAliasing,
     ) {
@@ -1853,6 +1853,7 @@ impl<T> FrameValueKey<T> {
         }
     }
 }
+assert_non_null!(FrameValueKey<RenderColor>);
 
 bitflags! {
     /// Configure if a synthetic font is generated for fonts that do not implement **bold** or *oblique* variants.

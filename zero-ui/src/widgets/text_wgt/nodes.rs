@@ -777,13 +777,26 @@ pub fn render_text() -> impl UiNode {
     struct RenderTextNode {
         reuse: RefCell<Option<ReuseRange>>,
         rendered: Cell<Option<RenderedText>>,
+        color_key: Option<FrameValueKey<RenderColor>>,
     }
     #[impl_ui_node(none)]
     impl UiNode for RenderTextNode {
+        fn init(&mut self, _: &mut WidgetContext) {
+            if TextColorVar::new().can_update() {
+                self.color_key = Some(FrameValueKey::new_unique());
+            }
+        }
+
+        fn deinit(&mut self, _: &mut WidgetContext) {
+            self.color_key = None;
+        }
+
         // subscriptions are handled by the `resolve_text` node.
         fn update(&mut self, ctx: &mut WidgetContext) {
-            if TextColorVar::is_new(ctx) || FontAaVar::is_new(ctx) {
+            if FontAaVar::is_new(ctx) {
                 ctx.updates.render();
+            } else if TextColorVar::is_new(ctx) {
+                ctx.updates.render_update();
             }
         }
 
@@ -792,7 +805,13 @@ pub fn render_text() -> impl UiNode {
             let t = LayoutText::get(ctx.vars).expect("expected `LayoutText` in `render_text`");
 
             let clip = t.shaped_text.align_box();
-            let color = *TextColorVar::get(ctx.vars);
+            let color_var = TextColorVar::new();
+            let color = color_var.copy(ctx.vars);
+            let color_value = if let Some(key) = self.color_key {
+                key.bind(color.into(), color_var.is_animating(ctx))
+            } else {
+                FrameValue::Value(color.into())
+            };
 
             let aa = *FontAaVar::get(ctx.vars);
 
@@ -811,13 +830,27 @@ pub fn render_text() -> impl UiNode {
 
             frame.push_reuse(&mut reuse, |frame| {
                 for (font, glyphs) in t.shaped_text.glyphs() {
-                    frame.push_text(clip, glyphs, font, color.into(), r.synthesis, aa);
+                    frame.push_text(clip, glyphs, font, color_value, r.synthesis, aa);
                 }
             });
+        }
+
+        fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
+            if let Some(key) = self.color_key {
+                let color_var = TextColorVar::new();
+                let color = color_var.copy(ctx.vars);
+
+                update.update_color(key.update(color.into(), color_var.is_animating(ctx.vars)));
+
+                let mut rendered = self.rendered.get().unwrap();
+                rendered.color = color;
+                self.rendered.set(Some(rendered));
+            }
         }
     }
     RenderTextNode {
         reuse: RefCell::default(),
         rendered: Cell::new(None),
+        color_key: None,
     }
 }
