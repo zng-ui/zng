@@ -4,8 +4,7 @@
         - Do we only need custom reuse groups because of color here?
     - Others that cause a new frame often (border color?).
 
-* Test integration of frame reuse with frame update.
-* Merge.
+* Review reuse after frame update.
 
 
 * Implement virtualization, see `Optimizations.md`.
