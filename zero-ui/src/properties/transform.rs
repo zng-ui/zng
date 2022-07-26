@@ -69,7 +69,7 @@ pub fn transform(child: impl UiNode, transform: impl IntoVar<Transform>) -> impl
             } else {
                 frame.push_reference_frame(
                     self.spatial_id,
-                    self.binding_key.bind(self.render_transform, self.transform.is_animating(ctx)),
+                    self.binding_key.bind(self.render_transform),
                     false,
                     false,
                     |frame| self.child.render(ctx, frame),
@@ -81,11 +81,9 @@ pub fn transform(child: impl UiNode, transform: impl IntoVar<Transform>) -> impl
             if update.is_outer() {
                 update.with_inner_transform(&self.render_transform, |update| self.child.render_update(ctx, update));
             } else {
-                update.with_transform(
-                    self.binding_key.update(self.render_transform, self.transform.is_animating(ctx)),
-                    false,
-                    |update| self.child.render_update(ctx, update),
-                )
+                update.with_transform(self.binding_key.update(self.render_transform), false, |update| {
+                    self.child.render_update(ctx, update)
+                })
             }
         }
     }

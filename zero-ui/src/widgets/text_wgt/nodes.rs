@@ -808,7 +808,7 @@ pub fn render_text() -> impl UiNode {
             let color_var = TextColorVar::new();
             let color = color_var.copy(ctx.vars);
             let color_value = if let Some(key) = self.color_key {
-                key.bind(color.into(), color_var.is_animating(ctx))
+                key.bind(color.into())
             } else {
                 FrameValue::Value(color.into())
             };
@@ -840,7 +840,7 @@ pub fn render_text() -> impl UiNode {
                 let color_var = TextColorVar::new();
                 let color = color_var.copy(ctx.vars);
 
-                update.update_color(key.update(color.into(), color_var.is_animating(ctx.vars)));
+                update.update_color(key.update(color.into()));
 
                 let mut rendered = self.rendered.get().unwrap();
                 rendered.color = color;

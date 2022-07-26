@@ -214,7 +214,7 @@ pub fn opacity(child: impl UiNode, alpha: impl IntoVar<Factor>) -> impl UiNode {
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
             let opacity = self.alpha_value.get(ctx).0;
             let opacity = if let Some(frame_key) = self.frame_key {
-                frame_key.bind(opacity, self.alpha_value.is_animating(ctx))
+                frame_key.bind(opacity)
             } else {
                 FrameValue::Value(opacity)
             };
@@ -223,7 +223,7 @@ pub fn opacity(child: impl UiNode, alpha: impl IntoVar<Factor>) -> impl UiNode {
 
         fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
             if let Some(frame_key) = self.frame_key {
-                update.update_f32(frame_key.update(self.alpha_value.get(ctx).0, self.alpha_value.is_animating(ctx)));
+                update.update_f32(frame_key.update(self.alpha_value.get(ctx).0));
             }
             self.child.render_update(ctx, update);
         }

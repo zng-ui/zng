@@ -697,7 +697,7 @@ impl FrameBuilder {
 
             self.display_list.push_reference_frame(
                 SpatialFrameId::widget_id_to_wr(self.widget_id, self.pipeline_id),
-                layout_translation_key.bind(inner_transform, false),
+                layout_translation_key.bind(inner_transform),
                 !data.has_transform,
             );
 
@@ -1696,7 +1696,7 @@ impl FrameUpdate {
         if let Some(inner_transform) = self.inner_transform.take() {
             let translate = ctx.widget_info.bounds.inner_offset() + ctx.widget_info.bounds.outer_offset();
             let inner_transform = inner_transform.then_translate(translate.cast());
-            self.update_transform(layout_translation_key.update(inner_transform, false), false);
+            self.update_transform(layout_translation_key.update(inner_transform), false);
             let parent_transform = self.transform;
 
             self.transform = inner_transform.then(&parent_transform);
@@ -1836,20 +1836,18 @@ impl<T> FrameValueKey<T> {
     }
 
     /// Create a binding with this key.
-    pub fn bind(self, value: T, is_animating: bool) -> FrameValue<T> {
+    pub fn bind(self, value: T) -> FrameValue<T> {
         FrameValue::Bind {
             key: self.view_key(),
             value,
-            is_animating,
         }
     }
 
     /// Create a value update with this key.
-    pub fn update(self, value: T, is_animating: bool) -> FrameValueUpdate<T> {
+    pub fn update(self, value: T) -> FrameValueUpdate<T> {
         FrameValueUpdate {
             key: self.view_key(),
             value,
-            is_animating,
         }
     }
 }

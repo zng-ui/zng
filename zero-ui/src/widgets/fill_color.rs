@@ -38,7 +38,7 @@ pub fn fill_color(color: impl IntoVar<Rgba>) -> impl UiNode {
             self.requested_update.set(false);
             let color = self.color.copy(ctx).into();
             let color = if let Some(key) = self.frame_key {
-                key.bind(color, self.color.is_animating(ctx))
+                key.bind(color)
             } else {
                 FrameValue::Value(color)
             };
@@ -48,7 +48,7 @@ pub fn fill_color(color: impl IntoVar<Rgba>) -> impl UiNode {
         fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
             if let Some(key) = self.frame_key {
                 if self.requested_update.take() {
-                    let color = key.update(self.color.copy(ctx).into(), self.color.is_animating(ctx));
+                    let color = key.update(self.color.copy(ctx).into());
                     update.update_color(color);
                 }
             }

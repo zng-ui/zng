@@ -445,13 +445,6 @@ pub enum FrameValue<T> {
         key: FrameValueKey<T>,
         /// Initial value.
         value: T,
-        /// If many updates are expected for this value.
-        ///
-        /// If `true` webrender frame updates are setup for the binding, this causes less caching, and for transform values, causes
-        /// webrender to assume the transform may stop being only 2D at any moment.
-        ///
-        /// If `false` webrender full frames are requested internally, but webrender caches better.
-        is_animating: bool,
     },
     /// Value is not updated, a new frame must be send to change this value.
     Value(T),
@@ -477,43 +470,24 @@ impl<T> FrameValue<T> {
         U: From<T>,
     {
         match self {
-            FrameValue::Bind {
-                key,
-                value,
-                is_animating: true,
-            } => wr::PropertyBinding::Binding(
+            FrameValue::Bind { key, value } => wr::PropertyBinding::Binding(
                 wr::PropertyBindingKey {
                     id: key.id,
                     _phantom: std::marker::PhantomData,
                 },
                 value.into(),
             ),
-            FrameValue::Bind {
-                value,
-                is_animating: false,
-                ..
-            }
-            | FrameValue::Value(value) => wr::PropertyBinding::Value(value.into()),
+            FrameValue::Value(value) => wr::PropertyBinding::Value(value.into()),
         }
     }
 
     /// Returns `true` if a new frame must be generated.
-    fn update_bindable(value: &mut T, is_animating: &mut bool, update: &FrameValueUpdate<T>) -> bool
+    fn update_bindable(value: &mut T, update: &FrameValueUpdate<T>) -> bool
     where
         T: PartialEq + Copy,
     {
-        if (!*is_animating && update.is_animating) || value != &update.value {
-            let new_frame = !*is_animating;
-
-            *is_animating = update.is_animating;
-            *value = update.value;
-
-            new_frame
-        } else {
-            *is_animating = update.is_animating;
-
-            false
-        }
+        *value = update.value;
+        false
     }
 
     /// Returns `true` if a new frame must be generated.
@@ -537,12 +511,6 @@ pub struct FrameValueUpdate<T> {
     pub key: FrameValueKey<T>,
     /// New value.
     pub value: T,
-    /// If many other updates are expected for this value.
-    ///
-    /// If changed to `true` a new webrender full frame is generated that setups an actual binding, subsequent updates then use the webrender binding.
-    ///
-    /// If changed to `false` the previous binding is still used to change the value, but subsequent full frame requests causes the binding to drop.
-    pub is_animating: bool,
 }
 impl<T> FrameValueUpdate<T> {
     /// Convert to webrender binding update.
@@ -1137,9 +1105,9 @@ impl DisplayItem {
     fn update_transform(&mut self, t: &FrameValueUpdate<PxTransform>) -> bool {
         match self {
             DisplayItem::PushReferenceFrame {
-                transform: FrameValue::Bind { key, value, is_animating },
+                transform: FrameValue::Bind { key, value },
                 ..
-            } if *key == t.key => FrameValue::update_bindable(value, is_animating, t),
+            } if *key == t.key => FrameValue::update_bindable(value, t),
             _ => false,
         }
     }
@@ -1149,8 +1117,8 @@ impl DisplayItem {
                 let mut new_frame = false;
                 for filter in filters.iter_mut() {
                     match filter {
-                        FilterOp::Opacity(FrameValue::Bind { key, value, is_animating }) if *key == t.key => {
-                            new_frame |= FrameValue::update_bindable(value, is_animating, t);
+                        FilterOp::Opacity(FrameValue::Bind { key, value }) if *key == t.key => {
+                            new_frame |= FrameValue::update_bindable(value, t);
                         }
                         _ => {}
                     }
@@ -1163,9 +1131,9 @@ impl DisplayItem {
     fn update_color(&mut self, t: &FrameValueUpdate<wr::ColorF>) -> bool {
         match self {
             DisplayItem::Color {
-                color: FrameValue::Bind { key, value, is_animating },
+                color: FrameValue::Bind { key, value },
                 ..
-            } if *key == t.key => FrameValue::update_bindable(value, is_animating, t),
+            } if *key == t.key => FrameValue::update_bindable(value, t),
             DisplayItem::Text {
                 color: FrameValue::Bind { key, value, .. },
                 ..
