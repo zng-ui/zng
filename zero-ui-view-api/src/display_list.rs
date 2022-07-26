@@ -497,6 +497,25 @@ impl<T> FrameValue<T> {
             | FrameValue::Value(value) => wr::PropertyBinding::Value(value.into()),
         }
     }
+
+    /// Returns `true` if a new frame must be generated.
+    fn update(value: &mut T, is_animating: &mut bool, update: &FrameValueUpdate<T>) -> bool
+    where
+        T: PartialEq + Copy,
+    {
+        if (!*is_animating && update.is_animating) || value != &update.value {
+            let new_frame = !*is_animating;
+
+            *is_animating = update.is_animating;
+            *value = update.value;
+
+            new_frame
+        } else {
+            *is_animating = update.is_animating;
+
+            false
+        }
+    }
 }
 
 /// Represents an update targeting a previously setup [`FrameValue`].
@@ -1033,14 +1052,7 @@ impl DisplayItem {
             DisplayItem::PushReferenceFrame {
                 transform: FrameValue::Bind { key, value, is_animating },
                 ..
-            } if *key == t.key => {
-                let new_frame = !*is_animating;
-
-                *value = t.value;
-                *is_animating = t.is_animating;
-
-                new_frame
-            }
+            } if *key == t.key => FrameValue::update(value, is_animating, t),
             _ => false,
         }
     }
@@ -1067,14 +1079,7 @@ impl DisplayItem {
             DisplayItem::Color {
                 color: FrameValue::Bind { key, value, is_animating },
                 ..
-            } if *key == t.key => {
-                let new_frame = !*is_animating;
-
-                *value = t.value;
-                *is_animating = t.is_animating;
-
-                new_frame
-            }
+            } if *key == t.key => FrameValue::update(value, is_animating, t),
             _ => false,
         }
     }
