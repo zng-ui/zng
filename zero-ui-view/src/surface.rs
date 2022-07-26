@@ -212,6 +212,8 @@ impl Surface {
     }
 
     pub fn render(&mut self, frame: FrameRequest) {
+        let _span = tracing::trace_span!("render").entered();
+
         let render_reasons = frame.render_reasons();
 
         self.renderer.as_mut().unwrap().set_clear_color(frame.clear_color);
@@ -251,6 +253,8 @@ impl Surface {
     }
 
     pub fn render_update(&mut self, frame: FrameUpdateRequest) {
+        let _span = tracing::trace_span!("render_update").entered();
+
         let render_reasons = frame.render_reasons();
 
         if let Some(color) = frame.clear_color {

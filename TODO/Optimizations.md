@@ -40,6 +40,9 @@
 
 * Avoid loading images that are not visible?
 * Very slow frame update for large text? Do a scroll-to-end in the example to see.
+* Modify webrender to not (de)serialize it's display list.
+  - Measure first, the DisplayList::build step is a bit slow, but it may not be due to the iteration.
+  - If we do this, need to figure out how we will still apply patches from Firefox.
 
 # Layout
 

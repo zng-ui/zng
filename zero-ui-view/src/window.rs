@@ -970,6 +970,8 @@ impl Window {
     ///
     /// The [callback](#callback) will be called when the frame is ready to be [presented](Self::present).
     pub fn render(&mut self, frame: FrameRequest) {
+        let _scope = tracing::trace_span!("render", ?frame.id).entered();
+
         self.renderer.as_mut().unwrap().set_clear_color(frame.clear_color);
 
         let size = self.window.inner_size();
@@ -1008,6 +1010,8 @@ impl Window {
 
     /// Start rendering a new frame based on the data of the last frame.
     pub fn render_update(&mut self, frame: FrameUpdateRequest) {
+        let _scope = tracing::trace_span!("render_update", ?frame.id).entered();
+
         let render_reasons = frame.render_reasons();
 
         if let Some(color) = frame.clear_color {
@@ -1059,7 +1063,7 @@ impl Window {
         let first_frame = self.waiting_first_frame;
 
         if self.waiting_first_frame {
-            let _s = tracing::trace_span!("Window.first-draw").entered();
+            let _s = tracing::trace_span!("first-draw").entered();
             debug_assert!(msg.composite_needed);
 
             self.waiting_first_frame = false;
@@ -1104,7 +1108,7 @@ impl Window {
     }
 
     pub fn redraw(&mut self) {
-        let _s = tracing::trace_span!("Window.redraw", stats = tracing::field::Empty).entered();
+        let span = tracing::trace_span!("redraw", stats = tracing::field::Empty).entered();
 
         self.context.make_current();
 
@@ -1112,10 +1116,8 @@ impl Window {
         renderer.update();
         let s = self.window.inner_size();
 
-        let render_span = tracing::trace_span!("render").entered();
         let r = renderer.render(s.to_px().to_wr_device(), 0).unwrap();
-        render_span.record("stats", &tracing::field::debug(&r.stats));
-        drop(render_span);
+        span.record("stats", &tracing::field::debug(&r.stats));
 
         let _ = renderer.flush_pipeline_info();
         self.context.swap_buffers();

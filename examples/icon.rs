@@ -2,18 +2,18 @@
 use zero_ui::prelude::*;
 
 use zero_ui_material_icons as icons;
-use zero_ui_view_prebuilt as zero_ui_view;
+// use zero_ui_view_prebuilt as zero_ui_view;
 
 fn main() {
-    examples_util::print_info();
-    zero_ui_view::init();
+    // examples_util::print_info();
+    // zero_ui_view::init();
 
-    // let rec = examples_util::record_profile("profile-icon.json.gz", &[("example", &"icon")], |_| true);
+    let rec = examples_util::record_profile("profile-icon.json.gz", &[("example", &"icon")], |_| true);
 
-    // zero_ui_view::run_same_process(app_main);
-    app_main();
+    zero_ui_view::run_same_process(app_main);
+    // app_main();
 
-    // rec.finish();
+    rec.finish();
 }
 
 fn app_main() {

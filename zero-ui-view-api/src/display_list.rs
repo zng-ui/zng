@@ -411,22 +411,21 @@ impl DisplayList {
     pub fn to_webrender(self, cache: &mut DisplayListCache) -> wr::BuiltDisplayList {
         assert_eq!(self.pipeline_id, cache.pipeline_id);
 
-        let (r, sc) = Self::build(&self.list, cache);
-        cache.insert(self, sc);
+        let r = Self::build(&self.list, cache);
+        cache.insert(self);
 
         r
     }
-    fn build(list: &[DisplayItem], cache: &mut DisplayListCache) -> (wr::BuiltDisplayList, SpaceAndClip) {
-        let mut wr_list = wr::DisplayListBuilder::new(cache.pipeline_id);
-        wr_list.begin();
+    fn build(list: &[DisplayItem], cache: &mut DisplayListCache) -> wr::BuiltDisplayList {
+        let _s = tracing::trace_span!("DisplayList::build").entered();
 
-        let mut sc = cache.take_space_and_clip();
+        let (mut wr_list, mut sc) = cache.begin_wr();
 
         for item in list {
             item.to_webrender(&mut wr_list, &mut sc, cache);
         }
 
-        (wr_list.end().1, sc)
+        cache.end_wr(wr_list, sc)
     }
 }
 
@@ -570,10 +569,12 @@ struct CachedDisplayList {
 pub struct DisplayListCache {
     pipeline_id: PipelineId,
     lists: LinearMap<FrameId, CachedDisplayList>,
-    space_and_clip: SpaceAndClip,
+    space_and_clip: Option<SpaceAndClip>,
 
     latest_frame: FrameId,
     bindings: FxHashMap<wr::PropertyBindingId, (FrameId, usize)>,
+
+    wr_list: Option<wr::DisplayListBuilder>,
 }
 impl DisplayListCache {
     /// New empty.
@@ -582,18 +583,29 @@ impl DisplayListCache {
             pipeline_id,
             lists: LinearMap::new(),
             latest_frame: FrameId::INVALID,
-            space_and_clip: SpaceAndClip::new(pipeline_id),
+            space_and_clip: Some(SpaceAndClip::new(pipeline_id)),
             bindings: FxHashMap::default(),
+            wr_list: Some(wr::DisplayListBuilder::new(pipeline_id)),
         }
-    }
-
-    fn take_space_and_clip(&mut self) -> SpaceAndClip {
-        mem::replace(&mut self.space_and_clip, SpaceAndClip::new(self.pipeline_id))
     }
 
     /// Pipeline where the items can be reused.
     pub fn pipeline_id(&self) -> PipelineId {
         self.pipeline_id
+    }
+
+    fn begin_wr(&mut self) -> (wr::DisplayListBuilder, SpaceAndClip) {
+        let mut list = self.wr_list.take().unwrap();
+        let sc = self.space_and_clip.take().unwrap();
+        list.begin();
+        (list, sc)
+    }
+
+    fn end_wr(&mut self, mut list: wr::DisplayListBuilder, sc: SpaceAndClip) -> wr::BuiltDisplayList {
+        let r = list.end().1;
+        self.wr_list = Some(list);
+        self.space_and_clip = Some(sc);
+        r
     }
 
     fn reuse(&self, frame_id: FrameId, start: usize, end: usize, wr_list: &mut wr::DisplayListBuilder, sc: &mut SpaceAndClip) {
@@ -612,11 +624,7 @@ impl DisplayListCache {
         }
     }
 
-    fn insert(&mut self, list: DisplayList, sc: SpaceAndClip) {
-        assert_eq!(1, sc.spatial.len());
-        assert_eq!(1, sc.clip.len());
-        self.space_and_clip = sc;
-
+    fn insert(&mut self, list: DisplayList) {
         self.lists.retain(|_, l| l.used.take());
 
         for (i, item) in list.list.iter().enumerate() {
@@ -672,8 +680,7 @@ impl DisplayListCache {
         if new_frame {
             let list = self.lists.get_mut(&self.latest_frame).expect("no frame to update");
             let list = mem::take(&mut list.list);
-            let (r, sc) = DisplayList::build(&list, self);
-            self.space_and_clip = sc;
+            let r = DisplayList::build(&list, self);
             self.lists.get_mut(&self.latest_frame).unwrap().list = list;
 
             Err(r)
