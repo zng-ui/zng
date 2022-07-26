@@ -354,6 +354,8 @@ impl Length {
             (ViewportMax(a), ViewportMax(b)) => ViewportMax(a.max(b)),
             (DipF32(a), DipF32(b)) => DipF32(a.max(b)),
             (PxF32(a), PxF32(b)) => PxF32(a.max(b)),
+            (DipF32(a), Dip(b)) | (Dip(b), DipF32(a)) => DipF32(a.max(b.to_f32())),
+            (PxF32(a), Px(b)) | (Px(b), PxF32(a)) => PxF32(a.max(b.0 as f32)),
             (a, b) => Expr(Box::new(LengthExpr::Max(a, b))),
         }
     }
@@ -375,6 +377,8 @@ impl Length {
             (ViewportMax(a), ViewportMax(b)) => ViewportMax(a.min(b)),
             (DipF32(a), DipF32(b)) => DipF32(a.min(b)),
             (PxF32(a), PxF32(b)) => PxF32(a.min(b)),
+            (DipF32(a), Dip(b)) | (Dip(b), DipF32(a)) => DipF32(a.min(b.to_f32())),
+            (PxF32(a), Px(b)) | (Px(b), PxF32(a)) => PxF32(a.min(b.0 as f32)),
             (a, b) => Expr(Box::new(LengthExpr::Min(a, b))),
         }
     }

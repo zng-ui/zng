@@ -457,13 +457,11 @@ pub mod implicit_base {
                         tracing::error!(target: "widget_base", "`UiNode::render_update` called in not inited widget {:?}", self.id);
                     }
 
-                    let mut reuse_range = self.reuse.borrow_mut();
                     let mut reuse = true;
                     if !self.pending_updates.borrow_mut().render.take().is_none()
                         || self.offsets_pass.get() != self.info.bounds.offsets_pass()
                     {
                         reuse = false;
-                        *reuse_range = None;
                         self.offsets_pass.set(self.info.bounds.offsets_pass());
                     }
 
