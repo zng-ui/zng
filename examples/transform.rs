@@ -7,7 +7,7 @@ fn main() {
     examples_util::print_info();
     zero_ui_view::init();
 
-    // let rec = examples_util::record_profile("profile-transform.json.gz", &[("example", &"transform")], |_| true);
+    // let rec = examples_util::record_profile("transform");
 
     // zero_ui_view::run_same_process(app_main);
     app_main();

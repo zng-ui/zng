@@ -1,9 +1,3 @@
-* Review, can we remove outer-transform/bounds?
-    - It is updated in `push_inner` anyway.
-    - It halves the computation of bounds if removed.
-    - Can layout be done without `outer_offset`?
-        - If not we can still remove the outer transform, outer offset remains just a vector for the layout pass only. 
-
 # Screen culling
 
 - Firefox has a "VisibleRect" in the display builder, if is set to the parent scroll viewport, it gets clipped by the root viewport
@@ -37,4 +31,9 @@
 
 # Other
 
+* Review, can we remove outer-transform/bounds?
+    - It is updated in `push_inner` anyway.
+    - It halves the computation of bounds if removed.
+    - Can layout be done without `outer_offset`?
+        - If not we can still remove the outer transform, outer offset remains just a vector for the layout pass only. 
 * Finish state API, see `State.md`.

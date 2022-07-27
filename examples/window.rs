@@ -10,7 +10,7 @@ fn main() {
     examples_util::print_info();
     // zero_ui_view::init();
 
-    // let rec = examples_util::record_profile("profile-window.json.gz", &[("example", &"window")], |_| true);
+    // let rec = examples_util::record_profile("example");
 
     zero_ui_view::run_same_process(app_main);
     // app_main();

@@ -8,7 +8,7 @@ fn main() {
     examples_util::print_info();
     zero_ui_view::init();
 
-    // let rec = examples_util::record_profile("profile-scroll.json.gz", &[("example", &"scroll")], |_| true);
+    // let rec = examples_util::record_profile("scroll");
     // zero_ui_view::run_same_process(app_main);
     app_main();
 

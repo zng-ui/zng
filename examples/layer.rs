@@ -14,7 +14,7 @@ fn main() {
     examples_util::print_info();
     zero_ui_view::init();
 
-    // let rec = examples_util::record_profile("profile-layer.json.gz", &[("example", &"layer")], |_| true);
+    // let rec = examples_util::record_profile("layer");
 
     // zero_ui_view::run_same_process(app_main);
     app_main();
