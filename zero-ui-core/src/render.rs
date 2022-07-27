@@ -149,6 +149,7 @@ pub struct FrameBuilder {
     auto_hit_test: bool,
     hit_clips: HitTestClips,
 
+    culling_rect: PxRect,
     widget_data: Option<WidgetData>,
     widget_rendered: bool,
     parent_inner_bounds: Option<PxRect>,
@@ -173,6 +174,7 @@ impl FrameBuilder {
     pub fn new(
         frame_id: FrameId,
         root_id: WidgetId,
+        root_bounds: &WidgetBoundsInfo,
         renderer: Option<ViewRenderer>,
         scale_factor: Factor,
         default_font_aa: FontAntiAliasing,
@@ -196,6 +198,9 @@ impl FrameBuilder {
         } else {
             DisplayListBuilder::new(pipeline_id, frame_id)
         };
+
+        let root_size = root_bounds.outer_size();
+        let culling_rect = PxRect::from_size(root_size).inflate(root_size.width, root_size.height);
 
         FrameBuilder {
             frame_id,
@@ -222,6 +227,7 @@ impl FrameBuilder {
             parent_inner_bounds: None,
             can_reuse: true,
             open_reuse: None,
+            culling_rect,
 
             render_index: ZIndex(0),
 
@@ -233,11 +239,12 @@ impl FrameBuilder {
     pub fn new_renderless(
         frame_id: FrameId,
         root_id: WidgetId,
+        root_bounds: &WidgetBoundsInfo,
         scale_factor: Factor,
         default_font_aa: FontAntiAliasing,
         hint: Option<UsedFrameBuilder>,
     ) -> Self {
-        Self::new(frame_id, root_id, None, scale_factor, default_font_aa, hint)
+        Self::new(frame_id, root_id, root_bounds, None, scale_factor, default_font_aa, hint)
     }
 
     /// Pixel scale factor used by the renderer.
@@ -323,8 +330,7 @@ impl FrameBuilder {
         self.is_hit_testable = prev;
     }
 
-    /// Runs `render` with [`auto_hit_test`] set to a value, inside `render` auto hit-test is `auto_hit_test`, after
-    /// it is the current value.
+    /// Runs `render` with [`auto_hit_test`] set to a value for the duration of the `render` call.
     ///
     /// If this is used, [`FrameUpdate::with_auto_hit_test`] must also be used.
     ///
@@ -333,6 +339,20 @@ impl FrameBuilder {
         let prev = mem::replace(&mut self.auto_hit_test, auto_hit_test);
         render(self);
         self.auto_hit_test = prev;
+    }
+
+    /// Current culling rect, only widgets with inner-bounds that intersect this rect actually record hit-test and display items.
+    pub fn culling_rect(&self) -> PxRect {
+        self.culling_rect
+    }
+
+    /// Runs `render` and uses [`skip_render`] for all widgets with inner-bounds that don't intersect with the `culling_rect`.
+    ///
+    /// [`skip_render`]: Self::skip_render
+    pub fn with_cull(&mut self, culling_rect: PxRect, render: impl FnOnce(&mut Self)) {
+        let parent_rect = mem::replace(&mut self.culling_rect, culling_rect);
+        render(self);
+        self.culling_rect = parent_rect;
     }
 
     /// Start a new widget outer context, this sets [`is_outer`] to `true` until an inner call to [`push_inner`],
@@ -359,6 +379,19 @@ impl FrameBuilder {
             );
         }
 
+        let prev_outer = ctx.widget_info.bounds.outer_transform();
+        let outer_transform = PxTransform::from(ctx.widget_info.bounds.outer_offset()).then(&self.transform);
+        ctx.widget_info.bounds.set_outer_transform(outer_transform, ctx.info_tree);
+
+        if !self.culling_rect.intersects(&ctx.widget_info.bounds.outer_bounds()) {
+            *reuse = None;
+            self.widget_rendered = false;
+            for w in ctx.info_tree.get(ctx.path.widget_id()).unwrap().self_and_descendants() {
+                w.bounds_info().set_rendered(None, ctx.info_tree);
+            }
+            return;
+        }
+
         let parent_rendered = mem::take(&mut self.widget_rendered);
         // cannot reuse if the widget was not rendered in the previous frame (clear stale reuse ranges in descendants).
         let parent_can_reuse = mem::replace(&mut self.can_reuse, ctx.widget_info.bounds.rendered().is_some());
@@ -366,7 +399,6 @@ impl FrameBuilder {
         self.render_index.0 += 1;
         let widget_z = self.render_index;
 
-        let mut outer_transform = PxTransform::identity();
         let mut undo_prev_outer_transform = None;
         if reuse.is_some() {
             // check if is possible to reuse.
@@ -374,9 +406,6 @@ impl FrameBuilder {
             if !self.can_reuse {
                 *reuse = None; // reuse is stale because the widget was previously not rendered, or is disabled by user.
             } else {
-                outer_transform = PxTransform::from(ctx.widget_info.bounds.outer_offset()).then(&self.transform);
-
-                let prev_outer = ctx.widget_info.bounds.outer_transform();
                 if prev_outer != outer_transform {
                     if let Some(undo_prev) = prev_outer.inverse() {
                         undo_prev_outer_transform = Some(undo_prev);
@@ -439,7 +468,17 @@ impl FrameBuilder {
             if update_transforms && update_z {
                 let transform_patch = transform_patch.unwrap();
 
-                for info in ctx.info_tree.get(ctx.path.widget_id()).unwrap().self_and_descendants() {
+                // patch current widget's inner.
+                let bounds = &ctx.widget_info.bounds;
+                bounds.set_inner_transform(
+                    bounds.inner_transform().then(&transform_patch),
+                    ctx.info_tree,
+                    ctx.path.widget_id(),
+                    self.parent_inner_bounds,
+                );
+
+                // patch descendants outer and inner.
+                for info in ctx.info_tree.get(ctx.path.widget_id()).unwrap().descendants() {
                     let bounds = info.bounds_info();
 
                     bounds.set_outer_transform(bounds.outer_transform().then(&transform_patch), ctx.info_tree);
@@ -459,7 +498,15 @@ impl FrameBuilder {
             } else if update_transforms {
                 let transform_patch = transform_patch.unwrap();
 
-                for info in ctx.info_tree.get(ctx.path.widget_id()).unwrap().self_and_descendants() {
+                let bounds = &ctx.widget_info.bounds;
+                bounds.set_inner_transform(
+                    bounds.inner_transform().then(&transform_patch),
+                    ctx.info_tree,
+                    ctx.path.widget_id(),
+                    self.parent_inner_bounds,
+                );
+
+                for info in ctx.info_tree.get(ctx.path.widget_id()).unwrap().descendants() {
                     let bounds = info.bounds_info();
 
                     bounds.set_outer_transform(bounds.outer_transform().then(&transform_patch), ctx.info_tree);
@@ -679,9 +726,6 @@ impl FrameBuilder {
             let parent_transform = self.transform;
             let parent_hit_clips = mem::take(&mut self.hit_clips);
 
-            let outer_transform = PxTransform::from(ctx.widget_info.bounds.outer_offset()).then(&parent_transform);
-            ctx.widget_info.bounds.set_outer_transform(outer_transform, ctx.info_tree);
-
             let translate = ctx.widget_info.bounds.inner_offset() + ctx.widget_info.bounds.outer_offset();
             let inner_transform = if data.has_transform {
                 data.transform.then_translate(translate.cast())
@@ -693,7 +737,7 @@ impl FrameBuilder {
                 .bounds
                 .set_inner_transform(self.transform, ctx.info_tree, ctx.path.widget_id(), self.parent_inner_bounds);
 
-            let parent_inner_bounds = mem::replace(&mut self.parent_inner_bounds, Some(ctx.widget_info.bounds.inner_bounds()));
+            let parent_parent_inner_bounds = mem::replace(&mut self.parent_inner_bounds, Some(ctx.widget_info.bounds.inner_bounds()));
 
             self.display_list.push_reference_frame(
                 SpatialFrameId::widget_id_to_wr(self.widget_id, self.pipeline_id),
@@ -723,7 +767,7 @@ impl FrameBuilder {
             self.display_list.pop_reference_frame();
 
             self.transform = parent_transform;
-            self.parent_inner_bounds = parent_inner_bounds;
+            self.parent_inner_bounds = parent_parent_inner_bounds;
 
             let hit_clips = mem::replace(&mut self.hit_clips, parent_hit_clips);
             ctx.widget_info.bounds.set_hit_clips(hit_clips);
@@ -818,9 +862,6 @@ impl FrameBuilder {
     }
 
     /// Calls `render` inside a new reference frame transformed by `transform`.
-    ///
-    /// Note that properties that use this method must also register the custom transform with the widget info, so that the widget
-    /// can be found by decorator overlays or other features that depend on the info tree position.
     ///
     /// The `is_2d_scale_translation` flag optionally marks the `transform` as only ever having a simple 2D scale or translation,
     /// allowing for webrender optimizations.
@@ -954,12 +995,12 @@ impl FrameBuilder {
                 };
                 self.display_list.push_text(clip_rect, instance_key, glyphs, color, opts);
             }
-
-            if self.auto_hit_test {
-                self.hit_test().push_rect(clip_rect);
-            }
         } else {
             self.widget_rendered = true;
+        }
+
+        if self.auto_hit_test {
+            self.hit_test().push_rect(clip_rect);
         }
     }
 
@@ -971,12 +1012,12 @@ impl FrameBuilder {
             let image_key = image.image_key(r);
             self.display_list
                 .push_image(clip_rect, image_key, img_size, rendering.into(), image.alpha_type());
-
-            if self.auto_hit_test {
-                self.hit_test().push_rect(clip_rect);
-            }
         } else {
             self.widget_rendered = true;
+        }
+
+        if self.auto_hit_test {
+            self.hit_test().push_rect(clip_rect);
         }
     }
 
@@ -1521,8 +1562,7 @@ impl FrameUpdate {
     pub fn auto_hit_test(&self) -> bool {
         self.auto_hit_test
     }
-    /// Runs `render_update` with [`auto_hit_test`] set to a value, inside `render` auto hit-test is `auto_hit_test`, after
-    /// it is the current value.
+    /// Runs `render_update` with [`auto_hit_test`] set to a value for the duration of the `render` call.
     ///
     /// [`auto_hit_test`]: Self::auto_hit_test
     pub fn with_auto_hit_test(&mut self, auto_hit_test: bool, render_update: impl FnOnce(&mut Self)) {

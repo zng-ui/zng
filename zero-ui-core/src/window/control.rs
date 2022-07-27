@@ -1373,6 +1373,7 @@ impl ContentCtrl {
                 let mut frame = FrameBuilder::new(
                     self.frame_id,
                     self.root_id,
+                    &self.root_info.bounds,
                     renderer.clone(),
                     scale_factor,
                     default_text_aa,

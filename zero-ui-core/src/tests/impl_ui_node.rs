@@ -119,7 +119,14 @@ fn test_trace(node: impl UiNode) {
     wgt.test_layout(&mut ctx, PxConstrains2d::new_bounded_size(l_size).into());
     assert_only_traced!(wgt.state(), "layout");
 
-    let mut frame = FrameBuilder::new_renderless(FrameId::INVALID, ctx.root_id, 1.0.fct(), Default::default(), None);
+    let mut frame = FrameBuilder::new_renderless(
+        FrameId::INVALID,
+        ctx.root_id,
+        &ctx.widget_info.bounds,
+        1.0.fct(),
+        Default::default(),
+        None,
+    );
     wgt.test_render(&mut ctx, &mut frame);
     assert_only_traced!(wgt.state(), "render");
 
@@ -248,7 +255,14 @@ pub fn default_no_child() {
     assert!(subs.update_mask().is_none());
     assert!(subs.event_mask().is_none());
 
-    let mut frame = FrameBuilder::new_renderless(FrameId::INVALID, ctx.root_id, 1.0.fct(), Default::default(), None);
+    let mut frame = FrameBuilder::new_renderless(
+        FrameId::INVALID,
+        ctx.root_id,
+        &ctx.widget_info.bounds,
+        1.0.fct(),
+        Default::default(),
+        None,
+    );
 
     wgt.test_render(&mut ctx, &mut frame);
     let (_, _) = frame.finalize(&ctx.info_tree);

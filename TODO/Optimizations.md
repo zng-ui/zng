@@ -25,20 +25,6 @@
 
 # Render
 
-* Auto-virtualization of widgets, auto avoid rendering widgets that are not close to scroll borders.
-  - Firefox has a "VisibleRect" in the display builder, if is set to the parent scroll viewport, it gets clipped by the root viewport
-    and then expanded by `"layout.framevisibility.numscrollportheights"`, in the directions it can scroll.
-  - By default expands to 1 viewport height, and 0 width.
-  - The "frame visibility" only updates after `"layout.framevisibility.amountscrollbeforeupdatevertical"` (default=vis-rect/2) scrolls, 
-    so the display list does not get rebuild for each new element getting in range.
-  - So basically:
-    - Have a "effective visible rect" of viewport clipped and inflated by 1.vwh in the directions is can scroll.
-    - Only update the "effective visible status" of a widget when has scrolled an amount (half the viewport height?)
-  - Note that we want to expose this so that the user can implement "actual" virtualization, data fetches.
-    - The data virtualization range needs to larger/configurable?
-    - It can be different from the display list range?
-
-* Avoid loading images that are not visible?
 * Very slow frame update for large text? Do a scroll-to-end in the example to see.
 * Modify webrender to not (de)serialize it's display list.
   - Measure first, the DisplayList::build step is a bit slow, but it may not be due to the iteration.
