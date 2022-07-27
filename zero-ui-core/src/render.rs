@@ -382,14 +382,25 @@ impl FrameBuilder {
         let prev_outer = ctx.widget_info.bounds.outer_transform();
         let outer_transform = PxTransform::from(ctx.widget_info.bounds.outer_offset()).then(&self.transform);
         ctx.widget_info.bounds.set_outer_transform(outer_transform, ctx.info_tree);
+        let outer_bounds = ctx.widget_info.bounds.outer_bounds();
 
-        if !self.culling_rect.intersects(&ctx.widget_info.bounds.outer_bounds()) {
-            *reuse = None;
-            self.widget_rendered = false;
-            for w in ctx.info_tree.get(ctx.path.widget_id()).unwrap().self_and_descendants() {
-                w.bounds_info().set_rendered(None, ctx.info_tree);
+        match self.culling_rect.intersection(&outer_bounds) {
+            Some(cull) => {
+                if cull != outer_bounds {
+                    // partial cull, cannot reuse because descendants may have become visible
+                    // due to culling rect change.
+                    *reuse = None;
+                }
             }
-            return;
+            None => {
+                // full cull, skip render and unset rendered for self and descendants so that when
+                // they become visible again the reuse range is invalidated.
+                self.widget_rendered = false;
+                for w in ctx.info_tree.get(ctx.path.widget_id()).unwrap().self_and_descendants() {
+                    w.bounds_info().set_rendered(None, ctx.info_tree);
+                }
+                return;
+            }
         }
 
         let parent_rendered = mem::take(&mut self.widget_rendered);
