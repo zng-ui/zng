@@ -1,5 +1,7 @@
 //! UI nodes used for building the scroll widget.
 //!
+use std::cell::Cell;
+
 use crate::prelude::new_widget::*;
 
 use crate::core::{
@@ -22,6 +24,7 @@ pub fn viewport(child: impl UiNode, mode: impl IntoVar<ScrollMode>) -> impl UiNo
         viewport_size: PxSize,
         content_size: PxSize,
         content_offset: PxVector,
+        last_render_offset: Cell<PxVector>,
 
         spatial_id: SpatialFrameId,
         binding_key: FrameValueKey<PxTransform>,
@@ -145,7 +148,15 @@ pub fn viewport(child: impl UiNode, mode: impl IntoVar<ScrollMode>) -> impl UiNo
 
             if content_offset != self.content_offset {
                 self.content_offset = content_offset;
-                ctx.updates.render_update();
+
+                // we use the viewport + 1vp of margin as the culling rect, so after some distance only updating we need to
+                // render again to load more widgets in the view-process.
+                let update_only_offset = (self.last_render_offset.get() - self.content_offset).abs();
+                if update_only_offset.y <= self.viewport_size.height / Px(2) && update_only_offset.x <= self.viewport_size.width / Px(2) {
+                    ctx.updates.render_update();
+                } else {
+                    ctx.updates.render();
+                }
             }
 
             let v_ratio = self.viewport_size.height.0 as f32 / self.content_size.height.0 as f32;
@@ -160,6 +171,10 @@ pub fn viewport(child: impl UiNode, mode: impl IntoVar<ScrollMode>) -> impl UiNo
 
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
             self.info.set_viewport_transform(*frame.transform());
+            self.last_render_offset.set(self.content_offset);
+
+            let culling_rect = PxBox::from_size(self.viewport_size).inflate(self.viewport_size.width, self.viewport_size.height);
+            let culling_rect = frame.transform().outer_transformed(culling_rect).unwrap_or(culling_rect).to_rect();
 
             frame.push_reference_frame(
                 self.spatial_id,
@@ -167,7 +182,9 @@ pub fn viewport(child: impl UiNode, mode: impl IntoVar<ScrollMode>) -> impl UiNo
                 true,
                 false,
                 |frame| {
-                    self.child.render(ctx, frame);
+                    frame.with_culling_rect(culling_rect, |frame| {
+                        self.child.render(ctx, frame);
+                    });
                 },
             );
         }
@@ -187,6 +204,7 @@ pub fn viewport(child: impl UiNode, mode: impl IntoVar<ScrollMode>) -> impl UiNo
         viewport_unit: PxSize::zero(),
         content_size: PxSize::zero(),
         content_offset: PxVector::zero(),
+        last_render_offset: Cell::new(PxVector::zero()),
         info: ScrollInfo::default(),
 
         spatial_id: SpatialFrameId::new_unique(),

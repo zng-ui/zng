@@ -349,7 +349,7 @@ impl FrameBuilder {
     /// Runs `render` and uses [`skip_render`] for all widgets with inner-bounds that don't intersect with the `culling_rect`.
     ///
     /// [`skip_render`]: Self::skip_render
-    pub fn with_cull(&mut self, culling_rect: PxRect, render: impl FnOnce(&mut Self)) {
+    pub fn with_culling_rect(&mut self, culling_rect: PxRect, render: impl FnOnce(&mut Self)) {
         let parent_rect = mem::replace(&mut self.culling_rect, culling_rect);
         render(self);
         self.culling_rect = parent_rect;
@@ -405,13 +405,11 @@ impl FrameBuilder {
 
             if !self.can_reuse {
                 *reuse = None; // reuse is stale because the widget was previously not rendered, or is disabled by user.
-            } else {
-                if prev_outer != outer_transform {
-                    if let Some(undo_prev) = prev_outer.inverse() {
-                        undo_prev_outer_transform = Some(undo_prev);
-                    } else {
-                        *reuse = None; // cannot reuse because cannot undo prev-transform.
-                    }
+            } else if prev_outer != outer_transform {
+                if let Some(undo_prev) = prev_outer.inverse() {
+                    undo_prev_outer_transform = Some(undo_prev);
+                } else {
+                    *reuse = None; // cannot reuse because cannot undo prev-transform.
                 }
             }
         }
