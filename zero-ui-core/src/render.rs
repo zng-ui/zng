@@ -146,6 +146,7 @@ pub struct FrameBuilder {
     display_list: DisplayListBuilder,
 
     is_hit_testable: bool,
+    visible: bool,
     auto_hit_test: bool,
     hit_clips: HitTestClips,
 
@@ -219,6 +220,7 @@ impl FrameBuilder {
             scale_factor,
             display_list,
             is_hit_testable: true,
+            visible: true,
             auto_hit_test: false,
             hit_clips: HitTestClips::default(),
             widget_data: Some(WidgetData {
@@ -604,7 +606,9 @@ impl FrameBuilder {
         if self.can_reuse {
             if let Some(g) = &group {
                 if g.pipeline_id() == self.pipeline_id {
-                    self.display_list.push_reuse_range(g);
+                    if self.visible {
+                        self.display_list.push_reuse_range(g);
+                    }
                     return;
                 }
             }
@@ -753,32 +757,36 @@ impl FrameBuilder {
 
             let parent_parent_inner_bounds = mem::replace(&mut self.parent_inner_bounds, Some(ctx.widget_info.bounds.inner_bounds()));
 
-            self.display_list.push_reference_frame(
-                SpatialFrameId::widget_id_to_wr(self.widget_id, self.pipeline_id),
-                layout_translation_key.bind(inner_transform),
-                !data.has_transform,
-            );
+            if self.visible {
+                self.display_list.push_reference_frame(
+                    SpatialFrameId::widget_id_to_wr(self.widget_id, self.pipeline_id),
+                    layout_translation_key.bind(inner_transform),
+                    !data.has_transform,
+                );
 
-            let has_stacking_ctx = !data.filter.is_empty();
-            if has_stacking_ctx {
-                // we want to apply filters in the top-to-bottom, left-to-right order they appear in
-                // the widget declaration, but the widget declaration expands to have the top property
-                // node be inside the bottom property node, so the bottom property ends up inserting
-                // a filter first, because we cannot insert filters after the child node render is called
-                // so we need to reverse the filters here. Left-to-right sequences are reversed on insert
-                // so they get reversed again here and everything ends up in order.
-                data.filter.reverse();
+                let has_stacking_ctx = !data.filter.is_empty();
+                if has_stacking_ctx {
+                    // we want to apply filters in the top-to-bottom, left-to-right order they appear in
+                    // the widget declaration, but the widget declaration expands to have the top property
+                    // node be inside the bottom property node, so the bottom property ends up inserting
+                    // a filter first, because we cannot insert filters after the child node render is called
+                    // so we need to reverse the filters here. Left-to-right sequences are reversed on insert
+                    // so they get reversed again here and everything ends up in order.
+                    data.filter.reverse();
 
-                self.display_list
-                    .push_stacking_context(MixBlendMode::Normal, &data.filter, &[], &[]);
+                    self.display_list
+                        .push_stacking_context(MixBlendMode::Normal, &data.filter, &[], &[]);
+                }
+
+                render(ctx, self);
+
+                if has_stacking_ctx {
+                    self.display_list.pop_stacking_context();
+                }
+                self.display_list.pop_reference_frame();
+            } else {
+                render(ctx, self);
             }
-
-            render(ctx, self);
-
-            if has_stacking_ctx {
-                self.display_list.pop_stacking_context();
-            }
-            self.display_list.pop_reference_frame();
 
             self.transform = parent_transform;
             self.parent_inner_bounds = parent_parent_inner_bounds;
@@ -823,7 +831,9 @@ impl FrameBuilder {
     pub fn push_clip_rect(&mut self, clip_rect: PxRect, clip_out: bool, mut hit_test: bool, render: impl FnOnce(&mut FrameBuilder)) {
         expect_inner!(self.push_clip_rect);
 
-        self.display_list.push_clip_rect(clip_rect, clip_out);
+        if self.visible {
+            self.display_list.push_clip_rect(clip_rect, clip_out);
+        }
 
         hit_test |= self.auto_hit_test;
 
@@ -833,7 +843,9 @@ impl FrameBuilder {
 
         render(self);
 
-        self.display_list.pop_clip();
+        if self.visible {
+            self.display_list.pop_clip();
+        }
 
         if hit_test {
             self.hit_clips.pop_clip();
@@ -858,7 +870,9 @@ impl FrameBuilder {
     ) {
         expect_inner!(self.push_clip_rounded_rect);
 
-        self.display_list.push_clip_rounded_rect(clip_rect, corners, clip_out);
+        if self.visible {
+            self.display_list.push_clip_rounded_rect(clip_rect, corners, clip_out);
+        }
 
         hit_test |= self.auto_hit_test;
 
@@ -868,7 +882,9 @@ impl FrameBuilder {
 
         render(self);
 
-        self.display_list.pop_clip();
+        if self.visible {
+            self.display_list.pop_clip();
+        }
 
         if hit_test {
             self.hit_clips.pop_clip();
@@ -929,7 +945,9 @@ impl FrameBuilder {
         let parent_transform = self.transform;
         self.transform = transform_value.then(&parent_transform);
 
-        self.display_list.push_reference_frame(id, transform, is_2d_scale_translation);
+        if self.visible {
+            self.display_list.push_reference_frame(id, transform, is_2d_scale_translation);
+        }
 
         hit_test |= self.auto_hit_test;
 
@@ -939,7 +957,9 @@ impl FrameBuilder {
 
         render(self);
 
-        self.display_list.pop_reference_frame();
+        if self.visible {
+            self.display_list.pop_reference_frame();
+        }
         self.transform = parent_transform;
 
         if hit_test {
@@ -956,26 +976,32 @@ impl FrameBuilder {
     pub fn push_filter(&mut self, blend_mode: MixBlendMode, filter: &RenderFilter, render: impl FnOnce(&mut Self)) {
         expect_inner!(self.push_filter);
 
-        self.display_list.push_stacking_context(blend_mode, filter, &[], &[]);
+        if self.visible {
+            self.display_list.push_stacking_context(blend_mode, filter, &[], &[]);
 
-        render(self);
+            render(self);
 
-        self.display_list.pop_stacking_context();
+            self.display_list.pop_stacking_context();
+        } else {
+            render(self);
+        }
     }
 
     /// Push a border.
     pub fn push_border(&mut self, bounds: PxRect, widths: PxSideOffsets, sides: BorderSides, radius: PxCornerRadius) {
         expect_inner!(self.push_border);
 
-        self.display_list.push_border(
-            bounds,
-            widths,
-            sides.top.into(),
-            sides.right.into(),
-            sides.bottom.into(),
-            sides.bottom.into(),
-            radius,
-        );
+        if self.visible {
+            self.display_list.push_border(
+                bounds,
+                widths,
+                sides.top.into(),
+                sides.right.into(),
+                sides.bottom.into(),
+                sides.bottom.into(),
+                radius,
+            );
+        }
 
         if self.auto_hit_test {
             self.hit_test().push_border(bounds, widths, radius);
@@ -995,7 +1021,7 @@ impl FrameBuilder {
         expect_inner!(self.push_text);
 
         if let Some(r) = &self.renderer {
-            if !glyphs.is_empty() {
+            if !glyphs.is_empty() && self.visible {
                 let (instance_key, flags) = font.instance_key(r, synthesis);
 
                 let opts = GlyphOptions {
@@ -1023,9 +1049,11 @@ impl FrameBuilder {
         expect_inner!(self.push_image);
 
         if let Some(r) = &self.renderer {
-            let image_key = image.image_key(r);
-            self.display_list
-                .push_image(clip_rect, image_key, img_size, rendering.into(), image.alpha_type());
+            if self.visible {
+                let image_key = image.image_key(r);
+                self.display_list
+                    .push_image(clip_rect, image_key, img_size, rendering.into(), image.alpha_type());
+            }
         } else {
             self.widget_rendered = true;
         }
@@ -1039,7 +1067,9 @@ impl FrameBuilder {
     pub fn push_color(&mut self, clip_rect: PxRect, color: FrameValue<RenderColor>) {
         expect_inner!(self.push_color);
 
-        self.display_list.push_color(clip_rect, color);
+        if self.visible {
+            self.display_list.push_color(clip_rect, color);
+        }
 
         if self.auto_hit_test {
             self.hit_test().push_rect(clip_rect);
@@ -1072,7 +1102,7 @@ impl FrameBuilder {
 
         expect_inner!(self.push_linear_gradient);
 
-        if !stops.is_empty() {
+        if !stops.is_empty() && self.visible {
             self.display_list.push_linear_gradient(
                 clip_rect,
                 webrender_api::Gradient {
@@ -1121,7 +1151,7 @@ impl FrameBuilder {
 
         expect_inner!(self.push_radial_gradient);
 
-        if !stops.is_empty() {
+        if !stops.is_empty() && self.visible {
             self.display_list.push_radial_gradient(
                 clip_rect,
                 webrender_api::RadialGradient {
@@ -1169,7 +1199,7 @@ impl FrameBuilder {
 
         expect_inner!(self.push_conic_gradient);
 
-        if !stops.is_empty() {
+        if !stops.is_empty() && self.visible {
             self.display_list.push_conic_gradient(
                 clip_rect,
                 webrender_api::ConicGradient {
@@ -1200,32 +1230,34 @@ impl FrameBuilder {
     ) {
         expect_inner!(self.push_line);
 
-        match style.render_command() {
-            RenderLineCommand::Line(style, wavy_thickness) => {
-                self.display_list
-                    .push_line(clip_rect, color, style, wavy_thickness, orientation.into());
-            }
-            RenderLineCommand::Border(style) => {
-                use crate::border::LineOrientation as LO;
-                let widths = match orientation {
-                    LO::Vertical => PxSideOffsets::new(Px(0), Px(0), Px(0), clip_rect.width()),
-                    LO::Horizontal => PxSideOffsets::new(clip_rect.height(), Px(0), Px(0), Px(0)),
-                };
-                self.display_list.push_border(
-                    clip_rect,
-                    widths,
-                    webrender_api::BorderSide { color, style },
-                    webrender_api::BorderSide {
-                        color: RenderColor::TRANSPARENT,
-                        style: webrender_api::BorderStyle::Hidden,
-                    },
-                    webrender_api::BorderSide {
-                        color: RenderColor::TRANSPARENT,
-                        style: webrender_api::BorderStyle::Hidden,
-                    },
-                    webrender_api::BorderSide { color, style },
-                    PxCornerRadius::zero(),
-                );
+        if self.visible {
+            match style.render_command() {
+                RenderLineCommand::Line(style, wavy_thickness) => {
+                    self.display_list
+                        .push_line(clip_rect, color, style, wavy_thickness, orientation.into());
+                }
+                RenderLineCommand::Border(style) => {
+                    use crate::border::LineOrientation as LO;
+                    let widths = match orientation {
+                        LO::Vertical => PxSideOffsets::new(Px(0), Px(0), Px(0), clip_rect.width()),
+                        LO::Horizontal => PxSideOffsets::new(clip_rect.height(), Px(0), Px(0), Px(0)),
+                    };
+                    self.display_list.push_border(
+                        clip_rect,
+                        widths,
+                        webrender_api::BorderSide { color, style },
+                        webrender_api::BorderSide {
+                            color: RenderColor::TRANSPARENT,
+                            style: webrender_api::BorderStyle::Hidden,
+                        },
+                        webrender_api::BorderSide {
+                            color: RenderColor::TRANSPARENT,
+                            style: webrender_api::BorderStyle::Hidden,
+                        },
+                        webrender_api::BorderSide { color, style },
+                        PxCornerRadius::zero(),
+                    );
+                }
             }
         }
 
@@ -1238,6 +1270,9 @@ impl FrameBuilder {
     ///
     /// The *dot* is a circle of the `color` highlighted by an white outline and shadow.
     pub fn push_debug_dot(&mut self, offset: PxPoint, color: impl Into<RenderColor>) {
+        if !self.visible {
+            return;
+        }
         let scale = self.scale_factor();
 
         let radius = PxSize::splat(Px(6)) * scale;
