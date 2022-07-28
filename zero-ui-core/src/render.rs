@@ -386,10 +386,11 @@ impl FrameBuilder {
 
         match self.culling_rect.intersection(&outer_bounds) {
             Some(cull) => {
-                if cull != outer_bounds {
-                    // partial cull, cannot reuse because descendants may have become visible
-                    // due to culling rect change.
+                let partial = cull != outer_bounds;
+                if partial || ctx.widget_info.bounds.is_partially_culled() {
+                    // partial cull, cannot reuse because descendant vis may have changed.
                     *reuse = None;
+                    ctx.widget_info.bounds.set_is_partially_culled(partial);
                 }
             }
             None => {

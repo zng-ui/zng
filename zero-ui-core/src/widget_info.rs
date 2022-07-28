@@ -325,6 +325,7 @@ struct WidgetBoundsData {
     hit_index: Cell<u32>,
 
     is_in_bounds: Cell<Option<bool>>,
+    is_partially_culled: Cell<bool>,
 }
 
 /// Shared reference to layout size and offsets of a widget and rendered transforms and bounds.
@@ -724,6 +725,14 @@ impl WidgetBoundsInfo {
 
     pub(crate) fn set_hit_index(&self, index: usize) {
         self.0.hit_index.set(index as u32);
+    }
+
+    pub(crate) fn is_partially_culled(&self) -> bool {
+        self.0.is_partially_culled.get()
+    }
+
+    pub(crate) fn set_is_partially_culled(&self, is: bool) {
+        self.0.is_partially_culled.set(is);
     }
 }
 
