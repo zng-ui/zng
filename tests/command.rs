@@ -215,10 +215,12 @@ fn listener_window(focused_wgt: bool) -> Window {
         content = v_stack(widgets![
             container! {
                 id = "test-widget";
+                size = (100, 100);
                 content = FooHandlerNode { handle: None, handle_scoped: None, handle_scoped_wgt: None };
             },
             container! {
                 id = "other-widget";
+                size = (100, 100);
                 focusable = focused_wgt;
                 content = FooHandlerNode { handle: None, handle_scoped: None, handle_scoped_wgt: None };
             }
