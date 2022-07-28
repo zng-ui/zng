@@ -289,7 +289,6 @@ pub fn show_directional_query(child: impl UiNode, orientation: impl IntoVar<Opti
                                         .map(|q| q.to_rect())
                                         .collect();
 
-                                    //let search_quads = generate_directional_search_quads(w, orientation);
                                     if self.search_quads != search_quads {
                                         self.search_quads = search_quads;
                                         ctx.updates.render();
