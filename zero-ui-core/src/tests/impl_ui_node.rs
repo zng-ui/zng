@@ -107,6 +107,7 @@ fn test_trace(node: impl UiNode) {
     );
 
     wgt.test_info(&mut ctx, &mut info);
+    ctx.info_tree = info.finalize().0;
     assert_only_traced!(wgt.state(), "info");
 
     wgt.test_subscriptions(&mut ctx, &mut WidgetSubscriptions::new());
@@ -429,7 +430,25 @@ mod util {
     }
 
     pub fn test_wgt(node: impl UiNode) -> impl Widget {
+        let node = MinSizeNode {
+            child: node,
+            min_size: PxSize::new(Px(1), Px(1)),
+        };
         let node = implicit_base::nodes::inner(node);
         implicit_base::nodes::widget(node, crate::WidgetId::new_unique())
+    }
+
+    struct MinSizeNode<C> {
+        child: C,
+        min_size: PxSize,
+    }
+    #[crate::impl_ui_node(child)]
+    impl<C: UiNode> UiNode for MinSizeNode<C> {
+        fn measure(&self, ctx: &mut MeasureContext) -> PxSize {
+            self.child.measure(ctx).max(self.min_size)
+        }
+        fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
+            self.child.layout(ctx, wl).max(self.min_size)
+        }
     }
 }
