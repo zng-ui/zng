@@ -80,8 +80,8 @@ pub struct WidgetInfoTreeStats {
     /// Count of moved or resized widgets in the last `bounds_updated_frame`.
     pub bounds_updated: u32,
 
-    /// Last window frame that changed visibility of widgets.
-    pub visibility_updated_frame: FrameId,
+    /// Last window frame that changed visibility of at least one widget.
+    pub vis_updated_frame: FrameId,
 }
 impl WidgetInfoTreeStats {
     fn new(build_start: Instant, reused_widgets: u32) -> Self {
@@ -91,7 +91,7 @@ impl WidgetInfoTreeStats {
             last_frame: FrameId::INVALID,
             bounds_updated_frame: FrameId::INVALID,
             bounds_updated: 0,
-            visibility_updated_frame: FrameId::INVALID,
+            vis_updated_frame: FrameId::INVALID,
         }
     }
 
@@ -106,15 +106,15 @@ impl WidgetInfoTreeStats {
         }
 
         // can double count if changed to collapsed from visible, so we don't show this stat.
-        if update.visibility_updated > 0 || self.visibility_updated_frame == FrameId::INVALID {
-            self.visibility_updated_frame = frame;
+        if update.vis_updated > 0 || self.vis_updated_frame == FrameId::INVALID {
+            self.vis_updated_frame = frame;
         }
     }
 }
 #[derive(Default)]
 struct WidgetInfoTreeStatsUpdate {
     bounds_updated: u32,
-    visibility_updated: u32,
+    vis_updated: u32,
 }
 impl WidgetInfoTreeStatsUpdate {
     fn take(&mut self) -> Self {
@@ -231,7 +231,7 @@ impl WidgetInfoTree {
     }
 
     fn visibility_changed(&self) {
-        self.0.stats_update.borrow_mut().visibility_updated += 1;
+        self.0.stats_update.borrow_mut().vis_updated += 1;
     }
 
     pub(crate) fn after_render(&self, frame_id: FrameId, scale_factor: Factor) {
@@ -316,7 +316,7 @@ struct WidgetBoundsData {
 
     outer_transform: Cell<PxTransform>,
     inner_transform: Cell<PxTransform>,
-    rendered: Cell<Option<(ZIndex, ZIndex)>>,
+    rendered: Cell<Option<WidgetRenderInfo>>,
 
     outer_bounds: Cell<PxRect>,
     inner_bounds: Cell<PxRect>,
@@ -326,6 +326,27 @@ struct WidgetBoundsData {
 
     is_in_bounds: Cell<Option<bool>>,
     is_partially_culled: Cell<bool>,
+}
+
+/// Info abound the last time a widget was rendered.
+///
+/// Use [`WidgetBoundsInfo::rendered`] to access the render info for q widget.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct WidgetRenderInfo {
+    /// If the widget generated display items.
+    ///
+    /// If this is `false` the widget was [`Hidden`], collapsed widgets have no render info. Hidden
+    /// widgets don't visually render anything, but they can render hit-test shapes and transforms.
+    ///
+    /// If a widget is not visible, all descendant widgets are also not visible.
+    ///
+    /// [`Hidden`]: Visibility::Hidden
+    pub visible: bool,
+
+    /// Z-index at the back of all descendants.
+    pub back: ZIndex,
+    /// Z-index in front of all descendants.
+    pub front: ZIndex,
 }
 
 /// Shared reference to layout size and offsets of a widget and rendered transforms and bounds.
@@ -347,7 +368,7 @@ impl WidgetBoundsInfo {
         outer: Option<PxRect>,
         outer_transform: Option<PxTransform>,
         inner_transform: Option<PxTransform>,
-        rendered: Option<ZIndex>,
+        rendered: Option<WidgetRenderInfo>,
     ) -> Self {
         let r = Self::default();
         r.set_inner_offset(inner.origin.to_vector());
@@ -446,13 +467,8 @@ impl WidgetBoundsInfo {
         self.0.inner_transform.get()
     }
 
-    /// Get the z-index of the widget in the latest window frame if it was rendered.
-    ///
-    /// Note that widgets can render in the back and front of each descendant, these indexes are the *back-most* index, the moment
-    /// the [`FrameBuilder::push_widget`] was called for the widget and the *front-most* index, the moment the `push_widget` finishes.
-    ///
-    /// [`FrameBuilder::push_widget`]: crate::render::FrameBuilder::push_widget
-    pub fn rendered(&self) -> Option<(ZIndex, ZIndex)> {
+    /// Gets the widget's latest render info, if it was rendered visible or hidden. Returns `None` if the widget was collapsed.
+    pub fn rendered(&self) -> Option<WidgetRenderInfo> {
         self.0.rendered.get()
     }
 
@@ -467,15 +483,15 @@ impl WidgetBoundsInfo {
         self.0.is_in_bounds.get().map(|is| !is).unwrap_or(false)
     }
 
-    pub(super) fn set_rendered(&self, rendered: Option<(ZIndex, ZIndex)>, info: &WidgetInfoTree) {
-        if self.0.rendered.get().is_some() != rendered.is_some() {
+    pub(super) fn set_rendered(&self, rendered: Option<WidgetRenderInfo>, info: &WidgetInfoTree) {
+        if self.0.rendered.get().map(|i| i.visible) != rendered.map(|i| i.visible) {
             info.visibility_changed();
         }
         self.0.rendered.set(rendered);
     }
     #[cfg(test)]
-    fn init_rendered(&self, rendered: Option<ZIndex>) {
-        self.0.rendered.set(rendered.map(|i| (i, i)));
+    fn init_rendered(&self, rendered: Option<WidgetRenderInfo>) {
+        self.0.rendered.set(rendered);
     }
 
     pub(super) fn set_outer_transform(&self, transform: PxTransform, info: &WidgetInfoTree) {
@@ -971,27 +987,28 @@ impl<'a> WidgetInfo<'a> {
     /// This value is updated every [`render`] without causing a tree rebuild.
     ///
     /// [`render`]: crate::UiNode::render
-    pub fn rendered(self) -> Option<(ZIndex, ZIndex)> {
-        self.info().bounds_info.rendered()
+    pub fn z_index(self) -> Option<(ZIndex, ZIndex)> {
+        self.info().bounds_info.rendered().map(|i| (i.back, i.front))
     }
 
-    /// Compute the visibility of the widget or the widget's descendants.
+    /// Gets the visibility of the widget or the widget's descendants in the last rendered frame.
     ///
-    /// If is [`rendered`] is [`Visible`], if not and the [`bounds_info`] outer size is zero then is [`Collapsed`] else
-    /// is [`Hidden`].
+    /// An widget is [`Visible`] if it rendered at least one display item, [`Hidden`] if it rendered only space and
+    /// hit-test items, [`Collapsed`] if it did not render.
     ///
-    /// [`rendered`]: Self::rendered
     /// [`Visible`]: Visibility::Visible
-    /// [`bounds_info`]: Self::bounds_info
-    /// [`Collapsed`]: Visibility::Collapsed
     /// [`Hidden`]: Visibility::Hidden
+    /// [`Collapsed`]: Visibility::Collapsed
     pub fn visibility(self) -> Visibility {
-        if self.rendered().is_some() {
-            Visibility::Visible
-        } else if self.info().bounds_info.outer_size() == PxSize::zero() {
-            Visibility::Collapsed
-        } else {
-            Visibility::Hidden
+        match self.info().bounds_info.rendered() {
+            Some(vis) => {
+                if vis.visible {
+                    Visibility::Visible
+                } else {
+                    Visibility::Hidden
+                }
+            }
+            None => Visibility::Collapsed,
         }
     }
 
@@ -1330,9 +1347,9 @@ impl<'a> WidgetInfo<'a> {
         if bounds.inner_bounds().contains(point) {
             let z = match bounds.hit_test_z(point) {
                 RelativeHitZ::NoHit => None,
-                RelativeHitZ::Back => bounds.rendered().map(|(b, _)| b),
-                RelativeHitZ::Over(w) => self.tree.get(w).and_then(|w| w.info().bounds_info.rendered()).map(|(_, f)| f),
-                RelativeHitZ::Front => bounds.rendered().map(|(_, f)| f),
+                RelativeHitZ::Back => bounds.rendered().map(|i| i.back),
+                RelativeHitZ::Over(w) => self.tree.get(w).and_then(|w| w.info().bounds_info.rendered()).map(|i| i.front),
+                RelativeHitZ::Front => bounds.rendered().map(|i| i.front),
             };
 
             if z.is_some() {

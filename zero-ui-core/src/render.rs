@@ -10,7 +10,7 @@ use crate::{
     ui_list::ZIndex,
     units::*,
     var::impl_from_and_into_var,
-    widget_info::{HitTestClips, WidgetBoundsInfo, WidgetInfoTree},
+    widget_info::{HitTestClips, WidgetBoundsInfo, WidgetInfoTree, WidgetRenderInfo},
     WidgetId,
 };
 
@@ -145,14 +145,13 @@ pub struct FrameBuilder {
 
     display_list: DisplayListBuilder,
 
-    is_hit_testable: bool,
+    hit_testable: bool,
     visible: bool,
     auto_hit_test: bool,
     hit_clips: HitTestClips,
 
     culling_rect: PxRect,
     widget_data: Option<WidgetData>,
-    widget_rendered: bool,
     parent_inner_bounds: Option<PxRect>,
 
     can_reuse: bool,
@@ -219,7 +218,7 @@ impl FrameBuilder {
             renderer,
             scale_factor,
             display_list,
-            is_hit_testable: true,
+            hit_testable: true,
             visible: true,
             auto_hit_test: false,
             hit_clips: HitTestClips::default(),
@@ -228,7 +227,6 @@ impl FrameBuilder {
                 has_transform: false,
                 transform: PxTransform::identity(),
             }),
-            widget_rendered: false,
             parent_inner_bounds: None,
             can_reuse: true,
             open_reuse: None,
@@ -314,7 +312,12 @@ impl FrameBuilder {
     ///
     /// [`with_hit_tests_disabled`]: Self::with_hit_tests_disabled
     pub fn is_hit_testable(&self) -> bool {
-        self.is_hit_testable
+        self.hit_testable
+    }
+
+    /// Returns `true` if display items are actually generated, if `false` only transforms and hit-test are rendered.
+    pub fn is_visible(&self) -> bool {
+        self.visible
     }
 
     /// Returns `true` if hit-tests are automatically pushed by `push_*` methods.
@@ -331,9 +334,9 @@ impl FrameBuilder {
     ///
     /// [`is_hit_testable`]: Self::is_hit_testable
     pub fn with_hit_tests_disabled(&mut self, render: impl FnOnce(&mut Self)) {
-        let prev = mem::replace(&mut self.is_hit_testable, false);
+        let prev = mem::replace(&mut self.hit_testable, false);
         render(self);
-        self.is_hit_testable = prev;
+        self.hit_testable = prev;
     }
 
     /// Runs `render` with [`auto_hit_test`] set to a value for the duration of the `render` call.
@@ -352,9 +355,9 @@ impl FrameBuilder {
         self.culling_rect
     }
 
-    /// Runs `render` and uses [`skip_render`] for all widgets with inner-bounds that don't intersect with the `culling_rect`.
+    /// Runs `render` and [`hide`] all widgets with inner-bounds that don't intersect with the `culling_rect`.
     ///
-    /// [`skip_render`]: Self::skip_render
+    /// [`hide`]: Self::hide
     pub fn with_culling_rect(&mut self, culling_rect: PxRect, render: impl FnOnce(&mut Self)) {
         let parent_rect = mem::replace(&mut self.culling_rect, culling_rect);
         render(self);
@@ -390,6 +393,8 @@ impl FrameBuilder {
         ctx.widget_info.bounds.set_outer_transform(outer_transform, ctx.info_tree);
         let outer_bounds = ctx.widget_info.bounds.outer_bounds();
 
+        let parent_visible = self.visible;
+
         match self.culling_rect.intersection(&outer_bounds) {
             Some(cull) => {
                 let partial = cull != outer_bounds;
@@ -400,19 +405,17 @@ impl FrameBuilder {
                 }
             }
             None => {
-                // full cull, skip render and unset rendered for self and descendants so that when
-                // they become visible again the reuse range is invalidated.
-                self.widget_rendered = false;
-                for w in ctx.info_tree.get(ctx.path.widget_id()).unwrap().self_and_descendants() {
-                    w.bounds_info().set_rendered(None, ctx.info_tree);
-                }
-                return;
+                // full cull
+                self.visible = false;
             }
         }
 
-        let parent_rendered = mem::take(&mut self.widget_rendered);
-        // cannot reuse if the widget was not rendered in the previous frame (clear stale reuse ranges in descendants).
-        let parent_can_reuse = mem::replace(&mut self.can_reuse, ctx.widget_info.bounds.rendered().is_some());
+        let can_reuse = match ctx.widget_info.bounds.rendered() {
+            Some(i) => i.visible == self.visible,
+            // cannot reuse if the widget was not rendered in the previous frame (clear stale reuse ranges in descendants).
+            None => false,
+        };
+        let parent_can_reuse = mem::replace(&mut self.can_reuse, can_reuse);
 
         self.render_index.0 += 1;
         let widget_z = self.render_index;
@@ -436,6 +439,7 @@ impl FrameBuilder {
         ctx.widget_info.bounds.set_hit_index(index);
 
         let mut reused = true;
+        let display_count = self.display_list.len();
 
         // try to reuse, or calls the closure and saves the reuse range.
         self.push_reuse(reuse, |frame| {
@@ -474,7 +478,7 @@ impl FrameBuilder {
                 .widget_info
                 .bounds
                 .rendered()
-                .map(|(old_back, _)| widget_z.0 as i64 - old_back.0 as i64)
+                .map(|i| widget_z.0 as i64 - i.back.0 as i64)
                 .unwrap_or(0);
 
             let update_transforms = transform_patch.is_some();
@@ -505,10 +509,17 @@ impl FrameBuilder {
                         info.parent().map(|p| p.inner_bounds()),
                     );
 
-                    if let Some((back, front)) = bounds.rendered() {
-                        let back = back.0 as i64 + z_patch;
-                        let front = front.0 as i64 + z_patch;
-                        bounds.set_rendered(Some((ZIndex(back as u32), ZIndex(front as u32))), ctx.info_tree);
+                    if let Some(info) = bounds.rendered() {
+                        let back = info.back.0 as i64 + z_patch;
+                        let front = info.front.0 as i64 + z_patch;
+                        bounds.set_rendered(
+                            Some(WidgetRenderInfo {
+                                visible: self.visible,
+                                back: ZIndex(back as u32),
+                                front: ZIndex(front as u32),
+                            }),
+                            ctx.info_tree,
+                        );
                     }
                 }
             } else if update_transforms {
@@ -537,39 +548,38 @@ impl FrameBuilder {
                 for info in ctx.info_tree.get(ctx.path.widget_id()).unwrap().self_and_descendants() {
                     let bounds = info.bounds_info();
 
-                    if let Some((back, front)) = bounds.rendered() {
-                        let back = back.0 as i64 + z_patch;
-                        let front = front.0 as i64 + z_patch;
-                        bounds.set_rendered(Some((ZIndex(back as u32), ZIndex(front as u32))), ctx.info_tree);
+                    if let Some(info) = bounds.rendered() {
+                        let back = info.back.0 as i64 + z_patch;
+                        let front = info.front.0 as i64 + z_patch;
+                        bounds.set_rendered(
+                            Some(WidgetRenderInfo {
+                                visible: info.visible,
+                                back: ZIndex(back as u32),
+                                front: ZIndex(front as u32),
+                            }),
+                            ctx.info_tree,
+                        );
                     }
                 }
             }
 
             // increment by reused
-            self.render_index = ctx.widget_info.bounds.rendered().map(|(_, f)| f).unwrap_or(self.render_index);
+            self.render_index = ctx.widget_info.bounds.rendered().map(|i| i.front).unwrap_or(self.render_index);
         } else {
             // if did not reuse
 
-            // ensure  that if any item was pushed the widget is marked as rendered.
-            self.widget_rendered |= !reuse.as_ref().unwrap().is_empty();
-
-            if self.widget_rendered {
-                ctx.widget_info
-                    .bounds
-                    .set_rendered(Some((widget_z, self.render_index)), ctx.info_tree);
-            } else {
-                ctx.widget_info.bounds.set_rendered(None, ctx.info_tree);
-                self.render_index.0 -= 1;
-            }
+            ctx.widget_info.bounds.set_rendered(
+                Some(WidgetRenderInfo {
+                    visible: self.display_list.len() > display_count,
+                    back: widget_z,
+                    front: self.render_index,
+                }),
+                ctx.info_tree,
+            );
         }
 
+        self.visible = parent_visible;
         self.can_reuse = parent_can_reuse;
-        self.widget_rendered |= parent_rendered;
-    }
-
-    /// Mark the widget as rendered even if it does not push any display or hit item.
-    pub fn widget_rendered(&mut self) {
-        self.widget_rendered = true;
     }
 
     /// If previously generated display list items are available for reuse.
@@ -601,7 +611,6 @@ impl FrameBuilder {
     ///
     /// [`can_reuse`]: Self::can_reuse
     /// [`push_widget`]: Self::push_widget
-    /// [`widget_rendered`]: Self::widget_rendered
     pub fn push_reuse(&mut self, group: &mut Option<ReuseRange>, generate: impl FnOnce(&mut Self)) {
         if self.can_reuse {
             if let Some(g) = &group {
@@ -624,35 +633,44 @@ impl FrameBuilder {
         self.open_reuse = parent_group;
     }
 
-    /// Register that the current widget and descendants are not rendered in this frame.
+    /// Calls `render` with [`is_visible`] set to `false`.
     ///
-    /// Nodes the set the visibility to the equivalent of [`Hidden`] or [`Collapsed`] must not call `render` and `render_update`
-    /// for the descendant nodes and must call this method to update the rendered status of all descendant nodes.
+    /// Nodes that set the visibility to [`Hidden`] must render using this method and update using the [`FrameUpdate::hidden`] method.
     ///
+    /// [`is_visible`]: Self::is_visible
     /// [`Hidden`]: crate::widget_info::Visibility::Hidden
-    /// [`Collapsed`]: crate::widget_info::Visibility::Collapsed
-    pub fn skip_render(&mut self, info_tree: &WidgetInfoTree) {
+    pub fn hide(&mut self, render: impl FnOnce(&mut Self)) {
+        let parent_visible = mem::replace(&mut self.visible, false);
+        render(self);
+        self.visible = parent_visible;
+    }
+
+    /// Don't render the current widget and descendants and collapse bounds.
+    ///
+    /// Nodes that set the visibility to [`Collapsed`] must not call `render` and `render_update` for the child
+    /// nodes, and instead call this method to update self and descendants to the not rendered collapsed state.
+    ///
+    /// [`Collapsed`]: crate::widget_info::Visibility::Hidden
+    pub fn collapse(&mut self, info_tree: &WidgetInfoTree) {
         if let Some(w) = info_tree.get(self.widget_id) {
-            self.widget_rendered = false;
             for w in w.self_and_descendants() {
                 w.bounds_info().set_rendered(None, info_tree);
             }
         } else {
-            tracing::error!("skip_render did not find widget `{}` in info tree", self.widget_id)
+            tracing::error!("collapse did not find widget `{}` in info tree", self.widget_id)
         }
     }
 
-    /// Register that all widget descendants are not rendered in this frame.
+    /// Like [`collapse`], but only updates the descendant nodes to the collapsed state.
     ///
-    /// Widgets that control the visibility of their children can call this and then, in the same frame, render
-    /// only the children that should be visible.
-    pub fn skip_render_descendants(&self, info_tree: &WidgetInfoTree) {
+    /// [`collapse`]: Self::collapse
+    pub fn collapse_descendants(&mut self, info_tree: &WidgetInfoTree) {
         if let Some(w) = info_tree.get(self.widget_id) {
             for w in w.descendants() {
                 w.bounds_info().set_rendered(None, info_tree);
             }
         } else {
-            tracing::error!("skip_render_descendants did not find widget `{}` in info tree", self.widget_id)
+            tracing::error!("collapse_descendants did not find widget `{}` in info tree", self.widget_id)
         }
     }
 
@@ -815,8 +833,7 @@ impl FrameBuilder {
 
         HitTestBuilder {
             hit_clips: &mut self.hit_clips,
-            is_hit_testable: self.is_hit_testable,
-            widget_rendered: &mut self.widget_rendered,
+            is_hit_testable: self.hit_testable,
         }
     }
 
@@ -1035,8 +1052,6 @@ impl FrameBuilder {
                 };
                 self.display_list.push_text(clip_rect, instance_key, glyphs, color, opts);
             }
-        } else {
-            self.widget_rendered = true;
         }
 
         if self.auto_hit_test {
@@ -1054,8 +1069,6 @@ impl FrameBuilder {
                 self.display_list
                     .push_image(clip_rect, image_key, img_size, rendering.into(), image.alpha_type());
             }
-        } else {
-            self.widget_rendered = true;
         }
 
         if self.auto_hit_test {
@@ -1313,11 +1326,11 @@ impl FrameBuilder {
     /// Finalizes the build.
     pub fn finalize(self, info_tree: &WidgetInfoTree) -> (BuiltFrame, UsedFrameBuilder) {
         info_tree.root().bounds_info().set_rendered(
-            if self.widget_rendered {
-                Some((ZIndex(0), self.render_index))
-            } else {
-                None
-            },
+            Some(WidgetRenderInfo {
+                visible: self.visible,
+                back: ZIndex(0),
+                front: self.render_index,
+            }),
             info_tree,
         );
         info_tree.after_render(self.frame_id, self.scale_factor);
@@ -1343,7 +1356,6 @@ impl FrameBuilder {
 pub struct HitTestBuilder<'a> {
     hit_clips: &'a mut HitTestClips,
     is_hit_testable: bool,
-    widget_rendered: &'a mut bool,
 }
 impl<'a> HitTestBuilder<'a> {
     /// If the widget is hit-testable, if this is `false` all hit-test push methods are ignored.
@@ -1354,7 +1366,6 @@ impl<'a> HitTestBuilder<'a> {
     /// Push a hit-test `rect`.
     pub fn push_rect(&mut self, rect: PxRect) {
         if self.is_hit_testable && rect.size != PxSize::zero() {
-            *self.widget_rendered = true;
             self.hit_clips.push_rect(rect.to_box2d());
         }
     }
@@ -1362,7 +1373,6 @@ impl<'a> HitTestBuilder<'a> {
     /// Push a hit-test `rect` with rounded `corners`.
     pub fn push_rounded_rect(&mut self, rect: PxRect, corners: PxCornerRadius) {
         if self.is_hit_testable && rect.size != PxSize::zero() {
-            *self.widget_rendered = true;
             self.hit_clips.push_rounded_rect(rect.to_box2d(), corners);
         }
     }
@@ -1370,7 +1380,6 @@ impl<'a> HitTestBuilder<'a> {
     /// Push a hit-test ellipse.
     pub fn push_ellipse(&mut self, center: PxPoint, radii: PxSize) {
         if self.is_hit_testable && radii != PxSize::zero() {
-            *self.widget_rendered = true;
             self.hit_clips.push_ellipse(center, radii);
         }
     }
@@ -1525,6 +1534,7 @@ pub struct FrameUpdate {
     parent_inner_bounds: Option<PxRect>,
 
     auto_hit_test: bool,
+    visible: bool,
 }
 impl FrameUpdate {
     /// New frame update builder.
@@ -1579,6 +1589,7 @@ impl FrameUpdate {
 
             auto_hit_test: false,
             parent_inner_bounds: None,
+            visible: true,
         }
     }
 
@@ -1604,7 +1615,9 @@ impl FrameUpdate {
 
     /// Change the color used to clear the pixel buffer when redrawing the frame.
     pub fn set_clear_color(&mut self, color: RenderColor) {
-        self.clear_color = Some(color);
+        if self.visible {
+            self.clear_color = Some(color);
+        }
     }
 
     /// Returns `true` if all transform updates are also applied to hit-test transforms.
@@ -1620,6 +1633,23 @@ impl FrameUpdate {
         self.auto_hit_test = prev;
     }
 
+    /// Returns `true` if view updates are actually collected, if `false` only transforms and hit-test are updated.
+    pub fn is_visible(&self) -> bool {
+        self.visible
+    }
+
+    /// Calls `update` with [`is_visible`] set to `false`.
+    ///
+    /// Nodes that set the visibility to [`Hidden`] must render using the [`FrameBuilder::hide`] method and update using this method.
+    ///
+    /// [`is_visible`]: Self::is_visible
+    /// [`Hidden`]: crate::widget_info::Visibility::Hidden
+    pub fn hidden(&mut self, update: impl FnOnce(&mut Self)) {
+        let parent_visible = mem::replace(&mut self.visible, false);
+        update(self);
+        self.visible = parent_visible;
+    }
+
     /// Update a transform value that does not potentially affect widget bounds.
     ///
     /// Use [`with_transform`] to update transforms that affect widget bounds.
@@ -1628,7 +1658,9 @@ impl FrameUpdate {
     ///
     /// [`with_transform`]: Self::with_transform
     pub fn update_transform(&mut self, new_value: FrameValueUpdate<PxTransform>, hit_test: bool) {
-        self.transforms.push(new_value);
+        if self.visible {
+            self.transforms.push(new_value);
+        }
 
         if hit_test || self.auto_hit_test {
             self.widget_bounds.update_hit_test_transform(new_value);
@@ -1806,12 +1838,16 @@ impl FrameUpdate {
 
     /// Update a float value.
     pub fn update_f32(&mut self, new_value: FrameValueUpdate<f32>) {
-        self.floats.push(new_value);
+        if self.visible {
+            self.floats.push(new_value);
+        }
     }
 
     /// Update a color value.
     pub fn update_color(&mut self, new_value: FrameValueUpdate<RenderColor>) {
-        self.colors.push(new_value)
+        if self.visible {
+            self.colors.push(new_value)
+        }
     }
 
     /// Finalize the update.

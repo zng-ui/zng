@@ -337,7 +337,7 @@ impl WindowLayers {
                     }
                 }
 
-                frame.skip_render(ctx.info_tree);
+                frame.collapse(ctx.info_tree);
             }
 
             fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {

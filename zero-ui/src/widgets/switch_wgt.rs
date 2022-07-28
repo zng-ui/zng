@@ -22,7 +22,7 @@ pub mod switch {
         index: I,
         options: W,
         collapse: bool,
-        skip: Cell<bool>,
+        render_collapse_once: Cell<bool>,
     }
     #[impl_ui_node(
         delegate_list = &self.options,
@@ -80,7 +80,7 @@ pub mod switch {
         fn layout(&mut self, ctx: &mut LayoutContext, wl: &mut WidgetLayout) -> PxSize {
             if mem::take(&mut self.collapse) {
                 wl.collapse_descendants(ctx);
-                *self.skip.get_mut() = true;
+                *self.render_collapse_once.get_mut() = true;
             }
 
             let index = self.index.copy(ctx);
@@ -92,8 +92,8 @@ pub mod switch {
         }
 
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-            if self.skip.take() {
-                frame.skip_render_descendants(ctx.info_tree);
+            if self.render_collapse_once.take() {
+                frame.collapse_descendants(ctx.info_tree);
             }
             let index = self.index.copy(ctx);
             if index < self.options.len() {
@@ -117,7 +117,7 @@ pub mod switch {
             index,
             options,
             collapse: true,
-            skip: Cell::new(true),
+            render_collapse_once: Cell::new(true),
         }
         .cfg_boxed()
     }

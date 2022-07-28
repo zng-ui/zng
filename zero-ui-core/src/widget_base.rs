@@ -837,16 +837,18 @@ pub fn visibility(child: impl UiNode, visibility: impl IntoVar<Visibility>) -> i
         }
 
         fn render(&self, ctx: &mut RenderContext, frame: &mut FrameBuilder) {
-            if let Visibility::Visible = self.visibility.get(ctx) {
-                self.child.render(ctx, frame);
-            } else {
-                frame.skip_render(ctx.info_tree);
+            match self.visibility.copy(ctx) {
+                Visibility::Visible => self.child.render(ctx, frame),
+                Visibility::Hidden => frame.hide(|frame| self.child.render(ctx, frame)),
+                Visibility::Collapsed => frame.collapse(ctx.info_tree),
             }
         }
 
         fn render_update(&self, ctx: &mut RenderContext, update: &mut FrameUpdate) {
-            if let Visibility::Visible = self.visibility.get(ctx) {
-                self.child.render_update(ctx, update);
+            match self.visibility.copy(ctx) {
+                Visibility::Visible => self.child.render_update(ctx, update),
+                Visibility::Hidden => update.hidden(|update| self.child.render_update(ctx, update)),
+                Visibility::Collapsed => {}
             }
         }
     }

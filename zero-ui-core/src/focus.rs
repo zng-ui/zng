@@ -1435,7 +1435,7 @@ impl EnabledNavWithFrame {
     }
     fn needs_refresh(&self, tree: &WidgetInfoTree) -> bool {
         let stats = tree.stats();
-        stats.bounds_updated_frame != self.spatial_frame_id || stats.visibility_updated_frame != self.visibility_id
+        stats.bounds_updated_frame != self.spatial_frame_id || stats.vis_updated_frame != self.visibility_id
     }
 }
 trait EnabledNavWithFrameExt {
@@ -1447,7 +1447,7 @@ impl<'a> EnabledNavWithFrameExt for WidgetFocusInfo<'a> {
         EnabledNavWithFrame {
             nav: self.enabled_nav(),
             spatial_frame_id: stats.bounds_updated_frame,
-            visibility_id: stats.visibility_updated_frame,
+            visibility_id: stats.vis_updated_frame,
         }
     }
 }

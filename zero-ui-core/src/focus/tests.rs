@@ -16,7 +16,17 @@ impl WidgetInfoBuilderExt for WidgetInfoBuilder {
     {
         self.push_widget(
             WidgetId::named(name),
-            WidgetBoundsInfo::new_test(rect, None, None, Some(rect.origin.to_vector().into()), Some(ZIndex::BACK)),
+            WidgetBoundsInfo::new_test(
+                rect,
+                None,
+                None,
+                Some(rect.origin.to_vector().into()),
+                Some(WidgetRenderInfo {
+                    visible: true,
+                    back: ZIndex::BACK,
+                    front: ZIndex::BACK,
+                }),
+            ),
             WidgetBorderInfo::new(),
             |builder| {
                 let mut meta = FocusInfoBuilder::get(builder);
@@ -95,7 +105,11 @@ fn scope(tab_nav: TabNav, directional_nav: DirectionalNav, horizontal: bool) -> 
             None,
             None,
             None,
-            Some(ZIndex::BACK),
+            Some(WidgetRenderInfo {
+                visible: true,
+                back: ZIndex::BACK,
+                front: ZIndex::BACK,
+            }),
         ),
         WidgetBorderInfo::new(),
         1.fct(),

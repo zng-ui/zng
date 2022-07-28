@@ -1,8 +1,5 @@
 # Screen culling
 
-* Compute final bounds and transform for each culled widget.
-  - This is used to auto-scroll to widget and probably other functions.
-
 * Can "cull" be "auto_hide"?
   - Hidden widgets should be updating transform anyway.
   - We want culled widgets to be focusable, so that they auto-scroll on focus, right now hidden widgets are not focusable.
@@ -12,8 +9,6 @@
 
 # Other
 
-* Fix `skip_render`, right now it does not update transform+bounds for hidden vis.
-    - Differentiate from collapse?
 * Review, can we remove outer-transform/bounds?
     - It is updated in `push_inner` anyway.
     - It halves the computation of bounds if removed.
