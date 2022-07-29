@@ -194,7 +194,20 @@ impl<V> LangMap<V> {
 /// assert!(en.matches(&en_us, true, false));
 /// assert_eq!(en_us, lang!("en-US"));
 /// ```
-pub use zero_ui_proc_macros::lang;
+#[macro_export]
+macro_rules! lang {
+    ($($tt:tt)+) => {
+        {
+            let lang: $crate::text::unic_langid::LanguageIdentifier = $crate::text::__lang!($($tt)+);
+            lang
+        }
+    }
+}
+#[doc(inline)]
+pub use crate::lang;
+
+#[doc(hidden)]
+pub use zero_ui_proc_macros::lang as __lang;
 
 #[doc(hidden)]
 pub use unic_langid;

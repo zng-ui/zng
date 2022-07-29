@@ -914,7 +914,7 @@ pub mod prelude {
         mouse::{ButtonState, MouseButton, MouseMoveArgs},
         node_vec, nodes,
         render::RenderMode,
-        service::{Services, ServiceTuple},
+        service::{ServiceTuple, Services},
         task::{self, rayon::prelude::*},
         text::{
             font_features::{
@@ -931,8 +931,8 @@ pub mod prelude {
             PxPoint, PxSize, Rect, RectFromTuplesBuilder, SideOffsets, Size, TimeUnits, Transform, Vector,
         },
         var::{
-            animation, easing, merge_var, state_var, switch_var, var, var_default, var_from, IntoVar, RcVar, Var, VarReceiver, VarSender,
-            Vars,
+            animation, easing, expr_var, merge_var, state_var, switch_var, var, var_default, var_from, IntoVar, RcVar, Var, VarReceiver,
+            VarSender, Vars,
         },
         widget_base::HitTestMode,
         widget_info::{InteractionPath, Visibility},

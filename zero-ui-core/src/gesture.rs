@@ -12,11 +12,11 @@ use crate::{
     keyboard::*,
     mouse::*,
     service::Service,
+    service::ServiceTuple,
     units::DipPoint,
     var::{impl_from_and_into_var, Var, Vars, WithVarsRead},
     widget_info::{HitTestInfo, InteractionPath},
     window::{WindowId, Windows},
-    service::ServiceTuple,
     WidgetId, WidgetPath,
 };
 use std::{

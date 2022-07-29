@@ -74,7 +74,7 @@ impl Services {
     }
 
     /// Gets a service reference if the service is registered in the application.
-    /// 
+    ///
     /// # Helper Method
     ///
     /// Every service implemented using `derive` has a `ServiceName::get` function that tries to get the service. So instead of using this method
@@ -107,9 +107,9 @@ impl Services {
     }
 
     /// Gets multiple service references if all services are registered in the application.
-    /// 
+    ///
     /// # Helper Method
-    /// 
+    ///
     /// Service tuples implement [`ServiceTuple`] that has a `get` associated function. So instead of using this
     /// method to request `ctx.services.get::<(Foo, Bar)>()` you can use the `<(Foo, Bar)>::get(ctx)` syntax.
     ///
@@ -126,9 +126,9 @@ impl Services {
     }
 
     /// Requires multiple service references.
-    /// 
+    ///
     /// # Helper Method
-    /// 
+    ///
     /// Service tuples implement [`ServiceTuple`] that has a `req` associated function. So instead of using this
     /// method to request `ctx.services.req::<(Foo, Bar)>()` you can use the `<(Foo, Bar)>::req(ctx)` syntax.
     ///
@@ -219,12 +219,18 @@ pub trait Service: 'static {
         Self: Sized;
 
     /// Requires the service. This is the equivalent of calling `services.req::<Foo>()`.
-    fn req<S: AsMut<Services>>(services: &mut S) -> &mut Self where Self: Sized {
+    fn req<S: AsMut<Services>>(services: &mut S) -> &mut Self
+    where
+        Self: Sized,
+    {
         services.as_mut().req::<Self>()
     }
 
     /// Tries to find the service. This is the equivalent of calling `services.get::<Foo>()`.
-    fn get<S: AsMut<Services>>(services: &mut S) -> Option<&mut Self> where Self: Sized {
+    fn get<S: AsMut<Services>>(services: &mut S) -> Option<&mut Self>
+    where
+        Self: Sized,
+    {
         services.as_mut().get::<Self>()
     }
 }

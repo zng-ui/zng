@@ -51,7 +51,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             };
 
             quote! {
-                unsafe { #unic_langid::LanguageIdentifier::from_raw_parts_unchecked(#lang, #script, #region, #variants) }
+                #unic_langid::LanguageIdentifier::from_raw_parts_unchecked(#lang, #script, #region, #variants)
             }
         }
         Err(e) => {

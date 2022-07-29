@@ -1,7 +1,16 @@
 * Review proc-macros in rust-analyzer.
-    - color_hex, OK.
+    - any_all, OK.
     - derive_service, FIXED.
-    - ..
+    - expr_var, OK.
+    - hex_color, OK.
+    - impl_ui_node, OK.
+    - lang, FIXED.
+    - merge_var, ?
+    - property, ?
+    - static_list, ?
+    - when_var, ?
+    - widget, ?
+    - widget_new, ?
 
 # Other
 
