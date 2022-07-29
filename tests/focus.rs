@@ -988,13 +988,6 @@ pub fn focused_removed_by_interacivity() {
     })
 }
 #[test]
-pub fn focused_removed_by_hiding() {
-    let visibility = var(Visibility::Visible);
-    focused_removed_test(button! { content = text("Button 1"); visibility = visibility.clone() }, |vars| {
-        visibility.set(vars, Visibility::Hidden)
-    })
-}
-#[test]
 pub fn focused_removed_by_collapsing() {
     let visibility = var(Visibility::Visible);
     focused_removed_test(button! { content = text("Button 1"); visibility = visibility.clone() }, |vars| {

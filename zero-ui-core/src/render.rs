@@ -123,6 +123,13 @@ macro_rules! expect_inner {
         }
     };
 }
+macro_rules! expect_outer {
+    ($self:ident.$fn_name:ident) => {
+        if $self.is_inner() {
+            tracing::error!("called `{}` in inner context of `{}`", stringify!($fn_name), $self.widget_id);
+        }
+    };
+}
 
 struct WidgetData {
     has_transform: bool,
@@ -147,6 +154,7 @@ pub struct FrameBuilder {
 
     hit_testable: bool,
     visible: bool,
+    collapsed: bool,
     auto_hit_test: bool,
     hit_clips: HitTestClips,
 
@@ -231,6 +239,7 @@ impl FrameBuilder {
             can_reuse: true,
             open_reuse: None,
             auto_hide_rect,
+            collapsed: false,
 
             render_index: ZIndex(0),
 
@@ -567,9 +576,8 @@ impl FrameBuilder {
 
             // increment by reused
             self.render_index = ctx.widget_info.bounds.rendered().map(|i| i.front).unwrap_or(self.render_index);
-        } else {
-            // if did not reuse
-
+        } else if !mem::take(&mut self.collapsed) {
+            // if did not reuse and rendered
             ctx.widget_info.bounds.set_rendered(
                 Some(WidgetRenderInfo {
                     visible: self.display_list.len() > display_count,
@@ -654,12 +662,18 @@ impl FrameBuilder {
     ///
     /// [`Collapsed`]: crate::widget_info::Visibility::Hidden
     pub fn collapse(&mut self, info_tree: &WidgetInfoTree) {
-        if let Some(w) = info_tree.get(self.widget_id) {
-            for w in w.self_and_descendants() {
-                w.bounds_info().set_rendered(None, info_tree);
+        expect_outer!(self.collapse);
+
+        if !self.collapsed {
+            self.collapsed = true;
+
+            if let Some(w) = info_tree.get(self.widget_id) {
+                for w in w.self_and_descendants() {
+                    w.bounds_info().set_rendered(None, info_tree);
+                }
+            } else {
+                tracing::error!("collapse did not find widget `{}` in info tree", self.widget_id)
             }
-        } else {
-            tracing::error!("collapse did not find widget `{}` in info tree", self.widget_id)
         }
     }
 
@@ -667,12 +681,14 @@ impl FrameBuilder {
     ///
     /// [`collapse`]: Self::collapse
     pub fn collapse_descendants(&mut self, info_tree: &WidgetInfoTree) {
-        if let Some(w) = info_tree.get(self.widget_id) {
-            for w in w.descendants() {
-                w.bounds_info().set_rendered(None, info_tree);
+        if !self.collapsed {
+            if let Some(w) = info_tree.get(self.widget_id) {
+                for w in w.descendants() {
+                    w.bounds_info().set_rendered(None, info_tree);
+                }
+            } else {
+                tracing::error!("collapse_descendants did not find widget `{}` in info tree", self.widget_id)
             }
-        } else {
-            tracing::error!("collapse_descendants did not find widget `{}` in info tree", self.widget_id)
         }
     }
 
