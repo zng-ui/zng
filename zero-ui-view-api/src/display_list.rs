@@ -863,7 +863,7 @@ impl DisplayItem {
                     wr::RasterSpace::Screen,
                     wr::StackingContextFlags::empty(),
                 )
-            },
+            }
             DisplayItem::PopStackingContext => wr_list.pop_stacking_context(),
 
             DisplayItem::PushClipRect { clip_rect, clip_out } => {

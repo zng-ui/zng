@@ -763,6 +763,7 @@ impl App {
                     if focused {
                         self.notify(Event::FocusChanged { prev: None, new: Some(id) });
                     } else {
+                        self.pressed_modifiers.clear();
                         self.notify(Event::FocusChanged { prev: Some(id), new: None });
                     }
                 }
