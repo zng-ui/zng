@@ -9,6 +9,7 @@ use crate::{
     var::{types::WeakRcVar, *},
     widget_info::UpdateMask,
     window::*,
+    service::ServiceTuple,
     BoxedUiNode, UiNode, WidgetId,
 };
 
@@ -71,7 +72,7 @@ impl Images {
 impl ImageManager {
     /// AppExtension::update
     pub(super) fn update_render(&mut self, ctx: &mut AppContext) {
-        let (images, windows) = ctx.services.req_multi::<(Images, Windows)>();
+        let (images, windows) = <(Images, Windows)>::req(ctx.services);
 
         images.render.active.retain(|r| {
             let mut retain = false;

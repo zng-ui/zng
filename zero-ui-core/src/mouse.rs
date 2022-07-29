@@ -734,7 +734,7 @@ impl MouseManager {
         } else {
             DipPoint::default()
         };
-        let (windows, mouse) = ctx.services.req_multi::<(Windows, Mouse)>();
+        let (windows, mouse) = <(Windows, Mouse)>::req(ctx.services);
 
         let hits = self.pos_hits.clone();
 
@@ -1120,7 +1120,7 @@ impl AppExtension for MouseManager {
         if let Some(args) = RawFrameRenderedEvent.update(args) {
             // update hovered
             if self.pos_window == Some(args.window_id) {
-                let (windows, mouse) = ctx.services.req_multi::<(Windows, Mouse)>();
+                let (windows, mouse) = <(Windows, Mouse)>::req(ctx.services);
                 let frame_info = windows.widget_tree(args.window_id).unwrap();
                 self.pos_hits = frame_info.root().hit_test(self.pos.to_px(frame_info.scale_factor().0));
                 let target = self
@@ -1147,7 +1147,7 @@ impl AppExtension for MouseManager {
             }
             // update capture
             if self.capture_count > 0 {
-                let (mouse, windows) = ctx.services.req_multi::<(Mouse, Windows)>();
+                let (mouse, windows) = <(Mouse, Windows)>::req(ctx.services);
                 if let Ok(frame) = windows.widget_tree(args.window_id) {
                     mouse.continue_capture(frame, ctx.events);
                 }
@@ -1252,7 +1252,7 @@ impl AppExtension for MouseManager {
     }
 
     fn update(&mut self, ctx: &mut AppContext) {
-        let (mouse, windows) = ctx.services.req_multi::<(Mouse, Windows)>();
+        let (mouse, windows) = <(Mouse, Windows)>::req(ctx.services);
 
         mouse.fulfill_requests(windows, ctx.events);
     }

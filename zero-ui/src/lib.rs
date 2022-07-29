@@ -740,7 +740,7 @@
 //! # use zero_ui::core::keyboard::Keyboard;
 //! # use zero_ui::core::mouse::Mouse;
 //! # fn test(ctx: &mut WidgetContext) {
-//! let (mouse, keyboard) = ctx.services.req_multi::<(Mouse, Keyboard)>();
+//! let (mouse, keyboard) = <(Mouse, Keyboard)>::req(ctx);
 //! # }
 //! ```
 //!
@@ -914,7 +914,7 @@ pub mod prelude {
         mouse::{ButtonState, MouseButton, MouseMoveArgs},
         node_vec, nodes,
         render::RenderMode,
-        service::Services,
+        service::{Services, ServiceTuple},
         task::{self, rayon::prelude::*},
         text::{
             font_features::{

@@ -74,6 +74,11 @@ impl Services {
     }
 
     /// Gets a service reference if the service is registered in the application.
+    /// 
+    /// # Helper Method
+    ///
+    /// Every service implemented using `derive` has a `ServiceName::get` function that tries to get the service. So instead of using this method
+    /// to request `ctx.services.get::<Foo>()` you can use `Foo::get(ctx)`. The [`Service`] trait also provides these helper methods.
     pub fn get<S: Service>(&mut self) -> Option<&mut S> {
         let ptr = S::thread_local_entry().get();
         if ptr.is_null() {
@@ -89,8 +94,8 @@ impl Services {
     ///
     /// # Helper Method
     ///
-    /// Every service implemented using `derive` has a `ServiceName::req` function that requests the service. So instead of using this method 
-    /// to request `ctx.services.req::<FooBar>()` you can use `FooBar::req(ctx.services)`, or `FooBar::req(ctx)`.
+    /// Every service implemented using `derive` has a `ServiceName::req` function that requests the service. So instead of using this method
+    /// to request `ctx.services.req::<Foo>()` you can use `Foo::req(ctx)`. The [`Service`] trait also provides these helper methods.
     ///
     /// # Panics
     ///
@@ -102,6 +107,11 @@ impl Services {
     }
 
     /// Gets multiple service references if all services are registered in the application.
+    /// 
+    /// # Helper Method
+    /// 
+    /// Service tuples implement [`ServiceTuple`] that has a `get` associated function. So instead of using this
+    /// method to request `ctx.services.get::<(Foo, Bar)>()` you can use the `<(Foo, Bar)>::get(ctx)` syntax.
     ///
     /// # Service Types
     ///
@@ -112,10 +122,15 @@ impl Services {
     ///
     /// If the same service type is requested more then once.
     pub fn get_multi<'m, M: ServiceTuple<'m>>(&'m mut self) -> Option<M::Borrowed> {
-        M::get().ok()
+        M::try_get_services().ok()
     }
 
     /// Requires multiple service references.
+    /// 
+    /// # Helper Method
+    /// 
+    /// Service tuples implement [`ServiceTuple`] that has a `req` associated function. So instead of using this
+    /// method to request `ctx.services.req::<(Foo, Bar)>()` you can use the `<(Foo, Bar)>::req(ctx)` syntax.
     ///
     /// # Service Types
     ///
@@ -129,7 +144,7 @@ impl Services {
     /// If the same service type is required more then once.
     #[track_caller]
     pub fn req_multi<'m, M: ServiceTuple<'m>>(&'m mut self) -> M::Borrowed {
-        M::get().unwrap_or_else(|e| panic!("service `{e}` is required"))
+        M::try_get_services().unwrap_or_else(|e| panic!("service `{e}` is required"))
     }
 }
 impl AsMut<Services> for Services {
@@ -169,13 +184,13 @@ impl AsMut<Services> for crate::app::HeadlessApp {
 /// # Derive
 ///
 /// Implement this trait using `#[derive(Service)]`. It also generates two helper functions:
-/// 
+///
 ///  * `Foo::req(services: &mut AsMut<Services>) -> Foo`.
 ///  * `Foo::get(services: &mut AsMut<Services>) -> Foo`.
-/// 
+///
 /// The context types that provide the `&mut Services` implement `AsMut<Services>` so the service can usually be required directly
 /// from an `&mut ctx` reference.
-/// 
+///
 /// # Examples
 ///
 /// ```
@@ -202,6 +217,16 @@ pub trait Service: 'static {
     fn thread_local_entry() -> ServiceEntry<Self>
     where
         Self: Sized;
+
+    /// Requires the service. This is the equivalent of calling `services.req::<Foo>()`.
+    fn req<S: AsMut<Services>>(services: &mut S) -> &mut Self where Self: Sized {
+        services.as_mut().req::<Self>()
+    }
+
+    /// Tries to find the service. This is the equivalent of calling `services.get::<Foo>()`.
+    fn get<S: AsMut<Services>>(services: &mut S) -> Option<&mut Self> where Self: Sized {
+        services.as_mut().get::<Self>()
+    }
 }
 
 #[doc(hidden)]
@@ -255,7 +280,7 @@ mod protected {
     pub trait ServiceTuple<'s> {
         type Borrowed;
         fn assert_no_dup();
-        fn get() -> Result<Self::Borrowed, &'static str>;
+        fn try_get_services() -> Result<Self::Borrowed, &'static str>;
     }
 }
 macro_rules! impl_multi_tuple {
@@ -276,7 +301,7 @@ macro_rules! impl_multi_tuple {
                 )+
             }
 
-            fn get() -> Result<Self::Borrowed, &'static str> {
+            fn try_get_services() -> Result<Self::Borrowed, &'static str> {
                 Self::assert_no_dup();
 
                 $(
@@ -294,12 +319,27 @@ macro_rules! impl_multi_tuple {
             }
         }
 
-        impl<'s, $($S: Service),+> ServiceTuple<'s> for ( $($S),+ ) { }
+        impl<'s, $($S: Service),+> ServiceTuple<'s> for ( $($S),+ ) {
+            fn req<S: AsMut<Services>>(services: &'s mut S) -> Self::Borrowed {
+                services.as_mut().req_multi::<Self>()
+            }
+
+            fn get<S: AsMut<Services>>(services: &'s mut S) -> Option<Self::Borrowed> {
+                services.as_mut().get_multi::<Self>()
+            }
+        }
     }
 }
 
-#[doc(hidden)]
-pub trait ServiceTuple<'s>: protected::ServiceTuple<'s> {}
+/// Represents a bundle of services borrowed together.
+///
+/// See [`Services::req_multi`] for more details.
+pub trait ServiceTuple<'s>: protected::ServiceTuple<'s> {
+    /// Requires all services. This is the equivalent of calling `services.req_multi::<(S1, S2, ..)>()`".
+    fn req<S: AsMut<Services>>(services: &'s mut S) -> Self::Borrowed;
+    /// Tries to find all services. This is the equivalent of calling `services.get_multi::<(S1, S2, ..)>()`".
+    fn get<S: AsMut<Services>>(services: &'s mut S) -> Option<Self::Borrowed>;
+}
 
 impl_multi_tuple! {
     (0, 1),

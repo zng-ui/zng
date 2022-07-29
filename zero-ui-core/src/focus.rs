@@ -93,7 +93,7 @@ use crate::{
     event::*,
     mouse::MouseInputEvent,
     render::FrameId,
-    service::Service,
+    service::{Service, ServiceTuple},
     units::{Px, PxPoint, PxRect, TimeUnits},
     var::{var, RcVar, ReadOnlyRcVar, Var, Vars},
     widget_info::{InteractionPath, WidgetBoundsInfo, WidgetInfoTree},
@@ -429,7 +429,7 @@ impl AppExtension for FocusManager {
             self.on_info_tree_update(&tree, ctx);
         } else {
             // update visibility or enabled commands, they may have changed if the `spatial_frame_id` changed.
-            let (focus, windows) = ctx.services.req_multi::<(Focus, Windows)>();
+            let (focus, windows) = <(Focus, Windows)>::req(ctx.services);
             let mut invalidated_cmds_or_focused = None;
 
             if let Some(f) = &focus.focused {
@@ -457,7 +457,7 @@ impl AppExtension for FocusManager {
             }
         } else if let Some(args) = WindowFocusChangedEvent.update(args) {
             // foreground window maybe changed
-            let (focus, windows) = ctx.services.req_multi::<(Focus, Windows)>();
+            let (focus, windows) = <(Focus, Windows)>::req(ctx.services);
             if let Some((window_id, widget_id, highlight)) = focus.pending_window_focus.take() {
                 if args.is_focus(window_id) {
                     request = Some(FocusRequest::direct(widget_id, highlight));
@@ -476,7 +476,7 @@ impl AppExtension for FocusManager {
         }
 
         if let Some(request) = request {
-            let (focus, windows) = ctx.services.req_multi::<(Focus, Windows)>();
+            let (focus, windows) = <(Focus, Windows)>::req(ctx.services);
             focus.pending_highlight = false;
             let args = focus.fulfill_request(ctx.vars, windows, request);
             self.notify(ctx.vars, ctx.events, focus, windows, args);
@@ -484,7 +484,7 @@ impl AppExtension for FocusManager {
     }
 
     fn update(&mut self, ctx: &mut AppContext) {
-        let (focus, windows) = ctx.services.req_multi::<(Focus, Windows)>();
+        let (focus, windows) = <(Focus, Windows)>::req(ctx.services);
         if let Some(request) = focus.request.take() {
             focus.pending_highlight = false;
             let args = focus.fulfill_request(ctx.vars, windows, request);
@@ -497,7 +497,7 @@ impl AppExtension for FocusManager {
 }
 impl FocusManager {
     fn on_info_tree_update(&mut self, tree: &WidgetInfoTree, ctx: &mut AppContext) {
-        let (focus, windows) = ctx.services.req_multi::<(Focus, Windows)>();
+        let (focus, windows) = <(Focus, Windows)>::req(ctx.services);
         focus.update_focused_center();
 
         // widget tree rebuilt or visibility may have changed, check if focus is still valid
