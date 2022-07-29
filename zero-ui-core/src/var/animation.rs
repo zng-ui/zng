@@ -703,9 +703,14 @@ where
             if self.is_read_only(vars) {
                 Err(super::VarIsReadOnly)
             } else {
-                let easing = self.0.easing.clone();
-                self.0.var.ease_ne(vars, new_value, self.0.duration, move |t| easing(t)).perm();
-                Ok(true)
+                let new_value = new_value.into();
+                if self.0.var.get(vars) != &new_value {
+                    let easing = self.0.easing.clone();
+                    self.0.var.ease_ne(vars, new_value, self.0.duration, move |t| easing(t)).perm();
+                    Ok(true)
+                } else {
+                    Ok(false)
+                }
             }
         })
     }
