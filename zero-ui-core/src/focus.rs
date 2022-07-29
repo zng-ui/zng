@@ -402,9 +402,7 @@ impl AppExtension for FocusManager {
 
     fn event_preview<EV: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {
         if let Some(args) = WidgetInfoChangedEvent.update(args) {
-            if ctx
-                .services
-                .focus()
+            if Focus::req(ctx)
                 .focused
                 .as_ref()
                 .map(|f| f.path.window_id() == args.window_id)

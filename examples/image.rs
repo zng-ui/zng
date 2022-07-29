@@ -1,7 +1,10 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use zero_ui::core::task::http;
-use zero_ui::core::{image::ImageLimits, timer::Timers};
+use zero_ui::core::{
+    image::{ImageLimits, Images},
+    timer::Timers,
+};
 use zero_ui::prelude::*;
 use zero_ui::widgets::image::properties::{image_error_view, image_loading_view, ImageErrorArgs};
 use zero_ui_view_prebuilt as zero_ui_view;
@@ -22,7 +25,7 @@ fn app_main() {
     App::default().run_window(|ctx| {
         // by default all "ImageSource::Download" requests are blocked, the limits can be set globally
         // in here and overridden for each image with the "limits" property.
-        ctx.services.images().limits.allow_uri = zero_ui::core::image::UriFilter::AllowAll;
+        Images::req(ctx.services).limits.allow_uri = zero_ui::core::image::UriFilter::AllowAll;
 
         // setup a file cache so we don't download the images every run.
         http::set_default_client_init(move || {
@@ -293,7 +296,7 @@ fn large_image() -> impl Widget {
     button! {
         content = text("Large Image (205MB download)");
         on_click = hn!(|ctx, _| {
-            ctx.services.windows().open(|_|img_window(
+            Windows::req(ctx.services).open(|_|img_window(
                 "Wikimedia - Starry Night - 30,000 × 23,756 pixels, file size: 205.1 MB, decoded: 2.8 GB",
                 image! {
                     source = "https://upload.wikimedia.org/wikipedia/commons/e/ea/Van_Gogh_-_Starry_Night_-_Google_Art_Project.jpg";
@@ -312,7 +315,7 @@ fn panorama_image() -> impl Widget {
     button! {
         content = text("Panorama Image (100MB download)");
         on_click = hn!(|ctx, _| {
-            ctx.services.windows().open(|_|img_window(
+            Windows::req(ctx.services).open(|_|img_window(
                 "Wikimedia - Along the River During the Qingming Festival - 56,531 × 1,700 pixels, file size: 99.32 MB",
                 scroll! {
                     mode = ScrollMode::HORIZONTAL;

@@ -1825,10 +1825,8 @@ mod tests {
 
     fn test_font() -> FontRef {
         let mut app = App::default().run_headless(false);
-        app.ctx()
-            .services
-            .fonts()
-            .get_normal(&FontName::sans_serif(), &lang!(und))
+        Fonts::req(&mut app)
+            .normal(&FontName::sans_serif(), &lang!(und))
             .unwrap()
             .sized(Px(20), vec![])
     }

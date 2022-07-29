@@ -1,5 +1,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
-use zero_ui::core::text::{FontsExt, UnderlinePosition, UnderlineSkip};
+use zero_ui::core::text::{Fonts, UnderlinePosition, UnderlineSkip};
 use zero_ui::prelude::*;
 
 use zero_ui_view_prebuilt as zero_ui_view;
@@ -252,7 +252,7 @@ fn defaults(ctx: &mut WindowContext) -> impl Widget {
     fn demo(ctx: &mut WindowContext, title: &str, font_family: impl Into<FontNames>) -> impl Widget {
         let font_family = font_family.into();
 
-        let font = ctx.services.fonts().get_list(
+        let font = Fonts::req(ctx.services).list(
             &font_family,
             FontStyle::Normal,
             FontWeight::NORMAL,

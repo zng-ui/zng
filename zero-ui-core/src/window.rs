@@ -115,10 +115,10 @@ pub trait AppRunWindowExt {
     /// Which is a shortcut for:
     /// ```no_run
     /// # use zero_ui_core::app::App;
-    /// # use zero_ui_core::window::WindowsExt;
+    /// # use zero_ui_core::window::Windows;
     /// # macro_rules! window { ($($tt:tt)*) => { todo!() } }
     /// App::default().run(|ctx| {
-    ///     ctx.services.windows().open(|ctx| {
+    ///     Windows::req(ctx.services).open(|ctx| {
     ///         println!("starting app with window {:?}", ctx.window_id);
     ///         window! {
     ///             title = "Window 1";
@@ -132,7 +132,7 @@ pub trait AppRunWindowExt {
 impl<E: AppExtension> AppRunWindowExt for AppExtended<E> {
     fn run_window(self, new_window: impl FnOnce(&mut WindowContext) -> Window + 'static) {
         self.run(|ctx| {
-            ctx.services.windows().open(new_window);
+            Windows::req(ctx).open(new_window);
         })
     }
 }
@@ -167,7 +167,7 @@ pub trait HeadlessAppWindowExt {
 }
 impl HeadlessAppWindowExt for HeadlessApp {
     fn open_window(&mut self, new_window: impl FnOnce(&mut WindowContext) -> Window + 'static) -> WindowId {
-        let response = self.ctx().services.windows().open(new_window);
+        let response = Windows::req(self).open(new_window);
         self.run_task(move |ctx| async move {
             response.wait_rsp(&ctx).await;
             ctx.with_vars(|v| response.rsp(v).unwrap().window_id)
@@ -177,25 +177,25 @@ impl HeadlessAppWindowExt for HeadlessApp {
 
     fn focus_window(&mut self, window_id: WindowId) {
         let args = RawWindowFocusArgs::now(None, Some(window_id));
-        RawWindowFocusEvent.notify(self.ctx().events, args);
+        RawWindowFocusEvent.notify(self, args);
         let _ = self.update(false);
     }
 
     fn blur_window(&mut self, window_id: WindowId) {
         let args = RawWindowFocusArgs::now(Some(window_id), None);
-        RawWindowFocusEvent.notify(self.ctx().events, args);
+        RawWindowFocusEvent.notify(self, args);
         let _ = self.update(false);
     }
 
     fn window_frame_image(&mut self, window_id: WindowId) -> ImageVar {
-        self.ctx().services.windows().frame_image(window_id)
+        Windows::req(self).frame_image(window_id)
     }
 
     fn close_window(&mut self, window_id: WindowId) -> bool {
         use app::raw_events::*;
 
         let args = RawWindowCloseRequestedArgs::now(window_id);
-        RawWindowCloseRequestedEvent.notify(self.ctx().events, args);
+        RawWindowCloseRequestedEvent.notify(self, args);
 
         let mut requested = false;
         let mut closed = false;
@@ -218,7 +218,7 @@ impl HeadlessAppWindowExt for HeadlessApp {
 
     fn run_window(&mut self, new_window: impl FnOnce(&mut WindowContext) -> Window + 'static) {
         let window_id = self.open_window(new_window);
-        while self.ctx().services.windows().is_open(window_id) {
+        while Windows::req(self).is_open(window_id) {
             if let ControlFlow::Exit = self.update(true) {
                 return;
             }

@@ -1593,7 +1593,7 @@ impl TestApp {
 
     pub fn focused(&mut self) -> Option<WidgetId> {
         let ctx = self.app.ctx();
-        ctx.services.focus().focused().get(ctx.vars).as_ref().map(|w| w.widget_id())
+        Focus::req(ctx.services).focused().get(ctx.vars).as_ref().map(|w| w.widget_id())
     }
 
     pub fn can_tab(&self) -> bool {
@@ -1636,17 +1636,17 @@ impl TestApp {
     }
 
     pub fn focus(&mut self, widget_id: WidgetId) {
-        self.app.ctx().services.focus().focus_widget(widget_id, true);
+        Focus::req(&mut self.app).focus_widget(widget_id, true);
         let _ = self.app.update(false);
     }
 
     pub fn focus_or_parent(&mut self, widget_id: WidgetId) {
-        self.app.ctx().services.focus().focus_widget_or_exit(widget_id, true);
+        Focus::req(&mut self.app).focus_widget_or_exit(widget_id, true);
         let _ = self.app.update(false);
     }
 
     pub fn focus_or_child(&mut self, widget_id: WidgetId) {
-        self.app.ctx().services.focus().focus_widget_or_enter(widget_id, true);
+        Focus::req(&mut self.app).focus_widget_or_enter(widget_id, true);
         let _ = self.app.update(false);
     }
 
@@ -1662,7 +1662,7 @@ impl TestApp {
     pub fn write_tree(&mut self) {
         use zero_ui::core::inspector::*;
 
-        let tree = self.app.ctx().services.windows().widget_tree(self.window_id).unwrap();
+        let tree = Windows::req(&mut self.app).widget_tree(self.window_id).unwrap();
         write_tree(tree, &WriteTreeState::none(), &mut std::io::stdout());
     }
 }

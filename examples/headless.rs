@@ -47,7 +47,7 @@ fn headless_example() {
                 println!("done");
 
                 // and close the window, causing the app to exit.
-                ctx.with(|ctx|ctx.services.windows().close(ctx.path.window_id())).unwrap();
+                ctx.with(|ctx|Windows::req(ctx.services).close(ctx.path.window_id())).unwrap();
             });
         }
     });
@@ -106,7 +106,7 @@ fn images_render() {
 
     // request an image rendered from a node, the `Images` service will render the node and update the image
     // variable every time the node (re)renders.
-    let img = app.ctx().services.images().render(|_| image(), RenderConfig::default());
+    let img = Images::req(&mut app).render(|_| image(), RenderConfig::default());
 
     app.run_task(move |ctx| async move {
         while ctx.with(|ctx| img.get(ctx).is_loading()) {

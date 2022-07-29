@@ -184,6 +184,7 @@ pub fn image(source: impl IntoVar<ImageSource>) -> impl Widget {
 
 #[cfg(test)]
 mod tests {
+    use crate::core::image::Images;
     use crate::prelude::*;
     use std::cell::Cell;
     use std::rc::Rc;
@@ -195,7 +196,7 @@ mod tests {
         let img = var(crate::core::image::Image::dummy(Some("test error".to_string()))).into_read_only();
 
         let mut app = App::default().run_headless(false);
-        app.ctx().services.images().load_in_headless = true;
+        Images::req(&mut app).load_in_headless = true;
         let ok = Rc::new(Cell::new(false));
         let window_id = app.open_window(clone_move!(ok, |_| {
             window! {

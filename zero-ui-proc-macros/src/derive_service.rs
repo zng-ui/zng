@@ -1,23 +1,17 @@
 use quote::*;
 use syn::{parse_macro_input, DeriveInput};
 
-use crate::util::snake_case;
-
 pub fn derive(item: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let service = parse_macro_input!(item as DeriveInput);
     let ident = &service.ident;
     let crate_ = crate::util::crate_core();
 
-    let ext_ident = ident!("{ident}Ext");
-    let ext_mtd_ident = ident!("{}", snake_case(&ident.to_string()));
-    let ext_help = format!(
-        "Adds the [`{0}`]({2}::{0}) method to [`Services`]({1}::service::Services)",
-        ext_mtd_ident,
-        crate_.to_string().replace(' ', ""),
-        ext_ident
-    );
-    let ext_mtd_help = format!(
+    let req_help = format!(
         "Requires the [`{0}`] service. This is the equivalent of calling `services.req::<{0}>()`",
+        ident
+    );
+    let get_help = format!(
+        "Tries to find the [`{0}`] service. This is the equivalent of calling `services.get::<{0}>()`",
         ident
     );
 
@@ -26,25 +20,24 @@ pub fn derive(item: proc_macro::TokenStream) -> proc_macro::TokenStream {
             std::thread_local! {
                 static TL_SERVICE_ENTRY: #crate_::service::ServiceValue<#ident> = #crate_::service::ServiceValue::init();
             }
+
+            #[doc=#req_help]
+            #[allow(unused)]
+            pub fn req(services: &mut impl AsMut<#crate_::service::Services>) -> &mut Self {
+                services.as_mut().req::<Self>()
+            }
+
+            #[doc=#get_help]
+            #[allow(unused)]
+            pub fn get(services: &mut impl AsMut<#crate_::service::Services>) -> Option<&mut Self> {
+                services.as_mut().get::<Self>()
+            }
         }
 
         impl #crate_::service::Service for #ident {
 
             fn thread_local_entry() -> #crate_::service::ServiceEntry<Self> {
                 #crate_::service::ServiceEntry::new(&Self::TL_SERVICE_ENTRY)
-            }
-        }
-
-        #[doc=#ext_help]
-        pub trait #ext_ident {
-            #[doc=#ext_mtd_help]
-            fn #ext_mtd_ident(&mut self)  -> &mut #ident;
-        }
-        impl #ext_ident for #crate_::service::Services {
-
-            #[track_caller]
-            fn #ext_mtd_ident(&mut self) -> &mut #ident {
-                self.req::<#ident>()
             }
         }
     };

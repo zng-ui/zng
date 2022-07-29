@@ -87,7 +87,7 @@ fn functions(window_enabled: RcVar<bool>) -> impl Widget {
             button! {
                 content = text("New Window");
                 on_click = hn!(|ctx, _| {
-                    ctx.services.windows().open(|ctx| {
+                    Windows::req(ctx.services).open(|ctx| {
                         let _ = ctx.window_id.set_name("other");
                         window! {
                             title = "Other Window";
@@ -115,7 +115,7 @@ fn functions(window_enabled: RcVar<bool>) -> impl Widget {
                         content = text("Detach Button");
                         on_click = hn!(|ctx, _| {
                             let wwk = wk.clone();
-                            ctx.services.windows().open(move |_| {
+                            Windows::req(ctx.services).open(move |_| {
                                 window! {
                                     title = "Detached Button";
                                     content_align = Align::CENTER;
@@ -197,7 +197,7 @@ fn delayed_focus() -> impl Widget {
             title("Delayed 4s (D)"),
 
             delayed_btn("Force Focus", |ctx| {
-                ctx.services.focus().focus(FocusRequest {
+                Focus::req(ctx.services).focus(FocusRequest {
                     target: FocusTarget::Direct(WidgetId::named("target")),
                     highlight: true,
                     force_window_focus: true,
@@ -205,7 +205,7 @@ fn delayed_focus() -> impl Widget {
                 });
             }),
             delayed_btn("Info Indicator", |ctx| {
-                ctx.services.focus().focus(FocusRequest {
+                Focus::req(ctx.services).focus(FocusRequest {
                     target: FocusTarget::Direct(WidgetId::named("target")),
                     highlight: true,
                     force_window_focus: false,
@@ -213,7 +213,7 @@ fn delayed_focus() -> impl Widget {
                 });
             }),
             delayed_btn("Critical Indicator", |ctx| {
-                ctx.services.focus().focus(FocusRequest {
+                Focus::req(ctx.services).focus(FocusRequest {
                     target: FocusTarget::Direct(WidgetId::named("target")),
                     highlight: true,
                     force_window_focus: false,
@@ -338,7 +338,7 @@ fn nested_focusables() -> impl Widget {
 
         on_click = hn!(|ctx, args: &ClickArgs| {
             args.propagation().stop();
-            ctx.services.windows().focus_or_open("nested-focusables", |_| {
+            Windows::req(ctx.services).focus_or_open("nested-focusables", |_| {
                 window! {
                     title = "Focus Example - Nested Focusables";
                     // zero_ui::properties::inspector::show_center_points = true;
@@ -403,7 +403,7 @@ mod inspect {
     pub fn focus(path: &Option<InteractionPath>, services: &mut Services) -> String {
         path.as_ref()
             .map(|p| {
-                let frame = if let Ok(w) = services.windows().widget_tree(p.window_id()) {
+                let frame = if let Ok(w) = Windows::req(services).widget_tree(p.window_id()) {
                     w
                 } else {
                     return format!("<{p}>");

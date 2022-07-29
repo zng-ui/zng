@@ -120,7 +120,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Text>) -> impl UiNode
         fn init(&mut self, ctx: &mut WidgetContext) {
             let (lang, family, style, weight, stretch) = TextContext::font_face(ctx.vars);
 
-            let faces = ctx.services.fonts().get_list(family, style, weight, stretch, lang);
+            let faces = Fonts::req(ctx.services).list(family, style, weight, stretch, lang);
 
             let text = self.text.get_clone(ctx);
             let text = TextTransformVar::get(ctx).transform(text);
@@ -161,10 +161,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Text>) -> impl UiNode
                 // font query may return a different result.
 
                 let (lang, font_family, font_style, font_weight, font_stretch) = TextContext::font_face(ctx.vars);
-                let faces = ctx
-                    .services
-                    .fonts()
-                    .get_list(font_family, font_style, font_weight, font_stretch, lang);
+                let faces = Fonts::req(ctx).list(font_family, font_style, font_weight, font_stretch, lang);
 
                 let r = self.resolved.as_mut().unwrap();
 
@@ -210,10 +207,7 @@ pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Text>) -> impl UiNode
 
             // update `r.font_face`, affects layout
             if let Some((lang, font_family, font_style, font_weight, font_stretch)) = TextContext::font_face_update(ctx.vars) {
-                let faces = ctx
-                    .services
-                    .fonts()
-                    .get_list(font_family, font_style, font_weight, font_stretch, lang);
+                let faces = Fonts::req(ctx).list(font_family, font_style, font_weight, font_stretch, lang);
 
                 if r.faces != faces {
                     r.synthesis = *FontSynthesisVar::get(ctx) & faces.best().synthesis_for(font_style, font_weight);

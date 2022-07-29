@@ -200,7 +200,7 @@ pub fn is_shortcut_pressed(child: impl UiNode, state: StateVar) -> impl UiNode {
                     // unless we where already doing that, then we just stop showing pressed, this causes
                     // a flickering effect when rapid clicks are happening.
                     if self.shortcut_press.take().is_none() {
-                        let duration = ctx.services.gestures().shortcut_pressed_duration;
+                        let duration = Gestures::req(ctx.services).shortcut_pressed_duration;
                         if duration != Duration::default() {
                             self.shortcut_press = Some(ctx.timers.timeout(duration));
                             self.state.set_ne(ctx, true);

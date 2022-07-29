@@ -1,4 +1,8 @@
-use zero_ui::core::{context::WindowContext, window::Window};
+use zero_ui::core::{
+    context::WindowContext,
+    keyboard::Keyboard,
+    window::{Monitors, Window},
+};
 use zero_ui::prelude::*;
 
 const SAME_PROCESS: bool = true;
@@ -90,7 +94,7 @@ fn multi_window(ctx: &mut WindowContext) -> Window {
     });
 
     let monitor_size = MonitorQuery::Primary
-        .select(ctx.vars, ctx.services.monitors())
+        .select(ctx.vars, Monitors::req(ctx.services))
         .unwrap()
         .size()
         .copy(ctx.vars);
@@ -116,8 +120,8 @@ fn multi_window(ctx: &mut WindowContext) -> Window {
             position = window_pos;
             size = window_size;
             on_close = hn!(|ctx, _| {
-                if ctx.services.keyboard().modifiers().get(ctx).is_empty() {
-                    ctx.services.windows().close_all();
+                if Keyboard::req(ctx.services).modifiers().get(ctx).is_empty() {
+                    Windows::req(ctx.services).close_all();
                 }
             });
             content = uniform_grid! {
@@ -135,7 +139,7 @@ fn multi_window(ctx: &mut WindowContext) -> Window {
 
     let r = wns.pop().unwrap();
 
-    let windows = ctx.services.windows();
+    let windows = Windows::req(ctx.services);
     for w in wns {
         windows.open(|_| w);
     }
@@ -209,7 +213,7 @@ fn main() {
 
     let run_app = move || {
         App::default().run_window(|ctx| {
-            ctx.services.windows().default_render_mode = RENDER_MODE;
+            Windows::req(ctx.services).default_render_mode = RENDER_MODE;
             test(ctx)
         });
     };

@@ -103,11 +103,11 @@ impl AppExtension for FontManager {
         if RawFontChangedEvent.update(args).is_some() {
             FontChangedEvent.notify(ctx.events, FontChangedArgs::now(FontChange::SystemFonts));
         } else if let Some(args) = RawFontAaChangedEvent.update(args) {
-            ctx.services.fonts().font_aa.set_ne(ctx.vars, args.aa);
+            Fonts::req(ctx.services).font_aa.set_ne(ctx.vars, args.aa);
         } else if FontChangedEvent.update(args).is_some() {
-            ctx.services.fonts().on_fonts_changed();
+            Fonts::req(ctx.services).on_fonts_changed();
         } else if let Some(args) = ViewProcessInitedEvent.update(args) {
-            let fonts = ctx.services.fonts();
+            let fonts = Fonts::req(ctx.services);
             fonts.font_aa.set_ne(ctx.vars, args.font_aa);
             if args.is_respawn {
                 fonts.loader.on_view_process_respawn();
@@ -116,7 +116,7 @@ impl AppExtension for FontManager {
     }
 
     fn update(&mut self, ctx: &mut AppContext) {
-        let fonts = ctx.services.fonts();
+        let fonts = Fonts::req(ctx.services);
 
         for args in fonts.take_updates() {
             FontChangedEvent.notify(ctx.events, args);
@@ -208,19 +208,12 @@ impl Fonts {
     }
 
     /// Gets a font list that best matches the query.
-    pub fn get_list(
-        &mut self,
-        families: &[FontName],
-        style: FontStyle,
-        weight: FontWeight,
-        stretch: FontStretch,
-        lang: &Lang,
-    ) -> FontFaceList {
+    pub fn list(&mut self, families: &[FontName], style: FontStyle, weight: FontWeight, stretch: FontStretch, lang: &Lang) -> FontFaceList {
         self.loader.get_list(families, style, weight, stretch, lang, &self.generics)
     }
 
-    /// Gets a single font face that best matches the query.
-    pub fn get(
+    /// Find a single font face that best matches the query.
+    pub fn find(
         &mut self,
         family: &FontName,
         style: FontStyle,
@@ -231,19 +224,19 @@ impl Fonts {
         self.loader.get(family, style, weight, stretch, lang, &self.generics)
     }
 
-    /// Gets a single font face with all normal properties.
-    pub fn get_normal(&mut self, family: &FontName, lang: &Lang) -> Option<FontFaceRef> {
-        self.get(family, FontStyle::Normal, FontWeight::NORMAL, FontStretch::NORMAL, lang)
+    /// Find a single font face with all normal properties.
+    pub fn normal(&mut self, family: &FontName, lang: &Lang) -> Option<FontFaceRef> {
+        self.find(family, FontStyle::Normal, FontWeight::NORMAL, FontStretch::NORMAL, lang)
     }
 
-    /// Gets a single font face with italic italic style and normal weight and stretch.
-    pub fn get_italic(&mut self, family: &FontName, lang: &Lang) -> Option<FontFaceRef> {
-        self.get(family, FontStyle::Italic, FontWeight::NORMAL, FontStretch::NORMAL, lang)
+    /// Find a single font face with italic italic style and normal weight and stretch.
+    pub fn italic(&mut self, family: &FontName, lang: &Lang) -> Option<FontFaceRef> {
+        self.find(family, FontStyle::Italic, FontWeight::NORMAL, FontStretch::NORMAL, lang)
     }
 
-    /// Gets a single font face with bold weight and normal style and stretch.
-    pub fn get_bold(&mut self, family: &FontName, lang: &Lang) -> Option<FontFaceRef> {
-        self.get(family, FontStyle::Normal, FontWeight::BOLD, FontStretch::NORMAL, lang)
+    /// Find a single font face with bold weight and normal style and stretch.
+    pub fn bold(&mut self, family: &FontName, lang: &Lang) -> Option<FontFaceRef> {
+        self.find(family, FontStyle::Normal, FontWeight::BOLD, FontStretch::NORMAL, lang)
     }
 
     /// Gets all [registered](Self::register) font families.

@@ -238,14 +238,14 @@ pub fn focus_shortcut(child: impl UiNode, shortcuts: impl IntoVar<Shortcuts>) ->
         fn init(&mut self, ctx: &mut WidgetContext) {
             self.child.init(ctx);
             let s = self.shortcuts.get_clone(ctx);
-            self.handle = Some(ctx.services.gestures().focus_shortcut(s, ctx.path.widget_id()));
+            self.handle = Some(Gestures::req(ctx.services).focus_shortcut(s, ctx.path.widget_id()));
         }
 
         fn update(&mut self, ctx: &mut WidgetContext) {
             self.child.update(ctx);
 
             if let Some(s) = self.shortcuts.clone_new(ctx) {
-                self.handle = Some(ctx.services.gestures().focus_shortcut(s, ctx.path.widget_id()));
+                self.handle = Some(Gestures::req(ctx.services).focus_shortcut(s, ctx.path.widget_id()));
             }
         }
     }

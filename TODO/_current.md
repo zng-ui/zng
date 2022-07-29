@@ -1,3 +1,10 @@
+* Review proc-macros in rust-analyzer.
+    - color_hex, OK.
+    - derive_service, FIXED.
+    - ..
+
+# Other
+
 * Review easing animation the same value.
      - `ease_ne` causes weird effect animating `rgb(0.1, 0.1, 0.1)` to same value?
 

@@ -152,14 +152,14 @@ where
     fn init(&mut self, ctx: &mut WidgetContext) {
         self.child.init(ctx);
         let s = self.shortcuts.get_clone(ctx);
-        self.handle = Some(ctx.services.gestures().click_shortcut(s, self.kind, ctx.path.widget_id()));
+        self.handle = Some(Gestures::req(ctx.services).click_shortcut(s, self.kind, ctx.path.widget_id()));
     }
 
     fn update(&mut self, ctx: &mut WidgetContext) {
         self.child.update(ctx);
 
         if let Some(s) = self.shortcuts.clone_new(ctx) {
-            self.handle = Some(ctx.services.gestures().click_shortcut(s, self.kind, ctx.path.widget_id()));
+            self.handle = Some(Gestures::req(ctx.services).click_shortcut(s, self.kind, ctx.path.widget_id()));
         }
     }
 }

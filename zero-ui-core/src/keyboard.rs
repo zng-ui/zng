@@ -9,7 +9,7 @@ use std::time::{Duration, Instant};
 use crate::app::view_process::ViewProcessInitedEvent;
 use crate::app::{raw_events::*, *};
 use crate::event::*;
-use crate::focus::FocusExt;
+use crate::focus::Focus;
 use crate::service::*;
 use crate::units::TimeUnits;
 use crate::var::{var, RcVar, ReadOnlyRcVar, Var, Vars};
@@ -186,23 +186,23 @@ impl AppExtension for KeyboardManager {
 
     fn event_preview<EV: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {
         if let Some(args) = RawKeyInputEvent.update(args) {
-            let focused = ctx.services.focus().focused().get_clone(ctx);
-            let keyboard = ctx.services.keyboard();
+            let focused = Focus::req(ctx.services).focused().get_clone(ctx);
+            let keyboard = Keyboard::req(ctx.services);
             keyboard.key_input(ctx.events, ctx.vars, args, focused);
         } else if let Some(args) = RawCharInputEvent.update(args) {
-            let focused = ctx.services.focus().focused().get_clone(ctx);
+            let focused = Focus::req(ctx.services).focused().get_clone(ctx);
             if let Some(target) = focused {
                 if target.window_id() == args.window_id {
                     CharInputEvent.notify(ctx, CharInputArgs::now(args.window_id, args.character, target));
                 }
             }
         } else if let Some(args) = RawKeyRepeatDelayChangedEvent.update(args) {
-            let kb = ctx.services.keyboard();
+            let kb = Keyboard::req(ctx.services);
             kb.repeat_delay.set_ne(ctx.vars, args.delay);
             kb.last_key_down = None;
         } else if let Some(args) = RawWindowFocusEvent.update(args) {
             if args.new_focus.is_none() {
-                let kb = ctx.services.keyboard();
+                let kb = Keyboard::req(ctx.services);
 
                 kb.modifiers.set_ne(ctx.vars, ModifiersState::empty());
                 kb.current_modifiers.clear();
@@ -212,7 +212,7 @@ impl AppExtension for KeyboardManager {
                 kb.last_key_down = None;
             }
         } else if let Some(args) = ViewProcessInitedEvent.update(args) {
-            let kb = ctx.services.keyboard();
+            let kb = Keyboard::req(ctx.services);
             kb.repeat_delay.set_ne(ctx.vars, args.key_repeat_delay);
 
             if args.is_respawn {

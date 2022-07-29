@@ -249,9 +249,9 @@ impl FocusCommands {
                 if let Some(args) = $Command.update(args) {
                     args.handle(|args| {
                         if args.enabled && self.$handle.is_enabled() {
-                            ctx.services.focus().$method();
+                            Focus::req(ctx.services).$method();
                         } else {
-                            ctx.services.focus().on_disabled_cmd();
+                            Focus::req(ctx.services).on_disabled_cmd();
                         }
                     });
                     return;
@@ -273,7 +273,7 @@ impl FocusCommands {
         if let Some(args) = FocusCommand.update(args) {
             if let Some(req) = args.param::<FocusRequest>() {
                 args.handle_enabled(&self.focus_handle, |_| {
-                    ctx.services.focus().focus(*req);
+                    Focus::req(ctx.services).focus(*req);
                 });
             }
         }

@@ -26,7 +26,7 @@ fn main_window(ctx: &mut WindowContext) -> Window {
     let window_vars = ctx.window_state.req(WindowVarsKey);
     let window_id = *ctx.window_id;
 
-    // ctx.services.windows().exit_on_last_close = false;
+    // Windows::req(ctx.services).exit_on_last_close = false;
 
     let title = merge_var!(
         window_vars.actual_position(),
@@ -138,7 +138,7 @@ fn screenshot() -> impl Widget {
 
                 let t = Instant::now();
                 let img = ctx.with(|ctx|{
-                    ctx.services.windows().frame_image(ctx.path.window_id()).get_clone(ctx.vars)
+                    Windows::req(ctx.services).frame_image(ctx.path.window_id()).get_clone(ctx.vars)
                 });
                 img.wait_done().await;
                 println!("taken in {:?}, saving..", t.elapsed());
@@ -178,7 +178,7 @@ fn screenshot() -> impl Widget {
                 enabled.set(ctx.vars, false);
 
                 println!("taking `screenshot.png` using a new headless window ..");
-                ctx.services.windows().open_headless(clone_move!(enabled, |_| window! {
+                Windows::req(ctx.services).open_headless(clone_move!(enabled, |_| window! {
                         size = (500, 400);
                         background_color = colors::DARK_GREEN;
                         font_size = 72;
@@ -194,7 +194,7 @@ fn screenshot() -> impl Widget {
                             }
 
                             let window_id = args.window_id;
-                            ctx.with(|ctx| ctx.services.windows().close(window_id).unwrap());
+                            ctx.with(|ctx| Windows::req(ctx.services).close(window_id).unwrap());
 
                             enabled.set(&ctx, true);
                         });
@@ -315,7 +315,7 @@ fn focus_control() -> impl Widget {
             task::timeout(5.secs()).await;
 
             ctx.with(|ctx| {
-                ctx.services.windows().focus(ctx.path.window_id()).unwrap();
+                Windows::req(ctx.services).focus(ctx.path.window_id()).unwrap();
             });
             enabled.set(&ctx, true);
         });
@@ -451,7 +451,7 @@ fn misc(window_id: WindowId, window_vars: &WindowVars) -> impl Widget {
             button! {
                 content = text("Open Another Window");
                 on_click = hn!(|ctx, _| {
-                    ctx.services.windows().open(main_window);
+                    Windows::req(ctx.services).open(main_window);
                 })
             }
         ],
@@ -505,7 +505,7 @@ fn confirm_close() -> impl WidgetHandler<WindowCloseRequestedArgs> {
                                                 content = strong("Close");
                                                 on_click = hn!(state, |ctx, _| {
                                                     state.set(ctx, CloseState::Close);
-                                                    ctx.services.windows().close(ctx.path.window_id()).unwrap();
+                                                    Windows::req(ctx.services).close(ctx.path.window_id()).unwrap();
                                                 })
                                             },
                                             button! {

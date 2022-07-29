@@ -11,7 +11,7 @@ use crate::{
     units::*,
     var::{impl_from_and_into_var, var, RcVar, ReadOnlyRcVar, Var},
     widget_info::{HitTestInfo, InteractionPath, WidgetInfoTree, WidgetPath},
-    window::{WindowId, Windows, WindowsExt},
+    window::{WindowId, Windows},
     WidgetId,
 };
 use std::{fmt, mem, num::NonZeroU8, time::*};
@@ -955,7 +955,7 @@ impl MouseManager {
 
             self.pos = position;
 
-            let windows = ctx.services.windows();
+            let windows = Windows::req(ctx.services);
 
             // mouse_move data
             let frame_info = match windows.widget_tree(window_id) {
@@ -963,7 +963,7 @@ impl MouseManager {
                 Err(_) => {
                     // window not found
                     if let Some(hovered) = self.hovered.take() {
-                        let capture = self.capture_info(ctx.services.mouse());
+                        let capture = self.capture_info(Mouse::req(ctx.services));
                         let args = MouseHoverArgs::now(
                             window_id,
                             device_id,
@@ -992,7 +992,7 @@ impl MouseManager {
             }
             .unblocked();
 
-            let capture = self.capture_info(ctx.services.mouse());
+            let capture = self.capture_info(Mouse::req(ctx.services));
 
             // mouse_enter/mouse_leave.
             let hovered_args = if self.hovered != target {
@@ -1042,7 +1042,7 @@ impl MouseManager {
             DipPoint::default()
         };
 
-        let windows = ctx.services.windows();
+        let windows = Windows::req(ctx.services);
 
         let hits = self.pos_hits.clone();
 
@@ -1073,7 +1073,7 @@ impl MouseManager {
     fn on_cursor_left_window(&mut self, window_id: WindowId, device_id: DeviceId, ctx: &mut AppContext) {
         if Some(window_id) == self.pos_window.take() {
             if let Some(path) = self.hovered.take() {
-                let capture = ctx.services.mouse().current_capture().map(|(path, mode)| CaptureInfo {
+                let capture = Mouse::req(ctx.services).current_capture().map(|(path, mode)| CaptureInfo {
                     target: path.clone(),
                     mode,
                 });
@@ -1101,7 +1101,7 @@ impl MouseManager {
     }
 
     fn release_window_capture(&mut self, window_id: WindowId, ctx: &mut AppContext) {
-        let mouse = ctx.services.mouse();
+        let mouse = Mouse::req(ctx.services);
         if let Some((path, _)) = mouse.current_capture() {
             if path.window_id() == window_id {
                 mouse.end_window_capture(ctx.events);
@@ -1175,7 +1175,7 @@ impl AppExtension for MouseManager {
             self.multi_click_config.set_ne(ctx.vars, args.multi_click_config);
 
             if args.is_respawn {
-                let mouse = ctx.services.mouse();
+                let mouse = Mouse::req(ctx.services);
 
                 if let Some(window_id) = self.pos_window.take() {
                     if let Some(path) = self.hovered.take() {

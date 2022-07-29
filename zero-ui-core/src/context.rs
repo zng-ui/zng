@@ -75,6 +75,11 @@ impl OwnedAppContext {
         &self.vars
     }
 
+    /// Borrow the [`Services`] only.
+    pub fn services(&mut self) -> &mut Services {
+        &mut self.services
+    }
+
     /// Applies pending `timers`, `sync`, `vars` and `events` and returns the update
     /// requests and a time for the loop to awake and update.
     #[must_use]

@@ -50,7 +50,7 @@ impl AppExtension for ImageManager {
 
     fn event_preview<EV: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {
         if let Some(args) = RawImageMetadataLoadedEvent.update(args) {
-            let images = ctx.services.images();
+            let images = Images::req(ctx.services);
             let vars = ctx.vars;
             if let Some(var) = images
                 .decoding
@@ -65,7 +65,7 @@ impl AppExtension for ImageManager {
 
             // image finished decoding, remove from `decoding`
             // and notify image var value update.
-            let images = ctx.services.images();
+            let images = Images::req(ctx.services);
             let vars = ctx.vars;
 
             if let Some(i) = images
@@ -83,7 +83,7 @@ impl AppExtension for ImageManager {
 
             // image failed to decode, remove from `decoding`
             // and notify image var value update.
-            let images = ctx.services.images();
+            let images = Images::req(ctx.services);
             let vars = ctx.vars;
 
             if let Some(i) = images
@@ -108,7 +108,7 @@ impl AppExtension for ImageManager {
                 return;
             }
 
-            let images = ctx.services.images();
+            let images = Images::req(ctx.services);
             images.cleanup_not_cached(true);
             images.download_accept.clear();
             let vp = images.view.as_mut().unwrap();
@@ -169,7 +169,7 @@ impl AppExtension for ImageManager {
     fn update_preview(&mut self, ctx: &mut AppContext) {
         // update loading tasks:
 
-        let images = ctx.services.images();
+        let images = Images::req(ctx.services);
         let view = &images.view;
         let vars = ctx.vars;
         let decoding = &mut images.decoding;
@@ -333,7 +333,7 @@ impl Images {
     /// # use zero_ui_core::{image::*, context::AppContext};
     /// # macro_rules! include_bytes { ($tt:tt) => { &[] } }
     /// # fn demo(ctx: &mut AppContext) {
-    /// let image_var = ctx.services.images().from_static(include_bytes!("ico.png"), "png");
+    /// let image_var = Images::req(ctx.services).from_static(include_bytes!("ico.png"), "png");
     /// # }
     pub fn from_static(&mut self, data: &'static [u8], format: impl Into<ImageDataFormat>) -> ImageVar {
         self.cache((data, format.into()))
@@ -350,23 +350,28 @@ impl Images {
 
     /// Get a cached image or add it to the cache.
     pub fn cache(&mut self, source: impl Into<ImageSource>) -> ImageVar {
-        self.get(source, ImageCacheMode::Cache, None)
+        self.image(source, ImageCacheMode::Cache, None)
     }
 
     /// Get a cached image or add it to the cache or retry if the cached image is an error.
     pub fn retry(&mut self, source: impl Into<ImageSource>) -> ImageVar {
-        self.get(source, ImageCacheMode::Retry, None)
+        self.image(source, ImageCacheMode::Retry, None)
     }
 
     /// Load an image, if it was already cached update the cached image with the reloaded data.
     pub fn reload(&mut self, source: impl Into<ImageSource>) -> ImageVar {
-        self.get(source, ImageCacheMode::Reload, None)
+        self.image(source, ImageCacheMode::Reload, None)
     }
 
     /// Get or load an image.
     ///
     /// If `limits` is `None` the [`Images::limits`] is used.
-    pub fn get(&mut self, source: impl Into<ImageSource>, cache_mode: impl Into<ImageCacheMode>, limits: Option<ImageLimits>) -> ImageVar {
+    pub fn image(
+        &mut self,
+        source: impl Into<ImageSource>,
+        cache_mode: impl Into<ImageCacheMode>,
+        limits: Option<ImageLimits>,
+    ) -> ImageVar {
         self.proxy_then_get(source.into(), cache_mode.into(), limits.unwrap_or_else(|| self.limits.clone()))
     }
 

@@ -12,7 +12,7 @@ use crate::{
     BoxedUiNode, UiNode, WidgetId,
 };
 
-use super::{Image, ImageManager, ImageVar, Images, ImagesExt};
+use super::{Image, ImageManager, ImageVar, Images};
 
 impl Images {
     /// Render the `node` to an image.
@@ -122,7 +122,7 @@ impl ImageManager {
                             window_id: *ctx.window_id,
                             image: img.downgrade(),
                         };
-                        ctx.services.images().render.active.push(a);
+                        Images::req(ctx.services).render.active.push(a);
 
                         w
                     },
@@ -136,7 +136,7 @@ impl ImageManager {
     pub(super) fn event_preview_render<EV: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {
         if let Some(args) = FrameImageReadyEvent.update(args) {
             if let Some(img) = &args.frame_image {
-                let imgs = ctx.services.images();
+                let imgs = Images::req(ctx.services);
                 if let Some(a) = imgs.render.active.iter().find(|a| a.window_id == args.window_id) {
                     if let Some(img_var) = a.image.upgrade() {
                         img_var.set(ctx.vars, img.clone());

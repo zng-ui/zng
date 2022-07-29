@@ -87,11 +87,10 @@ impl Services {
 
     /// Requires a service reference.
     ///
-    /// # Extension Methods
+    /// # Helper Method
     ///
-    /// Every service implemented using `derive` has a `ServiceNameExt` trait that implements a method for [`Services`]
-    /// that requires the service. So instead of using this method to request `services.req::<FooBar>()` you can use
-    /// `services.foo_bar()` if you have imported `FooBarExt`.
+    /// Every service implemented using `derive` has a `ServiceName::req` function that requests the service. So instead of using this method 
+    /// to request `ctx.services.req::<FooBar>()` you can use `FooBar::req(ctx.services)`, or `FooBar::req(ctx)`.
     ///
     /// # Panics
     ///
@@ -133,13 +132,50 @@ impl Services {
         M::get().unwrap_or_else(|e| panic!("service `{e}` is required"))
     }
 }
+impl AsMut<Services> for Services {
+    fn as_mut(&mut self) -> &mut Services {
+        self
+    }
+}
+impl<'a> AsMut<Services> for crate::context::AppContext<'a> {
+    fn as_mut(&mut self) -> &mut Services {
+        self.services
+    }
+}
+impl<'a> AsMut<Services> for crate::context::WindowContext<'a> {
+    fn as_mut(&mut self) -> &mut Services {
+        self.services
+    }
+}
+impl<'a> AsMut<Services> for crate::context::WidgetContext<'a> {
+    fn as_mut(&mut self) -> &mut Services {
+        self.services
+    }
+}
+#[cfg(any(test, doc, feature = "test_util"))]
+impl AsMut<Services> for crate::context::TestWidgetContext {
+    fn as_mut(&mut self) -> &mut Services {
+        &mut self.services
+    }
+}
+impl AsMut<Services> for crate::app::HeadlessApp {
+    fn as_mut(&mut self) -> &mut Services {
+        self.services()
+    }
+}
 
 /// Identifies an application service type.
 ///
 /// # Derive
 ///
-/// Implement this trait using `#[derive(Service)]`. It also generates an extension method for [`Services`] using the service name.
-///
+/// Implement this trait using `#[derive(Service)]`. It also generates two helper functions:
+/// 
+///  * `Foo::req(services: &mut AsMut<Services>) -> Foo`.
+///  * `Foo::get(services: &mut AsMut<Services>) -> Foo`.
+/// 
+/// The context types that provide the `&mut Services` implement `AsMut<Services>` so the service can usually be required directly
+/// from an `&mut ctx` reference.
+/// 
 /// # Examples
 ///
 /// ```
@@ -151,9 +187,8 @@ impl Services {
 ///
 /// mod elsewhere {
 /// #   use super::*;
-///     use crate::FooBarExt;// generated extension method.
 ///     fn update(ctx: &mut WidgetContext) {
-///         let service = ctx.services.foo_bar();
+///         let service = FooBar::req(ctx);
 ///     }
 /// }
 /// ```

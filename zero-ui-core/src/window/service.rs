@@ -6,7 +6,7 @@ use linear_map::LinearMap;
 use super::commands::WindowCommands;
 use super::*;
 use crate::app::view_process::{ViewProcess, ViewProcessInitedEvent};
-use crate::app::ExitRequestedEvent;
+use crate::app::{AppProcess, ExitRequestedEvent};
 use crate::context::OwnedStateMap;
 use crate::event::EventUpdateArgs;
 use crate::image::{Image, ImageVar};
@@ -18,7 +18,7 @@ use crate::{
     app::{
         raw_events::{RawWindowCloseEvent, RawWindowCloseRequestedEvent},
         view_process::{self, ViewRenderer},
-        AppEventSender, AppProcessExt,
+        AppEventSender,
     },
     event::Events,
 };
@@ -447,7 +447,7 @@ impl Windows {
 
     pub(super) fn on_pre_event<EV: EventUpdateArgs>(ctx: &mut AppContext, args: &EV) {
         if let Some(args) = RawWindowFocusEvent.update(args) {
-            let wns = ctx.services.windows();
+            let wns = Windows::req(ctx.services);
 
             let mut prev = None;
             let mut new = None;
@@ -484,9 +484,9 @@ impl Windows {
                 WindowFocusChangedEvent.notify(ctx.events, args);
             }
         } else if let Some(args) = RawWindowCloseRequestedEvent.update(args) {
-            let _ = ctx.services.windows().close(args.window_id);
+            let _ = Windows::req(ctx.services).close(args.window_id);
         } else if let Some(args) = RawWindowCloseEvent.update(args) {
-            if ctx.services.windows().windows.contains_key(&args.window_id) {
+            if Windows::req(ctx.services).windows.contains_key(&args.window_id) {
                 tracing::error!("view-process closed window without request");
                 let mut windows = LinearSet::with_capacity(1);
                 windows.insert(args.window_id);
@@ -516,7 +516,7 @@ impl Windows {
     pub(super) fn on_event<EV: EventUpdateArgs>(ctx: &mut AppContext, args: &EV) {
         if let Some(args) = WindowCloseRequestedEvent.update(args) {
             let key = args.windows.iter().next().unwrap();
-            if let Some(rsp) = ctx.services.windows().close_responders.remove(key) {
+            if let Some(rsp) = Windows::req(ctx.services).close_responders.remove(key) {
                 if !args.propagation().is_stopped() {
                     // close requested by us and not canceled.
                     WindowCloseEvent.notify(ctx.events, WindowCloseArgs::now(args.windows.clone()));
@@ -530,11 +530,11 @@ impl Windows {
             // causing the ViewWindow to drop and close.
 
             for w in &args.windows {
-                if let Some(w) = ctx.services.windows().windows.remove(w) {
+                if let Some(w) = Windows::req(ctx.services).windows.remove(w) {
                     let id = w.id;
                     w.close(ctx);
 
-                    let wns = ctx.services.windows();
+                    let wns = Windows::req(ctx.services);
                     let info = wns.windows_info.remove(&id).unwrap();
 
                     info.vars.0.is_open.set(ctx.vars, false);
@@ -547,7 +547,7 @@ impl Windows {
             }
 
             let is_headless_app = app::App::window_mode(ctx.services).is_headless();
-            let wns = ctx.services.windows();
+            let wns = Windows::req(ctx.services);
 
             // if set to exit on last headed window close in a headed app,
             // AND there is no more open headed window OR request for opening a headed window.
@@ -560,11 +560,11 @@ impl Windows {
                     .any(|w| matches!(w.force_headless, None | Some(WindowMode::Headed)))
             {
                 // fulfill `exit_on_last_close`
-                ctx.services.app_process().exit();
+                AppProcess::req(ctx.services).exit();
             }
         } else if let Some(args) = ExitRequestedEvent.update(args) {
             if !args.propagation().is_stopped() {
-                let windows = ctx.services.windows();
+                let windows = Windows::req(ctx.services);
                 if windows.windows_info.values().any(|w| w.mode == WindowMode::Headed) {
                     args.propagation().stop();
                     windows.exit_on_last_close = true;
@@ -597,7 +597,7 @@ impl Windows {
         }
 
         let (open, close, focus) = {
-            let wns = ctx.services.windows();
+            let wns = Windows::req(ctx.services);
             wns.take_requests()
         };
 
@@ -617,7 +617,7 @@ impl Windows {
 
             let args = WindowOpenArgs::now(window.id);
             {
-                let wns = ctx.services.windows();
+                let wns = Windows::req(ctx.services);
                 if wns.windows.insert(window.id, window).is_some() {
                     // id conflict resolved on request.
                     unreachable!();
@@ -629,7 +629,7 @@ impl Windows {
             WindowOpenEvent.notify(ctx, args);
         }
 
-        let wns = ctx.services.windows();
+        let wns = Windows::req(ctx.services);
 
         // notify close requests, the request is fulfilled or canceled
         // in the `event` handler.
@@ -671,9 +671,9 @@ impl Windows {
     /// The windows map is empty for the duration of `f` and should not be used, this is for
     /// mutating the window content while still allowing it to query the `Windows::windows_info`.
     fn with_detached_windows(ctx: &mut AppContext, f: impl FnOnce(&mut AppContext, &mut LinearMap<WindowId, AppWindow>)) {
-        let mut windows = mem::take(&mut ctx.services.windows().windows);
+        let mut windows = mem::take(&mut Windows::req(ctx.services).windows);
         f(ctx, &mut windows);
-        let mut wns = ctx.services.windows();
+        let mut wns = Windows::req(ctx.services);
         debug_assert!(wns.windows.is_empty());
         wns.windows = windows;
     }
@@ -730,14 +730,12 @@ impl AppWindow {
         mode: WindowMode,
         new: Box<dyn FnOnce(&mut WindowContext) -> Window>,
     ) -> (Self, AppWindowInfo) {
-        let primary_scale_factor = ctx
-            .services
-            .monitors()
+        let primary_scale_factor = Monitors::req(ctx.services)
             .primary_monitor(ctx.vars)
             .map(|m| m.scale_factor().copy(ctx.vars))
             .unwrap_or_else(|| 1.fct());
 
-        let vars = WindowVars::new(ctx.services.windows().default_render_mode, primary_scale_factor);
+        let vars = WindowVars::new(Windows::req(ctx.services).default_render_mode, primary_scale_factor);
         let mut state = OwnedStateMap::new();
         state.set(WindowVarsKey, vars.clone());
         let (window, _) = ctx.window_context(id, mode, &mut state, new);

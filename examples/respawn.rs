@@ -1,5 +1,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
-use zero_ui::core::app::view_process::ViewProcessExt;
+use zero_ui::core::app::view_process::ViewProcess;
 use zero_ui::prelude::*;
 
 // use zero_ui_view_prebuilt as zero_ui_view;
@@ -13,7 +13,7 @@ fn main() {
             start_position = StartPosition::CenterMonitor;
             on_key_down = hn!(|ctx, args: &KeyInputArgs| {
                 if args.key == Some(Key::F5) {
-                    ctx.services.view_process().respawn();
+                    ViewProcess::req(ctx.services).respawn();
                 }
             });
             foreground = window_status(ctx);
@@ -42,7 +42,7 @@ fn respawn() -> impl Widget {
     button! {
         content = text("Respawn (F5)");
         on_click = hn!(|ctx, _| {
-            ctx.services.view_process().respawn();
+            ViewProcess::req(ctx.services).respawn();
         });
     }
 }
@@ -52,7 +52,7 @@ fn crash_respawn() -> impl Widget {
     button! {
         content = text("Crash View-Process");
         on_click = hn!(|ctx, _| {
-            ctx.services.view_process().crash_view_process();
+            ViewProcess::req(ctx.services).crash_view_process();
         });
     }
 }

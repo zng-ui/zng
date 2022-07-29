@@ -152,14 +152,14 @@ impl Monitors {
 
     pub(super) fn on_pre_event<EV: EventUpdateArgs>(ctx: &mut AppContext, args: &EV) {
         if let Some(args) = RawScaleFactorChangedEvent.update(args) {
-            if let Some(m) = ctx.services.monitors().monitor(args.monitor_id) {
+            if let Some(m) = Monitors::req(ctx.services).monitor(args.monitor_id) {
                 m.scale_factor.set_ne(ctx.vars, args.scale_factor);
             }
         } else if let Some(args) = RawMonitorsChangedEvent.update(args) {
-            ctx.services.monitors().on_monitors_changed(ctx.events, ctx.vars, args);
+            Monitors::req(ctx.services).on_monitors_changed(ctx.events, ctx.vars, args);
         } else if let Some(args) = ViewProcessInitedEvent.update(args) {
             let args = RawMonitorsChangedArgs::new(args.timestamp, args.propagation().clone(), args.available_monitors.clone());
-            ctx.services.monitors().on_monitors_changed(ctx.events, ctx.vars, &args);
+            Monitors::req(ctx.services).on_monitors_changed(ctx.events, ctx.vars, &args);
         }
     }
 }

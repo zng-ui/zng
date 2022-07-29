@@ -11,6 +11,7 @@ use crate::context::*;
 use crate::crate_util::{PanicPayload, ReceiverExt};
 use crate::event::{event, event_args, AnyEventUpdate, BoxedEventUpdate, EventUpdate, EventUpdateArgs, Events};
 use crate::image::ImageManager;
+use crate::service::Services;
 use crate::timer::Timers;
 use crate::var::Vars;
 use crate::widget_info::{UpdateMask, UpdateSlot};
@@ -24,7 +25,7 @@ use crate::{
     window::{WindowId, WindowManager},
 };
 
-use self::view_process::{ViewProcess, ViewProcessExt, ViewProcessInitedArgs, ViewProcessInitedEvent};
+use self::view_process::{ViewProcess, ViewProcessInitedArgs, ViewProcessInitedEvent};
 use once_cell::sync::Lazy;
 use std::future::Future;
 use std::mem;
@@ -847,6 +848,11 @@ impl<E: AppExtension> RunningApp<E> {
         self.owned_ctx.vars()
     }
 
+    /// Borrow the [`Services`] only.
+    pub fn services(&mut self) -> &mut Services {
+        self.owned_ctx.services()
+    }
+
     /// Notify an event directly to the app extensions.
     pub fn notify_event<Ev: crate::event::Event, O: AppEventObserver>(&mut self, event: Ev, args: Ev::Args, observer: &mut O) {
         Self::notify_event_(&mut self.owned_ctx.borrow(), &mut self.extensions, event, args, observer);
@@ -921,7 +927,7 @@ impl<E: AppExtension> RunningApp<E> {
     }
 
     fn device_id(&mut self, id: zero_ui_view_api::DeviceId) -> DeviceId {
-        self.ctx().services.req::<ViewProcess>().device_id(id)
+        ViewProcess::req(self.ctx().services).device_id(id)
     }
 
     /// Process a View Process event.
@@ -960,7 +966,7 @@ impl<E: AppExtension> RunningApp<E> {
             }
             Event::WindowChanged(c) => {
                 let monitor_id = c.monitor.map(|(id, f)| {
-                    let view = self.ctx().services.req::<ViewProcess>();
+                    let view = ViewProcess::req(self.ctx().services);
                     (view.monitor_id(id), crate::units::Factor(f))
                 });
                 let args = RawWindowChangedArgs::now(
@@ -1049,14 +1055,14 @@ impl<E: AppExtension> RunningApp<E> {
                 windows,
                 scale_factor,
             } => {
-                let view = self.ctx().services.req::<ViewProcess>();
+                let view = ViewProcess::req(self.ctx().services);
                 let monitor_id = view.monitor_id(id);
                 let windows: Vec<_> = windows.into_iter().map(window_id).collect();
                 let args = RawScaleFactorChangedArgs::now(monitor_id, windows, scale_factor);
                 self.notify_event(RawScaleFactorChangedEvent, args, observer);
             }
             Event::MonitorsChanged(monitors) => {
-                let view = self.ctx().services.req::<ViewProcess>();
+                let view = ViewProcess::req(self.ctx().services);
                 let monitors: Vec<_> = monitors.into_iter().map(|(id, info)| (view.monitor_id(id), info)).collect();
                 let args = RawMonitorsChangedArgs::now(monitors);
                 self.notify_event(RawMonitorsChangedEvent, args, observer);
@@ -1071,13 +1077,13 @@ impl<E: AppExtension> RunningApp<E> {
             }
             Event::WindowOpened(w_id, data) => {
                 let w_id = window_id(w_id);
-                let (window, data) = self.ctx().services.req::<ViewProcess>().on_window_opened(w_id, data);
+                let (window, data) = ViewProcess::req(self.ctx().services).on_window_opened(w_id, data);
                 let args = RawWindowOpenArgs::now(w_id, window, data);
                 self.notify_event(RawWindowOpenEvent, args, observer);
             }
             Event::HeadlessOpened(w_id, data) => {
                 let w_id = window_id(w_id);
-                let (surface, data) = self.ctx().services.req::<ViewProcess>().on_headless_opened(w_id, data);
+                let (surface, data) = ViewProcess::req(self.ctx().services).on_headless_opened(w_id, data);
                 let args = RawHeadlessOpenArgs::now(w_id, surface, data);
                 self.notify_event(RawHeadlessOpenEvent, args, observer);
             }
@@ -1091,7 +1097,7 @@ impl<E: AppExtension> RunningApp<E> {
                 self.notify_event(RawWindowCloseEvent, args, observer);
             }
             Event::ImageMetadataLoaded { image: id, size, ppi } => {
-                let view = self.ctx().services.req::<ViewProcess>();
+                let view = ViewProcess::req(self.ctx().services);
                 if let Some(img) = view.on_image_metadata_loaded(id, size, ppi) {
                     let args = RawImageArgs::now(img);
                     self.notify_event(RawImageMetadataLoadedEvent, args, observer);
@@ -1104,32 +1110,32 @@ impl<E: AppExtension> RunningApp<E> {
                 opaque,
                 partial_bgra8,
             } => {
-                let view = self.ctx().services.req::<ViewProcess>();
+                let view = ViewProcess::req(self.ctx().services);
                 if let Some(img) = view.on_image_partially_loaded(id, partial_size, ppi, opaque, partial_bgra8) {
                     let args = RawImageArgs::now(img);
                     self.notify_event(RawImagePartiallyLoadedEvent, args, observer);
                 }
             }
             Event::ImageLoaded(image) => {
-                let view = self.ctx().services.req::<ViewProcess>();
+                let view = ViewProcess::req(self.ctx().services);
                 if let Some(img) = view.on_image_loaded(image) {
                     let args = RawImageArgs::now(img);
                     self.notify_event(RawImageLoadedEvent, args, observer);
                 }
             }
             Event::ImageLoadError { image: id, error } => {
-                let view = self.ctx().services.req::<ViewProcess>();
+                let view = ViewProcess::req(self.ctx().services);
                 if let Some(img) = view.on_image_error(id, error) {
                     let args = RawImageArgs::now(img);
                     self.notify_event(RawImageLoadErrorEvent, args, observer);
                 }
             }
             Event::ImageEncoded { image: id, format, data } => {
-                let view = self.ctx().services.req::<ViewProcess>();
+                let view = ViewProcess::req(self.ctx().services);
                 view.on_image_encoded(id, format, data)
             }
             Event::ImageEncodeError { image: id, format, error } => {
-                let view = self.ctx().services.req::<ViewProcess>();
+                let view = ViewProcess::req(self.ctx().services);
                 view.on_image_encode_error(id, format, error);
             }
             Event::FrameImageReady {
@@ -1138,7 +1144,7 @@ impl<E: AppExtension> RunningApp<E> {
                 image: image_id,
                 selection,
             } => {
-                let view = self.ctx().services.req::<ViewProcess>();
+                let view = ViewProcess::req(self.ctx().services);
                 if let Some(img) = view.on_frame_image_ready(image_id) {
                     let args = RawFrameImageReadyArgs::now(img, window_id(w_id), frame_id, selection);
                     self.notify_event(RawFrameImageReadyEvent, args, observer);
@@ -1220,7 +1226,7 @@ impl<E: AppExtension> RunningApp<E> {
         debug_assert!(ev.window != 0);
         // SAFETY: the value is not zero, we handle zeros in `push_coalesce`.
         let window_id = unsafe { WindowId::from_raw(ev.window) };
-        let view = self.ctx().services.view_process();
+        let view = ViewProcess::req(self.ctx().services);
         // view.on_frame_rendered(window_id); // already called in push_coalesce
         let image = ev.frame_image.map(|img| view.on_frame_image(img));
         let args = raw_events::RawFrameRenderedArgs::now(window_id, ev.frame, image);
@@ -1275,13 +1281,13 @@ impl<E: AppExtension> RunningApp<E> {
                 } => {
                     // notify immediately.
                     if is_respawn {
-                        self.ctx().services.req::<ViewProcess>().on_respawed(generation);
+                        ViewProcess::req(&mut self.ctx()).on_respawed(generation);
 
                         // discard pending events.
                         self.pending_app_events.clear();
                     }
 
-                    let view = self.ctx().services.req::<ViewProcess>();
+                    let view = ViewProcess::req(self.ctx().services);
                     view.handle_inited(generation);
 
                     let monitors: Vec<_> = available_monitors
@@ -1301,7 +1307,7 @@ impl<E: AppExtension> RunningApp<E> {
                 }
                 zero_ui_view_api::Event::Disconnected(gen) => {
                     // update ViewProcess immediately.
-                    self.ctx().services.view_process().handle_disconnect(gen);
+                    ViewProcess::req(self.ctx().services).handle_disconnect(gen);
                 }
                 ev => {
                     if let Some(last) = self.pending_view_events.last_mut() {
@@ -1746,6 +1752,11 @@ impl HeadlessApp {
         self.app.vars()
     }
 
+    /// Borrow the [`Services`] only.
+    pub fn services(&mut self) -> &mut Services {
+        self.app.services()
+    }
+
     /// If device events are enabled in this app.
     pub fn device_events(&self) -> bool {
         self.app.device_events()
@@ -1858,7 +1869,7 @@ impl HeadlessApp {
     /// Forces deinit if exit is cancelled.
     pub fn exit(mut self) {
         self.run_task(|ctx| async move {
-            let req = ctx.with(|ctx| ctx.services.app_process().exit());
+            let req = ctx.with(|ctx| AppProcess::req(ctx.services).exit());
             req.wait_rsp(&ctx).await;
         });
     }

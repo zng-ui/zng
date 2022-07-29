@@ -695,7 +695,7 @@
 //! # zero_ui::core::state_key! { pub struct FooKey: bool; }
 //! hn!(|ctx, _| {
 //!     let value_ref = foo_var.get(ctx.vars);
-//!     let service_ref = ctx.services.windows();
+//!     let service_ref = Windows::req(ctx.services);
 //!     let state_ref = ctx.widget_state.get(FooKey);
 //! })
 //! # }
@@ -723,7 +723,7 @@
 //! button! {
 //!     content = text("Open Window");
 //!     on_click = hn!(|ctx, _| {
-//!         ctx.services.req::<Windows>().open(|_| window! {
+//!         Windows::req(ctx).open(|_| window! {
 //!             content = text("Hello!");
 //!         });
 //!     });
@@ -731,9 +731,7 @@
 //! # ;
 //! ```
 //!
-//! The example above, requests the [`Windows`] services, and then creates an [`open`][win_open] request. Services usually
-//! have an extension trait that adds a method to [`Services`] that does the same thing, using the [`WindowsExt`]
-//! the request becomes `ctx.services.windows().open`.
+//! The example above, requests the [`Windows`] service, and then creates an [`open`][win_open] request.
 //!
 //! Acquiring a service reference exclusively borrows the [`Services`], but you can borrow more then one service at the same time:
 //!
@@ -853,7 +851,6 @@
 //! [`Service`]: crate::core::service::Service
 //! [`Services`]: crate::core::service::Services
 //! [`Windows`]: crate::core::window::Windows
-//! [`WindowsExt`]: crate::core::window::WindowsExt
 //! [win_open]: crate::core::window::Windows::open
 
 // to make the proc-macro $crate substitute work in doc-tests.
@@ -897,7 +894,7 @@ pub mod prelude {
 
     #[doc(no_inline)]
     pub use crate::core::{
-        app::{App, AppProcessExt},
+        app::App,
         async_clone_move,
         border::{BorderSides, BorderStyle, LineOrientation, LineStyle},
         clone_move,
@@ -908,13 +905,13 @@ pub mod prelude {
         command::{Command, CommandArgs, CommandInfoExt, CommandNameExt, CommandScope},
         context::{AppContext, WidgetContext, WindowContext},
         event::Events,
-        focus::{DirectionalNav, Focus, FocusChangedArgs, FocusExt, ReturnFocusChangedArgs, TabIndex, TabNav},
-        gesture::{shortcut, ClickArgs, CommandShortcutExt, GestureKey, GesturesExt, Shortcut, ShortcutArgs, Shortcuts},
+        focus::{DirectionalNav, Focus, FocusChangedArgs, ReturnFocusChangedArgs, TabIndex, TabNav},
+        gesture::{shortcut, ClickArgs, CommandShortcutExt, GestureKey, Shortcut, ShortcutArgs, Shortcuts},
         gradient::{stops, ExtendMode, GradientStop, GradientStops},
         handler::*,
-        image::{ImageSource, ImagesExt},
-        keyboard::{CharInputArgs, Key, KeyInputArgs, KeyState, KeyboardExt, ModifiersChangedArgs, ModifiersState},
-        mouse::{ButtonState, MouseButton, MouseExt, MouseMoveArgs},
+        image::ImageSource,
+        keyboard::{CharInputArgs, Key, KeyInputArgs, KeyState, ModifiersChangedArgs, ModifiersState},
+        mouse::{ButtonState, MouseButton, MouseMoveArgs},
         node_vec, nodes,
         render::RenderMode,
         service::Services,
@@ -941,9 +938,9 @@ pub mod prelude {
         widget_info::{InteractionPath, Visibility},
         widget_vec, widgets,
         window::{
-            AppRunWindowExt, AutoSize, CursorIcon, FocusIndicator, HeadlessAppWindowExt, MonitorId, MonitorQuery, MonitorsExt,
-            StartPosition, WidgetInfoChangedEvent, Window, WindowChangedArgs, WindowChrome, WindowCloseRequestedArgs, WindowIcon, WindowId,
-            WindowOpenArgs, WindowState, WindowVarsKey, Windows, WindowsExt,
+            AppRunWindowExt, AutoSize, CursorIcon, FocusIndicator, HeadlessAppWindowExt, MonitorId, MonitorQuery, StartPosition,
+            WidgetInfoChangedEvent, Window, WindowChangedArgs, WindowChrome, WindowCloseRequestedArgs, WindowIcon, WindowId,
+            WindowOpenArgs, WindowState, WindowVarsKey, Windows,
         },
         FillUiNode, NilUiNode, RcNode, UiNode, UiNodeList, Widget, WidgetId, WidgetList, WidgetPath,
     };
@@ -1089,7 +1086,7 @@ pub mod prelude {
         #[doc(no_inline)]
         pub use crate::core::handler::*;
         #[doc(no_inline)]
-        pub use crate::core::image::{Image, ImagesExt};
+        pub use crate::core::image::Image;
         #[doc(no_inline)]
         pub use crate::core::render::*;
         #[doc(no_inline)]

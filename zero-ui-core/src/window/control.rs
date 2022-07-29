@@ -13,7 +13,7 @@ use crate::{
     color::RenderColor,
     context::{LayoutContext, OwnedStateMap, WindowContext, WindowRenderUpdate, WindowUpdates},
     event::EventUpdateArgs,
-    image::{Image, ImageVar, ImagesExt},
+    image::{Image, ImageVar, Images},
     render::{FrameBuilder, FrameId, FrameUpdate, UsedFrameBuilder, UsedFrameUpdate},
     text::Fonts,
     units::*,
@@ -26,9 +26,9 @@ use crate::{
 };
 
 use super::{
-    commands::WindowCommands, FrameCaptureMode, FrameImageReadyArgs, FrameImageReadyEvent, HeadlessMonitor, MonitorInfo,
-    MonitorsChangedEvent, MonitorsExt, StartPosition, Window, WindowChangedArgs, WindowChangedEvent, WindowChrome, WindowIcon, WindowId,
-    WindowMode, WindowVars, WindowsExt,
+    commands::WindowCommands, FrameCaptureMode, FrameImageReadyArgs, FrameImageReadyEvent, HeadlessMonitor, MonitorInfo, Monitors,
+    MonitorsChangedEvent, StartPosition, Window, WindowChangedArgs, WindowChangedEvent, WindowChrome, WindowIcon, WindowId, WindowMode,
+    WindowVars, Windows,
 };
 
 /// Implementer of `App <-> View` sync in a headed window.
@@ -146,7 +146,7 @@ impl HeadedCtrl {
                 let mut new_state = prev_state.clone();
 
                 if let Some(query) = self.vars.monitor().get_new(ctx.vars) {
-                    let monitors = ctx.services.monitors();
+                    let monitors = Monitors::req(ctx.services);
 
                     if self.monitor.is_none() {
                         let monitor = query.select_fallback(ctx.vars, monitors);
@@ -338,7 +338,7 @@ impl HeadedCtrl {
             }
 
             if let Some(indicator) = self.vars.focus_indicator().copy_new(ctx) {
-                if ctx.services.windows().is_focused(*ctx.window_id).unwrap_or(false) {
+                if Windows::req(ctx.services).is_focused(*ctx.window_id).unwrap_or(false) {
                     self.vars.focus_indicator().set_ne(ctx, None);
                 } else if let Some(view) = &self.window {
                     let _ = view.set_focus_indicator(indicator);
@@ -438,7 +438,7 @@ impl HeadedCtrl {
             if args.window_id == self.window_id {
                 self.waiting_view = false;
 
-                ctx.services.windows().set_renderer(*ctx.window_id, args.window.renderer());
+                Windows::req(ctx.services).set_renderer(*ctx.window_id, args.window.renderer());
 
                 self.window = Some(args.window.clone());
                 self.vars.0.render_mode.set_ne(ctx, args.data.render_mode);
@@ -520,7 +520,12 @@ impl HeadedCtrl {
 
     /// First layout, opens the window.
     fn layout_init(&mut self, ctx: &mut WindowContext) {
-        self.monitor = Some(self.vars.monitor().get(ctx.vars).select_fallback(ctx.vars, ctx.services.monitors()));
+        self.monitor = Some(
+            self.vars
+                .monitor()
+                .get(ctx.vars)
+                .select_fallback(ctx.vars, Monitors::req(ctx.services)),
+        );
 
         let m = self.monitor.as_ref().unwrap();
         let scale_factor = m.scale_factor().copy(ctx);
@@ -599,13 +604,13 @@ impl HeadedCtrl {
             cursor: self.vars.cursor().copy(ctx),
             transparent: self.transparent,
             capture_mode: matches!(self.vars.frame_capture_mode().get(ctx), FrameCaptureMode::All),
-            render_mode: self.render_mode.unwrap_or_else(|| ctx.services.windows().default_render_mode),
+            render_mode: self.render_mode.unwrap_or_else(|| Windows::req(ctx.services).default_render_mode),
 
             focus: self.start_focused,
             focus_indicator: self.vars.focus_indicator().copy(ctx),
         };
 
-        match ctx.services.view_process().open_window(request) {
+        match ViewProcess::req(ctx.services).open_window(request) {
             Ok(()) => {
                 self.state = Some(state);
                 self.waiting_view = true;
@@ -681,7 +686,12 @@ impl HeadedCtrl {
     /// First layout after respawn, opens the window but used previous sizes.
     fn layout_respawn(&mut self, ctx: &mut WindowContext) {
         if self.monitor.is_none() {
-            self.monitor = Some(self.vars.monitor().get(ctx.vars).select_fallback(ctx.vars, ctx.services.monitors()));
+            self.monitor = Some(
+                self.vars
+                    .monitor()
+                    .get(ctx.vars)
+                    .select_fallback(ctx.vars, Monitors::req(ctx.services)),
+            );
         }
 
         self.layout_update(ctx);
@@ -704,13 +714,13 @@ impl HeadedCtrl {
             cursor: self.vars.cursor().copy(ctx),
             transparent: self.transparent,
             capture_mode: matches!(self.vars.frame_capture_mode().get(ctx), FrameCaptureMode::All),
-            render_mode: self.render_mode.unwrap_or_else(|| ctx.services.windows().default_render_mode),
+            render_mode: self.render_mode.unwrap_or_else(|| Windows::req(ctx.services).default_render_mode),
 
-            focus: ctx.services.windows().is_focused(self.window_id).unwrap_or(false),
+            focus: Windows::req(ctx.services).is_focused(self.window_id).unwrap_or(false),
             focus_indicator: self.vars.focus_indicator().copy(ctx),
         };
 
-        match ctx.services.view_process().open_window(request) {
+        match ViewProcess::req(ctx.services).open_window(request) {
             Ok(()) => self.waiting_view = true,
             Err(ViewProcessOffline) => {} // respawn.
         }
@@ -752,9 +762,9 @@ impl HeadedCtrl {
                     cfg.scale_factor = Some(vars.0.scale_factor.copy(ctx.vars));
                 }
 
-                Some(ctx.services.images().cache(ImageSource::Render(ico, cfg)))
+                Some(Images::req(ctx.services).cache(ImageSource::Render(ico, cfg)))
             }
-            WindowIcon::Image(source) => Some(ctx.services.images().cache(source.clone())),
+            WindowIcon::Image(source) => Some(Images::req(ctx.services).cache(source.clone())),
         };
 
         if let Some(ico) = &icon {
@@ -830,7 +840,7 @@ impl HeadlessWithRendererCtrl {
             if args.window_id == *ctx.window_id {
                 self.waiting_view = false;
 
-                ctx.services.windows().set_renderer(args.window_id, args.surface.renderer());
+                Windows::req(ctx.services).set_renderer(args.window_id, args.surface.renderer());
 
                 self.surface = Some(args.surface.clone());
                 self.vars.0.render_mode.set_ne(ctx.vars, args.data.render_mode);
@@ -916,9 +926,9 @@ impl HeadlessWithRendererCtrl {
             // (re)spawn the view surface:
 
             let window_id = *ctx.window_id;
-            let render_mode = self.render_mode.unwrap_or_else(|| ctx.services.windows().default_render_mode);
+            let render_mode = self.render_mode.unwrap_or_else(|| Windows::req(ctx.services).default_render_mode);
 
-            let r = ctx.services.view_process().open_headless(HeadlessRequest {
+            let r = ViewProcess::req(ctx.services).open_headless(HeadlessRequest {
                 id: window_id.get(),
                 scale_factor: scale_factor.0,
                 size,
@@ -1085,7 +1095,7 @@ impl HeadlessSimulator {
 
     pub fn focus(&mut self, ctx: &mut WindowContext) {
         let mut prev = None;
-        if let Some(id) = ctx.services.windows().focused_window_id() {
+        if let Some(id) = Windows::req(ctx.services).focused_window_id() {
             prev = Some(id);
         }
         let args = RawWindowFocusArgs::now(prev, Some(*ctx.window_id));
@@ -1192,9 +1202,7 @@ impl ContentCtrl {
             self.info_tree = info.clone();
             self.used_info_builder = Some(used);
 
-            ctx.services
-                .windows()
-                .set_widget_tree(ctx.events, info, self.layout_requested, !self.render_requested.is_none());
+            Windows::req(ctx.services).set_widget_tree(ctx.events, info, self.layout_requested, !self.render_requested.is_none());
         }
 
         if updates.subscriptions {
@@ -1203,9 +1211,7 @@ impl ContentCtrl {
                 self.root.subscriptions(ctx, &mut subscriptions);
                 subscriptions
             });
-            ctx.services
-                .windows()
-                .set_subscriptions(self.info_tree.window_id(), self.subs.clone());
+            Windows::req(ctx).set_subscriptions(self.info_tree.window_id(), self.subs.clone());
         }
     }
 

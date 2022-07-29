@@ -830,7 +830,7 @@ mod tests {
 
         use crate::window::*;
         let mut app = App::default().run_headless(false);
-        app.ctx().services.windows().open(move |_| crate::window::Window::new_test(root));
+        Windows::req(app.ctx().services).open(move |_| crate::window::Window::new_test(root));
         let _ = app.update(false);
         app
     }

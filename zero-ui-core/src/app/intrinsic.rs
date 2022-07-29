@@ -65,13 +65,13 @@ impl AppExtension for AppIntrinsic {
     fn event_preview<EV: EventUpdateArgs>(&mut self, ctx: &mut AppContext, args: &EV) {
         if let Some(args) = ExitCommand.update(args) {
             args.handle_enabled(&self.exit_handle, |_| {
-                ctx.services.app_process().exit();
+                AppProcess::req(ctx.services).exit();
             });
         }
     }
 
     fn update(&mut self, ctx: &mut AppContext) {
-        if let Some(response) = ctx.services.app_process().take_requests() {
+        if let Some(response) = AppProcess::req(ctx.services).take_requests() {
             let args = ExitRequestedArgs::now();
             self.pending_exit = Some(PendingExit {
                 handle: args.propagation().clone(),

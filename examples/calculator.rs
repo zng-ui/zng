@@ -235,10 +235,10 @@ impl Calculator {
 fn set_fallback_font(ctx: &mut WindowContext) {
     use zero_ui::core::text::*;
 
-    let fonts = ctx.services.fonts();
+    let fonts = Fonts::req(ctx.services);
     let und = lang!(und);
     if fonts
-        .get_list(
+        .list(
             &FontNames::system_ui(&und),
             FontStyle::Normal,
             FontWeight::NORMAL,

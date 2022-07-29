@@ -8,7 +8,7 @@ use crate::{
     var::*,
 };
 
-use super::{WindowId, WindowState, WindowVars, WindowsExt};
+use super::{WindowId, WindowState, WindowVars, Windows};
 
 command! {
     /// Represents the window **close** action.
@@ -177,7 +177,7 @@ impl WindowCommands {
             });
         } else if let Some(args) = CloseCommand.scoped(scope).update(args) {
             args.handle_enabled(&self.close_handle, |_| {
-                let _ = ctx.services.windows().close(scope);
+                let _ = Windows::req(ctx.services).close(scope);
             });
         } else if let Some(args) = FullscreenCommand.scoped(scope).update(args) {
             args.handle_enabled(&self.fullscreen_handle, |_| {

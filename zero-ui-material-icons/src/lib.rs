@@ -17,7 +17,7 @@ use zero_ui::{
     core::{
         app::AppExtension,
         impl_from_and_into_var,
-        text::{CustomFont, FontDataRef, FontName, Fonts, FontsExt},
+        text::{CustomFont, FontDataRef, FontName, Fonts},
     },
     widgets::icon::GlyphIcon,
 };
@@ -50,7 +50,7 @@ impl MaterialFonts {
 #[cfg(feature = "embedded")]
 impl AppExtension for MaterialFonts {
     fn init(&mut self, ctx: &mut zero_ui::prelude::AppContext) {
-        Self::register(ctx.services.fonts())
+        Self::register(Fonts::req(ctx.services))
     }
 }
 

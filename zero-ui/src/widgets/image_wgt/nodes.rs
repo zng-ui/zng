@@ -66,7 +66,7 @@ pub fn image_source(child: impl UiNode, source: impl IntoVar<ImageSource>) -> im
                 }
             }
 
-            self.img = ctx.services.images().get(source, mode, limits);
+            self.img = Images::req(ctx.services).image(source, mode, limits);
 
             self.ctx_img.set(ctx.vars, self.img.get_clone(ctx.vars));
             self.ctx_binding = Some(self.img.bind(ctx.vars, &self.ctx_img));
@@ -109,13 +109,13 @@ pub fn image_source(child: impl UiNode, source: impl IntoVar<ImageSource>) -> im
                 };
                 let limits = ImageLimitsVar::get_clone(ctx);
 
-                self.img = ctx.services.images().get(source, mode, limits);
+                self.img = Images::req(ctx.services).image(source, mode, limits);
 
                 self.ctx_img.set(ctx.vars, self.img.get_clone(ctx.vars));
                 self.ctx_binding = Some(self.img.bind(ctx.vars, &self.ctx_img));
             } else if let Some(enabled) = ImageCacheVar::clone_new(ctx) {
                 // cache-mode update:
-                let images = ctx.services.images();
+                let images = Images::req(ctx.services);
                 let is_cached = images.is_cached(self.ctx_img.get(ctx.vars));
                 if enabled != is_cached {
                     self.img = if is_cached {
@@ -128,7 +128,7 @@ pub fn image_source(child: impl UiNode, source: impl IntoVar<ImageSource>) -> im
 
                         let source = self.source.get_clone(ctx);
                         let limits = ImageLimitsVar::get_clone(ctx);
-                        ctx.services.images().get(source, ImageCacheMode::Cache, limits)
+                        Images::req(ctx.services).image(source, ImageCacheMode::Cache, limits)
                     };
 
                     self.ctx_img.set(ctx.vars, self.img.get_clone(ctx.vars));
@@ -149,7 +149,7 @@ pub fn image_source(child: impl UiNode, source: impl IntoVar<ImageSource>) -> im
                         ImageCacheMode::Ignore
                     };
                     let limits = ImageLimitsVar::get_clone(ctx);
-                    let img = ctx.services.images().get(source, mode, limits);
+                    let img = Images::req(ctx.services).image(source, mode, limits);
 
                     self.ctx_img.set(ctx.vars, img.get_clone(ctx.vars));
                     self.ctx_binding = Some(img.bind(ctx.vars, &self.ctx_img));
